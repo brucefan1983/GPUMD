@@ -1,0 +1,18 @@
+potential    potentials/tersoff/c_tersoff_fan_2017.txt  
+velocity     300
+
+ensemble     nvt_ber 300 300 0.01
+fix          0
+time_step    1 
+dump_thermo  1000        
+run          1000000
+
+ensemble     heat_nhc 300 50 10 1 8 
+fix          0
+compute_temp 1000
+compute_shc  2 250 100000 4 5
+run          2000000
+
+
+
+

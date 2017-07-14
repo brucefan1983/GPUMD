@@ -1,0 +1,27 @@
+potential   potentials/tersoff/si_tersoff_1989.txt
+velocity    1
+
+ensemble    npt_ber 1 1 0.01 0 0 0 0.0005
+time_step   1
+dump_thermo 100
+run         100000
+
+ensemble    npt_ber 200 200 0.01 0 0 0 0.0005
+dump_thermo 100
+run         100000
+
+ensemble    npt_ber 400 400 0.01 0 0 0 0.0005
+dump_thermo 100
+run         100000
+
+ensemble    npt_ber 600 600 0.01 0 0 0 0.0005
+dump_thermo 100
+run         100000
+
+ensemble    npt_ber 800 800 0.01 0 0 0 0.0005
+dump_thermo 100
+run         100000
+
+ensemble    npt_ber 1000 1000 0.01 0 0 0 0.0005
+dump_thermo 100
+run         100000
