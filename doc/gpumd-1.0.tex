@@ -116,7 +116,7 @@ Apart from being highly efficient, another unique feature of GPUMD is that it ha
 \begin{itemize}
 \item It can calculate the phonon density of states (DOS) from the velocity autocorrelation function (VAC), using the method of Dickey and Paskin \cite{dickey1969pr}.
 \item It can calculate equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity according to the Green-Kubo relation \cite{green1954jcp,kubo1957jpsj}. As stressed in Ref. \cite{fan2015prb}, the heat current as implemented in LAMMPS \cite{plimpton1995jcp} does not apply to many-body potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. \cite{fan2017prb}, which is essential for 2D materials.
-\item It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decompositions method as described in Ref. \cite{fan2017prb} has also been implemented.
+\item It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. \cite{fan2017prb} has also been implemented.
 \end{itemize}
 
 
@@ -2307,7 +2307,7 @@ The \verb"run.in" file for this example reads:
     #-------------------------------------------------------------------
 \end{verbatim}
 
-In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_hac" ``ensemble'' type is used to generate the nonequilibrium heat flux.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures will be output every 1000 integration steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat flux correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat flux considered flows from group 4 to group 5 (the middle interface of the simulated system).
+In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_nhc" ``ensemble'' type is used to generate the nonequilibrium heat flux.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures will be output every 1000 integration steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat flux correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat flux considered flows from group 4 to group 5 (the middle interface of the simulated system).
 
 
 \begin{figure}[ht]
@@ -2321,7 +2321,7 @@ In this simulation, we fix the lattice constant and only control the temperature
 This simulation takes about 40 min using a Tesla K40 card. Figure \ref{figure:ex4a} shows the results obtained from the \verb"temperature.out" file:
 \begin{itemize}
 \item (a): The block temperatures show a relatively smooth profile, but no clear linear region can be identified. Actually, heat transport here is ballistic and we do not expect to find a well defined temperature gradient (which is need for computing the thermal conductivity). What is important is that a well defined temperature difference (20 K), which is needed for computing the ballistic thermal conductance, can be established.
-\item (b): A steady energy exchange between the system and the thermostats in the source and sink regions has been well established. The conequilibrium heat current can be estimated to be about $Q=4.2$ eV/ps. Then a ballistic conductance of about $G=10.2$ GW m$^{-2}$ K$^{-1}$ can be obtained. This classical value overestimates the correct one and we will add discussion about quantum corrections after some of our submitted manuscripts get published.
+\item (b): A steady energy exchange between the system and the thermostats in the source and sink regions has been well established. The nonequilibrium heat current can be estimated to be about $Q=4.2$ eV/ps. Then a ballistic conductance of about $G=10.2$ GW m$^{-2}$ K$^{-1}$ can be obtained. This classical value overestimates the correct one and we will add discussion about quantum corrections after some of our submitted manuscripts get published.
 \end{itemize}
 
 
