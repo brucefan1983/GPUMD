@@ -12,9 +12,18 @@
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of GPUMD can calculate the following quantities related to heat transport:
    * It can calculate the phonon density of states (DOS) from the velocity auto correlation (VAC).
    * It can calculate the equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity   according to the Green-Kubo relation. As stressed in Ref. [2], the heat current as implemented in LAMMPS does not apply to many-body  potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. [3], which is essential for 2D materials.
-   * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decompositions method as describ ed in Ref. [3] has also been implemented.
+   * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decomposition method as describ ed in Ref. [3] has also been implemented.
      
 * GPUMD was firstly used for heat transport simulations only but we are now making it more and more general.
+
+
+
+* Compile GPUMD
+   * To compile GPUMD, one just needs to go to the *src* directory and type *make*. one may want to first do *make clean*. When the compilation finishes, an excitable named *gpumd* will be generated in the *src* directory.
+
+
+
+
 
 
 # Citations
