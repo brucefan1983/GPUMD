@@ -10,9 +10,9 @@
    * The Stillinger-Weber (1985) potential
    
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of GPUMD can calculate the following quantities related to heat transport:
-   * It can calculate the phonon density of states (DOS) from the velocity auto correlation (VAC).
-   * It can calculate the equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity   according to the Green-Kubo relation. As stressed in Ref. [2], the heat current as implemented in LAMMPS does not apply to many-body  potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. [3], which is essential for 2D materials.
-   * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decomposition method as describ ed in Ref. [3] has also been implemented.
+   * It can calculate the phonon density of states (DOS) from the velocity autocorrelation (VAC).
+   * It can calculate the equilibrium heat current autocorrelation (HAC), whose time integral gives the running thermal conductivity   according to the Green-Kubo relation. As stressed in Ref. [2], the heat current as implemented in LAMMPS does not apply to many-body  potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. [3], which is essential for 2D materials.
+   * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using nonequilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. [3] has also been implemented.
      
 * GPUMD was firstly used for heat transport simulations only but we are now making it more and more general.
 
@@ -22,8 +22,9 @@
 
 # Run GPUMD
 
-* Take the first example in the "examples" director for example, one can use the following command to run it:
+* Take the first example in the "examples" directory for example, one can use the following command to run it:
   * src/gpumd < examples/input1.txt
+* Please to read the manual to study the examples. These examples should get you started. 
   
 # Authors:
 
@@ -34,6 +35,10 @@
 * Ville Vierimaa (Aalto University)  
 * Mikko Ervasti (Aalto University)  
 * Ari Harju (Aalto University) 
+
+# Feedbacks:
+
+There is a comprehensive manual in the "doc" directory. You can e-mail the first author (Zheyong Fan) if you find errors in the manual or bugs in the source code, or have any suggestions/questions about the manual and code. Thank you!
 
 # Citations
 
