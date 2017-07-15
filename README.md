@@ -27,6 +27,15 @@
 * Take the first example in the "examples" director for example, one can use the following command to run it:
   * src/gpumd < examples/input1.txt
   
+# Authors:
+
+* Zheyong Fan (Aalto University)
+  * brucenju(at)gmail.com
+  * zheyong.fan@aalto.fi
+  * zheyongfan@163.com
+* Ville Vierimaa (Aalto University)  
+* Mikko Ervasti (Aalto University)  
+* Ari Harju (Aalto University) 
 
 # Citations
 
