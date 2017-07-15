@@ -16,8 +16,6 @@
      
 * GPUMD was firstly used for heat transport simulations only but we are now making it more and more general.
 
-
-
 # Compile GPUMD
 
 * To compile GPUMD, one just needs to go to the "src" directory and type "make". one may want to first do "make clean". When the compilation finishes, an excitable named "gpumd" will be generated in the "src" directory. See the manual in the "doc" directory for details.
@@ -31,8 +29,8 @@
 
 * Zheyong Fan (Aalto University)
   * brucenju(at)gmail.com
-  * zheyong.fan@aalto.fi
-  * zheyongfan@163.com
+  * zheyong.fan(at)aalto.fi
+  * zheyongfan(at)163.com
 * Ville Vierimaa (Aalto University)  
 * Mikko Ervasti (Aalto University)  
 * Ari Harju (Aalto University) 
