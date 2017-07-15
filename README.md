@@ -4,8 +4,6 @@
 
 * GPUMD stands for Graphics Processing Units Molecular Dynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). This code is highly efficient. For details, see Ref. [1].
 
-* It was firstly used for heat transport simulations only but we are now making it more and more general.
-
 * Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. We have implemented the following many-body potentials in GPUMD:
    * The EAM-type potential with some analytical forms
    * The Tersoff (1989) potential with single or double atom types
@@ -20,6 +18,9 @@
    * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an 
      interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decompositions method as describ ed in Ref. [3] 
      has also been implemented.
+     
+* GPUMD was firstly used for heat transport simulations only but we are now making it more and more general.
+
 
 # Citations
 
