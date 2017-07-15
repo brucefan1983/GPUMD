@@ -20,9 +20,13 @@
 
 # Compile GPUMD
 
-* To compile GPUMD, one just needs to go to the *src* directory and type *make*. one may want to first do *make clean*. When the compilation finishes, an excitable named *gpumd* will be generated in the *src* directory. See the manual in the * doc * directory for details.
+* To compile GPUMD, one just needs to go to the "src" directory and type "make". one may want to first do "make clean". When the compilation finishes, an excitable named "gpumd" will be generated in the "src" directory. See the manual in the "doc" directory for details.
 
+# Run GPUMD
 
+* Take the first example in the "examples" director for example, one can use the following command to run it:
+  * src/gpumd < examples/input1.txt
+  
 
 # Citations
 
