@@ -6,10 +6,20 @@
 
 * It was firstly used for heat transport simulations only but we are now making it more and more general.
 
-* Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have b een presented in Ref. [1]. We have implemented the following many-body potentials in GPUMD:
+* Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. We have implemented the following many-body potentials in GPUMD:
    * The EAM-type potential with some analytical forms
    * The Tersoff (1989) potential with single or double atom types
    * The Stillinger-Weber (1985) potential
+   
+* Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of GPUMD can calculate the following quantities related to heat transport:
+   * It can calculate the phonon density of states (DOS) from the velocity auto correlationfunction (VAC).
+   * It can calculate the equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity  
+     according to the Green-Kubo relation. As stressed in Ref. [2], the heat current as implemented in LAMMPS does not apply to many-body  
+     potentials and significantly underestimates the thermal conductivity in 2D materials describ ed by many-body potentials. 
+     GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. [3], which is essential for 2D materials.
+   * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an 
+     interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decompositions method as describ ed in Ref. [3] 
+     has also been implemented.
 
 # Citations
 
