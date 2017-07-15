@@ -18,11 +18,9 @@
 
 
 
-* Compile GPUMD
-   * To compile GPUMD, one just needs to go to the *src* directory and type *make*. one may want to first do *make clean*. When the compilation finishes, an excitable named *gpumd* will be generated in the *src* directory.
+# Compile GPUMD
 
-
-
+* To compile GPUMD, one just needs to go to the *src* directory and type *make*. one may want to first do *make clean*. When the compilation finishes, an excitable named *gpumd* will be generated in the *src* directory. See the manual in the * doc * directory for details.
 
 
 
