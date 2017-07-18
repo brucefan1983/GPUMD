@@ -24,7 +24,7 @@
 
 * Take the first example in the "examples" directory for example, one can use the following command to run it:
   * src/gpumd < examples/input1.txt
-* Please to read the manual to study the examples. These examples should get you started. 
+* Please read the manual to study the examples. These examples should get you started. 
   
 # Authors:
 
