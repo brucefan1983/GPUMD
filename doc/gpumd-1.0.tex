@@ -52,7 +52,7 @@
 
 \section{What is GPUMD?}
 
-GPUMD stands for \textbf{G}raphics \textbf{P}rocessing \textbf{U}nits \textbf{M}olecular \textbf{D}ynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). It was firstly used for heat transport simulations only but we are now making it more and more general.
+GPUMD stands for \textbf{G}raphics \textbf{P}rocessing \textbf{U}nits \textbf{M}olecular \textbf{D}ynamics. It is a new molecular dynamics (MD) code fully implemented on graphics processing units (GPUs). It was firstly used for heat transport simulations only but we are now making it more and more general.
 
 
 \section{Citations}
@@ -100,7 +100,7 @@ We acknowledge the computational resources provided by Aalto Science-IT project 
 
 \section{GPU-accelerated force evaluation for many-body potentials}
 
-One of the major features of GPUMD is that force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU-implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. \cite{fan2015prb}. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. \cite{fan2017cpc}.
+One of the major features of GPUMD is that force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU-implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. \cite{fan2015prb}. Detailed algorithms for the efficient CUDA-implementation have been presented in Ref. \cite{fan2017cpc}.
 
 Using the methods as described in Refs. \cite{fan2015prb,fan2017cpc}, we have implemented various many-body potentials in GPUMD, including:
 \begin{itemize}
@@ -115,7 +115,7 @@ More many-body potentials will be implemented in GPUMD in future versions.
 Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of GPUMD can calculate the following quantities related to heat transport:
 \begin{itemize}
 \item It can calculate the phonon density of states (DOS) from the velocity autocorrelation function (VAC), using the method of Dickey and Paskin \cite{dickey1969pr}.
-\item It can calculate equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity according to the Green-Kubo relation \cite{green1954jcp,kubo1957jpsj}. As stressed in Ref. \cite{fan2015prb}, the heat current as implemented in LAMMPS \cite{plimpton1995jcp} does not apply to many-body potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. \cite{fan2017prb}, which is essential for 2D materials.
+\item It can calculate the equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity according to the Green-Kubo relation \cite{green1954jcp,kubo1957jpsj}. As stressed in Ref. \cite{fan2015prb}, the heat current as implemented in LAMMPS \cite{plimpton1995jcp} does not apply to many-body potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. \cite{fan2017prb}, which is essential for 2D materials.
 \item It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. \cite{fan2017prb} has also been implemented.
 \end{itemize}
 
@@ -142,7 +142,7 @@ The current version of GPUMD only supports orthogonal simulation boxes. Triclini
 GPUMD has the following two versions for neighbor list construction and automatically chooses an appropriate one according to the inputs:
   \begin{itemize}
   \item an $O(N^2)$ method which builds the Verlet neighbor list by directly checking the distance between one particle and all the other particles in the simulation box
-  \item an $O(N)$ method which first builds a cell list and then converts to the Verlet neighbor list
+  \item an $O(N)$ method which first builds a cell list and then converts the cell list to the Verlet neighbor list
   \end{itemize}
 When the neighbor list is required to be updated during a simulation, one only has to specify a skin distance and the code will automatically determine when the neighbor list needs to be updated.
 
@@ -151,16 +151,16 @@ When the neighbor list is required to be updated during a simulation, one only h
 The velocity-Verlet \cite{swope1982jcp} integration scheme is used for all the ensembles.
 The supported ensembles and the adopted methods are
   \begin{itemize}
-  \item the NVE ensemble
-  \item the NVT ensemble
+  \item the $NVE$ ensemble
+  \item the $NVT$ ensemble
     \begin{itemize}
     \item the Berendsen method  \cite{berendsen1984jcp}
     \item the Nos\'{e}-Hoover chain method \cite{nose1984jcp,hoover1985pra,martyna1992jcp,martyna1996mp,tuckerman2010}
         with a fixed chain length of 4.
     \end{itemize}
-  \item the NPT ensemble
+  \item the $NPT$ ensemble
     \begin{itemize}
-    \item the Berendsen method  \cite{berendsen1984jcp} with the pressures in each direction controlled independently
+    \item the Berendsen method  \cite{berendsen1984jcp} with the pressure in each direction controlled independently
     \end{itemize}
   \end{itemize}
 
@@ -302,7 +302,7 @@ In this kernel, the block size is $S_b$ and the grid size is $\left \lceil {N/S_
 \subsection{A linear-scaling method}
 
 
-In this method, one partitions the system into cells and only searches for neighbors of a given particle in a small number of cells. In 3D, the there are $3^3=27$ cells to be searched, which does not scale with $N$. The overall computational effort of this method scales as $27N_0N \sim N$, where $N_0$ is the average number of particles in one cell. Therefore, this is a linear-scaling, or $O(N)$ method.
+In this method, one partitions the system into cells and only searches for neighbors of a given particle in a small number of cells. In 3D, there are $3^3=27$ cells to be searched, which does not scale with $N$. The overall computational effort of this method scales as $27N_0N \sim N$, where $N_0$ is the average number of particles in one cell. Therefore, this is a linear-scaling, or $O(N)$ method.
 
 When periodic boundary conditions are applied, the number of cells in each direction is determined as
 \begin{equation}
@@ -357,7 +357,7 @@ We then calculate the prefix sum (exclusive scan) $S_n$ of $C_n$:
 S_0 = 0;
 \end{equation}
 \begin{equation}
-S_n = \sum_{m=0}^{n-1} C_n \quad (0 \leq n \leq N_c).
+S_n = \sum_{m=0}^{n-1} C_m \quad (1 \leq n \leq N_c-1).
 \end{equation}
 For this, we use the \verb"thrust::exclusive_scan" function from the thrust library.
 
@@ -383,7 +383,7 @@ Now we can determine which particles are in which cells. We define a one-dimensi
  \end{algorithmic}
 \end{algorithm}
 
-Up to now, the so-called cell list has been constructed. The remaining task is to convert the cell list to the Verlet neighbor list. This can be done by a CUDA kernel similar to that for the $O(N^2)$ method. A pseudo code is presented in Algorithm \ref{algorithm:convert}.
+Up to now, the so-called cell list has been constructed. The remaining task is to convert the cell list to the Verlet neighbor list. This can be done by using a CUDA kernel similar to that for the $O(N^2)$ method. A pseudo code is presented in Algorithm \ref{algorithm:convert}.
 
 \begin{algorithm}[htb]
 \caption{Construct the Verlet neighbour list from the cell list}
@@ -395,7 +395,7 @@ Up to now, the so-called cell list has been constructed. The remaining task is t
 \Require $i=S_b\times b+t$ is the particle index
 \Require $N$ is the number of particles
 \Require $r_c^2$ is the square of the cutoff distance for building the neighbor list
-\Require $C_n$ is the number of particles in cell $n$ and has been initialized to 0
+\Require $C_n$ is the number of particles in cell $n$
 \Require $S_n$ is the prefix sum of $C_n$ as defined in the text
 \Require $I_{S_n}$ to $I_{S_n + C_n - 1}$ are the indices of the particle in cell $n$
 \Require NN$_{i}$ is the number neighbors for particle $i$
@@ -431,7 +431,7 @@ We note that the computation time used for the construction of the cell list is 
 
 The $O(N)$ version is faster than the $O(N^2)$ version in most cases. But sometimes we still use the $O(N^2)$ version. Here are the choices made in GPUMD:
 \begin{itemize}
-\item If the number of cells in any direction with periodic boundary conditions is less than 3, the $O(N)$ version is not applicable (as some neighbors will be counted twice) and the $O(N^2)$ version will be used. Therefore, if you hope the $O(N)$ version will be used, you should make sure that the number of cells in any direction with periodic boundary conditions is no less than 3.
+\item If the number of cells in any direction with periodic boundary conditions is less than 3, the $O(N)$ version is not applicable (as some neighbors will be counted twice) and the $O(N^2)$ version will be used. Therefore, if you hope to use the $O(N)$ version, you should make sure that the number of cells in any direction with periodic boundary conditions is no less than 3.
 \item The $O(N^2)$ version is only faster when the number of cells is very small. Take a 3D system with periodic boundary conditions in each direction for example, when the number of cells in each direction is 3, the $O(N^2)$ version is definitely faster than the $O(N)$ version, but the $O(N)$ version is already faster when the number of cells in each direction is 4. After doing some tests, we have decided to use the $O(N)$ version whenever the total number of cells is larger than 50. This might not be always optimal but is not a bad choice.
 \item The $O(N^2)$ version is deterministic, but the $O(N)$ version contains randomness, due to the use of atomic operations in the CUDA kernels. Using atomic operations, the order of the neighbor particles for a given particle can be different from run to run, which is not desirable for the purpose of debugging. In view of this, we have provided a compiling option (see Chapter \ref{chapter:usage} for details) to switch on the debugging mode, where the $O(N^2)$ version is always used.
 \end{itemize}
@@ -572,7 +572,7 @@ Using Lebniz's rule, we have
 \end{equation}
 The first term on the right hand side is usually called the convective term and we do not need to evaluate it in the force-evaluation kernel. The second term,
 \begin{equation}
-\vect{J}^{\text{pot}} = \sum \vect{r}_i \frac{d E_i} {dt},
+\vect{J}^{\text{pot}} = \sum_i \vect{r}_i \frac{d E_i} {dt},
 \end{equation}
 is usually called the potential term and needs to be evaluated in the force-evaluation kernel.
 
@@ -609,22 +609,21 @@ However, we note that the above formula only applies to two-body potentials. For
 
 
 
-The above heat current formula is usually applied in equilibrium simulations. In nonequilibrium simulations, the following expression for the nonequilibrium heat flux (heat current density) \cite{fan2017prb} from a subsystem $A$ to a subsystem $B$ is more useful:
+The above heat current formula is usually applied in equilibrium simulations. In nonequilibrium simulations, the following expression for the nonequilibrium heat current \cite{fan2017prb} from a subsystem $A$ to a subsystem $B$ is more useful:
 \begin{equation}
 \label{equation:Q_AB}
 \boxed{
-Q_{A \rightarrow B} = - \frac{1}{S} \sum_{i \in A} \sum_{j \in B}
+Q_{A \rightarrow B} = -\sum_{i \in A} \sum_{j \in B}
 \left\langle
 \left(\frac{\partial U_i}{\partial \vect{r}_{ij}} \cdot \vect{v}_j
 -\frac{\partial U_j}{\partial \vect{r}_{ji}} \cdot \vect{v}_i\right)
 \right\rangle
 },
 \end{equation}
-where $S$ is the cross-sectional area perpendicular to the direction of the heat flow.
 This formula applies to general many-body potentials. For two-body potentials, it reduces to the following one:
 \begin{equation}
   Q_{A \rightarrow B}^{\text{two-body}} =
-- \frac{1}{2S} \sum_{i \in A} \sum_{j \in B}
+- \frac{1}{2} \sum_{i \in A} \sum_{j \in B}
 \left\langle \vect{F}_{ij} \cdot (\vect{v}_i + \vect{v}_j) \right\rangle.
 \end{equation}
 
@@ -1064,34 +1063,35 @@ Last, we note that for 2D materials, the heat current can be naturally decompose
 
 \subsection{NEMD method}
 
-The thermal conductivity of a finite-length system can also be computed by the NEMD method. In this method, a temperature gradient is established by externally generating a non-equilibrium heat current. If the steady-state heat flux is $Q$ and the established temperature gradient is $\nabla T$, the thermal conductivity is calculated according to Fourier's law as
+The thermal conductivity of a finite-length system can also be computed by the NEMD method. In this method, a temperature gradient is established by externally generating a nonequilibrium heat current. If the steady-state heat current is $Q$ and the established temperature gradient is $\nabla T$, the thermal conductivity is calculated according to Fourier's law as
 \begin{equation}
-\boxed{\kappa = \frac{Q} { |\nabla T|}}.
+\boxed{\kappa = \frac{Q} { S |\nabla T|}},
 \end{equation}
+where $S$ is the cross-sectional area perpendicular to the transport direction.
 
-The heat flux can be generated in various ways, such as the velocity re-scaling method \cite{ikeshoji1994mp,jund1999prb} and the momentum swapping method  \cite{plathe1997jcp}. However, some guesswork is needed in choosing appropriate parameters in these methods. Another method is to coupled the source/sink region to a thermostat with a higher/lower temperature. By setting the temperature difference, one has better control to the temperature gradient. When steady state is achieved, a temperature gradient will be established and the heat flux $Q$ can be calculated from the energy transfer rate $d E/d t$ between the source/sink and the thermostat:
+The nonequilibrium heat current can be generated in various ways, such as the velocity re-scaling method \cite{ikeshoji1994mp,jund1999prb} and the momentum swapping method  \cite{plathe1997jcp}. However, some guesswork is needed in choosing appropriate parameters in these methods. Another method is to couple the source/sink region to a thermostat with a higher/lower temperature. By setting the temperature difference, one has better control to the temperature gradient. When steady state is achieved, a temperature gradient will be established and the heat current $Q$ can be calculated as the energy transfer rate $d E/d t$ between the source/sink and the thermostat:
 \begin{equation}
 \boxed{
-Q=\frac{dE/dt}{S}
-},
+Q=\frac{dE}{dt}
+}.
 \label{equation:Q_ext}
 \end{equation}
-where $S$ is the cross-sectional area perpendicular to the transport direction. It has been shown \cite{fan2017prb} that Eq. (\ref{equation:Q_ext}) gives consistent heat flux as calculated by Eq. (\ref{equation:Q_AB}). As in the case of the Green-Kubo method, the nonequilibrium heat flux defined in Eq. (\ref{equation:Q_AB}) can also be decomposed into in-pane and out-of-plane components for 2D materials. See Ref. \cite{fan2017prb} for details.
+It has been shown \cite{fan2017prb} that Eq. (\ref{equation:Q_ext}) gives consistent heat current as calculated by Eq. (\ref{equation:Q_AB}). As in the case of the Green-Kubo method, the nonequilibrium heat current defined in Eq. (\ref{equation:Q_AB}) can also be decomposed into in-pane and out-of-plane components for 2D materials. See Ref. \cite{fan2017prb} for details.
 
 We have tested that all these NEMD methods can give consistent results. To make the code simpler, we have only kept the version using thermostats in GPUMD.
 
-In the framework of the NEMD method, one can also calculate spectrally decomposed thermal conductivity (or conductance) using the method as described in Ref. \cite{fan2017prb}. This method is base on the works by S\"a\"askilahti \textit{et al.} \cite{saaskilahti2014prb,saaskilahti2015prb} and Zhou \textit{et al.} \cite{zhou2015prb_b} but the formulation in Ref. \cite{fan2017prb} is simpler and does not use the harmonic approximation. In this method, one first calculates the following correlation function:
+In the framework of the NEMD method, one can also calculate spectrally decomposed thermal conductivity (or conductance) using the method as described in Ref. \cite{fan2017prb}. This method is base on the works by S\"a\"askilahti \textit{et al.} \cite{saaskilahti2014prb,saaskilahti2015prb} and Zhou \textit{et al.} \cite{zhou2015prb_b} but the formulation in Ref. \cite{fan2017prb} is simpler and does not use approximations for the heat current. In this method, one first calculates the following correlation function:
 \begin{equation}
 \label{equation:K_time}
 \boxed{
-K_{A \rightarrow B}(t) = - \frac{1}{S} \sum_{i \in A} \sum_{j \in B}
+K_{A \rightarrow B}(t) = - \sum_{i \in A} \sum_{j \in B}
 \left\langle
 \left(\frac{\partial U_i}{\partial \vect{r}_{ij}} (0)\cdot \vect{v}_j(t)
--\frac{\partial U_j}{\partial \vect{r}_{ji}} (t) \cdot \vect{v}_i (t) \right)
+-\frac{\partial U_j}{\partial \vect{r}_{ji}} (0) \cdot \vect{v}_i (t) \right)
 \right\rangle
 },
 \end{equation}
-which reduces to the nonequilibrium heat flux as defined in Eq. (\ref{equation:Q_AB}). Then one can define the following Fourier transform pairs:
+which reduces to the nonequilibrium heat current as defined in Eq. (\ref{equation:Q_AB}) when $t=0$. Then one can define the following Fourier transform pairs:
 \begin{equation}
 \label{equation:K_omega_from_time}
 \boxed{
@@ -1104,11 +1104,11 @@ K_{A \rightarrow B}(t)
 \label{equation:K_time_from_omega}
 \boxed{
 K_{A \rightarrow B}(t)
-= \int_{0}^{\infty} \frac{d\omega}{2\pi} e^{-i\omega t}
+= \int_{-\infty}^{\infty} \frac{d\omega}{2\pi} e^{-i\omega t}
 \tilde{K}_{A \rightarrow B}(\omega)
 }.
 \end{equation}
-By setting $t=0$ in the equation above, we can get the following spectral decomposition of the nonequilibrium heat flux:
+By setting $t=0$ in the equation above, we can get the following spectral decomposition of the nonequilibrium heat current:
 \begin{equation}
 \boxed{
 Q_{A \rightarrow B}
@@ -1116,11 +1116,11 @@ Q_{A \rightarrow B}
 \left[2\tilde{K}_{A \rightarrow B}(\omega)\right]
 }.
 \end{equation}
-From the spectral decomposition of the nonequilibrium heat flux, one can deduce the spectrally decomposed thermal conductivity corresponding to a given finite system with a temperature gradient $\nabla T$,
+From the spectral decomposition of the nonequilibrium heat current, one can deduce the spectrally decomposed thermal conductivity corresponding to a given finite system with a temperature gradient $\nabla T$,
 \begin{equation}
 \boxed{
 \kappa(\omega)
-= \frac{2\tilde{K}_{A \rightarrow B}(\omega)}{|\nabla T|}
+= \frac{2\tilde{K}_{A \rightarrow B}(\omega)}{S|\nabla T|}
 \quad
 \text{with}
 \quad
@@ -1131,7 +1131,7 @@ or a spectrally decomposed thermal conductance corresponding to a given segment 
 \begin{equation}
 \boxed{
 G(\omega)
-= \frac{2\tilde{K}_{A \rightarrow B}(\omega)}{|\Delta T|}
+= \frac{2\tilde{K}_{A \rightarrow B}(\omega)}{S|\Delta T|}
 \quad
 \text{with}
 \quad
@@ -1337,7 +1337,7 @@ x_{ij} = x_j - x_i; ~y_{ij} = y_j - y_i; ~z_{ij} = z_j - z_i.
 \label{equation:cos_theta}
 \boxed{\cos\theta_{ijk} = \cos\theta_{ikj} = \frac{\vect{r}_{ij} \cdot \vect{r}_{ik}}{r_{ij} r_{ik}}}.
 \end{equation}
-\item the derivative $\partial/\partial \vect{r}_{ij}$ should be understood as a vector operator with
+\item The derivative $\partial/\partial \vect{r}_{ij}$ should be understood as a vector operator with
 components $\partial/\partial x_{ij}$, $\partial/\partial y_{ij}$, and $\partial/\partial z_{ij}$.
 \item It is easy to verify that
 \begin{equation}
@@ -1370,7 +1370,7 @@ U_{ij} = 4 \epsilon
 \frac{\sigma^{6} }{ r_{ij}^{6} }
 \right).
 \end{equation}
-The current version of GPUMD only implements the single-element version of the Lennard-Jones potential with simple cutoff (without potential and/or force shifts). More variants will be added in the future.
+The current version of GPUMD only implements the single-element version of the Lennard-Jones potential with a simple cutoff (without potential and/or force shifts). More variants will be added in the future.
 
 The potential file for this potential model reads
 \begin{verbatim}
@@ -1535,7 +1535,7 @@ The potential file for this potential model reads
 Here we consider the original Stillinger-Weber potential as proposed by Stillinger and Weber in 1985 \cite{stillinger1985prb}.
 The total potential energy consists of a two-body part and a three-body part. The site potential is
 \begin{equation}
-U_i = \frac{1}{2} V_2(r_{ij}) + \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j} h_{ijk}.
+U_i = \frac{1}{2} V_2(r_{ij}) + \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j} h_{ijk},
 \end{equation}
 where the two-body part is
 \begin{equation}
@@ -1611,7 +1611,7 @@ and
 \begin{equation}
 g_{ijk} = 1 + \frac{c_i^2}{d_i^2} - \frac{c_i^2}{d_i^2+(h_i-\cos\theta_{ijk})^2}.
 \end{equation}
-Here, $A_{ij}$, $B_{ij}$, $\lambda_{ij}$, $\mu_{ij}$, $\beta_i$, $n_i$, $c_i$, $d_i$, $h_i$, $R_{ij}$, $S_{ij}$, and $\chi_{ij}$ are material-specific parameters. The parameters values can be found in Tersoff's original paper \cite{tersoff1989prb} and a later erratum \cite{tersoff1990prb}. Note that when $i \neq j$, the following mixing rules are used to determining some parameter values:
+Here, $A_{ij}$, $B_{ij}$, $\lambda_{ij}$, $\mu_{ij}$, $\beta_i$, $n_i$, $c_i$, $d_i$, $h_i$, $R_{ij}$, $S_{ij}$, and $\chi_{ij}$ are material-specific parameters. The parameter values can be found in Tersoff's original paper \cite{tersoff1989prb} and a later erratum \cite{tersoff1990prb}. Note that when $i \neq j$, the following mixing rules are used to determining some parameter values:
 \begin{equation}
 A_{ij} =  \sqrt{A_{ii} A_{jj}};
 \end{equation}
@@ -2068,17 +2068,17 @@ This file contains data related to NEMD simulations of heat transport. Assuming 
 
 \subsection{The shc.out file}
 
-This file contains data for the nonequilibrium heat flux correlation function $K_{A \rightarrow B}(t)$ as defined in Eq. (\ref{equation:K_time}) times the cross-section area. That is, one has to divide the data here by the cross-sectional area to get $K_{A \rightarrow B}(t)$. There are two columns, which are $K_{A \rightarrow B}^{\text{in}}(t)$ and $K_{A \rightarrow B}^{\text{out}}(t)$ defined in Ref. \cite{fan2017prb}. If one does not need the decomposition, one can sum up the two columns to get the total correlation function. Note that an individual correlation function corresponds to $N_c$ consecutive rows.
+This file contains data for the nonequilibrium heat current correlation function $K_{A \rightarrow B}(t)$ as defined in Eq. (\ref{equation:K_time}). There are two columns, which are $K_{A \rightarrow B}^{\text{in}}(t)$ and $K_{A \rightarrow B}^{\text{out}}(t)$ defined in Ref. \cite{fan2017prb}. If one does not need the decomposition, one can sum up the two columns to get the total correlation function. Note that an individual correlation function corresponds to $N_c$ consecutive rows.
 
 \chapter{Examples}
 
 In this chapter, we give some examples to illustrate the usage of GPUMD. All the results presented here are obtained by using the \textbf{double-precision} version of the code. The single-precision version is faster but we are not sure whether it is always as safe to use.
-Note that even the double-precision version of GPUMD is highly efficient. For details of the performance evaluation, see Ref. \cite{fan2017cpc}.
+Note that even the double-precision version of GPUMD is highly efficient. For details of the performance of GPUMD, see Ref. \cite{fan2017cpc}.
 
-For each example, we have provided a \verb"run.in" file and two MATLAB scripts:
+For each example, we have provided a \verb"run.in" file and two or more MATLAB scripts:
 \begin{itemize}
 \item \verb"create_xyz.m", which can be used to create the \verb"xyz.in" input file
-\item \verb"plot_results.m", which can used to analyze the output data
+\item script(s) starting with \verb"plot_", which can be used to analyze the output data
 \end{itemize}
 After gaining some experiences in using GPUMD, one can use any other program to do these pre-processing and post-processing jobs.
 
@@ -2281,7 +2281,7 @@ Each independent simulation in Ref. \cite{fan2017prb} took about 10 GPU hours (u
 
 In this example, we show how to study heat transport using the NEMD method combined with the spatial and spectral decompositions as described in Ref. \cite{fan2017prb}. We aim to obtain similar results for the case of unstrained graphene as presented in Fig. 4 of Ref. \cite{fan2017prb}.
 
-In the NEMD simulation, periodic boundary conditions are applied to the transverse direction (chosen as the zigzag direction) and fixed boundary conditions are applied to the transport direction (chosen as the armchair direction). The width of the simulated system is about 10 nm and the total length in the transport direction is about 70 nn. One major difference from the previous simulations is that here the group labels are not identically 0. We divide the system into 8 groups along the transport direction and label the groups from 1 to 8. Groups and 1 and 8 are taken as the source and sink regions, respectively. The number of atoms in groups 1 to 8 are 8000, 1600, 1600, 1600, 1600, 1600, 1600, and 8000, respectively. Some extra fixed atoms are put into group 0. Here are two important notes on the group label:
+In the NEMD simulation, periodic boundary conditions are applied to the transverse direction (chosen as the zigzag direction) and fixed boundary conditions are applied to the transport direction (chosen as the armchair direction). The width of the simulated system is about 10 nm and the total length in the transport direction is about 70 nn. One major difference from the previous simulations is that here the group labels are not identically 0. We divide the system into 8 groups along the transport direction and label the groups from 1 to 8. Groups and 1 and 8 are taken as the source and sink regions, respectively. The number of atoms in groups 1 to 8 are 8000, 1600, 1600, 1600, 1600, 1600, 1600, and 8000, respectively. Some extra fixed atoms are put into group 0. Here are \textbf{two important notes} on the group label:
 \begin{itemize}
 \item It starts from 0.
 \item In the \verb"xyz.in" file, an atom with smaller group label should appear earlier than that with a larger group label. We may remove this restriction in a future version but one should remember this rule when using the current version.
@@ -2307,7 +2307,7 @@ The \verb"run.in" file for this example reads:
     #-------------------------------------------------------------------
 \end{verbatim}
 
-In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_nhc" ``ensemble'' type is used to generate the nonequilibrium heat flux.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures will be output every 1000 integration steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat flux correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat flux considered flows from group 4 to group 5 (the middle interface of the simulated system).
+In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_nhc" ``ensemble'' type is used to generate the nonequilibrium heat current.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures will be output every 1000 integration steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat current correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat current considered flows from group 4 to group 5 (the middle interface of the simulated system).
 
 
 \begin{figure}[ht]
@@ -2328,13 +2328,13 @@ This simulation takes about 40 min using a Tesla K40 card. Figure \ref{figure:ex
 \begin{figure}[h]
 \begin{center}
 \includegraphics[width=\columnwidth]{ex4b.eps}
-\caption{(a) The nonequilibrium heat flux autocorrelation function as define in Eq. (\ref{equation:K_time}) as a function of correlation time. (b) The spectrally decomposed ballistic conductance as a function of phonon frequency. }
+\caption{(a) The nonequilibrium heat current autocorrelation function as define in Eq. (\ref{equation:K_time}) as a function of correlation time. (b) The spectrally decomposed ballistic conductance as a function of phonon frequency. }
 \label{figure:ex4b}
 \end{center}
 \end{figure}
 
 
-The \verb"shc.out" contains data for the nonequilibrium heat flux autocorrelation function $K(t)$ as define in Eq. (\ref{equation:K_time}). Also, the in-out decompositions introduced in Ref. \cite{fan2017prb} is considered. The calculated $K(t)$ and the spectrally decomposed conductance $g(\omega)$ for the in-plane and the out-of-plane components are shown in Fig. \ref{figure:ex4b}. One can see that they are similar to the velocity autocorrelation and the phonon density of states discussed in a previous example. This is reasonable because the ballistic conductance is proportional to the product of the phonon density of states and the group velocity.
+The \verb"shc.out" file contains data for the nonequilibrium heat current autocorrelation function $K(t)$ as define in Eq. (\ref{equation:K_time}). Also, the in-out decompositions introduced in Ref. \cite{fan2017prb} is considered. The calculated $K(t)$ and the spectrally decomposed conductance $g(\omega)$ for the in-plane and the out-of-plane components are shown in Fig. \ref{figure:ex4b}. One can see that they are similar to the velocity autocorrelation and the phonon density of states discussed in a previous example. This is reasonable because the ballistic conductance is proportional to the product of the phonon density of states and the group velocity.
 
 One can check the consistency of the results at least in the following two ways:
 \begin{itemize}
