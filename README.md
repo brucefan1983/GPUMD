@@ -16,17 +16,17 @@
      
 * GPUMD was firstly used for heat transport simulations only but we are now making it more and more general.
 
-# Compile GPUMD
+## Compile GPUMD
 
 * To compile GPUMD, one just needs to go to the "src" directory and type "make". one may want to first do "make clean". When the compilation finishes, an executable named "gpumd" will be generated in the "src" directory. See the manual in the "doc" directory for details.
 
-# Run GPUMD
+## Run GPUMD
 
 * Take the first example in the "examples" directory for example, one can use the following command to run it:
   * src/gpumd < examples/input1.txt
 * Please read the manual to study the examples. These examples should get you started. 
   
-# Authors:
+## Authors:
 
 * Zheyong Fan (Aalto University)
   * brucenju(at)gmail.com
@@ -36,11 +36,11 @@
 * Mikko Ervasti (Aalto University)  
 * Ari Harju (Aalto University) 
 
-# Feedbacks:
+## Feedbacks:
 
 There is a comprehensive manual in the "doc" directory. You can e-mail the first author (Zheyong Fan) if you find errors in the manual or bugs in the source code, or have any suggestions/questions about the manual and code. Thank you!
 
-# Citations
+## Citations
 
 If you use GPUMD in your published work, we kindly ask you to cite the following paper which describes the central algorithms used in GPUMD:
 * [1] Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. Efficient molecular dynamics simulations with many-body potentials on graphics processing units. Computer Physics Communications, 218:10-16, 2017.
