@@ -16,7 +16,7 @@
      
 * GPUMD was firstly used for heat transport simulations only but we are now making it more and more general. However, the functionalities in GPUMD are still very limited. We are working on implementing (1) more potential models (including mixed potentials), (2) more integrators (including external conditions), and (3) more measurements.
 
-* Note that we will not implement any function for building simulation models. User of GPUMD are supposed to be able to build simulations models by their own.
+* Note that we will not implement any function for building simulation models. Users of GPUMD are supposed to be able to build simulation models by their own.
 
 ## Compile GPUMD
 
