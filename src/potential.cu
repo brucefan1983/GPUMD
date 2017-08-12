@@ -221,18 +221,7 @@ static void initialize_sw_1985(FILE *fid, Force_Model *force_model)
 {
     printf("INPUT: use Stillinger-Weber potential.\n");
     int count;
-    int number_of_types = 0;
-    count = fscanf(fid, "%d", &number_of_types); 
-    if (count != 1) 
-    {
-        print_error("reading error for potential.in.\n");
-        exit(1);
-    }
-    if (number_of_types != 1) 
-    {
-        print_error("number of atom types should be 1 for SW.\n");
-        exit(1);
-    }
+
 #ifdef USE_DP
     count = fscanf
     (
