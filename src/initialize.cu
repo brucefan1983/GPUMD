@@ -76,7 +76,8 @@ static void initialize_position
 #else
     count = fscanf
     (
-        fid_xyz, "%d%d%f", &(para->N), &(para->MN), &(para->rc)
+        fid_xyz, "%d%d%f", &(para->N), 
+        &(para->neighbor.MN), &(para->neighbor.rc)
     );
 #endif
     if (count != 3)
