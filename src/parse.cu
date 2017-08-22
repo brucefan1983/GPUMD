@@ -444,7 +444,7 @@ static void parse_dump_virial(char **param,  int num_param,Parameters *para)
     {
         print_error("virial dump interval should be an integer number.\n");
     } 
-    para->dump_force = 1;
+    para->dump_virial = 1;
     printf
     ("INPUT: dump virial every %d steps.\n", para->sample_interval_virial);
 }
