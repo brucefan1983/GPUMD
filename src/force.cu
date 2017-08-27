@@ -22,6 +22,7 @@
 #include "eam_zhou_2004.h"
 #include "eam_dai_2006.h"
 #include "sw_1985.h"
+#include "sw_bp.h"
 #include "tersoff_1989_1.h"
 #include "tersoff_1989_2.h"
 
@@ -165,6 +166,9 @@ void gpu_find_force
             break;
         case 30:  
             gpu_find_force_sw(para, force_model->sw, gpu_data);
+            break;
+        case 31:  
+            gpu_find_force_sw_bp(para, gpu_data);
             break;
         case 40:
             gpu_find_force_tersoff1(para, force_model, gpu_data);        
