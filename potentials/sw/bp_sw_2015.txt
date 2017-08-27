@@ -1,0 +1,5 @@
+sw_bp
+# Nothing here, because this is a special potential model and 
+# the parameters are thus hard coded
+
+
