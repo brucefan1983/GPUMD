@@ -258,6 +258,15 @@ static void initialize_sw_1985(FILE *fid, Force_Model *force_model)
 
 
 
+static void initialize_sw_bp(Force_Model *force_model)
+{
+    printf("INPUT: use the potential in [JAP 117, 214308 (2015)].\n");
+    force_model->rc = 2.8;
+} 
+
+
+
+
 // todo: write my_fscanf or change the input methods
 static void initialize_eam_zhou_2004_1(FILE *fid, Force_Model *force_model)
 {
@@ -531,6 +540,11 @@ static void initialize_force_model(Files *files, Force_Model *force_model)
     { 
         force_model->type = 30; 
         initialize_sw_1985(fid_potential, force_model);
+    }
+    else if (strcmp(force_name, "sw_bp") == 0) 
+    { 
+        force_model->type = 31; 
+        initialize_sw_bp(force_model);
     }
     else if (strcmp(force_name, "tersoff_1989_1") == 0) 
     { 
