@@ -324,7 +324,7 @@ void run_md
     char *input_ptr = input; // Keep the pointer in order to free later
 
     // Iterate the rows
-    int max_num_param = 10; // never use more than 9 parameters
+    const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
     char *param[max_num_param];
 
