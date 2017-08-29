@@ -427,8 +427,13 @@ void gpu_find_force_sw_bp(Parameters *para, GPU_Data *gpu_data)
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
+#ifdef FIXED_NL
     int *NN = gpu_data->NN; 
     int *NL = gpu_data->NL;
+#else
+    int *NN = gpu_data->NN_local; 
+    int *NL = gpu_data->NL_local;
+#endif
     int *type = gpu_data->type;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 
