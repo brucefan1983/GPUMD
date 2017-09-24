@@ -26,9 +26,9 @@
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.1\\
+   Version 1.2\\
    \vspace*{1.0cm}
-   (August 28, 2017)\\
+   (September 24, 2017)\\
   \vspace*{2.0cm}
   }
   \large
@@ -83,7 +83,7 @@ Rev. B, 95:144309, Apr 2017.
 
 You can e-mail the first author if you find errors in the manual or bugs in the source code, or have any suggestions/questions about the manual and code. The following email addresses can be used:
 \begin{itemize}
-\item zheyong.fan(at)aalto.fi (should be valid up to the end of 2018)
+\item zheyong.fan(at)aalto.fi (valid at least up to the end of 2019)
 \item brucenju(at)gmail.com
 \item zheyongfan(at)163.com
 \end{itemize}
@@ -166,13 +166,17 @@ The supported ensembles and the adopted methods are
 
 We are working on implementing more integration methods.
 
-\section{Major changes compared to the previous version}
+\section{Major changes compared to the previous versions}
 
-This is version 1.1, which has the following major changes compared to version 1.0:
+\subsection{Major changes introduced in version 1.1}
 \begin{enumerate}
 \item Added a potential model for single-layer black phosphorene as introduced by Xu \textit{et al.} \cite{xu2015jap}.
 \end{enumerate}
 
+\subsection{Major changes introduced in version 1.2}
+\begin{enumerate}
+\item In the previous versions, the initial velocities have zero linear momentum but generally nonzero angular momentum. This will not result in rotation of the system if periodic boundary conditions are applied in two or three directions, but will result in rotation in systems with only one or no periodic direction. In version 1.2, both linear and angular momenta of the initial velocities are zeroed.
+\end{enumerate}
 
 
 \chapter{Theoretical formalisms and numerical algorithms}
@@ -1694,7 +1698,7 @@ After downloading and unpacking GPUMD, one can see the following folders:
 
 \subsection{Compile GPUMD}
 
-To compile GPUMD, one just needs to go to the \verb"src" directory and type \verb"make". one may want to first do \verb"make clean". When the compilation finishes, an excitable named \verb"gpumd" will be generated in the \verb"src" directory.
+To compile GPUMD, one just needs to go to the \verb"src" directory and type \verb"make". one may want to first do \verb"make clean". When the compilation finishes, an executable named \verb"gpumd" will be generated in the \verb"src" directory.
 
 In the \verb"makefle", the default compiling flag is
 \begin{verbatim}
