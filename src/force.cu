@@ -25,7 +25,7 @@
 #include "sw_bp.h"
 #include "tersoff_1989_1.h"
 #include "tersoff_1989_2.h"
-
+#include "rebo_mos2.h"
 
 
 
@@ -175,6 +175,9 @@ void gpu_find_force
             break;
         case 41:
             gpu_find_force_tersoff_1989_2(para, force_model, gpu_data);
+            break;
+        case 42:
+            gpu_find_force_rebo_mos2(para, gpu_data);
             break;
         default: 
             printf("illegal force model\n");
