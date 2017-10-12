@@ -26,9 +26,9 @@
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.2\\
+   Version 1.3\\
    \vspace*{1.0cm}
-   (September 24, 2017)\\
+   (October 12, 2017)\\
   \vspace*{2.0cm}
   }
   \large
@@ -177,6 +177,13 @@ We are working on implementing more integration methods.
 \begin{enumerate}
 \item In the previous versions, the initial velocities have zero linear momentum but generally nonzero angular momentum. This will not result in rotation of the system if periodic boundary conditions are applied in two or three directions, but will result in rotation in systems with only one or no periodic direction. In version 1.2, both linear and angular momenta of the initial velocities are zeroed.
 \end{enumerate}
+
+\subsection{Major changes introduced in version 1.3}
+\begin{enumerate}
+\item Added the REBO (reactive empirical bond-order) potential for Mo-S systems developed by Liang \textit{et al.} \cite{liang2009prb,liang2012prb_erratum}. Note that the Lennard-Jones part was not included. We plan to include the Lennard-Jones part in a future version of GPUMD. 
+\end{enumerate}
+
+
 
 
 \chapter{Theoretical formalisms and numerical algorithms}
@@ -1683,6 +1690,72 @@ The potential file for the double-element version reads
 
 
 
+
+
+\section{The REBO potential for Mo-S systems by Liang \textit{et al.}}
+
+Here, we discuss the REBO (reactive empirical bond-order) potential for Mo-S systems developed by Liang \textit{et al.} \cite{liang2009prb}. The erratum \cite{liang2012prb_erratum} should be consulted for improved and extra model parameters which are missing from the original article. This REBO potential is just slightly more complicated than the Tersoff potential. Note that the Lennard-Jones part was not included. We plan to include the Lennard-Jones part in a future version of GPUMD. 
+
+
+The site potential takes the same general form as in the case of the Tersoff potential:
+\begin{equation}
+U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right].
+\end{equation}
+The cutoff function $f_{C}(r)$ and the attractive function $f_{A}(r)$ are also identical to those in the Tersoff potential. The repulsive function $f_{R}(r)$ takes a different form than that in the Tersoff potential:
+\begin{equation}
+f_{R}(r) = \left(1+\frac{Q}{r}\right) A e^{-\alpha r},
+\end{equation}
+where $Q$, $A$, and $\alpha$ are material-specific parameters.
+
+The bond order function in this REBO potential is
+\begin{equation}
+b_{ij} =\left(1 + \zeta_{ij}\right)^{-1/2},
+\end{equation}
+where
+\begin{equation}
+\zeta_{ij} = \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}) \right] + P_{ij}(N_{ij});
+\end{equation}
+\begin{equation}
+N_{ij} = \sum_{k\neq i,j} f_C(r_{ik});
+\end{equation}
+\begin{equation}
+P(x) = -a_0(x-1) - a_1 e^{-a_2x}+a_3.
+\end{equation}
+The angular function  is given by
+\begin{equation}
+g(x)= G(x) + \psi(x) [ \gamma(x) - G(x)],
+\end{equation}
+where both $G(x)$ and $\gamma(x)$ are 6th order polynomials and
+\begin{equation}
+\psi(x)= 0 ~\textmd{when} ~x < 0.5;
+\end{equation}
+\begin{equation}
+\psi(x)= \frac{1}{2} \left[ 1 - \cos(2\pi(x-0.5)) \right] ~ \textmd{when} ~x >= 0.5.
+\end{equation}
+
+The partial force can be derived to be
+\begin{align}
+\frac{\partial U_i}{\partial \vect{r}_{ij}}
+&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-b_{ij}f_A(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-b_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}P'_{ik} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik})  g'_{ijk}
+   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}  g'_{ijk}
+   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}}. \nonumber \\
+\end{align}
+Here, $b'_{ij}$ should be understood as $\partial b_{ij}/\partial \zeta_{ij}$.
+
+
+This potential was added to GPUMD in version 1.3. When preparing the xyz.in file to be introduced in Chapter 5, one has to define Mo atoms as type 0 and S atoms as type 1. The potential file for this potential model reads
+\begin{verbatim}
+rebo_mos2
+# Nothing here, because this is a special potential model and 
+# the parameters are thus hard coded
+\end{verbatim}
+
+
 \chapter{Using GPUMD \label{chapter:usage}}
 
 After downloading and unpacking GPUMD, one can see the following folders:
@@ -2373,7 +2446,7 @@ One should always make sure that the obtained data pass these tests approximatel
 
 
 
-% Something to be added in future version...
+% Something to be added in a future version...
 
 \subsection{The EDIP potential}
 
@@ -2487,66 +2560,4 @@ The partial force can be derived to be
 
 
 
-
-
-\subsection{The REBO potential for Mo-S systems by Liang \textit{et al.}}
-
-
-The erratum \cite{liang2012prb_erratum} should be consulted for improved and extra model parameters which are missing from the original article.
-
-
-Site potential:
-\begin{equation}
-U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right]
-\end{equation}
-The cutoff function is identical to that in the Tersoff potential.
-\begin{equation}
-f_{R}(r) = \left(1+\frac{Q}{r_{ij}}\right) A e^{-\alpha r_{ij}};
-\end{equation}
-\begin{equation}
-f_{A}(r) = B e^{-\beta r_{ij}}.
-\end{equation}
-
-Bond order
-\begin{equation}
-b_{ij} =\left(1 + \zeta_{ij})\right)^{-1/2},
-\end{equation}
-where
-\begin{equation}
-\zeta_{ij} =\sum_{k\neq i, j} f_C(r_{ik}) g(\cos\theta_{ijk}) + P(N_{ij});
-\end{equation}
-\begin{equation}
-N_{ij} = \sum_{k\neq i,j} f_C(r_{ik});
-\end{equation}
-\begin{equation}
-P(x) = -a_0(x-1) - a_1 e^{-a_2x}+a3.
-\end{equation}
-The angular function $g(x)$ is
-\begin{equation}
-g(x)= G(x) + \psi(x) [ \gamma(x) - G(x)]
-\end{equation}
-where both $G(x)$ and $\gamma(x)$ are 6-th order polynomials and
-\begin{equation}
-\psi(x)= 0 ~\textmd{when} ~x < 0.5
-\end{equation}
-\begin{equation}
-\psi(x)= \frac{1}{2} \left( 1 - \cos(2\pi(x-0.5)) \right) ~ \textmd{when} ~x >= 0.5
-\end{equation}
-The parameters can be found the original article and the erratum.
-
-
-The partial force can be derived to be
-\begin{align}
-\frac{\partial U_i}{\partial \vect{r}_{ij}}
-&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-b_{ij}f_A(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-b_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}P'_{ik} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik})  g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}  g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}}. \nonumber \\
-\end{align}
-
-Here, $b'_{ij}$ should be understood as $\partial b_{ij}/\partial \zeta_{ij}$.
 
