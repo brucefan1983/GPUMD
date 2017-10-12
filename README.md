@@ -7,6 +7,7 @@
 * Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. We have implemented the following many-body potentials in GPUMD:
    * The EAM-type potential with some analytical forms
    * The Tersoff (1989) potential with single or double atom types
+   * The REBO potential for Mo-S systems (2009)
    * The Stillinger-Weber (1985) potential
    
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of GPUMD can calculate the following quantities related to heat transport:
