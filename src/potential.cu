@@ -267,6 +267,15 @@ static void initialize_sw_bp(Force_Model *force_model)
 
 
 
+static void initialize_rebo_mos2(Force_Model *force_model)
+{
+    printf("INPUT: use the potential in [PRB 79, 245110 (2009)].\n");
+    force_model->rc = 3.8;
+}
+
+
+
+
 // todo: write my_fscanf or change the input methods
 static void initialize_eam_zhou_2004_1(FILE *fid, Force_Model *force_model)
 {
@@ -555,6 +564,11 @@ static void initialize_force_model(Files *files, Force_Model *force_model)
     { 
         force_model->type = 41; 
         initialize_tersoff_1989_2(fid_potential, force_model);
+    }
+    else if (strcmp(force_name, "rebo_mos2") == 0) 
+    { 
+        force_model->type = 42; 
+        initialize_rebo_mos2(force_model);
     }
     else    
     { 
