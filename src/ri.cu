@@ -15,6 +15,7 @@
 
 
 #include "common.h"
+#include "mic.cu" // static __device__ dev_apply_mic(...)
 #include "ri.h"
 
 // References: 
@@ -48,21 +49,6 @@
     #define RI_p         0.3275911f 
 #endif
 
-
-// apply the mininum image convention
-static __device__ void dev_apply_mic
-(
-    int pbc_x, int pbc_y, int pbc_z, real *x12, real *y12, real *z12,
-    real lx, real ly, real lz
-)
-{
-    if      (*x12 < - lx * HALF) {*x12 += lx * pbc_x;}
-    else if (*x12 > + lx * HALF) {*x12 -= lx * pbc_x;}
-    if      (*y12 < - ly * HALF) {*y12 += ly * pbc_y;}
-    else if (*y12 > + ly * HALF) {*y12 -= ly * pbc_y;}
-    if      (*z12 < - lz * HALF) {*z12 += lz * pbc_z;}
-    else if (*z12 > + lz * HALF) {*z12 -= lz * pbc_z;}
-}
 
 
 // get U_ij and (d U_ij / d r_ij) / r_ij
@@ -122,7 +108,7 @@ static __device__ void find_p2_and_f2
 }
 
 
-// force evaluation kernel for the LJ potential
+// force evaluation kernel for the RI potential
 template <int cal_p, int cal_j, int cal_q>
 static __global__ void gpu_find_force
 (
@@ -185,7 +171,7 @@ static __global__ void gpu_find_force
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, &x12, &y12, &z12, lx, ly, lz);
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
             real d12sq = x12 * x12 + y12 * y12 + z12 * z12;
             if (d12sq >= ri.cutoff * ri.cutoff) {continue;}
             int type2 = g_type[n2];

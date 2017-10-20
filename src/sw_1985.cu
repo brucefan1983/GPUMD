@@ -15,26 +15,11 @@
 
 
 #include "common.h"
+#include "mic.cu" // static __device__ dev_apply_mic(...)
 #include "sw_1985.h"
 
 // best block size here: 64 or 128
 #define BLOCK_SIZE_SW 64
-
-// apply the mininum image convention
-static __device__ void dev_apply_mic
-(
-    int pbc_x, int pbc_y, int pbc_z, real *x12, real *y12, real *z12,
-    real lx, real ly, real lz
-)
-{
-    if      (*x12 < - lx * HALF) {*x12 += lx * pbc_x;}
-    else if (*x12 > + lx * HALF) {*x12 -= lx * pbc_x;}
-    if      (*y12 < - ly * HALF) {*y12 += ly * pbc_y;}
-    else if (*y12 > + ly * HALF) {*y12 -= ly * pbc_y;}
-    if      (*z12 < - lz * HALF) {*z12 += lz * pbc_z;}
-    else if (*z12 > + lz * HALF) {*z12 -= lz * pbc_z;}
-}
-
 
 
 // two-body part of the SW potential
@@ -114,7 +99,7 @@ static __global__ void gpu_find_force_sw_a
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, &x12, &y12, &z12, lx, ly, lz);
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             if (d12 >= sw.sigma_times_a) {continue;}
 
@@ -141,7 +126,7 @@ static __global__ void gpu_find_force_sw_a
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic(pbc_x, pbc_y, pbc_z, &x13, &y13, &z13,lx,ly,lz);
+                dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 if (d13 >= sw.sigma_times_a) {continue;}
 
@@ -175,7 +160,7 @@ static __global__ void gpu_find_force_sw_a
                 real x23 = LDG(g_x, n3) - LDG(g_x, n2);
                 real y23 = LDG(g_y, n3) - LDG(g_y, n2);
                 real z23 = LDG(g_z, n3) - LDG(g_z, n2);
-                dev_apply_mic(pbc_x, pbc_y, pbc_z, &x23, &y23, &z23, lx,ly,lz);
+                dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
                 real d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);
                 if (d23 >= sw.sigma_times_a) {continue;} 
   

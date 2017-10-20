@@ -17,6 +17,7 @@
 
 
 #include "common.h"
+#include "mic.cu" // static __device__ dev_apply_mic(...)
 #include "sw_bp.h"
 
 
@@ -80,24 +81,6 @@ in-out decomposition.
     Reference: 
         Wen Xu et al., J. Appl. Phys. 117, 214308 (2015).
 ------------------------------------------------------------------------------*/
-
-
-
-
-// apply the mininum image convention (This is the fastest version I found)
-static __device__ void dev_apply_mic
-(
-    real *x12, real *y12, real *z12,
-    real lx, real ly, real lz
-)
-{
-    if      (*x12 < - lx * HALF) {*x12 += lx;}
-    else if (*x12 > + lx * HALF) {*x12 -= lx;}
-    if      (*y12 < - ly * HALF) {*y12 += ly;}
-    else if (*y12 > + ly * HALF) {*y12 -= ly;}
-    if      (*z12 < - lz * HALF) {*z12 += lz;}
-    else if (*z12 > + lz * HALF) {*z12 -= lz;}
-}
 
 
 
@@ -168,10 +151,9 @@ static __global__ void gpu_find_force_sw
         real vy1 = LDG(g_vy, n1); 
         real vz1 = LDG(g_vz, n1);
 
-        // This trick can make the code 2% faster
-        real lx = g_box_length[0] * pbc_x; 
-        real ly = g_box_length[1] * pbc_y; 
-        real lz = g_box_length[2] * pbc_z;
+        real lx = g_box_length[0]; 
+        real ly = g_box_length[1]; 
+        real lz = g_box_length[2];
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
@@ -183,7 +165,7 @@ static __global__ void gpu_find_force_sw
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
             
-            dev_apply_mic(&x12, &y12, &z12, lx, ly, lz);
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
 
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             if (d12 >= BP_rc) {continue;}
@@ -219,7 +201,7 @@ static __global__ void gpu_find_force_sw
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
                 
-                dev_apply_mic(&x13,&y13,&z13,lx,ly,lz);
+                dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
 
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 if (d13 >= BP_rc) {continue;}
@@ -295,7 +277,7 @@ static __global__ void gpu_find_force_sw
                 real y23 = LDG(g_y, n3) - LDG(g_y, n2);
                 real z23 = LDG(g_z, n3) - LDG(g_z, n2);
                 
-                dev_apply_mic(&x23,&y23,&z23,lx,ly,lz);
+                dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
 
                 real d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);
                 if (d23 >= BP_rc) {continue;} 

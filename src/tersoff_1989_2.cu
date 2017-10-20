@@ -15,6 +15,7 @@
 
 
 #include "common.h"
+#include "mic.cu" // static __device__ dev_apply_mic(...)
 #include "tersoff_1989_2.h"
 
 
@@ -29,32 +30,7 @@ The double-element version of the Tersoff potential as described in
 // best block size here: 64 or 128
 #define BLOCK_SIZE_FORCE 64
 
-/*------------------------------------------------------------------------------
-    apply the minimum image convention
-------------------------------------------------------------------------------*/
 
-static __device__ void dev_apply_mic
-(
-    int pbc_x, int pbc_y, int pbc_z, real &x12, real &y12, real &z12, 
-    real lx, real ly, real lz
-)
-{
-#ifdef USE_DP // this version is faster for double-precision
-    if      (pbc_x == 1 && x12 < - lx * HALF) {x12 += lx;}
-    else if (pbc_x == 1 && x12 > + lx * HALF) {x12 -= lx;}
-    if      (pbc_y == 1 && y12 < - ly * HALF) {y12 += ly;}
-    else if (pbc_y == 1 && y12 > + ly * HALF) {y12 -= ly;}
-    if      (pbc_z == 1 && z12 < - lz * HALF) {z12 += lz;}
-    else if (pbc_z == 1 && z12 > + lz * HALF) {z12 -= lz;}
-#else // this version is faster for single-precision
-    if      (x12 < - lx * HALF) {x12 += lx * pbc_x;}
-    else if (x12 > + lx * HALF) {x12 -= lx * pbc_x;}
-    if      (y12 < - ly * HALF) {y12 += ly * pbc_y;}
-    else if (y12 > + ly * HALF) {y12 -= ly * pbc_y;}
-    if      (z12 < - lz * HALF) {z12 += lz * pbc_z;}
-    else if (z12 > + lz * HALF) {z12 -= lz * pbc_z;}
-#endif
-}
 
 /*------------------------------------------------------------------------------
     Some simple functions and their derivatives

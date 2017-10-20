@@ -16,6 +16,7 @@
 
 
 #include "common.h"
+#include "mic_template.cu" // static __device__ void dev_apply_mic(...)
 #include "force.h"
 #include "lj1.h"
 #include "ri.h"
@@ -30,19 +31,6 @@
 
 
 #ifndef FIXED_NL
-
-// apply the minimum image convention
-template <int pbc_x, int pbc_y, int pbc_z>
-static __device__ void dev_apply_mic
-(real lx, real ly, real lz, real *x12, real *y12, real *z12)
-{
-    if      (pbc_x == 1 && *x12 < - lx * HALF) {*x12 += lx;}
-    else if (pbc_x == 1 && *x12 > + lx * HALF) {*x12 -= lx;}
-    if      (pbc_y == 1 && *y12 < - ly * HALF) {*y12 += ly;}
-    else if (pbc_y == 1 && *y12 > + ly * HALF) {*y12 -= ly;}
-    if      (pbc_z == 1 && *z12 < - lz * HALF) {*z12 += lz;}
-    else if (pbc_z == 1 && *z12 > + lz * HALF) {*z12 -= lz;}
-}
 
 
 // Construct the local neighbor list from the global one (Kernel)
