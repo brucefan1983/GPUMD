@@ -354,6 +354,27 @@ void run_md
             process_potential(files, para, force_model, gpu_data); 
             // initialize the forces
             gpu_find_force(force_model, para, gpu_data);
+            #ifdef FORCE
+            // output the initial forces (used for lattice dynamics calculations)
+            int m = sizeof(real) * para->N;
+            real *cpu_fx = cpu_data->fx;
+            real *cpu_fy = cpu_data->fy;
+            real *cpu_fz = cpu_data->fz;
+            CHECK(cudaMemcpy(cpu_fx, gpu_data->fx, m, cudaMemcpyDeviceToHost));
+            CHECK(cudaMemcpy(cpu_fy, gpu_data->fy, m, cudaMemcpyDeviceToHost));
+            CHECK(cudaMemcpy(cpu_fz, gpu_data->fz, m, cudaMemcpyDeviceToHost));
+            files->fid_force = my_fopen(files->force, "w");
+            for (int n = 0; n < para->N; n++)
+            {
+                fprintf
+                (
+                    files->fid_force, "%20.10e%20.10e%20.10e\n", 
+                    cpu_fx[n], cpu_fy[n], cpu_fz[n]
+                );
+            }
+            fflush(files->fid_force);
+            fclose(files->fid_force);
+            #endif
         }
         if (is_velocity)  
         { 

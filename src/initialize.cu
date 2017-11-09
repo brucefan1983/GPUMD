@@ -109,6 +109,114 @@ static void initialize_position
     MY_MALLOC(cpu_data->fz,   real, para->N);
     MY_MALLOC(cpu_data->thermo, real, 6);
     MY_MALLOC(cpu_data->box_length, real, DIM);
+    MY_MALLOC(cpu_data->box_matrix, real, 9);
+    MY_MALLOC(cpu_data->box_matrix_inv, real, 9);
+
+#ifdef TRICLINIC
+
+    // second line: boundary conditions
+    count = fscanf
+    (fid_xyz, "%d%d%d", &(para->pbc_x), &(para->pbc_y), &(para->pbc_z));
+    if (count != 3)
+    {
+        printf("Error: reading error for xyz.in.\n");
+    }
+
+    // third line: triclinic box parameters
+#if USE_DP   
+    count = fscanf
+    (
+        fid_xyz, "%lf%lf%lf%lf%lf%lf%lf%lf%lf", 
+        &cpu_data->box_matrix[0], 
+        &cpu_data->box_matrix[1], 
+        &cpu_data->box_matrix[2], 
+        &cpu_data->box_matrix[3], 
+        &cpu_data->box_matrix[4], 
+        &cpu_data->box_matrix[5], 
+        &cpu_data->box_matrix[6], 
+        &cpu_data->box_matrix[7], 
+        &cpu_data->box_matrix[8]
+    ); 
+#else
+    fscanf
+    (
+        fid_xyz, "%f%f%f%f%f%f%f%f%f", 
+        &cpu_data->box_matrix[0], 
+        &cpu_data->box_matrix[1], 
+        &cpu_data->box_matrix[2], 
+        &cpu_data->box_matrix[3], 
+        &cpu_data->box_matrix[4], 
+        &cpu_data->box_matrix[5], 
+        &cpu_data->box_matrix[6], 
+        &cpu_data->box_matrix[7], 
+        &cpu_data->box_matrix[8]
+    );
+#endif
+
+    if (count != 9)
+    {
+        printf("Error: reading error for xyz.in.\n");
+    }
+
+    real volume = cpu_data->box_matrix[0]
+                * cpu_data->box_matrix[4]
+                * cpu_data->box_matrix[8] 
+                + cpu_data->box_matrix[1]
+                * cpu_data->box_matrix[5]
+                * cpu_data->box_matrix[6] 
+                + cpu_data->box_matrix[2]
+                * cpu_data->box_matrix[3]
+                * cpu_data->box_matrix[7]
+                - cpu_data->box_matrix[2]
+                * cpu_data->box_matrix[4]
+                * cpu_data->box_matrix[6] 
+                - cpu_data->box_matrix[1]
+                * cpu_data->box_matrix[3]
+                * cpu_data->box_matrix[8] 
+                - cpu_data->box_matrix[0]
+                * cpu_data->box_matrix[5]
+                * cpu_data->box_matrix[7];
+
+    cpu_data->box_matrix_inv[0] = cpu_data->box_matrix[4]
+                                * cpu_data->box_matrix[8] 
+                                - cpu_data->box_matrix[5]
+                                * cpu_data->box_matrix[7];
+    cpu_data->box_matrix_inv[1] = cpu_data->box_matrix[2]
+                                * cpu_data->box_matrix[7] 
+                                - cpu_data->box_matrix[1]
+                                * cpu_data->box_matrix[8];
+    cpu_data->box_matrix_inv[2] = cpu_data->box_matrix[1]
+                                * cpu_data->box_matrix[5] 
+                                - cpu_data->box_matrix[2]
+                                * cpu_data->box_matrix[4];
+    cpu_data->box_matrix_inv[3] = cpu_data->box_matrix[5]
+                                * cpu_data->box_matrix[6] 
+                                - cpu_data->box_matrix[3]
+                                * cpu_data->box_matrix[8];
+    cpu_data->box_matrix_inv[4] = cpu_data->box_matrix[0]
+                                * cpu_data->box_matrix[8] 
+                                - cpu_data->box_matrix[2]
+                                * cpu_data->box_matrix[6];
+    cpu_data->box_matrix_inv[5] = cpu_data->box_matrix[2]
+                                * cpu_data->box_matrix[3] 
+                                - cpu_data->box_matrix[0]
+                                * cpu_data->box_matrix[5];
+    cpu_data->box_matrix_inv[6] = cpu_data->box_matrix[3]
+                                * cpu_data->box_matrix[7] 
+                                - cpu_data->box_matrix[4]
+                                * cpu_data->box_matrix[6];
+    cpu_data->box_matrix_inv[7] = cpu_data->box_matrix[1]
+                                * cpu_data->box_matrix[6] 
+                                - cpu_data->box_matrix[0]
+                                * cpu_data->box_matrix[7];
+    cpu_data->box_matrix_inv[8] = cpu_data->box_matrix[0]
+                                * cpu_data->box_matrix[4] 
+                                - cpu_data->box_matrix[1]
+                                * cpu_data->box_matrix[3];
+
+    for (int n = 0; n < 9; n++) cpu_data->box_matrix_inv[n] /= volume;
+
+#else // #ifdef TRICLINIC
 
     // the second line of the xyz.in file (boundary conditions and box size)
 #ifdef USE_DP
@@ -135,6 +243,8 @@ static void initialize_position
     {
         printf("Error: reading error for xyz.in.\n");
     }
+
+#endif // #ifdef TRICLINIC
 
     if (para->pbc_x == 1)
     {
@@ -289,6 +399,8 @@ static void allocate_memory_gpu(Parameters *para, GPU_Data *gpu_data)
     CHECK(cudaMalloc((void**)&gpu_data->potential_per_atom, m4));
 
     // box lengths
+    CHECK(cudaMalloc((void**)&gpu_data->box_matrix,     sizeof(real) * 9));
+    CHECK(cudaMalloc((void**)&gpu_data->box_matrix_inv, sizeof(real) * 9));
     CHECK(cudaMalloc((void**)&gpu_data->box_length, sizeof(real) * DIM));
 
     // 6 thermodynamic quantities
@@ -322,6 +434,16 @@ static void copy_from_cpu_to_gpu
     cudaMemcpy(gpu_data->y, cpu_data->y, m3, cudaMemcpyHostToDevice); 
     cudaMemcpy(gpu_data->z, cpu_data->z, m3, cudaMemcpyHostToDevice);
 
+    cudaMemcpy
+    (
+        gpu_data->box_matrix, cpu_data->box_matrix, 
+        9 * sizeof(real), cudaMemcpyHostToDevice
+    );
+    cudaMemcpy
+    (
+        gpu_data->box_matrix_inv, cpu_data->box_matrix_inv, 
+        9 * sizeof(real), cudaMemcpyHostToDevice
+    );
     cudaMemcpy
     (gpu_data->box_length, cpu_data->box_length, m4, cudaMemcpyHostToDevice);
 }

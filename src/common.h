@@ -273,7 +273,10 @@ typedef struct
     int *type; int *label; int *group_size; int *group_size_sum;
     real *mass; real *x; real *y; real *z; real *vx; real *vy; real *vz; 
     real *fx; real *fy; real *fz;   
-    real *box_length; real *thermo; real *group_temp;
+    real *thermo; real *group_temp;
+    real *box_matrix;       // box matrix
+    real *box_matrix_inv;   // inverse box matrix
+    real *box_length;       // box length in each direction
 } CPU_Data; 
 
 
@@ -302,6 +305,8 @@ typedef struct
     real *potential_per_atom;     // per-atom potential energy
     real *vx_all; real *vy_all; real *vz_all; // data used for VAC
     real *heat_all;                           // data used for HAC
+    real *box_matrix;       // box matrix
+    real *box_matrix_inv;   // inverse box matrix
     real *box_length;       // box length in each direction
     real *thermo;           // some thermodynamic quantities
     real *b; real *bp;      // for bond-order potentials

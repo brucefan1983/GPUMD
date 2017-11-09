@@ -24,6 +24,28 @@
 /*------------------------------------------------------------------------------
     apply the minimum image convention
 ------------------------------------------------------------------------------*/
+
+
+__device__ static void apply_mic
+(
+    int pbc_x, int pbc_y, int pbc_z, 
+    real *b, // box matrix
+    real *c, // inverse box matrix
+    real &x12, real &y12, real &z12
+) 
+{
+    real sx12 = c[0] * x12 + c[1] * y12 + c[2] * z12;
+    real sy12 = c[3] * x12 + c[4] * y12 + c[5] * z12;
+    real sz12 = c[6] * x12 + c[7] * y12 + c[8] * z12;
+    if (pbc_x == 1) sx12 -= nearbyint(sx12);
+    if (pbc_y == 1) sy12 -= nearbyint(sy12);
+    if (pbc_z == 1) sz12 -= nearbyint(sz12);
+    x12 = b[0] * sx12 + b[1] * sy12 + b[2] * sz12;
+    y12 = b[3] * sx12 + b[4] * sy12 + b[5] * sz12;
+    z12 = b[6] * sx12 + b[7] * sy12 + b[8] * sz12;
+}
+
+
 static __device__ void dev_apply_mic
 (
     int pbc_x, int pbc_y, int pbc_z, real &x12, real &y12, real &z12, 

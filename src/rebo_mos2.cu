@@ -529,10 +529,13 @@ static __global__ void find_force_step1
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z,
-    const real* __restrict__ g_box, 
 #else
-    real* g_x, real* g_y, real* g_z, real* g_box,
+    real* g_x, real* g_y, real* g_z,
 #endif
+    real *g_box,
+    #ifdef TRICLINIC
+    real *g_box_inv,
+    #endif
     real* g_b, real* g_bp, real*g_pp
 )
 {
@@ -545,9 +548,11 @@ static __global__ void find_force_step1
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
         
+        #ifndef TRICLINIC
         real lx = LDG(g_box, 0); 
         real ly = LDG(g_box, 1); 
         real lz = LDG(g_box, 2);
+        #endif
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {      
@@ -555,7 +560,13 @@ static __global__ void find_force_step1
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
+
+            #ifdef TRICLINIC
+            apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x12, y12, z12);
+            #else
             dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            #endif
+
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real zeta = ZERO;
             real n12 = ZERO; // coordination number
@@ -567,7 +578,13 @@ static __global__ void find_force_step1
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;         
+
+                #ifdef TRICLINIC
+                apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x13, y13, z13);
+                #else
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
+                #endif
+
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 real fc13, g123; 
@@ -606,11 +623,14 @@ static __global__ void find_force_step2
     const real* __restrict__ g_vx, 
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
-    const real* __restrict__ g_box,
 #else
     real* g_b, real* g_bp, real* g_pp, real* g_x, real* g_y, real* g_z, 
-    real* g_vx, real* g_vy, real* g_vz, real* g_box,
-#endif
+    real* g_vx, real* g_vy, real* g_vz,
+#endif  
+    real *g_box,
+    #ifdef TRICLINIC
+    real *g_box_inv,
+    #endif
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv 
@@ -649,9 +669,11 @@ static __global__ void find_force_step2
         real vy1 = LDG(g_vy, n1); 
         real vz1 = LDG(g_vz, n1);
         
+        #ifndef TRICLINIC
         real lx = LDG(g_box, 0); 
         real ly = LDG(g_box, 1); 
         real lz = LDG(g_box, 2);
+        #endif
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
@@ -661,7 +683,13 @@ static __global__ void find_force_step2
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
+
+            #ifdef TRICLINIC
+            apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x12, y12, z12);
+            #else
             dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            #endif
+
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real fc12, fcp12, fa12, fap12, fr12, frp12;
             find_fc_and_fcp(type1, type2, d12, fc12, fcp12);
@@ -708,7 +736,13 @@ static __global__ void find_force_step2
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
+
+                #ifdef TRICLINIC
+                apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x13, y13, z13);
+                #else
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
+                #endif
+
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);   
                 real fc13, fa13;
                 find_fc(type1, type3, d13, fc13);
@@ -738,7 +772,13 @@ static __global__ void find_force_step2
                 real x23 = LDG(g_x, n3) - LDG(g_x, n2);
                 real y23 = LDG(g_y, n3) - LDG(g_y, n2);
                 real z23 = LDG(g_z, n3) - LDG(g_z, n2);
+
+                #ifdef TRICLINIC
+                apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x23, y23, z23);
+                #else
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
+                #endif
+
                 real d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);     
                 real fc23, fa23;
                 find_fc(type2, type3, d23, fc23);
@@ -859,7 +899,14 @@ void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
     real *fz = gpu_data->fz;
     real *b = gpu_data->b; 
     real *bp = gpu_data->bp; 
+   
+    #ifdef TRICLINIC
+    real *box     = gpu_data->box_matrix;
+    real *box_inv = gpu_data->box_matrix_inv;
+    #else
     real *box = gpu_data->box_length;
+    #endif
+
     real *sx = gpu_data->virial_per_atom_x; 
     real *sy = gpu_data->virial_per_atom_y; 
     real *sz = gpu_data->virial_per_atom_z; 
@@ -873,35 +920,67 @@ void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
     real *pp;
     cudaMalloc((void**)&pp, sizeof(real) * N * para->neighbor.MN);
     
+    #ifdef TRICLINIC
+    find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, box, box_inv, b, bp, pp);
+    #else
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, box, b, bp, pp);
+    #endif
 
     if (para->hac.compute)
     {
+        #ifdef TRICLINIC
+        find_force_step2<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
+            b, bp, pp, x, y, z, vx, vy, vz, 
+            box, box_inv, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+        );
+        #else
         find_force_step2<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
             b, bp, pp, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
         );
+        #endif
     }
     else if (para->shc.compute)
     {
+        #ifdef TRICLINIC
+        find_force_step2<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
+            b, bp, pp, x, y, z, vx, vy, vz, 
+            box, box_inv, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+        );
+        #else
         find_force_step2<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
             b, bp, pp, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
         );
+        #endif
     }
     else
     {
+        #ifdef TRICLINIC
+        find_force_step2<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
+            b, bp, pp, x, y, z, vx, vy, vz, 
+            box, box_inv, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+        );
+        #else
         find_force_step2<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
             b, bp, pp, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
         );
+        #endif
     }
     
     cudaFree(pp);

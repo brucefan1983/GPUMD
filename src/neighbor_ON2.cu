@@ -17,16 +17,20 @@
 
 
 #include "common.h"
-#include "mic_template.cu" // static __device__ void dev_apply_mic(...)
+#include "mic.cu"
 #include "neighbor_ON2.h"
 
 
 
 // a simple O(N^2) version of neighbor list construction
-template <int pbc_x, int pbc_y, int pbc_z>
 static __global__ void gpu_find_neighbor_ON2
 (
-    int N, real cutoff_square, real *box_length, 
+    int pbc_x, int pbc_y, int pbc_z,
+    int N, real cutoff_square, 
+    real *box, 
+    #ifdef TRICLINIC
+    real *box_inv,
+    #endif
     int *NN, int *NL, real *x, real *y, real *z
 )
 {
@@ -44,8 +48,14 @@ static __global__ void gpu_find_neighbor_ON2
             real x12  = x[n2] - x1;  
             real y12  = y[n2] - y1;
             real z12  = z[n2] - z1;
-            dev_apply_mic<pbc_x, pbc_y, pbc_z>
-            (box_length[0], box_length[1], box_length[2], &x12, &y12, &z12);
+            
+            #ifdef TRICLINIC
+            apply_mic(pbc_x, pbc_y, pbc_z, box, box_inv, x12, y12, z12);
+            #else
+            dev_apply_mic
+            (pbc_x, pbc_y, pbc_z, x12, y12, z12, box[0], box[1], box[2]);
+            #endif
+
             real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
             {        
@@ -75,40 +85,21 @@ void find_neighbor_ON2(Parameters *para, GPU_Data *gpu_data)
     real *x = gpu_data->x;
     real *y = gpu_data->y;
     real *z = gpu_data->z;
+    #if TRICLINIC
+    real *box = gpu_data->box_matrix;
+    real *box_inv = gpu_data->box_matrix_inv;
+    #else
     real *box = gpu_data->box_length;
+    #endif
     
     // Find neighbours
-    if (pbc_x && pbc_y && pbc_z)
-    gpu_find_neighbor_ON2<1,1,1><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
-
-    if (pbc_x && pbc_y && !pbc_z)
-    gpu_find_neighbor_ON2<1,1,0><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
-
-    if (pbc_x && !pbc_y && pbc_z)
-    gpu_find_neighbor_ON2<1,0,1><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
-
-    if (!pbc_x && pbc_y && pbc_z)
-    gpu_find_neighbor_ON2<0,1,1><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
-
-    if (pbc_x && !pbc_y && !pbc_z)
-    gpu_find_neighbor_ON2<1,0,0><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
-
-    if (!pbc_x && pbc_y && !pbc_z)
-    gpu_find_neighbor_ON2<0,1,0><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
-        
-    if (!pbc_x && !pbc_y && pbc_z)
-    gpu_find_neighbor_ON2<0,0,1><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
-
-    if (!pbc_x && !pbc_y && !pbc_z)
-    gpu_find_neighbor_ON2<0,0,0><<<grid_size, BLOCK_SIZE>>>
-    (N, rc2, box, NN, NL, x, y, z);
+    #if TRICLINIC
+    gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
+    (pbc_x, pbc_y, pbc_z, N, rc2, box, box_inv, NN, NL, x, y, z);
+    #else
+    gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
+    (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, x, y, z);
+    #endif
 
     #ifdef DEBUG
         CHECK(cudaDeviceSynchronize());
