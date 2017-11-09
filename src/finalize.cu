@@ -53,12 +53,12 @@ void finalize(Force_Model *force_model, CPU_Data *cpu_data, GPU_Data *gpu_data)
     CHECK(cudaFree(gpu_data->virial_per_atom_z));
     CHECK(cudaFree(gpu_data->potential_per_atom));
     CHECK(cudaFree(gpu_data->heat_per_atom));    
-    #ifdef TRICLINIC
+    //#ifdef TRICLINIC
     CHECK(cudaFree(gpu_data->box_matrix));
     CHECK(cudaFree(gpu_data->box_matrix_inv));
-    #else
+    //#else
     CHECK(cudaFree(gpu_data->box_length));
-    #endif
+    //#endif
     CHECK(cudaFree(gpu_data->thermo));
 
     // only for Tersoff-type potentials
