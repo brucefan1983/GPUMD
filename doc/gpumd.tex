@@ -219,10 +219,10 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. The overall style is C, without using classes (except for some C-style structures), but we might switch to C++ style in the future. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has 55 source files. Except for the \verb"main.cu" file, all the other files come in pairs (e.g., \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.h"). The logical dependence of the files can be summarized as follows:
+The current version of GPUMD has 59 source files. Except for a few files ( \verb"main.cu", \verb"mic.cu", \verb"mic_template.cu"), all the other files come in pairs (e.g., \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.h"). The logical dependence of the files can be summarized as follows:
 
 \begin{itemize}
-\item \verb"main" is the entrance of the program and depends on \verb"gpumd"
+\item \verb"main.cu" is the entrance of the program and depends on \verb"gpumd"
 \item \verb"gpumd" depends on
   \begin{itemize}
     \item \verb"initialize"
@@ -261,8 +261,10 @@ The current version of GPUMD has 55 source files. Except for the \verb"main.cu" 
         \item \verb"sw_bp"
         \item \verb"tersoff_1989_1"
         \item \verb"tersoff_1989_2"
+        \item \verb"rebo_mos2"
         \end{itemize}
-\item All the files (except for \verb"main") depend on \verb"common"
+  \item The files \verb"mic.cu" and \verb"mic_template.cu" will be directly included into some other files.
+\item All the files (except for \verb"main.cu", \verb"mic.cu", and \verb"mic_template.cu") depend on \verb"common"
 \end{itemize}
 
 
@@ -1557,24 +1559,24 @@ where the two-body part is
 \begin{equation}
 V_2(r_{ij}) =  A \epsilon
 \left[
-  B \left( \frac{\sigma }{ r_{ij} } \right)^{4}-1
+  B \left( \frac{\sigma_{ij} }{ r_{ij} } \right)^{4}-1
 \right]
-\exp\left(   \frac{1}{ r_{ij} / \sigma - a} \right)
+\exp\left(   \frac{1}{ r_{ij} / \sigma_{ij} - a_{ij}} \right)
 \end{equation}
 and the three-body part is
 \begin{equation}
 h_{ijk}=\lambda
 \exp
 \left[
-\frac{\gamma}{r_{ij}/\sigma-a} + \frac{\gamma}{r_{ik}/\sigma-a}
+\frac{\gamma}{r_{ij}/\sigma_{ij}-a_{ij}} + \frac{\gamma}{r_{ik}/\sigma_{ij}-a_{ij}}
 \right]
          \left(\cos \theta_{ijk} - \cos \theta_{0} \right)^2.
 \end{equation}
 Here, $A$, $B$, $\epsilon$, $\sigma$, $a$, $\lambda$, $\gamma$, and $\cos \theta_{0}$ are parameters. Here is an explicit expression of the \textbf{partial force} for the three-body part:
 \begin{align}
 \frac{\partial U_i}{\partial \vect{r}_{ij}}
-&= \left[
-\lambda \frac{\gamma}{r_{ij}/\sigma_{ij}-a_{ij}} + \frac{\gamma}{r_{ik}/\sigma_{ik}-a_{ik}}
+&= \lambda \exp \left[
+ \frac{\gamma}{r_{ij}/\sigma_{ij}-a_{ij}} + \frac{\gamma}{r_{ik}/\sigma_{ik}-a_{ik}}
 \right] \left(\cos \theta_{ijk} - \cos \theta_{0} \right) \nonumber \\
 &\times
 \left[
