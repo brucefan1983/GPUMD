@@ -7,10 +7,18 @@
 \usepackage{algorithm}
 \usepackage{algpseudocode}
 \usepackage{listings}
+\usepackage[usenames,dvipsnames,svgnames]{xcolor}
 \usepackage{url}
-%\usepackage{hyperref}
 \newcommand{\vect}[1]{\boldsymbol{#1}}
-
+\usepackage{hyperref}
+\hypersetup{
+pdfnewwindow=true,      % links in new window
+colorlinks=true,        % false: boxed links; true: colored links
+linkcolor=Blue,         % color of internal links (change box color with linkbordercolor)
+citecolor=Blue,         % color of links to bibliography
+filecolor=Blue,         % color of file links
+urlcolor=Blue           % color of external links
+}
 
 
 \begin{document}
@@ -26,9 +34,9 @@
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.3\\
+   Version 1.4\\
    \vspace*{1.0cm}
-   (October 12, 2017)\\
+   (December 24, 2017)\\
   \vspace*{2.0cm}
   }
   \large
@@ -106,7 +114,9 @@ Using the methods as described in Refs. \cite{fan2015prb,fan2017cpc}, we have im
 \begin{itemize}
 \item The EAM-type potential with some analytical forms \cite{zhou2004prb,dai2006jpcm}.
 \item The Tersoff (1989) potential with single or double atom types \cite{tersoff1989prb}.
-\item The Stillinger-Weber (1985) potential \cite{stillinger1985prb}.
+\item The Stillinger-Weber (1985) potential \cite{stillinger1985prb} and some modified versions \cite{xu2015jap}.
+\item The Vashishta potential \cite{vashishta2007jap}.
+\item The REBO potential for Mo-S systems \cite{liang2009prb}.
 \end{itemize}
 More many-body potentials will be implemented in GPUMD in future versions.
 
@@ -184,7 +194,10 @@ We are working on implementing more integration methods.
 \end{enumerate}
 
 
-
+\subsection{Major changes introduced in version 1.4}
+\begin{enumerate}
+\item Added the Vashishta potential \cite{vashishta2007jap}.
+\end{enumerate}
 
 \chapter{Theoretical formalisms and numerical algorithms}
 
@@ -219,7 +232,7 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. The overall style is C, without using classes (except for some C-style structures), but we might switch to C++ style in the future. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has 59 source files. Except for a few files ( \verb"main.cu", \verb"mic.cu", \verb"mic_template.cu"), all the other files come in pairs (e.g., \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.h"). The logical dependence of the files can be summarized as follows:
+The current version of GPUMD has 61 source files. Except for a few files ( \verb"main.cu", \verb"mic.cu", \verb"mic_template.cu"), all the other files come in pairs (e.g., \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.h"). The logical dependence of the files can be summarized as follows:
 
 \begin{itemize}
 \item \verb"main.cu" is the entrance of the program and depends on \verb"gpumd"
@@ -259,6 +272,7 @@ The current version of GPUMD has 59 source files. Except for a few files ( \verb
         \item \verb"eam_dai_2006"
         \item \verb"sw_1985"
         \item \verb"sw_bp"
+        \item \verb"vashishta"
         \item \verb"tersoff_1989_1"
         \item \verb"tersoff_1989_2"
         \item \verb"rebo_mos2"
@@ -1604,6 +1618,67 @@ The potential file for this potential model reads
     # Nothing here, because this is a special potential model and
     # the parameters are thus hard coded
 \end{verbatim}
+
+
+\section{The Vashishta potential}
+
+The Vashishta potential \cite{vashishta2007jap} is essentially a pairwise potential plus a modified form of the three-body part of the SW potential. Therefore, the site potential can be written in the same form as the SW potential:
+\begin{equation}
+U_i = \frac{1}{2} V_2(r_{ij}) + \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j} h_{ijk}.
+\end{equation}
+The two-body part reads
+\begin{equation}
+V_2(r_{ij}) =  
+\frac{H_{ij}}{r_{ij}^{\eta_{ij}}} + 
+\frac{1}{4\pi\epsilon_0} \frac{q_{i}q_{j}}{r_{ij}} e^{-r_{ij}/\lambda_{ij}} -
+\frac{1}{4\pi\epsilon_0} \frac{D_{ij}}{2r_{ij}^4} e^{-r_{ij}/\xi_{ij}}  -
+\frac{W_{ij}}{r_{ij}^6}.
+\end{equation}
+Here, $H_{ij}$, $\eta_{ij}$, $q_{i}$, $q_{j}$, $\lambda_{ij}$, $D_{ij}$, $\xi_{ij}$, and $W_{ij}$ are material-specific parameters. The four terms on the right hand side of the above equation correspond to steric size effects, charge-charge interactions, charge-dipole interactions, and dipole-dipole interactions, respectively. The original paper \cite{vashishta2007jap} has used Gauss units for the middle two terms and we have used the SI units. The two-body part is shifted in terms of both potential and force:
+\begin{equation}
+V_2^{\rm shifted}(r_{ij}) = V_2(r_{ij}) - V_2(r_{c}) -(r-r_c) \frac{dV_2(r_{ij})}{dr_{ij}}\Big|_{r=r_c}.
+\end{equation}
+Therefore, both the potential and the force for the two-body part are continuous at the cutoff distance $r_c$.
+
+The three-body part is
+\begin{equation}
+h_{ijk}=B_i
+\exp
+\left[
+\frac{\gamma}{r_{ij}-r_0} + \frac{\gamma}{r_{ik}-r_0}
+\right]
+\frac{\left(\cos \theta_{ijk} - \cos \theta_{0i} \right)^2}{1 + C \left(\cos \theta_{ijk} - \cos \theta_{0i} \right)^2}.
+\end{equation}
+Here, $B_i$ is a parameter of dimension [energy], $\gamma$ is a redundant parameter which is chosen to be $1$ \AA, $r_0$ is the cutoff distance of the three-body part, $C$ is a dimensionless parameter, and $\cos \theta_{0i}$ is the equilibrium value of $\cos \theta_{ijk}$. Only the triples with $j= k \neq i$ are considered. Here is an explicit expression of the \textbf{partial force} for the three-body part:
+\begin{align}
+\frac{\partial U_i}{\partial \vect{r}_{ij}}
+&= B_i \exp \left[
+ \frac{\gamma}{r_{ij}-r_0} + \frac{\gamma}{r_{ik}-r_0}
+\right] \frac{\left(\cos \theta_{ijk} - \cos \theta_{0i} \right)}{1 + C \left(\cos \theta_{ijk} - \cos \theta_{0i} \right)^2} \nonumber \\
+&\times
+\left[
+  2 \frac{\partial \cos \theta_{ijk}} {\partial \vect{r}_{ij}}\frac{1}{1 + C \left(\cos \theta_{ijk} - \cos \theta_{0i} \right)^2} -
+  \frac{\gamma}{ \left(r_{ij} - r_0 \right)^2}
+  \left(\cos \theta_{ijk} - \cos \theta_{0} \right)
+  \frac{\partial r_{ij}} {\partial \vect{r}_{ij}}
+\right].
+\end{align}
+
+The potential file for this potential model reads
+\begin{verbatim}
+    vashishta 
+    B_0   B_1     cos0_0  cos0_1     C     r0     rc
+    H_00  eta_00  q0*q0   lambda_00  D_00  xi_00  W_00
+    H_01  eta_01  q0*q1   lambda_01  D_01  xi_01  W_01
+    H_11  eta_11  q1*q1   lambda_11  D_11  xi_11  W_11
+\end{verbatim}
+Note:
+\begin{itemize}
+\item The charge $q_i$ was written as $Z_i$ in the original reference \cite{vashishta2007jap};
+\item The parameter $\gamma$ is always $1$\AA~and is thus not treated as an input parameter;
+\item The parameters $\eta_{ij}$ are always integers (as far as I know) and should be entered as integers;
+\item One has to define the atoms types (0 and 1) according to the conventions here when preparing the \verb"xyz.in" file to be introduced in Chapter \ref{chapter:usage}. The order is very important.
+\end{itemize}
 
 
 \section{The Tersoff potential}
