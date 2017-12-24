@@ -24,6 +24,7 @@
 #include "eam_dai_2006.h"
 #include "sw_1985.h"
 #include "sw_bp.h"
+#include "vashishta.h"
 #include "tersoff_1989_1.h"
 #include "tersoff_1989_2.h"
 #include "rebo_mos2.h"
@@ -134,8 +135,12 @@ void gpu_find_force
 {     
     
 #ifndef FIXED_NL
-    real rc2 = force_model->rc * force_model->rc;
-    find_neighbor_local(para, gpu_data, rc2);
+    if (force_model->type != 32) 
+    {
+    	// This is not needed for the Vashishta potential
+        real rc2 = force_model->rc * force_model->rc;
+        find_neighbor_local(para, gpu_data, rc2);
+	}  
 #endif
 
     switch (force_model->type)
@@ -157,6 +162,9 @@ void gpu_find_force
             break;
         case 31:  
             gpu_find_force_sw_bp(para, gpu_data);
+            break;
+        case 32:  
+            gpu_find_force_vashishta(para, force_model->vas, gpu_data);
             break;
         case 40:
             gpu_find_force_tersoff1(para, force_model, gpu_data);        

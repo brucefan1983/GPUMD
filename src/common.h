@@ -389,6 +389,24 @@ typedef struct
 
 
 
+// Parameters for the Vashishta potential
+typedef struct
+{
+	real B[2], cos0[2], C, r0, rc; real v_rc[3], dv_rc[3];
+    real H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
+    int eta[3];
+} Vashishta;
+
+
+//typedef struct
+//{
+    //real H_00, eta_00, qq_00,  lambda_inv_00, D_00, xi_inv_00, W_00;
+	//real H_11, eta_11, qq_11,  lambda_inv_11, D_11, xi_inv_11, W_11;   
+    //real H_01, eta_01, qq_01,  lambda_inv_01, D_01, xi_inv_01, W_01;
+    //real B_0,  B_1,    cos0_0, cos0_1,        C,    r0,        rc;
+    //real v_rc_00, v_rc_11, v_rc_01, dv_rc_00, dv_rc_11, dv_rc_01;     
+//} Vashishta;
+
 // Parameters for the EAM-Zhou-2004 potential
 typedef struct
 {
@@ -422,6 +440,7 @@ typedef struct
     Tersoff       ters1;
     Tersoff       ters2;
     SW            sw;
+    Vashishta     vas;
 } Force_Model;
 
 

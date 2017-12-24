@@ -266,6 +266,67 @@ static void initialize_sw_bp(Force_Model *force_model)
 
 
 
+static void initialize_vashishta(FILE *fid, Force_Model *force_model)
+{
+    printf("INPUT: use Vashishta potential.\n");
+    int count;
+    
+    double B_0, B_1, cos0_0, cos0_1, C, r0, rc;
+    count = fscanf
+    (
+        fid, "%lf%lf%lf%lf%lf%lf%lf", &B_0, &B_1, &cos0_0, &cos0_1, &C, &r0, &rc
+    );
+    if (count != 7) print_error("reading error for Vashishta potential.\n");
+    force_model->vas.B[0] = B_0;
+    force_model->vas.B[1] = B_1;
+    force_model->vas.cos0[0] = cos0_0;
+    force_model->vas.cos0[1] = cos0_1;
+    force_model->vas.C = C;
+    force_model->vas.r0 = r0;
+    force_model->vas.rc = rc;
+    force_model->rc = rc;
+    
+    double H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
+    int eta[3];
+    for (int n = 0; n < 3; n++)
+    {  
+        count = fscanf
+        (
+            fid, "%lf%d%lf%lf%lf%lf%lf", 
+		    &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
+        );
+        if (count != 7) 
+		    print_error("reading error for Vashishta potential.\n");
+		qq[n] *= K_C;         // Gauss -> SI
+		D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
+		lambda_inv[n] = ONE / lambda_inv[n];
+		xi_inv[n] = ONE / xi_inv[n];
+		
+		force_model->vas.H[n] = H[n];
+		force_model->vas.eta[n] = eta[n];
+		force_model->vas.qq[n] = qq[n];
+		force_model->vas.lambda_inv[n] = lambda_inv[n];
+		force_model->vas.D[n] = D[n];
+		force_model->vas.xi_inv[n] = xi_inv[n];
+		force_model->vas.W[n] = W[n];
+			
+        real rci = ONE / rc;
+        real rci4 = rci * rci * rci * rci;
+        real rci6 = rci4 * rci * rci;
+        real p2_steric = H[n] * pow(rci, real(eta[n]));
+	    real p2_charge = qq[n] * rci * exp(-rc*lambda_inv[n]);
+        real p2_dipole = D[n] * rci4 * exp(-rc*xi_inv[n]);
+	    real p2_vander = W[n] * rci6;
+	    force_model->vas.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
+        force_model->vas.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
+	                              + p2_vander * (SIX * rci)
+                                  - p2_charge * (lambda_inv[n] + rci)      
+						          - p2_steric * (eta[n] * rci);
+    }
+}  
+
+
+
 
 static void initialize_rebo_mos2(Force_Model *force_model)
 {
@@ -554,6 +615,11 @@ static void initialize_force_model(Files *files, Force_Model *force_model)
     { 
         force_model->type = 31; 
         initialize_sw_bp(force_model);
+    }
+    else if (strcmp(force_name, "vashishta") == 0) 
+    { 
+        force_model->type = 32; 
+        initialize_vashishta(fid_potential, force_model);
     }
     else if (strcmp(force_name, "tersoff_1989_1") == 0) 
     { 
