@@ -41,28 +41,28 @@
 static __device__ real my_pow(real x, int n) 
 {
     if (n == 7) 
-	{ 
-	    real y = x;
-		x *= x;
-		y *= x; // x^3
-	    x *= x; // x^4
+    { 
+        real y = x;
+        x *= x;
+        y *= x; // x^3
+        x *= x; // x^4
         return y * x;
     }
     else if (n == 9) 
-	{ 
-	    real y = x;
-		x *= x; // x^2
-		x *= x; // x^4
-		y *= x; // x^5
+    { 
+        real y = x;
+        x *= x; // x^2
+        x *= x; // x^4
+        y *= x; // x^5
         return y * x; 
     }
     else // n = 11
-	{ 
-	    real y = x;
-		x *= x; // x^2
-		y *= x; // x^3
-		x *= x; // x^4
-		x *= x; // x^8
+    { 
+        real y = x;
+        x *= x; // x^2
+        y *= x; // x^3
+        x *= x; // x^4
+        x *= x; // x^8
         return y * x; 
     }
 }
@@ -74,21 +74,21 @@ static __device__ real my_pow(real x, int n)
 static __device__ void find_p2_and_f2
 (
     real H, int eta, real qq, real lambda_inv, real D, real xi_inv, real W, 
-	real v_rc, real dv_rc, real rc, real d12, real &p2, real &f2
+    real v_rc, real dv_rc, real rc, real d12, real &p2, real &f2
 )
 {
     real d12inv = ONE / d12;
     real d12inv2 = d12inv * d12inv;
     // real p2_steric = eta; p2_steric = H * pow(d12inv, p2_steric); // slow
     real p2_steric = H * my_pow(d12inv, eta); // super fast
-	real p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
-	real p2_dipole = D * (d12inv2 * d12inv2) * exp(-d12 * xi_inv);
-	real p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
-	p2 = p2_steric + p2_charge - p2_dipole - p2_vander; 
-	p2 -= v_rc + (d12 - rc) * dv_rc; // shifted potential
+    real p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
+    real p2_dipole = D * (d12inv2 * d12inv2) * exp(-d12 * xi_inv);
+    real p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
+    p2 = p2_steric + p2_charge - p2_dipole - p2_vander; 
+    p2 -= v_rc + (d12 - rc) * dv_rc; // shifted potential
     f2 = p2_dipole * (xi_inv + FOUR*d12inv) + p2_vander * (SIX * d12inv);
     f2 -= p2_charge * (lambda_inv + d12inv) + p2_steric * (eta * d12inv);
-	f2 = (f2 - dv_rc) * d12inv;      // shifted force
+    f2 = (f2 - dv_rc) * d12inv;      // shifted force
 }
 
 
@@ -141,8 +141,8 @@ static __global__ void gpu_find_force_vashishta_2body
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1];
         real x1 = LDG(g_x, n1); 
-		real y1 = LDG(g_y, n1); 
-		real z1 = LDG(g_z, n1);
+        real y1 = LDG(g_y, n1); 
+        real z1 = LDG(g_z, n1);
         real vx1 = LDG(g_vx, n1); 
         real vy1 = LDG(g_vy, n1); 
         real vz1 = LDG(g_vz, n1);
@@ -163,19 +163,19 @@ static __global__ void gpu_find_force_vashishta_2body
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             if (d12 >= vas.rc) { continue; }
             if (d12 < vas.r0) // r0 is much smaller than rc
-			{                    
+            {                    
                 g_NL_local[n1 + number_of_particles * (count++)] = n2;
             }
             int type2 = g_type[n2];
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
             real p2, f2;
             find_p2_and_f2
-			(
-			    vas.H[type12], vas.eta[type12], vas.qq[type12], 
-			    vas.lambda_inv[type12], vas.D[type12], vas.xi_inv[type12],
-			    vas.W[type12], vas.v_rc[type12], vas.dv_rc[type12], 
-				vas.rc, d12, p2, f2
-			);	    
+            (
+                vas.H[type12], vas.eta[type12], vas.qq[type12], 
+                vas.lambda_inv[type12], vas.D[type12], vas.xi_inv[type12],
+                vas.W[type12], vas.v_rc[type12], vas.dv_rc[type12], 
+                vas.rc, d12, p2, f2
+            );	    
 
             // treat two-body potential in the same way as many-body potential
             real f12x = f2 * x12 * HALF; 
@@ -302,8 +302,8 @@ static __global__ void gpu_find_force_vashishta_3body
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
         real x1 = LDG(g_x, n1); 
-		real y1 = LDG(g_y, n1); 
-		real z1 = LDG(g_z, n1);
+        real y1 = LDG(g_y, n1); 
+        real z1 = LDG(g_z, n1);
         real vx1 = LDG(g_vx, n1); 
         real vy1 = LDG(g_vy, n1); 
         real vz1 = LDG(g_vz, n1);
@@ -344,14 +344,14 @@ static __global__ void gpu_find_force_vashishta_3body
 
                 real exp123 = exp(ONE / (d12 - vas.r0) + ONE / (d13 - vas.r0));
                 real cos123 = (x12*x13 + y12*y13 + z12*z13) / (d12*d13);
-				real cos_inv = cos123 - vas.cos0[type1];
-				cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv); 
+                real cos_inv = cos123 - vas.cos0[type1];
+                cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv); 
 				    
                 if (cal_p) // accumulate potential energy
                 {
                     s4[threadIdx.x] += (cos123 - vas.cos0[type1])
-					                 * (cos123 - vas.cos0[type1])
-					                 * cos_inv*HALF*vas.B[type1]*exp123;
+		                     * (cos123 - vas.cos0[type1])
+                                     * cos_inv*HALF*vas.B[type1]*exp123;
                 }
  
                 real cos_d = x13 / (d12 * d13) - x12 * cos123 / (d12 * d12); 	 
@@ -383,7 +383,7 @@ static __global__ void gpu_find_force_vashishta_3body
                 real exp213 = exp(ONE / (d12 - vas.r0) + ONE / (d23 - vas.r0));
                 real cos213 = -(x12*x23 + y12*y23 + z12*z23) / (d12*d23); 
                 real cos_inv = cos213 - vas.cos0[type2];
-				cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv);               
+                cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv);               
                 
                 real cos_d = x23 / (d12 * d23) + x12 * cos213 / (d12 * d12);
                 f21x += vas.B[type2]*exp213*cos_inv*(cos213-vas.cos0[type2])*
@@ -500,55 +500,55 @@ void gpu_find_force_vashishta
     if (para->hac.compute)    
     {
         gpu_find_force_vashishta_2body<0, 1, 0>
-		<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, pbc_x, pbc_y, pbc_z, vas, NN, NL, NN_local, NL_local, type, 
-			x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
-			label, fv_index, fv
+            x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
+            label, fv_index, fv
         );
 
         gpu_find_force_vashishta_3body<0, 1, 0>
-		<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, pbc_x, pbc_y, pbc_z, vas, NN_local, NL_local, type, 
-			x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
-			label, fv_index, fv
+            x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
+            label, fv_index, fv
         );
     }
     else if (para->shc.compute)
     {
         gpu_find_force_vashishta_2body<0, 0, 1>
-		<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, pbc_x, pbc_y, pbc_z, vas, NN, NL, NN_local, NL_local, type, 
-			x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
-			label, fv_index, fv
+            x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
+            label, fv_index, fv
         );
 
         gpu_find_force_vashishta_3body<0, 0, 1>
-		<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, pbc_x, pbc_y, pbc_z, vas, NN_local, NL_local, type, 
-			x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
-			label, fv_index, fv
+            x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
+            label, fv_index, fv
         );
     }
     else
     {
         gpu_find_force_vashishta_2body<1, 0, 0>
-		<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, pbc_x, pbc_y, pbc_z, vas, NN, NL, NN_local, NL_local, type, 
-			x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
-			label, fv_index, fv
+            x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
+            label, fv_index, fv
         );
 
         gpu_find_force_vashishta_3body<1, 0, 0>
-		<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, pbc_x, pbc_y, pbc_z, vas, NN_local, NL_local, type, 
-			x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
-			label, fv_index, fv
+            x, y, z, vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, pe, h, 
+            label, fv_index, fv
         );
          
     }
