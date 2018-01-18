@@ -165,10 +165,12 @@ static void process_run
         dump_forces(files->fid_force, para, cpu_data, gpu_data, step);
         dump_potential(files->fid_potential, para, cpu_data, gpu_data, step);
         dump_virial(files->fid_virial, para, cpu_data, gpu_data, step);
-
-        if ((step + 1) % (para->number_of_steps / 10) == 0)
+        if (para->number_of_steps >= 10)
         {
-            printf("INFO:  %d steps completed.\n", step + 1);
+            if ((step + 1) % (para->number_of_steps / 10) == 0)
+            {
+                printf("INFO:  %d steps completed.\n", step + 1);
+            }
         }
     }
     
