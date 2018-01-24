@@ -1,7 +1,7 @@
 all: gpumd
 
 CC = nvcc
-CFLAGS = -O3 -use_fast_math -DUSE_DP -DDEBUG -arch=sm_35
+CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_35
 #CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_37
 #CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_20
 #CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_61
