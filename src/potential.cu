@@ -258,14 +258,6 @@ static void initialize_sw_1985(FILE *fid, Force_Model *force_model)
 
 
 
-static void initialize_sw_bp(Force_Model *force_model)
-{
-    printf("INPUT: use the potential in [JAP 117, 214308 (2015)].\n");
-    force_model->rc = 2.8;
-} 
-
-
-
 static void initialize_vashishta(FILE *fid, Force_Model *force_model)
 {
     printf("INPUT: use Vashishta potential.\n");
@@ -322,6 +314,57 @@ static void initialize_vashishta(FILE *fid, Force_Model *force_model)
 	                              + p2_vander * (SIX * rci)
                                   - p2_charge * (lambda_inv[n] + rci)      
 						          - p2_steric * (eta[n] * rci);
+    }
+}  
+
+
+
+static void initialize_sw_1985_2(FILE *fid, Force_Model *force_model)
+{
+    printf("INPUT: use two-element Stillinger-Weber potential.\n");
+    int count;
+
+    /* format for the potential file (assuming types 0 and 1)
+    A[00] B[00] a[00] sigma[00] gamma[00]
+    A[01] B[01] a[01] sigma[01] gamma[01]
+    A[11] B[11] a[11] sigma[11] gamma[11]
+    lambda[000] cos0[000]
+    lambda[001] cos0[001]
+    lambda[010] cos0[010]
+    lambda[011] cos0[011]
+    lambda[100] cos0[100]
+    lambda[101] cos0[101]
+    lambda[110] cos0[110]
+    lambda[111] cos0[111]
+    */
+
+    // 2-body parameters and the force cutoff
+    double A[3], B[3], a[3], sigma[3], gamma[3];
+    force_model->rc = 0.0;
+    for (int n = 0; n < 3; n++)
+    {  
+        count = fscanf
+        (fid, "%lf%lf%lf%lf%lf", &A[n], &B[n], &a[n], &sigma[n], &gamma[n]);
+        if (count != 5) print_error("reading error for potential file.\n");
+        force_model->sw2.A[n] = A[n];
+        force_model->sw2.B[n] = B[n];
+        force_model->sw2.a[n] = a[n];
+        force_model->sw2.sigma[n] = sigma[n];
+        force_model->sw2.gamma[n] = gamma[n];
+        force_model->sw2.rc[n] = sigma[n] * a[n];
+        if (force_model->rc < force_model->sw2.rc[n])
+            force_model->rc = force_model->sw2.rc[n]; // force cutoff
+    }
+
+    // 3-body parameters
+    double lambda[8], cos0[8];
+    for (int n = 0; n < 8; n++)
+    {  
+        count = fscanf
+        (fid, "%lf%lf", &lambda[n], &cos0[n]);
+        if (count != 2) print_error("reading error for potential file.\n");
+        force_model->sw2.lambda[n] = lambda[n];
+        force_model->sw2.cos0[n] = cos0[n];
     }
 }  
 
@@ -611,15 +654,15 @@ static void initialize_force_model(Files *files, Force_Model *force_model)
         force_model->type = 30; 
         initialize_sw_1985(fid_potential, force_model);
     }
-    else if (strcmp(force_name, "sw_bp") == 0) 
-    { 
-        force_model->type = 31; 
-        initialize_sw_bp(force_model);
-    }
     else if (strcmp(force_name, "vashishta") == 0) 
     { 
         force_model->type = 32; 
         initialize_vashishta(fid_potential, force_model);
+    }
+    else if (strcmp(force_name, "sw_1985_2") == 0) 
+    { 
+        force_model->type = 33; 
+        initialize_sw_1985_2(fid_potential, force_model);
     }
     else if (strcmp(force_name, "tersoff_1989_1") == 0) 
     { 

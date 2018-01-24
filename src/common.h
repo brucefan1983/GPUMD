@@ -389,6 +389,18 @@ typedef struct
 
 
 
+// Parameters for two-element the Stillinger-Weber potential
+typedef struct
+{
+    // 2-body part
+    real A[3], B[3], a[3], sigma[3], gamma[3], rc[3];
+    // 3-body part
+    real lambda[8], cos0[8];
+} SW2;
+
+
+
+
 // Parameters for the Vashishta potential
 typedef struct
 {
@@ -440,6 +452,7 @@ typedef struct
     Tersoff       ters1;
     Tersoff       ters2;
     SW            sw;
+    SW2            sw2;
     Vashishta     vas;
 } Force_Model;
 
