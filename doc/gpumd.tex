@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.4\\
+   Version 1.5\\
    \vspace*{1.0cm}
-   (December 24, 2017)\\
+   (Jan 24, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -114,7 +114,7 @@ Using the methods as described in Refs. \cite{fan2015prb,fan2017cpc}, we have im
 \begin{itemize}
 \item The EAM-type potential with some analytical forms \cite{zhou2004prb,dai2006jpcm}.
 \item The Tersoff (1989) potential with single or double atom types \cite{tersoff1989prb}.
-\item The Stillinger-Weber (1985) potential \cite{stillinger1985prb} and some modified versions \cite{xu2015jap}.
+\item The Stillinger-Weber (1985) potential \cite{stillinger1985prb}.
 \item The Vashishta potential \cite{vashishta2007jap}.
 \item The REBO potential for Mo-S systems \cite{liang2009prb}.
 \end{itemize}
@@ -198,6 +198,26 @@ We are working on implementing more integration methods.
 \begin{enumerate}
 \item Added the Vashishta potential \cite{vashishta2007jap}.
 \end{enumerate}
+
+
+\subsection{Major changes introduced in version 1.5}
+\begin{enumerate}
+\item Added the general two-element Stillinger-Weber potential. The potential for single-layer black phosphorene introduced in version 1.1 is of this type and is thus removed.
+\end{enumerate}
+
+
+\section{TODO List}
+
+Here I list a few features which I will hopefully implement this or the next year:
+\begin{itemize}
+\item More Tersoff-type potentials
+\item Spline-based EAM potential
+\item Mixed potentials
+\item Machine-learning potentials
+\item The NPT integrator based on the MTK equation
+\item Multi-GPU version of GPUMD
+\end{itemize}
+
 
 \chapter{Theoretical formalisms and numerical algorithms}
 
@@ -1571,53 +1591,58 @@ U_i = \frac{1}{2} V_2(r_{ij}) + \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j} h_{ijk
 \end{equation}
 where the two-body part is
 \begin{equation}
-V_2(r_{ij}) =  A \epsilon
+V_2(r_{ij}) =  A_{ij} \epsilon_{ij}
 \left[
-  B \left( \frac{\sigma_{ij} }{ r_{ij} } \right)^{4}-1
+  B_{ij} \left( \frac{\sigma_{ij} }{ r_{ij} } \right)^{4}-1
 \right]
 \exp\left(   \frac{1}{ r_{ij} / \sigma_{ij} - a_{ij}} \right)
 \end{equation}
 and the three-body part is
 \begin{equation}
-h_{ijk}=\lambda
+h_{ijk}=\epsilon_{ij}\lambda_{ijk}
 \exp
 \left[
-\frac{\gamma}{r_{ij}/\sigma_{ij}-a_{ij}} + \frac{\gamma}{r_{ik}/\sigma_{ij}-a_{ij}}
+\frac{\gamma_{ij}}{r_{ij}/\sigma_{ij}-a_{ij}} + \frac{\gamma_{ik}}{r_{ik}/\sigma_{ik}-a_{ik}}
 \right]
          \left(\cos \theta_{ijk} - \cos \theta_{0} \right)^2.
 \end{equation}
-Here, $A$, $B$, $\epsilon$, $\sigma$, $a$, $\lambda$, $\gamma$, and $\cos \theta_{0}$ are parameters. Here is an explicit expression of the \textbf{partial force} for the three-body part:
+Here, $A_{ij}$, $B_{ij}$, $\epsilon_{ij}$, $\sigma_{ij}$, $a_{ij}$, $\lambda_{ijk}$, $\gamma_{ij}$, and $\cos \theta_{0}$ are parameters. Here is an explicit expression of the \textbf{partial force} for the three-body part:
 \begin{align}
 \frac{\partial U_i}{\partial \vect{r}_{ij}}
-&= \lambda \exp \left[
- \frac{\gamma}{r_{ij}/\sigma_{ij}-a_{ij}} + \frac{\gamma}{r_{ik}/\sigma_{ik}-a_{ik}}
+&= \epsilon_{ij}\lambda_{ijk} \exp \left[
+ \frac{\gamma_{ij}}{r_{ij}/\sigma_{ij}-a_{ij}} + \frac{\gamma_{ik}}{r_{ik}/\sigma_{ik}-a_{ik}}
 \right] \left(\cos \theta_{ijk} - \cos \theta_{0} \right) \nonumber \\
 &\times
 \left[
   2 \frac{\partial \cos \theta_{ijk}} {\partial \vect{r}_{ij}} -
-  \frac{\gamma}{\sigma_{ij} \left( \frac{r_{ij}}{\sigma_{ij}} - a_{ij} \right)^2}
+  \frac{\gamma_{ij}}{\sigma_{ij} \left( \frac{r_{ij}}{\sigma_{ij}} - a_{ij} \right)^2}
   \left(\cos \theta_{ijk} - \cos \theta_{0} \right)
   \frac{\partial r_{ij}} {\partial \vect{r}_{ij}}
 \right].
 \end{align}
 
-The potential file for this potential model reads
+Parameters with two indices depend on a pair of atoms $i$ and $j$; parameters with three indices depend on a triplet of atoms $i$, $j$, and $k$, where $i$ is the central atom of the triplet. The current version of GPUMD supports both single-element (or more precicely, single-stom-type) and two-element systems. For one-element systems, all the parameters have a single value and the potential file for this potential model reads
 \begin{verbatim}
-    sw
-    epsilon lambda A B a gamma sigma cos_theta_0
+    sw_1985
+    epsilon lambda A B a gamma sigma cos0
 \end{verbatim}
-
-
-\section{The modified Stillinger-Weber potential for single-layer black phosphorene}
-
-In version 1.1, we added a modified Stillinger-Weber potential model for single-layer black phosphorene (SLBP) as introduced by Xu \textit{et al.} \cite{xu2015jap}. SLBP is not strictly flat. The phosphorous atoms in SLBP occupy two planes and the potential model by Xu \textit{et al.} \cite{xu2015jap} distinguishes atoms in different planes. Therefore, this potential model assumes the topology of SLBP and should not be used to study extreme conditions such as melting. In GPUMD, one has to define the atoms in the two planes as types 0 and 1 when preparing the \verb"xyz.in" file to be introduced in Chapter \ref{chapter:usage}.
-
-The potential file for this potential model reads
+For two-element systems, the two-body parameters can generally have 3 different values depending on the types of the $i$ and $j$ atoms and the three-body parameters can generally have 8 different values depending on the types of the $i$, $j$, and $k$ antoms. The potential file reads
 \begin{verbatim}
-    sw_bp
-    # Nothing here, because this is a special potential model and
-    # the parameters are thus hard coded
+    sw_1985_2
+    A_00 B_00 a_00 sigma_00 gamma_00
+    A_01 B_01 a_01 sigma_01 gamma_01
+    A_11 B_11 a_11 sigma_11 gamma_11
+    lambda_000 cos0_000
+    lambda_001 cos0_001
+    lambda_010 cos0_010
+    lambda_011 cos0_011
+    lambda_100 cos0_100
+    lambda_101 cos0_101
+    lambda_110 cos0_110
+    lambda_111 cos0_111
 \end{verbatim}
+Here, 0 and 1 refer to the atom types defined in the \verb"xyz.in" file (see the next chapter). The numbers in the two-body parameters refer to the types of $i$ and $j$ atoms and those in the three-body parameters correspond to the tpyes of the $i$, $j$, and $k$ atoms. Note that we have removed the redundant parameter $\epsilon_{ij}$ in the potential file here and $A_{ij}$ and $\lambda_{ijk}$ actually stand for $\epsilon_{ij}A_{ij}$ and $\epsilon_{ij}\lambda_{ijk}$. The user should be aware of this when preparing the potential file.
+
 
 
 \section{The Vashishta potential}
