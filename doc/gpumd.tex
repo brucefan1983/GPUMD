@@ -1791,10 +1791,67 @@ The potential file for the double-element version reads
 \end{verbatim}
 
 
+\section{The modified Tersoff potential for silicon systems}
+
+Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.
+
+A modified Tersoff potential for silicon systems has been proposed by Kumagai \textit{et al.} \cite{kumagai2007cms} and further extended by Pun \textit{et al.} \cite{pun2017prb}.
+
+The site potential takes a similar form as in the case of the Tersoff potential:
+\begin{equation}
+U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) + c_0\right].
+\end{equation}
+Here, $c_0$ is a constant. The repulsive function $f_{R}(r)$ and the attractive function $f_{A}(r)$ are identical to those in the Tersoff potential:
+\begin{equation}
+f_{R}(r) = A e^{-\lambda r};
+\end{equation}
+\begin{equation}
+f_{A}(r) = B e^{-\mu r}.
+\end{equation}
+
+The bond-order reads
+\begin{equation}
+b_{ij} = \left(1 + \zeta_{ij}^{\eta}\right)^{-\delta},
+\end{equation}
+where (the function $f_C(r_{ik})$ in the following equation was mistakenly written as $f_C(r_{ij})$ in both references \cite{kumagai2007cms,pun2017prb})
+\begin{equation}
+\zeta_{ij} = \sum_{k\neq i, j}f_C(r_{ik}) g_{ijk} e^{\alpha (r_{ij} - r_{ik})^m},
+\end{equation}
+and
+\begin{equation}
+g_{ijk} = c_1 + \frac{c_2(h-\cos\theta)^2}{c_3+(h-\cos\theta)^2}
+                \left[1+c_4e^{-c_5(h-\cos\theta)^2}\right].
+\end{equation}
+They also adopted the modified cutoff function proposed by
+Murty [cite], which has a continuous second-order derivative:
+\begin{equation}
+f_{C}(r) = \frac{1}{2} +
+\frac{9}{16} \cos \left( \pi \frac{r_{ij} - R}{S - R} \right) -
+\frac{1}{16} \cos \left( 3\pi \frac{r_{ij} - R}{S - R} \right).
+\end{equation}
+There are 17 material-specific parameters: $A$, $B$, $\lambda$, $\mu$, $\eta$, $\delta$, $\alpha$, $m$, $c_0$, $c_1$, $c_2$, $c_3$, $c_4$, $c_5$, $h$, $R$, $S$.
 
 
 
-\section{The REBO potential for Mo-S systems by Liang \textit{et al.}}
+The partial force can be derived to be
+\begin{align}
+\frac{\partial U_i}{\partial \vect{r}_{ij}}
+&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-b_{ij}f_A(r_{ij})+c_0]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-b_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}g_{ijk} e^{\alpha (r_{ik}-r_{ij})^m}\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik}) e^{\alpha (r_{ij}-r_{ik})^m} g'_{ijk}
+   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik}) g_{ijk} \alpha m (r_{ij}-r_{ik})^{m-1} e^{\alpha (r_{ij}-r_{ik})^m}
+   \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik} e^{\alpha (r_{ik}-r_{ij})^m} g'_{ijk}
+   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}}. \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik} (-\alpha) m (r_{ik}-r_{ij})^{m-1} e^{\alpha (r_{ik}-r_{ij})^m}
+   g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
+\end{align}
+
+
+
+\section{The REBO potential for Mo-S systems}
 
 Here, we discuss the REBO (reactive empirical bond-order) potential for Mo-S systems developed by Liang \textit{et al.} \cite{liang2009prb}. The erratum \cite{liang2012prb_erratum} should be consulted for improved and extra model parameters which are missing from the original article. This REBO potential is just slightly more complicated than the Tersoff potential. Note that the Lennard-Jones part was not included. We plan to include the Lennard-Jones part in a future version of GPUMD. 
 
@@ -1856,6 +1913,123 @@ rebo_mos2
 # Nothing here, because this is a special potential model and 
 # the parameters are thus hard coded
 \end{verbatim}
+
+
+
+\section{The REBO potential for silicon systems}
+
+
+Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.
+
+Here, we discuss the REBO (reactive empirical bond-order) potential for silicon systems developed by Schall \textit{et al.} \cite{schall2008prb},  which  is essentially the Tersoff potential. 
+
+
+The site potential takes the same general form as in the case of the Tersoff potential:
+\begin{equation}
+U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right].
+\end{equation}
+The cutoff function $f_{C}(r)$ is identical to that in the Tersoff potential. The repulsive function $f_{R}(r)$ takes a different form than that in the Tersoff potential:
+\begin{equation}
+f_{R}(r) = \left(1+\frac{Q}{r}\right) A e^{-\alpha r},
+\end{equation}
+where $Q$, $A$, and $\alpha$ are material-specific parameters. The attractive function $f_{A}(r)$ is
+\begin{equation}
+f_{A}(r) = B_1 e^{-\beta_1 r} + B_2 e^{-\beta_2 r} + B_3 e^{-\beta_3 r},
+\end{equation}
+where $B_1$, $B_2$, $B_3$, $\beta_1$, $\beta_2$, and $\beta_3$ are material-specific parameters.
+
+The bond order function in this REBO potential is
+\begin{equation}
+b_{ij} =\left(1 + \zeta_{ij}\right)^{-1/2},
+\end{equation}
+where
+\begin{equation}
+\zeta_{ij} = \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}) \right].
+\end{equation}
+The angular function  $g_{ijk}(\cos\theta_{ijk})$ is given by splines.
+
+The partial force can be derived to be
+\begin{align}
+\frac{\partial U_i}{\partial \vect{r}_{ij}}
+&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-b_{ij}f_A(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-b_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik})  g'_{ijk}
+   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}  g'_{ijk}
+   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}}. \nonumber \\
+\end{align}
+This is formally the same as in the case of the Tersoff potential.
+
+
+
+\section{The EDIP potential for silicon}
+
+
+Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.
+
+We next consider the EDIP potential for silicon \cite{bazant1997prb,justo1998prb}. The total potential energy consists of a two-body part and a three-body part. Site potential
+\begin{equation}
+U_i = U_i^{(2)} + U_i^{(3)};
+\end{equation}
+\begin{equation}
+U_i^{(2)} = \frac{1}{2}\sum_{j\neq i} V^{(2)}_{ij}(r_{ij}, Z_i);
+\end{equation}
+\begin{equation}
+U_i^{(3)} = \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j}  V^{(3)}_{ijk} \left(\vect{r}_{ij}, \vect{r}_{ik},  Z_i \right).
+\end{equation}
+The effective coordination number $Z_i$ is defined as
+\begin{equation}
+Z_i = \sum_{k\neq i} f(r_{ik}).
+\end{equation}
+where $f(r)$ is a cutoff function which is 1 when $r<c$ and 0 when $r>a$, and takes the value in between:
+\begin{equation}
+f(r) = \exp\left( \frac{\alpha}{1-x^{-3}}\right); ~ x = \frac{r-c}{a-c}.
+\end{equation}
+
+The two-body part is
+\begin{equation}
+V^{(2)}_{ij}(r_{ij},Z_i) =  A
+\left[ \left( \frac{B }{ r_{ij} } \right)^{\rho}- e^{-\beta Z_i^2} \right]
+\exp\left(   \frac{\sigma}{ r_{ij} - a} \right)
+\end{equation}
+and the three-body part is
+\begin{equation}
+V^{(3)}_{ijk}(\vect{r}_{ij}, \vect{r}_{ik}, Z_i) =
+\exp\left(   \frac{\gamma}{ r_{ij} - a} \right)
+\exp\left(   \frac{\gamma}{ r_{ik} - a} \right)
+h \left(\cos \theta_{ijk} , Z_i \right).
+\end{equation}
+The angular function is
+\begin{equation}
+h \left(x , Z \right) =
+\lambda \left[1 - e^{ -Q_0 e^{-\mu Z} (x + \tau(Z))^2}  + \eta Q_0 e^{-\mu Z} (x + \tau(Z))^2 \right],
+\end{equation}
+where
+\begin{equation}
+\tau(Z) = u_1 + u_2(u_3 e^{-u_4 Z} - e^{-2u_4 Z} ).
+\end{equation}
+
+Both $U^{(2)}$ and $U^{(3)}$ contain three-body effects. The partial force for the $U^{(2)}$ part is
+\begin{align}
+\frac{\partial U^{(2)}_i}{\partial \vect{r}_{ij}}
+&= \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial r_{ij}} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&+ \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&+ \frac{1}{2} \sum_{k\neq i,j} \frac{\partial V^{(2)}_{ik}}{\partial Z_{i}} f'_{ij}(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
+\end{align}
+The partial force for the $U^{(3)}$ part is
+\begin{align}
+\frac{\partial U^{(3)}_i}{\partial \vect{r}_{ij}}
+&= \sum_{k\neq i,j} 
+\left[
+\left( \frac{\partial V^{(3)}_{ijk}}{\partial r_{ij}} + \frac{\partial V^{(3)}_{ijk}}{\partial Z_{i}} f'(r_{ij} ) \right)
+\frac{\partial r_{ij}}{\partial \vect{r}_{ij}}
++ \frac{\partial V^{(3)}_{ijk}}{\partial \cos\theta_{ijk}} \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} 
+\right]
+ \nonumber \\
+&+ \frac{1}{2} \sum_{k\neq i,j} \sum_{m\neq i,j} \frac{\partial V^{(3)}_{ikm}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
+\end{align}
+
 
 
 \chapter{Using GPUMD \label{chapter:usage}}
@@ -2477,7 +2651,7 @@ Each independent simulation in Ref. \cite{fan2017prb} took about 10 GPU hours (u
 
 In this example, we show how to study heat transport using the NEMD method combined with the spatial and spectral decompositions as described in Ref. \cite{fan2017prb}. We aim to obtain similar results for the case of unstrained graphene as presented in Fig. 4 of Ref. \cite{fan2017prb}.
 
-In the NEMD simulation, periodic boundary conditions are applied to the transverse direction (chosen as the zigzag direction) and fixed boundary conditions are applied to the transport direction (chosen as the armchair direction). The width of the simulated system is about 10 nm and the total length in the transport direction is about 70 nn. One major difference from the previous simulations is that here the group labels are not identically 0. We divide the system into 8 groups along the transport direction and label the groups from 1 to 8. Groups and 1 and 8 are taken as the source and sink regions, respectively. The number of atoms in groups 1 to 8 are 8000, 1600, 1600, 1600, 1600, 1600, 1600, and 8000, respectively. Some extra fixed atoms are put into group 0. Here are \textbf{two important notes} on the group label:
+In the NEMD simulation, periodic boundary conditions are applied to the transverse direction (chosen as the zigzag direction) and fixed boundary conditions are applied to the transport direction (chosen as the armchair direction). The width of the simulated system is about 10 nm and the total length in the transport direction is about 70 nm. One major difference from the previous simulations is that here the group labels are not identically 0. We divide the system into 8 groups along the transport direction and label the groups from 1 to 8. Groups and 1 and 8 are taken as the source and sink regions, respectively. The number of atoms in groups 1 to 8 are 8000, 1600, 1600, 1600, 1600, 1600, 1600, and 8000, respectively. Some extra fixed atoms are put into group 0. Here are \textbf{two important notes} on the group label:
 \begin{itemize}
 \item It starts from 0.
 \item In the \verb"xyz.in" file, an atom with smaller group label should appear earlier than that with a larger group label. We may remove this restriction in a future version but one should remember this rule when using the current version.
@@ -2548,116 +2722,7 @@ One should always make sure that the obtained data pass these tests approximatel
 
 
 
-% Something to be added in a future version...
 
-\subsection{The EDIP potential}
-
-We next consider the EDIP potential for silicon \cite{bazant1997prb,justo1998prb}. The total potential energy consists of a two-body part and a three-body part. Site potential
-\begin{equation}
-U_i = U_i^{(2)} + U_i^{(3)};
-\end{equation}
-\begin{equation}
-U_i^{(2)} = \frac{1}{2}\sum_{j\neq i} V^{(2)}_{ij}(r_{ij}, Z_i);
-\end{equation}
-\begin{equation}
-U_i^{(3)} = \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j}  V^{(3)}_{ijk} \left(r_{ij}, r_{ik}, Z_i \right).
-\end{equation}
-The effective coordination number $Z_i$ is defined as
-\begin{equation}
-Z_i = \sum_{k\neq i} f(r_{ik}).
-\end{equation}
-where $f(r)$ is a cutoff function which is 1 when $r<c$ and 0 when $r>a$, and takes the value in between:
-\begin{equation}
-f(r) = \exp\left( \frac{\alpha}{1-x^{-3}}\right); ~ x = \frac{r-c}{a-c}.
-\end{equation}
-
-The two-body part is
-\begin{equation}
-V^{(2)}_{ij}(r_{ij},Z_i) =  A
-\left[ \left( \frac{B }{ r_{ij} } \right)^{\rho}- e^{-\beta Z_i^2} \right]
-\exp\left(   \frac{\sigma}{ r_{ij} - a} \right)
-\end{equation}
-and the three-body part is
-\begin{equation}
-V^{(3)}_{ijk}(r_{ij}, r_{ik}, Z_i) =
-\exp\left(   \frac{\gamma}{ r_{ij} - a} \right)
-\exp\left(   \frac{\gamma}{ r_{ik} - a} \right)
-h \left(\cos \theta_{ijk} , Z_i \right).
-\end{equation}
-The angular function is
-\begin{align}
-h \left(\cos \theta_{ijk} , Z_i \right) &=
-\lambda \left[1 - \exp \left( -Q_0 e^{-\mu Z} (\cos \theta_{ijk} + \tau(Z))^2 \right) \right] \nonumber \\
-&+ \lambda \eta Q_0 e^{-\mu Z} (\cos \theta_{ijk} + \tau(Z))^2.
-\end{align}
-where
-\begin{equation}
-\tau(Z) = 0.165799 + 32.557(0.286198 e^{-0.66 Z} - e^{-1.32 Z} ).
-\end{equation}
-
-Both $U^{(2)}$ and $U^{(3)}$ contain three-body effects. The partial force for the $U^{(2)}$ part is
-\begin{align}
-\frac{\partial U^{(2)}_i}{\partial \vect{r}_{ij}}
-&= \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial r_{ij}} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial Z_{i}} f'_{ij}(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2} \sum_{k\neq i,j} \frac{\partial V^{(2)}_{ik}}{\partial Z_{i}} f'_{ij}(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}
-\end{align}
-The partial force for the $U^{(3)}$ part is
-\begin{align}
-\frac{\partial U^{(3)}_i}{\partial \vect{r}_{ij}}
-&= \sum_{k\neq i,j}
-\left( \frac{\partial V^{(3)}_{ijk}}{\partial r_{ij}} + \frac{\partial V^{(3)}_{ijk}}{\partial Z_{i}} f'_{ij}(r_{ij}) \right)
-\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2} \sum_{k\neq i,j} \sum_{m\neq i,j} \frac{\partial V^{(3)}_{ikm}}{\partial Z_{i}} f'_{ij}(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
-\end{align}
-
-
-
-
-
-\subsection{Modified Tersoff potential by Kumagai \textit{et al.}}
-
-A modified angular function has been proposed by Kumagai \textit{et al.} \cite{kumagai2007cms}.
-The bond-order is takes a more general form
-\begin{equation}
-b_{ij} = \left(1 + \zeta_{ij}\right)^{-\delta},
-\end{equation}
-where
-\begin{equation}
-\zeta_{ij} = \sum_{k\neq i, j}f_C(r_{ik}) g_{ijk} e^{\alpha (r_{ij} - r_{ik})},
-\end{equation}
-and
-\begin{equation}
-g_{ijk} = c_1 + \frac{c_2(h-\cos\theta)^2}{c3+(h-\cos\theta)^2}
-                \left[1+e^{-c_5(h-\cos\theta)^2}\right].
-\end{equation}
-They also adopt the modified cutoff function proposed by
-Mutrty, which has a continuous second-order derivative:
-\begin{equation}
-f_{C}(r) = \frac{1}{2} +
-\frac{9}{16} \cos \left( \pi \frac{r_{ij} - r_{ij}^{min}}{r_{ij}^{max} - r_{ij}^{min}} \right) -
-\frac{1}{16} \cos \left( 3\pi \frac{r_{ij} - r_{ij}^{min}}{r_{ij}^{max} - r_{ij}^{min}} \right)
-\end{equation}
-
-The parameters are $A$, $B$, $\lambda_1$, $\lambda_2$, $\delta$, $\alpha$, $c_1$, $c_2$, $c_3$, $c_5$ and can be found from Table 7 of Kumagai \textit{et al.}.
-
-
-
-The partial force can be derived to be
-\begin{align}
-\frac{\partial U_i}{\partial \vect{r}_{ij}}
-&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-b_{ij}f_A(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-b_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}g_{ijk} e^{\alpha (r_{ik}-r_{ij})}\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik}) e^{\alpha (r_{ij}-r_{ik})} g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik}) g_{ijk} \alpha e^{\alpha (r_{ij}-r_{ik})}
-   \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik} e^{\alpha (r_{ik}-r_{ij})} g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}}. \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik} (-\alpha) e^{\alpha (r_{ik}-r_{ij})}
-   g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
-\end{align}
 
 
 
