@@ -426,6 +426,8 @@ static void initialize_eam_zhou_2004_1(FILE *fid, Force_Model *force_model)
     if (count != 1){print_error("reading error for potential.in.\n"); exit(1);}
     count = fscanf(fid, "%lf", &force_model->eam1.Fe);
     if (count != 1){print_error("reading error for potential.in.\n"); exit(1);}
+    count = fscanf(fid, "%lf", &force_model->eam1.rc);
+    if (count != 1){print_error("reading error for potential.in.\n"); exit(1);}
 #else
     count = fscanf(fid, "%f", &force_model->eam1.re);
     if (count != 1){print_error("reading error for potential.in.\n"); exit(1);}
@@ -466,6 +468,8 @@ static void initialize_eam_zhou_2004_1(FILE *fid, Force_Model *force_model)
     count = fscanf(fid, "%f", &force_model->eam1.eta);
     if (count != 1){print_error("reading error for potential.in.\n"); exit(1);}
     count = fscanf(fid, "%f", &force_model->eam1.Fe);
+    if (count != 1){print_error("reading error for potential.in.\n"); exit(1);}
+    count = fscanf(fid, "%f", &force_model->eam1.rc);
     if (count != 1){print_error("reading error for potential.in.\n"); exit(1);}
 #endif
     force_model->eam1.rho_n = force_model->eam1.rho_e * 0.85;
