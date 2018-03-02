@@ -319,6 +319,129 @@ static void initialize_vashishta(FILE *fid, Force_Model *force_model)
 
 
 
+
+
+// get U_ij and (d U_ij / d r_ij) / r_ij for the 2-body part
+static void find_p2_and_f2
+(
+    real H, int eta, real qq, real lambda_inv, real D, real xi_inv, real W, 
+    real v_rc, real dv_rc, real rc, real d12, real &p2, real &f2
+)
+{
+    real d12inv = ONE / d12;
+    real d12inv2 = d12inv * d12inv;
+    real p2_steric = eta; p2_steric = H * pow(d12inv, eta);
+    real p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
+    real p2_dipole = D * (d12inv2 * d12inv2) * exp(-d12 * xi_inv);
+    real p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
+    p2 = p2_steric + p2_charge - p2_dipole - p2_vander; 
+    p2 -= v_rc + (d12 - rc) * dv_rc; // shifted potential
+    f2 = p2_dipole * (xi_inv + FOUR*d12inv) + p2_vander * (SIX * d12inv);
+    f2 -= p2_charge * (lambda_inv + d12inv) + p2_steric * (eta * d12inv);
+    f2 = (f2 - dv_rc) * d12inv;      // shifted force
+}
+
+
+
+
+static void initialize_vashishta_table(FILE *fid, Force_Model *force_model)
+{
+    printf("INPUT: use tabulated Vashishta potential.\n");
+    int count;
+
+    int N; double rmin;
+    count = fscanf(fid, "%d%lf", &N, &rmin);
+    if (count != 2) print_error("reading error for Vashishta potential.\n");
+    force_model->vas_table.N = N;
+    force_model->vas_table.rmin_square = rmin * rmin;
+
+    real *cpu_table;
+    MY_MALLOC(cpu_table, real, N * 6);
+    
+    double B_0, B_1, cos0_0, cos0_1, C, r0, rc;
+    count = fscanf
+    (
+        fid, "%lf%lf%lf%lf%lf%lf%lf", &B_0, &B_1, &cos0_0, &cos0_1, &C, &r0, &rc
+    );
+    if (count != 7) print_error("reading error for Vashishta potential.\n");
+    force_model->vas_table.B[0] = B_0;
+    force_model->vas_table.B[1] = B_1;
+    force_model->vas_table.cos0[0] = cos0_0;
+    force_model->vas_table.cos0[1] = cos0_1;
+    force_model->vas_table.C = C;
+    force_model->vas_table.r0 = r0;
+    force_model->vas_table.rc = rc;
+    force_model->vas_table.r0_square = r0 * r0;
+    force_model->vas_table.rc_square = rc * rc;
+    force_model->vas_table.scale = (N-ONE)/(rc*rc-rmin*rmin);
+    force_model->rc = rc;
+    
+    double H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
+    int eta[3];
+    for (int n = 0; n < 3; n++)
+    {  
+        count = fscanf
+        (
+            fid, "%lf%d%lf%lf%lf%lf%lf", 
+		          &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
+        );
+        if (count != 7) 
+		      print_error("reading error for Vashishta potential.\n");
+		      qq[n] *= K_C;         // Gauss -> SI
+		      D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
+		      lambda_inv[n] = ONE / lambda_inv[n];
+		      xi_inv[n] = ONE / xi_inv[n];
+		
+		      force_model->vas_table.H[n] = H[n];
+		      force_model->vas_table.eta[n] = eta[n];
+		      force_model->vas_table.qq[n] = qq[n];
+		      force_model->vas_table.lambda_inv[n] = lambda_inv[n];
+		      force_model->vas_table.D[n] = D[n];
+		      force_model->vas_table.xi_inv[n] = xi_inv[n];
+		      force_model->vas_table.W[n] = W[n];
+			
+        real rci = ONE / rc;
+        real rci4 = rci * rci * rci * rci;
+        real rci6 = rci4 * rci * rci;
+        real p2_steric = H[n] * pow(rci, real(eta[n]));
+	       real p2_charge = qq[n] * rci * exp(-rc*lambda_inv[n]);
+        real p2_dipole = D[n] * rci4 * exp(-rc*xi_inv[n]);
+	       real p2_vander = W[n] * rci6;
+	       force_model->vas_table.v_rc[n] 
+            = p2_steric+p2_charge-p2_dipole-p2_vander;
+        force_model->vas_table.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
+	                                 + p2_vander * (SIX * rci)
+                                  - p2_charge * (lambda_inv[n] + rci)      
+						                            - p2_steric * (eta[n] * rci);
+
+        // build the table
+        for (int m = 0; m < N; m++) 
+        {
+            real d12square = rmin*rmin + m * (rc*rc - rmin*rmin) / (N-ONE);
+            real p2, f2;
+            find_p2_and_f2
+            (
+                H[n], eta[n], qq[n], lambda_inv[n], D[n], xi_inv[n], W[n], 
+                force_model->vas_table.v_rc[n], 
+                force_model->vas_table.dv_rc[n], 
+                rc, sqrt(d12square), p2, f2
+            );
+            int index_p = m + N * n;
+            int index_f = m + N * (n + 3);
+            cpu_table[index_p] = p2;
+            cpu_table[index_f] = f2;
+        }
+    }
+
+    int memory = sizeof(real) * N * 6;
+    CHECK(cudaMalloc((void**)&force_model->vas_table.table, memory));
+    cudaMemcpy
+    (force_model->vas_table.table, cpu_table, memory, cudaMemcpyHostToDevice);
+    MY_FREE(cpu_table);
+}  
+
+
+
 static void initialize_sw_1985_2(FILE *fid, Force_Model *force_model)
 {
     printf("INPUT: use two-element Stillinger-Weber potential.\n");
@@ -667,6 +790,11 @@ static void initialize_force_model(Files *files, Force_Model *force_model)
     { 
         force_model->type = 33; 
         initialize_sw_1985_2(fid_potential, force_model);
+    }
+    else if (strcmp(force_name, "vashishta_table") == 0) 
+    { 
+        force_model->type = 34; 
+        initialize_vashishta_table(fid_potential, force_model);
     }
     else if (strcmp(force_name, "tersoff_1989_1") == 0) 
     { 

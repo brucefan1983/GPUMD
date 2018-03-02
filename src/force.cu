@@ -25,6 +25,7 @@
 #include "sw_1985.h"
 #include "sw_1985_2.h"
 #include "vashishta.h"
+#include "vashishta_table.h"
 #include "tersoff_1989_1.h"
 #include "tersoff_1989_2.h"
 #include "rebo_mos2.h"
@@ -135,12 +136,12 @@ void gpu_find_force
 {     
     
 #ifndef FIXED_NL
-    if (force_model->type != 32) 
+    if (force_model->type != 32 && force_model->type != 34)
     {
-    	// This is not needed for the Vashishta potential
+    	   // This is not needed for the Vashishta potential
         real rc2 = force_model->rc * force_model->rc;
-        find_neighbor_local(para, gpu_data, rc2);
-	}  
+        find_neighbor_local(para, gpu_data, rc2); 
+    }  
 #endif
 
     switch (force_model->type)
@@ -165,6 +166,10 @@ void gpu_find_force
             break;
         case 33:  
             gpu_find_force_sw2(para, force_model->sw2, gpu_data);
+            break;
+        case 34:  
+            gpu_find_force_vashishta_table
+            (para, force_model->vas_table, gpu_data);
             break;
         case 40:
             gpu_find_force_tersoff1(para, force_model, gpu_data);        

@@ -68,6 +68,12 @@ void finalize(Force_Model *force_model, CPU_Data *cpu_data, GPU_Data *gpu_data)
         CHECK(cudaFree(gpu_data->bp));
     }
 
+    // for the Vashishta-table potential
+    if (force_model->type == 34)
+    {
+        CHECK(cudaFree(force_model->vas_table.table));
+    }
+
     // Free the major memory allocated on the CPU
     MY_FREE(cpu_data->NN);
     MY_FREE(cpu_data->NL);

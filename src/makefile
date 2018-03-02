@@ -1,14 +1,15 @@
 all: gpumd
 
 CC = nvcc
-CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_35
+CFLAGS = -O3 -DUSE_LDG -DUSE_DP -DDEBUG -DFORCE -arch=sm_35
 #CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_37
 #CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_20
 #CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_61
 
 gpumd: common.o eam_zhou_2004.o eam_dai_2006.o \
        tersoff_1989_1.o tersoff_1989_2.o rebo_mos2.o \
-       sw_1985.o sw_1985_2.o vashishta.o lj1.o ri.o force.o validate.o \
+       sw_1985.o sw_1985_2.o vashishta.o vashishta_table.o \
+       lj1.o ri.o force.o validate.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o potential.o \
@@ -17,7 +18,8 @@ gpumd: common.o eam_zhou_2004.o eam_dai_2006.o \
 	$(CC) -o gpumd \
        common.o eam_zhou_2004.o eam_dai_2006.o \
        tersoff_1989_1.o tersoff_1989_2.o rebo_mos2.o \
-       sw_1985.o sw_1985_2.o vashishta.o lj1.o ri.o force.o validate.o \
+       sw_1985.o sw_1985_2.o vashishta.o vashishta_table.o \
+       lj1.o ri.o force.o validate.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o potential.o \
@@ -75,6 +77,8 @@ sw_1985_2.o: sw_1985_2.cu
 	$(CC) $(CFLAGS) -c sw_1985_2.cu
 vashishta.o: vashishta.cu
 	$(CC) $(CFLAGS) -c vashishta.cu
+vashishta_table.o: vashishta_table.cu
+	$(CC) $(CFLAGS) -c vashishta_table.cu
 tersoff_1989_1.o: tersoff_1989_1.cu
 	$(CC) $(CFLAGS) -c tersoff_1989_1.cu
 tersoff_1989_2.o: tersoff_1989_2.cu
