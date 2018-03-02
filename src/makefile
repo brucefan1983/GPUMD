@@ -1,10 +1,7 @@
 all: gpumd
 
 CC = nvcc
-CFLAGS = -O3 -DUSE_LDG -DUSE_DP -DDEBUG -DFORCE -arch=sm_35
-#CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_37
-#CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_20
-#CFLAGS = -O3 -use_fast_math -DUSE_DP -arch=sm_61
+CFLAGS = -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
 
 gpumd: common.o eam_zhou_2004.o eam_dai_2006.o \
        tersoff_1989_1.o tersoff_1989_2.o rebo_mos2.o \
