@@ -1,0 +1,18 @@
+potential   potentials/sw/sic_vashishta_table_2007.txt
+velocity    300
+
+ensemble    npt_ber 300 300 0.1 0 0 0 0.0005
+neighbor    1
+time_step   1
+run         100000
+
+ensemble    nve
+neighbor    1
+compute_vac 4 200 250
+run         100000
+
+
+
+
+
+
