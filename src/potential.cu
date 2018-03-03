@@ -353,7 +353,7 @@ static void initialize_vashishta_table(FILE *fid, Force_Model *force_model)
     count = fscanf(fid, "%d%lf", &N, &rmin);
     if (count != 2) print_error("reading error for Vashishta potential.\n");
     force_model->vas_table.N = N;
-    force_model->vas_table.rmin_square = rmin * rmin;
+    force_model->vas_table.rmin = rmin;
 
     real *cpu_table;
     MY_MALLOC(cpu_table, real, N * 6);
@@ -371,9 +371,7 @@ static void initialize_vashishta_table(FILE *fid, Force_Model *force_model)
     force_model->vas_table.C = C;
     force_model->vas_table.r0 = r0;
     force_model->vas_table.rc = rc;
-    force_model->vas_table.r0_square = r0 * r0;
-    force_model->vas_table.rc_square = rc * rc;
-    force_model->vas_table.scale = (N-ONE)/(rc*rc-rmin*rmin);
+    force_model->vas_table.scale = (N-ONE)/(rc-rmin);
     force_model->rc = rc;
     
     double H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
@@ -417,14 +415,14 @@ static void initialize_vashishta_table(FILE *fid, Force_Model *force_model)
         // build the table
         for (int m = 0; m < N; m++) 
         {
-            real d12square = rmin*rmin + m * (rc*rc - rmin*rmin) / (N-ONE);
+            real d12 = rmin + m * (rc - rmin) / (N-ONE);
             real p2, f2;
             find_p2_and_f2
             (
                 H[n], eta[n], qq[n], lambda_inv[n], D[n], xi_inv[n], W[n], 
                 force_model->vas_table.v_rc[n], 
                 force_model->vas_table.dv_rc[n], 
-                rc, sqrt(d12square), p2, f2
+                rc, d12, p2, f2
             );
             int index_p = m + N * n;
             int index_f = m + N * (n + 3);

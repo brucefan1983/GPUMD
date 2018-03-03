@@ -169,9 +169,9 @@ static __global__ void gpu_find_force_vashishta_2body
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
-            real d12square = x12 * x12 + y12 * y12 + z12 * z12;
-            if (d12square >= vas.rc_square) { continue; }
-            if (d12square < vas.r0_square) // r0 is much smaller than rc
+            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            if (d12 >= vas.rc) { continue; }
+            if (d12 < vas.r0) // r0 is much smaller than rc
             {                    
                 g_NL_local[n1 + number_of_particles * (count++)] = n2;
             }
@@ -179,9 +179,9 @@ static __global__ void gpu_find_force_vashishta_2body
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
             real p2, f2;
 
-            if (d12square >= vas.rmin_square)
+            if (d12 > vas.rmin)
             {
-                real tmp = (d12square - vas.rmin_square) * vas.scale;
+                real tmp = (d12 - vas.rmin) * vas.scale;
                 int index = tmp; // 0 <= index < N-1
                 real x = tmp - index; // 0 <= x < 1
                 index += type12 * vas.N;
@@ -196,7 +196,7 @@ static __global__ void gpu_find_force_vashishta_2body
                     vas.H[type12], vas.eta[type12], vas.qq[type12], 
                     vas.lambda_inv[type12], vas.D[type12], vas.xi_inv[type12],
                     vas.W[type12], vas.v_rc[type12], vas.dv_rc[type12], 
-                    vas.rc, sqrt(d12square), p2, f2
+                    vas.rc, d12, p2, f2
                 );	
             }
 

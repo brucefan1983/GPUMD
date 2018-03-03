@@ -418,9 +418,7 @@ typedef struct
     real B[2], cos0[2], C, r0, rc; real v_rc[3], dv_rc[3];
     real H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
     int eta[3];
-    real rc_square;
-    real r0_square;
-    real rmin_square;
+    real rmin;
     real scale;
     int N;
     real *table;
