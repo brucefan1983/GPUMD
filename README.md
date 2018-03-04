@@ -9,7 +9,7 @@
    * The Tersoff (1989) potential with single or double atom types
    * The REBO potential for Mo-S systems (2009)
    * The Stillinger-Weber (1985) potential with single or double atom types
-   * The Vashishta (2007) potential
+   * The Vashishta (2007) potential (both analytical and tabulated)
    
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of GPUMD can calculate the following quantities related to heat transport:
    * It can calculate the phonon density of states (DOS) from the velocity autocorrelation (VAC).
