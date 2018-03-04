@@ -311,6 +311,7 @@ typedef struct
     real *thermo;           // some thermodynamic quantities
     real *b; real *bp;      // for bond-order potentials
     real *fv; real *fv_all; // for SHC calculations
+    real *f12x, *f12y, *f12z; // partial force for many-body potentials
 } GPU_Data;
 
 

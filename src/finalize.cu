@@ -74,6 +74,14 @@ void finalize(Force_Model *force_model, CPU_Data *cpu_data, GPU_Data *gpu_data)
         CHECK(cudaFree(force_model->vas_table.table));
     }
 
+    // for SW and Tersoff type potentials
+    if (force_model->type >= 30)
+    {
+        CHECK(cudaFree(gpu_data->f12x));
+        CHECK(cudaFree(gpu_data->f12y));
+        CHECK(cudaFree(gpu_data->f12z));
+    }
+
     // Free the major memory allocated on the CPU
     MY_FREE(cpu_data->NN);
     MY_FREE(cpu_data->NL);

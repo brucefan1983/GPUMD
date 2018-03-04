@@ -837,6 +837,20 @@ void process_potential
         CHECK(cudaMalloc((void**)&gpu_data->b,  memory)); 
         CHECK(cudaMalloc((void**)&gpu_data->bp, memory)); 
     }
+
+    // for SW and Tersoff type potentials
+    if (force_model->type >= 30)
+    {
+        // Assume that there are at most 20 neighbors for the many-body part;
+        // This should be more than enough
+        // I do not change 20 to para->neighbor.MN because MN can be very large
+        // in some cases
+        int memory = sizeof(real) * para->N * 20; 
+        CHECK(cudaMalloc((void**)&gpu_data->f12x, memory));
+        CHECK(cudaMalloc((void**)&gpu_data->f12y, memory));
+        CHECK(cudaMalloc((void**)&gpu_data->f12z, memory));
+    }
+
 }
 
 
