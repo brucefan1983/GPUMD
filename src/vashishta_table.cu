@@ -419,9 +419,9 @@ static __global__ void gpu_find_force_vashishta_3body
         real vz1;
         if (!cal_p)
         {
-            real vx1 = LDG(g_vx, n1); 
-            real vy1 = LDG(g_vy, n1); 
-            real vz1 = LDG(g_vz, n1);
+            vx1 = LDG(g_vx, n1); 
+            vy1 = LDG(g_vy, n1); 
+            vz1 = LDG(g_vz, n1);
         }
         real lx = g_box_length[0]; 
         real ly = g_box_length[1]; 
