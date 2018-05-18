@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.5\\
+   Version 1.6\\
    \vspace*{1.0cm}
-   (Jan 24, 2018)\\
+   (May 18, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -204,6 +204,14 @@ We are working on implementing more integration methods.
 \begin{enumerate}
 \item Added the general two-element Stillinger-Weber potential. The potential for single-layer black phosphorene introduced in version 1.1 is of this type and is thus removed.
 \end{enumerate}
+
+\subsection{Major changes introduced in version 1.6}
+\begin{enumerate}
+\item Added the tabulated Vashishta potential, which is about two times as fast as the analytical version when the relative force error is about $10^{-6}$.
+\item The performance of the many-body potentials has been enhanced by about 50\%.
+\end{enumerate}
+
+
 
 
 \section{TODO List}
@@ -2469,7 +2477,7 @@ The first few lines of the \verb"xyz.in" file created by the \verb"create_xyz.m"
 \end{verbatim}
 The first line tells that the number of particles is 8000, the neighbor list size will be
 $8000\times 4$, and the initial cutoff distance for the neighbor list construction is 3 \AA.
-These parameters are good for silicon crystal described by the Tersoff potential, because no atom can have more than 4 neighbor atoms in the temperature range studied. One can make the second number larger, which only results in using more memory. If this numver is not large enough, GPUMD will give an error message and exit. Note that all the atom types and group labels are 0 in this simulation.
+These parameters are good for silicon crystal described by the Tersoff potential, because no atom can have more than 4 neighbor atoms in the temperature range studied. One can make the second number larger, which only results in using more memory. If this number is not large enough, GPUMD will give an error message and exit. Note that all the atom types and group labels are 0 in this simulation.
 
 The ``run.in'' input file is given below. The first line of command tells that the potential to be used is specified in the file \verb"potentials/si_tersoff_1989_1.txt".  The second line of the command tells that the velocities will be initialized with a temperature of 1 K. Then, the next 4 lines tell how to do the first run. This run will be in the $NPT$ ensemble, using the Berendsen method. The temperature is 1 K and the pressures are zero in all the directions. The coupling constants are 0.01 (dimensionless) and 0.0005 (in the natural unit system adopted by GPUMD) for the thermostat and the barostat, respectively. The time step for integration is 1 fs. There are $10^5$ steps for this run and the thermodynamic quantities will be output every 100 steps. After this run, there are 5 other runs with the same parameters but the target temperature. Note that the time step only needs to be set once if one is intended to use the same time step in the whole simulation. In contrast, one has to use the \verb"dump_thermo" keyword for each run in order to get outputs for each run.
 
