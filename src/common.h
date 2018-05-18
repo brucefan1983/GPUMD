@@ -252,7 +252,8 @@ typedef struct
     real pressure_z; 
     real temperature_coupling;
     real pressure_coupling;  
-    real time_step;    // time step in a specific run
+    // time step in a specific run; default value is 1 fs
+    real time_step = ONE / TIME_UNIT_CONVERSION;
 
     // some well defined sub-structures
     Neighbor neighbor;
