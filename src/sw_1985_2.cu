@@ -52,6 +52,7 @@ static __device__ void find_p2_and_f2
 
 
 // find the partial forces dU_i/dr_ij
+#ifndef MOS2_JIANG
 template <int cal_p>
 static __global__ void gpu_find_force_sw2_partial 
 (
@@ -176,6 +177,147 @@ static __global__ void gpu_find_force_sw2_partial
     }
 }    
  
+
+
+
+#else // [J.-W. Jiang, Nanotechnology 26, 315706 (2015)]
+template <int cal_p>
+static __global__ void gpu_find_force_sw2_partial 
+(
+    int number_of_particles, int pbc_x, int pbc_y, int pbc_z, SW2 sw2,
+    int *g_neighbor_number, int *g_neighbor_list, int *g_type,
+#ifdef USE_LDG
+    const real* __restrict__ g_x, 
+    const real* __restrict__ g_y, 
+    const real* __restrict__ g_z, 
+#else
+    real *g_x,  real *g_y,  real *g_z, 
+#endif
+    real *g_box_length, 
+    real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z 
+)
+{
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+    if (n1 < number_of_particles)
+    {
+        int neighbor_number = g_neighbor_number[n1];
+        int type1 = g_type[n1];
+        real x1 = LDG(g_x, n1); 
+        real y1 = LDG(g_y, n1); 
+        real z1 = LDG(g_z, n1);
+        real lx = g_box_length[0]; 
+        real ly = g_box_length[1]; 
+        real lz = g_box_length[2];
+        real potential_energy = ZERO;
+
+        for (int i1 = 0; i1 < neighbor_number; ++i1)
+        {   
+            int index = i1 * number_of_particles + n1;
+            int n2 = g_neighbor_list[index];
+            int type2 = g_type[n2];
+            real x2  = LDG(g_x, n2);
+            real y2  = LDG(g_y, n2);
+            real z2  = LDG(g_z, n2) ; 
+            real x12  = x2 - x1;
+            real y12  = y2 - y1;
+            real z12  = z2 - z1; 
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            real d12inv = ONE / d12;
+            int type12 = type1 + type2; // 0 = 00; 1 = 01 or 10; 2 = 11 
+            if (d12 >= sw2.rc[type12]) {continue;} 
+
+            real gamma12 = sw2.gamma[type12];
+            real sigma12 = sw2.sigma[type12];
+            real a12     = sw2.a[type12];
+            real tmp = gamma12 / (sigma12*(d12/sigma12-a12)*(d12/sigma12-a12));
+            real p2, f2;
+            find_p2_and_f2
+            (sigma12, a12, sw2.B[type12], sw2.A[type12], d12, p2, f2);
+
+            // treat the two-body part in the same way as the many-body part
+            real f12x = f2 * x12 * HALF; 
+            real f12y = f2 * y12 * HALF; 
+            real f12z = f2 * z12 * HALF; 
+            if (cal_p) // accumulate potential energy
+            {
+                potential_energy += p2 * HALF;
+            }
+
+            // accumulate_force_123
+            for (int i2 = 0; i2 < neighbor_number; ++i2)
+            {       
+                int n3 = g_neighbor_list[n1 + number_of_particles * i2];  
+                if (n3 == n2) { continue; }
+                int type3 = g_type[n3];
+                real x3 = LDG(g_x, n3); 
+                real y3 = LDG(g_y, n3); 
+                real z3 = LDG(g_z, n3);
+        		real x23 = x3 - x2;
+        		real y23 = y3 - y2;
+                real z23 = z3 - z2;
+                dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
+                real d23sq = x23 * x23 + y23 * y23 + z23* z23;
+                if (d23sq > 14.2884) { continue; }
+                real x13 = x3 - x1;
+                real y13 = y3 - y1;
+                real z13 = z3 - z1;
+                dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
+                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+                int type13 = type1 + type3;
+                if (d13 >= sw2.rc[type13]) {continue;}
+                
+                /*
+                    type1    type2    type3    type123
+                    0        0        0        0
+                    0        0        1        1
+                    0        1        0        2
+                    0        1        1        3
+                    1        0        0        4
+                    1        0        1        5
+                    1        1        0        6
+                    1        1        1        7
+                */
+                int type123 = type1 * 4 + type2 * 2 + type3;
+                real cos0   = sw2.cos0[type123];
+                real lambda = sw2.lambda[type123];
+                real exp123 = d13 / sw2.sigma[type13] - sw2.a[type13];
+                exp123 = sw2.gamma[type13] / exp123;
+                exp123 = exp(gamma12 / (d12 / sigma12 - a12) + exp123);
+                real one_over_d12d13 = ONE / (d12 * d13);
+                real cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
+                real cos123_over_d12d12 = cos123*d12inv*d12inv;
+
+                real tmp1 = exp123 * (cos123 - cos0) * lambda;
+                real tmp2 = tmp * (cos123 - cos0) * d12inv;
+
+                if (cal_p) // accumulate potential energy
+                {
+                    potential_energy += (cos123 - cos0) * tmp1 * HALF;
+                }
+
+                real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12; 
+                f12x += tmp1 * (TWO * cos_d - tmp2 * x12);
+
+                cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
+                f12y += tmp1 * (TWO * cos_d - tmp2 * y12);
+
+                cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
+                f12z += tmp1 * (TWO * cos_d - tmp2 * z12);
+            }
+
+            g_f12x[index] = f12x;
+            g_f12y[index] = f12y;
+            g_f12z[index] = f12z;
+        }
+        if (cal_p) // save potential
+        {
+            g_potential[n1] = potential_energy;
+        }
+    }
+}   
+#endif
+
 
 
 
