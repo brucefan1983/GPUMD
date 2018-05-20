@@ -1629,12 +1629,12 @@ Here, $A_{ij}$, $B_{ij}$, $\epsilon_{ij}$, $\sigma_{ij}$, $a_{ij}$, $\lambda_{ij
 \right].
 \end{align}
 
-Parameters with two indices depend on a pair of atoms $i$ and $j$; parameters with three indices depend on a triplet of atoms $i$, $j$, and $k$, where $i$ is the central atom of the triplet. The current version of GPUMD supports both single-element (or more precicely, single-stom-type) and two-element systems. For one-element systems, all the parameters have a single value and the potential file for this potential model reads
+Parameters with two indices depend on a pair of atoms $i$ and $j$; parameters with three indices depend on a triplet of atoms $i$, $j$, and $k$, where $i$ is the central atom of the triplet. The current version of GPUMD supports both single-element (or more precisely, single-atom-type) and two-element systems. For one-element systems, all the parameters have a single value and the potential file for this potential model reads
 \begin{verbatim}
     sw_1985
     epsilon lambda A B a gamma sigma cos0
 \end{verbatim}
-For two-element systems, the two-body parameters can generally have 3 different values depending on the types of the $i$ and $j$ atoms and the three-body parameters can generally have 8 different values depending on the types of the $i$, $j$, and $k$ antoms. The potential file reads
+For two-element systems, the two-body parameters can generally have 3 different values depending on the types of the $i$ and $j$ atoms and the three-body parameters can generally have 8 different values depending on the types of the $i$, $j$, and $k$ atoms. The potential file reads
 \begin{verbatim}
     sw_1985_2
     A_00 B_00 a_00 sigma_00 gamma_00
@@ -1649,7 +1649,7 @@ For two-element systems, the two-body parameters can generally have 3 different 
     lambda_110 cos0_110
     lambda_111 cos0_111
 \end{verbatim}
-Here, 0 and 1 refer to the atom types defined in the \verb"xyz.in" file (see the next chapter). The numbers in the two-body parameters refer to the types of $i$ and $j$ atoms and those in the three-body parameters correspond to the tpyes of the $i$, $j$, and $k$ atoms. Note that we have removed the redundant parameter $\epsilon_{ij}$ in the potential file here and $A_{ij}$ and $\lambda_{ijk}$ actually stand for $\epsilon_{ij}A_{ij}$ and $\epsilon_{ij}\lambda_{ijk}$. The user should be aware of this when preparing the potential file.
+Here, 0 and 1 refer to the atom types defined in the \verb"xyz.in" file (see the next chapter). The numbers in the two-body parameters refer to the types of $i$ and $j$ atoms and those in the three-body parameters correspond to the types of the $i$, $j$, and $k$ atoms. Note that we have removed the redundant parameter $\epsilon_{ij}$ in the potential file here and $A_{ij}$ and $\lambda_{ijk}$ actually stand for $\epsilon_{ij}A_{ij}$ and $\epsilon_{ij}\lambda_{ijk}$. The user should be aware of this when preparing the potential file.
 
 
 
