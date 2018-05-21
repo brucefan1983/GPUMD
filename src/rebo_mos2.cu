@@ -17,13 +17,14 @@
 
 
 #include "common.h"
-#include "mic.cu" // static __device__ dev_apply_mic(...)
+#include "mic.cu"
 #include "rebo_mos2.h"
 
 // References: 
 // [1] T. Liang et al. PRB 79, 245110 (2009).
 // [2] T. Liang et al. PRB 85, 199903(E) (2012).
-
+// [3] J. A. Stewart et al. MSMSE 21, 045003 (2013).
+// We completely followed Ref. [3] and Stewart's LAMMPS implementation. 
 // The parameters are hard coded as the potential only applies to Mo-S systems.
 
 
@@ -31,7 +32,7 @@
 
 #define TWOPI 6.283185307179586
 
-#define REBO_MOS2_Q_MM     3.41912939005919
+#define REBO_MOS2_Q_MM     3.41912939000591
 #define REBO_MOS2_A_MM     179.008013654688
 #define REBO_MOS2_B_MM     706.247903589221
 #define REBO_MOS2_a_MM     1.0750071299934
@@ -59,15 +60,16 @@
 #define REBO_MOS2_pi_factor_SS    4.487989505128276
 #define REBO_MOS2_pi_factor_MS    10.471975511965978
 
+// From Stewart
 #define REBO_MOS2_a0_M   0.138040769883614
-#define REBO_MOS2_a1_M   0.599874419749679
+#define REBO_MOS2_a1_M   0.803625443023934
 #define REBO_MOS2_a2_M   0.292412960851064
-#define REBO_MOS2_a3_M   0.502547309062610
+#define REBO_MOS2_a3_M   0.640588078946224
 
 #define REBO_MOS2_a0_S   0.062978539843324
-#define REBO_MOS2_a1_S   2.38938198826146
+#define REBO_MOS2_a1_S   2.478617619878250
 #define REBO_MOS2_a2_S   0.036666243238154
-#define REBO_MOS2_a3_S   2.32345283264339
+#define REBO_MOS2_a3_S   2.386431372486710
 
 // G
 #define REBO_MOS2_b0_M   0.132684255066327
@@ -103,6 +105,56 @@
 #define REBO_MOS2_c5_S   0.085502731357910
 #define REBO_MOS2_c6_S  -0.149252790306880
 
+// LJ (From Stewart)
+
+#define REBO_MOS2_EPSILON_MM  0.00058595
+#define REBO_MOS2_EPSILON_SS  0.01386
+#define REBO_MOS2_EPSILON_MS  0.002849783676001
+
+#define REBO_MOS2_SIGMA_MM    4.2
+#define REBO_MOS2_SIGMA_SS    3.13
+#define REBO_MOS2_SIGMA_MS    3.665
+
+// 0.95 * sigma
+#define REBO_MOS2_LJCUT1_MM   3.99
+#define REBO_MOS2_LJCUT1_SS   2.9735
+#define REBO_MOS2_LJCUT1_MS   3.48175
+
+// 2.5 * sigma
+#define REBO_MOS2_LJCUT2_MM   10.5
+#define REBO_MOS2_LJCUT2_SS   7.825
+#define REBO_MOS2_LJCUT2_MS   9.1625
+
+// 4 * epsilon * sigma^12
+#define REBO_MOS2_s12e4_MM    70617.45058278613
+#define REBO_MOS2_s12e4_SS    49017.96441039995
+#define REBO_MOS2_s12e4_MS    66951.39547508015
+
+// 4 * epsilon * sigma^6
+#define REBO_MOS2_s6e4_MM     12.865192601587204
+#define REBO_MOS2_s6e4_SS     52.130182686353336
+#define REBO_MOS2_s6e4_MS     27.625857011890133
+
+// 48 * epsilon * sigma^12
+#define REBO_MOS2_s12e48_MM   847409.4069934335
+#define REBO_MOS2_s12e48_SS   588215.5729247995
+#define REBO_MOS2_s12e48_MS   803416.7457009618
+
+// 24 * epsilon * sigma^6
+#define REBO_MOS2_s6e24_MM    77.19115560952322
+#define REBO_MOS2_s6e24_SS    312.7810961181200
+#define REBO_MOS2_s6e24_MS    165.7551420713408
+
+// pre-computed coefficient of the (r - r1)^2 term
+#define REBO_MOS2_D2_MM      0.031194467724753
+#define REBO_MOS2_D2_SS      0.568571579107700
+#define REBO_MOS2_D2_MS      0.094150096066930
+
+// pre-computed coefficient of the (r - r1)^3 term
+#define REBO_MOS2_D3_MM     -0.053895558827613
+#define REBO_MOS2_D3_SS     -0.755238613586170
+#define REBO_MOS2_D3_MS     -0.114401791730260
+
 #else
 
 #define TWOPI 6.283185307179586f
@@ -135,15 +187,16 @@
 #define REBO_MOS2_pi_factor_SS    4.487989505128276f
 #define REBO_MOS2_pi_factor_MS    10.471975511965978f
 
+// From Stewart
 #define REBO_MOS2_a0_M   0.138040769883614f
-#define REBO_MOS2_a1_M   0.599874419749679f
+#define REBO_MOS2_a1_M   0.803625443023934f
 #define REBO_MOS2_a2_M   0.292412960851064f
-#define REBO_MOS2_a3_M   0.502547309062610f
+#define REBO_MOS2_a3_M   0.640588078946224f
 
 #define REBO_MOS2_a0_S   0.062978539843324f
-#define REBO_MOS2_a1_S   2.38938198826146f
+#define REBO_MOS2_a1_S   2.478617619878250f
 #define REBO_MOS2_a2_S   0.036666243238154f
-#define REBO_MOS2_a3_S   2.32345283264339f
+#define REBO_MOS2_a3_S   2.386431372486710f
 
 // G
 #define REBO_MOS2_b0_M   0.132684255066327f
@@ -179,8 +232,58 @@
 #define REBO_MOS2_c5_S   0.085502731357910f
 #define REBO_MOS2_c6_S  -0.149252790306880f
 
+// LJ (From Stewart)
+
+#define REBO_MOS2_EPSILON_MM  0.00058595f
+#define REBO_MOS2_EPSILON_SS  0.01386f
+#define REBO_MOS2_EPSILON_MS  0.002849783676001f
+
+#define REBO_MOS2_SIGMA_MM    4.2f
+#define REBO_MOS2_SIGMA_SS    3.13f
+#define REBO_MOS2_SIGMA_MS    3.665f
+
+// 0.95 * sigma
+#define REBO_MOS2_LJCUT1_MM   3.99f
+#define REBO_MOS2_LJCUT1_SS   2.9735f
+#define REBO_MOS2_LJCUT1_MS   3.48175f
+
+// 2.5 * sigma
+#define REBO_MOS2_LJCUT2_MM   10.5f
+#define REBO_MOS2_LJCUT2_SS   7.825f
+#define REBO_MOS2_LJCUT2_MS   9.1625f
+
+// 4 * epsilon * sigma^12
+#define REBO_MOS2_s12e4_MM    70617.45058278613f
+#define REBO_MOS2_s12e4_SS    49017.96441039995f
+#define REBO_MOS2_s12e4_MS    66951.39547508015f
+
+// 4 * epsilon * sigma^6
+#define REBO_MOS2_s6e4_MM     12.865192601587204f
+#define REBO_MOS2_s6e4_SS     52.130182686353336f
+#define REBO_MOS2_s6e4_MS     27.625857011890133f
+
+// 48 * epsilon * sigma^12
+#define REBO_MOS2_s12e48_MM   847409.4069934335f
+#define REBO_MOS2_s12e48_SS   588215.5729247995f
+#define REBO_MOS2_s12e48_MS   789381.6316330632f
+
+// 24 * epsilon * sigma^6
+#define REBO_MOS2_s6e24_MM    77.19115560952322f
+#define REBO_MOS2_s6e24_SS    312.7810961181200f
+#define REBO_MOS2_s6e24_MS    165.7551420713408f
+
+// pre-computed coefficient of the (r - r1)^2 term
+#define REBO_MOS2_D2_MM      0.031194467724753f
+#define REBO_MOS2_D2_SS      0.568571579107700f
+#define REBO_MOS2_D2_MS      0.094150096066930f
+
+// pre-computed coefficient of the (r - r1)^3 term
+#define REBO_MOS2_D3_MM     -0.053895558827613f
+#define REBO_MOS2_D3_SS     -0.755238613586170f
+#define REBO_MOS2_D3_MS     -0.114401791730260f
 
 #endif
+
 
 
 
@@ -192,16 +295,16 @@
 
 // The repulsive function and its derivative
 static __device__ void find_fr_and_frp
-(int type1, int type2, real d12, real &fr, real &frp)
+(int type12, real d12, real &fr, real &frp)
 {     
-    if (type1 == 0 && type2 == 0)
+    if (type12 == 0)
     {   
         fr  = (ONE + REBO_MOS2_Q_MM / d12) * REBO_MOS2_A_MM 
             * exp(-REBO_MOS2_a_MM * d12);  
         frp = REBO_MOS2_a_MM + REBO_MOS2_Q_MM / (d12 * (d12 + REBO_MOS2_Q_MM));
         frp *= -fr;
     }
-    else if (type1 == 1 && type2 == 1)
+    else if (type12 == 2)
     {
         fr  = (ONE + REBO_MOS2_Q_SS / d12) * REBO_MOS2_A_SS 
             * exp(-REBO_MOS2_a_SS * d12);  
@@ -219,16 +322,17 @@ static __device__ void find_fr_and_frp
 
 
 
+
 // The attractive function and its derivative
 static __device__ void find_fa_and_fap
-(int type1, int type2, real d12, real &fa, real &fap)
+(int type12, real d12, real &fa, real &fap)
 {  
-    if (type1 == 0 && type2 == 0)
+    if (type12 == 0)
     {   
         fa  = REBO_MOS2_B_MM * exp(- REBO_MOS2_b_MM * d12); 
         fap = - REBO_MOS2_b_MM * fa;
     }
-    else if (type1 == 1 && type2 == 1)
+    else if (type12 == 2)
     {    
         fa  = REBO_MOS2_B_SS * exp(- REBO_MOS2_b_SS * d12); 
         fap = - REBO_MOS2_b_SS * fa;
@@ -242,15 +346,16 @@ static __device__ void find_fa_and_fap
 
 
 
+
 // The attractive function
 static __device__ void find_fa
-(int type1, int type2, real d12, real &fa)
+(int type12, real d12, real &fa)
 {  
-    if (type1 == 0 && type2 == 0)
+    if (type12 == 0)
     {   
         fa  = REBO_MOS2_B_MM * exp(- REBO_MOS2_b_MM * d12); 
     }
-    else if (type1 == 1 && type2 == 1)
+    else if (type12 == 2)
     {    
         fa  = REBO_MOS2_B_SS * exp(- REBO_MOS2_b_SS * d12); 
     }
@@ -262,11 +367,12 @@ static __device__ void find_fa
 
 
 
+
 // The cutoff function and its derivative
 static __device__ void find_fc_and_fcp
-(int type1, int type2, real d12, real &fc, real &fcp)
+(int type12, real d12, real &fc, real &fcp)
 {
-    if (type1 == 0 && type2 == 0)
+    if (type12 == 0)
     { 
         if (d12 < REBO_MOS2_r1_MM) {fc = ONE; fcp = ZERO;}
         else if (d12 < REBO_MOS2_r2_MM)
@@ -278,7 +384,7 @@ static __device__ void find_fc_and_fcp
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
-    else if (type1 == 1 && type2 == 1)
+    else if (type12 == 2)
     { 
         if (d12 < REBO_MOS2_r1_SS) {fc = ONE; fcp = ZERO;}
         else if (d12 < REBO_MOS2_r2_SS)
@@ -305,10 +411,12 @@ static __device__ void find_fc_and_fcp
 }
 
 
+
+
 // The cutoff function
-static __device__ void find_fc(int type1, int type2, real d12, real &fc)
+static __device__ void find_fc(int type12, real d12, real &fc)
 {
-    if (type1 == 0 && type2 == 0)
+    if (type12 == 0)
     { 
         if (d12 < REBO_MOS2_r1_MM) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_MM)
@@ -318,7 +426,7 @@ static __device__ void find_fc(int type1, int type2, real d12, real &fc)
         }
         else {fc  = ZERO;}
     }
-    else if (type1 == 1 && type2 == 1)
+    else if (type12 == 2)
     { 
         if (d12 < REBO_MOS2_r1_SS) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_SS)
@@ -339,6 +447,8 @@ static __device__ void find_fc(int type1, int type2, real d12, real &fc)
         else {fc  = ZERO;}
     }
 }
+
+
 
 
 // The angular function and its derivative
@@ -502,6 +612,8 @@ static __device__ void find_g(int type1, real x, real &g)
 }
 
 
+
+
 // The coordination function and its derivative
 static __device__ void find_p_and_pp(int type1, real x, real &p, real &pp)
 {
@@ -520,6 +632,250 @@ static __device__ void find_p_and_pp(int type1, real x, real &p, real &pp)
 }
 
 
+
+
+// get U_ij and (d U_ij / d r_ij) / r_ij for the 2-body part
+static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
+{
+    if (type12 == 0) // Mo-Mo
+    {
+        if      (d12 >= REBO_MOS2_LJCUT2_MM) { p2 = ZERO; f2 = ZERO; }
+        else if (d12 >  REBO_MOS2_LJCUT1_MM)
+        {
+            real d12inv2 = ONE / (d12 * d12);
+            real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
+            p2  = REBO_MOS2_s12e4_MM * d12inv6 * d12inv6;
+            p2 -= REBO_MOS2_s6e4_MM * d12inv6;
+            f2  = REBO_MOS2_s6e24_MM * d12inv6;
+            f2 -= REBO_MOS2_s12e48_MM * d12inv6 * d12inv6; 
+            f2 *= d12inv2; 
+        }
+        else if (d12 > REBO_MOS2_r1_MM)
+        {
+            real dr = d12 - REBO_MOS2_r1_MM;
+            p2 = (REBO_MOS2_D2_MM + REBO_MOS2_D3_MM * dr) * dr * dr;
+            f2 = (REBO_MOS2_D2_MM * TWO + REBO_MOS2_D3_MM * THREE * dr) * dr;
+            f2 /= d12;
+        }
+        else { p2 = ZERO; f2 = ZERO; }
+    }
+    else if (type12 == 1) // Mo-S
+    {
+        if      (d12 >= REBO_MOS2_LJCUT2_MS) { p2 = ZERO; f2 = ZERO; }
+        else if (d12 >  REBO_MOS2_LJCUT1_MS)
+        {
+            real d12inv2 = ONE / (d12 * d12);
+            real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
+            p2  = REBO_MOS2_s12e4_MS * d12inv6 * d12inv6; 
+            p2 -= REBO_MOS2_s6e4_MS * d12inv6;
+            f2  = REBO_MOS2_s6e24_MS * d12inv6;
+            f2 -= REBO_MOS2_s12e48_MS * d12inv6 * d12inv6; 
+            f2 *= d12inv2; 
+        }
+        else if (d12 > REBO_MOS2_r1_MS)
+        {
+            real dr = d12 - REBO_MOS2_r1_MS;
+            p2 = (REBO_MOS2_D2_MS + REBO_MOS2_D3_MS * dr) * dr * dr;
+            f2 = (REBO_MOS2_D2_MS * TWO + REBO_MOS2_D3_MS * THREE * dr) * dr;
+            f2 /= d12;
+        }
+        else { p2 = ZERO; f2 = ZERO; }
+    }
+    else // S-S
+    {
+        if      (d12 >= REBO_MOS2_LJCUT2_SS) { p2 = ZERO; f2 = ZERO; }
+        else if (d12 >  REBO_MOS2_LJCUT1_SS)
+        {
+            real d12inv2 = ONE / (d12 * d12);
+            real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
+            p2  = REBO_MOS2_s12e4_SS * d12inv6 * d12inv6; 
+            p2 -= REBO_MOS2_s6e4_SS * d12inv6;
+            f2  = REBO_MOS2_s6e24_SS * d12inv6;
+            f2 -= REBO_MOS2_s12e48_SS  * d12inv6 * d12inv6; 
+            f2 *= d12inv2; 
+        }
+        else if (d12 > REBO_MOS2_r1_SS)
+        {
+            real dr = d12 - REBO_MOS2_r1_SS;
+            p2 = (REBO_MOS2_D2_SS + REBO_MOS2_D3_SS * dr) * dr * dr;
+            f2 = (REBO_MOS2_D2_SS * TWO + REBO_MOS2_D3_SS * THREE * dr) * dr;
+            f2 /= d12;
+        }
+        else { p2 = ZERO; f2 = ZERO; }
+    }
+}
+
+
+
+
+// 2-body part (kernel)
+template <int cal_p, int cal_j, int cal_q>
+static __global__ void find_force_step0
+(
+    int number_of_particles, int pbc_x, int pbc_y, int pbc_z,
+    int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local, int *g_type,
+#ifdef USE_LDG
+    const real* __restrict__ g_x, 
+    const real* __restrict__ g_y, 
+    const real* __restrict__ g_z, 
+    const real* __restrict__ g_vx, 
+    const real* __restrict__ g_vy, 
+    const real* __restrict__ g_vz,
+#else
+    real *g_x,  real *g_y,  real *g_z, real *g_vx, real *g_vy, real *g_vz,
+#endif
+    real *g_box, real *g_p,  real *g_pp,
+    real *g_fx, real *g_fy, real *g_fz,
+    real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
+    real *g_h, int *g_label, int *g_fv_index, real *g_fv 
+)
+{
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+
+    __shared__ real s_fx[BLOCK_SIZE_FORCE];
+    __shared__ real s_fy[BLOCK_SIZE_FORCE];
+    __shared__ real s_fz[BLOCK_SIZE_FORCE];
+    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
+    __shared__ real s1[BLOCK_SIZE_FORCE];
+    __shared__ real s2[BLOCK_SIZE_FORCE];
+    __shared__ real s3[BLOCK_SIZE_FORCE];
+    __shared__ real s4[BLOCK_SIZE_FORCE];
+    __shared__ real s5[BLOCK_SIZE_FORCE];
+
+    s_fx[threadIdx.x] = ZERO; 
+    s_fy[threadIdx.x] = ZERO; 
+    s_fz[threadIdx.x] = ZERO;  
+    s1[threadIdx.x] = ZERO; 
+    s2[threadIdx.x] = ZERO; 
+    s3[threadIdx.x] = ZERO;
+    s4[threadIdx.x] = ZERO;
+    s5[threadIdx.x] = ZERO;
+
+    if (n1 < number_of_particles)
+    {
+        int neighbor_number = g_NN[n1];
+        int type1 = g_type[n1];
+        real x1 = LDG(g_x, n1); 
+        real y1 = LDG(g_y, n1); 
+        real z1 = LDG(g_z, n1);
+        real vx1 = LDG(g_vx, n1); 
+        real vy1 = LDG(g_vy, n1); 
+        real vz1 = LDG(g_vz, n1);
+        real lx = g_box[0]; 
+        real ly = g_box[1]; 
+        real lz = g_box[2];
+        
+        int count = 0; // initialize g_NN_local[n1] to 0
+        real coordination_number = ZERO;
+
+        for (int i1 = 0; i1 < neighbor_number; ++i1)
+        {   
+            int n2 = g_NL[n1 + number_of_particles * i1];
+            
+            real x12  = LDG(g_x, n2) - x1;
+            real y12  = LDG(g_y, n2) - y1;
+            real z12  = LDG(g_z, n2) - z1;
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            int type2 = g_type[n2];
+            int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
+
+            if (d12 < REBO_MOS2_r2_MM)
+            {        
+                // build the 3-body neighbor list            
+                g_NL_local[n1 + number_of_particles * (count++)] = n2;
+                // accumulate the coordination number
+                real fc12; 
+                find_fc(type12, d12, fc12);
+                coordination_number += fc12;     
+            }
+
+            real p2, f2;
+            find_p2_and_f2(type12, d12, p2, f2);	    
+
+            // treat two-body potential in the same way as many-body potential
+            real f12x = f2 * x12 * HALF; 
+            real f12y = f2 * y12 * HALF; 
+            real f12z = f2 * z12 * HALF; 
+            real f21x = -f12x; 
+            real f21y = -f12y; 
+            real f21z = -f12z; 
+       
+            // accumulate force
+            s_fx[threadIdx.x] += f12x - f21x; 
+            s_fy[threadIdx.x] += f12y - f21y; 
+            s_fz[threadIdx.x] += f12z - f21z; 
+            
+            // accumulate potential energy and virial
+            if (cal_p) 
+            {
+                s4[threadIdx.x] += p2 * HALF; // two-body potential
+                s1[threadIdx.x] -= x12 * (f12x - f21x) * HALF; 
+                s2[threadIdx.x] -= y12 * (f12y - f21y) * HALF; 
+                s3[threadIdx.x] -= z12 * (f12z - f21z) * HALF;
+            }
+            
+            if (cal_j) // heat current (EMD)
+            {
+                s1[threadIdx.x] += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s2[threadIdx.x] += (f21z * vz1) * x12;               // x-out
+                s3[threadIdx.x] += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s4[threadIdx.x] += (f21z * vz1) * y12;               // y-out
+                s5[threadIdx.x] += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+            } 
+
+            if (cal_q) // heat across some section (NEMD)
+            {
+                int index_12 = g_fv_index[n1] * 12;
+                if (index_12 >= 0 && g_fv_index[n1 + number_of_particles] == n2)
+                {
+                    g_fv[index_12 + 0]  = f12x;
+                    g_fv[index_12 + 1]  = f12y;
+                    g_fv[index_12 + 2]  = f12z;
+                    g_fv[index_12 + 3]  = f21x;
+                    g_fv[index_12 + 4]  = f21y;
+                    g_fv[index_12 + 5]  = f21z;
+                    g_fv[index_12 + 6]  = vx1;
+                    g_fv[index_12 + 7]  = vy1;
+                    g_fv[index_12 + 8]  = vz1;
+                    g_fv[index_12 + 9]  = LDG(g_vx, n2);
+                    g_fv[index_12 + 10] = LDG(g_vy, n2);
+                    g_fv[index_12 + 11] = LDG(g_vz, n2);
+                }  
+            }
+        }
+
+        g_NN_local[n1] = count; // now the local neighbor list has been built
+        // save the P(N) function and its derivative
+        real p, pp;
+        find_p_and_pp(type1, coordination_number, p, pp);
+        g_p[n1] = p;    // will be used in find_force_step2 
+        g_pp[n1] = pp;  // will be used in find_force_step3 
+
+        g_fx[n1] = s_fx[threadIdx.x]; // save force
+        g_fy[n1] = s_fy[threadIdx.x]; 
+        g_fz[n1] = s_fz[threadIdx.x];  
+        if (cal_p) // save stress and potential
+        {
+            g_sx[n1] = s1[threadIdx.x]; 
+            g_sy[n1] = s2[threadIdx.x]; 
+            g_sz[n1] = s3[threadIdx.x];
+            g_potential[n1] = s4[threadIdx.x];
+        }
+        if (cal_j) // save heat current
+        {
+            g_h[n1 + 0 * number_of_particles] = s1[threadIdx.x];
+            g_h[n1 + 1 * number_of_particles] = s2[threadIdx.x];
+            g_h[n1 + 2 * number_of_particles] = s3[threadIdx.x];
+            g_h[n1 + 3 * number_of_particles] = s4[threadIdx.x];
+            g_h[n1 + 4 * number_of_particles] = s5[threadIdx.x];
+        }
+    }
+}    
+
+
+
+
 // Precompute the bond-order function and its derivative 
 static __global__ void find_force_step1
 (
@@ -533,10 +889,7 @@ static __global__ void find_force_step1
     real* g_x, real* g_y, real* g_z,
 #endif
     real *g_box,
-    #ifdef TRICLINIC
-    real *g_box_inv,
-    #endif
-    real* g_b, real* g_bp, real*g_pp
+    real* g_b, real* g_bp, real *g_p
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -547,29 +900,23 @@ static __global__ void find_force_step1
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
-        
-        #ifndef TRICLINIC
         real lx = LDG(g_box, 0); 
         real ly = LDG(g_box, 1); 
         real lz = LDG(g_box, 2);
-        #endif
+        real p = g_p[n1]; // coordination number function P(N)
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {      
             int n2 = g_NL[n1 + N * i1];
+
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
 
-            #ifdef TRICLINIC
-            apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x12, y12, z12);
-            #else
             dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
-            #endif
-
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+
             real zeta = ZERO;
-            real n12 = ZERO; // coordination number
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int n3 = g_NL[n1 + N * i2];  
@@ -579,35 +926,29 @@ static __global__ void find_force_step1
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;         
 
-                #ifdef TRICLINIC
-                apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x13, y13, z13);
-                #else
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
-                #endif
-
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 real fc13, g123; 
-                find_fc(type1, type3, d13, fc13);
+                int type13 = type1 + type3;
+                find_fc(type13, d13, fc13);
                 find_g(type1, cos123, g123);
                 zeta += fc13 * g123;
-                n12 += fc13; 
             }
             
-            real p12, pp12;
-            find_p_and_pp(type1, n12, p12, pp12); 
-            zeta += p12;
-            
+            zeta += p;
             real b12 = pow(ONE + zeta, -HALF);
             g_b[i1 * N + n1]  = b12;
             g_bp[i1 * N + n1] = (-HALF)*b12/(ONE+zeta); 
-            g_pp[i1 * N + n1] = pp12;
         }
     }
 }
 
 
-// Force evaluation kernel
+
+
+// 3-body part
 template <int cal_p, int cal_j, int cal_q>
 static __global__ void find_force_step2
 (
@@ -627,11 +968,7 @@ static __global__ void find_force_step2
     real* g_b, real* g_bp, real* g_pp, real* g_x, real* g_y, real* g_z, 
     real* g_vx, real* g_vy, real* g_vz,
 #endif  
-    real *g_box,
-    #ifdef TRICLINIC
-    real *g_box_inv,
-    #endif
-    real *g_fx, real *g_fy, real *g_fz,
+    real *g_box, real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv 
 )
@@ -668,12 +1005,11 @@ static __global__ void find_force_step2
         real vx1 = LDG(g_vx, n1); 
         real vy1 = LDG(g_vy, n1); 
         real vz1 = LDG(g_vz, n1);
+        real pp1 = LDG(g_pp, n1); 
         
-        #ifndef TRICLINIC
         real lx = LDG(g_box, 0); 
         real ly = LDG(g_box, 1); 
         real lz = LDG(g_box, 2);
-        #endif
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
@@ -684,23 +1020,23 @@ static __global__ void find_force_step2
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
 
-            #ifdef TRICLINIC
-            apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x12, y12, z12);
-            #else
             dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
-            #endif
 
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+
             real fc12, fcp12, fa12, fap12, fr12, frp12;
-            find_fc_and_fcp(type1, type2, d12, fc12, fcp12);
-            find_fa_and_fap(type1, type2, d12, fa12, fap12);
-            find_fr_and_frp(type1, type2, d12, fr12, frp12);
+            int type12 = type1 + type2;
+            find_fc_and_fcp(type12, d12, fc12, fcp12);
+            find_fa_and_fap(type12, d12, fa12, fap12);
+            find_fr_and_frp(type12, d12, fr12, frp12);
             real f12x = ZERO; real f12y = ZERO; real f12z = ZERO;
             real f21x = ZERO; real f21y = ZERO; real f21z = ZERO;
          
             // accumulate_force_12 
-            real b12 = LDG(g_b, i1 * N + n1);    
-            real factor3 = (fcp12*(fr12-b12*fa12)+fc12*(frp12-b12*fap12))/d12;   
+            real b12 = LDG(g_b, i1 * N + n1);  
+            real bp12 = LDG(g_bp, i1 * N + n1);  
+            real factor3 = (fcp12*(fr12-b12*fa12) + fc12*(frp12-b12*fap12) 
+                         - fc12*fcp12*fa12*bp12*pp1)/d12;   
             f12x += x12 * factor3 * HALF; 
             f12y += y12 * factor3 * HALF;
             f12z += z12 * factor3 * HALF;
@@ -721,13 +1057,16 @@ static __global__ void find_force_step2
             }
             // b12 here actually means b21
             b12 = LDG(g_b, offset * N + n2);
-            factor3 = (fcp12*(fr12-b12*fa12)+fc12*(frp12-b12*fap12))/d12;   
+            real bp21 = LDG(g_bp, offset * N + n2); 
+            real pp2 = LDG(g_pp, n2);    
+            factor3 = (fcp12*(fr12-b12*fa12) + fc12*(frp12-b12*fap12)
+                    - fc12*fcp12*fa12*bp21*pp2)/d12;   
             f21x -= x12 * factor3 * HALF; 
             f21y -= y12 * factor3 * HALF;
-            f21z -= z12 * factor3 * HALF;      
+            f21z -= z12 * factor3 * HALF;    
 
             // accumulate_force_123
-            real bp12 = LDG(g_bp, i1 * N + n1);
+            
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {       
                 int n3 = g_NL[n1 + N * i2];   
@@ -736,19 +1075,14 @@ static __global__ void find_force_step2
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-
-                #ifdef TRICLINIC
-                apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x13, y13, z13);
-                #else
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
-                #endif
-
-                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);   
+                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);  
+ 
                 real fc13, fa13;
-                find_fc(type1, type3, d13, fc13);
-                find_fa(type1, type3, d13, fa13); 
+                int type13 = type1 + type3;
+                find_fc(type13, d13, fc13);
+                find_fa(type13, d13, fa13); 
                 real bp13 = LDG(g_bp, i2 * N + n1);
-                real pp13 = LDG(g_pp, i2 * N + n1); // extra term for REBO-MoS2
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 real g123, gp123;
                 find_g_and_gp(type1, cos123, g123, gp123);
@@ -756,14 +1090,14 @@ static __global__ void find_force_step2
                 real cos_y = y13 / (d12 * d13) - y12 * cos123 / (d12 * d12);
                 real cos_z = z13 / (d12 * d13) - z12 * cos123 / (d12 * d12);
                 real temp123a=(-bp12*fc12*fa12*fc13-bp13*fc13*fa13*fc12)*gp123;
-                real temp123b= - bp13 * fc13 * fa13 * fcp12 * (g123+pp13) / d12;
+                real temp123b= - bp13 * fc13 * fa13 * fcp12 * (g123+pp1) / d12;
                 f12x += (x12 * temp123b + temp123a * cos_x)*HALF; 
                 f12y += (y12 * temp123b + temp123a * cos_y)*HALF;
                 f12z += (z12 * temp123b + temp123a * cos_z)*HALF;
             }
 
             // accumulate_force_213 (bp12 here actually means bp21)
-            bp12 = LDG(g_bp, offset * N + n2); 
+            
             for (int i2 = 0; i2 < neighbor_number_2; ++i2)
             {
                 int n3 = g_NL[n2 + N * i2];      
@@ -772,27 +1106,23 @@ static __global__ void find_force_step2
                 real x23 = LDG(g_x, n3) - LDG(g_x, n2);
                 real y23 = LDG(g_y, n3) - LDG(g_y, n2);
                 real z23 = LDG(g_z, n3) - LDG(g_z, n2);
-
-                #ifdef TRICLINIC
-                apply_mic(pbc_x, pbc_y, pbc_z, g_box, g_box_inv, x23, y23, z23);
-                #else
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
-                #endif
-
-                real d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);     
+                real d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);  
+   
                 real fc23, fa23;
-                find_fc(type2, type3, d23, fc23);
-                find_fa(type2, type3, d23, fa23);
-                real bp23 = LDG(g_bp, i2 * N + n2);
-                real pp23 = LDG(g_pp, i2 * N + n2); // extra term for REBO-MoS2 
+                int type23 = type2 + type3;
+                find_fc(type23, d23, fc23);
+                find_fa(type23, d23, fa23);
+                real bp23 = LDG(g_bp, i2 * N + n2); 
                 real cos213 = - (x12 * x23 + y12 * y23 + z12 * z23)/(d12 * d23);
                 real g213, gp213;
                 find_g_and_gp(type2, cos213, g213, gp213);
                 real cos_x = x23 / (d12 * d23) + x12 * cos213 / (d12 * d12);
                 real cos_y = y23 / (d12 * d23) + y12 * cos213 / (d12 * d12);
                 real cos_z = z23 / (d12 * d23) + z12 * cos213 / (d12 * d12);
-                real temp213a=(-bp12*fc12*fa12*fc23-bp23*fc23*fa23*fc12)*gp213;
-                real temp213b= - bp23 * fc23 * fa23 * fcp12 * (g213+pp23) / d12;
+                real temp213a=(-bp21*fc12*fa12*fc23-bp23*fc23*fa23*fc12)*gp213;
+                real temp213b= - bp23 * fc23 * fa23 * fcp12 * (g213+pp2) / d12;
+
                 f21x += (-x12 * temp213b + temp213a * cos_x)*HALF; 
                 f21y += (-y12 * temp213b + temp213a * cos_y)*HALF;
                 f21z += (-z12 * temp213b + temp213a * cos_z)*HALF;
@@ -844,28 +1174,27 @@ static __global__ void find_force_step2
             
         }
 
-        // save force
-        g_fx[n1] = s_fx[threadIdx.x]; 
-        g_fy[n1] = s_fy[threadIdx.x]; 
-        g_fz[n1] = s_fz[threadIdx.x];
+        // accumulate on top of the 2-body part (hence += instead of =)
+        g_fx[n1] += s_fx[threadIdx.x]; // accumulate force
+        g_fy[n1] += s_fy[threadIdx.x]; 
+        g_fz[n1] += s_fz[threadIdx.x];
 
-        if (cal_p) // save stress and potential
+        if (cal_p) // accumulate stress and potential
         {
-            g_sx[n1] = s1[threadIdx.x]; 
-            g_sy[n1] = s2[threadIdx.x]; 
-            g_sz[n1] = s3[threadIdx.x];
-            g_potential[n1] = s4[threadIdx.x];
+            g_sx[n1] += s1[threadIdx.x]; 
+            g_sy[n1] += s2[threadIdx.x]; 
+            g_sz[n1] += s3[threadIdx.x];
+            g_potential[n1] += s4[threadIdx.x];
         }
 
-        if (cal_j) // save heat current
+        if (cal_j) // accumulate heat current
         {
-            g_h[n1 + 0 * N] = s1[threadIdx.x];
-            g_h[n1 + 1 * N] = s2[threadIdx.x];
-            g_h[n1 + 2 * N] = s3[threadIdx.x];
-            g_h[n1 + 3 * N] = s4[threadIdx.x];
-            g_h[n1 + 4 * N] = s5[threadIdx.x];
+            g_h[n1 + 0 * N] += s1[threadIdx.x];
+            g_h[n1 + 1 * N] += s2[threadIdx.x];
+            g_h[n1 + 2 * N] += s3[threadIdx.x];
+            g_h[n1 + 3 * N] += s4[threadIdx.x];
+            g_h[n1 + 4 * N] += s5[threadIdx.x];
         }
-
     }
 }   
 
@@ -880,13 +1209,10 @@ void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-#ifdef FIXED_NL
-    int *NN = gpu_data->NN; 
-    int *NL = gpu_data->NL;
-#else
-    int *NN = gpu_data->NN_local; 
-    int *NL = gpu_data->NL_local;
-#endif
+    int *NN = gpu_data->NN;             // for 2-body
+    int *NL = gpu_data->NL;             // for 2-body
+    int *NN_local = gpu_data->NN_local; // for 3-body
+    int *NL_local = gpu_data->NL_local; // for 3-body
     int *type = gpu_data->type;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 
@@ -899,90 +1225,87 @@ void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
     real *fz = gpu_data->fz;
     real *b = gpu_data->b; 
     real *bp = gpu_data->bp; 
-   
-    #ifdef TRICLINIC
-    real *box     = gpu_data->box_matrix;
-    real *box_inv = gpu_data->box_matrix_inv;
-    #else
     real *box = gpu_data->box_length;
-    #endif
-
     real *sx = gpu_data->virial_per_atom_x; 
     real *sy = gpu_data->virial_per_atom_y; 
     real *sz = gpu_data->virial_per_atom_z; 
     real *pe = gpu_data->potential_per_atom;
     real *h = gpu_data->heat_per_atom;   
-    
     int *label = gpu_data->label;
     int *fv_index = gpu_data->fv_index;
     real *fv = gpu_data->fv;
     
-    real *pp;
-    cudaMalloc((void**)&pp, sizeof(real) * N * para->neighbor.MN);
-    
-    #ifdef TRICLINIC
-    find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
-    (N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, box, box_inv, b, bp, pp);
-    #else
-    find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
-    (N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, box, b, bp, pp);
-    #endif
+    real *p, *pp; // coordination number function and its derivative
+    cudaMalloc((void**)&p, sizeof(real) * N);
+    cudaMalloc((void**)&pp, sizeof(real) * N);
 
+    // 2-body part
     if (para->hac.compute)
     {
-        #ifdef TRICLINIC
-        find_force_step2<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+
+        find_force_step0<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
-            b, bp, pp, x, y, z, vx, vy, vz, 
-            box, box_inv, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            N, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type, 
+            x, y, z, vx, vy, vz, box, p, pp,
+            fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
         );
-        #else
-        find_force_step2<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
-            b, bp, pp, x, y, z, vx, vy, vz, 
-            box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
-        );
-        #endif
     }
     else if (para->shc.compute)
     {
-        #ifdef TRICLINIC
-        find_force_step2<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step0<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
-            b, bp, pp, x, y, z, vx, vy, vz, 
-            box, box_inv, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            N, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type, 
+            x, y, z, vx, vy, vz, box, p, pp,
+            fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
         );
-        #else
-        find_force_step2<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
-            b, bp, pp, x, y, z, vx, vy, vz, 
-            box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
-        );
-        #endif
     }
     else
     {
-        #ifdef TRICLINIC
-        find_force_step2<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step0<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
-            b, bp, pp, x, y, z, vx, vy, vz, 
-            box, box_inv, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            N, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type, 
+            x, y, z, vx, vy, vz, box, p, pp,
+            fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
         );
-        #else
-        find_force_step2<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+    }
+
+    // pre-compute the bond-order function and its derivative
+    find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        N, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+        x, y, z, box, b, bp, p
+    );
+
+    // 3-body part
+    if (para->hac.compute)
+    {
+        find_force_step2<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, type, 
+            N, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
             b, bp, pp, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
         );
-        #endif
+    }
+    else if (para->shc.compute)
+    {
+        find_force_step2<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+            b, bp, pp, x, y, z, vx, vy, vz, 
+            box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+        );
+    }
+    else
+    {
+        find_force_step2<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+            b, bp, pp, x, y, z, vx, vy, vz, 
+            box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+        );
     }
     
+    cudaFree(p);  // do not forget to free the memory
     cudaFree(pp);
 }
 
