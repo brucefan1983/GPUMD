@@ -281,6 +281,18 @@ static __global__ void gpu_find_force_sw2_partial
                 int type123 = type1 * 4 + type2 * 2 + type3;
                 real cos0   = sw2.cos0[type123];
                 real lambda = sw2.lambda[type123];
+                
+                #ifdef KANDEMIR // [Nanotechnology 27, 055703 (2016)]
+                if (type2 == 1 && type3 == 1) // atoms 2 and 3 are S atoms
+                {   // assume that the 2D system is perpendicular to the z axis
+                    if (z23 > 1.6 || z23 < -1.6) // they are in different layers
+                    { // use a different set of parameters for this triplet
+                        cos0   = 0.159567616;
+                        lambda = 0.23574;
+                    }
+                }
+                #endif
+                
                 real exp123 = d13 / sw2.sigma[type13] - sw2.a[type13];
                 exp123 = sw2.gamma[type13] / exp123;
                 exp123 = exp(gamma12 / (d12 / sigma12 - a12) + exp123);
