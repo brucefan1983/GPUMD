@@ -253,8 +253,8 @@ static __global__ void gpu_find_force_sw2_partial
                 real x3 = LDG(g_x, n3); 
                 real y3 = LDG(g_y, n3); 
                 real z3 = LDG(g_z, n3);
-        		real x23 = x3 - x2;
-        		real y23 = y3 - y2;
+                real x23 = x3 - x2;
+                real y23 = y3 - y2;
                 real z23 = z3 - z2;
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
                 real d23sq = x23 * x23 + y23 * y23 + z23* z23;
