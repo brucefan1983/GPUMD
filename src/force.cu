@@ -143,6 +143,7 @@ void gpu_find_force
             gpu_find_force_ri(para, force_model->ri, gpu_data);
             break;
         case 20:
+            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
             gpu_find_force_eam(para, force_model, gpu_data);
             break;
         case 21:
