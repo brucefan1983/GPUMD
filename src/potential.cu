@@ -495,7 +495,7 @@ static void initialize_sw_1985_2(FILE *fid, Force_Model *force_model)
 static void initialize_rebo_mos2(Force_Model *force_model)
 {
     printf("INPUT: use the potential in [PRB 79, 245110 (2009)].\n");
-    force_model->rc = 3.8;
+    force_model->rc = 10.5;
 }
 
 
