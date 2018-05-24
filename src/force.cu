@@ -134,16 +134,6 @@ static void find_neighbor_local(Parameters *para, GPU_Data *gpu_data, real rc2)
 void gpu_find_force
 (Force_Model *force_model, Parameters *para, GPU_Data *gpu_data)
 {     
-    
-#ifndef FIXED_NL
-    if (force_model->type != 32 && force_model->type != 34)
-    {
-    	   // This is not needed for the Vashishta potential
-        real rc2 = force_model->rc * force_model->rc;
-        find_neighbor_local(para, gpu_data, rc2); 
-    }  
-#endif
-
     switch (force_model->type)
     {
         case 0:
@@ -159,12 +149,14 @@ void gpu_find_force
             gpu_find_force_fs(para, force_model, gpu_data);
             break;
         case 30:  
+            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
             gpu_find_force_sw(para, force_model->sw, gpu_data);
             break;
         case 32:  
             gpu_find_force_vashishta(para, force_model->vas, gpu_data);
             break;
         case 33:  
+            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
             gpu_find_force_sw2(para, force_model->sw2, gpu_data);
             break;
         case 34:  
@@ -172,9 +164,11 @@ void gpu_find_force
             (para, force_model->vas_table, gpu_data);
             break;
         case 40:
+            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
             gpu_find_force_tersoff1(para, force_model, gpu_data);        
             break;
         case 41:
+            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc);
             gpu_find_force_tersoff_1989_2(para, force_model, gpu_data);
             break;
         case 42:
