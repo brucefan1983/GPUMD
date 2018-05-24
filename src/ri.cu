@@ -50,7 +50,7 @@
 #endif
 
 
-
+// TODO: there is plenty space for improving the performance
 // get U_ij and (d U_ij / d r_ij) / r_ij
 static __device__ void find_p2_and_f2
 (int type1, int type2, RI ri, real d12sq, real &p2, real &f2)
@@ -268,13 +268,8 @@ void gpu_find_force_ri(Parameters *para, RI ri, GPU_Data *gpu_data)
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-#ifdef FIXED_NL
     int *NN = gpu_data->NN; 
     int *NL = gpu_data->NL;
-#else
-    int *NN = gpu_data->NN_local; 
-    int *NL = gpu_data->NL_local;
-#endif
     int *type = gpu_data->type;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 
