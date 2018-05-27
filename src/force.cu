@@ -24,6 +24,7 @@
 #include "eam_dai_2006.h"
 #include "sw_1985.h"
 #include "sw_1985_2.h"
+#include "sw_1985_3.h"
 #include "vashishta.h"
 #include "vashishta_table.h"
 #include "tersoff_1989_1.h"
@@ -163,6 +164,10 @@ void gpu_find_force
         case 34:  
             gpu_find_force_vashishta_table
             (para, force_model->vas_table, gpu_data);
+            break;
+        case 35:  
+            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
+            gpu_find_force_sw3(para, force_model->sw3, gpu_data);
             break;
         case 40:
             find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 

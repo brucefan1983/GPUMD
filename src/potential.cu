@@ -492,6 +492,50 @@ static void initialize_sw_1985_2(FILE *fid, Force_Model *force_model)
 
 
 
+static void initialize_sw_1985_3(FILE *fid, Force_Model *force_model)
+{
+    printf("INPUT: use three-element Stillinger-Weber potential.\n");
+    int count;
+
+    // 2-body parameters and the force cutoff
+    double A[3][3], B[3][3], a[3][3], sigma[3][3], gamma[3][3];
+    force_model->rc = 0.0;
+    for (int n1 = 0; n1 < 3; n1++)
+    for (int n2 = 0; n2 < 3; n2++)
+    {  
+        count = fscanf
+        (
+            fid, "%lf%lf%lf%lf%lf", &A[n1][n2], &B[n1][n2], &a[n1][n2], 
+            &sigma[n1][n2], &gamma[n1][n2]
+        );
+        if (count != 5) print_error("reading error for potential file.\n");
+        force_model->sw3.A[n1][n2] = A[n1][n2];
+        force_model->sw3.B[n1][n2] = B[n1][n2];
+        force_model->sw3.a[n1][n2] = a[n1][n2];
+        force_model->sw3.sigma[n1][n2] = sigma[n1][n2];
+        force_model->sw3.gamma[n1][n2] = gamma[n1][n2];
+        force_model->sw3.rc[n1][n2] = sigma[n1][n2] * a[n1][n2];
+        if (force_model->rc < force_model->sw3.rc[n1][n2])
+            force_model->rc = force_model->sw3.rc[n1][n2]; // force cutoff
+    }
+
+    // 3-body parameters
+    double lambda[3][3][3], cos0[3][3][3];
+    for (int n1 = 0; n1 < 3; n1++)
+    for (int n2 = 0; n2 < 3; n2++)
+    for (int n3 = 0; n3 < 3; n3++)
+    {  
+        count = fscanf
+        (fid, "%lf%lf", &lambda[n1][n2][n3], &cos0[n1][n2][n3]);
+        if (count != 2) print_error("reading error for potential file.\n");
+        force_model->sw3.lambda[n1][n2][n3] = lambda[n1][n2][n3];
+        force_model->sw3.cos0[n1][n2][n3] = cos0[n1][n2][n3];
+    }
+}  
+
+
+
+
 static void initialize_rebo_mos2(Force_Model *force_model)
 {
     printf("INPUT: use the potential in [PRB 79, 245110 (2009)].\n");
@@ -793,6 +837,11 @@ static void initialize_force_model(Files *files, Force_Model *force_model)
     { 
         force_model->type = 34; 
         initialize_vashishta_table(fid_potential, force_model);
+    }
+    else if (strcmp(force_name, "sw_1985_3") == 0) 
+    { 
+        force_model->type = 35; 
+        initialize_sw_1985_3(fid_potential, force_model);
     }
     else if (strcmp(force_name, "tersoff_1989_1") == 0) 
     { 
