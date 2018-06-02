@@ -16,12 +16,12 @@
 
 
 
-#include "common.h"
-#include "gpumd.h"
+#include "common.cuh"
+#include "gpumd.cuh"
 
-#include "initialize.h"
-#include "finalize.h"
-#include "run.h" 
+#include "initialize.cuh"
+#include "finalize.cuh"
+#include "run.cuh" 
 
 
 

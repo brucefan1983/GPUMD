@@ -16,9 +16,9 @@
 
 
 
-#include "common.h"
-#include "mic.cu"
-#include "neighbor_ON2.h"
+#include "common.cuh"
+#include "mic.cuh"
+#include "neighbor_ON2.cuh"
 
 
 

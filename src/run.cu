@@ -16,21 +16,21 @@
 
 
 
-#include "common.h"
-#include "run.h"
+#include "common.cuh"
+#include "run.cuh"
 
-#include "parse.h" 
-#include "velocity.h"
-#include "potential.h"
-#include "neighbor.h"
-#include "force.h"
-#include "validate.h"
-#include "integrate.h"
-#include "heat.h"        
-#include "dump.h"        
-#include "vac.h"  
-#include "hac.h"   
-#include "shc.h"       
+#include "parse.cuh" 
+#include "velocity.cuh"
+#include "potential.cuh"
+#include "neighbor.cuh"
+#include "force.cuh"
+#include "validate.cuh"
+#include "integrate.cuh"
+#include "heat.cuh"        
+#include "dump.cuh"        
+#include "vac.cuh"  
+#include "hac.cuh"   
+#include "shc.cuh"       
 
 
 

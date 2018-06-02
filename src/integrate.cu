@@ -14,8 +14,8 @@
 */
 
 
-#include "common.h"
-#include "force.h"
+#include "common.cuh"
+#include "force.cuh"
 
 
 

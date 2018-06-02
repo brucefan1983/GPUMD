@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "vac.h"
+#include "common.cuh"
+#include "vac.cuh"
 
 
 // Allocate memory for recording velocity data

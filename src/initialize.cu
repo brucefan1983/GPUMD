@@ -15,9 +15,9 @@
 
 
 
-#include "common.h"
-#include "initialize.h"
-#include "neighbor.h"
+#include "common.cuh"
+#include "initialize.cuh"
+#include "neighbor.cuh"
 
 
 

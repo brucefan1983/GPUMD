@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "velocity.h"
+#include "common.cuh"
+#include "velocity.cuh"
 
 
 

@@ -14,9 +14,9 @@
 */
 
 
-#include "common.h"
-#include "mic.cu" // static __device__ dev_apply_mic(...)
-#include "ri.h"
+#include "common.cuh"
+#include "mic.cuh" // static __device__ dev_apply_mic(...)
+#include "ri.cuh"
 
 // References: 
 // [1] Wolf

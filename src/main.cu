@@ -19,7 +19,7 @@
 #include <stdio.h>
 #include <time.h>
 
-#include "gpumd.h"
+#include "gpumd.cuh"
 
 
 

@@ -14,9 +14,9 @@
 */
 
 
-#include "common.h"
-#include "mic.cu" // static __device__ dev_apply_mic(...)
-#include "eam_dai_2006.h"
+#include "common.cuh"
+#include "mic.cuh" // static __device__ dev_apply_mic(...)
+#include "eam_dai_2006.cuh"
 
 
 

@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "shc.h"
+#include "common.cuh"
+#include "shc.cuh"
 
 
 

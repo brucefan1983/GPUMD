@@ -16,9 +16,9 @@
 
 
 
-#include "common.h"
-#include "mic.cu"
-#include "rebo_mos2.h"
+#include "common.cuh"
+#include "mic.cuh"
+#include "rebo_mos2.cuh"
 
 // References: 
 // [1] T. Liang et al. PRB 79, 245110 (2009).

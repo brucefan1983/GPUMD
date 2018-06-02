@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "potential.h"
+#include "common.cuh"
+#include "potential.cuh"
 
    
 

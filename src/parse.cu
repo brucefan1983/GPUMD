@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "parse.h"
+#include "common.cuh"
+#include "parse.cuh"
 
 
 

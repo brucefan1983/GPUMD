@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "hac.h"
+#include "common.cuh"
+#include "hac.cuh"
 
 #define NUM_OF_HAC_COMPONENTS  7
 #define NUM_OF_HEAT_COMPONENTS 5

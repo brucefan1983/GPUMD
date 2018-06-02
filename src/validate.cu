@@ -16,9 +16,9 @@
 
 
 
-#include "common.h"
-#include "validate.h"
-#include "force.h"
+#include "common.cuh"
+#include "validate.cuh"
+#include "force.cuh"
 
 
 

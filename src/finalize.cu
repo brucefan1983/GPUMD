@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "finalize.h"
+#include "common.cuh"
+#include "finalize.cuh"
 
 
 

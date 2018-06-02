@@ -15,21 +15,21 @@
 
 
 
-#include "common.h"
-#include "mic_template.cu" // static __device__ void dev_apply_mic(...)
-#include "force.h"
-#include "lj1.h"
-#include "ri.h"
-#include "eam_zhou_2004.h"
-#include "eam_dai_2006.h"
-#include "sw_1985.h"
-#include "sw_1985_2.h"
-#include "sw_1985_3.h"
-#include "vashishta.h"
-#include "vashishta_table.h"
-#include "tersoff_1989_1.h"
-#include "tersoff_1989_2.h"
-#include "rebo_mos2.h"
+#include "common.cuh"
+#include "mic_template.cuh" // static __device__ void dev_apply_mic(...)
+#include "force.cuh"
+#include "lj1.cuh"
+#include "ri.cuh"
+#include "eam_zhou_2004.cuh"
+#include "eam_dai_2006.cuh"
+#include "sw_1985.cuh"
+#include "sw_1985_2.cuh"
+#include "sw_1985_3.cuh"
+#include "vashishta.cuh"
+#include "vashishta_table.cuh"
+#include "tersoff_1989_1.cuh"
+#include "tersoff_1989_2.cuh"
+#include "rebo_mos2.cuh"
 
 
 

@@ -15,7 +15,7 @@
 
 
 
-#include "common.h"
+#include "common.cuh"
 
 
 void print_error (const char *str)

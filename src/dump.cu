@@ -15,8 +15,8 @@
 
 
 
-#include "common.h"
-#include "dump.h"
+#include "common.cuh"
+#include "dump.cuh"
 
 
 // dump thermodynamic properties

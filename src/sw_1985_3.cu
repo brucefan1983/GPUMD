@@ -16,9 +16,9 @@
 
 
 
-#include "common.h"
-#include "mic.cu"
-#include "sw_1985_3.h"
+#include "common.cuh"
+#include "mic.cuh"
+#include "sw_1985_3.cuh"
 
 
 

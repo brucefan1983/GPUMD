@@ -16,10 +16,10 @@
 
 
 
-#include "common.h"
-#include "neighbor.h"
-#include "neighbor_ON1.h"
-#include "neighbor_ON2.h"
+#include "common.cuh"
+#include "neighbor.cuh"
+#include "neighbor_ON1.cuh"
+#include "neighbor_ON2.cuh"
 
 
 

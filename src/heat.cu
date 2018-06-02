@@ -16,8 +16,8 @@
 
 
 
-#include "common.h"
-#include "heat.h"
+#include "common.cuh"
+#include "heat.cuh"
 
 
 

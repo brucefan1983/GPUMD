@@ -16,9 +16,9 @@
 
 
 
-#include "common.h"
-#include "mic.cu"
-#include "vashishta.h"
+#include "common.cuh"
+#include "mic.cuh"
+#include "vashishta.cuh"
 
 
 
