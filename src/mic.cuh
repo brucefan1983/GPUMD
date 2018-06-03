@@ -16,7 +16,7 @@
 
 
 /*------------------------------------------------------------------------------
-    This file will be idrectly included in some other files
+    This file will be directly included in some other files
 ------------------------------------------------------------------------------*/
 
 
