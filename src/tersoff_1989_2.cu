@@ -15,7 +15,8 @@
 
 
 #include "common.cuh"
-#include "mic.cuh" // static __device__ dev_apply_mic(...)
+#include "mic.cuh" 
+#include "hnemd.cuh"
 #include "tersoff_1989_2.cuh"
 
 
@@ -431,9 +432,10 @@ static __global__ void find_force_tersoff_step2
 /*----------------------------------------------------------------------------80
     Calculate forces, potential energy, and virial stress
 ------------------------------------------------------------------------------*/
-template <int cal_p, int cal_j, int cal_q>
+template <int cal_p, int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_tersoff_step3
 (
+    real fe_x, real fe_y, real fe_z,
     int number_of_particles, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list,
 #ifdef USE_LDG
@@ -461,6 +463,11 @@ static __global__ void find_force_tersoff_step3
     real s_fy = ZERO;
     real s_fz = ZERO;
 
+    // driving force 
+    real fx_driving = ZERO;
+    real fy_driving = ZERO;
+    real fz_driving = ZERO;
+
     // if cal_p, then s1~s3 = px, py, pz; if cal_j, then s1~s5 = j1~j5
     real s1 = ZERO;
     real s2 = ZERO;
@@ -480,7 +487,7 @@ static __global__ void find_force_tersoff_step3
         real lz = LDG(g_box_length, 2);
 
         real vx1, vy1, vz1;
-        if (cal_j || cal_q)
+        if (cal_j || cal_q || cal_k)
         {
             vx1 = LDG(g_vx, n1);
             vy1 = LDG(g_vy, n1); 
@@ -520,6 +527,15 @@ static __global__ void find_force_tersoff_step3
             s_fy += f12y - f21y; 
             s_fz += f12z - f21z; 
 
+            // driving force
+            if (cal_k)
+            { 
+                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+            } 
+
+
             // per-atom stress
             if (cal_p)
             {
@@ -529,7 +545,7 @@ static __global__ void find_force_tersoff_step3
             }
 
             // per-atom heat current
-            if (cal_j)
+            if (cal_j || cal_k)
             {
                 s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
                 s2 += (f21z * vz1) * x12;               // x-out
@@ -560,6 +576,15 @@ static __global__ void find_force_tersoff_step3
             }
         }
 
+        // driving force
+        if (cal_k)
+        { 
+            s_fx += fx_driving; // with driving force
+            s_fy += fy_driving; // with driving force
+            s_fz += fz_driving; // with driving force
+        }
+
+
         // save force
         g_fx[n1] = s_fx; 
         g_fy[n1] = s_fy; 
@@ -572,7 +597,7 @@ static __global__ void find_force_tersoff_step3
             g_sz[n1] = s3;
         }
 
-        if (cal_j) // save heat current
+        if (cal_j || cal_k) // save heat current
         {
             g_h[n1 + 0 * number_of_particles] = s1;
             g_h[n1 + 1 * number_of_particles] = s2;
@@ -625,6 +650,10 @@ void gpu_find_force_tersoff_1989_2
     real *f12x = gpu_data->f12x; 
     real *f12y = gpu_data->f12y; 
     real *f12z = gpu_data->f12z; 
+
+    real fe_x = para->hnemd.fe_x;
+    real fe_y = para->hnemd.fe_y;
+    real fe_z = para->hnemd.fe_z;
     
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (       
@@ -641,12 +670,33 @@ void gpu_find_force_tersoff_1989_2
             force_model->ters0, force_model->ters1, force_model->ters2,
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
-        find_force_tersoff_step3<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, 
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
             sx, sy, sz, h, label, fv_index, fv
         );
+    }
+    else if (para->hnemd.compute)
+    {
+        find_force_tersoff_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N, pbc_x, pbc_y, pbc_z, 
+            force_model->ters0, force_model->ters1, force_model->ters2,
+            NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
+        );
+        find_force_tersoff_step3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, NN, NL, 
+            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
+            sx, sy, sz, h, label, fv_index, fv
+        );
+        // correct the force when using the HNEMD method
+        real *ftot; // total force vector of the system
+        cudaMalloc((void**)&ftot, sizeof(real) * 3);
+        gpu_sum_force<<<3, 1024>>>(N, fx, fy, fz, ftot);
+        gpu_correct_force<<<grid_size, BLOCK_SIZE_FORCE>>>(N, fx, fy, fz, ftot);
+        cudaFree(ftot);
     }
     else if (para->shc.compute)
     {
@@ -656,9 +706,9 @@ void gpu_find_force_tersoff_1989_2
             force_model->ters0, force_model->ters1, force_model->ters2,
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
-        find_force_tersoff_step3<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, 
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
             sx, sy, sz, h, label, fv_index, fv
         );
@@ -671,9 +721,9 @@ void gpu_find_force_tersoff_1989_2
             force_model->ters0, force_model->ters1, force_model->ters2,
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
-        find_force_tersoff_step3<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            N, pbc_x, pbc_y, pbc_z, NN, NL, 
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
             sx, sy, sz, h, label, fv_index, fv
         );
