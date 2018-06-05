@@ -15,6 +15,7 @@
    * It can calculate the phonon density of states (DOS) from the velocity autocorrelation (VAC).
    * It can calculate the equilibrium heat current autocorrelation (HAC), whose time integral gives the running thermal conductivity   according to the Green-Kubo relation. As stressed in Ref. [2], the heat current as implemented in LAMMPS does not apply to many-body  potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. [3], which is essential for 2D materials.
    * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using nonequilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. [3] has also been implemented.
+   * It can calculate the thermal conductivity using the homogeneous nonequilibrium MD (HNEMD) methods as detailed in Ref. [4].
      
 * GPUMD was firstly used for heat transport simulations only but we are now making it more and more general. However, the functionalities in GPUMD are still very limited. We are working on implementing (1) more potential models (including mixed potentials), (2) more integrators (including external conditions), and (3) more measurements.
 
@@ -54,3 +55,6 @@ If your work involves using heat current and virial stress formulas as implement
 
 You can cite the following paper if you use GPUMD to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
 * [3] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity decomposition in two-dimensional materials: Application to graphene. Phys. Rev. B, 95:144309, Apr 2017.
+
+You can cite the following paper if you use GPUMD to study heat transport using the HNEMD method:
+* [4] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport with many-body potentials, arXiv preprint arXiv:1805.00277
