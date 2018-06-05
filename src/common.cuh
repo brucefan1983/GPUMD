@@ -153,6 +153,19 @@ typedef struct
 
 
 
+
+// Parameters related to the HNEMD method for computing thermal conductivity
+typedef struct
+{
+    int compute;           // 1 means do this computation
+    int output_interval;   // average the data every so many time steps
+    real fe_x, fe_y, fe_z; // the driving "force" vector (in units of 1/A)
+    real fe;               // magnitude of the driving "force" vector
+} HNEMD;
+
+
+
+
 // Parameters related to SHC (spectral heat current)
 typedef struct
 {
@@ -263,6 +276,7 @@ typedef struct
     VAC vac;
     HAC hac;
     SHC shc;
+    HNEMD hnemd;
 } Parameters;
 
 
@@ -337,7 +351,8 @@ typedef struct
     char virial[FILE_NAME_LENGTH];      
     char vac[FILE_NAME_LENGTH];        
     char hac[FILE_NAME_LENGTH];          
-    char shc[FILE_NAME_LENGTH];         
+    char shc[FILE_NAME_LENGTH];        
+    char kappa[FILE_NAME_LENGTH]; 
     char temperature[FILE_NAME_LENGTH];  
     char run_in[FILE_NAME_LENGTH];      
     char xyz_in[FILE_NAME_LENGTH];      

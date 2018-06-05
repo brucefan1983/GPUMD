@@ -30,7 +30,8 @@
 #include "dump.cuh"        
 #include "vac.cuh"  
 #include "hac.cuh"   
-#include "shc.cuh"       
+#include "shc.cuh"    
+#include "hnemd_kappa.cuh"   
 
 
 
@@ -114,7 +115,8 @@ static void process_run
     preprocess_vac(para,  cpu_data, gpu_data);
     preprocess_hac(para,  cpu_data, gpu_data);  
     preprocess_shc(para,  cpu_data, gpu_data); 
-    preprocess_heat(para, cpu_data);         
+    preprocess_heat(para, cpu_data);      
+    preprocess_hnemd_kappa(para, cpu_data, gpu_data);   
 
     // open some files
     if (para->dump_thermo)   
@@ -158,6 +160,7 @@ static void process_run
         sample_hac(step, para, cpu_data, gpu_data);
         sample_block_temperature(step, para, cpu_data, gpu_data);
         process_shc(step, files, para, cpu_data, gpu_data);
+        process_hnemd_kappa(step, files, para, cpu_data, gpu_data);  
 
         dump_thermos(files->fid_thermo, para, cpu_data, gpu_data, step);
         dump_positions(files->fid_position, para, cpu_data, gpu_data, step);
@@ -194,6 +197,7 @@ static void process_run
     postprocess_hac(files,  para, cpu_data, gpu_data);
     postprocess_shc(        para, cpu_data, gpu_data);
     postprocess_heat(files, para, cpu_data);
+    postprocess_hnemd_kappa(para, cpu_data, gpu_data);
 
     // Close the files
     if (para->dump_thermo)   { fclose(files->fid_thermo);   }
@@ -219,6 +223,7 @@ static void initialize_run(Parameters *para)
     para->shc.compute     = 0;
     para->vac.compute     = 0; 
     para->hac.compute     = 0; 
+    para->hnemd.compute   = 0;
     para->strain.compute  = 0; 
     para->dump_thermo     = 0; 
     para->dump_position   = 0;

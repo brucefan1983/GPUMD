@@ -41,6 +41,7 @@ static void initialize_files(char *input_dir, Files *files)
     strcpy(files->vac, input_dir);
     strcpy(files->hac, input_dir);
     strcpy(files->shc, input_dir);
+    strcpy(files->kappa, input_dir);
     strcpy(files->temperature, input_dir);
 
     strcat(files->thermo, "/thermo.out");
@@ -52,6 +53,7 @@ static void initialize_files(char *input_dir, Files *files)
     strcat(files->vac, "/vac.out");
     strcat(files->hac, "/hac.out");
     strcat(files->shc, "/shc.out");
+    strcat(files->kappa, "/kappa.out");
     strcat(files->temperature, "/temperature.out");
 }
 
