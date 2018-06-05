@@ -6,7 +6,7 @@ CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
 gpumd: common.o eam_zhou_2004.o eam_dai_2006.o \
        tersoff_1989_1.o tersoff_1989_2.o rebo_mos2.o \
        sw_1985.o sw_1985_2.o sw_1985_3.o vashishta.o vashishta_table.o \
-       lj1.o ri.o force.o validate.o \
+       lj1.o ri.o force.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o potential.o \
@@ -16,7 +16,7 @@ gpumd: common.o eam_zhou_2004.o eam_dai_2006.o \
        common.o eam_zhou_2004.o eam_dai_2006.o \
        tersoff_1989_1.o tersoff_1989_2.o rebo_mos2.o \
        sw_1985.o sw_1985_2.o sw_1985_3.o vashishta.o vashishta_table.o \
-       lj1.o ri.o force.o validate.o \
+       lj1.o ri.o force.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o potential.o \
@@ -56,6 +56,8 @@ vac.o: vac.cu
 	$(CC) $(CFLAGS) -c vac.cu
 hac.o: hac.cu
 	$(CC) $(CFLAGS) -c hac.cu
+hnemd_kappa.o: hnemd_kappa.cu
+	$(CC) $(CFLAGS) -c hnemd_kappa.cu
 validate.o: validate.cu
 	$(CC) $(CFLAGS) -c validate.cu
 force.o: force.cu
