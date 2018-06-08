@@ -806,7 +806,7 @@ static __global__ void find_force_step0
             }
 
             real p2 = ZERO, f2 = ZERO;
-            //find_p2_and_f2(type12, d12, p2, f2);	    
+            find_p2_and_f2(type12, d12, p2, f2);	    
 
             // treat two-body potential in the same way as many-body potential
             real f12x = f2 * x12 * HALF; 
