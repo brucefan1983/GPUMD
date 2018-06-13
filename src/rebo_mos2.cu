@@ -380,14 +380,10 @@ static __device__ void find_fc_and_fcp
         if (d12 < REBO_MOS2_r1_MM) {fc = ONE; fcp = ZERO;}
         else if (d12 < REBO_MOS2_r2_MM)
         {              
-            fc =HALF;
-            fc+=0.5625*cos(REBO_MOS2_pi_factor_MM*(d12-REBO_MOS2_r1_MM));
-            fc-=0.0625*cos(THREE*REBO_MOS2_pi_factor_MM*(d12-REBO_MOS2_r1_MM));
-
-            fcp=-0.5625*sin(REBO_MOS2_pi_factor_MM*(d12-REBO_MOS2_r1_MM))
-                 *REBO_MOS2_pi_factor_MM;
-            fcp+=0.0625*sin(THREE*REBO_MOS2_pi_factor_MM*(d12-REBO_MOS2_r1_MM))
-                 *THREE*REBO_MOS2_pi_factor_MM;
+            fc  = cos(REBO_MOS2_pi_factor_MM * (d12 - REBO_MOS2_r1_MM)) 
+                * HALF + HALF;
+            fcp = -sin(REBO_MOS2_pi_factor_MM * (d12 - REBO_MOS2_r1_MM))
+                * REBO_MOS2_pi_factor_MM * HALF;
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
@@ -396,14 +392,10 @@ static __device__ void find_fc_and_fcp
         if (d12 < REBO_MOS2_r1_SS) {fc = ONE; fcp = ZERO;}
         else if (d12 < REBO_MOS2_r2_SS)
         {      
-            fc =HALF;
-            fc+=0.5625*cos(REBO_MOS2_pi_factor_SS*(d12-REBO_MOS2_r1_SS));
-            fc-=0.0625*cos(THREE*REBO_MOS2_pi_factor_SS*(d12-REBO_MOS2_r1_SS));
-
-            fcp=-0.5625*sin(REBO_MOS2_pi_factor_SS*(d12-REBO_MOS2_r1_SS))
-                 *REBO_MOS2_pi_factor_SS;
-            fcp+=0.0625*sin(THREE*REBO_MOS2_pi_factor_SS*(d12-REBO_MOS2_r1_SS))
-                 *THREE*REBO_MOS2_pi_factor_SS;
+            fc  = cos(REBO_MOS2_pi_factor_SS * (d12 - REBO_MOS2_r1_SS)) 
+                * HALF + HALF;
+            fcp = -sin(REBO_MOS2_pi_factor_SS * (d12 - REBO_MOS2_r1_SS))
+                * REBO_MOS2_pi_factor_SS * HALF;
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
@@ -412,14 +404,10 @@ static __device__ void find_fc_and_fcp
         if (d12 < REBO_MOS2_r1_MS) {fc = ONE; fcp = ZERO;}
         else if (d12 < REBO_MOS2_r2_MS)
         {              
-            fc =HALF;
-            fc+=0.5625*cos(REBO_MOS2_pi_factor_MS*(d12-REBO_MOS2_r1_MS));
-            fc-=0.0625*cos(THREE*REBO_MOS2_pi_factor_MS*(d12-REBO_MOS2_r1_MS));
-
-            fcp=-0.5625*sin(REBO_MOS2_pi_factor_MS*(d12-REBO_MOS2_r1_MS))
-                 *REBO_MOS2_pi_factor_MS;
-            fcp+=0.0625*sin(THREE*REBO_MOS2_pi_factor_MS*(d12-REBO_MOS2_r1_MS))
-                 *THREE*REBO_MOS2_pi_factor_MS;
+            fc  = cos(REBO_MOS2_pi_factor_MS * (d12 - REBO_MOS2_r1_MS)) 
+                * HALF + HALF;
+            fcp = -sin(REBO_MOS2_pi_factor_MS * (d12 - REBO_MOS2_r1_MS))
+                * REBO_MOS2_pi_factor_MS * HALF;
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
@@ -436,9 +424,8 @@ static __device__ void find_fc(int type12, real d12, real &fc)
         if (d12 < REBO_MOS2_r1_MM) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_MM)
         {              
-            fc =HALF;
-            fc+=0.5625*cos(REBO_MOS2_pi_factor_MM*(d12-REBO_MOS2_r1_MM));
-            fc-=0.0625*cos(THREE*REBO_MOS2_pi_factor_MM*(d12-REBO_MOS2_r1_MM));
+            fc  = cos(REBO_MOS2_pi_factor_MM * (d12 - REBO_MOS2_r1_MM)) 
+                * HALF + HALF;
         }
         else {fc  = ZERO;}
     }
@@ -447,9 +434,8 @@ static __device__ void find_fc(int type12, real d12, real &fc)
         if (d12 < REBO_MOS2_r1_SS) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_SS)
         {              
-            fc =HALF;
-            fc+=0.5625*cos(REBO_MOS2_pi_factor_SS*(d12-REBO_MOS2_r1_SS));
-            fc-=0.0625*cos(THREE*REBO_MOS2_pi_factor_SS*(d12-REBO_MOS2_r1_SS));
+            fc  = cos(REBO_MOS2_pi_factor_SS * (d12 - REBO_MOS2_r1_SS)) 
+                * HALF + HALF;
         }
         else {fc  = ZERO;}
     }
@@ -458,9 +444,8 @@ static __device__ void find_fc(int type12, real d12, real &fc)
         if (d12 < REBO_MOS2_r1_MS) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_MS)
         {              
-            fc =HALF;
-            fc+=0.5625*cos(REBO_MOS2_pi_factor_MS*(d12-REBO_MOS2_r1_MS));
-            fc-=0.0625*cos(THREE*REBO_MOS2_pi_factor_MS*(d12-REBO_MOS2_r1_MS));
+            fc  = cos(REBO_MOS2_pi_factor_MS * (d12 - REBO_MOS2_r1_MS)) 
+                * HALF + HALF;
         }
         else {fc  = ZERO;}
     }
