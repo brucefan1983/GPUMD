@@ -25,9 +25,7 @@
 // [1] T. Liang et al. PRB 79, 245110 (2009).
 // [2] T. Liang et al. PRB 85, 199903(E) (2012).
 // [3] J. A. Stewart et al. MSMSE 21, 045003 (2013).
-// We completely followed Ref. [3] and Stewart's LAMMPS implementation except
-// that the cutoff function has been changed to a better one 
-// (the old one leads to severe violation of energy conservation)
+// We completely followed Ref. [3] and Stewart's LAMMPS implementation
 // The parameters are hard coded as the potential only applies to Mo-S systems.
 
 
