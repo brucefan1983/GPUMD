@@ -35,4 +35,7 @@ void dump_potential
 void dump_virial
 (FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step);
 
+void dump_heat
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step);
+
 #endif

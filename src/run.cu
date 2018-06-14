@@ -131,6 +131,8 @@ static void process_run
     { files->fid_potential= my_fopen(files->potential,"a"); }
     if (para->dump_virial)    
     { files->fid_virial   = my_fopen(files->virial,   "a"); }
+    if (para->dump_heat)    
+    { files->fid_heat     = my_fopen(files->heat,     "a"); }
 
     // record the starting time for this run
     clock_t time_begin = clock();
@@ -168,6 +170,7 @@ static void process_run
         dump_forces(files->fid_force, para, cpu_data, gpu_data, step);
         dump_potential(files->fid_potential, para, cpu_data, gpu_data, step);
         dump_virial(files->fid_virial, para, cpu_data, gpu_data, step);
+        dump_heat(files->fid_heat, para, cpu_data, gpu_data, step);
         if (para->number_of_steps >= 10)
         {
             if ((step + 1) % (para->number_of_steps / 10) == 0)
@@ -206,6 +209,7 @@ static void process_run
     if (para->dump_force)    { fclose(files->fid_force);    }
     if (para->dump_potential){ fclose(files->fid_potential);}
     if (para->dump_virial)   { fclose(files->fid_virial);   }
+    if (para->dump_heat)     { fclose(files->fid_heat);     }
 }
 
 
@@ -231,6 +235,7 @@ static void initialize_run(Parameters *para)
     para->dump_force      = 0;
     para->dump_potential  = 0;
     para->dump_virial     = 0;
+    para->dump_heat       = 0;
     para->fixed_group     = -1; // no group has an index of -1
 }
 

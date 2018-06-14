@@ -99,6 +99,7 @@ void finalize(Force_Model *force_model, CPU_Data *cpu_data, GPU_Data *gpu_data)
     MY_FREE(cpu_data->fx);
     MY_FREE(cpu_data->fy);
     MY_FREE(cpu_data->fz);  
+    MY_FREE(cpu_data->heat_per_atom);
     MY_FREE(cpu_data->thermo);
     MY_FREE(cpu_data->box_length);
     MY_FREE(cpu_data->box_matrix);

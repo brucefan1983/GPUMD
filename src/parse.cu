@@ -452,6 +452,23 @@ static void parse_dump_virial(char **param,  int num_param,Parameters *para)
 
 
 
+static void parse_dump_heat(char **param, int num_param, Parameters *para)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_heat should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &para->sample_interval_heat))
+    {
+        print_error("heat dump interval should be an integer number.\n");
+    } 
+    para->dump_heat = 1;
+    printf("INPUT: dump heat every %d steps.\n", para->sample_interval_heat);
+}
+
+
+
+
 static void parse_compute_vac(char **param,  int num_param, Parameters *para)
 {
     printf("INPUT: compute VAC.\n");
@@ -761,6 +778,10 @@ void parse
     else if (strcmp(param[0], "dump_virial")    == 0) 
     {
         parse_dump_virial(param, num_param, para);
+    }
+    else if (strcmp(param[0], "dump_heat")    == 0) 
+    {
+        parse_dump_heat(param, num_param, para);
     }
     else if (strcmp(param[0], "compute_vac")    == 0) 
     {

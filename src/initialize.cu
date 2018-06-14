@@ -38,6 +38,7 @@ static void initialize_files(char *input_dir, Files *files)
     strcpy(files->force, input_dir);
     strcpy(files->potential, input_dir);
     strcpy(files->virial, input_dir);
+    strcpy(files->heat, input_dir);
     strcpy(files->vac, input_dir);
     strcpy(files->hac, input_dir);
     strcpy(files->shc, input_dir);
@@ -50,6 +51,7 @@ static void initialize_files(char *input_dir, Files *files)
     strcat(files->force, "/f.out");
     strcat(files->potential, "/potential.out");
     strcat(files->virial, "/virial.out");
+    strcat(files->heat, "/heat.out");
     strcat(files->vac, "/vac.out");
     strcat(files->hac, "/hac.out");
     strcat(files->shc, "/shc.out");
@@ -109,6 +111,7 @@ static void initialize_position
     MY_MALLOC(cpu_data->fx,   real, para->N);
     MY_MALLOC(cpu_data->fy,   real, para->N);
     MY_MALLOC(cpu_data->fz,   real, para->N);
+    MY_MALLOC(cpu_data->heat_per_atom, real, para->N * NUM_OF_HEAT_COMPONENTS);
     MY_MALLOC(cpu_data->thermo, real, 6);
     MY_MALLOC(cpu_data->box_length, real, DIM);
     MY_MALLOC(cpu_data->box_matrix, real, 9);

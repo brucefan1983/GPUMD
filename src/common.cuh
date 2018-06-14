@@ -239,12 +239,14 @@ typedef struct
     int dump_force;
     int dump_potential;
     int dump_virial;
+    int dump_heat;
     int sample_interval_thermo;
     int sample_interval_position;
     int sample_interval_velocity;
     int sample_interval_force;
     int sample_interval_potential;
     int sample_interval_virial;
+    int sample_interval_heat;
 
     // nose hoover chain
     real mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
@@ -289,6 +291,7 @@ typedef struct
     int *type; int *label; int *group_size; int *group_size_sum;
     real *mass; real *x; real *y; real *z; real *vx; real *vy; real *vz; 
     real *fx; real *fy; real *fz;   
+    real *heat_per_atom;    // per-atom heat current
     real *thermo; real *group_temp;
     real *box_matrix;       // box matrix
     real *box_matrix_inv;   // inverse box matrix
@@ -343,12 +346,14 @@ typedef struct
     FILE *fid_force;
     FILE *fid_potential;
     FILE *fid_virial;
+    FILE *fid_heat;
     char thermo[FILE_NAME_LENGTH];       
     char position[FILE_NAME_LENGTH];    
     char velocity[FILE_NAME_LENGTH];    
     char force[FILE_NAME_LENGTH]; 
     char potential[FILE_NAME_LENGTH];
-    char virial[FILE_NAME_LENGTH];      
+    char virial[FILE_NAME_LENGTH];    
+    char heat[FILE_NAME_LENGTH];      
     char vac[FILE_NAME_LENGTH];        
     char hac[FILE_NAME_LENGTH];          
     char shc[FILE_NAME_LENGTH];        
