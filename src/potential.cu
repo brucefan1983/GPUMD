@@ -445,20 +445,6 @@ static void initialize_sw_1985_2(FILE *fid, Force_Model *force_model)
     printf("INPUT: use two-element Stillinger-Weber potential.\n");
     int count;
 
-    /* format for the potential file (assuming types 0 and 1)
-    A[00] B[00] a[00] sigma[00] gamma[00]
-    A[01] B[01] a[01] sigma[01] gamma[01]
-    A[11] B[11] a[11] sigma[11] gamma[11]
-    lambda[000] cos0[000]
-    lambda[001] cos0[001]
-    lambda[010] cos0[010]
-    lambda[011] cos0[011]
-    lambda[100] cos0[100]
-    lambda[101] cos0[101]
-    lambda[110] cos0[110]
-    lambda[111] cos0[111]
-    */
-
     // 2-body parameters and the force cutoff
     double A[3], B[3], a[3], sigma[3], gamma[3];
     force_model->rc = 0.0;
@@ -467,25 +453,31 @@ static void initialize_sw_1985_2(FILE *fid, Force_Model *force_model)
         count = fscanf
         (fid, "%lf%lf%lf%lf%lf", &A[n], &B[n], &a[n], &sigma[n], &gamma[n]);
         if (count != 5) print_error("reading error for potential file.\n");
-        force_model->sw2.A[n] = A[n];
-        force_model->sw2.B[n] = B[n];
-        force_model->sw2.a[n] = a[n];
-        force_model->sw2.sigma[n] = sigma[n];
-        force_model->sw2.gamma[n] = gamma[n];
-        force_model->sw2.rc[n] = sigma[n] * a[n];
-        if (force_model->rc < force_model->sw2.rc[n])
-            force_model->rc = force_model->sw2.rc[n]; // force cutoff
+    }
+    for (int n1 = 0; n1 < 2; n1++)
+    for (int n2 = 0; n2 < 2; n2++)
+    {
+        force_model->sw3.A[n1][n2] = A[n1+n2];
+        force_model->sw3.B[n1][n2] = B[n1+n2];
+        force_model->sw3.a[n1][n2] = a[n1+n2];
+        force_model->sw3.sigma[n1][n2] = sigma[n1+n2];
+        force_model->sw3.gamma[n1][n2] = gamma[n1+n2];
+        force_model->sw3.rc[n1][n2] = sigma[n1+n2] * a[n1+n2];
+        if (force_model->rc < force_model->sw3.rc[n1][n2])
+            force_model->rc = force_model->sw3.rc[n1][n2]; // force cutoff
     }
 
     // 3-body parameters
-    double lambda[8], cos0[8];
-    for (int n = 0; n < 8; n++)
+    double lambda, cos0;
+    for (int n1 = 0; n1 < 2; n1++)
+    for (int n2 = 0; n2 < 2; n2++)
+    for (int n3 = 0; n3 < 2; n3++)
     {  
         count = fscanf
-        (fid, "%lf%lf", &lambda[n], &cos0[n]);
+        (fid, "%lf%lf", &lambda, &cos0);
         if (count != 2) print_error("reading error for potential file.\n");
-        force_model->sw2.lambda[n] = lambda[n];
-        force_model->sw2.cos0[n] = cos0[n];
+        force_model->sw3.lambda[n1][n2][n3] = lambda;
+        force_model->sw3.cos0[n1][n2][n3] = cos0;
     }
 }  
 

@@ -23,7 +23,6 @@
 #include "eam_zhou_2004.cuh"
 #include "eam_dai_2006.cuh"
 #include "sw_1985.cuh"
-#include "sw_1985_2.cuh"
 #include "sw_1985_3.cuh"
 #include "vashishta.cuh"
 #include "vashishta_table.cuh"
@@ -159,7 +158,7 @@ void gpu_find_force
             break;
         case 33:  
             find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
-            gpu_find_force_sw2(para, force_model->sw2, gpu_data);
+            gpu_find_force_sw3(para, force_model->sw3, gpu_data);
             break;
         case 34:  
             gpu_find_force_vashishta_table
