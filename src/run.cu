@@ -21,7 +21,6 @@
 
 #include "parse.cuh" 
 #include "velocity.cuh"
-#include "potential.cuh"
 #include "neighbor.cuh"
 #include "force.cuh"
 #include "validate.cuh"
@@ -101,11 +100,11 @@ static void process_run
 (
     char **param, 
     unsigned int num_param, 
-    Files *files, 
-    Force_Model *force_model, 
+    Files *files,  
     Parameters *para, 
     CPU_Data *cpu_data,
-    GPU_Data *gpu_data
+    GPU_Data *gpu_data,
+    Force *force
 )
 {
 
@@ -156,7 +155,7 @@ static void process_run
         }
 
         // integrate by one time-step:
-        gpu_integrate(force_model, para, cpu_data, gpu_data);
+        gpu_integrate(para, cpu_data, gpu_data, force);
 
         sample_vac(step, para, cpu_data, gpu_data);
         sample_hac(step, para, cpu_data, gpu_data);
@@ -183,7 +182,7 @@ static void process_run
     // only for myself
     if (0)
     {
-        validate_force(force_model, para, cpu_data, gpu_data);
+        validate_force(force, para, cpu_data, gpu_data);
     }
 
     printf("INFO:  This run is completed.\n\n");
@@ -325,11 +324,11 @@ static char *row_find_param (char *s, char *param[], int *num_param)
 
 void run_md
 (
-    Files *files, 
-    Force_Model *force_model, 
+    Files *files,  
     Parameters *para,
     CPU_Data *cpu_data, 
-    GPU_Data *gpu_data
+    GPU_Data *gpu_data,
+    Force *force
 )
 {
     char *input = get_file_contents(files->run_in);
@@ -356,16 +355,15 @@ void run_md
         // parse a line of the input file 
         parse
         (
-            param, num_param, files, para, force_model,
+            param, num_param, files, para, force,
             &is_potential, &is_velocity, &is_run
         );
 
         // check for some special keywords
         if (is_potential) 
-        { 
-            process_potential(files, para, force_model, gpu_data); 
-            // initialize the forces
-            gpu_find_force(force_model, para, gpu_data);
+        {  
+            force->initialize(files->potential_in, para);
+            force->compute(para, gpu_data);
             #ifdef FORCE
             // output the initial forces (used for lattice dynamics calculations)
             int m = sizeof(real) * para->N;
@@ -395,7 +393,9 @@ void run_md
         if (is_run)
         { 
             process_run
-            (param, num_param, files, force_model, para, cpu_data, gpu_data);
+            (
+                param, num_param, files, para, cpu_data, gpu_data, force
+            );
             initialize_run(para); // change back to the default
         }
     }

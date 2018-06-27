@@ -22,12 +22,50 @@
 
 
 
-void gpu_find_force_vashishta
-(
-    Parameters *para,
-    Vashishta  vas, 
-    GPU_Data   *gpu_data
-);
+#include "potential.cuh"
+
+
+
+
+struct Vashishta_Para
+{
+    real B[2], cos0[2], C, r0, rc; real v_rc[3], dv_rc[3];
+    real H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
+    int eta[3];
+    real rmin;
+    real scale;
+    int N;
+    real *table;
+};
+
+
+
+
+struct Vashishta_Data
+{
+    real *table; // for the two-body part
+    real *f12x;  // partial forces
+    real *f12y;
+    real *f12z;
+};
+
+
+
+
+class Vashishta : public Potential
+{
+public:   
+    Vashishta(FILE*, Parameters*, int use_table);  
+    virtual ~Vashishta(void);
+    virtual void compute(Parameters*, GPU_Data*);
+    void initialize_0(FILE*);
+    void initialize_1(FILE*);
+protected:
+    int            use_table;
+    Vashishta_Para vashishta_para;
+    Vashishta_Data vashishta_data;
+};
+
 
 
 

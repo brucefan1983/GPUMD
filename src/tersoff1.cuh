@@ -16,19 +16,46 @@
 
 
 
-#ifndef POTENTIAL1_H
-#define POTENTIAL1_H
+#ifndef TERSOFF1_H
+#define TERSOFF1_H
+
+
+
+#include "potential.cuh"
 
 
 
 
-class Potential 
+struct Tersoff_Parameters
 {
-public:
-    real rc; // maxium cutoff distance 
-    Potential(void);      
-    virtual ~Potential(void);
-    virtual void compute(Parameters*, GPU_Data*) = 0;
+    real a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
+    real pi_factor, one_plus_c2overd2, minus_half_over_n;
+};
+
+
+
+
+struct Tersoff_Data
+{
+    real *b;     // bond orders
+    real *bp;    // derivative of bond orders
+    real *f12x;  // partial forces
+    real *f12y;
+    real *f12z;
+};
+
+
+
+
+class Tersoff1 : public Potential
+{
+public:   
+    Tersoff1(FILE*, Parameters*);  
+    virtual ~Tersoff1(void);
+    virtual void compute(Parameters*, GPU_Data*);
+protected:
+    Tersoff_Parameters ters0;
+    Tersoff_Data tersoff_data;
 };
 
 

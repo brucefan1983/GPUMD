@@ -294,6 +294,38 @@
 
 
 
+REBO_MOS::REBO_MOS(Parameters *para)
+{
+    int memory1 = sizeof(real) * para->N;
+    int memory2 = memory1 * ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
+    CHECK(cudaMalloc((void**)&rebo_mos_data.p,    memory1));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.pp,   memory1));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.b,    memory2));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.bp,   memory2));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.f12x, memory2));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.f12y, memory2));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.f12z, memory2));
+
+    printf("INPUT: use the potential in [PRB 79, 245110 (2009)].\n");
+    rc = 10.5;
+}
+
+
+
+
+REBO_MOS::~REBO_MOS(void)
+{
+    cudaFree(rebo_mos_data.p);
+    cudaFree(rebo_mos_data.pp);
+    cudaFree(rebo_mos_data.b);
+    cudaFree(rebo_mos_data.bp);
+    cudaFree(rebo_mos_data.f12x);
+    cudaFree(rebo_mos_data.f12y);
+    cudaFree(rebo_mos_data.f12z);
+}
+
+
+
 // The repulsive function and its derivative
 static __device__ void find_fr_and_frp
 (int type12, real d12, real &fr, real &frp)
@@ -1248,7 +1280,7 @@ static __global__ void find_force_step3
 
 
 // Force evaluation wrapper
-void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
+void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
 {
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
@@ -1269,8 +1301,6 @@ void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
     real *fx = gpu_data->fx; 
     real *fy = gpu_data->fy; 
     real *fz = gpu_data->fz;
-    real *b = gpu_data->b; 
-    real *bp = gpu_data->bp; 
     real *box = gpu_data->box_length;
     real *sx = gpu_data->virial_per_atom_x; 
     real *sy = gpu_data->virial_per_atom_y; 
@@ -1279,18 +1309,19 @@ void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
     real *h = gpu_data->heat_per_atom;   
     int *label = gpu_data->label;
     int *fv_index = gpu_data->fv_index;
-    real *fv = gpu_data->fv;
-    real *f12x = gpu_data->f12x; 
-    real *f12y = gpu_data->f12y; 
-    real *f12z = gpu_data->f12z; 
+    real *fv = gpu_data->fv; 
 
     real fe_x = para->hnemd.fe_x;
     real fe_y = para->hnemd.fe_y;
     real fe_z = para->hnemd.fe_z;
     
-    real *p, *pp; // coordination number function and its derivative
-    cudaMalloc((void**)&p, sizeof(real) * N);
-    cudaMalloc((void**)&pp, sizeof(real) * N);
+    real *b    = rebo_mos_data.b;
+    real *bp   = rebo_mos_data.bp;
+    real *p    = rebo_mos_data.p;
+    real *pp   = rebo_mos_data.pp;
+    real *f12x = rebo_mos_data.f12x;
+    real *f12y = rebo_mos_data.f12y;
+    real *f12z = rebo_mos_data.f12z;
 
     // 2-body part
     if (para->hac.compute)
@@ -1405,9 +1436,6 @@ void gpu_find_force_rebo_mos2(Parameters *para, GPU_Data *gpu_data)
             box, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
     }
-    
-    cudaFree(p);  // do not forget to free the memory
-    cudaFree(pp);
 }
 
 

@@ -22,15 +22,13 @@
 
 
 
-void finalize(Force_Model *force_model, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     // Free the memory allocated on the GPU
     CHECK(cudaFree(gpu_data->NN)); 
     CHECK(cudaFree(gpu_data->NL)); 
-#ifndef FIXED_NL
     CHECK(cudaFree(gpu_data->NN_local)); 
     CHECK(cudaFree(gpu_data->NL_local));
-#endif
     CHECK(cudaFree(gpu_data->type));  
     CHECK(cudaFree(gpu_data->label)); 
     CHECK(cudaFree(gpu_data->group_size)); 
@@ -60,27 +58,6 @@ void finalize(Force_Model *force_model, CPU_Data *cpu_data, GPU_Data *gpu_data)
     CHECK(cudaFree(gpu_data->box_length));
     //#endif
     CHECK(cudaFree(gpu_data->thermo));
-
-    // only for Tersoff-type potentials
-    if (force_model->type >= 40 && force_model->type < 50)
-    {
-        CHECK(cudaFree(gpu_data->b));
-        CHECK(cudaFree(gpu_data->bp));
-    }
-
-    // for the Vashishta-table potential
-    if (force_model->type == 34)
-    {
-        CHECK(cudaFree(force_model->vas_table.table));
-    }
-
-    // for SW and Tersoff type potentials
-    if (force_model->type >= 30)
-    {
-        CHECK(cudaFree(gpu_data->f12x));
-        CHECK(cudaFree(gpu_data->f12y));
-        CHECK(cudaFree(gpu_data->f12z));
-    }
 
     // Free the major memory allocated on the CPU
     MY_FREE(cpu_data->NN);

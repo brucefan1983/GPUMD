@@ -17,6 +17,8 @@
 #ifndef PARSE_H
 #define PARSE_H
 
+class Force;
+
 
 void parse
 (
@@ -24,7 +26,7 @@ void parse
     int num_param, 
     Files *files,
     Parameters *para,
-    Force_Model *force_model,
+    Force *force,
     int *is_potential,
     int *is_velocity,
     int *is_int

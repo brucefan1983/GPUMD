@@ -17,13 +17,17 @@
 #ifndef RUN_H
 #define RUN_H
 
+
+class Force;
+
+
 void run_md
 (
-    Files *files, 
-    Force_Model *force_model, 
+    Files *files,  
     Parameters *para,
     CPU_Data *cpu_data, 
-    GPU_Data *gpu_data
+    GPU_Data *gpu_data,
+    Force *force
 );
 
 #endif

@@ -14,28 +14,48 @@
 */
 
 
-
-
-#ifndef POTENTIAL1_H
-#define POTENTIAL1_H
-
+#ifndef SW1_H
+#define SW1_H
 
 
 
-class Potential 
+#include "potential.cuh"
+
+
+
+struct SW1_Para
 {
-public:
-    real rc; // maxium cutoff distance 
-    Potential(void);      
-    virtual ~Potential(void);
-    virtual void compute(Parameters*, GPU_Data*) = 0;
+    real epsilon, A, lambda, B, a, gamma, sigma, cos0; 
+    real epsilon_times_A, epsilon_times_lambda, sigma_times_a;
+};
+
+
+
+
+struct SW1_Data
+{
+    real *f12x;  // partial forces
+    real *f12y;
+    real *f12z;
+};
+
+
+
+
+class SW1 : public Potential
+{
+public:   
+    SW1(FILE*, Parameters*);  
+    virtual ~SW1(void);
+    virtual void compute(Parameters*, GPU_Data*);
+protected:
+    SW1_Para sw1_para;
+    SW1_Data sw1_data;
 };
 
 
 
 
 #endif
-
-
 
 

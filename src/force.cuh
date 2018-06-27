@@ -14,11 +14,31 @@
 */
 
 
-#ifndef FORCE_H
-#define FORCE_H
 
-void gpu_find_force
-(Force_Model *force_model, Parameters *para, GPU_Data *gpu_data);
+
+#ifndef FORCE1_H
+#define FORCE1_H
+
+
+class Potential;
+
+class Force
+{
+public:
+    Potential *potential;
+    Force(void);      
+    ~Force(void);
+    void initialize(char*, Parameters*);
+    void compute(Parameters*, GPU_Data*);
+protected:
+    bool build_local_neighbor;
+};
+
+
+
 
 #endif
+
+
+
 

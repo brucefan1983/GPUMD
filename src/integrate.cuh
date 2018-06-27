@@ -17,11 +17,19 @@
 #ifndef INTEGRATE_H
 #define INTEGRATE_H
 
+
+class Force;
+
+
+
 void gpu_integrate
-(
-    Force_Model *force_model, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-);
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force);
+
+
+
 
 #endif
+
+
+
 

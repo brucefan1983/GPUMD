@@ -16,26 +16,54 @@
 
 
 
-#ifndef POTENTIAL1_H
-#define POTENTIAL1_H
+#ifndef SW2_H
+#define SW2_H
 
 
 
 
-class Potential 
+#include "potential.cuh"
+
+
+
+
+struct SW2_Para
 {
-public:
-    real rc; // maxium cutoff distance 
-    Potential(void);      
-    virtual ~Potential(void);
-    virtual void compute(Parameters*, GPU_Data*) = 0;
+    // 2-body part
+    real A[3][3], B[3][3], a[3][3], sigma[3][3], gamma[3][3], rc[3][3];
+    // 3-body part
+    real lambda[3][3][3], cos0[3][3][3];
+};
+
+
+
+
+struct SW2_Data
+{
+    real *f12x;  // partial forces
+    real *f12y;
+    real *f12z;
+};
+
+
+
+
+class SW2 : public Potential
+{
+public:   
+    SW2(FILE*, Parameters*, int num_of_types);
+    virtual ~SW2(void);
+    virtual void compute(Parameters*, GPU_Data*);
+    void initialize_sw_1985_2(FILE*); // called by the constructor
+    void initialize_sw_1985_3(FILE*); // called by the constructor
+protected:
+    SW2_Para sw2_para;
+    SW2_Data sw2_data;
 };
 
 
 
 
 #endif
-
-
 
 

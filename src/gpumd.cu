@@ -17,6 +17,7 @@
 
 
 #include "common.cuh"
+#include "force.cuh"
 #include "gpumd.cuh"
 
 #include "initialize.cuh"
@@ -35,19 +36,20 @@ void gpumd(char *input_dir)
     // Data structures:
     Parameters  para;
     Files       files;
-    Force_Model force_model;
     CPU_Data    cpu_data;
     GPU_Data    gpu_data;
+    Force       force;
 
     // initialize:
     initialize(input_dir, &files, &para, &cpu_data, &gpu_data);
     
     // run 
-    run_md(&files, &force_model, &para, &cpu_data, &gpu_data);
+    run_md(&files, &para, &cpu_data, &gpu_data, &force);
 
     // finilize
-    finalize(&force_model, &cpu_data, &gpu_data);
+    finalize(&cpu_data, &gpu_data);
 }
+
 
 
 

@@ -16,9 +16,8 @@
 
 
 
-#ifndef REBO_MOS2_H
-#define REBO_MOS2_H
-
+#ifndef EAM_ANALYTICAL_H
+#define EAM_ANALYTICAL_H
 
 
 
@@ -27,33 +26,52 @@
 
 
 
-struct REBO_MOS_Data
+struct EAM2004Zhou
 {
-    real *b;     // bond-order function
-    real *bp;
-    real *p;     // coordination function
-    real *pp;
-    real *f12x;  // partial forces
-    real *f12y;
-    real *f12z;
+    real re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
+    real Fn0, Fn1, Fn2, Fn3, F0, F1, F2, F3, eta, Fe;
+    real rc; // chosen by the user?
 };
 
 
 
 
-class REBO_MOS : public Potential
+struct EAM2006Dai
+{
+    real A, d, c, c0, c1, c2, c3, c4, B, rc;
+};
+
+
+
+
+struct EAM_Analytical_Data
+{
+    real *Fp;    // derivative of the density functional
+};
+
+
+
+
+class EAM_Analytical : public Potential
 {
 public:   
-    REBO_MOS(Parameters*);
-    virtual ~REBO_MOS(void);
+    EAM_Analytical(FILE*, Parameters*, char*);  
+    virtual ~EAM_Analytical(void);
     virtual void compute(Parameters*, GPU_Data*);
+    void initialize_eam2004zhou(FILE*);
+    void initialize_eam2006dai(FILE*);
 protected:
-    REBO_MOS_Data rebo_mos_data;
+    int                 potential_model; 
+    EAM2004Zhou         eam2004zhou;
+    EAM2006Dai          eam2006dai;
+    EAM_Analytical_Data eam_analytical_data;
 };
 
 
 
 
 #endif
+
+
 
 

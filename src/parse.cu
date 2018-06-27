@@ -18,6 +18,8 @@
 
 #include "common.cuh"
 #include "parse.cuh"
+#include "force.cuh"
+#include "potential.cuh"
 
 
 
@@ -319,7 +321,7 @@ static void parse_time_step (char **param,  int num_param, Parameters *para)
 static void parse_neighbor
 (
     char **param,  int num_param, 
-    Parameters *para, Force_Model *force_model
+    Parameters *para, Force *force
 )
 {
     para->neighbor.update = 1;
@@ -336,7 +338,7 @@ static void parse_neighbor
     ("INPUT: build neighbor list with a skin of %g A.\n", para->neighbor.skin);
 
     // change the cutoff
-    para->neighbor.rc = force_model->rc + para->neighbor.skin;
+    para->neighbor.rc = force->potential->rc + para->neighbor.skin;
 }
 
 
@@ -730,7 +732,7 @@ static void parse_run(char **param,  int num_param, Parameters *para)
 void parse
 (
     char **param, int num_param, Files *files, Parameters *para,
-    Force_Model *force_model, int *is_potential,int *is_velocity,int *is_run
+    Force *force, int *is_potential,int *is_velocity,int *is_run
 )
 {
     if (strcmp(param[0], "potential") == 0)
@@ -753,7 +755,7 @@ void parse
     }
     else if (strcmp(param[0], "neighbor")       == 0) 
     {
-        parse_neighbor(param, num_param, para, force_model);
+        parse_neighbor(param, num_param, para, force);
     }
     else if (strcmp(param[0], "dump_thermo")    == 0) 
     {

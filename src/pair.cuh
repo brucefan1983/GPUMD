@@ -14,13 +14,59 @@
 */
 
 
-#ifndef VALIDATE_H
-#define VALIDATE_H
+#ifndef LJ1_H
+#define LJ1_H
 
-class Force;
 
-void validate_force
-(Force *force, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+
+
+#include "potential.cuh"
+
+
+
+
+struct LJ1_Para
+{
+    real s6e24;
+    real s12e24;
+    real s6e4;
+    real s12e4;
+    real cutoff_square;
+};
+
+
+
+
+// to be changed
+struct RI_Para
+{
+    real a11, b11, c11, qq11;
+    real a22, b22, c22, qq22;
+    real a12, b12, c12, qq12;
+    real cutoff;
+};
+
+
+
+
+class Pair : public Potential
+{
+public:   
+    Pair(FILE*, Parameters*, int potential_model);
+    virtual ~Pair(void);
+    virtual void compute(Parameters*, GPU_Data*);
+    void initialize_lj1(FILE *fid);
+    void initialize_ri(FILE *fid);
+protected:
+    int      potential_model; 
+    LJ1_Para lj1_para;
+    RI_Para  ri_para;
+};
+
 
 
 #endif
+
+
+
+

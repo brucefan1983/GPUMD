@@ -15,24 +15,124 @@
 
 
 
+
 #include "common.cuh"
-#include "mic_template.cuh" // static __device__ void dev_apply_mic(...)
+#include "potential.cuh"
 #include "force.cuh"
-#include "lj1.cuh"
-#include "ri.cuh"
-#include "eam_zhou_2004.cuh"
-#include "eam_dai_2006.cuh"
-#include "sw_1985.cuh"
-#include "sw_1985_3.cuh"
-#include "vashishta.cuh"
-#include "vashishta_table.cuh"
-#include "tersoff_1989_1.cuh"
-#include "tersoff_1989_2.cuh"
+#include "tersoff1.cuh"
+#include "tersoff2.cuh"
 #include "rebo_mos2.cuh"
+#include "vashishta.cuh"
+#include "sw1.cuh"
+#include "sw2.cuh"
+#include "pair.cuh"
+#include "eam_analytical.cuh"
+#include "mic_template.cuh"
 
 
 
-#ifndef FIXED_NL
+
+Force::Force(void)
+{
+    potential = NULL;
+    build_local_neighbor = false;
+}
+
+
+
+
+Force::~Force(void)
+{
+    if(potential) delete potential;
+}
+
+
+
+
+void Force::initialize(char *potential_file, Parameters *para)
+{
+    printf("INFO:  read in potential parameters.\n");
+    FILE *fid_potential = my_fopen(potential_file, "r");
+    char potential_name[20];
+    int count = fscanf(fid_potential, "%s", potential_name);
+    if (count != 1) 
+    {
+        print_error("reading error for potential.in.\n");
+        exit(1);
+    }
+    
+    // determine the potential
+    if (strcmp(potential_name, "tersoff_1989_1") == 0) 
+    { 
+         potential = new Tersoff1(fid_potential, para);
+         build_local_neighbor = true;
+    }
+    else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
+    { 
+         potential = new Tersoff2(fid_potential, para);
+         build_local_neighbor = true;
+    }
+    else if (strcmp(potential_name, "sw_1985") == 0) 
+    { 
+         potential = new SW1(fid_potential, para);
+         build_local_neighbor = true;
+    }
+    else if (strcmp(potential_name, "sw_1985_2") == 0) 
+    { 
+         potential = new SW2(fid_potential, para, 2);
+         build_local_neighbor = true;
+    }
+    else if (strcmp(potential_name, "sw_1985_3") == 0) 
+    { 
+         potential = new SW2(fid_potential, para, 3);
+         build_local_neighbor = true;
+    }
+    else if (strcmp(potential_name, "rebo_mos2") == 0) 
+    { 
+         potential = new REBO_MOS(para);
+         build_local_neighbor = false;
+    }
+    else if (strcmp(potential_name, "lj1") == 0) 
+    { 
+         potential = new Pair(fid_potential, para, 0);
+         build_local_neighbor = false;
+    }
+    else if (strcmp(potential_name, "ri") == 0) 
+    { 
+         potential = new Pair(fid_potential, para, 1);
+         build_local_neighbor = false;
+    }
+    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
+    { 
+         potential = new EAM_Analytical(fid_potential, para, potential_name);
+         build_local_neighbor = true;
+    }
+    else if (strcmp(potential_name, "eam_dai_2006") == 0) 
+    { 
+         potential = new EAM_Analytical(fid_potential, para, potential_name);
+         build_local_neighbor = true;
+    }
+    else if (strcmp(potential_name, "vashishta") == 0) 
+    { 
+         potential = new Vashishta(fid_potential, para, 0);
+         build_local_neighbor = false;
+    }
+    else if (strcmp(potential_name, "vashishta_table") == 0) 
+    { 
+         potential = new Vashishta(fid_potential, para, 1);
+         build_local_neighbor = false;
+    }
+    else    
+    { 
+        print_error("illegal potential model.\n"); 
+        exit(1); 
+    }
+
+    fclose(fid_potential);
+    printf("INFO:  potential parameters initialized.\n\n");
+}
+
+
 
 
 // Construct the local neighbor list from the global one (Kernel)
@@ -81,10 +181,11 @@ static __global__ void gpu_find_neighbor_local
 }
 
 
+
+
 // Construct the local neighbor list from the global one (Wrapper)
 static void find_neighbor_local(Parameters *para, GPU_Data *gpu_data, real rc2)
-{
-     
+{  
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
     int pbc_x = para->pbc_x;
@@ -125,64 +226,19 @@ static void find_neighbor_local(Parameters *para, GPU_Data *gpu_data, real rc2)
         (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);  
 }
 
-#endif
 
 
 
-
-// calculate force and related quantities 
-void gpu_find_force
-(Force_Model *force_model, Parameters *para, GPU_Data *gpu_data)
-{     
-    switch (force_model->type)
-    {
-        case 0:
-            gpu_find_force_lj1(para, force_model->lj1, gpu_data);
-            break;
-        case 10: 
-            gpu_find_force_ri(para, force_model->ri, gpu_data);
-            break;
-        case 20:
-            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
-            gpu_find_force_eam(para, force_model, gpu_data);
-            break;
-        case 21:
-            gpu_find_force_fs(para, force_model, gpu_data);
-            break;
-        case 30:  
-            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
-            gpu_find_force_sw(para, force_model->sw, gpu_data);
-            break;
-        case 32:  
-            gpu_find_force_vashishta(para, force_model->vas, gpu_data);
-            break;
-        case 33:  
-            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
-            gpu_find_force_sw3(para, force_model->sw3, gpu_data);
-            break;
-        case 34:  
-            gpu_find_force_vashishta_table
-            (para, force_model->vas_table, gpu_data);
-            break;
-        case 35:  
-            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
-            gpu_find_force_sw3(para, force_model->sw3, gpu_data);
-            break;
-        case 40:
-            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc); 
-            gpu_find_force_tersoff1(para, force_model, gpu_data);        
-            break;
-        case 41:
-            find_neighbor_local(para, gpu_data, force_model->rc * force_model->rc);
-            gpu_find_force_tersoff_1989_2(para, force_model, gpu_data);
-            break;
-        case 42:
-            gpu_find_force_rebo_mos2(para, gpu_data);
-            break;
-        default: 
-            printf("illegal force model\n");
-            exit(EXIT_FAILURE);
-            break;
-    }  
+void Force::compute(Parameters *para, GPU_Data *gpu_data)
+{
+    if (build_local_neighbor) 
+    { 
+        real cutoff_square = potential->rc * potential->rc;
+        find_neighbor_local(para, gpu_data, cutoff_square); 
+    }
+    potential->compute(para, gpu_data);
 }
+
+
+
 

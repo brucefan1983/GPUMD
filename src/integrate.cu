@@ -15,6 +15,7 @@
 
 
 #include "common.cuh"
+#include "integrate.cuh"
 #include "force.cuh"
 
 
@@ -436,10 +437,7 @@ static __global__ void gpu_berendsen_pressure
 
 //integrate by one step in the NVE ensemble
 static void gpu_integrate_nve
-(
-    Force_Model *force_model, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
     int    N           = para->N;
     int    grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -467,8 +465,7 @@ static void gpu_integrate_nve
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-
-    gpu_find_force(force_model, para, gpu_data);
+    force->compute(para, gpu_data);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -490,10 +487,7 @@ static void gpu_integrate_nve
 
 // integrate by one step in the NVT ensemble using the Berendsen method
 static void gpu_integrate_nvt_berendsen
-(
-    Force_Model *force_model, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
     int    N           = para->N;
     int    grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -522,7 +516,7 @@ static void gpu_integrate_nvt_berendsen
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    gpu_find_force(force_model, para, gpu_data);
+    force->compute(para, gpu_data);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -547,10 +541,7 @@ static void gpu_integrate_nvt_berendsen
 
 // integrate by one step in the NPT ensemble using the Berendsen method
 static void gpu_integrate_npt_berendsen
-(
-    Force_Model *force_model, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
     int    N           = para->N;
     int    grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -589,7 +580,7 @@ static void gpu_integrate_npt_berendsen
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    gpu_find_force(force_model, para, gpu_data);
+    force->compute(para, gpu_data);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -618,10 +609,7 @@ static void gpu_integrate_npt_berendsen
 
 // integrate by one step in the NVT ensemble using the NHC method
 static void gpu_integrate_nvt_nhc
-(
-    Force_Model *force_model, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
     int  N           = para->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -676,7 +664,7 @@ static void gpu_integrate_nvt_nhc
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    gpu_find_force(force_model, para, gpu_data);
+    force->compute(para, gpu_data);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -867,10 +855,7 @@ static __global__ void gpu_scale_velocity
 // integrate by one step, with heating and cooling, 
 // using Nose-Hoover chain method
 static void gpu_integrate_heat_nhc
-(
-    Force_Model *force_model, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
     int N         = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
@@ -936,7 +921,9 @@ static void gpu_integrate_heat_nhc
     // veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    gpu_find_force(force_model, para, gpu_data);
+
+    force->compute(para, gpu_data);
+
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
@@ -966,27 +953,24 @@ static void gpu_integrate_heat_nhc
 
 // integrate by one step 
 void gpu_integrate
-(
-    Force_Model *force_model, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
     switch (para->ensemble)
     {
         case 0: 
-            gpu_integrate_nve(force_model, para, cpu_data, gpu_data);
+            gpu_integrate_nve(para, cpu_data, gpu_data, force);
             break;
         case 1: 
-            gpu_integrate_nvt_berendsen(force_model, para, cpu_data, gpu_data);
+            gpu_integrate_nvt_berendsen(para, cpu_data, gpu_data, force);
             break;
         case 2: 
-            gpu_integrate_npt_berendsen(force_model, para, cpu_data, gpu_data);
+            gpu_integrate_npt_berendsen(para, cpu_data, gpu_data, force);
             break;
         case 3: 
-            gpu_integrate_nvt_nhc(force_model, para, cpu_data, gpu_data);
+            gpu_integrate_nvt_nhc(para, cpu_data, gpu_data, force);
             break;
         case 4: 
-            gpu_integrate_heat_nhc(force_model, para, cpu_data, gpu_data);
+            gpu_integrate_heat_nhc(para, cpu_data, gpu_data, force);
             break;
         default: 
             printf("Illegal integrator!\n");

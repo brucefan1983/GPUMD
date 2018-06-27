@@ -17,7 +17,7 @@
 #ifndef FINALIZE_H
 #define FINALIZE_H
 
-void finalize(Force_Model *force_model, CPU_Data *cpu_data, GPU_Data *gpu_data);
+void finalize(CPU_Data *cpu_data, GPU_Data *gpu_data);
 
 #endif
 
