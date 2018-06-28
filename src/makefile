@@ -3,24 +3,20 @@ all: gpumd
 CC = nvcc
 CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
 
-gpumd: common.o eam_analytical.o \
-       tersoff2.o rebo_mos2.o \
-       sw1.o sw2.o vashishta.o \
-       pair.o validate.o hnemd_kappa.o \
+gpumd: common.o eam_analytical.o tersoff.o rebo_mos2.o \
+       sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o \
-       force.o potential.o tersoff1.o parse.o gpumd.o main.o
+       force.o potential.o parse.o gpumd.o main.o
  
 	$(CC) -o gpumd \
-       common.o eam_analytical.o \
-       tersoff2.o rebo_mos2.o \
-       sw1.o sw2.o vashishta.o \
-       pair.o validate.o hnemd_kappa.o \
+       common.o eam_analytical.o tersoff.o rebo_mos2.o \
+       sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o \
-       force.o potential.o tersoff1.o parse.o gpumd.o main.o
+       force.o potential.o parse.o gpumd.o main.o
 
 main.o: main.cu
 	$(CC) $(CFLAGS) -c main.cu
@@ -66,16 +62,12 @@ pair.o: pair.cu
 	$(CC) $(CFLAGS) -c pair.cu
 eam_analytical.o: eam_analytical.cu
 	$(CC) $(CFLAGS) -c eam_analytical.cu	
-sw1.o: sw1.cu
-	$(CC) $(CFLAGS) -c sw1.cu
-sw2.o: sw2.cu
-	$(CC) $(CFLAGS) -c sw2.cu
+sw.o: sw.cu
+	$(CC) $(CFLAGS) -c sw.cu
 vashishta.o: vashishta.cu
 	$(CC) $(CFLAGS) -c vashishta.cu
-tersoff1.o: tersoff1.cu
-	$(CC) $(CFLAGS) -c tersoff1.cu
-tersoff2.o: tersoff2.cu
-	$(CC) $(CFLAGS) -c tersoff2.cu
+tersoff.o: tersoff.cu
+	$(CC) $(CFLAGS) -c tersoff.cu
 rebo_mos2.o: rebo_mos2.cu
 	$(CC) $(CFLAGS) -c rebo_mos2.cu
 common.o: common.cu

@@ -19,12 +19,10 @@
 #include "common.cuh"
 #include "potential.cuh"
 #include "force.cuh"
-#include "tersoff1.cuh"
-#include "tersoff2.cuh"
+#include "tersoff.cuh"
 #include "rebo_mos2.cuh"
 #include "vashishta.cuh"
-#include "sw1.cuh"
-#include "sw2.cuh"
+#include "sw.cuh"
 #include "pair.cuh"
 #include "eam_analytical.cuh"
 #include "mic_template.cuh"
@@ -64,17 +62,17 @@ void Force::initialize(char *potential_file, Parameters *para)
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0) 
     { 
-         potential = new Tersoff1(fid_potential, para);
+         potential = new Tersoff2(fid_potential, para, 1);
          build_local_neighbor = true;
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
     { 
-         potential = new Tersoff2(fid_potential, para);
+         potential = new Tersoff2(fid_potential, para, 2);
          build_local_neighbor = true;
     }
     else if (strcmp(potential_name, "sw_1985") == 0) 
     { 
-         potential = new SW1(fid_potential, para);
+         potential = new SW2(fid_potential, para, 1);
          build_local_neighbor = true;
     }
     else if (strcmp(potential_name, "sw_1985_2") == 0) 
