@@ -18,6 +18,7 @@
 
 #include "common.cuh"
 #include "mic.cuh"
+#include "hnemd.cuh"
 #include "sw.cuh"
 
 
@@ -380,7 +381,7 @@ static __global__ void gpu_find_force_sw3_partial
                 real z23 = z3 - z2;
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
                 real d23sq = x23 * x23 + y23 * y23 + z23* z23;
-                if (d23sq > 14.5924) { continue; }
+                if (d23sq > 14.2884) { continue; }
                 real x13 = x3 - x1;
                 real y13 = y3 - y1;
                 real z13 = z3 - z1;
@@ -432,9 +433,10 @@ static __global__ void gpu_find_force_sw3_partial
 
 
 // force evaluation kernel for the SW potential
-template <int cal_p, int cal_j, int cal_q>
+template <int cal_p, int cal_j, int cal_q, int cal_k>
 static __global__ void gpu_find_force_sw3 
 (
+    real fe_x, real fe_y, real fe_z,
     int number_of_particles, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
@@ -461,6 +463,11 @@ static __global__ void gpu_find_force_sw3
     real s_fx = ZERO;
     real s_fy = ZERO;
     real s_fz = ZERO;
+
+    // driving force 
+    real fx_driving = ZERO;
+    real fy_driving = ZERO;
+    real fz_driving = ZERO;
 
     // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
     real s1 = ZERO;
@@ -521,15 +528,23 @@ static __global__ void gpu_find_force_sw3
             s_fx += f12x - f21x; // accumulate force
             s_fy += f12y - f21y; 
             s_fz += f12z - f21z; 
+
+            // accumulate driving force
+            if (cal_k)
+            { 
+                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+            } 
             
-            if (cal_p) // accumulate potential energy and virial
+            if (cal_p) // per-atom virial
             {
                 s1 -= x12 * (f12x - f21x) * HALF; 
                 s2 -= y12 * (f12y - f21y) * HALF; 
                 s3 -= z12 * (f12z - f21z) * HALF;
             }
             
-            if (cal_j) // heat current (EMD)
+            if (cal_j || cal_k) // per-atom heat current
             {
                 s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
                 s2 += (f21z * vz1) * x12;               // x-out
@@ -559,16 +574,26 @@ static __global__ void gpu_find_force_sw3
             }
         }
 
+        // add driving force
+        if (cal_k)
+        { 
+            s_fx += fx_driving; // with driving force
+            s_fy += fy_driving; // with driving force
+            s_fz += fz_driving; // with driving force
+        }
+
+        // save total force
         g_fx[n1] = s_fx; 
         g_fy[n1] = s_fy; 
         g_fz[n1] = s_fz;  
-        if (cal_p) // save stress and potential
+
+        if (cal_p) // save virial
         {
             g_sx[n1] = s1; 
             g_sy[n1] = s2; 
             g_sz[n1] = s3;
         }
-        if (cal_j) // save heat current
+        if (cal_j || cal_k) // save heat current
         {
             g_h[n1 + 0 * number_of_particles] = s1;
             g_h[n1 + 1 * number_of_particles] = s2;
@@ -616,6 +641,10 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     real *f12x = sw2_data.f12x; 
     real *f12y = sw2_data.f12y; 
     real *f12z = sw2_data.f12z;
+
+    real fe_x = para->hnemd.fe_x;
+    real fe_y = para->hnemd.fe_y;
+    real fe_z = para->hnemd.fe_z;
            
     if (para->hac.compute)    
     {
@@ -625,12 +654,33 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
             box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_sw3<0, 1, 0><<<grid_size, BLOCK_SIZE_SW>>>
+        gpu_find_force_sw3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
+    }
+    else if (para->hnemd.compute)
+    {
+        gpu_find_force_sw3_partial<0><<<grid_size, BLOCK_SIZE_SW>>> 
+        (
+            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
+            box_length, pe, f12x, f12y, f12z 
+        );
+
+        gpu_find_force_sw3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_SW>>>
+        (
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            f12x, f12y, f12z, x, y, z, vx, vy, vz, 
+            box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
+        );
+        // correct the force when using the HNEMD method
+        real *ftot; // total force vector of the system
+        cudaMalloc((void**)&ftot, sizeof(real) * 3);
+        gpu_sum_force<<<3, 1024>>>(N, fx, fy, fz, ftot);
+        gpu_correct_force<<<grid_size, BLOCK_SIZE_SW>>>(N, fx, fy, fz, ftot);
+        cudaFree(ftot);
     }
     else if (para->shc.compute)
     {
@@ -640,9 +690,9 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
             box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_sw3<0, 0, 1><<<grid_size, BLOCK_SIZE_SW>>>
+        gpu_find_force_sw3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -655,9 +705,9 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
             box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_sw3<1, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
+        gpu_find_force_sw3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
