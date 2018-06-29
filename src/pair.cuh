@@ -37,12 +37,12 @@ struct LJ1_Para
 
 
 
-// to be changed
 struct RI_Para
 {
     real a11, b11, c11, qq11;
     real a22, b22, c22, qq22;
     real a12, b12, c12, qq12;
+    real v_rc, dv_rc; // potential and its derivative at the cutoff distance
     real cutoff;
 };
 

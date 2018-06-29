@@ -19,7 +19,6 @@
 #include "pair.cuh"
 
 
-#define USE_MY_ERFC // 20%-30% faster
 
 // best block size here: 128
 #define BLOCK_SIZE_FORCE 128
@@ -27,27 +26,16 @@
 #ifdef USE_DP
     #define RI_ALPHA     0.2
     #define RI_ALPHA_SQ  0.04
-    #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)
-    #define RI_a1        0.254829592
-    #define RI_a2        0.284496736
-    #define RI_a3        1.421413741
-    #define RI_a4        1.453152027
-    #define RI_a5        1.061405429
-    #define RI_p         0.3275911  
+    #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
 #else
     #define RI_ALPHA     0.2f
     #define RI_ALPHA_SQ  0.04f
-    #define RI_PI_FACTOR 0.225675833419103f // ALPHA * 2 / SQRT(PI)
-    #define RI_a1        0.254829592f
-    #define RI_a2        0.284496736f
-    #define RI_a3        1.421413741f
-    #define RI_a4        1.453152027f
-    #define RI_a5        1.061405429f
-    #define RI_p         0.3275911f 
+    #define RI_PI_FACTOR 0.225675833419103f // ALPHA * 2 / SQRT(PI) 
 #endif
 
 
-// TODO: there is plenty space for improving the performance
+
+
 // get U_ij and (d U_ij / d r_ij) / r_ij
 static __device__ void find_p2_and_f2
 (int type1, int type2, RI_Para ri, real d12sq, real &p2, real &f2)
@@ -75,33 +63,16 @@ static __device__ void find_p2_and_f2
         qq = ri.qq12;
     }  
 
-    real d12         = sqrt(d12sq);     
+    real d12         = sqrt(d12sq); 
+    real d12inv      = ONE / d12;   
+    real d12inv3     = d12inv * d12inv * d12inv; 
     real exponential = exp(-d12 * b);     // b = 1/rho
-    p2 = a * exponential - c / (d12sq * d12sq * d12sq);
-    f2 = SIX * c / (d12sq * d12sq * d12sq * d12sq);
-    c = ONE / d12; // reuse c
-    f2 -= a * exponential * b * c;
-    a = RI_ALPHA * ri.cutoff; // reuse a
-    b = ONE / ri.cutoff; // reuse b
-    
-#ifndef USE_MY_ERFC // use the erfc function in CUDA
-    real erfc_r = erfc(RI_ALPHA * d12) * c;
-    real erfc_R = erfc(a) * b; 
-    real exp_r  = RI_PI_FACTOR * c * exp(-RI_ALPHA_SQ * d12sq);
-    real exp_R  = RI_PI_FACTOR * b * exp(-a * a);
-#else // use my own erfc function 
-    real exp_r = exp(-RI_ALPHA_SQ * d12sq) * c;
-    real exp_R = exp(-a * a) * b;
-    real t = ONE / (RI_p * RI_ALPHA * d12 + ONE);
-    real erfc_r = ((((RI_a5*t - RI_a4)*t + RI_a3)*t - RI_a2)*t + RI_a1)*t*exp_r;
-    t = ONE / (RI_p * a + ONE);
-    real erfc_R = ((((RI_a5*t - RI_a4)*t + RI_a3)*t - RI_a2)*t + RI_a1)*t*exp_R;
-    exp_r = RI_PI_FACTOR * exp_r;
-    exp_R = RI_PI_FACTOR * exp_R;
-#endif
-    
-    p2 += qq * ( erfc_r - erfc_R + (erfc_R * b + exp_R) * (d12 - ri.cutoff) );
-    f2 += (erfc_R * b - erfc_r * c + exp_R - exp_r) * (qq * c);
+    real erfc_r = erfc(RI_ALPHA * d12) * d12inv;
+    p2 = a * exponential - c * d12inv3 * d12inv3;
+    p2 += qq * ( erfc_r - ri.v_rc - ri.dv_rc * (d12 - ri.cutoff) );
+    f2 = SIX*c*(d12inv3*d12inv3*d12inv) - a*exponential*b;
+    f2-=qq*(erfc_r*d12inv+RI_PI_FACTOR*d12inv*exp(-RI_ALPHA_SQ*d12sq)+ri.dv_rc);
+    f2 *= d12inv;
 }
 
 
@@ -162,7 +133,11 @@ void Pair::initialize_ri(FILE *fid)
     ri_para.b22 = ONE / ri_para.b22;
     ri_para.b12 = ONE / ri_para.b12;
 
-    rc = ri_para.cutoff;
+    rc = ri_para.cutoff; // force cutoff
+
+    ri_para.v_rc = erfc(RI_ALPHA * rc) / rc;
+    ri_para.dv_rc = -erfc(RI_ALPHA * rc) / (rc * rc);
+    ri_para.dv_rc -= RI_PI_FACTOR * exp(-RI_ALPHA_SQ * rc * rc) / rc;
 }
 
 
