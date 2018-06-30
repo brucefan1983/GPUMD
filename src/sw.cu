@@ -23,7 +23,6 @@
 
 
 
-
 /*----------------------------------------------------------------------------80
     This file implements the three-element Stillinger-Weber (SW) potential.
 ------------------------------------------------------------------------------*/
@@ -34,6 +33,10 @@
 // best block size here: 64 or 128
 #define BLOCK_SIZE_SW 64
 
+// Add -DMOS2_JIANG in the makefile when using the SW potentials for MoS2
+// and choose one of the following:
+//#define MOS2_CUTOFF_SQUARE 14.2884 // SW15
+#define MOS2_CUTOFF_SQUARE 14.5924 // SW16
 
 
 
@@ -381,7 +384,7 @@ static __global__ void gpu_find_force_sw3_partial
                 real z23 = z3 - z2;
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
                 real d23sq = x23 * x23 + y23 * y23 + z23* z23;
-                if (d23sq > 14.2884) { continue; }
+                if (d23sq > MOS2_CUTOFF_SQUARE) { continue; }
                 real x13 = x3 - x1;
                 real y13 = y3 - y1;
                 real z13 = z3 - z1;
