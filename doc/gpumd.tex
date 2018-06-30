@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.6\\
+   Version 1.7\\
    \vspace*{1.0cm}
-   (May 18, 2018)\\
+   (June 30, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -212,6 +212,11 @@ We are working on implementing more integration methods.
 \end{enumerate}
 
 
+\subsection{Major changes introduced in version 1.7}
+\begin{enumerate}
+\item Changed about half of the code from C style to C++ style.
+\item Added the homogeneous nonequilibrium molecular dynamics method for heat transport with many-body potentials \cite{fan2018submitted,xu2018submitted,dong2018submitted}. Currently, we have only implemented this method for the Tersoff and the SW potentials. We will add this method to all the other potentials in the future. 
+\end{enumerate}
 
 
 \section{TODO List}
@@ -220,10 +225,13 @@ Here I list a few features which I will hopefully implement this or the next yea
 \begin{itemize}
 \item More Tersoff-type potentials
 \item Spline-based EAM potential
+\item The ADP potential
 \item Mixed potentials
 \item Machine-learning potentials
 \item The NPT integrator based on the MTK equation
 \item Multi-GPU version of GPUMD
+\item Potential fitting
+\item Lattice dynamics (harmonic and anharmonic)
 \end{itemize}
 
 
@@ -258,9 +266,9 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 \section{Overall structure of the program}
 
-GPUMD is written using CUDA C/C++. The overall style is C, without using classes (except for some C-style structures), but we might switch to C++ style in the future. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
+GPUMD is written using CUDA C/C++. The overall style is C, but some part is now in C++ style.  We will change to the C++ style gradually in the future. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has 61 source files. Except for a few files ( \verb"main.cu", \verb"mic.cu", \verb"mic_template.cu"), all the other files come in pairs (e.g., \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.h"). The logical dependence of the files can be summarized as follows:
+The current version of GPUMD has 56 source files. Except for a few files ( \verb"main.cu", \verb"mic.cuh", \verb"mic_template.cuh", \verb"hnemd.cuh"), all the other files come in pairs (e.g., \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.cuh"). The logical dependence of the files can be summarized as follows:
 
 \begin{itemize}
 \item \verb"main.cu" is the entrance of the program and depends on \verb"gpumd"
@@ -272,7 +280,7 @@ The current version of GPUMD has 61 source files. Except for a few files ( \verb
   \end{itemize}
 \item \verb"run" depends on
       \begin{itemize}
-      \item \verb"potential"
+      \item \verb"force"
       \item \verb"velocity"
       \item \verb"parse"
       \item \verb"dump"
@@ -280,10 +288,10 @@ The current version of GPUMD has 61 source files. Except for a few files ( \verb
       \item \verb"shc"
       \item \verb"vac"
       \item \verb"heat"
+      \item \verb"hnemd_kappa"
       \item \verb"integrate"
       \item \verb"neighbor"
       \item \verb"validate"
-      \item \verb"force"
       \end{itemize}
   \item \verb"integrate" depends on \verb"force"
   \item \verb"validate" depends on \verb"force"
@@ -292,21 +300,18 @@ The current version of GPUMD has 61 source files. Except for a few files ( \verb
         \item \verb"neighbor_ON1"
         \item \verb"neighbor_ON2"
         \end{itemize}
-  \item \verb"force" depends on
+  \item \verb"force" depends on \verb"potential"
+  \item \verb"potential" depends on
         \begin{itemize}
-        \item \verb"lj1"
-        \item \verb"ri"
-        \item \verb"eam_zhou_2004"
-        \item \verb"eam_dai_2006"
-        \item \verb"sw_1985"
-        \item \verb"sw_1985_2"
+        \item \verb"pair"
+        \item \verb"eam_analytical"
+        \item \verb"sw"
         \item \verb"vashishta"
-        \item \verb"tersoff_1989_1"
-        \item \verb"tersoff_1989_2"
+        \item \verb"tersoff"
         \item \verb"rebo_mos2"
         \end{itemize}
-  \item The files \verb"mic.cu" and \verb"mic_template.cu" will be directly included into some other files.
-\item All the files (except for \verb"main.cu", \verb"mic.cu", and \verb"mic_template.cu") depend on \verb"common"
+  \item The files \verb"mic.cuh",  \verb"mic_template.cuh", and \verb"hnemd.cuh" will be directly included into some other files.
+\item All the files (except for \verb"main.cuh", \verb"mic.cuh",  \verb"mic_template.cuh", and \verb"hnemd.cuh") depend on \verb"common"
 \end{itemize}
 
 
@@ -1201,6 +1206,10 @@ G = \int_{0}^{\infty} \frac{d\omega}{2\pi} G(\omega)
 For 2D materials, one can further consider the in-out decomposition. See Ref. \cite{fan2017prb} for details.
 
 
+\subsection{HNEMD method}
+
+The homogeneous nonequilibrium molecular dynamics (HNEMD) method for heat transport by Evans \cite{evans1982pla} has been recently generalized to general many-body potentials \cite{fan2018submitted}. We have applied \cite{xu2018submitted,dong2018submitted} this method to study heat transport in various materials described by the Tersoff or the SW potential. All these manuscripts are still under review and we plan to discuss this method some time later.  
+
 \section{Velocity autocorrelation and related quantities}
 
 Velocity autocorrelation (VAC) is an important quantity in MD simulations. On the one hand, its integral with respect to the correlation time gives the running diffusion constant, which is equivalent to that obtained by a time derivative of the mean square displacement (MSD). On the other hand, its Fourier transform is the phonon density of states (PDOS) \cite{dickey1969pr}.
@@ -1831,7 +1840,7 @@ g_{ijk} = c_1 + \frac{c_2(h-\cos\theta)^2}{c_3+(h-\cos\theta)^2}
                 \left[1+c_4e^{-c_5(h-\cos\theta)^2}\right].
 \end{equation}
 They also adopted the modified cutoff function proposed by
-Murty [cite], which has a continuous second-order derivative:
+Murty and Atwater \cite{murty1995prb}, which has a continuous second-order derivative:
 \begin{equation}
 f_{C}(r) = \frac{1}{2} +
 \frac{9}{16} \cos \left( \pi \frac{r_{ij} - R}{S - R} \right) -
@@ -2299,6 +2308,19 @@ It has 3 parameters. The first parameter is the sampling interval for the heat c
 \end{verbatim}
 means that (1) you want to calculate the thermal conductivity using the Green-Kubo method; (2) the heat current data will be recorded every 20 steps; (3) the maximum number of correlation steps is $50000$; (4) the HAC/RTC data will be averaged for every 10 data and the number of HAC/RTC data output in a given direction is then $50000/10=5000$. The results will be written into a file named \verb"hac.out" in the same folder where you put your \verb"run.in" file in.
 
+
+
+
+
+\item The \verb"compute_hnemd" keyword.
+
+The \verb"compute_hnemd" keyword is used to calculate the RTC (running thermal conductivity) using the HNEMD method \cite{fan2018submitted}. For the meanings of the RTC and the running average of this quantity, see Ref. \cite{fan2018submitted}. This keyword has 4 parameters. The first parameter is the output interval. The next three parameters are the $x$, $y$, and $z$ components of the external driving force $\vect{F}_{\rm e}$ in units of \AA$^{-1}$. For example, the command
+\begin{verbatim}
+    compute_hnemd 1000 0.00001 0 0
+\end{verbatim}
+means that (1) you want to calculate the thermal conductivity using the HNEMD method; (2) the RTC will be averaged and output every 1000 steps (the heat current is sampled for every step); (3) the external driving force is along the $x$ direction and has a magnitude of $10^{-5}$ \AA$^{-1}$. The results will be written into a file named \verb"kappa.out" in the same folder where you put your \verb"run.in" file in. Note that one should control the temperature when using this keyword. Otherwise, the system will be heated up by the external driving force. 
+
+
 \item The \verb"run" keyword.
 
 This keyword only requires a single parameter, which is the number of steps for the current run. The time-evolution will only start when a \verb"run" keyword has been reached. Before reaching this keyword, the code just collects the parameters for the current run. In the case where the VAC or the HAC is calculated, the number of steps should be larger than the product of the sampling interval and the number of correlation data. For example, the parameters in the commands
@@ -2447,6 +2469,11 @@ This file contains data related to NEMD simulations of heat transport. Assuming 
 \subsection{The shc.out file}
 
 This file contains data for the nonequilibrium heat current correlation function $K_{A \rightarrow B}(t)$ as defined in Eq. (\ref{equation:K_time}). There are two columns, which are $K_{A \rightarrow B}^{\text{in}}(t)$ and $K_{A \rightarrow B}^{\text{out}}(t)$ defined in Ref. \cite{fan2017prb}. If one does not need the decomposition, one can sum up the two columns to get the total correlation function. Note that an individual correlation function corresponds to $N_c$ consecutive rows.
+
+
+\subsection{The kappa.out file}
+
+This file is generated by the \verb"compute_hnemd" command and contains the running thermal conductivity calculated by using the HNEMD method. There are five columns, which are $\kappa^{\rm in}_x$, $\kappa^{\rm out}_x$, $\kappa^{\rm in}_y$, $\kappa^{\rm out}_y$, and $\kappa_z$ from the first to the last column. For the meanings of these thermal conductivity components, see Ref. \cite{fan2018submitted,xu2018submitted,dong2018submitted}.
 
 \chapter{Examples}
 
