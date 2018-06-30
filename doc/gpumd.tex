@@ -87,6 +87,16 @@ decomposition in two-dimensional materials: Application to graphene. Phys.
 Rev. B, 95:144309, Apr 2017.
 \end{itemize}
 
+
+You can cite the following paper if you use GPUMD to study heat transport using the homogeneous nonequilibrium molecular dynamics (HNEMD) method:
+\begin{itemize}
+\item 
+Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila,
+Homogeneous nonequilibrium molecular dynamics method for heat transport with many-body potentials,
+https://arxiv.org/abs/1805.00277
+\end{itemize}
+
+
 \section{Feedbacks}
 
 You can e-mail the first author if you find errors in the manual or bugs in the source code, or have any suggestions/questions about the manual and code. The following email addresses can be used:
@@ -127,6 +137,7 @@ Apart from being highly efficient, another unique feature of GPUMD is that it ha
 \item It can calculate the phonon density of states (DOS) from the velocity autocorrelation function (VAC), using the method of Dickey and Paskin \cite{dickey1969pr}.
 \item It can calculate the equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity according to the Green-Kubo relation \cite{green1954jcp,kubo1957jpsj}. As stressed in Ref. \cite{fan2015prb}, the heat current as implemented in LAMMPS \cite{plimpton1995jcp} does not apply to many-body potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. \cite{fan2017prb}, which is essential for 2D materials.
 \item It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. \cite{fan2017prb} has also been implemented.
+\item It can calculate the thermal conductivity using the homogeneous nonequilibrium MD (HNEMD) method \cite{evans1982pla} for general many-body potentials \cite{fan2018submitted}
 \end{itemize}
 
 
@@ -215,7 +226,7 @@ We are working on implementing more integration methods.
 \subsection{Major changes introduced in version 1.7}
 \begin{enumerate}
 \item Changed about half of the code from C style to C++ style.
-\item Added the homogeneous nonequilibrium molecular dynamics method for heat transport with many-body potentials \cite{fan2018submitted,xu2018submitted,dong2018submitted}. Currently, we have only implemented this method for the Tersoff and the SW potentials. We will add this method to all the other potentials in the future. 
+\item Added the homogeneous nonequilibrium molecular dynamics (HNEMD) method for heat transport with many-body potentials \cite{fan2018submitted,xu2018submitted,dong2018submitted}. Currently, we have only implemented this method for the Tersoff and the SW potentials. We will add this method to all the other potentials in the future. 
 \end{enumerate}
 
 
