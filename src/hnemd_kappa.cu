@@ -18,6 +18,8 @@
 
 #include "common.cuh"
 #include "hnemd_kappa.cuh"
+#include "integrate.cuh"
+#include "ensemble.cuh"
 #define NUM_OF_HEAT_COMPONENTS 5
 
 
@@ -87,7 +89,7 @@ static real get_volume(real *box_gpu)
 void process_hnemd_kappa
 (
     int step, Files *files, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
+    CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
 )
 {
     if (para->hnemd.compute)
@@ -118,7 +120,7 @@ void process_hnemd_kappa
                 }
             }
             real factor = KAPPA_UNIT_CONVERSION / para->hnemd.output_interval;
-            factor /= (volume * para->temperature * para->hnemd.fe);
+            factor /= (volume * integrate->ensemble->temperature * para->hnemd.fe);
             FILE *fid = fopen(files->kappa, "a");
             for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++)
             {

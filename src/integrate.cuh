@@ -14,16 +14,38 @@
 */
 
 
+
+
 #ifndef INTEGRATE_H
 #define INTEGRATE_H
-
-
 class Force;
+class Ensemble;
 
 
 
-void gpu_integrate
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force);
+
+class Integrate 
+{
+public:
+    Ensemble *ensemble; 
+    Integrate(void);
+    ~Integrate(void);   
+    void initialize(Parameters*, CPU_Data*);
+    void finalize(void);
+    void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+
+    // these data will be used to initialize ensemble
+    int type;          // ensemble type in a specific run
+    int source;
+    int sink;
+    real temperature;  // target temperature at a specific time 
+    real delta_temperature;
+    real pressure_x;   // target pressure at a specific time
+    real pressure_y;   
+    real pressure_z; 
+    real temperature_coupling;
+    real pressure_coupling; 
+};
 
 
 

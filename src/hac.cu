@@ -18,7 +18,8 @@
 
 #include "common.cuh"
 #include "hac.cuh"
-
+#include "integrate.cuh"
+#include "ensemble.cuh"
 #define NUM_OF_HAC_COMPONENTS  7
 #define NUM_OF_HEAT_COMPONENTS 5
 
@@ -259,13 +260,16 @@ static real get_volume(real *box_gpu)
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
 static void find_hac_kappa
-(Files *files, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(
+    Files *files, Parameters *para, CPU_Data *cpu_data, 
+    GPU_Data *gpu_data, Integrate *integrate
+)
 {
     // rename variables
     int number_of_steps = para->number_of_steps;
     int sample_interval = para->hac.sample_interval;
     int Nc = para->hac.Nc;
-    real temperature = para->temperature;
+    real temperature = integrate->ensemble->temperature;
     real time_step = para->time_step;
 
     // other parameters
@@ -341,12 +345,15 @@ static void find_hac_kappa
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
 void postprocess_hac
-(Files *files,Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+(
+    Files *files, Parameters *para, CPU_Data *cpu_data,
+    GPU_Data *gpu_data, Integrate *integrate
+)
 {
     if (para->hac.compute) 
     {
         printf("INFO:  start to calculate HAC and related quantities.\n");
-        find_hac_kappa(files, para, cpu_data, gpu_data);
+        find_hac_kappa(files, para, cpu_data, gpu_data, integrate);
         CHECK(cudaFree(gpu_data->heat_all));
         printf("INFO:  HAC and related quantities are calculated.\n\n");
     }

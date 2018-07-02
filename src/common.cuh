@@ -188,9 +188,6 @@ typedef struct
     int compute;            // 1 means you want to do this calculation
     int sample;             // 1 means sample the block temperatures
     int sample_interval;    // sample interval of temperature
-    int source;             // group label of the source
-    int sink;               // group label of the sink
-    real delta_temperature; // relative temperature
 } Heat;
 
 
@@ -248,26 +245,11 @@ typedef struct
     int sample_interval_virial;
     int sample_interval_heat;
 
-    // nose hoover chain
-    real mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    real pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    real vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    real mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-    real pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-    real vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-
     // make a structure?
     int number_of_steps; // number of steps in a specific run
-    int ensemble;        // ensemble in a specific run
     real initial_temperature; // initial temperature for velocity
-    real temperature;  // target temperature at a specific time 
     real temperature1;
-    real temperature2;
-    real pressure_x;   // target pressure at a specific time
-    real pressure_y;   
-    real pressure_z; 
-    real temperature_coupling;
-    real pressure_coupling;  
+    real temperature2; 
     // time step in a specific run; default value is 1 fs
     real time_step = ONE / TIME_UNIT_CONVERSION;
 

@@ -18,6 +18,7 @@
 
 #include "common.cuh"
 #include "force.cuh"
+#include "integrate.cuh"
 #include "gpumd.cuh"
 
 #include "initialize.cuh"
@@ -39,12 +40,13 @@ void gpumd(char *input_dir)
     CPU_Data    cpu_data;
     GPU_Data    gpu_data;
     Force       force;
+    Integrate   integrate;
 
     // initialize:
     initialize(input_dir, &files, &para, &cpu_data, &gpu_data);
     
     // run 
-    run_md(&files, &para, &cpu_data, &gpu_data, &force);
+    run_md(&files, &para, &cpu_data, &gpu_data, &force, &integrate);
 
     // finilize
     finalize(&cpu_data, &gpu_data);

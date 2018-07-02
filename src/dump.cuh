@@ -17,8 +17,13 @@
 #ifndef DUMP_H
 #define DUMP_H
 
+class Integrate;
+
 void dump_thermos
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step);
+(
+    FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    Integrate *integrate, int step
+);
 
 void dump_positions
 (FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step);

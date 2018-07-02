@@ -25,6 +25,7 @@
 #include "force.cuh"
 #include "validate.cuh"
 #include "integrate.cuh"
+#include "ensemble.cuh"
 #include "heat.cuh"        
 #include "dump.cuh"        
 #include "vac.cuh"  
@@ -35,67 +36,10 @@
 
 
 
-/*----------------------------------------------------------------------------80
-    Initialize the Nose-Hoover chain
-------------------------------------------------------------------------------*/
-
-static void initialize_nhc(Parameters *para, CPU_Data *cpu_data)
-{
-    // position and momentum variables for NHC
-
-    para->pos_nhc1[0] = para->pos_nhc1[1] = 
-    para->pos_nhc1[2] = para->pos_nhc1[3] =  ZERO;
-    
-    para->pos_nhc2[0] = para->pos_nhc2[1] = 
-    para->pos_nhc2[2] = para->pos_nhc2[3] =  ZERO;
-
-    para->vel_nhc1[0] = para->vel_nhc1[2] = 
-    para->vel_nhc2[0] = para->vel_nhc2[2] =  ONE;
-
-    para->vel_nhc1[1] = para->vel_nhc1[3] = 
-    para->vel_nhc2[1] = para->vel_nhc2[3] = -ONE;
-
-    // mass parameters for NHC
-
-    // A single thermostat
-    if (para->ensemble == 3) 
-    {
-        real tau = para->time_step * para->temperature_coupling; 
-        real kT = K_B * para->temperature;
-        real dN = DIM * (para->N);
-        for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; i++)
-        {
-            para->mas_nhc1[i] = kT * tau * tau;
-        }
-        para->mas_nhc1[0] *= dN;
-    }
-
-    // Two thermostats
-    if (para->ensemble == 4) 
-    {
-        real tau = para->time_step * para->temperature_coupling;
-        real kT1 = K_B * (para->temperature + para->heat.delta_temperature);
-        real kT2 = K_B * (para->temperature - para->heat.delta_temperature);
-
-        real dN1 = DIM * cpu_data->group_size[para->heat.source];
-        real dN2 = DIM * cpu_data->group_size[para->heat.sink];
-        for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; i++)
-        {
-            para->mas_nhc1[i] = kT1 * tau * tau;
-            para->mas_nhc2[i] = kT2 * tau * tau;
-        }
-        para->mas_nhc1[0] *= dN1;
-        para->mas_nhc2[0] *= dN2;
-    }
-}
-
-
-
 
 /*----------------------------------------------------------------------------80
     run a number of steps for a given set of inputs
 ------------------------------------------------------------------------------*/
-
 static void process_run 
 (
     char **param, 
@@ -104,11 +48,11 @@ static void process_run
     Parameters *para, 
     CPU_Data *cpu_data,
     GPU_Data *gpu_data,
-    Force *force
+    Force *force,
+    Integrate *integrate
 )
 {
-
-    initialize_nhc(para, cpu_data);
+    integrate->initialize(para, cpu_data);
 
     // allocate some memory used for calculating some properties
     preprocess_vac(para,  cpu_data, gpu_data);
@@ -146,24 +90,24 @@ static void process_run
         }
 
         // set the current temperature;
-        if (para->ensemble >= 1 && para->ensemble <= 3)
+        if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 3)
         {
-            para->temperature = para->temperature1 
-                              + (para->temperature2 - para->temperature1)
-                              * real(step) / para->number_of_steps;
-            
+            integrate->ensemble->temperature = para->temperature1 
+                + (para->temperature2 - para->temperature1)
+                * real(step) / para->number_of_steps;   
         }
 
         // integrate by one time-step:
-        gpu_integrate(para, cpu_data, gpu_data, force);
+        // gpu_integrate(para, cpu_data, gpu_data, force);
+        integrate->compute(para, cpu_data, gpu_data, force);
 
         sample_vac(step, para, cpu_data, gpu_data);
         sample_hac(step, para, cpu_data, gpu_data);
-        sample_block_temperature(step, para, cpu_data, gpu_data);
+        sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
         process_shc(step, files, para, cpu_data, gpu_data);
-        process_hnemd_kappa(step, files, para, cpu_data, gpu_data);  
+        process_hnemd_kappa(step, files, para, cpu_data, gpu_data, integrate);  
 
-        dump_thermos(files->fid_thermo, para, cpu_data, gpu_data, step);
+        dump_thermos(files->fid_thermo, para, cpu_data, gpu_data, integrate, step);
         dump_positions(files->fid_position, para, cpu_data, gpu_data, step);
         dump_velocities(files->fid_velocity, para, cpu_data, gpu_data, step);
         dump_forces(files->fid_force, para, cpu_data, gpu_data, step);
@@ -196,9 +140,9 @@ static void process_run
 
     // postprocess:
     postprocess_vac(files,  para, cpu_data, gpu_data);
-    postprocess_hac(files,  para, cpu_data, gpu_data);
+    postprocess_hac(files,  para, cpu_data, gpu_data, integrate);
     postprocess_shc(        para, cpu_data, gpu_data);
-    postprocess_heat(files, para, cpu_data);
+    postprocess_heat(files, para, cpu_data, integrate);
     postprocess_hnemd_kappa(para, cpu_data, gpu_data);
 
     // Close the files
@@ -209,6 +153,8 @@ static void process_run
     if (para->dump_potential){ fclose(files->fid_potential);}
     if (para->dump_virial)   { fclose(files->fid_virial);   }
     if (para->dump_heat)     { fclose(files->fid_heat);     }
+
+    integrate->finalize();
 }
 
 
@@ -328,7 +274,8 @@ void run_md
     Parameters *para,
     CPU_Data *cpu_data, 
     GPU_Data *gpu_data,
-    Force *force
+    Force *force,
+    Integrate *integrate
 )
 {
     char *input = get_file_contents(files->run_in);
@@ -355,7 +302,7 @@ void run_md
         // parse a line of the input file 
         parse
         (
-            param, num_param, files, para, force,
+            param, num_param, files, para, force, integrate,
             &is_potential, &is_velocity, &is_run
         );
 
@@ -394,8 +341,10 @@ void run_md
         { 
             process_run
             (
-                param, num_param, files, para, cpu_data, gpu_data, force
+                param, num_param, files, para, cpu_data, gpu_data, 
+                force, integrate
             );
+            
             initialize_run(para); // change back to the default
         }
     }

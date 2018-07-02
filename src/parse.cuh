@@ -18,6 +18,7 @@
 #define PARSE_H
 
 class Force;
+class Integrate;
 
 
 void parse
@@ -27,6 +28,7 @@ void parse
     Files *files,
     Parameters *para,
     Force *force,
+    Integrate *integrate,
     int *is_potential,
     int *is_velocity,
     int *is_int

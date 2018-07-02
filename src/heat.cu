@@ -18,6 +18,8 @@
 
 #include "common.cuh"
 #include "heat.cuh"
+#include "integrate.cuh"
+#include "ensemble.cuh"
 
 
 
@@ -95,7 +97,10 @@ static __global__ void find_group_temp
 
 // sample block temperature (wrapper)
 void sample_block_temperature
-(int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(
+    int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    Integrate *integrate
+)
 {
     if (para->heat.sample)
     {
@@ -124,23 +129,25 @@ void sample_block_temperature
             CHECK(cudaFree(temp_gpu));
 
             // energies of the heat source and sink
-            real kT1 = K_B * (para->temperature + para->heat.delta_temperature); 
-            real kT2 = K_B * (para->temperature - para->heat.delta_temperature); 
-            real dN1 = (real) DIM * cpu_data->group_size[para->heat.source];
-            real dN2 = (real) DIM * cpu_data->group_size[para->heat.sink];
-            real energy_nhc1 = kT1 * dN1 * para->pos_nhc1[0];
-            real energy_nhc2 = kT2 * dN2 * para->pos_nhc2[0];
+            real kT1 = K_B * (integrate->ensemble->temperature + integrate->ensemble->delta_temperature); 
+            real kT2 = K_B * (integrate->ensemble->temperature - integrate->ensemble->delta_temperature); 
+            real dN1 = (real) DIM * cpu_data->group_size[integrate->ensemble->source];
+            real dN2 = (real) DIM * cpu_data->group_size[integrate->ensemble->sink];
+            real energy_nhc1 = kT1 * dN1 * integrate->ensemble->pos_nhc1[0];
+            real energy_nhc2 = kT2 * dN2 * integrate->ensemble->pos_nhc2[0];
             for (int m = 1; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
             {
-                energy_nhc1 += kT1 * para->pos_nhc1[m];
-                energy_nhc2 += kT2 * para->pos_nhc2[m];
+                energy_nhc1 += kT1 * integrate->ensemble->pos_nhc1[m];
+                energy_nhc2 += kT2 * integrate->ensemble->pos_nhc2[m];
             }
             for (int m = 0; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
             { 
-                energy_nhc1 += HALF * para->vel_nhc1[m] * para->vel_nhc1[m] 
-                             / para->mas_nhc1[m];
-                energy_nhc2 += HALF * para->vel_nhc2[m] * para->vel_nhc2[m] 
-                             / para->mas_nhc2[m];
+                energy_nhc1 += HALF * integrate->ensemble->vel_nhc1[m] 
+                             * integrate->ensemble->vel_nhc1[m] 
+                             / integrate->ensemble->mas_nhc1[m];
+                energy_nhc2 += HALF * integrate->ensemble->vel_nhc2[m] 
+                             * integrate->ensemble->vel_nhc2[m] 
+                             / integrate->ensemble->mas_nhc2[m];
             }
             cpu_data->group_temp[offset + Ng]     = energy_nhc1;
             cpu_data->group_temp[offset + Ng + 1] = energy_nhc2;
@@ -151,7 +158,8 @@ void sample_block_temperature
 
 // Output block temperatures and energies of the heat source and sink; 
 // free the used memory
-void postprocess_heat(Files *files, Parameters *para, CPU_Data *cpu_data)
+void postprocess_heat
+(Files *files, Parameters *para, CPU_Data *cpu_data, Integrate *integrate)
 {
     if (para->heat.sample)
     {
@@ -161,7 +169,7 @@ void postprocess_heat(Files *files, Parameters *para, CPU_Data *cpu_data)
         for (int nt = 0; nt < Nt; nt++)
         {
             int offset = nt * (Ng + 2);
-            int number_of_data = (para->ensemble == 4) ? (Ng + 2) : Ng;
+            int number_of_data = (integrate->ensemble->type == 4) ? (Ng + 2) : Ng;
             for (int k = 0; k < number_of_data; k++) 
             {
                 fprintf(fid, "%15.6e", cpu_data->group_temp[offset + k]);

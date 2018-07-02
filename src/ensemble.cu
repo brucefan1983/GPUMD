@@ -14,21 +14,25 @@
 */
 
 
-#ifndef HNEMD_KAPPA_H
-#define HNEMD_KAPPA_H
 
-class Integrate;
+#include "common.cuh"
+#include "ensemble.cuh"
 
-void preprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
 
-void process_hnemd_kappa
-(
-    int step, Files *files, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
-);
 
-void postprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
 
-#endif
+Ensemble::Ensemble(void)
+{
+    // nothing now
+}
+
+
+
+Ensemble::~Ensemble(void)
+{
+    // nothing now
+}
+
+
+
+

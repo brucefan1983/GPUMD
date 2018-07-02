@@ -20,6 +20,8 @@
 #include "parse.cuh"
 #include "force.cuh"
 #include "potential.cuh"
+#include "integrate.cuh"
+#include "ensemble.cuh"
 
 
 
@@ -100,12 +102,13 @@ static void parse_velocity(char **param, int num_param, Parameters *para)
 
 
 
-static void parse_ensemble (char **param,  int num_param, Parameters *para)
+static void parse_ensemble 
+(char **param,  int num_param, Parameters *para, Integrate *integrate)
 {
     // 1. Determine the integration method
     if (strcmp(param[1], "nve") == 0)
     {
-        para->ensemble = 0;
+        integrate->type = 0;
         if (num_param != 2)
         {
             print_error("ensemble nve should have 0 parameter.\n");
@@ -113,7 +116,7 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
     }
     else if (strcmp(param[1], "nvt_ber") == 0)
     {
-        para->ensemble = 1;
+        integrate->type = 1;
         if (num_param != 5)
         {
             print_error("ensemble nvt_ber should have 3 parameters.\n");
@@ -121,7 +124,7 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
     }
     else if (strcmp(param[1], "npt_ber") == 0)
     {
-        para->ensemble = 2;
+        integrate->type = 2;
         if (num_param != 9)
         {
             print_error("ensemble npt_ber should have 7 parameters.\n"); 
@@ -129,7 +132,7 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
     }
     else if (strcmp(param[1], "nvt_nhc") == 0)
     {
-        para->ensemble = 3;
+        integrate->type = 3;
         if (num_param != 5)
         {
             print_error("ensemble nvt_nhc should have 3 parameters.\n"); 
@@ -137,7 +140,7 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
     }
     else if (strcmp(param[1], "heat_nhc") == 0)
     {
-        para->ensemble = 4;
+        integrate->type = 4;
         if (num_param != 7)
         {
             print_error("ensemble heat_nhc should have 5 parameters.\n"); 
@@ -149,7 +152,7 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
     }
 
     // 2. Temperatures and temperature_coupling
-    if (para->ensemble >= 1 && para->ensemble <= 3) // may change temperature
+    if (integrate->type >= 1 && integrate->type <= 3)
     {	
         // initial temperature
         if (!is_valid_real(param[2], &para->temperature1))
@@ -171,37 +174,37 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
             print_error("ensemble temperature should be a positive number.\n");
         }
 
-        para->temperature = para->temperature1;
+        integrate->temperature = para->temperature1;
 
         // temperature_coupling
-        if (!is_valid_real(param[4], &para->temperature_coupling))
+        if (!is_valid_real(param[4], &integrate->temperature_coupling))
         {
             print_error("temperature_coupling should be a real number.\n");
         }
-        if (para->temperature_coupling <= 0.0)
+        if (integrate->temperature_coupling <= 0.0)
         {
             print_error("temperature_coupling should be a positive number.\n");
         }
     }
 
-    if (para->ensemble == 4) // heating and cooling wiht fixed temperatures
+    if (integrate->type == 4) // heating and cooling wiht fixed temperatures
     {	
         // temperature
-        if (!is_valid_real(param[2], &para->temperature))
+        if (!is_valid_real(param[2], &integrate->temperature))
         {
             print_error("ensemble temperature should be a real number.\n");
         }
-        if (para->temperature <= 0.0)
+        if (integrate->temperature <= 0.0)
         {
             print_error("ensemble temperature should be a positive number.\n");
         }
 
         // temperature_coupling
-        if (!is_valid_real(param[3], &para->temperature_coupling))
+        if (!is_valid_real(param[3], &integrate->temperature_coupling))
         {
             print_error("temperature_coupling should be a real number.\n");
         }
-        if (para->temperature_coupling <= 0.0)
+        if (integrate->temperature_coupling <= 0.0)
         {
             print_error("temperature_coupling should be a positive number.\n");
         }
@@ -209,7 +212,7 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
 
     // 3. Pressures and pressure_coupling
     real pressure[3];
-    if (para->ensemble == 2)
+    if (integrate->type == 2)
     {  
         // pressures:   
         for (int i = 0; i < 3; i++)
@@ -220,40 +223,40 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
             }
         }  
         // Change the unit of pressure form GPa to that used in the code
-        para->pressure_x = pressure[0] / PRESSURE_UNIT_CONVERSION;
-        para->pressure_y = pressure[1] / PRESSURE_UNIT_CONVERSION;
-        para->pressure_z = pressure[2] / PRESSURE_UNIT_CONVERSION;
+        integrate->pressure_x = pressure[0] / PRESSURE_UNIT_CONVERSION;
+        integrate->pressure_y = pressure[1] / PRESSURE_UNIT_CONVERSION;
+        integrate->pressure_z = pressure[2] / PRESSURE_UNIT_CONVERSION;
 
         // pressure_coupling:
-        if (!is_valid_real(param[8], &para->pressure_coupling))
+        if (!is_valid_real(param[8], &integrate->pressure_coupling))
         {
             print_error("pressure_coupling should be a real number.\n");
         } 
-        if (para->pressure_coupling <= 0.0)
+        if (integrate->pressure_coupling <= 0.0)
         {
             print_error("pressure_coupling should be a positive number.\n");
         }
     }
 
     // 4. For heating and cooling with the Nose-Hoover chain method
-    if (para->ensemble == 4) 
+    if (integrate->type == 4) 
     {  
         para->heat.compute = 1;
-        if (!is_valid_real(param[4], &para->heat.delta_temperature))
+        if (!is_valid_real(param[4], &integrate->delta_temperature))
         {
             print_error("delta_temperature should be a real number.\n");
         } 
-        if (!is_valid_int(param[5], &para->heat.source))
+        if (!is_valid_int(param[5], &integrate->source))
         {
             print_error("heat.source should be an integer.\n");
         }
-        if (!is_valid_int(param[6], &para->heat.sink))
+        if (!is_valid_int(param[6], &integrate->sink))
         {
             print_error("heat.sink should be an integer.\n");
         }
     }
 
-    switch (para->ensemble)
+    switch (integrate->type)
     {
         case 0:
             printf("INPUT: Use NVE ensemble for this run.\n");
@@ -263,34 +266,34 @@ static void parse_ensemble (char **param,  int num_param, Parameters *para)
             printf("       choose the Berendsen method.\n"); 
             printf("       initial temperature is %g K.\n", para->temperature1);
             printf("       final temperature is %g K.\n", para->temperature2);
-            printf("       T_coupling is %g.\n", para->temperature_coupling);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 2:
             printf("INPUT: Use NPT ensemble for this run.\n");
             printf("       choose the Berendsen method.\n");      
             printf("       initial temperature is %g K.\n", para->temperature1);
             printf("       final temperature is %g K.\n", para->temperature2);
-            printf("       T_coupling is %g.\n", para->temperature_coupling);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             printf("       pressure_x is %g GPa.\n", pressure[0]);
             printf("       pressure_y is %g GPa.\n", pressure[1]);
             printf("       pressure_z is %g GPa.\n", pressure[2]);
-            printf("       p_coupling is %g.\n", para->pressure_coupling);
+            printf("       p_coupling is %g.\n", integrate->pressure_coupling);
             break;
         case 3:
             printf("INPUT: Use NVT ensemble for this run.\n");
             printf("       choose the Nose-Hoover chain method.\n"); 
             printf("       initial temperature is %g K.\n", para->temperature1);
             printf("       final temperature is %g K.\n", para->temperature2);
-            printf("       T_coupling is %g.\n", para->temperature_coupling);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             break;  
         case 4:
             printf("INPUT: Integrate with heating and cooling for this run.\n");
             printf("       choose the Nose-Hoover chain method.\n"); 
-            printf("       temperature is %g K.\n", para->temperature);
-            printf("       T_coupling is %g.\n", para->temperature_coupling);
-            printf("       delta_T is %g K.\n", para->heat.delta_temperature);
-            printf("       heat source is group %d.\n", para->heat.source);
-            printf("       heat sink is group %d.\n", para->heat.sink);
+            printf("       temperature is %g K.\n", integrate->temperature);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
+            printf("       delta_T is %g K.\n", integrate->delta_temperature);
+            printf("       heat source is group %d.\n", integrate->source);
+            printf("       heat sink is group %d.\n", integrate->sink);
             break; 
         default:
             print_error("invalid ensemble type.\n");
@@ -732,7 +735,8 @@ static void parse_run(char **param,  int num_param, Parameters *para)
 void parse
 (
     char **param, int num_param, Files *files, Parameters *para,
-    Force *force, int *is_potential,int *is_velocity,int *is_run
+    Force *force, Integrate *integrate, 
+    int *is_potential,int *is_velocity,int *is_run
 )
 {
     if (strcmp(param[0], "potential") == 0)
@@ -747,7 +751,7 @@ void parse
     }
     else if (strcmp(param[0], "ensemble")       == 0) 
     {
-        parse_ensemble(param, num_param, para);
+        parse_ensemble(param, num_param, para, integrate);
     }
     else if (strcmp(param[0], "time_step")      == 0) 
     {

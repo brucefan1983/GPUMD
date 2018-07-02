@@ -19,6 +19,7 @@
 
 
 class Force;
+class Integrate;
 
 
 void run_md
@@ -27,7 +28,8 @@ void run_md
     Parameters *para,
     CPU_Data *cpu_data, 
     GPU_Data *gpu_data,
-    Force *force
+    Force *force,
+    Integrate *integrate
 );
 
 #endif

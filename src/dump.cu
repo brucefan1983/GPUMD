@@ -17,13 +17,15 @@
 
 #include "common.cuh"
 #include "dump.cuh"
+#include "integrate.cuh"
+#include "ensemble.cuh"
 
 
 // dump thermodynamic properties
 static void gpu_sample_thermo
 (
     FILE *fid, Parameters *para, CPU_Data *cpu_data, 
-    real *gpu_thermo, real *gpu_box_length
+    real *gpu_thermo, real *gpu_box_length, Ensemble *ensemble
 )
 {
 
@@ -40,19 +42,19 @@ static void gpu_sample_thermo
     real energy_system_pot = thermo[1];
     real energy_system_total = energy_system_kin + energy_system_pot; 
 
-    if (para->ensemble == 3)
+    if (ensemble->type == 3)
     {
         // energy of the Nose-Hoover chain thermostat
-        real kT = K_B * para->temperature; 
-        real energy_nhc = kT * (DIM * para->N) * para->pos_nhc1[0];
+        real kT = K_B * ensemble->temperature; 
+        real energy_nhc = kT * (DIM * para->N) * ensemble->pos_nhc1[0];
         for (int m = 1; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
         {
-            energy_nhc += kT * para->pos_nhc1[m];
+            energy_nhc += kT * ensemble->pos_nhc1[m];
         }
         for (int m = 0; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
         { 
-            energy_nhc += 0.5 * para->vel_nhc1[m] 
-                        * para->vel_nhc1[m] / para->mas_nhc1[m];
+            energy_nhc += 0.5 * ensemble->vel_nhc1[m] 
+                        * ensemble->vel_nhc1[m] / ensemble->mas_nhc1[m];
         }
         fprintf
         (
@@ -90,14 +92,20 @@ static void gpu_sample_thermo
 
 // dump thermodynamic properties (A wrapper function)
 void dump_thermos
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+(
+    FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    Integrate *integrate, int step
+)
 {
     if (para->dump_thermo)
     {
         if ((step + 1) % para->sample_interval_thermo == 0)
         {
             gpu_sample_thermo
-            (fid, para, cpu_data, gpu_data->thermo, gpu_data->box_length);
+            (
+                fid, para, cpu_data, gpu_data->thermo, gpu_data->box_length, 
+                integrate->ensemble
+            );
         }
     }
 }

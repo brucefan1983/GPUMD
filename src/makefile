@@ -1,11 +1,12 @@
 all: gpumd
 
 CC = nvcc
-CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
+CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -DDEBUG -arch=sm_35
 
 gpumd: common.o eam_analytical.o tersoff.o rebo_mos2.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
+       ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o \
        force.o potential.o parse.o gpumd.o main.o
@@ -14,6 +15,7 @@ gpumd: common.o eam_analytical.o tersoff.o rebo_mos2.o \
        common.o eam_analytical.o tersoff.o rebo_mos2.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o dump.o heat.o integrate.o \
+       ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o \
        initialize.o finalize.o run.o velocity.o \
        force.o potential.o parse.o gpumd.o main.o
@@ -42,6 +44,14 @@ neighbor_ON2.o: neighbor_ON2.cu
 	$(CC) $(CFLAGS) -c neighbor_ON2.cu
 integrate.o: integrate.cu
 	$(CC) $(CFLAGS) -c integrate.cu
+ensemble.o: ensemble.cu
+	$(CC) $(CFLAGS) -c ensemble.cu
+ensemble_nve.o: ensemble_nve.cu
+	$(CC) $(CFLAGS) -c ensemble_nve.cu
+ensemble_ber.o: ensemble_ber.cu
+	$(CC) $(CFLAGS) -c ensemble_ber.cu
+ensemble_nhc.o: ensemble_nhc.cu
+	$(CC) $(CFLAGS) -c ensemble_nhc.cu
 heat.o: heat.cu
 	$(CC) $(CFLAGS) -c heat.cu
 dump.o: dump.cu

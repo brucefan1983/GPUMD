@@ -14,17 +14,30 @@
 */
 
 
-#ifndef HAC_H
-#define HAC_H
+#ifndef ENSEMBLE_NVE_H
+#define ENSEMBLE_NVE_H
 
-class Integrate;
 
-void preprocess_hac(Parameters *para, CPU_Data  *cpu_data, GPU_Data *gpu_data);
-void sample_hac(int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
-void postprocess_hac
-(
-    Files *files, Parameters *para, CPU_Data *cpu_data, 
-    GPU_Data *gpu_data, Integrate *integrate
-);
+#include "ensemble.cuh"
+class Force;
+
+
+
+
+class Ensemble_NVE : public Ensemble
+{
+public:
+    Ensemble_NVE(int type_input);      
+    virtual ~Ensemble_NVE(void);
+    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+};
+
+
+
+
 
 #endif
+
+
+
+
