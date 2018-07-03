@@ -242,7 +242,6 @@ static void parse_ensemble
     // 4. For heating and cooling with the Nose-Hoover chain method
     if (integrate->type == 4) 
     {  
-        para->heat.compute = 1;
         if (!is_valid_real(param[4], &integrate->delta_temperature))
         {
             print_error("delta_temperature should be a real number.\n");

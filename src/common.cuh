@@ -185,7 +185,6 @@ typedef struct
 // Parameters for NEMD method of thermal conductivity claculations
 typedef struct 
 {
-    int compute;            // 1 means you want to do this calculation
     int sample;             // 1 means sample the block temperatures
     int sample_interval;    // sample interval of temperature
 } Heat;
