@@ -18,7 +18,7 @@
 
 #include "common.cuh"
 #include "run.cuh"
-
+#include "measure.cuh"
 #include "parse.cuh" 
 #include "velocity.cuh"
 #include "neighbor.cuh"
@@ -26,8 +26,7 @@
 #include "validate.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
-#include "heat.cuh"        
-#include "dump.cuh"        
+#include "heat.cuh"                
 #include "vac.cuh"  
 #include "hac.cuh"   
 #include "shc.cuh"    
@@ -49,7 +48,8 @@ static void process_run
     CPU_Data *cpu_data,
     GPU_Data *gpu_data,
     Force *force,
-    Integrate *integrate
+    Integrate *integrate,
+    Measure *measure
 )
 {
     integrate->initialize(para, cpu_data);
@@ -60,22 +60,7 @@ static void process_run
     preprocess_shc(para,  cpu_data, gpu_data); 
     preprocess_heat(para, cpu_data);      
     preprocess_hnemd_kappa(para, cpu_data, gpu_data);   
-
-    // open some files
-    if (para->dump_thermo)   
-    { files->fid_thermo   = my_fopen(files->thermo,   "a"); }
-    if (para->dump_position) 
-    { files->fid_position = my_fopen(files->position, "a"); }
-    if (para->dump_velocity) 
-    { files->fid_velocity = my_fopen(files->velocity, "a"); }
-    if (para->dump_force)    
-    { files->fid_force    = my_fopen(files->force,    "a"); }
-    if (para->dump_potential)    
-    { files->fid_potential= my_fopen(files->potential,"a"); }
-    if (para->dump_virial)    
-    { files->fid_virial   = my_fopen(files->virial,   "a"); }
-    if (para->dump_heat)    
-    { files->fid_heat     = my_fopen(files->heat,     "a"); }
+    measure->initialize(files);
 
     // record the starting time for this run
     clock_t time_begin = clock();
@@ -98,7 +83,6 @@ static void process_run
         }
 
         // integrate by one time-step:
-        // gpu_integrate(para, cpu_data, gpu_data, force);
         integrate->compute(para, cpu_data, gpu_data, force);
 
         sample_vac(step, para, cpu_data, gpu_data);
@@ -106,14 +90,7 @@ static void process_run
         sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
         process_shc(step, files, para, cpu_data, gpu_data);
         process_hnemd_kappa(step, files, para, cpu_data, gpu_data, integrate);  
-
-        dump_thermos(files->fid_thermo, para, cpu_data, gpu_data, integrate, step);
-        dump_positions(files->fid_position, para, cpu_data, gpu_data, step);
-        dump_velocities(files->fid_velocity, para, cpu_data, gpu_data, step);
-        dump_forces(files->fid_force, para, cpu_data, gpu_data, step);
-        dump_potential(files->fid_potential, para, cpu_data, gpu_data, step);
-        dump_virial(files->fid_virial, para, cpu_data, gpu_data, step);
-        dump_heat(files->fid_heat, para, cpu_data, gpu_data, step);
+        measure->compute(files, para, cpu_data, gpu_data, integrate, step);
         if (para->number_of_steps >= 10)
         {
             if ((step + 1) % (para->number_of_steps / 10) == 0)
@@ -144,16 +121,7 @@ static void process_run
     postprocess_shc(        para, cpu_data, gpu_data);
     postprocess_heat(files, para, cpu_data, integrate);
     postprocess_hnemd_kappa(para, cpu_data, gpu_data);
-
-    // Close the files
-    if (para->dump_thermo)   { fclose(files->fid_thermo);   }
-    if (para->dump_position) { fclose(files->fid_position); }
-    if (para->dump_velocity) { fclose(files->fid_velocity); }
-    if (para->dump_force)    { fclose(files->fid_force);    }
-    if (para->dump_potential){ fclose(files->fid_potential);}
-    if (para->dump_virial)   { fclose(files->fid_virial);   }
-    if (para->dump_heat)     { fclose(files->fid_heat);     }
-
+    measure->finalize(files);
     integrate->finalize();
 }
 
@@ -174,13 +142,6 @@ static void initialize_run(Parameters *para)
     para->hac.compute     = 0; 
     para->hnemd.compute   = 0;
     para->strain.compute  = 0; 
-    para->dump_thermo     = 0; 
-    para->dump_position   = 0;
-    para->dump_velocity   = 0;
-    para->dump_force      = 0;
-    para->dump_potential  = 0;
-    para->dump_virial     = 0;
-    para->dump_heat       = 0;
     para->fixed_group     = -1; // no group has an index of -1
 }
 
@@ -275,7 +236,8 @@ void run_md
     CPU_Data *cpu_data, 
     GPU_Data *gpu_data,
     Force *force,
-    Integrate *integrate
+    Integrate *integrate,
+    Measure *measure 
 )
 {
     char *input = get_file_contents(files->run_in);
@@ -302,7 +264,7 @@ void run_md
         // parse a line of the input file 
         parse
         (
-            param, num_param, files, para, force, integrate,
+            param, num_param, files, para, force, integrate, measure,
             &is_potential, &is_velocity, &is_run
         );
 
@@ -342,7 +304,7 @@ void run_md
             process_run
             (
                 param, num_param, files, para, cpu_data, gpu_data, 
-                force, integrate
+                force, integrate, measure
             );
             
             initialize_run(para); // change back to the default

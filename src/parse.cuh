@@ -19,6 +19,7 @@
 
 class Force;
 class Integrate;
+class Measure;
 
 
 void parse
@@ -29,6 +30,7 @@ void parse
     Parameters *para,
     Force *force,
     Integrate *integrate,
+    Measure *measure,
     int *is_potential,
     int *is_velocity,
     int *is_int

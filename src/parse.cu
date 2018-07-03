@@ -22,6 +22,7 @@
 #include "potential.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
+#include "measure.cuh"
 
 
 
@@ -347,128 +348,128 @@ static void parse_neighbor
 
 
 
-static void parse_dump_thermo(char **param,  int num_param, Parameters *para)
+static void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
         print_error("dump_thermo should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->sample_interval_thermo))
+    if (!is_valid_int(param[1], &measure->sample_interval_thermo))
     {
         print_error("thermo dump interval should be an integer number.\n");
     } 
-    para->dump_thermo = 1;
+    measure->dump_thermo = 1;
     printf
-    ("INPUT: dump thermo every %d steps.\n", para->sample_interval_thermo);
+    ("INPUT: dump thermo every %d steps.\n", measure->sample_interval_thermo);
 }
 
 
 
 
-static void parse_dump_position(char **param,  int num_param, Parameters *para)
+static void parse_dump_position(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
         print_error("dump_position should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->sample_interval_position))
+    if (!is_valid_int(param[1], &measure->sample_interval_position))
     {
         print_error("position dump interval should be an integer number.\n");
     } 
-    para->dump_position = 1;
+    measure->dump_position = 1;
     printf
-    ("INPUT: dump position every %d steps.\n", para->sample_interval_position);
+    ("INPUT: dump position every %d steps.\n", measure->sample_interval_position);
 }
 
 
 
 
-static void parse_dump_velocity(char **param,  int num_param, Parameters *para)
+static void parse_dump_velocity(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
         print_error("dump_velocity should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->sample_interval_velocity))
+    if (!is_valid_int(param[1], &measure->sample_interval_velocity))
     {
         print_error("velocity dump interval should be an integer number.\n");
     } 
-    para->dump_velocity = 1;
+    measure->dump_velocity = 1;
     printf
-    ("INPUT: dump velocity every %d steps.\n", para->sample_interval_velocity);
+    ("INPUT: dump velocity every %d steps.\n", measure->sample_interval_velocity);
 }
 
 
 
 
-static void parse_dump_force(char **param,  int num_param,Parameters *para)
+static void parse_dump_force(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
         print_error("dump_force should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->sample_interval_force))
+    if (!is_valid_int(param[1], &measure->sample_interval_force))
     {
         print_error("force dump interval should be an integer number.\n");
     } 
-    para->dump_force = 1;
-    printf("INPUT: dump force every %d steps.\n", para->sample_interval_force);
+    measure->dump_force = 1;
+    printf("INPUT: dump force every %d steps.\n", measure->sample_interval_force);
 }
 
 
 
 
-static void parse_dump_potential(char **param,  int num_param,Parameters *para)
+static void parse_dump_potential(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
         print_error("dump_potential should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->sample_interval_potential))
+    if (!is_valid_int(param[1], &measure->sample_interval_potential))
     {
         print_error("potential dump interval should be an integer number.\n");
     } 
-    para->dump_potential = 1;
+    measure->dump_potential = 1;
     printf
     (
         "INPUT: dump potential every %d steps.\n", 
-        para->sample_interval_potential
+        measure->sample_interval_potential
     );
 }
 
 
 
 
-static void parse_dump_virial(char **param,  int num_param,Parameters *para)
+static void parse_dump_virial(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
         print_error("dump_virial should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->sample_interval_virial))
+    if (!is_valid_int(param[1], &measure->sample_interval_virial))
     {
         print_error("virial dump interval should be an integer number.\n");
     } 
-    para->dump_virial = 1;
+    measure->dump_virial = 1;
     printf
-    ("INPUT: dump virial every %d steps.\n", para->sample_interval_virial);
+    ("INPUT: dump virial every %d steps.\n", measure->sample_interval_virial);
 }
 
 
 
 
-static void parse_dump_heat(char **param, int num_param, Parameters *para)
+static void parse_dump_heat(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
         print_error("dump_heat should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->sample_interval_heat))
+    if (!is_valid_int(param[1], &measure->sample_interval_heat))
     {
         print_error("heat dump interval should be an integer number.\n");
     } 
-    para->dump_heat = 1;
-    printf("INPUT: dump heat every %d steps.\n", para->sample_interval_heat);
+    measure->dump_heat = 1;
+    printf("INPUT: dump heat every %d steps.\n", measure->sample_interval_heat);
 }
 
 
@@ -735,7 +736,7 @@ static void parse_run(char **param,  int num_param, Parameters *para)
 void parse
 (
     char **param, int num_param, Files *files, Parameters *para,
-    Force *force, Integrate *integrate, 
+    Force *force, Integrate *integrate, Measure *measure,
     int *is_potential,int *is_velocity,int *is_run
 )
 {
@@ -763,31 +764,31 @@ void parse
     }
     else if (strcmp(param[0], "dump_thermo")    == 0) 
     {
-        parse_dump_thermo(param, num_param, para);
+        parse_dump_thermo(param, num_param, measure);
     }
     else if (strcmp(param[0], "dump_position")  == 0) 
     {
-        parse_dump_position(param, num_param, para);
+        parse_dump_position(param, num_param, measure);
     }
     else if (strcmp(param[0], "dump_velocity")  == 0) 
     {
-        parse_dump_velocity(param, num_param, para);
+        parse_dump_velocity(param, num_param, measure);
     }
     else if (strcmp(param[0], "dump_force")     == 0) 
     {
-        parse_dump_force(param, num_param, para);
+        parse_dump_force(param, num_param, measure);
     }
     else if (strcmp(param[0], "dump_potential") == 0) 
     {
-        parse_dump_potential(param, num_param, para);
+        parse_dump_potential(param, num_param, measure);
     }
     else if (strcmp(param[0], "dump_virial")    == 0) 
     {
-        parse_dump_virial(param, num_param, para);
+        parse_dump_virial(param, num_param, measure);
     }
     else if (strcmp(param[0], "dump_heat")    == 0) 
     {
-        parse_dump_heat(param, num_param, para);
+        parse_dump_heat(param, num_param, measure);
     }
     else if (strcmp(param[0], "compute_vac")    == 0) 
     {

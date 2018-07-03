@@ -20,7 +20,7 @@
 #include "force.cuh"
 #include "integrate.cuh"
 #include "gpumd.cuh"
-
+#include "measure.cuh"
 #include "initialize.cuh"
 #include "finalize.cuh"
 #include "run.cuh" 
@@ -41,12 +41,13 @@ void gpumd(char *input_dir)
     GPU_Data    gpu_data;
     Force       force;
     Integrate   integrate;
+    Measure     measure;
 
     // initialize:
     initialize(input_dir, &files, &para, &cpu_data, &gpu_data);
     
     // run 
-    run_md(&files, &para, &cpu_data, &gpu_data, &force, &integrate);
+    run_md(&files, &para, &cpu_data, &gpu_data, &force, &integrate, &measure);
 
     // finilize
     finalize(&cpu_data, &gpu_data);

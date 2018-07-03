@@ -229,22 +229,6 @@ typedef struct
     int pbc_y;           // pbc_y = 1 means periodic in the y-direction
     int pbc_z;           // pbc_z = 1 means periodic in the z-direction
 
-    // Dump structure?
-    int dump_thermo;    
-    int dump_position;
-    int dump_velocity;
-    int dump_force;
-    int dump_potential;
-    int dump_virial;
-    int dump_heat;
-    int sample_interval_thermo;
-    int sample_interval_position;
-    int sample_interval_velocity;
-    int sample_interval_force;
-    int sample_interval_potential;
-    int sample_interval_virial;
-    int sample_interval_heat;
-
     // make a structure?
     int number_of_steps; // number of steps in a specific run
     real initial_temperature; // initial temperature for velocity

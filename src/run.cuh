@@ -20,6 +20,7 @@
 
 class Force;
 class Integrate;
+class Measure;
 
 
 void run_md
@@ -29,7 +30,8 @@ void run_md
     CPU_Data *cpu_data, 
     GPU_Data *gpu_data,
     Force *force,
-    Integrate *integrate
+    Integrate *integrate,
+    Measure *measure 
 );
 
 #endif
