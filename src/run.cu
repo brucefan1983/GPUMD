@@ -60,7 +60,7 @@ static void process_run
     preprocess_shc(para,  cpu_data, gpu_data); 
     preprocess_heat(para, cpu_data);      
     preprocess_hnemd_kappa(para, cpu_data, gpu_data);   
-    measure->initialize(files);
+    measure->initialize();
 
     // record the starting time for this run
     clock_t time_begin = clock();
@@ -121,7 +121,7 @@ static void process_run
     postprocess_shc(        para, cpu_data, gpu_data);
     postprocess_heat(files, para, cpu_data, integrate);
     postprocess_hnemd_kappa(para, cpu_data, gpu_data);
-    measure->finalize(files);
+    measure->finalize();
     integrate->finalize();
 }
 

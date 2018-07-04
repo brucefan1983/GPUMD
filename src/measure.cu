@@ -23,7 +23,7 @@
 
 
 
-Measure::Measure(void)
+Measure::Measure(char *input_dir)
 {
     dump_thermo = 0;
     dump_position = 0;
@@ -32,6 +32,22 @@ Measure::Measure(void)
     dump_potential = 0;
     dump_virial = 0;
     dump_heat = 0;
+
+    strcpy(file_thermo, input_dir);
+    strcpy(file_position, input_dir);
+    strcpy(file_velocity, input_dir);
+    strcpy(file_force, input_dir);
+    strcpy(file_potential, input_dir);
+    strcpy(file_virial, input_dir);
+    strcpy(file_heat, input_dir);
+
+    strcat(file_thermo, "/thermo.out");
+    strcat(file_position, "/xyz.out");
+    strcat(file_velocity, "/v.out");
+    strcat(file_force, "/f.out");
+    strcat(file_potential, "/potential.out");
+    strcat(file_virial, "/virial.out");
+    strcat(file_heat, "/heat.out");
 }
 
 
@@ -45,29 +61,29 @@ Measure::~Measure(void)
 
 
 
-void Measure::initialize(Files *files)
+void Measure::initialize(void)
 {
-    if (dump_thermo)    {files->fid_thermo   = my_fopen(files->thermo,   "a");}
-    if (dump_position)  {files->fid_position = my_fopen(files->position, "a");}
-    if (dump_velocity)  {files->fid_velocity = my_fopen(files->velocity, "a");}
-    if (dump_force)     {files->fid_force    = my_fopen(files->force,    "a");}
-    if (dump_potential) {files->fid_potential= my_fopen(files->potential,"a");}
-    if (dump_virial)    {files->fid_virial   = my_fopen(files->virial,   "a");}
-    if (dump_heat)      {files->fid_heat     = my_fopen(files->heat,     "a");}
+    if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
+    if (dump_position)  {fid_position = my_fopen(file_position, "a");}
+    if (dump_velocity)  {fid_velocity = my_fopen(file_velocity, "a");}
+    if (dump_force)     {fid_force    = my_fopen(file_force,    "a");}
+    if (dump_potential) {fid_potential= my_fopen(file_potential,"a");}
+    if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
+    if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
 }
 
 
 
 
-void Measure::finalize(Files *files)
+void Measure::finalize(void)
 {
-    if (dump_thermo)    {fclose(files->fid_thermo);    dump_thermo    = 0;}
-    if (dump_position)  {fclose(files->fid_position);  dump_position  = 0;}
-    if (dump_velocity)  {fclose(files->fid_velocity);  dump_velocity  = 0;}
-    if (dump_force)     {fclose(files->fid_force);     dump_force     = 0;}
-    if (dump_potential) {fclose(files->fid_potential); dump_potential = 0;}
-    if (dump_virial)    {fclose(files->fid_virial);    dump_virial    = 0;}
-    if (dump_heat)      {fclose(files->fid_heat);      dump_heat      = 0;}
+    if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
+    if (dump_position)  {fclose(fid_position);  dump_position  = 0;}
+    if (dump_velocity)  {fclose(fid_velocity);  dump_velocity  = 0;}
+    if (dump_force)     {fclose(fid_force);     dump_force     = 0;}
+    if (dump_potential) {fclose(fid_potential); dump_potential = 0;}
+    if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
+    if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 }
 
 
@@ -358,13 +374,13 @@ void Measure::compute
     Integrate *integrate, int step
 )
 {
-    dump_thermos(files->fid_thermo, para, cpu_data, gpu_data, integrate, step);
-    dump_positions(files->fid_position, para, cpu_data, gpu_data, step);
-    dump_velocities(files->fid_velocity, para, cpu_data, gpu_data, step);
-    dump_forces(files->fid_force, para, cpu_data, gpu_data, step);
-    dump_potentials(files->fid_potential, para, cpu_data, gpu_data, step);
-    dump_virials(files->fid_virial, para, cpu_data, gpu_data, step);
-    dump_heats(files->fid_heat, para, cpu_data, gpu_data, step);
+    dump_thermos(fid_thermo, para, cpu_data, gpu_data, integrate, step);
+    dump_positions(fid_position, para, cpu_data, gpu_data, step);
+    dump_velocities(fid_velocity, para, cpu_data, gpu_data, step);
+    dump_forces(fid_force, para, cpu_data, gpu_data, step);
+    dump_potentials(fid_potential, para, cpu_data, gpu_data, step);
+    dump_virials(fid_virial, para, cpu_data, gpu_data, step);
+    dump_heats(fid_heat, para, cpu_data, gpu_data, step);
 }
 
 

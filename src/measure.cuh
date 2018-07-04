@@ -26,10 +26,10 @@ class Integrate;
 class Measure
 {
 public:
-    Measure(void);
+    Measure(char *input_dir);
     ~Measure(void);
-    void initialize(Files*);
-    void finalize(Files*);
+    void initialize(void);
+    void finalize(void);
     void compute(Files*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
@@ -45,6 +45,20 @@ public:
     int sample_interval_potential;
     int sample_interval_virial;
     int sample_interval_heat;
+    FILE *fid_thermo;
+    FILE *fid_position;
+    FILE *fid_velocity;
+    FILE *fid_force;
+    FILE *fid_potential;
+    FILE *fid_virial;
+    FILE *fid_heat;
+    char file_thermo[FILE_NAME_LENGTH];       
+    char file_position[FILE_NAME_LENGTH];    
+    char file_velocity[FILE_NAME_LENGTH];    
+    char file_force[FILE_NAME_LENGTH]; 
+    char file_potential[FILE_NAME_LENGTH];
+    char file_virial[FILE_NAME_LENGTH];    
+    char file_heat[FILE_NAME_LENGTH];
 protected:
     void dump_thermos(FILE*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
     void dump_positions(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);

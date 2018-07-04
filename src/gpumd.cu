@@ -41,7 +41,7 @@ void gpumd(char *input_dir)
     GPU_Data    gpu_data;
     Force       force;
     Integrate   integrate;
-    Measure     measure;
+    Measure     measure(input_dir);
 
     // initialize:
     initialize(input_dir, &files, &para, &cpu_data, &gpu_data);

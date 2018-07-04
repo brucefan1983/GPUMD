@@ -304,21 +304,7 @@ typedef struct
 
 // files
 typedef struct 
-{
-    FILE *fid_thermo;
-    FILE *fid_position;
-    FILE *fid_velocity;
-    FILE *fid_force;
-    FILE *fid_potential;
-    FILE *fid_virial;
-    FILE *fid_heat;
-    char thermo[FILE_NAME_LENGTH];       
-    char position[FILE_NAME_LENGTH];    
-    char velocity[FILE_NAME_LENGTH];    
-    char force[FILE_NAME_LENGTH]; 
-    char potential[FILE_NAME_LENGTH];
-    char virial[FILE_NAME_LENGTH];    
-    char heat[FILE_NAME_LENGTH];      
+{      
     char vac[FILE_NAME_LENGTH];        
     char hac[FILE_NAME_LENGTH];          
     char shc[FILE_NAME_LENGTH];        

@@ -32,26 +32,12 @@ static void initialize_files(char *input_dir, Files *files)
     strcat(files->run_in, "/run.in");
 
     // output files
-    strcpy(files->thermo, input_dir);
-    strcpy(files->position, input_dir);
-    strcpy(files->velocity, input_dir);
-    strcpy(files->force, input_dir);
-    strcpy(files->potential, input_dir);
-    strcpy(files->virial, input_dir);
-    strcpy(files->heat, input_dir);
     strcpy(files->vac, input_dir);
     strcpy(files->hac, input_dir);
     strcpy(files->shc, input_dir);
     strcpy(files->kappa, input_dir);
     strcpy(files->temperature, input_dir);
 
-    strcat(files->thermo, "/thermo.out");
-    strcat(files->position, "/xyz.out");
-    strcat(files->velocity, "/v.out");
-    strcat(files->force, "/f.out");
-    strcat(files->potential, "/potential.out");
-    strcat(files->virial, "/virial.out");
-    strcat(files->heat, "/heat.out");
     strcat(files->vac, "/vac.out");
     strcat(files->hac, "/hac.out");
     strcat(files->shc, "/shc.out");
