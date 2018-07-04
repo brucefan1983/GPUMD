@@ -31,7 +31,7 @@ public:
     void initialize(Parameters*);
     void compute(Parameters*, GPU_Data*);
 
-    char file_potential[[FILE_NAME_LENGTH];
+    char file_potential[FILE_NAME_LENGTH];
 protected:
     bool build_local_neighbor;
 };
