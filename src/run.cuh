@@ -25,6 +25,7 @@ class Measure;
 
 void run_md
 (
+    char *input_dir,
     Files *files,  
     Parameters *para,
     CPU_Data *cpu_data, 

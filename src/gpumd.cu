@@ -47,7 +47,7 @@ void gpumd(char *input_dir)
     initialize(input_dir, &files, &para, &cpu_data, &gpu_data);
     
     // run 
-    run_md(&files, &para, &cpu_data, &gpu_data, &force, &integrate, &measure);
+    run_md(input_dir, &files, &para, &cpu_data, &gpu_data, &force, &integrate, &measure);
 
     // finilize
     finalize(&cpu_data, &gpu_data);

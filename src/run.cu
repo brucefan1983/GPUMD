@@ -230,6 +230,7 @@ static char *row_find_param (char *s, char *param[], int *num_param)
 
 void run_md
 (
+    char *input_dir,
     Files *files,  
     Parameters *para,
     CPU_Data *cpu_data, 
@@ -239,7 +240,10 @@ void run_md
     Measure *measure 
 )
 {
-    char *input = get_file_contents(files->run_in);
+    char file_run[FILE_NAME_LENGTH];
+    strcpy(file_run, input_dir);
+    strcat(file_run, "/run.in");
+    char *input = get_file_contents(file_run);
     char *input_ptr = input; // Keep the pointer in order to free later
 
     // Iterate the rows

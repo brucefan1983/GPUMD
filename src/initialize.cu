@@ -24,13 +24,6 @@
 // to be improved
 static void initialize_files(char *input_dir, Files *files)
 { 
-    // input files 
-    strcpy(files->xyz_in, input_dir);
-    strcpy(files->run_in, input_dir);
-
-    strcat(files->xyz_in, "/xyz.in");
-    strcat(files->run_in, "/run.in");
-
     // output files
     strcpy(files->vac, input_dir);
     strcpy(files->hac, input_dir);
@@ -48,13 +41,15 @@ static void initialize_files(char *input_dir, Files *files)
 
 // Initialize the positions.
 static void initialize_position
-(Files *files, Parameters *para, CPU_Data *cpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data)
 {  
     printf("INFO:  read in initial positions and related parameters.\n");
 
     int count = 0;
-
-    FILE *fid_xyz = my_fopen(files->xyz_in, "r"); 
+    char file_xyz[FILE_NAME_LENGTH];
+    strcpy(file_xyz, input_dir);
+    strcat(file_xyz, "/xyz.in");
+    FILE *fid_xyz = my_fopen(file_xyz, "r"); 
 
     // the first line of the xyz.in file
 #ifdef USE_DP
@@ -449,7 +444,7 @@ void initialize
 {
     // initialization on the CPU  
     initialize_files(input_dir, files);
-    initialize_position(files, para, cpu_data);
+    initialize_position(input_dir, para, cpu_data);
 
     // initialization on the GPU
     allocate_memory_gpu(para, gpu_data);

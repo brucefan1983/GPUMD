@@ -309,9 +309,7 @@ typedef struct
     char hac[FILE_NAME_LENGTH];          
     char shc[FILE_NAME_LENGTH];        
     char kappa[FILE_NAME_LENGTH]; 
-    char temperature[FILE_NAME_LENGTH];  
-    char run_in[FILE_NAME_LENGTH];      
-    char xyz_in[FILE_NAME_LENGTH];      
+    char temperature[FILE_NAME_LENGTH];        
     char potential_in[FILE_NAME_LENGTH];
 } Files;
 
