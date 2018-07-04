@@ -20,6 +20,11 @@
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "measure.cuh"
+#include "heat.cuh"                
+#include "vac.cuh"  
+#include "hac.cuh"   
+#include "shc.cuh"    
+#include "hnemd_kappa.cuh" 
 
 
 
@@ -61,7 +66,8 @@ Measure::~Measure(void)
 
 
 
-void Measure::initialize(void)
+void Measure::initialize
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_position)  {fid_position = my_fopen(file_position, "a");}
@@ -70,12 +76,22 @@ void Measure::initialize(void)
     if (dump_potential) {fid_potential= my_fopen(file_potential,"a");}
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
+
+    preprocess_vac(para,  cpu_data, gpu_data);
+    preprocess_hac(para,  cpu_data, gpu_data);  
+    preprocess_shc(para,  cpu_data, gpu_data); 
+    preprocess_heat(para, cpu_data);      
+    preprocess_hnemd_kappa(para, cpu_data, gpu_data);  
 }
 
 
 
 
-void Measure::finalize(void)
+void Measure::finalize
+(
+    Files *files, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    Integrate *integrate
+)
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
     if (dump_position)  {fclose(fid_position);  dump_position  = 0;}
@@ -84,6 +100,12 @@ void Measure::finalize(void)
     if (dump_potential) {fclose(fid_potential); dump_potential = 0;}
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
+
+    postprocess_vac(files,  para, cpu_data, gpu_data);
+    postprocess_hac(files,  para, cpu_data, gpu_data, integrate);
+    postprocess_shc(        para, cpu_data, gpu_data);
+    postprocess_heat(files, para, cpu_data, integrate);
+    postprocess_hnemd_kappa(para, cpu_data, gpu_data);
 }
 
 
@@ -381,6 +403,12 @@ void Measure::compute
     dump_potentials(fid_potential, para, cpu_data, gpu_data, step);
     dump_virials(fid_virial, para, cpu_data, gpu_data, step);
     dump_heats(fid_heat, para, cpu_data, gpu_data, step);
+
+    sample_vac(step, para, cpu_data, gpu_data);
+    sample_hac(step, para, cpu_data, gpu_data);
+    sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
+    process_shc(step, files, para, cpu_data, gpu_data);
+    process_hnemd_kappa(step, files, para, cpu_data, gpu_data, integrate); 
 }
 
 

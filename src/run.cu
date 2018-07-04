@@ -25,13 +25,7 @@
 #include "force.cuh"
 #include "validate.cuh"
 #include "integrate.cuh"
-#include "ensemble.cuh"
-#include "heat.cuh"                
-#include "vac.cuh"  
-#include "hac.cuh"   
-#include "shc.cuh"    
-#include "hnemd_kappa.cuh"   
-
+#include "ensemble.cuh"  
 
 
 
@@ -52,15 +46,8 @@ static void process_run
     Measure *measure
 )
 {
-    integrate->initialize(para, cpu_data);
-
-    // allocate some memory used for calculating some properties
-    preprocess_vac(para,  cpu_data, gpu_data);
-    preprocess_hac(para,  cpu_data, gpu_data);  
-    preprocess_shc(para,  cpu_data, gpu_data); 
-    preprocess_heat(para, cpu_data);      
-    preprocess_hnemd_kappa(para, cpu_data, gpu_data);   
-    measure->initialize();
+    integrate->initialize(para, cpu_data); 
+    measure->initialize(para, cpu_data, gpu_data);
 
     // record the starting time for this run
     clock_t time_begin = clock();
@@ -85,12 +72,9 @@ static void process_run
         // integrate by one time-step:
         integrate->compute(para, cpu_data, gpu_data, force);
 
-        sample_vac(step, para, cpu_data, gpu_data);
-        sample_hac(step, para, cpu_data, gpu_data);
-        sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
-        process_shc(step, files, para, cpu_data, gpu_data);
-        process_hnemd_kappa(step, files, para, cpu_data, gpu_data, integrate);  
+        // measure
         measure->compute(files, para, cpu_data, gpu_data, integrate, step);
+
         if (para->number_of_steps >= 10)
         {
             if ((step + 1) % (para->number_of_steps / 10) == 0)
@@ -115,13 +99,7 @@ static void process_run
     real run_speed = para->N * (para->number_of_steps / time_used);
     printf("INFO:  Speed of this run = %g atom*step/second.\n\n", run_speed);
 
-    // postprocess:
-    postprocess_vac(files,  para, cpu_data, gpu_data);
-    postprocess_hac(files,  para, cpu_data, gpu_data, integrate);
-    postprocess_shc(        para, cpu_data, gpu_data);
-    postprocess_heat(files, para, cpu_data, integrate);
-    postprocess_hnemd_kappa(para, cpu_data, gpu_data);
-    measure->finalize();
+    measure->finalize(files, para, cpu_data, gpu_data, integrate);
     integrate->finalize();
 }
 

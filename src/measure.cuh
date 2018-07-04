@@ -28,8 +28,8 @@ class Measure
 public:
     Measure(char *input_dir);
     ~Measure(void);
-    void initialize(void);
-    void finalize(void);
+    void initialize(Parameters*, CPU_Data*, GPU_Data*);
+    void finalize(Files*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
     void compute(Files*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
