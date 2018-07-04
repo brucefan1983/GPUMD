@@ -24,7 +24,7 @@
 #include "vashishta.cuh"
 #include "sw.cuh"
 #include "pair.cuh"
-#include "eam_analytical.cuh"
+#include "eam.cuh"
 #include "mic_template.cuh"
 
 
