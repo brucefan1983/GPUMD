@@ -52,66 +52,12 @@ static __global__ void gpu_sum_heat
     int number_of_patches = (N - 1) / 1024 + 1;
 
     __shared__ real s_data[1024];  
-    s_data[tid] = 0.0f;
+    s_data[tid] = ZERO;
  
-    if (blockIdx.x == 0) 
+    for (int patch = 0; patch < number_of_patches; ++patch)
     {
-        for (int patch = 0; patch < number_of_patches; ++patch)
-        {
-            int n = tid + patch * 1024; 
-            if (n < N)
-            {
-                s_data[tid] += g_heat[n + N * 0]; 
-            }
-        }
-    }
-
-    if (blockIdx.x == 1) 
-    {
-        for (int patch = 0; patch < number_of_patches; ++patch)
-        {
-            int n = tid + patch * 1024; 
-            if (n < N)
-            {
-                s_data[tid] += g_heat[n + N * 1];
-            } 
-        }
-    }
-
-    if (blockIdx.x == 2) 
-    {
-        for (int patch = 0; patch < number_of_patches; ++patch)
-        {
-            int n = tid + patch * 1024; 
-            if (n < N)
-            {
-                s_data[tid] += g_heat[n + N * 2]; 
-            }
-        }
-    }
-
-    if (blockIdx.x == 3) 
-    {
-        for (int patch = 0; patch < number_of_patches; ++patch)
-        {
-            int n = tid + patch * 1024;
-            if (n < N)
-            { 
-                s_data[tid] += g_heat[n + N * 3]; 
-            }
-        }
-    }
-
-    if (blockIdx.x == 4) 
-    {
-        for (int patch = 0; patch < number_of_patches; ++patch)
-        {
-            int n = tid + patch * 1024; 
-            if (n < N)
-            {
-                s_data[tid] += g_heat[n + N * 4]; 
-            }
-        }
+        int n = tid + patch * 1024; 
+        if (n < N) { s_data[tid] += g_heat[n + N * blockIdx.x]; }
     }
 
     __syncthreads();
