@@ -28,8 +28,10 @@ public:
     Potential *potential;
     Force(void);      
     ~Force(void);
-    void initialize(char*, Parameters*);
+    void initialize(Parameters*);
     void compute(Parameters*, GPU_Data*);
+
+    char file_potential[[FILE_NAME_LENGTH];
 protected:
     bool build_local_neighbor;
 };

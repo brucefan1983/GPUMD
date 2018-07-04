@@ -274,7 +274,7 @@ void run_md
         // check for some special keywords
         if (is_potential) 
         {  
-            force->initialize(files->potential_in, para);
+            force->initialize(para);
             force->compute(para, gpu_data);
             #ifdef FORCE
             // output the initial forces (used for lattice dynamics calculations)

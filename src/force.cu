@@ -41,16 +41,17 @@ Force::Force(void)
 
 Force::~Force(void)
 {
-    if(potential) delete potential;
+    delete potential;
+    potential = NULL;
 }
 
 
 
 
-void Force::initialize(char *potential_file, Parameters *para)
+void Force::initialize(Parameters *para)
 {
     printf("INFO:  read in potential parameters.\n");
-    FILE *fid_potential = my_fopen(potential_file, "r");
+    FILE *fid_potential = my_fopen(file_potential, "r");
     char potential_name[20];
     int count = fscanf(fid_potential, "%s", potential_name);
     if (count != 1) 

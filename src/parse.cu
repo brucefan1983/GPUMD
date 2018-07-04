@@ -71,13 +71,13 @@ static int is_valid_real (const char *s, real *result)
 
 
 
-static void parse_potential(char **param, int num_param, Files *files)
+static void parse_potential(char **param, int num_param, Force *force)
 {
     if (num_param != 2)
     {
         print_error("potential should have 1 parameter.\n");
     }
-    strcpy(files->potential_in, param[1]);
+    strcpy(force->file_potential, param[1]);
 }
 
 
@@ -742,7 +742,7 @@ void parse
     if (strcmp(param[0], "potential") == 0)
     {
         *is_potential = 1;
-        parse_potential(param, num_param, files);
+        parse_potential(param, num_param, force);
     }
     else if (strcmp(param[0], "velocity") == 0)
     {
