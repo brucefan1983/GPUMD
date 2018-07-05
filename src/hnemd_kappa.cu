@@ -88,7 +88,7 @@ static real get_volume(real *box_gpu)
 
 void process_hnemd_kappa
 (
-    int step, Files *files, Parameters *para, 
+    int step, char *input_dir, Parameters *para, 
     CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
 )
 {
@@ -121,7 +121,11 @@ void process_hnemd_kappa
             }
             real factor = KAPPA_UNIT_CONVERSION / para->hnemd.output_interval;
             factor /= (volume * integrate->ensemble->temperature * para->hnemd.fe);
-            FILE *fid = fopen(files->kappa, "a");
+
+            char file_kappa[FILE_NAME_LENGTH];
+            strcpy(file_kappa, input_dir);
+            strcat(file_kappa, "/kappa.out");
+            FILE *fid = fopen(file_kappa, "a");
             for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++)
             {
                 fprintf(fid, "%25.15f", kappa[n] * factor);

@@ -23,7 +23,7 @@ void preprocess_hac(Parameters *para, CPU_Data  *cpu_data, GPU_Data *gpu_data);
 void sample_hac(int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
 void postprocess_hac
 (
-    Files *files, Parameters *para, CPU_Data *cpu_data, 
+    char *, Parameters *para, CPU_Data *cpu_data, 
     GPU_Data *gpu_data, Integrate *integrate
 );
 

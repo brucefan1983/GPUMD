@@ -20,11 +20,7 @@
 
 
 
-void initialize
-(
-    char *input_dir, Files *files, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-);
+void initialize(char *input_dir, Parameters*, CPU_Data*, GPU_Data*);
 
 
 #endif

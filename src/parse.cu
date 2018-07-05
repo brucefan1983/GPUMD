@@ -734,7 +734,7 @@ static void parse_run(char **param,  int num_param, Parameters *para)
 
 void parse
 (
-    char **param, int num_param, Files *files, Parameters *para,
+    char **param, int num_param, Parameters *para,
     Force *force, Integrate *integrate, Measure *measure,
     int *is_potential,int *is_velocity,int *is_run
 )

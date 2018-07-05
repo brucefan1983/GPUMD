@@ -301,22 +301,6 @@ typedef struct
 
 
 
-
-// files
-typedef struct 
-{      
-    char vac[FILE_NAME_LENGTH];        
-    char hac[FILE_NAME_LENGTH];          
-    char shc[FILE_NAME_LENGTH];        
-    char kappa[FILE_NAME_LENGTH]; 
-    char temperature[FILE_NAME_LENGTH];        
-    //char potential_in[FILE_NAME_LENGTH];
-} Files;
-
-
-
-
-
 /*----------------------------------------------------------------------------80
     Function declarations
 ------------------------------------------------------------------------------*/

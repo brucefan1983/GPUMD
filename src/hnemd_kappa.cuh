@@ -24,7 +24,7 @@ void preprocess_hnemd_kappa
 
 void process_hnemd_kappa
 (
-    int step, Files *files, Parameters *para, 
+    int step, char*, Parameters *para, 
     CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
 );
 

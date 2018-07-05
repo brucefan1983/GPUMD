@@ -26,7 +26,6 @@ void parse
 (
     char **param, 
     int num_param, 
-    Files *files,
     Parameters *para,
     Force *force,
     Integrate *integrate,

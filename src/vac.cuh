@@ -17,8 +17,8 @@
 #ifndef VAC_H
 #define VAC_H
 
-void preprocess_vac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
-void sample_vac(int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
-void postprocess_vac(Files *files, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+void preprocess_vac(Parameters*, CPU_Data*, GPU_Data*);
+void sample_vac(int step, Parameters*, CPU_Data*, GPU_Data*);
+void postprocess_vac(char*, Parameters*, CPU_Data*, GPU_Data*);
 
 #endif

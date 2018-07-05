@@ -157,7 +157,7 @@ static __global__ void gpu_find_k_time
 
 // calculate the correlation function K(t)
 static void find_k_time
-(Files *files, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
 {
     int number_of_sections = para->shc.number_of_sections;
     int number_of_pairs = para->shc.number_of_pairs;
@@ -192,8 +192,10 @@ static void find_k_time
     CHECK(cudaFree(g_k_time_o)); 
 
     // output the results
-    FILE *fid;
-    fid = my_fopen(files->shc, "a");
+    char file_shc[FILE_NAME_LENGTH];
+    strcpy(file_shc, input_dir);
+    strcat(file_shc, "/shc.out");
+    FILE *fid = my_fopen(file_shc, "a");
     for (int nc = 0; nc < Nc; nc++)
     { 
         fprintf(fid, "%25.15e%25.15e\n", k_time_i[nc], k_time_o[nc]);
@@ -209,7 +211,7 @@ static void find_k_time
 
 void process_shc
 (
-    int step, Files *files, Parameters *para, 
+    int step, char *input_dir, Parameters *para, 
     CPU_Data *cpu_data, GPU_Data *gpu_data
 )
 {
@@ -234,7 +236,7 @@ void process_shc
         // calculate the correlation function every "sample_interval * M" steps
         if ((step + 1) % step_ref == 0)
         {       
-            find_k_time(files, para, cpu_data, gpu_data);
+            find_k_time(input_dir, para, cpu_data, gpu_data);
         }
     }
 }

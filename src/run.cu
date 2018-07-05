@@ -37,7 +37,7 @@ static void process_run
 (
     char **param, 
     unsigned int num_param, 
-    Files *files,  
+    char *input_dir,  
     Parameters *para, 
     CPU_Data *cpu_data,
     GPU_Data *gpu_data,
@@ -73,7 +73,7 @@ static void process_run
         integrate->compute(para, cpu_data, gpu_data, force);
 
         // measure
-        measure->compute(files, para, cpu_data, gpu_data, integrate, step);
+        measure->compute(input_dir, para, cpu_data, gpu_data, integrate, step);
 
         if (para->number_of_steps >= 10)
         {
@@ -99,7 +99,7 @@ static void process_run
     real run_speed = para->N * (para->number_of_steps / time_used);
     printf("INFO:  Speed of this run = %g atom*step/second.\n\n", run_speed);
 
-    measure->finalize(files, para, cpu_data, gpu_data, integrate);
+    measure->finalize(input_dir, para, cpu_data, gpu_data, integrate);
     integrate->finalize();
 }
 
@@ -208,8 +208,7 @@ static char *row_find_param (char *s, char *param[], int *num_param)
 
 void run_md
 (
-    char *input_dir,
-    Files *files,  
+    char *input_dir,  
     Parameters *para,
     CPU_Data *cpu_data, 
     GPU_Data *gpu_data,
@@ -245,7 +244,7 @@ void run_md
         // parse a line of the input file 
         parse
         (
-            param, num_param, files, para, force, integrate, measure,
+            param, num_param, para, force, integrate, measure,
             &is_potential, &is_velocity, &is_run
         );
 
@@ -284,7 +283,7 @@ void run_md
         { 
             process_run
             (
-                param, num_param, files, para, cpu_data, gpu_data, 
+                param, num_param, input_dir, para, cpu_data, gpu_data, 
                 force, integrate, measure
             );
             

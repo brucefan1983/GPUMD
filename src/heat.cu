@@ -159,13 +159,16 @@ void sample_block_temperature
 // Output block temperatures and energies of the heat source and sink; 
 // free the used memory
 void postprocess_heat
-(Files *files, Parameters *para, CPU_Data *cpu_data, Integrate *integrate)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, Integrate *integrate)
 {
     if (para->heat.sample)
     {
         int Nt = para->number_of_steps / para->heat.sample_interval;
         int Ng = para->number_of_groups;
-        FILE *fid = fopen(files->temperature, "a");
+        char file_temperature[FILE_NAME_LENGTH];
+        strcpy(file_temperature, input_dir);
+        strcat(file_temperature, "/temperature.out");
+        FILE *fid = fopen(file_temperature, "a");
         for (int nt = 0; nt < Nt; nt++)
         {
             int offset = nt * (Ng + 2);

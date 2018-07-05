@@ -21,23 +21,6 @@
 
 
 
-// to be improved
-static void initialize_files(char *input_dir, Files *files)
-{ 
-    // output files
-    strcpy(files->vac, input_dir);
-    strcpy(files->hac, input_dir);
-    strcpy(files->shc, input_dir);
-    strcpy(files->kappa, input_dir);
-    strcpy(files->temperature, input_dir);
-
-    strcat(files->vac, "/vac.out");
-    strcat(files->hac, "/hac.out");
-    strcat(files->shc, "/shc.out");
-    strcat(files->kappa, "/kappa.out");
-    strcat(files->temperature, "/temperature.out");
-}
-
 
 // Initialize the positions.
 static void initialize_position
@@ -437,13 +420,9 @@ static void copy_from_cpu_to_gpu
 
 
 void initialize
-(
-    char *input_dir, Files *files, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     // initialization on the CPU  
-    initialize_files(input_dir, files);
     initialize_position(input_dir, para, cpu_data);
 
     // initialization on the GPU

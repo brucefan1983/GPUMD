@@ -215,7 +215,7 @@ static void find_dos
     
 // Calculate (1) VAC, (2) RDC, and (3) DOS = phonon density of states
 static void find_vac_rdc_dos
-(Files *files, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     // rename variables
     int N = para->N;
@@ -294,7 +294,10 @@ static void find_vac_rdc_dos
         dos_x, dos_y, dos_z
     );
 
-    FILE *fid = fopen(files->vac, "a");
+    char file_vac[FILE_NAME_LENGTH];
+    strcpy(file_vac, input_dir);
+    strcat(file_vac, "/vac.out");
+    FILE *fid = fopen(file_vac, "a");
     for (int nc = 0; nc < Nc; nc++)
     {
         real t = nc * dt_in_ps;
@@ -330,12 +333,12 @@ static void find_vac_rdc_dos
 
 // postprocess VAC and related quantities.
 void postprocess_vac
-(Files *files, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
 {
     if (para->vac.compute)
     {
         printf("INFO:  start to calculate VAC and related quantities.\n");
-        find_vac_rdc_dos(files, para, cpu_data, gpu_data);
+        find_vac_rdc_dos(input_dir, para, cpu_data, gpu_data);
         CHECK(cudaFree(gpu_data->vx_all));
         CHECK(cudaFree(gpu_data->vy_all));
         CHECK(cudaFree(gpu_data->vz_all));

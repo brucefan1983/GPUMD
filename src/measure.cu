@@ -89,7 +89,7 @@ void Measure::initialize
 
 void Measure::finalize
 (
-    Files *files, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
     Integrate *integrate
 )
 {
@@ -101,10 +101,10 @@ void Measure::finalize
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 
-    postprocess_vac(files,  para, cpu_data, gpu_data);
-    postprocess_hac(files,  para, cpu_data, gpu_data, integrate);
-    postprocess_shc(        para, cpu_data, gpu_data);
-    postprocess_heat(files, para, cpu_data, integrate);
+    postprocess_vac(input_dir, para, cpu_data, gpu_data);
+    postprocess_hac(input_dir, para, cpu_data, gpu_data, integrate);
+    postprocess_shc(para, cpu_data, gpu_data);
+    postprocess_heat(input_dir, para, cpu_data, integrate);
     postprocess_hnemd_kappa(para, cpu_data, gpu_data);
 }
 
@@ -392,7 +392,7 @@ void Measure::dump_potentials
 
 void Measure::compute
 (
-    Files *files, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
     Integrate *integrate, int step
 )
 {
@@ -407,8 +407,8 @@ void Measure::compute
     sample_vac(step, para, cpu_data, gpu_data);
     sample_hac(step, para, cpu_data, gpu_data);
     sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
-    process_shc(step, files, para, cpu_data, gpu_data);
-    process_hnemd_kappa(step, files, para, cpu_data, gpu_data, integrate); 
+    process_shc(step, input_dir, para, cpu_data, gpu_data);
+    process_hnemd_kappa(step, input_dir, para, cpu_data, gpu_data, integrate); 
 }
 
 

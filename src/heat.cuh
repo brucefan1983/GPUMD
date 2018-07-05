@@ -19,16 +19,10 @@
 
 class Integrate;
 
-void preprocess_heat(Parameters *para, CPU_Data *cpu_data);
-
-void postprocess_heat
-(Files *files, Parameters *para, CPU_Data *cpu_data, Integrate *integrate);
-
+void preprocess_heat(Parameters*, CPU_Data*);
+void postprocess_heat(char*, Parameters*, CPU_Data*, Integrate*);
 void sample_block_temperature
-(
-    int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
-    Integrate *integrate
-);
+(int step, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
 
 #endif
 

@@ -29,8 +29,8 @@ public:
     Measure(char *input_dir);
     ~Measure(void);
     void initialize(Parameters*, CPU_Data*, GPU_Data*);
-    void finalize(Files*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
-    void compute(Files*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
+    void finalize(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
+    void compute(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
     int dump_velocity;

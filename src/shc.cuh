@@ -28,14 +28,7 @@ void preprocess_shc
 
 
 // calculate SHC
-void process_shc
-(
-    int        step,
-    Files      *files,
-    Parameters *para,
-    CPU_Data   *cpu_data,
-    GPU_Data   *gpu_data
-);
+void process_shc(int step, char *, Parameters*, CPU_Data*, GPU_Data*);
 
 
 // free memory

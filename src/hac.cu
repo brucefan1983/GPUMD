@@ -207,7 +207,7 @@ static real get_volume(real *box_gpu)
 // (2) RTC = Running Thermal Conductivity
 static void find_hac_kappa
 (
-    Files *files, Parameters *para, CPU_Data *cpu_data, 
+    char *input_dir, Parameters *para, CPU_Data *cpu_data, 
     GPU_Data *gpu_data, Integrate *integrate
 )
 {
@@ -252,7 +252,10 @@ static void find_hac_kappa
  
     find_rtc(Nc, factor, hac, rtc);
 
-    FILE *fid = fopen(files->hac, "a");
+    char file_hac[FILE_NAME_LENGTH];
+    strcpy(file_hac, input_dir);
+    strcat(file_hac, "/hac.out");
+    FILE *fid = fopen(file_hac, "a");
     int number_of_output_data = Nc / para->hac.output_interval;
     for (int nd = 0; nd < number_of_output_data; nd++)
     {
@@ -292,14 +295,14 @@ static void find_hac_kappa
 // and RTC (running thermal conductivity)
 void postprocess_hac
 (
-    Files *files, Parameters *para, CPU_Data *cpu_data,
+    char *input_dir, Parameters *para, CPU_Data *cpu_data,
     GPU_Data *gpu_data, Integrate *integrate
 )
 {
     if (para->hac.compute) 
     {
         printf("INFO:  start to calculate HAC and related quantities.\n");
-        find_hac_kappa(files, para, cpu_data, gpu_data, integrate);
+        find_hac_kappa(input_dir, para, cpu_data, gpu_data, integrate);
         CHECK(cudaFree(gpu_data->heat_all));
         printf("INFO:  HAC and related quantities are calculated.\n\n");
     }

@@ -36,7 +36,6 @@ void gpumd(char *input_dir)
 { 
     // Data structures:
     Parameters  para;
-    Files       files;
     CPU_Data    cpu_data;
     GPU_Data    gpu_data;
     Force       force;
@@ -44,10 +43,10 @@ void gpumd(char *input_dir)
     Measure     measure(input_dir);
 
     // initialize:
-    initialize(input_dir, &files, &para, &cpu_data, &gpu_data);
+    initialize(input_dir, &para, &cpu_data, &gpu_data);
     
     // run 
-    run_md(input_dir, &files, &para, &cpu_data, &gpu_data, &force, &integrate, &measure);
+    run_md(input_dir, &para, &cpu_data, &gpu_data, &force, &integrate, &measure);
 
     // finilize
     finalize(&cpu_data, &gpu_data);
