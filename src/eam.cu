@@ -334,7 +334,7 @@ __global__ void find_force_eam_step1
 
         if (cal_p)
         {
-            g_pe[n1] = F;
+            g_pe[n1] += F;
         }        
         g_Fp[n1] = Fp;   
     }
@@ -469,43 +469,43 @@ __global__ void find_force_eam_step2
                 int index_12 = g_fv_index[n1] * 12;
                 if (index_12 >= 0 && g_fv_index[n1 + N] == n2)
                 {
-                    g_fv[index_12 + 0]  = f12x;
-                    g_fv[index_12 + 1]  = f12y;
-                    g_fv[index_12 + 2]  = f12z;
-                    g_fv[index_12 + 3]  = f21x;
-                    g_fv[index_12 + 4]  = f21y;
-                    g_fv[index_12 + 5]  = f21z;
-                    g_fv[index_12 + 6]  = vx1;
-                    g_fv[index_12 + 7]  = vy1;
-                    g_fv[index_12 + 8]  = vz1;
-                    g_fv[index_12 + 9]  = LDG(g_vx, n2);
-                    g_fv[index_12 + 10] = LDG(g_vy, n2);
-                    g_fv[index_12 + 11] = LDG(g_vz, n2);
+                    g_fv[index_12 + 0]  += f12x;
+                    g_fv[index_12 + 1]  += f12y;
+                    g_fv[index_12 + 2]  += f12z;
+                    g_fv[index_12 + 3]  += f21x;
+                    g_fv[index_12 + 4]  += f21y;
+                    g_fv[index_12 + 5]  += f21z;
+                    g_fv[index_12 + 6]  += vx1;
+                    g_fv[index_12 + 7]  += vy1;
+                    g_fv[index_12 + 8]  += vz1;
+                    g_fv[index_12 + 9]  += LDG(g_vx, n2);
+                    g_fv[index_12 + 10] += LDG(g_vy, n2);
+                    g_fv[index_12 + 11] += LDG(g_vz, n2);
                 }  
             }
             
         }
 
         // save force
-        g_fx[n1] = s_fx[threadIdx.x]; 
-        g_fy[n1] = s_fy[threadIdx.x]; 
-        g_fz[n1] = s_fz[threadIdx.x];
+        g_fx[n1] += s_fx[threadIdx.x]; 
+        g_fy[n1] += s_fy[threadIdx.x]; 
+        g_fz[n1] += s_fz[threadIdx.x];
 
         if (cal_p) // save stress and potential
         {
-            g_sx[n1] = s1[threadIdx.x]; 
-            g_sy[n1] = s2[threadIdx.x]; 
-            g_sz[n1] = s3[threadIdx.x];
+            g_sx[n1] += s1[threadIdx.x]; 
+            g_sy[n1] += s2[threadIdx.x]; 
+            g_sz[n1] += s3[threadIdx.x];
             g_pe[n1] += s4[threadIdx.x]; // g_pe has embedding energy in it
         }
 
         if (cal_j) // save heat current
         {
-            g_h[n1 + 0 * N] = s1[threadIdx.x];
-            g_h[n1 + 1 * N] = s2[threadIdx.x];
-            g_h[n1 + 2 * N] = s3[threadIdx.x];
-            g_h[n1 + 3 * N] = s4[threadIdx.x];
-            g_h[n1 + 4 * N] = s5[threadIdx.x];
+            g_h[n1 + 0 * N] += s1[threadIdx.x];
+            g_h[n1 + 1 * N] += s2[threadIdx.x];
+            g_h[n1 + 2 * N] += s3[threadIdx.x];
+            g_h[n1 + 3 * N] += s4[threadIdx.x];
+            g_h[n1 + 4 * N] += s5[threadIdx.x];
         }
 
     }

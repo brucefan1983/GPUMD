@@ -426,7 +426,7 @@ static __global__ void gpu_find_force_sw3_partial
         }
         if (cal_p) // save potential
         {
-            g_potential[n1] = potential_energy;
+            g_potential[n1] += potential_energy;
         }
     }
 }   
@@ -561,18 +561,18 @@ static __global__ void gpu_find_force_sw3
                 int index_12 = g_fv_index[n1] * 12;
                 if (index_12 >= 0 && g_fv_index[n1 + number_of_particles] == n2)
                 {
-                    g_fv[index_12 + 0]  = f12x;
-                    g_fv[index_12 + 1]  = f12y;
-                    g_fv[index_12 + 2]  = f12z;
-                    g_fv[index_12 + 3]  = f21x;
-                    g_fv[index_12 + 4]  = f21y;
-                    g_fv[index_12 + 5]  = f21z;
-                    g_fv[index_12 + 6]  = vx1;
-                    g_fv[index_12 + 7]  = vy1;
-                    g_fv[index_12 + 8]  = vz1;
-                    g_fv[index_12 + 9]  = LDG(g_vx, n2);
-                    g_fv[index_12 + 10] = LDG(g_vy, n2);
-                    g_fv[index_12 + 11] = LDG(g_vz, n2);
+                    g_fv[index_12 + 0]  += f12x;
+                    g_fv[index_12 + 1]  += f12y;
+                    g_fv[index_12 + 2]  += f12z;
+                    g_fv[index_12 + 3]  += f21x;
+                    g_fv[index_12 + 4]  += f21y;
+                    g_fv[index_12 + 5]  += f21z;
+                    g_fv[index_12 + 6]  += vx1;
+                    g_fv[index_12 + 7]  += vy1;
+                    g_fv[index_12 + 8]  += vz1;
+                    g_fv[index_12 + 9]  += LDG(g_vx, n2);
+                    g_fv[index_12 + 10] += LDG(g_vy, n2);
+                    g_fv[index_12 + 11] += LDG(g_vz, n2);
                 }  
             }
         }
@@ -586,23 +586,23 @@ static __global__ void gpu_find_force_sw3
         }
 
         // save total force
-        g_fx[n1] = s_fx; 
-        g_fy[n1] = s_fy; 
-        g_fz[n1] = s_fz;  
+        g_fx[n1] += s_fx; 
+        g_fy[n1] += s_fy; 
+        g_fz[n1] += s_fz;  
 
         if (cal_p) // save virial
         {
-            g_sx[n1] = s1; 
-            g_sy[n1] = s2; 
-            g_sz[n1] = s3;
+            g_sx[n1] += s1; 
+            g_sy[n1] += s2; 
+            g_sz[n1] += s3;
         }
         if (cal_j || cal_k) // save heat current
         {
-            g_h[n1 + 0 * number_of_particles] = s1;
-            g_h[n1 + 1 * number_of_particles] = s2;
-            g_h[n1 + 2 * number_of_particles] = s3;
-            g_h[n1 + 3 * number_of_particles] = s4;
-            g_h[n1 + 4 * number_of_particles] = s5;
+            g_h[n1 + 0 * number_of_particles] += s1;
+            g_h[n1 + 1 * number_of_particles] += s2;
+            g_h[n1 + 2 * number_of_particles] += s3;
+            g_h[n1 + 3 * number_of_particles] += s4;
+            g_h[n1 + 4 * number_of_particles] += s5;
         }
     }
 }    
