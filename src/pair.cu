@@ -36,48 +36,6 @@
 
 
 
-// get U_ij and (d U_ij / d r_ij) / r_ij
-static __device__ void find_p2_and_f2
-(int type1, int type2, RI_Para ri, real d12sq, real &p2, real &f2)
-{
-    real a, b, c, qq; 
-    if (type1 == 0 && type2 == 0)
-    {
-        a  = ri.a11; 
-        b  = ri.b11; 
-        c  = ri.c11; 
-        qq = ri.qq11;
-    }
-    else if (type1 == 1 && type2 == 1)
-    {
-        a  = ri.a22; 
-        b  = ri.b22; 
-        c  = ri.c22; 
-        qq = ri.qq22;
-    }  
-    else 
-    {
-        a  = ri.a12; 
-        b  = ri.b12; 
-        c  = ri.c12; 
-        qq = ri.qq12;
-    }  
-
-    real d12         = sqrt(d12sq); 
-    real d12inv      = ONE / d12;   
-    real d12inv3     = d12inv * d12inv * d12inv; 
-    real exponential = exp(-d12 * b);     // b = 1/rho
-    real erfc_r = erfc(RI_ALPHA * d12) * d12inv;
-    p2 = a * exponential - c * d12inv3 * d12inv3;
-    p2 += qq * ( erfc_r - ri.v_rc - ri.dv_rc * (d12 - ri.cutoff) );
-    f2 = SIX*c*(d12inv3*d12inv3*d12inv) - a*exponential*b;
-    f2-=qq*(erfc_r*d12inv+RI_PI_FACTOR*d12inv*exp(-RI_ALPHA_SQ*d12sq)+ri.dv_rc);
-    f2 *= d12inv;
-}
-
-
-
-
 Pair::Pair(FILE *fid, Parameters *para, int potential_model_input)
 {
     potential_model = potential_model_input;
@@ -94,11 +52,11 @@ void Pair::initialize_lj1(FILE *fid)
     real epsilon, sigma, cutoff;
     int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
     if (count!=3) {print_error("reading error for potential.in.\n");exit(1);}
-    lj1_para.s6e24  = pow(sigma, 6.0)  * epsilon * 24.0;
-    lj1_para.s12e24 = pow(sigma, 12.0) * epsilon * 24.0;
-    lj1_para.s6e4   = pow(sigma, 6.0)  * epsilon * 4.0;
-    lj1_para.s12e4  = pow(sigma, 12.0) * epsilon * 4.0;
-    lj1_para.cutoff_square = cutoff * cutoff;
+    lj_para.s6e24[0][0]  = pow(sigma, 6.0)  * epsilon * 24.0;
+    lj_para.s12e24[0][0] = pow(sigma, 12.0) * epsilon * 24.0;
+    lj_para.s6e4[0][0]   = pow(sigma, 6.0)  * epsilon * 4.0;
+    lj_para.s12e4[0][0]  = pow(sigma, 12.0) * epsilon * 4.0;
+    lj_para.cutoff_square = cutoff * cutoff;
     // force cutoff
     rc = cutoff;
 }
@@ -151,14 +109,56 @@ Pair::~Pair(void)
 
 
 
-// get U_ij and (d U_ij / d r_ij) / r_ij
+// get U_ij and (d U_ij / d r_ij) / r_ij (the LJ potential)
 static __device__ void find_p2_and_f2
-(LJ1_Para lj, real d12sq, real &p2, real &f2)
+(real s6e24, real s12e24, real s6e4, real s12e4, real d12sq, real &p2, real &f2)
 {
     real d12inv2 = ONE / d12sq;
     real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
-    f2 = (lj.s6e24 * d12inv6 - lj.s12e24 * TWO * d12inv6 * d12inv6) * d12inv2; 
-    p2 = lj.s12e4 * d12inv6 * d12inv6 - lj.s6e4 * d12inv6;  
+    f2 = (s6e24 * d12inv6 - s12e24 * TWO * d12inv6 * d12inv6) * d12inv2; 
+    p2 = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;  
+}
+
+
+
+
+// get U_ij and (d U_ij / d r_ij) / r_ij (the RI potential)
+static __device__ void find_p2_and_f2
+(int type1, int type2, RI_Para ri, real d12sq, real &p2, real &f2)
+{
+    real a, b, c, qq; 
+    if (type1 == 0 && type2 == 0)
+    {
+        a  = ri.a11; 
+        b  = ri.b11; 
+        c  = ri.c11; 
+        qq = ri.qq11;
+    }
+    else if (type1 == 1 && type2 == 1)
+    {
+        a  = ri.a22; 
+        b  = ri.b22; 
+        c  = ri.c22; 
+        qq = ri.qq22;
+    }  
+    else 
+    {
+        a  = ri.a12; 
+        b  = ri.b12; 
+        c  = ri.c12; 
+        qq = ri.qq12;
+    }  
+
+    real d12         = sqrt(d12sq); 
+    real d12inv      = ONE / d12;   
+    real d12inv3     = d12inv * d12inv * d12inv; 
+    real exponential = exp(-d12 * b);     // b = 1/rho
+    real erfc_r = erfc(RI_ALPHA * d12) * d12inv;
+    p2 = a * exponential - c * d12inv3 * d12inv3;
+    p2 += qq * ( erfc_r - ri.v_rc - ri.dv_rc * (d12 - ri.cutoff) );
+    f2 = SIX*c*(d12inv3*d12inv3*d12inv) - a*exponential*b;
+    f2-=qq*(erfc_r*d12inv+RI_PI_FACTOR*d12inv*exp(-RI_ALPHA_SQ*d12sq)+ri.dv_rc);
+    f2 *= d12inv;
 }
 
 
@@ -168,7 +168,7 @@ static __device__ void find_p2_and_f2
 template <int potential_model, int cal_p, int cal_j, int cal_q>
 static __global__ void gpu_find_force
 (
-    LJ1_Para lj, RI_Para ri,
+    LJ_Para lj, RI_Para ri,
     int number_of_particles, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
@@ -236,7 +236,12 @@ static __global__ void gpu_find_force
             if (potential_model == 0)
             {
                 if (d12sq >= lj.cutoff_square) {continue;}
-                find_p2_and_f2(lj, d12sq, p2, f2);
+                find_p2_and_f2
+                (
+                    lj.s6e24[type1][type2], lj.s12e24[type1][type2], 
+                    lj.s6e4[type1][type2], lj.s12e4[type1][type2], 
+                    d12sq, p2, f2
+                );
             }
             if (potential_model == 1)
             {
@@ -366,7 +371,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         {
             gpu_find_force<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                lj1_para, ri_para,
+                lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -375,7 +380,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         {
             gpu_find_force<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                lj1_para, ri_para,
+                lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -384,7 +389,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         {
             gpu_find_force<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                lj1_para, ri_para,
+                lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -398,7 +403,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         {
             gpu_find_force<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                lj1_para, ri_para,
+                lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -407,7 +412,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         {
             gpu_find_force<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                lj1_para, ri_para,
+                lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -416,7 +421,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         {
             gpu_find_force<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                lj1_para, ri_para,
+                lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );

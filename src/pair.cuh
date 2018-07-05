@@ -14,8 +14,8 @@
 */
 
 
-#ifndef LJ1_H
-#define LJ1_H
+#ifndef PAIR_H
+#define PAIR_H
 
 
 
@@ -24,13 +24,15 @@
 
 
 
+#define MAX_TYPE 5 // do you want to have more than 5 atom types?
 
-struct LJ1_Para
+
+struct LJ_Para
 {
-    real s6e24;
-    real s12e24;
-    real s6e4;
-    real s12e4;
+    real s6e24[MAX_TYPE][MAX_TYPE];
+    real s12e24[MAX_TYPE][MAX_TYPE];
+    real s6e4[MAX_TYPE][MAX_TYPE];
+    real s12e4[MAX_TYPE][MAX_TYPE];
     real cutoff_square;
 };
 
@@ -59,7 +61,7 @@ public:
     void initialize_ri(FILE *fid);
 protected:
     int      potential_model; 
-    LJ1_Para lj1_para;
+    LJ_Para  lj_para;
     RI_Para  ri_para;
 };
 
