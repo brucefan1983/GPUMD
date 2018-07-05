@@ -55,6 +55,7 @@ static __global__ void find_group_temp
 (
     int  *g_group_size,
     int  *g_group_size_sum,
+    int  *g_group_contents,
     real *g_mass,
     real *g_vx,
     real *g_vy,
@@ -77,7 +78,7 @@ static __global__ void find_group_temp
         int k = tid + patch * 256;
         if (k < group_size)
         {
-            int n = offset + k; // particle index
+            int n = g_group_contents[offset + k]; // particle index
             real vx = g_vx[n];
             real vy = g_vy[n];
             real vz = g_vz[n];
@@ -114,12 +115,13 @@ void sample_block_temperature
             CHECK(cudaMalloc((void**)&temp_gpu, sizeof(real) * Ng));
             int  *group_size = gpu_data->group_size;
             int  *group_size_sum = gpu_data->group_size_sum;
+            int  *group_contents = gpu_data->group_contents;
             real *mass = gpu_data->mass;
             real *vx = gpu_data->vx;
             real *vy = gpu_data->vy;
             real *vz = gpu_data->vz;
             find_group_temp<<<Ng, 256>>>
-            (group_size, group_size_sum, mass, vx, vy, vz, temp_gpu);
+            (group_size, group_size_sum, group_contents, mass, vx, vy, vz, temp_gpu);
             #ifdef DEBUG
                 CHECK(cudaDeviceSynchronize());
                 CHECK(cudaGetLastError());

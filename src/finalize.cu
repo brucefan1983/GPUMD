@@ -33,6 +33,7 @@ void finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
     CHECK(cudaFree(gpu_data->label)); 
     CHECK(cudaFree(gpu_data->group_size)); 
     CHECK(cudaFree(gpu_data->group_size_sum));
+    CHECK(cudaFree(gpu_data->group_contents));
     CHECK(cudaFree(gpu_data->mass));
     CHECK(cudaFree(gpu_data->x0));  
     CHECK(cudaFree(gpu_data->y0));  
@@ -66,6 +67,7 @@ void finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
     MY_FREE(cpu_data->label);
     MY_FREE(cpu_data->group_size);
     MY_FREE(cpu_data->group_size_sum);
+    MY_FREE(cpu_data->group_contents);
     MY_FREE(cpu_data->mass);
     MY_FREE(cpu_data->x);
     MY_FREE(cpu_data->y);

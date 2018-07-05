@@ -316,6 +316,26 @@ static void initialize_position
             cpu_data->group_size_sum[m] += cpu_data->group_size[n];
         } 
     }
+
+    // determine the atom indices from the first to the last group
+    MY_MALLOC(cpu_data->group_contents, int, para->N);
+    int *offset;
+    MY_MALLOC(offset, int, para->number_of_groups);
+    for (int m = 0; m < para->number_of_groups; m++) offset[m] = 0;
+    for (int n = 0; n < para->N; n++) 
+    {
+        for (int m = 0; m < para->number_of_groups; m++)
+        {
+            if (cpu_data->label[n] == m)
+            {
+                cpu_data->group_contents[cpu_data->group_size_sum[m]+offset[m]] 
+                    = n;
+                offset[m]++;
+            }
+        }
+    }
+    free(offset);
+
     printf("INFO:  positions and related parameters initialized.\n\n");
 }
 
@@ -343,6 +363,7 @@ static void allocate_memory_gpu(Parameters *para, GPU_Data *gpu_data)
     CHECK(cudaMalloc((void**)&gpu_data->label, m1)); 
     CHECK(cudaMalloc((void**)&gpu_data->group_size, m3)); 
     CHECK(cudaMalloc((void**)&gpu_data->group_size_sum, m3));
+    CHECK(cudaMalloc((void**)&gpu_data->group_contents, m1));
 
     // for atoms
     CHECK(cudaMalloc((void**)&gpu_data->mass, m4));
@@ -395,6 +416,11 @@ static void copy_from_cpu_to_gpu
     cudaMemcpy
     (
         gpu_data->group_size_sum, cpu_data->group_size_sum, m2, 
+        cudaMemcpyHostToDevice
+    );
+    cudaMemcpy
+    (
+        gpu_data->group_contents, cpu_data->group_contents, m1, 
         cudaMemcpyHostToDevice
     );
 

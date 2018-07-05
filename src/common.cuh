@@ -254,6 +254,7 @@ typedef struct
 {
     int *NN; int *NL; int *fv_index; 
     int *type; int *label; int *group_size; int *group_size_sum;
+    int *group_contents;          // atom indices sorted based on groups
     real *mass; real *x; real *y; real *z; real *vx; real *vy; real *vz; 
     real *fx; real *fy; real *fz;   
     real *heat_per_atom;    // per-atom heat current
@@ -277,6 +278,7 @@ typedef struct
     int *label;                   // group label 
     int *group_size;              // # atoms in each group
     int *group_size_sum;          // # atoms in all previous groups
+    int *group_contents;          // atom indices sorted based on groups
     real *x0; real *y0; real *z0; // for determing when to update neighbor list
     real *mass;                   // per-atom mass
     real *x; real *y; real *z;    // per-atom position

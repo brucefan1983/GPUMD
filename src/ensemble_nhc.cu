@@ -266,6 +266,7 @@ static __global__ void find_vc_and_ke
 (
     int  *g_group_size,
     int  *g_group_size_sum,
+    int  *g_group_contents,
     real *g_mass, 
     real *g_vx, 
     real *g_vy, 
@@ -302,7 +303,7 @@ static __global__ void find_vc_and_ke
         int n = tid + patch * 512;
         if (n < group_size)
         {  
-            int index = offset + n;     
+            int index = g_group_contents[offset + n];     
             real mass = g_mass[index];
             real vx = g_vx[index];
             real vy = g_vy[index];
@@ -447,6 +448,7 @@ void Ensemble_NHC::integrate_heat_nhc
     real *fz   = gpu_data->fz;
     int *group_size = gpu_data->group_size;
     int *group_size_sum = gpu_data->group_size_sum;
+    int *group_contents = gpu_data->group_contents;
 
     int label_1 = source;
     int label_2 = sink;
@@ -470,7 +472,7 @@ void Ensemble_NHC::integrate_heat_nhc
 
     // NHC first
     find_vc_and_ke<<<Ng, 512>>>
-    (group_size, group_size_sum, mass, vx, vy, vz, vcx, vcy, vcz, ke);
+    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, vcx, vcy, vcz, ke);
     cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
 
     real factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
@@ -495,7 +497,7 @@ void Ensemble_NHC::integrate_heat_nhc
 
     // NHC second
     find_vc_and_ke<<<Ng, 512>>>
-    (group_size, group_size_sum, mass, vx, vy, vz, vcx, vcy, vcz, ke);
+    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, vcx, vcy, vcz, ke);
     cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
     factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
