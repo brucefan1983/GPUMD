@@ -20,20 +20,26 @@
 #define FORCE1_H
 
 
+#define MAX_NUM_OF_POTENTIALS 10
+
+
 class Potential;
 
 class Force
 {
 public:
-    Potential *potential;
+
     Force(void);      
     ~Force(void);
-    void initialize(Parameters*);
+    void initialize_one_potential(Parameters*, int);
+    void initialize(Parameters *para);
     void compute(Parameters*, GPU_Data*);
 
-    char file_potential[FILE_NAME_LENGTH];
-protected:
-    bool build_local_neighbor;
+    int num_of_potentials;
+    real rc_max;
+    char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
+    Potential *potential[MAX_NUM_OF_POTENTIALS];
+    bool build_local_neighbor[MAX_NUM_OF_POTENTIALS];
 };
 
 

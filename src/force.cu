@@ -32,8 +32,13 @@
 
 Force::Force(void)
 {
-    potential = NULL;
-    build_local_neighbor = false;
+    for (int m = 0; m < MAX_NUM_OF_POTENTIALS; m++)
+    {
+        potential[m] = NULL;
+        build_local_neighbor[m] = false;
+    }
+    num_of_potentials = 1;
+    rc_max = ZERO;
 }
 
 
@@ -41,17 +46,20 @@ Force::Force(void)
 
 Force::~Force(void)
 {
-    delete potential;
-    potential = NULL;
+    for (int m = 0; m < num_of_potentials; m++)
+    {
+        delete potential[m];
+        potential[m] = NULL;
+    }
 }
 
 
 
 
-void Force::initialize(Parameters *para)
+void Force::initialize_one_potential(Parameters *para, int m)
 {
     printf("INFO:  read in potential parameters.\n");
-    FILE *fid_potential = my_fopen(file_potential, "r");
+    FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
     int count = fscanf(fid_potential, "%s", potential_name);
     if (count != 1) 
@@ -63,63 +71,63 @@ void Force::initialize(Parameters *para)
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0) 
     { 
-         potential = new Tersoff2(fid_potential, para, 1);
-         build_local_neighbor = true;
+         potential[m] = new Tersoff2(fid_potential, para, 1);
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
     { 
-         potential = new Tersoff2(fid_potential, para, 2);
-         build_local_neighbor = true;
+         potential[m] = new Tersoff2(fid_potential, para, 2);
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "sw_1985") == 0) 
     { 
-         potential = new SW2(fid_potential, para, 1);
-         build_local_neighbor = true;
+         potential[m] = new SW2(fid_potential, para, 1);
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "sw_1985_2") == 0) 
     { 
-         potential = new SW2(fid_potential, para, 2);
-         build_local_neighbor = true;
+         potential[m] = new SW2(fid_potential, para, 2);
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "sw_1985_3") == 0) 
     { 
-         potential = new SW2(fid_potential, para, 3);
-         build_local_neighbor = true;
+         potential[m] = new SW2(fid_potential, para, 3);
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0) 
     { 
-         potential = new REBO_MOS(para);
-         build_local_neighbor = false;
+         potential[m] = new REBO_MOS(para);
+         build_local_neighbor[m] = false;
     }
     else if (strcmp(potential_name, "lj1") == 0) 
     { 
-         potential = new Pair(fid_potential, para, 0);
-         build_local_neighbor = false;
+         potential[m] = new Pair(fid_potential, para, 0);
+         build_local_neighbor[m] = false;
     }
     else if (strcmp(potential_name, "ri") == 0) 
     { 
-         potential = new Pair(fid_potential, para, 1);
-         build_local_neighbor = false;
+         potential[m] = new Pair(fid_potential, para, 1);
+         build_local_neighbor[m] = false;
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
-         potential = new EAM_Analytical(fid_potential, para, potential_name);
-         build_local_neighbor = true;
+         potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
-         potential = new EAM_Analytical(fid_potential, para, potential_name);
-         build_local_neighbor = true;
+         potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "vashishta") == 0) 
     { 
-         potential = new Vashishta(fid_potential, para, 0);
-         build_local_neighbor = false;
+         potential[m] = new Vashishta(fid_potential, para, 0);
+         build_local_neighbor[m] = false;
     }
     else if (strcmp(potential_name, "vashishta_table") == 0) 
     { 
-         potential = new Vashishta(fid_potential, para, 1);
-         build_local_neighbor = false;
+         potential[m] = new Vashishta(fid_potential, para, 1);
+         build_local_neighbor[m] = false;
     }
     else    
     { 
@@ -129,6 +137,18 @@ void Force::initialize(Parameters *para)
 
     fclose(fid_potential);
     printf("INFO:  potential parameters initialized.\n\n");
+}
+
+
+
+
+void Force::initialize(Parameters *para)
+{
+    for (int m = 0; m < num_of_potentials; m++)
+    {
+        initialize_one_potential(para, m);
+        if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
+    }
 }
 
 
@@ -230,12 +250,15 @@ static void find_neighbor_local(Parameters *para, GPU_Data *gpu_data, real rc2)
 
 void Force::compute(Parameters *para, GPU_Data *gpu_data)
 {
-    if (build_local_neighbor) 
-    { 
-        real cutoff_square = potential->rc * potential->rc;
-        find_neighbor_local(para, gpu_data, cutoff_square); 
+    for (int m = 0; m < num_of_potentials; m++)
+    {
+        if (build_local_neighbor[m]) 
+        { 
+            real cutoff_square = potential[m]->rc * potential[m]->rc;
+            find_neighbor_local(para, gpu_data, cutoff_square); 
+        }
+        potential[m]->compute(para, gpu_data);
     }
-    potential->compute(para, gpu_data);
 }
 
 

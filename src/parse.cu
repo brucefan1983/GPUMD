@@ -19,7 +19,6 @@
 #include "common.cuh"
 #include "parse.cuh"
 #include "force.cuh"
-#include "potential.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "measure.cuh"
@@ -77,7 +76,7 @@ static void parse_potential(char **param, int num_param, Force *force)
     {
         print_error("potential should have 1 parameter.\n");
     }
-    strcpy(force->file_potential, param[1]);
+    strcpy(force->file_potential[0], param[1]);
 }
 
 
@@ -341,7 +340,7 @@ static void parse_neighbor
     ("INPUT: build neighbor list with a skin of %g A.\n", para->neighbor.skin);
 
     // change the cutoff
-    para->neighbor.rc = force->potential->rc + para->neighbor.skin;
+    para->neighbor.rc = force->rc_max + para->neighbor.skin;
 }
 
 
