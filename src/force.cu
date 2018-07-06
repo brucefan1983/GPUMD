@@ -25,7 +25,7 @@
 #include "sw.cuh"
 #include "pair.cuh"
 #include "eam.cuh"
-#include "mic_template.cuh"
+#include "mic.cuh"
 
 
 
@@ -155,9 +155,9 @@ void Force::initialize(Parameters *para)
 
 
 // Construct the local neighbor list from the global one (Kernel)
-template <int pbc_x, int pbc_y, int pbc_z>
 static __global__ void gpu_find_neighbor_local
 (
+    int pbc_x, int pbc_y, int pbc_z, 
     int N, real cutoff_square, real *box_length,
     int *NN, int *NL, int *NN_local, int *NL_local, 
 #ifdef USE_LDG
@@ -187,7 +187,7 @@ static __global__ void gpu_find_neighbor_local
             real x12  = LDG(x, n2) - x1;
             real y12  = LDG(y, n2) - y1;
             real z12  = LDG(z, n2) - z1;
-            dev_apply_mic<pbc_x, pbc_y, pbc_z>(lx, ly, lz, &x12, &y12, &z12);
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
             real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
             {        
@@ -219,30 +219,8 @@ static void find_neighbor_local(Parameters *para, GPU_Data *gpu_data, real rc2)
     real *z = gpu_data->z;
     real *box = gpu_data->box_length;
       
-    if (pbc_x && pbc_y && pbc_z)
-        gpu_find_neighbor_local<1,1,1><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    if (pbc_x && pbc_y && !pbc_z)
-        gpu_find_neighbor_local<1,1,0><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    if (pbc_x && !pbc_y && pbc_z)
-        gpu_find_neighbor_local<1,0,1><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    if (!pbc_x && pbc_y && pbc_z)
-        gpu_find_neighbor_local<0,1,1><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    if (pbc_x && !pbc_y && !pbc_z)
-        gpu_find_neighbor_local<1,0,0><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    if (!pbc_x && pbc_y && !pbc_z)
-        gpu_find_neighbor_local<0,1,0><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    if (!pbc_x && !pbc_y && pbc_z)
-        gpu_find_neighbor_local<0,0,1><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    if (!pbc_x && !pbc_y && !pbc_z)
-        gpu_find_neighbor_local<0,0,0><<<grid_size, BLOCK_SIZE>>>
-        (N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);  
+    gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
+    (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
 }
 
 
