@@ -92,7 +92,7 @@ void Force::initialize_one_potential(Parameters *para, int m)
     else if (strcmp(potential_name, "sw_1985_3") == 0) 
     { 
          potential[m] = new SW2(fid_potential, para, 3);
-         build_local_neighbor[m] = false;
+         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0) 
     { 
