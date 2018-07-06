@@ -340,8 +340,8 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-    int *NN = gpu_data->NN; 
-    int *NL = gpu_data->NL;
+    int *NN = gpu_data->NN_local;
+    int *NL = gpu_data->NL_local;
     int *type = gpu_data->type;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 

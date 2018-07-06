@@ -296,8 +296,11 @@
 
 REBO_MOS::REBO_MOS(Parameters *para)
 {
+    int num = ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
     int memory1 = sizeof(real) * para->N;
-    int memory2 = memory1 * ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
+    int memory2 = sizeof(real) * para->N * num;
+    int memory3 = sizeof(int) * para->N;
+    int memory4 = sizeof(int) * para->N * num;
     CHECK(cudaMalloc((void**)&rebo_mos_data.p,    memory1));
     CHECK(cudaMalloc((void**)&rebo_mos_data.pp,   memory1));
     CHECK(cudaMalloc((void**)&rebo_mos_data.b,    memory2));
@@ -305,6 +308,8 @@ REBO_MOS::REBO_MOS(Parameters *para)
     CHECK(cudaMalloc((void**)&rebo_mos_data.f12x, memory2));
     CHECK(cudaMalloc((void**)&rebo_mos_data.f12y, memory2));
     CHECK(cudaMalloc((void**)&rebo_mos_data.f12z, memory2));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.NN_short, memory3));
+    CHECK(cudaMalloc((void**)&rebo_mos_data.NL_short, memory4));
 
     printf("INPUT: use the potential in [PRB 79, 245110 (2009)].\n");
     rc = 10.5;
@@ -322,6 +327,8 @@ REBO_MOS::~REBO_MOS(void)
     cudaFree(rebo_mos_data.f12x);
     cudaFree(rebo_mos_data.f12y);
     cudaFree(rebo_mos_data.f12z);
+    cudaFree(rebo_mos_data.NN_short);
+    cudaFree(rebo_mos_data.NL_short);
 }
 
 
@@ -1287,10 +1294,12 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-    int *NN = gpu_data->NN;             // for 2-body
-    int *NL = gpu_data->NL;             // for 2-body
-    int *NN_local = gpu_data->NN_local; // for 3-body
-    int *NL_local = gpu_data->NL_local; // for 3-body
+
+    int *NN = gpu_data->NN_local;             // for 2-body
+    int *NL = gpu_data->NL_local;             // for 2-body
+    int *NN_local = rebo_mos_data.NN_short; // for 3-body
+    int *NL_local = rebo_mos_data.NL_short; // for 3-body
+
     int *type = gpu_data->type;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 

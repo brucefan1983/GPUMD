@@ -237,11 +237,15 @@ Vashishta::Vashishta(FILE *fid, Parameters *para, int use_table_input)
     if (use_table == 0) initialize_0(fid);
     if (use_table == 1) initialize_1(fid);
 
-    int memory = sizeof(real) * para->N;
-    memory *= ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
+    int num = ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
+    int memory = sizeof(real) * para->N * num;
     CHECK(cudaMalloc((void**)&vashishta_data.f12x, memory));
     CHECK(cudaMalloc((void**)&vashishta_data.f12y, memory));
     CHECK(cudaMalloc((void**)&vashishta_data.f12z, memory));
+    memory = sizeof(int) * para->N;
+    CHECK(cudaMalloc((void**)&vashishta_data.NN_short, memory));
+    memory = sizeof(int) * para->N * num;
+    CHECK(cudaMalloc((void**)&vashishta_data.NL_short, memory));
 }
 
 
@@ -250,10 +254,12 @@ Vashishta::Vashishta(FILE *fid, Parameters *para, int use_table_input)
 
 Vashishta::~Vashishta(void)
 {
-    cudaFree(vashishta_data.table);
+    if (use_table) cudaFree(vashishta_data.table);
     cudaFree(vashishta_data.f12x);
     cudaFree(vashishta_data.f12y);
     cudaFree(vashishta_data.f12z);
+    cudaFree(vashishta_data.NN_short);
+    cudaFree(vashishta_data.NL_short);
 }
 
 
@@ -764,10 +770,10 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-    int *NN = gpu_data->NN;             // for 2-body
-    int *NL = gpu_data->NL;             // for 2-body
-    int *NN_local = gpu_data->NN_local; // for 3-body
-    int *NL_local = gpu_data->NL_local; // for 3-body
+    int *NN = gpu_data->NN_local;             // for 2-body
+    int *NL = gpu_data->NL_local;             // for 2-body
+    int *NN_local = vashishta_data.NN_short;  // for 3-body
+    int *NL_local = vashishta_data.NL_short;  // for 3-body
     int *type = gpu_data->type;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 

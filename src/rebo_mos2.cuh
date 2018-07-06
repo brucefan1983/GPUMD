@@ -36,6 +36,8 @@ struct REBO_MOS_Data
     real *f12x;  // partial forces
     real *f12y;
     real *f12z;
+    int *NN_short; // for many-body part
+    int *NL_short; // for many-body part
 };
 
 

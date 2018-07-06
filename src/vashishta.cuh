@@ -35,7 +35,6 @@ struct Vashishta_Para
     real rmin;
     real scale;
     int N;
-    real *table;
 };
 
 
@@ -47,6 +46,8 @@ struct Vashishta_Data
     real *f12x;  // partial forces
     real *f12y;
     real *f12z;
+    int *NN_short; // for three-body part
+    int *NL_short; // for three-body part
 };
 
 
