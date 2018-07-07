@@ -39,7 +39,6 @@ public:
     real rc_max;
     char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
     Potential *potential[MAX_NUM_OF_POTENTIALS];
-    bool build_local_neighbor[MAX_NUM_OF_POTENTIALS];
 };
 
 

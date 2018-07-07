@@ -35,7 +35,6 @@ Force::Force(void)
     for (int m = 0; m < MAX_NUM_OF_POTENTIALS; m++)
     {
         potential[m] = NULL;
-        build_local_neighbor[m] = false;
     }
     num_of_potentials = 1;
     rc_max = ZERO;
@@ -72,62 +71,50 @@ void Force::initialize_one_potential(Parameters *para, int m)
     if (strcmp(potential_name, "tersoff_1989_1") == 0) 
     { 
          potential[m] = new Tersoff2(fid_potential, para, 1);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
     { 
          potential[m] = new Tersoff2(fid_potential, para, 2);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "sw_1985") == 0) 
     { 
          potential[m] = new SW2(fid_potential, para, 1);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "sw_1985_2") == 0) 
     { 
          potential[m] = new SW2(fid_potential, para, 2);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "sw_1985_3") == 0) 
     { 
          potential[m] = new SW2(fid_potential, para, 3);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0) 
     { 
          potential[m] = new REBO_MOS(para);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "lj1") == 0) 
     { 
          potential[m] = new Pair(fid_potential, para, 0);
-         build_local_neighbor[m] = false;
     }
     else if (strcmp(potential_name, "ri") == 0) 
     { 
          potential[m] = new Pair(fid_potential, para, 1);
-         build_local_neighbor[m] = false;
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
          potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
          potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "vashishta") == 0) 
     { 
          potential[m] = new Vashishta(fid_potential, para, 0);
-         build_local_neighbor[m] = true;
     }
     else if (strcmp(potential_name, "vashishta_table") == 0) 
     { 
          potential[m] = new Vashishta(fid_potential, para, 1);
-         build_local_neighbor[m] = true;
     }
     else    
     { 
@@ -202,30 +189,9 @@ static __global__ void gpu_find_neighbor_local
 
 
 
-// Copy the local neighbor list from the global one (Kernel)
-static __global__ void gpu_copy_neighbor_local
-(int N, int *NN, int *NL, int *NN_local, int *NL_local)
-{
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n1 < N)
-    {  
-        int neighbor_number = NN[n1]; 
-        for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {   
-            int index = n1 + N * i1;
-            NL_local[index] = NL[index];
-        }
-        NN_local[n1] = neighbor_number;
-    }
-}
-
-
-
-
 // Construct the local neighbor list from the global one (Wrapper)
 static void find_neighbor_local
-(Parameters *para, GPU_Data *gpu_data, real rc2, int build)
+(Parameters *para, GPU_Data *gpu_data, real rc2)
 {  
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -241,16 +207,8 @@ static void find_neighbor_local
     real *z = gpu_data->z;
     real *box = gpu_data->box_length;
       
-    if (build)
-    {
-        gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
-        (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
-    }
-    else
-    {
-        gpu_copy_neighbor_local<<<grid_size, BLOCK_SIZE>>>
-        (N, NN, NL, NN_local, NL_local);
-    }
+    gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
+    (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
 }
 
 
@@ -304,8 +262,7 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data)
     for (int m = 0; m < num_of_potentials; m++)
     {
         real cutoff_square = potential[m]->rc * potential[m]->rc;
-        find_neighbor_local
-        (para, gpu_data, cutoff_square, build_local_neighbor[m]); 
+        find_neighbor_local(para, gpu_data, cutoff_square); 
         potential[m]->compute(para, gpu_data);
     }
 
