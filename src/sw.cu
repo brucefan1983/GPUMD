@@ -197,7 +197,7 @@ static __device__ void find_p2_and_f2
 template <int cal_p>
 static __global__ void gpu_find_force_sw3_partial 
 (
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -210,8 +210,8 @@ static __global__ void gpu_find_force_sw3_partial
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z 
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
-    if (n1 < number_of_particles)
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+    if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
@@ -311,7 +311,7 @@ static __global__ void gpu_find_force_sw3_partial
 template <int cal_p>
 static __global__ void gpu_find_force_sw3_partial 
 (
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -324,8 +324,8 @@ static __global__ void gpu_find_force_sw3_partial
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z 
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
-    if (n1 < number_of_particles)
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+    if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
@@ -440,7 +440,7 @@ template <int cal_p, int cal_j, int cal_q, int cal_k>
 static __global__ void gpu_find_force_sw3 
 (
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_f12x, 
@@ -461,7 +461,7 @@ static __global__ void gpu_find_force_sw3
     real *g_h, int *g_label, int *g_fv_index, real *g_fv 
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
     real s_fx = ZERO;
     real s_fy = ZERO;
@@ -479,7 +479,7 @@ static __global__ void gpu_find_force_sw3
     real s4 = ZERO;
     real s5 = ZERO;
 
-    if (n1 < number_of_particles)
+    if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
@@ -614,7 +614,7 @@ static __global__ void gpu_find_force_sw3
 void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 {
     int N = para->N;
-    int grid_size = (N - 1) / BLOCK_SIZE_SW + 1;
+    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
@@ -653,13 +653,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     {
         gpu_find_force_sw3_partial<0><<<grid_size, BLOCK_SIZE_SW>>> 
         (
-            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
         gpu_find_force_sw3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -668,13 +668,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     {
         gpu_find_force_sw3_partial<0><<<grid_size, BLOCK_SIZE_SW>>> 
         (
-            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
         gpu_find_force_sw3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -689,13 +689,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     {
         gpu_find_force_sw3_partial<0><<<grid_size, BLOCK_SIZE_SW>>> 
         (
-            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
         gpu_find_force_sw3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -704,13 +704,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     {
         gpu_find_force_sw3_partial<1><<<grid_size, BLOCK_SIZE_SW>>> 
         (
-            N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
         gpu_find_force_sw3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );

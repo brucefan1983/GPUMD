@@ -278,7 +278,7 @@ template <int potential_model, int cal_p>
 __global__ void find_force_eam_step1
 (
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai, 
-    int N, int pbc_x, int pbc_y, int pbc_z, int* g_NN, int* g_NL,
+    int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, int* g_NN, int* g_NL,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
@@ -290,9 +290,9 @@ __global__ void find_force_eam_step1
     real* g_Fp, real* g_pe 
 )
 { 
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
     
-    if (n1 < N)
+    if (n1 >= N1 && n1 < N2)
     {
            
         real lx = LDG(g_box, 0);
@@ -348,7 +348,7 @@ template <int potential_model, int cal_p, int cal_j, int cal_q>
 __global__ void find_force_eam_step2
 (
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
-    int N, int pbc_x, int pbc_y, int pbc_z, int *g_NN, int *g_NL,
+    int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, int *g_NN, int *g_NL,
 #ifdef USE_LDG
     const real* __restrict__ g_Fp, 
     const real* __restrict__ g_x, 
@@ -367,7 +367,7 @@ __global__ void find_force_eam_step2
     real *g_h, int *g_label, int *g_fv_index, real *g_fv 
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     __shared__ real s_fx[BLOCK_SIZE_FORCE];
     __shared__ real s_fy[BLOCK_SIZE_FORCE];
     __shared__ real s_fz[BLOCK_SIZE_FORCE];
@@ -389,7 +389,7 @@ __global__ void find_force_eam_step2
     s4[threadIdx.x] = ZERO;
     s5[threadIdx.x] = ZERO;
 
-    if (n1 < N)
+    if (n1 >= N1 && n1 < N2)
     {
            
         real lx = LDG(g_box, 0);
@@ -518,7 +518,7 @@ __global__ void find_force_eam_step2
 void EAM_Analytical::compute(Parameters *para, GPU_Data *gpu_data)
 {
     int N = para->N;
-    int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
+    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
@@ -553,13 +553,13 @@ void EAM_Analytical::compute(Parameters *para, GPU_Data *gpu_data)
             find_force_eam_step1<0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
             );
         
             find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
         }
@@ -568,13 +568,13 @@ void EAM_Analytical::compute(Parameters *para, GPU_Data *gpu_data)
             find_force_eam_step1<0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
             );
         
             find_force_eam_step2<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, 
-                N, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
         }
@@ -583,13 +583,13 @@ void EAM_Analytical::compute(Parameters *para, GPU_Data *gpu_data)
             find_force_eam_step1<0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
             );
         
             find_force_eam_step2<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
         }
@@ -602,13 +602,13 @@ void EAM_Analytical::compute(Parameters *para, GPU_Data *gpu_data)
             find_force_eam_step1<1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
             );
         
             find_force_eam_step2<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
         }
@@ -617,13 +617,13 @@ void EAM_Analytical::compute(Parameters *para, GPU_Data *gpu_data)
             find_force_eam_step1<1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
             );
         
             find_force_eam_step2<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, 
-                N, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
         }
@@ -632,13 +632,13 @@ void EAM_Analytical::compute(Parameters *para, GPU_Data *gpu_data)
             find_force_eam_step1<1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, x, y, z, box_length, Fp, pe
             );
         
             find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
         }

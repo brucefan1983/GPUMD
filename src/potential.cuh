@@ -25,6 +25,7 @@
 class Potential 
 {
 public:
+    int N1; int N2;
     real rc; // maxium cutoff distance 
     Potential(void);      
     virtual ~Potential(void);

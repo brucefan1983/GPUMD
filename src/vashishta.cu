@@ -326,7 +326,7 @@ static __device__ void find_p2_and_f2
 template <int use_table, int cal_p, int cal_j, int cal_q>
 static __global__ void gpu_find_force_vashishta_2body
 (
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z, 
+    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
     Vashishta_Para vas,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local, int *g_type,
 #ifdef USE_LDG
@@ -346,7 +346,7 @@ static __global__ void gpu_find_force_vashishta_2body
     real *g_h, int *g_label, int *g_fv_index, real *g_fv 
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
     real s_fx = ZERO; 
     real s_fy = ZERO; 
@@ -358,7 +358,7 @@ static __global__ void gpu_find_force_vashishta_2body
     real s4 = ZERO;
     real s5 = ZERO; 
 
-    if (n1 < number_of_particles)
+    if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1];
@@ -515,7 +515,7 @@ static __global__ void gpu_find_force_vashishta_2body
 template <int cal_p>
 static __global__ void gpu_find_force_vashishta_partial
 (
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z, 
+    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
     Vashishta_Para vas,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
@@ -529,8 +529,8 @@ static __global__ void gpu_find_force_vashishta_partial
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z  
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
-    if (n1 < number_of_particles)
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+    if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
@@ -615,7 +615,7 @@ static __global__ void gpu_find_force_vashishta_partial
 template <int cal_p, int cal_j, int cal_q>
 static __global__ void gpu_find_force_vashishta_3body
 (
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z, 
+    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
     Vashishta_Para vas,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
@@ -638,7 +638,7 @@ static __global__ void gpu_find_force_vashishta_3body
     real *g_h, int *g_label, int *g_fv_index, real *g_fv 
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
     real s_fx = ZERO;
     real s_fy = ZERO;
     real s_fz = ZERO;
@@ -650,7 +650,7 @@ static __global__ void gpu_find_force_vashishta_3body
     real s4 = ZERO;
     real s5 = ZERO;
 
-    if (n1 < number_of_particles)
+    if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
         real x1 = LDG(g_x, n1); 
@@ -766,7 +766,7 @@ static __global__ void gpu_find_force_vashishta_3body
 void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
 {
     int N = para->N;
-    int grid_size = (N - 1) / BLOCK_SIZE_VASHISHTA + 1;
+    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
@@ -807,7 +807,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<0, 0, 1, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -817,7 +817,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<1, 0, 1, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -826,14 +826,14 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         gpu_find_force_vashishta_partial<0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
         gpu_find_force_vashishta_3body<0, 1, 0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -845,7 +845,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<0, 0, 0, 1>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -855,7 +855,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<1, 0, 0, 1>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -864,14 +864,14 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         gpu_find_force_vashishta_partial<0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
         gpu_find_force_vashishta_3body<0, 0, 1>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -883,7 +883,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<0, 1, 0, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -893,7 +893,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<1, 1, 0, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -902,14 +902,14 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         gpu_find_force_vashishta_partial<1>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
             x, y, z, box_length, pe, f12x, f12y, f12z 
         );
 
         gpu_find_force_vashishta_3body<1, 0, 0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );  

@@ -70,73 +70,76 @@ void Force::initialize_one_potential(Parameters *para, int m)
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0) 
     { 
-         potential[m] = new Tersoff2(fid_potential, para, 1);
+        potential[m] = new Tersoff2(fid_potential, para, 1);
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
     { 
-         potential[m] = new Tersoff2(fid_potential, para, 2);
+        potential[m] = new Tersoff2(fid_potential, para, 2);
     }
     else if (strcmp(potential_name, "sw_1985") == 0) 
     { 
-         potential[m] = new SW2(fid_potential, para, 1);
+        potential[m] = new SW2(fid_potential, para, 1);
     }
     else if (strcmp(potential_name, "sw_1985_2") == 0) 
     { 
-         potential[m] = new SW2(fid_potential, para, 2);
+        potential[m] = new SW2(fid_potential, para, 2);
     }
     else if (strcmp(potential_name, "sw_1985_3") == 0) 
     { 
-         potential[m] = new SW2(fid_potential, para, 3);
+        potential[m] = new SW2(fid_potential, para, 3);
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0) 
     { 
-         potential[m] = new REBO_MOS(para);
+        potential[m] = new REBO_MOS(para);
     }
     else if (strcmp(potential_name, "lj1") == 0)
     { 
-         potential[m] = new Pair(fid_potential, para, 1);
+        potential[m] = new Pair(fid_potential, para, 1);
     }
     else if (strcmp(potential_name, "lj2") == 0)
     { 
-         potential[m] = new Pair(fid_potential, para, 2);
+        potential[m] = new Pair(fid_potential, para, 2);
     }
     else if (strcmp(potential_name, "lj3") == 0)
     { 
-         potential[m] = new Pair(fid_potential, para, 3);
+        potential[m] = new Pair(fid_potential, para, 3);
     }
     else if (strcmp(potential_name, "lj4") == 0)
     { 
-         potential[m] = new Pair(fid_potential, para, 4);
+        potential[m] = new Pair(fid_potential, para, 4);
     }
     else if (strcmp(potential_name, "lj5") == 0)
     { 
-         potential[m] = new Pair(fid_potential, para, 5);
+        potential[m] = new Pair(fid_potential, para, 5);
     }
     else if (strcmp(potential_name, "ri") == 0)
     { 
-         potential[m] = new Pair(fid_potential, para, 0);
+        potential[m] = new Pair(fid_potential, para, 0);
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
-         potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
-         potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
     }
     else if (strcmp(potential_name, "vashishta") == 0) 
     { 
-         potential[m] = new Vashishta(fid_potential, para, 0);
+        potential[m] = new Vashishta(fid_potential, para, 0);
     }
     else if (strcmp(potential_name, "vashishta_table") == 0) 
     { 
-         potential[m] = new Vashishta(fid_potential, para, 1);
+        potential[m] = new Vashishta(fid_potential, para, 1);
     }
     else    
     { 
         print_error("illegal potential model.\n"); 
         exit(1); 
     }
+
+    potential[m]->N1 = 0;
+    potential[m]->N2 = para->N;
 
     fclose(fid_potential);
     printf("INFO:  potential parameters initialized.\n\n");
