@@ -29,11 +29,9 @@
 
 struct LJ_Para
 {
-    real s6e24[MAX_TYPE][MAX_TYPE];
-    real s12e24[MAX_TYPE][MAX_TYPE];
     real s6e4[MAX_TYPE][MAX_TYPE];
     real s12e4[MAX_TYPE][MAX_TYPE];
-    real cutoff_square;
+    real cutoff_square[MAX_TYPE][MAX_TYPE];
 };
 
 
@@ -57,7 +55,7 @@ public:
     Pair(FILE*, Parameters*, int potential_model);
     virtual ~Pair(void);
     virtual void compute(Parameters*, GPU_Data*);
-    void initialize_lj1(FILE *fid);
+    void initialize_lj(FILE *fid, int);
     void initialize_ri(FILE *fid);
 protected:
     int      potential_model; 

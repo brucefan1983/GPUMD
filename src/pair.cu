@@ -39,26 +39,32 @@
 Pair::Pair(FILE *fid, Parameters *para, int potential_model_input)
 {
     potential_model = potential_model_input;
-    if (potential_model == 0) initialize_lj1(fid);
-    if (potential_model == 1) initialize_ri(fid);
+    if (potential_model == 0) initialize_ri(fid);
+    if (potential_model >= 1 && potential_model <= 5) 
+        initialize_lj(fid, potential_model);
 }
 
 
 
 
-void Pair::initialize_lj1(FILE *fid)
+void Pair::initialize_lj(FILE *fid, int N)
 {
-    printf("INPUT: use single-element LJ potential.\n");
+    printf("INPUT: use %d-element LJ potential.\n", N);
     real epsilon, sigma, cutoff;
-    int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
-    if (count!=3) {print_error("reading error for potential.in.\n");exit(1);}
-    lj_para.s6e24[0][0]  = pow(sigma, 6.0)  * epsilon * 24.0;
-    lj_para.s12e24[0][0] = pow(sigma, 12.0) * epsilon * 24.0;
-    lj_para.s6e4[0][0]   = pow(sigma, 6.0)  * epsilon * 4.0;
-    lj_para.s12e4[0][0]  = pow(sigma, 12.0) * epsilon * 4.0;
-    lj_para.cutoff_square = cutoff * cutoff;
-    // force cutoff
-    rc = cutoff;
+    rc = 0.0;
+    for (int n = 0; n < N; n++)
+    {
+        for (int m = 0; m < N; m++)
+        {
+            int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
+            if (count!=3) 
+            {print_error("reading error for potential file.\n");exit(1);}
+            lj_para.s6e4[n][m]   = pow(sigma, 6.0)  * epsilon * 4.0;
+            lj_para.s12e4[n][m]  = pow(sigma, 12.0) * epsilon * 4.0;
+            lj_para.cutoff_square[n][m] = cutoff * cutoff;
+            if (rc < cutoff) rc = cutoff;
+        }
+    }
 }
 
 
@@ -111,11 +117,11 @@ Pair::~Pair(void)
 
 // get U_ij and (d U_ij / d r_ij) / r_ij (the LJ potential)
 static __device__ void find_p2_and_f2
-(real s6e24, real s12e24, real s6e4, real s12e4, real d12sq, real &p2, real &f2)
+(real s6e4, real s12e4, real d12sq, real &p2, real &f2)
 {
     real d12inv2 = ONE / d12sq;
     real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
-    f2 = (s6e24 * d12inv6 - s12e24 * TWO * d12inv6 * d12inv6) * d12inv2; 
+    f2 = SIX * (s6e4 * d12inv6 - s12e4 * TWO * d12inv6 * d12inv6) * d12inv2; 
     p2 = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;  
 }
 
@@ -233,21 +239,21 @@ static __global__ void gpu_find_force
             real d12sq = x12 * x12 + y12 * y12 + z12 * z12;
 
             real p2, f2;
+
+            // RI
             if (potential_model == 0)
-            {
-                if (d12sq >= lj.cutoff_square) {continue;}
-                find_p2_and_f2
-                (
-                    lj.s6e24[type1][type2], lj.s12e24[type1][type2], 
-                    lj.s6e4[type1][type2], lj.s12e4[type1][type2], 
-                    d12sq, p2, f2
-                );
-            }
-            if (potential_model == 1)
             {
                 if (d12sq >= ri.cutoff * ri.cutoff) {continue;}
                 find_p2_and_f2(type1, type2, ri, d12sq, p2, f2);
             } 
+
+            // LJ1-LJ5
+            if (potential_model >= 1 && potential_model <= 5)
+            {
+                if (d12sq >= lj.cutoff_square[type1][type2]) {continue;}
+                find_p2_and_f2
+                (lj.s6e4[type1][type2], lj.s12e4[type1][type2], d12sq, p2, f2);
+            }
 
             // treat two-body potential in the same way as many-body potential
             real f12x = f2 * x12 * HALF; 
@@ -364,7 +370,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     real *fv = gpu_data->fv;
 
 
-    if (potential_model == 0)
+    if (potential_model == 0) // RI
     {
            
         if (para->hac.compute)    
@@ -396,7 +402,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
     }
 
-    if (potential_model == 1)
+    if (potential_model == 1) // LJ1
     {
            
         if (para->hac.compute)    
@@ -428,7 +434,135 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
     }
 
-    #ifdef DEGUG
+    if (potential_model == 2) // LJ2
+    {
+           
+        if (para->hac.compute)    
+        {
+            gpu_find_force<2, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else if (para->shc.compute)
+        {
+            gpu_find_force<2, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else
+        {
+            gpu_find_force<2, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+    }
+
+    if (potential_model == 3) // LJ3
+    {
+           
+        if (para->hac.compute)    
+        {
+            gpu_find_force<3, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else if (para->shc.compute)
+        {
+            gpu_find_force<3, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else
+        {
+            gpu_find_force<3, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+    }
+
+    if (potential_model == 4) // LJ4
+    {
+           
+        if (para->hac.compute)    
+        {
+            gpu_find_force<4, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else if (para->shc.compute)
+        {
+            gpu_find_force<4, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else
+        {
+            gpu_find_force<4, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+    }
+
+    if (potential_model == 5) // LJ5
+    {
+           
+        if (para->hac.compute)    
+        {
+            gpu_find_force<5, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else if (para->shc.compute)
+        {
+            gpu_find_force<5, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else
+        {
+            gpu_find_force<5, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                lj_para, ri_para,
+                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
+                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+    }
+
+    #ifdef DEBUG
         CHECK(cudaDeviceSynchronize());
         CHECK(cudaGetLastError());
     #endif

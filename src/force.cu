@@ -92,13 +92,29 @@ void Force::initialize_one_potential(Parameters *para, int m)
     { 
          potential[m] = new REBO_MOS(para);
     }
-    else if (strcmp(potential_name, "lj1") == 0) 
-    { 
-         potential[m] = new Pair(fid_potential, para, 0);
-    }
-    else if (strcmp(potential_name, "ri") == 0) 
+    else if (strcmp(potential_name, "lj1") == 0)
     { 
          potential[m] = new Pair(fid_potential, para, 1);
+    }
+    else if (strcmp(potential_name, "lj2") == 0)
+    { 
+         potential[m] = new Pair(fid_potential, para, 2);
+    }
+    else if (strcmp(potential_name, "lj3") == 0)
+    { 
+         potential[m] = new Pair(fid_potential, para, 3);
+    }
+    else if (strcmp(potential_name, "lj4") == 0)
+    { 
+         potential[m] = new Pair(fid_potential, para, 4);
+    }
+    else if (strcmp(potential_name, "lj5") == 0)
+    { 
+         potential[m] = new Pair(fid_potential, para, 5);
+    }
+    else if (strcmp(potential_name, "ri") == 0)
+    { 
+         potential[m] = new Pair(fid_potential, para, 0);
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
