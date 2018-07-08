@@ -32,13 +32,18 @@ public:
     Force(void);      
     ~Force(void);
     void initialize_one_potential(Parameters*, int);
-    void initialize(Parameters *para);
+    void initialize_two_body_potential(Parameters*);
+    void initialize_many_body_potential(Parameters*, CPU_Data*, int);
+    void initialize(Parameters *para, CPU_Data*, GPU_Data *);
     void compute(Parameters*, GPU_Data*);
 
     int num_of_potentials;
+    int interlayer_only;
     real rc_max;
     char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
     Potential *potential[MAX_NUM_OF_POTENTIALS];
+    int type_begin[MAX_NUM_OF_POTENTIALS];
+    int type_end[MAX_NUM_OF_POTENTIALS];
 };
 
 

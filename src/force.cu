@@ -36,7 +36,8 @@ Force::Force(void)
     {
         potential[m] = NULL;
     }
-    num_of_potentials = 1;
+    num_of_potentials = 0;
+    interlayer_only = 0;
     rc_max = ZERO;
 }
 
@@ -57,7 +58,6 @@ Force::~Force(void)
 
 void Force::initialize_one_potential(Parameters *para, int m)
 {
-    printf("INFO:  read in potential parameters.\n");
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
     int count = fscanf(fid_potential, "%s", potential_name);
@@ -174,18 +174,223 @@ void Force::initialize_one_potential(Parameters *para, int m)
     potential[m]->N2 = para->N;
 
     fclose(fid_potential);
-    printf("INFO:  potential parameters initialized.\n\n");
 }
 
 
 
 
-void Force::initialize(Parameters *para)
+void Force::initialize_two_body_potential(Parameters *para)
 {
-    for (int m = 0; m < num_of_potentials; m++)
+    FILE *fid_potential = my_fopen(file_potential[0], "r");
+    char potential_name[20];
+    int count = fscanf(fid_potential, "%s", potential_name);
+    if (count != 1) 
     {
-        initialize_one_potential(para, m);
-        if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
+        print_error("reading error for potential file.\n");
+        exit(1);
+    }
+    
+    // determine the potential
+    if (strcmp(potential_name, "lj1") == 0)
+    { 
+        potential[0] = new Pair(fid_potential, para, 1);
+        if (para->number_of_types != 1) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "lj2") == 0)
+    { 
+        potential[0] = new Pair(fid_potential, para, 2);
+        if (para->number_of_types != 2) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "lj3") == 0)
+    { 
+        potential[0] = new Pair(fid_potential, para, 3);
+        if (para->number_of_types != 3) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "lj4") == 0)
+    { 
+        potential[0] = new Pair(fid_potential, para, 4);
+        if (para->number_of_types != 4) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "lj5") == 0)
+    { 
+        potential[0] = new Pair(fid_potential, para, 5);
+        if (para->number_of_types != 5) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "ri") == 0)
+    { 
+        potential[0] = new Pair(fid_potential, para, 0);
+        if (para->number_of_types != 2) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else    
+    { 
+        print_error("illegal two-body potential model.\n"); 
+        exit(1); 
+    }
+
+    potential[0]->N1 = 0;
+    potential[0]->N2 = para->N;
+
+    fclose(fid_potential);
+}
+
+
+
+
+void Force::initialize_many_body_potential
+(Parameters *para, CPU_Data *cpu_data, int m)
+{
+    FILE *fid_potential = my_fopen(file_potential[m], "r");
+    char potential_name[20];
+    int count = fscanf(fid_potential, "%s", potential_name);
+    if (count != 1) 
+    {
+        print_error("reading error for potential file.\n");
+        exit(1);
+    }
+    
+    // determine the potential
+    if (strcmp(potential_name, "tersoff_1989_1") == 0) 
+    { 
+        potential[m] = new Tersoff2(fid_potential, para, 1);
+        if (para->number_of_types != 1) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
+    { 
+        potential[m] = new Tersoff2(fid_potential, para, 2);
+        if (para->number_of_types != 2) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "sw_1985") == 0) 
+    { 
+        potential[m] = new SW2(fid_potential, para, 1);
+        if (para->number_of_types != 1) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "sw_1985_2") == 0) 
+    { 
+        potential[m] = new SW2(fid_potential, para, 2);
+        if (para->number_of_types != 2) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "sw_1985_3") == 0) 
+    { 
+        potential[m] = new SW2(fid_potential, para, 3);
+        if (para->number_of_types != 3) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "rebo_mos2") == 0) 
+    { 
+        potential[m] = new REBO_MOS(para);
+        if (para->number_of_types != 2) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
+    { 
+        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        if (para->number_of_types != 1) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "eam_dai_2006") == 0) 
+    { 
+        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        if (para->number_of_types != 1) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "vashishta") == 0) 
+    { 
+        potential[m] = new Vashishta(fid_potential, para, 0);
+        if (para->number_of_types != 2) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else if (strcmp(potential_name, "vashishta_table") == 0) 
+    { 
+        potential[m] = new Vashishta(fid_potential, para, 1);
+        if (para->number_of_types != 2) 
+            print_error("number of types does not match potential file.\n");
+    }
+    else    
+    { 
+        print_error("illegal many-body potential model.\n"); 
+        exit(1); 
+    }
+
+    potential[m]->N1 = 0;
+    potential[m]->N2 = 0;
+    for (int n = 0; n < type_begin[m]; ++n)
+    {
+        potential[m]->N1 += cpu_data->type_size[n];
+    }
+    for (int n = 0; n <= type_end[m]; ++n)
+    {
+        potential[m]->N2 += cpu_data->type_size[n];
+    }
+    printf
+    (
+        "       applies to atoms [%d, %d) from type %d to type %d.\n",
+        potential[m]->N1, potential[m]->N2, type_begin[m], type_end[m]
+    );
+
+    fclose(fid_potential);
+}
+
+
+
+
+void Force::initialize(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+{
+    // a single potential
+    if (num_of_potentials == 1) 
+    {
+        initialize_one_potential(para, 0);
+        rc_max = potential[0]->rc;
+    }
+    else // hybrid potentials
+    {
+        // the two-body part
+        initialize_two_body_potential(para);
+        rc_max = potential[0]->rc;
+
+        // the many-body part
+        for (int m = 1; m < num_of_potentials; m++)
+        {
+            initialize_many_body_potential(para, cpu_data, m);
+            if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
+
+            // the the atom types in xyz.in
+            for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
+            {
+                if (cpu_data->type[n] < type_begin[m] || cpu_data->type[n] > type_end[m])
+                {
+                    printf("ERROR: ");
+                    printf
+                    (
+                        "atom type for many-body potential # %d not from %d to %d.", 
+                        m, type_begin[m], type_begin[m]
+                    );
+                    exit(1);
+                }
+
+                // the local type always starts from 0
+                cpu_data->type_local[n] -= type_begin[m];
+            }
+        }
+        
+        // copy the local atom type to the GPU
+        cudaMemcpy
+        (
+            gpu_data->type_local, cpu_data->type_local, 
+            sizeof(int) * para->N, cudaMemcpyHostToDevice
+        );
+
+        printf("Sorry, hybrid potentials are not supported yet\n");
+        exit(1);
     }
 }
 

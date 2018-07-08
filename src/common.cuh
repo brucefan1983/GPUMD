@@ -255,6 +255,7 @@ typedef struct
 {
     int *NN; int *NL; int *fv_index; 
     int *type; int *label; int *group_size; int *group_size_sum;
+    int *type_local;              // local atom type (for force)
     int *type_size; // number of atoms for each type
     int *group_contents;          // atom indices sorted based on groups
     real *mass; real *x; real *y; real *z; real *vx; real *vy; real *vz; 

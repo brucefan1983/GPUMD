@@ -65,6 +65,7 @@ void finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
     MY_FREE(cpu_data->NN);
     MY_FREE(cpu_data->NL);
     MY_FREE(cpu_data->type);
+    MY_FREE(cpu_data->type_local);
     MY_FREE(cpu_data->label);
     MY_FREE(cpu_data->group_size);
     MY_FREE(cpu_data->group_size_sum);

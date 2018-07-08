@@ -64,6 +64,7 @@ static void initialize_position
     MY_MALLOC(cpu_data->NN,         int, para->N);
     MY_MALLOC(cpu_data->NL,         int, para->N * para->neighbor.MN);
     MY_MALLOC(cpu_data->type,       int, para->N);
+    MY_MALLOC(cpu_data->type_local, int, para->N);
     MY_MALLOC(cpu_data->label,      int, para->N);
     MY_MALLOC(cpu_data->mass, real, para->N);
     MY_MALLOC(cpu_data->x,    real, para->N);
@@ -289,9 +290,13 @@ static void initialize_position
         {
             max_type = cpu_data->type[n];
         }
+
+        // copy
+        cpu_data->type_local[n] = cpu_data->type[n];
     }
 
     fclose(fid_xyz);
+
 
     // number of groups determined
     para->number_of_groups = max_label + 1;
