@@ -256,6 +256,7 @@ static void initialize_position
 
     // the remaining lines in the xyz.in file (type, label, mass, and positions)
     int max_label = -1; // used to determine the number of groups
+    int max_type = -1; // used to determine the number of types
     for (int n = 0; n < para->N; n++) 
     {
 #ifdef USE_DP
@@ -282,6 +283,11 @@ static void initialize_position
         if (cpu_data->label[n] > max_label)
         {
             max_label = cpu_data->label[n];
+        }
+
+        if (cpu_data->type[n] > max_type)
+        {
+            max_type = cpu_data->type[n];
         }
     }
 
@@ -334,7 +340,33 @@ static void initialize_position
             }
         }
     }
-    free(offset);
+    MY_FREE(offset);
+
+    // number of types determined
+    para->number_of_types = max_type + 1;
+    if (para->number_of_types == 1)
+    {
+        printf("INPUT: there is only one atom type.\n");
+    }
+    else
+    {
+        printf("INPUT: there are %d atom types.\n", para->number_of_types);
+    }
+
+    // determine the number of atoms in each type
+    MY_MALLOC(cpu_data->type_size, int, para->number_of_types);
+    for (int m = 0; m < para->number_of_types; m++)
+    {
+        cpu_data->type_size[m] = 0;
+    }
+    for (int n = 0; n < para->N; n++) 
+    {
+        cpu_data->type_size[cpu_data->type[n]]++;
+    }
+    for (int m = 0; m < para->number_of_types; m++)
+    {
+        printf("       %d atoms of type %d.\n", cpu_data->type_size[m], m);
+    } 
 
     printf("INFO:  positions and related parameters initialized.\n\n");
 }

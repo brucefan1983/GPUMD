@@ -221,7 +221,8 @@ typedef struct
     // a structure?
     int N;                // number of atoms
     int number_of_groups; // number of groups 
-    int fixed_group;      // ID of the group in which the atoms will be fixed  
+    int fixed_group;      // ID of the group in which the atoms will be fixed 
+    int number_of_types;  // number of atom types 
 
     // a structure?
     int pbc_x;           // pbc_x = 1 means periodic in the x-direction
@@ -254,6 +255,7 @@ typedef struct
 {
     int *NN; int *NL; int *fv_index; 
     int *type; int *label; int *group_size; int *group_size_sum;
+    int *type_size; // number of atoms for each type
     int *group_contents;          // atom indices sorted based on groups
     real *mass; real *x; real *y; real *z; real *vx; real *vy; real *vz; 
     real *fx; real *fy; real *fz;   
