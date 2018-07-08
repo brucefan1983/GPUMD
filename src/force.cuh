@@ -34,7 +34,8 @@ public:
     void initialize_one_potential(Parameters*, int);
     void initialize_two_body_potential(Parameters*);
     void initialize_many_body_potential(Parameters*, CPU_Data*, int);
-    void initialize(Parameters *para, CPU_Data*, GPU_Data *);
+    void initialize(char*, Parameters *para, CPU_Data*, GPU_Data*);
+    void find_neighbor_local(Parameters*, GPU_Data*, int);
     void compute(Parameters*, GPU_Data*);
 
     int num_of_potentials;
@@ -44,6 +45,7 @@ public:
     Potential *potential[MAX_NUM_OF_POTENTIALS];
     int type_begin[MAX_NUM_OF_POTENTIALS];
     int type_end[MAX_NUM_OF_POTENTIALS];
+    int *layer_label;
 };
 
 

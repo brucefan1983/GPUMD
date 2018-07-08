@@ -51,6 +51,11 @@ Force::~Force(void)
         delete potential[m];
         potential[m] = NULL;
     }
+
+    if (interlayer_only) 
+    {
+        cudaFree(layer_label); 
+    }
 }
 
 
@@ -343,7 +348,8 @@ void Force::initialize_many_body_potential
 
 
 
-void Force::initialize(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void Force::initialize
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     // a single potential
     if (num_of_potentials == 1) 
@@ -357,13 +363,35 @@ void Force::initialize(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
         initialize_two_body_potential(para);
         rc_max = potential[0]->rc;
 
+        // if the intralayer interactions are to be excluded
+        if (interlayer_only) 
+        {
+            int *layer_label_cpu;
+            MY_MALLOC(layer_label_cpu, int, para->N); 
+            char file_layer_label[FILE_NAME_LENGTH];
+            strcpy(file_layer_label, input_dir);
+            strcat(file_layer_label, "/layer.in");
+            FILE *fid = my_fopen(file_layer_label, "r");
+            for (int n = 0; n < para->N; ++n)
+            {
+                int count = fscanf(fid, "%d", &layer_label_cpu[n]);
+                if (count != 1) print_error("reading error for layer.in");
+            }
+            fclose(fid);
+
+            int memory = sizeof(int)*para->N;
+            cudaMalloc((void**)&layer_label, memory);
+            cudaMemcpy(layer_label, layer_label_cpu, memory, cudaMemcpyHostToDevice);
+            MY_FREE(layer_label_cpu); 
+        }
+
         // the many-body part
         for (int m = 1; m < num_of_potentials; m++)
         {
             initialize_many_body_potential(para, cpu_data, m);
             if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
 
-            // the the atom types in xyz.in
+            // check the atom types in xyz.in
             for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
             {
                 if (cpu_data->type[n] < type_begin[m] || cpu_data->type[n] > type_end[m])
@@ -388,9 +416,6 @@ void Force::initialize(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
             gpu_data->type_local, cpu_data->type_local, 
             sizeof(int) * para->N, cudaMemcpyHostToDevice
         );
-
-        printf("Sorry, hybrid potentials are not supported yet\n");
-        exit(1);
     }
 }
 
@@ -398,11 +423,12 @@ void Force::initialize(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 
 
 // Construct the local neighbor list from the global one (Kernel)
+template<int check_layer_label, int check_type>
 static __global__ void gpu_find_neighbor_local
 (
-    int pbc_x, int pbc_y, int pbc_z, 
-    int N, real cutoff_square, real *box_length,
-    int *NN, int *NL, int *NN_local, int *NL_local, 
+    int pbc_x, int pbc_y, int pbc_z, int type_begin, int type_end, int *type,
+    int N, int N1, int N2, real cutoff_square, real *box_length,
+    int *NN, int *NL, int *NN_local, int *NL_local, int *layer_label,
 #ifdef USE_LDG
     const real* __restrict__ x, 
     const real* __restrict__ y, 
@@ -413,20 +439,40 @@ static __global__ void gpu_find_neighbor_local
 )
 {
     //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
     real lx = box_length[0];
     real ly = box_length[1];
     real lz = box_length[2];
-    if (n1 < N)
+
+    int layer_n1;
+
+    if (n1 >= N1 && n1 < N2)
     {  
         int neighbor_number = NN[n1];
+
+        if (check_layer_label) layer_n1 = layer_label[n1];
+
         real x1 = LDG(x, n1);   
         real y1 = LDG(y, n1);
         real z1 = LDG(z, n1);  
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = NL[n1 + N * i1];
+
+            // exclude intralayer interactions if needed
+            if (check_layer_label) 
+            {
+                if (layer_n1 == layer_label[n2]) continue;
+            }
+
+            // only include neighors with the correct types
+            if (check_type)
+            {
+                int type_n2 = type[n2];
+                if (type_n2 < type_begin || type_n2 > type_end) continue;
+            }
+
             real x12  = LDG(x, n2) - x1;
             real y12  = LDG(y, n2) - y1;
             real z12  = LDG(z, n2) - z1;
@@ -446,11 +492,14 @@ static __global__ void gpu_find_neighbor_local
 
 
 // Construct the local neighbor list from the global one (Wrapper)
-static void find_neighbor_local
-(Parameters *para, GPU_Data *gpu_data, real rc2)
+void Force::find_neighbor_local(Parameters *para, GPU_Data *gpu_data, int m)
 {  
+    int type1 = type_begin[m];
+    int type2 = type_end[m];
     int N = para->N;
-    int grid_size = (N - 1) / BLOCK_SIZE + 1; 
+    int N1 = potential[m]->N1;
+    int N2 = potential[m]->N2;
+    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1; 
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
@@ -458,13 +507,40 @@ static void find_neighbor_local
     int *NL = gpu_data->NL;
     int *NN_local = gpu_data->NN_local;
     int *NL_local = gpu_data->NL_local;
+    int *type = gpu_data->type; // global type
+    real rc2 = potential[m]->rc * potential[m]->rc;
     real *x = gpu_data->x;
     real *y = gpu_data->y;
     real *z = gpu_data->z;
     real *box = gpu_data->box_length;
       
-    gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
-    (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, NN_local, NL_local, x, y, z);
+    if (0 == m)
+    {
+        if (interlayer_only)
+        {
+            gpu_find_neighbor_local<1, 0><<<grid_size, BLOCK_SIZE>>>
+            (
+                pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
+                rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
+            );
+        }
+        else
+        {
+            gpu_find_neighbor_local<0, 0><<<grid_size, BLOCK_SIZE>>>
+            (
+                pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
+                rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
+            );
+        }
+    }
+    else
+    {
+        gpu_find_neighbor_local<0, 1><<<grid_size, BLOCK_SIZE>>>
+        (
+            pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
+            rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
+        );
+    }
 }
 
 
@@ -517,8 +593,9 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data)
 
     for (int m = 0; m < num_of_potentials; m++)
     {
-        real cutoff_square = potential[m]->rc * potential[m]->rc;
-        find_neighbor_local(para, gpu_data, cutoff_square); 
+        // first build a local neighbor list
+        find_neighbor_local(para, gpu_data, m);
+        // and then calculate the forces and related quantities
         potential[m]->compute(para, gpu_data);
     }
 
