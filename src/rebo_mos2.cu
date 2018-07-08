@@ -1300,7 +1300,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     int *NN_local = rebo_mos_data.NN_short; // for 3-body
     int *NL_local = rebo_mos_data.NL_short; // for 3-body
 
-    int *type = gpu_data->type;
+    int *type = gpu_data->type_local;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 
     real *z = gpu_data->z;

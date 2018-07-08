@@ -30,6 +30,7 @@ void finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
     CHECK(cudaFree(gpu_data->NN_local)); 
     CHECK(cudaFree(gpu_data->NL_local));
     CHECK(cudaFree(gpu_data->type));  
+    CHECK(cudaFree(gpu_data->type_local));
     CHECK(cudaFree(gpu_data->label)); 
     CHECK(cudaFree(gpu_data->group_size)); 
     CHECK(cudaFree(gpu_data->group_size_sum));

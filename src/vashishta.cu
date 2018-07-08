@@ -774,7 +774,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
     int *NL = gpu_data->NL_local;             // for 2-body
     int *NN_local = vashishta_data.NN_short;  // for 3-body
     int *NL_local = vashishta_data.NL_short;  // for 3-body
-    int *type = gpu_data->type;
+    int *type = gpu_data->type_local;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 
     real *z = gpu_data->z;

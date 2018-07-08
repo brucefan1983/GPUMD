@@ -277,6 +277,7 @@ typedef struct
     int *NN_local; int *NL_local; // local neighbor list
     int *fv_index;                // for SHC calculations
     int *type;                    // atom type (for force)
+    int *type_local;              // local atom type (for force)
     int *label;                   // group label 
     int *group_size;              // # atoms in each group
     int *group_size_sum;          // # atoms in all previous groups

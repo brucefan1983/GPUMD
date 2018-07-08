@@ -392,6 +392,7 @@ static void allocate_memory_gpu(Parameters *para, GPU_Data *gpu_data)
     CHECK(cudaMalloc((void**)&gpu_data->NL_local, m2));
 #endif
     CHECK(cudaMalloc((void**)&gpu_data->type, m1));  
+    CHECK(cudaMalloc((void**)&gpu_data->type_local, m1));
     CHECK(cudaMalloc((void**)&gpu_data->label, m1)); 
     CHECK(cudaMalloc((void**)&gpu_data->group_size, m3)); 
     CHECK(cudaMalloc((void**)&gpu_data->group_size_sum, m3));
@@ -441,6 +442,7 @@ static void copy_from_cpu_to_gpu
     int m4 = sizeof(real) * DIM;
 
     cudaMemcpy(gpu_data->type, cpu_data->type, m1, cudaMemcpyHostToDevice); 
+    cudaMemcpy(gpu_data->type_local, cpu_data->type, m1, cudaMemcpyHostToDevice);
     cudaMemcpy(gpu_data->label, cpu_data->label, m1, cudaMemcpyHostToDevice); 
 
     cudaMemcpy

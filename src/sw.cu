@@ -620,7 +620,7 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     int pbc_z = para->pbc_z;
     int *NN = gpu_data->NN_local; 
     int *NL = gpu_data->NL_local;
-    int *type = gpu_data->type;
+    int *type = gpu_data->type_local;
     real *x = gpu_data->x; 
     real *y = gpu_data->y; 
     real *z = gpu_data->z;
