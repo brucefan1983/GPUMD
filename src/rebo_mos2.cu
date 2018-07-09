@@ -18,7 +18,6 @@
 
 #include "common.cuh"
 #include "mic.cuh"
-#include "hnemd.cuh"
 #include "rebo_mos2.cuh"
 
 // References: 
@@ -1516,12 +1515,6 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
-        // correct the force when using the HNEMD method
-        real *ftot; // total force vector of the system
-        cudaMalloc((void**)&ftot, sizeof(real) * 3);
-        gpu_sum_force<<<3, 1024>>>(N, fx, fy, fz, ftot);
-        gpu_correct_force<<<grid_size, BLOCK_SIZE_FORCE>>>(N, fx, fy, fz, ftot);
-        cudaFree(ftot);
     }
     else if (para->shc.compute)
     {

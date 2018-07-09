@@ -18,7 +18,6 @@
 
 #include "common.cuh"
 #include "mic.cuh"
-#include "hnemd.cuh"
 #include "sw.cuh"
 
 
@@ -678,12 +677,6 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
-        // correct the force when using the HNEMD method
-        real *ftot; // total force vector of the system
-        cudaMalloc((void**)&ftot, sizeof(real) * 3);
-        gpu_sum_force<<<3, 1024>>>(N, fx, fy, fz, ftot);
-        gpu_correct_force<<<grid_size, BLOCK_SIZE_SW>>>(N, fx, fy, fz, ftot);
-        cudaFree(ftot);
     }
     else if (para->shc.compute)
     {
