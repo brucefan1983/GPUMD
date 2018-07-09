@@ -108,6 +108,7 @@
 
 // LJ (From Stewart)
 
+/*
 #define REBO_MOS2_EPSILON_MM  0.00058595
 #define REBO_MOS2_EPSILON_SS  0.01386
 #define REBO_MOS2_EPSILON_MS  0.002849783676001
@@ -155,6 +156,57 @@
 #define REBO_MOS2_D3_MM     -0.053895558827613
 #define REBO_MOS2_D3_SS     -0.755238613586170
 #define REBO_MOS2_D3_MS     -0.114401791730260
+*/
+
+// LJ (From Liang)
+
+#define REBO_MOS2_EPSILON_MM  0.00058595
+#define REBO_MOS2_EPSILON_SS  0.02
+#define REBO_MOS2_EPSILON_MS  0.003423302499050
+
+#define REBO_MOS2_SIGMA_MM    4.2
+#define REBO_MOS2_SIGMA_SS    3.13
+#define REBO_MOS2_SIGMA_MS    3.665
+
+// 0.95 * sigma
+#define REBO_MOS2_LJCUT1_MM   3.99
+#define REBO_MOS2_LJCUT1_SS   2.9735
+#define REBO_MOS2_LJCUT1_MS   3.48175
+
+// 2.5 * sigma
+#define REBO_MOS2_LJCUT2_MM   10.5
+#define REBO_MOS2_LJCUT2_SS   7.825
+#define REBO_MOS2_LJCUT2_MS   9.1625
+
+// 4 * epsilon * sigma^12
+#define REBO_MOS2_s12e4_MM    70617.45058278613
+#define REBO_MOS2_s12e4_SS    70732.99337720051
+#define REBO_MOS2_s12e4_MS    80425.36048432751
+
+// 4 * epsilon * sigma^6
+#define REBO_MOS2_s6e4_MM     12.865192601587204
+#define REBO_MOS2_s6e4_SS     75.223928840336711
+#define REBO_MOS2_s6e4_MS     33.185559361443481
+
+// 48 * epsilon * sigma^12
+#define REBO_MOS2_s12e48_MM   847409.4069934335
+#define REBO_MOS2_s12e48_SS   848795.9205264060
+#define REBO_MOS2_s12e48_MS   965104.3258119302
+
+// 24 * epsilon * sigma^6
+#define REBO_MOS2_s6e24_MM    77.19115560952322
+#define REBO_MOS2_s6e24_SS    451.3435730420202
+#define REBO_MOS2_s6e24_MS    199.1133561686609
+
+// pre-computed coefficient of the (r - r1)^2 term
+#define REBO_MOS2_D2_MM      0.031194467724753
+#define REBO_MOS2_D2_SS      0.820449609102021
+#define REBO_MOS2_D2_MS      0.113097798217445
+
+// pre-computed coefficient of the (r - r1)^3 term
+#define REBO_MOS2_D3_MM     -0.053895558827613
+#define REBO_MOS2_D3_SS     -1.089810409215252
+#define REBO_MOS2_D3_MS     -0.137425146625715
 
 #else
 
@@ -235,6 +287,7 @@
 
 // LJ (From Stewart)
 
+/*
 #define REBO_MOS2_EPSILON_MM  0.00058595f
 #define REBO_MOS2_EPSILON_SS  0.01386f
 #define REBO_MOS2_EPSILON_MS  0.002849783676001f
@@ -282,6 +335,59 @@
 #define REBO_MOS2_D3_MM     -0.053895558827613f
 #define REBO_MOS2_D3_SS     -0.755238613586170f
 #define REBO_MOS2_D3_MS     -0.114401791730260f
+*/
+
+
+// LJ (From Liang)
+
+#define REBO_MOS2_EPSILON_MM  0.00058595f
+#define REBO_MOS2_EPSILON_SS  0.02f
+#define REBO_MOS2_EPSILON_MS  0.003423302499050f
+
+#define REBO_MOS2_SIGMA_MM    4.2f
+#define REBO_MOS2_SIGMA_SS    3.13f
+#define REBO_MOS2_SIGMA_MS    3.665f
+
+// 0.95 * sigma
+#define REBO_MOS2_LJCUT1_MM   3.99f
+#define REBO_MOS2_LJCUT1_SS   2.9735f
+#define REBO_MOS2_LJCUT1_MS   3.48175f
+
+// 2.5 * sigma
+#define REBO_MOS2_LJCUT2_MM   10.5f
+#define REBO_MOS2_LJCUT2_SS   7.825f
+#define REBO_MOS2_LJCUT2_MS   9.1625f
+
+// 4 * epsilon * sigma^12
+#define REBO_MOS2_s12e4_MM    70617.45058278613f
+#define REBO_MOS2_s12e4_SS    70732.99337720051f
+#define REBO_MOS2_s12e4_MS    80425.36048432751f
+
+// 4 * epsilon * sigma^6
+#define REBO_MOS2_s6e4_MM     12.865192601587204f
+#define REBO_MOS2_s6e4_SS     75.223928840336711f
+#define REBO_MOS2_s6e4_MS     33.185559361443481f
+
+// 48 * epsilon * sigma^12
+#define REBO_MOS2_s12e48_MM   847409.4069934335f
+#define REBO_MOS2_s12e48_SS   848795.9205264060f
+#define REBO_MOS2_s12e48_MS   965104.3258119302f
+
+// 24 * epsilon * sigma^6
+#define REBO_MOS2_s6e24_MM    77.19115560952322f
+#define REBO_MOS2_s6e24_SS    451.3435730420202f
+#define REBO_MOS2_s6e24_MS    199.1133561686609f
+
+// pre-computed coefficient of the (r - r1)^2 term
+#define REBO_MOS2_D2_MM      0.031194467724753f
+#define REBO_MOS2_D2_SS      0.820449609102021f
+#define REBO_MOS2_D2_MS      0.113097798217445f
+
+// pre-computed coefficient of the (r - r1)^3 term
+#define REBO_MOS2_D3_MM     -0.053895558827613f
+#define REBO_MOS2_D3_SS     -1.089810409215252f
+#define REBO_MOS2_D3_MS     -0.137425146625715f
+
 
 #endif
 
