@@ -50,7 +50,7 @@ Pair::Pair(FILE *fid, Parameters *para, int potential_model_input)
 void Pair::initialize_lj(FILE *fid, int N)
 {
     printf("INPUT: use %d-element LJ potential.\n", N);
-    real epsilon, sigma, cutoff;
+    double epsilon, sigma, cutoff;
     rc = 0.0;
     for (int n = 0; n < N; n++)
     {
