@@ -141,7 +141,6 @@ static char *get_file_contents (char *filename)
     contents_size = ftell(in);
     rewind(in);
 
-    //contents = malloc( (contents_size + 1) * (sizeof(char)) );
     MY_MALLOC(contents, char, contents_size + 1);
     int size_read_in = fread(contents, sizeof(char), contents_size, in);
     if (size_read_in != contents_size)
