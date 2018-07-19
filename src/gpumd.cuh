@@ -14,9 +14,38 @@
 */
 
 
+
+
 #ifndef GPUMD_H
 #define GPUMD_H
 
-void gpumd(char *input_dir);
+struct Parameters;
+struct CPU_Data;
+struct GPU_Data;
+class Force;
+class Integrate;
+class Measure;
+
+
+
+
+class GPUMD
+{
+public:
+    GPUMD(char*);
+    ~GPUMD(void);
+private:
+    void initialize(char*, Parameters*, CPU_Data*, GPU_Data*);
+    void run
+    (char*, Parameters*, CPU_Data*, GPU_Data*, Force*, Integrate*, Measure*);
+    void finalize(CPU_Data*, GPU_Data*);
+};
+
+
+
 
 #endif
+
+
+
+

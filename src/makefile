@@ -7,8 +7,7 @@ gpumd: common.o eam.o tersoff.o rebo_mos2.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o heat.o integrate.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
-       neighbor_ON1.o neighbor_ON2.o neighbor.o \
-       initialize.o finalize.o run.o velocity.o \
+       neighbor_ON1.o neighbor_ON2.o neighbor.o velocity.o \
        measure.o force.o potential.o parse.o gpumd.o main.o
  
 	$(CC) -o gpumd \
@@ -16,22 +15,15 @@ gpumd: common.o eam.o tersoff.o rebo_mos2.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o heat.o integrate.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
-       neighbor_ON1.o neighbor_ON2.o neighbor.o \
-       initialize.o finalize.o run.o velocity.o \
+       neighbor_ON1.o neighbor_ON2.o neighbor.o velocity.o \
        measure.o force.o potential.o parse.o gpumd.o main.o
 
 main.o: main.cu
 	$(CC) $(CFLAGS) -c main.cu
 gpumd.o: gpumd.cu
 	$(CC) $(CFLAGS) -c gpumd.cu
-run.o: run.cu
-	$(CC) $(CFLAGS) -c run.cu
 parse.o: parse.cu
 	$(CC) $(CFLAGS) -c parse.cu
-initialize.o: initialize.cu
-	$(CC) $(CFLAGS) -c initialize.cu
-finalize.o: finalize.cu
-	$(CC) $(CFLAGS) -c finalize.cu
 velocity.o: velocity.cu
 	$(CC) $(CFLAGS) -c velocity.cu
 potential.o: potential.cu

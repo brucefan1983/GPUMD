@@ -126,7 +126,7 @@ int main(int argc, char *argv[])
         clock_t time_begin = clock();
 
         //  Run GPUMD for "input_directory"
-        gpumd(input_directory);
+        GPUMD gpumd(input_directory);
 
         clock_t time_finish = clock();
 

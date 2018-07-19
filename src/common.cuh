@@ -130,44 +130,44 @@
 
 
 // Parameters related to VAC (velocity auto-correlation function)
-typedef struct
+struct VAC
 {
     int compute;         // 1 means you want to do this computation
     int sample_interval; // sample interval for velocity
     int Nc;              // number of correlation points
     real omega_max;    // maximal angular frequency for phonons
-} VAC;
+};
 
 
 
 
 // Parameters related to HAC (heat current auto-correlation function)
-typedef struct
+struct HAC
 {
     int compute;         // 1 means do this computation
     int sample_interval; // sample interval for heat current
     int Nc;              // number of correlation points
     int output_interval; // only output Nc/output_interval data
-} HAC;
+};
 
 
 
 
 
 // Parameters related to the HNEMD method for computing thermal conductivity
-typedef struct
+struct HNEMD
 {
     int compute;           // 1 means do this computation
     int output_interval;   // average the data every so many time steps
     real fe_x, fe_y, fe_z; // the driving "force" vector (in units of 1/A)
     real fe;               // magnitude of the driving "force" vector
-} HNEMD;
+};
 
 
 
 
 // Parameters related to SHC (spectral heat current)
-typedef struct
+struct SHC
 {
     int compute;         // 1 means do this computation
     int sample_interval; // sample interval for heat current
@@ -177,46 +177,46 @@ typedef struct
     int number_of_sections; // fixed to 1; may be changed in a future version
     int block_A;         // record the heat flowing from block A
     int block_B;         // record the heat flowing into block B
-} SHC;
+};
 
 
 
 
 // Parameters for NEMD method of thermal conductivity claculations
-typedef struct 
+struct Heat
 {
     int sample;             // 1 means sample the block temperatures
     int sample_interval;    // sample interval of temperature
-} Heat;
+};
 
 
 
 
 // Parameters for stress-strain claculations (not finished)
-typedef struct 
+struct Strain 
 {
     int compute;           // 1 means you want to do this calculation
     int direction;         // 1=x; 2=y; 3=z
     real rate;             // strain rate (in units of A/ps)
-} Strain;
+};
 
 
 
 
 // Parameters for neighbor list updating
-typedef struct 
+struct Neighbor
 {
     int MN;               // upper bound of # neighbors for one particle
     int update;           // 1 means you want to update the neighbor list
     real skin;            // skin distance 
     real rc;              // cutoff used when building the neighbor list
-} Neighbor;
+};
 
 
 
 
 // Parameters in the code (in a mess)
-typedef struct 
+struct Parameters 
 {
     // a structure?
     int N;                // number of atoms
@@ -245,13 +245,13 @@ typedef struct
     HAC hac;
     SHC shc;
     HNEMD hnemd;
-} Parameters;
+};
 
 
 
 
 // All the CPU data
-typedef struct 
+struct CPU_Data
 {
     int *NN; int *NL; int *fv_index; 
     int *type; int *label; int *group_size; int *group_size_sum;
@@ -265,14 +265,14 @@ typedef struct
     real *box_matrix;       // box matrix
     real *box_matrix_inv;   // inverse box matrix
     real *box_length;       // box length in each direction
-} CPU_Data; 
+}; 
 
 
 
 
 
 // All the GPU data
-typedef struct 
+struct GPU_Data
 {
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
@@ -302,7 +302,7 @@ typedef struct
     real *b; real *bp;      // for bond-order potentials
     real *fv; real *fv_all; // for SHC calculations
     real *f12x, *f12y, *f12z; // partial force for many-body potentials
-} GPU_Data;
+};
 
 
 
