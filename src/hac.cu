@@ -20,8 +20,7 @@
 #include "hac.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
-#define NUM_OF_HAC_COMPONENTS  7
-#define NUM_OF_HEAT_COMPONENTS 5
+
 
 
 static __device__ void warp_reduce(volatile real *s, int t) 
@@ -103,10 +102,8 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
 
     __shared__ real s_hac_xi[128];
     __shared__ real s_hac_xo[128];
-    __shared__ real s_hac_xc[128];
     __shared__ real s_hac_yi[128];
     __shared__ real s_hac_yo[128];
-    __shared__ real s_hac_yc[128];
     __shared__ real s_hac_z[128];
 
     int tid = threadIdx.x;
@@ -115,24 +112,22 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
     int number_of_patches = M / 128; 
     int number_of_data = number_of_patches * 128; 
 
-    s_hac_xi[tid] = 0.0; 
-    s_hac_xo[tid] = 0.0; 
-    s_hac_xc[tid] = 0.0; 
-    s_hac_yi[tid] = 0.0; 
-    s_hac_yo[tid] = 0.0; 
-    s_hac_yc[tid] = 0.0; 
-    s_hac_z[tid]  = 0.0; 
+    s_hac_xi[tid] = ZERO;
+    s_hac_xo[tid] = ZERO;
+    s_hac_yi[tid] = ZERO;
+    s_hac_yo[tid] = ZERO;
+    s_hac_z[tid]  = ZERO;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
     { 
         int index = tid + patch * 128;
-        s_hac_xi[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 0];
-        s_hac_xo[tid] += g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 1];
-        s_hac_xc[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 1]
+        s_hac_xi[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 0]
+                       + g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 1];
+        s_hac_xo[tid] += g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 1]
                        + g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 0];
-        s_hac_yi[tid] += g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 2];
-        s_hac_yo[tid] += g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 3];
-        s_hac_yc[tid] += g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 3]
+        s_hac_yi[tid] += g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 2]
+                       + g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 3];
+        s_hac_yo[tid] += g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 3]
                        + g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 2];
         s_hac_z[tid]  += g_heat[index + Nd * 4] * g_heat[index + bid + Nd * 4];
     }
@@ -142,10 +137,8 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
     {
         s_hac_xi[tid] += s_hac_xi[tid + 64];
         s_hac_xo[tid] += s_hac_xo[tid + 64];
-        s_hac_xc[tid] += s_hac_xc[tid + 64];
         s_hac_yi[tid] += s_hac_yi[tid + 64];
         s_hac_yo[tid] += s_hac_yo[tid + 64];
-        s_hac_yc[tid] += s_hac_yc[tid + 64];
         s_hac_z[tid]  += s_hac_z[tid  + 64];
     }
     __syncthreads();
@@ -153,11 +146,9 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
     if (tid < 32)
     {
         warp_reduce(s_hac_xi, tid); 
-        warp_reduce(s_hac_xo, tid); 
-        warp_reduce(s_hac_xc, tid); 
+        warp_reduce(s_hac_xo, tid);  
         warp_reduce(s_hac_yi, tid); 
-        warp_reduce(s_hac_yo, tid); 
-        warp_reduce(s_hac_yc, tid); 
+        warp_reduce(s_hac_yo, tid);  
         warp_reduce(s_hac_z,  tid);
     }
    
@@ -165,11 +156,9 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
     {
         g_hac[bid + Nc * 0] = s_hac_xi[0] / number_of_data;
         g_hac[bid + Nc * 1] = s_hac_xo[0] / number_of_data;
-        g_hac[bid + Nc * 2] = s_hac_xc[0] / number_of_data;
-        g_hac[bid + Nc * 3] = s_hac_yi[0] / number_of_data;
-        g_hac[bid + Nc * 4] = s_hac_yo[0] / number_of_data;
-        g_hac[bid + Nc * 5] = s_hac_yc[0] / number_of_data;
-        g_hac[bid + Nc * 6] = s_hac_z[0]  / number_of_data;
+        g_hac[bid + Nc * 2] = s_hac_yi[0] / number_of_data;
+        g_hac[bid + Nc * 3] = s_hac_yo[0] / number_of_data;
+        g_hac[bid + Nc * 4] = s_hac_z[0]  / number_of_data;
     }
 }
 
@@ -177,12 +166,12 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
 // Calculate the Running Thermal Conductivity (RTC) from the HAC
 static void find_rtc(int Nc, real factor, real *hac, real *rtc)
 {
-    for (int k = 0; k < NUM_OF_HAC_COMPONENTS; k++)
+    for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
     {
         for (int nc = 1; nc < Nc; nc++)  
         {
             int index = Nc * k + nc;
-            rtc[index] = rtc[index - 1] + (hac[index - 1] + hac[index]) * factor;
+            rtc[index] = rtc[index - 1] + (hac[index - 1] + hac[index])*factor;
         }
     }
 }
@@ -226,15 +215,15 @@ static void find_hac_kappa
     // major data
     real *hac;
     real *rtc;
-    MY_MALLOC(hac, real, Nc * NUM_OF_HAC_COMPONENTS);
-    MY_MALLOC(rtc, real, Nc * NUM_OF_HAC_COMPONENTS);
+    MY_MALLOC(hac, real, Nc * NUM_OF_HEAT_COMPONENTS);
+    MY_MALLOC(rtc, real, Nc * NUM_OF_HEAT_COMPONENTS);
     
-    for (int nc = 0; nc < Nc * NUM_OF_HAC_COMPONENTS; nc++) 
+    for (int nc = 0; nc < Nc * NUM_OF_HEAT_COMPONENTS; nc++) 
     { hac[nc] = rtc[nc] = 0.0; }
 
     real *g_hac;
     CHECK
-    (cudaMalloc((void**)&g_hac, sizeof(real) * Nc * NUM_OF_HAC_COMPONENTS));
+    (cudaMalloc((void**)&g_hac, sizeof(real) * Nc * NUM_OF_HEAT_COMPONENTS));
 
     // Here, the block size is fixed to 128, which is a good choice
     gpu_find_hac<<<Nc, 128>>>(Nc, Nd, gpu_data->heat_all, g_hac);
@@ -242,7 +231,7 @@ static void find_hac_kappa
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 
-    CHECK(cudaMemcpy(hac, g_hac, sizeof(real) * Nc * NUM_OF_HAC_COMPONENTS, 
+    CHECK(cudaMemcpy(hac, g_hac, sizeof(real) * Nc * NUM_OF_HEAT_COMPONENTS, 
         cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_hac));
 
@@ -260,9 +249,9 @@ static void find_hac_kappa
     for (int nd = 0; nd < number_of_output_data; nd++)
     {
         int nc = nd * para->hac.output_interval;
-        real hac_ave[NUM_OF_HAC_COMPONENTS] = {ZERO};
-        real rtc_ave[NUM_OF_HAC_COMPONENTS] = {ZERO};
-        for (int k = 0; k < NUM_OF_HAC_COMPONENTS; k++)
+        real hac_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
+        real rtc_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
+        for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
         {
             for (int m = 0; m < para->hac.output_interval; m++)
             {
@@ -271,16 +260,16 @@ static void find_hac_kappa
                 rtc_ave[k] += rtc[count];
             }
         }
-        for (int m = 0; m < NUM_OF_HAC_COMPONENTS; m++)
+        for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++)
         {
             hac_ave[m] /= para->hac.output_interval;
             rtc_ave[m] /= para->hac.output_interval;
         }
         fprintf
         (fid, "%25.15e", (nc + para->hac.output_interval * 0.5) * dt_in_ps);
-        for (int m = 0; m < NUM_OF_HAC_COMPONENTS; m++) 
+        for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
         { fprintf(fid, "%25.15e", hac_ave[m]); }
-        for (int m = 0; m < NUM_OF_HAC_COMPONENTS; m++) 
+        for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
         { fprintf(fid, "%25.15e", rtc_ave[m]); }
         fprintf(fid, "\n");
     }  
