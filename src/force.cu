@@ -147,13 +147,13 @@ void Force::initialize_one_potential(Parameters *para, int m)
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
-        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, potential_name);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
-        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, potential_name);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
@@ -298,13 +298,13 @@ void Force::initialize_many_body_potential
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
-        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, potential_name);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
-        potential[m] = new EAM_Analytical(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, potential_name);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }

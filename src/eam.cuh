@@ -16,8 +16,8 @@
 
 
 
-#ifndef EAM_ANALYTICAL_H
-#define EAM_ANALYTICAL_H
+#ifndef EAM_H
+#define EAM_H
 
 
 
@@ -44,7 +44,7 @@ struct EAM2006Dai
 
 
 
-struct EAM_Analytical_Data
+struct EAM_Data
 {
     real *Fp;    // derivative of the density functional
 };
@@ -52,19 +52,19 @@ struct EAM_Analytical_Data
 
 
 
-class EAM_Analytical : public Potential
+class EAM : public Potential
 {
 public:   
-    EAM_Analytical(FILE*, Parameters*, char*);  
-    virtual ~EAM_Analytical(void);
+    EAM(FILE*, Parameters*, char*);  
+    virtual ~EAM(void);
     virtual void compute(Parameters*, GPU_Data*);
     void initialize_eam2004zhou(FILE*);
     void initialize_eam2006dai(FILE*);
 protected:
-    int                 potential_model; 
-    EAM2004Zhou         eam2004zhou;
-    EAM2006Dai          eam2006dai;
-    EAM_Analytical_Data eam_analytical_data;
+    int          potential_model; 
+    EAM2004Zhou  eam2004zhou;
+    EAM2006Dai   eam2006dai;
+    EAM_Data     eam_data;
 };
 
 
