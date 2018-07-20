@@ -128,7 +128,7 @@ static void initialize_position
         fid_xyz, "%lf%lf%lf%lf%lf%lf%lf%lf%lf", &box[0], &box[1], &box[2], 
         &box[3], &box[4], &box[5], &box[6], &box[7], &box[8]
     ); 
-    if (count != 9) printf("Error: reading error for line 3 of xyz.in.\n");
+    if (count != 9) print_error("reading error for line 3 of xyz.in.\n");
     for (int n = 0; n < 9; ++n) cpu_data->box_matrix[n] = box[n];
 
     real volume = cpu_data->box_matrix[0]
@@ -208,21 +208,21 @@ static void initialize_position
     if (para->pbc_x == 1)
         printf("INPUT: use periodic boundary conditions along x.\n");
     else if (para->pbc_x == 0)
-        printf("INPUT: use free boundary conditions along x.\n");
+        printf("INPUT: use     free boundary conditions along x.\n");
     else
         print_error("invalid boundary conditions along x.\n");
 
     if (para->pbc_y == 1)
         printf("INPUT: use periodic boundary conditions along y.\n");
     else if (para->pbc_y == 0)
-        printf("INPUT: use free boundary conditions along y.\n");
+        printf("INPUT: use     free boundary conditions along y.\n");
     else
         print_error("invalid boundary conditions along y.\n");
 
     if (para->pbc_z == 1)
         printf("INPUT: use periodic boundary conditions along z.\n");
     else if (para->pbc_z == 0)
-        printf("INPUT: use free boundary conditions along z.\n");
+        printf("INPUT: use     free boundary conditions along z.\n");
     else
         print_error("invalid boundary conditions along z.\n");
 
