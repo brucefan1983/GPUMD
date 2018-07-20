@@ -274,7 +274,7 @@ static __device__ void find_F(EAM2006Dai fs, real rho, real &F, real &Fp)
 
 
 // Calculate the embedding energy and its derivative
-template <int potential_model, int cal_p>
+template <int potential_model>
 static __global__ void find_force_eam_step1
 (
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai, 
@@ -333,10 +333,7 @@ static __global__ void find_force_eam_step1
         if (potential_model == 0) find_F(eam2004zhou, rho, F, Fp);
         if (potential_model == 1) find_F(eam2006dai, rho, F, Fp);
 
-        if (cal_p)
-        {
-            g_pe[n1] += F;
-        }        
+        g_pe[n1] += F; // many-body potential energy      
         g_Fp[n1] = Fp;   
     }
 }
@@ -345,7 +342,7 @@ static __global__ void find_force_eam_step1
 
 
 // Force evaluation kernel
-template <int potential_model, int cal_p, int cal_j, int cal_q>
+template <int potential_model, int cal_j, int cal_q>
 static __global__ void find_force_eam_step2
 (
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
@@ -370,30 +367,21 @@ static __global__ void find_force_eam_step2
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    __shared__ real s_fx[BLOCK_SIZE_FORCE];
-    __shared__ real s_fy[BLOCK_SIZE_FORCE];
-    __shared__ real s_fz[BLOCK_SIZE_FORCE];
-
-    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
-    __shared__ real s1[BLOCK_SIZE_FORCE];
-    __shared__ real s2[BLOCK_SIZE_FORCE];
-    __shared__ real s3[BLOCK_SIZE_FORCE];
-    __shared__ real s4[BLOCK_SIZE_FORCE];
-    __shared__ real s5[BLOCK_SIZE_FORCE];
-
-    s_fx[threadIdx.x] = ZERO; 
-    s_fy[threadIdx.x] = ZERO; 
-    s_fz[threadIdx.x] = ZERO;  
-
-    s1[threadIdx.x] = ZERO; 
-    s2[threadIdx.x] = ZERO; 
-    s3[threadIdx.x] = ZERO;
-    s4[threadIdx.x] = ZERO;
-    s5[threadIdx.x] = ZERO;
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_pe = ZERO; // potential energy
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
 
     if (n1 >= N1 && n1 < N2)
-    {
-           
+    {  
         real lx = LDG(g_box, 0);
         real ly = LDG(g_box, 1);
         real lz = LDG(g_box, 2);
@@ -437,32 +425,27 @@ static __global__ void find_force_eam_step2
             real f21y = -y12 * (phip + Fp2 * fp); 
             real f21z = -z12 * (phip + Fp2 * fp); 
             
-            if (cal_p) // accumulate potential energy
-            {
-                s4[threadIdx.x] += phi;
-            }
+            // two-body potential energy
+            s_pe += phi;
  
             // per atom force
-            s_fx[threadIdx.x] += f12x - f21x; 
-            s_fy[threadIdx.x] += f12y - f21y; 
-            s_fz[threadIdx.x] += f12z - f21z;  
+            s_fx += f12x - f21x; 
+            s_fy += f12y - f21y; 
+            s_fz += f12z - f21z;  
 
-            // per-atom stress
-            if (cal_p)
-            {
-                s1[threadIdx.x] -= x12 * (f12x - f21x) * HALF; 
-                s2[threadIdx.x] -= y12 * (f12y - f21y) * HALF; 
-                s3[threadIdx.x] -= z12 * (f12z - f21z) * HALF;
-            }
+            // per-atom virial stress
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
 
             // per-atom heat current
             if (cal_j)
             {
-                s1[threadIdx.x] += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2[threadIdx.x] += (f21z * vz1) * x12;               // x-out
-                s3[threadIdx.x] += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4[threadIdx.x] += (f21z * vz1) * y12;               // y-out
-                s5[threadIdx.x] += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
             }
  
             // accumulate heat across some sections (for NEMD)
@@ -488,27 +471,24 @@ static __global__ void find_force_eam_step2
         }
 
         // save force
-        g_fx[n1] += s_fx[threadIdx.x]; 
-        g_fy[n1] += s_fy[threadIdx.x]; 
-        g_fz[n1] += s_fz[threadIdx.x];
+        g_fx[n1] += s_fx; 
+        g_fy[n1] += s_fy; 
+        g_fz[n1] += s_fz;
 
-        if (cal_p) // save stress and potential
-        {
-            g_sx[n1] += s1[threadIdx.x]; 
-            g_sy[n1] += s2[threadIdx.x]; 
-            g_sz[n1] += s3[threadIdx.x];
-            g_pe[n1] += s4[threadIdx.x]; // g_pe has embedding energy in it
-        }
+        // accumulate virial and potential energy
+        g_sx[n1] += s_sx;
+        g_sy[n1] += s_sy;
+        g_sz[n1] += s_sz;
+        g_pe[n1] += s_pe;
 
         if (cal_j) // save heat current
         {
-            g_h[n1 + 0 * N] += s1[threadIdx.x];
-            g_h[n1 + 1 * N] += s2[threadIdx.x];
-            g_h[n1 + 2 * N] += s3[threadIdx.x];
-            g_h[n1 + 3 * N] += s4[threadIdx.x];
-            g_h[n1 + 4 * N] += s5[threadIdx.x];
+            g_h[n1 + 0 * N] += s_h1;
+            g_h[n1 + 1 * N] += s_h2;
+            g_h[n1 + 2 * N] += s_h3;
+            g_h[n1 + 3 * N] += s_h4;
+            g_h[n1 + 4 * N] += s_h5;
         }
-
     }
 }   
 
@@ -551,13 +531,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
     {
         if (para->hac.compute)
         {
-            find_force_eam_step1<0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
@@ -566,13 +546,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            find_force_eam_step1<0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, 
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
@@ -581,13 +561,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            find_force_eam_step1<0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
@@ -600,13 +580,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
     {
         if (para->hac.compute)
         {
-            find_force_eam_step1<1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<1, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
@@ -615,13 +595,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            find_force_eam_step1<1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<1, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, 
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
@@ -630,13 +610,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            find_force_eam_step1<1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
