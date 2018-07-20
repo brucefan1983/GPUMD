@@ -45,7 +45,6 @@ void initialize_velocity
         p[1] += m[n] * vy[n] / number_of_particles;
         p[2] += m[n] * vz[n] / number_of_particles;
     } 
-    //printf("p1 = %g, %g, %g\n", p[0], p[1], p[2]);
 
     // zero the linear momentum
     for (int n = 0; n < number_of_particles; ++n) 
@@ -82,7 +81,6 @@ void initialize_velocity
         L[1] += mass * (dz * vx[i] - dx * vz[i]);
         L[2] += mass * (dx * vy[i] - dy * vx[i]);
     }
-    //printf("L1 = %g, %g, %g\n", L[0], L[1], L[2]);
  
     // moment of inertia
     real I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
@@ -166,31 +164,7 @@ void initialize_velocity
         #else
             vz[n] *= scale_factor;
         #endif
-    }
-    
-    // check the linear momentum, which should be zero
-    //p[0] = p[1] = p[2] = 0.0;
-    //for (int n = 0; n < number_of_particles; ++n)
-    //{       
-    //    p[0] += m[n] * vx[n] / number_of_particles;
-    //    p[1] += m[n] * vy[n] / number_of_particles;
-    //    p[2] += m[n] * vz[n] / number_of_particles;
-    //} 
-    //printf("p2 = %g, %g, %g\n", p[0], p[1], p[2]);
-        
-    // check the angular momentum, which should be zero
-    //L[0] = L[1] = L[2] = 0.0;
-    //for (int i = 0; i < number_of_particles; i++)
-    //{
-    //    real mass = m[i];
-    //    real dx = x[i] - r0[0];
-    //    real dy = y[i] - r0[1];
-    //    real dz = z[i] - r0[2];
-    //    L[0] += mass * (dy * vz[i] - dz * vy[i]);
-    //    L[1] += mass * (dz * vx[i] - dx * vz[i]);
-    //    L[2] += mass * (dx * vy[i] - dy * vx[i]);
-    //}
-    //printf("L2 = %g, %g, %g\n", L[0], L[1], L[2]);  
+    }  
 }
 
 
@@ -215,7 +189,6 @@ void process_velocity(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 
     printf("INFO : velocities are initialized.\n\n");
 }
-
 
 
 
