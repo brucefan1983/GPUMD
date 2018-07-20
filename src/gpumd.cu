@@ -861,7 +861,7 @@ void GPUMD::run
         }
     }
 
-    free(input); // Free the input file contents
+    MY_FREE(input); // Free the input file contents
 }
 
 
