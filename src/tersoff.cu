@@ -444,7 +444,6 @@ static __global__ void find_force_tersoff_step1
 
 
 // second step: calculate the partial forces dU_i/dr_ij
-template <int cal_p>
 static __global__ void find_force_tersoff_step2
 (
     int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
@@ -503,10 +502,8 @@ static __global__ void find_force_tersoff_step2
             real f12y = y12 * factor3 * HALF;
             real f12z = z12 * factor3 * HALF;
 
-            if (cal_p) // accumulate potential energy
-            {
-                potential_energy += fc12 * (fr12 - b12 * fa12) * HALF;
-            }
+            // accumulate potential energy
+            potential_energy += fc12 * (fr12 - b12 * fa12) * HALF;
 
             // accumulate_force_123
             real bp12 = LDG(g_bp, index);
@@ -545,10 +542,9 @@ static __global__ void find_force_tersoff_step2
             g_f12y[index] = f12y;
             g_f12z[index] = f12z;
         }
-        if (cal_p) // save potential
-        {
-            g_potential[n1] += potential_energy;
-        }
+
+        // save potential
+        g_potential[n1] += potential_energy;
     }
 }   
 
@@ -557,7 +553,7 @@ static __global__ void find_force_tersoff_step2
 /*----------------------------------------------------------------------------80
     Calculate forces, potential energy, and virial stress
 ------------------------------------------------------------------------------*/
-template <int cal_p, int cal_j, int cal_q, int cal_k>
+template <int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_tersoff_step3
 (
     real fe_x, real fe_y, real fe_z,
@@ -584,21 +580,22 @@ static __global__ void find_force_tersoff_step3
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    real s_fx = ZERO;
-    real s_fy = ZERO;
-    real s_fz = ZERO;
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
 
     // driving force 
     real fx_driving = ZERO;
     real fy_driving = ZERO;
     real fz_driving = ZERO;
-
-    // if cal_p, then s1~s3 = px, py, pz; if cal_j, then s1~s5 = j1~j5
-    real s1 = ZERO;
-    real s2 = ZERO;
-    real s3 = ZERO;
-    real s4 = ZERO;
-    real s5 = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -621,7 +618,6 @@ static __global__ void find_force_tersoff_step3
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         { 
-
             int index = i1 * number_of_particles + n1;   
             int n2 = g_neighbor_list[index];
             int neighbor_number_2 = g_neighbor_number[n2];
@@ -660,23 +656,19 @@ static __global__ void find_force_tersoff_step3
                 fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
             } 
 
-
             // per-atom stress
-            if (cal_p)
-            {
-                s1 -= x12 * (f12x - f21x) * HALF; 
-                s2 -= y12 * (f12y - f21y) * HALF; 
-                s3 -= z12 * (f12z - f21z) * HALF;
-            }
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
 
             // per-atom heat current
             if (cal_j || cal_k)
             {
-                s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2 += (f21z * vz1) * x12;               // x-out
-                s3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4 += (f21z * vz1) * y12;               // y-out
-                s5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
             }
  
             // accumulate heat across some sections (for NEMD)
@@ -709,26 +701,23 @@ static __global__ void find_force_tersoff_step3
             s_fz += fz_driving; // with driving force
         }
 
-
         // save force
         g_fx[n1] += s_fx; 
         g_fy[n1] += s_fy; 
         g_fz[n1] += s_fz;
 
-        if (cal_p) // save stress and potential
-        {
-            g_sx[n1] += s1; 
-            g_sy[n1] += s2; 
-            g_sz[n1] += s3;
-        }
+        // save stress and potential
+        g_sx[n1] += s_sx;
+        g_sy[n1] += s_sy;
+        g_sz[n1] += s_sz;
 
         if (cal_j || cal_k) // save heat current
         {
-            g_h[n1 + 0 * number_of_particles] += s1;
-            g_h[n1 + 1 * number_of_particles] += s2;
-            g_h[n1 + 2 * number_of_particles] += s3;
-            g_h[n1 + 3 * number_of_particles] += s4;
-            g_h[n1 + 4 * number_of_particles] += s5;
+            g_h[n1 + 0 * number_of_particles] += s_h1;
+            g_h[n1 + 1 * number_of_particles] += s_h2;
+            g_h[n1 + 2 * number_of_particles] += s_h3;
+            g_h[n1 + 3 * number_of_particles] += s_h4;
+            g_h[n1 + 4 * number_of_particles] += s_h5;
         }
     }
 }   
@@ -786,60 +775,60 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
         NN, NL, type, x, y, z, box_length, b, bp
     );
 
-    if (para->hac.compute)
+    if (para->hac.compute) // calculate heat condutivity using EMD
     {
-        find_force_tersoff_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
             ters0, ters1, ters2,
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
-        find_force_tersoff_step3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step3<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
             sx, sy, sz, h, label, fv_index, fv
         );
     }
-    else if (para->hnemd.compute)
+    else if (para->hnemd.compute) // calculate heat condutivity using HNEMD
     {
-        find_force_tersoff_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
             ters0, ters1, ters2,
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
-        find_force_tersoff_step3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step3<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
             sx, sy, sz, h, label, fv_index, fv
         );
     }
-    else if (para->shc.compute)
+    else if (para->shc.compute) // calculate spectral heat current
     {
-        find_force_tersoff_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
             ters0, ters1, ters2,
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
-        find_force_tersoff_step3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step3<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
             sx, sy, sz, h, label, fv_index, fv
         );
     }
-    else
+    else // no heat transport calculation
     {
-        find_force_tersoff_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
             ters0, ters1, ters2,
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
-        find_force_tersoff_step3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_tersoff_step3<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
