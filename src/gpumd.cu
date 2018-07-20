@@ -59,6 +59,7 @@ GPUMD::~GPUMD(void)
 static void initialize_position
 (char *input_dir, Parameters *para, CPU_Data *cpu_data)
 {  
+    printf("---------------------------------------------------------------\n");
     printf("INFO:  read in initial positions and related parameters.\n");
 
     int count = 0;
@@ -68,30 +69,28 @@ static void initialize_position
     FILE *fid_xyz = my_fopen(file_xyz, "r"); 
 
     // the first line of the xyz.in file
-#ifdef USE_DP
-    count = fscanf
-    (
-        fid_xyz, "%d%d%lf", &(para->N), 
-        &(para->neighbor.MN), &(para->neighbor.rc)
-    );
-#else
-    count = fscanf
-    (
-        fid_xyz, "%d%d%f", &(para->N), 
-        &(para->neighbor.MN), &(para->neighbor.rc)
-    );
-#endif
-    if (count != 3)
-    {
-        printf("Error: reading error for xyz.in.\n");
-    }
+    double rc;
+    count = fscanf(fid_xyz, "%d%d%lf", &para->N, &para->neighbor.MN, &rc);
+    if (count != 3) print_error("reading error for line 1 of xyz.in.\n");
+    para->neighbor.rc = rc;
+    if (para->N < 1)
+        print_error("number of atoms should >= 1\n");
+    else
+        printf("INPUT: number of atoms is %d.\n", para->N);
+    
+    if (para->neighbor.MN < 0)
+        print_error("maximum number of neighbors should >= 0\n");
+    else
+        printf("INPUT: maximum number of neighbors is %d.\n",para->neighbor.MN);
 
-    printf("INPUT: number of atoms is %d.\n", para->N);
-
-    printf("INPUT: maximum number of neighbors is %d.\n", para->neighbor.MN);
-
-    printf
-    ("INPUT: initial cutoff for neighbor list is %g A.\n", para->neighbor.rc);    
+    if (para->neighbor.rc < 0)
+        print_error("initial cutoff for neighbor list should >= 0\n");
+    else
+        printf
+        (
+            "INPUT: initial cutoff for neighbor list is %g A.\n", 
+            para->neighbor.rc
+        );    
 
     // now we have enough information to allocate memroy for the major data
     MY_MALLOC(cpu_data->NN,         int, para->N);
@@ -111,7 +110,7 @@ static void initialize_position
     MY_MALLOC(cpu_data->fz,   real, para->N);
     MY_MALLOC(cpu_data->heat_per_atom, real, para->N * NUM_OF_HEAT_COMPONENTS);
     MY_MALLOC(cpu_data->thermo, real, 6);
-    MY_MALLOC(cpu_data->box_length, real, DIM);
+    MY_MALLOC(cpu_data->box_length, real, 3);
     MY_MALLOC(cpu_data->box_matrix, real, 9);
     MY_MALLOC(cpu_data->box_matrix_inv, real, 9);
 
@@ -120,46 +119,17 @@ static void initialize_position
     // second line: boundary conditions
     count = fscanf
     (fid_xyz, "%d%d%d", &(para->pbc_x), &(para->pbc_y), &(para->pbc_z));
-    if (count != 3)
-    {
-        printf("Error: reading error for xyz.in.\n");
-    }
+    if (count != 3) print_error("reading error for line 2 of xyz.in.\n");
 
     // third line: triclinic box parameters
-#if USE_DP   
+    double box[9];   
     count = fscanf
     (
-        fid_xyz, "%lf%lf%lf%lf%lf%lf%lf%lf%lf", 
-        &cpu_data->box_matrix[0], 
-        &cpu_data->box_matrix[1], 
-        &cpu_data->box_matrix[2], 
-        &cpu_data->box_matrix[3], 
-        &cpu_data->box_matrix[4], 
-        &cpu_data->box_matrix[5], 
-        &cpu_data->box_matrix[6], 
-        &cpu_data->box_matrix[7], 
-        &cpu_data->box_matrix[8]
+        fid_xyz, "%lf%lf%lf%lf%lf%lf%lf%lf%lf", &box[0], &box[1], &box[2], 
+        &box[3], &box[4], &box[5], &box[6], &box[7], &box[8]
     ); 
-#else
-    fscanf
-    (
-        fid_xyz, "%f%f%f%f%f%f%f%f%f", 
-        &cpu_data->box_matrix[0], 
-        &cpu_data->box_matrix[1], 
-        &cpu_data->box_matrix[2], 
-        &cpu_data->box_matrix[3], 
-        &cpu_data->box_matrix[4], 
-        &cpu_data->box_matrix[5], 
-        &cpu_data->box_matrix[6], 
-        &cpu_data->box_matrix[7], 
-        &cpu_data->box_matrix[8]
-    );
-#endif
-
-    if (count != 9)
-    {
-        printf("Error: reading error for xyz.in.\n");
-    }
+    if (count != 9) printf("Error: reading error for line 3 of xyz.in.\n");
+    for (int n = 0; n < 9; ++n) cpu_data->box_matrix[n] = box[n];
 
     real volume = cpu_data->box_matrix[0]
                 * cpu_data->box_matrix[4]
@@ -222,107 +192,62 @@ static void initialize_position
 #else // #ifdef TRICLINIC
 
     // the second line of the xyz.in file (boundary conditions and box size)
-#ifdef USE_DP
+    double lx, ly, lz;
     count = fscanf
     (
         fid_xyz, "%d%d%d%lf%lf%lf", 
-        &(para->pbc_x), &(para->pbc_y), &(para->pbc_z),
-        &(cpu_data->box_length[0]), 
-        &(cpu_data->box_length[1]), 
-        &(cpu_data->box_length[2])
+        &(para->pbc_x), &(para->pbc_y), &(para->pbc_z), &lx, &ly, &lz
     );
-#else
-    count = fscanf
-    (
-        fid_xyz, "%d%d%d%f%f%f", 
-        &(para->pbc_x), &(para->pbc_y), &(para->pbc_z),
-        &(cpu_data->box_length[0]), 
-        &(cpu_data->box_length[1]), 
-        &(cpu_data->box_length[2])
-    );
-#endif
-
-    if (count != 6)
-    {
-        printf("Error: reading error for xyz.in.\n");
-    }
+    if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
+    cpu_data->box_length[0] = lx;
+    cpu_data->box_length[1] = ly;
+    cpu_data->box_length[2] = lz;
 
 #endif // #ifdef TRICLINIC
 
     if (para->pbc_x == 1)
-    {
         printf("INPUT: use periodic boundary conditions along x.\n");
-    }
     else if (para->pbc_x == 0)
-    {
         printf("INPUT: use free boundary conditions along x.\n");
-    }
     else
-    {
-        printf("Error: invalid boundary conditions along x.\n");
-    }
+        print_error("invalid boundary conditions along x.\n");
 
     if (para->pbc_y == 1)
-    {
         printf("INPUT: use periodic boundary conditions along y.\n");
-    }
     else if (para->pbc_y == 0)
-    {
         printf("INPUT: use free boundary conditions along y.\n");
-    }
     else
-    {
-        printf("Error: invalid boundary conditions along y.\n");
-    }
+        print_error("invalid boundary conditions along y.\n");
 
     if (para->pbc_z == 1)
-    {
         printf("INPUT: use periodic boundary conditions along z.\n");
-    }
     else if (para->pbc_z == 0)
-    {
         printf("INPUT: use free boundary conditions along z.\n");
-    }
     else
-    {
-        printf("Error: invalid boundary conditions along z.\n");
-    }
+        print_error("invalid boundary conditions along z.\n");
 
     // the remaining lines in the xyz.in file (type, label, mass, and positions)
     int max_label = -1; // used to determine the number of groups
     int max_type = -1; // used to determine the number of types
     for (int n = 0; n < para->N; n++) 
     {
-#ifdef USE_DP
+        double mass, x, y, z;
         count = fscanf
         (
             fid_xyz, "%d%d%lf%lf%lf%lf", 
-            &(cpu_data->type[n]), &(cpu_data->label[n]), &(cpu_data->mass[n]),
-            &(cpu_data->x[n]), &(cpu_data->y[n]), &(cpu_data->z[n])
+            &(cpu_data->type[n]), &(cpu_data->label[n]), &mass, &x, &y, &z
         );
-#else
-        count = fscanf
-        (
-            fid_xyz, "%d%d%f%f%f%f", 
-            &(cpu_data->type[n]), &(cpu_data->label[n]), &(cpu_data->mass[n]),
-            &(cpu_data->x[n]), &(cpu_data->y[n]), &(cpu_data->z[n])
-        );
-#endif
-
-        if (count != 6)
-        {
-            printf("Error: reading error for xyz.in.\n");
-        }
+        if (count != 6) print_error("reading error for xyz.in.\n");
+        cpu_data->mass[n] = mass;
+        cpu_data->x[n] = x;
+        cpu_data->y[n] = y;
+        cpu_data->z[n] = z;
 
         if (cpu_data->label[n] > max_label)
-        {
             max_label = cpu_data->label[n];
-        }
 
         if (cpu_data->type[n] > max_type)
-        {
             max_type = cpu_data->type[n];
-        }
 
         // copy
         cpu_data->type_local[n] = cpu_data->type[n];
@@ -330,10 +255,12 @@ static void initialize_position
 
     fclose(fid_xyz);
 
-
     // number of groups determined
     para->number_of_groups = max_label + 1;
-    printf("INPUT: there are %d groups of atoms.\n", para->number_of_groups);
+    if (para->number_of_groups == 1)
+        printf("INPUT: there is only one group of atoms.\n");
+    else
+        printf("INPUT: there are %d groups of atoms.\n",para->number_of_groups);
 
     // determine the number of atoms in each group
     MY_MALLOC(cpu_data->group_size, int, para->number_of_groups);
@@ -344,22 +271,14 @@ static void initialize_position
         cpu_data->group_size_sum[m] = 0;
     }
     for (int n = 0; n < para->N; n++) 
-    {
         cpu_data->group_size[cpu_data->label[n]]++;
-    }
     for (int m = 0; m < para->number_of_groups; m++)
-    {
-        printf("       %d atoms in group %d.\n", cpu_data->group_size[m], m);
-    }   
+        printf("       %d atoms in group %d.\n", cpu_data->group_size[m], m);   
     
     // calculate the number of atoms before a group
     for (int m = 1; m < para->number_of_groups; m++)
-    {
         for (int n = 0; n < m; n++)
-        {
             cpu_data->group_size_sum[m] += cpu_data->group_size[n];
-        } 
-    }
 
     // determine the atom indices from the first to the last group
     MY_MALLOC(cpu_data->group_contents, int, para->N);
@@ -367,46 +286,34 @@ static void initialize_position
     MY_MALLOC(offset, int, para->number_of_groups);
     for (int m = 0; m < para->number_of_groups; m++) offset[m] = 0;
     for (int n = 0; n < para->N; n++) 
-    {
         for (int m = 0; m < para->number_of_groups; m++)
-        {
             if (cpu_data->label[n] == m)
             {
                 cpu_data->group_contents[cpu_data->group_size_sum[m]+offset[m]] 
                     = n;
                 offset[m]++;
             }
-        }
-    }
     MY_FREE(offset);
 
     // number of types determined
     para->number_of_types = max_type + 1;
     if (para->number_of_types == 1)
-    {
         printf("INPUT: there is only one atom type.\n");
-    }
     else
-    {
         printf("INPUT: there are %d atom types.\n", para->number_of_types);
-    }
 
     // determine the number of atoms in each type
     MY_MALLOC(cpu_data->type_size, int, para->number_of_types);
     for (int m = 0; m < para->number_of_types; m++)
-    {
         cpu_data->type_size[m] = 0;
-    }
     for (int n = 0; n < para->N; n++) 
-    {
         cpu_data->type_size[cpu_data->type[n]]++;
-    }
     for (int m = 0; m < para->number_of_types; m++)
-    {
-        printf("       %d atoms of type %d.\n", cpu_data->type_size[m], m);
-    } 
+        printf("       %d atoms of type %d.\n", cpu_data->type_size[m], m); 
 
-    printf("INFO:  positions and related parameters initialized.\n\n");
+    printf("INFO:  positions and related parameters initialized.\n");
+    printf("---------------------------------------------------------------\n");
+    printf("\n");
 }
 
 
