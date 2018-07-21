@@ -3008,11 +3008,7 @@ Each independent simulation in Ref. \cite{fan2017prb} took about 10 GPU hours (u
 
 In this example, we show how to study heat transport using the NEMD method combined with the spatial and spectral decompositions as described in Ref. \cite{fan2017prb}. We aim to obtain similar results for the case of unstrained graphene as presented in Fig. 4 of Ref. \cite{fan2017prb}.
 
-In the NEMD simulation, periodic boundary conditions are applied to the transverse direction (chosen as the zigzag direction) and fixed boundary conditions are applied to the transport direction (chosen as the armchair direction). The width of the simulated system is about 10 nm and the total length in the transport direction is about 70 nm. One major difference from the previous simulations is that here the group labels are not identically 0. We divide the system into 8 groups along the transport direction and label the groups from 1 to 8. Groups and 1 and 8 are taken as the source and sink regions, respectively. The number of atoms in groups 1 to 8 are 8000, 1600, 1600, 1600, 1600, 1600, 1600, and 8000, respectively. Some extra fixed atoms are put into group 0. Here are \textbf{two important notes} on the group label:
-\begin{itemize}
-\item It starts from 0.
-\item In the \verb"xyz.in" file, an atom with smaller group label should appear earlier than that with a larger group label. We may remove this restriction in a future version but one should remember this rule when using the current version.
-\end{itemize}
+In the NEMD simulation, periodic boundary conditions are applied to the transverse direction (chosen as the zigzag direction) and fixed boundary conditions are applied to the transport direction (chosen as the armchair direction). The width of the simulated system is about 10 nm and the total length in the transport direction is about 70 nm. One major difference from the previous simulations is that here the group labels are not identically 0. We divide the system into 8 groups along the transport direction and label the groups from 1 to 8. Groups and 1 and 8 are taken as the source and sink regions, respectively. The number of atoms in groups 1 to 8 are 8000, 1600, 1600, 1600, 1600, 1600, 1600, and 8000, respectively. Some extra fixed atoms are put into group 0. 
 
 The \verb"run.in" file for this example reads:
 \begin{verbatim}
