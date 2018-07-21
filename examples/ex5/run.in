@@ -1,4 +1,4 @@
-potential   potentials/sw/sic_vashishta_table_2007.txt
+potential   potentials/vashishta/sic_table_2007.txt
 velocity    300
 
 ensemble    npt_ber 300 300 0.1 0 0 0 0.0005
