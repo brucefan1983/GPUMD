@@ -475,7 +475,10 @@ void Ensemble_NHC::integrate_heat_nhc
 
     // NHC first
     find_vc_and_ke<<<Ng, 512>>>
-    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, vcx, vcy, vcz, ke);
+    (
+        group_size, group_size_sum, group_contents, 
+        mass, vx, vy, vz, vcx, vcy, vcz, ke
+    );
     cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
 
     real factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
@@ -500,7 +503,10 @@ void Ensemble_NHC::integrate_heat_nhc
 
     // NHC second
     find_vc_and_ke<<<Ng, 512>>>
-    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, vcx, vcy, vcz, ke);
+    (
+        group_size, group_size_sum, group_contents, 
+        mass, vx, vy, vz, vcx, vcy, vcz, ke
+    );
     cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
     factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
