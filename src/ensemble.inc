@@ -109,11 +109,13 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 // Find some thermodynamic properties:
-// g_thermo[0-5] = T, U, p_x, p_y, p_z, something for myself
+// g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
     int N, 
     int N_fixed,
+    int fixed_group,
+    int *group_id,
     real T,
     real *g_box_length,
     real *g_mass, real *g_z, real *g_potential,
@@ -122,7 +124,7 @@ static __global__ void gpu_find_thermo
     real *g_thermo
 )
 {
-    //<<<6, MAX_THREAD>>>
+    //<<<5, MAX_THREAD>>>
 
     int tid = threadIdx.x;
     int bid = blockIdx.x;
@@ -138,7 +140,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (n >= N_fixed && n < N)
+                if (group_id[n] != fixed_group && n < N)
                 {        
                     mass = g_mass[n];
                     vx = g_vx[n]; vy = g_vy[n]; vz = g_vz[n]; 
@@ -166,7 +168,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (n >= N_fixed && n < N)
+                if (group_id[n] != fixed_group && n < N)
                 {          
                     s_pe[tid] += g_potential[n];
                 }
@@ -185,7 +187,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (n >= N_fixed && n < N)
+                if (group_id[n] != fixed_group && n < N)
                 {        
                     s_sx[tid] += g_sx[n]; 
                 }
@@ -209,7 +211,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (n >= N_fixed && n < N)
+                if (group_id[n] != fixed_group && n < N)
                 {        
                     s_sy[tid] += g_sy[n]; 
                 }
@@ -233,7 +235,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (n >= N_fixed && n < N)
+                if (group_id[n] != fixed_group && n < N)
                 {        
                     s_sz[tid] += g_sz[n]; 
                 }
@@ -251,25 +253,6 @@ static __global__ void gpu_find_thermo
                 g_thermo[4] = (s_sz[0] + (N - N_fixed) * K_B * T) * volume_inv;
             }
             break;
-        case 5:
-            __shared__ real s_h[1024];
-            s_h[tid] = ZERO;
-            for (patch = 0; patch < number_of_patches; ++patch)
-            { 
-                n = tid + patch * 1024;
-                if (n >= N_fixed && n < N)
-                {        
-                    s_h[tid] += g_z[n] * g_z[n];
-                }
-            }
-            __syncthreads();
-            if (tid < 512) s_h[tid] += s_h[tid + 512]; __syncthreads();
-            if (tid < 256) s_h[tid] += s_h[tid + 256]; __syncthreads();
-            if (tid < 128) s_h[tid] += s_h[tid + 128]; __syncthreads();
-            if (tid <  64) s_h[tid] += s_h[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_h, tid);           
-            if (tid ==  0) g_thermo[5] = s_h[0];
-        break;
     }
 }
 

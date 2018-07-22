@@ -15,6 +15,7 @@
 
 
 
+
 #include "common.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble.inc"
@@ -42,6 +43,7 @@ Ensemble_NHC::Ensemble_NHC(int t, int N, real T, real Tc, real dt)
     }
     mas_nhc1[0] *= dN;
 }
+
 
 
 
@@ -85,8 +87,6 @@ Ensemble_NHC::~Ensemble_NHC(void)
 {
     // nothing now
 }
-
-
 
 
 
@@ -184,7 +184,6 @@ static void __global__ gpu_scale_velocity
 
 
 
-
 void Ensemble_NHC::integrate_nvt_nhc
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
@@ -215,12 +214,11 @@ void Ensemble_NHC::integrate_nvt_nhc
     real dt2 = time_step * HALF;
 
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
-    // for the time being:
-    int N_fixed = (fixed_group == -1) ? 0 : cpu_data->group_size[fixed_group];
 
-    gpu_find_thermo<<<6, 1024>>>
+    int N_fixed = (fixed_group == -1) ? 0 : cpu_data->group_size[fixed_group];
+    gpu_find_thermo<<<5, 1024>>>
     (
-        N, N_fixed, temperature, box_length, 
+        N, N_fixed, fixed_group, label, temperature, box_length, 
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     );
@@ -242,9 +240,9 @@ void Ensemble_NHC::integrate_nvt_nhc
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
-    gpu_find_thermo<<<6, 1024>>>
+    gpu_find_thermo<<<5, 1024>>>
     (
-        N, N_fixed, temperature, box_length, 
+        N, N_fixed, fixed_group, label, temperature, box_length, 
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     );
@@ -259,6 +257,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
 
 }
+
 
 
 
@@ -374,6 +373,8 @@ static __global__ void find_vc_and_ke
 }
 
 
+
+
 static __global__ void gpu_scale_velocity
 (
     int number_of_particles, 
@@ -424,6 +425,8 @@ static __global__ void gpu_scale_velocity
         }
     }
 }
+
+
 
 
 // integrate by one step, with heating and cooling, 

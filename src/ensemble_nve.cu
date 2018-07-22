@@ -69,13 +69,10 @@ void Ensemble_NVE::compute
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
-
-    // for the time being:
     int N_fixed = (fixed_group == -1) ? 0 : cpu_data->group_size[fixed_group];
-
-    gpu_find_thermo<<<6, 1024>>>
+    gpu_find_thermo<<<5, 1024>>>
     (
-        N, N_fixed, temperature, box_length, 
+        N, N_fixed, fixed_group, label, temperature, box_length, 
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     ); 
