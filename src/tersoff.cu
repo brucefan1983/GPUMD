@@ -15,7 +15,7 @@
 
 
 #include "common.cuh"
-#include "mic.cuh" 
+#include "mic.inc" 
 #include "tersoff.cuh"
 
 

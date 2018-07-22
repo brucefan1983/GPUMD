@@ -25,7 +25,7 @@
 #include <thrust/execution_policy.h>
 
 #include "common.cuh"
-#include "mic_template.cuh" // static __device__ void dev_apply_mic(...)
+#include "mic.inc"
 #include "neighbor_ON1.cuh"
 
 

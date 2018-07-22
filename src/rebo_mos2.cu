@@ -17,7 +17,7 @@
 
 
 #include "common.cuh"
-#include "mic.cuh"
+#include "mic.inc"
 #include "rebo_mos2.cuh"
 
 // References: 
