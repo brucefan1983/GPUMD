@@ -88,7 +88,7 @@ void Vashishta::initialize_0(FILE *fid)
         vashishta_para.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
         vashishta_para.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
                                 + p2_vander * (SIX * rci)
-		                - p2_charge * (lambda_inv[n] + rci)      
+                                - p2_charge * (lambda_inv[n] + rci)      
                                 - p2_steric * (eta[n] * rci);
     }
 }  
@@ -140,11 +140,8 @@ void Vashishta::initialize_1(FILE *fid)
     double B_0, B_1, cos0_0, cos0_1, C, r0, cut;
     count = fscanf
     (fid, "%lf%lf%lf%lf%lf%lf%lf", &B_0, &B_1, &cos0_0, &cos0_1, &C, &r0, &cut);
-    if (count != 7) 
-    {
-        print_error("reading error for Vashishta potential.\n");
-        exit(1);
-    }
+    if (count != 7) print_error("reading error for Vashishta potential.\n");
+
     vashishta_para.B[0] = B_0;
     vashishta_para.B[1] = B_1;
     vashishta_para.cos0[0] = cos0_0;
@@ -162,13 +159,10 @@ void Vashishta::initialize_1(FILE *fid)
         count = fscanf
         (
             fid, "%lf%d%lf%lf%lf%lf%lf", 
-		    &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
+            &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
         );
-        if (count != 7) 
-        {
-		    print_error("reading error for Vashishta potential.\n");
-            exit(1);
-        }
+        if (count != 7) print_error("reading error for Vashishta potential.\n");
+
         qq[n] *= K_C;         // Gauss -> SI
         D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
         lambda_inv[n] = ONE / lambda_inv[n];
@@ -191,9 +185,9 @@ void Vashishta::initialize_1(FILE *fid)
         real p2_vander = W[n] * rci6;
         vashishta_para.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
         vashishta_para.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
-	                            + p2_vander * (SIX * rci)
+                                + p2_vander * (SIX * rci)
                                 - p2_charge * (lambda_inv[n] + rci)      
-						        - p2_steric * (eta[n] * rci);
+                                - p2_steric * (eta[n] * rci);
 
         // build the table
         for (int m = 0; m < N; m++) 
@@ -239,7 +233,6 @@ Vashishta::Vashishta(FILE *fid, Parameters *para, int use_table_input)
     memory = sizeof(int) * para->N * num;
     CHECK(cudaMalloc((void**)&vashishta_data.NL_short, memory));
 }
-
 
 
 
@@ -799,7 +792,8 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<0, 0, 1, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -809,7 +803,8 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<1, 0, 1, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -818,14 +813,16 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         gpu_find_force_vashishta_partial<0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            vashishta_para, NN_local, NL_local, type,
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
         gpu_find_force_vashishta_3body<0, 1, 0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            vashishta_para, NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -837,7 +834,8 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<0, 0, 0, 1>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -847,7 +845,8 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<1, 0, 0, 1>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -856,14 +855,16 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         gpu_find_force_vashishta_partial<0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            vashishta_para, NN_local, NL_local, type,
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
         gpu_find_force_vashishta_3body<0, 0, 1>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            vashishta_para, NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -875,7 +876,8 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<0, 1, 0, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -885,7 +887,8 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             gpu_find_force_vashishta_2body<1, 1, 0, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
-                N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN, NL, NN_local, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                vashishta_para, NN, NL, NN_local, 
                 NL_local, type, table, x, y, z, vx, vy, vz, box_length, 
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -894,14 +897,16 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         gpu_find_force_vashishta_partial<1>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            vashishta_para, NN_local, NL_local, type,
             x, y, z, box_length, pe, f12x, f12y, f12z 
         );
 
         gpu_find_force_vashishta_3body<1, 0, 0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, vashishta_para, NN_local, NL_local, type, 
+            N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            vashishta_para, NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );  
