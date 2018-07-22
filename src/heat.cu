@@ -40,7 +40,6 @@ void preprocess_heat(Parameters *para, CPU_Data *cpu_data)
 
 
 
-// Sample block temperatures
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
@@ -121,7 +120,10 @@ void sample_block_temperature
             real *vy = gpu_data->vy;
             real *vz = gpu_data->vz;
             find_group_temp<<<Ng, 256>>>
-            (group_size, group_size_sum, group_contents, mass, vx, vy, vz, temp_gpu);
+            (
+                group_size, group_size_sum, group_contents, 
+                mass, vx, vy, vz, temp_gpu
+            );
             #ifdef DEBUG
                 CHECK(cudaDeviceSynchronize());
                 CHECK(cudaGetLastError());
@@ -131,10 +133,12 @@ void sample_block_temperature
             CHECK(cudaFree(temp_gpu));
 
             // energies of the heat source and sink
-            real kT1 = K_B * (integrate->ensemble->temperature + integrate->ensemble->delta_temperature); 
-            real kT2 = K_B * (integrate->ensemble->temperature - integrate->ensemble->delta_temperature); 
-            real dN1 = (real) DIM * cpu_data->group_size[integrate->ensemble->source];
-            real dN2 = (real) DIM * cpu_data->group_size[integrate->ensemble->sink];
+            real T0 = integrate->ensemble->temperature;
+            real kT1 = K_B * (T0 + integrate->ensemble->delta_temperature); 
+            real kT2 = K_B * (T0 - integrate->ensemble->delta_temperature); 
+
+            real dN1 = THREE*cpu_data->group_size[integrate->ensemble->source];
+            real dN2 = THREE*cpu_data->group_size[integrate->ensemble->sink];
             real energy_nhc1 = kT1 * dN1 * integrate->ensemble->pos_nhc1[0];
             real energy_nhc2 = kT2 * dN2 * integrate->ensemble->pos_nhc2[0];
             for (int m = 1; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
@@ -158,6 +162,8 @@ void sample_block_temperature
 }
 
 
+
+
 // Output block temperatures and energies of the heat source and sink; 
 // free the used memory
 void postprocess_heat
@@ -174,7 +180,7 @@ void postprocess_heat
         for (int nt = 0; nt < Nt; nt++)
         {
             int offset = nt * (Ng + 2);
-            int number_of_data = (integrate->ensemble->type == 4) ? (Ng + 2) : Ng;
+            int number_of_data = (integrate->ensemble->type == 4) ? (Ng+2) : Ng;
             for (int k = 0; k < number_of_data; k++) 
             {
                 fprintf(fid, "%15.6e", cpu_data->group_temp[offset + k]);
@@ -185,4 +191,7 @@ void postprocess_heat
         MY_FREE(cpu_data->group_temp); // allocated in preprocess_heat
     }
 }
+
+
+
 
