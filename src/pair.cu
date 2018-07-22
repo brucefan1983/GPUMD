@@ -171,7 +171,7 @@ static __device__ void find_p2_and_f2
 
 
 // force evaluation kernel
-template <int potential_model, int cal_p, int cal_j, int cal_q>
+template <int potential_model, int cal_j, int cal_q>
 static __global__ void gpu_find_force
 (
     LJ_Para lj, RI_Para ri,
@@ -193,25 +193,18 @@ static __global__ void gpu_find_force
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
-
-    __shared__ real s_fx[BLOCK_SIZE_FORCE];
-    __shared__ real s_fy[BLOCK_SIZE_FORCE];
-    __shared__ real s_fz[BLOCK_SIZE_FORCE];
-    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
-    __shared__ real s1[BLOCK_SIZE_FORCE];
-    __shared__ real s2[BLOCK_SIZE_FORCE];
-    __shared__ real s3[BLOCK_SIZE_FORCE];
-    __shared__ real s4[BLOCK_SIZE_FORCE];
-    __shared__ real s5[BLOCK_SIZE_FORCE];
-
-    s_fx[threadIdx.x] = ZERO; 
-    s_fy[threadIdx.x] = ZERO; 
-    s_fz[threadIdx.x] = ZERO;  
-    s1[threadIdx.x] = ZERO; 
-    s2[threadIdx.x] = ZERO; 
-    s3[threadIdx.x] = ZERO;
-    s4[threadIdx.x] = ZERO;
-    s5[threadIdx.x] = ZERO;
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_pe = ZERO; // potential energy
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
 
     if (n1 < number_of_particles)
     {
@@ -264,28 +257,25 @@ static __global__ void gpu_find_force
             real f21z = -f12z; 
        
             // accumulate force
-            s_fx[threadIdx.x] += f12x - f21x; 
-            s_fy[threadIdx.x] += f12y - f21y; 
-            s_fz[threadIdx.x] += f12z - f21z; 
+            s_fx += f12x - f21x; 
+            s_fy += f12y - f21y; 
+            s_fz += f12z - f21z; 
             
             // accumulate potential energy and virial
-            if (cal_p) 
-            {
-                s4[threadIdx.x] += p2 * HALF; // two-body potential
-                s1[threadIdx.x] -= x12 * (f12x - f21x) * HALF; 
-                s2[threadIdx.x] -= y12 * (f12y - f21y) * HALF; 
-                s3[threadIdx.x] -= z12 * (f12z - f21z) * HALF;
-            }
+            s_pe += p2 * HALF; // two-body potential
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
             
-            // heat current (EMD)
-            if (cal_j) 
+            // per-atom heat current
+            if (cal_j)
             {
-                s1[threadIdx.x] += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2[threadIdx.x] += (f21z * vz1) * x12;               // x-out
-                s3[threadIdx.x] += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4[threadIdx.x] += (f21z * vz1) * y12;               // y-out
-                s5[threadIdx.x] += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
-            } 
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+            }
 
             // heat across some section (NEMD)
             if (cal_q) 
@@ -310,27 +300,24 @@ static __global__ void gpu_find_force
         }
 
         // save force
-        g_fx[n1] += s_fx[threadIdx.x]; 
-        g_fy[n1] += s_fy[threadIdx.x]; 
-        g_fz[n1] += s_fz[threadIdx.x]; 
+        g_fx[n1] += s_fx; 
+        g_fy[n1] += s_fy; 
+        g_fz[n1] += s_fz; 
 
         // save stress and potential
-        if (cal_p) 
-        {
-            g_sx[n1] += s1[threadIdx.x]; 
-            g_sy[n1] += s2[threadIdx.x]; 
-            g_sz[n1] += s3[threadIdx.x];
-            g_potential[n1] += s4[threadIdx.x];
-        }
+        g_sx[n1] += s_sx; 
+        g_sy[n1] += s_sy; 
+        g_sz[n1] += s_sz;
+        g_potential[n1] += s_pe;
 
         // save heat current
-        if (cal_j) 
+        if (cal_j)
         {
-            g_h[n1 + 0 * number_of_particles] += s1[threadIdx.x];
-            g_h[n1 + 1 * number_of_particles] += s2[threadIdx.x];
-            g_h[n1 + 2 * number_of_particles] += s3[threadIdx.x];
-            g_h[n1 + 3 * number_of_particles] += s4[threadIdx.x];
-            g_h[n1 + 4 * number_of_particles] += s5[threadIdx.x];
+            g_h[n1 + 0 * number_of_particles] += s_h1;
+            g_h[n1 + 1 * number_of_particles] += s_h2;
+            g_h[n1 + 2 * number_of_particles] += s_h3;
+            g_h[n1 + 3 * number_of_particles] += s_h4;
+            g_h[n1 + 4 * number_of_particles] += s_h5;
         }
     }
 }    
@@ -375,7 +362,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
            
         if (para->hac.compute)    
         {
-            gpu_find_force<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -384,7 +371,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            gpu_find_force<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -393,7 +380,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -407,7 +394,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
            
         if (para->hac.compute)    
         {
-            gpu_find_force<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<1, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -416,7 +403,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            gpu_find_force<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<1, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -425,7 +412,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -439,7 +426,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
            
         if (para->hac.compute)    
         {
-            gpu_find_force<2, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<2, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -448,7 +435,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            gpu_find_force<2, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<2, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -457,7 +444,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force<2, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<2, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -471,7 +458,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
            
         if (para->hac.compute)    
         {
-            gpu_find_force<3, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<3, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -480,7 +467,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            gpu_find_force<3, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<3, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -489,7 +476,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force<3, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<3, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -503,7 +490,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
            
         if (para->hac.compute)    
         {
-            gpu_find_force<4, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<4, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -512,7 +499,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            gpu_find_force<4, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<4, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -521,7 +508,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force<4, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<4, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -535,7 +522,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
            
         if (para->hac.compute)    
         {
-            gpu_find_force<5, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<5, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -544,7 +531,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            gpu_find_force<5, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<5, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
@@ -553,7 +540,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force<5, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            gpu_find_force<5, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 lj_para, ri_para,
                 N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
