@@ -45,11 +45,7 @@ void Vashishta::initialize_0(FILE *fid)
     double B_0, B_1, cos0_0, cos0_1, C, r0, cut;
     count = fscanf
     (fid, "%lf%lf%lf%lf%lf%lf%lf", &B_0, &B_1, &cos0_0, &cos0_1, &C, &r0, &cut);
-    if (count != 7) 
-    {
-        print_error("reading error for Vashishta potential.\n");
-        exit(1);
-    }
+    if (count != 7) print_error("reading error for Vashishta potential.\n");
     vashishta_para.B[0] = B_0;
     vashishta_para.B[1] = B_1;
     vashishta_para.cos0[0] = cos0_0;
@@ -66,38 +62,34 @@ void Vashishta::initialize_0(FILE *fid)
         count = fscanf
         (
             fid, "%lf%d%lf%lf%lf%lf%lf", 
-		    &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
+            &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
         );
-        if (count != 7) 
-        {
-		    print_error("reading error for Vashishta potential.\n");
-            exit(1);
-        }
-		qq[n] *= K_C;         // Gauss -> SI
-		D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
-		lambda_inv[n] = ONE / lambda_inv[n];
-		xi_inv[n] = ONE / xi_inv[n];
+        if (count != 7) print_error("reading error for Vashishta potential.\n");
+        qq[n] *= K_C;         // Gauss -> SI
+        D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
+        lambda_inv[n] = ONE / lambda_inv[n];
+        xi_inv[n] = ONE / xi_inv[n];
 		
-		vashishta_para.H[n] = H[n];
-		vashishta_para.eta[n] = eta[n];
-		vashishta_para.qq[n] = qq[n];
-		vashishta_para.lambda_inv[n] = lambda_inv[n];
-		vashishta_para.D[n] = D[n];
-		vashishta_para.xi_inv[n] = xi_inv[n];
-		vashishta_para.W[n] = W[n];
+        vashishta_para.H[n] = H[n];
+        vashishta_para.eta[n] = eta[n];
+        vashishta_para.qq[n] = qq[n];
+        vashishta_para.lambda_inv[n] = lambda_inv[n];
+        vashishta_para.D[n] = D[n];
+        vashishta_para.xi_inv[n] = xi_inv[n];
+        vashishta_para.W[n] = W[n];
 			
         real rci = ONE / rc;
         real rci4 = rci * rci * rci * rci;
         real rci6 = rci4 * rci * rci;
         real p2_steric = H[n] * pow(rci, real(eta[n]));
-	    real p2_charge = qq[n] * rci * exp(-rc*lambda_inv[n]);
+        real p2_charge = qq[n] * rci * exp(-rc*lambda_inv[n]);
         real p2_dipole = D[n] * rci4 * exp(-rc*xi_inv[n]);
-	    real p2_vander = W[n] * rci6;
-	    vashishta_para.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
+        real p2_vander = W[n] * rci6;
+        vashishta_para.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
         vashishta_para.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
-	                            + p2_vander * (SIX * rci)
-                                - p2_charge * (lambda_inv[n] + rci)      
-						        - p2_steric * (eta[n] * rci);
+                                + p2_vander * (SIX * rci)
+		                - p2_charge * (lambda_inv[n] + rci)      
+                                - p2_steric * (eta[n] * rci);
     }
 }  
 
