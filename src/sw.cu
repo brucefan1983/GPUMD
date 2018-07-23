@@ -196,7 +196,8 @@ static __device__ void find_p2_and_f2
 template <int cal_p>
 static __global__ void gpu_find_force_sw3_partial 
 (
-    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int number_of_particles, int N1, int N2, 
+    int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -241,7 +242,10 @@ static __global__ void gpu_find_force_sw3_partial
             real tmp = gamma12 / (sigma12*(d12/sigma12-a12)*(d12/sigma12-a12));
             real p2, f2;
             find_p2_and_f2
-            (sigma12, a12, sw3.B[type1][type2], sw3.A[type1][type2], d12, p2, f2);
+            (
+                sigma12, a12, sw3.B[type1][type2], sw3.A[type1][type2], 
+                d12, p2, f2
+            );
 
             // treat the two-body part in the same way as the many-body part
             real f12x = f2 * x12 * HALF; 
@@ -267,7 +271,7 @@ static __global__ void gpu_find_force_sw3_partial
                 
                 real cos0   = sw3.cos0[type1][type2][type3];
                 real lambda = sw3.lambda[type1][type2][type3];
-                real exp123 = d13 / sw3.sigma[type1][type3] - sw3.a[type1][type3];
+                real exp123 = d13/sw3.sigma[type1][type3] - sw3.a[type1][type3];
                 exp123 = sw3.gamma[type1][type3] / exp123;
                 exp123 = exp(gamma12 / (d12 / sigma12 - a12) + exp123);
                 real one_over_d12d13 = ONE / (d12 * d13);
@@ -310,7 +314,8 @@ static __global__ void gpu_find_force_sw3_partial
 template <int cal_p>
 static __global__ void gpu_find_force_sw3_partial 
 (
-    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int number_of_particles, int N1, int N2, 
+    int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -358,7 +363,10 @@ static __global__ void gpu_find_force_sw3_partial
             real tmp = gamma12 / (sigma12*(d12/sigma12-a12)*(d12/sigma12-a12));
             real p2, f2;
             find_p2_and_f2
-            (sigma12, a12, sw3.B[type1][type2], sw3.A[type1][type2], d12, p2, f2);
+            (
+                sigma12, a12, sw3.B[type1][type2], sw3.A[type1][type2], 
+                d12, p2, f2
+            );
 
             // treat the two-body part in the same way as the many-body part
             real f12x = f2 * x12 * HALF; 
@@ -394,7 +402,7 @@ static __global__ void gpu_find_force_sw3_partial
                 real cos0   = sw3.cos0[type1][type2][type3];
                 real lambda = sw3.lambda[type1][type2][type3];
                 
-                real exp123 = d13 / sw3.sigma[type1][type3] - sw3.a[type1][type3];
+                real exp123 = d13/sw3.sigma[type1][type3] - sw3.a[type1][type3];
                 exp123 = sw3.gamma[type1][type3] / exp123;
                 exp123 = exp(gamma12 / (d12 / sigma12 - a12) + exp123);
                 real one_over_d12d13 = ONE / (d12 * d13);
@@ -439,7 +447,8 @@ template <int cal_p, int cal_j, int cal_q, int cal_k>
 static __global__ void gpu_find_force_sw3 
 (
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int number_of_particles, int N1, int N2, 
+    int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_f12x, 
@@ -658,7 +667,8 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 
         gpu_find_force_sw3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -673,7 +683,8 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 
         gpu_find_force_sw3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -688,7 +699,8 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 
         gpu_find_force_sw3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -703,7 +715,8 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 
         gpu_find_force_sw3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            sw2_para, NN, NL, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
