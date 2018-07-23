@@ -292,8 +292,7 @@ static __device__ void find_p2_and_f2
 {
     real d12inv = ONE / d12;
     real d12inv2 = d12inv * d12inv;
-    // real p2_steric = eta; p2_steric = H * pow(d12inv, p2_steric); // slow
-    real p2_steric = H * my_pow(d12inv, eta); // super fast
+    real p2_steric = H * my_pow(d12inv, eta);
     real p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
     real p2_dipole = D * (d12inv2 * d12inv2) * exp(-d12 * xi_inv);
     real p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
@@ -308,7 +307,7 @@ static __device__ void find_p2_and_f2
 
 
 // 2-body part of the Vashishta potential (kernel)
-template <int use_table, int cal_p, int cal_j, int cal_q>
+template <int use_table, int cal_j, int cal_q>
 static __global__ void gpu_find_force_vashishta_2body
 (
     int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
@@ -332,16 +331,18 @@ static __global__ void gpu_find_force_vashishta_2body
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-
-    real s_fx = ZERO; 
-    real s_fy = ZERO; 
-    real s_fz = ZERO; 
-    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
-    real s1 = ZERO;
-    real s2 = ZERO;
-    real s3 = ZERO;
-    real s4 = ZERO;
-    real s5 = ZERO; 
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_pe = ZERO; // potential energy
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -350,15 +351,9 @@ static __global__ void gpu_find_force_vashishta_2body
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
-        real vx1; 
-        real vy1; 
-        real vz1;
-        if (!cal_p)
-        {
-            vx1 = LDG(g_vx, n1); 
-            vy1 = LDG(g_vy, n1); 
-            vz1 = LDG(g_vz, n1);
-        }
+        real vx1 = LDG(g_vx, n1); 
+        real vy1 = LDG(g_vy, n1); 
+        real vz1 = LDG(g_vz, n1);
         real lx = g_box_length[0]; 
         real ly = g_box_length[1]; 
         real lz = g_box_length[2];
@@ -432,21 +427,18 @@ static __global__ void gpu_find_force_vashishta_2body
             s_fz += f12z - f21z; 
             
             // accumulate potential energy and virial
-            if (cal_p) 
-            {
-                s4 += p2 * HALF; // two-body potential
-                s1 -= x12 * (f12x - f21x) * HALF; 
-                s2 -= y12 * (f12y - f21y) * HALF; 
-                s3 -= z12 * (f12z - f21z) * HALF;
-            }
+            s_pe += p2 * HALF; // two-body potential
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
             
             if (cal_j) // heat current (EMD)
             {
-                s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2 += (f21z * vz1) * x12;               // x-out
-                s3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4 += (f21z * vz1) * y12;               // y-out
-                s5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
             } 
 
             if (cal_q) // heat across some section (NEMD)
@@ -475,20 +467,19 @@ static __global__ void gpu_find_force_vashishta_2body
         g_fx[n1] += s_fx; // save force
         g_fy[n1] += s_fy; 
         g_fz[n1] += s_fz;  
-        if (cal_p) // save stress and potential
-        {
-            g_sx[n1] += s1; 
-            g_sy[n1] += s2; 
-            g_sz[n1] += s3;
-            g_potential[n1] += s4;
-        }
+
+        // save stress and potential
+        g_sx[n1] += s_sx; 
+        g_sy[n1] += s_sy; 
+        g_sz[n1] += s_sz;
+        g_potential[n1] += s_pe;
         if (cal_j) // save heat current
         {
-            g_h[n1 + 0 * number_of_particles] += s1;
-            g_h[n1 + 1 * number_of_particles] += s2;
-            g_h[n1 + 2 * number_of_particles] += s3;
-            g_h[n1 + 3 * number_of_particles] += s4;
-            g_h[n1 + 4 * number_of_particles] += s5;
+            g_h[n1 + 0 * number_of_particles] += s_h1;
+            g_h[n1 + 1 * number_of_particles] += s_h2;
+            g_h[n1 + 2 * number_of_particles] += s_h3;
+            g_h[n1 + 3 * number_of_particles] += s_h4;
+            g_h[n1 + 4 * number_of_particles] += s_h5;
         }
     }
 }    
@@ -497,7 +488,6 @@ static __global__ void gpu_find_force_vashishta_2body
 
 
 // calculate the partial forces dU_i/dr_ij
-template <int cal_p>
 static __global__ void gpu_find_force_vashishta_partial
 (
     int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
@@ -565,12 +555,10 @@ static __global__ void gpu_find_force_vashishta_partial
                 real cos_inv = cos123 - vas.cos0[type1];
                 cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv); 
 				    
-                if (cal_p) // accumulate potential energy
-                {
-                    potential_energy += (cos123 - vas.cos0[type1])
-                                      * (cos123 - vas.cos0[type1])
-                                      * cos_inv*HALF*vas.B[type1]*exp123;
-                }
+                // accumulate potential energy
+                potential_energy += (cos123 - vas.cos0[type1])
+                                  * (cos123 - vas.cos0[type1])
+                                  * cos_inv*HALF*vas.B[type1]*exp123;
  
                 real tmp1=vas.B[type1]*exp123*cos_inv*(cos123-vas.cos0[type1]);
                 real tmp2=gamma2 * (cos123 - vas.cos0[type1]) * d12inv;
@@ -586,10 +574,8 @@ static __global__ void gpu_find_force_vashishta_partial
             g_f12y[index] = f12y;
             g_f12z[index] = f12z;
         }
-        if (cal_p) // save potential
-        {
-            g_potential[n1] += potential_energy;
-        }
+        // save potential
+        g_potential[n1] += potential_energy;
     }
 }    
 
@@ -597,7 +583,7 @@ static __global__ void gpu_find_force_vashishta_partial
 
 
 // 3-body part of the Vashishta potential (kernel)
-template <int cal_p, int cal_j, int cal_q>
+template <int cal_j, int cal_q>
 static __global__ void gpu_find_force_vashishta_3body
 (
     int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
@@ -624,16 +610,17 @@ static __global__ void gpu_find_force_vashishta_3body
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    real s_fx = ZERO;
-    real s_fy = ZERO;
-    real s_fz = ZERO;
-
-    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
-    real s1 = ZERO;
-    real s2 = ZERO;
-    real s3 = ZERO;
-    real s4 = ZERO;
-    real s5 = ZERO;
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -641,15 +628,9 @@ static __global__ void gpu_find_force_vashishta_3body
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
-        real vx1; 
-        real vy1; 
-        real vz1;
-        if (!cal_p)
-        {
-            vx1 = LDG(g_vx, n1); 
-            vy1 = LDG(g_vy, n1); 
-            vz1 = LDG(g_vz, n1);
-        }
+        real vx1 = LDG(g_vx, n1); 
+        real vy1 = LDG(g_vy, n1); 
+        real vz1 = LDG(g_vz, n1);
         real lx = g_box_length[0]; 
         real ly = g_box_length[1]; 
         real lz = g_box_length[2];
@@ -686,20 +667,18 @@ static __global__ void gpu_find_force_vashishta_3body
             s_fy += f12y - f21y; 
             s_fz += f12z - f21z; 
 
-            if (cal_p) // accumulate virial
-            {
-                s1 -= x12 * (f12x - f21x) * HALF; 
-                s2 -= y12 * (f12y - f21y) * HALF; 
-                s3 -= z12 * (f12z - f21z) * HALF;
-            }
+            // accumulate virial
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
             
             if (cal_j) // heat current (EMD)
             {
-                s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2 += (f21z * vz1) * x12;               // x-out
-                s3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4 += (f21z * vz1) * y12;               // y-out
-                s5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
             } 
 
             if (cal_q) // heat current (NEMD)
@@ -723,23 +702,20 @@ static __global__ void gpu_find_force_vashishta_3body
             }
         }
 
-        // accumulate on top of the 2-body part (hence += instead of =)
         g_fx[n1] += s_fx; // accumulate force
         g_fy[n1] += s_fy; 
         g_fz[n1] += s_fz;  
-        if (cal_p) // accumulate stress
-        {
-            g_sx[n1] += s1; 
-            g_sy[n1] += s2; 
-            g_sz[n1] += s3;
-        }
+        // accumulate stress
+        g_sx[n1] += s_sx; 
+        g_sy[n1] += s_sy; 
+        g_sz[n1] += s_sz;
         if (cal_j) // accumulate heat current
         {
-            g_h[n1 + 0 * number_of_particles] += s1;
-            g_h[n1 + 1 * number_of_particles] += s2;
-            g_h[n1 + 2 * number_of_particles] += s3;
-            g_h[n1 + 3 * number_of_particles] += s4;
-            g_h[n1 + 4 * number_of_particles] += s5;
+            g_h[n1 + 0 * number_of_particles] += s_h1;
+            g_h[n1 + 1 * number_of_particles] += s_h2;
+            g_h[n1 + 2 * number_of_particles] += s_h3;
+            g_h[n1 + 3 * number_of_particles] += s_h4;
+            g_h[n1 + 4 * number_of_particles] += s_h5;
         }
     }
 }    
@@ -789,7 +765,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 0, 1, 0>
+            gpu_find_force_vashishta_2body<0, 1, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
                 N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -800,7 +776,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 0, 1, 0>
+            gpu_find_force_vashishta_2body<1, 1, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
                 N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -810,7 +786,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             );
         }
 
-        gpu_find_force_vashishta_partial<0>
+        gpu_find_force_vashishta_partial
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -818,7 +794,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
-        gpu_find_force_vashishta_3body<0, 1, 0>
+        gpu_find_force_vashishta_3body<1, 0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -831,7 +807,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 0, 0, 1>
+            gpu_find_force_vashishta_2body<0, 0, 1>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
                 N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -842,7 +818,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 0, 0, 1>
+            gpu_find_force_vashishta_2body<1, 0, 1>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
                 N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -852,7 +828,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             );
         }
 
-        gpu_find_force_vashishta_partial<0>
+        gpu_find_force_vashishta_partial
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -860,7 +836,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
-        gpu_find_force_vashishta_3body<0, 0, 1>
+        gpu_find_force_vashishta_3body<0, 1>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -873,7 +849,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 1, 0, 0>
+            gpu_find_force_vashishta_2body<0, 0, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
                 N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -884,7 +860,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 1, 0, 0>
+            gpu_find_force_vashishta_2body<1, 0, 0>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
             (
                 N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -894,7 +870,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             );
         }
 
-        gpu_find_force_vashishta_partial<1>
+        gpu_find_force_vashishta_partial
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -902,7 +878,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             x, y, z, box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_vashishta_3body<1, 0, 0>
+        gpu_find_force_vashishta_3body<0, 0>
         <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, 
