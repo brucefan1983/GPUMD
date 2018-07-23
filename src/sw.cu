@@ -193,7 +193,6 @@ static __device__ void find_p2_and_f2
 
 // find the partial forces dU_i/dr_ij
 #ifndef MOS2_JIANG
-template <int cal_p>
 static __global__ void gpu_find_force_sw3_partial 
 (
     int number_of_particles, int N1, int N2, 
@@ -251,10 +250,8 @@ static __global__ void gpu_find_force_sw3_partial
             real f12x = f2 * x12 * HALF; 
             real f12y = f2 * y12 * HALF; 
             real f12z = f2 * z12 * HALF; 
-            if (cal_p) // accumulate potential energy
-            {
-                potential_energy += p2 * HALF;
-            }
+            // accumulate potential energy
+            potential_energy += p2 * HALF;
 
             // accumulate_force_123
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -281,10 +278,8 @@ static __global__ void gpu_find_force_sw3_partial
                 real tmp1 = exp123 * (cos123 - cos0) * lambda;
                 real tmp2 = tmp * (cos123 - cos0) * d12inv;
 
-                if (cal_p) // accumulate potential energy
-                {
-                    potential_energy += (cos123 - cos0) * tmp1 * HALF;
-                }
+                // accumulate potential energy
+                potential_energy += (cos123 - cos0) * tmp1 * HALF;
 
                 real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12; 
                 f12x += tmp1 * (TWO * cos_d - tmp2 * x12);
@@ -300,10 +295,8 @@ static __global__ void gpu_find_force_sw3_partial
             g_f12y[index] = f12y;
             g_f12z[index] = f12z;
         }
-        if (cal_p) // save potential
-        {
-            g_potential[n1] = potential_energy;
-        }
+        // save potential
+        g_potential[n1] = potential_energy;
     }
 }    
  
@@ -311,7 +304,6 @@ static __global__ void gpu_find_force_sw3_partial
 
 
 #else // [J.-W. Jiang, Nanotechnology 26, 315706 (2015)]
-template <int cal_p>
 static __global__ void gpu_find_force_sw3_partial 
 (
     int number_of_particles, int N1, int N2, 
@@ -372,10 +364,8 @@ static __global__ void gpu_find_force_sw3_partial
             real f12x = f2 * x12 * HALF; 
             real f12y = f2 * y12 * HALF; 
             real f12z = f2 * z12 * HALF; 
-            if (cal_p) // accumulate potential energy
-            {
-                potential_energy += p2 * HALF;
-            }
+            // accumulate potential energy
+            potential_energy += p2 * HALF;
 
             // accumulate_force_123
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -412,10 +402,8 @@ static __global__ void gpu_find_force_sw3_partial
                 real tmp1 = exp123 * (cos123 - cos0) * lambda;
                 real tmp2 = tmp * (cos123 - cos0) * d12inv;
 
-                if (cal_p) // accumulate potential energy
-                {
-                    potential_energy += (cos123 - cos0) * tmp1 * HALF;
-                }
+                // accumulate potential energy
+                potential_energy += (cos123 - cos0) * tmp1 * HALF;
 
                 real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12; 
                 f12x += tmp1 * (TWO * cos_d - tmp2 * x12);
@@ -431,10 +419,8 @@ static __global__ void gpu_find_force_sw3_partial
             g_f12y[index] = f12y;
             g_f12z[index] = f12z;
         }
-        if (cal_p) // save potential
-        {
-            g_potential[n1] += potential_energy;
-        }
+        // save potential
+        g_potential[n1] += potential_energy;
     }
 }   
 #endif
@@ -443,7 +429,7 @@ static __global__ void gpu_find_force_sw3_partial
 
 
 // force evaluation kernel for the SW potential
-template <int cal_p, int cal_j, int cal_q, int cal_k>
+template <int cal_j, int cal_q, int cal_k>
 static __global__ void gpu_find_force_sw3 
 (
     real fe_x, real fe_y, real fe_z,
@@ -470,22 +456,22 @@ static __global__ void gpu_find_force_sw3
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-
-    real s_fx = ZERO;
-    real s_fy = ZERO;
-    real s_fz = ZERO;
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
 
     // driving force 
     real fx_driving = ZERO;
     real fy_driving = ZERO;
     real fz_driving = ZERO;
-
-    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
-    real s1 = ZERO;
-    real s2 = ZERO;
-    real s3 = ZERO;
-    real s4 = ZERO;
-    real s5 = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -494,15 +480,9 @@ static __global__ void gpu_find_force_sw3
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
-        real vx1; 
-        real vy1; 
-        real vz1;
-        if (!cal_p)
-        {
-            vx1 = LDG(g_vx, n1); 
-            vy1 = LDG(g_vy, n1); 
-            vz1 = LDG(g_vz, n1);
-        }
+        real vx1 = LDG(g_vx, n1); 
+        real vy1 = LDG(g_vy, n1); 
+        real vz1 = LDG(g_vz, n1);
         real lx = g_box_length[0]; 
         real ly = g_box_length[1]; 
         real lz = g_box_length[2];
@@ -548,20 +528,18 @@ static __global__ void gpu_find_force_sw3
                 fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
             } 
             
-            if (cal_p) // per-atom virial
-            {
-                s1 -= x12 * (f12x - f21x) * HALF; 
-                s2 -= y12 * (f12y - f21y) * HALF; 
-                s3 -= z12 * (f12z - f21z) * HALF;
-            }
+            // per-atom virial
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
             
             if (cal_j || cal_k) // per-atom heat current
             {
-                s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2 += (f21z * vz1) * x12;               // x-out
-                s3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4 += (f21z * vz1) * y12;               // y-out
-                s5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
             } 
 
             if (cal_q) // heat across some section (NEMD)
@@ -598,19 +576,18 @@ static __global__ void gpu_find_force_sw3
         g_fy[n1] += s_fy; 
         g_fz[n1] += s_fz;  
 
-        if (cal_p) // save virial
-        {
-            g_sx[n1] += s1; 
-            g_sy[n1] += s2; 
-            g_sz[n1] += s3;
-        }
+        // save virial
+        g_sx[n1] += s_sx; 
+        g_sy[n1] += s_sy; 
+        g_sz[n1] += s_sz;
+
         if (cal_j || cal_k) // save heat current
         {
-            g_h[n1 + 0 * number_of_particles] += s1;
-            g_h[n1 + 1 * number_of_particles] += s2;
-            g_h[n1 + 2 * number_of_particles] += s3;
-            g_h[n1 + 3 * number_of_particles] += s4;
-            g_h[n1 + 4 * number_of_particles] += s5;
+            g_h[n1 + 0 * number_of_particles] += s_h1;
+            g_h[n1 + 1 * number_of_particles] += s_h2;
+            g_h[n1 + 2 * number_of_particles] += s_h3;
+            g_h[n1 + 3 * number_of_particles] += s_h4;
+            g_h[n1 + 4 * number_of_particles] += s_h5;
         }
     }
 }    
@@ -659,13 +636,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
            
     if (para->hac.compute)    
     {
-        gpu_find_force_sw3_partial<0><<<grid_size, BLOCK_SIZE_SW>>> 
+        gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>> 
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_sw3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
+        gpu_find_force_sw3<1, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             sw2_para, NN, NL, type, 
@@ -675,13 +652,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else if (para->hnemd.compute)
     {
-        gpu_find_force_sw3_partial<0><<<grid_size, BLOCK_SIZE_SW>>> 
+        gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>> 
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_sw3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_SW>>>
+        gpu_find_force_sw3<0, 0, 1><<<grid_size, BLOCK_SIZE_SW>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             sw2_para, NN, NL, type, 
@@ -691,13 +668,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else if (para->shc.compute)
     {
-        gpu_find_force_sw3_partial<0><<<grid_size, BLOCK_SIZE_SW>>> 
+        gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>> 
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_sw3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_SW>>>
+        gpu_find_force_sw3<0, 1, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             sw2_para, NN, NL, type, 
@@ -707,13 +684,13 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else
     {
-        gpu_find_force_sw3_partial<1><<<grid_size, BLOCK_SIZE_SW>>> 
+        gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>> 
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z, 
             box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_sw3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
+        gpu_find_force_sw3<0, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             sw2_para, NN, NL, type, 
