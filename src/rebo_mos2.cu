@@ -1497,7 +1497,8 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_step3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -1511,7 +1512,8 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_step3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -1525,7 +1527,8 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_step3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -1539,7 +1542,8 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_step3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            NN_local, NL_local, type, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, 
             box, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
