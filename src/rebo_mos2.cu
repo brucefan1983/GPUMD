@@ -854,7 +854,7 @@ static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
 
 
 // 2-body part (kernel)
-template <int cal_p, int cal_j, int cal_q, int cal_k>
+template <int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_step0
 (
     real fe_x, real fe_y, real fe_z,
@@ -877,21 +877,22 @@ static __global__ void find_force_step0
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-
-    real s_fx = ZERO;
-    real s_fy = ZERO;
-    real s_fz = ZERO;
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_pe = ZERO; // potential energy
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
     // driving force 
     real fx_driving = ZERO;
     real fy_driving = ZERO;
     real fz_driving = ZERO;
-
-    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
-    real s1 = ZERO;
-    real s2 = ZERO;
-    real s3 = ZERO;
-    real s4 = ZERO;
-    real s5 = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -956,22 +957,19 @@ static __global__ void find_force_step0
                 fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
             } 
             
-            // accumulate potential energy and virial
-            if (cal_p) 
-            {
-                s4 += p2 * HALF; // two-body potential
-                s1 -= x12 * (f12x - f21x) * HALF; 
-                s2 -= y12 * (f12y - f21y) * HALF; 
-                s3 -= z12 * (f12z - f21z) * HALF;
-            }
+            // accumulate potential energy and virial 
+            s_pe += p2 * HALF; // two-body potential
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
             
             if (cal_j || cal_k)
             {
-                s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2 += (f21z * vz1) * x12;               // x-out
-                s3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4 += (f21z * vz1) * y12;               // y-out
-                s5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
             } 
 
             if (cal_q) // heat across some section (NEMD)
@@ -999,8 +997,8 @@ static __global__ void find_force_step0
         // save the P(N) function and its derivative
         real p, pp;
         find_p_and_pp(type1, coordination_number, p, pp);
-        g_p[n1] = p;    // will be used in find_force_step2 
-        g_pp[n1] = pp;  // will be used in find_force_step3 
+        g_p[n1] = p;    // will be used in find_force_step1 
+        g_pp[n1] = pp;  // will be used in find_force_step2 
 
         // driving force
         if (cal_k)
@@ -1013,20 +1011,18 @@ static __global__ void find_force_step0
         g_fx[n1] += s_fx; // save force
         g_fy[n1] += s_fy; 
         g_fz[n1] += s_fz;  
-        if (cal_p) // save stress and potential
-        {
-            g_sx[n1] += s1; 
-            g_sy[n1] += s2; 
-            g_sz[n1] += s3;
-            g_potential[n1] += s4;
-        }
+        // save stress and potential
+        g_sx[n1] += s_sx; 
+        g_sy[n1] += s_sy; 
+        g_sz[n1] += s_sz;
+        g_potential[n1] += s_pe;
         if (cal_j || cal_k) // save heat current
         {
-            g_h[n1 + 0 * number_of_particles] += s1;
-            g_h[n1 + 1 * number_of_particles] += s2;
-            g_h[n1 + 2 * number_of_particles] += s3;
-            g_h[n1 + 3 * number_of_particles] += s4;
-            g_h[n1 + 4 * number_of_particles] += s5;
+            g_h[n1 + 0 * number_of_particles] += s_h1;
+            g_h[n1 + 1 * number_of_particles] += s_h2;
+            g_h[n1 + 2 * number_of_particles] += s_h3;
+            g_h[n1 + 3 * number_of_particles] += s_h4;
+            g_h[n1 + 4 * number_of_particles] += s_h5;
         }
     }
 }    
@@ -1107,7 +1103,6 @@ static __global__ void find_force_step1
 
 
 // calculate and save the partial forces dU_i/dr_ij
-template <int cal_p>
 static __global__ void find_force_step2
 (
     int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
@@ -1166,10 +1161,8 @@ static __global__ void find_force_step2
             real f12y = y12 * factor3 * HALF;
             real f12z = z12 * factor3 * HALF;
 
-            if (cal_p) // accumulate potential energy
-            {
-                potential_energy += fc12 * (fr12 - b12 * fa12) * HALF;
-            }
+            // accumulate potential energy
+            potential_energy += fc12 * (fr12 - b12 * fa12) * HALF;
 
             // accumulate_force_123
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -1207,10 +1200,8 @@ static __global__ void find_force_step2
             g_f12y[index] = f12y;
             g_f12z[index] = f12z;
         }
-        if (cal_p) // accumulate potential energy on top of the 2-body part
-        {
-            g_potential[n1] += potential_energy;
-        }
+        // accumulate potential energy on top of the 2-body part
+        g_potential[n1] += potential_energy;
     }
 }   
 
@@ -1218,7 +1209,7 @@ static __global__ void find_force_step2
 
 
 // 3-body part
-template <int cal_p, int cal_j, int cal_q, int cal_k>
+template <int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_step3
 (
     real fe_x, real fe_y, real fe_z,
@@ -1244,21 +1235,22 @@ static __global__ void find_force_step3
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    real s_fx = ZERO;
-    real s_fy = ZERO;
-    real s_fz = ZERO;
+    real s_fx = ZERO; // force_x
+    real s_fy = ZERO; // force_y
+    real s_fz = ZERO; // force_z
+    real s_sx = ZERO; // virial_stress_x
+    real s_sy = ZERO; // virial_stress_y
+    real s_sz = ZERO; // virial_stress_z
+    real s_h1 = ZERO; // heat_x_in
+    real s_h2 = ZERO; // heat_x_out
+    real s_h3 = ZERO; // heat_y_in
+    real s_h4 = ZERO; // heat_y_out
+    real s_h5 = ZERO; // heat_z
 
     // driving force 
     real fx_driving = ZERO;
     real fy_driving = ZERO;
     real fz_driving = ZERO;
-
-    // if cal_p, then s1~s4 = px, py, pz, U; if cal_j, then s1~s5 = j1~j5
-    real s1 = ZERO;
-    real s2 = ZERO;
-    real s3 = ZERO;
-    real s4 = ZERO;
-    real s5 = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -1318,21 +1310,18 @@ static __global__ void find_force_step3
             } 
 
             // per-atom stress
-            if (cal_p)
-            {
-                s1 -= x12 * (f12x - f21x) * HALF; 
-                s2 -= y12 * (f12y - f21y) * HALF; 
-                s3 -= z12 * (f12z - f21z) * HALF;
-            }
+            s_sx -= x12 * (f12x - f21x) * HALF; 
+            s_sy -= y12 * (f12y - f21y) * HALF; 
+            s_sz -= z12 * (f12z - f21z) * HALF;
 
             // per-atom heat current
             if (cal_j || cal_k)
             {
-                s1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s2 += (f21z * vz1) * x12;               // x-out
-                s3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s4 += (f21z * vz1) * y12;               // y-out
-                s5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+                s_h2 += (f21z * vz1) * x12;               // x-out
+                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+                s_h4 += (f21z * vz1) * y12;               // y-out
+                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
             }
  
             // accumulate heat across some sections (for NEMD)
@@ -1365,25 +1354,22 @@ static __global__ void find_force_step3
             s_fz += fz_driving; // with driving force
         }
 
-        // accumulate on top of the 2-body part (hence += instead of =)
         g_fx[n1] += s_fx; // accumulate force
         g_fy[n1] += s_fy; 
         g_fz[n1] += s_fz;
 
-        if (cal_p) // accumulate stress and potential
-        {
-            g_sx[n1] += s1; 
-            g_sy[n1] += s2; 
-            g_sz[n1] += s3;
-        }
+        // accumulate stress and potential
+        g_sx[n1] += s_sx; 
+        g_sy[n1] += s_sy; 
+        g_sz[n1] += s_sz;
 
         if (cal_j || cal_k) // accumulate heat current
         {
-            g_h[n1 + 0 * N] += s1;
-            g_h[n1 + 1 * N] += s2;
-            g_h[n1 + 2 * N] += s3;
-            g_h[n1 + 3 * N] += s4;
-            g_h[n1 + 4 * N] += s5;
+            g_h[n1 + 0 * N] += s_h1;
+            g_h[n1 + 1 * N] += s_h2;
+            g_h[n1 + 2 * N] += s_h3;
+            g_h[n1 + 3 * N] += s_h4;
+            g_h[n1 + 4 * N] += s_h5;
         }
     }
 }   
@@ -1400,8 +1386,8 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
 
-    int *NN = gpu_data->NN_local;             // for 2-body
-    int *NL = gpu_data->NL_local;             // for 2-body
+    int *NN = gpu_data->NN_local;           // for 2-body
+    int *NL = gpu_data->NL_local;           // for 2-body
     int *NN_local = rebo_mos_data.NN_short; // for 3-body
     int *NL_local = rebo_mos_data.NL_short; // for 3-body
 
@@ -1441,7 +1427,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     if (para->hac.compute)
     {
 
-        find_force_step0<0, 1, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step0<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, 
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type, 
@@ -1451,7 +1437,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else if (para->hnemd.compute)
     {
-        find_force_step0<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step0<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, 
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type, 
@@ -1461,7 +1447,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else if (para->shc.compute)
     {
-        find_force_step0<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step0<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, 
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type, 
@@ -1471,7 +1457,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else
     {
-        find_force_step0<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step0<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, 
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type, 
@@ -1490,12 +1476,12 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     // 3-body part
     if (para->hac.compute)
     {
-        find_force_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
             b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
         );
-        find_force_step3<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step3<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN_local, NL_local, type, 
@@ -1505,12 +1491,12 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else if (para->hnemd.compute)
     {
-        find_force_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
             b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
         );
-        find_force_step3<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step3<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN_local, NL_local, type, 
@@ -1520,12 +1506,12 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else if (para->shc.compute)
     {
-        find_force_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
             b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
         );
-        find_force_step3<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step3<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN_local, NL_local, type, 
@@ -1535,12 +1521,12 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     }
     else
     {
-        find_force_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
             b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
         );
-        find_force_step3<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        find_force_step3<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN_local, NL_local, type, 
