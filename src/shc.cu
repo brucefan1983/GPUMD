@@ -64,7 +64,6 @@ void preprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
         {
             if (cpu_data->fv_index[n] >= 0) { para->shc.number_of_pairs++; }
         }
-        //printf("number_of_pairs = %d\n", para->shc.number_of_pairs);
 
         // there are 12 data for each pair
         int num1 = para->shc.number_of_pairs * 12; 
