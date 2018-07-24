@@ -559,14 +559,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
 
     if (potential_model == 0)
     {
+        find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            NN, NL, x, y, z, box_length, Fp, pe
+        );
         if (para->hac.compute)
         {
-            find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-                NN, NL, x, y, z, box_length, Fp, pe
-            );
-        
             find_force_eam_step2<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
@@ -581,22 +580,9 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
                 eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
                 NN, NL, x, y, z, box_length, Fp, pe
             );
-        
-            find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
-            );
         }
         else if (para->hnemd.compute)
         {
-            find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-                NN, NL, x, y, z, box_length, Fp, pe
-            );
-        
             find_force_eam_step2<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
@@ -606,12 +592,6 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-                NN, NL, x, y, z, box_length, Fp, pe
-            );
-        
             find_force_eam_step2<0, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
@@ -623,14 +603,13 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
 
     if (potential_model == 1)
     {
+        find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            NN, NL, x, y, z, box_length, Fp, pe
+        );
         if (para->hac.compute)
         {
-            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-                NN, NL, x, y, z, box_length, Fp, pe
-            );
-        
             find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
@@ -640,12 +619,6 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->shc.compute)
         {
-            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-                NN, NL, x, y, z, box_length, Fp, pe
-            );
-        
             find_force_eam_step2<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
@@ -655,12 +628,6 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else if (para->hnemd.compute)
         {
-            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-                NN, NL, x, y, z, box_length, Fp, pe
-            );
-        
             find_force_eam_step2<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
@@ -670,12 +637,6 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
         }
         else
         {
-            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-                NN, NL, x, y, z, box_length, Fp, pe
-            );
-        
             find_force_eam_step2<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
