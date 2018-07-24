@@ -204,7 +204,7 @@ static void find_hac_kappa
     int number_of_steps = para->number_of_steps;
     int sample_interval = para->hac.sample_interval;
     int Nc = para->hac.Nc;
-    real temperature = integrate->ensemble->temperature;
+    real temperature = para->temperature2;
     real time_step = para->time_step;
 
     // other parameters
