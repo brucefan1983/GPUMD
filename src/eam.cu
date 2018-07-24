@@ -342,9 +342,10 @@ static __global__ void find_force_eam_step1
 
 
 // Force evaluation kernel
-template <int potential_model, int cal_j, int cal_q>
+template <int potential_model, int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_eam_step2
 (
+    real fe_x, real fe_y, real fe_z,
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
     int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
     int *g_NN, int *g_NL,
@@ -380,6 +381,11 @@ static __global__ void find_force_eam_step2
     real s_h4 = ZERO; // heat_y_out
     real s_h5 = ZERO; // heat_z
 
+    // driving force 
+    real fx_driving = ZERO;
+    real fy_driving = ZERO;
+    real fz_driving = ZERO;
+
     if (n1 >= N1 && n1 < N2)
     {  
         real lx = LDG(g_box, 0);
@@ -390,9 +396,13 @@ static __global__ void find_force_eam_step2
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
-        real vx1 = LDG(g_vx, n1); 
-        real vy1 = LDG(g_vy, n1); 
-        real vz1 = LDG(g_vz, n1);
+        real vx1, vy1, vz1;
+        if (cal_j || cal_q || cal_k)
+        {
+            vx1 = LDG(g_vx, n1);
+            vy1 = LDG(g_vy, n1); 
+            vz1 = LDG(g_vz, n1);
+        }
         real Fp1 = LDG(g_Fp, n1);
 
         for (int i1 = 0; i1 < NN; ++i1)
@@ -433,13 +443,21 @@ static __global__ void find_force_eam_step2
             s_fy += f12y - f21y; 
             s_fz += f12z - f21z;  
 
+            // driving force
+            if (cal_k)
+            { 
+                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
+            } 
+
             // per-atom virial stress
             s_sx -= x12 * (f12x - f21x) * HALF; 
             s_sy -= y12 * (f12y - f21y) * HALF; 
             s_sz -= z12 * (f12z - f21z) * HALF;
 
             // per-atom heat current
-            if (cal_j)
+            if (cal_j || cal_k)
             {
                 s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
                 s_h2 += (f21z * vz1) * x12;               // x-out
@@ -470,6 +488,14 @@ static __global__ void find_force_eam_step2
             }
         }
 
+        // add driving force
+        if (cal_k)
+        { 
+            s_fx += fx_driving;
+            s_fy += fy_driving;
+            s_fz += fz_driving;
+        }
+
         // save force
         g_fx[n1] += s_fx; 
         g_fy[n1] += s_fy; 
@@ -481,7 +507,7 @@ static __global__ void find_force_eam_step2
         g_sz[n1] += s_sz;
         g_pe[n1] += s_pe;
 
-        if (cal_j) // save heat current
+        if (cal_j || cal_k) // save heat current
         {
             g_h[n1 + 0 * N] += s_h1;
             g_h[n1 + 1 * N] += s_h2;
@@ -527,6 +553,10 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
    
     real *Fp = eam_data.Fp;
 
+    real fe_x = para->hnemd.fe_x;
+    real fe_y = para->hnemd.fe_y;
+    real fe_z = para->hnemd.fe_z;
+
     if (potential_model == 0)
     {
         if (para->hac.compute)
@@ -537,9 +567,9 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                eam2004zhou, eam2006dai,
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -552,9 +582,24 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                eam2004zhou, eam2006dai, 
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else if (para->hnemd.compute)
+        {
+            find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                NN, NL, x, y, z, box_length, Fp, pe
+            );
+        
+            find_force_eam_step2<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -567,9 +612,9 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<0, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                eam2004zhou, eam2006dai,
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -586,9 +631,9 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<1, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                eam2004zhou, eam2006dai,
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -601,9 +646,24 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<1, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                eam2004zhou, eam2006dai, 
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
+            );
+        }
+        else if (para->hnemd.compute)
+        {
+            find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+                NN, NL, x, y, z, box_length, Fp, pe
+            );
+        
+            find_force_eam_step2<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
@@ -616,9 +676,9 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
                 NN, NL, x, y, z, box_length, Fp, pe
             );
         
-            find_force_eam_step2<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            find_force_eam_step2<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                eam2004zhou, eam2006dai,
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
                 N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv
             );
