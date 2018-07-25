@@ -357,7 +357,9 @@ static __device__ void find_g
 static __global__ void find_force_tersoff_step1
 (
     int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
-    Tersoff2_Parameters ters0, Tersoff2_Parameters ters1, Tersoff2_Parameters ters2,
+    Tersoff2_Parameters ters0, 
+    Tersoff2_Parameters ters1, 
+    Tersoff2_Parameters ters2,
     int* g_neighbor_number, int* g_neighbor_list,
     int* g_type,
 #ifdef USE_LDG
@@ -447,7 +449,9 @@ static __global__ void find_force_tersoff_step1
 static __global__ void find_force_tersoff_step2
 (
     int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
-    Tersoff2_Parameters ters0, Tersoff2_Parameters ters1, Tersoff2_Parameters ters2, 
+    Tersoff2_Parameters ters0, 
+    Tersoff2_Parameters ters1, 
+    Tersoff2_Parameters ters2, 
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_b, 
@@ -491,9 +495,12 @@ static __global__ void find_force_tersoff_step2
             real d12inv = ONE / d12;
             real fc12, fcp12, fa12, fap12, fr12, frp12;
 
-            find_fc_and_fcp(type1, type2, ters0, ters1, ters2, d12, fc12, fcp12);
-            find_fa_and_fap(type1, type2, ters0, ters1, ters2, d12, fa12, fap12);
-            find_fr_and_frp(type1, type2, ters0, ters1, ters2, d12, fr12, frp12);
+            find_fc_and_fcp
+            (type1, type2, ters0, ters1, ters2, d12, fc12, fcp12);
+            find_fa_and_fap
+            (type1, type2, ters0, ters1, ters2, d12, fa12, fap12);
+            find_fr_and_frp
+            (type1, type2, ters0, ters1, ters2, d12, fr12, frp12);
    
             // accumulate_force_12 
             real b12 = LDG(g_b, index);    
@@ -790,7 +797,7 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
             sx, sy, sz, h, label, fv_index, fv
         );
     }
-    else if (para->hnemd.compute) // calculate heat condutivity using HNEMD
+    else if (para->hnemd.compute && !para->shc.compute)
     {
         find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -805,7 +812,7 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
             sx, sy, sz, h, label, fv_index, fv
         );
     }
-    else if (para->shc.compute) // calculate spectral heat current
+    else if (para->shc.compute && !para->hnemd.compute)
     {
         find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -814,6 +821,21 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
             NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
         );
         find_force_tersoff_step3<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
+            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
+            sx, sy, sz, h, label, fv_index, fv
+        );
+    }
+    else if (para->shc.compute && para->hnemd.compute)
+    {
+        find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N, N1, N2, pbc_x, pbc_y, pbc_z, 
+            ters0, ters1, ters2,
+            NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
+        );
+        find_force_tersoff_step3<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
