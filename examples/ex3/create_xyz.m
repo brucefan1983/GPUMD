@@ -19,10 +19,6 @@ for nx=0:nxyz(1)-1
     end
 end
 
-% sort
-[label, index]= sort(label);
-r=r(index,:);
-
 fid=fopen('xyz.in','w');
 fprintf(fid,'%d %g %g\n',N,3,2.1);
 fprintf(fid,'%d %d %d %g %g %g\n',1,1,0,a.*nxyz);
