@@ -36,7 +36,7 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Version 1.8\\
    \vspace*{1.0cm}
-   (July 22, 2018)\\
+   (July 25, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -242,6 +242,7 @@ We are working on implementing more integration methods.
 \begin{enumerate}
 \item Changed most of the code from C style to C++ style.
 \item Added mixed potentials. That is, one can, if needed, use more than one potential for a system.
+\item Implemented the HNEMD method \cite{fan2018submitted,xu2018submitted,dong2018submitted} for all the potentials.
 \end{enumerate}
 
 
@@ -294,7 +295,7 @@ The input and output files do not necessarily adopt these units. For example, ti
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
  The logical dependence of the files is schematically shown in Fig. \ref{figure:gpumd-structure}.
-The current version of GPUMD has 58 source files. Most files come in pairs. For example, \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.cuh". If a file does not come in pair, we write the suffix explicitly. These only include \verb"main.cu", \verb"mic.cuh", \verb"mic_template.cuh", and \verb"ensemble_include.cuh", and the last three will be directly included into some other files. In the figure, if there is an arrow pointing from file A to file B, it means that file A will call some functions in file B or the class defined in file A is inherited from the class defined in file B. Nearly all the files depend on \verb"common", as indicated by the many arrows pointing to it.
+The current version of GPUMD has 57 source files and about 14 000 lines of code. Most files come in pairs. For example, \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.cuh". If a file does not come in pair, we write the suffix explicitly. These only include \verb"main.cu", \verb"mic.inc",  and \verb"ensemble.inc", and the last two will be directly included into some other files. In the figure, if there is an arrow pointing from file A to file B, it means that file A will call some functions in file B or the class defined in file A is inherited from the class defined in file B. Nearly all the files depend on \verb"common", as indicated by the many arrows pointing to it.
 
 
 \begin{figure}[ht]
@@ -310,18 +311,19 @@ The current version of GPUMD has 58 source files. Most files come in pairs. For 
 \section{Coding style of GPUMD}
 
 Every programmer has his own coding style. Here is an incomplete list of conventions we tried to follow:
-\begin{itemize}
-\item We use \verb"snake_case" instead of \verb"CamelCase" for naming.
-\item We use 4 spaces to indent. There may be a few tabs hanging around, but we will eliminate them in the future.
-\item We try to keep every line shorter than 80 characters.
-\item For brace placement, we use the Allman style. An example is:
+\begin{enumerate}
+\item Use \verb"snake_case" instead of \verb"CamelCase" for naming.
+\item Define variables as late as possible.
+\item Use four spaces to indent. 
+\item Keep every line no longer than 80 characters.
+\item Use the Allman style for brace placement. An example is:
     \begin{verbatim}
         for (int n = 0; n < 10; ++n) 
         {
             // do something
         }
     \end{verbatim}
-\item We follow similar style (perhaps I am the only one who uses this style?) for functions with many arguments:
+\item Use a similar style (perhaps I am the only one who uses this style?) for functions with many arguments:
     \begin{verbatim}
         my_function
         (
@@ -329,8 +331,9 @@ Every programmer has his own coding style. Here is an incomplete list of convent
             argument_5, argument_6, argument_7, argument_8
         )
     \end{verbatim}
-\item We prefer to keep GPUMD a standalone code. So we will only use standard C, C++ and CUDA libraries. We hope to be able to compile GPUMD with a single \verb"make".
-\end{itemize}
+\item Remove dead code.
+\item Keep GPUMD a standalone code. Only use standard C, C++ and CUDA libraries.
+\end{enumerate}
 
 
 \section{Neighbour list construction}
@@ -1731,7 +1734,7 @@ The many-body part of the EAM potential comes from the embedding potential. The 
 F'(\rho_i)  f'(r_{ij}) \frac{\partial r_{ij}} {\partial \vect{r}_{ij}}.
 \end{equation}
 
-All the three functions above, $\phi(r_{ij})$, $F(\rho_i)$, and $f(r_{ij})$ are usually given as splines, but in the current version of GPUMD, we have only implemented two analytical forms.
+All the three functions above, $\phi(r_{ij})$, $F(\rho_i)$, and $f(r_{ij})$ are usually given as splines, \textbf{but in the current version of GPUMD, we have only implemented two analytical forms.}
 
 \subsection{The analytical form by Zhou \textit{et al.}}
 
@@ -1762,7 +1765,7 @@ F(\rho) = \sum_{i=0}^3 F_{i} \left( \frac{\rho}{\rho_e}-1\right)^i, \quad (0.85\
 \begin{equation}
 F(\rho) = F_{e} \left[ 1- \ln \left(\frac{\rho}{\rho_s}\right)^{\eta}\right] \left(\frac{\rho}{\rho_s}\right)^{\eta}, \quad (\rho \geq 1.15\rho_e)
 \end{equation}
-For each element, there are 20 parameters, which are $r_e$, $f_e$, $\rho_e$, $\rho_s$, $\alpha$, $\beta$, $A$, $B$, $\kappa$, $\lambda$, $F_{n0}$, $F_{n1}$, $F_{n2}$, $F_{n3}$, $F_{0}$, $F_{1}$, $F_{2}$, $F_{3}$, $\eta$, and $F_e$. Parameter values for 16 metals are tabulated in the paper by Zhou \textit{et al.} \cite{zhou2004prb}. Although we have presented the potential in a form applicable to systems with more than one atom type, the current version of GPUMD only supports a single atom type for this potential model. Extensions will be made in a future version.
+For each element, there are 20 parameters, which are $r_e$, $f_e$, $\rho_e$, $\rho_s$, $\alpha$, $\beta$, $A$, $B$, $\kappa$, $\lambda$, $F_{n0}$, $F_{n1}$, $F_{n2}$, $F_{n3}$, $F_{0}$, $F_{1}$, $F_{2}$, $F_{3}$, $\eta$, and $F_e$. Parameter values for 16 metals are tabulated in the paper by Zhou \textit{et al.} \cite{zhou2004prb}. \textbf{Although we have presented the potential in a form applicable to systems with more than one atom type, the current version of GPUMD only supports a single atom type for this potential model. Extensions will be made in a future version.}
 
 The potential file for this potential model reads
 \begin{verbatim}
@@ -1831,6 +1834,14 @@ The potential file for this potential model reads
     B
 \end{verbatim}
 
+
+\subsection{Spline-based EAM potentials}
+
+\textbf{To be written and implemented.}
+
+\subsection{The ADP potential}
+
+\textbf{To be written and implemented.}
 
 \section{The Stillinger-Weber potential}
 
@@ -2085,7 +2096,7 @@ The potential file for the double-element version reads
 
 \section{The modified Tersoff potential for silicon systems}
 
-Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.
+\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
 
 A modified Tersoff potential for silicon systems has been proposed by Kumagai \textit{et al.} \cite{kumagai2007cms} and further extended by Pun \textit{et al.} \cite{pun2017prb}.
 
@@ -2211,7 +2222,7 @@ rebo_mos2
 \section{The REBO potential for silicon systems}
 
 
-Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.
+\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
 
 Here, we discuss the REBO (reactive empirical bond-order) potential for silicon systems developed by Schall \textit{et al.} \cite{schall2008prb},  which  is essentially the Tersoff potential. 
 
@@ -2258,7 +2269,7 @@ This is formally the same as in the case of the Tersoff potential.
 \section{The EDIP potential for silicon}
 
 
-Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.
+\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
 
 We next consider the EDIP potential for silicon \cite{bazant1997prb,justo1998prb}. The total potential energy consists of a two-body part and a three-body part. Site potential
 \begin{equation}
@@ -2321,6 +2332,11 @@ The partial force for the $U^{(3)}$ part is
  \nonumber \\
 &+ \frac{1}{2} \sum_{k\neq i,j} \sum_{m\neq i,j} \frac{\partial V^{(3)}_{ikm}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
 \end{align}
+
+\section{The analytical bond-order potential}
+
+
+\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
 
 \section{Mixed potentials}
 
@@ -2490,7 +2506,7 @@ Here,  the first parameter \verb"lj_file" specifies the Lennard-Jones potential 
     lj1
     epsilon sigma cutoff
 \end{verbatim}
-The second parameter 1 means that we need to prepare a file \verb"layer.in" in the working directory which contains the ``layer'' label of each atom. Then, atoms with the same ``layer'' label will not experience the Lennard-Jones potential. The third parameter specifies the Tersoff potential file and the last two parameters mean that the Tersoff potential will act on atoms from type 0 to type 0.
+The second parameter 1 means that we need to prepare a file \verb"layer.in" in the working directory which contains the ``layer'' label of each atom (a single column; in the same order of the \verb"xyz.in" file). Then, atoms with the same ``layer'' label will not experience the Lennard-Jones potential. The third parameter specifies the Tersoff potential file and the last two parameters mean that the Tersoff potential will act on atoms from type 0 to type 0.
 
 
 In the second example, let us consider simulating a single-layer graphene on top of a SiO$_2$ substrate. There are three atom types and we define carbon atoms as type 0, silicon atoms as type 1 and oxygen atoms as type 2. We can then use the following command to specify three potentials for the system:
@@ -2759,22 +2775,22 @@ This file contains the data of HAC (heat current autocorrelation) and RTC (runni
 \item column 3: $\langle J_x^{\text{out}}(0)J_x^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
 \item column 4: $\langle J_y^{\text{in}}(0)J_y^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
 \item column 5: $\langle J_y^{\text{out}}(0)J_y^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
-\item column 6: $\langle J_z(0)J_z(t)\rangle$ (in unit of eV$^3$/amu)
+\item column 6: $\langle J_z^{\text{tot}}(0)J_z^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
 \item column 7: $\kappa_x^{\text{in}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
 \item column 8: $\kappa_x^{\text{out}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
 \item column 9: $\kappa_y^{\text{in}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
 \item column 10: $\kappa_y^{\text{out}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
-\item column 11: $\kappa_z(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
+\item column 11: $\kappa_z^{\text{tot}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
 \end{itemize}
 
 Note that the HAC and the RTC have been decomposed as described in Ref. \cite{fan2017prb}. This decomposition is useful for 2D materials but is not necessary for 3D materials. For 3D materials, one can sum up some columns to get the conventional data. For example:
 \begin{equation}
-\langle J_x(0)J_x(t) \rangle =
+\langle J_x^{\text{tot}}(0)J_x^{\text{tot}}(t) \rangle =
 \langle J_x^{\text{in}}(0)J_x^{\text{tot}}(t) \rangle +
 \langle J_x^{\text{out}}(0)J_x^{\text{tot}}(t) \rangle.
 \end{equation}
 \begin{equation}
-\kappa_x(t) = \kappa_x^{\text{in}}(t) + \kappa_x^{\text{out}}(t).
+\kappa_x^{\text{tot}}(t) = \kappa_x^{\text{in}}(t) + \kappa_x^{\text{out}}(t).
 \end{equation}
 Note that the ``cross term'' introduced in Ref. \cite{fan2017prb} has been evenly attributed to the in- and out-of-plane components. I will give a justification for this choice later. 
 
@@ -2984,21 +3000,19 @@ The equilibrium stage is the same as in the last example. In the production stag
 \begin{figure}[ht]
 \begin{center}
 \includegraphics[width=\columnwidth]{ex3.eps}
-\caption{(a) Normalized HAC as a function of correlation time for the in-plane and out-of-plane components. (b) RTC as a function of correlation time for various components. }
+\caption{Thermal conductivity results for pristine graphene at 300 K. (a) Normalized HAC as a function of correlation time for the in-plane and out-of-plane components. (b) Individual (thin lines) and averaged (thick line) RTC as a function of correlation time for the in-plane component. (c) Individual (thin lines) and averaged (thick line) RTC as a function of correlation time for the out-of-plane component. (d) Averaged RTC as a function of correlation time for various components. }
 \label{figure:ex3}
 \end{center}
 \end{figure}
 
-It takes about one hour to complete the simulation using a Tesla K40 card.
-Figure shows the results from a single simulation. Note that the output file \verb"hac.out" contain decomposed HACs and RTCs as described in Ref. \cite{fan2017prb}. As the system is essentially isotropic, we can average over the two directions. The results are presented in Fig. \ref{figure:ex3}. From (a), we can see that the in-plane component and the out-of-plane component have different time scales. The latter decays much more slowly. In (b), the RTC components $\kappa^{\text{in}}$, $\kappa^{\text{out}}$, $\kappa^{\text{cross}}$, together with the RTC in the $z$ direction $\kappa_z$, are presented. It is clear that $\kappa^{\text{out}}$ converges much more slowly than $\kappa^{\text{in}}$ and to a larger magnitude. This is an accepted result stating that heat transport in suspended pristine graphene is dominated by the flexural (out-of-plane) phonons. Note that heat transport in the $z$ direction here is meaningless because free boundary conditions are applied in this direction. However, the fact that the calculated $\kappa_z$ should converged to zero can provide a validation of the results.
+Figure \ref{figure:ex3} shows the results from three independent simulations, which took about two hours in total using a Tesla K40 card. Note that the output file \verb"hac.out" contains decomposed HACs and RTCs as described in Ref. \cite{fan2017prb}, but without the ``cross term''. As the system is essentially isotropic in the planar directions, we can average over the two in-plane directions. From Fig. \ref{figure:ex3}(a), we can see that the in-plane component and the out-of-plane component of the HAC have different time scales. The latter decays much more slowly. Figure \ref{figure:ex3}(b) shows the individual and averaged RTCs for the in-plane component $\kappa^{\rm in}(t)$. The averaged RTC converges to about 1000 W/mK at around 200 ps. Figure \ref{figure:ex3}(c) shows the individual and averaged RTCs for the out-of-plane component $\kappa^{\rm out}(t)$, and the convergence property is not very clear here. This is because the out-of-plane component converges very slowly \cite{fan2017prb} and three independent simulations (each with 10 ns) are not enough to give accurate results. Summing up $\kappa^{\rm in}(t)$ and $\kappa^{\rm out}(t)$, we get $\kappa^{\rm tot}(t)$, as shown in Fig. \ref{figure:ex3}(d).
 
-
-Accurately calculating thermal conductivity of graphene can be a very time consuming task. The results we presented are from a single simulation with a production time of 10 ns. It can been seen that the data already becomes very noisy when the correlation time is 100 ps. To obtain accurate results, one needs to do many independent simulations and do a statistical average. Much more accurate data were presented in Fig. 2 of Ref. \cite{fan2017prb}. Here are the simulation parameters used in Ref. \cite{fan2017prb} which differ from those used in this example:
+Accurately calculating thermal conductivity of graphene can be a very time consuming task. The results we presented are from three independent simulations with a total production time of 30 ns. It can been seen that the HAC data already become very noisy when the correlation time is 100 ps. To obtain accurate results, one needs to do many independent simulations. Much more accurate data were presented in Fig. 2 of Ref. \cite{fan2017prb}. Here are the simulation parameters used in Ref. \cite{fan2017prb} which differ from those used in this example:
 \begin{itemize}
 \item The simulation cell size used in Ref. \cite{fan2017prb} is larger, which is about 25 nm $\times$ 25 nm (24000 atoms).
 \item The maximum correlation time used in Ref. \cite{fan2017prb} is larger, which is 10 ns.
 \item The production time used in Ref. \cite{fan2017prb} for one independent simulation is larger, which is 50 ns.
-\item There are 100 independent simulations in Ref. \cite{fan2017prb}, not a single one here.
+\item There are 100 independent simulations in Ref. \cite{fan2017prb}, not only three.
 \end{itemize}
 
 Each independent simulation in Ref. \cite{fan2017prb} took about 10 GPU hours (using Tesla K40) and about 1000 GPU hours were used to obtain the results shown in Fig. 2 of Ref. \cite{fan2017prb}.
