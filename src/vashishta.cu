@@ -18,6 +18,7 @@
 
 #include "common.cuh"
 #include "mic.inc"
+#include "force.inc"
 #include "vashishta.cuh"
 
 
@@ -603,175 +604,8 @@ static __global__ void gpu_find_force_vashishta_partial
         // save potential
         g_potential[n1] += potential_energy;
     }
-}    
+}
 
-
-
-
-// 3-body part of the Vashishta potential (kernel)
-template <int cal_j, int cal_q, int cal_k>
-static __global__ void gpu_find_force_vashishta_3body
-(
-    real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
-    Vashishta_Para vas,
-    int *g_neighbor_number, int *g_neighbor_list, int *g_type,
-#ifdef USE_LDG
-    const real* __restrict__ g_f12x, 
-    const real* __restrict__ g_f12y,
-    const real* __restrict__ g_f12z,
-    const real* __restrict__ g_x, 
-    const real* __restrict__ g_y, 
-    const real* __restrict__ g_z, 
-    const real* __restrict__ g_vx, 
-    const real* __restrict__ g_vy, 
-    const real* __restrict__ g_vz,
-#else
-    real* g_f12x, real* g_f12y, real* g_f12z, 
-    real *g_x,  real *g_y,  real *g_z, 
-    real *g_vx, real *g_vy, real *g_vz,
-#endif
-    real *g_box_length, real *g_fx, real *g_fy, real *g_fz,
-    real *g_sx, real *g_sy, real *g_sz,
-    real *g_h, int *g_label, int *g_fv_index, real *g_fv 
-)
-{
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    real s_fx = ZERO; // force_x
-    real s_fy = ZERO; // force_y
-    real s_fz = ZERO; // force_z
-    real s_sx = ZERO; // virial_stress_x
-    real s_sy = ZERO; // virial_stress_y
-    real s_sz = ZERO; // virial_stress_z
-    real s_h1 = ZERO; // heat_x_in
-    real s_h2 = ZERO; // heat_x_out
-    real s_h3 = ZERO; // heat_y_in
-    real s_h4 = ZERO; // heat_y_out
-    real s_h5 = ZERO; // heat_z
-
-    // driving force 
-    real fx_driving = ZERO;
-    real fy_driving = ZERO;
-    real fz_driving = ZERO;
-
-    if (n1 >= N1 && n1 < N2)
-    {
-        int neighbor_number = g_neighbor_number[n1];
-        real x1 = LDG(g_x, n1); 
-        real y1 = LDG(g_y, n1); 
-        real z1 = LDG(g_z, n1);
-        real vx1, vy1, vz1;
-        if (cal_j || cal_q || cal_k)
-        {
-            vx1 = LDG(g_vx, n1);
-            vy1 = LDG(g_vy, n1); 
-            vz1 = LDG(g_vz, n1);
-        }
-        real lx = g_box_length[0]; 
-        real ly = g_box_length[1]; 
-        real lz = g_box_length[2];
-
-        for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {  
-            int index = i1 * number_of_particles + n1; 
-            int n2 = g_neighbor_list[index];
-            int neighbor_number_2 = g_neighbor_number[n2];
-
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
-           
-            real f12x = LDG(g_f12x, index); 
-            real f12y = LDG(g_f12y, index);
-            real f12z = LDG(g_f12z, index);
-            int offset = 0;
-            for (int k = 0; k < neighbor_number_2; ++k)
-            {
-                if (n1 == g_neighbor_list[n2 + number_of_particles * k]) 
-                { 
-                    offset = k; break; 
-                }
-            }
-            index = offset * number_of_particles + n2; 
-            real f21x = LDG(g_f12x, index);
-            real f21y = LDG(g_f12y, index);
-            real f21z = LDG(g_f12z, index);
-    
-            // per atom force 
-            s_fx += f12x - f21x; 
-            s_fy += f12y - f21y; 
-            s_fz += f12z - f21z; 
-
-            // driving force
-            if (cal_k)
-            { 
-                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-            } 
-
-            // accumulate virial
-            s_sx -= x12 * (f12x - f21x) * HALF; 
-            s_sy -= y12 * (f12y - f21y) * HALF; 
-            s_sz -= z12 * (f12z - f21z) * HALF;
-            
-            if (cal_j || cal_k) // heat current (EMD)
-            {
-                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s_h2 += (f21z * vz1) * x12;               // x-out
-                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s_h4 += (f21z * vz1) * y12;               // y-out
-                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
-            } 
-
-            if (cal_q) // heat current (NEMD)
-            {
-                int index_12 = g_fv_index[n1] * 12;
-                if (index_12 >= 0 && g_fv_index[n1 + number_of_particles] == n2)
-                {
-                    g_fv[index_12 + 0]  += f12x;
-                    g_fv[index_12 + 1]  += f12y;
-                    g_fv[index_12 + 2]  += f12z;
-                    g_fv[index_12 + 3]  += f21x;
-                    g_fv[index_12 + 4]  += f21y;
-                    g_fv[index_12 + 5]  += f21z;
-                    g_fv[index_12 + 6]  += vx1;
-                    g_fv[index_12 + 7]  += vy1;
-                    g_fv[index_12 + 8]  += vz1;
-                    g_fv[index_12 + 9]  += LDG(g_vx, n2);
-                    g_fv[index_12 + 10] += LDG(g_vy, n2);
-                    g_fv[index_12 + 11] += LDG(g_vz, n2);
-                }  
-            }
-        }
-
-        // add driving force
-        if (cal_k)
-        { 
-            s_fx += fx_driving;
-            s_fy += fy_driving;
-            s_fz += fz_driving;
-        }
-
-        g_fx[n1] += s_fx; // accumulate force
-        g_fy[n1] += s_fy; 
-        g_fz[n1] += s_fz;  
-        // accumulate stress
-        g_sx[n1] += s_sx; 
-        g_sy[n1] += s_sy; 
-        g_sz[n1] += s_sz;
-        if (cal_j || cal_k) // accumulate heat current
-        {
-            g_h[n1 + 0 * number_of_particles] += s_h1;
-            g_h[n1 + 1 * number_of_particles] += s_h2;
-            g_h[n1 + 2 * number_of_particles] += s_h3;
-            g_h[n1 + 3 * number_of_particles] += s_h4;
-            g_h[n1 + 4 * number_of_particles] += s_h5;
-        }
-    }
-}    
- 
 
 
 
@@ -850,11 +684,10 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
-        gpu_find_force_vashishta_3body<1, 0, 0>
-        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        find_force_many_body<1, 0, 0><<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-            vashishta_para, NN_local, NL_local, type, 
+            NN_local, NL_local, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -892,11 +725,10 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
-        gpu_find_force_vashishta_3body<0, 1, 0>
-        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        find_force_many_body<0, 1, 0><<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-            vashishta_para, NN_local, NL_local, type, 
+            NN_local, NL_local, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -934,11 +766,10 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             x, y, z, box_length, pe, f12x, f12y, f12z  
         );
 
-        gpu_find_force_vashishta_3body<0, 0, 1>
-        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        find_force_many_body<0, 0, 1><<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-            vashishta_para, NN_local, NL_local, type, 
+            NN_local, NL_local, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );
@@ -976,11 +807,10 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
             x, y, z, box_length, pe, f12x, f12y, f12z 
         );
 
-        gpu_find_force_vashishta_3body<0, 0, 0>
-        <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+        find_force_many_body<0, 0, 0><<<grid_size, BLOCK_SIZE_VASHISHTA>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-            vashishta_para, NN_local, NL_local, type, 
+            NN_local, NL_local, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, 
             fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
         );  
