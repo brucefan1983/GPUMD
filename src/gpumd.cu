@@ -739,17 +739,20 @@ void GPUMD::run
             CHECK(cudaMemcpy(cpu_fx, gpu_data->fx, m, cudaMemcpyDeviceToHost));
             CHECK(cudaMemcpy(cpu_fy, gpu_data->fy, m, cudaMemcpyDeviceToHost));
             CHECK(cudaMemcpy(cpu_fz, gpu_data->fz, m, cudaMemcpyDeviceToHost));
-            files->fid_force = my_fopen(files->force, "w");
+	    char file_force[FILE_NAME_LENGTH];
+            strcpy(file_force, input_dir);
+            strcat(file_force, "/f.out");
+            FILE *fid_force = my_fopen(file_force, "w");
             for (int n = 0; n < para->N; n++)
             {
                 fprintf
                 (
-                    files->fid_force, "%20.10e%20.10e%20.10e\n", 
+                    fid_force, "%20.10e%20.10e%20.10e\n", 
                     cpu_fx[n], cpu_fy[n], cpu_fz[n]
                 );
             }
-            fflush(files->fid_force);
-            fclose(files->fid_force);
+            fflush(fid_force);
+            fclose(fid_force);
             #endif
         }
         if (is_velocity)  
