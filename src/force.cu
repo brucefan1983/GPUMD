@@ -259,65 +259,66 @@ void Force::initialize_many_body_potential
         exit(1);
     }
     
+    int number_of_types = type_end[m] - type_begin[m] + 1;
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0) 
     { 
         potential[m] = new Tersoff2(fid_potential, para, 1);
-        if (para->number_of_types != 1) 
+        if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
     { 
         potential[m] = new Tersoff2(fid_potential, para, 2);
-        if (para->number_of_types != 2) 
+        if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985") == 0) 
     { 
         potential[m] = new SW2(fid_potential, para, 1);
-        if (para->number_of_types != 1) 
+        if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985_2") == 0) 
     { 
         potential[m] = new SW2(fid_potential, para, 2);
-        if (para->number_of_types != 2) 
+        if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985_3") == 0) 
     { 
         potential[m] = new SW2(fid_potential, para, 3);
-        if (para->number_of_types != 3) 
+        if (number_of_types != 3) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0) 
     { 
         potential[m] = new REBO_MOS(para);
-        if (para->number_of_types != 2) 
+        if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
         potential[m] = new EAM(fid_potential, para, potential_name);
-        if (para->number_of_types != 1) 
+        if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
         potential[m] = new EAM(fid_potential, para, potential_name);
-        if (para->number_of_types != 1) 
+        if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "vashishta") == 0) 
     { 
         potential[m] = new Vashishta(fid_potential, para, 0);
-        if (para->number_of_types != 2) 
+        if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "vashishta_table") == 0) 
     { 
         potential[m] = new Vashishta(fid_potential, para, 1);
-        if (para->number_of_types != 2) 
+        if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else    
