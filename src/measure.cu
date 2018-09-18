@@ -405,7 +405,7 @@ void Measure::compute
     dump_heats(fid_heat, para, cpu_data, gpu_data, step);
 
     sample_vac(step, para, cpu_data, gpu_data);
-    sample_hac(step, para, cpu_data, gpu_data);
+    sample_hac(step, input_dir, para, cpu_data, gpu_data);
     sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
     process_shc(step, input_dir, para, cpu_data, gpu_data);
     process_hnemd_kappa(step, input_dir, para, cpu_data, gpu_data, integrate); 

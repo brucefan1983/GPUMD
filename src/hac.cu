@@ -23,6 +23,7 @@
 
 
 
+
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
@@ -30,8 +31,10 @@ static __device__ void warp_reduce(volatile real *s, int t)
 }
 
 
+
+
 //Allocate memory for recording heat current data
-void preprocess_hac(Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+void preprocess_hac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     if (para->hac.compute)
     {
@@ -42,10 +45,17 @@ void preprocess_hac(Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
 }
 
 
+
+
+// sum up the per-atom heat current to get the total heat current
 static __global__ void gpu_sum_heat
-(int N, int Nd, int nd,real *g_heat, real *g_heat_all)
+(
+    int N, int Nd, int nd, real *g_vx, real *g_vy, real *g_vz, 
+    real *g_mass, real *g_potential, real *g_heat, 
+    real *g_heat_all, real *g_heat_tmp
+)
 {
-    // <<<5, 1024>>> 
+    // <<<8, 1024>>> 
 
     int tid = threadIdx.x; 
     int number_of_patches = (N - 1) / 1024 + 1;
@@ -56,7 +66,24 @@ static __global__ void gpu_sum_heat
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
         int n = tid + patch * 1024; 
-        if (n < N) { s_data[tid] += g_heat[n + N * blockIdx.x]; }
+        if (n < N) 
+        { 
+            if (blockIdx.x < NUM_OF_HEAT_COMPONENTS)
+            {
+                s_data[tid] += g_heat[n + N * blockIdx.x];
+            }
+            else
+            {
+                real vx = g_vx[n];
+                real vy = g_vy[n];
+                real vz = g_vz[n];
+                real v_square = vx * vx + vy * vy + vz * vz;
+                real energy = g_mass[n] * v_square * HALF + g_potential[n];
+                if (blockIdx.x == 5) s_data[tid] += vx * energy;
+                if (blockIdx.x == 6) s_data[tid] += vy * energy;
+                if (blockIdx.x == 7) s_data[tid] += vz * energy;
+            }
+        }
     }
 
     __syncthreads();
@@ -67,32 +94,61 @@ static __global__ void gpu_sum_heat
     if (tid <  32) { warp_reduce(s_data, tid);         } 
     if (tid ==  0) 
     { 
-        if (blockIdx.x == 0) { g_heat_all[nd + Nd * 0] = s_data[0]; }
-        if (blockIdx.x == 1) { g_heat_all[nd + Nd * 1] = s_data[0]; }
-        if (blockIdx.x == 2) { g_heat_all[nd + Nd * 2] = s_data[0]; }
-        if (blockIdx.x == 3) { g_heat_all[nd + Nd * 3] = s_data[0]; }
-        if (blockIdx.x == 4) { g_heat_all[nd + Nd * 4] = s_data[0]; }
+        g_heat_tmp[blockIdx.x] = s_data[0];
+        if (blockIdx.x < NUM_OF_HEAT_COMPONENTS)
+            g_heat_all[nd + Nd * blockIdx.x] = s_data[0];
     }
 }
 
 
+
+
 // sample heat current data for HAC calculations.
 void sample_hac
-(int step, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+(
+    int step, char *input_dir, Parameters *para, 
+    CPU_Data *cpu_data, GPU_Data *gpu_data
+)
 {
     if (para->hac.compute)
     { 
         if (step % para->hac.sample_interval == 0)
         {   
+            // get the total heat current from the per-atom heat current
             int nd = step / para->hac.sample_interval;
             int Nd = para->number_of_steps / para->hac.sample_interval;
-            gpu_sum_heat<<<5, 1024>>>
-            (para->N, Nd, nd, gpu_data->heat_per_atom, gpu_data->heat_all);
-            CHECK(cudaDeviceSynchronize());
-            CHECK(cudaGetLastError());
+            int M = NUM_OF_HEAT_COMPONENTS + DIM;
+            real *gpu_heat;
+            CHECK(cudaMalloc((void**)&gpu_heat, sizeof(real) * M));
+            gpu_sum_heat<<<M, 1024>>>
+            (
+                para->N, Nd, nd, gpu_data->vx, gpu_data->vy, gpu_data->vz,
+                gpu_data->mass, gpu_data->potential_per_atom,
+                gpu_data->heat_per_atom, gpu_data->heat_all, gpu_heat
+            );
+#ifdef HEAT_CURRENT
+            // dump the heat current components
+            char file_heat[FILE_NAME_LENGTH];
+            strcpy(file_heat, input_dir);
+            strcat(file_heat, "/heat_current.out");
+            FILE *fid = fopen(file_heat, "a");
+            real *cpu_heat;
+            MY_MALLOC(cpu_heat, real, M);
+            CHECK(cudaMemcpy(cpu_heat, gpu_heat, sizeof(real) * M, 
+                cudaMemcpyDeviceToHost));
+            cudaFree(gpu_heat);
+            for (int m = 0; m < M; ++m)
+                fprintf(fid, "%25.15e", cpu_heat[m]);
+            fprintf(fid, "\n");
+            fflush(fid);  
+            fclose(fid);
+            MY_FREE(cpu_heat);
+#endif
         }
     }
 }
+
+
 
 
 // Calculate the Heat current Auto-Correlation function (HAC) 
@@ -161,6 +217,8 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
         g_hac[bid + Nc * 4] = s_hac_z[0]  / number_of_data;
     }
 }
+
+
 
 
 // Calculate the Running Thermal Conductivity (RTC) from the HAC
@@ -280,6 +338,8 @@ static void find_hac_kappa
 }
 
 
+
+
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
 void postprocess_hac
@@ -296,4 +356,7 @@ void postprocess_hac
         printf("INFO:  HAC and related quantities are calculated.\n\n");
     }
 }
+
+
+
 
