@@ -136,7 +136,6 @@ void sample_hac
             MY_MALLOC(cpu_heat, real, M);
             CHECK(cudaMemcpy(cpu_heat, gpu_heat, sizeof(real) * M, 
                 cudaMemcpyDeviceToHost));
-            cudaFree(gpu_heat);
             for (int m = 0; m < M; ++m)
                 fprintf(fid, "%25.15e", cpu_heat[m]);
             fprintf(fid, "\n");
@@ -144,6 +143,7 @@ void sample_hac
             fclose(fid);
             MY_FREE(cpu_heat);
 #endif
+            cudaFree(gpu_heat);
         }
     }
 }
