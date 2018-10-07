@@ -739,7 +739,7 @@ void GPUMD::run
             CHECK(cudaMemcpy(cpu_fx, gpu_data->fx, m, cudaMemcpyDeviceToHost));
             CHECK(cudaMemcpy(cpu_fy, gpu_data->fy, m, cudaMemcpyDeviceToHost));
             CHECK(cudaMemcpy(cpu_fz, gpu_data->fz, m, cudaMemcpyDeviceToHost));
-	    char file_force[FILE_NAME_LENGTH];
+            char file_force[FILE_NAME_LENGTH];
             strcpy(file_force, input_dir);
             strcat(file_force, "/f.out");
             FILE *fid_force = my_fopen(file_force, "w");
