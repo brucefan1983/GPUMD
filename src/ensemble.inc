@@ -140,7 +140,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (group_id[n] != fixed_group && n < N)
+                if (n < N && group_id[n] != fixed_group)
                 {        
                     mass = g_mass[n];
                     vx = g_vx[n]; vy = g_vy[n]; vz = g_vz[n]; 
@@ -168,7 +168,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (group_id[n] != fixed_group && n < N)
+                if (n < N && group_id[n] != fixed_group)
                 {          
                     s_pe[tid] += g_potential[n];
                 }
@@ -187,7 +187,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (group_id[n] != fixed_group && n < N)
+                if (n < N && group_id[n] != fixed_group)
                 {        
                     s_sx[tid] += g_sx[n]; 
                 }
@@ -211,7 +211,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (group_id[n] != fixed_group && n < N)
+                if (n < N && group_id[n] != fixed_group)
                 {        
                     s_sy[tid] += g_sy[n]; 
                 }
@@ -235,7 +235,7 @@ static __global__ void gpu_find_thermo
             for (patch = 0; patch < number_of_patches; ++patch)
             { 
                 n = tid + patch * 1024;
-                if (group_id[n] != fixed_group && n < N)
+                if (n < N && group_id[n] != fixed_group)
                 {        
                     s_sz[tid] += g_sz[n]; 
                 }

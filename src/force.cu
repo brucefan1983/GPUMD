@@ -549,6 +549,7 @@ void Force::find_neighbor_local(Parameters *para, GPU_Data *gpu_data, int m)
 
 static __global__ void initialize_properties
 (
+    int compute_shc,
     int N, int M, real *g_fx, real *g_fy, real *g_fz, real *g_pe,
     real *g_sx, real *g_sy, real *g_sz, real *g_h, real *g_fv
 )
@@ -570,7 +571,7 @@ static __global__ void initialize_properties
         g_h[n1 + 3 * N] = ZERO;
         g_h[n1 + 4 * N] = ZERO;
     }
-    if (n1 < M)
+    if (compute_shc && n1 < M)
     {  
         g_fv[n1] = ZERO;
     }
@@ -675,10 +676,11 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data)
 {
     initialize_properties<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
+        para->shc.compute,
         para->N, para->shc.number_of_pairs * 12,
         gpu_data->fx, gpu_data->fy, gpu_data->fz, 
         gpu_data->potential_per_atom,  
-        gpu_data->virial_per_atom_x,  
+        gpu_data->virial_per_atom_x,
         gpu_data->virial_per_atom_y,
         gpu_data->virial_per_atom_z,
         gpu_data->heat_per_atom, gpu_data->fv
