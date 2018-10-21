@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.8\\
+   Version 1.9\\
    \vspace*{1.0cm}
-   (July 25, 2018)\\
+   (Otc 21, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -245,6 +245,11 @@ We are working on implementing more integration methods.
 \item Implemented the HNEMD method \cite{fan2018submitted,xu2018submitted,dong2018submitted} for all the potentials.
 \end{enumerate}
 
+\subsection{Major changes introduced in version 1.9}
+\begin{enumerate}
+\item Fixed some memory bugs.
+\end{enumerate}
+
 
 \section{TODO List}
 
@@ -254,6 +259,7 @@ Here I list a few features which I will hopefully implement this or the next yea
 \item Spline-based EAM potential
 \item The ADP potential
 \item Machine-learning potentials
+\item More thermostats
 \item The NPT integrator based on the MTK equation
 \item Multi-GPU version of GPUMD
 \item Potential fitting
@@ -2591,7 +2597,7 @@ This keyword only requires a single parameter, which is the skin distance (the d
 \begin{verbatim}
     neighbor 1
 \end{verbatim}
-means that the neighbor list will be updated when necessary (the code determines automatically when the neighbor list needs to be updated) and the skin distance is 1 \AA. If this keyword is absent in a run, the neighbor list will not be updated during the run.
+means that the neighbor list will be updated when necessary (the code determines automatically when the neighbor list needs to be updated) and the skin distance is 1 \AA. \textcolor{red}{If this keyword is absent in a run, the neighbor list will not be updated during the run.}
 
 
 \subsection{The dump thermo, dump position, dump velocity, dump force, dump potential, and dump virial keywords}
@@ -2631,6 +2637,8 @@ This keyword is used to compute the nonequilibrium heat flux correlation functio
     compute_shc 1 500 5000 10 11
 \end{verbatim}
 means that (1) you want to do this calculation; (2) the relevant data will be sampled every step; (3) the maximum number of correlation steps is $500$; (4) the correlation function $K_{A \rightarrow B}(t)$ will be calculated every 5000 steps (If the number of steps in this run is 100000, there will be $100000/5000=20$ independent correlation functions calculated); (5) the group label of $A$ is 10 and that of $B$ is 11. The results will be written into a file named \verb"shc.out" in the same folder where you put your \verb"run.in" file in.
+
+\textcolor{red}{Warning: The current implementation only applies to situations in which each atom in group $A$ only has at most one neighbor atom in group $B$. We are working on a more general implementation.}
 
 
 \subsection{The compute vac keyword}
@@ -2806,7 +2814,7 @@ This file contains data related to NEMD simulations of heat transport. Assuming 
 
 \subsection{The shc.out file}
 
-This file contains data for the nonequilibrium heat current correlation function $K_{A \rightarrow B}(t)$ as defined in Eq. (\ref{equation:K_time}). There are two columns, which are $K_{A \rightarrow B}^{\text{in}}(t)$ and $K_{A \rightarrow B}^{\text{out}}(t)$ defined in Ref. \cite{fan2017prb}. If one does not need the decomposition, one can sum up the two columns to get the total correlation function. Note that an individual correlation function corresponds to $N_c$ consecutive rows.
+This file contains data for the nonequilibrium heat current correlation function $K_{A \rightarrow B}(t)$ as defined in Eq. (\ref{equation:K_time}), in units of eV$^{3/2}$ amu$^{-1/2}$ \AA$^{-1}$. There are two columns, which are $K_{A \rightarrow B}^{\text{in}}(t)$ and $K_{A \rightarrow B}^{\text{out}}(t)$ defined in Ref. \cite{fan2017prb}. If one does not need the decomposition, one can sum up the two columns to get the total correlation function. Note that an individual correlation function corresponds to $N_c$ consecutive rows.
 
 
 \subsection{The kappa.out file}
