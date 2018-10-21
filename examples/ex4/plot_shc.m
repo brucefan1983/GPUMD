@@ -22,8 +22,8 @@ jo=ko(:,1);
 ki=mean(ki,1)*1000/10.18; %eV/ps
 ko=mean(ko,1)*1000/10.18; %eV/ps
 
-% does not need 0.5 ps
-Nc = 250;
+% this affects the resolution
+Nc = 150;
 ki=ki(1:Nc);
 ko=ko(1:Nc);
 time_in_ps = (0:Nc-1)*dt_in_ps;
@@ -34,7 +34,6 @@ plot(time_in_ps,ki,'b-', time_in_ps,ko,'r--','linewidth',2);
 set(gca,'fontsize', font_size);
 xlabel('Correlation time (ps)','fontsize', font_size);
 ylabel('K (eV/ps)','fontsize', font_size);
-xlim([0, 0.3]);
 legend('in','out');
 title('(a)');
 
@@ -45,10 +44,6 @@ ko=ko.*[1,2*ones(1,Nc-1)];
 % Hann window
 ki=ki.*(cos(pi*(0:Nc-1)/Nc)+1)*0.5;
 ko=ko.*(cos(pi*(0:Nc-1)/Nc)+1)*0.5;
-
-% correction for possible numerical errors
-ki=ki-mean(ki);
-ko=ko-mean(ko);
 
 % the Fourier transform
 qi=zeros(length(nu),1);
