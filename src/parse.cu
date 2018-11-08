@@ -218,13 +218,29 @@ static void parse_ensemble
             print_error("ensemble heat_nhc should have 5 parameters.\n"); 
         }
     }
+    else if (strcmp(param[1], "nvt_lan") == 0)
+    {
+        integrate->type = 5;
+        if (num_param != 5)
+        {
+            print_error("ensemble nvt_lan should have 3 parameters.\n"); 
+        }
+    }
+    else if (strcmp(param[1], "heat_lan") == 0)
+    {
+        integrate->type = 6;
+        if (num_param != 7)
+        {
+            print_error("ensemble heat_lan should have 5 parameters.\n"); 
+        }
+    }
     else
     {
         print_error("invalid ensemble type.\n");
     }
 
     // 2. Temperatures and temperature_coupling
-    if (integrate->type >= 1 && integrate->type <= 3)
+    if ((integrate->type >= 1 && integrate->type <= 3) || integrate->type == 5)
     {	
         // initial temperature
         if (!is_valid_real(param[2], &para->temperature1))
@@ -259,7 +275,8 @@ static void parse_ensemble
         }
     }
 
-    if (integrate->type == 4) // heating and cooling wiht fixed temperatures
+    // heating and cooling wiht fixed temperatures
+    if (integrate->type == 4 || integrate->type == 6)
     {	
         // temperature
         if (!is_valid_real(param[2], &integrate->temperature))
@@ -310,8 +327,8 @@ static void parse_ensemble
         }
     }
 
-    // 4. For heating and cooling with the Nose-Hoover chain method
-    if (integrate->type == 4) 
+    // 4. For heating and cooling
+    if (integrate->type == 4 || integrate->type == 6) 
     {  
         if (!is_valid_real(param[4], &integrate->delta_temperature))
         {
@@ -366,6 +383,22 @@ static void parse_ensemble
             printf("       heat source is group %d.\n", integrate->source);
             printf("       heat sink is group %d.\n", integrate->sink);
             break; 
+        case 5:
+            printf("INPUT: Use NVT ensemble for this run.\n");
+            printf("       choose the Langevin method.\n"); 
+            printf("       initial temperature is %g K.\n", para->temperature1);
+            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
+            break;  
+        case 6:
+            printf("INPUT: Integrate with heating and cooling for this run.\n");
+            printf("       choose the Langevin method.\n"); 
+            printf("       temperature is %g K.\n", integrate->temperature);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
+            printf("       delta_T is %g K.\n", integrate->delta_temperature);
+            printf("       heat source is group %d.\n", integrate->source);
+            printf("       heat sink is group %d.\n", integrate->sink);
+            break;
         default:
             print_error("invalid ensemble type.\n");
             break; 

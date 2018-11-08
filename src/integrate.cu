@@ -19,6 +19,7 @@
 #include "ensemble_nve.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_nhc.cuh"
+#include "ensemble_lan.cuh"
 #include "integrate.cuh"
 #include "force.cuh"
 
@@ -77,6 +78,21 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
                 type, source, sink, cpu_data->group_size[source], 
                 cpu_data->group_size[sink], temperature, temperature_coupling, 
                 delta_temperature, para->time_step
+            );
+            break;
+        case 5: 
+            ensemble = new Ensemble_LAN
+            (type, para->N, temperature, temperature_coupling);
+            break;
+        case 6: 
+            ensemble = new Ensemble_LAN
+            (
+                type, source, sink, 
+                cpu_data->group_size[source],
+                cpu_data->group_size[sink],
+                cpu_data->group_size_sum[source],
+                cpu_data->group_size_sum[sink],
+                temperature, temperature_coupling, delta_temperature
             );
             break;
         default: 
