@@ -39,6 +39,8 @@ public:
     real pressure_z; 
     real temperature_coupling;
     real pressure_coupling;  
+
+    real energy_transferred[2]; // energy transferred from system to heat baths
     
     real mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
     real pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];

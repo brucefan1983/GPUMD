@@ -133,30 +133,10 @@ void sample_block_temperature
             CHECK(cudaFree(temp_gpu));
 
             // energies of the heat source and sink
-            real T0 = integrate->ensemble->temperature;
-            real kT1 = K_B * (T0 + integrate->ensemble->delta_temperature); 
-            real kT2 = K_B * (T0 - integrate->ensemble->delta_temperature); 
-
-            real dN1 = THREE*cpu_data->group_size[integrate->ensemble->source];
-            real dN2 = THREE*cpu_data->group_size[integrate->ensemble->sink];
-            real energy_nhc1 = kT1 * dN1 * integrate->ensemble->pos_nhc1[0];
-            real energy_nhc2 = kT2 * dN2 * integrate->ensemble->pos_nhc2[0];
-            for (int m = 1; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
-            {
-                energy_nhc1 += kT1 * integrate->ensemble->pos_nhc1[m];
-                energy_nhc2 += kT2 * integrate->ensemble->pos_nhc2[m];
-            }
-            for (int m = 0; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
-            { 
-                energy_nhc1 += HALF * integrate->ensemble->vel_nhc1[m] 
-                             * integrate->ensemble->vel_nhc1[m] 
-                             / integrate->ensemble->mas_nhc1[m];
-                energy_nhc2 += HALF * integrate->ensemble->vel_nhc2[m] 
-                             * integrate->ensemble->vel_nhc2[m] 
-                             / integrate->ensemble->mas_nhc2[m];
-            }
-            cpu_data->group_temp[offset + Ng]     = energy_nhc1;
-            cpu_data->group_temp[offset + Ng + 1] = energy_nhc2;
+            cpu_data->group_temp[offset + Ng]     
+                = integrate->ensemble->energy_transferred[0];
+            cpu_data->group_temp[offset + Ng + 1] 
+                = integrate->ensemble->energy_transferred[1];
         }
     }
 }
@@ -180,7 +160,7 @@ void postprocess_heat
         for (int nt = 0; nt < Nt; nt++)
         {
             int offset = nt * (Ng + 2);
-            int number_of_data = (integrate->ensemble->type == 4) ? (Ng+2) : Ng;
+            int number_of_data = Ng + 2;
             for (int k = 0; k < number_of_data; k++) 
             {
                 fprintf(fid, "%15.6e", cpu_data->group_temp[offset + k]);

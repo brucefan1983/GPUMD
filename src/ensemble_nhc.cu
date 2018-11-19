@@ -78,6 +78,10 @@ Ensemble_NHC::Ensemble_NHC
     }
     mas_nhc1[0] *= dN1;
     mas_nhc2[0] *= dN2;
+
+    // initialize the energies transferred from the system to the baths
+    energy_transferred[0] = 0.0;
+    energy_transferred[1] = 0.0;
 }
 
 
@@ -485,6 +489,10 @@ void Ensemble_NHC::integrate_heat_nhc
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
     real factor_2 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc2, vel_nhc2, mas_nhc2, ek2[label_2], kT2, dN2, dt2);
+
+    // accumulate the energies transferred from the system to the baths
+    energy_transferred[0] += ek2[label_1] * 0.5 * (1.0 - factor_1 * factor_1);
+    energy_transferred[1] += ek2[label_2] * 0.5 * (1.0 - factor_2 * factor_2);
     
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>
     (
@@ -512,6 +520,11 @@ void Ensemble_NHC::integrate_heat_nhc
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
     factor_2 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc2, vel_nhc2, mas_nhc2, ek2[label_2], kT2, dN2, dt2);
+
+    // accumulate the energies transferred from the system to the baths
+    energy_transferred[0] += ek2[label_1] * 0.5 * (1.0 - factor_1 * factor_1);
+    energy_transferred[1] += ek2[label_2] * 0.5 * (1.0 - factor_2 * factor_2);
+
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>
     (
         N, label_1, label_2, gpu_data->label, factor_1, factor_2, 
