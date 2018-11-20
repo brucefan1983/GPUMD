@@ -357,6 +357,9 @@ void Ensemble_LAN::integrate_heat_lan
     cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
     energy_transferred[0] -= ek2[label_1] * 0.5;
     energy_transferred[1] -= ek2[label_2] * 0.5;
+
+    // clean up
+    MY_FREE(ek2); cudaFree(ke);
 }
 
 
