@@ -89,6 +89,9 @@ Ensemble_LAN::Ensemble_LAN
     (curand_states_source, N_source);
     initialize_curand_states<<<grid_size_sink, BLOCK_SIZE>>>
     (curand_states_sink,   N_sink);
+
+    energy_transferred[0] = 0.0;
+    energy_transferred[1] = 0.0;
 }
 
 
@@ -163,6 +166,55 @@ static __global__ void gpu_langevin
 
 
 
+// group kinetic energy
+static __global__ void find_ke
+(
+    int  *g_group_size,
+    int  *g_group_size_sum,
+    int  *g_group_contents,
+    real *g_mass,
+    real *g_vx, 
+    real *g_vy, 
+    real *g_vz,
+    real *g_ke
+)
+{
+    //<<<number_of_groups, 512>>>
+
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+
+    int group_size = g_group_size[bid];
+    int offset = g_group_size_sum[bid];
+    int number_of_patches = (group_size - 1) / 512 + 1; 
+    __shared__ real s_ke[512]; // relative kinetic energy
+    s_ke[tid] = ZERO;
+    
+    for (int patch = 0; patch < number_of_patches; ++patch)
+    { 
+        int n = tid + patch * 512;
+        if (n < group_size)
+        {  
+            int index = g_group_contents[offset + n];     
+            real mass = g_mass[index];
+            real vx = g_vx[index];
+            real vy = g_vy[index];
+            real vz = g_vz[index];
+            s_ke[tid] += (vx * vx + vy * vy + vz * vz) * mass;
+        }
+    }
+    __syncthreads();
+
+    if (tid < 256) {s_ke[tid] += s_ke[tid + 256];} __syncthreads();
+    if (tid < 128) {s_ke[tid] += s_ke[tid + 128];} __syncthreads();
+    if (tid <  64) {s_ke[tid] += s_ke[tid + 64];}  __syncthreads();
+    if (tid <  32) {warp_reduce(s_ke, tid);}  
+    if (tid == 0)  {g_ke[bid] = s_ke[0];} // kinetic energy times 2
+}
+
+
+
+
 void Ensemble_LAN::integrate_nvt_lan
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
@@ -226,6 +278,8 @@ void Ensemble_LAN::integrate_heat_lan
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
     int fixed_group      = para->fixed_group;
     int *label           = gpu_data->label;
+    int *group_size      = gpu_data->group_size;
+    int *group_size_sum  = gpu_data->group_size_sum;
     int *group_contents  = gpu_data->group_contents;
     real time_step       = para->time_step;
     real *mass = gpu_data->mass;
@@ -239,7 +293,23 @@ void Ensemble_LAN::integrate_heat_lan
     real *fy   = gpu_data->fy;
     real *fz   = gpu_data->fz;
 
+    int label_1 = source;
+    int label_2 = sink;
+    int Ng = para->number_of_groups;
+
+    // allocate some memory
+    real *ek2;
+    MY_MALLOC(ek2, real, sizeof(real) * Ng);
+    real *ke;
+    cudaMalloc((void**)&ke, sizeof(real) * Ng);
+
     // the first half of Langevin, before velocity-Verlet
+    find_ke<<<Ng, 512>>>
+    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    energy_transferred[0] += ek2[label_1] * 0.5;
+    energy_transferred[1] += ek2[label_2] * 0.5;
+
     gpu_langevin<<<grid_size_source, BLOCK_SIZE>>>
     (
         curand_states_source, N_source, offset_source, group_contents, 
@@ -250,6 +320,12 @@ void Ensemble_LAN::integrate_heat_lan
         curand_states_sink, N_sink, offset_sink, group_contents, 
         c1, c2_sink, mass, vx, vy, vz
     );
+
+    find_ke<<<Ng, 512>>>
+    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    energy_transferred[0] -= ek2[label_1] * 0.5;
+    energy_transferred[1] -= ek2[label_2] * 0.5;
 
     // the standard veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
@@ -259,6 +335,12 @@ void Ensemble_LAN::integrate_heat_lan
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
     // the second half of Langevin, after velocity-Verlet
+    find_ke<<<Ng, 512>>>
+    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    energy_transferred[0] += ek2[label_1] * 0.5;
+    energy_transferred[1] += ek2[label_2] * 0.5;
+
     gpu_langevin<<<grid_size_source, BLOCK_SIZE>>>
     (
         curand_states_source, N_source, offset_source, group_contents, 
@@ -269,6 +351,12 @@ void Ensemble_LAN::integrate_heat_lan
         curand_states_sink, N_sink, offset_sink, group_contents, 
         c1, c2_sink, mass, vx, vy, vz
     );
+
+    find_ke<<<Ng, 512>>>
+    (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    energy_transferred[0] -= ek2[label_1] * 0.5;
+    energy_transferred[1] -= ek2[label_2] * 0.5;
 }
 
 
