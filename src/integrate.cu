@@ -20,6 +20,7 @@
 #include "ensemble_ber.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble_lan.cuh"
+#include "ensemble_bdp.cuh"
 #include "integrate.cuh"
 #include "force.cuh"
 
@@ -70,7 +71,8 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
             (type, para->N, temperature, temperature_coupling);
             break;
         case 4: // NVT-BDP
-            // to be implemented
+            ensemble = new Ensemble_BDP            
+            (type, temperature, temperature_coupling);
             break;
         case 11: // NPT-Berendsen
             ensemble = new Ensemble_BER
@@ -99,7 +101,11 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
             );
             break;
         case 23: // heat-BDP
-            // to be implemented
+            ensemble = new Ensemble_BDP
+            (
+                type, source, sink, temperature, temperature_coupling, 
+                delta_temperature
+            );
             break;
         default: 
             printf("Illegal integrator!\n");
