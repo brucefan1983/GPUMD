@@ -542,7 +542,7 @@ static void process_run
         }
 
         // set the current temperature;
-        if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 3)
+        if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 20)
         {
             integrate->ensemble->temperature = para->temperature1 
                 + (para->temperature2 - para->temperature1)
