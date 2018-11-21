@@ -188,7 +188,7 @@ void Ensemble_BER::compute
     (N, temperature, t_coupling, thermo, vx, vy, vz);
 
     // control pressure 
-    if (type == 2)
+    if (type == 11)
     {
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (

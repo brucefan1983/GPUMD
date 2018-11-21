@@ -174,6 +174,11 @@ static void parse_velocity(char **param, int num_param, Parameters *para)
 
 
 
+// coding conventions:
+//0:     NVE
+//1-10:  NVT
+//11-20: NPT
+//21-30: heat (NEMD method for heat conductivity)
 static void parse_ensemble 
 (char **param,  int num_param, Parameters *para, Integrate *integrate)
 {
@@ -194,44 +199,60 @@ static void parse_ensemble
             print_error("ensemble nvt_ber should have 3 parameters.\n");
         }
     }
-    else if (strcmp(param[1], "npt_ber") == 0)
-    {
-        integrate->type = 2;
-        if (num_param != 9)
-        {
-            print_error("ensemble npt_ber should have 7 parameters.\n"); 
-        } 
-    }
     else if (strcmp(param[1], "nvt_nhc") == 0)
     {
-        integrate->type = 3;
+        integrate->type = 2;
         if (num_param != 5)
         {
             print_error("ensemble nvt_nhc should have 3 parameters.\n"); 
         }
     }
-    else if (strcmp(param[1], "heat_nhc") == 0)
-    {
-        integrate->type = 4;
-        if (num_param != 7)
-        {
-            print_error("ensemble heat_nhc should have 5 parameters.\n"); 
-        }
-    }
     else if (strcmp(param[1], "nvt_lan") == 0)
     {
-        integrate->type = 5;
+        integrate->type = 3;
         if (num_param != 5)
         {
             print_error("ensemble nvt_lan should have 3 parameters.\n"); 
         }
     }
+    else if (strcmp(param[1], "nvt_bdp") == 0)
+    {
+        integrate->type = 4;
+        if (num_param != 5)
+        {
+            print_error("ensemble nvt_bdp should have 3 parameters.\n"); 
+        }
+    }
+    else if (strcmp(param[1], "npt_ber") == 0)
+    {
+        integrate->type = 11;
+        if (num_param != 9)
+        {
+            print_error("ensemble npt_ber should have 7 parameters.\n"); 
+        } 
+    }
+    else if (strcmp(param[1], "heat_nhc") == 0)
+    {
+        integrate->type = 21;
+        if (num_param != 7)
+        {
+            print_error("ensemble heat_nhc should have 5 parameters.\n"); 
+        }
+    }
     else if (strcmp(param[1], "heat_lan") == 0)
     {
-        integrate->type = 6;
+        integrate->type = 22;
         if (num_param != 7)
         {
             print_error("ensemble heat_lan should have 5 parameters.\n"); 
+        }
+    }
+    else if (strcmp(param[1], "heat_bdp") == 0)
+    {
+        integrate->type = 23;
+        if (num_param != 7)
+        {
+            print_error("ensemble heat_bdp should have 5 parameters.\n"); 
         }
     }
     else
@@ -239,8 +260,8 @@ static void parse_ensemble
         print_error("invalid ensemble type.\n");
     }
 
-    // 2. Temperatures and temperature_coupling
-    if ((integrate->type >= 1 && integrate->type <= 3) || integrate->type == 5)
+    // 2. Temperatures and temperature_coupling (NVT and NPT)
+    if (integrate->type >= 1 && integrate->type <= 20)
     {	
         // initial temperature
         if (!is_valid_real(param[2], &para->temperature1))
@@ -275,33 +296,10 @@ static void parse_ensemble
         }
     }
 
-    // heating and cooling wiht fixed temperatures
-    if (integrate->type == 4 || integrate->type == 6)
-    {	
-        // temperature
-        if (!is_valid_real(param[2], &integrate->temperature))
-        {
-            print_error("ensemble temperature should be a real number.\n");
-        }
-        if (integrate->temperature <= 0.0)
-        {
-            print_error("ensemble temperature should be a positive number.\n");
-        }
 
-        // temperature_coupling
-        if (!is_valid_real(param[3], &integrate->temperature_coupling))
-        {
-            print_error("temperature_coupling should be a real number.\n");
-        }
-        if (integrate->temperature_coupling <= 0.0)
-        {
-            print_error("temperature_coupling should be a positive number.\n");
-        }
-    }
-
-    // 3. Pressures and pressure_coupling
+    // 3. Pressures and pressure_coupling (NPT)
     real pressure[3];
-    if (integrate->type == 2)
+    if (integrate->type >= 11 && integrate->type <= 20)
     {  
         // pressures:   
         for (int i = 0; i < 3; i++)
@@ -327,13 +325,36 @@ static void parse_ensemble
         }
     }
 
-    // 4. For heating and cooling
-    if (integrate->type == 4 || integrate->type == 6) 
-    {  
+    // 4. heating and cooling wiht fixed temperatures
+    if (integrate->type >= 21 && integrate->type <= 30)
+    {	
+        // temperature
+        if (!is_valid_real(param[2], &integrate->temperature))
+        {
+            print_error("ensemble temperature should be a real number.\n");
+        }
+        if (integrate->temperature <= 0.0)
+        {
+            print_error("ensemble temperature should be a positive number.\n");
+        }
+
+        // temperature_coupling
+        if (!is_valid_real(param[3], &integrate->temperature_coupling))
+        {
+            print_error("temperature_coupling should be a real number.\n");
+        }
+        if (integrate->temperature_coupling <= 0.0)
+        {
+            print_error("temperature_coupling should be a positive number.\n");
+        }
+
+        // temperature difference
         if (!is_valid_real(param[4], &integrate->delta_temperature))
         {
             print_error("delta_temperature should be a real number.\n");
         } 
+
+        // group labels of heat source and sink
         if (!is_valid_int(param[5], &integrate->source))
         {
             print_error("heat.source should be an integer.\n");
@@ -357,6 +378,27 @@ static void parse_ensemble
             printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 2:
+            printf("INPUT: Use NVT ensemble for this run.\n");
+            printf("       choose the Nose-Hoover chain method.\n"); 
+            printf("       initial temperature is %g K.\n", para->temperature1);
+            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
+            break;
+        case 3:
+            printf("INPUT: Use NVT ensemble for this run.\n");
+            printf("       choose the Langevin method.\n"); 
+            printf("       initial temperature is %g K.\n", para->temperature1);
+            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
+            break;
+        case 4:
+            printf("INPUT: Use NVT ensemble for this run.\n");
+            printf("       choose the Bussi-Donadio-Parrinello method.\n"); 
+            printf("       initial temperature is %g K.\n", para->temperature1);
+            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
+            break;
+        case 11:
             printf("INPUT: Use NPT ensemble for this run.\n");
             printf("       choose the Berendsen method.\n");      
             printf("       initial temperature is %g K.\n", para->temperature1);
@@ -367,14 +409,7 @@ static void parse_ensemble
             printf("       pressure_z is %g GPa.\n", pressure[2]);
             printf("       p_coupling is %g.\n", integrate->pressure_coupling);
             break;
-        case 3:
-            printf("INPUT: Use NVT ensemble for this run.\n");
-            printf("       choose the Nose-Hoover chain method.\n"); 
-            printf("       initial temperature is %g K.\n", para->temperature1);
-            printf("       final temperature is %g K.\n", para->temperature2);
-            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
-            break;  
-        case 4:
+        case 21:
             printf("INPUT: Integrate with heating and cooling for this run.\n");
             printf("       choose the Nose-Hoover chain method.\n"); 
             printf("       temperature is %g K.\n", integrate->temperature);
@@ -383,16 +418,18 @@ static void parse_ensemble
             printf("       heat source is group %d.\n", integrate->source);
             printf("       heat sink is group %d.\n", integrate->sink);
             break; 
-        case 5:
-            printf("INPUT: Use NVT ensemble for this run.\n");
-            printf("       choose the Langevin method.\n"); 
-            printf("       initial temperature is %g K.\n", para->temperature1);
-            printf("       final temperature is %g K.\n", para->temperature2);
-            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
-            break;  
-        case 6:
+        case 22:
             printf("INPUT: Integrate with heating and cooling for this run.\n");
             printf("       choose the Langevin method.\n"); 
+            printf("       temperature is %g K.\n", integrate->temperature);
+            printf("       T_coupling is %g.\n", integrate->temperature_coupling);
+            printf("       delta_T is %g K.\n", integrate->delta_temperature);
+            printf("       heat source is group %d.\n", integrate->source);
+            printf("       heat sink is group %d.\n", integrate->sink);
+            break;
+        case 23:
+            printf("INPUT: Integrate with heating and cooling for this run.\n");
+            printf("       choose the Bussi-Donadio-Parrinello method.\n"); 
             printf("       temperature is %g K.\n", integrate->temperature);
             printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             printf("       delta_T is %g K.\n", integrate->delta_temperature);

@@ -545,7 +545,7 @@ void Ensemble_NHC::integrate_heat_nhc
 void Ensemble_NHC::compute
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
-    if (type == 3)
+    if (type == 2)
     {
         integrate_nvt_nhc(para, cpu_data, gpu_data, force);
     }

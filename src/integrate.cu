@@ -51,28 +51,35 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
     // determine the integrator
     switch (type)
     {
-        case 0: 
+        case 0: // NVE
             ensemble = new Ensemble_NVE(type);
             break;
-        case 1: 
+        case 1: // NVT-Berendsen
             ensemble = new Ensemble_BER
             (type, temperature, temperature_coupling);
             break;
-        case 2: 
-            ensemble = new Ensemble_BER
-            (
-                type, temperature, temperature_coupling, pressure_x, 
-                pressure_y, pressure_z, pressure_coupling
-            );
-            break;
-        case 3: 
+        case 2: // NVT-NHC
             ensemble = new Ensemble_NHC            
             (
                 type, para->N, temperature, temperature_coupling, 
                 para->time_step
             );
             break;
-        case 4: 
+        case 3: // NVT-Langevin
+            ensemble = new Ensemble_LAN
+            (type, para->N, temperature, temperature_coupling);
+            break;
+        case 4: // NVT-BDP
+            // to be implemented
+            break;
+        case 11: // NPT-Berendsen
+            ensemble = new Ensemble_BER
+            (
+                type, temperature, temperature_coupling, pressure_x, 
+                pressure_y, pressure_z, pressure_coupling
+            );
+            break;
+        case 21: // heat-NHC
             ensemble = new Ensemble_NHC
             (
                 type, source, sink, cpu_data->group_size[source], 
@@ -80,11 +87,7 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
                 delta_temperature, para->time_step
             );
             break;
-        case 5: 
-            ensemble = new Ensemble_LAN
-            (type, para->N, temperature, temperature_coupling);
-            break;
-        case 6: 
+        case 22: // heat-Langevin
             ensemble = new Ensemble_LAN
             (
                 type, source, sink, 
@@ -94,6 +97,9 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
                 cpu_data->group_size_sum[sink],
                 temperature, temperature_coupling, delta_temperature
             );
+            break;
+        case 23: // heat-BDP
+            // to be implemented
             break;
         default: 
             printf("Illegal integrator!\n");

@@ -132,7 +132,7 @@ static void gpu_sample_thermo
     real energy_system_pot = thermo[1];
     real energy_system_total = energy_system_kin + energy_system_pot; 
 
-    if (ensemble->type == 3)
+    if (ensemble->type == 2)
     {
         // energy of the Nose-Hoover chain thermostat
         real kT = K_B * ensemble->temperature; 

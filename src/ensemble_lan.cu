@@ -368,7 +368,7 @@ void Ensemble_LAN::integrate_heat_lan
 void Ensemble_LAN::compute
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
 {
-    if (type == 5)
+    if (type == 3)
     {
         integrate_nvt_lan(para, cpu_data, gpu_data, force);
     }
