@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 1.9\\
+   Version 2.0\\
    \vspace*{1.0cm}
-   (Otc 21, 2018)\\
+   (Nov 23, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -55,7 +55,18 @@ urlcolor=Blue           % color of external links
 \tableofcontents
 
 
-\chapter{Introduction}
+\chapter{Introduction\label{chapter:introduction}}
+
+\section{How to read this manual?}
+
+\begin{itemize}
+\item First read through chapters \ref{chapter:introduction} and \ref{chapter:features}.
+\item Then glance over chapter \ref{chapter:theory}. You can choose to either read through it or skip it.
+\item Then read the first section of chapter \ref{chapter:potentials} and the sections you are interested.
+\item Then carefully read through chapter \ref{chapter:usage}.
+\item Then study one or more examples in chapter \ref{chapter:examples}.
+\item Go back to chapter \ref{chapter:theory} when necessary.
+\end{itemize}
 
 
 \section{What is GPUMD?}
@@ -68,32 +79,34 @@ GPUMD stands for \textbf{G}raphics \textbf{P}rocessing \textbf{U}nits \textbf{M}
 If you use GPUMD in your published work, we kindly ask you to cite the following paper which describes the central algorithms used in GPUMD:
 
 \begin{itemize}
-\item Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. Efficient molecular
-dynamics simulations with many-body potentials on graphics processing units.
-\textit{Computer Physics Communications}, 218:10-16, 2017.
+\item Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju, \\
+Efficient molecular dynamics simulations with many-body potentials on graphics processing units, \\
+\textit{Computer Physics Communications} \textbf{218}, 10 (2017). \\
+\url{https://doi.org/10.1016/j.cpc.2017.05.003}
 \end{itemize}
 
 If your work involves using heat current and virial stress formulas as implemented in GPUMD, the following paper can be cited:
 \begin{itemize}
-\item Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. Force and heat current formulas for many-body
-potentials in molecular dynamics simulations with applications to thermal conductivity calculations. Phys. Rev. B, 92:094301, Sep 2015.
+\item Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju, \\
+ Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations,\\
+ Phys. Rev. B \textbf{92}, 094301 (2015). \\
+ \url{https://doi.org/10.1103/PhysRevB.92.094301}
 \end{itemize}
 
 You can cite the following paper if you use GPUMD to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
 \begin{itemize}
-\item Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R.
-Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity
-decomposition in two-dimensional materials: Application to graphene. Phys.
-Rev. B, 95:144309, Apr 2017.
+\item Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju, \\
+Thermal conductivity decomposition in two-dimensional materials: Application to graphene, \\
+Phys. Rev. B \textbf{95}, 144309 (2017). \\
+\url{https://doi.org/10.1103/PhysRevB.95.144309}
 \end{itemize}
-
 
 You can cite the following paper if you use GPUMD to study heat transport using the homogeneous nonequilibrium molecular dynamics (HNEMD) method:
 \begin{itemize}
 \item 
-Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila,
-Homogeneous nonequilibrium molecular dynamics method for heat transport with many-body potentials,
-https://arxiv.org/abs/1805.00277
+Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila, \\
+Homogeneous nonequilibrium molecular dynamics method for heat transport with many-body potentials, \\
+\url{https://arxiv.org/abs/1805.00277}
 \end{itemize}
 
 
@@ -113,7 +126,10 @@ We acknowledge the computational resources provided by Aalto Science-IT project 
 
 
 
-\chapter{Features of GPUMD}
+\chapter{Features of GPUMD\label{chapter:features}}
+
+\textcolor{red}{I suggest you read through this chapter on first reading.}
+
 
 
 \section{GPU-accelerated force evaluation for many-body potentials}
@@ -126,7 +142,7 @@ Using the methods as described in Refs. \cite{fan2015prb,fan2017cpc}, we have im
 \item The Tersoff (1989) potential with single or double atom types \cite{tersoff1989prb}.
 \item The Stillinger-Weber (1985) potential \cite{stillinger1985prb} up to three atom types.
 \item The Vashishta potential \cite{vashishta2007jap} for two-atom-type systems.
-\item The REBO potential for Mo-S systems \cite{liang2009prb}.
+\item The REBO potential for Mo-S systems \cite{liang2009prb,liang2012prb_erratum}.
 \end{itemize}
 
 Apart from many-body potentials, there are also a few two-body potentials:
@@ -144,12 +160,10 @@ More two-body and many-body potentials will be implemented in GPUMD in future ve
 Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of GPUMD can calculate the following quantities related to heat transport:
 \begin{itemize}
 \item It can calculate the phonon density of states (DOS) from the velocity autocorrelation function (VAC), using the method of Dickey and Paskin \cite{dickey1969pr}.
-\item It can calculate the equilibrium heat current auto-correlation (HAC), whose time integral gives the running thermal conductivity according to the Green-Kubo relation \cite{green1954jcp,kubo1957jpsj}. As stressed in Ref. \cite{fan2015prb}, the heat current as implemented in LAMMPS \cite{plimpton1995jcp} does not apply to many-body potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. \cite{fan2017prb}, which is essential for 2D materials.
-\item It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. \cite{fan2017prb} has also been implemented.
-\item It can calculate the thermal conductivity using the homogeneous nonequilibrium MD (HNEMD) method \cite{evans1982pla} for general many-body potentials \cite{fan2018submitted}
+\item It can calculate the equilibrium heat current autocorrelation (HAC), whose time integral gives the running thermal conductivity according to the Green-Kubo relation \cite{green1954jcp,kubo1957jpsj}. As stressed in Ref. \cite{fan2015prb}, the heat current as implemented in LAMMPS \cite{plimpton1995jcp} does not apply to many-body potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. GPUMD also contains the thermal conductivity decomposition method as introduced in Ref. \cite{fan2017prb}, which is useful for 2D materials.
+\item It can calculate the thermal conductivity (or more exactly, the thermal conductance) of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using non-equilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. \cite{fan2017prb} has also been implemented.
+\item It can calculate the thermal conductivity using the homogeneous nonequilibrium MD (HNEMD) method \cite{evans1982pla} for general many-body potentials, and the related spectral decomposition method \cite{fan2018submitted}.
 \end{itemize}
-
-
 
 \section{Other features}
 
@@ -162,7 +176,7 @@ GPUMD supports the following boundary conditions in each direction:
   \item fixed boundary conditions (by fixing some atoms)
   \end{itemize}
 
-The current version of GPUMD only supports orthogonal simulation boxes. Triclinic simulation boxes \textit{might} be implemented in a future version.
+\textcolor{red}{The current version of GPUMD only supports orthogonal simulation boxes. Triclinic simulation boxes \textit{might} be implemented in a future version.}
 
 
 
@@ -174,7 +188,10 @@ GPUMD has the following two versions for neighbor list construction and automati
   \item an $O(N^2)$ method which builds the Verlet neighbor list by directly checking the distance between one particle and all the other particles in the simulation box
   \item an $O(N)$ method which first builds a cell list and then converts the cell list to the Verlet neighbor list
   \end{itemize}
-When the neighbor list is required to be updated during a simulation, one only has to specify a skin distance and the code will automatically determine when the neighbor list needs to be updated.
+When the neighbor list is required to be updated during a run, one only has to specify a skin distance and the code will automatically determine when the neighbor list needs to be updated.
+
+\textcolor{red}{Warning: Neighbor list will not be updated for a run if the keyword ``neighbor'' is not used for that run. So use this keyword for each run unless you know for sure that there is no diffusion during the simulation. For more about keywords, see chapter \ref{chapter:usage}.}
+
 
 \subsection{Integration methods}
 
@@ -187,6 +204,8 @@ The supported ensembles and the adopted methods are
     \item the Berendsen method  \cite{berendsen1984jcp}
     \item the Nos\'{e}-Hoover chain method \cite{nose1984jcp,hoover1985pra,martyna1992jcp,martyna1996mp,tuckerman2010}
         with a fixed chain length of 4.
+    \item the Langevin thermostat using the algorithm by Bussi and Parrinello \cite{bussi2007pre}
+    \item the Bussi-Donadio-Parrinello thermostat \cite{bussi2007jcp}
     \end{itemize}
   \item the $NPT$ ensemble
     \begin{itemize}
@@ -235,14 +254,14 @@ We are working on implementing more integration methods.
 \subsection{Major changes introduced in version 1.7}
 \begin{enumerate}
 \item Changed about half of the code from C style to C++ style.
-\item Added the homogeneous nonequilibrium molecular dynamics (HNEMD) method for heat transport with many-body potentials \cite{fan2018submitted,xu2018submitted,dong2018submitted}. Currently, we have only implemented this method for the Tersoff and the SW potentials. We will add this method to all the other potentials in the future. 
+\item Added the homogeneous nonequilibrium molecular dynamics (HNEMD) method for heat transport with many-body potentials \cite{fan2018submitted,xu2018msmse,dong2018pccp}. Currently, we have only implemented this method for the Tersoff and the SW potentials. We will add this method to all the other potentials in the future. 
 \end{enumerate}
 
 \subsection{Major changes introduced in version 1.8}
 \begin{enumerate}
 \item Changed most of the code from C style to C++ style.
 \item Added mixed potentials. That is, one can, if needed, use more than one potential for a system.
-\item Implemented the HNEMD method \cite{fan2018submitted,xu2018submitted,dong2018submitted} for all the potentials.
+\item Implemented the HNEMD method \cite{fan2018submitted,xu2018msmse,xu2018submitted,dong2018pccp} for all the potentials.
 \end{enumerate}
 
 \subsection{Major changes introduced in version 1.9}
@@ -250,16 +269,21 @@ We are working on implementing more integration methods.
 \item Fixed some memory bugs.
 \end{enumerate}
 
+\subsection{Major changes introduced in version 2.0}
+\begin{enumerate}
+    \item Added the Langevin thermostat using the algorithm by Bussi and Parrinello \cite{bussi2007pre}.
+    \item Added the Bussi-Donadio-Parrinello thermostat \cite{bussi2007jcp}.
+\end{enumerate}
+
 
 \section{TODO List}
 
-Here I list a few features which I will hopefully implement this or the next year:
+Here I list a few features which I will hopefully implement the next couple of years:
 \begin{itemize}
 \item More Tersoff-type potentials
 \item Spline-based EAM potential
 \item The ADP potential
 \item Machine-learning potentials
-\item More thermostats
 \item The NPT integrator based on the MTK equation
 \item Multi-GPU version of GPUMD
 \item Potential fitting
@@ -267,7 +291,9 @@ Here I list a few features which I will hopefully implement this or the next yea
 \end{itemize}
 
 
-\chapter{Theoretical formalisms and numerical algorithms}
+\chapter{Theoretical formalisms and numerical algorithms\label{chapter:theory}}
+
+\textcolor{red}{This chapter could be skipped on first reading.}
 
 \section{Physical units used in the program}
 
@@ -285,7 +311,7 @@ The purpose of using these units is to make the values of most quantities in the
 \item Velocity: eV$^{1/2}$ amu$^{-1/2}$
 \item Force: eV \AA$^{-1}$
 \item Pressure (stress): eV \AA$^{-3}$, which is about $1.602177 \times 10^{2}$ GPa
-\item Thermal conductivity: eV$^{3/2}$ amu$^{-1/2}$ \AA$^{2}$~K$^{-1}$
+\item Thermal conductivity: eV$^{3/2}$ amu$^{-1/2}$ \AA$^{-2}$~K$^{-1}$
       which is about $1.573769 \times 10^{5}$ W m$^{-1}$ K$^{-1}$
 \item Boltzmann's constant: $k_B \approx 8.617343 \times 10^{-5}$ eV K$^{-1}$
 \item Electrostatic constant:
@@ -293,7 +319,7 @@ $k_C = \frac{1}{4\pi\epsilon_0} \approx 1.441959 \times 10^{1}$ eV \AA~e$^{-2}$
 \end{enumerate}
 
 \textbf{Important note:}
-The input and output files do not necessarily adopt these units. For example, time step in the input file is in unit of fs, rather than \AA~amu$^{1/2}$ eV$^{-1/2}$. Details on the units adopted by the input and output files are presented in Chapter \ref{chapter:usage}.
+The input and output files do not necessarily adopt these units. For example, time step in the input file is in units of fs, rather than \AA~amu$^{1/2}$ eV$^{-1/2}$. Details on the units adopted by the input and output files are presented in Chapter \ref{chapter:usage}.
 
 
 \section{Overall structure of GPUMD}
@@ -301,7 +327,7 @@ The input and output files do not necessarily adopt these units. For example, ti
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
  The logical dependence of the files is schematically shown in Fig. \ref{figure:gpumd-structure}.
-The current version of GPUMD has 57 source files and about 14 000 lines of code. Most files come in pairs. For example, \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.cuh". If a file does not come in pair, we write the suffix explicitly. These only include \verb"main.cu", \verb"mic.inc",  and \verb"ensemble.inc", and the last two will be directly included into some other files. In the figure, if there is an arrow pointing from file A to file B, it means that file A will call some functions in file B or the class defined in file A is inherited from the class defined in file B. Nearly all the files depend on \verb"common", as indicated by the many arrows pointing to it.
+The current version of GPUMD has about 15 000 lines of code. Most files come in pairs. For example, \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.cuh". If a file does not come in pair, we write the suffix explicitly. In the figure, if there is an arrow pointing from file A to file B, it means that file A will call some functions in file B or the class defined in file A is inherited from the class defined in file B. Nearly all the files depend on \verb"common", as indicated by the many arrows pointing to it. Not all the files are in the figure.
 
 
 \begin{figure}[ht]
@@ -311,8 +337,6 @@ The current version of GPUMD has 57 source files and about 14 000 lines of code.
 \label{figure:gpumd-structure}
 \end{center}
 \end{figure}
-
-
 
 \section{Coding style of GPUMD}
 
@@ -342,7 +366,7 @@ Every programmer has his own coding style. Here is an incomplete list of convent
 \end{enumerate}
 
 
-\section{Neighbour list construction}
+\section{Neighbor list construction}
 
 
 We use the Verlet neighbor list when evaluating the forces between particles. Two methods for constructing the Verlet neighbor list are implemented, one is an $O(N^2)$ method and the other is an $O(N)$ method.
@@ -351,11 +375,11 @@ We use the Verlet neighbor list when evaluating the forces between particles. Tw
 \subsection{A simple quadratic-scaling method}
 
 In the $O(N^2)$ method, the Verlet neighbor list is constructed by directly checking the distance between every pair of particles. Therefore, the computational effort scales as $N^2$, where $N$ is the number of particles. This method only requires a single CUDA kernel.
-Algorithm \ref{algorithm:neighbour_ON2} presents a pseudo code for the CUDA kernel.
+Algorithm \ref{algorithm:neighbor_ON2} presents a pseudo code for the CUDA kernel.
 
 \begin{algorithm}[htb]
-\caption{The $O(N^2)$ method of neighbour list construction }
-\label{algorithm:neighbour_ON2}
+\caption{The $O(N^2)$ method of neighbor list construction }
+\label{algorithm:neighbor_ON2}
 \begin{algorithmic}[1]
 \Require $b$ is the block index
 \Require $t$ is the thread index
@@ -476,7 +500,7 @@ Now we can determine which particles are in which cells. We define a one-dimensi
 Up to now, the so-called cell list has been constructed. The remaining task is to convert the cell list to the Verlet neighbor list. This can be done by using a CUDA kernel similar to that for the $O(N^2)$ method. A pseudo code is presented in Algorithm \ref{algorithm:convert}.
 
 \begin{algorithm}[htb]
-\caption{Construct the Verlet neighbour list from the cell list}
+\caption{Construct the Verlet neighbor list from the cell list}
 \label{algorithm:convert}
 \begin{algorithmic}[1]
 \Require $b$ is the block index
@@ -533,13 +557,8 @@ In summary, GPUMD chooses an appropriate method for neighbor list construction a
 The frequency of updating the neighbor list depends on the applications. If one simulates a stable solid system with the initial neighbor list containing all the neighbors that has possible interactions with a given particle during the whole simulation, the neighbor list does not need to be updated at all. In other cases, the neighbor list needs to be updated during the simulation. Usually, one can set an updating frequency such as 10, which means that the neighbor list will be updated every 10 integration steps. However, this can be either inefficient or unsafe. Another way is to determine at every integration step whether the neighbor list needs to be updated by checking how far each atom has moved since the last neighbor list updating. It can be argued that the neighbor list should be updated when the maximum traveling distance of the particles since the last updating exceeds half of the skin distance (set by the user). As this check takes negligible time, GPUMD uses this method to determine automatically when the neighbor list is to be updated and thus does not expect the users to specify an updating frequency.
 
 
-
-
-
-
-
-
 \section{General formalisms for force evaluation and related calculations}
+
 
 \subsection{General form of empirical potential functions}
 
@@ -559,7 +578,7 @@ For two-body potentials, the site potential $U_i$ can be expressed as
 U_i= \frac{1}{2} \sum_{j \neq i} U_{ij}(r_{ij}).
 \end{equation}
 Here, $r_{ij} = |\vect{r}_j - \vect{r}_i|$ is the distance between particles $i$ and $j$ and $U_{ij}(r_{ij})$ is the pair potential between them.
-The total force acted on particle $i$ can be derived to be:
+The total force acting on particle $i$ can be derived to be:
 \begin{equation}
 \vect{F}_{i} = -\nabla_i U = \sum_{j \neq i}
 \frac{\partial U_{ij}(r_{ij})}{\partial r_{ij}}
@@ -648,7 +667,7 @@ p = \frac{1}{3} \left(p_{x} + p_{y} + p_{z}\right) =
 
 GPUMD can be used to compute the lattice thermal conductivity using the Green-Kubo \cite{green1954jcp,kubo1957jpsj} formula, which requires calculating the heat current.
 
-In classical physics, the total heat current vector $\vect{J}$ of a system is defined to be\footnote{Actually, it is $J/V$ that has the dimension of heat current density (also called heat flux), which has the unit of W m$^{-2}$ in the international unit system. However, it is tedious to add the factor of $1/V$ in many of the subsequent equations.} the time derivative of the sum of the energy moments:
+In classical physics, the total heat current vector $\vect{J}$ of a system is defined to be\footnote{Actually, it is $J/V$ that has the dimension of heat current density (also called heat flux), which has the units of W m$^{-2}$ in the international unit system. However, it is tedious to add the factor of $1/V$ in many of the subsequent equations.} the time derivative of the sum of the energy moments:
 \begin{equation}
 \vect{J} = \frac{d}{dt} \sum_i \vect{r}_i E_i.
 \end{equation}
@@ -962,12 +981,30 @@ Here, $\alpha_p$ is a parameter and $\vect{p}_0$ ($\vect{p}$) is the target (ins
 Only directions with periodic boundary conditions will be affected by the barostat.
 
 
+\subsection{The Bussi-Donadio-Parrinello thermostat}
+
+The Berendsen thermostat does not generate a true NVT ensemble. As an extension of the Berendsen thermostat, the  Bussi-Donadio-Parrinello (BDP) thermostat \cite{bussi2007jcp} incorporates a proper randomness into the velocity re-scaling factor and generates a true NVT ensemble. In the BDP thermostat, the velocities are scaled in the following way: 
+\begin{equation}
+\vect{v}_i^{\text{scaled}}
+=\alpha \vect{v}_i;
+\end{equation}
+\begin{equation}
+\alpha^2=
+e^{-\Delta t/\tau} + 
+\frac{T_0}{TN_f} \left( 1-e^{-\Delta t/\tau} \right) \left( R_1^2 + \sum_{i=2}^{N_f}R_i^2 \right) +
+2e^{-\Delta t/2\tau} R_1 \sqrt{\frac{T_0}{TN_f} \left( 1-e^{-\Delta t/\tau} \right) },
+\end{equation}
+where $\tau$ is the relaxation time for this thermostat, $N_f$ is the number of degrees of freedom in the thermostatted system, $\{R_i\}_{i=1}^{N_f}$ are $N_f$ Gaussian distributed random numbers with zero mean and unit variance. We use the functions provided in the following site of Bussi to calculate the stochastic velocity re-scaling factor $\alpha$: \url{https://sites.google.com/site/giovannibussi/Research/algorithms}.
+
+\subsection{The Langevin thermostat}
+
+We implement the Langevin thermostat using the integrator proposed by Bussi and Parrinello \cite{bussi2007pre}. I will discuss the details of this integrator and it's CUDA implementation (using the cuRAND library) when I have time. There is also a relaxation time $\tau$ which controls the strength of the coupling between the system and the thermostat. 
 
 \subsection{Nos\'e-Hoover chain thermostat}
 
-The Nos\'e-Hoover chain method \cite{nose1984jcp,hoover1985pra,martyna1992jcp,martyna1996mp,tuckerman2010} is more suitable for calculating equilibrium properties in a specific ensemble. In the current version of GPUMD, only the Nos\'e-Hoover chain thermostat is implemented. We hope to implement the Nos\'e-Hoover chain barostat in a future version.
+The Nos\'e-Hoover chain method \cite{nose1984jcp,hoover1985pra,martyna1992jcp,martyna1996mp,tuckerman2010} is suitable for calculating equilibrium properties in a specific ensemble. In the current version of GPUMD, only the Nos\'e-Hoover chain thermostat is implemented. We hope to implement the Nos\'e-Hoover chain barostat in a future version.
 
-The equations of motion in the Nos\'{e}-Hoover chain method are
+The equations of motion in the Nos\'{e}-Hoover chain method with a chain length of $M$ are
 \begin{equation}
 \frac{d}{dt} \vect{r}_i = \frac{\vect{p}_i}{m_i},
 \end{equation}
@@ -980,41 +1017,41 @@ The equations of motion in the Nos\'{e}-Hoover chain method are
 \begin{equation}
 \frac{d}{dt} \pi_0 =
 2\left(
-\sum_i \frac{\vect{p}_i^2}{2m_i} - dN\frac{k_BT}{2}
+\sum_i \frac{\vect{p}_i^2}{2m_i} - N_f\frac{k_BT_0}{2}
 \right)
 - \frac{\pi_1}{Q_1} \pi_0,
 \end{equation}
 \begin{equation}
 \frac{d}{dt} \pi_k =
-2\left( \frac{\pi_{k-1}^2}{2Q_{k-1}} - \frac{k_BT}{2} \right)
+2\left( \frac{\pi_{k-1}^2}{2Q_{k-1}} - \frac{k_BT_0}{2} \right)
 - \frac{\pi_{k+1}}{Q_{k+1}} \pi_{k} ~(k = 1, 2, \cdots, M-2),
 \end{equation}
 \begin{equation}
 \frac{d}{dt} \pi_{M-1} =
-2\left( \frac{\pi_{M-2}^2}{2Q_{M-2}} - \frac{k_BT}{2} \right).
+2\left( \frac{\pi_{M-2}^2}{2Q_{M-2}} - \frac{k_BT_0}{2} \right).
 \end{equation}
 The optimal choice \cite{martyna1992jcp} for the thermostat masses is
 \begin{equation}
-Q_0 = dNk_BT\tau^2,
+Q_0 = N_f k_BT_0\tau^2,
 \end{equation}
 \begin{equation}
-Q_k = k_BT\tau^2 ~(k = 1, 2, \cdots, M-1),
+Q_k = k_BT_0\tau^2 ~(k = 1, 2, \cdots, M-1),
 \end{equation}
-where $\tau$ is a time parameter, whose value is usually chosen by try and error in practice. A good choice is $\tau = 100 \Delta t$, where $\Delta t$ is the time step for integration.
+where $\tau$ is a time parameter, whose value is usually chosen by try and error in practice. A good choice is $\tau = 100 \Delta t$, where $\Delta t$ is the time step for integration. Here $\eta_k$ and $\pi_k$ are the $k$th thermostat ``position'' and ``momentum'', respectively.
 
 An integration scheme for the $NVT$ ensemble using the Nos\'{e}-Hoover chain can also be formulated using the approach of the time-evolution operator \cite{martyna1996mp,tuckerman2010}. The total Liouville operator for the equations of motion in the Nos\'{e}-Hoover chain method is \cite{martyna1996mp,tuckerman2010}
 \begin{equation}
-iL = iL_1 + iL_2 + iL_T,
+iL = iL_1 + iL_2 + iL_T;
 \end{equation}
 \begin{equation}
 iL_1 = \sum_{i=1}^N
 \frac{\vect{p}_i}{m_i} \cdot
-\frac{\partial }{\partial \vect{r}_i},
+\frac{\partial }{\partial \vect{r}_i};
 \end{equation}
 \begin{equation}
 iL_2 = \sum_{i=1}^N
 \vect{F}_i \cdot
-\frac{\partial }{\partial \vect{p}_i}.
+\frac{\partial }{\partial \vect{p}_i};
 \end{equation}
 \begin{equation}
 iL_T =
@@ -1023,13 +1060,21 @@ iL_T =
      \frac{\partial}{\partial \pi_k}                               +
 G_{M-1} \frac{\partial}{\partial \pi_{M-1}}                        -
 \sum_{i=0}^{N-1}
-\frac{\pi_0}{Q_0} \vect{p}_i \cdot \frac{\partial}{\partial \vect{p}_i}.
+\frac{\pi_0}{Q_0} \vect{p}_i \cdot \frac{\partial}{\partial \vect{p}_i};
+\end{equation}
+\begin{equation}
+G_0 = 2\left(
+\sum_i \frac{\vect{p}_i^2}{2m_i} - N_f\frac{k_BT_0}{2}
+\right);
+\end{equation}
+\begin{equation}
+G_k = 2\left( \frac{\pi_{k-1}^2}{2Q_{k-1}} - \frac{k_BT_0}{2} \right) ~(k = 1, \cdots, M-1).
 \end{equation}
 That is, the Liouville operator for the $NVT$ ensemble contains an extra term $iL_T$ related to the thermostat variables, which is absent from that for the $NVE$ ensemble.
 
 The total time-evolution operator $e^{iL\Delta t} $ for one step can be factorized using the Trotter theorem as in the case of the $NVE$ ensemble:
 \begin{equation}
-e^{iL} \approx
+e^{iL\Delta t} \approx
 e^{iL_T\Delta t/2}
 e^{iL_2\Delta t/2}
 e^{iL_1\Delta t}
@@ -1424,7 +1469,7 @@ For 2D materials, one can further consider the in-out decomposition. See Ref. \c
 
 \subsection{HNEMD method}
 
-The homogeneous nonequilibrium molecular dynamics (HNEMD) method for heat transport by Evans \cite{evans1982pla} has been recently generalized to general many-body potentials \cite{fan2018submitted}. We have applied \cite{xu2018submitted,dong2018submitted} this method to study heat transport in various materials described by the Tersoff or the SW potential. All these manuscripts are still under review and we plan to discuss this method some time later.  
+The homogeneous nonequilibrium molecular dynamics (HNEMD) method for heat transport by Evans \cite{evans1982pla} has been recently generalized to general many-body potentials \cite{fan2018submitted}. We have applied \cite{xu2018submitted,dong2018pccp} this method to study heat transport in various materials described by the Tersoff or the SW potential. All these manuscripts are still under review and we plan to discuss this method some time later.  
 
 \section{Velocity autocorrelation and related quantities}
 
@@ -1597,10 +1642,8 @@ Because $\rho_x(-\omega)=\rho_x(\omega)$, we have
 The calculated PDOS should meet this normalization condition (approximately).
 
 
+\chapter{Potential models implemented in GPUMD\label{chapter:potentials}}
 
-
-
-\chapter{Potential models implemented in GPUMD}
 
 In this chapter, we discuss in detail the potential models that have been implemented in GPUMD.
 The formats of the potential files for the potential models are also presented. In the potential files, the unit of energy is eV and the unit of length is \AA. One should be able to deduce the dimension of all parameters from the relevant equations defining them.
@@ -2364,7 +2407,7 @@ After downloading and unpacking GPUMD, one can see the following folders:
 
 \subsection{Compile GPUMD}
 
-To compile GPUMD, one just needs to go to the \verb"src" directory and type \verb"make". one may want to first do \verb"make clean". When the compilation finishes, an executable named \verb"gpumd" will be generated in the \verb"src" directory.
+To compile GPUMD, one just needs to go to the \verb"src" directory and type \verb"make". One may want to first do \verb"make clean". When the compilation finishes, an executable named \verb"gpumd" will be generated in the \verb"src" directory.
 
 In the \verb"makefle", the default compiling flag is
 \begin{verbatim}
@@ -2383,18 +2426,33 @@ To run a simulation or a set of simulations with GPUMD, one needs to first prepa
 \end{verbatim}
 
 
-Let us consider two explicit examples. Consider a ``driver input file'' which reads
+Let us consider a few explicit examples. Consider a ``driver input file'' which reads
 \begin{verbatim}
     1
-    examples/lattice_constant/si_tersoff
+    examples/ex1
 \end{verbatim}
-This means that there will be one simulation and the input files (\verb"xyz.in" and \verb"run.in") are prepared in the folder \verb"examples/lattice_constant/si_tersoff". One can also run multiple simulations using a single ``driver input file''. An example is:
+This means that there will be one simulation and the input files (\verb"xyz.in" and \verb"run.in") are prepared in the folder \verb"examples/ex1". One can also run multiple simulations using a single ``driver input file''. An example is:
 \begin{verbatim}
-    2
-    examples/lattice_constant/si_tersoff
-    examples/lattice_constant/si_sw
+    4
+    examples/ex1
+    examples/ex2
+    examples/ex3
+    examples/ex4
 \end{verbatim}
-In this case, it means that two sets of inputs will be processed consecutively.
+In this case, it means that four sets of inputs will be processed consecutively. If you want to do 10 independent calculations for the \verb"examples/ex3" input folder, the ``driver input file'' can be:
+\begin{verbatim}
+    10
+    examples/ex3
+    examples/ex3
+    examples/ex3
+    examples/ex3
+    examples/ex3
+    examples/ex3
+    examples/ex3
+    examples/ex3
+    examples/ex3
+    examples/ex3
+\end{verbatim}
 
 Now we are ready to run the code. Suppose that the ``driver input file'' is named as \verb"input" and is in the folder where we can see the \verb"src" folder, we can run the code using the following command:
 \begin{verbatim}
@@ -2423,16 +2481,18 @@ A file named \verb"xyz.in" should be prepared and should have the following form
 \end{verbatim}
 We explain line by line:
 \begin{itemize}
-\item In the first line, \verb"N" is the number of atoms, \verb"M" is the maximum possible number of neighbor atoms for one atom, and \verb"cutoff" is the initial cutoff distance used for building the neighbor list.
+\item In the first line, \verb"N" is the number of atoms, \verb"M" is the maximum possible number of neighbor atoms for one atom, and \verb"cutoff" is the initial cutoff distance used for building the neighbor list. \textcolor{red}{Warning! It's the responsibility of the user to use a large enough value of M. If some atom has more than M neighbors during the simulation, unexpected error may occur and there may be no useful error message. If M is too large, it just wastes some memory. } 
 \item In the second line, \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z" can only be 1 or 0. If \verb"pbc_x" is 1, it means that periodic boundary conditions will be applied to the $x$ direction; if \verb"pbc_x" is 0, it means that free boundary conditions will be applied to the $x$ direction. Similar descriptions apply to the other two directions. The next three items in the second line, \verb"L_x", \verb"L_y", and \verb"L_z", are the initial lengths of the (rectangular) simulation box along the $x$, $y$, and $z$ directions, respectively.
 \item In the third line, \verb"type_1", \verb"group_1", and \verb"mass_1" are respectively the type, group label, and mass of the first atom. The next three items, \verb"x_1", \verb"y_1", and \verb"z_1", are the coordinates of this atom.
 \item Similarly, the $(m+2)$th line gives the information for the $m$th atom. This file should have \verb"N+2" lines.
 \end{itemize}
 
 
+
+
 The atom type will be used to determine which potential parameters to use. The group label will be used for some other purposes such as calculating the block temperatures in NEMD simulations or realize fixed boundaries. We use integers to record the atom types and group labels and the indices start from 0. Explicit examples will be presented in the next chapter.
 
-The mass should be given in unit of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in unit of angstrom (\AA).
+The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA).
 
 
 \subsection{The run.in input file}
@@ -2483,7 +2543,7 @@ This keyword is used to specify a single potential for the system. It only has o
     potential potentials/tersoff/si_tersoff_1989_1.txt
 \end{verbatim}
 By writing this, one has to make sure that the file \verb"si_tersoff_1989_1.txt" has been prepared in the folder \verb"potentials/tersoff/".
-The potential files are discussed in the previous chapter. \textbf{It is very important to make sure that the atom types in the xyz.in file are consistent with the potential file.}
+The potential files are discussed in the previous chapter. \textcolor{red}{It is very important to make sure that the atom types in the xyz.in file are consistent with the potential file.}
 
 \subsection{The potentials keyword}
 
@@ -2532,7 +2592,7 @@ Here,  the first parameter \verb"lj_file" specifies the Lennard-Jones potential 
     epsilon_21 sigma_21 cutoff_21
     epsilon_22 sigma_22 cutoff_22
 \end{verbatim}
-If we want to exclude the Lennard-Jones interactions between C-C, Si-Si, Si-O, O-Si, and O-O pairs, we can simply set the corresponding cutoff distance to 0. Therefore, we do not need to use an extra layer label to achieve this. This explains why we set the second parameter to 0. The remaining parameters simply mean that we apply a single-element Tersoff potential to atoms from type 0 to type 0 (graphene) and a double-element Tersoff potential to atoms from type 1 to type 2 (SiO$_2$). \textbf{It is very important to make sure that, in the xyz.in file, atoms for the first many-body potential all come before (or after) atoms for the second many-body potential.}
+If we want to exclude the Lennard-Jones interactions between C-C, Si-Si, Si-O, O-Si, and O-O pairs, we can simply set the corresponding cutoff distance to 0. Therefore, we do not need to use an extra layer label to achieve this. This explains why we set the second parameter to 0. The remaining parameters simply mean that we apply a single-element Tersoff potential to atoms from type 0 to type 0 (graphene) and a double-element Tersoff potential to atoms from type 1 to type 2 (SiO$_2$). \textcolor{red}{It is very important to make sure that, in the xyz.in file, atoms for the first many-body potential all come before (or after) atoms for the second many-body potential.}
 
 
 \subsection{The velocity keyword}
@@ -2564,6 +2624,16 @@ The target temperature (not the instant system temperature) will vary linearly f
     ensemble nvt_nhc T_1 T_2 T_coup
 \end{verbatim}
 
+\item \verb"nvt_bdp". This corresponds to the $NVT$ ensemble using the BDP method. The full command is
+\begin{verbatim}
+    ensemble nvt_bdp T_1 T_2 T_coup
+\end{verbatim}
+
+\item \verb"nvt_lan". This corresponds to the $NVT$ ensemble using the Langevin method. The full command is
+\begin{verbatim}
+    ensemble nvt_lan T_1 T_2 T_coup
+\end{verbatim}
+
 \item \verb"npt_ber". This corresponds to the $NPT$ ensemble using the Berendsen method. In this case, apart from the same parameters as in the case of \verb"nvt_ber", one needs to further specify 3 target pressures, \verb"Px", \verb"Py", and \verb"Pz", and a pressure coupling constant \verb"P_coup". The full command is
 \begin{verbatim}
     ensemble npt_ber T_1 T_2 T_coup Px Py Pz P_coup
@@ -2575,25 +2645,36 @@ The target temperature (not the instant system temperature) will vary linearly f
 \end{verbatim}
 The target temperatures in the source region (with label \verb"label_source") and sink region (with label \verb"label_sink") are \verb"T + delta_T" and \verb"T - delta_T", respectively. Therefore, the temperature difference between the two regions is twice of \verb"delta_T".
 
+\item \verb"heat_bdp". This corresponds to heating a source region and simultaneously cooling a sink region using the BDP thermostats. The full command is
+\begin{verbatim}
+    ensemble heat_bdp T T_coup delta_T label_source label_sink
+\end{verbatim}
+
+
+\item \verb"heat_lan". This corresponds to heating a source region and simultaneously cooling a sink region using the Langevin thermostats. The full command is
+\begin{verbatim}
+    ensemble heat_lan T T_coup delta_T label_source label_sink
+\end{verbatim}
+
 \end{itemize}
 
 
-The units of temperature and pressure for this keyword are K and GPa, respectively. The temperature coupling constant in the Berendsen method can be any positive number less than or equal to 1 and we recommend a value in the range of $[0.01,~1]$. A larger number results in a faster control of the temperature. The temperature coupling constant in the Nos\'{e}-Hoover chain method is in unit of the time step and is recommended to be in the range of $[100,~1000]$. Here, a larger number results in a slower control of the temperature. The pressure coupling constant in the Berenden method should be a small positive number in the unit system adopted by GPUMD. We recommend a value in the range of $[0.01,0.0001]$. For a stiffer material (like diamond or graphene), one should use a smaller value. In practice, all these parameters should be determined by try and error.
+The units of temperature and pressure for this keyword are K and GPa, respectively. The temperature coupling constant in the Berendsen method can be any positive number less than or equal to 1 and we recommend a value in the range of $[0.01,~1]$. A larger number results in a faster control of the temperature. The temperature coupling constant (the relaxation time) in the Nos\'{e}-Hoover chain, BDP, and Langevin methods is in units of the time step and is recommended to be in the range of $[100,~1000]$. Here, a larger number results in a slower control of the temperature. The pressure coupling constant in the Berenden method should be a small positive number in the unit system adopted by GPUMD. We recommend a value in the range of $[0.01,0.0001]$. For a stiffer material (such as diamond or graphene), one should use a smaller value. In practice, all these parameters should be determined by try and error.
 
 
 \subsection{The time step keyword}
 
-This keyword only requires a single parameter, which is the time step for integration in unit of fs ($10^{-15}$ s). For example, the command
+This keyword only requires a single parameter, which is the time step for integration in units of fs ($10^{-15}$ s). For example, the command
 \begin{verbatim}
     time_step 1
 \end{verbatim}
-means that the time step for the current run is 1 fs. Note that the value of time step does not need to be set for each run in a ``run.in'' file. If you do not set a new value of time step in a run, the value in the previous run will be used.
+means that the time step for the current run is 1 fs. Note that the value of time step does not need to be set for each run in a ``run.in'' file. \textcolor{red}{If you do not set a new value of time step in a run, the value in the previous run will be used.}
 
 
 
 \subsection{The neighbor keyword}
 
-This keyword only requires a single parameter, which is the skin distance (the difference between the cutoff distance used in neighbor list construction and that used in force evaluation) in unit of \AA. For example, the command
+This keyword only requires a single parameter, which is the skin distance (the difference between the cutoff distance used in neighbor list construction and that used in force evaluation) in units of \AA. For example, the command
 \begin{verbatim}
     neighbor 1
 \end{verbatim}
@@ -2608,7 +2689,7 @@ For example, the command
 dump_thermo 1000
 \end{verbatim}
 means that the thermodynamic quantities will be written into the file \verb"thermo.out" (in the folder which contains the \verb"run.in" file) every 1000 steps.
-By default, GPUMD does not dump these quantities. For example, if there is no \verb"dump_position" command for one run, positions will not be output for that run.
+\textcolor{red}{By default, GPUMD does not dump these quantities.} For example, if there is no \verb"dump_position" command for one run, positions will not be output for that run.
 
 
 \subsection{The fix keyword}
@@ -2703,22 +2784,22 @@ In this section, we describe the formats of the output files. The output files a
 
 \subsection{An important note}
 
-For all the output files, data from a new simulation will be appended to existing data. Therefore, if you do not intend to append new data to existing ones, you'd better first remove the existing output file or rename it.
+\textcolor{red}{For all the output files, data from a new simulation will be appended to existing data. Therefore, if you do not intend to append new data to existing ones, you'd better first remove the existing output file or rename it.}
 
 \subsection{The thermo.out file}
 
 This file is generated by using the \verb"dump_thermo" keyword in the \verb"run.in" file.
 There are 9 columns in the thermo.out file, each containing the values of a quantity at increasing time points. The quantities are as follows:
 \begin{itemize}
-\item column 1: temperature (in unit of K)
-\item column 2: total energy (in unit of eV) of the system if the thermostat method is Nos\'{e}-Hoover chain and kinetic energy (in unit of eV) of the system otherwise
-\item column 3: total energy (in unit of eV) of the thermostat if the thermostat method is Nos\'{e}-Hoover chain and potential energy (in unit of eV) of the system otherwise
-\item column 4: pressure (in unit of GPa) in the $x$ direction
-\item column 5: pressure (in unit of GPa) in the $y$ direction
-\item column 6: pressure (in unit of GPa) in the $z$ direction
-\item column 7: box length (in unit of \AA) in the $x$ direction
-\item column 8: box length (in unit of \AA) in the $y$ direction
-\item column 9: box length (in unit of \AA) in the $z$ direction
+\item column 1: temperature (in units of K)
+\item column 2: total energy (in units of eV) of the system if the thermostat method is Nos\'{e}-Hoover chain and kinetic energy (in unit of eV) of the system otherwise
+\item column 3: total energy (in units of eV) of the thermostat if the thermostat method is Nos\'{e}-Hoover chain and potential energy (in unit of eV) of the system otherwise
+\item column 4: pressure (in units of GPa) in the $x$ direction
+\item column 5: pressure (in units of GPa) in the $y$ direction
+\item column 6: pressure (in units of GPa) in the $z$ direction
+\item column 7: box length (in units of \AA) in the $x$ direction
+\item column 8: box length (in units of \AA) in the $y$ direction
+\item column 9: box length (in units of \AA) in the $z$ direction
 \end{itemize}
 
 
@@ -2760,17 +2841,17 @@ of the virial stress tensor. The off-diagonal elements are not dumped.
 \subsection{The vac.out file}
 This file contains the data of VAC (velocity autocorrelation) and related quantities, namely, the RDC (running diffusion coefficient) and the PDOS (phonon density of states). The data in this file are organized as follows:
 \begin{itemize}
-\item column 1: correlation time (in unit of ps)
-\item column 2: VAC (in unit of \AA$^2$/ps$^2$) in the $x$ direction
-\item column 3: VAC (in unit of \AA$^2$/ps$^2$) in the $y$ direction
-\item column 4: VAC (in unit of \AA$^2$/ps$^2$) in the $z$ direction
-\item column 5: RDC (in unit of \AA$^2$/ps) in the $x$ direction
-\item column 6: RDC (in unit of \AA$^2$/ps) in the $y$ direction
-\item column 7: RDC (in unit of \AA$^2$/ps) in the $z$ direction
-\item column 8: angular frequency $\omega$ in unit of THz
-\item column 9: DOS (in unit of 1/THz) in the $x$ direction
-\item column 10: DOS (in unit of 1/THz) in the $y$ direction
-\item column 11: DOS (in unit of 1/THz) in the $z$ direction
+\item column 1: correlation time (in units of ps)
+\item column 2: VAC (in units of \AA$^2$/ps$^2$) in the $x$ direction
+\item column 3: VAC (in units of \AA$^2$/ps$^2$) in the $y$ direction
+\item column 4: VAC (in units of \AA$^2$/ps$^2$) in the $z$ direction
+\item column 5: RDC (in units of \AA$^2$/ps) in the $x$ direction
+\item column 6: RDC (in units of \AA$^2$/ps) in the $y$ direction
+\item column 7: RDC (in units of \AA$^2$/ps) in the $z$ direction
+\item column 8: angular frequency $\omega$ in units of THz
+\item column 9: DOS (in units of 1/THz) in the $x$ direction
+\item column 10: DOS (in units of 1/THz) in the $y$ direction
+\item column 11: DOS (in units of 1/THz) in the $z$ direction
 \end{itemize}
 
 
@@ -2778,17 +2859,17 @@ This file contains the data of VAC (velocity autocorrelation) and related quanti
 
 This file contains the data of HAC (heat current autocorrelation) and RTC (running thermal conductivity), organized in the following way:
 \begin{itemize}
-\item column 1: correlation time (in unit of ps)
-\item column 2: $\langle J_x^{\text{in}}(0)J_x^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
-\item column 3: $\langle J_x^{\text{out}}(0)J_x^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
-\item column 4: $\langle J_y^{\text{in}}(0)J_y^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
-\item column 5: $\langle J_y^{\text{out}}(0)J_y^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
-\item column 6: $\langle J_z^{\text{tot}}(0)J_z^{\text{tot}}(t)\rangle$ (in unit of eV$^3$/amu)
-\item column 7: $\kappa_x^{\text{in}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
-\item column 8: $\kappa_x^{\text{out}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
-\item column 9: $\kappa_y^{\text{in}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
-\item column 10: $\kappa_y^{\text{out}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
-\item column 11: $\kappa_z^{\text{tot}}(t)$ (in unit of Wm$^{-1}$K$^{-1}$)
+\item column 1: correlation time (in units of ps)
+\item column 2: $\langle J_x^{\text{in}}(0)J_x^{\text{tot}}(t)\rangle$ (in units of eV$^3$/amu)
+\item column 3: $\langle J_x^{\text{out}}(0)J_x^{\text{tot}}(t)\rangle$ (in units of eV$^3$/amu)
+\item column 4: $\langle J_y^{\text{in}}(0)J_y^{\text{tot}}(t)\rangle$ (in units of eV$^3$/amu)
+\item column 5: $\langle J_y^{\text{out}}(0)J_y^{\text{tot}}(t)\rangle$ (in units of eV$^3$/amu)
+\item column 6: $\langle J_z^{\text{tot}}(0)J_z^{\text{tot}}(t)\rangle$ (in units of eV$^3$/amu)
+\item column 7: $\kappa_x^{\text{in}}(t)$ (in units of Wm$^{-1}$K$^{-1}$)
+\item column 8: $\kappa_x^{\text{out}}(t)$ (in units of Wm$^{-1}$K$^{-1}$)
+\item column 9: $\kappa_y^{\text{in}}(t)$ (in units of Wm$^{-1}$K$^{-1}$)
+\item column 10: $\kappa_y^{\text{out}}(t)$ (in units of Wm$^{-1}$K$^{-1}$)
+\item column 11: $\kappa_z^{\text{tot}}(t)$ (in units of Wm$^{-1}$K$^{-1}$)
 \end{itemize}
 
 Note that the HAC and the RTC have been decomposed as described in Ref. \cite{fan2017prb}. This decomposition is useful for 2D materials but is not necessary for 3D materials. For 3D materials, one can sum up some columns to get the conventional data. For example:
@@ -2800,15 +2881,15 @@ Note that the HAC and the RTC have been decomposed as described in Ref. \cite{fa
 \begin{equation}
 \kappa_x^{\text{tot}}(t) = \kappa_x^{\text{in}}(t) + \kappa_x^{\text{out}}(t).
 \end{equation}
-Note that the ``cross term'' introduced in Ref. \cite{fan2017prb} has been evenly attributed to the in- and out-of-plane components. I will give a justification for this choice later. 
+Note that the ``cross term'' introduced in Ref. \cite{fan2017prb} has been evenly attributed to the in- and out-of-plane components. This has been justified in Ref. \cite{fan2018submitted}.
 
 \subsection{The temperature.out file}
 
 This file contains data related to NEMD simulations of heat transport. Assuming that the system is divided into $M$ groups, then
 \begin{itemize}
-\item columns 1 to $M$ are the block temperatures
-\item the last second column is the total energy of the thermostat coupling to the heat source region
-\item the last column is the total energy of the thermostat coupling to the heat sink region
+\item columns 1 to $M$ are the block temperatures (in units of K)
+\item the last second column is the total energy of the thermostat coupling to the heat source region (in units of eV)
+\item the last column is the total energy of the thermostat coupling to the heat sink region (in units of eV)
 \end{itemize}
 
 
@@ -2819,9 +2900,9 @@ This file contains data for the nonequilibrium heat current correlation function
 
 \subsection{The kappa.out file}
 
-This file is generated by the \verb"compute_hnemd" command and contains the running thermal conductivity calculated by using the HNEMD method. There are five columns, which are $\kappa^{\rm in}_x$, $\kappa^{\rm out}_x$, $\kappa^{\rm in}_y$, $\kappa^{\rm out}_y$, and $\kappa_z$ from the first to the last column. For the meanings of these thermal conductivity components, see Ref. \cite{fan2018submitted,xu2018submitted,dong2018submitted}.
+This file is generated by the \verb"compute_hnemd" command and contains the running thermal conductivity calculated by using the HNEMD method. There are five columns, which are $\kappa^{\rm in}_x$, $\kappa^{\rm out}_x$, $\kappa^{\rm in}_y$, $\kappa^{\rm out}_y$, and $\kappa_z$ from the first to the last column. For the meanings of these thermal conductivity components, see Ref. \cite{fan2018submitted,xu2018msmse,dong2018pccp}.
 
-\chapter{Examples}
+\chapter{Examples\label{chapter:examples}}
 
 In this chapter, we give some examples to illustrate the usage of GPUMD. All the results presented here are obtained by using the \textbf{double-precision} version of the code. The single-precision version is faster but we are not sure whether it is always as safe to use.
 Note that even the double-precision version of GPUMD is highly efficient. For details of the performance of GPUMD, see Ref. \cite{fan2017cpc}.
@@ -2895,7 +2976,7 @@ The ``run.in'' input file is given below. The first line of command tells that t
 \end{center}
 \end{figure}
 
-It takes about 4 min to run this example when a Tesla K40 card is use. The speed of the run is about $1.9 \times 10^7 ~\textmd{atom} \times \textmd{step} / \textmd{second}$.
+It takes about 4 min to run this example when a Tesla K40 card is used. The speed of the run is about $1.9 \times 10^7 ~\textmd{atom} \times \textmd{step} / \textmd{second}$.
 
 The output file \verb"thermo.out" contains many useful data, which can be analyzed by the MATALB script \verb"plot_results.m". The results are shown in Fig. \ref{figure:lattice_constant}:
 \begin{itemize}
