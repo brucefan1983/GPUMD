@@ -1,5 +1,9 @@
 # GPUMD
 
+## A warnning in the beginning:
+
+* Do not treat the code as a black box. Do as many tests as you can until you trust some part of it (the part you will use). The best way is to check the source code and make sure that it makes sense to you. Whenever you feel unsure about something regarding the code, you are welcome to discuss with me (see the contact information below). 
+
 ## What is GPUMD?
 
 * GPUMD stands for Graphics Processing Units Molecular Dynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). This code is highly efficient. For details, see Ref. [1].
