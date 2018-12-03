@@ -477,8 +477,11 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     real *h = gpu_data->heat_per_atom; 
     
     int *label = gpu_data->label;
-    int *fv_index = gpu_data->fv_index;
-    real *fv = gpu_data->fv;
+	int *fv_index = gpu_data->fv_index;
+	int *a_map = gpu_data->a_map;
+	int *b_map = gpu_data->b_map;
+	int *count_b = gpu_data->count_b;
+	real *fv = gpu_data->fv;
 
     real *f12x = sw2_data.f12x; 
     real *f12y = sw2_data.f12y; 
@@ -500,12 +503,12 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 
         find_force_many_body<1, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, 
-            box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (para->hnemd.compute)
+    else if (para->hnemd.compute && !para->shc.compute)
     {
         gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>> 
         (
@@ -515,12 +518,12 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 
         find_force_many_body<0, 0, 1><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, 
-            box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (para->shc.compute)
+    else if (para->shc.compute && !para->hnemd.compute)
     {
         gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>> 
         (
@@ -530,9 +533,24 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
 
         find_force_many_body<0, 1, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, 
-            box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
+        );
+    }
+    else if (para->shc.compute && para->hnemd.compute)
+    {
+        gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>
+        (
+            N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z,
+            box_length, pe, f12x, f12y, f12z
+        );
+
+        find_force_many_body<0, 1, 1><<<grid_size, BLOCK_SIZE_SW>>>
+        (
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else
@@ -546,8 +564,8 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
         find_force_many_body<0, 0, 0><<<grid_size, BLOCK_SIZE_SW>>>
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, 
-            box_length, fx, fy, fz, sx, sy, sz, h, label, fv_index, fv
+            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
 
