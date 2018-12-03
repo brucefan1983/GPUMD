@@ -19,66 +19,103 @@
 #include "common.cuh"
 #include "shc.cuh"
 
-
-
+typedef unsigned long long uint64;
 
 //build the look-up table used for recording force and velocity data
 static void build_fv_table
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     para->shc.number_of_sections = 1; 
-    int count = 0;
+    para->shc.number_of_pairs = 0;
     for (int n1 = 0; n1 < para->N; ++n1)
     {
-        cpu_data->fv_index[n1] = -1;
-        cpu_data->fv_index[n1 + para->N] = -1; 
-        int label1 = cpu_data->label[n1];
-        for (int i1 = 0; i1 < cpu_data->NN[n1]; ++i1)   
-        {       
-            int n2 = cpu_data->NL[n1 * para->neighbor.MN + i1]; 
-            int label2 = cpu_data->label[n2];
-                 
-            // old correct version
-            if (label1 == para->shc.block_A && label2 == para->shc.block_B)
-            {           
-                cpu_data->fv_index[n1] = count;
-                cpu_data->fv_index[n1 + para->N] = n2;
-                count++;
-            }
-            
-        }
+    	if (cpu_data->a_map[n1] != -1)
+    	{
+    		// need loop to initialize all fv_table elements to -1
+    		for (int n2 = 0; n2 <  para->N; ++n2)
+    		{
+    			if (cpu_data->b_map[n2] != -1)
+    			{
+    				cpu_data->fv_index[cpu_data->a_map[n1] * *(cpu_data->count_b) + cpu_data->b_map[n2]] = -1;
+    			}
+    		}
+    		// Now set neighbors to correct value
+    		for (int i1 = 0; i1 < cpu_data->NN[n1]; ++i1)
+    		{
+    			int n2 = cpu_data->NL[n1 * para->neighbor.MN + i1];
+    			if (cpu_data->b_map[n2] != -1)
+    			{
+    				cpu_data->fv_index[cpu_data->a_map[n1] * *(cpu_data->count_b) + cpu_data->b_map[n2]] =
+    				    						para->shc.number_of_pairs;
+    				para->shc.number_of_pairs++;
+    			}
+    		}
+    	}
     }
 }
-
 
 // allocate memory and initialize for calculating SHC
 void preprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {      
     if (para->shc.compute)
     {
-        // 2*N data for indexing purpose 
-        MY_MALLOC(cpu_data->fv_index, int,  2 * para->N); 
-        build_fv_table(para, cpu_data, gpu_data);
-        para->shc.number_of_pairs = 0;
-        for (int n = 0; n < para->N; n++)
-        {
-            if (cpu_data->fv_index[n] >= 0) { para->shc.number_of_pairs++; }
-        }
+    	//build map from N atoms to A and B labeled atoms
+    	int c_a = 0; int c_b = 0;
+    	MY_MALLOC(cpu_data->a_map, int, para->N);
+    	MY_MALLOC(cpu_data->b_map, int, para->N);
+    	for (int n = 0; n < para->N; n++)
+    	{
+    		cpu_data->a_map[n] = -1;
+    		cpu_data->b_map[n] = -1;
+    		if (cpu_data->label[n] == para->shc.block_A)
+    		{
+    			cpu_data->a_map[n] = c_a;
+    			c_a++;
+    		}
+    		else if (cpu_data->label[n] == para->shc.block_B)
+    		{
+    			cpu_data->b_map[n] = c_b;
+    			c_b++;
+    		}
+    	}
+    	MY_MALLOC(cpu_data->count_a, int, 1); // count of atoms in group A
+		MY_MALLOC(cpu_data->count_b, int, 1);
+    	*(cpu_data->count_a) = c_a;
+		*(cpu_data->count_b) = c_b;
+		MY_MALLOC(cpu_data->fv_index, int,  *(cpu_data->count_a) * *(cpu_data->count_b));
+		build_fv_table(para, cpu_data, gpu_data);
 
-        // there are 12 data for each pair
-        int num1 = para->shc.number_of_pairs * 12; 
-        int num2 = num1 * para->shc.M;
-        cudaMalloc((void**)&gpu_data->fv_index, sizeof(int)  * 2 * para->N);
-        cudaMalloc((void**)&gpu_data->fv,       sizeof(real) * num1);
-        cudaMalloc((void**)&gpu_data->fv_all,   sizeof(real) * num2);
-        CHECK(cudaMemcpy(gpu_data->fv_index, cpu_data->fv_index, 
-            sizeof(int) * 2 * para->N, cudaMemcpyHostToDevice));
+		// there are 12 data for each pair
+		uint64 num1 = para->shc.number_of_pairs * 12;
+		uint64 num2 = num1 * para->shc.M;
+
+		cudaMalloc((void**)&gpu_data->a_map, sizeof(int) * para->N);
+		cudaMalloc((void**)&gpu_data->b_map, sizeof(int) * para->N);
+		cudaMalloc((void**)&gpu_data->count_a, sizeof(int));
+		cudaMalloc((void**)&gpu_data->count_b, sizeof(int));
+		cudaMalloc((void**)&gpu_data->fv_index, sizeof(int)  * *(cpu_data->count_a) * *(cpu_data->count_b));
+		cudaMalloc((void**)&gpu_data->fv,       sizeof(real) * num1);
+		cudaMalloc((void**)&gpu_data->fv_all,   sizeof(real) * num2);
+
+		CHECK(cudaMemcpy(gpu_data->fv_index, cpu_data->fv_index,
+				sizeof(int)  * *(cpu_data->count_a) * *(cpu_data->count_b), cudaMemcpyHostToDevice));
+
+		CHECK(cudaMemcpy(gpu_data->a_map, cpu_data->a_map,
+				sizeof(int) * para->N, cudaMemcpyHostToDevice));
+		CHECK(cudaMemcpy(gpu_data->b_map, cpu_data->b_map,
+				sizeof(int) * para->N, cudaMemcpyHostToDevice));
+
+		CHECK(cudaMemcpy(gpu_data->count_a, cpu_data->count_a,
+				sizeof(int), cudaMemcpyHostToDevice));
+		CHECK(cudaMemcpy(gpu_data->count_b, cpu_data->count_b,
+				sizeof(int), cudaMemcpyHostToDevice));
+
     }
 }
 
 
 // Find the time correlation function K(t); GPU version.
-static __device__ void warp_reduce(volatile real *s, int t) 
+static __device__ void warp_reduce(volatile real *s, uint64 t)
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
@@ -91,24 +128,24 @@ static __global__ void gpu_find_k_time
 )
 {
     //<<<Nc, 128>>>
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int number_of_patches = (M - 1) / 128 + 1; 
+    uint64 tid = threadIdx.x;
+    uint64 bid = blockIdx.x;
+    uint64 number_of_patches = (M - 1) / 128 + 1;
 
     __shared__ real s_k_time_i[128];
     __shared__ real s_k_time_o[128];
     s_k_time_i[tid] = ZERO;  
     s_k_time_o[tid] = ZERO;
 
-    for (int patch = 0; patch < number_of_patches; ++patch)
+    for (uint64 patch = 0; patch < number_of_patches; ++patch)
     {  
-        int m = tid + patch * 128;
+        uint64 m = tid + patch * 128;
         if (m < M)
         {
-            int index_0 = (m +   0) * number_of_pairs * 12;
-            int index_t = (m + bid) * number_of_pairs * 12;
+            uint64 index_0 = (m +   0) * number_of_pairs * 12;
+            uint64 index_t = (m + bid) * number_of_pairs * 12;
 
-            for (int np = 0; np < number_of_pairs; np++) // pairs
+            for (uint64 np = 0; np < number_of_pairs; np++) // pairs
             {
                 real f12x = g_fv_all[index_0 + np * 12 + 0];
                 real f12y = g_fv_all[index_0 + np * 12 + 1];
@@ -216,14 +253,14 @@ void process_shc
 {
     if (para->shc.compute)
     { 
-        int step_ref = para->shc.sample_interval * para->shc.M;
-        int fv_size = para->shc.number_of_pairs * 12;
-        int fv_memo = fv_size * sizeof(real);
+        uint64 step_ref = para->shc.sample_interval * para->shc.M;
+        uint64 fv_size = para->shc.number_of_pairs * 12;
+        uint64 fv_memo = fv_size * sizeof(real);
         
         // sample fv data every "sample_interval" steps
         if ((step + 1) % para->shc.sample_interval == 0)
         {
-            int offset = 
+            uint64 offset =
                 (
                     (step - (step/step_ref)*step_ref + 1) 
                     / para->shc.sample_interval - 1
@@ -246,9 +283,17 @@ void postprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
     if (para->shc.compute)
     {
         MY_FREE(cpu_data->fv_index);
+        MY_FREE(cpu_data->a_map);
+        MY_FREE(cpu_data->b_map);
+        MY_FREE(cpu_data->count_a);
+        MY_FREE(cpu_data->count_b);
         CHECK(cudaFree(gpu_data->fv_index));
+        CHECK(cudaFree(gpu_data->a_map));
+        CHECK(cudaFree(gpu_data->b_map));
+        CHECK(cudaFree(gpu_data->count_a));
+        CHECK(cudaFree(gpu_data->count_b));
         CHECK(cudaFree(gpu_data->fv));
-        CHECK(cudaFree(gpu_data->fv_all));  
+        CHECK(cudaFree(gpu_data->fv_all));
     }
 }
 
