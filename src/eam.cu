@@ -479,12 +479,12 @@ static __global__ void find_force_eam_step2
 				g_fv[index_12 + 3]  += f21x;
 				g_fv[index_12 + 4]  += f21y;
 				g_fv[index_12 + 5]  += f21z;
-				g_fv[index_12 + 6]  += vx1;
-				g_fv[index_12 + 7]  += vy1;
-				g_fv[index_12 + 8]  += vz1;
-				g_fv[index_12 + 9]  += LDG(g_vx, n2);
-				g_fv[index_12 + 10] += LDG(g_vy, n2);
-				g_fv[index_12 + 11] += LDG(g_vz, n2);
+				g_fv[index_12 + 6]  = vx1;
+				g_fv[index_12 + 7]  = vy1;
+				g_fv[index_12 + 8]  = vz1;
+				g_fv[index_12 + 9]  = LDG(g_vx, n2);
+				g_fv[index_12 + 10] = LDG(g_vy, n2);
+				g_fv[index_12 + 11] = LDG(g_vz, n2);
 			}
         }
 
