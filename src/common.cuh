@@ -252,7 +252,9 @@ struct Parameters
 // All the CPU data
 struct CPU_Data
 {
-    int *NN; int *NL; int *fv_index; 
+    int *NN; int *NL; int *fv_index;
+    int *a_map; int *b_map;
+    int *count_a; int *count_b;
     int *type; int *label; int *group_size; int *group_size_sum;
     int *type_local;              // local atom type (for force)
     int *type_size; // number of atoms for each type
@@ -275,7 +277,6 @@ struct GPU_Data
 {
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
-    int *fv_index;                // for SHC calculations
     int *type;                    // atom type (for force)
     int *type_local;              // local atom type (for force)
     int *label;                   // group label 
@@ -299,8 +300,10 @@ struct GPU_Data
     real *box_length;       // box length in each direction
     real *thermo;           // some thermodynamic quantities
     real *fv; real *fv_all; // for SHC calculations
+    int *fv_index;  // for SHC calculations
+    int *a_map; int *b_map;
+	int *count_a; int *count_b;
 };
-
 
 
 

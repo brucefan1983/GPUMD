@@ -23,8 +23,6 @@
 ------------------------------------------------------------------------------*/
 
 
-
-
 template <int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_many_body
 (
@@ -48,7 +46,8 @@ static __global__ void find_force_many_body
 #endif
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz,
-    real *g_h, int *g_label, int *g_fv_index, real *g_fv 
+    real *g_h, int *g_label, int *g_fv_index, real *g_fv,
+    int *g_a_map, int *g_b_map, int *g_count_b
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -144,24 +143,23 @@ static __global__ void find_force_many_body
             }
  
             // accumulate heat across some sections (for NEMD)
-            if (cal_q)
+            //		check if AB pair possible & exists
+            if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
+            		g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] != -1)
             {
-                int index_12 = g_fv_index[n1] * 12;
-                if (index_12 >= 0 && g_fv_index[n1 + number_of_particles] == n2)
-                {
-                    g_fv[index_12 + 0]  += f12x;
-                    g_fv[index_12 + 1]  += f12y;
-                    g_fv[index_12 + 2]  += f12z;
-                    g_fv[index_12 + 3]  += f21x;
-                    g_fv[index_12 + 4]  += f21y;
-                    g_fv[index_12 + 5]  += f21z;
-                    g_fv[index_12 + 6]  += vx1;
-                    g_fv[index_12 + 7]  += vy1;
-                    g_fv[index_12 + 8]  += vz1;
-                    g_fv[index_12 + 9]  += LDG(g_vx, n2);
-                    g_fv[index_12 + 10] += LDG(g_vy, n2);
-                    g_fv[index_12 + 11] += LDG(g_vz, n2);
-                }  
+				int index_12 = g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] * 12;
+				g_fv[index_12 + 0]  += f12x;
+				g_fv[index_12 + 1]  += f12y;
+				g_fv[index_12 + 2]  += f12z;
+				g_fv[index_12 + 3]  += f21x;
+				g_fv[index_12 + 4]  += f21y;
+				g_fv[index_12 + 5]  += f21z;
+				g_fv[index_12 + 6]  = vx1;
+				g_fv[index_12 + 7]  = vy1;
+				g_fv[index_12 + 8]  = vz1;
+				g_fv[index_12 + 9]  = LDG(g_vx, n2);
+				g_fv[index_12 + 10] = LDG(g_vy, n2);
+				g_fv[index_12 + 11] = LDG(g_vz, n2);
             }
         }
 

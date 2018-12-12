@@ -79,7 +79,7 @@ void Force::initialize_one_potential(Parameters *para, int m)
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
-    else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
+    else if (strcmp(potential_name, "tersoff_1989_2") == 0)
     { 
         potential[m] = new Tersoff2(fid_potential, para, 2);
         if (para->number_of_types != 2) 
@@ -261,13 +261,13 @@ void Force::initialize_many_body_potential
     
     int number_of_types = type_end[m] - type_begin[m] + 1;
     // determine the potential
-    if (strcmp(potential_name, "tersoff_1989_1") == 0) 
+    if (strcmp(potential_name, "tersoff_1989_1") == 0)
     { 
         potential[m] = new Tersoff2(fid_potential, para, 1);
         if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
-    else if (strcmp(potential_name, "tersoff_1989_2") == 0) 
+    else if (strcmp(potential_name, "tersoff_1989_2") == 0)
     { 
         potential[m] = new Tersoff2(fid_potential, para, 2);
         if (number_of_types != 2) 
@@ -291,13 +291,13 @@ void Force::initialize_many_body_potential
         if (number_of_types != 3) 
             print_error("number of types does not match potential file.\n");
     }
-    else if (strcmp(potential_name, "rebo_mos2") == 0) 
+    else if (strcmp(potential_name, "rebo_mos2") == 0)
     { 
         potential[m] = new REBO_MOS(para);
         if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
-    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
+    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
     { 
         potential[m] = new EAM(fid_potential, para, potential_name);
         if (number_of_types != 1) 
@@ -545,41 +545,6 @@ void Force::find_neighbor_local(Parameters *para, GPU_Data *gpu_data, int m)
 }
 
 
-
-
-static __global__ void initialize_properties
-(
-    int compute_shc,
-    int N, int M, real *g_fx, real *g_fy, real *g_fz, real *g_pe,
-    real *g_sx, real *g_sy, real *g_sz, real *g_h, real *g_fv
-)
-{
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n1 < N)
-    {  
-        g_fx[n1] = ZERO;
-        g_fy[n1] = ZERO;
-        g_fz[n1] = ZERO;
-        g_sx[n1] = ZERO;
-        g_sy[n1] = ZERO;
-        g_sz[n1] = ZERO;
-        g_pe[n1] = ZERO;
-        g_h[n1 + 0 * N] = ZERO;
-        g_h[n1 + 1 * N] = ZERO;
-        g_h[n1 + 2 * N] = ZERO;
-        g_h[n1 + 3 * N] = ZERO;
-        g_h[n1 + 4 * N] = ZERO;
-    }
-    if (compute_shc && n1 < M)
-    {  
-        g_fv[n1] = ZERO;
-    }
-}
-
-
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
@@ -669,21 +634,57 @@ static __global__ void gpu_correct_force
     }
 }
 
+static __global__ void initialize_properties
+(
+    int N, real *g_fx, real *g_fy, real *g_fz, real *g_pe,
+    real *g_sx, real *g_sy, real *g_sz, real *g_h
+)
+{
+    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n1 < N)
+    {
+        g_fx[n1] = ZERO;
+        g_fy[n1] = ZERO;
+        g_fz[n1] = ZERO;
+        g_sx[n1] = ZERO;
+        g_sy[n1] = ZERO;
+        g_sz[n1] = ZERO;
+        g_pe[n1] = ZERO;
+        g_h[n1 + 0 * N] = ZERO;
+        g_h[n1 + 1 * N] = ZERO;
+        g_h[n1 + 2 * N] = ZERO;
+        g_h[n1 + 3 * N] = ZERO;
+        g_h[n1 + 4 * N] = ZERO;
+    }
+}
 
-
+static __global__ void initialize_shc_properties(int compute_shc, int M, real *g_fv)
+{
+    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+    if (compute_shc && n1 < M)
+    {
+        g_fv[n1] = ZERO;
+    }
+}
 
 void Force::compute(Parameters *para, GPU_Data *gpu_data)
 {
+	int M = para->shc.number_of_pairs * 12;
     initialize_properties<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        para->shc.compute,
-        para->N, para->shc.number_of_pairs * 12,
+        para->N,
         gpu_data->fx, gpu_data->fy, gpu_data->fz, 
         gpu_data->potential_per_atom,  
         gpu_data->virial_per_atom_x,
         gpu_data->virial_per_atom_y,
         gpu_data->virial_per_atom_z,
-        gpu_data->heat_per_atom, gpu_data->fv
+        gpu_data->heat_per_atom
+    );
+    initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    (
+    	para->shc.compute, M, gpu_data->fv
     );
 
     for (int m = 0; m < num_of_potentials; m++)

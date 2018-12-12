@@ -590,6 +590,9 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
     
     int *label = gpu_data->label;
     int *fv_index = gpu_data->fv_index;
+    int *a_map = gpu_data->a_map;
+    int *b_map = gpu_data->b_map;
+    int *count_b = gpu_data->count_b;
     real *fv = gpu_data->fv;
 
     real *f12x = tersoff_data.f12x;
@@ -601,7 +604,7 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
     real fe_x = para->hnemd.fe_x;
     real fe_y = para->hnemd.fe_y;
     real fe_z = para->hnemd.fe_z;
-    
+
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (       
         N, N1, N2, pbc_x, pbc_y, pbc_z, 
@@ -621,7 +624,7 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
         (
             fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
             f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
-            sx, sy, sz, h, label, fv_index, fv
+            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else if (para->hnemd.compute && !para->shc.compute)
@@ -634,9 +637,9 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_many_body<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
-            sx, sy, sz, h, label, fv_index, fv
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else if (para->shc.compute && !para->hnemd.compute)
@@ -649,9 +652,9 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_many_body<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
-            sx, sy, sz, h, label, fv_index, fv
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else if (para->shc.compute && para->hnemd.compute)
@@ -664,9 +667,9 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_many_body<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
-            sx, sy, sz, h, label, fv_index, fv
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else // no heat transport calculation
@@ -679,9 +682,9 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
         );
         find_force_many_body<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, 
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz, 
-            sx, sy, sz, h, label, fv_index, fv
+			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+			f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
 
