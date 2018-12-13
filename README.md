@@ -43,6 +43,7 @@
   * zheyongfan(at)163.com
 * Ville Vierimaa (Aalto University)  
 * Mikko Ervasti (Aalto University)  
+* Alexander J. Gabourie (Stanford University)
 * Ari Harju (Aalto University) 
 
 ## Feedbacks:
