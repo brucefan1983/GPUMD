@@ -34,19 +34,19 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 2.0\\
+   Version 2.1\\
    \vspace*{1.0cm}
-   (Nov 23, 2018)\\
+   (Dec 13, 2018)\\
   \vspace*{2.0cm}
   }
   \large
   {
   Authors: \\
-  Zheyong Fan,
-  Ville Vierimaa,
-  Mikko Ervasti,
-  Ari Harju \\
-  Department of Applied Physics, Aalto University
+  Zheyong Fan (Bohai University \& Aalto University)\\
+  Ville Vierimaa (Aalto University)\\
+  Mikko Ervasti (Aalto University)\\
+  Alexander J. Gabourie (Stanford University)\\
+  Ari Harju (Aalto University)\\
   }
   \vspace*{1.0cm}
 \end{center}
@@ -275,6 +275,10 @@ We are working on implementing more integration methods.
     \item Added the Bussi-Donadio-Parrinello thermostat \cite{bussi2007jcp}.
 \end{enumerate}
 
+\subsection{Major changes introduced in version 2.1}
+\begin{enumerate}
+    \item Implemented (by the new contributor Alexander J. Gabourie) a general version of the spectral heat current (SHC) method. The previous version assumed that one atom from one group of the interface has at most one neighbor from the other group of the (imaginary) interface.
+\end{enumerate}
 
 \section{TODO List}
 
@@ -2718,8 +2722,6 @@ This keyword is used to compute the nonequilibrium heat flux correlation functio
     compute_shc 1 500 5000 10 11
 \end{verbatim}
 means that (1) you want to do this calculation; (2) the relevant data will be sampled every step; (3) the maximum number of correlation steps is $500$; (4) the correlation function $K_{A \rightarrow B}(t)$ will be calculated every 5000 steps (If the number of steps in this run is 100000, there will be $100000/5000=20$ independent correlation functions calculated); (5) the group label of $A$ is 10 and that of $B$ is 11. The results will be written into a file named \verb"shc.out" in the same folder where you put your \verb"run.in" file in.
-
-\textcolor{red}{Warning: The current implementation only applies to situations in which each atom in group $A$ only has at most one neighbor atom in group $B$. We are working on a more general implementation.}
 
 
 \subsection{The compute vac keyword}
