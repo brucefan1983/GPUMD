@@ -612,51 +612,13 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
     );
 
     // the final step: calculate force and related quantities
-    if (para->hac.compute) // calculate heat condutivity using EMD
-    {
-        find_force_many_body<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
-            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else if (para->hnemd.compute && !para->shc.compute)
-    {
-        find_force_many_body<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
-            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else if (para->shc.compute && !para->hnemd.compute)
-    {
-        find_force_many_body<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
-            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else if (para->shc.compute && para->hnemd.compute)
-    {
-        find_force_many_body<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
-            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else // no heat transport calculation
-    {
-        find_force_many_body<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
-            f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
-            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
+    find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        para->hac.compute, para->shc.compute, para->hnemd.compute,
+        fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
+        f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
+        sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
+    );
 }
 
 
