@@ -386,6 +386,9 @@ static __global__ void find_force_tersoff_step1
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
+        real lx = LDG(g_box_length, 0);
+        real ly = LDG(g_box_length, 1);
+        real lz = LDG(g_box_length, 2);
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -393,11 +396,7 @@ static __global__ void find_force_tersoff_step1
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic
-            (
-                pbc_x, pbc_y, pbc_z, x12, y12, z12, LDG(g_box_length, 0),
-                LDG(g_box_length, 1), LDG(g_box_length, 2)
-            );
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real zeta = ZERO;
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -408,11 +407,7 @@ static __global__ void find_force_tersoff_step1
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic
-                (
-                    pbc_x, pbc_y, pbc_z, x13, y13, z13, LDG(g_box_length, 0),
-                    LDG(g_box_length, 1), LDG(g_box_length, 2)
-                );
+                dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 real fc13, g123;
@@ -476,9 +471,7 @@ static __global__ void find_force_tersoff_step2
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
-        real x1 = LDG(g_x, n1);
-        real y1 = LDG(g_y, n1);
-        real z1 = LDG(g_z, n1);
+        real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
         real lx = LDG(g_box_length, 0);
         real ly = LDG(g_box_length, 1);
         real lz = LDG(g_box_length, 2);
@@ -547,11 +540,8 @@ static __global__ void find_force_tersoff_step2
                 cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
                 f12z += (z12 * temp123b + temp123a * cos_d)*HALF;
             }
-            g_f12x[index] = f12x;
-            g_f12y[index] = f12y;
-            g_f12z[index] = f12z;
+            g_f12x[index] = f12x; g_f12y[index] = f12y; g_f12z[index] = f12z;
         }
-
         // save potential
         g_potential[n1] += potential_energy;
     }
