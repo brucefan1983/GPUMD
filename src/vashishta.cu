@@ -21,7 +21,6 @@
 #include "force.inc"
 #include "vashishta.cuh"
 
-// best block size here: 64 or 128
 #define BLOCK_SIZE_VASHISHTA 64 
 
 
@@ -56,7 +55,7 @@ void Vashishta::initialize_0(FILE *fid)
     double H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
     int eta[3];
     for (int n = 0; n < 3; n++)
-    {  
+    {
         count = fscanf
         (
             fid, "%lf%d%lf%lf%lf%lf%lf", 
@@ -149,11 +148,11 @@ void Vashishta::initialize_1(FILE *fid)
     vashishta_para.rc = cut;
     vashishta_para.scale = (N-ONE)/(cut-rmin);
     rc = cut;
-    
+
     double H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
     int eta[3];
     for (int n = 0; n < 3; n++)
-    {  
+    {
         count = fscanf
         (
             fid, "%lf%d%lf%lf%lf%lf%lf", 
@@ -165,7 +164,7 @@ void Vashishta::initialize_1(FILE *fid)
         D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
         lambda_inv[n] = ONE / lambda_inv[n];
         xi_inv[n] = ONE / xi_inv[n];
-        
+
         vashishta_para.H[n] = H[n];
         vashishta_para.eta[n] = eta[n];
         vashishta_para.qq[n] = qq[n];
@@ -173,7 +172,7 @@ void Vashishta::initialize_1(FILE *fid)
         vashishta_para.D[n] = D[n];
         vashishta_para.xi_inv[n] = xi_inv[n];
         vashishta_para.W[n] = W[n];
-            
+
         real rci = ONE / rc;
         real rci4 = rci * rci * rci * rci;
         real rci6 = rci4 * rci * rci;
@@ -407,7 +406,7 @@ static __global__ void gpu_find_force_vashishta_2body
                         vas.lambda_inv[type12], vas.D[type12], 
                         vas.xi_inv[type12], vas.W[type12], vas.v_rc[type12], 
                         vas.dv_rc[type12], vas.rc, d12, p2, f2
-                    );    
+                    );
                 }
             }
 
@@ -419,7 +418,7 @@ static __global__ void gpu_find_force_vashishta_2body
                     vas.lambda_inv[type12], vas.D[type12], vas.xi_inv[type12],
                     vas.W[type12], vas.v_rc[type12], vas.dv_rc[type12], 
                     vas.rc, d12, p2, f2
-                );    
+                );
             }
 
             // treat two-body potential in the same way as many-body potential
@@ -459,7 +458,7 @@ static __global__ void gpu_find_force_vashishta_2body
             }
 
             // accumulate heat across some sections (for NEMD)
-            //    	check if AB pair possible & exists
+            // check if AB pair possible & exists
             if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
                 g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] != -1)
             {
@@ -484,7 +483,7 @@ static __global__ void gpu_find_force_vashishta_2body
 
         // add driving force
         if (cal_k)
-        { 
+        {
             s_fx += fx_driving;
             s_fy += fy_driving;
             s_fz += fz_driving;
@@ -544,7 +543,7 @@ static __global__ void gpu_find_force_vashishta_partial
         real potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {   
+        {
             int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
             int type2 = g_type[n2];
@@ -556,7 +555,7 @@ static __global__ void gpu_find_force_vashishta_partial
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real d12inv = ONE / d12;
           
-            real f12x = ZERO; real f12y = ZERO; real f12z = ZERO;  
+            real f12x = ZERO; real f12y = ZERO; real f12z = ZERO;
             real gamma2 = ONE / ((d12 - vas.r0) * (d12 - vas.r0)); // gamma=1
              
             // accumulate_force_123
@@ -579,8 +578,8 @@ static __global__ void gpu_find_force_vashishta_partial
                 real cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
                 real cos123_over_d12d12 = cos123*d12inv*d12inv;
                 real cos_inv = cos123 - vas.cos0[type1];
-                cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv); 
-                    
+                cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv);
+
                 // accumulate potential energy
                 potential_energy += (cos123 - vas.cos0[type1])
                                   * (cos123 - vas.cos0[type1])
