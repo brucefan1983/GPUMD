@@ -21,6 +21,8 @@
 #include "force.inc"
 #include "rebo_mos2.cuh"
 
+#define BLOCK_SIZE_FORCE 64
+
 // References: 
 // [1] T. Liang et al. PRB 79, 245110 (2009).
 // [2] T. Liang et al. PRB 85, 199903(E) (2012).
@@ -388,14 +390,7 @@
 #define REBO_MOS2_D3_SS     -1.089810409215252f
 #define REBO_MOS2_D3_MS     -0.137425146625715f
 
-
 #endif
-
-
-
-
-// best block size here: 64 or 128
-#define BLOCK_SIZE_FORCE 64
 
 
 
@@ -439,6 +434,7 @@ REBO_MOS::~REBO_MOS(void)
 
 
 
+
 // The repulsive function and its derivative
 static __device__ void find_fr_and_frp
 (int type12, real d12, real &fr, real &frp)
@@ -463,7 +459,7 @@ static __device__ void find_fr_and_frp
             * exp(-REBO_MOS2_a_MS * d12);  
         frp = REBO_MOS2_a_MS + REBO_MOS2_Q_MS / (d12 * (d12 + REBO_MOS2_Q_MS));
         frp *= -fr;
-    }   
+    }
 }
 
 
@@ -487,7 +483,7 @@ static __device__ void find_fa_and_fap
     {
         fa  = REBO_MOS2_B_MS * exp(- REBO_MOS2_b_MS * d12); 
         fap = - REBO_MOS2_b_MS * fa;
-    }     
+    }
 }
 
 
@@ -496,19 +492,19 @@ static __device__ void find_fa_and_fap
 // The attractive function
 static __device__ void find_fa
 (int type12, real d12, real &fa)
-{  
+{
     if (type12 == 0)
-    {   
+    {
         fa  = REBO_MOS2_B_MM * exp(- REBO_MOS2_b_MM * d12); 
     }
     else if (type12 == 2)
-    {    
+    {
         fa  = REBO_MOS2_B_SS * exp(- REBO_MOS2_b_SS * d12); 
     }
     else
     {
         fa  = REBO_MOS2_B_MS * exp(- REBO_MOS2_b_MS * d12); 
-    }     
+    }
 }
 
 
@@ -519,7 +515,7 @@ static __device__ void find_fc_and_fcp
 (int type12, real d12, real &fc, real &fcp)
 {
     if (type12 == 0)
-    { 
+    {
         if (d12 < REBO_MOS2_r1_MM) {fc = ONE; fcp = ZERO;}
         else if (d12 < REBO_MOS2_r2_MM)
         {              
@@ -543,7 +539,7 @@ static __device__ void find_fc_and_fcp
         else {fc  = ZERO; fcp = ZERO;}
     }
     else  
-    { 
+    {
         if (d12 < REBO_MOS2_r1_MS) {fc = ONE; fcp = ZERO;}
         else if (d12 < REBO_MOS2_r2_MS)
         {              
@@ -563,30 +559,30 @@ static __device__ void find_fc_and_fcp
 static __device__ void find_fc(int type12, real d12, real &fc)
 {
     if (type12 == 0)
-    { 
+    {
         if (d12 < REBO_MOS2_r1_MM) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_MM)
-        {              
+        {
             fc  = cos(REBO_MOS2_pi_factor_MM * (d12 - REBO_MOS2_r1_MM)) 
                 * HALF + HALF;
         }
         else {fc  = ZERO;}
     }
     else if (type12 == 2)
-    { 
+    {
         if (d12 < REBO_MOS2_r1_SS) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_SS)
-        {              
+        {
             fc  = cos(REBO_MOS2_pi_factor_SS * (d12 - REBO_MOS2_r1_SS)) 
                 * HALF + HALF;
         }
         else {fc  = ZERO;}
     }
     else  
-    { 
+    {
         if (d12 < REBO_MOS2_r1_MS) {fc = ONE;}
         else if (d12 < REBO_MOS2_r2_MS)
-        {              
+        {
             fc  = cos(REBO_MOS2_pi_factor_MS * (d12 - REBO_MOS2_r1_MS)) 
                 * HALF + HALF;
         }
@@ -601,7 +597,7 @@ static __device__ void find_fc(int type12, real d12, real &fc)
 static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
 {
     if (type1 == 0) // Mo
-    {         
+    {
         g =         REBO_MOS2_b6_M; 
         g = g * x + REBO_MOS2_b5_M;
         g = g * x + REBO_MOS2_b4_M;
@@ -609,7 +605,7 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
         g = g * x + REBO_MOS2_b2_M;
         g = g * x + REBO_MOS2_b1_M;
         g = g * x + REBO_MOS2_b0_M;
-            
+
         gp =          SIX   * REBO_MOS2_b6_M; 
         gp = gp * x + FIVE  * REBO_MOS2_b5_M;
         gp = gp * x + FOUR  * REBO_MOS2_b4_M;
@@ -618,7 +614,7 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
         gp = gp * x +         REBO_MOS2_b1_M;
 
         if (x > HALF)
-        { 
+        {
             // tmp = (gamma - G)
             real tmp =      REBO_MOS2_c6_M;
             tmp = tmp * x + REBO_MOS2_c5_M;
@@ -627,16 +623,16 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
             tmp = tmp * x + REBO_MOS2_c2_M;
             tmp = tmp * x + REBO_MOS2_c1_M;
             tmp = tmp * x + REBO_MOS2_c0_M;
-            
+
             // psi
             real psi = HALF * ( ONE - cos( TWOPI * (x-HALF) ) );
-            
+
             // g = G + psi * (gamma - G)
             g += psi * tmp;
-            
+
             // gp = G' + psi' * (gamma - G) now
             gp += PI * sin( TWOPI * (x-HALF) ) * tmp;
-            
+
             // tmp = (gamma - G)'
             tmp =           SIX   * REBO_MOS2_c6_M;
             tmp = tmp * x + FIVE  * REBO_MOS2_c5_M;
@@ -644,22 +640,22 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
             tmp = tmp * x + THREE * REBO_MOS2_c3_M;
             tmp = tmp * x + TWO   * REBO_MOS2_c2_M;
             tmp = tmp * x +         REBO_MOS2_c1_M;
-            
+
             // gp = G' + psi' * (gamma - G) + psi * (gamma - G)' now
             gp += psi * tmp;
         }
     }
     else // S
-    {         
-        g =         REBO_MOS2_b6_S; 
+    {
+        g =         REBO_MOS2_b6_S;
         g = g * x + REBO_MOS2_b5_S;
         g = g * x + REBO_MOS2_b4_S;
         g = g * x + REBO_MOS2_b3_S;
         g = g * x + REBO_MOS2_b2_S;
         g = g * x + REBO_MOS2_b1_S;
         g = g * x + REBO_MOS2_b0_S;
-            
-        gp =          SIX   * REBO_MOS2_b6_S; 
+
+        gp =          SIX   * REBO_MOS2_b6_S;
         gp = gp * x + FIVE  * REBO_MOS2_b5_S;
         gp = gp * x + FOUR  * REBO_MOS2_b4_S;
         gp = gp * x + THREE * REBO_MOS2_b3_S;
@@ -667,7 +663,7 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
         gp = gp * x +         REBO_MOS2_b1_S;
 
         if (x > HALF)
-        {    
+        {
             // tmp = (gamma - G)
             real tmp =      REBO_MOS2_c6_S;
             tmp = tmp * x + REBO_MOS2_c5_S;
@@ -676,16 +672,16 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
             tmp = tmp * x + REBO_MOS2_c2_S;
             tmp = tmp * x + REBO_MOS2_c1_S;
             tmp = tmp * x + REBO_MOS2_c0_S;
-            
+
             // psi
             real psi = HALF * ( ONE - cos( TWOPI * (x-HALF) ) );
-            
+
             // g = G + psi * (gamma - G)
             g += psi * tmp;
 
             // gp = G' + psi' * (gamma - G) now
             gp += PI * sin( TWOPI * (x-HALF) ) * tmp;
-            
+
             // tmp = (gamma - G)'
             tmp =           SIX   * REBO_MOS2_c6_S;
             tmp = tmp * x + FIVE  * REBO_MOS2_c5_S;
@@ -693,7 +689,7 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
             tmp = tmp * x + THREE * REBO_MOS2_c3_S;
             tmp = tmp * x + TWO   * REBO_MOS2_c2_S;
             tmp = tmp * x +         REBO_MOS2_c1_S;
-            
+
             // gp = G' + psi' * (gamma - G) + psi * (gamma - G)' now
             gp += psi * tmp;
         }
@@ -714,8 +710,8 @@ static __device__ void find_g(int type1, real x, real &g)
         g = g * x + REBO_MOS2_b3_M;
         g = g * x + REBO_MOS2_b2_M;
         g = g * x + REBO_MOS2_b1_M;
-        g = g * x + REBO_MOS2_b0_M;   
-            
+        g = g * x + REBO_MOS2_b0_M;
+
         if (x > HALF)
         {
             // tmp = (gamma - G)
@@ -728,12 +724,12 @@ static __device__ void find_g(int type1, real x, real &g)
             tmp = tmp * x + REBO_MOS2_c0_M;
             
             tmp *= HALF * ( ONE - cos( TWOPI * (x-HALF) ) );
-            g += tmp;        
+            g += tmp;
         }
     }
     else // S
-    {          
-        g =         REBO_MOS2_b6_S; 
+    {
+        g =         REBO_MOS2_b6_S;
         g = g * x + REBO_MOS2_b5_S;
         g = g * x + REBO_MOS2_b4_S;
         g = g * x + REBO_MOS2_b3_S;
@@ -773,7 +769,7 @@ static __device__ void find_p_and_pp(int type1, real x, real &p, real &pp)
     {
         p = REBO_MOS2_a1_S * exp(- REBO_MOS2_a2_S * x);
         pp = p * REBO_MOS2_a2_S - REBO_MOS2_a0_S;
-        p = REBO_MOS2_a3_S - REBO_MOS2_a0_S * (x - ONE) - p;        
+        p = REBO_MOS2_a3_S - REBO_MOS2_a0_S * (x - ONE) - p;
     }
 }
 
@@ -789,12 +785,12 @@ static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
         else if (d12 >  REBO_MOS2_LJCUT1_MM)
         {
             real d12inv2 = ONE / (d12 * d12);
-            real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
+            real d12inv6 = d12inv2 * d12inv2 * d12inv2;
             p2  = REBO_MOS2_s12e4_MM * d12inv6 * d12inv6;
             p2 -= REBO_MOS2_s6e4_MM * d12inv6;
             f2  = REBO_MOS2_s6e24_MM * d12inv6;
-            f2 -= REBO_MOS2_s12e48_MM * d12inv6 * d12inv6; 
-            f2 *= d12inv2; 
+            f2 -= REBO_MOS2_s12e48_MM * d12inv6 * d12inv6;
+            f2 *= d12inv2;
         }
         else if (d12 > REBO_MOS2_r1_MM)
         {
@@ -811,12 +807,12 @@ static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
         else if (d12 >  REBO_MOS2_LJCUT1_MS)
         {
             real d12inv2 = ONE / (d12 * d12);
-            real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
-            p2  = REBO_MOS2_s12e4_MS * d12inv6 * d12inv6; 
+            real d12inv6 = d12inv2 * d12inv2 * d12inv2;
+            p2  = REBO_MOS2_s12e4_MS * d12inv6 * d12inv6;
             p2 -= REBO_MOS2_s6e4_MS * d12inv6;
             f2  = REBO_MOS2_s6e24_MS * d12inv6;
-            f2 -= REBO_MOS2_s12e48_MS * d12inv6 * d12inv6; 
-            f2 *= d12inv2; 
+            f2 -= REBO_MOS2_s12e48_MS * d12inv6 * d12inv6;
+            f2 *= d12inv2;
         }
         else if (d12 > REBO_MOS2_r1_MS)
         {
@@ -833,12 +829,12 @@ static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
         else if (d12 >  REBO_MOS2_LJCUT1_SS)
         {
             real d12inv2 = ONE / (d12 * d12);
-            real d12inv6 = d12inv2 * d12inv2 * d12inv2;  
-            p2  = REBO_MOS2_s12e4_SS * d12inv6 * d12inv6; 
+            real d12inv6 = d12inv2 * d12inv2 * d12inv2;
+            p2  = REBO_MOS2_s12e4_SS * d12inv6 * d12inv6;
             p2 -= REBO_MOS2_s6e4_SS * d12inv6;
             f2  = REBO_MOS2_s6e24_SS * d12inv6;
-            f2 -= REBO_MOS2_s12e48_SS  * d12inv6 * d12inv6; 
-            f2 *= d12inv2; 
+            f2 -= REBO_MOS2_s12e48_SS  * d12inv6 * d12inv6;
+            f2 *= d12inv2;
         }
         else if (d12 > REBO_MOS2_r1_SS)
         {
@@ -914,7 +910,7 @@ static __global__ void find_force_step0
         real coordination_number = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {   
+        {
             int n2 = g_NL[n1 + number_of_particles * i1];
             
             real x12  = LDG(g_x, n2) - x1;
@@ -932,11 +928,11 @@ static __global__ void find_force_step0
                 // accumulate the coordination number
                 real fc12; 
                 find_fc(type12, d12, fc12);
-                coordination_number += fc12;     
+                coordination_number += fc12;
             }
 
             real p2 = ZERO, f2 = ZERO;
-            find_p2_and_f2(type12, d12, p2, f2);	    
+            find_p2_and_f2(type12, d12, p2, f2);
 
             // treat two-body potential in the same way as many-body potential
             real f12x = f2 * x12 * HALF; 
@@ -953,18 +949,18 @@ static __global__ void find_force_step0
 
             // driving force
             if (cal_k)
-            { 
+            {
                 fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
                 fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
                 fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-            } 
-            
+            }
+
             // accumulate potential energy and virial 
             s_pe += p2 * HALF; // two-body potential
             s_sx -= x12 * (f12x - f21x) * HALF; 
             s_sy -= y12 * (f12y - f21y) * HALF; 
             s_sz -= z12 * (f12z - f21z) * HALF;
-            
+
             if (cal_j || cal_k)
             {
                 s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
@@ -972,27 +968,28 @@ static __global__ void find_force_step0
                 s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
                 s_h4 += (f21z * vz1) * y12;               // y-out
                 s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
-            } 
+            }
 
             // accumulate heat across some sections (for NEMD)
-			//		check if AB pair possible & exists
-			if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-					g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] != -1)
-			{
-				int index_12 = g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] * 12;
-				g_fv[index_12 + 0]  += f12x;
-				g_fv[index_12 + 1]  += f12y;
-				g_fv[index_12 + 2]  += f12z;
-				g_fv[index_12 + 3]  += f21x;
-				g_fv[index_12 + 4]  += f21y;
-				g_fv[index_12 + 5]  += f21z;
-				g_fv[index_12 + 6]  = vx1;
-				g_fv[index_12 + 7]  = vy1;
-				g_fv[index_12 + 8]  = vz1;
-				g_fv[index_12 + 9]  = LDG(g_vx, n2);
-				g_fv[index_12 + 10] = LDG(g_vy, n2);
-				g_fv[index_12 + 11] = LDG(g_vz, n2);
-			}
+            //    	check if AB pair possible & exists
+            if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
+                g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] != -1)
+            {
+                int index_12 = 
+                    g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] * 12;
+                g_fv[index_12 + 0]  += f12x;
+                g_fv[index_12 + 1]  += f12y;
+                g_fv[index_12 + 2]  += f12z;
+                g_fv[index_12 + 3]  += f21x;
+                g_fv[index_12 + 4]  += f21y;
+                g_fv[index_12 + 5]  += f21z;
+                g_fv[index_12 + 6]  = vx1;
+                g_fv[index_12 + 7]  = vy1;
+                g_fv[index_12 + 8]  = vz1;
+                g_fv[index_12 + 9]  = LDG(g_vx, n2);
+                g_fv[index_12 + 10] = LDG(g_vy, n2);
+                g_fv[index_12 + 11] = LDG(g_vz, n2);
+            }
         }
 
         g_NN_local[n1] = count; // now the local neighbor list has been built
@@ -1004,18 +1001,18 @@ static __global__ void find_force_step0
 
         // driving force
         if (cal_k)
-        { 
+        {
             s_fx += fx_driving; // with driving force
             s_fy += fy_driving; // with driving force
             s_fz += fz_driving; // with driving force
         }
 
         g_fx[n1] += s_fx; // save force
-        g_fy[n1] += s_fy; 
-        g_fz[n1] += s_fz;  
+        g_fy[n1] += s_fy;
+        g_fz[n1] += s_fz;
         // save stress and potential
-        g_sx[n1] += s_sx; 
-        g_sy[n1] += s_sy; 
+        g_sx[n1] += s_sx;
+        g_sy[n1] += s_sy;
         g_sz[n1] += s_sz;
         g_potential[n1] += s_pe;
         if (cal_j || cal_k) // save heat current
@@ -1027,7 +1024,7 @@ static __global__ void find_force_step0
             g_h[n1 + 4 * number_of_particles] += s_h5;
         }
     }
-}    
+}
 
 
 
@@ -1062,7 +1059,7 @@ static __global__ void find_force_step1
         real p = g_p[n1]; // coordination number function P(N)
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {      
+        {
             int n2 = g_NL[n1 + N * i1];
 
             real x12  = LDG(g_x, n2) - x1;
@@ -1075,12 +1072,12 @@ static __global__ void find_force_step1
             real zeta = ZERO;
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
-                int n3 = g_NL[n1 + N * i2];  
+                int n3 = g_NL[n1 + N * i2];
                 if (n3 == n2) { continue; } // ensure that n3 != n2
                 int type3 = g_type[n3];
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
-                real z13 = LDG(g_z, n3) - z1;         
+                real z13 = LDG(g_z, n3) - z1;
 
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
@@ -1092,7 +1089,7 @@ static __global__ void find_force_step1
                 find_g(type1, cos123, g123);
                 zeta += fc13 * g123;
             }
-            
+
             zeta += p;
             real b12 = pow(ONE + zeta, -HALF);
             g_b[i1 * N + n1]  = b12;
@@ -1118,7 +1115,7 @@ static __global__ void find_force_step2
     const real* __restrict__ g_z,
 #else
     real* g_b, real* g_bp, real* g_pp, real* g_x, real* g_y, real* g_z,
-#endif  
+#endif
     real *g_box, real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {
@@ -1137,8 +1134,8 @@ static __global__ void find_force_step2
         real potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {   
-            int index = i1 * N + n1;   
+        {
+            int index = i1 * N + n1;
             int n2 = g_NL[index];
             int type2 = g_type[n2];
             real x12  = LDG(g_x, n2) - x1;
@@ -1153,13 +1150,13 @@ static __global__ void find_force_step2
             find_fc_and_fcp(type12, d12, fc12, fcp12);
             find_fa_and_fap(type12, d12, fa12, fap12);
             find_fr_and_frp(type12, d12, fr12, frp12);
-         
+
             // accumulate_force_12 
-            real b12 = LDG(g_b, index);  
-            real bp12 = LDG(g_bp, index);  
+            real b12 = LDG(g_b, index);
+            real bp12 = LDG(g_bp, index);
             real factor3 = (fcp12*(fr12-b12*fa12) + fc12*(frp12-b12*fap12) 
-                         - fc12*fcp12*fa12*bp12*pp1)/d12;   
-            real f12x = x12 * factor3 * HALF; 
+                         - fc12*fcp12*fa12*bp12*pp1)/d12;
+            real f12x = x12 * factor3 * HALF;
             real f12y = y12 * factor3 * HALF;
             real f12z = z12 * factor3 * HALF;
 
@@ -1169,21 +1166,21 @@ static __global__ void find_force_step2
             // accumulate_force_123
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {       
-                int n3 = g_NL[n1 + N * i2];   
-                if (n3 == n2) { continue; } 
+                int n3 = g_NL[n1 + N * i2];
+                if (n3 == n2) { continue; }
                 int type3 = g_type[n3];
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
-                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);  
- 
+                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+
                 real fc13, fa13;
                 int type13 = type1 + type3;
                 find_fc(type13, d13, fc13);
-                find_fa(type13, d13, fa13); 
+                find_fa(type13, d13, fa13);
                 real bp13 = LDG(g_bp, i2 * N + n1);
-                real one_over_d12d13 = ONE / (d12 * d13);   
+                real one_over_d12d13 = ONE / (d12 * d13);
                 real cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 real cos123_over_d12d12 = cos123*d12inv*d12inv;
                 real g123, gp123;
@@ -1192,7 +1189,7 @@ static __global__ void find_force_step2
                 real temp123a=(-bp12*fc12*fa12*fc13-bp13*fc13*fa13*fc12)*gp123;
                 real temp123b= - bp13 * fc13 * fa13 * fcp12 * (g123+pp1) / d12;
                 real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
-                f12x += (x12 * temp123b + temp123a * cos_d)*HALF; 
+                f12x += (x12 * temp123b + temp123a * cos_d)*HALF;
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
                 f12y += (y12 * temp123b + temp123a * cos_d)*HALF;
                 cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
@@ -1205,7 +1202,7 @@ static __global__ void find_force_step2
         // accumulate potential energy on top of the 2-body part
         g_potential[n1] += potential_energy;
     }
-}   
+}
 
 
 
@@ -1225,33 +1222,33 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     int *NL_local = rebo_mos_data.NL_short; // for 3-body
 
     int *type = gpu_data->type_local;
-    real *x = gpu_data->x; 
-    real *y = gpu_data->y; 
+    real *x = gpu_data->x;
+    real *y = gpu_data->y;
     real *z = gpu_data->z;
-    real *vx = gpu_data->vx; 
-    real *vy = gpu_data->vy; 
+    real *vx = gpu_data->vx;
+    real *vy = gpu_data->vy;
     real *vz = gpu_data->vz;
-    real *fx = gpu_data->fx; 
-    real *fy = gpu_data->fy; 
+    real *fx = gpu_data->fx;
+    real *fy = gpu_data->fy;
     real *fz = gpu_data->fz;
     real *box = gpu_data->box_length;
-    real *sx = gpu_data->virial_per_atom_x; 
-    real *sy = gpu_data->virial_per_atom_y; 
-    real *sz = gpu_data->virial_per_atom_z; 
+    real *sx = gpu_data->virial_per_atom_x;
+    real *sy = gpu_data->virial_per_atom_y;
+    real *sz = gpu_data->virial_per_atom_z;
     real *pe = gpu_data->potential_per_atom;
-    real *h = gpu_data->heat_per_atom;   
+    real *h = gpu_data->heat_per_atom;
 
     int *label = gpu_data->label;
     int *fv_index = gpu_data->fv_index;
     int *a_map = gpu_data->a_map;
-	int *b_map = gpu_data->b_map;
-	int *count_b = gpu_data->count_b;
-    real *fv = gpu_data->fv; 
+    int *b_map = gpu_data->b_map;
+    int *count_b = gpu_data->count_b;
+    real *fv = gpu_data->fv;
 
     real fe_x = para->hnemd.fe_x;
     real fe_y = para->hnemd.fe_y;
     real fe_z = para->hnemd.fe_z;
-    
+
     real *b    = rebo_mos_data.b;
     real *bp   = rebo_mos_data.bp;
     real *p    = rebo_mos_data.p;
@@ -1263,53 +1260,52 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     // 2-body part
     if (para->hac.compute)
     {
-
         find_force_step0<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-			fe_x, fe_y, fe_z,
-			N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
-			x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-			sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            fe_x, fe_y, fe_z,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
+            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else if (para->hnemd.compute && !para->shc.compute)
     {
         find_force_step0<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-			fe_x, fe_y, fe_z,
-			N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
-			x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-			sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            fe_x, fe_y, fe_z,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
+            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else if (para->shc.compute && !para->hnemd.compute)
     {
         find_force_step0<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-			fe_x, fe_y, fe_z,
-			N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
-			x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-			sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            fe_x, fe_y, fe_z,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
+            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
     else if (para->shc.compute && para->hnemd.compute)
-	{
-		find_force_step0<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-		(
-			fe_x, fe_y, fe_z,
-			N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
-			x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-			sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-		);
-	}
+    {
+        find_force_step0<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            fe_x, fe_y, fe_z,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
+            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+        );
+    }
     else
     {
         find_force_step0<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-			fe_x, fe_y, fe_z,
-			N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
-			x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-			sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            fe_x, fe_y, fe_z,
+            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
+            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
 
@@ -1320,82 +1316,22 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
         x, y, z, box, b, bp, p
     );
 
+    // pre-compute the partial force
+    find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+        b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
+    );
+
     // 3-body part
-    if (para->hac.compute)
-    {
-        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
-            b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
-        );
-        find_force_many_body<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-            NN_local, NL_local, f12x, f12y, f12z,
-            x, y, z, vx, vy, vz, box, fx, fy, fz,
-            sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else if (para->hnemd.compute && !para->shc.compute)
-    {
-        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
-            b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
-        );
-        find_force_many_body<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z,
-			NN_local, NL_local, f12x, f12y, f12z,
-			x, y, z, vx, vy, vz, box, fx, fy, fz,
-			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else if (para->shc.compute && !para->hnemd.compute)
-    {
-        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
-            b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
-        );
-        find_force_many_body<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z,
-			NN_local, NL_local, f12x, f12y, f12z,
-			x, y, z, vx, vy, vz, box, fx, fy, fz,
-			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else if (para->shc.compute && para->hnemd.compute)
-    {
-        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type,
-            b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
-        );
-        find_force_many_body<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z,
-			NN_local, NL_local, f12x, f12y, f12z,
-			x, y, z, vx, vy, vz, box, fx, fy, fz,
-			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
-    else
-    {
-        find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
-            b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
-        );
-        find_force_many_body<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-			fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z,
-			NN_local, NL_local, f12x, f12y, f12z,
-			x, y, z, vx, vy, vz, box, fx, fy, fz,
-			sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-    }
+    find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        para->hac.compute, para->shc.compute, para->hnemd.compute,
+        fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
+        NN_local, NL_local, f12x, f12y, f12z,
+        x, y, z, vx, vy, vz, box, fx, fy, fz,
+        sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
+    );
 }
 
 
