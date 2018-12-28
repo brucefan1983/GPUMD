@@ -380,10 +380,10 @@ static __device__ void find_fc
         else if (d12 < ters2.r2) 
         {
 #ifdef TERSOFF_CUTOFF
-            fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
+            fc  =  cos(ters2.pi_factor * (d12 - ters2.r1)) * HALF + HALF;
 #else
-            fc = NINE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1)) 
-                - ONE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1) * THREE)
+            fc = NINE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1)) 
+                - ONE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1) * THREE)
                 + HALF;
 #endif
         }
