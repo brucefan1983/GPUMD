@@ -30,6 +30,15 @@
 
 
 
+static void print_error (const char *str)
+{
+    printf("ERROR: %s", str);
+    exit(EXIT_FAILURE);
+}
+
+
+
+
 Force::Force(void)
 {
     for (int m = 0; m < MAX_NUM_OF_POTENTIALS; m++)

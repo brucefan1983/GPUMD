@@ -18,12 +18,6 @@
 #include "common.cuh"
 
 
-void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
 
 
 FILE *my_fopen(const char *filename, const char *mode)

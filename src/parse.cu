@@ -26,9 +26,14 @@
 
 
 
-/*----------------------------------------------------------------------------80
-	Check if the string is a valid integer
-------------------------------------------------------------------------------*/
+static void print_error (const char *str)
+{
+    printf("ERROR: %s", str);
+    exit(EXIT_FAILURE);
+}
+
+
+
 
 static int is_valid_int (const char *s, int *result)
 {
@@ -47,10 +52,6 @@ static int is_valid_int (const char *s, int *result)
 
 
 
-
-/*----------------------------------------------------------------------------80
-	Check if the string is a valid floating point number
-------------------------------------------------------------------------------*/
 
 static int is_valid_real (const char *s, real *result)
 {

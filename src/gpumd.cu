@@ -30,6 +30,15 @@
 
 
 
+static void print_error (const char *str)
+{
+    printf("ERROR: %s", str);
+    exit(EXIT_FAILURE);
+}
+
+
+
+
 GPUMD::GPUMD(char *input_dir)
 { 
     // Data structures:

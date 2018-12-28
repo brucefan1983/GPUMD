@@ -312,7 +312,6 @@ struct GPU_Data
 ------------------------------------------------------------------------------*/
 
 FILE *my_fopen(const char *filename, const char *mode);
-void print_error (const char *str);
 
 
 
