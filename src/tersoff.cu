@@ -22,6 +22,16 @@
 #include "tersoff.cuh"
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
+#ifdef USE_DP
+    #define ONE_OVER_16   0.0625
+    #define THREE_OVER_16 0.1875
+    #define NINE_OVER_16  0.5625
+#else
+    #define ONE_OVER_16   0.0625f
+    #define THREE_OVER_16 0.1875f
+    #define NINE_OVER_16  0.5625f
+#endif
+
 
 
 
@@ -265,8 +275,18 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters0.r1) {fc = ONE; fcp = ZERO;}
         else if (d12 < ters0.r2)
         {
+#ifdef TERSOFF_CUTOFF
             fc  =  cos(ters0.pi_factor * (d12 - ters0.r1)) * HALF + HALF;
             fcp = -sin(ters0.pi_factor * (d12 - ters0.r1))*ters0.pi_factor*HALF;
+#else
+            fc = NINE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1)) 
+                - ONE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1) * THREE)
+                + HALF;
+            fcp = sin(ters0.pi_factor * (d12 - ters0.r1) * THREE) 
+                * ters0.pi_factor * THREE_OVER_16
+                - sin(ters0.pi_factor * (d12 - ters0.r1)) 
+                * ters0.pi_factor * NINE_OVER_16;
+#endif
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
@@ -275,8 +295,18 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters1.r1) {fc  = ONE; fcp = ZERO;}
         else if (d12 < ters1.r2)
         {
+#ifdef TERSOFF_CUTOFF
             fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
             fcp = -sin(ters1.pi_factor * (d12 - ters1.r1))*ters1.pi_factor*HALF;
+#else
+            fc = NINE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1)) 
+                - ONE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1) * THREE)
+                + HALF;
+            fcp = sin(ters1.pi_factor * (d12 - ters1.r1) * THREE) 
+                * ters1.pi_factor * THREE_OVER_16
+                - sin(ters1.pi_factor * (d12 - ters1.r1)) 
+                * ters1.pi_factor * NINE_OVER_16;
+#endif
         }
         else {fc = ZERO; fcp = ZERO;}
     }
@@ -285,8 +315,18 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters2.r1) {fc  = ONE; fcp = ZERO;}
         else if (d12 < ters2.r2)
         {
+#ifdef TERSOFF_CUTOFF
             fc  =  cos(ters2.pi_factor * (d12 - ters2.r1)) * HALF + HALF;
             fcp = -sin(ters2.pi_factor * (d12 - ters2.r1))*ters2.pi_factor*HALF;
+#else
+            fc = NINE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1)) 
+                - ONE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1) * THREE)
+                + HALF;
+            fcp = sin(ters2.pi_factor * (d12 - ters2.r1) * THREE) 
+                * ters2.pi_factor * THREE_OVER_16
+                - sin(ters2.pi_factor * (d12 - ters2.r1)) 
+                * ters2.pi_factor * NINE_OVER_16;
+#endif
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
@@ -308,21 +348,45 @@ static __device__ void find_fc
     {
         if (d12 < ters0.r1) {fc  = ONE;}
         else if (d12 < ters0.r2)
-        {fc = cos(ters0.pi_factor * (d12 - ters0.r1)) * HALF + HALF;}
+        {
+#ifdef TERSOFF_CUTOFF
+            fc  =  cos(ters0.pi_factor * (d12 - ters0.r1)) * HALF + HALF;
+#else
+            fc = NINE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1)) 
+                - ONE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1) * THREE)
+                + HALF;
+#endif
+        }
         else {fc  = ZERO;}
     }
     else if (type1 == 1 && type2 == 1)
     {
         if (d12 < ters1.r1) {fc  = ONE;}
         else if (d12 < ters1.r2)
-        {fc = cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;}
+        {
+#ifdef TERSOFF_CUTOFF
+            fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
+#else
+            fc = NINE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1)) 
+                - ONE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1) * THREE)
+                + HALF;
+#endif
+        }
         else {fc  = ZERO;}
     }
     else
     {
         if (d12 < ters2.r1) {fc  = ONE;}
         else if (d12 < ters2.r2) 
-        {fc = cos(ters2.pi_factor * (d12 - ters2.r1)) * HALF + HALF;}
+        {
+#ifdef TERSOFF_CUTOFF
+            fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
+#else
+            fc = NINE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1)) 
+                - ONE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1) * THREE)
+                + HALF;
+#endif
+        }
         else {fc  = ZERO;}
     }
 }
