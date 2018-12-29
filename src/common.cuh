@@ -90,18 +90,6 @@
 
 
 
-// Parameters related to VAC (velocity auto-correlation function)
-struct VAC
-{
-    int compute;         // 1 means you want to do this computation
-    int sample_interval; // sample interval for velocity
-    int Nc;              // number of correlation points
-    real omega_max;    // maximal angular frequency for phonons
-};
-
-
-
-
 // Parameters related to HAC (heat current auto-correlation function)
 struct HAC
 {
@@ -202,7 +190,6 @@ struct Parameters
     Neighbor neighbor;
     Heat heat;
     Strain strain;
-    VAC vac;
     HAC hac;
     SHC shc;
     HNEMD hnemd;

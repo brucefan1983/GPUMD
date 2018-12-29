@@ -26,16 +26,19 @@
 
 
 // Allocate memory for recording velocity data
-void preprocess_vac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void VAC::preprocess_vac
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    if (para->vac.compute)
+    if (compute)
     {
-        int num = para->N * para->number_of_steps / para->vac.sample_interval;
+        int num = para->N * para->number_of_steps / sample_interval;
         CHECK(cudaMalloc((void**)&gpu_data->vx_all, sizeof(real) * num));
         CHECK(cudaMalloc((void**)&gpu_data->vy_all, sizeof(real) * num));
         CHECK(cudaMalloc((void**)&gpu_data->vz_all, sizeof(real) * num));
     }
 }
+
+
 
 
 // Record velocity data (kernel)
@@ -56,16 +59,18 @@ static __global__ void gpu_copy_velocity
 }
 
 
+
+
 // Record velocity data (wrapper)
-void sample_vac
+void VAC::sample_vac
 (int step, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
 {
-    if (para->vac.compute)
-    {     
-        if (step % para->vac.sample_interval == 0)
-        { 
+    if (compute)
+    {
+        if (step % sample_interval == 0)
+        {
             int N = para->N;
-            int nd = step / para->vac.sample_interval;
+            int nd = step / sample_interval;
             
             int grid_size = (N - 1) / BLOCK_SIZE + 1;
             gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
@@ -80,12 +85,15 @@ void sample_vac
 }
 
 
-// Calculate the velocity auto-correlation (VAC)
+
+
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
+
+
 
 
 static __global__ void gpu_find_vac
@@ -168,6 +176,8 @@ static void find_rdc
 }
 
 
+
+
 // Calculate phonon density of states (DOS) 
 // using the method by Dickey and Paskin
 static void find_dos
@@ -216,19 +226,18 @@ static void find_dos
         dos_z[nw] *= delta_t;
     }
 }
-        
-    
+
+
+
+
 // Calculate (1) VAC, (2) RDC, and (3) DOS = phonon density of states
-static void find_vac_rdc_dos
+void VAC::find_vac_rdc_dos
 (char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
     // rename variables
     int N = para->N;
     int number_of_steps = para->number_of_steps;
-    int sample_interval = para->vac.sample_interval;
-    int Nc = para->vac.Nc;
     real time_step = para->time_step;
-    real omega_max = para->vac.omega_max;
 
     // other parameters
     int Nd = number_of_steps / sample_interval;
@@ -336,11 +345,13 @@ static void find_vac_rdc_dos
 }
 
 
+
+
 // postprocess VAC and related quantities.
-void postprocess_vac
+void VAC::postprocess_vac
 (char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
 {
-    if (para->vac.compute)
+    if (compute)
     {
         printf("INFO:  start to calculate VAC and related quantities.\n");
         find_vac_rdc_dos(input_dir, para, cpu_data, gpu_data);
@@ -350,4 +361,7 @@ void postprocess_vac
         printf("INFO:  VAC and related quantities are calculated.\n\n");
     }
 }
+
+
+
 

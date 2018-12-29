@@ -14,11 +14,34 @@
 */
 
 
+
+
 #ifndef VAC_H
 #define VAC_H
 
-void preprocess_vac(Parameters*, CPU_Data*, GPU_Data*);
-void sample_vac(int step, Parameters*, CPU_Data*, GPU_Data*);
-void postprocess_vac(char*, Parameters*, CPU_Data*, GPU_Data*);
+
+
+
+class VAC
+{
+public:
+    int compute;         // 1 means you want to do this computation
+    int sample_interval; // sample interval for velocity
+    int Nc;              // number of correlation points
+    real omega_max;    // maximal angular frequency for phonons
+    void preprocess_vac(Parameters*, CPU_Data*, GPU_Data*);
+    void sample_vac(int step, Parameters*, CPU_Data*, GPU_Data*);
+    void postprocess_vac(char*, Parameters*, CPU_Data*, GPU_Data*);
+private:
+    void find_vac_rdc_dos
+    (char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+};
+
+
+
 
 #endif
+
+
+
+

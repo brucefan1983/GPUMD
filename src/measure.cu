@@ -97,7 +97,7 @@ void Measure::initialize
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
 
-    preprocess_vac(para,  cpu_data, gpu_data);
+    vac.preprocess_vac(para,  cpu_data, gpu_data);
     preprocess_hac(para,  cpu_data, gpu_data);  
     preprocess_shc(para,  cpu_data, gpu_data); 
     preprocess_heat(para, cpu_data);      
@@ -121,7 +121,7 @@ void Measure::finalize
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 
-    postprocess_vac(input_dir, para, cpu_data, gpu_data);
+    vac.postprocess_vac(input_dir, para, cpu_data, gpu_data);
     postprocess_hac(input_dir, para, cpu_data, gpu_data, integrate);
     postprocess_shc(para, cpu_data, gpu_data);
     postprocess_heat(input_dir, para, cpu_data, integrate);
@@ -424,7 +424,7 @@ void Measure::compute
     dump_virials(fid_virial, para, cpu_data, gpu_data, step);
     dump_heats(fid_heat, para, cpu_data, gpu_data, step);
 
-    sample_vac(step, para, cpu_data, gpu_data);
+    vac.sample_vac(step, para, cpu_data, gpu_data);
     sample_hac(step, input_dir, para, cpu_data, gpu_data);
     sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
     process_shc(step, input_dir, para, cpu_data, gpu_data);

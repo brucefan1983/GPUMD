@@ -18,7 +18,11 @@
 
 #ifndef MEASURE_H
 #define MEASURE_H
+
+#include "vac.cuh"
 class Integrate;
+
+
 
 #define FILE_NAME_LENGTH      200
 
@@ -61,6 +65,7 @@ public:
     char file_potential[FILE_NAME_LENGTH];
     char file_virial[FILE_NAME_LENGTH];    
     char file_heat[FILE_NAME_LENGTH];
+    VAC vac;
 protected:
     void dump_thermos(FILE*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
     void dump_positions(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);

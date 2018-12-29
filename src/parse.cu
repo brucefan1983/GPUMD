@@ -616,10 +616,10 @@ static void parse_dump_heat(char **param,  int num_param, Measure *measure)
 
 
 
-static void parse_compute_vac(char **param,  int num_param, Parameters *para)
+static void parse_compute_vac(char **param,  int num_param, Measure *measure)
 {
     printf("INPUT: compute VAC.\n");
-    para->vac.compute = 1;
+    measure->vac.compute = 1;
 
     if (num_param != 4)
     {
@@ -627,37 +627,37 @@ static void parse_compute_vac(char **param,  int num_param, Parameters *para)
     }
 
     // sample interval
-    if (!is_valid_int(param[1], &para->vac.sample_interval))
+    if (!is_valid_int(param[1], &measure->vac.sample_interval))
     {
         print_error("sample interval for VAC should be an integer number.\n");
     }
-    if (para->vac.sample_interval <= 0)
+    if (measure->vac.sample_interval <= 0)
     {
         print_error("sample interval for VAC should be positive.\n");
     }
-    printf("       sample interval is %d.\n", para->vac.sample_interval);
+    printf("       sample interval is %d.\n", measure->vac.sample_interval);
 
     // number of correlation steps
-    if (!is_valid_int(param[2], &para->vac.Nc))
+    if (!is_valid_int(param[2], &measure->vac.Nc))
     {
         print_error("Nc for VAC should be an integer number.\n");
     }
-    if (para->vac.Nc <= 0)
+    if (measure->vac.Nc <= 0)
     {
         print_error("Nc for VAC should be positive.\n");
     }
-    printf("       Nc is %d.\n", para->vac.Nc);
+    printf("       Nc is %d.\n", measure->vac.Nc);
 
     // maximal omega
-    if (!is_valid_real(param[3], &para->vac.omega_max))
+    if (!is_valid_real(param[3], &measure->vac.omega_max))
     {
         print_error("omega_max should be a real number.\n");
     }
-    if (para->vac.omega_max <= 0)
+    if (measure->vac.omega_max <= 0)
     {
         print_error("omega_max should be positive.\n");
     }
-    printf("       omega_max is %g THz.\n", para->vac.omega_max);
+    printf("       omega_max is %g THz.\n", measure->vac.omega_max);
 }
 
 
@@ -938,7 +938,7 @@ void parse
     }
     else if (strcmp(param[0], "compute_vac")    == 0) 
     {
-        parse_compute_vac(param, num_param, para);
+        parse_compute_vac(param, num_param, measure);
     }
     else if (strcmp(param[0], "compute_hac")    == 0) 
     {

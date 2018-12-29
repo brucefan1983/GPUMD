@@ -617,12 +617,12 @@ static void process_run
 /*----------------------------------------------------------------------------80
     set some default values after each run
 ------------------------------------------------------------------------------*/
-static void initialize_run(Parameters *para)
+static void initialize_run(Parameters *para, Measure* measure)
 {
     para->neighbor.update = 0;
     para->heat.sample     = 0;
     para->shc.compute     = 0;
-    para->vac.compute     = 0; 
+    measure->vac.compute     = 0;
     para->hac.compute     = 0; 
     para->hnemd.compute   = 0;
     para->strain.compute  = 0; 
@@ -733,7 +733,7 @@ void GPUMD::run
     int num_param;
     char *param[max_num_param];
 
-    initialize_run(para); // set some default values before the first run
+    initialize_run(para, measure); // set some default values before the first run
 
     while (input_ptr)
     {
@@ -795,7 +795,7 @@ void GPUMD::run
                 force, integrate, measure
             );
             
-            initialize_run(para); // change back to the default
+            initialize_run(para, measure); // change back to the default
         }
     }
 
