@@ -21,8 +21,9 @@
 #include "integrate.cuh"
 #include "ensemble.cuh"
 
-#define FILE_NAME_LENGTH      200
-#define DIM                   3
+#define NUM_OF_HEAT_COMPONENTS 5
+#define FILE_NAME_LENGTH 200
+#define DIM 3
 
 
 
