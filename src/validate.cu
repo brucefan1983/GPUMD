@@ -29,6 +29,22 @@
 
 
 
+
+static FILE *my_fopen(const char *filename, const char *mode)
+{
+    FILE *fid = fopen(filename, mode);
+    if (fid == NULL) 
+    {
+        printf ("Failed to open %s!\n", filename);
+        printf ("%s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return fid;
+}
+
+
+
+
 // copy from xyz to xyz0
 static __global__ void copy_positions
 (int N, real *xi, real *yi, real *zi, real *xo, real *yo, real *zo)

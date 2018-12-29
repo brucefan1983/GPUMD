@@ -21,6 +21,24 @@
 
 typedef unsigned long long uint64;
 
+
+
+
+static FILE *my_fopen(const char *filename, const char *mode)
+{
+    FILE *fid = fopen(filename, mode);
+    if (fid == NULL) 
+    {
+        printf ("Failed to open %s!\n", filename);
+        printf ("%s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return fid;
+}
+
+
+
+
 //build the look-up table used for recording force and velocity data
 static void build_fv_table
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)

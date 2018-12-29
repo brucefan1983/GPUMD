@@ -3,7 +3,7 @@ all: gpumd
 CC = nvcc
 CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
 
-gpumd: common.o eam.o tersoff.o rebo_mos2.o \
+gpumd: eam.o tersoff.o rebo_mos2.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o heat.o integrate.o ensemble_lan.o ensemble_bdp.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
@@ -11,7 +11,7 @@ gpumd: common.o eam.o tersoff.o rebo_mos2.o \
        measure.o force.o potential.o parse.o gpumd.o main.o
  
 	$(CC) -o gpumd \
-       common.o eam.o tersoff.o rebo_mos2.o \
+       eam.o tersoff.o rebo_mos2.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o heat.o integrate.o ensemble_lan.o ensemble_bdp.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
@@ -76,9 +76,6 @@ tersoff.o: tersoff.cu
 	$(CC) $(CFLAGS) -c tersoff.cu
 rebo_mos2.o: rebo_mos2.cu
 	$(CC) $(CFLAGS) -c rebo_mos2.cu
-common.o: common.cu
-	$(CC) $(CFLAGS) -c common.cu
-
 clean:
 	rm *o gpumd
 

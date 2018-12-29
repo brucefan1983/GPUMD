@@ -20,11 +20,27 @@
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "measure.cuh"
-#include "heat.cuh"                
-#include "vac.cuh"  
-#include "hac.cuh"   
-#include "shc.cuh"    
-#include "hnemd_kappa.cuh" 
+#include "heat.cuh"
+#include "vac.cuh"
+#include "hac.cuh"
+#include "shc.cuh"
+#include "hnemd_kappa.cuh"
+
+
+
+
+static FILE *my_fopen(const char *filename, const char *mode)
+{
+    FILE *fid = fopen(filename, mode);
+    if (fid == NULL) 
+    {
+        printf ("Failed to open %s!\n", filename);
+        printf ("%s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return fid;
+}
+
 
 
 

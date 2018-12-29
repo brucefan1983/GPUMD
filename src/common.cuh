@@ -307,14 +307,6 @@ struct GPU_Data
 
 
 
-/*----------------------------------------------------------------------------80
-    Function declarations
-------------------------------------------------------------------------------*/
-
-FILE *my_fopen(const char *filename, const char *mode);
-
-
-
 
 #endif // #ifndef COMMON_H
 

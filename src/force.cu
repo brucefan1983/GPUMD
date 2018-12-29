@@ -30,6 +30,21 @@
 
 
 
+static FILE *my_fopen(const char *filename, const char *mode)
+{
+    FILE *fid = fopen(filename, mode);
+    if (fid == NULL) 
+    {
+        printf ("Failed to open %s!\n", filename);
+        printf ("%s\n", strerror(errno));
+        exit(EXIT_FAILURE);
+    }
+    return fid;
+}
+
+
+
+
 static void print_error (const char *str)
 {
     printf("ERROR: %s", str);
