@@ -27,6 +27,8 @@
 #include "velocity.cuh"
 #include "neighbor.cuh"
 
+#define DIM 3
+
 
 
 

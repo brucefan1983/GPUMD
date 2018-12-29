@@ -16,6 +16,11 @@
 
 
 
+#define DIM 3
+
+
+
+
 // This file will be included into ensemble_nve.cu, ensemble_ber.cu, and
 // ensemble_nhc.cu.
 

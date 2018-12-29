@@ -22,6 +22,7 @@
 #include "ensemble.cuh"
 
 #define FILE_NAME_LENGTH      200
+#define DIM                   3
 
 
 

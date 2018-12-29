@@ -26,6 +26,8 @@
 #include "shc.cuh"
 #include "hnemd_kappa.cuh"
 
+#define DIM 3
+
 
 
 
