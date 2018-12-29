@@ -17,6 +17,8 @@
 #ifndef ENSEMBLE_H
 #define ENSEMBLE_H
 
+#define NOSE_HOOVER_CHAIN_LENGTH 4
+
 
 class Force;
 

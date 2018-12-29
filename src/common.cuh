@@ -72,7 +72,6 @@
 
 
 
-#define NOSE_HOOVER_CHAIN_LENGTH 4    // This is a good choice
 #define NUM_OF_HEAT_COMPONENTS   5    // x-i, x-o, y-i, y-o, z
 
 
