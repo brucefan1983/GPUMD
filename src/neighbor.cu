@@ -23,6 +23,7 @@
 #include "memory.cuh"
 
 #define BLOCK_SIZE 128
+#define DIM 3
 
 
 
