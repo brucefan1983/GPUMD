@@ -20,6 +20,7 @@
 #include "heat.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
+#include "memory.cuh"
 
 #define FILE_NAME_LENGTH      200
 #define DIM                   3

@@ -26,6 +26,7 @@
 #include "parse.cuh" 
 #include "velocity.cuh"
 #include "neighbor.cuh"
+#include "memory.cuh"
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5

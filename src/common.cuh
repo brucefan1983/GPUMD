@@ -89,27 +89,6 @@
 
 
 
-#define MY_MALLOC(p, t, n) p = (t *) malloc(sizeof(t) * (n));                  \
-                           if(p == NULL)                                       \
-                           {                                                   \
-                               printf("Failed to allocate!\n");                \
-                               exit(EXIT_FAILURE);                             \
-                           }
-
-
-#define MY_FREE(p) if(p != NULL)                       \
-                   {                                   \
-                       free(p);                        \
-                       p = NULL;                       \
-                   }                                   \
-                   else                                \
-                   {                                   \
-                       printf("Try to free NULL!\n");  \
-                       exit(EXIT_FAILURE);             \
-                   }
-
-
-
 
 // Parameters related to VAC (velocity auto-correlation function)
 struct VAC

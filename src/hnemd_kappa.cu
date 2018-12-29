@@ -20,6 +20,8 @@
 #include "hnemd_kappa.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
+#include "memory.cuh"
+
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH       200
 

@@ -27,6 +27,7 @@
 #include "eam.cuh"
 #include "mic.inc"
 #include "ldg.cuh"
+#include "memory.cuh"
 
 #define BLOCK_SIZE 128
 

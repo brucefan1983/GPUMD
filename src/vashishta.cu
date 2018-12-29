@@ -21,6 +21,7 @@
 #include "force.inc"
 #include "vashishta.cuh"
 #include "ldg.cuh"
+#include "memory.cuh"
 
 #define BLOCK_SIZE_VASHISHTA 64 
 

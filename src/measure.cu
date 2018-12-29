@@ -25,6 +25,7 @@
 #include "hac.cuh"
 #include "shc.cuh"
 #include "hnemd_kappa.cuh"
+#include "memory.cuh"
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5

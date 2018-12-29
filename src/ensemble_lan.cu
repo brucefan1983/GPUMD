@@ -21,6 +21,7 @@
 #include "ensemble.inc"
 #include "force.cuh"
 #include <curand_kernel.h>
+#include "memory.cuh"
 
 #define BLOCK_SIZE 128
 
