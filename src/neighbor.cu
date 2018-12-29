@@ -21,6 +21,8 @@
 #include "neighbor_ON1.cuh"
 #include "neighbor_ON2.cuh"
 
+#define BLOCK_SIZE 128
+
 
 
 

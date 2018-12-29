@@ -19,6 +19,9 @@
 #include "ensemble.inc"
 #include "force.cuh"
 
+#define BLOCK_SIZE 128
+
+
 
 
 Ensemble_NVE::Ensemble_NVE(int t)

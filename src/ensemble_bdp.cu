@@ -21,6 +21,8 @@
 #include "ensemble.inc"
 #include "force.cuh"
 
+#define BLOCK_SIZE 128
+
 
 
 

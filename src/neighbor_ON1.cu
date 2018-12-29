@@ -28,6 +28,8 @@
 #include "mic.inc"
 #include "neighbor_ON1.cuh"
 
+#define BLOCK_SIZE 128
+
 
 
 
@@ -119,8 +121,8 @@ static __global__ void find_cell_contents
             cell_n_x, cell_n_y, cell_n_z, &cell_id
         );
         int ind = atomicAdd(&cell_count[cell_id], 1);
-        cell_contents[cell_count_sum[cell_id] + ind] = n1;		
-    }		
+        cell_contents[cell_count_sum[cell_id] + ind] = n1;
+    }
 }
 
 

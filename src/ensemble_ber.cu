@@ -20,6 +20,9 @@
 #include "ensemble.inc"
 #include "force.cuh"
 
+#define BLOCK_SIZE 128
+
+
 
 
 Ensemble_BER::Ensemble_BER(int t, real T, real Tc)

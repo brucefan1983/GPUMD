@@ -20,7 +20,7 @@
 #include "validate.cuh"
 #include "force.cuh"
 
-
+#define BLOCK_SIZE 128
 
 
 // This choice gives optimal accuracy for finite-difference calculations

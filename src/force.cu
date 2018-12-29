@@ -28,6 +28,8 @@
 #include "mic.inc"
 #include "ldg.cuh"
 
+#define BLOCK_SIZE 128
+
 
 
 

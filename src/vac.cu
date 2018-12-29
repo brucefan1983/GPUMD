@@ -18,6 +18,9 @@
 
 #include "common.cuh"
 #include "vac.cuh"
+#define BLOCK_SIZE 128
+
+
 
 
 // Allocate memory for recording velocity data

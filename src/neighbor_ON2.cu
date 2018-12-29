@@ -20,6 +20,9 @@
 #include "mic.inc"
 #include "neighbor_ON2.cuh"
 
+#define BLOCK_SIZE 128
+
+
 
 
 // a simple O(N^2) version of neighbor list construction
