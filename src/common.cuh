@@ -72,15 +72,6 @@
 
 
 
-#ifdef USE_LDG
-    #define LDG(a, n) __ldg(a + n)
-#else
-    #define LDG(a, n) a[n]
-#endif
-
-
-
-
 #define BLOCK_SIZE               128  // a good block size for most kernels
 #define FILE_NAME_LENGTH         200  // Do not use file names longer than this
 #define NOSE_HOOVER_CHAIN_LENGTH 4    // This is a good choice

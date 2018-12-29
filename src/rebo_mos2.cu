@@ -20,6 +20,7 @@
 #include "mic.inc"
 #include "force.inc"
 #include "rebo_mos2.cuh"
+#include "ldg.cuh"
 
 #define BLOCK_SIZE_FORCE 64
 

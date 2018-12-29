@@ -16,6 +16,11 @@
 
 
 
+#include "ldg.cuh"
+
+
+
+
 /*------------------------------------------------------------------------------
     This file will be directly included in some other files.
     It contains a CUDA kernel function that is universal to 

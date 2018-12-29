@@ -26,6 +26,7 @@
 #include "pair.cuh"
 #include "eam.cuh"
 #include "mic.inc"
+#include "ldg.cuh"
 
 
 

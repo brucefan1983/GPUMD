@@ -17,6 +17,7 @@
 #include "common.cuh"
 #include "mic.inc"
 #include "pair.cuh"
+#include "ldg.cuh"
 
 
 

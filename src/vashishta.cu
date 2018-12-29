@@ -20,6 +20,7 @@
 #include "mic.inc"
 #include "force.inc"
 #include "vashishta.cuh"
+#include "ldg.cuh"
 
 #define BLOCK_SIZE_VASHISHTA 64 
 

@@ -20,6 +20,7 @@
 #include "mic.inc"
 #include "force.inc"
 #include "sw.cuh"
+#include "ldg.cuh"
 #define BLOCK_SIZE_SW 64 // 128 is also good
 
 // Add -DMOS2_JIANG in the makefile when using the SW potentials for MoS2

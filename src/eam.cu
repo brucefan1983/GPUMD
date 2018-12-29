@@ -17,6 +17,7 @@
 #include "common.cuh"
 #include "mic.inc"
 #include "eam.cuh"
+#include "ldg.cuh"
 
 
 

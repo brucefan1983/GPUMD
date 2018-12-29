@@ -20,6 +20,7 @@
 #include "mic.inc" 
 #include "force.inc"
 #include "tersoff.cuh"
+#include "ldg.cuh"
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
 #ifdef USE_DP
