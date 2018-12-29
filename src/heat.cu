@@ -21,6 +21,8 @@
 #include "integrate.cuh"
 #include "ensemble.cuh"
 
+#define FILE_NAME_LENGTH      200
+
 
 
 

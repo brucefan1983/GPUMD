@@ -19,6 +19,7 @@
 #include "common.cuh"
 #include "vac.cuh"
 #define BLOCK_SIZE 128
+#define FILE_NAME_LENGTH      200
 
 
 

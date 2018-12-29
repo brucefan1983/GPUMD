@@ -18,6 +18,7 @@
 
 #include "common.cuh"
 #include "shc.cuh"
+#define FILE_NAME_LENGTH      200
 
 typedef unsigned long long uint64;
 

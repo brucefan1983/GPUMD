@@ -20,6 +20,8 @@
 #define MEASURE_H
 class Integrate;
 
+#define FILE_NAME_LENGTH      200
+
 
 
 
