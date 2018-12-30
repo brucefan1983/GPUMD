@@ -32,9 +32,9 @@ void VAC::preprocess_vac
     if (compute)
     {
         int num = para->N * para->number_of_steps / sample_interval;
-        CHECK(cudaMalloc((void**)&gpu_data->vx_all, sizeof(real) * num));
-        CHECK(cudaMalloc((void**)&gpu_data->vy_all, sizeof(real) * num));
-        CHECK(cudaMalloc((void**)&gpu_data->vz_all, sizeof(real) * num));
+        CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
+        CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
+        CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
     }
 }
 
@@ -76,7 +76,7 @@ void VAC::sample_vac
             gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
             (
                 N, nd, gpu_data->vx, gpu_data->vy, gpu_data->vz, 
-                gpu_data->vx_all, gpu_data->vy_all, gpu_data->vz_all
+                vx_all, vy_all, vz_all
             );
             CHECK(cudaDeviceSynchronize());
             CHECK(cudaGetLastError());
@@ -277,7 +277,7 @@ void VAC::find_vac_rdc_dos
     // Here, the block size is fixed to 128, which is a good choice
     gpu_find_vac<<<Nc, 128>>>
     (
-        N, M, gpu_data->vx_all, gpu_data->vy_all, gpu_data->vz_all, 
+        N, M, vx_all, vy_all, vz_all, 
         g_vac_x, g_vac_y, g_vac_z
     );
 
@@ -355,9 +355,9 @@ void VAC::postprocess_vac
     {
         printf("INFO:  start to calculate VAC and related quantities.\n");
         find_vac_rdc_dos(input_dir, para, cpu_data, gpu_data);
-        CHECK(cudaFree(gpu_data->vx_all));
-        CHECK(cudaFree(gpu_data->vy_all));
-        CHECK(cudaFree(gpu_data->vz_all));
+        CHECK(cudaFree(vx_all));
+        CHECK(cudaFree(vy_all));
+        CHECK(cudaFree(vz_all));
         printf("INFO:  VAC and related quantities are calculated.\n\n");
     }
 }

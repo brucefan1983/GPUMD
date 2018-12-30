@@ -197,7 +197,6 @@ struct GPU_Data
     real *virial_per_atom_y;
     real *virial_per_atom_z;
     real *potential_per_atom;     // per-atom potential energy
-    real *vx_all; real *vy_all; real *vz_all; // data used for VAC
     real *heat_all;                           // data used for HAC
     real *box_matrix;       // box matrix
     real *box_matrix_inv;   // inverse box matrix
