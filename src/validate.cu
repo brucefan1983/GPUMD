@@ -19,6 +19,7 @@
 #include "common.cuh"
 #include "validate.cuh"
 #include "force.cuh"
+#include "memory.cuh"
 
 #define BLOCK_SIZE 128
 
@@ -174,9 +175,12 @@ void validate_force
     real *x = gpu_data->x;
     real *y = gpu_data->y;
     real *z = gpu_data->z;
-    real *fx = cpu_data->fx;
-    real *fy = cpu_data->fy;
-    real *fz = cpu_data->fz;
+    real *fx;
+    real *fy;
+    real *fz;
+    MY_MALLOC(fx, real, N);
+    MY_MALLOC(fy, real, N);
+    MY_MALLOC(fz, real, N);
 
     // first calculate the forces directly:
     force->compute(para, gpu_data, measure);
@@ -235,18 +239,18 @@ void validate_force
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    CHECK(cudaMemcpy(cpu_data->fx, gpu_data->fx, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fy, gpu_data->fy, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fz, gpu_data->fz, M, cudaMemcpyDeviceToHost));    
+    CHECK(cudaMemcpy(fx, gpu_data->fx, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy, gpu_data->fy, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz, gpu_data->fz, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
     }
  
     // output the forces from finite difference
-    CHECK(cudaMemcpy(cpu_data->fx, fx_compare, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fy, fy_compare, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fz, fz_compare, M, cudaMemcpyDeviceToHost));   
+    CHECK(cudaMemcpy(fx, fx_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy, fy_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz, fz_compare, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
@@ -257,6 +261,9 @@ void validate_force
     fclose(fid); 
     
     // free memory
+    MY_FREE(fx);
+    MY_FREE(fy);
+    MY_FREE(fz);
     cudaFree(x0);  
     cudaFree(y0); 
     cudaFree(z0); 
