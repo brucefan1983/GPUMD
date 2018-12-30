@@ -578,7 +578,7 @@ static void process_run
         }
 
         // integrate by one time-step:
-        integrate->compute(para, cpu_data, gpu_data, force);
+        integrate->compute(para, cpu_data, gpu_data, force, measure);
 
         // measure
         measure->compute(input_dir, para, cpu_data, gpu_data, integrate, step);
@@ -595,7 +595,7 @@ static void process_run
     // only for myself
     if (0)
     {
-        validate_force(force, para, cpu_data, gpu_data);
+        validate_force(force, para, cpu_data, gpu_data, measure);
     }
 
     printf("INFO:  This run is completed.\n\n");
@@ -623,7 +623,7 @@ static void initialize_run(Parameters *para, Measure* measure)
     para->heat.sample     = 0;
     para->shc.compute     = 0;
     measure->vac.compute     = 0;
-    para->hac.compute     = 0; 
+    measure->hac.compute     = 0; 
     para->hnemd.compute   = 0;
     para->strain.compute  = 0; 
     para->fixed_group     = -1; // no group has an index of -1
@@ -757,7 +757,7 @@ void GPUMD::run
         if (is_potential) 
         {  
             force->initialize(input_dir, para, cpu_data, gpu_data);
-            force->compute(para, gpu_data);
+            force->compute(para, gpu_data, measure);
             #ifdef FORCE
             // output the initial forces (for lattice dynamics calculations)
             int m = sizeof(real) * para->N;

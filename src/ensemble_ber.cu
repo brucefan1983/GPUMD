@@ -138,7 +138,7 @@ static __global__ void gpu_berendsen_pressure
 
 
 void Ensemble_BER::compute
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
 {
     int N           = para->N;
     int grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -173,7 +173,7 @@ void Ensemble_BER::compute
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    force->compute(para, gpu_data);
+    force->compute(para, gpu_data, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);

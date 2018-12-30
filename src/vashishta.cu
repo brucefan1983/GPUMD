@@ -22,6 +22,7 @@
 #include "vashishta.cuh"
 #include "ldg.cuh"
 #include "memory.cuh"
+#include "measure.cuh"
 
 #define BLOCK_SIZE_VASHISHTA 64 
 
@@ -619,7 +620,7 @@ static __global__ void gpu_find_force_vashishta_partial
 
 
 // Find force and related quantities for the Vashishta potential (A wrapper)
-void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
+void Vashishta::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
@@ -663,7 +664,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
     real fe_y = para->hnemd.fe_y;
     real fe_z = para->hnemd.fe_z;
 
-    if (para->hac.compute)
+    if (measure->hac.compute)
     {
         if (use_table == 0)
         {
@@ -809,7 +810,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data)
 
     find_force_many_body<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        para->hac.compute, para->shc.compute, para->hnemd.compute,
+        measure->hac.compute, para->shc.compute, para->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z,
         NN_local, NL_local, f12x, f12y, f12z, x, y, z,
         vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, h,

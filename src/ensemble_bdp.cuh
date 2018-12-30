@@ -20,7 +20,7 @@
 
 #include "ensemble.cuh"
 class Force;
-
+class Measure;
 
 
 
@@ -30,10 +30,10 @@ public:
     Ensemble_BDP(int, real, real);   
     Ensemble_BDP(int, int, int, real, real, real); 
     virtual ~Ensemble_BDP(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
 protected:
-    void integrate_nvt_bdp(Parameters*, CPU_Data*, GPU_Data*, Force*);
-    void integrate_heat_bdp(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    void integrate_nvt_bdp(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
+    void integrate_heat_bdp(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
 };
 
 

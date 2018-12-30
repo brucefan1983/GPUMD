@@ -663,9 +663,9 @@ static void parse_compute_vac(char **param,  int num_param, Measure *measure)
 
 
 
-static void parse_compute_hac(char **param,  int num_param,Parameters *para)
+static void parse_compute_hac(char **param,  int num_param, Measure* measure)
 {
-    para->hac.compute = 1;
+    measure->hac.compute = 1;
 
     printf("INPUT: compute HAC.\n");
 
@@ -674,23 +674,23 @@ static void parse_compute_hac(char **param,  int num_param,Parameters *para)
         print_error("compute_hac should have 3 parameters.\n");
     }
 
-    if (!is_valid_int(param[1], &para->hac.sample_interval))
+    if (!is_valid_int(param[1], &measure->hac.sample_interval))
     {
         print_error("sample interval for HAC should be an integer number.\n");
     }
-    printf("       sample interval is %d.\n", para->hac.sample_interval);
+    printf("       sample interval is %d.\n", measure->hac.sample_interval);
 
-    if (!is_valid_int(param[2], &para->hac.Nc))
+    if (!is_valid_int(param[2], &measure->hac.Nc))
     {
         print_error("Nc for HAC should be an integer number.\n");
     }
-    printf("       Nc is %d\n", para->hac.Nc);
+    printf("       Nc is %d\n", measure->hac.Nc);
 
-    if (!is_valid_int(param[3], &para->hac.output_interval))
+    if (!is_valid_int(param[3], &measure->hac.output_interval))
     {
         print_error("output_interval for HAC should be an integer number.\n");
     }
-    printf("       output_interval is %d\n", para->hac.output_interval);
+    printf("       output_interval is %d\n", measure->hac.output_interval);
 }
 
 
@@ -942,7 +942,7 @@ void parse
     }
     else if (strcmp(param[0], "compute_hac")    == 0) 
     {
-        parse_compute_hac(param, num_param, para);
+        parse_compute_hac(param, num_param, measure);
     }
     else if (strcmp(param[0], "compute_hnemd") == 0) 
     {

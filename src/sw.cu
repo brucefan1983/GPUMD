@@ -21,6 +21,7 @@
 #include "force.inc"
 #include "sw.cuh"
 #include "ldg.cuh"
+#include "measure.cuh"
 #define BLOCK_SIZE_SW 64 // 128 is also good
 
 // Add -DMOS2_JIANG in the makefile when using the SW potentials for MoS2
@@ -448,7 +449,7 @@ static __global__ void gpu_set_f12_to_zero
 
 
 // Find force and related quantities for the SW potential (A wrapper)
-void SW2::compute(Parameters *para, GPU_Data *gpu_data)
+void SW2::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
@@ -504,7 +505,7 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data)
     // step 2: calculate force and related quantities
     find_force_many_body<<<grid_size, BLOCK_SIZE_SW>>>
     (
-        para->hac.compute, para->shc.compute, para->hnemd.compute,
+        measure->hac.compute, para->shc.compute, para->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
         f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
         sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b

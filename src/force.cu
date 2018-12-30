@@ -697,7 +697,7 @@ static __global__ void initialize_shc_properties(int compute_shc, int M, real *g
     }
 }
 
-void Force::compute(Parameters *para, GPU_Data *gpu_data)
+void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
 {
 	int M = para->shc.number_of_pairs * 12;
     initialize_properties<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -720,7 +720,7 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data)
         // first build a local neighbor list
         find_neighbor_local(para, gpu_data, m);
         // and then calculate the forces and related quantities
-        potential[m]->compute(para, gpu_data);
+        potential[m]->compute(para, gpu_data, measure);
     }
 
     // correct the force when using the HNEMD method

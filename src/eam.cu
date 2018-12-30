@@ -18,6 +18,7 @@
 #include "mic.inc"
 #include "eam.cuh"
 #include "ldg.cuh"
+#include "measure.cuh"
 
 
 
@@ -532,7 +533,7 @@ static __global__ void find_force_eam_step2
 
 
 // Force evaluation wrapper
-void EAM::compute(Parameters *para, GPU_Data *gpu_data)
+void EAM::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
@@ -577,7 +578,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
             eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN, NL, x, y, z, box_length, Fp, pe
         );
-        if (para->hac.compute)
+        if (measure->hac.compute)
         {
             find_force_eam_step2<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -636,7 +637,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data)
             eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN, NL, x, y, z, box_length, Fp, pe
         );
-        if (para->hac.compute)
+        if (measure->hac.compute)
         {
             find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (

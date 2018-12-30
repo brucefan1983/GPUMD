@@ -22,6 +22,7 @@
 
 
 #include "potential.cuh"
+class Measure;
 
 
 
@@ -57,7 +58,7 @@ class EAM : public Potential
 public:   
     EAM(FILE*, Parameters*, char*);  
     virtual ~EAM(void);
-    virtual void compute(Parameters*, GPU_Data*);
+    virtual void compute(Parameters*, GPU_Data*, Measure*);
     void initialize_eam2004zhou(FILE*);
     void initialize_eam2006dai(FILE*);
 protected:

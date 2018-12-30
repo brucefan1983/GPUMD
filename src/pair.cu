@@ -18,6 +18,7 @@
 #include "mic.inc"
 #include "pair.cuh"
 #include "ldg.cuh"
+#include "measure.cuh"
 
 
 
@@ -362,7 +363,7 @@ static __global__ void gpu_find_force
 
 
 // Find force and related quantities for pair potentials (A wrapper)
-void Pair::compute(Parameters *para, GPU_Data *gpu_data)
+void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
@@ -402,7 +403,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     if (potential_model == 0) // RI
     {
            
-        if (para->hac.compute)    
+        if (measure->hac.compute)    
         {
             gpu_find_force<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -452,7 +453,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     if (potential_model == 1) // LJ1
     {
            
-        if (para->hac.compute)    
+        if (measure->hac.compute)    
         {
             gpu_find_force<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -502,7 +503,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     if (potential_model == 2) // LJ2
     {
            
-        if (para->hac.compute)    
+        if (measure->hac.compute)    
         {
             gpu_find_force<2, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -552,7 +553,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     if (potential_model == 3) // LJ3
     {
            
-        if (para->hac.compute)    
+        if (measure->hac.compute)    
         {
             gpu_find_force<3, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -602,7 +603,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     if (potential_model == 4) // LJ4
     {
            
-        if (para->hac.compute)    
+        if (measure->hac.compute)    
         {
             gpu_find_force<4, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -652,7 +653,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data)
     if (potential_model == 5) // LJ5
     {
            
-        if (para->hac.compute)    
+        if (measure->hac.compute)    
         {
             gpu_find_force<5, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (

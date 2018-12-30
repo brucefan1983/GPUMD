@@ -98,7 +98,7 @@ void Measure::initialize
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
 
     vac.preprocess_vac(para,  cpu_data, gpu_data);
-    preprocess_hac(para,  cpu_data, gpu_data);  
+    hac.preprocess_hac(para,  cpu_data, gpu_data);  
     preprocess_shc(para,  cpu_data, gpu_data); 
     preprocess_heat(para, cpu_data);      
     preprocess_hnemd_kappa(para, cpu_data, gpu_data);  
@@ -122,7 +122,7 @@ void Measure::finalize
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 
     vac.postprocess_vac(input_dir, para, cpu_data, gpu_data);
-    postprocess_hac(input_dir, para, cpu_data, gpu_data, integrate);
+    hac.postprocess_hac(input_dir, para, cpu_data, gpu_data, integrate);
     postprocess_shc(para, cpu_data, gpu_data);
     postprocess_heat(input_dir, para, cpu_data, integrate);
     postprocess_hnemd_kappa(para, cpu_data, gpu_data);
@@ -425,7 +425,7 @@ void Measure::compute
     dump_heats(fid_heat, para, cpu_data, gpu_data, step);
 
     vac.sample_vac(step, para, cpu_data, gpu_data);
-    sample_hac(step, input_dir, para, cpu_data, gpu_data);
+    hac.sample_hac(step, input_dir, para, cpu_data, gpu_data);
     sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
     process_shc(step, input_dir, para, cpu_data, gpu_data);
     process_hnemd_kappa(step, input_dir, para, cpu_data, gpu_data, integrate); 

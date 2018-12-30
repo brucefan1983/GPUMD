@@ -19,6 +19,15 @@
 
 class Integrate;
 
+
+class HAC
+{
+public:
+    int compute = 0;
+    int sample_interval; // sample interval for heat current
+    int Nc;              // number of correlation points
+    int output_interval; // only output Nc/output_interval data
+
 void preprocess_hac(Parameters *para, CPU_Data  *cpu_data, GPU_Data *gpu_data);
 void sample_hac
 (
@@ -30,5 +39,15 @@ void postprocess_hac
     char *, Parameters *para, CPU_Data *cpu_data, 
     GPU_Data *gpu_data, Integrate *integrate
 );
+
+void find_hac_kappa
+(
+    char *input_dir, Parameters *para, CPU_Data *cpu_data, 
+    GPU_Data *gpu_data, Integrate *integrate
+);
+
+};
+
+
 
 #endif

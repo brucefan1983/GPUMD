@@ -192,7 +192,7 @@ static void __global__ gpu_scale_velocity
 
 
 void Ensemble_NHC::integrate_nvt_nhc
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
 {
     int  N           = para->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -242,7 +242,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    force->compute(para, gpu_data);
+    force->compute(para, gpu_data, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -439,7 +439,7 @@ static __global__ void gpu_scale_velocity
 // integrate by one step, with heating and cooling, 
 // using Nose-Hoover chain method
 void Ensemble_NHC::integrate_heat_nhc
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
 {
     int N         = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
@@ -507,7 +507,7 @@ void Ensemble_NHC::integrate_heat_nhc
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    force->compute(para, gpu_data);
+    force->compute(para, gpu_data, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -546,15 +546,15 @@ void Ensemble_NHC::integrate_heat_nhc
 
  
 void Ensemble_NHC::compute
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
 {
     if (type == 2)
     {
-        integrate_nvt_nhc(para, cpu_data, gpu_data, force);
+        integrate_nvt_nhc(para, cpu_data, gpu_data, force, measure);
     }
     else
     {
-        integrate_heat_nhc(para, cpu_data, gpu_data, force);
+        integrate_heat_nhc(para, cpu_data, gpu_data, force, measure);
     }
 }
 

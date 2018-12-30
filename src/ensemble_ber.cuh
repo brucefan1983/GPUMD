@@ -20,6 +20,7 @@
 
 #include "ensemble.cuh"
 class Force;
+class Measure;
 
 
 
@@ -30,7 +31,7 @@ public:
     Ensemble_BER(int, real, real);   
     Ensemble_BER(int, real, real, real, real, real, real);    
     virtual ~Ensemble_BER(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
 };
 
 

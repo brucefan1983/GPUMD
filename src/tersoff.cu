@@ -21,6 +21,7 @@
 #include "force.inc"
 #include "tersoff.cuh"
 #include "ldg.cuh"
+#include "measure.cuh"
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
 #ifdef USE_DP
@@ -661,7 +662,7 @@ static __global__ void find_force_tersoff_step2
 
 
 // Wrapper of force evaluation for the Tersoff potential
-void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
+void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
@@ -727,7 +728,7 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data)
     // the final step: calculate force and related quantities
     find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        para->hac.compute, para->shc.compute, para->hnemd.compute,
+        measure->hac.compute, para->shc.compute, para->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
         f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
         sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b

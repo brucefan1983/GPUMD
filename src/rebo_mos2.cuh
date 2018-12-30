@@ -23,6 +23,7 @@
 
 
 #include "potential.cuh"
+class Measure;
 
 
 
@@ -48,7 +49,7 @@ class REBO_MOS : public Potential
 public:   
     REBO_MOS(Parameters*);
     virtual ~REBO_MOS(void);
-    virtual void compute(Parameters*, GPU_Data*);
+    virtual void compute(Parameters*, GPU_Data*, Measure*);
 protected:
     REBO_MOS_Data rebo_mos_data;
 };

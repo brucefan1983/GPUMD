@@ -166,7 +166,7 @@ static __global__ void find_force_from_potential
 
 
 void validate_force
-(Force *force, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Force *force, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Measure* measure)
 {
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -179,7 +179,7 @@ void validate_force
     real *fz = cpu_data->fz;
 
     // first calculate the forces directly:
-    force->compute(para, gpu_data);
+    force->compute(para, gpu_data, measure);
 
     // make a copy of the positions
     real *x0, *y0, *z0;
@@ -203,7 +203,7 @@ void validate_force
             (d, n, 1, x0, y0, z0, x, y, z);
 
             // get the potential energy
-            force->compute(para, gpu_data);
+            force->compute(para, gpu_data, measure);
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>(N, m, gpu_data->potential_per_atom, p1); 
@@ -213,7 +213,7 @@ void validate_force
             (d, n, 2, x0, y0, z0, x, y, z);
 
             // get the potential energy
-            force->compute(para, gpu_data);
+            force->compute(para, gpu_data, measure);
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>(N, m, gpu_data->potential_per_atom, p2);     

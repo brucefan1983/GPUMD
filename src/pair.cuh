@@ -21,6 +21,7 @@
 
 
 #include "potential.cuh"
+class Measure;
 
 
 
@@ -54,7 +55,7 @@ class Pair : public Potential
 public:   
     Pair(FILE*, Parameters*, int potential_model);
     virtual ~Pair(void);
-    virtual void compute(Parameters*, GPU_Data*);
+    virtual void compute(Parameters*, GPU_Data*, Measure*);
     void initialize_lj(FILE *fid, int);
     void initialize_ri(FILE *fid);
 protected:

@@ -89,20 +89,6 @@
 
 
 
-
-// Parameters related to HAC (heat current auto-correlation function)
-struct HAC
-{
-    int compute;         // 1 means do this computation
-    int sample_interval; // sample interval for heat current
-    int Nc;              // number of correlation points
-    int output_interval; // only output Nc/output_interval data
-};
-
-
-
-
-
 // Parameters related to the HNEMD method for computing thermal conductivity
 struct HNEMD
 {
@@ -190,7 +176,6 @@ struct Parameters
     Neighbor neighbor;
     Heat heat;
     Strain strain;
-    HAC hac;
     SHC shc;
     HNEMD hnemd;
 };

@@ -25,6 +25,7 @@
 
 
 class Potential;
+class Measure;
 
 class Force
 {
@@ -37,7 +38,7 @@ public:
     void initialize_many_body_potential(Parameters*, CPU_Data*, int);
     void initialize(char*, Parameters *para, CPU_Data*, GPU_Data*);
     void find_neighbor_local(Parameters*, GPU_Data*, int);
-    void compute(Parameters*, GPU_Data*);
+    void compute(Parameters*, GPU_Data*, Measure*);
 
     int num_of_potentials;
     int interlayer_only;

@@ -39,12 +39,12 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 //Allocate memory for recording heat current data
-void preprocess_hac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void HAC::preprocess_hac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    if (para->hac.compute)
+    if (compute)
     {
         int num = NUM_OF_HEAT_COMPONENTS * para->number_of_steps 
-                / para->hac.sample_interval;
+                / sample_interval;
         CHECK(cudaMalloc((void**)&gpu_data->heat_all, sizeof(real) * num));
     }
 }
@@ -109,19 +109,19 @@ static __global__ void gpu_sum_heat
 
 
 // sample heat current data for HAC calculations.
-void sample_hac
+void HAC::sample_hac
 (
     int step, char *input_dir, Parameters *para, 
     CPU_Data *cpu_data, GPU_Data *gpu_data
 )
 {
-    if (para->hac.compute)
+    if (compute)
     { 
-        if (step % para->hac.sample_interval == 0)
+        if (step % sample_interval == 0)
         {   
             // get the total heat current from the per-atom heat current
-            int nd = step / para->hac.sample_interval;
-            int Nd = para->number_of_steps / para->hac.sample_interval;
+            int nd = step / sample_interval;
+            int Nd = para->number_of_steps / sample_interval;
             int M = NUM_OF_HEAT_COMPONENTS + DIM;
             real *gpu_heat;
             CHECK(cudaMalloc((void**)&gpu_heat, sizeof(real) * M));
@@ -257,7 +257,7 @@ static real get_volume(real *box_gpu)
 // Calculate 
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
-static void find_hac_kappa
+void HAC::find_hac_kappa
 (
     char *input_dir, Parameters *para, CPU_Data *cpu_data, 
     GPU_Data *gpu_data, Integrate *integrate
@@ -265,8 +265,6 @@ static void find_hac_kappa
 {
     // rename variables
     int number_of_steps = para->number_of_steps;
-    int sample_interval = para->hac.sample_interval;
-    int Nc = para->hac.Nc;
     real temperature = para->temperature2;
     real time_step = para->time_step;
 
@@ -308,15 +306,15 @@ static void find_hac_kappa
     strcpy(file_hac, input_dir);
     strcat(file_hac, "/hac.out");
     FILE *fid = fopen(file_hac, "a");
-    int number_of_output_data = Nc / para->hac.output_interval;
+    int number_of_output_data = Nc / output_interval;
     for (int nd = 0; nd < number_of_output_data; nd++)
     {
-        int nc = nd * para->hac.output_interval;
+        int nc = nd * output_interval;
         real hac_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
         real rtc_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
         for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
         {
-            for (int m = 0; m < para->hac.output_interval; m++)
+            for (int m = 0; m < output_interval; m++)
             {
                 int count = Nc * k + nc + m;
                 hac_ave[k] += hac[count];
@@ -325,11 +323,11 @@ static void find_hac_kappa
         }
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++)
         {
-            hac_ave[m] /= para->hac.output_interval;
-            rtc_ave[m] /= para->hac.output_interval;
+            hac_ave[m] /= output_interval;
+            rtc_ave[m] /= output_interval;
         }
         fprintf
-        (fid, "%25.15e", (nc + para->hac.output_interval * 0.5) * dt_in_ps);
+        (fid, "%25.15e", (nc + output_interval * 0.5) * dt_in_ps);
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
         { fprintf(fid, "%25.15e", hac_ave[m]); }
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
@@ -347,13 +345,13 @@ static void find_hac_kappa
 
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
-void postprocess_hac
+void HAC::postprocess_hac
 (
     char *input_dir, Parameters *para, CPU_Data *cpu_data,
     GPU_Data *gpu_data, Integrate *integrate
 )
 {
-    if (para->hac.compute) 
+    if (compute) 
     {
         printf("INFO:  start to calculate HAC and related quantities.\n");
         find_hac_kappa(input_dir, para, cpu_data, gpu_data, integrate);

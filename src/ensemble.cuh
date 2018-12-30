@@ -21,7 +21,7 @@
 
 
 class Force;
-
+class Measure;
 
 
 
@@ -30,7 +30,7 @@ class Ensemble
 public:
     Ensemble(void);      
     virtual ~Ensemble(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*) = 0;
+    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*) = 0;
     int type;          // ensemble type in a specific run
     int source;
     int sink;

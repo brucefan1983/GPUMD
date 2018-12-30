@@ -20,6 +20,7 @@
 #define INTEGRATE_H
 class Force;
 class Ensemble;
+class Measure;
 
 
 
@@ -32,7 +33,7 @@ public:
     ~Integrate(void);   
     void initialize(Parameters*, CPU_Data*);
     void finalize(void);
-    void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    void compute(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
 
     // these data will be used to initialize ensemble
     int type;          // ensemble type in a specific run

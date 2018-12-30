@@ -21,6 +21,7 @@
 #include "force.inc"
 #include "rebo_mos2.cuh"
 #include "ldg.cuh"
+#include "measure.cuh"
 
 #define BLOCK_SIZE_FORCE 64
 
@@ -1209,7 +1210,7 @@ static __global__ void find_force_step2
 
 
 // Force evaluation wrapper
-void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
+void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
@@ -1259,7 +1260,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     real *f12z = rebo_mos_data.f12z;
 
     // 2-body part
-    if (para->hac.compute)
+    if (measure->hac.compute)
     {
         find_force_step0<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -1327,7 +1328,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data)
     // 3-body part
     find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        para->hac.compute, para->shc.compute, para->hnemd.compute,
+        measure->hac.compute, para->shc.compute, para->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
         NN_local, NL_local, f12x, f12y, f12z,
         x, y, z, vx, vy, vz, box, fx, fy, fz,
