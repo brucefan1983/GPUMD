@@ -621,7 +621,7 @@ static void initialize_run(Parameters *para, Measure* measure)
 {
     para->neighbor.update = 0;
     para->heat.sample     = 0;
-    para->shc.compute     = 0;
+    measure->shc.compute     = 0;
     measure->vac.compute     = 0;
     measure->hac.compute     = 0; 
     measure->hnemd.compute   = 0;

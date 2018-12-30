@@ -412,7 +412,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -421,7 +421,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -430,7 +430,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
 		{
 			gpu_find_force<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(
@@ -462,7 +462,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -471,7 +471,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -480,7 +480,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
 		{
 			gpu_find_force<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(
@@ -512,7 +512,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<2, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -521,7 +521,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<2, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -530,7 +530,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
         {
             gpu_find_force<2, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -562,7 +562,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<3, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -571,7 +571,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<3, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -580,7 +580,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
 		{
 			gpu_find_force<3, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(
@@ -612,7 +612,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<4, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -621,7 +621,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<4, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -630,7 +630,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
 		{
 			gpu_find_force<4, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(
@@ -662,7 +662,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<5, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -671,7 +671,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<5, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -680,7 +680,7 @@ void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
 		{
 			gpu_find_force<5, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(

@@ -42,11 +42,11 @@ static FILE *my_fopen(const char *filename, const char *mode)
 
 
 //build the look-up table used for recording force and velocity data
-static void build_fv_table
+void SHC::build_fv_table
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    para->shc.number_of_sections = 1; 
-    para->shc.number_of_pairs = 0;
+    number_of_sections = 1; 
+    number_of_pairs = 0;
     for (int n1 = 0; n1 < para->N; ++n1)
     {
     	if (cpu_data->a_map[n1] != -1)
@@ -66,8 +66,8 @@ static void build_fv_table
     			if (cpu_data->b_map[n2] != -1)
     			{
     				cpu_data->fv_index[cpu_data->a_map[n1] * *(cpu_data->count_b) + cpu_data->b_map[n2]] =
-    				    						para->shc.number_of_pairs;
-    				para->shc.number_of_pairs++;
+    				    						number_of_pairs;
+    				number_of_pairs++;
     			}
     		}
     	}
@@ -75,9 +75,9 @@ static void build_fv_table
 }
 
 // allocate memory and initialize for calculating SHC
-void preprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void SHC::preprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {      
-    if (para->shc.compute)
+    if (compute)
     {
     	//build map from N atoms to A and B labeled atoms
     	int c_a = 0; int c_b = 0;
@@ -87,12 +87,12 @@ void preprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
     	{
     		cpu_data->a_map[n] = -1;
     		cpu_data->b_map[n] = -1;
-    		if (cpu_data->label[n] == para->shc.block_A)
+    		if (cpu_data->label[n] == block_A)
     		{
     			cpu_data->a_map[n] = c_a;
     			c_a++;
     		}
-    		else if (cpu_data->label[n] == para->shc.block_B)
+    		else if (cpu_data->label[n] == block_B)
     		{
     			cpu_data->b_map[n] = c_b;
     			c_b++;
@@ -106,8 +106,8 @@ void preprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 		build_fv_table(para, cpu_data, gpu_data);
 
 		// there are 12 data for each pair
-		uint64 num1 = para->shc.number_of_pairs * 12;
-		uint64 num2 = num1 * para->shc.M;
+		uint64 num1 = number_of_pairs * 12;
+		uint64 num2 = num1 * M;
 
 		cudaMalloc((void**)&gpu_data->a_map, sizeof(int) * para->N);
 		cudaMalloc((void**)&gpu_data->b_map, sizeof(int) * para->N);
@@ -212,16 +212,9 @@ static __global__ void gpu_find_k_time
 
 
 // calculate the correlation function K(t)
-static void find_k_time
-(char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+void SHC::find_k_time
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    int number_of_sections = para->shc.number_of_sections;
-    int number_of_pairs = para->shc.number_of_pairs;
-
-    int Nd = para->shc.M;
-    int Nc = para->shc.Nc;
-    int M  = Nd - Nc; 
-
     // allocate memory for K(t)
     real *k_time_i;
     real *k_time_o;
@@ -235,7 +228,7 @@ static void find_k_time
     CHECK(cudaMalloc((void**)&g_k_time_o, sizeof(real) * Nc));
     gpu_find_k_time<<<Nc, 128>>>
     (
-        Nc, Nd, M, number_of_sections, number_of_pairs, 
+        Nc, M, M-Nc, number_of_sections, number_of_pairs, 
         gpu_data->fv_all, g_k_time_i, g_k_time_o
     );
     CHECK(cudaDeviceSynchronize());
@@ -265,25 +258,25 @@ static void find_k_time
 } 
 
 
-void process_shc
+void SHC::process_shc
 (
     int step, char *input_dir, Parameters *para, 
     CPU_Data *cpu_data, GPU_Data *gpu_data
 )
 {
-    if (para->shc.compute)
+    if (compute)
     { 
-        uint64 step_ref = para->shc.sample_interval * para->shc.M;
-        uint64 fv_size = para->shc.number_of_pairs * 12;
+        uint64 step_ref = sample_interval * M;
+        uint64 fv_size = number_of_pairs * 12;
         uint64 fv_memo = fv_size * sizeof(real);
         
         // sample fv data every "sample_interval" steps
-        if ((step + 1) % para->shc.sample_interval == 0)
+        if ((step + 1) % sample_interval == 0)
         {
             uint64 offset =
                 (
                     (step - (step/step_ref)*step_ref + 1) 
-                    / para->shc.sample_interval - 1
+                    / sample_interval - 1
                 ) * fv_size;
             CHECK(cudaMemcpy(gpu_data->fv_all + offset, 
             gpu_data->fv, fv_memo, cudaMemcpyDeviceToDevice));
@@ -298,9 +291,9 @@ void process_shc
 }
 
 
-void postprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void SHC::postprocess_shc(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    if (para->shc.compute)
+    if (compute)
     {
         MY_FREE(cpu_data->fv_index);
         MY_FREE(cpu_data->a_map);

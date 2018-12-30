@@ -588,7 +588,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
         	find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(
@@ -598,7 +598,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 				a_map, b_map, count_b
 			);
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             find_force_eam_step2<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -608,7 +608,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
 		{
 			find_force_eam_step2<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(
@@ -647,7 +647,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 a_map, b_map, count_b
             );
         }
-        else if (para->shc.compute && !measure->hnemd.compute)
+        else if (measure->shc.compute && !measure->hnemd.compute)
         {
             find_force_eam_step2<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -657,7 +657,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && !para->shc.compute)
+        else if (measure->hnemd.compute && !measure->shc.compute)
         {
             find_force_eam_step2<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
@@ -667,7 +667,7 @@ void EAM::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
                 a_map, b_map, count_b
             );
         }
-        else if (measure->hnemd.compute && para->shc.compute)
+        else if (measure->hnemd.compute && measure->shc.compute)
 		{
 			find_force_eam_step2<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
 			(

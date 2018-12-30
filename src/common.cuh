@@ -90,22 +90,6 @@
 
 
 
-// Parameters related to SHC (spectral heat current)
-struct SHC
-{
-    int compute;         // 1 means do this computation
-    int sample_interval; // sample interval for heat current
-    int Nc;              // number of correlation points
-    int M;               // number of time origins for one average 
-    int number_of_pairs;    // number of atom pairs between block A and block B
-    int number_of_sections; // fixed to 1; may be changed in a future version
-    int block_A;         // record the heat flowing from block A
-    int block_B;         // record the heat flowing into block B
-};
-
-
-
-
 // Parameters for NEMD method of thermal conductivity claculations
 struct Heat
 {
@@ -165,7 +149,6 @@ struct Parameters
     Neighbor neighbor;
     Heat heat;
     Strain strain;
-    SHC shc;
 };
 
 

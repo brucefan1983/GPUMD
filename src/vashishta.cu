@@ -691,7 +691,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             );
         }
     }
-    else if (para->shc.compute && !measure->hnemd.compute)
+    else if (measure->shc.compute && !measure->hnemd.compute)
     {
         if (use_table == 0)
         {
@@ -718,7 +718,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             );
         }
     }
-    else if (measure->hnemd.compute && !para->shc.compute)
+    else if (measure->hnemd.compute && !measure->shc.compute)
     {
         if (use_table == 0)
         {
@@ -745,7 +745,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             );
         }
     }
-    else if (measure->hnemd.compute && para->shc.compute)
+    else if (measure->hnemd.compute && measure->shc.compute)
     {
         if (use_table == 0)
         {
@@ -810,7 +810,7 @@ void Vashishta::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 
     find_force_many_body<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        measure->hac.compute, para->shc.compute, measure->hnemd.compute,
+        measure->hac.compute, measure->shc.compute, measure->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z,
         NN_local, NL_local, f12x, f12y, f12z, x, y, z,
         vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, h,

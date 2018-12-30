@@ -688,11 +688,11 @@ static __global__ void initialize_properties
     }
 }
 
-static __global__ void initialize_shc_properties(int compute_shc, int M, real *g_fv)
+static __global__ void initialize_shc_properties(int M, real *g_fv)
 {
     //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-    if (compute_shc && n1 < M)
+    if (n1 < M)
     {
         g_fv[n1] = ZERO;
     }
@@ -700,7 +700,7 @@ static __global__ void initialize_shc_properties(int compute_shc, int M, real *g
 
 void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
 {
-    int M = para->shc.number_of_pairs * 12;
+    int M = measure->shc.number_of_pairs * 12;
     initialize_properties<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
         para->N,
@@ -711,10 +711,20 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
         gpu_data->virial_per_atom_z,
         gpu_data->heat_per_atom
     );
+#ifdef DEBUG
+    CHECK(cudaDeviceSynchronize());
+    CHECK(cudaGetLastError());
+#endif
+
+    if (measure->shc.compute)
     initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        para->shc.compute, M, gpu_data->fv
+        M, gpu_data->fv
     );
+#ifdef DEBUG
+    CHECK(cudaDeviceSynchronize());
+    CHECK(cudaGetLastError());
+#endif
 
     for (int m = 0; m < num_of_potentials; m++)
     {
@@ -729,11 +739,20 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
     {
         real *ftot; // total force vector of the system
         cudaMalloc((void**)&ftot, sizeof(real) * 3);
-        gpu_sum_force<<<3, 1024>>>(para->N, gpu_data->fx, gpu_data->fy, gpu_data->fz, ftot);
+        gpu_sum_force<<<3, 1024>>>
+        (para->N, gpu_data->fx, gpu_data->fy, gpu_data->fz, ftot);
+#ifdef DEBUG
+        CHECK(cudaDeviceSynchronize());
+        CHECK(cudaGetLastError());
+#endif
 
         int grid_size = (para->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
         (para->N, gpu_data->fx, gpu_data->fy, gpu_data->fz, ftot);
+#ifdef DEBUG
+        CHECK(cudaDeviceSynchronize());
+        CHECK(cudaGetLastError());
+#endif
 
         cudaFree(ftot);
     }

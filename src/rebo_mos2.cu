@@ -1270,7 +1270,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (measure->hnemd.compute && !para->shc.compute)
+    else if (measure->hnemd.compute && !measure->shc.compute)
     {
         find_force_step0<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -1280,7 +1280,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (para->shc.compute && !measure->hnemd.compute)
+    else if (measure->shc.compute && !measure->hnemd.compute)
     {
         find_force_step0<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -1290,7 +1290,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (para->shc.compute && measure->hnemd.compute)
+    else if (measure->shc.compute && measure->hnemd.compute)
     {
         find_force_step0<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -1328,7 +1328,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
     // 3-body part
     find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        measure->hac.compute, para->shc.compute, measure->hnemd.compute,
+        measure->hac.compute, measure->shc.compute, measure->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
         NN_local, NL_local, f12x, f12y, f12z,
         x, y, z, vx, vy, vz, box, fx, fy, fz,

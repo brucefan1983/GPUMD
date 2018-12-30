@@ -742,10 +742,10 @@ static void parse_compute_hnemd(char **param, int num_param, Measure* measure)
 
 
 
-static void parse_compute_shc(char **param,  int num_param, Parameters *para)
+static void parse_compute_shc(char **param,  int num_param, Measure* measure)
 {
     printf("INPUT: compute SHC.\n");
-    para->shc.compute = 1;
+    measure->shc.compute = 1;
 
     if (num_param != 6)
     {
@@ -753,42 +753,42 @@ static void parse_compute_shc(char **param,  int num_param, Parameters *para)
     }
 
     // sample interval 
-    if (!is_valid_int(param[1], &para->shc.sample_interval))
+    if (!is_valid_int(param[1], &measure->shc.sample_interval))
     {
         print_error("shc.sample_interval should be an integer.\n");
     }  
     printf
-    ("       sample interval for SHC is %d.\n", para->shc.sample_interval);
+    ("       sample interval for SHC is %d.\n", measure->shc.sample_interval);
 
     // number of correlation data
-    if (!is_valid_int(param[2], &para->shc.Nc))
+    if (!is_valid_int(param[2], &measure->shc.Nc))
     {
         print_error("Nc for SHC should be an integer.\n");
     }  
-    printf("       number of correlation data is %d.\n", para->shc.Nc);
+    printf("       number of correlation data is %d.\n", measure->shc.Nc);
 
     // number of time origins 
-    if (!is_valid_int(param[3], &para->shc.M))
+    if (!is_valid_int(param[3], &measure->shc.M))
     {
         print_error("M for SHC should be an integer.\n");
     }  
-    printf("       number of time origions is %d.\n", para->shc.M);
+    printf("       number of time origions is %d.\n", measure->shc.M);
 
     // block A 
-    if (!is_valid_int(param[4], &para->shc.block_A))
+    if (!is_valid_int(param[4], &measure->shc.block_A))
     {
         print_error("block_A for SHC should be an integer.\n");
     }  
     printf
-    ("       record the heat flowing from group %d.\n", para->shc.block_A);
+    ("       record the heat flowing from group %d.\n", measure->shc.block_A);
     
     // block B 
-    if (!is_valid_int(param[5], &para->shc.block_B))
+    if (!is_valid_int(param[5], &measure->shc.block_B))
     {
         print_error("block_B for SHC should be an integer.\n");
     }  
     printf
-    ("       record the heat flowing into group %d.\n", para->shc.block_B);
+    ("       record the heat flowing into group %d.\n", measure->shc.block_B);
 }
 
 
@@ -950,7 +950,7 @@ void parse
     }
     else if (strcmp(param[0], "compute_shc")    == 0) 
     {
-        parse_compute_shc(param, num_param, para);
+        parse_compute_shc(param, num_param, measure);
     }
     else if (strcmp(param[0], "deform")         == 0) 
     {
