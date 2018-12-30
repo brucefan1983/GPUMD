@@ -30,6 +30,7 @@
 
 
 
+typedef unsigned long long uint64;
 #ifdef USE_DP
     typedef double real;
     #define ZERO  0.0
