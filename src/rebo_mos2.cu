@@ -1247,9 +1247,9 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
     int *count_b = gpu_data->count_b;
     real *fv = gpu_data->fv;
 
-    real fe_x = para->hnemd.fe_x;
-    real fe_y = para->hnemd.fe_y;
-    real fe_z = para->hnemd.fe_z;
+    real fe_x = measure->hnemd.fe_x;
+    real fe_y = measure->hnemd.fe_y;
+    real fe_z = measure->hnemd.fe_z;
 
     real *b    = rebo_mos_data.b;
     real *bp   = rebo_mos_data.bp;
@@ -1270,7 +1270,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (para->hnemd.compute && !para->shc.compute)
+    else if (measure->hnemd.compute && !para->shc.compute)
     {
         find_force_step0<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -1280,7 +1280,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (para->shc.compute && !para->hnemd.compute)
+    else if (para->shc.compute && !measure->hnemd.compute)
     {
         find_force_step0<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -1290,7 +1290,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
     }
-    else if (para->shc.compute && para->hnemd.compute)
+    else if (para->shc.compute && measure->hnemd.compute)
     {
         find_force_step0<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
@@ -1328,7 +1328,7 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
     // 3-body part
     find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        measure->hac.compute, para->shc.compute, para->hnemd.compute,
+        measure->hac.compute, para->shc.compute, measure->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, 
         NN_local, NL_local, f12x, f12y, f12z,
         x, y, z, vx, vy, vz, box, fx, fy, fz,

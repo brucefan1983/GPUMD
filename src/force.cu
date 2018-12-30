@@ -28,6 +28,7 @@
 #include "mic.inc"
 #include "ldg.cuh"
 #include "memory.cuh"
+#include "measure.cuh"
 
 #define BLOCK_SIZE 128
 
@@ -699,7 +700,7 @@ static __global__ void initialize_shc_properties(int compute_shc, int M, real *g
 
 void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
 {
-	int M = para->shc.number_of_pairs * 12;
+    int M = para->shc.number_of_pairs * 12;
     initialize_properties<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
         para->N,
@@ -712,7 +713,7 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
     );
     initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-    	para->shc.compute, M, gpu_data->fv
+        para->shc.compute, M, gpu_data->fv
     );
 
     for (int m = 0; m < num_of_potentials; m++)
@@ -724,7 +725,7 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
     }
 
     // correct the force when using the HNEMD method
-    if (para->hnemd.compute)
+    if (measure->hnemd.compute)
     {
         real *ftot; // total force vector of the system
         cudaMalloc((void**)&ftot, sizeof(real) * 3);

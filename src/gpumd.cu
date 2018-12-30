@@ -624,7 +624,7 @@ static void initialize_run(Parameters *para, Measure* measure)
     para->shc.compute     = 0;
     measure->vac.compute     = 0;
     measure->hac.compute     = 0; 
-    para->hnemd.compute   = 0;
+    measure->hnemd.compute   = 0;
     para->strain.compute  = 0; 
     para->fixed_group     = -1; // no group has an index of -1
 }

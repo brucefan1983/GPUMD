@@ -89,17 +89,6 @@
 
 
 
-// Parameters related to the HNEMD method for computing thermal conductivity
-struct HNEMD
-{
-    int compute;           // 1 means do this computation
-    int output_interval;   // average the data every so many time steps
-    real fe_x, fe_y, fe_z; // the driving "force" vector (in units of 1/A)
-    real fe;               // magnitude of the driving "force" vector
-};
-
-
-
 
 // Parameters related to SHC (spectral heat current)
 struct SHC
@@ -177,7 +166,6 @@ struct Parameters
     Heat heat;
     Strain strain;
     SHC shc;
-    HNEMD hnemd;
 };
 
 

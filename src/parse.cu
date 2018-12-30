@@ -696,9 +696,9 @@ static void parse_compute_hac(char **param,  int num_param, Measure* measure)
 
 
 
-static void parse_compute_hnemd(char **param, int num_param, Parameters *para)
+static void parse_compute_hnemd(char **param, int num_param, Measure* measure)
 {
-    para->hnemd.compute = 1;
+    measure->hnemd.compute = 1;
 
     printf("INPUT: compute thermal conductivity using the HNEMD method.\n");
 
@@ -707,36 +707,36 @@ static void parse_compute_hnemd(char **param, int num_param, Parameters *para)
         print_error("compute_hnemd should have 4 parameters.\n");
     }
 
-    if (!is_valid_int(param[1], &para->hnemd.output_interval))
+    if (!is_valid_int(param[1], &measure->hnemd.output_interval))
     {
         print_error("output_interval for HNEMD should be an integer number.\n");
     }
-    printf("       output_interval = %d\n", para->hnemd.output_interval);
-    if (para->hnemd.output_interval < 1)
+    printf("       output_interval = %d\n", measure->hnemd.output_interval);
+    if (measure->hnemd.output_interval < 1)
     {
         print_error("output_interval for HNEMD should be larger than 0.\n");
     }
-    if (!is_valid_real(param[2], &para->hnemd.fe_x))
+    if (!is_valid_real(param[2], &measure->hnemd.fe_x))
     {
         print_error("fe_x for HNEMD should be a real number.\n");
     }
-    printf("       fe_x = %g /A\n", para->hnemd.fe_x);
-    if (!is_valid_real(param[3], &para->hnemd.fe_y))
+    printf("       fe_x = %g /A\n", measure->hnemd.fe_x);
+    if (!is_valid_real(param[3], &measure->hnemd.fe_y))
     {
         print_error("fe_y for HNEMD should be a real number.\n");
     }
-    printf("       fe_y = %g /A\n", para->hnemd.fe_y);
-    if (!is_valid_real(param[4], &para->hnemd.fe_z))
+    printf("       fe_y = %g /A\n", measure->hnemd.fe_y);
+    if (!is_valid_real(param[4], &measure->hnemd.fe_z))
     {
         print_error("fe_z for HNEMD should be a real number.\n");
     }
-    printf("       fe_z = %g /A\n", para->hnemd.fe_z);
+    printf("       fe_z = %g /A\n", measure->hnemd.fe_z);
 
     // magnitude of the vector
-    para->hnemd.fe  = para->hnemd.fe_x * para->hnemd.fe_x;
-    para->hnemd.fe += para->hnemd.fe_y * para->hnemd.fe_y;
-    para->hnemd.fe += para->hnemd.fe_z * para->hnemd.fe_z;
-    para->hnemd.fe  = sqrt(para->hnemd.fe);
+    measure->hnemd.fe  = measure->hnemd.fe_x * measure->hnemd.fe_x;
+    measure->hnemd.fe += measure->hnemd.fe_y * measure->hnemd.fe_y;
+    measure->hnemd.fe += measure->hnemd.fe_z * measure->hnemd.fe_z;
+    measure->hnemd.fe  = sqrt(measure->hnemd.fe);
 }
 
 
@@ -946,7 +946,7 @@ void parse
     }
     else if (strcmp(param[0], "compute_hnemd") == 0) 
     {
-        parse_compute_hnemd(param, num_param, para);
+        parse_compute_hnemd(param, num_param, measure);
     }
     else if (strcmp(param[0], "compute_shc")    == 0) 
     {

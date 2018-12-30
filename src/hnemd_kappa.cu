@@ -37,12 +37,12 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 
-void preprocess_hnemd_kappa
+void HNEMD::preprocess_hnemd_kappa
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    if (para->hnemd.compute)
+    if (compute)
     {
-        int num = NUM_OF_HEAT_COMPONENTS * para->hnemd.output_interval;
+        int num = NUM_OF_HEAT_COMPONENTS * output_interval;
         CHECK(cudaMalloc((void**)&gpu_data->heat_all, sizeof(real) * num));
     }
 }
@@ -89,21 +89,21 @@ static real get_volume(real *box_gpu)
 
 
 
-void process_hnemd_kappa
+void HNEMD::process_hnemd_kappa
 (
     int step, char *input_dir, Parameters *para, 
     CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
 )
 {
-    if (para->hnemd.compute)
+    if (compute)
     {
-        int output_flag = ((step+1) % para->hnemd.output_interval == 0);
-        step %= para->hnemd.output_interval;
+        int output_flag = ((step+1) % output_interval == 0);
+        step %= output_interval;
         gpu_sum_heat<<<5, 1024>>>
         (para->N, step, gpu_data->heat_per_atom, gpu_data->heat_all);
         if (output_flag)
         {
-            int num = NUM_OF_HEAT_COMPONENTS * para->hnemd.output_interval;
+            int num = NUM_OF_HEAT_COMPONENTS * output_interval;
             int mem = sizeof(real) * num;
             real volume = get_volume(gpu_data->box_length);
             real *heat_cpu;
@@ -115,15 +115,15 @@ void process_hnemd_kappa
             {
                 kappa[n] = ZERO;
             }
-            for (int m = 0; m < para->hnemd.output_interval; m++)
+            for (int m = 0; m < output_interval; m++)
             {
                 for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++)
                 {
                     kappa[n] += heat_cpu[m * NUM_OF_HEAT_COMPONENTS + n];
                 }
             }
-            real factor = KAPPA_UNIT_CONVERSION / para->hnemd.output_interval;
-            factor /= (volume * integrate->ensemble->temperature * para->hnemd.fe);
+            real factor = KAPPA_UNIT_CONVERSION / output_interval;
+            factor /= (volume * integrate->ensemble->temperature * fe);
 
             char file_kappa[FILE_NAME_LENGTH];
             strcpy(file_kappa, input_dir);
@@ -144,11 +144,10 @@ void process_hnemd_kappa
 
 
 
-
-void postprocess_hnemd_kappa
+void HNEMD::postprocess_hnemd_kappa
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    if (para->hnemd.compute) { cudaFree(gpu_data->heat_all); }
+    if (compute) { cudaFree(gpu_data->heat_all); }
 }
 
 

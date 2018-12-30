@@ -704,9 +704,9 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
     real *bp   = tersoff_data.bp;
 
     // parameters related to the HNEMD method
-    real fe_x = para->hnemd.fe_x;
-    real fe_y = para->hnemd.fe_y;
-    real fe_z = para->hnemd.fe_z;
+    real fe_x = measure->hnemd.fe_x;
+    real fe_y = measure->hnemd.fe_y;
+    real fe_z = measure->hnemd.fe_z;
 
     // pre-compute the bond order functions and their derivatives
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
@@ -728,7 +728,7 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
     // the final step: calculate force and related quantities
     find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        measure->hac.compute, para->shc.compute, para->hnemd.compute,
+        measure->hac.compute, para->shc.compute, measure->hnemd.compute,
         fe_x, fe_y, fe_z, N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL,
         f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
         sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b

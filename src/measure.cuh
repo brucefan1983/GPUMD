@@ -21,6 +21,7 @@
 
 #include "vac.cuh"
 #include "hac.cuh"
+#include "hnemd_kappa.cuh"
 class Integrate;
 
 
@@ -68,6 +69,7 @@ public:
     char file_heat[FILE_NAME_LENGTH];
     VAC vac;
     HAC hac;
+    HNEMD hnemd;
 protected:
     void dump_thermos(FILE*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
     void dump_positions(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
