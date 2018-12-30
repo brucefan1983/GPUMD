@@ -873,7 +873,7 @@ static __global__ void find_force_step0
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
-    int *g_a_map, int *g_b_map, int *g_count_b
+    int *g_a_map, int *g_b_map, int g_count_b
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -975,10 +975,10 @@ static __global__ void find_force_step0
             // accumulate heat across some sections (for NEMD)
             //    	check if AB pair possible & exists
             if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-                g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] != -1)
+                g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
             {
                 int index_12 = 
-                    g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] * 12;
+                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
                 g_fv[index_12 + 0]  += f12x;
                 g_fv[index_12 + 1]  += f12y;
                 g_fv[index_12 + 2]  += f12z;
@@ -1241,11 +1241,11 @@ void REBO_MOS::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
     real *h = gpu_data->heat_per_atom;
 
     int *label = gpu_data->label;
-    int *fv_index = gpu_data->fv_index;
-    int *a_map = gpu_data->a_map;
-    int *b_map = gpu_data->b_map;
-    int *count_b = gpu_data->count_b;
-    real *fv = gpu_data->fv;
+    int *fv_index = measure->shc.fv_index;
+    int *a_map = measure->shc.a_map;
+    int *b_map = measure->shc.b_map;
+    int count_b = measure->shc.count_b;
+    real *fv = measure->shc.fv;
 
     real fe_x = measure->hnemd.fe_x;
     real fe_y = measure->hnemd.fe_y;

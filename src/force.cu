@@ -719,7 +719,7 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
     if (measure->shc.compute)
     initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        M, gpu_data->fv
+        M, measure->shc.fv
     );
 #ifdef DEBUG
     CHECK(cudaDeviceSynchronize());

@@ -477,11 +477,11 @@ void SW2::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
 
     // data related to the SHC method
     int *label = gpu_data->label;
-    int *fv_index = gpu_data->fv_index;
-    int *a_map = gpu_data->a_map;
-    int *b_map = gpu_data->b_map;
-    int *count_b = gpu_data->count_b;
-    real *fv = gpu_data->fv;
+    int *fv_index = measure->shc.fv_index;
+    int *a_map = measure->shc.a_map;
+    int *b_map = measure->shc.b_map;
+    int count_b = measure->shc.count_b;
+    real *fv = measure->shc.fv;
 
     // special data for SW potential
     real *f12x = sw2_data.f12x;

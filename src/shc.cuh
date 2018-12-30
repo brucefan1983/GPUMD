@@ -30,13 +30,24 @@ public:
     int number_of_sections; // fixed to 1; may be changed in a future version
     int block_A;         // record the heat flowing from block A
     int block_B;         // record the heat flowing into block B
+    int count_a;
+    int count_b;
+
+    real* fv;
+    real* fv_all;
+    int* fv_index;
+    int *a_map;
+    int *b_map;
 
     void preprocess_shc(Parameters*, CPU_Data*, GPU_Data*);
     void process_shc(int step, char *, Parameters*, CPU_Data*, GPU_Data*);
     void postprocess_shc(Parameters*, CPU_Data*, GPU_Data*);
 
     void build_fv_table
-    (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+    (
+        Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data,
+        int *cpu_a_map, int* cpu_b_map, int* cpu_fv_index
+    );
     void find_k_time
     (char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data);
 };

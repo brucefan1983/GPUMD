@@ -54,7 +54,7 @@ static __global__ void find_force_many_body
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz,
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
-    int *g_a_map, int *g_b_map, int *g_count_b
+    int *g_a_map, int *g_b_map, int g_count_b
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -147,10 +147,10 @@ static __global__ void find_force_many_body
             // accumulate heat across some sections (for NEMD)
             // check if AB pair possible & exists
             if (calculate_shc && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-                g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] != -1)
+                g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
             {
                 int index_12 =
-                    g_fv_index[g_a_map[n1] * *(g_count_b) + g_b_map[n2]] * 12;
+                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
                 g_fv[index_12 + 0]  += f12x;
                 g_fv[index_12 + 1]  += f12y;
                 g_fv[index_12 + 2]  += f12z;
