@@ -32,17 +32,13 @@ public:
     real fe_z = ZERO;
     real fe = ZERO; // magnitude of the driving "force" vector
 
-void preprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+    real *heat_all;
 
-void process_hnemd_kappa
-(
-    int step, char*, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
-);
-
-void postprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+    void preprocess_hnemd_kappa
+    (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+    void process_hnemd_kappa
+    (int, char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
+    void postprocess_hnemd_kappa(Parameters*, CPU_Data*, GPU_Data*);
 };
 
 

@@ -45,7 +45,7 @@ void HAC::preprocess_hac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_dat
     {
         int num = NUM_OF_HEAT_COMPONENTS * para->number_of_steps 
                 / sample_interval;
-        CHECK(cudaMalloc((void**)&gpu_data->heat_all, sizeof(real) * num));
+        CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
     }
 }
 
@@ -129,7 +129,7 @@ void HAC::sample_hac
             (
                 para->N, Nd, nd, gpu_data->vx, gpu_data->vy, gpu_data->vz,
                 gpu_data->mass, gpu_data->potential_per_atom,
-                gpu_data->heat_per_atom, gpu_data->heat_all, gpu_heat
+                gpu_data->heat_per_atom, heat_all, gpu_heat
             );
 #ifdef HEAT_CURRENT
             // dump the heat current components
@@ -287,7 +287,7 @@ void HAC::find_hac_kappa
     (cudaMalloc((void**)&g_hac, sizeof(real) * Nc * NUM_OF_HEAT_COMPONENTS));
 
     // Here, the block size is fixed to 128, which is a good choice
-    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, gpu_data->heat_all, g_hac);
+    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all, g_hac);
 
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
@@ -355,7 +355,7 @@ void HAC::postprocess_hac
     {
         printf("INFO:  start to calculate HAC and related quantities.\n");
         find_hac_kappa(input_dir, para, cpu_data, gpu_data, integrate);
-        CHECK(cudaFree(gpu_data->heat_all));
+        CHECK(cudaFree(heat_all));
         printf("INFO:  HAC and related quantities are calculated.\n\n");
     }
 }

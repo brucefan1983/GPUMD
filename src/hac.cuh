@@ -28,24 +28,12 @@ public:
     int Nc;              // number of correlation points
     int output_interval; // only output Nc/output_interval data
 
-void preprocess_hac(Parameters *para, CPU_Data  *cpu_data, GPU_Data *gpu_data);
-void sample_hac
-(
-    int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-);
-void postprocess_hac
-(
-    char *, Parameters *para, CPU_Data *cpu_data, 
-    GPU_Data *gpu_data, Integrate *integrate
-);
+    real *heat_all;
 
-void find_hac_kappa
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, 
-    GPU_Data *gpu_data, Integrate *integrate
-);
-
+    void preprocess_hac(Parameters*, CPU_Data *, GPU_Data*);
+    void sample_hac(int, char*, Parameters*, CPU_Data*, GPU_Data*);
+    void postprocess_hac(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
+    void find_hac_kappa(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
 };
 
 

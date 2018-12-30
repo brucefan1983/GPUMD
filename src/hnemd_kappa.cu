@@ -43,7 +43,7 @@ void HNEMD::preprocess_hnemd_kappa
     if (compute)
     {
         int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-        CHECK(cudaMalloc((void**)&gpu_data->heat_all, sizeof(real) * num));
+        CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
     }
 }
 
@@ -100,7 +100,7 @@ void HNEMD::process_hnemd_kappa
         int output_flag = ((step+1) % output_interval == 0);
         step %= output_interval;
         gpu_sum_heat<<<5, 1024>>>
-        (para->N, step, gpu_data->heat_per_atom, gpu_data->heat_all);
+        (para->N, step, gpu_data->heat_per_atom, heat_all);
         if (output_flag)
         {
             int num = NUM_OF_HEAT_COMPONENTS * output_interval;
@@ -108,8 +108,7 @@ void HNEMD::process_hnemd_kappa
             real volume = get_volume(gpu_data->box_length);
             real *heat_cpu;
             MY_MALLOC(heat_cpu, real, num);
-            cudaMemcpy
-            (heat_cpu, gpu_data->heat_all, mem, cudaMemcpyDeviceToHost);
+            cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost);
             real kappa[NUM_OF_HEAT_COMPONENTS];
             for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
             {
@@ -147,7 +146,7 @@ void HNEMD::process_hnemd_kappa
 void HNEMD::postprocess_hnemd_kappa
 (Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 {
-    if (compute) { cudaFree(gpu_data->heat_all); }
+    if (compute) { cudaFree(heat_all); }
 }
 
 
