@@ -130,7 +130,6 @@ static void initialize_position
     MY_MALLOC(cpu_data->x,    real, para->N);
     MY_MALLOC(cpu_data->y,    real, para->N);
     MY_MALLOC(cpu_data->z,    real, para->N);
-    MY_MALLOC(cpu_data->heat_per_atom, real, para->N * NUM_OF_HEAT_COMPONENTS);
     MY_MALLOC(cpu_data->thermo, real, 6);
     MY_MALLOC(cpu_data->box_length, real, 3);
     MY_MALLOC(cpu_data->box_matrix, real, 9);
@@ -516,7 +515,6 @@ void GPUMD::finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
     MY_FREE(cpu_data->x);
     MY_FREE(cpu_data->y);
     MY_FREE(cpu_data->z);
-    MY_FREE(cpu_data->heat_per_atom);
     MY_FREE(cpu_data->thermo);
     MY_FREE(cpu_data->box_length);
     MY_FREE(cpu_data->box_matrix);

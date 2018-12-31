@@ -308,72 +308,6 @@ void Measure::dump_virials
 
 
 
-static real get_volume(real *box_gpu)
-{
-    real *box_cpu;
-    MY_MALLOC(box_cpu, real, 3);
-    cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3, cudaMemcpyDeviceToHost);
-    real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
-    MY_FREE(box_cpu);
-    return volume;
-}
-
-
-
-
-void Measure::dump_heats
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
-{
-    if (dump_heat)
-    {
-        if (step == 0)
-        {
-            for (int n = 0; n < para->N * NUM_OF_HEAT_COMPONENTS; n++)
-            {
-                cpu_data->heat_per_atom[n] = ZERO;
-            }
-        }
-
-        if ((step + 1) % sample_interval_heat == 0)
-        {
-            real *heat_cpu;
-            MY_MALLOC(heat_cpu, real, para->N * NUM_OF_HEAT_COMPONENTS);
-            cudaMemcpy
-            (
-                heat_cpu, gpu_data->heat_per_atom, 
-                sizeof(real) * para->N * NUM_OF_HEAT_COMPONENTS, 
-                cudaMemcpyDeviceToHost
-            );
-            for (int n = 0; n < para->N * NUM_OF_HEAT_COMPONENTS; n++)
-            {
-                cpu_data->heat_per_atom[n] += heat_cpu[n];
-            }
-
-            if ((step + 1) == para->number_of_steps)
-            {
-                int num = para->number_of_steps / sample_interval_heat;
-                real volume = get_volume(gpu_data->box_length) / para->N;
-                real factor = 10 * KAPPA_UNIT_CONVERSION / (num * volume);
-                for (int n = 0; n < para->N; n++)
-                {
-                    for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
-                    {
-                        // output per-atom heat flux in units of GW/m^2
-                        real tmp = cpu_data->heat_per_atom[k * para->N + n];
-                        fprintf(fid, "%25.15f", tmp * factor);
-                    }
-                    fprintf(fid, "\n");
-                }
-                fflush(fid);
-            }
-            MY_FREE(heat_cpu);
-        }
-    }
-}
-
-
-
-
 static void gpu_dump_1(int N, FILE *fid, real *a)
 {
     real *cpu_a;
@@ -398,6 +332,22 @@ void Measure::dump_potentials
         if ((step + 1) % sample_interval_potential == 0)
         {
             gpu_dump_1(para->N, fid, gpu_data->potential_per_atom);
+        }
+    }
+}
+
+
+
+
+void Measure::dump_heats
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+{
+    if (dump_heat)
+    {
+        if ((step + 1) % sample_interval_heat == 0)
+        {
+            gpu_dump_1
+            (para->N * NUM_OF_HEAT_COMPONENTS, fid, gpu_data->heat_per_atom);
         }
     }
 }

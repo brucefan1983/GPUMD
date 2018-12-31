@@ -142,7 +142,6 @@ struct CPU_Data
     int *group_contents;          // atom indices sorted based on groups
     real *mass; 
     real *x; real *y; real *z;
-    real *heat_per_atom;    // per-atom heat current
     real *thermo; real *group_temp;
     real *box_matrix;       // box matrix
     real *box_matrix_inv;   // inverse box matrix
