@@ -172,10 +172,15 @@ void initialize_velocity
 
 
 //initialize the velocities according to the input initial temperature
-void process_velocity(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void process_velocity(Parameters *para, Atom *atom)
 {
     int N = para->N;
     int M = sizeof(real) * N; 
+
+    real* mass = atom->cpu_mass;
+    real* x = atom->cpu_x;
+    real* y = atom->cpu_y;
+    real* z = atom->cpu_z;
 
     real* vx;
     real* vy;
@@ -186,8 +191,8 @@ void process_velocity(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 
     initialize_velocity
     (
-        para->N, para->initial_temperature, cpu_data->mass, 
-        cpu_data->x, cpu_data->y, cpu_data->z, vx, vy, vz
+        para->N, para->initial_temperature, mass, 
+        x, y, z, vx, vy, vz
     );
 
     CHECK(cudaMemcpy(atom->vx, vx, M, cudaMemcpyHostToDevice));

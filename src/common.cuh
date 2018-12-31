@@ -139,8 +139,6 @@ struct CPU_Data
     int *type_local;              // local atom type (for force)
     int *type_size; // number of atoms for each type
     int *group_contents;          // atom indices sorted based on groups
-    real *mass; 
-    real *x; real *y; real *z;
     real *thermo; real *group_temp;
     real *box_matrix;       // box matrix
     real *box_matrix_inv;   // inverse box matrix
@@ -152,8 +150,9 @@ struct CPU_Data
 
 
 // All the GPU data
-struct Atom
+class Atom
 {
+public:
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
@@ -176,6 +175,11 @@ struct Atom
     real *box_matrix_inv;   // inverse box matrix
     real *box_length;       // box length in each direction
     real *thermo;           // some thermodynamic quantities
+
+    real* cpu_mass;
+    real* cpu_x;
+    real* cpu_y;
+    real* cpu_z;
 };
 
 

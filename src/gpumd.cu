@@ -85,7 +85,7 @@ GPUMD::~GPUMD(void)
 
 
 static void initialize_position
-(char *input_dir, Parameters *para, CPU_Data *cpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom* atom)
 {  
     printf("---------------------------------------------------------------\n");
     printf("INFO:  read in initial positions and related parameters.\n");
@@ -124,10 +124,10 @@ static void initialize_position
     MY_MALLOC(cpu_data->type,       int, para->N);
     MY_MALLOC(cpu_data->type_local, int, para->N);
     MY_MALLOC(cpu_data->label,      int, para->N);
-    MY_MALLOC(cpu_data->mass, real, para->N);
-    MY_MALLOC(cpu_data->x,    real, para->N);
-    MY_MALLOC(cpu_data->y,    real, para->N);
-    MY_MALLOC(cpu_data->z,    real, para->N);
+    MY_MALLOC(atom->cpu_mass, real, para->N);
+    MY_MALLOC(atom->cpu_x,    real, para->N);
+    MY_MALLOC(atom->cpu_y,    real, para->N);
+    MY_MALLOC(atom->cpu_z,    real, para->N);
     MY_MALLOC(cpu_data->thermo, real, 6);
     MY_MALLOC(cpu_data->box_length, real, 3);
     MY_MALLOC(cpu_data->box_matrix, real, 9);
@@ -257,10 +257,10 @@ static void initialize_position
             &(cpu_data->type[n]), &(cpu_data->label[n]), &mass, &x, &y, &z
         );
         if (count != 6) print_error("reading error for xyz.in.\n");
-        cpu_data->mass[n] = mass;
-        cpu_data->x[n] = x;
-        cpu_data->y[n] = y;
-        cpu_data->z[n] = z;
+        atom->cpu_mass[n] = mass;
+        atom->cpu_x[n] = x;
+        atom->cpu_y[n] = y;
+        atom->cpu_z[n] = z;
 
         if (cpu_data->label[n] > max_label)
             max_label = cpu_data->label[n];
@@ -423,10 +423,10 @@ static void copy_from_cpu_to_gpu
         cudaMemcpyHostToDevice
     );
 
-    cudaMemcpy(atom->mass, cpu_data->mass, m3, cudaMemcpyHostToDevice);
-    cudaMemcpy(atom->x, cpu_data->x, m3, cudaMemcpyHostToDevice); 
-    cudaMemcpy(atom->y, cpu_data->y, m3, cudaMemcpyHostToDevice); 
-    cudaMemcpy(atom->z, cpu_data->z, m3, cudaMemcpyHostToDevice);
+    cudaMemcpy(atom->mass, atom->cpu_mass, m3, cudaMemcpyHostToDevice);
+    cudaMemcpy(atom->x, atom->cpu_x, m3, cudaMemcpyHostToDevice); 
+    cudaMemcpy(atom->y, atom->cpu_y, m3, cudaMemcpyHostToDevice); 
+    cudaMemcpy(atom->z, atom->cpu_z, m3, cudaMemcpyHostToDevice);
 
     cudaMemcpy
     (
@@ -448,7 +448,7 @@ static void copy_from_cpu_to_gpu
 void GPUMD::initialize
 (char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom)
 { 
-    initialize_position(input_dir, para, cpu_data);
+    initialize_position(input_dir, para, cpu_data, atom);
     allocate_memory_gpu(para, atom);
     copy_from_cpu_to_gpu(para, cpu_data, atom);
 
@@ -507,10 +507,10 @@ void GPUMD::finalize(CPU_Data *cpu_data, Atom *atom)
     MY_FREE(cpu_data->group_size_sum);
     MY_FREE(cpu_data->group_contents);
     MY_FREE(cpu_data->type_size);
-    MY_FREE(cpu_data->mass);
-    MY_FREE(cpu_data->x);
-    MY_FREE(cpu_data->y);
-    MY_FREE(cpu_data->z);
+    MY_FREE(atom->cpu_mass);
+    MY_FREE(atom->cpu_x);
+    MY_FREE(atom->cpu_y);
+    MY_FREE(atom->cpu_z);
     MY_FREE(cpu_data->thermo);
     MY_FREE(cpu_data->box_length);
     MY_FREE(cpu_data->box_matrix);
@@ -765,8 +765,8 @@ void GPUMD::run
             #endif
         }
         if (is_velocity)  
-        { 
-            process_velocity(para, cpu_data, atom); 
+        {
+            process_velocity(para, atom);
         }
         if (is_run)
         { 
