@@ -821,21 +821,21 @@ static void parse_deform(char **param,  int num_param, Parameters *para)
 
 
 
-static void parse_compute_temp(char **param,  int num_param, Parameters *para)
+static void parse_compute_temp(char **param,  int num_param, Measure* measure)
 {
-    para->heat.sample = 1;
+    measure->heat.sample = 1;
     if (num_param != 2)
     {
         print_error("compute_temp should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->heat.sample_interval))
+    if (!is_valid_int(param[1], &measure->heat.sample_interval))
     {
         print_error("temperature sampling interval should be an integer.\n");
     }  
     printf
     (
         "INPUT: sample block temperatures every %d steps.\n", 
-        para->heat.sample_interval
+        measure->heat.sample_interval
     );
 }
 
@@ -958,7 +958,7 @@ void parse
     }
     else if (strcmp(param[0], "compute_temp")   == 0) 
     {
-        parse_compute_temp(param, num_param, para);
+        parse_compute_temp(param, num_param, measure);
     }
     else if (strcmp(param[0], "fix")            == 0) 
     {

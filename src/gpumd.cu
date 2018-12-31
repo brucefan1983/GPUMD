@@ -608,7 +608,7 @@ static void process_run
 static void initialize_run(Parameters *para, Measure* measure)
 {
     para->neighbor.update = 0;
-    para->heat.sample     = 0;
+    measure->heat.sample     = 0;
     measure->shc.compute     = 0;
     measure->vac.compute     = 0;
     measure->hac.compute     = 0; 

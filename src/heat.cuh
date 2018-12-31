@@ -14,18 +14,32 @@
 */
 
 
+
+
 #ifndef HEAT_H
 #define HEAT_H
 
 class Integrate;
 
-void preprocess_heat(Parameters*, CPU_Data*);
-void postprocess_heat(char*, Parameters*, CPU_Data*, Integrate*);
-void sample_block_temperature
-(int step, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
+
+
+
+class Heat
+{
+public:
+    int sample = 1;
+    int sample_interval;
+
+    void preprocess_heat(Parameters*, CPU_Data*);
+    void postprocess_heat(char*, Parameters*, CPU_Data*, Integrate*);
+    void sample_block_temperature
+    (int step, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
+};
+
+
+
 
 #endif
-
 
 
 

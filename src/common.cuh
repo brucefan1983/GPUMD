@@ -91,16 +91,6 @@ typedef unsigned long long uint64;
 
 
 
-// Parameters for NEMD method of thermal conductivity claculations
-struct Heat
-{
-    int sample;             // 1 means sample the block temperatures
-    int sample_interval;    // sample interval of temperature
-};
-
-
-
-
 // Parameters for stress-strain claculations (not finished)
 struct Strain 
 {
@@ -148,7 +138,6 @@ struct Parameters
 
     // some well defined sub-structures
     Neighbor neighbor;
-    Heat heat;
     Strain strain;
 };
 

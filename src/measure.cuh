@@ -23,6 +23,7 @@
 #include "hac.cuh"
 #include "shc.cuh"
 #include "hnemd_kappa.cuh"
+#include "heat.cuh"
 class Integrate;
 
 
@@ -72,6 +73,7 @@ public:
     HAC hac;
     SHC shc;
     HNEMD hnemd;
+    Heat heat;
 protected:
     void dump_thermos(FILE*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
     void dump_positions(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);

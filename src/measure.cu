@@ -20,7 +20,6 @@
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "measure.cuh"
-#include "heat.cuh"
 #include "memory.cuh"
 
 #define DIM 3
@@ -96,7 +95,7 @@ void Measure::initialize
     vac.preprocess_vac(para,  cpu_data, gpu_data);
     hac.preprocess_hac(para,  cpu_data, gpu_data);  
     shc.preprocess_shc(para,  cpu_data, gpu_data); 
-    preprocess_heat(para, cpu_data);      
+    heat.preprocess_heat(para, cpu_data);      
     hnemd.preprocess_hnemd_kappa(para, cpu_data, gpu_data);  
 }
 
@@ -120,7 +119,7 @@ void Measure::finalize
     vac.postprocess_vac(input_dir, para, cpu_data, gpu_data);
     hac.postprocess_hac(input_dir, para, cpu_data, gpu_data, integrate);
     shc.postprocess_shc(para, cpu_data, gpu_data);
-    postprocess_heat(input_dir, para, cpu_data, integrate);
+    heat.postprocess_heat(input_dir, para, cpu_data, integrate);
     hnemd.postprocess_hnemd_kappa(para, cpu_data, gpu_data);
 }
 
@@ -422,7 +421,7 @@ void Measure::compute
 
     vac.sample_vac(step, para, cpu_data, gpu_data);
     hac.sample_hac(step, input_dir, para, cpu_data, gpu_data);
-    sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
+    heat.sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
     shc.process_shc(step, input_dir, para, cpu_data, gpu_data);
     hnemd.process_hnemd_kappa(step, input_dir, para, cpu_data, gpu_data, integrate); 
 }

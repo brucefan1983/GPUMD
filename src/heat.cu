@@ -30,13 +30,13 @@
 
 // allocate memory used for recording group temperatures 
 // and energies of the heat source and sink
-void preprocess_heat(Parameters *para, CPU_Data *cpu_data)
+void Heat::preprocess_heat(Parameters *para, CPU_Data *cpu_data)
 {
-    if (para->heat.sample)
+    if (sample)
     {
         // The last 2 data are the energy changes of the source and sink
         int num = (para->number_of_groups + 2) 
-                * (para->number_of_steps / para->heat.sample_interval);
+                * (para->number_of_steps / sample_interval);
         MY_MALLOC(cpu_data->group_temp, real, num);
     }
 }
@@ -100,18 +100,18 @@ static __global__ void find_group_temp
 
 
 // sample block temperature (wrapper)
-void sample_block_temperature
+void Heat::sample_block_temperature
 (
     int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
     Integrate *integrate
 )
 {
-    if (para->heat.sample)
+    if (sample)
     {
-        if (step % para->heat.sample_interval == 0)
+        if (step % sample_interval == 0)
         {
             int Ng = para->number_of_groups;
-            int offset = (step / para->heat.sample_interval) * (Ng + 2);
+            int offset = (step / sample_interval) * (Ng + 2);
       
             // block temperatures
             real *temp_gpu;
@@ -150,12 +150,12 @@ void sample_block_temperature
 
 // Output block temperatures and energies of the heat source and sink; 
 // free the used memory
-void postprocess_heat
+void Heat::postprocess_heat
 (char *input_dir, Parameters *para, CPU_Data *cpu_data, Integrate *integrate)
 {
-    if (para->heat.sample)
+    if (sample)
     {
-        int Nt = para->number_of_steps / para->heat.sample_interval;
+        int Nt = para->number_of_steps / sample_interval;
         int Ng = para->number_of_groups;
         char file_temperature[FILE_NAME_LENGTH];
         strcpy(file_temperature, input_dir);
