@@ -139,7 +139,7 @@ struct CPU_Data
     int *type_local;              // local atom type (for force)
     int *type_size; // number of atoms for each type
     int *group_contents;          // atom indices sorted based on groups
-    real *thermo; real *group_temp;
+    real *group_temp;
     real *box_matrix;       // box matrix
     real *box_matrix_inv;   // inverse box matrix
     real *box_length;       // box length in each direction

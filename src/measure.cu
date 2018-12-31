@@ -135,7 +135,8 @@ static void gpu_sample_thermo
 {
 
     // copy data from GPU to CPU
-    real *thermo = cpu_data->thermo;
+    real *thermo;
+    MY_MALLOC(thermo, real, 6);
     real *box_length = cpu_data->box_length;
     int m1 = sizeof(real) * 6;
     int m2 = sizeof(real) * DIM;
@@ -192,6 +193,7 @@ static void gpu_sample_thermo
     ); 
 
     fflush(fid);
+    MY_FREE(thermo);
 }
 
 
