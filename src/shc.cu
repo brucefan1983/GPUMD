@@ -39,10 +39,40 @@ static FILE *my_fopen(const char *filename, const char *mode)
 
 
 
+// copy the neighbor list from the GPU to the CPU
+void copy_neighbor_to_cpu
+(Parameters *para, GPU_Data *gpu_data, int* NN, int*NL)
+{
+    int N = para->N;
+    CHECK(cudaMemcpy(NN, gpu_data->NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
+
+    // allocate a temporary memory
+    int *NL_temp;
+    MY_MALLOC(NL_temp, int, N * para->neighbor.MN);
+
+    // copy the neighbor list from the GPU to the CPU
+    int m = sizeof(int) * N * para->neighbor.MN;
+    CHECK(cudaMemcpy(NL_temp, gpu_data->NL, m, cudaMemcpyDeviceToHost));
+
+    // change from the GPU format to the CPU format
+    for (int n1 = 0; n1 < N; n1++) 
+    {
+        for (int k = 0; k < NN[n1]; k++)
+        {
+            NL[n1 * para->neighbor.MN + k] = NL_temp[k * N + n1];
+        }
+    }
+    // free the temporary memory
+    MY_FREE(NL_temp);
+}
+
+
+
+
 //build the look-up table used for recording force and velocity data
 void SHC::build_fv_table
 (
-    Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data,
+    Parameters *para, int* NN, int* NL,
     int *cpu_a_map, int* cpu_b_map, int* cpu_fv_index
 )
 {
@@ -62,9 +92,9 @@ void SHC::build_fv_table
                 }
             }
             // Now set neighbors to correct value
-            for (int i1 = 0; i1 < cpu_data->NN[n1]; ++i1)
+            for (int i1 = 0; i1 < NN[n1]; ++i1)
             {
-                int n2 = cpu_data->NL[n1 * para->neighbor.MN + i1];
+                int n2 = NL[n1 * para->neighbor.MN + i1];
                 if (cpu_b_map[n2] != -1)
                 {
                     cpu_fv_index[cpu_a_map[n1] * count_b + cpu_b_map[n2]] =
@@ -108,10 +138,19 @@ void SHC::preprocess_shc
         }
         count_a = c_a;
         count_b = c_b;
+
+        int* NN;
+        int* NL;
+        MY_MALLOC(NN, int, para->N);
+        MY_MALLOC(NL, int, para->N * para->neighbor.MN);
+        copy_neighbor_to_cpu(para, gpu_data, NN, NL);
+
         int* cpu_fv_index;
         MY_MALLOC(cpu_fv_index, int, count_a * count_b);
-        build_fv_table
-        (para, cpu_data, gpu_data, cpu_a_map, cpu_b_map, cpu_fv_index);
+        build_fv_table(para, NN, NL, cpu_a_map, cpu_b_map, cpu_fv_index);
+
+        MY_FREE(NN);
+        MY_FREE(NL);
 
         // there are 12 data for each pair
         uint64 num1 = number_of_pairs * 12;

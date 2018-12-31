@@ -43,11 +43,7 @@ public:
     void process_shc(int step, char *, Parameters*, CPU_Data*, GPU_Data*);
     void postprocess_shc(Parameters*, CPU_Data*, GPU_Data*);
 
-    void build_fv_table
-    (
-        Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data,
-        int *cpu_a_map, int* cpu_b_map, int* cpu_fv_index
-    );
+    void build_fv_table(Parameters*, int*, int*, int*, int*, int*);
     void find_k_time
     (char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data);
 };

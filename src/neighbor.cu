@@ -217,15 +217,17 @@ static void check_bound
 {
     int N = para->N;
     int *NN = gpu_data->NN;
-    CHECK(cudaMemcpy(cpu_data->NN, NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
+    int *cpu_NN;
+    MY_MALLOC(cpu_NN, int, N);
+    CHECK(cudaMemcpy(cpu_NN, NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
     int flag = 0;
     for (int n = 0; n < N; ++n)
     {
-        if (cpu_data->NN[n] > para->neighbor.MN)
+        if (cpu_NN[n] > para->neighbor.MN)
         {
             printf
             (
-                "Error: NN[%d] = %d > %d\n", n, cpu_data->NN[n], 
+                "Error: NN[%d] = %d > %d\n", n, cpu_NN[n], 
                 para->neighbor.MN
             );
             flag = 1;
@@ -235,42 +237,9 @@ static void check_bound
     {
         exit(1); // The user should make sure that MN is large enough
     }
+    MY_FREE(cpu_NN);
 }
 
-
-
-
-
-
-
-// copy the neighbor list to the CPU for possible SHC calculations
-static void copy_to_cpu
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
-{
-    int N = para->N;
-    int *NN = gpu_data->NN;
-    CHECK(cudaMemcpy(cpu_data->NN, NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
-
-    // allocate a temporary memory
-    int *NL_temp;
-    MY_MALLOC(NL_temp, int, N * para->neighbor.MN);
-
-    // copy the neighbor list from the GPU to the CPU
-    int m = sizeof(int) * N * para->neighbor.MN;
-    CHECK(cudaMemcpy(NL_temp, gpu_data->NL, m, cudaMemcpyDeviceToHost));
-
-
-    // change from the GPU format to the CPU format
-    for (int n1 = 0; n1 < N; n1++) 
-    {
-        for (int k = 0; k < cpu_data->NN[n1]; k++)
-        {
-            cpu_data->NL[n1 * para->neighbor.MN + k] = NL_temp[k * N + n1];
-        }
-    }
-    // free the temporary memory
-    MY_FREE(NL_temp);
-}
 
 
 
@@ -347,8 +316,7 @@ void find_neighbor
     {
         find_neighbor(para, cpu_data, gpu_data); 
         check_bound(para, cpu_data, gpu_data);
-        copy_to_cpu(para, cpu_data, gpu_data);
-        
+
         // set up the reference positions
         gpu_update_xyz0<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (

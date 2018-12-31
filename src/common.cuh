@@ -135,7 +135,7 @@ struct Parameters
 // All the CPU data
 struct CPU_Data
 {
-    int *NN; int *NL;
+    //int *NN; int *NL;
     int *type; int *label; int *group_size; int *group_size_sum;
     int *type_local;              // local atom type (for force)
     int *type_size; // number of atoms for each type

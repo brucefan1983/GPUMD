@@ -121,8 +121,6 @@ static void initialize_position
         );    
 
     // now we have enough information to allocate memroy for the major data
-    MY_MALLOC(cpu_data->NN,         int, para->N);
-    MY_MALLOC(cpu_data->NL,         int, para->N * para->neighbor.MN);
     MY_MALLOC(cpu_data->type,       int, para->N);
     MY_MALLOC(cpu_data->type_local, int, para->N);
     MY_MALLOC(cpu_data->label,      int, para->N);
@@ -502,8 +500,6 @@ void GPUMD::finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
     CHECK(cudaFree(gpu_data->thermo));
 
     // Free the major memory allocated on the CPU
-    MY_FREE(cpu_data->NN);
-    MY_FREE(cpu_data->NL);
     MY_FREE(cpu_data->type);
     MY_FREE(cpu_data->type_local);
     MY_FREE(cpu_data->label);
