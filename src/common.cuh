@@ -164,7 +164,7 @@ struct CPU_Data
     int *type_size; // number of atoms for each type
     int *group_contents;          // atom indices sorted based on groups
     real *mass; 
-    real *x; real *y; real *z; real *vx; real *vy; real *vz; 
+    real *x; real *y; real *z; //real *vx; real *vy; real *vz; 
     real *heat_per_atom;    // per-atom heat current
     real *thermo; real *group_temp;
     real *box_matrix;       // box matrix

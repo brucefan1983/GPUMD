@@ -18,6 +18,7 @@
 
 #include "common.cuh"
 #include "velocity.cuh"
+#include "memory.cuh"
 
 
 
@@ -176,16 +177,25 @@ void process_velocity(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
     int N = para->N;
     int M = sizeof(real) * N; 
 
+    real* vx;
+    real* vy;
+    real* vz;
+    MY_MALLOC(vx, real, N);
+    MY_MALLOC(vy, real, N);
+    MY_MALLOC(vz, real, N);
+
     initialize_velocity
     (
         para->N, para->initial_temperature, cpu_data->mass, 
-        cpu_data->x, cpu_data->y, cpu_data->z,
-        cpu_data->vx, cpu_data->vy, cpu_data->vz
+        cpu_data->x, cpu_data->y, cpu_data->z, vx, vy, vz
     );
 
-    CHECK(cudaMemcpy(gpu_data->vx, cpu_data->vx, M, cudaMemcpyHostToDevice)); 
-    CHECK(cudaMemcpy(gpu_data->vy, cpu_data->vy, M, cudaMemcpyHostToDevice)); 
-    CHECK(cudaMemcpy(gpu_data->vz, cpu_data->vz, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(gpu_data->vx, vx, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(gpu_data->vy, vy, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(gpu_data->vz, vz, M, cudaMemcpyHostToDevice));
+    MY_FREE(vx);
+    MY_FREE(vy);
+    MY_FREE(vz);
 
     printf("INFO : velocities are initialized.\n\n");
 }
