@@ -363,33 +363,33 @@ static __global__ void gpu_find_force
 
 
 // Find force and related quantities for pair potentials (A wrapper)
-void Pair::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
+void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-    int *NN = gpu_data->NN_local;
-    int *NL = gpu_data->NL_local;
-    int *type = gpu_data->type;
-    real *x = gpu_data->x; 
-    real *y = gpu_data->y; 
-    real *z = gpu_data->z;
-    real *vx = gpu_data->vx; 
-    real *vy = gpu_data->vy; 
-    real *vz = gpu_data->vz;
-    real *fx = gpu_data->fx; 
-    real *fy = gpu_data->fy; 
-    real *fz = gpu_data->fz;
-    real *box = gpu_data->box_length;
-    real *sx = gpu_data->virial_per_atom_x; 
-    real *sy = gpu_data->virial_per_atom_y; 
-    real *sz = gpu_data->virial_per_atom_z; 
-    real *pe = gpu_data->potential_per_atom;
-    real *h = gpu_data->heat_per_atom; 
+    int *NN = atom->NN_local;
+    int *NL = atom->NL_local;
+    int *type = atom->type;
+    real *x = atom->x; 
+    real *y = atom->y; 
+    real *z = atom->z;
+    real *vx = atom->vx; 
+    real *vy = atom->vy; 
+    real *vz = atom->vz;
+    real *fx = atom->fx; 
+    real *fy = atom->fy; 
+    real *fz = atom->fz;
+    real *box = atom->box_length;
+    real *sx = atom->virial_per_atom_x; 
+    real *sy = atom->virial_per_atom_y; 
+    real *sz = atom->virial_per_atom_z; 
+    real *pe = atom->potential_per_atom;
+    real *h = atom->heat_per_atom; 
     
-    int *label = gpu_data->label;
+    int *label = atom->label;
     int *fv_index = measure->shc.fv_index;
     int *a_map = measure->shc.a_map;
     int *b_map = measure->shc.b_map;

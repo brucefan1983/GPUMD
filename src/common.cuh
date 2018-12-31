@@ -135,7 +135,6 @@ struct Parameters
 // All the CPU data
 struct CPU_Data
 {
-    //int *NN; int *NL;
     int *type; int *label; int *group_size; int *group_size_sum;
     int *type_local;              // local atom type (for force)
     int *type_size; // number of atoms for each type
@@ -153,7 +152,7 @@ struct CPU_Data
 
 
 // All the GPU data
-struct GPU_Data
+struct Atom
 {
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list

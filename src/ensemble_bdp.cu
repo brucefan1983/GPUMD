@@ -92,34 +92,34 @@ static void __global__ gpu_scale_velocity
 
 
 void Ensemble_BDP::integrate_nvt_bdp
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
 {
     int  N           = para->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = para->fixed_group;
-    int *label = gpu_data->label;
+    int *label = atom->label;
     real time_step   = para->time_step;
-    real *mass = gpu_data->mass;
-    real *x    = gpu_data->x;
-    real *y    = gpu_data->y;
-    real *z    = gpu_data->z;
-    real *vx   = gpu_data->vx;
-    real *vy   = gpu_data->vy;
-    real *vz   = gpu_data->vz;
-    real *fx   = gpu_data->fx;
-    real *fy   = gpu_data->fy;
-    real *fz   = gpu_data->fz;
-    real *potential_per_atom = gpu_data->potential_per_atom;
-    real *virial_per_atom_x  = gpu_data->virial_per_atom_x; 
-    real *virial_per_atom_y  = gpu_data->virial_per_atom_y;
-    real *virial_per_atom_z  = gpu_data->virial_per_atom_z;
-    real *thermo             = gpu_data->thermo;
-    real *box_length         = gpu_data->box_length;
+    real *mass = atom->mass;
+    real *x    = atom->x;
+    real *y    = atom->y;
+    real *z    = atom->z;
+    real *vx   = atom->vx;
+    real *vy   = atom->vy;
+    real *vz   = atom->vz;
+    real *fx   = atom->fx;
+    real *fy   = atom->fy;
+    real *fz   = atom->fz;
+    real *potential_per_atom = atom->potential_per_atom;
+    real *virial_per_atom_x  = atom->virial_per_atom_x; 
+    real *virial_per_atom_y  = atom->virial_per_atom_y;
+    real *virial_per_atom_z  = atom->virial_per_atom_z;
+    real *thermo             = atom->thermo;
+    real *box_length         = atom->box_length;
 
     // standard velocity-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    force->compute(para, gpu_data, measure);
+    force->compute(para, atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
@@ -317,26 +317,26 @@ static __global__ void gpu_scale_velocity
 
 // integrate by one step, with heating and cooling, using the BDP method
 void Ensemble_BDP::integrate_heat_bdp
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
 {
     int N         = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = para->fixed_group;
-    int *label = gpu_data->label;
+    int *label = atom->label;
     real time_step   = para->time_step;
-    real *mass = gpu_data->mass;
-    real *x    = gpu_data->x;
-    real *y    = gpu_data->y;
-    real *z    = gpu_data->z;
-    real *vx   = gpu_data->vx;
-    real *vy   = gpu_data->vy;
-    real *vz   = gpu_data->vz;
-    real *fx   = gpu_data->fx;
-    real *fy   = gpu_data->fy;
-    real *fz   = gpu_data->fz;
-    int *group_size = gpu_data->group_size;
-    int *group_size_sum = gpu_data->group_size_sum;
-    int *group_contents = gpu_data->group_contents;
+    real *mass = atom->mass;
+    real *x    = atom->x;
+    real *y    = atom->y;
+    real *z    = atom->z;
+    real *vx   = atom->vx;
+    real *vy   = atom->vy;
+    real *vz   = atom->vz;
+    real *fx   = atom->fx;
+    real *fy   = atom->fy;
+    real *fz   = atom->fz;
+    int *group_size = atom->group_size;
+    int *group_size_sum = atom->group_size_sum;
+    int *group_contents = atom->group_contents;
 
     int label_1 = source;
     int label_2 = sink;
@@ -361,7 +361,7 @@ void Ensemble_BDP::integrate_heat_bdp
     // veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    force->compute(para, gpu_data, measure);
+    force->compute(para, atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
@@ -388,7 +388,7 @@ void Ensemble_BDP::integrate_heat_bdp
     // re-scale the velocities
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>
     (
-        N, label_1, label_2, gpu_data->label, factor_1, factor_2, 
+        N, label_1, label_2, atom->label, factor_1, factor_2, 
         vcx, vcy, vcz, ke, vx, vy, vz
     );
 
@@ -404,15 +404,15 @@ void Ensemble_BDP::integrate_heat_bdp
 
  
 void Ensemble_BDP::compute
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
 {
     if (type == 4)
     {
-        integrate_nvt_bdp(para, cpu_data, gpu_data, force, measure);
+        integrate_nvt_bdp(para, cpu_data, atom, force, measure);
     }
     else
     {
-        integrate_heat_bdp(para, cpu_data, gpu_data, force, measure);
+        integrate_heat_bdp(para, cpu_data, atom, force, measure);
     }
 }
 

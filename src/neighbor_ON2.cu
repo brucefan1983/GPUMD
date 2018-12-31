@@ -74,7 +74,7 @@ static __global__ void gpu_find_neighbor_ON2
 
 
 // a driver function
-void find_neighbor_ON2(Parameters *para, GPU_Data *gpu_data)
+void find_neighbor_ON2(Parameters *para, Atom *atom)
 {                           
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -83,16 +83,16 @@ void find_neighbor_ON2(Parameters *para, GPU_Data *gpu_data)
     int pbc_z = para->pbc_z;
     real rc = para->neighbor.rc;
     real rc2 = rc * rc; 
-    int *NN = gpu_data->NN;
-    int *NL = gpu_data->NL;
-    real *x = gpu_data->x;
-    real *y = gpu_data->y;
-    real *z = gpu_data->z;
+    int *NN = atom->NN;
+    int *NL = atom->NL;
+    real *x = atom->x;
+    real *y = atom->y;
+    real *z = atom->z;
     #if TRICLINIC
-    real *box = gpu_data->box_matrix;
-    real *box_inv = gpu_data->box_matrix_inv;
+    real *box = atom->box_matrix;
+    real *box_inv = atom->box_matrix_inv;
     #else
-    real *box = gpu_data->box_length;
+    real *box = atom->box_length;
     #endif
     
     // Find neighbours

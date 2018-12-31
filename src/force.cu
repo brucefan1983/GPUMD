@@ -379,7 +379,7 @@ void Force::initialize_many_body_potential
 
 
 void Force::initialize
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     // a single potential
     if (num_of_potentials == 1) 
@@ -443,7 +443,7 @@ void Force::initialize
         // copy the local atom type to the GPU
         cudaMemcpy
         (
-            gpu_data->type_local, cpu_data->type_local, 
+            atom->type_local, cpu_data->type_local, 
             sizeof(int) * para->N, cudaMemcpyHostToDevice
         );
     }
@@ -522,7 +522,7 @@ static __global__ void gpu_find_neighbor_local
 
 
 // Construct the local neighbor list from the global one (Wrapper)
-void Force::find_neighbor_local(Parameters *para, GPU_Data *gpu_data, int m)
+void Force::find_neighbor_local(Parameters *para, Atom *atom, int m)
 {  
     int type1 = type_begin[m];
     int type2 = type_end[m];
@@ -533,16 +533,16 @@ void Force::find_neighbor_local(Parameters *para, GPU_Data *gpu_data, int m)
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-    int *NN = gpu_data->NN;
-    int *NL = gpu_data->NL;
-    int *NN_local = gpu_data->NN_local;
-    int *NL_local = gpu_data->NL_local;
-    int *type = gpu_data->type; // global type
+    int *NN = atom->NN;
+    int *NL = atom->NL;
+    int *NN_local = atom->NN_local;
+    int *NL_local = atom->NL_local;
+    int *type = atom->type; // global type
     real rc2 = potential[m]->rc * potential[m]->rc;
-    real *x = gpu_data->x;
-    real *y = gpu_data->y;
-    real *z = gpu_data->z;
-    real *box = gpu_data->box_length;
+    real *x = atom->x;
+    real *y = atom->y;
+    real *z = atom->z;
+    real *box = atom->box_length;
       
     if (0 == m)
     {
@@ -698,18 +698,18 @@ static __global__ void initialize_shc_properties(int M, real *g_fv)
     }
 }
 
-void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
+void Force::compute(Parameters *para, Atom *atom, Measure* measure)
 {
     int M = measure->shc.number_of_pairs * 12;
     initialize_properties<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
         para->N,
-        gpu_data->fx, gpu_data->fy, gpu_data->fz, 
-        gpu_data->potential_per_atom,  
-        gpu_data->virial_per_atom_x,
-        gpu_data->virial_per_atom_y,
-        gpu_data->virial_per_atom_z,
-        gpu_data->heat_per_atom
+        atom->fx, atom->fy, atom->fz, 
+        atom->potential_per_atom,  
+        atom->virial_per_atom_x,
+        atom->virial_per_atom_y,
+        atom->virial_per_atom_z,
+        atom->heat_per_atom
     );
 #ifdef DEBUG
     CHECK(cudaDeviceSynchronize());
@@ -729,9 +729,9 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
     for (int m = 0; m < num_of_potentials; m++)
     {
         // first build a local neighbor list
-        find_neighbor_local(para, gpu_data, m);
+        find_neighbor_local(para, atom, m);
         // and then calculate the forces and related quantities
-        potential[m]->compute(para, gpu_data, measure);
+        potential[m]->compute(para, atom, measure);
     }
 
     // correct the force when using the HNEMD method
@@ -740,7 +740,7 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
         real *ftot; // total force vector of the system
         cudaMalloc((void**)&ftot, sizeof(real) * 3);
         gpu_sum_force<<<3, 1024>>>
-        (para->N, gpu_data->fx, gpu_data->fy, gpu_data->fz, ftot);
+        (para->N, atom->fx, atom->fy, atom->fz, ftot);
 #ifdef DEBUG
         CHECK(cudaDeviceSynchronize());
         CHECK(cudaGetLastError());
@@ -748,7 +748,7 @@ void Force::compute(Parameters *para, GPU_Data *gpu_data, Measure* measure)
 
         int grid_size = (para->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (para->N, gpu_data->fx, gpu_data->fy, gpu_data->fz, ftot);
+        (para->N, atom->fx, atom->fy, atom->fz, ftot);
 #ifdef DEBUG
         CHECK(cudaDeviceSynchronize());
         CHECK(cudaGetLastError());

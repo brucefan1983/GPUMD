@@ -63,14 +63,14 @@ GPUMD::GPUMD(char *input_dir)
     // Data structures:
     Parameters  para;
     CPU_Data    cpu_data;
-    GPU_Data    gpu_data;
+    Atom    atom;
     Force       force;
     Integrate   integrate;
     Measure     measure(input_dir);
 
-    initialize(input_dir, &para, &cpu_data, &gpu_data);
-    run(input_dir, &para, &cpu_data, &gpu_data, &force, &integrate, &measure);
-    finalize(&cpu_data, &gpu_data);
+    initialize(input_dir, &para, &cpu_data, &atom);
+    run(input_dir, &para, &cpu_data, &atom, &force, &integrate, &measure);
+    finalize(&cpu_data, &atom);
 }
 
 
@@ -338,7 +338,7 @@ static void initialize_position
 
 
 
-static void allocate_memory_gpu(Parameters *para, GPU_Data *gpu_data)
+static void allocate_memory_gpu(Parameters *para, Atom *atom)
 {
     // memory amount
     int m1 = sizeof(int) * para->N;
@@ -348,49 +348,49 @@ static void allocate_memory_gpu(Parameters *para, GPU_Data *gpu_data)
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
 
     // for indexing
-    CHECK(cudaMalloc((void**)&gpu_data->NN, m1)); 
-    CHECK(cudaMalloc((void**)&gpu_data->NL, m2)); 
+    CHECK(cudaMalloc((void**)&atom->NN, m1)); 
+    CHECK(cudaMalloc((void**)&atom->NL, m2)); 
 #ifndef FIXED_NL
-    CHECK(cudaMalloc((void**)&gpu_data->NN_local, m1)); 
-    CHECK(cudaMalloc((void**)&gpu_data->NL_local, m2));
+    CHECK(cudaMalloc((void**)&atom->NN_local, m1)); 
+    CHECK(cudaMalloc((void**)&atom->NL_local, m2));
 #endif
-    CHECK(cudaMalloc((void**)&gpu_data->type, m1));  
-    CHECK(cudaMalloc((void**)&gpu_data->type_local, m1));
-    CHECK(cudaMalloc((void**)&gpu_data->label, m1)); 
-    CHECK(cudaMalloc((void**)&gpu_data->group_size, m3)); 
-    CHECK(cudaMalloc((void**)&gpu_data->group_size_sum, m3));
-    CHECK(cudaMalloc((void**)&gpu_data->group_contents, m1));
+    CHECK(cudaMalloc((void**)&atom->type, m1));  
+    CHECK(cudaMalloc((void**)&atom->type_local, m1));
+    CHECK(cudaMalloc((void**)&atom->label, m1)); 
+    CHECK(cudaMalloc((void**)&atom->group_size, m3)); 
+    CHECK(cudaMalloc((void**)&atom->group_size_sum, m3));
+    CHECK(cudaMalloc((void**)&atom->group_contents, m1));
 
     // for atoms
-    CHECK(cudaMalloc((void**)&gpu_data->mass, m4));
-    CHECK(cudaMalloc((void**)&gpu_data->x0,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->y0,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->z0,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->x,    m4));
-    CHECK(cudaMalloc((void**)&gpu_data->y,    m4));
-    CHECK(cudaMalloc((void**)&gpu_data->z,    m4));
-    CHECK(cudaMalloc((void**)&gpu_data->vx,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->vy,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->vz,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->fx,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->fy,   m4));
-    CHECK(cudaMalloc((void**)&gpu_data->fz,   m4));
+    CHECK(cudaMalloc((void**)&atom->mass, m4));
+    CHECK(cudaMalloc((void**)&atom->x0,   m4));
+    CHECK(cudaMalloc((void**)&atom->y0,   m4));
+    CHECK(cudaMalloc((void**)&atom->z0,   m4));
+    CHECK(cudaMalloc((void**)&atom->x,    m4));
+    CHECK(cudaMalloc((void**)&atom->y,    m4));
+    CHECK(cudaMalloc((void**)&atom->z,    m4));
+    CHECK(cudaMalloc((void**)&atom->vx,   m4));
+    CHECK(cudaMalloc((void**)&atom->vy,   m4));
+    CHECK(cudaMalloc((void**)&atom->vz,   m4));
+    CHECK(cudaMalloc((void**)&atom->fx,   m4));
+    CHECK(cudaMalloc((void**)&atom->fy,   m4));
+    CHECK(cudaMalloc((void**)&atom->fz,   m4));
 
-    CHECK(cudaMalloc((void**)&gpu_data->heat_per_atom, m5));
+    CHECK(cudaMalloc((void**)&atom->heat_per_atom, m5));
 
     // per-atom stress and potential energy, which are always needed
-    CHECK(cudaMalloc((void**)&gpu_data->virial_per_atom_x,  m4));
-    CHECK(cudaMalloc((void**)&gpu_data->virial_per_atom_y,  m4));
-    CHECK(cudaMalloc((void**)&gpu_data->virial_per_atom_z,  m4));
-    CHECK(cudaMalloc((void**)&gpu_data->potential_per_atom, m4));
+    CHECK(cudaMalloc((void**)&atom->virial_per_atom_x,  m4));
+    CHECK(cudaMalloc((void**)&atom->virial_per_atom_y,  m4));
+    CHECK(cudaMalloc((void**)&atom->virial_per_atom_z,  m4));
+    CHECK(cudaMalloc((void**)&atom->potential_per_atom, m4));
 
     // box lengths
-    CHECK(cudaMalloc((void**)&gpu_data->box_matrix,     sizeof(real) * 9));
-    CHECK(cudaMalloc((void**)&gpu_data->box_matrix_inv, sizeof(real) * 9));
-    CHECK(cudaMalloc((void**)&gpu_data->box_length, sizeof(real) * DIM));
+    CHECK(cudaMalloc((void**)&atom->box_matrix,     sizeof(real) * 9));
+    CHECK(cudaMalloc((void**)&atom->box_matrix_inv, sizeof(real) * 9));
+    CHECK(cudaMalloc((void**)&atom->box_length, sizeof(real) * DIM));
 
     // 6 thermodynamic quantities
-    CHECK(cudaMalloc((void**)&gpu_data->thermo, sizeof(real) * 6));
+    CHECK(cudaMalloc((void**)&atom->thermo, sizeof(real) * 6));
 
 }
 
@@ -398,106 +398,106 @@ static void allocate_memory_gpu(Parameters *para, GPU_Data *gpu_data)
 
 
 static void copy_from_cpu_to_gpu
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     int m1 = sizeof(int) * para->N;
     int m2 = sizeof(int) * para->number_of_groups;
     int m3 = sizeof(real) * para->N;
     int m4 = sizeof(real) * DIM;
 
-    cudaMemcpy(gpu_data->type, cpu_data->type, m1, cudaMemcpyHostToDevice); 
+    cudaMemcpy(atom->type, cpu_data->type, m1, cudaMemcpyHostToDevice); 
     cudaMemcpy
-    (gpu_data->type_local, cpu_data->type, m1, cudaMemcpyHostToDevice);
-    cudaMemcpy(gpu_data->label, cpu_data->label, m1, cudaMemcpyHostToDevice); 
+    (atom->type_local, cpu_data->type, m1, cudaMemcpyHostToDevice);
+    cudaMemcpy(atom->label, cpu_data->label, m1, cudaMemcpyHostToDevice); 
 
     cudaMemcpy
-    (gpu_data->group_size, cpu_data->group_size, m2, cudaMemcpyHostToDevice);
+    (atom->group_size, cpu_data->group_size, m2, cudaMemcpyHostToDevice);
     cudaMemcpy
     (
-        gpu_data->group_size_sum, cpu_data->group_size_sum, m2, 
+        atom->group_size_sum, cpu_data->group_size_sum, m2, 
         cudaMemcpyHostToDevice
     );
     cudaMemcpy
     (
-        gpu_data->group_contents, cpu_data->group_contents, m1, 
+        atom->group_contents, cpu_data->group_contents, m1, 
         cudaMemcpyHostToDevice
     );
 
-    cudaMemcpy(gpu_data->mass, cpu_data->mass, m3, cudaMemcpyHostToDevice);
-    cudaMemcpy(gpu_data->x, cpu_data->x, m3, cudaMemcpyHostToDevice); 
-    cudaMemcpy(gpu_data->y, cpu_data->y, m3, cudaMemcpyHostToDevice); 
-    cudaMemcpy(gpu_data->z, cpu_data->z, m3, cudaMemcpyHostToDevice);
+    cudaMemcpy(atom->mass, cpu_data->mass, m3, cudaMemcpyHostToDevice);
+    cudaMemcpy(atom->x, cpu_data->x, m3, cudaMemcpyHostToDevice); 
+    cudaMemcpy(atom->y, cpu_data->y, m3, cudaMemcpyHostToDevice); 
+    cudaMemcpy(atom->z, cpu_data->z, m3, cudaMemcpyHostToDevice);
 
     cudaMemcpy
     (
-        gpu_data->box_matrix, cpu_data->box_matrix, 
+        atom->box_matrix, cpu_data->box_matrix, 
         9 * sizeof(real), cudaMemcpyHostToDevice
     );
     cudaMemcpy
     (
-        gpu_data->box_matrix_inv, cpu_data->box_matrix_inv, 
+        atom->box_matrix_inv, cpu_data->box_matrix_inv, 
         9 * sizeof(real), cudaMemcpyHostToDevice
     );
     cudaMemcpy
-    (gpu_data->box_length, cpu_data->box_length, m4, cudaMemcpyHostToDevice);
+    (atom->box_length, cpu_data->box_length, m4, cudaMemcpyHostToDevice);
 }
 
 
 
 
 void GPUMD::initialize
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom)
 { 
     initialize_position(input_dir, para, cpu_data);
-    allocate_memory_gpu(para, gpu_data);
-    copy_from_cpu_to_gpu(para, cpu_data, gpu_data);
+    allocate_memory_gpu(para, atom);
+    copy_from_cpu_to_gpu(para, cpu_data, atom);
 
     // build the initial neighbor list
     int is_first = 1;
-    find_neighbor(para, cpu_data, gpu_data, is_first);
+    find_neighbor(para, cpu_data, atom, is_first);
 }
 
 
 
 
-void GPUMD::finalize(CPU_Data *cpu_data, GPU_Data *gpu_data)
+void GPUMD::finalize(CPU_Data *cpu_data, Atom *atom)
 {
     // Free the memory allocated on the GPU
-    CHECK(cudaFree(gpu_data->NN)); 
-    CHECK(cudaFree(gpu_data->NL)); 
-    CHECK(cudaFree(gpu_data->NN_local)); 
-    CHECK(cudaFree(gpu_data->NL_local));
-    CHECK(cudaFree(gpu_data->type));  
-    CHECK(cudaFree(gpu_data->type_local));
-    CHECK(cudaFree(gpu_data->label)); 
-    CHECK(cudaFree(gpu_data->group_size)); 
-    CHECK(cudaFree(gpu_data->group_size_sum));
-    CHECK(cudaFree(gpu_data->group_contents));
-    CHECK(cudaFree(gpu_data->mass));
-    CHECK(cudaFree(gpu_data->x0));  
-    CHECK(cudaFree(gpu_data->y0));  
-    CHECK(cudaFree(gpu_data->z0));
-    CHECK(cudaFree(gpu_data->x));  
-    CHECK(cudaFree(gpu_data->y));  
-    CHECK(cudaFree(gpu_data->z));
-    CHECK(cudaFree(gpu_data->vx)); 
-    CHECK(cudaFree(gpu_data->vy)); 
-    CHECK(cudaFree(gpu_data->vz));
-    CHECK(cudaFree(gpu_data->fx)); 
-    CHECK(cudaFree(gpu_data->fy)); 
-    CHECK(cudaFree(gpu_data->fz));
-    CHECK(cudaFree(gpu_data->virial_per_atom_x));
-    CHECK(cudaFree(gpu_data->virial_per_atom_y));
-    CHECK(cudaFree(gpu_data->virial_per_atom_z));
-    CHECK(cudaFree(gpu_data->potential_per_atom));
-    CHECK(cudaFree(gpu_data->heat_per_atom));    
+    CHECK(cudaFree(atom->NN)); 
+    CHECK(cudaFree(atom->NL)); 
+    CHECK(cudaFree(atom->NN_local)); 
+    CHECK(cudaFree(atom->NL_local));
+    CHECK(cudaFree(atom->type));  
+    CHECK(cudaFree(atom->type_local));
+    CHECK(cudaFree(atom->label)); 
+    CHECK(cudaFree(atom->group_size)); 
+    CHECK(cudaFree(atom->group_size_sum));
+    CHECK(cudaFree(atom->group_contents));
+    CHECK(cudaFree(atom->mass));
+    CHECK(cudaFree(atom->x0));  
+    CHECK(cudaFree(atom->y0));  
+    CHECK(cudaFree(atom->z0));
+    CHECK(cudaFree(atom->x));  
+    CHECK(cudaFree(atom->y));  
+    CHECK(cudaFree(atom->z));
+    CHECK(cudaFree(atom->vx)); 
+    CHECK(cudaFree(atom->vy)); 
+    CHECK(cudaFree(atom->vz));
+    CHECK(cudaFree(atom->fx)); 
+    CHECK(cudaFree(atom->fy)); 
+    CHECK(cudaFree(atom->fz));
+    CHECK(cudaFree(atom->virial_per_atom_x));
+    CHECK(cudaFree(atom->virial_per_atom_y));
+    CHECK(cudaFree(atom->virial_per_atom_z));
+    CHECK(cudaFree(atom->potential_per_atom));
+    CHECK(cudaFree(atom->heat_per_atom));    
     //#ifdef TRICLINIC
-    CHECK(cudaFree(gpu_data->box_matrix));
-    CHECK(cudaFree(gpu_data->box_matrix_inv));
+    CHECK(cudaFree(atom->box_matrix));
+    CHECK(cudaFree(atom->box_matrix_inv));
     //#else
-    CHECK(cudaFree(gpu_data->box_length));
+    CHECK(cudaFree(atom->box_length));
     //#endif
-    CHECK(cudaFree(gpu_data->thermo));
+    CHECK(cudaFree(atom->thermo));
 
     // Free the major memory allocated on the CPU
     MY_FREE(cpu_data->type);
@@ -530,14 +530,14 @@ static void process_run
     char *input_dir,  
     Parameters *para, 
     CPU_Data *cpu_data,
-    GPU_Data *gpu_data,
+    Atom *atom,
     Force *force,
     Integrate *integrate,
     Measure *measure
 )
 {
     integrate->initialize(para, cpu_data); 
-    measure->initialize(para, cpu_data, gpu_data);
+    measure->initialize(para, cpu_data, atom);
 
     // record the starting time for this run
     clock_t time_begin = clock();
@@ -548,7 +548,7 @@ static void process_run
         // update the neighbor list
         if (para->neighbor.update)
         {
-            find_neighbor(para, cpu_data, gpu_data, 0);
+            find_neighbor(para, cpu_data, atom, 0);
         }
 
         // set the current temperature;
@@ -560,10 +560,10 @@ static void process_run
         }
 
         // integrate by one time-step:
-        integrate->compute(para, cpu_data, gpu_data, force, measure);
+        integrate->compute(para, cpu_data, atom, force, measure);
 
         // measure
-        measure->compute(input_dir, para, cpu_data, gpu_data, integrate, step);
+        measure->compute(input_dir, para, cpu_data, atom, integrate, step);
 
         if (para->number_of_steps >= 10)
         {
@@ -577,7 +577,7 @@ static void process_run
     // only for myself
     if (0)
     {
-        validate_force(force, para, cpu_data, gpu_data, measure);
+        validate_force(force, para, cpu_data, atom, measure);
     }
 
     printf("INFO:  This run is completed.\n\n");
@@ -589,7 +589,7 @@ static void process_run
     real run_speed = para->N * (para->number_of_steps / time_used);
     printf("INFO:  Speed of this run = %g atom*step/second.\n\n", run_speed);
 
-    measure->finalize(input_dir, para, cpu_data, gpu_data, integrate);
+    measure->finalize(input_dir, para, cpu_data, atom, integrate);
     integrate->finalize();
 }
 
@@ -697,7 +697,7 @@ void GPUMD::run
     char *input_dir,  
     Parameters *para,
     CPU_Data *cpu_data, 
-    GPU_Data *gpu_data,
+    Atom *atom,
     Force *force,
     Integrate *integrate,
     Measure *measure 
@@ -737,17 +737,17 @@ void GPUMD::run
         // check for some special keywords
         if (is_potential) 
         {  
-            force->initialize(input_dir, para, cpu_data, gpu_data);
-            force->compute(para, gpu_data, measure);
+            force->initialize(input_dir, para, cpu_data, atom);
+            force->compute(para, atom, measure);
             #ifdef FORCE
             // output the initial forces (for lattice dynamics calculations)
             int m = sizeof(real) * para->N;
             real *cpu_fx = cpu_data->fx;
             real *cpu_fy = cpu_data->fy;
             real *cpu_fz = cpu_data->fz;
-            CHECK(cudaMemcpy(cpu_fx, gpu_data->fx, m, cudaMemcpyDeviceToHost));
-            CHECK(cudaMemcpy(cpu_fy, gpu_data->fy, m, cudaMemcpyDeviceToHost));
-            CHECK(cudaMemcpy(cpu_fz, gpu_data->fz, m, cudaMemcpyDeviceToHost));
+            CHECK(cudaMemcpy(cpu_fx, atom->fx, m, cudaMemcpyDeviceToHost));
+            CHECK(cudaMemcpy(cpu_fy, atom->fy, m, cudaMemcpyDeviceToHost));
+            CHECK(cudaMemcpy(cpu_fz, atom->fz, m, cudaMemcpyDeviceToHost));
             char file_force[FILE_NAME_LENGTH];
             strcpy(file_force, input_dir);
             strcat(file_force, "/f.out");
@@ -766,13 +766,13 @@ void GPUMD::run
         }
         if (is_velocity)  
         { 
-            process_velocity(para, cpu_data, gpu_data); 
+            process_velocity(para, cpu_data, atom); 
         }
         if (is_run)
         { 
             process_run
             (
-                param, num_param, input_dir, para, cpu_data, gpu_data, 
+                param, num_param, input_dir, para, cpu_data, atom, 
                 force, integrate, measure
             );
             

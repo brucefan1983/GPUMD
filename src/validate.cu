@@ -167,14 +167,14 @@ static __global__ void find_force_from_potential
 
 
 void validate_force
-(Force *force, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Measure* measure)
+(Force *force, Parameters *para, CPU_Data *cpu_data, Atom *atom, Measure* measure)
 {
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
     int M = sizeof(real) * N;
-    real *x = gpu_data->x;
-    real *y = gpu_data->y;
-    real *z = gpu_data->z;
+    real *x = atom->x;
+    real *y = atom->y;
+    real *z = atom->z;
     real *fx;
     real *fy;
     real *fz;
@@ -183,7 +183,7 @@ void validate_force
     MY_MALLOC(fz, real, N);
 
     // first calculate the forces directly:
-    force->compute(para, gpu_data, measure);
+    force->compute(para, atom, measure);
 
     // make a copy of the positions
     real *x0, *y0, *z0;
@@ -207,20 +207,20 @@ void validate_force
             (d, n, 1, x0, y0, z0, x, y, z);
 
             // get the potential energy
-            force->compute(para, gpu_data, measure);
+            force->compute(para, atom, measure);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, gpu_data->potential_per_atom, p1); 
+            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p1); 
 
             // shift one atom to the right by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
             (d, n, 2, x0, y0, z0, x, y, z);
 
             // get the potential energy
-            force->compute(para, gpu_data, measure);
+            force->compute(para, atom, measure);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, gpu_data->potential_per_atom, p2);     
+            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2);     
         }
     }
 
@@ -239,9 +239,9 @@ void validate_force
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    CHECK(cudaMemcpy(fx, gpu_data->fx, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy, gpu_data->fy, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz, gpu_data->fz, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fx, atom->fx, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy, atom->fy, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz, atom->fz, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);

@@ -38,9 +38,9 @@ class Measure
 public:
     Measure(char *input_dir);
     ~Measure(void);
-    void initialize(Parameters*, CPU_Data*, GPU_Data*);
-    void finalize(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
-    void compute(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
+    void initialize(Parameters*, CPU_Data*, Atom*);
+    void finalize(char*, Parameters*, CPU_Data*, Atom*, Integrate*);
+    void compute(char*, Parameters*, CPU_Data*, Atom*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
     int dump_velocity;
@@ -75,13 +75,13 @@ public:
     HNEMD hnemd;
     Heat heat;
 protected:
-    void dump_thermos(FILE*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
-    void dump_positions(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_velocities(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_forces(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_potentials(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_virials(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_heats(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
+    void dump_thermos(FILE*, Parameters*, CPU_Data*, Atom*, Integrate*, int);
+    void dump_positions(FILE*, Parameters*, CPU_Data*, Atom*, int);
+    void dump_velocities(FILE*, Parameters*, CPU_Data*, Atom*, int);
+    void dump_forces(FILE*, Parameters*, CPU_Data*, Atom*, int);
+    void dump_potentials(FILE*, Parameters*, CPU_Data*, Atom*, int);
+    void dump_virials(FILE*, Parameters*, CPU_Data*, Atom*, int);
+    void dump_heats(FILE*, Parameters*, CPU_Data*, Atom*, int);
 };
 
 

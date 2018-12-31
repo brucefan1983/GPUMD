@@ -29,7 +29,7 @@ public:
     real rc; // maxium cutoff distance 
     Potential(void);      
     virtual ~Potential(void);
-    virtual void compute(Parameters*, GPU_Data*, Measure*) = 0;
+    virtual void compute(Parameters*, Atom*, Measure*) = 0;
 };
 
 

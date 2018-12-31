@@ -51,7 +51,7 @@ class Tersoff2 : public Potential
 public:   
     Tersoff2(FILE*, Parameters*, int sum_of_types);  
     virtual ~Tersoff2(void);
-    virtual void compute(Parameters*, GPU_Data*, Measure*);
+    virtual void compute(Parameters*, Atom*, Measure*);
 protected:
     Tersoff2_Parameters ters0;
     Tersoff2_Parameters ters1;

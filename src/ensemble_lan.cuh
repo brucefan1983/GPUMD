@@ -32,13 +32,13 @@ public:
     Ensemble_LAN(int, int, real, real);   
     Ensemble_LAN(int, int, int, int, int, int, int, real, real, real); 
     virtual ~Ensemble_LAN(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
+    virtual void compute(Parameters*, CPU_Data*, Atom*, Force*, Measure*);
 protected:
     int N_source, N_sink, offset_source, offset_sink;
     real c1, c2, c2_source, c2_sink;
     curandState *curand_states, *curand_states_source, *curand_states_sink;
-    void integrate_nvt_lan(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
-    void integrate_heat_lan(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
+    void integrate_nvt_lan(Parameters*, CPU_Data*, Atom*, Force*, Measure*);
+    void integrate_heat_lan(Parameters*, CPU_Data*, Atom*, Force*, Measure*);
 };
 
 

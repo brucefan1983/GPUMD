@@ -33,7 +33,7 @@ public:
     void preprocess_heat(Parameters*, CPU_Data*);
     void postprocess_heat(char*, Parameters*, CPU_Data*, Integrate*);
     void sample_block_temperature
-    (int step, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
+    (int step, Parameters*, CPU_Data*, Atom*, Integrate*);
 };
 
 

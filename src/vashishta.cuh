@@ -59,7 +59,7 @@ class Vashishta : public Potential
 public:   
     Vashishta(FILE*, Parameters*, int use_table);  
     virtual ~Vashishta(void);
-    virtual void compute(Parameters*, GPU_Data*, Measure*);
+    virtual void compute(Parameters*, Atom*, Measure*);
     void initialize_0(FILE*);
     void initialize_1(FILE*);
 protected:

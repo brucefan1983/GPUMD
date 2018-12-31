@@ -18,7 +18,7 @@
 #define NEIGHBOR_H
 
 void find_neighbor
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int is_first);
+(Parameters *para, CPU_Data *cpu_data, Atom *atom, int is_first);
 
 #endif
 

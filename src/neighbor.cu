@@ -121,7 +121,7 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
     If the returned value > 0, the neighbor list will be updated.
 ------------------------------------------------------------------------------*/
 
-static int check_atom_distance(Parameters *para, GPU_Data *gpu_data)
+static int check_atom_distance(Parameters *para, Atom *atom)
 {
     int N = para->N;
     int M = (N - 1) / 1024 + 1;
@@ -136,8 +136,8 @@ static int check_atom_distance(Parameters *para, GPU_Data *gpu_data)
          
     check_atom_distance_1<<<M, 1024>>>
     (
-        N, d2, gpu_data->x0, gpu_data->y0, gpu_data->z0, 
-        gpu_data->x, gpu_data->y, gpu_data->z, s1
+        N, d2, atom->x0, atom->y0, atom->z0, 
+        atom->x, atom->y, atom->z, s1
     );
     check_atom_distance_2<<<1, 1024>>>(M, s1, s2);
          
@@ -213,10 +213,10 @@ static __global__ void gpu_update_xyz0
 
 // check the bound of the neighbor list
 static void check_bound
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     int N = para->N;
-    int *NN = gpu_data->NN;
+    int *NN = atom->NN;
     int *cpu_NN;
     MY_MALLOC(cpu_NN, int, N);
     CHECK(cudaMemcpy(cpu_NN, NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
@@ -243,18 +243,18 @@ static void check_bound
 
 
 
-void find_neighbor(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void find_neighbor(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
 
 #ifdef DEBUG
     
     // always use the ON2 method when debugging, because it's deterministic
-    find_neighbor_ON2(para, gpu_data);
+    find_neighbor_ON2(para, atom);
 
 #else
 
     real rc = para->neighbor.rc;
-    real *box = gpu_data->box_length;
+    real *box = atom->box_length;
 
     // the box might have been updated
     int m = sizeof(real) * DIM;
@@ -295,11 +295,11 @@ void find_neighbor(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
     // of bins is small
     if (use_ON2)
     {
-        find_neighbor_ON2(para, gpu_data);
+        find_neighbor_ON2(para, atom);
     }
     else
     {
-        find_neighbor_ON1(para, gpu_data, cell_n_x, cell_n_y, cell_n_z);
+        find_neighbor_ON1(para, atom, cell_n_x, cell_n_y, cell_n_z);
     }
 
 #endif
@@ -310,43 +310,43 @@ void find_neighbor(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
 
 // the driver function to be called outside this file
 void find_neighbor
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int is_first)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom, int is_first)
 {
     if (is_first == 1) // always build in the beginning
     {
-        find_neighbor(para, cpu_data, gpu_data); 
-        check_bound(para, cpu_data, gpu_data);
+        find_neighbor(para, cpu_data, atom); 
+        check_bound(para, cpu_data, atom);
 
         // set up the reference positions
         gpu_update_xyz0<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            para->N, gpu_data->x, gpu_data->y, gpu_data->z, 
-            gpu_data->x0, gpu_data->y0, gpu_data->z0
+            para->N, atom->x, atom->y, atom->z, 
+            atom->x0, atom->y0, atom->z0
         );
     } 
     else // only re-build when necessary during the run
     {    
-        int update = check_atom_distance(para, gpu_data);
+        int update = check_atom_distance(para, atom);
 
         if (update != 0)
         {
             int N = para->N;
 
-            find_neighbor(para, cpu_data, gpu_data); 
-            check_bound(para, cpu_data, gpu_data);
+            find_neighbor(para, cpu_data, atom); 
+            check_bound(para, cpu_data, atom);
             
             // pull the particles back to the box
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (
-                N, para->pbc_x, para->pbc_y, para->pbc_z, gpu_data->box_length, 
-                gpu_data->x, gpu_data->y, gpu_data->z
+                N, para->pbc_x, para->pbc_y, para->pbc_z, atom->box_length, 
+                atom->x, atom->y, atom->z
             );
             
             // update the reference positions
             gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (
-                N, gpu_data->x, gpu_data->y, gpu_data->z, 
-                gpu_data->x0, gpu_data->y0, gpu_data->z0
+                N, atom->x, atom->y, atom->z, 
+                atom->x0, atom->y0, atom->z0
             );
         }
     }

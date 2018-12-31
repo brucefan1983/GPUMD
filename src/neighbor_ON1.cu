@@ -233,7 +233,7 @@ static __global__ void gpu_find_neighbor_ON1
 
 // a driver function
 void find_neighbor_ON1
-(Parameters *para, GPU_Data *gpu_data, int cell_n_x, int cell_n_y, int cell_n_z)
+(Parameters *para, Atom *atom, int cell_n_x, int cell_n_y, int cell_n_z)
 {                           
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -242,12 +242,12 @@ void find_neighbor_ON1
     int pbc_z = para->pbc_z;
     real rc = para->neighbor.rc;
     real rc2 = rc * rc; 
-    int *NN = gpu_data->NN;
-    int *NL = gpu_data->NL;
-    real *x = gpu_data->x;
-    real *y = gpu_data->y;
-    real *z = gpu_data->z;
-    real *box = gpu_data->box_length;
+    int *NN = atom->NN;
+    int *NL = atom->NL;
+    real *x = atom->x;
+    real *y = atom->y;
+    real *z = atom->z;
+    real *box = atom->box_length;
 
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
 

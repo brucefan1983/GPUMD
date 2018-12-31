@@ -117,9 +117,9 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
 
 
 void Integrate::compute
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force, Measure* measure)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
 {
-    ensemble->compute(para, cpu_data, gpu_data, force, measure);
+    ensemble->compute(para, cpu_data, atom, force, measure);
 }
 
 

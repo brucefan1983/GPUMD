@@ -19,7 +19,7 @@
 
 void find_neighbor_ON1
 (
-    Parameters *para, GPU_Data *gpu_data, 
+    Parameters *para, Atom *atom, 
     int cell_n_x, int cell_n_y, int cell_n_z
 );
 

@@ -41,10 +41,10 @@ static FILE *my_fopen(const char *filename, const char *mode)
 
 // copy the neighbor list from the GPU to the CPU
 void copy_neighbor_to_cpu
-(Parameters *para, GPU_Data *gpu_data, int* NN, int*NL)
+(Parameters *para, Atom *atom, int* NN, int*NL)
 {
     int N = para->N;
-    CHECK(cudaMemcpy(NN, gpu_data->NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(NN, atom->NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
 
     // allocate a temporary memory
     int *NL_temp;
@@ -52,7 +52,7 @@ void copy_neighbor_to_cpu
 
     // copy the neighbor list from the GPU to the CPU
     int m = sizeof(int) * N * para->neighbor.MN;
-    CHECK(cudaMemcpy(NL_temp, gpu_data->NL, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(NL_temp, atom->NL, m, cudaMemcpyDeviceToHost));
 
     // change from the GPU format to the CPU format
     for (int n1 = 0; n1 < N; n1++) 
@@ -111,7 +111,7 @@ void SHC::build_fv_table
 
 // allocate memory and initialize for calculating SHC
 void SHC::preprocess_shc
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     if (compute)
     {
@@ -143,7 +143,7 @@ void SHC::preprocess_shc
         int* NL;
         MY_MALLOC(NN, int, para->N);
         MY_MALLOC(NL, int, para->N * para->neighbor.MN);
-        copy_neighbor_to_cpu(para, gpu_data, NN, NL);
+        copy_neighbor_to_cpu(para, atom, NN, NL);
 
         int* cpu_fv_index;
         MY_MALLOC(cpu_fv_index, int, count_a * count_b);
@@ -261,7 +261,7 @@ static __global__ void gpu_find_k_time
 
 // calculate the correlation function K(t)
 void SHC::find_k_time
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     // allocate memory for K(t)
     real *k_time_i;
@@ -309,7 +309,7 @@ void SHC::find_k_time
 void SHC::process_shc
 (
     int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
+    CPU_Data *cpu_data, Atom *atom
 )
 {
     if (compute)
@@ -333,7 +333,7 @@ void SHC::process_shc
         // calculate the correlation function every "sample_interval * M" steps
         if ((step + 1) % step_ref == 0)
         {
-            find_k_time(input_dir, para, cpu_data, gpu_data);
+            find_k_time(input_dir, para, cpu_data, atom);
         }
     }
 }
@@ -342,7 +342,7 @@ void SHC::process_shc
 
 
 void SHC::postprocess_shc
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     if (compute)
     {

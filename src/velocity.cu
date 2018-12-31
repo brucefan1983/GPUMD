@@ -172,7 +172,7 @@ void initialize_velocity
 
 
 //initialize the velocities according to the input initial temperature
-void process_velocity(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void process_velocity(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     int N = para->N;
     int M = sizeof(real) * N; 
@@ -190,9 +190,9 @@ void process_velocity(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
         cpu_data->x, cpu_data->y, cpu_data->z, vx, vy, vz
     );
 
-    CHECK(cudaMemcpy(gpu_data->vx, vx, M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(gpu_data->vy, vy, M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(gpu_data->vz, vz, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(atom->vx, vx, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(atom->vy, vy, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(atom->vz, vz, M, cudaMemcpyHostToDevice));
     MY_FREE(vx);
     MY_FREE(vy);
     MY_FREE(vz);

@@ -38,7 +38,7 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 void HNEMD::preprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     if (compute)
     {
@@ -92,7 +92,7 @@ static real get_volume(real *box_gpu)
 void HNEMD::process_hnemd_kappa
 (
     int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
+    CPU_Data *cpu_data, Atom *atom, Integrate *integrate
 )
 {
     if (compute)
@@ -100,12 +100,12 @@ void HNEMD::process_hnemd_kappa
         int output_flag = ((step+1) % output_interval == 0);
         step %= output_interval;
         gpu_sum_heat<<<5, 1024>>>
-        (para->N, step, gpu_data->heat_per_atom, heat_all);
+        (para->N, step, atom->heat_per_atom, heat_all);
         if (output_flag)
         {
             int num = NUM_OF_HEAT_COMPONENTS * output_interval;
             int mem = sizeof(real) * num;
-            real volume = get_volume(gpu_data->box_length);
+            real volume = get_volume(atom->box_length);
             real *heat_cpu;
             MY_MALLOC(heat_cpu, real, num);
             cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost);
@@ -144,7 +144,7 @@ void HNEMD::process_hnemd_kappa
 
 
 void HNEMD::postprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     if (compute) { cudaFree(heat_all); }
 }

@@ -17,7 +17,7 @@
 #ifndef VELOCITY_H
 #define VELOCITY_H
 
-void process_velocity(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+void process_velocity(Parameters *para, CPU_Data *cpu_data, Atom *atom);
 
 #endif
 

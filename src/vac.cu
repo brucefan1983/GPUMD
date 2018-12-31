@@ -27,7 +27,7 @@
 
 // Allocate memory for recording velocity data
 void VAC::preprocess_vac
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     if (compute)
     {
@@ -63,7 +63,7 @@ static __global__ void gpu_copy_velocity
 
 // Record velocity data (wrapper)
 void VAC::sample_vac
-(int step, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+(int step, Parameters *para, CPU_Data *cpu_data,Atom *atom)
 {
     if (compute)
     {
@@ -75,7 +75,7 @@ void VAC::sample_vac
             int grid_size = (N - 1) / BLOCK_SIZE + 1;
             gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
             (
-                N, nd, gpu_data->vx, gpu_data->vy, gpu_data->vz, 
+                N, nd, atom->vx, atom->vy, atom->vz, 
                 vx_all, vy_all, vz_all
             );
             CHECK(cudaDeviceSynchronize());
@@ -232,7 +232,7 @@ static void find_dos
 
 // Calculate (1) VAC, (2) RDC, and (3) DOS = phonon density of states
 void VAC::find_vac_rdc_dos
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     // rename variables
     int N = para->N;
@@ -349,12 +349,12 @@ void VAC::find_vac_rdc_dos
 
 // postprocess VAC and related quantities.
 void VAC::postprocess_vac
-(char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+(char *input_dir, Parameters *para, CPU_Data *cpu_data,Atom *atom)
 {
     if (compute)
     {
         printf("INFO:  start to calculate VAC and related quantities.\n");
-        find_vac_rdc_dos(input_dir, para, cpu_data, gpu_data);
+        find_vac_rdc_dos(input_dir, para, cpu_data, atom);
         CHECK(cudaFree(vx_all));
         CHECK(cudaFree(vy_all));
         CHECK(cudaFree(vz_all));

@@ -101,7 +101,7 @@ static __global__ void find_group_temp
 // sample block temperature (wrapper)
 void sample_block_temperature
 (
-    int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    int step, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
     Integrate *integrate
 )
 {
@@ -115,10 +115,10 @@ void sample_block_temperature
             // block temperatures
             real *temp_gpu;
             CHECK(cudaMalloc((void**)&temp_gpu, sizeof(real) * Ng));
-            real *mass = gpu_data->mass;
-            real *vx = gpu_data->vx;
-            real *vy = gpu_data->vy;
-            real *vz = gpu_data->vz;
+            real *mass = atom->mass;
+            real *vx = atom->vx;
+            real *vy = atom->vy;
+            real *vz = atom->vz;
             find_group_temp<<<Ng, 256>>>(mass, vx, vy, vz, temp_gpu);
             #ifdef DEBUG
                 CHECK(cudaDeviceSynchronize());

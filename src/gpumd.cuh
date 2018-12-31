@@ -21,7 +21,7 @@
 
 struct Parameters;
 struct CPU_Data;
-struct GPU_Data;
+struct Atom;
 class Force;
 class Integrate;
 class Measure;
@@ -35,10 +35,10 @@ public:
     GPUMD(char*);
     ~GPUMD(void);
 private:
-    void initialize(char*, Parameters*, CPU_Data*, GPU_Data*);
+    void initialize(char*, Parameters*, CPU_Data*, Atom*);
     void run
-    (char*, Parameters*, CPU_Data*, GPU_Data*, Force*, Integrate*, Measure*);
-    void finalize(CPU_Data*, GPU_Data*);
+    (char*, Parameters*, CPU_Data*, Atom*, Force*, Integrate*, Measure*);
+    void finalize(CPU_Data*, Atom*);
 };
 
 

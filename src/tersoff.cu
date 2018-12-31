@@ -662,34 +662,34 @@ static __global__ void find_force_tersoff_step2
 
 
 // Wrapper of force evaluation for the Tersoff potential
-void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
+void Tersoff2::compute(Parameters *para, Atom *atom, Measure *measure)
 {
     int N = para->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;
     int pbc_z = para->pbc_z;
-    int *NN = gpu_data->NN_local;
-    int *NL = gpu_data->NL_local;
-    int *type = gpu_data->type_local;
-    real *x = gpu_data->x;
-    real *y = gpu_data->y;
-    real *z = gpu_data->z;
-    real *vx = gpu_data->vx;
-    real *vy = gpu_data->vy;
-    real *vz = gpu_data->vz;
-    real *fx = gpu_data->fx;
-    real *fy = gpu_data->fy;
-    real *fz = gpu_data->fz;
-    real *box_length = gpu_data->box_length;
-    real *sx = gpu_data->virial_per_atom_x;
-    real *sy = gpu_data->virial_per_atom_y;
-    real *sz = gpu_data->virial_per_atom_z;
-    real *pe = gpu_data->potential_per_atom;
-    real *h = gpu_data->heat_per_atom;
+    int *NN = atom->NN_local;
+    int *NL = atom->NL_local;
+    int *type = atom->type_local;
+    real *x = atom->x;
+    real *y = atom->y;
+    real *z = atom->z;
+    real *vx = atom->vx;
+    real *vy = atom->vy;
+    real *vz = atom->vz;
+    real *fx = atom->fx;
+    real *fy = atom->fy;
+    real *fz = atom->fz;
+    real *box_length = atom->box_length;
+    real *sx = atom->virial_per_atom_x;
+    real *sy = atom->virial_per_atom_y;
+    real *sz = atom->virial_per_atom_z;
+    real *pe = atom->potential_per_atom;
+    real *h = atom->heat_per_atom;
 
     // data related to the SHC method
-    int *label = gpu_data->label;
+    int *label = atom->label;
     int *fv_index = measure->shc.fv_index;
     int *a_map = measure->shc.a_map;
     int *b_map = measure->shc.b_map;
@@ -719,7 +719,7 @@ void Tersoff2::compute(Parameters *para, GPU_Data *gpu_data, Measure *measure)
     find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
 #ifdef CBN
-        gpu_data->mass,
+        atom->mass,
 #endif
         N, N1, N2, pbc_x, pbc_y, pbc_z, ters0, ters1, ters2,
         NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z

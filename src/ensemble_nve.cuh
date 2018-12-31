@@ -30,7 +30,7 @@ class Ensemble_NVE : public Ensemble
 public:
     Ensemble_NVE(int type_input);      
     virtual ~Ensemble_NVE(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*, Measure*);
+    virtual void compute(Parameters*, CPU_Data*, Atom*, Force*, Measure*);
 };
 
 

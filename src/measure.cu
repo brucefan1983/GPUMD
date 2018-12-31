@@ -82,7 +82,7 @@ Measure::~Measure(void)
 
 
 void Measure::initialize
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_position)  {fid_position = my_fopen(file_position, "a");}
@@ -92,11 +92,11 @@ void Measure::initialize
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
 
-    vac.preprocess_vac(para,  cpu_data, gpu_data);
-    hac.preprocess_hac(para,  cpu_data, gpu_data);  
-    shc.preprocess_shc(para,  cpu_data, gpu_data); 
+    vac.preprocess_vac(para,  cpu_data, atom);
+    hac.preprocess_hac(para,  cpu_data, atom);  
+    shc.preprocess_shc(para,  cpu_data, atom); 
     heat.preprocess_heat(para, cpu_data);      
-    hnemd.preprocess_hnemd_kappa(para, cpu_data, gpu_data);  
+    hnemd.preprocess_hnemd_kappa(para, cpu_data, atom);  
 }
 
 
@@ -104,7 +104,7 @@ void Measure::initialize
 
 void Measure::finalize
 (
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
     Integrate *integrate
 )
 {
@@ -116,11 +116,11 @@ void Measure::finalize
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 
-    vac.postprocess_vac(input_dir, para, cpu_data, gpu_data);
-    hac.postprocess_hac(input_dir, para, cpu_data, gpu_data, integrate);
-    shc.postprocess_shc(para, cpu_data, gpu_data);
+    vac.postprocess_vac(input_dir, para, cpu_data, atom);
+    hac.postprocess_hac(input_dir, para, cpu_data, atom, integrate);
+    shc.postprocess_shc(para, cpu_data, atom);
     heat.postprocess_heat(input_dir, para, cpu_data, integrate);
-    hnemd.postprocess_hnemd_kappa(para, cpu_data, gpu_data);
+    hnemd.postprocess_hnemd_kappa(para, cpu_data, atom);
 }
 
 
@@ -200,7 +200,7 @@ static void gpu_sample_thermo
 // dump thermodynamic properties (A wrapper function)
 void Measure::dump_thermos
 (
-    FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
     Integrate *integrate, int step
 )
 {
@@ -210,7 +210,7 @@ void Measure::dump_thermos
         {
             gpu_sample_thermo
             (
-                fid, para, cpu_data, gpu_data->thermo, gpu_data->box_length, 
+                fid, para, cpu_data, atom->thermo, atom->box_length, 
                 integrate->ensemble
             );
         }
@@ -245,13 +245,13 @@ static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
 
 
 void Measure::dump_positions
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
 {
     if (dump_position)
     {
         if ((step + 1) % sample_interval_position == 0)
         {
-            gpu_dump_3(para->N, fid, gpu_data->x, gpu_data->y, gpu_data->z);
+            gpu_dump_3(para->N, fid, atom->x, atom->y, atom->z);
         }
     }
 }
@@ -260,13 +260,13 @@ void Measure::dump_positions
 
 
 void Measure::dump_velocities
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
 {
     if (dump_velocity)
     {
         if ((step + 1) % sample_interval_velocity == 0)
         {
-            gpu_dump_3(para->N, fid, gpu_data->vx, gpu_data->vy, gpu_data->vz);
+            gpu_dump_3(para->N, fid, atom->vx, atom->vy, atom->vz);
         }
     }
 }
@@ -275,13 +275,13 @@ void Measure::dump_velocities
 
 
 void Measure::dump_forces
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
 {
     if (dump_force)
     {
         if ((step + 1) % sample_interval_force == 0)
         {
-            gpu_dump_3(para->N, fid, gpu_data->fx, gpu_data->fy, gpu_data->fz);
+            gpu_dump_3(para->N, fid, atom->fx, atom->fy, atom->fz);
         }
     }
 }
@@ -290,7 +290,7 @@ void Measure::dump_forces
 
 
 void Measure::dump_virials
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
 {
     if (dump_virial)
     {
@@ -298,8 +298,8 @@ void Measure::dump_virials
         {
             gpu_dump_3
             (
-                para->N, fid, gpu_data->virial_per_atom_x, 
-                gpu_data->virial_per_atom_y, gpu_data->virial_per_atom_z
+                para->N, fid, atom->virial_per_atom_x, 
+                atom->virial_per_atom_y, atom->virial_per_atom_z
             );
         }
     }
@@ -325,13 +325,13 @@ static void gpu_dump_1(int N, FILE *fid, real *a)
 
 
 void Measure::dump_potentials
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
 {
     if (dump_potential)
     {
         if ((step + 1) % sample_interval_potential == 0)
         {
-            gpu_dump_1(para->N, fid, gpu_data->potential_per_atom);
+            gpu_dump_1(para->N, fid, atom->potential_per_atom);
         }
     }
 }
@@ -340,14 +340,14 @@ void Measure::dump_potentials
 
 
 void Measure::dump_heats
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
 {
     if (dump_heat)
     {
         if ((step + 1) % sample_interval_heat == 0)
         {
             gpu_dump_1
-            (para->N * NUM_OF_HEAT_COMPONENTS, fid, gpu_data->heat_per_atom);
+            (para->N * NUM_OF_HEAT_COMPONENTS, fid, atom->heat_per_atom);
         }
     }
 }
@@ -357,23 +357,23 @@ void Measure::dump_heats
 
 void Measure::compute
 (
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
     Integrate *integrate, int step
 )
 {
-    dump_thermos(fid_thermo, para, cpu_data, gpu_data, integrate, step);
-    dump_positions(fid_position, para, cpu_data, gpu_data, step);
-    dump_velocities(fid_velocity, para, cpu_data, gpu_data, step);
-    dump_forces(fid_force, para, cpu_data, gpu_data, step);
-    dump_potentials(fid_potential, para, cpu_data, gpu_data, step);
-    dump_virials(fid_virial, para, cpu_data, gpu_data, step);
-    dump_heats(fid_heat, para, cpu_data, gpu_data, step);
+    dump_thermos(fid_thermo, para, cpu_data, atom, integrate, step);
+    dump_positions(fid_position, para, cpu_data, atom, step);
+    dump_velocities(fid_velocity, para, cpu_data, atom, step);
+    dump_forces(fid_force, para, cpu_data, atom, step);
+    dump_potentials(fid_potential, para, cpu_data, atom, step);
+    dump_virials(fid_virial, para, cpu_data, atom, step);
+    dump_heats(fid_heat, para, cpu_data, atom, step);
 
-    vac.sample_vac(step, para, cpu_data, gpu_data);
-    hac.sample_hac(step, input_dir, para, cpu_data, gpu_data);
-    heat.sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
-    shc.process_shc(step, input_dir, para, cpu_data, gpu_data);
-    hnemd.process_hnemd_kappa(step, input_dir, para, cpu_data, gpu_data, integrate); 
+    vac.sample_vac(step, para, cpu_data, atom);
+    hac.sample_hac(step, input_dir, para, cpu_data, atom);
+    heat.sample_block_temperature(step, para, cpu_data, atom, integrate);
+    shc.process_shc(step, input_dir, para, cpu_data, atom);
+    hnemd.process_hnemd_kappa(step, input_dir, para, cpu_data, atom, integrate); 
 }
 
 

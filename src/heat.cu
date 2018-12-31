@@ -102,7 +102,7 @@ static __global__ void find_group_temp
 // sample block temperature (wrapper)
 void Heat::sample_block_temperature
 (
-    int step, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
+    int step, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
     Integrate *integrate
 )
 {
@@ -116,13 +116,13 @@ void Heat::sample_block_temperature
             // block temperatures
             real *temp_gpu;
             CHECK(cudaMalloc((void**)&temp_gpu, sizeof(real) * Ng));
-            int  *group_size = gpu_data->group_size;
-            int  *group_size_sum = gpu_data->group_size_sum;
-            int  *group_contents = gpu_data->group_contents;
-            real *mass = gpu_data->mass;
-            real *vx = gpu_data->vx;
-            real *vy = gpu_data->vy;
-            real *vz = gpu_data->vz;
+            int  *group_size = atom->group_size;
+            int  *group_size_sum = atom->group_size_sum;
+            int  *group_contents = atom->group_contents;
+            real *mass = atom->mass;
+            real *vx = atom->vx;
+            real *vy = atom->vy;
+            real *vz = atom->vz;
             find_group_temp<<<Ng, 256>>>
             (
                 group_size, group_size_sum, group_contents, 

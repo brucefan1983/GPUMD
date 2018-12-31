@@ -39,7 +39,7 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 //Allocate memory for recording heat current data
-void HAC::preprocess_hac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void HAC::preprocess_hac(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 {
     if (compute)
     {
@@ -112,7 +112,7 @@ static __global__ void gpu_sum_heat
 void HAC::sample_hac
 (
     int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
+    CPU_Data *cpu_data, Atom *atom
 )
 {
     if (compute)
@@ -127,9 +127,9 @@ void HAC::sample_hac
             CHECK(cudaMalloc((void**)&gpu_heat, sizeof(real) * M));
             gpu_sum_heat<<<M, 1024>>>
             (
-                para->N, Nd, nd, gpu_data->vx, gpu_data->vy, gpu_data->vz,
-                gpu_data->mass, gpu_data->potential_per_atom,
-                gpu_data->heat_per_atom, heat_all, gpu_heat
+                para->N, Nd, nd, atom->vx, atom->vy, atom->vz,
+                atom->mass, atom->potential_per_atom,
+                atom->heat_per_atom, heat_all, gpu_heat
             );
 #ifdef HEAT_CURRENT
             // dump the heat current components
@@ -260,7 +260,7 @@ static real get_volume(real *box_gpu)
 void HAC::find_hac_kappa
 (
     char *input_dir, Parameters *para, CPU_Data *cpu_data, 
-    GPU_Data *gpu_data, Integrate *integrate
+    Atom *atom, Integrate *integrate
 )
 {
     // rename variables
@@ -296,7 +296,7 @@ void HAC::find_hac_kappa
         cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_hac));
 
-    real volume = get_volume(gpu_data->box_length);
+    real volume = get_volume(atom->box_length);
     real factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
  
@@ -348,13 +348,13 @@ void HAC::find_hac_kappa
 void HAC::postprocess_hac
 (
     char *input_dir, Parameters *para, CPU_Data *cpu_data,
-    GPU_Data *gpu_data, Integrate *integrate
+    Atom *atom, Integrate *integrate
 )
 {
     if (compute) 
     {
         printf("INFO:  start to calculate HAC and related quantities.\n");
-        find_hac_kappa(input_dir, para, cpu_data, gpu_data, integrate);
+        find_hac_kappa(input_dir, para, cpu_data, atom, integrate);
         CHECK(cudaFree(heat_all));
         printf("INFO:  HAC and related quantities are calculated.\n\n");
     }

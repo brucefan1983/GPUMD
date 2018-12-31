@@ -17,7 +17,7 @@
 #ifndef NEIGHBOR_ON2_H
 #define NEIGHBOR_ON2_H
 
-void find_neighbor_ON2(Parameters *para, GPU_Data *gpu_data);
+void find_neighbor_ON2(Parameters *para, Atom *atom);
 
 #endif
 

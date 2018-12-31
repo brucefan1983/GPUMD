@@ -36,9 +36,9 @@ public:
     void initialize_one_potential(Parameters*, int);
     void initialize_two_body_potential(Parameters*);
     void initialize_many_body_potential(Parameters*, CPU_Data*, int);
-    void initialize(char*, Parameters *para, CPU_Data*, GPU_Data*);
-    void find_neighbor_local(Parameters*, GPU_Data*, int);
-    void compute(Parameters*, GPU_Data*, Measure*);
+    void initialize(char*, Parameters *para, CPU_Data*, Atom*);
+    void find_neighbor_local(Parameters*, Atom*, int);
+    void compute(Parameters*, Atom*, Measure*);
 
     int num_of_potentials;
     int interlayer_only;

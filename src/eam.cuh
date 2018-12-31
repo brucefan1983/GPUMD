@@ -58,7 +58,7 @@ class EAM : public Potential
 public:   
     EAM(FILE*, Parameters*, char*);  
     virtual ~EAM(void);
-    virtual void compute(Parameters*, GPU_Data*, Measure*);
+    virtual void compute(Parameters*, Atom*, Measure*);
     void initialize_eam2004zhou(FILE*);
     void initialize_eam2006dai(FILE*);
 protected:
