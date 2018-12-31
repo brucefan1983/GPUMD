@@ -27,7 +27,7 @@ class Integrate;
 class Heat
 {
 public:
-    int sample = 1;
+    int sample = 0;
     int sample_interval;
 
     void preprocess_heat(Parameters*, CPU_Data*);
