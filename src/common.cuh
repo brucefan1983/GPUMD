@@ -140,9 +140,6 @@ struct CPU_Data
     int *type_size; // number of atoms for each type
     int *group_contents;          // atom indices sorted based on groups
     real *group_temp;
-    real *box_matrix;       // box matrix
-    real *box_matrix_inv;   // inverse box matrix
-    real *box_length;       // box length in each direction
 }; 
 
 
@@ -180,6 +177,9 @@ public:
     real* cpu_x;
     real* cpu_y;
     real* cpu_z;
+    real* cpu_box_matrix;
+    real* cpu_box_matrix_inv;
+    real* cpu_box_length;
 };
 
 

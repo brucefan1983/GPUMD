@@ -255,10 +255,12 @@ void find_neighbor(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 
     real rc = para->neighbor.rc;
     real *box = atom->box_length;
+    real *cpu_box;
+    MY_MALLOC(cpu_box, real, 3);
 
     // the box might have been updated
     int m = sizeof(real) * DIM;
-    CHECK(cudaMemcpy(cpu_data->box_length, box, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(cpu_box, box, m, cudaMemcpyDeviceToHost));
 
     // determine the number of cells and the method
     int cell_n_x = 0;
@@ -268,24 +270,26 @@ void find_neighbor(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 
     if (para->pbc_x) 
     {
-        cell_n_x = floor(cpu_data->box_length[0] / rc);
+        cell_n_x = floor(cpu_box[0] / rc);
         if (cell_n_x < 3) {use_ON2 = 1;}
     }
     else {cell_n_x = 1;}
 
     if (para->pbc_y) 
     {
-        cell_n_y = floor(cpu_data->box_length[1] / rc);
+        cell_n_y = floor(cpu_box[1] / rc);
         if (cell_n_y < 3) {use_ON2 = 1;}
     }
     else {cell_n_y = 1;}
 
     if (para->pbc_z) 
     {
-        cell_n_z = floor(cpu_data->box_length[2] / rc);
+        cell_n_z = floor(cpu_box[2] / rc);
         if (cell_n_z < 3) {use_ON2 = 1;}
     }
     else {cell_n_z = 1;}
+
+    MY_FREE(cpu_box);
 
     if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = 1;}
 

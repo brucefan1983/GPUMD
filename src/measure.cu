@@ -137,7 +137,8 @@ static void gpu_sample_thermo
     // copy data from GPU to CPU
     real *thermo;
     MY_MALLOC(thermo, real, 6);
-    real *box_length = cpu_data->box_length;
+    real *box_length;
+    MY_MALLOC(box_length, real, DIM);
     int m1 = sizeof(real) * 6;
     int m2 = sizeof(real) * DIM;
     CHECK(cudaMemcpy(thermo, gpu_thermo, m1, cudaMemcpyDeviceToHost));
@@ -194,6 +195,7 @@ static void gpu_sample_thermo
 
     fflush(fid);
     MY_FREE(thermo);
+    MY_FREE(box_length);
 }
 
 

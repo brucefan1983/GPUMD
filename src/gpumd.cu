@@ -128,9 +128,9 @@ static void initialize_position
     MY_MALLOC(atom->cpu_x,    real, para->N);
     MY_MALLOC(atom->cpu_y,    real, para->N);
     MY_MALLOC(atom->cpu_z,    real, para->N);
-    MY_MALLOC(cpu_data->box_length, real, 3);
-    MY_MALLOC(cpu_data->box_matrix, real, 9);
-    MY_MALLOC(cpu_data->box_matrix_inv, real, 9);
+    MY_MALLOC(atom->cpu_box_length, real, 3);
+    MY_MALLOC(atom->cpu_box_matrix, real, 9);
+    MY_MALLOC(atom->cpu_box_matrix_inv, real, 9);
 
 #ifdef TRICLINIC
 
@@ -147,65 +147,65 @@ static void initialize_position
         &box[3], &box[4], &box[5], &box[6], &box[7], &box[8]
     ); 
     if (count != 9) print_error("reading error for line 3 of xyz.in.\n");
-    for (int n = 0; n < 9; ++n) cpu_data->box_matrix[n] = box[n];
+    for (int n = 0; n < 9; ++n) atom->cpu_box_matrix[n] = box[n];
 
-    real volume = cpu_data->box_matrix[0]
-                * cpu_data->box_matrix[4]
-                * cpu_data->box_matrix[8] 
-                + cpu_data->box_matrix[1]
-                * cpu_data->box_matrix[5]
-                * cpu_data->box_matrix[6] 
-                + cpu_data->box_matrix[2]
-                * cpu_data->box_matrix[3]
-                * cpu_data->box_matrix[7]
-                - cpu_data->box_matrix[2]
-                * cpu_data->box_matrix[4]
-                * cpu_data->box_matrix[6] 
-                - cpu_data->box_matrix[1]
-                * cpu_data->box_matrix[3]
-                * cpu_data->box_matrix[8] 
-                - cpu_data->box_matrix[0]
-                * cpu_data->box_matrix[5]
-                * cpu_data->box_matrix[7];
+    real volume = atom->cpu_box_matrix[0]
+                * atom->cpu_box_matrix[4]
+                * atom->cpu_box_matrix[8] 
+                + atom->cpu_box_matrix[1]
+                * atom->cpu_box_matrix[5]
+                * atom->cpu_box_matrix[6] 
+                + atom->cpu_box_matrix[2]
+                * atom->cpu_box_matrix[3]
+                * atom->cpu_box_matrix[7]
+                - atom->cpu_box_matrix[2]
+                * atom->cpu_box_matrix[4]
+                * atom->cpu_box_matrix[6] 
+                - atom->cpu_box_matrix[1]
+                * atom->cpu_box_matrix[3]
+                * atom->cpu_box_matrix[8] 
+                - atom->cpu_box_matrix[0]
+                * atom->cpu_box_matrix[5]
+                * atom->cpu_box_matrix[7];
 
-    cpu_data->box_matrix_inv[0] = cpu_data->box_matrix[4]
-                                * cpu_data->box_matrix[8] 
-                                - cpu_data->box_matrix[5]
-                                * cpu_data->box_matrix[7];
-    cpu_data->box_matrix_inv[1] = cpu_data->box_matrix[2]
-                                * cpu_data->box_matrix[7] 
-                                - cpu_data->box_matrix[1]
-                                * cpu_data->box_matrix[8];
-    cpu_data->box_matrix_inv[2] = cpu_data->box_matrix[1]
-                                * cpu_data->box_matrix[5] 
-                                - cpu_data->box_matrix[2]
-                                * cpu_data->box_matrix[4];
-    cpu_data->box_matrix_inv[3] = cpu_data->box_matrix[5]
-                                * cpu_data->box_matrix[6] 
-                                - cpu_data->box_matrix[3]
-                                * cpu_data->box_matrix[8];
-    cpu_data->box_matrix_inv[4] = cpu_data->box_matrix[0]
-                                * cpu_data->box_matrix[8] 
-                                - cpu_data->box_matrix[2]
-                                * cpu_data->box_matrix[6];
-    cpu_data->box_matrix_inv[5] = cpu_data->box_matrix[2]
-                                * cpu_data->box_matrix[3] 
-                                - cpu_data->box_matrix[0]
-                                * cpu_data->box_matrix[5];
-    cpu_data->box_matrix_inv[6] = cpu_data->box_matrix[3]
-                                * cpu_data->box_matrix[7] 
-                                - cpu_data->box_matrix[4]
-                                * cpu_data->box_matrix[6];
-    cpu_data->box_matrix_inv[7] = cpu_data->box_matrix[1]
-                                * cpu_data->box_matrix[6] 
-                                - cpu_data->box_matrix[0]
-                                * cpu_data->box_matrix[7];
-    cpu_data->box_matrix_inv[8] = cpu_data->box_matrix[0]
-                                * cpu_data->box_matrix[4] 
-                                - cpu_data->box_matrix[1]
-                                * cpu_data->box_matrix[3];
+    atom->cpu_box_matrix_inv[0] = atom->cpu_box_matrix[4]
+                                * atom->cpu_box_matrix[8] 
+                                - atom->cpu_box_matrix[5]
+                                * atom->cpu_box_matrix[7];
+    atom->cpu_box_matrix_inv[1] = atom->cpu_box_matrix[2]
+                                * atom->cpu_box_matrix[7] 
+                                - atom->cpu_box_matrix[1]
+                                * atom->cpu_box_matrix[8];
+    atom->cpu_box_matrix_inv[2] = atom->cpu_box_matrix[1]
+                                * atom->cpu_box_matrix[5] 
+                                - atom->cpu_box_matrix[2]
+                                * atom->cpu_box_matrix[4];
+    atom->cpu_box_matrix_inv[3] = atom->cpu_box_matrix[5]
+                                * atom->cpu_box_matrix[6] 
+                                - atom->cpu_box_matrix[3]
+                                * atom->cpu_box_matrix[8];
+    atom->cpu_box_matrix_inv[4] = atom->cpu_box_matrix[0]
+                                * atom->cpu_box_matrix[8] 
+                                - atom->cpu_box_matrix[2]
+                                * atom->cpu_box_matrix[6];
+    atom->cpu_box_matrix_inv[5] = atom->cpu_box_matrix[2]
+                                * atom->cpu_box_matrix[3] 
+                                - atom->cpu_box_matrix[0]
+                                * atom->cpu_box_matrix[5];
+    atom->cpu_box_matrix_inv[6] = atom->cpu_box_matrix[3]
+                                * atom->cpu_box_matrix[7] 
+                                - atom->cpu_box_matrix[4]
+                                * atom->cpu_box_matrix[6];
+    atom->cpu_box_matrix_inv[7] = atom->cpu_box_matrix[1]
+                                * atom->cpu_box_matrix[6] 
+                                - atom->cpu_box_matrix[0]
+                                * atom->cpu_box_matrix[7];
+    atom->cpu_box_matrix_inv[8] = atom->cpu_box_matrix[0]
+                                * atom->cpu_box_matrix[4] 
+                                - atom->cpu_box_matrix[1]
+                                * atom->cpu_box_matrix[3];
 
-    for (int n = 0; n < 9; n++) cpu_data->box_matrix_inv[n] /= volume;
+    for (int n = 0; n < 9; n++) atom->cpu_box_matrix_inv[n] /= volume;
 
 #else // #ifdef TRICLINIC
 
@@ -217,9 +217,9 @@ static void initialize_position
         &(para->pbc_x), &(para->pbc_y), &(para->pbc_z), &lx, &ly, &lz
     );
     if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
-    cpu_data->box_length[0] = lx;
-    cpu_data->box_length[1] = ly;
-    cpu_data->box_length[2] = lz;
+    atom->cpu_box_length[0] = lx;
+    atom->cpu_box_length[1] = ly;
+    atom->cpu_box_length[2] = lz;
 
 #endif // #ifdef TRICLINIC
 
@@ -429,16 +429,16 @@ static void copy_from_cpu_to_gpu
 
     cudaMemcpy
     (
-        atom->box_matrix, cpu_data->box_matrix, 
+        atom->box_matrix, atom->cpu_box_matrix, 
         9 * sizeof(real), cudaMemcpyHostToDevice
     );
     cudaMemcpy
     (
-        atom->box_matrix_inv, cpu_data->box_matrix_inv, 
+        atom->box_matrix_inv, atom->cpu_box_matrix_inv, 
         9 * sizeof(real), cudaMemcpyHostToDevice
     );
     cudaMemcpy
-    (atom->box_length, cpu_data->box_length, m4, cudaMemcpyHostToDevice);
+    (atom->box_length, atom->cpu_box_length, m4, cudaMemcpyHostToDevice);
 }
 
 
@@ -510,9 +510,9 @@ void GPUMD::finalize(CPU_Data *cpu_data, Atom *atom)
     MY_FREE(atom->cpu_x);
     MY_FREE(atom->cpu_y);
     MY_FREE(atom->cpu_z);
-    MY_FREE(cpu_data->box_length);
-    MY_FREE(cpu_data->box_matrix);
-    MY_FREE(cpu_data->box_matrix_inv);
+    MY_FREE(atom->cpu_box_length);
+    MY_FREE(atom->cpu_box_matrix);
+    MY_FREE(atom->cpu_box_matrix_inv);
 }
 
 
