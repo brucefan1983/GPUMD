@@ -82,7 +82,6 @@ static __global__ void gpu_berendsen_temperature
 
 static __global__ void gpu_berendsen_pressure
 (
-    Strain strain,
     int number_of_particles,
     int pbc_x,
     int pbc_y,
@@ -103,15 +102,8 @@ static __global__ void gpu_berendsen_pressure
     int i = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (i < number_of_particles)
-    {  
-        if (strain.compute)
-        {
-            real scale_factor = (g_box_length[0] + strain.rate) 
-                              / g_box_length[0];
-            g_x[i] *= scale_factor;
-            if (i == 0) { g_box_length[0] *= scale_factor; }
-        }
-        else if (pbc_x == 1)
+    {
+        if (pbc_x == 1)
         {
             real scale_factor = ONE - p_coupling * (p0x - g_prop[2]);
             g_x[i] *= scale_factor;
@@ -195,7 +187,7 @@ void Ensemble_BER::compute
     {
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (
-            para->strain, N, pbc_x, pbc_y, pbc_z, p0x, p0y, p0z, p_coupling, 
+            N, pbc_x, pbc_y, pbc_z, p0x, p0y, p0z, p_coupling, 
             thermo, box_length, x, y, z
         );
     }

@@ -91,17 +91,6 @@ typedef unsigned long long uint64;
 
 
 
-// Parameters for stress-strain claculations (not finished)
-struct Strain 
-{
-    int compute;           // 1 means you want to do this calculation
-    int direction;         // 1=x; 2=y; 3=z
-    real rate;             // strain rate (in units of A/ps)
-};
-
-
-
-
 // Parameters for neighbor list updating
 struct Neighbor
 {
@@ -138,7 +127,6 @@ struct Parameters
 
     // some well defined sub-structures
     Neighbor neighbor;
-    Strain strain;
 };
 
 

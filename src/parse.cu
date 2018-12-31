@@ -796,26 +796,7 @@ static void parse_compute_shc(char **param,  int num_param, Measure* measure)
 
 static void parse_deform(char **param,  int num_param, Parameters *para)
 {
-    printf("INPUT: compute the stress-strain relation.\n");
-
-    para->strain.compute = 1;
-
-    if (num_param != 2)
-    {
-        print_error("deform should have 1 parameters.\n");
-    }
-
-    // engineering strain rate
-    if (!is_valid_real(param[1], &para->strain.rate))
-    {
-        print_error("strain.rate should be a real number.\n");
-    }   
-    printf
-    (
-        "       engineering strain rate is %g A/step.\n", 
-        para->strain.rate
-    );
-
+    print_error("the deform keyword is to be implemented.\n");
 }
 
 
