@@ -123,7 +123,7 @@ static void initialize_position
     // now we have enough information to allocate memroy for the major data
     MY_MALLOC(atom->cpu_type,       int, para->N);
     MY_MALLOC(atom->cpu_type_local, int, para->N);
-    MY_MALLOC(cpu_data->label,      int, para->N);
+    MY_MALLOC(atom->cpu_label,      int, para->N);
     MY_MALLOC(atom->cpu_mass, real, para->N);
     MY_MALLOC(atom->cpu_x,    real, para->N);
     MY_MALLOC(atom->cpu_y,    real, para->N);
@@ -253,7 +253,7 @@ static void initialize_position
         count = fscanf
         (
             fid_xyz, "%d%d%lf%lf%lf%lf", 
-            &(atom->cpu_type[n]), &(cpu_data->label[n]), &mass, &x, &y, &z
+            &(atom->cpu_type[n]), &(atom->cpu_label[n]), &mass, &x, &y, &z
         );
         if (count != 6) print_error("reading error for xyz.in.\n");
         atom->cpu_mass[n] = mass;
@@ -261,8 +261,8 @@ static void initialize_position
         atom->cpu_y[n] = y;
         atom->cpu_z[n] = z;
 
-        if (cpu_data->label[n] > max_label)
-            max_label = cpu_data->label[n];
+        if (atom->cpu_label[n] > max_label)
+            max_label = atom->cpu_label[n];
 
         if (atom->cpu_type[n] > max_type)
             max_type = atom->cpu_type[n];
@@ -281,33 +281,33 @@ static void initialize_position
         printf("INPUT: there are %d groups of atoms.\n",para->number_of_groups);
 
     // determine the number of atoms in each group
-    MY_MALLOC(cpu_data->group_size, int, para->number_of_groups);
-    MY_MALLOC(cpu_data->group_size_sum, int, para->number_of_groups);
+    MY_MALLOC(atom->cpu_group_size, int, para->number_of_groups);
+    MY_MALLOC(atom->cpu_group_size_sum, int, para->number_of_groups);
     for (int m = 0; m < para->number_of_groups; m++)
     {
-        cpu_data->group_size[m] = 0;
-        cpu_data->group_size_sum[m] = 0;
+        atom->cpu_group_size[m] = 0;
+        atom->cpu_group_size_sum[m] = 0;
     }
     for (int n = 0; n < para->N; n++) 
-        cpu_data->group_size[cpu_data->label[n]]++;
+        atom->cpu_group_size[atom->cpu_label[n]]++;
     for (int m = 0; m < para->number_of_groups; m++)
-        printf("       %d atoms in group %d.\n", cpu_data->group_size[m], m);   
+        printf("       %d atoms in group %d.\n", atom->cpu_group_size[m], m);   
     
     // calculate the number of atoms before a group
     for (int m = 1; m < para->number_of_groups; m++)
         for (int n = 0; n < m; n++)
-            cpu_data->group_size_sum[m] += cpu_data->group_size[n];
+            atom->cpu_group_size_sum[m] += atom->cpu_group_size[n];
 
     // determine the atom indices from the first to the last group
-    MY_MALLOC(cpu_data->group_contents, int, para->N);
+    MY_MALLOC(atom->cpu_group_contents, int, para->N);
     int *offset;
     MY_MALLOC(offset, int, para->number_of_groups);
     for (int m = 0; m < para->number_of_groups; m++) offset[m] = 0;
     for (int n = 0; n < para->N; n++) 
         for (int m = 0; m < para->number_of_groups; m++)
-            if (cpu_data->label[n] == m)
+            if (atom->cpu_label[n] == m)
             {
-                cpu_data->group_contents[cpu_data->group_size_sum[m]+offset[m]] 
+                atom->cpu_group_contents[atom->cpu_group_size_sum[m]+offset[m]] 
                     = n;
                 offset[m]++;
             }
@@ -407,18 +407,18 @@ static void copy_from_cpu_to_gpu
     cudaMemcpy(atom->type, atom->cpu_type, m1, cudaMemcpyHostToDevice); 
     cudaMemcpy
     (atom->type_local, atom->cpu_type, m1, cudaMemcpyHostToDevice);
-    cudaMemcpy(atom->label, cpu_data->label, m1, cudaMemcpyHostToDevice); 
+    cudaMemcpy(atom->label, atom->cpu_label, m1, cudaMemcpyHostToDevice); 
 
     cudaMemcpy
-    (atom->group_size, cpu_data->group_size, m2, cudaMemcpyHostToDevice);
+    (atom->group_size, atom->cpu_group_size, m2, cudaMemcpyHostToDevice);
     cudaMemcpy
     (
-        atom->group_size_sum, cpu_data->group_size_sum, m2, 
+        atom->group_size_sum, atom->cpu_group_size_sum, m2, 
         cudaMemcpyHostToDevice
     );
     cudaMemcpy
     (
-        atom->group_contents, cpu_data->group_contents, m1, 
+        atom->group_contents, atom->cpu_group_contents, m1, 
         cudaMemcpyHostToDevice
     );
 
@@ -501,10 +501,10 @@ void GPUMD::finalize(CPU_Data *cpu_data, Atom *atom)
     // Free the major memory allocated on the CPU
     MY_FREE(atom->cpu_type);
     MY_FREE(atom->cpu_type_local);
-    MY_FREE(cpu_data->label);
-    MY_FREE(cpu_data->group_size);
-    MY_FREE(cpu_data->group_size_sum);
-    MY_FREE(cpu_data->group_contents);
+    MY_FREE(atom->cpu_label);
+    MY_FREE(atom->cpu_group_size);
+    MY_FREE(atom->cpu_group_size_sum);
+    MY_FREE(atom->cpu_group_contents);
     MY_FREE(atom->cpu_type_size);
     MY_FREE(atom->cpu_mass);
     MY_FREE(atom->cpu_x);
@@ -534,7 +534,7 @@ static void process_run
     Measure *measure
 )
 {
-    integrate->initialize(para, cpu_data); 
+    integrate->initialize(para, atom);
     measure->initialize(para, cpu_data, atom);
 
     // record the starting time for this run

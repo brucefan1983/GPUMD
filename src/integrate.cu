@@ -47,7 +47,7 @@ void Integrate::finalize(void)
 }
 
 
-void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
+void Integrate::initialize(Parameters *para, Atom* atom)
 {
     // determine the integrator
     switch (type)
@@ -84,8 +84,8 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
         case 21: // heat-NHC
             ensemble = new Ensemble_NHC
             (
-                type, source, sink, cpu_data->group_size[source], 
-                cpu_data->group_size[sink], temperature, temperature_coupling, 
+                type, source, sink, atom->cpu_group_size[source], 
+                atom->cpu_group_size[sink], temperature, temperature_coupling, 
                 delta_temperature, para->time_step
             );
             break;
@@ -93,10 +93,10 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
             ensemble = new Ensemble_LAN
             (
                 type, source, sink, 
-                cpu_data->group_size[source],
-                cpu_data->group_size[sink],
-                cpu_data->group_size_sum[source],
-                cpu_data->group_size_sum[sink],
+                atom->cpu_group_size[source],
+                atom->cpu_group_size[sink],
+                atom->cpu_group_size_sum[source],
+                atom->cpu_group_size_sum[sink],
                 temperature, temperature_coupling, delta_temperature
             );
             break;

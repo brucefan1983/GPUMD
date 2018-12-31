@@ -31,7 +31,7 @@ public:
     Ensemble *ensemble; 
     Integrate(void);
     ~Integrate(void);   
-    void initialize(Parameters*, CPU_Data*);
+    void initialize(Parameters*, Atom*);
     void finalize(void);
     void compute(Parameters*, CPU_Data*, Atom*, Force*, Measure*);
 

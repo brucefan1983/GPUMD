@@ -259,7 +259,7 @@ void Ensemble_LAN::integrate_nvt_lan
     (curand_states, N, c1, c2, mass, vx, vy, vz);
 
     // thermo
-    int N_fixed = (fixed_group == -1) ? 0 : cpu_data->group_size[fixed_group];
+    int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
     gpu_find_thermo<<<5, 1024>>>
     (
         N, N_fixed, fixed_group, label, temperature, box_length, 

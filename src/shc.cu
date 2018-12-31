@@ -125,12 +125,12 @@ void SHC::preprocess_shc
         {
             cpu_a_map[n] = -1;
             cpu_b_map[n] = -1;
-            if (cpu_data->label[n] == block_A)
+            if (atom->cpu_label[n] == block_A)
             {
                 cpu_a_map[n] = c_a;
                 c_a++;
             }
-            else if (cpu_data->label[n] == block_B)
+            else if (atom->cpu_label[n] == block_B)
             {
                 cpu_b_map[n] = c_b;
                 c_b++;

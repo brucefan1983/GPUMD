@@ -222,7 +222,7 @@ void Ensemble_NHC::integrate_nvt_nhc
 
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
 
-    int N_fixed = (fixed_group == -1) ? 0 : cpu_data->group_size[fixed_group];
+    int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
     gpu_find_thermo<<<5, 1024>>>
     (
         N, N_fixed, fixed_group, label, temperature, box_length, 
@@ -467,8 +467,8 @@ void Ensemble_NHC::integrate_heat_nhc
 
     real kT1 = K_B * (temperature + delta_temperature); 
     real kT2 = K_B * (temperature - delta_temperature); 
-    real dN1 = (real) DIM * cpu_data->group_size[source];
-    real dN2 = (real) DIM * cpu_data->group_size[sink];
+    real dN1 = (real) DIM * atom->cpu_group_size[source];
+    real dN2 = (real) DIM * atom->cpu_group_size[sink];
     real dt2 = time_step * HALF;
 
     // allocate some memory (to be improved)

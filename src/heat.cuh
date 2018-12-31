@@ -29,6 +29,7 @@ class Heat
 public:
     int sample = 0;
     int sample_interval;
+    real* group_temp;
 
     void preprocess_heat(Parameters*, CPU_Data*);
     void postprocess_heat(char*, Parameters*, CPU_Data*, Integrate*);

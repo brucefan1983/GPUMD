@@ -37,7 +37,7 @@ void Heat::preprocess_heat(Parameters *para, CPU_Data *cpu_data)
         // The last 2 data are the energy changes of the source and sink
         int num = (para->number_of_groups + 2) 
                 * (para->number_of_steps / sample_interval);
-        MY_MALLOC(cpu_data->group_temp, real, num);
+        MY_MALLOC(group_temp, real, num);
     }
 }
 
@@ -132,14 +132,14 @@ void Heat::sample_block_temperature
                 CHECK(cudaDeviceSynchronize());
                 CHECK(cudaGetLastError());
             #endif
-            CHECK(cudaMemcpy(cpu_data->group_temp+offset, temp_gpu, 
+            CHECK(cudaMemcpy(group_temp+offset, temp_gpu, 
                 sizeof(real)*Ng, cudaMemcpyDeviceToHost));
             CHECK(cudaFree(temp_gpu));
 
             // energies of the heat source and sink
-            cpu_data->group_temp[offset + Ng]     
+            group_temp[offset + Ng]     
                 = integrate->ensemble->energy_transferred[0];
-            cpu_data->group_temp[offset + Ng + 1] 
+            group_temp[offset + Ng + 1] 
                 = integrate->ensemble->energy_transferred[1];
         }
     }
@@ -167,12 +167,12 @@ void Heat::postprocess_heat
             int number_of_data = Ng + 2;
             for (int k = 0; k < number_of_data; k++) 
             {
-                fprintf(fid, "%15.6e", cpu_data->group_temp[offset + k]);
+                fprintf(fid, "%15.6e", group_temp[offset + k]);
             }
             fprintf(fid, "\n");
         }
         fflush(fid);
-        MY_FREE(cpu_data->group_temp); // allocated in preprocess_heat
+        MY_FREE(group_temp); // allocated in preprocess_heat
     }
 }
 

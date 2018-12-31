@@ -135,16 +135,14 @@ struct Parameters
 // All the CPU data
 struct CPU_Data
 {
-    int *label; int *group_size; int *group_size_sum;
-    int *group_contents;          // atom indices sorted based on groups
-    real *group_temp;
+    // to be deleted
 }; 
 
 
 
 
 
-// All the GPU data
+
 class Atom
 {
 public:
@@ -174,6 +172,11 @@ public:
     int* cpu_type;
     int* cpu_type_local;
     int* cpu_type_size;
+    int* cpu_label;
+    int* cpu_group_size;
+    int* cpu_group_size_sum;
+    int* cpu_group_contents;
+
     real* cpu_mass;
     real* cpu_x;
     real* cpu_y;
