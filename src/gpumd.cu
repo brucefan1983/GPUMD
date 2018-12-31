@@ -121,8 +121,8 @@ static void initialize_position
         );    
 
     // now we have enough information to allocate memroy for the major data
-    MY_MALLOC(cpu_data->type,       int, para->N);
-    MY_MALLOC(cpu_data->type_local, int, para->N);
+    MY_MALLOC(atom->cpu_type,       int, para->N);
+    MY_MALLOC(atom->cpu_type_local, int, para->N);
     MY_MALLOC(cpu_data->label,      int, para->N);
     MY_MALLOC(atom->cpu_mass, real, para->N);
     MY_MALLOC(atom->cpu_x,    real, para->N);
@@ -253,7 +253,7 @@ static void initialize_position
         count = fscanf
         (
             fid_xyz, "%d%d%lf%lf%lf%lf", 
-            &(cpu_data->type[n]), &(cpu_data->label[n]), &mass, &x, &y, &z
+            &(atom->cpu_type[n]), &(cpu_data->label[n]), &mass, &x, &y, &z
         );
         if (count != 6) print_error("reading error for xyz.in.\n");
         atom->cpu_mass[n] = mass;
@@ -264,11 +264,11 @@ static void initialize_position
         if (cpu_data->label[n] > max_label)
             max_label = cpu_data->label[n];
 
-        if (cpu_data->type[n] > max_type)
-            max_type = cpu_data->type[n];
+        if (atom->cpu_type[n] > max_type)
+            max_type = atom->cpu_type[n];
 
         // copy
-        cpu_data->type_local[n] = cpu_data->type[n];
+        atom->cpu_type_local[n] = atom->cpu_type[n];
     }
 
     fclose(fid_xyz);
@@ -321,13 +321,13 @@ static void initialize_position
         printf("INPUT: there are %d atom types.\n", para->number_of_types);
 
     // determine the number of atoms in each type
-    MY_MALLOC(cpu_data->type_size, int, para->number_of_types);
+    MY_MALLOC(atom->cpu_type_size, int, para->number_of_types);
     for (int m = 0; m < para->number_of_types; m++)
-        cpu_data->type_size[m] = 0;
+        atom->cpu_type_size[m] = 0;
     for (int n = 0; n < para->N; n++) 
-        cpu_data->type_size[cpu_data->type[n]]++;
+        atom->cpu_type_size[atom->cpu_type[n]]++;
     for (int m = 0; m < para->number_of_types; m++)
-        printf("       %d atoms of type %d.\n", cpu_data->type_size[m], m); 
+        printf("       %d atoms of type %d.\n", atom->cpu_type_size[m], m); 
 
     printf("INFO:  positions and related parameters initialized.\n");
     printf("---------------------------------------------------------------\n");
@@ -404,9 +404,9 @@ static void copy_from_cpu_to_gpu
     int m3 = sizeof(real) * para->N;
     int m4 = sizeof(real) * DIM;
 
-    cudaMemcpy(atom->type, cpu_data->type, m1, cudaMemcpyHostToDevice); 
+    cudaMemcpy(atom->type, atom->cpu_type, m1, cudaMemcpyHostToDevice); 
     cudaMemcpy
-    (atom->type_local, cpu_data->type, m1, cudaMemcpyHostToDevice);
+    (atom->type_local, atom->cpu_type, m1, cudaMemcpyHostToDevice);
     cudaMemcpy(atom->label, cpu_data->label, m1, cudaMemcpyHostToDevice); 
 
     cudaMemcpy
@@ -499,13 +499,13 @@ void GPUMD::finalize(CPU_Data *cpu_data, Atom *atom)
     CHECK(cudaFree(atom->thermo));
 
     // Free the major memory allocated on the CPU
-    MY_FREE(cpu_data->type);
-    MY_FREE(cpu_data->type_local);
+    MY_FREE(atom->cpu_type);
+    MY_FREE(atom->cpu_type_local);
     MY_FREE(cpu_data->label);
     MY_FREE(cpu_data->group_size);
     MY_FREE(cpu_data->group_size_sum);
     MY_FREE(cpu_data->group_contents);
-    MY_FREE(cpu_data->type_size);
+    MY_FREE(atom->cpu_type_size);
     MY_FREE(atom->cpu_mass);
     MY_FREE(atom->cpu_x);
     MY_FREE(atom->cpu_y);

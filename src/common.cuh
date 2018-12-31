@@ -135,9 +135,7 @@ struct Parameters
 // All the CPU data
 struct CPU_Data
 {
-    int *type; int *label; int *group_size; int *group_size_sum;
-    int *type_local;              // local atom type (for force)
-    int *type_size; // number of atoms for each type
+    int *label; int *group_size; int *group_size_sum;
     int *group_contents;          // atom indices sorted based on groups
     real *group_temp;
 }; 
@@ -173,6 +171,9 @@ public:
     real *box_length;       // box length in each direction
     real *thermo;           // some thermodynamic quantities
 
+    int* cpu_type;
+    int* cpu_type_local;
+    int* cpu_type_size;
     real* cpu_mass;
     real* cpu_x;
     real* cpu_y;

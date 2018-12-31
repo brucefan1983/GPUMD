@@ -277,7 +277,7 @@ void Force::initialize_two_body_potential(Parameters *para)
 
 
 void Force::initialize_many_body_potential
-(Parameters *para, CPU_Data *cpu_data, int m)
+(Parameters *para, Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
@@ -360,11 +360,11 @@ void Force::initialize_many_body_potential
     potential[m]->N2 = 0;
     for (int n = 0; n < type_begin[m]; ++n)
     {
-        potential[m]->N1 += cpu_data->type_size[n];
+        potential[m]->N1 += atom->cpu_type_size[n];
     }
     for (int n = 0; n <= type_end[m]; ++n)
     {
-        potential[m]->N2 += cpu_data->type_size[n];
+        potential[m]->N2 += atom->cpu_type_size[n];
     }
     printf
     (
@@ -418,13 +418,13 @@ void Force::initialize
         // the many-body part
         for (int m = 1; m < num_of_potentials; m++)
         {
-            initialize_many_body_potential(para, cpu_data, m);
+            initialize_many_body_potential(para, atom, m);
             if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
 
             // check the atom types in xyz.in
             for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
             {
-                if (cpu_data->type[n] < type_begin[m] || cpu_data->type[n] > type_end[m])
+                if (atom->cpu_type[n] < type_begin[m] || atom->cpu_type[n] > type_end[m])
                 {
                     printf("ERROR: ");
                     printf
@@ -436,14 +436,14 @@ void Force::initialize
                 }
 
                 // the local type always starts from 0
-                cpu_data->type_local[n] -= type_begin[m];
+                atom->cpu_type_local[n] -= type_begin[m];
             }
         }
         
         // copy the local atom type to the GPU
         cudaMemcpy
         (
-            atom->type_local, cpu_data->type_local, 
+            atom->type_local, atom->cpu_type_local, 
             sizeof(int) * para->N, cudaMemcpyHostToDevice
         );
     }
