@@ -81,8 +81,7 @@ Measure::~Measure(void)
 
 
 
-void Measure::initialize
-(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void Measure::initialize(Parameters *para, Atom *atom)
 {
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_position)  {fid_position = my_fopen(file_position, "a");}
@@ -92,21 +91,18 @@ void Measure::initialize
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
 
-    vac.preprocess_vac(para,  cpu_data, atom);
-    hac.preprocess_hac(para,  cpu_data, atom);  
-    shc.preprocess_shc(para,  cpu_data, atom); 
-    heat.preprocess_heat(para, cpu_data);      
-    hnemd.preprocess_hnemd_kappa(para, cpu_data, atom);  
+    vac.preprocess_vac(para, atom);
+    hac.preprocess_hac(para, atom);
+    shc.preprocess_shc(para, atom);
+    heat.preprocess_heat(para);
+    hnemd.preprocess_hnemd_kappa(para, atom);
 }
 
 
 
 
 void Measure::finalize
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
-    Integrate *integrate
-)
+(char *input_dir, Parameters *para, Atom *atom, Integrate *integrate)
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
     if (dump_position)  {fclose(fid_position);  dump_position  = 0;}
@@ -116,11 +112,11 @@ void Measure::finalize
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 
-    vac.postprocess_vac(input_dir, para, cpu_data, atom);
-    hac.postprocess_hac(input_dir, para, cpu_data, atom, integrate);
-    shc.postprocess_shc(para, cpu_data, atom);
-    heat.postprocess_heat(input_dir, para, cpu_data, integrate);
-    hnemd.postprocess_hnemd_kappa(para, cpu_data, atom);
+    vac.postprocess_vac(input_dir, para, atom);
+    hac.postprocess_hac(input_dir, para, atom, integrate);
+    shc.postprocess_shc(para, atom);
+    heat.postprocess_heat(input_dir, para, integrate);
+    hnemd.postprocess_hnemd_kappa(para, atom);
 }
 
 
@@ -129,7 +125,7 @@ void Measure::finalize
 // dump thermodynamic properties
 static void gpu_sample_thermo
 (
-    FILE *fid, Parameters *para, CPU_Data *cpu_data, 
+    FILE *fid, Parameters *para,
     real *gpu_thermo, real *gpu_box_length, Ensemble *ensemble
 )
 {
@@ -203,20 +199,14 @@ static void gpu_sample_thermo
 
 // dump thermodynamic properties (A wrapper function)
 void Measure::dump_thermos
-(
-    FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
-    Integrate *integrate, int step
-)
+(FILE *fid, Parameters *para, Atom *atom, Integrate *integrate, int step)
 {
     if (dump_thermo)
     {
         if ((step + 1) % sample_interval_thermo == 0)
         {
             gpu_sample_thermo
-            (
-                fid, para, cpu_data, atom->thermo, atom->box_length, 
-                integrate->ensemble
-            );
+            (fid, para, atom->thermo, atom->box_length, integrate->ensemble);
         }
     }
 }
@@ -248,8 +238,7 @@ static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
 
 
 
-void Measure::dump_positions
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
+void Measure::dump_positions(FILE *fid, Parameters *para, Atom *atom, int step)
 {
     if (dump_position)
     {
@@ -263,8 +252,7 @@ void Measure::dump_positions
 
 
 
-void Measure::dump_velocities
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
+void Measure::dump_velocities(FILE *fid, Parameters *para, Atom *atom, int step)
 {
     if (dump_velocity)
     {
@@ -278,8 +266,7 @@ void Measure::dump_velocities
 
 
 
-void Measure::dump_forces
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
+void Measure::dump_forces(FILE *fid, Parameters *para, Atom *atom, int step)
 {
     if (dump_force)
     {
@@ -293,8 +280,7 @@ void Measure::dump_forces
 
 
 
-void Measure::dump_virials
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
+void Measure::dump_virials(FILE *fid, Parameters *para, Atom *atom, int step)
 {
     if (dump_virial)
     {
@@ -328,8 +314,7 @@ static void gpu_dump_1(int N, FILE *fid, real *a)
 
 
 
-void Measure::dump_potentials
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
+void Measure::dump_potentials(FILE *fid, Parameters *para, Atom *atom, int step)
 {
     if (dump_potential)
     {
@@ -343,8 +328,7 @@ void Measure::dump_potentials
 
 
 
-void Measure::dump_heats
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, Atom *atom, int step)
+void Measure::dump_heats(FILE *fid, Parameters *para, Atom *atom, int step)
 {
     if (dump_heat)
     {
@@ -361,23 +345,23 @@ void Measure::dump_heats
 
 void Measure::compute
 (
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
+    char *input_dir, Parameters *para, Atom *atom, 
     Integrate *integrate, int step
 )
 {
-    dump_thermos(fid_thermo, para, cpu_data, atom, integrate, step);
-    dump_positions(fid_position, para, cpu_data, atom, step);
-    dump_velocities(fid_velocity, para, cpu_data, atom, step);
-    dump_forces(fid_force, para, cpu_data, atom, step);
-    dump_potentials(fid_potential, para, cpu_data, atom, step);
-    dump_virials(fid_virial, para, cpu_data, atom, step);
-    dump_heats(fid_heat, para, cpu_data, atom, step);
+    dump_thermos(fid_thermo, para, atom, integrate, step);
+    dump_positions(fid_position, para, atom, step);
+    dump_velocities(fid_velocity, para, atom, step);
+    dump_forces(fid_force, para, atom, step);
+    dump_potentials(fid_potential, para, atom, step);
+    dump_virials(fid_virial, para, atom, step);
+    dump_heats(fid_heat, para, atom, step);
 
-    vac.sample_vac(step, para, cpu_data, atom);
-    hac.sample_hac(step, input_dir, para, cpu_data, atom);
-    heat.sample_block_temperature(step, para, cpu_data, atom, integrate);
-    shc.process_shc(step, input_dir, para, cpu_data, atom);
-    hnemd.process_hnemd_kappa(step, input_dir, para, cpu_data, atom, integrate); 
+    vac.sample_vac(step, para, atom);
+    hac.sample_hac(step, input_dir, para, atom);
+    heat.sample_block_temperature(step, para, atom, integrate);
+    shc.process_shc(step, input_dir, para, atom);
+    hnemd.process_hnemd_kappa(step, input_dir, para, atom, integrate);
 }
 
 

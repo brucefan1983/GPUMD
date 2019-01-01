@@ -37,8 +37,7 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 
-void HNEMD::preprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void HNEMD::preprocess_hnemd_kappa(Parameters *para, Atom *atom)
 {
     if (compute)
     {
@@ -92,7 +91,7 @@ static real get_volume(real *box_gpu)
 void HNEMD::process_hnemd_kappa
 (
     int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, Atom *atom, Integrate *integrate
+    Atom *atom, Integrate *integrate
 )
 {
     if (compute)
@@ -143,8 +142,7 @@ void HNEMD::process_hnemd_kappa
 
 
 
-void HNEMD::postprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void HNEMD::postprocess_hnemd_kappa(Parameters *para, Atom *atom)
 {
     if (compute) { cudaFree(heat_all); }
 }

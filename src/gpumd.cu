@@ -59,18 +59,17 @@ static void print_error (const char *str)
 
 
 GPUMD::GPUMD(char *input_dir)
-{ 
+{
     // Data structures:
     Parameters  para;
-    CPU_Data    cpu_data;
     Atom    atom;
     Force       force;
     Integrate   integrate;
     Measure     measure(input_dir);
 
-    initialize(input_dir, &para, &cpu_data, &atom);
-    run(input_dir, &para, &cpu_data, &atom, &force, &integrate, &measure);
-    finalize(&cpu_data, &atom);
+    initialize(input_dir, &para, &atom);
+    run(input_dir, &para, &atom, &force, &integrate, &measure);
+    finalize(&atom);
 }
 
 
@@ -84,8 +83,7 @@ GPUMD::~GPUMD(void)
 
 
 
-static void initialize_position
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom* atom)
+static void initialize_position(char *input_dir, Parameters *para, Atom* atom)
 {  
     printf("---------------------------------------------------------------\n");
     printf("INFO:  read in initial positions and related parameters.\n");
@@ -396,8 +394,7 @@ static void allocate_memory_gpu(Parameters *para, Atom *atom)
 
 
 
-static void copy_from_cpu_to_gpu
-(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+static void copy_from_cpu_to_gpu(Parameters *para, Atom *atom)
 {
     int m1 = sizeof(int) * para->N;
     int m2 = sizeof(int) * para->number_of_groups;
@@ -444,22 +441,21 @@ static void copy_from_cpu_to_gpu
 
 
 
-void GPUMD::initialize
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void GPUMD::initialize(char *input_dir, Parameters *para, Atom *atom)
 { 
-    initialize_position(input_dir, para, cpu_data, atom);
+    initialize_position(input_dir, para, atom);
     allocate_memory_gpu(para, atom);
-    copy_from_cpu_to_gpu(para, cpu_data, atom);
+    copy_from_cpu_to_gpu(para, atom);
 
     // build the initial neighbor list
     int is_first = 1;
-    find_neighbor(para, cpu_data, atom, is_first);
+    find_neighbor(para, atom, is_first);
 }
 
 
 
 
-void GPUMD::finalize(CPU_Data *cpu_data, Atom *atom)
+void GPUMD::finalize(Atom *atom)
 {
     // Free the memory allocated on the GPU
     CHECK(cudaFree(atom->NN)); 
@@ -527,7 +523,6 @@ static void process_run
     unsigned int num_param, 
     char *input_dir,  
     Parameters *para, 
-    CPU_Data *cpu_data,
     Atom *atom,
     Force *force,
     Integrate *integrate,
@@ -535,7 +530,7 @@ static void process_run
 )
 {
     integrate->initialize(para, atom);
-    measure->initialize(para, cpu_data, atom);
+    measure->initialize(para, atom);
 
     // record the starting time for this run
     clock_t time_begin = clock();
@@ -546,7 +541,7 @@ static void process_run
         // update the neighbor list
         if (para->neighbor.update)
         {
-            find_neighbor(para, cpu_data, atom, 0);
+            find_neighbor(para, atom, 0);
         }
 
         // set the current temperature;
@@ -558,10 +553,10 @@ static void process_run
         }
 
         // integrate by one time-step:
-        integrate->compute(para, cpu_data, atom, force, measure);
+        integrate->compute(para, atom, force, measure);
 
         // measure
-        measure->compute(input_dir, para, cpu_data, atom, integrate, step);
+        measure->compute(input_dir, para, atom, integrate, step);
 
         if (para->number_of_steps >= 10)
         {
@@ -575,7 +570,7 @@ static void process_run
     // only for myself
     if (0)
     {
-        validate_force(force, para, cpu_data, atom, measure);
+        validate_force(force, para, atom, measure);
     }
 
     printf("INFO:  This run is completed.\n\n");
@@ -587,7 +582,7 @@ static void process_run
     real run_speed = para->N * (para->number_of_steps / time_used);
     printf("INFO:  Speed of this run = %g atom*step/second.\n\n", run_speed);
 
-    measure->finalize(input_dir, para, cpu_data, atom, integrate);
+    measure->finalize(input_dir, para, atom, integrate);
     integrate->finalize();
 }
 
@@ -694,7 +689,6 @@ void GPUMD::run
 (
     char *input_dir,  
     Parameters *para,
-    CPU_Data *cpu_data, 
     Atom *atom,
     Force *force,
     Integrate *integrate,
@@ -735,7 +729,7 @@ void GPUMD::run
         // check for some special keywords
         if (is_potential) 
         {  
-            force->initialize(input_dir, para, cpu_data, atom);
+            force->initialize(input_dir, para, atom);
             force->compute(para, atom, measure);
             #ifdef FORCE
             // output the initial forces (for lattice dynamics calculations)
@@ -770,7 +764,7 @@ void GPUMD::run
         { 
             process_run
             (
-                param, num_param, input_dir, para, cpu_data, atom, 
+                param, num_param, input_dir, para, atom, 
                 force, integrate, measure
             );
             

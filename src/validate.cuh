@@ -21,7 +21,7 @@ class Force;
 class Measure;
 
 void validate_force
-(Force *force, Parameters *para, CPU_Data *cpu_data, Atom *atom, Measure* measure);
+(Force *force, Parameters *para, Atom *atom, Measure* measure);
 
 
 #endif

@@ -92,7 +92,7 @@ static void __global__ gpu_scale_velocity
 
 
 void Ensemble_BDP::integrate_nvt_bdp
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
+(Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
     int  N           = para->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -317,7 +317,7 @@ static __global__ void gpu_scale_velocity
 
 // integrate by one step, with heating and cooling, using the BDP method
 void Ensemble_BDP::integrate_heat_bdp
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
+(Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
     int N         = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
@@ -404,15 +404,15 @@ void Ensemble_BDP::integrate_heat_bdp
 
  
 void Ensemble_BDP::compute
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
+(Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
     if (type == 4)
     {
-        integrate_nvt_bdp(para, cpu_data, atom, force, measure);
+        integrate_nvt_bdp(para, atom, force, measure);
     }
     else
     {
-        integrate_heat_bdp(para, cpu_data, atom, force, measure);
+        integrate_heat_bdp(para, atom, force, measure);
     }
 }
 

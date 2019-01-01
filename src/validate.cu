@@ -142,7 +142,7 @@ static __global__ void sum_potential(int N, int m, real *p, real *p_sum)
     if (tid ==  0) 
     {
         p_sum[m] = s_sum[0]; 
-    }       		
+    }
 }
 
 
@@ -167,7 +167,7 @@ static __global__ void find_force_from_potential
 
 
 void validate_force
-(Force *force, Parameters *para, CPU_Data *cpu_data, Atom *atom, Measure* measure)
+(Force *force, Parameters *para, Atom *atom, Measure* measure)
 {
     int N = para->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -220,7 +220,7 @@ void validate_force
             force->compute(para, atom, measure);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2);     
+            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2);
         }
     }
 

@@ -219,7 +219,7 @@ static __global__ void find_ke
 
 
 void Ensemble_LAN::integrate_nvt_lan
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
+(Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
     int  N           = para->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
@@ -273,7 +273,7 @@ void Ensemble_LAN::integrate_nvt_lan
 
 // integrate by one step, with heating and cooling
 void Ensemble_LAN::integrate_heat_lan
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
+(Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
     int N                = para->N;
     int grid_size        = (N - 1) / BLOCK_SIZE + 1;
@@ -369,15 +369,15 @@ void Ensemble_LAN::integrate_heat_lan
 
  
 void Ensemble_LAN::compute
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, Force *force, Measure* measure)
+(Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
     if (type == 3)
     {
-        integrate_nvt_lan(para, cpu_data, atom, force, measure);
+        integrate_nvt_lan(para, atom, force, measure);
     }
     else
     {
-        integrate_heat_lan(para, cpu_data, atom, force, measure);
+        integrate_heat_lan(para, atom, force, measure);
     }
 }
 

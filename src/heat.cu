@@ -30,7 +30,7 @@
 
 // allocate memory used for recording group temperatures 
 // and energies of the heat source and sink
-void Heat::preprocess_heat(Parameters *para, CPU_Data *cpu_data)
+void Heat::preprocess_heat(Parameters *para)
 {
     if (sample)
     {
@@ -101,10 +101,7 @@ static __global__ void find_group_temp
 
 // sample block temperature (wrapper)
 void Heat::sample_block_temperature
-(
-    int step, Parameters *para, CPU_Data *cpu_data, Atom *atom, 
-    Integrate *integrate
-)
+(int step, Parameters *para, Atom *atom, Integrate *integrate)
 {
     if (sample)
     {
@@ -151,7 +148,7 @@ void Heat::sample_block_temperature
 // Output block temperatures and energies of the heat source and sink; 
 // free the used memory
 void Heat::postprocess_heat
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, Integrate *integrate)
+(char *input_dir, Parameters *para, Integrate *integrate)
 {
     if (sample)
     {

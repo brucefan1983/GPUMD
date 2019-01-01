@@ -378,8 +378,7 @@ void Force::initialize_many_body_potential
 
 
 
-void Force::initialize
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void Force::initialize(char *input_dir, Parameters *para, Atom *atom)
 {
     // a single potential
     if (num_of_potentials == 1) 

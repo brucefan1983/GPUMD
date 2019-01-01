@@ -33,7 +33,7 @@ public:
     ~Integrate(void);   
     void initialize(Parameters*, Atom*);
     void finalize(void);
-    void compute(Parameters*, CPU_Data*, Atom*, Force*, Measure*);
+    void compute(Parameters*, Atom*, Force*, Measure*);
 
     // these data will be used to initialize ensemble
     int type;          // ensemble type in a specific run

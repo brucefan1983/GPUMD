@@ -79,7 +79,7 @@ static __global__ void check_atom_distance_1
     if (tid ==  0) 
     {
         g_sum[bid] = s_sum[0]; 
-    }       		
+    }
 }
 
 
@@ -113,7 +113,7 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
     if (tid ==  0) 
     {
         g_sum_o[0] = s_sum[0]; 
-    }       		
+    }
 }
 
 
@@ -154,7 +154,8 @@ static int check_atom_distance(Parameters *para, Atom *atom)
 
     return update;
 }
-        
+
+
 
 
 // pull the atoms back to the box 
@@ -209,11 +210,8 @@ static __global__ void gpu_update_xyz0
 
 
 
-
-
 // check the bound of the neighbor list
-static void check_bound
-(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+static void check_bound(Parameters *para, Atom *atom)
 {
     int N = para->N;
     int *NN = atom->NN;
@@ -243,7 +241,7 @@ static void check_bound
 
 
 
-void find_neighbor(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void find_neighbor(Parameters *para, Atom *atom)
 {
 
 #ifdef DEBUG
@@ -313,13 +311,12 @@ void find_neighbor(Parameters *para, CPU_Data *cpu_data, Atom *atom)
 
 
 // the driver function to be called outside this file
-void find_neighbor
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, int is_first)
+void find_neighbor(Parameters *para, Atom *atom, int is_first)
 {
     if (is_first == 1) // always build in the beginning
     {
-        find_neighbor(para, cpu_data, atom); 
-        check_bound(para, cpu_data, atom);
+        find_neighbor(para, atom); 
+        check_bound(para, atom);
 
         // set up the reference positions
         gpu_update_xyz0<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -336,8 +333,8 @@ void find_neighbor
         {
             int N = para->N;
 
-            find_neighbor(para, cpu_data, atom); 
-            check_bound(para, cpu_data, atom);
+            find_neighbor(para, atom); 
+            check_bound(para, atom);
             
             // pull the particles back to the box
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>

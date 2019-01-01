@@ -39,7 +39,7 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 //Allocate memory for recording heat current data
-void HAC::preprocess_hac(Parameters *para, CPU_Data *cpu_data, Atom *atom)
+void HAC::preprocess_hac(Parameters *para, Atom *atom)
 {
     if (compute)
     {
@@ -109,11 +109,7 @@ static __global__ void gpu_sum_heat
 
 
 // sample heat current data for HAC calculations.
-void HAC::sample_hac
-(
-    int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, Atom *atom
-)
+void HAC::sample_hac(int step, char *input_dir, Parameters *para, Atom *atom)
 {
     if (compute)
     { 
@@ -258,10 +254,7 @@ static real get_volume(real *box_gpu)
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
 void HAC::find_hac_kappa
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, 
-    Atom *atom, Integrate *integrate
-)
+(char *input_dir, Parameters *para, Atom *atom, Integrate *integrate)
 {
     // rename variables
     int number_of_steps = para->number_of_steps;
@@ -346,15 +339,12 @@ void HAC::find_hac_kappa
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
 void HAC::postprocess_hac
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data,
-    Atom *atom, Integrate *integrate
-)
+(char *input_dir, Parameters *para, Atom *atom, Integrate *integrate)
 {
     if (compute) 
     {
         printf("INFO:  start to calculate HAC and related quantities.\n");
-        find_hac_kappa(input_dir, para, cpu_data, atom, integrate);
+        find_hac_kappa(input_dir, para, atom, integrate);
         CHECK(cudaFree(heat_all));
         printf("INFO:  HAC and related quantities are calculated.\n\n");
     }

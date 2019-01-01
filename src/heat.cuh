@@ -31,10 +31,9 @@ public:
     int sample_interval;
     real* group_temp;
 
-    void preprocess_heat(Parameters*, CPU_Data*);
-    void postprocess_heat(char*, Parameters*, CPU_Data*, Integrate*);
-    void sample_block_temperature
-    (int step, Parameters*, CPU_Data*, Atom*, Integrate*);
+    void preprocess_heat(Parameters*);
+    void postprocess_heat(char*, Parameters*, Integrate*);
+    void sample_block_temperature(int step, Parameters*, Atom*, Integrate*);
 };
 
 

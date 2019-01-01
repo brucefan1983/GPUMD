@@ -17,8 +17,7 @@
 #ifndef NEIGHBOR_H
 #define NEIGHBOR_H
 
-void find_neighbor
-(Parameters *para, CPU_Data *cpu_data, Atom *atom, int is_first);
+void find_neighbor(Parameters *para, Atom *atom, int is_first);
 
 #endif
 

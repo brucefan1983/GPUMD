@@ -132,17 +132,6 @@ struct Parameters
 
 
 
-// All the CPU data
-struct CPU_Data
-{
-    // to be deleted
-}; 
-
-
-
-
-
-
 class Atom
 {
 public:

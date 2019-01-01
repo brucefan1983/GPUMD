@@ -35,10 +35,9 @@ public:
     GPUMD(char*);
     ~GPUMD(void);
 private:
-    void initialize(char*, Parameters*, CPU_Data*, Atom*);
-    void run
-    (char*, Parameters*, CPU_Data*, Atom*, Force*, Integrate*, Measure*);
-    void finalize(CPU_Data*, Atom*);
+    void initialize(char*, Parameters*, Atom*);
+    void run(char*, Parameters*, Atom*, Force*, Integrate*, Measure*);
+    void finalize(Atom*);
 };
 
 

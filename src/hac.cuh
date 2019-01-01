@@ -30,10 +30,10 @@ public:
 
     real *heat_all;
 
-    void preprocess_hac(Parameters*, CPU_Data *, Atom*);
-    void sample_hac(int, char*, Parameters*, CPU_Data*, Atom*);
-    void postprocess_hac(char*, Parameters*, CPU_Data*, Atom*, Integrate*);
-    void find_hac_kappa(char*, Parameters*, CPU_Data*, Atom*, Integrate*);
+    void preprocess_hac(Parameters*, Atom*);
+    void sample_hac(int, char*, Parameters*, Atom*);
+    void postprocess_hac(char*, Parameters*, Atom*, Integrate*);
+    void find_hac_kappa(char*, Parameters*, Atom*, Integrate*);
 };
 
 
