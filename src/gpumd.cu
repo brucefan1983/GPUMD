@@ -26,6 +26,7 @@
 #include "parse.cuh" 
 #include "velocity.cuh"
 #include "neighbor.cuh"
+#include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
 

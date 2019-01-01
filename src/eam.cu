@@ -18,6 +18,7 @@
 #include "eam.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
+#include "atom.cuh"
 #include "error.cuh"
 
 

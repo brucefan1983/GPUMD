@@ -19,6 +19,7 @@
 #include "common.cuh"
 #include "validate.cuh"
 #include "force.cuh"
+#include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
 

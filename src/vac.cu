@@ -19,6 +19,7 @@
 #include "common.cuh"
 #include "vac.cuh"
 #include "memory.cuh"
+#include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128

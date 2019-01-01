@@ -18,6 +18,7 @@
 
 #include "common.cuh"
 #include "shc.cuh"
+#include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
 typedef unsigned long long uint64;

@@ -20,6 +20,7 @@
 #include "neighbor.cuh"
 #include "neighbor_ON1.cuh"
 #include "neighbor_ON2.cuh"
+#include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
 

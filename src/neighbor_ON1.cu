@@ -26,6 +26,7 @@
 
 #include "common.cuh"
 #include "neighbor_ON1.cuh"
+#include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128

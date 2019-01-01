@@ -21,6 +21,7 @@
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "memory.cuh"
+#include "atom.cuh"
 #include "error.cuh"
 
 #define NUM_OF_HEAT_COMPONENTS 5

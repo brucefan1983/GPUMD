@@ -21,6 +21,7 @@
 #include "ldg.cuh"
 #include "memory.cuh"
 #include "measure.cuh"
+#include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE_VASHISHTA 64 

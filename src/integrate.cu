@@ -23,6 +23,7 @@
 #include "ensemble_bdp.cuh"
 #include "integrate.cuh"
 #include "force.cuh"
+#include "atom.cuh"
 
 
 
