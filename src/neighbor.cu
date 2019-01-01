@@ -24,7 +24,11 @@
 
 #define BLOCK_SIZE 128
 #define DIM 3
-
+#ifdef USE_DP
+    #define HALF  0.5
+#else
+    #define HALF  0.5f
+#endif
 
 
 

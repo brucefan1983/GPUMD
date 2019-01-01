@@ -33,41 +33,8 @@
 typedef unsigned long long uint64;
 #ifdef USE_DP
     typedef double real;
-    #define ZERO  0.0
-    #define HALF  0.5
-    #define ONE   1.0
-    #define TWO   2.0
-    #define THREE 3.0
-    #define FOUR  4.0
-    #define FIVE  5.0
-    #define SIX   6.0
-
-    #define K_B   8.617343e-5      // Boltzmann's constant  
-    #define K_C   1.441959e+1      // electrostatic constant
-    #define PI    3.14159265358979 // pi
-
-    #define TIME_UNIT_CONVERSION     1.018051e+1
-    #define PRESSURE_UNIT_CONVERSION 1.602177e+2  
-    #define KAPPA_UNIT_CONVERSION    1.573769e+5
 #else
     typedef float real;
-    #define ZERO  0.0f
-    #define HALF  0.5f
-    #define ONE   1.0f
-    #define TWO   2.0f
-    #define THREE 3.0f
-    #define FOUR  4.0f
-    #define FIVE  5.0f
-    #define SIX   6.0f
-
-    #define K_B   8.617343e-5f  // Boltzmann's constant  
-    #define K_C   1.441959e+1f  // electrostatic constant
-    #define PI    3.141593f     // pi
-
-    #define TIME_UNIT_CONVERSION     1.018051e+1f
-    #define PRESSURE_UNIT_CONVERSION 1.602177e+2f  
-    #define KAPPA_UNIT_CONVERSION    1.573769e+5f
-
 #endif
 
 
@@ -123,7 +90,7 @@ struct Parameters
     real temperature1;
     real temperature2; 
     // time step in a specific run; default value is 1 fs
-    real time_step = ONE / TIME_UNIT_CONVERSION;
+    real time_step;
 
     // some well defined sub-structures
     Neighbor neighbor;

@@ -23,6 +23,12 @@
 #include "ldg.cuh"
 #include "measure.cuh"
 #define BLOCK_SIZE_SW 64 // 128 is also good
+#ifdef USE_DP
+    #define FOUR  4.0
+#else
+    #define FOUR  4.0f
+#endif
+
 
 // Add -DMOS2_JIANG in the makefile when using the SW potentials for MoS2
 // and choose one of the following:

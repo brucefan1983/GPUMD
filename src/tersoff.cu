@@ -25,10 +25,12 @@
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
 #ifdef USE_DP
+    #define PI    3.14159265358979
     #define ONE_OVER_16   0.0625
     #define THREE_OVER_16 0.1875
     #define NINE_OVER_16  0.5625
 #else
+    #define PI    3.141593f
     #define ONE_OVER_16   0.0625f
     #define THREE_OVER_16 0.1875f
     #define NINE_OVER_16  0.5625f

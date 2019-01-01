@@ -20,6 +20,11 @@
 #include "shc.cuh"
 #include "memory.cuh"
 #define FILE_NAME_LENGTH      200
+#ifdef USE_DP
+    #define ZERO  0.0
+#else
+    #define ZERO  0.0f
+#endif
 
 
 

@@ -24,6 +24,13 @@
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
+#ifdef USE_DP
+    #define K_B   8.617343e-5
+    #define PRESSURE_UNIT_CONVERSION 1.602177e+2
+#else
+    #define K_B   8.617343e-5f
+    #define PRESSURE_UNIT_CONVERSION 1.602177e+2f
+#endif
 
 
 
@@ -141,7 +148,7 @@ static void gpu_sample_thermo
     CHECK(cudaMemcpy(box_length, gpu_box_length, m2, cudaMemcpyDeviceToHost));
 
     // system energies
-    real energy_system_kin = (HALF * DIM) * para->N * K_B * thermo[0];
+    real energy_system_kin = (0.5 * DIM) * para->N * K_B * thermo[0];
     real energy_system_pot = thermo[1];
     real energy_system_total = energy_system_kin + energy_system_pot; 
 

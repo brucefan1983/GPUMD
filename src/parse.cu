@@ -22,6 +22,13 @@
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "measure.cuh"
+#ifdef USE_DP
+    #define PRESSURE_UNIT_CONVERSION 1.602177e+2
+    #define TIME_UNIT_CONVERSION     1.018051e+1
+#else
+    #define PRESSURE_UNIT_CONVERSION 1.602177e+2f
+    #define TIME_UNIT_CONVERSION     1.018051e+1f
+#endif
 
 
 

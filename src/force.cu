@@ -31,6 +31,11 @@
 #include "measure.cuh"
 
 #define BLOCK_SIZE 128
+#ifdef USE_DP
+    #define ZERO  0.0
+#else
+    #define ZERO  0.0f
+#endif
 
 
 

@@ -15,6 +15,16 @@
 
 
 
+
+#ifdef USE_DP
+    #define HALF  0.5
+#else
+    #define HALF  0.5f
+#endif
+
+
+
+
 /*------------------------------------------------------------------------------
     This file will be directly included in some other files
 ------------------------------------------------------------------------------*/

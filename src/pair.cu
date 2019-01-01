@@ -26,10 +26,20 @@
 #define BLOCK_SIZE_FORCE 128
 
 #ifdef USE_DP
+    #define ZERO  0.0
+    #define ONE   1.0
+    #define TWO   2.0
+    #define SIX   6.0
+    #define K_C   1.441959e+1
     #define RI_ALPHA     0.2
     #define RI_ALPHA_SQ  0.04
     #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
 #else
+    #define ZERO  0.0f
+    #define ONE   1.0f
+    #define TWO   2.0f
+    #define SIX   6.0f
+    #define K_C   1.441959e+1
     #define RI_ALPHA     0.2f
     #define RI_ALPHA_SQ  0.04f
     #define RI_PI_FACTOR 0.225675833419103f // ALPHA * 2 / SQRT(PI) 
@@ -308,24 +318,24 @@ static __global__ void gpu_find_force
             }
 
             // accumulate heat across some sections (for NEMD)
-			//		check if AB pair possible & exists
-			if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-					g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
-			{
-				int index_12 = g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
-				g_fv[index_12 + 0]  += f12x;
-				g_fv[index_12 + 1]  += f12y;
-				g_fv[index_12 + 2]  += f12z;
-				g_fv[index_12 + 3]  += f21x;
-				g_fv[index_12 + 4]  += f21y;
-				g_fv[index_12 + 5]  += f21z;
-				g_fv[index_12 + 6]  = vx1;
-				g_fv[index_12 + 7]  = vy1;
-				g_fv[index_12 + 8]  = vz1;
-				g_fv[index_12 + 9]  = LDG(g_vx, n2);
-				g_fv[index_12 + 10] = LDG(g_vy, n2);
-				g_fv[index_12 + 11] = LDG(g_vz, n2);
-			}
+            //        check if AB pair possible & exists
+            if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
+                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
+            {
+                int index_12 = g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
+                g_fv[index_12 + 0]  += f12x;
+                g_fv[index_12 + 1]  += f12y;
+                g_fv[index_12 + 2]  += f12z;
+                g_fv[index_12 + 3]  += f21x;
+                g_fv[index_12 + 4]  += f21y;
+                g_fv[index_12 + 5]  += f21z;
+                g_fv[index_12 + 6]  = vx1;
+                g_fv[index_12 + 7]  = vy1;
+                g_fv[index_12 + 8]  = vz1;
+                g_fv[index_12 + 9]  = LDG(g_vx, n2);
+                g_fv[index_12 + 10] = LDG(g_vy, n2);
+                g_fv[index_12 + 11] = LDG(g_vz, n2);
+            }
         }
 
         // add driving force
@@ -407,45 +417,45 @@ void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
         {
             gpu_find_force<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
-		{
-			gpu_find_force<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, lj_para, ri_para,
-				N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-				fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-			);
-		}
+        {
+            gpu_find_force<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            );
+        }
         else
         {
             gpu_find_force<0, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
     }
@@ -457,45 +467,45 @@ void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
         {
             gpu_find_force<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
-		{
-			gpu_find_force<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, lj_para, ri_para,
-				N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-				fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-			);
-		}
+        {
+            gpu_find_force<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            );
+        }
         else
         {
             gpu_find_force<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
     }
@@ -507,45 +517,45 @@ void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
         {
             gpu_find_force<2, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<2, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<2, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
             gpu_find_force<2, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else
         {
             gpu_find_force<2, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
     }
@@ -557,45 +567,45 @@ void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
         {
             gpu_find_force<3, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<3, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<3, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
-		{
-			gpu_find_force<3, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, lj_para, ri_para,
-				N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-				fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-			);
-		}
+        {
+            gpu_find_force<3, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            );
+        }
         else
         {
             gpu_find_force<3, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
     }
@@ -607,45 +617,45 @@ void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
         {
             gpu_find_force<4, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<4, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<4, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
-		{
-			gpu_find_force<4, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, lj_para, ri_para,
-				N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-				fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-			);
-		}
+        {
+            gpu_find_force<4, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            );
+        }
         else
         {
             gpu_find_force<4, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
     }
@@ -657,45 +667,45 @@ void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
         {
             gpu_find_force<5, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
             gpu_find_force<5, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
             gpu_find_force<5, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
-		{
-			gpu_find_force<5, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, lj_para, ri_para,
-				N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-				fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-			);
-		}
+        {
+            gpu_find_force<5, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+            );
+        }
         else
         {
             gpu_find_force<5, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para,
-                N, pbc_x, pbc_y, pbc_z, NN, NL, type, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
+                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
         }
     }

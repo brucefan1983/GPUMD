@@ -25,6 +25,19 @@
 
 // best block size here: 64 or 128
 #define BLOCK_SIZE_FORCE 64
+#ifdef USE_DP
+    #define ZERO  0.0
+    #define ONE   1.0
+    #define TWO   2.0
+    #define THREE 3.0
+    #define FOUR  4.0
+#else
+    #define ZERO  0.0f
+    #define ONE   1.0f
+    #define TWO   2.0f
+    #define THREE 3.0f
+    #define FOUR  4.0f
+#endif
 
 
 
@@ -479,24 +492,25 @@ static __global__ void find_force_eam_step2
             }
  
             // accumulate heat across some sections (for NEMD)
-			//		check if AB pair possible & exists
-			if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-					g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
-			{
-				int index_12 = g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
-				g_fv[index_12 + 0]  += f12x;
-				g_fv[index_12 + 1]  += f12y;
-				g_fv[index_12 + 2]  += f12z;
-				g_fv[index_12 + 3]  += f21x;
-				g_fv[index_12 + 4]  += f21y;
-				g_fv[index_12 + 5]  += f21z;
-				g_fv[index_12 + 6]  = vx1;
-				g_fv[index_12 + 7]  = vy1;
-				g_fv[index_12 + 8]  = vz1;
-				g_fv[index_12 + 9]  = LDG(g_vx, n2);
-				g_fv[index_12 + 10] = LDG(g_vy, n2);
-				g_fv[index_12 + 11] = LDG(g_vz, n2);
-			}
+            //        check if AB pair possible & exists
+            if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
+                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
+            {
+                int index_12 =
+                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
+                g_fv[index_12 + 0]  += f12x;
+                g_fv[index_12 + 1]  += f12y;
+                g_fv[index_12 + 2]  += f12z;
+                g_fv[index_12 + 3]  += f21x;
+                g_fv[index_12 + 4]  += f21y;
+                g_fv[index_12 + 5]  += f21z;
+                g_fv[index_12 + 6]  = vx1;
+                g_fv[index_12 + 7]  = vy1;
+                g_fv[index_12 + 8]  = vz1;
+                g_fv[index_12 + 9]  = LDG(g_vx, n2);
+                g_fv[index_12 + 10] = LDG(g_vy, n2);
+                g_fv[index_12 + 11] = LDG(g_vz, n2);
+            }
         }
 
         // add driving force
@@ -590,40 +604,40 @@ void EAM::compute(Parameters *para, Atom *atom, Measure *measure)
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
-        	find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-				N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-				box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-				a_map, b_map, count_b
-			);
+            find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
+                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                a_map, b_map, count_b
+            );
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
             find_force_eam_step2<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
-		{
-			find_force_eam_step2<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-				N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-				box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-				a_map, b_map, count_b
-			);
-		}
+        {
+            find_force_eam_step2<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
+                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                a_map, b_map, count_b
+            );
+        }
         else
         {
             find_force_eam_step2<0, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
@@ -642,7 +656,7 @@ void EAM::compute(Parameters *para, Atom *atom, Measure *measure)
             find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
@@ -652,7 +666,7 @@ void EAM::compute(Parameters *para, Atom *atom, Measure *measure)
             find_force_eam_step2<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
@@ -662,27 +676,27 @@ void EAM::compute(Parameters *para, Atom *atom, Measure *measure)
             find_force_eam_step2<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
         }
         else if (measure->hnemd.compute && measure->shc.compute)
-		{
-			find_force_eam_step2<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-			(
-				fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-				N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-				box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-				a_map, b_map, count_b
-			);
-		}
+        {
+            find_force_eam_step2<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
+            (
+                fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
+                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                a_map, b_map, count_b
+            );
+        }
         else
         {
             find_force_eam_step2<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
+                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );

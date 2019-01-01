@@ -25,7 +25,15 @@
 #include "measure.cuh"
 
 #define BLOCK_SIZE_VASHISHTA 64 
-
+#ifdef USE_DP
+    #define FOUR  4.0
+    #define SIX   6.0
+    #define K_C   1.441959e+1
+#else
+    #define FOUR  4.0f
+    #define SIX   6.0f
+    #define K_C   1.441959e+1f
+#endif
 
 
 

@@ -27,10 +27,10 @@ public:
     int output_interval;   // average the data every so many time steps
 
     // the driving "force" vector (in units of 1/A)
-    real fe_x = ZERO;
-    real fe_y = ZERO;
-    real fe_z = ZERO;
-    real fe = ZERO; // magnitude of the driving "force" vector
+    real fe_x = 0.0;
+    real fe_y = 0.0;
+    real fe_z = 0.0;
+    real fe = 0.0; // magnitude of the driving "force" vector
 
     real *heat_all;
 

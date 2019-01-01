@@ -17,6 +17,16 @@
 
 
 #include "ldg.cuh"
+#ifdef USE_DP
+    #define ZERO  0.0
+    #define ONE   1.0
+    #define TWO   2.0
+#else
+    #define ZERO  0.0f
+    #define ONE   1.0f
+    #define TWO   2.0f
+#endif
+    
 
 
 

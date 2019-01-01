@@ -35,6 +35,11 @@
 
 #ifdef USE_DP
 
+#define THREE 3.0
+#define FOUR  4.0
+#define FIVE  5.0
+#define SIX   6.0
+#define PI    3.14159265358979
 #define TWOPI 6.283185307179586
 
 #define REBO_MOS2_Q_MM     3.41912939000591
@@ -214,6 +219,11 @@
 
 #else
 
+#define THREE 3.0f
+#define FOUR  4.0f
+#define FIVE  5.0f
+#define SIX   6.0f
+#define PI    3.141593f
 #define TWOPI 6.283185307179586f
 
 #define REBO_MOS2_Q_MM     3.41912939005919f
