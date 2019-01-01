@@ -16,6 +16,7 @@
 
 
 
+#include <ctype.h>
 #include "common.cuh"
 #include "gpumd.cuh"
 #include "force.cuh"
