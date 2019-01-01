@@ -16,8 +16,8 @@
 
 
 
-#ifndef INTEGRATE_H
-#define INTEGRATE_H
+#pragma once
+class Atom;
 class Force;
 class Ensemble;
 class Measure;
@@ -47,11 +47,6 @@ public:
     real temperature_coupling;
     real pressure_coupling; 
 };
-
-
-
-
-#endif
 
 
 

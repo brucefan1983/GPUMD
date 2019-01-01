@@ -15,10 +15,8 @@
 
 
 
-
-#ifndef REBO_MOS2_H
-#define REBO_MOS2_H
-
+#pragma once
+class Atom;
 
 
 
@@ -55,8 +53,5 @@ protected:
 };
 
 
-
-
-#endif
 
 

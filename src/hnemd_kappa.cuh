@@ -14,10 +14,10 @@
 */
 
 
-#ifndef HNEMD_KAPPA_H
-#define HNEMD_KAPPA_H
-
+#pragma once
+class Atom;
 class Integrate;
+
 
 class HNEMD
 {
@@ -40,6 +40,5 @@ public:
 };
 
 
-#endif
 
 

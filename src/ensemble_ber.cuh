@@ -14,14 +14,13 @@
 */
 
 
-#ifndef ENSEMBLE_BER_H
-#define ENSEMBLE_BER_H
+#pragma once
 
 
 #include "ensemble.cuh"
 class Force;
 class Measure;
-
+class Atom;
 
 
 
@@ -33,11 +32,6 @@ public:
     virtual ~Ensemble_BER(void);
     virtual void compute(Parameters*, Atom*, Force*, Measure*);
 };
-
-
-
-
-#endif
 
 
 

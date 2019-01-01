@@ -14,14 +14,13 @@
 */
 
 
-#ifndef ENSEMBLE_NHC_H
-#define ENSEMBLE_NHC_H
+#pragma once
 
 
 #include "ensemble.cuh"
 class Force;
 class Measure;
-
+class Atom;
 
 
 
@@ -36,12 +35,6 @@ protected:
     void integrate_nvt_nhc(Parameters*, Atom*, Force*, Measure*);
     void integrate_heat_nhc(Parameters*, Atom*, Force*, Measure*);
 };
-
-
-
-
-
-#endif
 
 
 

@@ -16,8 +16,8 @@
 
 
 
-#ifndef MEASURE_H
-#define MEASURE_H
+#pragma once
+
 
 #include "vac.cuh"
 #include "hac.cuh"
@@ -25,7 +25,7 @@
 #include "hnemd_kappa.cuh"
 #include "heat.cuh"
 class Integrate;
-
+class Atom;
 
 
 #define FILE_NAME_LENGTH      200
@@ -83,11 +83,6 @@ protected:
     void dump_virials(FILE*, Parameters*, Atom*, int);
     void dump_heats(FILE*, Parameters*, Atom*, int);
 };
-
-
-
-
-#endif
 
 
 

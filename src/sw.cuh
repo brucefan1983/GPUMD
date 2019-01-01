@@ -16,8 +16,8 @@
 
 
 
-#ifndef SW2_H
-#define SW2_H
+#pragma once
+class Atom;
 
 
 
@@ -63,8 +63,5 @@ protected:
 };
 
 
-
-
-#endif
 
 

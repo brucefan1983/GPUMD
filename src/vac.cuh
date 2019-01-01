@@ -15,11 +15,8 @@
 
 
 
-
-#ifndef VAC_H
-#define VAC_H
-
-
+#pragma once
+class Atom;
 
 
 class VAC
@@ -39,11 +36,6 @@ public:
 private:
     void find_vac_rdc_dos(char *input_dir, Parameters *para, Atom *atom);
 };
-
-
-
-
-#endif
 
 
 

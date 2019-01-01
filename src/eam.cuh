@@ -14,16 +14,12 @@
 */
 
 
-
-
-#ifndef EAM_H
-#define EAM_H
-
+#pragma once
 
 
 #include "potential.cuh"
 class Measure;
-
+class Atom;
 
 
 
@@ -67,11 +63,6 @@ protected:
     EAM2006Dai   eam2006dai;
     EAM_Data     eam_data;
 };
-
-
-
-
-#endif
 
 
 

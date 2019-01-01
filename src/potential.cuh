@@ -16,8 +16,8 @@
 
 
 
-#ifndef POTENTIAL1_H
-#define POTENTIAL1_H
+#pragma once
+class Atom;
 class Measure;
 
 
@@ -31,11 +31,6 @@ public:
     virtual ~Potential(void);
     virtual void compute(Parameters*, Atom*, Measure*) = 0;
 };
-
-
-
-
-#endif
 
 
 

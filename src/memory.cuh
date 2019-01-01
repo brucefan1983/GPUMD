@@ -16,8 +16,7 @@
 
 
 
-#ifndef MEMORY_H
-#define MEMORY_H
+#pragma once
 
 
 
@@ -42,11 +41,6 @@
                        printf("Try to free NULL!\n");  \
                        exit(EXIT_FAILURE);             \
                    }
-
-
-
-
-#endif
 
 
 

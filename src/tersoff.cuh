@@ -14,9 +14,8 @@
 */
 
 
-#ifndef TERSOFF2_H
-#define TERSOFF2_H
-
+#pragma once
+class Atom;
 
 
 
@@ -60,9 +59,5 @@ protected:
 };
 
 
-
-
-
-#endif
 
 

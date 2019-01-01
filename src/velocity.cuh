@@ -14,12 +14,11 @@
 */
 
 
-#ifndef VELOCITY_H
-#define VELOCITY_H
+#pragma once
+class Atom;
 
 void process_velocity(Parameters *para, Atom *atom);
 
-#endif
 
 
 

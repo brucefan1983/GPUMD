@@ -16,9 +16,8 @@
 
 
 
-#ifndef HEAT_H
-#define HEAT_H
-
+#pragma once
+class Atom;
 class Integrate;
 
 
@@ -35,11 +34,6 @@ public:
     void postprocess_heat(char*, Parameters*, Integrate*);
     void sample_block_temperature(int step, Parameters*, Atom*, Integrate*);
 };
-
-
-
-
-#endif
 
 
 

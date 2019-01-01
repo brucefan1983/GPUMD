@@ -16,8 +16,8 @@
 
 
 
-#ifndef VASHISHTA_H
-#define VASHISHTA_H
+#pragma once
+class Atom;
 
 
 
@@ -69,9 +69,5 @@ protected:
 };
 
 
-
-
-
-#endif
 
 

@@ -14,9 +14,8 @@
 */
 
 
-#ifndef PAIR_H
-#define PAIR_H
-
+#pragma once
+class Atom;
 
 
 
@@ -63,10 +62,6 @@ protected:
     LJ_Para  lj_para;
     RI_Para  ri_para;
 };
-
-
-
-#endif
 
 
 

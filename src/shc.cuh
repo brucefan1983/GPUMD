@@ -14,8 +14,8 @@
 */
 
 
-#ifndef SHC_H
-#define SHC_H
+#pragma once
+class Atom;
 
 
 
@@ -46,11 +46,6 @@ public:
     void build_fv_table(Parameters*, int*, int*, int*, int*, int*);
     void find_k_time(char *input_dir, Parameters *para, Atom *atom);
 };
-
-
-
-
-#endif
 
 
 

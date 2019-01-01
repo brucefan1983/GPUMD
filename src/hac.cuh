@@ -14,9 +14,8 @@
 */
 
 
-#ifndef HAC_H
-#define HAC_H
-
+#pragma once
+class Atom;
 class Integrate;
 
 
@@ -38,4 +37,4 @@ public:
 
 
 
-#endif
+

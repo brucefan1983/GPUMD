@@ -14,14 +14,13 @@
 */
 
 
-#ifndef ENSEMBLE_NVE_H
-#define ENSEMBLE_NVE_H
+#pragma once
 
 
 #include "ensemble.cuh"
 class Force;
 class Measure;
-
+class Atom;
 
 
 
@@ -32,12 +31,6 @@ public:
     virtual ~Ensemble_NVE(void);
     virtual void compute(Parameters*, Atom*, Force*, Measure*);
 };
-
-
-
-
-
-#endif
 
 
 

@@ -14,8 +14,8 @@
 */
 
 
-#ifndef VALIDATE_H
-#define VALIDATE_H
+#pragma once
+class Atom;
 
 class Force;
 class Measure;
@@ -24,4 +24,4 @@ void validate_force
 (Force *force, Parameters *para, Atom *atom, Measure* measure);
 
 
-#endif
+

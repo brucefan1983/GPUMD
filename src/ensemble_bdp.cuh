@@ -14,14 +14,13 @@
 */
 
 
-#ifndef ENSEMBLE_BDP_H
-#define ENSEMBLE_BDP_H
+#pragma once
 
 
 #include "ensemble.cuh"
 class Force;
 class Measure;
-
+class Atom;
 
 
 class Ensemble_BDP : public Ensemble
@@ -35,12 +34,6 @@ protected:
     void integrate_nvt_bdp(Parameters*, Atom*, Force*, Measure*);
     void integrate_heat_bdp(Parameters*, Atom*, Force*, Measure*);
 };
-
-
-
-
-
-#endif
 
 
 

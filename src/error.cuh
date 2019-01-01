@@ -16,8 +16,7 @@
 
 
 
-#ifndef ERROR_H
-#define ERROR_H
+#pragma once
 
 
 
@@ -33,11 +32,6 @@
         exit(1);                                                               \
     }                                                                          \
 }
-
-
-
-
-#endif
 
 
 

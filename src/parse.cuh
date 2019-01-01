@@ -14,9 +14,7 @@
 */
 
 
-#ifndef PARSE_H
-#define PARSE_H
-
+#pragma once
 class Force;
 class Integrate;
 class Measure;
@@ -35,6 +33,6 @@ void parse
     int *is_int
 );
 
-#endif
+
 
 

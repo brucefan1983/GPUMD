@@ -16,14 +16,14 @@
 
 
 
-#ifndef FORCE1_H
-#define FORCE1_H
+#pragma once
+
 
 
 #define MAX_NUM_OF_POTENTIALS 10
 #define FILE_NAME_LENGTH      200
 
-
+class Atom;
 class Potential;
 class Measure;
 
@@ -49,11 +49,6 @@ public:
     int type_end[MAX_NUM_OF_POTENTIALS];
     int *layer_label;
 };
-
-
-
-
-#endif
 
 
 

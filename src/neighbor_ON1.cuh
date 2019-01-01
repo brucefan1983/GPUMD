@@ -14,8 +14,8 @@
 */
 
 
-#ifndef NEIGHBOR_ON1_H
-#define NEIGHBOR_ON1_H
+#pragma once
+class Atom;
 
 void find_neighbor_ON1
 (
@@ -23,7 +23,6 @@ void find_neighbor_ON1
     int cell_n_x, int cell_n_y, int cell_n_z
 );
 
-#endif
 
 
 

@@ -16,8 +16,8 @@
 
 
 
-#ifndef GPUMD_H
-#define GPUMD_H
+#pragma once
+
 
 struct Parameters;
 struct CPU_Data;
@@ -39,11 +39,6 @@ private:
     void run(char*, Parameters*, Atom*, Force*, Integrate*, Measure*);
     void finalize(Atom*);
 };
-
-
-
-
-#endif
 
 
 

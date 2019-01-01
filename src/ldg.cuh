@@ -15,9 +15,7 @@
 
 
 
-
-#ifndef LDG_H
-#define LDG_H
+#pragma once
 
 
 
@@ -26,11 +24,6 @@
     #define LDG(a, n) __ldg(a + n)
 #else
     #define LDG(a, n) a[n]
-#endif
-
-
-
-
 #endif
 
 

@@ -14,15 +14,15 @@
 */
 
 
-#ifndef ENSEMBLE_H
-#define ENSEMBLE_H
+#pragma once
+
 
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
 
 class Force;
 class Measure;
-
+class Atom;
 
 
 class Ensemble 
@@ -51,10 +51,6 @@ public:
     real pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
     real vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 };
-
-
-
-#endif
 
 
 

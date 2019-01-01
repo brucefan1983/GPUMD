@@ -16,13 +16,14 @@
 
 
 
-#ifndef ENSEMBLE_LAN_H
-#define ENSEMBLE_LAN_H
+#pragma once
+
+
 #include "ensemble.cuh"
 #include <curand_kernel.h>
 class Force;
 class Measure;
-
+class Atom;
 
 
 
@@ -40,11 +41,6 @@ protected:
     void integrate_nvt_lan(Parameters*, Atom*, Force*, Measure*);
     void integrate_heat_lan(Parameters*, Atom*, Force*, Measure*);
 };
-
-
-
-
-#endif
 
 
 

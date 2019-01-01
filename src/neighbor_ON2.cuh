@@ -14,17 +14,10 @@
 */
 
 
-#ifndef NEIGHBOR_ON2_H
-#define NEIGHBOR_ON2_H
+#pragma once
+class Atom;
 
 void find_neighbor_ON2(Parameters *para, Atom *atom);
-
-#endif
-
-
-
-
-
 
 
 
