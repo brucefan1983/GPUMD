@@ -22,6 +22,8 @@
 #include "sw.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
+#include "error.cuh"
+
 #define BLOCK_SIZE_SW 64 // 128 is also good
 #ifdef USE_DP
     #define FOUR  4.0

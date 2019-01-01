@@ -22,6 +22,7 @@
 #include "force.cuh"
 #include <curand_kernel.h>
 #include "memory.cuh"
+#include "error.cuh"
 
 #define BLOCK_SIZE 128
 

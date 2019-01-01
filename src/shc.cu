@@ -19,6 +19,9 @@
 #include "common.cuh"
 #include "shc.cuh"
 #include "memory.cuh"
+#include "error.cuh"
+typedef unsigned long long uint64;
+
 #define FILE_NAME_LENGTH      200
 #ifdef USE_DP
     #define ZERO  0.0

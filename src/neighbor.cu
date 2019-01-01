@@ -21,6 +21,7 @@
 #include "neighbor_ON1.cuh"
 #include "neighbor_ON2.cuh"
 #include "memory.cuh"
+#include "error.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3

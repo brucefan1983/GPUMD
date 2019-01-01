@@ -21,6 +21,7 @@
 #include "ensemble.inc"
 #include "force.cuh"
 #include "memory.cuh"
+#include "error.cuh"
 
 #define BLOCK_SIZE 128
 

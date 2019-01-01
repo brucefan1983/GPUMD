@@ -22,6 +22,7 @@
 #include "rebo_mos2.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
+#include "error.cuh"
 
 #define BLOCK_SIZE_FORCE 64
 

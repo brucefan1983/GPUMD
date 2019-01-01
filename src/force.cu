@@ -29,6 +29,7 @@
 #include "ldg.cuh"
 #include "memory.cuh"
 #include "measure.cuh"
+#include "error.cuh"
 
 #define BLOCK_SIZE 128
 #ifdef USE_DP

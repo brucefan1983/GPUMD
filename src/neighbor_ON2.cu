@@ -19,6 +19,7 @@
 #include "common.cuh"
 #include "mic.inc"
 #include "neighbor_ON2.cuh"
+#include "error.cuh"
 
 #define BLOCK_SIZE 128
 

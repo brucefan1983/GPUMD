@@ -22,6 +22,8 @@
 #include "tersoff.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
+#include "error.cuh"
+
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
 #ifdef USE_DP

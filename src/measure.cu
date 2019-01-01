@@ -21,6 +21,7 @@
 #include "ensemble.cuh"
 #include "measure.cuh"
 #include "memory.cuh"
+#include "error.cuh"
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5

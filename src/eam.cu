@@ -19,7 +19,7 @@
 #include "eam.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
-
+#include "error.cuh"
 
 
 
