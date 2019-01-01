@@ -25,11 +25,30 @@
 #include <thrust/execution_policy.h>
 
 #include "common.cuh"
-#include "mic.inc"
 #include "neighbor_ON1.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
+#ifdef USE_DP
+    #define HALF  0.5
+#else
+    #define HALF  0.5f
+#endif
+
+
+
+
+template <int pbc_x, int pbc_y, int pbc_z>
+static __device__ void dev_apply_mic
+(real lx, real ly, real lz, real *x12, real *y12, real *z12)
+{
+    if      (pbc_x == 1 && *x12 < - lx * HALF) {*x12 += lx;}
+    else if (pbc_x == 1 && *x12 > + lx * HALF) {*x12 -= lx;}
+    if      (pbc_y == 1 && *y12 < - ly * HALF) {*y12 += ly;}
+    else if (pbc_y == 1 && *y12 > + ly * HALF) {*y12 -= ly;}
+    if      (pbc_z == 1 && *z12 < - lz * HALF) {*z12 += lz;}
+    else if (pbc_z == 1 && *z12 > + lz * HALF) {*z12 -= lz;}
+}
 
 
 
@@ -47,9 +66,9 @@ static __device__ void find_cell_id
     while (cell_id_x < 0)         cell_id_x += cell_n_x;
     while (cell_id_x >= cell_n_x) cell_id_x -= cell_n_x;
     while (cell_id_y < 0)         cell_id_y += cell_n_y;
-    while (cell_id_y >= cell_n_y) cell_id_y -= cell_n_y;		
-    while (cell_id_z < 0)         cell_id_z += cell_n_z;		
-    while (cell_id_z >= cell_n_z) cell_id_z -= cell_n_z;		
+    while (cell_id_y >= cell_n_y) cell_id_y -= cell_n_y;
+    while (cell_id_z < 0)         cell_id_z += cell_n_z;
+    while (cell_id_z >= cell_n_z) cell_id_z -= cell_n_z;
     *cell_id =  cell_id_x + cell_n_x*cell_id_y + cell_n_x*cell_n_y*cell_id_z;
 }
 
@@ -69,9 +88,9 @@ static __device__ void find_cell_id
     while (*cell_id_x < 0)         *cell_id_x += cell_n_x;
     while (*cell_id_x >= cell_n_x) *cell_id_x -= cell_n_x;
     while (*cell_id_y < 0)         *cell_id_y += cell_n_y;
-    while (*cell_id_y >= cell_n_y) *cell_id_y -= cell_n_y;		
-    while (*cell_id_z < 0)         *cell_id_z += cell_n_z;		
-    while (*cell_id_z >= cell_n_z) *cell_id_z -= cell_n_z;		
+    while (*cell_id_y >= cell_n_y) *cell_id_y -= cell_n_y;
+    while (*cell_id_z < 0)         *cell_id_z += cell_n_z;
+    while (*cell_id_z >= cell_n_z) *cell_id_z -= cell_n_z;
     *cell_id = (*cell_id_x) + cell_n_x * (*cell_id_y) 
              + cell_n_x * cell_n_y * (*cell_id_z);
 }
@@ -96,7 +115,7 @@ static __global__ void find_cell_counts
             x[n1], y[n1], z[n1], cell_size, 
             cell_n_x, cell_n_y, cell_n_z, &cell_id
         );
-        atomicAdd(&cell_count[cell_id], 1);		
+        atomicAdd(&cell_count[cell_id], 1);
     }
 }
 
@@ -189,11 +208,11 @@ static __global__ void gpu_find_neighbor_ON1
                 for (int i=-ilim; i<ilim+1; ++i)
                 {
                     int neighbour=cell_id+k*cell_n_x*cell_n_y+j*cell_n_x+i;
-                    if (cell_id_x + i < 0)         
+                    if (cell_id_x + i < 0)
                         neighbour += cell_n_x;
                     if (cell_id_x + i >= cell_n_x) 
                         neighbour -= cell_n_x;
-                    if (cell_id_y + j < 0)         
+                    if (cell_id_y + j < 0)
                         neighbour += cell_n_y*cell_n_x;
                     if (cell_id_y + j >= cell_n_y) 
                         neighbour -= cell_n_y*cell_n_x;
@@ -202,7 +221,7 @@ static __global__ void gpu_find_neighbor_ON1
                     if (cell_id_z + k >= cell_n_z) 
                         neighbour -= cell_n_z*cell_n_y*cell_n_x;
                         
-                    // loop over the atoms in a neighbor cell	
+                    // loop over the atoms in a neighbor cell
                     for (int k = 0; k < cell_counts[neighbour]; ++k)
                     {
                         int n2 = cell_contents[cell_count_sum[neighbour] + k];
@@ -213,7 +232,7 @@ static __global__ void gpu_find_neighbor_ON1
                         real z12 = z[n2]-z1;
 
                         dev_apply_mic<pbc_x, pbc_y, pbc_z>
-                        (lx, ly, lz, &x12, &y12, &z12);	
+                        (lx, ly, lz, &x12, &y12, &z12);
 
                         real d2 = x12*x12 + y12*y12 + z12*z12;
                         if (d2 < cutoff_square)
@@ -222,11 +241,11 @@ static __global__ void gpu_find_neighbor_ON1
                             count++;
                         }
                     }
-                }        	 
+                }
             }
         }
-        NN[n1] = count;	
-    }		
+        NN[n1] = count;
+    }
 }
 
 
@@ -263,7 +282,7 @@ void find_neighbor_ON1
     CHECK(cudaMalloc((void**)&cell_contents, sizeof(int)*N));
     CHECK(cudaMemset(cell_contents, 0, sizeof(int)*N));
 
-    // Find the number of particles in each cell	
+    // Find the number of particles in each cell
     find_cell_counts<<<grid_size, BLOCK_SIZE>>>
     (N, cell_count, x, y, z, cell_n_x, cell_n_y, cell_n_z, rc);
     #ifdef DEBUG
@@ -272,7 +291,7 @@ void find_neighbor_ON1
     #endif
 
 #ifndef USE_THRUST
-    // Simple (but 100% correct) version of prefix sum	
+    // Simple (but 100% correct) version of prefix sum
     prefix_sum<<<1, 1>>>(N_cells, cell_count, cell_count_sum);
 #else
     // use thrust to calculate the prefix sum

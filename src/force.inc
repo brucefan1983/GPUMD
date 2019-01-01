@@ -18,10 +18,12 @@
 
 #include "ldg.cuh"
 #ifdef USE_DP
+    #define HALF  0.5
     #define ZERO  0.0
     #define ONE   1.0
     #define TWO   2.0
 #else
+    #define HALF  0.5f
     #define ZERO  0.0f
     #define ONE   1.0f
     #define TWO   2.0f
@@ -36,6 +38,23 @@
     It contains a CUDA kernel function that is universal to 
     short-range many-body potentials.
 ------------------------------------------------------------------------------*/
+
+
+
+
+static __device__ void dev_apply_mic
+(
+    int pbc_x, int pbc_y, int pbc_z, real &x12, real &y12, real &z12, 
+    real lx, real ly, real lz
+)
+{
+    if      (pbc_x == 1 && x12 < - lx * HALF) {x12 += lx;}
+    else if (pbc_x == 1 && x12 > + lx * HALF) {x12 -= lx;}
+    if      (pbc_y == 1 && y12 < - ly * HALF) {y12 += ly;}
+    else if (pbc_y == 1 && y12 > + ly * HALF) {y12 -= ly;}
+    if      (pbc_z == 1 && z12 < - lz * HALF) {z12 += lz;}
+    else if (pbc_z == 1 && z12 > + lz * HALF) {z12 -= lz;}
+}
 
 
 

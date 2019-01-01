@@ -25,7 +25,6 @@
 #include "sw.cuh"
 #include "pair.cuh"
 #include "eam.cuh"
-#include "mic.inc"
 #include "ldg.cuh"
 #include "memory.cuh"
 #include "measure.cuh"
@@ -34,9 +33,27 @@
 #define BLOCK_SIZE 128
 #ifdef USE_DP
     #define ZERO  0.0
+    #define HALF  0.5
 #else
     #define ZERO  0.0f
+    #define HALF  0.5f
 #endif
+
+
+
+static __device__ void dev_apply_mic
+(
+    int pbc_x, int pbc_y, int pbc_z, real &x12, real &y12, real &z12, 
+    real lx, real ly, real lz
+)
+{
+    if      (pbc_x == 1 && x12 < - lx * HALF) {x12 += lx;}
+    else if (pbc_x == 1 && x12 > + lx * HALF) {x12 -= lx;}
+    if      (pbc_y == 1 && y12 < - ly * HALF) {y12 += ly;}
+    else if (pbc_y == 1 && y12 > + ly * HALF) {y12 -= ly;}
+    if      (pbc_z == 1 && z12 < - lz * HALF) {z12 += lz;}
+    else if (pbc_z == 1 && z12 > + lz * HALF) {z12 -= lz;}
+}
 
 
 

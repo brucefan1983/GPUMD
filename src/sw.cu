@@ -17,7 +17,6 @@
 
 
 #include "common.cuh"
-#include "mic.inc"
 #include "force.inc"
 #include "sw.cuh"
 #include "ldg.cuh"

@@ -17,7 +17,6 @@
 
 
 #include "common.cuh"
-#include "mic.inc"
 #include "force.inc"
 #include "rebo_mos2.cuh"
 #include "ldg.cuh"
