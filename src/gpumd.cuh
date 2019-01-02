@@ -28,8 +28,8 @@ public:
     GPUMD(char*);
     ~GPUMD(void);
 private:
-    void initialize(char*, Parameters*, Atom*);
-    void run(char*, Parameters*, Atom*, Force*, Integrate*, Measure*);
+    void initialize(char*, Atom*);
+    void run(char*, Atom*, Force*, Integrate*, Measure*);
     void finalize(Atom*);
 };
 

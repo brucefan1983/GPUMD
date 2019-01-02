@@ -21,7 +21,7 @@
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE 128
 
@@ -133,16 +133,16 @@ static __global__ void gpu_berendsen_pressure
 
 
 void Ensemble_BER::compute
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
     int N           = atom->N;
     int grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group = para->fixed_group;
+    int fixed_group = atom->fixed_group;
     int *label = atom->label;
-    int  pbc_x       = para->pbc_x;
-    int  pbc_y       = para->pbc_y;
-    int  pbc_z       = para->pbc_z;
-    real time_step   = para->time_step;
+    int  pbc_x       = atom->pbc_x;
+    int  pbc_y       = atom->pbc_y;
+    int  pbc_z       = atom->pbc_z;
+    real time_step   = atom->time_step;
     real p0x         = pressure_x;
     real p0y         = pressure_y;
     real p0z         = pressure_z;
@@ -168,7 +168,7 @@ void Ensemble_BER::compute
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    force->compute(para, atom, measure);
+    force->compute(atom, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);

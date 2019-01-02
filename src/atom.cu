@@ -23,7 +23,7 @@
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
-#include "parameters.cuh"
+
 
 
 #define DIM 3
@@ -33,7 +33,7 @@
 
 
 
-void Atom::initialize_position(char *input_dir, Parameters *para)
+void Atom::initialize_position(char *input_dir)
 {  
     printf("---------------------------------------------------------------\n");
     printf("INFO:  read in initial positions and related parameters.\n");
@@ -46,26 +46,26 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
 
     // the first line of the xyz.in file
     double rc;
-    count = fscanf(fid_xyz, "%d%d%lf", &N, &para->neighbor.MN, &rc);
+    count = fscanf(fid_xyz, "%d%d%lf", &N, &neighbor.MN, &rc);
     if (count != 3) print_error("reading error for line 1 of xyz.in.\n");
-    para->neighbor.rc = rc;
+    neighbor.rc = rc;
     if (N < 1)
         print_error("number of atoms should >= 1\n");
     else
         printf("INPUT: number of atoms is %d.\n", N);
     
-    if (para->neighbor.MN < 0)
+    if (neighbor.MN < 0)
         print_error("maximum number of neighbors should >= 0\n");
     else
-        printf("INPUT: maximum number of neighbors is %d.\n",para->neighbor.MN);
+        printf("INPUT: maximum number of neighbors is %d.\n",neighbor.MN);
 
-    if (para->neighbor.rc < 0)
+    if (neighbor.rc < 0)
         print_error("initial cutoff for neighbor list should >= 0\n");
     else
         printf
         (
             "INPUT: initial cutoff for neighbor list is %g A.\n", 
-            para->neighbor.rc
+            neighbor.rc
         );    
 
     // now we have enough information to allocate memroy for the major data
@@ -84,7 +84,7 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
 
     // second line: boundary conditions
     count = fscanf
-    (fid_xyz, "%d%d%d", &(para->pbc_x), &(para->pbc_y), &(para->pbc_z));
+    (fid_xyz, "%d%d%d", &(atom->pbc_x), &(atom->pbc_y), &(atom->pbc_z));
     if (count != 3) print_error("reading error for line 2 of xyz.in.\n");
 
     // third line: triclinic box parameters
@@ -162,7 +162,7 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
     count = fscanf
     (
         fid_xyz, "%d%d%d%lf%lf%lf", 
-        &(para->pbc_x), &(para->pbc_y), &(para->pbc_z), &lx, &ly, &lz
+        &pbc_x, &pbc_y, &pbc_z, &lx, &ly, &lz
     );
     if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
     cpu_box_length[0] = lx;
@@ -171,23 +171,23 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
 
 #endif // #ifdef TRICLINIC
 
-    if (para->pbc_x == 1)
+    if (pbc_x == 1)
         printf("INPUT: use periodic boundary conditions along x.\n");
-    else if (para->pbc_x == 0)
+    else if (pbc_x == 0)
         printf("INPUT: use     free boundary conditions along x.\n");
     else
         print_error("invalid boundary conditions along x.\n");
 
-    if (para->pbc_y == 1)
+    if (pbc_y == 1)
         printf("INPUT: use periodic boundary conditions along y.\n");
-    else if (para->pbc_y == 0)
+    else if (pbc_y == 0)
         printf("INPUT: use     free boundary conditions along y.\n");
     else
         print_error("invalid boundary conditions along y.\n");
 
-    if (para->pbc_z == 1)
+    if (pbc_z == 1)
         printf("INPUT: use periodic boundary conditions along z.\n");
-    else if (para->pbc_z == 0)
+    else if (pbc_z == 0)
         printf("INPUT: use     free boundary conditions along z.\n");
     else
         print_error("invalid boundary conditions along z.\n");
@@ -222,37 +222,37 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
     fclose(fid_xyz);
 
     // number of groups determined
-    para->number_of_groups = max_label + 1;
-    if (para->number_of_groups == 1)
+    number_of_groups = max_label + 1;
+    if (number_of_groups == 1)
         printf("INPUT: there is only one group of atoms.\n");
     else
-        printf("INPUT: there are %d groups of atoms.\n",para->number_of_groups);
+        printf("INPUT: there are %d groups of atoms.\n", number_of_groups);
 
     // determine the number of atoms in each group
-    MY_MALLOC(cpu_group_size, int, para->number_of_groups);
-    MY_MALLOC(cpu_group_size_sum, int, para->number_of_groups);
-    for (int m = 0; m < para->number_of_groups; m++)
+    MY_MALLOC(cpu_group_size, int, number_of_groups);
+    MY_MALLOC(cpu_group_size_sum, int, number_of_groups);
+    for (int m = 0; m < number_of_groups; m++)
     {
         cpu_group_size[m] = 0;
         cpu_group_size_sum[m] = 0;
     }
     for (int n = 0; n < N; n++) 
         cpu_group_size[cpu_label[n]]++;
-    for (int m = 0; m < para->number_of_groups; m++)
+    for (int m = 0; m < number_of_groups; m++)
         printf("       %d atoms in group %d.\n", cpu_group_size[m], m);   
     
     // calculate the number of atoms before a group
-    for (int m = 1; m < para->number_of_groups; m++)
+    for (int m = 1; m < number_of_groups; m++)
         for (int n = 0; n < m; n++)
             cpu_group_size_sum[m] += cpu_group_size[n];
 
     // determine the atom indices from the first to the last group
     MY_MALLOC(cpu_group_contents, int, N);
     int *offset;
-    MY_MALLOC(offset, int, para->number_of_groups);
-    for (int m = 0; m < para->number_of_groups; m++) offset[m] = 0;
+    MY_MALLOC(offset, int, number_of_groups);
+    for (int m = 0; m < number_of_groups; m++) offset[m] = 0;
     for (int n = 0; n < N; n++) 
-        for (int m = 0; m < para->number_of_groups; m++)
+        for (int m = 0; m < number_of_groups; m++)
             if (cpu_label[n] == m)
             {
                 cpu_group_contents[cpu_group_size_sum[m]+offset[m]] 
@@ -262,19 +262,19 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
     MY_FREE(offset);
 
     // number of types determined
-    para->number_of_types = max_type + 1;
-    if (para->number_of_types == 1)
+    number_of_types = max_type + 1;
+    if (number_of_types == 1)
         printf("INPUT: there is only one atom type.\n");
     else
-        printf("INPUT: there are %d atom types.\n", para->number_of_types);
+        printf("INPUT: there are %d atom types.\n", number_of_types);
 
     // determine the number of atoms in each type
-    MY_MALLOC(cpu_type_size, int, para->number_of_types);
-    for (int m = 0; m < para->number_of_types; m++)
+    MY_MALLOC(cpu_type_size, int, number_of_types);
+    for (int m = 0; m < number_of_types; m++)
         cpu_type_size[m] = 0;
     for (int n = 0; n < N; n++) 
         cpu_type_size[cpu_type[n]]++;
-    for (int m = 0; m < para->number_of_types; m++)
+    for (int m = 0; m < number_of_types; m++)
         printf("       %d atoms of type %d.\n", cpu_type_size[m], m); 
 
     printf("INFO:  positions and related parameters initialized.\n");
@@ -285,12 +285,12 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
 
 
 
-void Atom::allocate_memory_gpu(Parameters *para)
+void Atom::allocate_memory_gpu(void)
 {
     // memory amount
     int m1 = sizeof(int) * N;
-    int m2 = m1 * para->neighbor.MN;
-    int m3 = sizeof(int) * para->number_of_groups;
+    int m2 = m1 * neighbor.MN;
+    int m3 = sizeof(int) * number_of_groups;
     int m4 = sizeof(real) * N;
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
 
@@ -344,10 +344,10 @@ void Atom::allocate_memory_gpu(Parameters *para)
 
 
 
-void Atom::copy_from_cpu_to_gpu(Parameters *para)
+void Atom::copy_from_cpu_to_gpu(void)
 {
     int m1 = sizeof(int) * N;
-    int m2 = sizeof(int) * para->number_of_groups;
+    int m2 = sizeof(int) * number_of_groups;
     int m3 = sizeof(real) * N;
     int m4 = sizeof(real) * DIM;
 
@@ -391,15 +391,15 @@ void Atom::copy_from_cpu_to_gpu(Parameters *para)
 
 
 
-Atom::Atom(char *input_dir, Parameters *para)
+Atom::Atom(char *input_dir)
 { 
-    initialize_position(input_dir, para);
-    allocate_memory_gpu(para);
-    copy_from_cpu_to_gpu(para);
+    initialize_position(input_dir);
+    allocate_memory_gpu();
+    copy_from_cpu_to_gpu();
 
     // build the initial neighbor list
     int is_first = 1;
-    find_neighbor(para, this, is_first);
+    find_neighbor(this, is_first);
 }
 
 

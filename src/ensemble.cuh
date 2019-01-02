@@ -27,7 +27,7 @@ class Ensemble
 public:
     Ensemble(void);      
     virtual ~Ensemble(void);
-    virtual void compute(Parameters*, Atom*, Force*, Measure*) = 0;
+    virtual void compute(Atom*, Force*, Measure*) = 0;
     int type;          // ensemble type in a specific run
     int source;
     int sink;

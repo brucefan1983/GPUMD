@@ -26,7 +26,7 @@
 #include "ensemble_bdp.cuh"
 #include "force.cuh"
 
-#include "parameters.cuh"
+
 
 
 
@@ -51,7 +51,7 @@ void Integrate::finalize(void)
 }
 
 
-void Integrate::initialize(Parameters *para, Atom* atom)
+void Integrate::initialize(Atom* atom)
 {
     // determine the integrator
     switch (type)
@@ -67,7 +67,7 @@ void Integrate::initialize(Parameters *para, Atom* atom)
             ensemble = new Ensemble_NHC            
             (
                 type, atom->N, temperature, temperature_coupling, 
-                para->time_step
+                atom->time_step
             );
             break;
         case 3: // NVT-Langevin
@@ -90,7 +90,7 @@ void Integrate::initialize(Parameters *para, Atom* atom)
             (
                 type, source, sink, atom->cpu_group_size[source], 
                 atom->cpu_group_size[sink], temperature, temperature_coupling, 
-                delta_temperature, para->time_step
+                delta_temperature, atom->time_step
             );
             break;
         case 22: // heat-Langevin
@@ -121,9 +121,9 @@ void Integrate::initialize(Parameters *para, Atom* atom)
 
 
 void Integrate::compute
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
-    ensemble->compute(para, atom, force, measure);
+    ensemble->compute(atom, force, measure);
 }
 
 

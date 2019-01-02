@@ -17,12 +17,13 @@
 
 #include "parse.cuh"
 
+#include "atom.cuh"
 #include "ensemble.cuh"
 #include "error.cuh"
 #include "force.cuh"
 #include "integrate.cuh"
 #include "measure.cuh"
-#include "parameters.cuh"
+
 
 #include <errno.h>
 
@@ -157,21 +158,21 @@ static void parse_potentials(char **param, int num_param, Force *force)
 
 
 
-static void parse_velocity(char **param, int num_param, Parameters *para)
+static void parse_velocity(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
     {
         print_error("velocity should have 1 parameter.\n");
     }
-    if (!is_valid_real(param[1], &para->initial_temperature))
+    if (!is_valid_real(param[1], &atom->initial_temperature))
     {
         print_error("initial temperature should be a real number.\n");
     }
-    if (para->initial_temperature <= 0.0)
+    if (atom->initial_temperature <= 0.0)
     {
         print_error("initial temperature should be a positive number.\n");
     }
-    printf("INPUT: initial temperature is %g K.\n", para->initial_temperature);
+    printf("INPUT: initial temperature is %g K.\n", atom->initial_temperature);
 }
 
 
@@ -183,7 +184,7 @@ static void parse_velocity(char **param, int num_param, Parameters *para)
 //11-20: NPT
 //21-30: heat (NEMD method for heat conductivity)
 static void parse_ensemble 
-(char **param,  int num_param, Parameters *para, Integrate *integrate)
+(char **param,  int num_param, Atom *atom, Integrate *integrate)
 {
     // 1. Determine the integration method
     if (strcmp(param[1], "nve") == 0)
@@ -267,26 +268,26 @@ static void parse_ensemble
     if (integrate->type >= 1 && integrate->type <= 20)
     {	
         // initial temperature
-        if (!is_valid_real(param[2], &para->temperature1))
+        if (!is_valid_real(param[2], &atom->temperature1))
         {
             print_error("ensemble temperature should be a real number.\n");
         }
-        if (para->temperature1 <= 0.0)
+        if (atom->temperature1 <= 0.0)
         {
             print_error("ensemble temperature should be a positive number.\n");
         }
 
         // final temperature
-        if (!is_valid_real(param[3], &para->temperature2))
+        if (!is_valid_real(param[3], &atom->temperature2))
         {
             print_error("ensemble temperature should be a real number.\n");
         }
-        if (para->temperature2 <= 0.0)
+        if (atom->temperature2 <= 0.0)
         {
             print_error("ensemble temperature should be a positive number.\n");
         }
 
-        integrate->temperature = para->temperature1;
+        integrate->temperature = atom->temperature1;
 
         // temperature_coupling
         if (!is_valid_real(param[4], &integrate->temperature_coupling))
@@ -376,36 +377,36 @@ static void parse_ensemble
         case 1:
             printf("INPUT: Use NVT ensemble for this run.\n");
             printf("       choose the Berendsen method.\n"); 
-            printf("       initial temperature is %g K.\n", para->temperature1);
-            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       initial temperature is %g K.\n", atom->temperature1);
+            printf("       final temperature is %g K.\n", atom->temperature2);
             printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 2:
             printf("INPUT: Use NVT ensemble for this run.\n");
             printf("       choose the Nose-Hoover chain method.\n"); 
-            printf("       initial temperature is %g K.\n", para->temperature1);
-            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       initial temperature is %g K.\n", atom->temperature1);
+            printf("       final temperature is %g K.\n", atom->temperature2);
             printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 3:
             printf("INPUT: Use NVT ensemble for this run.\n");
             printf("       choose the Langevin method.\n"); 
-            printf("       initial temperature is %g K.\n", para->temperature1);
-            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       initial temperature is %g K.\n", atom->temperature1);
+            printf("       final temperature is %g K.\n", atom->temperature2);
             printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 4:
             printf("INPUT: Use NVT ensemble for this run.\n");
             printf("       choose the Bussi-Donadio-Parrinello method.\n"); 
-            printf("       initial temperature is %g K.\n", para->temperature1);
-            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       initial temperature is %g K.\n", atom->temperature1);
+            printf("       final temperature is %g K.\n", atom->temperature2);
             printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 11:
             printf("INPUT: Use NPT ensemble for this run.\n");
             printf("       choose the Berendsen method.\n");      
-            printf("       initial temperature is %g K.\n", para->temperature1);
-            printf("       final temperature is %g K.\n", para->temperature2);
+            printf("       initial temperature is %g K.\n", atom->temperature1);
+            printf("       final temperature is %g K.\n", atom->temperature2);
             printf("       T_coupling is %g.\n", integrate->temperature_coupling);
             printf("       pressure_x is %g GPa.\n", pressure[0]);
             printf("       pressure_y is %g GPa.\n", pressure[1]);
@@ -448,18 +449,18 @@ static void parse_ensemble
 
 
 
-static void parse_time_step (char **param,  int num_param, Parameters *para)
+static void parse_time_step (char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
     {
         print_error("time_step should have 1 parameter.\n");
     }
-    if (!is_valid_real(param[1], &para->time_step))
+    if (!is_valid_real(param[1], &atom->time_step))
     {
         print_error("time_step should be a real number.\n");
     } 
-    printf("INPUT: time_step for this run is %g fs.\n", para->time_step);
-    para->time_step /= TIME_UNIT_CONVERSION;
+    printf("INPUT: time_step for this run is %g fs.\n", atom->time_step);
+    atom->time_step /= TIME_UNIT_CONVERSION;
 }
 
 
@@ -468,24 +469,24 @@ static void parse_time_step (char **param,  int num_param, Parameters *para)
 static void parse_neighbor
 (
     char **param,  int num_param, 
-    Parameters *para, Force *force
+    Atom* atom, Force *force
 )
 {
-    para->neighbor.update = 1;
+    atom->neighbor.update = 1;
 
     if (num_param != 2)
     {
         print_error("neighbor should have 1 parameter.\n");
     }
-    if (!is_valid_real(param[1], &para->neighbor.skin))
+    if (!is_valid_real(param[1], &atom->neighbor.skin))
     {
         print_error("neighbor list skin should be a number.\n");
     } 
     printf
-    ("INPUT: build neighbor list with a skin of %g A.\n", para->neighbor.skin);
+    ("INPUT: build neighbor list with a skin of %g A.\n", atom->neighbor.skin);
 
     // change the cutoff
-    para->neighbor.rc = force->rc_max + para->neighbor.skin;
+    atom->neighbor.rc = force->rc_max + atom->neighbor.skin;
 }
 
 
@@ -796,7 +797,7 @@ static void parse_compute_shc(char **param,  int num_param, Measure* measure)
 
 
 
-static void parse_deform(char **param,  int num_param, Parameters *para)
+static void parse_deform(char **param,  int num_param, Atom* atom)
 {
     print_error("the deform keyword is to be implemented.\n");
 }
@@ -825,33 +826,33 @@ static void parse_compute_temp(char **param,  int num_param, Measure* measure)
 
 
 
-static void parse_fix(char **param, int num_param, Parameters *para)
+static void parse_fix(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
     {
         print_error("fix should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->fixed_group))
+    if (!is_valid_int(param[1], &atom->fixed_group))
     {
         print_error("fixed_group should be an integer.\n");
     }  
-    printf("INPUT: group %d will be fixed.\n", para->fixed_group);
+    printf("INPUT: group %d will be fixed.\n", atom->fixed_group);
 }
 
 
 
 
-static void parse_run(char **param,  int num_param, Parameters *para)
+static void parse_run(char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
     {
         print_error("run should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &para->number_of_steps))
+    if (!is_valid_int(param[1], &atom->number_of_steps))
     {
         print_error("number of steps should be an integer.\n");
     }
-    printf("INPUT: run %d steps.\n", para->number_of_steps);
+    printf("INPUT: run %d steps.\n", atom->number_of_steps);
 }
 
 
@@ -859,7 +860,7 @@ static void parse_run(char **param,  int num_param, Parameters *para)
 
 void parse
 (
-    char **param, int num_param, Parameters *para,
+    char **param, int num_param, Atom* atom,
     Force *force, Integrate *integrate, Measure *measure,
     int *is_potential,int *is_velocity,int *is_run
 )
@@ -877,19 +878,19 @@ void parse
     else if (strcmp(param[0], "velocity") == 0)
     {
         *is_velocity = 1;
-        parse_velocity(param, num_param, para);
+        parse_velocity(param, num_param, atom);
     }
     else if (strcmp(param[0], "ensemble")       == 0) 
     {
-        parse_ensemble(param, num_param, para, integrate);
+        parse_ensemble(param, num_param, atom, integrate);
     }
     else if (strcmp(param[0], "time_step")      == 0) 
     {
-        parse_time_step(param, num_param, para);
+        parse_time_step(param, num_param, atom);
     }
     else if (strcmp(param[0], "neighbor")       == 0) 
     {
-        parse_neighbor(param, num_param, para, force);
+        parse_neighbor(param, num_param, atom, force);
     }
     else if (strcmp(param[0], "dump_thermo")    == 0) 
     {
@@ -937,7 +938,7 @@ void parse
     }
     else if (strcmp(param[0], "deform")         == 0) 
     {
-        parse_deform(param, num_param, para);
+        parse_deform(param, num_param, atom);
     }
     else if (strcmp(param[0], "compute_temp")   == 0) 
     {
@@ -945,12 +946,12 @@ void parse
     }
     else if (strcmp(param[0], "fix")            == 0) 
     {
-        parse_fix(param, num_param, para);
+        parse_fix(param, num_param, atom);
     }
     else if (strcmp(param[0], "run")            == 0)
     {
         *is_run = 1;
-        parse_run(param, num_param, para);
+        parse_run(param, num_param, atom);
     }
     else
     {

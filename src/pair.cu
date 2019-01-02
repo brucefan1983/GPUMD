@@ -20,7 +20,7 @@
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 
 
@@ -69,7 +69,7 @@ static __device__ void dev_apply_mic
 
 
 
-Pair::Pair(FILE *fid, Parameters *para, int potential_model_input)
+Pair::Pair(FILE *fid, int potential_model_input)
 {
     potential_model = potential_model_input;
     if (potential_model == 0) initialize_ri(fid);
@@ -385,13 +385,13 @@ static __global__ void gpu_find_force
 
 
 // Find force and related quantities for pair potentials (A wrapper)
-void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
+void Pair::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
-    int pbc_x = para->pbc_x;
-    int pbc_y = para->pbc_y;
-    int pbc_z = para->pbc_z;
+    int pbc_x = atom->pbc_x;
+    int pbc_y = atom->pbc_y;
+    int pbc_z = atom->pbc_z;
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
     int *type = atom->type;

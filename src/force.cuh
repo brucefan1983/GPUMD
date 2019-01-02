@@ -30,12 +30,12 @@ public:
 
     Force(void);      
     ~Force(void);
-    void initialize_one_potential(Parameters*, Atom*, int);
-    void initialize_two_body_potential(Parameters*, Atom*);
-    void initialize_many_body_potential(Parameters*, Atom*, int);
-    void initialize(char*, Parameters *para, Atom*);
-    void find_neighbor_local(Parameters*, Atom*, int);
-    void compute(Parameters*, Atom*, Measure*);
+    void initialize_one_potential(Atom*, int);
+    void initialize_two_body_potential(Atom*);
+    void initialize_many_body_potential(Atom*, int);
+    void initialize(char*, Atom*);
+    void find_neighbor_local(Atom*, int);
+    void compute(Atom*, Measure*);
 
     int num_of_potentials;
     int interlayer_only;

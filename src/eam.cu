@@ -20,7 +20,7 @@
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 
 
@@ -62,7 +62,7 @@ static __device__ void dev_apply_mic
 
 
 
-EAM::EAM(FILE *fid, Parameters *para, Atom* atom, char *name)
+EAM::EAM(FILE *fid, Atom* atom, char *name)
 {
 
     if (strcmp(name, "eam_zhou_2004_1") == 0) initialize_eam2004zhou(fid);
@@ -558,13 +558,13 @@ static __global__ void find_force_eam_step2
 
 
 // Force evaluation wrapper
-void EAM::compute(Parameters *para, Atom *atom, Measure *measure)
+void EAM::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    int pbc_x = para->pbc_x;
-    int pbc_y = para->pbc_y;
-    int pbc_z = para->pbc_z;
+    int pbc_x = atom->pbc_x;
+    int pbc_y = atom->pbc_y;
+    int pbc_z = atom->pbc_z;
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
     real *x = atom->x; 

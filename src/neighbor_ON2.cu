@@ -20,7 +20,7 @@
 #include "neighbor_ON2.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE 128
 #ifdef USE_DP
@@ -120,14 +120,14 @@ static __global__ void gpu_find_neighbor_ON2
 
 
 // a driver function
-void find_neighbor_ON2(Parameters *para, Atom *atom)
+void find_neighbor_ON2(Atom *atom)
 {                           
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    int pbc_x = para->pbc_x;
-    int pbc_y = para->pbc_y;
-    int pbc_z = para->pbc_z;
-    real rc = para->neighbor.rc;
+    int pbc_x = atom->pbc_x;
+    int pbc_y = atom->pbc_y;
+    int pbc_z = atom->pbc_z;
+    real rc = atom->neighbor.rc;
     real rc2 = rc * rc; 
     int *NN = atom->NN;
     int *NL = atom->NL;

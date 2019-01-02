@@ -46,9 +46,9 @@ struct SW2_Data
 class SW2 : public Potential
 {
 public:   
-    SW2(FILE*, Parameters*, Atom*, int num_of_types);
+    SW2(FILE*, Atom*, int num_of_types);
     virtual ~SW2(void);
-    virtual void compute(Parameters*, Atom*, Measure*);
+    virtual void compute(Atom*, Measure*);
     void initialize_sw_1985_1(FILE*); // called by the constructor
     void initialize_sw_1985_2(FILE*); // called by the constructor
     void initialize_sw_1985_3(FILE*); // called by the constructor

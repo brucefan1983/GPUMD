@@ -23,7 +23,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH       200
@@ -47,7 +47,7 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 
-void HNEMD::preprocess_hnemd_kappa(Parameters *para, Atom *atom)
+void HNEMD::preprocess_hnemd_kappa(Atom *atom)
 {
     if (compute)
     {
@@ -100,7 +100,7 @@ static real get_volume(real *box_gpu)
 
 void HNEMD::process_hnemd_kappa
 (
-    int step, char *input_dir, Parameters *para, 
+    int step, char *input_dir,
     Atom *atom, Integrate *integrate
 )
 {
@@ -152,7 +152,7 @@ void HNEMD::process_hnemd_kappa
 
 
 
-void HNEMD::postprocess_hnemd_kappa(Parameters *para, Atom *atom)
+void HNEMD::postprocess_hnemd_kappa(Atom *atom)
 {
     if (compute) { cudaFree(heat_all); }
 }

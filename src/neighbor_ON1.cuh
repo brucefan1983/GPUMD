@@ -19,7 +19,7 @@
 
 void find_neighbor_ON1
 (
-    Parameters *para, Atom *atom, 
+    Atom *atom, 
     int cell_n_x, int cell_n_y, int cell_n_z
 );
 

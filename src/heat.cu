@@ -23,7 +23,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define FILE_NAME_LENGTH      200
 #define DIM                   3
@@ -40,13 +40,13 @@
 
 // allocate memory used for recording group temperatures 
 // and energies of the heat source and sink
-void Heat::preprocess_heat(Parameters *para)
+void Heat::preprocess_heat(Atom* atom)
 {
     if (sample)
     {
         // The last 2 data are the energy changes of the source and sink
-        int num = (para->number_of_groups + 2) 
-                * (para->number_of_steps / sample_interval);
+        int num = (atom->number_of_groups + 2) 
+                * (atom->number_of_steps / sample_interval);
         MY_MALLOC(group_temp, real, num);
     }
 }
@@ -111,13 +111,13 @@ static __global__ void find_group_temp
 
 // sample block temperature (wrapper)
 void Heat::sample_block_temperature
-(int step, Parameters *para, Atom *atom, Integrate *integrate)
+(int step, Atom *atom, Integrate *integrate)
 {
     if (sample)
     {
         if (step % sample_interval == 0)
         {
-            int Ng = para->number_of_groups;
+            int Ng = atom->number_of_groups;
             int offset = (step / sample_interval) * (Ng + 2);
       
             // block temperatures
@@ -158,12 +158,12 @@ void Heat::sample_block_temperature
 // Output block temperatures and energies of the heat source and sink; 
 // free the used memory
 void Heat::postprocess_heat
-(char *input_dir, Parameters *para, Integrate *integrate)
+(char *input_dir, Atom* atom, Integrate *integrate)
 {
     if (sample)
     {
-        int Nt = para->number_of_steps / sample_interval;
-        int Ng = para->number_of_groups;
+        int Nt = atom->number_of_steps / sample_interval;
+        int Ng = atom->number_of_groups;
         char file_temperature[FILE_NAME_LENGTH];
         strcpy(file_temperature, input_dir);
         strcat(file_temperature, "/temperature.out");

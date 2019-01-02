@@ -17,7 +17,7 @@
 #pragma once
 #include "common.cuh"
 
-void process_velocity(Parameters *para, Atom *atom);
+void process_velocity(Atom *atom);
 
 
 

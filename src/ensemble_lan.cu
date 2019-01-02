@@ -24,7 +24,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE 128
 
@@ -222,13 +222,13 @@ static __global__ void find_ke
 
 
 void Ensemble_LAN::integrate_nvt_lan
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
     int  N           = atom->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group  = para->fixed_group;
+    int fixed_group  = atom->fixed_group;
     int *label       = atom->label;
-    real time_step   = para->time_step;
+    real time_step   = atom->time_step;
     real *mass = atom->mass;
     real *x    = atom->x;
     real *y    = atom->y;
@@ -253,7 +253,7 @@ void Ensemble_LAN::integrate_nvt_lan
     // the standard velocity-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    force->compute(para, atom, measure);
+    force->compute(atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
@@ -276,18 +276,18 @@ void Ensemble_LAN::integrate_nvt_lan
 
 // integrate by one step, with heating and cooling
 void Ensemble_LAN::integrate_heat_lan
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
     int N                = atom->N;
     int grid_size        = (N - 1) / BLOCK_SIZE + 1;
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
-    int fixed_group      = para->fixed_group;
+    int fixed_group      = atom->fixed_group;
     int *label           = atom->label;
     int *group_size      = atom->group_size;
     int *group_size_sum  = atom->group_size_sum;
     int *group_contents  = atom->group_contents;
-    real time_step       = para->time_step;
+    real time_step       = atom->time_step;
     real *mass = atom->mass;
     real *x    = atom->x;
     real *y    = atom->y;
@@ -301,7 +301,7 @@ void Ensemble_LAN::integrate_heat_lan
 
     int label_1 = source;
     int label_2 = sink;
-    int Ng = para->number_of_groups;
+    int Ng = atom->number_of_groups;
 
     // allocate some memory
     real *ek2;
@@ -336,7 +336,7 @@ void Ensemble_LAN::integrate_heat_lan
     // the standard veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    force->compute(para, atom, measure);
+    force->compute(atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
 
@@ -372,15 +372,15 @@ void Ensemble_LAN::integrate_heat_lan
 
  
 void Ensemble_LAN::compute
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
     if (type == 3)
     {
-        integrate_nvt_lan(para, atom, force, measure);
+        integrate_nvt_lan(atom, force, measure);
     }
     else
     {
-        integrate_heat_lan(para, atom, force, measure);
+        integrate_heat_lan(atom, force, measure);
     }
 }
 

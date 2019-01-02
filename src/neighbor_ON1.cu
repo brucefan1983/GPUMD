@@ -23,7 +23,7 @@
 #include "neighbor_ON1.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
@@ -254,14 +254,14 @@ static __global__ void gpu_find_neighbor_ON1
 
 // a driver function
 void find_neighbor_ON1
-(Parameters *para, Atom *atom, int cell_n_x, int cell_n_y, int cell_n_z)
+(Atom *atom, int cell_n_x, int cell_n_y, int cell_n_z)
 {                           
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    int pbc_x = para->pbc_x;
-    int pbc_y = para->pbc_y;
-    int pbc_z = para->pbc_z;
-    real rc = para->neighbor.rc;
+    int pbc_x = atom->pbc_x;
+    int pbc_y = atom->pbc_y;
+    int pbc_z = atom->pbc_z;
+    real rc = atom->neighbor.rc;
     real rc2 = rc * rc; 
     int *NN = atom->NN;
     int *NL = atom->NL;

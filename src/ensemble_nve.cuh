@@ -26,7 +26,7 @@ class Ensemble_NVE : public Ensemble
 public:
     Ensemble_NVE(int type_input);
     virtual ~Ensemble_NVE(void);
-    virtual void compute(Parameters*, Atom*, Force*, Measure*);
+    virtual void compute(Atom*, Force*, Measure*);
 };
 
 

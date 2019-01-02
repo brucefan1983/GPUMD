@@ -23,7 +23,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH 200
@@ -55,11 +55,11 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 //Allocate memory for recording heat current data
-void HAC::preprocess_hac(Parameters *para, Atom *atom)
+void HAC::preprocess_hac(Atom *atom)
 {
     if (compute)
     {
-        int num = NUM_OF_HEAT_COMPONENTS * para->number_of_steps 
+        int num = NUM_OF_HEAT_COMPONENTS * atom->number_of_steps 
                 / sample_interval;
         CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
     }
@@ -125,7 +125,7 @@ static __global__ void gpu_sum_heat
 
 
 // sample heat current data for HAC calculations.
-void HAC::sample_hac(int step, char *input_dir, Parameters *para, Atom *atom)
+void HAC::sample_hac(int step, char *input_dir, Atom *atom)
 {
     if (compute)
     { 
@@ -133,7 +133,7 @@ void HAC::sample_hac(int step, char *input_dir, Parameters *para, Atom *atom)
         {   
             // get the total heat current from the per-atom heat current
             int nd = step / sample_interval;
-            int Nd = para->number_of_steps / sample_interval;
+            int Nd = atom->number_of_steps / sample_interval;
             int M = NUM_OF_HEAT_COMPONENTS + DIM;
             real *gpu_heat;
             CHECK(cudaMalloc((void**)&gpu_heat, sizeof(real) * M));
@@ -270,12 +270,12 @@ static real get_volume(real *box_gpu)
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
 void HAC::find_hac_kappa
-(char *input_dir, Parameters *para, Atom *atom, Integrate *integrate)
+(char *input_dir, Atom *atom, Integrate *integrate)
 {
     // rename variables
-    int number_of_steps = para->number_of_steps;
-    real temperature = para->temperature2;
-    real time_step = para->time_step;
+    int number_of_steps = atom->number_of_steps;
+    real temperature = atom->temperature2;
+    real time_step = atom->time_step;
 
     // other parameters
     int Nd = number_of_steps / sample_interval;
@@ -355,12 +355,12 @@ void HAC::find_hac_kappa
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
 void HAC::postprocess_hac
-(char *input_dir, Parameters *para, Atom *atom, Integrate *integrate)
+(char *input_dir, Atom *atom, Integrate *integrate)
 {
     if (compute) 
     {
         printf("INFO:  start to calculate HAC and related quantities.\n");
-        find_hac_kappa(input_dir, para, atom, integrate);
+        find_hac_kappa(input_dir, atom, integrate);
         CHECK(cudaFree(heat_all));
         printf("INFO:  HAC and related quantities are calculated.\n\n");
     }

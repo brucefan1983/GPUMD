@@ -22,7 +22,7 @@
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
-#include "parameters.cuh"
+
 
 typedef unsigned long long uint64;
 
@@ -37,17 +37,17 @@ typedef unsigned long long uint64;
 
 
 // copy the neighbor list from the GPU to the CPU
-void copy_neighbor_to_cpu(Parameters *para, Atom *atom, int* NN, int*NL)
+void copy_neighbor_to_cpu(Atom *atom, int* NN, int*NL)
 {
     int N = atom->N;
     CHECK(cudaMemcpy(NN, atom->NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
 
     // allocate a temporary memory
     int *NL_temp;
-    MY_MALLOC(NL_temp, int, N * para->neighbor.MN);
+    MY_MALLOC(NL_temp, int, N * atom->neighbor.MN);
 
     // copy the neighbor list from the GPU to the CPU
-    int m = sizeof(int) * N * para->neighbor.MN;
+    int m = sizeof(int) * N * atom->neighbor.MN;
     CHECK(cudaMemcpy(NL_temp, atom->NL, m, cudaMemcpyDeviceToHost));
 
     // change from the GPU format to the CPU format
@@ -55,7 +55,7 @@ void copy_neighbor_to_cpu(Parameters *para, Atom *atom, int* NN, int*NL)
     {
         for (int k = 0; k < NN[n1]; k++)
         {
-            NL[n1 * para->neighbor.MN + k] = NL_temp[k * N + n1];
+            NL[n1 * atom->neighbor.MN + k] = NL_temp[k * N + n1];
         }
     }
     // free the temporary memory
@@ -68,7 +68,7 @@ void copy_neighbor_to_cpu(Parameters *para, Atom *atom, int* NN, int*NL)
 //build the look-up table used for recording force and velocity data
 void SHC::build_fv_table
 (
-    Parameters *para, Atom* atom, int* NN, int* NL,
+    Atom* atom, int* NN, int* NL,
     int *cpu_a_map, int* cpu_b_map, int* cpu_fv_index
 )
 {
@@ -90,7 +90,7 @@ void SHC::build_fv_table
             // Now set neighbors to correct value
             for (int i1 = 0; i1 < NN[n1]; ++i1)
             {
-                int n2 = NL[n1 * para->neighbor.MN + i1];
+                int n2 = NL[n1 * atom->neighbor.MN + i1];
                 if (cpu_b_map[n2] != -1)
                 {
                     cpu_fv_index[cpu_a_map[n1] * count_b + cpu_b_map[n2]] =
@@ -106,7 +106,7 @@ void SHC::build_fv_table
 
 
 // allocate memory and initialize for calculating SHC
-void SHC::preprocess_shc(Parameters *para, Atom *atom)
+void SHC::preprocess_shc(Atom *atom)
 {
     if (compute)
     {
@@ -137,12 +137,12 @@ void SHC::preprocess_shc(Parameters *para, Atom *atom)
         int* NN;
         int* NL;
         MY_MALLOC(NN, int, atom->N);
-        MY_MALLOC(NL, int, atom->N * para->neighbor.MN);
-        copy_neighbor_to_cpu(para, atom, NN, NL);
+        MY_MALLOC(NL, int, atom->N * atom->neighbor.MN);
+        copy_neighbor_to_cpu(atom, NN, NL);
 
         int* cpu_fv_index;
         MY_MALLOC(cpu_fv_index, int, count_a * count_b);
-        build_fv_table(para, atom, NN, NL, cpu_a_map, cpu_b_map, cpu_fv_index);
+        build_fv_table(atom, NN, NL, cpu_a_map, cpu_b_map, cpu_fv_index);
 
         MY_FREE(NN);
         MY_FREE(NL);
@@ -255,7 +255,7 @@ static __global__ void gpu_find_k_time
 
 
 // calculate the correlation function K(t)
-void SHC::find_k_time(char *input_dir, Parameters *para, Atom *atom)
+void SHC::find_k_time(char *input_dir, Atom *atom)
 {
     // allocate memory for K(t)
     real *k_time_i;
@@ -300,7 +300,7 @@ void SHC::find_k_time(char *input_dir, Parameters *para, Atom *atom)
 }
 
 
-void SHC::process_shc(int step, char *input_dir, Parameters *para, Atom *atom)
+void SHC::process_shc(int step, char *input_dir, Atom *atom)
 {
     if (compute)
     { 
@@ -323,7 +323,7 @@ void SHC::process_shc(int step, char *input_dir, Parameters *para, Atom *atom)
         // calculate the correlation function every "sample_interval * M" steps
         if ((step + 1) % step_ref == 0)
         {
-            find_k_time(input_dir, para, atom);
+            find_k_time(input_dir, atom);
         }
     }
 }
@@ -331,7 +331,7 @@ void SHC::process_shc(int step, char *input_dir, Parameters *para, Atom *atom)
 
 
 
-void SHC::postprocess_shc(Parameters *para, Atom *atom)
+void SHC::postprocess_shc(void)
 {
     if (compute)
     {

@@ -39,12 +39,12 @@ public:
     int *a_map;
     int *b_map;
 
-    void preprocess_shc(Parameters*, Atom*);
-    void process_shc(int step, char *, Parameters*, Atom*);
-    void postprocess_shc(Parameters*, Atom*);
+    void preprocess_shc(Atom*);
+    void process_shc(int step, char *, Atom*);
+    void postprocess_shc(void);
 
-    void build_fv_table(Parameters*, Atom*, int*, int*, int*, int*, int*);
-    void find_k_time(char *input_dir, Parameters *para, Atom *atom);
+    void build_fv_table(Atom*, int*, int*, int*, int*, int*);
+    void find_k_time(char *input_dir, Atom *atom);
 };
 
 

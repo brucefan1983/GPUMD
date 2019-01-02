@@ -21,7 +21,7 @@
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE_FORCE 64
 
@@ -415,9 +415,9 @@
 
 
 
-REBO_MOS::REBO_MOS(Parameters *para, Atom* atom)
+REBO_MOS::REBO_MOS(Atom* atom)
 {
-    int num = ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
+    int num = ((atom->neighbor.MN<20) ? atom->neighbor.MN : 20);
     int memory1 = sizeof(real) * atom->N;
     int memory2 = sizeof(real) * atom->N * num;
     int memory3 = sizeof(int) * atom->N;
@@ -1414,13 +1414,13 @@ static __global__ void find_force_many_body
 
 
 // Force evaluation wrapper
-void REBO_MOS::compute(Parameters *para, Atom *atom, Measure *measure)
+void REBO_MOS::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    int pbc_x = para->pbc_x;
-    int pbc_y = para->pbc_y;
-    int pbc_z = para->pbc_z;
+    int pbc_x = atom->pbc_x;
+    int pbc_y = atom->pbc_y;
+    int pbc_z = atom->pbc_z;
 
     int *NN = atom->NN_local;           // for 2-body
     int *NL = atom->NL_local;           // for 2-body

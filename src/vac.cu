@@ -21,7 +21,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE 128
 #define FILE_NAME_LENGTH      200
@@ -37,11 +37,11 @@
 
 
 // Allocate memory for recording velocity data
-void VAC::preprocess_vac(Parameters *para, Atom *atom)
+void VAC::preprocess_vac(Atom *atom)
 {
     if (compute)
     {
-        int num = atom->N * para->number_of_steps / sample_interval;
+        int num = atom->N * atom->number_of_steps / sample_interval;
         CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
         CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
         CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
@@ -72,7 +72,7 @@ static __global__ void gpu_copy_velocity
 
 
 // Record velocity data (wrapper)
-void VAC::sample_vac(int step, Parameters *para, Atom *atom)
+void VAC::sample_vac(int step, Atom *atom)
 {
     if (compute)
     {
@@ -240,12 +240,12 @@ static void find_dos
 
 
 // Calculate (1) VAC, (2) RDC, and (3) DOS = phonon density of states
-void VAC::find_vac_rdc_dos(char *input_dir, Parameters *para, Atom *atom)
+void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
 {
     // rename variables
     int N = atom->N;
-    int number_of_steps = para->number_of_steps;
-    real time_step = para->time_step;
+    int number_of_steps = atom->number_of_steps;
+    real time_step = atom->time_step;
 
     // other parameters
     int Nd = number_of_steps / sample_interval;
@@ -356,12 +356,12 @@ void VAC::find_vac_rdc_dos(char *input_dir, Parameters *para, Atom *atom)
 
 
 // postprocess VAC and related quantities.
-void VAC::postprocess_vac(char *input_dir, Parameters *para, Atom *atom)
+void VAC::postprocess_vac(char *input_dir, Atom *atom)
 {
     if (compute)
     {
         printf("INFO:  start to calculate VAC and related quantities.\n");
-        find_vac_rdc_dos(input_dir, para, atom);
+        find_vac_rdc_dos(input_dir, atom);
         CHECK(cudaFree(vx_all));
         CHECK(cudaFree(vy_all));
         CHECK(cudaFree(vz_all));

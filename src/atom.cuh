@@ -21,6 +21,19 @@
 
 
 
+
+// Parameters for neighbor list updating
+struct Neighbor
+{
+    int MN;               // upper bound of # neighbors for one particle
+    int update;           // 1 means you want to update the neighbor list
+    real skin;            // skin distance 
+    real rc;              // cutoff used when building the neighbor list
+};
+
+
+
+
 class Atom
 {
 public:
@@ -64,13 +77,30 @@ public:
     real* cpu_box_length;
 
     int N;                // number of atoms
+    int number_of_groups; // number of groups 
+    int fixed_group;      // ID of the group in which the atoms will be fixed 
+    int number_of_types;  // number of atom types 
+    int pbc_x;           // pbc_x = 1 means periodic in the x-direction
+    int pbc_y;           // pbc_y = 1 means periodic in the y-direction
+    int pbc_z;           // pbc_z = 1 means periodic in the z-direction
 
-    Atom(char *input_dir, Parameters *para);
+    // make a structure?
+    int number_of_steps; // number of steps in a specific run
+    real initial_temperature; // initial temperature for velocity
+    real temperature1;
+    real temperature2; 
+    // time step in a specific run; default value is 1 fs
+    real time_step;
+
+    // some well defined sub-structures
+    Neighbor neighbor;
+
+    Atom(char *input_dir);
     ~Atom(void);
 
-    void initialize_position(char *input_dir, Parameters *para);
-    void allocate_memory_gpu(Parameters *para);
-    void copy_from_cpu_to_gpu(Parameters *para);
+    void initialize_position(char *input_dir);
+    void allocate_memory_gpu(void);
+    void copy_from_cpu_to_gpu(void);
 };
 
 

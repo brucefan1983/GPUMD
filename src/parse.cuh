@@ -22,7 +22,7 @@ void parse
 (
     char **param, 
     int num_param, 
-    Parameters *para,
+    Atom* atom,
     Force *force,
     Integrate *integrate,
     Measure *measure,

@@ -21,7 +21,7 @@
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE_SW 64 // 128 is also good
 #ifdef USE_DP
@@ -59,14 +59,14 @@
 
 
 
-SW2::SW2(FILE *fid, Parameters *para, Atom* atom, int num_of_types)
+SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
 {
     if (num_of_types == 1) { initialize_sw_1985_1(fid); }
     if (num_of_types == 2) { initialize_sw_1985_2(fid); }
     if (num_of_types == 3) { initialize_sw_1985_3(fid); }
 
     // memory for the partial forces dU_i/dr_ij
-    int num_of_neighbors = (para->neighbor.MN < 20) ? para->neighbor.MN : 20;
+    int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
     int memory = sizeof(real) * atom->N * num_of_neighbors;
     CHECK(cudaMalloc((void**)&sw2_data.f12x, memory));
     CHECK(cudaMalloc((void**)&sw2_data.f12y, memory));
@@ -640,13 +640,13 @@ static __global__ void find_force_many_body
 
 
 // Find force and related quantities for the SW potential (A wrapper)
-void SW2::compute(Parameters *para, Atom *atom, Measure *measure)
+void SW2::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
-    int pbc_x = para->pbc_x;
-    int pbc_y = para->pbc_y;
-    int pbc_z = para->pbc_z;
+    int pbc_x = atom->pbc_x;
+    int pbc_y = atom->pbc_y;
+    int pbc_z = atom->pbc_z;
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
     int *type = atom->type_local;

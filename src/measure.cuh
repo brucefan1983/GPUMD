@@ -38,9 +38,9 @@ class Measure
 public:
     Measure(char *input_dir);
     ~Measure(void);
-    void initialize(Parameters*, Atom*);
-    void finalize(char*, Parameters*, Atom*, Integrate*);
-    void compute(char*, Parameters*, Atom*, Integrate*, int);
+    void initialize(Atom*);
+    void finalize(char*, Atom*, Integrate*);
+    void compute(char*, Atom*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
     int dump_velocity;
@@ -75,13 +75,13 @@ public:
     HNEMD hnemd;
     Heat heat;
 protected:
-    void dump_thermos(FILE*, Parameters*, Atom*, Integrate*, int);
-    void dump_positions(FILE*, Parameters*, Atom*, int);
-    void dump_velocities(FILE*, Parameters*, Atom*, int);
-    void dump_forces(FILE*, Parameters*, Atom*, int);
-    void dump_potentials(FILE*, Parameters*, Atom*, int);
-    void dump_virials(FILE*, Parameters*, Atom*, int);
-    void dump_heats(FILE*, Parameters*, Atom*, int);
+    void dump_thermos(FILE*, Atom*, Integrate*, int);
+    void dump_positions(FILE*, Atom*, int);
+    void dump_velocities(FILE*, Atom*, int);
+    void dump_forces(FILE*, Atom*, int);
+    void dump_potentials(FILE*, Atom*, int);
+    void dump_virials(FILE*, Atom*, int);
+    void dump_heats(FILE*, Atom*, int);
 };
 
 

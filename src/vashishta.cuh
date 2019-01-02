@@ -51,9 +51,9 @@ struct Vashishta_Data
 class Vashishta : public Potential
 {
 public:   
-    Vashishta(FILE*, Parameters*, Atom*, int use_table);  
+    Vashishta(FILE*, Atom*, int use_table);  
     virtual ~Vashishta(void);
-    virtual void compute(Parameters*, Atom*, Measure*);
+    virtual void compute(Atom*, Measure*);
     void initialize_0(FILE*);
     void initialize_1(FILE*);
 protected:

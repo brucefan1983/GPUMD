@@ -22,7 +22,7 @@
 #include "atom.cuh"
 #include "error.cuh"
 #include "memory.cuh"
-#include "parameters.cuh"
+
 
 #ifdef USE_DP
     #define K_B   8.617343e-5
@@ -182,7 +182,7 @@ void initialize_velocity
 
 
 //initialize the velocities according to the input initial temperature
-void process_velocity(Parameters *para, Atom *atom)
+void process_velocity(Atom *atom)
 {
     int N = atom->N;
     int M = sizeof(real) * N; 
@@ -201,7 +201,7 @@ void process_velocity(Parameters *para, Atom *atom)
 
     initialize_velocity
     (
-        atom->N, para->initial_temperature, mass, 
+        atom->N, atom->initial_temperature, mass, 
         x, y, z, vx, vy, vz
     );
 

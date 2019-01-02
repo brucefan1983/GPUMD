@@ -18,7 +18,7 @@
 #include "common.cuh"
 
 void validate_force
-(Force *force, Parameters *para, Atom *atom, Measure* measure);
+(Force *force, Atom *atom, Measure* measure);
 
 
 

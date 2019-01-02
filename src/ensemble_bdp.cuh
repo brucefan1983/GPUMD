@@ -26,10 +26,10 @@ public:
     Ensemble_BDP(int, real, real);   
     Ensemble_BDP(int, int, int, real, real, real); 
     virtual ~Ensemble_BDP(void);
-    virtual void compute(Parameters*, Atom*, Force*, Measure*);
+    virtual void compute(Atom*, Force*, Measure*);
 protected:
-    void integrate_nvt_bdp(Parameters*, Atom*, Force*, Measure*);
-    void integrate_heat_bdp(Parameters*, Atom*, Force*, Measure*);
+    void integrate_nvt_bdp(Atom*, Force*, Measure*);
+    void integrate_heat_bdp(Atom*, Force*, Measure*);
 };
 
 

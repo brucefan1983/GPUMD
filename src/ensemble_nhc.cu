@@ -23,7 +23,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE 128
 
@@ -195,13 +195,13 @@ static void __global__ gpu_scale_velocity
 
 
 void Ensemble_NHC::integrate_nvt_nhc
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
     int  N           = atom->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group = para->fixed_group;
+    int fixed_group = atom->fixed_group;
     int *label = atom->label;
-    real time_step   = para->time_step;
+    real time_step   = atom->time_step;
     real *mass = atom->mass;
     real *x    = atom->x;
     real *y    = atom->y;
@@ -245,7 +245,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    force->compute(para, atom, measure);
+    force->compute(atom, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -442,13 +442,13 @@ static __global__ void gpu_scale_velocity
 // integrate by one step, with heating and cooling, 
 // using Nose-Hoover chain method
 void Ensemble_NHC::integrate_heat_nhc
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
     int N         = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group = para->fixed_group;
+    int fixed_group = atom->fixed_group;
     int *label = atom->label;
-    real time_step   = para->time_step;
+    real time_step   = atom->time_step;
     real *mass = atom->mass;
     real *x    = atom->x;
     real *y    = atom->y;
@@ -466,7 +466,7 @@ void Ensemble_NHC::integrate_heat_nhc
     int label_1 = source;
     int label_2 = sink;
 
-    int Ng = para->number_of_groups;
+    int Ng = atom->number_of_groups;
 
     real kT1 = K_B * (temperature + delta_temperature); 
     real kT2 = K_B * (temperature - delta_temperature); 
@@ -510,7 +510,7 @@ void Ensemble_NHC::integrate_heat_nhc
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
 
-    force->compute(para, atom, measure);
+    force->compute(atom, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
@@ -549,15 +549,15 @@ void Ensemble_NHC::integrate_heat_nhc
 
  
 void Ensemble_NHC::compute
-(Parameters *para, Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force, Measure* measure)
 {
     if (type == 2)
     {
-        integrate_nvt_nhc(para, atom, force, measure);
+        integrate_nvt_nhc(atom, force, measure);
     }
     else
     {
-        integrate_heat_nhc(para, atom, force, measure);
+        integrate_heat_nhc(atom, force, measure);
     }
 }
 

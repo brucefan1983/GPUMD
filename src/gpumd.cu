@@ -30,7 +30,7 @@
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
-#include "parameters.cuh"
+
 
 #include <ctype.h>
 
@@ -40,13 +40,12 @@
 GPUMD::GPUMD(char *input_dir)
 {
     // Data structures:
-    Parameters  para;
-    Atom        atom(input_dir, &para);
+    Atom        atom(input_dir);
     Force       force;
     Integrate   integrate;
     Measure     measure(input_dir);
 
-    run(input_dir, &para, &atom, &force, &integrate, &measure);
+    run(input_dir, &atom, &force, &integrate, &measure);
 }
 
 
@@ -68,45 +67,44 @@ static void process_run
     char **param, 
     unsigned int num_param, 
     char *input_dir,  
-    Parameters *para, 
     Atom *atom,
     Force *force,
     Integrate *integrate,
     Measure *measure
 )
 {
-    integrate->initialize(para, atom);
-    measure->initialize(para, atom);
+    integrate->initialize(atom);
+    measure->initialize(atom);
 
     // record the starting time for this run
     clock_t time_begin = clock();
 
     // Now, start to run!
-    for (int step = 0; step < para->number_of_steps; ++step)
+    for (int step = 0; step < atom->number_of_steps; ++step)
     {  
         // update the neighbor list
-        if (para->neighbor.update)
+        if (atom->neighbor.update)
         {
-            find_neighbor(para, atom, 0);
+            find_neighbor(atom, 0);
         }
 
         // set the current temperature;
         if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 20)
         {
-            integrate->ensemble->temperature = para->temperature1 
-                + (para->temperature2 - para->temperature1)
-                * real(step) / para->number_of_steps;   
+            integrate->ensemble->temperature = atom->temperature1 
+                + (atom->temperature2 - atom->temperature1)
+                * real(step) / atom->number_of_steps;   
         }
 
         // integrate by one time-step:
-        integrate->compute(para, atom, force, measure);
+        integrate->compute(atom, force, measure);
 
         // measure
-        measure->compute(input_dir, para, atom, integrate, step);
+        measure->compute(input_dir, atom, integrate, step);
 
-        if (para->number_of_steps >= 10)
+        if (atom->number_of_steps >= 10)
         {
-            if ((step + 1) % (para->number_of_steps / 10) == 0)
+            if ((step + 1) % (atom->number_of_steps / 10) == 0)
             {
                 printf("INFO:  %d steps completed.\n", step + 1);
             }
@@ -116,7 +114,7 @@ static void process_run
     // only for myself
     if (0)
     {
-        validate_force(force, para, atom, measure);
+        validate_force(force, atom, measure);
     }
 
     printf("INFO:  This run is completed.\n\n");
@@ -125,10 +123,10 @@ static void process_run
     clock_t time_finish = clock();
     real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
     printf("INFO:  Time used for this run = %g s.\n", time_used);
-    real run_speed = atom->N * (para->number_of_steps / time_used);
+    real run_speed = atom->N * (atom->number_of_steps / time_used);
     printf("INFO:  Speed of this run = %g atom*step/second.\n\n", run_speed);
 
-    measure->finalize(input_dir, para, atom, integrate);
+    measure->finalize(input_dir, atom, integrate);
     integrate->finalize();
 }
 
@@ -138,15 +136,15 @@ static void process_run
 /*----------------------------------------------------------------------------80
     set some default values after each run
 ------------------------------------------------------------------------------*/
-static void initialize_run(Parameters *para, Measure* measure)
+static void initialize_run(Atom* atom, Measure* measure)
 {
-    para->neighbor.update = 0;
+    atom->neighbor.update = 0;
     measure->heat.sample     = 0;
     measure->shc.compute     = 0;
     measure->vac.compute     = 0;
     measure->hac.compute     = 0;
     measure->hnemd.compute   = 0;
-    para->fixed_group     = -1; // no group has an index of -1
+    atom->fixed_group     = -1; // no group has an index of -1
 }
 
 
@@ -234,7 +232,6 @@ static char *row_find_param (char *s, char *param[], int *num_param)
 void GPUMD::run
 (
     char *input_dir,  
-    Parameters *para,
     Atom *atom,
     Force *force,
     Integrate *integrate,
@@ -252,7 +249,7 @@ void GPUMD::run
     int num_param;
     char *param[max_num_param];
 
-    initialize_run(para, measure); // set some default values before the first run
+    initialize_run(atom, measure); // set some default values before the first run
 
     while (input_ptr)
     {
@@ -268,15 +265,15 @@ void GPUMD::run
         // parse a line of the input file 
         parse
         (
-            param, num_param, para, force, integrate, measure,
+            param, num_param, atom, force, integrate, measure,
             &is_potential, &is_velocity, &is_run
         );
 
         // check for some special keywords
         if (is_potential) 
         {  
-            force->initialize(input_dir, para, atom);
-            force->compute(para, atom, measure);
+            force->initialize(input_dir, atom);
+            force->compute(atom, measure);
             #ifdef FORCE
             // output the initial forces (for lattice dynamics calculations)
             int m = sizeof(real) * atom->N;
@@ -304,17 +301,17 @@ void GPUMD::run
         }
         if (is_velocity)  
         {
-            process_velocity(para, atom);
+            process_velocity(atom);
         }
         if (is_run)
         { 
             process_run
             (
-                param, num_param, input_dir, para, atom, 
+                param, num_param, input_dir, atom, 
                 force, integrate, measure
             );
             
-            initialize_run(para, measure); // change back to the default
+            initialize_run(atom, measure); // change back to the default
         }
     }
 

@@ -23,7 +23,7 @@
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
-#include "parameters.cuh"
+
 
 #define BLOCK_SIZE 128
 #define DIM 3
@@ -128,7 +128,7 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
     If the returned value > 0, the neighbor list will be updated.
 ------------------------------------------------------------------------------*/
 
-static int check_atom_distance(Parameters *para, Atom *atom)
+static int check_atom_distance(Atom *atom)
 {
     int N = atom->N;
     int M = (N - 1) / 1024 + 1;
@@ -218,7 +218,7 @@ static __global__ void gpu_update_xyz0
 
 
 // check the bound of the neighbor list
-static void check_bound(Parameters *para, Atom *atom)
+static void check_bound(Atom *atom)
 {
     int N = atom->N;
     int *NN = atom->NN;
@@ -228,12 +228,12 @@ static void check_bound(Parameters *para, Atom *atom)
     int flag = 0;
     for (int n = 0; n < N; ++n)
     {
-        if (cpu_NN[n] > para->neighbor.MN)
+        if (cpu_NN[n] > atom->neighbor.MN)
         {
             printf
             (
                 "Error: NN[%d] = %d > %d\n", n, cpu_NN[n], 
-                para->neighbor.MN
+                atom->neighbor.MN
             );
             flag = 1;
         }
@@ -248,17 +248,17 @@ static void check_bound(Parameters *para, Atom *atom)
 
 
 
-void find_neighbor(Parameters *para, Atom *atom)
+void find_neighbor(Atom *atom)
 {
 
 #ifdef DEBUG
     
     // always use the ON2 method when debugging, because it's deterministic
-    find_neighbor_ON2(para, atom);
+    find_neighbor_ON2(atom);
 
 #else
 
-    real rc = para->neighbor.rc;
+    real rc = atom->neighbor.rc;
     real *box = atom->box_length;
     real *cpu_box;
     MY_MALLOC(cpu_box, real, 3);
@@ -273,21 +273,21 @@ void find_neighbor(Parameters *para, Atom *atom)
     int cell_n_z = 0;
     int use_ON2 = 0;
 
-    if (para->pbc_x) 
+    if (atom->pbc_x) 
     {
         cell_n_x = floor(cpu_box[0] / rc);
         if (cell_n_x < 3) {use_ON2 = 1;}
     }
     else {cell_n_x = 1;}
 
-    if (para->pbc_y) 
+    if (atom->pbc_y) 
     {
         cell_n_y = floor(cpu_box[1] / rc);
         if (cell_n_y < 3) {use_ON2 = 1;}
     }
     else {cell_n_y = 1;}
 
-    if (para->pbc_z) 
+    if (atom->pbc_z) 
     {
         cell_n_z = floor(cpu_box[2] / rc);
         if (cell_n_z < 3) {use_ON2 = 1;}
@@ -304,11 +304,11 @@ void find_neighbor(Parameters *para, Atom *atom)
     // of bins is small
     if (use_ON2)
     {
-        find_neighbor_ON2(para, atom);
+        find_neighbor_ON2(atom);
     }
     else
     {
-        find_neighbor_ON1(para, atom, cell_n_x, cell_n_y, cell_n_z);
+        find_neighbor_ON1(atom, cell_n_x, cell_n_y, cell_n_z);
     }
 
 #endif
@@ -318,12 +318,12 @@ void find_neighbor(Parameters *para, Atom *atom)
 
 
 // the driver function to be called outside this file
-void find_neighbor(Parameters *para, Atom *atom, int is_first)
+void find_neighbor(Atom *atom, int is_first)
 {
     if (is_first == 1) // always build in the beginning
     {
-        find_neighbor(para, atom); 
-        check_bound(para, atom);
+        find_neighbor(atom); 
+        check_bound(atom);
 
         // set up the reference positions
         gpu_update_xyz0<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -334,19 +334,19 @@ void find_neighbor(Parameters *para, Atom *atom, int is_first)
     } 
     else // only re-build when necessary during the run
     {    
-        int update = check_atom_distance(para, atom);
+        int update = check_atom_distance(atom);
 
         if (update != 0)
         {
             int N = atom->N;
 
-            find_neighbor(para, atom); 
-            check_bound(para, atom);
+            find_neighbor(atom); 
+            check_bound(atom);
             
             // pull the particles back to the box
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (
-                N, para->pbc_x, para->pbc_y, para->pbc_z, atom->box_length, 
+                N, atom->pbc_x, atom->pbc_y, atom->pbc_z, atom->box_length, 
                 atom->x, atom->y, atom->z
             );
             

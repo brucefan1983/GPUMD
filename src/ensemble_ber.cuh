@@ -27,7 +27,7 @@ public:
     Ensemble_BER(int, real, real);   
     Ensemble_BER(int, real, real, real, real, real, real);    
     virtual ~Ensemble_BER(void);
-    virtual void compute(Parameters*, Atom*, Force*, Measure*);
+    virtual void compute(Atom*, Force*, Measure*);
 };
 
 
