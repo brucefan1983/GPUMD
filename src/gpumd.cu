@@ -24,12 +24,10 @@
 #include "ensemble.cuh" 
 #include "measure.cuh"
 #include "parse.cuh" 
-#include "neighbor.cuh"
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
-
 
 #include <ctype.h>
 
@@ -84,7 +82,7 @@ static void process_run
         // update the neighbor list
         if (atom->neighbor.update)
         {
-            find_neighbor(atom, 0);
+            atom->find_neighbor(0);
         }
 
         // set the current temperature;
@@ -215,7 +213,7 @@ static char *row_find_param (char *s, char *param[], int *num_param)
         {
             param[*num_param] = s;
             ++(*num_param);
-            start_new_word = 0;			
+            start_new_word = 0;
         }
         ++s;
     }

@@ -16,11 +16,8 @@
 
 
 
-
-#include "neighbor_ON2.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
 
 #define BLOCK_SIZE 128
 #ifdef USE_DP
@@ -91,21 +88,12 @@ static __global__ void gpu_find_neighbor_ON2
 
 
 // a driver function
-void find_neighbor_ON2(Atom *atom)
-{                           
-    int N = atom->N;
+void Atom::find_neighbor_ON2(void)
+{
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    int pbc_x = atom->pbc_x;
-    int pbc_y = atom->pbc_y;
-    int pbc_z = atom->pbc_z;
-    real rc = atom->neighbor.rc;
+    real rc = neighbor.rc;
     real rc2 = rc * rc; 
-    int *NN = atom->NN;
-    int *NL = atom->NL;
-    real *x = atom->x;
-    real *y = atom->y;
-    real *z = atom->z;
-    real *box = atom->box_length;
+    real *box = box_length;
 
     // Find neighbours
     gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>

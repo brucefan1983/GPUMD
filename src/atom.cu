@@ -18,13 +18,9 @@
 
 #include "atom.cuh"
 
-
-#include "neighbor.cuh"
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
-
-
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -303,7 +299,7 @@ Atom::Atom(char *input_dir)
 
     // build the initial neighbor list
     int is_first = 1;
-    find_neighbor(this, is_first);
+    find_neighbor(is_first);
 }
 
 

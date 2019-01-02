@@ -16,19 +16,13 @@
 
 
 
-#define USE_THRUST
-
-
-
-#include "neighbor_ON1.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
 
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 
-
+#define USE_THRUST
 #define BLOCK_SIZE 128
 #ifdef USE_DP
     #define HALF  0.5
@@ -253,22 +247,13 @@ static __global__ void gpu_find_neighbor_ON1
 
 
 // a driver function
-void find_neighbor_ON1
-(Atom *atom, int cell_n_x, int cell_n_y, int cell_n_z)
-{                           
-    int N = atom->N;
+void Atom::find_neighbor_ON1
+(int cell_n_x, int cell_n_y, int cell_n_z)
+{
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    int pbc_x = atom->pbc_x;
-    int pbc_y = atom->pbc_y;
-    int pbc_z = atom->pbc_z;
-    real rc = atom->neighbor.rc;
+    real rc = neighbor.rc;
     real rc2 = rc * rc; 
-    int *NN = atom->NN;
-    int *NL = atom->NL;
-    real *x = atom->x;
-    real *y = atom->y;
-    real *z = atom->z;
-    real *box = atom->box_length;
+    real *box = box_length;
 
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
 

@@ -16,10 +16,6 @@
 
 
 
-
-#include "neighbor.cuh"
-#include "neighbor_ON1.cuh"
-#include "neighbor_ON2.cuh"
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
@@ -128,9 +124,8 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
     If the returned value > 0, the neighbor list will be updated.
 ------------------------------------------------------------------------------*/
 
-static int check_atom_distance(Atom *atom)
+int Atom::check_atom_distance(void)
 {
-    int N = atom->N;
     int M = (N - 1) / 1024 + 1;
          
     real d2 = HALF * HALF; // to be generalized to use input
@@ -143,8 +138,8 @@ static int check_atom_distance(Atom *atom)
          
     check_atom_distance_1<<<M, 1024>>>
     (
-        N, d2, atom->x0, atom->y0, atom->z0, 
-        atom->x, atom->y, atom->z, s1
+        N, d2, x0, y0, z0, 
+        x, y, z, s1
     );
     check_atom_distance_2<<<1, 1024>>>(M, s1, s2);
          
@@ -218,22 +213,20 @@ static __global__ void gpu_update_xyz0
 
 
 // check the bound of the neighbor list
-static void check_bound(Atom *atom)
+void Atom::check_bound(void)
 {
-    int N = atom->N;
-    int *NN = atom->NN;
     int *cpu_NN;
     MY_MALLOC(cpu_NN, int, N);
     CHECK(cudaMemcpy(cpu_NN, NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
     int flag = 0;
     for (int n = 0; n < N; ++n)
     {
-        if (cpu_NN[n] > atom->neighbor.MN)
+        if (cpu_NN[n] > neighbor.MN)
         {
             printf
             (
                 "Error: NN[%d] = %d > %d\n", n, cpu_NN[n], 
-                atom->neighbor.MN
+                neighbor.MN
             );
             flag = 1;
         }
@@ -248,18 +241,17 @@ static void check_bound(Atom *atom)
 
 
 
-void find_neighbor(Atom *atom)
+void Atom::find_neighbor(void)
 {
 
 #ifdef DEBUG
-    
     // always use the ON2 method when debugging, because it's deterministic
-    find_neighbor_ON2(atom);
+    find_neighbor_ON2();
 
 #else
 
-    real rc = atom->neighbor.rc;
-    real *box = atom->box_length;
+    real rc = neighbor.rc;
+    real *box = box_length;
     real *cpu_box;
     MY_MALLOC(cpu_box, real, 3);
 
@@ -273,21 +265,21 @@ void find_neighbor(Atom *atom)
     int cell_n_z = 0;
     int use_ON2 = 0;
 
-    if (atom->pbc_x) 
+    if (pbc_x) 
     {
         cell_n_x = floor(cpu_box[0] / rc);
         if (cell_n_x < 3) {use_ON2 = 1;}
     }
     else {cell_n_x = 1;}
 
-    if (atom->pbc_y) 
+    if (pbc_y) 
     {
         cell_n_y = floor(cpu_box[1] / rc);
         if (cell_n_y < 3) {use_ON2 = 1;}
     }
     else {cell_n_y = 1;}
 
-    if (atom->pbc_z) 
+    if (pbc_z) 
     {
         cell_n_z = floor(cpu_box[2] / rc);
         if (cell_n_z < 3) {use_ON2 = 1;}
@@ -318,44 +310,36 @@ void find_neighbor(Atom *atom)
 
 
 // the driver function to be called outside this file
-void find_neighbor(Atom *atom, int is_first)
+void Atom::find_neighbor(int is_first)
 {
     if (is_first == 1) // always build in the beginning
     {
-        find_neighbor(atom); 
-        check_bound(atom);
+        find_neighbor(); 
+        check_bound();
 
         // set up the reference positions
-        gpu_update_xyz0<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+        gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, atom->x, atom->y, atom->z, 
-            atom->x0, atom->y0, atom->z0
+            N, x, y, z, 
+            x0, y0, z0
         );
     } 
     else // only re-build when necessary during the run
     {    
-        int update = check_atom_distance(atom);
+        int update = check_atom_distance();
 
         if (update != 0)
         {
-            int N = atom->N;
-
-            find_neighbor(atom); 
-            check_bound(atom);
+            find_neighbor();
+            check_bound();
             
             // pull the particles back to the box
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-            (
-                N, atom->pbc_x, atom->pbc_y, atom->pbc_z, atom->box_length, 
-                atom->x, atom->y, atom->z
-            );
+            (N, pbc_x, pbc_y, pbc_z, box_length, x, y, z);
             
             // update the reference positions
             gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-            (
-                N, atom->x, atom->y, atom->z, 
-                atom->x0, atom->y0, atom->z0
-            );
+            (N, x, y, z, x0, y0, z0);
         }
     }
 } 
