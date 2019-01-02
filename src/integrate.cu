@@ -14,16 +14,18 @@
 */
 
 
-#include "common.cuh"
+
+#include "integrate.cuh"
+
+#include "atom.cuh"
 #include "ensemble.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble_lan.cuh"
 #include "ensemble_bdp.cuh"
-#include "integrate.cuh"
 #include "force.cuh"
-#include "atom.cuh"
+
 #include "parameters.cuh"
 
 

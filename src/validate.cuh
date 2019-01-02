@@ -15,10 +15,7 @@
 
 
 #pragma once
-class Atom;
-
-class Force;
-class Measure;
+#include "common.cuh"
 
 void validate_force
 (Force *force, Parameters *para, Atom *atom, Measure* measure);

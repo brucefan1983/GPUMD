@@ -16,7 +16,7 @@
 
 
 
-#include "common.cuh"
+
 #include "vashishta.cuh"
 #include "ldg.cuh"
 #include "memory.cuh"

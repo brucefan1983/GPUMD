@@ -16,7 +16,7 @@
 
 
 
-#include "common.cuh"
+
 #include "hnemd_kappa.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"

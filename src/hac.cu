@@ -16,7 +16,7 @@
 
 
 
-#include "common.cuh"
+
 #include "hac.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"

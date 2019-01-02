@@ -15,9 +15,7 @@
 
 
 #pragma once
-class Force;
-class Integrate;
-class Measure;
+#include "common.cuh"
 
 
 void parse

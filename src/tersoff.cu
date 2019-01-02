@@ -16,7 +16,6 @@
 
 
 
-#include "common.cuh"
 #include "tersoff.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"

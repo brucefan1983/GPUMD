@@ -15,7 +15,7 @@
 
 
 #pragma once
-class Atom;
+#include "common.cuh"
 
 void find_neighbor_ON1
 (

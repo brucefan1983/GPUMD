@@ -15,13 +15,11 @@
 
 
 
+#include "gpumd.cuh"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-
-#include "gpumd.cuh"
-
 
 
 

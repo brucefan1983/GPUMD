@@ -15,10 +15,9 @@
 
 
 
+#include "parse.cuh"
 
 #include <errno.h>
-#include "common.cuh"
-#include "parse.cuh"
 #include "force.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"

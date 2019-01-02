@@ -17,14 +17,7 @@
 
 
 #pragma once
-
-
-struct Parameters;
-struct CPU_Data;
-struct Atom;
-class Force;
-class Integrate;
-class Measure;
+#include "common.cuh"
 
 
 

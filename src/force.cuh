@@ -17,15 +17,12 @@
 
 
 #pragma once
-
+#include "common.cuh"
 
 
 #define MAX_NUM_OF_POTENTIALS 10
 #define FILE_NAME_LENGTH      200
 
-class Atom;
-class Potential;
-class Measure;
 
 class Force
 {

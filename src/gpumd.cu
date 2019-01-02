@@ -16,9 +16,8 @@
 
 
 
-#include <ctype.h>
-#include "common.cuh"
 #include "gpumd.cuh"
+
 #include "force.cuh"
 #include "validate.cuh"
 #include "integrate.cuh"
@@ -32,6 +31,8 @@
 #include "error.cuh"
 #include "io.cuh"
 #include "parameters.cuh"
+
+#include <ctype.h>
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5

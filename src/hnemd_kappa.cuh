@@ -15,8 +15,7 @@
 
 
 #pragma once
-class Atom;
-class Integrate;
+#include "common.cuh"
 
 
 class HNEMD

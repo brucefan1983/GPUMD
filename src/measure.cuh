@@ -17,6 +17,7 @@
 
 
 #pragma once
+#include "common.cuh"
 
 
 #include "vac.cuh"
@@ -24,8 +25,7 @@
 #include "shc.cuh"
 #include "hnemd_kappa.cuh"
 #include "heat.cuh"
-class Integrate;
-class Atom;
+
 
 
 #define FILE_NAME_LENGTH      200

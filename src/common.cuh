@@ -36,6 +36,13 @@
 
 struct Neighbor;
 struct Parameters;
+class Atom;
+class Potential;
+class Force;
+class Measure;
+class Integrate;
+class Ensemble;
+
 
 
 

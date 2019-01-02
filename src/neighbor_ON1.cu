@@ -20,15 +20,14 @@
 
 
 
-
-#include <thrust/scan.h>
-#include <thrust/execution_policy.h>
-
-#include "common.cuh"
 #include "neighbor_ON1.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #include "parameters.cuh"
+
+#include <thrust/scan.h>
+#include <thrust/execution_policy.h>
+
 
 #define BLOCK_SIZE 128
 #ifdef USE_DP

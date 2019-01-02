@@ -17,10 +17,7 @@
 
 
 #pragma once
-class Atom;
-class Force;
-class Ensemble;
-class Measure;
+#include "common.cuh"
 
 
 

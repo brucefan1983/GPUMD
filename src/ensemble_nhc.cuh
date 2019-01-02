@@ -18,9 +18,6 @@
 
 
 #include "ensemble.cuh"
-class Force;
-class Measure;
-class Atom;
 
 
 

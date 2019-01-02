@@ -14,7 +14,7 @@
 */
 
 
-#include "common.cuh"
+
 #include "eam.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"

@@ -21,9 +21,6 @@
 
 #include "ensemble.cuh"
 #include <curand_kernel.h>
-class Force;
-class Measure;
-class Atom;
 
 
 

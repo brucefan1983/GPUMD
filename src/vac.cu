@@ -16,7 +16,7 @@
 
 
 
-#include "common.cuh"
+
 #include "vac.cuh"
 #include "memory.cuh"
 #include "atom.cuh"

@@ -16,7 +16,7 @@
 
 
 #pragma once
-class Atom;
+#include "common.cuh"
 
 
 class VAC

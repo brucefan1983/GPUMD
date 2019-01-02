@@ -15,7 +15,7 @@
 
 
 
-#include "common.cuh"
+
 #include "ensemble.cuh"
 
 

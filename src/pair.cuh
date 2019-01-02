@@ -15,12 +15,8 @@
 
 
 #pragma once
-class Atom;
-
-
-
 #include "potential.cuh"
-class Measure;
+
 
 
 

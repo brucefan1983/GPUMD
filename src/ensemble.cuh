@@ -15,14 +15,11 @@
 
 
 #pragma once
-
+#include "common.cuh"
 
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
 
-class Force;
-class Measure;
-class Atom;
 
 
 class Ensemble 

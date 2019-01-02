@@ -16,7 +16,6 @@
 
 
 
-#include "common.cuh"
 #include "rebo_mos2.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"

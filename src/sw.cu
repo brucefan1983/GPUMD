@@ -16,7 +16,6 @@
 
 
 
-#include "common.cuh"
 #include "sw.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"

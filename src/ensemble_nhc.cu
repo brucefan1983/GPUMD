@@ -16,7 +16,7 @@
 
 
 
-#include "common.cuh"
+
 #include "ensemble_nhc.cuh"
 #include "ensemble.inc"
 #include "force.cuh"

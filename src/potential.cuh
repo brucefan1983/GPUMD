@@ -17,8 +17,7 @@
 
 
 #pragma once
-class Atom;
-class Measure;
+#include "common.cuh"
 
 
 

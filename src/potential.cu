@@ -15,7 +15,7 @@
 
 
 
-#include "common.cuh"
+
 #include "potential.cuh"
 
 
