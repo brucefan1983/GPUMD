@@ -21,6 +21,7 @@
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
+#include "io.cuh"
 typedef unsigned long long uint64;
 
 #define FILE_NAME_LENGTH      200
@@ -29,21 +30,6 @@ typedef unsigned long long uint64;
 #else
     #define ZERO  0.0f
 #endif
-
-
-
-
-static FILE *my_fopen(const char *filename, const char *mode)
-{
-    FILE *fid = fopen(filename, mode);
-    if (fid == NULL) 
-    {
-        printf ("Failed to open %s!\n", filename);
-        printf ("%s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    return fid;
-}
 
 
 

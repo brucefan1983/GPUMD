@@ -30,6 +30,7 @@
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "io.cuh"
 
 #define BLOCK_SIZE 128
 #ifdef USE_DP
@@ -54,21 +55,6 @@ static __device__ void dev_apply_mic
     else if (pbc_y == 1 && y12 > + ly * HALF) {y12 -= ly;}
     if      (pbc_z == 1 && z12 < - lz * HALF) {z12 += lz;}
     else if (pbc_z == 1 && z12 > + lz * HALF) {z12 -= lz;}
-}
-
-
-
-
-static FILE *my_fopen(const char *filename, const char *mode)
-{
-    FILE *fid = fopen(filename, mode);
-    if (fid == NULL) 
-    {
-        printf ("Failed to open %s!\n", filename);
-        printf ("%s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    return fid;
 }
 
 

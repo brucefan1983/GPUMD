@@ -22,6 +22,7 @@
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
+#include "io.cuh"
 
 #define BLOCK_SIZE 128
 
@@ -29,21 +30,6 @@
 // This choice gives optimal accuracy for finite-difference calculations
 #define DX1 1.0e-7
 #define DX2 2.0e-7
-
-
-
-
-static FILE *my_fopen(const char *filename, const char *mode)
-{
-    FILE *fid = fopen(filename, mode);
-    if (fid == NULL) 
-    {
-        printf ("Failed to open %s!\n", filename);
-        printf ("%s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    return fid;
-}
 
 
 

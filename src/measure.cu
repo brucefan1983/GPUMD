@@ -23,6 +23,7 @@
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
+#include "io.cuh"
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -33,21 +34,6 @@
     #define K_B   8.617343e-5f
     #define PRESSURE_UNIT_CONVERSION 1.602177e+2f
 #endif
-
-
-
-
-static FILE *my_fopen(const char *filename, const char *mode)
-{
-    FILE *fid = fopen(filename, mode);
-    if (fid == NULL) 
-    {
-        printf ("Failed to open %s!\n", filename);
-        printf ("%s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    return fid;
-}
 
 
 

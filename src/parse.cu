@@ -16,6 +16,7 @@
 
 
 
+#include <errno.h>
 #include "common.cuh"
 #include "parse.cuh"
 #include "force.cuh"
