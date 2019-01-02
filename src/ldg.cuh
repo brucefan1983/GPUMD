@@ -19,7 +19,7 @@
 
 
 
-
+#define USE_LDG // this is usually faster
 #ifdef USE_LDG
     #define LDG(a, n) __ldg(a + n)
 #else
