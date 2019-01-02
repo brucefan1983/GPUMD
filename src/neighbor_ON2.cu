@@ -32,27 +32,6 @@
 
 
 
-
-#ifdef TRICLINIC
-__device__ static void apply_mic
-(
-    int pbc_x, int pbc_y, int pbc_z, 
-    real *b, // box matrix
-    real *c, // inverse box matrix
-    real &x12, real &y12, real &z12
-) 
-{
-    real sx12 = c[0] * x12 + c[1] * y12 + c[2] * z12;
-    real sy12 = c[3] * x12 + c[4] * y12 + c[5] * z12;
-    real sz12 = c[6] * x12 + c[7] * y12 + c[8] * z12;
-    if (pbc_x == 1) sx12 -= nearbyint(sx12);
-    if (pbc_y == 1) sy12 -= nearbyint(sy12);
-    if (pbc_z == 1) sz12 -= nearbyint(sz12);
-    x12 = b[0] * sx12 + b[1] * sy12 + b[2] * sz12;
-    y12 = b[3] * sx12 + b[4] * sy12 + b[5] * sz12;
-    z12 = b[6] * sx12 + b[7] * sy12 + b[8] * sz12;
-}
-#else
 static __device__ void dev_apply_mic
 (
     int pbc_x, int pbc_y, int pbc_z, real &x12, real &y12, real &z12, 
@@ -66,7 +45,6 @@ static __device__ void dev_apply_mic
     if      (pbc_z == 1 && z12 < - lz * HALF) {z12 += lz;}
     else if (pbc_z == 1 && z12 > + lz * HALF) {z12 -= lz;}
 }
-#endif
 
 
 
@@ -76,10 +54,7 @@ static __global__ void gpu_find_neighbor_ON2
 (
     int pbc_x, int pbc_y, int pbc_z,
     int N, real cutoff_square, 
-    real *box, 
-    #ifdef TRICLINIC
-    real *box_inv,
-    #endif
+    real *box,
     int *NN, int *NL, real *x, real *y, real *z
 )
 {
@@ -97,13 +72,9 @@ static __global__ void gpu_find_neighbor_ON2
             real x12  = x[n2] - x1;  
             real y12  = y[n2] - y1;
             real z12  = z[n2] - z1;
-            
-            #ifdef TRICLINIC
-            apply_mic(pbc_x, pbc_y, pbc_z, box, box_inv, x12, y12, z12);
-            #else
+
             dev_apply_mic
             (pbc_x, pbc_y, pbc_z, x12, y12, z12, box[0], box[1], box[2]);
-            #endif
 
             real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
@@ -134,21 +105,11 @@ void find_neighbor_ON2(Atom *atom)
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
-    #if TRICLINIC
-    real *box = atom->box_matrix;
-    real *box_inv = atom->box_matrix_inv;
-    #else
     real *box = atom->box_length;
-    #endif
-    
+
     // Find neighbours
-    #if TRICLINIC
-    gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
-    (pbc_x, pbc_y, pbc_z, N, rc2, box, box_inv, NN, NL, x, y, z);
-    #else
     gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
     (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, x, y, z);
-    #endif
 
     #ifdef DEBUG
         CHECK(cudaDeviceSynchronize());

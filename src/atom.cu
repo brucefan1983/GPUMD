@@ -77,85 +77,6 @@ void Atom::initialize_position(char *input_dir)
     MY_MALLOC(cpu_y,    real, N);
     MY_MALLOC(cpu_z,    real, N);
     MY_MALLOC(cpu_box_length, real, 3);
-    MY_MALLOC(cpu_box_matrix, real, 9);
-    MY_MALLOC(cpu_box_matrix_inv, real, 9);
-
-#ifdef TRICLINIC
-
-    // second line: boundary conditions
-    count = fscanf
-    (fid_xyz, "%d%d%d", &(atom->pbc_x), &(atom->pbc_y), &(atom->pbc_z));
-    if (count != 3) print_error("reading error for line 2 of xyz.in.\n");
-
-    // third line: triclinic box parameters
-    double box[9];   
-    count = fscanf
-    (
-        fid_xyz, "%lf%lf%lf%lf%lf%lf%lf%lf%lf", &box[0], &box[1], &box[2], 
-        &box[3], &box[4], &box[5], &box[6], &box[7], &box[8]
-    ); 
-    if (count != 9) print_error("reading error for line 3 of xyz.in.\n");
-    for (int n = 0; n < 9; ++n) cpu_box_matrix[n] = box[n];
-
-    real volume = cpu_box_matrix[0]
-                * cpu_box_matrix[4]
-                * cpu_box_matrix[8] 
-                + cpu_box_matrix[1]
-                * cpu_box_matrix[5]
-                * cpu_box_matrix[6] 
-                + cpu_box_matrix[2]
-                * cpu_box_matrix[3]
-                * cpu_box_matrix[7]
-                - cpu_box_matrix[2]
-                * cpu_box_matrix[4]
-                * cpu_box_matrix[6] 
-                - cpu_box_matrix[1]
-                * cpu_box_matrix[3]
-                * cpu_box_matrix[8] 
-                - cpu_box_matrix[0]
-                * cpu_box_matrix[5]
-                * cpu_box_matrix[7];
-
-    cpu_box_matrix_inv[0] = cpu_box_matrix[4]
-                                * cpu_box_matrix[8] 
-                                - cpu_box_matrix[5]
-                                * cpu_box_matrix[7];
-    cpu_box_matrix_inv[1] = cpu_box_matrix[2]
-                                * cpu_box_matrix[7] 
-                                - cpu_box_matrix[1]
-                                * cpu_box_matrix[8];
-    cpu_box_matrix_inv[2] = cpu_box_matrix[1]
-                                * cpu_box_matrix[5] 
-                                - cpu_box_matrix[2]
-                                * cpu_box_matrix[4];
-    cpu_box_matrix_inv[3] = cpu_box_matrix[5]
-                                * cpu_box_matrix[6] 
-                                - cpu_box_matrix[3]
-                                * cpu_box_matrix[8];
-    cpu_box_matrix_inv[4] = cpu_box_matrix[0]
-                                * cpu_box_matrix[8] 
-                                - cpu_box_matrix[2]
-                                * cpu_box_matrix[6];
-    cpu_box_matrix_inv[5] = cpu_box_matrix[2]
-                                * cpu_box_matrix[3] 
-                                - cpu_box_matrix[0]
-                                * cpu_box_matrix[5];
-    cpu_box_matrix_inv[6] = cpu_box_matrix[3]
-                                * cpu_box_matrix[7] 
-                                - cpu_box_matrix[4]
-                                * cpu_box_matrix[6];
-    cpu_box_matrix_inv[7] = cpu_box_matrix[1]
-                                * cpu_box_matrix[6] 
-                                - cpu_box_matrix[0]
-                                * cpu_box_matrix[7];
-    cpu_box_matrix_inv[8] = cpu_box_matrix[0]
-                                * cpu_box_matrix[4] 
-                                - cpu_box_matrix[1]
-                                * cpu_box_matrix[3];
-
-    for (int n = 0; n < 9; n++) cpu_box_matrix_inv[n] /= volume;
-
-#else // #ifdef TRICLINIC
 
     // the second line of the xyz.in file (boundary conditions and box size)
     double lx, ly, lz;
@@ -168,8 +89,6 @@ void Atom::initialize_position(char *input_dir)
     cpu_box_length[0] = lx;
     cpu_box_length[1] = ly;
     cpu_box_length[2] = lz;
-
-#endif // #ifdef TRICLINIC
 
     if (pbc_x == 1)
         printf("INPUT: use periodic boundary conditions along x.\n");
@@ -297,10 +216,8 @@ void Atom::allocate_memory_gpu(void)
     // for indexing
     CHECK(cudaMalloc((void**)&NN, m1)); 
     CHECK(cudaMalloc((void**)&NL, m2)); 
-#ifndef FIXED_NL
     CHECK(cudaMalloc((void**)&NN_local, m1)); 
     CHECK(cudaMalloc((void**)&NL_local, m2));
-#endif
     CHECK(cudaMalloc((void**)&type, m1));  
     CHECK(cudaMalloc((void**)&type_local, m1));
     CHECK(cudaMalloc((void**)&label, m1)); 
@@ -332,8 +249,6 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
 
     // box lengths
-    CHECK(cudaMalloc((void**)&box_matrix,     sizeof(real) * 9));
-    CHECK(cudaMalloc((void**)&box_matrix_inv, sizeof(real) * 9));
     CHECK(cudaMalloc((void**)&box_length, sizeof(real) * DIM));
 
     // 6 thermodynamic quantities
@@ -374,18 +289,7 @@ void Atom::copy_from_cpu_to_gpu(void)
     cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice); 
     cudaMemcpy(z, cpu_z, m3, cudaMemcpyHostToDevice);
 
-    cudaMemcpy
-    (
-        box_matrix, cpu_box_matrix, 
-        9 * sizeof(real), cudaMemcpyHostToDevice
-    );
-    cudaMemcpy
-    (
-        box_matrix_inv, cpu_box_matrix_inv, 
-        9 * sizeof(real), cudaMemcpyHostToDevice
-    );
-    cudaMemcpy
-    (box_length, cpu_box_length, m4, cudaMemcpyHostToDevice);
+    cudaMemcpy(box_length, cpu_box_length, m4, cudaMemcpyHostToDevice);
 }
 
 
@@ -436,12 +340,7 @@ Atom::~Atom(void)
     CHECK(cudaFree(virial_per_atom_z));
     CHECK(cudaFree(potential_per_atom));
     CHECK(cudaFree(heat_per_atom));    
-    //#ifdef TRICLINIC
-    CHECK(cudaFree(box_matrix));
-    CHECK(cudaFree(box_matrix_inv));
-    //#else
     CHECK(cudaFree(box_length));
-    //#endif
     CHECK(cudaFree(thermo));
 
     // Free the major memory allocated on the CPU
@@ -457,8 +356,6 @@ Atom::~Atom(void)
     MY_FREE(cpu_y);
     MY_FREE(cpu_z);
     MY_FREE(cpu_box_length);
-    MY_FREE(cpu_box_matrix);
-    MY_FREE(cpu_box_matrix_inv);
 }
 
 

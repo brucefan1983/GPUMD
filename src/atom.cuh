@@ -55,8 +55,6 @@ public:
     real *virial_per_atom_y;
     real *virial_per_atom_z;
     real *potential_per_atom;     // per-atom potential energy
-    real *box_matrix;       // box matrix
-    real *box_matrix_inv;   // inverse box matrix
     real *box_length;       // box length in each direction
     real *thermo;           // some thermodynamic quantities
 
@@ -72,8 +70,6 @@ public:
     real* cpu_x;
     real* cpu_y;
     real* cpu_z;
-    real* cpu_box_matrix;
-    real* cpu_box_matrix_inv;
     real* cpu_box_length;
 
     int N;                // number of atoms
