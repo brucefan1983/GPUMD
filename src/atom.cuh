@@ -62,6 +62,13 @@ public:
     real* cpu_box_matrix;
     real* cpu_box_matrix_inv;
     real* cpu_box_length;
+
+    Atom(char *input_dir, Parameters *para);
+    ~Atom(void);
+
+    void initialize_position(char *input_dir, Parameters *para);
+    void allocate_memory_gpu(Parameters *para);
+    void copy_from_cpu_to_gpu(Parameters *para);
 };
 
 

@@ -1,9 +1,9 @@
 all: gpumd
 
 CC = nvcc
-CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
+CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -DDEBUG -DTERSOFF_CUTOFF -arch=sm_35
 
-gpumd: eam.o tersoff.o rebo_mos2.o io.o \
+gpumd: eam.o tersoff.o rebo_mos2.o io.o atom.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o heat.o integrate.o ensemble_lan.o ensemble_bdp.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
@@ -11,7 +11,7 @@ gpumd: eam.o tersoff.o rebo_mos2.o io.o \
        measure.o force.o potential.o parse.o gpumd.o main.o
  
 	$(CC) -o gpumd \
-       eam.o tersoff.o rebo_mos2.o io.o \
+       eam.o tersoff.o rebo_mos2.o io.o atom.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
        vac.o hac.o shc.o heat.o integrate.o ensemble_lan.o ensemble_bdp.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
@@ -22,6 +22,8 @@ main.o: main.cu
 	$(CC) $(CFLAGS) -c main.cu
 gpumd.o: gpumd.cu
 	$(CC) $(CFLAGS) -c gpumd.cu
+atom.o: atom.cu
+	$(CC) $(CFLAGS) -c atom.cu
 parse.o: parse.cu
 	$(CC) $(CFLAGS) -c parse.cu
 velocity.o: velocity.cu
