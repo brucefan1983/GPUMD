@@ -62,15 +62,6 @@ static __device__ void dev_apply_mic
 
 
 
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
-
-
-
 EAM::EAM(FILE *fid, Parameters *para, char *name)
 {
 

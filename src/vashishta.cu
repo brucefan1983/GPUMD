@@ -54,15 +54,6 @@
 
 
 
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
-
-
-
 void Vashishta::initialize_0(FILE *fid)
 {
     printf("INPUT: use Vashishta potential.\n");

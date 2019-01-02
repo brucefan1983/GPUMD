@@ -34,18 +34,6 @@
 
 #include <ctype.h>
 
-//#define DIM 3
-//#define NUM_OF_HEAT_COMPONENTS 5
-
-
-
-
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
 
 
 

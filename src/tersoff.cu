@@ -59,15 +59,6 @@ The double-element version of the Tersoff potential as described in
 
 
 
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
-
-
-
 Tersoff2::Tersoff2(FILE *fid, Parameters *para, int num_of_types)
 {
     if (num_of_types == 1)

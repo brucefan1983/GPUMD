@@ -17,12 +17,14 @@
 
 #include "parse.cuh"
 
-#include <errno.h>
+#include "ensemble.cuh"
+#include "error.cuh"
 #include "force.cuh"
 #include "integrate.cuh"
-#include "ensemble.cuh"
 #include "measure.cuh"
 #include "parameters.cuh"
+
+#include <errno.h>
 
 #ifdef USE_DP
     #define PRESSURE_UNIT_CONVERSION 1.602177e+2
@@ -31,15 +33,6 @@
     #define PRESSURE_UNIT_CONVERSION 1.602177e+2f
     #define TIME_UNIT_CONVERSION     1.018051e+1f
 #endif
-
-
-
-
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
 
 
 

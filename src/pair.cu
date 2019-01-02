@@ -69,15 +69,6 @@ static __device__ void dev_apply_mic
 
 
 
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
-
-
-
 Pair::Pair(FILE *fid, Parameters *para, int potential_model_input)
 {
     potential_model = potential_model_input;

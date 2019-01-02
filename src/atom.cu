@@ -33,15 +33,6 @@
 
 
 
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
-
-
-
 void Atom::initialize_position(char *input_dir, Parameters *para)
 {  
     printf("---------------------------------------------------------------\n");

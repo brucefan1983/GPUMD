@@ -59,15 +59,6 @@
 
 
 
-static void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
-
-
-
 SW2::SW2(FILE *fid, Parameters *para, int num_of_types)
 {
     if (num_of_types == 1) { initialize_sw_1985_1(fid); }
