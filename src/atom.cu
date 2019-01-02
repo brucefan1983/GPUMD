@@ -46,13 +46,13 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
 
     // the first line of the xyz.in file
     double rc;
-    count = fscanf(fid_xyz, "%d%d%lf", &para->N, &para->neighbor.MN, &rc);
+    count = fscanf(fid_xyz, "%d%d%lf", &N, &para->neighbor.MN, &rc);
     if (count != 3) print_error("reading error for line 1 of xyz.in.\n");
     para->neighbor.rc = rc;
-    if (para->N < 1)
+    if (N < 1)
         print_error("number of atoms should >= 1\n");
     else
-        printf("INPUT: number of atoms is %d.\n", para->N);
+        printf("INPUT: number of atoms is %d.\n", N);
     
     if (para->neighbor.MN < 0)
         print_error("maximum number of neighbors should >= 0\n");
@@ -69,13 +69,13 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
         );    
 
     // now we have enough information to allocate memroy for the major data
-    MY_MALLOC(cpu_type,       int, para->N);
-    MY_MALLOC(cpu_type_local, int, para->N);
-    MY_MALLOC(cpu_label,      int, para->N);
-    MY_MALLOC(cpu_mass, real, para->N);
-    MY_MALLOC(cpu_x,    real, para->N);
-    MY_MALLOC(cpu_y,    real, para->N);
-    MY_MALLOC(cpu_z,    real, para->N);
+    MY_MALLOC(cpu_type,       int, N);
+    MY_MALLOC(cpu_type_local, int, N);
+    MY_MALLOC(cpu_label,      int, N);
+    MY_MALLOC(cpu_mass, real, N);
+    MY_MALLOC(cpu_x,    real, N);
+    MY_MALLOC(cpu_y,    real, N);
+    MY_MALLOC(cpu_z,    real, N);
     MY_MALLOC(cpu_box_length, real, 3);
     MY_MALLOC(cpu_box_matrix, real, 9);
     MY_MALLOC(cpu_box_matrix_inv, real, 9);
@@ -195,7 +195,7 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
     // the remaining lines in the xyz.in file (type, label, mass, and positions)
     int max_label = -1; // used to determine the number of groups
     int max_type = -1; // used to determine the number of types
-    for (int n = 0; n < para->N; n++) 
+    for (int n = 0; n < N; n++) 
     {
         double mass, x, y, z;
         count = fscanf
@@ -236,7 +236,7 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
         cpu_group_size[m] = 0;
         cpu_group_size_sum[m] = 0;
     }
-    for (int n = 0; n < para->N; n++) 
+    for (int n = 0; n < N; n++) 
         cpu_group_size[cpu_label[n]]++;
     for (int m = 0; m < para->number_of_groups; m++)
         printf("       %d atoms in group %d.\n", cpu_group_size[m], m);   
@@ -247,11 +247,11 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
             cpu_group_size_sum[m] += cpu_group_size[n];
 
     // determine the atom indices from the first to the last group
-    MY_MALLOC(cpu_group_contents, int, para->N);
+    MY_MALLOC(cpu_group_contents, int, N);
     int *offset;
     MY_MALLOC(offset, int, para->number_of_groups);
     for (int m = 0; m < para->number_of_groups; m++) offset[m] = 0;
-    for (int n = 0; n < para->N; n++) 
+    for (int n = 0; n < N; n++) 
         for (int m = 0; m < para->number_of_groups; m++)
             if (cpu_label[n] == m)
             {
@@ -272,7 +272,7 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
     MY_MALLOC(cpu_type_size, int, para->number_of_types);
     for (int m = 0; m < para->number_of_types; m++)
         cpu_type_size[m] = 0;
-    for (int n = 0; n < para->N; n++) 
+    for (int n = 0; n < N; n++) 
         cpu_type_size[cpu_type[n]]++;
     for (int m = 0; m < para->number_of_types; m++)
         printf("       %d atoms of type %d.\n", cpu_type_size[m], m); 
@@ -288,10 +288,10 @@ void Atom::initialize_position(char *input_dir, Parameters *para)
 void Atom::allocate_memory_gpu(Parameters *para)
 {
     // memory amount
-    int m1 = sizeof(int) * para->N;
+    int m1 = sizeof(int) * N;
     int m2 = m1 * para->neighbor.MN;
     int m3 = sizeof(int) * para->number_of_groups;
-    int m4 = sizeof(real) * para->N;
+    int m4 = sizeof(real) * N;
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
 
     // for indexing
@@ -346,9 +346,9 @@ void Atom::allocate_memory_gpu(Parameters *para)
 
 void Atom::copy_from_cpu_to_gpu(Parameters *para)
 {
-    int m1 = sizeof(int) * para->N;
+    int m1 = sizeof(int) * N;
     int m2 = sizeof(int) * para->number_of_groups;
-    int m3 = sizeof(real) * para->N;
+    int m3 = sizeof(real) * N;
     int m4 = sizeof(real) * DIM;
 
     cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice); 

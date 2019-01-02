@@ -44,7 +44,7 @@ Ensemble_NVE::~Ensemble_NVE(void)
 void Ensemble_NVE::compute
 (Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
-    int    N           = para->N;
+    int    N           = atom->N;
     int    grid_size   = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = para->fixed_group;
     int *label = atom->label;

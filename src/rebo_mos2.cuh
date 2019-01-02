@@ -40,7 +40,7 @@ struct REBO_MOS_Data
 class REBO_MOS : public Potential
 {
 public:   
-    REBO_MOS(Parameters*);
+    REBO_MOS(Parameters*, Atom*);
     virtual ~REBO_MOS(void);
     virtual void compute(Parameters*, Atom*, Measure*);
 protected:

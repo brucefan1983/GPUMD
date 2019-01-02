@@ -36,7 +36,7 @@ void preprocess_heat(Parameters *para, CPU_Data *cpu_data)
 {
     if (para->heat.sample)
     {
-        int Ng = para->N / GROUP_SIZE;
+        int Ng = atom->N / GROUP_SIZE;
         // The last 2 data are the energy changes of the source and sink
         int num = (Ng + 2) 
             * (para->number_of_steps / para->heat.sample_interval);
@@ -109,7 +109,7 @@ void sample_block_temperature
     {
         if (step % para->heat.sample_interval == 0)
         {
-            int Ng = para->N / GROUP_SIZE;
+            int Ng = atom->N / GROUP_SIZE;
             int offset = (step / para->heat.sample_interval) * (Ng + 2);
       
             // block temperatures
@@ -148,7 +148,7 @@ void postprocess_heat
     if (para->heat.sample)
     {
         int Nt = para->number_of_steps / para->heat.sample_interval;
-        int Ng = para->N / GROUP_SIZE;
+        int Ng = atom->N / GROUP_SIZE;
         char file_temperature[FILE_NAME_LENGTH];
         strcpy(file_temperature, input_dir);
         strcat(file_temperature, "/temperature.out");

@@ -44,7 +44,7 @@ struct Tersoff2_Data
 class Tersoff2 : public Potential
 {
 public:   
-    Tersoff2(FILE*, Parameters*, int sum_of_types);  
+    Tersoff2(FILE*, Parameters*, Atom*, int sum_of_types);  
     virtual ~Tersoff2(void);
     virtual void compute(Parameters*, Atom*, Measure*);
 protected:

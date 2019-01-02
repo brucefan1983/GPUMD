@@ -256,7 +256,7 @@ static __global__ void gpu_find_neighbor_ON1
 void find_neighbor_ON1
 (Parameters *para, Atom *atom, int cell_n_x, int cell_n_y, int cell_n_z)
 {                           
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;

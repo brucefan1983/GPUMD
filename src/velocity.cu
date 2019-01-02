@@ -184,7 +184,7 @@ void initialize_velocity
 //initialize the velocities according to the input initial temperature
 void process_velocity(Parameters *para, Atom *atom)
 {
-    int N = para->N;
+    int N = atom->N;
     int M = sizeof(real) * N; 
 
     real* mass = atom->cpu_mass;
@@ -201,7 +201,7 @@ void process_velocity(Parameters *para, Atom *atom)
 
     initialize_velocity
     (
-        para->N, para->initial_temperature, mass, 
+        atom->N, para->initial_temperature, mass, 
         x, y, z, vx, vy, vz
     );
 

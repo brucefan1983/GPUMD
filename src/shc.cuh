@@ -43,7 +43,7 @@ public:
     void process_shc(int step, char *, Parameters*, Atom*);
     void postprocess_shc(Parameters*, Atom*);
 
-    void build_fv_table(Parameters*, int*, int*, int*, int*, int*);
+    void build_fv_table(Parameters*, Atom*, int*, int*, int*, int*, int*);
     void find_k_time(char *input_dir, Parameters *para, Atom *atom);
 };
 

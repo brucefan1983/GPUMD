@@ -30,8 +30,8 @@ public:
 
     Force(void);      
     ~Force(void);
-    void initialize_one_potential(Parameters*, int);
-    void initialize_two_body_potential(Parameters*);
+    void initialize_one_potential(Parameters*, Atom*, int);
+    void initialize_two_body_potential(Parameters*, Atom*);
     void initialize_many_body_potential(Parameters*, Atom*, int);
     void initialize(char*, Parameters *para, Atom*);
     void find_neighbor_local(Parameters*, Atom*, int);

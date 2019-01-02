@@ -415,13 +415,13 @@
 
 
 
-REBO_MOS::REBO_MOS(Parameters *para)
+REBO_MOS::REBO_MOS(Parameters *para, Atom* atom)
 {
     int num = ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
-    int memory1 = sizeof(real) * para->N;
-    int memory2 = sizeof(real) * para->N * num;
-    int memory3 = sizeof(int) * para->N;
-    int memory4 = sizeof(int) * para->N * num;
+    int memory1 = sizeof(real) * atom->N;
+    int memory2 = sizeof(real) * atom->N * num;
+    int memory3 = sizeof(int) * atom->N;
+    int memory4 = sizeof(int) * atom->N * num;
     CHECK(cudaMalloc((void**)&rebo_mos_data.p,    memory1));
     CHECK(cudaMalloc((void**)&rebo_mos_data.pp,   memory1));
     CHECK(cudaMalloc((void**)&rebo_mos_data.b,    memory2));
@@ -1416,7 +1416,7 @@ static __global__ void find_force_many_body
 // Force evaluation wrapper
 void REBO_MOS::compute(Parameters *para, Atom *atom, Measure *measure)
 {
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;

@@ -66,13 +66,13 @@ void Integrate::initialize(Parameters *para, Atom* atom)
         case 2: // NVT-NHC
             ensemble = new Ensemble_NHC            
             (
-                type, para->N, temperature, temperature_coupling, 
+                type, atom->N, temperature, temperature_coupling, 
                 para->time_step
             );
             break;
         case 3: // NVT-Langevin
             ensemble = new Ensemble_LAN
-            (type, para->N, temperature, temperature_coupling);
+            (type, atom->N, temperature, temperature_coupling);
             break;
         case 4: // NVT-BDP
             ensemble = new Ensemble_BDP            

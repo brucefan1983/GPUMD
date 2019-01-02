@@ -41,7 +41,7 @@ void VAC::preprocess_vac(Parameters *para, Atom *atom)
 {
     if (compute)
     {
-        int num = para->N * para->number_of_steps / sample_interval;
+        int num = atom->N * para->number_of_steps / sample_interval;
         CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
         CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
         CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
@@ -78,7 +78,7 @@ void VAC::sample_vac(int step, Parameters *para, Atom *atom)
     {
         if (step % sample_interval == 0)
         {
-            int N = para->N;
+            int N = atom->N;
             int nd = step / sample_interval;
             
             int grid_size = (N - 1) / BLOCK_SIZE + 1;
@@ -243,7 +243,7 @@ static void find_dos
 void VAC::find_vac_rdc_dos(char *input_dir, Parameters *para, Atom *atom)
 {
     // rename variables
-    int N = para->N;
+    int N = atom->N;
     int number_of_steps = para->number_of_steps;
     real time_step = para->time_step;
 

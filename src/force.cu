@@ -92,7 +92,7 @@ Force::~Force(void)
 
 
 
-void Force::initialize_one_potential(Parameters *para, int m)
+void Force::initialize_one_potential(Parameters *para, Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
@@ -106,37 +106,37 @@ void Force::initialize_one_potential(Parameters *para, int m)
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0) 
     { 
-        potential[m] = new Tersoff2(fid_potential, para, 1);
+        potential[m] = new Tersoff2(fid_potential, para, atom, 1);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0)
     { 
-        potential[m] = new Tersoff2(fid_potential, para, 2);
+        potential[m] = new Tersoff2(fid_potential, para, atom, 2);
         if (para->number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985") == 0) 
     { 
-        potential[m] = new SW2(fid_potential, para, 1);
+        potential[m] = new SW2(fid_potential, para, atom, 1);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985_2") == 0) 
     { 
-        potential[m] = new SW2(fid_potential, para, 2);
+        potential[m] = new SW2(fid_potential, para, atom, 2);
         if (para->number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985_3") == 0) 
     { 
-        potential[m] = new SW2(fid_potential, para, 3);
+        potential[m] = new SW2(fid_potential, para, atom, 3);
         if (para->number_of_types != 3) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0) 
     { 
-        potential[m] = new REBO_MOS(para);
+        potential[m] = new REBO_MOS(para, atom);
         if (para->number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
@@ -178,25 +178,25 @@ void Force::initialize_one_potential(Parameters *para, int m)
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
     { 
-        potential[m] = new EAM(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, atom, potential_name);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
-        potential[m] = new EAM(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, atom, potential_name);
         if (para->number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "vashishta") == 0) 
     { 
-        potential[m] = new Vashishta(fid_potential, para, 0);
+        potential[m] = new Vashishta(fid_potential, para, atom, 0);
         if (para->number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "vashishta_table") == 0) 
     { 
-        potential[m] = new Vashishta(fid_potential, para, 1);
+        potential[m] = new Vashishta(fid_potential, para, atom, 1);
         if (para->number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
@@ -207,7 +207,7 @@ void Force::initialize_one_potential(Parameters *para, int m)
     }
 
     potential[m]->N1 = 0;
-    potential[m]->N2 = para->N;
+    potential[m]->N2 = atom->N;
 
     fclose(fid_potential);
 }
@@ -215,7 +215,7 @@ void Force::initialize_one_potential(Parameters *para, int m)
 
 
 
-void Force::initialize_two_body_potential(Parameters *para)
+void Force::initialize_two_body_potential(Parameters *para, Atom* atom)
 {
     FILE *fid_potential = my_fopen(file_potential[0], "r");
     char potential_name[20];
@@ -270,7 +270,7 @@ void Force::initialize_two_body_potential(Parameters *para)
     }
 
     potential[0]->N1 = 0;
-    potential[0]->N2 = para->N;
+    potential[0]->N2 = atom->N;
 
     fclose(fid_potential);
 }
@@ -294,61 +294,61 @@ void Force::initialize_many_body_potential
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0)
     { 
-        potential[m] = new Tersoff2(fid_potential, para, 1);
+        potential[m] = new Tersoff2(fid_potential, para, atom, 1);
         if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0)
     { 
-        potential[m] = new Tersoff2(fid_potential, para, 2);
+        potential[m] = new Tersoff2(fid_potential, para, atom, 2);
         if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985") == 0) 
     { 
-        potential[m] = new SW2(fid_potential, para, 1);
+        potential[m] = new SW2(fid_potential, para, atom, 1);
         if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985_2") == 0) 
     { 
-        potential[m] = new SW2(fid_potential, para, 2);
+        potential[m] = new SW2(fid_potential, para, atom, 2);
         if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "sw_1985_3") == 0) 
     { 
-        potential[m] = new SW2(fid_potential, para, 3);
+        potential[m] = new SW2(fid_potential, para, atom, 3);
         if (number_of_types != 3) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0)
     { 
-        potential[m] = new REBO_MOS(para);
+        potential[m] = new REBO_MOS(para, atom);
         if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
     { 
-        potential[m] = new EAM(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, atom, potential_name);
         if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0) 
     { 
-        potential[m] = new EAM(fid_potential, para, potential_name);
+        potential[m] = new EAM(fid_potential, para, atom, potential_name);
         if (number_of_types != 1) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "vashishta") == 0) 
     { 
-        potential[m] = new Vashishta(fid_potential, para, 0);
+        potential[m] = new Vashishta(fid_potential, para, atom, 0);
         if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
     else if (strcmp(potential_name, "vashishta_table") == 0) 
     { 
-        potential[m] = new Vashishta(fid_potential, para, 1);
+        potential[m] = new Vashishta(fid_potential, para, atom, 1);
         if (number_of_types != 2) 
             print_error("number of types does not match potential file.\n");
     }
@@ -385,32 +385,32 @@ void Force::initialize(char *input_dir, Parameters *para, Atom *atom)
     // a single potential
     if (num_of_potentials == 1) 
     {
-        initialize_one_potential(para, 0);
+        initialize_one_potential(para, atom, 0);
         rc_max = potential[0]->rc;
     }
     else // hybrid potentials
     {
         // the two-body part
-        initialize_two_body_potential(para);
+        initialize_two_body_potential(para, atom);
         rc_max = potential[0]->rc;
 
         // if the intralayer interactions are to be excluded
         if (interlayer_only) 
         {
             int *layer_label_cpu;
-            MY_MALLOC(layer_label_cpu, int, para->N); 
+            MY_MALLOC(layer_label_cpu, int, atom->N); 
             char file_layer_label[FILE_NAME_LENGTH];
             strcpy(file_layer_label, input_dir);
             strcat(file_layer_label, "/layer.in");
             FILE *fid = my_fopen(file_layer_label, "r");
-            for (int n = 0; n < para->N; ++n)
+            for (int n = 0; n < atom->N; ++n)
             {
                 int count = fscanf(fid, "%d", &layer_label_cpu[n]);
                 if (count != 1) print_error("reading error for layer.in");
             }
             fclose(fid);
 
-            int memory = sizeof(int)*para->N;
+            int memory = sizeof(int)*atom->N;
             cudaMalloc((void**)&layer_label, memory);
             cudaMemcpy(layer_label, layer_label_cpu, memory, cudaMemcpyHostToDevice);
             MY_FREE(layer_label_cpu); 
@@ -445,7 +445,7 @@ void Force::initialize(char *input_dir, Parameters *para, Atom *atom)
         cudaMemcpy
         (
             atom->type_local, atom->cpu_type_local, 
-            sizeof(int) * para->N, cudaMemcpyHostToDevice
+            sizeof(int) * atom->N, cudaMemcpyHostToDevice
         );
     }
 }
@@ -527,7 +527,7 @@ void Force::find_neighbor_local(Parameters *para, Atom *atom, int m)
 {  
     int type1 = type_begin[m];
     int type2 = type_end[m];
-    int N = para->N;
+    int N = atom->N;
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1; 
@@ -702,9 +702,9 @@ static __global__ void initialize_shc_properties(int M, real *g_fv)
 void Force::compute(Parameters *para, Atom *atom, Measure* measure)
 {
     int M = measure->shc.number_of_pairs * 12;
-    initialize_properties<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        para->N,
+        atom->N,
         atom->fx, atom->fy, atom->fz, 
         atom->potential_per_atom,  
         atom->virial_per_atom_x,
@@ -741,15 +741,15 @@ void Force::compute(Parameters *para, Atom *atom, Measure* measure)
         real *ftot; // total force vector of the system
         cudaMalloc((void**)&ftot, sizeof(real) * 3);
         gpu_sum_force<<<3, 1024>>>
-        (para->N, atom->fx, atom->fy, atom->fz, ftot);
+        (atom->N, atom->fx, atom->fy, atom->fz, ftot);
 #ifdef DEBUG
         CHECK(cudaDeviceSynchronize());
         CHECK(cudaGetLastError());
 #endif
 
-        int grid_size = (para->N - 1) / BLOCK_SIZE + 1;
+        int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (para->N, atom->fx, atom->fy, atom->fz, ftot);
+        (atom->N, atom->fx, atom->fy, atom->fz, ftot);
 #ifdef DEBUG
         CHECK(cudaDeviceSynchronize());
         CHECK(cudaGetLastError());

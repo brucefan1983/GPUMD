@@ -387,7 +387,7 @@ static __global__ void gpu_find_force
 // Find force and related quantities for pair potentials (A wrapper)
 void Pair::compute(Parameters *para, Atom *atom, Measure *measure)
 {
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;

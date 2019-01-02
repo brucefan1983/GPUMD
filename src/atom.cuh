@@ -63,6 +63,8 @@ public:
     real* cpu_box_matrix_inv;
     real* cpu_box_length;
 
+    int N;                // number of atoms
+
     Atom(char *input_dir, Parameters *para);
     ~Atom(void);
 

@@ -39,7 +39,7 @@ typedef unsigned long long uint64;
 // copy the neighbor list from the GPU to the CPU
 void copy_neighbor_to_cpu(Parameters *para, Atom *atom, int* NN, int*NL)
 {
-    int N = para->N;
+    int N = atom->N;
     CHECK(cudaMemcpy(NN, atom->NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
 
     // allocate a temporary memory
@@ -68,18 +68,18 @@ void copy_neighbor_to_cpu(Parameters *para, Atom *atom, int* NN, int*NL)
 //build the look-up table used for recording force and velocity data
 void SHC::build_fv_table
 (
-    Parameters *para, int* NN, int* NL,
+    Parameters *para, Atom* atom, int* NN, int* NL,
     int *cpu_a_map, int* cpu_b_map, int* cpu_fv_index
 )
 {
     number_of_sections = 1;
     number_of_pairs = 0;
-    for (int n1 = 0; n1 < para->N; ++n1)
+    for (int n1 = 0; n1 < atom->N; ++n1)
     {
         if (cpu_a_map[n1] != -1)
         {
             // need loop to initialize all fv_table elements to -1
-            for (int n2 = 0; n2 <  para->N; ++n2)
+            for (int n2 = 0; n2 <  atom->N; ++n2)
             {
                 if (cpu_b_map[n2] != -1)
                 {
@@ -114,9 +114,9 @@ void SHC::preprocess_shc(Parameters *para, Atom *atom)
         int c_a = 0; int c_b = 0;
         int* cpu_a_map;
         int* cpu_b_map;
-        MY_MALLOC(cpu_a_map, int, para->N);
-        MY_MALLOC(cpu_b_map, int, para->N);
-        for (int n = 0; n < para->N; n++)
+        MY_MALLOC(cpu_a_map, int, atom->N);
+        MY_MALLOC(cpu_b_map, int, atom->N);
+        for (int n = 0; n < atom->N; n++)
         {
             cpu_a_map[n] = -1;
             cpu_b_map[n] = -1;
@@ -136,13 +136,13 @@ void SHC::preprocess_shc(Parameters *para, Atom *atom)
 
         int* NN;
         int* NL;
-        MY_MALLOC(NN, int, para->N);
-        MY_MALLOC(NL, int, para->N * para->neighbor.MN);
+        MY_MALLOC(NN, int, atom->N);
+        MY_MALLOC(NL, int, atom->N * para->neighbor.MN);
         copy_neighbor_to_cpu(para, atom, NN, NL);
 
         int* cpu_fv_index;
         MY_MALLOC(cpu_fv_index, int, count_a * count_b);
-        build_fv_table(para, NN, NL, cpu_a_map, cpu_b_map, cpu_fv_index);
+        build_fv_table(para, atom, NN, NL, cpu_a_map, cpu_b_map, cpu_fv_index);
 
         MY_FREE(NN);
         MY_FREE(NL);
@@ -151,8 +151,8 @@ void SHC::preprocess_shc(Parameters *para, Atom *atom)
         uint64 num1 = number_of_pairs * 12;
         uint64 num2 = num1 * M;
 
-        cudaMalloc((void**)&a_map, sizeof(int) * para->N);
-        cudaMalloc((void**)&b_map, sizeof(int) * para->N);
+        cudaMalloc((void**)&a_map, sizeof(int) * atom->N);
+        cudaMalloc((void**)&b_map, sizeof(int) * atom->N);
 
         cudaMalloc((void**)&fv_index, sizeof(int) * count_a*count_b);
         cudaMalloc((void**)&fv,       sizeof(real) * num1);
@@ -161,9 +161,9 @@ void SHC::preprocess_shc(Parameters *para, Atom *atom)
         CHECK(cudaMemcpy(fv_index, cpu_fv_index,
             sizeof(int) * count_a * count_b, cudaMemcpyHostToDevice));
         CHECK(cudaMemcpy(a_map, cpu_a_map,
-            sizeof(int) * para->N, cudaMemcpyHostToDevice));
+            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
         CHECK(cudaMemcpy(b_map, cpu_b_map,
-            sizeof(int) * para->N, cudaMemcpyHostToDevice));
+            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
         MY_FREE(cpu_fv_index);
         MY_FREE(cpu_a_map);
         MY_FREE(cpu_b_map);

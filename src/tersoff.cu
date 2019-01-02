@@ -59,7 +59,7 @@ The double-element version of the Tersoff potential as described in
 
 
 
-Tersoff2::Tersoff2(FILE *fid, Parameters *para, int num_of_types)
+Tersoff2::Tersoff2(FILE *fid, Parameters *para, Atom* atom, int num_of_types)
 {
     if (num_of_types == 1)
         printf("INPUT: use Tersoff-1989 (single-element) potential.\n");
@@ -148,12 +148,12 @@ Tersoff2::Tersoff2(FILE *fid, Parameters *para, int num_of_types)
     }
 
     // memory for the bond-order function b and its derivative bp
-    int memory = sizeof(real) * para->N * para->neighbor.MN;
+    int memory = sizeof(real) * atom->N * para->neighbor.MN;
     CHECK(cudaMalloc((void**)&tersoff_data.b,  memory));
     CHECK(cudaMalloc((void**)&tersoff_data.bp, memory));
 
     // memory for the partial forces dU_i/dr_ij
-    memory = sizeof(real) * para->N * 20;
+    memory = sizeof(real) * atom->N * 20;
     CHECK(cudaMalloc((void**)&tersoff_data.f12x, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12y, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12z, memory));
@@ -853,7 +853,7 @@ static __global__ void find_force_many_body
 // Wrapper of force evaluation for the Tersoff potential
 void Tersoff2::compute(Parameters *para, Atom *atom, Measure *measure)
 {
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;

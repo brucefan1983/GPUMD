@@ -139,7 +139,7 @@ void HAC::sample_hac(int step, char *input_dir, Parameters *para, Atom *atom)
             CHECK(cudaMalloc((void**)&gpu_heat, sizeof(real) * M));
             gpu_sum_heat<<<M, 1024>>>
             (
-                para->N, Nd, nd, atom->vx, atom->vy, atom->vz,
+                atom->N, Nd, nd, atom->vx, atom->vy, atom->vz,
                 atom->mass, atom->potential_per_atom,
                 atom->heat_per_atom, heat_all, gpu_heat
             );

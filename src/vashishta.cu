@@ -234,20 +234,20 @@ void Vashishta::initialize_1(FILE *fid)
 
 
 
-Vashishta::Vashishta(FILE *fid, Parameters *para, int use_table_input)
+Vashishta::Vashishta(FILE *fid, Parameters *para, Atom* atom, int use_table_input)
 {
     use_table = use_table_input;
     if (use_table == 0) initialize_0(fid);
     if (use_table == 1) initialize_1(fid);
 
     int num = ((para->neighbor.MN<20) ? para->neighbor.MN : 20);
-    int memory = sizeof(real) * para->N * num;
+    int memory = sizeof(real) * atom->N * num;
     CHECK(cudaMalloc((void**)&vashishta_data.f12x, memory));
     CHECK(cudaMalloc((void**)&vashishta_data.f12y, memory));
     CHECK(cudaMalloc((void**)&vashishta_data.f12z, memory));
-    memory = sizeof(int) * para->N;
+    memory = sizeof(int) * atom->N;
     CHECK(cudaMalloc((void**)&vashishta_data.NN_short, memory));
-    memory = sizeof(int) * para->N * num;
+    memory = sizeof(int) * atom->N * num;
     CHECK(cudaMalloc((void**)&vashishta_data.NL_short, memory));
 }
 
@@ -815,7 +815,7 @@ static __global__ void find_force_many_body
 // Find force and related quantities for the Vashishta potential (A wrapper)
 void Vashishta::compute(Parameters *para, Atom *atom, Measure *measure)
 {
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;

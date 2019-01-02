@@ -197,7 +197,7 @@ static void __global__ gpu_scale_velocity
 void Ensemble_NHC::integrate_nvt_nhc
 (Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
-    int  N           = para->N;
+    int  N           = atom->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = para->fixed_group;
     int *label = atom->label;
@@ -444,7 +444,7 @@ static __global__ void gpu_scale_velocity
 void Ensemble_NHC::integrate_heat_nhc
 (Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
-    int N         = para->N;
+    int N         = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = para->fixed_group;
     int *label = atom->label;

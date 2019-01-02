@@ -125,7 +125,7 @@ static void process_run
     clock_t time_finish = clock();
     real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
     printf("INFO:  Time used for this run = %g s.\n", time_used);
-    real run_speed = para->N * (para->number_of_steps / time_used);
+    real run_speed = atom->N * (para->number_of_steps / time_used);
     printf("INFO:  Speed of this run = %g atom*step/second.\n\n", run_speed);
 
     measure->finalize(input_dir, para, atom, integrate);
@@ -279,7 +279,7 @@ void GPUMD::run
             force->compute(para, atom, measure);
             #ifdef FORCE
             // output the initial forces (for lattice dynamics calculations)
-            int m = sizeof(real) * para->N;
+            int m = sizeof(real) * atom->N;
             real *cpu_fx = cpu_data->fx;
             real *cpu_fy = cpu_data->fy;
             real *cpu_fz = cpu_data->fz;
@@ -290,7 +290,7 @@ void GPUMD::run
             strcpy(file_force, input_dir);
             strcat(file_force, "/f.out");
             FILE *fid_force = my_fopen(file_force, "w");
-            for (int n = 0; n < para->N; n++)
+            for (int n = 0; n < atom->N; n++)
             {
                 fprintf
                 (

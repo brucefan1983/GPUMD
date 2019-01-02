@@ -49,7 +49,7 @@ struct EAM_Data
 class EAM : public Potential
 {
 public:   
-    EAM(FILE*, Parameters*, char*);  
+    EAM(FILE*, Parameters*, Atom*, char*);  
     virtual ~EAM(void);
     virtual void compute(Parameters*, Atom*, Measure*);
     void initialize_eam2004zhou(FILE*);

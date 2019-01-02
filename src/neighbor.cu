@@ -130,7 +130,7 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
 
 static int check_atom_distance(Parameters *para, Atom *atom)
 {
-    int N = para->N;
+    int N = atom->N;
     int M = (N - 1) / 1024 + 1;
          
     real d2 = HALF * HALF; // to be generalized to use input
@@ -220,7 +220,7 @@ static __global__ void gpu_update_xyz0
 // check the bound of the neighbor list
 static void check_bound(Parameters *para, Atom *atom)
 {
-    int N = para->N;
+    int N = atom->N;
     int *NN = atom->NN;
     int *cpu_NN;
     MY_MALLOC(cpu_NN, int, N);
@@ -326,9 +326,9 @@ void find_neighbor(Parameters *para, Atom *atom, int is_first)
         check_bound(para, atom);
 
         // set up the reference positions
-        gpu_update_xyz0<<<(para->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+        gpu_update_xyz0<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            para->N, atom->x, atom->y, atom->z, 
+            atom->N, atom->x, atom->y, atom->z, 
             atom->x0, atom->y0, atom->z0
         );
     } 
@@ -338,7 +338,7 @@ void find_neighbor(Parameters *para, Atom *atom, int is_first)
 
         if (update != 0)
         {
-            int N = para->N;
+            int N = atom->N;
 
             find_neighbor(para, atom); 
             check_bound(para, atom);

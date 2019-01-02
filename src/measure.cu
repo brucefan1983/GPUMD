@@ -121,7 +121,7 @@ void Measure::finalize
 // dump thermodynamic properties
 static void gpu_sample_thermo
 (
-    FILE *fid, Parameters *para,
+    FILE *fid, Parameters *para, Atom* atom,
     real *gpu_thermo, real *gpu_box_length, Ensemble *ensemble
 )
 {
@@ -137,7 +137,7 @@ static void gpu_sample_thermo
     CHECK(cudaMemcpy(box_length, gpu_box_length, m2, cudaMemcpyDeviceToHost));
 
     // system energies
-    real energy_system_kin = (0.5 * DIM) * para->N * K_B * thermo[0];
+    real energy_system_kin = (0.5 * DIM) * atom->N * K_B * thermo[0];
     real energy_system_pot = thermo[1];
     real energy_system_total = energy_system_kin + energy_system_pot; 
 
@@ -145,7 +145,7 @@ static void gpu_sample_thermo
     {
         // energy of the Nose-Hoover chain thermostat
         real kT = K_B * ensemble->temperature; 
-        real energy_nhc = kT * (DIM * para->N) * ensemble->pos_nhc1[0];
+        real energy_nhc = kT * (DIM * atom->N) * ensemble->pos_nhc1[0];
         for (int m = 1; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
         {
             energy_nhc += kT * ensemble->pos_nhc1[m];
@@ -202,7 +202,7 @@ void Measure::dump_thermos
         if ((step + 1) % sample_interval_thermo == 0)
         {
             gpu_sample_thermo
-            (fid, para, atom->thermo, atom->box_length, integrate->ensemble);
+            (fid, para, atom, atom->thermo, atom->box_length, integrate->ensemble);
         }
     }
 }
@@ -240,7 +240,7 @@ void Measure::dump_positions(FILE *fid, Parameters *para, Atom *atom, int step)
     {
         if ((step + 1) % sample_interval_position == 0)
         {
-            gpu_dump_3(para->N, fid, atom->x, atom->y, atom->z);
+            gpu_dump_3(atom->N, fid, atom->x, atom->y, atom->z);
         }
     }
 }
@@ -254,7 +254,7 @@ void Measure::dump_velocities(FILE *fid, Parameters *para, Atom *atom, int step)
     {
         if ((step + 1) % sample_interval_velocity == 0)
         {
-            gpu_dump_3(para->N, fid, atom->vx, atom->vy, atom->vz);
+            gpu_dump_3(atom->N, fid, atom->vx, atom->vy, atom->vz);
         }
     }
 }
@@ -268,7 +268,7 @@ void Measure::dump_forces(FILE *fid, Parameters *para, Atom *atom, int step)
     {
         if ((step + 1) % sample_interval_force == 0)
         {
-            gpu_dump_3(para->N, fid, atom->fx, atom->fy, atom->fz);
+            gpu_dump_3(atom->N, fid, atom->fx, atom->fy, atom->fz);
         }
     }
 }
@@ -284,7 +284,7 @@ void Measure::dump_virials(FILE *fid, Parameters *para, Atom *atom, int step)
         {
             gpu_dump_3
             (
-                para->N, fid, atom->virial_per_atom_x, 
+                atom->N, fid, atom->virial_per_atom_x, 
                 atom->virial_per_atom_y, atom->virial_per_atom_z
             );
         }
@@ -316,7 +316,7 @@ void Measure::dump_potentials(FILE *fid, Parameters *para, Atom *atom, int step)
     {
         if ((step + 1) % sample_interval_potential == 0)
         {
-            gpu_dump_1(para->N, fid, atom->potential_per_atom);
+            gpu_dump_1(atom->N, fid, atom->potential_per_atom);
         }
     }
 }
@@ -331,7 +331,7 @@ void Measure::dump_heats(FILE *fid, Parameters *para, Atom *atom, int step)
         if ((step + 1) % sample_interval_heat == 0)
         {
             gpu_dump_1
-            (para->N * NUM_OF_HEAT_COMPONENTS, fid, atom->heat_per_atom);
+            (atom->N * NUM_OF_HEAT_COMPONENTS, fid, atom->heat_per_atom);
         }
     }
 }

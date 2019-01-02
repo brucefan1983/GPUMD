@@ -37,7 +37,7 @@ struct Neighbor
 struct Parameters 
 {
     // a structure?
-    int N;                // number of atoms
+    //int N;                // number of atoms
     int number_of_groups; // number of groups 
     int fixed_group;      // ID of the group in which the atoms will be fixed 
     int number_of_types;  // number of atom types 

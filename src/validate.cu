@@ -158,7 +158,7 @@ static __global__ void find_force_from_potential
 void validate_force
 (Force *force, Parameters *para, Atom *atom, Measure* measure)
 {
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
     int M = sizeof(real) * N;
     real *x = atom->x;

@@ -224,7 +224,7 @@ static __global__ void find_ke
 void Ensemble_LAN::integrate_nvt_lan
 (Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
-    int  N           = para->N;
+    int  N           = atom->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group  = para->fixed_group;
     int *label       = atom->label;
@@ -278,7 +278,7 @@ void Ensemble_LAN::integrate_nvt_lan
 void Ensemble_LAN::integrate_heat_lan
 (Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
-    int N                = para->N;
+    int N                = atom->N;
     int grid_size        = (N - 1) / BLOCK_SIZE + 1;
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;

@@ -62,14 +62,14 @@ static __device__ void dev_apply_mic
 
 
 
-EAM::EAM(FILE *fid, Parameters *para, char *name)
+EAM::EAM(FILE *fid, Parameters *para, Atom* atom, char *name)
 {
 
     if (strcmp(name, "eam_zhou_2004_1") == 0) initialize_eam2004zhou(fid);
     if (strcmp(name, "eam_dai_2006") == 0)    initialize_eam2006dai(fid);
 
     // memory for the derivative of the density functional 
-    CHECK(cudaMalloc((void**)&eam_data.Fp, sizeof(real) * para->N));
+    CHECK(cudaMalloc((void**)&eam_data.Fp, sizeof(real) * atom->N));
 }
 
 
@@ -560,7 +560,7 @@ static __global__ void find_force_eam_step2
 // Force evaluation wrapper
 void EAM::compute(Parameters *para, Atom *atom, Measure *measure)
 {
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     int pbc_x = para->pbc_x;
     int pbc_y = para->pbc_y;

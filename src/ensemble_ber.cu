@@ -135,7 +135,7 @@ static __global__ void gpu_berendsen_pressure
 void Ensemble_BER::compute
 (Parameters *para, Atom *atom, Force *force, Measure* measure)
 {
-    int N           = para->N;
+    int N           = atom->N;
     int grid_size   = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = para->fixed_group;
     int *label = atom->label;
