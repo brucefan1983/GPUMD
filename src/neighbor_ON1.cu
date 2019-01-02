@@ -28,6 +28,7 @@
 #include "neighbor_ON1.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "parameters.cuh"
 
 #define BLOCK_SIZE 128
 #ifdef USE_DP

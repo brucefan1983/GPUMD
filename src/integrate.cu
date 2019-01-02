@@ -24,6 +24,7 @@
 #include "integrate.cuh"
 #include "force.cuh"
 #include "atom.cuh"
+#include "parameters.cuh"
 
 
 

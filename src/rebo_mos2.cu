@@ -22,6 +22,7 @@
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "parameters.cuh"
 
 #define BLOCK_SIZE_FORCE 64
 

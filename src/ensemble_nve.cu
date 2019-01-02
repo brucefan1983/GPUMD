@@ -19,6 +19,7 @@
 #include "ensemble.inc"
 #include "force.cuh"
 #include "atom.cuh"
+#include "parameters.cuh"
 
 #define BLOCK_SIZE 128
 

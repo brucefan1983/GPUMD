@@ -21,6 +21,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "parameters.cuh"
 
 #define BLOCK_SIZE 128
 #define FILE_NAME_LENGTH      200

@@ -21,6 +21,7 @@
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
+#include "parameters.cuh"
 
 #ifdef USE_DP
     #define K_B   8.617343e-5

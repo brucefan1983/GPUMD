@@ -23,6 +23,7 @@
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
+#include "parameters.cuh"
 
 #define BLOCK_SIZE 128
 

@@ -22,6 +22,8 @@
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
+#include "parameters.cuh"
+
 typedef unsigned long long uint64;
 
 #define FILE_NAME_LENGTH      200

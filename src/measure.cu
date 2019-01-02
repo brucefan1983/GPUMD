@@ -24,6 +24,7 @@
 #include "memory.cuh"
 #include "error.cuh"
 #include "io.cuh"
+#include "parameters.cuh"
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5

@@ -23,6 +23,7 @@
 #include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "parameters.cuh"
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH       200
