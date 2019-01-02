@@ -94,6 +94,8 @@ public:
     Atom(char *input_dir);
     ~Atom(void);
 
+    void initialize_velocity(void);
+
     void initialize_position(char *input_dir);
     void allocate_memory_gpu(void);
     void copy_from_cpu_to_gpu(void);

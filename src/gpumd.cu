@@ -24,7 +24,6 @@
 #include "ensemble.cuh" 
 #include "measure.cuh"
 #include "parse.cuh" 
-#include "velocity.cuh"
 #include "neighbor.cuh"
 #include "atom.cuh"
 #include "memory.cuh"
@@ -299,18 +298,11 @@ void GPUMD::run
             fclose(fid_force);
             #endif
         }
-        if (is_velocity)  
-        {
-            process_velocity(atom);
-        }
+        if (is_velocity) { atom->initialize_velocity(); }
         if (is_run)
-        { 
+        {
             process_run
-            (
-                param, num_param, input_dir, atom, 
-                force, integrate, measure
-            );
-            
+            (param, num_param, input_dir, atom, force, integrate, measure);
             initialize_run(atom, measure); // change back to the default
         }
     }

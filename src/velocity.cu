@@ -16,9 +16,6 @@
 
 
 
-
-#include "velocity.cuh"
-
 #include "atom.cuh"
 #include "error.cuh"
 #include "memory.cuh"
@@ -33,8 +30,7 @@
 
 
 
-// Initialize velocities
-void initialize_velocity
+static void initialize_velocity_cpu
 (
     int number_of_particles, real temperature_prescribed, 
     real *m, real *x, real *y, real *z, real *vx, real *vy, real *vz
@@ -181,39 +177,32 @@ void initialize_velocity
 
 
 
-//initialize the velocities according to the input initial temperature
-void process_velocity(Atom *atom)
+void Atom::initialize_velocity(void)
 {
-    int N = atom->N;
     int M = sizeof(real) * N; 
+    real* cpu_vx;
+    real* cpu_vy;
+    real* cpu_vz;
+    MY_MALLOC(cpu_vx, real, N);
+    MY_MALLOC(cpu_vy, real, N);
+    MY_MALLOC(cpu_vz, real, N);
 
-    real* mass = atom->cpu_mass;
-    real* x = atom->cpu_x;
-    real* y = atom->cpu_y;
-    real* z = atom->cpu_z;
-
-    real* vx;
-    real* vy;
-    real* vz;
-    MY_MALLOC(vx, real, N);
-    MY_MALLOC(vy, real, N);
-    MY_MALLOC(vz, real, N);
-
-    initialize_velocity
+    initialize_velocity_cpu
     (
-        atom->N, atom->initial_temperature, mass, 
-        x, y, z, vx, vy, vz
+        N, initial_temperature, cpu_mass, cpu_x, cpu_y, cpu_z, 
+        cpu_vx, cpu_vy, cpu_vz
     );
 
-    CHECK(cudaMemcpy(atom->vx, vx, M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(atom->vy, vy, M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(atom->vz, vz, M, cudaMemcpyHostToDevice));
-    MY_FREE(vx);
-    MY_FREE(vy);
-    MY_FREE(vz);
+    CHECK(cudaMemcpy(vx, cpu_vx, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(vy, cpu_vy, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(vz, cpu_vz, M, cudaMemcpyHostToDevice));
+    MY_FREE(cpu_vx);
+    MY_FREE(cpu_vy);
+    MY_FREE(cpu_vz);
 
     printf("INFO : velocities are initialized.\n\n");
 }
+
 
 
 
