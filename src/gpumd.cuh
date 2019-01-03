@@ -27,10 +27,11 @@ class GPUMD
 public:
     GPUMD(char*);
     ~GPUMD(void);
+
 private:
-    void initialize(char*, Atom*);
     void run(char*, Atom*, Force*, Integrate*, Measure*);
-    void finalize(Atom*);
+    void parse
+    (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);
 };
 
 

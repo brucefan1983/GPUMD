@@ -15,7 +15,7 @@
 
 
 
-#include "parse.cuh"
+#include "gpumd.cuh"
 
 #include "atom.cuh"
 #include "ensemble.cuh"
@@ -858,7 +858,7 @@ static void parse_run(char **param,  int num_param, Atom* atom)
 
 
 
-void parse
+void GPUMD::parse
 (
     char **param, int num_param, Atom* atom,
     Force *force, Integrate *integrate, Measure *measure,
