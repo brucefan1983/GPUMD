@@ -23,7 +23,6 @@
 #include "integrate.cuh"
 #include "ensemble.cuh" 
 #include "measure.cuh"
-#include "parse.cuh" 
 #include "atom.cuh"
 #include "memory.cuh"
 #include "error.cuh"
