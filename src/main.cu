@@ -15,11 +15,14 @@
 
 
 
+
 #include "gpumd.cuh"
+#include "error.cuh"
 
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+
 
 
 
@@ -33,50 +36,35 @@ int main(int argc, char *argv[])
     printf("*       (Author:  Zheyong Fan <brucenju@gmail.com>)           *\n");
     printf("***************************************************************\n");
     printf("\n");
-    
-    printf("\n");
-    printf("===============================================================\n");
-    printf("INFO: Compiled with the following options:\n");
+
+    print_line_1();
+    printf("Compiling options:\n");
+    print_line_2();
 
 #ifdef DEBUG
-    printf("\n");
-    printf("* Debug mode is activated.\n");
-    printf("  -- There is no randomness in the calculations.\n");
-    printf("  -- Always use the O(N^2) algorithm to build neighbor list.\n");
-    printf("\n");
+    printf("DEBUG is on\n");
 #else
     srand(time(NULL));
-    printf("\n");
-    printf("* Debug mode is not activated.\n");
-    printf("  -- There are some randomnesses in the calculations.\n");
-    printf("\n");
+    printf("DEBUG is off\n");
 #endif
 
 #ifdef USE_DP
-    printf("\n");
-    printf("* Use double precision. Slower but more accurate.\n");
-    printf("\n");
+    printf("USE_DP is on\n");
 #else
-    printf("\n");
-    printf("* Use single precision. Faster but less accurate.\n");
-    printf("\n");
+    printf("USE_DP is off\n");
 #endif
 
-#ifdef FORCE
-    printf("\n");
-    printf("* Will calculate and output the initial forces.\n");
-    printf("  -- This can be used for lattice dynamics calculations.\n");
-    printf("\n");
+#ifdef TERSOFF_CUTOFF
+    printf("TERSOFF_CUTOFF is on\n");
+#else
+    printf("TERSOFF_CUTOFF is off\n");
 #endif
 
-    printf("===============================================================\n");
-    printf("\n");
-    
     // get the number of input directories
     int number_of_inputs;
-    char input_directory[100];
+    char input_directory[200];
 
-    int count = scanf("%d", &number_of_inputs); 
+    int count = scanf("%d", &number_of_inputs);
     if (count != 1)
     {
         printf("Error: reading error for number of inputs.\n");
@@ -93,26 +81,22 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        printf("\n");
-        printf("===========================================================\n");
-        printf("Run simulation for '%s'.\n", input_directory); 
-        printf("===========================================================\n");
-        printf("\n");
+        print_line_1();
+        printf("Run simulation for '%s'.\n", input_directory);
+        print_line_2();
 
         clock_t time_begin = clock();
 
-        //  Run GPUMD for "input_directory"
+        // Run GPUMD for "input_directory"
         GPUMD gpumd(input_directory);
 
         clock_t time_finish = clock();
 
         double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
-        printf("\n");
-        printf("===========================================================\n");
-        printf("Time used for '%s' = %f s.\n", input_directory, time_used); 
-        printf("===========================================================\n");
-        printf("\n");
+        print_line_1();
+        printf("Time used for '%s' = %f s.\n", input_directory, time_used);
+        print_line_2();
     }
 
     return EXIT_SUCCESS;

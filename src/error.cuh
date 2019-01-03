@@ -37,6 +37,8 @@
 
 
 void print_error (const char *str);
+void print_line_1(void);
+void print_line_2(void);
 
 
 

@@ -33,3 +33,21 @@ void print_error (const char *str)
 
 
 
+void print_line_1(void)
+{
+    printf("\n");
+    printf("---------------------------------------------------------------\n");
+}
+
+
+
+
+void print_line_2(void)
+{
+    printf("---------------------------------------------------------------\n");
+    printf("\n");
+}
+
+
+
+
