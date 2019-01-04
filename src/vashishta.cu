@@ -16,14 +16,12 @@
 
 
 
-
 #include "vashishta.cuh"
+
 #include "ldg.cuh"
-#include "memory.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
 
 #define BLOCK_SIZE_VASHISHTA 64 
 #ifdef USE_DP
@@ -43,6 +41,7 @@
     #define SIX   6.0f
     #define K_C   1.441959e+1f
 #endif
+
 
 
 

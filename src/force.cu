@@ -20,7 +20,6 @@
 
 #include "atom.cuh"
 #include "error.cuh"
-#include "io.cuh"
 #include "ldg.cuh"
 #include "potential.cuh"
 #include "tersoff.cuh"
@@ -29,9 +28,7 @@
 #include "sw.cuh"
 #include "pair.cuh"
 #include "eam.cuh"
-#include "memory.cuh"
 #include "measure.cuh"
-
 
 #define BLOCK_SIZE 128
 #ifdef USE_DP
@@ -41,6 +38,7 @@
     #define ZERO  0.0f
     #define HALF  0.5f
 #endif
+
 
 
 

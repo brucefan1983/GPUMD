@@ -16,14 +16,12 @@
 
 
 
-
 #include "heat.cuh"
+
 #include "integrate.cuh"
 #include "ensemble.cuh"
-#include "memory.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
 
 #define FILE_NAME_LENGTH      200
 #define DIM                   3

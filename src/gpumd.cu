@@ -24,9 +24,7 @@
 #include "ensemble.cuh" 
 #include "measure.cuh"
 #include "atom.cuh"
-#include "memory.cuh"
 #include "error.cuh"
-#include "io.cuh"
 
 #include <ctype.h>
 

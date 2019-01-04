@@ -17,6 +17,31 @@
 
 
 #pragma once
+#include <stdio.h>
+
+
+
+
+#define MY_MALLOC(p, t, n) p = (t *) malloc(sizeof(t) * (n));                  \
+                           if(p == NULL)                                       \
+                           {                                                   \
+                               printf("Failed to allocate!\n");                \
+                               exit(EXIT_FAILURE);                             \
+                           }
+
+
+
+
+#define MY_FREE(p) if(p != NULL)                                               \
+                   {                                                           \
+                       free(p);                                                \
+                       p = NULL;                                               \
+                   }                                                           \
+                   else                                                        \
+                   {                                                           \
+                       printf("Try to free NULL!\n");                          \
+                       exit(EXIT_FAILURE);                                     \
+                   }
 
 
 
@@ -39,6 +64,7 @@
 void print_error (const char *str);
 void print_line_1(void);
 void print_line_2(void);
+FILE* my_fopen(const char *filename, const char *mode);
 
 
 

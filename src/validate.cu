@@ -16,17 +16,13 @@
 
 
 
-
 #include "validate.cuh"
+
 #include "force.cuh"
 #include "atom.cuh"
-#include "memory.cuh"
 #include "error.cuh"
-#include "io.cuh"
-
 
 #define BLOCK_SIZE 128
-
 
 // This choice gives optimal accuracy for finite-difference calculations
 #define DX1 1.0e-7

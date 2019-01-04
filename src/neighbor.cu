@@ -17,9 +17,8 @@
 
 
 #include "atom.cuh"
-#include "memory.cuh"
-#include "error.cuh"
 
+#include "error.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3
@@ -28,8 +27,6 @@
 #else
     #define HALF  0.5f
 #endif
-
-
 
 // When the number of cells (bins) is smaller than this value, 
 /// use the O(N^2) method instead of the O(N) method

@@ -16,13 +16,10 @@
 
 
 
-
 #include "shc.cuh"
-#include "atom.cuh"
-#include "memory.cuh"
-#include "error.cuh"
-#include "io.cuh"
 
+#include "atom.cuh"
+#include "error.cuh"
 
 typedef unsigned long long uint64;
 
