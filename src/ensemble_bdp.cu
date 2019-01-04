@@ -136,7 +136,7 @@ void Ensemble_BDP::integrate_nvt_bdp
     // re-scale the velocities
     real *ek;
     MY_MALLOC(ek, real, sizeof(real) * 1);
-    cudaMemcpy(ek, thermo + 1, sizeof(real) * 1, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek, thermo + 1, sizeof(real) * 1, cudaMemcpyDeviceToHost));
     int ndeg = 3 * (N - N_fixed);
     real sigma = ndeg * K_B * temperature * 0.5;
     real factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
@@ -354,10 +354,10 @@ void Ensemble_BDP::integrate_heat_bdp
     real *ek;
     MY_MALLOC(ek, real, sizeof(real) * Ng);
     real *vcx, *vcy, *vcz, *ke;
-    cudaMalloc((void**)&vcx, sizeof(real) * Ng);
-    cudaMalloc((void**)&vcy, sizeof(real) * Ng);
-    cudaMalloc((void**)&vcz, sizeof(real) * Ng);
-    cudaMalloc((void**)&ke, sizeof(real) * Ng);
+    CHECK(cudaMalloc((void**)&vcx, sizeof(real) * Ng));
+    CHECK(cudaMalloc((void**)&vcy, sizeof(real) * Ng));
+    CHECK(cudaMalloc((void**)&vcz, sizeof(real) * Ng));
+    CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
 
     // veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
@@ -372,7 +372,7 @@ void Ensemble_BDP::integrate_heat_bdp
         group_size, group_size_sum, group_contents, 
         mass, vx, vy, vz, vcx, vcy, vcz, ke
     );
-    cudaMemcpy(ek, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
 
     // get the re-scaling factors
     real factor_1 
@@ -394,7 +394,11 @@ void Ensemble_BDP::integrate_heat_bdp
     );
 
     // clean up
-    MY_FREE(ek); cudaFree(vcx); cudaFree(vcy); cudaFree(vcz); cudaFree(ke);
+    MY_FREE(ek);
+    CHECK(cudaFree(vcx));
+    CHECK(cudaFree(vcy));
+    CHECK(cudaFree(vcz));
+    CHECK(cudaFree(ke));
 
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());

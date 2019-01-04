@@ -226,7 +226,8 @@ void Vashishta::initialize_1(FILE *fid)
 
     int memory = sizeof(real) * N * 6;
     CHECK(cudaMalloc((void**)&vashishta_data.table, memory));
-    cudaMemcpy(vashishta_data.table, table, memory, cudaMemcpyHostToDevice);
+    CHECK(cudaMemcpy(vashishta_data.table, table, memory,
+        cudaMemcpyHostToDevice));
     MY_FREE(table);
 }
 
@@ -255,12 +256,12 @@ Vashishta::Vashishta(FILE *fid, Atom* atom, int use_table_input)
 
 Vashishta::~Vashishta(void)
 {
-    if (use_table) cudaFree(vashishta_data.table);
-    cudaFree(vashishta_data.f12x);
-    cudaFree(vashishta_data.f12y);
-    cudaFree(vashishta_data.f12z);
-    cudaFree(vashishta_data.NN_short);
-    cudaFree(vashishta_data.NL_short);
+    if (use_table) { CHECK(cudaFree(vashishta_data.table)); }
+    CHECK(cudaFree(vashishta_data.f12x));
+    CHECK(cudaFree(vashishta_data.f12y));
+    CHECK(cudaFree(vashishta_data.f12z));
+    CHECK(cudaFree(vashishta_data.NN_short));
+    CHECK(cudaFree(vashishta_data.NL_short));
 }
 
 

@@ -184,9 +184,9 @@ void SW2::initialize_sw_1985_3(FILE *fid)
 
 SW2::~SW2(void)
 {
-    cudaFree(sw2_data.f12x);
-    cudaFree(sw2_data.f12y);
-    cudaFree(sw2_data.f12z);
+    CHECK(cudaFree(sw2_data.f12x));
+    CHECK(cudaFree(sw2_data.f12y));
+    CHECK(cudaFree(sw2_data.f12z));
 }
 
 

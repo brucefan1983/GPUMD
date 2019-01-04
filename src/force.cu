@@ -83,7 +83,7 @@ Force::~Force(void)
 
     if (interlayer_only) 
     {
-        cudaFree(layer_label); 
+        CHECK(cudaFree(layer_label));
     }
 }
 
@@ -409,8 +409,9 @@ void Force::initialize(char *input_dir, Atom *atom)
             fclose(fid);
 
             int memory = sizeof(int)*atom->N;
-            cudaMalloc((void**)&layer_label, memory);
-            cudaMemcpy(layer_label, layer_label_cpu, memory, cudaMemcpyHostToDevice);
+            CHECK(cudaMalloc((void**)&layer_label, memory));
+            CHECK(cudaMemcpy(layer_label, layer_label_cpu, memory, 
+                cudaMemcpyHostToDevice));
             MY_FREE(layer_label_cpu); 
         }
 
@@ -440,11 +441,11 @@ void Force::initialize(char *input_dir, Atom *atom)
         }
         
         // copy the local atom type to the GPU
-        cudaMemcpy
+        CHECK(cudaMemcpy
         (
             atom->type_local, atom->cpu_type_local, 
             sizeof(int) * atom->N, cudaMemcpyHostToDevice
-        );
+        ));
     }
 }
 
@@ -737,7 +738,7 @@ void Force::compute(Atom *atom, Measure* measure)
     if (measure->hnemd.compute)
     {
         real *ftot; // total force vector of the system
-        cudaMalloc((void**)&ftot, sizeof(real) * 3);
+        CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
         gpu_sum_force<<<3, 1024>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
 #ifdef DEBUG
@@ -753,7 +754,7 @@ void Force::compute(Atom *atom, Measure* measure)
         CHECK(cudaGetLastError());
 #endif
 
-        cudaFree(ftot);
+        CHECK(cudaFree(ftot));
     }
 
 }

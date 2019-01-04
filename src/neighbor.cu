@@ -128,10 +128,10 @@ int Atom::check_atom_distance(void)
     real d2 = HALF * HALF; // to be generalized to use input
    
     int *s1;
-    cudaMalloc((void**)&s1, sizeof(int) * M);
+    CHECK(cudaMalloc((void**)&s1, sizeof(int) * M));
          
     int *s2;
-    cudaMalloc((void**)&s2, sizeof(int));
+    CHECK(cudaMalloc((void**)&s2, sizeof(int)));
          
     check_atom_distance_1<<<M, 1024>>>
     (
@@ -142,10 +142,10 @@ int Atom::check_atom_distance(void)
          
     int *cpu_s2;
     MY_MALLOC(cpu_s2, int, 1);
-    cudaMemcpy(cpu_s2, s2, sizeof(int), cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(cpu_s2, s2, sizeof(int), cudaMemcpyDeviceToHost));
         
-    cudaFree(s1);
-    cudaFree(s2);
+    CHECK(cudaFree(s1));
+    CHECK(cudaFree(s2));
 
     int update = cpu_s2[0];
         

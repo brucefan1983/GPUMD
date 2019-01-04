@@ -260,30 +260,19 @@ void Atom::copy_from_cpu_to_gpu(void)
     int m3 = sizeof(real) * N;
     int m4 = sizeof(real) * DIM;
 
-    cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice); 
-    cudaMemcpy
-    (type_local, cpu_type, m1, cudaMemcpyHostToDevice);
-    cudaMemcpy(label, cpu_label, m1, cudaMemcpyHostToDevice); 
-
-    cudaMemcpy
-    (group_size, cpu_group_size, m2, cudaMemcpyHostToDevice);
-    cudaMemcpy
-    (
-        group_size_sum, cpu_group_size_sum, m2, 
-        cudaMemcpyHostToDevice
-    );
-    cudaMemcpy
-    (
-        group_contents, cpu_group_contents, m1, 
-        cudaMemcpyHostToDevice
-    );
-
-    cudaMemcpy(mass, cpu_mass, m3, cudaMemcpyHostToDevice);
-    cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice); 
-    cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice); 
-    cudaMemcpy(z, cpu_z, m3, cudaMemcpyHostToDevice);
-
-    cudaMemcpy(box_length, cpu_box_length, m4, cudaMemcpyHostToDevice);
+    CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(type_local, cpu_type, m1, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(label, cpu_label, m1, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(group_size, cpu_group_size, m2, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(group_size_sum, cpu_group_size_sum, m2,
+        cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(group_contents, cpu_group_contents, m1,
+        cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(mass, cpu_mass, m3, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(z, cpu_z, m3, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(box_length, cpu_box_length, m4, cudaMemcpyHostToDevice));
 }
 
 

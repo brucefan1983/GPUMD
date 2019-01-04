@@ -441,15 +441,15 @@ REBO_MOS::REBO_MOS(Atom* atom)
 
 REBO_MOS::~REBO_MOS(void)
 {
-    cudaFree(rebo_mos_data.p);
-    cudaFree(rebo_mos_data.pp);
-    cudaFree(rebo_mos_data.b);
-    cudaFree(rebo_mos_data.bp);
-    cudaFree(rebo_mos_data.f12x);
-    cudaFree(rebo_mos_data.f12y);
-    cudaFree(rebo_mos_data.f12z);
-    cudaFree(rebo_mos_data.NN_short);
-    cudaFree(rebo_mos_data.NL_short);
+    CHECK(cudaFree(rebo_mos_data.p));
+    CHECK(cudaFree(rebo_mos_data.pp));
+    CHECK(cudaFree(rebo_mos_data.b));
+    CHECK(cudaFree(rebo_mos_data.bp));
+    CHECK(cudaFree(rebo_mos_data.f12x));
+    CHECK(cudaFree(rebo_mos_data.f12y));
+    CHECK(cudaFree(rebo_mos_data.f12z));
+    CHECK(cudaFree(rebo_mos_data.NN_short));
+    CHECK(cudaFree(rebo_mos_data.NL_short));
 }
 
 

@@ -158,7 +158,7 @@ void HAC::sample_hac(int step, char *input_dir, Atom *atom)
             fclose(fid);
             MY_FREE(cpu_heat);
 #endif
-            cudaFree(gpu_heat);
+            CHECK(cudaFree(gpu_heat));
         }
     }
 }
@@ -255,7 +255,8 @@ static real get_volume(real *box_gpu)
 {
     real *box_cpu;
     MY_MALLOC(box_cpu, real, 3);
-    cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3,
+        cudaMemcpyDeviceToHost));
     real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
     MY_FREE(box_cpu);
     return volume;

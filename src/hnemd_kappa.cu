@@ -87,7 +87,8 @@ static real get_volume(real *box_gpu)
 {
     real *box_cpu;
     MY_MALLOC(box_cpu, real, 3);
-    cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3,
+        cudaMemcpyDeviceToHost));
     real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
     MY_FREE(box_cpu);
     return volume;
@@ -115,7 +116,7 @@ void HNEMD::process_hnemd_kappa
             real volume = get_volume(atom->box_length);
             real *heat_cpu;
             MY_MALLOC(heat_cpu, real, num);
-            cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost);
+            CHECK(cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost));
             real kappa[NUM_OF_HEAT_COMPONENTS];
             for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
             {
@@ -152,7 +153,7 @@ void HNEMD::process_hnemd_kappa
 
 void HNEMD::postprocess_hnemd_kappa(Atom *atom)
 {
-    if (compute) { cudaFree(heat_all); }
+    if (compute) { CHECK(cudaFree(heat_all)); }
 }
 
 

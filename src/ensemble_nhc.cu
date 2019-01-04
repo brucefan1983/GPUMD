@@ -233,7 +233,7 @@ void Ensemble_NHC::integrate_nvt_nhc
 
     real *ek2;
     MY_MALLOC(ek2, real, sizeof(real) * 1);
-    cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
 
     real factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
@@ -255,7 +255,7 @@ void Ensemble_NHC::integrate_nvt_nhc
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     );
 
-    cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
 
     factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
@@ -476,10 +476,10 @@ void Ensemble_NHC::integrate_heat_nhc
     real *ek2;
     MY_MALLOC(ek2, real, sizeof(real) * Ng);
     real *vcx, *vcy, *vcz, *ke;
-    cudaMalloc((void**)&vcx, sizeof(real) * Ng);
-    cudaMalloc((void**)&vcy, sizeof(real) * Ng);
-    cudaMalloc((void**)&vcz, sizeof(real) * Ng);
-    cudaMalloc((void**)&ke, sizeof(real) * Ng);
+    CHECK(cudaMalloc((void**)&vcx, sizeof(real) * Ng));
+    CHECK(cudaMalloc((void**)&vcy, sizeof(real) * Ng));
+    CHECK(cudaMalloc((void**)&vcz, sizeof(real) * Ng));
+    CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
 
     // NHC first
     find_vc_and_ke<<<Ng, 512>>>
@@ -487,7 +487,7 @@ void Ensemble_NHC::integrate_heat_nhc
         group_size, group_size_sum, group_contents, 
         mass, vx, vy, vz, vcx, vcy, vcz, ke
     );
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
 
     real factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
@@ -519,7 +519,7 @@ void Ensemble_NHC::integrate_heat_nhc
         group_size, group_size_sum, group_contents, 
         mass, vx, vy, vz, vcx, vcy, vcz, ke
     );
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
     factor_2 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
@@ -536,7 +536,11 @@ void Ensemble_NHC::integrate_heat_nhc
     );
 
     // clean up
-    MY_FREE(ek2); cudaFree(vcx); cudaFree(vcy); cudaFree(vcz); cudaFree(ke);
+    MY_FREE(ek2);
+    CHECK(cudaFree(vcx));
+    CHECK(cudaFree(vcy));
+    CHECK(cudaFree(vcz));
+    CHECK(cudaFree(ke));
 
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());

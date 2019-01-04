@@ -53,7 +53,7 @@ Ensemble_LAN::Ensemble_LAN(int t, int N, real T, real Tc)
     temperature_coupling = Tc;
     c1 = exp(-HALF/temperature_coupling);
     c2 = sqrt((1 - c1 * c1) * K_B * T);
-    cudaMalloc((void**)&curand_states, sizeof(curandState) * N);
+    CHECK(cudaMalloc((void**)&curand_states, sizeof(curandState) * N));
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
     initialize_curand_states<<<grid_size, BLOCK_SIZE>>>(curand_states, N);
 }
@@ -81,8 +81,10 @@ Ensemble_LAN::Ensemble_LAN
     c2_source = sqrt((1 - c1 * c1) * K_B * (T + dT));
     c2_sink   = sqrt((1 - c1 * c1) * K_B * (T - dT));
 
-    cudaMalloc((void**)&curand_states_source, sizeof(curandState) * N_source);
-    cudaMalloc((void**)&curand_states_sink,   sizeof(curandState) * N_sink);
+    CHECK(cudaMalloc((void**)&curand_states_source,
+        sizeof(curandState) * N_source));
+    CHECK(cudaMalloc((void**)&curand_states_sink,
+        sizeof(curandState) * N_sink));
 
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
@@ -102,12 +104,12 @@ Ensemble_LAN::~Ensemble_LAN(void)
 {
     if (type == 5)
     {
-        cudaFree(curand_states);
+        CHECK(cudaFree(curand_states));
     }
     else
     {
-        cudaFree(curand_states_source);
-        cudaFree(curand_states_sink);
+        CHECK(cudaFree(curand_states_source));
+        CHECK(cudaFree(curand_states_sink));
     }
 }
 
@@ -302,12 +304,12 @@ void Ensemble_LAN::integrate_heat_lan
     real *ek2;
     MY_MALLOC(ek2, real, sizeof(real) * Ng);
     real *ke;
-    cudaMalloc((void**)&ke, sizeof(real) * Ng);
+    CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
 
     // the first half of Langevin, before velocity-Verlet
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[label_1] * 0.5;
     energy_transferred[1] += ek2[label_2] * 0.5;
 
@@ -324,7 +326,7 @@ void Ensemble_LAN::integrate_heat_lan
 
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[label_1] * 0.5;
     energy_transferred[1] -= ek2[label_2] * 0.5;
 
@@ -338,7 +340,7 @@ void Ensemble_LAN::integrate_heat_lan
     // the second half of Langevin, after velocity-Verlet
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[label_1] * 0.5;
     energy_transferred[1] += ek2[label_2] * 0.5;
 
@@ -355,12 +357,12 @@ void Ensemble_LAN::integrate_heat_lan
 
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[label_1] * 0.5;
     energy_transferred[1] -= ek2[label_2] * 0.5;
 
     // clean up
-    MY_FREE(ek2); cudaFree(ke);
+    MY_FREE(ek2); CHECK(cudaFree(ke));
 }
 
 

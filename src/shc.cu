@@ -148,12 +148,12 @@ void SHC::preprocess_shc(Atom *atom)
         uint64 num1 = number_of_pairs * 12;
         uint64 num2 = num1 * M;
 
-        cudaMalloc((void**)&a_map, sizeof(int) * atom->N);
-        cudaMalloc((void**)&b_map, sizeof(int) * atom->N);
+        CHECK(cudaMalloc((void**)&a_map, sizeof(int) * atom->N));
+        CHECK(cudaMalloc((void**)&b_map, sizeof(int) * atom->N));
 
-        cudaMalloc((void**)&fv_index, sizeof(int) * count_a*count_b);
-        cudaMalloc((void**)&fv,       sizeof(real) * num1);
-        cudaMalloc((void**)&fv_all,   sizeof(real) * num2);
+        CHECK(cudaMalloc((void**)&fv_index, sizeof(int) * count_a*count_b));
+        CHECK(cudaMalloc((void**)&fv,       sizeof(real) * num1));
+        CHECK(cudaMalloc((void**)&fv_all,   sizeof(real) * num2));
 
         CHECK(cudaMemcpy(fv_index, cpu_fv_index,
             sizeof(int) * count_a * count_b, cudaMemcpyHostToDevice));

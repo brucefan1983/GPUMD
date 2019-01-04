@@ -164,11 +164,11 @@ Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
 
 Tersoff2::~Tersoff2(void)
 {
-    cudaFree(tersoff_data.b);
-    cudaFree(tersoff_data.bp);
-    cudaFree(tersoff_data.f12x);
-    cudaFree(tersoff_data.f12y);
-    cudaFree(tersoff_data.f12z);
+    CHECK(cudaFree(tersoff_data.b));
+    CHECK(cudaFree(tersoff_data.bp));
+    CHECK(cudaFree(tersoff_data.f12x));
+    CHECK(cudaFree(tersoff_data.f12y));
+    CHECK(cudaFree(tersoff_data.f12z));
 }
 
 

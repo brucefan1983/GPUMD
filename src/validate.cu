@@ -172,15 +172,15 @@ void validate_force
 
     // make a copy of the positions
     real *x0, *y0, *z0;
-    cudaMalloc((void**)&x0, M);
-    cudaMalloc((void**)&y0, M);
-    cudaMalloc((void**)&z0, M);
+    CHECK(cudaMalloc((void**)&x0, M));
+    CHECK(cudaMalloc((void**)&y0, M));
+    CHECK(cudaMalloc((void**)&z0, M));
     copy_positions<<<grid_size, BLOCK_SIZE>>>(N, x, y, z, x0, y0, z0);
     
     // get the potentials
     real *p1, *p2;
-    cudaMalloc((void**)&p1, M * 3);
-    cudaMalloc((void**)&p2, M * 3);
+    CHECK(cudaMalloc((void**)&p1, M * 3));
+    CHECK(cudaMalloc((void**)&p2, M * 3));
     for (int d = 0; d < 3; ++d)
     {
         for (int n = 0; n < N; ++n)
@@ -214,9 +214,9 @@ void validate_force
 
     // get the forces from the potential energies using finite difference
     real *fx_compare, *fy_compare, *fz_compare;
-    cudaMalloc((void**)&fx_compare, M);
-    cudaMalloc((void**)&fy_compare, M);
-    cudaMalloc((void**)&fz_compare, M);
+    CHECK(cudaMalloc((void**)&fx_compare, M));
+    CHECK(cudaMalloc((void**)&fy_compare, M));
+    CHECK(cudaMalloc((void**)&fz_compare, M));
     find_force_from_potential<<<grid_size, BLOCK_SIZE>>>
     (N, p1, p2, fx_compare, fy_compare, fz_compare);
 
@@ -249,14 +249,14 @@ void validate_force
     MY_FREE(fx);
     MY_FREE(fy);
     MY_FREE(fz);
-    cudaFree(x0);  
-    cudaFree(y0); 
-    cudaFree(z0); 
-    cudaFree(p1); 
-    cudaFree(p2); 
-    cudaFree(fx_compare); 
-    cudaFree(fy_compare); 
-    cudaFree(fz_compare);  
+    CHECK(cudaFree(x0));
+    CHECK(cudaFree(y0));
+    CHECK(cudaFree(z0));
+    CHECK(cudaFree(p1));
+    CHECK(cudaFree(p2));
+    CHECK(cudaFree(fx_compare));
+    CHECK(cudaFree(fy_compare));
+    CHECK(cudaFree(fz_compare));
 }
 
 
