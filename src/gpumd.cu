@@ -55,34 +55,20 @@ GPUMD::~GPUMD(void)
 
 
 
-/*----------------------------------------------------------------------------80
-    run a number of steps for a given set of inputs
-------------------------------------------------------------------------------*/
-static void process_run 
+// run a number of steps for a given set of inputs
+static void process_run
 (
-    char **param, 
-    unsigned int num_param, 
-    char *input_dir,  
-    Atom *atom,
-    Force *force,
-    Integrate *integrate,
+    char *input_dir, Atom *atom, Force *force, Integrate *integrate,
     Measure *measure
 )
 {
     integrate->initialize(atom);
     measure->initialize(atom);
 
-    // record the starting time for this run
     clock_t time_begin = clock();
-
-    // Now, start to run!
     for (int step = 0; step < atom->number_of_steps; ++step)
-    {  
-        // update the neighbor list
-        if (atom->neighbor.update)
-        {
-            atom->find_neighbor(0);
-        }
+    {
+        if (atom->neighbor.update) { atom->find_neighbor(0); }
 
         // set the current temperature;
         if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 20)
@@ -92,10 +78,7 @@ static void process_run
                 * real(step) / atom->number_of_steps;   
         }
 
-        // integrate by one time-step:
         integrate->compute(atom, force, measure);
-
-        // measure
         measure->compute(input_dir, atom, integrate, step);
 
         if (atom->number_of_steps >= 10)
@@ -106,16 +89,8 @@ static void process_run
             }
         }
     }
-    
-    // only for myself
-    if (0)
-    {
-        validate_force(force, atom, measure);
-    }
 
     printf("INFO:  This run is completed.\n\n");
-
-    // report the time used for this run and its speed:
     clock_t time_finish = clock();
     real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
     printf("INFO:  Time used for this run = %g s.\n", time_used);
@@ -129,9 +104,7 @@ static void process_run
 
 
 
-/*----------------------------------------------------------------------------80
-    set some default values after each run
-------------------------------------------------------------------------------*/
+// set some default values after each run
 static void initialize_run(Atom* atom, Measure* measure)
 {
     atom->neighbor.update = 0;
@@ -146,13 +119,9 @@ static void initialize_run(Atom* atom, Measure* measure)
 
 
 
-/*----------------------------------------------------------------------------80
-	Read the input file to memory in the beginning, because
-	we do not want to keep the FILE handle open all the time
-------------------------------------------------------------------------------*/
+// Read the input file to memory
 static char *get_file_contents (char *filename)
 {
-
     char *contents;
     int contents_size;
     FILE *in = my_fopen(filename, "r");
@@ -178,9 +147,7 @@ static char *get_file_contents (char *filename)
 
 
 
-/*----------------------------------------------------------------------------80
-	Parse a single row
-------------------------------------------------------------------------------*/
+// Parse a single row
 static char *row_find_param (char *s, char *param[], int *num_param)
 {
     *num_param = 0;
@@ -222,16 +189,11 @@ static char *row_find_param (char *s, char *param[], int *num_param)
 
 
 
-/*----------------------------------------------------------------------------80
-    Read and process the inputs from the "run.in" file.
-------------------------------------------------------------------------------*/
+// Read and process the inputs from the "run.in" file
 void GPUMD::run
 (
-    char *input_dir,  
-    Atom *atom,
-    Force *force,
-    Integrate *integrate,
-    Measure *measure 
+    char *input_dir, Atom *atom, Force *force, Integrate *integrate,
+    Measure *measure
 )
 {
     char file_run[FILE_NAME_LENGTH];
@@ -245,7 +207,7 @@ void GPUMD::run
     int num_param;
     char *param[max_num_param];
 
-    initialize_run(atom, measure); // set some default values before the first run
+    initialize_run(atom, measure); // set some default values
 
     while (input_ptr)
     {
@@ -273,9 +235,9 @@ void GPUMD::run
             #ifdef FORCE
             // output the initial forces (for lattice dynamics calculations)
             int m = sizeof(real) * atom->N;
-            real *cpu_fx = cpu_data->fx;
-            real *cpu_fy = cpu_data->fy;
-            real *cpu_fz = cpu_data->fz;
+            real *cpu_fx; MY_MALLOC(cpu_fx, real, atom->N);
+            real *cpu_fy; MY_MALLOC(cpu_fy, real, atom->N);
+            real *cpu_fz; MY_MALLOC(cpu_fz, real, atom->N);
             CHECK(cudaMemcpy(cpu_fx, atom->fx, m, cudaMemcpyDeviceToHost));
             CHECK(cudaMemcpy(cpu_fy, atom->fy, m, cudaMemcpyDeviceToHost));
             CHECK(cudaMemcpy(cpu_fz, atom->fz, m, cudaMemcpyDeviceToHost));
@@ -293,13 +255,15 @@ void GPUMD::run
             }
             fflush(fid_force);
             fclose(fid_force);
+            MY_FREE(cpu_fx);
+            MY_FREE(cpu_fy);
+            MY_FREE(cpu_fz);
             #endif
         }
         if (is_velocity) { atom->initialize_velocity(); }
         if (is_run)
         {
-            process_run
-            (param, num_param, input_dir, atom, force, integrate, measure);
+            process_run(input_dir, atom, force, integrate, measure);
             initialize_run(atom, measure); // change back to the default
         }
     }
