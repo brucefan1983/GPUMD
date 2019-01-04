@@ -141,6 +141,7 @@ void HAC::sample_hac(int step, char *input_dir, Atom *atom)
                 atom->mass, atom->potential_per_atom,
                 atom->heat_per_atom, heat_all, gpu_heat
             );
+            CUDA_CHECK_KERNEL
 #ifdef HEAT_CURRENT
             // dump the heat current components
             char file_heat[FILE_NAME_LENGTH];
@@ -296,6 +297,7 @@ void HAC::find_hac_kappa
 
     // Here, the block size is fixed to 128, which is a good choice
     gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all, g_hac);
+    CUDA_CHECK_KERNEL
 
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());

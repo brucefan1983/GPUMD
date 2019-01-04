@@ -903,6 +903,7 @@ void Tersoff2::compute(Atom *atom, Measure *measure)
         N, N1, N2, pbc_x, pbc_y, pbc_z, ters0, ters1, ters2,
         NN, NL, type, x, y, z, box_length, b, bp
     );
+    CUDA_CHECK_KERNEL
 
     // pre-compute the partial forces
     find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
@@ -913,6 +914,7 @@ void Tersoff2::compute(Atom *atom, Measure *measure)
         N, N1, N2, pbc_x, pbc_y, pbc_z, ters0, ters1, ters2,
         NN, NL, type, b, bp, x, y, z, box_length, pe, f12x, f12y, f12z
     );
+    CUDA_CHECK_KERNEL
 
     // the final step: calculate force and related quantities
     find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
@@ -922,6 +924,7 @@ void Tersoff2::compute(Atom *atom, Measure *measure)
         f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
         sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
     );
+    CUDA_CHECK_KERNEL
 }
 
 

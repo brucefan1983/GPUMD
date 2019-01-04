@@ -553,6 +553,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
                 pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
                 rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -561,6 +562,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
                 pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
                 rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
             );
+            CUDA_CHECK_KERNEL
         }
     }
     else
@@ -570,6 +572,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
             pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
             rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
         );
+        CUDA_CHECK_KERNEL
     }
 }
 
@@ -711,20 +714,14 @@ void Force::compute(Atom *atom, Measure* measure)
         atom->virial_per_atom_z,
         atom->heat_per_atom
     );
-#ifdef DEBUG
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
-#endif
+    CUDA_CHECK_KERNEL
 
     if (measure->shc.compute)
-    initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    (
-        M, measure->shc.fv
-    );
-#ifdef DEBUG
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
-#endif
+    {
+        initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
+        (M, measure->shc.fv);
+        CUDA_CHECK_KERNEL
+    }
 
     for (int m = 0; m < num_of_potentials; m++)
     {
@@ -741,18 +738,12 @@ void Force::compute(Atom *atom, Measure* measure)
         CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
         gpu_sum_force<<<3, 1024>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
-#ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-#endif
+        CUDA_CHECK_KERNEL
 
         int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
-#ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-#endif
+        CUDA_CHECK_KERNEL
 
         CHECK(cudaFree(ftot));
     }

@@ -176,7 +176,8 @@ void validate_force
     CHECK(cudaMalloc((void**)&y0, M));
     CHECK(cudaMalloc((void**)&z0, M));
     copy_positions<<<grid_size, BLOCK_SIZE>>>(N, x, y, z, x0, y0, z0);
-    
+    CUDA_CHECK_KERNEL
+
     // get the potentials
     real *p1, *p2;
     CHECK(cudaMalloc((void**)&p1, M * 3));
@@ -190,27 +191,32 @@ void validate_force
             // shift one atom to the left by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
             (d, n, 1, x0, y0, z0, x, y, z);
+            CUDA_CHECK_KERNEL
 
             // get the potential energy
             force->compute(atom, measure);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p1); 
+            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p1);
+            CUDA_CHECK_KERNEL
 
             // shift one atom to the right by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
             (d, n, 2, x0, y0, z0, x, y, z);
+            CUDA_CHECK_KERNEL
 
             // get the potential energy
             force->compute(atom, measure);
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2);
+            CUDA_CHECK_KERNEL
         }
     }
 
     // copy the positions back (as if nothing happens)
     copy_positions<<<grid_size, BLOCK_SIZE>>>(N, x0, y0, z0, x, y, z);
+    CUDA_CHECK_KERNEL
 
     // get the forces from the potential energies using finite difference
     real *fx_compare, *fy_compare, *fz_compare;
@@ -219,6 +225,7 @@ void validate_force
     CHECK(cudaMalloc((void**)&fz_compare, M));
     find_force_from_potential<<<grid_size, BLOCK_SIZE>>>
     (N, p1, p2, fx_compare, fy_compare, fz_compare);
+    CUDA_CHECK_KERNEL
 
     // open file
     FILE *fid = my_fopen("f_compare.out", "w");

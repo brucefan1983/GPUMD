@@ -870,6 +870,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -882,6 +883,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
     else if (measure->shc.compute && !measure->hnemd.compute)
@@ -897,6 +899,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -909,6 +912,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
     else if (measure->hnemd.compute && !measure->shc.compute)
@@ -924,6 +928,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -936,6 +941,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
     else if (measure->hnemd.compute && measure->shc.compute)
@@ -951,8 +957,9 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
-    	else
+        else
         {
             gpu_find_force_vashishta_2body<1, 0, 1, 1>
             <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
@@ -963,6 +970,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
     else
@@ -978,6 +986,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -990,6 +999,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
                 fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 
@@ -1000,6 +1010,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
         vashishta_para, NN_local, NL_local, type,
         x, y, z, box_length, pe, f12x, f12y, f12z 
     );
+    CUDA_CHECK_KERNEL
 
     find_force_many_body<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
@@ -1009,6 +1020,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
         vx, vy, vz, box_length, fx, fy, fz, sx, sy, sz, h,
         label, fv_index, fv, a_map, b_map, count_b
     );
+    CUDA_CHECK_KERNEL
 }
 
 

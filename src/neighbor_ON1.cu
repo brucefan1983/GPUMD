@@ -271,14 +271,12 @@ void Atom::find_neighbor_ON1
     // Find the number of particles in each cell
     find_cell_counts<<<grid_size, BLOCK_SIZE>>>
     (N, cell_count, x, y, z, cell_n_x, cell_n_y, cell_n_z, rc);
-    #ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-    #endif
+    CUDA_CHECK_KERNEL
 
 #ifndef USE_THRUST
     // Simple (but 100% correct) version of prefix sum
     prefix_sum<<<1, 1>>>(N_cells, cell_count, cell_count_sum);
+    CUDA_CHECK_KERNEL
 #else
     // use thrust to calculate the prefix sum
     thrust::exclusive_scan
@@ -293,79 +291,95 @@ void Atom::find_neighbor_ON1
         N, cell_count, cell_count_sum, cell_contents, 
         x, y, z, cell_n_x, cell_n_y, cell_n_z, rc
     );
-    #ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-    #endif
+    CUDA_CHECK_KERNEL
 
     // new version (faster)
 
     if (pbc_x && pbc_y && pbc_z)
-    gpu_find_neighbor_ON1<1, 1, 1><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
+    {
+        gpu_find_neighbor_ON1<1, 1, 1><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (pbc_x && pbc_y && !pbc_z)
-    gpu_find_neighbor_ON1<1, 1, 0><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
+    {
+        gpu_find_neighbor_ON1<1, 1, 0><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (pbc_x && !pbc_y && pbc_z)
-    gpu_find_neighbor_ON1<1, 0, 1><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
+    {
+        gpu_find_neighbor_ON1<1, 0, 1><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (!pbc_x && pbc_y && pbc_z)
-    gpu_find_neighbor_ON1<0, 1, 1><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
+    {
+        gpu_find_neighbor_ON1<0, 1, 1><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (pbc_x && !pbc_y && !pbc_z)
-    gpu_find_neighbor_ON1<1, 0, 0><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
+    {
+        gpu_find_neighbor_ON1<1, 0, 0><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (!pbc_x && pbc_y && !pbc_z)
-    gpu_find_neighbor_ON1<0, 1, 0><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
+    {
+        gpu_find_neighbor_ON1<0, 1, 0><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (!pbc_x && !pbc_y && pbc_z)
-    gpu_find_neighbor_ON1<0, 0, 1><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
+    {
+        gpu_find_neighbor_ON1<0, 0, 1><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (!pbc_x && !pbc_y && !pbc_z)
-    gpu_find_neighbor_ON1<0, 0, 0><<<grid_size, BLOCK_SIZE>>>
-    (
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-    );
-
-
-    #ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-    #endif
+    {
+        gpu_find_neighbor_ON1<0, 0, 0><<<grid_size, BLOCK_SIZE>>>
+        (
+            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     CHECK(cudaFree(cell_count));
     CHECK(cudaFree(cell_count_sum));
     CHECK(cudaFree(cell_contents));
 }
+
 
 
 

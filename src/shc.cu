@@ -270,8 +270,8 @@ void SHC::find_k_time(char *input_dir, Atom *atom)
         Nc, M, M-Nc, number_of_sections, number_of_pairs, 
         fv_all, g_k_time_i, g_k_time_o
     );
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
+    CUDA_CHECK_KERNEL
+
     CHECK(cudaMemcpy(k_time_i, g_k_time_i, 
         sizeof(real) * Nc, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(k_time_o, g_k_time_o, 

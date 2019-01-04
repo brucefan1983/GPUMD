@@ -56,6 +56,7 @@ Ensemble_LAN::Ensemble_LAN(int t, int N, real T, real Tc)
     CHECK(cudaMalloc((void**)&curand_states, sizeof(curandState) * N));
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
     initialize_curand_states<<<grid_size, BLOCK_SIZE>>>(curand_states, N);
+    CUDA_CHECK_KERNEL
 }
 
 
@@ -90,8 +91,10 @@ Ensemble_LAN::Ensemble_LAN
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
     initialize_curand_states<<<grid_size_source, BLOCK_SIZE>>>
     (curand_states_source, N_source);
+    CUDA_CHECK_KERNEL
     initialize_curand_states<<<grid_size_sink, BLOCK_SIZE>>>
     (curand_states_sink,   N_sink);
+    CUDA_CHECK_KERNEL
 
     energy_transferred[0] = 0.0;
     energy_transferred[1] = 0.0;
@@ -246,17 +249,21 @@ void Ensemble_LAN::integrate_nvt_lan
     // the first half of Langevin, before velocity-Verlet
     gpu_langevin<<<grid_size, BLOCK_SIZE>>>
     (curand_states, N, c1, c2, mass, vx, vy, vz);
+    CUDA_CHECK_KERNEL
 
     // the standard velocity-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
     force->compute(atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     // the second half of Langevin, after velocity-Verlet
     gpu_langevin<<<grid_size, BLOCK_SIZE>>>
     (curand_states, N, c1, c2, mass, vx, vy, vz);
+    CUDA_CHECK_KERNEL
 
     // thermo
     int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
@@ -266,6 +273,7 @@ void Ensemble_LAN::integrate_nvt_lan
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     );
+    CUDA_CHECK_KERNEL
 }
 
 
@@ -309,6 +317,7 @@ void Ensemble_LAN::integrate_heat_lan
     // the first half of Langevin, before velocity-Verlet
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    CUDA_CHECK_KERNEL
     CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[label_1] * 0.5;
     energy_transferred[1] += ek2[label_2] * 0.5;
@@ -318,14 +327,17 @@ void Ensemble_LAN::integrate_heat_lan
         curand_states_source, N_source, offset_source, group_contents, 
         c1, c2_source, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
     gpu_langevin<<<grid_size_sink, BLOCK_SIZE>>>
     (
         curand_states_sink, N_sink, offset_sink, group_contents, 
         c1, c2_sink, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
 
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    CUDA_CHECK_KERNEL
     CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[label_1] * 0.5;
     energy_transferred[1] -= ek2[label_2] * 0.5;
@@ -333,13 +345,16 @@ void Ensemble_LAN::integrate_heat_lan
     // the standard veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
     force->compute(atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     // the second half of Langevin, after velocity-Verlet
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    CUDA_CHECK_KERNEL
     CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[label_1] * 0.5;
     energy_transferred[1] += ek2[label_2] * 0.5;
@@ -349,14 +364,17 @@ void Ensemble_LAN::integrate_heat_lan
         curand_states_source, N_source, offset_source, group_contents, 
         c1, c2_source, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
     gpu_langevin<<<grid_size_sink, BLOCK_SIZE>>>
     (
         curand_states_sink, N_sink, offset_sink, group_contents, 
         c1, c2_sink, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
 
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
+    CUDA_CHECK_KERNEL
     CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[label_1] * 0.5;
     energy_transferred[1] -= ek2[label_2] * 0.5;
@@ -367,7 +385,7 @@ void Ensemble_LAN::integrate_heat_lan
 
 
 
- 
+
 void Ensemble_LAN::compute
 (Atom *atom, Force *force, Measure* measure)
 {

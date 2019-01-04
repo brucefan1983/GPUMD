@@ -107,8 +107,8 @@ void HNEMD::process_hnemd_kappa
     {
         int output_flag = ((step+1) % output_interval == 0);
         step %= output_interval;
-        gpu_sum_heat<<<5, 1024>>>
-        (atom->N, step, atom->heat_per_atom, heat_all);
+        gpu_sum_heat<<<5, 1024>>>(atom->N, step, atom->heat_per_atom, heat_all);
+        CUDA_CHECK_KERNEL
         if (output_flag)
         {
             int num = NUM_OF_HEAT_COMPONENTS * output_interval;

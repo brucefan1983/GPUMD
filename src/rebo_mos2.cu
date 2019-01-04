@@ -1473,6 +1473,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
+        CUDA_CHECK_KERNEL
     }
     else if (measure->hnemd.compute && !measure->shc.compute)
     {
@@ -1483,6 +1484,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
+        CUDA_CHECK_KERNEL
     }
     else if (measure->shc.compute && !measure->hnemd.compute)
     {
@@ -1493,6 +1495,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
+        CUDA_CHECK_KERNEL
     }
     else if (measure->shc.compute && measure->hnemd.compute)
     {
@@ -1503,6 +1506,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
+        CUDA_CHECK_KERNEL
     }
     else
     {
@@ -1513,6 +1517,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
+        CUDA_CHECK_KERNEL
     }
 
     // pre-compute the bond-order function and its derivative
@@ -1521,6 +1526,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
         N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
         x, y, z, box, b, bp, p
     );
+    CUDA_CHECK_KERNEL
 
     // pre-compute the partial force
     find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
@@ -1528,6 +1534,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
         N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
         b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
     );
+    CUDA_CHECK_KERNEL
 
     // 3-body part
     find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
@@ -1538,6 +1545,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
         x, y, z, vx, vy, vz, box, fx, fy, fz,
         sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
     );
+    CUDA_CHECK_KERNEL
 }
 
 

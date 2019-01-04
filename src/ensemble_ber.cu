@@ -17,11 +17,11 @@
 
 
 #include "ensemble_ber.cuh"
+
 #include "ensemble.inc"
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
 
 #define BLOCK_SIZE 128
 
@@ -167,11 +167,13 @@ void Ensemble_BER::compute
 
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     force->compute(atom, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
     gpu_find_thermo<<<5, 1024>>>
@@ -179,11 +181,13 @@ void Ensemble_BER::compute
         N, N_fixed, fixed_group, label, temperature, box_length, 
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
-    ); 
+    );
+    CUDA_CHECK_KERNEL
 
     // control temperature
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
     (N, temperature, t_coupling, thermo, vx, vy, vz);
+    CUDA_CHECK_KERNEL
 
     // control pressure 
     if (type == 11)
@@ -193,6 +197,7 @@ void Ensemble_BER::compute
             N, pbc_x, pbc_y, pbc_z, p0x, p0y, p0z, p_coupling, 
             thermo, box_length, x, y, z
         );
+        CUDA_CHECK_KERNEL
     }
 }
 

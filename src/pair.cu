@@ -433,6 +433,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -442,6 +443,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -451,6 +453,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -460,6 +463,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -469,6 +473,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 
@@ -483,6 +488,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -492,6 +498,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -501,6 +508,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -510,6 +518,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -519,6 +528,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 
@@ -533,6 +543,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -542,6 +553,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -551,6 +563,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -560,6 +573,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -569,6 +583,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 
@@ -583,6 +598,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -592,6 +608,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -601,6 +618,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -610,6 +628,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -619,6 +638,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 
@@ -633,6 +653,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -642,6 +663,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -651,6 +673,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -660,6 +683,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -669,6 +693,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 
@@ -683,6 +708,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -692,6 +718,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -701,6 +728,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -710,6 +738,7 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -719,13 +748,9 @@ void Pair::compute(Atom *atom, Measure *measure)
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
-
-    #ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-    #endif
 }
 
 

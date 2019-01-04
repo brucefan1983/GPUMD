@@ -15,11 +15,13 @@
 
 
 
+
 #include "ensemble_nve.cuh"
+
 #include "ensemble.inc"
 #include "force.cuh"
 #include "atom.cuh"
-
+#include "error.cuh"
 
 #define BLOCK_SIZE 128
 
@@ -68,11 +70,13 @@ void Ensemble_NVE::compute
 
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     force->compute(atom, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
     gpu_find_thermo<<<5, 1024>>>
@@ -80,7 +84,8 @@ void Ensemble_NVE::compute
         N, N_fixed, fixed_group, label, temperature, box_length, 
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
-    ); 
+    );
+    CUDA_CHECK_KERNEL
 }
 
 

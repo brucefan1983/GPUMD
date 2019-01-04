@@ -230,6 +230,7 @@ void Ensemble_NHC::integrate_nvt_nhc
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     );
+    CUDA_CHECK_KERNEL
 
     real *ek2;
     MY_MALLOC(ek2, real, sizeof(real) * 1);
@@ -239,14 +240,17 @@ void Ensemble_NHC::integrate_nvt_nhc
     real factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
 
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
+    CUDA_CHECK_KERNEL
 
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     force->compute(atom, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     gpu_find_thermo<<<5, 1024>>>
     (
@@ -254,6 +258,7 @@ void Ensemble_NHC::integrate_nvt_nhc
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     );
+    CUDA_CHECK_KERNEL
 
     CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
@@ -263,6 +268,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     MY_FREE(ek2);
 
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
+    CUDA_CHECK_KERNEL
 
 }
 
@@ -487,6 +493,7 @@ void Ensemble_NHC::integrate_heat_nhc
         group_size, group_size_sum, group_contents, 
         mass, vx, vy, vz, vcx, vcy, vcz, ke
     );
+    CUDA_CHECK_KERNEL
     CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
 
     real factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
@@ -503,15 +510,18 @@ void Ensemble_NHC::integrate_heat_nhc
         N, label_1, label_2, atom->label, factor_1, factor_2, 
         vcx, vcy, vcz, ke, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
 
     // veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     force->compute(atom, measure);
 
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     // NHC second
     find_vc_and_ke<<<Ng, 512>>>
@@ -519,6 +529,7 @@ void Ensemble_NHC::integrate_heat_nhc
         group_size, group_size_sum, group_contents, 
         mass, vx, vy, vz, vcx, vcy, vcz, ke
     );
+    CUDA_CHECK_KERNEL
     CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
@@ -534,6 +545,7 @@ void Ensemble_NHC::integrate_heat_nhc
         N, label_1, label_2, atom->label, factor_1, factor_2, 
         vcx, vcy, vcz, ke, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
 
     // clean up
     MY_FREE(ek2);
@@ -541,15 +553,11 @@ void Ensemble_NHC::integrate_heat_nhc
     CHECK(cudaFree(vcy));
     CHECK(cudaFree(vcz));
     CHECK(cudaFree(ke));
-
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
-
 }
 
 
 
- 
+
 void Ensemble_NHC::compute
 (Atom *atom, Force *force, Measure* measure)
 {

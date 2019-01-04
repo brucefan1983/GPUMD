@@ -98,11 +98,7 @@ void Atom::find_neighbor_ON2(void)
     // Find neighbours
     gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
     (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, x, y, z);
-
-    #ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-    #endif
+    CUDA_CHECK_KERNEL
 }
 
 

@@ -680,6 +680,7 @@ void SW2::compute(Atom *atom, Measure *measure)
     real *f12z = sw2_data.f12z;
     gpu_set_f12_to_zero<<<grid_size, BLOCK_SIZE_SW>>>
     (N, N1, N2, NN, f12x, f12y, f12z);
+    CUDA_CHECK_KERNEL
 
     // parameters related to the HNEMD method
     real fe_x = measure->hnemd.fe_x;
@@ -692,6 +693,7 @@ void SW2::compute(Atom *atom, Measure *measure)
         N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z,
         box_length, pe, f12x, f12y, f12z
     );
+    CUDA_CHECK_KERNEL
 
     // step 2: calculate force and related quantities
     find_force_many_body<<<grid_size, BLOCK_SIZE_SW>>>
@@ -701,6 +703,7 @@ void SW2::compute(Atom *atom, Measure *measure)
         f12x, f12y, f12z, x, y, z, vx, vy, vz, box_length, fx, fy, fz,
         sx, sy, sz, h, label, fv_index, fv, a_map, b_map, count_b
     );
+    CUDA_CHECK_KERNEL
 }
 
 

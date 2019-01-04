@@ -85,8 +85,7 @@ void VAC::sample_vac(int step, Atom *atom)
                 N, nd, atom->vx, atom->vy, atom->vz, 
                 vx_all, vy_all, vz_all
             );
-            CHECK(cudaDeviceSynchronize());
-            CHECK(cudaGetLastError());
+            CUDA_CHECK_KERNEL
         }
     }
 }
@@ -286,9 +285,8 @@ void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
         N, M, vx_all, vy_all, vz_all, 
         g_vac_x, g_vac_y, g_vac_z
     );
+    CUDA_CHECK_KERNEL
 
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
     CHECK(cudaMemcpy(vac_x, g_vac_x, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(vac_y, g_vac_y, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(vac_z, g_vac_z, sizeof(real) * Nc, cudaMemcpyDeviceToHost));

@@ -15,14 +15,13 @@
 
 
 
+
 #include "eam.cuh"
+
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
-
-
 
 // best block size here: 64 or 128
 #define BLOCK_SIZE_FORCE 64
@@ -603,6 +602,7 @@ void EAM::compute(Atom *atom, Measure *measure)
             eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN, NL, x, y, z, box_length, Fp, pe
         );
+        CUDA_CHECK_KERNEL
         if (measure->hac.compute)
         {
             find_force_eam_step2<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
@@ -612,6 +612,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -622,6 +623,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -632,6 +634,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -642,6 +645,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -652,6 +656,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 
@@ -662,6 +667,7 @@ void EAM::compute(Atom *atom, Measure *measure)
             eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
             NN, NL, x, y, z, box_length, Fp, pe
         );
+        CUDA_CHECK_KERNEL
         if (measure->hac.compute)
         {
             find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
@@ -671,6 +677,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
@@ -681,6 +688,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
@@ -691,6 +699,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
@@ -701,6 +710,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
         else
         {
@@ -711,6 +721,7 @@ void EAM::compute(Atom *atom, Measure *measure)
                 box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
+            CUDA_CHECK_KERNEL
         }
     }
 }

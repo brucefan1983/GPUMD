@@ -133,10 +133,8 @@ void Heat::sample_block_temperature
                 group_size, group_size_sum, group_contents, 
                 mass, vx, vy, vz, temp_gpu
             );
-            #ifdef DEBUG
-                CHECK(cudaDeviceSynchronize());
-                CHECK(cudaGetLastError());
-            #endif
+            CUDA_CHECK_KERNEL
+
             CHECK(cudaMemcpy(group_temp+offset, temp_gpu, 
                 sizeof(real)*Ng, cudaMemcpyDeviceToHost));
             CHECK(cudaFree(temp_gpu));

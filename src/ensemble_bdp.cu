@@ -120,9 +120,11 @@ void Ensemble_BDP::integrate_nvt_bdp
     // standard velocity-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
     force->compute(atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
@@ -132,6 +134,7 @@ void Ensemble_BDP::integrate_nvt_bdp
         mass, z, potential_per_atom, vx, vy, vz, 
         virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
     );
+    CUDA_CHECK_KERNEL
 
     // re-scale the velocities
     real *ek;
@@ -143,6 +146,7 @@ void Ensemble_BDP::integrate_nvt_bdp
     factor = sqrt(factor / ek[0]);
     MY_FREE(ek);
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
+    CUDA_CHECK_KERNEL
 }
 
 
@@ -362,9 +366,11 @@ void Ensemble_BDP::integrate_heat_bdp
     // veloicty-Verlet
     gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
     force->compute(atom, measure);
     gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
     (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    CUDA_CHECK_KERNEL
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke<<<Ng, 512>>>
@@ -372,6 +378,7 @@ void Ensemble_BDP::integrate_heat_bdp
         group_size, group_size_sum, group_contents, 
         mass, vx, vy, vz, vcx, vcy, vcz, ke
     );
+    CUDA_CHECK_KERNEL
     CHECK(cudaMemcpy(ek, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
 
     // get the re-scaling factors
@@ -392,6 +399,7 @@ void Ensemble_BDP::integrate_heat_bdp
         N, label_1, label_2, atom->label, factor_1, factor_2, 
         vcx, vcy, vcz, ke, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
 
     // clean up
     MY_FREE(ek);
@@ -399,15 +407,11 @@ void Ensemble_BDP::integrate_heat_bdp
     CHECK(cudaFree(vcy));
     CHECK(cudaFree(vcz));
     CHECK(cudaFree(ke));
-
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
-
 }
 
 
 
- 
+
 void Ensemble_BDP::compute
 (Atom *atom, Force *force, Measure* measure)
 {

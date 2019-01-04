@@ -35,7 +35,7 @@
 
 
 
-static __device__ void warp_reduce(volatile int *s, int t) 
+static __device__ void warp_reduce(volatile int *s, int t)
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
@@ -54,10 +54,10 @@ static __global__ void check_atom_distance_1
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int n = bid * blockDim.x + tid;
-    
+
     __shared__ int s_sum[1024];
     s_sum[tid] = 0;
-    
+
     if (n < N)
     {
         real dx = x_new[n] - x_old[n];
@@ -68,17 +68,17 @@ static __global__ void check_atom_distance_1
             s_sum[tid] = 1;
         }
     }
-    
+
     __syncthreads();
     if (tid < 512) s_sum[tid] += s_sum[tid + 512]; __syncthreads();
     if (tid < 256) s_sum[tid] += s_sum[tid + 256]; __syncthreads();
     if (tid < 128) s_sum[tid] += s_sum[tid + 128]; __syncthreads();
     if (tid <  64) s_sum[tid] += s_sum[tid + 64];  __syncthreads();
-    if (tid <  32) warp_reduce(s_sum, tid); 
-    
-    if (tid ==  0) 
+    if (tid <  32) warp_reduce(s_sum, tid);
+
+    if (tid ==  0)
     {
-        g_sum[bid] = s_sum[0]; 
+        g_sum[bid] = s_sum[0];
     }
 }
 
@@ -89,30 +89,30 @@ static __global__ void check_atom_distance_1
 static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
 {
     int tid = threadIdx.x;
-    int number_of_patches = (M - 1) / 1024 + 1; 
-    
+    int number_of_patches = (M - 1) / 1024 + 1;
+
     __shared__ int s_sum[1024];
     s_sum[tid] = 0;
-    
+
     for (int patch = 0; patch < number_of_patches; ++patch)
-    { 
+    {
         int n = tid + patch * 1024;
         if (n < M)
         {        
             s_sum[tid] += g_sum_i[n];
         }
     }
-    
+
     __syncthreads();
     if (tid < 512) s_sum[tid] += s_sum[tid + 512]; __syncthreads();
     if (tid < 256) s_sum[tid] += s_sum[tid + 256]; __syncthreads();
     if (tid < 128) s_sum[tid] += s_sum[tid + 128]; __syncthreads();
     if (tid <  64) s_sum[tid] += s_sum[tid + 64];  __syncthreads();
     if (tid <  32) warp_reduce(s_sum, tid); 
-    
+
     if (tid ==  0) 
     {
-        g_sum_o[0] = s_sum[0]; 
+        g_sum_o[0] = s_sum[0];
     }
 }
 
@@ -124,31 +124,28 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
 int Atom::check_atom_distance(void)
 {
     int M = (N - 1) / 1024 + 1;
-         
+
     real d2 = HALF * HALF; // to be generalized to use input
-   
+
     int *s1;
     CHECK(cudaMalloc((void**)&s1, sizeof(int) * M));
-         
+
     int *s2;
     CHECK(cudaMalloc((void**)&s2, sizeof(int)));
-         
-    check_atom_distance_1<<<M, 1024>>>
-    (
-        N, d2, x0, y0, z0, 
-        x, y, z, s1
-    );
+
+    check_atom_distance_1<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s1);
+    CUDA_CHECK_KERNEL
     check_atom_distance_2<<<1, 1024>>>(M, s1, s2);
-         
+    CUDA_CHECK_KERNEL
     int *cpu_s2;
     MY_MALLOC(cpu_s2, int, 1);
     CHECK(cudaMemcpy(cpu_s2, s2, sizeof(int), cudaMemcpyDeviceToHost));
-        
+
     CHECK(cudaFree(s1));
     CHECK(cudaFree(s2));
 
     int update = cpu_s2[0];
-        
+
     MY_FREE(cpu_s2);
 
     return update;
@@ -203,7 +200,7 @@ static __global__ void gpu_update_xyz0
         x0[n] = x[n];
         y0[n] = y[n];
         z0[n] = z[n];
-    }  
+    }
 }
 
 
@@ -220,11 +217,7 @@ void Atom::check_bound(void)
     {
         if (cpu_NN[n] > neighbor.MN)
         {
-            printf
-            (
-                "Error: NN[%d] = %d > %d\n", n, cpu_NN[n], 
-                neighbor.MN
-            );
+            printf("Error: NN[%d] = %d > %d\n", n, cpu_NN[n], neighbor.MN);
             flag = 1;
         }
     }
@@ -311,35 +304,36 @@ void Atom::find_neighbor(int is_first)
 {
     if (is_first == 1) // always build in the beginning
     {
-        find_neighbor(); 
+        find_neighbor();
         check_bound();
 
         // set up the reference positions
         gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-        (
-            N, x, y, z, 
-            x0, y0, z0
-        );
-    } 
+        (N, x, y, z, x0, y0, z0);
+        CUDA_CHECK_KERNEL
+    }
     else // only re-build when necessary during the run
-    {    
+    {
         int update = check_atom_distance();
 
         if (update != 0)
         {
             find_neighbor();
             check_bound();
-            
+
             // pull the particles back to the box
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (N, pbc_x, pbc_y, pbc_z, box_length, x, y, z);
-            
+            CUDA_CHECK_KERNEL
+
             // update the reference positions
             gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (N, x, y, z, x0, y0, z0);
+            CUDA_CHECK_KERNEL
         }
     }
-} 
+}
+
 
 
 
