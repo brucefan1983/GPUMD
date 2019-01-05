@@ -35,7 +35,6 @@ private:
 
     void parse
     (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);
-    void initialize_run(Atom*, Force*, Measure*);
 
     int number_of_times_velocity = 0;
     int number_of_times_potential = 0;

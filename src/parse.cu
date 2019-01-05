@@ -15,6 +15,7 @@
 
 
 
+
 #include "gpumd.cuh"
 
 #include "atom.cuh"
@@ -23,7 +24,6 @@
 #include "force.cuh"
 #include "integrate.cuh"
 #include "measure.cuh"
-
 
 #include <errno.h>
 
@@ -40,17 +40,12 @@
 
 static int is_valid_int (const char *s, int *result)
 {
-    if (s == NULL || *s == '\0')
-        return 0;
-
+    if (s == NULL || *s == '\0') { return 0; }
     char *p;
     errno = 0;
     *result = (int) strtol (s, &p, 0);
-
-    if (errno != 0 || s == p || *p != 0)
-        return 0;
-    else
-        return 1;
+    if (errno != 0 || s == p || *p != 0) { return 0; }
+    else {return 1; }
 }
 
 
@@ -58,17 +53,12 @@ static int is_valid_int (const char *s, int *result)
 
 static int is_valid_real (const char *s, real *result)
 {
-    if (s == NULL || *s == '\0')
-        return 0;
-
+    if (s == NULL || *s == '\0') { return 0; }
     char *p;
     errno = 0;
     *result = strtod (s, &p);
-
-    if (errno != 0 || s == p || *p != 0)
-        return 0;
-    else
-        return 1;
+    if (errno != 0 || s == p || *p != 0) { return 0; }
+    else { return 1; }
 }
 
 
@@ -77,10 +67,6 @@ static int is_valid_real (const char *s, real *result)
 // a single potential
 static void parse_potential(char **param, int num_param, Force *force)
 {
-    if (force->num_of_potentials != 0)
-    {
-        print_error("cannot have both 'potential' and 'potentials'.\n");
-    }
     if (num_param != 2)
     {
         print_error("potential should have 1 parameter.\n");
@@ -95,11 +81,7 @@ static void parse_potential(char **param, int num_param, Force *force)
 
 // multiple potentials
 static void parse_potentials(char **param, int num_param, Force *force)
-{ 
-    if (force->num_of_potentials != 0)
-    {
-        print_error("cannot have both 'potential' and 'potentials'.\n");
-    }
+{
     if (num_param == 6)
     {
         force->num_of_potentials = 2;

@@ -105,7 +105,7 @@ static void process_run
 
 
 // set some default values after each run
-void GPUMD::initialize_run(Atom* atom, Force* force, Measure* measure)
+static void initialize_run(Atom* atom, Measure* measure)
 {
     atom->neighbor.update = 0;
     atom->fixed_group     = -1; // no group has an index of -1
@@ -114,7 +114,6 @@ void GPUMD::initialize_run(Atom* atom, Force* force, Measure* measure)
     measure->vac.compute     = 0;
     measure->hac.compute     = 0;
     measure->hnemd.compute   = 0;
-    force->num_of_potentials = 0;
 }
 
 
@@ -278,7 +277,7 @@ void GPUMD::check_velocity_and_potential
     int num_param;
     char *param[max_num_param];
 
-    initialize_run(atom, force, measure); // set some default values
+    initialize_run(atom, measure); // set some default values
 
     while (input_ptr)
     {
@@ -299,14 +298,13 @@ void GPUMD::check_velocity_and_potential
         if (is_potential) 
         {
             number_of_times_potential++;
-            force->num_of_potentials = 0;
         }
         if (is_velocity) { number_of_times_velocity++; }
         if (is_run)
         {
             print_velocity_and_potential_error_1
             (number_of_times_potential, number_of_times_velocity);
-            initialize_run(atom, force, measure); // change back to the default
+            initialize_run(atom, measure); // change back to the default
         }
     }
     print_velocity_and_potential_error_2
@@ -336,7 +334,7 @@ void GPUMD::run
     int num_param;
     char *param[max_num_param];
 
-    initialize_run(atom, force, measure); // set some default values
+    initialize_run(atom, measure); // set some default values
 
     while (input_ptr)
     {
@@ -366,7 +364,7 @@ void GPUMD::run
         if (is_run)
         {
             process_run(input_dir, atom, force, integrate, measure);
-            initialize_run(atom, force, measure); // change back to the default
+            initialize_run(atom, measure); // change back to the default
         }
     }
 
