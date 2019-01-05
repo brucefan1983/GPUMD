@@ -85,17 +85,18 @@ static void process_run
         {
             if ((step + 1) % (atom->number_of_steps / 10) == 0)
             {
-                printf("INFO:  %d steps completed.\n", step + 1);
+                printf("    %d steps completed.\n", step + 1);
             }
         }
     }
 
-    printf("INFO:  This run is completed.\n\n");
+    print_line_1();
     clock_t time_finish = clock();
     real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
-    printf("INFO:  Time used for this run = %g s.\n", time_used);
+    printf("Time used for this run = %g s.\n", time_used);
     real run_speed = atom->N * (atom->number_of_steps / time_used);
-    printf("INFO:  Speed of this run = %g atom*step/second.\n\n", run_speed);
+    printf("Speed of this run = %g atom*step/second.\n", run_speed);
+    print_line_2();
 
     measure->finalize(input_dir, atom, integrate);
     integrate->finalize();
@@ -107,13 +108,23 @@ static void process_run
 // set some default values after each run
 static void initialize_run(Atom* atom, Measure* measure)
 {
+    // modify
     atom->neighbor.update = 0;
     atom->fixed_group     = -1; // no group has an index of -1
-    measure->heat.sample     = 0;
-    measure->shc.compute     = 0;
-    measure->vac.compute     = 0;
-    measure->hac.compute     = 0;
-    measure->hnemd.compute   = 0;
+
+    // measure
+    measure->heat.sample    = 0;
+    measure->shc.compute    = 0;
+    measure->vac.compute    = 0;
+    measure->hac.compute    = 0;
+    measure->hnemd.compute  = 0;
+    measure->dump_thermo    = 0;
+    measure->dump_position  = 0;
+    measure->dump_velocity  = 0;
+    measure->dump_force     = 0;
+    measure->dump_potential = 0;
+    measure->dump_virial    = 0;
+    measure->dump_heat      = 0;
 }
 
 
@@ -280,7 +291,7 @@ void GPUMD::check_velocity_and_potential
     initialize_run(atom, measure); // set some default values
 
     print_line_1();
-    printf("INFO:  started checking inputs in run.in.\n");
+    printf("Started checking the inputs in run.in.\n");
     print_line_2();
 
     while (input_ptr)
@@ -312,7 +323,7 @@ void GPUMD::check_velocity_and_potential
     (number_of_times_potential, number_of_times_velocity);
 
     print_line_1();
-    printf("INFO:  finished checking inputs in run.in.\n");
+    printf("Finished checking the inputs in run.in.\n");
     print_line_2();
 
     MY_FREE(input); // Free the input file contents
@@ -342,7 +353,7 @@ void GPUMD::run
     initialize_run(atom, measure); // set some default values
 
     print_line_1();
-    printf("INFO:  start executing the commands in run.in.\n");
+    printf("Started executing the commands in run.in.\n");
     print_line_2();
 
     while (input_ptr)
@@ -378,7 +389,7 @@ void GPUMD::run
     }
 
     print_line_1();
-    printf("INFO:  finished executing the inputs in run.in.\n");
+    printf("Finished executing the commands in run.in.\n");
     print_line_2();
 
     MY_FREE(input); // Free the input file contents

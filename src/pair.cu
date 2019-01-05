@@ -82,7 +82,7 @@ Pair::Pair(FILE *fid, int potential_model_input)
 
 void Pair::initialize_lj(FILE *fid, int N)
 {
-    printf("INPUT: use %d-element LJ potential.\n", N);
+    printf("Use %d-element LJ potential.\n", N);
     double epsilon, sigma, cutoff;
     rc = 0.0;
     for (int n = 0; n < N; n++)
@@ -105,7 +105,7 @@ void Pair::initialize_lj(FILE *fid, int N)
 
 void Pair::initialize_ri(FILE *fid)
 {
-    printf("INPUT: use the rigid-ion potential.\n");
+    printf("Use the rigid-ion potential.\n");
     double x[4][3];
     for (int n = 0; n < 4; n++)
     {

@@ -99,6 +99,10 @@ int main(int argc, char *argv[])
         print_line_2();
     }
 
+    print_line_1();
+    printf("Finished running GPUMD.\n");
+    print_line_2();
+
     return EXIT_SUCCESS;
 }
 

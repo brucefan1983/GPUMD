@@ -432,7 +432,7 @@ REBO_MOS::REBO_MOS(Atom* atom)
     CHECK(cudaMalloc((void**)&rebo_mos_data.NN_short, memory3));
     CHECK(cudaMalloc((void**)&rebo_mos_data.NL_short, memory4));
 
-    printf("INPUT: use the potential in [PRB 79, 245110 (2009)].\n");
+    printf("Use the potential in [PRB 79, 245110 (2009)].\n");
     rc = 10.5;
 }
 

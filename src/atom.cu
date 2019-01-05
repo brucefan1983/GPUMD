@@ -30,7 +30,7 @@
 void Atom::initialize_position(char *input_dir)
 {
     print_line_1();
-    printf("INFO:  read in initial positions and related parameters.\n");
+    printf("Started initializing positions and related parameters.\n");
     print_line_2();
 
     int count = 0;
@@ -47,19 +47,19 @@ void Atom::initialize_position(char *input_dir)
     if (N < 1)
         print_error("number of atoms should >= 1\n");
     else
-        printf("INPUT: number of atoms is %d.\n", N);
+        printf("Number of atoms is %d.\n", N);
     
     if (neighbor.MN < 0)
         print_error("maximum number of neighbors should >= 0\n");
     else
-        printf("INPUT: maximum number of neighbors is %d.\n",neighbor.MN);
+        printf("Maximum number of neighbors is %d.\n",neighbor.MN);
 
     if (neighbor.rc < 0)
         print_error("initial cutoff for neighbor list should >= 0\n");
     else
         printf
         (
-            "INPUT: initial cutoff for neighbor list is %g A.\n", 
+            "Initial cutoff for neighbor list is %g A.\n", 
             neighbor.rc
         );    
 
@@ -86,23 +86,23 @@ void Atom::initialize_position(char *input_dir)
     cpu_box_length[2] = lz;
 
     if (pbc_x == 1)
-        printf("INPUT: use periodic boundary conditions along x.\n");
+        printf("Use periodic boundary conditions along x.\n");
     else if (pbc_x == 0)
-        printf("INPUT: use     free boundary conditions along x.\n");
+        printf("Use     free boundary conditions along x.\n");
     else
         print_error("invalid boundary conditions along x.\n");
 
     if (pbc_y == 1)
-        printf("INPUT: use periodic boundary conditions along y.\n");
+        printf("Use periodic boundary conditions along y.\n");
     else if (pbc_y == 0)
-        printf("INPUT: use     free boundary conditions along y.\n");
+        printf("Use     free boundary conditions along y.\n");
     else
         print_error("invalid boundary conditions along y.\n");
 
     if (pbc_z == 1)
-        printf("INPUT: use periodic boundary conditions along z.\n");
+        printf("Use periodic boundary conditions along z.\n");
     else if (pbc_z == 0)
-        printf("INPUT: use     free boundary conditions along z.\n");
+        printf("Use     free boundary conditions along z.\n");
     else
         print_error("invalid boundary conditions along z.\n");
 
@@ -138,9 +138,9 @@ void Atom::initialize_position(char *input_dir)
     // number of groups determined
     number_of_groups = max_label + 1;
     if (number_of_groups == 1)
-        printf("INPUT: there is only one group of atoms.\n");
+        printf("There is only one group of atoms.\n");
     else
-        printf("INPUT: there are %d groups of atoms.\n", number_of_groups);
+        printf("There are %d groups of atoms.\n", number_of_groups);
 
     // determine the number of atoms in each group
     MY_MALLOC(cpu_group_size, int, number_of_groups);
@@ -153,7 +153,7 @@ void Atom::initialize_position(char *input_dir)
     for (int n = 0; n < N; n++) 
         cpu_group_size[cpu_label[n]]++;
     for (int m = 0; m < number_of_groups; m++)
-        printf("       %d atoms in group %d.\n", cpu_group_size[m], m);   
+        printf("    %d atoms in group %d.\n", cpu_group_size[m], m);   
     
     // calculate the number of atoms before a group
     for (int m = 1; m < number_of_groups; m++)
@@ -178,9 +178,9 @@ void Atom::initialize_position(char *input_dir)
     // number of types determined
     number_of_types = max_type + 1;
     if (number_of_types == 1)
-        printf("INPUT: there is only one atom type.\n");
+        printf("There is only one atom type.\n");
     else
-        printf("INPUT: there are %d atom types.\n", number_of_types);
+        printf("There are %d atom types.\n", number_of_types);
 
     // determine the number of atoms in each type
     MY_MALLOC(cpu_type_size, int, number_of_types);
@@ -189,10 +189,10 @@ void Atom::initialize_position(char *input_dir)
     for (int n = 0; n < N; n++) 
         cpu_type_size[cpu_type[n]]++;
     for (int m = 0; m < number_of_types; m++)
-        printf("       %d atoms of type %d.\n", cpu_type_size[m], m); 
+        printf("    %d atoms of type %d.\n", cpu_type_size[m], m); 
 
     print_line_1();
-    printf("INFO:  positions and related parameters initialized.\n");
+    printf("Finished initializing positions and related parameters.\n");
     print_line_2();
 }
 

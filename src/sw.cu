@@ -78,7 +78,7 @@ SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
 
 void SW2::initialize_sw_1985_1(FILE *fid)
 {
-    printf("INPUT: use single-element Stillinger-Weber potential.\n");
+    printf("Use single-element Stillinger-Weber potential.\n");
     int count;
     double epsilon, lambda, A, B, a, gamma, sigma, cos0;
     count = fscanf
@@ -103,7 +103,7 @@ void SW2::initialize_sw_1985_1(FILE *fid)
 
 void SW2::initialize_sw_1985_2(FILE *fid)
 {
-    printf("INPUT: use two-element Stillinger-Weber potential.\n");
+    printf("Use two-element Stillinger-Weber potential.\n");
     int count;
 
     // 2-body parameters and the force cutoff
@@ -145,7 +145,7 @@ void SW2::initialize_sw_1985_2(FILE *fid)
 
 void SW2::initialize_sw_1985_3(FILE *fid)
 {
-    printf("INPUT: use three-element Stillinger-Weber potential.\n");
+    printf("Use three-element Stillinger-Weber potential.\n");
     int count;
 
     // 2-body parameters and the force cutoff

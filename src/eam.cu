@@ -76,8 +76,8 @@ EAM::EAM(FILE *fid, Atom* atom, char *name)
 
 void EAM::initialize_eam2004zhou(FILE *fid)
 {
-    printf("INPUT: use the EAM-type potential in the following reference:\n");
-    printf("       X. W. Zhou et al., PRB 69, 144113 (2004).\n");
+    printf("Use the EAM-type potential in the following reference:\n");
+    printf("    X. W. Zhou et al., PRB 69, 144113 (2004).\n");
     potential_model = 0;
 
     double x[21];
@@ -118,8 +118,8 @@ void EAM::initialize_eam2004zhou(FILE *fid)
 
 void EAM::initialize_eam2006dai(FILE *fid)
 {
-    printf("INPUT: use the EAM-type potential in the following reference:\n");
-    printf("       X. D. Dai et al., JPCM 18, 4527 (2006).\n");
+    printf("Use the EAM-type potential in the following reference:\n");
+    printf("    X. D. Dai et al., JPCM 18, 4527 (2006).\n");
     potential_model = 1;
 
     double x[9];

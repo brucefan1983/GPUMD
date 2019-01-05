@@ -55,7 +55,7 @@
 
 void Vashishta::initialize_0(FILE *fid)
 {
-    printf("INPUT: use Vashishta potential.\n");
+    printf("Use Vashishta potential.\n");
     int count;
 
     double B_0, B_1, cos0_0, cos0_1, C, r0, cut;
@@ -137,7 +137,7 @@ static void find_p2_and_f2_host
 
 void Vashishta::initialize_1(FILE *fid)
 {
-    printf("INPUT: use tabulated Vashishta potential.\n");
+    printf("Use tabulated Vashishta potential.\n");
     int count;
 
     int N; double rmin;

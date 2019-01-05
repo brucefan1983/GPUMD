@@ -62,9 +62,9 @@ The double-element version of the Tersoff potential as described in
 Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
 {
     if (num_of_types == 1)
-        printf("INPUT: use Tersoff-1989 (single-element) potential.\n");
+        printf("Use Tersoff-1989 (single-element) potential.\n");
     if (num_of_types == 2)
-        printf("INPUT: use Tersoff-1989 (double-element) potential.\n");
+        printf("Use Tersoff-1989 (double-element) potential.\n");
 
     // first line
     int count;
@@ -123,8 +123,7 @@ Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
         // third line
         double chi;
         count = fscanf(fid, "%lf", &chi);
-        if (count != 1)
-            {print_error("reading error for potential.in.\n"); exit(1);}
+        if (count != 1) { print_error("reading error for potential.in.\n"); }
 
         // mixing type 0 and type 1
         ters2.a = sqrt(ters0.a * ters1.a);

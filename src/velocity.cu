@@ -37,7 +37,7 @@ static void initialize_velocity_cpu
 {
     // random velocities
     for (int n = 0; n < number_of_particles; ++n)
-    { 
+    {
         vx[n] = -1.0 + (rand() * 2.0) / RAND_MAX; 
         vy[n] = -1.0 + (rand() * 2.0) / RAND_MAX; 
         vz[n] = -1.0 + (rand() * 2.0) / RAND_MAX;    
@@ -50,7 +50,7 @@ static void initialize_velocity_cpu
         p[0] += m[n] * vx[n] / number_of_particles;
         p[1] += m[n] * vy[n] / number_of_particles;
         p[2] += m[n] * vz[n] / number_of_particles;
-    } 
+    }
 
     // zero the linear momentum
     for (int n = 0; n < number_of_particles; ++n) 
@@ -59,7 +59,7 @@ static void initialize_velocity_cpu
         vy[n] -= p[1] / m[n];
         vz[n] -= p[2] / m[n]; 
     }
-    
+
     // center of mass position
     real r0[3] = {0, 0, 0};
     real mass_total = 0;
@@ -87,7 +87,7 @@ static void initialize_velocity_cpu
         L[1] += mass * (dz * vx[i] - dx * vz[i]);
         L[2] += mass * (dx * vy[i] - dy * vx[i]);
     }
- 
+
     // moment of inertia
     real I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}};
     for (int i = 0; i < number_of_particles; i++)
@@ -138,7 +138,7 @@ static void initialize_velocity_cpu
     w[0] = inverse[0][0] * L[0] + inverse[0][1] * L[1] + inverse[0][2] * L[2];
     w[1] = inverse[1][0] * L[0] + inverse[1][1] * L[1] + inverse[1][2] * L[2];
     w[2] = inverse[2][0] * L[0] + inverse[2][1] * L[1] + inverse[2][2] * L[2];
-    
+
     // zero the angular momentum: v = v - w x r
     for (int i = 0; i < number_of_particles; i++)
     {
@@ -148,29 +148,25 @@ static void initialize_velocity_cpu
         vx[i] -= w[1] * dz - w[2] * dy;
         vy[i] -= w[2] * dx - w[0] * dz;
         vz[i] -= w[0] * dy - w[1] * dx;
-    }  
+    }
 
     // instant temperature
     real temperature = 0.0;
     for (int n = 0; n < number_of_particles; ++n) 
     {
-        real v2 = vx[n] * vx[n] + vy[n] * vy[n] + vz[n] * vz[n];     
-        temperature += m[n] * v2; 
+        real v2 = vx[n] * vx[n] + vy[n] * vy[n] + vz[n] * vz[n];
+        temperature += m[n] * v2;
     }
     temperature /= 3.0 * K_B * number_of_particles;
-    
+
     // scale the velocities
     real scale_factor = sqrt(temperature_prescribed / temperature);
     for (int n = 0; n < number_of_particles; ++n)
-    { 
+    {
         vx[n] *= scale_factor;
         vy[n] *= scale_factor;
-        #ifdef USE_2D
-            vz[n] = 0.0; // for 2D  simulation
-        #else
-            vz[n] *= scale_factor;
-        #endif
-    }  
+        vz[n] *= scale_factor;
+    }
 }
 
 
@@ -178,7 +174,7 @@ static void initialize_velocity_cpu
 
 void Atom::initialize_velocity(void)
 {
-    int M = sizeof(real) * N; 
+    int M = sizeof(real) * N;
     real* cpu_vx;
     real* cpu_vy;
     real* cpu_vz;
@@ -186,11 +182,8 @@ void Atom::initialize_velocity(void)
     MY_MALLOC(cpu_vy, real, N);
     MY_MALLOC(cpu_vz, real, N);
 
-    initialize_velocity_cpu
-    (
-        N, initial_temperature, cpu_mass, cpu_x, cpu_y, cpu_z, 
-        cpu_vx, cpu_vy, cpu_vz
-    );
+    initialize_velocity_cpu(N, initial_temperature, cpu_mass,
+        cpu_x, cpu_y, cpu_z, cpu_vx, cpu_vy, cpu_vz);
 
     CHECK(cudaMemcpy(vx, cpu_vx, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(vy, cpu_vy, M, cudaMemcpyHostToDevice));
@@ -199,7 +192,7 @@ void Atom::initialize_velocity(void)
     MY_FREE(cpu_vy);
     MY_FREE(cpu_vz);
 
-    printf("INFO : velocities are initialized.\n\n");
+    printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
 
 
