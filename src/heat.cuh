@@ -30,8 +30,8 @@ public:
     real* group_temp;
 
     void preprocess_heat(char*, Atom*);
-    void postprocess_heat(char*, Atom* atom, Integrate*);
-    void sample_block_temperature(int, char*, Atom*, Integrate*);
+    void postprocess_heat(Atom* atom, Integrate*);
+    void sample_block_temperature(int, Atom*, Integrate*);
 private:
     FILE *fid;
     char filename[200];

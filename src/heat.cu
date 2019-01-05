@@ -105,8 +105,7 @@ static __global__ void find_group_temp
 
 
 // sample block temperature (wrapper)
-void Heat::sample_block_temperature
-(int step, char *input_dir, Atom *atom, Integrate *integrate)
+void Heat::sample_block_temperature(int step, Atom *atom, Integrate *integrate)
 {
     if (sample)
     {
@@ -132,10 +131,6 @@ void Heat::sample_block_temperature
             CHECK(cudaFree(temp_gpu));
 
             // output
-            //char file_temperature[FILE_NAME_LENGTH];
-            //strcpy(file_temperature, input_dir);
-            //strcat(file_temperature, "/temperature.out");
-            //FILE *fid = fopen(file_temperature, "a");
             for (int k = 0; k < Ng; k++)
             {
                 fprintf(fid, "%15.6e", group_temp[k]);
@@ -144,7 +139,6 @@ void Heat::sample_block_temperature
             fprintf(fid, "%15.6e", integrate->ensemble->energy_transferred[1]);
             fprintf(fid, "\n");
             fflush(fid);
-            //fclose(fid);
         }
     }
 }
@@ -154,8 +148,7 @@ void Heat::sample_block_temperature
 
 // Output block temperatures and energies of the heat source and sink; 
 // free the used memory
-void Heat::postprocess_heat
-(char *input_dir, Atom* atom, Integrate *integrate)
+void Heat::postprocess_heat(Atom* atom, Integrate *integrate)
 {
     if (sample)
     {

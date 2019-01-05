@@ -108,7 +108,7 @@ void Measure::finalize
     vac.postprocess_vac(input_dir, atom);
     hac.postprocess_hac(input_dir, atom, integrate);
     shc.postprocess_shc();
-    heat.postprocess_heat(input_dir, atom, integrate);
+    heat.postprocess_heat(atom, integrate);
     hnemd.postprocess_hnemd_kappa(atom);
 }
 
@@ -352,7 +352,7 @@ void Measure::compute
 
     vac.sample_vac(step, atom);
     hac.sample_hac(step, input_dir, atom);
-    heat.sample_block_temperature(step, input_dir, atom, integrate);
+    heat.sample_block_temperature(step, atom, integrate);
     shc.process_shc(step, input_dir, atom);
     hnemd.process_hnemd_kappa(step, input_dir, atom, integrate);
 }
