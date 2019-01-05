@@ -21,7 +21,7 @@
 #include "force.cuh"
 #include "validate.cuh"
 #include "integrate.cuh"
-#include "ensemble.cuh" 
+#include "ensemble.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
@@ -33,12 +33,10 @@
 
 GPUMD::GPUMD(char *input_dir)
 {
-    // Data structures:
     Atom        atom(input_dir);
     Force       force;
     Integrate   integrate;
     Measure     measure(input_dir);
-
     run(input_dir, &atom, &force, &integrate, &measure);
 }
 
@@ -186,6 +184,37 @@ static char *row_find_param (char *s, char *param[], int *num_param)
 
 
 
+#define FORCE
+#ifdef FORCE
+static void print_initial_force(char* input_dir, Atom* atom)
+{
+
+    int m = sizeof(real) * atom->N;
+    real *cpu_fx; MY_MALLOC(cpu_fx, real, atom->N);
+    real *cpu_fy; MY_MALLOC(cpu_fy, real, atom->N);
+    real *cpu_fz; MY_MALLOC(cpu_fz, real, atom->N);
+    CHECK(cudaMemcpy(cpu_fx, atom->fx, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(cpu_fy, atom->fy, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(cpu_fz, atom->fz, m, cudaMemcpyDeviceToHost));
+    char file_force[FILE_NAME_LENGTH];
+    strcpy(file_force, input_dir);
+    strcat(file_force, "/f.out");
+    FILE *fid_force = my_fopen(file_force, "w");
+    for (int n = 0; n < atom->N; n++)
+    {
+        fprintf(fid_force, "%20.10e%20.10e%20.10e\n", 
+            cpu_fx[n], cpu_fy[n], cpu_fz[n]);
+    }
+    fflush(fid_force);
+    fclose(fid_force);
+    MY_FREE(cpu_fx);
+    MY_FREE(cpu_fy);
+    MY_FREE(cpu_fz);
+}
+#endif
+
+
+
 
 // Read and process the inputs from the "run.in" file
 void GPUMD::run
@@ -219,44 +248,17 @@ void GPUMD::run
         int is_run = 0;
 
         // parse a line of the input file 
-        parse
-        (
-            param, num_param, atom, force, integrate, measure,
-            &is_potential, &is_velocity, &is_run
-        );
+        parse(param, num_param, atom, force, integrate, measure,
+            &is_potential, &is_velocity, &is_run);
 
         // check for some special keywords
-        if (is_potential) 
-        {  
+        if (is_potential)
+        {
             force->initialize(input_dir, atom);
             force->compute(atom, measure);
-            #ifdef FORCE
-            // output the initial forces (for lattice dynamics calculations)
-            int m = sizeof(real) * atom->N;
-            real *cpu_fx; MY_MALLOC(cpu_fx, real, atom->N);
-            real *cpu_fy; MY_MALLOC(cpu_fy, real, atom->N);
-            real *cpu_fz; MY_MALLOC(cpu_fz, real, atom->N);
-            CHECK(cudaMemcpy(cpu_fx, atom->fx, m, cudaMemcpyDeviceToHost));
-            CHECK(cudaMemcpy(cpu_fy, atom->fy, m, cudaMemcpyDeviceToHost));
-            CHECK(cudaMemcpy(cpu_fz, atom->fz, m, cudaMemcpyDeviceToHost));
-            char file_force[FILE_NAME_LENGTH];
-            strcpy(file_force, input_dir);
-            strcat(file_force, "/f.out");
-            FILE *fid_force = my_fopen(file_force, "w");
-            for (int n = 0; n < atom->N; n++)
-            {
-                fprintf
-                (
-                    fid_force, "%20.10e%20.10e%20.10e\n", 
-                    cpu_fx[n], cpu_fy[n], cpu_fz[n]
-                );
-            }
-            fflush(fid_force);
-            fclose(fid_force);
-            MY_FREE(cpu_fx);
-            MY_FREE(cpu_fy);
-            MY_FREE(cpu_fz);
-            #endif
+#ifdef FORCE
+            print_initial_force(input_dir, atom);
+#endif
         }
         if (is_velocity) { atom->initialize_velocity(); }
         if (is_run)
