@@ -262,7 +262,6 @@ static void print_velocity_and_potential_error_2
 
 
 
-// Read and process the inputs from the "run.in" file
 void GPUMD::check_velocity_and_potential
 (
     char *input_dir, Atom *atom, Force *force, Integrate *integrate,
