@@ -37,6 +37,10 @@ GPUMD::GPUMD(char *input_dir)
     Force       force;
     Integrate   integrate;
     Measure     measure(input_dir);
+
+    check_velocity_and_potential
+    (input_dir, &atom, &force, &integrate, &measure);
+
     run(input_dir, &atom, &force, &integrate, &measure);
 }
 
@@ -101,15 +105,16 @@ static void process_run
 
 
 // set some default values after each run
-static void initialize_run(Atom* atom, Measure* measure)
+void GPUMD::initialize_run(Atom* atom, Force* force, Measure* measure)
 {
     atom->neighbor.update = 0;
+    atom->fixed_group     = -1; // no group has an index of -1
     measure->heat.sample     = 0;
     measure->shc.compute     = 0;
     measure->vac.compute     = 0;
     measure->hac.compute     = 0;
     measure->hnemd.compute   = 0;
-    atom->fixed_group     = -1; // no group has an index of -1
+    force->num_of_potentials = 0;
 }
 
 
@@ -184,7 +189,7 @@ static char *row_find_param (char *s, char *param[], int *num_param)
 
 
 
-#define FORCE
+
 #ifdef FORCE
 static void print_initial_force(char* input_dir, Atom* atom)
 {
@@ -216,6 +221,104 @@ static void print_initial_force(char* input_dir, Atom* atom)
 
 
 
+static void print_velocity_and_potential_error_1
+(int number_of_times_potential, int number_of_times_velocity)
+{
+    if (0 == number_of_times_potential)
+    {
+        print_error("No 'potential(s)' keyword before run.\n");
+    }
+    else if (1 < number_of_times_potential)
+    {
+        print_error("Multiple 'potential(s)' keywords before run.\n");
+    }
+
+    if (0 == number_of_times_velocity)
+    {
+        print_error("No 'velocity' keyword before run.\n");
+    }
+    else if (1 < number_of_times_velocity)
+    {
+        print_error("Multiple 'velocity' keywords before run.\n");
+    }
+}
+
+
+
+
+static void print_velocity_and_potential_error_2
+(int number_of_times_potential, int number_of_times_velocity)
+{
+    if (1 < number_of_times_potential)
+    {
+        print_error("Multiple 'potential(s)' keywords.\n");
+    }
+    if (1 < number_of_times_velocity)
+    {
+        print_error("Multiple 'velocity' keywords.\n");
+    }
+}
+
+
+
+
+// Read and process the inputs from the "run.in" file
+void GPUMD::check_velocity_and_potential
+(
+    char *input_dir, Atom *atom, Force *force, Integrate *integrate,
+    Measure *measure
+)
+{
+    char file_run[FILE_NAME_LENGTH];
+    strcpy(file_run, input_dir);
+    strcat(file_run, "/run.in");
+    char *input = get_file_contents(file_run);
+    char *input_ptr = input; // Keep the pointer in order to free later
+
+    const int max_num_param = 10; // never use more than 9 parameters
+    int num_param;
+    char *param[max_num_param];
+
+    initialize_run(atom, force, measure); // set some default values
+
+    while (input_ptr)
+    {
+        // get one line from the input file
+        input_ptr = row_find_param(input_ptr, param, &num_param);
+        if (num_param == 0) { continue; } 
+
+        // set default values
+        int is_potential = 0;
+        int is_velocity = 0;
+        int is_run = 0;
+
+        // parse a line of the input file 
+        parse(param, num_param, atom, force, integrate, measure,
+            &is_potential, &is_velocity, &is_run);
+
+        // check for some special keywords
+        if (is_potential) 
+        {
+            number_of_times_potential++;
+            force->num_of_potentials = 0;
+        }
+        if (is_velocity) { number_of_times_velocity++; }
+        if (is_run)
+        {
+            print_velocity_and_potential_error_1
+            (number_of_times_potential, number_of_times_velocity);
+            initialize_run(atom, force, measure); // change back to the default
+        }
+    }
+    print_velocity_and_potential_error_2
+    (number_of_times_potential, number_of_times_velocity);
+
+    MY_FREE(input); // Free the input file contents
+}
+
+
+
+
 // Read and process the inputs from the "run.in" file
 void GPUMD::run
 (
@@ -234,7 +337,7 @@ void GPUMD::run
     int num_param;
     char *param[max_num_param];
 
-    initialize_run(atom, measure); // set some default values
+    initialize_run(atom, force, measure); // set some default values
 
     while (input_ptr)
     {
@@ -264,7 +367,7 @@ void GPUMD::run
         if (is_run)
         {
             process_run(input_dir, atom, force, integrate, measure);
-            initialize_run(atom, measure); // change back to the default
+            initialize_run(atom, force, measure); // change back to the default
         }
     }
 
