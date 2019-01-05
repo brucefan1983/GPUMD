@@ -74,7 +74,7 @@ Measure::~Measure(void)
 
 
 
-void Measure::initialize(Atom *atom)
+void Measure::initialize(char* input_dir, Atom *atom)
 {
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_position)  {fid_position = my_fopen(file_position, "a");}
@@ -87,7 +87,7 @@ void Measure::initialize(Atom *atom)
     vac.preprocess_vac(atom);
     hac.preprocess_hac(atom);
     shc.preprocess_shc(atom);
-    heat.preprocess_heat(atom);
+    heat.preprocess_heat(input_dir, atom);
     hnemd.preprocess_hnemd_kappa(atom);
 }
 
@@ -352,7 +352,7 @@ void Measure::compute
 
     vac.sample_vac(step, atom);
     hac.sample_hac(step, input_dir, atom);
-    heat.sample_block_temperature(step, atom, integrate);
+    heat.sample_block_temperature(step, input_dir, atom, integrate);
     shc.process_shc(step, input_dir, atom);
     hnemd.process_hnemd_kappa(step, input_dir, atom, integrate);
 }

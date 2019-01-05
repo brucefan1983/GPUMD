@@ -61,7 +61,7 @@ static void process_run
 )
 {
     integrate->initialize(atom);
-    measure->initialize(atom);
+    measure->initialize(input_dir, atom);
 
     clock_t time_begin = clock();
     for (int step = 0; step < atom->number_of_steps; ++step)

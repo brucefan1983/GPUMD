@@ -23,8 +23,7 @@
 #include "atom.cuh"
 #include "error.cuh"
 
-#define FILE_NAME_LENGTH      200
-#define DIM                   3
+#define DIM 3
 #ifdef USE_DP
     #define ZERO  0.0
     #define K_B   8.617343e-5
@@ -36,16 +35,14 @@
 
 
 
-// allocate memory used for recording group temperatures 
-// and energies of the heat source and sink
-void Heat::preprocess_heat(Atom* atom)
+void Heat::preprocess_heat(char* input_dir, Atom* atom)
 {
     if (sample)
     {
-        // The last 2 data are the energy changes of the source and sink
-        int num = (atom->number_of_groups + 2) 
-                * (atom->number_of_steps / sample_interval);
-        MY_MALLOC(group_temp, real, num);
+        MY_MALLOC(group_temp, real, atom->number_of_groups);
+        strcpy(filename, input_dir);
+        strcat(filename, "/temperature.out");
+        fid = my_fopen(filename, "a");
     }
 }
 
@@ -109,16 +106,15 @@ static __global__ void find_group_temp
 
 // sample block temperature (wrapper)
 void Heat::sample_block_temperature
-(int step, Atom *atom, Integrate *integrate)
+(int step, char *input_dir, Atom *atom, Integrate *integrate)
 {
     if (sample)
     {
         if (step % sample_interval == 0)
         {
             int Ng = atom->number_of_groups;
-            int offset = (step / sample_interval) * (Ng + 2);
-      
-            // block temperatures
+
+            // calculate the block temperatures
             real *temp_gpu;
             CHECK(cudaMalloc((void**)&temp_gpu, sizeof(real) * Ng));
             int  *group_size = atom->group_size;
@@ -128,22 +124,27 @@ void Heat::sample_block_temperature
             real *vx = atom->vx;
             real *vy = atom->vy;
             real *vz = atom->vz;
-            find_group_temp<<<Ng, 256>>>
-            (
-                group_size, group_size_sum, group_contents, 
-                mass, vx, vy, vz, temp_gpu
-            );
+            find_group_temp<<<Ng, 256>>>(group_size, group_size_sum,
+                group_contents, mass, vx, vy, vz, temp_gpu);
             CUDA_CHECK_KERNEL
-
-            CHECK(cudaMemcpy(group_temp+offset, temp_gpu, 
-                sizeof(real)*Ng, cudaMemcpyDeviceToHost));
+            CHECK(cudaMemcpy(group_temp, temp_gpu, sizeof(real) * Ng,
+                cudaMemcpyDeviceToHost));
             CHECK(cudaFree(temp_gpu));
 
-            // energies of the heat source and sink
-            group_temp[offset + Ng]     
-                = integrate->ensemble->energy_transferred[0];
-            group_temp[offset + Ng + 1] 
-                = integrate->ensemble->energy_transferred[1];
+            // output
+            //char file_temperature[FILE_NAME_LENGTH];
+            //strcpy(file_temperature, input_dir);
+            //strcat(file_temperature, "/temperature.out");
+            //FILE *fid = fopen(file_temperature, "a");
+            for (int k = 0; k < Ng; k++)
+            {
+                fprintf(fid, "%15.6e", group_temp[k]);
+            }
+            fprintf(fid, "%15.6e", integrate->ensemble->energy_transferred[0]);
+            fprintf(fid, "%15.6e", integrate->ensemble->energy_transferred[1]);
+            fprintf(fid, "\n");
+            fflush(fid);
+            //fclose(fid);
         }
     }
 }
@@ -158,24 +159,8 @@ void Heat::postprocess_heat
 {
     if (sample)
     {
-        int Nt = atom->number_of_steps / sample_interval;
-        int Ng = atom->number_of_groups;
-        char file_temperature[FILE_NAME_LENGTH];
-        strcpy(file_temperature, input_dir);
-        strcat(file_temperature, "/temperature.out");
-        FILE *fid = fopen(file_temperature, "a");
-        for (int nt = 0; nt < Nt; nt++)
-        {
-            int offset = nt * (Ng + 2);
-            int number_of_data = Ng + 2;
-            for (int k = 0; k < number_of_data; k++) 
-            {
-                fprintf(fid, "%15.6e", group_temp[offset + k]);
-            }
-            fprintf(fid, "\n");
-        }
-        fflush(fid);
         MY_FREE(group_temp); // allocated in preprocess_heat
+        fclose(fid);
     }
 }
 

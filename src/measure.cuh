@@ -38,7 +38,7 @@ class Measure
 public:
     Measure(char *input_dir);
     ~Measure(void);
-    void initialize(Atom*);
+    void initialize(char*, Atom*);
     void finalize(char*, Atom*, Integrate*);
     void compute(char*, Atom*, Integrate*, int);
     int dump_thermo; 
