@@ -279,6 +279,10 @@ void GPUMD::check_velocity_and_potential
 
     initialize_run(atom, measure); // set some default values
 
+    print_line_1();
+    printf("INFO:  started checking inputs in run.in.\n");
+    print_line_2();
+
     while (input_ptr)
     {
         // get one line from the input file
@@ -295,10 +299,7 @@ void GPUMD::check_velocity_and_potential
             &is_potential, &is_velocity, &is_run);
 
         // check for some special keywords
-        if (is_potential) 
-        {
-            number_of_times_potential++;
-        }
+        if (is_potential) { number_of_times_potential++; }
         if (is_velocity) { number_of_times_velocity++; }
         if (is_run)
         {
@@ -309,6 +310,10 @@ void GPUMD::check_velocity_and_potential
     }
     print_velocity_and_potential_error_2
     (number_of_times_potential, number_of_times_velocity);
+
+    print_line_1();
+    printf("INFO:  finished checking inputs in run.in.\n");
+    print_line_2();
 
     MY_FREE(input); // Free the input file contents
 }
@@ -335,6 +340,10 @@ void GPUMD::run
     char *param[max_num_param];
 
     initialize_run(atom, measure); // set some default values
+
+    print_line_1();
+    printf("INFO:  start executing the commands in run.in.\n");
+    print_line_2();
 
     while (input_ptr)
     {
@@ -367,6 +376,10 @@ void GPUMD::run
             initialize_run(atom, measure); // change back to the default
         }
     }
+
+    print_line_1();
+    printf("INFO:  finished executing the inputs in run.in.\n");
+    print_line_2();
 
     MY_FREE(input); // Free the input file contents
 }

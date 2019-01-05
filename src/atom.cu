@@ -28,9 +28,10 @@
 
 
 void Atom::initialize_position(char *input_dir)
-{  
-    printf("---------------------------------------------------------------\n");
+{
+    print_line_1();
     printf("INFO:  read in initial positions and related parameters.\n");
+    print_line_2();
 
     int count = 0;
     char file_xyz[FILE_NAME_LENGTH];
@@ -190,9 +191,9 @@ void Atom::initialize_position(char *input_dir)
     for (int m = 0; m < number_of_types; m++)
         printf("       %d atoms of type %d.\n", cpu_type_size[m], m); 
 
+    print_line_1();
     printf("INFO:  positions and related parameters initialized.\n");
-    printf("---------------------------------------------------------------\n");
-    printf("\n");
+    print_line_2();
 }
 
 
