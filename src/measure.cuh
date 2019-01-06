@@ -24,7 +24,7 @@
 #include "hac.cuh"
 #include "shc.cuh"
 #include "hnemd_kappa.cuh"
-#include "heat.cuh"
+#include "compute.cuh"
 
 
 
@@ -40,7 +40,7 @@ public:
     ~Measure(void);
     void initialize(char*, Atom*);
     void finalize(char*, Atom*, Integrate*);
-    void compute(char*, Atom*, Integrate*, int);
+    void process(char*, Atom*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
     int dump_velocity;
@@ -73,7 +73,7 @@ public:
     HAC hac;
     SHC shc;
     HNEMD hnemd;
-    Heat heat;
+    Compute compute;
 protected:
     void dump_thermos(FILE*, Atom*, Integrate*, int);
     void dump_positions(FILE*, Atom*, int);

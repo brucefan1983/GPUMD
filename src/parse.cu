@@ -768,17 +768,17 @@ static void parse_deform(char **param,  int num_param, Atom* atom)
 
 static void parse_compute_temp(char **param,  int num_param, Measure* measure)
 {
-    measure->heat.sample = 1;
+    measure->compute.compute_temp = 1;
     if (num_param != 2)
     {
         print_error("compute_temp should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &measure->heat.sample_interval))
+    if (!is_valid_int(param[1], &measure->compute.interval_temp))
     {
         print_error("temperature sampling interval should be an integer.\n");
     }
-    printf("Sample block temperatures every %d steps.\n",
-        measure->heat.sample_interval);
+    printf("Compute group temperatures every %d steps.\n",
+        measure->compute.interval_temp);
 }
 
 
@@ -913,7 +913,8 @@ void GPUMD::parse
     }
     else
     {
-        print_error("invalid keyword.\n");
+        printf("Error: '%s' is invalid keyword.\n", param[0]);
+        exit(1);
     }
 }
 

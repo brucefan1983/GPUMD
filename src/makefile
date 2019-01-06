@@ -5,7 +5,7 @@ CFLAGS = -std=c++11 -O3 -DUSE_DP -DDEBUG -DTERSOFF_CUTOFF -arch=sm_35
 
 gpumd: eam.o tersoff.o rebo_mos2.o atom.o error.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
-       vac.o hac.o shc.o heat.o integrate.o ensemble_lan.o ensemble_bdp.o \
+       vac.o hac.o shc.o compute.o integrate.o ensemble_lan.o ensemble_bdp.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o velocity.o \
        measure.o force.o potential.o parse.o gpumd.o main.o
@@ -13,7 +13,7 @@ gpumd: eam.o tersoff.o rebo_mos2.o atom.o error.o \
 	$(CC) -o gpumd \
        eam.o tersoff.o rebo_mos2.o atom.o error.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
-       vac.o hac.o shc.o heat.o integrate.o ensemble_lan.o ensemble_bdp.o \
+       vac.o hac.o shc.o compute.o integrate.o ensemble_lan.o ensemble_bdp.o \
        ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
        neighbor_ON1.o neighbor_ON2.o neighbor.o velocity.o \
        measure.o force.o potential.o parse.o gpumd.o main.o
@@ -52,8 +52,8 @@ ensemble_lan.o: ensemble_lan.cu
 	$(CC) $(CFLAGS) -c ensemble_lan.cu
 ensemble_bdp.o: ensemble_bdp.cu
 	$(CC) $(CFLAGS) -c ensemble_bdp.cu
-heat.o: heat.cu
-	$(CC) $(CFLAGS) -c heat.cu
+compute.o: compute.cu
+	$(CC) $(CFLAGS) -c compute.cu
 shc.o: shc.cu
 	$(CC) $(CFLAGS) -c shc.cu
 vac.o: vac.cu

@@ -79,7 +79,7 @@ static void process_run
         }
 
         integrate->compute(atom, force, measure);
-        measure->compute(input_dir, atom, integrate, step);
+        measure->process(input_dir, atom, integrate, step);
 
         if (atom->number_of_steps >= 10)
         {
@@ -113,7 +113,7 @@ static void initialize_run(Atom* atom, Measure* measure)
     atom->fixed_group     = -1; // no group has an index of -1
 
     // measure
-    measure->heat.sample    = 0;
+    measure->compute.compute_temp    = 0;
     measure->shc.compute    = 0;
     measure->vac.compute    = 0;
     measure->hac.compute    = 0;

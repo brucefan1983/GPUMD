@@ -42,16 +42,16 @@ int main(int argc, char *argv[])
     print_line_2();
 
 #ifdef DEBUG
-    printf("DEBUG is on\n");
+    printf("DEBUG          is on\n");
 #else
     srand(time(NULL));
-    printf("DEBUG is off\n");
+    printf("DEBUG          is off\n");
 #endif
 
 #ifdef USE_DP
-    printf("USE_DP is on\n");
+    printf("USE_DP         is on\n");
 #else
-    printf("USE_DP is off\n");
+    printf("USE_DP         is off\n");
 #endif
 
 #ifdef TERSOFF_CUTOFF

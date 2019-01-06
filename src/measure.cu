@@ -87,7 +87,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     vac.preprocess_vac(atom);
     hac.preprocess_hac(atom);
     shc.preprocess_shc(atom);
-    heat.preprocess_heat(input_dir, atom);
+    compute.preprocess(input_dir, atom);
     hnemd.preprocess_hnemd_kappa(atom);
 }
 
@@ -108,7 +108,7 @@ void Measure::finalize
     vac.postprocess_vac(input_dir, atom);
     hac.postprocess_hac(input_dir, atom, integrate);
     shc.postprocess_shc();
-    heat.postprocess_heat(atom, integrate);
+    compute.postprocess(atom, integrate);
     hnemd.postprocess_hnemd_kappa(atom);
 }
 
@@ -336,11 +336,8 @@ void Measure::dump_heats(FILE *fid, Atom *atom, int step)
 
 
 
-void Measure::compute
-(
-    char *input_dir, Atom *atom, 
-    Integrate *integrate, int step
-)
+void Measure::process
+(char *input_dir, Atom *atom, Integrate *integrate, int step)
 {
     dump_thermos(fid_thermo, atom, integrate, step);
     dump_positions(fid_position, atom, step);
@@ -350,9 +347,10 @@ void Measure::compute
     dump_virials(fid_virial, atom, step);
     dump_heats(fid_heat, atom, step);
 
+    compute.process(step, atom, integrate);
+
     vac.sample_vac(step, atom);
     hac.sample_hac(step, input_dir, atom);
-    heat.sample_block_temperature(step, atom, integrate);
     shc.process_shc(step, input_dir, atom);
     hnemd.process_hnemd_kappa(step, input_dir, atom, integrate);
 }
