@@ -135,7 +135,7 @@ static __global__ void gpu_berendsen_pressure
             if (i == 1) { g_box_length[1] *= scale_factor; }
         }
 
-        if (deform_y)
+        if (deform_z)
         {
             real scale_factor = g_box_length[2];
             scale_factor = (scale_factor + deform_rate) / scale_factor;

@@ -111,6 +111,9 @@ static void initialize_run(Atom* atom, Measure* measure)
     // modify
     atom->neighbor.update = 0;
     atom->fixed_group     = -1; // no group has an index of -1
+    atom->deform_x = 0;
+    atom->deform_y = 0;
+    atom->deform_z = 0;
 
     // measure
     measure->compute.compute_force = 0;
