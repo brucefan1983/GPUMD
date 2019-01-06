@@ -80,13 +80,19 @@ public:
     int pbc_y;           // pbc_y = 1 means periodic in the y-direction
     int pbc_z;           // pbc_z = 1 means periodic in the z-direction
 
+    // can be moved to integrate and ensemble
+    int deform_x = 0;
+    int deform_y = 0;
+    int deform_z = 0;
+    real deform_rate;
+
     // make a structure?
     int number_of_steps; // number of steps in a specific run
     real initial_temperature; // initial temperature for velocity
     real temperature1;
     real temperature2; 
     // time step in a specific run; default value is 1 fs
-    real time_step;
+    real time_step = 1.0;
 
     // some well defined sub-structures
     Neighbor neighbor;

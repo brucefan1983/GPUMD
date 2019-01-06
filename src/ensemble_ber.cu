@@ -85,6 +85,7 @@ static __global__ void gpu_berendsen_temperature
 
 static __global__ void gpu_berendsen_pressure
 (
+    int deform_x, int deform_y, int deform_z, real deform_rate,
     int number_of_particles,
     int pbc_x,
     int pbc_y,
@@ -106,21 +107,42 @@ static __global__ void gpu_berendsen_pressure
 
     if (i < number_of_particles)
     {
-        if (pbc_x == 1)
+        if (deform_x)
+        {
+            real scale_factor = g_box_length[0];
+            scale_factor = (scale_factor + deform_rate) / scale_factor;
+            g_x[i] *= scale_factor;
+            if (i == 0) { g_box_length[0] *= scale_factor; }
+        }
+        else if (pbc_x == 1)
         {
             real scale_factor = ONE - p_coupling * (p0x - g_prop[2]);
             g_x[i] *= scale_factor;
             if (i == 0) { g_box_length[0] *= scale_factor; }
         }
 
-        if (pbc_y == 1)
+        if (deform_y)
+        {
+            real scale_factor = g_box_length[1];
+            scale_factor = (scale_factor + deform_rate) / scale_factor;
+            g_y[i] *= scale_factor;
+            if (i == 1) { g_box_length[1] *= scale_factor; }
+        }
+        else if (pbc_y == 1)
         {
             real scale_factor = ONE - p_coupling * (p0y - g_prop[3]);
             g_y[i] *= scale_factor;
             if (i == 1) { g_box_length[1] *= scale_factor; }
         }
 
-        if (pbc_z == 1)
+        if (deform_y)
+        {
+            real scale_factor = g_box_length[2];
+            scale_factor = (scale_factor + deform_rate) / scale_factor;
+            g_z[i] *= scale_factor;
+            if (i == 2) { g_box_length[2] *= scale_factor; }
+        }
+        else if (pbc_z == 1)
         {
             real scale_factor = ONE - p_coupling * (p0z - g_prop[4]);
             g_z[i] *= scale_factor;
@@ -194,6 +216,7 @@ void Ensemble_BER::compute
     {
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (
+            atom->deform_x, atom->deform_y, atom->deform_z, atom->deform_rate,
             N, pbc_x, pbc_y, pbc_z, p0x, p0y, p0z, p_coupling, 
             thermo, box_length, x, y, z
         );

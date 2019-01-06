@@ -760,7 +760,46 @@ static void parse_compute_shc(char **param,  int num_param, Measure* measure)
 
 static void parse_deform(char **param,  int num_param, Atom* atom)
 {
-    print_error("the deform keyword is to be implemented.\n");
+    printf("Deform the box.\n");
+
+    if (num_param != 5)
+    {
+        print_error("deform should have 4 parameters.\n");
+    }
+
+    // strain rate
+    if (!is_valid_real(param[1], &atom->deform_rate))
+    {
+        print_error("defrom rate should be a number.\n");
+    }
+    printf("    strain rate is %g A / step.\n", atom->deform_rate);
+
+    // direction
+    if (!is_valid_int(param[2], &atom->deform_x))
+    {
+        print_error("deform_x should be integer.\n");
+    }
+    if (!is_valid_int(param[3], &atom->deform_y))
+    {
+        print_error("deform_y should be integer.\n");
+    }
+    if (!is_valid_int(param[4], &atom->deform_z))
+    {
+        print_error("deform_z should be integer.\n");
+    }
+
+    if (atom->deform_x)
+    {
+        printf("    apply strain in x direction.\n");
+    }
+    if (atom->deform_y)
+    {
+        printf("    apply strain in y direction.\n");
+    }
+    if (atom->deform_z)
+    {
+        printf("    apply strain in z direction.\n");
+    }
 }
 
 
