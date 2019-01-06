@@ -63,7 +63,17 @@ static __global__ void gpu_velocity_verlet_1
         real ax = g_fx[i] * mass_inv;
         real ay = g_fy[i] * mass_inv;
         real az = g_fz[i] * mass_inv;
-        if (group_id[i] == fixed_group) { vx = ZERO; vy = ZERO; vz = ZERO; }
+        if (group_id[i] == fixed_group) 
+        {
+            vx = ZERO;
+#ifdef ZHEN_LI // special version for Zhen Li
+            vy += ay * time_step_half;
+            vz += az * time_step_half;
+#else
+            vy = ZERO;
+            vz = ZERO;
+#endif 
+        }
         else
         {
             vx += ax * time_step_half;
@@ -101,7 +111,17 @@ static __global__ void gpu_velocity_verlet_2
         real ax = g_fx[i] * mass_inv;
         real ay = g_fy[i] * mass_inv;
         real az = g_fz[i] * mass_inv;
-        if (group_id[i] == fixed_group) { vx = ZERO; vy = ZERO; vz = ZERO; }
+        if (group_id[i] == fixed_group)
+        {
+            vx = ZERO;
+#ifdef ZHEN_LI // special version for Zhen Li
+            vy += ay * time_step_half;
+            vz += az * time_step_half;
+#else
+            vy = ZERO;
+            vz = ZERO;
+#endif
+        }
         else
         {
             vx += ax * time_step_half; 
@@ -171,11 +191,11 @@ static __global__ void gpu_find_thermo
             if (tid <  32) warp_reduce(s_ke, tid); 
             if (tid ==  0) 
             {
-                #ifdef USE_2D
-                    g_thermo[0] = s_ke[0] / (TWO * (N - N_fixed) * K_B);
-                #else
+#ifdef ZHEN_LI // special version for Zhen Li
+                    g_thermo[0] = s_ke[0] / ((DIM * N - N_fixed) * K_B);
+#else
                     g_thermo[0] = s_ke[0] / (DIM * (N - N_fixed) * K_B);
-                #endif  
+#endif  
             }                  
             break;
         case 1:
@@ -242,7 +262,11 @@ static __global__ void gpu_find_thermo
             { 
                 real volume_inv 
                     = ONE / (g_box_length[0]*g_box_length[1]*g_box_length[2]);
+#ifdef ZHEN_LI // special version for Zhen Li
+                g_thermo[3] = (s_sy[0] + N * K_B * T) * volume_inv;
+#else
                 g_thermo[3] = (s_sy[0] + (N - N_fixed) * K_B * T) * volume_inv;
+#endif
             }
             break;
         case 4:
@@ -266,7 +290,11 @@ static __global__ void gpu_find_thermo
             { 
                 real volume_inv 
                     = ONE / (g_box_length[0]*g_box_length[1]*g_box_length[2]);
+#ifdef ZHEN_LI // special version for Zhen Li
+                g_thermo[4] = (s_sz[0] + N * K_B * T) * volume_inv;
+#else
                 g_thermo[4] = (s_sz[0] + (N - N_fixed) * K_B * T) * volume_inv;
+#endif
             }
             break;
     }
