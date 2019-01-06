@@ -25,16 +25,27 @@
 class Compute
 {
 public:
-    int compute_temp = 0;
-    int interval_temp;
+    int compute_force = 0;
+    int compute_temperature = 0;
+
+    int interval_force;
+    int interval_temperature;
 
     void preprocess(char*, Atom*);
     void postprocess(Atom* atom, Integrate*);
     void process(int, Atom*, Integrate*);
 
 private:
-    FILE *fid_temp;
-    real* group_temp;
+    FILE *fid_force;
+    FILE *fid_temperature;
+
+    real* group_fx;
+    real* group_fy;
+    real* group_fz;
+    real* group_temperature;
+
+    void process_force(int, Atom*);
+    void process_temperature(int, Atom*, Integrate*);
 };
 
 

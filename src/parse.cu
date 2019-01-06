@@ -766,19 +766,37 @@ static void parse_deform(char **param,  int num_param, Atom* atom)
 
 
 
-static void parse_compute_temp(char **param,  int num_param, Measure* measure)
+static void parse_compute_force(char **param,  int num_param, Measure* measure)
 {
-    measure->compute.compute_temp = 1;
+    measure->compute.compute_force = 1;
     if (num_param != 2)
     {
         print_error("compute_temp should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &measure->compute.interval_temp))
+    if (!is_valid_int(param[1], &measure->compute.interval_force))
     {
         print_error("temperature sampling interval should be an integer.\n");
     }
     printf("Compute group temperatures every %d steps.\n",
-        measure->compute.interval_temp);
+        measure->compute.interval_force);
+}
+
+
+
+
+static void parse_compute_temp(char **param,  int num_param, Measure* measure)
+{
+    measure->compute.compute_temperature = 1;
+    if (num_param != 2)
+    {
+        print_error("compute_temp should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &measure->compute.interval_temperature))
+    {
+        print_error("temperature sampling interval should be an integer.\n");
+    }
+    printf("Compute group temperatures every %d steps.\n",
+        measure->compute.interval_temperature);
 }
 
 
@@ -897,6 +915,10 @@ void GPUMD::parse
     else if (strcmp(param[0], "deform")         == 0)
     {
         parse_deform(param, num_param, atom);
+    }
+    else if (strcmp(param[0], "compute_force")   == 0)
+    {
+        parse_compute_force(param, num_param, measure);
     }
     else if (strcmp(param[0], "compute_temp")   == 0)
     {
