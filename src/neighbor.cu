@@ -286,11 +286,11 @@ void Atom::find_neighbor(void)
     // of bins is small
     if (use_ON2)
     {
-        find_neighbor_ON2(atom);
+        find_neighbor_ON2();
     }
     else
     {
-        find_neighbor_ON1(atom, cell_n_x, cell_n_y, cell_n_z);
+        find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z);
     }
 
 #endif
