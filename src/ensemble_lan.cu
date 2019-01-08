@@ -105,7 +105,7 @@ Ensemble_LAN::Ensemble_LAN
 
 Ensemble_LAN::~Ensemble_LAN(void)
 {
-    if (type == 5)
+    if (type == 3)
     {
         CHECK(cudaFree(curand_states));
     }
