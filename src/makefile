@@ -1,7 +1,7 @@
 all: gpumd
 
 CC = nvcc
-CFLAGS = -std=c++11 -O3 -DDEBUG -DTERSOFF_CUTOFF -arch=sm_35
+CFLAGS = -std=c++11 -O3 -DDEBUG -arch=sm_35
 
 gpumd: eam.o tersoff.o rebo_mos2.o atom.o error.o \
        sw.o vashishta.o pair.o validate.o hnemd_kappa.o \

@@ -289,7 +289,7 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters0.r1) {fc = ONE; fcp = ZERO;}
         else if (d12 < ters0.r2)
         {
-#ifdef TERSOFF_CUTOFF
+#ifndef MURTY_ATWATER
             fc  =  cos(ters0.pi_factor * (d12 - ters0.r1)) * HALF + HALF;
             fcp = -sin(ters0.pi_factor * (d12 - ters0.r1))*ters0.pi_factor*HALF;
 #else
@@ -309,7 +309,7 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters1.r1) {fc  = ONE; fcp = ZERO;}
         else if (d12 < ters1.r2)
         {
-#ifdef TERSOFF_CUTOFF
+#ifndef MURTY_ATWATER
             fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
             fcp = -sin(ters1.pi_factor * (d12 - ters1.r1))*ters1.pi_factor*HALF;
 #else
@@ -329,7 +329,7 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters2.r1) {fc  = ONE; fcp = ZERO;}
         else if (d12 < ters2.r2)
         {
-#ifdef TERSOFF_CUTOFF
+#ifndef MURTY_ATWATER
             fc  =  cos(ters2.pi_factor * (d12 - ters2.r1)) * HALF + HALF;
             fcp = -sin(ters2.pi_factor * (d12 - ters2.r1))*ters2.pi_factor*HALF;
 #else
@@ -363,7 +363,7 @@ static __device__ void find_fc
         if (d12 < ters0.r1) {fc  = ONE;}
         else if (d12 < ters0.r2)
         {
-#ifdef TERSOFF_CUTOFF
+#ifndef MURTY_ATWATER
             fc  =  cos(ters0.pi_factor * (d12 - ters0.r1)) * HALF + HALF;
 #else
             fc = NINE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1)) 
@@ -378,7 +378,7 @@ static __device__ void find_fc
         if (d12 < ters1.r1) {fc  = ONE;}
         else if (d12 < ters1.r2)
         {
-#ifdef TERSOFF_CUTOFF
+#ifndef MURTY_ATWATER
             fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
 #else
             fc = NINE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1)) 
@@ -393,7 +393,7 @@ static __device__ void find_fc
         if (d12 < ters2.r1) {fc  = ONE;}
         else if (d12 < ters2.r2) 
         {
-#ifdef TERSOFF_CUTOFF
+#ifndef MURTY_ATWATER
             fc  =  cos(ters2.pi_factor * (d12 - ters2.r1)) * HALF + HALF;
 #else
             fc = NINE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1)) 
