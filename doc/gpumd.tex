@@ -330,17 +330,32 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
- The logical dependence of the files is schematically shown in Fig. \ref{figure:gpumd-structure}.
-The current version of GPUMD has about 15 000 lines of code. Most files come in pairs. For example, \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.cuh". If a file does not come in pair, we write the suffix explicitly. In the figure, if there is an arrow pointing from file A to file B, it means that file A will call some functions in file B or the class defined in file A is inherited from the class defined in file B. Nearly all the files depend on \verb"common", as indicated by the many arrows pointing to it. Not all the files are in the figure.
+The current version of GPUMD has about 15 000 lines of code. The structure of the code is as follows:
+\begin{itemize}
+\item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
 
 
-\begin{figure}[ht]
-\begin{center}
-\includegraphics[width=\columnwidth]{gpumd-structure.eps}
-\caption{Overall structure of the GPUMD program. This artwork is made by Ke Xu.}
-\label{figure:gpumd-structure}
-\end{center}
-\end{figure}
+\item The \verb"GPUMD" class is implemented in these files: \verb"gpumd.cuh", \verb"gpumd.cu", and \verb"parse.cu". \textcolor{red}{There are 3 files in total here.} This class controls the overall flow of the code. The \verb"GPUMD" class uses all the other major classes: \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure". 
+
+\item The \verb"Atom" class contains the major data related to the atoms (such as the various per-atom physical quantities, the simulation box, the neighbor list, etc) and functions used to initializing and finalizing these data. This class involves the files \verb"atom.cuh", \verb"atom.cu", \verb"velocity.cu", \verb"neighbor.cu", \verb"neighbor_ON1.cu", and \verb"neighbor_ON2.cu". \textcolor{red}{There are 6 files in total here.}
+
+\item The \verb"Force" class (in files \verb"force.cuh" and \verb"force.cu") deals with everything related to force evaluation. The \verb"Force" class contains pointers of the virtual \verb"Potential" class (in files \verb"potential.cuh" and \verb"potential.cu"). The virtual \verb"Potential" class is inherited by some classes, each corresponding to a specific empirical potential. The potential classes are \verb"Pair" (in files \verb"pair.cuh" and \verb"pair.cu"), \verb"EAM" (in files \verb"eam.cuh" and \verb"eam.cu"), \verb"SW" (in files \verb"sw.cuh" and \verb"sw.cu"), \verb"Tersoff" (in files \verb"tersoff.cuh" and \verb"tersoff.cu"), \verb"Vashishta" (in files \verb"vashishta.cuh" and \verb"vashishta.cu"), and \verb"REBO_MOS" (in files \verb"rebo_mos2.cuh" and \verb"rebo_mos2.cu"). \textcolor{red}{There are 16 files in total here.}
+
+\item The \verb"Integrate" class (in files \verb"integrate.cuh" and \verb"integrate.cu") deals with everything related to time integration. The \verb"Itegrate" class contains a pointer of the virtual \verb"Ensemble" class (in files \verb"ensemble.cuh" and \verb"ensemble.cu"). The virtual \verb"Ensemble" class is inherited by some classes, each corresponding to a specific integrator. The integrator classes are \verb"Ensemble_NVE" (in files \verb"ensemble_nve.cuh" and \verb"ensemble_nve.cu"), \verb"Ensemble_BER" (in files \verb"ensemble_ber.cuh" and \verb"ensemble_ber.cu"), \verb"Ensemble_NHC" (in files \verb"ensemble_nhc.cuh" and \verb"ensemble_nhc.cu"), \verb"Ensemble_LAN" (in files \verb"ensemble_lan.cuh" and \verb"ensemble_lan.cu"), and \verb"Ensemble_BDP" (in files \verb"ensemble_bdp.cuh" and \verb"ensemble_bdp.cu"). There is also an including file called \verb"ensemble.inc" which defines some functions needed for all the integrators. \textcolor{red}{There are 15 files in total here.}
+
+\item The \verb"Measure" class (in files \verb"measure.cuh" and \verb"measure.cu") deals with everything related to measurement. The \verb"Measure" class contains a few other classes, including the  \verb"VAC" class (in files \verb"vac.cuh" and \verb"vac.cu"), the \verb"HAC" class (in files \verb"hac.cuh" and \verb"hac.cu"), \verb"SHC" class (in files \verb"shc.cuh" and \verb"shc.cu"), the \verb"HNEMD" class (in files \verb"hnemd_kappa.cuh" and \verb"hnemd_kappa.cu"), and the \verb"Compute" class (in files \verb"compute.cuh" and \verb"compute.cu"). \textcolor{red}{There are 12 files in total here.}
+
+\item There is a header called \verb"common.cuh" which is included in most of the other headers. This is a light-weighted header, which only contains some type definitions and forward declarations. \textcolor{red}{One file here.}
+
+\item There is a header called \verb"ldg.cuh" which is included in some potential class files. This is used to choose between using the \verb"__ldg()" function and the normal array indexing for some global memory reading. \textcolor{red}{One file here.}
+
+\item Some macros and functions for error handling are contained in the files \verb"error.cuh" and \verb"error.cu". \textcolor{red}{Two files here.}
+
+\item There are two files named \verb"validate.cuh" and \verb"validate.cu" which are only used by the developers. \textcolor{red}{Two files here.}
+\end{itemize}
+
+How many files in total? \textcolor{red}{59!}
+
 
 \section{Coding style of GPUMD}
 
@@ -2415,9 +2430,27 @@ To compile GPUMD, one just needs to go to the \verb"src" directory and type \ver
 
 In the \verb"makefle", the default compiling flag is
 \begin{verbatim}
-    CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
+    CFLAGS = -std=c++11 -O3 -arch=sm_35
 \end{verbatim}
-If you want to obtain a version using single-precision arithmetics for all the floating point calculations in the code, you can remove \verb"-DUSE_DP". If you want to obtain a version without any randomness in the calculations, which is suitable for debugging, you can add \verb"-DDEBUG" in this line. The last option \verb"-arch=sm_35" specifies the compute capability of the target GPU card (e.g., 3.5 for Tesla K40) you will use. Note that GPUs with compute capability less than 2.0 are not supported by GPUMD.
+This means that
+\begin{itemize}
+\item The \verb"C++" part uses the \verb"C++11" standard.
+\item The \verb"C++" part has an optimization level of 3.
+\item The CUDA part is compiled with a target compute capability of 3.5. \textcolor{red}{Note that GPUs with compute capability less than 3.5 are not supported by GPUMD.}
+\end{itemize}
+
+One can specify some compiling flags in the makefile in this way:
+\begin{verbatim}
+    CFLAGS = -std=c++11 -O3 -arch=sm_35 -DFLAG
+\end{verbatim}
+Here are the possible \verb"-DFLAG"s:
+\begin{itemize}
+\item \verb"-DUSE_SP"\\
+When this is specified, the code will be compiled as a single-precision version. We do not recommend to use this version, but the users can try.
+\item \verb"-DDEBUG"\\
+When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will makesure to get exactly the same output for the same input. However, due to some limitations of the current implementation of GPUMD, the code will always use the $O(N^2)$ version to generate the neighbor list, which is not efficient for large systems. 
+\end{itemize}
+
 
 \subsection{Run simulations with GPUMD}
 
