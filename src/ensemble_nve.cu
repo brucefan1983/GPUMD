@@ -43,49 +43,12 @@ Ensemble_NVE::~Ensemble_NVE(void)
 
 
 
-void Ensemble_NVE::compute
-(Atom *atom, Force *force, Measure* measure)
+void Ensemble_NVE::compute(Atom *atom, Force *force, Measure* measure)
 {
-    int    N           = atom->N;
-    int    grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group = atom->fixed_group;
-    int *label = atom->label;
-    real time_step   = atom->time_step;
-    real *mass = atom->mass;
-    real *x    = atom->x;
-    real *y    = atom->y;
-    real *z    = atom->z;
-    real *vx   = atom->vx;
-    real *vy   = atom->vy;
-    real *vz   = atom->vz;
-    real *fx   = atom->fx;
-    real *fy   = atom->fy;
-    real *fz   = atom->fz;
-    real *potential_per_atom = atom->potential_per_atom;
-    real *virial_per_atom_x  = atom->virial_per_atom_x; 
-    real *virial_per_atom_y  = atom->virial_per_atom_y;
-    real *virial_per_atom_z  = atom->virial_per_atom_z;
-    real *thermo             = atom->thermo;
-    real *box_length         = atom->box_length;
-
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
-
+    velocity_verlet_1(atom);
     force->compute(atom, measure);
-
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
-
-    int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
-    gpu_find_thermo<<<5, 1024>>>
-    (
-        N, N_fixed, fixed_group, label, temperature, box_length, 
-        mass, z, potential_per_atom, vx, vy, vz, 
-        virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
-    );
-    CUDA_CHECK_KERNEL
+    velocity_verlet_2(atom);
+    find_thermo(atom);
 }
 
 

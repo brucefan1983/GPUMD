@@ -47,6 +47,11 @@ public:
     real mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
     real pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
     real vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+
+protected:
+    void velocity_verlet_1(Atom*);
+    void velocity_verlet_2(Atom*);
+    void find_thermo(Atom*);
 };
 
 

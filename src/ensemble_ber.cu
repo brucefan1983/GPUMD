@@ -18,12 +18,16 @@
 
 #include "ensemble_ber.cuh"
 
-#include "ensemble.inc"
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
+#ifndef USE_SP
+    #define ONE   1.0
+#else
+    #define ONE   1.0f
+#endif
 
 
 
@@ -159,52 +163,30 @@ void Ensemble_BER::compute
 {
     int N           = atom->N;
     int grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group = atom->fixed_group;
-    int *label = atom->label;
+
+
     int  pbc_x       = atom->pbc_x;
     int  pbc_y       = atom->pbc_y;
     int  pbc_z       = atom->pbc_z;
-    real time_step   = atom->time_step;
+
     real p0x         = pressure_x;
     real p0y         = pressure_y;
     real p0z         = pressure_z;
     real p_coupling  = pressure_coupling;
     real t_coupling  = temperature_coupling;
-    real *mass = atom->mass;
     real *x    = atom->x;
     real *y    = atom->y;
     real *z    = atom->z;
     real *vx   = atom->vx;
     real *vy   = atom->vy;
     real *vz   = atom->vz;
-    real *fx   = atom->fx;
-    real *fy   = atom->fy;
-    real *fz   = atom->fz;
-    real *potential_per_atom = atom->potential_per_atom;
-    real *virial_per_atom_x  = atom->virial_per_atom_x; 
-    real *virial_per_atom_y  = atom->virial_per_atom_y;
-    real *virial_per_atom_z  = atom->virial_per_atom_z;
     real *thermo             = atom->thermo;
     real *box_length         = atom->box_length;
 
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
-
+    velocity_verlet_1(atom);
     force->compute(atom, measure);
-
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
-
-    int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
-    gpu_find_thermo<<<5, 1024>>>
-    (
-        N, N_fixed, fixed_group, label, temperature, box_length, 
-        mass, z, potential_per_atom, vx, vy, vz, 
-        virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
-    );
-    CUDA_CHECK_KERNEL
+    velocity_verlet_2(atom);
+    find_thermo(atom);
 
     // control temperature
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
