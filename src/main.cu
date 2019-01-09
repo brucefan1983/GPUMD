@@ -33,7 +33,12 @@ int main(int argc, char *argv[])
     printf("*                 Welcome to use GPUMD                        *\n");
     printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
     printf("*                      Version 2.1                            *\n");
-    printf("*       (Author:  Zheyong Fan <brucenju@gmail.com>)           *\n");
+    printf("* Authors:                                                    *\n");
+    printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
+    printf("*     Ville Vierimaa                                          *\n");
+    printf("*     Mikko Ervasti                                           *\n");
+    printf("*     Alexander J. Gabourie                                   *\n");
+    printf("*     Ari Harju                                               *\n");
     printf("***************************************************************\n");
     printf("\n");
 
@@ -54,10 +59,10 @@ int main(int argc, char *argv[])
     printf("USE_SP         is on\n");
 #endif
 
-#ifdef TERSOFF_CUTOFF
-    printf("TERSOFF_CUTOFF is on\n");
+#ifndef MURTY_ATWATER
+    printf("MURTY_ATWATER  is off\n");
 #else
-    printf("TERSOFF_CUTOFF is off\n");
+    printf("MURTY_ATWATER  is on\n");
 #endif
 
     // get the number of input directories
