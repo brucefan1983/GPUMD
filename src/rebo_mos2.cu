@@ -33,7 +33,7 @@
 // The parameters are hard coded as the potential only applies to Mo-S systems.
 
 
-#ifdef USE_DP
+#ifndef USE_SP
 
 #define HALF  0.5
 #define ZERO  0.0

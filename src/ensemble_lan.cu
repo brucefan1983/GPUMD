@@ -26,7 +26,7 @@
 
 #define BLOCK_SIZE 128
 
-#ifdef USE_DP
+#ifndef USE_SP
     #define CURAND_NORMAL(a) curand_normal_double(a)
 #else
     #define CURAND_NORMAL(a) curand_normal(a)

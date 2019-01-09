@@ -25,7 +25,7 @@
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH       200
-#ifdef USE_DP
+#ifndef USE_SP
     #define ZERO  0.0
     #define KAPPA_UNIT_CONVERSION    1.573769e+5
 #else

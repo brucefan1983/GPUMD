@@ -23,7 +23,7 @@
 
 #define BLOCK_SIZE 128
 #define FILE_NAME_LENGTH      200
-#ifdef USE_DP
+#ifndef USE_SP
     #define PI    3.14159265358979
     #define TIME_UNIT_CONVERSION     1.018051e+1
 #else

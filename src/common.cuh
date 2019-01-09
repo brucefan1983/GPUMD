@@ -28,7 +28,7 @@
 
 
 
-#ifdef USE_DP
+#ifndef USE_SP
     typedef double real;
 #else
     typedef float real;

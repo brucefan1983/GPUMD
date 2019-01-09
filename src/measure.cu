@@ -25,7 +25,7 @@
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
-#ifdef USE_DP
+#ifndef USE_SP
     #define K_B   8.617343e-5
     #define PRESSURE_UNIT_CONVERSION 1.602177e+2
 #else

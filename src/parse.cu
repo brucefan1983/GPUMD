@@ -27,7 +27,7 @@
 
 #include <errno.h>
 
-#ifdef USE_DP
+#ifndef USE_SP
     #define PRESSURE_UNIT_CONVERSION 1.602177e+2
     #define TIME_UNIT_CONVERSION     1.018051e+1
 #else

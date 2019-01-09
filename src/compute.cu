@@ -24,7 +24,7 @@
 #include "error.cuh"
 
 #define DIM 3
-#ifdef USE_DP
+#ifndef USE_SP
     #define ZERO  0.0
     #define K_B   8.617343e-5
 #else

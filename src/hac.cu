@@ -26,7 +26,7 @@
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH 200
 #define DIM 3
-#ifdef USE_DP
+#ifndef USE_SP
     #define ZERO  0.0
     #define HALF  0.5
     #define K_B   8.617343e-5

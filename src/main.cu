@@ -48,10 +48,10 @@ int main(int argc, char *argv[])
     printf("DEBUG          is off\n");
 #endif
 
-#ifdef USE_DP
-    printf("USE_DP         is on\n");
+#ifndef USE_SP
+    printf("USE_SP         is off\n");
 #else
-    printf("USE_DP         is off\n");
+    printf("USE_SP         is on\n");
 #endif
 
 #ifdef TERSOFF_CUTOFF

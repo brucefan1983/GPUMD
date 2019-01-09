@@ -24,7 +24,7 @@
 
 
 #define BLOCK_SIZE_SW 64 // 128 is also good
-#ifdef USE_DP
+#ifndef USE_SP
     #define HALF  0.5
     #define ZERO  0.0
     #define ONE   1.0
