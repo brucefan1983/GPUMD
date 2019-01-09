@@ -18,7 +18,6 @@
 
 #include "ensemble_lan.cuh"
 
-#include "ensemble.inc"
 #include "force.cuh"
 #include <curand_kernel.h>
 #include "atom.cuh"
@@ -30,6 +29,17 @@
     #define CURAND_NORMAL(a) curand_normal_double(a)
 #else
     #define CURAND_NORMAL(a) curand_normal(a)
+#endif
+#ifndef USE_SP
+    #define ZERO  0.0
+    #define HALF  0.5
+    #define ONE   1.0
+    #define K_B   8.617343e-5
+#else
+    #define ZERO  0.0f
+    #define HALF  0.5f
+    #define ONE   1.0f
+    #define K_B   8.617343e-5
 #endif
 
 
@@ -172,6 +182,15 @@ static __global__ void gpu_langevin
 
 
 
+static __device__ void warp_reduce(volatile real *s, int t) 
+{
+    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
+    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
+}
+
+
+
+
 // group kinetic energy
 static __global__ void find_ke
 (
@@ -226,25 +245,10 @@ void Ensemble_LAN::integrate_nvt_lan
 {
     int  N           = atom->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group  = atom->fixed_group;
-    int *label       = atom->label;
-    real time_step   = atom->time_step;
     real *mass = atom->mass;
-    real *x    = atom->x;
-    real *y    = atom->y;
-    real *z    = atom->z;
     real *vx   = atom->vx;
     real *vy   = atom->vy;
     real *vz   = atom->vz;
-    real *fx   = atom->fx;
-    real *fy   = atom->fy;
-    real *fz   = atom->fz;
-    real *potential_per_atom = atom->potential_per_atom;
-    real *virial_per_atom_x  = atom->virial_per_atom_x; 
-    real *virial_per_atom_y  = atom->virial_per_atom_y;
-    real *virial_per_atom_z  = atom->virial_per_atom_z;
-    real *thermo             = atom->thermo;
-    real *box_length         = atom->box_length;
 
     // the first half of Langevin, before velocity-Verlet
     gpu_langevin<<<grid_size, BLOCK_SIZE>>>
@@ -252,13 +256,9 @@ void Ensemble_LAN::integrate_nvt_lan
     CUDA_CHECK_KERNEL
 
     // the standard velocity-Verlet
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_1(atom);
     force->compute(atom, measure);
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_2(atom);
 
     // the second half of Langevin, after velocity-Verlet
     gpu_langevin<<<grid_size, BLOCK_SIZE>>>
@@ -266,14 +266,7 @@ void Ensemble_LAN::integrate_nvt_lan
     CUDA_CHECK_KERNEL
 
     // thermo
-    int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
-    gpu_find_thermo<<<5, 1024>>>
-    (
-        N, N_fixed, fixed_group, label, temperature, box_length, 
-        mass, z, potential_per_atom, vx, vy, vz, 
-        virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
-    );
-    CUDA_CHECK_KERNEL
+    find_thermo(atom);
 }
 
 
@@ -283,27 +276,15 @@ void Ensemble_LAN::integrate_nvt_lan
 void Ensemble_LAN::integrate_heat_lan
 (Atom *atom, Force *force, Measure* measure)
 {
-    int N                = atom->N;
-    int grid_size        = (N - 1) / BLOCK_SIZE + 1;
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
-    int fixed_group      = atom->fixed_group;
-    int *label           = atom->label;
     int *group_size      = atom->group_size;
     int *group_size_sum  = atom->group_size_sum;
     int *group_contents  = atom->group_contents;
-    real time_step       = atom->time_step;
     real *mass = atom->mass;
-    real *x    = atom->x;
-    real *y    = atom->y;
-    real *z    = atom->z;
     real *vx   = atom->vx;
     real *vy   = atom->vy;
     real *vz   = atom->vz;
-    real *fx   = atom->fx;
-    real *fy   = atom->fy;
-    real *fz   = atom->fz;
-
     int label_1 = source;
     int label_2 = sink;
     int Ng = atom->number_of_groups;
@@ -343,13 +324,9 @@ void Ensemble_LAN::integrate_heat_lan
     energy_transferred[1] -= ek2[label_2] * 0.5;
 
     // the standard veloicty-Verlet
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_1(atom);
     force->compute(atom, measure);
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_2(atom);
 
     // the second half of Langevin, after velocity-Verlet
     find_ke<<<Ng, 512>>>
