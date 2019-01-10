@@ -126,8 +126,9 @@ void Ensemble_BDP::integrate_nvt_bdp
     // re-scale the velocities
     real *ek;
     MY_MALLOC(ek, real, sizeof(real) * 1);
-    CHECK(cudaMemcpy(ek, thermo + 1, sizeof(real) * 1, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
     int ndeg = 3 * (N - N_fixed);
+    ek[0] *= ndeg * K_B * 0.5; // from temperature to kinetic energy
     real sigma = ndeg * K_B * temperature * 0.5;
     real factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
     factor = sqrt(factor / ek[0]);
