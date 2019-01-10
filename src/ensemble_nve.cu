@@ -18,7 +18,6 @@
 
 #include "ensemble_nve.cuh"
 
-#include "ensemble.inc"
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"

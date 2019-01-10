@@ -18,12 +18,23 @@
 
 #include "ensemble_bdp.cuh"
 
-#include "ensemble.inc"
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
+#define DIM 3
+#ifndef USE_SP
+    #define ZERO  0.0
+    #define HALF  0.5
+    #define ONE   1.0
+    #define K_B   8.617343e-5
+#else
+    #define ZERO  0.0f
+    #define HALF  0.5f
+    #define ONE   1.0f
+    #define K_B   8.617343e-5
+#endif
 
 
 
@@ -98,43 +109,19 @@ void Ensemble_BDP::integrate_nvt_bdp
     int  N           = atom->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = atom->fixed_group;
-    int *label = atom->label;
-    real time_step   = atom->time_step;
-    real *mass = atom->mass;
-    real *x    = atom->x;
-    real *y    = atom->y;
-    real *z    = atom->z;
     real *vx   = atom->vx;
     real *vy   = atom->vy;
     real *vz   = atom->vz;
-    real *fx   = atom->fx;
-    real *fy   = atom->fy;
-    real *fz   = atom->fz;
-    real *potential_per_atom = atom->potential_per_atom;
-    real *virial_per_atom_x  = atom->virial_per_atom_x; 
-    real *virial_per_atom_y  = atom->virial_per_atom_y;
-    real *virial_per_atom_z  = atom->virial_per_atom_z;
     real *thermo             = atom->thermo;
-    real *box_length         = atom->box_length;
 
     // standard velocity-Verlet
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_1(atom);
     force->compute(atom, measure);
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_2(atom);
 
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
-    gpu_find_thermo<<<5, 1024>>>
-    (
-        N, N_fixed, fixed_group, label, temperature, box_length, 
-        mass, z, potential_per_atom, vx, vy, vz, 
-        virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
-    );
-    CUDA_CHECK_KERNEL
+    find_thermo(atom);
 
     // re-scale the velocities
     real *ek;
@@ -147,6 +134,15 @@ void Ensemble_BDP::integrate_nvt_bdp
     MY_FREE(ek);
     gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
     CUDA_CHECK_KERNEL
+}
+
+
+
+
+static __device__ void warp_reduce(volatile real *s, int t) 
+{
+    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
+    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
 
 
@@ -326,19 +322,10 @@ void Ensemble_BDP::integrate_heat_bdp
 {
     int N         = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group = atom->fixed_group;
-    int *label = atom->label;
-    real time_step   = atom->time_step;
     real *mass = atom->mass;
-    real *x    = atom->x;
-    real *y    = atom->y;
-    real *z    = atom->z;
     real *vx   = atom->vx;
     real *vy   = atom->vy;
     real *vz   = atom->vz;
-    real *fx   = atom->fx;
-    real *fy   = atom->fy;
-    real *fz   = atom->fz;
     int *group_size = atom->group_size;
     int *group_size_sum = atom->group_size_sum;
     int *group_contents = atom->group_contents;
@@ -364,13 +351,9 @@ void Ensemble_BDP::integrate_heat_bdp
     CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
 
     // veloicty-Verlet
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_1(atom);
     force->compute(atom, measure);
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
-    CUDA_CHECK_KERNEL
+    velocity_verlet_2(atom);
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke<<<Ng, 512>>>
