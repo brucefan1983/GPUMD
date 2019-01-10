@@ -47,6 +47,7 @@ private:
     void initialize_two_body_potential(Atom*);
     void initialize_many_body_potential(Atom*, int);
     void find_neighbor_local(Atom*, int);
+    void initialize_layer_label(char*, int);
 
     Potential *potential[MAX_NUM_OF_POTENTIALS];
     int *layer_label;

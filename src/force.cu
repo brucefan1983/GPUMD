@@ -195,7 +195,6 @@ void Force::initialize_one_potential(Atom* atom, int m)
     else
     {
         print_error("illegal potential model.\n");
-        exit(1); 
     }
 
     potential[m]->N1 = 0;
@@ -251,7 +250,6 @@ void Force::initialize_two_body_potential(Atom* atom)
     else
     {
         print_error("illegal two-body potential model.\n");
-        exit(1); 
     }
 
     potential[0]->N1 = 0;
@@ -329,7 +327,6 @@ void Force::initialize_many_body_potential
     else
     {
         print_error("illegal many-body potential model.\n");
-        exit(1); 
     }
 
     potential[m]->N1 = 0;
@@ -354,6 +351,31 @@ void Force::initialize_many_body_potential
 
 
 
+void Force::initialize_layer_label(char* input_dir, int N)
+{
+    int *layer_label_cpu;
+    MY_MALLOC(layer_label_cpu, int, N); 
+    char file_layer_label[FILE_NAME_LENGTH];
+    strcpy(file_layer_label, input_dir);
+    strcat(file_layer_label, "/layer.in");
+    FILE *fid = my_fopen(file_layer_label, "r");
+    for (int n = 0; n < N; ++n)
+    {
+        int count = fscanf(fid, "%d", &layer_label_cpu[n]);
+        if (count != 1) print_error("reading error for layer.in");
+    }
+    fclose(fid);
+
+    int memory = sizeof(int) * N;
+    CHECK(cudaMalloc((void**)&layer_label, memory));
+    CHECK(cudaMemcpy(layer_label, layer_label_cpu, memory,
+        cudaMemcpyHostToDevice));
+    MY_FREE(layer_label_cpu);
+}
+
+
+
+
 void Force::initialize(char *input_dir, Atom *atom)
 {
     // a single potential
@@ -369,26 +391,9 @@ void Force::initialize(char *input_dir, Atom *atom)
         rc_max = potential[0]->rc;
 
         // if the intralayer interactions are to be excluded
-        if (interlayer_only) 
+        if (interlayer_only)
         {
-            int *layer_label_cpu;
-            MY_MALLOC(layer_label_cpu, int, atom->N); 
-            char file_layer_label[FILE_NAME_LENGTH];
-            strcpy(file_layer_label, input_dir);
-            strcat(file_layer_label, "/layer.in");
-            FILE *fid = my_fopen(file_layer_label, "r");
-            for (int n = 0; n < atom->N; ++n)
-            {
-                int count = fscanf(fid, "%d", &layer_label_cpu[n]);
-                if (count != 1) print_error("reading error for layer.in");
-            }
-            fclose(fid);
-
-            int memory = sizeof(int)*atom->N;
-            CHECK(cudaMalloc((void**)&layer_label, memory));
-            CHECK(cudaMemcpy(layer_label, layer_label_cpu, memory, 
-                cudaMemcpyHostToDevice));
-            MY_FREE(layer_label_cpu); 
+            initialize_layer_label(input_dir, atom->N);
         }
 
         // the many-body part
@@ -400,14 +405,11 @@ void Force::initialize(char *input_dir, Atom *atom)
             // check the atom types in xyz.in
             for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
             {
-                if (atom->cpu_type[n] < type_begin[m] || atom->cpu_type[n] > type_end[m])
+                if (atom->cpu_type[n] < type_begin[m] ||
+                    atom->cpu_type[n] > type_end[m])
                 {
-                    printf("ERROR: ");
-                    printf
-                    (
-                        "atom type for many-body potential # %d not from %d to %d.", 
-                        m, type_begin[m], type_begin[m]
-                    );
+                    printf("ERROR: type for potential # %d not from %d to %d.",
+                        m, type_begin[m], type_end[m]);
                     exit(1);
                 }
 
@@ -415,13 +417,10 @@ void Force::initialize(char *input_dir, Atom *atom)
                 atom->cpu_type_local[n] -= type_begin[m];
             }
         }
-        
+
         // copy the local atom type to the GPU
-        CHECK(cudaMemcpy
-        (
-            atom->type_local, atom->cpu_type_local, 
-            sizeof(int) * atom->N, cudaMemcpyHostToDevice
-        ));
+        CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
+            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
     }
 }
 
