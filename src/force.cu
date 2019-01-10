@@ -90,6 +90,17 @@ Force::~Force(void)
 
 
 
+static void print_type_error(int number_of_types, int number_of_types_expected)
+{
+    if (number_of_types != number_of_types_expected)
+    {
+        print_error("number of types does not match potential file.\n");
+    }
+}
+
+
+
+
 void Force::initialize_one_potential(Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
@@ -98,109 +109,92 @@ void Force::initialize_one_potential(Atom* atom, int m)
     if (count != 1) 
     {
         print_error("reading error for potential.in.\n");
-        exit(1);
     }
-    
+
     // determine the potential
-    if (strcmp(potential_name, "tersoff_1989_1") == 0) 
-    { 
+    if (strcmp(potential_name, "tersoff_1989_1") == 0)
+    {
         potential[m] = new Tersoff2(fid_potential, atom, 1);
-        if (atom->number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 1);
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0)
     { 
         potential[m] = new Tersoff2(fid_potential, atom, 2);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
-    else if (strcmp(potential_name, "sw_1985") == 0) 
-    { 
+    else if (strcmp(potential_name, "sw_1985") == 0)
+    {
         potential[m] = new SW2(fid_potential, atom, 1);
-        if (atom->number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 1);
     }
-    else if (strcmp(potential_name, "sw_1985_2") == 0) 
-    { 
+    else if (strcmp(potential_name, "sw_1985_2") == 0)
+    {
         potential[m] = new SW2(fid_potential, atom, 2);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
-    else if (strcmp(potential_name, "sw_1985_3") == 0) 
-    { 
+    else if (strcmp(potential_name, "sw_1985_3") == 0)
+    {
         potential[m] = new SW2(fid_potential, atom, 3);
-        if (atom->number_of_types != 3) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 3);
     }
-    else if (strcmp(potential_name, "rebo_mos2") == 0) 
-    { 
+    else if (strcmp(potential_name, "rebo_mos2") == 0)
+    {
         potential[m] = new REBO_MOS(atom);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
     else if (strcmp(potential_name, "lj1") == 0)
-    { 
+    {
         potential[m] = new Pair(fid_potential, 1);
-        if (atom->number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 1);
     }
     else if (strcmp(potential_name, "lj2") == 0)
-    { 
+    {
         potential[m] = new Pair(fid_potential, 2);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
     else if (strcmp(potential_name, "lj3") == 0)
-    { 
+    {
         potential[m] = new Pair(fid_potential, 3);
-        if (atom->number_of_types != 3) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 3);
     }
     else if (strcmp(potential_name, "lj4") == 0)
-    { 
+    {
         potential[m] = new Pair(fid_potential, 4);
-        if (atom->number_of_types != 4) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 4);
     }
     else if (strcmp(potential_name, "lj5") == 0)
-    { 
+    {
         potential[m] = new Pair(fid_potential, 5);
-        if (atom->number_of_types != 5) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 5);
     }
     else if (strcmp(potential_name, "ri") == 0)
-    { 
+    {
         potential[m] = new Pair(fid_potential, 0);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
-    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0) 
-    { 
+    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
+    {
         potential[m] = new EAM(fid_potential, atom, potential_name);
-        if (atom->number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 1);
     }
-    else if (strcmp(potential_name, "eam_dai_2006") == 0) 
-    { 
+    else if (strcmp(potential_name, "eam_dai_2006") == 0)
+    {
         potential[m] = new EAM(fid_potential, atom, potential_name);
-        if (atom->number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 1);
     }
-    else if (strcmp(potential_name, "vashishta") == 0) 
-    { 
+    else if (strcmp(potential_name, "vashishta") == 0)
+    {
         potential[m] = new Vashishta(fid_potential, atom, 0);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
-    else if (strcmp(potential_name, "vashishta_table") == 0) 
-    { 
+    else if (strcmp(potential_name, "vashishta_table") == 0)
+    {
         potential[m] = new Vashishta(fid_potential, atom, 1);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
-    else    
-    { 
-        print_error("illegal potential model.\n"); 
+    else
+    {
+        print_error("illegal potential model.\n");
         exit(1); 
     }
 
@@ -221,49 +215,42 @@ void Force::initialize_two_body_potential(Atom* atom)
     if (count != 1) 
     {
         print_error("reading error for potential file.\n");
-        exit(1);
     }
-    
+
     // determine the potential
     if (strcmp(potential_name, "lj1") == 0)
-    { 
+    {
         potential[0] = new Pair(fid_potential, 1);
-        if (atom->number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 1);
     }
     else if (strcmp(potential_name, "lj2") == 0)
-    { 
+    {
         potential[0] = new Pair(fid_potential, 2);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
     else if (strcmp(potential_name, "lj3") == 0)
-    { 
+    {
         potential[0] = new Pair(fid_potential, 3);
-        if (atom->number_of_types != 3) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 3);
     }
     else if (strcmp(potential_name, "lj4") == 0)
-    { 
+    {
         potential[0] = new Pair(fid_potential, 4);
-        if (atom->number_of_types != 4) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 4);
     }
     else if (strcmp(potential_name, "lj5") == 0)
-    { 
+    {
         potential[0] = new Pair(fid_potential, 5);
-        if (atom->number_of_types != 5) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 5);
     }
     else if (strcmp(potential_name, "ri") == 0)
-    { 
+    {
         potential[0] = new Pair(fid_potential, 0);
-        if (atom->number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(atom->number_of_types, 2);
     }
-    else    
-    { 
-        print_error("illegal two-body potential model.\n"); 
+    else
+    {
+        print_error("illegal two-body potential model.\n");
         exit(1); 
     }
 
@@ -285,74 +272,63 @@ void Force::initialize_many_body_potential
     if (count != 1) 
     {
         print_error("reading error for potential file.\n");
-        exit(1);
     }
-    
+
     int number_of_types = type_end[m] - type_begin[m] + 1;
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0)
-    { 
+    {
         potential[m] = new Tersoff2(fid_potential, atom, 1);
-        if (number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 1);
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0)
-    { 
+    {
         potential[m] = new Tersoff2(fid_potential, atom, 2);
-        if (number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 2);
     }
-    else if (strcmp(potential_name, "sw_1985") == 0) 
-    { 
+    else if (strcmp(potential_name, "sw_1985") == 0)
+    {
         potential[m] = new SW2(fid_potential, atom, 1);
-        if (number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 1);
     }
-    else if (strcmp(potential_name, "sw_1985_2") == 0) 
-    { 
+    else if (strcmp(potential_name, "sw_1985_2") == 0)
+    {
         potential[m] = new SW2(fid_potential, atom, 2);
-        if (number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 2);
     }
-    else if (strcmp(potential_name, "sw_1985_3") == 0) 
-    { 
+    else if (strcmp(potential_name, "sw_1985_3") == 0)
+    {
         potential[m] = new SW2(fid_potential, atom, 3);
-        if (number_of_types != 3) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 3);
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0)
-    { 
+    {
         potential[m] = new REBO_MOS(atom);
-        if (number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 2);
     }
     else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
-    { 
+    {
         potential[m] = new EAM(fid_potential, atom, potential_name);
-        if (number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 1);
     }
-    else if (strcmp(potential_name, "eam_dai_2006") == 0) 
-    { 
+    else if (strcmp(potential_name, "eam_dai_2006") == 0)
+    {
         potential[m] = new EAM(fid_potential, atom, potential_name);
-        if (number_of_types != 1) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 1);
     }
-    else if (strcmp(potential_name, "vashishta") == 0) 
-    { 
+    else if (strcmp(potential_name, "vashishta") == 0)
+    {
         potential[m] = new Vashishta(fid_potential, atom, 0);
-        if (number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 2);
     }
-    else if (strcmp(potential_name, "vashishta_table") == 0) 
-    { 
+    else if (strcmp(potential_name, "vashishta_table") == 0)
+    {
         potential[m] = new Vashishta(fid_potential, atom, 1);
-        if (number_of_types != 2) 
-            print_error("number of types does not match potential file.\n");
+        print_type_error(number_of_types, 2);
     }
-    else    
-    { 
-        print_error("illegal many-body potential model.\n"); 
+    else
+    {
+        print_error("illegal many-body potential model.\n");
         exit(1); 
     }
 
@@ -666,6 +642,9 @@ static __global__ void gpu_correct_force
     }
 }
 
+
+
+
 static __global__ void initialize_properties
 (
     int N, real *g_fx, real *g_fy, real *g_fz, real *g_pe,
@@ -691,6 +670,9 @@ static __global__ void initialize_properties
     }
 }
 
+
+
+
 static __global__ void initialize_shc_properties(int M, real *g_fv)
 {
     //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -701,18 +683,17 @@ static __global__ void initialize_shc_properties(int M, real *g_fv)
     }
 }
 
+
+
+
 void Force::compute(Atom *atom, Measure* measure)
 {
     int M = measure->shc.number_of_pairs * 12;
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N,
-        atom->fx, atom->fy, atom->fz, 
-        atom->potential_per_atom,  
-        atom->virial_per_atom_x,
-        atom->virial_per_atom_y,
-        atom->virial_per_atom_z,
-        atom->heat_per_atom
+        atom->N, atom->fx, atom->fy, atom->fz, atom->potential_per_atom,
+        atom->virial_per_atom_x, atom->virial_per_atom_y,
+        atom->virial_per_atom_z, atom->heat_per_atom
     );
     CUDA_CHECK_KERNEL
 

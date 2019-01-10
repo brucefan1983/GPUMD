@@ -19,31 +19,36 @@
 #pragma once
 #include "common.cuh"
 
-
 #define MAX_NUM_OF_POTENTIALS 10
 #define FILE_NAME_LENGTH      200
+
+
 
 
 class Force
 {
 public:
 
-    Force(void);      
+    Force(void);
     ~Force(void);
-    void initialize_one_potential(Atom*, int);
-    void initialize_two_body_potential(Atom*);
-    void initialize_many_body_potential(Atom*, int);
     void initialize(char*, Atom*);
-    void find_neighbor_local(Atom*, int);
     void compute(Atom*, Measure*);
 
     int num_of_potentials;
     int interlayer_only;
     real rc_max;
-    char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
-    Potential *potential[MAX_NUM_OF_POTENTIALS];
     int type_begin[MAX_NUM_OF_POTENTIALS];
     int type_end[MAX_NUM_OF_POTENTIALS];
+    char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
+
+private:
+
+    void initialize_one_potential(Atom*, int);
+    void initialize_two_body_potential(Atom*);
+    void initialize_many_body_potential(Atom*, int);
+    void find_neighbor_local(Atom*, int);
+
+    Potential *potential[MAX_NUM_OF_POTENTIALS];
     int *layer_label;
 };
 
