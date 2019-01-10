@@ -376,3 +376,185 @@ void Ensemble::scale_velocity_global(Atom* atom, real factor)
 
 
 
+static __global__ void gpu_find_vc_and_ke
+(
+    int* g_group_size, int* g_group_size_sum, int* g_group_contents, 
+    real* g_mass, real *g_vx, real *g_vy, real *g_vz, 
+    real *g_vcx, real *g_vcy, real *g_vcz, real *g_ke
+)
+{
+    //<<<number_of_groups, 512>>>
+
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+
+    int group_size = g_group_size[bid];
+    int offset = g_group_size_sum[bid];
+    int number_of_patches = (group_size - 1) / 512 + 1; 
+
+    __shared__ real s_mc[512]; // center of mass
+    __shared__ real s_vx[512]; // center of mass velocity
+    __shared__ real s_vy[512];
+    __shared__ real s_vz[512];
+    __shared__ real s_ke[512]; // relative kinetic energy
+
+    s_mc[tid] = ZERO;
+    s_vx[tid] = ZERO;
+    s_vy[tid] = ZERO;
+    s_vz[tid] = ZERO;
+    s_ke[tid] = ZERO;
+    
+    for (int patch = 0; patch < number_of_patches; ++patch)
+    { 
+        int n = tid + patch * 512;
+        if (n < group_size)
+        {  
+            int index = g_group_contents[offset + n];     
+            real mass = g_mass[index];
+            real vx = g_vx[index];
+            real vy = g_vy[index];
+            real vz = g_vz[index];
+
+            s_mc[tid] += mass;
+            s_vx[tid] += mass * vx;
+            s_vy[tid] += mass * vy;
+            s_vz[tid] += mass * vz;
+            s_ke[tid] += (vx * vx + vy * vy + vz * vz) * mass;
+        }
+    }
+    __syncthreads();
+
+    if (tid < 256) 
+    { 
+        s_mc[tid] += s_mc[tid + 256]; 
+        s_vx[tid] += s_vx[tid + 256];
+        s_vy[tid] += s_vy[tid + 256];
+        s_vz[tid] += s_vz[tid + 256];
+        s_ke[tid] += s_ke[tid + 256];
+    } 
+    __syncthreads();
+
+    if (tid < 128) 
+    { 
+        s_mc[tid] += s_mc[tid + 128]; 
+        s_vx[tid] += s_vx[tid + 128];
+        s_vy[tid] += s_vy[tid + 128];
+        s_vz[tid] += s_vz[tid + 128];
+        s_ke[tid] += s_ke[tid + 128];
+    } 
+    __syncthreads();
+
+    if (tid <  64) 
+    { 
+        s_mc[tid] += s_mc[tid + 64]; 
+        s_vx[tid] += s_vx[tid + 64];
+        s_vy[tid] += s_vy[tid + 64];
+        s_vz[tid] += s_vz[tid + 64];
+        s_ke[tid] += s_ke[tid + 64];
+    } 
+    __syncthreads();
+
+    if (tid <  32) 
+    { 
+        warp_reduce(s_mc, tid);  
+        warp_reduce(s_vx, tid); 
+        warp_reduce(s_vy, tid); 
+        warp_reduce(s_vz, tid);    
+        warp_reduce(s_ke, tid);       
+    }  
+
+    if (tid == 0) 
+    { 
+        real mc = s_mc[0];
+        real vx = s_vx[0] / mc;
+        real vy = s_vy[0] / mc;
+        real vz = s_vz[0] / mc;
+        g_vcx[bid] = vx; // center of mass velocity
+        g_vcy[bid] = vy;
+        g_vcz[bid] = vz;
+
+        // relative kinetic energy times 2
+        g_ke[bid] = (s_ke[0] - mc * (vx * vx + vy * vy + vz * vz));  
+    }
+}
+
+
+
+
+// wrapper of the above kernel
+void Ensemble::find_vc_and_ke
+(Atom* atom, real* vcx, real* vcy, real* vcz, real* ke)
+{
+    gpu_find_vc_and_ke<<<atom->number_of_groups, 512>>>
+    (
+        atom->group_size, atom->group_size_sum, atom->group_contents, 
+        atom->mass, atom->vx, atom->vy, atom->vz, vcx, vcy, vcz, ke
+    );
+    CUDA_CHECK_KERNEL
+}
+
+
+
+
+static __global__ void gpu_scale_velocity
+(
+    int number_of_particles, int label_1, int label_2, int *g_atom_label, 
+    real factor_1, real factor_2, real *g_vcx, real *g_vcy, real *g_vcz,
+    real *g_ke, real *g_vx, real *g_vy, real *g_vz
+)
+{
+    // <<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < number_of_particles)
+    {
+        int atom_label = g_atom_label[n];     
+                 
+        if (atom_label == label_1) 
+        {
+            // center of mass velocity for the source
+            real vcx = g_vcx[atom_label]; 
+            real vcy = g_vcy[atom_label];
+            real vcz = g_vcz[atom_label];  
+
+            // momentum is conserved
+            g_vx[n] = vcx + factor_1 * (g_vx[n] - vcx);
+            g_vy[n] = vcy + factor_1 * (g_vy[n] - vcy);
+            g_vz[n] = vcz + factor_1 * (g_vz[n] - vcz);
+        }
+        if (atom_label == label_2)
+        {
+            // center of mass velocity for the sink
+            real vcx = g_vcx[atom_label]; 
+            real vcy = g_vcy[atom_label];
+            real vcz = g_vcz[atom_label];  
+
+            // momentum is conserved
+            g_vx[n] = vcx + factor_2 * (g_vx[n] - vcx);
+            g_vy[n] = vcy + factor_2 * (g_vy[n] - vcy);
+            g_vz[n] = vcz + factor_2 * (g_vz[n] - vcz);
+        }
+    }
+}
+
+
+
+
+// wrapper of the above kernel
+void Ensemble::scale_velocity_local
+(
+    Atom* atom, real factor_1, real factor_2,
+    real* vcx, real* vcy, real* vcz, real* ke
+)
+{
+    gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    (
+        atom->N, source, sink, atom->label, factor_1, factor_2, 
+        vcx, vcy, vcz, ke, atom->vx, atom->vy, atom->vz
+    );
+    CUDA_CHECK_KERNEL
+}
+
+
+
+
