@@ -86,32 +86,11 @@ Ensemble_BDP::~Ensemble_BDP(void)
 
 
 
-// Scale the velocity of every particle in the system by a factor
-static void __global__ gpu_scale_velocity
-(int N, real *g_vx, real *g_vy, real *g_vz, real factor)
-{
-    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < N)
-    {
-        g_vx[i] *= factor;
-        g_vy[i] *= factor;
-        g_vz[i] *= factor;
-    }
-}
-
-
-
-
 void Ensemble_BDP::integrate_nvt_bdp
 (Atom *atom, Force *force, Measure* measure)
 {
     int  N           = atom->N;
-    int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
     int fixed_group = atom->fixed_group;
-    real *vx   = atom->vx;
-    real *vy   = atom->vy;
-    real *vz   = atom->vz;
     real *thermo             = atom->thermo;
 
     // standard velocity-Verlet
@@ -133,8 +112,7 @@ void Ensemble_BDP::integrate_nvt_bdp
     real factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
     factor = sqrt(factor / ek[0]);
     MY_FREE(ek);
-    gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
-    CUDA_CHECK_KERNEL
+    scale_velocity_global(atom, factor);
 }
 
 

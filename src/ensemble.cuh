@@ -52,6 +52,7 @@ protected:
     void velocity_verlet_1(Atom*);
     void velocity_verlet_2(Atom*);
     void find_thermo(Atom*);
+    void scale_velocity_global(Atom* atom, real);
 };
 
 

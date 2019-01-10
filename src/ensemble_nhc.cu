@@ -185,32 +185,11 @@ static real nhc
 
 
 
-// Scale the velocity of every particle in the systems by a factor
-static void __global__ gpu_scale_velocity
-(int N, real *g_vx, real *g_vy, real *g_vz, real factor)
-{
-    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
-    if (i < N)
-    {
-        g_vx[i] *= factor;
-        g_vy[i] *= factor;
-        g_vz[i] *= factor;
-    }
-}
-
-
-
-
 void Ensemble_NHC::integrate_nvt_nhc
 (Atom *atom, Force *force, Measure* measure)
 {
     int  N           = atom->N;
-    int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
     real time_step   = atom->time_step;
-    real *vx   = atom->vx;
-    real *vy   = atom->vy;
-    real *vz   = atom->vz;
     real *thermo             = atom->thermo;
 
     real kT = K_B * temperature;
@@ -224,11 +203,8 @@ void Ensemble_NHC::integrate_nvt_nhc
     MY_MALLOC(ek2, real, sizeof(real) * 1);
     CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
-
     real factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
-
-    gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
-    CUDA_CHECK_KERNEL
+    scale_velocity_global(atom, factor);
 
     velocity_verlet_1(atom);
     force->compute(atom, measure);
@@ -237,14 +213,9 @@ void Ensemble_NHC::integrate_nvt_nhc
 
     CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
-
     factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
-
     MY_FREE(ek2);
-
-    gpu_scale_velocity<<<grid_size, BLOCK_SIZE>>>(N, vx, vy, vz, factor);
-    CUDA_CHECK_KERNEL
-
+    scale_velocity_global(atom, factor);
 }
 
 

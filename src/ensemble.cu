@@ -348,3 +348,31 @@ void Ensemble::find_thermo(Atom* atom)
 
 
 
+// Scale the velocity of every particle in the systems by a factor
+static void __global__ gpu_scale_velocity
+(int N, real *g_vx, real *g_vy, real *g_vz, real factor)
+{
+    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < N)
+    {
+        g_vx[i] *= factor;
+        g_vy[i] *= factor;
+        g_vz[i] *= factor;
+    }
+}
+
+
+
+
+// wrapper of the above kernel
+void Ensemble::scale_velocity_global(Atom* atom, real factor)
+{
+    gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    (atom->N, atom->vx, atom->vy, atom->vz, factor);
+    CUDA_CHECK_KERNEL
+}
+
+
+
+
