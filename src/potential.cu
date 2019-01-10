@@ -236,7 +236,8 @@ static __global__ void gpu_find_force_many_body
 
 
 
-// Wrapper of force evaluation for the Tersoff potential
+// Wrapper of the above kernel
+// used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body
 (
     Atom *atom, Measure *measure, int* NN, int* NL,
