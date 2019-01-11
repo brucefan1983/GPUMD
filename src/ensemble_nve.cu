@@ -18,11 +18,7 @@
 
 #include "ensemble_nve.cuh"
 
-#include "force.cuh"
-#include "atom.cuh"
-#include "error.cuh"
-
-#define BLOCK_SIZE 128
+#include "force.cuh" 
 
 
 
