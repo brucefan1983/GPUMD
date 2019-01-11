@@ -498,7 +498,7 @@ static __global__ void gpu_find_neighbor_local
 
 // Construct the local neighbor list from the global one (Wrapper)
 void Force::find_neighbor_local(Atom *atom, int m)
-{  
+{
     int type1 = type_begin[m];
     int type2 = type_end[m];
     int N = atom->N;
@@ -552,6 +552,8 @@ void Force::find_neighbor_local(Atom *atom, int m)
 }
 
 
+
+
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
@@ -565,64 +567,45 @@ static __device__ void warp_reduce(volatile real *s, int t)
 static __global__ void gpu_sum_force
 (int N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
 {
-    //<<<3, MAX_THREAD>>>
-
+    //<<<3, 1024>>>
     int tid = threadIdx.x;
     int bid = blockIdx.x;
-    int patch, n;
     int number_of_patches = (N - 1) / 1024 + 1; 
+    __shared__ real s_f[1024];
+    s_f[tid] = ZERO;
 
     switch (bid)
     {
         case 0:
-            __shared__ real s_fx[1024];
-            s_fx[tid] = ZERO;
-            for (patch = 0; patch < number_of_patches; ++patch)
-            { 
-                n = tid + patch * 1024;
-                if (n < N) s_fx[tid] += g_fx[n]; 
+            for (int patch = 0; patch < number_of_patches; ++patch)
+            {
+                int n = tid + patch * 1024;
+                if (n < N) s_f[tid] += g_fx[n];
             }
-            __syncthreads();
-            if (tid < 512) s_fx[tid] += s_fx[tid + 512]; __syncthreads();
-            if (tid < 256) s_fx[tid] += s_fx[tid + 256]; __syncthreads();
-            if (tid < 128) s_fx[tid] += s_fx[tid + 128]; __syncthreads();
-            if (tid <  64) s_fx[tid] += s_fx[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_fx, tid); 
-            if (tid ==  0) { g_f[0] = s_fx[0]; }                  
             break;
         case 1:
-            __shared__ real s_fy[1024];
-            s_fy[tid] = ZERO;
-            for (patch = 0; patch < number_of_patches; ++patch)
-            { 
-                n = tid + patch * 1024;
-                if (n < N) s_fy[tid] += g_fy[n]; 
+            for (int patch = 0; patch < number_of_patches; ++patch)
+            {
+                int n = tid + patch * 1024;
+                if (n < N) s_f[tid] += g_fy[n];
             }
-            __syncthreads();
-            if (tid < 512) s_fy[tid] += s_fy[tid + 512]; __syncthreads();
-            if (tid < 256) s_fy[tid] += s_fy[tid + 256]; __syncthreads();
-            if (tid < 128) s_fy[tid] += s_fy[tid + 128]; __syncthreads();
-            if (tid <  64) s_fy[tid] += s_fy[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_fy, tid); 
-            if (tid ==  0) { g_f[1] = s_fy[0]; }                  
             break;
         case 2:
-            __shared__ real s_fz[1024];
-            s_fz[tid] = ZERO;
-            for (patch = 0; patch < number_of_patches; ++patch)
-            { 
-                n = tid + patch * 1024;
-                if (n < N) s_fz[tid] += g_fz[n]; 
+            for (int patch = 0; patch < number_of_patches; ++patch)
+            {
+                int n = tid + patch * 1024;
+                if (n < N) s_f[tid] += g_fz[n];
             }
-            __syncthreads();
-            if (tid < 512) s_fz[tid] += s_fz[tid + 512]; __syncthreads();
-            if (tid < 256) s_fz[tid] += s_fz[tid + 256]; __syncthreads();
-            if (tid < 128) s_fz[tid] += s_fz[tid + 128]; __syncthreads();
-            if (tid <  64) s_fz[tid] += s_fz[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_fz, tid); 
-            if (tid ==  0) { g_f[2] = s_fz[0]; }                  
             break;
     }
+
+    __syncthreads();
+    if (tid < 512) s_f[tid] += s_f[tid + 512]; __syncthreads();
+    if (tid < 256) s_f[tid] += s_f[tid + 256]; __syncthreads();
+    if (tid < 128) s_f[tid] += s_f[tid + 128]; __syncthreads();
+    if (tid <  64) s_f[tid] += s_f[tid + 64];  __syncthreads();
+    if (tid <  32) warp_reduce(s_f, tid);
+    if (tid ==  0) { g_f[bid] = s_f[0]; }
 }
 
 
@@ -634,7 +617,7 @@ static __global__ void gpu_correct_force
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N)
-    {  
+    {
         g_fx[i] -= g_f[0] / N;
         g_fy[i] -= g_f[1] / N;
         g_fz[i] -= g_f[2] / N;
@@ -650,7 +633,6 @@ static __global__ void initialize_properties
     real *g_sx, real *g_sy, real *g_sz, real *g_h
 )
 {
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     if (n1 < N)
     {
@@ -674,12 +656,8 @@ static __global__ void initialize_properties
 
 static __global__ void initialize_shc_properties(int M, real *g_fv)
 {
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n1 < M)
-    {
-        g_fv[n1] = ZERO;
-    }
+    if (n1 < M) { g_fv[n1] = ZERO; }
 }
 
 
@@ -687,7 +665,6 @@ static __global__ void initialize_shc_properties(int M, real *g_fv)
 
 void Force::compute(Atom *atom, Measure* measure)
 {
-    int M = measure->shc.number_of_pairs * 12;
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
         atom->N, atom->fx, atom->fy, atom->fz, atom->potential_per_atom,
@@ -698,6 +675,7 @@ void Force::compute(Atom *atom, Measure* measure)
 
     if (measure->shc.compute)
     {
+        int M = measure->shc.number_of_pairs * 12;
         initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (M, measure->shc.fv);
         CUDA_CHECK_KERNEL
@@ -727,7 +705,6 @@ void Force::compute(Atom *atom, Measure* measure)
 
         CHECK(cudaFree(ftot));
     }
-
 }
 
 
