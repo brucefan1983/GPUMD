@@ -280,9 +280,9 @@ void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    CHECK(cudaMemcpy(vac_x, g_vac_x, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(vac_y, g_vac_y, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(vac_z, g_vac_z, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(vac_x, g_vac_x, sizeof(real)*Nc, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(vac_y, g_vac_y, sizeof(real)*Nc, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(vac_z, g_vac_z, sizeof(real)*Nc, cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_vac_x));
     CHECK(cudaFree(g_vac_y));
     CHECK(cudaFree(g_vac_z));
