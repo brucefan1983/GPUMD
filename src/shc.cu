@@ -103,7 +103,7 @@ void SHC::preprocess_shc(Atom *atom)
     if (compute)
     {
         //build map from N atoms to A and B labeled atoms
-        int c_a = 0; int c_b = 0;
+        count_a = 0; count_b = 0;
         int* cpu_a_map;
         int* cpu_b_map;
         MY_MALLOC(cpu_a_map, int, atom->N);
@@ -112,19 +112,9 @@ void SHC::preprocess_shc(Atom *atom)
         {
             cpu_a_map[n] = -1;
             cpu_b_map[n] = -1;
-            if (atom->cpu_label[n] == block_A)
-            {
-                cpu_a_map[n] = c_a;
-                c_a++;
-            }
-            else if (atom->cpu_label[n] == block_B)
-            {
-                cpu_b_map[n] = c_b;
-                c_b++;
-            }
+            if (atom->cpu_label[n] == block_A)      {cpu_a_map[n] = count_a++;}
+            else if (atom->cpu_label[n] == block_B) {cpu_b_map[n] = count_b++;}
         }
-        count_a = c_a;
-        count_b = c_b;
 
         int* NN;
         int* NL;
