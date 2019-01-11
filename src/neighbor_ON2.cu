@@ -20,11 +20,6 @@
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
-#ifndef USE_SP
-    #define HALF  0.5
-#else
-    #define HALF  0.5f
-#endif
 
 
 

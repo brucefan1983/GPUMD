@@ -35,15 +35,6 @@
 
 #ifndef USE_SP
 
-#define HALF  0.5
-#define ZERO  0.0
-#define ONE   1.0
-#define TWO   2.0
-#define THREE 3.0
-#define FOUR  4.0
-#define FIVE  5.0
-#define SIX   6.0
-#define PI    3.14159265358979
 #define TWOPI 6.283185307179586
 
 #define REBO_MOS2_Q_MM     3.41912939000591
@@ -223,15 +214,6 @@
 
 #else
 
-#define HALF  0.5f
-#define ZERO  0.0f
-#define ONE   1.0f
-#define TWO   2.0f
-#define THREE 3.0f
-#define FOUR  4.0f
-#define FIVE  5.0f
-#define SIX   6.0f
-#define PI    3.141593f
 #define TWOPI 6.283185307179586f
 
 #define REBO_MOS2_Q_MM     3.41912939005919f

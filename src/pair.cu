@@ -28,22 +28,10 @@
 #define BLOCK_SIZE_FORCE 128
 
 #ifndef USE_SP
-    #define ZERO  0.0
-    #define HALF  0.5
-    #define ONE   1.0
-    #define TWO   2.0
-    #define SIX   6.0
-    #define K_C   1.441959e+1
     #define RI_ALPHA     0.2
     #define RI_ALPHA_SQ  0.04
     #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
 #else
-    #define ZERO  0.0f
-    #define HALF  0.5f
-    #define ONE   1.0f
-    #define TWO   2.0f
-    #define SIX   6.0f
-    #define K_C   1.441959e+1
     #define RI_ALPHA     0.2f
     #define RI_ALPHA_SQ  0.04f
     #define RI_PI_FACTOR 0.225675833419103f // ALPHA * 2 / SQRT(PI) 

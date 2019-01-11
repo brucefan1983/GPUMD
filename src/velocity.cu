@@ -20,12 +20,6 @@
 
 #include "error.cuh"
 
-#ifndef USE_SP
-    #define K_B   8.617343e-5
-#else
-    #define K_B   8.617343e-5f
-#endif
-
 
 
 

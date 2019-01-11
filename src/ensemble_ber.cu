@@ -23,11 +23,6 @@
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
-#ifndef USE_SP
-    #define ONE   1.0
-#else
-    #define ONE   1.0f
-#endif
 
 
 

@@ -25,21 +25,6 @@
 
 // best block size here: 64 or 128
 #define BLOCK_SIZE_FORCE 64
-#ifndef USE_SP
-    #define ZERO  0.0
-    #define HALF  0.5
-    #define ONE   1.0
-    #define TWO   2.0
-    #define THREE 3.0
-    #define FOUR  4.0
-#else
-    #define ZERO  0.0f
-    #define HALF  0.5f
-    #define ONE   1.0f
-    #define TWO   2.0f
-    #define THREE 3.0f
-    #define FOUR  4.0f
-#endif
 
 
 

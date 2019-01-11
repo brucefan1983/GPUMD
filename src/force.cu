@@ -31,13 +31,6 @@
 #include "measure.cuh"
 
 #define BLOCK_SIZE 128
-#ifndef USE_SP
-    #define ZERO  0.0
-    #define HALF  0.5
-#else
-    #define ZERO  0.0f
-    #define HALF  0.5f
-#endif
 
 
 

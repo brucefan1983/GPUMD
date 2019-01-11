@@ -28,10 +28,39 @@
 
 
 
+// See section 3.1 in the manual for the unit conventions
 #ifndef USE_SP
     typedef double real;
+    #define ZERO  0.0
+    #define HALF  0.5
+    #define ONE   1.0
+    #define TWO   2.0
+    #define THREE 3.0
+    #define FOUR  4.0
+    #define FIVE  5.0
+    #define SIX   6.0
+    #define PI    3.14159265358979
+    #define K_B   8.617343e-5                      // Boltzmann's constant
+    #define K_C   1.441959e+1                      // 1/(4*PI*epsilon_0)
+    #define PRESSURE_UNIT_CONVERSION 1.602177e+2   // from natural to GPa
+    #define TIME_UNIT_CONVERSION     1.018051e+1   // from natural to fs
+    #define KAPPA_UNIT_CONVERSION    1.573769e+5   // from natural to W/mK
 #else
     typedef float real;
+    #define ZERO  0.0f
+    #define HALF  0.5f
+    #define ONE   1.0f
+    #define TWO   2.0f
+    #define THREE 3.0f
+    #define FOUR  4.0f
+    #define FIVE  5.0f
+    #define SIX   6.0f
+    #define PI    3.14159265358979f
+    #define K_B   8.617343e-5f
+    #define K_C   1.441959e+1f
+    #define PRESSURE_UNIT_CONVERSION 1.602177e+2f
+    #define TIME_UNIT_CONVERSION     1.018051e+1f
+    #define KAPPA_UNIT_CONVERSION    1.573769e+5f
 #endif
 
 struct Neighbor;
@@ -41,7 +70,6 @@ class Force;
 class Measure;
 class Integrate;
 class Ensemble;
-
 
 
 

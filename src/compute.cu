@@ -24,13 +24,6 @@
 #include "error.cuh"
 
 #define DIM 3
-#ifndef USE_SP
-    #define ZERO  0.0
-    #define K_B   8.617343e-5
-#else
-    #define ZERO  0.0f
-    #define K_B   8.617343e-5f
-#endif
 
 
 

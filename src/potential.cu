@@ -24,13 +24,6 @@
 #include "error.cuh"
 
 #define BLOCK_SIZE_FORCE 64
-#ifndef USE_SP
-    #define HALF  0.5
-    #define ZERO  0.0
-#else
-    #define HALF  0.5f
-    #define ZERO  0.0f
-#endif
 
 
 

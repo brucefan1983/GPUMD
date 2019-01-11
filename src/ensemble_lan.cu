@@ -30,17 +30,6 @@
 #else
     #define CURAND_NORMAL(a) curand_normal(a)
 #endif
-#ifndef USE_SP
-    #define ZERO  0.0
-    #define HALF  0.5
-    #define ONE   1.0
-    #define K_B   8.617343e-5
-#else
-    #define ZERO  0.0f
-    #define HALF  0.5f
-    #define ONE   1.0f
-    #define K_B   8.617343e-5
-#endif
 
 
 

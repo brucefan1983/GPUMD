@@ -24,19 +24,8 @@
 
 
 #define BLOCK_SIZE_SW 64 // 128 is also good
-#ifndef USE_SP
-    #define HALF  0.5
-    #define ZERO  0.0
-    #define ONE   1.0
-    #define TWO   2.0
-    #define FOUR  4.0
-#else
-    #define HALF  0.5f
-    #define ZERO  0.0f
-    #define ONE   1.0f
-    #define TWO   2.0f
-    #define FOUR  4.0f
-#endif
+
+
 
 
 // Add -DMOS2_JIANG in the makefile when using the SW potentials for MoS2

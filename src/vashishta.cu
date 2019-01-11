@@ -24,23 +24,6 @@
 #include "error.cuh"
 
 #define BLOCK_SIZE_VASHISHTA 64 
-#ifndef USE_SP
-    #define HALF  0.5
-    #define ZERO  0.0
-    #define ONE   1.0
-    #define TWO   2.0
-    #define FOUR  4.0
-    #define SIX   6.0
-    #define K_C   1.441959e+1
-#else
-    #define HALF  0.5f
-    #define ZERO  0.0f
-    #define ONE   1.0f
-    #define TWO   2.0f
-    #define FOUR  4.0f
-    #define SIX   6.0f
-    #define K_C   1.441959e+1f
-#endif
 
 
 

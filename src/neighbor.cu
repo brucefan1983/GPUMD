@@ -22,11 +22,6 @@
 
 #define BLOCK_SIZE 128
 #define DIM 3
-#ifndef USE_SP
-    #define HALF  0.5
-#else
-    #define HALF  0.5f
-#endif
 
 // When the number of cells (bins) is smaller than this value, 
 /// use the O(N^2) method instead of the O(N) method

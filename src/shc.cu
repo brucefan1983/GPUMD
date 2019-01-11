@@ -24,11 +24,6 @@
 typedef unsigned long long uint64;
 
 #define FILE_NAME_LENGTH      200
-#ifndef USE_SP
-    #define ZERO  0.0
-#else
-    #define ZERO  0.0f
-#endif
 
 
 

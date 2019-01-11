@@ -23,17 +23,6 @@
 
 #define BLOCK_SIZE 128
 #define DIM 3
-#ifndef USE_SP
-    #define ZERO  0.0
-    #define HALF  0.5
-    #define ONE   1.0
-    #define K_B   8.617343e-5
-#else
-    #define ZERO  0.0f
-    #define HALF  0.5f
-    #define ONE   1.0f
-    #define K_B   8.617343e-5
-#endif
 
 
 

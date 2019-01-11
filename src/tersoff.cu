@@ -17,31 +17,19 @@
 
 
 #include "tersoff.cuh"
+
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
-
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
 #ifndef USE_SP
-    #define HALF  0.5
-    #define ZERO  0.0
-    #define ONE   1.0
-    #define TWO   2.0
-    #define THREE 3.0
-    #define PI    3.14159265358979
     #define ONE_OVER_16   0.0625
     #define THREE_OVER_16 0.1875
     #define NINE_OVER_16  0.5625
 #else
-    #define HALF  0.5f
-    #define ZERO  0.0f
-    #define ONE   1.0f
-    #define TWO   2.0f
-    #define THREE 3.0f
-    #define PI    3.141593f
     #define ONE_OVER_16   0.0625f
     #define THREE_OVER_16 0.1875f
     #define NINE_OVER_16  0.5625f
