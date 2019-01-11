@@ -19,14 +19,11 @@
 #pragma once
 #include "common.cuh"
 
-
 #include "vac.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
-
-
 
 #define FILE_NAME_LENGTH      200
 
@@ -75,7 +72,7 @@ public:
     HNEMD hnemd;
     Compute compute;
 protected:
-    void dump_thermos(FILE*, Atom*, Integrate*, int);
+    void dump_thermos(FILE*, Atom*, int);
     void dump_positions(FILE*, Atom*, int);
     void dump_velocities(FILE*, Atom*, int);
     void dump_forces(FILE*, Atom*, int);
