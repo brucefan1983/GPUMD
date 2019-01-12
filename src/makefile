@@ -69,7 +69,7 @@ force.o: force.cu
 pair.o: pair.cu
 	$(CC) $(CFLAGS) -c pair.cu
 eam.o: eam.cu
-	$(CC) $(CFLAGS) -c eam.cu	
+	$(CC) $(CFLAGS) -c eam.cu
 sw.o: sw.cu
 	$(CC) $(CFLAGS) -c sw.cu
 vashishta.o: vashishta.cu
