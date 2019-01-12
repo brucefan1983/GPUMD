@@ -39,9 +39,9 @@ public:
     int *a_map;
     int *b_map;
 
-    void preprocess_shc(Atom*);
-    void process_shc(int step, char *, Atom*);
-    void postprocess_shc(void);
+    void preprocess(Atom*);
+    void process(int step, char *, Atom*);
+    void postprocess(void);
 
 private:
 

@@ -38,13 +38,11 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 
-void HNEMD::preprocess_hnemd_kappa(Atom *atom)
+void HNEMD::preprocess(Atom *atom)
 {
-    if (compute)
-    {
-        int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-        CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
-    }
+    if (!compute) return;
+    int num = NUM_OF_HEAT_COMPONENTS * output_interval;
+    CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
 }
 
 
@@ -78,8 +76,7 @@ static __global__ void gpu_sum_heat
 
 static real get_volume(real *box_gpu)
 {
-    real *box_cpu;
-    MY_MALLOC(box_cpu, real, 3);
+    real *box_cpu; MY_MALLOC(box_cpu, real, 3);
     CHECK(cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3,
         cudaMemcpyDeviceToHost));
     real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
@@ -90,61 +87,55 @@ static real get_volume(real *box_gpu)
 
 
 
-void HNEMD::process_hnemd_kappa
-(
-    int step, char *input_dir,
-    Atom *atom, Integrate *integrate
-)
+void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
 {
-    if (compute)
+    if (!compute) return;
+    int output_flag = ((step+1) % output_interval == 0);
+    step %= output_interval;
+    gpu_sum_heat<<<5, 1024>>>(atom->N, step, atom->heat_per_atom, heat_all);
+    CUDA_CHECK_KERNEL
+    if (output_flag)
     {
-        int output_flag = ((step+1) % output_interval == 0);
-        step %= output_interval;
-        gpu_sum_heat<<<5, 1024>>>(atom->N, step, atom->heat_per_atom, heat_all);
-        CUDA_CHECK_KERNEL
-        if (output_flag)
+        int num = NUM_OF_HEAT_COMPONENTS * output_interval;
+        int mem = sizeof(real) * num;
+        real volume = get_volume(atom->box_length);
+        real *heat_cpu;
+        MY_MALLOC(heat_cpu, real, num);
+        CHECK(cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost));
+        real kappa[NUM_OF_HEAT_COMPONENTS];
+        for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
         {
-            int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-            int mem = sizeof(real) * num;
-            real volume = get_volume(atom->box_length);
-            real *heat_cpu;
-            MY_MALLOC(heat_cpu, real, num);
-            CHECK(cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost));
-            real kappa[NUM_OF_HEAT_COMPONENTS];
-            for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
-            {
-                kappa[n] = ZERO;
-            }
-            for (int m = 0; m < output_interval; m++)
-            {
-                for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++)
-                {
-                    kappa[n] += heat_cpu[m * NUM_OF_HEAT_COMPONENTS + n];
-                }
-            }
-            real factor = KAPPA_UNIT_CONVERSION / output_interval;
-            factor /= (volume * integrate->ensemble->temperature * fe);
-
-            char file_kappa[FILE_NAME_LENGTH];
-            strcpy(file_kappa, input_dir);
-            strcat(file_kappa, "/kappa.out");
-            FILE *fid = fopen(file_kappa, "a");
+            kappa[n] = ZERO;
+        }
+        for (int m = 0; m < output_interval; m++)
+        {
             for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++)
             {
-                fprintf(fid, "%25.15f", kappa[n] * factor);
+                kappa[n] += heat_cpu[m * NUM_OF_HEAT_COMPONENTS + n];
             }
-            fprintf(fid, "\n");
-            fflush(fid);  
-            fclose(fid);
-            MY_FREE(heat_cpu);
         }
+        real factor = KAPPA_UNIT_CONVERSION / output_interval;
+        factor /= (volume * integrate->ensemble->temperature * fe);
+
+        char file_kappa[FILE_NAME_LENGTH];
+        strcpy(file_kappa, input_dir);
+        strcat(file_kappa, "/kappa.out");
+        FILE *fid = fopen(file_kappa, "a");
+        for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++)
+        {
+            fprintf(fid, "%25.15f", kappa[n] * factor);
+        }
+        fprintf(fid, "\n");
+        fflush(fid);  
+        fclose(fid);
+        MY_FREE(heat_cpu);
     }
 }
 
 
 
 
-void HNEMD::postprocess_hnemd_kappa(Atom *atom)
+void HNEMD::postprocess(Atom *atom)
 {
     if (compute) { CHECK(cudaFree(heat_all)); }
 }

@@ -26,15 +26,15 @@ public:
     int sample_interval; // sample interval for velocity
     int Nc;              // number of correlation points
     real omega_max;    // maximal angular frequency for phonons
-    void preprocess_vac(Atom*);
-    void sample_vac(int step, Atom*);
-    void postprocess_vac(char*, Atom*);
+    void preprocess(Atom*);
+    void process(int step, Atom*);
+    void postprocess(char*, Atom*);
 
+private:
+    void find_vac_rdc_dos(char *input_dir, Atom *atom);
     real *vx_all;
     real *vy_all;
     real *vz_all;
-private:
-    void find_vac_rdc_dos(char *input_dir, Atom *atom);
 };
 
 

@@ -26,12 +26,13 @@ public:
     int Nc;              // number of correlation points
     int output_interval; // only output Nc/output_interval data
 
-    real *heat_all;
+    void preprocess(Atom*);
+    void process(int, char*, Atom*);
+    void postprocess(char*, Atom*, Integrate*);
 
-    void preprocess_hac(Atom*);
-    void sample_hac(int, char*, Atom*);
-    void postprocess_hac(char*, Atom*, Integrate*);
+private:
     void find_hac_kappa(char*, Atom*, Integrate*);
+    real *heat_all;
 };
 
 

@@ -33,9 +33,9 @@ public:
 
     real *heat_all;
 
-    void preprocess_hnemd_kappa(Atom *atom);
-    void process_hnemd_kappa(int, char*, Atom*, Integrate*);
-    void postprocess_hnemd_kappa(Atom*);
+    void preprocess(Atom *atom);
+    void process(int, char*, Atom*, Integrate*);
+    void postprocess(Atom*);
 };
 
 

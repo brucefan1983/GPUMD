@@ -28,15 +28,13 @@
 
 
 // Allocate memory for recording velocity data
-void VAC::preprocess_vac(Atom *atom)
+void VAC::preprocess(Atom *atom)
 {
-    if (compute)
-    {
-        int num = atom->N * atom->number_of_steps / sample_interval;
-        CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
-        CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
-        CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
-    }
+    if (!compute) return;
+    int num = atom->N * atom->number_of_steps / sample_interval;
+    CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
+    CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
+    CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
 }
 
 
@@ -63,24 +61,16 @@ static __global__ void gpu_copy_velocity
 
 
 // Record velocity data (wrapper)
-void VAC::sample_vac(int step, Atom *atom)
+void VAC::process(int step, Atom *atom)
 {
-    if (compute)
-    {
-        if (step % sample_interval == 0)
-        {
-            int N = atom->N;
-            int nd = step / sample_interval;
-            
-            int grid_size = (N - 1) / BLOCK_SIZE + 1;
-            gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
-            (
-                N, nd, atom->vx, atom->vy, atom->vz, 
-                vx_all, vy_all, vz_all
-            );
-            CUDA_CHECK_KERNEL
-        }
-    }
+    if (!compute) return;
+    if (step % sample_interval != 0) return;
+    int N = atom->N;
+    int nd = step / sample_interval;  
+    int grid_size = (N - 1) / BLOCK_SIZE + 1;
+    gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
+    (N, nd, atom->vx, atom->vy, atom->vz, vx_all, vy_all, vz_all);
+    CUDA_CHECK_KERNEL
 }
 
 
@@ -181,16 +171,9 @@ static void find_rdc
 // using the method by Dickey and Paskin
 static void find_dos
 (
-    int Nc,
-    real delta_t, 
-    real omega_0,
-    real d_omega,
-    real *vac_x_normalized, 
-    real *vac_y_normalized, 
-    real *vac_z_normalized,
-    real *dos_x, 
-    real *dos_y, 
-    real *dos_z
+    int Nc, real delta_t, real omega_0, real d_omega,
+    real *vac_x_normalized, real *vac_y_normalized, real *vac_z_normalized,
+    real *dos_x, real *dos_y, real *dos_z
 )
 {
     // Apply Hann window and normalize by the correct factor
@@ -345,17 +328,17 @@ void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
 
 
 // postprocess VAC and related quantities.
-void VAC::postprocess_vac(char *input_dir, Atom *atom)
+void VAC::postprocess(char *input_dir, Atom *atom)
 {
-    if (compute)
-    {
-        printf("INFO:  start to calculate VAC and related quantities.\n");
-        find_vac_rdc_dos(input_dir, atom);
-        CHECK(cudaFree(vx_all));
-        CHECK(cudaFree(vy_all));
-        CHECK(cudaFree(vz_all));
-        printf("INFO:  VAC and related quantities are calculated.\n\n");
-    }
+    if (!compute) return;
+    print_line_1();
+    printf("Start to calculate VAC and related quantities.\n");
+    find_vac_rdc_dos(input_dir, atom);
+    CHECK(cudaFree(vx_all));
+    CHECK(cudaFree(vy_all));
+    CHECK(cudaFree(vz_all));
+    printf("VAC and related quantities are calculated.\n");
+    print_line_2();
 }
 
 

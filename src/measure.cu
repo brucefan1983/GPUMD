@@ -78,11 +78,11 @@ void Measure::initialize(char* input_dir, Atom *atom)
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
 
-    vac.preprocess_vac(atom);
-    hac.preprocess_hac(atom);
-    shc.preprocess_shc(atom);
+    vac.preprocess(atom);
+    hac.preprocess(atom);
+    shc.preprocess(atom);
     compute.preprocess(input_dir, atom);
-    hnemd.preprocess_hnemd_kappa(atom);
+    hnemd.preprocess(atom);
 }
 
 
@@ -99,11 +99,11 @@ void Measure::finalize
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 
-    vac.postprocess_vac(input_dir, atom);
-    hac.postprocess_hac(input_dir, atom, integrate);
-    shc.postprocess_shc();
+    vac.postprocess(input_dir, atom);
+    hac.postprocess(input_dir, atom, integrate);
+    shc.postprocess();
     compute.postprocess(atom, integrate);
-    hnemd.postprocess_hnemd_kappa(atom);
+    hnemd.postprocess(atom);
 }
 
 
@@ -239,13 +239,11 @@ void Measure::process
     dump_potentials(fid_potential, atom, step);
     dump_virials(fid_virial, atom, step);
     dump_heats(fid_heat, atom, step);
-
     compute.process(step, atom, integrate);
-
-    vac.sample_vac(step, atom);
-    hac.sample_hac(step, input_dir, atom);
-    shc.process_shc(step, input_dir, atom);
-    hnemd.process_hnemd_kappa(step, input_dir, atom, integrate);
+    vac.process(step, atom);
+    hac.process(step, input_dir, atom);
+    shc.process(step, input_dir, atom);
+    hnemd.process(step, input_dir, atom, integrate);
 }
 
 

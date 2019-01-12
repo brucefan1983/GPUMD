@@ -98,58 +98,56 @@ void SHC::build_fv_table
 
 
 // allocate memory and initialize for calculating SHC
-void SHC::preprocess_shc(Atom *atom)
+void SHC::preprocess(Atom *atom)
 {
-    if (compute)
+    if (!compute) return;
+    //build map from N atoms to A and B labeled atoms
+    count_a = 0; count_b = 0;
+    int* cpu_a_map;
+    int* cpu_b_map;
+    MY_MALLOC(cpu_a_map, int, atom->N);
+    MY_MALLOC(cpu_b_map, int, atom->N);
+    for (int n = 0; n < atom->N; n++)
     {
-        //build map from N atoms to A and B labeled atoms
-        count_a = 0; count_b = 0;
-        int* cpu_a_map;
-        int* cpu_b_map;
-        MY_MALLOC(cpu_a_map, int, atom->N);
-        MY_MALLOC(cpu_b_map, int, atom->N);
-        for (int n = 0; n < atom->N; n++)
-        {
-            cpu_a_map[n] = -1;
-            cpu_b_map[n] = -1;
-            if (atom->cpu_label[n] == block_A)      {cpu_a_map[n] = count_a++;}
-            else if (atom->cpu_label[n] == block_B) {cpu_b_map[n] = count_b++;}
-        }
-
-        int* NN;
-        int* NL;
-        MY_MALLOC(NN, int, atom->N);
-        MY_MALLOC(NL, int, atom->N * atom->neighbor.MN);
-        copy_neighbor_to_cpu(atom, NN, NL);
-
-        int* cpu_fv_index;
-        MY_MALLOC(cpu_fv_index, int, count_a * count_b);
-        build_fv_table(atom, NN, NL, cpu_a_map, cpu_b_map, cpu_fv_index);
-
-        MY_FREE(NN);
-        MY_FREE(NL);
-
-        // there are 12 data for each pair
-        uint64 num1 = number_of_pairs * 12;
-        uint64 num2 = num1 * M;
-
-        CHECK(cudaMalloc((void**)&a_map, sizeof(int) * atom->N));
-        CHECK(cudaMalloc((void**)&b_map, sizeof(int) * atom->N));
-
-        CHECK(cudaMalloc((void**)&fv_index, sizeof(int) * count_a*count_b));
-        CHECK(cudaMalloc((void**)&fv,       sizeof(real) * num1));
-        CHECK(cudaMalloc((void**)&fv_all,   sizeof(real) * num2));
-
-        CHECK(cudaMemcpy(fv_index, cpu_fv_index,
-            sizeof(int) * count_a * count_b, cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(a_map, cpu_a_map,
-            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(b_map, cpu_b_map,
-            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
-        MY_FREE(cpu_fv_index);
-        MY_FREE(cpu_a_map);
-        MY_FREE(cpu_b_map);
+        cpu_a_map[n] = -1;
+        cpu_b_map[n] = -1;
+        if (atom->cpu_label[n] == block_A)      {cpu_a_map[n] = count_a++;}
+        else if (atom->cpu_label[n] == block_B) {cpu_b_map[n] = count_b++;}
     }
+
+    int* NN;
+    int* NL;
+    MY_MALLOC(NN, int, atom->N);
+    MY_MALLOC(NL, int, atom->N * atom->neighbor.MN);
+    copy_neighbor_to_cpu(atom, NN, NL);
+
+    int* cpu_fv_index;
+    MY_MALLOC(cpu_fv_index, int, count_a * count_b);
+    build_fv_table(atom, NN, NL, cpu_a_map, cpu_b_map, cpu_fv_index);
+
+    MY_FREE(NN);
+    MY_FREE(NL);
+
+    // there are 12 data for each pair
+    uint64 num1 = number_of_pairs * 12;
+    uint64 num2 = num1 * M;
+
+    CHECK(cudaMalloc((void**)&a_map, sizeof(int) * atom->N));
+    CHECK(cudaMalloc((void**)&b_map, sizeof(int) * atom->N));
+
+    CHECK(cudaMalloc((void**)&fv_index, sizeof(int) * count_a*count_b));
+    CHECK(cudaMalloc((void**)&fv,       sizeof(real) * num1));
+    CHECK(cudaMalloc((void**)&fv_all,   sizeof(real) * num2));
+
+    CHECK(cudaMemcpy(fv_index, cpu_fv_index,
+        sizeof(int) * count_a * count_b, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(a_map, cpu_a_map,
+        sizeof(int) * atom->N, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(b_map, cpu_b_map,
+        sizeof(int) * atom->N, cudaMemcpyHostToDevice));
+    MY_FREE(cpu_fv_index);
+    MY_FREE(cpu_a_map);
+    MY_FREE(cpu_b_map);
 }
 
 
@@ -282,47 +280,37 @@ void SHC::find_k_time(char *input_dir, Atom *atom)
 }
 
 
-void SHC::process_shc(int step, char *input_dir, Atom *atom)
+void SHC::process(int step, char *input_dir, Atom *atom)
 {
-    if (compute)
-    { 
-        uint64 step_ref = sample_interval * M;
-        uint64 fv_size = number_of_pairs * 12;
-        uint64 fv_memo = fv_size * sizeof(real);
+    if (!compute) return;
+    uint64 step_ref = sample_interval * M;
+    uint64 fv_size = number_of_pairs * 12;
+    uint64 fv_memo = fv_size * sizeof(real);
         
-        // sample fv data every "sample_interval" steps
-        if ((step + 1) % sample_interval == 0)
-        {
-            uint64 offset =
-                (
-                    (step - (step/step_ref)*step_ref + 1) 
-                    / sample_interval - 1
-                ) * fv_size;
-            CHECK(cudaMemcpy(fv_all + offset, 
-                fv, fv_memo, cudaMemcpyDeviceToDevice));
-        }
-
-        // calculate the correlation function every "sample_interval * M" steps
-        if ((step + 1) % step_ref == 0)
-        {
-            find_k_time(input_dir, atom);
-        }
+    // sample fv data every "sample_interval" steps
+    if ((step + 1) % sample_interval == 0)
+    {
+        uint64 offset = ((step-(step/step_ref)*step_ref+1)/sample_interval-1) 
+            * fv_size;
+        CHECK(cudaMemcpy(fv_all + offset, 
+            fv, fv_memo, cudaMemcpyDeviceToDevice));
     }
+
+    // calculate the correlation function every "sample_interval * M" steps
+    if ((step + 1) % step_ref == 0) { find_k_time(input_dir, atom); }
 }
 
 
 
 
-void SHC::postprocess_shc(void)
+void SHC::postprocess(void)
 {
-    if (compute)
-    {
-        CHECK(cudaFree(fv_index));
-        CHECK(cudaFree(a_map));
-        CHECK(cudaFree(b_map));
-        CHECK(cudaFree(fv));
-        CHECK(cudaFree(fv_all));
-    }
+    if (!compute) return;
+    CHECK(cudaFree(fv_index));
+    CHECK(cudaFree(a_map));
+    CHECK(cudaFree(b_map));
+    CHECK(cudaFree(fv));
+    CHECK(cudaFree(fv_all));
 }
 
 
