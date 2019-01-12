@@ -47,22 +47,36 @@ int main(int argc, char *argv[])
     print_line_2();
 
 #ifdef DEBUG
-    printf("DEBUG          is on\n");
+    printf("DEBUG in on: Use a fixed PRNG seed for differnt runs.\n");
 #else
     srand(time(NULL));
-    printf("DEBUG          is off\n");
+    printf("DEBUG is off: Use differnt PRNG seeds for differnt runs.\n");
 #endif
 
 #ifndef USE_SP
-    printf("USE_SP         is off\n");
+    printf("USE_SP is off: Use double-precision version.\n");
 #else
-    printf("USE_SP         is on\n");
+    printf("USE_SP is on: Use single-precision version.\n");
 #endif
 
-#ifndef MURTY_ATWATER
-    printf("MURTY_ATWATER  is off\n");
-#else
-    printf("MURTY_ATWATER  is on\n");
+#ifdef MOS2_JIANG
+    printf("MOS2_JIANG is on: Special verison for Ke Xu.\n");
+#endif
+
+#ifdef MURTY_ATWATER
+    printf("MURTY_ATWATER is on: Special verison for Qi You.\n");
+#endif
+
+#ifdef ZHEN_LI
+    printf("ZHEN_LI is on: Special verison for Zhen Li.\n");
+#endif
+
+#ifdef CBN
+    printf("CBN is on: Special verison for Haikuan Dong.\n");
+#endif
+
+#ifdef HEAT_CURRENT
+    printf("HEAT_CURRENT is on: Special verison for Davide Donadio.\n");
 #endif
 
     // get the number of input directories
