@@ -36,7 +36,7 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Version 2.1\\
    \vspace*{1.0cm}
-   (Dec 13, 2018)\\
+   (Jan 13, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -335,13 +335,13 @@ The current version of GPUMD has about 15 000 lines of code. The structure of th
 \item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
 
 
-\item The \verb"GPUMD" class is implemented in these files: \verb"gpumd.cuh", \verb"gpumd.cu", and \verb"parse.cu". \textcolor{red}{There are 3 files in total here.} This class controls the overall flow of the code. The \verb"GPUMD" class uses all the other major classes: \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure". 
+\item The \verb"GPUMD" class is implemented in these files: \verb"gpumd.cuh", \verb"gpumd.cu", \verb"run.cu", \verb"check_run.cu", and \verb"parse.cu". \textcolor{red}{There are 5 files in total here.} This class controls the overall flow of the code. The \verb"GPUMD" class uses all the other major classes: \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure". 
 
 \item The \verb"Atom" class contains the major data related to the atoms (such as the various per-atom physical quantities, the simulation box, the neighbor list, etc) and functions used to initializing and finalizing these data. This class involves the files \verb"atom.cuh", \verb"atom.cu", \verb"velocity.cu", \verb"neighbor.cu", \verb"neighbor_ON1.cu", and \verb"neighbor_ON2.cu". \textcolor{red}{There are 6 files in total here.}
 
-\item The \verb"Force" class (in files \verb"force.cuh" and \verb"force.cu") deals with everything related to force evaluation. The \verb"Force" class contains pointers of the virtual \verb"Potential" class (in files \verb"potential.cuh" and \verb"potential.cu"). The virtual \verb"Potential" class is inherited by some classes, each corresponding to a specific empirical potential. The potential classes are \verb"Pair" (in files \verb"pair.cuh" and \verb"pair.cu"), \verb"EAM" (in files \verb"eam.cuh" and \verb"eam.cu"), \verb"SW" (in files \verb"sw.cuh" and \verb"sw.cu"), \verb"Tersoff" (in files \verb"tersoff.cuh" and \verb"tersoff.cu"), \verb"Vashishta" (in files \verb"vashishta.cuh" and \verb"vashishta.cu"), and \verb"REBO_MOS" (in files \verb"rebo_mos2.cuh" and \verb"rebo_mos2.cu"). \textcolor{red}{There are 16 files in total here.}
+\item The \verb"Force" class (in files \verb"force.cuh" and \verb"force.cu") deals with everything related to force evaluation. The \verb"Force" class contains pointers of the abstract base class (ABC) \verb"Potential" class (in files \verb"potential.cuh" and \verb"potential.cu"). This ABC is inherited by some classes, each corresponding to a specific empirical potential. The potential classes are \verb"Pair" (in files \verb"pair.cuh" and \verb"pair.cu"), \verb"EAM" (in files \verb"eam.cuh" and \verb"eam.cu"), \verb"SW" (in files \verb"sw.cuh" and \verb"sw.cu"), \verb"Tersoff" (in files \verb"tersoff.cuh" and \verb"tersoff.cu"), \verb"Vashishta" (in files \verb"vashishta.cuh" and \verb"vashishta.cu"), and \verb"REBO_MOS" (in files \verb"rebo_mos2.cuh" and \verb"rebo_mos2.cu"). \textcolor{red}{There are 16 files in total here.}
 
-\item The \verb"Integrate" class (in files \verb"integrate.cuh" and \verb"integrate.cu") deals with everything related to time integration. The \verb"Itegrate" class contains a pointer of the virtual \verb"Ensemble" class (in files \verb"ensemble.cuh" and \verb"ensemble.cu"). The virtual \verb"Ensemble" class is inherited by some classes, each corresponding to a specific integrator. The integrator classes are \verb"Ensemble_NVE" (in files \verb"ensemble_nve.cuh" and \verb"ensemble_nve.cu"), \verb"Ensemble_BER" (in files \verb"ensemble_ber.cuh" and \verb"ensemble_ber.cu"), \verb"Ensemble_NHC" (in files \verb"ensemble_nhc.cuh" and \verb"ensemble_nhc.cu"), \verb"Ensemble_LAN" (in files \verb"ensemble_lan.cuh" and \verb"ensemble_lan.cu"), and \verb"Ensemble_BDP" (in files \verb"ensemble_bdp.cuh" and \verb"ensemble_bdp.cu").  \textcolor{red}{There are 14 files in total here.}
+\item The \verb"Integrate" class (in files \verb"integrate.cuh" and \verb"integrate.cu") deals with everything related to time integration. The \verb"Itegrate" class contains a pointer of the ABC \verb"Ensemble" class (in files \verb"ensemble.cuh" and \verb"ensemble.cu"). This ABC is inherited by some classes, each corresponding to a specific integrator. The integrator classes are \verb"Ensemble_NVE" (in files \verb"ensemble_nve.cuh" and \verb"ensemble_nve.cu"), \verb"Ensemble_BER" (in files \verb"ensemble_ber.cuh" and \verb"ensemble_ber.cu"), \verb"Ensemble_NHC" (in files \verb"ensemble_nhc.cuh" and \verb"ensemble_nhc.cu"), \verb"Ensemble_LAN" (in files \verb"ensemble_lan.cuh" and \verb"ensemble_lan.cu"), and \verb"Ensemble_BDP" (in files \verb"ensemble_bdp.cuh" and \verb"ensemble_bdp.cu").  \textcolor{red}{There are 14 files in total here.}
 
 \item The \verb"Measure" class (in files \verb"measure.cuh" and \verb"measure.cu") deals with everything related to measurement. The \verb"Measure" class contains a few other classes, including the  \verb"VAC" class (in files \verb"vac.cuh" and \verb"vac.cu"), the \verb"HAC" class (in files \verb"hac.cuh" and \verb"hac.cu"), \verb"SHC" class (in files \verb"shc.cuh" and \verb"shc.cu"), the \verb"HNEMD" class (in files \verb"hnemd_kappa.cuh" and \verb"hnemd_kappa.cu"), and the \verb"Compute" class (in files \verb"compute.cuh" and \verb"compute.cu"). \textcolor{red}{There are 12 files in total here.}
 
@@ -354,7 +354,7 @@ The current version of GPUMD has about 15 000 lines of code. The structure of th
 \item There are two files named \verb"validate.cuh" and \verb"validate.cu" which are only used by the developers. \textcolor{red}{Two files here.}
 \end{itemize}
 
-How many files in total? \textcolor{red}{58!}
+How many files in total? \textcolor{red}{60!}
 
 
 \section{Coding style of GPUMD}
@@ -2448,7 +2448,7 @@ Here are the possible \verb"-DFLAG"s:
 \item \verb"-DUSE_SP"\\
 When this is specified, the code will be compiled as a single-precision version. We do not recommend to use this version, but the users can try.
 \item \verb"-DDEBUG"\\
-When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will makesure to get exactly the same output for the same input. However, due to some limitations of the current implementation of GPUMD, the code will always use the $O(N^2)$ version to generate the neighbor list, which is not efficient for large systems. 
+When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will make sure to get exactly the same output for the same input. However, due to some limitations of the current implementation of GPUMD, the code will always use the $O(N^2)$ version to generate the neighbor list, which is not efficient for large systems. 
 \end{itemize}
 
 
