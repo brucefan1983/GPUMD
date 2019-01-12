@@ -16,6 +16,15 @@
 
 
 
+/*----------------------------------------------------------------------------80
+The double-element version of the Tersoff potential as described in  
+    [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials 
+        for multicomponent systems, PRB 39, 5566 (1989).
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "tersoff.cuh"
 
 #include "ldg.cuh"
@@ -34,15 +43,6 @@
     #define THREE_OVER_16 0.1875f
     #define NINE_OVER_16  0.5625f
 #endif
-
-
-
-
-/*----------------------------------------------------------------------------80
-The double-element version of the Tersoff potential as described in  
-    [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials 
-        for multicomponent systems, PRB 39, 5566 (1989).
-------------------------------------------------------------------------------*/
 
 
 

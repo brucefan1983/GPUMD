@@ -15,6 +15,22 @@
 
 
 
+
+/*----------------------------------------------------------------------------80
+The class dealing with all the pairwise potentials, including the the LJ
+potential and the rigid-ion potential.
+
+Reference for the method of evaluating the Coulomb force in the rigid-ion
+potential:
+
+[1] C. J. Fennell and J. D. Gezelter. Is the Ewald summation still necessary?
+Pairwise alternatives to the accepted standard for long-range electrostatics,
+J. Chem. Phys. 124, 234104 (2006).
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "pair.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"

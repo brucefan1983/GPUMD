@@ -16,6 +16,15 @@
 
 
 
+/*----------------------------------------------------------------------------80
+Calculate the thermal conductivity using the HNEMD method.
+Reference:
+[1] arXiv:1805.00277
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "hnemd_kappa.cuh"
 
 #include "integrate.cuh"

@@ -22,28 +22,29 @@
 #include "atom.cuh"
 #include "error.cuh"
 
-
 #define BLOCK_SIZE_SW 64 // 128 is also good
 
 
 
 
-// Add -DMOS2_JIANG in the makefile when using the SW potentials for MoS2
-// and choose one of the following:
-//#define MOS2_CUTOFF_SQUARE 14.2884 // SW13
-#define MOS2_CUTOFF_SQUARE 14.5924 // SW16
-// Check our preprint arXiv:1811.07336 for the meanings of SW13 and SW16
-
-
-
 
 /*----------------------------------------------------------------------------80
-    This file implements the Stillinger-Weber (SW) potential.
-        Frank H. Stillinger and Thomas A. Weber,
-        Computer simulation of local order in condensed phases of silicon,
-        Phys. Rev. B 31, 5262 (1985).
+This file implements the Stillinger-Weber (SW) potential.
+[1] Frank H. Stillinger and Thomas A. Weber,
+    Computer simulation of local order in condensed phases of silicon,
+    Phys. Rev. B 31, 5262 (1985).
     The implementation supports up to three atom types.
+
+Add -DMOS2_JIANG in the makefile when using the SW potentials for MoS2
+and choose one of the following (Check our preprint arXiv:1811.07336 
+for the meanings of SW13 and SW16):
 ------------------------------------------------------------------------------*/
+
+
+
+
+//#define MOS2_CUTOFF_SQUARE 14.2884 // SW13
+#define MOS2_CUTOFF_SQUARE 14.5924 // SW16
 
 
 

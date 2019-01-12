@@ -16,6 +16,13 @@
 
 
 
+/*----------------------------------------------------------------------------80
+Compute block (space) averages of various per-atom quantities.
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "compute.cuh"
 
 #include "integrate.cuh"

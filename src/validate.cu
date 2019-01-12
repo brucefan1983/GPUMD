@@ -16,6 +16,13 @@
 
 
 
+/*----------------------------------------------------------------------------80
+Use finite difference to validate the analytical force calculations.
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "validate.cuh"
 
 #include "force.cuh"

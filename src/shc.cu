@@ -16,6 +16,15 @@
 
 
 
+/*----------------------------------------------------------------------------80
+Spectral heat current (SHC) calculations as described in:
+[1] Z. Fan, et al. Thermal conductivity decomposition in two-dimensional 
+materials: Application to graphene. Phys. Rev. B 95, 144309 (2017).
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "shc.cuh"
 
 #include "atom.cuh"

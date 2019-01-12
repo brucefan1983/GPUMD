@@ -16,6 +16,14 @@
 
 
 
+/*----------------------------------------------------------------------------80
+The Bussi-Parrinello integrator of the Langevin thermostat:
+[1] G. Bussi and M. Parrinello, Phys. Rev. E 75, 056707 (2007).
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "ensemble_lan.cuh"
 
 #include "force.cuh"

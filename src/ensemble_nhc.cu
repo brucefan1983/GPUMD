@@ -16,6 +16,15 @@
 
 
 
+/*----------------------------------------------------------------------------80
+The Nose-Hoover chain thermostat
+[1] M. E. Tuckerman, Statistical Mechanics: Theory and Molecular Simulation. 
+Oxford University Press, 2010.
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "ensemble_nhc.cuh"
 
 #include "force.cuh"

@@ -16,22 +16,28 @@
 
 
 
+/*----------------------------------------------------------------------------80
+The REBO-LJ potential
+References: 
+[1] T. Liang et al. PRB 79, 245110 (2009).
+[2] T. Liang et al. PRB 85, 199903(E) (2012).
+[3] J. A. Stewart et al. MSMSE 21, 045003 (2013).
+[4] K. Xu et al. arXiv:1811.07336.
+We completely followed Ref. [3] but the epsilon parameter for S-S pairs is 
+taken form Ref. [2].
+The parameters are hard coded as the potential only applies to Mo-S systems.
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "rebo_mos2.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
-
 #define BLOCK_SIZE_FORCE 64
-
-// References: 
-// [1] T. Liang et al. PRB 79, 245110 (2009).
-// [2] T. Liang et al. PRB 85, 199903(E) (2012).
-// [3] J. A. Stewart et al. MSMSE 21, 045003 (2013).
-// We completely followed Ref. [3] and Stewart's LAMMPS implementation
-// The parameters are hard coded as the potential only applies to Mo-S systems.
-
 
 #ifndef USE_SP
 

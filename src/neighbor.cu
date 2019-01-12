@@ -16,6 +16,13 @@
 
 
 
+/*----------------------------------------------------------------------------80
+Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "atom.cuh"
 
 #include "error.cuh"
