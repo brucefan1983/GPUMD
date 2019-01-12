@@ -1,86 +1,40 @@
+CC = nvcc
+CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
+
+SOURCES = main.cu gpumd.cu parse.cu error.cu validate.cu \
+	atom.cu velocity.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
+	force.cu potential.cu pair.cu eam.cu sw.cu vashishta.cu tersoff.cu \
+	rebo_mos2.cu \
+	integrate.cu ensemble.cu ensemble_nve.cu ensemble_ber.cu \
+	ensemble_nhc.cu ensemble_lan.cu ensemble_bdp.cu \
+	measure.cu compute.cu shc.cu vac.cu hac.cu hnemd_kappa.cu
+
+_OBJ = main.o gpumd.o parse.o error.o validate.o \
+	atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
+	force.o potential.o pair.o eam.o sw.o vashishta.o tersoff.o rebo_mos2.o \
+	integrate.o ensemble.o ensemble_nve.o ensemble_ber.o \
+	ensemble_nhc.o ensemble_lan.o ensemble_bdp.o \
+	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o
+
+HEADERS = gpumd.cuh error.cuh validate.cuh ldg.cuh common.cuh \
+	atom.cuh \
+	force.cuh potential.cuh pair.cuh eam.cuh sw.cuh vashishta.cuh tersoff.cuh \
+	rebo_mos2.cuh \
+	integrate.cuh ensemble.cuh ensemble_nve.cuh ensemble_ber.cuh \
+	ensemble_nhc.cuh ensemble_lan.cuh ensemble_bdp.cuh \
+	measure.cuh compute.cuh shc.cuh vac.cuh hac.cuh hnemd_kappa.cuh \
+
+ODIR = obj
+OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
+
 all: gpumd
 
-CC = nvcc
-CFLAGS = -std=c++11 -O3 -arch=sm_35
+$(ODIR)/%.o: %.cu $(HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
 
-gpumd: eam.o tersoff.o rebo_mos2.o atom.o error.o \
-       sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
-       vac.o hac.o shc.o compute.o integrate.o ensemble_lan.o ensemble_bdp.o \
-       ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
-       neighbor_ON1.o neighbor_ON2.o neighbor.o velocity.o \
-       measure.o force.o potential.o parse.o gpumd.o main.o
- 
-	$(CC) -o gpumd \
-       eam.o tersoff.o rebo_mos2.o atom.o error.o \
-       sw.o vashishta.o pair.o validate.o hnemd_kappa.o \
-       vac.o hac.o shc.o compute.o integrate.o ensemble_lan.o ensemble_bdp.o \
-       ensemble.o ensemble_nve.o ensemble_ber.o ensemble_nhc.o \
-       neighbor_ON1.o neighbor_ON2.o neighbor.o velocity.o \
-       measure.o force.o potential.o parse.o gpumd.o main.o
+gpumd: $(OBJ)
+	$(CC) $^ -o $@
 
-main.o: main.cu
-	$(CC) $(CFLAGS) -c main.cu
-gpumd.o: gpumd.cu
-	$(CC) $(CFLAGS) -c gpumd.cu
-atom.o: atom.cu
-	$(CC) $(CFLAGS) -c atom.cu
-parse.o: parse.cu
-	$(CC) $(CFLAGS) -c parse.cu
-velocity.o: velocity.cu
-	$(CC) $(CFLAGS) -c velocity.cu
-potential.o: potential.cu
-	$(CC) $(CFLAGS) -c potential.cu
-neighbor.o: neighbor.cu
-	$(CC) $(CFLAGS) -c neighbor.cu
-neighbor_ON1.o: neighbor_ON1.cu
-	$(CC) $(CFLAGS) -c neighbor_ON1.cu
-neighbor_ON2.o: neighbor_ON2.cu
-	$(CC) $(CFLAGS) -c neighbor_ON2.cu
-measure.o: measure.cu
-	$(CC) $(CFLAGS) -c measure.cu
-integrate.o: integrate.cu
-	$(CC) $(CFLAGS) -c integrate.cu
-ensemble.o: ensemble.cu
-	$(CC) $(CFLAGS) -c ensemble.cu
-ensemble_nve.o: ensemble_nve.cu
-	$(CC) $(CFLAGS) -c ensemble_nve.cu
-ensemble_ber.o: ensemble_ber.cu
-	$(CC) $(CFLAGS) -c ensemble_ber.cu
-ensemble_nhc.o: ensemble_nhc.cu
-	$(CC) $(CFLAGS) -c ensemble_nhc.cu
-ensemble_lan.o: ensemble_lan.cu
-	$(CC) $(CFLAGS) -c ensemble_lan.cu
-ensemble_bdp.o: ensemble_bdp.cu
-	$(CC) $(CFLAGS) -c ensemble_bdp.cu
-compute.o: compute.cu
-	$(CC) $(CFLAGS) -c compute.cu
-shc.o: shc.cu
-	$(CC) $(CFLAGS) -c shc.cu
-vac.o: vac.cu
-	$(CC) $(CFLAGS) -c vac.cu
-hac.o: hac.cu
-	$(CC) $(CFLAGS) -c hac.cu
-hnemd_kappa.o: hnemd_kappa.cu
-	$(CC) $(CFLAGS) -c hnemd_kappa.cu
-validate.o: validate.cu
-	$(CC) $(CFLAGS) -c validate.cu
-force.o: force.cu
-	$(CC) $(CFLAGS) -c force.cu
-pair.o: pair.cu
-	$(CC) $(CFLAGS) -c pair.cu
-eam.o: eam.cu
-	$(CC) $(CFLAGS) -c eam.cu
-sw.o: sw.cu
-	$(CC) $(CFLAGS) -c sw.cu
-vashishta.o: vashishta.cu
-	$(CC) $(CFLAGS) -c vashishta.cu
-tersoff.o: tersoff.cu
-	$(CC) $(CFLAGS) -c tersoff.cu
-rebo_mos2.o: rebo_mos2.cu
-	$(CC) $(CFLAGS) -c rebo_mos2.cu
-error.o: error.cu
-	$(CC) $(CFLAGS) -c error.cu
 clean:
-	rm *o gpumd
-
+	rm $(ODIR)/*o gpumd
 
