@@ -29,8 +29,12 @@ public:
     ~GPUMD(void);
 
 private:
-    void check_velocity_and_potential
-    (char*, Atom*, Force*, Integrate*, Measure*);
+
+    char *get_file_contents (char*);
+    char* row_find_param (char*, char**, int*);
+    void initialize_run(Atom*, Measure*);
+
+    void check_run(char*, Atom*, Force*, Integrate*, Measure*);
     void run(char*, Atom*, Force*, Integrate*, Measure*);
 
     void parse
