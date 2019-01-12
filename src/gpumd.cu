@@ -17,7 +17,7 @@
 
 
 /*----------------------------------------------------------------------------80
-The GPUMD class, which is used by the main funciton.
+The GPUMD class, which is used by the main function.
 ------------------------------------------------------------------------------*/
 
 
