@@ -120,30 +120,44 @@ static __global__ void find_group_force
     }
     if (tid == 0)
     {
-        g_group_fx[bid] = s_fx[0] / (group_size);
-        g_group_fy[bid] = s_fy[0] / (group_size);
-        g_group_fz[bid] = s_fz[0] / (group_size);
+        g_group_fx[bid] = s_fx[0];
+        g_group_fy[bid] = s_fy[0];
+        g_group_fz[bid] = s_fz[0];
     }
 }
 
 
 
 
-static __global__ void find_group_temperature
+static __global__ void find_per_atom_temperature
+(int N, real *g_mass, real *g_vx, real *g_vy, real *g_vz, real *g_temperature)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < N)
+    {
+        real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
+        real ek2 = g_mass[n] * (vx * vx + vy * vy + vz * vz);
+        g_temperature[n] = ek2 / (DIM * K_B);
+    }
+}
+
+
+
+
+static __global__ void find_group_properties
 (
     int  *g_group_size, int  *g_group_size_sum, int  *g_group_contents,
-    real *g_mass, real *g_vx, real *g_vy, real *g_vz, real *g_group_temperature
+    real *g_in, real *g_out
 )
 {
     // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
-
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int group_size = g_group_size[bid];
     int offset = g_group_size_sum[bid];
     int number_of_patches = (group_size - 1) / 256 + 1;
-    __shared__ real s_ke[256];
-    s_ke[tid] = ZERO;
+    __shared__ real s_data[256];
+    s_data[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; patch++)
     {
@@ -151,17 +165,15 @@ static __global__ void find_group_temperature
         if (k < group_size)
         {
             int n = g_group_contents[offset + k]; // particle index
-            real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
-            s_ke[tid] += g_mass[n] * (vx * vx + vy * vy + vz * vz);
+            s_data[tid] += g_in[n];
         }
     }
     __syncthreads();
 
-    if (tid <  128) { s_ke[tid] += s_ke[tid + 128]; }  __syncthreads();
-    if (tid <   64) { s_ke[tid] += s_ke[tid + 64];  }  __syncthreads();
-    if (tid <   32) { warp_reduce(s_ke, tid);       }
-    if (tid ==   0) 
-    {g_group_temperature[bid] = s_ke[0] / (DIM * K_B * group_size);}
+    if (tid < 128) { s_data[tid] += s_data[tid + 128]; }  __syncthreads();
+    if (tid <  64) { s_data[tid] += s_data[tid + 64];  }  __syncthreads();
+    if (tid <  32) { warp_reduce(s_data, tid);         }
+    if (tid ==  0) { g_out[bid] = s_data[0]; }
 }
 
 
@@ -170,7 +182,7 @@ static __global__ void find_group_temperature
 void Compute::process_force(int step, Atom *atom)
 {
     if (!compute_force) return;
-    if (step % interval_force != 0) return;
+    if ((step + 1) % interval_force != 0) return;
     int Ng = atom->number_of_groups;
     real *g_group_fx;
     real *g_group_fy;
@@ -207,24 +219,34 @@ void Compute::process_force(int step, Atom *atom)
 void Compute::process_temperature(int step, Atom *atom, Integrate *integrate)
 {
     if (!compute_temperature) return;
-    if (step % interval_temperature != 0) return;
+    if ((step + 1) % interval_temperature != 0) return;
     int Ng = atom->number_of_groups;
+    int N = atom->N;
 
-    // calculate the block temperatures
-    real *temp_gpu;
-    CHECK(cudaMalloc((void**)&temp_gpu, sizeof(real) * Ng));
-    find_group_temperature<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-        atom->group_contents, atom->mass, atom->vx, atom->vy, atom->vz,
-        temp_gpu);
+    real *gpu_temp_group;
+    CHECK(cudaMalloc((void**)&gpu_temp_group, sizeof(real) * Ng));
+    real *gpu_temp_per_atom;
+    CHECK(cudaMalloc((void**)&gpu_temp_per_atom, sizeof(real) * N));
+
+    find_per_atom_temperature<<<(N-1)/256+1, 256>>>(N, atom->mass, atom->vx,
+        atom->vy, atom->vz, gpu_temp_per_atom);
     CUDA_CHECK_KERNEL
-    CHECK(cudaMemcpy(group_temperature, temp_gpu, sizeof(real) * Ng,
+
+    find_group_properties<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
+        atom->group_contents, gpu_temp_per_atom, gpu_temp_group);
+    CUDA_CHECK_KERNEL
+
+    CHECK(cudaMemcpy(group_temperature, gpu_temp_group, sizeof(real) * Ng,
         cudaMemcpyDeviceToHost));
-    CHECK(cudaFree(temp_gpu));
+
+    CHECK(cudaFree(gpu_temp_group));
+    CHECK(cudaFree(gpu_temp_per_atom));
 
     // output
     for (int k = 0; k < Ng; k++)
     {
-        fprintf(fid_temperature, "%15.6e", group_temperature[k]);
+        fprintf(fid_temperature, "%15.6e", 
+            group_temperature[k]/atom->cpu_group_size[k]);
     }
     fprintf(fid_temperature, "%15.6e",
         integrate->ensemble->energy_transferred[0]);
