@@ -93,7 +93,7 @@ static __global__ void find_group_force
         if (k < group_size)
         {
             int n = g_group_contents[offset + k]; // particle index
-            s_fx[tid] = g_fx[n]; s_fy[tid] = g_fy[n]; s_fz[tid] = g_fz[n];
+            s_fx[tid] += g_fx[n]; s_fy[tid] += g_fy[n]; s_fz[tid] += g_fz[n];
         }
     }
     __syncthreads();
@@ -206,10 +206,9 @@ void Compute::process_force(int step, Atom *atom)
 
     for (int k = 0; k < Ng; k++)
     {
-        fprintf(fid_force, "%15.6e%15.6e%15.6e",
+        fprintf(fid_force, "%15.6e%15.6e%15.6e\n",
             group_fx[k], group_fy[k], group_fz[k]);
     }
-    fprintf(fid_force, "\n");
     fflush(fid_force);
 }
 
