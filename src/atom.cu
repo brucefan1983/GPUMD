@@ -15,6 +15,7 @@
 
 
 
+
 /*----------------------------------------------------------------------------80
 The class defining the simulation model.
 ------------------------------------------------------------------------------*/
@@ -33,21 +34,30 @@ The class defining the simulation model.
 
 
 
-void Atom::initialize_position(char *input_dir)
+Atom::Atom(char *input_dir)
+{ 
+    initialize_position(input_dir);
+    allocate_memory_gpu();
+    copy_from_cpu_to_gpu();
+    find_neighbor(1);
+}
+
+
+
+
+Atom::~Atom(void)
 {
-    print_line_1();
-    printf("Started initializing positions and related parameters.\n");
-    print_line_2();
+    free_memory_cpu();
+    free_memory_gpu();
+}
 
-    int count = 0;
-    char file_xyz[FILE_NAME_LENGTH];
-    strcpy(file_xyz, input_dir);
-    strcat(file_xyz, "/xyz.in");
-    FILE *fid_xyz = my_fopen(file_xyz, "r"); 
 
-    // the first line of the xyz.in file
+
+
+void Atom::read_xyz_in_line_1(FILE* fid_xyz)
+{
     double rc;
-    count = fscanf(fid_xyz, "%d%d%lf", &N, &neighbor.MN, &rc);
+    int count = fscanf(fid_xyz, "%d%d%lf", &N, &neighbor.MN, &rc);
     if (count != 3) print_error("reading error for line 1 of xyz.in.\n");
     neighbor.rc = rc;
     if (N < 1)
@@ -55,37 +65,27 @@ void Atom::initialize_position(char *input_dir)
     else
         printf("Number of atoms is %d.\n", N);
     
-    if (neighbor.MN < 0)
-        print_error("maximum number of neighbors should >= 0\n");
+    if (neighbor.MN < 1)
+        print_error("maximum number of neighbors should >= 1\n");
     else
         printf("Maximum number of neighbors is %d.\n",neighbor.MN);
 
     if (neighbor.rc < 0)
         print_error("initial cutoff for neighbor list should >= 0\n");
     else
-        printf
-        (
-            "Initial cutoff for neighbor list is %g A.\n", 
-            neighbor.rc
-        );    
+        printf("Initial cutoff for neighbor list is %g A.\n", neighbor.rc);
+}  
 
-    // now we have enough information to allocate memroy for the major data
-    MY_MALLOC(cpu_type,       int, N);
-    MY_MALLOC(cpu_type_local, int, N);
-    MY_MALLOC(cpu_label,      int, N);
-    MY_MALLOC(cpu_mass, real, N);
-    MY_MALLOC(cpu_x,    real, N);
-    MY_MALLOC(cpu_y,    real, N);
-    MY_MALLOC(cpu_z,    real, N);
+
+
+
+void Atom::read_xyz_in_line_2(FILE* fid_xyz)
+{
     MY_MALLOC(cpu_box_length, real, 3);
 
-    // the second line of the xyz.in file (boundary conditions and box size)
     double lx, ly, lz;
-    count = fscanf
-    (
-        fid_xyz, "%d%d%d%lf%lf%lf", 
-        &pbc_x, &pbc_y, &pbc_z, &lx, &ly, &lz
-    );
+    int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf", &pbc_x, &pbc_y, &pbc_z,
+        &lx, &ly, &lz);
     if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
     cpu_box_length[0] = lx;
     cpu_box_length[1] = ly;
@@ -111,53 +111,56 @@ void Atom::initialize_position(char *input_dir)
         printf("Use     free boundary conditions along z.\n");
     else
         print_error("invalid boundary conditions along z.\n");
+}
 
-    // the remaining lines in the xyz.in file (type, label, mass, and positions)
-    int max_label = -1; // used to determine the number of groups
-    int max_type = -1; // used to determine the number of types
-    for (int n = 0; n < N; n++) 
+
+
+
+void Atom::read_xyz_in_line_3(FILE* fid_xyz)
+{
+    MY_MALLOC(cpu_type, int, N);
+    MY_MALLOC(cpu_type_local, int, N);
+    MY_MALLOC(cpu_label, int, N);
+    MY_MALLOC(cpu_mass, real, N);
+    MY_MALLOC(cpu_x, real, N);
+    MY_MALLOC(cpu_y, real, N);
+    MY_MALLOC(cpu_z, real, N);
+
+    number_of_groups = -1; number_of_types = -1;
+    for (int n = 0; n < N; n++)
     {
         double mass, x, y, z;
-        count = fscanf
-        (
-            fid_xyz, "%d%d%lf%lf%lf%lf", 
-            &(cpu_type[n]), &(cpu_label[n]), &mass, &x, &y, &z
-        );
+        int count = fscanf(fid_xyz, "%d%d%lf%lf%lf%lf", 
+            &(cpu_type[n]), &(cpu_label[n]), &mass, &x, &y, &z);
         if (count != 6) print_error("reading error for xyz.in.\n");
-        cpu_mass[n] = mass;
-        cpu_x[n] = x;
-        cpu_y[n] = y;
-        cpu_z[n] = z;
-
-        if (cpu_label[n] > max_label)
-            max_label = cpu_label[n];
-
-        if (cpu_type[n] > max_type)
-            max_type = cpu_type[n];
-
-        // copy
+        cpu_mass[n] = mass; cpu_x[n] = x; cpu_y[n] = y; cpu_z[n] = z;
+        if (cpu_label[n] > number_of_groups) number_of_groups = cpu_label[n];
+        if (cpu_type[n] > number_of_types) number_of_types = cpu_type[n];
         cpu_type_local[n] = cpu_type[n];
     }
+    number_of_groups++; number_of_types++;
+}
 
-    fclose(fid_xyz);
 
-    // number of groups determined
-    number_of_groups = max_label + 1;
+
+
+void Atom::find_group_size(void)
+{
+    MY_MALLOC(cpu_group_size, int, number_of_groups);
+    MY_MALLOC(cpu_group_size_sum, int, number_of_groups);
+    MY_MALLOC(cpu_group_contents, int, N);
     if (number_of_groups == 1)
         printf("There is only one group of atoms.\n");
     else
         printf("There are %d groups of atoms.\n", number_of_groups);
 
     // determine the number of atoms in each group
-    MY_MALLOC(cpu_group_size, int, number_of_groups);
-    MY_MALLOC(cpu_group_size_sum, int, number_of_groups);
     for (int m = 0; m < number_of_groups; m++)
     {
         cpu_group_size[m] = 0;
         cpu_group_size_sum[m] = 0;
     }
-    for (int n = 0; n < N; n++) 
-        cpu_group_size[cpu_label[n]]++;
+    for (int n = 0; n < N; n++) cpu_group_size[cpu_label[n]]++;
     for (int m = 0; m < number_of_groups; m++)
         printf("    %d atoms in group %d.\n", cpu_group_size[m], m);   
     
@@ -165,37 +168,62 @@ void Atom::initialize_position(char *input_dir)
     for (int m = 1; m < number_of_groups; m++)
         for (int n = 0; n < m; n++)
             cpu_group_size_sum[m] += cpu_group_size[n];
+}
 
+
+
+void Atom::find_group_contents(void)
+{
     // determine the atom indices from the first to the last group
-    MY_MALLOC(cpu_group_contents, int, N);
-    int *offset;
-    MY_MALLOC(offset, int, number_of_groups);
+    int *offset; MY_MALLOC(offset, int, number_of_groups);
     for (int m = 0; m < number_of_groups; m++) offset[m] = 0;
     for (int n = 0; n < N; n++) 
         for (int m = 0; m < number_of_groups; m++)
             if (cpu_label[n] == m)
-            {
-                cpu_group_contents[cpu_group_size_sum[m]+offset[m]] 
-                    = n;
-                offset[m]++;
-            }
+                cpu_group_contents[cpu_group_size_sum[m]+offset[m]++] = n;
     MY_FREE(offset);
+}
 
-    // number of types determined
-    number_of_types = max_type + 1;
+
+
+
+void Atom::find_type_size(void)
+{
+    MY_MALLOC(cpu_type_size, int, number_of_types);
     if (number_of_types == 1)
         printf("There is only one atom type.\n");
     else
         printf("There are %d atom types.\n", number_of_types);
-
     // determine the number of atoms in each type
-    MY_MALLOC(cpu_type_size, int, number_of_types);
+    for (int m = 0; m < number_of_types; m++) cpu_type_size[m] = 0;
+    for (int n = 0; n < N; n++) cpu_type_size[cpu_type[n]]++;
     for (int m = 0; m < number_of_types; m++)
-        cpu_type_size[m] = 0;
-    for (int n = 0; n < N; n++) 
-        cpu_type_size[cpu_type[n]]++;
-    for (int m = 0; m < number_of_types; m++)
-        printf("    %d atoms of type %d.\n", cpu_type_size[m], m); 
+        printf("    %d atoms of type %d.\n", cpu_type_size[m], m);
+}
+
+
+
+
+void Atom::initialize_position(char *input_dir)
+{
+    print_line_1();
+    printf("Started initializing positions and related parameters.\n");
+    print_line_2();
+
+    char file_xyz[FILE_NAME_LENGTH];
+    strcpy(file_xyz, input_dir);
+    strcat(file_xyz, "/xyz.in");
+    FILE *fid_xyz = my_fopen(file_xyz, "r");
+
+    read_xyz_in_line_1(fid_xyz);
+    read_xyz_in_line_2(fid_xyz);
+    read_xyz_in_line_3(fid_xyz);
+
+    fclose(fid_xyz);
+
+    find_group_size();
+    find_group_contents();
+    find_type_size();
 
     print_line_1();
     printf("Finished initializing positions and related parameters.\n");
@@ -215,14 +243,14 @@ void Atom::allocate_memory_gpu(void)
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
 
     // for indexing
-    CHECK(cudaMalloc((void**)&NN, m1)); 
-    CHECK(cudaMalloc((void**)&NL, m2)); 
-    CHECK(cudaMalloc((void**)&NN_local, m1)); 
+    CHECK(cudaMalloc((void**)&NN, m1));
+    CHECK(cudaMalloc((void**)&NL, m2));
+    CHECK(cudaMalloc((void**)&NN_local, m1));
     CHECK(cudaMalloc((void**)&NL_local, m2));
-    CHECK(cudaMalloc((void**)&type, m1));  
+    CHECK(cudaMalloc((void**)&type, m1));
     CHECK(cudaMalloc((void**)&type_local, m1));
-    CHECK(cudaMalloc((void**)&label, m1)); 
-    CHECK(cudaMalloc((void**)&group_size, m3)); 
+    CHECK(cudaMalloc((void**)&label, m1));
+    CHECK(cudaMalloc((void**)&group_size, m3));
     CHECK(cudaMalloc((void**)&group_size_sum, m3));
     CHECK(cudaMalloc((void**)&group_contents, m1));
 
@@ -240,21 +268,14 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&fx,   m4));
     CHECK(cudaMalloc((void**)&fy,   m4));
     CHECK(cudaMalloc((void**)&fz,   m4));
-
-    CHECK(cudaMalloc((void**)&heat_per_atom, m5));
-
-    // per-atom stress and potential energy, which are always needed
     CHECK(cudaMalloc((void**)&virial_per_atom_x,  m4));
     CHECK(cudaMalloc((void**)&virial_per_atom_y,  m4));
     CHECK(cudaMalloc((void**)&virial_per_atom_z,  m4));
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
+    CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
 
-    // box lengths
     CHECK(cudaMalloc((void**)&box_length, sizeof(real) * DIM));
-
-    // 6 thermodynamic quantities
     CHECK(cudaMalloc((void**)&thermo, sizeof(real) * 6));
-
 }
 
 
@@ -285,23 +306,27 @@ void Atom::copy_from_cpu_to_gpu(void)
 
 
 
-Atom::Atom(char *input_dir)
-{ 
-    initialize_position(input_dir);
-    allocate_memory_gpu();
-    copy_from_cpu_to_gpu();
-
-    // build the initial neighbor list
-    int is_first = 1;
-    find_neighbor(is_first);
+void Atom::free_memory_cpu(void)
+{
+    MY_FREE(cpu_type);
+    MY_FREE(cpu_type_local);
+    MY_FREE(cpu_label);
+    MY_FREE(cpu_group_size);
+    MY_FREE(cpu_group_size_sum);
+    MY_FREE(cpu_group_contents);
+    MY_FREE(cpu_type_size);
+    MY_FREE(cpu_mass);
+    MY_FREE(cpu_x);
+    MY_FREE(cpu_y);
+    MY_FREE(cpu_z);
+    MY_FREE(cpu_box_length);
 }
 
 
 
 
-Atom::~Atom(void)
+void Atom::free_memory_gpu(void)
 {
-    // Free the memory allocated on the GPU
     CHECK(cudaFree(NN)); 
     CHECK(cudaFree(NL)); 
     CHECK(cudaFree(NN_local)); 
@@ -332,20 +357,6 @@ Atom::~Atom(void)
     CHECK(cudaFree(heat_per_atom));    
     CHECK(cudaFree(box_length));
     CHECK(cudaFree(thermo));
-
-    // Free the major memory allocated on the CPU
-    MY_FREE(cpu_type);
-    MY_FREE(cpu_type_local);
-    MY_FREE(cpu_label);
-    MY_FREE(cpu_group_size);
-    MY_FREE(cpu_group_size_sum);
-    MY_FREE(cpu_group_contents);
-    MY_FREE(cpu_type_size);
-    MY_FREE(cpu_mass);
-    MY_FREE(cpu_x);
-    MY_FREE(cpu_y);
-    MY_FREE(cpu_z);
-    MY_FREE(cpu_box_length);
 }
 
 

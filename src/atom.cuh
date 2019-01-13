@@ -104,9 +104,19 @@ public:
     void find_neighbor(int is_first);
 
 private:
+    void read_xyz_in_line_1(FILE*);
+    void read_xyz_in_line_2(FILE*);
+    void read_xyz_in_line_3(FILE*);
+    void find_group_size(void);
+    void find_group_contents(void);
+    void find_type_size(void);
     void initialize_position(char *input_dir);
+
     void allocate_memory_gpu(void);
     void copy_from_cpu_to_gpu(void);
+    void free_memory_cpu(void);
+    void free_memory_gpu(void);
+
     void find_neighbor_ON2(void);
     void find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z);
     void find_neighbor(void);

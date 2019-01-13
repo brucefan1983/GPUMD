@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
     print_line_2();
 
 #ifdef DEBUG
-    printf("DEBUG in on: Use a fixed PRNG seed for differnt runs.\n");
+    printf("DEBUG is on: Use a fixed PRNG seed for differnt runs.\n");
 #else
     srand(time(NULL));
     printf("DEBUG is off: Use differnt PRNG seeds for differnt runs.\n");
