@@ -39,13 +39,18 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 {
     number_of_scalars = 0;
     if (compute_temperature) number_of_scalars += 1;
+    if (compute_potential) number_of_scalars += 1;
     if (compute_force) number_of_scalars += 3;
+    if (compute_virial) number_of_scalars += 3;
+    if (compute_heat_current) number_of_scalars += 3;
     if (number_of_scalars == 0) return;
 
     int number_of_columns = atom->number_of_groups * number_of_scalars;
     MY_MALLOC(cpu_group_sum, real, number_of_columns);
     CHECK(cudaMalloc((void**)&gpu_group_sum, sizeof(real) * number_of_columns));
-    CHECK(cudaMalloc((void**)&gpu_per_atom, sizeof(real) * atom->N));
+    CHECK(cudaMalloc((void**)&gpu_per_atom_x, sizeof(real) * atom->N));
+    CHECK(cudaMalloc((void**)&gpu_per_atom_y, sizeof(real) * atom->N));
+    CHECK(cudaMalloc((void**)&gpu_per_atom_z, sizeof(real) * atom->N));
 
     char filename[200];
     strcpy(filename, input_dir);
@@ -61,7 +66,9 @@ void Compute::postprocess(Atom* atom, Integrate *integrate)
     if (number_of_scalars == 0) return;
     MY_FREE(cpu_group_sum);
     CHECK(cudaFree(gpu_group_sum));
-    CHECK(cudaFree(gpu_per_atom));
+    CHECK(cudaFree(gpu_per_atom_x));
+    CHECK(cudaFree(gpu_per_atom_y));
+    CHECK(cudaFree(gpu_per_atom_z));
     fclose(fid);
 }
 
@@ -77,6 +84,21 @@ static __global__ void find_per_atom_temperature
         real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
         real ek2 = g_mass[n] * (vx * vx + vy * vy + vz * vz);
         g_temperature[n] = ek2 / (DIM * K_B);
+    }
+}
+
+
+
+
+static __global__ void find_per_atom_heat_current
+(int N, real *g_j, real *g_jx, real* g_jy, real* g_jz)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < N)
+    {
+        g_jx[n] = g_j[n] + g_j[n + N];
+        g_jy[n] = g_j[n + N * 2] + g_j[n + N * 3];
+        g_jz[n] = g_j[n + N * 4];
     }
 }
 
@@ -197,10 +219,18 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
     if (compute_temperature)
     {
         find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(N, atom->mass,
-            atom->vx, atom->vy, atom->vz, gpu_per_atom);
+            atom->vx, atom->vy, atom->vz, gpu_per_atom_x);
         CUDA_CHECK_KERNEL
         find_group_sum_1<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-            atom->group_contents, gpu_per_atom, gpu_group_sum + offset);
+            atom->group_contents, gpu_per_atom_x, gpu_group_sum + offset);
+        CUDA_CHECK_KERNEL
+        offset += Ng;
+    }
+    if (compute_potential)
+    {
+        find_group_sum_1<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
+            atom->group_contents, atom->potential_per_atom,
+            gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng;
     }
@@ -209,6 +239,27 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         find_group_sum_3<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
             atom->group_contents, atom->fx, atom->fy, atom->fz,
             gpu_group_sum + offset);
+        CUDA_CHECK_KERNEL
+        offset += Ng * 3;
+    }
+    if (compute_virial)
+    {
+        find_group_sum_3<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
+            atom->group_contents, atom->virial_per_atom_x,
+            atom->virial_per_atom_y, atom->virial_per_atom_z,
+            gpu_group_sum + offset);
+        CUDA_CHECK_KERNEL
+        offset += Ng * 3;
+    }
+    if (compute_heat_current)
+    {
+        find_per_atom_heat_current<<<(N-1)/256+1, 256>>>(N, atom->heat_per_atom,
+            gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z);
+        CUDA_CHECK_KERNEL
+
+        find_group_sum_3<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
+            atom->group_contents, gpu_per_atom_x, gpu_per_atom_y,
+            gpu_per_atom_z, gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }

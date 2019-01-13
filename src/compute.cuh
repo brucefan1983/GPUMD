@@ -29,8 +29,7 @@ public:
     int compute_potential = 0;
     int compute_force = 0;
     int compute_virial = 0;
-    int compute_hc_pot = 0;
-    int compute_hc_kin = 0;
+    int compute_heat_current = 0;
 
     int sample_interval = 1;
     int use_new_group = 0;
@@ -44,7 +43,9 @@ private:
 
     real* cpu_group_sum;
     real* gpu_group_sum;
-    real* gpu_per_atom;
+    real* gpu_per_atom_x;
+    real* gpu_per_atom_y;
+    real* gpu_per_atom_z;
 
     int number_of_scalars = 0;
 

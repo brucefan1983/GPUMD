@@ -815,15 +815,30 @@ static void parse_compute(char **param,  int num_param, Measure* measure)
     }
     for (int k = 0; k < num_param - 2; ++k)
     {
-        if (strcmp(param[k + 2], "temp") == 0)
+        if (strcmp(param[k + 2], "temperature") == 0)
         {
             measure->compute.compute_temperature = 1;
             printf("    temperature\n");
+        }
+        else if (strcmp(param[k + 2], "potential") == 0)
+        {
+            measure->compute.compute_potential = 1;
+            printf("    potential energy\n");
         }
         else if (strcmp(param[k + 2], "force") == 0)
         {
             measure->compute.compute_force = 1;
             printf("    force\n");
+        }
+        else if (strcmp(param[k + 2], "virial") == 0)
+        {
+            measure->compute.compute_virial = 1;
+            printf("    virial\n");
+        }
+        else if (strcmp(param[k + 2], "heat_current") == 0)
+        {
+            measure->compute.compute_heat_current = 1;
+            printf("    potential part of heat current\n");
         }
     }
     printf("    with sampling interval %d.\n",
