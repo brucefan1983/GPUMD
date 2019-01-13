@@ -25,27 +25,30 @@
 class Compute
 {
 public:
-    int compute_force = 0;
     int compute_temperature = 0;
+    int compute_potential = 0;
+    int compute_force = 0;
+    int compute_virial = 0;
+    int compute_hc_pot = 0;
+    int compute_hc_kin = 0;
 
-    int interval_force;
-    int interval_temperature;
+    int sample_interval = 1;
+    int use_new_group = 0;
 
     void preprocess(char*, Atom*);
     void postprocess(Atom* atom, Integrate*);
     void process(int, Atom*, Integrate*);
 
 private:
-    FILE *fid_force;
-    FILE *fid_temperature;
+    FILE* fid;
 
-    real* group_fx;
-    real* group_fy;
-    real* group_fz;
-    real* group_temperature;
+    real* cpu_group_sum;
+    real* gpu_group_sum;
+    real* gpu_per_atom;
 
-    void process_force(int, Atom*);
-    void process_temperature(int, Atom*, Integrate*);
+    int number_of_scalars = 0;
+
+    void output_results(Atom*, Integrate*);
 };
 
 

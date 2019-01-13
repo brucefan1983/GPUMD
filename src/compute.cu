@@ -37,23 +37,46 @@ Compute block (space) averages of various per-atom quantities.
 
 void Compute::preprocess(char* input_dir, Atom* atom)
 {
-    if (compute_force)
+    number_of_scalars = 0;
+    if (compute_temperature) number_of_scalars += 1;
+    if (compute_force) number_of_scalars += 3;
+    if (number_of_scalars == 0) return;
+
+    int number_of_columns = atom->number_of_groups * number_of_scalars;
+    MY_MALLOC(cpu_group_sum, real, number_of_columns);
+    CHECK(cudaMalloc((void**)&gpu_group_sum, sizeof(real) * number_of_columns));
+    CHECK(cudaMalloc((void**)&gpu_per_atom, sizeof(real) * atom->N));
+
+    char filename[200];
+    strcpy(filename, input_dir);
+    strcat(filename, "/compute.out");
+    fid = my_fopen(filename, "a");
+}
+
+
+
+
+void Compute::postprocess(Atom* atom, Integrate *integrate)
+{
+    if (number_of_scalars == 0) return;
+    MY_FREE(cpu_group_sum);
+    CHECK(cudaFree(gpu_group_sum));
+    CHECK(cudaFree(gpu_per_atom));
+    fclose(fid);
+}
+
+
+
+
+static __global__ void find_per_atom_temperature
+(int N, real *g_mass, real *g_vx, real *g_vy, real *g_vz, real *g_temperature)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < N)
     {
-        MY_MALLOC(group_fx, real, atom->number_of_groups);
-        MY_MALLOC(group_fy, real, atom->number_of_groups);
-        MY_MALLOC(group_fz, real, atom->number_of_groups);
-        char filename[200];
-        strcpy(filename, input_dir);
-        strcat(filename, "/force.out");
-        fid_force = my_fopen(filename, "a");
-    }
-    if (compute_temperature)
-    {
-        MY_MALLOC(group_temperature, real, atom->number_of_groups);
-        char filename[200];
-        strcpy(filename, input_dir);
-        strcat(filename, "/temperature.out");
-        fid_temperature = my_fopen(filename, "a");
+        real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
+        real ek2 = g_mass[n] * (vx * vx + vy * vy + vz * vz);
+        g_temperature[n] = ek2 / (DIM * K_B);
     }
 }
 
@@ -69,11 +92,45 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 
-static __global__ void find_group_force
+static __global__ void find_group_sum_1
+(
+    int  *g_group_size, int  *g_group_size_sum, int  *g_group_contents,
+    real *g_in, real *g_out
+)
+{
+    // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int group_size = g_group_size[bid];
+    int offset = g_group_size_sum[bid];
+    int number_of_patches = (group_size - 1) / 256 + 1;
+    __shared__ real s_data[256];
+    s_data[tid] = ZERO;
+
+    for (int patch = 0; patch < number_of_patches; patch++)
+    {
+        int k = tid + patch * 256;
+        if (k < group_size)
+        {
+            int n = g_group_contents[offset + k]; // particle index
+            s_data[tid] += g_in[n];
+        }
+    }
+    __syncthreads();
+
+    if (tid < 128) { s_data[tid] += s_data[tid + 128]; }  __syncthreads();
+    if (tid <  64) { s_data[tid] += s_data[tid + 64];  }  __syncthreads();
+    if (tid <  32) { warp_reduce(s_data, tid);         }
+    if (tid ==  0) { g_out[bid] = s_data[0]; }
+}
+
+
+
+
+static __global__ void find_group_sum_3
 (
     int *g_group_size, int *g_group_size_sum, int *g_group_contents,
-    real *g_fx, real *g_fy, real *g_fz, real *g_group_fx, real *g_group_fy,
-    real *g_group_fz
+    real *g_fx, real *g_fy, real *g_fz, real *g_out
 )
 {
     // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
@@ -120,139 +177,10 @@ static __global__ void find_group_force
     }
     if (tid == 0)
     {
-        g_group_fx[bid] = s_fx[0];
-        g_group_fy[bid] = s_fy[0];
-        g_group_fz[bid] = s_fz[0];
+        g_out[bid] = s_fx[0];
+        g_out[bid + gridDim.x] = s_fy[0];
+        g_out[bid + gridDim.x * 2] = s_fz[0];
     }
-}
-
-
-
-
-static __global__ void find_per_atom_temperature
-(int N, real *g_mass, real *g_vx, real *g_vy, real *g_vz, real *g_temperature)
-{
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < N)
-    {
-        real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
-        real ek2 = g_mass[n] * (vx * vx + vy * vy + vz * vz);
-        g_temperature[n] = ek2 / (DIM * K_B);
-    }
-}
-
-
-
-
-static __global__ void find_group_properties
-(
-    int  *g_group_size, int  *g_group_size_sum, int  *g_group_contents,
-    real *g_in, real *g_out
-)
-{
-    // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int group_size = g_group_size[bid];
-    int offset = g_group_size_sum[bid];
-    int number_of_patches = (group_size - 1) / 256 + 1;
-    __shared__ real s_data[256];
-    s_data[tid] = ZERO;
-
-    for (int patch = 0; patch < number_of_patches; patch++)
-    {
-        int k = tid + patch * 256;
-        if (k < group_size)
-        {
-            int n = g_group_contents[offset + k]; // particle index
-            s_data[tid] += g_in[n];
-        }
-    }
-    __syncthreads();
-
-    if (tid < 128) { s_data[tid] += s_data[tid + 128]; }  __syncthreads();
-    if (tid <  64) { s_data[tid] += s_data[tid + 64];  }  __syncthreads();
-    if (tid <  32) { warp_reduce(s_data, tid);         }
-    if (tid ==  0) { g_out[bid] = s_data[0]; }
-}
-
-
-
-
-void Compute::process_force(int step, Atom *atom)
-{
-    if (!compute_force) return;
-    if ((step + 1) % interval_force != 0) return;
-    int Ng = atom->number_of_groups;
-    real *g_group_fx;
-    real *g_group_fy;
-    real *g_group_fz;
-    CHECK(cudaMalloc((void**)&g_group_fx, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&g_group_fy, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&g_group_fz, sizeof(real) * Ng));
-    find_group_force<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-        atom->group_contents, atom->fx, atom->fy, atom->fz,
-        g_group_fx, g_group_fy, g_group_fz);
-    CUDA_CHECK_KERNEL
-    CHECK(cudaMemcpy(group_fx, g_group_fx, sizeof(real) * Ng,
-        cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(group_fy, g_group_fy, sizeof(real) * Ng,
-        cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(group_fz, g_group_fz, sizeof(real) * Ng,
-        cudaMemcpyDeviceToHost));
-    CHECK(cudaFree(g_group_fx));
-    CHECK(cudaFree(g_group_fy));
-    CHECK(cudaFree(g_group_fz));
-
-    for (int k = 0; k < Ng; k++)
-    {
-        fprintf(fid_force, "%15.6e%15.6e%15.6e\n",
-            group_fx[k], group_fy[k], group_fz[k]);
-    }
-    fflush(fid_force);
-}
-
-
-
-
-void Compute::process_temperature(int step, Atom *atom, Integrate *integrate)
-{
-    if (!compute_temperature) return;
-    if ((step + 1) % interval_temperature != 0) return;
-    int Ng = atom->number_of_groups;
-    int N = atom->N;
-
-    real *gpu_temp_group;
-    CHECK(cudaMalloc((void**)&gpu_temp_group, sizeof(real) * Ng));
-    real *gpu_temp_per_atom;
-    CHECK(cudaMalloc((void**)&gpu_temp_per_atom, sizeof(real) * N));
-
-    find_per_atom_temperature<<<(N-1)/256+1, 256>>>(N, atom->mass, atom->vx,
-        atom->vy, atom->vz, gpu_temp_per_atom);
-    CUDA_CHECK_KERNEL
-
-    find_group_properties<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-        atom->group_contents, gpu_temp_per_atom, gpu_temp_group);
-    CUDA_CHECK_KERNEL
-
-    CHECK(cudaMemcpy(group_temperature, gpu_temp_group, sizeof(real) * Ng,
-        cudaMemcpyDeviceToHost));
-
-    CHECK(cudaFree(gpu_temp_group));
-    CHECK(cudaFree(gpu_temp_per_atom));
-
-    // output
-    for (int k = 0; k < Ng; k++)
-    {
-        fprintf(fid_temperature, "%15.6e", 
-            group_temperature[k]/atom->cpu_group_size[k]);
-    }
-    fprintf(fid_temperature, "%15.6e",
-        integrate->ensemble->energy_transferred[0]);
-    fprintf(fid_temperature, "%15.6e",
-        integrate->ensemble->energy_transferred[1]);
-    fprintf(fid_temperature, "\n");
-    fflush(fid_temperature);
 }
 
 
@@ -260,27 +188,62 @@ void Compute::process_temperature(int step, Atom *atom, Integrate *integrate)
 
 void Compute::process(int step, Atom *atom, Integrate *integrate)
 {
-    process_force(step, atom);
-    process_temperature(step, atom, integrate);
+    if (number_of_scalars == 0) return;
+    if ((step + 1) % sample_interval != 0) return;
+    int Ng = atom->number_of_groups;
+    int N = atom->N;
+
+    int offset = 0;
+    if (compute_temperature)
+    {
+        find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(N, atom->mass,
+            atom->vx, atom->vy, atom->vz, gpu_per_atom);
+        CUDA_CHECK_KERNEL
+        find_group_sum_1<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
+            atom->group_contents, gpu_per_atom, gpu_group_sum + offset);
+        CUDA_CHECK_KERNEL
+        offset += Ng;
+    }
+    if (compute_force)
+    {
+        find_group_sum_3<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
+            atom->group_contents, atom->fx, atom->fy, atom->fz,
+            gpu_group_sum + offset);
+        CUDA_CHECK_KERNEL
+        offset += Ng * 3;
+    }
+    
+    CHECK(cudaMemcpy(cpu_group_sum, gpu_group_sum, 
+        sizeof(real) * Ng * number_of_scalars, cudaMemcpyDeviceToHost));
+
+    output_results(atom, integrate);
 }
 
 
 
 
-void Compute::postprocess(Atom* atom, Integrate *integrate)
+void Compute::output_results(Atom *atom, Integrate *integrate)
 {
-    if (compute_force)
+    int Ng = atom->number_of_groups;
+    for (int n = 0; n < number_of_scalars; ++n)
     {
-        MY_FREE(group_fx);
-        MY_FREE(group_fy);
-        MY_FREE(group_fz);
-        fclose(fid_force);
+        int offset = n * Ng;
+        for (int k = 0; k < Ng; k++)
+        {
+            real tmp = cpu_group_sum[k + offset];
+            if (compute_temperature && n == 0) tmp /= atom->cpu_group_size[k];
+            fprintf(fid, "%15.6e", tmp);
+        }     
     }
+
     if (compute_temperature)
     {
-        MY_FREE(group_temperature);
-        fclose(fid_temperature);
+        fprintf(fid, "%15.6e", integrate->ensemble->energy_transferred[0]);
+        fprintf(fid, "%15.6e", integrate->ensemble->energy_transferred[1]);
     }
+
+    fprintf(fid, "\n");
+    fflush(fid);
 }
 
 

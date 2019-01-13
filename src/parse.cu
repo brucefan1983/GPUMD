@@ -804,37 +804,30 @@ static void parse_deform(char **param,  int num_param, Atom* atom)
 
 
 
-static void parse_compute_force(char **param,  int num_param, Measure* measure)
+static void parse_compute(char **param,  int num_param, Measure* measure)
 {
-    measure->compute.compute_force = 1;
-    if (num_param != 2)
+    printf("Compute group average of:\n");
+    if (num_param <= 2)
+        print_error("compute should have at least 2 parameters.\n");
+    if (!is_valid_int(param[1], &measure->compute.sample_interval))
     {
-        print_error("compute_temp should have 1 parameter.\n");
+        print_error("sampling interval of compute should be integer.\n");
     }
-    if (!is_valid_int(param[1], &measure->compute.interval_force))
+    for (int k = 0; k < num_param - 2; ++k)
     {
-        print_error("temperature sampling interval should be an integer.\n");
+        if (strcmp(param[k + 2], "temp") == 0)
+        {
+            measure->compute.compute_temperature = 1;
+            printf("    temperature\n");
+        }
+        else if (strcmp(param[k + 2], "force") == 0)
+        {
+            measure->compute.compute_force = 1;
+            printf("    force\n");
+        }
     }
-    printf("Compute group temperatures every %d steps.\n",
-        measure->compute.interval_force);
-}
-
-
-
-
-static void parse_compute_temp(char **param,  int num_param, Measure* measure)
-{
-    measure->compute.compute_temperature = 1;
-    if (num_param != 2)
-    {
-        print_error("compute_temp should have 1 parameter.\n");
-    }
-    if (!is_valid_int(param[1], &measure->compute.interval_temperature))
-    {
-        print_error("temperature sampling interval should be an integer.\n");
-    }
-    printf("Compute group temperatures every %d steps.\n",
-        measure->compute.interval_temperature);
+    printf("    with sampling interval %d.\n",
+        measure->compute.sample_interval);
 }
 
 
@@ -954,13 +947,9 @@ void GPUMD::parse
     {
         parse_deform(param, num_param, atom);
     }
-    else if (strcmp(param[0], "compute_force")   == 0)
+    else if (strcmp(param[0], "compute")        == 0)
     {
-        parse_compute_force(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "compute_temp")   == 0)
-    {
-        parse_compute_temp(param, num_param, measure);
+        parse_compute(param, num_param, measure);
     }
     else if (strcmp(param[0], "fix")            == 0)
     {
