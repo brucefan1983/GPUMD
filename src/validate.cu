@@ -16,16 +16,25 @@
 
 
 
-#include "common.cuh"
+/*----------------------------------------------------------------------------80
+Use finite difference to validate the analytical force calculations.
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "validate.cuh"
+
 #include "force.cuh"
+#include "atom.cuh"
+#include "error.cuh"
 
-
-
+#define BLOCK_SIZE 128
 
 // This choice gives optimal accuracy for finite-difference calculations
 #define DX1 1.0e-7
 #define DX2 2.0e-7
+
 
 
 
@@ -125,7 +134,7 @@ static __global__ void sum_potential(int N, int m, real *p, real *p_sum)
     if (tid ==  0) 
     {
         p_sum[m] = s_sum[0]; 
-    }       		
+    }
 }
 
 
@@ -150,32 +159,36 @@ static __global__ void find_force_from_potential
 
 
 void validate_force
-(Force *force, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+(Force *force, Atom *atom, Measure* measure)
 {
-    int N = para->N;
+    int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
     int M = sizeof(real) * N;
-    real *x = gpu_data->x;
-    real *y = gpu_data->y;
-    real *z = gpu_data->z;
-    real *fx = cpu_data->fx;
-    real *fy = cpu_data->fy;
-    real *fz = cpu_data->fz;
+    real *x = atom->x;
+    real *y = atom->y;
+    real *z = atom->z;
+    real *fx;
+    real *fy;
+    real *fz;
+    MY_MALLOC(fx, real, N);
+    MY_MALLOC(fy, real, N);
+    MY_MALLOC(fz, real, N);
 
     // first calculate the forces directly:
-    force->compute(para, gpu_data);
+    force->compute(atom, measure);
 
     // make a copy of the positions
     real *x0, *y0, *z0;
-    cudaMalloc((void**)&x0, M);
-    cudaMalloc((void**)&y0, M);
-    cudaMalloc((void**)&z0, M);
+    CHECK(cudaMalloc((void**)&x0, M));
+    CHECK(cudaMalloc((void**)&y0, M));
+    CHECK(cudaMalloc((void**)&z0, M));
     copy_positions<<<grid_size, BLOCK_SIZE>>>(N, x, y, z, x0, y0, z0);
-    
+    CUDA_CHECK_KERNEL
+
     // get the potentials
     real *p1, *p2;
-    cudaMalloc((void**)&p1, M * 3);
-    cudaMalloc((void**)&p2, M * 3);
+    CHECK(cudaMalloc((void**)&p1, M * 3));
+    CHECK(cudaMalloc((void**)&p2, M * 3));
     for (int d = 0; d < 3; ++d)
     {
         for (int n = 0; n < N; ++n)
@@ -185,52 +198,58 @@ void validate_force
             // shift one atom to the left by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
             (d, n, 1, x0, y0, z0, x, y, z);
+            CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(para, gpu_data);
+            force->compute(atom, measure);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, gpu_data->potential_per_atom, p1); 
+            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p1);
+            CUDA_CHECK_KERNEL
 
             // shift one atom to the right by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
             (d, n, 2, x0, y0, z0, x, y, z);
+            CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(para, gpu_data);
+            force->compute(atom, measure);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, gpu_data->potential_per_atom, p2);     
+            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2);
+            CUDA_CHECK_KERNEL
         }
     }
 
     // copy the positions back (as if nothing happens)
     copy_positions<<<grid_size, BLOCK_SIZE>>>(N, x0, y0, z0, x, y, z);
+    CUDA_CHECK_KERNEL
 
     // get the forces from the potential energies using finite difference
     real *fx_compare, *fy_compare, *fz_compare;
-    cudaMalloc((void**)&fx_compare, M);
-    cudaMalloc((void**)&fy_compare, M);
-    cudaMalloc((void**)&fz_compare, M);
+    CHECK(cudaMalloc((void**)&fx_compare, M));
+    CHECK(cudaMalloc((void**)&fy_compare, M));
+    CHECK(cudaMalloc((void**)&fz_compare, M));
     find_force_from_potential<<<grid_size, BLOCK_SIZE>>>
     (N, p1, p2, fx_compare, fy_compare, fz_compare);
+    CUDA_CHECK_KERNEL
 
     // open file
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    CHECK(cudaMemcpy(cpu_data->fx, gpu_data->fx, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fy, gpu_data->fy, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fz, gpu_data->fz, M, cudaMemcpyDeviceToHost));    
+    CHECK(cudaMemcpy(fx, atom->fx, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy, atom->fy, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz, atom->fz, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
     }
  
     // output the forces from finite difference
-    CHECK(cudaMemcpy(cpu_data->fx, fx_compare, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fy, fy_compare, M, cudaMemcpyDeviceToHost)); 
-    CHECK(cudaMemcpy(cpu_data->fz, fz_compare, M, cudaMemcpyDeviceToHost));   
+    CHECK(cudaMemcpy(fx, fx_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy, fy_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz, fz_compare, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
@@ -241,14 +260,17 @@ void validate_force
     fclose(fid); 
     
     // free memory
-    cudaFree(x0);  
-    cudaFree(y0); 
-    cudaFree(z0); 
-    cudaFree(p1); 
-    cudaFree(p2); 
-    cudaFree(fx_compare); 
-    cudaFree(fy_compare); 
-    cudaFree(fz_compare);  
+    MY_FREE(fx);
+    MY_FREE(fy);
+    MY_FREE(fz);
+    CHECK(cudaFree(x0));
+    CHECK(cudaFree(y0));
+    CHECK(cudaFree(z0));
+    CHECK(cudaFree(p1));
+    CHECK(cudaFree(p2));
+    CHECK(cudaFree(fx_compare));
+    CHECK(cudaFree(fy_compare));
+    CHECK(cudaFree(fz_compare));
 }
 
 

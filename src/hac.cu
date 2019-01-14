@@ -16,10 +16,23 @@
 
 
 
-#include "common.cuh"
+/*----------------------------------------------------------------------------80
+Calculate the heat current autocorrelation (HAC) function.
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "hac.cuh"
+
 #include "integrate.cuh"
 #include "ensemble.cuh"
+#include "atom.cuh"
+#include "error.cuh"
+
+#define NUM_OF_HEAT_COMPONENTS 5
+#define FILE_NAME_LENGTH 200
+#define DIM 3
 
 
 
@@ -34,13 +47,13 @@ static __device__ void warp_reduce(volatile real *s, int t)
 
 
 //Allocate memory for recording heat current data
-void preprocess_hac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void HAC::preprocess(Atom *atom)
 {
-    if (para->hac.compute)
+    if (compute)
     {
-        int num = NUM_OF_HEAT_COMPONENTS * para->number_of_steps 
-                / para->hac.sample_interval;
-        CHECK(cudaMalloc((void**)&gpu_data->heat_all, sizeof(real) * num));
+        int num = NUM_OF_HEAT_COMPONENTS * atom->number_of_steps 
+                / sample_interval;
+        CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
     }
 }
 
@@ -104,28 +117,25 @@ static __global__ void gpu_sum_heat
 
 
 // sample heat current data for HAC calculations.
-void sample_hac
-(
-    int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-)
+void HAC::process(int step, char *input_dir, Atom *atom)
 {
-    if (para->hac.compute)
+    if (compute)
     { 
-        if (step % para->hac.sample_interval == 0)
+        if (step % sample_interval == 0)
         {   
             // get the total heat current from the per-atom heat current
-            int nd = step / para->hac.sample_interval;
-            int Nd = para->number_of_steps / para->hac.sample_interval;
+            int nd = step / sample_interval;
+            int Nd = atom->number_of_steps / sample_interval;
             int M = NUM_OF_HEAT_COMPONENTS + DIM;
             real *gpu_heat;
             CHECK(cudaMalloc((void**)&gpu_heat, sizeof(real) * M));
             gpu_sum_heat<<<M, 1024>>>
             (
-                para->N, Nd, nd, gpu_data->vx, gpu_data->vy, gpu_data->vz,
-                gpu_data->mass, gpu_data->potential_per_atom,
-                gpu_data->heat_per_atom, gpu_data->heat_all, gpu_heat
+                atom->N, Nd, nd, atom->vx, atom->vy, atom->vz,
+                atom->mass, atom->potential_per_atom,
+                atom->heat_per_atom, heat_all, gpu_heat
             );
+            CUDA_CHECK_KERNEL
 #ifdef HEAT_CURRENT
             // dump the heat current components
             char file_heat[FILE_NAME_LENGTH];
@@ -143,7 +153,7 @@ void sample_hac
             fclose(fid);
             MY_FREE(cpu_heat);
 #endif
-            cudaFree(gpu_heat);
+            CHECK(cudaFree(gpu_heat));
         }
     }
 }
@@ -240,7 +250,8 @@ static real get_volume(real *box_gpu)
 {
     real *box_cpu;
     MY_MALLOC(box_cpu, real, 3);
-    cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3,
+        cudaMemcpyDeviceToHost));
     real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
     MY_FREE(box_cpu);
     return volume;
@@ -252,18 +263,13 @@ static real get_volume(real *box_gpu)
 // Calculate 
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
-static void find_hac_kappa
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, 
-    GPU_Data *gpu_data, Integrate *integrate
-)
+void HAC::find_hac_kappa
+(char *input_dir, Atom *atom, Integrate *integrate)
 {
     // rename variables
-    int number_of_steps = para->number_of_steps;
-    int sample_interval = para->hac.sample_interval;
-    int Nc = para->hac.Nc;
-    real temperature = para->temperature2;
-    real time_step = para->time_step;
+    int number_of_steps = atom->number_of_steps;
+    real temperature = atom->temperature2;
+    real time_step = atom->time_step;
 
     // other parameters
     int Nd = number_of_steps / sample_interval;
@@ -284,7 +290,8 @@ static void find_hac_kappa
     (cudaMalloc((void**)&g_hac, sizeof(real) * Nc * NUM_OF_HEAT_COMPONENTS));
 
     // Here, the block size is fixed to 128, which is a good choice
-    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, gpu_data->heat_all, g_hac);
+    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all, g_hac);
+    CUDA_CHECK_KERNEL
 
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
@@ -293,7 +300,7 @@ static void find_hac_kappa
         cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_hac));
 
-    real volume = get_volume(gpu_data->box_length);
+    real volume = get_volume(atom->box_length);
     real factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
  
@@ -303,15 +310,15 @@ static void find_hac_kappa
     strcpy(file_hac, input_dir);
     strcat(file_hac, "/hac.out");
     FILE *fid = fopen(file_hac, "a");
-    int number_of_output_data = Nc / para->hac.output_interval;
+    int number_of_output_data = Nc / output_interval;
     for (int nd = 0; nd < number_of_output_data; nd++)
     {
-        int nc = nd * para->hac.output_interval;
+        int nc = nd * output_interval;
         real hac_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
         real rtc_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
         for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
         {
-            for (int m = 0; m < para->hac.output_interval; m++)
+            for (int m = 0; m < output_interval; m++)
             {
                 int count = Nc * k + nc + m;
                 hac_ave[k] += hac[count];
@@ -320,11 +327,11 @@ static void find_hac_kappa
         }
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++)
         {
-            hac_ave[m] /= para->hac.output_interval;
-            rtc_ave[m] /= para->hac.output_interval;
+            hac_ave[m] /= output_interval;
+            rtc_ave[m] /= output_interval;
         }
         fprintf
-        (fid, "%25.15e", (nc + para->hac.output_interval * 0.5) * dt_in_ps);
+        (fid, "%25.15e", (nc + output_interval * 0.5) * dt_in_ps);
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
         { fprintf(fid, "%25.15e", hac_ave[m]); }
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
@@ -342,19 +349,15 @@ static void find_hac_kappa
 
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
-void postprocess_hac
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data,
-    GPU_Data *gpu_data, Integrate *integrate
-)
+void HAC::postprocess(char *input_dir, Atom *atom, Integrate *integrate)
 {
-    if (para->hac.compute) 
-    {
-        printf("INFO:  start to calculate HAC and related quantities.\n");
-        find_hac_kappa(input_dir, para, cpu_data, gpu_data, integrate);
-        CHECK(cudaFree(gpu_data->heat_all));
-        printf("INFO:  HAC and related quantities are calculated.\n\n");
-    }
+    if (!compute) return;
+    print_line_1();
+    printf("Start to calculate HAC and related quantities.\n");
+    find_hac_kappa(input_dir, atom, integrate);
+    CHECK(cudaFree(heat_all));
+    printf("HAC and related quantities are calculated.\n");
+    print_line_2();
 }
 
 

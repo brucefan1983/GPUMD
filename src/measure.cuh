@@ -16,9 +16,16 @@
 
 
 
-#ifndef MEASURE_H
-#define MEASURE_H
-class Integrate;
+#pragma once
+#include "common.cuh"
+
+#include "vac.cuh"
+#include "hac.cuh"
+#include "shc.cuh"
+#include "hnemd_kappa.cuh"
+#include "compute.cuh"
+
+#define FILE_NAME_LENGTH      200
 
 
 
@@ -28,9 +35,9 @@ class Measure
 public:
     Measure(char *input_dir);
     ~Measure(void);
-    void initialize(Parameters*, CPU_Data*, GPU_Data*);
-    void finalize(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*);
-    void compute(char*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
+    void initialize(char*, Atom*);
+    void finalize(char*, Atom*, Integrate*);
+    void process(char*, Atom*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
     int dump_velocity;
@@ -59,20 +66,20 @@ public:
     char file_potential[FILE_NAME_LENGTH];
     char file_virial[FILE_NAME_LENGTH];    
     char file_heat[FILE_NAME_LENGTH];
+    VAC vac;
+    HAC hac;
+    SHC shc;
+    HNEMD hnemd;
+    Compute compute;
 protected:
-    void dump_thermos(FILE*, Parameters*, CPU_Data*, GPU_Data*, Integrate*, int);
-    void dump_positions(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_velocities(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_forces(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_potentials(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_virials(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
-    void dump_heats(FILE*, Parameters*, CPU_Data*, GPU_Data*, int);
+    void dump_thermos(FILE*, Atom*, int);
+    void dump_positions(FILE*, Atom*, int);
+    void dump_velocities(FILE*, Atom*, int);
+    void dump_forces(FILE*, Atom*, int);
+    void dump_potentials(FILE*, Atom*, int);
+    void dump_virials(FILE*, Atom*, int);
+    void dump_heats(FILE*, Atom*, int);
 };
-
-
-
-
-#endif
 
 
 

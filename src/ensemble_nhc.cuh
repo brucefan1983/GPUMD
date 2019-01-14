@@ -14,13 +14,10 @@
 */
 
 
-#ifndef ENSEMBLE_NHC_H
-#define ENSEMBLE_NHC_H
+#pragma once
 
 
 #include "ensemble.cuh"
-class Force;
-
 
 
 
@@ -30,17 +27,11 @@ public:
     Ensemble_NHC(int, int, real, real, real);   
     Ensemble_NHC(int, int, int, int, int, real, real, real, real); 
     virtual ~Ensemble_NHC(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    virtual void compute(Atom*, Force*, Measure*);
 protected:
-    void integrate_nvt_nhc(Parameters*, CPU_Data*, GPU_Data*, Force*);
-    void integrate_heat_nhc(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    void integrate_nvt_nhc(Atom*, Force*, Measure*);
+    void integrate_heat_nhc(Atom*, Force*, Measure*);
 };
-
-
-
-
-
-#endif
 
 
 

@@ -16,9 +16,19 @@
 
 
 
-#include "common.cuh"
-#include "mic.inc"
-#include "neighbor_ON2.cuh"
+/*----------------------------------------------------------------------------80
+Construct the neighbor list using the O(N^2) method.
+------------------------------------------------------------------------------*/
+
+
+
+
+#include "atom.cuh"
+#include "error.cuh"
+#include "ldg.cuh"
+
+#define BLOCK_SIZE 128
+
 
 
 
@@ -27,10 +37,7 @@ static __global__ void gpu_find_neighbor_ON2
 (
     int pbc_x, int pbc_y, int pbc_z,
     int N, real cutoff_square, 
-    real *box, 
-    #ifdef TRICLINIC
-    real *box_inv,
-    #endif
+    real *box,
     int *NN, int *NL, real *x, real *y, real *z
 )
 {
@@ -48,13 +55,9 @@ static __global__ void gpu_find_neighbor_ON2
             real x12  = x[n2] - x1;  
             real y12  = y[n2] - y1;
             real z12  = z[n2] - z1;
-            
-            #ifdef TRICLINIC
-            apply_mic(pbc_x, pbc_y, pbc_z, box, box_inv, x12, y12, z12);
-            #else
+
             dev_apply_mic
             (pbc_x, pbc_y, pbc_z, x12, y12, z12, box[0], box[1], box[2]);
-            #endif
 
             real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
@@ -71,40 +74,17 @@ static __global__ void gpu_find_neighbor_ON2
 
 
 // a driver function
-void find_neighbor_ON2(Parameters *para, GPU_Data *gpu_data)
-{                           
-    int N = para->N;
+void Atom::find_neighbor_ON2(void)
+{
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    int pbc_x = para->pbc_x;
-    int pbc_y = para->pbc_y;
-    int pbc_z = para->pbc_z;
-    real rc = para->neighbor.rc;
+    real rc = neighbor.rc;
     real rc2 = rc * rc; 
-    int *NN = gpu_data->NN;
-    int *NL = gpu_data->NL;
-    real *x = gpu_data->x;
-    real *y = gpu_data->y;
-    real *z = gpu_data->z;
-    #if TRICLINIC
-    real *box = gpu_data->box_matrix;
-    real *box_inv = gpu_data->box_matrix_inv;
-    #else
-    real *box = gpu_data->box_length;
-    #endif
-    
+    real *box = box_length;
+
     // Find neighbours
-    #if TRICLINIC
-    gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
-    (pbc_x, pbc_y, pbc_z, N, rc2, box, box_inv, NN, NL, x, y, z);
-    #else
     gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
     (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, x, y, z);
-    #endif
-
-    #ifdef DEBUG
-        CHECK(cudaDeviceSynchronize());
-        CHECK(cudaGetLastError());
-    #endif
+    CUDA_CHECK_KERNEL
 }
 
 

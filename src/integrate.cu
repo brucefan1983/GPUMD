@@ -14,15 +14,27 @@
 */
 
 
-#include "common.cuh"
+
+
+/*----------------------------------------------------------------------------80
+The driver class for the various integrators.
+------------------------------------------------------------------------------*/
+
+
+
+
+#include "integrate.cuh"
+
+#include "atom.cuh"
 #include "ensemble.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble_lan.cuh"
 #include "ensemble_bdp.cuh"
-#include "integrate.cuh"
 #include "force.cuh"
+
+
 
 
 
@@ -47,7 +59,7 @@ void Integrate::finalize(void)
 }
 
 
-void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
+void Integrate::initialize(Atom* atom)
 {
     // determine the integrator
     switch (type)
@@ -62,13 +74,13 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
         case 2: // NVT-NHC
             ensemble = new Ensemble_NHC            
             (
-                type, para->N, temperature, temperature_coupling, 
-                para->time_step
+                type, atom->N, temperature, temperature_coupling, 
+                atom->time_step
             );
             break;
         case 3: // NVT-Langevin
             ensemble = new Ensemble_LAN
-            (type, para->N, temperature, temperature_coupling);
+            (type, atom->N, temperature, temperature_coupling);
             break;
         case 4: // NVT-BDP
             ensemble = new Ensemble_BDP            
@@ -84,19 +96,19 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
         case 21: // heat-NHC
             ensemble = new Ensemble_NHC
             (
-                type, source, sink, cpu_data->group_size[source], 
-                cpu_data->group_size[sink], temperature, temperature_coupling, 
-                delta_temperature, para->time_step
+                type, source, sink, atom->cpu_group_size[source], 
+                atom->cpu_group_size[sink], temperature, temperature_coupling, 
+                delta_temperature, atom->time_step
             );
             break;
         case 22: // heat-Langevin
             ensemble = new Ensemble_LAN
             (
                 type, source, sink, 
-                cpu_data->group_size[source],
-                cpu_data->group_size[sink],
-                cpu_data->group_size_sum[source],
-                cpu_data->group_size_sum[sink],
+                atom->cpu_group_size[source],
+                atom->cpu_group_size[sink],
+                atom->cpu_group_size_sum[source],
+                atom->cpu_group_size_sum[sink],
                 temperature, temperature_coupling, delta_temperature
             );
             break;
@@ -117,9 +129,9 @@ void Integrate::initialize(Parameters *para, CPU_Data *cpu_data)
 
 
 void Integrate::compute
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Atom *atom, Force *force, Measure* measure)
 {
-    ensemble->compute(para, cpu_data, gpu_data, force);
+    ensemble->compute(atom, force, measure);
 }
 
 

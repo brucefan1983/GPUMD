@@ -34,19 +34,19 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 2.0\\
+   Version 2.1\\
    \vspace*{1.0cm}
-   (Nov 23, 2018)\\
+   (Jan 13, 2018)\\
   \vspace*{2.0cm}
   }
   \large
   {
   Authors: \\
-  Zheyong Fan,
-  Ville Vierimaa,
-  Mikko Ervasti,
-  Ari Harju \\
-  Department of Applied Physics, Aalto University
+  Zheyong Fan (Bohai University \& Aalto University)\\
+  Ville Vierimaa (Aalto University)\\
+  Mikko Ervasti (Aalto University)\\
+  Alexander J. Gabourie (Stanford University)\\
+  Ari Harju (Aalto University)\\
   }
   \vspace*{1.0cm}
 \end{center}
@@ -275,6 +275,10 @@ We are working on implementing more integration methods.
     \item Added the Bussi-Donadio-Parrinello thermostat \cite{bussi2007jcp}.
 \end{enumerate}
 
+\subsection{Major changes introduced in version 2.1}
+\begin{enumerate}
+    \item Implemented (by the new contributor Alexander J. Gabourie) a general version of the spectral heat current (SHC) method. The previous version assumed that one atom from one group of the interface has at most one neighbor from the other group of the (imaginary) interface.
+\end{enumerate}
 
 \section{TODO List}
 
@@ -326,17 +330,32 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
- The logical dependence of the files is schematically shown in Fig. \ref{figure:gpumd-structure}.
-The current version of GPUMD has about 15 000 lines of code. Most files come in pairs. For example, \verb"gpumd" below means \verb"gpumd.cu" and \verb"gpumd.cuh". If a file does not come in pair, we write the suffix explicitly. In the figure, if there is an arrow pointing from file A to file B, it means that file A will call some functions in file B or the class defined in file A is inherited from the class defined in file B. Nearly all the files depend on \verb"common", as indicated by the many arrows pointing to it. Not all the files are in the figure.
+The current version of GPUMD has about 15 000 lines of code. The structure of the code is as follows:
+\begin{itemize}
+\item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
 
 
-\begin{figure}[ht]
-\begin{center}
-\includegraphics[width=\columnwidth]{gpumd-structure.eps}
-\caption{Overall structure of the GPUMD program. This artwork is made by Ke Xu.}
-\label{figure:gpumd-structure}
-\end{center}
-\end{figure}
+\item The \verb"GPUMD" class is implemented in these files: \verb"gpumd.cuh", \verb"gpumd.cu", \verb"run.cu", \verb"check_run.cu", and \verb"parse.cu". \textcolor{red}{There are 5 files in total here.} This class controls the overall flow of the code. The \verb"GPUMD" class uses all the other major classes: \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure". 
+
+\item The \verb"Atom" class contains the major data related to the atoms (such as the various per-atom physical quantities, the simulation box, the neighbor list, etc) and functions used to initializing and finalizing these data. This class involves the files \verb"atom.cuh", \verb"atom.cu", \verb"velocity.cu", \verb"neighbor.cu", \verb"neighbor_ON1.cu", and \verb"neighbor_ON2.cu". \textcolor{red}{There are 6 files in total here.}
+
+\item The \verb"Force" class (in files \verb"force.cuh" and \verb"force.cu") deals with everything related to force evaluation. The \verb"Force" class contains pointers of the abstract base class (ABC) \verb"Potential" class (in files \verb"potential.cuh" and \verb"potential.cu"). This ABC is inherited by some classes, each corresponding to a specific empirical potential. The potential classes are \verb"Pair" (in files \verb"pair.cuh" and \verb"pair.cu"), \verb"EAM" (in files \verb"eam.cuh" and \verb"eam.cu"), \verb"SW" (in files \verb"sw.cuh" and \verb"sw.cu"), \verb"Tersoff" (in files \verb"tersoff.cuh" and \verb"tersoff.cu"), \verb"Vashishta" (in files \verb"vashishta.cuh" and \verb"vashishta.cu"), and \verb"REBO_MOS" (in files \verb"rebo_mos2.cuh" and \verb"rebo_mos2.cu"). \textcolor{red}{There are 16 files in total here.}
+
+\item The \verb"Integrate" class (in files \verb"integrate.cuh" and \verb"integrate.cu") deals with everything related to time integration. The \verb"Itegrate" class contains a pointer of the ABC \verb"Ensemble" class (in files \verb"ensemble.cuh" and \verb"ensemble.cu"). This ABC is inherited by some classes, each corresponding to a specific integrator. The integrator classes are \verb"Ensemble_NVE" (in files \verb"ensemble_nve.cuh" and \verb"ensemble_nve.cu"), \verb"Ensemble_BER" (in files \verb"ensemble_ber.cuh" and \verb"ensemble_ber.cu"), \verb"Ensemble_NHC" (in files \verb"ensemble_nhc.cuh" and \verb"ensemble_nhc.cu"), \verb"Ensemble_LAN" (in files \verb"ensemble_lan.cuh" and \verb"ensemble_lan.cu"), and \verb"Ensemble_BDP" (in files \verb"ensemble_bdp.cuh" and \verb"ensemble_bdp.cu").  \textcolor{red}{There are 14 files in total here.}
+
+\item The \verb"Measure" class (in files \verb"measure.cuh" and \verb"measure.cu") deals with everything related to measurement. The \verb"Measure" class contains a few other classes, including the  \verb"VAC" class (in files \verb"vac.cuh" and \verb"vac.cu"), the \verb"HAC" class (in files \verb"hac.cuh" and \verb"hac.cu"), \verb"SHC" class (in files \verb"shc.cuh" and \verb"shc.cu"), the \verb"HNEMD" class (in files \verb"hnemd_kappa.cuh" and \verb"hnemd_kappa.cu"), and the \verb"Compute" class (in files \verb"compute.cuh" and \verb"compute.cu"). \textcolor{red}{There are 12 files in total here.}
+
+\item There is a header called \verb"common.cuh" which is included in most of the other headers. This is a light-weighted header, which only contains some type definitions and forward declarations. \textcolor{red}{One file here.}
+
+\item There is a header called \verb"ldg.cuh" which is included in some potential class files. This is used to choose between using the \verb"__ldg()" function and the normal array indexing for some global memory reading. \textcolor{red}{One file here.}
+
+\item Some macros and functions for error handling are contained in the files \verb"error.cuh" and \verb"error.cu". \textcolor{red}{Two files here.}
+
+\item There are two files named \verb"validate.cuh" and \verb"validate.cu" which are only used by the developers. \textcolor{red}{Two files here.}
+\end{itemize}
+
+How many files in total? \textcolor{red}{60!}
+
 
 \section{Coding style of GPUMD}
 
@@ -2411,9 +2430,27 @@ To compile GPUMD, one just needs to go to the \verb"src" directory and type \ver
 
 In the \verb"makefle", the default compiling flag is
 \begin{verbatim}
-    CFLAGS = -std=c++11 -O3 -DUSE_LDG -DUSE_DP -arch=sm_35
+    CFLAGS = -std=c++11 -O3 -arch=sm_35
 \end{verbatim}
-If you want to obtain a version using single-precision arithmetics for all the floating point calculations in the code, you can remove \verb"-DUSE_DP". If you want to obtain a version without any randomness in the calculations, which is suitable for debugging, you can add \verb"-DDEBUG" in this line. The last option \verb"-arch=sm_35" specifies the compute capability of the target GPU card (e.g., 3.5 for Tesla K40) you will use. Note that GPUs with compute capability less than 2.0 are not supported by GPUMD.
+This means that
+\begin{itemize}
+\item The \verb"C++" part uses the \verb"C++11" standard.
+\item The \verb"C++" part has an optimization level of 3.
+\item The CUDA part is compiled with a target compute capability of 3.5. \textcolor{red}{Note that GPUs with compute capability less than 3.5 are not supported by GPUMD.}
+\end{itemize}
+
+One can specify some compiling flags in the makefile in this way:
+\begin{verbatim}
+    CFLAGS = -std=c++11 -O3 -arch=sm_35 -DFLAG
+\end{verbatim}
+Here are the possible \verb"-DFLAG"s:
+\begin{itemize}
+\item \verb"-DUSE_SP"\\
+When this is specified, the code will be compiled as a single-precision version. We do not recommend to use this version, but the users can try.
+\item \verb"-DDEBUG"\\
+When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will make sure to get exactly the same output for the same input. However, due to some limitations of the current implementation of GPUMD, the code will always use the $O(N^2)$ version to generate the neighbor list, which is not efficient for large systems. 
+\end{itemize}
+
 
 \subsection{Run simulations with GPUMD}
 
@@ -2719,8 +2756,6 @@ This keyword is used to compute the nonequilibrium heat flux correlation functio
 \end{verbatim}
 means that (1) you want to do this calculation; (2) the relevant data will be sampled every step; (3) the maximum number of correlation steps is $500$; (4) the correlation function $K_{A \rightarrow B}(t)$ will be calculated every 5000 steps (If the number of steps in this run is 100000, there will be $100000/5000=20$ independent correlation functions calculated); (5) the group label of $A$ is 10 and that of $B$ is 11. The results will be written into a file named \verb"shc.out" in the same folder where you put your \verb"run.in" file in.
 
-\textcolor{red}{Warning: The current implementation only applies to situations in which each atom in group $A$ only has at most one neighbor atom in group $B$. We are working on a more general implementation.}
-
 
 \subsection{The compute vac keyword}
 
@@ -2792,8 +2827,8 @@ This file is generated by using the \verb"dump_thermo" keyword in the \verb"run.
 There are 9 columns in the thermo.out file, each containing the values of a quantity at increasing time points. The quantities are as follows:
 \begin{itemize}
 \item column 1: temperature (in units of K)
-\item column 2: total energy (in units of eV) of the system if the thermostat method is Nos\'{e}-Hoover chain and kinetic energy (in unit of eV) of the system otherwise
-\item column 3: total energy (in units of eV) of the thermostat if the thermostat method is Nos\'{e}-Hoover chain and potential energy (in unit of eV) of the system otherwise
+\item column 2: kinetic energy (in unit of eV) of the system
+\item column 3: potential energy (in unit of eV) of the system
 \item column 4: pressure (in units of GPa) in the $x$ direction
 \item column 5: pressure (in units of GPa) in the $y$ direction
 \item column 6: pressure (in units of GPa) in the $z$ direction

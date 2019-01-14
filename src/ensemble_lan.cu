@@ -16,16 +16,24 @@
 
 
 
-#include "common.cuh"
+/*----------------------------------------------------------------------------80
+The Bussi-Parrinello integrator of the Langevin thermostat:
+[1] G. Bussi and M. Parrinello, Phys. Rev. E 75, 056707 (2007).
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "ensemble_lan.cuh"
-#include "ensemble.inc"
+
 #include "force.cuh"
 #include <curand_kernel.h>
+#include "atom.cuh"
+#include "error.cuh"
 
+#define BLOCK_SIZE 128
 
-
-
-#ifdef USE_DP
+#ifndef USE_SP
     #define CURAND_NORMAL(a) curand_normal_double(a)
 #else
     #define CURAND_NORMAL(a) curand_normal(a)
@@ -52,9 +60,10 @@ Ensemble_LAN::Ensemble_LAN(int t, int N, real T, real Tc)
     temperature_coupling = Tc;
     c1 = exp(-HALF/temperature_coupling);
     c2 = sqrt((1 - c1 * c1) * K_B * T);
-    cudaMalloc((void**)&curand_states, sizeof(curandState) * N);
+    CHECK(cudaMalloc((void**)&curand_states, sizeof(curandState) * N));
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
     initialize_curand_states<<<grid_size, BLOCK_SIZE>>>(curand_states, N);
+    CUDA_CHECK_KERNEL
 }
 
 
@@ -80,15 +89,19 @@ Ensemble_LAN::Ensemble_LAN
     c2_source = sqrt((1 - c1 * c1) * K_B * (T + dT));
     c2_sink   = sqrt((1 - c1 * c1) * K_B * (T - dT));
 
-    cudaMalloc((void**)&curand_states_source, sizeof(curandState) * N_source);
-    cudaMalloc((void**)&curand_states_sink,   sizeof(curandState) * N_sink);
+    CHECK(cudaMalloc((void**)&curand_states_source,
+        sizeof(curandState) * N_source));
+    CHECK(cudaMalloc((void**)&curand_states_sink,
+        sizeof(curandState) * N_sink));
 
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
     initialize_curand_states<<<grid_size_source, BLOCK_SIZE>>>
     (curand_states_source, N_source);
+    CUDA_CHECK_KERNEL
     initialize_curand_states<<<grid_size_sink, BLOCK_SIZE>>>
     (curand_states_sink,   N_sink);
+    CUDA_CHECK_KERNEL
 
     energy_transferred[0] = 0.0;
     energy_transferred[1] = 0.0;
@@ -99,14 +112,14 @@ Ensemble_LAN::Ensemble_LAN
 
 Ensemble_LAN::~Ensemble_LAN(void)
 {
-    if (type == 5)
+    if (type == 3)
     {
-        cudaFree(curand_states);
+        CHECK(cudaFree(curand_states));
     }
     else
     {
-        cudaFree(curand_states_source);
-        cudaFree(curand_states_sink);
+        CHECK(cudaFree(curand_states_source));
+        CHECK(cudaFree(curand_states_sink));
     }
 }
 
@@ -166,6 +179,15 @@ static __global__ void gpu_langevin
 
 
 
+static __device__ void warp_reduce(volatile real *s, int t) 
+{
+    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
+    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
+}
+
+
+
+
 // group kinetic energy
 static __global__ void find_ke
 (
@@ -216,53 +238,32 @@ static __global__ void find_ke
 
 
 void Ensemble_LAN::integrate_nvt_lan
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Atom *atom, Force *force, Measure* measure)
 {
-    int  N           = para->N;
+    int  N           = atom->N;
     int  grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int fixed_group  = para->fixed_group;
-    int *label       = gpu_data->label;
-    real time_step   = para->time_step;
-    real *mass = gpu_data->mass;
-    real *x    = gpu_data->x;
-    real *y    = gpu_data->y;
-    real *z    = gpu_data->z;
-    real *vx   = gpu_data->vx;
-    real *vy   = gpu_data->vy;
-    real *vz   = gpu_data->vz;
-    real *fx   = gpu_data->fx;
-    real *fy   = gpu_data->fy;
-    real *fz   = gpu_data->fz;
-    real *potential_per_atom = gpu_data->potential_per_atom;
-    real *virial_per_atom_x  = gpu_data->virial_per_atom_x; 
-    real *virial_per_atom_y  = gpu_data->virial_per_atom_y;
-    real *virial_per_atom_z  = gpu_data->virial_per_atom_z;
-    real *thermo             = gpu_data->thermo;
-    real *box_length         = gpu_data->box_length;
+    real *mass = atom->mass;
+    real *vx   = atom->vx;
+    real *vy   = atom->vy;
+    real *vz   = atom->vz;
 
     // the first half of Langevin, before velocity-Verlet
     gpu_langevin<<<grid_size, BLOCK_SIZE>>>
     (curand_states, N, c1, c2, mass, vx, vy, vz);
+    CUDA_CHECK_KERNEL
 
     // the standard velocity-Verlet
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    force->compute(para, gpu_data);
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    velocity_verlet_1(atom);
+    force->compute(atom, measure);
+    velocity_verlet_2(atom);
 
     // the second half of Langevin, after velocity-Verlet
     gpu_langevin<<<grid_size, BLOCK_SIZE>>>
     (curand_states, N, c1, c2, mass, vx, vy, vz);
+    CUDA_CHECK_KERNEL
 
     // thermo
-    int N_fixed = (fixed_group == -1) ? 0 : cpu_data->group_size[fixed_group];
-    gpu_find_thermo<<<5, 1024>>>
-    (
-        N, N_fixed, fixed_group, label, temperature, box_length, 
-        mass, z, potential_per_atom, vx, vy, vz, 
-        virial_per_atom_x, virial_per_atom_y, virial_per_atom_z, thermo
-    );
+    find_thermo(atom);
 }
 
 
@@ -270,43 +271,32 @@ void Ensemble_LAN::integrate_nvt_lan
 
 // integrate by one step, with heating and cooling
 void Ensemble_LAN::integrate_heat_lan
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Atom *atom, Force *force, Measure* measure)
 {
-    int N                = para->N;
-    int grid_size        = (N - 1) / BLOCK_SIZE + 1;
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
-    int fixed_group      = para->fixed_group;
-    int *label           = gpu_data->label;
-    int *group_size      = gpu_data->group_size;
-    int *group_size_sum  = gpu_data->group_size_sum;
-    int *group_contents  = gpu_data->group_contents;
-    real time_step       = para->time_step;
-    real *mass = gpu_data->mass;
-    real *x    = gpu_data->x;
-    real *y    = gpu_data->y;
-    real *z    = gpu_data->z;
-    real *vx   = gpu_data->vx;
-    real *vy   = gpu_data->vy;
-    real *vz   = gpu_data->vz;
-    real *fx   = gpu_data->fx;
-    real *fy   = gpu_data->fy;
-    real *fz   = gpu_data->fz;
-
+    int *group_size      = atom->group_size;
+    int *group_size_sum  = atom->group_size_sum;
+    int *group_contents  = atom->group_contents;
+    real *mass = atom->mass;
+    real *vx   = atom->vx;
+    real *vy   = atom->vy;
+    real *vz   = atom->vz;
     int label_1 = source;
     int label_2 = sink;
-    int Ng = para->number_of_groups;
+    int Ng = atom->number_of_groups;
 
     // allocate some memory
     real *ek2;
     MY_MALLOC(ek2, real, sizeof(real) * Ng);
     real *ke;
-    cudaMalloc((void**)&ke, sizeof(real) * Ng);
+    CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
 
     // the first half of Langevin, before velocity-Verlet
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CUDA_CHECK_KERNEL
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[label_1] * 0.5;
     energy_transferred[1] += ek2[label_2] * 0.5;
 
@@ -315,29 +305,31 @@ void Ensemble_LAN::integrate_heat_lan
         curand_states_source, N_source, offset_source, group_contents, 
         c1, c2_source, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
     gpu_langevin<<<grid_size_sink, BLOCK_SIZE>>>
     (
         curand_states_sink, N_sink, offset_sink, group_contents, 
         c1, c2_sink, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
 
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CUDA_CHECK_KERNEL
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[label_1] * 0.5;
     energy_transferred[1] -= ek2[label_2] * 0.5;
 
     // the standard veloicty-Verlet
-    gpu_velocity_verlet_1<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, x,  y,  z, vx, vy, vz, fx, fy, fz);
-    force->compute(para, gpu_data);
-    gpu_velocity_verlet_2<<<grid_size, BLOCK_SIZE>>>
-    (N, fixed_group, label, time_step, mass, vx, vy, vz, fx, fy, fz);
+    velocity_verlet_1(atom);
+    force->compute(atom, measure);
+    velocity_verlet_2(atom);
 
     // the second half of Langevin, after velocity-Verlet
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CUDA_CHECK_KERNEL
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[label_1] * 0.5;
     energy_transferred[1] += ek2[label_2] * 0.5;
 
@@ -346,35 +338,38 @@ void Ensemble_LAN::integrate_heat_lan
         curand_states_source, N_source, offset_source, group_contents, 
         c1, c2_source, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
     gpu_langevin<<<grid_size_sink, BLOCK_SIZE>>>
     (
         curand_states_sink, N_sink, offset_sink, group_contents, 
         c1, c2_sink, mass, vx, vy, vz
     );
+    CUDA_CHECK_KERNEL
 
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
-    cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost);
+    CUDA_CHECK_KERNEL
+    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[label_1] * 0.5;
     energy_transferred[1] -= ek2[label_2] * 0.5;
 
     // clean up
-    MY_FREE(ek2); cudaFree(ke);
+    MY_FREE(ek2); CHECK(cudaFree(ke));
 }
 
 
 
- 
+
 void Ensemble_LAN::compute
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, Force *force)
+(Atom *atom, Force *force, Measure* measure)
 {
     if (type == 3)
     {
-        integrate_nvt_lan(para, cpu_data, gpu_data, force);
+        integrate_nvt_lan(atom, force, measure);
     }
     else
     {
-        integrate_heat_lan(para, cpu_data, gpu_data, force);
+        integrate_heat_lan(atom, force, measure);
     }
 }
 

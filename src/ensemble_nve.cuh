@@ -14,29 +14,20 @@
 */
 
 
-#ifndef ENSEMBLE_NVE_H
-#define ENSEMBLE_NVE_H
+#pragma once
 
 
 #include "ensemble.cuh"
-class Force;
-
 
 
 
 class Ensemble_NVE : public Ensemble
 {
 public:
-    Ensemble_NVE(int type_input);      
+    Ensemble_NVE(int type_input);
     virtual ~Ensemble_NVE(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    virtual void compute(Atom*, Force*, Measure*);
 };
-
-
-
-
-
-#endif
 
 
 

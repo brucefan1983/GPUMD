@@ -14,21 +14,30 @@
 */
 
 
-#ifndef HNEMD_KAPPA_H
-#define HNEMD_KAPPA_H
+#pragma once
+#include "common.cuh"
 
-class Integrate;
 
-void preprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+class HNEMD
+{
+public:
 
-void process_hnemd_kappa
-(
-    int step, char*, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data, Integrate *integrate
-);
+    int compute = 0;
+    int output_interval;   // average the data every so many time steps
 
-void postprocess_hnemd_kappa
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+    // the driving "force" vector (in units of 1/A)
+    real fe_x = 0.0;
+    real fe_y = 0.0;
+    real fe_z = 0.0;
+    real fe = 0.0; // magnitude of the driving "force" vector
 
-#endif
+    real *heat_all;
+
+    void preprocess(Atom *atom);
+    void process(int, char*, Atom*, Integrate*);
+    void postprocess(Atom*);
+};
+
+
+
+

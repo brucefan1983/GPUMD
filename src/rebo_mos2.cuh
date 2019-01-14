@@ -15,13 +15,7 @@
 
 
 
-
-#ifndef REBO_MOS2_H
-#define REBO_MOS2_H
-
-
-
-
+#pragma once
 #include "potential.cuh"
 
 
@@ -46,16 +40,13 @@ struct REBO_MOS_Data
 class REBO_MOS : public Potential
 {
 public:   
-    REBO_MOS(Parameters*);
+    REBO_MOS(Atom*);
     virtual ~REBO_MOS(void);
-    virtual void compute(Parameters*, GPU_Data*);
+    virtual void compute(Atom*, Measure*);
 protected:
     REBO_MOS_Data rebo_mos_data;
 };
 
 
-
-
-#endif
 
 

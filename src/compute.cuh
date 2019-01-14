@@ -14,27 +14,44 @@
 */
 
 
-#ifndef PARSE_H
-#define PARSE_H
-
-class Force;
-class Integrate;
-class Measure;
 
 
-void parse
-(
-    char **param, 
-    int num_param, 
-    Parameters *para,
-    Force *force,
-    Integrate *integrate,
-    Measure *measure,
-    int *is_potential,
-    int *is_velocity,
-    int *is_int
-);
+#pragma once
+#include "common.cuh"
 
-#endif
+
+
+
+class Compute
+{
+public:
+    int compute_temperature = 0;
+    int compute_potential = 0;
+    int compute_force = 0;
+    int compute_virial = 0;
+    int compute_heat_current = 0;
+
+    int sample_interval = 1;
+    int use_new_group = 0;
+
+    void preprocess(char*, Atom*);
+    void postprocess(Atom* atom, Integrate*);
+    void process(int, Atom*, Integrate*);
+
+private:
+    FILE* fid;
+
+    real* cpu_group_sum;
+    real* gpu_group_sum;
+    real* gpu_per_atom_x;
+    real* gpu_per_atom_y;
+    real* gpu_per_atom_z;
+
+    int number_of_scalars = 0;
+
+    void output_results(Atom*, Integrate*);
+};
+
+
 
 

@@ -14,52 +14,34 @@
 */
 
 
+
 #pragma once
-#include "potential.cuh"
+
+
+
+#define USE_LDG // this is usually faster
+#ifdef USE_LDG
+    #define LDG(a, n) __ldg(a + n)
+#else
+    #define LDG(a, n) a[n]
+#endif
 
 
 
 
-struct EAM2004Zhou
+static __device__ void dev_apply_mic
+(
+    int pbc_x, int pbc_y, int pbc_z, real &x12, real &y12, real &z12, 
+    real lx, real ly, real lz
+)
 {
-    real re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
-    real Fn0, Fn1, Fn2, Fn3, F0, F1, F2, F3, eta, Fe;
-    real rc; // chosen by the user?
-};
-
-
-
-
-struct EAM2006Dai
-{
-    real A, d, c, c0, c1, c2, c3, c4, B, rc;
-};
-
-
-
-
-struct EAM_Data
-{
-    real *Fp;    // derivative of the density functional
-};
-
-
-
-
-class EAM : public Potential
-{
-public:   
-    EAM(FILE*, Atom*, char*);  
-    virtual ~EAM(void);
-    virtual void compute(Atom*, Measure*);
-    void initialize_eam2004zhou(FILE*);
-    void initialize_eam2006dai(FILE*);
-protected:
-    int          potential_model; 
-    EAM2004Zhou  eam2004zhou;
-    EAM2006Dai   eam2006dai;
-    EAM_Data     eam_data;
-};
+    if      (pbc_x == 1 && x12 < - lx * HALF) {x12 += lx;}
+    else if (pbc_x == 1 && x12 > + lx * HALF) {x12 -= lx;}
+    if      (pbc_y == 1 && y12 < - ly * HALF) {y12 += ly;}
+    else if (pbc_y == 1 && y12 > + ly * HALF) {y12 -= ly;}
+    if      (pbc_z == 1 && z12 < - lz * HALF) {z12 += lz;}
+    else if (pbc_z == 1 && z12 > + lz * HALF) {z12 -= lz;}
+}
 
 
 

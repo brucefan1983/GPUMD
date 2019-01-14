@@ -16,26 +16,25 @@
 
 
 
-#ifndef POTENTIAL1_H
-#define POTENTIAL1_H
+#pragma once
+#include "common.cuh"
 
 
 
-
-class Potential 
+class Potential
 {
 public:
     int N1; int N2;
     real rc; // maxium cutoff distance 
-    Potential(void);      
+    Potential(void);
     virtual ~Potential(void);
-    virtual void compute(Parameters*, GPU_Data*) = 0;
+    virtual void compute(Atom*, Measure*) = 0;
+
+protected:
+
+    void find_properties_many_body
+    (Atom*, Measure*, int*, int*, real*, real*, real*);
 };
-
-
-
-
-#endif
 
 
 

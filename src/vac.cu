@@ -16,21 +16,37 @@
 
 
 
-#include "common.cuh"
+/*----------------------------------------------------------------------------80
+The double-element version of the Tersoff potential as described in  
+    [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials 
+        for multicomponent systems, PRB 39, 5566 (1989).
+------------------------------------------------------------------------------*/
+
+
+
+
 #include "vac.cuh"
+
+#include "atom.cuh"
+#include "error.cuh"
+
+#define BLOCK_SIZE 128
+#define FILE_NAME_LENGTH      200
+
+
 
 
 // Allocate memory for recording velocity data
-void preprocess_vac(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void VAC::preprocess(Atom *atom)
 {
-    if (para->vac.compute)
-    {
-        int num = para->N * para->number_of_steps / para->vac.sample_interval;
-        CHECK(cudaMalloc((void**)&gpu_data->vx_all, sizeof(real) * num));
-        CHECK(cudaMalloc((void**)&gpu_data->vy_all, sizeof(real) * num));
-        CHECK(cudaMalloc((void**)&gpu_data->vz_all, sizeof(real) * num));
-    }
+    if (!compute) return;
+    int num = atom->N * atom->number_of_steps / sample_interval;
+    CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
+    CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
+    CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
 }
+
+
 
 
 // Record velocity data (kernel)
@@ -51,36 +67,31 @@ static __global__ void gpu_copy_velocity
 }
 
 
+
+
 // Record velocity data (wrapper)
-void sample_vac
-(int step, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+void VAC::process(int step, Atom *atom)
 {
-    if (para->vac.compute)
-    {     
-        if (step % para->vac.sample_interval == 0)
-        { 
-            int N = para->N;
-            int nd = step / para->vac.sample_interval;
-            
-            int grid_size = (N - 1) / BLOCK_SIZE + 1;
-            gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
-            (
-                N, nd, gpu_data->vx, gpu_data->vy, gpu_data->vz, 
-                gpu_data->vx_all, gpu_data->vy_all, gpu_data->vz_all
-            );
-            CHECK(cudaDeviceSynchronize());
-            CHECK(cudaGetLastError());
-        }
-    }
+    if (!compute) return;
+    if (step % sample_interval != 0) return;
+    int N = atom->N;
+    int nd = step / sample_interval;  
+    int grid_size = (N - 1) / BLOCK_SIZE + 1;
+    gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
+    (N, nd, atom->vx, atom->vy, atom->vz, vx_all, vy_all, vz_all);
+    CUDA_CHECK_KERNEL
 }
 
 
-// Calculate the velocity auto-correlation (VAC)
+
+
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
+
+
 
 
 static __global__ void gpu_find_vac
@@ -163,20 +174,15 @@ static void find_rdc
 }
 
 
+
+
 // Calculate phonon density of states (DOS) 
 // using the method by Dickey and Paskin
 static void find_dos
 (
-    int Nc,
-    real delta_t, 
-    real omega_0,
-    real d_omega,
-    real *vac_x_normalized, 
-    real *vac_y_normalized, 
-    real *vac_z_normalized,
-    real *dos_x, 
-    real *dos_y, 
-    real *dos_z
+    int Nc, real delta_t, real omega_0, real d_omega,
+    real *vac_x_normalized, real *vac_y_normalized, real *vac_z_normalized,
+    real *dos_x, real *dos_y, real *dos_z
 )
 {
     // Apply Hann window and normalize by the correct factor
@@ -211,19 +217,17 @@ static void find_dos
         dos_z[nw] *= delta_t;
     }
 }
-        
-    
+
+
+
+
 // Calculate (1) VAC, (2) RDC, and (3) DOS = phonon density of states
-static void find_vac_rdc_dos
-(char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
 {
     // rename variables
-    int N = para->N;
-    int number_of_steps = para->number_of_steps;
-    int sample_interval = para->vac.sample_interval;
-    int Nc = para->vac.Nc;
-    real time_step = para->time_step;
-    real omega_max = para->vac.omega_max;
+    int N = atom->N;
+    int number_of_steps = atom->number_of_steps;
+    real time_step = atom->time_step;
 
     // other parameters
     int Nd = number_of_steps / sample_interval;
@@ -263,15 +267,14 @@ static void find_vac_rdc_dos
     // Here, the block size is fixed to 128, which is a good choice
     gpu_find_vac<<<Nc, 128>>>
     (
-        N, M, gpu_data->vx_all, gpu_data->vy_all, gpu_data->vz_all, 
+        N, M, vx_all, vy_all, vz_all, 
         g_vac_x, g_vac_y, g_vac_z
     );
+    CUDA_CHECK_KERNEL
 
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
-    CHECK(cudaMemcpy(vac_x, g_vac_x, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(vac_y, g_vac_y, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(vac_z, g_vac_z, sizeof(real) * Nc, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(vac_x, g_vac_x, sizeof(real)*Nc, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(vac_y, g_vac_y, sizeof(real)*Nc, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(vac_z, g_vac_z, sizeof(real)*Nc, cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_vac_x));
     CHECK(cudaFree(g_vac_y));
     CHECK(cudaFree(g_vac_z));
@@ -331,18 +334,22 @@ static void find_vac_rdc_dos
 }
 
 
+
+
 // postprocess VAC and related quantities.
-void postprocess_vac
-(char *input_dir, Parameters *para, CPU_Data *cpu_data,GPU_Data *gpu_data)
+void VAC::postprocess(char *input_dir, Atom *atom)
 {
-    if (para->vac.compute)
-    {
-        printf("INFO:  start to calculate VAC and related quantities.\n");
-        find_vac_rdc_dos(input_dir, para, cpu_data, gpu_data);
-        CHECK(cudaFree(gpu_data->vx_all));
-        CHECK(cudaFree(gpu_data->vy_all));
-        CHECK(cudaFree(gpu_data->vz_all));
-        printf("INFO:  VAC and related quantities are calculated.\n\n");
-    }
+    if (!compute) return;
+    print_line_1();
+    printf("Start to calculate VAC and related quantities.\n");
+    find_vac_rdc_dos(input_dir, atom);
+    CHECK(cudaFree(vx_all));
+    CHECK(cudaFree(vy_all));
+    CHECK(cudaFree(vz_all));
+    printf("VAC and related quantities are calculated.\n");
+    print_line_2();
 }
+
+
+
 

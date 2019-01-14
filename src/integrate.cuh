@@ -16,10 +16,8 @@
 
 
 
-#ifndef INTEGRATE_H
-#define INTEGRATE_H
-class Force;
-class Ensemble;
+#pragma once
+#include "common.cuh"
 
 
 
@@ -30,9 +28,9 @@ public:
     Ensemble *ensemble; 
     Integrate(void);
     ~Integrate(void);   
-    void initialize(Parameters*, CPU_Data*);
+    void initialize(Atom*);
     void finalize(void);
-    void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    void compute(Atom*, Force*, Measure*);
 
     // these data will be used to initialize ensemble
     int type;          // ensemble type in a specific run
@@ -46,11 +44,6 @@ public:
     real temperature_coupling;
     real pressure_coupling; 
 };
-
-
-
-
-#endif
 
 
 

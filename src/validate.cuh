@@ -14,13 +14,11 @@
 */
 
 
-#ifndef VALIDATE_H
-#define VALIDATE_H
-
-class Force;
+#pragma once
+#include "common.cuh"
 
 void validate_force
-(Force *force, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data);
+(Force *force, Atom *atom, Measure* measure);
 
 
-#endif
+

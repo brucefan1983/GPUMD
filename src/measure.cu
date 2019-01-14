@@ -16,15 +16,24 @@
 
 
 
-#include "common.cuh"
+/*----------------------------------------------------------------------------80
+The driver class dealing with measurement.
+------------------------------------------------------------------------------*/
+
+
+
+
+#include "measure.cuh"
+
 #include "integrate.cuh"
 #include "ensemble.cuh"
-#include "measure.cuh"
-#include "heat.cuh"                
-#include "vac.cuh"  
-#include "hac.cuh"   
-#include "shc.cuh"    
-#include "hnemd_kappa.cuh" 
+#include "atom.cuh"
+#include "error.cuh"
+
+#define DIM 3
+#define NUM_OF_HEAT_COMPONENTS 5
+#define NUM_OF_PROPERTIES      5 
+
 
 
 
@@ -66,8 +75,7 @@ Measure::~Measure(void)
 
 
 
-void Measure::initialize
-(Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data)
+void Measure::initialize(char* input_dir, Atom *atom)
 {
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_position)  {fid_position = my_fopen(file_position, "a");}
@@ -77,21 +85,18 @@ void Measure::initialize
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
 
-    preprocess_vac(para,  cpu_data, gpu_data);
-    preprocess_hac(para,  cpu_data, gpu_data);  
-    preprocess_shc(para,  cpu_data, gpu_data); 
-    preprocess_heat(para, cpu_data);      
-    preprocess_hnemd_kappa(para, cpu_data, gpu_data);  
+    vac.preprocess(atom);
+    hac.preprocess(atom);
+    shc.preprocess(atom);
+    compute.preprocess(input_dir, atom);
+    hnemd.preprocess(atom);
 }
 
 
 
 
 void Measure::finalize
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
-    Integrate *integrate
-)
+(char *input_dir, Atom *atom, Integrate *integrate)
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
     if (dump_position)  {fclose(fid_position);  dump_position  = 0;}
@@ -101,105 +106,38 @@ void Measure::finalize
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
 
-    postprocess_vac(input_dir, para, cpu_data, gpu_data);
-    postprocess_hac(input_dir, para, cpu_data, gpu_data, integrate);
-    postprocess_shc(para, cpu_data, gpu_data);
-    postprocess_heat(input_dir, para, cpu_data, integrate);
-    postprocess_hnemd_kappa(para, cpu_data, gpu_data);
+    vac.postprocess(input_dir, atom);
+    hac.postprocess(input_dir, atom, integrate);
+    shc.postprocess();
+    compute.postprocess(atom, integrate);
+    hnemd.postprocess(atom);
 }
 
 
 
 
-// dump thermodynamic properties
-static void gpu_sample_thermo
-(
-    FILE *fid, Parameters *para, CPU_Data *cpu_data, 
-    real *gpu_thermo, real *gpu_box_length, Ensemble *ensemble
-)
+void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
 {
+    if (!dump_thermo) return;
+    if ((step + 1) % sample_interval_thermo != 0) return;
 
-    // copy data from GPU to CPU
-    real *thermo = cpu_data->thermo;
-    real *box_length = cpu_data->box_length;
-    int m1 = sizeof(real) * 6;
+    real *thermo; MY_MALLOC(thermo, real, NUM_OF_PROPERTIES);
+    real *box_length; MY_MALLOC(box_length, real, DIM);
+    int m1 = sizeof(real) * NUM_OF_PROPERTIES;
     int m2 = sizeof(real) * DIM;
-    CHECK(cudaMemcpy(thermo, gpu_thermo, m1, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(box_length, gpu_box_length, m2, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(box_length, atom->box_length, m2, cudaMemcpyDeviceToHost));
 
-    // system energies
-    real energy_system_kin = (HALF * DIM) * para->N * K_B * thermo[0];
-    real energy_system_pot = thermo[1];
-    real energy_system_total = energy_system_kin + energy_system_pot; 
+    int N_fixed = (atom->fixed_group == -1) ? 0 :
+        atom->cpu_group_size[atom->fixed_group];
+    real energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
 
-    if (ensemble->type == 2)
-    {
-        // energy of the Nose-Hoover chain thermostat
-        real kT = K_B * ensemble->temperature; 
-        real energy_nhc = kT * (DIM * para->N) * ensemble->pos_nhc1[0];
-        for (int m = 1; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
-        {
-            energy_nhc += kT * ensemble->pos_nhc1[m];
-        }
-        for (int m = 0; m < NOSE_HOOVER_CHAIN_LENGTH; m++)
-        { 
-            energy_nhc += 0.5 * ensemble->vel_nhc1[m] 
-                        * ensemble->vel_nhc1[m] / ensemble->mas_nhc1[m];
-        }
-        fprintf
-        (
-            fid, "%20.10e%20.10e%20.10e", thermo[0], 
-            energy_system_total, energy_nhc
-        );
-    }
-    else
-    {
-        fprintf
-        (
-            fid, "%20.10e%20.10e%20.10e", thermo[0], 
-            energy_system_kin, energy_system_pot
-        );
-    }    
-
-    fprintf // presure (x, y, z)
-    (
-        fid, "%20.10e%20.10e%20.10e", 
-        thermo[2] * PRESSURE_UNIT_CONVERSION, 
-        thermo[3] * PRESSURE_UNIT_CONVERSION, 
-        thermo[4] * PRESSURE_UNIT_CONVERSION
-    ); 
-
-    // box length (x, y, z)
-    fprintf
-    (
-        fid, "%20.10e%20.10e%20.10e\n", 
-        box_length[0], box_length[1], box_length[2]
-    ); 
-
-    fflush(fid);
-}
-
-
-
-
-// dump thermodynamic properties (A wrapper function)
-void Measure::dump_thermos
-(
-    FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
-    Integrate *integrate, int step
-)
-{
-    if (dump_thermo)
-    {
-        if ((step + 1) % sample_interval_thermo == 0)
-        {
-            gpu_sample_thermo
-            (
-                fid, para, cpu_data, gpu_data->thermo, gpu_data->box_length, 
-                integrate->ensemble
-            );
-        }
-    }
+    fprintf(fid, 
+        "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
+        thermo[0], energy_kin, thermo[1], thermo[2]*PRESSURE_UNIT_CONVERSION, 
+        thermo[3]*PRESSURE_UNIT_CONVERSION, thermo[4]*PRESSURE_UNIT_CONVERSION,
+        box_length[0], box_length[1], box_length[2]); 
+    fflush(fid); MY_FREE(thermo); MY_FREE(box_length);
 }
 
 
@@ -220,140 +158,48 @@ static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
         fprintf(fid, "%20.10e%20.10e%20.10e\n", cpu_a[n], cpu_b[n], cpu_c[n]);
     }
     fflush(fid);
-
-    MY_FREE(cpu_a);
-    MY_FREE(cpu_b);
-    MY_FREE(cpu_c);
+    MY_FREE(cpu_a); MY_FREE(cpu_b); MY_FREE(cpu_c);
 }
 
 
 
 
-void Measure::dump_positions
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+void Measure::dump_positions(FILE *fid, Atom *atom, int step)
 {
-    if (dump_position)
-    {
-        if ((step + 1) % sample_interval_position == 0)
-        {
-            gpu_dump_3(para->N, fid, gpu_data->x, gpu_data->y, gpu_data->z);
-        }
-    }
+    if (!dump_position) return;
+    if ((step + 1) % sample_interval_position != 0) return;
+    gpu_dump_3(atom->N, fid, atom->x, atom->y, atom->z);
 }
 
 
 
 
-void Measure::dump_velocities
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+void Measure::dump_velocities(FILE *fid, Atom *atom, int step)
 {
-    if (dump_velocity)
-    {
-        if ((step + 1) % sample_interval_velocity == 0)
-        {
-            gpu_dump_3(para->N, fid, gpu_data->vx, gpu_data->vy, gpu_data->vz);
-        }
-    }
+    if (!dump_velocity) return;
+    if ((step + 1) % sample_interval_velocity != 0) return;
+    gpu_dump_3(atom->N, fid, atom->vx, atom->vy, atom->vz);
 }
 
 
 
 
-void Measure::dump_forces
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+void Measure::dump_forces(FILE *fid, Atom *atom, int step)
 {
-    if (dump_force)
-    {
-        if ((step + 1) % sample_interval_force == 0)
-        {
-            gpu_dump_3(para->N, fid, gpu_data->fx, gpu_data->fy, gpu_data->fz);
-        }
-    }
+    if (!dump_force) return;
+    if ((step + 1) % sample_interval_force != 0) return;
+    gpu_dump_3(atom->N, fid, atom->fx, atom->fy, atom->fz);
 }
 
 
 
 
-void Measure::dump_virials
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+void Measure::dump_virials(FILE *fid, Atom *atom, int step)
 {
-    if (dump_virial)
-    {
-        if ((step + 1) % sample_interval_virial == 0)
-        {
-            gpu_dump_3
-            (
-                para->N, fid, gpu_data->virial_per_atom_x, 
-                gpu_data->virial_per_atom_y, gpu_data->virial_per_atom_z
-            );
-        }
-    }
-}
-
-
-
-
-static real get_volume(real *box_gpu)
-{
-    real *box_cpu;
-    MY_MALLOC(box_cpu, real, 3);
-    cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3, cudaMemcpyDeviceToHost);
-    real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
-    MY_FREE(box_cpu);
-    return volume;
-}
-
-
-
-
-void Measure::dump_heats
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
-{
-    if (dump_heat)
-    {
-        if (step == 0)
-        {
-            for (int n = 0; n < para->N * NUM_OF_HEAT_COMPONENTS; n++)
-            {
-                cpu_data->heat_per_atom[n] = ZERO;
-            }
-        }
-
-        if ((step + 1) % sample_interval_heat == 0)
-        {
-            real *heat_cpu;
-            MY_MALLOC(heat_cpu, real, para->N * NUM_OF_HEAT_COMPONENTS);
-            cudaMemcpy
-            (
-                heat_cpu, gpu_data->heat_per_atom, 
-                sizeof(real) * para->N * NUM_OF_HEAT_COMPONENTS, 
-                cudaMemcpyDeviceToHost
-            );
-            for (int n = 0; n < para->N * NUM_OF_HEAT_COMPONENTS; n++)
-            {
-                cpu_data->heat_per_atom[n] += heat_cpu[n];
-            }
-
-            if ((step + 1) == para->number_of_steps)
-            {
-                int num = para->number_of_steps / sample_interval_heat;
-                real volume = get_volume(gpu_data->box_length) / para->N;
-                real factor = 10 * KAPPA_UNIT_CONVERSION / (num * volume);
-                for (int n = 0; n < para->N; n++)
-                {
-                    for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
-                    {
-                        // output per-atom heat flux in units of GW/m^2
-                        real tmp = cpu_data->heat_per_atom[k * para->N + n];
-                        fprintf(fid, "%25.15f", tmp * factor);
-                    }
-                    fprintf(fid, "\n");
-                }
-                fflush(fid);
-            }
-            MY_FREE(heat_cpu);
-        }
-    }
+    if (!dump_virial) return;
+    if ((step + 1) % sample_interval_virial != 0) return;
+    gpu_dump_3(atom->N, fid, atom->virial_per_atom_x, atom->virial_per_atom_y,
+        atom->virial_per_atom_z);
 }
 
 
@@ -361,54 +207,50 @@ void Measure::dump_heats
 
 static void gpu_dump_1(int N, FILE *fid, real *a)
 {
-    real *cpu_a;
-    MY_MALLOC(cpu_a, real, N);
+    real *cpu_a; MY_MALLOC(cpu_a, real, N);
     CHECK(cudaMemcpy(cpu_a, a, sizeof(real) * N, cudaMemcpyDeviceToHost));
-    for (int n = 0; n < N; n++)
-    {
-        fprintf(fid, "%20.10e\n", cpu_a[n]);
-    }
-    fflush(fid);
-    MY_FREE(cpu_a);
+    for (int n = 0; n < N; n++) { fprintf(fid, "%20.10e\n", cpu_a[n]); }
+    fflush(fid); MY_FREE(cpu_a);
 }
 
 
 
 
-void Measure::dump_potentials
-(FILE *fid, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, int step)
+void Measure::dump_potentials(FILE *fid, Atom *atom, int step)
 {
-    if (dump_potential)
-    {
-        if ((step + 1) % sample_interval_potential == 0)
-        {
-            gpu_dump_1(para->N, fid, gpu_data->potential_per_atom);
-        }
-    }
+    if (!dump_potential) return;
+    if ((step + 1) % sample_interval_potential != 0) return;
+    gpu_dump_1(atom->N, fid, atom->potential_per_atom);
 }
 
 
 
 
-void Measure::compute
-(
-    char *input_dir, Parameters *para, CPU_Data *cpu_data, GPU_Data *gpu_data, 
-    Integrate *integrate, int step
-)
+void Measure::dump_heats(FILE *fid, Atom *atom, int step)
 {
-    dump_thermos(fid_thermo, para, cpu_data, gpu_data, integrate, step);
-    dump_positions(fid_position, para, cpu_data, gpu_data, step);
-    dump_velocities(fid_velocity, para, cpu_data, gpu_data, step);
-    dump_forces(fid_force, para, cpu_data, gpu_data, step);
-    dump_potentials(fid_potential, para, cpu_data, gpu_data, step);
-    dump_virials(fid_virial, para, cpu_data, gpu_data, step);
-    dump_heats(fid_heat, para, cpu_data, gpu_data, step);
+    if (!dump_heat) return;
+    if ((step + 1) % sample_interval_heat != 0) return;
+    gpu_dump_1(atom->N * NUM_OF_HEAT_COMPONENTS, fid, atom->heat_per_atom);
+}
 
-    sample_vac(step, para, cpu_data, gpu_data);
-    sample_hac(step, input_dir, para, cpu_data, gpu_data);
-    sample_block_temperature(step, para, cpu_data, gpu_data, integrate);
-    process_shc(step, input_dir, para, cpu_data, gpu_data);
-    process_hnemd_kappa(step, input_dir, para, cpu_data, gpu_data, integrate); 
+
+
+
+void Measure::process
+(char *input_dir, Atom *atom, Integrate *integrate, int step)
+{
+    dump_thermos(fid_thermo, atom, step);
+    dump_positions(fid_position, atom, step);
+    dump_velocities(fid_velocity, atom, step);
+    dump_forces(fid_force, atom, step);
+    dump_potentials(fid_potential, atom, step);
+    dump_virials(fid_virial, atom, step);
+    dump_heats(fid_heat, atom, step);
+    compute.process(step, atom, integrate);
+    vac.process(step, atom);
+    hac.process(step, input_dir, atom);
+    shc.process(step, input_dir, atom);
+    hnemd.process(step, input_dir, atom, integrate);
 }
 
 

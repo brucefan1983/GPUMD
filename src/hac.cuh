@@ -14,21 +14,27 @@
 */
 
 
-#ifndef HAC_H
-#define HAC_H
+#pragma once
+#include "common.cuh"
 
-class Integrate;
 
-void preprocess_hac(Parameters *para, CPU_Data  *cpu_data, GPU_Data *gpu_data);
-void sample_hac
-(
-    int step, char *input_dir, Parameters *para, 
-    CPU_Data *cpu_data, GPU_Data *gpu_data
-);
-void postprocess_hac
-(
-    char *, Parameters *para, CPU_Data *cpu_data, 
-    GPU_Data *gpu_data, Integrate *integrate
-);
+class HAC
+{
+public:
+    int compute = 0;
+    int sample_interval; // sample interval for heat current
+    int Nc;              // number of correlation points
+    int output_interval; // only output Nc/output_interval data
 
-#endif
+    void preprocess(Atom*);
+    void process(int, char*, Atom*);
+    void postprocess(char*, Atom*, Integrate*);
+
+private:
+    void find_hac_kappa(char*, Atom*, Integrate*);
+    real *heat_all;
+};
+
+
+
+

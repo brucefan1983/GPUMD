@@ -14,12 +14,7 @@
 */
 
 
-#ifndef TERSOFF2_H
-#define TERSOFF2_H
-
-
-
-
+#pragma once
 #include "potential.cuh"
 
 
@@ -49,9 +44,9 @@ struct Tersoff2_Data
 class Tersoff2 : public Potential
 {
 public:   
-    Tersoff2(FILE*, Parameters*, int sum_of_types);  
+    Tersoff2(FILE*, Atom*, int sum_of_types);  
     virtual ~Tersoff2(void);
-    virtual void compute(Parameters*, GPU_Data*);
+    virtual void compute(Atom*, Measure*);
 protected:
     Tersoff2_Parameters ters0;
     Tersoff2_Parameters ters1;
@@ -60,9 +55,5 @@ protected:
 };
 
 
-
-
-
-#endif
 
 

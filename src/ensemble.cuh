@@ -14,11 +14,10 @@
 */
 
 
-#ifndef ENSEMBLE_H
-#define ENSEMBLE_H
+#pragma once
+#include "common.cuh"
 
-
-class Force;
+#define NOSE_HOOVER_CHAIN_LENGTH 4
 
 
 
@@ -28,7 +27,7 @@ class Ensemble
 public:
     Ensemble(void);      
     virtual ~Ensemble(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*) = 0;
+    virtual void compute(Atom*, Force*, Measure*) = 0;
     int type;          // ensemble type in a specific run
     int source;
     int sink;
@@ -48,11 +47,15 @@ public:
     real mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
     real pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
     real vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+
+protected:
+    void velocity_verlet_1(Atom*);
+    void velocity_verlet_2(Atom*);
+    void find_thermo(Atom*);
+    void scale_velocity_global(Atom* atom, real);
+    void find_vc_and_ke(Atom*, real*, real*, real*, real*);
+    void scale_velocity_local(Atom*, real, real, real*, real*, real*, real*);
 };
-
-
-
-#endif
 
 
 

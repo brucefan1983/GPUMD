@@ -14,14 +14,10 @@
 */
 
 
-#ifndef ENSEMBLE_BDP_H
-#define ENSEMBLE_BDP_H
+#pragma once
 
 
 #include "ensemble.cuh"
-class Force;
-
-
 
 
 class Ensemble_BDP : public Ensemble
@@ -30,17 +26,11 @@ public:
     Ensemble_BDP(int, real, real);   
     Ensemble_BDP(int, int, int, real, real, real); 
     virtual ~Ensemble_BDP(void);
-    virtual void compute(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    virtual void compute(Atom*, Force*, Measure*);
 protected:
-    void integrate_nvt_bdp(Parameters*, CPU_Data*, GPU_Data*, Force*);
-    void integrate_heat_bdp(Parameters*, CPU_Data*, GPU_Data*, Force*);
+    void integrate_nvt_bdp(Atom*, Force*, Measure*);
+    void integrate_heat_bdp(Atom*, Force*, Measure*);
 };
-
-
-
-
-
-#endif
 
 
 

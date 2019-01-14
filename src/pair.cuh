@@ -14,13 +14,9 @@
 */
 
 
-#ifndef PAIR_H
-#define PAIR_H
-
-
-
-
+#pragma once
 #include "potential.cuh"
+
 
 
 
@@ -52,9 +48,9 @@ struct RI_Para
 class Pair : public Potential
 {
 public:   
-    Pair(FILE*, Parameters*, int potential_model);
+    Pair(FILE*, int potential_model);
     virtual ~Pair(void);
-    virtual void compute(Parameters*, GPU_Data*);
+    virtual void compute(Atom*, Measure*);
     void initialize_lj(FILE *fid, int);
     void initialize_ri(FILE *fid);
 protected:
@@ -62,10 +58,6 @@ protected:
     LJ_Para  lj_para;
     RI_Para  ri_para;
 };
-
-
-
-#endif
 
 
 

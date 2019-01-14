@@ -16,11 +16,12 @@
 
 
 
+#include "gpumd.cuh"
+#include "error.cuh"
+
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
-
-#include "gpumd.cuh"
 
 
 
@@ -31,76 +32,58 @@ int main(int argc, char *argv[])
     printf("***************************************************************\n");
     printf("*                 Welcome to use GPUMD                        *\n");
     printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
-    printf("*       (Author:  Zheyong Fan <brucenju@gmail.com>)           *\n");
+    printf("*                      Version 2.1                            *\n");
+    printf("* Authors:                                                    *\n");
+    printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
+    printf("*     Ville Vierimaa                                          *\n");
+    printf("*     Mikko Ervasti                                           *\n");
+    printf("*     Alexander J. Gabourie                                   *\n");
+    printf("*     Ari Harju                                               *\n");
     printf("***************************************************************\n");
     printf("\n");
-    
-    printf("\n");
-    printf("===============================================================\n");
-    printf("INFO: Compiled with the following options:\n");
+
+    print_line_1();
+    printf("Compiling options:\n");
+    print_line_2();
 
 #ifdef DEBUG
-    printf("\n");
-    printf("* Debug mode is activated.\n");
-    printf("  -- There is no randomness in the calculations.\n");
-    printf("  -- Always use the O(N^2) algorithm to build neighbor list.\n");
-    printf("\n");
+    printf("DEBUG is on: Use a fixed PRNG seed for differnt runs.\n");
 #else
     srand(time(NULL));
-    printf("\n");
-    printf("* Debug mode is not activated.\n");
-    printf("  -- There are some randomnesses in the calculations.\n");
-    printf("\n");
+    printf("DEBUG is off: Use differnt PRNG seeds for differnt runs.\n");
 #endif
 
-#ifdef USE_DP
-    printf("\n");
-    printf("* Use double precision. Slower but more accurate.\n");
-    printf("\n");
+#ifndef USE_SP
+    printf("USE_SP is off: Use double-precision version.\n");
 #else
-    printf("\n");
-    printf("* Use single precision. Faster but less accurate.\n");
-    printf("\n");
+    printf("USE_SP is on: Use single-precision version.\n");
 #endif
 
-#ifdef USE_LDG
-    printf("\n");
-    printf("* Use the __ldg() function in the force evalulation kernels.\n");
-    printf("  -- This is not supported for compute capability < 3.5.\n");
-    printf("\n");
-#else
-    printf("\n");
-    printf("* Not use the __ldg() function.\n");
-    printf("\n");
+#ifdef MOS2_JIANG
+    printf("MOS2_JIANG is on: Special verison for Ke Xu.\n");
 #endif
 
-#ifdef FORCE
-    printf("\n");
-    printf("* Will calculate and output the initial forces.\n");
-    printf("  -- This can be used for lattice dynamics calculations.\n");
-    printf("\n");
+#ifdef MURTY_ATWATER
+    printf("MURTY_ATWATER is on: Special verison for Qi You.\n");
 #endif
 
-#ifdef TRICLINIC
-    printf("\n");
-    printf("* Use triclinic box.\n");
-    printf("  -- Currently only for the REBO potential of Mo-S systems.\n");
-    printf("  -- Currently only for NVE and NVT ensembles.\n");
-    printf("\n");
-#else
-    printf("\n");
-    printf("* Use rectangular box.\n");
-    printf("\n");
+#ifdef ZHEN_LI
+    printf("ZHEN_LI is on: Special verison for Zhen Li.\n");
 #endif
 
-    printf("===============================================================\n");
-    printf("\n");
-    
+#ifdef CBN
+    printf("CBN is on: Special verison for Haikuan Dong.\n");
+#endif
+
+#ifdef HEAT_CURRENT
+    printf("HEAT_CURRENT is on: Special verison for Davide Donadio.\n");
+#endif
+
     // get the number of input directories
     int number_of_inputs;
-    char input_directory[100];
+    char input_directory[200];
 
-    int count = scanf("%d", &number_of_inputs); 
+    int count = scanf("%d", &number_of_inputs);
     if (count != 1)
     {
         printf("Error: reading error for number of inputs.\n");
@@ -117,27 +100,27 @@ int main(int argc, char *argv[])
             exit(1);
         }
 
-        printf("\n");
-        printf("===========================================================\n");
-        printf("Run simulation for '%s'.\n", input_directory); 
-        printf("===========================================================\n");
-        printf("\n");
+        print_line_1();
+        printf("Run simulation for '%s'.\n", input_directory);
+        print_line_2();
 
         clock_t time_begin = clock();
 
-        //  Run GPUMD for "input_directory"
+        // Run GPUMD for "input_directory"
         GPUMD gpumd(input_directory);
 
         clock_t time_finish = clock();
 
         double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
-        printf("\n");
-        printf("===========================================================\n");
-        printf("Time used for '%s' = %f s.\n", input_directory, time_used); 
-        printf("===========================================================\n");
-        printf("\n");
+        print_line_1();
+        printf("Time used for '%s' = %f s.\n", input_directory, time_used);
+        print_line_2();
     }
+
+    print_line_1();
+    printf("Finished running GPUMD.\n");
+    print_line_2();
 
     return EXIT_SUCCESS;
 }

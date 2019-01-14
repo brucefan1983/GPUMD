@@ -14,36 +14,40 @@
 */
 
 
-#ifndef SHC_H
-#define SHC_H
-
-
-// build a lookup table and allocate memory
-void preprocess_shc
-(
-    Parameters *para,
-    CPU_Data   *cpu_data,
-    GPU_Data   *gpu_data
-);
-
-
-// calculate SHC
-void process_shc(int step, char *, Parameters*, CPU_Data*, GPU_Data*);
-
-
-// free memory
-void postprocess_shc
-(
-    Parameters *para,
-    CPU_Data   *cpu_data,
-    GPU_Data   *gpu_data
-);
-
-
-#endif
+#pragma once
+#include "common.cuh"
 
 
 
+class SHC
+{
+public:
+    int compute = 0;
+    int sample_interval; // sample interval for heat current
+    int Nc;              // number of correlation points
+    int M;               // number of time origins for one average 
+    int number_of_pairs;    // number of atom pairs between block A and block B
+    int number_of_sections; // fixed to 1; may be changed in a future version
+    int block_A;         // record the heat flowing from block A
+    int block_B;         // record the heat flowing into block B
+    int count_a;
+    int count_b;
+
+    real* fv;
+    real* fv_all;
+    int* fv_index;
+    int *a_map;
+    int *b_map;
+
+    void preprocess(Atom*);
+    void process(int step, char *, Atom*);
+    void postprocess(void);
+
+private:
+
+    void build_fv_table(Atom*, int*, int*, int*, int*, int*);
+    void find_k_time(char *input_dir, Atom *atom);
+};
 
 
 
