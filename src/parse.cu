@@ -813,29 +813,33 @@ static void parse_compute(char **param,  int num_param, Measure* measure)
     {
         print_error("sampling interval of compute should be integer.\n");
     }
-    for (int k = 0; k < num_param - 2; ++k)
+    if (!is_valid_int(param[2], &measure->compute.output_interval))
     {
-        if (strcmp(param[k + 2], "temperature") == 0)
+        print_error("output interval of compute should be integer.\n");
+    }
+    for (int k = 0; k < num_param - 3; ++k)
+    {
+        if (strcmp(param[k + 3], "temperature") == 0)
         {
             measure->compute.compute_temperature = 1;
             printf("    temperature\n");
         }
-        else if (strcmp(param[k + 2], "potential") == 0)
+        else if (strcmp(param[k + 3], "potential") == 0)
         {
             measure->compute.compute_potential = 1;
             printf("    potential energy\n");
         }
-        else if (strcmp(param[k + 2], "force") == 0)
+        else if (strcmp(param[k + 3], "force") == 0)
         {
             measure->compute.compute_force = 1;
             printf("    force\n");
         }
-        else if (strcmp(param[k + 2], "virial") == 0)
+        else if (strcmp(param[k + 3], "virial") == 0)
         {
             measure->compute.compute_virial = 1;
             printf("    virial\n");
         }
-        else if (strcmp(param[k + 2], "heat_current") == 0)
+        else if (strcmp(param[k + 3], "heat_current") == 0)
         {
             measure->compute.compute_heat_current = 1;
             printf("    potential part of heat current\n");
@@ -843,6 +847,8 @@ static void parse_compute(char **param,  int num_param, Measure* measure)
     }
     printf("    with sampling interval %d.\n",
         measure->compute.sample_interval);
+    printf("    and output interval %d.\n",
+        measure->compute.output_interval);
 }
 
 

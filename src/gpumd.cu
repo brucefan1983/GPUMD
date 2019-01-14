@@ -68,13 +68,20 @@ void GPUMD::initialize_run(Atom* atom, Measure* measure)
     atom->deform_y = 0;
     atom->deform_z = 0;
 
-    // measure
-    measure->compute.compute_force = 0;
-    measure->compute.compute_temperature = 0;
+    // compute
+    measure->compute.compute_temperature  = 0;
+    measure->compute.compute_potential    = 0;
+    measure->compute.compute_force        = 0;
+    measure->compute.compute_virial       = 0;
+    measure->compute.compute_heat_current = 0;
+
+    // some special quantities
     measure->shc.compute    = 0;
     measure->vac.compute    = 0;
     measure->hac.compute    = 0;
     measure->hnemd.compute  = 0;
+
+    // dump
     measure->dump_thermo    = 0;
     measure->dump_position  = 0;
     measure->dump_velocity  = 0;

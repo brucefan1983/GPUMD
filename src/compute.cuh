@@ -32,6 +32,7 @@ public:
     int compute_heat_current = 0;
 
     int sample_interval = 1;
+    int output_interval = 1;
     int use_new_group = 0;
 
     void preprocess(char*, Atom*);
@@ -42,6 +43,7 @@ private:
     FILE* fid;
 
     real* cpu_group_sum;
+    real* cpu_group_sum_ave;
     real* gpu_group_sum;
     real* gpu_per_atom_x;
     real* gpu_per_atom_y;

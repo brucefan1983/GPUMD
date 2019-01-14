@@ -47,6 +47,9 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 
     int number_of_columns = atom->number_of_groups * number_of_scalars;
     MY_MALLOC(cpu_group_sum, real, number_of_columns);
+    MY_MALLOC(cpu_group_sum_ave, real, number_of_columns);
+    for (int n = 0; n < number_of_columns; ++n) cpu_group_sum_ave[n] = 0.0;
+
     CHECK(cudaMalloc((void**)&gpu_group_sum, sizeof(real) * number_of_columns));
     CHECK(cudaMalloc((void**)&gpu_per_atom_x, sizeof(real) * atom->N));
     CHECK(cudaMalloc((void**)&gpu_per_atom_y, sizeof(real) * atom->N));
@@ -65,6 +68,7 @@ void Compute::postprocess(Atom* atom, Integrate *integrate)
 {
     if (number_of_scalars == 0) return;
     MY_FREE(cpu_group_sum);
+    MY_FREE(cpu_group_sum_ave);
     CHECK(cudaFree(gpu_group_sum));
     CHECK(cudaFree(gpu_per_atom_x));
     CHECK(cudaFree(gpu_per_atom_y));
@@ -211,7 +215,10 @@ static __global__ void find_group_sum_3
 void Compute::process(int step, Atom *atom, Integrate *integrate)
 {
     if (number_of_scalars == 0) return;
-    if ((step + 1) % sample_interval != 0) return;
+    if ((++step) % sample_interval != 0) return;
+
+    int output_flag = ((step/sample_interval) % output_interval == 0);
+    
     int Ng = atom->number_of_groups;
     int N = atom->N;
 
@@ -267,7 +274,15 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
     CHECK(cudaMemcpy(cpu_group_sum, gpu_group_sum, 
         sizeof(real) * Ng * number_of_scalars, cudaMemcpyDeviceToHost));
 
-    output_results(atom, integrate);
+    for (int n = 0; n < Ng * number_of_scalars; ++n)
+        cpu_group_sum_ave[n] += cpu_group_sum[n];
+
+    if (output_flag) 
+    { 
+        output_results(atom, integrate);
+        for (int n = 0; n < Ng * number_of_scalars; ++n)
+            cpu_group_sum_ave[n] = 0.0;
+    }
 }
 
 
@@ -281,7 +296,7 @@ void Compute::output_results(Atom *atom, Integrate *integrate)
         int offset = n * Ng;
         for (int k = 0; k < Ng; k++)
         {
-            real tmp = cpu_group_sum[k + offset];
+            real tmp = cpu_group_sum_ave[k + offset] / output_interval;
             if (compute_temperature && n == 0) tmp /= atom->cpu_group_size[k];
             fprintf(fid, "%15.6e", tmp);
         }     
