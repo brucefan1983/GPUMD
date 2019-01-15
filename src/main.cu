@@ -26,7 +26,59 @@
 
 
 
+void print_welcome_information(void);
+void print_debug_information(void);
+int get_number_of_input_directories(void);
+
+
+
+
 int main(int argc, char *argv[])
+{
+    print_welcome_information();
+    print_debug_information();
+    int number_of_inputs = get_number_of_input_directories();
+
+    // Run GPUMD for the input directories one by one
+    for (int n = 0; n < number_of_inputs; ++n)
+    {
+        char input_directory[200];
+        int count = scanf("%s", input_directory);
+        if (count != 1)
+        {
+            printf("Error: reading error for input directory.\n");
+            exit(1);
+        }
+
+        print_line_1();
+        printf("Run simulation for '%s'.\n", input_directory);
+        print_line_2();
+
+        clock_t time_begin = clock();
+
+        // Run GPUMD for "input_directory"
+        GPUMD gpumd(input_directory);
+
+        clock_t time_finish = clock();
+
+        double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
+
+        print_line_1();
+        printf("Time used for '%s' = %f s.\n", input_directory, time_used);
+        print_line_2();
+    }
+
+    print_line_1();
+    printf("Finished running GPUMD.\n");
+    print_line_2();
+
+    return EXIT_SUCCESS;
+}
+
+
+
+
+void print_welcome_information(void)
 {
     printf("\n");
     printf("***************************************************************\n");
@@ -41,7 +93,13 @@ int main(int argc, char *argv[])
     printf("*     Ari Harju                                               *\n");
     printf("***************************************************************\n");
     printf("\n");
+}
 
+
+
+
+void print_debug_information(void)
+{
     print_line_1();
     printf("Compiling options:\n");
     print_line_2();
@@ -75,54 +133,24 @@ int main(int argc, char *argv[])
     printf("CBN is on: Special verison for Haikuan Dong.\n");
 #endif
 
-#ifdef HEAT_CURRENT
-    printf("HEAT_CURRENT is on: Special verison for Davide Donadio.\n");
+#ifdef FORCE
+    printf("FORCE is on: Calculate initial force.\n");
 #endif
+}
 
-    // get the number of input directories
+
+
+
+int get_number_of_input_directories(void)
+{
     int number_of_inputs;
-    char input_directory[200];
-
     int count = scanf("%d", &number_of_inputs);
     if (count != 1)
     {
         printf("Error: reading error for number of inputs.\n");
         exit(1);
     }
-
-    // Run GPUMD for the input directories one by one
-    for (int n = 0; n < number_of_inputs; ++n)
-    {
-        count = scanf("%s", input_directory);
-        if (count != 1)
-        {
-            printf("Error: reading error for input directory.\n");
-            exit(1);
-        }
-
-        print_line_1();
-        printf("Run simulation for '%s'.\n", input_directory);
-        print_line_2();
-
-        clock_t time_begin = clock();
-
-        // Run GPUMD for "input_directory"
-        GPUMD gpumd(input_directory);
-
-        clock_t time_finish = clock();
-
-        double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
-
-        print_line_1();
-        printf("Time used for '%s' = %f s.\n", input_directory, time_used);
-        print_line_2();
-    }
-
-    print_line_1();
-    printf("Finished running GPUMD.\n");
-    print_line_2();
-
-    return EXIT_SUCCESS;
+    return number_of_inputs;
 }
 
 
