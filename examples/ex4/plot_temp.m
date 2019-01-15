@@ -1,5 +1,5 @@
 clear;  close all; font_size=10; 
-load temperature.out; 
+load compute.out; temperature=compute;
 
 % Some parameters from MD
 dt = 0.001; % ps
