@@ -2287,53 +2287,6 @@ rebo_mos2
 
 
 
-\section{The REBO potential for silicon systems}
-
-
-\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
-
-Here, we discuss the REBO (reactive empirical bond-order) potential for silicon systems developed by Schall \textit{et al.} \cite{schall2008prb},  which  is essentially the Tersoff potential. 
-
-
-The site potential takes the same general form as in the case of the Tersoff potential:
-\begin{equation}
-U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right].
-\end{equation}
-The cutoff function $f_{C}(r)$ is identical to that in the Tersoff potential. The repulsive function $f_{R}(r)$ takes a different form than that in the Tersoff potential:
-\begin{equation}
-f_{R}(r) = \left(1+\frac{Q}{r}\right) A e^{-\alpha r},
-\end{equation}
-where $Q$, $A$, and $\alpha$ are material-specific parameters. The attractive function $f_{A}(r)$ is
-\begin{equation}
-f_{A}(r) = B_1 e^{-\beta_1 r} + B_2 e^{-\beta_2 r} + B_3 e^{-\beta_3 r},
-\end{equation}
-where $B_1$, $B_2$, $B_3$, $\beta_1$, $\beta_2$, and $\beta_3$ are material-specific parameters.
-
-The bond order function in this REBO potential is
-\begin{equation}
-b_{ij} =\left(1 + \zeta_{ij}\right)^{-1/2},
-\end{equation}
-where
-\begin{equation}
-\zeta_{ij} = \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}) \right].
-\end{equation}
-The angular function  $g_{ijk}(\cos\theta_{ijk})$ is given by splines.
-
-The partial force can be derived to be
-\begin{align}
-\frac{\partial U_i}{\partial \vect{r}_{ij}}
-&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-b_{ij}f_A(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-b_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik})  g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}  g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}}. \nonumber \\
-\end{align}
-This is formally the same as in the case of the Tersoff potential.
-
-
-
 \section{The EDIP potential for silicon}
 
 
@@ -2401,10 +2354,6 @@ The partial force for the $U^{(3)}$ part is
 &+ \frac{1}{2} \sum_{k\neq i,j} \sum_{m\neq i,j} \frac{\partial V^{(3)}_{ikm}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
 \end{align}
 
-\section{The analytical bond-order potential}
-
-
-\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
 
 \section{Mixed potentials}
 
@@ -2550,13 +2499,15 @@ The overall structure of a \verb"run.in" file is as follows:
     time_step
     neighbor
     fix
+    deform
     dump_thermo
     dump_position
     dump_velocity
     dump_force
     dump_potential
     dump_virial
-    compute_temp
+    dump_heat
+    compute
     compute_shc
     compute_vac
     compute_hac
@@ -2738,14 +2689,36 @@ fix 0
 means that atoms in group \verb"0" will be fixed during the current run.
 
 
+\subsection{The deform keyword}
 
-\subsection{The compute temp keyword}
-
-This keyword is used to compute and output the block temperatures (local temperatures in each group) and requires a single parameter which is the sampling interval for the block temperatures. For example, the command
+This keyword is used to deform the simulation box, which can be used to do tensile tests. It requires 4 parameters:
 \begin{verbatim}
-compute_temp 1000
+deform strain_rate deform_x deform_y deform_z
 \end{verbatim}
-means that the block temperatures will be computed every 1000 time steps.
+Here, \verb"strain rate" specifies the speed of the increase of the box length, which is in units of \AA~/step. For example, suppose the box length (in a given direction) in the beginning of a run is 100 \AA~and this parameter is $10^{-5}$\AA~/step, then a run with $10^6$ steps will change the box length by $10\%$. This gives a strain rate of $10^8$ s$^{-1}$ if the time step is $1$ fs. The second parameter \verb"deform_x" can be 0 or 1, where 0 means do not deform the $x$ direction and 1 means deform the $x$ direction. The last two parameters have similar meanings. 
+
+
+\subsection{The compute keyword}
+
+This keyword is used to compute and output space and time averages of various per-atom quantities. It is used in the following way:
+\begin{verbatim}
+compute sample_interval output_interval quantity_1 quantity_2 ...
+\end{verbatim}
+Here, the first parameter \verb"sample_interval" means the sampling interval, i.e., sampling the quantities every so many time steps and the second parameter \verb"output_interval" means averaging over so many sampled data before giving one output. For example, 
+\begin{verbatim}
+compute 100 10 quantity_1
+\end{verbatim}
+means sampling \verb"quantity_1" every 100 time steps and averaging over 10 data points before making an output. That is, there is only one output every $100 \times 10=1000$ time steps. 
+
+The allowed names for the quantities are:
+\begin{itemize}
+\item \verb"temperature"
+\item \verb"potential"
+\item \verb"force"
+\item \verb"virial"
+\item \verb"heat_current"
+\end{itemize}
+One can write one or more (distinct) names for this keyword.
 
 
 \subsection{The compute shc keyword}
@@ -2809,10 +2782,11 @@ In this section, we describe the formats of the output files. The output files a
 \item \verb"force.out" is generated by \verb"dump_force"
 \item \verb"potential.out" is generated by \verb"dump_potential"
 \item \verb"virial.out" is generated by \verb"dump_virial"
+\item \verb"heat.out" is generated by \verb"dump_heat"
+\item \verb"compute.out" is generated by \verb"compute"
 \item \verb"vac.out" is generated by \verb"compute_vac"
 \item \verb"hac.out" is generated by \verb"compute_hac"
 \item \verb"shc.out" is generated by \verb"compute_shc"
-\item \verb"temperature.out" is generated by \verb"compute_temp"
 \item \verb"kappa.out" is generated by \verb"compute_hnemd"
 \end{itemize}
 
@@ -2918,13 +2892,39 @@ Note that the HAC and the RTC have been decomposed as described in Ref. \cite{fa
 \end{equation}
 Note that the ``cross term'' introduced in Ref. \cite{fan2017prb} has been evenly attributed to the in- and out-of-plane components. This has been justified in Ref. \cite{fan2018submitted}.
 
-\subsection{The temperature.out file}
+\subsection{The compute.out file}
 
-This file contains data related to NEMD simulations of heat transport. Assuming that the system is divided into $M$ groups, then
+This file contains data produced by using the \verb"compute" command. Assuming that the system is divided into $M$ groups, then
+
 \begin{itemize}
-\item columns 1 to $M$ are the block temperatures (in units of K)
-\item the last second column is the total energy of the thermostat coupling to the heat source region (in units of eV)
-\item the last column is the total energy of the thermostat coupling to the heat sink region (in units of eV)
+
+\item if temperature is computed:
+\begin{itemize}
+\item $M$ columns of group temperatures (in units of K) from left to right
+\item the next column is the total energy of the thermostat coupling to the heat source region (in units of eV)
+\item the next column is the total energy of the thermostat coupling to the heat sink region (in units of eV)
+\end{itemize}
+
+\item if potential is computed:
+\begin{itemize}
+\item $M$ columns of group potentials (in units of eV) from left to right
+\end{itemize}
+
+\item if force is computed:
+\begin{itemize}
+\item $3M$ columns of group forces (in units of eV/\AA) from left to right
+\end{itemize}
+
+\item if virial is computed:
+\begin{itemize}
+\item $3M$ columns of group virials (in units of eV) from left to right
+\end{itemize}
+
+\item if heat current is computed:
+\begin{itemize}
+\item $3M$ columns of group heat currents (in units of eV$^{3/2}$ amu$^{-1/2}$) from left to right
+\end{itemize}
+
 \end{itemize}
 
 
@@ -3162,7 +3162,7 @@ The \verb"run.in" file for this example reads:
 
     ensemble     heat_nhc 300 100 10 1 8
     fix          0
-    compute_temp 1000
+    compute      100 10 temperature
     compute_shc  2 250 100000 4 5
     run          2000000
     #-------------------------------------------------------------------
