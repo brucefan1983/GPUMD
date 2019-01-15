@@ -9,7 +9,7 @@ run          1000000
 
 ensemble     heat_nhc 300 50 10 1 8 
 fix          0
-compute_temp 1000
+compute      100 10 temperature
 compute_shc  2 250 100000 4 5
 run          2000000
 
