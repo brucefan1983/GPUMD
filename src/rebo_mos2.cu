@@ -1246,7 +1246,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     real *pe = atom->potential_per_atom;
     real *h = atom->heat_per_atom;
 
-    int *label = atom->label;
+    int *label = atom->group[0].label;
     int *fv_index = measure->shc.fv_index;
     int *a_map = measure->shc.a_map;
     int *b_map = measure->shc.b_map;

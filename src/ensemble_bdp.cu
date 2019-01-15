@@ -96,7 +96,8 @@ void Ensemble_BDP::integrate_nvt_bdp
     velocity_verlet_2(atom);
 
     // get thermo
-    int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
+    int N_fixed = (fixed_group == -1) ? 0 : 
+        atom->group[0].cpu_size[fixed_group];
     find_thermo(atom);
 
     // re-scale the velocities
@@ -121,12 +122,12 @@ void Ensemble_BDP::integrate_heat_bdp
 {
     int label_1 = source;
     int label_2 = sink;
-    int Ng = atom->number_of_groups;
+    int Ng = atom->group[0].number;
 
     real kT1 = K_B * (temperature + delta_temperature); 
     real kT2 = K_B * (temperature - delta_temperature); 
-    real dN1 = (real) DIM * (atom->cpu_group_size[source] - 1);
-    real dN2 = (real) DIM * (atom->cpu_group_size[sink] - 1);
+    real dN1 = (real) DIM * (atom->group[0].cpu_size[source] - 1);
+    real dN2 = (real) DIM * (atom->group[0].cpu_size[sink] - 1);
     real sigma_1 = dN1 * kT1 * 0.5;
     real sigma_2 = dN2 * kT2 * 0.5;
 

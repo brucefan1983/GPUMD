@@ -129,7 +129,7 @@ void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
     CHECK(cudaMemcpy(box_length, atom->box_length, m2, cudaMemcpyDeviceToHost));
 
     int N_fixed = (atom->fixed_group == -1) ? 0 :
-        atom->cpu_group_size[atom->fixed_group];
+        atom->group[0].cpu_size[atom->fixed_group];
     real energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
 
     fprintf(fid, 

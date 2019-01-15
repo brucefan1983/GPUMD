@@ -230,12 +230,12 @@ void Ensemble_NHC::integrate_heat_nhc
     int label_1 = source;
     int label_2 = sink;
 
-    int Ng = atom->number_of_groups;
+    int Ng = atom->group[0].number;
 
     real kT1 = K_B * (temperature + delta_temperature); 
     real kT2 = K_B * (temperature - delta_temperature); 
-    real dN1 = (real) DIM * atom->cpu_group_size[source];
-    real dN2 = (real) DIM * atom->cpu_group_size[sink];
+    real dN1 = (real) DIM * atom->group[0].cpu_size[source];
+    real dN2 = (real) DIM * atom->group[0].cpu_size[sink];
     real dt2 = time_step * HALF;
 
     // allocate some memory (to be improved)

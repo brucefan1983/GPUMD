@@ -120,25 +120,26 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
     MY_MALLOC(cpu_type, int, N);
     MY_MALLOC(cpu_type_local, int, N);
-    MY_MALLOC(cpu_label, int, N);
+    MY_MALLOC(group[0].cpu_label, int, N);
     MY_MALLOC(cpu_mass, real, N);
     MY_MALLOC(cpu_x, real, N);
     MY_MALLOC(cpu_y, real, N);
     MY_MALLOC(cpu_z, real, N);
 
-    number_of_groups = -1; number_of_types = -1;
+    group[0].number = -1; number_of_types = -1;
     for (int n = 0; n < N; n++)
     {
         double mass, x, y, z;
         int count = fscanf(fid_xyz, "%d%d%lf%lf%lf%lf", 
-            &(cpu_type[n]), &(cpu_label[n]), &mass, &x, &y, &z);
+            &(cpu_type[n]), &(group[0].cpu_label[n]), &mass, &x, &y, &z);
         if (count != 6) print_error("reading error for xyz.in.\n");
         cpu_mass[n] = mass; cpu_x[n] = x; cpu_y[n] = y; cpu_z[n] = z;
-        if (cpu_label[n] > number_of_groups) number_of_groups = cpu_label[n];
+        if (group[0].cpu_label[n] > group[0].number) 
+            group[0].number = group[0].cpu_label[n];
         if (cpu_type[n] > number_of_types) number_of_types = cpu_type[n];
         cpu_type_local[n] = cpu_type[n];
     }
-    number_of_groups++; number_of_types++;
+    group[0].number++; number_of_types++;
 }
 
 
@@ -146,28 +147,28 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 
 void Atom::find_group_size(void)
 {
-    MY_MALLOC(cpu_group_size, int, number_of_groups);
-    MY_MALLOC(cpu_group_size_sum, int, number_of_groups);
-    MY_MALLOC(cpu_group_contents, int, N);
-    if (number_of_groups == 1)
+    MY_MALLOC(group[0].cpu_size, int, group[0].number);
+    MY_MALLOC(group[0].cpu_size_sum, int, group[0].number);
+    MY_MALLOC(group[0].cpu_contents, int, N);
+    if (group[0].number == 1)
         printf("There is only one group of atoms.\n");
     else
-        printf("There are %d groups of atoms.\n", number_of_groups);
+        printf("There are %d groups of atoms.\n", group[0].number);
 
     // determine the number of atoms in each group
-    for (int m = 0; m < number_of_groups; m++)
+    for (int m = 0; m < group[0].number; m++)
     {
-        cpu_group_size[m] = 0;
-        cpu_group_size_sum[m] = 0;
+        group[0].cpu_size[m] = 0;
+        group[0].cpu_size_sum[m] = 0;
     }
-    for (int n = 0; n < N; n++) cpu_group_size[cpu_label[n]]++;
-    for (int m = 0; m < number_of_groups; m++)
-        printf("    %d atoms in group %d.\n", cpu_group_size[m], m);   
+    for (int n = 0; n < N; n++) group[0].cpu_size[group[0].cpu_label[n]]++;
+    for (int m = 0; m < group[0].number; m++)
+        printf("    %d atoms in group %d.\n", group[0].cpu_size[m], m);   
     
     // calculate the number of atoms before a group
-    for (int m = 1; m < number_of_groups; m++)
+    for (int m = 1; m < group[0].number; m++)
         for (int n = 0; n < m; n++)
-            cpu_group_size_sum[m] += cpu_group_size[n];
+            group[0].cpu_size_sum[m] += group[0].cpu_size[n];
 }
 
 
@@ -175,12 +176,12 @@ void Atom::find_group_size(void)
 void Atom::find_group_contents(void)
 {
     // determine the atom indices from the first to the last group
-    int *offset; MY_MALLOC(offset, int, number_of_groups);
-    for (int m = 0; m < number_of_groups; m++) offset[m] = 0;
+    int *offset; MY_MALLOC(offset, int, group[0].number);
+    for (int m = 0; m < group[0].number; m++) offset[m] = 0;
     for (int n = 0; n < N; n++) 
-        for (int m = 0; m < number_of_groups; m++)
-            if (cpu_label[n] == m)
-                cpu_group_contents[cpu_group_size_sum[m]+offset[m]++] = n;
+        for (int m = 0; m < group[0].number; m++)
+            if (group[0].cpu_label[n] == m)
+                group[0].cpu_contents[group[0].cpu_size_sum[m]+offset[m]++] = n;
     MY_FREE(offset);
 }
 
@@ -238,7 +239,7 @@ void Atom::allocate_memory_gpu(void)
     // memory amount
     int m1 = sizeof(int) * N;
     int m2 = m1 * neighbor.MN;
-    int m3 = sizeof(int) * number_of_groups;
+    int m3 = sizeof(int) * group[0].number;
     int m4 = sizeof(real) * N;
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
 
@@ -249,10 +250,10 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&NL_local, m2));
     CHECK(cudaMalloc((void**)&type, m1));
     CHECK(cudaMalloc((void**)&type_local, m1));
-    CHECK(cudaMalloc((void**)&label, m1));
-    CHECK(cudaMalloc((void**)&group_size, m3));
-    CHECK(cudaMalloc((void**)&group_size_sum, m3));
-    CHECK(cudaMalloc((void**)&group_contents, m1));
+    CHECK(cudaMalloc((void**)&group[0].label, m1));
+    CHECK(cudaMalloc((void**)&group[0].size, m3));
+    CHECK(cudaMalloc((void**)&group[0].size_sum, m3));
+    CHECK(cudaMalloc((void**)&group[0].contents, m1));
 
     // for atoms
     CHECK(cudaMalloc((void**)&mass, m4));
@@ -284,17 +285,19 @@ void Atom::allocate_memory_gpu(void)
 void Atom::copy_from_cpu_to_gpu(void)
 {
     int m1 = sizeof(int) * N;
-    int m2 = sizeof(int) * number_of_groups;
+    int m2 = sizeof(int) * group[0].number;
     int m3 = sizeof(real) * N;
     int m4 = sizeof(real) * DIM;
 
     CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(type_local, cpu_type, m1, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(label, cpu_label, m1, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(group_size, cpu_group_size, m2, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(group_size_sum, cpu_group_size_sum, m2,
+    CHECK(cudaMemcpy(group[0].label, group[0].cpu_label, m1,
         cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(group_contents, cpu_group_contents, m1,
+    CHECK(cudaMemcpy(group[0].size, group[0].cpu_size, m2,
+        cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(group[0].size_sum, group[0].cpu_size_sum, m2,
+        cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(group[0].contents, group[0].cpu_contents, m1,
         cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(mass, cpu_mass, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
@@ -310,10 +313,10 @@ void Atom::free_memory_cpu(void)
 {
     MY_FREE(cpu_type);
     MY_FREE(cpu_type_local);
-    MY_FREE(cpu_label);
-    MY_FREE(cpu_group_size);
-    MY_FREE(cpu_group_size_sum);
-    MY_FREE(cpu_group_contents);
+    MY_FREE(group[0].cpu_label);
+    MY_FREE(group[0].cpu_size);
+    MY_FREE(group[0].cpu_size_sum);
+    MY_FREE(group[0].cpu_contents);
     MY_FREE(cpu_type_size);
     MY_FREE(cpu_mass);
     MY_FREE(cpu_x);
@@ -333,10 +336,10 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(NL_local));
     CHECK(cudaFree(type));  
     CHECK(cudaFree(type_local));
-    CHECK(cudaFree(label)); 
-    CHECK(cudaFree(group_size)); 
-    CHECK(cudaFree(group_size_sum));
-    CHECK(cudaFree(group_contents));
+    CHECK(cudaFree(group[0].label)); 
+    CHECK(cudaFree(group[0].size)); 
+    CHECK(cudaFree(group[0].size_sum));
+    CHECK(cudaFree(group[0].contents));
     CHECK(cudaFree(mass));
     CHECK(cudaFree(x0));  
     CHECK(cudaFree(y0));  

@@ -236,7 +236,7 @@ void Potential::find_properties_many_body
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
         atom->vy, atom->vz, atom->box_length, atom->fx, atom->fy, atom->fz,
         atom->virial_per_atom_x, atom->virial_per_atom_y,
-        atom->virial_per_atom_z, atom->heat_per_atom, atom->label,
+        atom->virial_per_atom_z, atom->heat_per_atom, atom->group[0].label,
         measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,
         measure->shc.b_map, measure->shc.count_b
     );

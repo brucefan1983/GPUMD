@@ -120,8 +120,14 @@ void SHC::preprocess(Atom *atom)
     {
         cpu_a_map[n] = -1;
         cpu_b_map[n] = -1;
-        if (atom->cpu_label[n] == block_A)      {cpu_a_map[n] = count_a++;}
-        else if (atom->cpu_label[n] == block_B) {cpu_b_map[n] = count_b++;}
+        if (atom->group[0].cpu_label[n] == block_A)
+        {     
+            cpu_a_map[n] = count_a++;
+        }
+        else if (atom->group[0].cpu_label[n] == block_B)
+        {
+            cpu_b_map[n] = count_b++;
+        }
     }
 
     int* NN;

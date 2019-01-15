@@ -45,7 +45,7 @@ void Compute::preprocess(char* input_dir, Atom* atom)
     if (compute_heat_current) number_of_scalars += 3;
     if (number_of_scalars == 0) return;
 
-    int number_of_columns = atom->number_of_groups * number_of_scalars;
+    int number_of_columns = atom->group[0].number * number_of_scalars;
     MY_MALLOC(cpu_group_sum, real, number_of_columns);
     MY_MALLOC(cpu_group_sum_ave, real, number_of_columns);
     for (int n = 0; n < number_of_columns; ++n) cpu_group_sum_ave[n] = 0.0;
@@ -219,7 +219,7 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
 
     int output_flag = ((step/sample_interval) % output_interval == 0);
     
-    int Ng = atom->number_of_groups;
+    int Ng = atom->group[0].number;
     int N = atom->N;
 
     int offset = 0;
@@ -228,33 +228,35 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(N, atom->mass,
             atom->vx, atom->vy, atom->vz, gpu_per_atom_x);
         CUDA_CHECK_KERNEL
-        find_group_sum_1<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-            atom->group_contents, gpu_per_atom_x, gpu_group_sum + offset);
+        find_group_sum_1<<<Ng, 256>>>(atom->group[0].size,
+            atom->group[0].size_sum, atom->group[0].contents,
+            gpu_per_atom_x, gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng;
     }
     if (compute_potential)
     {
-        find_group_sum_1<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-            atom->group_contents, atom->potential_per_atom,
-            gpu_group_sum + offset);
+        find_group_sum_1<<<Ng, 256>>>(atom->group[0].size,
+            atom->group[0].size_sum, atom->group[0].contents,
+            atom->potential_per_atom, gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng;
     }
     if (compute_force)
     {
-        find_group_sum_3<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-            atom->group_contents, atom->fx, atom->fy, atom->fz,
+        find_group_sum_3<<<Ng, 256>>>(atom->group[0].size,
+            atom->group[0].size_sum, atom->group[0].contents,
+            atom->fx, atom->fy, atom->fz,
             gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
     if (compute_virial)
     {
-        find_group_sum_3<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-            atom->group_contents, atom->virial_per_atom_x,
-            atom->virial_per_atom_y, atom->virial_per_atom_z,
-            gpu_group_sum + offset);
+        find_group_sum_3<<<Ng, 256>>>(atom->group[0].size,
+            atom->group[0].size_sum, atom->group[0].contents,
+            atom->virial_per_atom_x, atom->virial_per_atom_y,
+            atom->virial_per_atom_z, gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
@@ -264,8 +266,9 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
             gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z);
         CUDA_CHECK_KERNEL
 
-        find_group_sum_3<<<Ng, 256>>>(atom->group_size, atom->group_size_sum,
-            atom->group_contents, gpu_per_atom_x, gpu_per_atom_y,
+        find_group_sum_3<<<Ng, 256>>>(atom->group[0].size,
+            atom->group[0].size_sum, atom->group[0].contents,
+            gpu_per_atom_x, gpu_per_atom_y,
             gpu_per_atom_z, gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
@@ -290,14 +293,17 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
 
 void Compute::output_results(Atom *atom, Integrate *integrate)
 {
-    int Ng = atom->number_of_groups;
+    int Ng = atom->group[0].number;
     for (int n = 0; n < number_of_scalars; ++n)
     {
         int offset = n * Ng;
         for (int k = 0; k < Ng; k++)
         {
             real tmp = cpu_group_sum_ave[k + offset] / output_interval;
-            if (compute_temperature && n == 0) tmp /= atom->cpu_group_size[k];
+            if (compute_temperature && n == 0) 
+            {
+                tmp /= atom->group[0].cpu_size[k];
+            }
             fprintf(fid, "%15.6e", tmp);
         }     
     }

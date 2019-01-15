@@ -100,8 +100,8 @@ void Ensemble::velocity_verlet_1(Atom* atom)
 {
     gpu_velocity_verlet_1<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N, atom->fixed_group, atom->label, atom->time_step, atom->mass,
-        atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz,
+        atom->N, atom->fixed_group, atom->group[0].label, atom->time_step,
+        atom->mass, atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz,
         atom->fx, atom->fy, atom->fz
     );
     CUDA_CHECK_KERNEL
@@ -157,8 +157,8 @@ void Ensemble::velocity_verlet_2(Atom* atom)
 {
     gpu_velocity_verlet_2<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N, atom->fixed_group, atom->label, atom->time_step, atom->mass,
-        atom->vx, atom->vy, atom->vz, atom->fx, atom->fy, atom->fz
+        atom->N, atom->fixed_group, atom->group[0].label, atom->time_step,
+        atom->mass, atom->vx, atom->vy, atom->vz, atom->fx, atom->fy, atom->fz
     );
     CUDA_CHECK_KERNEL
 }
@@ -330,10 +330,10 @@ static __global__ void gpu_find_thermo
 void Ensemble::find_thermo(Atom* atom)
 {
     int N_fixed = (atom->fixed_group == -1) ? 0 :
-        atom->cpu_group_size[atom->fixed_group];
+        atom->group[0].cpu_size[atom->fixed_group];
     gpu_find_thermo<<<5, 1024>>>
     (
-        atom->N, N_fixed, atom->fixed_group, atom->label, temperature,
+        atom->N, N_fixed, atom->fixed_group, atom->group[0].label, temperature,
         atom->box_length, atom->mass, atom->potential_per_atom,
         atom->vx, atom->vy, atom->vz, atom->virial_per_atom_x,
         atom->virial_per_atom_y, atom->virial_per_atom_z, atom->thermo
@@ -481,9 +481,9 @@ static __global__ void gpu_find_vc_and_ke
 void Ensemble::find_vc_and_ke
 (Atom* atom, real* vcx, real* vcy, real* vcz, real* ke)
 {
-    gpu_find_vc_and_ke<<<atom->number_of_groups, 512>>>
+    gpu_find_vc_and_ke<<<atom->group[0].number, 512>>>
     (
-        atom->group_size, atom->group_size_sum, atom->group_contents, 
+        atom->group[0].size, atom->group[0].size_sum, atom->group[0].contents, 
         atom->mass, atom->vx, atom->vy, atom->vz, vcx, vcy, vcz, ke
     );
     CUDA_CHECK_KERNEL
@@ -545,7 +545,7 @@ void Ensemble::scale_velocity_local
 {
     gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N, source, sink, atom->label, factor_1, factor_2, 
+        atom->N, source, sink, atom->group[0].label, factor_1, factor_2, 
         vcx, vcy, vcz, ke, atom->vx, atom->vy, atom->vz
     );
     CUDA_CHECK_KERNEL

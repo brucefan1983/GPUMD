@@ -34,6 +34,26 @@ struct Neighbor
 
 
 
+struct Group
+{
+    int number;             // number of groups
+
+    // GPU data
+    int *label;             // atom label
+    int *size;              // # atoms in each group
+    int *size_sum;          // # atoms in all previous groups
+    int *contents;          // atom indices sorted based on groups
+
+    // CPU data corresponding to the above GPU data
+    int* cpu_label;
+    int* cpu_size;
+    int* cpu_size_sum;
+    int* cpu_contents;
+};
+
+
+
+
 class Atom
 {
 public:
@@ -41,10 +61,6 @@ public:
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
     int *type_local;              // local atom type (for force)
-    int *label;                   // group label 
-    int *group_size;              // # atoms in each group
-    int *group_size_sum;          // # atoms in all previous groups
-    int *group_contents;          // atom indices sorted based on groups
     real *x0; real *y0; real *z0; // for determing when to update neighbor list
     real *mass;                   // per-atom mass
     real *x; real *y; real *z;    // per-atom position
@@ -61,10 +77,6 @@ public:
     int* cpu_type;
     int* cpu_type_local;
     int* cpu_type_size;
-    int* cpu_label;
-    int* cpu_group_size;
-    int* cpu_group_size_sum;
-    int* cpu_group_contents;
 
     real* cpu_mass;
     real* cpu_x;
@@ -72,8 +84,7 @@ public:
     real* cpu_z;
     real* cpu_box_length;
 
-    int N;                // number of atoms
-    int number_of_groups; // number of groups 
+    int N;                // number of atoms 
     int fixed_group;      // ID of the group in which the atoms will be fixed 
     int number_of_types;  // number of atom types 
     int pbc_x;           // pbc_x = 1 means periodic in the x-direction
@@ -96,6 +107,7 @@ public:
 
     // some well defined sub-structures
     Neighbor neighbor;
+    Group group[10];
 
     Atom(char *input_dir);
     ~Atom(void);

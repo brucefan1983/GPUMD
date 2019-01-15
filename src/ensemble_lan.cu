@@ -275,16 +275,16 @@ void Ensemble_LAN::integrate_heat_lan
 {
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
-    int *group_size      = atom->group_size;
-    int *group_size_sum  = atom->group_size_sum;
-    int *group_contents  = atom->group_contents;
+    int *group_size      = atom->group[0].size;
+    int *group_size_sum  = atom->group[0].size_sum;
+    int *group_contents  = atom->group[0].contents;
     real *mass = atom->mass;
     real *vx   = atom->vx;
     real *vy   = atom->vy;
     real *vz   = atom->vz;
     int label_1 = source;
     int label_2 = sink;
-    int Ng = atom->number_of_groups;
+    int Ng = atom->group[0].number;
 
     // allocate some memory
     real *ek2;
