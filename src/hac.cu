@@ -62,10 +62,7 @@ void HAC::preprocess(Atom *atom)
 
 // sum up the per-atom heat current to get the total heat current
 static __global__ void gpu_sum_heat
-(
-    int N, int Nd, int nd, real *g_vx, real *g_vy, real *g_vz, 
-    real *g_mass, real *g_potential, real *g_heat, real *g_heat_all
-)
+(int N, int Nd, int nd, real *g_heat, real *g_heat_all)
 {
     // <<<NUM_OF_HEAT_COMPONENTS, 1024>>> 
     int tid = threadIdx.x; 
@@ -98,10 +95,9 @@ void HAC::process(int step, char *input_dir, Atom *atom)
     if (!compute) return; 
     if ((++step) % sample_interval != 0) return;
  
-    int nd = step / sample_interval;
+    int nd = step / sample_interval - 1;
     int Nd = atom->number_of_steps / sample_interval;
-    gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(atom->N, Nd, nd, 
-        atom->vx, atom->vy, atom->vz, atom->mass, atom->potential_per_atom,
+    gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(atom->N, Nd, nd,
         atom->heat_per_atom, heat_all);
     CUDA_CHECK_KERNEL
 }
