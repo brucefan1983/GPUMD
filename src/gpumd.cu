@@ -73,7 +73,8 @@ void GPUMD::initialize_run(Atom* atom, Measure* measure)
     measure->compute.compute_potential    = 0;
     measure->compute.compute_force        = 0;
     measure->compute.compute_virial       = 0;
-    measure->compute.compute_heat_current = 0;
+    measure->compute.compute_jp           = 0;
+    measure->compute.compute_jk           = 0;
 
     // some special quantities
     measure->shc.compute    = 0;

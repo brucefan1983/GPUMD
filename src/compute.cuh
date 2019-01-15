@@ -29,7 +29,8 @@ public:
     int compute_potential = 0;
     int compute_force = 0;
     int compute_virial = 0;
-    int compute_heat_current = 0;
+    int compute_jp = 0;
+    int compute_jk = 0;
 
     int sample_interval = 1;
     int output_interval = 1;

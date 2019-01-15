@@ -839,10 +839,15 @@ static void parse_compute(char **param,  int num_param, Measure* measure)
             measure->compute.compute_virial = 1;
             printf("    virial\n");
         }
-        else if (strcmp(param[k + 3], "heat_current") == 0)
+        else if (strcmp(param[k + 3], "jp") == 0)
         {
-            measure->compute.compute_heat_current = 1;
+            measure->compute.compute_jp = 1;
             printf("    potential part of heat current\n");
+        }
+        else if (strcmp(param[k + 3], "jk") == 0)
+        {
+            measure->compute.compute_jk = 1;
+            printf("    kinetic part of heat current\n");
         }
     }
     printf("    with sampling interval %d.\n",

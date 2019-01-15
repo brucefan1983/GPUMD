@@ -42,7 +42,8 @@ void Compute::preprocess(char* input_dir, Atom* atom)
     if (compute_potential) number_of_scalars += 1;
     if (compute_force) number_of_scalars += 3;
     if (compute_virial) number_of_scalars += 3;
-    if (compute_heat_current) number_of_scalars += 3;
+    if (compute_jp) number_of_scalars += 3;
+    if (compute_jk) number_of_scalars += 3;
     if (number_of_scalars == 0) return;
 
     int number_of_columns = atom->group[0].number * number_of_scalars;
@@ -94,7 +95,7 @@ static __global__ void find_per_atom_temperature
 
 
 
-static __global__ void find_per_atom_heat_current
+static __global__ void find_per_atom_jp
 (int N, real *g_j, real *g_jx, real* g_jy, real* g_jz)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -103,6 +104,25 @@ static __global__ void find_per_atom_heat_current
         g_jx[n] = g_j[n] + g_j[n + N];
         g_jy[n] = g_j[n + N * 2] + g_j[n + N * 3];
         g_jz[n] = g_j[n + N * 4];
+    }
+}
+
+
+
+
+static __global__ void find_per_atom_jk
+(
+    int N, real* g_potential, real *g_mass, real *g_vx, real* g_vy, real* g_vz,
+    real* g_jx, real* g_jy, real* g_jz
+)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < N)
+    {
+        real potential = g_potential[n]; real mass = g_mass[n];
+        real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
+        real energy = mass * (vx * vx + vy * vy + vz * vz) * HALF + potential;
+        g_jx[n] = vx * energy; g_jy[n] = vy * energy; g_jz[n] = vz * energy;
     }
 }
 
@@ -260,9 +280,9 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
-    if (compute_heat_current)
+    if (compute_jp)
     {
-        find_per_atom_heat_current<<<(N-1)/256+1, 256>>>(N, atom->heat_per_atom,
+        find_per_atom_jp<<<(N-1)/256+1, 256>>>(N, atom->heat_per_atom,
             gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z);
         CUDA_CHECK_KERNEL
 
@@ -273,7 +293,21 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
-    
+    if (compute_jk)
+    {
+        find_per_atom_jk<<<(N-1)/256+1, 256>>>(N, atom->potential_per_atom,
+            atom->mass, atom->vx, atom->vy, atom->vz, gpu_per_atom_x,
+            gpu_per_atom_y, gpu_per_atom_z);
+        CUDA_CHECK_KERNEL
+
+        find_group_sum_3<<<Ng, 256>>>(atom->group[0].size,
+            atom->group[0].size_sum, atom->group[0].contents,
+            gpu_per_atom_x, gpu_per_atom_y,
+            gpu_per_atom_z, gpu_group_sum + offset);
+        CUDA_CHECK_KERNEL
+        offset += Ng * 3;
+    }
+
     CHECK(cudaMemcpy(cpu_group_sum, gpu_group_sum, 
         sizeof(real) * Ng * number_of_scalars, cudaMemcpyDeviceToHost));
 
