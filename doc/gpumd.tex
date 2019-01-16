@@ -2488,7 +2488,7 @@ We explain line by line:
 \item Similarly, the $(m+2)$th line gives the information for the $m$th atom. This file should have \verb"N+2" lines.
 \end{itemize}
 
-The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA). Velocities can be in arbitrary units because we will rescale them according to the initial temperature specified in the \verb"run.in" file (TODO).
+The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA). Velocities can be in arbitrary units because we will scale them according to the initial temperature specified in the \verb"run.in" file.
 
 
 \subsection{The run.in input file}
@@ -2551,7 +2551,7 @@ When it is 5, two potentials need to be specified and the command reads:
 \begin{verbatim}
     potentials file1 flag file2 n1 n2
 \end{verbatim}
-Here, \verb"file1" is the filename for a two-body potential acting on the whole system (for all the atom types), \verb"file2" is the filename for a many-body potential acting on atoms from type \verb"n1" to type \verb"n2". The parameter \verb"flag" can only be set to 0 or 1, where 1 means that the two-body potential will not act on atoms from the same ``layer''. In this case, one has to prepare a file named \verb"layer.in" in the working directory which contains the ``layer'' label of each atom.
+Here, \verb"file1" is the filename for a two-body potential acting on the whole system (for all the atom types), \verb"file2" is the filename for a many-body potential acting on atoms from type \verb"n1" to type \verb"n2". The parameter \verb"flag" can only be set to 0 or 1, where 1 means that the two-body potential will not act on atoms from the same ``layer''. In this case, one has to set the parameter \verb"has_layer_in_xyz" to 1 in \verb"xyz.in" and provide the required data there.
 
 When the number of parameters is 8, three potentials need to be specified and the command reads:
 \begin{verbatim}
@@ -2561,7 +2561,7 @@ The only difference compared to the case of 5 parameters is that here we have an
 
 We give two explicit examples below.
 
-In the first example, let us consider simulating bilayer graphene. There is only one atom type and we can use the Tersoff potential for all the carbon atoms. However, one usually assume that there is an inter-layer Lennard-Jones potential (van der Waals interaction) which should not acting between atoms from the same layer. In this case, one can use the following command to specify two potentials for the system:
+In the first example, let us consider simulating bilayer graphene. There is only one atom type and we can use the Tersoff potential for all the carbon atoms. However, one usually assumes that there is an inter-layer Lennard-Jones potential (van der Waals interaction) which should not acting between atoms from the same layer. In this case, one can use the following command to specify two potentials for the system:
 \begin{verbatim}
     potentials lj_file 1 tersoff_file 0 0
 \end{verbatim}
@@ -2570,7 +2570,7 @@ Here,  the first parameter \verb"lj_file" specifies the Lennard-Jones potential 
     lj1
     epsilon sigma cutoff
 \end{verbatim}
-The second parameter 1 means that we need to prepare a file \verb"layer.in" in the working directory which contains the ``layer'' label of each atom (a single column; in the same order of the \verb"xyz.in" file). Then, atoms with the same ``layer'' label will not experience the Lennard-Jones potential. The third parameter specifies the Tersoff potential file and the last two parameters mean that the Tersoff potential will act on atoms from type 0 to type 0.
+The second parameter 1 means that we need to prepare ``layer label'' data in the  in the  \verb"xyz.in" file. Then, atoms with the same ``layer label'' will not experience the Lennard-Jones potential. The third parameter specifies the Tersoff potential file and the last two parameters mean that the Tersoff potential will act on atoms from type 0 to type 0.
 
 
 In the second example, let us consider simulating a single-layer graphene on top of a SiO$_2$ substrate. There are three atom types and we define carbon atoms as type 0, silicon atoms as type 1 and oxygen atoms as type 2. We can then use the following command to specify three potentials for the system:
