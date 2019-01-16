@@ -2712,21 +2712,22 @@ Here, \verb"strain rate" specifies the speed of the increase of the box length, 
 
 This keyword is used to compute and output space and time averages of various per-atom quantities. It is used in the following way:
 \begin{verbatim}
-compute sample_interval output_interval quantity_1 quantity_2 ...
+compute grouping_method sample_interval output_interval quantity_1 quantity_2 ...
 \end{verbatim}
-Here, the first parameter \verb"sample_interval" means the sampling interval, i.e., sampling the quantities every so many time steps and the second parameter \verb"output_interval" means averaging over so many sampled data before giving one output. For example, 
+Here, the first parameter  \verb"grouping_method" refers to the grouping method defined in \verb"xyz.in". This parameter should be an integer and a number $m$ means the $m+1$th grouping method in \verb"xyz.in". The second parameter \verb"sample_interval" means sampling the quantities every so many time steps and the third parameter \verb"output_interval" means averaging over so many sampled data before giving one output. For example, 
 \begin{verbatim}
-compute 100 10 quantity_1
+compute 0 100 10 quantity_1
 \end{verbatim}
-means sampling \verb"quantity_1" every 100 time steps and averaging over 10 data points before making an output. That is, there is only one output every $100 \times 10=1000$ time steps. 
+means using the first grouping method defined in \verb"xyz.in", sampling \verb"quantity_1" every 100 time steps and averaging over 10 data points before making an output. That is, there is only one output every $100 \times 10=1000$ time steps. 
 
 The allowed names for the quantities are:
 \begin{itemize}
-\item \verb"temperature"
-\item \verb"potential"
-\item \verb"force"
-\item \verb"virial"
-\item \verb"heat_current"
+\item \verb"temperature", which is the temperature
+\item \verb"potential", which is the potential energy
+\item \verb"force", which is the force vector
+\item \verb"virial", which is the diagonal part of the virial
+\item \verb"jp", which is the potential part of the heat current vector
+\item \verb"jk", which is the kinetic part of the heat current vector
 \end{itemize}
 One can write one or more (distinct) names for this keyword.
 
