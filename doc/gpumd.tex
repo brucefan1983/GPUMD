@@ -2458,27 +2458,37 @@ The next two sections are devoted to describing the structures of the input and 
 
 A file named \verb"xyz.in" should be prepared and should have the following format (empty lines and comments are not allowed):
 \begin{verbatim}
-    N      M       cutoff
+    N M cutoff has_velocity has_layer number_of_grouping_methods
     pbc_x  pbc_y   pbc_z  L_x L_y L_z
-    type_1 group_1 mass_1 x_1 y_1 z_1
-    type_2 group_2 mass_2 x_2 y_2 z_2
+    t1 x1 y1 z1 m1 [vx1] [vy1] [vz1] [layer1] [group1_1] [group2_1] ...
+    t2 x2 y2 z2 m2 [vx2] [vy2] [vz2] [layer1] [group1_2] [group2_2] ...
     ...
-    type_N group_N mass_N x_N y_N z_N
 \end{verbatim}
 We explain line by line:
 \begin{itemize}
-\item In the first line, \verb"N" is the number of atoms, \verb"M" is the maximum possible number of neighbor atoms for one atom, and \verb"cutoff" is the initial cutoff distance used for building the neighbor list. \textcolor{red}{Warning! It's the responsibility of the user to use a large enough value of M. If some atom has more than M neighbors during the simulation, unexpected error may occur and there may be no useful error message. If M is too large, it just wastes some memory. } 
+\item In the first line, 
+\begin{itemize}
+\item \verb"N" is the number of atoms.
+\item \verb"M" is the maximum possible number of neighbor atoms for one atom. \textcolor{red}{Warning! It's the responsibility of the user to use a large enough value of M. If some atom has more than M neighbors during the simulation, unexpected error may occur and there may be no useful error message. If M is too large, it just wastes some memory. } 
+\item \verb"cutoff" is the \textbf{initial} cutoff distance used for building the neighbor list. 
+\item \verb"has_velocity" can be 1 or 0, which means this file contains or does not contain the initial velocities, respectively.  See the explanations for the third line below for further details.
+\item \verb"has_layer" can be 1 or 0, which means this file contains or does not contain the layer index used for some mixed potentials, respectively. See the \verb"potentials" keyword in the \verb"run.in" file.  See the explanations for the third line below for further details.
+\item \verb"number_of_grouping_methods" can be integers from 0 to 10, which is the number of grouping methods that can be referred to in some keywords in the \verb"run.in" file.  See the explanations for the third line below for further details.
+\end{itemize}
 \item In the second line, \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z" can only be 1 or 0. If \verb"pbc_x" is 1, it means that periodic boundary conditions will be applied to the $x$ direction; if \verb"pbc_x" is 0, it means that free boundary conditions will be applied to the $x$ direction. Similar descriptions apply to the other two directions. The next three items in the second line, \verb"L_x", \verb"L_y", and \verb"L_z", are the initial lengths of the (rectangular) simulation box along the $x$, $y$, and $z$ directions, respectively.
-\item In the third line, \verb"type_1", \verb"group_1", and \verb"mass_1" are respectively the type, group label, and mass of the first atom. The next three items, \verb"x_1", \verb"y_1", and \verb"z_1", are the coordinates of this atom.
+\item In the third line, 
+\begin{itemize}
+\item \verb"t1" is the type of atom 1. The atom type will be used to determine which potential parameters to use. \textcolor{red}{We use integers to record the atom types and the indices start from 0.}
+\item \verb"x1", \verb"y1", and \verb"z1" are the coordinates of this atom.
+\item  \verb"m1" is the mass of this atom.
+\item if  \verb"has_velocity" is 1, the next 3 items are the initial velocities of this atom.
+\item if \verb"has_layer" is 1, the next item is the layer label of this atom. That is, the number specifies which ``layer'' of the material this atom belongs to. This is only used in some mixed potentials when you use the \verb"potentials" keyword in the \verb"run.in" file.  \textcolor{red}{We use integers to record the layer labels and the numbers can be arbitrary because they are only used to distinguish the different layers.}
+\item if \verb"number_of_grouping_methods" is larger than zero, the next items are the group labels of this atom in the \verb"number_of_grouping_methods"-th grouping methods. The group labels will be used for some other keywords in the \verb"run.in" file . That is, \verb"group1_1" specifies which group this atom belongs to using the first grouping method; \verb"group2_1" specifies which group this atom belongs to using the second grouping method... \textcolor{red}{We use integers to record the group labels and the indices start from 0.} 
+\end{itemize}
 \item Similarly, the $(m+2)$th line gives the information for the $m$th atom. This file should have \verb"N+2" lines.
 \end{itemize}
 
-
-
-
-The atom type will be used to determine which potential parameters to use. The group label will be used for some other purposes such as calculating the block temperatures in NEMD simulations or realize fixed boundaries. We use integers to record the atom types and group labels and the indices start from 0. Explicit examples will be presented in the next chapter.
-
-The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA).
+The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA). Velocities can be in arbitrary units because we will rescale them according to the initial temperature specified in the \verb"run.in" file (TODO).
 
 
 \subsection{The run.in input file}
@@ -2957,16 +2967,19 @@ A given crystal should have a well defined average lattice constant at a given p
 
 The first few lines of the \verb"xyz.in" file created by the \verb"create_xyz.m" MATLAB script are:
 \begin{verbatim}
-    8000 4 3
-    1 1 1 54.3 54.3 54.3
-    0 0 28 0 0 0
-    0 0 28 0 2.715 2.715
-    0 0 28 2.715 0 2.715
-    0 0 28 2.715 2.715 0
+8000 4 3 0 0 0
+1 1 1 54.3 54.3 54.3
+0 0 0 0 28
+0 0 2.715 2.715 28
+0 2.715 0 2.715 28
+0 2.715 2.715 0 28
 \end{verbatim}
 The first line tells that the number of particles is 8000, the neighbor list size will be
-$8000\times 4$, and the initial cutoff distance for the neighbor list construction is 3 \AA.
-These parameters are good for silicon crystal described by the Tersoff potential, because no atom can have more than 4 neighbor atoms in the temperature range studied. One can make the second number larger, which only results in using more memory. If this number is not large enough, GPUMD will give an error message and exit. Note that all the atom types and group labels are 0 in this simulation.
+$8000\times 4$, and the initial cutoff distance for the neighbor list construction is 3 \AA. The remaining three zeros in the first line means: 1) initial velocities are not contained in this file; 2) there is no need to use layer labels; 3) there is no need to use any grouping method. The second parameter 4 in this line is good for silicon crystal described by the Tersoff potential, because no atom can have more than 4 neighbor atoms in the temperature range studied. One can make the second number larger, which only results in using more memory. If this number is not large enough, GPUMD will give an error message and exit. 
+
+In the second line, the first three ones means that all three directions are periodic. The remaining three numbers are the box lengths in the three directions. 
+
+Starting from the third line, the numbers in the first column are all 0 here, which means that all the atoms are of type 0 (single atom-type system). The next three columns are the initial coordinates of the atoms. The last column gives the masses of the atoms. Here, we consider isotopically pure Si-28 crystal. In some applications, one can consider mass disorder in a flexible way.
 
 The ``run.in'' input file is given below. The first line of command tells that the potential to be used is specified in the file \verb"potentials/si_tersoff_1989_1.txt".  The second line of the command tells that the velocities will be initialized with a temperature of 1 K. Then, the next 4 lines tell how to do the first run. This run will be in the $NPT$ ensemble, using the Berendsen method. The temperature is 1 K and the pressures are zero in all the directions. The coupling constants are 0.01 (dimensionless) and 0.0005 (in the natural unit system adopted by GPUMD) for the thermostat and the barostat, respectively. The time step for integration is 1 fs. There are $10^5$ steps for this run and the thermodynamic quantities will be output every 100 steps. After this run, there are 5 other runs with the same parameters but the target temperature. Note that the time step only needs to be set once if one is intended to use the same time step in the whole simulation. In contrast, one has to use the \verb"dump_thermo" keyword for each run in order to get outputs for each run.
 
@@ -3029,14 +3042,14 @@ In this example, we calculate the phonon density of states of graphene at 300 K
 and zero pressure. The simulated cell size is about 15 nm $\times$ 15 nm (8 640 atoms).
 The first few lines of the \verb"xyz.in" file are:
 \begin{verbatim}
-    8640 3 2.1
-    1 1 0 149.649 155.52 3.35
-    0 0 12 1.24708 0 0
-    0 0 12 0 0.72 0
-    0 0 12 0 2.16 0
-    0 0 12 1.24708 2.88 0
+8640 3 2.1 0 0 0
+1 1 0 149.649 155.52 3.35
+0 1.24708 0 0 12
+0 0 0.72 0 12
+0 0 2.16 0 12
+0 1.24708 2.88 0 12
 \end{verbatim}
-This is a stable structure with 3 neighbors for each atom when periodic boundary conditions are applied in the planar directions ($x$ and $y$). In the $z$ direction, free boundary conditions are used. Every atom is of type 0 and in group 0.
+This is a stable structure with 3 neighbors for each atom when periodic boundary conditions are applied in the planar directions ($x$ and $y$). In the $z$ direction, free boundary conditions are used. Every atom is of type 0.
 
 The \verb"run.in" file reads:
 \begin{verbatim}
