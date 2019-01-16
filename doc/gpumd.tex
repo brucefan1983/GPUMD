@@ -3176,13 +3176,13 @@ The \verb"run.in" file for this example reads:
 
     ensemble     heat_nhc 300 100 10 1 8
     fix          0
-    compute      100 10 temperature
+    compute      0 100 10 temperature
     compute_shc  2 250 100000 4 5
     run          2000000
     #-------------------------------------------------------------------
 \end{verbatim}
 
-In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_nhc" ``ensemble'' type is used to generate the nonequilibrium heat current.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures will be output every 1000 integration steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat current correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat current considered flows from group 4 to group 5 (the middle interface of the simulated system).
+In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_nhc" ``ensemble'' type is used to generate the nonequilibrium heat current.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures (using grouping method 0) will be sampled every 100 time steps will be output every $100\times 10=1000$ time steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat current correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat current considered flows from group 4 to group 5 (the middle interface of the simulated system, using the default grouping method 0).
 
 
 \begin{figure}[ht]
