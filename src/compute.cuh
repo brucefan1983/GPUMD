@@ -34,7 +34,7 @@ public:
 
     int sample_interval = 1;
     int output_interval = 1;
-    int use_new_group = 0;
+    int grouping_method = 0;
 
     void preprocess(char*, Atom*);
     void postprocess(Atom* atom, Integrate*);

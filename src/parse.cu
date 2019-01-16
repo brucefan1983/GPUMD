@@ -807,49 +807,55 @@ static void parse_deform(char **param,  int num_param, Atom* atom)
 static void parse_compute(char **param,  int num_param, Measure* measure)
 {
     printf("Compute group average of:\n");
-    if (num_param <= 2)
-        print_error("compute should have at least 2 parameters.\n");
-    if (!is_valid_int(param[1], &measure->compute.sample_interval))
+    if (num_param < 5)
+        print_error("compute should have at least 4 parameters.\n");
+    if (!is_valid_int(param[1], &measure->compute.grouping_method))
+    {
+        print_error("grouping method of compute should be integer.\n");
+    }
+    if (!is_valid_int(param[2], &measure->compute.sample_interval))
     {
         print_error("sampling interval of compute should be integer.\n");
     }
-    if (!is_valid_int(param[2], &measure->compute.output_interval))
+    if (!is_valid_int(param[3], &measure->compute.output_interval))
     {
         print_error("output interval of compute should be integer.\n");
     }
-    for (int k = 0; k < num_param - 3; ++k)
+    for (int k = 0; k < num_param - 4; ++k)
     {
-        if (strcmp(param[k + 3], "temperature") == 0)
+        if (strcmp(param[k + 4], "temperature") == 0)
         {
             measure->compute.compute_temperature = 1;
             printf("    temperature\n");
         }
-        else if (strcmp(param[k + 3], "potential") == 0)
+        else if (strcmp(param[k + 4], "potential") == 0)
         {
             measure->compute.compute_potential = 1;
             printf("    potential energy\n");
         }
-        else if (strcmp(param[k + 3], "force") == 0)
+        else if (strcmp(param[k + 4], "force") == 0)
         {
             measure->compute.compute_force = 1;
             printf("    force\n");
         }
-        else if (strcmp(param[k + 3], "virial") == 0)
+        else if (strcmp(param[k + 4], "virial") == 0)
         {
             measure->compute.compute_virial = 1;
             printf("    virial\n");
         }
-        else if (strcmp(param[k + 3], "jp") == 0)
+        else if (strcmp(param[k + 4], "jp") == 0)
         {
             measure->compute.compute_jp = 1;
             printf("    potential part of heat current\n");
         }
-        else if (strcmp(param[k + 3], "jk") == 0)
+        else if (strcmp(param[k + 4], "jk") == 0)
         {
             measure->compute.compute_jk = 1;
             printf("    kinetic part of heat current\n");
         }
     }
+    printf("    using grouping method %d.\n",
+        measure->compute.grouping_method);
     printf("    with sampling interval %d.\n",
         measure->compute.sample_interval);
     printf("    and output interval %d.\n",
