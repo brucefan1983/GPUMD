@@ -334,31 +334,6 @@ void Force::initialize_many_body_potential
 
 
 
-void Force::initialize_layer_label(char* input_dir, int N)
-{
-    int *layer_label_cpu;
-    MY_MALLOC(layer_label_cpu, int, N); 
-    char file_layer_label[FILE_NAME_LENGTH];
-    strcpy(file_layer_label, input_dir);
-    strcat(file_layer_label, "/layer.in");
-    FILE *fid = my_fopen(file_layer_label, "r");
-    for (int n = 0; n < N; ++n)
-    {
-        int count = fscanf(fid, "%d", &layer_label_cpu[n]);
-        if (count != 1) print_error("reading error for layer.in");
-    }
-    fclose(fid);
-
-    int memory = sizeof(int) * N;
-    CHECK(cudaMalloc((void**)&layer_label, memory));
-    CHECK(cudaMemcpy(layer_label, layer_label_cpu, memory,
-        cudaMemcpyHostToDevice));
-    MY_FREE(layer_label_cpu);
-}
-
-
-
-
 void Force::initialize(char *input_dir, Atom *atom)
 {
     // a single potential
@@ -376,7 +351,10 @@ void Force::initialize(char *input_dir, Atom *atom)
         // if the intralayer interactions are to be excluded
         if (interlayer_only)
         {
-            initialize_layer_label(input_dir, atom->N);
+            int memory = sizeof(int) * atom->N;
+            CHECK(cudaMalloc((void**)&layer_label, memory));
+            CHECK(cudaMemcpy(layer_label, atom->cpu_layer_label, memory,
+                cudaMemcpyHostToDevice));
         }
 
         // the many-body part
