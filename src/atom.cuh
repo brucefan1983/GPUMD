@@ -77,11 +77,15 @@ public:
     int* cpu_type;
     int* cpu_type_local;
     int* cpu_type_size;
+    int* cpu_layer_label;
 
     real* cpu_mass;
     real* cpu_x;
     real* cpu_y;
     real* cpu_z;
+    real* cpu_vx;
+    real* cpu_vy;
+    real* cpu_vz;
     real* cpu_box_length;
 
     int N;                // number of atoms 
@@ -90,6 +94,10 @@ public:
     int pbc_x;           // pbc_x = 1 means periodic in the x-direction
     int pbc_y;           // pbc_y = 1 means periodic in the y-direction
     int pbc_z;           // pbc_z = 1 means periodic in the z-direction
+
+    int has_velocity_in_xyz = 0;
+    int has_layer_in_xyz = 0;
+    int num_of_grouping_methods = 0;
 
     // can be moved to integrate and ensemble
     int deform_x = 0;
@@ -119,8 +127,8 @@ private:
     void read_xyz_in_line_1(FILE*);
     void read_xyz_in_line_2(FILE*);
     void read_xyz_in_line_3(FILE*);
-    void find_group_size(void);
-    void find_group_contents(void);
+    void find_group_size(int);
+    void find_group_contents(int);
     void find_type_size(void);
     void initialize_position(char *input_dir);
 

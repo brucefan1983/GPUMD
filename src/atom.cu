@@ -57,8 +57,9 @@ Atom::~Atom(void)
 void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 {
     double rc;
-    int count = fscanf(fid_xyz, "%d%d%lf", &N, &neighbor.MN, &rc);
-    if (count != 3) print_error("reading error for line 1 of xyz.in.\n");
+    int count = fscanf(fid_xyz, "%d%d%lf%d%d%d", &N, &neighbor.MN, &rc,
+        &has_velocity_in_xyz, &has_layer_in_xyz, &num_of_grouping_methods);
+    if (count != 6) print_error("reading error for line 1 of xyz.in.\n");
     neighbor.rc = rc;
     if (N < 1)
         print_error("number of atoms should >= 1\n");
@@ -74,6 +75,24 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
         print_error("initial cutoff for neighbor list should >= 0\n");
     else
         printf("Initial cutoff for neighbor list is %g A.\n", neighbor.rc);
+
+    if (has_velocity_in_xyz == 0)
+        printf("Do not specify initial velocities here.\n");
+    else
+        printf("Specify initial velocities here.\n");
+
+    if (has_layer_in_xyz == 0)
+        printf("Do not specify layer indices here.\n");
+    else
+        printf("Specify layer indices here.\n");
+
+    if (num_of_grouping_methods == 0)
+        printf("Have no grouping method.\n");
+    else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 10)
+        printf("Have %d grouping method(s).\n", num_of_grouping_methods);
+    else
+        print_error(
+            "number of grouping methods should be within [1, 10].\n");
 }  
 
 
@@ -120,68 +139,100 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
     MY_MALLOC(cpu_type, int, N);
     MY_MALLOC(cpu_type_local, int, N);
-    MY_MALLOC(group[0].cpu_label, int, N);
     MY_MALLOC(cpu_mass, real, N);
     MY_MALLOC(cpu_x, real, N);
     MY_MALLOC(cpu_y, real, N);
     MY_MALLOC(cpu_z, real, N);
 
-    group[0].number = -1; number_of_types = -1;
+    number_of_types = -1;
+    for (int m = 0; m < num_of_grouping_methods; ++m)
+    {
+        MY_MALLOC(group[m].cpu_label, int, N);
+        group[m].number = -1;
+    }
+
     for (int n = 0; n < N; n++)
     {
         double mass, x, y, z;
-        int count = fscanf(fid_xyz, "%d%d%lf%lf%lf%lf", 
-            &(cpu_type[n]), &(group[0].cpu_label[n]), &mass, &x, &y, &z);
-        if (count != 6) print_error("reading error for xyz.in.\n");
+        int count = fscanf(fid_xyz, "%d%lf%lf%lf%lf", 
+            &(cpu_type[n]), &x, &y, &z, &mass);
+        if (count != 5) { print_error("reading error for xyz.in.\n"); }
         cpu_mass[n] = mass; cpu_x[n] = x; cpu_y[n] = y; cpu_z[n] = z;
-        if (group[0].cpu_label[n] > group[0].number) 
-            group[0].number = group[0].cpu_label[n];
-        if (cpu_type[n] > number_of_types) number_of_types = cpu_type[n];
         cpu_type_local[n] = cpu_type[n];
+        if (cpu_type[n] > number_of_types) 
+        {
+            number_of_types = cpu_type[n];
+        }
+
+        if (has_velocity_in_xyz)
+        {
+            double vx, vy, vz;
+            count = fscanf(fid_xyz, "%lf%lf%lf", &vx, &vy, &vz);
+            if (count != 3) { print_error("reading error for xyz.in.\n"); }
+            cpu_vx[n] = vx; cpu_vy[n] = vy; cpu_vz[n] = vz;
+        }
+
+        if (has_layer_in_xyz)
+        {
+            count = fscanf(fid_xyz, "%d", &cpu_layer_label[n]);
+            if (count != 1) { print_error("reading error for xyz.in.\n"); }
+        }
+
+        for (int m = 0; m < num_of_grouping_methods; ++m)
+        {
+            count = fscanf(fid_xyz, "%d", &group[m].cpu_label[n]);
+            if (count != 1) { print_error("reading error for xyz.in.\n"); }
+            if (group[m].cpu_label[n] > group[m].number)
+            {
+                group[m].number = group[m].cpu_label[n];
+            }
+        }
     }
-    group[0].number++; number_of_types++;
+    for (int m = 0; m < num_of_grouping_methods; ++m) { group[m].number++; }
+    number_of_types++;
 }
 
 
 
 
-void Atom::find_group_size(void)
+void Atom::find_group_size(int k)
 {
-    MY_MALLOC(group[0].cpu_size, int, group[0].number);
-    MY_MALLOC(group[0].cpu_size_sum, int, group[0].number);
-    MY_MALLOC(group[0].cpu_contents, int, N);
-    if (group[0].number == 1)
-        printf("There is only one group of atoms.\n");
+    MY_MALLOC(group[k].cpu_size, int, group[k].number);
+    MY_MALLOC(group[k].cpu_size_sum, int, group[k].number);
+    MY_MALLOC(group[k].cpu_contents, int, N);
+    if (group[k].number == 1)
+        printf("There is only one group of atoms in grouping method %d.\n", k);
     else
-        printf("There are %d groups of atoms.\n", group[0].number);
+        printf("There are %d groups of atoms in grouping method %d.\n",
+            group[k].number, k);
 
     // determine the number of atoms in each group
-    for (int m = 0; m < group[0].number; m++)
+    for (int m = 0; m < group[k].number; m++)
     {
-        group[0].cpu_size[m] = 0;
-        group[0].cpu_size_sum[m] = 0;
+        group[k].cpu_size[m] = 0;
+        group[k].cpu_size_sum[m] = 0;
     }
-    for (int n = 0; n < N; n++) group[0].cpu_size[group[0].cpu_label[n]]++;
-    for (int m = 0; m < group[0].number; m++)
-        printf("    %d atoms in group %d.\n", group[0].cpu_size[m], m);   
+    for (int n = 0; n < N; n++) group[k].cpu_size[group[k].cpu_label[n]]++;
+    for (int m = 0; m < group[k].number; m++)
+        printf("    %d atoms in group %d.\n", group[k].cpu_size[m], m);   
     
     // calculate the number of atoms before a group
-    for (int m = 1; m < group[0].number; m++)
+    for (int m = 1; m < group[k].number; m++)
         for (int n = 0; n < m; n++)
-            group[0].cpu_size_sum[m] += group[0].cpu_size[n];
+            group[k].cpu_size_sum[m] += group[k].cpu_size[n];
 }
 
 
 
-void Atom::find_group_contents(void)
+void Atom::find_group_contents(int k)
 {
     // determine the atom indices from the first to the last group
-    int *offset; MY_MALLOC(offset, int, group[0].number);
-    for (int m = 0; m < group[0].number; m++) offset[m] = 0;
+    int *offset; MY_MALLOC(offset, int, group[k].number);
+    for (int m = 0; m < group[k].number; m++) offset[m] = 0;
     for (int n = 0; n < N; n++) 
-        for (int m = 0; m < group[0].number; m++)
-            if (group[0].cpu_label[n] == m)
-                group[0].cpu_contents[group[0].cpu_size_sum[m]+offset[m]++] = n;
+        for (int m = 0; m < group[k].number; m++)
+            if (group[k].cpu_label[n] == m)
+                group[k].cpu_contents[group[k].cpu_size_sum[m]+offset[m]++] = n;
     MY_FREE(offset);
 }
 
@@ -222,8 +273,11 @@ void Atom::initialize_position(char *input_dir)
 
     fclose(fid_xyz);
 
-    find_group_size();
-    find_group_contents();
+    for (int m = 0; m < num_of_grouping_methods; ++m)
+    {
+        find_group_size(m);
+        find_group_contents(m);
+    }
     find_type_size();
 
     print_line_1();
@@ -239,7 +293,6 @@ void Atom::allocate_memory_gpu(void)
     // memory amount
     int m1 = sizeof(int) * N;
     int m2 = m1 * neighbor.MN;
-    int m3 = sizeof(int) * group[0].number;
     int m4 = sizeof(real) * N;
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
 
@@ -250,10 +303,15 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&NL_local, m2));
     CHECK(cudaMalloc((void**)&type, m1));
     CHECK(cudaMalloc((void**)&type_local, m1));
-    CHECK(cudaMalloc((void**)&group[0].label, m1));
-    CHECK(cudaMalloc((void**)&group[0].size, m3));
-    CHECK(cudaMalloc((void**)&group[0].size_sum, m3));
-    CHECK(cudaMalloc((void**)&group[0].contents, m1));
+
+    for (int m = 0; m < num_of_grouping_methods; ++m)
+    {
+        int m3 = sizeof(int) * group[m].number;
+        CHECK(cudaMalloc((void**)&group[m].label, m1));
+        CHECK(cudaMalloc((void**)&group[m].size, m3));
+        CHECK(cudaMalloc((void**)&group[m].size_sum, m3));
+        CHECK(cudaMalloc((void**)&group[m].contents, m1));
+    }
 
     // for atoms
     CHECK(cudaMalloc((void**)&mass, m4));
@@ -285,20 +343,25 @@ void Atom::allocate_memory_gpu(void)
 void Atom::copy_from_cpu_to_gpu(void)
 {
     int m1 = sizeof(int) * N;
-    int m2 = sizeof(int) * group[0].number;
     int m3 = sizeof(real) * N;
     int m4 = sizeof(real) * DIM;
 
     CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(type_local, cpu_type, m1, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(group[0].label, group[0].cpu_label, m1,
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(group[0].size, group[0].cpu_size, m2,
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(group[0].size_sum, group[0].cpu_size_sum, m2,
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(group[0].contents, group[0].cpu_contents, m1,
-        cudaMemcpyHostToDevice));
+
+    for (int m = 0; m < num_of_grouping_methods; ++m)
+    {
+        int m2 = sizeof(int) * group[m].number;
+        CHECK(cudaMemcpy(group[m].label, group[m].cpu_label, m1,
+            cudaMemcpyHostToDevice));
+        CHECK(cudaMemcpy(group[m].size, group[m].cpu_size, m2,
+            cudaMemcpyHostToDevice));
+        CHECK(cudaMemcpy(group[m].size_sum, group[m].cpu_size_sum, m2,
+            cudaMemcpyHostToDevice));
+        CHECK(cudaMemcpy(group[m].contents, group[m].cpu_contents, m1,
+            cudaMemcpyHostToDevice));
+    }
+
     CHECK(cudaMemcpy(mass, cpu_mass, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice));
@@ -313,10 +376,13 @@ void Atom::free_memory_cpu(void)
 {
     MY_FREE(cpu_type);
     MY_FREE(cpu_type_local);
-    MY_FREE(group[0].cpu_label);
-    MY_FREE(group[0].cpu_size);
-    MY_FREE(group[0].cpu_size_sum);
-    MY_FREE(group[0].cpu_contents);
+    for (int m = 0; m < num_of_grouping_methods; ++m)
+    {
+        MY_FREE(group[m].cpu_label);
+        MY_FREE(group[m].cpu_size);
+        MY_FREE(group[m].cpu_size_sum);
+        MY_FREE(group[m].cpu_contents);
+    }
     MY_FREE(cpu_type_size);
     MY_FREE(cpu_mass);
     MY_FREE(cpu_x);
@@ -336,10 +402,13 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(NL_local));
     CHECK(cudaFree(type));  
     CHECK(cudaFree(type_local));
-    CHECK(cudaFree(group[0].label)); 
-    CHECK(cudaFree(group[0].size)); 
-    CHECK(cudaFree(group[0].size_sum));
-    CHECK(cudaFree(group[0].contents));
+    for (int m = 0; m < num_of_grouping_methods; ++m)
+    {
+        CHECK(cudaFree(group[m].label)); 
+        CHECK(cudaFree(group[m].size)); 
+        CHECK(cudaFree(group[m].size_sum));
+        CHECK(cudaFree(group[m].contents));
+    }
     CHECK(cudaFree(mass));
     CHECK(cudaFree(x0));  
     CHECK(cudaFree(y0));  
