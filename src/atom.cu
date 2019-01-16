@@ -143,6 +143,9 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
     MY_MALLOC(cpu_x, real, N);
     MY_MALLOC(cpu_y, real, N);
     MY_MALLOC(cpu_z, real, N);
+    MY_MALLOC(cpu_vx, real, N);
+    MY_MALLOC(cpu_vy, real, N);
+    MY_MALLOC(cpu_vz, real, N);
 
     number_of_types = -1;
     for (int m = 0; m < num_of_grouping_methods; ++m)
@@ -388,6 +391,9 @@ void Atom::free_memory_cpu(void)
     MY_FREE(cpu_x);
     MY_FREE(cpu_y);
     MY_FREE(cpu_z);
+    MY_FREE(cpu_vx);
+    MY_FREE(cpu_vy);
+    MY_FREE(cpu_vz);
     MY_FREE(cpu_box_length);
 }
 

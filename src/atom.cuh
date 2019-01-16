@@ -142,6 +142,9 @@ private:
     void find_neighbor(void);
     void check_bound(void);
     int check_atom_distance(void);
+
+    void initialize_velocity_cpu(void);
+    void scale_velocity(void);
 };
 
 
