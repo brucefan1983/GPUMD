@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 2.1\\
+   Version 2.2\\
    \vspace*{1.0cm}
-   (Jan 13, 2018)\\
+   (Jan 18, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -280,18 +280,25 @@ We are working on implementing more integration methods.
     \item Implemented (by the new contributor Alexander J. Gabourie) a general version of the spectral heat current (SHC) method. The previous version assumed that one atom from one group of the interface has at most one neighbor from the other group of the (imaginary) interface.
 \end{enumerate}
 
+\subsection{Major changes introduced in version 2.2}
+\begin{enumerate}
+    \item Improved the code structure and fixed a few memory bugs introduced in versions 2.0 and 2.1.
+    \item Changed the data format in the \verb"xyz.in" file. The \verb"layer.in" file is not used any more and the data in it should be included in the \verb"xyz.in" file, if needed. By renaming the \verb"xyz.in" file as something like \verb"foo.xyz", it can now be read by the \verb"VMD" (\url{https://www.ks.uiuc.edu/Research/vmd/}) code.
+    \item The \verb"compute_temp" command has been replaced by the more general \verb"compute" command.
+    \item Added the \verb"deform" command, which can be used to compute the stress-strain relation.
+\end{enumerate}
+
 \section{TODO List}
 
 Here I list a few features which I will hopefully implement the next couple of years:
 \begin{itemize}
 \item More Tersoff-type potentials
-\item Spline-based EAM potential
-\item The ADP potential
+\item More EAM-type potentials, including the ADP and MEAM potentials
 \item Machine-learning potentials
-\item The NPT integrator based on the MTK equation
-\item Multi-GPU version of GPUMD
-\item Potential fitting
+\item Potential fitting using the Genetic Algorithm
+\item The NPT integrator based on the MTK equation and triclinic box
 \item Lattice dynamics (harmonic and anharmonic)
+\item Multi-GPU version of GPUMD
 \end{itemize}
 
 
@@ -330,7 +337,7 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has about 15 000 lines of code. The structure of the code is as follows:
+The current version of GPUMD has about 14 000 lines of code. The structure of the code is as follows:
 \begin{itemize}
 \item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
 
@@ -365,6 +372,8 @@ Every programmer has his own coding style. Here is an incomplete list of convent
 \item Define variables as late as possible.
 \item Use four spaces to indent. 
 \item Keep every line no longer than 80 characters.
+\item Use at most one blank line between two statements in a function.
+\item Use two blank lines between two functions.
 \item Use the Allman style for brace placement. An example is:
     \begin{verbatim}
         for (int n = 0; n < 10; ++n) 
@@ -1706,8 +1715,9 @@ If $f$ is a function of $x$, then $f'(x)$ is understood as $\partial f / \partia
 
 In the force evaluation kernel for any potential model, the key quantities to be calculated are $\frac{\partial U_{i}}{\partial \vect{r}_{ij}}$  and $\frac{\partial U_{j}}{\partial \vect{r}_{ji}}$, the latter being related to the former by an exchange of the indices, $i\leftrightarrow j$. We thus need to derive an explicit expression of $\frac{\partial U_{i}}{\partial \vect{r}_{ij}}$ for each potential model. This is trivial for two-body potentials and we only present expressions for many-body potentials. We will call $\frac{\partial U_{i}}{\partial \vect{r}_{ij}}$ the \textbf{partial force}.
 
+\section{Two-body (Pairwise) potentials}
 
-\section{The Lennard-Jones potential}
+\subsection{The Lennard-Jones potential}
 
 The Lennard-Jones potential is one the most simplest two-body potentials used in MD simulations. The pair potential between particle $i$ and $j$ is
 \begin{equation}
@@ -1752,7 +1762,7 @@ If there are three atom types, the potential file reads
 I hope the reader can understand the pattern and figure out how to prepare potential files with four and five atom types. 
 
 
-\section{The rigid-ion potential}
+\subsection{The rigid-ion potential}
 
 By rigid-ion potential, we mean a potential model consisting of a short range part in the Buckingham form
 \begin{equation}
@@ -1785,7 +1795,7 @@ Currently, the potential only applies to systems with two atom types. The potent
 \end{verbatim}
 
 
-\section{The EAM potential}
+\section{The EAM-type potentials}
 
 This is a simple many-body potential. The site potential energy is
 \begin{equation}
@@ -1911,7 +1921,14 @@ The potential file for this potential model reads
 
 \textbf{To be written and implemented.}
 
-\section{The Stillinger-Weber potential}
+\subsection{The MEAM potential}
+
+\textbf{To be written and implemented.}
+
+
+\section{The Stillinger-Weber-type potentials}
+
+\subsection{The Stillinger-Weber potential}
 
 Here we consider the original Stillinger-Weber potential as proposed by Stillinger and Weber in 1985 \cite{stillinger1985prb}.
 The total potential energy consists of a two-body part and a three-body part. The site potential is
@@ -2016,7 +2033,7 @@ If there are three atom types, the potential file reads:
 Do we need to consider more than three atom types? I don't think so. So stop here. 
 
 
-\section{The Vashishta potential}
+\subsection{The Vashishta potential}
 
 The Vashishta potential \cite{vashishta2007jap} is essentially a pairwise potential plus a modified form of the three-body part of the SW potential. Therefore, the site potential can be written in the same form as the SW potential:
 \begin{equation}
@@ -2077,7 +2094,9 @@ Note:
 \end{itemize}
 
 
-\section{The Tersoff potential}
+\section{The Tersoff-type potentials}
+
+\subsection{The Tersoff-1989 potential}
 
 There are many variants of the Tersoff potential. In the current version of GPUMD, we only consider the form as described in Ref. \cite{tersoff1989prb} published in 1989.
 
@@ -2162,7 +2181,7 @@ The potential file for the double-element version reads
 \end{verbatim}
 
 
-\section{The modified Tersoff potential for silicon systems}
+\subsection{The modified Tersoff potential for silicon systems}
 
 \textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
 
@@ -2220,9 +2239,7 @@ The partial force can be derived to be
    g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
 \end{align}
 
-
-
-\section{The REBO potential for Mo-S systems}
+\subsection{The REBO potential for Mo-S systems}
 
 Here, we discuss the REBO (reactive empirical bond-order) potential for Mo-S systems developed by Liang \textit{et al.} \cite{liang2009prb}. The erratum \cite{liang2012prb_erratum} should be consulted for improved and extra model parameters which are missing from the original article. This REBO potential is just slightly more complicated than the Tersoff potential. Note that there is also a long-range Lennard-Jones part.
 
@@ -2285,80 +2302,9 @@ rebo_mos2
 # the parameters are thus hard coded
 \end{verbatim}
 
-
-
-\section{The EDIP potential for silicon}
-
-
-\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
-
-We next consider the EDIP potential for silicon \cite{bazant1997prb,justo1998prb}. The total potential energy consists of a two-body part and a three-body part. Site potential
-\begin{equation}
-U_i = U_i^{(2)} + U_i^{(3)};
-\end{equation}
-\begin{equation}
-U_i^{(2)} = \frac{1}{2}\sum_{j\neq i} V^{(2)}_{ij}(r_{ij}, Z_i);
-\end{equation}
-\begin{equation}
-U_i^{(3)} = \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j}  V^{(3)}_{ijk} \left(\vect{r}_{ij}, \vect{r}_{ik},  Z_i \right).
-\end{equation}
-The effective coordination number $Z_i$ is defined as
-\begin{equation}
-Z_i = \sum_{k\neq i} f(r_{ik}).
-\end{equation}
-where $f(r)$ is a cutoff function which is 1 when $r<c$ and 0 when $r>a$, and takes the value in between:
-\begin{equation}
-f(r) = \exp\left( \frac{\alpha}{1-x^{-3}}\right); ~ x = \frac{r-c}{a-c}.
-\end{equation}
-
-The two-body part is
-\begin{equation}
-V^{(2)}_{ij}(r_{ij},Z_i) =  A
-\left[ \left( \frac{B }{ r_{ij} } \right)^{\rho}- e^{-\beta Z_i^2} \right]
-\exp\left(   \frac{\sigma}{ r_{ij} - a} \right)
-\end{equation}
-and the three-body part is
-\begin{equation}
-V^{(3)}_{ijk}(\vect{r}_{ij}, \vect{r}_{ik}, Z_i) =
-\exp\left(   \frac{\gamma}{ r_{ij} - a} \right)
-\exp\left(   \frac{\gamma}{ r_{ik} - a} \right)
-h \left(\cos \theta_{ijk} , Z_i \right).
-\end{equation}
-The angular function is
-\begin{equation}
-h \left(x , Z \right) =
-\lambda \left[1 - e^{ -Q_0 e^{-\mu Z} (x + \tau(Z))^2}  + \eta Q_0 e^{-\mu Z} (x + \tau(Z))^2 \right],
-\end{equation}
-where
-\begin{equation}
-\tau(Z) = u_1 + u_2(u_3 e^{-u_4 Z} - e^{-2u_4 Z} ).
-\end{equation}
-
-Both $U^{(2)}$ and $U^{(3)}$ contain three-body effects. The partial force for the $U^{(2)}$ part is
-\begin{align}
-\frac{\partial U^{(2)}_i}{\partial \vect{r}_{ij}}
-&= \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial r_{ij}} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2} \sum_{k\neq i,j} \frac{\partial V^{(2)}_{ik}}{\partial Z_{i}} f'_{ij}(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
-\end{align}
-The partial force for the $U^{(3)}$ part is
-\begin{align}
-\frac{\partial U^{(3)}_i}{\partial \vect{r}_{ij}}
-&= \sum_{k\neq i,j} 
-\left[
-\left( \frac{\partial V^{(3)}_{ijk}}{\partial r_{ij}} + \frac{\partial V^{(3)}_{ijk}}{\partial Z_{i}} f'(r_{ij} ) \right)
-\frac{\partial r_{ij}}{\partial \vect{r}_{ij}}
-+ \frac{\partial V^{(3)}_{ijk}}{\partial \cos\theta_{ijk}} \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} 
-\right]
- \nonumber \\
-&+ \frac{1}{2} \sum_{k\neq i,j} \sum_{m\neq i,j} \frac{\partial V^{(3)}_{ikm}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
-\end{align}
-
-
 \section{Mixed potentials}
 
 This is explained in the next chapter when we discuss the \verb"potentials" keyword in the \verb"run.in" file.
-
 
 \chapter{Using GPUMD \label{chapter:usage}}
 
@@ -2369,7 +2315,6 @@ After downloading and unpacking GPUMD, one can see the following folders:
 \item \verb"examples", which contains all the examples (each in a sub-folder) we have prepared
 \item \verb"doc", which contains the source files for the manual
 \end{itemize}
-
 
 \section{Compile and run GPUMD}
 
@@ -2657,7 +2602,7 @@ The target temperatures in the source region (with label \verb"label_source") an
 \end{itemize}
 
 
-The units of temperature and pressure for this keyword are K and GPa, respectively. The temperature coupling constant in the Berendsen method can be any positive number less than or equal to 1 and we recommend a value in the range of $[0.01,~1]$. A larger number results in a faster control of the temperature. The temperature coupling constant (the relaxation time) in the Nos\'{e}-Hoover chain, BDP, and Langevin methods is in units of the time step and is recommended to be in the range of $[100,~1000]$. Here, a larger number results in a slower control of the temperature. The pressure coupling constant in the Berenden method should be a small positive number in the unit system adopted by GPUMD. We recommend a value in the range of $[0.01,0.0001]$. For a stiffer material (such as diamond or graphene), one should use a smaller value. In practice, all these parameters should be determined by try and error.
+The units of temperature and pressure for this keyword are K and GPa, respectively. The temperature coupling constant in the Berendsen method can be any positive number less than or equal to 1 and we recommend a value in the range of $[0.01,~1]$. A larger number results in a faster control of the temperature. The temperature coupling constant (the relaxation time) in the Nos\'{e}-Hoover chain, BDP, and Langevin methods is in units of the time step and is recommended to be in the range of $[100,~1000]$. Here, a larger number results in a slower control of the temperature. The pressure coupling constant in the Berendsen method should be a small positive number in the unit system adopted by GPUMD. We recommend a value in the range of $[0.01,0.0001]$. For a stiffer material (such as diamond or graphene), one should use a smaller value. In practice, all these parameters should be determined by try and error.
 
 
 \subsection{The time step keyword}
