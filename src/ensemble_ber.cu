@@ -14,25 +14,18 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The Berendsen thermostat:
 [1] H. J. C. Berendsen et al. J. Chem. Phys. 81, 3684 (1984).
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble_ber.cuh"
-
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
-
-
 
 
 Ensemble_BER::Ensemble_BER(int t, real T, real Tc)
@@ -41,7 +34,6 @@ Ensemble_BER::Ensemble_BER(int t, real T, real Tc)
     temperature = T;
     temperature_coupling = Tc;
 }
-
 
 
 Ensemble_BER::Ensemble_BER
@@ -57,13 +49,10 @@ Ensemble_BER::Ensemble_BER
 }
 
 
-
 Ensemble_BER::~Ensemble_BER(void)
 {
     // nothing now
 }
-
-
 
 
 static __global__ void gpu_berendsen_temperature
@@ -87,7 +76,6 @@ static __global__ void gpu_berendsen_temperature
         g_vz[i] *= factor;
     }
 }
-
 
 
 static __global__ void gpu_berendsen_pressure
@@ -159,15 +147,11 @@ static __global__ void gpu_berendsen_pressure
 }
 
 
-
-
 void Ensemble_BER::compute
 (Atom *atom, Force *force, Measure* measure)
 {
     int N           = atom->N;
     int grid_size   = (N - 1) / BLOCK_SIZE + 1;
-
-
     int  pbc_x       = atom->pbc_x;
     int  pbc_y       = atom->pbc_y;
     int  pbc_z       = atom->pbc_z;
@@ -208,7 +192,5 @@ void Ensemble_BER::compute
         CUDA_CHECK_KERNEL
     }
 }
-
-
 
 

@@ -17,8 +17,6 @@
 #pragma once
 #include "common.cuh"
 
-void validate_force
-(Force *force, Atom *atom, Measure* measure);
-
+void validate_force(Force *force, Atom *atom, Measure* measure);
 
 

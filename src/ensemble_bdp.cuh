@@ -15,8 +15,6 @@
 
 
 #pragma once
-
-
 #include "ensemble.cuh"
 
 
@@ -31,7 +29,5 @@ protected:
     void integrate_nvt_bdp(Atom*, Force*, Measure*);
     void integrate_heat_bdp(Atom*, Force*, Measure*);
 };
-
-
 
 

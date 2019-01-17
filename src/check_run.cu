@@ -14,20 +14,13 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Check the inputs in the run.in file before running.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "gpumd.cuh"
-
 #include "error.cuh"
-
-
 
 
 static void print_velocity_and_potential_error_1
@@ -53,8 +46,6 @@ static void print_velocity_and_potential_error_1
 }
 
 
-
-
 static void print_velocity_and_potential_error_2
 (int number_of_times_potential, int number_of_times_velocity)
 {
@@ -67,8 +58,6 @@ static void print_velocity_and_potential_error_2
         print_error("Multiple 'velocity' keywords.\n");
     }
 }
-
-
 
 
 void GPUMD::check_run
@@ -127,7 +116,5 @@ void GPUMD::check_run
 
     MY_FREE(input); // Free the input file contents
 }
-
-
 
 

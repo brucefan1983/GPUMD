@@ -14,26 +14,19 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The Bussi-Donadio-Parrinello thermostat:
 [1] G. Bussi et al. J. Chem. Phys. 126, 014101 (2007).
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble_bdp.cuh"
-
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3
-
-
 
 
 // These functions are from  Bussi's website
@@ -46,16 +39,12 @@ static double gasdev();
 static double gamdev(const int ia);
 
 
-
-
 Ensemble_BDP::Ensemble_BDP(int t, real T, real Tc)
 {
     type = t;
     temperature = T;
     temperature_coupling = Tc;
 }
-
-
 
 
 Ensemble_BDP::Ensemble_BDP
@@ -73,14 +62,10 @@ Ensemble_BDP::Ensemble_BDP
 }
 
 
-
-
 Ensemble_BDP::~Ensemble_BDP(void)
 {
     // nothing now
 }
-
-
 
 
 void Ensemble_BDP::integrate_nvt_bdp
@@ -112,8 +97,6 @@ void Ensemble_BDP::integrate_nvt_bdp
     MY_FREE(ek);
     scale_velocity_global(atom, factor);
 }
-
-
 
 
 // integrate by one step, with heating and cooling, using the BDP method
@@ -175,8 +158,6 @@ void Ensemble_BDP::integrate_heat_bdp
 }
 
 
-
-
 void Ensemble_BDP::compute
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -191,16 +172,10 @@ void Ensemble_BDP::compute
 }
 
 
-
-
 // The following functions are from Bussi's website
 // https://sites.google.com/site/giovannibussi/Research/algorithms
 // I have only added "static" in front of the functions, 
 // without any other changes
-
-
-
-
 static double resamplekin(double kk,double sigma, int ndeg, double taut){
 /*
   kk:    present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
@@ -218,8 +193,6 @@ static double resamplekin(double kk,double sigma, int ndeg, double taut){
   return kk + (1.0-factor)* (sigma*(resamplekin_sumnoises(ndeg-1)+rr*rr)/ndeg-kk)
             + 2.0*rr*sqrt(kk*sigma/ndeg*(1.0-factor)*factor);
 }
-
-
 
 
 static double resamplekin_sumnoises(int nn){
@@ -240,8 +213,6 @@ static double resamplekin_sumnoises(int nn){
     return 2.0*gamdev((nn-1)/2) + rr*rr;
   }
 }
-
-
 
 
 static double gamdev(const int ia)
@@ -273,8 +244,6 @@ static double gamdev(const int ia)
 }
 
 
-
-
 static double gasdev()
 {
 	static int iset=0;
@@ -296,8 +265,6 @@ static double gasdev()
 		return gset;
 	}
 }
-
-
 
 
 static double ran1()
@@ -331,7 +298,5 @@ static double ran1()
 	if ((temp=AM*iy) > RNMX) return RNMX;
 	else return temp;
 }
-
-
 
 

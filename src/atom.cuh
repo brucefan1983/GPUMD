@@ -14,12 +14,9 @@
 */
 
 
-
-
 #pragma once
+
 #include "common.cuh"
-
-
 
 
 // Parameters for neighbor list updating
@@ -30,8 +27,6 @@ struct Neighbor
     real skin;            // skin distance 
     real rc;              // cutoff used when building the neighbor list
 };
-
-
 
 
 struct Group
@@ -50,8 +45,6 @@ struct Group
     int* cpu_size_sum;
     int* cpu_contents;
 };
-
-
 
 
 class Atom
@@ -146,7 +139,5 @@ private:
     void initialize_velocity_cpu(void);
     void scale_velocity(void);
 };
-
-
 
 

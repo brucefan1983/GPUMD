@@ -14,13 +14,9 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The driver class for the various integrators.
 ------------------------------------------------------------------------------*/
-
-
 
 
 #include "integrate.cuh"
@@ -35,21 +31,16 @@ The driver class for the various integrators.
 #include "force.cuh"
 
 
-
-
-
 Integrate::Integrate(void)
 {
     ensemble = NULL;
 }
 
 
-
 Integrate::~Integrate(void)
 {
     // nothing
 }
-
 
 
 void Integrate::finalize(void)
@@ -126,14 +117,10 @@ void Integrate::initialize(Atom* atom)
 }
 
 
-
-
 void Integrate::compute
 (Atom *atom, Force *force, Measure* measure)
 {
     ensemble->compute(atom, force, measure);
 }
-
-
 
 

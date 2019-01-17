@@ -14,12 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "common.cuh"
-
-
 
 
 class GPUMD
@@ -43,7 +39,5 @@ private:
     int number_of_times_velocity = 0;
     int number_of_times_potential = 0;
 };
-
-
 
 

@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Calculate the thermal conductivity using the HNEMD method.
 Reference:
@@ -23,10 +21,7 @@ Reference:
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "hnemd_kappa.cuh"
-
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
@@ -36,15 +31,11 @@ Reference:
 #define FILE_NAME_LENGTH       200
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 void HNEMD::preprocess(Atom *atom)
@@ -53,8 +44,6 @@ void HNEMD::preprocess(Atom *atom)
     int num = NUM_OF_HEAT_COMPONENTS * output_interval;
     CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
 }
-
-
 
 
 static __global__ void gpu_sum_heat
@@ -81,8 +70,6 @@ static __global__ void gpu_sum_heat
 }
 
 
-
-
 static real get_volume(real *box_gpu)
 {
     real *box_cpu; MY_MALLOC(box_cpu, real, 3);
@@ -92,8 +79,6 @@ static real get_volume(real *box_gpu)
     MY_FREE(box_cpu);
     return volume;
 }
-
-
 
 
 void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
@@ -142,13 +127,9 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
 }
 
 
-
-
 void HNEMD::postprocess(Atom *atom)
 {
     if (compute) { CHECK(cudaFree(heat_all)); }
 }
-
-
 
 

@@ -14,19 +14,13 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "atom.cuh"
-
 #include "error.cuh"
-
 #define BLOCK_SIZE 128
 #define DIM 3
 
@@ -35,15 +29,11 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 #define NUM_OF_CELLS 50
 
 
-
-
 static __device__ void warp_reduce(volatile int *s, int t)
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 // the first step for determining whether a new neighbor list should be built
@@ -85,8 +75,6 @@ static __global__ void check_atom_distance_1
 }
 
 
-
-
 // the second step for determining whether a new neighbor list should be built
 static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
 {
@@ -119,10 +107,7 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
 }
 
 
-/*----------------------------------------------------------------------------80
-    If the returned value > 0, the neighbor list will be updated.
-------------------------------------------------------------------------------*/
-
+// If the returned value > 0, the neighbor list will be updated.
 int Atom::check_atom_distance(void)
 {
     int M = (N - 1) / 1024 + 1;
@@ -152,8 +137,6 @@ int Atom::check_atom_distance(void)
 
     return update;
 }
-
-
 
 
 // pull the atoms back to the box 
@@ -190,8 +173,6 @@ static __global__ void gpu_apply_pbc
 }
 
 
-
-
 // update the reference positions:
 static __global__ void gpu_update_xyz0
 (int N, real *x, real *y, real *z, real *x0, real *y0, real *z0)
@@ -204,8 +185,6 @@ static __global__ void gpu_update_xyz0
         z0[n] = z[n];
     }
 }
-
-
 
 
 // check the bound of the neighbor list
@@ -229,8 +208,6 @@ void Atom::check_bound(void)
     }
     MY_FREE(cpu_NN);
 }
-
-
 
 
 void Atom::find_neighbor(void)
@@ -299,8 +276,6 @@ void Atom::find_neighbor(void)
 }
 
 
-
-
 // the driver function to be called outside this file
 void Atom::find_neighbor(int is_first)
 {
@@ -335,7 +310,5 @@ void Atom::find_neighbor(int is_first)
         }
     }
 }
-
-
 
 

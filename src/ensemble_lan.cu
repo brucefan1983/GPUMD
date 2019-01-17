@@ -14,18 +14,13 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The Bussi-Parrinello integrator of the Langevin thermostat:
 [1] G. Bussi and M. Parrinello, Phys. Rev. E 75, 056707 (2007).
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble_lan.cuh"
-
 #include "force.cuh"
 #include <curand_kernel.h>
 #include "atom.cuh"
@@ -40,8 +35,6 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 #endif
 
 
-
-
 // initialize curand states
 static __global__ void initialize_curand_states(curandState *state, int N)
 {
@@ -49,8 +42,6 @@ static __global__ void initialize_curand_states(curandState *state, int N)
     // We can use a fixed seed here.
     if (n < N) { curand_init(12345678, n, 0, &state[n]); }
 }
-
-
 
 
 Ensemble_LAN::Ensemble_LAN(int t, int N, real T, real Tc)
@@ -65,8 +56,6 @@ Ensemble_LAN::Ensemble_LAN(int t, int N, real T, real Tc)
     initialize_curand_states<<<grid_size, BLOCK_SIZE>>>(curand_states, N);
     CUDA_CHECK_KERNEL
 }
-
-
 
 
 Ensemble_LAN::Ensemble_LAN
@@ -108,8 +97,6 @@ Ensemble_LAN::Ensemble_LAN
 }
 
 
-
-
 Ensemble_LAN::~Ensemble_LAN(void)
 {
     if (type == 3)
@@ -122,8 +109,6 @@ Ensemble_LAN::~Ensemble_LAN(void)
         CHECK(cudaFree(curand_states_sink));
     }
 }
-
-
 
 
 // global Langevin thermostatting
@@ -148,8 +133,6 @@ static __global__ void gpu_langevin
         g_state[n] = state;
     }
 }
-
-
 
 
 // local Langevin thermostatting 
@@ -177,15 +160,11 @@ static __global__ void gpu_langevin
 }
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 // group kinetic energy
@@ -235,8 +214,6 @@ static __global__ void find_ke
 }
 
 
-
-
 void Ensemble_LAN::integrate_nvt_lan
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -265,8 +242,6 @@ void Ensemble_LAN::integrate_nvt_lan
     // thermo
     find_thermo(atom);
 }
-
-
 
 
 // integrate by one step, with heating and cooling
@@ -358,8 +333,6 @@ void Ensemble_LAN::integrate_heat_lan
 }
 
 
-
-
 void Ensemble_LAN::compute
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -372,7 +345,5 @@ void Ensemble_LAN::compute
         integrate_heat_lan(atom, force, measure);
     }
 }
-
-
 
 

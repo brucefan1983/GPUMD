@@ -14,12 +14,9 @@
 */
 
 
-
-
 #pragma once
+
 #include "common.cuh"
-
-
 
 
 class Compute
@@ -54,7 +51,5 @@ private:
 
     void output_results(Atom*, Integrate*);
 };
-
-
 
 

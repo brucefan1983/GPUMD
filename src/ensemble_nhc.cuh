@@ -15,10 +15,7 @@
 
 
 #pragma once
-
-
 #include "ensemble.cuh"
-
 
 
 class Ensemble_NHC : public Ensemble
@@ -32,7 +29,5 @@ protected:
     void integrate_nvt_nhc(Atom*, Force*, Measure*);
     void integrate_heat_nhc(Atom*, Force*, Measure*);
 };
-
-
 
 

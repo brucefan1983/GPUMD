@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The driver class calculating force and related quantities.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "force.cuh"
-
 #include "atom.cuh"
 #include "error.cuh"
 #include "ldg.cuh"
@@ -40,8 +35,6 @@ The driver class calculating force and related quantities.
 #define BLOCK_SIZE 128
 
 
-
-
 Force::Force(void)
 {
     for (int m = 0; m < MAX_NUM_OF_POTENTIALS; m++)
@@ -52,8 +45,6 @@ Force::Force(void)
     interlayer_only = 0;
     rc_max = ZERO;
 }
-
-
 
 
 Force::~Force(void)
@@ -71,8 +62,6 @@ Force::~Force(void)
 }
 
 
-
-
 static void print_type_error(int number_of_types, int number_of_types_expected)
 {
     if (number_of_types != number_of_types_expected)
@@ -80,8 +69,6 @@ static void print_type_error(int number_of_types, int number_of_types_expected)
         print_error("number of types does not match potential file.\n");
     }
 }
-
-
 
 
 void Force::initialize_one_potential(Atom* atom, int m)
@@ -187,8 +174,6 @@ void Force::initialize_one_potential(Atom* atom, int m)
 }
 
 
-
-
 void Force::initialize_two_body_potential(Atom* atom)
 {
     FILE *fid_potential = my_fopen(file_potential[0], "r");
@@ -240,8 +225,6 @@ void Force::initialize_two_body_potential(Atom* atom)
 
     fclose(fid_potential);
 }
-
-
 
 
 void Force::initialize_many_body_potential
@@ -332,8 +315,6 @@ void Force::initialize_many_body_potential
 }
 
 
-
-
 void Force::initialize(char *input_dir, Atom *atom)
 {
     // a single potential
@@ -384,8 +365,6 @@ void Force::initialize(char *input_dir, Atom *atom)
             sizeof(int) * atom->N, cudaMemcpyHostToDevice));
     }
 }
-
-
 
 
 // Construct the local neighbor list from the global one (Kernel)
@@ -455,8 +434,6 @@ static __global__ void gpu_find_neighbor_local
 }
 
 
-
-
 // Construct the local neighbor list from the global one (Wrapper)
 void Force::find_neighbor_local(Atom *atom, int m)
 {
@@ -513,15 +490,11 @@ void Force::find_neighbor_local(Atom *atom, int m)
 }
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 // get the total force
@@ -570,8 +543,6 @@ static __global__ void gpu_sum_force
 }
 
 
-
-
 // correct the total force
 static __global__ void gpu_correct_force
 (int N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
@@ -584,8 +555,6 @@ static __global__ void gpu_correct_force
         g_fz[i] -= g_f[2] / N;
     }
 }
-
-
 
 
 static __global__ void initialize_properties
@@ -613,15 +582,11 @@ static __global__ void initialize_properties
 }
 
 
-
-
 static __global__ void initialize_shc_properties(int M, real *g_fv)
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     if (n1 < M) { g_fv[n1] = ZERO; }
 }
-
-
 
 
 void Force::compute(Atom *atom, Measure* measure)
@@ -667,7 +632,5 @@ void Force::compute(Atom *atom, Measure* measure)
         CHECK(cudaFree(ftot));
     }
 }
-
-
 
 

@@ -14,25 +14,18 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Compute block (space) averages of various per-atom quantities.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "compute.cuh"
-
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define DIM 3
-
-
 
 
 void Compute::preprocess(char* input_dir, Atom* atom)
@@ -64,8 +57,6 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 }
 
 
-
-
 void Compute::postprocess(Atom* atom, Integrate *integrate)
 {
     if (number_of_scalars == 0) return;
@@ -77,8 +68,6 @@ void Compute::postprocess(Atom* atom, Integrate *integrate)
     CHECK(cudaFree(gpu_per_atom_z));
     fclose(fid);
 }
-
-
 
 
 static __global__ void find_per_atom_temperature
@@ -94,8 +83,6 @@ static __global__ void find_per_atom_temperature
 }
 
 
-
-
 static __global__ void find_per_atom_jp
 (int N, real *g_j, real *g_jx, real* g_jy, real* g_jz)
 {
@@ -107,8 +94,6 @@ static __global__ void find_per_atom_jp
         g_jz[n] = g_j[n + N * 4];
     }
 }
-
-
 
 
 static __global__ void find_per_atom_jk
@@ -128,15 +113,11 @@ static __global__ void find_per_atom_jk
 }
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 static __global__ void find_group_sum_1
@@ -170,8 +151,6 @@ static __global__ void find_group_sum_1
     if (tid <  32) { warp_reduce(s_data, tid);         }
     if (tid ==  0) { g_out[bid] = s_data[0]; }
 }
-
-
 
 
 static __global__ void find_group_sum_3
@@ -229,8 +208,6 @@ static __global__ void find_group_sum_3
         g_out[bid + gridDim.x * 2] = s_fz[0];
     }
 }
-
-
 
 
 void Compute::process(int step, Atom *atom, Integrate *integrate)
@@ -330,8 +307,6 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
 }
 
 
-
-
 void Compute::output_results(Atom *atom, Integrate *integrate)
 {
     int Ng = atom->group[grouping_method].number;
@@ -358,7 +333,5 @@ void Compute::output_results(Atom *atom, Integrate *integrate)
     fprintf(fid, "\n");
     fflush(fid);
 }
-
-
 
 

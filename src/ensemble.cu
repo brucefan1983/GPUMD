@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the ensemble classes.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble.cuh"
-
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -32,21 +27,15 @@ The abstract base class (ABC) for the ensemble classes.
 #define DIM 3
 
 
-
-
 Ensemble::Ensemble(void)
 {
     // nothing now
 }
 
-
-
 Ensemble::~Ensemble(void)
 {
     // nothing now
 }
-
-
 
 
 // The first step of velocity-Verlet
@@ -93,8 +82,6 @@ static __global__ void gpu_velocity_verlet_1
 }
 
 
-
-
 // The first step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_1
 (
@@ -125,8 +112,6 @@ static __global__ void gpu_velocity_verlet_1
 }
 
 
-
-
 // wrapper of the above kernel
 void Ensemble::velocity_verlet_1(Atom* atom)
 {
@@ -150,8 +135,6 @@ void Ensemble::velocity_verlet_1(Atom* atom)
     }  
     CUDA_CHECK_KERNEL
 }
-
-
 
 
 // The second step of velocity-Verlet
@@ -194,8 +177,6 @@ static __global__ void gpu_velocity_verlet_2
 }
 
 
-
-
 // The second step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_2
 (
@@ -222,8 +203,6 @@ static __global__ void gpu_velocity_verlet_2
 }
 
 
-
-
 // wrapper of the above kernel
 void Ensemble::velocity_verlet_2(Atom* atom)
 {
@@ -248,15 +227,11 @@ void Ensemble::velocity_verlet_2(Atom* atom)
 }
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 // Find some thermodynamic properties:
@@ -397,8 +372,6 @@ static __global__ void gpu_find_thermo
 }
 
 
-
-
 // Find some thermodynamic properties:
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
@@ -533,8 +506,6 @@ static __global__ void gpu_find_thermo
 }
 
 
-
-
 // wrapper of the above kernel
 void Ensemble::find_thermo(Atom* atom)
 {
@@ -565,8 +536,6 @@ void Ensemble::find_thermo(Atom* atom)
 }
 
 
-
-
 // Scale the velocity of every particle in the systems by a factor
 static void __global__ gpu_scale_velocity
 (int N, real *g_vx, real *g_vy, real *g_vz, real factor)
@@ -582,8 +551,6 @@ static void __global__ gpu_scale_velocity
 }
 
 
-
-
 // wrapper of the above kernel
 void Ensemble::scale_velocity_global(Atom* atom, real factor)
 {
@@ -591,8 +558,6 @@ void Ensemble::scale_velocity_global(Atom* atom, real factor)
     (atom->N, atom->vx, atom->vy, atom->vz, factor);
     CUDA_CHECK_KERNEL
 }
-
-
 
 
 static __global__ void gpu_find_vc_and_ke
@@ -698,8 +663,6 @@ static __global__ void gpu_find_vc_and_ke
 }
 
 
-
-
 // wrapper of the above kernel
 void Ensemble::find_vc_and_ke
 (Atom* atom, real* vcx, real* vcy, real* vcz, real* ke)
@@ -711,8 +674,6 @@ void Ensemble::find_vc_and_ke
     );
     CUDA_CHECK_KERNEL
 }
-
-
 
 
 static __global__ void gpu_scale_velocity
@@ -757,8 +718,6 @@ static __global__ void gpu_scale_velocity
 }
 
 
-
-
 // wrapper of the above kernel
 void Ensemble::scale_velocity_local
 (
@@ -773,7 +732,5 @@ void Ensemble::scale_velocity_local
     );
     CUDA_CHECK_KERNEL
 }
-
-
 
 

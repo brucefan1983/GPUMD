@@ -14,25 +14,17 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The abstract base class (ABC) for the potential classes.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "potential.cuh"
-
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
 #define BLOCK_SIZE_FORCE 64
-
-
 
 
 Potential::Potential(void)
@@ -41,14 +33,10 @@ Potential::Potential(void)
 }
 
 
-
-
 Potential::~Potential(void)
 {
     // nothing
 }
-
-
 
 
 static __global__ void gpu_find_force_many_body
@@ -217,8 +205,6 @@ static __global__ void gpu_find_force_many_body
 }
 
 
-
-
 // Wrapper of the above kernel
 // used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body
@@ -242,7 +228,5 @@ void Potential::find_properties_many_body
     );
     CUDA_CHECK_KERNEL
 }
-
-
 
 

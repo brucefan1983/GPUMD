@@ -14,12 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "common.cuh"
-
-
 
 
 class Integrate 
@@ -44,7 +40,5 @@ public:
     real temperature_coupling;
     real pressure_coupling; 
 };
-
-
 
 

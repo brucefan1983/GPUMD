@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Spectral heat current (SHC) calculations as described in:
 [1] Z. Fan, et al. Thermal conductivity decomposition in two-dimensional 
@@ -23,18 +21,12 @@ materials: Application to graphene. Phys. Rev. B 95, 144309 (2017).
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "shc.cuh"
-
 #include "atom.cuh"
 #include "error.cuh"
 
 typedef unsigned long long uint64;
-
 #define FILE_NAME_LENGTH      200
-
-
 
 
 // copy the neighbor list from the GPU to the CPU
@@ -62,8 +54,6 @@ void copy_neighbor_to_cpu(Atom *atom, int* NN, int*NL)
     // free the temporary memory
     MY_FREE(NL_temp);
 }
-
-
 
 
 //build the look-up table used for recording force and velocity data
@@ -102,8 +92,6 @@ void SHC::build_fv_table
         }
     }
 }
-
-
 
 
 // allocate memory and initialize for calculating SHC
@@ -166,15 +154,11 @@ void SHC::preprocess(Atom *atom)
 }
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, uint64 t)
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 static __global__ void gpu_find_k_time
@@ -247,8 +231,6 @@ static __global__ void gpu_find_k_time
 }
 
 
-
-
 // calculate the correlation function K(t)
 void SHC::find_k_time(char *input_dir, Atom *atom)
 {
@@ -316,8 +298,6 @@ void SHC::process(int step, char *input_dir, Atom *atom)
 }
 
 
-
-
 void SHC::postprocess(void)
 {
     if (!compute) return;
@@ -327,7 +307,5 @@ void SHC::postprocess(void)
     CHECK(cudaFree(fv));
     CHECK(cudaFree(fv_all));
 }
-
-
 
 

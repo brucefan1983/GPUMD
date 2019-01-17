@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "gpumd.cuh"
-
 #include "force.cuh"
 #include "validate.cuh"
 #include "integrate.cuh"
@@ -32,8 +27,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
-
 
 
 // run a number of steps for a given set of inputs
@@ -84,8 +77,6 @@ static void process_run
 }
 
 
-
-
 #ifdef FORCE
 static void print_initial_force(char* input_dir, Atom* atom)
 {
@@ -113,8 +104,6 @@ static void print_initial_force(char* input_dir, Atom* atom)
     MY_FREE(cpu_fz);
 }
 #endif
-
-
 
 
 // Read and process the inputs from the "run.in" file
@@ -179,7 +168,5 @@ void GPUMD::run
 
     MY_FREE(input); // Free the input file contents
 }
-
-
 
 

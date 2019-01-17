@@ -18,8 +18,6 @@
 #include "potential.cuh"
 
 
-
-
 struct EAM2004Zhou
 {
     real re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
@@ -28,22 +26,16 @@ struct EAM2004Zhou
 };
 
 
-
-
 struct EAM2006Dai
 {
     real A, d, c, c0, c1, c2, c3, c4, B, rc;
 };
 
 
-
-
 struct EAM_Data
 {
     real *Fp;    // derivative of the density functional
 };
-
-
 
 
 class EAM : public Potential
@@ -60,7 +52,5 @@ protected:
     EAM2006Dai   eam2006dai;
     EAM_Data     eam_data;
 };
-
-
 
 

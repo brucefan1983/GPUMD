@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The class dealing with all the pairwise potentials, including the the LJ
 potential and the rigid-ion potential.
@@ -29,15 +27,11 @@ J. Chem. Phys. 124, 234104 (2006).
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "pair.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
-
 
 
 // best block size here: 128
@@ -54,8 +48,6 @@ J. Chem. Phys. 124, 234104 (2006).
 #endif
 
 
-
-
 Pair::Pair(FILE *fid, int potential_model_input)
 {
     potential_model = potential_model_input;
@@ -63,8 +55,6 @@ Pair::Pair(FILE *fid, int potential_model_input)
     if (potential_model >= 1 && potential_model <= 5) 
         initialize_lj(fid, potential_model);
 }
-
-
 
 
 void Pair::initialize_lj(FILE *fid, int N)
@@ -86,8 +76,6 @@ void Pair::initialize_lj(FILE *fid, int N)
         }
     }
 }
-
-
 
 
 void Pair::initialize_ri(FILE *fid)
@@ -125,14 +113,10 @@ void Pair::initialize_ri(FILE *fid)
 }
 
 
-
-
 Pair::~Pair(void)
 {
     // nothing
 }
-
-
 
 
 // get U_ij and (d U_ij / d r_ij) / r_ij (the LJ potential)
@@ -144,8 +128,6 @@ static __device__ void find_p2_and_f2
     f2 = SIX * (s6e4 * d12inv6 - s12e4 * TWO * d12inv6 * d12inv6) * d12inv2; 
     p2 = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;  
 }
-
-
 
 
 // get U_ij and (d U_ij / d r_ij) / r_ij (the RI potential)
@@ -186,8 +168,6 @@ static __device__ void find_p2_and_f2
     f2-=qq*(erfc_r*d12inv+RI_PI_FACTOR*d12inv*exp(-RI_ALPHA_SQ*d12sq)+ri.dv_rc);
     f2 *= d12inv;
 }
-
-
 
 
 // force evaluation kernel
@@ -368,8 +348,6 @@ static __global__ void gpu_find_force
     }
 }    
  
-
-
 
 // Find force and related quantities for pair potentials (A wrapper)
 void Pair::compute(Atom *atom, Measure *measure)
@@ -739,7 +717,5 @@ void Pair::compute(Atom *atom, Measure *measure)
         }
     }
 }
-
-
 
 

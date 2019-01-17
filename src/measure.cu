@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The driver class dealing with measurement.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "measure.cuh"
-
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
@@ -33,8 +28,6 @@ The driver class dealing with measurement.
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
 #define NUM_OF_PROPERTIES      5 
-
-
 
 
 Measure::Measure(char *input_dir)
@@ -65,14 +58,10 @@ Measure::Measure(char *input_dir)
 }
 
 
-
-
 Measure::~Measure(void)
 {
     // nothing
 }
-
-
 
 
 void Measure::initialize(char* input_dir, Atom *atom)
@@ -93,8 +82,6 @@ void Measure::initialize(char* input_dir, Atom *atom)
 }
 
 
-
-
 void Measure::finalize
 (char *input_dir, Atom *atom, Integrate *integrate)
 {
@@ -112,8 +99,6 @@ void Measure::finalize
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);
 }
-
-
 
 
 void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
@@ -141,8 +126,6 @@ void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
 {
     real *cpu_a, *cpu_b, *cpu_c;
@@ -162,16 +145,12 @@ static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
 }
 
 
-
-
 void Measure::dump_positions(FILE *fid, Atom *atom, int step)
 {
     if (!dump_position) return;
     if ((step + 1) % sample_interval_position != 0) return;
     gpu_dump_3(atom->N, fid, atom->x, atom->y, atom->z);
 }
-
-
 
 
 void Measure::dump_velocities(FILE *fid, Atom *atom, int step)
@@ -182,16 +161,12 @@ void Measure::dump_velocities(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 void Measure::dump_forces(FILE *fid, Atom *atom, int step)
 {
     if (!dump_force) return;
     if ((step + 1) % sample_interval_force != 0) return;
     gpu_dump_3(atom->N, fid, atom->fx, atom->fy, atom->fz);
 }
-
-
 
 
 void Measure::dump_virials(FILE *fid, Atom *atom, int step)
@@ -203,8 +178,6 @@ void Measure::dump_virials(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 static void gpu_dump_1(int N, FILE *fid, real *a)
 {
     real *cpu_a; MY_MALLOC(cpu_a, real, N);
@@ -212,8 +185,6 @@ static void gpu_dump_1(int N, FILE *fid, real *a)
     for (int n = 0; n < N; n++) { fprintf(fid, "%20.10e\n", cpu_a[n]); }
     fflush(fid); MY_FREE(cpu_a);
 }
-
-
 
 
 void Measure::dump_potentials(FILE *fid, Atom *atom, int step)
@@ -224,16 +195,12 @@ void Measure::dump_potentials(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 void Measure::dump_heats(FILE *fid, Atom *atom, int step)
 {
     if (!dump_heat) return;
     if ((step + 1) % sample_interval_heat != 0) return;
     gpu_dump_1(atom->N * NUM_OF_HEAT_COMPONENTS, fid, atom->heat_per_atom);
 }
-
-
 
 
 void Measure::process
@@ -252,7 +219,5 @@ void Measure::process
     shc.process(step, input_dir, atom);
     hnemd.process(step, input_dir, atom, integrate);
 }
-
-
 
 

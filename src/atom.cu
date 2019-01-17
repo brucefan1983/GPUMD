@@ -14,24 +14,17 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The class defining the simulation model.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "atom.cuh"
-
 #include "error.cuh"
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH 200
-
-
 
 
 Atom::Atom(char *input_dir)
@@ -43,15 +36,11 @@ Atom::Atom(char *input_dir)
 }
 
 
-
-
 Atom::~Atom(void)
 {
     free_memory_cpu();
     free_memory_gpu();
 }
-
-
 
 
 void Atom::read_xyz_in_line_1(FILE* fid_xyz)
@@ -96,8 +85,6 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 }  
 
 
-
-
 void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 {
     MY_MALLOC(cpu_box_length, real, 3);
@@ -131,8 +118,6 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
     else
         print_error("invalid boundary conditions along z.\n");
 }
-
-
 
 
 void Atom::read_xyz_in_line_3(FILE* fid_xyz)
@@ -196,8 +181,6 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 }
 
 
-
-
 void Atom::find_group_size(int k)
 {
     MY_MALLOC(group[k].cpu_size, int, group[k].number);
@@ -226,7 +209,6 @@ void Atom::find_group_size(int k)
 }
 
 
-
 void Atom::find_group_contents(int k)
 {
     // determine the atom indices from the first to the last group
@@ -238,8 +220,6 @@ void Atom::find_group_contents(int k)
                 group[k].cpu_contents[group[k].cpu_size_sum[m]+offset[m]++] = n;
     MY_FREE(offset);
 }
-
-
 
 
 void Atom::find_type_size(void)
@@ -255,8 +235,6 @@ void Atom::find_type_size(void)
     for (int m = 0; m < number_of_types; m++)
         printf("    %d atoms of type %d.\n", cpu_type_size[m], m);
 }
-
-
 
 
 void Atom::initialize_position(char *input_dir)
@@ -287,8 +265,6 @@ void Atom::initialize_position(char *input_dir)
     printf("Finished initializing positions and related parameters.\n");
     print_line_2();
 }
-
-
 
 
 void Atom::allocate_memory_gpu(void)
@@ -341,8 +317,6 @@ void Atom::allocate_memory_gpu(void)
 }
 
 
-
-
 void Atom::copy_from_cpu_to_gpu(void)
 {
     int m1 = sizeof(int) * N;
@@ -373,8 +347,6 @@ void Atom::copy_from_cpu_to_gpu(void)
 }
 
 
-
-
 void Atom::free_memory_cpu(void)
 {
     MY_FREE(cpu_type);
@@ -396,8 +368,6 @@ void Atom::free_memory_cpu(void)
     MY_FREE(cpu_vz);
     MY_FREE(cpu_box_length);
 }
-
-
 
 
 void Atom::free_memory_gpu(void)
@@ -436,7 +406,5 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(box_length));
     CHECK(cudaFree(thermo));
 }
-
-
 
 

@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The Nose-Hoover chain thermostat
 [1] M. E. Tuckerman, Statistical Mechanics: Theory and Molecular Simulation. 
@@ -23,18 +21,13 @@ Oxford University Press, 2010.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble_nhc.cuh"
-
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3
-
-
 
 
 Ensemble_NHC::Ensemble_NHC(int t, int N, real T, real Tc, real dt)
@@ -56,8 +49,6 @@ Ensemble_NHC::Ensemble_NHC(int t, int N, real T, real Tc, real dt)
     }
     mas_nhc1[0] *= dN;
 }
-
-
 
 
 Ensemble_NHC::Ensemble_NHC
@@ -98,14 +89,10 @@ Ensemble_NHC::Ensemble_NHC
 }
 
 
-
-
 Ensemble_NHC::~Ensemble_NHC(void)
 {
     // nothing now
 }
-
-
 
 
 //The Nose-Hover thermostat integrator
@@ -182,8 +169,6 @@ static real nhc
 }
 
 
-
-
 void Ensemble_NHC::integrate_nvt_nhc
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -216,8 +201,6 @@ void Ensemble_NHC::integrate_nvt_nhc
     MY_FREE(ek2);
     scale_velocity_global(atom, factor);
 }
-
-
 
 
 // integrate by one step, with heating and cooling, 
@@ -290,8 +273,6 @@ void Ensemble_NHC::integrate_heat_nhc
 }
 
 
-
-
 void Ensemble_NHC::compute
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -304,7 +285,5 @@ void Ensemble_NHC::compute
         integrate_heat_nhc(atom, force, measure);
     }
 }
-
-
 
 

@@ -14,27 +14,19 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Parse the commands in run.in.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "gpumd.cuh"
-
 #include "atom.cuh"
 #include "ensemble.cuh"
 #include "error.cuh"
 #include "force.cuh"
 #include "integrate.cuh"
 #include "measure.cuh"
-
 #include <errno.h>
-
-
 
 
 static int is_valid_int (const char *s, int *result)
@@ -48,8 +40,6 @@ static int is_valid_int (const char *s, int *result)
 }
 
 
-
-
 static int is_valid_real (const char *s, real *result)
 {
     if (s == NULL || *s == '\0') { return 0; }
@@ -59,8 +49,6 @@ static int is_valid_real (const char *s, real *result)
     if (errno != 0 || s == p || *p != 0) { return 0; }
     else { return 1; }
 }
-
-
 
 
 // a single potential
@@ -73,8 +61,6 @@ static void parse_potential(char **param, int num_param, Force *force)
     strcpy(force->file_potential[0], param[1]);
     force->num_of_potentials = 1;
 }
-
-
 
 
 // multiple potentials
@@ -127,8 +113,6 @@ static void parse_potentials(char **param, int num_param, Force *force)
 }
 
 
-
-
 static void parse_velocity(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
@@ -144,8 +128,6 @@ static void parse_velocity(char **param, int num_param, Atom *atom)
         print_error("initial temperature should be a positive number.\n");
     }
 }
-
-
 
 
 // coding conventions:
@@ -416,8 +398,6 @@ static void parse_ensemble
 }
 
 
-
-
 static void parse_time_step (char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
@@ -431,8 +411,6 @@ static void parse_time_step (char **param,  int num_param, Atom* atom)
     printf("Time step for this run is %g fs.\n", atom->time_step);
     atom->time_step /= TIME_UNIT_CONVERSION;
 }
-
-
 
 
 static void parse_neighbor
@@ -455,8 +433,6 @@ static void parse_neighbor
 }
 
 
-
-
 static void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
@@ -470,8 +446,6 @@ static void parse_dump_thermo(char **param,  int num_param, Measure *measure)
     measure->dump_thermo = 1;
     printf("Dump thermo every %d steps.\n", measure->sample_interval_thermo);
 }
-
-
 
 
 static void parse_dump_position(char **param,  int num_param, Measure *measure)
@@ -490,8 +464,6 @@ static void parse_dump_position(char **param,  int num_param, Measure *measure)
 }
 
 
-
-
 static void parse_dump_velocity(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
@@ -508,8 +480,6 @@ static void parse_dump_velocity(char **param,  int num_param, Measure *measure)
 }
 
 
-
-
 static void parse_dump_force(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
@@ -523,8 +493,6 @@ static void parse_dump_force(char **param,  int num_param, Measure *measure)
     measure->dump_force = 1;
     printf("Dump force every %d steps.\n", measure->sample_interval_force);
 }
-
-
 
 
 static void parse_dump_potential(char **param,  int num_param, Measure *measure)
@@ -543,8 +511,6 @@ static void parse_dump_potential(char **param,  int num_param, Measure *measure)
 }
 
 
-
-
 static void parse_dump_virial(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
@@ -561,8 +527,6 @@ static void parse_dump_virial(char **param,  int num_param, Measure *measure)
 }
 
 
-
-
 static void parse_dump_heat(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
@@ -576,8 +540,6 @@ static void parse_dump_heat(char **param,  int num_param, Measure *measure)
     measure->dump_heat = 1;
     printf("Dump heat every %d steps.\n", measure->sample_interval_heat);
 }
-
-
 
 
 static void parse_compute_vac(char **param,  int num_param, Measure *measure)
@@ -625,8 +587,6 @@ static void parse_compute_vac(char **param,  int num_param, Measure *measure)
 }
 
 
-
-
 static void parse_compute_hac(char **param,  int num_param, Measure* measure)
 {
     measure->hac.compute = 1;
@@ -656,8 +616,6 @@ static void parse_compute_hac(char **param,  int num_param, Measure* measure)
     }
     printf("    output_interval is %d\n", measure->hac.output_interval);
 }
-
-
 
 
 static void parse_compute_hnemd(char **param, int num_param, Measure* measure)
@@ -702,8 +660,6 @@ static void parse_compute_hnemd(char **param, int num_param, Measure* measure)
     measure->hnemd.fe += measure->hnemd.fe_z * measure->hnemd.fe_z;
     measure->hnemd.fe  = sqrt(measure->hnemd.fe);
 }
-
-
 
 
 static void parse_compute_shc(char **param,  int num_param, Measure* measure)
@@ -755,8 +711,6 @@ static void parse_compute_shc(char **param,  int num_param, Measure* measure)
 }
 
 
-
-
 static void parse_deform(char **param,  int num_param, Atom* atom)
 {
     printf("Deform the box.\n");
@@ -800,8 +754,6 @@ static void parse_deform(char **param,  int num_param, Atom* atom)
         printf("    apply strain in z direction.\n");
     }
 }
-
-
 
 
 static void parse_compute(char **param,  int num_param, Measure* measure)
@@ -863,8 +815,6 @@ static void parse_compute(char **param,  int num_param, Measure* measure)
 }
 
 
-
-
 static void parse_fix(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
@@ -879,8 +829,6 @@ static void parse_fix(char **param, int num_param, Atom *atom)
 }
 
 
-
-
 static void parse_run(char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
@@ -893,8 +841,6 @@ static void parse_run(char **param,  int num_param, Atom* atom)
     }
     printf("Run %d steps.\n", atom->number_of_steps);
 }
-
-
 
 
 void GPUMD::parse
@@ -998,7 +944,5 @@ void GPUMD::parse
         exit(1);
     }
 }
-
-
 
 

@@ -14,11 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "common.cuh"
-
 #include "vac.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
@@ -26,8 +23,6 @@
 #include "compute.cuh"
 
 #define FILE_NAME_LENGTH      200
-
-
 
 
 class Measure
@@ -80,7 +75,5 @@ protected:
     void dump_virials(FILE*, Atom*, int);
     void dump_heats(FILE*, Atom*, int);
 };
-
-
 
 

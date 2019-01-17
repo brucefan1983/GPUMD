@@ -14,12 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "potential.cuh"
-
-
 
 
 struct SW2_Para
@@ -31,16 +27,12 @@ struct SW2_Para
 };
 
 
-
-
 struct SW2_Data
 {
     real *f12x;  // partial forces
     real *f12y;
     real *f12z;
 };
-
-
 
 
 class SW2 : public Potential
@@ -56,7 +48,5 @@ protected:
     SW2_Para sw2_para;
     SW2_Data sw2_data;
 };
-
-
 
 

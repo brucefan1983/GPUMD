@@ -14,13 +14,9 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Construct the neighbor list using the O(N^2) method.
 ------------------------------------------------------------------------------*/
-
-
 
 
 #include "atom.cuh"
@@ -28,8 +24,6 @@ Construct the neighbor list using the O(N^2) method.
 #include "ldg.cuh"
 
 #define BLOCK_SIZE 128
-
-
 
 
 // a simple O(N^2) version of neighbor list construction
@@ -71,8 +65,6 @@ static __global__ void gpu_find_neighbor_ON2
 }
 
 
-
-
 // a driver function
 void Atom::find_neighbor_ON2(void)
 {
@@ -86,6 +78,5 @@ void Atom::find_neighbor_ON2(void)
     (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, x, y, z);
     CUDA_CHECK_KERNEL
 }
-
 
 

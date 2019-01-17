@@ -14,14 +14,9 @@
 */
 
 
-
-
 #pragma once
-
-
 #include "ensemble.cuh"
 #include <curand_kernel.h>
-
 
 
 class Ensemble_LAN : public Ensemble
@@ -38,7 +33,5 @@ protected:
     void integrate_nvt_lan(Atom*, Force*, Measure*);
     void integrate_heat_lan(Atom*, Force*, Measure*);
 };
-
-
 
 

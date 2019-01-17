@@ -14,13 +14,9 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The GPUMD class, which is used by the main function.
 ------------------------------------------------------------------------------*/
-
-
 
 
 #include "gpumd.cuh"
@@ -32,8 +28,6 @@ The GPUMD class, which is used by the main function.
 #include "error.cuh"
 
 #include <ctype.h>
-
-
 
 
 GPUMD::GPUMD(char *input_dir)
@@ -48,14 +42,10 @@ GPUMD::GPUMD(char *input_dir)
 }
 
 
-
-
 GPUMD::~GPUMD(void)
 {
     // nothing
 }
-
-
 
 
 // set some default values after each run
@@ -93,8 +83,6 @@ void GPUMD::initialize_run(Atom* atom, Measure* measure)
 }
 
 
-
-
 // Read the input file to memory
 char* GPUMD::get_file_contents (char *filename)
 {
@@ -119,8 +107,6 @@ char* GPUMD::get_file_contents (char *filename)
 
     return contents;
 }
-
-
 
 
 // Parse a single row
@@ -161,7 +147,5 @@ char* GPUMD::row_find_param (char *s, char *param[], int *num_param)
     }
     return NULL;
 }
-
-
 
 

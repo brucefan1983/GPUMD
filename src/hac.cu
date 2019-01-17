@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Calculate the heat current autocorrelation (HAC) function.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "hac.cuh"
-
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
@@ -35,15 +30,11 @@ Calculate the heat current autocorrelation (HAC) function.
 #define DIM 3
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 //Allocate memory for recording heat current data
@@ -56,8 +47,6 @@ void HAC::preprocess(Atom *atom)
         CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
     }
 }
-
-
 
 
 // sum up the per-atom heat current to get the total heat current
@@ -87,8 +76,6 @@ static __global__ void gpu_sum_heat
 }
 
 
-
-
 // sample heat current data for HAC calculations.
 void HAC::process(int step, char *input_dir, Atom *atom)
 {
@@ -101,8 +88,6 @@ void HAC::process(int step, char *input_dir, Atom *atom)
         atom->heat_per_atom, heat_all);
     CUDA_CHECK_KERNEL
 }
-
-
 
 
 // Calculate the Heat current Auto-Correlation function (HAC) 
@@ -173,8 +158,6 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
 }
 
 
-
-
 // Calculate the Running Thermal Conductivity (RTC) from the HAC
 static void find_rtc(int Nc, real factor, real *hac, real *rtc)
 {
@@ -189,7 +172,6 @@ static void find_rtc(int Nc, real factor, real *hac, real *rtc)
 }
 
 
-
 static real get_volume(real *box_gpu)
 {
     real *box_cpu;
@@ -200,8 +182,6 @@ static real get_volume(real *box_gpu)
     MY_FREE(box_cpu);
     return volume;
 }
-
-
 
 
 // Calculate 
@@ -289,8 +269,6 @@ void HAC::find_hac_kappa
 }
 
 
-
-
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
 void HAC::postprocess(char *input_dir, Atom *atom, Integrate *integrate)
@@ -303,7 +281,5 @@ void HAC::postprocess(char *input_dir, Atom *atom, Integrate *integrate)
     printf("HAC and related quantities are calculated.\n");
     print_line_2();
 }
-
-
 
 

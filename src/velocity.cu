@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Initialize the velocities of the system:
     total linear momentum is zero
@@ -25,12 +23,8 @@ If DEBUG is off, the velocities are different in different runs.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "atom.cuh"
 #include "error.cuh"
-
-
 
 
 void Atom::scale_velocity(void)
@@ -52,8 +46,6 @@ void Atom::scale_velocity(void)
         cpu_vz[n] *= scale_factor;
     }
 }
-
-
 
 
 void Atom::initialize_velocity_cpu(void)
@@ -175,8 +167,6 @@ void Atom::initialize_velocity_cpu(void)
 }
 
 
-
-
 void Atom::initialize_velocity(void)
 {
     if (has_velocity_in_xyz == 0) { initialize_velocity_cpu(); }
@@ -189,7 +179,5 @@ void Atom::initialize_velocity(void)
 
     printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
-
-
 
 

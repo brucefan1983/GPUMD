@@ -14,15 +14,10 @@
 */
 
 
-
-
 #include "error.cuh"
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
-
-
 
 
 void print_error (const char *str)
@@ -32,8 +27,6 @@ void print_error (const char *str)
 }
 
 
-
-
 void print_line_1(void)
 {
     printf("\n");
@@ -41,15 +34,11 @@ void print_line_1(void)
 }
 
 
-
-
 void print_line_2(void)
 {
     printf("---------------------------------------------------------------\n");
     printf("\n");
 }
-
-
 
 
 FILE *my_fopen(const char *filename, const char *mode)
@@ -63,7 +52,5 @@ FILE *my_fopen(const char *filename, const char *mode)
     }
     return fid;
 }
-
-
 
 

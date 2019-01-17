@@ -14,20 +14,13 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble_nve.cuh"
-
 #include "force.cuh" 
-
-
 
 
 Ensemble_NVE::Ensemble_NVE(int t)
@@ -36,13 +29,10 @@ Ensemble_NVE::Ensemble_NVE(int t)
 }
 
 
-
 Ensemble_NVE::~Ensemble_NVE(void)
 {
     // nothing now
 }
-
-
 
 
 void Ensemble_NVE::compute(Atom *atom, Force *force, Measure* measure)
@@ -52,7 +42,5 @@ void Ensemble_NVE::compute(Atom *atom, Force *force, Measure* measure)
     velocity_verlet_2(atom);
     find_thermo(atom);
 }
-
-
 
 

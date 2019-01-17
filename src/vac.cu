@@ -14,15 +14,11 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The double-element version of the Tersoff potential as described in  
     [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials 
         for multicomponent systems, PRB 39, 5566 (1989).
 ------------------------------------------------------------------------------*/
-
-
 
 
 #include "vac.cuh"
@@ -34,8 +30,6 @@ The double-element version of the Tersoff potential as described in
 #define FILE_NAME_LENGTH      200
 
 
-
-
 // Allocate memory for recording velocity data
 void VAC::preprocess(Atom *atom)
 {
@@ -45,8 +39,6 @@ void VAC::preprocess(Atom *atom)
     CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
 }
-
-
 
 
 // Record velocity data (kernel)
@@ -67,8 +59,6 @@ static __global__ void gpu_copy_velocity
 }
 
 
-
-
 // Record velocity data (wrapper)
 void VAC::process(int step, Atom *atom)
 {
@@ -83,15 +73,11 @@ void VAC::process(int step, Atom *atom)
 }
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 static __global__ void gpu_find_vac
@@ -174,8 +160,6 @@ static void find_rdc
 }
 
 
-
-
 // Calculate phonon density of states (DOS) 
 // using the method by Dickey and Paskin
 static void find_dos
@@ -217,8 +201,6 @@ static void find_dos
         dos_z[nw] *= delta_t;
     }
 }
-
-
 
 
 // Calculate (1) VAC, (2) RDC, and (3) DOS = phonon density of states
@@ -334,8 +316,6 @@ void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
 }
 
 
-
-
 // postprocess VAC and related quantities.
 void VAC::postprocess(char *input_dir, Atom *atom)
 {
@@ -349,7 +329,5 @@ void VAC::postprocess(char *input_dir, Atom *atom)
     printf("VAC and related quantities are calculated.\n");
     print_line_2();
 }
-
-
 
 

@@ -15,10 +15,7 @@
 
 
 #pragma once
-
-
 #include "ensemble.cuh"
-
 
 
 class Ensemble_BER : public Ensemble
@@ -29,7 +26,5 @@ public:
     virtual ~Ensemble_BER(void);
     virtual void compute(Atom*, Force*, Measure*);
 };
-
-
 
 

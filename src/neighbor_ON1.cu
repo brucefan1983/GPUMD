@@ -14,25 +14,17 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Construct the neighbor list using the O(N) method.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "atom.cuh"
 #include "error.cuh"
-
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
-
 #define USE_THRUST
 #define BLOCK_SIZE 128
-
-
 
 
 template <int pbc_x, int pbc_y, int pbc_z>
@@ -46,8 +38,6 @@ static __device__ void dev_apply_mic
     if      (pbc_z == 1 && *z12 < - lz * HALF) {*z12 += lz;}
     else if (pbc_z == 1 && *z12 > + lz * HALF) {*z12 -= lz;}
 }
-
-
 
 
 // find the cell id for an atom
@@ -68,7 +58,6 @@ static __device__ void find_cell_id
     while (cell_id_z >= cell_n_z) cell_id_z -= cell_n_z;
     *cell_id =  cell_id_x + cell_n_x*cell_id_y + cell_n_x*cell_n_y*cell_id_z;
 }
-
 
 
 // find the cell id for an atom
@@ -93,8 +82,6 @@ static __device__ void find_cell_id
 }
 
 
-
-
 // cell_count[i] = number of atoms in the i-th cell
 static __global__ void find_cell_counts
 (
@@ -115,8 +102,6 @@ static __global__ void find_cell_counts
         atomicAdd(&cell_count[cell_id], 1);
     }
 }
-
-
 
 
 // cell_contents[some index] = an atom index
@@ -143,8 +128,6 @@ static __global__ void find_cell_contents
 }
 
 
-
-
 // a simple (but 100% correct) version of prefix sum (used for testing)
 #ifndef USE_THRUST
 static __global__ void prefix_sum
@@ -156,8 +139,6 @@ static __global__ void prefix_sum
     cell_count_sum[i] = cell_count_sum[i-1] + cell_count[i-1];
 }
 #endif
-
-
 
 
 // new version (faster)
@@ -244,8 +225,6 @@ static __global__ void gpu_find_neighbor_ON1
         NN[n1] = count;
     }
 }
-
-
 
 
 // a driver function
@@ -381,7 +360,5 @@ void Atom::find_neighbor_ON1
     CHECK(cudaFree(cell_count_sum));
     CHECK(cudaFree(cell_contents));
 }
-
-
 
 

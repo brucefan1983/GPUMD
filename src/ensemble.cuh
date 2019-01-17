@@ -20,8 +20,6 @@
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
 
-
-
 class Ensemble 
 {
 public:
@@ -56,7 +54,5 @@ protected:
     void find_vc_and_ke(Atom*, real*, real*, real*, real*);
     void scale_velocity_local(Atom*, real, real, real*, real*, real*, real*);
 };
-
-
 
 

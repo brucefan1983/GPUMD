@@ -14,23 +14,15 @@
 */
 
 
-
-
 #include "gpumd.cuh"
 #include "error.cuh"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 
-
-
-
 void print_welcome_information(void);
 void print_debug_information(void);
 int get_number_of_input_directories(void);
-
-
 
 
 int main(int argc, char *argv[])
@@ -76,8 +68,6 @@ int main(int argc, char *argv[])
 }
 
 
-
-
 void print_welcome_information(void)
 {
     printf("\n");
@@ -94,8 +84,6 @@ void print_welcome_information(void)
     printf("***************************************************************\n");
     printf("\n");
 }
-
-
 
 
 void print_debug_information(void)
@@ -139,8 +127,6 @@ void print_debug_information(void)
 }
 
 
-
-
 int get_number_of_input_directories(void)
 {
     int number_of_inputs;
@@ -152,7 +138,5 @@ int get_number_of_input_directories(void)
     }
     return number_of_inputs;
 }
-
-
 
 

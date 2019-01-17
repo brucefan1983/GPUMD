@@ -14,10 +14,7 @@
 */
 
 
-
-
 #include "vashishta.cuh"
-
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
@@ -26,14 +23,10 @@
 #define BLOCK_SIZE_VASHISHTA 64 
 
 
-
-
 /*----------------------------------------------------------------------------80
     Reference: 
         P. Vashishta et al., J. Appl. Phys. 101, 103515 (2007).
 *-----------------------------------------------------------------------------*/
-
-
 
 
 void Vashishta::initialize_0(FILE *fid)
@@ -93,8 +86,6 @@ void Vashishta::initialize_0(FILE *fid)
 }
 
 
-
-
 // get U_ij and (d U_ij / d r_ij) / r_ij for the 2-body part
 static void find_p2_and_f2_host
 (
@@ -114,8 +105,6 @@ static void find_p2_and_f2_host
     f2 -= p2_charge * (lambda_inv + d12inv) + p2_steric * (eta * d12inv);
     f2 = (f2 - dv_rc) * d12inv;      // shifted force
 }
-
-
 
 
 void Vashishta::initialize_1(FILE *fid)
@@ -215,8 +204,6 @@ void Vashishta::initialize_1(FILE *fid)
 }
 
 
-
-
 Vashishta::Vashishta(FILE *fid, Atom* atom, int use_table_input)
 {
     use_table = use_table_input;
@@ -246,8 +233,6 @@ Vashishta::~Vashishta(void)
     CHECK(cudaFree(vashishta_data.NN_short));
     CHECK(cudaFree(vashishta_data.NL_short));
 }
-
-
 
 
 // eta is always an integer and we don't need the very slow pow()
@@ -281,8 +266,6 @@ static __device__ real my_pow(real x, int n)
 }
 
 
-
-
 // get U_ij and (d U_ij / d r_ij) / r_ij for the 2-body part
 static __device__ void find_p2_and_f2
 (
@@ -302,8 +285,6 @@ static __device__ void find_p2_and_f2
     f2 -= p2_charge * (lambda_inv + d12inv) + p2_steric * (eta * d12inv);
     f2 = (f2 - dv_rc) * d12inv;      // shifted force
 }
-
-
 
 
 // 2-body part of the Vashishta potential (kernel)
@@ -513,8 +494,6 @@ static __global__ void gpu_find_force_vashishta_2body
 }
 
 
-
-
 // calculate the partial forces dU_i/dr_ij
 static __global__ void gpu_find_force_vashishta_partial
 (
@@ -606,8 +585,6 @@ static __global__ void gpu_find_force_vashishta_partial
         g_potential[n1] += potential_energy;
     }
 }
-
-
 
 
 // Find force and related quantities for the Vashishta potential (A wrapper)
@@ -814,7 +791,5 @@ void Vashishta::compute(Atom *atom, Measure *measure)
     find_properties_many_body
     (atom, measure, NN_local, NL_local, f12x, f12y, f12z);
 }
-
-
 
 
