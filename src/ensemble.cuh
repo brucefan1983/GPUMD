@@ -49,6 +49,7 @@ public:
 protected:
     void velocity_verlet_1(Atom*);
     void velocity_verlet_2(Atom*);
+    void velocity_verlet(Atom*, Force*, Measure*);
     void find_thermo(Atom*);
     void scale_velocity_global(Atom* atom, real);
     void find_vc_and_ke(Atom*, real*, real*, real*, real*);

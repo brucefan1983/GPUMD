@@ -190,9 +190,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     real factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     scale_velocity_global(atom, factor);
 
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
     find_thermo(atom);
 
     CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
@@ -245,10 +243,7 @@ void Ensemble_NHC::integrate_heat_nhc
     
     scale_velocity_local(atom, factor_1, factor_2, vcx, vcy, vcz, ke);
 
-    // veloicty-Verlet
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
 
     // NHC second
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);

@@ -22,6 +22,7 @@ The abstract base class (ABC) for the ensemble classes.
 #include "ensemble.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "force.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3
@@ -224,6 +225,15 @@ void Ensemble::velocity_verlet_2(Atom* atom)
         );
     }
     CUDA_CHECK_KERNEL
+}
+
+
+// the standard velocity-Verlet, including force updating
+void Ensemble::velocity_verlet(Atom* atom, Force* force, Measure* measure)
+{
+    velocity_verlet_1(atom);
+    force->compute(atom, measure);
+    velocity_verlet_2(atom);
 }
 
 

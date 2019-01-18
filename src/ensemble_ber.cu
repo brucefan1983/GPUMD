@@ -170,9 +170,7 @@ void Ensemble_BER::compute
     real *thermo             = atom->thermo;
     real *box_length         = atom->box_length;
 
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
     find_thermo(atom);
 
     // control temperature

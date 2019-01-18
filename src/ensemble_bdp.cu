@@ -76,9 +76,7 @@ void Ensemble_BDP::integrate_nvt_bdp
     real *thermo             = atom->thermo;
 
     // standard velocity-Verlet
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
 
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 : 
@@ -124,9 +122,7 @@ void Ensemble_BDP::integrate_heat_bdp
     CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
 
     // veloicty-Verlet
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);

@@ -30,8 +30,8 @@ protected:
     int N_source, N_sink, offset_source, offset_sink;
     real c1, c2, c2_source, c2_sink;
     curandState *curand_states, *curand_states_source, *curand_states_sink;
-    void integrate_nvt_lan(Atom*, Force*, Measure*);
-    void integrate_heat_lan(Atom*, Force*, Measure*);
+    void integrate_nvt_lan_half(Atom*);
+    void integrate_heat_lan_half(Atom*);
 };
 
 
