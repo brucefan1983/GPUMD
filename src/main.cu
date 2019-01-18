@@ -21,17 +21,15 @@
 #include <time.h>
 
 void print_welcome_information(void);
-void print_debug_information(void);
+void print_compile_information(void);
 int get_number_of_input_directories(void);
 
 
 int main(int argc, char *argv[])
 {
     print_welcome_information();
-    print_debug_information();
+    print_compile_information();
     int number_of_inputs = get_number_of_input_directories();
-
-    // Run GPUMD for the input directories one by one
     for (int n = 0; n < number_of_inputs; ++n)
     {
         char input_directory[200];
@@ -41,29 +39,20 @@ int main(int argc, char *argv[])
             printf("Error: reading error for input directory.\n");
             exit(1);
         }
-
         print_line_1();
         printf("Run simulation for '%s'.\n", input_directory);
         print_line_2();
-
         clock_t time_begin = clock();
-
-        // Run GPUMD for "input_directory"
         GPUMD gpumd(input_directory);
-
         clock_t time_finish = clock();
-
         double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
-
         print_line_1();
         printf("Time used for '%s' = %f s.\n", input_directory, time_used);
         print_line_2();
     }
-
     print_line_1();
     printf("Finished running GPUMD.\n");
     print_line_2();
-
     return EXIT_SUCCESS;
 }
 
@@ -86,41 +75,34 @@ void print_welcome_information(void)
 }
 
 
-void print_debug_information(void)
+void print_compile_information(void)
 {
     print_line_1();
     printf("Compiling options:\n");
     print_line_2();
-
 #ifdef DEBUG
     printf("DEBUG is on: Use a fixed PRNG seed for differnt runs.\n");
 #else
     srand(time(NULL));
     printf("DEBUG is off: Use differnt PRNG seeds for differnt runs.\n");
 #endif
-
 #ifndef USE_SP
     printf("USE_SP is off: Use double-precision version.\n");
 #else
     printf("USE_SP is on: Use single-precision version.\n");
 #endif
-
 #ifdef MOS2_JIANG
     printf("MOS2_JIANG is on: Special verison for Ke Xu.\n");
 #endif
-
 #ifdef MURTY_ATWATER
     printf("MURTY_ATWATER is on: Special verison for Qi You.\n");
 #endif
-
 #ifdef ZHEN_LI
     printf("ZHEN_LI is on: Special verison for Zhen Li.\n");
 #endif
-
 #ifdef CBN
     printf("CBN is on: Special verison for Haikuan Dong.\n");
 #endif
-
 #ifdef FORCE
     printf("FORCE is on: Calculate initial force.\n");
 #endif
