@@ -57,16 +57,10 @@ Ensemble_BER::~Ensemble_BER(void)
 
 static __global__ void gpu_berendsen_temperature
 (
-    int N,
-    real temperature, 
-    real coupling,
-    real *g_prop, 
-    real *g_vx, 
-    real *g_vy, 
-    real *g_vz
+    int N, real temperature, real coupling, real *g_prop, 
+    real *g_vx, real *g_vy, real *g_vz
 )
 {
-    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N)
     {  
@@ -81,25 +75,12 @@ static __global__ void gpu_berendsen_temperature
 static __global__ void gpu_berendsen_pressure
 (
     int deform_x, int deform_y, int deform_z, real deform_rate,
-    int number_of_particles,
-    int pbc_x,
-    int pbc_y,
-    int pbc_z,
-    real p0x,
-    real p0y,
-    real p0z,
-    real p_coupling, 
-    real *g_prop,
-    real *g_box_length, 
-    real *g_x,
-    real *g_y,
-    real *g_z
+    int number_of_particles, int pbc_x, int pbc_y, int pbc_z,
+    real p0x, real p0y, real p0z, real p_coupling, 
+    real *g_prop, real *g_box_length, real *g_x, real *g_y, real *g_z
 )
 {
-    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-
     int i = blockIdx.x * blockDim.x + threadIdx.x;
-
     if (i < number_of_particles)
     {
         if (deform_x)
@@ -115,7 +96,6 @@ static __global__ void gpu_berendsen_pressure
             g_x[i] *= scale_factor;
             if (i == 0) { g_box_length[0] *= scale_factor; }
         }
-
         if (deform_y)
         {
             real scale_factor = g_box_length[1];
@@ -129,7 +109,6 @@ static __global__ void gpu_berendsen_pressure
             g_y[i] *= scale_factor;
             if (i == 1) { g_box_length[1] *= scale_factor; }
         }
-
         if (deform_z)
         {
             real scale_factor = g_box_length[2];
@@ -150,42 +129,23 @@ static __global__ void gpu_berendsen_pressure
 void Ensemble_BER::compute
 (Atom *atom, Force *force, Measure* measure)
 {
-    int N           = atom->N;
-    int grid_size   = (N - 1) / BLOCK_SIZE + 1;
-    int  pbc_x       = atom->pbc_x;
-    int  pbc_y       = atom->pbc_y;
-    int  pbc_z       = atom->pbc_z;
-
-    real p0x         = pressure_x;
-    real p0y         = pressure_y;
-    real p0z         = pressure_z;
-    real p_coupling  = pressure_coupling;
-    real t_coupling  = temperature_coupling;
-    real *x    = atom->x;
-    real *y    = atom->y;
-    real *z    = atom->z;
-    real *vx   = atom->vx;
-    real *vy   = atom->vy;
-    real *vz   = atom->vz;
-    real *thermo             = atom->thermo;
-    real *box_length         = atom->box_length;
-
+    int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
     velocity_verlet(atom, force, measure);
     find_thermo(atom);
-
-    // control temperature
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
-    (N, temperature, t_coupling, thermo, vx, vy, vz);
+    (
+        atom->N, temperature, temperature_coupling, atom->thermo,
+        atom->vx, atom->vy, atom->vz
+    );
     CUDA_CHECK_KERNEL
-
-    // control pressure 
     if (type == 11)
     {
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (
             atom->deform_x, atom->deform_y, atom->deform_z, atom->deform_rate,
-            N, pbc_x, pbc_y, pbc_z, p0x, p0y, p0z, p_coupling, 
-            thermo, box_length, x, y, z
+            atom->N, atom->pbc_x, atom->pbc_y, atom->pbc_z, pressure_x, 
+            pressure_y, pressure_z, pressure_coupling, atom->thermo,
+            atom->box_length, atom->x, atom->y, atom->z
         );
         CUDA_CHECK_KERNEL
     }
