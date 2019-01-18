@@ -464,6 +464,21 @@ static void parse_dump_position(char **param,  int num_param, Measure *measure)
 }
 
 
+static void parse_dump_restart(char **param,  int num_param, Measure *measure)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_restart should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &measure->sample_interval_restart))
+    {
+        print_error("restart dump interval should be an integer number.\n");
+    }
+    measure->dump_restart = 1;
+    printf("Dump restart every %d steps.\n", measure->sample_interval_restart);
+}
+
+
 static void parse_dump_velocity(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
@@ -884,6 +899,10 @@ void GPUMD::parse
     else if (strcmp(param[0], "dump_position")  == 0)
     {
         parse_dump_position(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_restart")  == 0)
+    {
+        parse_dump_restart(param, num_param, measure);
     }
     else if (strcmp(param[0], "dump_velocity")  == 0)
     {

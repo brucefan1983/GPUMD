@@ -75,6 +75,7 @@ void GPUMD::initialize_run(Atom* atom, Measure* measure)
     // dump
     measure->dump_thermo    = 0;
     measure->dump_position  = 0;
+    measure->dump_restart   = 0;
     measure->dump_velocity  = 0;
     measure->dump_force     = 0;
     measure->dump_potential = 0;
