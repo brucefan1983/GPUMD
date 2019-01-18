@@ -36,8 +36,6 @@ void Atom::scale_velocity(void)
         temperature += cpu_mass[n] * v2;
     }
     temperature /= 3.0 * K_B * N;
-
-    // scale the velocities
     real scale_factor = sqrt(initial_temperature / temperature);
     for (int n = 0; n < N; ++n)
     {
@@ -169,14 +167,15 @@ void Atom::initialize_velocity_cpu(void)
 
 void Atom::initialize_velocity(void)
 {
-    if (has_velocity_in_xyz == 0) { initialize_velocity_cpu(); }
-    scale_velocity();
-
+    if (has_velocity_in_xyz == 0)
+    {
+        initialize_velocity_cpu();
+        scale_velocity();
+    }
     int M = sizeof(real) * N;
     CHECK(cudaMemcpy(vx, cpu_vx, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(vy, cpu_vy, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(vz, cpu_vz, M, cudaMemcpyHostToDevice));
-
     printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
 
