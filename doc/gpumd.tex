@@ -224,7 +224,7 @@ We are working on implementing more integration methods.
 
 \subsection{Major changes introduced in version 1.2}
 \begin{enumerate}
-\item In the previous versions, the initial velocities have zero linear momentum but generally nonzero angular momentum. This will not result in rotation of the system if periodic boundary conditions are applied in two or three directions, but will result in rotation in systems with only one or no periodic direction. In version 1.2, both linear and angular momenta of the initial velocities are zeroed.
+\item In the previous versions, the initial velocities have zero linear momentum but generally nonzero angular momentum. This will not result in rotation of the system if periodic boundary conditions are applied in two or three directions, but will result in rotation in systems with only one or no periodic direction. In version 1.2, both linear and angular momenta of the initial velocities are zeroed. \textcolor{red}{The thermal conductivity results for a carbon nanotube in \cite{fan2015prb} suffer from this nonzero angular momentum, although the effects are not significant enough to change any conclusion presented in that paper.}
 \end{enumerate}
 
 \subsection{Major changes introduced in version 1.3}
@@ -277,13 +277,15 @@ We are working on implementing more integration methods.
 
 \subsection{Major changes introduced in version 2.1}
 \begin{enumerate}
-    \item Implemented (by the new contributor Alexander J. Gabourie) a general version of the spectral heat current (SHC) method. The previous version assumed that one atom from one group of the interface has at most one neighbor from the other group of the (imaginary) interface.
+    \item Implemented (by the new contributor Alexander J. Gabourie) a general version of the spectral heat current (SHC) method. The previous version assumed that one atom from one side of the interface has at most one neighbor from the other side of the interface.
 \end{enumerate}
 
 \subsection{Major changes introduced in version 2.2}
 \begin{enumerate}
     \item Improved the code structure and fixed a few memory bugs introduced in versions 2.0 and 2.1.
     \item Changed the data format in the \verb"xyz.in" file. The \verb"layer.in" file is not used any more and the data in it should be included in the \verb"xyz.in" file, if needed. By renaming the \verb"xyz.in" file as something like \verb"foo.xyz", it can now be read by the \verb"VMD" (\url{https://www.ks.uiuc.edu/Research/vmd/}) code.
+    \item Changed the output of the  \verb"dump_position" command. It now produces a \verb"move.xyz" file instead of the old \verb"xyz.out" file. The \verb"move.xyz" file can be read by the \verb"VMD" code.
+    \item Added a \verb"dump_restart" command, which will produce a file named \verb"restart.out", which contains data in the format as in the \verb"xyz.in" file.
     \item The \verb"compute_temp" command has been replaced by the more general \verb"compute" command.
     \item Added the \verb"deform" command, which can be used to compute the stress-strain relation.
 \end{enumerate}
@@ -2428,12 +2430,12 @@ We explain line by line:
 \item  \verb"m1" is the mass of this atom.
 \item if  \verb"has_velocity" is 1, the next 3 items are the initial velocities of this atom.
 \item if \verb"has_layer" is 1, the next item is the layer label of this atom. That is, the number specifies which ``layer'' of the material this atom belongs to. This is only used in some mixed potentials when you use the \verb"potentials" keyword in the \verb"run.in" file.  \textcolor{red}{We use integers to record the layer labels and the numbers can be arbitrary because they are only used to distinguish the different layers.}
-\item if \verb"number_of_grouping_methods" is larger than zero, the next items are the group labels of this atom in the \verb"number_of_grouping_methods"-th grouping methods. The group labels will be used for some other keywords in the \verb"run.in" file . That is, \verb"group1_1" specifies which group this atom belongs to using the first grouping method; \verb"group2_1" specifies which group this atom belongs to using the second grouping method... \textcolor{red}{We use integers to record the group labels and the indices start from 0.} 
+\item if \verb"number_of_grouping_methods" is larger than zero, the next items are the group labels of this atom in these grouping methods. That is, \verb"group1_1" specifies which group this atom belongs to using the first grouping method; \verb"group2_1" specifies which group this atom belongs to using the second grouping method... \textcolor{red}{We use integers to record the group labels and the indices start from 0.} The group labels will be used for some keywords in the \verb"run.in" file. 
 \end{itemize}
 \item Similarly, the $(m+2)$th line gives the information for the $m$th atom. This file should have \verb"N+2" lines.
 \end{itemize}
 
-The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA). Velocities can be in arbitrary units because we will scale them according to the initial temperature specified in the \verb"run.in" file.
+The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA). Velocities should be in the natural units adopted in \verb"GPUMD", i.e., eV$^{1/2}$ amu$^{-1/2}$. This is usually guaranteed, because one will probably use the \verb"dump_restart" command to produce an \verb"xyz.in" file which contains the velocity data. Otherwise, one would probably not prepare velocity data in the \verb"xyz.in" file.
 
 
 \subsection{The run.in input file}
@@ -2457,6 +2459,7 @@ The overall structure of a \verb"run.in" file is as follows:
     deform
     dump_thermo
     dump_position
+    dump_restart
     dump_velocity
     dump_force
     dump_potential
@@ -2544,7 +2547,7 @@ This keyword only has one parameter, which is the initial temperature of the sys
 \begin{verbatim}
     velocity 10
 \end{verbatim}
-means that one wants to set the initial temperature to 10 K.
+means that one wants to set the initial temperature to 10 K. If there are already velocity data in the \verb"xyz.in" file, this initial temperature will not be used and the velocity data in the \verb"xyz.in" file will be used to initialize the velocities.
 
 \subsection{The ensemble keyword}
 
@@ -2624,9 +2627,18 @@ This keyword only requires a single parameter, which is the skin distance (the d
 means that the neighbor list will be updated when necessary (the code determines automatically when the neighbor list needs to be updated) and the skin distance is 1 \AA. \textcolor{red}{If this keyword is absent in a run, the neighbor list will not be updated during the run.}
 
 
-\subsection{The dump thermo, dump position, dump velocity, dump force, dump potential, and dump virial keywords}
+\subsection{The dump keywords}
 
-These keywords only requires a single parameter, which is the output frequency for the relevant quantities: global thermodynamic quantities for \verb"dump_thermo", per-atom positions for  \verb"dump_position", per-atom velocities for \verb"dump_velocity",  per-atom forces for \verb"dump_force", per-atom  potential energies for \verb"dump_potential", and per-atom virial for \verb"dump_virial".
+These keywords only requires a single parameter, which is the output frequency for the relevant quantities: 
+\begin{itemize}
+\item global thermodynamic quantities for \verb"dump_thermo";
+\item trajectory for  \verb"dump_position"
+\item per-atom velocities for \verb"dump_velocity"
+\item per-atom forces for \verb"dump_force"
+\item per-atom  potential energies for \verb"dump_potential"
+\item per-atom virial for \verb"dump_virial"
+\item per-atom heat current for \verb"dump_heat"
+\end{itemize}
 For example, the command
 \begin{verbatim}
 dump_thermo 1000
