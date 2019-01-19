@@ -79,35 +79,55 @@ void Run::initialize_run(Atom* atom, Measure* measure)
 void Run::print_velocity_and_potential_error_1(void)
 {
     if (0 == number_of_times_potential)
-    {
-        print_error("No 'potential(s)' keyword before run.\n");
-    }
+    { print_error("No 'potential(s)' keyword before run.\n"); }
     else if (1 < number_of_times_potential)
-    {
-        print_error("Multiple 'potential(s)' keywords before run.\n");
-    }
-
+    { print_error("Multiple 'potential(s)' keywords before run.\n"); }
     if (0 == number_of_times_velocity)
-    {
-        print_error("No 'velocity' keyword before run.\n");
-    }
+    { print_error("No 'velocity' keyword before run.\n"); }
     else if (1 < number_of_times_velocity)
-    {
-        print_error("Multiple 'velocity' keywords before run.\n");
-    }
+    { print_error("Multiple 'velocity' keywords before run.\n"); }
 }
 
 
 void Run::print_velocity_and_potential_error_2(void)
 {
     if (1 < number_of_times_potential)
-    {
-        print_error("Multiple 'potential(s)' keywords.\n");
-    }
+    { print_error("Multiple 'potential(s)' keywords.\n"); }
     if (1 < number_of_times_velocity)
+    { print_error("Multiple 'velocity' keywords.\n"); }
+}
+
+
+static void update_temperature(Atom* atom, Integrate* integrate, int step)
+{
+    if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 20)
     {
-        print_error("Multiple 'velocity' keywords.\n");
+        integrate->ensemble->temperature = atom->temperature1 
+            + (atom->temperature2 - atom->temperature1)
+            * real(step) / atom->number_of_steps;
     }
+}
+
+
+static void print_finished_steps(int step, int number_of_steps)
+{
+    if (number_of_steps < 10) { return; }
+    if ((step + 1) % (number_of_steps / 10) == 0)
+    {
+        printf("    %d steps completed.\n", step + 1);
+    }
+}
+
+
+static void print_time_and_speed(clock_t time_begin, Atom* atom)
+{
+    print_line_1();
+    clock_t time_finish = clock();
+    real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
+    printf("Time used for this run = %g s.\n", time_used);
+    real run_speed = atom->N * (atom->number_of_steps / time_used);
+    printf("Speed of this run = %g atom*step/second.\n", run_speed);
+    print_line_2();
 }
 
 
@@ -120,40 +140,16 @@ static void process_run
 {
     integrate->initialize(atom);
     measure->initialize(input_dir, atom);
-
     clock_t time_begin = clock();
     for (int step = 0; step < atom->number_of_steps; ++step)
     {
         if (atom->neighbor.update) { atom->find_neighbor(0); }
-
-        // set the current temperature;
-        if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 20)
-        {
-            integrate->ensemble->temperature = atom->temperature1 
-                + (atom->temperature2 - atom->temperature1)
-                * real(step) / atom->number_of_steps;   
-        }
-
+        update_temperature(atom, integrate, step);
         integrate->compute(atom, force, measure);
         measure->process(input_dir, atom, integrate, step);
-
-        if (atom->number_of_steps >= 10)
-        {
-            if ((step + 1) % (atom->number_of_steps / 10) == 0)
-            {
-                printf("    %d steps completed.\n", step + 1);
-            }
-        }
+        print_finished_steps(step, atom->number_of_steps);
     }
-
-    print_line_1();
-    clock_t time_finish = clock();
-    real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
-    printf("Time used for this run = %g s.\n", time_used);
-    real run_speed = atom->N * (atom->number_of_steps / time_used);
-    printf("Speed of this run = %g atom*step/second.\n", run_speed);
-    print_line_2();
-
+    print_time_and_speed(time_begin, atom);
     measure->finalize(input_dir, atom, integrate);
     integrate->finalize();
 }
@@ -162,30 +158,88 @@ static void process_run
 #ifdef FORCE
 static void print_initial_force(char* input_dir, Atom* atom)
 {
-
     int m = sizeof(real) * atom->N;
-    real *cpu_fx; MY_MALLOC(cpu_fx, real, atom->N);
-    real *cpu_fy; MY_MALLOC(cpu_fy, real, atom->N);
-    real *cpu_fz; MY_MALLOC(cpu_fz, real, atom->N);
-    CHECK(cudaMemcpy(cpu_fx, atom->fx, m, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(cpu_fy, atom->fy, m, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(cpu_fz, atom->fz, m, cudaMemcpyDeviceToHost));
+    real *fx; MY_MALLOC(cpu_fx, real, atom->N);
+    real *fy; MY_MALLOC(cpu_fy, real, atom->N);
+    real *fz; MY_MALLOC(cpu_fz, real, atom->N);
+    CHECK(cudaMemcpy(fx, atom->fx, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy, atom->fy, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz, atom->fz, m, cudaMemcpyDeviceToHost));
     char file_force[200];
     strcpy(file_force, input_dir);
     strcat(file_force, "/f.out");
     FILE *fid_force = my_fopen(file_force, "w");
     for (int n = 0; n < atom->N; n++)
     {
-        fprintf(fid_force, "%20.10e%20.10e%20.10e\n", 
-            cpu_fx[n], cpu_fy[n], cpu_fz[n]);
+        fprintf(fid_force, "%20.10e%20.10e%20.10e\n", fx[n], fy[n], fz[n]);
     }
-    fflush(fid_force);
-    fclose(fid_force);
-    MY_FREE(cpu_fx);
-    MY_FREE(cpu_fy);
-    MY_FREE(cpu_fz);
+    fflush(fid_force); fclose(fid_force); MY_FREE(fx); MY_FREE(fy); MY_FREE(fz);
 }
 #endif
+
+
+static void print_start(int check)
+{
+    print_line_1();
+    if (check) { printf("Started checking the inputs in run.in.\n"); }
+    else { printf("Started executing the commands in run.in.\n"); }
+    print_line_2();
+}
+
+
+static void print_finish(int check)
+{
+    print_line_1();
+    if (check) { printf("Finished checking the inputs in run.in.\n"); }
+    else { printf("Finished executing the commands in run.in.\n"); }
+    print_line_2();
+}
+
+
+// do something when the keyword is "potential"
+void Run::check_potential
+(
+    char* input_dir, int is_potential, int check,
+    Atom* atom, Force* force, Measure* measure
+)
+{
+    if (!is_potential) { return; }
+    if (check) { number_of_times_potential++; }
+    else
+    {
+        force->initialize(input_dir, atom);
+        force->compute(atom, measure);
+#ifdef FORCE
+        print_initial_force(input_dir, atom);
+#endif
+    }
+}
+
+
+// do something when the keyword is "velocity"
+void Run::check_velocity(int is_velocity, int check, Atom* atom)
+{
+    if (!is_velocity) { return; }
+    if (check) { number_of_times_velocity++; }
+    else { atom->initialize_velocity(); }
+}
+
+
+// do something when the keyword is "run"
+void Run::check_run
+(
+    char* input_dir, int is_run, int check, Atom* atom,
+    Force* force, Integrate* integrate, Measure* measure
+)
+{
+    if (!is_run) { return; }
+    if (check)
+    {
+        print_velocity_and_potential_error_1();
+    }
+    else { process_run(input_dir, atom, force, integrate, measure); }
+    initialize_run(atom, measure); // change back to the default
+}
 
 
 // Read and process the inputs from the "run.in" file
@@ -203,87 +257,23 @@ void Run::run
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
     char *param[max_num_param];
-
     initialize_run(atom, measure); // set some default values
-
-    print_line_1();
-    if (check)
-    {
-        printf("Started checking the inputs in run.in.\n");
-    }
-    else
-    {
-        printf("Started executing the commands in run.in.\n");
-    }
-    print_line_2();
-
+    print_start(check);
     while (input_ptr)
     {
-        // get one line from the input file
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-
-        // set default values
         int is_potential = 0;
         int is_velocity = 0;
         int is_run = 0;
-
-        // parse a line of the input file 
         parse(param, num_param, atom, force, integrate, measure,
             &is_potential, &is_velocity, &is_run);
-
-        // check for some special keywords
-        if (is_potential)
-        {
-            if (check)
-            {
-                number_of_times_potential++;
-            }
-            else
-            {
-                force->initialize(input_dir, atom);
-                force->compute(atom, measure);
-#ifdef FORCE
-                print_initial_force(input_dir, atom);
-#endif
-            }
-        }
-        if (is_velocity)
-        {
-            if (check)
-            {
-                number_of_times_velocity++;
-            }
-            else
-            {
-                atom->initialize_velocity();
-            }
-        }
-        if (is_run)
-        {
-            if (check)
-            {
-                print_velocity_and_potential_error_1();
-            }
-            else
-            {
-                process_run(input_dir, atom, force, integrate, measure);
-            }
-            initialize_run(atom, measure); // change back to the default
-        }
+        check_potential(input_dir, is_potential, check, atom, force, measure);
+        check_velocity(is_velocity, check, atom);
+        check_run(input_dir, is_run, check, atom, force, integrate, measure);
     }
     print_velocity_and_potential_error_2();
-    print_line_1();
-    if (check)
-    {
-        printf("Finished checking the inputs in run.in.\n");
-    }
-    else
-    {
-        printf("Finished executing the commands in run.in.\n");
-    }
-    print_line_2();
-
+    print_finish(check);
     MY_FREE(input); // Free the input file contents
 }
 
