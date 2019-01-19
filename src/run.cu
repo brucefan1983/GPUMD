@@ -19,14 +19,96 @@ Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
 
-#include "gpumd.cuh"
+#include "run.cuh"
 #include "force.cuh"
 #include "validate.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
+#include "read_file.cuh"
 #include "error.cuh"
+
+
+Run::Run
+(
+    char* input_dir, Atom* atom, Force* force,
+    Integrate* integrate, Measure* measure
+)
+{
+    run(input_dir, atom, force, integrate, measure, 1);
+    run(input_dir, atom, force, integrate, measure, 0);
+}
+
+
+Run::~Run(void)
+{
+    // nothing
+}
+
+
+// set some default values after each run
+void Run::initialize_run(Atom* atom, Measure* measure)
+{
+    atom->neighbor.update = 0;
+    atom->fixed_group     = -1; // no group has an index of -1
+    atom->deform_x = 0;
+    atom->deform_y = 0;
+    atom->deform_z = 0;
+    measure->compute.compute_temperature  = 0;
+    measure->compute.compute_potential    = 0;
+    measure->compute.compute_force        = 0;
+    measure->compute.compute_virial       = 0;
+    measure->compute.compute_jp           = 0;
+    measure->compute.compute_jk           = 0;
+    measure->shc.compute    = 0;
+    measure->vac.compute    = 0;
+    measure->hac.compute    = 0;
+    measure->hnemd.compute  = 0;
+    measure->dump_thermo    = 0;
+    measure->dump_position  = 0;
+    measure->dump_restart   = 0;
+    measure->dump_velocity  = 0;
+    measure->dump_force     = 0;
+    measure->dump_potential = 0;
+    measure->dump_virial    = 0;
+    measure->dump_heat      = 0;
+}
+
+
+void Run::print_velocity_and_potential_error_1(void)
+{
+    if (0 == number_of_times_potential)
+    {
+        print_error("No 'potential(s)' keyword before run.\n");
+    }
+    else if (1 < number_of_times_potential)
+    {
+        print_error("Multiple 'potential(s)' keywords before run.\n");
+    }
+
+    if (0 == number_of_times_velocity)
+    {
+        print_error("No 'velocity' keyword before run.\n");
+    }
+    else if (1 < number_of_times_velocity)
+    {
+        print_error("Multiple 'velocity' keywords before run.\n");
+    }
+}
+
+
+void Run::print_velocity_and_potential_error_2(void)
+{
+    if (1 < number_of_times_potential)
+    {
+        print_error("Multiple 'potential(s)' keywords.\n");
+    }
+    if (1 < number_of_times_velocity)
+    {
+        print_error("Multiple 'velocity' keywords.\n");
+    }
+}
 
 
 // run a number of steps for a given set of inputs
@@ -107,10 +189,10 @@ static void print_initial_force(char* input_dir, Atom* atom)
 
 
 // Read and process the inputs from the "run.in" file
-void GPUMD::run
+void Run::run
 (
     char *input_dir, Atom *atom, Force *force, Integrate *integrate,
-    Measure *measure
+    Measure *measure, int check
 )
 {
     char file_run[200];
@@ -118,8 +200,6 @@ void GPUMD::run
     strcat(file_run, "/run.in");
     char *input = get_file_contents(file_run);
     char *input_ptr = input; // Keep the pointer in order to free later
-
-    // Iterate the rows
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
     char *param[max_num_param];
@@ -127,7 +207,14 @@ void GPUMD::run
     initialize_run(atom, measure); // set some default values
 
     print_line_1();
-    printf("Started executing the commands in run.in.\n");
+    if (check)
+    {
+        printf("Started checking the inputs in run.in.\n");
+    }
+    else
+    {
+        printf("Started executing the commands in run.in.\n");
+    }
     print_line_2();
 
     while (input_ptr)
@@ -148,22 +235,53 @@ void GPUMD::run
         // check for some special keywords
         if (is_potential)
         {
-            force->initialize(input_dir, atom);
-            force->compute(atom, measure);
+            if (check)
+            {
+                number_of_times_potential++;
+            }
+            else
+            {
+                force->initialize(input_dir, atom);
+                force->compute(atom, measure);
 #ifdef FORCE
-            print_initial_force(input_dir, atom);
+                print_initial_force(input_dir, atom);
 #endif
+            }
         }
-        if (is_velocity) { atom->initialize_velocity(); }
+        if (is_velocity)
+        {
+            if (check)
+            {
+                number_of_times_velocity++;
+            }
+            else
+            {
+                atom->initialize_velocity();
+            }
+        }
         if (is_run)
         {
-            process_run(input_dir, atom, force, integrate, measure);
+            if (check)
+            {
+                print_velocity_and_potential_error_1();
+            }
+            else
+            {
+                process_run(input_dir, atom, force, integrate, measure);
+            }
             initialize_run(atom, measure); // change back to the default
         }
     }
-
+    print_velocity_and_potential_error_2();
     print_line_1();
-    printf("Finished executing the commands in run.in.\n");
+    if (check)
+    {
+        printf("Finished checking the inputs in run.in.\n");
+    }
+    else
+    {
+        printf("Finished executing the commands in run.in.\n");
+    }
     print_line_2();
 
     MY_FREE(input); // Free the input file contents

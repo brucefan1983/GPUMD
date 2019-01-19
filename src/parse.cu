@@ -19,7 +19,7 @@ Parse the commands in run.in.
 ------------------------------------------------------------------------------*/
 
 
-#include "gpumd.cuh"
+#include "run.cuh"
 #include "atom.cuh"
 #include "ensemble.cuh"
 #include "error.cuh"
@@ -858,7 +858,7 @@ static void parse_run(char **param,  int num_param, Atom* atom)
 }
 
 
-void GPUMD::parse
+void Run::parse
 (
     char **param, int num_param, Atom* atom,
     Force *force, Integrate *integrate, Measure *measure,

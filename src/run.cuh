@@ -18,11 +18,20 @@
 #include "common.cuh"
 
 
-class GPUMD
+class Run
 {
 public:
-    GPUMD(char*);
-    ~GPUMD(void);
+    Run(char*, Atom*, Force*, Integrate*, Measure*);
+    ~Run(void);
+private:
+    void initialize_run(Atom*, Measure*);
+    void run(char*, Atom*, Force*, Integrate*, Measure*, int);
+    void parse
+    (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);
+    void print_velocity_and_potential_error_1(void);
+    void print_velocity_and_potential_error_2(void);
+    int number_of_times_velocity = 0;
+    int number_of_times_potential = 0;
 };
 
 

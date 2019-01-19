@@ -18,11 +18,7 @@
 #include "common.cuh"
 
 
-class GPUMD
-{
-public:
-    GPUMD(char*);
-    ~GPUMD(void);
-};
+char* get_file_contents(char*);
+char* row_find_param(char*, char**, int*);
 
 
