@@ -21,23 +21,11 @@ Construct the neighbor list using the O(N) method.
 
 #include "atom.cuh"
 #include "error.cuh"
+#include "ldg.cuh"
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 #define USE_THRUST
 #define BLOCK_SIZE 128
-
-
-template <int pbc_x, int pbc_y, int pbc_z>
-static __device__ void dev_apply_mic
-(real lx, real ly, real lz, real *x12, real *y12, real *z12)
-{
-    if      (pbc_x == 1 && *x12 < - lx * HALF) {*x12 += lx;}
-    else if (pbc_x == 1 && *x12 > + lx * HALF) {*x12 -= lx;}
-    if      (pbc_y == 1 && *y12 < - ly * HALF) {*y12 += ly;}
-    else if (pbc_y == 1 && *y12 > + ly * HALF) {*y12 -= ly;}
-    if      (pbc_z == 1 && *z12 < - lz * HALF) {*z12 += lz;}
-    else if (pbc_z == 1 && *z12 > + lz * HALF) {*z12 -= lz;}
-}
 
 
 // find the cell id for an atom
@@ -89,7 +77,6 @@ static __global__ void find_cell_counts
     int cell_n_x, int cell_n_y, int cell_n_z, real cell_size
 )
 {
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     if (n1 < N)
     {
@@ -112,7 +99,6 @@ static __global__ void find_cell_contents
     int cell_n_x, int cell_n_y, int cell_n_z, real cell_size
 )
 {
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     if (n1 < N)
     {
@@ -141,10 +127,10 @@ static __global__ void prefix_sum
 #endif
 
 
-// new version (faster)
-template<int pbc_x, int pbc_y, int pbc_z>
+// construct the Verlet neighbor list from the cell list
 static __global__ void gpu_find_neighbor_ON1
 (
+    int pbc_x, int pbc_y, int pbc_z,
     int N, int* cell_counts, int* cell_count_sum, int* cell_contents, 
     int* NN, int* NL,
     real* x, real* y, real* z, int cell_n_x, int cell_n_y, int cell_n_z, 
@@ -152,18 +138,15 @@ static __global__ void gpu_find_neighbor_ON1
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-
     int count = 0;
     if (n1 < N)
     {
         real lx = box[0];
         real ly = box[1];
         real lz = box[2];
-
         real x1 = x[n1];
         real y1 = y[n1];
         real z1 = z[n1];
-        
         int cell_id;
         int cell_id_x;
         int cell_id_y;
@@ -173,11 +156,9 @@ static __global__ void gpu_find_neighbor_ON1
             x1, y1, z1, cutoff, cell_n_x, cell_n_y, cell_n_z, 
             &cell_id_x, &cell_id_y, &cell_id_z, &cell_id
         );
-
         int klim = pbc_z ? 1 : 0;
         int jlim = pbc_y ? 1 : 0;
         int ilim = pbc_x ? 1 : 0;
-       
         // loop over the neighbor cells of the central cell
         for (int k=-klim; k<klim+1; ++k)
         {
@@ -198,23 +179,19 @@ static __global__ void gpu_find_neighbor_ON1
                         neighbour += cell_n_z*cell_n_y*cell_n_x;
                     if (cell_id_z + k >= cell_n_z) 
                         neighbour -= cell_n_z*cell_n_y*cell_n_x;
-                        
                     // loop over the atoms in a neighbor cell
                     for (int k = 0; k < cell_counts[neighbour]; ++k)
                     {
                         int n2 = cell_contents[cell_count_sum[neighbour] + k];
                         if (n1 == n2) continue;
-
                         real x12 = x[n2]-x1;
                         real y12 = y[n2]-y1;
                         real z12 = z[n2]-z1;
-
-                        dev_apply_mic<pbc_x, pbc_y, pbc_z>
-                        (lx, ly, lz, &x12, &y12, &z12);
-
+                        dev_apply_mic
+                        (pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
                         real d2 = x12*x12 + y12*y12 + z12*z12;
                         if (d2 < cutoff_square)
-                        {        
+                        {
                             NL[count * N + n1] = n2;
                             count++;
                         }
@@ -227,18 +204,14 @@ static __global__ void gpu_find_neighbor_ON1
 }
 
 
-// a driver function
-void Atom::find_neighbor_ON1
-(int cell_n_x, int cell_n_y, int cell_n_z)
+// a wrapper of the above kernels
+void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
 {
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
     real rc = neighbor.rc;
     real rc2 = rc * rc; 
     real *box = box_length;
-
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
-
-    // some local data
     int* cell_count;
     int* cell_count_sum;
     int* cell_contents;
@@ -248,114 +221,30 @@ void Atom::find_neighbor_ON1
     CHECK(cudaMemset(cell_count_sum, 0, sizeof(int)*N_cells));
     CHECK(cudaMalloc((void**)&cell_contents, sizeof(int)*N));
     CHECK(cudaMemset(cell_contents, 0, sizeof(int)*N));
-
-    // Find the number of particles in each cell
     find_cell_counts<<<grid_size, BLOCK_SIZE>>>
     (N, cell_count, x, y, z, cell_n_x, cell_n_y, cell_n_z, rc);
     CUDA_CHECK_KERNEL
-
 #ifndef USE_THRUST
-    // Simple (but 100% correct) version of prefix sum
     prefix_sum<<<1, 1>>>(N_cells, cell_count, cell_count_sum);
     CUDA_CHECK_KERNEL
 #else
-    // use thrust to calculate the prefix sum
     thrust::exclusive_scan
     (thrust::device, cell_count, cell_count + N_cells, cell_count_sum);
 #endif
-    // reset to zero
     CHECK(cudaMemset(cell_count, 0, sizeof(int)*N_cells));
-	
-    // Create particle list for each cell
     find_cell_contents<<<grid_size, BLOCK_SIZE>>>
     (
         N, cell_count, cell_count_sum, cell_contents, 
         x, y, z, cell_n_x, cell_n_y, cell_n_z, rc
     );
     CUDA_CHECK_KERNEL
-
-    // new version (faster)
-
-    if (pbc_x && pbc_y && pbc_z)
-    {
-        gpu_find_neighbor_ON1<1, 1, 1><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    if (pbc_x && pbc_y && !pbc_z)
-    {
-        gpu_find_neighbor_ON1<1, 1, 0><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    if (pbc_x && !pbc_y && pbc_z)
-    {
-        gpu_find_neighbor_ON1<1, 0, 1><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    if (!pbc_x && pbc_y && pbc_z)
-    {
-        gpu_find_neighbor_ON1<0, 1, 1><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    if (pbc_x && !pbc_y && !pbc_z)
-    {
-        gpu_find_neighbor_ON1<1, 0, 0><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    if (!pbc_x && pbc_y && !pbc_z)
-    {
-        gpu_find_neighbor_ON1<0, 1, 0><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    if (!pbc_x && !pbc_y && pbc_z)
-    {
-        gpu_find_neighbor_ON1<0, 0, 1><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    if (!pbc_x && !pbc_y && !pbc_z)
-    {
-        gpu_find_neighbor_ON1<0, 0, 0><<<grid_size, BLOCK_SIZE>>>
-        (
-            N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-            cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
-        );
-        CUDA_CHECK_KERNEL
-    }
-
+    gpu_find_neighbor_ON1<<<grid_size, BLOCK_SIZE>>>
+    (
+        pbc_x, pbc_y, pbc_z,
+        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+    );
+    CUDA_CHECK_KERNEL
     CHECK(cudaFree(cell_count));
     CHECK(cudaFree(cell_count_sum));
     CHECK(cudaFree(cell_contents));
