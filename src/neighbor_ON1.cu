@@ -16,6 +16,7 @@
 
 /*----------------------------------------------------------------------------80
 Construct the neighbor list using the O(N) method.
+Written by Ville Vierimaa and optimized by Zheyong Fan.
 ------------------------------------------------------------------------------*/
 
 
