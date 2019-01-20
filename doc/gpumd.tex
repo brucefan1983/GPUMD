@@ -494,7 +494,7 @@ n_z = \lfloor z / r_c \rfloor;
 \begin{equation}
 n = n_x + N_x n_y + N_x N_y n_z.
 \end{equation}
-The cell index in the $x$-direction is required to be no less then 0 and no larger than $N_x-1$. That is, when $n_x < 0$, we increase $n_x$ by $N_x$; when $n_x \geq N_x$, we decrease $n_x$ by $N_x$. The other directions have similar requirements.
+The cell index in the $x$-direction is required to be no less than 0 and no larger than $N_x-1$. That is, when $n_x < 0$, we increase $n_x$ by $N_x$; when $n_x \geq N_x$, we decrease $n_x$ by $N_x$. The other directions have similar requirements.
 
 We then calculate the prefix sum (exclusive scan) $S_n$ of $C_n$:
 \begin{equation}
@@ -964,7 +964,7 @@ We can see that in the velocity-Verlet integrator, the position updating can be 
 
 \subsection{Berendsen thermostat and barostat}
 
-Using the Berendsen thermostat, the integration algorithm in the $NVT$ ensemble only requires an extra scaling of all the velocity components, as shown in Algorithm \ref{algorithm:Berendsen-NVT}. For the $NPT$ ensemble, the Berendsen barostat requires an extra scaling of positions and box lengths, as shown in Algorithm \ref{algorithm:Berendsen-NPT}. The Berendsen thermostat and barosat are very suitable for equilibrating the system to a target temperature and pressure.
+Using the Berendsen thermostat, the integration algorithm in the $NVT$ ensemble only requires an extra scaling of all the velocity components, as shown in Algorithm \ref{algorithm:Berendsen-NVT}. For the $NPT$ ensemble, the Berendsen barostat requires an extra scaling of positions and box lengths, as shown in Algorithm \ref{algorithm:Berendsen-NPT}. The Berendsen thermostat and barostat are very suitable for equilibrating the system to a target temperature and pressure.
 
 \begin{algorithm}[htb]
 \caption{The whole time-stepping in the $NVT$ ensemble using the Berendsen method. }
