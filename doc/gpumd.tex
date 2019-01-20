@@ -339,12 +339,13 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has about 14 000 lines of code. The structure of the code is as follows:
+The current version of GPUMD has about 13 500 lines of code. The structure of the code is as follows:
 \begin{itemize}
 \item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
 
+\item The  \verb"GPUMD" class (files \verb"gpumd.cuh" and \verb"gpumd.cu") simply uses the other classes,  \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure", and \verb"Run", to do a simulation for a given input directory. \textcolor{red}{There are two files here.}
 
-\item The \verb"GPUMD" class is implemented in these files: \verb"gpumd.cuh", \verb"gpumd.cu", \verb"run.cu", \verb"check_run.cu", and \verb"parse.cu". \textcolor{red}{There are 5 files in total here.} This class controls the overall flow of the code. The \verb"GPUMD" class uses all the other major classes: \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure". 
+\item The \verb"Run" class is implemented in these files: \verb"run.cuh", \verb"run.cu",  \verb"read_file.cuh", \verb"read_file.cu", and \verb"parse.cu". \textcolor{red}{There are 5 files in total here.} This class controls the overall flow of the code. 
 
 \item The \verb"Atom" class contains the major data related to the atoms (such as the various per-atom physical quantities, the simulation box, the neighbor list, etc) and functions used to initializing and finalizing these data. This class involves the files \verb"atom.cuh", \verb"atom.cu", \verb"velocity.cu", \verb"neighbor.cu", \verb"neighbor_ON1.cu", and \verb"neighbor_ON2.cu". \textcolor{red}{There are 6 files in total here.}
 
@@ -363,7 +364,7 @@ The current version of GPUMD has about 14 000 lines of code. The structure of th
 \item There are two files named \verb"validate.cuh" and \verb"validate.cu" which are only used by the developers. \textcolor{red}{Two files here.}
 \end{itemize}
 
-How many files in total? \textcolor{red}{60!}
+How many files in total? \textcolor{red}{62!}
 
 
 \section{Coding style of GPUMD}
@@ -2344,7 +2345,7 @@ Here are the possible \verb"-DFLAG"s:
 \item \verb"-DUSE_SP"\\
 When this is specified, the code will be compiled as a single-precision version. We do not recommend to use this version, but the users can try.
 \item \verb"-DDEBUG"\\
-When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will make sure to get exactly the same output for the same input. However, due to some limitations of the current implementation of GPUMD, the code will always use the $O(N^2)$ version to generate the neighbor list, which is not efficient for large systems. 
+When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will make sure to get exactly the same output for the same input.
 \end{itemize}
 
 
