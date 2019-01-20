@@ -165,11 +165,31 @@ void Atom::check_bound(void)
 }
 
 
+// simple version for sorting the neighbor indicies of each atom
+static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
+{
+    int bid = blockIdx.x;
+    int tid = threadIdx.x;
+    int neighbor_number = NN[bid];
+    int atom_index;
+    __shared__ int atom_index_copy[BLOCK_SIZE];
+    if (tid < neighbor_number) 
+    {
+        atom_index = NL[bid + tid * N];
+        atom_index_copy[tid] = atom_index;
+    }
+    int count = 0;
+    __syncthreads();
+    for (int j = 0; j < neighbor_number; ++j)
+    {
+        if (atom_index > atom_index_copy[j]) { count++; }
+    }
+    if (tid < neighbor_number) { NL[bid + count * N] = atom_index; }
+}
+
+
 void Atom::find_neighbor(void)
 {
-#ifdef DEBUG
-    find_neighbor_ON2();
-#else
     real *cpu_box; MY_MALLOC(cpu_box, real, 3);
     int m = sizeof(real) * DIM;
     CHECK(cudaMemcpy(cpu_box, box_length, m, cudaMemcpyDeviceToHost));
@@ -196,8 +216,13 @@ void Atom::find_neighbor(void)
     MY_FREE(cpu_box);
     if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = 1;}
     if (use_ON2) { find_neighbor_ON2(); }
-    else { find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z); }
+    else
+    {
+        find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z);
+#ifdef DEBUG
+        gpu_sort_neighbor_list<<<N, BLOCK_SIZE>>>(N, NN, NL);
 #endif
+    }
 }
 
 
