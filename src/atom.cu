@@ -48,69 +48,57 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
     double rc;
     int count = fscanf(fid_xyz, "%d%d%lf%d%d%d", &N, &neighbor.MN, &rc,
         &has_velocity_in_xyz, &has_layer_in_xyz, &num_of_grouping_methods);
-    if (count != 6) print_error("reading error for line 1 of xyz.in.\n");
+    if (count != 6) print_error("Reading error for line 1 of xyz.in.\n");
     neighbor.rc = rc;
-    if (N < 1)
-        print_error("number of atoms should >= 1\n");
+    if (N < 2)
+        print_error("Number of atoms should >= 2\n");
     else
         printf("Number of atoms is %d.\n", N);
-    
     if (neighbor.MN < 1)
-        print_error("maximum number of neighbors should >= 1\n");
+        print_error("Maximum number of neighbors should >= 1\n");
     else
-        printf("Maximum number of neighbors is %d.\n",neighbor.MN);
-
-    if (neighbor.rc < 0)
-        print_error("initial cutoff for neighbor list should >= 0\n");
+        printf("Maximum number of neighbors is %d.\n", neighbor.MN);
+    if (neighbor.rc <= 0)
+        print_error("Initial cutoff for neighbor list should > 0\n");
     else
         printf("Initial cutoff for neighbor list is %g A.\n", neighbor.rc);
-
     if (has_velocity_in_xyz == 0)
         printf("Do not specify initial velocities here.\n");
     else
         printf("Specify initial velocities here.\n");
-
     if (has_layer_in_xyz == 0)
         printf("Do not specify layer indices here.\n");
     else
         printf("Specify layer indices here.\n");
-
     if (num_of_grouping_methods == 0)
         printf("Have no grouping method.\n");
-    else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 10)
+    else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 2)
         printf("Have %d grouping method(s).\n", num_of_grouping_methods);
     else
-        print_error(
-            "number of grouping methods should be within [1, 10].\n");
+        print_error("Number of grouping methods should be 1 or 2.\n");
 }  
 
 
 void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 {
     MY_MALLOC(cpu_box_length, real, 3);
-
     double lx, ly, lz;
     int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf", &pbc_x, &pbc_y, &pbc_z,
         &lx, &ly, &lz);
     if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
-    cpu_box_length[0] = lx;
-    cpu_box_length[1] = ly;
-    cpu_box_length[2] = lz;
-
+    cpu_box_length[0] = lx; cpu_box_length[1] = ly; cpu_box_length[2] = lz;
     if (pbc_x == 1)
         printf("Use periodic boundary conditions along x.\n");
     else if (pbc_x == 0)
         printf("Use     free boundary conditions along x.\n");
     else
         print_error("invalid boundary conditions along x.\n");
-
     if (pbc_y == 1)
         printf("Use periodic boundary conditions along y.\n");
     else if (pbc_y == 0)
         printf("Use     free boundary conditions along y.\n");
     else
         print_error("invalid boundary conditions along y.\n");
-
     if (pbc_z == 1)
         printf("Use periodic boundary conditions along z.\n");
     else if (pbc_z == 0)
@@ -131,14 +119,12 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
     MY_MALLOC(cpu_vx, real, N);
     MY_MALLOC(cpu_vy, real, N);
     MY_MALLOC(cpu_vz, real, N);
-
     number_of_types = -1;
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         MY_MALLOC(group[m].cpu_label, int, N);
         group[m].number = -1;
     }
-
     for (int n = 0; n < N; n++)
     {
         double mass, x, y, z;
@@ -147,11 +133,7 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
         if (count != 5) { print_error("reading error for xyz.in.\n"); }
         cpu_mass[n] = mass; cpu_x[n] = x; cpu_y[n] = y; cpu_z[n] = z;
         cpu_type_local[n] = cpu_type[n];
-        if (cpu_type[n] > number_of_types) 
-        {
-            number_of_types = cpu_type[n];
-        }
-
+        if (cpu_type[n] > number_of_types) { number_of_types = cpu_type[n]; }
         if (has_velocity_in_xyz)
         {
             double vx, vy, vz;
@@ -159,13 +141,11 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
             if (count != 3) { print_error("reading error for xyz.in.\n"); }
             cpu_vx[n] = vx; cpu_vy[n] = vy; cpu_vz[n] = vz;
         }
-
         if (has_layer_in_xyz)
         {
             count = fscanf(fid_xyz, "%d", &cpu_layer_label[n]);
             if (count != 1) { print_error("reading error for xyz.in.\n"); }
         }
-
         for (int m = 0; m < num_of_grouping_methods; ++m)
         {
             count = fscanf(fid_xyz, "%d", &group[m].cpu_label[n]);
@@ -191,8 +171,6 @@ void Atom::find_group_size(int k)
     else
         printf("There are %d groups of atoms in grouping method %d.\n",
             group[k].number, k);
-
-    // determine the number of atoms in each group
     for (int m = 0; m < group[k].number; m++)
     {
         group[k].cpu_size[m] = 0;
@@ -201,8 +179,6 @@ void Atom::find_group_size(int k)
     for (int n = 0; n < N; n++) group[k].cpu_size[group[k].cpu_label[n]]++;
     for (int m = 0; m < group[k].number; m++)
         printf("    %d atoms in group %d.\n", group[k].cpu_size[m], m);   
-    
-    // calculate the number of atoms before a group
     for (int m = 1; m < group[k].number; m++)
         for (int n = 0; n < m; n++)
             group[k].cpu_size_sum[m] += group[k].cpu_size[n];
@@ -229,7 +205,6 @@ void Atom::find_type_size(void)
         printf("There is only one atom type.\n");
     else
         printf("There are %d atom types.\n", number_of_types);
-    // determine the number of atoms in each type
     for (int m = 0; m < number_of_types; m++) cpu_type_size[m] = 0;
     for (int n = 0; n < N; n++) cpu_type_size[cpu_type[n]]++;
     for (int m = 0; m < number_of_types; m++)
@@ -242,25 +217,20 @@ void Atom::initialize_position(char *input_dir)
     print_line_1();
     printf("Started initializing positions and related parameters.\n");
     print_line_2();
-
     char file_xyz[FILE_NAME_LENGTH];
     strcpy(file_xyz, input_dir);
     strcat(file_xyz, "/xyz.in");
     FILE *fid_xyz = my_fopen(file_xyz, "r");
-
     read_xyz_in_line_1(fid_xyz);
     read_xyz_in_line_2(fid_xyz);
     read_xyz_in_line_3(fid_xyz);
-
     fclose(fid_xyz);
-
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         find_group_size(m);
         find_group_contents(m);
     }
     find_type_size();
-
     print_line_1();
     printf("Finished initializing positions and related parameters.\n");
     print_line_2();
@@ -269,20 +239,16 @@ void Atom::initialize_position(char *input_dir)
 
 void Atom::allocate_memory_gpu(void)
 {
-    // memory amount
     int m1 = sizeof(int) * N;
     int m2 = m1 * neighbor.MN;
     int m4 = sizeof(real) * N;
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
-
-    // for indexing
     CHECK(cudaMalloc((void**)&NN, m1));
     CHECK(cudaMalloc((void**)&NL, m2));
     CHECK(cudaMalloc((void**)&NN_local, m1));
     CHECK(cudaMalloc((void**)&NL_local, m2));
     CHECK(cudaMalloc((void**)&type, m1));
     CHECK(cudaMalloc((void**)&type_local, m1));
-
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         int m3 = sizeof(int) * group[m].number;
@@ -291,8 +257,6 @@ void Atom::allocate_memory_gpu(void)
         CHECK(cudaMalloc((void**)&group[m].size_sum, m3));
         CHECK(cudaMalloc((void**)&group[m].contents, m1));
     }
-
-    // for atoms
     CHECK(cudaMalloc((void**)&mass, m4));
     CHECK(cudaMalloc((void**)&x0,   m4));
     CHECK(cudaMalloc((void**)&y0,   m4));
@@ -311,7 +275,6 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&virial_per_atom_z,  m4));
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
     CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
-
     CHECK(cudaMalloc((void**)&box_length, sizeof(real) * DIM));
     CHECK(cudaMalloc((void**)&thermo, sizeof(real) * 6));
 }
@@ -322,10 +285,8 @@ void Atom::copy_from_cpu_to_gpu(void)
     int m1 = sizeof(int) * N;
     int m3 = sizeof(real) * N;
     int m4 = sizeof(real) * DIM;
-
     CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(type_local, cpu_type, m1, cudaMemcpyHostToDevice));
-
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         int m2 = sizeof(int) * group[m].number;
@@ -338,7 +299,6 @@ void Atom::copy_from_cpu_to_gpu(void)
         CHECK(cudaMemcpy(group[m].contents, group[m].cpu_contents, m1,
             cudaMemcpyHostToDevice));
     }
-
     CHECK(cudaMemcpy(mass, cpu_mass, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice));
