@@ -210,48 +210,15 @@ void Atom::check_bound(void)
 }
 
 
-static __device__ void bubble_sort(int *list, int n)
-{
-    for (int c = 0 ; c < n - 1; c++)
-    {
-        for (int d = 0 ; d < n - c - 1; d++)
-        {
-            int x = list[d];
-            int y = list[d + 1];
-            if (x > y)
-            {
-                list[d] = y;
-                list[d + 1] = x;
-            }
-        }
-    }
-}
-
-
-// make the neighbors of each atom come with increasing indices
-static __global__ void gpu_sort_neighbor(int N, int *NN, int *NL)
-{
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n1 < N)
-    {
-        int neighbor_number = NN[n1];
-        int* list = new int[neighbor_number];
-        for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {
-            list[i1] = NL[i1 * N + n1];
-        }
-        bubble_sort(list, neighbor_number);
-        for (int i1 = 0; i1 < neighbor_number; ++i1)
-        { 
-            NL[i1 * N + n1] = list[i1];
-        }
-        delete[] list;
-    }
-}
-
-
 void Atom::find_neighbor(void)
 {
+
+#ifdef DEBUG
+    // always use the ON2 method when debugging, because it's deterministic
+    find_neighbor_ON2();
+
+#else
+
     real rc = neighbor.rc;
     real *box = box_length;
     real *cpu_box;
@@ -303,8 +270,9 @@ void Atom::find_neighbor(void)
     else
     {
         find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z);
-        gpu_sort_neighbor<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>(N, NN, NL);
     }
+
+#endif
 }
 
 
