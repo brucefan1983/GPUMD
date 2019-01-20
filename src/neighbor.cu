@@ -217,6 +217,7 @@ void Atom::find_neighbor(int is_first)
         int update = check_atom_distance();
         if (update != 0)
         {
+            neighbor.number_of_updates++;
             find_neighbor();
             check_bound();
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>

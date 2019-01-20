@@ -51,6 +51,7 @@ Run::~Run(void)
 void Run::initialize_run(Atom* atom, Measure* measure)
 {
     atom->neighbor.update = 0;
+    atom->neighbor.number_of_updates = 0;
     atom->fixed_group     = -1; // no group has an index of -1
     atom->deform_x = 0;
     atom->deform_y = 0;
@@ -124,6 +125,8 @@ static void print_time_and_speed(clock_t time_begin, Atom* atom)
     print_line_1();
     clock_t time_finish = clock();
     real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
+    printf("Number of neighbor list updates = %d.\n",
+        atom->neighbor.number_of_updates);
     printf("Time used for this run = %g s.\n", time_used);
     real run_speed = atom->N * (atom->number_of_steps / time_used);
     printf("Speed of this run = %g atom*step/second.\n", run_speed);
