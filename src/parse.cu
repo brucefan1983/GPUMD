@@ -726,7 +726,7 @@ static void parse_compute_shc(char **param,  int num_param, Measure* measure)
 }
 
 
-static void parse_deform(char **param,  int num_param, Atom* atom)
+static void parse_deform(char **param,  int num_param, Integrate* integrate)
 {
     printf("Deform the box.\n");
 
@@ -736,35 +736,36 @@ static void parse_deform(char **param,  int num_param, Atom* atom)
     }
 
     // strain rate
-    if (!is_valid_real(param[1], &atom->deform_rate))
+    if (!is_valid_real(param[1], &integrate->deform_rate))
     {
         print_error("defrom rate should be a number.\n");
     }
-    printf("    strain rate is %g A / step.\n", atom->deform_rate);
+    printf("    strain rate is %g A / step.\n",
+        integrate->deform_rate);
 
     // direction
-    if (!is_valid_int(param[2], &atom->deform_x))
+    if (!is_valid_int(param[2], &integrate->deform_x))
     {
         print_error("deform_x should be integer.\n");
     }
-    if (!is_valid_int(param[3], &atom->deform_y))
+    if (!is_valid_int(param[3], &integrate->deform_y))
     {
         print_error("deform_y should be integer.\n");
     }
-    if (!is_valid_int(param[4], &atom->deform_z))
+    if (!is_valid_int(param[4], &integrate->deform_z))
     {
         print_error("deform_z should be integer.\n");
     }
 
-    if (atom->deform_x)
+    if (integrate->deform_x)
     {
         printf("    apply strain in x direction.\n");
     }
-    if (atom->deform_y)
+    if (integrate->deform_y)
     {
         printf("    apply strain in y direction.\n");
     }
-    if (atom->deform_z)
+    if (integrate->deform_z)
     {
         printf("    apply strain in z direction.\n");
     }
@@ -942,7 +943,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "deform")         == 0)
     {
-        parse_deform(param, num_param, atom);
+        parse_deform(param, num_param, integrate);
     }
     else if (strcmp(param[0], "compute")        == 0)
     {

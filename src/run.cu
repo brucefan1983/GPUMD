@@ -48,14 +48,14 @@ Run::~Run(void)
 
 
 // set some default values after each run
-void Run::initialize_run(Atom* atom, Measure* measure)
+void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
 {
     atom->neighbor.update = 0;
     atom->neighbor.number_of_updates = 0;
     atom->fixed_group     = -1; // no group has an index of -1
-    atom->deform_x = 0;
-    atom->deform_y = 0;
-    atom->deform_z = 0;
+    integrate->deform_x = 0;
+    integrate->deform_y = 0;
+    integrate->deform_z = 0;
     measure->compute.compute_temperature  = 0;
     measure->compute.compute_potential    = 0;
     measure->compute.compute_force        = 0;
@@ -241,7 +241,7 @@ void Run::check_run
         print_velocity_and_potential_error_1();
     }
     else { process_run(input_dir, atom, force, integrate, measure); }
-    initialize_run(atom, measure); // change back to the default
+    initialize_run(atom, integrate, measure); // change back to the default
 }
 
 
@@ -260,7 +260,7 @@ void Run::run
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
     char *param[max_num_param];
-    initialize_run(atom, measure); // set some default values
+    initialize_run(atom, integrate, measure); // set some default values
     print_start(check);
     while (input_ptr)
     {

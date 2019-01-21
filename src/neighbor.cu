@@ -166,6 +166,7 @@ void Atom::check_bound(void)
 
 
 // simple version for sorting the neighbor indicies of each atom
+#ifdef DEBUG
 static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
 {
     int bid = blockIdx.x;
@@ -186,6 +187,7 @@ static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
     }
     if (tid < neighbor_number) { NL[bid + count * N] = atom_index; }
 }
+#endif
 
 
 void Atom::find_neighbor(void)

@@ -93,19 +93,13 @@ public:
     int has_layer_in_xyz = 0;
     int num_of_grouping_methods = 0;
 
-    // can be moved to integrate and ensemble
-    int deform_x = 0;
-    int deform_y = 0;
-    int deform_z = 0;
-    real deform_rate;
-
     // make a structure?
     int number_of_steps; // number of steps in a specific run
     real initial_temperature; // initial temperature for velocity
     real temperature1;
     real temperature2; 
     // time step in a specific run; default value is 1 fs
-    real time_step = 1.0;
+    real time_step = 1.0 / TIME_UNIT_CONVERSION;
 
     // some well defined sub-structures
     Neighbor neighbor;

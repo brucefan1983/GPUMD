@@ -81,7 +81,8 @@ void Integrate::initialize(Atom* atom)
             ensemble = new Ensemble_BER
             (
                 type, temperature, temperature_coupling, pressure_x, 
-                pressure_y, pressure_z, pressure_coupling
+                pressure_y, pressure_z, pressure_coupling, deform_x,
+                deform_y, deform_z, deform_rate
             );
             break;
         case 21: // heat-NHC

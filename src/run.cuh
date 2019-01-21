@@ -24,7 +24,7 @@ public:
     Run(char*, Atom*, Force*, Integrate*, Measure*);
     ~Run(void);
 private:
-    void initialize_run(Atom*, Measure*);
+    void initialize_run(Atom*, Integrate*, Measure*);
     void run(char*, Atom*, Force*, Integrate*, Measure*, int);
     void parse
     (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);

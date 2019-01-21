@@ -37,7 +37,10 @@ Ensemble_BER::Ensemble_BER(int t, real T, real Tc)
 
 
 Ensemble_BER::Ensemble_BER
-(int t, real T, real Tc, real px, real py, real pz, real pc)
+(
+    int t, real T, real Tc, real px, real py, real pz, real pc,
+    int dx, int dy, int dz, real rate
+)
 {
     type = t;
     temperature = T;
@@ -46,6 +49,10 @@ Ensemble_BER::Ensemble_BER
     pressure_y = py;
     pressure_z = pz;
     pressure_coupling = pc;
+    deform_x = dx;
+    deform_y = dy;
+    deform_z = dz;
+    deform_rate = rate;
 }
 
 
@@ -142,7 +149,7 @@ void Ensemble_BER::compute
     {
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (
-            atom->deform_x, atom->deform_y, atom->deform_z, atom->deform_rate,
+            deform_x, deform_y, deform_z, deform_rate,
             atom->N, atom->pbc_x, atom->pbc_y, atom->pbc_z, pressure_x, 
             pressure_y, pressure_z, pressure_coupling, atom->thermo,
             atom->box_length, atom->x, atom->y, atom->z

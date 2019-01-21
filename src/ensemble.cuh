@@ -36,6 +36,10 @@ public:
     real pressure_z; 
     real temperature_coupling;
     real pressure_coupling;  
+    int deform_x = 0;
+    int deform_y = 0;
+    int deform_z = 0;
+    real deform_rate;
 
     real energy_transferred[2]; // energy transferred from system to heat baths
     
