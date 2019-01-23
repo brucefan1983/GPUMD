@@ -162,9 +162,9 @@ static void process_run
 static void print_initial_force(char* input_dir, Atom* atom)
 {
     int m = sizeof(real) * atom->N;
-    real *fx; MY_MALLOC(cpu_fx, real, atom->N);
-    real *fy; MY_MALLOC(cpu_fy, real, atom->N);
-    real *fz; MY_MALLOC(cpu_fz, real, atom->N);
+    real *fx; MY_MALLOC(fx, real, atom->N);
+    real *fy; MY_MALLOC(fy, real, atom->N);
+    real *fz; MY_MALLOC(fz, real, atom->N);
     CHECK(cudaMemcpy(fx, atom->fx, m, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(fy, atom->fy, m, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(fz, atom->fz, m, cudaMemcpyDeviceToHost));
