@@ -17,9 +17,6 @@
 #pragma once
 #include "potential.cuh"
 
-
-
-
 #define MAX_TYPE 5 // do you want to have more than 5 atom types?
 
 
@@ -31,8 +28,6 @@ struct LJ_Para
 };
 
 
-
-
 struct RI_Para
 {
     real a11, b11, c11, qq11;
@@ -41,8 +36,6 @@ struct RI_Para
     real v_rc, dv_rc; // potential and its derivative at the cutoff distance
     real cutoff;
 };
-
-
 
 
 class Pair : public Potential
@@ -58,7 +51,5 @@ protected:
     LJ_Para  lj_para;
     RI_Para  ri_para;
 };
-
-
 
 

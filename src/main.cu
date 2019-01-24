@@ -14,19 +14,49 @@
 */
 
 
-
-
 #include "gpumd.cuh"
 #include "error.cuh"
-
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
 
-
+void print_welcome_information(void);
+void print_compile_information(void);
+int get_number_of_input_directories(void);
 
 
 int main(int argc, char *argv[])
+{
+    print_welcome_information();
+    print_compile_information();
+    int number_of_inputs = get_number_of_input_directories();
+    for (int n = 0; n < number_of_inputs; ++n)
+    {
+        char input_directory[200];
+        int count = scanf("%s", input_directory);
+        if (count != 1)
+        {
+            print_error("reading error for input directory.\n");
+        }
+        print_line_1();
+        printf("Run simulation for '%s'.\n", input_directory);
+        print_line_2();
+        clock_t time_begin = clock();
+        GPUMD gpumd(input_directory);
+        clock_t time_finish = clock();
+        double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
+        print_line_1();
+        printf("Time used for '%s' = %f s.\n", input_directory, time_used);
+        print_line_2();
+    }
+    print_line_1();
+    printf("Finished running GPUMD.\n");
+    print_line_2();
+    return EXIT_SUCCESS;
+}
+
+
+void print_welcome_information(void)
 {
     printf("\n");
     printf("***************************************************************\n");
@@ -41,90 +71,52 @@ int main(int argc, char *argv[])
     printf("*     Ari Harju                                               *\n");
     printf("***************************************************************\n");
     printf("\n");
+}
 
+
+void print_compile_information(void)
+{
     print_line_1();
     printf("Compiling options:\n");
     print_line_2();
-
 #ifdef DEBUG
-    printf("DEBUG is on: Use a fixed PRNG seed for differnt runs.\n");
+    printf("DEBUG is on: Use a fixed PRNG seed for different runs.\n");
 #else
     srand(time(NULL));
-    printf("DEBUG is off: Use differnt PRNG seeds for differnt runs.\n");
+    printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
 #endif
-
 #ifndef USE_SP
     printf("USE_SP is off: Use double-precision version.\n");
 #else
     printf("USE_SP is on: Use single-precision version.\n");
 #endif
-
 #ifdef MOS2_JIANG
-    printf("MOS2_JIANG is on: Special verison for Ke Xu.\n");
+    printf("MOS2_JIANG is on: Special version for Ke Xu.\n");
 #endif
-
 #ifdef MURTY_ATWATER
-    printf("MURTY_ATWATER is on: Special verison for Qi You.\n");
+    printf("MURTY_ATWATER is on: Special version for Qi You.\n");
 #endif
-
 #ifdef ZHEN_LI
-    printf("ZHEN_LI is on: Special verison for Zhen Li.\n");
+    printf("ZHEN_LI is on: Special version for Zhen Li.\n");
 #endif
-
 #ifdef CBN
-    printf("CBN is on: Special verison for Haikuan Dong.\n");
+    printf("CBN is on: Special version for Haikuan Dong.\n");
 #endif
-
-#ifdef HEAT_CURRENT
-    printf("HEAT_CURRENT is on: Special verison for Davide Donadio.\n");
+#ifdef FORCE
+    printf("FORCE is on: Calculate initial force.\n");
 #endif
-
-    // get the number of input directories
-    int number_of_inputs;
-    char input_directory[200];
-
-    int count = scanf("%d", &number_of_inputs);
-    if (count != 1)
-    {
-        printf("Error: reading error for number of inputs.\n");
-        exit(1);
-    }
-
-    // Run GPUMD for the input directories one by one
-    for (int n = 0; n < number_of_inputs; ++n)
-    {
-        count = scanf("%s", input_directory);
-        if (count != 1)
-        {
-            printf("Error: reading error for input directory.\n");
-            exit(1);
-        }
-
-        print_line_1();
-        printf("Run simulation for '%s'.\n", input_directory);
-        print_line_2();
-
-        clock_t time_begin = clock();
-
-        // Run GPUMD for "input_directory"
-        GPUMD gpumd(input_directory);
-
-        clock_t time_finish = clock();
-
-        double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
-
-        print_line_1();
-        printf("Time used for '%s' = %f s.\n", input_directory, time_used);
-        print_line_2();
-    }
-
-    print_line_1();
-    printf("Finished running GPUMD.\n");
-    print_line_2();
-
-    return EXIT_SUCCESS;
 }
 
 
+int get_number_of_input_directories(void)
+{
+    int number_of_inputs;
+    int count = scanf("%d", &number_of_inputs);
+    if (count != 1)
+    {
+        print_error("reading error for number of inputs.\n");
+    }
+    return number_of_inputs;
+}
 
 

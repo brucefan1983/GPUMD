@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The driver class dealing with measurement.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "measure.cuh"
-
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
@@ -35,28 +30,27 @@ The driver class dealing with measurement.
 #define NUM_OF_PROPERTIES      5 
 
 
-
-
 Measure::Measure(char *input_dir)
 {
     dump_thermo = 0;
     dump_position = 0;
+    dump_restart = 0;
     dump_velocity = 0;
     dump_force = 0;
     dump_potential = 0;
     dump_virial = 0;
     dump_heat = 0;
-
     strcpy(file_thermo, input_dir);
     strcpy(file_position, input_dir);
+    strcpy(file_restart, input_dir);
     strcpy(file_velocity, input_dir);
     strcpy(file_force, input_dir);
     strcpy(file_potential, input_dir);
     strcpy(file_virial, input_dir);
     strcpy(file_heat, input_dir);
-
     strcat(file_thermo, "/thermo.out");
-    strcat(file_position, "/xyz.out");
+    strcat(file_position, "/move.xyz");
+    strcat(file_restart, "/restart.out");
     strcat(file_velocity, "/v.out");
     strcat(file_force, "/f.out");
     strcat(file_potential, "/potential.out");
@@ -65,14 +59,10 @@ Measure::Measure(char *input_dir)
 }
 
 
-
-
 Measure::~Measure(void)
 {
     // nothing
 }
-
-
 
 
 void Measure::initialize(char* input_dir, Atom *atom)
@@ -84,7 +74,6 @@ void Measure::initialize(char* input_dir, Atom *atom)
     if (dump_potential) {fid_potential= my_fopen(file_potential,"a");}
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
-
     vac.preprocess(atom);
     hac.preprocess(atom);
     shc.preprocess(atom);
@@ -93,19 +82,17 @@ void Measure::initialize(char* input_dir, Atom *atom)
 }
 
 
-
-
 void Measure::finalize
 (char *input_dir, Atom *atom, Integrate *integrate)
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
     if (dump_position)  {fclose(fid_position);  dump_position  = 0;}
+    if (dump_restart)   {                       dump_restart   = 0;}
     if (dump_velocity)  {fclose(fid_velocity);  dump_velocity  = 0;}
     if (dump_force)     {fclose(fid_force);     dump_force     = 0;}
     if (dump_potential) {fclose(fid_potential); dump_potential = 0;}
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
-
     vac.postprocess(input_dir, atom);
     hac.postprocess(input_dir, atom, integrate);
     shc.postprocess();
@@ -114,22 +101,18 @@ void Measure::finalize
 }
 
 
-
-
 void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
 {
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
-
     real *thermo; MY_MALLOC(thermo, real, NUM_OF_PROPERTIES);
     real *box_length; MY_MALLOC(box_length, real, DIM);
     int m1 = sizeof(real) * NUM_OF_PROPERTIES;
     int m2 = sizeof(real) * DIM;
     CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(box_length, atom->box_length, m2, cudaMemcpyDeviceToHost));
-
     int N_fixed = (atom->fixed_group == -1) ? 0 :
-        atom->cpu_group_size[atom->fixed_group];
+        atom->group[0].cpu_size[atom->fixed_group];
     real energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
 
     fprintf(fid, 
@@ -141,8 +124,6 @@ void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
 {
     real *cpu_a, *cpu_b, *cpu_c;
@@ -152,26 +133,73 @@ static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
     CHECK(cudaMemcpy(cpu_a, a, sizeof(real) * N, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(cpu_b, b, sizeof(real) * N, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(cpu_c, c, sizeof(real) * N, cudaMemcpyDeviceToHost));
-
     for (int n = 0; n < N; n++)
     {
-        fprintf(fid, "%20.10e%20.10e%20.10e\n", cpu_a[n], cpu_b[n], cpu_c[n]);
+        fprintf(fid, "%g %g %g\n", cpu_a[n], cpu_b[n], cpu_c[n]);
     }
     fflush(fid);
     MY_FREE(cpu_a); MY_FREE(cpu_b); MY_FREE(cpu_c);
 }
 
 
-
-
 void Measure::dump_positions(FILE *fid, Atom *atom, int step)
 {
     if (!dump_position) return;
     if ((step + 1) % sample_interval_position != 0) return;
-    gpu_dump_3(atom->N, fid, atom->x, atom->y, atom->z);
+    int memory = sizeof(real) * atom->N;
+    CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
+    fprintf(fid, "%d\n", atom->N);
+    fprintf(fid, "%d\n", (step + 1) / sample_interval_position - 1);
+    for (int n = 0; n < atom->N; n++)
+    {
+        fprintf(fid, "%d %g %g %g\n", atom->cpu_type[n],
+            atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n]);
+    }
+    fflush(fid);
 }
 
 
+void Measure::dump_restarts(Atom *atom, int step)
+{
+    if (!dump_restart) return;
+    if ((step + 1) % sample_interval_restart != 0) return;
+    int memory = sizeof(real) * atom->N;
+    CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vx, atom->vx, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
+    real* cpu_box; MY_MALLOC(cpu_box, real, 3);
+    CHECK(cudaMemcpy(cpu_box, atom->box_length, sizeof(real) * 3,
+        cudaMemcpyDeviceToHost));
+    fid_restart = my_fopen(file_restart, "w"); 
+    fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
+        atom->neighbor.rc, 1, atom->has_layer_in_xyz,
+        atom->num_of_grouping_methods);
+    fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->pbc_x, atom->pbc_y,
+       atom->pbc_z, cpu_box[0], cpu_box[1], cpu_box[2]);
+    MY_FREE(cpu_box);
+    for (int n = 0; n < atom->N; n++)
+    {
+        fprintf(fid_restart, "%d %g %g %g %g, %g, %g ", atom->cpu_type[n],
+            atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n], 
+            atom->cpu_vx[n], atom->cpu_vy[n], atom->cpu_vz[n]);
+        if (atom->has_layer_in_xyz)
+        {
+            fprintf(fid_restart, "%d ", atom->cpu_layer_label[n]);
+        }
+        for (int m = 0; m < atom->num_of_grouping_methods; ++n)
+        {
+            fprintf(fid_restart, "%d ", atom->group[m].cpu_label[n]);
+        }
+        fprintf(fid_restart, "\n");
+    }
+    fflush(fid_restart);
+    fclose(fid_restart);
+}
 
 
 void Measure::dump_velocities(FILE *fid, Atom *atom, int step)
@@ -182,16 +210,12 @@ void Measure::dump_velocities(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 void Measure::dump_forces(FILE *fid, Atom *atom, int step)
 {
     if (!dump_force) return;
     if ((step + 1) % sample_interval_force != 0) return;
     gpu_dump_3(atom->N, fid, atom->fx, atom->fy, atom->fz);
 }
-
-
 
 
 void Measure::dump_virials(FILE *fid, Atom *atom, int step)
@@ -203,17 +227,13 @@ void Measure::dump_virials(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 static void gpu_dump_1(int N, FILE *fid, real *a)
 {
     real *cpu_a; MY_MALLOC(cpu_a, real, N);
     CHECK(cudaMemcpy(cpu_a, a, sizeof(real) * N, cudaMemcpyDeviceToHost));
-    for (int n = 0; n < N; n++) { fprintf(fid, "%20.10e\n", cpu_a[n]); }
+    for (int n = 0; n < N; n++) { fprintf(fid, "%g\n", cpu_a[n]); }
     fflush(fid); MY_FREE(cpu_a);
 }
-
-
 
 
 void Measure::dump_potentials(FILE *fid, Atom *atom, int step)
@@ -224,8 +244,6 @@ void Measure::dump_potentials(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 void Measure::dump_heats(FILE *fid, Atom *atom, int step)
 {
     if (!dump_heat) return;
@@ -234,13 +252,12 @@ void Measure::dump_heats(FILE *fid, Atom *atom, int step)
 }
 
 
-
-
 void Measure::process
 (char *input_dir, Atom *atom, Integrate *integrate, int step)
 {
     dump_thermos(fid_thermo, atom, step);
     dump_positions(fid_position, atom, step);
+    dump_restarts(atom, step);
     dump_velocities(fid_velocity, atom, step);
     dump_forces(fid_force, atom, step);
     dump_potentials(fid_potential, atom, step);
@@ -252,7 +269,5 @@ void Measure::process
     shc.process(step, input_dir, atom);
     hnemd.process(step, input_dir, atom, integrate);
 }
-
-
 
 

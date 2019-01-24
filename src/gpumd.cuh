@@ -14,12 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "common.cuh"
-
-
 
 
 class GPUMD
@@ -27,23 +23,6 @@ class GPUMD
 public:
     GPUMD(char*);
     ~GPUMD(void);
-
-private:
-
-    char *get_file_contents (char*);
-    char* row_find_param (char*, char**, int*);
-    void initialize_run(Atom*, Measure*);
-
-    void check_run(char*, Atom*, Force*, Integrate*, Measure*);
-    void run(char*, Atom*, Force*, Integrate*, Measure*);
-
-    void parse
-    (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);
-
-    int number_of_times_velocity = 0;
-    int number_of_times_potential = 0;
 };
-
-
 
 

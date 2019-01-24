@@ -15,27 +15,33 @@
 
 
 #pragma once
-#include "common.cuh"
+#include "potential.cuh"
 
 
-class HNEMD
+struct Tersoff1988_Data
 {
-public:
-
-    int compute = 0;
-    int output_interval;   // average the data every so many time steps
-
-    // the driving "force" vector (in units of 1/A)
-    real fe_x = 0.0;
-    real fe_y = 0.0;
-    real fe_z = 0.0;
-    real fe = 0.0; // magnitude of the driving "force" vector
-
-    real *heat_all;
-
-    void preprocess(Atom *atom);
-    void process(int, char*, Atom*, Integrate*);
-    void postprocess(Atom*);
+    real *b;     // bond orders
+    real *bp;    // derivative of bond orders
+    real *f12x;  // partial forces
+    real *f12y;
+    real *f12z;
 };
+
+
+
+
+class Tersoff1988 : public Potential
+{
+public:   
+    Tersoff1988(FILE*, Atom*, int sum_of_types);
+    virtual ~Tersoff1988(void);
+    virtual void compute(Atom*, Measure*);
+protected:
+    int num_types;
+    real *ters;
+    Tersoff1988_Data tersoff_data;
+};
+
+
 
 

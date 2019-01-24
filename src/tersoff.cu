@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The double-element version of the Tersoff potential as described in  
     [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials 
@@ -23,10 +21,7 @@ The double-element version of the Tersoff potential as described in
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "tersoff.cuh"
-
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
@@ -43,8 +38,6 @@ The double-element version of the Tersoff potential as described in
     #define THREE_OVER_16 0.1875f
     #define NINE_OVER_16  0.5625f
 #endif
-
-
 
 
 Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
@@ -144,8 +137,6 @@ Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
 }
 
 
-
-
 Tersoff2::~Tersoff2(void)
 {
     CHECK(cudaFree(tersoff_data.b));
@@ -154,8 +145,6 @@ Tersoff2::~Tersoff2(void)
     CHECK(cudaFree(tersoff_data.f12y));
     CHECK(cudaFree(tersoff_data.f12z));
 }
-
-
 
 
 static __device__ void find_fr_and_frp
@@ -183,8 +172,6 @@ static __device__ void find_fr_and_frp
         frp = - ters2.lambda * fr;
     }
 }
-
-
 
 
 static __device__ void find_fa_and_fap
@@ -256,8 +243,6 @@ static __device__ void find_fa
 #endif
     }
 }
-
-
 
 
 static __device__ void find_fc_and_fcp
@@ -332,8 +317,6 @@ static __device__ void find_fc_and_fcp
 }
 
 
-
-
 static __device__ void find_fc
 (
     int type1, int type2,
@@ -391,8 +374,6 @@ static __device__ void find_fc
 }
 
 
-
-
 static __device__ void find_g_and_gp
 (
     int type1,
@@ -416,8 +397,6 @@ static __device__ void find_g_and_gp
 }
 
 
-
-
 static __device__ void find_g
 (
     int type1,
@@ -437,8 +416,6 @@ static __device__ void find_g
         g  = ters1.one_plus_c2overd2 - ters1.c2 / temp;
     }
 }
-
-
 
 
 // step 1: pre-compute all the bond-order functions and their derivatives
@@ -521,8 +498,6 @@ static __global__ void find_force_tersoff_step1
         }
     }
 }
-
-
 
 
 // step 2: calculate all the partial forces dU_i/dr_ij
@@ -647,8 +622,6 @@ static __global__ void find_force_tersoff_step2
 }
 
 
-
-
 // Wrapper of force evaluation for the Tersoff potential
 void Tersoff2::compute(Atom *atom, Measure *measure)
 {
@@ -695,7 +668,5 @@ void Tersoff2::compute(Atom *atom, Measure *measure)
     // the final step: calculate force and related quantities
     find_properties_many_body(atom, measure, NN, NL, f12x, f12y, f12z);
 }
-
-
 
 

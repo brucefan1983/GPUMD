@@ -15,10 +15,7 @@
 
 
 #pragma once
-
-
 #include "ensemble.cuh"
-
 
 
 class Ensemble_NVE : public Ensemble
@@ -28,7 +25,5 @@ public:
     virtual ~Ensemble_NVE(void);
     virtual void compute(Atom*, Force*, Measure*);
 };
-
-
 
 

@@ -14,11 +14,8 @@
 */
 
 
-
 #pragma once
 #include "potential.cuh"
-
-
 
 
 struct REBO_MOS_Data
@@ -35,8 +32,6 @@ struct REBO_MOS_Data
 };
 
 
-
-
 class REBO_MOS : public Potential
 {
 public:   
@@ -46,7 +41,5 @@ public:
 protected:
     REBO_MOS_Data rebo_mos_data;
 };
-
-
 
 

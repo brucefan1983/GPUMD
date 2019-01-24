@@ -20,8 +20,6 @@
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
 
-
-
 class Ensemble 
 {
 public:
@@ -38,6 +36,10 @@ public:
     real pressure_z; 
     real temperature_coupling;
     real pressure_coupling;  
+    int deform_x = 0;
+    int deform_y = 0;
+    int deform_z = 0;
+    real deform_rate;
 
     real energy_transferred[2]; // energy transferred from system to heat baths
     
@@ -51,12 +53,11 @@ public:
 protected:
     void velocity_verlet_1(Atom*);
     void velocity_verlet_2(Atom*);
+    void velocity_verlet(Atom*, Force*, Measure*);
     void find_thermo(Atom*);
     void scale_velocity_global(Atom* atom, real);
     void find_vc_and_ke(Atom*, real*, real*, real*, real*);
     void scale_velocity_local(Atom*, real, real, real*, real*, real*, real*);
 };
-
-
 
 

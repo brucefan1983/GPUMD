@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Use finite difference to validate the analytical force calculations.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "validate.cuh"
-
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
@@ -34,8 +29,6 @@ Use finite difference to validate the analytical force calculations.
 // This choice gives optimal accuracy for finite-difference calculations
 #define DX1 1.0e-7
 #define DX2 2.0e-7
-
-
 
 
 // copy from xyz to xyz0

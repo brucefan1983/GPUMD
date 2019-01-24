@@ -18,15 +18,11 @@
 #include "potential.cuh"
 
 
-
-
 struct Tersoff2_Parameters
 {
     real a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
     real pi_factor, one_plus_c2overd2, minus_half_over_n;
 };
-
-
 
 
 struct Tersoff2_Data
@@ -37,8 +33,6 @@ struct Tersoff2_Data
     real *f12y;
     real *f12z;
 };
-
-
 
 
 class Tersoff2 : public Potential
@@ -53,7 +47,5 @@ protected:
     Tersoff2_Parameters ters2;
     Tersoff2_Data tersoff_data;
 };
-
-
 
 

@@ -14,11 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "common.cuh"
-
 #include "vac.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
@@ -26,8 +23,6 @@
 #include "compute.cuh"
 
 #define FILE_NAME_LENGTH      200
-
-
 
 
 class Measure
@@ -40,6 +35,7 @@ public:
     void process(char*, Atom*, Integrate*, int);
     int dump_thermo; 
     int dump_position;
+    int dump_restart;
     int dump_velocity;
     int dump_force;
     int dump_potential;
@@ -47,6 +43,7 @@ public:
     int dump_heat;
     int sample_interval_thermo;
     int sample_interval_position;
+    int sample_interval_restart;
     int sample_interval_velocity;
     int sample_interval_force;
     int sample_interval_potential;
@@ -54,17 +51,19 @@ public:
     int sample_interval_heat;
     FILE *fid_thermo;
     FILE *fid_position;
+    FILE *fid_restart;
     FILE *fid_velocity;
     FILE *fid_force;
     FILE *fid_potential;
     FILE *fid_virial;
     FILE *fid_heat;
-    char file_thermo[FILE_NAME_LENGTH];       
-    char file_position[FILE_NAME_LENGTH];    
-    char file_velocity[FILE_NAME_LENGTH];    
-    char file_force[FILE_NAME_LENGTH]; 
+    char file_thermo[FILE_NAME_LENGTH];   
+    char file_position[FILE_NAME_LENGTH];
+    char file_restart[FILE_NAME_LENGTH];
+    char file_velocity[FILE_NAME_LENGTH];
+    char file_force[FILE_NAME_LENGTH];
     char file_potential[FILE_NAME_LENGTH];
-    char file_virial[FILE_NAME_LENGTH];    
+    char file_virial[FILE_NAME_LENGTH];
     char file_heat[FILE_NAME_LENGTH];
     VAC vac;
     HAC hac;
@@ -74,13 +73,12 @@ public:
 protected:
     void dump_thermos(FILE*, Atom*, int);
     void dump_positions(FILE*, Atom*, int);
+    void dump_restarts(Atom*, int);
     void dump_velocities(FILE*, Atom*, int);
     void dump_forces(FILE*, Atom*, int);
     void dump_potentials(FILE*, Atom*, int);
     void dump_virials(FILE*, Atom*, int);
     void dump_heats(FILE*, Atom*, int);
 };
-
-
 
 

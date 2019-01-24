@@ -14,78 +14,50 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 Construct the neighbor list using the O(N^2) method.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "atom.cuh"
 #include "error.cuh"
 #include "ldg.cuh"
-
 #define BLOCK_SIZE 128
-
-
 
 
 // a simple O(N^2) version of neighbor list construction
 static __global__ void gpu_find_neighbor_ON2
 (
-    int pbc_x, int pbc_y, int pbc_z,
-    int N, real cutoff_square, 
-    real *box,
-    int *NN, int *NL, real *x, real *y, real *z
+    int pbc_x, int pbc_y, int pbc_z, int N, real cutoff_square, 
+    real *box, int *NN, int *NL, real *x, real *y, real *z
 )
 {
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-    int count = 0;
     if (n1 < N)
-    {  
-        real x1 = x[n1];   
-        real y1 = y[n1];
-        real z1 = z[n1];  
+    {
+        real x1 = x[n1];  real y1 = y[n1];  real z1 = z[n1];
+        real lx = box[0]; real ly = box[1]; real lz = box[2];
+        int count = 0;
         for (int n2 = 0; n2 < N; ++n2)
         { 
             if (n2 == n1) { continue; }
-            real x12  = x[n2] - x1;  
-            real y12  = y[n2] - y1;
-            real z12  = z[n2] - z1;
-
-            dev_apply_mic
-            (pbc_x, pbc_y, pbc_z, x12, y12, z12, box[0], box[1], box[2]);
-
+            real x12 = x[n2]-x1; real y12 = y[n2]-y1; real z12 = z[n2]-z1;
+            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
             real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-            if (distance_square < cutoff_square)
-            {        
-                NL[count * N + n1] = n2;
-                ++count;
-            }
+            if (distance_square < cutoff_square) { NL[count++ * N + n1] = n2; }
         }
         NN[n1] = count;
     }
 }
 
 
-
-
-// a driver function
+// a wrapper function of the above kernel
 void Atom::find_neighbor_ON2(void)
-{
-    int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    real rc = neighbor.rc;
-    real rc2 = rc * rc; 
-    real *box = box_length;
-
-    // Find neighbours
-    gpu_find_neighbor_ON2<<<grid_size, BLOCK_SIZE>>>
-    (pbc_x, pbc_y, pbc_z, N, rc2, box, NN, NL, x, y, z);
+{ 
+    real rc2 = neighbor.rc * neighbor.rc; 
+    gpu_find_neighbor_ON2<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    (pbc_x, pbc_y, pbc_z, N, rc2, box_length, NN, NL, x, y, z);
     CUDA_CHECK_KERNEL
 }
-
 
 

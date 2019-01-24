@@ -14,12 +14,9 @@
 */
 
 
-
-
 #pragma once
+
 #include "common.cuh"
-
-
 
 
 // Parameters for neighbor list updating
@@ -27,11 +24,28 @@ struct Neighbor
 {
     int MN;               // upper bound of # neighbors for one particle
     int update;           // 1 means you want to update the neighbor list
+    int number_of_updates; // number of updates during a run
     real skin;            // skin distance 
     real rc;              // cutoff used when building the neighbor list
 };
 
 
+struct Group
+{
+    int number;             // number of groups
+
+    // GPU data
+    int *label;             // atom label
+    int *size;              // # atoms in each group
+    int *size_sum;          // # atoms in all previous groups
+    int *contents;          // atom indices sorted based on groups
+
+    // CPU data corresponding to the above GPU data
+    int* cpu_label;
+    int* cpu_size;
+    int* cpu_size_sum;
+    int* cpu_contents;
+};
 
 
 class Atom
@@ -41,10 +55,6 @@ public:
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
     int *type_local;              // local atom type (for force)
-    int *label;                   // group label 
-    int *group_size;              // # atoms in each group
-    int *group_size_sum;          // # atoms in all previous groups
-    int *group_contents;          // atom indices sorted based on groups
     real *x0; real *y0; real *z0; // for determing when to update neighbor list
     real *mass;                   // per-atom mass
     real *x; real *y; real *z;    // per-atom position
@@ -61,30 +71,27 @@ public:
     int* cpu_type;
     int* cpu_type_local;
     int* cpu_type_size;
-    int* cpu_label;
-    int* cpu_group_size;
-    int* cpu_group_size_sum;
-    int* cpu_group_contents;
+    int* cpu_layer_label;
 
     real* cpu_mass;
     real* cpu_x;
     real* cpu_y;
     real* cpu_z;
+    real* cpu_vx;
+    real* cpu_vy;
+    real* cpu_vz;
     real* cpu_box_length;
 
-    int N;                // number of atoms
-    int number_of_groups; // number of groups 
+    int N;                // number of atoms 
     int fixed_group;      // ID of the group in which the atoms will be fixed 
     int number_of_types;  // number of atom types 
     int pbc_x;           // pbc_x = 1 means periodic in the x-direction
     int pbc_y;           // pbc_y = 1 means periodic in the y-direction
     int pbc_z;           // pbc_z = 1 means periodic in the z-direction
 
-    // can be moved to integrate and ensemble
-    int deform_x = 0;
-    int deform_y = 0;
-    int deform_z = 0;
-    real deform_rate;
+    int has_velocity_in_xyz = 0;
+    int has_layer_in_xyz = 0;
+    int num_of_grouping_methods = 0;
 
     // make a structure?
     int number_of_steps; // number of steps in a specific run
@@ -92,10 +99,11 @@ public:
     real temperature1;
     real temperature2; 
     // time step in a specific run; default value is 1 fs
-    real time_step = 1.0;
+    real time_step = 1.0 / TIME_UNIT_CONVERSION;
 
     // some well defined sub-structures
     Neighbor neighbor;
+    Group group[10];
 
     Atom(char *input_dir);
     ~Atom(void);
@@ -107,8 +115,8 @@ private:
     void read_xyz_in_line_1(FILE*);
     void read_xyz_in_line_2(FILE*);
     void read_xyz_in_line_3(FILE*);
-    void find_group_size(void);
-    void find_group_contents(void);
+    void find_group_size(int);
+    void find_group_contents(int);
     void find_type_size(void);
     void initialize_position(char *input_dir);
 
@@ -122,8 +130,9 @@ private:
     void find_neighbor(void);
     void check_bound(void);
     int check_atom_distance(void);
+
+    void initialize_velocity_cpu(void);
+    void scale_velocity(void);
 };
-
-
 
 

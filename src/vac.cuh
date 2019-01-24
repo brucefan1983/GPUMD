@@ -14,7 +14,6 @@
 */
 
 
-
 #pragma once
 #include "common.cuh"
 
@@ -36,7 +35,5 @@ private:
     real *vy_all;
     real *vz_all;
 };
-
-
 
 

@@ -14,13 +14,9 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The driver class for the various integrators.
 ------------------------------------------------------------------------------*/
-
-
 
 
 #include "integrate.cuh"
@@ -35,21 +31,16 @@ The driver class for the various integrators.
 #include "force.cuh"
 
 
-
-
-
 Integrate::Integrate(void)
 {
     ensemble = NULL;
 }
 
 
-
 Integrate::~Integrate(void)
 {
     // nothing
 }
-
 
 
 void Integrate::finalize(void)
@@ -90,25 +81,26 @@ void Integrate::initialize(Atom* atom)
             ensemble = new Ensemble_BER
             (
                 type, temperature, temperature_coupling, pressure_x, 
-                pressure_y, pressure_z, pressure_coupling
+                pressure_y, pressure_z, pressure_coupling, deform_x,
+                deform_y, deform_z, deform_rate
             );
             break;
         case 21: // heat-NHC
             ensemble = new Ensemble_NHC
             (
-                type, source, sink, atom->cpu_group_size[source], 
-                atom->cpu_group_size[sink], temperature, temperature_coupling, 
-                delta_temperature, atom->time_step
+                type, source, sink, atom->group[0].cpu_size[source], 
+                atom->group[0].cpu_size[sink], temperature,
+                temperature_coupling, delta_temperature, atom->time_step
             );
             break;
         case 22: // heat-Langevin
             ensemble = new Ensemble_LAN
             (
                 type, source, sink, 
-                atom->cpu_group_size[source],
-                atom->cpu_group_size[sink],
-                atom->cpu_group_size_sum[source],
-                atom->cpu_group_size_sum[sink],
+                atom->group[0].cpu_size[source],
+                atom->group[0].cpu_size[sink],
+                atom->group[0].cpu_size_sum[source],
+                atom->group[0].cpu_size_sum[sink],
                 temperature, temperature_coupling, delta_temperature
             );
             break;
@@ -126,14 +118,10 @@ void Integrate::initialize(Atom* atom)
 }
 
 
-
-
 void Integrate::compute
 (Atom *atom, Force *force, Measure* measure)
 {
     ensemble->compute(atom, force, measure);
 }
-
-
 
 

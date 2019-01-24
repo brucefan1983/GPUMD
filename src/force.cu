@@ -14,17 +14,12 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The driver class calculating force and related quantities.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "force.cuh"
-
 #include "atom.cuh"
 #include "error.cuh"
 #include "ldg.cuh"
@@ -32,14 +27,13 @@ The driver class calculating force and related quantities.
 #include "tersoff.cuh"
 #include "rebo_mos2.cuh"
 #include "vashishta.cuh"
+#include "tersoff1988.cuh"
 #include "sw.cuh"
 #include "pair.cuh"
 #include "eam.cuh"
 #include "measure.cuh"
 
 #define BLOCK_SIZE 128
-
-
 
 
 Force::Force(void)
@@ -52,8 +46,6 @@ Force::Force(void)
     interlayer_only = 0;
     rc_max = ZERO;
 }
-
-
 
 
 Force::~Force(void)
@@ -71,8 +63,6 @@ Force::~Force(void)
 }
 
 
-
-
 static void print_type_error(int number_of_types, int number_of_types_expected)
 {
     if (number_of_types != number_of_types_expected)
@@ -81,8 +71,16 @@ static void print_type_error(int number_of_types, int number_of_types_expected)
     }
 }
 
-
-
+static int get_number_of_types(FILE *fid_potential)
+{
+	int num_of_types;
+	int count = fscanf(fid_potential, "%d", &num_of_types);
+	if (count != 1)
+	{
+		print_error("Number of types not defined for potential.\n");
+	}
+	return num_of_types;
+}
 
 void Force::initialize_one_potential(Atom* atom, int m)
 {
@@ -104,6 +102,12 @@ void Force::initialize_one_potential(Atom* atom, int m)
     { 
         potential[m] = new Tersoff2(fid_potential, atom, 2);
         print_type_error(atom->number_of_types, 2);
+    }
+    else if (strcmp(potential_name, "tersoff_1988") == 0)
+    {
+    	int num_of_types = get_number_of_types(fid_potential);
+    	print_type_error(atom->number_of_types, num_of_types);
+    	potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
     }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
@@ -187,8 +191,6 @@ void Force::initialize_one_potential(Atom* atom, int m)
 }
 
 
-
-
 void Force::initialize_two_body_potential(Atom* atom)
 {
     FILE *fid_potential = my_fopen(file_potential[0], "r");
@@ -242,8 +244,6 @@ void Force::initialize_two_body_potential(Atom* atom)
 }
 
 
-
-
 void Force::initialize_many_body_potential
 (Atom* atom, int m)
 {
@@ -267,6 +267,12 @@ void Force::initialize_many_body_potential
         potential[m] = new Tersoff2(fid_potential, atom, 2);
         print_type_error(number_of_types, 2);
     }
+    else if (strcmp(potential_name, "tersoff_1988") == 0)
+	{
+    	int num_of_types = get_number_of_types(fid_potential);
+		print_type_error(atom->number_of_types, num_of_types);
+		potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
+	}
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
         potential[m] = new SW2(fid_potential, atom, 1);
@@ -332,33 +338,6 @@ void Force::initialize_many_body_potential
 }
 
 
-
-
-void Force::initialize_layer_label(char* input_dir, int N)
-{
-    int *layer_label_cpu;
-    MY_MALLOC(layer_label_cpu, int, N); 
-    char file_layer_label[FILE_NAME_LENGTH];
-    strcpy(file_layer_label, input_dir);
-    strcat(file_layer_label, "/layer.in");
-    FILE *fid = my_fopen(file_layer_label, "r");
-    for (int n = 0; n < N; ++n)
-    {
-        int count = fscanf(fid, "%d", &layer_label_cpu[n]);
-        if (count != 1) print_error("reading error for layer.in");
-    }
-    fclose(fid);
-
-    int memory = sizeof(int) * N;
-    CHECK(cudaMalloc((void**)&layer_label, memory));
-    CHECK(cudaMemcpy(layer_label, layer_label_cpu, memory,
-        cudaMemcpyHostToDevice));
-    MY_FREE(layer_label_cpu);
-}
-
-
-
-
 void Force::initialize(char *input_dir, Atom *atom)
 {
     // a single potential
@@ -376,7 +355,10 @@ void Force::initialize(char *input_dir, Atom *atom)
         // if the intralayer interactions are to be excluded
         if (interlayer_only)
         {
-            initialize_layer_label(input_dir, atom->N);
+            int memory = sizeof(int) * atom->N;
+            CHECK(cudaMalloc((void**)&layer_label, memory));
+            CHECK(cudaMemcpy(layer_label, atom->cpu_layer_label, memory,
+                cudaMemcpyHostToDevice));
         }
 
         // the many-body part
@@ -406,8 +388,6 @@ void Force::initialize(char *input_dir, Atom *atom)
             sizeof(int) * atom->N, cudaMemcpyHostToDevice));
     }
 }
-
-
 
 
 // Construct the local neighbor list from the global one (Kernel)
@@ -477,8 +457,6 @@ static __global__ void gpu_find_neighbor_local
 }
 
 
-
-
 // Construct the local neighbor list from the global one (Wrapper)
 void Force::find_neighbor_local(Atom *atom, int m)
 {
@@ -535,15 +513,11 @@ void Force::find_neighbor_local(Atom *atom, int m)
 }
 
 
-
-
 static __device__ void warp_reduce(volatile real *s, int t) 
 {
     s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
     s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
-
-
 
 
 // get the total force
@@ -592,8 +566,6 @@ static __global__ void gpu_sum_force
 }
 
 
-
-
 // correct the total force
 static __global__ void gpu_correct_force
 (int N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
@@ -606,8 +578,6 @@ static __global__ void gpu_correct_force
         g_fz[i] -= g_f[2] / N;
     }
 }
-
-
 
 
 static __global__ void initialize_properties
@@ -635,15 +605,11 @@ static __global__ void initialize_properties
 }
 
 
-
-
 static __global__ void initialize_shc_properties(int M, real *g_fv)
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     if (n1 < M) { g_fv[n1] = ZERO; }
 }
-
-
 
 
 void Force::compute(Atom *atom, Measure* measure)
@@ -689,7 +655,5 @@ void Force::compute(Atom *atom, Measure* measure)
         CHECK(cudaFree(ftot));
     }
 }
-
-
 
 

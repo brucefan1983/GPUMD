@@ -14,26 +14,19 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The Bussi-Donadio-Parrinello thermostat:
 [1] G. Bussi et al. J. Chem. Phys. 126, 014101 (2007).
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble_bdp.cuh"
-
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3
-
-
 
 
 // These functions are from  Bussi's website
@@ -46,16 +39,12 @@ static double gasdev();
 static double gamdev(const int ia);
 
 
-
-
 Ensemble_BDP::Ensemble_BDP(int t, real T, real Tc)
 {
     type = t;
     temperature = T;
     temperature_coupling = Tc;
 }
-
-
 
 
 Ensemble_BDP::Ensemble_BDP
@@ -73,14 +62,10 @@ Ensemble_BDP::Ensemble_BDP
 }
 
 
-
-
 Ensemble_BDP::~Ensemble_BDP(void)
 {
     // nothing now
 }
-
-
 
 
 void Ensemble_BDP::integrate_nvt_bdp
@@ -91,12 +76,11 @@ void Ensemble_BDP::integrate_nvt_bdp
     real *thermo             = atom->thermo;
 
     // standard velocity-Verlet
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
 
     // get thermo
-    int N_fixed = (fixed_group == -1) ? 0 : atom->cpu_group_size[fixed_group];
+    int N_fixed = (fixed_group == -1) ? 0 : 
+        atom->group[0].cpu_size[fixed_group];
     find_thermo(atom);
 
     // re-scale the velocities
@@ -113,20 +97,18 @@ void Ensemble_BDP::integrate_nvt_bdp
 }
 
 
-
-
 // integrate by one step, with heating and cooling, using the BDP method
 void Ensemble_BDP::integrate_heat_bdp
 (Atom *atom, Force *force, Measure* measure)
 {
     int label_1 = source;
     int label_2 = sink;
-    int Ng = atom->number_of_groups;
+    int Ng = atom->group[0].number;
 
     real kT1 = K_B * (temperature + delta_temperature); 
     real kT2 = K_B * (temperature - delta_temperature); 
-    real dN1 = (real) DIM * (atom->cpu_group_size[source] - 1);
-    real dN2 = (real) DIM * (atom->cpu_group_size[sink] - 1);
+    real dN1 = (real) DIM * (atom->group[0].cpu_size[source] - 1);
+    real dN2 = (real) DIM * (atom->group[0].cpu_size[sink] - 1);
     real sigma_1 = dN1 * kT1 * 0.5;
     real sigma_2 = dN2 * kT2 * 0.5;
 
@@ -140,9 +122,7 @@ void Ensemble_BDP::integrate_heat_bdp
     CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
 
     // veloicty-Verlet
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
@@ -174,8 +154,6 @@ void Ensemble_BDP::integrate_heat_bdp
 }
 
 
-
-
 void Ensemble_BDP::compute
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -190,16 +168,10 @@ void Ensemble_BDP::compute
 }
 
 
-
-
 // The following functions are from Bussi's website
 // https://sites.google.com/site/giovannibussi/Research/algorithms
 // I have only added "static" in front of the functions, 
 // without any other changes
-
-
-
-
 static double resamplekin(double kk,double sigma, int ndeg, double taut){
 /*
   kk:    present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
@@ -217,8 +189,6 @@ static double resamplekin(double kk,double sigma, int ndeg, double taut){
   return kk + (1.0-factor)* (sigma*(resamplekin_sumnoises(ndeg-1)+rr*rr)/ndeg-kk)
             + 2.0*rr*sqrt(kk*sigma/ndeg*(1.0-factor)*factor);
 }
-
-
 
 
 static double resamplekin_sumnoises(int nn){
@@ -239,8 +209,6 @@ static double resamplekin_sumnoises(int nn){
     return 2.0*gamdev((nn-1)/2) + rr*rr;
   }
 }
-
-
 
 
 static double gamdev(const int ia)
@@ -272,8 +240,6 @@ static double gamdev(const int ia)
 }
 
 
-
-
 static double gasdev()
 {
 	static int iset=0;
@@ -295,8 +261,6 @@ static double gasdev()
 		return gset;
 	}
 }
-
-
 
 
 static double ran1()
@@ -330,7 +294,5 @@ static double ran1()
 	if ((temp=AM*iy) > RNMX) return RNMX;
 	else return temp;
 }
-
-
 
 

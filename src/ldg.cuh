@@ -14,19 +14,13 @@
 */
 
 
-
 #pragma once
-
-
-
 #define USE_LDG // this is usually faster
 #ifdef USE_LDG
     #define LDG(a, n) __ldg(a + n)
 #else
     #define LDG(a, n) a[n]
 #endif
-
-
 
 
 static __device__ void dev_apply_mic
@@ -42,7 +36,5 @@ static __device__ void dev_apply_mic
     if      (pbc_z == 1 && z12 < - lz * HALF) {z12 += lz;}
     else if (pbc_z == 1 && z12 > + lz * HALF) {z12 -= lz;}
 }
-
-
 
 

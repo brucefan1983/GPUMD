@@ -14,12 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "potential.cuh"
-
-
 
 
 struct Vashishta_Para
@@ -33,8 +29,6 @@ struct Vashishta_Para
 };
 
 
-
-
 struct Vashishta_Data
 {
     real *table; // for the two-body part
@@ -44,8 +38,6 @@ struct Vashishta_Data
     int *NN_short; // for three-body part
     int *NL_short; // for three-body part
 };
-
-
 
 
 class Vashishta : public Potential
@@ -61,7 +53,5 @@ protected:
     Vashishta_Para vashishta_para;
     Vashishta_Data vashishta_data;
 };
-
-
 
 

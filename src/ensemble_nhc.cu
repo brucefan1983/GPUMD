@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The Nose-Hoover chain thermostat
 [1] M. E. Tuckerman, Statistical Mechanics: Theory and Molecular Simulation. 
@@ -23,18 +21,13 @@ Oxford University Press, 2010.
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "ensemble_nhc.cuh"
-
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3
-
-
 
 
 Ensemble_NHC::Ensemble_NHC(int t, int N, real T, real Tc, real dt)
@@ -56,8 +49,6 @@ Ensemble_NHC::Ensemble_NHC(int t, int N, real T, real Tc, real dt)
     }
     mas_nhc1[0] *= dN;
 }
-
-
 
 
 Ensemble_NHC::Ensemble_NHC
@@ -98,14 +89,10 @@ Ensemble_NHC::Ensemble_NHC
 }
 
 
-
-
 Ensemble_NHC::~Ensemble_NHC(void)
 {
     // nothing now
 }
-
-
 
 
 //The Nose-Hover thermostat integrator
@@ -182,8 +169,6 @@ static real nhc
 }
 
 
-
-
 void Ensemble_NHC::integrate_nvt_nhc
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -205,9 +190,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     real factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     scale_velocity_global(atom, factor);
 
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
     find_thermo(atom);
 
     CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
@@ -216,8 +199,6 @@ void Ensemble_NHC::integrate_nvt_nhc
     MY_FREE(ek2);
     scale_velocity_global(atom, factor);
 }
-
-
 
 
 // integrate by one step, with heating and cooling, 
@@ -230,12 +211,12 @@ void Ensemble_NHC::integrate_heat_nhc
     int label_1 = source;
     int label_2 = sink;
 
-    int Ng = atom->number_of_groups;
+    int Ng = atom->group[0].number;
 
     real kT1 = K_B * (temperature + delta_temperature); 
     real kT2 = K_B * (temperature - delta_temperature); 
-    real dN1 = (real) DIM * atom->cpu_group_size[source];
-    real dN2 = (real) DIM * atom->cpu_group_size[sink];
+    real dN1 = (real) DIM * atom->group[0].cpu_size[source];
+    real dN2 = (real) DIM * atom->group[0].cpu_size[sink];
     real dt2 = time_step * HALF;
 
     // allocate some memory (to be improved)
@@ -262,10 +243,7 @@ void Ensemble_NHC::integrate_heat_nhc
     
     scale_velocity_local(atom, factor_1, factor_2, vcx, vcy, vcz, ke);
 
-    // veloicty-Verlet
-    velocity_verlet_1(atom);
-    force->compute(atom, measure);
-    velocity_verlet_2(atom);
+    velocity_verlet(atom, force, measure);
 
     // NHC second
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
@@ -290,8 +268,6 @@ void Ensemble_NHC::integrate_heat_nhc
 }
 
 
-
-
 void Ensemble_NHC::compute
 (Atom *atom, Force *force, Measure* measure)
 {
@@ -304,7 +280,5 @@ void Ensemble_NHC::compute
         integrate_heat_nhc(atom, force, measure);
     }
 }
-
-
 
 

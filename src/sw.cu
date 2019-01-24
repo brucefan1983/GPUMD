@@ -14,8 +14,6 @@
 */
 
 
-
-
 #include "sw.cuh"
 #include "ldg.cuh"
 #include "measure.cuh"
@@ -23,9 +21,6 @@
 #include "error.cuh"
 
 #define BLOCK_SIZE_SW 64 // 128 is also good
-
-
-
 
 
 /*----------------------------------------------------------------------------80
@@ -41,12 +36,8 @@ for the meanings of SW13 and SW16):
 ------------------------------------------------------------------------------*/
 
 
-
-
 //#define MOS2_CUTOFF_SQUARE 14.2884 // SW13
 #define MOS2_CUTOFF_SQUARE 14.5924 // SW16
-
-
 
 
 SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
@@ -62,8 +53,6 @@ SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
     CHECK(cudaMalloc((void**)&sw2_data.f12y, memory));
     CHECK(cudaMalloc((void**)&sw2_data.f12z, memory));
 }
-
-
 
 
 void SW2::initialize_sw_1985_1(FILE *fid)
@@ -87,8 +76,6 @@ void SW2::initialize_sw_1985_1(FILE *fid)
     sw2_para.lambda[0][0][0] = epsilon * lambda;
     sw2_para.cos0[0][0][0] = cos0;
 }
-
-
 
 
 void SW2::initialize_sw_1985_2(FILE *fid)
@@ -131,8 +118,6 @@ void SW2::initialize_sw_1985_2(FILE *fid)
 }
 
 
-
-
 void SW2::initialize_sw_1985_3(FILE *fid)
 {
     printf("Use three-element Stillinger-Weber potential.\n");
@@ -170,16 +155,12 @@ void SW2::initialize_sw_1985_3(FILE *fid)
 }
 
 
-
-
 SW2::~SW2(void)
 {
     CHECK(cudaFree(sw2_data.f12x));
     CHECK(cudaFree(sw2_data.f12y));
     CHECK(cudaFree(sw2_data.f12z));
 }
-
-
 
 
 // two-body part of the SW potential
@@ -193,8 +174,6 @@ static __device__ void find_p2_and_f2
     f2 = -p2/((r12-a)*(r12-a))-exp_factor*FOUR*B_over_r12power4/r12;
     f2 /= (sigma * d12);
 }
-
-
 
 
 // find the partial forces dU_i/dr_ij
@@ -300,8 +279,6 @@ static __global__ void gpu_find_force_sw3_partial
         g_potential[n1] = potential_energy;
     }
 }
-
-
 
 
 #else // [J.-W. Jiang, Nanotechnology 26, 315706 (2015)]
@@ -422,8 +399,6 @@ static __global__ void gpu_find_force_sw3_partial
 #endif
 
 
-
-
 static __global__ void gpu_set_f12_to_zero
 (int N, int N1, int N2, int *g_NN, real* g_f12x, real* g_f12y, real* g_f12z)
 {
@@ -480,7 +455,5 @@ void SW2::compute(Atom *atom, Measure *measure)
     // step 2: calculate force and related quantities
     find_properties_many_body(atom, measure, NN, NL, f12x, f12y, f12z);
 }
-
-
 
 

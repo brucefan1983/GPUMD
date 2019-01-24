@@ -18,24 +18,23 @@
 #include "common.cuh"
 
 
-class HNEMD
+class Run
 {
 public:
-
-    int compute = 0;
-    int output_interval;   // average the data every so many time steps
-
-    // the driving "force" vector (in units of 1/A)
-    real fe_x = 0.0;
-    real fe_y = 0.0;
-    real fe_z = 0.0;
-    real fe = 0.0; // magnitude of the driving "force" vector
-
-    real *heat_all;
-
-    void preprocess(Atom *atom);
-    void process(int, char*, Atom*, Integrate*);
-    void postprocess(Atom*);
+    Run(char*, Atom*, Force*, Integrate*, Measure*);
+    ~Run(void);
+private:
+    void initialize_run(Atom*, Integrate*, Measure*);
+    void run(char*, Atom*, Force*, Integrate*, Measure*, int);
+    void parse
+    (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);
+    void print_velocity_and_potential_error_1(void);
+    void print_velocity_and_potential_error_2(void);
+    void check_potential(char*, int, int, Atom*, Force*, Measure*);
+    void check_velocity(int, int, Atom*);
+    void check_run(char*, int, int, Atom*, Force*, Integrate*, Measure*);
+    int number_of_times_velocity = 0;
+    int number_of_times_potential = 0;
 };
 
 

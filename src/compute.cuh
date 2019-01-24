@@ -14,12 +14,9 @@
 */
 
 
-
-
 #pragma once
+
 #include "common.cuh"
-
-
 
 
 class Compute
@@ -29,10 +26,12 @@ public:
     int compute_potential = 0;
     int compute_force = 0;
     int compute_virial = 0;
-    int compute_heat_current = 0;
+    int compute_jp = 0;
+    int compute_jk = 0;
 
     int sample_interval = 1;
-    int use_new_group = 0;
+    int output_interval = 1;
+    int grouping_method = 0;
 
     void preprocess(char*, Atom*);
     void postprocess(Atom* atom, Integrate*);
@@ -42,6 +41,7 @@ private:
     FILE* fid;
 
     real* cpu_group_sum;
+    real* cpu_group_sum_ave;
     real* gpu_group_sum;
     real* gpu_per_atom_x;
     real* gpu_per_atom_y;
@@ -51,7 +51,5 @@ private:
 
     void output_results(Atom*, Integrate*);
 };
-
-
 
 

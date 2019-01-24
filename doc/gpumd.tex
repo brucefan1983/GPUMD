@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 2.1\\
+   Version 2.2\\
    \vspace*{1.0cm}
-   (Jan 13, 2018)\\
+   (Jan 18, 2018)\\
   \vspace*{2.0cm}
   }
   \large
@@ -224,7 +224,7 @@ We are working on implementing more integration methods.
 
 \subsection{Major changes introduced in version 1.2}
 \begin{enumerate}
-\item In the previous versions, the initial velocities have zero linear momentum but generally nonzero angular momentum. This will not result in rotation of the system if periodic boundary conditions are applied in two or three directions, but will result in rotation in systems with only one or no periodic direction. In version 1.2, both linear and angular momenta of the initial velocities are zeroed.
+\item In the previous versions, the initial velocities have zero linear momentum but generally nonzero angular momentum. This will not result in rotation of the system if periodic boundary conditions are applied in two or three directions, but will result in rotation in systems with only one or no periodic direction. In version 1.2, both linear and angular momenta of the initial velocities are zeroed. \textcolor{red}{The thermal conductivity results for a carbon nanotube in \cite{fan2015prb} suffer from this nonzero angular momentum, although the effects are not significant enough to change any conclusion presented in that paper.}
 \end{enumerate}
 
 \subsection{Major changes introduced in version 1.3}
@@ -277,7 +277,17 @@ We are working on implementing more integration methods.
 
 \subsection{Major changes introduced in version 2.1}
 \begin{enumerate}
-    \item Implemented (by the new contributor Alexander J. Gabourie) a general version of the spectral heat current (SHC) method. The previous version assumed that one atom from one group of the interface has at most one neighbor from the other group of the (imaginary) interface.
+    \item Implemented (by the new contributor Alexander J. Gabourie) a general version of the spectral heat current (SHC) method. The previous version assumed that one atom from one side of the interface has at most one neighbor from the other side of the interface.
+\end{enumerate}
+
+\subsection{Major changes introduced in version 2.2}
+\begin{enumerate}
+    \item Improved the code structure and fixed a few memory bugs introduced in versions 2.0 and 2.1.
+    \item Changed the data format in the \verb"xyz.in" file. The \verb"layer.in" file is not used any more and the data in it should be included in the \verb"xyz.in" file, if needed. By renaming the \verb"xyz.in" file as something like \verb"foo.xyz", it can now be read by the \verb"VMD" (\url{https://www.ks.uiuc.edu/Research/vmd/}) code.
+    \item Changed the output of the  \verb"dump_position" command. It now produces a \verb"move.xyz" file instead of the old \verb"xyz.out" file. The \verb"move.xyz" file can be read by the \verb"VMD" code.
+    \item Added a \verb"dump_restart" command, which will produce a file named \verb"restart.out", which contains data in the format as in the \verb"xyz.in" file.
+    \item The \verb"compute_temp" command has been replaced by the more general \verb"compute" command.
+    \item Added the \verb"deform" command, which can be used to compute the stress-strain relation.
 \end{enumerate}
 
 \section{TODO List}
@@ -285,13 +295,12 @@ We are working on implementing more integration methods.
 Here I list a few features which I will hopefully implement the next couple of years:
 \begin{itemize}
 \item More Tersoff-type potentials
-\item Spline-based EAM potential
-\item The ADP potential
+\item More EAM-type potentials, including the ADP and MEAM potentials
 \item Machine-learning potentials
-\item The NPT integrator based on the MTK equation
-\item Multi-GPU version of GPUMD
-\item Potential fitting
+\item Potential fitting using the Genetic Algorithm
+\item The NPT integrator based on the MTK equation and triclinic box
 \item Lattice dynamics (harmonic and anharmonic)
+\item Multi-GPU version of GPUMD
 \end{itemize}
 
 
@@ -330,12 +339,13 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has about 15 000 lines of code. The structure of the code is as follows:
+The current version of GPUMD has about 13 500 lines of code. The structure of the code is as follows:
 \begin{itemize}
 \item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
 
+\item The  \verb"GPUMD" class (files \verb"gpumd.cuh" and \verb"gpumd.cu") simply uses the other classes,  \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure", and \verb"Run", to do a simulation for a given input directory. \textcolor{red}{There are two files here.}
 
-\item The \verb"GPUMD" class is implemented in these files: \verb"gpumd.cuh", \verb"gpumd.cu", \verb"run.cu", \verb"check_run.cu", and \verb"parse.cu". \textcolor{red}{There are 5 files in total here.} This class controls the overall flow of the code. The \verb"GPUMD" class uses all the other major classes: \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure". 
+\item The \verb"Run" class is implemented in these files: \verb"run.cuh", \verb"run.cu",  \verb"read_file.cuh", \verb"read_file.cu", and \verb"parse.cu". \textcolor{red}{There are 5 files in total here.} This class controls the overall flow of the code. 
 
 \item The \verb"Atom" class contains the major data related to the atoms (such as the various per-atom physical quantities, the simulation box, the neighbor list, etc) and functions used to initializing and finalizing these data. This class involves the files \verb"atom.cuh", \verb"atom.cu", \verb"velocity.cu", \verb"neighbor.cu", \verb"neighbor_ON1.cu", and \verb"neighbor_ON2.cu". \textcolor{red}{There are 6 files in total here.}
 
@@ -354,7 +364,7 @@ The current version of GPUMD has about 15 000 lines of code. The structure of th
 \item There are two files named \verb"validate.cuh" and \verb"validate.cu" which are only used by the developers. \textcolor{red}{Two files here.}
 \end{itemize}
 
-How many files in total? \textcolor{red}{60!}
+How many files in total? \textcolor{red}{62!}
 
 
 \section{Coding style of GPUMD}
@@ -365,6 +375,8 @@ Every programmer has his own coding style. Here is an incomplete list of convent
 \item Define variables as late as possible.
 \item Use four spaces to indent. 
 \item Keep every line no longer than 80 characters.
+\item Use at most one blank line between two statements in a function.
+\item Use two blank lines between two functions.
 \item Use the Allman style for brace placement. An example is:
     \begin{verbatim}
         for (int n = 0; n < 10; ++n) 
@@ -483,7 +495,7 @@ n_z = \lfloor z / r_c \rfloor;
 \begin{equation}
 n = n_x + N_x n_y + N_x N_y n_z.
 \end{equation}
-The cell index in the $x$-direction is required to be no less then 0 and no larger than $N_x-1$. That is, when $n_x < 0$, we increase $n_x$ by $N_x$; when $n_x \geq N_x$, we decrease $n_x$ by $N_x$. The other directions have similar requirements.
+The cell index in the $x$-direction is required to be no less than 0 and no larger than $N_x-1$. That is, when $n_x < 0$, we increase $n_x$ by $N_x$; when $n_x \geq N_x$, we decrease $n_x$ by $N_x$. The other directions have similar requirements.
 
 We then calculate the prefix sum (exclusive scan) $S_n$ of $C_n$:
 \begin{equation}
@@ -953,7 +965,7 @@ We can see that in the velocity-Verlet integrator, the position updating can be 
 
 \subsection{Berendsen thermostat and barostat}
 
-Using the Berendsen thermostat, the integration algorithm in the $NVT$ ensemble only requires an extra scaling of all the velocity components, as shown in Algorithm \ref{algorithm:Berendsen-NVT}. For the $NPT$ ensemble, the Berendsen barostat requires an extra scaling of positions and box lengths, as shown in Algorithm \ref{algorithm:Berendsen-NPT}. The Berendsen thermostat and barosat are very suitable for equilibrating the system to a target temperature and pressure.
+Using the Berendsen thermostat, the integration algorithm in the $NVT$ ensemble only requires an extra scaling of all the velocity components, as shown in Algorithm \ref{algorithm:Berendsen-NVT}. For the $NPT$ ensemble, the Berendsen barostat requires an extra scaling of positions and box lengths, as shown in Algorithm \ref{algorithm:Berendsen-NPT}. The Berendsen thermostat and barostat are very suitable for equilibrating the system to a target temperature and pressure.
 
 \begin{algorithm}[htb]
 \caption{The whole time-stepping in the $NVT$ ensemble using the Berendsen method. }
@@ -1706,8 +1718,9 @@ If $f$ is a function of $x$, then $f'(x)$ is understood as $\partial f / \partia
 
 In the force evaluation kernel for any potential model, the key quantities to be calculated are $\frac{\partial U_{i}}{\partial \vect{r}_{ij}}$  and $\frac{\partial U_{j}}{\partial \vect{r}_{ji}}$, the latter being related to the former by an exchange of the indices, $i\leftrightarrow j$. We thus need to derive an explicit expression of $\frac{\partial U_{i}}{\partial \vect{r}_{ij}}$ for each potential model. This is trivial for two-body potentials and we only present expressions for many-body potentials. We will call $\frac{\partial U_{i}}{\partial \vect{r}_{ij}}$ the \textbf{partial force}.
 
+\section{Two-body (Pairwise) potentials}
 
-\section{The Lennard-Jones potential}
+\subsection{The Lennard-Jones potential}
 
 The Lennard-Jones potential is one the most simplest two-body potentials used in MD simulations. The pair potential between particle $i$ and $j$ is
 \begin{equation}
@@ -1752,7 +1765,7 @@ If there are three atom types, the potential file reads
 I hope the reader can understand the pattern and figure out how to prepare potential files with four and five atom types. 
 
 
-\section{The rigid-ion potential}
+\subsection{The rigid-ion potential}
 
 By rigid-ion potential, we mean a potential model consisting of a short range part in the Buckingham form
 \begin{equation}
@@ -1785,7 +1798,7 @@ Currently, the potential only applies to systems with two atom types. The potent
 \end{verbatim}
 
 
-\section{The EAM potential}
+\section{The EAM-type potentials}
 
 This is a simple many-body potential. The site potential energy is
 \begin{equation}
@@ -1911,7 +1924,14 @@ The potential file for this potential model reads
 
 \textbf{To be written and implemented.}
 
-\section{The Stillinger-Weber potential}
+\subsection{The MEAM potential}
+
+\textbf{To be written and implemented.}
+
+
+\section{The Stillinger-Weber-type potentials}
+
+\subsection{The Stillinger-Weber potential}
 
 Here we consider the original Stillinger-Weber potential as proposed by Stillinger and Weber in 1985 \cite{stillinger1985prb}.
 The total potential energy consists of a two-body part and a three-body part. The site potential is
@@ -2016,7 +2036,7 @@ If there are three atom types, the potential file reads:
 Do we need to consider more than three atom types? I don't think so. So stop here. 
 
 
-\section{The Vashishta potential}
+\subsection{The Vashishta potential}
 
 The Vashishta potential \cite{vashishta2007jap} is essentially a pairwise potential plus a modified form of the three-body part of the SW potential. Therefore, the site potential can be written in the same form as the SW potential:
 \begin{equation}
@@ -2077,7 +2097,9 @@ Note:
 \end{itemize}
 
 
-\section{The Tersoff potential}
+\section{The Tersoff-type potentials}
+
+\subsection{The Tersoff-1989 potential}
 
 There are many variants of the Tersoff potential. In the current version of GPUMD, we only consider the form as described in Ref. \cite{tersoff1989prb} published in 1989.
 
@@ -2162,7 +2184,7 @@ The potential file for the double-element version reads
 \end{verbatim}
 
 
-\section{The modified Tersoff potential for silicon systems}
+\subsection{The modified Tersoff potential for silicon systems}
 
 \textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
 
@@ -2220,9 +2242,7 @@ The partial force can be derived to be
    g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
 \end{align}
 
-
-
-\section{The REBO potential for Mo-S systems}
+\subsection{The REBO potential for Mo-S systems}
 
 Here, we discuss the REBO (reactive empirical bond-order) potential for Mo-S systems developed by Liang \textit{et al.} \cite{liang2009prb}. The erratum \cite{liang2012prb_erratum} should be consulted for improved and extra model parameters which are missing from the original article. This REBO potential is just slightly more complicated than the Tersoff potential. Note that there is also a long-range Lennard-Jones part.
 
@@ -2285,131 +2305,9 @@ rebo_mos2
 # the parameters are thus hard coded
 \end{verbatim}
 
-
-
-\section{The REBO potential for silicon systems}
-
-
-\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
-
-Here, we discuss the REBO (reactive empirical bond-order) potential for silicon systems developed by Schall \textit{et al.} \cite{schall2008prb},  which  is essentially the Tersoff potential. 
-
-
-The site potential takes the same general form as in the case of the Tersoff potential:
-\begin{equation}
-U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right].
-\end{equation}
-The cutoff function $f_{C}(r)$ is identical to that in the Tersoff potential. The repulsive function $f_{R}(r)$ takes a different form than that in the Tersoff potential:
-\begin{equation}
-f_{R}(r) = \left(1+\frac{Q}{r}\right) A e^{-\alpha r},
-\end{equation}
-where $Q$, $A$, and $\alpha$ are material-specific parameters. The attractive function $f_{A}(r)$ is
-\begin{equation}
-f_{A}(r) = B_1 e^{-\beta_1 r} + B_2 e^{-\beta_2 r} + B_3 e^{-\beta_3 r},
-\end{equation}
-where $B_1$, $B_2$, $B_3$, $\beta_1$, $\beta_2$, and $\beta_3$ are material-specific parameters.
-
-The bond order function in this REBO potential is
-\begin{equation}
-b_{ij} =\left(1 + \zeta_{ij}\right)^{-1/2},
-\end{equation}
-where
-\begin{equation}
-\zeta_{ij} = \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}) \right].
-\end{equation}
-The angular function  $g_{ijk}(\cos\theta_{ijk})$ is given by splines.
-
-The partial force can be derived to be
-\begin{align}
-\frac{\partial U_i}{\partial \vect{r}_{ij}}
-&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-b_{ij}f_A(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-b_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C'(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}g_{ijk} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})f_A(r_{ij})b'_{ij}\sum_{k\neq i,j}f_C(r_{ik})  g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
-&- \frac{1}{2}f_C(r_{ij})\sum_{k\neq i,j}f_C(r_{ik})f_A(r_{ik})b'_{ik}  g'_{ijk}
-   \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}}. \nonumber \\
-\end{align}
-This is formally the same as in the case of the Tersoff potential.
-
-
-
-\section{The EDIP potential for silicon}
-
-
-\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
-
-We next consider the EDIP potential for silicon \cite{bazant1997prb,justo1998prb}. The total potential energy consists of a two-body part and a three-body part. Site potential
-\begin{equation}
-U_i = U_i^{(2)} + U_i^{(3)};
-\end{equation}
-\begin{equation}
-U_i^{(2)} = \frac{1}{2}\sum_{j\neq i} V^{(2)}_{ij}(r_{ij}, Z_i);
-\end{equation}
-\begin{equation}
-U_i^{(3)} = \frac{1}{2}\sum_{j\neq i}\sum_{k\neq i,j}  V^{(3)}_{ijk} \left(\vect{r}_{ij}, \vect{r}_{ik},  Z_i \right).
-\end{equation}
-The effective coordination number $Z_i$ is defined as
-\begin{equation}
-Z_i = \sum_{k\neq i} f(r_{ik}).
-\end{equation}
-where $f(r)$ is a cutoff function which is 1 when $r<c$ and 0 when $r>a$, and takes the value in between:
-\begin{equation}
-f(r) = \exp\left( \frac{\alpha}{1-x^{-3}}\right); ~ x = \frac{r-c}{a-c}.
-\end{equation}
-
-The two-body part is
-\begin{equation}
-V^{(2)}_{ij}(r_{ij},Z_i) =  A
-\left[ \left( \frac{B }{ r_{ij} } \right)^{\rho}- e^{-\beta Z_i^2} \right]
-\exp\left(   \frac{\sigma}{ r_{ij} - a} \right)
-\end{equation}
-and the three-body part is
-\begin{equation}
-V^{(3)}_{ijk}(\vect{r}_{ij}, \vect{r}_{ik}, Z_i) =
-\exp\left(   \frac{\gamma}{ r_{ij} - a} \right)
-\exp\left(   \frac{\gamma}{ r_{ik} - a} \right)
-h \left(\cos \theta_{ijk} , Z_i \right).
-\end{equation}
-The angular function is
-\begin{equation}
-h \left(x , Z \right) =
-\lambda \left[1 - e^{ -Q_0 e^{-\mu Z} (x + \tau(Z))^2}  + \eta Q_0 e^{-\mu Z} (x + \tau(Z))^2 \right],
-\end{equation}
-where
-\begin{equation}
-\tau(Z) = u_1 + u_2(u_3 e^{-u_4 Z} - e^{-2u_4 Z} ).
-\end{equation}
-
-Both $U^{(2)}$ and $U^{(3)}$ contain three-body effects. The partial force for the $U^{(2)}$ part is
-\begin{align}
-\frac{\partial U^{(2)}_i}{\partial \vect{r}_{ij}}
-&= \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial r_{ij}} \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2} \frac{\partial V^{(2)}_{ij}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
-&+ \frac{1}{2} \sum_{k\neq i,j} \frac{\partial V^{(2)}_{ik}}{\partial Z_{i}} f'_{ij}(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
-\end{align}
-The partial force for the $U^{(3)}$ part is
-\begin{align}
-\frac{\partial U^{(3)}_i}{\partial \vect{r}_{ij}}
-&= \sum_{k\neq i,j} 
-\left[
-\left( \frac{\partial V^{(3)}_{ijk}}{\partial r_{ij}} + \frac{\partial V^{(3)}_{ijk}}{\partial Z_{i}} f'(r_{ij} ) \right)
-\frac{\partial r_{ij}}{\partial \vect{r}_{ij}}
-+ \frac{\partial V^{(3)}_{ijk}}{\partial \cos\theta_{ijk}} \frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} 
-\right]
- \nonumber \\
-&+ \frac{1}{2} \sum_{k\neq i,j} \sum_{m\neq i,j} \frac{\partial V^{(3)}_{ikm}}{\partial Z_{i}} f'(r_{ij}) \frac{\partial r_{ij}}{\partial \vect{r}_{ij}}.
-\end{align}
-
-\section{The analytical bond-order potential}
-
-
-\textbf{Note: This potential has not been implemented in GPUMD yet, but is in my TODO list.}
-
 \section{Mixed potentials}
 
 This is explained in the next chapter when we discuss the \verb"potentials" keyword in the \verb"run.in" file.
-
 
 \chapter{Using GPUMD \label{chapter:usage}}
 
@@ -2420,7 +2318,6 @@ After downloading and unpacking GPUMD, one can see the following folders:
 \item \verb"examples", which contains all the examples (each in a sub-folder) we have prepared
 \item \verb"doc", which contains the source files for the manual
 \end{itemize}
-
 
 \section{Compile and run GPUMD}
 
@@ -2448,7 +2345,7 @@ Here are the possible \verb"-DFLAG"s:
 \item \verb"-DUSE_SP"\\
 When this is specified, the code will be compiled as a single-precision version. We do not recommend to use this version, but the users can try.
 \item \verb"-DDEBUG"\\
-When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will make sure to get exactly the same output for the same input. However, due to some limitations of the current implementation of GPUMD, the code will always use the $O(N^2)$ version to generate the neighbor list, which is not efficient for large systems. 
+When this is specified, the code will use the same seed to initialize the random number generator for initializing the velocities. This will make sure to get exactly the same output for the same input.
 \end{itemize}
 
 
@@ -2509,28 +2406,39 @@ The next two sections are devoted to describing the structures of the input and 
 
 A file named \verb"xyz.in" should be prepared and should have the following format (empty lines and comments are not allowed):
 \begin{verbatim}
-    N      M       cutoff
+    N M cutoff has_velocity has_layer number_of_grouping_methods
     pbc_x  pbc_y   pbc_z  L_x L_y L_z
-    type_1 group_1 mass_1 x_1 y_1 z_1
-    type_2 group_2 mass_2 x_2 y_2 z_2
+    t1 x1 y1 z1 m1 [vx1] [vy1] [vz1] [layer1] [group1_1] [group2_1] ...
+    t2 x2 y2 z2 m2 [vx2] [vy2] [vz2] [layer1] [group1_2] [group2_2] ...
     ...
-    type_N group_N mass_N x_N y_N z_N
 \end{verbatim}
 We explain line by line:
 \begin{itemize}
-\item In the first line, \verb"N" is the number of atoms, \verb"M" is the maximum possible number of neighbor atoms for one atom, and \verb"cutoff" is the initial cutoff distance used for building the neighbor list. \textcolor{red}{Warning! It's the responsibility of the user to use a large enough value of M. If some atom has more than M neighbors during the simulation, unexpected error may occur and there may be no useful error message. If M is too large, it just wastes some memory. } 
+\item In the first line, 
+\begin{itemize}
+\item \verb"N" is the number of atoms.
+\item \verb"M" is the maximum possible number of neighbor atoms for one atom. \textcolor{red}{Warning! It's the responsibility of the user to use a large enough value of M. If some atom has more than M neighbors during the simulation, unexpected error may occur and there may be no useful error message. If M is too large, it just wastes some memory. } 
+\item \verb"cutoff" is the \textbf{initial} cutoff distance used for building the neighbor list. 
+\item \verb"has_velocity" can be 1 or 0, which means this file contains or does not contain the initial velocities, respectively.  See the explanations for the third line below for further details.
+\item \verb"has_layer" can be 1 or 0, which means this file contains or does not contain the layer index used for some mixed potentials, respectively. See the \verb"potentials" keyword in the \verb"run.in" file.  See the explanations for the third line below for further details.
+\item \verb"number_of_grouping_methods" can be integers from 0 to 10, which is the number of grouping methods that can be referred to in some keywords in the \verb"run.in" file.  See the explanations for the third line below for further details.
+\end{itemize}
 \item In the second line, \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z" can only be 1 or 0. If \verb"pbc_x" is 1, it means that periodic boundary conditions will be applied to the $x$ direction; if \verb"pbc_x" is 0, it means that free boundary conditions will be applied to the $x$ direction. Similar descriptions apply to the other two directions. The next three items in the second line, \verb"L_x", \verb"L_y", and \verb"L_z", are the initial lengths of the (rectangular) simulation box along the $x$, $y$, and $z$ directions, respectively.
-\item In the third line, \verb"type_1", \verb"group_1", and \verb"mass_1" are respectively the type, group label, and mass of the first atom. The next three items, \verb"x_1", \verb"y_1", and \verb"z_1", are the coordinates of this atom.
+\item In the third line, 
+\begin{itemize}
+\item \verb"t1" is the type of atom 1. The atom type will be used to determine which potential parameters to use. \textcolor{red}{We use integers to record the atom types and the indices start from 0.}
+\item \verb"x1", \verb"y1", and \verb"z1" are the coordinates of this atom.
+\item  \verb"m1" is the mass of this atom.
+\item if  \verb"has_velocity" is 1, the next 3 items are the initial velocities of this atom.
+\item if \verb"has_layer" is 1, the next item is the layer label of this atom. That is, the number specifies which ``layer'' of the material this atom belongs to. This is only used in some mixed potentials when you use the \verb"potentials" keyword in the \verb"run.in" file.  \textcolor{red}{We use integers to record the layer labels and the numbers can be arbitrary because they are only used to distinguish the different layers.}
+\item if \verb"number_of_grouping_methods" is larger than zero, the next items are the group labels of this atom in these grouping methods. That is, \verb"group1_1" specifies which group this atom belongs to using the first grouping method; \verb"group2_1" specifies which group this atom belongs to using the second grouping method... \textcolor{red}{We use integers to record the group labels and the indices start from 0.} The group labels will be used for some keywords in the \verb"run.in" file. 
+\end{itemize}
 \item Similarly, the $(m+2)$th line gives the information for the $m$th atom. This file should have \verb"N+2" lines.
 \end{itemize}
 
+The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA). Velocities should be in the natural units adopted in \verb"GPUMD", i.e., eV$^{1/2}$ amu$^{-1/2}$. This is usually guaranteed, because one will probably use the \verb"dump_restart" command to produce an \verb"xyz.in" file which contains the velocity data. Otherwise, one would probably not prepare velocity data in the \verb"xyz.in" file.
 
-
-
-The atom type will be used to determine which potential parameters to use. The group label will be used for some other purposes such as calculating the block temperatures in NEMD simulations or realize fixed boundaries. We use integers to record the atom types and group labels and the indices start from 0. Explicit examples will be presented in the next chapter.
-
-The mass should be given in units of the unified atomic mass unit (amu). The cutoff distance, box lengths and atom coordinates should be given in units of angstrom (\AA).
-
+\textcolor{red}{Important Note}: All the keywords but \verb"compute" in the \verb"run.in" file will use the first grouping method and there is no need (or no way) to choose a grouping method for these keywords. In contrast, one needs to specify a grouping method for the \verb"compute" keyword. This might be changed in a future version. The user needs to make sure that the required grouping data have been properly prepared in the xyz.in file.
 
 \subsection{The run.in input file}
 
@@ -2550,13 +2458,16 @@ The overall structure of a \verb"run.in" file is as follows:
     time_step
     neighbor
     fix
+    deform
     dump_thermo
     dump_position
+    dump_restart
     dump_velocity
     dump_force
     dump_potential
     dump_virial
-    compute_temp
+    dump_heat
+    compute
     compute_shc
     compute_vac
     compute_hac
@@ -2590,7 +2501,7 @@ When it is 5, two potentials need to be specified and the command reads:
 \begin{verbatim}
     potentials file1 flag file2 n1 n2
 \end{verbatim}
-Here, \verb"file1" is the filename for a two-body potential acting on the whole system (for all the atom types), \verb"file2" is the filename for a many-body potential acting on atoms from type \verb"n1" to type \verb"n2". The parameter \verb"flag" can only be set to 0 or 1, where 1 means that the two-body potential will not act on atoms from the same ``layer''. In this case, one has to prepare a file named \verb"layer.in" in the working directory which contains the ``layer'' label of each atom.
+Here, \verb"file1" is the filename for a two-body potential acting on the whole system (for all the atom types), \verb"file2" is the filename for a many-body potential acting on atoms from type \verb"n1" to type \verb"n2". The parameter \verb"flag" can only be set to 0 or 1, where 1 means that the two-body potential will not act on atoms from the same ``layer''. In this case, one has to set the parameter \verb"has_layer_in_xyz" to 1 in \verb"xyz.in" and provide the required data there.
 
 When the number of parameters is 8, three potentials need to be specified and the command reads:
 \begin{verbatim}
@@ -2600,7 +2511,7 @@ The only difference compared to the case of 5 parameters is that here we have an
 
 We give two explicit examples below.
 
-In the first example, let us consider simulating bilayer graphene. There is only one atom type and we can use the Tersoff potential for all the carbon atoms. However, one usually assume that there is an inter-layer Lennard-Jones potential (van der Waals interaction) which should not acting between atoms from the same layer. In this case, one can use the following command to specify two potentials for the system:
+In the first example, let us consider simulating bilayer graphene. There is only one atom type and we can use the Tersoff potential for all the carbon atoms. However, one usually assumes that there is an inter-layer Lennard-Jones potential (van der Waals interaction) which should not acting between atoms from the same layer. In this case, one can use the following command to specify two potentials for the system:
 \begin{verbatim}
     potentials lj_file 1 tersoff_file 0 0
 \end{verbatim}
@@ -2609,7 +2520,7 @@ Here,  the first parameter \verb"lj_file" specifies the Lennard-Jones potential 
     lj1
     epsilon sigma cutoff
 \end{verbatim}
-The second parameter 1 means that we need to prepare a file \verb"layer.in" in the working directory which contains the ``layer'' label of each atom (a single column; in the same order of the \verb"xyz.in" file). Then, atoms with the same ``layer'' label will not experience the Lennard-Jones potential. The third parameter specifies the Tersoff potential file and the last two parameters mean that the Tersoff potential will act on atoms from type 0 to type 0.
+The second parameter 1 means that we need to prepare ``layer label'' data in the  in the  \verb"xyz.in" file. Then, atoms with the same ``layer label'' will not experience the Lennard-Jones potential. The third parameter specifies the Tersoff potential file and the last two parameters mean that the Tersoff potential will act on atoms from type 0 to type 0.
 
 
 In the second example, let us consider simulating a single-layer graphene on top of a SiO$_2$ substrate. There are three atom types and we define carbon atoms as type 0, silicon atoms as type 1 and oxygen atoms as type 2. We can then use the following command to specify three potentials for the system:
@@ -2638,7 +2549,7 @@ This keyword only has one parameter, which is the initial temperature of the sys
 \begin{verbatim}
     velocity 10
 \end{verbatim}
-means that one wants to set the initial temperature to 10 K.
+means that one wants to set the initial temperature to 10 K. If there are already velocity data in the \verb"xyz.in" file, this initial temperature will not be used and the velocity data in the \verb"xyz.in" file will be used to initialize the velocities.
 
 \subsection{The ensemble keyword}
 
@@ -2696,7 +2607,7 @@ The target temperatures in the source region (with label \verb"label_source") an
 \end{itemize}
 
 
-The units of temperature and pressure for this keyword are K and GPa, respectively. The temperature coupling constant in the Berendsen method can be any positive number less than or equal to 1 and we recommend a value in the range of $[0.01,~1]$. A larger number results in a faster control of the temperature. The temperature coupling constant (the relaxation time) in the Nos\'{e}-Hoover chain, BDP, and Langevin methods is in units of the time step and is recommended to be in the range of $[100,~1000]$. Here, a larger number results in a slower control of the temperature. The pressure coupling constant in the Berenden method should be a small positive number in the unit system adopted by GPUMD. We recommend a value in the range of $[0.01,0.0001]$. For a stiffer material (such as diamond or graphene), one should use a smaller value. In practice, all these parameters should be determined by try and error.
+The units of temperature and pressure for this keyword are K and GPa, respectively. The temperature coupling constant in the Berendsen method can be any positive number less than or equal to 1 and we recommend a value in the range of $[0.01,~1]$. A larger number results in a faster control of the temperature. The temperature coupling constant (the relaxation time) in the Nos\'{e}-Hoover chain, BDP, and Langevin methods is in units of the time step and is recommended to be in the range of $[100,~1000]$. Here, a larger number results in a slower control of the temperature. The pressure coupling constant in the Berendsen method should be a small positive number in the unit system adopted by GPUMD. We recommend a value in the range of $[0.01,0.0001]$. For a stiffer material (such as diamond or graphene), one should use a smaller value. In practice, all these parameters should be determined by try and error.
 
 
 \subsection{The time step keyword}
@@ -2718,9 +2629,18 @@ This keyword only requires a single parameter, which is the skin distance (the d
 means that the neighbor list will be updated when necessary (the code determines automatically when the neighbor list needs to be updated) and the skin distance is 1 \AA. \textcolor{red}{If this keyword is absent in a run, the neighbor list will not be updated during the run.}
 
 
-\subsection{The dump thermo, dump position, dump velocity, dump force, dump potential, and dump virial keywords}
+\subsection{The dump keywords}
 
-These keywords only requires a single parameter, which is the output frequency for the relevant quantities: global thermodynamic quantities for \verb"dump_thermo", per-atom positions for  \verb"dump_position", per-atom velocities for \verb"dump_velocity",  per-atom forces for \verb"dump_force", per-atom  potential energies for \verb"dump_potential", and per-atom virial for \verb"dump_virial".
+These keywords only requires a single parameter, which is the output frequency for the relevant quantities: 
+\begin{itemize}
+\item global thermodynamic quantities for \verb"dump_thermo";
+\item trajectory for  \verb"dump_position"
+\item a restart file for  \verb"dump_restart"
+\item per-atom velocities for \verb"dump_velocity"
+\item per-atom forces for \verb"dump_force"
+\item per-atom  potential energies for \verb"dump_potential"
+\item per-atom virial for \verb"dump_virial"
+\end{itemize}
 For example, the command
 \begin{verbatim}
 dump_thermo 1000
@@ -2738,14 +2658,37 @@ fix 0
 means that atoms in group \verb"0" will be fixed during the current run.
 
 
+\subsection{The deform keyword}
 
-\subsection{The compute temp keyword}
-
-This keyword is used to compute and output the block temperatures (local temperatures in each group) and requires a single parameter which is the sampling interval for the block temperatures. For example, the command
+This keyword is used to deform the simulation box, which can be used to do tensile tests. It requires 4 parameters:
 \begin{verbatim}
-compute_temp 1000
+deform strain_rate deform_x deform_y deform_z
 \end{verbatim}
-means that the block temperatures will be computed every 1000 time steps.
+Here, \verb"strain rate" specifies the speed of the increase of the box length, which is in units of \AA~/step. For example, suppose the box length (in a given direction) in the beginning of a run is 100 \AA~and this parameter is $10^{-5}$\AA~/step, then a run with $10^6$ steps will change the box length by $10\%$. This gives a strain rate of $10^8$ s$^{-1}$ if the time step is $1$ fs. The second parameter \verb"deform_x" can be 0 or 1, where 0 means do not deform the $x$ direction and 1 means deform the $x$ direction. The last two parameters have similar meanings. 
+
+
+\subsection{The compute keyword}
+
+This keyword is used to compute and output space and time averages of various per-atom quantities. It is used in the following way:
+\begin{verbatim}
+compute grouping_method sample_interval output_interval quantity_1 quantity_2 ...
+\end{verbatim}
+Here, the first parameter  \verb"grouping_method" refers to the grouping method defined in \verb"xyz.in". This parameter should be an integer and a number $m$ means the $m+1$th grouping method in \verb"xyz.in". The second parameter \verb"sample_interval" means sampling the quantities every so many time steps and the third parameter \verb"output_interval" means averaging over so many sampled data before giving one output. For example, 
+\begin{verbatim}
+compute 0 100 10 quantity_1
+\end{verbatim}
+means using the first grouping method defined in \verb"xyz.in", sampling \verb"quantity_1" every 100 time steps and averaging over 10 data points before making an output. That is, there is only one output every $100 \times 10=1000$ time steps. 
+
+The allowed names for the quantities are:
+\begin{itemize}
+\item \verb"temperature", which is the temperature
+\item \verb"potential", which is the potential energy
+\item \verb"force", which is the force vector
+\item \verb"virial", which is the diagonal part of the virial
+\item \verb"jp", which is the potential part of the heat current vector
+\item \verb"jk", which is the kinetic part of the heat current vector
+\end{itemize}
+One can write one or more (distinct) names for this keyword.
 
 
 \subsection{The compute shc keyword}
@@ -2804,22 +2747,23 @@ are reasonably good because the number of steps ($10^7$) is 10 times as large as
 In this section, we describe the formats of the output files. The output files and the corresponding keywords (used in the \verb"run.in" file) generating them are:
 \begin{itemize}
 \item \verb"thermo.out" is generated by \verb"dump_thermo"
-\item \verb"xyz.out" is generated by \verb"dump_position"
-\item \verb"velocity.out" is generated by \verb"dump_velocity"
-\item \verb"force.out" is generated by \verb"dump_force"
+\item \verb"move.xyz" is generated by \verb"dump_position"
+\item \verb"restart.out" is generated by \verb"dump_restart"
+\item \verb"v.out" is generated by \verb"dump_velocity"
+\item \verb"f.out" is generated by \verb"dump_force"
 \item \verb"potential.out" is generated by \verb"dump_potential"
 \item \verb"virial.out" is generated by \verb"dump_virial"
+\item \verb"compute.out" is generated by \verb"compute"
 \item \verb"vac.out" is generated by \verb"compute_vac"
 \item \verb"hac.out" is generated by \verb"compute_hac"
 \item \verb"shc.out" is generated by \verb"compute_shc"
-\item \verb"temperature.out" is generated by \verb"compute_temp"
 \item \verb"kappa.out" is generated by \verb"compute_hnemd"
 \end{itemize}
 
 
 \subsection{An important note}
 
-\textcolor{red}{For all the output files, data from a new simulation will be appended to existing data. Therefore, if you do not intend to append new data to existing ones, you'd better first remove the existing output file or rename it.}
+\textcolor{red}{For all the output files but restart.out, data from a new simulation will be appended to existing data. Therefore, if you do not intend to append new data to existing ones, you'd better first remove the existing output file or rename it.}
 
 \subsection{The thermo.out file}
 
@@ -2838,40 +2782,39 @@ There are 9 columns in the thermo.out file, each containing the values of a quan
 \end{itemize}
 
 
-\subsection{The xyz.out file}
+\subsection{The move.xyz file}
 
-There are 3 columns in the xyz.out file, corresponding to the $x$, $y$, and $z$ coordinates of the system at increasing time points. For example, if there are 4 atoms (labelled from 0 to 3) and you have saved 2 frames (corresponding to $t_0$ and $t_1$) of the configuration into the \verb"xyz.out" file, the data will be arranged in the following way:
+This is in the format of the XYZ file. See \url{https://en.wikipedia.org/wiki/XYZ_file_format}.
+
+\subsection{The v.out file}
+There are 3 columns in the v.out file, corresponding to the $x$, $y$, and $z$ components of the velocities at increasing time points. For example, if there are 4 atoms (labelled from 0 to 3) and you have saved 2 frames (corresponding to $t_0$ and $t_1$) of the configuration into the \verb"v.out" file, the data will be arranged in the following way:
 \begin{verbatim}
-    x_0(t_0) y_0(t_0) z_0(t_0)
-    x_1(t_0) y_1(t_0) z_1(t_0)
-    x_2(t_0) y_2(t_0) z_2(t_0)
-    x_3(t_0) y_3(t_0) z_3(t_0)
-    x_0(t_1) y_0(t_1) z_0(t_1)
-    x_1(t_1) y_1(t_1) z_1(t_1)
-    x_2(t_1) y_2(t_1) z_2(t_1)
-    x_3(t_1) y_3(t_1) z_3(t_1)
+    vx_0(t_0) vy_0(t_0) vz_0(t_0)
+    vx_1(t_0) vy_1(t_0) vz_1(t_0)
+    vx_2(t_0) vy_2(t_0) vz_2(t_0)
+    vx_3(t_0) vy_3(t_0) vz_3(t_0)
+    vx_0(t_1) vy_0(t_1) vz_0(t_1)
+    vx_1(t_1) vy_1(t_1) vz_1(t_1)
+    vx_2(t_1) vy_2(t_1) vz_2(t_1)
+    vx_3(t_1) vy_3(t_1) vz_3(t_1)
 \end{verbatim}
 
-\subsection{The velocity.out file}
+The velocities are in the natural units used in GPUMD.
 
-Similar to the \verb"xyz.out" file, but for the velocities, in the natural unit used in GPUMD.
+\subsection{The f.out file}
 
-\subsection{The force.out file}
-
-Similar to the \verb"xyz.out" file, but for the forces, in unit of eV/\AA.
+Similar to the \verb"v.out" file, but for the forces, in units of eV/\AA.
 
 \subsection{The potential.out file}
 
-Similar to the \verb"xyz.out" file, but for the potentials in unit of eV. Note that there is
+Similar to the \verb"v.out" file, but for the potentials in units of eV. Note that there is
 only one column, as potential is a scalar.
 
 \subsection{The virial.out file}
 
-Similar to the \verb"xyz.out" file, but for the virial stresses, in unit of eV.
+Similar to the \verb"v.out" file, but for the virial stresses, in units of eV.
 Note that the three columns correspond to the three diagonal elements
 of the virial stress tensor. The off-diagonal elements are not dumped.
-
-
 
 \subsection{The vac.out file}
 This file contains the data of VAC (velocity autocorrelation) and related quantities, namely, the RDC (running diffusion coefficient) and the PDOS (phonon density of states). The data in this file are organized as follows:
@@ -2889,6 +2832,10 @@ This file contains the data of VAC (velocity autocorrelation) and related quanti
 \item column 11: DOS (in units of 1/THz) in the $z$ direction
 \end{itemize}
 
+
+\subsection{The restart.out file}
+
+This file has the same form of the xyz.in file.
 
 \subsection{The hac.out file}
 
@@ -2918,13 +2865,30 @@ Note that the HAC and the RTC have been decomposed as described in Ref. \cite{fa
 \end{equation}
 Note that the ``cross term'' introduced in Ref. \cite{fan2017prb} has been evenly attributed to the in- and out-of-plane components. This has been justified in Ref. \cite{fan2018submitted}.
 
-\subsection{The temperature.out file}
+\subsection{The compute.out file}
 
-This file contains data related to NEMD simulations of heat transport. Assuming that the system is divided into $M$ groups, then
+This file contains data produced by using the \verb"compute" command. Assuming that the system is divided into $M$ groups, then
+
 \begin{itemize}
-\item columns 1 to $M$ are the block temperatures (in units of K)
-\item the last second column is the total energy of the thermostat coupling to the heat source region (in units of eV)
-\item the last column is the total energy of the thermostat coupling to the heat sink region (in units of eV)
+
+\item if temperature is computed, there are $M$ columns of group temperatures (in units of K) from left to right
+
+
+\item if potential is computed, there are $M$ columns of group potentials (in units of eV) from left to right
+
+\item if force is computed: there are $3M$ columns of group forces (in units of eV/\AA) from left to right in the following form:
+\begin{verbatim}
+fx_1 ... fx_M  fy_1 ... fy_M  fz_1 ... fz_M
+\end{verbatim}
+
+\item if virial is computed, there are $3M$ columns of group virials (in units of eV) from left to right in a form similar to that for force
+
+\item if the potential part of the heat current is computed, there are $3M$ columns of group potential heat currents (in units of eV$^{3/2}$ amu$^{-1/2}$) from left to right in a form similar to that for force
+
+\item if the kinetic part of the heat current is computed, there are $3M$ columns of group kinetic heat currents (in units of eV$^{3/2}$ amu$^{-1/2}$) from left to right in a form similar to that for force
+
+\item if temperature is computed, the last second column is the total energy of the thermostat coupling to the heat source region (in units of eV) and the last column is the total energy of the thermostat coupling to the heat sink region (in units of eV)
+
 \end{itemize}
 
 
@@ -2957,16 +2921,19 @@ A given crystal should have a well defined average lattice constant at a given p
 
 The first few lines of the \verb"xyz.in" file created by the \verb"create_xyz.m" MATLAB script are:
 \begin{verbatim}
-    8000 4 3
-    1 1 1 54.3 54.3 54.3
-    0 0 28 0 0 0
-    0 0 28 0 2.715 2.715
-    0 0 28 2.715 0 2.715
-    0 0 28 2.715 2.715 0
+8000 4 3 0 0 0
+1 1 1 54.3 54.3 54.3
+0 0 0 0 28
+0 0 2.715 2.715 28
+0 2.715 0 2.715 28
+0 2.715 2.715 0 28
 \end{verbatim}
 The first line tells that the number of particles is 8000, the neighbor list size will be
-$8000\times 4$, and the initial cutoff distance for the neighbor list construction is 3 \AA.
-These parameters are good for silicon crystal described by the Tersoff potential, because no atom can have more than 4 neighbor atoms in the temperature range studied. One can make the second number larger, which only results in using more memory. If this number is not large enough, GPUMD will give an error message and exit. Note that all the atom types and group labels are 0 in this simulation.
+$8000\times 4$, and the initial cutoff distance for the neighbor list construction is 3 \AA. The remaining three zeros in the first line means: 1) initial velocities are not contained in this file; 2) there is no need to use layer labels; 3) there is no need to use any grouping method. The second parameter 4 in this line is good for silicon crystal described by the Tersoff potential, because no atom can have more than 4 neighbor atoms in the temperature range studied. One can make the second number larger, which only results in using more memory. If this number is not large enough, GPUMD will give an error message and exit. 
+
+In the second line, the first three ones means that all three directions are periodic. The remaining three numbers are the box lengths in the three directions. 
+
+Starting from the third line, the numbers in the first column are all 0 here, which means that all the atoms are of type 0 (single atom-type system). The next three columns are the initial coordinates of the atoms. The last column gives the masses of the atoms. Here, we consider isotopically pure Si-28 crystal. In some applications, one can consider mass disorder in a flexible way.
 
 The ``run.in'' input file is given below. The first line of command tells that the potential to be used is specified in the file \verb"potentials/si_tersoff_1989_1.txt".  The second line of the command tells that the velocities will be initialized with a temperature of 1 K. Then, the next 4 lines tell how to do the first run. This run will be in the $NPT$ ensemble, using the Berendsen method. The temperature is 1 K and the pressures are zero in all the directions. The coupling constants are 0.01 (dimensionless) and 0.0005 (in the natural unit system adopted by GPUMD) for the thermostat and the barostat, respectively. The time step for integration is 1 fs. There are $10^5$ steps for this run and the thermodynamic quantities will be output every 100 steps. After this run, there are 5 other runs with the same parameters but the target temperature. Note that the time step only needs to be set once if one is intended to use the same time step in the whole simulation. In contrast, one has to use the \verb"dump_thermo" keyword for each run in order to get outputs for each run.
 
@@ -3029,14 +2996,14 @@ In this example, we calculate the phonon density of states of graphene at 300 K
 and zero pressure. The simulated cell size is about 15 nm $\times$ 15 nm (8 640 atoms).
 The first few lines of the \verb"xyz.in" file are:
 \begin{verbatim}
-    8640 3 2.1
-    1 1 0 149.649 155.52 3.35
-    0 0 12 1.24708 0 0
-    0 0 12 0 0.72 0
-    0 0 12 0 2.16 0
-    0 0 12 1.24708 2.88 0
+8640 3 2.1 0 0 0
+1 1 0 149.649 155.52 3.35
+0 1.24708 0 0 12
+0 0 0.72 0 12
+0 0 2.16 0 12
+0 1.24708 2.88 0 12
 \end{verbatim}
-This is a stable structure with 3 neighbors for each atom when periodic boundary conditions are applied in the planar directions ($x$ and $y$). In the $z$ direction, free boundary conditions are used. Every atom is of type 0 and in group 0.
+This is a stable structure with 3 neighbors for each atom when periodic boundary conditions are applied in the planar directions ($x$ and $y$). In the $z$ direction, free boundary conditions are used. Every atom is of type 0.
 
 The \verb"run.in" file reads:
 \begin{verbatim}
@@ -3162,13 +3129,13 @@ The \verb"run.in" file for this example reads:
 
     ensemble     heat_nhc 300 100 10 1 8
     fix          0
-    compute_temp 1000
+    compute      0 100 10 temperature
     compute_shc  2 250 100000 4 5
     run          2000000
     #-------------------------------------------------------------------
 \end{verbatim}
 
-In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_nhc" ``ensemble'' type is used to generate the nonequilibrium heat current.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures will be output every 1000 integration steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat current correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat current considered flows from group 4 to group 5 (the middle interface of the simulated system).
+In this simulation, we fix the lattice constant and only control the temperature in the equilibration stage. The \verb"fix 0" command is used to realize the fixed boundary conditions by fixing the atoms in group 0. In the production stage, the \verb"heat_nhc" ``ensemble'' type is used to generate the nonequilibrium heat current.  The heat source (group 1) and the heat sink (group 8) will be maintained at 310 K and 290 K, respectively. The block temperatures (using grouping method 0) will be sampled every 100 time steps will be output every $100\times 10=1000$ time steps. The command with the keyword \verb"compute_shc" means that the nonequilibrium heat current correlation function defined in Eq. (\ref{equation:K_time}) will be computed: the sampling interval is 2, the number of correlation steps is 250, the number of steps for calculating one correlation function is 100000, and the heat current considered flows from group 4 to group 5 (the middle interface of the simulated system, using the default grouping method 0).
 
 
 \begin{figure}[ht]

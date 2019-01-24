@@ -18,24 +18,7 @@
 #include "common.cuh"
 
 
-class HNEMD
-{
-public:
-
-    int compute = 0;
-    int output_interval;   // average the data every so many time steps
-
-    // the driving "force" vector (in units of 1/A)
-    real fe_x = 0.0;
-    real fe_y = 0.0;
-    real fe_z = 0.0;
-    real fe = 0.0; // magnitude of the driving "force" vector
-
-    real *heat_all;
-
-    void preprocess(Atom *atom);
-    void process(int, char*, Atom*, Integrate*);
-    void postprocess(Atom*);
-};
+char* get_file_contents(char*);
+char* row_find_param(char*, char**, int*);
 
 

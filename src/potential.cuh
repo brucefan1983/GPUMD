@@ -14,11 +14,8 @@
 */
 
 
-
-
 #pragma once
 #include "common.cuh"
-
 
 
 class Potential
@@ -35,7 +32,5 @@ protected:
     void find_properties_many_body
     (Atom*, Measure*, int*, int*, real*, real*, real*);
 };
-
-
 
 

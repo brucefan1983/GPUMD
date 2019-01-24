@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The REBO-LJ potential
 References: 
@@ -27,8 +25,6 @@ We completely followed Ref. [3] but the epsilon parameter for S-S pairs is
 taken form Ref. [2].
 The parameters are hard coded as the potential only applies to Mo-S systems.
 ------------------------------------------------------------------------------*/
-
-
 
 
 #include "rebo_mos2.cuh"
@@ -401,8 +397,6 @@ The parameters are hard coded as the potential only applies to Mo-S systems.
 #endif
 
 
-
-
 REBO_MOS::REBO_MOS(Atom* atom)
 {
     int num = ((atom->neighbor.MN<20) ? atom->neighbor.MN : 20);
@@ -425,8 +419,6 @@ REBO_MOS::REBO_MOS(Atom* atom)
 }
 
 
-
-
 REBO_MOS::~REBO_MOS(void)
 {
     CHECK(cudaFree(rebo_mos_data.p));
@@ -439,8 +431,6 @@ REBO_MOS::~REBO_MOS(void)
     CHECK(cudaFree(rebo_mos_data.NN_short));
     CHECK(cudaFree(rebo_mos_data.NL_short));
 }
-
-
 
 
 // The repulsive function and its derivative
@@ -471,8 +461,6 @@ static __device__ void find_fr_and_frp
 }
 
 
-
-
 // The attractive function and its derivative
 static __device__ void find_fa_and_fap
 (int type12, real d12, real &fa, real &fap)
@@ -495,8 +483,6 @@ static __device__ void find_fa_and_fap
 }
 
 
-
-
 // The attractive function
 static __device__ void find_fa
 (int type12, real d12, real &fa)
@@ -514,8 +500,6 @@ static __device__ void find_fa
         fa  = REBO_MOS2_B_MS * exp(- REBO_MOS2_b_MS * d12); 
     }
 }
-
-
 
 
 // The cutoff function and its derivative
@@ -561,8 +545,6 @@ static __device__ void find_fc_and_fcp
 }
 
 
-
-
 // The cutoff function
 static __device__ void find_fc(int type12, real d12, real &fc)
 {
@@ -597,8 +579,6 @@ static __device__ void find_fc(int type12, real d12, real &fc)
         else {fc  = ZERO;}
     }
 }
-
-
 
 
 // The angular function and its derivative
@@ -705,8 +685,6 @@ static __device__ void find_g_and_gp(int type1, real x, real &g, real &gp)
 }
 
 
-
-
 // The angular function
 static __device__ void find_g(int type1, real x, real &g)
 {
@@ -762,8 +740,6 @@ static __device__ void find_g(int type1, real x, real &g)
 }
 
 
-
-
 // The coordination function and its derivative
 static __device__ void find_p_and_pp(int type1, real x, real &p, real &pp)
 {
@@ -780,8 +756,6 @@ static __device__ void find_p_and_pp(int type1, real x, real &p, real &pp)
         p = REBO_MOS2_a3_S - REBO_MOS2_a0_S * (x - ONE) - p;
     }
 }
-
-
 
 
 // get U_ij and (d U_ij / d r_ij) / r_ij for the 2-body part
@@ -854,8 +828,6 @@ static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
         else { p2 = ZERO; f2 = ZERO; }
     }
 }
-
-
 
 
 // 2-body part (kernel)
@@ -1035,8 +1007,6 @@ static __global__ void find_force_step0
 }
 
 
-
-
 // Precompute the bond-order function and its derivative 
 static __global__ void find_force_step1
 (
@@ -1105,8 +1075,6 @@ static __global__ void find_force_step1
         }
     }
 }
-
-
 
 
 // calculate and save the partial forces dU_i/dr_ij
@@ -1213,8 +1181,6 @@ static __global__ void find_force_step2
 }
 
 
-
-
 // Force evaluation wrapper
 void REBO_MOS::compute(Atom *atom, Measure *measure)
 {
@@ -1246,7 +1212,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     real *pe = atom->potential_per_atom;
     real *h = atom->heat_per_atom;
 
-    int *label = atom->label;
+    int *label = atom->group[0].label;
     int *fv_index = measure->shc.fv_index;
     int *a_map = measure->shc.a_map;
     int *b_map = measure->shc.b_map;
@@ -1342,7 +1308,5 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     find_properties_many_body
     (atom, measure, NN_local, NL_local, f12x, f12y, f12z);
 }
-
-
 
 

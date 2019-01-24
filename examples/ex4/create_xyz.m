@@ -44,9 +44,9 @@ end
 r=r(index,:);
 
 fid=fopen('xyz.in','w');
-fprintf(fid,'%d %g %g\n',N,3,2.1);
-fprintf(fid,'%d %d %d %g %g %g\n',1,1,0,a.*nxyz);
+fprintf(fid,'%d 3 2.1 0 0 1\n',N);
+fprintf(fid,'1 1 0 %g %g %g\n',a.*nxyz);
 for n=1:N
-    fprintf(fid,'%d %d %g %g %g %g\n',0,label(n),12,r(n,:));
+    fprintf(fid,'%d %g %g %g %g %d\n',0,r(n,:),12,label(n));
 end
 fclose(fid);

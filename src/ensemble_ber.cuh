@@ -15,21 +15,16 @@
 
 
 #pragma once
-
-
 #include "ensemble.cuh"
-
 
 
 class Ensemble_BER : public Ensemble
 {
 public:
     Ensemble_BER(int, real, real);   
-    Ensemble_BER(int, real, real, real, real, real, real);    
+    Ensemble_BER(int, real, real, real, real, real, real, int, int, int, real);    
     virtual ~Ensemble_BER(void);
     virtual void compute(Atom*, Force*, Measure*);
 };
-
-
 
 

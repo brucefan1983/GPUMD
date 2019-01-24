@@ -14,8 +14,6 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The EAM potential. Currently two analytical versions:
 [1] X. W. Zhou et al. Phys. Rev. B 69, 144113 (2004).
@@ -23,10 +21,7 @@ The EAM potential. Currently two analytical versions:
 ------------------------------------------------------------------------------*/
 
 
-
-
 #include "eam.cuh"
-
 #include "ldg.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
@@ -34,8 +29,6 @@ The EAM potential. Currently two analytical versions:
 
 // best block size here: 64 or 128
 #define BLOCK_SIZE_FORCE 64
-
-
 
 
 EAM::EAM(FILE *fid, Atom* atom, char *name)
@@ -47,8 +40,6 @@ EAM::EAM(FILE *fid, Atom* atom, char *name)
     // memory for the derivative of the density functional 
     CHECK(cudaMalloc((void**)&eam_data.Fp, sizeof(real) * atom->N));
 }
-
-
 
 
 void EAM::initialize_eam2004zhou(FILE *fid)
@@ -91,8 +82,6 @@ void EAM::initialize_eam2004zhou(FILE *fid)
 }
 
 
-
-
 void EAM::initialize_eam2006dai(FILE *fid)
 {
     printf("Use the EAM-type potential in the following reference:\n");
@@ -120,19 +109,10 @@ void EAM::initialize_eam2006dai(FILE *fid)
 }
 
 
-
-
 EAM::~EAM(void)
 {
     CHECK(cudaFree(eam_data.Fp));
 }
-
-
-
-
-//EAM2004Zhou
-
-
 
 
 // pair function (phi and phip have been intentionally halved here)
@@ -154,8 +134,6 @@ static __device__ void find_phi
 }
 
 
-
-
 // density function f(r)
 static __device__ void find_f(EAM2004Zhou eam, real d12, real &f)
 {
@@ -165,8 +143,6 @@ static __device__ void find_f(EAM2004Zhou eam, real d12, real &f)
     tmp *= tmp * tmp * tmp * tmp; // 20  
     f = eam.fe * exp(-eam.beta * (r_ratio - ONE)) / (ONE + tmp);
 }
-
-
 
 
 // derivative of the density function f'(r)
@@ -179,8 +155,6 @@ static __device__ void find_fp(EAM2004Zhou eam, real d12, real &fp)
     real f = eam.fe * exp(-eam.beta * (r_ratio - ONE)) / (ONE + tmp);
     fp = -(f/eam.re)*(eam.beta+20.0*tmp/(r_ratio-eam.lambda)/(ONE+tmp));
 }
-
-
 
 
 // embedding function
@@ -208,13 +182,6 @@ static __device__ void find_F(EAM2004Zhou eam, real rho, real &F, real &Fp)
 }
 
 
-
-
-// EAM2006Dai
-
-
-
-
 // pair function (phi and phip have been intentionally halved here)
 static __device__ void find_phi(EAM2006Dai fs, real d12, real &phi, real &phip)
 {
@@ -237,8 +204,6 @@ static __device__ void find_phi(EAM2006Dai fs, real d12, real &phi, real &phip)
 }
 
 
-
-
 // density function f(r)
 static __device__ void find_f(EAM2006Dai fs, real d12, real &f)
 {
@@ -252,8 +217,6 @@ static __device__ void find_f(EAM2006Dai fs, real d12, real &f)
         f = tmp  + fs.B * fs.B * tmp * tmp;
     }
 }
-
-
 
 
 // derivative of the density function f'(r)
@@ -271,8 +234,6 @@ static __device__ void find_fp(EAM2006Dai fs, real d12, real &fp)
 }
 
 
-
-
 // embedding function
 static __device__ void find_F(EAM2006Dai fs, real rho, real &F, real &Fp)
 {      
@@ -280,8 +241,6 @@ static __device__ void find_F(EAM2006Dai fs, real rho, real &F, real &Fp)
     F = -fs.A * sqrt_rho;
     Fp = -fs.A * HALF / sqrt_rho;
 }
-
-
 
 
 // Calculate the embedding energy and its derivative
@@ -348,8 +307,6 @@ static __global__ void find_force_eam_step1
         g_Fp[n1] = Fp;   
     }
 }
-
-
 
 
 // Force evaluation kernel
@@ -531,8 +488,6 @@ static __global__ void find_force_eam_step2
 }   
 
 
-
-
 // Force evaluation wrapper
 void EAM::compute(Atom *atom, Measure *measure)
 {
@@ -559,7 +514,7 @@ void EAM::compute(Atom *atom, Measure *measure)
     real *pe = atom->potential_per_atom;
     real *h = atom->heat_per_atom;   
     
-    int *label = atom->label;
+    int *label = atom->group[0].label;
     int *fv_index = measure->shc.fv_index;
     int *a_map = measure->shc.a_map;
     int *b_map = measure->shc.b_map;
@@ -702,7 +657,5 @@ void EAM::compute(Atom *atom, Measure *measure)
         }
     }
 }
-
-
 
 
