@@ -433,9 +433,9 @@ static __global__ void find_force_tersoff_step2
                 real dc=-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*gp_ijk*e_ijk_12_13+
 						-fc_ikj_12*bp13*fa_ikj_13*fc_ikj_13*gp_ikj*e_ikj_13_12;
                 // derivatives with rij
-                real dr=(-fc_ijj_12*bp12*fa_ijj_12*g_ijk*ep_ijk_12_13 +
-				  -fcp_ikj_12*bp13*fa_ikj_13*g_ikj*e_ikj_13_12 +
-				  fc_ikj_12*bp13*fa_ikj_13*g_ikj*ep_ikj_13_12)*d12inv*fc_ikj_13;
+                real dr=(-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*g_ijk*ep_ijk_12_13 +
+				  (-fcp_ikj_12*bp13*fa_ikj_13*g_ikj*e_ikj_13_12 +
+				  fc_ikj_12*bp13*fa_ikj_13*g_ikj*ep_ikj_13_12)*fc_ikj_13)*d12inv;
                 real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
                 f12x += (x12 * dr + dc * cos_d)*HALF;
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
