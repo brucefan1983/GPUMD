@@ -58,13 +58,14 @@ The version of the Tersoff potential as described in
 #define R2 10
 #define M 11
 #define ALPHA 12
-#define C2 13
-#define D2 14
-#define ONE_PLUS_C2OVERD2 15
-#define PI_FACTOR 16
-#define MINUS_HALF_OVER_N 17
+#define GAMMA 13
+#define C2 14
+#define D2 15
+#define ONE_PLUS_C2OVERD2 16
+#define PI_FACTOR 17
+#define MINUS_HALF_OVER_N 18
 
-#define NUM_PARAMS 18
+#define NUM_PARAMS 19
 
 
 Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
@@ -72,20 +73,20 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
 	num_types = num_of_types;
     printf("Use Tersoff-1988 (%d-element) potential.\n", num_types);
     int n_entries = pow(num_types,3);
-    // 13 parameters per entry of tersoff1988 + 5 pre-calculated values
+    // 14 parameters per entry of tersoff1988 + 5 pre-calculated values
     real *cpu_ters;
-    MY_MALLOC(cpu_ters, real, n_entries*18);
+    MY_MALLOC(cpu_ters, real, n_entries*NUM_PARAMS);
 
     int count;
-	double a, b,lambda, mu, beta, n, c, d, h, r1, r2, m, alpha;
+	double a, b,lambda, mu, beta, n, c, d, h, r1, r2, m, alpha, gamma;
     for (int i = 0; i < n_entries; i++)
     {
         count = fscanf
         (
-            fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
-            &a, &b, &lambda, &mu, &beta, &n, &c, &d, &h, &r1, &r2, &m, &alpha
+            fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
+            &a, &b, &lambda, &mu, &beta, &n, &c, &d, &h, &r1, &r2, &m, &alpha, &gamma
         );
-        if (count!=13) {printf("Error: reading error for potential.in.\n");exit(1);}
+        if (count!=14) {printf("Error: reading error for potential.in.\n");exit(1);}
         cpu_ters[i*NUM_PARAMS + A] = a;
         cpu_ters[i*NUM_PARAMS + B] = b;
         cpu_ters[i*NUM_PARAMS + LAMBDA] = lambda;
@@ -99,6 +100,7 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
         cpu_ters[i*NUM_PARAMS + R2] = r2;
         cpu_ters[i*NUM_PARAMS + M] = m;
         cpu_ters[i*NUM_PARAMS + ALPHA] = alpha;
+        cpu_ters[i*NUM_PARAMS + GAMMA] = gamma;
         cpu_ters[i*NUM_PARAMS + C2] = c * c;
         cpu_ters[i*NUM_PARAMS + D2] = d * d;
         cpu_ters[i*NUM_PARAMS + ONE_PLUS_C2OVERD2] = 1.0 +
@@ -124,9 +126,9 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
     CHECK(cudaMalloc((void**)&tersoff_data.f12x, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12y, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12z, memory));
-    CHECK(cudaMalloc((void**)&ters, sizeof(real) * n_entries*18));
+    CHECK(cudaMalloc((void**)&ters, sizeof(real) * n_entries*NUM_PARAMS));
     CHECK(cudaMemcpy(ters, cpu_ters,
-    		sizeof(real) * n_entries*18, cudaMemcpyHostToDevice));
+    		sizeof(real) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
 
     MY_FREE(cpu_ters);
 }
@@ -207,8 +209,9 @@ static __device__ void find_g_and_gp
 )
 {
 	real temp = ters[i + D2] + (cos - ters[i + H]) * (cos - ters[i + H]);
-	g  = ters[i + ONE_PLUS_C2OVERD2] - ters[i + C2] / temp;
-	gp = TWO * ters[i + C2] * (cos - ters[i + H]) / (temp * temp);
+	g  = ters[i + GAMMA] * (ters[i + ONE_PLUS_C2OVERD2] - ters[i + C2] / temp);
+	gp = ters[i + GAMMA] *
+			(TWO * ters[i + C2] * (cos - ters[i + H]) / (temp * temp));
 }
 
 
@@ -218,7 +221,7 @@ static __device__ void find_g
 )
 {
 	real temp = ters[i + D2] + (cos - ters[i + H]) * (cos - ters[i + H]);
-	g  = ters[i + ONE_PLUS_C2OVERD2] - ters[i + C2] / temp;
+	g  = ters[i + GAMMA] * (ters[i + ONE_PLUS_C2OVERD2] - ters[i + C2] / temp);
 }
 
 
@@ -227,10 +230,7 @@ static __device__ void find_e_and_ep
   int i, real *ters, real d12, real d13, real &e, real &ep
 )
 {
-	real arg = ters[i + ALPHA] * pow(d12 - d13, ters[i + M]);
-	if (arg > 69.0776) e = 1.e30;
-	else if (arg < -69.0776) e = 0.0;
-	else e = exp(arg);
+	e = exp(ters[i + ALPHA] * pow(d12 - d13, ters[i + M]));
 	ep = ters[i + ALPHA] * ters[i + M] * pow(d12 - d13, ters[i + M] - ONE)*e;
 }
 
@@ -239,10 +239,7 @@ static __device__ void find_e
   int i, real *ters, real d12, real d13, real &e
 )
 {
-	real arg = ters[i + ALPHA] * pow(d12 - d13, ters[i + M]);
-	if (arg > 69.0776) e = 1.e30;
-	else if (arg < -69.0776) e = 0.0;
-	else e = exp(arg);
+	e = exp(ters[i + ALPHA] * pow(d12 - d13, ters[i + M]));
 }
 
 
@@ -303,11 +300,11 @@ static __global__ void find_force_tersoff_step1
                 find_e(ijk*NUM_PARAMS, ters, d12, d13, e_ijk_12_13);
                 zeta += fc_ijk_13 * g_ijk * e_ijk_12_13;
             }
-            real bzn, b_ijj_12;
+            real bzn, b_ijj;
             int ijj = type1 * num_types2 + type2 * num_types + type2;
 			bzn = pow(ters[ijj*NUM_PARAMS + BETA] *
 					zeta, ters[ijj*NUM_PARAMS + EN]);
-			b_ijj_12 = pow(ONE + bzn, ters[ijj*NUM_PARAMS + MINUS_HALF_OVER_N]);
+			b_ijj = pow(ONE + bzn, ters[ijj*NUM_PARAMS + MINUS_HALF_OVER_N]);
             if (zeta < 1.0e-16) // avoid division by 0
             {
                 g_b[i1 * number_of_particles + n1]  = ONE;
@@ -315,9 +312,9 @@ static __global__ void find_force_tersoff_step1
             }
             else
             {
-                g_b[i1 * number_of_particles + n1]  = b_ijj_12;
+                g_b[i1 * number_of_particles + n1]  = b_ijj;
                 g_bp[i1 * number_of_particles + n1]
-                    = - b_ijj_12 * bzn * HALF / ((ONE + bzn) * zeta);
+                    = - b_ijj * bzn * HALF / ((ONE + bzn) * zeta);
             }
         }
     }
@@ -356,8 +353,6 @@ static __global__ void find_force_tersoff_step2
         real ly = LDG(g_box_length, 1);
         real lz = LDG(g_box_length, 2);
         real pot_energy = ZERO;
-
-
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int index = i1 * number_of_particles + n1;
