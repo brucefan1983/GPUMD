@@ -49,7 +49,7 @@ Measure::Measure(char *input_dir)
     strcpy(file_virial, input_dir);
     strcpy(file_heat, input_dir);
     strcat(file_thermo, "/thermo.out");
-    strcat(file_position, "/traj.xyz");
+    strcat(file_position, "/movie.xyz");
     strcat(file_restart, "/restart.out");
     strcat(file_velocity, "/v.out");
     strcat(file_force, "/f.out");
