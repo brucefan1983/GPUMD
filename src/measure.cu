@@ -49,7 +49,7 @@ Measure::Measure(char *input_dir)
     strcpy(file_virial, input_dir);
     strcpy(file_heat, input_dir);
     strcat(file_thermo, "/thermo.out");
-    strcat(file_position, "/move.xyz");
+    strcat(file_position, "/traj.xyz");
     strcat(file_restart, "/restart.out");
     strcat(file_velocity, "/v.out");
     strcat(file_force, "/f.out");
@@ -184,14 +184,14 @@ void Measure::dump_restarts(Atom *atom, int step)
     MY_FREE(cpu_box);
     for (int n = 0; n < atom->N; n++)
     {
-        fprintf(fid_restart, "%d %g %g %g %g, %g, %g ", atom->cpu_type[n],
-            atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n], 
+        fprintf(fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
+            atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n], atom->cpu_mass[n],
             atom->cpu_vx[n], atom->cpu_vy[n], atom->cpu_vz[n]);
         if (atom->has_layer_in_xyz)
         {
             fprintf(fid_restart, "%d ", atom->cpu_layer_label[n]);
         }
-        for (int m = 0; m < atom->num_of_grouping_methods; ++n)
+        for (int m = 0; m < atom->num_of_grouping_methods; ++m)
         {
             fprintf(fid_restart, "%d ", atom->group[m].cpu_label[n]);
         }
