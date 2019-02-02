@@ -80,10 +80,10 @@ void print_compile_information(void)
     printf("Compiling options:\n");
     print_line_2();
 #ifdef DEBUG
-    printf("DEBUG is on: Use a fixed PRNG seed for differnt runs.\n");
+    printf("DEBUG is on: Use a fixed PRNG seed for different runs.\n");
 #else
     srand(time(NULL));
-    printf("DEBUG is off: Use differnt PRNG seeds for differnt runs.\n");
+    printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
 #endif
 #ifndef USE_SP
     printf("USE_SP is off: Use double-precision version.\n");
@@ -91,16 +91,16 @@ void print_compile_information(void)
     printf("USE_SP is on: Use single-precision version.\n");
 #endif
 #ifdef MOS2_JIANG
-    printf("MOS2_JIANG is on: Special verison for Ke Xu.\n");
+    printf("MOS2_JIANG is on: Special version for Ke Xu.\n");
 #endif
 #ifdef MURTY_ATWATER
-    printf("MURTY_ATWATER is on: Special verison for Qi You.\n");
+    printf("MURTY_ATWATER is on: Special version for Qi You.\n");
 #endif
 #ifdef ZHEN_LI
-    printf("ZHEN_LI is on: Special verison for Zhen Li.\n");
+    printf("ZHEN_LI is on: Special version for Zhen Li.\n");
 #endif
 #ifdef CBN
-    printf("CBN is on: Special verison for Haikuan Dong.\n");
+    printf("CBN is on: Special version for Haikuan Dong.\n");
 #endif
 #ifdef FORCE
     printf("FORCE is on: Calculate initial force.\n");
