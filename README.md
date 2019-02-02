@@ -10,7 +10,7 @@
 
 * Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. We have implemented the following many-body potentials in GPUMD:
    * The EAM-type potential with some analytical forms
-   * The Tersoff (1989) potential with single or double atom types
+   * The general Tersoff potential with an arbitrary number of atom types
    * The REBO potential for Mo-S systems (2009)
    * The Stillinger-Weber (1985) potential with up to three atom types
    * The Vashishta (2007) potential (both analytical and tabulated)
