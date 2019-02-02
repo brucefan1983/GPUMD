@@ -73,13 +73,13 @@ static void print_type_error(int number_of_types, int number_of_types_expected)
 
 static int get_number_of_types(FILE *fid_potential)
 {
-	int num_of_types;
-	int count = fscanf(fid_potential, "%d", &num_of_types);
-	if (count != 1)
-	{
-		print_error("Number of types not defined for potential.\n");
-	}
-	return num_of_types;
+    int num_of_types;
+    int count = fscanf(fid_potential, "%d", &num_of_types);
+    if (count != 1)
+    {
+        print_error("Number of types not defined for potential.\n");
+    }
+    return num_of_types;
 }
 
 void Force::initialize_one_potential(Atom* atom, int m)
@@ -105,9 +105,9 @@ void Force::initialize_one_potential(Atom* atom, int m)
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
     {
-    	int num_of_types = get_number_of_types(fid_potential);
-    	print_type_error(atom->number_of_types, num_of_types);
-    	potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
+        int num_of_types = get_number_of_types(fid_potential);
+        print_type_error(atom->number_of_types, num_of_types);
+        potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
     }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
@@ -268,11 +268,11 @@ void Force::initialize_many_body_potential
         print_type_error(number_of_types, 2);
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
-	{
-    	int num_of_types = get_number_of_types(fid_potential);
-		print_type_error(atom->number_of_types, num_of_types);
-		potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
-	}
+    {
+        int num_of_types = get_number_of_types(fid_potential);
+        print_type_error(number_of_types, num_of_types);
+        potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
+    }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
         potential[m] = new SW2(fid_potential, atom, 1);
