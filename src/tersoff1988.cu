@@ -287,6 +287,7 @@ static __global__ void find_force_tersoff_step1
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 real fc_ijk_13, g_ijk, e_ijk_12_13;
                 int ijk = type1 * num_types2 + type2 * num_types + type3;
+                if (d13 > ters[ijk*NUM_PARAMS + R2]) {continue;}
                 find_fc(ijk*NUM_PARAMS, ters, d13, fc_ijk_13);
                 find_g(ijk*NUM_PARAMS, ters, cos123, g_ijk);
                 find_e(ijk*NUM_PARAMS, ters, d12, d13, e_ijk_12_13);
