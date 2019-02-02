@@ -72,11 +72,12 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
 {
 	num_types = num_of_types;
     printf("Use Tersoff-1988 (%d-element) potential.\n", num_types);
-    int n_entries = pow(num_types,3);
+    int n_entries = num_types*num_types*num_types;
     // 14 parameters per entry of tersoff1988 + 5 pre-calculated values
     real *cpu_ters;
     MY_MALLOC(cpu_ters, real, n_entries*NUM_PARAMS);
 
+    rc = 0;
     int count;
 	double a, b,lambda, mu, beta, n, c, d, h, r1, r2, m, alpha, gamma;
     for (int i = 0; i < n_entries; i++)
@@ -107,16 +108,7 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
         		cpu_ters[i*NUM_PARAMS + C2] / cpu_ters[i*NUM_PARAMS + D2];
         cpu_ters[i*NUM_PARAMS + PI_FACTOR] = PI / (r2 - r1);
         cpu_ters[i*NUM_PARAMS + MINUS_HALF_OVER_N] = - 0.5 / n;
-
-        if (i == 0)
-        {
-        	rc = cpu_ters[i*NUM_PARAMS + R2];
-        }
-        else
-        {
-        	rc = (cpu_ters[(i-1)*NUM_PARAMS + R2] > cpu_ters[i*NUM_PARAMS + R2])
-        			?  cpu_ters[(i-1)*NUM_PARAMS + R2] : cpu_ters[i*NUM_PARAMS + R2];
-        }
+        rc = r2 > rc ? r2 : rc;
     }
 
     int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
@@ -396,12 +388,13 @@ static __global__ void find_force_tersoff_step2
                 real z13 = LDG(g_z, n3) - z1;
                 dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
-                real fc_ikj_13, fc_ijk_13, fa_ikj_13, fc_ikj_12, fcp_ikj_12;
+                real fc_ikk_13, fc_ijk_13, fa_ikk_13, fc_ikj_12, fcp_ikj_12;
                 int ikj = type1 * num_types2 + type3 * num_types + type2;
+                int ikk = type1 * num_types2 + type3 * num_types + type3;
                 int ijk = type1 * num_types2 + type2 * num_types + type3;
-                find_fc(ikj*NUM_PARAMS, ters, d13, fc_ikj_13);
+                find_fc(ikk*NUM_PARAMS, ters, d13, fc_ikk_13);
                 find_fc(ijk*NUM_PARAMS, ters, d13, fc_ijk_13);
-                find_fa(ikj*NUM_PARAMS, ters, d13, fa_ikj_13);
+                find_fa(ikk*NUM_PARAMS, ters, d13, fa_ikk_13);
                 find_fc_and_fcp(ikj*NUM_PARAMS, ters, d12,
                 					fc_ikj_12, fcp_ikj_12);
                 real bp13 = LDG(g_bp, index_2);
@@ -426,11 +419,11 @@ static __global__ void find_force_tersoff_step2
 
 				// derivatives with cosine
                 real dc=-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*gp_ijk*e_ijk_12_13+
-						-fc_ikj_12*bp13*fa_ikj_13*fc_ikj_13*gp_ikj*e_ikj_13_12;
+						-fc_ikj_12*bp13*fa_ikk_13*fc_ikk_13*gp_ikj*e_ikj_13_12;
                 // derivatives with rij
                 real dr=(-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*g_ijk*ep_ijk_12_13 +
-				  (-fcp_ikj_12*bp13*fa_ikj_13*g_ikj*e_ikj_13_12 +
-				  fc_ikj_12*bp13*fa_ikj_13*g_ikj*ep_ikj_13_12)*fc_ikj_13)*d12inv;
+				  (-fcp_ikj_12*bp13*fa_ikk_13*g_ikj*e_ikj_13_12 +
+				  fc_ikj_12*bp13*fa_ikk_13*g_ikj*ep_ikj_13_12)*fc_ikk_13)*d12inv;
                 real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
                 f12x += (x12 * dr + dc * cos_d)*HALF;
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
@@ -489,7 +482,3 @@ void Tersoff1988::compute(Atom *atom, Measure *measure)
     // the final step: calculate force and related quantities
     find_properties_many_body(atom, measure, NN, NL, f12x, f12y, f12z);
 }
-
-
-
-
