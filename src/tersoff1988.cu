@@ -290,9 +290,17 @@ static __device__ void find_e_and_ep
 	if (LDG(ters, i + ALPHA) == 0.0){ e = ONE; ep = ZERO;}
 	else
 	{
-		e = exp(LDG(ters, i + ALPHA) * pow(d12 - d13, LDG(ters, i + M)));
-		ep = LDG(ters, i + ALPHA) * LDG(ters, i + M) *
-				pow(d12 - d13, LDG(ters, i + M) - ONE)*e;
+		real r = d12 - d13;
+		if (LDG(ters, i + M) == 3.0)
+		{
+			e = exp(LDG(ters, i + ALPHA) * r * r * r);
+			ep = LDG(ters, i + ALPHA) * THREE * r * r * e;
+		}
+		else
+		{
+			e = exp(LDG(ters, i + ALPHA) * r);
+			ep = LDG(ters, i + ALPHA) * e;
+		}
 	}
 }
 
@@ -310,7 +318,9 @@ static __device__ void find_e
 	if (LDG(ters, i + ALPHA) == 0.0){ e = ONE;}
 	else
 	{
-		e = exp(LDG(ters, i + ALPHA) * pow(d12 - d13, LDG(ters, i + M)));
+		real r = d12 - d13;
+		if (LDG(ters, i + M) == 3.0){ e = exp(LDG(ters, i + ALPHA) * r * r * r);}
+		else{e = exp(LDG(ters, i + ALPHA) * r);}
 	}
 }
 
