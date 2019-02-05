@@ -44,6 +44,8 @@ The version of the Tersoff potential as described in
     #define NINE_OVER_16  0.5625f
 #endif
 
+#define EPSILON 1.0e-15
+
 //Easy labels for indexing
 #define A 0
 #define B 1
@@ -77,6 +79,7 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
     real *cpu_ters;
     MY_MALLOC(cpu_ters, real, n_entries*NUM_PARAMS);
 
+    char err[50] = "Error: Illegal Tersoff parameter.";
     rc = 0;
     int count;
 	double a, b,lambda, mu, beta, n, c, d, h, r1, r2, m, alpha, gamma;
@@ -89,14 +92,34 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
         );
         if (count!=14) {printf("Error: reading error for potential.in.\n");exit(1);}
 
-        int m_int = int(m);
+        int m_int = round(m);
         // Parameter checking
-        if (a < 0.0 || b < 0.0 || lambda < 0.0 || mu < 0 || beta < 0.0 || n < 0.0 ||
-        		c < 0.0 || d < 0.0 || r1 < 0.0 || r2 < 0.0 || r2 < r1 ||
-        		m_int - m != 0 || (m_int != 3 && m_int != 1) || gamma < 0.0)
-        {
-        	printf("Error: Illegal Tersoff parameter.\n");exit(1);
-        }
+        if (a < 0.0)
+        	{printf("%s A must be >= 0.\n",err); exit(1);}
+        if (b < 0.0)
+        	{printf("%s B must be >= 0.\n",err); exit(1);}
+        if (lambda < 0.0)
+        	{printf("%s Lambda must be >= 0.\n",err); exit(1);}
+        if(mu < 0.0)
+        	{printf("%s Mu must be >= 0.\n",err); exit(1);}
+        if(beta < 0.0)
+        	{printf("%s Beta must be >= 0.\n",err); exit(1);}
+        if(n < 0.0)
+        	{printf("%s n must be >= 0.\n",err); exit(1);}
+        if(c < 0.0)
+        	{printf("%s c must be >= 0.\n",err); exit(1);}
+        if(d < 0.0)
+        	{printf("%s d must be >= 0.\n",err); exit(1);}
+        if(r1 < 0.0)
+        	{printf("%s R must be >= 0.\n",err); exit(1);}
+        if(r2 < 0.0)
+        	{printf("%s S must be >= 0.\n",err); exit(1);}
+        if(r2 < r1)
+        	{printf("%s S-R must be >= 0.\n",err); exit(1);}
+        if(m_int != 3 && m_int != 1)
+        	{printf("%s m must be 1 or 3.\n",err); exit(1);}
+        if(gamma < 0.0)
+        	{printf("%s Gamma must be >= 0.\n",err); exit(1);}
 
         cpu_ters[i*NUM_PARAMS + A] = a;
         cpu_ters[i*NUM_PARAMS + B] = b;
@@ -109,8 +132,15 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
         cpu_ters[i*NUM_PARAMS + H] = h;
         cpu_ters[i*NUM_PARAMS + R1] = r1;
         cpu_ters[i*NUM_PARAMS + R2] = r2;
-        cpu_ters[i*NUM_PARAMS + M] = m;
-        cpu_ters[i*NUM_PARAMS + ALPHA] = alpha;
+        cpu_ters[i*NUM_PARAMS + M] = m_int;
+        if (alpha < EPSILON)
+        {
+        	cpu_ters[i*NUM_PARAMS + ALPHA] = ZERO;
+        }
+        else
+        {
+        	cpu_ters[i*NUM_PARAMS + ALPHA] = alpha;
+        }
         cpu_ters[i*NUM_PARAMS + GAMMA] = gamma;
         cpu_ters[i*NUM_PARAMS + C2] = c * c;
         cpu_ters[i*NUM_PARAMS + D2] = d * d;
@@ -287,11 +317,11 @@ static __device__ void find_e_and_ep
   real d12, real d13, real &e, real &ep
 )
 {
-	if (LDG(ters, i + ALPHA) == 0.0){ e = ONE; ep = ZERO;}
+	if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE; ep = ZERO;}
 	else
 	{
 		real r = d12 - d13;
-		if (LDG(ters, i + M) == 3.0)
+		if (LDG(ters, i + M) > TWO) //if m == 3.0
 		{
 			e = exp(LDG(ters, i + ALPHA) * r * r * r);
 			ep = LDG(ters, i + ALPHA) * THREE * r * r * e;
@@ -315,11 +345,11 @@ static __device__ void find_e
   real d12, real d13, real &e
 )
 {
-	if (LDG(ters, i + ALPHA) == 0.0){ e = ONE;}
+	if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE;}
 	else
 	{
 		real r = d12 - d13;
-		if (LDG(ters, i + M) == 3.0){ e = exp(LDG(ters, i + ALPHA) * r * r * r);}
+		if (LDG(ters, i + M) > TWO){ e = exp(LDG(ters, i + ALPHA) * r * r * r);}
 		else{e = exp(LDG(ters, i + ALPHA) * r);}
 	}
 }
