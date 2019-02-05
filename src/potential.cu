@@ -218,9 +218,9 @@ void Potential::find_properties_many_body
     (
         measure->hac.compute, measure->shc.compute, measure->hnemd.compute,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
-        atom->N, N1, N2, atom->pbc_x, atom->pbc_y, atom->pbc_z, NN,
+        atom->N, N1, N2, atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
-        atom->vy, atom->vz, atom->box_length, atom->fx, atom->fy, atom->fz,
+        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
         atom->virial_per_atom_x, atom->virial_per_atom_y,
         atom->virial_per_atom_z, atom->heat_per_atom, atom->group[0].label,
         measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,

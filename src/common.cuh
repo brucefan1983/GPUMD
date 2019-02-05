@@ -59,7 +59,6 @@
 #endif
 
 
-struct Neighbor;
 class Atom;
 class Potential;
 class Force;

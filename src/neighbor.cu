@@ -194,24 +194,24 @@ void Atom::find_neighbor(void)
 {
     real *cpu_box; MY_MALLOC(cpu_box, real, 3);
     int m = sizeof(real) * DIM;
-    CHECK(cudaMemcpy(cpu_box, box_length, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(box.cpu_h, box.h, m, cudaMemcpyDeviceToHost));
     int cell_n_x = 0; int cell_n_y = 0; int cell_n_z = 0;
     int use_ON2 = 0;
-    if (pbc_x)
+    if (box.pbc_x)
     {
-        cell_n_x = floor(cpu_box[0] / neighbor.rc);
+        cell_n_x = floor(box.cpu_h[0] / neighbor.rc);
         if (cell_n_x < 3) {use_ON2 = 1;}
     }
     else {cell_n_x = 1;}
-    if (pbc_y)
+    if (box.pbc_y)
     {
-        cell_n_y = floor(cpu_box[1] / neighbor.rc);
+        cell_n_y = floor(box.cpu_h[1] / neighbor.rc);
         if (cell_n_y < 3) {use_ON2 = 1;}
     }
     else {cell_n_y = 1;}
-    if (pbc_z)
+    if (box.pbc_z)
     {
-        cell_n_z = floor(cpu_box[2] / neighbor.rc);
+        cell_n_z = floor(box.cpu_h[2] / neighbor.rc);
         if (cell_n_z < 3) {use_ON2 = 1;}
     }
     else {cell_n_z = 1;}
@@ -248,7 +248,7 @@ void Atom::find_neighbor(int is_first)
             find_neighbor();
             check_bound();
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-            (N, pbc_x, pbc_y, pbc_z, box_length, x, y, z);
+            (N, box.pbc_x, box.pbc_y, box.pbc_z, box.h, x, y, z);
             CUDA_CHECK_KERNEL
             gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (N, x, y, z, x0, y0, z0);

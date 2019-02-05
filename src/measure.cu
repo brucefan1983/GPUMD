@@ -106,21 +106,38 @@ void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
     real *thermo; MY_MALLOC(thermo, real, NUM_OF_PROPERTIES);
-    real *box_length; MY_MALLOC(box_length, real, DIM);
     int m1 = sizeof(real) * NUM_OF_PROPERTIES;
-    int m2 = sizeof(real) * DIM;
     CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(box_length, atom->box_length, m2, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->box.cpu_h, atom->box.h, atom->box.memory,
+        cudaMemcpyDeviceToHost));
     int N_fixed = (atom->fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[atom->fixed_group];
     real energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
 
-    fprintf(fid, 
-        "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
-        thermo[0], energy_kin, thermo[1], thermo[2]*PRESSURE_UNIT_CONVERSION, 
-        thermo[3]*PRESSURE_UNIT_CONVERSION, thermo[4]*PRESSURE_UNIT_CONVERSION,
-        box_length[0], box_length[1], box_length[2]); 
-    fflush(fid); MY_FREE(thermo); MY_FREE(box_length);
+    if (atom->box.triclinic == 0)
+    {
+        fprintf(fid, 
+            "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
+            thermo[0], energy_kin, thermo[1],
+            thermo[2]*PRESSURE_UNIT_CONVERSION,
+            thermo[3]*PRESSURE_UNIT_CONVERSION,
+            thermo[4]*PRESSURE_UNIT_CONVERSION,
+            atom->box.cpu_h[0], atom->box.cpu_h[1], atom->box.cpu_h[2]);
+    }
+    else
+    {
+        fprintf(fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
+            thermo[0], energy_kin, thermo[1],
+            thermo[2]*PRESSURE_UNIT_CONVERSION,
+            thermo[3]*PRESSURE_UNIT_CONVERSION,
+            thermo[4]*PRESSURE_UNIT_CONVERSION);
+        for (int m = 0; m < 9; ++m)
+        {
+            fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
+        }
+        fprintf(fid, "\n");
+    }
+    fflush(fid); MY_FREE(thermo);
 }
 
 
@@ -172,16 +189,15 @@ void Measure::dump_restarts(Atom *atom, int step)
     CHECK(cudaMemcpy(atom->cpu_vx, atom->vx, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
-    real* cpu_box; MY_MALLOC(cpu_box, real, 3);
-    CHECK(cudaMemcpy(cpu_box, atom->box_length, sizeof(real) * 3,
+    CHECK(cudaMemcpy(atom->box.cpu_h, atom->box.h, sizeof(real) * 3,
         cudaMemcpyDeviceToHost));
     fid_restart = my_fopen(file_restart, "w"); 
     fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
         atom->neighbor.rc, 1, atom->has_layer_in_xyz,
         atom->num_of_grouping_methods);
-    fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->pbc_x, atom->pbc_y,
-       atom->pbc_z, cpu_box[0], cpu_box[1], cpu_box[2]);
-    MY_FREE(cpu_box);
+    fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->box.pbc_x,
+        atom->box.pbc_y, atom->box.pbc_z, atom->box.cpu_h[0],
+        atom->box.cpu_h[1], atom->box.cpu_h[2]);
     for (int n = 0; n < atom->N; n++)
     {
         fprintf(fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],

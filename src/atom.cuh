@@ -16,6 +16,7 @@
 
 #pragma once
 
+#include "box.cuh"
 #include "common.cuh"
 
 
@@ -65,8 +66,7 @@ public:
     real *virial_per_atom_y;
     real *virial_per_atom_z;
     real *potential_per_atom;     // per-atom potential energy
-    real *box_length;       // box length in each direction
-    real *thermo;           // some thermodynamic quantities
+    real *thermo;                 // some thermodynamic quantities
 
     int* cpu_type;
     int* cpu_type_local;
@@ -80,14 +80,10 @@ public:
     real* cpu_vx;
     real* cpu_vy;
     real* cpu_vz;
-    real* cpu_box_length;
 
     int N;                // number of atoms 
     int fixed_group;      // ID of the group in which the atoms will be fixed 
     int number_of_types;  // number of atom types 
-    int pbc_x;           // pbc_x = 1 means periodic in the x-direction
-    int pbc_y;           // pbc_y = 1 means periodic in the y-direction
-    int pbc_z;           // pbc_z = 1 means periodic in the z-direction
 
     int has_velocity_in_xyz = 0;
     int has_layer_in_xyz = 0;
@@ -103,6 +99,7 @@ public:
 
     // some well defined sub-structures
     Neighbor neighbor;
+    Box box;
     Group group[10];
 
     Atom(char *input_dir);

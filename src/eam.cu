@@ -493,9 +493,9 @@ void EAM::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    int pbc_x = atom->pbc_x;
-    int pbc_y = atom->pbc_y;
-    int pbc_z = atom->pbc_z;
+    int pbc_x = atom->box.pbc_x;
+    int pbc_y = atom->box.pbc_y;
+    int pbc_z = atom->box.pbc_z;
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
     real *x = atom->x; 
@@ -507,7 +507,7 @@ void EAM::compute(Atom *atom, Measure *measure)
     real *fx = atom->fx; 
     real *fy = atom->fy; 
     real *fz = atom->fz;
-    real *box_length = atom->box_length;
+    real *box_length = atom->box.h;
     real *sx = atom->virial_per_atom_x; 
     real *sy = atom->virial_per_atom_y; 
     real *sz = atom->virial_per_atom_z; 

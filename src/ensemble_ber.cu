@@ -149,10 +149,10 @@ void Ensemble_BER::compute
     {
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (
-            deform_x, deform_y, deform_z, deform_rate,
-            atom->N, atom->pbc_x, atom->pbc_y, atom->pbc_z, pressure_x, 
+            deform_x, deform_y, deform_z, deform_rate, atom->N,
+            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, pressure_x, 
             pressure_y, pressure_z, pressure_coupling, atom->thermo,
-            atom->box_length, atom->x, atom->y, atom->z
+            atom->box.h, atom->x, atom->y, atom->z
         );
         CUDA_CHECK_KERNEL
     }

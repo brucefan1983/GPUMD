@@ -70,17 +70,6 @@ static __global__ void gpu_sum_heat
 }
 
 
-static real get_volume(real *box_gpu)
-{
-    real *box_cpu; MY_MALLOC(box_cpu, real, 3);
-    CHECK(cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3,
-        cudaMemcpyDeviceToHost));
-    real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
-    MY_FREE(box_cpu);
-    return volume;
-}
-
-
 void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
 {
     if (!compute) return;
@@ -92,7 +81,7 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
     {
         int num = NUM_OF_HEAT_COMPONENTS * output_interval;
         int mem = sizeof(real) * num;
-        real volume = get_volume(atom->box_length);
+        real volume = atom->box.get_volume_gpu();
         real *heat_cpu;
         MY_MALLOC(heat_cpu, real, num);
         CHECK(cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost));

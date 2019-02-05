@@ -211,7 +211,6 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
     real rc = neighbor.rc;
     real rc2 = rc * rc; 
-    real *box = box_length;
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
     int* cell_count;
     int* cell_count_sum;
@@ -241,9 +240,9 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     CUDA_CHECK_KERNEL
     gpu_find_neighbor_ON1<<<grid_size, BLOCK_SIZE>>>
     (
-        pbc_x, pbc_y, pbc_z,
+        box.pbc_x, box.pbc_y, box.pbc_z,
         N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box, rc, rc2
+        cell_n_x, cell_n_y, cell_n_z, box.h, rc, rc2
     );
     CUDA_CHECK_KERNEL
     CHECK(cudaFree(cell_count));

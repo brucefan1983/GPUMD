@@ -524,7 +524,7 @@ void Ensemble::find_thermo(Atom* atom)
         gpu_find_thermo<<<5, 1024>>>
         (
             atom->N, temperature,
-            atom->box_length, atom->mass, atom->potential_per_atom,
+            atom->box.h, atom->mass, atom->potential_per_atom,
             atom->vx, atom->vy, atom->vz, atom->virial_per_atom_x,
             atom->virial_per_atom_y, atom->virial_per_atom_z, atom->thermo
         );
@@ -535,8 +535,7 @@ void Ensemble::find_thermo(Atom* atom)
         gpu_find_thermo<<<5, 1024>>>
         (
             atom->N, N_fixed, atom->fixed_group, atom->group[0].label,
-            temperature,
-            atom->box_length, atom->mass, atom->potential_per_atom,
+            temperature, atom->box.h, atom->mass, atom->potential_per_atom,
             atom->vx, atom->vy, atom->vz, atom->virial_per_atom_x,
             atom->virial_per_atom_y, atom->virial_per_atom_z, atom->thermo
         );

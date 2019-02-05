@@ -46,9 +46,10 @@ Atom::~Atom(void)
 void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 {
     double rc;
-    int count = fscanf(fid_xyz, "%d%d%lf%d%d%d", &N, &neighbor.MN, &rc,
-        &has_velocity_in_xyz, &has_layer_in_xyz, &num_of_grouping_methods);
-    if (count != 6) print_error("Reading error for line 1 of xyz.in.\n");
+    int count = fscanf(fid_xyz, "%d%d%lf%d%d%d%d\n", &N, &neighbor.MN, &rc,
+        &box.triclinic, &has_velocity_in_xyz, &has_layer_in_xyz,
+        &num_of_grouping_methods);
+    if (count != 7) print_error("Reading error for line 1 of xyz.in.\n");
     neighbor.rc = rc;
     if (N < 2)
         print_error("Number of atoms should >= 2\n");
@@ -62,6 +63,18 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
         print_error("Initial cutoff for neighbor list should > 0\n");
     else
         printf("Initial cutoff for neighbor list is %g A.\n", neighbor.rc);
+    if (box.triclinic == 0)
+    {
+        printf("Use orthogonal box.\n");
+        box.memory = sizeof(real) * 3;
+    }
+    else if (box.triclinic == 1)
+    {
+        printf("Use triclinic box.\n");
+        box.memory = sizeof(real) * 9;
+    }
+    else
+        print_error("Invalid box type.\n");
     if (has_velocity_in_xyz == 0)
         printf("Do not specify initial velocities here.\n");
     else
@@ -81,27 +94,54 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 
 void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 {
-    MY_MALLOC(cpu_box_length, real, 3);
-    double lx, ly, lz;
-    int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf", &pbc_x, &pbc_y, &pbc_z,
-        &lx, &ly, &lz);
-    if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
-    cpu_box_length[0] = lx; cpu_box_length[1] = ly; cpu_box_length[2] = lz;
-    if (pbc_x == 1)
+    if (box.triclinic == 1)
+    {
+        MY_MALLOC(box.cpu_h, real, 9);
+        MY_MALLOC(box.cpu_g, real, 9);
+        double ax, ay, az, bx, by, bz, cx, cy, cz;
+        int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf%lf%lf%lf%lf%lf%lf",
+            &box.pbc_x, &box.pbc_y, &box.pbc_z, &ax, &ay, &az, &bx, &by, &bz,
+            &cx, &cy, &cz);
+        if (count != 12) print_error("reading error for line 2 of xyz.in.\n");
+        box.cpu_h[0] = ax; box.cpu_h[1] = ay; box.cpu_h[2] = az;
+        box.cpu_h[3] = bx; box.cpu_h[4] = by; box.cpu_h[5] = bz;
+        box.cpu_h[6] = cx; box.cpu_h[7] = cy; box.cpu_h[8] = cz;
+        box.cpu_g[0] = box.cpu_h[4]*box.cpu_h[8] - box.cpu_h[5]*box.cpu_h[7];
+        box.cpu_g[1] = box.cpu_h[2]*box.cpu_h[7] - box.cpu_h[1]*box.cpu_h[8];
+        box.cpu_g[2] = box.cpu_h[1]*box.cpu_h[5] - box.cpu_h[2]*box.cpu_h[4];
+        box.cpu_g[3] = box.cpu_h[5]*box.cpu_h[6] - box.cpu_h[3]*box.cpu_h[8];
+        box.cpu_g[4] = box.cpu_h[0]*box.cpu_h[8] - box.cpu_h[2]*box.cpu_h[6];
+        box.cpu_g[5] = box.cpu_h[2]*box.cpu_h[3] - box.cpu_h[0]*box.cpu_h[5];
+        box.cpu_g[6] = box.cpu_h[3]*box.cpu_h[7] - box.cpu_h[4]*box.cpu_h[6];
+        box.cpu_g[7] = box.cpu_h[1]*box.cpu_h[6] - box.cpu_h[0]*box.cpu_h[7];
+        box.cpu_g[8] = box.cpu_h[0]*box.cpu_h[4] - box.cpu_h[1]*box.cpu_h[3];
+        for (int n = 0; n < 9; n++) box.cpu_g[n] /= box.get_volume_cpu();
+    }
+    else
+    {
+        MY_MALLOC(box.cpu_h, real, 3);
+        double lx, ly, lz;
+        int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf",
+            &box.pbc_x, &box.pbc_y, &box.pbc_z, &lx, &ly, &lz);
+        if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
+        box.cpu_h[0] = lx; box.cpu_h[1] = ly; box.cpu_h[2] = lz;
+    }
+
+    if (box.pbc_x == 1)
         printf("Use periodic boundary conditions along x.\n");
-    else if (pbc_x == 0)
+    else if (box.pbc_x == 0)
         printf("Use     free boundary conditions along x.\n");
     else
         print_error("invalid boundary conditions along x.\n");
-    if (pbc_y == 1)
+    if (box.pbc_y == 1)
         printf("Use periodic boundary conditions along y.\n");
-    else if (pbc_y == 0)
+    else if (box.pbc_y == 0)
         printf("Use     free boundary conditions along y.\n");
     else
         print_error("invalid boundary conditions along y.\n");
-    if (pbc_z == 1)
+    if (box.pbc_z == 1)
         printf("Use periodic boundary conditions along z.\n");
-    else if (pbc_z == 0)
+    else if (box.pbc_z == 0)
         printf("Use     free boundary conditions along z.\n");
     else
         print_error("invalid boundary conditions along z.\n");
@@ -275,7 +315,11 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&virial_per_atom_z,  m4));
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
     CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
-    CHECK(cudaMalloc((void**)&box_length, sizeof(real) * DIM));
+    CHECK(cudaMalloc((void**)&box.h, box.memory));
+    if (box.triclinic)
+    {
+        CHECK(cudaMalloc((void**)&box.g, box.memory));
+    }
     CHECK(cudaMalloc((void**)&thermo, sizeof(real) * 6));
 }
 
@@ -284,7 +328,6 @@ void Atom::copy_from_cpu_to_gpu(void)
 {
     int m1 = sizeof(int) * N;
     int m3 = sizeof(real) * N;
-    int m4 = sizeof(real) * DIM;
     CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(type_local, cpu_type, m1, cudaMemcpyHostToDevice));
     for (int m = 0; m < num_of_grouping_methods; ++m)
@@ -303,7 +346,11 @@ void Atom::copy_from_cpu_to_gpu(void)
     CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(z, cpu_z, m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(box_length, cpu_box_length, m4, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(box.h, box.cpu_h, box.memory, cudaMemcpyHostToDevice));
+    if (box.triclinic)
+    {
+        CHECK(cudaMemcpy(box.g, box.cpu_g, box.memory, cudaMemcpyHostToDevice));
+    }
 }
 
 
@@ -326,7 +373,11 @@ void Atom::free_memory_cpu(void)
     MY_FREE(cpu_vx);
     MY_FREE(cpu_vy);
     MY_FREE(cpu_vz);
-    MY_FREE(cpu_box_length);
+    MY_FREE(box.cpu_h);
+    if (box.triclinic)
+    {
+        MY_FREE(box.cpu_g);
+    }
 }
 
 
@@ -363,7 +414,11 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(virial_per_atom_z));
     CHECK(cudaFree(potential_per_atom));
     CHECK(cudaFree(heat_per_atom));    
-    CHECK(cudaFree(box_length));
+    CHECK(cudaFree(box.h));
+    if (box.triclinic)
+    {
+        CHECK(cudaFree(box.g));
+    }
     CHECK(cudaFree(thermo));
 }
 

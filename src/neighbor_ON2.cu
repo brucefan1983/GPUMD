@@ -56,7 +56,7 @@ void Atom::find_neighbor_ON2(void)
 { 
     real rc2 = neighbor.rc * neighbor.rc; 
     gpu_find_neighbor_ON2<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    (pbc_x, pbc_y, pbc_z, N, rc2, box_length, NN, NL, x, y, z);
+    (box.pbc_x, box.pbc_y, box.pbc_z, N, rc2, box.h, NN, NL, x, y, z);
     CUDA_CHECK_KERNEL
 }
 

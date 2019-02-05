@@ -172,18 +172,6 @@ static void find_rtc(int Nc, real factor, real *hac, real *rtc)
 }
 
 
-static real get_volume(real *box_gpu)
-{
-    real *box_cpu;
-    MY_MALLOC(box_cpu, real, 3);
-    CHECK(cudaMemcpy(box_cpu, box_gpu, sizeof(real) * 3,
-        cudaMemcpyDeviceToHost));
-    real volume = box_cpu[0] * box_cpu[1] * box_cpu[2];
-    MY_FREE(box_cpu);
-    return volume;
-}
-
-
 // Calculate 
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
@@ -224,7 +212,7 @@ void HAC::find_hac_kappa
         cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_hac));
 
-    real volume = get_volume(atom->box_length);
+    real volume = atom->box.get_volume_gpu();
     real factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
  

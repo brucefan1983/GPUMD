@@ -466,9 +466,9 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1; 
-    int pbc_x = atom->pbc_x;
-    int pbc_y = atom->pbc_y;
-    int pbc_z = atom->pbc_z;
+    int pbc_x = atom->box.pbc_x;
+    int pbc_y = atom->box.pbc_y;
+    int pbc_z = atom->box.pbc_z;
     int *NN = atom->NN;
     int *NL = atom->NL;
     int *NN_local = atom->NN_local;
@@ -478,7 +478,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
-    real *box = atom->box_length;
+    real *box = atom->box.h;
       
     if (0 == m)
     {
