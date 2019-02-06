@@ -31,8 +31,8 @@ public:
     real* g;             // the inverse box matrix
     real* cpu_h;         // the box matrix in the CPU
     real* cpu_g;         // the inverse box matrix in the CPU
-    real get_volume_cpu(void); // get the volume using cpu_h only
-    real get_volume_gpu(void); // get the volume using cpu_h and h
+    real get_volume(void);   // get the volume
+    void update_cpu_h(void); // copy the box from the GPU to the CPU
 };
 
 

@@ -133,8 +133,7 @@ static __global__ void gpu_berendsen_pressure
 }
 
 
-void Ensemble_BER::compute
-(Atom *atom, Force *force, Measure* measure)
+void Ensemble_BER::compute(Atom *atom, Force *force, Measure* measure)
 {
     int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
     velocity_verlet(atom, force, measure);
@@ -155,6 +154,7 @@ void Ensemble_BER::compute
             atom->box.h, atom->x, atom->y, atom->z
         );
         CUDA_CHECK_KERNEL
+        atom->box.update_cpu_h();
     }
 }
 

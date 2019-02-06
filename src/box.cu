@@ -23,7 +23,13 @@ The class defining the simulation box.
 #include "error.cuh"
 
 
-real Box::get_volume_cpu(void)
+void Box::update_cpu_h(void)
+{
+    CHECK(cudaMemcpy(cpu_h, h, memory, cudaMemcpyDeviceToHost));
+}
+
+
+real Box::get_volume(void)
 {
     real volume;
     if (triclinic)
@@ -37,13 +43,6 @@ real Box::get_volume_cpu(void)
         volume = cpu_h[0] * cpu_h[1] * cpu_h[2];
     }
     return volume;
-}
-
-
-real Box::get_volume_gpu(void)
-{
-    CHECK(cudaMemcpy(cpu_h, h, memory, cudaMemcpyDeviceToHost));
-    return get_volume_cpu();
 }
 
 

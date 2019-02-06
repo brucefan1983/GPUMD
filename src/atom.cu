@@ -115,7 +115,11 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
         box.cpu_g[6] = box.cpu_h[3]*box.cpu_h[7] - box.cpu_h[4]*box.cpu_h[6];
         box.cpu_g[7] = box.cpu_h[1]*box.cpu_h[6] - box.cpu_h[0]*box.cpu_h[7];
         box.cpu_g[8] = box.cpu_h[0]*box.cpu_h[4] - box.cpu_h[1]*box.cpu_h[3];
-        for (int n = 0; n < 9; n++) box.cpu_g[n] /= box.get_volume_cpu();
+        real volume = box.get_volume();
+        for (int n = 0; n < 9; n++)
+        {
+            box.cpu_g[n] /= volume;
+        }
     }
     else
     {

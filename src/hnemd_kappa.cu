@@ -81,7 +81,7 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
     {
         int num = NUM_OF_HEAT_COMPONENTS * output_interval;
         int mem = sizeof(real) * num;
-        real volume = atom->box.get_volume_gpu();
+        real volume = atom->box.get_volume();
         real *heat_cpu;
         MY_MALLOC(heat_cpu, real, num);
         CHECK(cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost));

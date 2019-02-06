@@ -212,7 +212,7 @@ void HAC::find_hac_kappa
         cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_hac));
 
-    real volume = atom->box.get_volume_gpu();
+    real volume = atom->box.get_volume();
     real factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
  
