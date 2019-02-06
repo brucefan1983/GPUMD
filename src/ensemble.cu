@@ -249,7 +249,7 @@ static __device__ void warp_reduce(volatile real *s, int t)
 static __global__ void gpu_find_thermo
 (
     int N, int N_fixed, int fixed_group, int *group_id, real T,
-    real *g_box_length, real *g_mass, real *g_potential, real *g_vx,
+    real volume, real *g_mass, real *g_potential, real *g_vx,
     real *g_vy, real *g_vz, real *g_sx, real *g_sy, real *g_sz, real *g_thermo
 )
 {
@@ -328,7 +328,6 @@ static __global__ void gpu_find_thermo
             if (tid <  32) warp_reduce(s_sx, tid);
             if (tid == 0)
             {
-                real volume = g_box_length[0]*g_box_length[1]*g_box_length[2];
                 g_thermo[2] = (s_sx[0] + N * K_B * T) / volume;
             }
             break;
@@ -351,7 +350,6 @@ static __global__ void gpu_find_thermo
             if (tid <  32) warp_reduce(s_sy, tid);
             if (tid == 0)
             {
-                real volume = g_box_length[0]*g_box_length[1]*g_box_length[2];
                 g_thermo[3] = (s_sy[0] + N * K_B * T) / volume;
             }
             break;
@@ -374,7 +372,6 @@ static __global__ void gpu_find_thermo
             if (tid <  32) warp_reduce(s_sz, tid);
             if (tid == 0)
             {
-                real volume = g_box_length[0]*g_box_length[1]*g_box_length[2];
                 g_thermo[4] = (s_sz[0] + N * K_B * T) / volume;
             }
             break;
@@ -386,8 +383,7 @@ static __global__ void gpu_find_thermo
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
-    int N, real T,
-    real *g_box_length, real *g_mass, real *g_potential, real *g_vx,
+    int N, real T, real volume, real *g_mass, real *g_potential, real *g_vx,
     real *g_vy, real *g_vz, real *g_sx, real *g_sy, real *g_sz, real *g_thermo
 )
 {
@@ -462,7 +458,6 @@ static __global__ void gpu_find_thermo
             if (tid <  32) warp_reduce(s_sx, tid);
             if (tid == 0)
             {
-                real volume = g_box_length[0]*g_box_length[1]*g_box_length[2];
                 g_thermo[2] = (s_sx[0] + N * K_B * T) / volume;
             }
             break;
@@ -485,7 +480,6 @@ static __global__ void gpu_find_thermo
             if (tid <  32) warp_reduce(s_sy, tid);
             if (tid == 0)
             {
-                real volume = g_box_length[0]*g_box_length[1]*g_box_length[2];
                 g_thermo[3] = (s_sy[0] + N * K_B * T) / volume;
             }
             break;
@@ -508,7 +502,6 @@ static __global__ void gpu_find_thermo
             if (tid <  32) warp_reduce(s_sz, tid);
             if (tid == 0)
             {
-                real volume = g_box_length[0]*g_box_length[1]*g_box_length[2];
                 g_thermo[4] = (s_sz[0] + N * K_B * T) / volume;
             }
             break;
@@ -519,12 +512,12 @@ static __global__ void gpu_find_thermo
 // wrapper of the above kernel
 void Ensemble::find_thermo(Atom* atom)
 {
+    real volume = atom->box.get_volume();
     if (atom->fixed_group == -1)
     {
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N, temperature,
-            atom->box.h, atom->mass, atom->potential_per_atom,
+            atom->N, temperature, volume, atom->mass, atom->potential_per_atom,
             atom->vx, atom->vy, atom->vz, atom->virial_per_atom_x,
             atom->virial_per_atom_y, atom->virial_per_atom_z, atom->thermo
         );
@@ -535,12 +528,11 @@ void Ensemble::find_thermo(Atom* atom)
         gpu_find_thermo<<<5, 1024>>>
         (
             atom->N, N_fixed, atom->fixed_group, atom->group[0].label,
-            temperature, atom->box.h, atom->mass, atom->potential_per_atom,
+            temperature, volume, atom->mass, atom->potential_per_atom,
             atom->vx, atom->vy, atom->vz, atom->virial_per_atom_x,
             atom->virial_per_atom_y, atom->virial_per_atom_z, atom->thermo
         );
     }
-
     CUDA_CHECK_KERNEL
 }
 
