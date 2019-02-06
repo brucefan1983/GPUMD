@@ -22,7 +22,7 @@ The driver class calculating force and related quantities.
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-#include "ldg.cuh"
+#include "mic.cuh"
 #include "potential.cuh"
 #include "tersoff.cuh"
 #include "rebo_mos2.cuh"

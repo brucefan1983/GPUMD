@@ -23,6 +23,14 @@
 #include <cuda.h> // seems to be needed in Windows
 
 
+#define USE_LDG // this is usually faster
+#ifdef USE_LDG
+    #define LDG(a, n) __ldg(a + n)
+#else
+    #define LDG(a, n) a[n]
+#endif
+
+
 // See section 3.1 in the manual for the unit conventions
 #ifndef USE_SP
     typedef double real;

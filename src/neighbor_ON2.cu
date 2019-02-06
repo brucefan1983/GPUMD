@@ -21,7 +21,7 @@ Construct the neighbor list using the O(N^2) method.
 
 #include "atom.cuh"
 #include "error.cuh"
-#include "ldg.cuh"
+#include "mic.cuh"
 #define BLOCK_SIZE 128
 
 

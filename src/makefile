@@ -18,7 +18,7 @@ _OBJ = main.o gpumd.o parse.o read_file.o run.o error.o validate.o \
 	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o \
 	tersoff1988.o box.o
 
-HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh ldg.cuh \
+HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh mic.cuh \
 	common.cuh atom.cuh \
 	force.cuh potential.cuh pair.cuh eam.cuh sw.cuh vashishta.cuh tersoff.cuh \
 	rebo_mos2.cuh \

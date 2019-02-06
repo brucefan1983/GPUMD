@@ -22,7 +22,7 @@ The EAM potential. Currently two analytical versions:
 
 
 #include "eam.cuh"
-#include "ldg.cuh"
+#include "mic.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"

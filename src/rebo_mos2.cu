@@ -28,7 +28,7 @@ The parameters are hard coded as the potential only applies to Mo-S systems.
 
 
 #include "rebo_mos2.cuh"
-#include "ldg.cuh"
+#include "mic.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"

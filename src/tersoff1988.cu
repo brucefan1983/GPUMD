@@ -14,20 +14,16 @@
 */
 
 
-
-
 /*----------------------------------------------------------------------------80
 The version of the Tersoff potential as described in
     [1] J. Tersoff, New empirical approach for the structure and energy
-    		of covalent systems, PRB 37, 6991 (1988).
+    of covalent systems, PRB 37, 6991 (1988).
 ------------------------------------------------------------------------------*/
-
-
 
 
 #include "tersoff1988.cuh"
 
-#include "ldg.cuh"
+#include "mic.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
@@ -72,7 +68,7 @@ The version of the Tersoff potential as described in
 
 Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
 {
-	num_types = num_of_types;
+    num_types = num_of_types;
     printf("Use Tersoff-1988 (%d-element) potential.\n", num_types);
     int n_entries = num_types*num_types*num_types;
     // 14 parameters per entry of tersoff1988 + 5 pre-calculated values
@@ -82,7 +78,7 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
     char err[50] = "Error: Illegal Tersoff parameter.";
     rc = 0;
     int count;
-	double a, b,lambda, mu, beta, n, c, d, h, r1, r2, m, alpha, gamma;
+    double a, b,lambda, mu, beta, n, c, d, h, r1, r2, m, alpha, gamma;
     for (int i = 0; i < n_entries; i++)
     {
         count = fscanf
@@ -95,31 +91,31 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
         int m_int = round(m);
         // Parameter checking
         if (a < 0.0)
-        	{printf("%s A must be >= 0.\n",err); exit(1);}
+            {printf("%s A must be >= 0.\n",err); exit(1);}
         if (b < 0.0)
-        	{printf("%s B must be >= 0.\n",err); exit(1);}
+            {printf("%s B must be >= 0.\n",err); exit(1);}
         if (lambda < 0.0)
-        	{printf("%s Lambda must be >= 0.\n",err); exit(1);}
+            {printf("%s Lambda must be >= 0.\n",err); exit(1);}
         if(mu < 0.0)
-        	{printf("%s Mu must be >= 0.\n",err); exit(1);}
+            {printf("%s Mu must be >= 0.\n",err); exit(1);}
         if(beta < 0.0)
-        	{printf("%s Beta must be >= 0.\n",err); exit(1);}
+            {printf("%s Beta must be >= 0.\n",err); exit(1);}
         if(n < 0.0)
-        	{printf("%s n must be >= 0.\n",err); exit(1);}
+            {printf("%s n must be >= 0.\n",err); exit(1);}
         if(c < 0.0)
-        	{printf("%s c must be >= 0.\n",err); exit(1);}
+            {printf("%s c must be >= 0.\n",err); exit(1);}
         if(d < 0.0)
-        	{printf("%s d must be >= 0.\n",err); exit(1);}
+            {printf("%s d must be >= 0.\n",err); exit(1);}
         if(r1 < 0.0)
-        	{printf("%s R must be >= 0.\n",err); exit(1);}
+            {printf("%s R must be >= 0.\n",err); exit(1);}
         if(r2 < 0.0)
-        	{printf("%s S must be >= 0.\n",err); exit(1);}
+            {printf("%s S must be >= 0.\n",err); exit(1);}
         if(r2 < r1)
-        	{printf("%s S-R must be >= 0.\n",err); exit(1);}
+            {printf("%s S-R must be >= 0.\n",err); exit(1);}
         if(m_int != 3 && m_int != 1)
-        	{printf("%s m must be 1 or 3.\n",err); exit(1);}
+            {printf("%s m must be 1 or 3.\n",err); exit(1);}
         if(gamma < 0.0)
-        	{printf("%s Gamma must be >= 0.\n",err); exit(1);}
+            {printf("%s Gamma must be >= 0.\n",err); exit(1);}
 
         cpu_ters[i*NUM_PARAMS + A] = a;
         cpu_ters[i*NUM_PARAMS + B] = b;
@@ -135,17 +131,17 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
         cpu_ters[i*NUM_PARAMS + M] = m_int;
         if (alpha < EPSILON)
         {
-        	cpu_ters[i*NUM_PARAMS + ALPHA] = ZERO;
+            cpu_ters[i*NUM_PARAMS + ALPHA] = ZERO;
         }
         else
         {
-        	cpu_ters[i*NUM_PARAMS + ALPHA] = alpha;
+            cpu_ters[i*NUM_PARAMS + ALPHA] = alpha;
         }
         cpu_ters[i*NUM_PARAMS + GAMMA] = gamma;
         cpu_ters[i*NUM_PARAMS + C2] = c * c;
         cpu_ters[i*NUM_PARAMS + D2] = d * d;
         cpu_ters[i*NUM_PARAMS + ONE_PLUS_C2OVERD2] = 1.0 +
-        		cpu_ters[i*NUM_PARAMS + C2] / cpu_ters[i*NUM_PARAMS + D2];
+        cpu_ters[i*NUM_PARAMS + C2] / cpu_ters[i*NUM_PARAMS + D2];
         cpu_ters[i*NUM_PARAMS + PI_FACTOR] = PI / (r2 - r1);
         cpu_ters[i*NUM_PARAMS + MINUS_HALF_OVER_N] = - 0.5 / n;
         rc = r2 > rc ? r2 : rc;
@@ -160,7 +156,7 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
     CHECK(cudaMalloc((void**)&tersoff_data.f12z, memory));
     CHECK(cudaMalloc((void**)&ters, sizeof(real) * n_entries*NUM_PARAMS));
     CHECK(cudaMemcpy(ters, cpu_ters,
-    		sizeof(real) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
+        sizeof(real) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
 
     MY_FREE(cpu_ters);
 }
@@ -188,8 +184,8 @@ static __device__ void find_fr_and_frp
     real d12, real &fr, real &frp
 )
 {
-	fr  = LDG(ters,i + A) * exp(- LDG(ters,i + LAMBDA) * d12);
-	frp = - LDG(ters,i + LAMBDA) * fr;
+    fr  = LDG(ters,i + A) * exp(- LDG(ters,i + LAMBDA) * d12);
+    frp = - LDG(ters,i + LAMBDA) * fr;
 }
 
 
@@ -204,14 +200,14 @@ static __device__ void find_fa_and_fap
     real d12, real &fa, real &fap
 )
 {
-	fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
-	fap = - LDG(ters, i + MU) * fa;
+    fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
+    fap = - LDG(ters, i + MU) * fa;
 }
 
 
 static __device__ void find_fa
 (
-	int i,
+    int i,
 #ifdef USE_LDG
     const real* __restrict__ ters,
 #else
@@ -220,89 +216,89 @@ static __device__ void find_fa
     real d12, real &fa
 )
 {
-	fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
+    fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
 }
 
 
 static __device__ void find_fc_and_fcp
 (
-	int i,
+    int i,
 #ifdef USE_LDG
     const real* __restrict__ ters,
 #else
     real* ters,
 #endif
-	real d12, real &fc, real &fcp
+    real d12, real &fc, real &fcp
 )
 {
-	if (d12 < LDG(ters, i + R1)){fc = ONE; fcp = ZERO;}
-	else if (d12 < LDG(ters, i + R2))
-	{
-		fc  =  cos(LDG(ters, i + PI_FACTOR) *
-				(d12 - LDG(ters, i + R1))) * HALF + HALF;
-		fcp = -sin(LDG(ters, i + PI_FACTOR) *
-				(d12 - LDG(ters, i + R1)))*LDG(ters, i + PI_FACTOR)*HALF;
-	}
-	else {fc  = ZERO; fcp = ZERO;}
+    if (d12 < LDG(ters, i + R1)){fc = ONE; fcp = ZERO;}
+    else if (d12 < LDG(ters, i + R2))
+    {
+        fc  =  cos(LDG(ters, i + PI_FACTOR) *
+                (d12 - LDG(ters, i + R1))) * HALF + HALF;
+        fcp = -sin(LDG(ters, i + PI_FACTOR) *
+                (d12 - LDG(ters, i + R1)))*LDG(ters, i + PI_FACTOR)*HALF;
+    }
+    else {fc  = ZERO; fcp = ZERO;}
 }
 
 
 static __device__ void find_fc
 (
-	int i,
+    int i,
 #ifdef USE_LDG
     const real* __restrict__ ters,
 #else
     real* ters,
 #endif
-	real d12, real &fc
+    real d12, real &fc
 )
 {
-	if (d12 < LDG(ters, i + R1)) {fc  = ONE;}
-	else if (d12 < LDG(ters, i + R2))
-	{
-		fc = cos(LDG(ters, i + PI_FACTOR) *
-				(d12 - LDG(ters, i + R1))) * HALF + HALF;
-	}
-	else {fc  = ZERO;}
+    if (d12 < LDG(ters, i + R1)) {fc  = ONE;}
+    else if (d12 < LDG(ters, i + R2))
+    {
+        fc = cos(LDG(ters, i + PI_FACTOR) *
+                (d12 - LDG(ters, i + R1))) * HALF + HALF;
+    }
+    else {fc  = ZERO;}
 }
 
 
 static __device__ void find_g_and_gp
 (
-	int i,
+    int i,
 #ifdef USE_LDG
     const real* __restrict__ ters,
 #else
     real* ters,
 #endif
-	real cos, real &g, real &gp
+    real cos, real &g, real &gp
 )
 {
-	real temp = LDG(ters, i + D2) + (cos - LDG(ters, i + H)) *
-				(cos - LDG(ters, i + H));
-	g  = LDG(ters, i + GAMMA) *
-				(LDG(ters, i + ONE_PLUS_C2OVERD2) - LDG(ters, i + C2) / temp);
-	gp = LDG(ters, i + GAMMA) *
-			(TWO * LDG(ters, i + C2) * (cos - LDG(ters, i + H)) / (temp * temp));
+    real temp = LDG(ters, i + D2) + (cos - LDG(ters, i + H)) *
+                (cos - LDG(ters, i + H));
+    g  = LDG(ters, i + GAMMA) *
+                (LDG(ters, i + ONE_PLUS_C2OVERD2) - LDG(ters, i + C2) / temp);
+    gp = LDG(ters, i + GAMMA) *
+            (TWO * LDG(ters, i + C2) * (cos - LDG(ters, i + H)) / (temp * temp));
 }
 
 
 static __device__ void find_g
 (
-	int i,
+    int i,
 #ifdef USE_LDG
     const real* __restrict__ ters,
 #else
     real* ters,
 #endif
-	real cos, real &g
+    real cos, real &g
 )
 {
-	real temp = LDG(ters, i + D2) + (cos - LDG(ters, i + H)) *
-				(cos - LDG(ters, i + H));
-		g  = LDG(ters, i + GAMMA) *
-				(LDG(ters, i + ONE_PLUS_C2OVERD2) - LDG(ters, i + C2) / temp);
+    real temp = LDG(ters, i + D2) + (cos - LDG(ters, i + H)) *
+                (cos - LDG(ters, i + H));
+    g  = LDG(ters, i + GAMMA) *
+                (LDG(ters, i + ONE_PLUS_C2OVERD2) - LDG(ters, i + C2) / temp);
 }
 
 
@@ -317,21 +313,21 @@ static __device__ void find_e_and_ep
   real d12, real d13, real &e, real &ep
 )
 {
-	if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE; ep = ZERO;}
-	else
-	{
-		real r = d12 - d13;
-		if (LDG(ters, i + M) > TWO) //if m == 3.0
-		{
-			e = exp(LDG(ters, i + ALPHA) * r * r * r);
-			ep = LDG(ters, i + ALPHA) * THREE * r * r * e;
-		}
-		else
-		{
-			e = exp(LDG(ters, i + ALPHA) * r);
-			ep = LDG(ters, i + ALPHA) * e;
-		}
-	}
+    if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE; ep = ZERO;}
+    else
+    {
+        real r = d12 - d13;
+        if (LDG(ters, i + M) > TWO) //if m == 3.0
+        {
+            e = exp(LDG(ters, i + ALPHA) * r * r * r);
+            ep = LDG(ters, i + ALPHA) * THREE * r * r * e;
+        }
+        else
+        {
+            e = exp(LDG(ters, i + ALPHA) * r);
+            ep = LDG(ters, i + ALPHA) * e;
+        }
+    }
 }
 
 static __device__ void find_e
@@ -345,13 +341,13 @@ static __device__ void find_e
   real d12, real d13, real &e
 )
 {
-	if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE;}
-	else
-	{
-		real r = d12 - d13;
-		if (LDG(ters, i + M) > TWO){ e = exp(LDG(ters, i + ALPHA) * r * r * r);}
-		else{e = exp(LDG(ters, i + ALPHA) * r);}
-	}
+    if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE;}
+    else
+    {
+        real r = d12 - d13;
+        if (LDG(ters, i + M) > TWO){ e = exp(LDG(ters, i + ALPHA) * r * r * r);}
+        else{e = exp(LDG(ters, i + ALPHA) * r);}
+    }
 }
 
 
@@ -372,7 +368,7 @@ static __global__ void find_force_tersoff_step1
     real* g_b, real* g_bp
 )
 {
-	int num_types2 = num_types * num_types;
+    int num_types2 = num_types * num_types;
     // start from the N1-th atom
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     // to the (N2-1)-th atom
@@ -415,9 +411,9 @@ static __global__ void find_force_tersoff_step1
             }
             real bzn, b_ijj;
             int ijj = type1 * num_types2 + type2 * num_types + type2;
-			bzn = pow(LDG(ters, ijj*NUM_PARAMS + BETA) *
-					zeta, LDG(ters, ijj*NUM_PARAMS + EN));
-			b_ijj = pow(ONE + bzn, LDG(ters, ijj*NUM_PARAMS + MINUS_HALF_OVER_N));
+            bzn = pow(LDG(ters, ijj*NUM_PARAMS + BETA) *
+                zeta, LDG(ters, ijj*NUM_PARAMS + EN));
+            b_ijj = pow(ONE + bzn, LDG(ters, ijj*NUM_PARAMS + MINUS_HALF_OVER_N));
             if (zeta < 1.0e-16) // avoid division by 0
             {
                 g_b[i1 * number_of_particles + n1]  = ONE;
@@ -489,7 +485,7 @@ static __global__ void find_force_tersoff_step2
             // (i,j) part
             real b12 = LDG(g_b, index);
             real factor3=(fcp_ijj_12*(fr_ijj_12-b12*fa_ijj_12)+
-            			  fc_ijj_12*(frp_ijj_12-b12*fap_ijj_12))*d12inv;
+                          fc_ijj_12*(frp_ijj_12-b12*fap_ijj_12))*d12inv;
             real f12x = x12 * factor3 * HALF;
             real f12y = y12 * factor3 * HALF;
             real f12z = z12 * factor3 * HALF;
@@ -518,7 +514,7 @@ static __global__ void find_force_tersoff_step2
                 find_fc(ijk*NUM_PARAMS, ters, d13, fc_ijk_13);
                 find_fa(ikk*NUM_PARAMS, ters, d13, fa_ikk_13);
                 find_fc_and_fcp(ikj*NUM_PARAMS, ters, d12,
-                					fc_ikj_12, fcp_ikj_12);
+                                	fc_ikj_12, fcp_ikj_12);
                 real bp13 = LDG(g_bp, index_2);
                 real one_over_d12d13 = ONE / (d12 * d13);
                 real cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
@@ -530,22 +526,22 @@ static __global__ void find_force_tersoff_step2
                 find_g_and_gp(ikj*NUM_PARAMS, ters, cos123, g_ikj, gp_ikj);
 
                 // exp with d12 - d13
-				real e_ijk_12_13, ep_ijk_12_13;
-				find_e_and_ep(ijk*NUM_PARAMS, ters, d12, d13,
-									e_ijk_12_13, ep_ijk_12_13);
+                real e_ijk_12_13, ep_ijk_12_13;
+                find_e_and_ep(ijk*NUM_PARAMS, ters, d12, d13,
+                                	e_ijk_12_13, ep_ijk_12_13);
 
-				// exp with d13 - d12
-				real e_ikj_13_12, ep_ikj_13_12;
-				find_e_and_ep(ikj*NUM_PARAMS, ters, d13, d12,
-									e_ikj_13_12, ep_ikj_13_12);
+                // exp with d13 - d12
+                real e_ikj_13_12, ep_ikj_13_12;
+                find_e_and_ep(ikj*NUM_PARAMS, ters, d13, d12,
+                                	e_ikj_13_12, ep_ikj_13_12);
 
-				// derivatives with cosine
+                // derivatives with cosine
                 real dc=-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*gp_ijk*e_ijk_12_13+
-						-fc_ikj_12*bp13*fa_ikk_13*fc_ikk_13*gp_ikj*e_ikj_13_12;
+                        -fc_ikj_12*bp13*fa_ikk_13*fc_ikk_13*gp_ikj*e_ikj_13_12;
                 // derivatives with rij
                 real dr=(-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*g_ijk*ep_ijk_12_13 +
-				  (-fcp_ikj_12*bp13*fa_ikk_13*g_ikj*e_ikj_13_12 +
-				  fc_ikj_12*bp13*fa_ikk_13*g_ikj*ep_ikj_13_12)*fc_ikk_13)*d12inv;
+                  (-fcp_ikj_12*bp13*fa_ikk_13*g_ikj*e_ikj_13_12 +
+                  fc_ikj_12*bp13*fa_ikk_13*g_ikj*ep_ikj_13_12)*fc_ikk_13)*d12inv;
                 real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
                 f12x += (x12 * dr + dc * cos_d)*HALF;
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;

@@ -20,7 +20,7 @@ The abstract base class (ABC) for the potential classes.
 
 
 #include "potential.cuh"
-#include "ldg.cuh"
+#include "mic.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
