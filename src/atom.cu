@@ -319,12 +319,8 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&virial_per_atom_z,  m4));
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
     CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
-    CHECK(cudaMalloc((void**)&box.h, box.memory));
-    if (box.triclinic)
-    {
-        CHECK(cudaMalloc((void**)&box.g, box.memory));
-    }
     CHECK(cudaMalloc((void**)&thermo, sizeof(real) * 6));
+    box.allocate_memory_gpu();
 }
 
 
@@ -350,11 +346,7 @@ void Atom::copy_from_cpu_to_gpu(void)
     CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(z, cpu_z, m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(box.h, box.cpu_h, box.memory, cudaMemcpyHostToDevice));
-    if (box.triclinic)
-    {
-        CHECK(cudaMemcpy(box.g, box.cpu_g, box.memory, cudaMemcpyHostToDevice));
-    }
+    box.copy_from_cpu_to_gpu();
 }
 
 
@@ -377,53 +369,45 @@ void Atom::free_memory_cpu(void)
     MY_FREE(cpu_vx);
     MY_FREE(cpu_vy);
     MY_FREE(cpu_vz);
-    MY_FREE(box.cpu_h);
-    if (box.triclinic)
-    {
-        MY_FREE(box.cpu_g);
-    }
+    box.free_memory_cpu();
 }
 
 
 void Atom::free_memory_gpu(void)
 {
-    CHECK(cudaFree(NN)); 
-    CHECK(cudaFree(NL)); 
-    CHECK(cudaFree(NN_local)); 
+    CHECK(cudaFree(NN));
+    CHECK(cudaFree(NL));
+    CHECK(cudaFree(NN_local));
     CHECK(cudaFree(NL_local));
-    CHECK(cudaFree(type));  
+    CHECK(cudaFree(type));
     CHECK(cudaFree(type_local));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
-        CHECK(cudaFree(group[m].label)); 
-        CHECK(cudaFree(group[m].size)); 
+        CHECK(cudaFree(group[m].label));
+        CHECK(cudaFree(group[m].size));
         CHECK(cudaFree(group[m].size_sum));
         CHECK(cudaFree(group[m].contents));
     }
     CHECK(cudaFree(mass));
-    CHECK(cudaFree(x0));  
-    CHECK(cudaFree(y0));  
+    CHECK(cudaFree(x0));
+    CHECK(cudaFree(y0));
     CHECK(cudaFree(z0));
-    CHECK(cudaFree(x));  
-    CHECK(cudaFree(y));  
+    CHECK(cudaFree(x));
+    CHECK(cudaFree(y));
     CHECK(cudaFree(z));
-    CHECK(cudaFree(vx)); 
-    CHECK(cudaFree(vy)); 
+    CHECK(cudaFree(vx));
+    CHECK(cudaFree(vy));
     CHECK(cudaFree(vz));
-    CHECK(cudaFree(fx)); 
-    CHECK(cudaFree(fy)); 
+    CHECK(cudaFree(fx));
+    CHECK(cudaFree(fy));
     CHECK(cudaFree(fz));
     CHECK(cudaFree(virial_per_atom_x));
     CHECK(cudaFree(virial_per_atom_y));
     CHECK(cudaFree(virial_per_atom_z));
     CHECK(cudaFree(potential_per_atom));
-    CHECK(cudaFree(heat_per_atom));    
-    CHECK(cudaFree(box.h));
-    if (box.triclinic)
-    {
-        CHECK(cudaFree(box.g));
-    }
+    CHECK(cudaFree(heat_per_atom));
     CHECK(cudaFree(thermo));
+    box.free_memory_gpu();
 }
 
 
