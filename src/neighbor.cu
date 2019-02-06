@@ -192,9 +192,7 @@ static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
 
 void Atom::find_neighbor(void)
 {
-    real *cpu_box; MY_MALLOC(cpu_box, real, 3);
-    int m = sizeof(real) * DIM;
-    CHECK(cudaMemcpy(box.cpu_h, box.h, m, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(box.cpu_h, box.h, box.memory, cudaMemcpyDeviceToHost));
     int cell_n_x = 0; int cell_n_y = 0; int cell_n_z = 0;
     int use_ON2 = 0;
     if (box.pbc_x)
@@ -215,7 +213,6 @@ void Atom::find_neighbor(void)
         if (cell_n_z < 3) {use_ON2 = 1;}
     }
     else {cell_n_z = 1;}
-    MY_FREE(cpu_box);
     if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = 1;}
     if (use_ON2) { find_neighbor_ON2(); }
     else

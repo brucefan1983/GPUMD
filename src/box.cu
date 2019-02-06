@@ -42,16 +42,7 @@ real Box::get_volume_cpu(void)
 
 real Box::get_volume_gpu(void)
 {
-    if (triclinic)
-    {
-        CHECK(cudaMemcpy(cpu_h, h, sizeof(real) * 9,
-            cudaMemcpyDeviceToHost));
-    }
-    else
-    {
-        CHECK(cudaMemcpy(cpu_h, h, sizeof(real) * 3,
-            cudaMemcpyDeviceToHost));
-    }
+    CHECK(cudaMemcpy(cpu_h, h, memory, cudaMemcpyDeviceToHost));
     return get_volume_cpu();
 }
 
