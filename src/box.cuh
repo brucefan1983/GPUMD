@@ -29,9 +29,8 @@ public:
     int memory = 0;      // memory for box matrix
 
     // GPU Data
-    int* pbc;            // to be used in the GPU
-    real* h;             // the box matrix
-    real* g;             // the inverse box matrix
+    int* pbc;            // {pbc_x, pbc_y, pbc_z, triclinic}
+    real* h;             // the box matrix and the inverse matrix
 
     // CPU Data
     real* cpu_h;         // the box matrix in the CPU
