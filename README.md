@@ -37,14 +37,15 @@
   
 ## Authors:
 
-* Zheyong Fan (Aalto University)
+* Zheyong Fan (Bohai University and Aalto University; Active developer)
   * brucenju(at)gmail.com
   * zheyong.fan(at)aalto.fi
   * zheyongfan(at)163.com
-* Ville Vierimaa (Aalto University)  
-* Mikko Ervasti (Aalto University)  
-* Alexander J. Gabourie (Stanford University)
-* Ari Harju (Aalto University) 
+* Alexander J. Gabourie (Stanford University; Active developer)
+  * gabourie(at)stanford.edu
+* Ville Vierimaa (Aalto University; Not an active developer any more)
+* Mikko Ervasti (Aalto University; Not an active developer any more)
+* Ari Harju (Aalto University; Not an active developer any more)
 
 ## Feedbacks:
 
