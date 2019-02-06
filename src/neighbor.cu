@@ -192,7 +192,6 @@ static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
 
 void Atom::find_neighbor(void)
 {
-    CHECK(cudaMemcpy(box.cpu_h, box.h, box.memory, cudaMemcpyDeviceToHost));
     int cell_n_x = 0; int cell_n_y = 0; int cell_n_z = 0;
     int use_ON2 = 0;
     if (box.pbc_x)
