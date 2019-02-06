@@ -108,36 +108,18 @@ void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
     real *thermo; MY_MALLOC(thermo, real, NUM_OF_PROPERTIES);
     int m1 = sizeof(real) * NUM_OF_PROPERTIES;
     CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->box.cpu_h, atom->box.h, atom->box.memory,
-        cudaMemcpyDeviceToHost));
     int N_fixed = (atom->fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[atom->fixed_group];
     real energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
-
-    if (atom->box.triclinic == 0)
+    fprintf(fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0],
+        energy_kin, thermo[1], thermo[2]*PRESSURE_UNIT_CONVERSION,
+        thermo[3]*PRESSURE_UNIT_CONVERSION, thermo[4]*PRESSURE_UNIT_CONVERSION);
+    int number_of_box_variables = atom->box.triclinic ? 9 : 3;
+    for (int m = 0; m < number_of_box_variables; ++m)
     {
-        fprintf(fid, 
-            "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
-            thermo[0], energy_kin, thermo[1],
-            thermo[2]*PRESSURE_UNIT_CONVERSION,
-            thermo[3]*PRESSURE_UNIT_CONVERSION,
-            thermo[4]*PRESSURE_UNIT_CONVERSION,
-            atom->box.cpu_h[0], atom->box.cpu_h[1], atom->box.cpu_h[2]);
+        fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
     }
-    else
-    {
-        fprintf(fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
-            thermo[0], energy_kin, thermo[1],
-            thermo[2]*PRESSURE_UNIT_CONVERSION,
-            thermo[3]*PRESSURE_UNIT_CONVERSION,
-            thermo[4]*PRESSURE_UNIT_CONVERSION);
-        for (int m = 0; m < 9; ++m)
-        {
-            fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
-        }
-        fprintf(fid, "\n");
-    }
-    fflush(fid); MY_FREE(thermo);
+    fprintf(fid, "\n"); fflush(fid); MY_FREE(thermo);
 }
 
 
