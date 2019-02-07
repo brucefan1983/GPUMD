@@ -210,27 +210,34 @@ static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
 
 void Atom::find_neighbor(void)
 {
-    int cell_n_x = 0; int cell_n_y = 0; int cell_n_z = 0;
     int use_ON2 = 0;
-    if (box.pbc_x)
+    int cell_n_x = 0; int cell_n_y = 0; int cell_n_z = 0;
+    if (box.triclinic == 1)
     {
-        cell_n_x = floor(box.cpu_h[0] / neighbor.rc);
-        if (cell_n_x < 3) {use_ON2 = 1;}
+        use_ON2 = 1;
     }
-    else {cell_n_x = 1;}
-    if (box.pbc_y)
+    else
     {
-        cell_n_y = floor(box.cpu_h[1] / neighbor.rc);
-        if (cell_n_y < 3) {use_ON2 = 1;}
+        if (box.pbc_x)
+        {
+            cell_n_x = floor(box.cpu_h[0] / neighbor.rc);
+            if (cell_n_x < 3) {use_ON2 = 1;}
+        }
+        else {cell_n_x = 1;}
+        if (box.pbc_y)
+        {
+            cell_n_y = floor(box.cpu_h[1] / neighbor.rc);
+            if (cell_n_y < 3) {use_ON2 = 1;}
+        }
+        else {cell_n_y = 1;}
+        if (box.pbc_z)
+        {
+            cell_n_z = floor(box.cpu_h[2] / neighbor.rc);
+            if (cell_n_z < 3) {use_ON2 = 1;}
+        }
+        else {cell_n_z = 1;}
+        if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = 1;}
     }
-    else {cell_n_y = 1;}
-    if (box.pbc_z)
-    {
-        cell_n_z = floor(box.cpu_h[2] / neighbor.rc);
-        if (cell_n_z < 3) {use_ON2 = 1;}
-    }
-    else {cell_n_z = 1;}
-    if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = 1;}
     if (use_ON2) { find_neighbor_ON2(); }
     else
     {

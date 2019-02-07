@@ -70,7 +70,8 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
     }
     else if (box.triclinic == 1)
     {
-        printf("Use triclinic box.\n");
+        printf("Use triclinic box. Restriction:\n");
+        printf("    can only use the O(N^2) neighbor list algorithm now.\n");
         box.memory = sizeof(real) * 9;
     }
     else
