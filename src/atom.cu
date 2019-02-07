@@ -98,10 +98,15 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
     {
         MY_MALLOC(box.cpu_h, real, 18);
         double ax, ay, az, bx, by, bz, cx, cy, cz;
-        int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf%lf%lf%lf%lf%lf%lf",
-            &box.pbc_x, &box.pbc_y, &box.pbc_z, &ax, &ay, &az, &bx, &by, &bz,
-            &cx, &cy, &cz);
-        if (count != 12) print_error("reading error for line 2 of xyz.in.\n");
+        int count = fscanf(fid_xyz, "%d%d%d",
+            &box.pbc_x, &box.pbc_y, &box.pbc_z);
+        if (count != 3) print_error("reading error for xyz.in.\n");
+        count = fscanf(fid_xyz, "%lf%lf%lf", &ax, &ay, &az);
+        if (count != 3) print_error("reading error for xyz.in.\n");
+        count = fscanf(fid_xyz, "%lf%lf%lf", &bx, &by, &bz);
+        if (count != 3) print_error("reading error for xyz.in.\n");
+        count = fscanf(fid_xyz, "%lf%lf%lf", &cx, &cy, &cz);
+        if (count != 3) print_error("reading error for xyz.in.\n");
         box.cpu_h[0] = ax; box.cpu_h[1] = ay; box.cpu_h[2] = az;
         box.cpu_h[3] = bx; box.cpu_h[4] = by; box.cpu_h[5] = bz;
         box.cpu_h[6] = cx; box.cpu_h[7] = cy; box.cpu_h[8] = cz;
