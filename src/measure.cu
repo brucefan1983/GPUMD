@@ -171,15 +171,29 @@ void Measure::dump_restarts(Atom *atom, int step)
     CHECK(cudaMemcpy(atom->cpu_vx, atom->vx, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->box.cpu_h, atom->box.h, sizeof(real) * 3,
-        cudaMemcpyDeviceToHost));
     fid_restart = my_fopen(file_restart, "w"); 
-    fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
-        atom->neighbor.rc, 1, atom->has_layer_in_xyz,
+    fprintf(fid_restart, "%d %d %g %d %d %d %d\n", atom->N, atom->neighbor.MN,
+        atom->neighbor.rc, atom->box.triclinic, 1, atom->has_layer_in_xyz,
         atom->num_of_grouping_methods);
-    fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->box.pbc_x,
-        atom->box.pbc_y, atom->box.pbc_z, atom->box.cpu_h[0],
-        atom->box.cpu_h[1], atom->box.cpu_h[2]);
+    if (atom->box.triclinic == 0)
+    {
+        fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->box.pbc_x,
+            atom->box.pbc_y, atom->box.pbc_z, atom->box.cpu_h[0],
+            atom->box.cpu_h[1], atom->box.cpu_h[2]);
+    }
+    else
+    {
+        fprintf(fid_restart, "%d %d %d\n", atom->box.pbc_x,
+            atom->box.pbc_y, atom->box.pbc_z);
+        for (int d1 = 0; d1 < 3; ++d1)
+        {
+            for (int d2 = 0; d2 < 3; ++d2)
+            {
+                fprintf(fid_restart, "%g ", atom->box.cpu_h[d1 * 3 + d2]);
+            }
+            fprintf(fid_restart, "\n");
+        }
+    }
     for (int n = 0; n < atom->N; n++)
     {
         fprintf(fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
