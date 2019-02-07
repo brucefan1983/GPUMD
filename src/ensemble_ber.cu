@@ -95,39 +95,63 @@ static __global__ void gpu_berendsen_pressure
             real scale_factor = g_box_length[0];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_x[i] *= scale_factor;
-            if (i == 0) { g_box_length[0] *= scale_factor; }
+            if (i == 0)
+            {
+                g_box_length[0] *= scale_factor;
+                g_box_length[3] *= scale_factor;
+            }
         }
         else if (pbc_x == 1)
         {
             real scale_factor = ONE - p_coupling * (p0x - g_prop[2]);
             g_x[i] *= scale_factor;
-            if (i == 0) { g_box_length[0] *= scale_factor; }
+            if (i == 0)
+            {
+                g_box_length[0] *= scale_factor;
+                g_box_length[3] *= scale_factor;
+            }
         }
         if (deform_y)
         {
             real scale_factor = g_box_length[1];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_y[i] *= scale_factor;
-            if (i == 1) { g_box_length[1] *= scale_factor; }
+            if (i == 1)
+            {
+                g_box_length[1] *= scale_factor;
+                g_box_length[4] *= scale_factor;
+            }
         }
         else if (pbc_y == 1)
         {
             real scale_factor = ONE - p_coupling * (p0y - g_prop[3]);
             g_y[i] *= scale_factor;
-            if (i == 1) { g_box_length[1] *= scale_factor; }
+            if (i == 1)
+            {
+                g_box_length[1] *= scale_factor;
+                g_box_length[4] *= scale_factor;
+            }
         }
         if (deform_z)
         {
             real scale_factor = g_box_length[2];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_z[i] *= scale_factor;
-            if (i == 2) { g_box_length[2] *= scale_factor; }
+            if (i == 2)
+            {
+                g_box_length[2] *= scale_factor;
+                g_box_length[5] *= scale_factor;
+            }
         }
         else if (pbc_z == 1)
         {
             real scale_factor = ONE - p_coupling * (p0z - g_prop[4]);
             g_z[i] *= scale_factor;
-            if (i == 2) { g_box_length[2] *= scale_factor; }
+            if (i == 2)
+            {
+                g_box_length[2] *= scale_factor;
+                g_box_length[5] *= scale_factor;
+            }
         }
     }
 }
