@@ -96,8 +96,7 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 {
     if (box.triclinic == 1)
     {
-        MY_MALLOC(box.cpu_h, real, 9);
-        MY_MALLOC(box.cpu_g, real, 9);
+        MY_MALLOC(box.cpu_h, real, 18);
         double ax, ay, az, bx, by, bz, cx, cy, cz;
         int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf%lf%lf%lf%lf%lf%lf",
             &box.pbc_x, &box.pbc_y, &box.pbc_z, &ax, &ay, &az, &bx, &by, &bz,
@@ -106,29 +105,30 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
         box.cpu_h[0] = ax; box.cpu_h[1] = ay; box.cpu_h[2] = az;
         box.cpu_h[3] = bx; box.cpu_h[4] = by; box.cpu_h[5] = bz;
         box.cpu_h[6] = cx; box.cpu_h[7] = cy; box.cpu_h[8] = cz;
-        box.cpu_g[0] = box.cpu_h[4]*box.cpu_h[8] - box.cpu_h[5]*box.cpu_h[7];
-        box.cpu_g[1] = box.cpu_h[2]*box.cpu_h[7] - box.cpu_h[1]*box.cpu_h[8];
-        box.cpu_g[2] = box.cpu_h[1]*box.cpu_h[5] - box.cpu_h[2]*box.cpu_h[4];
-        box.cpu_g[3] = box.cpu_h[5]*box.cpu_h[6] - box.cpu_h[3]*box.cpu_h[8];
-        box.cpu_g[4] = box.cpu_h[0]*box.cpu_h[8] - box.cpu_h[2]*box.cpu_h[6];
-        box.cpu_g[5] = box.cpu_h[2]*box.cpu_h[3] - box.cpu_h[0]*box.cpu_h[5];
-        box.cpu_g[6] = box.cpu_h[3]*box.cpu_h[7] - box.cpu_h[4]*box.cpu_h[6];
-        box.cpu_g[7] = box.cpu_h[1]*box.cpu_h[6] - box.cpu_h[0]*box.cpu_h[7];
-        box.cpu_g[8] = box.cpu_h[0]*box.cpu_h[4] - box.cpu_h[1]*box.cpu_h[3];
+        box.cpu_h[9]  = box.cpu_h[4]*box.cpu_h[8] - box.cpu_h[5]*box.cpu_h[7];
+        box.cpu_h[10] = box.cpu_h[2]*box.cpu_h[7] - box.cpu_h[1]*box.cpu_h[8];
+        box.cpu_h[11] = box.cpu_h[1]*box.cpu_h[5] - box.cpu_h[2]*box.cpu_h[4];
+        box.cpu_h[12] = box.cpu_h[5]*box.cpu_h[6] - box.cpu_h[3]*box.cpu_h[8];
+        box.cpu_h[13] = box.cpu_h[0]*box.cpu_h[8] - box.cpu_h[2]*box.cpu_h[6];
+        box.cpu_h[14] = box.cpu_h[2]*box.cpu_h[3] - box.cpu_h[0]*box.cpu_h[5];
+        box.cpu_h[15] = box.cpu_h[3]*box.cpu_h[7] - box.cpu_h[4]*box.cpu_h[6];
+        box.cpu_h[16] = box.cpu_h[1]*box.cpu_h[6] - box.cpu_h[0]*box.cpu_h[7];
+        box.cpu_h[17] = box.cpu_h[0]*box.cpu_h[4] - box.cpu_h[1]*box.cpu_h[3];
         real volume = box.get_volume();
-        for (int n = 0; n < 9; n++)
+        for (int n = 9; n < 18; n++)
         {
-            box.cpu_g[n] /= volume;
+            box.cpu_h[n] /= volume;
         }
     }
     else
     {
-        MY_MALLOC(box.cpu_h, real, 3);
+        MY_MALLOC(box.cpu_h, real, 6);
         double lx, ly, lz;
         int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf",
             &box.pbc_x, &box.pbc_y, &box.pbc_z, &lx, &ly, &lz);
         if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
         box.cpu_h[0] = lx; box.cpu_h[1] = ly; box.cpu_h[2] = lz;
+        box.cpu_h[3] = lx*0.5; box.cpu_h[4] = ly*0.5; box.cpu_h[5] = lz*0.5;
     }
 
     if (box.pbc_x == 1)

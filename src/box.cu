@@ -25,51 +25,24 @@ The class defining the simulation box.
 
 void Box::allocate_memory_gpu(void)
 {
-    CHECK(cudaMalloc((void**)&pbc, sizeof(int) * 4)); // 3 + 1
-    if (triclinic)
-    {
-        CHECK(cudaMalloc((void**)&h, memory * 2)); // 9 * 2
-    }
-    else
-    {
-        CHECK(cudaMalloc((void**)&h, memory)); // 3
-    }
+    CHECK(cudaMalloc((void**)&h, memory * 2));
 }
 
 
 void Box::copy_from_cpu_to_gpu(void)
 {
-    // copy boundary conditions and box type
-    int* cpu_pbc; MY_MALLOC(cpu_pbc, int, 4);
-    cpu_pbc[0] = pbc_x;
-    cpu_pbc[1] = pbc_y;
-    cpu_pbc[2] = pbc_z;
-    cpu_pbc[3] = triclinic;
-    CHECK(cudaMemcpy(pbc, cpu_pbc, sizeof(int) * 4, cudaMemcpyHostToDevice));
-    MY_FREE(cpu_pbc);
-    // copy box
-    CHECK(cudaMemcpy(h, cpu_h, memory, cudaMemcpyHostToDevice));
-    // copy inverse box
-    if (triclinic)
-    {
-        CHECK(cudaMemcpy(h + 9, cpu_g, memory, cudaMemcpyHostToDevice));
-    }
+    CHECK(cudaMemcpy(h, cpu_h, memory*2, cudaMemcpyHostToDevice));
 }
 
 
 void Box::free_memory_cpu(void)
 {
     MY_FREE(cpu_h);
-    if (triclinic)
-    {
-        MY_FREE(cpu_g);
-    }
 }
 
 
 void Box::free_memory_gpu(void)
 {
-    CHECK(cudaFree(pbc));
     CHECK(cudaFree(h));
 }
 

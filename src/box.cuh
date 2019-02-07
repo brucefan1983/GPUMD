@@ -27,16 +27,8 @@ public:
     int pbc_z = 2;       // pbc_z = 1 means periodic in the z-direction
     int triclinic = 0;   // triclinic = 1 means the box is non-orthogonal
     int memory = 0;      // memory for box matrix
-
-    // GPU Data
-    int* pbc;            // {pbc_x, pbc_y, pbc_z, triclinic}
-    real* h;             // the box matrix and the inverse matrix
-
-    // CPU Data
-    real* cpu_h;         // the box matrix in the CPU
-    real* cpu_g;         // the inverse box matrix in the CPU
-
-    // Functions
+    real* h;             // the box matrix and its inverse or half
+    real* cpu_h;         // CPU data
     real get_volume(void);   // get the volume
     void update_cpu_h(void); // copy the box from the GPU to the CPU
     void allocate_memory_gpu(void);
