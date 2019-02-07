@@ -131,20 +131,17 @@ static __global__ void prefix_sum
 // construct the Verlet neighbor list from the cell list
 static __global__ void gpu_find_neighbor_ON1
 (
-    int pbc_x, int pbc_y, int pbc_z,
+    int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int N, int* cell_counts, int* cell_count_sum, int* cell_contents, 
     int* NN, int* NL,
     real* x, real* y, real* z, int cell_n_x, int cell_n_y, int cell_n_z, 
-    real *box, real cutoff, real cutoff_square
+    const real* __restrict__ box, real cutoff, real cutoff_square
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     int count = 0;
     if (n1 < N)
     {
-        real lx = box[0];
-        real ly = box[1];
-        real lz = box[2];
         real x1 = x[n1];
         real y1 = y[n1];
         real z1 = z[n1];
@@ -189,7 +186,7 @@ static __global__ void gpu_find_neighbor_ON1
                         real y12 = y[n2]-y1;
                         real z12 = z[n2]-z1;
                         dev_apply_mic
-                        (pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+                        (triclinic, pbc_x, pbc_y, pbc_z, box, x12, y12, z12);
                         real d2 = x12*x12 + y12*y12 + z12*z12;
                         if (d2 < cutoff_square)
                         {
@@ -240,7 +237,7 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     CUDA_CHECK_KERNEL
     gpu_find_neighbor_ON1<<<grid_size, BLOCK_SIZE>>>
     (
-        box.pbc_x, box.pbc_y, box.pbc_z,
+        box.triclinic, box.pbc_x, box.pbc_y, box.pbc_z,
         N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
         cell_n_x, cell_n_y, cell_n_z, box.h, rc, rc2
     );

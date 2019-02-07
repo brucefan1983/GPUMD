@@ -394,8 +394,10 @@ void Force::initialize(char *input_dir, Atom *atom)
 template<int check_layer_label, int check_type>
 static __global__ void gpu_find_neighbor_local
 (
-    int pbc_x, int pbc_y, int pbc_z, int type_begin, int type_end, int *type,
-    int N, int N1, int N2, real cutoff_square, real *box_length,
+    int triclinic, int pbc_x, int pbc_y, int pbc_z, 
+    int type_begin, int type_end, int *type,
+    int N, int N1, int N2, real cutoff_square, 
+    const real* __restrict__ box,
     int *NN, int *NL, int *NN_local, int *NL_local, int *layer_label,
 #ifdef USE_LDG
     const real* __restrict__ x, 
@@ -409,9 +411,6 @@ static __global__ void gpu_find_neighbor_local
     //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
-    real lx = box_length[0];
-    real ly = box_length[1];
-    real lz = box_length[2];
 
     int layer_n1;
 
@@ -444,7 +443,7 @@ static __global__ void gpu_find_neighbor_local
             real x12  = LDG(x, n2) - x1;
             real y12  = LDG(y, n2) - y1;
             real z12  = LDG(z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, box, x12, y12, z12);
             real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
             {        
@@ -466,6 +465,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1; 
+    int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
     int pbc_y = atom->box.pbc_y;
     int pbc_z = atom->box.pbc_z;
@@ -486,7 +486,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
         {
             gpu_find_neighbor_local<1, 0><<<grid_size, BLOCK_SIZE>>>
             (
-                pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
+                triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
                 rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
             );
             CUDA_CHECK_KERNEL
@@ -495,7 +495,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
         {
             gpu_find_neighbor_local<0, 0><<<grid_size, BLOCK_SIZE>>>
             (
-                pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
+                triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
                 rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
             );
             CUDA_CHECK_KERNEL
@@ -505,7 +505,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
     {
         gpu_find_neighbor_local<0, 1><<<grid_size, BLOCK_SIZE>>>
         (
-            pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
+            triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
             rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
         );
         CUDA_CHECK_KERNEL

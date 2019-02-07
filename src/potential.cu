@@ -43,7 +43,8 @@ static __global__ void gpu_find_force_many_body
 (
     int calculate_hac, int calculate_shc, int calculate_hnemd,
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, int N1, int N2, 
+    int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list,
 #ifdef USE_LDG
     const real* __restrict__ g_f12x,
@@ -55,10 +56,10 @@ static __global__ void gpu_find_force_many_body
     const real* __restrict__ g_vx,
     const real* __restrict__ g_vy,
     const real* __restrict__ g_vz,
-    const real* __restrict__ g_box_length,
+    const real* __restrict__ g_box,
 #else
     real* g_f12x, real* g_f12y, real* g_f12z, real* g_x, real* g_y, real* g_z,
-    real* g_vx, real* g_vy, real* g_vz, real* g_box_length,
+    real* g_vx, real* g_vy, real* g_vz, real* g_box,
 #endif
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz,
@@ -88,9 +89,6 @@ static __global__ void gpu_find_force_many_body
     {
         int neighbor_number = g_neighbor_number[n1];
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
-        real lx = LDG(g_box_length, 0);
-        real ly = LDG(g_box_length, 1);
-        real lz = LDG(g_box_length, 2);
 
         real vx1, vy1, vz1;
         if (calculate_hac || calculate_shc || calculate_hnemd)
@@ -109,7 +107,7 @@ static __global__ void gpu_find_force_many_body
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
 
             real f12x = LDG(g_f12x, index);
             real f12y = LDG(g_f12y, index);
@@ -218,7 +216,8 @@ void Potential::find_properties_many_body
     (
         measure->hac.compute, measure->shc.compute, measure->hnemd.compute,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
-        atom->N, N1, N2, atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
+        atom->N, N1, N2, atom->box.triclinic, 
+        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
         atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
         atom->virial_per_atom_x, atom->virial_per_atom_y,

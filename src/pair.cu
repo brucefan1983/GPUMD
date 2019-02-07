@@ -176,7 +176,7 @@ static __global__ void gpu_find_force
 (
     real fe_x, real fe_y, real fe_z,
     LJ_Para lj, RI_Para ri,
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -188,7 +188,7 @@ static __global__ void gpu_find_force
 #else
     real *g_x,  real *g_y,  real *g_z, real *g_vx, real *g_vy, real *g_vz,
 #endif
-    real *g_box, real *g_fx, real *g_fy, real *g_fz,
+    const real* __restrict__ g_box, real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
@@ -227,9 +227,6 @@ static __global__ void gpu_find_force
             vy1 = LDG(g_vy, n1); 
             vz1 = LDG(g_vz, n1);
         }
-        real lx = g_box[0]; 
-        real ly = g_box[1]; 
-        real lz = g_box[2];
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
@@ -239,7 +236,7 @@ static __global__ void gpu_find_force
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12sq = x12 * x12 + y12 * y12 + z12 * z12;
 
             real p2, f2;
@@ -354,6 +351,7 @@ void Pair::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
+    int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
     int pbc_y = atom->box.pbc_y;
     int pbc_z = atom->box.pbc_z;
@@ -394,7 +392,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -404,7 +403,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -414,7 +414,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -424,7 +425,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -434,7 +436,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<0, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -449,7 +452,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -459,7 +463,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -469,7 +474,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -479,7 +485,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -489,7 +496,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -504,7 +512,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<2, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -514,7 +523,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<2, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -524,7 +534,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<2, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -534,7 +545,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<2, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -544,7 +556,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<2, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -559,7 +572,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<3, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -569,7 +583,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<3, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -579,7 +594,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<3, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -589,7 +605,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<3, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -599,7 +616,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<3, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -614,7 +632,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<4, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -624,7 +643,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<4, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -634,7 +654,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<4, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -644,7 +665,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<4, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -654,7 +676,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<4, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -669,7 +692,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<5, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -679,7 +703,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<5, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -689,7 +714,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<5, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -699,7 +725,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<5, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );
@@ -709,7 +736,8 @@ void Pair::compute(Atom *atom, Measure *measure)
         {
             gpu_find_force<5, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, pbc_x, pbc_y, pbc_z,
+                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
+                triclinic, pbc_x, pbc_y, pbc_z,
                 NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
                 sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
             );

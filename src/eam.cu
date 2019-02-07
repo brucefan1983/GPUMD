@@ -248,7 +248,7 @@ template <int potential_model>
 static __global__ void find_force_eam_step1
 (
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai, 
-    int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
+    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     int* g_NN, int* g_NL,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -265,11 +265,6 @@ static __global__ void find_force_eam_step1
     
     if (n1 >= N1 && n1 < N2)
     {
-           
-        real lx = LDG(g_box, 0);
-        real ly = LDG(g_box, 1);
-        real lz = LDG(g_box, 2);
-    
         int NN = g_NN[n1];
            
         real x1 = LDG(g_x, n1); 
@@ -284,7 +279,7 @@ static __global__ void find_force_eam_step1
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
             real rho12 = ZERO;
             if (potential_model == 0) 
@@ -315,7 +310,7 @@ static __global__ void find_force_eam_step2
 (
     real fe_x, real fe_y, real fe_z,
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
-    int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z, 
+    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     int *g_NN, int *g_NL,
 #ifdef USE_LDG
     const real* __restrict__ g_Fp, 
@@ -357,10 +352,6 @@ static __global__ void find_force_eam_step2
 
     if (n1 >= N1 && n1 < N2)
     {  
-        real lx = LDG(g_box, 0);
-        real ly = LDG(g_box, 1);
-        real lz = LDG(g_box, 2);
-    
         int NN = g_NN[n1];        
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
@@ -381,7 +372,7 @@ static __global__ void find_force_eam_step2
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         
             real phi, phip, fp;
@@ -493,6 +484,7 @@ void EAM::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+    int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
     int pbc_y = atom->box.pbc_y;
     int pbc_z = atom->box.pbc_z;
@@ -507,7 +499,7 @@ void EAM::compute(Atom *atom, Measure *measure)
     real *fx = atom->fx; 
     real *fy = atom->fy; 
     real *fz = atom->fz;
-    real *box_length = atom->box.h;
+    real *box = atom->box.h;
     real *sx = atom->virial_per_atom_x; 
     real *sy = atom->virial_per_atom_y; 
     real *sz = atom->virial_per_atom_z; 
@@ -531,8 +523,8 @@ void EAM::compute(Atom *atom, Measure *measure)
     {
         find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-            NN, NL, x, y, z, box_length, Fp, pe
+            eam2004zhou, eam2006dai, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
+            NN, NL, x, y, z, box, Fp, pe
         );
         CUDA_CHECK_KERNEL
         if (measure->hac.compute)
@@ -540,8 +532,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, 
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz, 
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -551,8 +544,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -562,8 +556,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -573,8 +568,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -584,8 +580,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<0, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -596,8 +593,8 @@ void EAM::compute(Atom *atom, Measure *measure)
     {
         find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, N, N1, N2, pbc_x, pbc_y, pbc_z, 
-            NN, NL, x, y, z, box_length, Fp, pe
+            eam2004zhou, eam2006dai, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
+            NN, NL, x, y, z, box, Fp, pe
         );
         CUDA_CHECK_KERNEL
         if (measure->hac.compute)
@@ -605,8 +602,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -616,8 +614,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -627,8 +626,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, 
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -638,8 +638,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL
@@ -649,8 +650,9 @@ void EAM::compute(Atom *atom, Measure *measure)
             find_force_eam_step2<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
             (
                 fe_x, fe_y, fe_z, eam2004zhou, eam2006dai,
-                N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz,
-                box_length, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
+                N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN, NL, Fp, 
+                x, y, z, vx, vy, vz,
+                box, fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
                 a_map, b_map, count_b
             );
             CUDA_CHECK_KERNEL

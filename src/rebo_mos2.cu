@@ -835,7 +835,8 @@ template <int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_step0
 (
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, int N1, int N2, 
+    int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -847,7 +848,7 @@ static __global__ void find_force_step0
 #else
     real *g_x,  real *g_y,  real *g_z, real *g_vx, real *g_vy, real *g_vz,
 #endif
-    real *g_box, real *g_p,  real *g_pp,
+    const real* __restrict__ g_box, real *g_p,  real *g_pp,
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
@@ -882,9 +883,6 @@ static __global__ void find_force_step0
         real vx1 = LDG(g_vx, n1); 
         real vy1 = LDG(g_vy, n1); 
         real vz1 = LDG(g_vz, n1);
-        real lx = g_box[0]; 
-        real ly = g_box[1]; 
-        real lz = g_box[2];
         
         int count = 0; // initialize g_NN_local[n1] to 0
         real coordination_number = ZERO;
@@ -896,7 +894,7 @@ static __global__ void find_force_step0
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             int type2 = g_type[n2];
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
@@ -1010,7 +1008,7 @@ static __global__ void find_force_step0
 // Precompute the bond-order function and its derivative 
 static __global__ void find_force_step1
 (
-    int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
+    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int* g_NN, int* g_NL, int* g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x, 
@@ -1019,7 +1017,7 @@ static __global__ void find_force_step1
 #else
     real* g_x, real* g_y, real* g_z,
 #endif
-    real *g_box,
+    const real* __restrict__ g_box,
     real* g_b, real* g_bp, real *g_p
 )
 {
@@ -1031,9 +1029,6 @@ static __global__ void find_force_step1
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
-        real lx = LDG(g_box, 0); 
-        real ly = LDG(g_box, 1); 
-        real lz = LDG(g_box, 2);
         real p = g_p[n1]; // coordination number function P(N)
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -1044,7 +1039,7 @@ static __global__ void find_force_step1
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
 
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
             real zeta = ZERO;
@@ -1057,7 +1052,8 @@ static __global__ void find_force_step1
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
 
-                dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
+                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box,
+                    x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
@@ -1080,7 +1076,7 @@ static __global__ void find_force_step1
 // calculate and save the partial forces dU_i/dr_ij
 static __global__ void find_force_step2
 (
-    int N, int N1, int N2, int pbc_x, int pbc_y, int pbc_z,
+    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_NN, int *g_NL, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_b, 
@@ -1092,7 +1088,8 @@ static __global__ void find_force_step2
 #else
     real* g_b, real* g_bp, real* g_pp, real* g_x, real* g_y, real* g_z,
 #endif
-    real *g_box, real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
+    const real* __restrict__ g_box, 
+    real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -1104,9 +1101,6 @@ static __global__ void find_force_step2
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
         real pp1 = LDG(g_pp, n1); 
-        real lx = LDG(g_box, 0); 
-        real ly = LDG(g_box, 1); 
-        real lz = LDG(g_box, 2);
         real potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -1117,7 +1111,7 @@ static __global__ void find_force_step2
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real d12inv = ONE / d12;
 
@@ -1148,7 +1142,8 @@ static __global__ void find_force_step2
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
+                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, 
+                    x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
                 real fc13, fa13;
@@ -1186,6 +1181,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+    int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
     int pbc_y = atom->box.pbc_y;
     int pbc_z = atom->box.pbc_z;
@@ -1236,8 +1232,8 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     {
         find_force_step0<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z,
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
+            NN, NL, NN_local, NL_local, type,
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
@@ -1247,8 +1243,8 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     {
         find_force_step0<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z,
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
+            NN, NL, NN_local, NL_local, type,
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
@@ -1258,8 +1254,8 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     {
         find_force_step0<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z,
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
+            NN, NL, NN_local, NL_local, type,
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
@@ -1269,8 +1265,8 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     {
         find_force_step0<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z,
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
+            NN, NL, NN_local, NL_local, type,
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
@@ -1280,8 +1276,8 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     {
         find_force_step0<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            fe_x, fe_y, fe_z,
-            N, N1, N2, pbc_x, pbc_y, pbc_z, NN, NL, NN_local, NL_local, type,
+            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
+            NN, NL, NN_local, NL_local, type,
             x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
             sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
         );
@@ -1291,7 +1287,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     // pre-compute the bond-order function and its derivative
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
         x, y, z, box, b, bp, p
     );
     CUDA_CHECK_KERNEL
@@ -1299,7 +1295,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     // pre-compute the partial force
     find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
+        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
         b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL

@@ -181,7 +181,7 @@ static __device__ void find_p2_and_f2
 static __global__ void gpu_find_force_sw3_partial
 (
     int number_of_particles, int N1, int N2,
-    int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int triclinic, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x,
@@ -190,7 +190,7 @@ static __global__ void gpu_find_force_sw3_partial
 #else
     real *g_x,  real *g_y,  real *g_z,
 #endif
-    real *g_box_length,
+    const real* __restrict__ g_box,
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {
@@ -200,9 +200,6 @@ static __global__ void gpu_find_force_sw3_partial
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
-        real lx = g_box_length[0];
-        real ly = g_box_length[1];
-        real lz = g_box_length[2];
         real potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -213,7 +210,7 @@ static __global__ void gpu_find_force_sw3_partial
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real d12inv = ONE / d12;
             if (d12 >= sw3.rc[type1][type2]) {continue;} 
@@ -245,7 +242,8 @@ static __global__ void gpu_find_force_sw3_partial
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic(pbc_x, pbc_y, pbc_z, x13, y13, z13, lx, ly, lz);
+                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, 
+                    x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 if (d13 >= sw3.rc[type1][type3]) {continue;}
 
@@ -285,7 +283,7 @@ static __global__ void gpu_find_force_sw3_partial
 static __global__ void gpu_find_force_sw3_partial
 (
     int number_of_particles, int N1, int N2,
-    int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
+    int triclinic, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
 #ifdef USE_LDG
     const real* __restrict__ g_x,
@@ -294,7 +292,7 @@ static __global__ void gpu_find_force_sw3_partial
 #else
     real *g_x,  real *g_y,  real *g_z,
 #endif
-    real *g_box_length, 
+    const real* __restrict__ g_box, 
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {
@@ -304,9 +302,6 @@ static __global__ void gpu_find_force_sw3_partial
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
-        real lx = g_box_length[0]; 
-        real ly = g_box_length[1]; 
-        real lz = g_box_length[2];
         real potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -320,7 +315,7 @@ static __global__ void gpu_find_force_sw3_partial
             real x12  = x2 - x1;
             real y12  = y2 - y1;
             real z12  = z2 - z1;
-            dev_apply_mic(pbc_x, pbc_y, pbc_z, x12, y12, z12, lx, ly, lz);
+            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real d12inv = ONE / d12;
             if (d12 >= sw3.rc[type1][type2]) {continue;}
@@ -355,7 +350,8 @@ static __global__ void gpu_find_force_sw3_partial
                 real x23 = x3 - x2;
                 real y23 = y3 - y2;
                 real z23 = z3 - z2;
-                dev_apply_mic(pbc_x, pbc_y, pbc_z, x23, y23, z23, lx, ly, lz);
+                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, 
+                    x23, y23, z23);
                 real d23sq = x23 * x23 + y23 * y23 + z23* z23;
                 if (d23sq > MOS2_CUTOFF_SQUARE) { continue; }
                 real x13 = x3 - x1;
@@ -417,13 +413,12 @@ static __global__ void gpu_set_f12_to_zero
 }
 
 
-
-
 // Find force and related quantities for the SW potential (A wrapper)
 void SW2::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
+    int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
     int pbc_y = atom->box.pbc_y;
     int pbc_z = atom->box.pbc_z;
@@ -433,7 +428,7 @@ void SW2::compute(Atom *atom, Measure *measure)
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
-    real *box_length = atom->box.h;
+    real *box = atom->box.h;
     real *pe = atom->potential_per_atom;
 
     // special data for SW potential
@@ -447,8 +442,8 @@ void SW2::compute(Atom *atom, Measure *measure)
     // step 1: calculate the partial forces
     gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>
     (
-        N, N1, N2, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, x, y, z,
-        box_length, pe, f12x, f12y, f12z
+        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
+        x, y, z, box, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 
