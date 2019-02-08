@@ -99,6 +99,16 @@ void Run::print_velocity_and_potential_error_2(void)
 }
 
 
+static void check_run_parameters
+(Atom *atom, Integrate *integrate, Measure *measure)
+{
+    if (atom->box.triclinic == 1 && integrate->type == 11)
+    {
+        print_error("Cannot use triclinic box with NPT ensemble.\n");
+    }
+}
+
+
 static void update_temperature(Atom* atom, Integrate* integrate, int step)
 {
     if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 20)
@@ -239,6 +249,7 @@ void Run::check_run
     if (check)
     {
         print_velocity_and_potential_error_1();
+        check_run_parameters(atom, integrate, measure);
     }
     else { process_run(input_dir, atom, force, integrate, measure); }
     initialize_run(atom, integrate, measure); // change back to the default
