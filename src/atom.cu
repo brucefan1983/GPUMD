@@ -70,8 +70,7 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
     }
     else if (box.triclinic == 1)
     {
-        printf("Use triclinic box. Restriction:\n");
-        printf("    can only use the O(N^2) neighbor list algorithm now.\n");
+        printf("Use triclinic box.\n");
         box.memory = sizeof(real) * 9;
     }
     else
@@ -111,20 +110,7 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
         box.cpu_h[0] = ax; box.cpu_h[1] = ay; box.cpu_h[2] = az;
         box.cpu_h[3] = bx; box.cpu_h[4] = by; box.cpu_h[5] = bz;
         box.cpu_h[6] = cx; box.cpu_h[7] = cy; box.cpu_h[8] = cz;
-        box.cpu_h[9]  = box.cpu_h[4]*box.cpu_h[8] - box.cpu_h[5]*box.cpu_h[7];
-        box.cpu_h[10] = box.cpu_h[2]*box.cpu_h[7] - box.cpu_h[1]*box.cpu_h[8];
-        box.cpu_h[11] = box.cpu_h[1]*box.cpu_h[5] - box.cpu_h[2]*box.cpu_h[4];
-        box.cpu_h[12] = box.cpu_h[5]*box.cpu_h[6] - box.cpu_h[3]*box.cpu_h[8];
-        box.cpu_h[13] = box.cpu_h[0]*box.cpu_h[8] - box.cpu_h[2]*box.cpu_h[6];
-        box.cpu_h[14] = box.cpu_h[2]*box.cpu_h[3] - box.cpu_h[0]*box.cpu_h[5];
-        box.cpu_h[15] = box.cpu_h[3]*box.cpu_h[7] - box.cpu_h[4]*box.cpu_h[6];
-        box.cpu_h[16] = box.cpu_h[1]*box.cpu_h[6] - box.cpu_h[0]*box.cpu_h[7];
-        box.cpu_h[17] = box.cpu_h[0]*box.cpu_h[4] - box.cpu_h[1]*box.cpu_h[3];
-        real volume = box.get_volume();
-        for (int n = 9; n < 18; n++)
-        {
-            box.cpu_h[n] /= volume;
-        }
+        box.get_inverse();
     }
     else
     {

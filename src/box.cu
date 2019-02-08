@@ -15,7 +15,7 @@
 
 
 /*----------------------------------------------------------------------------80
-The class defining the simulation box.
+The class defining the simulation 
 ------------------------------------------------------------------------------*/
 
 
@@ -67,6 +67,25 @@ real Box::get_volume(void)
         volume = cpu_h[0] * cpu_h[1] * cpu_h[2];
     }
     return volume;
+}
+
+
+void Box::get_inverse(void)
+{
+    cpu_h[9]  = cpu_h[4]*cpu_h[8] - cpu_h[5]*cpu_h[7];
+    cpu_h[10] = cpu_h[2]*cpu_h[7] - cpu_h[1]*cpu_h[8];
+    cpu_h[11] = cpu_h[1]*cpu_h[5] - cpu_h[2]*cpu_h[4];
+    cpu_h[12] = cpu_h[5]*cpu_h[6] - cpu_h[3]*cpu_h[8];
+    cpu_h[13] = cpu_h[0]*cpu_h[8] - cpu_h[2]*cpu_h[6];
+    cpu_h[14] = cpu_h[2]*cpu_h[3] - cpu_h[0]*cpu_h[5];
+    cpu_h[15] = cpu_h[3]*cpu_h[7] - cpu_h[4]*cpu_h[6];
+    cpu_h[16] = cpu_h[1]*cpu_h[6] - cpu_h[0]*cpu_h[7];
+    cpu_h[17] = cpu_h[0]*cpu_h[4] - cpu_h[1]*cpu_h[3];
+    real volume = get_volume();
+    for (int n = 9; n < 18; n++)
+    {
+        cpu_h[n] /= volume;
+    }
 }
 
 
