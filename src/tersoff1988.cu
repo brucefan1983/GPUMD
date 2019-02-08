@@ -174,15 +174,7 @@ Tersoff1988::~Tersoff1988(void)
 
 
 static __device__ void find_fr_and_frp
-(
-    int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-    real d12, real &fr, real &frp
-)
+(int i, const real* __restrict__ ters, real d12, real &fr, real &frp)
 {
     fr  = LDG(ters,i + A) * exp(- LDG(ters,i + LAMBDA) * d12);
     frp = - LDG(ters,i + LAMBDA) * fr;
@@ -190,15 +182,7 @@ static __device__ void find_fr_and_frp
 
 
 static __device__ void find_fa_and_fap
-(
-    int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-    real d12, real &fa, real &fap
-)
+(int i, const real* __restrict__ ters, real d12, real &fa, real &fap)
 {
     fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
     fap = - LDG(ters, i + MU) * fa;
@@ -206,30 +190,14 @@ static __device__ void find_fa_and_fap
 
 
 static __device__ void find_fa
-(
-    int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-    real d12, real &fa
-)
+(int i, const real* __restrict__ ters, real d12, real &fa)
 {
     fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
 }
 
 
 static __device__ void find_fc_and_fcp
-(
-    int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-    real d12, real &fc, real &fcp
-)
+(int i, const real* __restrict__ ters, real d12, real &fc, real &fcp)
 {
     if (d12 < LDG(ters, i + R1)){fc = ONE; fcp = ZERO;}
     else if (d12 < LDG(ters, i + R2))
@@ -244,15 +212,7 @@ static __device__ void find_fc_and_fcp
 
 
 static __device__ void find_fc
-(
-    int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-    real d12, real &fc
-)
+(int i, const real* __restrict__ ters, real d12, real &fc)
 {
     if (d12 < LDG(ters, i + R1)) {fc  = ONE;}
     else if (d12 < LDG(ters, i + R2))
@@ -265,15 +225,7 @@ static __device__ void find_fc
 
 
 static __device__ void find_g_and_gp
-(
-    int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-    real cos, real &g, real &gp
-)
+(int i, const real* __restrict__ ters, real cos, real &g, real &gp)
 {
     real temp = LDG(ters, i + D2) + (cos - LDG(ters, i + H)) *
                 (cos - LDG(ters, i + H));
@@ -285,15 +237,7 @@ static __device__ void find_g_and_gp
 
 
 static __device__ void find_g
-(
-    int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-    real cos, real &g
-)
+(int i, const real* __restrict__ ters, real cos, real &g)
 {
     real temp = LDG(ters, i + D2) + (cos - LDG(ters, i + H)) *
                 (cos - LDG(ters, i + H));
@@ -303,15 +247,7 @@ static __device__ void find_g
 
 
 static __device__ void find_e_and_ep
-(
-  int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-  real d12, real d13, real &e, real &ep
-)
+(int i, const real* __restrict__ ters, real d12, real d13, real &e, real &ep)
 {
     if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE; ep = ZERO;}
     else
@@ -331,15 +267,7 @@ static __device__ void find_e_and_ep
 }
 
 static __device__ void find_e
-(
-  int i,
-#ifdef USE_LDG
-    const real* __restrict__ ters,
-#else
-    real* ters,
-#endif
-  real d12, real d13, real &e
-)
+(int i, const real* __restrict__ ters, real d12, real d13, real &e)
 {
     if (LDG(ters, i + ALPHA) < EPSILON){ e = ONE;}
     else
@@ -357,15 +285,11 @@ static __global__ void find_force_tersoff_step1
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int num_types, int* g_neighbor_number, int* g_neighbor_list, int* g_type,
-#ifdef USE_LDG
     const real* __restrict__ ters,
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
     const real* __restrict__ g_box,
-#else
-    real* ters, real* g_x, real* g_y, real* g_z, real* g_box,
-#endif
     real* g_b, real* g_bp
 )
 {
@@ -435,7 +359,6 @@ static __global__ void find_force_tersoff_step2
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int num_types, int *g_neighbor_number, int *g_neighbor_list, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ ters,
     const real* __restrict__ g_b,
     const real* __restrict__ g_bp,
@@ -443,10 +366,6 @@ static __global__ void find_force_tersoff_step2
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
     const real* __restrict__ g_box,
-#else
-    real* ters,
-    real* g_b, real* g_bp, real* g_x, real* g_y, real* g_z, real* g_box,
-#endif
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {

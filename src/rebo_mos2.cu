@@ -838,16 +838,12 @@ static __global__ void find_force_step0
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z, 
     const real* __restrict__ g_vx, 
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
-#else
-    real *g_x,  real *g_y,  real *g_z, real *g_vx, real *g_vy, real *g_vz,
-#endif
     const real* __restrict__ g_box, real *g_p,  real *g_pp,
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
@@ -1010,13 +1006,9 @@ static __global__ void find_force_step1
 (
     int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int* g_NN, int* g_NL, int* g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z,
-#else
-    real* g_x, real* g_y, real* g_z,
-#endif
     const real* __restrict__ g_box,
     real* g_b, real* g_bp, real *g_p
 )
@@ -1078,16 +1070,12 @@ static __global__ void find_force_step2
 (
     int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_NN, int *g_NL, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_b, 
     const real* __restrict__ g_bp,
     const real* __restrict__ g_pp,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z,
-#else
-    real* g_b, real* g_bp, real* g_pp, real* g_x, real* g_y, real* g_z,
-#endif
     const real* __restrict__ g_box, 
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )

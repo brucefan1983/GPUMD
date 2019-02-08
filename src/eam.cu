@@ -250,14 +250,10 @@ static __global__ void find_force_eam_step1
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai, 
     int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     int* g_NN, int* g_NL,
-#ifdef USE_LDG
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z,
     const real* __restrict__ g_box, 
-#else
-    real* g_x, real* g_y, real* g_z, real* g_box,
-#endif
     real* g_Fp, real* g_pe 
 )
 { 
@@ -312,7 +308,6 @@ static __global__ void find_force_eam_step2
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
     int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     int *g_NN, int *g_NL,
-#ifdef USE_LDG
     const real* __restrict__ g_Fp, 
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
@@ -321,10 +316,6 @@ static __global__ void find_force_eam_step2
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
     const real* __restrict__ g_box,
-#else
-    real *g_Fp, real* g_x, real* g_y, real* g_z, 
-    real* g_vx, real* g_vy, real* g_vz, real* g_box,
-#endif
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_pe, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,

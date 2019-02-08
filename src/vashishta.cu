@@ -296,7 +296,6 @@ static __global__ void gpu_find_force_vashishta_2body
     int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     Vashishta_Para vas,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_table,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
@@ -304,10 +303,6 @@ static __global__ void gpu_find_force_vashishta_2body
     const real* __restrict__ g_vx, 
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
-#else
-    real *g_table, 
-    real *g_x,  real *g_y,  real *g_z, real *g_vx, real *g_vy, real *g_vz,
-#endif
     const real* __restrict__ g_box, real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
@@ -499,13 +494,9 @@ static __global__ void gpu_find_force_vashishta_partial
     int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     Vashishta_Para vas,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z, 
-#else
-    real *g_x,  real *g_y,  real *g_z,
-#endif
     const real* __restrict__ g_box,
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z  
 )

@@ -183,13 +183,9 @@ static __global__ void gpu_find_force_sw3_partial
     int number_of_particles, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
-#else
-    real *g_x,  real *g_y,  real *g_z,
-#endif
     const real* __restrict__ g_box,
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
@@ -285,13 +281,9 @@ static __global__ void gpu_find_force_sw3_partial
     int number_of_particles, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
-#else
-    real *g_x,  real *g_y,  real *g_z,
-#endif
     const real* __restrict__ g_box, 
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )

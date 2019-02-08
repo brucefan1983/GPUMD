@@ -426,14 +426,10 @@ static __global__ void find_force_tersoff_step1
     Tersoff2_Parameters ters0, Tersoff2_Parameters ters1,
     Tersoff2_Parameters ters2,
     int* g_neighbor_number, int* g_neighbor_list, int* g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
     const real* __restrict__ g_box,
-#else
-    real* g_x, real* g_y, real* g_z, real* g_box,
-#endif
     real* g_b, real* g_bp
 )
 {
@@ -510,16 +506,12 @@ static __global__ void find_force_tersoff_step2
     Tersoff2_Parameters ters0, Tersoff2_Parameters ters1,
     Tersoff2_Parameters ters2, 
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
-#ifdef USE_LDG
     const real* __restrict__ g_b,
     const real* __restrict__ g_bp,
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
     const real* __restrict__ g_box,
-#else
-    real* g_b, real* g_bp, real* g_x, real* g_y, real* g_z, real* g_box,
-#endif
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {
