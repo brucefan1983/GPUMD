@@ -34,9 +34,9 @@ urlcolor=Blue           % color of external links
    \vspace*{1.0cm}
    Reference Manual\\
    \vspace*{1.0cm}
-   Version 2.2\\
+   Version 2.3\\
    \vspace*{1.0cm}
-   (Jan 18, 2018)\\
+   (Feb 8, 2019)\\
   \vspace*{2.0cm}
   }
   \large
@@ -167,7 +167,7 @@ Apart from being highly efficient, another unique feature of GPUMD is that it ha
 
 \section{Other features}
 
-\subsection{Boundary conditions}
+\subsection{Boundary conditions and box shape}
 
 GPUMD supports the following boundary conditions in each direction:
   \begin{itemize}
@@ -175,10 +175,7 @@ GPUMD supports the following boundary conditions in each direction:
   \item periodic boundary conditions (using the minimum image convention)
   \item fixed boundary conditions (by fixing some atoms)
   \end{itemize}
-
-\textcolor{red}{The current version of GPUMD only supports orthogonal simulation boxes. Triclinic simulation boxes \textit{might} be implemented in a future version.}
-
-
+Both orthogonal and triclinic boxed are supported.
 
 
 \subsection{Neighbor list construction}
@@ -284,23 +281,30 @@ We are working on implementing more integration methods.
 \begin{enumerate}
     \item Improved the code structure and fixed a few memory bugs introduced in versions 2.0 and 2.1.
     \item Changed the data format in the \verb"xyz.in" file. The \verb"layer.in" file is not used any more and the data in it should be included in the \verb"xyz.in" file, if needed. By renaming the \verb"xyz.in" file as something like \verb"foo.xyz", it can now be read by the \verb"VMD" (\url{https://www.ks.uiuc.edu/Research/vmd/}) code.
-    \item Changed the output of the  \verb"dump_position" command. It now produces a \verb"move.xyz" file instead of the old \verb"xyz.out" file. The \verb"move.xyz" file can be read by the \verb"VMD" code.
+    \item Changed the output of the  \verb"dump_position" command. It now produces a \verb"movie.xyz" file instead of the old \verb"xyz.out" file. The \verb"movie.xyz" file can be read by the \verb"VMD" code.
     \item Added a \verb"dump_restart" command, which will produce a file named \verb"restart.out", which contains data in the format as in the \verb"xyz.in" file.
     \item The \verb"compute_temp" command has been replaced by the more general \verb"compute" command.
     \item Added the \verb"deform" command, which can be used to compute the stress-strain relation.
+\end{enumerate}
+
+\subsection{Major changes introduced in version 2.3}
+\begin{enumerate}
+    \item Added the general Tersoff potential, which is applicable to systems with an arbitrary number of atom types.
+    \item Added the support of triclinic box (but it currently cannot be used together with the NPT ensemble).
 \end{enumerate}
 
 \section{TODO List}
 
 Here I list a few features which I will hopefully implement the next couple of years:
 \begin{itemize}
-\item More Tersoff-type potentials
+\item More Tersoff-type potentials, such as the REBO/AIREBO potential for carbon systems
 \item More EAM-type potentials, including the ADP and MEAM potentials
-\item Machine-learning potentials
+\item Machine-learning potentials, such as the GAP potential
 \item Potential fitting using the Genetic Algorithm
-\item The NPT integrator based on the MTK equation and triclinic box
-\item Lattice dynamics (harmonic and anharmonic)
-\item Multi-GPU version of GPUMD
+\item The NPT integrator based on the MTK equation
+\item Harmonic lattice dynamics and related phonon properties
+\item Anharmonic lattice dynamics and related phonon properties
+\item Multi-GPU version of GPUMD (this might be unnecessary)
 \end{itemize}
 
 
@@ -339,7 +343,7 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has about 13 500 lines of code. The structure of the code is as follows:
+The current version of GPUMD has about 14 500 lines of code. The structure of the code is as follows:
 \begin{itemize}
 \item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
 
@@ -2097,11 +2101,12 @@ Note:
 \end{itemize}
 
 
+
 \section{The Tersoff-type potentials}
 
 \subsection{The Tersoff-1989 potential}
 
-There are many variants of the Tersoff potential. In the current version of GPUMD, we only consider the form as described in Ref. \cite{tersoff1989prb} published in 1989.
+There are many variants of the Tersoff potential. We first consider the simpler Tersoff-1989 potential \cite{tersoff1989prb}.
 
 The site potential can be written as
 \begin{equation}
@@ -2183,6 +2188,54 @@ The potential file for the double-element version reads
     chi
 \end{verbatim}
 
+
+
+\subsection{The Tersoff-1988 potential}
+
+The Tersoff-1988 potential is more general than Tersoff-1989. In this version, $\chi_{ij}=1$, but $\zeta_{ij}$ and $g_{ijk}$ are more complicated:
+\begin{equation}
+\zeta_{ij} = \sum_{k\neq i, j}f_C(r_{ik}) g_{ijk} e^{\alpha(r_{ij} - r_{ik})^{m}};
+\end{equation}
+\begin{equation}
+g_{ijk} = \gamma_{ijk}\left( 1 + \frac{c^2}{d^2} - \frac{c^2}{d^2+(h-\cos\theta_{ijk})^2} \right).
+\end{equation}
+
+The potential file for the Tersoff 1988 potential deviates slightly from others in GPUMD. The first line in the potential file must specify the potential type followed by the number of atom types. The parameters must then be entered according to the types that are defined in the xyz.in file. The format for a two element potential file looks like:
+\begin{tiny}
+\begin{verbatim}
+tersoff_1988 2
+A_000 B_000 lambda_000 mu_000 beta_000 n_000 c_000 d_000 h_000 R_000 S_000 m_000 alpha_000 gamma_000
+A_001 B_001 lambda_001 mu_001 beta_001 n_001 c_001 d_001 h_001 R_001 S_001 m_001 alpha_001 gamma_001
+A_010 B_010 lambda_010 mu_010 beta_010 n_010 c_010 d_010 h_010 R_010 S_010 m_010 alpha_010 gamma_010
+A_011 B_011 lambda_011 mu_011 beta_011 n_011 c_011 d_011 h_011 R_011 S_011 m_011 alpha_011 gamma_011
+A_100 B_100 lambda_100 mu_100 beta_100 n_100 c_100 d_100 h_100 R_100 S_100 m_100 alpha_100 gamma_100
+A_101 B_101 lambda_101 mu_101 beta_101 n_101 c_101 d_101 h_101 R_101 S_101 m_101 alpha_101 gamma_101
+A_110 B_110 lambda_110 mu_110 beta_110 n_110 c_110 d_110 h_110 R_110 S_110 m_110 alpha_110 gamma_110
+A_111 B_111 lambda_111 mu_111 beta_111 n_111 c_111 d_111 h_111 R_111 S_111 m_111 alpha_111 gamma_111
+\end{verbatim}
+\end{tiny}
+
+The subscript numbers tell the triplet of corresponding atom types. In this example, counting is binary. In general, the counting is in base $n$, where $n$ is the number of types. The total number of parameter lines must be equal to (number of types)$^{3}$ (e.g. 2 types has 8 entries, 3 types has 27 entries, etc.).
+
+For all functions or potential parameters, a triplet $lmn$, where each letter represents the atom type of the $l$th, $m$th, and $n$th atoms, will be used to select which lines of the potential file to use (i.e. which parameters to use). For example:
+\begin{equation}
+    f_{C,ikj} = \frac{1}{2} \left[1 + \cos \left( \pi \frac{r_{ij} - R_{ikj}}{S_{ikj} - R_{ikj}} \right) \nonumber
+\right]. 
+\end{equation}
+For a two-type system, if the types of i, j, and k are 0, 1, 0 respectively, then the third entry of the potential parameters file is used for the computation.
+\\\\
+The expression for the \textbf{partial force} is written below:
+
+\begin{align}
+\frac{\partial U_i}{\partial \vect{r}_{ij}}
+&= \frac{1}{2}f_{C,ijj}'(r_{ij})[f_{R,ijj}(r_{ij})-b_{ij}f_{A,ijj}(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&+ \frac{1}{2}f_{C,ijj}(r_{ij})[f_{R,ijj}'(r_{ij})-b_{ij}f_{A,ijj}'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_{C,ijj}(r_{ij})b'_{ij}f_{A,ijj}(r_{ij})\sum_{k\neq i,j}f_{C,ijk}(r_{ik})g'_{ijk} e^{\alpha_{ijk}(r_{ij}-r_{ik})^{m_{ijk}}}\frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}f_{C,ijj}(r_{ij})b'_{ij}f_{A,ijj}(r_{ij})\sum_{k\neq i,j}f_{C,ijk}(r_{ik})g_{ijk}\alpha_{ijk}m_{ijk}(r_{ij}-r_{ik})^{(m_{ijk}-1)}e^{\alpha_{ijk}(r_{ij}-r_{ik})^{m_{ijk}}}\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber\\
+&- \frac{1}{2}\sum_{k\neq i,j}f_{C,ikj}'(r_{ij})b_{ik}'f_{A,ikj}(r_{ik})f_{C,ikj}(r_{ik})g_{ikj}e^{\alpha_{ikj}(r_{ik}-r_{ij})^{m_{ikj}}}\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}\sum_{k\neq i,j}f_{C,ikj}(r_{ij})b_{ik}'f_{A,ikj}(r_{ik})f_{C,ikj}(r_{ik})g_{ikj}'e^{\alpha_{ikj}(r_{ik}-r_{ij})^{m_{ikj}}}\frac{\partial \cos\theta_{ijk}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2}\sum_{k\neq i,j}f_{C,ikj}(r_{ij})b_{ik}'f_{A,ikj}(r_{ik})f_{C,ikj}(r_{ik})g_{ikj}(-\alpha_{ikj})m_{ikj}(r_{ik}-r_{ij})^{(m_{ikj}-1)}e^{\alpha_{ikj}(r_{ik}-r_{ij})^{m_{ikj}}}\frac{\partial r_{ij}}{\partial \vect{r}_{ij}}
+\end{align}
 
 \subsection{The modified Tersoff potential for silicon systems}
 
@@ -2404,10 +2457,21 @@ The next two sections are devoted to describing the structures of the input and 
 
 \subsection{The xyz.in input file}
 
-A file named \verb"xyz.in" should be prepared and should have the following format (empty lines and comments are not allowed):
+A file named \verb"xyz.in" should be prepared and should have one of the following formats (empty lines and comments are not allowed):
 \begin{verbatim}
-    N M cutoff has_velocity has_layer number_of_grouping_methods
+    N M cutoff 0 has_velocity has_layer number_of_grouping_methods
     pbc_x  pbc_y   pbc_z  L_x L_y L_z
+    t1 x1 y1 z1 m1 [vx1] [vy1] [vz1] [layer1] [group1_1] [group2_1] ...
+    t2 x2 y2 z2 m2 [vx2] [vy2] [vz2] [layer1] [group1_2] [group2_2] ...
+    ...
+\end{verbatim}
+or
+\begin{verbatim}
+    N M cutoff 1 has_velocity has_layer number_of_grouping_methods
+    pbc_x  pbc_y   pbc_z  
+    a_x a_y a_z
+    b_x b_y b_z
+    c_x c_y c_z
     t1 x1 y1 z1 m1 [vx1] [vy1] [vz1] [layer1] [group1_1] [group2_1] ...
     t2 x2 y2 z2 m2 [vx2] [vy2] [vz2] [layer1] [group1_2] [group2_2] ...
     ...
@@ -2419,12 +2483,23 @@ We explain line by line:
 \item \verb"N" is the number of atoms.
 \item \verb"M" is the maximum possible number of neighbor atoms for one atom. \textcolor{red}{Warning! It's the responsibility of the user to use a large enough value of M. If some atom has more than M neighbors during the simulation, unexpected error may occur and there may be no useful error message. If M is too large, it just wastes some memory. } 
 \item \verb"cutoff" is the \textbf{initial} cutoff distance used for building the neighbor list. 
+\item The next number 1 or 0 refers to \verb"triclinic", which means using triclinic and orthogonal boxes, respectively.
 \item \verb"has_velocity" can be 1 or 0, which means this file contains or does not contain the initial velocities, respectively.  See the explanations for the third line below for further details.
 \item \verb"has_layer" can be 1 or 0, which means this file contains or does not contain the layer index used for some mixed potentials, respectively. See the \verb"potentials" keyword in the \verb"run.in" file.  See the explanations for the third line below for further details.
-\item \verb"number_of_grouping_methods" can be integers from 0 to 10, which is the number of grouping methods that can be referred to in some keywords in the \verb"run.in" file.  See the explanations for the third line below for further details.
+\item \verb"number_of_grouping_methods" can be integers from 0 to 2, which is the number of grouping methods that can be referred to in some keywords in the \verb"run.in" file.  See the explanations for the third line below for further details.
 \end{itemize}
-\item In the second line, \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z" can only be 1 or 0. If \verb"pbc_x" is 1, it means that periodic boundary conditions will be applied to the $x$ direction; if \verb"pbc_x" is 0, it means that free boundary conditions will be applied to the $x$ direction. Similar descriptions apply to the other two directions. The next three items in the second line, \verb"L_x", \verb"L_y", and \verb"L_z", are the initial lengths of the (rectangular) simulation box along the $x$, $y$, and $z$ directions, respectively.
-\item In the third line, 
+\item If \verb"triclinic" is 0, in the second line, \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z" can only be 1 or 0. If \verb"pbc_x" is 1, it means that periodic boundary conditions will be applied to the $x$ direction; if \verb"pbc_x" is 0, it means that free boundary conditions will be applied to the $x$ direction. Similar descriptions apply to the other two directions. The next three items in the second line, \verb"L_x", \verb"L_y", and \verb"L_z", are the initial lengths of the (rectangular) simulation box along the $x$, $y$, and $z$ directions, respectively.
+\item If \verb"triclinic" is 1, the next line contains \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z", which have the same meanings as discussed above. The next three lines give the three vectors defining the box:
+\begin{equation}
+\vect{a} = a_x \vect{e}_x + a_y \vect{e}_y + a_z \vect{e}_z;
+\end{equation}
+\begin{equation}
+\vect{b} = b_x \vect{e}_x + b_y \vect{e}_y + b_z \vect{e}_z;
+\end{equation}
+\begin{equation}
+\vect{c} = c_x \vect{e}_x + c_y \vect{e}_y + c_z \vect{e}_z.
+\end{equation}
+\item Starting from the next line, 
 \begin{itemize}
 \item \verb"t1" is the type of atom 1. The atom type will be used to determine which potential parameters to use. \textcolor{red}{We use integers to record the atom types and the indices start from 0.}
 \item \verb"x1", \verb"y1", and \verb"z1" are the coordinates of this atom.
@@ -2747,7 +2822,7 @@ are reasonably good because the number of steps ($10^7$) is 10 times as large as
 In this section, we describe the formats of the output files. The output files and the corresponding keywords (used in the \verb"run.in" file) generating them are:
 \begin{itemize}
 \item \verb"thermo.out" is generated by \verb"dump_thermo"
-\item \verb"move.xyz" is generated by \verb"dump_position"
+\item \verb"movie.xyz" is generated by \verb"dump_position"
 \item \verb"restart.out" is generated by \verb"dump_restart"
 \item \verb"v.out" is generated by \verb"dump_velocity"
 \item \verb"f.out" is generated by \verb"dump_force"
@@ -2782,7 +2857,7 @@ There are 9 columns in the thermo.out file, each containing the values of a quan
 \end{itemize}
 
 
-\subsection{The move.xyz file}
+\subsection{The movie.xyz file}
 
 This is in the format of the XYZ file. See \url{https://en.wikipedia.org/wiki/XYZ_file_format}.
 
@@ -2921,7 +2996,7 @@ A given crystal should have a well defined average lattice constant at a given p
 
 The first few lines of the \verb"xyz.in" file created by the \verb"create_xyz.m" MATLAB script are:
 \begin{verbatim}
-8000 4 3 0 0 0
+8000 4 3 0 0 0 0
 1 1 1 54.3 54.3 54.3
 0 0 0 0 28
 0 0 2.715 2.715 28
@@ -2996,7 +3071,7 @@ In this example, we calculate the phonon density of states of graphene at 300 K
 and zero pressure. The simulated cell size is about 15 nm $\times$ 15 nm (8 640 atoms).
 The first few lines of the \verb"xyz.in" file are:
 \begin{verbatim}
-8640 3 2.1 0 0 0
+8640 3 2.1 0 0 0 0
 1 1 0 149.649 155.52 3.35
 0 1.24708 0 0 12
 0 0 0.72 0 12
