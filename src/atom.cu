@@ -107,9 +107,9 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
         if (count != 3) print_error("reading error for xyz.in.\n");
         count = fscanf(fid_xyz, "%lf%lf%lf", &cx, &cy, &cz);
         if (count != 3) print_error("reading error for xyz.in.\n");
-        box.cpu_h[0] = ax; box.cpu_h[1] = ay; box.cpu_h[2] = az;
-        box.cpu_h[3] = bx; box.cpu_h[4] = by; box.cpu_h[5] = bz;
-        box.cpu_h[6] = cx; box.cpu_h[7] = cy; box.cpu_h[8] = cz;
+        box.cpu_h[0] = ax; box.cpu_h[3] = ay; box.cpu_h[6] = az;
+        box.cpu_h[1] = bx; box.cpu_h[4] = by; box.cpu_h[7] = bz;
+        box.cpu_h[2] = cx; box.cpu_h[5] = cy; box.cpu_h[8] = cz;
         box.get_inverse();
     }
     else
