@@ -2365,7 +2365,7 @@ Here, we discuss the REBO potential for C-H systems developed by Brenner \textit
 
 The site potential takes the same general form as in the case of the Tersoff potential:
 \begin{equation}
-U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right].
+U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - B_{ij} f_A(r_{ij}) \right].
 \end{equation}
 The cutoff function $f_{C}(r)$ is also identical to those in the Tersoff potential. 
 
@@ -2381,7 +2381,7 @@ where $B_1$, $B_2$, $B_3$, $\beta_1$, $\beta_2$, and $\beta_3$ are material-spec
 
 The bond order function in this REBO potential consists of three parts:
 \begin{equation}
-b_{ij} =b_{ij}^{\sigma\pi} + \pi_{ij}^{\rm RC} + \pi_{ij}^{\rm DH}.
+B_{ij} =b_{ij}^{\sigma\pi} + \pi_{ij}^{\rm RC} + \pi_{ij}^{\rm DH}.
 \end{equation}
 The $\sigma\pi$ bonding part is similar to that for Mo-S systems:
 \begin{equation}
@@ -2451,7 +2451,48 @@ or dot products:
 \end{equation}
 Which is simpler?
 
-We now start to derive the partial force $\partial U_i/\partial \vect{r}_{ij}$.
+We now start to derive the partial force $\partial U_i/\partial \vect{r}_{ij}$. First, we have
+\begin{align}
+\frac{\partial U_i}{\partial \vect{r}_{ij}}
+&= \frac{1}{2}f_C'(r_{ij})[f_R(r_{ij})-B_{ij}f_A(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&+ \frac{1}{2}f_C(r_{ij})[f_R'(r_{ij})-B_{ij}f_A'(r_{ij})]\frac{\partial r_{ij}}{\partial \vect{r}_{ij}} \nonumber \\
+&- \frac{1}{2} \sum_{k\neq i} f_C(r_{ik})f_A(r_{ik}) \frac{\partial  B_{ik}}{\partial \vect{r}_{ij}}.
+\end{align}
+
+In the last term, $k$ can either be $j$ or not. When $k=j$, this term is
+\begin{align}
+- \frac{1}{2}  f_C(r_{ij})f_A(r_{ij}) \frac{\partial  B_{ij}}{\partial \vect{r}_{ij}}.
+\end{align}
+When $k\neq j$, this term is
+\begin{align}
+- \frac{1}{2} \sum_{k\neq i,j} f_C(r_{ik})f_A(r_{ik}) \frac{\partial  B_{ik}}{\partial \vect{r}_{ij}}.
+\end{align}
+We next derive expressions for $\frac{\partial  B_{ij}}{\partial \vect{r}_{ij}}$ and $\frac{\partial  B_{ik}}{\partial \vect{r}_{ij}}$ ($k\neq j$).
+
+First consider $\frac{\partial  B_{ij}}{\partial \vect{r}_{ij}}$, which can be written as
+\begin{align}
+\frac{\partial  B_{ij}}{\partial \vect{r}_{ij}} = 
+\frac{\partial  b_{ij}^{\sigma\pi}}{\partial \vect{r}_{ij}} +
+\frac{\partial  \pi_{ij}^{RC}}{\partial \vect{r}_{ij}} +
+\frac{\partial  \pi_{ij}^{DH}}{\partial \vect{r}_{ij}}.
+\end{align}
+We consider the three terms one by one.
+
+For $\frac{\partial  b_{ij}^{\sigma\pi}}{\partial \vect{r}_{ij}}$, we have
+\begin{align} 
+\frac{\partial  b_{ij}^{\sigma\pi}}{\partial \vect{r}_{ij}} =
+\frac{\partial  b_{ij}^{\sigma\pi}}{\partial \zeta_{ij}} \frac{\partial  \zeta_{ij}^{\sigma\pi}}{\partial \vect{r}_{ij}}.
+\end{align}
+where
+\begin{align} 
+\frac{\partial  \zeta_{ij}^{\sigma\pi}}{\partial \vect{r}_{ij}} = 
+\frac{\partial }{\partial \vect{r}_{ij}}  \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}, N_{ij})e^{\lambda_{ijk}(r_{ij},r_{ik})}  + P_{ij}(N_{ij}^{\rm C}, N_{ij}^{\rm H})\right].
+\end{align}
+Because $N_{ij}$ does not depend on $\vect{r}_{ij}$, we can simplify the above equation:
+\begin{align} 
+\frac{\partial  \zeta_{ij}^{\sigma\pi}}{\partial \vect{r}_{ij}} = 
+\frac{\partial }{\partial \vect{r}_{ij}}  \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}, N_{ij})e^{\lambda_{ijk}(r_{ij},r_{ik})} \right].
+\end{align}
 
 \section{Mixed potentials}
 
