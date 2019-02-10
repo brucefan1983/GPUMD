@@ -2358,6 +2358,73 @@ rebo_mos2
 # the parameters are thus hard coded
 \end{verbatim}
 
+
+\subsection{The REBO potential for C-H systems}
+
+Here, we discuss the REBO potential for C-H systems developed by Brenner \textit{et al.} \cite{brenner2002jpcm}. This REBO potential is more complicated than the REBO potential for Mo-S systems.
+
+
+The site potential takes the same general form as in the case of the Tersoff potential:
+\begin{equation}
+U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right].
+\end{equation}
+The cutoff function $f_{C}(r)$ is also identical to those in the Tersoff potential. 
+
+The repulsive function $f_{R}(r)$ takes a different form than that in the Tersoff potential:
+\begin{equation}
+f_{R}(r) = \left(1+\frac{Q}{r}\right) A e^{-\alpha r},
+\end{equation}
+where $Q$, $A$, and $\alpha$ are material-specific parameters. The attractive function $f_{A}(r)$ also differs from that in the Tersoff potential:
+\begin{equation}
+f_{A}(r) = \sum_{n=1}^3 B_n e^{-\beta_n r},
+\end{equation}
+where $B_1$, $B_2$, $B_3$, $\beta_1$, $\beta_2$, and $\beta_3$ are material-specific parameters.
+
+The bond order function in this REBO potential consists of three parts:
+\begin{equation}
+b_{ij} =b_{ij}^{\sigma\pi} + b_{ij}^{\rm RC} + b_{ij}^{\rm DH}.
+\end{equation}
+The $\sigma-\pi$ bonding part is similar to that for Mo-S systems:
+\begin{equation}
+b_{ij}^{\sigma\pi}(\zeta_{ij}) =\left(1 + \zeta_{ij}\right)^{-1/2},
+\end{equation}
+where
+\begin{equation}
+\zeta_{ij} = \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}, N_{i}) \right] + P_{ij}(N_{i}^{\rm C}, N_{i}^{\rm H});
+\end{equation}
+\begin{equation}
+N_{i}^{C} = \sum_{k\neq i}^{\rm{C~atoms}} f_C(r_{ik});
+\end{equation}
+\begin{equation}
+N_{i}^{H} = \sum_{k\neq i}^{\rm{H~atoms}} f_C(r_{ik}).
+\end{equation}
+\begin{equation}
+N_{i} =N_{i}^{C}+N_{i}^{H}.
+\end{equation}
+
+The function $P(x,y)$ is given as a cubic spline. TODO:  figure out the details.
+
+The angular function $g(x,y)$  is also given as a spline. TODO: figure out the details.
+
+TODO: Derive the partial force related to the $\sigma\pi$ bonding part.
+
+The RC part is given as
+\begin{equation}
+b_{ij}^{\rm RC} = F_{ij}(N_i,N_j,N_{ij}^{\rm conj})
+\end{equation}
+where $F_{ij}(x,y,z)$ is a spline.  $N_{ij}^{\rm conj}$ is kind of complicated.
+
+TODO: Derive the partial force related to the RC part.
+
+The DH part is given as
+\begin{equation}
+b_{ij}^{\rm DH} =T_{ij}(N_i,N_j,N_{ij}^{\rm conj}) 
+\sum_{k\neq i,j}\sum_{l\neq i,j} f_{C}(r_{ik}) f_{C}(r_{jl})\left(1-\cos^2\Theta_{ijkl}\right)
+\end{equation}
+where $T_{ij}(x,y,z)$ is a spline, and $\Theta_{ijkl}$ is the dihedral angle formed by the $ijk$ plane and the $ijl$ plane.
+
+TODO: Derive the partial force related to the DH part.
+
 \section{Mixed potentials}
 
 This is explained in the next chapter when we discuss the \verb"potentials" keyword in the \verb"run.in" file.
