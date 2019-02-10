@@ -2363,7 +2363,6 @@ rebo_mos2
 
 Here, we discuss the REBO potential for C-H systems developed by Brenner \textit{et al.} \cite{brenner2002jpcm}. This REBO potential is more complicated than the REBO potential for Mo-S systems.
 
-
 The site potential takes the same general form as in the case of the Tersoff potential:
 \begin{equation}
 U_i =  \frac{1}{2} \sum_{j \neq i} f_C(r_{ij}) \left[ f_R(r_{ij}) - b_{ij} f_A(r_{ij}) \right].
@@ -2382,48 +2381,77 @@ where $B_1$, $B_2$, $B_3$, $\beta_1$, $\beta_2$, and $\beta_3$ are material-spec
 
 The bond order function in this REBO potential consists of three parts:
 \begin{equation}
-b_{ij} =b_{ij}^{\sigma\pi} + b_{ij}^{\rm RC} + b_{ij}^{\rm DH}.
+b_{ij} =b_{ij}^{\sigma\pi} + \pi_{ij}^{\rm RC} + \pi_{ij}^{\rm DH}.
 \end{equation}
-The $\sigma-\pi$ bonding part is similar to that for Mo-S systems:
+The $\sigma\pi$ bonding part is similar to that for Mo-S systems:
 \begin{equation}
 b_{ij}^{\sigma\pi}(\zeta_{ij}) =\left(1 + \zeta_{ij}\right)^{-1/2},
 \end{equation}
 where
 \begin{equation}
-\zeta_{ij} = \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}, N_{i}) \right] + P_{ij}(N_{i}^{\rm C}, N_{i}^{\rm H});
+\zeta_{ij} = \left[ \sum_{k\neq i, j} f_C(r_{ik}) g_{ijk}(\cos\theta_{ijk}, N_{ij})e^{\lambda_{ijk}(r_{ij},r_{ik})} \right] + P_{ij}(N_{ij}^{\rm C}, N_{ij}^{\rm H});
 \end{equation}
 \begin{equation}
-N_{i}^{C} = \sum_{k\neq i}^{\rm{C~atoms}} f_C(r_{ik});
+N_{ij}^{C} = \sum_{k\neq i,j}^{\rm{C~atoms}} f_C(r_{ik});
 \end{equation}
 \begin{equation}
-N_{i}^{H} = \sum_{k\neq i}^{\rm{H~atoms}} f_C(r_{ik}).
+N_{ij}^{H} = \sum_{k\neq i,j}^{\rm{H~atoms}} f_C(r_{ik}).
 \end{equation}
 \begin{equation}
-N_{i} =N_{i}^{C}+N_{i}^{H}.
+N_{ij} =N_{ij}^{C}+N_{ij}^{H}.
 \end{equation}
 
-The function $P(x,y)$ is given as a cubic spline. TODO:  figure out the details.
-
-The angular function $g(x,y)$  is also given as a spline. TODO: figure out the details.
-
-TODO: Derive the partial force related to the $\sigma\pi$ bonding part.
+The function $P(x,y)$ is given as a 2D cubic spline. The angular function $g(x,y)$  is also given as 2D a spline. 
+The function $\lambda_{ijk}(r_{ij},r_{ik})$ reads
+\begin{equation}
+\lambda_{ijk}(r_{ij},r_{ik}) =- 4\delta_{iH} 
+\left[
+  (\delta_{jH}\rho_{HH} + \delta_{jC}\rho_{CH} - r_{ij}) -
+  (\delta_{kH}\rho_{HH} + \delta_{kC}\rho_{CH} - r_{ik})
+\right].
+\end{equation}
+Therefore, $\lambda_{ijk}=0$ if $i$ is C atom.
 
 The RC part is given as
 \begin{equation}
-b_{ij}^{\rm RC} = F_{ij}(N_i,N_j,N_{ij}^{\rm conj})
+\pi_{ij}^{\rm RC} = F_{ij}(N_{ij},N_{ji},N_{ij}^{\rm conj});
 \end{equation}
-where $F_{ij}(x,y,z)$ is a spline.  $N_{ij}^{\rm conj}$ is kind of complicated.
-
-TODO: Derive the partial force related to the RC part.
+\begin{equation}
+N_{ij}^{\rm conj} = 1 + 
+\left[ \sum_{k\neq i,j} \delta_{kC} f_C(r_{ik}) S(N_{ki})\right]^2 +
+\left[ \sum_{k\neq i,j} \delta_{kC} f_C(r_{jk}) S(N_{kj})\right]^2,
+\end{equation}
+where $F_{ij}(x,y,z)$ is a 3D cubic spline.  The function $S(x)$ is similar to the cutoff function.
 
 The DH part is given as
 \begin{equation}
-b_{ij}^{\rm DH} =T_{ij}(N_i,N_j,N_{ij}^{\rm conj}) 
-\sum_{k\neq i,j}\sum_{l\neq i,j} f_{C}(r_{ik}) f_{C}(r_{jl})\left(1-\cos^2\Theta_{ijkl}\right)
+\pi_{ij}^{\rm DH} =T_{ij}(N_i,N_j,N_{ij}^{\rm conj}) 
+\sum_{k\neq i,j}\sum_{l\neq i,j,k} f_{C}(r_{ik}) f_{C}(r_{jl})\left(1-\cos^2\Theta_{ijkl}\right)
 \end{equation}
-where $T_{ij}(x,y,z)$ is a spline, and $\Theta_{ijkl}$ is the dihedral angle formed by the $ijk$ plane and the $ijl$ plane.
+where $T_{ij}(x,y,z)$ is a 3D cubic spline, and $\Theta_{ijkl}$ is the dihedral angle formed by the $ijk$ plane and the $ijl$ plane. The cosine of the dihedral angle can be expressed as
+\begin{equation}
+\cos\Theta_{ijkl} = 
+\frac{ \vect{m} } {|  \vect{m} |}
+\cdot 
+\frac{  \vect{n} } {|  \vect{n} |}.
+\end{equation}
+The vectors  $\vect{m}$ and  $\vect{n}$ can be expressed in terms of either cross products:
+\begin{equation}
+\vect{m} = \vect{r}_{ij} \times \vect{r}_{ik};
+\end{equation}
+\begin{equation}
+\vect{n} = \vect{r}_{ji} \times \vect{r}_{jl},
+\end{equation}
+or dot products:
+\begin{equation}
+\vect{m} = \vect{r}_{ik} - \frac{(\vect{r}_{ik} \cdot \vect{r}_{ij}) \vect{r}_{ij} }{\vect{r}_{ij}^2};
+\end{equation}
+\begin{equation}
+\vect{n} = \vect{r}_{jl} - \frac{(\vect{r}_{jl} \cdot \vect{r}_{ij}) \vect{r}_{ij} }{\vect{r}_{ij}^2};
+\end{equation}
+Which is simpler?
 
-TODO: Derive the partial force related to the DH part.
+We now start to derive the partial force $\partial U_i/\partial \vect{r}_{ij}$.
 
 \section{Mixed potentials}
 
