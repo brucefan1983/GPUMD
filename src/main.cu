@@ -85,11 +85,6 @@ void print_compile_information(void)
     srand(time(NULL));
     printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
 #endif
-#ifndef USE_SP
-    printf("USE_SP is off: Use double-precision version.\n");
-#else
-    printf("USE_SP is on: Use single-precision version.\n");
-#endif
 #ifdef MOS2_JIANG
     printf("MOS2_JIANG is on: Special version for Ke Xu.\n");
 #endif

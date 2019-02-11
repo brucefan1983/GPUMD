@@ -29,16 +29,6 @@ The double-element version of the Tersoff potential as described in
 
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
-#ifndef USE_SP
-    #define ONE_OVER_16   0.0625
-    #define THREE_OVER_16 0.1875
-    #define NINE_OVER_16  0.5625
-#else
-    #define ONE_OVER_16   0.0625f
-    #define THREE_OVER_16 0.1875f
-    #define NINE_OVER_16  0.5625f
-#endif
-
 
 Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
 {
@@ -259,18 +249,8 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters0.r1) {fc = ONE; fcp = ZERO;}
         else if (d12 < ters0.r2)
         {
-#ifndef MURTY_ATWATER
             fc  =  cos(ters0.pi_factor * (d12 - ters0.r1)) * HALF + HALF;
             fcp = -sin(ters0.pi_factor * (d12 - ters0.r1))*ters0.pi_factor*HALF;
-#else
-            fc = NINE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1)) 
-                - ONE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1) * THREE)
-                + HALF;
-            fcp = sin(ters0.pi_factor * (d12 - ters0.r1) * THREE) 
-                * ters0.pi_factor * THREE_OVER_16
-                - sin(ters0.pi_factor * (d12 - ters0.r1)) 
-                * ters0.pi_factor * NINE_OVER_16;
-#endif
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
@@ -279,18 +259,8 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters1.r1) {fc  = ONE; fcp = ZERO;}
         else if (d12 < ters1.r2)
         {
-#ifndef MURTY_ATWATER
             fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
             fcp = -sin(ters1.pi_factor * (d12 - ters1.r1))*ters1.pi_factor*HALF;
-#else
-            fc = NINE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1)) 
-                - ONE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1) * THREE)
-                + HALF;
-            fcp = sin(ters1.pi_factor * (d12 - ters1.r1) * THREE) 
-                * ters1.pi_factor * THREE_OVER_16
-                - sin(ters1.pi_factor * (d12 - ters1.r1)) 
-                * ters1.pi_factor * NINE_OVER_16;
-#endif
         }
         else {fc = ZERO; fcp = ZERO;}
     }
@@ -299,18 +269,8 @@ static __device__ void find_fc_and_fcp
         if (d12 < ters2.r1) {fc  = ONE; fcp = ZERO;}
         else if (d12 < ters2.r2)
         {
-#ifndef MURTY_ATWATER
             fc  =  cos(ters2.pi_factor * (d12 - ters2.r1)) * HALF + HALF;
             fcp = -sin(ters2.pi_factor * (d12 - ters2.r1))*ters2.pi_factor*HALF;
-#else
-            fc = NINE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1)) 
-                - ONE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1) * THREE)
-                + HALF;
-            fcp = sin(ters2.pi_factor * (d12 - ters2.r1) * THREE) 
-                * ters2.pi_factor * THREE_OVER_16
-                - sin(ters2.pi_factor * (d12 - ters2.r1)) 
-                * ters2.pi_factor * NINE_OVER_16;
-#endif
         }
         else {fc  = ZERO; fcp = ZERO;}
     }
@@ -331,13 +291,7 @@ static __device__ void find_fc
         if (d12 < ters0.r1) {fc  = ONE;}
         else if (d12 < ters0.r2)
         {
-#ifndef MURTY_ATWATER
             fc  =  cos(ters0.pi_factor * (d12 - ters0.r1)) * HALF + HALF;
-#else
-            fc = NINE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1)) 
-                - ONE_OVER_16 * cos(ters0.pi_factor * (d12 - ters0.r1) * THREE)
-                + HALF;
-#endif
         }
         else {fc  = ZERO;}
     }
@@ -346,13 +300,7 @@ static __device__ void find_fc
         if (d12 < ters1.r1) {fc  = ONE;}
         else if (d12 < ters1.r2)
         {
-#ifndef MURTY_ATWATER
             fc  =  cos(ters1.pi_factor * (d12 - ters1.r1)) * HALF + HALF;
-#else
-            fc = NINE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1)) 
-                - ONE_OVER_16 * cos(ters1.pi_factor * (d12 - ters1.r1) * THREE)
-                + HALF;
-#endif
         }
         else {fc  = ZERO;}
     }
@@ -361,13 +309,7 @@ static __device__ void find_fc
         if (d12 < ters2.r1) {fc  = ONE;}
         else if (d12 < ters2.r2) 
         {
-#ifndef MURTY_ATWATER
             fc  =  cos(ters2.pi_factor * (d12 - ters2.r1)) * HALF + HALF;
-#else
-            fc = NINE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1)) 
-                - ONE_OVER_16 * cos(ters2.pi_factor * (d12 - ters2.r1) * THREE)
-                + HALF;
-#endif
         }
         else {fc  = ZERO;}
     }

@@ -36,16 +36,9 @@ J. Chem. Phys. 124, 234104 (2006).
 
 // best block size here: 128
 #define BLOCK_SIZE_FORCE 128
-
-#ifndef USE_SP
-    #define RI_ALPHA     0.2
-    #define RI_ALPHA_SQ  0.04
-    #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
-#else
-    #define RI_ALPHA     0.2f
-    #define RI_ALPHA_SQ  0.04f
-    #define RI_PI_FACTOR 0.225675833419103f // ALPHA * 2 / SQRT(PI) 
-#endif
+#define RI_ALPHA     0.2
+#define RI_ALPHA_SQ  0.04
+#define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
 
 
 Pair::Pair(FILE *fid, int potential_model_input)

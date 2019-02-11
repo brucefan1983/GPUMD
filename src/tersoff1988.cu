@@ -29,17 +29,6 @@ The version of the Tersoff potential as described in
 #include "error.cuh"
 
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
-
-#ifndef USE_SP
-    #define ONE_OVER_16   0.0625
-    #define THREE_OVER_16 0.1875
-    #define NINE_OVER_16  0.5625
-#else
-    #define ONE_OVER_16   0.0625f
-    #define THREE_OVER_16 0.1875f
-    #define NINE_OVER_16  0.5625f
-#endif
-
 #define EPSILON 1.0e-15
 
 //Easy labels for indexing
