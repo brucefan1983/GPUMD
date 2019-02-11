@@ -166,9 +166,6 @@ static __device__ void find_fr_and_frp
 
 static __device__ void find_fa_and_fap
 (
-#ifdef CBN
-    real mass_sum,
-#endif
     int type1, int type2,
     Tersoff2_Parameters ters0,
     Tersoff2_Parameters ters1,
@@ -189,12 +186,6 @@ static __device__ void find_fa_and_fap
     else
     {
         fa = ters2.b * exp(- ters2.mu * d12);
-#ifdef CBN // special case of CB and CN interactions
-        if (mass_sum < 24.0) // CB bond is weaker
-            fa *= 0.886777;
-        else                 // CN bond is stronger
-            fa *= 1.013636;
-#endif
         fap = - ters2.mu * fa;
     }
 }
@@ -204,9 +195,6 @@ static __device__ void find_fa_and_fap
 
 static __device__ void find_fa
 (
-#ifdef CBN
-    real mass_sum,
-#endif
     int type1, int type2,
     Tersoff2_Parameters ters0,
     Tersoff2_Parameters ters1,
@@ -225,12 +213,6 @@ static __device__ void find_fa
     else
     {
         fa = ters2.b * exp(- ters2.mu * d12);
-#ifdef CBN // special case of CB and CN interactions
-        if (mass_sum < 24.0) // CB bond is weaker
-            fa *= 0.886777;
-        else                 // CN bond is stronger
-            fa *= 1.013636;
-#endif
     }
 }
 
@@ -440,9 +422,6 @@ static __global__ void find_force_tersoff_step1
 // step 2: calculate all the partial forces dU_i/dr_ij
 static __global__ void find_force_tersoff_step2
 (
-#ifdef CBN
-    real *g_mass,
-#endif
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     Tersoff2_Parameters ters0, Tersoff2_Parameters ters1,
@@ -467,10 +446,6 @@ static __global__ void find_force_tersoff_step2
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
         real potential_energy = ZERO;
 
-#ifdef CBN
-        real mass_1 = g_mass[n1];
-#endif
-
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int index = i1 * number_of_particles + n1;
@@ -487,12 +462,7 @@ static __global__ void find_force_tersoff_step2
             find_fc_and_fcp
             (type1, type2, ters0, ters1, ters2, d12, fc12, fcp12);
             find_fa_and_fap
-            (
-#ifdef CBN
-                mass_1 + g_mass[n2],
-#endif
-                type1, type2, ters0, ters1, ters2, d12, fa12, fap12
-            );
+            (type1, type2, ters0, ters1, ters2, d12, fa12, fap12);
             find_fr_and_frp
             (type1, type2, ters0, ters1, ters2, d12, fr12, frp12);
 
@@ -522,13 +492,7 @@ static __global__ void find_force_tersoff_step2
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 real fc13, fa13;
                 find_fc(type1, type3, ters0, ters1, ters2, d13, fc13);
-                find_fa
-                (
-#ifdef CBN
-                    mass_1 + g_mass[n3],
-#endif
-                    type1, type3, ters0, ters1, ters2, d13, fa13
-                );
+                find_fa(type1, type3, ters0, ters1, ters2, d13, fa13);
 
                 real bp13 = LDG(g_bp, index_2);
                 real one_over_d12d13 = ONE / (d12 * d13);
@@ -590,9 +554,6 @@ void Tersoff2::compute(Atom *atom, Measure *measure)
     // pre-compute the partial forces
     find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-#ifdef CBN
-        atom->mass,
-#endif
         N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, ters0, ters1, ters2,
         NN, NL, type, b, bp, x, y, z, box, pe, f12x, f12y, f12z
     );
