@@ -85,9 +85,6 @@ void print_compile_information(void)
     srand(time(NULL));
     printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
 #endif
-#ifdef MOS2_JIANG
-    printf("MOS2_JIANG is on: Special version for Ke Xu.\n");
-#endif
 #ifdef ZHEN_LI
     printf("ZHEN_LI is on: Special version for Zhen Li.\n");
 #endif
