@@ -31,8 +31,8 @@
 
 ## Run GPUMD
 
-* Take the first example in the "examples" directory for example, one can use the following command to run it:
-  * src/gpumd < examples/input1.txt
+* To run all the examples in the "examples" directory, one can use the following command:
+  * src/gpumd < examples/input.txt
 * Please read the manual to study the examples. These examples should get you started. 
   
 ## Authors:
