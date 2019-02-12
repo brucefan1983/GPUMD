@@ -17,36 +17,9 @@
 #pragma once
 
 #include "box.cuh"
+#include "group.cuh"
+#include "neighbor.cuh"
 #include "common.cuh"
-
-
-// Parameters for neighbor list updating
-struct Neighbor
-{
-    int MN;               // upper bound of # neighbors for one particle
-    int update;           // 1 means you want to update the neighbor list
-    int number_of_updates; // number of updates during a run
-    real skin;            // skin distance 
-    real rc;              // cutoff used when building the neighbor list
-};
-
-
-struct Group
-{
-    int number;             // number of groups
-
-    // GPU data
-    int *label;             // atom label
-    int *size;              // # atoms in each group
-    int *size_sum;          // # atoms in all previous groups
-    int *contents;          // atom indices sorted based on groups
-
-    // CPU data corresponding to the above GPU data
-    int* cpu_label;
-    int* cpu_size;
-    int* cpu_size_sum;
-    int* cpu_contents;
-};
 
 
 class Atom
