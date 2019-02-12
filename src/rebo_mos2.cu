@@ -15,15 +15,20 @@
 
 
 /*----------------------------------------------------------------------------80
-The REBO-LJ potential
+The REBO potential
 References: 
-[1] T. Liang et al. PRB 79, 245110 (2009).
-[2] T. Liang et al. PRB 85, 199903(E) (2012).
-[3] J. A. Stewart et al. MSMSE 21, 045003 (2013).
-[4] K. Xu et al. arXiv:1811.07336.
-We completely followed Ref. [3] but the epsilon parameter for S-S pairs is 
-taken form Ref. [2].
-The parameters are hard coded as the potential only applies to Mo-S systems.
+CH:   D. W. Brenner, PRB 42, 9458 (1990).
+CH:   D. W. Brenner et al., JPCM 14, 783 (2002).
+CHO:  B. Ni et al., JPCM 16, 7261 (2004).
+CHO:  A. F. Fonseca et al., PRB 84, 075460 (2011).
+MoS:  T. Liang et al., PRB 79, 245110 (2009).
+MoS:  T. Liang et al., PRB 85, 199903(E) (2012).
+MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
+Si:   J. D. Schall et al., PRB 77, 115209 (2008).
+CHSi: J. D. Schall et al., JPCC 117, 1323 (2013).
+
+TODO: Implement a general REBO potential applicable to systems with 
+C, H, O, Si atoms.
 ------------------------------------------------------------------------------*/
 
 
