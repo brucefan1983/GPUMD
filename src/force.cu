@@ -23,6 +23,7 @@ The driver class calculating force and related quantities.
 #include "atom.cuh"
 #include "error.cuh"
 #include "mic.cuh"
+#include "warp_reduce.cuh"
 #include "potential.cuh"
 #include "tersoff.cuh"
 #include "rebo_mos2.cuh"
@@ -510,13 +511,6 @@ void Force::find_neighbor_local(Atom *atom, int m)
         );
         CUDA_CHECK_KERNEL
     }
-}
-
-
-static __device__ void warp_reduce(volatile real *s, int t) 
-{
-    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
-    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
 
 

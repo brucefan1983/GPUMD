@@ -23,6 +23,7 @@ Compute block (space) averages of various per-atom quantities.
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
+#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define DIM 3
@@ -110,13 +111,6 @@ static __global__ void find_per_atom_jk
         real energy = mass * (vx * vx + vy * vy + vz * vz) * HALF + potential;
         g_jx[n] = vx * energy; g_jy[n] = vy * energy; g_jz[n] = vz * energy;
     }
-}
-
-
-static __device__ void warp_reduce(volatile real *s, int t) 
-{
-    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
-    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
 
 

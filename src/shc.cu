@@ -24,6 +24,7 @@ Written by Zheyong Fan and Alexander J. Gabourie.
 
 #include "shc.cuh"
 #include "atom.cuh"
+#include "warp_reduce.cuh"
 #include "error.cuh"
 
 typedef unsigned long long uint64;
@@ -124,36 +125,29 @@ void SHC::preprocess(Atom *atom)
 }
 
 
-static __device__ void warp_reduce(volatile real *s, uint64 t)
-{
-    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
-    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
-}
-
-
 static __global__ void gpu_find_k_time
 (
-    int Nc, int Nd, int M,int number_of_sections, int number_of_pairs, 
+    int Nc, int Nd, int M, int number_of_sections, int number_of_pairs, 
     real *g_fv_all, real *g_k_time_i, real *g_k_time_o
 )
 {
     //<<<Nc, 128>>>
-    uint64 tid = threadIdx.x;
-    uint64 bid = blockIdx.x;
-    uint64 number_of_patches = (M - 1) / 128 + 1;
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int number_of_patches = (M - 1) / 128 + 1;
 
     __shared__ real s_k_time_i[128];
     __shared__ real s_k_time_o[128];
     s_k_time_i[tid] = ZERO;
     s_k_time_o[tid] = ZERO;
 
-    for (uint64 patch = 0; patch < number_of_patches; ++patch)
+    for (int patch = 0; patch < number_of_patches; ++patch)
     {
-        uint64 m = tid + patch * 128;
+        int m = tid + patch * 128;
         if (m < M)
         {
-            uint64 index_0 = (m +   0) * number_of_pairs * 12;
-            uint64 index_t = (m + bid) * number_of_pairs * 12;
+            int index_0 = (m +   0) * number_of_pairs * 12;
+            int index_t = (m + bid) * number_of_pairs * 12;
 
             for (uint64 np = 0; np < number_of_pairs; np++) // pairs
             {

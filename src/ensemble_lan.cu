@@ -24,6 +24,7 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 #include "force.cuh"
 #include <curand_kernel.h>
 #include "atom.cuh"
+#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
@@ -151,13 +152,6 @@ static __global__ void gpu_langevin
         g_vz[n] = c1 * g_vz[n] + c2m * CURAND_NORMAL(&state);
         g_state[m] = state;
     }
-}
-
-
-static __device__ void warp_reduce(volatile real *s, int t) 
-{
-    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
-    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
 }
 
 

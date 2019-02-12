@@ -22,6 +22,7 @@ Use finite difference to validate the analytical force calculations.
 #include "validate.cuh"
 #include "force.cuh"
 #include "atom.cuh"
+#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
@@ -92,13 +93,6 @@ static __global__ void shift_atom
 }
 
 
-static __device__ void warp_reduce(volatile real *s, int t) 
-{
-    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
-    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
-}
-
-
 // get the total potential form the per-atom potentials
 static __global__ void sum_potential(int N, int m, real *p, real *p_sum)
 {
@@ -139,14 +133,9 @@ static __global__ void find_force_from_potential
     int m;
     if (n1 < N)
     {
-        m = n1;
-        fx[n1] = (p1[m] - p2[m]) / DX2;
-
-        m += N;
-        fy[n1] = (p1[m] - p2[m]) / DX2;
-
-        m += N;
-        fz[n1] = (p1[m] - p2[m]) / DX2; 
+        m = n1; fx[n1] = (p1[m] - p2[m]) / DX2;
+        m += N; fy[n1] = (p1[m] - p2[m]) / DX2;
+        m += N; fz[n1] = (p1[m] - p2[m]) / DX2; 
     }
 }
 
