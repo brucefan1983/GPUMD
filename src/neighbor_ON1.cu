@@ -178,9 +178,9 @@ static __global__ void gpu_find_neighbor_ON1
                     if (cell_id_z + k >= cell_n_z) 
                         neighbour -= cell_n_z*cell_n_y*cell_n_x;
                     // loop over the atoms in a neighbor cell
-                    for (int k = 0; k < cell_counts[neighbour]; ++k)
+                    for (int m = 0; m < cell_counts[neighbour]; ++m)
                     {
-                        int n2 = cell_contents[cell_count_sum[neighbour] + k];
+                        int n2 = cell_contents[cell_count_sum[neighbour] + m];
                         if (n1 == n2) continue;
                         real x12 = x[n2]-x1;
                         real y12 = y[n2]-y1;
