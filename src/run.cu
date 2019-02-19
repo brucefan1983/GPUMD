@@ -156,6 +156,7 @@ static void process_run
     clock_t time_begin = clock();
     for (int step = 0; step < atom->number_of_steps; ++step)
     {
+        atom->step = step;
         if (atom->neighbor.update) { atom->find_neighbor(0); }
         update_temperature(atom, integrate, step);
         integrate->compute(atom, force, measure);

@@ -63,6 +63,7 @@ public:
     int num_of_grouping_methods = 0;
 
     // make a structure?
+    int step;
     int number_of_steps; // number of steps in a specific run
     real initial_temperature; // initial temperature for velocity
     real temperature1;
