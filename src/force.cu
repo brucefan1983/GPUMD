@@ -25,7 +25,7 @@ The driver class calculating force and related quantities.
 #include "mic.cuh"
 #include "warp_reduce.cuh"
 #include "potential.cuh"
-#include "tersoff.cuh"
+#include "tersoff1989.cuh"
 #include "rebo_mos2.cuh"
 #include "vashishta.cuh"
 #include "tersoff1988.cuh"
@@ -96,12 +96,12 @@ void Force::initialize_one_potential(Atom* atom, int m)
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0)
     {
-        potential[m] = new Tersoff2(fid_potential, atom, 1);
+        potential[m] = new Tersoff1989(fid_potential, atom, 1);
         print_type_error(atom->number_of_types, 1);
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0)
     { 
-        potential[m] = new Tersoff2(fid_potential, atom, 2);
+        potential[m] = new Tersoff1989(fid_potential, atom, 2);
         print_type_error(atom->number_of_types, 2);
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
@@ -260,12 +260,12 @@ void Force::initialize_many_body_potential
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989_1") == 0)
     {
-        potential[m] = new Tersoff2(fid_potential, atom, 1);
+        potential[m] = new Tersoff1989(fid_potential, atom, 1);
         print_type_error(number_of_types, 1);
     }
     else if (strcmp(potential_name, "tersoff_1989_2") == 0)
     {
-        potential[m] = new Tersoff2(fid_potential, atom, 2);
+        potential[m] = new Tersoff1989(fid_potential, atom, 2);
         print_type_error(number_of_types, 2);
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)

@@ -18,14 +18,14 @@
 #include "potential.cuh"
 
 
-struct Tersoff2_Parameters
+struct Tersoff1989_Parameters
 {
     real a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
     real pi_factor, one_plus_c2overd2, minus_half_over_n;
 };
 
 
-struct Tersoff2_Data
+struct Tersoff1989_Data
 {
     real *b;     // bond orders
     real *bp;    // derivative of bond orders
@@ -35,17 +35,17 @@ struct Tersoff2_Data
 };
 
 
-class Tersoff2 : public Potential
+class Tersoff1989 : public Potential
 {
 public:   
-    Tersoff2(FILE*, Atom*, int sum_of_types);  
-    virtual ~Tersoff2(void);
+    Tersoff1989(FILE*, Atom*, int sum_of_types);  
+    virtual ~Tersoff1989(void);
     virtual void compute(Atom*, Measure*);
 protected:
-    Tersoff2_Parameters ters0;
-    Tersoff2_Parameters ters1;
-    Tersoff2_Parameters ters2;
-    Tersoff2_Data tersoff_data;
+    Tersoff1989_Parameters ters0;
+    Tersoff1989_Parameters ters1;
+    Tersoff1989_Parameters ters2;
+    Tersoff1989_Data tersoff_data;
 };
 
 

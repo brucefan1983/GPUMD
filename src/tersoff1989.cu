@@ -21,7 +21,7 @@ The double-element version of the Tersoff potential as described in
 ------------------------------------------------------------------------------*/
 
 
-#include "tersoff.cuh"
+#include "tersoff1989.cuh"
 #include "mic.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
@@ -30,7 +30,7 @@ The double-element version of the Tersoff potential as described in
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
 
-Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
+Tersoff1989::Tersoff1989(FILE *fid, Atom* atom, int num_of_types)
 {
     if (num_of_types == 1)
         printf("Use Tersoff-1989 (single-element) potential.\n");
@@ -127,7 +127,7 @@ Tersoff2::Tersoff2(FILE *fid, Atom* atom, int num_of_types)
 }
 
 
-Tersoff2::~Tersoff2(void)
+Tersoff1989::~Tersoff1989(void)
 {
     CHECK(cudaFree(tersoff_data.b));
     CHECK(cudaFree(tersoff_data.bp));
@@ -140,9 +140,9 @@ Tersoff2::~Tersoff2(void)
 static __device__ void find_fr_and_frp
 (
     int type1, int type2,
-    Tersoff2_Parameters ters0,
-    Tersoff2_Parameters ters1,
-    Tersoff2_Parameters ters2,
+    Tersoff1989_Parameters ters0,
+    Tersoff1989_Parameters ters1,
+    Tersoff1989_Parameters ters2,
     real d12, real &fr, real &frp
 )
 {
@@ -167,9 +167,9 @@ static __device__ void find_fr_and_frp
 static __device__ void find_fa_and_fap
 (
     int type1, int type2,
-    Tersoff2_Parameters ters0,
-    Tersoff2_Parameters ters1,
-    Tersoff2_Parameters ters2,
+    Tersoff1989_Parameters ters0,
+    Tersoff1989_Parameters ters1,
+    Tersoff1989_Parameters ters2,
     real d12, real &fa, real &fap
 )
 {
@@ -196,9 +196,9 @@ static __device__ void find_fa_and_fap
 static __device__ void find_fa
 (
     int type1, int type2,
-    Tersoff2_Parameters ters0,
-    Tersoff2_Parameters ters1,
-    Tersoff2_Parameters ters2,
+    Tersoff1989_Parameters ters0,
+    Tersoff1989_Parameters ters1,
+    Tersoff1989_Parameters ters2,
     real d12, real &fa
 )
 {
@@ -220,9 +220,9 @@ static __device__ void find_fa
 static __device__ void find_fc_and_fcp
 (
     int type1, int type2,
-    Tersoff2_Parameters ters0,
-    Tersoff2_Parameters ters1,
-    Tersoff2_Parameters ters2,
+    Tersoff1989_Parameters ters0,
+    Tersoff1989_Parameters ters1,
+    Tersoff1989_Parameters ters2,
     real d12, real &fc, real &fcp
 )
 {
@@ -262,9 +262,9 @@ static __device__ void find_fc_and_fcp
 static __device__ void find_fc
 (
     int type1, int type2,
-    Tersoff2_Parameters ters0,
-    Tersoff2_Parameters ters1,
-    Tersoff2_Parameters ters2,
+    Tersoff1989_Parameters ters0,
+    Tersoff1989_Parameters ters1,
+    Tersoff1989_Parameters ters2,
     real d12, real &fc
 )
 {
@@ -301,8 +301,8 @@ static __device__ void find_fc
 static __device__ void find_g_and_gp
 (
     int type1,
-    Tersoff2_Parameters ters0,
-    Tersoff2_Parameters ters1,
+    Tersoff1989_Parameters ters0,
+    Tersoff1989_Parameters ters1,
     real cos, real &g, real &gp
 )
 {
@@ -324,8 +324,8 @@ static __device__ void find_g_and_gp
 static __device__ void find_g
 (
     int type1,
-    Tersoff2_Parameters ters0,
-    Tersoff2_Parameters ters1,
+    Tersoff1989_Parameters ters0,
+    Tersoff1989_Parameters ters1,
     real cos, real &g
 )
 {
@@ -347,8 +347,8 @@ static __global__ void find_force_tersoff_step1
 (
     int number_of_particles, int N1, int N2, int triclinic, 
     int pbc_x, int pbc_y, int pbc_z,
-    Tersoff2_Parameters ters0, Tersoff2_Parameters ters1,
-    Tersoff2_Parameters ters2,
+    Tersoff1989_Parameters ters0, Tersoff1989_Parameters ters1,
+    Tersoff1989_Parameters ters2,
     int* g_neighbor_number, int* g_neighbor_list, int* g_type,
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
@@ -424,8 +424,8 @@ static __global__ void find_force_tersoff_step2
 (
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    Tersoff2_Parameters ters0, Tersoff2_Parameters ters1,
-    Tersoff2_Parameters ters2, 
+    Tersoff1989_Parameters ters0, Tersoff1989_Parameters ters1,
+    Tersoff1989_Parameters ters2, 
     int *g_neighbor_number, int *g_neighbor_list, int *g_type,
     const real* __restrict__ g_b,
     const real* __restrict__ g_bp,
@@ -519,7 +519,7 @@ static __global__ void find_force_tersoff_step2
 
 
 // Wrapper of force evaluation for the Tersoff potential
-void Tersoff2::compute(Atom *atom, Measure *measure)
+void Tersoff1989::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
