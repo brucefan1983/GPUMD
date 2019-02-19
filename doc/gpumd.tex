@@ -341,34 +341,24 @@ The input and output files do not necessarily adopt these units. For example, ti
 
 \section{Overall structure of GPUMD}
 
-GPUMD is written using CUDA C/C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
+GPUMD is written using CUDA C++. Except for data initialization and some calculations that are very cheap or inherently serial, all the other calculations are done on the GPU.
 
-The current version of GPUMD has about 14 500 lines of code. The structure of the code is as follows:
+The current version of GPUMD has about 14 000 lines of code. The structure of the code is as follows:
 \begin{itemize}
-\item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. \textcolor{red}{There is one file here.}
+\item The file \verb"main.cu" contains the \verb"main" function, which is the entrance of the code. The \verb"main" function uses the \verb"GPUMD" class. 
 
-\item The  \verb"GPUMD" class (files \verb"gpumd.cuh" and \verb"gpumd.cu") simply uses the other classes,  \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure", and \verb"Run", to do a simulation for a given input directory. \textcolor{red}{There are two files here.}
+\item The  \verb"GPUMD" class simply uses the other classes,  \verb"Atom", \verb"Force", \verb"Integrate", and \verb"Measure", and \verb"Run", to do a simulation for a given input directory. 
 
-\item The \verb"Run" class is implemented in these files: \verb"run.cuh", \verb"run.cu",  \verb"read_file.cuh", \verb"read_file.cu", and \verb"parse.cu". \textcolor{red}{There are 5 files in total here.} This class controls the overall flow of the code. 
+\item The \verb"Run" class controls the overall flow of the code. 
 
-\item The \verb"Atom" class contains the major data related to the atoms (such as the various per-atom physical quantities, the simulation box, the neighbor list, etc) and functions used to initializing and finalizing these data. This class involves the files \verb"atom.cuh", \verb"atom.cu", \verb"velocity.cu", \verb"neighbor.cu", \verb"neighbor_ON1.cu", and \verb"neighbor_ON2.cu". \textcolor{red}{There are 6 files in total here.}
+\item The \verb"Atom" class contains the major data related to the atoms (such as the various per-atom physical quantities, the simulation box, the neighbor list, etc) and functions used to initializing and finalizing these data. 
 
-\item The \verb"Force" class (in files \verb"force.cuh" and \verb"force.cu") deals with everything related to force evaluation. The \verb"Force" class contains pointers of the abstract base class (ABC) \verb"Potential" class (in files \verb"potential.cuh" and \verb"potential.cu"). This ABC is inherited by some classes, each corresponding to a specific empirical potential. The potential classes are \verb"Pair" (in files \verb"pair.cuh" and \verb"pair.cu"), \verb"EAM" (in files \verb"eam.cuh" and \verb"eam.cu"), \verb"SW" (in files \verb"sw.cuh" and \verb"sw.cu"), \verb"Tersoff" (in files \verb"tersoff.cuh" and \verb"tersoff.cu"), \verb"Vashishta" (in files \verb"vashishta.cuh" and \verb"vashishta.cu"), and \verb"REBO_MOS" (in files \verb"rebo_mos2.cuh" and \verb"rebo_mos2.cu"). \textcolor{red}{There are 16 files in total here.}
+\item The \verb"Force" class deals with everything related to force evaluation. The \verb"Force" class contains pointers of the abstract base class (ABC) \verb"Potential". This ABC is inherited by some classes, each corresponding to a specific empirical potential. The potential classes are \verb"Pair", \verb"EAM", \verb"SW", \verb"Tersoff", \verb"Vashishta", and \verb"REBO_MOS".
 
-\item The \verb"Integrate" class (in files \verb"integrate.cuh" and \verb"integrate.cu") deals with everything related to time integration. The \verb"Itegrate" class contains a pointer of the ABC \verb"Ensemble" class (in files \verb"ensemble.cuh" and \verb"ensemble.cu"). This ABC is inherited by some classes, each corresponding to a specific integrator. The integrator classes are \verb"Ensemble_NVE" (in files \verb"ensemble_nve.cuh" and \verb"ensemble_nve.cu"), \verb"Ensemble_BER" (in files \verb"ensemble_ber.cuh" and \verb"ensemble_ber.cu"), \verb"Ensemble_NHC" (in files \verb"ensemble_nhc.cuh" and \verb"ensemble_nhc.cu"), \verb"Ensemble_LAN" (in files \verb"ensemble_lan.cuh" and \verb"ensemble_lan.cu"), and \verb"Ensemble_BDP" (in files \verb"ensemble_bdp.cuh" and \verb"ensemble_bdp.cu").  \textcolor{red}{There are 14 files in total here.}
+\item The \verb"Integrate" class deals with everything related to time integration. The \verb"Itegrate" class contains a pointer of the ABC \verb"Ensemble". This ABC is inherited by some classes, each corresponding to a specific integrator. The integrator classes are \verb"Ensemble_NVE", \verb"Ensemble_BER", \verb"Ensemble_NHC", \verb"Ensemble_LAN", and \verb"Ensemble_BDP".
 
-\item The \verb"Measure" class (in files \verb"measure.cuh" and \verb"measure.cu") deals with everything related to measurement. The \verb"Measure" class contains a few other classes, including the  \verb"VAC" class (in files \verb"vac.cuh" and \verb"vac.cu"), the \verb"HAC" class (in files \verb"hac.cuh" and \verb"hac.cu"), \verb"SHC" class (in files \verb"shc.cuh" and \verb"shc.cu"), the \verb"HNEMD" class (in files \verb"hnemd_kappa.cuh" and \verb"hnemd_kappa.cu"), and the \verb"Compute" class (in files \verb"compute.cuh" and \verb"compute.cu"). \textcolor{red}{There are 12 files in total here.}
-
-\item There is a header called \verb"common.cuh" which is included in most of the other headers. This is a light-weighted header, which only contains some type definitions and forward declarations. \textcolor{red}{One file here.}
-
-\item There is a header called \verb"ldg.cuh" which is included in some potential class files. This is used to choose between using the \verb"__ldg()" function and the normal array indexing for some global memory reading. \textcolor{red}{One file here.}
-
-\item Some macros and functions for error handling are contained in the files \verb"error.cuh" and \verb"error.cu". \textcolor{red}{Two files here.}
-
-\item There are two files named \verb"validate.cuh" and \verb"validate.cu" which are only used by the developers. \textcolor{red}{Two files here.}
+\item The \verb"Measure" class deals with everything related to measurement. The \verb"Measure" class contains a few other classes, including the  \verb"VAC" class, the \verb"HAC" class, \verb"SHC" class, the \verb"HNEMD" class, and the \verb"Compute" class.
 \end{itemize}
-
-How many files in total? \textcolor{red}{62!}
 
 
 \section{Coding style of GPUMD}
@@ -2700,7 +2690,7 @@ The next two sections are devoted to describing the structures of the input and 
 A file named \verb"xyz.in" should be prepared and should have one of the following formats (empty lines and comments are not allowed):
 \begin{verbatim}
     N M cutoff 0 has_velocity has_layer number_of_grouping_methods
-    pbc_x  pbc_y   pbc_z  L_x L_y L_z
+    pbc_x pbc_y pbc_z L_x L_y L_z
     t1 x1 y1 z1 m1 [vx1] [vy1] [vz1] [layer1] [group1_1] [group2_1] ...
     t2 x2 y2 z2 m2 [vx2] [vy2] [vz2] [layer1] [group1_2] [group2_2] ...
     ...
@@ -2708,10 +2698,7 @@ A file named \verb"xyz.in" should be prepared and should have one of the followi
 or
 \begin{verbatim}
     N M cutoff 1 has_velocity has_layer number_of_grouping_methods
-    pbc_x  pbc_y   pbc_z  
-    a_x a_y a_z
-    b_x b_y b_z
-    c_x c_y c_z
+    pbc_a pbc_b pbc_c a_x a_y a_z b_x b_y b_z c_x c_y c_z
     t1 x1 y1 z1 m1 [vx1] [vy1] [vz1] [layer1] [group1_1] [group2_1] ...
     t2 x2 y2 z2 m2 [vx2] [vy2] [vz2] [layer1] [group1_2] [group2_2] ...
     ...
@@ -2729,7 +2716,7 @@ We explain line by line:
 \item \verb"number_of_grouping_methods" can be integers from 0 to 2, which is the number of grouping methods that can be referred to in some keywords in the \verb"run.in" file.  See the explanations for the third line below for further details.
 \end{itemize}
 \item If \verb"triclinic" is 0, in the second line, \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z" can only be 1 or 0. If \verb"pbc_x" is 1, it means that periodic boundary conditions will be applied to the $x$ direction; if \verb"pbc_x" is 0, it means that free boundary conditions will be applied to the $x$ direction. Similar descriptions apply to the other two directions. The next three items in the second line, \verb"L_x", \verb"L_y", and \verb"L_z", are the initial lengths of the (rectangular) simulation box along the $x$, $y$, and $z$ directions, respectively.
-\item If \verb"triclinic" is 1, the next line contains \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z", which have the same meanings as discussed above. The next three lines give the three vectors defining the box:
+\item If \verb"triclinic" is 1, the first three numbers in the second line correspond to \verb"pbc_a",  \verb"pbc_b", and \verb"pbc_c", which have similar meanings as \verb"pbc_x",  \verb"pbc_y", and \verb"pbc_z", but for the $\vect{a}$, $\vect{b}$, and $\vect{c}$ directions as specified by the remaining nine numbers in this line:
 \begin{equation}
 \vect{a} = a_x \vect{e}_x + a_y \vect{e}_y + a_z \vect{e}_z;
 \end{equation}
@@ -2739,7 +2726,8 @@ We explain line by line:
 \begin{equation}
 \vect{c} = c_x \vect{e}_x + c_y \vect{e}_y + c_z \vect{e}_z.
 \end{equation}
-\item Starting from the next line, 
+These vectors define the simulation box and there is no restriction on the values of the vector components, but the user is responsible for the compatibility between the initial atom coordinates and the simulation box.
+\item Starting from the third line, 
 \begin{itemize}
 \item \verb"t1" is the type of atom 1. The atom type will be used to determine which potential parameters to use. \textcolor{red}{We use integers to record the atom types and the indices start from 0.}
 \item \verb"x1", \verb"y1", and \verb"z1" are the coordinates of this atom.
