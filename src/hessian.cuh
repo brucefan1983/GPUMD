@@ -23,7 +23,7 @@ class Hessian
 public:
     int yes = 0;      // 1 means calculating the hessian
     real* H;          // the 3N x 3N hessian
-    real dx = 0.0001;   // displacement in units of A
+    real dx = 0.005;  // displacement in units of A
 
     Hessian(Atom*, Force*, Measure*);
     ~Hessian(void);
@@ -31,10 +31,8 @@ public:
 protected:
     real *f_positive; // F_i(+)
     real *f_negative; // F_i(-)
-    real dx2 = 0.0002;  // dx * 2
+    real dx2 = 0.010; // dx * 2
 
-    void initialize(int);
-    void finalize(void);
     void find_H(Atom*, Force*, Measure*);
     void find_H12(int, int, Atom*, Force*, Measure*, real*);
     void shift_atom(int, int, int, Atom*);
