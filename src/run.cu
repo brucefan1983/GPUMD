@@ -22,6 +22,7 @@ Run simulation according to the inputs in the run.in file.
 #include "run.cuh"
 #include "force.cuh"
 #include "validate.cuh"
+#include "hessian.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "measure.cuh"
@@ -166,6 +167,8 @@ static void process_run
     print_time_and_speed(time_begin, atom);
     measure->finalize(input_dir, atom, integrate);
     integrate->finalize();
+// test
+    Hessian hessian(atom, force, measure);
 }
 
 
