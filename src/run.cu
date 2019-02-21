@@ -195,29 +195,6 @@ static void process_run
 }
 
 
-#ifdef FORCE
-static void print_initial_force(char* input_dir, Atom* atom)
-{
-    int m = sizeof(real) * atom->N;
-    real *fx; MY_MALLOC(fx, real, atom->N);
-    real *fy; MY_MALLOC(fy, real, atom->N);
-    real *fz; MY_MALLOC(fz, real, atom->N);
-    CHECK(cudaMemcpy(fx, atom->fx, m, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy, atom->fy, m, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz, atom->fz, m, cudaMemcpyDeviceToHost));
-    char file_force[200];
-    strcpy(file_force, input_dir);
-    strcat(file_force, "/f.out");
-    FILE *fid_force = my_fopen(file_force, "w");
-    for (int n = 0; n < atom->N; n++)
-    {
-        fprintf(fid_force, "%20.10e%20.10e%20.10e\n", fx[n], fy[n], fz[n]);
-    }
-    fflush(fid_force); fclose(fid_force); MY_FREE(fx); MY_FREE(fy); MY_FREE(fz);
-}
-#endif
-
-
 static void print_start(int check)
 {
     print_line_1();
@@ -249,9 +226,6 @@ void Run::check_potential
     {
         force->initialize(input_dir, atom);
         force->compute(atom, measure);
-#ifdef FORCE
-        print_initial_force(input_dir, atom);
-#endif
     }
 }
 

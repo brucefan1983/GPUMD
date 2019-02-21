@@ -88,9 +88,6 @@ void print_compile_information(void)
 #ifdef ZHEN_LI
     printf("ZHEN_LI is on: Special version for Zhen Li.\n");
 #endif
-#ifdef FORCE
-    printf("FORCE is on: Calculate initial force.\n");
-#endif
 }
 
 
