@@ -145,29 +145,6 @@ static void print_time_and_speed(clock_t time_begin, Atom* atom)
 }
 
 
-static void test_hessian(Atom *atom, Force *force, Measure *measure)
-{
-    int N = atom->N;
-    real dx = 0.005;
-    real* H; MY_MALLOC(H, real, 9);
-    FILE* fid = fopen("H.txt", "w");
-    for (int n1 = 0; n1 < N; ++n1)
-    {
-        for (int n2 = 0; n2 < N; ++n2)
-        {
-            Hessian hessian(dx, n1, n2, atom, force, measure, H);
-            for (int k = 0; k < 9; ++k)
-            {
-                fprintf(fid, "%g ", H[k]);
-            }
-            fprintf(fid, "\n");
-        }
-    }
-    fclose(fid);
-    MY_FREE(H);
-}
-
-
 // run a number of steps for a given set of inputs
 static void process_run
 (
@@ -190,8 +167,6 @@ static void process_run
     print_time_and_speed(time_begin, atom);
     measure->finalize(input_dir, atom, integrate);
     integrate->finalize();
-// TEST
-    test_hessian(atom, force, measure);
 }
 
 
