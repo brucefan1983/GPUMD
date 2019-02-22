@@ -21,10 +21,27 @@
 class Hessian
 {
 public:
-    Hessian(real, int, int, Atom*, Force*, Measure*, real*);
+    void compute(char*, Atom*, Force*, Measure*);
 protected:
+    int num_basis;
+    int num_kpoints;
+    real dx = 0.005; // very good choice and there is no need to change it
+    int* basis;
+    int* label;
+    real* mass;
+    real* kpoints;
+    real* H;
+    real* DR;
+    real* DI;
     void shift_atom(real, int, int, Atom*);
     void get_f(real, int, int, int, Atom*, Force*, Measure*, real*);
+    void read_basis(char*, int N);
+    void read_kpoints(char*);
+    void initialize(char*, int);
+    void finalize(void);
+    void find_H(char*, Atom*, Force*, Measure*);
+    void find_H12(real, int, int, Atom*, Force*, Measure*, real*);
+    void find_D(char*, Atom*, Force*, Measure*);
 };
 
 
