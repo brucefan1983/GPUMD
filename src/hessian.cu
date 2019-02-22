@@ -98,6 +98,7 @@ void Hessian::finalize(void)
 {
     MY_FREE(basis);
     MY_FREE(label);
+    MY_FREE(mass);
     MY_FREE(kpoints);
     MY_FREE(H);
     MY_FREE(DR);
