@@ -26,6 +26,8 @@ protected:
     int num_basis;
     int num_kpoints;
     real dx = 0.005; // very good choice and there is no need to change it
+    real cutoff = 4.0;
+    real cutoff_square = 16.0;
     int* basis;
     int* label;
     real* mass;
@@ -41,6 +43,7 @@ protected:
     void finalize(void);
     void find_H(Atom*, Force*, Measure*);
     void find_H12(real, int, int, Atom*, Force*, Measure*, real*);
+    bool is_too_far(int, int, Atom*);
     void find_D(char*, Atom*);
     void output_D(FILE*);
 };

@@ -88,10 +88,13 @@ void Hessian::initialize(char* input_dir, int N)
 {
     read_basis(input_dir, N);
     read_kpoints(input_dir);
-    MY_MALLOC(H, real, num_basis * N * 9);
-    MY_MALLOC(DR, real, num_basis * num_basis * 9);
-    MY_MALLOC(DI, real, num_basis * num_basis * 9);
-    for (int n = 0; n < num_basis * num_basis * 9; ++n) { DR[n] = DI[n] = 0; }
+    int num_H = num_basis * N * 9;
+    int num_D = num_basis * num_basis * 9;
+    MY_MALLOC(H, real, num_H);
+    MY_MALLOC(DR, real, num_D);
+    MY_MALLOC(DI, real, num_D);
+    for (int n = 0; n < num_H; ++n) { H[n] = 0; }
+    for (int n = 0; n < num_D; ++n) { DR[n] = DI[n] = 0; }
 }
 
 
@@ -104,21 +107,6 @@ void Hessian::finalize(void)
     MY_FREE(H);
     MY_FREE(DR);
     MY_FREE(DI);
-}
-
-
-void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
-{
-    int N = atom->N;
-    for (int nb = 0; nb < num_basis; ++nb)
-    {
-        int n1 = basis[nb];
-        for (int n2 = 0; n2 < N; ++n2)
-        {
-            int offset = (nb * N + n2) * 9;
-            find_H12(dx, n1, n2, atom, force, measure, H + offset);
-        }
-    }
 }
 
 
@@ -152,13 +140,43 @@ static void apply_mic
 }
 
 
+bool Hessian::is_too_far(int n1, int n2, Atom* atom)
+{
+    real x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
+    real y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
+    real z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
+    apply_mic
+    (
+        atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y,
+        atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
+    );
+    real d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+    return (d12_square > cutoff_square);
+}
+
+
+void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
+{
+    int N = atom->N;
+    for (int nb = 0; nb < num_basis; ++nb)
+    {
+        int n1 = basis[nb];
+        for (int n2 = 0; n2 < N; ++n2)
+        {
+            if(is_too_far(n1, n2, atom)) continue;
+            int offset = (nb * N + n2) * 9;
+            find_H12(dx, n1, n2, atom, force, measure, H + offset);
+        }
+    }
+}
+
+
 static void find_exp_ikr
 (int n1, int n2, real* k, Atom* atom, real& cos_kr, real& sin_kr)
 {
-    real x12, y12, z12;
-    x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
-    y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
-    z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
+    real x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
+    real y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
+    real z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
     apply_mic
     (
         atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
@@ -209,6 +227,7 @@ void Hessian::find_D(char* input_dir, Atom* atom)
             real mass_1 = mass[label_1];
             for (int n2 = 0; n2 < atom->N; ++n2)
             {
+                if(is_too_far(n1, n2, atom)) continue;
                 real cos_kr, sin_kr;
                 find_exp_ikr(n1, n2, kpoints + nk * 3, atom, cos_kr, sin_kr);
                 int label_2 = label[n2];
