@@ -39,9 +39,10 @@ protected:
     void read_kpoints(char*);
     void initialize(char*, int);
     void finalize(void);
-    void find_H(char*, Atom*, Force*, Measure*);
+    void find_H(Atom*, Force*, Measure*);
     void find_H12(real, int, int, Atom*, Force*, Measure*, real*);
-    void find_D(char*, Atom*, Force*, Measure*);
+    void find_D(char*, Atom*);
+    void output_D(FILE*);
 };
 
 

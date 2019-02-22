@@ -17,6 +17,7 @@
 /*----------------------------------------------------------------------------80
 Use finite difference to calculate the hessian (force constants).
     H_ij^ab = [F_i^a(-) - F_i^a(+)] / [u_j^b(+) - u_j^b(-)]
+Then calculate the dynamical matrices with different k points.
 ------------------------------------------------------------------------------*/
 
 
@@ -31,8 +32,8 @@ void Hessian::compute
 (char* input_dir, Atom* atom, Force* force, Measure* measure)
 {
     initialize(input_dir, atom->N);
-    find_H(input_dir, atom, force, measure);
-    find_D(input_dir, atom, force, measure);
+    find_H(atom, force, measure);
+    find_D(input_dir, atom);
     finalize();
 }
 
@@ -106,8 +107,7 @@ void Hessian::finalize(void)
 }
 
 
-void Hessian::find_H
-(char* input_dir, Atom* atom, Force* force, Measure* measure)
+void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
 {
     int N = atom->N;
     for (int nb = 0; nb < num_basis; ++nb)
@@ -152,8 +152,49 @@ static void apply_mic
 }
 
 
-void Hessian::find_D
-(char* input_dir, Atom* atom, Force* force, Measure* measure)
+static void find_exp_ikr
+(int n1, int n2, real* k, Atom* atom, real& cos_kr, real& sin_kr)
+{
+    real x12, y12, z12;
+    x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
+    y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
+    z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
+    apply_mic
+    (
+        atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
+        atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
+    );
+    real kr = k[0] * x12 + k[1] * y12 + k[2] * z12;
+    cos_kr = cos(kr);
+    sin_kr = sin(kr);
+}
+
+
+void Hessian::output_D(FILE* fid)
+{
+    for (int b1 = 0; b1 < num_basis; ++b1)
+    {
+        for (int b2 = 0; b2 < num_basis; ++b2)
+        {
+            int offset = (b1 * num_basis + b2) * 9;
+            for (int k = 0; k < 9; ++k) 
+            {
+                fprintf(fid, "%g ", DR[offset + k]);
+            }
+            if (num_kpoints > 1)
+            {
+                for (int k = 0; k < 9; ++k) 
+                {
+                    fprintf(fid, "%g ", DI[offset + k]);
+                }
+            }
+            fprintf(fid, "\n");
+        }
+    }
+}
+
+
+void Hessian::find_D(char* input_dir, Atom* atom)
 {
     char file[200];
     strcpy(file, input_dir);
@@ -168,18 +209,8 @@ void Hessian::find_D
             real mass_1 = mass[label_1];
             for (int n2 = 0; n2 < atom->N; ++n2)
             {
-                real x12, y12, z12;
-                x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
-                y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
-                z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
-                apply_mic
-                (
-                    atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
-                    atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
-                );
-                real kr = kpoints[nk * 3 + 0] * x12 
-                        + kpoints[nk * 3 + 1] * y12 
-                        + kpoints[nk * 3 + 2] * z12;
+                real cos_kr, sin_kr;
+                find_exp_ikr(n1, n2, kpoints + nk * 3, atom, cos_kr, sin_kr);
                 int label_2 = label[n2];
                 real mass_2 = mass[label_2];
                 real mass_factor = 1.0 / sqrt(mass_1 * mass_2);
@@ -190,31 +221,13 @@ void Hessian::find_D
                     for (int b = 0; b < 3; ++b)
                     {
                         int a3b = a * 3 + b;
-                        DR[offset + a3b] += H12[a3b] * cos(kr) * mass_factor;
-                        DI[offset + a3b] += H12[a3b] * sin(kr) * mass_factor;
+                        DR[offset + a3b] += H12[a3b] * cos_kr * mass_factor;
+                        DI[offset + a3b] += H12[a3b] * sin_kr * mass_factor;
                     }
                 }
             }
         }
-        for (int b1 = 0; b1 < num_basis; ++b1)
-        {
-            for (int b2 = 0; b2 < num_basis; ++b2)
-            {
-                int offset = (b1 * num_basis + b2) * 9;
-                for (int k = 0; k < 9; ++k) 
-                {
-                    fprintf(fid, "%g ", DR[offset + k]);
-                }
-                if (num_kpoints > 1)
-                {
-                    for (int k = 0; k < 9; ++k) 
-                    {
-                        fprintf(fid, "%g ", DI[offset + k]);
-                    }
-                }
-                fprintf(fid, "\n");
-            }
-        }
+        output_D(fid);
     }
     fclose(fid);
 }
