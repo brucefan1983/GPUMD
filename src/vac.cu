@@ -15,9 +15,12 @@
 
 
 /*----------------------------------------------------------------------------80
-The double-element version of the Tersoff potential as described in  
-    [1] J. Tersoff, Modeling solid-state chemistry: Interatomic potentials 
-        for multicomponent systems, PRB 39, 5566 (1989).
+Calculate the (1) velocity autocorrelation function (VAC)
+              (2) running diffusion coefficient (RDC)
+              (3) phonon (vibrational) density of states (DOS)
+[1] J. M. Dickey and A. Paskin, 
+Computer Simulation of the Lattice Dynamics of Solids, 
+Phys. Rev. 188, 1407 (1969).
 ------------------------------------------------------------------------------*/
 
 
@@ -34,7 +37,7 @@ The double-element version of the Tersoff potential as described in
 void VAC::preprocess(Atom *atom)
 {
     if (!compute) return;
-    int num = atom->N * atom->number_of_steps / sample_interval;
+    int num = atom->N * (atom->number_of_steps / sample_interval);
     CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
