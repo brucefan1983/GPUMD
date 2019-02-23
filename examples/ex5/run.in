@@ -1,0 +1,7 @@
+potential       potentials/tersoff/si_tersoff_1989.txt
+velocity        300       # not used but needed here
+
+ensemble        nve       # not important but needed here
+time_step       0         # the positions will not be changed
+compute_hessian 4.0 0.005 # cutoff and displacement
+run             10        # needed for activating the computation
