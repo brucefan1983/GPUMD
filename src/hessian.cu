@@ -94,7 +94,6 @@ void Hessian::initialize(char* input_dir, int N)
     MY_MALLOC(DR, real, num_D);
     MY_MALLOC(DI, real, num_D);
     for (int n = 0; n < num_H; ++n) { H[n] = 0; }
-    for (int n = 0; n < num_D; ++n) { DR[n] = DI[n] = 0; }
 }
 
 
@@ -190,24 +189,21 @@ static void find_exp_ikr
 
 void Hessian::output_D(FILE* fid)
 {
-    for (int b1 = 0; b1 < num_basis; ++b1)
+    for (int n1 = 0; n1 < num_basis * 3; ++n1)
     {
-        for (int b2 = 0; b2 < num_basis; ++b2)
+        int offset = n1 * num_basis * 3;
+        for (int n2 = 0; n2 < num_basis * 3; ++n2)
         {
-            int offset = (b1 * num_basis + b2) * 9;
-            for (int k = 0; k < 9; ++k) 
-            {
-                fprintf(fid, "%g ", DR[offset + k]);
-            }
-            if (num_kpoints > 1)
-            {
-                for (int k = 0; k < 9; ++k) 
-                {
-                    fprintf(fid, "%g ", DI[offset + k]);
-                }
-            }
-            fprintf(fid, "\n");
+            fprintf(fid, "%g ", DR[offset + n2]);
         }
+        if (num_kpoints > 1)
+        {
+            for (int n2 = 0; n2 < num_basis * 3; ++n2)
+            {
+                fprintf(fid, "%g ", DI[offset + n2]);
+            }
+        }
+        fprintf(fid, "\n");
     }
 }
 
@@ -220,6 +216,7 @@ void Hessian::find_D(char* input_dir, Atom* atom)
     FILE *fid = fopen(file, "w");
     for (int nk = 0; nk < num_kpoints; ++nk)
     {
+        for (int n = 0; n < num_basis*num_basis*9; ++n) { DR[n] = DI[n] = 0; }
         for (int nb = 0; nb < num_basis; ++nb)
         {
             int n1 = basis[nb];
@@ -234,14 +231,16 @@ void Hessian::find_D(char* input_dir, Atom* atom)
                 real mass_2 = mass[label_2];
                 real mass_factor = 1.0 / sqrt(mass_1 * mass_2);
                 real* H12 = H + (nb * atom->N + n2) * 9;
-                int offset = (label_1 * num_basis + label_2) * 9;
                 for (int a = 0; a < 3; ++a)
                 {
                     for (int b = 0; b < 3; ++b)
                     {
                         int a3b = a * 3 + b;
-                        DR[offset + a3b] += H12[a3b] * cos_kr * mass_factor;
-                        DI[offset + a3b] += H12[a3b] * sin_kr * mass_factor;
+                        int row = label_1 * 3 + a;
+                        int col = label_2 * 3 + b;
+                        int index = row * num_basis * 3 + col;
+                        DR[index] += H12[a3b] * cos_kr * mass_factor;
+                        DI[index] += H12[a3b] * sin_kr * mass_factor;
                     }
                 }
             }
