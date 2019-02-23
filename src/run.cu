@@ -34,11 +34,11 @@ Run simulation according to the inputs in the run.in file.
 Run::Run
 (
     char* input_dir, Atom* atom, Force* force,
-    Integrate* integrate, Measure* measure
+    Integrate* integrate, Measure* measure, Hessian* hessian
 )
 {
-    run(input_dir, atom, force, integrate, measure, 1);
-    run(input_dir, atom, force, integrate, measure, 0);
+    run(input_dir, atom, force, integrate, measure, hessian, 1);
+    run(input_dir, atom, force, integrate, measure, hessian, 0);
 }
 
 
@@ -49,7 +49,8 @@ Run::~Run(void)
 
 
 // set some default values after each run
-void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
+void Run::initialize_run
+(Atom* atom, Integrate* integrate, Measure* measure, Hessian* hessian)
 {
     atom->neighbor.update = 0;
     atom->neighbor.number_of_updates = 0;
@@ -75,6 +76,7 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->dump_potential = 0;
     measure->dump_virial    = 0;
     measure->dump_heat      = 0;
+    hessian->yes            = 0;
 }
 
 
@@ -149,7 +151,7 @@ static void print_time_and_speed(clock_t time_begin, Atom* atom)
 static void process_run
 (
     char *input_dir, Atom *atom, Force *force, Integrate *integrate,
-    Measure *measure
+    Measure *measure, Hessian* hessian
 )
 {
     integrate->initialize(atom);
@@ -167,6 +169,7 @@ static void process_run
     print_time_and_speed(time_begin, atom);
     measure->finalize(input_dir, atom, integrate);
     integrate->finalize();
+    hessian->compute(input_dir, atom, force, measure);
 }
 
 
@@ -218,7 +221,7 @@ void Run::check_velocity(int is_velocity, int check, Atom* atom)
 void Run::check_run
 (
     char* input_dir, int is_run, int check, Atom* atom,
-    Force* force, Integrate* integrate, Measure* measure
+    Force* force, Integrate* integrate, Measure* measure, Hessian* hessian
 )
 {
     if (!is_run) { return; }
@@ -227,8 +230,8 @@ void Run::check_run
         print_velocity_and_potential_error_1();
         check_run_parameters(atom, integrate, measure);
     }
-    else { process_run(input_dir, atom, force, integrate, measure); }
-    initialize_run(atom, integrate, measure); // change back to the default
+    else { process_run(input_dir, atom, force, integrate, measure, hessian); }
+    initialize_run(atom, integrate, measure, hessian);
 }
 
 
@@ -236,7 +239,7 @@ void Run::check_run
 void Run::run
 (
     char *input_dir, Atom *atom, Force *force, Integrate *integrate,
-    Measure *measure, int check
+    Measure *measure, Hessian* hessian, int check
 )
 {
     char file_run[200];
@@ -247,7 +250,7 @@ void Run::run
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
     char *param[max_num_param];
-    initialize_run(atom, integrate, measure); // set some default values
+    initialize_run(atom, integrate, measure, hessian); // set some default values
     print_start(check);
     while (input_ptr)
     {
@@ -256,11 +259,12 @@ void Run::run
         int is_potential = 0;
         int is_velocity = 0;
         int is_run = 0;
-        parse(param, num_param, atom, force, integrate, measure,
+        parse(param, num_param, atom, force, integrate, measure, hessian,
             &is_potential, &is_velocity, &is_run);
         check_potential(input_dir, is_potential, check, atom, force, measure);
         check_velocity(is_velocity, check, atom);
-        check_run(input_dir, is_run, check, atom, force, integrate, measure);
+        check_run
+        (input_dir, is_run, check, atom, force, integrate, measure, hessian);
     }
     print_velocity_and_potential_error_2();
     print_finish(check);

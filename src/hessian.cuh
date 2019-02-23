@@ -21,13 +21,14 @@
 class Hessian
 {
 public:
+    int yes;
+    real dx = 0.005;
+    real cutoff = 4.0;
     void compute(char*, Atom*, Force*, Measure*);
 protected:
     int num_basis;
     int num_kpoints;
-    real dx = 0.005; // very good choice and there is no need to change it
-    real cutoff = 4.0;
-    real cutoff_square = 16.0;
+    real cutoff_square;
     int* basis;
     int* label;
     real* mass;

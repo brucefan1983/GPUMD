@@ -49,5 +49,6 @@ class Force;
 class Measure;
 class Integrate;
 class Ensemble;
+class Hessian;
 
 

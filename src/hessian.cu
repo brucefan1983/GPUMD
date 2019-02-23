@@ -31,6 +31,7 @@ Then calculate the dynamical matrices with different k points.
 void Hessian::compute
 (char* input_dir, Atom* atom, Force* force, Measure* measure)
 {
+    if (!yes) return;
     initialize(input_dir, atom->N);
     find_H(atom, force, measure);
     find_D(input_dir, atom);
@@ -86,6 +87,7 @@ void Hessian::read_kpoints(char* input_dir)
 
 void Hessian::initialize(char* input_dir, int N)
 {
+    cutoff_square = cutoff * cutoff;
     read_basis(input_dir, N);
     read_kpoints(input_dir);
     int num_H = num_basis * N * 9;

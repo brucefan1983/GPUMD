@@ -26,6 +26,7 @@ Parse the commands in run.in.
 #include "force.cuh"
 #include "integrate.cuh"
 #include "measure.cuh"
+#include "hessian.cuh"
 #include <errno.h>
 
 
@@ -831,6 +832,35 @@ static void parse_compute(char **param,  int num_param, Measure* measure)
 }
 
 
+static void parse_compute_hessian(char **param, int num_param, Hessian* hessian)
+{
+    hessian->yes = 1;
+    if (num_param != 3)
+    {
+        print_error("compute_hessian should have 2 parameters.\n");
+    }
+    if (!is_valid_real(param[1], &hessian->cutoff))
+    {
+        print_error("cutoff for hessian should be a number.\n");
+    }
+    if (hessian->cutoff <= 0)
+    {
+        print_error("cutoff for hessian should be positive.\n");
+    }
+    if (!is_valid_real(param[2], &hessian->dx))
+    {
+        print_error("displacement for hessian should be a number.\n");
+    }
+    if (hessian->dx <= 0)
+    {
+        print_error("displacement for hessian should be positive.\n");
+    }
+    printf("Compute the dynamical matrices:\n");
+    printf("    with a cutoff distance of %g A.\n", hessian->cutoff);
+    printf("    and a finite displacement of %g A.\n", hessian->dx);
+}
+
+
 static void parse_fix(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
@@ -862,7 +892,7 @@ static void parse_run(char **param,  int num_param, Atom* atom)
 void Run::parse
 (
     char **param, int num_param, Atom* atom,
-    Force *force, Integrate *integrate, Measure *measure,
+    Force *force, Integrate *integrate, Measure *measure, Hessian* hessian,
     int *is_potential,int *is_velocity,int *is_run
 )
 {
@@ -948,6 +978,10 @@ void Run::parse
     else if (strcmp(param[0], "compute")        == 0)
     {
         parse_compute(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "compute_hessian") == 0)
+    {
+        parse_compute_hessian(param, num_param, hessian);
     }
     else if (strcmp(param[0], "fix")            == 0)
     {
