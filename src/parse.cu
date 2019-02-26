@@ -27,29 +27,7 @@ Parse the commands in run.in.
 #include "integrate.cuh"
 #include "measure.cuh"
 #include "hessian.cuh"
-#include <errno.h>
-
-
-static int is_valid_int (const char *s, int *result)
-{
-    if (s == NULL || *s == '\0') { return 0; }
-    char *p;
-    errno = 0;
-    *result = (int) strtol (s, &p, 0);
-    if (errno != 0 || s == p || *p != 0) { return 0; }
-    else {return 1; }
-}
-
-
-static int is_valid_real (const char *s, real *result)
-{
-    if (s == NULL || *s == '\0') { return 0; }
-    char *p;
-    errno = 0;
-    *result = strtod (s, &p);
-    if (errno != 0 || s == p || *p != 0) { return 0; }
-    else { return 1; }
-}
+#include "read_file.cuh"
 
 
 // a single potential
