@@ -25,7 +25,6 @@ The GPUMD class, which is used by the main function.
 #include "force.cuh"
 #include "integrate.cuh"
 #include "measure.cuh"
-#include "hessian.cuh"
 
 
 GPUMD::GPUMD(char* input_dir)
@@ -34,8 +33,7 @@ GPUMD::GPUMD(char* input_dir)
     Force force;
     Integrate integrate;
     Measure measure(input_dir);
-    Hessian hessian;
-    Run run(input_dir, &atom, &force, &integrate, &measure, &hessian);
+    Run run(input_dir, &atom, &force, &integrate, &measure);
 }
 
 
