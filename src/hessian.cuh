@@ -47,6 +47,7 @@ protected:
     bool is_too_far(int, int, Atom*);
     void find_D(char*, Atom*);
     void output_D(FILE*);
+    void find_omega(FILE*);
 };
 
 

@@ -25,6 +25,7 @@ Then calculate the dynamical matrices with different k points.
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "cusolver_wrapper.cuh"
 #define BLOCK_SIZE 128
 
 
@@ -210,12 +211,30 @@ void Hessian::output_D(FILE* fid)
 }
 
 
+void Hessian::find_omega(FILE* fid)
+{
+    int dim = num_basis * 3;
+    double* W; MY_MALLOC(W, double, dim);
+    eig_hermitian_Jacobi(dim, DR, DI, W);
+    for (int n = 0; n < dim; ++n)
+    {
+        fprintf(fid, "%g ", W[n]);
+    }
+    fprintf(fid, "\n");
+    MY_FREE(W);
+}
+
+
 void Hessian::find_D(char* input_dir, Atom* atom)
 {
-    char file[200];
-    strcpy(file, input_dir);
-    strcat(file, "/D.out");
-    FILE *fid = fopen(file, "w");
+    char file_D[200];
+    strcpy(file_D, input_dir);
+    strcat(file_D, "/D.out");
+    FILE *fid_D = fopen(file_D, "w");
+    char file_omega2[200];
+    strcpy(file_omega2, input_dir);
+    strcat(file_omega2, "/omega2.out");
+    FILE *fid_omega2 = fopen(file_omega2, "w");
     for (int nk = 0; nk < num_kpoints; ++nk)
     {
         for (int n = 0; n < num_basis*num_basis*9; ++n) { DR[n] = DI[n] = 0; }
@@ -247,9 +266,11 @@ void Hessian::find_D(char* input_dir, Atom* atom)
                 }
             }
         }
-        output_D(fid);
+        output_D(fid_D);
+        find_omega(fid_omega2);
     }
-    fclose(fid);
+    fclose(fid_D);
+    fclose(fid_omega2);
 }
 
 

@@ -1,23 +1,27 @@
 CC = nvcc
 CFLAGS = -std=c++11 -O3 -arch=sm_35
+LFLAGS = -lcublas -lcusolver
 
 SOURCES = main_phonon.cu phonon.cu parse.cu read_file.cu error.cu \
 	atom.cu velocity.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
 	force.cu potential.cu pair.cu eam.cu sw.cu vashishta.cu \
 	tersoff1988.cu tersoff1989.cu rebo_mos2.cu hessian.cu \
-	measure.cu compute.cu shc.cu vac.cu hac.cu hnemd_kappa.cu box.cu
+	measure.cu compute.cu shc.cu vac.cu hac.cu hnemd_kappa.cu box.cu \
+	cusolver_wrapper.cu
 
 _OBJ = main_phonon.o phonon.o parse.o read_file.o error.o \
 	atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
 	force.o potential.o pair.o eam.o sw.o vashishta.o \
 	tersoff1988.o tersoff1989.o rebo_mos2.o hessian.o \
-	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o box.o
+	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o box.o \
+	cusolver_wrapper.o
 
 HEADERS = phonon.cuh parse.cuh read_file.cuh error.cuh mic.cuh \
 	common.cuh atom.cuh \
 	force.cuh potential.cuh pair.cuh eam.cuh sw.cuh vashishta.cuh \
 	tersoff1988.cuh tersoff1989.cuh rebo_mos2.cuh hessian.cuh \
-	measure.cuh compute.cuh shc.cuh vac.cuh hac.cuh hnemd_kappa.cuh box.cuh
+	measure.cuh compute.cuh shc.cuh vac.cuh hac.cuh hnemd_kappa.cuh box.cuh \
+	cusolver_wrapper.cuh
 
 ODIR = obj_phonon
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
@@ -28,7 +32,7 @@ $(ODIR)/%.o: %.cu $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
 
 phonon: $(OBJ)
-	$(CC) $^ -o $@
+	$(CC) $^ -o $@ $(LFLAGS)
 
 clean:
 	rm $(ODIR)/*o phonon
