@@ -27,6 +27,7 @@ Run simulation according to the inputs in the run.in file.
 #include "measure.cuh"
 #include "atom.cuh"
 #include "read_file.cuh"
+#include "parse.cuh"
 #include "error.cuh"
 
 
@@ -264,6 +265,113 @@ void Run::run
     print_velocity_and_potential_error_2();
     print_finish(check);
     MY_FREE(input); // Free the input file contents
+}
+
+
+void Run::parse
+(
+    char **param, int num_param, Atom* atom,
+    Force *force, Integrate *integrate, Measure *measure,
+    int *is_potential,int *is_velocity,int *is_run
+)
+{
+    if (strcmp(param[0], "potential") == 0)
+    {
+        *is_potential = 1;
+        parse_potential(param, num_param, force);
+    }
+    else if (strcmp(param[0], "potentials") == 0)
+    {
+        *is_potential = 1;
+        parse_potentials(param, num_param, force);
+    }
+    else if (strcmp(param[0], "velocity") == 0)
+    {
+        *is_velocity = 1;
+        parse_velocity(param, num_param, atom);
+    }
+    else if (strcmp(param[0], "ensemble")       == 0)
+    {
+        parse_ensemble(param, num_param, atom, integrate);
+    }
+    else if (strcmp(param[0], "time_step")      == 0)
+    {
+        parse_time_step(param, num_param, atom);
+    }
+    else if (strcmp(param[0], "neighbor")       == 0)
+    {
+        parse_neighbor(param, num_param, atom, force);
+    }
+    else if (strcmp(param[0], "dump_thermo")    == 0)
+    {
+        parse_dump_thermo(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_position")  == 0)
+    {
+        parse_dump_position(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_restart")  == 0)
+    {
+        parse_dump_restart(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_velocity")  == 0)
+    {
+        parse_dump_velocity(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_force")     == 0)
+    {
+        parse_dump_force(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_potential") == 0)
+    {
+        parse_dump_potential(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_virial")    == 0)
+    {
+        parse_dump_virial(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "dump_heat")    == 0)
+    {
+        parse_dump_heat(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "compute_vac")    == 0)
+    {
+        parse_compute_vac(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "compute_hac")    == 0)
+    {
+        parse_compute_hac(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "compute_hnemd") == 0)
+    {
+        parse_compute_hnemd(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "compute_shc")    == 0)
+    {
+        parse_compute_shc(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "deform")         == 0)
+    {
+        parse_deform(param, num_param, integrate);
+    }
+    else if (strcmp(param[0], "compute")        == 0)
+    {
+        parse_compute(param, num_param, measure);
+    }
+    else if (strcmp(param[0], "fix")            == 0)
+    {
+        parse_fix(param, num_param, atom);
+    }
+    else if (strcmp(param[0], "run")            == 0)
+    {
+        *is_run = 1;
+        parse_run(param, num_param, atom);
+    }
+    else
+    {
+        printf("Error: '%s' is invalid keyword.\n", param[0]);
+        exit(1);
+    }
 }
 
 

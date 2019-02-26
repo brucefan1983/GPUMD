@@ -31,7 +31,7 @@ Parse the commands in run.in.
 
 
 // a single potential
-static void parse_potential(char **param, int num_param, Force *force)
+void parse_potential(char **param, int num_param, Force *force)
 {
     if (num_param != 2)
     {
@@ -43,7 +43,7 @@ static void parse_potential(char **param, int num_param, Force *force)
 
 
 // multiple potentials
-static void parse_potentials(char **param, int num_param, Force *force)
+void parse_potentials(char **param, int num_param, Force *force)
 {
     if (num_param == 6)
     {
@@ -92,7 +92,7 @@ static void parse_potentials(char **param, int num_param, Force *force)
 }
 
 
-static void parse_velocity(char **param, int num_param, Atom *atom)
+void parse_velocity(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
     {
@@ -114,7 +114,7 @@ static void parse_velocity(char **param, int num_param, Atom *atom)
 //1-10:  NVT
 //11-20: NPT
 //21-30: heat (NEMD method for heat conductivity)
-static void parse_ensemble 
+void parse_ensemble 
 (char **param,  int num_param, Atom *atom, Integrate *integrate)
 {
     // 1. Determine the integration method
@@ -377,7 +377,7 @@ static void parse_ensemble
 }
 
 
-static void parse_time_step (char **param,  int num_param, Atom* atom)
+void parse_time_step (char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
     {
@@ -392,7 +392,7 @@ static void parse_time_step (char **param,  int num_param, Atom* atom)
 }
 
 
-static void parse_neighbor
+void parse_neighbor
 (char **param,  int num_param, Atom* atom, Force *force)
 {
     atom->neighbor.update = 1;
@@ -412,7 +412,7 @@ static void parse_neighbor
 }
 
 
-static void parse_dump_thermo(char **param,  int num_param, Measure *measure)
+void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -427,7 +427,7 @@ static void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_dump_position(char **param,  int num_param, Measure *measure)
+void parse_dump_position(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -443,7 +443,7 @@ static void parse_dump_position(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_dump_restart(char **param,  int num_param, Measure *measure)
+void parse_dump_restart(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -458,7 +458,7 @@ static void parse_dump_restart(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_dump_velocity(char **param,  int num_param, Measure *measure)
+void parse_dump_velocity(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -474,7 +474,7 @@ static void parse_dump_velocity(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_dump_force(char **param,  int num_param, Measure *measure)
+void parse_dump_force(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -489,7 +489,7 @@ static void parse_dump_force(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_dump_potential(char **param,  int num_param, Measure *measure)
+void parse_dump_potential(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -505,7 +505,7 @@ static void parse_dump_potential(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_dump_virial(char **param,  int num_param, Measure *measure)
+void parse_dump_virial(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -521,7 +521,7 @@ static void parse_dump_virial(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_dump_heat(char **param,  int num_param, Measure *measure)
+void parse_dump_heat(char **param,  int num_param, Measure *measure)
 {
     if (num_param != 2)
     {
@@ -536,7 +536,7 @@ static void parse_dump_heat(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_compute_vac(char **param,  int num_param, Measure *measure)
+void parse_compute_vac(char **param,  int num_param, Measure *measure)
 {
     printf("Compute VAC.\n");
     measure->vac.compute = 1;
@@ -581,7 +581,7 @@ static void parse_compute_vac(char **param,  int num_param, Measure *measure)
 }
 
 
-static void parse_compute_hac(char **param,  int num_param, Measure* measure)
+void parse_compute_hac(char **param,  int num_param, Measure* measure)
 {
     measure->hac.compute = 1;
 
@@ -612,7 +612,7 @@ static void parse_compute_hac(char **param,  int num_param, Measure* measure)
 }
 
 
-static void parse_compute_hnemd(char **param, int num_param, Measure* measure)
+void parse_compute_hnemd(char **param, int num_param, Measure* measure)
 {
     measure->hnemd.compute = 1;
 
@@ -656,7 +656,7 @@ static void parse_compute_hnemd(char **param, int num_param, Measure* measure)
 }
 
 
-static void parse_compute_shc(char **param,  int num_param, Measure* measure)
+void parse_compute_shc(char **param,  int num_param, Measure* measure)
 {
     printf("Compute SHC.\n");
     measure->shc.compute = 1;
@@ -705,7 +705,7 @@ static void parse_compute_shc(char **param,  int num_param, Measure* measure)
 }
 
 
-static void parse_deform(char **param,  int num_param, Integrate* integrate)
+void parse_deform(char **param,  int num_param, Integrate* integrate)
 {
     printf("Deform the box.\n");
 
@@ -751,7 +751,7 @@ static void parse_deform(char **param,  int num_param, Integrate* integrate)
 }
 
 
-static void parse_compute(char **param,  int num_param, Measure* measure)
+void parse_compute(char **param,  int num_param, Measure* measure)
 {
     printf("Compute group average of:\n");
     if (num_param < 5)
@@ -810,7 +810,7 @@ static void parse_compute(char **param,  int num_param, Measure* measure)
 }
 
 
-static void parse_fix(char **param, int num_param, Atom *atom)
+void parse_fix(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
     {
@@ -824,7 +824,7 @@ static void parse_fix(char **param, int num_param, Atom *atom)
 }
 
 
-static void parse_run(char **param,  int num_param, Atom* atom)
+void parse_run(char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
     {
@@ -838,110 +838,40 @@ static void parse_run(char **param,  int num_param, Atom* atom)
 }
 
 
-void Run::parse
-(
-    char **param, int num_param, Atom* atom,
-    Force *force, Integrate *integrate, Measure *measure,
-    int *is_potential,int *is_velocity,int *is_run
-)
+void parse_cutoff(char **param, int num_param, Hessian* hessian)
 {
-    if (strcmp(param[0], "potential") == 0)
+    hessian->yes = 1;
+    if (num_param != 2)
     {
-        *is_potential = 1;
-        parse_potential(param, num_param, force);
+        print_error("cutoff should have 1 parameter.\n");
     }
-    else if (strcmp(param[0], "potentials") == 0)
+    if (!is_valid_real(param[1], &hessian->cutoff))
     {
-        *is_potential = 1;
-        parse_potentials(param, num_param, force);
+        print_error("cutoff for hessian should be a number.\n");
     }
-    else if (strcmp(param[0], "velocity") == 0)
+    if (hessian->cutoff <= 0)
     {
-        *is_velocity = 1;
-        parse_velocity(param, num_param, atom);
+        print_error("cutoff for hessian should be positive.\n");
     }
-    else if (strcmp(param[0], "ensemble")       == 0)
+    printf("Cutoff distance for hessian = %g A.\n", hessian->cutoff);
+}
+
+
+void parse_delta(char **param, int num_param, Hessian* hessian)
+{
+    if (num_param != 2)
     {
-        parse_ensemble(param, num_param, atom, integrate);
+        print_error("compute_hessian should have 1 parameter.\n");
     }
-    else if (strcmp(param[0], "time_step")      == 0)
+    if (!is_valid_real(param[1], &hessian->dx))
     {
-        parse_time_step(param, num_param, atom);
+        print_error("displacement for hessian should be a number.\n");
     }
-    else if (strcmp(param[0], "neighbor")       == 0)
+    if (hessian->dx <= 0)
     {
-        parse_neighbor(param, num_param, atom, force);
+        print_error("displacement for hessian should be positive.\n");
     }
-    else if (strcmp(param[0], "dump_thermo")    == 0)
-    {
-        parse_dump_thermo(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "dump_position")  == 0)
-    {
-        parse_dump_position(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "dump_restart")  == 0)
-    {
-        parse_dump_restart(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "dump_velocity")  == 0)
-    {
-        parse_dump_velocity(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "dump_force")     == 0)
-    {
-        parse_dump_force(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "dump_potential") == 0)
-    {
-        parse_dump_potential(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "dump_virial")    == 0)
-    {
-        parse_dump_virial(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "dump_heat")    == 0)
-    {
-        parse_dump_heat(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "compute_vac")    == 0)
-    {
-        parse_compute_vac(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "compute_hac")    == 0)
-    {
-        parse_compute_hac(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "compute_hnemd") == 0)
-    {
-        parse_compute_hnemd(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "compute_shc")    == 0)
-    {
-        parse_compute_shc(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "deform")         == 0)
-    {
-        parse_deform(param, num_param, integrate);
-    }
-    else if (strcmp(param[0], "compute")        == 0)
-    {
-        parse_compute(param, num_param, measure);
-    }
-    else if (strcmp(param[0], "fix")            == 0)
-    {
-        parse_fix(param, num_param, atom);
-    }
-    else if (strcmp(param[0], "run")            == 0)
-    {
-        *is_run = 1;
-        parse_run(param, num_param, atom);
-    }
-    else
-    {
-        printf("Error: '%s' is invalid keyword.\n", param[0]);
-        exit(1);
-    }
+    printf("Displacement for hessian = %g A.\n", hessian->dx);
 }
 
 

@@ -24,6 +24,7 @@ The driver class for phonon calculations
 #include "force.cuh"
 #include "measure.cuh"
 #include "hessian.cuh"
+#include "parse.cuh"
 #include "read_file.cuh"
 #include "error.cuh"
 #include <errno.h>
@@ -65,105 +66,6 @@ void Phonon::compute
     MY_FREE(input); // Free the input file contents
     force->initialize(input_dir, atom);
     hessian->compute(input_dir, atom, force, measure);
-}
-
-
-// a single potential
-static void parse_potential(char **param, int num_param, Force *force)
-{
-    if (num_param != 2)
-    {
-        print_error("potential should have 1 parameter.\n");
-    }
-    strcpy(force->file_potential[0], param[1]);
-    force->num_of_potentials = 1;
-}
-
-
-// multiple potentials
-static void parse_potentials(char **param, int num_param, Force *force)
-{
-    if (num_param == 6)
-    {
-        force->num_of_potentials = 2;
-    }
-    else if (num_param == 9)
-    {
-        force->num_of_potentials = 3;
-    }
-    else
-    {
-        print_error("potentials should have 5 or 8 parameters.\n");
-    }
-
-    // two-body part
-    strcpy(force->file_potential[0], param[1]);
-    if (!is_valid_int(param[2], &force->interlayer_only))
-    {
-        print_error("interlayer_only should be an integer.\n");
-    }
-
-    // the first many-body part
-    strcpy(force->file_potential[1], param[3]);
-    if (!is_valid_int(param[4], &force->type_begin[1]))
-    {
-        print_error("type_begin should be an integer.\n");
-    }
-    if (!is_valid_int(param[5], &force->type_end[1]))
-    {
-        print_error("type_end should be an integer.\n");
-    }
-
-    // the second many-body part
-    if (force->num_of_potentials > 2)
-    {
-        strcpy(force->file_potential[2], param[6]);
-        if (!is_valid_int(param[7], &force->type_begin[2]))
-        {
-            print_error("type_begin should be an integer.\n");
-        }
-        if (!is_valid_int(param[8], &force->type_end[2]))
-        {
-            print_error("type_end should be an integer.\n");
-        }
-    }
-}
-
-
-static void parse_cutoff(char **param, int num_param, Hessian* hessian)
-{
-    hessian->yes = 1;
-    if (num_param != 2)
-    {
-        print_error("cutoff should have 1 parameter.\n");
-    }
-    if (!is_valid_real(param[1], &hessian->cutoff))
-    {
-        print_error("cutoff for hessian should be a number.\n");
-    }
-    if (hessian->cutoff <= 0)
-    {
-        print_error("cutoff for hessian should be positive.\n");
-    }
-    printf("Cutoff distance for hessian = %g A.\n", hessian->cutoff);
-}
-
-
-static void parse_delta(char **param, int num_param, Hessian* hessian)
-{
-    if (num_param != 2)
-    {
-        print_error("compute_hessian should have 1 parameter.\n");
-    }
-    if (!is_valid_real(param[1], &hessian->dx))
-    {
-        print_error("displacement for hessian should be a number.\n");
-    }
-    if (hessian->dx <= 0)
-    {
-        print_error("displacement for hessian should be positive.\n");
-    }
-    printf("Displacement for hessian = %g A.\n", hessian->dx);
 }
 
 
