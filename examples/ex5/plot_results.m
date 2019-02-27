@@ -1,4 +1,4 @@
-clear; 
+clear; close all;
 load omega2.out; % output from GPUMD
 
 % parameters used for GPUMD:
@@ -16,7 +16,7 @@ Nk=100; % number of k points between two special ones
 nu=real(sqrt(omega2.'))/2/pi; % from omega^2 to nu
 
 % plot the phonon dispersion
-%figure;
+figure;
 k_distance=k_distance/(2*pi/a0);
 max_nu=max(max(nu));
 plot(ones(100,1)*k_distance(1),linspace(0,max_nu*1.1,100),'k-','linewidth',2);
