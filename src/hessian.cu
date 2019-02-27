@@ -216,9 +216,10 @@ void Hessian::find_omega(FILE* fid)
     int dim = num_basis * 3;
     double* W; MY_MALLOC(W, double, dim);
     eig_hermitian_Jacobi(dim, DR, DI, W);
+    double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
     for (int n = 0; n < dim; ++n)
     {
-        fprintf(fid, "%g ", W[n]);
+        fprintf(fid, "%g ", W[n] * natural_to_THz);
     }
     fprintf(fid, "\n");
     MY_FREE(W);
