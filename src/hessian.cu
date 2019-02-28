@@ -194,16 +194,17 @@ void Hessian::output_D(FILE* fid)
 {
     for (int n1 = 0; n1 < num_basis * 3; ++n1)
     {
-        int offset = n1 * num_basis * 3;
         for (int n2 = 0; n2 < num_basis * 3; ++n2)
         {
-            fprintf(fid, "%g ", DR[offset + n2]);
+            // cuSOLVER requires column-major
+            fprintf(fid, "%g ", DR[n1 + n2 * num_basis * 3]);
         }
         if (num_kpoints > 1)
         {
             for (int n2 = 0; n2 < num_basis * 3; ++n2)
             {
-                fprintf(fid, "%g ", DI[offset + n2]);
+                // cuSOLVER requires column-major
+                fprintf(fid, "%g ", DI[n1 + n2 * num_basis * 3]);
             }
         }
         fprintf(fid, "\n");
@@ -260,7 +261,8 @@ void Hessian::find_D(char* input_dir, Atom* atom)
                         int a3b = a * 3 + b;
                         int row = label_1 * 3 + a;
                         int col = label_2 * 3 + b;
-                        int index = row * num_basis * 3 + col;
+                        // cuSOLVER requires column-major
+                        int index = col * num_basis * 3 + row;
                         DR[index] += H12[a3b] * cos_kr * mass_factor;
                         DI[index] += H12[a3b] * sin_kr * mass_factor;
                     }

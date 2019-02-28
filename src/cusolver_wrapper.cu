@@ -106,6 +106,7 @@ void eig_hermitian_Jacobi(int N, double* AR, double* AI, double* W_cpu)
 
     // free
     cusolverDnDestroy(handle);
+    cusolverDnDestroySyevjInfo(para);
     MY_FREE(A_cpu);
     CHECK(cudaFree(A));
     CHECK(cudaFree(W));
