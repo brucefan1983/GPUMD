@@ -92,11 +92,12 @@ void Hessian::initialize(char* input_dir, int N)
     read_basis(input_dir, N);
     read_kpoints(input_dir);
     int num_H = num_basis * N * 9;
-    int num_D = num_basis * num_basis * 9;
+    int num_D = num_basis * num_basis * 9 * num_kpoints;
     MY_MALLOC(H, real, num_H);
     MY_MALLOC(DR, real, num_D);
     MY_MALLOC(DI, real, num_D);
     for (int n = 0; n < num_H; ++n) { H[n] = 0; }
+    for (int n = 0; n < num_D; ++n) { DR[n] = DI[n] = 0; }
 }
 
 
@@ -160,33 +161,42 @@ static void find_exp_ikr
 }
 
 
-void Hessian::output_D(FILE* fid)
+void Hessian::output_D(char* input_dir)
 {
-    for (int n1 = 0; n1 < num_basis * 3; ++n1)
+    char file[200];
+    strcpy(file, input_dir);
+    strcat(file, "/D.out");
+    FILE *fid = fopen(file, "w");
+    for (int nk = 0; nk < num_kpoints; ++nk)
     {
-        for (int n2 = 0; n2 < num_basis * 3; ++n2)
-        {
-            // cuSOLVER requires column-major
-            fprintf(fid, "%g ", DR[n1 + n2 * num_basis * 3]);
-        }
-        if (num_kpoints > 1)
+        int offset = nk * num_basis * num_basis * 9;
+        for (int n1 = 0; n1 < num_basis * 3; ++n1)
         {
             for (int n2 = 0; n2 < num_basis * 3; ++n2)
             {
                 // cuSOLVER requires column-major
-                fprintf(fid, "%g ", DI[n1 + n2 * num_basis * 3]);
+                fprintf(fid, "%g ", DR[offset + n1 + n2 * num_basis * 3]);
             }
+            if (num_kpoints > 1)
+            {
+                for (int n2 = 0; n2 < num_basis * 3; ++n2)
+                {
+                    // cuSOLVER requires column-major
+                    fprintf(fid, "%g ", DI[offset + n1 + n2 * num_basis * 3]);
+                }
+            }
+            fprintf(fid, "\n");
         }
-        fprintf(fid, "\n");
     }
+    fclose(fid);
 }
 
 
-void Hessian::find_omega(FILE* fid)
+void Hessian::find_omega(FILE* fid, int offset)
 {
     int dim = num_basis * 3;
     double* W; MY_MALLOC(W, double, dim);
-    eig_hermitian_Jacobi(dim, DR, DI, W);
+    eig_hermitian_QR(dim, DR+offset, DI+offset, W);
     double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
     for (int n = 0; n < dim; ++n)
     {
@@ -197,19 +207,34 @@ void Hessian::find_omega(FILE* fid)
 }
 
 
+void Hessian::find_omega_batch(FILE* fid)
+{
+    int dim = num_basis * 3;
+    double* W; MY_MALLOC(W, double, dim * num_kpoints);
+    eig_hermitian_Jacobi_batch(dim, num_kpoints, DR, DI, W);
+    double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
+    for (int nk = 0; nk < num_kpoints; ++nk)
+    {
+        int offset = nk * dim;
+        for (int n = 0; n < dim; ++n)
+        {
+            fprintf(fid, "%g ", W[offset + n] * natural_to_THz);
+        }
+        fprintf(fid, "\n");
+    }
+    MY_FREE(W);
+}
+
+
 void Hessian::find_D(char* input_dir, Atom* atom)
 {
-    char file_D[200];
-    strcpy(file_D, input_dir);
-    strcat(file_D, "/D.out");
-    FILE *fid_D = fopen(file_D, "w");
     char file_omega2[200];
     strcpy(file_omega2, input_dir);
     strcat(file_omega2, "/omega2.out");
     FILE *fid_omega2 = fopen(file_omega2, "w");
     for (int nk = 0; nk < num_kpoints; ++nk)
     {
-        for (int n = 0; n < num_basis*num_basis*9; ++n) { DR[n] = DI[n] = 0; }
+        int offset = nk * num_basis * num_basis * 9;
         for (int nb = 0; nb < num_basis; ++nb)
         {
             int n1 = basis[nb];
@@ -232,17 +257,17 @@ void Hessian::find_D(char* input_dir, Atom* atom)
                         int row = label_1 * 3 + a;
                         int col = label_2 * 3 + b;
                         // cuSOLVER requires column-major
-                        int index = col * num_basis * 3 + row;
+                        int index = offset + col * num_basis * 3 + row;
                         DR[index] += H12[a3b] * cos_kr * mass_factor;
                         DI[index] += H12[a3b] * sin_kr * mass_factor;
                     }
                 }
             }
         }
-        output_D(fid_D);
-        find_omega(fid_omega2);
+        if (num_basis > 10) { find_omega(fid_omega2, offset); } // > 32x32
     }
-    fclose(fid_D);
+    output_D(input_dir);
+    if (num_basis <= 10) { find_omega_batch(fid_omega2); } // <= 32x32
     fclose(fid_omega2);
 }
 

@@ -45,8 +45,9 @@ protected:
     void find_H12(real, int, int, Atom*, Force*, Measure*, real*);
     bool is_too_far(int, int, Atom*);
     void find_D(char*, Atom*);
-    void output_D(FILE*);
-    void find_omega(FILE*);
+    void output_D(char*);
+    void find_omega(FILE*, int);
+    void find_omega_batch(FILE*);
 };
 
 

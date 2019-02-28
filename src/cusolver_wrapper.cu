@@ -89,8 +89,6 @@ void eig_hermitian_Jacobi(int N, double* AR, double* AI, double* W_cpu)
     // some parameters for the Jacobi method
     syevjInfo_t para = NULL;
     cusolverDnCreateSyevjInfo(&para);
-    cusolverDnXsyevjSetTolerance(para, 1.0e-7);
-    cusolverDnXsyevjSetMaxSweeps(para, 15);
 
     // get work
     int lwork = 0;
@@ -103,6 +101,56 @@ void eig_hermitian_Jacobi(int N, double* AR, double* AI, double* W_cpu)
     CHECK(cudaMalloc((void**)&info, sizeof(int)));
     cusolverDnZheevj(handle, jobz, uplo, N, A, N, W, work, lwork, info, para);
     cudaMemcpy(W_cpu, W, sizeof(double) * N, cudaMemcpyDeviceToHost);
+
+    // free
+    cusolverDnDestroy(handle);
+    cusolverDnDestroySyevjInfo(para);
+    MY_FREE(A_cpu);
+    CHECK(cudaFree(A));
+    CHECK(cudaFree(W));
+    CHECK(cudaFree(work));
+    CHECK(cudaFree(info));
+}
+
+
+void eig_hermitian_Jacobi_batch
+(int N, int batch_size, double* AR, double* AI, double* W_cpu)
+{
+    // get A
+    int M = N * N * batch_size;
+    cuDoubleComplex *A, *A_cpu; 
+    MY_MALLOC(A_cpu, cuDoubleComplex, M);
+    CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * M));
+    for (int n = 0; n < M; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
+    CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * M, 
+        cudaMemcpyHostToDevice));
+
+    // define W
+    double* W; CHECK(cudaMalloc((void**)&W, sizeof(double) * N * batch_size));
+
+    // get handle
+    cusolverDnHandle_t handle = NULL;
+    cusolverDnCreate(&handle);
+    cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_NOVECTOR;
+    cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+
+    // some parameters for the Jacobi method
+    syevjInfo_t para = NULL;
+    cusolverDnCreateSyevjInfo(&para);
+
+    // get work
+    int lwork = 0;
+    cusolverDnZheevjBatched_bufferSize
+    (handle, jobz, uplo, N, A, N, W, &lwork, para, batch_size);
+    cuDoubleComplex* work;
+    CHECK(cudaMalloc((void**)&work, sizeof(cuDoubleComplex) * lwork));
+
+    // get W
+    int* info;
+    CHECK(cudaMalloc((void**)&info, sizeof(int) * batch_size));
+    cusolverDnZheevjBatched
+    (handle, jobz, uplo, N, A, N, W, work, lwork, info, para, batch_size);
+    cudaMemcpy(W_cpu, W, sizeof(double)*N*batch_size, cudaMemcpyDeviceToHost);
 
     // free
     cusolverDnDestroy(handle);

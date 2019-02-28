@@ -19,5 +19,6 @@
 
 void eig_hermitian_QR(int, double*, double*, double*);
 void eig_hermitian_Jacobi(int, double*, double*, double*);
+void eig_hermitian_Jacobi_batch(int, int, double*, double*, double*);
 
 
