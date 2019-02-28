@@ -164,6 +164,15 @@ C, H, O, Si atoms.
 #define REBO_MOS2_D3_SS     -1.089810409215252
 #define REBO_MOS2_D3_MS     -0.137425146625715
 
+#define FIND_FORCE_STEP0(A, B, C)                                              \
+    find_force_step0<A, B, C><<<grid_size, BLOCK_SIZE_FORCE>>>                 \
+    (                                                                          \
+        fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,           \
+        NN, NL, NN_local, NL_local, type,                                      \
+        x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,                           \
+        sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b          \
+    )
+
 
 REBO_MOS::REBO_MOS(Atom* atom)
 {
@@ -986,59 +995,25 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     // 2-body part
     if (measure->hac.compute)
     {
-        find_force_step0<1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-            NN, NL, NN_local, NL_local, type,
-            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-        CUDA_CHECK_KERNEL
+        FIND_FORCE_STEP0(1, 0, 0);
     }
     else if (measure->hnemd.compute && !measure->shc.compute)
     {
-        find_force_step0<0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-            NN, NL, NN_local, NL_local, type,
-            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-        CUDA_CHECK_KERNEL
+        FIND_FORCE_STEP0(0, 0, 1);
     }
     else if (measure->shc.compute && !measure->hnemd.compute)
     {
-        find_force_step0<0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-            NN, NL, NN_local, NL_local, type,
-            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-        CUDA_CHECK_KERNEL
+        FIND_FORCE_STEP0(0, 1, 0);
     }
     else if (measure->shc.compute && measure->hnemd.compute)
     {
-        find_force_step0<0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-            NN, NL, NN_local, NL_local, type,
-            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-        CUDA_CHECK_KERNEL
+        FIND_FORCE_STEP0(0, 1, 1);
     }
     else
     {
-        find_force_step0<0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-        (
-            fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-            NN, NL, NN_local, NL_local, type,
-            x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,
-            sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-        );
-        CUDA_CHECK_KERNEL
+        FIND_FORCE_STEP0(0, 0, 0);
     }
+    CUDA_CHECK_KERNEL
 
     // pre-compute the bond-order function and its derivative
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
