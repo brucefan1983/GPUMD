@@ -19,8 +19,17 @@
 #include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
-
-#define BLOCK_SIZE_VASHISHTA 64 
+#define BLOCK_SIZE_VASHISHTA 64
+#define GPU_FIND_FORCE_VASHISHTA_2BODY(A, B, C, D)                             \
+    gpu_find_force_vashishta_2body<A, B, C, D>                                 \
+    <<<grid_size, BLOCK_SIZE_VASHISHTA>>>                                      \
+    (                                                                          \
+        fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,           \
+        vashishta_para, NN, NL, NN_local,                                      \
+        NL_local, type, table, x, y, z, vx, vy, vz, box,                       \
+        fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,                    \
+        a_map, b_map, count_b                                                  \
+    )
 
 
 /*----------------------------------------------------------------------------80
@@ -625,146 +634,61 @@ void Vashishta::compute(Atom *atom, Measure *measure)
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 1, 0, 0>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(0, 1, 0, 0);
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 1, 0, 0>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(1, 1, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
     else if (measure->shc.compute && !measure->hnemd.compute)
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 0, 1, 0>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(0, 0, 1, 0);
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 0, 1, 0>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(1, 0, 1, 0);
         }
+        CUDA_CHECK_KERNEL
     }
     else if (measure->hnemd.compute && !measure->shc.compute)
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 0, 0, 1>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(0, 0, 0, 1);
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 0, 0, 1>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(1, 0, 0, 1);
         }
+        CUDA_CHECK_KERNEL
     }
     else if (measure->hnemd.compute && measure->shc.compute)
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 0, 1, 1>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,
-                vashishta_para, NN, NL, NN_local,
-                NL_local, type, table, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(0, 0, 1, 1);
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 0, 1, 1>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,
-                vashishta_para, NN, NL, NN_local,
-                NL_local, type, table, x, y, z, vx, vy, vz, box,
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(1, 0, 1, 1);
         }
+        CUDA_CHECK_KERNEL
     }
     else
     {
         if (use_table == 0)
         {
-            gpu_find_force_vashishta_2body<0, 0, 0, 0>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(0, 0, 0, 0);
         }
         else
         {
-            gpu_find_force_vashishta_2body<1, 0, 0, 0>
-            <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
-            (
-                fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-                vashishta_para, NN, NL, NN_local, 
-                NL_local, type, table, x, y, z, vx, vy, vz, box, 
-                fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,
-                a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE_VASHISHTA_2BODY(1, 0, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
 
     gpu_find_force_vashishta_partial
