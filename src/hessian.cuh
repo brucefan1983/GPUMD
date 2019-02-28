@@ -21,7 +21,6 @@
 class Hessian
 {
 public:
-    int yes;
     real dx = 0.005;
     real cutoff = 4.0;
     void compute(char*, Atom*, Force*, Measure*);

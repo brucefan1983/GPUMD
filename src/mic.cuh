@@ -15,6 +15,10 @@
 
 
 #pragma once
+#include "common.cuh"
+
+
+void apply_mic(int, int, int, int, real*, real&, real&, real&);
 
 
 static __device__ void dev_apply_mic
@@ -45,3 +49,5 @@ static __device__ void dev_apply_mic
         z12 = LDG(h,6) * sx12 + LDG(h,7) * sy12 + LDG(h,8) * sz12;
     }
 }
+
+

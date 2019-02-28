@@ -840,7 +840,6 @@ void parse_run(char **param,  int num_param, Atom* atom)
 
 void parse_cutoff(char **param, int num_param, Hessian* hessian)
 {
-    hessian->yes = 1;
     if (num_param != 2)
     {
         print_error("cutoff should have 1 parameter.\n");
