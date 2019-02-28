@@ -41,7 +41,7 @@ Potential::~Potential(void)
 
 static __global__ void gpu_find_force_many_body
 (
-    int calculate_hac, int calculate_shc, int calculate_hnemd,
+    int calculate_shc, int calculate_hnemd,
     real fe_x, real fe_y, real fe_z,
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
@@ -86,7 +86,7 @@ static __global__ void gpu_find_force_many_body
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
 
         real vx1, vy1, vz1;
-        if (calculate_hac || calculate_shc || calculate_hnemd)
+        if (calculate_shc || calculate_hnemd)
         {
             vx1 = LDG(g_vx, n1);
             vy1 = LDG(g_vy, n1); 
@@ -137,14 +137,11 @@ static __global__ void gpu_find_force_many_body
             s_sz -= z12 * (f12z - f21z) * HALF;
 
             // per-atom heat current
-            if (calculate_hac || calculate_hnemd)
-            {
-                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s_h2 += (f21z * vz1) * x12;               // x-out
-                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s_h4 += (f21z * vz1) * y12;               // y-out
-                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
-            }
+            s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
+            s_h2 += (f21z * vz1) * x12;               // x-out
+            s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
+            s_h4 += (f21z * vz1) * y12;               // y-out
+            s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
 
             // accumulate heat across some sections (for NEMD)
             // check if AB pair possible & exists
@@ -186,14 +183,11 @@ static __global__ void gpu_find_force_many_body
         g_sy[n1] += s_sy;
         g_sz[n1] += s_sz;
 
-        if (calculate_hac || calculate_hnemd) // save heat current
-        {
-            g_h[n1 + 0 * number_of_particles] += s_h1;
-            g_h[n1 + 1 * number_of_particles] += s_h2;
-            g_h[n1 + 2 * number_of_particles] += s_h3;
-            g_h[n1 + 3 * number_of_particles] += s_h4;
-            g_h[n1 + 4 * number_of_particles] += s_h5;
-        }
+        g_h[n1 + 0 * number_of_particles] += s_h1;
+        g_h[n1 + 1 * number_of_particles] += s_h2;
+        g_h[n1 + 2 * number_of_particles] += s_h3;
+        g_h[n1 + 3 * number_of_particles] += s_h4;
+        g_h[n1 + 4 * number_of_particles] += s_h5;
     }
 }
 
@@ -206,12 +200,7 @@ void Potential::find_properties_many_body
     real* f12x, real* f12y, real* f12z
 )
 {
-    int compute_hac = 0;
     int compute_shc = 0;
-    if (measure->hac.compute)
-    {
-        compute_hac = (atom->step + 1) % measure->hac.sample_interval == 0;
-    }
     if (measure->shc.compute)
     {
         compute_shc = (atom->step + 1) % measure->shc.sample_interval == 0;
@@ -219,7 +208,7 @@ void Potential::find_properties_many_body
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        compute_hac, compute_shc, measure->hnemd.compute,
+        compute_shc, measure->hnemd.compute,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, N1, N2, atom->box.triclinic, 
         atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
