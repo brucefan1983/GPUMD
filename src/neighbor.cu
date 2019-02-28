@@ -21,7 +21,7 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 
 #include "atom.cuh"
 #include "error.cuh"
-#define BLOCK_SIZE 128
+#define BLOCK_SIZE 256
 #define DIM 3
 #define NUM_OF_CELLS 50
 

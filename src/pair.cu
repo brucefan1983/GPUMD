@@ -40,6 +40,16 @@ J. Chem. Phys. 124, 234104 (2006).
 #define RI_ALPHA_SQ  0.04
 #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
 
+#define GPU_FIND_FORCE(A, B, C, D)                                             \
+    gpu_find_force<A, B, C, D><<<grid_size, BLOCK_SIZE_FORCE>>>                \
+    (                                                                          \
+        fe_x, fe_y, fe_z, lj_para, ri_para, N,                                 \
+        triclinic, pbc_x, pbc_y, pbc_z,                                        \
+        NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,                    \
+        sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b          \
+    )
+
+
 
 Pair::Pair(FILE *fid, int potential_model_input)
 {
@@ -375,363 +385,153 @@ void Pair::compute(Atom *atom, Measure *measure)
     real fe_z = measure->hnemd.fe_z;
 
     if (potential_model == 0) // RI
-    {
-           
+    {   
         if (measure->hac.compute)    
         {
-            gpu_find_force<0, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(0, 1, 0, 0); 
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
-            gpu_find_force<0, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(0, 0, 1, 0);
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
-            gpu_find_force<0, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(0, 0, 0, 1);
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
-            gpu_find_force<0, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(0, 0, 1, 1);
         }
         else
         {
-            gpu_find_force<0, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(0, 0, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
 
     if (potential_model == 1) // LJ1
-    {
-           
+    {     
         if (measure->hac.compute)    
         {
-            gpu_find_force<1, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(1, 1, 0, 0);
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
-            gpu_find_force<1, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(1, 0, 1, 0);
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
-            gpu_find_force<1, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(1, 0, 0, 1);
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
-            gpu_find_force<1, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(1, 0, 1, 1);
         }
         else
         {
-            gpu_find_force<1, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(1, 0, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
 
     if (potential_model == 2) // LJ2
     {
-           
         if (measure->hac.compute)    
         {
-            gpu_find_force<2, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(2, 1, 0, 0);
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
-            gpu_find_force<2, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(2, 0, 1, 0);
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
-            gpu_find_force<2, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(2, 0, 0, 1);
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
-            gpu_find_force<2, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(2, 0, 1, 1);
         }
         else
         {
-            gpu_find_force<2, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(2, 0, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
 
     if (potential_model == 3) // LJ3
-    {
-           
+    {  
         if (measure->hac.compute)    
         {
-            gpu_find_force<3, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(3, 1, 0, 0);
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
-            gpu_find_force<3, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(3, 0, 1, 0);
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
-            gpu_find_force<3, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(3, 0, 0, 1);
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
-            gpu_find_force<3, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(3, 0, 1, 1);
         }
         else
         {
-            gpu_find_force<3, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(3, 0, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
 
     if (potential_model == 4) // LJ4
     {
-           
         if (measure->hac.compute)    
         {
-            gpu_find_force<4, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(4, 1, 0, 0);
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
-            gpu_find_force<4, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(4, 0, 1, 0);
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
-            gpu_find_force<4, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(4, 0, 0, 1);
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
-            gpu_find_force<4, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(4, 0, 1, 1);
         }
         else
         {
-            gpu_find_force<4, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(4, 0, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
 
     if (potential_model == 5) // LJ5
     {
-           
         if (measure->hac.compute)    
         {
-            gpu_find_force<5, 1, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(5, 1, 0, 0);
         }
         else if (measure->shc.compute && !measure->hnemd.compute)
         {
-            gpu_find_force<5, 0, 1, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(5, 0, 1, 0);
         }
         else if (measure->hnemd.compute && !measure->shc.compute)
         {
-            gpu_find_force<5, 0, 0, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(5, 0, 0, 1);
         }
         else if (measure->hnemd.compute && measure->shc.compute)
         {
-            gpu_find_force<5, 0, 1, 1><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(5, 0, 1, 1);
         }
         else
         {
-            gpu_find_force<5, 0, 0, 0><<<grid_size, BLOCK_SIZE_FORCE>>>
-            (
-                fe_x, fe_y, fe_z, lj_para, ri_para, N, 
-                triclinic, pbc_x, pbc_y, pbc_z,
-                NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,
-                sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b
-            );
-            CUDA_CHECK_KERNEL
+            GPU_FIND_FORCE(5, 0, 0, 0);
         }
+        CUDA_CHECK_KERNEL
     }
 }
 
