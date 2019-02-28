@@ -54,13 +54,13 @@ There is a comprehensive manual in the "doc" directory. You can e-mail the first
 ## Citations
 
 If you use GPUMD in your published work, we kindly ask you to cite the following paper which describes the central algorithms used in GPUMD:
-* [1] Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. Efficient molecular dynamics simulations with many-body potentials on graphics processing units. Computer Physics Communications, 218:10-16, 2017.
+* [1] Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. Efficient molecular dynamics simulations with many-body potentials on graphics processing units. Computer Physics Communications 218, 10 (2017). https://doi.org/10.1016/j.cpc.2017.05.003
 
 If your work involves using heat current and virial stress formulas as implemented in GPUMD, the following paper can be cited:
-* [2] Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations. Phys. Rev. B, 92:094301, Sep 2015.
+* [2] Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations. Phys. Rev. B 92, 094301, (2015). https://doi.org/10.1103/PhysRevB.92.094301
 
 You can cite the following paper if you use GPUMD to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
-* [3] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity decomposition in two-dimensional materials: Application to graphene. Phys. Rev. B, 95:144309, Apr 2017.
+* [3] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity decomposition in two-dimensional materials: Application to graphene. Phys. Rev. B 95, 144309, (2017). https://doi.org/10.1103/PhysRevB.95.144309 
 
 You can cite the following paper if you use GPUMD to study heat transport using the HNEMD method:
-* [4] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, https://journals.aps.org/prb/accepted/53078Yd1J5216957245d87a9caec35ffb17bdf630
+* [4] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, Phys. Rev. B 99, 064308 (2019). https://doi.org/10.1103/PhysRevB.99.064308
