@@ -30,10 +30,17 @@ The EAM potential. Currently two analytical versions:
 #define FIND_FORCE_EAM_STEP2(A, B, C, D)                                       \
     find_force_eam_step2<A, B, C, D><<<grid_size, BLOCK_SIZE_FORCE>>>          \
     (                                                                          \
-        fe_x, fe_y, fe_z, eam2004zhou, eam2006dai, N, N1, N2, triclinic,       \
-        pbc_x, pbc_y, pbc_z, NN, NL, Fp, x, y, z, vx, vy, vz, box, fx, fy, fz, \
-        sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b          \
-    )
+        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
+        eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box.triclinic,         \
+        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, atom->NN_local,     \
+        atom->NL_local, eam_data.Fp, atom->x, atom->y, atom->z, atom->vx,      \
+        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,         \
+        atom->virial_per_atom_x, atom->virial_per_atom_y,                      \
+        atom->virial_per_atom_z, atom->potential_per_atom,                     \
+        atom->heat_per_atom, atom->group[0].label, measure->shc.fv_index,      \
+        measure->shc.fv, measure->shc.a_map, measure->shc.b_map,               \
+        measure->shc.count_b                                                   \
+    ) 
 
 
 EAM::EAM(FILE *fid, Atom* atom, char *name)
