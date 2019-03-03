@@ -39,16 +39,20 @@ J. Chem. Phys. 124, 234104 (2006).
 #define RI_ALPHA     0.2
 #define RI_ALPHA_SQ  0.04
 #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
-
 #define GPU_FIND_FORCE(A, B, C, D)                                             \
-    gpu_find_force<A, B, C, D><<<grid_size, BLOCK_SIZE_FORCE>>>                \
+    gpu_find_force<A, B, C, D>                                                 \
+    <<<(atom->N - 1) / BLOCK_SIZE_FORCE + 1, BLOCK_SIZE_FORCE>>>               \
     (                                                                          \
-        fe_x, fe_y, fe_z, lj_para, ri_para, N,                                 \
-        triclinic, pbc_x, pbc_y, pbc_z,                                        \
-        NN, NL, type, x, y, z, vx, vy, vz, box, fx, fy, fz,                    \
-        sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b          \
+        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
+        lj_para, ri_para, atom->N, atom->box.triclinic, atom->box.pbc_x,       \
+        atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, atom->NL_local,      \
+        atom->type, atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz,   \
+        atom->box.h, atom->fx, atom->fy, atom->fz, atom->virial_per_atom_x,    \
+        atom->virial_per_atom_y, atom->virial_per_atom_z,                      \
+        atom->potential_per_atom, atom->heat_per_atom, atom->group[0].label,   \
+        measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,            \
+        measure->shc.b_map, measure->shc.count_b                               \
     )
-
 
 
 Pair::Pair(FILE *fid, int potential_model_input)
@@ -348,57 +352,22 @@ static __global__ void gpu_find_force
 // Find force and related quantities for pair potentials (A wrapper)
 void Pair::compute(Atom *atom, Measure *measure)
 {
-    int N = atom->N;
-    int grid_size = (N - 1) / BLOCK_SIZE_FORCE + 1;
-    int triclinic = atom->box.triclinic;
-    int pbc_x = atom->box.pbc_x;
-    int pbc_y = atom->box.pbc_y;
-    int pbc_z = atom->box.pbc_z;
-    int *NN = atom->NN_local;
-    int *NL = atom->NL_local;
-    int *type = atom->type;
-    real *x = atom->x; 
-    real *y = atom->y; 
-    real *z = atom->z;
-    real *vx = atom->vx; 
-    real *vy = atom->vy; 
-    real *vz = atom->vz;
-    real *fx = atom->fx; 
-    real *fy = atom->fy; 
-    real *fz = atom->fz;
-    real *box = atom->box.h;
-    real *sx = atom->virial_per_atom_x; 
-    real *sy = atom->virial_per_atom_y; 
-    real *sz = atom->virial_per_atom_z; 
-    real *pe = atom->potential_per_atom;
-    real *h = atom->heat_per_atom; 
-    
-    int *label = atom->group[0].label;
-    int *fv_index = measure->shc.fv_index;
-    int *a_map = measure->shc.a_map;
-    int *b_map = measure->shc.b_map;
-    int count_b = measure->shc.count_b;
-    real *fv = measure->shc.fv;
-
-    real fe_x = measure->hnemd.fe_x;
-    real fe_y = measure->hnemd.fe_y;
-    real fe_z = measure->hnemd.fe_z;
-
+    find_measurement_flags(atom, measure);
     if (potential_model == 0) // RI
     {   
-        if (measure->hac.compute)    
+        if (compute_j)    
         {
             GPU_FIND_FORCE(0, 1, 0, 0); 
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             GPU_FIND_FORCE(0, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             GPU_FIND_FORCE(0, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             GPU_FIND_FORCE(0, 0, 1, 1);
         }
@@ -411,19 +380,19 @@ void Pair::compute(Atom *atom, Measure *measure)
 
     if (potential_model == 1) // LJ1
     {     
-        if (measure->hac.compute)    
+        if (compute_j)    
         {
             GPU_FIND_FORCE(1, 1, 0, 0);
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             GPU_FIND_FORCE(1, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             GPU_FIND_FORCE(1, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             GPU_FIND_FORCE(1, 0, 1, 1);
         }
@@ -436,19 +405,19 @@ void Pair::compute(Atom *atom, Measure *measure)
 
     if (potential_model == 2) // LJ2
     {
-        if (measure->hac.compute)    
+        if (compute_j)    
         {
             GPU_FIND_FORCE(2, 1, 0, 0);
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             GPU_FIND_FORCE(2, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             GPU_FIND_FORCE(2, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             GPU_FIND_FORCE(2, 0, 1, 1);
         }
@@ -461,19 +430,19 @@ void Pair::compute(Atom *atom, Measure *measure)
 
     if (potential_model == 3) // LJ3
     {  
-        if (measure->hac.compute)    
+        if (compute_j)    
         {
             GPU_FIND_FORCE(3, 1, 0, 0);
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             GPU_FIND_FORCE(3, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             GPU_FIND_FORCE(3, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             GPU_FIND_FORCE(3, 0, 1, 1);
         }
@@ -486,19 +455,19 @@ void Pair::compute(Atom *atom, Measure *measure)
 
     if (potential_model == 4) // LJ4
     {
-        if (measure->hac.compute)    
+        if (compute_j)    
         {
             GPU_FIND_FORCE(4, 1, 0, 0);
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             GPU_FIND_FORCE(4, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             GPU_FIND_FORCE(4, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             GPU_FIND_FORCE(4, 0, 1, 1);
         }
@@ -511,19 +480,19 @@ void Pair::compute(Atom *atom, Measure *measure)
 
     if (potential_model == 5) // LJ5
     {
-        if (measure->hac.compute)    
+        if (compute_j)    
         {
             GPU_FIND_FORCE(5, 1, 0, 0);
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             GPU_FIND_FORCE(5, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             GPU_FIND_FORCE(5, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             GPU_FIND_FORCE(5, 0, 1, 1);
         }

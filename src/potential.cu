@@ -223,3 +223,24 @@ void Potential::find_properties_many_body
 }
 
 
+void Potential::find_measurement_flags(Atom* atom, Measure* measure)
+{
+    int compute_hac = 0;
+    if (measure->hac.compute)
+    {
+        compute_hac = (atom->step + 1) % measure->hac.sample_interval == 0;
+    }
+    compute_j = 0;
+    if (measure->compute.compute_jp)
+    {
+        compute_j = (atom->step + 1) % measure->compute.sample_interval == 0;
+    }
+    compute_j = (compute_j || compute_hac);
+    compute_shc = 0;
+    if (measure->shc.compute)
+    {
+        compute_shc = (atom->step + 1) % measure->shc.sample_interval == 0;
+    }
+}
+
+

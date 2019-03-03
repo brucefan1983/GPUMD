@@ -28,9 +28,11 @@ public:
     virtual void compute(Atom*, Measure*) = 0;
 
 protected:
-
+    int compute_j   = 0; // 1 for computing heat current
+    int compute_shc = 0; // 1 for computing shc
     void find_properties_many_body
     (Atom*, Measure*, int*, int*, real*, real*, real*);
+    void find_measurement_flags(Atom*, Measure*);
 };
 
 
