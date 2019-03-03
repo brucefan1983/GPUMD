@@ -478,49 +478,16 @@ static __global__ void find_force_eam_step2
 // Force evaluation wrapper
 void EAM::compute(Atom *atom, Measure *measure)
 {
-    int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    int triclinic = atom->box.triclinic;
-    int pbc_x = atom->box.pbc_x;
-    int pbc_y = atom->box.pbc_y;
-    int pbc_z = atom->box.pbc_z;
-    int *NN = atom->NN_local;
-    int *NL = atom->NL_local;
-    real *x = atom->x; 
-    real *y = atom->y; 
-    real *z = atom->z;
-    real *vx = atom->vx; 
-    real *vy = atom->vy; 
-    real *vz = atom->vz;
-    real *fx = atom->fx; 
-    real *fy = atom->fy; 
-    real *fz = atom->fz;
-    real *box = atom->box.h;
-    real *sx = atom->virial_per_atom_x; 
-    real *sy = atom->virial_per_atom_y; 
-    real *sz = atom->virial_per_atom_z; 
-    real *pe = atom->potential_per_atom;
-    real *h = atom->heat_per_atom;   
-    
-    int *label = atom->group[0].label;
-    int *fv_index = measure->shc.fv_index;
-    int *a_map = measure->shc.a_map;
-    int *b_map = measure->shc.b_map;
-    int count_b = measure->shc.count_b;
-    real *fv = measure->shc.fv;
-   
-    real *Fp = eam_data.Fp;
-
-    real fe_x = measure->hnemd.fe_x;
-    real fe_y = measure->hnemd.fe_y;
-    real fe_z = measure->hnemd.fe_z;
-
+    find_measurement_flags(atom, measure);
     if (potential_model == 0)
     {
         find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-            NN, NL, x, y, z, box, Fp, pe
+            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box.triclinic, 
+            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, 
+            atom->NL_local, atom->x, atom->y, atom->z, atom->box.h, 
+            eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
         if (measure->hac.compute)
@@ -550,8 +517,10 @@ void EAM::compute(Atom *atom, Measure *measure)
     {
         find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-            NN, NL, x, y, z, box, Fp, pe
+            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box.triclinic, 
+            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, 
+            atom->NL_local, atom->x, atom->y, atom->z, atom->box.h, 
+            eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
         if (measure->hac.compute)
