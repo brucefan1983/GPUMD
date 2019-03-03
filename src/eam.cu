@@ -497,19 +497,19 @@ void EAM::compute(Atom *atom, Measure *measure)
             eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
-        if (measure->hac.compute)
+        if (compute_j)
         {
             FIND_FORCE_EAM_STEP2(0, 1, 0, 0);
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             FIND_FORCE_EAM_STEP2(0, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             FIND_FORCE_EAM_STEP2(0, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             FIND_FORCE_EAM_STEP2(0, 0, 1, 1);
         }
@@ -530,19 +530,19 @@ void EAM::compute(Atom *atom, Measure *measure)
             eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
-        if (measure->hac.compute)
+        if (compute_j)
         {
             FIND_FORCE_EAM_STEP2(1, 1, 0, 0);
         }
-        else if (measure->shc.compute && !measure->hnemd.compute)
+        else if (compute_shc && !measure->hnemd.compute)
         {
             FIND_FORCE_EAM_STEP2(1, 0, 1, 0);
         }
-        else if (measure->hnemd.compute && !measure->shc.compute)
+        else if (measure->hnemd.compute && !compute_shc)
         {
             FIND_FORCE_EAM_STEP2(1, 0, 0, 1);
         }
-        else if (measure->hnemd.compute && measure->shc.compute)
+        else if (measure->hnemd.compute && compute_shc)
         {
             FIND_FORCE_EAM_STEP2(1, 0, 1, 1);
         }

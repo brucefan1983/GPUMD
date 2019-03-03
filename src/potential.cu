@@ -86,12 +86,9 @@ static __global__ void gpu_find_force_many_body
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
 
         real vx1, vy1, vz1;
-        if (calculate_shc || calculate_hnemd)
-        {
-            vx1 = LDG(g_vx, n1);
-            vy1 = LDG(g_vy, n1); 
-            vz1 = LDG(g_vz, n1);
-        }
+        vx1 = LDG(g_vx, n1);
+        vy1 = LDG(g_vy, n1);
+        vz1 = LDG(g_vz, n1);
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -200,11 +197,7 @@ void Potential::find_properties_many_body
     real* f12x, real* f12y, real* f12z
 )
 {
-    int compute_shc = 0;
-    if (measure->shc.compute)
-    {
-        compute_shc = (atom->step + 1) % measure->shc.sample_interval == 0;
-    }
+    find_measurement_flags(atom, measure);
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (

@@ -596,7 +596,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
     find_measurement_flags(atom, measure);
     // 2-body part
-    if (measure->hac.compute)
+    if (compute_j)
     {
         if (use_table == 0)
         {
@@ -608,7 +608,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
         }
         CUDA_CHECK_KERNEL
     }
-    else if (measure->shc.compute && !measure->hnemd.compute)
+    else if (compute_shc && !measure->hnemd.compute)
     {
         if (use_table == 0)
         {
@@ -620,7 +620,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
         }
         CUDA_CHECK_KERNEL
     }
-    else if (measure->hnemd.compute && !measure->shc.compute)
+    else if (measure->hnemd.compute && !compute_shc)
     {
         if (use_table == 0)
         {
@@ -632,7 +632,7 @@ void Vashishta::compute(Atom *atom, Measure *measure)
         }
         CUDA_CHECK_KERNEL
     }
-    else if (measure->hnemd.compute && measure->shc.compute)
+    else if (measure->hnemd.compute && compute_shc)
     {
         if (use_table == 0)
         {

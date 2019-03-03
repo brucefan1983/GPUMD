@@ -992,20 +992,22 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     real *f12y = rebo_mos_data.f12y;
     real *f12z = rebo_mos_data.f12z;
 
+    find_measurement_flags(atom, measure);
+
     // 2-body part
-    if (measure->hac.compute)
+    if (compute_j)
     {
         FIND_FORCE_STEP0(1, 0, 0);
     }
-    else if (measure->hnemd.compute && !measure->shc.compute)
+    else if (measure->hnemd.compute && !compute_shc)
     {
         FIND_FORCE_STEP0(0, 0, 1);
     }
-    else if (measure->shc.compute && !measure->hnemd.compute)
+    else if (compute_shc && !measure->hnemd.compute)
     {
         FIND_FORCE_STEP0(0, 1, 0);
     }
-    else if (measure->shc.compute && measure->hnemd.compute)
+    else if (compute_shc && measure->hnemd.compute)
     {
         FIND_FORCE_STEP0(0, 1, 1);
     }
