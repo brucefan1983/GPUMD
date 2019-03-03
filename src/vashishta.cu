@@ -24,11 +24,17 @@
     gpu_find_force_vashishta_2body<A, B, C, D>                                 \
     <<<grid_size, BLOCK_SIZE_VASHISHTA>>>                                      \
     (                                                                          \
-        fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,           \
-        vashishta_para, NN, NL, NN_local,                                      \
-        NL_local, type, table, x, y, z, vx, vy, vz, box,                       \
-        fx, fy, fz, sx, sy, sz, pe, h, label, fv_index, fv,                    \
-        a_map, b_map, count_b                                                  \
+        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
+        atom->N, N1, N2, atom->box.triclinic, atom->box.pbc_x,                 \
+        atom->box.pbc_y, atom->box.pbc_z, vashishta_para, atom->NN_local,      \
+        atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,      \
+        atom->type_local, vashishta_data.table, atom->x, atom->y, atom->z,     \
+        atom->vx, atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy,         \
+        atom->fz, atom->virial_per_atom_x, atom->virial_per_atom_y,            \
+        atom->virial_per_atom_z, atom->potential_per_atom,                     \
+        atom->heat_per_atom, atom->group[0].label, measure->shc.fv_index,      \
+        measure->shc.fv, measure->shc.a_map, measure->shc.b_map,               \
+        measure->shc.count_b                                                   \
     )
 
 
@@ -587,49 +593,9 @@ static __global__ void gpu_find_force_vashishta_partial
 // Find force and related quantities for the Vashishta potential (A wrapper)
 void Vashishta::compute(Atom *atom, Measure *measure)
 {
-    int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
-    int triclinic = atom->box.triclinic;
-    int pbc_x = atom->box.pbc_x;
-    int pbc_y = atom->box.pbc_y;
-    int pbc_z = atom->box.pbc_z;
-    int *NN = atom->NN_local;             // for 2-body
-    int *NL = atom->NL_local;             // for 2-body
-    int *NN_local = vashishta_data.NN_short;  // for 3-body
-    int *NL_local = vashishta_data.NL_short;  // for 3-body
-    int *type = atom->type_local;
-    real *x = atom->x; 
-    real *y = atom->y; 
-    real *z = atom->z;
-    real *vx = atom->vx; 
-    real *vy = atom->vy; 
-    real *vz = atom->vz;
-    real *fx = atom->fx; 
-    real *fy = atom->fy; 
-    real *fz = atom->fz;
-    real *box = atom->box.h;
-    real *sx = atom->virial_per_atom_x; 
-    real *sy = atom->virial_per_atom_y; 
-    real *sz = atom->virial_per_atom_z; 
-    real *pe = atom->potential_per_atom;
-    real *h = atom->heat_per_atom; 
-    
-    int *label = atom->group[0].label;
-    int *fv_index = measure->shc.fv_index;
-    int *a_map = measure->shc.a_map;
-    int *b_map = measure->shc.b_map;
-    int count_b = measure->shc.count_b;
-    real *fv = measure->shc.fv;
-
-    real *table = vashishta_data.table;
-    real *f12x  = vashishta_data.f12x; 
-    real *f12y  = vashishta_data.f12y; 
-    real *f12z  = vashishta_data.f12z;
-
-    real fe_x = measure->hnemd.fe_x;
-    real fe_y = measure->hnemd.fe_y;
-    real fe_z = measure->hnemd.fe_z;
-
+    find_measurement_flags(atom, measure);
+    // 2-body part
     if (measure->hac.compute)
     {
         if (use_table == 0)
@@ -690,19 +656,21 @@ void Vashishta::compute(Atom *atom, Measure *measure)
         }
         CUDA_CHECK_KERNEL
     }
-
-    gpu_find_force_vashishta_partial
-    <<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+    // 3-body part
+    gpu_find_force_vashishta_partial<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, 
-        vashishta_para, NN_local, NL_local, type,
-        x, y, z, box, pe, f12x, f12y, f12z 
+        atom->N, N1, N2, atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y,
+        atom->box.pbc_z, vashishta_para, vashishta_data.NN_short,
+        vashishta_data.NL_short, atom->type_local, atom->x, atom->y, atom->z, 
+        atom->box.h, atom->potential_per_atom, vashishta_data.f12x, 
+        vashishta_data.f12y, vashishta_data.f12z
     );
     CUDA_CHECK_KERNEL
-
-    // 3-body part
     find_properties_many_body
-    (atom, measure, NN_local, NL_local, f12x, f12y, f12z);
+    (
+        atom, measure, vashishta_data.NN_short, vashishta_data.NL_short,
+        vashishta_data.f12x, vashishta_data.f12y, vashishta_data.f12z
+    );
 }
 
 
