@@ -4,7 +4,7 @@
 J. Tersoff,\
 Modeling solid-state chemistry: Interatomic potentials for multicomponent systems, \
 Phys. Rev. B **39**, 5566(R) (1989). \
-https://doi.org/10.1103/PhysRevB.39.5566
+https://doi.org/10.1103/PhysRevB.39.5566 \
 J. Tersoff,\
 Erratum: Modeling solid-state chemistry: Interatomic potentials for multicomponent systems,\
 Phys. Rev. B **41**, 3248 (1990). \
