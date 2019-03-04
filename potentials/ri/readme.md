@@ -1,6 +1,6 @@
 # References for the rigid-ion (RI) potential files here:
 
-* PbTe_Qiu_2008.txt \
+* PbTe_Qiu_2012.txt \
 B. Qiu et al., \
 Molecular dynamics simulations of lattice thermal conductivity and spectral phonon mean free path of PbTe: 
 Bulk and nanostructures, \
