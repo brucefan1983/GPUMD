@@ -49,5 +49,11 @@ Thermal conductivity of BN-C nanostructures, \
 Phys. Rev. B, **86**, 115410 (2012). \
 https://doi.org/10.1103/PhysRevB.86.115410 
 
+* Sn_Cherukara_2016.txt \
+M. J. Cherukara et al., \
+Ab Initio-Based Bond Order Potential to Investigate Low Thermal Conductivity of Stanene Nanostructures, \
+J. Phys. Chem. Lett. 7, 3752 (2016). \
+https://doi.org/10.1021/acs.jpclett.6b01562
+
 
 
