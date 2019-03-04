@@ -1,6 +1,6 @@
 # References for the SW potential files here:
 
-* Si_Stillinger_2005.txt \
+* Si_Stillinger_1985.txt \
 F. H. Stillinger and T. A. Weber, \
 Computer simulation of local order in condensed phases of silicon, \
 Phys. Rev. B, **31** 5262 (1985). \
