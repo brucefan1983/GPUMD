@@ -13,7 +13,7 @@ Erratum: Modeling solid-state chemistry: Interatomic potentials for multicompone
 Phys. Rev. B **41**, 3248 (1990). \
 https://doi.org/10.1103/PhysRevB.41.3248.2 
 
-* SiO_Munetoh_2007.txt \
+* SiO_Munetoh_2007.txt  \
 S. Munetoh et al., Interatomic potential for Si-O systems using Tersoff parameterization, \
 Computational Materials Science, **39**, 334 (2007). \
 https://doi.org/10.1016/j.commatsci.2006.06.010 
