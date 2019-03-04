@@ -3,7 +3,7 @@
 * C_Tersoff_1989.txt, \
 Si_Tersoff_1989.txt, \
 Ge_Tersoff_1989.txt, \
-SiC_Tersoff_1989.txt \ 
+SiC_Tersoff_1989.txt \
 J. Tersoff, \
 Modeling solid-state chemistry: Interatomic potentials for multicomponent systems, \
 Phys. Rev. B **39**, 5566(R) (1989). \
@@ -24,7 +24,7 @@ Modelling of compound semiconductors: analytical bond-order potential for galliu
 Journal of Physics: Condensed Matter **15**, 5649 (2003).\
 https://doi.org/10.1088/0953-8984/15/32/324 
 
-* C_Lindsay_2010_with_modifications.txt \
+* Graphene_Lindsay_2010_with_modifications.txt \
 L. Lindsay and D. A. Broido, \
 Optimized Tersoff and Brenner empirical potential parameters for lattice dynamics and phonon thermal transport in carbon nanotubes and graphene, \
 Phys. Rev. B, **81**, 205441 (2010). \
