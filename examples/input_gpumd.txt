@@ -1,0 +1,6 @@
+4
+examples/gpumd/ex1
+examples/gpumd/ex2
+examples/gpumd/ex3
+examples/gpumd/ex4
+
