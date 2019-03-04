@@ -1,4 +1,4 @@
-# References for the EAM potential files here:
+# References for the REBO potential files here:
 
 * MoS_Liang_2009.txt \
 T. Liang, et al., \
