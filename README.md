@@ -25,9 +25,16 @@
      
 * GPUMD was firstly used for heat transport simulations only but we are now making it more and more general. However, the functionalities in GPUMD are still very limited. We are working on implementing (1) more potential models (including mixed potentials), (2) more integrators (including external conditions), and (3) more measurements.
 
-## Compile GPUMD
+## Prerequisites
 
-* To compile GPUMD, one just needs to go to the "src" directory and type "make". one may want to first do "make clean". When the compilation finishes, an executable named "gpumd" will be generated in the "src" directory. See the manual in the "doc" directory for details.
+* You need to have a GPU card with compute capability no less than 3.5 and a CUDA toolkit which supports your GPU card installed.
+* We have only tested the code in linux operating system, although I know that some users also managed to compile and run the code in Windows operating system with mininal modifications (I don't know exactly what they are) of the code. 
+* We will try our best to keep GPUMD as a standalone code. So far, it does not depend on any other program other than the standard C, C++, and CUDA libraries.
+
+## Compile GPUMD
+* Now one can build two executables: `gpumd` and `phonon`
+* To build `gpumd`, one just needs to go to the `src` directory and type `make`. When the compilation finishes, an executable named `gpumd` will be generated in the `src` directory. 
+* To build `phonon`, one just needs to go to the `src` directory and type `make -f makefile.phonon`. When the compilation finishes, an executable named `phonon` will be generated in the `src` directory. 
 
 ## Run GPUMD
 
@@ -62,5 +69,5 @@ If your work involves using heat current and virial stress formulas as implement
 You can cite the following paper if you use GPUMD to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
 * [3] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity decomposition in two-dimensional materials: Application to graphene. Phys. Rev. B 95, 144309, (2017). https://doi.org/10.1103/PhysRevB.95.144309 
 
-You can cite the following paper if you use GPUMD to study heat transport using the HNEMD method:
+You can cite the following paper if you use GPUMD to study heat transport using the HNEMD method and the associated spectral decomposition method:
 * [4] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, Phys. Rev. B 99, 064308 (2019). https://doi.org/10.1103/PhysRevB.99.064308
