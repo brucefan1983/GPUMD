@@ -34,6 +34,17 @@ Physical Review B **97**, 094305 (2018).
 [Thermal conductivity decomposition in two-dimensional materials: Application to graphene](https://doi.org/10.1103/PhysRevB.95.144309),
 Physical Review B **95**, 144309 (2017).
 
+* Zheyong Fan, Andreas Uppstu, Ari Harju,
+[Dominant source of disorder in graphene: charged impurities or ripples?](https://doi.org/10.1088/2053-1583/aa529b),
+2D Materials **4**, 025004 (2017).
+
+* Zheyong Fan, Wei Chen, Ville Vierimaa, Ari Harju,
+[Efficient molecular dynamics simulations with many-body potentials on graphics processing units](https://doi.org/10.1016/j.cpc.2017.05.003),
+Computer Physics Communications **218**, 10 (2017).
+
+* Bohayra Mortazavi, Aurélien Lherbier, Zheyong Fan, Ari Harju, Timon Rabczuk, Jean-Christophe Charlier,
+[Thermal and electronic transport characteristics of highly stretchable graphene kirigami](https://doi.org/10.1039/C7NR05231F),
+Nanoscale **9**, 16329 (2017).
 
 
 
