@@ -28,6 +28,14 @@ Applied Physics Letters **112**, 233104 (2018).
 [Equivalence of the equilibrium and the nonequilibrium molecular dynamics methods for thermal conductivity calculations: From bulk to nanowire silicon](https://doi.org/10.1103/PhysRevB.97.094305),
 Physical Review B **97**, 094305 (2018).
 
+* Bohayra Mortazavi, Meysam Makaremi, Masoud Shahrokhi, Zheyong Fan, Timon Rabczuk,
+[N-graphdiyne two-dimensional nanomaterials: semiconductors with low thermal conductivity and high stretchability](https://doi.org/10.1016/j.carbon.2018.04.090),
+Carbon **137**, 57 (2018).
+
+* Petri Hirvonen, Gabriel Martine La Boissonière, Zheyong Fan, Cristian-Vasile Achim, Nikolas Provatas, Ken R Elder, Tapio Ala-Nissila,
+[Grain extraction and microstructural analysis method for two-dimensional poly and quasicrystalline solids](https://doi.org/10.1103/PhysRevMaterials.2.103603),
+Physical Review Materials **2**, 103603 (2018).
+
 ## 2017
 
 * Zheyong Fan, Luiz Felipe C Pereira, Petri Hirvonen, Mikko M Ervasti, Ken R Elder, Davide Donadio, Tapio Ala-Nissila, Ari Harju,
@@ -42,9 +50,41 @@ Physical Review B **95**, 144309 (2017).
 [Efficient molecular dynamics simulations with many-body potentials on graphics processing units](https://doi.org/10.1016/j.cpc.2017.05.003),
 Computer Physics Communications **218**, 10 (2017).
 
+* Khatereh Azizi, Petri Hirvonen, Zheyong Fan, Ari Harju, Ken R Elder, Tapio Ala-Nissila, S Mehdi Vaez Allaei,
+[Kapitza thermal resistance across individual grain boundaries in graphene](https://doi.org/10.1016/j.carbon.2017.09.059),
+Carbon **125**, 384	(2017).
+
+* Zheyong Fan, Petri Hirvonen, Luiz Pereira, Mikko Ervasti, Ken Elder, Davide Donadio, Ari Harju, Tapio Ala-Nissila,
+[Bimodal grain-size scaling of thermal transport in polycrystalline graphene from large-scale molecular dynamics simulations](https://doi.org/10.1021/acs.nanolett.7b01742),
+Nano Letters **17**, 5919 (2017).
+
 * Bohayra Mortazavi, Aurélien Lherbier, Zheyong Fan, Ari Harju, Timon Rabczuk, Jean-Christophe Charlier,
 [Thermal and electronic transport characteristics of highly stretchable graphene kirigami](https://doi.org/10.1039/C7NR05231F),
 Nanoscale **9**, 16329 (2017).
 
+* Petri Hirvonen, Zheyong Fan, Mikko M Ervasti, Ari Harju, Ken R Elder, Tapio Ala-Nissila,
+[Energetics and structure of grain boundary triple junctions in graphene](https://doi.org/10.1038/s41598-017-04852-w),
+Scientific Reports **7**, 4754 (2017).
 
 
+## 2016
+
+* Petri Hirvonen, Mikko M Ervasti, Zheyong Fan, Morteza Jalalvand, Matthew Seymour, S Allaei, Nikolas Provatas, Ari Harju, Ken R Elder, Tapio Ala-Nissila,
+[Multiscale modeling of polycrystalline graphene: A comparison of structure and defect energies of realistic samples from phase field crystal models](https://doi.org/10.1103/PhysRevB.94.035414),
+Physical Review B **94**, 035414 (2016).
+
+* Bohayra Mortazavi, Zheyong Fan, Luiz Felipe C Pereira, Ari Harju, Timon Rabczuk,
+[Amorphized graphene: A stiff material with low thermal conductivity](https://doi.org/10.1016/j.carbon.2016.03.007),
+Carbon **103**, 318 (2016).
+
+## 2015
+
+* Zheyong Fan, Luiz Felipe C Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, Ari Harju,
+[Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations](https://doi.org/10.1103/PhysRevB.92.094301),
+Physical Review B **92**, 094301 (2015).
+
+## 2013
+
+* Zheyong Fan, Topi Siro, Ari Harju,
+[Accelerated molecular dynamics force evaluation on graphics processing units for thermal conductivity calculations](https://doi.org/10.1016/j.cpc.2013.01.008),
+Computer Physics Communications **184**, 1414 (2013).
