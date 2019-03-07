@@ -50,5 +50,6 @@ class Measure;
 class Integrate;
 class Ensemble;
 class Hessian;
+class GA;
 
 
