@@ -160,7 +160,7 @@ static void find_rdc
 // using the method by Dickey and Paskin
 static void find_dos
 (
-    int Nc, real delta_t, real omega_0, real d_omega,
+    int N, int Nc, real delta_t, real omega_0, real d_omega,
     real *vac_x_normalized, real *vac_y_normalized, real *vac_z_normalized,
     real *dos_x, real *dos_y, real *dos_z
 )
@@ -192,9 +192,9 @@ static void find_dos
             dos_y[nw] += vac_y_normalized[nc] * cos_factor;
             dos_z[nw] += vac_z_normalized[nc] * cos_factor;
         }
-        dos_x[nw] *= delta_t;
-        dos_y[nw] *= delta_t;
-        dos_z[nw] *= delta_t;
+        dos_x[nw] *= delta_t*2.0*N;
+        dos_y[nw] *= delta_t*2.0*N;
+        dos_z[nw] *= delta_t*2.0*N;
     }
 }
 
@@ -270,10 +270,22 @@ void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
 
     find_dos
     (
-        Nc, dt_in_ps, omega_0, d_omega, 
+        N, Nc, dt_in_ps, omega_0, d_omega,
         vac_x_normalized, vac_y_normalized, vac_z_normalized, 
         dos_x, dos_y, dos_z
     );
+
+    //Test: Add up states
+    real dosx = 0;
+    real dosy = 0;
+    real dosz = 0;
+    for (int nw = 0; nw < Nc; nw++){
+    	dosx += dos_x[nw]*d_omega/(2.0*PI);
+    	dosy += dos_y[nw]*d_omega/(2.0*PI);
+    	dosz += dos_z[nw]*d_omega/(2.0*PI);
+    }
+
+    printf("DOS: x = %f, y = %f, z = %f\n", dosx, dosy, dosz);
 
     char file_vac[FILE_NAME_LENGTH];
     strcpy(file_vac, input_dir);
