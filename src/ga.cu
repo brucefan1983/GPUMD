@@ -204,7 +204,7 @@ int GA::get_a_parent(void)
 
 void GA::get_fitness(void)
 {
-    // y = x1^2 + x2^2 + ... wit solution x1 = x2 = ... = 0
+    // a test function y = x1^2 + x2^2 + ... with solution x1 = x2 = ... = 0
     for (int n = 0; n < population_size; ++n)
     {
         double* individual = population + n * number_of_variables;
