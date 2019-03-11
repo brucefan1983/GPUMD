@@ -4,7 +4,9 @@
 
 * Do not treat the code as a black box. Do as many tests as you can until you trust some part of it (the part you will use). The best way is to check the source code and make sure that it makes sense to you. Whenever you feel unsure about something regarding the code, you are welcome to discuss with me (see the contact information below). 
 
-* There are no functionalities for building simulation models. Users of `GPUMD` are supposed to be able to build simulation models by their own. One of the developers, Alexander J. Gabourie, has written some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo
+* There are no functionalities for building simulation models. Users of `GPUMD` are supposed to be able to build simulation models by their own. 
+  * One of the developers, Alexander J. Gabourie, has written some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo
+  * A graduate student, Ke Xu, is also publishing some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/Kick-H/For_gpumd
 
 ## What is `GPUMD`?
 
