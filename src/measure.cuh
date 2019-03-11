@@ -17,6 +17,8 @@
 #pragma once
 #include "common.cuh"
 #include "vac.cuh"
+#include "dos.cuh"
+#include "sdc.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
 #include "hnemd_kappa.cuh"
@@ -66,6 +68,8 @@ public:
     char file_virial[FILE_NAME_LENGTH];
     char file_heat[FILE_NAME_LENGTH];
     VAC vac;
+    DOS dos;
+    SDC sdc;
     HAC hac;
     SHC shc;
     HNEMD hnemd;

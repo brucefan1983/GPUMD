@@ -18,18 +18,14 @@
 #include "common.cuh"
 
 
-class VAC
+class DOS
 {
 public:
-	// TODO move omega_max to DOS
+	// TODO add check to set default number of points if not selected
 	// TODO undo setting compute to 0, only for testing
-	// NOTE: (compute_dos && compute_sdc) == 1 yields failure
-    int compute_dos;     // 1 means mass-weighted VAC computed
-    int compute_sdc;	 // 1 means VAC computed
-    int compute = 0;
+	int num_dos_points = -1; // points to use for DOS output, -1 means not set
+    int compute = 0;         // 1 means you want to do this computation
     int sample_interval; // sample interval for velocity
-    int grouping_method = -1; // grouping method to use, -1 means none set
-    int group = -1;		 // group to compute, -1 means none set
     int Nc;              // number of correlation points
     real omega_max;    // maximal angular frequency for phonons
     void preprocess(Atom*);

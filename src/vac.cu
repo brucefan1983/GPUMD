@@ -36,6 +36,7 @@ Phys. Rev. 188, 1407 (1969).
 // Allocate memory for recording velocity data
 void VAC::preprocess(Atom *atom)
 {
+	//TODO Add checks for sdc && dos as well as a check for adequate sample frequency
     if (!compute) return;
     int num = atom->N * (atom->number_of_steps / sample_interval);
     CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
