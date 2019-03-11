@@ -78,7 +78,11 @@ void VAC::process(int step, Atom *atom)
 
 static __global__ void gpu_find_vac
 (
-    int N, int M, real *g_vx, real *g_vy, real *g_vz, 
+    int N, int M,
+    const real* __restrict__ g_mass,
+    const real* __restrict__ g_vx,
+    const real* __restrict__ g_vy,
+    const real* __restrict__ g_vz,
     real *g_vac_x, real *g_vac_y, real *g_vac_z
 )
 {
@@ -103,11 +107,12 @@ static __global__ void gpu_find_vac
         for (int patch = 0; patch < number_of_patches; ++patch)
         { 
             int n = tid + patch * 128;
-            if (n < N)
+            if (n < N )
             {
-                s_vac_x[tid] += g_vx[index_1 + n] * g_vx[index_2 + n];
-                s_vac_y[tid] += g_vy[index_1 + n] * g_vy[index_2 + n];
-                s_vac_z[tid] += g_vz[index_1 + n] * g_vz[index_2 + n];  
+            	real mass = LDG(g_mass, n);
+                s_vac_x[tid] += mass * LDG(g_vx, index_1 + n) * LDG(g_vx, index_2 + n);
+                s_vac_y[tid] += mass * LDG(g_vy, index_1 + n) * LDG(g_vy, index_2 + n);
+                s_vac_z[tid] += mass * LDG(g_vz, index_1 + n) * LDG(g_vz, index_2 + n);
             }
         }
     }
@@ -206,6 +211,7 @@ void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
     int N = atom->N;
     int number_of_steps = atom->number_of_steps;
     real time_step = atom->time_step;
+    real *mass = atom->mass;
 
     // other parameters
     int Nd = number_of_steps / sample_interval;
@@ -245,7 +251,7 @@ void VAC::find_vac_rdc_dos(char *input_dir, Atom *atom)
     // Here, the block size is fixed to 128, which is a good choice
     gpu_find_vac<<<Nc, 128>>>
     (
-        N, M, vx_all, vy_all, vz_all, 
+        N, M, mass, vx_all, vy_all, vz_all,
         g_vac_x, g_vac_y, g_vac_z
     );
     CUDA_CHECK_KERNEL
