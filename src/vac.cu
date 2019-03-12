@@ -23,6 +23,7 @@ Phys. Rev. 188, 1407 (1969).
 
 
 #include "vac.cuh"
+#include "group.cuh"
 #include "atom.cuh"
 #include "warp_reduce.cuh"
 #include "error.cuh"
@@ -34,32 +35,60 @@ Phys. Rev. 188, 1407 (1969).
 // Allocate memory for recording velocity data
 void VAC::preprocess(Atom *atom)
 {
+	Group sel_group = atom->group[grouping_method]; //selected group
     if (!compute_dos && !compute_sdc) return;
     if (compute_dos == compute_sdc)
     {
     	print_error("DOS and SDC commands cannot be used simultaneously.\n");
     }
-    int num = atom->N * (atom->number_of_steps / sample_interval);
+    if (grouping_method == -1) { N = atom->N; }
+    else { N = sel_group.cpu_size[group]; }
+    int num = N * (atom->number_of_steps / sample_interval);
     CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
+
+    // initialize array that stores atom indices for the group
+    int *gindex;
+    MY_MALLOC(gindex, int, N);
+    int group_index = sel_group.cpu_size_sum[group];
+    for (int i = 0; i < N; i++)
+    {
+    	gindex[i] = sel_group.cpu_contents[group_index];
+    	group_index++;
+    }
+    // Copy indices to GPU
+    CHECK(cudaMalloc((void**)&g_gindex, sizeof(int) * N));
+    CHECK(cudaMemcpy(g_gindex, gindex, sizeof(int) * N, cudaMemcpyHostToDevice));
+    MY_FREE(gindex);
 }
 
 
 // Record velocity data (kernel)
 static __global__ void gpu_copy_velocity
 (
-    int N, int nd, real *g_in_x, real *g_in_y, real *g_in_z, 
-    real *g_out_x, real *g_out_y, real *g_out_z
+    int N, int nd, int grouped,
+    real *g_in_x, real *g_in_y, real *g_in_z,
+    real *g_out_x, real *g_out_y, real *g_out_z,
+    const int* __restrict__ g_gindex
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x; // atom index
     if (n < N)
     {
         int m = nd * N + n;
-        g_out_x[m] = g_in_x[n];
-        g_out_y[m] = g_in_y[n];
-        g_out_z[m] = g_in_z[n];
+        if (grouped)
+        {
+        	g_out_x[m] = g_in_x[LDG(g_gindex, n)];
+			g_out_y[m] = g_in_y[LDG(g_gindex, n)];
+			g_out_z[m] = g_in_z[LDG(g_gindex, n)];
+        }
+        else
+        {
+        	g_out_x[m] = g_in_x[n];
+			g_out_y[m] = g_in_y[n];
+			g_out_z[m] = g_in_z[n];
+        }
     }
 }
 
@@ -69,11 +98,12 @@ void VAC::process(int step, Atom *atom)
 {
     if (!(compute_dos || compute_sdc)) return;
     if (step % sample_interval != 0) return;
-    int N = atom->N;
     int nd = step / sample_interval;  
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
+    int grouped = (grouping_method != -1);
     gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
-    (N, nd, atom->vx, atom->vy, atom->vz, vx_all, vy_all, vz_all);
+    (N, nd, grouped,
+    		atom->vx, atom->vy, atom->vz, vx_all, vy_all, vz_all, g_gindex);
     CUDA_CHECK_KERNEL
 }
 
@@ -160,7 +190,6 @@ static __global__ void gpu_find_vac
 void VAC::find_vac(char *input_dir, Atom *atom)
 {
     // rename variables
-    int N = atom->N;
     int number_of_steps = atom->number_of_steps;
     real time_step = atom->time_step;
     real *mass = atom->mass;
@@ -241,7 +270,7 @@ void VAC::find_vac(char *input_dir, Atom *atom)
 // postprocess VAC and related quantities.
 void VAC::postprocess(char *input_dir, Atom *atom, DOS *dos, SDC *sdc)
 {
-    if (!!(compute_dos || compute_sdc)) return;
+    if (!(compute_dos || compute_sdc)) return;
     print_line_1();
     printf("Start to calculate VAC and related quantities.\n");
     find_vac(input_dir, atom);
@@ -256,6 +285,7 @@ void VAC::postprocess(char *input_dir, Atom *atom, DOS *dos, SDC *sdc)
     CHECK(cudaFree(vx_all));
     CHECK(cudaFree(vy_all));
     CHECK(cudaFree(vz_all));
+    CHECK(cudaFree(g_gindex));
     printf("VAC and related quantities are calculated.\n");
     print_line_2();
 }

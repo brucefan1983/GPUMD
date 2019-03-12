@@ -35,6 +35,7 @@ public:
     int grouping_method = -1; // grouping method to use, -1 means none set
     int group = -1;		 // group to compute, -1 means none set
     int Nc;              // number of correlation points
+    int N;				 // number of atoms for computation
     real *vac_x_normalized;
     real *vac_y_normalized;
     real *vac_z_normalized;
@@ -48,6 +49,7 @@ private:
     real *vx_all;
     real *vy_all;
     real *vz_all;
+    int  *g_gindex; // atom indices for selected group for GPU
 };
 
 #endif //VAC_H
