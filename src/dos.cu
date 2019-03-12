@@ -40,7 +40,7 @@ void DOS::preprocess(Atom *atom, VAC *vac)
     if (num_dos_points == -1) {num_dos_points = vac->Nc;}
     float sample_frequency =
     		1000.0/(atom->time_step * vac->sample_interval); // THz
-	if (sample_frequency < 2.0*omega_max)
+	if (sample_frequency < omega_max/PI)
 	{
 		printf("WARNING: VAC sampling rate is less than Nyquist frequency.\n");
 	}

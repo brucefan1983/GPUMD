@@ -35,32 +35,36 @@ Phys. Rev. 188, 1407 (1969).
 // Allocate memory for recording velocity data
 void VAC::preprocess(Atom *atom)
 {
-	Group sel_group = atom->group[grouping_method]; //selected group
     if (!compute_dos && !compute_sdc) return;
     if (compute_dos == compute_sdc)
     {
     	print_error("DOS and SDC commands cannot be used simultaneously.\n");
     }
+    Group sel_group;  //selected group
     if (grouping_method == -1) { N = atom->N; }
-    else { N = sel_group.cpu_size[group]; }
+    else
+    {
+    	sel_group = atom->group[grouping_method];
+    	N = sel_group.cpu_size[group];
+
+    	// initialize array that stores atom indices for the group
+		int *gindex;
+		MY_MALLOC(gindex, int, N);
+		int group_index = sel_group.cpu_size_sum[group];
+		for (int i = 0; i < N; i++)
+		{
+			gindex[i] = sel_group.cpu_contents[group_index];
+			group_index++;
+		}
+	    // Copy indices to GPU
+	    CHECK(cudaMalloc((void**)&g_gindex, sizeof(int) * N));
+	    CHECK(cudaMemcpy(g_gindex, gindex, sizeof(int) * N, cudaMemcpyHostToDevice));
+	    MY_FREE(gindex);
+    }
     int num = N * (atom->number_of_steps / sample_interval);
     CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
-
-    // initialize array that stores atom indices for the group
-    int *gindex;
-    MY_MALLOC(gindex, int, N);
-    int group_index = sel_group.cpu_size_sum[group];
-    for (int i = 0; i < N; i++)
-    {
-    	gindex[i] = sel_group.cpu_contents[group_index];
-    	group_index++;
-    }
-    // Copy indices to GPU
-    CHECK(cudaMalloc((void**)&g_gindex, sizeof(int) * N));
-    CHECK(cudaMemcpy(g_gindex, gindex, sizeof(int) * N, cudaMemcpyHostToDevice));
-    MY_FREE(gindex);
 }
 
 
@@ -285,7 +289,10 @@ void VAC::postprocess(char *input_dir, Atom *atom, DOS *dos, SDC *sdc)
     CHECK(cudaFree(vx_all));
     CHECK(cudaFree(vy_all));
     CHECK(cudaFree(vz_all));
-    CHECK(cudaFree(g_gindex));
+    if (grouping_method != -1)
+    {
+    	CHECK(cudaFree(g_gindex));
+    }
     printf("VAC and related quantities are calculated.\n");
     print_line_2();
 }
