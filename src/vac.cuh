@@ -13,34 +13,41 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef VAC_H
+#define VAC_H
 
 #pragma once
 #include "common.cuh"
+#include "dos.cuh"
+#include "sdc.cuh"
 
+//forward declarations
+class DOS;
+class SDC;
 
 class VAC
 {
 public:
-	// TODO move omega_max to DOS
-	// TODO undo setting compute to 0, only for testing
 	// NOTE: (compute_dos && compute_sdc) == 1 yields failure
     int compute_dos;     // 1 means mass-weighted VAC computed
     int compute_sdc;	 // 1 means VAC computed
-    int compute = 0;
     int sample_interval; // sample interval for velocity
     int grouping_method = -1; // grouping method to use, -1 means none set
     int group = -1;		 // group to compute, -1 means none set
     int Nc;              // number of correlation points
-    real omega_max;    // maximal angular frequency for phonons
+    real *vac_x_normalized;
+    real *vac_y_normalized;
+    real *vac_z_normalized;
+    real *vac_x, *vac_y, *vac_z;
     void preprocess(Atom*);
     void process(int step, Atom*);
-    void postprocess(char*, Atom*);
+    void postprocess(char*, Atom*, DOS*, SDC*);
 
 private:
-    void find_vac_rdc_dos(char *input_dir, Atom *atom);
+    void find_vac(char *input_dir, Atom *atom);
     real *vx_all;
     real *vy_all;
     real *vz_all;
 };
 
-
+#endif //VAC_H

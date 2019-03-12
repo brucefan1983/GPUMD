@@ -617,7 +617,7 @@ void parse_compute_dos(char **param,  int num_param, Measure *measure,
     {
         print_error("omega_max should be a real number.\n");
     }
-    if (measure->vac.omega_max <= 0)
+    if (measure->dos.omega_max <= 0)
     {
         print_error("omega_max should be positive.\n");
     }
@@ -654,16 +654,6 @@ void parse_compute_dos(char **param,  int num_param, Measure *measure,
     		print_error("Unrecognized argument in compute_dos.\n");
     	}
     }
-//    // Testing print all relevant information
-//    printf("sample_interval: %d,\n"
-//    		"correlation points: %d,\n"
-//    		"max freq: %g,\n"
-//    		"grouping_method: %d,\n"
-//    		"group: %d,\n"
-//    		"num_dos_points: %d,\n",
-//    		measure->vac.sample_interval, measure->vac.Nc, measure->dos.omega_max,
-//    		measure->vac.grouping_method,measure->vac.group,
-//    		measure->dos.num_dos_points);
 }
 
 void parse_compute_sdc(char **param,  int num_param, Measure *measure,
@@ -723,13 +713,6 @@ void parse_compute_sdc(char **param,  int num_param, Measure *measure,
 			print_error("Unrecognized argument in compute_sdc.\n");
 		}
 	}
-//	// Testing print all relevant information
-//	    printf("sample_interval: %d,\n"
-//	    		"correlation points: %d,\n"
-//	    		"grouping_method: %d,\n"
-//	    		"group: %d,\n",
-//	    		measure->vac.sample_interval, measure->vac.Nc,
-//	    		measure->vac.grouping_method,measure->vac.group);
 }
 
 

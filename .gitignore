@@ -1,0 +1,10 @@
+
+\.cproject
+
+\.project
+
+core
+
+*.o
+
+src/gpumd

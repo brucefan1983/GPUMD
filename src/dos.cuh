@@ -13,30 +13,25 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef DOS_H
+#define DOS_H
 
 #pragma once
 #include "common.cuh"
+#include "vac.cuh"
 
+class VAC; //forward declaration
 
 class DOS
 {
 public:
-	// TODO add check to set default number of points if not selected
-	// TODO undo setting compute to 0, only for testing
 	int num_dos_points = -1; // points to use for DOS output, -1 means not set
-    int compute = 0;         // 1 means you want to do this computation
-    int sample_interval; // sample interval for velocity
-    int Nc;              // number of correlation points
     real omega_max;    // maximal angular frequency for phonons
-    void preprocess(Atom*);
-    void process(int step, Atom*);
-    void postprocess(char*, Atom*);
+    void preprocess(Atom*, VAC*);
+    void process(char*, Atom*, VAC*);
 
 private:
-    void find_vac_rdc_dos(char *input_dir, Atom *atom);
-    real *vx_all;
-    real *vy_all;
-    real *vz_all;
+
 };
 
-
+#endif //DOS_H

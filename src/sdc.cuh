@@ -13,28 +13,23 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifndef SDC_H
+#define SDC_H
 
 #pragma once
 #include "common.cuh"
+#include "vac.cuh"
 
+class VAC; //forward declaration
 
 class SDC
 {
 public:
-	// TODO undo setting compute to 0, only for testing
-    int compute = 0;         // 1 means you want to do this computation
-    int sample_interval; // sample interval for velocity
-    int Nc;              // number of correlation points
-    real omega_max;    // maximal angular frequency for phonons
-    void preprocess(Atom*);
-    void process(int step, Atom*);
-    void postprocess(char*, Atom*);
+    void process(char*, Atom*, VAC*);
 
 private:
-    void find_vac_rdc_dos(char *input_dir, Atom *atom);
-    real *vx_all;
-    real *vy_all;
-    real *vz_all;
+
 };
 
+#endif //SDC_H
 
