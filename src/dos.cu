@@ -94,7 +94,7 @@ static void find_dos
 void DOS::process(char *input_dir, Atom *atom, VAC *vac)
 {
     // rename variables
-    int N = atom->N;
+    int N = vac->N;
     real time_step = atom->time_step;
     int Nc = vac->Nc;
     real *vac_x_normalized = vac->vac_x_normalized;
@@ -123,17 +123,6 @@ void DOS::process(char *input_dir, Atom *atom, VAC *vac)
         vac_x_normalized, vac_y_normalized, vac_z_normalized,
         dos_x, dos_y, dos_z
     );
-
-    //Test: Add up states
-    real dosx = 0;
-    real dosy = 0;
-    real dosz = 0;
-    for (int nw = 0; nw < num_dos_points; nw++){
-    	dosx += dos_x[nw]*d_omega/(2.0*PI);
-    	dosy += dos_y[nw]*d_omega/(2.0*PI);
-    	dosz += dos_z[nw]*d_omega/(2.0*PI);
-    }
-    printf("DOS: x = %f, y = %f, z = %f\n", dosx, dosy, dosz);
 
     char file_dos[FILE_NAME_LENGTH];
     strcpy(file_dos, input_dir);

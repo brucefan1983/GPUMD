@@ -119,7 +119,9 @@ static __global__ void gpu_find_vac
     const real* __restrict__ g_vx,
     const real* __restrict__ g_vy,
     const real* __restrict__ g_vz,
-    real *g_vac_x, real *g_vac_y, real *g_vac_z
+    real *g_vac_x, real *g_vac_y, real *g_vac_z,
+    const int* __restrict__ g_gindex,
+    int grouping_method
 )
 {
     //<<<Nc, 128>>>
@@ -147,7 +149,9 @@ static __global__ void gpu_find_vac
             {
             	if (compute_dos)
             	{
-					real mass = LDG(g_mass, n);
+            		real mass;
+            		if (grouping_method != -1){ mass = LDG(g_mass, LDG(g_gindex,n));}
+            		else {mass = LDG(g_mass, n);}
 					s_vac_x[tid] += mass * LDG(g_vx, index_1 + n) *
 							LDG(g_vx, index_2 + n);
 					s_vac_y[tid] += mass * LDG(g_vy, index_1 + n) *
@@ -224,7 +228,8 @@ void VAC::find_vac(char *input_dir, Atom *atom)
     (
         N, M, compute_dos, mass,
         vx_all, vy_all, vz_all,
-        g_vac_x, g_vac_y, g_vac_z
+        g_vac_x, g_vac_y, g_vac_z,
+        g_gindex, grouping_method
     );
     CUDA_CHECK_KERNEL
 
