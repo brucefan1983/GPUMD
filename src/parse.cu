@@ -535,16 +535,60 @@ void parse_dump_heat(char **param,  int num_param, Measure *measure)
     printf("Dump heat every %d steps.\n", measure->sample_interval_heat);
 }
 
-
-void parse_compute_vac(char **param,  int num_param, Measure *measure)
+// Helper functions for parse_compute_dos
+void parse_group(char **param, Measure *measure, int *k, Group *group)
 {
-    printf("Compute VAC.\n");
-    measure->vac.compute = 1;
+	// grouping_method
+	if (!is_valid_int(param[*k+1], &measure->vac.grouping_method))
+	{
+		print_error("grouping method for VAC should be an integer number.\n");
+	}
+	if (measure->vac.grouping_method < 0 || measure->vac.grouping_method > 2)
+	{
+		print_error("grouping method for VAC should be 0 <= x <= 2.\n");
+	}
+	// group
+	if (!is_valid_int(param[*k+2], &measure->vac.group))
+	{
+		print_error("group for VAC should be an integer number.\n");
+	}
+	if (measure->vac.group < 0 ||
+			measure->vac.group > group[measure->vac.grouping_method].number)
+	{
+		print_error("group for VAC must be >= 0 and < number of groups.\n");
+	}
+	*k += 2; // update index for next command
+}
 
-    if (num_param != 4)
+void parse_num_dos_points(char **param, Measure *measure, int *k)
+{
+	// number of DOS points
+	if (!is_valid_int(param[*k+1], &measure->dos.num_dos_points))
+	{
+		print_error("number of DOS points for VAC should be an integer "
+				"number.\n");
+	}
+	if (measure->dos.num_dos_points < 1)
+	{
+		print_error("number of DOS points for DOS must be > 0.\n");
+	}
+	*k += 1; //
+}
+
+void parse_compute_dos(char **param,  int num_param, Measure *measure,
+		Group *group)
+{
+    printf("Compute phonon DOS.\n");
+    measure->vac.compute_dos = 1;
+
+    if (num_param < 4)
     {
-        print_error("compute_vac should have 3 parameters.\n");
+        print_error("compute_dos should have at least 3 parameters.\n");
     }
+    if (num_param > 9)
+	{
+		print_error("compute_dos has too many parameters.\n");
+	}
 
     // sample interval
     if (!is_valid_int(param[1], &measure->vac.sample_interval))
@@ -569,15 +613,106 @@ void parse_compute_vac(char **param,  int num_param, Measure *measure)
     printf("    Nc is %d.\n", measure->vac.Nc);
 
     // maximal omega
-    if (!is_valid_real(param[3], &measure->vac.omega_max))
+    if (!is_valid_real(param[3], &measure->dos.omega_max))
     {
         print_error("omega_max should be a real number.\n");
     }
-    if (measure->vac.omega_max <= 0)
+    if (measure->dos.omega_max <= 0)
     {
         print_error("omega_max should be positive.\n");
     }
-    printf("    omega_max is %g THz.\n", measure->vac.omega_max);
+    printf("    omega_max is %g THz.\n", measure->dos.omega_max);
+
+    // Process optional arguments
+    for (int k = 4; k < num_param; k++)
+    {
+    	if (strcmp(param[k], "group") == 0)
+    	{
+    		// check if there are enough inputs
+    		if (k + 3 > num_param)
+    		{
+    			print_error("Not enough arguments for optional "
+    					"'group' DOS command.\n");
+    		}
+    		parse_group(param, measure,  &k, group);
+    		printf("    grouping_method is %d and group is %d.\n",
+    				measure->vac.grouping_method, measure->vac.group);
+    	}
+    	else if (strcmp(param[k], "num_dos_points") == 0)
+    	{
+    		// check if there are enough inputs
+    		if (k + 2 > num_param)
+    		{
+    			print_error("Not enough arguments for optional "
+						"'group' dos command.\n");
+    		}
+    		parse_num_dos_points(param, measure, &k);
+    		printf("    num_dos_points is %d.\n",measure->dos.num_dos_points);
+    	}
+    	else
+    	{
+    		print_error("Unrecognized argument in compute_dos.\n");
+    	}
+    }
+}
+
+void parse_compute_sdc(char **param,  int num_param, Measure *measure,
+		Group *group)
+{
+    printf("Compute SDC.\n");
+    measure->vac.compute_sdc = 1;
+
+    if (num_param < 3)
+    {
+        print_error("compute_sdc should have at least 2 parameters.\n");
+    }
+    if (num_param > 6)
+    {
+    	print_error("compute_sdc has too many parameters.\n");
+    }
+
+    // sample interval
+    if (!is_valid_int(param[1], &measure->vac.sample_interval))
+    {
+        print_error("sample interval for VAC should be an integer number.\n");
+    }
+    if (measure->vac.sample_interval <= 0)
+    {
+        print_error("sample interval for VAC should be positive.\n");
+    }
+    printf("    sample interval is %d.\n", measure->vac.sample_interval);
+
+    // number of correlation steps
+    if (!is_valid_int(param[2], &measure->vac.Nc))
+    {
+        print_error("Nc for VAC should be an integer number.\n");
+    }
+    if (measure->vac.Nc <= 0)
+    {
+        print_error("Nc for VAC should be positive.\n");
+    }
+    printf("    Nc is %d.\n", measure->vac.Nc);
+
+    // Process optional arguments
+	for (int k = 3; k < num_param; k++)
+	{
+		if (strcmp(param[k], "group") == 0)
+		{
+			// check if there are enough inputs
+			if (k + 3 > num_param)
+			{
+				print_error("Not enough arguments for optional "
+						"'group' SDC command.\n");
+			}
+			parse_group(param, measure,  &k, group);
+			printf("    grouping_method is %d and group is %d.\n",
+					measure->vac.grouping_method, measure->vac.group);
+		}
+		else
+		{
+			print_error("Unrecognized argument in compute_sdc.\n");
+		}
+	}
 }
 
 

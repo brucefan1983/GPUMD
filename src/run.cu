@@ -64,7 +64,11 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->compute.compute_jp           = 0;
     measure->compute.compute_jk           = 0;
     measure->shc.compute    = 0;
-    measure->vac.compute    = 0;
+    measure->vac.compute_dos= 0;
+    measure->vac.compute_sdc= 0;
+    measure->vac.grouping_method = -1;
+    measure->vac.group		= -1;
+    measure->dos.num_dos_points = -1;
     measure->hac.compute    = 0;
     measure->hnemd.compute  = 0;
     measure->dump_thermo    = 0;
@@ -334,10 +338,14 @@ void Run::parse
     {
         parse_dump_heat(param, num_param, measure);
     }
-    else if (strcmp(param[0], "compute_vac")    == 0)
+    else if (strcmp(param[0], "compute_dos")    == 0)
     {
-        parse_compute_vac(param, num_param, measure);
+        parse_compute_dos(param, num_param, measure, atom->group);
     }
+    else if (strcmp(param[0], "compute_sdc")    == 0)
+	{
+		parse_compute_sdc(param, num_param, measure, atom->group);
+	}
     else if (strcmp(param[0], "compute_hac")    == 0)
     {
         parse_compute_hac(param, num_param, measure);

@@ -32,7 +32,12 @@ void parse_dump_force(char**, int, Measure*);
 void parse_dump_potential(char**, int, Measure*);
 void parse_dump_virial(char**, int, Measure*);
 void parse_dump_heat(char**, int, Measure*);
-void parse_compute_vac(char**, int , Measure*);
+// Helpers for DOS, SDC
+void parse_group(char **param, Measure *measure, int *k, Group *group);
+void parse_num_dos_points(char **param, Measure *measure, int *k);
+//
+void parse_compute_dos(char**, int , Measure*, Group *group);
+void parse_compute_sdc(char**, int , Measure*, Group *group);
 void parse_compute_hac(char**, int , Measure*);
 void parse_compute_hnemd(char**, int, Measure*);
 void parse_compute_shc(char**,  int, Measure*);
