@@ -3014,6 +3014,66 @@ The first parameter for this keyword is the sampling interval of the velocity da
 means that (1) you want to calculate the VAC and related quantities; (2) the velocity data will be recorded every 5 steps; (3) the maximum number of correlation steps is $200$; (4) the maximum angular frequency you want to consider is $\omega_{\text{max}}=2\pi \nu_{\text{max}}= 350$ THz. The results will be written into a file named \verb"vac.out" in the same folder where you put your \verb"run.in" file in.
 
 
+\subsection{The compute dos keyword}
+
+This keyword computes the PDOS (Phonon Density Of States) using the mass-weighted VAC (Velocity Autocorrelation). The output of the PDOS is normalized such that the integral of the PDOS over all frequencies equals $3N$, where $N$ is the number of atoms. If this keyword appears in a run, the mass-weighted VAC will be computed and directly used to compute the PDOS. For this keyword, the command outline looks like:
+\begin{verbatim}
+    compute_dos sample_interval Nc omega_max <optional_args>
+\end{verbatim}
+
+\raggedright with parameters defined as:
+\begin{itemize}
+  \item \verb"sample_interval": Sampling interval of the velocity data.
+  \item \verb"Nc": Maximum number of correlation steps.
+  \item \verb"omega_max": Maximum angular frequency $\omega_{\text{max}}=2\pi \nu_{\text{max}}$ used in the PDOS calculations.
+\end{itemize}
+
+The \verb"optional_args" provide additional functionality by allowing special keywords. The keywords for this function are \verb"group", \verb"num_dos_points". These keywords can be used in any order, but the parameters associated with each must follow exactly. The parameters are:
+\begin{itemize}
+    \item \verb"group group_method group"
+    \subitem \verb"group_method": The grouping method to use for the computation.
+    \subitem \verb"group": The group in the grouping method to use.
+    \item \verb"num_dos_points points"
+    \subitem \verb"points": Number of frequency points to be used in the DOS calculation (\verb"Nc" if option not selected).
+\end{itemize}
+
+An example of this function is:
+\begin{verbatim}
+    compute_dos 5 200 400.0 group 1 1 num_dos_points 300
+\end{verbatim}
+
+This means that you (1) want to calculate the PDOS; (2) the velocity data will be recorded every 5 steps; (3) the maximum number of correlation steps is $200$; (4) the maximum angular frequency you want to consider is $\omega_{\text{max}}=2\pi \nu_{\text{max}}= 400$ THz; (5) You would like to compute only over group 1 in group method 1; (5) You would like the maximum angular frequency to be cut in to 300 points for output. The results will be written into files named \verb"mvac.out" for the mass-normalized VAC and \verb"dos.out" for the DOS output. These files will be located in the same folder as your \verb"run.in" file.
+
+WARNING: This function cannot be used in the same run with the \verb"compute_sdc" keyword.
+
+\subsection{The compute sdc keyword}
+This keyword computes the SDC (Self Diffusion Coefficient) using the VAC (velocity autocorrelation). If this keyword appears in a run, the VAC will be computed and integrated to compute the SDC. For this keyword, the command outline looks like:
+\begin{verbatim}
+    compute_sdc sample_interval Nc <optional_arg>
+\end{verbatim}
+
+\raggedright with parameters defined as:
+\begin{itemize}
+  \item \verb"sample_interval": Sampling interval of the velocity data.
+  \item \verb"Nc": Maximum number of correlation steps.
+\end{itemize}
+
+The \verb"optional_arg" allows an additional special keyword. The keyword for this function \verb"group". The parameters are:
+\begin{itemize}
+    \item \verb"group group_method group"
+    \subitem \verb"group_method": The grouping method to use for the computation.
+    \subitem \verb"group": The group in the grouping method to use.
+\end{itemize}
+
+An example of this function is:
+\begin{verbatim}
+    compute_sdc 5 200 group 1 1
+\end{verbatim}
+
+This means that you (1) want to calculate the SDC; (2) the velocity data will be recorded every 5 steps; (3) the maximum number of correlation steps is $200$; (4) You would like to compute only over group 1 in group method 1. The results will be written into a file named \verb"sdc.out". This file will be located in the same folder as your \verb"run.in" file.
+
+WARNING: This function cannot be used in the same run with the \verb"compute_dos" keyword.
+
 \subsection{The compute hac keyword}
 
 The \verb"compute_hac" keyword is similar to the \verb"compute_vac" keyword. It is used to calculate HAC (heat current autocorrelation) and RTC (running thermal conductivity).
@@ -3119,21 +3179,33 @@ Similar to the \verb"v.out" file, but for the virial stresses, in units of eV.
 Note that the three columns correspond to the three diagonal elements
 of the virial stress tensor. The off-diagonal elements are not dumped.
 
-\subsection{The vac.out file}
-This file contains the data of VAC (velocity autocorrelation) and related quantities, namely, the RDC (running diffusion coefficient) and the PDOS (phonon density of states). The data in this file are organized as follows:
+\subsection{The mvac.out file}
+This file contains the data of mass-weighted VAC (velocity autocorrelation). The data in this file are organized as follows:
 \begin{itemize}
 \item column 1: correlation time (in units of ps)
 \item column 2: VAC (in units of \AA$^2$/ps$^2$) in the $x$ direction
 \item column 3: VAC (in units of \AA$^2$/ps$^2$) in the $y$ direction
 \item column 4: VAC (in units of \AA$^2$/ps$^2$) in the $z$ direction
-\item column 5: RDC (in units of \AA$^2$/ps) in the $x$ direction
-\item column 6: RDC (in units of \AA$^2$/ps) in the $y$ direction
-\item column 7: RDC (in units of \AA$^2$/ps) in the $z$ direction
-\item column 8: angular frequency $\omega$ in units of THz
-\item column 9: DOS (in units of 1/THz) in the $x$ direction
-\item column 10: DOS (in units of 1/THz) in the $y$ direction
-\item column 11: DOS (in units of 1/THz) in the $z$ direction
 \end{itemize}
+
+\subsection{The dos.out file}
+This file contains the data of the PDOS (phonon density of states). The data in this file are organized as follows:
+\begin{itemize}
+\item column 1: angular frequency $\omega$ in units of THz
+\item column 2: DOS (in units of 1/THz) in the $x$ direction
+\item column 3: DOS (in units of 1/THz) in the $y$ direction
+\item column 4: DOS (in units of 1/THz) in the $z$ direction
+\end{itemize}
+
+\subsection{The sdc.out file}
+This file contains the data of the SDC (self diffusion coefficient). The data in this file are organized as follows:
+\begin{itemize}
+\item column 1: correlation time (in units of ps)
+\item column 2: RDC (in units of \AA$^2$/ps) in the $x$ direction
+\item column 3: RDC (in units of \AA$^2$/ps) in the $y$ direction
+\item column 4: RDC (in units of \AA$^2$/ps) in the $z$ direction
+\end{itemize}
+
 
 
 \subsection{The restart.out file}
