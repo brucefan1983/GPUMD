@@ -3392,23 +3392,23 @@ The \verb"run.in" file reads:
     run         1000000
 
     ensemble    nve
-    compute_vac 5 200 400
+    compute_dos 5 200 400
     run         100000
 
     ensemble    nve
-    compute_vac 5 200 400
+    compute_dos 5 200 400
     run         100000
 
     ensemble    nve
-    compute_vac 5 200 400
+    compute_dos 5 200 400
     run         100000
 
     ensemble    nve
-    compute_vac 5 200 400
+    compute_dos 5 200 400
     run         100000
 
     ensemble    nve
-    compute_vac 5 200 400
+    compute_dos 5 200 400
     run         100000
     #-------------------------------------------------------------------
 \end{verbatim}
@@ -3421,20 +3421,20 @@ The potential model is Tersoff-1989, but some parameters are those reparameteriz
 \caption{(a) VAC as a function of correlation time for the separate directions.
 (b) PDOS as a function of the phonon frequency for the separate directions.
 (c) VAC as a function of correlation time averaged over the separate directions.
-(d) PDOS as a function of the phonon frequency average over the separate directions.}
+(d) PDOS as a function of the phonon frequency averaged over the separate directions.}
 \label{figure:graphene_vac_dos}
 \end{center}
 \end{figure}
 
-There are 6 runs. The first run serves as the equilibration stage, where the $NPT$ ensemble is used. This run lasts 1 ns. The other 5 runs are identical production runs. In each production run, the $NVE$ ensemble is used. The line with \verb"compute_vac" means that velocities will be recorded every 5 steps (5 fs) and 200 VAC data (the maximum correlation time is then about 1 ps) will be calculated. The last parameter in this line is the maximum angular frequency considered, $\omega_{\rm max} = 2\pi\nu_{\rm max} =400$ THz, which is large enough for graphene. Each production run lasts 100 ps. The major reason for using multiple production runs rather a single one is that computing the VAC requires a lot of memory, which prevents using very long runs.
+There are 6 runs. The first run serves as the equilibration stage, where the $NPT$ ensemble is used. This run lasts 1 ns. The other 5 runs are identical production runs. In each production run, the $NVE$ ensemble is used. The line with \verb"compute_dos" means that velocities will be recorded every 5 steps (5 fs) and 200 VAC data (the maximum correlation time is then about 1 ps) will be calculated. The last parameter in this line is the maximum angular frequency considered, $\omega_{\rm max} = 2\pi\nu_{\rm max} =400$ THz, which is large enough for graphene. Each production run lasts 100 ps. The major reason for using multiple production runs rather a single one is that computing the VAC requires a lot of memory, which prevents using very long runs.
 
-This simulation takes about 7 min when a Tesla K40 is used.
-The speed of this simulation, being about $3.6\times 10^7 ~\textmd{atom} \times \textmd{step} / \textmd{second}$, is higher than that of the previous example because the number of neighbors for each atom is smaller here (numbers of atoms are comparable and the potential models are the same).
+This simulation takes about 6 min when a Tesla K40 is used.
+The speed of this simulation, being about $4.0\times 10^7 ~\textmd{atom} \times \textmd{step} / \textmd{second}$, is higher than that of the previous example because the number of neighbors for each atom is smaller here (numbers of atoms are comparable and the potential models are the same).
 
 
 
 Figure \ref{figure:graphene_vac_dos} shows the calculated VAC and PDOS.
-For 3D isotropic systems, the results along different directions are equivalent and can be averaged, but for 2D materials like graphene, it is natural to consider the in-plane part (the $x$ and $y$ directions in the simulation) and the out-of-plane part (the $z$ direction) separately. It can be seen that the two components behave very differently. We can see that the cutoff frequency for the out-of-plane component ($\sim4 0$ THz) is smaller than that for the in-plane component ($\sim 52$ THz), which means that the two components have different Debye temperatures.
+For 3D isotropic systems, the results along different directions are equivalent and can be averaged, but for 2D materials like graphene, it is natural to consider the in-plane part (the $x$ and $y$ directions in the simulation) and the out-of-plane part (the $z$ direction) separately. It can be seen that the two components behave very differently. We can see that the cutoff frequency for the out-of-plane component ($\sim 40$ THz) is smaller than that for the in-plane component ($\sim 52$ THz), which means that the two components have different Debye temperatures.
 
 
 \section{Thermal conductivity of graphene}
