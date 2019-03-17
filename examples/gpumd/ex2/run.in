@@ -7,21 +7,21 @@ dump_thermo 100
 run         1000000
 
 ensemble    nve 
-compute_vac 5 200 400.0
+compute_dos 5 200 400.0
 run         100000 
 
 ensemble    nve 
-compute_vac 5 200 400.0
+compute_dos 5 200 400.0
 run         100000 
 
 ensemble    nve 
-compute_vac 5 200 400.0
+compute_dos 5 200 400.0
 run         100000 
 
 ensemble    nve 
-compute_vac 5 200 400.0
+compute_dos 5 200 400.0
 run         100000 
 
 ensemble    nve 
-compute_vac 5 200 400.0
+compute_dos 5 200 400.0
 run         100000 
