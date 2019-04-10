@@ -141,6 +141,7 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 
 void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
+    if (hax_layer_in_xyz) { MY_MALLOC(cpu_layer_label, int, N); }
     MY_MALLOC(cpu_type, int, N);
     MY_MALLOC(cpu_type_local, int, N);
     MY_MALLOC(cpu_mass, real, N);
@@ -339,6 +340,7 @@ void Atom::copy_from_cpu_to_gpu(void)
 
 void Atom::free_memory_cpu(void)
 {
+    if (hax_layer_in_xyz) { MY_FREE(cpu_layer_label); }
     MY_FREE(cpu_type);
     MY_FREE(cpu_type_local);
     for (int m = 0; m < num_of_grouping_methods; ++m)
