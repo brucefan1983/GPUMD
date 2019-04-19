@@ -3300,25 +3300,24 @@ To build \verb"phonon", one just needs to go to the \verb"src" directory and typ
 \begin{verbatim}
     make -f makefile.phonon
 \end{verbatim}
-When the compilation finishes, an executable named \verb"phonon" will be generated in the \verb"src" directory.
-
-The compiling flag in \verb"makefle.phonon" for building \verb"phonon" is similar to that for \verb"gpumd" . However, there is an extra linking flag:
+When the compilation finishes, an executable named \verb"phonon" will be generated in the \verb"src" directory. The compiling flag in \verb"makefile.phonon" for building \verb"phonon" is similar to that in \verb"makefile" for \verb"gpumd". However, there is an extra linking flag:
 \begin{verbatim}
     LFLAGS = -lcublas -lcusolver
 \end{verbatim}
 which means that the \verb"cublas" and \verb"cusolver" libraries should be available. This should be automatically guaranteed for a relative new version of \verb"CUDA".
 
 \section{Inputs}
-There are three mandatory input files:
+There are four mandatory input files:
 \begin{itemize}
-\item \verb"phonon.in": the controlling file
+\item \verb"xyz.in": prepare it in the same way as in the case of using \verb"gpumd"
+\item \verb"phonon.in": the controlling file for phonon calculations
 \item \verb"basis.in": the file containing the information of the primitive cell
-\item \verb"kpoints.in": the file containing the $k$-points
+\item \verb"kpoints.in": the file containing the $k$ points
 \end{itemize}
 
-\subsubsection{phonon.in}
+\subsection{phonon.in}
 
-This file is similar to the run.in file for gpumd. It only has three keywords now:
+This file is grammatically similar to the \verb"run.in" file for \verb"gpumd" (blank lines and comment lines starting with \verb"#" are allowed). There are only a few keywords now:
 \begin{itemize}
 \item \verb"potential"  or \verb"potentials": the same as in the \verb"gpumd" executable.
 An example is:
@@ -3335,15 +3334,15 @@ delta           0.005 # displacement in units of A
 \end{verbatim}
 \end{itemize}
 
-\subsubsection{basis.in}
+\subsection{basis.in}
 
 The format of this file must be as follows:
 \begin{verbatim}
 N_basis
-id(1)           mass(1)
-id(2)           mass(2)
+id(0) mass(0)
+id(1) mass(1)
 ...
-id(N_basis) mass(N_basis)
+id(N_basis-1) mass(N_basis-1)
 map(1)
 map(2)
 ...
@@ -3351,22 +3350,42 @@ map(N)
 \end{verbatim}
 Here,
 \begin{itemize}
-\item \verb"N_basis" is the number of atoms in the primitive cell. For example, it can be 2 for diamond silicon. The next \verb"N_basis" lines contains the indices and masses for the basis atoms.
-\item \verb"id(1)" and \verb"mass(1)" are the atom index and mass of the first basis atom in the primitive cell. For the example we provided, \verb"id(1)=0" \verb"mass(1)=28", \verb"id(2)=4" and \verb"mass(2)=28".
-\item The remaining lines map the atoms to the basis atoms. If an atom is equivalent (under translation) to the $n$-th basis atom in the primitive cell, give it a number of $n$. In our example, it is either 0 (equivalent to the first basis atom) or 1 (equivalent to the second basis atom).
+\item \verb"N_basis" is the number of atoms in the unit cell you choose. For example, it can be 2 for diamond silicon if you use the primitive cell. The next \verb"N_basis" lines contain the atom indices (the order in the \verb"xyz.in" file; starting from 0) and masses for the basis atoms.
+\item For the example of diamond silicon, \verb"id(0)=0" and \verb"mass(0)=28" are the index and mass for the first basis atom, and \verb"id(1)=4" and \verb"mass(1)=28" are the index and mass for the second basis atom. 
+\item The remaining lines map the atoms in the \verb"xyz.in" file to the basis atoms. If an atom is equivalent to (under translation) the $n$-th basis atom in the primitive cell, give it a number of $n$. In our example, it is either 0 (equivalent to the first basis atom) or 1 (equivalent to the second basis atom).
 \end{itemize}
 
-\subsubsection{kpoints.in}
+\subsection{kpoints.in}
 The format of this file must be as follows:
 \begin{verbatim}
 N_kpoints
-kx(1) ky(1) kz(1)
+kx(0) ky(0) kz(0)
 kx(1) ky(1) kz(1)
 ...
-kx(N_kpoints) ky(N_kpoints) kz(N_kpoints)
+kx(N_kpoints-1) ky(N_kpoints-1) kz(N_kpoints-1)
 \end{verbatim}
+Here,
+\begin{itemize}
+\item \verb"N_kpoints" is the number of $k$ points you want to consider. 
+\item The remaining lines give the $k$ points you want to consider.
+\end{itemize}
+The $k$ vectors are in units of \AA$^{-1}$ and the user is responsible to prepare reasonable values.
+
 \section{Outputs}
 
+\subsection{D.out}
+
+This file contains the dynamical matrices at different $k$ points. It has $3N_{\rm basis}N_{\rm kpoints}$ rows and $6N_{\rm basis}$ columns. Each consecutive $3N_{\rm basis}$ rows correspond to one $k$ point. For each $k$ point, the first $3N_{\rm basis}$ columns correspond to the real part and the second $3N_{\rm basis}$ columns correspond to the imaginary part. Schematically, the file is organized as:
+\begin{verbatim}
+D_real(k_0) D_imag(k_0)
+D_real(k_1) D_imag(k_1)
+...
+\end{verbatim}
+The matrix elements are in units of eV A$^{-2}$ amu$^{-1}$.
+
+\subsection{omega2.out}
+
+This file contains the frequency square $\omega^2(\vect{k})$ at different $k$ points, in units of [THz]$^{2}$. Each line corresponds to one $k$ point. Each line has $3N_{\rm basis}$ numbers, corresponding to the $3N_{\rm basis}$ values for $\omega^2(\vect{k})$ in increasing order. 
 
 \chapter{Examples\label{chapter:examples}}
 
