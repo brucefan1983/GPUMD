@@ -3654,7 +3654,48 @@ One can check the consistency of the results at least in the following two ways:
 \end{itemize}
 One should always make sure that the obtained data pass these tests approximately.
 
+
+\section{HNEMD method for thermal transport in graphene}
+
+Write this section when I have time.
+
+\section{Phonon dispersion in diamond silicon}
+
+This is an example using the \verb"phonon" executable. All the inputs and outputs can be found in \verb"examples/phonon/ex1". Here, we calculate the phonon dispersion of silicon crystal. The structure as specified in \verb"xyz.in" is diamond silicon at zero temperature and zero pressure.  The masses in this file are need to be there.
+The \verb"phonon.in" file reads:
+\begin{verbatim}
+potential       potentials/tersoff/si_tersoff_1989.txt
+cutoff          4.0 # in units of A
+delta           0.005 # displacement in units of A
+\end{verbatim}
+Note that the cutoff distance here is not for force evaluation, but for calculating the force constants. It is necessary to include the second nearest neighbors (note that we are using a many-body potential). The \verb"basis.in" file reads:
+\begin{verbatim}
+2
+0 28
+4 28
+0
+0
+0
+0
+1
+1
+1
+1
+...
+\end{verbatim}
+The \verb"kpoints.in" file reads:
+\begin{verbatim}
+400
+0 0 0
+0 0.011686 0
+0 0.0233719 0
+0 0.0350579 0
+0 0.0467439 0
+...
+\end{verbatim}
+
 \bibliographystyle{plain}
+
 \bibliography{refs}
 
 
