@@ -3591,8 +3591,9 @@ Accurately calculating thermal conductivity of graphene can be a very time consu
 
 Each independent simulation in Ref. \cite{fan2017prb} took about 10 GPU hours (using Tesla K40) and about 1000 GPU hours were used to obtain the results shown in Fig. 2 of Ref. \cite{fan2017prb}.
 
-
 \section{Ballistic thermal conductance of graphene}
+
+\textcolor{red}{Rewrite this section after submitting a paper on NEMD.}
 
 In this example, we show how to study heat transport using the NEMD method combined with the spatial and spectral decompositions as described in Ref. \cite{fan2017prb}. We aim to obtain similar results for the case of unstrained graphene as presented in Fig. 4 of Ref. \cite{fan2017prb}.
 
@@ -3664,7 +3665,7 @@ Write this section when I have time.
 This is an example using the \verb"phonon" executable. All the inputs and outputs can be found in \verb"examples/phonon/ex1". Here, we calculate the phonon dispersion of silicon crystal. The structure as specified in \verb"xyz.in" is diamond silicon at zero temperature and zero pressure.  The masses in this file are need to be there.
 The \verb"phonon.in" file reads:
 \begin{verbatim}
-potential       potentials/tersoff/si_tersoff_1989.txt
+potential       potentials/tersoff/Si_Tersoff_1989.txt
 cutoff          4.0 # in units of A
 delta           0.005 # displacement in units of A
 \end{verbatim}
@@ -3693,6 +3694,16 @@ The \verb"kpoints.in" file reads:
 0 0.0467439 0
 ...
 \end{verbatim}
+
+\begin{figure}[ht]
+\begin{center}
+\includegraphics[width=0.8\columnwidth]{phonon_ex1.eps}
+\caption{Phonon dispersion of silicon crystal calculated using the Tersoff-1989 potential. }
+\label{figure:phonon_ex1}
+\end{center}
+\end{figure}
+
+Figure \ref{figure:phonon_ex1} shows the phonon dispersion of silicon crystal calculated using the Tersoff-1989 potential. 
 
 \bibliographystyle{plain}
 

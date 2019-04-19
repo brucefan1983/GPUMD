@@ -8,3 +8,5 @@ core
 *.o
 
 src/gpumd
+
+doc/gpumd.synctex.gz
