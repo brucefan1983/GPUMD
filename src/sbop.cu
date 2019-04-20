@@ -118,11 +118,11 @@ SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
     int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
     int memory1 = sizeof(double)* atom->N * num_of_neighbors;
     int memory2 = sizeof(double)* n_entries * NUM_PARAMS;
-    CHECK(cudaMalloc((void**)&b,    memory1));
-    CHECK(cudaMalloc((void**)&bp,   memory1));
-    CHECK(cudaMalloc((void**)&f12x, memory1));
-    CHECK(cudaMalloc((void**)&f12y, memory1));
-    CHECK(cudaMalloc((void**)&f12z, memory1));
+    CHECK(cudaMalloc((void**)&sbop_data.b,    memory1));
+    CHECK(cudaMalloc((void**)&sbop_data.bp,   memory1));
+    CHECK(cudaMalloc((void**)&sbop_data.f12x, memory1));
+    CHECK(cudaMalloc((void**)&sbop_data.f12y, memory1));
+    CHECK(cudaMalloc((void**)&sbop_data.f12z, memory1));
     CHECK(cudaMalloc((void**)&para, memory2));
     CHECK(cudaMemcpy(para, cpu_para, memory2, cudaMemcpyHostToDevice));
     MY_FREE(cpu_para);
@@ -131,11 +131,11 @@ SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
 
 SBOP::~SBOP(void)
 {
-    CHECK(cudaFree(b));
-    CHECK(cudaFree(bp));
-    CHECK(cudaFree(f12x));
-    CHECK(cudaFree(f12y));
-    CHECK(cudaFree(f12z));
+    CHECK(cudaFree(sbop_data.b));
+    CHECK(cudaFree(sbop_data.bp));
+    CHECK(cudaFree(sbop_data.f12x));
+    CHECK(cudaFree(sbop_data.f12y));
+    CHECK(cudaFree(sbop_data.f12z));
     CHECK(cudaFree(para));
 }
 
@@ -155,9 +155,10 @@ static __device__ void find_fa_and_fap
 (int i, const double* __restrict__ para, double d12, double &fa, double &fap)
 {
     fa  = LDG(para, i + B) * exp(- LDG(para, i + MU) * d12);
+    fap = - LDG(para, i + MU) * fa;
     double tmp =  LDG(para, i + B2) * exp(- LDG(para, i + MU2) * d12);
     fa += tmp;
-    fap = - LDG(para, i + MU) * fa - LDG(para, i + MU2) * tmp;
+    fap -= LDG(para, i + MU2) * tmp;
 }
 
 
@@ -456,6 +457,13 @@ void SBOP::compute(Atom *atom, Measure *measure)
     double *z = atom->z;
     double *box = atom->box.h;
     double *pe = atom->potential_per_atom;
+
+    // special data for SBOP potential
+    double *f12x = sbop_data.f12x;
+    double *f12y = sbop_data.f12y;
+    double *f12z = sbop_data.f12z;
+    double *b    = sbop_data.b;
+    double *bp   = sbop_data.bp;
 
     // pre-compute the bond order functions and their derivatives
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>

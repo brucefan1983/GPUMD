@@ -18,6 +18,16 @@
 #include "potential.cuh"
 
 
+struct SBOP_Data
+{
+    real *b;     // bond orders
+    real *bp;    // derivative of bond orders
+    real *f12x;  // partial forces
+    real *f12y;
+    real *f12z;
+};
+
+
 class SBOP : public Potential
 {
 public:   
@@ -27,10 +37,6 @@ public:
 protected:
     int num_types; // number of atom tpyes
     real *para;    // potential parameters
-    real *b;       // bond order
-    real *bp;      // derivative of bond order
-    real *f12x;    // partial force
-    real *f12y;
-    real *f12z;
+    SBOP_Data sbop_data;
 };
 

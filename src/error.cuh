@@ -16,6 +16,7 @@
 
 #pragma once
 #include <stdio.h>
+//#define STRONG_DEBUG // never use it for production run; too slow
 
 
 #define MY_MALLOC(p, t, n) p = (t *) malloc(sizeof(t) * (n));                  \
@@ -54,10 +55,18 @@
 }
 
 
+#ifdef STRONG_DEBUG
+#define CUDA_CHECK_KERNEL                                                      \
+{                                                                              \
+    CHECK(cudaGetLastError())                                                  \
+    CHECK(cudaDeviceSynchronize())                                             \
+}
+#else
 #define CUDA_CHECK_KERNEL                                                      \
 {                                                                              \
     CHECK(cudaGetLastError())                                                  \
 }
+#endif
 
 
 void print_error (const char *str);
