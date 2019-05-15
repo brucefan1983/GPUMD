@@ -1,5 +1,13 @@
 # Publications developed or used `GPUMD`
 
+## Preprint
+
+A revisit to phonon-phonon scattering in single-layer graphene
+Authors
+Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
+[A revisit to phonon-phonon scattering in single-layer graphene](https://arxiv.org/abs/1904.12731)
+arXiv preprint arXiv:1904.12731
+
 ## 2019
 
 * Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila, 
