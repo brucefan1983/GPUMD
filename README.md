@@ -60,6 +60,12 @@
 
 There is a comprehensive manual in the `doc` directory. You can e-mail the first author (Zheyong Fan) if you find errors in the manual or bugs in the source code, or have any suggestions/questions about the manual and code. Thank you!
 
+## Maliling list:
+
+* There is a mailing list for `GPUMD`. You can use the following link to subscribe and unsubscribe:
+https://www.freelists.org/list/gpumd
+* To post a question, you can send an email to gpumd(at)freelists.org
+
 ## Citations
 
 If you use `GPUMD` in your published work, we kindly ask you to cite the following paper which describes the central algorithms used in `GPUMD`:
