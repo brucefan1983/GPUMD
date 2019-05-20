@@ -2,7 +2,11 @@
 
 ## Warnings in the beginning:
 
-* Do not treat the code as a black box. Do as many tests as you can until you trust some part of it (the part you will use). The best way is to check the source code and make sure that it makes sense to you. Whenever you feel unsure about something regarding the code, you are welcome to discuss with me (see the contact information below). 
+* Do not treat the code as a black box. Do as many tests as you can until you trust some part of it (the part you will use). The best way is to check the source code and make sure that it makes sense to you. Whenever you feel unsure about something regarding the code, you are welcome to using the mailing list.
+  * There is a mailing list for `GPUMD`. You can use the following link to subscribe and unsubscribe:
+https://www.freelists.org/list/gpumd
+  * To post a question, you can send an email to gpumd(at)freelists.org
+  * Here is the archive (public): https://www.freelists.org/archive/gpumd/
 
 * There are no functionalities for building simulation models. Users of `GPUMD` are supposed to be able to build simulation models by their own. 
   * One of the developers, Alexander J. Gabourie, has written some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo
@@ -55,17 +59,6 @@
 * Ville Vierimaa (Aalto University; Not an active developer any more)
 * Mikko Ervasti (Aalto University; Not an active developer any more)
 * Ari Harju (Aalto University; Not an active developer any more)
-
-## Feedbacks:
-
-There is a comprehensive manual in the `doc` directory. You can e-mail the first author (Zheyong Fan) if you find errors in the manual or bugs in the source code, or have any suggestions/questions about the manual and code. Thank you!
-
-## Maliling list:
-
-* There is a mailing list for `GPUMD`. You can use the following link to subscribe and unsubscribe:
-https://www.freelists.org/list/gpumd
-* To post a question, you can send an email to gpumd(at)freelists.org
-* Here is the archive (public): https://www.freelists.org/archive/gpumd/
 
 ## Citations
 
