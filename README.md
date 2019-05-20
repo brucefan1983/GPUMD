@@ -65,6 +65,7 @@ There is a comprehensive manual in the `doc` directory. You can e-mail the first
 * There is a mailing list for `GPUMD`. You can use the following link to subscribe and unsubscribe:
 https://www.freelists.org/list/gpumd
 * To post a question, you can send an email to gpumd(at)freelists.org
+* Here is the archive (public): https://www.freelists.org/archive/gpumd/
 
 ## Citations
 
