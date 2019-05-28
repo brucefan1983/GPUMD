@@ -1,6 +1,6 @@
 # Publications developed or used `GPUMD`
 
-## Preprint
+## Preprints (3)
 
 * Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
 [A revisit to phonon-phonon scattering in single-layer graphene](https://arxiv.org/abs/1904.12731),
@@ -14,7 +14,7 @@ arXiv:1905.11024 [cond-mat.mes-hall].
 [Modeling heat transport in crystals and glasses from a unified lattice-dynamical approach](https://arxiv.org/abs/1904.02255),
 arXiv:1904.02255 [cond-mat.mtrl-sci].
 
-## 2019
+## 2019 (2)
 
 * Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila, 
 [Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials](https://doi.org/10.1103/PhysRevB.99.064308),
@@ -24,7 +24,7 @@ Phys. Rev. B **99**, 064308 (2019).
 [Thermal transport in MoS<sub>2</sub> from molecular dynamics using different empirical potentials](https://doi.org/10.1103/PhysRevB.99.054303), 
 Phys. Rev. B **99**, 054303 (2019).
 
-## 2018
+## 2018 (7)
 
 * Zheyong Fan, Ville Vierimaa, and Ari Harju, [GPUQT: An efficient linear-scaling quantum transport code fully implemented on graphics processing units](https://doi.org/10.1016/j.cpc.2018.04.013), Comput. Phys. Commun. **230**, 113 (2018). 
 
@@ -52,7 +52,7 @@ Carbon **137**, 57 (2018).
 [Grain extraction and microstructural analysis method for two-dimensional poly and quasicrystalline solids](https://doi.org/10.1103/PhysRevMaterials.2.103603),
 Physical Review Materials **2**, 103603 (2018).
 
-## 2017
+## 2017 (7)
 
 * Zheyong Fan, Luiz Felipe C Pereira, Petri Hirvonen, Mikko M Ervasti, Ken R Elder, Davide Donadio, Tapio Ala-Nissila, Ari Harju,
 [Thermal conductivity decomposition in two-dimensional materials: Application to graphene](https://doi.org/10.1103/PhysRevB.95.144309),
@@ -83,7 +83,7 @@ Nanoscale **9**, 16329 (2017).
 Scientific Reports **7**, 4754 (2017).
 
 
-## 2016
+## 2016 (2)
 
 * Petri Hirvonen, Mikko M Ervasti, Zheyong Fan, Morteza Jalalvand, Matthew Seymour, S Allaei, Nikolas Provatas, Ari Harju, Ken R Elder, Tapio Ala-Nissila,
 [Multiscale modeling of polycrystalline graphene: A comparison of structure and defect energies of realistic samples from phase field crystal models](https://doi.org/10.1103/PhysRevB.94.035414),
@@ -93,13 +93,13 @@ Physical Review B **94**, 035414 (2016).
 [Amorphized graphene: A stiff material with low thermal conductivity](https://doi.org/10.1016/j.carbon.2016.03.007),
 Carbon **103**, 318 (2016).
 
-## 2015
+## 2015 (1)
 
 * Zheyong Fan, Luiz Felipe C Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, Ari Harju,
 [Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations](https://doi.org/10.1103/PhysRevB.92.094301),
 Physical Review B **92**, 094301 (2015).
 
-## 2013
+## 2013 (1)
 
 * Zheyong Fan, Topi Siro, Ari Harju,
 [Accelerated molecular dynamics force evaluation on graphics processing units for thermal conductivity calculations](https://doi.org/10.1016/j.cpc.2013.01.008),
