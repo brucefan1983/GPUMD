@@ -3,12 +3,16 @@
 ## Preprint
 
 * Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
-[A revisit to phonon-phonon scattering in single-layer graphene](https://arxiv.org/abs/1904.12731)
-arXiv preprint arXiv:1904.12731
+[A revisit to phonon-phonon scattering in single-layer graphene](https://arxiv.org/abs/1904.12731),
+arXiv:1904.12731 [cond-mat.mtrl-sci].
 
 * Zhen Li, Shiyun Xiong, Charles Sievers, Yue Hu, Zheyong Fan, Ning Wei, Hua Bao, Shunda Chen, Davide Donadio, and Tapio Ala-Nissila,
-[Influence of Boundaries and Thermostatting on Nonequilibrium Molecular Dynamics Simulations of Heat Conduction in Solids](https://arxiv.org/abs/1905.11024)
-arXiv preprint 	arXiv:1905.11024 [cond-mat.mes-hall]
+[Influence of Boundaries and Thermostatting on Nonequilibrium Molecular Dynamics Simulations of Heat Conduction in Solids](https://arxiv.org/abs/1905.11024),
+arXiv:1905.11024 [cond-mat.mes-hall].
+
+* Leyla Isaeva, Giuseppe Barbalinardo, Davide Donadio, and Stefano Baroni,
+[Modeling heat transport in crystals and glasses from a unified lattice-dynamical approach](https://arxiv.org/abs/1904.02255),
+arXiv:1904.02255 [cond-mat.mtrl-sci].
 
 ## 2019
 
@@ -21,6 +25,8 @@ Phys. Rev. B **99**, 064308 (2019).
 Phys. Rev. B **99**, 054303 (2019).
 
 ## 2018
+
+* Zheyong Fan, Ville Vierimaa, and Ari Harju, [GPUQT: An efficient linear-scaling quantum transport code fully implemented on graphics processing units](https://doi.org/10.1016/j.cpc.2018.04.013), Comput. Phys. Commun. **230**, 113 (2018). 
 
 * Ke Xu, Zheyong Fan, Jicheng Zhang, Ning Wei, Tapio Ala-Nissila, 
 [Thermal transport properties of single-layer black phosphorous from extensive molecular dynamics simulations](https://doi.org/10.1088/1361-651X/aae180),
