@@ -2,9 +2,13 @@
 
 ## Preprint
 
-Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
+* Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
 [A revisit to phonon-phonon scattering in single-layer graphene](https://arxiv.org/abs/1904.12731)
 arXiv preprint arXiv:1904.12731
+
+* Zhen Li, Shiyun Xiong, Charles Sievers, Yue Hu, Zheyong Fan, Ning Wei, Hua Bao, Shunda Chen, Davide Donadio, and Tapio Ala-Nissila,
+[Influence of Boundaries and Thermostatting on Nonequilibrium Molecular Dynamics Simulations of Heat Conduction in Solids](https://arxiv.org/abs/1905.11024)
+arXiv preprint 	arXiv:1905.11024 [cond-mat.mes-hall]
 
 ## 2019
 
