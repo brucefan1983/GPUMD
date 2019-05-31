@@ -1,5 +1,8 @@
 # `GPUMD`
 
+## Note
+* We are constructing a website for `GPUMD`: https://gpumd.zheyongfan.org
+
 ## Warnings in the beginning:
 
 * Do not treat the code as a black box. Do as many tests as you can until you trust some part of it (the part you will use). The best way is to check the source code and make sure that it makes sense to you. Whenever you feel unsure about something regarding the code, you are welcome to ask questions in the mailing list.
