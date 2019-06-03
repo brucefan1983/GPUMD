@@ -1,7 +1,7 @@
 # `GPUMD`
 
-## Note
-* We are constructing a website for `GPUMD`: https://gpumd.zheyongfan.org
+## Manual
+* We only maintain the online manual now: https://gpumd.zheyongfan.org
 
 ## Warnings in the beginning:
 
@@ -49,7 +49,7 @@ https://www.freelists.org/list/gpumd
 * Go to the directory where you can see `src`.
 * Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`.
 * Type `src/phonon < examples/input_phonon.txt` to run the examples in `examples/phonon`.
-* Please read the manual to study the examples. These examples should get you started. 
+* Please read the manual (https://gpumd.zheyongfan.org) to study the examples. These examples should get you started. 
   
 ## Authors:
 
