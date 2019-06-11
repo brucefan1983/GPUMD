@@ -69,10 +69,10 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->vac.grouping_method = -1;
     measure->vac.group		= -1;
     measure->dos.num_dos_points = -1;
+    measure->dump_pos.output_pos = 0;
     measure->hac.compute    = 0;
     measure->hnemd.compute  = 0;
     measure->dump_thermo    = 0;
-    measure->dump_position  = 0;
     measure->dump_restart   = 0;
     measure->dump_velocity  = 0;
     measure->dump_force     = 0;

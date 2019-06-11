@@ -429,17 +429,85 @@ void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 
 void parse_dump_position(char **param,  int num_param, Measure *measure)
 {
-    if (num_param != 2)
+
+	measure->dump_pos.output_pos = 1;
+
+    if (num_param < 2)
     {
-        print_error("dump_position should have 1 parameter.\n");
+        print_error("dump_position should have at least 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &measure->sample_interval_position))
+    if (num_param > 6)
+    {
+    	print_errro("dump_position has too many parameters.\n");
+    }
+
+    // sample interval
+    if (!is_valid_int(param[1], &measure->dump_pos.interval))
     {
         print_error("position dump interval should be an integer number.\n");
     }
-    measure->dump_position = 1;
+
+    // Process optional arguments
+    for (int k = 2; k < num_param; k++)
+    {
+    	// format check
+    	if (strcmp(param[k], "format") == 0)
+    	{
+    		// check if there are enough inputs
+    		if (k + 2 > num_param)
+    		{
+    			print_error("Not enough arguments for optional "
+    					" 'format' dump_position command.\n");
+    		}
+    		if ((strcmp(param[k+1], "xyz") != 0) &&
+				(strcmp(param[k+1], "netcdf") != 0))
+    		{
+    			print_error("Invalid format for dump_position command.\n");
+    		}
+    		else
+    		{
+    			if(strcmp(param[k+1], "xyz") == 0)
+    			{
+    				measure->dump_pos.format = 0;
+    			}
+    			else if(strcmp(param[k+1], "netcdf") == 0)
+    			{
+    				measure->dump_pos.format = 1;
+    			}
+    			k++;
+    		}
+    	}
+    	// precision check
+    	else if(strcmp(param[k], "precision") == 0)
+    	{
+    		// check for enough inputs
+    		if (k + 2 > num_param)
+			{
+				print_error("Not enough arguments for optional "
+						" 'precision' dump_position command.\n");
+			}
+    		if ((strcmp(param[k+1], "single") != 0) &&
+				(strcmp(param[k+1], "double") != 0))
+			{
+				print_error("Invalid precision for dump_position command.\n");
+			}
+			else
+			{
+				if(strcmp(param[k+1], "normal") == 0)
+				{
+					measure->dump_pos.precision = 0;
+				}
+				else if(strcmp(param[k+1], "high") == 0)
+				{
+					measure->dump_pos.precision = 1;
+				}
+				k++;
+			}
+    	}
+    }
+
     printf("Dump position every %d steps.\n",
-        measure->sample_interval_position);
+        measure->dump_pos.interval);
 }
 
 
