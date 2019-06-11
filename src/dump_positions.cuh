@@ -19,6 +19,8 @@
 
 #include "common.cuh"
 
+#define FILE_NAME_LENGTH      200
+
 class DUMP_POS
 {
 public:

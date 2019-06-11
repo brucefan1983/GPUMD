@@ -438,7 +438,7 @@ void parse_dump_position(char **param,  int num_param, Measure *measure)
     }
     if (num_param > 6)
     {
-    	print_errro("dump_position has too many parameters.\n");
+    	print_error("dump_position has too many parameters.\n");
     }
 
     // sample interval

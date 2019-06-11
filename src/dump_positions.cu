@@ -20,6 +20,8 @@ formatter).
 ------------------------------------------------------------------------------*/
 
 #include "dump_positions.cuh"
+#include "error.cuh"
+#include "atom.cuh"
 
 
 void DUMP_POS::initialize(char *input_dir)
@@ -74,19 +76,19 @@ void DUMP_POS::dump_xyz(Atom *atom, int step)
 	CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
 	CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
 	CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
-	fprintf(fid, "%d\n", atom->N);
-	fprintf(fid, "%d\n", (step + 1) / sample_interval_position - 1);
+	fprintf(fid_position, "%d\n", atom->N);
+	fprintf(fid_position, "%d\n", (step + 1) / interval - 1);
 
 	// Determine output precision
 	if (precision == 1)
 	{
-		precision_str = "%d %f %f %f\n"; // higher precision
+		strcpy(precision_str, "%d %f %f %f\n"); // higher precision
 	}
 	for (int n = 0; n < atom->N; n++)
 	{
-		fprintf(fid, precision_str, atom->cpu_type[n],
+		fprintf(fid_position, precision_str, atom->cpu_type[n],
 			atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n]);
 	}
-	fflush(fid);
+	fflush(fid_position);
 }
 
