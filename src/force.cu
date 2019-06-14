@@ -29,6 +29,7 @@ The driver class calculating force and related quantities.
 #include "rebo_mos2.cuh"
 #include "vashishta.cuh"
 #include "tersoff1988.cuh"
+#include "tersoff_modc.cuh"
 #include "sbop.cuh"
 #include "sw.cuh"
 #include "pair.cuh"
@@ -110,6 +111,12 @@ void Force::initialize_one_potential(Atom* atom, int m)
         int num_of_types = get_number_of_types(fid_potential);
         print_type_error(atom->number_of_types, num_of_types);
         potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
+    }
+    else if (strcmp(potential_name, "tersoff_modc") == 0)
+    {
+        int num_of_types = get_number_of_types(fid_potential);
+        print_type_error(atom->number_of_types, num_of_types);
+        potential[m] = new Tersoff_modc(fid_potential, atom, num_of_types);
     }
     else if (strcmp(potential_name, "sbop") == 0)
     {
@@ -280,6 +287,12 @@ void Force::initialize_many_body_potential
         int num_of_types = get_number_of_types(fid_potential);
         print_type_error(number_of_types, num_of_types);
         potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
+    }
+    else if (strcmp(potential_name, "tersoff_modc") == 0)
+    {
+        int num_of_types = get_number_of_types(fid_potential);
+        print_type_error(number_of_types, num_of_types);
+        potential[m] = new Tersoff_modc(fid_potential, atom, num_of_types);
     }
     else if (strcmp(potential_name, "sbop") == 0)
     {
