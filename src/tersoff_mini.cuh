@@ -18,7 +18,7 @@
 #include "potential.cuh"
 
 
-struct SBOP_Data
+struct Tersoff_mini_Data
 {
     real *b;     // bond orders
     real *bp;    // derivative of bond orders
@@ -28,15 +28,15 @@ struct SBOP_Data
 };
 
 
-class SBOP : public Potential
+class Tersoff_mini : public Potential
 {
 public:   
-    SBOP(FILE*, Atom*, int);
-    virtual ~SBOP(void);
+    Tersoff_mini(FILE*, Atom*, int);
+    virtual ~Tersoff_mini(void);
     virtual void compute(Atom*, Measure*);
 protected:
     int num_types; // number of atom tpyes
     real *para;    // potential parameters
-    SBOP_Data sbop_data;
+    Tersoff_mini_Data tersoff_mini_data;
 };
 

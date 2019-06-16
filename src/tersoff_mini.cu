@@ -21,7 +21,7 @@ The minimal Tersoff potential
 ------------------------------------------------------------------------------*/
 
 
-#include "sbop.cuh"
+#include "tersoff_mini.cuh"
 #include "mic.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
@@ -44,10 +44,10 @@ The minimal Tersoff potential
 #define NUM_PARAMS        11
 
 
-SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
+Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
 {
     num_types = num_of_types;
-    printf("Use SBOP (%d-element) potential.\n", num_types);
+    printf("Use Tersoff-mini (%d-element) potential.\n", num_types);
     int n_entries = num_types*num_types*num_types;
     double *cpu_para;
     MY_MALLOC(cpu_para, double, n_entries*NUM_PARAMS);
@@ -55,15 +55,15 @@ SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
     const char err[] = "Error: Illegal SBOP parameter.";
     rc = 0.0;
     int count;
-    double d0, a, r0, u0, beta, n, h, r1, r2;
+    double d0, a, r0, beta, n, h, r1, r2;
     for (int i = 0; i < n_entries; i++)
     {
         count = fscanf
         (
-            fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf",
-            &d0, &a, &r0, &u0, &beta, &n, &h, &r1, &r2
+            fid, "%lf%lf%lf%lf%lf%lf%lf%lf",
+            &d0, &a, &r0, &beta, &n, &h, &r1, &r2
         );
-        if (count != 9) 
+        if (count != 8) 
             {printf("Error: reading error for SBOP potential.\n"); exit(1);}
 
         if (d0 <= 0.0)
@@ -102,24 +102,24 @@ SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
     int memory1 = sizeof(double)* atom->N * num_of_neighbors;
     int memory2 = sizeof(double)* n_entries * NUM_PARAMS;
-    CHECK(cudaMalloc((void**)&sbop_data.b,    memory1));
-    CHECK(cudaMalloc((void**)&sbop_data.bp,   memory1));
-    CHECK(cudaMalloc((void**)&sbop_data.f12x, memory1));
-    CHECK(cudaMalloc((void**)&sbop_data.f12y, memory1));
-    CHECK(cudaMalloc((void**)&sbop_data.f12z, memory1));
+    CHECK(cudaMalloc((void**)&tersoff_mini_data.b,    memory1));
+    CHECK(cudaMalloc((void**)&tersoff_mini_data.bp,   memory1));
+    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12x, memory1));
+    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12y, memory1));
+    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12z, memory1));
     CHECK(cudaMalloc((void**)&para, memory2));
     CHECK(cudaMemcpy(para, cpu_para, memory2, cudaMemcpyHostToDevice));
     MY_FREE(cpu_para);
 }
 
 
-SBOP::~SBOP(void)
+Tersoff_mini::~Tersoff_mini(void)
 {
-    CHECK(cudaFree(sbop_data.b));
-    CHECK(cudaFree(sbop_data.bp));
-    CHECK(cudaFree(sbop_data.f12x));
-    CHECK(cudaFree(sbop_data.f12y));
-    CHECK(cudaFree(sbop_data.f12z));
+    CHECK(cudaFree(tersoff_mini_data.b));
+    CHECK(cudaFree(tersoff_mini_data.bp));
+    CHECK(cudaFree(tersoff_mini_data.f12x));
+    CHECK(cudaFree(tersoff_mini_data.f12y));
+    CHECK(cudaFree(tersoff_mini_data.f12z));
     CHECK(cudaFree(para));
 }
 
@@ -348,7 +348,7 @@ static __global__ void find_force_step2
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
                 double g123, gp123;
-                find_g_and_gp(type12, para, cos123, g123, gp123);
+                find_g_and_gp(type13, para, cos123, g123, gp123);
                 // derivatives with cosine
                 double dc = -fc12 * bp12 * fa12 * fc13 * gp123 
                             -fc12 * bp13 * fa13 * fc13 * gp123;
@@ -370,7 +370,7 @@ static __global__ void find_force_step2
 
 
 // Wrapper of force evaluation for the SBOP potential
-void SBOP::compute(Atom *atom, Measure *measure)
+void Tersoff_mini::compute(Atom *atom, Measure *measure)
 {
     int N = atom->N;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
@@ -388,11 +388,11 @@ void SBOP::compute(Atom *atom, Measure *measure)
     double *pe = atom->potential_per_atom;
 
     // special data for SBOP potential
-    double *f12x = sbop_data.f12x;
-    double *f12y = sbop_data.f12y;
-    double *f12z = sbop_data.f12z;
-    double *b    = sbop_data.b;
-    double *bp   = sbop_data.bp;
+    double *f12x = tersoff_mini_data.f12x;
+    double *f12y = tersoff_mini_data.f12y;
+    double *f12z = tersoff_mini_data.f12z;
+    double *b    = tersoff_mini_data.b;
+    double *bp   = tersoff_mini_data.bp;
 
     // pre-compute the bond order functions and their derivatives
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
