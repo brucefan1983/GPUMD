@@ -15,7 +15,7 @@
 
 
 /*----------------------------------------------------------------------------80
-Smooth bond-order potential
+The minimal Tersoff potential
     Written by Zheyong Fan.
     This is a new potential I proposed. 
 ------------------------------------------------------------------------------*/
@@ -28,25 +28,20 @@ Smooth bond-order potential
 #include "error.cuh"
 
 #define BLOCK_SIZE_FORCE 64
-#define ONE_OVER_16      0.0625
-#define NINE_OVER_16     0.5625
 
 // Easy labels for indexing
-#define A            0
-#define Q            1
-#define LAMBDA       2
-#define B            3
-#define MU           4
-#define B2           5
-#define MU2          6
-#define BETA         7
-#define H            8
-#define ALPHA        9
-#define R1           10
-#define R2           11
-#define PI_FACTOR1   12
-#define PI_FACTOR3   13
-#define NUM_PARAMS   14
+#define A                 0
+#define B                 1
+#define LAMBDA            2
+#define MU                3
+#define BETA              4
+#define EN                5
+#define H                 6
+#define R1                7
+#define R2                8
+#define PI_FACTOR         9
+#define MINUS_HALF_OVER_N 10
+#define NUM_PARAMS        11
 
 
 SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
@@ -60,37 +55,29 @@ SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
     const char err[] = "Error: Illegal SBOP parameter.";
     rc = 0.0;
     int count;
-    double a, q, lambda, b, mu, b2, mu2, beta, h, alpha, r1, r2;
+    double d0, a, r0, u0, beta, n, h, r1, r2;
     for (int i = 0; i < n_entries; i++)
     {
         count = fscanf
         (
-            fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
-            &a, &q, &lambda, &b, &mu, &b2, &mu2, &beta, &h, &alpha, &r1, &r2
+            fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf",
+            &d0, &a, &r0, &u0, &beta, &n, &h, &r1, &r2
         );
-        if (count != 12) 
+        if (count != 9) 
             {printf("Error: reading error for SBOP potential.\n"); exit(1);}
 
-        if (a < 0.0)
-            {printf("%s A must be >= 0.\n",err); exit(1);}
-        if (q < 0.0)
-            {printf("%s Q must be >= 0.\n",err); exit(1);}
-        if (lambda < 0.0)
-            {printf("%s lambda must be >= 0.\n",err); exit(1);}
-        if (b < 0.0)
-            {printf("%s B must be >= 0.\n",err); exit(1);}
-        if(mu < 0.0)
-            {printf("%s mu must be >= 0.\n",err); exit(1);}
-        if(b2 < 0.0)
-            {printf("%s B2 must be >= 0.\n",err); exit(1);}
-        if(mu2 < 0.0)
-            {printf("%s mu2 must be >= 0.\n",err); exit(1);}
+        if (d0 <= 0.0)
+            {printf("%s D0 must be > 0.\n",err); exit(1);}
+        if (a <= 0.0)
+            {printf("%s a must be > 0.\n",err); exit(1);}
+        if (r0 <= 0.0)
+            {printf("%s r0 must be > 0.\n",err); exit(1);}
         if(beta < 0.0)
             {printf("%s beta must be >= 0.\n",err); exit(1);}
+        if(n < 0.0)
+            {printf("%s n must be >= 0.\n",err); exit(1);}
         if(h < -1.0 || h > 1.0)
             {printf("%s |h| must be <= 1.\n",err); exit(1);}
-        if (alpha < 0.0)
-            {printf("%s alpha must be >= 0.\n",err); exit(1);}
         if(r1 < 0.0)
             {printf("%s R1 must be >= 0.\n",err); exit(1);}
         if(r2 <= 0.0)
@@ -98,24 +85,21 @@ SBOP::SBOP(FILE *fid, Atom* atom, int num_of_types)
         if(r2 <= r1)
             {printf("%s R2-R1 must be > 0.\n",err); exit(1);}
 
-        cpu_para[i*NUM_PARAMS + A] = a;
-        cpu_para[i*NUM_PARAMS + Q] = q;
-        cpu_para[i*NUM_PARAMS + LAMBDA] = lambda;
-        cpu_para[i*NUM_PARAMS + B] = b;
-        cpu_para[i*NUM_PARAMS + MU] = mu;
-        cpu_para[i*NUM_PARAMS + B2] = b2;
-        cpu_para[i*NUM_PARAMS + MU2] = mu2;
+        cpu_para[i*NUM_PARAMS + A] = d0 * exp(2.0 * a * r0);
+        cpu_para[i*NUM_PARAMS + B] = 2.0 * d0 * exp(a * r0);
+        cpu_para[i*NUM_PARAMS + LAMBDA] = 2.0 * a;
+        cpu_para[i*NUM_PARAMS + MU] = a;
         cpu_para[i*NUM_PARAMS + BETA] = beta;
+        cpu_para[i*NUM_PARAMS + EN] = n;
         cpu_para[i*NUM_PARAMS + H] = h;
-        cpu_para[i*NUM_PARAMS + ALPHA] = alpha;
         cpu_para[i*NUM_PARAMS + R1] = r1;
         cpu_para[i*NUM_PARAMS + R2] = r2;
-        cpu_para[i*NUM_PARAMS + PI_FACTOR1] = PI / (r2 - r1);
-        cpu_para[i*NUM_PARAMS + PI_FACTOR3] = 3.0 * PI / (r2 - r1);
+        cpu_para[i*NUM_PARAMS + PI_FACTOR] = PI / (r2 - r1);
+        cpu_para[i*NUM_PARAMS + MINUS_HALF_OVER_N] = - 0.5 / n;
         rc = r2 > rc ? r2 : rc;
     }
 
-    int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
+    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
     int memory1 = sizeof(double)* atom->N * num_of_neighbors;
     int memory2 = sizeof(double)* n_entries * NUM_PARAMS;
     CHECK(cudaMalloc((void**)&sbop_data.b,    memory1));
@@ -143,11 +127,8 @@ SBOP::~SBOP(void)
 static __device__ void find_fr_and_frp
 (int i, const double* __restrict__ para, double d12, double &fr, double &frp)
 {
-    double exp_factor = LDG(para, i + A) * exp(- LDG(para, i + LAMBDA) * d12);
-    double d_inv = 1.0 / d12;
-    fr = (1.0 + LDG(para, i + Q) * d_inv) * exp_factor;
+    fr = LDG(para, i + A) * exp(- LDG(para, i + LAMBDA) * d12);
     frp = - LDG(para, i + LAMBDA) * fr;
-    frp -= LDG(para, i + Q) * d_inv * d_inv * exp_factor;
 }
 
 
@@ -156,9 +137,6 @@ static __device__ void find_fa_and_fap
 {
     fa  = LDG(para, i + B) * exp(- LDG(para, i + MU) * d12);
     fap = - LDG(para, i + MU) * fa;
-    double tmp =  LDG(para, i + B2) * exp(- LDG(para, i + MU2) * d12);
-    fa += tmp;
-    fap -= LDG(para, i + MU2) * tmp;
 }
 
 
@@ -166,7 +144,6 @@ static __device__ void find_fa
 (int i, const double* __restrict__ para, double d12, double &fa)
 {
     fa = LDG(para, i + B) * exp(- LDG(para, i + MU) * d12);
-    fa += LDG(para, i + B2) * exp(- LDG(para, i + MU2) * d12);
 }
 
 
@@ -176,16 +153,11 @@ static __device__ void find_fc_and_fcp
     if (d12 < LDG(para, i + R1)){fc = 1.0; fcp = 0.0;}
     else if (d12 < LDG(para, i + R2))
     {
-        double tmp = d12 - LDG(para, i + R1);
-        double pi_factor1 = LDG(para, i + PI_FACTOR1);
-        double pi_factor3 = LDG(para, i + PI_FACTOR3);
-
-        fc = NINE_OVER_16 * cos(pi_factor1 * tmp)
-           - ONE_OVER_16  * cos(pi_factor3 * tmp)
+        fc = 0.5 * cos(LDG(para, i + PI_FACTOR) * (d12 - LDG(para, i + R1)))
            + 0.5;
 
-        fcp = sin(pi_factor3 * tmp) * pi_factor3 * ONE_OVER_16
-            - sin(pi_factor1 * tmp) * pi_factor1 * NINE_OVER_16;
+        fcp = - sin(LDG(para, i + PI_FACTOR) * (d12 - LDG(para, i + R1))) 
+            * LDG(para, i + PI_FACTOR) * 0.5;
     }
     else {fc  = 0.0; fcp = 0.0;}
 }
@@ -197,9 +169,7 @@ static __device__ void find_fc
     if (d12 < LDG(para, i + R1)) {fc  = 1.0;}
     else if (d12 < LDG(para, i + R2))
     {
-        double tmp = d12 - LDG(para, i + R1);
-        fc = NINE_OVER_16 * cos(LDG(para, i + PI_FACTOR1) * tmp)
-           - ONE_OVER_16  * cos(LDG(para, i + PI_FACTOR3) * tmp)
+        fc = 0.5 * cos(LDG(para, i + PI_FACTOR) * (d12 - LDG(para, i + R1)))
            + 0.5;
     }
     else {fc  = 0.0;}
@@ -223,34 +193,6 @@ static __device__ void find_g
 }
 
 
-static __device__ void find_e_and_ep
-(
-    int i, const double* __restrict__ para, 
-    double d12, double d13, double &e, double &ep
-)
-{
-    if (LDG(para, i + ALPHA) < 1.0e-15){ e = 1.0; ep = 0.0;}
-    else
-    {
-        double r = d12 - d13;
-        e = exp(LDG(para, i + ALPHA) * r * r * r);
-        ep = LDG(para, i + ALPHA) * 3.0 * r * r * e;
-    }
-}
-
-
-static __device__ void find_e
-(int i, const double* __restrict__ para, double d12, double d13, double &e)
-{
-    if (LDG(para, i + ALPHA) < 1.0e-15){ e = 1.0;}
-    else
-    {
-        double r = d12 - d13;
-        e = exp(LDG(para, i + ALPHA) * r * r * r);
-    }
-}
-
-
 // step 1: pre-compute all the bond-order functions and their derivatives
 static __global__ void find_force_step1
 (
@@ -270,7 +212,6 @@ static __global__ void find_force_step1
     // to the (N2-1)-th atom
     if (n1 >= N1 && n1 < N2)
     {
-        int num_types2 = num_types * num_types;
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
         double x1 = LDG(g_x, n1); 
@@ -298,20 +239,29 @@ static __global__ void find_force_step1
                     x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12*d13);
-                double fc_ijk_13, g_ijk, e_ijk_12_13;
-                int ijk = type1 * num_types2 + type2 * num_types + type3;
-                if (d13 > LDG(para, ijk*NUM_PARAMS + R2)) {continue;}
-                find_fc(ijk*NUM_PARAMS, para, d13, fc_ijk_13);
-                find_g(ijk*NUM_PARAMS, para, cos123, g_ijk);
-                find_e(ijk*NUM_PARAMS, para, d12, d13, e_ijk_12_13);
-                zeta += fc_ijk_13 * g_ijk * e_ijk_12_13;
+                double fc13, g123;
+                int type13 = (type1 + type3) * NUM_PARAMS;
+                if (d13 > LDG(para, type13 + R2)) {continue;}
+                find_fc(type13, para, d13, fc13);
+                find_g(type13, para, cos123, g123);
+                zeta += fc13 * g123;
             }
-            int ijj = type1 * num_types2 + type2 * num_types + type2;
-            double beta = LDG(para, ijj*NUM_PARAMS + BETA);
-            double b_ijj = 1.0 / sqrt(1.0 + beta * zeta);
-            g_b[i1 * number_of_particles + n1]  = b_ijj;
-            g_bp[i1 * number_of_particles + n1] = - 0.5 * beta * b_ijj 
-                                                / (1.0 + beta * zeta);
+
+            double bzn, b12;
+            int type12 = (type1 + type2) * NUM_PARAMS;
+            bzn = pow(LDG(para, type12 + BETA) * zeta, LDG(para, type12 + EN));
+            b12 = pow(1.0 + bzn, LDG(para, type12 + MINUS_HALF_OVER_N));
+            if (zeta < 1.0e-16) // avoid division by 0
+            {
+                g_b[i1 * number_of_particles + n1]  = 1.0;
+                g_bp[i1 * number_of_particles + n1] = 0.0;
+            }
+            else
+            {
+                g_b[i1 * number_of_particles + n1]  = b12;
+                g_bp[i1 * number_of_particles + n1]
+                    = - b12 * bzn * 0.5 / ((1.0 + bzn) * zeta);
+            }
         }
     }
 }
@@ -338,7 +288,6 @@ static __global__ void find_force_step2
     // to the (N2-1)-th atom
     if (n1 >= N1 && n1 < N2)
     {
-        int num_types2 = num_types * num_types;
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1];
         double x1 = LDG(g_x, n1); 
@@ -357,23 +306,24 @@ static __global__ void find_force_step2
             dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
-            double fc_ijj_12, fcp_ijj_12;
-            double fa_ijj_12, fap_ijj_12, fr_ijj_12, frp_ijj_12;
-            int ijj = type1 * num_types2 + type2 * num_types + type2;
-            find_fc_and_fcp(ijj*NUM_PARAMS, para, d12, fc_ijj_12, fcp_ijj_12);
-            find_fa_and_fap(ijj*NUM_PARAMS, para, d12, fa_ijj_12, fap_ijj_12);
-            find_fr_and_frp(ijj*NUM_PARAMS, para, d12, fr_ijj_12, frp_ijj_12);
+            double fc12, fcp12, fa12, fap12, fr12, frp12;
+            int type12 = type1 + type2;
+            find_fc_and_fcp(type12, para, d12, fc12, fcp12);
+            find_fa_and_fap(type12, para, d12, fa12, fap12);
+            find_fr_and_frp(type12, para, d12, fr12, frp12);
 
             // (i,j) part
             double b12 = LDG(g_b, index);
-            double factor3=(fcp_ijj_12*(fr_ijj_12-b12*fa_ijj_12)+
-                          fc_ijj_12*(frp_ijj_12-b12*fap_ijj_12))*d12inv;
+            double factor3 = 
+            (
+                fcp12 * (fr12 - b12 * fa12) + fc12 * (frp12-b12 * fap12)
+            ) * d12inv;
             double f12x = x12 * factor3 * 0.5;
             double f12y = y12 * factor3 * 0.5;
             double f12z = z12 * factor3 * 0.5;
 
             // accumulate potential energy
-            pot_energy += fc_ijj_12 * (fr_ijj_12 - b12 * fa_ijj_12) * 0.5;
+            pot_energy += fc12 * (fr12 - b12 * fa12) * 0.5;
 
             // (i,j,k) part
             double bp12 = LDG(g_bp, index);
@@ -389,42 +339,21 @@ static __global__ void find_force_step2
                 dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, 
                     x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
-                double fc_ikk_13, fc_ijk_13, fa_ikk_13, fc_ikj_12, fcp_ikj_12;
-                int ikj = type1 * num_types2 + type3 * num_types + type2;
-                int ikk = type1 * num_types2 + type3 * num_types + type3;
-                int ijk = type1 * num_types2 + type2 * num_types + type3;
-                find_fc(ikk*NUM_PARAMS, para, d13, fc_ikk_13);
-                find_fc(ijk*NUM_PARAMS, para, d13, fc_ijk_13);
-                find_fa(ikk*NUM_PARAMS, para, d13, fa_ikk_13);
-                find_fc_and_fcp(ikj*NUM_PARAMS, para, d12,
-                                	fc_ikj_12, fcp_ikj_12);
+                double fc13, fa13;
+                int type13 = type1 + type3;
+                find_fc(type13, para, d13, fc13);
+                find_fa(type13, para, d13, fa13);
                 double bp13 = LDG(g_bp, index_2);
                 double one_over_d12d13 = ONE / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
-                double g_ijk, gp_ijk;
-                find_g_and_gp(ijk*NUM_PARAMS, para, cos123, g_ijk, gp_ijk);
-
-                double g_ikj, gp_ikj;
-                find_g_and_gp(ikj*NUM_PARAMS, para, cos123, g_ikj, gp_ikj);
-
-                // exp with d12 - d13
-                double e_ijk_12_13, ep_ijk_12_13;
-                find_e_and_ep(ijk*NUM_PARAMS, para, d12, d13,
-                                	e_ijk_12_13, ep_ijk_12_13);
-
-                // exp with d13 - d12
-                double e_ikj_13_12, ep_ikj_13_12;
-                find_e_and_ep(ikj*NUM_PARAMS, para, d13, d12,
-                                	e_ikj_13_12, ep_ikj_13_12);
-
+                double g123, gp123;
+                find_g_and_gp(type12, para, cos123, g123, gp123);
                 // derivatives with cosine
-                double dc=-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*gp_ijk*e_ijk_12_13+
-                        -fc_ikj_12*bp13*fa_ikk_13*fc_ikk_13*gp_ikj*e_ikj_13_12;
+                double dc = -fc12 * bp12 * fa12 * fc13 * gp123 
+                            -fc12 * bp13 * fa13 * fc13 * gp123;
                 // derivatives with rij
-                double dr=(-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*g_ijk*ep_ijk_12_13 +
-                  (-fcp_ikj_12*bp13*fa_ikk_13*g_ikj*e_ikj_13_12 +
-                  fc_ikj_12*bp13*fa_ikk_13*g_ikj*ep_ikj_13_12)*fc_ikk_13)*d12inv;
+                double dr = -fcp12 * bp13 * fa13 * g123 * fc13 * d12inv;
                 double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
                 f12x += (x12 * dr + dc * cos_d)*0.5;
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
