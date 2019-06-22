@@ -69,7 +69,6 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->vac.grouping_method = -1;
     measure->vac.group		= -1;
     measure->dos.num_dos_points = -1;
-    measure->dump_pos.output_pos = 0;
     measure->hac.compute    = 0;
     measure->hnemd.compute  = 0;
     measure->dump_thermo    = 0;
@@ -79,6 +78,18 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->dump_potential = 0;
     measure->dump_virial    = 0;
     measure->dump_heat      = 0;
+
+    /*
+     * Delete dump_pos if it exists. Ensure that dump_pos is NULL in case
+     * it isn't set in parse. If we don't set to NULL, then we may end up
+     * deleting some random address, corrupting memory.
+     */
+    if (measure->dump_pos)
+    {
+    	delete measure->dump_pos;
+    }
+    measure->dump_pos = NULL;
+
 }
 
 

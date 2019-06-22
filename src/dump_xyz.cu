@@ -13,39 +13,34 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 /*----------------------------------------------------------------------------80
-Dump atom positions in XYZ compatible format (or redirect to alternative
-formatter).
+Dump atom positions in XYZ compatible format.
 ------------------------------------------------------------------------------*/
 
-#include "dump_positions.cuh"
-#include "error.cuh"
-#include "atom.cuh"
+#include "dump_xyz.cuh"
 
+DUMP_XYZ::DUMP_XYZ(int precision)
+{
+	this->precision = precision;
+}
 
-void DUMP_POS::initialize(char *input_dir)
+void DUMP_XYZ::initialize(char *input_dir)
 {
 	if (output_pos)
 	{
 		strcpy(file_position, input_dir);
-		if (format == 0)
-		{
-			strcat(file_position, "/movie.xyz");
-		}
-#ifdef NETCDF
-		else if(format == 1)
-		{
-			strcat(file_position, "/movie.nc");
-		}
-#endif
-
+		strcat(file_position, "/movie.xyz");
 		fid_position = my_fopen(file_position, "a");
-	}
 
+		if (precision == 0)
+			strcpy(precision_str, "%d %g %g %g\n");
+		else if (precision == 1) // higher precision
+			strcpy(precision_str, "%d %.15f %.15f %.15f\n");
+	}
 }
 
-void DUMP_POS::finalize()
+
+void DUMP_XYZ::finalize()
 {
 	if (output_pos)
 	{
@@ -54,24 +49,9 @@ void DUMP_POS::finalize()
 	}
 }
 
-void DUMP_POS::dump(Atom *atom, int step)
+void DUMP_XYZ::dump(Atom *atom, int step)
 {
 	if ((step + 1) % interval != 0) return;
-	if (format == 0)
-	{
-		dump_xyz(atom, step);
-	}
-#ifdef NETCDF
-	else if (format == 1)
-	{
-		dump_netcdf(atom, step);
-	}
-#endif
-}
-
-void DUMP_POS::dump_xyz(Atom *atom, int step)
-{
-
 	int memory = sizeof(real) * atom->N;
 	CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
 	CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
@@ -79,11 +59,6 @@ void DUMP_POS::dump_xyz(Atom *atom, int step)
 	fprintf(fid_position, "%d\n", atom->N);
 	fprintf(fid_position, "%d\n", (step + 1) / interval - 1);
 
-	// Determine output precision
-	if (precision == 1)
-	{
-		strcpy(precision_str, "%d %f %f %f\n"); // higher precision
-	}
 	for (int n = 0; n < atom->N; n++)
 	{
 		fprintf(fid_position, precision_str, atom->cpu_type[n],
@@ -91,4 +66,3 @@ void DUMP_POS::dump_xyz(Atom *atom, int step)
 	}
 	fflush(fid_position);
 }
-

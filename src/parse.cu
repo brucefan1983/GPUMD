@@ -28,7 +28,11 @@ Parse the commands in run.in.
 #include "measure.cuh"
 #include "hessian.cuh"
 #include "read_file.cuh"
+#include "dump_xyz.cuh"
 
+#ifdef USE_NETCDF
+#include "dump_netcdf.cuh"
+#endif
 
 // a single potential
 void parse_potential(char **param, int num_param, Force *force)
@@ -429,8 +433,10 @@ void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 
 void parse_dump_position(char **param,  int num_param, Measure *measure)
 {
-
-	measure->dump_pos.output_pos = 1;
+	int interval;
+	int format = 0; // default xyz
+	int precision = 0; // default normal (unlesss netCDF -> 64 bit)
+	int precision_defined = 0;
 
     if (num_param < 2)
     {
@@ -442,7 +448,7 @@ void parse_dump_position(char **param,  int num_param, Measure *measure)
     }
 
     // sample interval
-    if (!is_valid_int(param[1], &measure->dump_pos.interval))
+    if (!is_valid_int(param[1], &interval))
     {
         print_error("position dump interval should be an integer number.\n");
     }
@@ -464,16 +470,9 @@ void parse_dump_position(char **param,  int num_param, Measure *measure)
     		{
     			print_error("Invalid format for dump_position command.\n");
     		}
-    		else
+    		else if(strcmp(param[k+1], "netcdf") == 0)
     		{
-    			if(strcmp(param[k+1], "xyz") == 0)
-    			{
-    				measure->dump_pos.format = 0;
-    			}
-    			else if(strcmp(param[k+1], "netcdf") == 0)
-    			{
-    				measure->dump_pos.format = 1;
-    			}
+    			format = 1;
     			k++;
     		}
     	}
@@ -486,28 +485,42 @@ void parse_dump_position(char **param,  int num_param, Measure *measure)
 				print_error("Not enough arguments for optional "
 						" 'precision' dump_position command.\n");
 			}
-    		if ((strcmp(param[k+1], "single") != 0) &&
-				(strcmp(param[k+1], "double") != 0))
+    		if ((strcmp(param[k+1], "normal") != 0) &&
+				(strcmp(param[k+1], "high") != 0))
 			{
 				print_error("Invalid precision for dump_position command.\n");
 			}
 			else
 			{
-				if(strcmp(param[k+1], "normal") == 0)
+				precision_defined = 1;
+				if(strcmp(param[k+1], "high") == 0)
 				{
-					measure->dump_pos.precision = 0;
-				}
-				else if(strcmp(param[k+1], "high") == 0)
-				{
-					measure->dump_pos.precision = 1;
+					precision = 1;
 				}
 				k++;
 			}
     	}
     }
 
+    if (format == 1) // netcdf output
+    {
+    	measure->dump_pos = new DUMP_NETCDF();
+    }
+    else // xyz default output
+    {
+    	DUMP_XYZ *dump_xyz = new DUMP_XYZ(precision);
+    	measure->dump_pos = dump_xyz;
+//    	measure->dump_pos->precision = precision;
+    }
+    measure->dump_pos->output_pos = 1;
+    measure->dump_pos->interval = interval;
+
+
+    if (precision_defined && format)
+    	printf("Note: netCDF output files only output double precision.\n");
+
     printf("Dump position every %d steps.\n",
-        measure->dump_pos.interval);
+        measure->dump_pos->interval);
 }
 
 

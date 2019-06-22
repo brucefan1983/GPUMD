@@ -21,7 +21,7 @@
 #include "sdc.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
-#include "dump_positions.cuh"
+#include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
 
@@ -71,10 +71,9 @@ public:
     SHC shc;
     HNEMD hnemd;
     Compute compute;
-    DUMP_POS dump_pos;
+    DUMP_POS* dump_pos;
 protected:
     void dump_thermos(FILE*, Atom*, int);
-    void dump_positions(FILE*, Atom*, int);
     void dump_restarts(Atom*, int);
     void dump_velocities(FILE*, Atom*, int);
     void dump_forces(FILE*, Atom*, int);

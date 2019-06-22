@@ -39,6 +39,7 @@ Measure::Measure(char *input_dir)
     dump_potential = 0;
     dump_virial = 0;
     dump_heat = 0;
+    dump_pos = NULL; // to avoid deleting random memory in run
     strcpy(file_thermo, input_dir);
     strcpy(file_restart, input_dir);
     strcpy(file_velocity, input_dir);
@@ -76,7 +77,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     shc.preprocess(atom);
     compute.preprocess(input_dir, atom);
     hnemd.preprocess(atom);
-    dump_pos.initialize(input_dir);
+    dump_pos->initialize(input_dir);
 
 }
 
@@ -96,7 +97,8 @@ void Measure::finalize
     shc.postprocess();
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);
-    dump_pos.finalize();
+    dump_pos->finalize();
+
 }
 
 
@@ -259,7 +261,7 @@ void Measure::process
     hac.process(step, input_dir, atom);
     shc.process(step, input_dir, atom);
     hnemd.process(step, input_dir, atom, integrate);
-    dump_pos.dump(atom, step);
+    dump_pos->dump(atom, step);
 }
 
 

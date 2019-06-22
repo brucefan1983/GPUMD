@@ -13,11 +13,17 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Parent class for position dumping
+------------------------------------------------------------------------------*/
+
 #pragma once
 #ifndef DUMP_POS_H
 #define DUMP_POS_H
 
 #include "common.cuh"
+#include "error.cuh"
+#include "atom.cuh"
 
 #define FILE_NAME_LENGTH      200
 
@@ -26,17 +32,14 @@ class DUMP_POS
 public:
 	int output_pos; // 0 = No output (default), 1 = Output
 	int interval;  // output interval
-	int format; // 0 = xyz (GPUMD default), 1 = netcdf
-	int precision; // 0 = normal precision, 1 = high precision
-	char precision_str[13] = "%d %g %g %g\n";
-	FILE *fid_position;
-    char file_position[FILE_NAME_LENGTH];
-	void initialize(char*);
-	void finalize(void);
-	void dump(Atom *atom, int step);
 
-private:
-	void dump_xyz(Atom *atom, int step);
+    char file_position[FILE_NAME_LENGTH];
+	virtual void initialize(char*) = 0;
+	virtual void finalize() = 0;
+	virtual void dump(Atom *atom, int step) = 0;
+
+	DUMP_POS(){}
+	virtual ~DUMP_POS(){}
 };
 
 
