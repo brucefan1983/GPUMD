@@ -505,7 +505,7 @@ void parse_dump_position(char **param,  int num_param, Measure *measure,
 
     if (format == 1) // netcdf output
     {
-    	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N);
+    	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N, atom->global_time);
     	measure->dump_pos = dump_netcdf;
     }
     else // xyz default output

@@ -42,9 +42,13 @@ const char CELL_LENGTHS_STR[] = "cell_lengths";
 const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 
-DUMP_NETCDF::DUMP_NETCDF(int N)
+DUMP_NETCDF::DUMP_NETCDF(int N, int global_time)
 {
     this->N = N;
+    if (global_time > 0)
+    {
+        append = true;
+    }
 }
 
 void DUMP_NETCDF::initialize(char *input_dir)
@@ -53,16 +57,17 @@ void DUMP_NETCDF::initialize(char *input_dir)
     strcat(file_position, "/movie.nc");
 
     // find appropriate file name
-    //TODO  Append if same simulation, new file otherwise
+    // Append if same simulation, new file otherwise
     bool done = false;
     char filename[20];
     int filenum = 1;
     while (!done)
     {
-        filenum++;
+
         if (access(file_position, F_OK) != -1)
         {
             strcpy(file_position, input_dir);
+            filenum++;
             sprintf(filename, "/movie_%d.nc", filenum);
             strcat(file_position, filename);
         }
@@ -72,6 +77,19 @@ void DUMP_NETCDF::initialize(char *input_dir)
         }
     }
 
+    if (append)
+    {
+        if (filenum == 2) return;
+        else
+        {
+            strcpy(file_position, input_dir);
+            sprintf(filename, "/movie_%d.nc", filenum-1);
+            strcat(file_position, filename);
+            return; // creation of file & other info not needed
+        }
+
+    }
+
     // create file (automatically placed in 'define' mode)
     NC_CHECK(nc_create(file_position, NC_64BIT_OFFSET, &ncid));
 
@@ -79,7 +97,7 @@ void DUMP_NETCDF::initialize(char *input_dir)
     NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "program", 5, "GPUMD"));
     NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "programVersion",
             strlen(GPUMD_VERSION), GPUMD_VERSION));
-    NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 5, "Amber"));
+    NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "Conventions", 5, "AMBER"));
     NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "ConventionVersion", 3, "1.0"));
 
     // dimensions
@@ -119,8 +137,8 @@ void DUMP_NETCDF::initialize(char *input_dir)
 
     // Units
     NC_CHECK(nc_put_att_text(ncid, time_var, UNITS_STR, 10, "picosecond"));
-    NC_CHECK(nc_put_att_text(ncid, cell_lengths_var, UNITS_STR, 8, "Angstrom"));
-    NC_CHECK(nc_put_att_text(ncid, coordinates_var, UNITS_STR, 8, "Angstrom"));
+    NC_CHECK(nc_put_att_text(ncid, cell_lengths_var, UNITS_STR, 8, "angstrom"));
+    NC_CHECK(nc_put_att_text(ncid, coordinates_var, UNITS_STR, 8, "angstrom"));
     NC_CHECK(nc_put_att_text(ncid, cell_angles_var, UNITS_STR, 6, "degree"));
 
     // Definitions are complete -> leave define mode
@@ -145,34 +163,40 @@ void DUMP_NETCDF::initialize(char *input_dir)
     NC_CHECK(nc_close(ncid));
 }
 
-void DUMP_NETCDF::open_file()
+void DUMP_NETCDF::open_file(int frame_in_run)
 {
     if (access(file_position, F_OK) != -1)
     {
         NC_CHECK(nc_open(file_position, NC_WRITE, &ncid));
     }
 
-    // TODO test is necessary (definitely the safe option)
-    // get all dimension ids
-    NC_CHECK(nc_inq_dimid(ncid, FRAME_STR, &frame_dim));
-    NC_CHECK(nc_inq_dimid(ncid, SPATIAL_STR, &spatial_dim));
-    NC_CHECK(nc_inq_dimid(ncid, ATOM_STR, &atom_dim));
-    NC_CHECK(nc_inq_dimid(ncid, CELL_SPATIAL_STR, &cell_spatial_dim));
-    NC_CHECK(nc_inq_dimid(ncid, CELL_ANGULAR_STR, &cell_angular_dim));
-    NC_CHECK(nc_inq_dimid(ncid, LABEL_STR, &label_dim));
+    /*
+     * If another dump in simulation, must reload IDs from object.
+     * Don't reload IDs more than once.
+     */
+    if (append && frame_in_run > 1)
+    {
+        // get all dimension ids
+        NC_CHECK(nc_inq_dimid(ncid, FRAME_STR, &frame_dim));
+        NC_CHECK(nc_inq_dimid(ncid, SPATIAL_STR, &spatial_dim));
+        NC_CHECK(nc_inq_dimid(ncid, ATOM_STR, &atom_dim));
+        NC_CHECK(nc_inq_dimid(ncid, CELL_SPATIAL_STR, &cell_spatial_dim));
+        NC_CHECK(nc_inq_dimid(ncid, CELL_ANGULAR_STR, &cell_angular_dim));
+        NC_CHECK(nc_inq_dimid(ncid, LABEL_STR, &label_dim));
 
-    // Label Variables
-    NC_CHECK(nc_inq_varid(ncid, SPATIAL_STR, &spatial_var));
-    NC_CHECK(nc_inq_varid(ncid, CELL_SPATIAL_STR, &cell_spatial_var));
-    NC_CHECK(nc_inq_varid(ncid, CELL_ANGULAR_STR, &cell_angular_var));
+        // Label Variables
+        NC_CHECK(nc_inq_varid(ncid, SPATIAL_STR, &spatial_var));
+        NC_CHECK(nc_inq_varid(ncid, CELL_SPATIAL_STR, &cell_spatial_var));
+        NC_CHECK(nc_inq_varid(ncid, CELL_ANGULAR_STR, &cell_angular_var));
 
-    // Data Variables
-    NC_CHECK(nc_inq_varid(ncid, TIME_STR, &time_var));
-    NC_CHECK(nc_inq_varid(ncid, CELL_LENGTHS_STR, &cell_lengths_var));
-    NC_CHECK(nc_inq_varid(ncid, CELL_ANGLES_STR, &cell_angles_var));
+        // Data Variables
+        NC_CHECK(nc_inq_varid(ncid, TIME_STR, &time_var));
+        NC_CHECK(nc_inq_varid(ncid, CELL_LENGTHS_STR, &cell_lengths_var));
+        NC_CHECK(nc_inq_varid(ncid, CELL_ANGLES_STR, &cell_angles_var));
 
-    NC_CHECK(nc_inq_varid(ncid, COORDINATES_STR, &coordinates_var));
-    NC_CHECK(nc_inq_varid(ncid, TYPE_STR, &type_var));
+        NC_CHECK(nc_inq_varid(ncid, COORDINATES_STR, &coordinates_var));
+        NC_CHECK(nc_inq_varid(ncid, TYPE_STR, &type_var));
+    }
 
     // get frame number
     NC_CHECK(nc_inq_dimlen(ncid, frame_dim, &lenp))
@@ -218,17 +242,24 @@ void DUMP_NETCDF::write(Atom *atom)
     }
 
     // Set lengths to 0 if PBC is off
-    if (atom->box.pbc_x) cell_lengths[0] = 0;
-    if (atom->box.pbc_y) cell_lengths[1] = 0;
-    if (atom->box.pbc_z) cell_lengths[2] = 0;
+    if (!atom->box.pbc_x) cell_lengths[0] = 0;
+    if (!atom->box.pbc_y) cell_lengths[1] = 0;
+    if (!atom->box.pbc_z) cell_lengths[2] = 0;
 
     size_t countp[3] = {1, 3, 0}; //3rd dimension unused until per-atom
     size_t startp[3] = {lenp, 0, 0};
-    NC_CHECK(nc_put_var1_double(ncid, time_var, startp, &(atom->global_time)));
+    real time = atom->global_time/1000.0; // convert fs to ps
+    NC_CHECK(nc_put_var1_double(ncid, time_var, startp, &time));
     NC_CHECK(nc_put_vara_double(ncid, cell_lengths_var, startp, countp, cell_lengths));
     NC_CHECK(nc_put_vara_double(ncid, cell_angles_var, startp, countp, cell_angles));
 
     //// Write Per-Atom Data ////
+
+    int memory = sizeof(real) * atom->N;
+    CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
+
     countp[0] = 1;
     countp[1] = N;
     countp[2] = 1;
@@ -248,8 +279,9 @@ void DUMP_NETCDF::finalize()
 
 void DUMP_NETCDF::dump(Atom *atom, int step)
 {
-    if ((step + 1) % interval != 0) return;
-    open_file();
+    int frame_in_run = (step + 1) % interval;
+    if (frame_in_run != 0) return;
+    open_file(frame_in_run);
     write(atom);
     NC_CHECK(nc_close(ncid));
 }

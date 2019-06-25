@@ -30,12 +30,13 @@ public:
     void finalize();
     void dump(Atom *atom, int step);
 
-    DUMP_NETCDF(int N);
+    DUMP_NETCDF(int N, int global_time);
     ~DUMP_NETCDF(){}
 
 private:
     int ncid; // NetCDF ID
     int N; // number of atoms
+    bool append = false;
 
     // dimensions
     int frame_dim;
@@ -59,7 +60,7 @@ private:
 
     size_t lenp; // frame number
 
-    void open_file();
+    void open_file(int frame_in_run);
     void write(Atom *atom);
 
 };
