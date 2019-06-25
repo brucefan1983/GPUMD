@@ -431,7 +431,8 @@ void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 }
 
 
-void parse_dump_position(char **param,  int num_param, Measure *measure)
+void parse_dump_position(char **param,  int num_param, Measure *measure,
+		Atom *atom)
 {
 	int interval;
 	int format = 0; // default xyz
@@ -504,15 +505,14 @@ void parse_dump_position(char **param,  int num_param, Measure *measure)
 
     if (format == 1) // netcdf output
     {
-    	measure->dump_pos = new DUMP_NETCDF();
+    	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N);
+    	measure->dump_pos = dump_netcdf;
     }
     else // xyz default output
     {
     	DUMP_XYZ *dump_xyz = new DUMP_XYZ(precision);
     	measure->dump_pos = dump_xyz;
-//    	measure->dump_pos->precision = precision;
     }
-    measure->dump_pos->output_pos = 1;
     measure->dump_pos->interval = interval;
 
 

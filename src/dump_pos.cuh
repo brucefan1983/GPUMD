@@ -30,16 +30,14 @@ Parent class for position dumping
 class DUMP_POS
 {
 public:
-	int output_pos; // 0 = No output (default), 1 = Output
-	int interval;  // output interval
-
+    int interval;  // output interval
     char file_position[FILE_NAME_LENGTH];
-	virtual void initialize(char*) = 0;
-	virtual void finalize() = 0;
-	virtual void dump(Atom *atom, int step) = 0;
+    virtual void initialize(char*) = 0;
+    virtual void finalize() = 0;
+    virtual void dump(Atom *atom, int step) = 0;
 
-	DUMP_POS(){}
-	virtual ~DUMP_POS(){}
+    DUMP_POS(){}
+    virtual ~DUMP_POS(){}
 };
 
 

@@ -173,6 +173,7 @@ static void process_run
     for (int step = 0; step < atom->number_of_steps; ++step)
     {
         atom->step = step;
+        atom->global_time += atom->time_step;
         if (atom->neighbor.update) { atom->find_neighbor(0); }
         update_temperature(atom, integrate, step);
         integrate->compute(atom, force, measure);
@@ -323,7 +324,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "dump_position")  == 0)
     {
-        parse_dump_position(param, num_param, measure);
+        parse_dump_position(param, num_param, measure, atom);
     }
     else if (strcmp(param[0], "dump_restart")  == 0)
     {

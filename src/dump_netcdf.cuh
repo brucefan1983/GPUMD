@@ -19,20 +19,48 @@
 #ifndef DUMP_NETCDF_H
 #define DUMP_NETCDF_H
 
+#include "common.cuh"
 #include "dump_pos.cuh"
 #include "netcdf.h"
-
 
 class DUMP_NETCDF: public DUMP_POS
 {
 public:
-	int ncid;
+    void initialize(char*);
+    void finalize();
+    void dump(Atom *atom, int step);
 
-	void initialize(char*);
-	void finalize();
-	void dump(Atom *atom, int step);
+    DUMP_NETCDF(int N);
+    ~DUMP_NETCDF(){}
 
-	~DUMP_NETCDF(){}
+private:
+    int ncid; // NetCDF ID
+    int N; // number of atoms
+
+    // dimensions
+    int frame_dim;
+    int spatial_dim;
+    int atom_dim;
+    int cell_spatial_dim;
+    int cell_angular_dim;
+    int label_dim;
+
+    // label variables
+    int spatial_var;
+    int cell_spatial_var;
+    int cell_angular_var;
+
+    // data variables
+    int time_var;
+    int cell_lengths_var;
+    int cell_angles_var;
+    int coordinates_var;
+    int type_var;
+
+    size_t lenp; // frame number
+
+    void open_file();
+    void write(Atom *atom);
 
 };
 

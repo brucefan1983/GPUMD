@@ -71,14 +71,13 @@ void Measure::initialize(char* input_dir, Atom *atom)
     if (dump_potential) {fid_potential= my_fopen(file_potential,"a");}
     if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
     if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
+    if (dump_pos)       {dump_pos->initialize(input_dir);}
     vac.preprocess(atom);
     dos.preprocess(atom, &vac);
     hac.preprocess(atom);
     shc.preprocess(atom);
     compute.preprocess(input_dir, atom);
     hnemd.preprocess(atom);
-    dump_pos->initialize(input_dir);
-
 }
 
 
@@ -92,13 +91,12 @@ void Measure::finalize
     if (dump_potential) {fclose(fid_potential); dump_potential = 0;}
     if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
     if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
+    if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom, &dos, &sdc);
     hac.postprocess(input_dir, atom, integrate);
     shc.postprocess();
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);
-    dump_pos->finalize();
-
 }
 
 
