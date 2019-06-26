@@ -13,7 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-//#ifdef USE_NETCDF
+#ifdef USE_NETCDF
 
 #pragma once
 #ifndef DUMP_NETCDF_H
@@ -67,4 +67,4 @@ private:
 
 #endif //DUMP_NETCDF
 
-//#endif
+#endif

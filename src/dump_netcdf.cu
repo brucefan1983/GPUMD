@@ -15,10 +15,20 @@
 
 
 /*----------------------------------------------------------------------------80
-Dump atom positions in netcdf compatible format.
+Dump atom positions using AMBER conventions for NetCDF files. Additional
+readers, such as VMD, OVITO, and ASE, can read/visualize the outputs.
+
+Contributing author: Alexander Gabourie (Stanford University)
+
+Code was written for NetCDF version 4.6.3 and the style was influenced by
+LAMMPS' implementation by Lars Pastewka (University of Freiburg). The netCDF
+documentation used can be found here:
+https://www.unidata.ucar.edu/software/netcdf/docs/index.html
+and the AMBER conventions followed are here:
+http://ambermd.org/netcdf/nctraj.xhtml
 ------------------------------------------------------------------------------*/
 
-//#ifdef USE_NETCDF
+#ifdef USE_NETCDF
 
 #include <unistd.h>
 #include "dump_netcdf.cuh"
@@ -89,9 +99,8 @@ void DUMP_NETCDF::initialize(char *input_dir)
             strcpy(file_position, input_dir);
             sprintf(filename, "movie_%d.nc", filenum-1);
             strcat(file_position, filename);
-            return; // creation of file & other info not needed
         }
-
+        return; // creation of file & other info not needed
     }
 
     // create file (automatically placed in 'define' mode)
@@ -335,4 +344,4 @@ void DUMP_NETCDF::dump(Atom *atom, int step)
     NC_CHECK(nc_close(ncid));
 }
 
-//#endif
+#endif

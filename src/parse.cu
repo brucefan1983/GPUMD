@@ -507,9 +507,13 @@ void parse_dump_position(char **param,  int num_param, Measure *measure,
 
     if (format == 1) // netcdf output
     {
+#ifdef USE_NETCDF
     	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N, atom->global_time);
     	measure->dump_pos = dump_netcdf;
     	if (!precision) precision = 2; // double precision default
+#else
+    	print_error("USE_NETCDF flag is not set. NetCDF output not available.\n");
+#endif
     }
     else // xyz default output
     {

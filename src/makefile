@@ -1,9 +1,9 @@
 CC = nvcc
-CFLAGS = -std=c++11 -g -G -arch=sm_75 -DDEBUG -DUSE_NETCDF
+CFLAGS = -std=c++11 -g -G -arch=sm_75 -DDEBUG
 
-INC = -I/home/alex/netcdf/include
-LDFLAGS = -L/home/alex/netcdf/lib
-LIBS = -l:libnetcdf.a
+INC =
+LDFLAGS = 
+LIBS = 
 
 SOURCES = main.cu gpumd.cu parse.cu read_file.cu run.cu error.cu validate.cu \
 	atom.cu velocity.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
