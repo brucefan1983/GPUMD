@@ -64,12 +64,12 @@ DUMP_NETCDF::DUMP_NETCDF(int N, real global_time)
 void DUMP_NETCDF::initialize(char *input_dir)
 {
     strcpy(file_position, input_dir);
-    strcat(file_position, "movie.nc");
+    strcat(file_position, "/movie.nc");
 
     // find appropriate file name
     // Append if same simulation, new file otherwise
     bool done = false;
-    char filename[20];
+    char filename[FILE_NAME_LENGTH];
     int filenum = 1;
     while (!done)
     {
@@ -78,7 +78,7 @@ void DUMP_NETCDF::initialize(char *input_dir)
         {
             strcpy(file_position, input_dir);
             filenum++;
-            sprintf(filename, "movie_%d.nc", filenum);
+            sprintf(filename, "/movie_%d.nc", filenum);
             strcat(file_position, filename);
         }
         else
@@ -92,12 +92,12 @@ void DUMP_NETCDF::initialize(char *input_dir)
         if (filenum == 2)
         {
             strcpy(file_position, input_dir);
-            strcat(file_position, "movie.nc");
+            strcat(file_position, "/movie.nc");
         }
         else
         {
             strcpy(file_position, input_dir);
-            sprintf(filename, "movie_%d.nc", filenum-1);
+            sprintf(filename, "/movie_%d.nc", filenum-1);
             strcat(file_position, filename);
         }
         return; // creation of file & other info not needed

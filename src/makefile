@@ -1,5 +1,5 @@
 CC = nvcc
-CFLAGS = -std=c++11 -g -G -arch=sm_75 -DDEBUG
+CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
 
 INC =
 LDFLAGS = 
