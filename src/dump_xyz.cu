@@ -19,9 +19,9 @@ Dump atom positions in XYZ compatible format.
 
 #include "dump_xyz.cuh"
 
-DUMP_XYZ::DUMP_XYZ(int precision)
+DUMP_XYZ::DUMP_XYZ()
 {
-    this->precision = precision;
+
 }
 
 void DUMP_XYZ::initialize(char *input_dir)
@@ -32,8 +32,10 @@ void DUMP_XYZ::initialize(char *input_dir)
 
     if (precision == 0)
         strcpy(precision_str, "%d %g %g %g\n");
-    else if (precision == 1) // higher precision
-        strcpy(precision_str, "%d %.15f %.15f %.15f\n");
+    else if (precision == 1) // single
+        strcpy(precision_str, "%d %0.9g %0.9g %0.9g\n");
+    else if (precision == 2) // double precision
+        strcpy(precision_str, "%d %.17f %.17f %.17f\n");
 }
 
 

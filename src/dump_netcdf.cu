@@ -42,7 +42,7 @@ const char CELL_LENGTHS_STR[] = "cell_lengths";
 const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 
-DUMP_NETCDF::DUMP_NETCDF(int N, int global_time)
+DUMP_NETCDF::DUMP_NETCDF(int N, real global_time)
 {
     this->N = N;
     if (global_time > 0)
@@ -54,7 +54,7 @@ DUMP_NETCDF::DUMP_NETCDF(int N, int global_time)
 void DUMP_NETCDF::initialize(char *input_dir)
 {
     strcpy(file_position, input_dir);
-    strcat(file_position, "/movie.nc");
+    strcat(file_position, "movie.nc");
 
     // find appropriate file name
     // Append if same simulation, new file otherwise
@@ -68,7 +68,7 @@ void DUMP_NETCDF::initialize(char *input_dir)
         {
             strcpy(file_position, input_dir);
             filenum++;
-            sprintf(filename, "/movie_%d.nc", filenum);
+            sprintf(filename, "movie_%d.nc", filenum);
             strcat(file_position, filename);
         }
         else
@@ -79,11 +79,15 @@ void DUMP_NETCDF::initialize(char *input_dir)
 
     if (append)
     {
-        if (filenum == 2) return;
+        if (filenum == 2)
+        {
+            strcpy(file_position, input_dir);
+            strcat(file_position, "movie.nc");
+        }
         else
         {
             strcpy(file_position, input_dir);
-            sprintf(filename, "/movie_%d.nc", filenum-1);
+            sprintf(filename, "movie_%d.nc", filenum-1);
             strcat(file_position, filename);
             return; // creation of file & other info not needed
         }
@@ -131,8 +135,14 @@ void DUMP_NETCDF::initialize(char *input_dir)
     dimids[1] = atom_dim;
     dimids[2] = spatial_dim;
 
-    // TODO implement option to choose precision
-    NC_CHECK(nc_def_var(ncid, COORDINATES_STR, NC_DOUBLE, 3, dimids, &coordinates_var));
+    if (precision == 1) // single precision
+    {
+        NC_CHECK(nc_def_var(ncid, COORDINATES_STR, NC_FLOAT, 3, dimids, &coordinates_var));
+    }
+    else
+    {
+        NC_CHECK(nc_def_var(ncid, COORDINATES_STR, NC_DOUBLE, 3, dimids, &coordinates_var));
+    }
     NC_CHECK(nc_def_var(ncid, TYPE_STR, NC_INT, 2, dimids, &type_var));
 
     // Units
@@ -174,7 +184,7 @@ void DUMP_NETCDF::open_file(int frame_in_run)
      * If another dump in simulation, must reload IDs from object.
      * Don't reload IDs more than once.
      */
-    if (append && frame_in_run > 1)
+    if (append && frame_in_run == 1)
     {
         // get all dimension ids
         NC_CHECK(nc_inq_dimid(ncid, FRAME_STR, &frame_dim));
@@ -196,6 +206,20 @@ void DUMP_NETCDF::open_file(int frame_in_run)
 
         NC_CHECK(nc_inq_varid(ncid, COORDINATES_STR, &coordinates_var));
         NC_CHECK(nc_inq_varid(ncid, TYPE_STR, &type_var));
+
+        // check data type -> must use precision of last run
+        nc_type typep;
+        int prev_precision = 0;
+        NC_CHECK(nc_inq_vartype(ncid, coordinates_var, &typep));
+        if (typep == NC_FLOAT) prev_precision = 1;
+        else if (typep == NC_DOUBLE) prev_precision = 2;
+
+        if (prev_precision != precision)
+        {
+            printf("Warning: GPUMD currently does not support changing netCDF\n"
+                   "         file precision after an initial definition.\n");
+            precision = prev_precision;
+        }
     }
 
     // get frame number
@@ -255,21 +279,46 @@ void DUMP_NETCDF::write(Atom *atom)
 
     //// Write Per-Atom Data ////
 
-    int memory = sizeof(real) * atom->N;
+    int memory = sizeof(real) * N;
     CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
 
-    countp[0] = 1;
-    countp[1] = N;
-    countp[2] = 1;
-    NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type));
-    NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_x));
-    startp[2] = 1;
-    NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_y));
-    startp[2] = 2;
-    NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_z));
+    if (precision == 1) // single precision
+    {
+        // must convert data
+        float cpu_x[N];
+        float cpu_y[N];
+        float cpu_z[N];
+        for (int i = 0; i < N; i++)
+        {
+            cpu_x[i] = (float) atom->cpu_x[i];
+            cpu_y[i] = (float) atom->cpu_y[i];
+            cpu_z[i] = (float) atom->cpu_z[i];
+        }
 
+        countp[0] = 1;
+        countp[1] = N;
+        countp[2] = 1;
+        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type));
+        NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_x));
+        startp[2] = 1;
+        NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_y));
+        startp[2] = 2;
+        NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_z));
+    }
+    else
+    {
+        countp[0] = 1;
+        countp[1] = N;
+        countp[2] = 1;
+        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_x));
+        startp[2] = 1;
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_y));
+        startp[2] = 2;
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_z));
+    }
 }
 
 void DUMP_NETCDF::finalize()
@@ -279,8 +328,8 @@ void DUMP_NETCDF::finalize()
 
 void DUMP_NETCDF::dump(Atom *atom, int step)
 {
-    int frame_in_run = (step + 1) % interval;
-    if (frame_in_run != 0) return;
+    int frame_in_run = (step + 1) / interval;
+    if ((step + 1) % interval != 0) return;
     open_file(frame_in_run);
     write(atom);
     NC_CHECK(nc_close(ncid));

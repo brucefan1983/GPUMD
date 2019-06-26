@@ -435,9 +435,6 @@ void parse_dump_position(char **param,  int num_param, Measure *measure,
 		Atom *atom)
 {
 	int interval;
-	int format = 0; // default xyz
-	int precision = 0; // default normal (unlesss netCDF -> 64 bit)
-	int precision_defined = 0;
 
     if (num_param < 2)
     {
@@ -454,6 +451,8 @@ void parse_dump_position(char **param,  int num_param, Measure *measure,
         print_error("position dump interval should be an integer number.\n");
     }
 
+    int format = 0; // default xyz
+    int precision = 0; // default normal (unlesss netCDF -> 64 bit)
     // Process optional arguments
     for (int k = 2; k < num_param; k++)
     {
@@ -486,18 +485,21 @@ void parse_dump_position(char **param,  int num_param, Measure *measure,
 				print_error("Not enough arguments for optional "
 						" 'precision' dump_position command.\n");
 			}
-    		if ((strcmp(param[k+1], "normal") != 0) &&
-				(strcmp(param[k+1], "high") != 0))
+    		if ((strcmp(param[k+1], "single") != 0) &&
+				(strcmp(param[k+1], "double") != 0))
 			{
 				print_error("Invalid precision for dump_position command.\n");
 			}
 			else
 			{
-				precision_defined = 1;
-				if(strcmp(param[k+1], "high") == 0)
+				if(strcmp(param[k+1], "single") == 0)
 				{
 					precision = 1;
 				}
+				else if(strcmp(param[k+1], "double") == 0)
+                {
+                    precision = 2;
+                }
 				k++;
 			}
     	}
@@ -507,17 +509,22 @@ void parse_dump_position(char **param,  int num_param, Measure *measure,
     {
     	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N, atom->global_time);
     	measure->dump_pos = dump_netcdf;
+    	if (!precision) precision = 2; // double precision default
     }
     else // xyz default output
     {
-    	DUMP_XYZ *dump_xyz = new DUMP_XYZ(precision);
+    	DUMP_XYZ *dump_xyz = new DUMP_XYZ();
     	measure->dump_pos = dump_xyz;
     }
     measure->dump_pos->interval = interval;
+    measure->dump_pos->precision = precision;
 
 
-    if (precision_defined && format)
-    	printf("Note: netCDF output files only output double precision.\n");
+    if (precision == 1 && format)
+    {
+    	printf("Note: Single precision netCDF output does not follow AMBER conventions.\n"
+    	       "      However, it will still work for many readers.\n");
+    }
 
     printf("Dump position every %d steps.\n",
         measure->dump_pos->interval);

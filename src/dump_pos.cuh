@@ -32,6 +32,7 @@ class DUMP_POS
 public:
     int interval;  // output interval
     char file_position[FILE_NAME_LENGTH];
+    int precision; // 0 = normal output, 1 = single precision, 2 = double
     virtual void initialize(char*) = 0;
     virtual void finalize() = 0;
     virtual void dump(Atom *atom, int step) = 0;

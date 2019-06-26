@@ -24,12 +24,11 @@ class DUMP_XYZ: public DUMP_POS
 public:
     char precision_str[25];
     FILE *fid_position;
-    int precision; // 0 = normal precision, 1 = high precision
     void initialize(char*);
     void finalize();
     void dump(Atom *atom, int step);
 
-    DUMP_XYZ(int precision);
+    DUMP_XYZ();
     ~DUMP_XYZ(){};
 };
 
