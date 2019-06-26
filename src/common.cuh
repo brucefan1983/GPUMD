@@ -24,7 +24,7 @@
 
 #define LDG(a, n) __ldg(a + n)
 
-
+#define GPUMD_VERSION "2.5"
 // See section 3.1 in the manual for the unit conventions
 typedef double real;
 #define ZERO  0.0

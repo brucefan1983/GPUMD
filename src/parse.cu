@@ -28,7 +28,11 @@ Parse the commands in run.in.
 #include "measure.cuh"
 #include "hessian.cuh"
 #include "read_file.cuh"
+#include "dump_xyz.cuh"
 
+#ifdef USE_NETCDF
+#include "dump_netcdf.cuh"
+#endif
 
 // a single potential
 void parse_potential(char **param, int num_param, Force *force)
@@ -427,19 +431,107 @@ void parse_dump_thermo(char **param,  int num_param, Measure *measure)
 }
 
 
-void parse_dump_position(char **param,  int num_param, Measure *measure)
+void parse_dump_position(char **param,  int num_param, Measure *measure,
+		Atom *atom)
 {
-    if (num_param != 2)
+	int interval;
+
+    if (num_param < 2)
     {
-        print_error("dump_position should have 1 parameter.\n");
+        print_error("dump_position should have at least 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &measure->sample_interval_position))
+    if (num_param > 6)
+    {
+    	print_error("dump_position has too many parameters.\n");
+    }
+
+    // sample interval
+    if (!is_valid_int(param[1], &interval))
     {
         print_error("position dump interval should be an integer number.\n");
     }
-    measure->dump_position = 1;
+
+    int format = 0; // default xyz
+    int precision = 0; // default normal (unlesss netCDF -> 64 bit)
+    // Process optional arguments
+    for (int k = 2; k < num_param; k++)
+    {
+    	// format check
+    	if (strcmp(param[k], "format") == 0)
+    	{
+    		// check if there are enough inputs
+    		if (k + 2 > num_param)
+    		{
+    			print_error("Not enough arguments for optional "
+    					" 'format' dump_position command.\n");
+    		}
+    		if ((strcmp(param[k+1], "xyz") != 0) &&
+				(strcmp(param[k+1], "netcdf") != 0))
+    		{
+    			print_error("Invalid format for dump_position command.\n");
+    		}
+    		else if(strcmp(param[k+1], "netcdf") == 0)
+    		{
+    			format = 1;
+    			k++;
+    		}
+    	}
+    	// precision check
+    	else if(strcmp(param[k], "precision") == 0)
+    	{
+    		// check for enough inputs
+    		if (k + 2 > num_param)
+			{
+				print_error("Not enough arguments for optional "
+						" 'precision' dump_position command.\n");
+			}
+    		if ((strcmp(param[k+1], "single") != 0) &&
+				(strcmp(param[k+1], "double") != 0))
+			{
+				print_error("Invalid precision for dump_position command.\n");
+			}
+			else
+			{
+				if(strcmp(param[k+1], "single") == 0)
+				{
+					precision = 1;
+				}
+				else if(strcmp(param[k+1], "double") == 0)
+                {
+                    precision = 2;
+                }
+				k++;
+			}
+    	}
+    }
+
+    if (format == 1) // netcdf output
+    {
+#ifdef USE_NETCDF
+    	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N, atom->global_time);
+    	measure->dump_pos = dump_netcdf;
+    	if (!precision) precision = 2; // double precision default
+#else
+    	print_error("USE_NETCDF flag is not set. NetCDF output not available.\n");
+#endif
+    }
+    else // xyz default output
+    {
+    	DUMP_XYZ *dump_xyz = new DUMP_XYZ();
+    	measure->dump_pos = dump_xyz;
+    }
+    measure->dump_pos->interval = interval;
+    measure->dump_pos->precision = precision;
+
+
+    if (precision == 1 && format)
+    {
+    	printf("Note: Single precision netCDF output does not follow AMBER conventions.\n"
+    	       "      However, it will still work for many readers.\n");
+    }
+
     printf("Dump position every %d steps.\n",
-        measure->sample_interval_position);
+        measure->dump_pos->interval);
 }
 
 
