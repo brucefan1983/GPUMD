@@ -13,29 +13,33 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+Parent class for position dumping
+------------------------------------------------------------------------------*/
 
 #pragma once
+#ifndef DUMP_POS_H
+#define DUMP_POS_H
 
 #include "common.cuh"
+#include "error.cuh"
+#include "atom.cuh"
 
+#define FILE_NAME_LENGTH      200
 
-class Box
+class DUMP_POS
 {
 public:
-    int pbc_x = 1;       // pbc_x = 1 means periodic in the x-direction
-    int pbc_y = 1;       // pbc_y = 1 means periodic in the y-direction
-    int pbc_z = 1;       // pbc_z = 1 means periodic in the z-direction
-    int triclinic = 0;   // triclinic = 1 means the box is non-orthogonal
-    int memory = 0;      // memory for box matrix
-    real* h;             // GPU box data
-    real* cpu_h;         // CPU box data
-    real get_volume(void);   // get the volume of the box
-    void get_inverse(void);  // get the inverse box matrix
-    void update_cpu_h(void); // copy the box from the GPU to the CPU
-    void allocate_memory_gpu(void);
-    void free_memory_cpu(void);
-    void free_memory_gpu(void);
-    void copy_from_cpu_to_gpu(void);
+    int interval;  // output interval
+    char file_position[FILE_NAME_LENGTH];
+    int precision; // 0 = normal output, 1 = single precision, 2 = double
+    virtual void initialize(char*) = 0;
+    virtual void finalize() = 0;
+    virtual void dump(Atom *atom, int step) = 0;
+
+    DUMP_POS(){}
+    virtual ~DUMP_POS(){}
 };
 
 
+#endif //DUMP_POS

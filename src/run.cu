@@ -72,13 +72,24 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->hac.compute    = 0;
     measure->hnemd.compute  = 0;
     measure->dump_thermo    = 0;
-    measure->dump_position  = 0;
     measure->dump_restart   = 0;
     measure->dump_velocity  = 0;
     measure->dump_force     = 0;
     measure->dump_potential = 0;
     measure->dump_virial    = 0;
     measure->dump_heat      = 0;
+
+    /*
+     * Delete dump_pos if it exists. Ensure that dump_pos is NULL in case
+     * it isn't set in parse. If we don't set to NULL, then we may end up
+     * deleting some random address, corrupting memory.
+     */
+    if (measure->dump_pos)
+    {
+    	delete measure->dump_pos;
+    }
+    measure->dump_pos = NULL;
+
 }
 
 
@@ -162,6 +173,7 @@ static void process_run
     for (int step = 0; step < atom->number_of_steps; ++step)
     {
         atom->step = step;
+        atom->global_time += atom->time_step;
         if (atom->neighbor.update) { atom->find_neighbor(0); }
         update_temperature(atom, integrate, step);
         integrate->compute(atom, force, measure);
@@ -312,7 +324,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "dump_position")  == 0)
     {
-        parse_dump_position(param, num_param, measure);
+        parse_dump_position(param, num_param, measure, atom);
     }
     else if (strcmp(param[0], "dump_restart")  == 0)
     {

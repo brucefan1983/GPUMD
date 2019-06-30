@@ -21,6 +21,7 @@
 #include "sdc.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
+#include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
 
@@ -36,7 +37,6 @@ public:
     void finalize(char*, Atom*, Integrate*);
     void process(char*, Atom*, Integrate*, int);
     int dump_thermo; 
-    int dump_position;
     int dump_restart;
     int dump_velocity;
     int dump_force;
@@ -44,7 +44,6 @@ public:
     int dump_virial;
     int dump_heat;
     int sample_interval_thermo;
-    int sample_interval_position;
     int sample_interval_restart;
     int sample_interval_velocity;
     int sample_interval_force;
@@ -52,7 +51,6 @@ public:
     int sample_interval_virial;
     int sample_interval_heat;
     FILE *fid_thermo;
-    FILE *fid_position;
     FILE *fid_restart;
     FILE *fid_velocity;
     FILE *fid_force;
@@ -60,7 +58,6 @@ public:
     FILE *fid_virial;
     FILE *fid_heat;
     char file_thermo[FILE_NAME_LENGTH];   
-    char file_position[FILE_NAME_LENGTH];
     char file_restart[FILE_NAME_LENGTH];
     char file_velocity[FILE_NAME_LENGTH];
     char file_force[FILE_NAME_LENGTH];
@@ -74,9 +71,9 @@ public:
     SHC shc;
     HNEMD hnemd;
     Compute compute;
+    DUMP_POS* dump_pos;
 protected:
     void dump_thermos(FILE*, Atom*, int);
-    void dump_positions(FILE*, Atom*, int);
     void dump_restarts(Atom*, int);
     void dump_velocities(FILE*, Atom*, int);
     void dump_forces(FILE*, Atom*, int);

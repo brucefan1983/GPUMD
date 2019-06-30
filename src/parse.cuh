@@ -25,7 +25,7 @@ void parse_ensemble(char**, int, Atom*, Integrate*);
 void parse_time_step (char**, int, Atom*);
 void parse_neighbor(char**, int, Atom*, Force*);
 void parse_dump_thermo(char**, int, Measure*);
-void parse_dump_position(char**, int, Measure*);
+void parse_dump_position(char**, int, Measure*, Atom*);
 void parse_dump_restart(char**, int, Measure*);
 void parse_dump_velocity(char**, int, Measure*);
 void parse_dump_force(char**, int, Measure*);

@@ -65,6 +65,7 @@ public:
     // make a structure?
     int step;
     int number_of_steps; // number of steps in a specific run
+    real global_time; // run time of entire simulation (fs)
     real initial_temperature; // initial temperature for velocity
     real temperature1;
     real temperature2; 
