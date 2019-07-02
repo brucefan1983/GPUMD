@@ -93,12 +93,10 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
 }
 
 
-void Run::print_velocity_and_potential_error_1(void)
+void Run::print_velocity_and_potential_error(void)
 {
     if (0 == number_of_times_potential)
     { print_error("No 'potential(s)' keyword before run.\n"); }
-    else if (1 < number_of_times_potential)
-    { print_error("Multiple 'potential(s)' keywords before run.\n"); }
     if (0 == number_of_times_velocity)
     { print_error("No 'velocity' keyword before run.\n"); }
     else if (1 < number_of_times_velocity)
@@ -106,10 +104,8 @@ void Run::print_velocity_and_potential_error_1(void)
 }
 
 
-void Run::print_velocity_and_potential_error_2(void)
+void Run::print_velocity_error(void)
 {
-    if (1 < number_of_times_potential)
-    { print_error("Multiple 'potential(s)' keywords.\n"); }
     if (1 < number_of_times_velocity)
     { print_error("Multiple 'velocity' keywords.\n"); }
 }
@@ -240,7 +236,7 @@ void Run::check_run
     if (!is_run) { return; }
     if (check)
     {
-        print_velocity_and_potential_error_1();
+        print_velocity_and_potential_error();
         check_run_parameters(atom, integrate, measure);
     }
     else { process_run(input_dir, atom, force, integrate, measure); }
@@ -278,7 +274,7 @@ void Run::run
         check_velocity(is_velocity, check, atom);
         check_run(input_dir, is_run, check, atom, force, integrate, measure);
     }
-    print_velocity_and_potential_error_2();
+    print_velocity_error();
     print_finish(check);
     MY_FREE(input); // Free the input file contents
 }
@@ -291,16 +287,21 @@ void Run::parse
     int *is_potential,int *is_velocity,int *is_run
 )
 {
-    if (strcmp(param[0], "potential") == 0)
+    if (strcmp(param[0], "potential_definition") == 0)
+    {
+        parse_potential_definition(param, num_param, force);
+    }
+    else if (strcmp(param[0], "potential") == 0)
     {
         *is_potential = 1;
         parse_potential(param, num_param, force);
     }
-    else if (strcmp(param[0], "potentials") == 0)
-    {
-        *is_potential = 1;
-        parse_potentials(param, num_param, force);
-    }
+    // TODO remove when new parser is complete
+//    else if (strcmp(param[0], "potentials") == 0)
+//    {
+//        *is_potential = 1;
+//        parse_potentials(param, num_param, force);
+//    }
     else if (strcmp(param[0], "velocity") == 0)
     {
         *is_velocity = 1;

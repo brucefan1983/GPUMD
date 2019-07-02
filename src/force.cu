@@ -48,6 +48,8 @@ Force::Force(void)
     num_of_potentials = 0;
     interlayer_only = 0;
     rc_max = ZERO;
+    order_by_group = 0;
+    group_method = 0;
 }
 
 
@@ -74,7 +76,7 @@ static void print_type_error(int number_of_types, int number_of_types_expected)
     }
 }
 
-static int get_number_of_types(FILE *fid_potential)
+int Force::get_number_of_types(FILE *fid_potential)
 {
     int num_of_types;
     int count = fscanf(fid_potential, "%d", &num_of_types);

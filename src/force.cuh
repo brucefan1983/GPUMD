@@ -29,9 +29,12 @@ public:
     ~Force(void);
     void initialize(char*, Atom*);
     void compute(Atom*, Measure*);
+    int get_number_of_types(FILE *fid_potential);
 
     int num_of_potentials;
     int interlayer_only;
+    int order_by_group;
+    int group_method;
     real rc_max;
     int type_begin[MAX_NUM_OF_POTENTIALS];
     int type_end[MAX_NUM_OF_POTENTIALS];
