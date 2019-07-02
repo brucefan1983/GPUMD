@@ -47,8 +47,7 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 {
     double rc;
     int count = fscanf(fid_xyz, "%d%d%lf%d%d%d%d\n", &N, &neighbor.MN, &rc,
-        &box.triclinic, &has_velocity_in_xyz, &has_layer_in_xyz,
-        &num_of_grouping_methods);
+        &box.triclinic, &has_velocity_in_xyz, &num_of_grouping_methods);
     if (count != 7) print_error("Reading error for line 1 of xyz.in.\n");
     neighbor.rc = rc;
     if (N < 2)
@@ -79,10 +78,6 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
         printf("Do not specify initial velocities here.\n");
     else
         printf("Specify initial velocities here.\n");
-    if (has_layer_in_xyz == 0)
-        printf("Do not specify layer indices here.\n");
-    else
-        printf("Specify layer indices here.\n");
     if (num_of_grouping_methods == 0)
         printf("Have no grouping method.\n");
     else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 2)
@@ -141,7 +136,6 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 
 void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
-    if (has_layer_in_xyz) { MY_MALLOC(cpu_layer_label, int, N); }
     MY_MALLOC(cpu_type, int, N);
     MY_MALLOC(cpu_type_local, int, N);
     MY_MALLOC(cpu_mass, real, N);
@@ -172,11 +166,6 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
             count = fscanf(fid_xyz, "%lf%lf%lf", &vx, &vy, &vz);
             if (count != 3) { print_error("reading error for xyz.in.\n"); }
             cpu_vx[n] = vx; cpu_vy[n] = vy; cpu_vz[n] = vz;
-        }
-        if (has_layer_in_xyz)
-        {
-            count = fscanf(fid_xyz, "%d", &cpu_layer_label[n]);
-            if (count != 1) { print_error("reading error for xyz.in.\n"); }
         }
         for (int m = 0; m < num_of_grouping_methods; ++m)
         {
@@ -340,7 +329,6 @@ void Atom::copy_from_cpu_to_gpu(void)
 
 void Atom::free_memory_cpu(void)
 {
-    if (has_layer_in_xyz) { MY_FREE(cpu_layer_label); }
     MY_FREE(cpu_type);
     MY_FREE(cpu_type_local);
     for (int m = 0; m < num_of_grouping_methods; ++m)

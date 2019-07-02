@@ -46,7 +46,6 @@ Force::Force(void)
         potential[m] = NULL;
     }
     num_of_potentials = 0;
-    interlayer_only = 0;
     rc_max = ZERO;
     order_by_group = 0;
     group_method = 0;
@@ -61,10 +60,6 @@ Force::~Force(void)
         potential[m] = NULL;
     }
 
-    if (interlayer_only) 
-    {
-        CHECK(cudaFree(layer_label));
-    }
 }
 
 
@@ -267,110 +262,6 @@ void Force::initialize_two_body_potential(Atom* atom)
     fclose(fid_potential);
 }
 
-//void Force::initialize_many_body_potential
-//(Atom* atom, int m)
-//{
-//    FILE *fid_potential = my_fopen(file_potential[m], "r");
-//    char potential_name[20];
-//    int count = fscanf(fid_potential, "%s", potential_name);
-//    if (count != 1)
-//    {
-//        print_error("reading error for potential file.\n");
-//    }
-//
-//    int number_of_types = type_end[m] - type_begin[m] + 1;
-//    // determine the potential
-//    if (strcmp(potential_name, "tersoff_1989_1") == 0)
-//    {
-//        potential[m] = new Tersoff1989(fid_potential, atom, 1);
-//        print_type_error(number_of_types, 1);
-//    }
-//    else if (strcmp(potential_name, "tersoff_1989_2") == 0)
-//    {
-//        potential[m] = new Tersoff1989(fid_potential, atom, 2);
-//        print_type_error(number_of_types, 2);
-//    }
-//    else if (strcmp(potential_name, "tersoff_1988") == 0)
-//    {
-//        int num_of_types = get_number_of_types(fid_potential);
-//        print_type_error(number_of_types, num_of_types);
-//        potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
-//    }
-//    else if (strcmp(potential_name, "tersoff_modc") == 0)
-//    {
-//        int num_of_types = get_number_of_types(fid_potential);
-//        print_type_error(number_of_types, num_of_types);
-//        potential[m] = new Tersoff_modc(fid_potential, atom, num_of_types);
-//    }
-//    else if (strcmp(potential_name, "tersoff_mini") == 0)
-//    {
-//        int num_of_types = get_number_of_types(fid_potential);
-//        print_type_error(number_of_types, num_of_types);
-//        potential[m] = new Tersoff_mini(fid_potential, atom, num_of_types);
-//    }
-//    else if (strcmp(potential_name, "sw_1985") == 0)
-//    {
-//        potential[m] = new SW2(fid_potential, atom, 1);
-//        print_type_error(number_of_types, 1);
-//    }
-//    else if (strcmp(potential_name, "sw_1985_2") == 0)
-//    {
-//        potential[m] = new SW2(fid_potential, atom, 2);
-//        print_type_error(number_of_types, 2);
-//    }
-//    else if (strcmp(potential_name, "sw_1985_3") == 0)
-//    {
-//        potential[m] = new SW2(fid_potential, atom, 3);
-//        print_type_error(number_of_types, 3);
-//    }
-//    else if (strcmp(potential_name, "rebo_mos2") == 0)
-//    {
-//        potential[m] = new REBO_MOS(atom);
-//        print_type_error(number_of_types, 2);
-//    }
-//    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
-//    {
-//        potential[m] = new EAM(fid_potential, atom, potential_name);
-//        print_type_error(number_of_types, 1);
-//    }
-//    else if (strcmp(potential_name, "eam_dai_2006") == 0)
-//    {
-//        potential[m] = new EAM(fid_potential, atom, potential_name);
-//        print_type_error(number_of_types, 1);
-//    }
-//    else if (strcmp(potential_name, "vashishta") == 0)
-//    {
-//        potential[m] = new Vashishta(fid_potential, atom, 0);
-//        print_type_error(number_of_types, 2);
-//    }
-//    else if (strcmp(potential_name, "vashishta_table") == 0)
-//    {
-//        potential[m] = new Vashishta(fid_potential, atom, 1);
-//        print_type_error(number_of_types, 2);
-//    }
-//    else
-//    {
-//        print_error("illegal many-body potential model.\n");
-//    }
-//
-//    potential[m]->N1 = 0;
-//    potential[m]->N2 = 0;
-//    for (int n = 0; n < type_begin[m]; ++n)
-//    {
-//        potential[m]->N1 += atom->cpu_type_size[n];
-//    }
-//    for (int n = 0; n <= type_end[m]; ++n)
-//    {
-//        potential[m]->N2 += atom->cpu_type_size[n];
-//    }
-//    printf
-//    (
-//        "       applies to atoms [%d, %d) from type %d to type %d.\n",
-//        potential[m]->N1, potential[m]->N2, type_begin[m], type_end[m]
-//    );
-//
-//    fclose(fid_potential);
-//}
 
 void Force::add_many_body_potential
 (Atom* atom, int m)
@@ -383,7 +274,7 @@ void Force::add_many_body_potential
         print_error("reading error for potential file.\n");
     }
 
-    int type_range = type_end[m] - type_begin[m] + 1;
+    int type_range = atom_end[m] - atom_begin[m] + 1;
     int num_types = get_number_of_types(fid_potential);
     print_type_error(number_of_types, num_types);
     // determine the potential
@@ -434,68 +325,55 @@ void Force::add_many_body_potential
 
     potential[m]->N1 = 0;
     potential[m]->N2 = 0;
-    for (int n = 0; n < type_begin[m]; ++n)
+    for (int n = 0; n < atom_begin[m]; ++n)
     {
         potential[m]->N1 += atom->cpu_type_size[n];
     }
-    for (int n = 0; n <= type_end[m]; ++n)
+    for (int n = 0; n <= atom_end[m]; ++n)
     {
         potential[m]->N2 += atom->cpu_type_size[n];
     }
     printf
     (
         "       applies to atoms [%d, %d) from type %d to type %d.\n",
-        potential[m]->N1, potential[m]->N2, type_begin[m], type_end[m]
+        potential[m]->N1, potential[m]->N2, atom_begin[m], atom_end[m]
     );
 
     fclose(fid_potential);
 }
 
-// TODO basically any work. Nothing done here.
+
 void Force::add_potential(char *input_dir, Atom *atom)
 {
-    // a single potential
-    if (num_of_potentials == 1) 
+    int m = num_of_potentials-1;
+    add_many_body_potential(atom, m);
+    if (rc_max < potential[m]) rc_max = potential[m]->rc;
+
+    // check the atom types in xyz.in
+    for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
     {
-        initialize_one_potential(atom, 0);
-        rc_max = potential[0]->rc;
+        if (atom->cpu_type[n] < atom_begin[m] ||
+            atom->cpu_type[n] > atom_end[m])
+        {
+            printf("ERROR: type for potential # %d not from %d to %d.",
+                m, atom_begin[m], atom_end[m]);
+            exit(1);
+        }
+
+        // the local type always starts from 0
+        atom->cpu_type_local[n] -= atom_begin[m];
     }
-    else // hybrid potentials
+
+
+     // hybrid potentials
     {
         // the two-body part
         initialize_two_body_potential(atom);
         rc_max = potential[0]->rc;
 
-        // if the intralayer interactions are to be excluded
-        if (interlayer_only)
-        {
-            int memory = sizeof(int) * atom->N;
-            CHECK(cudaMalloc((void**)&layer_label, memory));
-            CHECK(cudaMemcpy(layer_label, atom->cpu_layer_label, memory,
-                cudaMemcpyHostToDevice));
-        }
 
-        // the many-body part
-        for (int m = 1; m < num_of_potentials; m++)
-        {
-            initialize_many_body_potential(atom, m);
-            if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
 
-            // check the atom types in xyz.in
-            for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
-            {
-                if (atom->cpu_type[n] < type_begin[m] ||
-                    atom->cpu_type[n] > type_end[m])
-                {
-                    printf("ERROR: type for potential # %d not from %d to %d.",
-                        m, type_begin[m], type_end[m]);
-                    exit(1);
-                }
 
-                // the local type always starts from 0
-                atom->cpu_type_local[n] -= type_begin[m];
-            }
-        }
 
         // copy the local atom type to the GPU
         CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
@@ -503,67 +381,16 @@ void Force::add_potential(char *input_dir, Atom *atom)
     }
 }
 
-//void Force::initialize(char *input_dir, Atom *atom)
-//{
-//    // a single potential
-//    if (num_of_potentials == 1)
-//    {
-//        initialize_one_potential(atom, 0);
-//        rc_max = potential[0]->rc;
-//    }
-//    else // hybrid potentials
-//    {
-//        // the two-body part
-//        initialize_two_body_potential(atom);
-//        rc_max = potential[0]->rc;
-//
-//        // if the intralayer interactions are to be excluded
-//        if (interlayer_only)
-//        {
-//            int memory = sizeof(int) * atom->N;
-//            CHECK(cudaMalloc((void**)&layer_label, memory));
-//            CHECK(cudaMemcpy(layer_label, atom->cpu_layer_label, memory,
-//                cudaMemcpyHostToDevice));
-//        }
-//
-//        // the many-body part
-//        for (int m = 1; m < num_of_potentials; m++)
-//        {
-//            initialize_many_body_potential(atom, m);
-//            if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
-//
-//            // check the atom types in xyz.in
-//            for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
-//            {
-//                if (atom->cpu_type[n] < type_begin[m] ||
-//                    atom->cpu_type[n] > type_end[m])
-//                {
-//                    printf("ERROR: type for potential # %d not from %d to %d.",
-//                        m, type_begin[m], type_end[m]);
-//                    exit(1);
-//                }
-//
-//                // the local type always starts from 0
-//                atom->cpu_type_local[n] -= type_begin[m];
-//            }
-//        }
-//
-//        // copy the local atom type to the GPU
-//        CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
-//            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
-//    }
-//}
-
 
 // Construct the local neighbor list from the global one (Kernel)
-template<int check_layer_label, int check_type>
+template<int check_type>
 static __global__ void gpu_find_neighbor_local
 (
     int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     int type_begin, int type_end, int *type,
     int N, int N1, int N2, real cutoff_square, 
     const real* __restrict__ box,
-    int *NN, int *NL, int *NN_local, int *NL_local, int *layer_label,
+    int *NN, int *NL, int *NN_local, int *NL_local,
 #ifdef USE_LDG
     const real* __restrict__ x, 
     const real* __restrict__ y, 
@@ -577,13 +404,10 @@ static __global__ void gpu_find_neighbor_local
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
 
-    int layer_n1;
 
     if (n1 >= N1 && n1 < N2)
     {  
         int neighbor_number = NN[n1];
-
-        if (check_layer_label) layer_n1 = layer_label[n1];
 
         real x1 = LDG(x, n1);   
         real y1 = LDG(y, n1);
@@ -591,12 +415,6 @@ static __global__ void gpu_find_neighbor_local
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = NL[n1 + N * i1];
-
-            // exclude intralayer interactions if needed
-            if (check_layer_label) 
-            {
-                if (layer_n1 == layer_label[n2]) continue;
-            }
 
             // only include neighors with the correct types
             if (check_type)
@@ -624,8 +442,8 @@ static __global__ void gpu_find_neighbor_local
 // Construct the local neighbor list from the global one (Wrapper)
 void Force::find_neighbor_local(Atom *atom, int m)
 {
-    int type1 = type_begin[m];
-    int type2 = type_end[m];
+    int type1 = atom_begin[m];
+    int type2 = atom_end[m];
     int N = atom->N;
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
@@ -647,31 +465,19 @@ void Force::find_neighbor_local(Atom *atom, int m)
       
     if (0 == m)
     {
-        if (interlayer_only)
-        {
-            gpu_find_neighbor_local<1, 0><<<grid_size, BLOCK_SIZE>>>
-            (
-                triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
-                rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
-            );
-            CUDA_CHECK_KERNEL
-        }
-        else
-        {
-            gpu_find_neighbor_local<0, 0><<<grid_size, BLOCK_SIZE>>>
-            (
-                triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
-                rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
-            );
-            CUDA_CHECK_KERNEL
-        }
+        gpu_find_neighbor_local<0, 0><<<grid_size, BLOCK_SIZE>>>
+        (
+            triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2,
+            rc2, box, NN, NL, NN_local, NL_local, x, y, z
+        );
+        CUDA_CHECK_KERNEL
     }
     else
     {
         gpu_find_neighbor_local<0, 1><<<grid_size, BLOCK_SIZE>>>
         (
             triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
-            rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
+            rc2, box, NN, NL, NN_local, NL_local, x, y, z
         );
         CUDA_CHECK_KERNEL
     }

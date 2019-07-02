@@ -44,7 +44,6 @@ public:
     int* cpu_type;
     int* cpu_type_local;
     int* cpu_type_size;
-    int* cpu_layer_label;
 
     real* cpu_mass;
     real* cpu_x;
@@ -59,7 +58,6 @@ public:
     int number_of_types;  // number of atom types 
 
     int has_velocity_in_xyz = 0;
-    int has_layer_in_xyz = 0;
     int num_of_grouping_methods = 0;
 
     // make a structure?

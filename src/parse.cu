@@ -117,65 +117,15 @@ void parse_potential(char **param, int num_param, Force *force)
         print_error("potential does not have enough types/groups defined.\n");
     }
 
-    if (!is_valid_int(param[2], &force->type_begin[force->num_of_potentials]))
+    if (!is_valid_int(param[2], &force->atom_begin[force->num_of_potentials]))
     {
         print_error("type_begin should be an integer.\n");
     }
-    if (!is_valid_int(param[1+num_types], &force->type_end[force->num_of_potentials]))
+    if (!is_valid_int(param[1+num_types], &force->atom_end[force->num_of_potentials]))
     {
         print_error("type_end should be an integer.\n");
     }
 }
-
-// TODO remove when new parser is complete
-//// multiple potentials
-//void parse_potentials(char **param, int num_param, Force *force)
-//{
-//    if (num_param == 6)
-//    {
-//        force->num_of_potentials = 2;
-//    }
-//    else if (num_param == 9)
-//    {
-//        force->num_of_potentials = 3;
-//    }
-//    else
-//    {
-//        print_error("potentials should have 5 or 8 parameters.\n");
-//    }
-//
-//    // two-body part
-//    strcpy(force->file_potential[0], param[1]);
-//    if (!is_valid_int(param[2], &force->interlayer_only))
-//    {
-//        print_error("interlayer_only should be an integer.\n");
-//    }
-//
-//    // the first many-body part
-//    strcpy(force->file_potential[1], param[3]);
-//    if (!is_valid_int(param[4], &force->type_begin[1]))
-//    {
-//        print_error("type_begin should be an integer.\n");
-//    }
-//    if (!is_valid_int(param[5], &force->type_end[1]))
-//    {
-//        print_error("type_end should be an integer.\n");
-//    }
-//
-//    // the second many-body part
-//    if (force->num_of_potentials > 2)
-//    {
-//        strcpy(force->file_potential[2], param[6]);
-//        if (!is_valid_int(param[7], &force->type_begin[2]))
-//        {
-//            print_error("type_begin should be an integer.\n");
-//        }
-//        if (!is_valid_int(param[8], &force->type_end[2]))
-//        {
-//            print_error("type_end should be an integer.\n");
-//        }
-//    }
-//}
 
 
 void parse_velocity(char **param, int num_param, Atom *atom)

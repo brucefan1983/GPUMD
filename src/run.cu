@@ -297,12 +297,6 @@ void Run::parse
         *is_potential = 1;
         parse_potential(param, num_param, force);
     }
-    // TODO remove when new parser is complete
-//    else if (strcmp(param[0], "potentials") == 0)
-//    {
-//        *is_potential = 1;
-//        parse_potentials(param, num_param, force);
-//    }
     else if (strcmp(param[0], "velocity") == 0)
     {
         *is_velocity = 1;
