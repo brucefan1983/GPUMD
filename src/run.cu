@@ -212,7 +212,7 @@ void Run::check_potential
     else
     {
         force->initialize(input_dir, atom);
-        force->compute(atom, measure);
+//        force->compute(atom, measure);
     }
 }
 
@@ -272,6 +272,7 @@ void Run::run
             &is_potential, &is_velocity, &is_run);
         check_potential(input_dir, is_potential, check, atom, force, measure);
         check_velocity(is_velocity, check, atom);
+        // TODO check the forces for the potentials in check run. All should be ready at that point
         check_run(input_dir, is_run, check, atom, force, integrate, measure);
     }
     print_velocity_error();

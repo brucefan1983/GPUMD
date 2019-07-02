@@ -27,7 +27,8 @@ public:
 
     Force(void);
     ~Force(void);
-    void initialize(char*, Atom*);
+//    void initialize(char*, Atom*);
+    void add_potential(char*, Atom*);
     void compute(Atom*, Measure*);
     int get_number_of_types(FILE *fid_potential);
 
@@ -44,7 +45,8 @@ private:
 
     void initialize_one_potential(Atom*, int);
     void initialize_two_body_potential(Atom*);
-    void initialize_many_body_potential(Atom*, int);
+//    void initialize_many_body_potential(Atom*, int);
+    void add_many_body_potential(Atom*, int);
     void find_neighbor_local(Atom*, int);
     void initialize_layer_label(char*, int);
 

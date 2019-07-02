@@ -46,7 +46,7 @@ The EAM potential. Currently two analytical versions:
 EAM::EAM(FILE *fid, Atom* atom, char *name)
 {
 
-    if (strcmp(name, "eam_zhou_2004_1") == 0) initialize_eam2004zhou(fid);
+    if (strcmp(name, "eam_zhou_2004") == 0)  initialize_eam2004zhou(fid);
     if (strcmp(name, "eam_dai_2006") == 0)    initialize_eam2006dai(fid);
 
     // memory for the derivative of the density functional 
