@@ -30,7 +30,7 @@ private:
     (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);
     void print_velocity_and_potential_error(void);
     void print_velocity_error(void);
-    void check_potential(char*, int, int, Atom*, Force*, Measure*);
+    void add_potential(char*, int, int, Atom*, Force*, Measure*);
     void check_velocity(int, int, Atom*);
     void check_run(char*, int, int, Atom*, Force*, Integrate*, Measure*);
     int number_of_times_velocity = 0;

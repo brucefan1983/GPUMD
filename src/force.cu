@@ -47,8 +47,7 @@ Force::Force(void)
     }
     num_of_potentials = 0;
     rc_max = ZERO;
-    order_by_group = 0;
-    group_method = 0;
+    group_method = -1;
 }
 
 
@@ -59,7 +58,7 @@ Force::~Force(void)
         delete potential[m];
         potential[m] = NULL;
     }
-
+    MY_FREE(intramaterial_definition);
 }
 
 
@@ -82,135 +81,7 @@ int Force::get_number_of_types(FILE *fid_potential)
     return num_of_types;
 }
 
-void Force::initialize_one_potential(Atom* atom, int m)
-{
-    FILE *fid_potential = my_fopen(file_potential[m], "r");
-    char potential_name[20];
-    int count = fscanf(fid_potential, "%s", potential_name);
-    if (count != 1) 
-    {
-        print_error("reading error for potential.in.\n");
-    }
-
-    // TODO think about if we need to read number of types.
-    /*
-     * some potentials need get_number_of_types call, but I don't think we
-     * need to change much here. Perhaps we do need the read to make sure
-     * we have parsed far enough into the file to get the correct parameters.
-     */
-
-    // determine the potential
-    if (strcmp(potential_name, "tersoff_1989_1") == 0)
-    {
-        potential[m] = new Tersoff1989(fid_potential, atom, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "tersoff_1989_2") == 0)
-    { 
-        potential[m] = new Tersoff1989(fid_potential, atom, 2);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "tersoff_1988") == 0)
-    {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(atom->number_of_types, num_of_types);
-        potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
-    }
-    else if (strcmp(potential_name, "tersoff_modc") == 0)
-    {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(atom->number_of_types, num_of_types);
-        potential[m] = new Tersoff_modc(fid_potential, atom, num_of_types);
-    }
-    else if (strcmp(potential_name, "tersoff_mini") == 0)
-    {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(atom->number_of_types, num_of_types);
-        potential[m] = new Tersoff_mini(fid_potential, atom, num_of_types);
-    }
-    else if (strcmp(potential_name, "sw_1985") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "sw_1985_2") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 2);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "sw_1985_3") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 3);
-        print_type_error(atom->number_of_types, 3);
-    }
-    else if (strcmp(potential_name, "rebo_mos2") == 0)
-    {
-        potential[m] = new REBO_MOS(atom);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "lj1") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "lj2") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 2);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "lj3") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 3);
-        print_type_error(atom->number_of_types, 3);
-    }
-    else if (strcmp(potential_name, "lj4") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 4);
-        print_type_error(atom->number_of_types, 4);
-    }
-    else if (strcmp(potential_name, "lj5") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 5);
-        print_type_error(atom->number_of_types, 5);
-    }
-    else if (strcmp(potential_name, "ri") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 0);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
-    {
-        potential[m] = new EAM(fid_potential, atom, potential_name);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "eam_dai_2006") == 0)
-    {
-        potential[m] = new EAM(fid_potential, atom, potential_name);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "vashishta") == 0)
-    {
-        potential[m] = new Vashishta(fid_potential, atom, 0);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "vashishta_table") == 0)
-    {
-        potential[m] = new Vashishta(fid_potential, atom, 1);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else
-    {
-        print_error("illegal potential model.\n");
-    }
-
-    potential[m]->N1 = 0;
-    potential[m]->N2 = atom->N;
-
-    fclose(fid_potential);
-}
-
-
-void Force::initialize_two_body_potential(Atom* atom)
+void Force::initialize_intermaterial_potential(Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[0], "r");
     char potential_name[20];
@@ -219,52 +90,24 @@ void Force::initialize_two_body_potential(Atom* atom)
     {
         print_error("reading error for potential file.\n");
     }
-
-    // determine the potential
-    if (strcmp(potential_name, "lj1") == 0)
+    int num_types = get_number_of_types(fid_potential);
+    print_type_error(atom_end[m] - atom_begin[m] + 1, num_types);
+    if (strcmp(potential_name, "lj") == 0)
     {
-        potential[0] = new Pair(fid_potential, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "lj2") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 2);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "lj3") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 3);
-        print_type_error(atom->number_of_types, 3);
-    }
-    else if (strcmp(potential_name, "lj4") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 4);
-        print_type_error(atom->number_of_types, 4);
-    }
-    else if (strcmp(potential_name, "lj5") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 5);
-        print_type_error(atom->number_of_types, 5);
-    }
-    else if (strcmp(potential_name, "ri") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 0);
-        print_type_error(atom->number_of_types, 2);
+        potential[0] = new Pair(fid_potential, num_types);
     }
     else
     {
-        print_error("illegal two-body potential model.\n");
+        print_error("illegal inter-material potential model.\n");
     }
 
-    potential[0]->N1 = 0;
-    potential[0]->N2 = atom->N;
+    potential[m]->N1 = 0;
+    potential[m]->N2 = atom->N;
 
     fclose(fid_potential);
 }
 
-
-void Force::add_many_body_potential
-(Atom* atom, int m)
+void Force::initialize_intramaterial_potential(Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
@@ -274,9 +117,8 @@ void Force::add_many_body_potential
         print_error("reading error for potential file.\n");
     }
 
-    int type_range = atom_end[m] - atom_begin[m] + 1;
     int num_types = get_number_of_types(fid_potential);
-    print_type_error(number_of_types, num_types);
+    print_type_error(atom_end[m] - atom_begin[m] + 1, num_types);
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
@@ -318,21 +160,63 @@ void Force::add_many_body_potential
     {
         potential[m] = new Vashishta(fid_potential, atom, 1);
     }
+    if (strcmp(potential_name, "lj") == 0)
+    {
+        potential[0] = new Pair(fid_potential, num_types);
+    }
+    else if (strcmp(potential_name, "ri") == 0)
+    {
+        potential[0] = new Pair(fid_potential, 0);
+    }
     else
     {
-        print_error("illegal many-body potential model.\n");
+        print_error("illegal potential model.\n");
     }
 
     potential[m]->N1 = 0;
     potential[m]->N2 = 0;
-    for (int n = 0; n < atom_begin[m]; ++n)
+
+    // TODO check this
+    if (group_method > -1)
     {
-        potential[m]->N1 += atom->cpu_type_size[n];
+        potential[m]->N1 =
+                atom->group[group_method].cpu_size_sum[atom_begin[m]];
+        potential[m]->N2 = atom->group[group_method].cpu_size_sum[atom_end[m]];
     }
-    for (int n = 0; n <= atom_end[m]; ++n)
+    else
     {
-        potential[m]->N2 += atom->cpu_type_size[n];
+        for (int n = 0; n < atom_begin[m]; ++n)
+        {
+            potential[m]->N1 += atom->cpu_type_size[n];
+        }
+        for (int n = 0; n <= atom_end[m]; ++n)
+        {
+            potential[m]->N2 += atom->cpu_type_size[n];
+        }
     }
+
+    // definition bookkeeping
+    for (int n1 = atom_begin[m]; n1 < atom_end[m]; n1++)
+    {
+        if (intermaterial_potential_defined[n1])
+        {
+            print_error("Only a single inter-material potential potential "
+                    "definition is allowed per atom type/group (depends "
+                    "on parse_potential keyword).\n");
+        }
+        else
+        {
+            intermaterial_potential_defined[n1] = 1;
+        }
+
+        // TODO decide if I even need this
+        for (int n2 = atom_begin[m]; n2 < atom_end[m]; n2++)
+        {
+            interaction_pairs[n1].push_back(n2);
+        }
+
+    }
+
     printf
     (
         "       applies to atoms [%d, %d) from type %d to type %d.\n",
@@ -343,7 +227,7 @@ void Force::add_many_body_potential
 }
 
 
-void Force::add_potential(char *input_dir, Atom *atom)
+void Force::add_intramaterial_potential(Atom *atom)
 {
     int m = num_of_potentials-1;
     add_many_body_potential(atom, m);
@@ -352,33 +236,39 @@ void Force::add_potential(char *input_dir, Atom *atom)
     // check the atom types in xyz.in
     for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
     {
-        if (atom->cpu_type[n] < atom_begin[m] ||
-            atom->cpu_type[n] > atom_end[m])
+        int type;
+        if (order_by_group > -1) type = atom->group[group_method].cpu_label[n];
+        else type = atom->cpu_type[n];
+
+        if (type < atom_begin[m] || type > atom_end[m])
         {
             printf("ERROR: type for potential # %d not from %d to %d.",
                 m, atom_begin[m], atom_end[m]);
             exit(1);
         }
 
+        // TODO understand what this means
         // the local type always starts from 0
         atom->cpu_type_local[n] -= atom_begin[m];
     }
 
 
-     // hybrid potentials
-    {
-        // the two-body part
-        initialize_two_body_potential(atom);
-        rc_max = potential[0]->rc;
 
+//        // copy the local atom type to the GPU
+//        CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
+//            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
+}
 
-
-
-
-        // copy the local atom type to the GPU
-        CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
-            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
-    }
+void Force::add_intermaterial_potentials(Atom *atom)
+{
+    /*
+     * Want to this method to parse the lj_params file so that we verify that
+     * every pair is accounted for. Also want to take 0 entries, count that
+     * towards potential tally and but then organize the way we evaluate
+     * LJ potentials to not create threads for 0 energy or 0 neighbor cases.
+     *
+     * Number of entries can take care of
+     */
 }
 
 

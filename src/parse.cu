@@ -34,7 +34,8 @@ Parse the commands in run.in.
 #include "dump_netcdf.cuh"
 #endif
 
-void parse_potential_definition(char **param, int num_param, Force *force)
+void parse_potential_definition
+(char **param, int num_param, Atom *atom, Force *force)
 {
     // 'potential_definition' must be called before all 'potential' keywords
     if (force->num_of_potentials > 0)
@@ -59,14 +60,14 @@ void parse_potential_definition(char **param, int num_param, Force *force)
         else if(strcmp(param[1], "type") != 0)
         {
             print_error("potential_definition only accepts "
-                    "'type' or 'group' styles.\n");
+                    "'type' or 'group' kind.\n");
         }
     }
     if (num_param == 3)
     {
         if(strcmp(param[1], "group") != 0)
         {
-            print_error("potential_definition: style must be 'group' if 2 "
+            print_error("potential_definition: kind must be 'group' if 2 "
                     "parameters are used.\n");
 
         }
@@ -75,19 +76,12 @@ void parse_potential_definition(char **param, int num_param, Force *force)
             print_error("potential_definition: group_method should be an "
                     "integer.\n");
         }
-        force->order_by_group = 1;
     }
 }
 
 // a potential
 void parse_potential(char **param, int num_param, Force *force)
 {
-    /* A potential file must state how many atom types are needed
-     * in the first line of the file. There is no way to use a subset
-     * of the potentials like there is in LAMMPS, so the number must
-     * match the number of parameters
-     */
-
     force->num_of_potentials++;
     // check for at least the file path
     if (num_param < 3)
@@ -95,13 +89,6 @@ void parse_potential(char **param, int num_param, Force *force)
         print_error("potential should have at least 2 parameters.\n");
     }
     strcpy(force->file_potential[force->num_of_potentials], param[1]);
-
-    // TODO ensure that we shouldn't check for order of types or groups listed
-    /*
-     * It doesn't seem like it should matter if a potential is defined like:
-     * potential /some/file/path.txt 5 2
-     * as long as the atom types of 5 and 2 are in the right order in the xyz.in
-     */
 
     //open file to check number of types used in potential
     char potential_name[20];
@@ -125,6 +112,16 @@ void parse_potential(char **param, int num_param, Force *force)
     {
         print_error("type_end should be an integer.\n");
     }
+}
+
+void parse_lj_params(char **param, int num_param, Force *force)
+{
+    if (num_param != 2)
+    {
+        print_error("parse_lj_params should have 1 parameter.\n");
+    }
+    strcpy(force->lj_file_potential, param[1]);
+    force->intermaterial_potential_defined = 1;
 }
 
 

@@ -37,6 +37,20 @@ Run::Run
     Integrate* integrate, Measure* measure
 )
 {
+    if (force->group_method > -1)
+        force->num_kind = atom->group[force->group_method].number;
+    else
+        force->num_kind = atom->number_of_types;
+
+    // initialize bookkeeping data structures
+    MY_MALLOC(force->intramaterial_definition, int,force->num_kind);
+    force->interaction_pairs.resize(force->num_kind);
+    for (int i = 0; i < force->num_kind; i++)
+    {
+        force->intramaterial_definition[i] = 0;
+    }
+
+
     run(input_dir, atom, force, integrate, measure, 1);
     run(input_dir, atom, force, integrate, measure, 0);
 }
@@ -201,7 +215,7 @@ static void print_finish(int check)
 
 
 // do something when the keyword is "potential"
-void Run::check_potential
+void Run::add_potential
 (
     char* input_dir, int is_potential, int check,
     Atom* atom, Force* force, Measure* measure
@@ -211,8 +225,14 @@ void Run::check_potential
     if (check) { number_of_times_potential++; }
     else
     {
-        force->initialize(input_dir, atom);
-//        force->compute(atom, measure);
+        if (is_potential == 1)
+        {
+            force->add_intramaterial_potential(atom);
+        }
+        else
+        {
+            force->add_intermaterial_potential(atom);
+        }
     }
 }
 
@@ -233,6 +253,7 @@ void Run::check_run
     Force* force, Integrate* integrate, Measure* measure
 )
 {
+// TODO add force->compute() here as it is removed from add_potential
     if (!is_run) { return; }
     if (check)
     {
@@ -265,14 +286,13 @@ void Run::run
     {
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-        int is_potential = 0;
+        int is_potential = 0; // 0-False, 1-intramaterial, 2-LJ intermaterial
         int is_velocity = 0;
         int is_run = 0;
         parse(param, num_param, atom, force, integrate, measure,
             &is_potential, &is_velocity, &is_run);
-        check_potential(input_dir, is_potential, check, atom, force, measure);
+        add_potential(input_dir, is_potential, check, atom, force, measure);
         check_velocity(is_velocity, check, atom);
-        // TODO check the forces for the potentials in check run. All should be ready at that point
         check_run(input_dir, is_run, check, atom, force, integrate, measure);
     }
     print_velocity_error();
@@ -290,12 +310,17 @@ void Run::parse
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
-        parse_potential_definition(param, num_param, force);
+        parse_potential_definition(param, num_param, atom, force);
     }
     else if (strcmp(param[0], "potential") == 0)
     {
         *is_potential = 1;
         parse_potential(param, num_param, force);
+    }
+    else if (strcmp(param[0], "lj_params") == 0)
+    {
+        *is_potential = 2;
+        parse_lj_params(param, num_param, force);
     }
     else if (strcmp(param[0], "velocity") == 0)
     {
