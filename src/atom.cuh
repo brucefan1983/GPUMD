@@ -28,7 +28,6 @@ public:
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
-    int *type_local;              // local atom type (for force)
     real *x0; real *y0; real *z0; // for determing when to update neighbor list
     real *mass;                   // per-atom mass
     real *x; real *y; real *z;    // per-atom position
@@ -42,8 +41,8 @@ public:
     real *thermo;                 // some thermodynamic quantities
 
     int* cpu_type;
-    int* cpu_type_local;
     int* cpu_type_size;
+    int* shift; // shift to correct type in force eval
 
     real* cpu_mass;
     real* cpu_x;

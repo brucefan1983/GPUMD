@@ -81,31 +81,31 @@ int Force::get_number_of_types(FILE *fid_potential)
     return num_of_types;
 }
 
-void Force::initialize_intermaterial_potential(Atom* atom, int m)
-{
-    FILE *fid_potential = my_fopen(file_potential[0], "r");
-    char potential_name[20];
-    int count = fscanf(fid_potential, "%s", potential_name);
-    if (count != 1) 
-    {
-        print_error("reading error for potential file.\n");
-    }
-    int num_types = get_number_of_types(fid_potential);
-    print_type_error(atom_end[m] - atom_begin[m] + 1, num_types);
-    if (strcmp(potential_name, "lj") == 0)
-    {
-        potential[0] = new Pair(fid_potential, num_types);
-    }
-    else
-    {
-        print_error("illegal inter-material potential model.\n");
-    }
-
-    potential[m]->N1 = 0;
-    potential[m]->N2 = atom->N;
-
-    fclose(fid_potential);
-}
+//void Force::initialize_intermaterial_potential(Atom* atom, int m)
+//{
+//    FILE *fid_potential = my_fopen(file_potential[0], "r");
+//    char potential_name[20];
+//    int count = fscanf(fid_potential, "%s", potential_name);
+//    if (count != 1)
+//    {
+//        print_error("reading error for potential file.\n");
+//    }
+//    int num_types = get_number_of_types(fid_potential);
+//    print_type_error(atom_end[m] - atom_begin[m] + 1, num_types);
+//    if (strcmp(potential_name, "lj") == 0)
+//    {
+//        potential[0] = new Pair(fid_potential, num_types);
+//    }
+//    else
+//    {
+//        print_error("illegal inter-material potential model.\n");
+//    }
+//
+//    potential[m]->N1 = 0;
+//    potential[m]->N2 = atom->N;
+//
+//    fclose(fid_potential);
+//}
 
 void Force::initialize_potential(Atom* atom, int m)
 {
@@ -216,6 +216,7 @@ void Force::initialize_potential(Atom* atom, int m)
         }
     }
 
+    // TODO change this. not exaclty correct
     printf
     (
         "       applies to atoms [%d, %d) from type %d to type %d.\n",
@@ -245,18 +246,8 @@ void Force::add_potential(Atom *atom)
                 m, atom_begin[m], atom_end[m]);
             exit(1);
         }
-
-
-        // the local type always starts from 0
-        atom->cpu_type_local[n] -= atom_begin[m];
     }
-
-
-
-    // TODO move to
-//        // copy the local atom type to the GPU
-//        CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
-//            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
+    shift[m] = atom_begin[m];
 }
 
 
@@ -477,7 +468,7 @@ void Force::compute(Atom *atom, Measure* measure)
         // first build a local neighbor list
         find_neighbor_local(atom, m);
         // and then calculate the forces and related quantities
-        potential[m]->compute(atom, measure);
+        potential[m]->compute(atom, measure, m);
     }
 
     // correct the force when using the HNEMD method

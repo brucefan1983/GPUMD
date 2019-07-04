@@ -483,7 +483,7 @@ static __global__ void find_force_eam_step2
 
 
 // Force evaluation wrapper
-void EAM::compute(Atom *atom, Measure *measure)
+void EAM::compute(Atom *atom, Measure *measure, int potential_number)
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     find_measurement_flags(atom, measure);

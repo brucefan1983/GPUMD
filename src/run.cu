@@ -43,13 +43,9 @@ Run::Run
         force->num_kind = atom->number_of_types;
 
     // initialize bookkeeping data structures
-    MY_MALLOC(force->manybody_definition, int,force->num_kind);
+    ZEROS(force->manybody_definition, int, force->num_kind);
+    ZEROS(atom->shift, int, MAX_NUM_OF_POTENTIALS);
     force->interaction_pairs.resize(force->num_kind);
-    for (int i = 0; i < force->num_kind; i++)
-    {
-        force->manybody_definition[i] = 0;
-    }
-
 
     run(input_dir, atom, force, integrate, measure, 1);
     run(input_dir, atom, force, integrate, measure, 0);

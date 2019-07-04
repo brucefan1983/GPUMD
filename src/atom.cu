@@ -137,7 +137,6 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
     MY_MALLOC(cpu_type, int, N);
-    MY_MALLOC(cpu_type_local, int, N);
     MY_MALLOC(cpu_mass, real, N);
     MY_MALLOC(cpu_x, real, N);
     MY_MALLOC(cpu_y, real, N);
@@ -158,7 +157,6 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
             &(cpu_type[n]), &x, &y, &z, &mass);
         if (count != 5) { print_error("reading error for xyz.in.\n"); }
         cpu_mass[n] = mass; cpu_x[n] = x; cpu_y[n] = y; cpu_z[n] = z;
-        cpu_type_local[n] = cpu_type[n];
         if (cpu_type[n] > number_of_types) { number_of_types = cpu_type[n]; }
         if (has_velocity_in_xyz)
         {
@@ -269,7 +267,6 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&NN_local, m1));
     CHECK(cudaMalloc((void**)&NL_local, m2));
     CHECK(cudaMalloc((void**)&type, m1));
-    CHECK(cudaMalloc((void**)&type_local, m1));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         int m3 = sizeof(int) * group[m].number;
@@ -306,7 +303,6 @@ void Atom::copy_from_cpu_to_gpu(void)
     int m1 = sizeof(int) * N;
     int m3 = sizeof(real) * N;
     CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(type_local, cpu_type, m1, cudaMemcpyHostToDevice));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         int m2 = sizeof(int) * group[m].number;
@@ -330,7 +326,7 @@ void Atom::copy_from_cpu_to_gpu(void)
 void Atom::free_memory_cpu(void)
 {
     MY_FREE(cpu_type);
-    MY_FREE(cpu_type_local);
+    MY_FREE(shift);
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         MY_FREE(group[m].cpu_label);
@@ -357,7 +353,6 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(NN_local));
     CHECK(cudaFree(NL_local));
     CHECK(cudaFree(type));
-    CHECK(cudaFree(type_local));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         CHECK(cudaFree(group[m].label));

@@ -25,7 +25,7 @@ public:
     real rc; // maxium cutoff distance 
     Potential(void);
     virtual ~Potential(void);
-    virtual void compute(Atom*, Measure*) = 0;
+    virtual void compute(Atom*, Measure*, int) = 0;
 
 protected:
     int compute_j   = 0; // 1 for computing heat current
