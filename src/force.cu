@@ -246,6 +246,7 @@ void Force::add_potential(Atom *atom)
             exit(1);
         }
 
+
         // the local type always starts from 0
         atom->cpu_type_local[n] -= atom_begin[m];
     }

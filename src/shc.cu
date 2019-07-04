@@ -28,7 +28,6 @@ Written by Zheyong Fan and Alexander J. Gabourie.
 #include "error.cuh"
 
 typedef unsigned long long uint64;
-#define FILE_NAME_LENGTH      200
 
 
 //build the look-up table used for recording force and velocity data

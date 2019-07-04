@@ -25,8 +25,6 @@
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
 
-#define FILE_NAME_LENGTH      200
-
 
 class Measure
 {
