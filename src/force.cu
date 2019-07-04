@@ -58,7 +58,7 @@ Force::~Force(void)
         delete potential[m];
         potential[m] = NULL;
     }
-    MY_FREE(intramaterial_definition);
+    MY_FREE(manybody_definition);
 }
 
 
@@ -107,7 +107,7 @@ void Force::initialize_intermaterial_potential(Atom* atom, int m)
     fclose(fid_potential);
 }
 
-void Force::initialize_intramaterial_potential(Atom* atom, int m)
+void Force::initialize_potential(Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
@@ -198,15 +198,15 @@ void Force::initialize_intramaterial_potential(Atom* atom, int m)
     // definition bookkeeping
     for (int n1 = atom_begin[m]; n1 < atom_end[m]; n1++)
     {
-        if (intermaterial_potential_defined[n1])
+        if (manybody_definition[n1])
         {
-            print_error("Only a single inter-material potential potential "
-                    "definition is allowed per atom type/group (depends "
+            print_error("Only a single many-body potential "
+                    "definition is allowed per atom type/group (depending "
                     "on parse_potential keyword).\n");
         }
         else
         {
-            intermaterial_potential_defined[n1] = 1;
+            manybody_definition[n1] = 1;
         }
 
         // TODO decide if I even need this
@@ -214,7 +214,6 @@ void Force::initialize_intramaterial_potential(Atom* atom, int m)
         {
             interaction_pairs[n1].push_back(n2);
         }
-
     }
 
     printf
@@ -227,7 +226,7 @@ void Force::initialize_intramaterial_potential(Atom* atom, int m)
 }
 
 
-void Force::add_intramaterial_potential(Atom *atom)
+void Force::add_potential(Atom *atom)
 {
     int m = num_of_potentials-1;
     add_many_body_potential(atom, m);
@@ -247,28 +246,16 @@ void Force::add_intramaterial_potential(Atom *atom)
             exit(1);
         }
 
-        // TODO understand what this means
         // the local type always starts from 0
         atom->cpu_type_local[n] -= atom_begin[m];
     }
 
 
 
+    // TODO move to
 //        // copy the local atom type to the GPU
 //        CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
 //            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
-}
-
-void Force::add_intermaterial_potentials(Atom *atom)
-{
-    /*
-     * Want to this method to parse the lj_params file so that we verify that
-     * every pair is accounted for. Also want to take 0 entries, count that
-     * towards potential tally and but then organize the way we evaluate
-     * LJ potentials to not create threads for 0 energy or 0 neighbor cases.
-     *
-     * Number of entries can take care of
-     */
 }
 
 

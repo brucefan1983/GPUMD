@@ -31,8 +31,7 @@ public:
 
     Force(void);
     ~Force(void);
-    void add_intramaterial_potential(Atom*);
-    void add_intermaterial_potentials(Atom*);
+    void add_potential(Atom*);
     void compute(Atom*, Measure*);
     int get_number_of_types(FILE *fid_potential);
 
@@ -42,21 +41,17 @@ public:
     int atom_end[MAX_NUM_OF_POTENTIALS];
     char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
 
-    char lj_file_potential[FILE_NAME_LENGTH];
     vector<list<int>> interaction_pairs;
-    int* intramaterial_definition;
-    int intermaterial_potential_defined;
+    int* manybody_definition;
     int group_method;
     int num_kind;
 
 private:
 
-    void initialize_intermaterial_potential(Atom*, int);
-    void initialize_intramaterial_potential(Atom*, int);
+    void initialize_potential(Atom*, int);
     void find_neighbor_local(Atom*, int);
 
     Potential *potential[MAX_NUM_OF_POTENTIALS];
-    Potential *lj_potential[MAX_NUM_OF_POTENTIALS*MAX_NUM_OF_POTENTIALS];
 };
 
 

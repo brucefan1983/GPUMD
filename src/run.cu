@@ -43,11 +43,11 @@ Run::Run
         force->num_kind = atom->number_of_types;
 
     // initialize bookkeeping data structures
-    MY_MALLOC(force->intramaterial_definition, int,force->num_kind);
+    MY_MALLOC(force->manybody_definition, int,force->num_kind);
     force->interaction_pairs.resize(force->num_kind);
     for (int i = 0; i < force->num_kind; i++)
     {
-        force->intramaterial_definition[i] = 0;
+        force->manybody_definition[i] = 0;
     }
 
 
@@ -225,14 +225,7 @@ void Run::add_potential
     if (check) { number_of_times_potential++; }
     else
     {
-        if (is_potential == 1)
-        {
-            force->add_intramaterial_potential(atom);
-        }
-        else
-        {
-            force->add_intermaterial_potential(atom);
-        }
+        force->add_potential(atom);
     }
 }
 
@@ -286,7 +279,7 @@ void Run::run
     {
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-        int is_potential = 0; // 0-False, 1-intramaterial, 2-LJ intermaterial
+        int is_potential = 0;
         int is_velocity = 0;
         int is_run = 0;
         parse(param, num_param, atom, force, integrate, measure,
@@ -316,11 +309,6 @@ void Run::parse
     {
         *is_potential = 1;
         parse_potential(param, num_param, force);
-    }
-    else if (strcmp(param[0], "lj_params") == 0)
-    {
-        *is_potential = 2;
-        parse_lj_params(param, num_param, force);
     }
     else if (strcmp(param[0], "velocity") == 0)
     {

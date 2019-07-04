@@ -114,16 +114,6 @@ void parse_potential(char **param, int num_param, Force *force)
     }
 }
 
-void parse_lj_params(char **param, int num_param, Force *force)
-{
-    if (num_param != 2)
-    {
-        print_error("parse_lj_params should have 1 parameter.\n");
-    }
-    strcpy(force->lj_file_potential, param[1]);
-    force->intermaterial_potential_defined = 1;
-}
-
 
 void parse_velocity(char **param, int num_param, Atom *atom)
 {
