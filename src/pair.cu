@@ -41,12 +41,13 @@ J. Chem. Phys. 124, 234104 (2006).
 #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)  
 #define GPU_FIND_FORCE(A, B, C, D)                                             \
     gpu_find_force<A, B, C, D>                                                 \
-    <<<(atom->N - 1) / BLOCK_SIZE_FORCE + 1, BLOCK_SIZE_FORCE>>>               \
+    <<<grid_size, BLOCK_SIZE_FORCE>>>                                          \
     (                                                                          \
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
-        lj_para, ri_para, atom->N, atom->box.triclinic, atom->box.pbc_x,       \
+        lj_para, ri_para, atom->N, N1, N2,atom->box.triclinic, atom->box.pbc_x,\
         atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, atom->NL_local,      \
-        atom->type, atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz,   \
+        atom->type, shift, atom->x, atom->y, atom->z,                          \
+        atom->vx, atom->vy, atom->vz,                                          \
         atom->box.h, atom->fx, atom->fy, atom->fz, atom->virial_per_atom_x,    \
         atom->virial_per_atom_y, atom->virial_per_atom_z,                      \
         atom->potential_per_atom, atom->heat_per_atom, atom->group[0].label,   \
@@ -183,8 +184,9 @@ static __global__ void gpu_find_force
 (
     real fe_x, real fe_y, real fe_z,
     LJ_Para lj, RI_Para ri,
-    int number_of_particles, int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int *g_neighbor_number, int *g_neighbor_list, int *g_type,
+    int number_of_particles, int N1, int N2,
+    int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z, 
@@ -197,7 +199,7 @@ static __global__ void gpu_find_force
     int *g_a_map, int *g_b_map, int g_count_b
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x; // particle index
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
     real s_fx = ZERO; // force_x
     real s_fy = ZERO; // force_y
     real s_fz = ZERO; // force_z
@@ -216,10 +218,10 @@ static __global__ void gpu_find_force
     real fy_driving = ZERO;
     real fz_driving = ZERO;
 
-    if (n1 < number_of_particles)
+    if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
-        int type1 = g_type[n1];
+        int type1 = g_type[n1] - shift;
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
@@ -234,7 +236,7 @@ static __global__ void gpu_find_force
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = g_neighbor_list[n1 + number_of_particles * i1];
-            int type2 = g_type[n2];
+            int type2 = g_type[n2] - shift;
 
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
@@ -350,9 +352,11 @@ static __global__ void gpu_find_force
  
 
 // Find force and related quantities for pair potentials (A wrapper)
-void Pair::compute(Atom *atom, Measure *measure)
+void Pair::compute(Atom *atom, Measure *measure, int potential_number)
 {
     find_measurement_flags(atom, measure);
+    int shift = atom->shift[potential_number];
+    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     if (potential_model == 0) // RI
     {   
         if (compute_j)    

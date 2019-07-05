@@ -43,7 +43,7 @@ class Pair : public Potential
 public:   
     Pair(FILE*, int potential_model);
     virtual ~Pair(void);
-    virtual void compute(Atom*, Measure*);
+    virtual void compute(Atom*, Measure*, int);
     void initialize_lj(FILE *fid, int);
     void initialize_ri(FILE *fid);
 protected:
