@@ -43,9 +43,9 @@ Run::Run
         force->num_kind = atom->number_of_types;
 
     // initialize bookkeeping data structures
-    ZEROS(force->manybody_definition, int, force->num_kind);
+    ZEROS(force->manybody_participation, int, force->num_kind);
+    ZEROS(force->potential_participation, int, force->num_kind);
     ZEROS(atom->shift, int, MAX_NUM_OF_POTENTIALS);
-    force->interaction_pairs.resize(force->num_kind);
 
     run(input_dir, atom, force, integrate, measure, 1);
     run(input_dir, atom, force, integrate, measure, 0);
@@ -242,14 +242,19 @@ void Run::check_run
     Force* force, Integrate* integrate, Measure* measure
 )
 {
-// TODO add force->compute() here as it is removed from add_potential
     if (!is_run) { return; }
     if (check)
     {
         print_velocity_and_potential_error();
         check_run_parameters(atom, integrate, measure);
     }
-    else { process_run(input_dir, atom, force, integrate, measure); }
+    else
+    {
+        force->valdiate_potential_definitions();
+        force->compute(atom, measure);
+
+        process_run(input_dir, atom, force, integrate, measure);
+    }
     initialize_run(atom, integrate, measure);
 }
 

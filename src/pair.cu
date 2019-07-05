@@ -55,7 +55,11 @@ J. Chem. Phys. 124, 234104 (2006).
         measure->shc.b_map, measure->shc.count_b                               \
     )
 
-Pair::Pair(FILE *fid, int potential_model_input, int *participating_kinds)
+Pair::Pair
+(
+        FILE *fid, int potential_model_input,
+        vector<int> *participating_kinds, int type_range
+)
 {
     potential_model = potential_model_input;
     if (potential_model == 0) initialize_ri(fid);
@@ -63,11 +67,11 @@ Pair::Pair(FILE *fid, int potential_model_input, int *participating_kinds)
         initialize_lj(fid, potential_model);
 }
 
-bool Pair::pair_participating(int n, int m, int *participating_kinds)
+bool Pair::pair_participating(int n, int m, vector<int> *participating_kinds)
 {
     bool m_part = false;
     bool n_part = false;
-    for (int i = 0; i < N2 - N1 + 1; i++)
+    for (int i = 0; i < (int)participating_kinds->size(); i++)
     {
         if (participating_kinds[i] == m) m_part = true;
         if (participating_kinds[i] == n) n_part = true;
@@ -76,14 +80,17 @@ bool Pair::pair_participating(int n, int m, int *participating_kinds)
     return false;
 }
 
-void Pair::initialize_lj(FILE *fid, int N, int *participating_kinds)
+void Pair::initialize_lj
+(
+        FILE *fid, int N, vector<int> *participating_kinds, int type_range
+)
 {
     printf("Use %d-element LJ potential.\n", N);
     double epsilon, sigma, cutoff;
     rc = 0.0;
-    for (int n = 0; n < N2-N1+1; n++)
+    for (int n = 0; n < type_range; n++)
     {
-        for (int m = 0; m < N2-N1+1; m++)
+        for (int m = 0; m < type_range; m++)
         {
             if (pair_participating(n,m,participating_kinds))
             {

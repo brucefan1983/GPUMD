@@ -21,6 +21,9 @@
 #include <string.h>
 #include <math.h>
 #include <cuda.h> // seems to be needed in Windows
+#include <vector>
+
+using namespace std;
 
 #define LDG(a, n) __ldg(a + n)
 

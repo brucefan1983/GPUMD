@@ -103,7 +103,7 @@ void parse_potential(char **param, int num_param, Force *force)
         print_error("potential does not have enough types/groups defined.\n");
     }
 
-    MY_MALLOC(force->participating_kinds, int, num_types);
+    force->participating_kinds.resize(num_types);
 
     for (int i = 0; i < num_types; i++)
     {

@@ -16,10 +16,6 @@
 
 #pragma once
 #include "common.cuh"
-#include <list>
-#include <vector>
-
-using namespace std;
 
 #define MAX_NUM_OF_POTENTIALS 10
 
@@ -32,16 +28,16 @@ public:
     void add_potential(Atom*);
     void compute(Atom*, Measure*);
     int get_number_of_types(FILE *fid_potential);
+    void valdiate_potential_definitions(void);
 
     int num_of_potentials;
-    int* participating_kinds;
+    vector<int> participating_kinds;
     real rc_max;
     int atom_begin[MAX_NUM_OF_POTENTIALS];
     int atom_end[MAX_NUM_OF_POTENTIALS];
     char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
-
-    vector<list<int>> interaction_pairs;
-    int* manybody_definition;
+    int* potential_participation;
+    int* manybody_participation;
     int group_method;
     int num_kind;
 
@@ -49,6 +45,8 @@ private:
 
     void initialize_potential(Atom*, int);
     void find_neighbor_local(Atom*, int);
+    bool kind_is_participating(int, int);
+    bool kinds_are_contiguous(void);
 
     Potential *potential[MAX_NUM_OF_POTENTIALS];
 };

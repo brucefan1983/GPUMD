@@ -58,7 +58,7 @@ Force::~Force(void)
         delete potential[m];
         potential[m] = NULL;
     }
-    MY_FREE(manybody_definition);
+    MY_FREE(manybody_participation);
 }
 
 
@@ -81,6 +81,18 @@ int Force::get_number_of_types(FILE *fid_potential)
     return num_of_types;
 }
 
+void Force::valdiate_potential_definitions()
+{
+    for (int i = 0; i < num_kind; i++)
+    {
+        if (potential_participation[i] == 0)
+        {
+            print_error("All atoms must participate in at least "
+                    "one potential.\n");
+        }
+    }
+}
+
 void Force::initialize_potential(Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
@@ -92,6 +104,7 @@ void Force::initialize_potential(Atom* atom, int m)
     }
 
     int num_types = get_number_of_types(fid_potential);
+    int potential_type = 0; // 0 - manybody, 1 - two-body
     print_type_error(atom_end[m] - atom_begin[m] + 1, num_types);
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
@@ -136,26 +149,48 @@ void Force::initialize_potential(Atom* atom, int m)
     }
     if (strcmp(potential_name, "lj") == 0)
     {
-        potential[0] = new Pair(fid_potential, num_types, &participating_kinds);
+        potential[0] = new Pair(fid_potential, num_types,
+                &participating_kinds, atom_end[m]-atom_begin[m]+1);
+        potential_type = 1;
     }
     else if (strcmp(potential_name, "ri") == 0)
     {
-        // TODO separate RI from LJ to create separate, constructors
-        potential[0] = new Pair(fid_potential, 0, &participating_kinds);
+        if (!kinds_are_contiguous()) // special case for RI
+        {
+            print_error("Defined types/groups for RI potential must be "
+                    "contiguous and ascending.\n");
+        }
+        // TODO separate RI from LJ to create separate constructors
+        potential[0] = new Pair(fid_potential, 0,
+                &participating_kinds, atom_end[m]-atom_begin[m]+1);
+        potential_type = 1;
     }
     else
     {
         print_error("illegal potential model.\n");
     }
 
+    // check if manybody has sequential types (don't care for two-body)
+    if (potential_type == 0 && !kinds_are_contiguous())
+    {
+        print_error("Defined types/groups for manybody potentials must be "
+                            "contiguous and ascending.\n");
+    }
+
     potential[m]->N1 = 0;
     potential[m]->N2 = 0;
 
-    // TODO check this
     if (group_method > -1)
     {
-        potential[m]->N1 =
-                atom->group[group_method].cpu_size_sum[atom_begin[m]];
+        if (m == 0)
+        {
+            potential[m]->N1 = 0;
+        }
+        else
+        {
+            potential[m]->N1 =
+                    atom->group[group_method].cpu_size_sum[atom_begin[m-1]];
+        }
         potential[m]->N2 = atom->group[group_method].cpu_size_sum[atom_end[m]];
     }
     else
@@ -173,49 +208,69 @@ void Force::initialize_potential(Atom* atom, int m)
     // definition bookkeeping
     for (int n1 = atom_begin[m]; n1 < atom_end[m]; n1++)
     {
-        if (manybody_definition[n1])
+
+        if (potential_type == 0 && manybody_participation[n1])
         {
             print_error("Only a single many-body potential "
                     "definition is allowed per atom type/group (depending "
                     "on parse_potential keyword).\n");
         }
+
+        if (potential_type == 0)
+        {
+            manybody_participation[n1] = 1;
+            potential_participation[n1]++;
+        }
         else
         {
-            manybody_definition[n1] = 1;
-        }
-
-        // TODO decide if I even need this
-        for (int n2 = atom_begin[m]; n2 < atom_end[m]; n2++)
-        {
-            interaction_pairs[n1].push_back(n2);
+            if (kind_is_participating(n1, m))
+                potential_participation[n1]++;
         }
     }
 
-    // TODO change this. not exaclty correct
     printf
     (
-        "       applies to atoms [%d, %d) from type %d to type %d.\n",
-        potential[m]->N1, potential[m]->N2, atom_begin[m], atom_end[m]
+        "       applies to participating atoms [%d, %d) from type %d to "
+        "type %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
+        atom_end[m]
     );
 
     fclose(fid_potential);
 }
 
+bool Force::kind_is_participating(int kind, int pot_idx)
+{
+    for (int i = 0; i < (int)participating_kinds.size(); i++)
+    {
+        if(kind == participating_kinds[i]) return true;
+    }
+    return false;
+}
+
+bool Force::kinds_are_contiguous()
+{
+    int kind;
+    for (int i = 0; i < (int)participating_kinds.size()-1; i++)
+    {
+        if (kind[i] + 1 != kind[i+1]) return false;
+    }
+    return true;
+}
 
 void Force::add_potential(Atom *atom)
 {
     int m = num_of_potentials-1;
     initialize_potential(atom, m);
-    if (rc_max < potential[m]) rc_max = potential[m]->rc;
+    if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
 
     // check the atom types in xyz.in
     for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
     {
-        int type;
-        if (order_by_group > -1) type = atom->group[group_method].cpu_label[n];
-        else type = atom->cpu_type[n];
+        int kind;
+        if (order_by_group > -1) kind = atom->group[group_method].cpu_label[n];
+        else kind = atom->cpu_type[n];
 
-        if (type < atom_begin[m] || type > atom_end[m])
+        if (kind < atom_begin[m] || kind > atom_end[m])
         {
             printf("ERROR: type for potential # %d not from %d to %d.",
                 m, atom_begin[m], atom_end[m]);
@@ -223,7 +278,7 @@ void Force::add_potential(Atom *atom)
         }
     }
     shift[m] = atom_begin[m];
-    MY_FREE(participating_kinds); // clear after every add
+    participating_kinds.clear(); // reset after every definition
 }
 
 
