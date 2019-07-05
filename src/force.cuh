@@ -34,6 +34,7 @@ public:
     int get_number_of_types(FILE *fid_potential);
 
     int num_of_potentials;
+    int* participating_kinds;
     real rc_max;
     int atom_begin[MAX_NUM_OF_POTENTIALS];
     int atom_end[MAX_NUM_OF_POTENTIALS];

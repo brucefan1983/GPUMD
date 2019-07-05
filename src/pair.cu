@@ -55,32 +55,53 @@ J. Chem. Phys. 124, 234104 (2006).
         measure->shc.b_map, measure->shc.count_b                               \
     )
 
-
-Pair::Pair(FILE *fid, int potential_model_input)
+Pair::Pair(FILE *fid, int potential_model_input, int *participating_kinds)
 {
     potential_model = potential_model_input;
     if (potential_model == 0) initialize_ri(fid);
-    if (potential_model >= 1 && potential_model <= 5) 
+    if (potential_model >= 1 && potential_model <= 5)
         initialize_lj(fid, potential_model);
 }
 
+bool Pair::pair_participating(int n, int m, int *participating_kinds)
+{
+    bool m_part = false;
+    bool n_part = false;
+    for (int i = 0; i < N2 - N1 + 1; i++)
+    {
+        if (participating_kinds[i] == m) m_part = true;
+        if (participating_kinds[i] == n) n_part = true;
+        if (m_part && n_part) return true; // early exit
+    }
+    return false;
+}
 
-void Pair::initialize_lj(FILE *fid, int N)
+void Pair::initialize_lj(FILE *fid, int N, int *participating_kinds)
 {
     printf("Use %d-element LJ potential.\n", N);
     double epsilon, sigma, cutoff;
     rc = 0.0;
-    for (int n = 0; n < N; n++)
+    for (int n = 0; n < N2-N1+1; n++)
     {
-        for (int m = 0; m < N; m++)
+        for (int m = 0; m < N2-N1+1; m++)
         {
-            int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
-            if (count!=3) 
-            {print_error("reading error for potential file.\n");exit(1);}
-            lj_para.s6e4[n][m]   = pow(sigma, 6.0)  * epsilon * 4.0;
-            lj_para.s12e4[n][m]  = pow(sigma, 12.0) * epsilon * 4.0;
-            lj_para.cutoff_square[n][m] = cutoff * cutoff;
-            if (rc < cutoff) rc = cutoff;
+            if (pair_participating(n,m,participating_kinds))
+            {
+                int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
+                if (count!=3)
+                {print_error("reading error for potential file.\n");exit(1);}
+                lj_para.s6e4[n][m]   = pow(sigma, 6.0)  * epsilon * 4.0;
+                lj_para.s12e4[n][m]  = pow(sigma, 12.0) * epsilon * 4.0;
+                lj_para.cutoff_square[n][m] = cutoff * cutoff;
+                if (rc < cutoff) rc = cutoff;
+            }
+            else // pair not participating, but must still be defined
+            {
+                lj_para.s6e4[n][m]   = ONE;
+                lj_para.s12e4[n][m]  = ONE;
+                lj_para.cutoff_square[n][m] = ZERO;
+            }
+
         }
     }
 }

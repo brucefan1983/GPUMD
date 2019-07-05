@@ -81,32 +81,6 @@ int Force::get_number_of_types(FILE *fid_potential)
     return num_of_types;
 }
 
-//void Force::initialize_intermaterial_potential(Atom* atom, int m)
-//{
-//    FILE *fid_potential = my_fopen(file_potential[0], "r");
-//    char potential_name[20];
-//    int count = fscanf(fid_potential, "%s", potential_name);
-//    if (count != 1)
-//    {
-//        print_error("reading error for potential file.\n");
-//    }
-//    int num_types = get_number_of_types(fid_potential);
-//    print_type_error(atom_end[m] - atom_begin[m] + 1, num_types);
-//    if (strcmp(potential_name, "lj") == 0)
-//    {
-//        potential[0] = new Pair(fid_potential, num_types);
-//    }
-//    else
-//    {
-//        print_error("illegal inter-material potential model.\n");
-//    }
-//
-//    potential[m]->N1 = 0;
-//    potential[m]->N2 = atom->N;
-//
-//    fclose(fid_potential);
-//}
-
 void Force::initialize_potential(Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
@@ -162,11 +136,12 @@ void Force::initialize_potential(Atom* atom, int m)
     }
     if (strcmp(potential_name, "lj") == 0)
     {
-        potential[0] = new Pair(fid_potential, num_types);
+        potential[0] = new Pair(fid_potential, num_types, &participating_kinds);
     }
     else if (strcmp(potential_name, "ri") == 0)
     {
-        potential[0] = new Pair(fid_potential, 0);
+        // TODO separate RI from LJ to create separate, constructors
+        potential[0] = new Pair(fid_potential, 0, &participating_kinds);
     }
     else
     {
@@ -230,7 +205,7 @@ void Force::initialize_potential(Atom* atom, int m)
 void Force::add_potential(Atom *atom)
 {
     int m = num_of_potentials-1;
-    add_many_body_potential(atom, m);
+    initialize_potential(atom, m);
     if (rc_max < potential[m]) rc_max = potential[m]->rc;
 
     // check the atom types in xyz.in
@@ -248,6 +223,7 @@ void Force::add_potential(Atom *atom)
         }
     }
     shift[m] = atom_begin[m];
+    MY_FREE(participating_kinds); // clear after every add
 }
 
 

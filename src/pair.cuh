@@ -41,15 +41,16 @@ struct RI_Para
 class Pair : public Potential
 {
 public:   
-    Pair(FILE*, int potential_model);
+    Pair(FILE*, int potential_model, int*);
     virtual ~Pair(void);
     virtual void compute(Atom*, Measure*, int);
-    void initialize_lj(FILE *fid, int);
+    void initialize_lj(FILE *fid, int, int*);
     void initialize_ri(FILE *fid);
 protected:
     int      potential_model; 
     LJ_Para  lj_para;
     RI_Para  ri_para;
+    bool pair_participating(int, int, int*);
 };
 
 

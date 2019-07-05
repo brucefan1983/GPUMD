@@ -98,20 +98,31 @@ void parse_potential(char **param, int num_param, Force *force)
     int num_types = force->get_number_of_types(fid_potential);
     fclose(fid_potential);
 
-    // TODO check when multiple potentials have been defined.
     if (num_param != num_types + 2)
     {
         print_error("potential does not have enough types/groups defined.\n");
     }
 
-    if (!is_valid_int(param[2], &force->atom_begin[force->num_of_potentials]))
+    MY_MALLOC(force->participating_kinds, int, num_types);
+
+    for (int i = 0; i < num_types; i++)
     {
-        print_error("type_begin should be an integer.\n");
+        if(!is_valid_int(param[i+2], &force->participating_kinds[i]))
+        {
+            print_error("type/groups should be an integer.\n");
+        }
+        if (i != 0 &&
+            force->participating_kinds[i] < force->participating_kinds[i-1])
+        {
+            print_error("potential types/groups must be listed in "
+                    "ascending order.\n");
+        }
     }
-    if (!is_valid_int(param[1+num_types], &force->atom_end[force->num_of_potentials]))
-    {
-        print_error("type_end should be an integer.\n");
-    }
+    force->atom_begin[force->num_of_potentials] =
+            force->participating_kinds[0];
+    force->atom_end[force->num_of_potentials] =
+            force->participating_kinds[num_types-1];
+
 }
 
 
