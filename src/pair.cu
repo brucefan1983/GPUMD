@@ -58,20 +58,23 @@ J. Chem. Phys. 124, 234104 (2006).
 Pair::Pair
 (
         FILE *fid, int potential_model_input,
-        vector<int> *participating_kinds, int type_range
+        const vector<int> participating_kinds, int type_range
 )
 {
     potential_model = potential_model_input;
     if (potential_model == 0) initialize_ri(fid);
     if (potential_model >= 1 && potential_model <= 5)
-        initialize_lj(fid, potential_model);
+        initialize_lj(fid, potential_model, participating_kinds, type_range);
 }
 
-bool Pair::pair_participating(int n, int m, vector<int> *participating_kinds)
+bool Pair::pair_participating
+(
+        int n, int m, const vector<int> participating_kinds
+)
 {
     bool m_part = false;
     bool n_part = false;
-    for (int i = 0; i < (int)participating_kinds->size(); i++)
+    for (int i = 0; i < (int)participating_kinds.size(); i++)
     {
         if (participating_kinds[i] == m) m_part = true;
         if (participating_kinds[i] == n) n_part = true;
@@ -82,7 +85,8 @@ bool Pair::pair_participating(int n, int m, vector<int> *participating_kinds)
 
 void Pair::initialize_lj
 (
-        FILE *fid, int N, vector<int> *participating_kinds, int type_range
+        FILE *fid, int N,
+        const vector<int> participating_kinds, int type_range
 )
 {
     printf("Use %d-element LJ potential.\n", N);

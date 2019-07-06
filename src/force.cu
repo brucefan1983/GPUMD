@@ -150,7 +150,7 @@ void Force::initialize_potential(Atom* atom, int m)
     if (strcmp(potential_name, "lj") == 0)
     {
         potential[0] = new Pair(fid_potential, num_types,
-                &participating_kinds, atom_end[m]-atom_begin[m]+1);
+                participating_kinds, atom_end[m]-atom_begin[m]+1);
         potential_type = 1;
     }
     else if (strcmp(potential_name, "ri") == 0)
@@ -162,7 +162,7 @@ void Force::initialize_potential(Atom* atom, int m)
         }
         // TODO separate RI from LJ to create separate constructors
         potential[0] = new Pair(fid_potential, 0,
-                &participating_kinds, atom_end[m]-atom_begin[m]+1);
+                participating_kinds, atom_end[m]-atom_begin[m]+1);
         potential_type = 1;
     }
     else
@@ -249,10 +249,10 @@ bool Force::kind_is_participating(int kind, int pot_idx)
 
 bool Force::kinds_are_contiguous()
 {
-    int kind;
     for (int i = 0; i < (int)participating_kinds.size()-1; i++)
     {
-        if (kind[i] + 1 != kind[i+1]) return false;
+        if (participating_kinds[i] + 1 != participating_kinds[i+1])
+            return false;
     }
     return true;
 }
@@ -267,7 +267,7 @@ void Force::add_potential(Atom *atom)
     for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
     {
         int kind;
-        if (order_by_group > -1) kind = atom->group[group_method].cpu_label[n];
+        if (group_method > -1) kind = atom->group[group_method].cpu_label[n];
         else kind = atom->cpu_type[n];
 
         if (kind < atom_begin[m] || kind > atom_end[m])
@@ -277,13 +277,12 @@ void Force::add_potential(Atom *atom)
             exit(1);
         }
     }
-    shift[m] = atom_begin[m];
+    atom->shift[m] = atom_begin[m];
     participating_kinds.clear(); // reset after every definition
 }
 
 
 // Construct the local neighbor list from the global one (Kernel)
-template<int check_type>
 static __global__ void gpu_find_neighbor_local
 (
     int triclinic, int pbc_x, int pbc_y, int pbc_z, 
@@ -316,12 +315,9 @@ static __global__ void gpu_find_neighbor_local
         {   
             int n2 = NL[n1 + N * i1];
 
-            // only include neighors with the correct types
-            if (check_type)
-            {
-                int type_n2 = type[n2];
-                if (type_n2 < type_begin || type_n2 > type_end) continue;
-            }
+            // only include neighbors with the correct types
+            int type_n2 = type[n2];
+            if (type_n2 < type_begin || type_n2 > type_end) continue;
 
             real x12  = LDG(x, n2) - x1;
             real y12  = LDG(y, n2) - y1;
@@ -363,24 +359,13 @@ void Force::find_neighbor_local(Atom *atom, int m)
     real *z = atom->z;
     real *box = atom->box.h;
       
-    if (0 == m)
-    {
-        gpu_find_neighbor_local<0, 0><<<grid_size, BLOCK_SIZE>>>
-        (
-            triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2,
-            rc2, box, NN, NL, NN_local, NL_local, x, y, z
-        );
-        CUDA_CHECK_KERNEL
-    }
-    else
-    {
-        gpu_find_neighbor_local<0, 1><<<grid_size, BLOCK_SIZE>>>
-        (
-            triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
-            rc2, box, NN, NL, NN_local, NL_local, x, y, z
-        );
-        CUDA_CHECK_KERNEL
-    }
+    gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
+    (
+        triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2,
+        rc2, box, NN, NL, NN_local, NL_local, x, y, z
+    );
+    CUDA_CHECK_KERNEL
+
 }
 
 

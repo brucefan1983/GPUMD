@@ -152,7 +152,7 @@ void Measure::dump_restarts(Atom *atom, int step)
     CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
     fid_restart = my_fopen(file_restart, "w"); 
-    fprintf(fid_restart, "%d %d %g %d %d %d %d\n", atom->N, atom->neighbor.MN,
+    fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
         atom->neighbor.rc, atom->box.triclinic, 1,
         atom->num_of_grouping_methods);
     if (atom->box.triclinic == 0)

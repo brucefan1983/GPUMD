@@ -36,7 +36,6 @@ Potential::Potential(void)
 Potential::~Potential(void)
 {
     // nothing
-    MY_FREE(participating_types);
 }
 
 

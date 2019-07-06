@@ -18,7 +18,7 @@
 #include "common.cuh"
 
 
-void parse_potential_definition(char**, int, Force*);
+void parse_potential_definition(char**, int, Atom*, Force*);
 void parse_potential(char**, int, Force*);
 void parse_velocity(char**, int, Atom*);
 void parse_ensemble(char**, int, Atom*, Integrate*);
