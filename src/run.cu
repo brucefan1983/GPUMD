@@ -272,6 +272,7 @@ void Run::run
     char *input = get_file_contents(file_run);
     char *input_ptr = input; // Keep the pointer in order to free later
     const int max_num_param = 10; // never use more than 9 parameters
+    force->num_of_potentials = 0;
     int num_param;
     char *param[max_num_param];
     initialize_run(atom, integrate, measure); // set some default values

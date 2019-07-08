@@ -76,13 +76,16 @@ void parse_potential_definition
             print_error("potential_definition: group_method should be an "
                     "integer.\n");
         }
+        else if(force->group_method > MAX_NUMBER_OF_GROUPS)
+        {
+            print_error("Specified group_method is too large (> 10).\n");
+        }
     }
 }
 
 // a potential
 void parse_potential(char **param, int num_param, Force *force)
 {
-    force->num_of_potentials++;
     // check for at least the file path
     if (num_param < 3)
     {
@@ -100,7 +103,7 @@ void parse_potential(char **param, int num_param, Force *force)
 
     if (num_param != num_types + 2)
     {
-        print_error("potential does not have enough types/groups defined.\n");
+        print_error("potential has incorrect number of types/groups defined.\n");
     }
 
     force->participating_kinds.resize(num_types);
@@ -122,6 +125,8 @@ void parse_potential(char **param, int num_param, Force *force)
             force->participating_kinds[0];
     force->atom_end[force->num_of_potentials] =
             force->participating_kinds[num_types-1];
+
+    force->num_of_potentials++;
 
 }
 

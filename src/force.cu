@@ -62,14 +62,6 @@ Force::~Force(void)
 }
 
 
-static void print_type_error(int number_of_types, int number_of_types_expected)
-{
-    if (number_of_types != number_of_types_expected)
-    {
-        print_error("number of types does not match potential file.\n");
-    }
-}
-
 int Force::get_number_of_types(FILE *fid_potential)
 {
     int num_of_types;
@@ -105,7 +97,6 @@ void Force::initialize_potential(Atom* atom, int m)
 
     int num_types = get_number_of_types(fid_potential);
     int potential_type = 0; // 0 - manybody, 1 - two-body
-    print_type_error(atom_end[m] - atom_begin[m] + 1, num_types);
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
@@ -147,9 +138,9 @@ void Force::initialize_potential(Atom* atom, int m)
     {
         potential[m] = new Vashishta(fid_potential, atom, 1);
     }
-    if (strcmp(potential_name, "lj") == 0)
+    else if (strcmp(potential_name, "lj") == 0)
     {
-        potential[0] = new Pair(fid_potential, num_types,
+        potential[m] = new Pair(fid_potential, num_types,
                 participating_kinds, atom_end[m]-atom_begin[m]+1);
         potential_type = 1;
     }
@@ -161,13 +152,21 @@ void Force::initialize_potential(Atom* atom, int m)
                     "contiguous and ascending.\n");
         }
         // TODO separate RI from LJ to create separate constructors
-        potential[0] = new Pair(fid_potential, 0,
+        potential[m] = new Pair(fid_potential, 0,
                 participating_kinds, atom_end[m]-atom_begin[m]+1);
         potential_type = 1;
     }
     else
     {
         print_error("illegal potential model.\n");
+    }
+
+    if (potential_type == 0)
+    {
+        if (atom_end[m] - atom_begin[m] + 1 > num_types)
+        {
+            print_error("Error: types/groups must be listed contiguously.\n");
+        }
     }
 
     // check if manybody has sequential types (don't care for two-body)
@@ -182,16 +181,14 @@ void Force::initialize_potential(Atom* atom, int m)
 
     if (group_method > -1)
     {
-        if (m == 0)
+        for (int n = 0; n < atom_begin[m]; ++n)
         {
-            potential[m]->N1 = 0;
+            potential[m]->N1 += atom->group[group_method].cpu_size[n];
         }
-        else
+        for (int n = 0; n <= atom_end[m]; ++n)
         {
-            potential[m]->N1 =
-                    atom->group[group_method].cpu_size_sum[atom_begin[m-1]];
+            potential[m]->N2 += atom->group[group_method].cpu_size[n];
         }
-        potential[m]->N2 = atom->group[group_method].cpu_size_sum[atom_end[m]];
     }
     else
     {
@@ -206,7 +203,7 @@ void Force::initialize_potential(Atom* atom, int m)
     }
 
     // definition bookkeeping
-    for (int n1 = atom_begin[m]; n1 < atom_end[m]; n1++)
+    for (int n1 = atom_begin[m]; n1 < atom_end[m]+1; n1++)
     {
 
         if (potential_type == 0 && manybody_participation[n1])
@@ -228,12 +225,25 @@ void Force::initialize_potential(Atom* atom, int m)
         }
     }
 
-    printf
-    (
-        "       applies to participating atoms [%d, %d) from type %d to "
-        "type %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
-        atom_end[m]
-    );
+    if (group_method > -1)
+    {
+        printf
+        (
+            "       applies to participating atoms [%d, %d) from group %d to "
+            "group %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
+            atom_end[m]
+        );
+    }
+    else
+    {
+        printf
+        (
+            "       applies to participating atoms [%d, %d) from type %d to "
+            "type %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
+            atom_end[m]
+        );
+    }
+
 
     fclose(fid_potential);
 }

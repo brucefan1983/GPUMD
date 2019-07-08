@@ -21,6 +21,7 @@
 #include "neighbor.cuh"
 #include "common.cuh"
 
+#define MAX_NUMBER_OF_GROUPS 10
 
 class Atom
 {
@@ -72,7 +73,7 @@ public:
     // some well defined sub-structures
     Neighbor neighbor;
     Box box;
-    Group group[10];
+    Group group[MAX_NUMBER_OF_GROUPS];
 
     Atom(char *input_dir);
     ~Atom(void);

@@ -48,7 +48,7 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
     double rc;
     int count = fscanf(fid_xyz, "%d%d%lf%d%d%d\n", &N, &neighbor.MN, &rc,
         &box.triclinic, &has_velocity_in_xyz, &num_of_grouping_methods);
-    if (count != 7) print_error("Reading error for line 1 of xyz.in.\n");
+    if (count != 6) print_error("Reading error for line 1 of xyz.in.\n");
     neighbor.rc = rc;
     if (N < 2)
         print_error("Number of atoms should >= 2\n");
