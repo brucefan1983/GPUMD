@@ -35,7 +35,7 @@ class Tersoff1988 : public Potential
 public:   
     Tersoff1988(FILE*, Atom*, int sum_of_types);
     virtual ~Tersoff1988(void);
-    virtual void compute(Atom*, Measure*);
+    virtual void compute(Atom*, Measure*, int);
 protected:
     int num_types;
     real *ters;

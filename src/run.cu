@@ -38,6 +38,17 @@ Run::Run
 )
 {
     run(input_dir, atom, force, integrate, measure, 1);
+
+    if (force->group_method > -1)
+        force->num_kind = atom->group[force->group_method].number;
+    else
+        force->num_kind = atom->number_of_types;
+
+    // initialize bookkeeping data structures
+    ZEROS(force->manybody_participation, int, force->num_kind);
+    ZEROS(force->potential_participation, int, force->num_kind);
+    ZEROS(atom->shift, int, MAX_NUM_OF_POTENTIALS);
+
     run(input_dir, atom, force, integrate, measure, 0);
 }
 
@@ -93,12 +104,10 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
 }
 
 
-void Run::print_velocity_and_potential_error_1(void)
+void Run::print_velocity_and_potential_error(void)
 {
     if (0 == number_of_times_potential)
     { print_error("No 'potential(s)' keyword before run.\n"); }
-    else if (1 < number_of_times_potential)
-    { print_error("Multiple 'potential(s)' keywords before run.\n"); }
     if (0 == number_of_times_velocity)
     { print_error("No 'velocity' keyword before run.\n"); }
     else if (1 < number_of_times_velocity)
@@ -106,10 +115,8 @@ void Run::print_velocity_and_potential_error_1(void)
 }
 
 
-void Run::print_velocity_and_potential_error_2(void)
+void Run::print_velocity_error(void)
 {
-    if (1 < number_of_times_potential)
-    { print_error("Multiple 'potential(s)' keywords.\n"); }
     if (1 < number_of_times_velocity)
     { print_error("Multiple 'velocity' keywords.\n"); }
 }
@@ -205,7 +212,7 @@ static void print_finish(int check)
 
 
 // do something when the keyword is "potential"
-void Run::check_potential
+void Run::add_potential
 (
     char* input_dir, int is_potential, int check,
     Atom* atom, Force* force, Measure* measure
@@ -215,8 +222,7 @@ void Run::check_potential
     if (check) { number_of_times_potential++; }
     else
     {
-        force->initialize(input_dir, atom);
-        force->compute(atom, measure);
+        force->add_potential(atom);
     }
 }
 
@@ -240,10 +246,15 @@ void Run::check_run
     if (!is_run) { return; }
     if (check)
     {
-        print_velocity_and_potential_error_1();
+        print_velocity_and_potential_error();
         check_run_parameters(atom, integrate, measure);
     }
-    else { process_run(input_dir, atom, force, integrate, measure); }
+    else
+    {
+        force->valdiate_potential_definitions();
+
+        process_run(input_dir, atom, force, integrate, measure);
+    }
     initialize_run(atom, integrate, measure);
 }
 
@@ -261,6 +272,7 @@ void Run::run
     char *input = get_file_contents(file_run);
     char *input_ptr = input; // Keep the pointer in order to free later
     const int max_num_param = 10; // never use more than 9 parameters
+    force->num_of_potentials = 0;
     int num_param;
     char *param[max_num_param];
     initialize_run(atom, integrate, measure); // set some default values
@@ -274,11 +286,11 @@ void Run::run
         int is_run = 0;
         parse(param, num_param, atom, force, integrate, measure,
             &is_potential, &is_velocity, &is_run);
-        check_potential(input_dir, is_potential, check, atom, force, measure);
+        add_potential(input_dir, is_potential, check, atom, force, measure);
         check_velocity(is_velocity, check, atom);
         check_run(input_dir, is_run, check, atom, force, integrate, measure);
     }
-    print_velocity_and_potential_error_2();
+    print_velocity_error();
     print_finish(check);
     MY_FREE(input); // Free the input file contents
 }
@@ -291,15 +303,14 @@ void Run::parse
     int *is_potential,int *is_velocity,int *is_run
 )
 {
-    if (strcmp(param[0], "potential") == 0)
+    if (strcmp(param[0], "potential_definition") == 0)
+    {
+        parse_potential_definition(param, num_param, atom, force);
+    }
+    else if (strcmp(param[0], "potential") == 0)
     {
         *is_potential = 1;
         parse_potential(param, num_param, force);
-    }
-    else if (strcmp(param[0], "potentials") == 0)
-    {
-        *is_potential = 1;
-        parse_potentials(param, num_param, force);
     }
     else if (strcmp(param[0], "velocity") == 0)
     {

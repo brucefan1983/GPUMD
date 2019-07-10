@@ -40,7 +40,7 @@ class SW2 : public Potential
 public:   
     SW2(FILE*, Atom*, int num_of_types);
     virtual ~SW2(void);
-    virtual void compute(Atom*, Measure*);
+    virtual void compute(Atom*, Measure*, int);
     void initialize_sw_1985_1(FILE*); // called by the constructor
     void initialize_sw_1985_2(FILE*); // called by the constructor
     void initialize_sw_1985_3(FILE*); // called by the constructor

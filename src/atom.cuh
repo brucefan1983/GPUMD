@@ -21,6 +21,7 @@
 #include "neighbor.cuh"
 #include "common.cuh"
 
+#define MAX_NUMBER_OF_GROUPS 10
 
 class Atom
 {
@@ -28,7 +29,6 @@ public:
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
-    int *type_local;              // local atom type (for force)
     real *x0; real *y0; real *z0; // for determing when to update neighbor list
     real *mass;                   // per-atom mass
     real *x; real *y; real *z;    // per-atom position
@@ -42,9 +42,8 @@ public:
     real *thermo;                 // some thermodynamic quantities
 
     int* cpu_type;
-    int* cpu_type_local;
     int* cpu_type_size;
-    int* cpu_layer_label;
+    int* shift; // shift to correct type in force eval
 
     real* cpu_mass;
     real* cpu_x;
@@ -59,7 +58,6 @@ public:
     int number_of_types;  // number of atom types 
 
     int has_velocity_in_xyz = 0;
-    int has_layer_in_xyz = 0;
     int num_of_grouping_methods = 0;
 
     // make a structure?
@@ -75,7 +73,7 @@ public:
     // some well defined sub-structures
     Neighbor neighbor;
     Box box;
-    Group group[10];
+    Group group[MAX_NUMBER_OF_GROUPS];
 
     Atom(char *input_dir);
     ~Atom(void);

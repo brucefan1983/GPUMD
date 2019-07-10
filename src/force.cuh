@@ -18,8 +18,6 @@
 #include "common.cuh"
 
 #define MAX_NUM_OF_POTENTIALS 10
-#define FILE_NAME_LENGTH      200
-
 
 class Force
 {
@@ -27,26 +25,30 @@ public:
 
     Force(void);
     ~Force(void);
-    void initialize(char*, Atom*);
+    void add_potential(Atom*);
     void compute(Atom*, Measure*);
+    int get_number_of_types(FILE *fid_potential);
+    void valdiate_potential_definitions(void);
 
     int num_of_potentials;
-    int interlayer_only;
+    vector<int> participating_kinds;
     real rc_max;
-    int type_begin[MAX_NUM_OF_POTENTIALS];
-    int type_end[MAX_NUM_OF_POTENTIALS];
+    int atom_begin[MAX_NUM_OF_POTENTIALS];
+    int atom_end[MAX_NUM_OF_POTENTIALS];
     char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
+    int* potential_participation;
+    int* manybody_participation;
+    int group_method;
+    int num_kind;
 
 private:
 
-    void initialize_one_potential(Atom*, int);
-    void initialize_two_body_potential(Atom*);
-    void initialize_many_body_potential(Atom*, int);
+    void initialize_potential(Atom*, int);
     void find_neighbor_local(Atom*, int);
-    void initialize_layer_label(char*, int);
+    bool kind_is_participating(int, int);
+    bool kinds_are_contiguous(void);
 
     Potential *potential[MAX_NUM_OF_POTENTIALS];
-    int *layer_label;
 };
 
 

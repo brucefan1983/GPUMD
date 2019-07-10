@@ -16,6 +16,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include <vector>
 
 #define MAX_TYPE 5 // do you want to have more than 5 atom types?
 
@@ -41,15 +42,16 @@ struct RI_Para
 class Pair : public Potential
 {
 public:   
-    Pair(FILE*, int potential_model);
+    Pair(FILE*, int potential_model, const vector<int>, int);
     virtual ~Pair(void);
-    virtual void compute(Atom*, Measure*);
-    void initialize_lj(FILE *fid, int);
+    virtual void compute(Atom*, Measure*, int);
+    void initialize_lj(FILE *fid, int, const vector<int>, int);
     void initialize_ri(FILE *fid);
 protected:
     int      potential_model; 
     LJ_Para  lj_para;
     RI_Para  ri_para;
+    bool pair_participating(int, int, const vector<int>);
 };
 
 

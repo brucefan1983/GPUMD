@@ -168,7 +168,7 @@ C, H, O, Si atoms.
     find_force_step0<A, B, C><<<grid_size, BLOCK_SIZE_FORCE>>>                 \
     (                                                                          \
         fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,           \
-        NN, NL, NN_local, NL_local, type,                                      \
+        NN, NL, NN_local, NL_local, type, shift,                               \
         x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,                           \
         sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b          \
     )
@@ -614,7 +614,8 @@ static __global__ void find_force_step0
     real fe_x, real fe_y, real fe_z,
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local, int *g_type,
+    int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
+    int *g_type, int shift,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z, 
@@ -649,7 +650,7 @@ static __global__ void find_force_step0
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_NN[n1];
-        int type1 = g_type[n1];
+        int type1 = g_type[n1] - shift;
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
@@ -669,7 +670,7 @@ static __global__ void find_force_step0
             real z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            int type2 = g_type[n2];
+            int type2 = g_type[n2] - shift;
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
 
             if (d12 < REBO_MOS2_r2_MM)
@@ -782,7 +783,7 @@ static __global__ void find_force_step0
 static __global__ void find_force_step1
 (
     int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int* g_NN, int* g_NL, int* g_type,
+    int* g_NN, int* g_NL, int* g_type, int shift,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z,
@@ -794,7 +795,7 @@ static __global__ void find_force_step1
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_NN[n1];
-        int type1 = g_type[n1];
+        int type1 = g_type[n1] - shift;
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
@@ -816,7 +817,7 @@ static __global__ void find_force_step1
             {
                 int n3 = g_NL[n1 + N * i2];
                 if (n3 == n2) { continue; } // ensure that n3 != n2
-                int type3 = g_type[n3];
+                int type3 = g_type[n3] - shift;
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
@@ -846,7 +847,7 @@ static __global__ void find_force_step1
 static __global__ void find_force_step2
 (
     int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int *g_NN, int *g_NL, int *g_type,
+    int *g_NN, int *g_NL, int *g_type, int shift,
     const real* __restrict__ g_b, 
     const real* __restrict__ g_bp,
     const real* __restrict__ g_pp,
@@ -861,7 +862,7 @@ static __global__ void find_force_step2
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_NN[n1];
-        int type1 = g_type[n1];
+        int type1 = g_type[n1] - shift;
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
@@ -872,7 +873,7 @@ static __global__ void find_force_step2
         {
             int index = i1 * N + n1;
             int n2 = g_NL[index];
-            int type2 = g_type[n2];
+            int type2 = g_type[n2] - shift;
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
@@ -903,7 +904,7 @@ static __global__ void find_force_step2
             {       
                 int n3 = g_NL[n1 + N * i2];
                 if (n3 == n2) { continue; }
-                int type3 = g_type[n3];
+                int type3 = g_type[n3] - shift;
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
@@ -942,9 +943,10 @@ static __global__ void find_force_step2
 
 
 // Force evaluation wrapper
-void REBO_MOS::compute(Atom *atom, Measure *measure)
+void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
 {
     int N = atom->N;
+    int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
@@ -956,7 +958,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     int *NN_local = rebo_mos_data.NN_short; // for 3-body
     int *NL_local = rebo_mos_data.NL_short; // for 3-body
 
-    int *type = atom->type_local;
+    int *type = atom->type;
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
@@ -1020,16 +1022,16 @@ void REBO_MOS::compute(Atom *atom, Measure *measure)
     // pre-compute the bond-order function and its derivative
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
-        x, y, z, box, b, bp, p
+        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local,
+        type, shift, x, y, z, box, b, bp, p
     );
     CUDA_CHECK_KERNEL
 
     // pre-compute the partial force
     find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local, type, 
-        b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
+        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local,
+        type, shift, b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 

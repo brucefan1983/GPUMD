@@ -26,6 +26,9 @@
                                exit(EXIT_FAILURE);                             \
                            }
 
+#define ZEROS(p, t, n) p = MY_MALLOC(p, t, n)                                  \
+                       for(int i_=0; i_<(n);i_++){p[i_]=(t)0;}                  \
+
 
 #define MY_FREE(p) if(p != NULL)                                               \
                    {                                                           \

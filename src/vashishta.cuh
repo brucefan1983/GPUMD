@@ -45,7 +45,7 @@ class Vashishta : public Potential
 public:   
     Vashishta(FILE*, Atom*, int use_table);  
     virtual ~Vashishta(void);
-    virtual void compute(Atom*, Measure*);
+    virtual void compute(Atom*, Measure*, int);
     void initialize_0(FILE*);
     void initialize_1(FILE*);
 protected:

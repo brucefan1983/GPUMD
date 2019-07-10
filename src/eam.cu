@@ -46,7 +46,7 @@ The EAM potential. Currently two analytical versions:
 EAM::EAM(FILE *fid, Atom* atom, char *name)
 {
 
-    if (strcmp(name, "eam_zhou_2004_1") == 0) initialize_eam2004zhou(fid);
+    if (strcmp(name, "eam_zhou_2004") == 0)  initialize_eam2004zhou(fid);
     if (strcmp(name, "eam_dai_2006") == 0)    initialize_eam2006dai(fid);
 
     // memory for the derivative of the density functional 
@@ -483,7 +483,7 @@ static __global__ void find_force_eam_step2
 
 
 // Force evaluation wrapper
-void EAM::compute(Atom *atom, Measure *measure)
+void EAM::compute(Atom *atom, Measure *measure, int potential_number)
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     find_measurement_flags(atom, measure);

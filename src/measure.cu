@@ -152,8 +152,8 @@ void Measure::dump_restarts(Atom *atom, int step)
     CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
     fid_restart = my_fopen(file_restart, "w"); 
-    fprintf(fid_restart, "%d %d %g %d %d %d %d\n", atom->N, atom->neighbor.MN,
-        atom->neighbor.rc, atom->box.triclinic, 1, atom->has_layer_in_xyz,
+    fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
+        atom->neighbor.rc, atom->box.triclinic, 1,
         atom->num_of_grouping_methods);
     if (atom->box.triclinic == 0)
     {
@@ -179,10 +179,6 @@ void Measure::dump_restarts(Atom *atom, int step)
         fprintf(fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
             atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n], atom->cpu_mass[n],
             atom->cpu_vx[n], atom->cpu_vy[n], atom->cpu_vz[n]);
-        if (atom->has_layer_in_xyz)
-        {
-            fprintf(fid_restart, "%d ", atom->cpu_layer_label[n]);
-        }
         for (int m = 0; m < atom->num_of_grouping_methods; ++m)
         {
             fprintf(fid_restart, "%d ", atom->group[m].cpu_label[n]);
@@ -259,7 +255,8 @@ void Measure::process
     hac.process(step, input_dir, atom);
     shc.process(step, input_dir, atom);
     hnemd.process(step, input_dir, atom, integrate);
-    dump_pos->dump(atom, step);
+    if (dump_pos) dump_pos->dump(atom, step);
+
 }
 
 

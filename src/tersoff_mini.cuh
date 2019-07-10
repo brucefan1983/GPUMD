@@ -33,7 +33,7 @@ class Tersoff_mini : public Potential
 public:   
     Tersoff_mini(FILE*, Atom*, int);
     virtual ~Tersoff_mini(void);
-    virtual void compute(Atom*, Measure*);
+    virtual void compute(Atom*, Measure*, int);
 protected:
     int num_types; // number of atom tpyes
     real *para;    // potential parameters

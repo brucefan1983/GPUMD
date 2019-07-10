@@ -273,7 +273,8 @@ static __global__ void find_force_tersoff_step1
 (
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int num_types, int* g_neighbor_number, int* g_neighbor_list, int* g_type,
+    int num_types, int* g_neighbor_number, int* g_neighbor_list,
+    int* g_type, int shift,
     const real* __restrict__ ters,
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
@@ -289,12 +290,12 @@ static __global__ void find_force_tersoff_step1
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
-        int type1 = g_type[n1];
+        int type1 = g_type[n1] - shift;
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_neighbor_list[n1 + number_of_particles * i1];
-            int type2 = g_type[n2];
+            int type2 = g_type[n2] - shift;
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
@@ -305,7 +306,7 @@ static __global__ void find_force_tersoff_step1
             {
                 int n3 = g_neighbor_list[n1 + number_of_particles * i2];
                 if (n3 == n2) { continue; } // ensure that n3 != n2
-                int type3 = g_type[n3];
+                int type3 = g_type[n3] - shift;
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
@@ -347,7 +348,8 @@ static __global__ void find_force_tersoff_step2
 (
     int number_of_particles, int N1, int N2, 
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int num_types, int *g_neighbor_number, int *g_neighbor_list, int *g_type,
+    int num_types, int *g_neighbor_number, int *g_neighbor_list,
+    int *g_type, int shift,
     const real* __restrict__ ters,
     const real* __restrict__ g_b,
     const real* __restrict__ g_bp,
@@ -365,14 +367,14 @@ static __global__ void find_force_tersoff_step2
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
-        int type1 = g_type[n1];
+        int type1 = g_type[n1] - shift;
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
         real pot_energy = ZERO;
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
-            int type2 = g_type[n2];
+            int type2 = g_type[n2] - shift;
 
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
@@ -405,7 +407,7 @@ static __global__ void find_force_tersoff_step2
                 int index_2 = n1 + number_of_particles * i2;
                 int n3 = g_neighbor_list[index_2];
                 if (n3 == n2) { continue; }
-                int type3 = g_type[n3];
+                int type3 = g_type[n3] - shift;
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
@@ -464,9 +466,10 @@ static __global__ void find_force_tersoff_step2
 
 
 // Wrapper of force evaluation for the Tersoff potential
-void Tersoff1988::compute(Atom *atom, Measure *measure)
+void Tersoff1988::compute(Atom *atom, Measure *measure, int potential_number)
 {
     int N = atom->N;
+    int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
@@ -474,7 +477,7 @@ void Tersoff1988::compute(Atom *atom, Measure *measure)
     int pbc_z = atom->box.pbc_z;
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
-    int *type = atom->type_local;
+    int *type = atom->type;
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
@@ -492,7 +495,7 @@ void Tersoff1988::compute(Atom *atom, Measure *measure)
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, num_types,
-        NN, NL, type, ters, x, y, z, box, b, bp
+        NN, NL, type, shift, ters, x, y, z, box, b, bp
     );
     CUDA_CHECK_KERNEL
 
@@ -500,7 +503,7 @@ void Tersoff1988::compute(Atom *atom, Measure *measure)
     find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, num_types,
-        NN, NL, type, ters, b, bp, x, y, z, box, pe, f12x, f12y, f12z
+        NN, NL, type, shift, ters, b, bp, x, y, z, box, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 

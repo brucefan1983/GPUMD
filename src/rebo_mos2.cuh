@@ -37,7 +37,7 @@ class REBO_MOS : public Potential
 public:   
     REBO_MOS(Atom*);
     virtual ~REBO_MOS(void);
-    virtual void compute(Atom*, Measure*);
+    virtual void compute(Atom*, Measure*, int);
 protected:
     REBO_MOS_Data rebo_mos_data;
 };

@@ -46,8 +46,8 @@ Force::Force(void)
         potential[m] = NULL;
     }
     num_of_potentials = 0;
-    interlayer_only = 0;
     rc_max = ZERO;
+    group_method = -1;
 }
 
 
@@ -58,23 +58,11 @@ Force::~Force(void)
         delete potential[m];
         potential[m] = NULL;
     }
-
-    if (interlayer_only) 
-    {
-        CHECK(cudaFree(layer_label));
-    }
+    MY_FREE(manybody_participation);
 }
 
 
-static void print_type_error(int number_of_types, int number_of_types_expected)
-{
-    if (number_of_types != number_of_types_expected)
-    {
-        print_error("number of types does not match potential file.\n");
-    }
-}
-
-static int get_number_of_types(FILE *fid_potential)
+int Force::get_number_of_types(FILE *fid_potential)
 {
     int num_of_types;
     int count = fscanf(fid_potential, "%d", &num_of_types);
@@ -85,347 +73,234 @@ static int get_number_of_types(FILE *fid_potential)
     return num_of_types;
 }
 
-void Force::initialize_one_potential(Atom* atom, int m)
+void Force::valdiate_potential_definitions()
+{
+    for (int i = 0; i < num_kind; i++)
+    {
+        if (potential_participation[i] == 0)
+        {
+            print_error("All atoms must participate in at least "
+                    "one potential.\n");
+        }
+    }
+}
+
+void Force::initialize_potential(Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
     int count = fscanf(fid_potential, "%s", potential_name);
     if (count != 1) 
     {
-        print_error("reading error for potential.in.\n");
+        print_error("reading error for potential file.\n");
     }
 
+    int num_types = get_number_of_types(fid_potential);
+    int potential_type = 0; // 0 - manybody, 1 - two-body
     // determine the potential
-    if (strcmp(potential_name, "tersoff_1989_1") == 0)
+    if (strcmp(potential_name, "tersoff_1989") == 0)
     {
-        potential[m] = new Tersoff1989(fid_potential, atom, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "tersoff_1989_2") == 0)
-    { 
-        potential[m] = new Tersoff1989(fid_potential, atom, 2);
-        print_type_error(atom->number_of_types, 2);
+        potential[m] = new Tersoff1989(fid_potential, atom, num_types);
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
     {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(atom->number_of_types, num_of_types);
-        potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
+        potential[m] = new Tersoff1988(fid_potential, atom, num_types);
     }
     else if (strcmp(potential_name, "tersoff_modc") == 0)
     {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(atom->number_of_types, num_of_types);
-        potential[m] = new Tersoff_modc(fid_potential, atom, num_of_types);
+        potential[m] = new Tersoff_modc(fid_potential, atom, num_types);
     }
     else if (strcmp(potential_name, "tersoff_mini") == 0)
     {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(atom->number_of_types, num_of_types);
-        potential[m] = new Tersoff_mini(fid_potential, atom, num_of_types);
+        potential[m] = new Tersoff_mini(fid_potential, atom, num_types);
     }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
-        potential[m] = new SW2(fid_potential, atom, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "sw_1985_2") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 2);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "sw_1985_3") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 3);
-        print_type_error(atom->number_of_types, 3);
+        potential[m] = new SW2(fid_potential, atom, num_types);
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0)
     {
         potential[m] = new REBO_MOS(atom);
-        print_type_error(atom->number_of_types, 2);
     }
-    else if (strcmp(potential_name, "lj1") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "lj2") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 2);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "lj3") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 3);
-        print_type_error(atom->number_of_types, 3);
-    }
-    else if (strcmp(potential_name, "lj4") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 4);
-        print_type_error(atom->number_of_types, 4);
-    }
-    else if (strcmp(potential_name, "lj5") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 5);
-        print_type_error(atom->number_of_types, 5);
-    }
-    else if (strcmp(potential_name, "ri") == 0)
-    {
-        potential[m] = new Pair(fid_potential, 0);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
+    else if (strcmp(potential_name, "eam_zhou_2004") == 0)
     {
         potential[m] = new EAM(fid_potential, atom, potential_name);
-        print_type_error(atom->number_of_types, 1);
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0)
     {
         potential[m] = new EAM(fid_potential, atom, potential_name);
-        print_type_error(atom->number_of_types, 1);
     }
     else if (strcmp(potential_name, "vashishta") == 0)
     {
         potential[m] = new Vashishta(fid_potential, atom, 0);
-        print_type_error(atom->number_of_types, 2);
     }
     else if (strcmp(potential_name, "vashishta_table") == 0)
     {
         potential[m] = new Vashishta(fid_potential, atom, 1);
-        print_type_error(atom->number_of_types, 2);
+    }
+    else if (strcmp(potential_name, "lj") == 0)
+    {
+        potential[m] = new Pair(fid_potential, num_types,
+                participating_kinds, atom_end[m]-atom_begin[m]+1);
+        potential_type = 1;
+    }
+    else if (strcmp(potential_name, "ri") == 0)
+    {
+        if (!kinds_are_contiguous()) // special case for RI
+        {
+            print_error("Defined types/groups for RI potential must be "
+                    "contiguous and ascending.\n");
+        }
+        // TODO separate RI from LJ to create separate constructors
+        potential[m] = new Pair(fid_potential, 0,
+                participating_kinds, atom_end[m]-atom_begin[m]+1);
+        potential_type = 1;
     }
     else
     {
         print_error("illegal potential model.\n");
     }
 
-    potential[m]->N1 = 0;
-    potential[m]->N2 = atom->N;
-
-    fclose(fid_potential);
-}
-
-
-void Force::initialize_two_body_potential(Atom* atom)
-{
-    FILE *fid_potential = my_fopen(file_potential[0], "r");
-    char potential_name[20];
-    int count = fscanf(fid_potential, "%s", potential_name);
-    if (count != 1) 
+    if (potential_type == 0)
     {
-        print_error("reading error for potential file.\n");
+        if (atom_end[m] - atom_begin[m] + 1 > num_types)
+        {
+            print_error("Error: types/groups must be listed contiguously.\n");
+        }
     }
 
-    // determine the potential
-    if (strcmp(potential_name, "lj1") == 0)
+    // check if manybody has sequential types (don't care for two-body)
+    if (potential_type == 0 && !kinds_are_contiguous())
     {
-        potential[0] = new Pair(fid_potential, 1);
-        print_type_error(atom->number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "lj2") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 2);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "lj3") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 3);
-        print_type_error(atom->number_of_types, 3);
-    }
-    else if (strcmp(potential_name, "lj4") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 4);
-        print_type_error(atom->number_of_types, 4);
-    }
-    else if (strcmp(potential_name, "lj5") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 5);
-        print_type_error(atom->number_of_types, 5);
-    }
-    else if (strcmp(potential_name, "ri") == 0)
-    {
-        potential[0] = new Pair(fid_potential, 0);
-        print_type_error(atom->number_of_types, 2);
-    }
-    else
-    {
-        print_error("illegal two-body potential model.\n");
-    }
-
-    potential[0]->N1 = 0;
-    potential[0]->N2 = atom->N;
-
-    fclose(fid_potential);
-}
-
-
-void Force::initialize_many_body_potential
-(Atom* atom, int m)
-{
-    FILE *fid_potential = my_fopen(file_potential[m], "r");
-    char potential_name[20];
-    int count = fscanf(fid_potential, "%s", potential_name);
-    if (count != 1) 
-    {
-        print_error("reading error for potential file.\n");
-    }
-
-    int number_of_types = type_end[m] - type_begin[m] + 1;
-    // determine the potential
-    if (strcmp(potential_name, "tersoff_1989_1") == 0)
-    {
-        potential[m] = new Tersoff1989(fid_potential, atom, 1);
-        print_type_error(number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "tersoff_1989_2") == 0)
-    {
-        potential[m] = new Tersoff1989(fid_potential, atom, 2);
-        print_type_error(number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "tersoff_1988") == 0)
-    {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(number_of_types, num_of_types);
-        potential[m] = new Tersoff1988(fid_potential, atom, num_of_types);
-    }
-    else if (strcmp(potential_name, "tersoff_modc") == 0)
-    {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(number_of_types, num_of_types);
-        potential[m] = new Tersoff_modc(fid_potential, atom, num_of_types);
-    }
-    else if (strcmp(potential_name, "tersoff_mini") == 0)
-    {
-        int num_of_types = get_number_of_types(fid_potential);
-        print_type_error(number_of_types, num_of_types);
-        potential[m] = new Tersoff_mini(fid_potential, atom, num_of_types);
-    }
-    else if (strcmp(potential_name, "sw_1985") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 1);
-        print_type_error(number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "sw_1985_2") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 2);
-        print_type_error(number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "sw_1985_3") == 0)
-    {
-        potential[m] = new SW2(fid_potential, atom, 3);
-        print_type_error(number_of_types, 3);
-    }
-    else if (strcmp(potential_name, "rebo_mos2") == 0)
-    {
-        potential[m] = new REBO_MOS(atom);
-        print_type_error(number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "eam_zhou_2004_1") == 0)
-    {
-        potential[m] = new EAM(fid_potential, atom, potential_name);
-        print_type_error(number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "eam_dai_2006") == 0)
-    {
-        potential[m] = new EAM(fid_potential, atom, potential_name);
-        print_type_error(number_of_types, 1);
-    }
-    else if (strcmp(potential_name, "vashishta") == 0)
-    {
-        potential[m] = new Vashishta(fid_potential, atom, 0);
-        print_type_error(number_of_types, 2);
-    }
-    else if (strcmp(potential_name, "vashishta_table") == 0)
-    {
-        potential[m] = new Vashishta(fid_potential, atom, 1);
-        print_type_error(number_of_types, 2);
-    }
-    else
-    {
-        print_error("illegal many-body potential model.\n");
+        print_error("Defined types/groups for manybody potentials must be "
+                            "contiguous and ascending.\n");
     }
 
     potential[m]->N1 = 0;
     potential[m]->N2 = 0;
-    for (int n = 0; n < type_begin[m]; ++n)
+
+    if (group_method > -1)
     {
-        potential[m]->N1 += atom->cpu_type_size[n];
+        for (int n = 0; n < atom_begin[m]; ++n)
+        {
+            potential[m]->N1 += atom->group[group_method].cpu_size[n];
+        }
+        for (int n = 0; n <= atom_end[m]; ++n)
+        {
+            potential[m]->N2 += atom->group[group_method].cpu_size[n];
+        }
     }
-    for (int n = 0; n <= type_end[m]; ++n)
+    else
     {
-        potential[m]->N2 += atom->cpu_type_size[n];
+        for (int n = 0; n < atom_begin[m]; ++n)
+        {
+            potential[m]->N1 += atom->cpu_type_size[n];
+        }
+        for (int n = 0; n <= atom_end[m]; ++n)
+        {
+            potential[m]->N2 += atom->cpu_type_size[n];
+        }
     }
-    printf
-    (
-        "       applies to atoms [%d, %d) from type %d to type %d.\n",
-        potential[m]->N1, potential[m]->N2, type_begin[m], type_end[m]
-    );
+
+    // definition bookkeeping
+    for (int n1 = atom_begin[m]; n1 < atom_end[m]+1; n1++)
+    {
+
+        if (potential_type == 0 && manybody_participation[n1])
+        {
+            print_error("Only a single many-body potential "
+                    "definition is allowed per atom type/group (depending "
+                    "on parse_potential keyword).\n");
+        }
+
+        if (potential_type == 0)
+        {
+            manybody_participation[n1] = 1;
+            potential_participation[n1]++;
+        }
+        else
+        {
+            if (kind_is_participating(n1, m))
+                potential_participation[n1]++;
+        }
+    }
+
+    if (group_method > -1)
+    {
+        printf
+        (
+            "       applies to participating atoms [%d, %d) from group %d to "
+            "group %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
+            atom_end[m]
+        );
+    }
+    else
+    {
+        printf
+        (
+            "       applies to participating atoms [%d, %d) from type %d to "
+            "type %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
+            atom_end[m]
+        );
+    }
+
 
     fclose(fid_potential);
 }
 
-
-void Force::initialize(char *input_dir, Atom *atom)
+bool Force::kind_is_participating(int kind, int pot_idx)
 {
-    // a single potential
-    if (num_of_potentials == 1) 
+    for (int i = 0; i < (int)participating_kinds.size(); i++)
     {
-        initialize_one_potential(atom, 0);
-        rc_max = potential[0]->rc;
+        if(kind == participating_kinds[i]) return true;
     }
-    else // hybrid potentials
+    return false;
+}
+
+bool Force::kinds_are_contiguous()
+{
+    for (int i = 0; i < (int)participating_kinds.size()-1; i++)
     {
-        // the two-body part
-        initialize_two_body_potential(atom);
-        rc_max = potential[0]->rc;
-
-        // if the intralayer interactions are to be excluded
-        if (interlayer_only)
-        {
-            int memory = sizeof(int) * atom->N;
-            CHECK(cudaMalloc((void**)&layer_label, memory));
-            CHECK(cudaMemcpy(layer_label, atom->cpu_layer_label, memory,
-                cudaMemcpyHostToDevice));
-        }
-
-        // the many-body part
-        for (int m = 1; m < num_of_potentials; m++)
-        {
-            initialize_many_body_potential(atom, m);
-            if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
-
-            // check the atom types in xyz.in
-            for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
-            {
-                if (atom->cpu_type[n] < type_begin[m] ||
-                    atom->cpu_type[n] > type_end[m])
-                {
-                    printf("ERROR: type for potential # %d not from %d to %d.",
-                        m, type_begin[m], type_end[m]);
-                    exit(1);
-                }
-
-                // the local type always starts from 0
-                atom->cpu_type_local[n] -= type_begin[m];
-            }
-        }
-
-        // copy the local atom type to the GPU
-        CHECK(cudaMemcpy(atom->type_local, atom->cpu_type_local,
-            sizeof(int) * atom->N, cudaMemcpyHostToDevice));
+        if (participating_kinds[i] + 1 != participating_kinds[i+1])
+            return false;
     }
+    return true;
+}
+
+void Force::add_potential(Atom *atom)
+{
+    int m = num_of_potentials-1;
+    initialize_potential(atom, m);
+    if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
+
+    // check the atom types in xyz.in
+    for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
+    {
+        int kind;
+        if (group_method > -1) kind = atom->group[group_method].cpu_label[n];
+        else kind = atom->cpu_type[n];
+
+        if (kind < atom_begin[m] || kind > atom_end[m])
+        {
+            printf("ERROR: type for potential # %d not from %d to %d.",
+                m, atom_begin[m], atom_end[m]);
+            exit(1);
+        }
+    }
+    atom->shift[m] = atom_begin[m];
+    participating_kinds.clear(); // reset after every definition
 }
 
 
 // Construct the local neighbor list from the global one (Kernel)
-template<int check_layer_label, int check_type>
 static __global__ void gpu_find_neighbor_local
 (
     int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     int type_begin, int type_end, int *type,
+    int *group, int group_method,
     int N, int N1, int N2, real cutoff_square, 
     const real* __restrict__ box,
-    int *NN, int *NL, int *NN_local, int *NL_local, int *layer_label,
+    int *NN, int *NL, int *NN_local, int *NL_local,
 #ifdef USE_LDG
     const real* __restrict__ x, 
     const real* __restrict__ y, 
@@ -439,13 +314,10 @@ static __global__ void gpu_find_neighbor_local
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
 
-    int layer_n1;
 
     if (n1 >= N1 && n1 < N2)
     {  
         int neighbor_number = NN[n1];
-
-        if (check_layer_label) layer_n1 = layer_label[n1];
 
         real x1 = LDG(x, n1);   
         real y1 = LDG(y, n1);
@@ -454,18 +326,13 @@ static __global__ void gpu_find_neighbor_local
         {   
             int n2 = NL[n1 + N * i1];
 
-            // exclude intralayer interactions if needed
-            if (check_layer_label) 
-            {
-                if (layer_n1 == layer_label[n2]) continue;
-            }
-
-            // only include neighors with the correct types
-            if (check_type)
-            {
-                int type_n2 = type[n2];
-                if (type_n2 < type_begin || type_n2 > type_end) continue;
-            }
+            // only include neighbors with the correct types
+            int type_n2;
+            if (group_method > -1)
+                type_n2 = group[n2];
+            else
+                type_n2 = type[n2];
+            if (type_n2 < type_begin || type_n2 > type_end) continue;
 
             real x12  = LDG(x, n2) - x1;
             real y12  = LDG(y, n2) - y1;
@@ -486,8 +353,8 @@ static __global__ void gpu_find_neighbor_local
 // Construct the local neighbor list from the global one (Wrapper)
 void Force::find_neighbor_local(Atom *atom, int m)
 {
-    int type1 = type_begin[m];
-    int type2 = type_end[m];
+    int type1 = atom_begin[m];
+    int type2 = atom_end[m];
     int N = atom->N;
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
@@ -496,6 +363,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int pbc_x = atom->box.pbc_x;
     int pbc_y = atom->box.pbc_y;
     int pbc_z = atom->box.pbc_z;
+    int *group = atom->group[group_method].label;
     int *NN = atom->NN;
     int *NL = atom->NL;
     int *NN_local = atom->NN_local;
@@ -507,36 +375,13 @@ void Force::find_neighbor_local(Atom *atom, int m)
     real *z = atom->z;
     real *box = atom->box.h;
       
-    if (0 == m)
-    {
-        if (interlayer_only)
-        {
-            gpu_find_neighbor_local<1, 0><<<grid_size, BLOCK_SIZE>>>
-            (
-                triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
-                rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
-            );
-            CUDA_CHECK_KERNEL
-        }
-        else
-        {
-            gpu_find_neighbor_local<0, 0><<<grid_size, BLOCK_SIZE>>>
-            (
-                triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
-                rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
-            );
-            CUDA_CHECK_KERNEL
-        }
-    }
-    else
-    {
-        gpu_find_neighbor_local<0, 1><<<grid_size, BLOCK_SIZE>>>
-        (
-            triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2, 
-            rc2, box, NN, NL, NN_local, NL_local, layer_label, x, y, z
-        );
-        CUDA_CHECK_KERNEL
-    }
+    gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
+    (
+        triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, group,
+        group_method, N, N1, N2, rc2, box, NN, NL, NN_local, NL_local, x, y, z
+    );
+    CUDA_CHECK_KERNEL
+
 }
 
 
@@ -655,7 +500,7 @@ void Force::compute(Atom *atom, Measure* measure)
         // first build a local neighbor list
         find_neighbor_local(atom, m);
         // and then calculate the forces and related quantities
-        potential[m]->compute(atom, measure);
+        potential[m]->compute(atom, measure, m);
     }
 
     // correct the force when using the HNEMD method

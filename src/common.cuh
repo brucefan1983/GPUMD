@@ -21,9 +21,13 @@
 #include <string.h>
 #include <math.h>
 #include <cuda.h> // seems to be needed in Windows
+#include <vector>
+
+using namespace std;
 
 #define LDG(a, n) __ldg(a + n)
 
+#define FILE_NAME_LENGTH      200
 #define GPUMD_VERSION "2.5"
 // See section 3.1 in the manual for the unit conventions
 typedef double real;

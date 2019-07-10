@@ -25,8 +25,6 @@ Parent class for position dumping
 #include "error.cuh"
 #include "atom.cuh"
 
-#define FILE_NAME_LENGTH      200
-
 class DUMP_POS
 {
 public:

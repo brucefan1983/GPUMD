@@ -34,65 +34,100 @@ Parse the commands in run.in.
 #include "dump_netcdf.cuh"
 #endif
 
-// a single potential
-void parse_potential(char **param, int num_param, Force *force)
+void parse_potential_definition
+(char **param, int num_param, Atom *atom, Force *force)
 {
-    if (num_param != 2)
+    // 'potential_definition' must be called before all 'potential' keywords
+    if (force->num_of_potentials > 0)
     {
-        print_error("potential should have 1 parameter.\n");
+        print_error("potential_definition must be called before all "
+                "potential keywords.\n");
     }
-    strcpy(force->file_potential[0], param[1]);
-    force->num_of_potentials = 1;
+
+    if (num_param != 2 && num_param != 3)
+    {
+        print_error("potential_definition should have only 1 or 2 "
+                "parameters.\n");
+    }
+    if (num_param == 2)
+    {
+        //default is to use type, check for deviations
+        if(strcmp(param[1], "group") == 0)
+        {
+            print_error("potential_definition must have "
+                    "group_method listed.\n");
+        }
+        else if(strcmp(param[1], "type") != 0)
+        {
+            print_error("potential_definition only accepts "
+                    "'type' or 'group' kind.\n");
+        }
+    }
+    if (num_param == 3)
+    {
+        if(strcmp(param[1], "group") != 0)
+        {
+            print_error("potential_definition: kind must be 'group' if 2 "
+                    "parameters are used.\n");
+
+        }
+        else if(!is_valid_int(param[2], &force->group_method))
+        {
+            print_error("potential_definition: group_method should be an "
+                    "integer.\n");
+        }
+        else if(force->group_method > MAX_NUMBER_OF_GROUPS)
+        {
+            print_error("Specified group_method is too large (> 10).\n");
+        }
+    }
 }
 
-
-// multiple potentials
-void parse_potentials(char **param, int num_param, Force *force)
+// a potential
+void parse_potential(char **param, int num_param, Force *force)
 {
-    if (num_param == 6)
+    // check for at least the file path
+    if (num_param < 3)
     {
-        force->num_of_potentials = 2;
+        print_error("potential should have at least 2 parameters.\n");
     }
-    else if (num_param == 9)
+    strcpy(force->file_potential[force->num_of_potentials], param[1]);
+
+    //open file to check number of types used in potential
+    char potential_name[20];
+    FILE *fid_potential = my_fopen(
+            force->file_potential[force->num_of_potentials], "r");
+    int count = fscanf(fid_potential, "%s", potential_name);
+    int num_types = force->get_number_of_types(fid_potential);
+    fclose(fid_potential);
+
+    if (num_param != num_types + 2)
     {
-        force->num_of_potentials = 3;
-    }
-    else
-    {
-        print_error("potentials should have 5 or 8 parameters.\n");
+        print_error("potential has incorrect number of types/groups defined.\n");
     }
 
-    // two-body part
-    strcpy(force->file_potential[0], param[1]);
-    if (!is_valid_int(param[2], &force->interlayer_only))
-    {
-        print_error("interlayer_only should be an integer.\n");
-    }
+    force->participating_kinds.resize(num_types);
 
-    // the first many-body part
-    strcpy(force->file_potential[1], param[3]);
-    if (!is_valid_int(param[4], &force->type_begin[1]))
+    for (int i = 0; i < num_types; i++)
     {
-        print_error("type_begin should be an integer.\n");
-    }
-    if (!is_valid_int(param[5], &force->type_end[1]))
-    {
-        print_error("type_end should be an integer.\n");
-    }
-
-    // the second many-body part
-    if (force->num_of_potentials > 2)
-    {
-        strcpy(force->file_potential[2], param[6]);
-        if (!is_valid_int(param[7], &force->type_begin[2]))
+        if(!is_valid_int(param[i+2], &force->participating_kinds[i]))
         {
-            print_error("type_begin should be an integer.\n");
+            print_error("type/groups should be an integer.\n");
         }
-        if (!is_valid_int(param[8], &force->type_end[2]))
+        if (i != 0 &&
+            force->participating_kinds[i] < force->participating_kinds[i-1])
         {
-            print_error("type_end should be an integer.\n");
+            print_error("potential types/groups must be listed in "
+                    "ascending order.\n");
         }
     }
+    force->atom_begin[force->num_of_potentials] =
+            force->participating_kinds[0];
+    force->atom_end[force->num_of_potentials] =
+            force->participating_kinds[num_types-1];
+
+    force->num_of_potentials++;
+
 }
 
 

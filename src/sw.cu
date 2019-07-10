@@ -173,7 +173,7 @@ static __global__ void gpu_find_force_sw3_partial
 (
     int number_of_particles, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z, SW2_Para sw3,
-    int *g_neighbor_number, int *g_neighbor_list, int *g_type,
+    int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
@@ -185,7 +185,7 @@ static __global__ void gpu_find_force_sw3_partial
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
-        int type1 = g_type[n1];
+        int type1 = g_type[n1] - shift;
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
         real potential_energy = ZERO;
 
@@ -193,7 +193,7 @@ static __global__ void gpu_find_force_sw3_partial
         {
             int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
-            int type2 = g_type[n2];
+            int type2 = g_type[n2] - shift;
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
@@ -225,7 +225,7 @@ static __global__ void gpu_find_force_sw3_partial
             {
                 int n3 = g_neighbor_list[n1 + number_of_particles * i2];
                 if (n3 == n2) { continue; }
-                int type3 = g_type[n3];
+                int type3 = g_type[n3] - shift;
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
@@ -285,9 +285,10 @@ static __global__ void gpu_set_f12_to_zero
 
 
 // Find force and related quantities for the SW potential (A wrapper)
-void SW2::compute(Atom *atom, Measure *measure)
+void SW2::compute(Atom *atom, Measure *measure, int potential_number)
 {
     int N = atom->N;
+    int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
     int triclinic = atom->box.triclinic;
     int pbc_x = atom->box.pbc_x;
@@ -295,7 +296,7 @@ void SW2::compute(Atom *atom, Measure *measure)
     int pbc_z = atom->box.pbc_z;
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
-    int *type = atom->type_local;
+    int *type = atom->type;
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
@@ -313,8 +314,8 @@ void SW2::compute(Atom *atom, Measure *measure)
     // step 1: calculate the partial forces
     gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL, type, 
-        x, y, z, box, pe, f12x, f12y, f12z
+        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, sw2_para, NN, NL,
+        type, shift, x, y, z, box, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 
