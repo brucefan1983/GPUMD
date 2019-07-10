@@ -37,6 +37,8 @@ Run::Run
     Integrate* integrate, Measure* measure
 )
 {
+    run(input_dir, atom, force, integrate, measure, 1);
+
     if (force->group_method > -1)
         force->num_kind = atom->group[force->group_method].number;
     else
@@ -47,7 +49,6 @@ Run::Run
     ZEROS(force->potential_participation, int, force->num_kind);
     ZEROS(atom->shift, int, MAX_NUM_OF_POTENTIALS);
 
-    run(input_dir, atom, force, integrate, measure, 1);
     run(input_dir, atom, force, integrate, measure, 0);
 }
 
@@ -251,7 +252,6 @@ void Run::check_run
     else
     {
         force->valdiate_potential_definitions();
-        force->compute(atom, measure);
 
         process_run(input_dir, atom, force, integrate, measure);
     }

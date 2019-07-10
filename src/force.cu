@@ -297,6 +297,7 @@ static __global__ void gpu_find_neighbor_local
 (
     int triclinic, int pbc_x, int pbc_y, int pbc_z, 
     int type_begin, int type_end, int *type,
+    int *group, int group_method,
     int N, int N1, int N2, real cutoff_square, 
     const real* __restrict__ box,
     int *NN, int *NL, int *NN_local, int *NL_local,
@@ -326,7 +327,11 @@ static __global__ void gpu_find_neighbor_local
             int n2 = NL[n1 + N * i1];
 
             // only include neighbors with the correct types
-            int type_n2 = type[n2];
+            int type_n2;
+            if (group_method > -1)
+                type_n2 = group[n2];
+            else
+                type_n2 = type[n2];
             if (type_n2 < type_begin || type_n2 > type_end) continue;
 
             real x12  = LDG(x, n2) - x1;
@@ -358,6 +363,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int pbc_x = atom->box.pbc_x;
     int pbc_y = atom->box.pbc_y;
     int pbc_z = atom->box.pbc_z;
+    int *group = atom->group[group_method].label;
     int *NN = atom->NN;
     int *NL = atom->NL;
     int *NN_local = atom->NN_local;
@@ -371,8 +377,8 @@ void Force::find_neighbor_local(Atom *atom, int m)
       
     gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
     (
-        triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, N, N1, N2,
-        rc2, box, NN, NL, NN_local, NL_local, x, y, z
+        triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, group,
+        group_method, N, N1, N2, rc2, box, NN, NL, NN_local, NL_local, x, y, z
     );
     CUDA_CHECK_KERNEL
 
