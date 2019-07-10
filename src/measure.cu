@@ -255,7 +255,8 @@ void Measure::process
     hac.process(step, input_dir, atom);
     shc.process(step, input_dir, atom);
     hnemd.process(step, input_dir, atom, integrate);
-    dump_pos->dump(atom, step);
+    if (dump_pos) dump_pos->dump(atom, step);
+
 }
 
 
