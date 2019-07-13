@@ -9,4 +9,6 @@ core
 
 src/gpumd
 
+src/phonon
+
 doc/gpumd.synctex.gz

@@ -24,8 +24,8 @@ public:
     Phonon(char*);
     ~Phonon(void);
 private:
-    void compute(char*, Atom*, Force*, Measure*, Hessian*);
-    void parse(char**, int, Force*, Hessian*);
+    void compute(char*, Atom*, Force*, Measure*, Hessian*, int);
+    void parse(char**, int, Atom*, Force*, Hessian*, int*);
 };
 
 
