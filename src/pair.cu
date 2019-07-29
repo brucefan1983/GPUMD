@@ -58,7 +58,7 @@ J. Chem. Phys. 124, 234104 (2006).
 Pair::Pair
 (
         FILE *fid, int potential_model_input,
-        const vector<int> participating_kinds, int type_range
+        const std::vector<int> participating_kinds, int type_range
 )
 {
     potential_model = potential_model_input;
@@ -69,7 +69,7 @@ Pair::Pair
 
 bool Pair::pair_participating
 (
-        int n, int m, const vector<int> participating_kinds
+        int n, int m, const std::vector<int> participating_kinds
 )
 {
     bool m_part = false;
@@ -86,7 +86,7 @@ bool Pair::pair_participating
 void Pair::initialize_lj
 (
         FILE *fid, int N,
-        const vector<int> participating_kinds, int type_range
+        const std::vector<int> participating_kinds, int type_range
 )
 {
     printf("Use %d-element LJ potential.\n", N);

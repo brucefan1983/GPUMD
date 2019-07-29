@@ -31,7 +31,7 @@ public:
     void valdiate_potential_definitions(void);
 
     int num_of_potentials;
-    vector<int> participating_kinds;
+    std::vector<int> participating_kinds;
     real rc_max;
     int atom_begin[MAX_NUM_OF_POTENTIALS];
     int atom_end[MAX_NUM_OF_POTENTIALS];

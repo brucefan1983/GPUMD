@@ -36,7 +36,22 @@ Phonon::Phonon(char* input_dir)
     Force force;
     Measure measure(input_dir);
     Hessian hessian;
-    compute(input_dir, &atom, &force, &measure, &hessian);
+
+
+    compute(input_dir, &atom, &force, &measure, &hessian, 1);
+
+    if (force.group_method > -1)
+        force.num_kind = atom.group[force.group_method].number;
+    else
+        force.num_kind = atom.number_of_types;
+
+    // initialize bookkeeping data structures
+    ZEROS(force.manybody_participation, int, force.num_kind);
+    ZEROS(force.potential_participation, int, force.num_kind);
+    ZEROS(atom.shift, int, MAX_NUM_OF_POTENTIALS);
+
+
+    compute(input_dir, &atom, &force, &measure, &hessian, 0);
 }
 
 
@@ -47,7 +62,10 @@ Phonon::~Phonon(void)
 
 
 void Phonon::compute
-(char* input_dir, Atom* atom, Force* force, Measure* measure, Hessian* hessian)
+(
+        char* input_dir, Atom* atom, Force* force,
+        Measure* measure, Hessian* hessian, int check
+)
 {
     char file_run[200];
     strcpy(file_run, input_dir);
@@ -56,28 +74,35 @@ void Phonon::compute
     char *input_ptr = input; // Keep the pointer in order to free later
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
+    force->num_of_potentials = 0;
     char *param[max_num_param];
     while (input_ptr)
     {
+        int is_potential = 0;
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-        parse(param, num_param, force, hessian);
+        parse(param, num_param, atom, force, hessian, &is_potential);
+        if (!check && is_potential) force->add_potential(atom);
     }
     MY_FREE(input); // Free the input file contents
-    force->initialize(input_dir, atom);
-    hessian->compute(input_dir, atom, force, measure);
+    if (!check) hessian->compute(input_dir, atom, force, measure);
 }
 
 
-void Phonon::parse(char **param, int num_param, Force *force, Hessian* hessian)
+void Phonon::parse
+(
+        char **param, int num_param, Atom* atom,
+        Force *force, Hessian* hessian, int* is_potential
+)
 {
+    if (strcmp(param[0], "potential_definition") == 0)
+    {
+        parse_potential_definition(param, num_param, atom, force);
+    }
     if (strcmp(param[0], "potential") == 0)
     {
+        *is_potential = 1;
         parse_potential(param, num_param, force);
-    }
-    else if (strcmp(param[0], "potentials") == 0)
-    {
-        parse_potentials(param, num_param, force);
     }
     else if (strcmp(param[0], "cutoff") == 0)
     {

@@ -1,4 +1,4 @@
-potential       potentials/tersoff/si_tersoff_1989.txt
+potential       potentials/tersoff/Si_Tersoff_1989.txt 0
 velocity        300       # not used but needed here
 
 ensemble        nve       # not important but needed here
