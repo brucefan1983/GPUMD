@@ -1,10 +1,6 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (3)
-
-* Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
-[A revisit to phonon-phonon scattering in single-layer graphene](https://arxiv.org/abs/1904.12731),
-arXiv:1904.12731 [cond-mat.mtrl-sci].
+## Preprints (2)
 
 * Zhen Li, Shiyun Xiong, Charles Sievers, Yue Hu, Zheyong Fan, Ning Wei, Hua Bao, Shunda Chen, Davide Donadio, and Tapio Ala-Nissila,
 [Influence of Boundaries and Thermostatting on Nonequilibrium Molecular Dynamics Simulations of Heat Conduction in Solids](https://arxiv.org/abs/1905.11024),
@@ -14,7 +10,11 @@ arXiv:1905.11024 [cond-mat.mes-hall].
 [Modeling heat transport in crystals and glasses from a unified lattice-dynamical approach](https://arxiv.org/abs/1904.02255),
 arXiv:1904.02255 [cond-mat.mtrl-sci].
 
-## 2019 (2)
+## 2019 (3)
+
+* Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
+[Revisiting phonon-phonon scattering in single-layer graphene](https://doi.org/10.1103/PhysRevB.100.064306),
+Phys. Rev. B **10**0, 064306 (2019)
 
 * Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila, 
 [Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials](https://doi.org/10.1103/PhysRevB.99.064308),
