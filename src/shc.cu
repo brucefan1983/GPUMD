@@ -24,7 +24,6 @@ Written by Zheyong Fan and Alexander J. Gabourie.
 
 #include "shc.cuh"
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 typedef unsigned long long uint64;
@@ -173,17 +172,15 @@ static __global__ void gpu_find_k_time
     }
     __syncthreads();
 
-    if (tid < 64)
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
     {
-        s_k_time_i[tid] += s_k_time_i[tid + 64];
-        s_k_time_o[tid] += s_k_time_o[tid + 64];
-    }
-    __syncthreads();
-
-    if (tid < 32)
-    {
-        warp_reduce(s_k_time_i, tid);
-        warp_reduce(s_k_time_o, tid);
+        if (tid < offset)
+        {
+            s_k_time_i[tid] += s_k_time_i[tid + offset];
+            s_k_time_o[tid] += s_k_time_o[tid + offset];
+        }
+        __syncthreads();
     }
 
     if (tid == 0)

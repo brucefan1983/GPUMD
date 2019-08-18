@@ -24,7 +24,6 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 #include "force.cuh"
 #include <curand_kernel.h>
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
@@ -184,10 +183,13 @@ static __global__ void find_ke
         }
     }
     __syncthreads();
-    if (tid < 256) {s_ke[tid] += s_ke[tid + 256];} __syncthreads();
-    if (tid < 128) {s_ke[tid] += s_ke[tid + 128];} __syncthreads();
-    if (tid <  64) {s_ke[tid] += s_ke[tid + 64];}  __syncthreads();
-    if (tid <  32) {warp_reduce(s_ke, tid);}  
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_ke[tid] += s_ke[tid + offset]; }
+        __syncthreads();
+    }
+
     if (tid == 0)  {g_ke[bid] = s_ke[0];} // kinetic energy times 2
 }
 
