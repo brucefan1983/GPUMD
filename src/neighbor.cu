@@ -26,13 +26,6 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 #define NUM_OF_CELLS 50
 
 
-static __device__ void warp_reduce(volatile int *s, int t)
-{
-    s[t] += s[t + 32]; s[t] += s[t + 16]; s[t] += s[t + 8];
-    s[t] += s[t + 4];  s[t] += s[t + 2];  s[t] += s[t + 1];
-}
-
-
 // the first step for determining whether a new neighbor list should be built
 static __global__ void check_atom_distance_1
 (
@@ -53,11 +46,14 @@ static __global__ void check_atom_distance_1
         if ((dx * dx + dy * dy + dz * dz) > d2) { s_sum[tid] = 1; }
     }
     __syncthreads();
-    if (tid < 512) s_sum[tid] += s_sum[tid + 512]; __syncthreads();
-    if (tid < 256) s_sum[tid] += s_sum[tid + 256]; __syncthreads();
-    if (tid < 128) s_sum[tid] += s_sum[tid + 128]; __syncthreads();
-    if (tid <  64) s_sum[tid] += s_sum[tid + 64];  __syncthreads();
-    if (tid <  32) warp_reduce(s_sum, tid);
+
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_sum[tid] += s_sum[tid + offset]; }
+        __syncthreads();
+    }
+
     if (tid ==  0) { g_sum[bid] = s_sum[0]; }
 }
 
@@ -75,11 +71,14 @@ static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
         if (n < M) { s_sum[tid] += g_sum_i[n]; }
     }
     __syncthreads();
-    if (tid < 512) s_sum[tid] += s_sum[tid + 512]; __syncthreads();
-    if (tid < 256) s_sum[tid] += s_sum[tid + 256]; __syncthreads();
-    if (tid < 128) s_sum[tid] += s_sum[tid + 128]; __syncthreads();
-    if (tid <  64) s_sum[tid] += s_sum[tid + 64];  __syncthreads();
-    if (tid <  32) warp_reduce(s_sum, tid);
+
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_sum[tid] += s_sum[tid + offset]; }
+        __syncthreads();
+    }
+
     if (tid ==  0) { g_sum_o[0] = s_sum[0]; }
 }
 
