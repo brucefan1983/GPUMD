@@ -40,7 +40,7 @@ for ny=0:nxyz(2)-1
 end
 
 fid=fopen('xyz.in','w');
-fprintf(fid,'%d %g %g 0 0 0 1\n',N,3,2.1);
+fprintf(fid,'%d %g %g 0 0 1\n',N,3,2.1);
 fprintf(fid,'%d %d %d %g %g %g\n',1,1,0,a.*nxyz);
 for n=1:N
     fprintf(fid,'%d %g %g %g %g %d\n',0,r(n,:),12,label(n));

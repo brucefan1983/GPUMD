@@ -1,4 +1,4 @@
-potential   potentials/tersoff/Graphene_Lindsay_2010_modified.txt
+potential   potentials/tersoff/Graphene_Lindsay_2010_modified.txt 0
 velocity    300
 
 ensemble    npt_ber 300 300 0.01 0 0 0 0.0005 

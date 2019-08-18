@@ -1,4 +1,4 @@
-potential    potentials/tersoff/c_tersoff_fan_2017.txt  
+potential    potentials/tersoff/Graphene_Lindsay_2010_modified.txt 0
 velocity     300
 
 ensemble     nvt_nhc 300 300 100
