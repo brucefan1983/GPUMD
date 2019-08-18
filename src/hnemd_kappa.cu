@@ -25,7 +25,6 @@ Reference:
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -55,11 +54,14 @@ static __global__ void gpu_sum_heat
         if (n < N) { s_data[tid] += g_heat[n + N * bid]; }
     }
     __syncthreads();
-    if (tid < 512) { s_data[tid] += s_data[tid + 512]; } __syncthreads();
-    if (tid < 256) { s_data[tid] += s_data[tid + 256]; } __syncthreads();
-    if (tid < 128) { s_data[tid] += s_data[tid + 128]; } __syncthreads();
-    if (tid <  64) { s_data[tid] += s_data[tid +  64]; } __syncthreads();
-    if (tid <  32) { warp_reduce(s_data, tid);         } 
+
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_data[tid] += s_data[tid + offset]; }
+        __syncthreads();
+    }
+
     if (tid ==  0) { g_heat_sum[step*NUM_OF_HEAT_COMPONENTS+bid] = s_data[0]; }
 }
 
