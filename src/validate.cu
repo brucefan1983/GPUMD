@@ -22,7 +22,6 @@ Use finite difference to validate the analytical force calculations.
 #include "validate.cuh"
 #include "force.cuh"
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
@@ -112,12 +111,13 @@ static __global__ void sum_potential(int N, int m, real *p, real *p_sum)
     }
     
     __syncthreads();
-    if (tid < 512) s_sum[tid] += s_sum[tid + 512]; __syncthreads();
-    if (tid < 256) s_sum[tid] += s_sum[tid + 256]; __syncthreads();
-    if (tid < 128) s_sum[tid] += s_sum[tid + 128]; __syncthreads();
-    if (tid <  64) s_sum[tid] += s_sum[tid + 64];  __syncthreads();
-    if (tid <  32) warp_reduce(s_sum, tid); 
-    
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_sum[tid] += s_sum[tid + offset]; }
+        __syncthreads();
+    } 
+
     if (tid ==  0) 
     {
         p_sum[m] = s_sum[0]; 
