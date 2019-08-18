@@ -23,7 +23,6 @@ Calculate the heat current autocorrelation (HAC) function.
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -61,11 +60,12 @@ static __global__ void gpu_sum_heat
     }
 
     __syncthreads();
-    if (tid < 512) { s_data[tid] += s_data[tid + 512]; } __syncthreads();
-    if (tid < 256) { s_data[tid] += s_data[tid + 256]; } __syncthreads();
-    if (tid < 128) { s_data[tid] += s_data[tid + 128]; } __syncthreads();
-    if (tid <  64) { s_data[tid] += s_data[tid +  64]; } __syncthreads();
-    if (tid <  32) { warp_reduce(s_data, tid);         } 
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_data[tid] += s_data[tid + offset]; }
+        __syncthreads();
+    }
     if (tid ==  0) { g_heat_all[nd + Nd * blockIdx.x] = s_data[0]; }
 }
 
@@ -122,23 +122,18 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
     }
     __syncthreads();
 
-    if (tid < 64)
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
     {
-        s_hac_xi[tid] += s_hac_xi[tid + 64];
-        s_hac_xo[tid] += s_hac_xo[tid + 64];
-        s_hac_yi[tid] += s_hac_yi[tid + 64];
-        s_hac_yo[tid] += s_hac_yo[tid + 64];
-        s_hac_z[tid]  += s_hac_z[tid  + 64];
-    }
-    __syncthreads();
- 
-    if (tid < 32)
-    {
-        warp_reduce(s_hac_xi, tid); 
-        warp_reduce(s_hac_xo, tid);  
-        warp_reduce(s_hac_yi, tid); 
-        warp_reduce(s_hac_yo, tid);  
-        warp_reduce(s_hac_z,  tid);
+        if (tid < offset)
+        {
+            s_hac_xi[tid] += s_hac_xi[tid + offset];
+            s_hac_xo[tid] += s_hac_xo[tid + offset];
+            s_hac_yi[tid] += s_hac_yi[tid + offset];
+            s_hac_yo[tid] += s_hac_yo[tid + offset];
+            s_hac_z[tid]  += s_hac_z[tid  + offset];
+        }
+        __syncthreads();
     }
    
     if (tid == 0)
