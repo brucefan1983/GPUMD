@@ -25,7 +25,6 @@ Phys. Rev. 188, 1407 (1969).
 #include "vac.cuh"
 #include "group.cuh"
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
@@ -169,21 +168,18 @@ static __global__ void gpu_find_vac
     }
     __syncthreads();
 
-    if (tid < 64)
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
     {
-        s_vac_x[tid] += s_vac_x[tid + 64];
-        s_vac_y[tid] += s_vac_y[tid + 64];
-        s_vac_z[tid] += s_vac_z[tid + 64];
+        if (tid < offset)
+        {
+            s_vac_x[tid] += s_vac_x[tid + offset];
+            s_vac_y[tid] += s_vac_y[tid + offset];
+            s_vac_z[tid] += s_vac_z[tid + offset];
+        }
+        __syncthreads();
     }
-    __syncthreads();
- 
-    if (tid < 32)
-    {
-        warp_reduce(s_vac_x, tid);
-        warp_reduce(s_vac_y, tid);
-        warp_reduce(s_vac_z, tid); 
-    }
-   
+
     if (tid == 0)
     {
         int number_of_data = M * N;

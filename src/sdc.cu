@@ -24,7 +24,6 @@ Phys. Rev. 188, 1407 (1969).
 
 #include "sdc.cuh"
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
