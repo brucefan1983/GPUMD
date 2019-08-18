@@ -270,11 +270,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_ke[tid] += s_ke[tid + 512]; __syncthreads();
-            if (tid < 256) s_ke[tid] += s_ke[tid + 256]; __syncthreads();
-            if (tid < 128) s_ke[tid] += s_ke[tid + 128]; __syncthreads();
-            if (tid <  64) s_ke[tid] += s_ke[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_ke, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_ke[tid] += s_ke[tid + offset]; }
+                __syncthreads();
+            }
             if (tid ==  0)
             {
 #ifdef ZHEN_LI // special version for Zhen Li
@@ -296,11 +296,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_pe[tid] += s_pe[tid + 512]; __syncthreads();
-            if (tid < 256) s_pe[tid] += s_pe[tid + 256]; __syncthreads();
-            if (tid < 128) s_pe[tid] += s_pe[tid + 128]; __syncthreads();
-            if (tid <  64) s_pe[tid] += s_pe[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_pe, tid); 
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_pe[tid] += s_pe[tid + offset]; }
+                __syncthreads();
+            } 
             if (tid ==  0) g_thermo[1] = s_pe[0];
             break;
         case 2:
@@ -315,11 +315,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_sx[tid] += s_sx[tid + 512]; __syncthreads();
-            if (tid < 256) s_sx[tid] += s_sx[tid + 256]; __syncthreads();
-            if (tid < 128) s_sx[tid] += s_sx[tid + 128]; __syncthreads();
-            if (tid <  64) s_sx[tid] += s_sx[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_sx, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_sx[tid] += s_sx[tid + offset]; }
+                __syncthreads();
+            }
             if (tid == 0)
             {
                 g_thermo[2] = (s_sx[0] + N * K_B * T) / volume;
@@ -337,11 +337,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_sy[tid] += s_sy[tid + 512]; __syncthreads();
-            if (tid < 256) s_sy[tid] += s_sy[tid + 256]; __syncthreads();
-            if (tid < 128) s_sy[tid] += s_sy[tid + 128]; __syncthreads();
-            if (tid <  64) s_sy[tid] += s_sy[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_sy, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_sy[tid] += s_sy[tid + offset]; }
+                __syncthreads();
+            }
             if (tid == 0)
             {
                 g_thermo[3] = (s_sy[0] + N * K_B * T) / volume;
@@ -359,11 +359,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_sz[tid] += s_sz[tid + 512]; __syncthreads();
-            if (tid < 256) s_sz[tid] += s_sz[tid + 256]; __syncthreads();
-            if (tid < 128) s_sz[tid] += s_sz[tid + 128]; __syncthreads();
-            if (tid <  64) s_sz[tid] += s_sz[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_sz, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_sz[tid] += s_sz[tid + offset]; }
+                __syncthreads();
+            }
             if (tid == 0)
             {
                 g_thermo[4] = (s_sz[0] + N * K_B * T) / volume;
@@ -404,11 +404,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_ke[tid] += s_ke[tid + 512]; __syncthreads();
-            if (tid < 256) s_ke[tid] += s_ke[tid + 256]; __syncthreads();
-            if (tid < 128) s_ke[tid] += s_ke[tid + 128]; __syncthreads();
-            if (tid <  64) s_ke[tid] += s_ke[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_ke, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_ke[tid] += s_ke[tid + offset]; }
+                __syncthreads();
+            }
             if (tid ==  0)
             {
                 g_thermo[0] = s_ke[0] / (DIM * N * K_B);
@@ -426,11 +426,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_pe[tid] += s_pe[tid + 512]; __syncthreads();
-            if (tid < 256) s_pe[tid] += s_pe[tid + 256]; __syncthreads();
-            if (tid < 128) s_pe[tid] += s_pe[tid + 128]; __syncthreads();
-            if (tid <  64) s_pe[tid] += s_pe[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_pe, tid); 
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_pe[tid] += s_pe[tid + offset]; }
+                __syncthreads();
+            }
             if (tid ==  0) g_thermo[1] = s_pe[0];
             break;
         case 2:
@@ -445,11 +445,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_sx[tid] += s_sx[tid + 512]; __syncthreads();
-            if (tid < 256) s_sx[tid] += s_sx[tid + 256]; __syncthreads();
-            if (tid < 128) s_sx[tid] += s_sx[tid + 128]; __syncthreads();
-            if (tid <  64) s_sx[tid] += s_sx[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_sx, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_sx[tid] += s_sx[tid + offset]; }
+                __syncthreads();
+            }
             if (tid == 0)
             {
                 g_thermo[2] = (s_sx[0] + N * K_B * T) / volume;
@@ -467,11 +467,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_sy[tid] += s_sy[tid + 512]; __syncthreads();
-            if (tid < 256) s_sy[tid] += s_sy[tid + 256]; __syncthreads();
-            if (tid < 128) s_sy[tid] += s_sy[tid + 128]; __syncthreads();
-            if (tid <  64) s_sy[tid] += s_sy[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_sy, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_sy[tid] += s_sy[tid + offset]; }
+                __syncthreads();
+            }
             if (tid == 0)
             {
                 g_thermo[3] = (s_sy[0] + N * K_B * T) / volume;
@@ -489,11 +489,11 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
-            if (tid < 512) s_sz[tid] += s_sz[tid + 512]; __syncthreads();
-            if (tid < 256) s_sz[tid] += s_sz[tid + 256]; __syncthreads();
-            if (tid < 128) s_sz[tid] += s_sz[tid + 128]; __syncthreads();
-            if (tid <  64) s_sz[tid] += s_sz[tid + 64];  __syncthreads();
-            if (tid <  32) warp_reduce(s_sz, tid);
+            for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+            {
+                if (tid < offset) { s_sz[tid] += s_sz[tid + offset]; }
+                __syncthreads();
+            }
             if (tid == 0)
             {
                 g_thermo[4] = (s_sz[0] + N * K_B * T) / volume;
