@@ -270,6 +270,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_ke[tid] += s_ke[tid + offset]; }
@@ -296,6 +297,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_pe[tid] += s_pe[tid + offset]; }
@@ -315,6 +317,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_sx[tid] += s_sx[tid + offset]; }
@@ -337,6 +340,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_sy[tid] += s_sy[tid + offset]; }
@@ -359,6 +363,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_sz[tid] += s_sz[tid + offset]; }
@@ -404,6 +409,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_ke[tid] += s_ke[tid + offset]; }
@@ -426,6 +432,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_pe[tid] += s_pe[tid + offset]; }
@@ -445,6 +452,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_sx[tid] += s_sx[tid + offset]; }
@@ -467,6 +475,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_sy[tid] += s_sy[tid + offset]; }
@@ -489,6 +498,7 @@ static __global__ void gpu_find_thermo
                 }
             }
             __syncthreads();
+            #pragma unroll
             for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
             {
                 if (tid < offset) { s_sz[tid] += s_sz[tid + offset]; }
