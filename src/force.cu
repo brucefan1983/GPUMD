@@ -23,7 +23,6 @@ The driver class calculating force and related quantities.
 #include "atom.cuh"
 #include "error.cuh"
 #include "mic.cuh"
-#include "warp_reduce.cuh"
 #include "potential.cuh"
 #include "tersoff1989.cuh"
 #include "rebo_mos2.cuh"
@@ -422,11 +421,14 @@ static __global__ void gpu_sum_force
     }
 
     __syncthreads();
-    if (tid < 512) s_f[tid] += s_f[tid + 512]; __syncthreads();
-    if (tid < 256) s_f[tid] += s_f[tid + 256]; __syncthreads();
-    if (tid < 128) s_f[tid] += s_f[tid + 128]; __syncthreads();
-    if (tid <  64) s_f[tid] += s_f[tid + 64];  __syncthreads();
-    if (tid <  32) warp_reduce(s_f, tid);
+
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_f[tid] += s_f[tid + offset]; }
+        __syncthreads();
+    } 
+
     if (tid ==  0) { g_f[bid] = s_f[0]; }
 }
 
