@@ -23,7 +23,6 @@ Compute block (space) averages of various per-atom quantities.
 #include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
-#include "warp_reduce.cuh"
 #include "error.cuh"
 
 #define DIM 3
@@ -140,9 +139,13 @@ static __global__ void find_group_sum_1
     }
     __syncthreads();
 
-    if (tid < 128) { s_data[tid] += s_data[tid + 128]; }  __syncthreads();
-    if (tid <  64) { s_data[tid] += s_data[tid + 64];  }  __syncthreads();
-    if (tid <  32) { warp_reduce(s_data, tid);         }
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_data[tid] += s_data[tid + offset]; }
+        __syncthreads();
+    }
+
     if (tid ==  0) { g_out[bid] = s_data[0]; }
 }
 
@@ -175,26 +178,18 @@ static __global__ void find_group_sum_3
     }
     __syncthreads();
 
-    if (tid < 128)
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
     {
-        s_fx[tid] += s_fx[tid + 128];
-        s_fy[tid] += s_fy[tid + 128];
-        s_fz[tid] += s_fz[tid + 128];
+        if (tid < offset)
+        {
+            s_fx[tid] += s_fx[tid + offset];
+            s_fy[tid] += s_fy[tid + offset];
+            s_fz[tid] += s_fz[tid + offset];
+        }
+        __syncthreads();
     }
-    __syncthreads();
-    if (tid < 64)
-    {
-        s_fx[tid] += s_fx[tid + 64];
-        s_fy[tid] += s_fy[tid + 64];
-        s_fz[tid] += s_fz[tid + 64];
-    }
-    __syncthreads();
-    if (tid < 32)
-    {
-        warp_reduce(s_fx, tid);
-        warp_reduce(s_fy, tid);
-        warp_reduce(s_fz, tid);
-    }
+
     if (tid == 0)
     {
         g_out[bid] = s_fx[0];
