@@ -23,7 +23,6 @@ The abstract base class (ABC) for the ensemble classes.
 #include "atom.cuh"
 #include "error.cuh"
 #include "force.cuh"
-#include "warp_reduce.cuh"
 
 #define BLOCK_SIZE 128
 #define DIM 3
@@ -613,44 +612,19 @@ static __global__ void gpu_find_vc_and_ke
     }
     __syncthreads();
 
-    if (tid < 256) 
-    { 
-        s_mc[tid] += s_mc[tid + 256]; 
-        s_vx[tid] += s_vx[tid + 256];
-        s_vy[tid] += s_vy[tid + 256];
-        s_vz[tid] += s_vz[tid + 256];
-        s_ke[tid] += s_ke[tid + 256];
-    } 
-    __syncthreads();
-
-    if (tid < 128) 
-    { 
-        s_mc[tid] += s_mc[tid + 128]; 
-        s_vx[tid] += s_vx[tid + 128];
-        s_vy[tid] += s_vy[tid + 128];
-        s_vz[tid] += s_vz[tid + 128];
-        s_ke[tid] += s_ke[tid + 128];
-    } 
-    __syncthreads();
-
-    if (tid <  64) 
-    { 
-        s_mc[tid] += s_mc[tid + 64]; 
-        s_vx[tid] += s_vx[tid + 64];
-        s_vy[tid] += s_vy[tid + 64];
-        s_vz[tid] += s_vz[tid + 64];
-        s_ke[tid] += s_ke[tid + 64];
-    } 
-    __syncthreads();
-
-    if (tid <  32) 
-    { 
-        warp_reduce(s_mc, tid);  
-        warp_reduce(s_vx, tid); 
-        warp_reduce(s_vy, tid); 
-        warp_reduce(s_vz, tid);    
-        warp_reduce(s_ke, tid);       
-    }  
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) 
+        {
+            s_mc[tid] += s_mc[tid + offset];
+            s_vx[tid] += s_vx[tid + offset];
+            s_vy[tid] += s_vy[tid + offset];
+            s_vz[tid] += s_vz[tid + offset];
+            s_ke[tid] += s_ke[tid + offset];
+        }
+        __syncthreads();
+    }
 
     if (tid == 0) 
     { 
