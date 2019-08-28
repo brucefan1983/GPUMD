@@ -14,7 +14,7 @@ Nature Communications **10**, 3853 (2019).
 
 * Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
 [Revisiting phonon-phonon scattering in single-layer graphene](https://doi.org/10.1103/PhysRevB.100.064306),
-Phys. Rev. B **10**, 064306 (2019)
+Phys. Rev. B **100**, 064306 (2019)
 
 * Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila, 
 [Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials](https://doi.org/10.1103/PhysRevB.99.064308),
