@@ -36,7 +36,7 @@ public:
 private:
     int ncid; // NetCDF ID
     int N; // number of atoms
-    bool append = false;
+    static bool append;
 
     // dimensions
     int frame_dim;
