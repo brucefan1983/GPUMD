@@ -31,7 +31,8 @@ The driver class calculating force and related quantities.
 #include "tersoff_modc.cuh"
 #include "tersoff_mini.cuh"
 #include "sw.cuh"
-#include "pair.cuh"
+#include "lj.cuh"
+#include "ri.cuh"
 #include "eam.cuh"
 #include "measure.cuh"
 
@@ -139,7 +140,7 @@ void Force::initialize_potential(Atom* atom, int m)
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
-        potential[m] = new Pair(fid_potential, num_types,
+        potential[m] = new LJ(fid_potential, num_types,
                 participating_kinds, atom_end[m]-atom_begin[m]+1);
         potential_type = 1;
     }
@@ -150,9 +151,7 @@ void Force::initialize_potential(Atom* atom, int m)
             print_error("Defined types/groups for RI potential must be "
                     "contiguous and ascending.\n");
         }
-        // TODO separate RI from LJ to create separate constructors
-        potential[m] = new Pair(fid_potential, 0,
-                participating_kinds, atom_end[m]-atom_begin[m]+1);
+        potential[m] = new RI(fid_potential);
         potential_type = 1;
     }
     else
