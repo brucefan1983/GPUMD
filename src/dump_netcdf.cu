@@ -51,14 +51,11 @@ const char TYPE_STR[] = "type";
 const char CELL_LENGTHS_STR[] = "cell_lengths";
 const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
+bool DUMP_NETCDF::append = false;
 
 DUMP_NETCDF::DUMP_NETCDF(int N, real global_time)
 {
     this->N = N;
-    if (global_time > 0)
-    {
-        append = true;
-    }
 }
 
 void DUMP_NETCDF::initialize(char *input_dir)
@@ -180,6 +177,9 @@ void DUMP_NETCDF::initialize(char *input_dir)
 
     // File not used until first dump. Close for now.
     NC_CHECK(nc_close(ncid));
+
+    // Append to this file for the rest of this simulation
+    append = true;
 }
 
 void DUMP_NETCDF::open_file(int frame_in_run)
@@ -281,7 +281,7 @@ void DUMP_NETCDF::write(Atom *atom)
 
     size_t countp[3] = {1, 3, 0}; //3rd dimension unused until per-atom
     size_t startp[3] = {lenp, 0, 0};
-    real time = atom->global_time/1000.0; // convert fs to ps
+    real time = atom->global_time/1000.0*TIME_UNIT_CONVERSION; // convert fs to ps
     NC_CHECK(nc_put_var1_double(ncid, time_var, startp, &time));
     NC_CHECK(nc_put_vara_double(ncid, cell_lengths_var, startp, countp, cell_lengths));
     NC_CHECK(nc_put_vara_double(ncid, cell_angles_var, startp, countp, cell_angles));
