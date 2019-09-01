@@ -39,7 +39,7 @@ typedef double real;
 #define SIX   6.0
 #define PI    3.14159265358979
 #define K_B   8.617343e-5                      // Boltzmann's constant
-#define K_C   1.441959e+1                      // 1/(4*PI*epsilon_0)
+#define K_C   14.399645                        // 1/(4*PI*epsilon_0)
 #define PRESSURE_UNIT_CONVERSION 1.602177e+2   // from natural to GPa
 #define TIME_UNIT_CONVERSION     1.018051e+1   // from natural to fs
 #define KAPPA_UNIT_CONVERSION    1.573769e+5   // from natural to W/mK
