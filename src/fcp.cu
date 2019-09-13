@@ -107,14 +107,9 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
     int count = fscanf(fid, "%d", &number2);
     if (count != 1) { print_error("reading error for fc2.in\n"); }
 
-    int *ia2, *jb2;
-    float *phi2;
-    MY_MALLOC(ia2, int, number2);
-    MY_MALLOC(jb2, int, number2);
-    MY_MALLOC(phi2, float, number2);
-    CHECK(cudaMalloc(&fcp_data.ia2, sizeof(int) * number2));
-    CHECK(cudaMalloc(&fcp_data.jb2, sizeof(int) * number2));
-    CHECK(cudaMalloc(&fcp_data.phi2, sizeof(float) * number2));
+    CHECK(cudaMallocManaged(&fcp_data.ia2, sizeof(int) * number2));
+    CHECK(cudaMallocManaged(&fcp_data.jb2, sizeof(int) * number2));
+    CHECK(cudaMallocManaged(&fcp_data.phi2, sizeof(float) * number2));
     CHECK(cudaMallocManaged(&fcp_data.xij2, sizeof(float) * number2));
     CHECK(cudaMallocManaged(&fcp_data.yij2, sizeof(float) * number2));
     CHECK(cudaMallocManaged(&fcp_data.zij2, sizeof(float) * number2));
@@ -124,12 +119,12 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
         int i, j, a, b;
         count = fscanf
         (
-            fid, "%d%d%d%d%f", &i, &j, &a, &b, &phi2[n]
+            fid, "%d%d%d%d%f", &i, &j, &a, &b, &fcp_data.phi2[n]
         );
         if (count != 5) { print_error("reading error for fc2.in\n"); }
-        ia2[n] = a * atom->N + i;
-        jb2[n] = b * atom->N + j;
-        if (i == j) { phi2[n] /= 2; } // 11
+        fcp_data.ia2[n] = a * atom->N + i;
+        fcp_data.jb2[n] = b * atom->N + j;
+        if (i == j) { fcp_data.phi2[n] /= 2; } // 11
         
         double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
         double yij2 = fcp_data.r0[j] - fcp_data.r0[i];
@@ -143,17 +138,8 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
         fcp_data.yij2[n] = yij2 * 0.5;
         fcp_data.zij2[n] = zij2 * 0.5;
     }
-    fclose(fid);
 
-    CHECK(cudaMemcpy(fcp_data.ia2, ia2, sizeof(int) * number2, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.jb2, jb2, sizeof(int) * number2, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.phi2, phi2, sizeof(float) * number2, 
-        cudaMemcpyHostToDevice));
-    MY_FREE(ia2);
-    MY_FREE(jb2);
-    MY_FREE(phi2);
+    fclose(fid);
     printf("    Data in fc2.in (%d entries) has been read in.\n", number2);
 }
 
@@ -168,46 +154,28 @@ void FCP::read_fc3(char *input_dir, Atom *atom)
     int count = fscanf(fid, "%d", &number3);
     if (count != 1) { print_error("reading error for fc3.in\n"); }
 
-    int *ia3, *jb3, *kc3;
-    float *phi3;
-    MY_MALLOC(ia3, int, number3);
-    MY_MALLOC(jb3, int, number3);
-    MY_MALLOC(kc3, int, number3);
-    MY_MALLOC(phi3, float, number3);
-    CHECK(cudaMalloc(&fcp_data.ia3, sizeof(int) * number3));
-    CHECK(cudaMalloc(&fcp_data.jb3, sizeof(int) * number3));
-    CHECK(cudaMalloc(&fcp_data.kc3, sizeof(int) * number3));
-    CHECK(cudaMalloc(&fcp_data.phi3, sizeof(float) * number3));
+    CHECK(cudaMallocManaged(&fcp_data.ia3, sizeof(int) * number3));
+    CHECK(cudaMallocManaged(&fcp_data.jb3, sizeof(int) * number3));
+    CHECK(cudaMallocManaged(&fcp_data.kc3, sizeof(int) * number3));
+    CHECK(cudaMallocManaged(&fcp_data.phi3, sizeof(float) * number3));
 
     for (int n = 0; n < number3; n++)
     {
         int i, j, k, a, b, c;
         count = fscanf
         (
-            fid, "%d%d%d%d%d%d%f", &i, &j, &k, &a, &b, &c, &phi3[n]
+            fid, "%d%d%d%d%d%d%f", &i, &j, &k, &a, &b, &c, &fcp_data.phi3[n]
         );
         if (count != 7) { print_error("reading error for fc3.in\n"); }
-        ia3[n] = a * atom->N + i;
-        jb3[n] = b * atom->N + j;
-        kc3[n] = c * atom->N + k;
-        if (i == j && j != k) { phi3[n] /= 2; } // 112
-        if (i != j && j == k) { phi3[n] /= 2; } // 122
-        if (i == j && j == k) { phi3[n] /= 6; } // 111
+        fcp_data.ia3[n] = a * atom->N + i;
+        fcp_data.jb3[n] = b * atom->N + j;
+        fcp_data.kc3[n] = c * atom->N + k;
+        if (i == j && j != k) { fcp_data.phi3[n] /= 2; } // 112
+        if (i != j && j == k) { fcp_data.phi3[n] /= 2; } // 122
+        if (i == j && j == k) { fcp_data.phi3[n] /= 6; } // 111
     }
-    fclose(fid);
 
-    CHECK(cudaMemcpy(fcp_data.ia3, ia3, sizeof(int) * number3, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.jb3, jb3, sizeof(int) * number3, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.kc3, kc3, sizeof(int) * number3, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.phi3, phi3, sizeof(float) * number3, 
-        cudaMemcpyHostToDevice));
-    MY_FREE(ia3);
-    MY_FREE(jb3);
-    MY_FREE(kc3);
-    MY_FREE(phi3);
+    fclose(fid);
     printf("    Data in fc3.in (%d entries) has been read in.\n", number3);
 }
 
@@ -222,57 +190,36 @@ void FCP::read_fc4(char *input_dir, Atom *atom)
     int count = fscanf(fid, "%d", &number4);
     if (count != 1) { print_error("reading error for fc4.in\n"); }
 
-    int *ia4, *jb4, *kc4, *ld4;
-    float *phi4;
-    MY_MALLOC(ia4, int, number4);
-    MY_MALLOC(jb4, int, number4);
-    MY_MALLOC(kc4, int, number4);
-    MY_MALLOC(ld4, int, number4);
-    MY_MALLOC(phi4, float, number4);
-    CHECK(cudaMalloc(&fcp_data.ia4, sizeof(int) * number4));
-    CHECK(cudaMalloc(&fcp_data.jb4, sizeof(int) * number4));
-    CHECK(cudaMalloc(&fcp_data.kc4, sizeof(int) * number4));
-    CHECK(cudaMalloc(&fcp_data.ld4, sizeof(int) * number4));
-    CHECK(cudaMalloc(&fcp_data.phi4, sizeof(float) * number4));
+    CHECK(cudaMallocManaged(&fcp_data.ia4, sizeof(int) * number4));
+    CHECK(cudaMallocManaged(&fcp_data.jb4, sizeof(int) * number4));
+    CHECK(cudaMallocManaged(&fcp_data.kc4, sizeof(int) * number4));
+    CHECK(cudaMallocManaged(&fcp_data.ld4, sizeof(int) * number4));
+    CHECK(cudaMallocManaged(&fcp_data.phi4, sizeof(float) * number4));
 
     for (int n = 0; n < number4; n++)
     {
         int i, j, k, l, a, b, c, d;
         count = fscanf
         (
-            fid, "%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &a, &b, &c, &d, &phi4[n]
+            fid, "%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &a, &b, &c, &d, 
+            &fcp_data.phi4[n]
         );
         if (count != 9) { print_error("reading error for fc4.in\n"); }
-        ia4[n] = a * atom->N + i;
-        jb4[n] = b * atom->N + j;
-        kc4[n] = c * atom->N + k;
-        ld4[n] = d * atom->N + l;
+        fcp_data.ia4[n] = a * atom->N + i;
+        fcp_data.jb4[n] = b * atom->N + j;
+        fcp_data.kc4[n] = c * atom->N + k;
+        fcp_data.ld4[n] = d * atom->N + l;
         
-        if (i == j && j != k && k != l) { phi4[n] /= 2; } // 1123
-        if (i != j && j == k && k != l) { phi4[n] /= 2; } // 1223
-        if (i != j && j != k && k == l) { phi4[n] /= 2; } // 1233
-        if (i == j && j != k && k == l) { phi4[n] /= 4; } // 1122
-        if (i == j && j == k && k != l) { phi4[n] /= 6; } // 1112
-        if (i != j && j == k && k == l) { phi4[n] /= 6; } // 1222
-        if (i == j && j == k && k == l) { phi4[n] /= 24; } // 1111
+        if (i == j && j != k && k != l) { fcp_data.phi4[n] /= 2; } // 1123
+        if (i != j && j == k && k != l) { fcp_data.phi4[n] /= 2; } // 1223
+        if (i != j && j != k && k == l) { fcp_data.phi4[n] /= 2; } // 1233
+        if (i == j && j != k && k == l) { fcp_data.phi4[n] /= 4; } // 1122
+        if (i == j && j == k && k != l) { fcp_data.phi4[n] /= 6; } // 1112
+        if (i != j && j == k && k == l) { fcp_data.phi4[n] /= 6; } // 1222
+        if (i == j && j == k && k == l) { fcp_data.phi4[n] /= 24; } // 1111
     }
-    fclose(fid);
 
-    CHECK(cudaMemcpy(fcp_data.ia4, ia4, sizeof(int) * number4, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.jb4, jb4, sizeof(int) * number4, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.kc4, kc4, sizeof(int) * number4, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.ld4, ld4, sizeof(int) * number4, 
-        cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(fcp_data.phi4, phi4, sizeof(float) * number4, 
-        cudaMemcpyHostToDevice));
-    MY_FREE(ia4);
-    MY_FREE(jb4);
-    MY_FREE(kc4);
-    MY_FREE(ld4);
-    MY_FREE(phi4);
+    fclose(fid);
     printf("    Data in fc4.in (%d entries) has been read in.\n", number4);
 }
 
@@ -282,7 +229,7 @@ static __global__ void gpu_find_force_fcp2
 (
     int N, int number2, int *g_ia2, int *g_jb2, float *g_phi2,
     const float* __restrict__ g_uv, 
-    float *g_xij2, float *g_yij2, float *g_zij2, float *g_pf
+    float *g_xij2, float *g_yij2, float *g_zij2, float *g_pfj
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -301,14 +248,14 @@ static __global__ void gpu_find_force_fcp2
         float vjb = LDG(g_uv, jb + N * 3);
 
         int atom_id = ia % N;
-        atomicAdd(&g_pf[atom_id], phi * uia * ujb);
-        atomicAdd(&g_pf[ia + N], - phi * ujb);
-        atomicAdd(&g_pf[jb + N], - phi * uia);
+        atomicAdd(&g_pfj[atom_id], phi * uia * ujb);
+        atomicAdd(&g_pfj[ia + N], - phi * ujb);
+        atomicAdd(&g_pfj[jb + N], - phi * uia);
 
         float uvij = via * ujb - uia * vjb;
-        atomicAdd(&g_pf[atom_id + N * 4], phi * xij2 * uvij);
-        atomicAdd(&g_pf[atom_id + N * 5], phi * yij2 * uvij);
-        atomicAdd(&g_pf[atom_id + N * 6], phi * zij2 * uvij);
+        atomicAdd(&g_pfj[atom_id + N * 4], phi * xij2 * uvij);
+        atomicAdd(&g_pfj[atom_id + N * 5], phi * yij2 * uvij);
+        atomicAdd(&g_pfj[atom_id + N * 6], phi * zij2 * uvij);
     }
 }
 
