@@ -471,7 +471,7 @@ static __global__ void gpu_find_force_fcp4
 }
 
 
-// potential and force from the fourth-order force constants
+// potential and force from the fifth-order force constants
 static __global__ void gpu_find_force_fcp5
 (
     int N, int number5, int *g_ia5, int *g_jb5, int *g_kc5, int *g_ld5,
@@ -502,7 +502,7 @@ static __global__ void gpu_find_force_fcp5
 }
 
 
-// potential and force from the fourth-order force constants
+// potential and force from the sixth-order force constants
 static __global__ void gpu_find_force_fcp6
 (
     int N, int number6, int *g_ia6, int *g_jb6, int *g_kc6, int *g_ld6,
