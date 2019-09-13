@@ -153,8 +153,8 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
         if (i == j) { fcp_data.phi2[index] /= 2; } // 11
         
         double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
-        double yij2 = fcp_data.r0[j] - fcp_data.r0[i];
-        double zij2 = fcp_data.r0[j] - fcp_data.r0[i];
+        double yij2 = fcp_data.r0[j + atom->N] - fcp_data.r0[i + atom->N];
+        double zij2 = fcp_data.r0[j + atom->N*2] - fcp_data.r0[i + atom->N*2];
         apply_mic
         (
             atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
