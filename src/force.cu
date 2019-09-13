@@ -34,6 +34,7 @@ The driver class calculating force and related quantities.
 #include "lj.cuh"
 #include "ri.cuh"
 #include "eam.cuh"
+#include "fcp.cuh"
 #include "measure.cuh"
 
 #define BLOCK_SIZE 128
@@ -85,7 +86,7 @@ void Force::valdiate_potential_definitions()
     }
 }
 
-void Force::initialize_potential(Atom* atom, int m)
+void Force::initialize_potential(char* input_dir, Atom* atom, int m)
 {
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
@@ -137,6 +138,10 @@ void Force::initialize_potential(Atom* atom, int m)
     else if (strcmp(potential_name, "vashishta_table") == 0)
     {
         potential[m] = new Vashishta(fid_potential, atom, 1);
+    }
+    else if (strcmp(potential_name, "fcp") == 0)
+    {
+        potential[m] = new FCP(fid_potential, input_dir, atom);
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
@@ -265,10 +270,10 @@ bool Force::kinds_are_contiguous()
     return true;
 }
 
-void Force::add_potential(Atom *atom)
+void Force::add_potential(char* input_dir, Atom *atom)
 {
     int m = num_of_potentials-1;
-    initialize_potential(atom, m);
+    initialize_potential(input_dir, atom, m);
     if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
 
     // check the atom types in xyz.in

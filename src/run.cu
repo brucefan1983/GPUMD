@@ -222,7 +222,7 @@ void Run::add_potential
     if (check) { number_of_times_potential++; }
     else
     {
-        force->add_potential(atom);
+        force->add_potential(input_dir, atom);
     }
 }
 

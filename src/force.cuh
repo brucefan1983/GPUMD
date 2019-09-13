@@ -25,7 +25,7 @@ public:
 
     Force(void);
     ~Force(void);
-    void add_potential(Atom*);
+    void add_potential(char* input_dir, Atom*);
     void compute(Atom*, Measure*);
     int get_number_of_types(FILE *fid_potential);
     void valdiate_potential_definitions(void);
@@ -43,7 +43,7 @@ public:
 
 private:
 
-    void initialize_potential(Atom*, int);
+    void initialize_potential(char* input_dir, Atom*, int);
     void find_neighbor_local(Atom*, int);
     bool kind_is_participating(int, int);
     bool kinds_are_contiguous(void);

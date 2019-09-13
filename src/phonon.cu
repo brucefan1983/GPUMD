@@ -82,7 +82,7 @@ void Phonon::compute
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
         parse(param, num_param, atom, force, hessian, &is_potential);
-        if (!check && is_potential) force->add_potential(atom);
+        if (!check && is_potential) force->add_potential(input_dir, atom);
     }
     MY_FREE(input); // Free the input file contents
     if (!check) hessian->compute(input_dir, atom, force, measure);
