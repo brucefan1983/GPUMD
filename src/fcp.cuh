@@ -20,8 +20,13 @@
 
 struct FCP_Data
 {
-    int *ia2, *jb2, *ia3, *jb3, *kc3, *ia4, *jb4, *kc4, *ld4;
-    float *uv, *r0, *pfj, *xij2, *yij2, *zij2, *phi2, *phi3, *phi4;
+    int *ia2, *jb2;
+    int *ia3, *jb3, *kc3;
+    int *ia4, *jb4, *kc4, *ld4;
+    int *ia5, *jb5, *kc5, *ld5, *me5;
+    int *ia6, *jb6, *kc6, *ld6, *me6, *nf6;
+    float *uv, *r0, *pfj, *xij2, *yij2, *zij2;
+    float *phi2, *phi3, *phi4, *phi5, *phi6;
 };
 
 
@@ -32,12 +37,14 @@ public:
     virtual ~FCP(void);
     virtual void compute(Atom*, Measure*, int);
 protected:
-    int order, number2, number3, number4;
+    int order, number2, number3, number4, number5, number6;
     FCP_Data fcp_data;
     void read_r0(char *input_dir, Atom *atom);
     void read_fc2(char *input_dir, Atom *atom);
     void read_fc3(char *input_dir, Atom *atom);
     void read_fc4(char *input_dir, Atom *atom);
+    void read_fc5(char *input_dir, Atom *atom);
+    void read_fc6(char *input_dir, Atom *atom);
 };
 
 

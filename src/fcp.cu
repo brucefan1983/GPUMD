@@ -16,10 +16,7 @@
 
 /*----------------------------------------------------------------------------80
 The force constant potential (FCP)
-TODO:
-    *) atomicAdd => shared memory <<<128, 1024>>> and summation <<<4N, 128>>>
-    *) higher order (5 and 6)
-    *) heat current?
+TODO: HNEMD
 ------------------------------------------------------------------------------*/
 
 
@@ -41,8 +38,10 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
     CHECK(cudaMalloc(&fcp_data.pfj, sizeof(float) * atom->N * 7));
     read_r0(input_dir, atom);
     read_fc2(input_dir, atom);
-    read_fc3(input_dir, atom);
-    read_fc4(input_dir, atom);
+    if (order >= 3) read_fc3(input_dir, atom);
+    if (order >= 4) read_fc4(input_dir, atom);
+    if (order >= 5) read_fc5(input_dir, atom);
+    if (order >= 6) read_fc6(input_dir, atom);
 }
 
 
@@ -57,15 +56,40 @@ FCP::~FCP(void)
     CHECK(cudaFree(fcp_data.xij2));
     CHECK(cudaFree(fcp_data.yij2));
     CHECK(cudaFree(fcp_data.zij2));
-    CHECK(cudaFree(fcp_data.ia3));
-    CHECK(cudaFree(fcp_data.jb3));
-    CHECK(cudaFree(fcp_data.kc3));
-    CHECK(cudaFree(fcp_data.phi3));
-    CHECK(cudaFree(fcp_data.ia4));
-    CHECK(cudaFree(fcp_data.jb4));
-    CHECK(cudaFree(fcp_data.kc4));
-    CHECK(cudaFree(fcp_data.ld4));
-    CHECK(cudaFree(fcp_data.phi4));
+    if (order >= 3)
+    {
+        CHECK(cudaFree(fcp_data.ia3));
+        CHECK(cudaFree(fcp_data.jb3));
+        CHECK(cudaFree(fcp_data.kc3));
+        CHECK(cudaFree(fcp_data.phi3));
+    }
+    if (order >= 4)
+    {
+        CHECK(cudaFree(fcp_data.ia4));
+        CHECK(cudaFree(fcp_data.jb4));
+        CHECK(cudaFree(fcp_data.kc4));
+        CHECK(cudaFree(fcp_data.ld4));
+        CHECK(cudaFree(fcp_data.phi4));
+    }
+    if (order >= 5)
+    {
+        CHECK(cudaFree(fcp_data.ia5));
+        CHECK(cudaFree(fcp_data.jb5));
+        CHECK(cudaFree(fcp_data.kc5));
+        CHECK(cudaFree(fcp_data.ld5));
+        CHECK(cudaFree(fcp_data.me5));
+        CHECK(cudaFree(fcp_data.phi5));
+    }
+    if (order >= 6)
+    {
+        CHECK(cudaFree(fcp_data.ia6));
+        CHECK(cudaFree(fcp_data.jb6));
+        CHECK(cudaFree(fcp_data.kc6));
+        CHECK(cudaFree(fcp_data.ld6));
+        CHECK(cudaFree(fcp_data.me6));
+        CHECK(cudaFree(fcp_data.nf6));
+        CHECK(cudaFree(fcp_data.phi6));
+    }
 }
 
 
@@ -114,17 +138,19 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
     CHECK(cudaMallocManaged(&fcp_data.yij2, sizeof(float) * number2));
     CHECK(cudaMallocManaged(&fcp_data.zij2, sizeof(float) * number2));
 
-    for (int n = 0; n < number2; n++)
+    for (int index = 0; index < number2; index++)
     {
         int i, j, a, b;
         count = fscanf
         (
-            fid, "%d%d%d%d%f", &i, &j, &a, &b, &fcp_data.phi2[n]
+            fid, "%d%d%d%d%f", &i, &j, &a, &b, &fcp_data.phi2[index]
         );
         if (count != 5) { print_error("reading error for fc2.in\n"); }
-        fcp_data.ia2[n] = a * atom->N + i;
-        fcp_data.jb2[n] = b * atom->N + j;
-        if (i == j) { fcp_data.phi2[n] /= 2; } // 11
+        fcp_data.ia2[index] = a * atom->N + i;
+        fcp_data.jb2[index] = b * atom->N + j;
+
+        // 2^1-1 = 1 case:
+        if (i == j) { fcp_data.phi2[index] /= 2; } // 11
         
         double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
         double yij2 = fcp_data.r0[j] - fcp_data.r0[i];
@@ -134,9 +160,9 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
             atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
             atom->box.pbc_z, atom->box.cpu_h, xij2, yij2, zij2
         );
-        fcp_data.xij2[n] = xij2 * 0.5;
-        fcp_data.yij2[n] = yij2 * 0.5;
-        fcp_data.zij2[n] = zij2 * 0.5;
+        fcp_data.xij2[index] = xij2 * 0.5;
+        fcp_data.yij2[index] = yij2 * 0.5;
+        fcp_data.zij2[index] = zij2 * 0.5;
     }
 
     fclose(fid);
@@ -159,20 +185,23 @@ void FCP::read_fc3(char *input_dir, Atom *atom)
     CHECK(cudaMallocManaged(&fcp_data.kc3, sizeof(int) * number3));
     CHECK(cudaMallocManaged(&fcp_data.phi3, sizeof(float) * number3));
 
-    for (int n = 0; n < number3; n++)
+    for (int index = 0; index < number3; index++)
     {
         int i, j, k, a, b, c;
         count = fscanf
         (
-            fid, "%d%d%d%d%d%d%f", &i, &j, &k, &a, &b, &c, &fcp_data.phi3[n]
+            fid, "%d%d%d%d%d%d%f", &i, &j, &k, &a, &b, &c, 
+            &fcp_data.phi3[index]
         );
         if (count != 7) { print_error("reading error for fc3.in\n"); }
-        fcp_data.ia3[n] = a * atom->N + i;
-        fcp_data.jb3[n] = b * atom->N + j;
-        fcp_data.kc3[n] = c * atom->N + k;
-        if (i == j && j != k) { fcp_data.phi3[n] /= 2; } // 112
-        if (i != j && j == k) { fcp_data.phi3[n] /= 2; } // 122
-        if (i == j && j == k) { fcp_data.phi3[n] /= 6; } // 111
+        fcp_data.ia3[index] = a * atom->N + i;
+        fcp_data.jb3[index] = b * atom->N + j;
+        fcp_data.kc3[index] = c * atom->N + k;
+
+        // 2^2-1 = 3 cases:
+        if (i == j && j != k) { fcp_data.phi3[index] /= 2; } // 112
+        if (i != j && j == k) { fcp_data.phi3[index] /= 2; } // 122
+        if (i == j && j == k) { fcp_data.phi3[index] /= 6; } // 111
     }
 
     fclose(fid);
@@ -196,31 +225,160 @@ void FCP::read_fc4(char *input_dir, Atom *atom)
     CHECK(cudaMallocManaged(&fcp_data.ld4, sizeof(int) * number4));
     CHECK(cudaMallocManaged(&fcp_data.phi4, sizeof(float) * number4));
 
-    for (int n = 0; n < number4; n++)
+    for (int index = 0; index < number4; index++)
     {
         int i, j, k, l, a, b, c, d;
         count = fscanf
         (
             fid, "%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &a, &b, &c, &d, 
-            &fcp_data.phi4[n]
+            &fcp_data.phi4[index]
         );
         if (count != 9) { print_error("reading error for fc4.in\n"); }
-        fcp_data.ia4[n] = a * atom->N + i;
-        fcp_data.jb4[n] = b * atom->N + j;
-        fcp_data.kc4[n] = c * atom->N + k;
-        fcp_data.ld4[n] = d * atom->N + l;
+        fcp_data.ia4[index] = a * atom->N + i;
+        fcp_data.jb4[index] = b * atom->N + j;
+        fcp_data.kc4[index] = c * atom->N + k;
+        fcp_data.ld4[index] = d * atom->N + l;
         
-        if (i == j && j != k && k != l) { fcp_data.phi4[n] /= 2; } // 1123
-        if (i != j && j == k && k != l) { fcp_data.phi4[n] /= 2; } // 1223
-        if (i != j && j != k && k == l) { fcp_data.phi4[n] /= 2; } // 1233
-        if (i == j && j != k && k == l) { fcp_data.phi4[n] /= 4; } // 1122
-        if (i == j && j == k && k != l) { fcp_data.phi4[n] /= 6; } // 1112
-        if (i != j && j == k && k == l) { fcp_data.phi4[n] /= 6; } // 1222
-        if (i == j && j == k && k == l) { fcp_data.phi4[n] /= 24; } // 1111
+        // 2^3-1 = 7 cases:
+        if (i == j && j != k && k != l) { fcp_data.phi4[index] /= 2; }  // 1123
+        if (i != j && j == k && k != l) { fcp_data.phi4[index] /= 2; }  // 1223
+        if (i != j && j != k && k == l) { fcp_data.phi4[index] /= 2; }  // 1233
+        if (i == j && j != k && k == l) { fcp_data.phi4[index] /= 4; }  // 1122
+        if (i == j && j == k && k != l) { fcp_data.phi4[index] /= 6; }  // 1112
+        if (i != j && j == k && k == l) { fcp_data.phi4[index] /= 6; }  // 1222
+        if (i == j && j == k && k == l) { fcp_data.phi4[index] /= 24; } // 1111
     }
 
     fclose(fid);
     printf("    Data in fc4.in (%d entries) has been read in.\n", number4);
+}
+
+
+void FCP::read_fc5(char *input_dir, Atom *atom)
+{
+    char file[200];
+    strcpy(file, input_dir);
+    strcat(file, "/fc5.in");
+    FILE *fid = my_fopen(file, "r");
+
+    int count = fscanf(fid, "%d", &number5);
+    if (count != 1) { print_error("reading error for fc5.in\n"); }
+
+    CHECK(cudaMallocManaged(&fcp_data.ia5, sizeof(int) * number5));
+    CHECK(cudaMallocManaged(&fcp_data.jb5, sizeof(int) * number5));
+    CHECK(cudaMallocManaged(&fcp_data.kc5, sizeof(int) * number5));
+    CHECK(cudaMallocManaged(&fcp_data.ld5, sizeof(int) * number5));
+    CHECK(cudaMallocManaged(&fcp_data.me5, sizeof(int) * number5));
+    CHECK(cudaMallocManaged(&fcp_data.phi5, sizeof(float) * number5));
+
+    for (int index = 0; index < number5; index++)
+    {
+        int i, j, k, l, m, a, b, c, d, e;
+        count = fscanf
+        (
+            fid, "%d%d%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &m, 
+            &a, &b, &c, &d, &e, &fcp_data.phi5[index]
+        );
+        if (count != 11) { print_error("reading error for fc5.in\n"); }
+        fcp_data.ia5[index] = a * atom->N + i;
+        fcp_data.jb5[index] = b * atom->N + j;
+        fcp_data.kc5[index] = c * atom->N + k;
+        fcp_data.ld5[index] = d * atom->N + l;
+        fcp_data.me5[index] = e * atom->N + m;
+        
+        // 2^4-1 = 15 cases:
+        if (i == j && j != k && k != l && l != m) { fcp_data.phi5[index] /= 2; }   // 11234
+        if (i != j && j == k && k != l && l != m) { fcp_data.phi5[index] /= 2; }   // 12234
+        if (i != j && j != k && k == l && l != m) { fcp_data.phi5[index] /= 2; }   // 12334
+        if (i != j && j != k && k != l && l == m) { fcp_data.phi5[index] /= 2; }   // 12344
+        if (i == j && j == k && k != l && l != m) { fcp_data.phi5[index] /= 6; }   // 11123
+        if (i != j && j == k && k == l && l != m) { fcp_data.phi5[index] /= 6; }   // 12223
+        if (i != j && j != k && k == l && l == m) { fcp_data.phi5[index] /= 6; }   // 12333
+        if (i == j && j == k && k == l && l != m) { fcp_data.phi5[index] /= 24; }  // 11112
+        if (i != j && j == k && k == l && l == m) { fcp_data.phi5[index] /= 24; }  // 12222
+        if (i == j && j == k && k == l && l == m) { fcp_data.phi5[index] /= 120; } // 11111
+        if (i == j && j != k && k == l && l != m) { fcp_data.phi5[index] /= 4; }   // 11223
+        if (i == j && j != k && k != l && l == m) { fcp_data.phi5[index] /= 4; }   // 11233
+        if (i != j && j == k && k != l && l == m) { fcp_data.phi5[index] /= 4; }   // 12233
+        if (i == j && j != k && k == l && l == m) { fcp_data.phi5[index] /= 12; }  // 11222
+        if (i == j && j == k && k != l && l == m) { fcp_data.phi5[index] /= 12; }  // 11122
+    }
+
+    fclose(fid);
+    printf("    Data in fc5.in (%d entries) has been read in.\n", number5);
+}
+
+
+void FCP::read_fc6(char *input_dir, Atom *atom)
+{
+    char file[200];
+    strcpy(file, input_dir);
+    strcat(file, "/fc6.in");
+    FILE *fid = my_fopen(file, "r");
+
+    int count = fscanf(fid, "%d", &number6);
+    if (count != 1) { print_error("reading error for fc6.in\n"); }
+
+    CHECK(cudaMallocManaged(&fcp_data.ia6, sizeof(int) * number6));
+    CHECK(cudaMallocManaged(&fcp_data.jb6, sizeof(int) * number6));
+    CHECK(cudaMallocManaged(&fcp_data.kc6, sizeof(int) * number6));
+    CHECK(cudaMallocManaged(&fcp_data.ld6, sizeof(int) * number6));
+    CHECK(cudaMallocManaged(&fcp_data.me6, sizeof(int) * number6));
+    CHECK(cudaMallocManaged(&fcp_data.nf6, sizeof(int) * number6));
+    CHECK(cudaMallocManaged(&fcp_data.phi6, sizeof(float) * number6));
+
+    for (int index = 0; index < number6; index++)
+    {
+        int i, j, k, l, m, n, a, b, c, d, e, f;
+        count = fscanf
+        (
+            fid, "%d%d%d%d%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &m, &n,
+            &a, &b, &c, &d, &e, &f, &fcp_data.phi6[index]
+        );
+        if (count != 13) { print_error("reading error for fc6.in\n"); }
+        fcp_data.ia6[index] = a * atom->N + i;
+        fcp_data.jb6[index] = b * atom->N + j;
+        fcp_data.kc6[index] = c * atom->N + k;
+        fcp_data.ld6[index] = d * atom->N + l;
+        fcp_data.me6[index] = e * atom->N + m;
+        fcp_data.nf6[index] = f * atom->N + n;
+        
+        // 2^5-1 = 31 cases:
+        if (i == j && j != k && k != l && l != m && m != n) { fcp_data.phi6[index] /= 2; }   // 112345
+        if (i != j && j == k && k != l && l != m && m != n) { fcp_data.phi6[index] /= 2; }   // 122345
+        if (i != j && j != k && k == l && l != m && m != n) { fcp_data.phi6[index] /= 2; }   // 123345
+        if (i != j && j != k && k != l && l == m && m != n) { fcp_data.phi6[index] /= 2; }   // 123445
+        if (i != j && j != k && k != l && l != m && m == n) { fcp_data.phi6[index] /= 2; }   // 123455
+        if (i == j && j == k && k != l && l != m && m != n) { fcp_data.phi6[index] /= 6; }   // 111234
+        if (i != j && j == k && k == l && l != m && m != n) { fcp_data.phi6[index] /= 6; }   // 122234
+        if (i != j && j != k && k == l && l == m && m != n) { fcp_data.phi6[index] /= 6; }   // 123334
+        if (i != j && j != k && k != l && l == m && m == n) { fcp_data.phi6[index] /= 6; }   // 123444
+        if (i == j && j == k && k == l && l != m && m != n) { fcp_data.phi6[index] /= 24; }  // 111123
+        if (i != j && j == k && k == l && l == m && m != n) { fcp_data.phi6[index] /= 24; }  // 122223
+        if (i != j && j != k && k == l && l == m && m == n) { fcp_data.phi6[index] /= 24; }  // 122223
+        if (i == j && j == k && k == l && l == m && m != n) { fcp_data.phi6[index] /= 120; } // 111112
+        if (i != j && j == k && k == l && l == m && m == n) { fcp_data.phi6[index] /= 120; } // 122222
+        if (i == j && j == k && k == l && l == m && m == n) { fcp_data.phi6[index] /= 720; } // 111111
+        if (i == j && j != k && k == l && l != m && m != n) { fcp_data.phi6[index] /= 4; }   // 112234
+        if (i == j && j != k && k != l && l == m && m != n) { fcp_data.phi6[index] /= 4; }   // 112334
+        if (i == j && j != k && k != l && l != m && m == n) { fcp_data.phi6[index] /= 4; }   // 112344
+        if (i != j && j == k && k != l && l == m && m != n) { fcp_data.phi6[index] /= 4; }   // 122334
+        if (i != j && j == k && k != l && l != m && m == n) { fcp_data.phi6[index] /= 4; }   // 122344
+        if (i != j && j != k && k == l && l != m && m == n) { fcp_data.phi6[index] /= 4; }   // 123344
+        if (i == j && j != k && k == l && l == m && m != n) { fcp_data.phi6[index] /= 12; }  // 112223
+        if (i == j && j != k && k != l && l == m && m == n) { fcp_data.phi6[index] /= 12; }  // 112333
+        if (i != j && j == k && k != l && l == m && m == n) { fcp_data.phi6[index] /= 12; }  // 122333
+        if (i == j && j == k && k != l && l == m && m != n) { fcp_data.phi6[index] /= 12; }  // 111223
+        if (i == j && j == k && k != l && l != m && m == n) { fcp_data.phi6[index] /= 12; }  // 111233
+        if (i != j && j == k && k == l && l != m && m == n) { fcp_data.phi6[index] /= 12; }  // 122233
+        if (i == j && j != k && k == l && l == m && m == n) { fcp_data.phi6[index] /= 48; }  // 112222
+        if (i == j && j == k && k == l && l != m && m == n) { fcp_data.phi6[index] /= 48; }  // 111122
+        if (i == j && j == k && k != l && l == m && m == n) { fcp_data.phi6[index] /= 36; }  // 111222
+        if (i == j && j != k && k == l && l != m && m == n) { fcp_data.phi6[index] /= 8; }   // 112233
+    }
+
+    fclose(fid);
+    printf("    Data in fc6.in (%d entries) has been read in.\n", number6);
 }
 
 
@@ -309,6 +467,72 @@ static __global__ void gpu_find_force_fcp4
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld);
         atomicAdd(&g_pf[kc + N], - phi * uia * ujb * uld);
         atomicAdd(&g_pf[ld + N], - phi * uia * ujb * ukc);
+    }
+}
+
+
+// potential and force from the fourth-order force constants
+static __global__ void gpu_find_force_fcp5
+(
+    int N, int number5, int *g_ia5, int *g_jb5, int *g_kc5, int *g_ld5,
+    int *g_me5, float *g_phi5, const float* __restrict__ g_u, float *g_pf
+)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < number5)
+    {
+        int ia = g_ia5[n];
+        int jb = g_jb5[n]; 
+        int kc = g_kc5[n];
+        int ld = g_ld5[n];
+        int me = g_me5[n];
+        float phi = g_phi5[n];
+        float uia = LDG(g_u, ia); 
+        float ujb = LDG(g_u, jb);
+        float ukc = LDG(g_u, kc);
+        float uld = LDG(g_u, ld);
+        float ume = LDG(g_u, me);
+        atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld * ume);
+        atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld * ume);
+        atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld * ume);
+        atomicAdd(&g_pf[kc + N], - phi * uia * ujb * uld * ume);
+        atomicAdd(&g_pf[ld + N], - phi * uia * ujb * ukc * ume);
+        atomicAdd(&g_pf[me + N], - phi * uia * ujb * ukc * uld);
+    }
+}
+
+
+// potential and force from the fourth-order force constants
+static __global__ void gpu_find_force_fcp6
+(
+    int N, int number6, int *g_ia6, int *g_jb6, int *g_kc6, int *g_ld6,
+    int *g_me6, int *g_nf6, float *g_phi6, const float* __restrict__ g_u, 
+    float *g_pf
+)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < number6)
+    {
+        int ia = g_ia6[n];
+        int jb = g_jb6[n]; 
+        int kc = g_kc6[n];
+        int ld = g_ld6[n];
+        int me = g_me6[n];
+        int nf = g_nf6[n];
+        float phi = g_phi6[n];
+        float uia = LDG(g_u, ia); 
+        float ujb = LDG(g_u, jb);
+        float ukc = LDG(g_u, kc);
+        float uld = LDG(g_u, ld);
+        float ume = LDG(g_u, me);
+        float unf = LDG(g_u, nf);
+        atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld * ume * unf);
+        atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld * ume * unf);
+        atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld * ume * unf);
+        atomicAdd(&g_pf[kc + N], - phi * uia * ujb * uld * ume * unf);
+        atomicAdd(&g_pf[ld + N], - phi * uia * ujb * ukc * ume * unf);
+        atomicAdd(&g_pf[me + N], - phi * uia * ujb * ukc * uld * unf);
+        atomicAdd(&g_pf[nf + N], - phi * uia * ujb * ukc * uld * ume);
     }
 }
 
@@ -402,6 +626,21 @@ void FCP::compute(Atom *atom, Measure *measure, int potential_number)
     (
         atom->N, number4, fcp_data.ia4, fcp_data.jb4, fcp_data.kc4,
         fcp_data.ld4, fcp_data.phi4, fcp_data.uv, fcp_data.pfj
+    );
+
+    if (order >= 5)
+    gpu_find_force_fcp5<<<(number5 - 1) / block_size + 1, block_size>>>
+    (
+        atom->N, number5, fcp_data.ia5, fcp_data.jb5, fcp_data.kc5,
+        fcp_data.ld5, fcp_data.me5, fcp_data.phi5, fcp_data.uv, fcp_data.pfj
+    );
+
+    if (order >= 6)
+    gpu_find_force_fcp6<<<(number6 - 1) / block_size + 1, block_size>>>
+    (
+        atom->N, number6, fcp_data.ia6, fcp_data.jb6, fcp_data.kc6,
+        fcp_data.ld6, fcp_data.me6, fcp_data.nf6, fcp_data.phi6, 
+        fcp_data.uv, fcp_data.pfj
     );
 
     gpu_save_pfj<<<(atom->N - 1) / block_size + 1, block_size>>>
