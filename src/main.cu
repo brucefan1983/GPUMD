@@ -82,7 +82,9 @@ void print_compile_information(void)
 #ifdef DEBUG
     printf("DEBUG is on: Use a fixed PRNG seed for different runs.\n");
 #else
-    srand(time(NULL));
+    struct timespec ts;
+    clock_gettime(CLOCK_MONOTONIC, &ts);
+    srand((time_t)ts.tv_nsec); // ns random number
     printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
 #endif
 #ifdef ZHEN_LI
