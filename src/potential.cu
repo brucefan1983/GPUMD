@@ -41,9 +41,9 @@ Potential::~Potential(void)
 
 static __global__ void gpu_find_force_many_body
 (
-    int calculate_shc, int calculate_hnemd,
+    int calculate_shc, int calculate_hnemd, int calculate_gkma,
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, 
+    int N, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list,
     const real* __restrict__ g_f12x,
@@ -59,7 +59,12 @@ static __global__ void gpu_find_force_many_body
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz,
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
-    int *g_a_map, int *g_b_map, int g_count_b
+    int *g_a_map, int *g_b_map, int g_count_b,
+    const real* __restrict__ g_mass,
+    const real* __restrict__ g_eig,
+    real* g_xdot,
+    real* g_jm,
+    int num_modes
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -90,9 +95,23 @@ static __global__ void gpu_find_force_many_body
         vy1 = LDG(g_vy, n1);
         vz1 = LDG(g_vz, n1);
 
+
+        // TODO -> Perhaps use dynamic parallelism?
+        if (calculate_gkma)
+        {
+            real sqrtmass = sqrt(LDG(g_mass, n1));
+            for (int i = 0; i < num_modes; i++)
+            {
+                g_xdot[i] = sqrtmass*g_eig[n1 + i*3*N]*vx1;
+                g_xdot[i + num_modes] = sqrtmass*g_eig[n1 + (1 + i*3)*N]*vy1;
+                g_xdot[i + 2*num_modes] = sqrtmass*g_eig[n1 + (2 + i*3)*N]*vz1;
+            }
+        }
+
+
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
-            int index = i1 * number_of_particles + n1;
+            int index = i1 * N + n1;
             int n2 = g_neighbor_list[index];
             int neighbor_number_2 = g_neighbor_number[n2];
 
@@ -107,10 +126,10 @@ static __global__ void gpu_find_force_many_body
             int offset = 0;
             for (int k = 0; k < neighbor_number_2; ++k)
             {
-                if (n1 == g_neighbor_list[n2 + number_of_particles * k])
+                if (n1 == g_neighbor_list[n2 + N * k])
                 { offset = k; break; }
             }
-            index = offset * number_of_particles + n2;
+            index = offset * N + n2;
             real f21x = LDG(g_f12x, index);
             real f21y = LDG(g_f12y, index);
             real f21z = LDG(g_f12z, index);
@@ -139,6 +158,23 @@ static __global__ void gpu_find_force_many_body
             s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
             s_h4 += (f21z * vz1) * y12;               // y-out
             s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
+
+            if (calculate_gkma)
+            {
+                real vx, vy, vz;
+                real rsqrtmass = rsqrt(LDG(g_mass, n1));
+                for (int i = 0; i < num_modes; i++)
+                {
+                    vx=rsqrtmass*g_eig[n1 + i*3*N]*g_xdot[i];
+                    vy=rsqrtmass*g_eig[n1 + (1 + i*3)*N]*g_xdot[i + N];
+                    vz=rsqrtmass*g_eig[n1 + (2 + i*3)*N]*g_xdot[i + 2*N];
+
+                    g_jm[i] += (f21x*vx + f21y*vy + f21z*vz)*x12;     // x-all
+                    g_jm[i+N] += (f21x*vx + f21y*vy + f21z*vz)*y12;   // y-all
+                    g_jm[i+2*N] += (f21x*vx + f21y*vy + f21z*vz)*z12; // z-all
+                }
+            }
+
 
             // accumulate heat across some sections (for NEMD)
             // check if AB pair possible & exists
@@ -180,11 +216,11 @@ static __global__ void gpu_find_force_many_body
         g_sy[n1] += s_sy;
         g_sz[n1] += s_sz;
 
-        g_h[n1 + 0 * number_of_particles] += s_h1;
-        g_h[n1 + 1 * number_of_particles] += s_h2;
-        g_h[n1 + 2 * number_of_particles] += s_h3;
-        g_h[n1 + 3 * number_of_particles] += s_h4;
-        g_h[n1 + 4 * number_of_particles] += s_h5;
+        g_h[n1 + 0 * N] += s_h1;
+        g_h[n1 + 1 * N] += s_h2;
+        g_h[n1 + 2 * N] += s_h3;
+        g_h[n1 + 3 * N] += s_h4;
+        g_h[n1 + 4 * N] += s_h5;
     }
 }
 
@@ -198,10 +234,11 @@ void Potential::find_properties_many_body
 )
 {
     find_measurement_flags(atom, measure);
+
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        compute_shc, measure->hnemd.compute,
+        compute_shc, measure->hnemd.compute, measure->gkma.compute,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, N1, N2, atom->box.triclinic, 
         atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
@@ -210,7 +247,9 @@ void Potential::find_properties_many_body
         atom->virial_per_atom_x, atom->virial_per_atom_y,
         atom->virial_per_atom_z, atom->heat_per_atom, atom->group[0].label,
         measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,
-        measure->shc.b_map, measure->shc.count_b
+        measure->shc.b_map, measure->shc.count_b, atom->mass,
+        measure->gkma.eig, measure->gkma.xdot, measure->gkma.jm,
+        measure->gkma.num_modes
     );
     CUDA_CHECK_KERNEL
 }
@@ -233,6 +272,11 @@ void Potential::find_measurement_flags(Atom* atom, Measure* measure)
     if (measure->shc.compute)
     {
         compute_shc = (atom->step + 1) % measure->shc.sample_interval == 0;
+    }
+    compute_gkma = 0;
+    if (measure->gkma.compute)
+    {
+        compute_gkma = (atom->step + 1) % measure->gkma.sample_interval == 0;
     }
 }
 

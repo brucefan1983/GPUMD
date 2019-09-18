@@ -381,6 +381,10 @@ void Run::parse
     {
         parse_compute_shc(param, num_param, measure);
     }
+    else if (strcmp(param[0], "compute_gkma")   == 0)
+    {
+        parse_compute_gkma(param, num_param, measure);
+    }
     else if (strcmp(param[0], "deform")         == 0)
     {
         parse_deform(param, num_param, integrate);

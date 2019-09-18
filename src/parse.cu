@@ -873,6 +873,31 @@ void parse_compute_hac(char **param,  int num_param, Measure* measure)
     printf("    output_interval is %d\n", measure->hac.output_interval);
 }
 
+void parse_compute_gkma(char **param, int num_param, Measure* measure)
+{
+    measure->gkma.compute = 1;
+
+    printf("Compute modal heat current using GKMA method.\n");
+
+    if (num_param != 6)
+    {
+        print_error("compute_gkma should have 5 parameters.\n");
+    }
+    if (!is_valid_int(param[1], &measure->gkma.sample_interval) ||
+        !is_valid_int(param[2], &measure->gkma.output_interval) ||
+        !is_valid_int(param[3], &measure->gkma.first_mode)      ||
+        !is_valid_int(param[4], &measure->gkma.last_mode)       ||
+        !is_valid_int(param[5], &measure->gkma.bin_size))
+    {
+        print_error("All parameters for GKMA should be an integer.\n");
+    }
+    printf(
+            "    sample_interval = %d, output_interval = %d, first_mode = %d, "
+            "last_mode = %d num_bins = %d\n", measure->gkma.sample_interval,
+            measure->gkma.output_interval, measure->gkma.first_mode,
+            measure->gkma.last_mode, measure->gkma.bin_size);
+}
+
 
 void parse_compute_hnemd(char **param, int num_param, Measure* measure)
 {

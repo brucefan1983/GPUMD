@@ -78,6 +78,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     shc.preprocess(atom);
     compute.preprocess(input_dir, atom);
     hnemd.preprocess(atom);
+    gkma.preprocess(input_dir, atom);
 }
 
 
@@ -97,6 +98,7 @@ void Measure::finalize
     shc.postprocess();
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);
+    gkma.postprocess();
 }
 
 
