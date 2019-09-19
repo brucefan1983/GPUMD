@@ -891,9 +891,26 @@ void parse_compute_gkma(char **param, int num_param, Measure* measure)
     {
         print_error("All parameters for GKMA should be an integer.\n");
     }
+
+    GKMA *g = &measure->gkma;
+    // Parameter checking
+    if (g->sample_interval < 1 || g->output_interval < 1 || g->first_mode < 1 ||
+            g->last_mode < 1 || g->bin_size < 1)
+        print_error("compute_gkma parameters must be positive integers.\n");
+    if (g->sample_interval > g->output_interval)
+        print_error("sample_interval <= output_interval required.\n");
+    if (g->first_mode > g->last_mode)
+        print_error("first_mode <= last_mode required.\n");
+    if (g->output_interval % g->sample_interval != 0)
+        print_error("sample_interval must divide output_interval an integer\n"
+                " number of times.\n");
+    int num_modes = g->last_mode - g->first_mode + 1;
+    if (num_modes % g->bin_size != 0)
+        print_error("bin_size must divide modes an integer number of times.\n");
+
     printf(
             "    sample_interval = %d, output_interval = %d, first_mode = %d, "
-            "last_mode = %d num_bins = %d\n", measure->gkma.sample_interval,
+            "\nlast_mode = %d, num_bins = %d\n", measure->gkma.sample_interval,
             measure->gkma.output_interval, measure->gkma.first_mode,
             measure->gkma.last_mode, measure->gkma.bin_size);
 }

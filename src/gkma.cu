@@ -32,18 +32,18 @@ https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 #include <iostream>
 
 #define BLOCK_SIZE 128
+#define ACCUM_BLOCK 1024
 
 
-static __global__ void gpu_reset_gkma_data
+static __global__ void gpu_reset_data
 (
-        int num_elements, real* xdot, real* jm
+        int num_elements, real* data
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < num_elements)
     {
-        xdot[n] = ZERO;
-        jm[n] = ZERO;
+        data[n] = ZERO;
     }
 }
 
@@ -58,6 +58,56 @@ static __global__ void gpu_average_jm
         jm[n]/=(float)samples_per_output;
     }
 }
+
+static __global__ void gpu_reduce_jmn
+(
+        int N, int num_modes,
+        const real* __restrict__ jmn,
+        real* jm
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int number_of_patches = (N - 1) / ACCUM_BLOCK + 1;
+
+    __shared__ real s_data_x[ACCUM_BLOCK];
+    __shared__ real s_data_y[ACCUM_BLOCK];
+    __shared__ real s_data_z[ACCUM_BLOCK];
+
+    for (int patch = 0; patch < number_of_patches; ++patch)
+    {
+        int n = tid + patch * ACCUM_BLOCK;
+        if (n < N)
+        {
+            // n -> for current block
+            // bid * N -> identifies which atom
+            s_data_x[tid] += jmn[n + 3 * bid * N ];
+            s_data_y[tid] += jmn[n + (1 + 3 * bid) * N];
+            s_data_z[tid] += jmn[n + (2 + 3 * bid) * N];
+        }
+    }
+
+    __syncthreads();
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset)
+        {
+            s_data_x[tid] += s_data_x[tid + offset];
+            s_data_y[tid] += s_data_y[tid + offset];
+            s_data_z[tid] += s_data_z[tid + offset];
+        }
+        __syncthreads();
+    }
+    if (tid == 0)
+    {
+        jm[bid] = s_data_x[0];
+        jm[bid + num_modes] = s_data_y[0];
+        jm[bid + 2*num_modes] = s_data_z[0];
+    }
+
+}
+
 
 void GKMA::preprocess(char *input_dir, Atom *atom)
 {
@@ -110,13 +160,35 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     // Allocate modal variables
     CHECK(cudaMallocManaged(&xdot, sizeof(real) * num_modes * 3));
     CHECK(cudaMallocManaged(&jm, sizeof(real) * num_modes * 3));
+    CHECK(cudaMallocManaged(&jmn, sizeof(real) * num_modes * 3 * N));
+
+    int num_elements = num_modes*3;
+    gpu_reset_data<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+    (
+            num_elements, jm
+    );
+    CUDA_CHECK_KERNEL
+
+    gpu_reset_data<<<(num_elements*N-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+    (
+            num_elements*N, jmn
+    );
+    CUDA_CHECK_KERNEL
 
 }
 
-void GKMA::process(int step)
+
+void GKMA::process(int step, Atom *atom)
 {
     if (!compute) return;
     if (!((step+1) % output_interval == 0)) return;
+
+    int N = atom->N;
+    gpu_reduce_jmn<<<num_modes, ACCUM_BLOCK>>>
+    (
+            N, num_modes, jmn, jm
+    );
+    CUDA_CHECK_KERNEL
 
     int num_elements = num_modes*3;
     gpu_average_jm<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
@@ -148,9 +220,9 @@ void GKMA::process(int step)
     fclose(fid);
     MY_FREE(bin_out);
 
-    gpu_reset_gkma_data<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+    gpu_reset_data<<<(num_elements*N-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
-            num_elements, xdot, jm
+            num_elements*N, jmn
     );
     CUDA_CHECK_KERNEL
 }
@@ -161,6 +233,7 @@ void GKMA::postprocess()
     CHECK(cudaFree(eig));
     CHECK(cudaFree(xdot));
     CHECK(cudaFree(jm));
+    CHECK(cudaFree(jmn));
 }
 
 

@@ -25,6 +25,7 @@ The abstract base class (ABC) for the potential classes.
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
+#define BLOCK_GK_RESET 128
 
 
 Potential::Potential(void)
@@ -62,8 +63,8 @@ static __global__ void gpu_find_force_many_body
     int *g_a_map, int *g_b_map, int g_count_b,
     const real* __restrict__ g_mass,
     const real* __restrict__ g_eig,
-    real* g_xdot,
-    real* g_jm,
+    const real* __restrict__ g_xdot,
+    real* g_jmn,
     int num_modes
 )
 {
@@ -94,20 +95,6 @@ static __global__ void gpu_find_force_many_body
         vx1 = LDG(g_vx, n1);
         vy1 = LDG(g_vy, n1);
         vz1 = LDG(g_vz, n1);
-
-
-        // TODO -> Perhaps use dynamic parallelism?
-        if (calculate_gkma)
-        {
-            real sqrtmass = sqrt(LDG(g_mass, n1));
-            for (int i = 0; i < num_modes; i++)
-            {
-                g_xdot[i] = sqrtmass*g_eig[n1 + i*3*N]*vx1;
-                g_xdot[i + num_modes] = sqrtmass*g_eig[n1 + (1 + i*3)*N]*vy1;
-                g_xdot[i + 2*num_modes] = sqrtmass*g_eig[n1 + (2 + i*3)*N]*vz1;
-            }
-        }
-
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -169,9 +156,13 @@ static __global__ void gpu_find_force_many_body
                     vy=rsqrtmass*g_eig[n1 + (1 + i*3)*N]*g_xdot[i + N];
                     vz=rsqrtmass*g_eig[n1 + (2 + i*3)*N]*g_xdot[i + 2*N];
 
-                    g_jm[i] += (f21x*vx + f21y*vy + f21z*vz)*x12;     // x-all
-                    g_jm[i+N] += (f21x*vx + f21y*vy + f21z*vz)*y12;   // y-all
-                    g_jm[i+2*N] += (f21x*vx + f21y*vy + f21z*vz)*z12; // z-all
+                    g_jmn[n1 + i*num_modes] +=
+                            (f21x*vx + f21y*vy + f21z*vz)*x12; // x-all
+                    g_jmn[n1 + (i+num_modes)*num_modes] +=
+                            (f21x*vx + f21y*vy + f21z*vz)*y12; // y-all
+                    g_jmn[n1 + (i+2*num_modes)*num_modes] +=
+                            (f21x*vx + f21y*vy + f21z*vz)*z12; // z-all
+
                 }
             }
 
@@ -224,6 +215,50 @@ static __global__ void gpu_find_force_many_body
     }
 }
 
+static __global__ void gpu_calc_xdot
+(
+        int N1, int N2, int num_modes,
+        const real* __restrict__ g_vx,
+        const real* __restrict__ g_vy,
+        const real* __restrict__ g_vz,
+        const real* __restrict__ g_mass,
+        const real* __restrict__ g_eig,
+        real* g_xdot
+)
+{
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+    if (n1 >= N1 && n1 < N2)
+    {
+
+        real vx1, vy1, vz1;
+        vx1 = LDG(g_vx, n1);
+        vy1 = LDG(g_vy, n1);
+        vz1 = LDG(g_vz, n1);
+
+        real sqrtmass = sqrt(LDG(g_mass, n1));
+        for (int i = 0; i < num_modes; i++)
+        {
+            g_xdot[i] = sqrtmass*g_eig[n1 + i*3*num_modes]*vx1;
+            g_xdot[i + num_modes] =
+                    sqrtmass*g_eig[n1 + (1 + i*3)*num_modes]*vy1;
+            g_xdot[i + 2*num_modes] =
+                    sqrtmass*g_eig[n1 + (2 + i*3)*num_modes]*vz1;
+        }
+    }
+}
+
+static __global__ void gpu_reset_xdot
+(
+        int num_elements, real* xdot
+)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < num_elements)
+    {
+        xdot[n] = ZERO;
+    }
+}
+
 
 // Wrapper of the above kernel
 // used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
@@ -236,6 +271,24 @@ void Potential::find_properties_many_body
     find_measurement_flags(atom, measure);
 
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+    if (compute_gkma)
+    {
+        int num_elements = measure->gkma.num_modes*3;
+        gpu_reset_xdot<<<(num_elements-1)/BLOCK_GK_RESET+1, BLOCK_GK_RESET>>>
+        (
+                num_elements, measure->gkma.xdot
+        );
+        CUDA_CHECK_KERNEL
+
+        gpu_calc_xdot<<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            N1, N2, measure->gkma.num_modes,
+            atom->vx, atom->vy, atom->vz,
+            atom->mass, measure->gkma.eig, measure->gkma.xdot
+        );
+        CUDA_CHECK_KERNEL
+    }
+
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         compute_shc, measure->hnemd.compute, measure->gkma.compute,
@@ -248,7 +301,7 @@ void Potential::find_properties_many_body
         atom->virial_per_atom_z, atom->heat_per_atom, atom->group[0].label,
         measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,
         measure->shc.b_map, measure->shc.count_b, atom->mass,
-        measure->gkma.eig, measure->gkma.xdot, measure->gkma.jm,
+        measure->gkma.eig, measure->gkma.xdot, measure->gkma.jmn,
         measure->gkma.num_modes
     );
     CUDA_CHECK_KERNEL

@@ -30,14 +30,15 @@ public:
 
     real* eig;          // eigenvectors
     real* xdot;         // modal velocities
-    real* jm;           // modal heat flux
+    real* jmn;          // per-atom modal heat current
+    real* jm;           // total modal heat current
 
 
     char eig_file_position[FILE_NAME_LENGTH];
     char gkma_file_position[FILE_NAME_LENGTH];
 
     void preprocess(char*, Atom*);
-    void process(int);
+    void process(int, Atom*);
     void postprocess();
 
 private:
