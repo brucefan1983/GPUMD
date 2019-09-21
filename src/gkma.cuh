@@ -29,6 +29,7 @@ public:
     int num_modes;      // total number of modes to consider
 
     real* eig;          // eigenvectors
+    real* xdotn;        // per-atom modal velocity
     real* xdot;         // modal velocities
     real* jmn;          // per-atom modal heat current
     real* jm;           // total modal heat current
@@ -44,5 +45,6 @@ public:
 private:
     int samples_per_output;// samples to be averaged for output
     int num_bins;          // number of bins to output
-
+    real* cpu_jm;
+    real* cpu_eig;
 };

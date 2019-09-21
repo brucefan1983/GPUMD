@@ -26,6 +26,7 @@ The abstract base class (ABC) for the potential classes.
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
 #define BLOCK_GK_RESET 128
+#define ACCUM_BLOCK 1024
 
 
 Potential::Potential(void)
@@ -153,14 +154,14 @@ static __global__ void gpu_find_force_many_body
                 for (int i = 0; i < num_modes; i++)
                 {
                     vx=rsqrtmass*g_eig[n1 + i*3*N]*g_xdot[i];
-                    vy=rsqrtmass*g_eig[n1 + (1 + i*3)*N]*g_xdot[i + N];
-                    vz=rsqrtmass*g_eig[n1 + (2 + i*3)*N]*g_xdot[i + 2*N];
+                    vy=rsqrtmass*g_eig[n1 + (1 + i*3)*N]*g_xdot[i + num_modes];
+                    vz=rsqrtmass*g_eig[n1 + (2 + i*3)*N]*g_xdot[i + 2*num_modes];
 
-                    g_jmn[n1 + i*num_modes] +=
+                    g_jmn[n1 + i*N] +=
                             (f21x*vx + f21y*vy + f21z*vz)*x12; // x-all
-                    g_jmn[n1 + (i+num_modes)*num_modes] +=
+                    g_jmn[n1 + (i+num_modes)*N] +=
                             (f21x*vx + f21y*vy + f21z*vz)*y12; // y-all
-                    g_jmn[n1 + (i+2*num_modes)*num_modes] +=
+                    g_jmn[n1 + (i+2*num_modes)*N] +=
                             (f21x*vx + f21y*vy + f21z*vz)*z12; // z-all
 
                 }
@@ -215,15 +216,15 @@ static __global__ void gpu_find_force_many_body
     }
 }
 
-static __global__ void gpu_calc_xdot
+static __global__ void gpu_calc_xdotn
 (
-        int N1, int N2, int num_modes,
+        int N, int N1, int N2, int num_modes,
         const real* __restrict__ g_vx,
         const real* __restrict__ g_vy,
         const real* __restrict__ g_vz,
         const real* __restrict__ g_mass,
         const real* __restrict__ g_eig,
-        real* g_xdot
+        real* g_xdotn
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -238,24 +239,61 @@ static __global__ void gpu_calc_xdot
         real sqrtmass = sqrt(LDG(g_mass, n1));
         for (int i = 0; i < num_modes; i++)
         {
-            g_xdot[i] = sqrtmass*g_eig[n1 + i*3*num_modes]*vx1;
-            g_xdot[i + num_modes] =
-                    sqrtmass*g_eig[n1 + (1 + i*3)*num_modes]*vy1;
-            g_xdot[i + 2*num_modes] =
-                    sqrtmass*g_eig[n1 + (2 + i*3)*num_modes]*vz1;
+            g_xdotn[n1 + i*N] = sqrtmass*g_eig[n1 + i*3*N]*vx1;
+            g_xdotn[n1 + (i + num_modes)*N] =
+                    sqrtmass*g_eig[n1 + (1 + i*3)*N]*vy1;
+            g_xdotn[n1 + (i + 2*num_modes)*N] =
+                    sqrtmass*g_eig[n1 + (2 + i*3)*N]*vz1;
         }
     }
 }
 
-static __global__ void gpu_reset_xdot
+static __global__ void gpu_reduce_xdotn
 (
-        int num_elements, real* xdot
+        int N, int num_modes,
+        const real* __restrict__ g_xdotn,
+        real* g_xdot
 )
 {
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < num_elements)
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int number_of_patches = (N - 1) / ACCUM_BLOCK + 1;
+
+    __shared__ real s_data_x[ACCUM_BLOCK];
+    __shared__ real s_data_y[ACCUM_BLOCK];
+    __shared__ real s_data_z[ACCUM_BLOCK];
+    s_data_x[tid] = ZERO;
+    s_data_y[tid] = ZERO;
+    s_data_z[tid] = ZERO;
+
+    for (int patch = 0; patch < number_of_patches; ++patch)
     {
-        xdot[n] = ZERO;
+        int n = tid + patch * ACCUM_BLOCK;
+        if (n < N)
+        {
+            s_data_x[tid] += g_xdotn[n + bid*N];
+            s_data_y[tid] += g_xdotn[n + (bid + num_modes)*N];
+            s_data_z[tid] += g_xdotn[n + (bid + 2*num_modes)*N];
+        }
+    }
+
+    __syncthreads();
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset)
+        {
+            s_data_x[tid] += s_data_x[tid + offset];
+            s_data_y[tid] += s_data_y[tid + offset];
+            s_data_z[tid] += s_data_z[tid + offset];
+        }
+        __syncthreads();
+    }
+    if (tid == 0)
+    {
+        g_xdot[bid] = s_data_x[0];
+        g_xdot[bid + num_modes] = s_data_y[0];
+        g_xdot[bid + 2*num_modes] = s_data_z[0];
     }
 }
 
@@ -273,20 +311,21 @@ void Potential::find_properties_many_body
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     if (compute_gkma)
     {
-        int num_elements = measure->gkma.num_modes*3;
-        gpu_reset_xdot<<<(num_elements-1)/BLOCK_GK_RESET+1, BLOCK_GK_RESET>>>
+        int num_modes = measure->gkma.num_modes;
+        gpu_calc_xdotn<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-                num_elements, measure->gkma.xdot
+            atom->N, N1, N2, num_modes,
+            atom->vx, atom->vy, atom->vz,
+            atom->mass, measure->gkma.eig, measure->gkma.xdotn
         );
         CUDA_CHECK_KERNEL
 
-        gpu_calc_xdot<<<grid_size, BLOCK_SIZE_FORCE>>>
+        gpu_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
         (
-            N1, N2, measure->gkma.num_modes,
-            atom->vx, atom->vy, atom->vz,
-            atom->mass, measure->gkma.eig, measure->gkma.xdot
+            atom->N, num_modes, measure->gkma.xdotn, measure->gkma.xdot
         );
         CUDA_CHECK_KERNEL
+
     }
 
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>

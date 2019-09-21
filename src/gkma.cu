@@ -73,17 +73,18 @@ static __global__ void gpu_reduce_jmn
     __shared__ real s_data_x[ACCUM_BLOCK];
     __shared__ real s_data_y[ACCUM_BLOCK];
     __shared__ real s_data_z[ACCUM_BLOCK];
+    s_data_x[tid] = ZERO;
+    s_data_y[tid] = ZERO;
+    s_data_z[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
         int n = tid + patch * ACCUM_BLOCK;
         if (n < N)
         {
-            // n -> for current block
-            // bid * N -> identifies which atom
-            s_data_x[tid] += jmn[n + 3 * bid * N ];
-            s_data_y[tid] += jmn[n + (1 + 3 * bid) * N];
-            s_data_z[tid] += jmn[n + (2 + 3 * bid) * N];
+            s_data_x[tid] += jmn[n + bid*N ];
+            s_data_y[tid] += jmn[n + (bid + num_modes)*N];
+            s_data_z[tid] += jmn[n + (bid + 2*num_modes)*N];
         }
     }
 
@@ -129,7 +130,8 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     }
 
     int N = atom->N;
-    CHECK(cudaMallocManaged(&eig, sizeof(real) * N * num_modes * 3));
+    MY_MALLOC(cpu_eig, real, N * num_modes * 3);
+    CHECK(cudaMalloc(&eig, sizeof(real) * N * num_modes * 3));
 
     // Following code snippet is heavily based on MIT LAMMPS code
     std::string val;
@@ -146,21 +148,27 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
         getline(eigfile,val);
         for (int i=0; i<N; i++){
             eigfile >> doubleval;
-            eig[i + 3*N*j] = doubleval;
+            cpu_eig[i + 3*N*j] = doubleval;
             eigfile >> doubleval;
-            eig[i + (1 + 3*j)*N] = doubleval;
+            cpu_eig[i + (1 + 3*j)*N] = doubleval;
             eigfile >> doubleval;
-            eig[i + (2 + 3*j)*N] = doubleval;
+            cpu_eig[i + (2 + 3*j)*N] = doubleval;
         }
         getline(eigfile,val);
     }
     eigfile.close();
     //end snippet
 
+    CHECK(cudaMemcpy(eig, cpu_eig, sizeof(real) * N * num_modes * 3,
+                            cudaMemcpyHostToDevice));
+    MY_FREE(cpu_eig);
+
     // Allocate modal variables
-    CHECK(cudaMallocManaged(&xdot, sizeof(real) * num_modes * 3));
-    CHECK(cudaMallocManaged(&jm, sizeof(real) * num_modes * 3));
-    CHECK(cudaMallocManaged(&jmn, sizeof(real) * num_modes * 3 * N));
+    MY_MALLOC(cpu_jm, real, num_modes * 3) //cpu
+    CHECK(cudaMalloc(&xdot, sizeof(real) * num_modes * 3));
+    CHECK(cudaMalloc(&jm, sizeof(real) * num_modes * 3));
+    CHECK(cudaMalloc(&xdotn, sizeof(real) * num_modes * 3 * N));
+    CHECK(cudaMalloc(&jmn, sizeof(real) * num_modes * 3 * N));
 
     int num_elements = num_modes*3;
     gpu_reset_data<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
@@ -190,6 +198,7 @@ void GKMA::process(int step, Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
+
     int num_elements = num_modes*3;
     gpu_average_jm<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
@@ -200,13 +209,17 @@ void GKMA::process(int step, Atom *atom)
     // TODO make into a GPU function
     real *bin_out; // bins of heat current modes for output
     ZEROS(bin_out, real, 3*num_bins);
+
+    CHECK(cudaMemcpy(cpu_jm, jm, sizeof(real) * num_modes * 3,
+                        cudaMemcpyDeviceToHost));
+
     for (int i = 0; i < num_bins; i++)
     {
         for (int j = 0; j < bin_size; j++)
         {
-            bin_out[i] += jm[j + i*bin_size];
-            bin_out[i + num_bins] += jm[j + i*bin_size + num_modes];
-            bin_out[i + 2*num_bins] += jm[j + i*bin_size + 2*num_modes];
+            bin_out[i] += cpu_jm[j + i*bin_size];
+            bin_out[i + num_bins] += cpu_jm[j + i*bin_size + num_modes];
+            bin_out[i + 2*num_bins] += cpu_jm[j + i*bin_size + 2*num_modes];
         }
     }
 
@@ -225,6 +238,7 @@ void GKMA::process(int step, Atom *atom)
             num_elements*N, jmn
     );
     CUDA_CHECK_KERNEL
+
 }
 
 void GKMA::postprocess()
@@ -234,6 +248,7 @@ void GKMA::postprocess()
     CHECK(cudaFree(xdot));
     CHECK(cudaFree(jm));
     CHECK(cudaFree(jmn));
+    MY_FREE(cpu_jm);
 }
 
 
