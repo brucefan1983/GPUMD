@@ -17,6 +17,24 @@
 #include "common.cuh"
 #include "error.cuh"
 
+__global__ void gpu_gkma_reduce
+(
+        int , int ,
+        const real* __restrict__ ,
+        real*
+);
+
+__global__ void gpu_calc_xdotn
+(
+        int, int, int, int,
+        const real* __restrict__ ,
+        const real* __restrict__ ,
+        const real* __restrict__ ,
+        const real* __restrict__ ,
+        const real* __restrict__ ,
+        real*
+);
+
 class GKMA
 {
 public:

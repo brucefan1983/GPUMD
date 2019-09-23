@@ -216,88 +216,6 @@ static __global__ void gpu_find_force_many_body
     }
 }
 
-static __global__ void gpu_calc_xdotn
-(
-        int N, int N1, int N2, int num_modes,
-        const real* __restrict__ g_vx,
-        const real* __restrict__ g_vy,
-        const real* __restrict__ g_vz,
-        const real* __restrict__ g_mass,
-        const real* __restrict__ g_eig,
-        real* g_xdotn
-)
-{
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    if (n1 >= N1 && n1 < N2)
-    {
-
-        real vx1, vy1, vz1;
-        vx1 = LDG(g_vx, n1);
-        vy1 = LDG(g_vy, n1);
-        vz1 = LDG(g_vz, n1);
-
-        real sqrtmass = sqrt(LDG(g_mass, n1));
-        for (int i = 0; i < num_modes; i++)
-        {
-            g_xdotn[n1 + i*N] = sqrtmass*g_eig[n1 + i*3*N]*vx1;
-            g_xdotn[n1 + (i + num_modes)*N] =
-                    sqrtmass*g_eig[n1 + (1 + i*3)*N]*vy1;
-            g_xdotn[n1 + (i + 2*num_modes)*N] =
-                    sqrtmass*g_eig[n1 + (2 + i*3)*N]*vz1;
-        }
-    }
-}
-
-static __global__ void gpu_reduce_xdotn
-(
-        int N, int num_modes,
-        const real* __restrict__ g_xdotn,
-        real* g_xdot
-)
-{
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int number_of_patches = (N - 1) / ACCUM_BLOCK + 1;
-
-    __shared__ real s_data_x[ACCUM_BLOCK];
-    __shared__ real s_data_y[ACCUM_BLOCK];
-    __shared__ real s_data_z[ACCUM_BLOCK];
-    s_data_x[tid] = ZERO;
-    s_data_y[tid] = ZERO;
-    s_data_z[tid] = ZERO;
-
-    for (int patch = 0; patch < number_of_patches; ++patch)
-    {
-        int n = tid + patch * ACCUM_BLOCK;
-        if (n < N)
-        {
-            s_data_x[tid] += g_xdotn[n + bid*N];
-            s_data_y[tid] += g_xdotn[n + (bid + num_modes)*N];
-            s_data_z[tid] += g_xdotn[n + (bid + 2*num_modes)*N];
-        }
-    }
-
-    __syncthreads();
-    #pragma unroll
-    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
-    {
-        if (tid < offset)
-        {
-            s_data_x[tid] += s_data_x[tid + offset];
-            s_data_y[tid] += s_data_y[tid + offset];
-            s_data_z[tid] += s_data_z[tid + offset];
-        }
-        __syncthreads();
-    }
-    if (tid == 0)
-    {
-        g_xdot[bid] = s_data_x[0];
-        g_xdot[bid + num_modes] = s_data_y[0];
-        g_xdot[bid + 2*num_modes] = s_data_z[0];
-    }
-}
-
-
 // Wrapper of the above kernel
 // used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body
@@ -320,12 +238,11 @@ void Potential::find_properties_many_body
         );
         CUDA_CHECK_KERNEL
 
-        gpu_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
+        gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
         (
             atom->N, num_modes, measure->gkma.xdotn, measure->gkma.xdot
         );
         CUDA_CHECK_KERNEL
-
     }
 
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>

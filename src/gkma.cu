@@ -59,11 +59,11 @@ static __global__ void gpu_average_jm
     }
 }
 
-static __global__ void gpu_reduce_jmn
+__global__ void gpu_gkma_reduce
 (
         int N, int num_modes,
-        const real* __restrict__ jmn,
-        real* jm
+        const real* __restrict__ data_n,
+        real* data
 )
 {
     int tid = threadIdx.x;
@@ -82,9 +82,9 @@ static __global__ void gpu_reduce_jmn
         int n = tid + patch * ACCUM_BLOCK;
         if (n < N)
         {
-            s_data_x[tid] += jmn[n + bid*N ];
-            s_data_y[tid] += jmn[n + (bid + num_modes)*N];
-            s_data_z[tid] += jmn[n + (bid + 2*num_modes)*N];
+            s_data_x[tid] += data_n[n + bid*N ];
+            s_data_y[tid] += data_n[n + (bid + num_modes)*N];
+            s_data_z[tid] += data_n[n + (bid + 2*num_modes)*N];
         }
     }
 
@@ -102,11 +102,43 @@ static __global__ void gpu_reduce_jmn
     }
     if (tid == 0)
     {
-        jm[bid] = s_data_x[0];
-        jm[bid + num_modes] = s_data_y[0];
-        jm[bid + 2*num_modes] = s_data_z[0];
+        data[bid] = s_data_x[0];
+        data[bid + num_modes] = s_data_y[0];
+        data[bid + 2*num_modes] = s_data_z[0];
     }
 
+}
+
+__global__ void gpu_calc_xdotn
+(
+        int N, int N1, int N2, int num_modes,
+        const real* __restrict__ g_vx,
+        const real* __restrict__ g_vy,
+        const real* __restrict__ g_vz,
+        const real* __restrict__ g_mass,
+        const real* __restrict__ g_eig,
+        real* g_xdotn
+)
+{
+    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+    if (n1 >= N1 && n1 < N2)
+    {
+
+        real vx1, vy1, vz1;
+        vx1 = LDG(g_vx, n1);
+        vy1 = LDG(g_vy, n1);
+        vz1 = LDG(g_vz, n1);
+
+        real sqrtmass = sqrt(LDG(g_mass, n1));
+        for (int i = 0; i < num_modes; i++)
+        {
+            g_xdotn[n1 + i*N] = sqrtmass*g_eig[n1 + i*3*N]*vx1;
+            g_xdotn[n1 + (i + num_modes)*N] =
+                    sqrtmass*g_eig[n1 + (1 + i*3)*N]*vy1;
+            g_xdotn[n1 + (i + 2*num_modes)*N] =
+                    sqrtmass*g_eig[n1 + (2 + i*3)*N]*vz1;
+        }
+    }
 }
 
 
@@ -192,7 +224,7 @@ void GKMA::process(int step, Atom *atom)
     if (!((step+1) % output_interval == 0)) return;
 
     int N = atom->N;
-    gpu_reduce_jmn<<<num_modes, ACCUM_BLOCK>>>
+    gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
     (
             N, num_modes, jmn, jm
     );
