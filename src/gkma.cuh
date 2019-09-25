@@ -16,6 +16,7 @@
 #pragma once
 #include "common.cuh"
 #include "error.cuh"
+#include "mic.cuh"
 
 __global__ void gpu_gkma_reduce
 (
@@ -35,6 +36,30 @@ __global__ void gpu_calc_xdotn
         real*
 );
 
+__global__ void gpu_find_gkma_jmn
+(
+    real, real, real,
+    int, int, int,
+    int, int, int, int,
+    int*, int*,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    real*, real*, real*,
+    const real* __restrict__,
+    const real* __restrict__,
+    const real* __restrict__,
+    real*,
+    int
+);
+
 class GKMA
 {
 public:
@@ -51,6 +76,7 @@ public:
     real* xdot;         // modal velocities
     real* jmn;          // per-atom modal heat current
     real* jm;           // total modal heat current
+    real* bin_out;      // modal binning structure
 
 
     char eig_file_position[FILE_NAME_LENGTH];
@@ -65,4 +91,5 @@ private:
     int num_bins;          // number of bins to output
     real* cpu_jm;
     real* cpu_eig;
+    real* cpu_bin_out;
 };

@@ -25,7 +25,7 @@ The abstract base class (ABC) for the potential classes.
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
-#define BLOCK_GK_RESET 128
+#define BLOCK_SIZE_GK 16
 #define ACCUM_BLOCK 1024
 
 
@@ -40,10 +40,9 @@ Potential::~Potential(void)
     // nothing
 }
 
-
 static __global__ void gpu_find_force_many_body
 (
-    int calculate_shc, int calculate_hnemd, int calculate_gkma,
+    int calculate_shc, int calculate_hnemd,
     real fe_x, real fe_y, real fe_z,
     int N, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
@@ -61,12 +60,7 @@ static __global__ void gpu_find_force_many_body
     real *g_fx, real *g_fy, real *g_fz,
     real *g_sx, real *g_sy, real *g_sz,
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
-    int *g_a_map, int *g_b_map, int g_count_b,
-    const real* __restrict__ g_mass,
-    const real* __restrict__ g_eig,
-    const real* __restrict__ g_xdot,
-    real* g_jmn,
-    int num_modes
+    int *g_a_map, int *g_b_map, int g_count_b
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -147,27 +141,6 @@ static __global__ void gpu_find_force_many_body
             s_h4 += (f21z * vz1) * y12;               // y-out
             s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
 
-            if (calculate_gkma)
-            {
-                real vx, vy, vz;
-                real rsqrtmass = rsqrt(LDG(g_mass, n1));
-                for (int i = 0; i < num_modes; i++)
-                {
-                    vx=rsqrtmass*g_eig[n1 + i*3*N]*g_xdot[i];
-                    vy=rsqrtmass*g_eig[n1 + (1 + i*3)*N]*g_xdot[i + num_modes];
-                    vz=rsqrtmass*g_eig[n1 + (2 + i*3)*N]*g_xdot[i + 2*num_modes];
-
-                    g_jmn[n1 + i*N] +=
-                            (f21x*vx + f21y*vy + f21z*vz)*x12; // x-all
-                    g_jmn[n1 + (i+num_modes)*N] +=
-                            (f21x*vx + f21y*vy + f21z*vz)*y12; // y-all
-                    g_jmn[n1 + (i+2*num_modes)*N] +=
-                            (f21x*vx + f21y*vy + f21z*vz)*z12; // z-all
-
-                }
-            }
-
-
             // accumulate heat across some sections (for NEMD)
             // check if AB pair possible & exists
             if (calculate_shc && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
@@ -227,9 +200,31 @@ void Potential::find_properties_many_body
     find_measurement_flags(atom, measure);
 
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+    gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        compute_shc, measure->hnemd.compute,
+        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
+        atom->N, N1, N2, atom->box.triclinic,
+        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
+        NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
+        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
+        atom->virial_per_atom_x, atom->virial_per_atom_y,
+        atom->virial_per_atom_z, atom->heat_per_atom, atom->group[0].label,
+        measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,
+        measure->shc.b_map, measure->shc.count_b
+    );
+    CUDA_CHECK_KERNEL
+
+
     if (compute_gkma)
     {
+        dim3 grid, block;
         int num_modes = measure->gkma.num_modes;
+        int gk_grid_size = (num_modes - 1)/BLOCK_SIZE_GK + 1;
+        block.x = BLOCK_SIZE_FORCE; grid.x = grid_size;
+        block.y = BLOCK_SIZE_GK;    grid.y = gk_grid_size;
+        block.z = 1;                grid.z = 1;
+
         gpu_calc_xdotn<<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             atom->N, N1, N2, num_modes,
@@ -243,24 +238,20 @@ void Potential::find_properties_many_body
             atom->N, num_modes, measure->gkma.xdotn, measure->gkma.xdot
         );
         CUDA_CHECK_KERNEL
-    }
 
-    gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
-    (
-        compute_shc, measure->hnemd.compute, measure->gkma.compute,
-        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
-        atom->N, N1, N2, atom->box.triclinic, 
-        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
-        NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
-        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
-        atom->virial_per_atom_x, atom->virial_per_atom_y,
-        atom->virial_per_atom_z, atom->heat_per_atom, atom->group[0].label,
-        measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,
-        measure->shc.b_map, measure->shc.count_b, atom->mass,
-        measure->gkma.eig, measure->gkma.xdot, measure->gkma.jmn,
-        measure->gkma.num_modes
-    );
-    CUDA_CHECK_KERNEL
+
+        gpu_find_gkma_jmn<<<grid, block>>>
+        (
+            measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
+            atom->N, N1, N2, atom->box.triclinic,
+            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN, NL,
+            f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
+            atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
+            atom->mass, measure->gkma.eig, measure->gkma.xdot,
+            measure->gkma.jmn, measure->gkma.num_modes
+        );
+        CUDA_CHECK_KERNEL
+    }
 }
 
 
