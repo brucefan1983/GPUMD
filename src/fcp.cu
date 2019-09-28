@@ -16,7 +16,6 @@
 
 /*----------------------------------------------------------------------------80
 The force constant potential (FCP)
-TODO: HNEMD
 ------------------------------------------------------------------------------*/
 
 
@@ -380,6 +379,7 @@ void FCP::read_fc6(char *input_dir, Atom *atom)
 // potential, force, and heat current from the second-order force constants
 static __global__ void gpu_find_force_fcp2
 (
+    int hnemd_compute, real fe_x, real fe_y, real fe_z,
     int N, int number2, int *g_ia2, int *g_jb2, float *g_phi2,
     const float* __restrict__ g_uv, 
     float *g_xij2, float *g_yij2, float *g_zij2, float *g_pfj
@@ -402,8 +402,16 @@ static __global__ void gpu_find_force_fcp2
 
         int atom_id = ia % N;
         atomicAdd(&g_pfj[atom_id], phi * uia * ujb);
-        atomicAdd(&g_pfj[ia + N], - phi * ujb);
-        atomicAdd(&g_pfj[jb + N], - phi * uia);
+        float fia = - phi * ujb;
+        float fjb = - phi * uia;
+        if (hnemd_compute)
+        {
+            float fe_times_rij2 = (fe_x * xij2 + fe_y * yij2 + fe_z * zij2);
+            fia = (1.0 - fe_times_rij2) * fia;
+            fjb = (1.0 + fe_times_rij2) * fjb;
+        }
+        atomicAdd(&g_pfj[ia + N], fia);
+        atomicAdd(&g_pfj[jb + N], fjb);
 
         float uvij = via * ujb - uia * vjb;
         atomicAdd(&g_pfj[atom_id + N * 4], phi * xij2 * uvij);
@@ -605,6 +613,8 @@ void FCP::compute(Atom *atom, Measure *measure, int potential_number)
 
     gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>
     (
+        measure->hnemd.compute, 
+        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, number2, fcp_data.ia2, fcp_data.jb2, fcp_data.phi2,
         fcp_data.uv, fcp_data.xij2, fcp_data.yij2, fcp_data.zij2, fcp_data.pfj
     );
