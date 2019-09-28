@@ -100,7 +100,7 @@ void eig_hermitian_Jacobi(int N, double* AR, double* AI, double* W_cpu)
     int* info;
     CHECK(cudaMalloc((void**)&info, sizeof(int)));
     cusolverDnZheevj(handle, jobz, uplo, N, A, N, W, work, lwork, info, para);
-    cudaMemcpy(W_cpu, W, sizeof(double) * N, cudaMemcpyDeviceToHost);
+    CHECK(cudaMemcpy(W_cpu, W, sizeof(double) * N, cudaMemcpyDeviceToHost));
 
     // free
     cusolverDnDestroy(handle);
@@ -108,6 +108,52 @@ void eig_hermitian_Jacobi(int N, double* AR, double* AI, double* W_cpu)
     MY_FREE(A_cpu);
     CHECK(cudaFree(A));
     CHECK(cudaFree(W));
+    CHECK(cudaFree(work));
+    CHECK(cudaFree(info));
+}
+
+
+void eigenvectors_symmetric_Jacobi
+(int N, double* A_cpu, double* W_cpu, double* eigenvectors_cpu)
+{
+    // get A
+    int N2 = N * N;
+    double *A; 
+    CHECK(cudaMalloc((void**)&A, sizeof(double) * N2));
+    CHECK(cudaMemcpy(A, A_cpu, sizeof(double) * N2, cudaMemcpyHostToDevice));
+
+    // define W
+    double* W; CHECK(cudaMalloc((void**)&W, sizeof(double) * N));
+
+    // get handle
+    cusolverDnHandle_t handle = NULL;
+    cusolverDnCreate(&handle);
+    cusolverEigMode_t jobz = CUSOLVER_EIG_MODE_VECTOR;
+    cublasFillMode_t uplo = CUBLAS_FILL_MODE_LOWER;
+
+    // some parameters for the Jacobi method
+    syevjInfo_t para = NULL;
+    cusolverDnCreateSyevjInfo(&para);
+
+    // get work
+    int lwork = 0;
+    cusolverDnDsyevj_bufferSize(handle, jobz, uplo, N, A, N, W, &lwork, para);
+    double* work;
+    CHECK(cudaMalloc((void**)&work, sizeof(double) * lwork));
+
+    // get W
+    int* info;
+    CHECK(cudaMalloc((void**)&info, sizeof(int)));
+    cusolverDnDsyevj(handle, jobz, uplo, N, A, N, W, work, lwork, info, para);
+    CHECK(cudaMemcpy(W_cpu, W, sizeof(double) * N, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(eigenvectors_cpu, A, sizeof(double)*N*N, 
+        cudaMemcpyDeviceToHost));
+
+    // free
+    cusolverDnDestroy(handle);
+    cusolverDnDestroySyevjInfo(para);
+    CHECK(cudaFree(W));
+    CHECK(cudaFree(A));
     CHECK(cudaFree(work));
     CHECK(cudaFree(info));
 }

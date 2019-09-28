@@ -63,8 +63,8 @@ Phonon::~Phonon(void)
 
 void Phonon::compute
 (
-        char* input_dir, Atom* atom, Force* force,
-        Measure* measure, Hessian* hessian, int check
+    char* input_dir, Atom* atom, Force* force,
+    Measure* measure, Hessian* hessian, int check
 )
 {
     char file_run[200];
@@ -91,8 +91,8 @@ void Phonon::compute
 
 void Phonon::parse
 (
-        char **param, int num_param, Atom* atom,
-        Force *force, Hessian* hessian, int* is_potential
+    char **param, int num_param, Atom* atom,
+    Force *force, Hessian* hessian, int* is_potential
 )
 {
     if (strcmp(param[0], "potential_definition") == 0)
