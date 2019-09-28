@@ -303,7 +303,7 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
     char file_eigenvectors[200];
     strcpy(file_eigenvectors, input_dir);
     strcat(file_eigenvectors, "/eigenvector.out");
-    FILE *fid_eigenvectors = fopen(file_eigenvectors, "w");
+    FILE *fid_eigenvectors = my_fopen(file_eigenvectors, "w");
 
     int dim = num_basis * 3;
     double* W; MY_MALLOC(W, double, dim);
