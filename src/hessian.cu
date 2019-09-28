@@ -36,6 +36,13 @@ void Hessian::compute
     initialize(input_dir, atom->N);
     find_H(atom, force, measure);
     find_D(input_dir, atom);
+
+    // currently for Alex's GKMA calculations
+    if (num_kpoints == 1)
+    {
+        find_eigenvectors(input_dir, atom);
+    }
+
     finalize();
 }
 
@@ -288,6 +295,48 @@ void Hessian::find_H12
             H12[index] = (f_negative[alpha] - f_positive[alpha]) / dx2;
         }
     }
+}
+
+
+void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
+{
+    char file_eigenvectors[200];
+    strcpy(file_eigenvectors, input_dir);
+    strcat(file_eigenvectors, "/eigenvector.out");
+    FILE *fid_eigenvectors = my_fopen(file_eigenvectors, "w");
+
+    int dim = num_basis * 3;
+    double* W; MY_MALLOC(W, double, dim);
+    double* eigenvectors; MY_MALLOC(eigenvectors, double, dim * dim);
+    eigenvectors_symmetric_Jacobi(dim, DR, W, eigenvectors);
+
+    double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
+
+    // output eigenvalues
+    for(int n = 0; n < dim; n++)
+    {
+        fprintf(fid_eigenvectors, "%g ",  W[n] * natural_to_THz);
+    }
+    fprintf(fid_eigenvectors, "\n");
+
+    // output eigenvectors
+    for(int col = 0; col < dim; col++)
+    {
+        for (int a = 0; a < 3; a++)
+        {
+            for(int b = 0; b < num_basis; b++)
+            {
+                 int row = a + b * 3;
+                 // column-major order from cuSolver
+                 fprintf(fid_eigenvectors, "%g ",  eigenvectors[row+col*dim]);
+            }
+        }
+        fprintf(fid_eigenvectors, "\n");
+    }
+
+    MY_FREE(W);
+    MY_FREE(eigenvectors);
+    fclose(fid_eigenvectors);
 }
 
 

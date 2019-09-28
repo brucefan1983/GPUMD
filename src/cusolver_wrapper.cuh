@@ -20,5 +20,7 @@
 void eig_hermitian_QR(int, double*, double*, double*);
 void eig_hermitian_Jacobi(int, double*, double*, double*);
 void eig_hermitian_Jacobi_batch(int, int, double*, double*, double*);
+void eigenvectors_symmetric_Jacobi
+(int N, double* A, double* W_cpu, double* eigenvectors_cpu);
 
 

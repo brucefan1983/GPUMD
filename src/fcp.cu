@@ -16,7 +16,6 @@
 
 /*----------------------------------------------------------------------------80
 The force constant potential (FCP)
-TODO: HNEMD
 ------------------------------------------------------------------------------*/
 
 
@@ -29,10 +28,11 @@ TODO: HNEMD
 
 FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
 {
-    printf("Use the force constant potential.\n");
     int count = fscanf(fid, "%d", &order);
     if (count != 1) 
     { print_error("reading error for force constant potential\n"); }
+    printf("Use the force constant potential.\n");
+    printf("    up to order-%d.\n", order);
     CHECK(cudaMalloc(&fcp_data.uv, sizeof(float) * atom->N * 6));
     CHECK(cudaMallocManaged(&fcp_data.r0, sizeof(float) * atom->N * 3));
     CHECK(cudaMalloc(&fcp_data.pfj, sizeof(float) * atom->N * 7));
@@ -101,23 +101,17 @@ void FCP::read_r0(char *input_dir, Atom *atom)
     FILE *fid = my_fopen(file, "r");
 
     int N = atom->N;
-    float *r0;
-    MY_MALLOC(r0, float, N * 3);
-
     for (int n = 0; n < N; n++)
     {
         int count = fscanf
         (
-            fid, "%f%f%f", &r0[n], &r0[n + N], &r0[n + N + N]
+            fid, "%f%f%f", &fcp_data.r0[n], 
+            &fcp_data.r0[n + N], &fcp_data.r0[n + N + N]
         );
         if (count != 3) { print_error("reading error for r0.in\n"); }
     }
     fclose(fid);
-
-    CHECK(cudaMemcpy(fcp_data.r0, r0, sizeof(float) * N * 3, 
-        cudaMemcpyHostToDevice));
-    MY_FREE(r0);
-    printf("    Data in r0.in has been read in.\n");
+    printf("    Data in r0.in have been read in.\n");
 }
 
 
@@ -166,7 +160,7 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
     }
 
     fclose(fid);
-    printf("    Data in fc2.in (%d entries) has been read in.\n", number2);
+    printf("    Data in fc2.in (%d entries) have been read in.\n", number2);
 }
 
 
@@ -205,7 +199,7 @@ void FCP::read_fc3(char *input_dir, Atom *atom)
     }
 
     fclose(fid);
-    printf("    Data in fc3.in (%d entries) has been read in.\n", number3);
+    printf("    Data in fc3.in (%d entries) have been read in.\n", number3);
 }
 
 
@@ -250,7 +244,7 @@ void FCP::read_fc4(char *input_dir, Atom *atom)
     }
 
     fclose(fid);
-    printf("    Data in fc4.in (%d entries) has been read in.\n", number4);
+    printf("    Data in fc4.in (%d entries) have been read in.\n", number4);
 }
 
 
@@ -305,7 +299,7 @@ void FCP::read_fc5(char *input_dir, Atom *atom)
     }
 
     fclose(fid);
-    printf("    Data in fc5.in (%d entries) has been read in.\n", number5);
+    printf("    Data in fc5.in (%d entries) have been read in.\n", number5);
 }
 
 
@@ -378,13 +372,14 @@ void FCP::read_fc6(char *input_dir, Atom *atom)
     }
 
     fclose(fid);
-    printf("    Data in fc6.in (%d entries) has been read in.\n", number6);
+    printf("    Data in fc6.in (%d entries) have been read in.\n", number6);
 }
 
 
-// potential and force from the second-order force constants
+// potential, force, and heat current from the second-order force constants
 static __global__ void gpu_find_force_fcp2
 (
+    int hnemd_compute, real fe_x, real fe_y, real fe_z,
     int N, int number2, int *g_ia2, int *g_jb2, float *g_phi2,
     const float* __restrict__ g_uv, 
     float *g_xij2, float *g_yij2, float *g_zij2, float *g_pfj
@@ -407,8 +402,16 @@ static __global__ void gpu_find_force_fcp2
 
         int atom_id = ia % N;
         atomicAdd(&g_pfj[atom_id], phi * uia * ujb);
-        atomicAdd(&g_pfj[ia + N], - phi * ujb);
-        atomicAdd(&g_pfj[jb + N], - phi * uia);
+        float fia = - phi * ujb;
+        float fjb = - phi * uia;
+        if (hnemd_compute)
+        {
+            float fe_times_rij2 = (fe_x * xij2 + fe_y * yij2 + fe_z * zij2);
+            fia = (1.0 - fe_times_rij2) * fia;
+            fjb = (1.0 + fe_times_rij2) * fjb;
+        }
+        atomicAdd(&g_pfj[ia + N], fia);
+        atomicAdd(&g_pfj[jb + N], fjb);
 
         float uvij = via * ujb - uia * vjb;
         atomicAdd(&g_pfj[atom_id + N * 4], phi * xij2 * uvij);
@@ -610,6 +613,8 @@ void FCP::compute(Atom *atom, Measure *measure, int potential_number)
 
     gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>
     (
+        measure->hnemd.compute, 
+        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, number2, fcp_data.ia2, fcp_data.jb2, fcp_data.phi2,
         fcp_data.uv, fcp_data.xij2, fcp_data.yij2, fcp_data.zij2, fcp_data.pfj
     );
