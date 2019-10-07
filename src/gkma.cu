@@ -265,6 +265,7 @@ __global__ void gpu_find_gkma_jmn
 
 void GKMA::preprocess(char *input_dir, Atom *atom)
 {
+    if (!compute) return;
     num_modes = last_mode-first_mode+1;
     samples_per_output = output_interval/sample_interval;
     num_bins = num_modes/bin_size;
@@ -272,45 +273,37 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     strcpy(gkma_file_position, input_dir);
     strcat(gkma_file_position, "/heatmode.out");
 
-    // initialize eigenvector data structures
-    strcpy(eig_file_position, input_dir);
-    strcat(eig_file_position, "/eigenvector.eig");
-    std::ifstream eigfile;
-    eigfile.open(eig_file_position);
-    if (!eigfile)
-    {
-        print_error("Cannot open eigenvector.eig file.\n");
-    }
-
     int N = atom->N;
     MY_MALLOC(cpu_eig, real, N * num_modes * 3);
     CHECK(cudaMalloc(&eig, sizeof(real) * N * num_modes * 3));
 
-    // Following code snippet is heavily based on MIT LAMMPS code
+    // initialize eigenvector data structures
+    strcpy(eig_file_position, input_dir);
+    strcat(eig_file_position, "/eigenvector.out");
+    std::ifstream eigfile;
+    eigfile.open(eig_file_position);
+    if (!eigfile)
+    {
+        print_error("Cannot open eigenvector.out file.\n");
+    }
+
+    // GPU phonon code output format
     std::string val;
     double doubleval;
-
-    for (int i=0; i<=N+3 ; i++){
-        getline(eigfile,val);
+    // skips freq line and modes up to first_mode
+    for (int i=0; i<first_mode; i++)
+    {
+      getline(eigfile,val);
     }
-    for (int i=0; i<first_mode-1; i++){
-      for (int j=0; j<N+2; j++) getline(eigfile,val);
-    }
-    for (int j=0; j<num_modes; j++){
-        getline(eigfile,val);
-        getline(eigfile,val);
-        for (int i=0; i<N; i++){
+    for (int j=0; j<num_modes; j++) //modes
+    {
+        for (int i=0; i<3*N; i++) // xyz of eigvec
+        {
             eigfile >> doubleval;
             cpu_eig[i + 3*N*j] = doubleval;
-            eigfile >> doubleval;
-            cpu_eig[i + (1 + 3*j)*N] = doubleval;
-            eigfile >> doubleval;
-            cpu_eig[i + (2 + 3*j)*N] = doubleval;
         }
-        getline(eigfile,val);
     }
     eigfile.close();
-    //end snippet
 
     CHECK(cudaMemcpy(eig, cpu_eig, sizeof(real) * N * num_modes * 3,
                             cudaMemcpyHostToDevice));
