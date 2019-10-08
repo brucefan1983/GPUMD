@@ -144,72 +144,14 @@ __global__ void gpu_calc_xdotn
 }
 
 
-static __global__ void gpu_bin_modes
+static __device__ void gpu_bin_reduce
 (
-       int num_modes, int bin_size, int num_bins,
+       int num_modes, int bin_size, int shift, int num_bins,
+       int tid, int bid, int number_of_patches,
        const real* __restrict__ g_jm,
        real* bin_out
 )
 {
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
-
-    __shared__ real s_data_x[BIN_BLOCK];
-    __shared__ real s_data_y[BIN_BLOCK];
-    __shared__ real s_data_z[BIN_BLOCK];
-    s_data_x[tid] = ZERO;
-    s_data_y[tid] = ZERO;
-    s_data_z[tid] = ZERO;
-
-    for (int patch = 0; patch < number_of_patches; ++patch)
-    {
-        int n = tid + patch * BIN_BLOCK;
-        if (n < bin_size)
-        {
-            s_data_x[tid] += g_jm[n + bid*bin_size];
-            s_data_y[tid] += g_jm[n + bid*bin_size + num_modes];
-            s_data_z[tid] += g_jm[n + bid*bin_size + 2*num_modes];
-        }
-    }
-
-    __syncthreads();
-    #pragma unroll
-    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
-    {
-        if (tid < offset)
-        {
-            s_data_x[tid] += s_data_x[tid + offset];
-            s_data_y[tid] += s_data_y[tid + offset];
-            s_data_z[tid] += s_data_z[tid + offset];
-        }
-        __syncthreads();
-    }
-    if (tid == 0)
-    {
-        bin_out[bid] = s_data_x[0];
-        bin_out[bid + num_bins] = s_data_y[0];
-        bin_out[bid + 2*num_bins] = s_data_z[0];
-    }
-
-}
-
-static __global__ void gpu_bin_frequencies
-(
-       int num_modes,
-       const int* __restrict__ bin_count,
-       const int* __restrict__ bin_sum,
-       int num_bins,
-       const real* __restrict__ g_jm,
-       real* bin_out
-)
-{
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int bin_size = bin_count[bid];
-    int shift = bin_sum[bid];
-    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
-
     __shared__ real s_data_x[BIN_BLOCK];
     __shared__ real s_data_y[BIN_BLOCK];
     __shared__ real s_data_z[BIN_BLOCK];
@@ -246,6 +188,50 @@ static __global__ void gpu_bin_frequencies
         bin_out[bid + num_bins] = s_data_y[0];
         bin_out[bid + 2*num_bins] = s_data_z[0];
     }
+}
+
+static __global__ void gpu_bin_modes
+(
+       int num_modes, int bin_size, int num_bins,
+       const real* __restrict__ g_jm,
+       real* bin_out
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
+    int shift = bid*bin_size;
+
+    gpu_bin_reduce
+    (
+           num_modes, bin_size, shift, num_bins,
+           tid, bid, number_of_patches, g_jm, bin_out
+    );
+
+}
+
+static __global__ void gpu_bin_frequencies
+(
+       int num_modes,
+       const int* __restrict__ bin_count,
+       const int* __restrict__ bin_sum,
+       int num_bins,
+       const real* __restrict__ g_jm,
+       real* bin_out
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int bin_size = bin_count[bid];
+    int shift = bin_sum[bid];
+    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
+
+    gpu_bin_reduce
+    (
+           num_modes, bin_size, shift, num_bins,
+           tid, bid, number_of_patches, g_jm, bin_out
+    );
+
 }
 
 __global__ void gpu_find_gkma_jmn
