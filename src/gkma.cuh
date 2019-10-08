@@ -68,7 +68,9 @@ public:
     int output_interval;// number of time steps to output average heat current
     int first_mode;     // first mode to consider
     int last_mode;      // last mode to consider
-    int bin_size;       // number of bins to combine modes into
+    int bin_size;       // number of modes per bin
+    real f_bin_size;    // freq. range per bin (THz)
+    int f_flag;         // 0 -> modes, 1 -> freq.
     int num_modes;      // total number of modes to consider
 
     real* eig;          // eigenvectors
@@ -77,6 +79,8 @@ public:
     real* jmn;          // per-atom modal heat current
     real* jm;           // total modal heat current
     real* bin_out;      // modal binning structure
+    int* bin_count;     // Number of modes per bin when f_flag=1
+    int* bin_sum;       // Running sum from bin_count
 
 
     char eig_file_position[FILE_NAME_LENGTH];

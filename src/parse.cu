@@ -879,23 +879,43 @@ void parse_compute_gkma(char **param, int num_param, Measure* measure)
 
     printf("Compute modal heat current using GKMA method.\n");
 
-    if (num_param != 6)
+    if (num_param != 7)
     {
-        print_error("compute_gkma should have 5 parameters.\n");
+        print_error("compute_gkma should have 6 parameters.\n");
     }
     if (!is_valid_int(param[1], &measure->gkma.sample_interval) ||
         !is_valid_int(param[2], &measure->gkma.output_interval) ||
         !is_valid_int(param[3], &measure->gkma.first_mode)      ||
-        !is_valid_int(param[4], &measure->gkma.last_mode)       ||
-        !is_valid_int(param[5], &measure->gkma.bin_size))
+        !is_valid_int(param[4], &measure->gkma.last_mode)       )
     {
-        print_error("All parameters for GKMA should be an integer.\n");
+        print_error("A parameter for GKMA should be an integer.\n");
+    }
+
+    if (strcmp(param[5], "bin_size") == 0)
+    {
+        measure->gkma.f_flag = 0;
+        if(!is_valid_int(param[6], &measure->gkma.bin_size))
+        {
+            print_error("GKMA bin_size must be an integer.\n");
+        }
+    }
+    else if (strcmp(param[5], "f_bin_size") == 0)
+    {
+        measure->gkma.f_flag = 1;
+        if(!is_valid_real(param[6], &measure->gkma.f_bin_size))
+        {
+            print_error("GKMA f_bin_size must be a real number.\n");
+        }
+    }
+    else
+    {
+        print_error("Invalid binning keyword for compute_gkma.\n");
     }
 
     GKMA *g = &measure->gkma;
     // Parameter checking
     if (g->sample_interval < 1 || g->output_interval < 1 || g->first_mode < 1 ||
-            g->last_mode < 1 || g->bin_size < 1)
+            g->last_mode < 1)
         print_error("compute_gkma parameters must be positive integers.\n");
     if (g->sample_interval > g->output_interval)
         print_error("sample_interval <= output_interval required.\n");
@@ -904,15 +924,34 @@ void parse_compute_gkma(char **param, int num_param, Measure* measure)
     if (g->output_interval % g->sample_interval != 0)
         print_error("sample_interval must divide output_interval an integer\n"
                 " number of times.\n");
-    int num_modes = g->last_mode - g->first_mode + 1;
-    if (num_modes % g->bin_size != 0)
-        print_error("bin_size must divide modes an integer number of times.\n");
 
-    printf(
-            "    sample_interval = %d, output_interval = %d, first_mode = %d, "
-            "\nlast_mode = %d, num_bins = %d\n", measure->gkma.sample_interval,
-            measure->gkma.output_interval, measure->gkma.first_mode,
-            measure->gkma.last_mode, measure->gkma.bin_size);
+    printf("    sample_interval is %d.\n"
+           "    output_interval is %d.\n"
+           "    first_mode is %d.\n"
+           "    last_mode is %d.\n",
+          g->sample_interval, g->output_interval, g->first_mode, g->last_mode);
+
+    if (g->f_flag)
+    {
+        if (g->f_bin_size <= 0.0)
+        {
+            print_error("bin_size must be greater than zero.\n");
+        }
+        printf("    Bin by frequency.\n"
+               "    f_bin_size is %f THz.\n", g->f_bin_size);
+    }
+    else
+    {
+        if (g->bin_size < 1)
+        {
+            print_error("compute_gkma parameters must be positive integers.\n");
+        }
+        int num_modes = g->last_mode - g->first_mode + 1;
+        if (num_modes % g->bin_size != 0)
+            print_error("number of modes must be divisible by bin_size.\n");
+        printf("    Bin by modes.\n"
+               "    bin_size is %d THz.\n", g->bin_size);
+    }
 }
 
 

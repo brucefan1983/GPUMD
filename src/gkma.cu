@@ -30,6 +30,7 @@ https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 #include <fstream>
 #include <string>
 #include <iostream>
+#include <sstream>
 
 #define BLOCK_SIZE 128
 #define ACCUM_BLOCK 1024
@@ -193,6 +194,60 @@ static __global__ void gpu_bin_modes
 
 }
 
+static __global__ void gpu_bin_frequencies
+(
+       int num_modes,
+       const int* __restrict__ bin_count,
+       const int* __restrict__ bin_sum,
+       int num_bins,
+       const real* __restrict__ g_jm,
+       real* bin_out
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int bin_size = bin_count[bid];
+    int shift = bin_sum[bid];
+    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
+
+    __shared__ real s_data_x[BIN_BLOCK];
+    __shared__ real s_data_y[BIN_BLOCK];
+    __shared__ real s_data_z[BIN_BLOCK];
+    s_data_x[tid] = ZERO;
+    s_data_y[tid] = ZERO;
+    s_data_z[tid] = ZERO;
+
+    for (int patch = 0; patch < number_of_patches; ++patch)
+    {
+        int n = tid + patch * BIN_BLOCK;
+        if (n < bin_size)
+        {
+            s_data_x[tid] += g_jm[n + shift];
+            s_data_y[tid] += g_jm[n + shift + num_modes];
+            s_data_z[tid] += g_jm[n + shift + 2*num_modes];
+        }
+    }
+
+    __syncthreads();
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset)
+        {
+            s_data_x[tid] += s_data_x[tid + offset];
+            s_data_y[tid] += s_data_y[tid + offset];
+            s_data_z[tid] += s_data_z[tid + offset];
+        }
+        __syncthreads();
+    }
+    if (tid == 0)
+    {
+        bin_out[bid] = s_data_x[0];
+        bin_out[bid + num_bins] = s_data_y[0];
+        bin_out[bid + 2*num_bins] = s_data_z[0];
+    }
+}
+
 __global__ void gpu_find_gkma_jmn
 (
     real fe_x, real fe_y, real fe_z,
@@ -268,7 +323,6 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     if (!compute) return;
     num_modes = last_mode-first_mode+1;
     samples_per_output = output_interval/sample_interval;
-    num_bins = num_modes/bin_size;
 
     strcpy(gkma_file_position, input_dir);
     strcat(gkma_file_position, "/heatmode.out");
@@ -290,11 +344,62 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     // GPU phonon code output format
     std::string val;
     double doubleval;
-    // skips freq line and modes up to first_mode
-    for (int i=0; i<first_mode; i++)
+
+    // Setup binning
+    if (f_flag)
     {
-      getline(eigfile,val);
+        real *cpu_f;
+        MY_MALLOC(cpu_f, real, num_modes);
+        getline(eigfile, val);
+        std::stringstream ss(val);
+        for (int i=0; i<first_mode-1; i++) { ss >> cpu_f[0]; }
+        real temp;
+        for (int i=0; i<num_modes; i++)
+        {
+            ss >> temp;
+            cpu_f[i] = copysign(sqrt(abs(temp))/(2.0*PI), temp);
+        }
+        real fmax, fmin; // freq are in ascending order in file
+        int shift;
+        fmax = (floor(abs(cpu_f[num_modes-1])/f_bin_size)+1)*f_bin_size;
+        fmin = floor(abs(cpu_f[0])/f_bin_size)*f_bin_size;
+        shift = floor(abs(fmin)/f_bin_size);
+        num_bins = floor((fmax-fmin)/f_bin_size);
+
+        int *cpu_bin_count;
+        ZEROS(cpu_bin_count, int, num_bins);
+
+        for (int i = 0; i< num_modes; i++)
+        {
+            cpu_bin_count[int(abs(cpu_f[i]/f_bin_size))-shift]++;
+        }
+        int *cpu_bin_sum;
+        ZEROS(cpu_bin_sum, int, num_bins);
+        for (int i = 1; i < num_bins; i++)
+        {
+            cpu_bin_sum[i] = cpu_bin_sum[i-1] + cpu_bin_count[i-1];
+        }
+
+        CHECK(cudaMalloc(&bin_count, sizeof(int) * num_bins));
+        CHECK(cudaMemcpy(bin_count, cpu_bin_count, sizeof(int) * num_bins,
+                cudaMemcpyHostToDevice));
+
+        CHECK(cudaMalloc(&bin_sum, sizeof(int) * num_bins));
+        CHECK(cudaMemcpy(bin_sum, cpu_bin_sum, sizeof(int) * num_bins,
+                cudaMemcpyHostToDevice));
+
+        MY_FREE(cpu_f);
+        MY_FREE(cpu_bin_count);
+        MY_FREE(cpu_bin_sum);
     }
+    else
+    {
+        num_bins = num_modes/bin_size;
+        getline(eigfile,val);
+    }
+
+    // skips modes up to first_mode
+    for (int i=1; i<first_mode; i++) { getline(eigfile,val); }
     for (int j=0; j<num_modes; j++) //modes
     {
         for (int i=0; i<3*N; i++) // xyz of eigvec
@@ -359,12 +464,25 @@ void GKMA::process(int step, Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    gpu_bin_modes<<<num_bins, BIN_BLOCK>>>
-    (
-           num_modes, bin_size, num_bins,
-           jm, bin_out
-    );
-    CUDA_CHECK_KERNEL
+    if (f_flag)
+    {
+        gpu_bin_frequencies<<<num_bins, BIN_BLOCK>>>
+        (
+               num_modes, bin_count, bin_sum, num_bins,
+               jm, bin_out
+        );
+        CUDA_CHECK_KERNEL
+    }
+    else
+    {
+        gpu_bin_modes<<<num_bins, BIN_BLOCK>>>
+        (
+               num_modes, bin_size, num_bins,
+               jm, bin_out
+        );
+        CUDA_CHECK_KERNEL
+    }
+
 
     CHECK(cudaMemcpy(cpu_bin_out, bin_out, sizeof(real) * num_bins * 3,
             cudaMemcpyDeviceToHost));
@@ -397,6 +515,11 @@ void GKMA::postprocess()
     CHECK(cudaFree(bin_out));
     MY_FREE(cpu_jm);
     MY_FREE(cpu_bin_out);
+    if (f_flag)
+    {
+        CHECK(cudaFree(bin_count));
+        CHECK(cudaFree(bin_sum));
+    }
 }
 
 
