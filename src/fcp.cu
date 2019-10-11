@@ -28,20 +28,35 @@ The force constant potential (FCP)
 
 FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
 {
+    // get the highest order of the force constants
     int count = fscanf(fid, "%d", &order);
     if (count != 1) 
-    { print_error("reading error for force constant potential\n"); }
+    {
+        print_error("reading error for force constant potential\n");
+    }
     printf("Use the force constant potential.\n");
     printf("    up to order-%d.\n", order);
+
+    // get the path of the files related to the force constants
+    count = fscanf(fid, "%s", file_path);
+    if (count != 1) 
+    {
+        print_error("reading error for force constant potential\n");
+    }
+    printf("Use the force constant data in %s.\n", file_path);
+
+    // allocate memeory
     CHECK(cudaMalloc(&fcp_data.uv, sizeof(float) * atom->N * 6));
     CHECK(cudaMallocManaged(&fcp_data.r0, sizeof(float) * atom->N * 3));
     CHECK(cudaMalloc(&fcp_data.pfj, sizeof(float) * atom->N * 7));
-    read_r0(input_dir, atom);
-    read_fc2(input_dir, atom);
-    if (order >= 3) read_fc3(input_dir, atom);
-    if (order >= 4) read_fc4(input_dir, atom);
-    if (order >= 5) read_fc5(input_dir, atom);
-    if (order >= 6) read_fc6(input_dir, atom);
+
+    // read in the equilibrium positions and force constants
+    read_r0(atom);
+    read_fc2(atom);
+    if (order >= 3) read_fc3(atom);
+    if (order >= 4) read_fc4(atom);
+    if (order >= 5) read_fc5(atom);
+    if (order >= 6) read_fc6(atom);
 }
 
 
@@ -93,10 +108,10 @@ FCP::~FCP(void)
 }
 
 
-void FCP::read_r0(char *input_dir, Atom *atom)
+void FCP::read_r0(Atom *atom)
 {
     char file[200];
-    strcpy(file, input_dir);
+    strcpy(file, file_path);
     strcat(file, "/r0.in");
     FILE *fid = my_fopen(file, "r");
 
@@ -115,10 +130,10 @@ void FCP::read_r0(char *input_dir, Atom *atom)
 }
 
 
-void FCP::read_fc2(char *input_dir, Atom *atom)
+void FCP::read_fc2(Atom *atom)
 {
     char file[200];
-    strcpy(file, input_dir);
+    strcpy(file, file_path);
     strcat(file, "/fc2.in");
     FILE *fid = my_fopen(file, "r");
 
@@ -164,10 +179,10 @@ void FCP::read_fc2(char *input_dir, Atom *atom)
 }
 
 
-void FCP::read_fc3(char *input_dir, Atom *atom)
+void FCP::read_fc3(Atom *atom)
 {
     char file[200];
-    strcpy(file, input_dir);
+    strcpy(file, file_path);
     strcat(file, "/fc3.in");
     FILE *fid = my_fopen(file, "r");
 
@@ -203,10 +218,10 @@ void FCP::read_fc3(char *input_dir, Atom *atom)
 }
 
 
-void FCP::read_fc4(char *input_dir, Atom *atom)
+void FCP::read_fc4(Atom *atom)
 {
     char file[200];
-    strcpy(file, input_dir);
+    strcpy(file, file_path);
     strcat(file, "/fc4.in");
     FILE *fid = my_fopen(file, "r");
 
@@ -248,10 +263,10 @@ void FCP::read_fc4(char *input_dir, Atom *atom)
 }
 
 
-void FCP::read_fc5(char *input_dir, Atom *atom)
+void FCP::read_fc5(Atom *atom)
 {
     char file[200];
-    strcpy(file, input_dir);
+    strcpy(file, file_path);
     strcat(file, "/fc5.in");
     FILE *fid = my_fopen(file, "r");
 
@@ -303,10 +318,10 @@ void FCP::read_fc5(char *input_dir, Atom *atom)
 }
 
 
-void FCP::read_fc6(char *input_dir, Atom *atom)
+void FCP::read_fc6(Atom *atom)
 {
     char file[200];
-    strcpy(file, input_dir);
+    strcpy(file, file_path);
     strcat(file, "/fc6.in");
     FILE *fid = my_fopen(file, "r");
 
