@@ -14,6 +14,7 @@
   * the thrid column gives the standard error
 
 * number of independent simulations:
+
 | folder            | number     |
 |----------------   |------------|
 | diamond           | 50  |
