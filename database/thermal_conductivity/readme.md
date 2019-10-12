@@ -8,7 +8,7 @@
 | run.in          | the run.in file for the simulation   |
 | kappa.txt       | the final results I obtained    |
 
-*In kappa.txt
+* In kappa.txt
  * the frist column gives the temperature
  * the second column gives the average thermal conductivity
  * the thrid column gives the standard error
