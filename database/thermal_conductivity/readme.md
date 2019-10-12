@@ -9,9 +9,9 @@
 | kappa.txt       | the final results I obtained    |
 
 * In kappa.txt
- * the frist column gives the temperature
- * the second column gives the average thermal conductivity
- * the thrid column gives the standard error
+  * the frist column gives the temperature
+  * the second column gives the average thermal conductivity
+  * the thrid column gives the standard error
 
 * number of independent simulations:
 | folder            | number     |
