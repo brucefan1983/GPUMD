@@ -25,8 +25,6 @@ The abstract base class (ABC) for the potential classes.
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
-#define BLOCK_SIZE_GK 16
-#define ACCUM_BLOCK 1024
 
 
 Potential::Potential(void)
@@ -218,39 +216,10 @@ void Potential::find_properties_many_body
 
     if (compute_gkma)
     {
-        dim3 grid, block;
-        int num_modes = measure->gkma.num_modes;
-        int gk_grid_size = (num_modes - 1)/BLOCK_SIZE_GK + 1;
-        block.x = BLOCK_SIZE_FORCE; grid.x = grid_size;
-        block.y = BLOCK_SIZE_GK;    grid.y = gk_grid_size;
-        block.z = 1;                grid.z = 1;
-
-        gpu_calc_xdotn<<<grid_size, BLOCK_SIZE_FORCE>>>
+        measure->gkma.compute_gkma_heat
         (
-            atom->N, N1, N2, num_modes,
-            atom->vx, atom->vy, atom->vz,
-            atom->mass, measure->gkma.eig, measure->gkma.xdotn
+            atom, NN, NL, f12x, f12y, f12z, grid_size, N1, N2
         );
-        CUDA_CHECK_KERNEL
-
-        gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
-        (
-            atom->N, num_modes, measure->gkma.xdotn, measure->gkma.xdot
-        );
-        CUDA_CHECK_KERNEL
-
-
-        gpu_find_gkma_jmn<<<grid, block>>>
-        (
-            measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
-            atom->N, N1, N2, atom->box.triclinic,
-            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN, NL,
-            f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
-            atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
-            atom->mass, measure->gkma.eig, measure->gkma.xdot,
-            measure->gkma.jmn, measure->gkma.num_modes
-        );
-        CUDA_CHECK_KERNEL
     }
 }
 

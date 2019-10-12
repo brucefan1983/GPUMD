@@ -18,48 +18,6 @@
 #include "error.cuh"
 #include "mic.cuh"
 
-__global__ void gpu_gkma_reduce
-(
-        int , int ,
-        const real* __restrict__ ,
-        real*
-);
-
-__global__ void gpu_calc_xdotn
-(
-        int, int, int, int,
-        const real* __restrict__ ,
-        const real* __restrict__ ,
-        const real* __restrict__ ,
-        const real* __restrict__ ,
-        const real* __restrict__ ,
-        real*
-);
-
-__global__ void gpu_find_gkma_jmn
-(
-    real, real, real,
-    int, int, int,
-    int, int, int, int,
-    int*, int*,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    real*, real*, real*,
-    const real* __restrict__,
-    const real* __restrict__,
-    const real* __restrict__,
-    real*,
-    int
-);
-
 class GKMA
 {
 public:
@@ -89,6 +47,11 @@ public:
     void preprocess(char*, Atom*);
     void process(int, Atom*);
     void postprocess();
+
+    void compute_gkma_heat
+    (
+        Atom*, int*, int*, real*, real*, real*, int, int, int
+    );
 
 private:
     int samples_per_output;// samples to be averaged for output

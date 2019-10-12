@@ -35,6 +35,8 @@ https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 #define BLOCK_SIZE 128
 #define ACCUM_BLOCK 1024
 #define BIN_BLOCK 128
+#define BLOCK_SIZE_FORCE 64
+#define BLOCK_SIZE_GK 16
 
 
 static __global__ void gpu_reset_data
@@ -61,7 +63,7 @@ static __global__ void gpu_average_jm
     }
 }
 
-__global__ void gpu_gkma_reduce
+static __global__ void gpu_gkma_reduce
 (
         int N, int num_modes,
         const real* __restrict__ data_n,
@@ -111,7 +113,7 @@ __global__ void gpu_gkma_reduce
 
 }
 
-__global__ void gpu_calc_xdotn
+static __global__ void gpu_calc_xdotn
 (
         int N, int N1, int N2, int num_modes,
         const real* __restrict__ g_vx,
@@ -234,9 +236,8 @@ static __global__ void gpu_bin_frequencies
 
 }
 
-__global__ void gpu_find_gkma_jmn
+static __global__ void gpu_find_gkma_jmn
 (
-    real fe_x, real fe_y, real fe_z,
     int N, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list,
@@ -301,6 +302,43 @@ __global__ void gpu_find_gkma_jmn
             g_jmn[n1 + (nm+2*num_modes)*N] += j_common*z12; // z-all
         }
     }
+}
+
+void GKMA::compute_gkma_heat
+(
+        Atom *atom, int* NN, int* NL,
+        real* f12x, real* f12y, real* f12z, int grid_size, int N1, int N2
+)
+{
+    dim3 grid, block;
+    int gk_grid_size = (num_modes - 1)/BLOCK_SIZE_GK + 1;
+    block.x = BLOCK_SIZE_FORCE; grid.x = grid_size;
+    block.y = BLOCK_SIZE_GK;    grid.y = gk_grid_size;
+    block.z = 1;                grid.z = 1;
+    gpu_calc_xdotn<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        atom->N, N1, N2, num_modes,
+        atom->vx, atom->vy, atom->vz,
+        atom->mass, eig, xdotn
+    );
+    CUDA_CHECK_KERNEL
+
+    gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
+    (
+        atom->N, num_modes, xdotn, xdot
+    );
+    CUDA_CHECK_KERNEL
+
+
+    gpu_find_gkma_jmn<<<grid, block>>>
+    (
+        atom->N, N1, N2, atom->box.triclinic,
+        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN, NL,
+        f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
+        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
+        atom->mass, eig, xdot, jmn, num_modes
+    );
+    CUDA_CHECK_KERNEL
 }
 
 
