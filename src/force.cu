@@ -509,7 +509,21 @@ void Force::compute(Atom *atom, Measure* measure)
         potential[m]->compute(atom, measure, m);
     }
 
-    // correct the force when using the HNEMD method
+    // correct the force when using the HNEMD method or the FCP potential
+#ifdef USE_FCP
+    real *ftot; // total force vector of the system
+    CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
+    gpu_sum_force<<<3, 1024>>>
+    (atom->N, atom->fx, atom->fy, atom->fz, ftot);
+    CUDA_CHECK_KERNEL
+
+    int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
+    gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
+    (atom->N, atom->fx, atom->fy, atom->fz, ftot);
+    CUDA_CHECK_KERNEL
+
+    CHECK(cudaFree(ftot));
+#else
     if (measure->hnemd.compute)
     {
         real *ftot; // total force vector of the system
@@ -525,6 +539,7 @@ void Force::compute(Atom *atom, Measure* measure)
 
         CHECK(cudaFree(ftot));
     }
+#endif
 }
 
 

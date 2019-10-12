@@ -1,6 +1,14 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (1)
+## Preprints (3)
+
+* Zheyong Fan, Yanzhou Wang, Xiaokun Gu, Ping Qian, Yanjing Su, and Tapio Ala-Nissila,
+[A minimal Tersoff potential for diamond silicon with improved descriptions of elastic and phonon transport properties](https://arxiv.org/abs/1909.11474),
+arXiv:1909.11474 [cond-mat.mtrl-sci].
+
+* Bo Fu, Kevin D. Parrish, Hyun-Young Kim, Guihua Tang, and Alan J. H. McGaughey,
+[Phonon Confinement and Transport in Ultrathin Films](https://arxiv.org/abs/1907.00969),
+arXiv:1907.00969 [cond-mat.mes-hall].
 
 * Zhen Li, Shiyun Xiong, Charles Sievers, Yue Hu, Zheyong Fan, Ning Wei, Hua Bao, Shunda Chen, Davide Donadio, and Tapio Ala-Nissila,
 [Influence of Boundaries and Thermostatting on Nonequilibrium Molecular Dynamics Simulations of Heat Conduction in Solids](https://arxiv.org/abs/1905.11024),

@@ -38,13 +38,14 @@ public:
     virtual void compute(Atom*, Measure*, int);
 protected:
     int order, number2, number3, number4, number5, number6;
+    char file_path[FILE_NAME_LENGTH];
     FCP_Data fcp_data;
-    void read_r0(char *input_dir, Atom *atom);
-    void read_fc2(char *input_dir, Atom *atom);
-    void read_fc3(char *input_dir, Atom *atom);
-    void read_fc4(char *input_dir, Atom *atom);
-    void read_fc5(char *input_dir, Atom *atom);
-    void read_fc6(char *input_dir, Atom *atom);
+    void read_r0(Atom *atom);
+    void read_fc2(Atom *atom);
+    void read_fc3(Atom *atom);
+    void read_fc4(Atom *atom);
+    void read_fc5(Atom *atom);
+    void read_fc6(Atom *atom);
 };
 
 

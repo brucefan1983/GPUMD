@@ -1,0 +1,12 @@
+potential   potentials/tersoff/C_Tersoff_1989.txt 0
+velocity    300
+
+ensemble    npt_ber 300 300 0.01 0 0 0 0.0005
+time_step   0.5
+dump_thermo 1000
+run         2000000
+
+ensemble    nve
+compute_hac 20 100000 10
+run         10000000
+
