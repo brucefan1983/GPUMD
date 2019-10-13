@@ -66,9 +66,12 @@ static __global__ void gpu_find_force_many_body
     real s_fx = ZERO; // force_x
     real s_fy = ZERO; // force_y
     real s_fz = ZERO; // force_z
-    real s_sx = ZERO; // virial_stress_x
-    real s_sy = ZERO; // virial_stress_y
-    real s_sz = ZERO; // virial_stress_z
+    real s_sxx = ZERO; // virial_stress_xx
+    real s_syy = ZERO; // virial_stress_yy
+    real s_szz = ZERO; // virial_stress_zz
+    real s_sxy = ZERO; // virial_stress_xy
+    real s_sxz = ZERO; // virial_stress_xz
+    real s_syz = ZERO; // virial_stress_yz
     real s_h1 = ZERO; // heat_x_in
     real s_h2 = ZERO; // heat_x_out
     real s_h3 = ZERO; // heat_y_in
@@ -129,9 +132,12 @@ static __global__ void gpu_find_force_many_body
             }
 
             // per-atom virial
-            s_sx += x12 * f21x;
-            s_sy += y12 * f21y;
-            s_sz += z12 * f21z;
+            s_sxx += x12 * f21x;
+            s_syy += y12 * f21y;
+            s_szz += z12 * f21z;
+            s_sxy += x12 * f21y;
+            s_sxz += x12 * f21z;
+            s_syz += y12 * f21z;
 
             // per-atom heat current
             s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
@@ -176,9 +182,12 @@ static __global__ void gpu_find_force_many_body
         g_fz[n1] += s_fz;
 
         // save virial
-        g_virial[n1 + 0 * number_of_particles] += s_sx;
-        g_virial[n1 + 1 * number_of_particles] += s_sy;
-        g_virial[n1 + 2 * number_of_particles] += s_sz;
+        g_virial[n1 + 0 * number_of_particles] += s_sxx;
+        g_virial[n1 + 1 * number_of_particles] += s_syy;
+        g_virial[n1 + 2 * number_of_particles] += s_szz;
+        g_virial[n1 + 3 * number_of_particles] += s_sxy;
+        g_virial[n1 + 4 * number_of_particles] += s_sxz;
+        g_virial[n1 + 5 * number_of_particles] += s_syz;
 
         g_h[n1 + 0 * number_of_particles] += s_h1;
         g_h[n1 + 1 * number_of_particles] += s_h2;

@@ -338,9 +338,12 @@ static __global__ void find_force_eam_step2
     real s_fy = ZERO; // force_y
     real s_fz = ZERO; // force_z
     real s_pe = ZERO; // potential energy
-    real s_sx = ZERO; // virial_stress_x
-    real s_sy = ZERO; // virial_stress_y
-    real s_sz = ZERO; // virial_stress_z
+    real s_sxx = ZERO; // virial_stress_xx
+    real s_syy = ZERO; // virial_stress_yy
+    real s_szz = ZERO; // virial_stress_zz
+    real s_sxy = ZERO; // virial_stress_xy
+    real s_sxz = ZERO; // virial_stress_xz
+    real s_syz = ZERO; // virial_stress_yz
     real s_h1 = ZERO; // heat_x_in
     real s_h2 = ZERO; // heat_x_out
     real s_h3 = ZERO; // heat_y_in
@@ -414,9 +417,12 @@ static __global__ void find_force_eam_step2
             } 
 
             // per-atom virial
-            s_sx += x12 * f21x;
-            s_sy += y12 * f21y;
-            s_sz += z12 * f21z;
+            s_sxx += x12 * f21x;
+            s_syy += y12 * f21y;
+            s_szz += z12 * f21z;
+            s_sxy += x12 * f21y;
+            s_sxz += x12 * f21z;
+            s_syz += y12 * f21z;
 
             // per-atom heat current
             if (cal_j || cal_k)
@@ -464,9 +470,12 @@ static __global__ void find_force_eam_step2
         g_fz[n1] += s_fz;
 
         // accumulate virial and potential energy
-        g_virial[n1 + 0 * N] += s_sx;
-        g_virial[n1 + 1 * N] += s_sy;
-        g_virial[n1 + 2 * N] += s_sz;
+        g_virial[n1 + 0 * N] += s_sxx;
+        g_virial[n1 + 1 * N] += s_syy;
+        g_virial[n1 + 2 * N] += s_szz;
+        g_virial[n1 + 3 * N] += s_sxy;
+        g_virial[n1 + 4 * N] += s_sxz;
+        g_virial[n1 + 5 * N] += s_syz;
         g_pe[n1] += s_pe;
 
         if (cal_j || cal_k) // save heat current
