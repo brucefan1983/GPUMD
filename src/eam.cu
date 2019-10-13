@@ -415,9 +415,13 @@ static __global__ void find_force_eam_step2
             } 
 
             // per-atom virial stress
-            s_sx -= x12 * (f12x - f21x) * HALF; 
-            s_sy -= y12 * (f12y - f21y) * HALF; 
-            s_sz -= z12 * (f12z - f21z) * HALF;
+            //s_sx -= x12 * (f12x - f21x) * HALF; 
+            //s_sy -= y12 * (f12y - f21y) * HALF; 
+            //s_sz -= z12 * (f12z - f21z) * HALF;
+            // This is also correct
+            s_sx += x12 * f21x;
+            s_sy += y12 * f21y;
+            s_sz += z12 * f21z;
 
             // per-atom heat current
             if (cal_j || cal_k)

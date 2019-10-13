@@ -129,9 +129,13 @@ static __global__ void gpu_find_force_many_body
             }
 
             // per-atom virial
-            s_sx -= x12 * (f12x - f21x) * HALF;
-            s_sy -= y12 * (f12y - f21y) * HALF;
-            s_sz -= z12 * (f12z - f21z) * HALF;
+            //s_sx -= x12 * (f12x - f21x) * HALF;
+            //s_sy -= y12 * (f12y - f21y) * HALF;
+            //s_sz -= z12 * (f12z - f21z) * HALF;
+            // This is also correct
+            s_sx += x12 * f21x;
+            s_sy += y12 * f21y;
+            s_sz += z12 * f21z;
 
             // per-atom heat current
             s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
