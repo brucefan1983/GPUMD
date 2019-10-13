@@ -246,8 +246,8 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            atom->virial_per_atom_x, atom->virial_per_atom_y,
-            atom->virial_per_atom_z, gpu_group_sum + offset);
+            atom->virial_per_atom, atom->virial_per_atom + N,
+            atom->virial_per_atom + N * 2, gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }

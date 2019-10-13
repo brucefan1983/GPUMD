@@ -210,8 +210,13 @@ void Measure::dump_virials(FILE *fid, Atom *atom, int step)
 {
     if (!dump_virial) return;
     if ((step + 1) % sample_interval_virial != 0) return;
-    gpu_dump_3(atom->N, fid, atom->virial_per_atom_x, atom->virial_per_atom_y,
-        atom->virial_per_atom_z);
+    gpu_dump_3
+    (
+        atom->N, fid,
+        atom->virial_per_atom,
+        atom->virial_per_atom + atom->N,
+        atom->virial_per_atom + atom->N * 2
+    );
 }
 
 

@@ -30,8 +30,7 @@
         atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,      \
         atom->type, shift, vashishta_data.table, atom->x, atom->y, atom->z,    \
         atom->vx, atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy,         \
-        atom->fz, atom->virial_per_atom_x, atom->virial_per_atom_y,            \
-        atom->virial_per_atom_z, atom->potential_per_atom,                     \
+        atom->fz, atom->virial_per_atom, atom->potential_per_atom,             \
         atom->heat_per_atom, atom->group[0].label, measure->shc.fv_index,      \
         measure->shc.fv, measure->shc.a_map, measure->shc.b_map,               \
         measure->shc.count_b                                                   \
@@ -320,7 +319,7 @@ static __global__ void gpu_find_force_vashishta_2body
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
     const real* __restrict__ g_box, real *g_fx, real *g_fy, real *g_fz,
-    real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
+    real *g_virial, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
 )
@@ -437,10 +436,6 @@ static __global__ void gpu_find_force_vashishta_2body
             
             // accumulate potential energy and virial
             s_pe += p2 * HALF; // two-body potential
-            //s_sx -= x12 * (f12x - f21x) * HALF; 
-            //s_sy -= y12 * (f12y - f21y) * HALF; 
-            //s_sz -= z12 * (f12z - f21z) * HALF;
-            // This is also correct
             s_sx += x12 * f21x;
             s_sy += y12 * f21y;
             s_sz += z12 * f21z;
@@ -491,9 +486,9 @@ static __global__ void gpu_find_force_vashishta_2body
         g_fz[n1] += s_fz;
 
         // save stress and potential
-        g_sx[n1] += s_sx;
-        g_sy[n1] += s_sy;
-        g_sz[n1] += s_sz;
+        g_virial[n1 + 0 * number_of_particles] += s_sx;
+        g_virial[n1 + 1 * number_of_particles] += s_sy;
+        g_virial[n1 + 2 * number_of_particles] += s_sz;
         g_potential[n1] += s_pe;
         if (cal_j || cal_k) // save heat current
         {

@@ -170,7 +170,7 @@ C, H, O, Si atoms.
         fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,           \
         NN, NL, NN_local, NL_local, type, shift,                               \
         x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,                           \
-        sx, sy, sz, pe, h, label, fv_index, fv, a_map, b_map, count_b          \
+        virial, pe, h, label, fv_index, fv, a_map, b_map, count_b              \
     )
 
 
@@ -624,7 +624,7 @@ static __global__ void find_force_step0
     const real* __restrict__ g_vz,
     const real* __restrict__ g_box, real *g_p,  real *g_pp,
     real *g_fx, real *g_fy, real *g_fz,
-    real *g_sx, real *g_sy, real *g_sz, real *g_potential, 
+    real *g_virial, real *g_potential, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
 )
@@ -709,10 +709,6 @@ static __global__ void find_force_step0
 
             // accumulate potential energy and virial 
             s_pe += p2 * HALF; // two-body potential
-            //s_sx -= x12 * (f12x - f21x) * HALF; 
-            //s_sy -= y12 * (f12y - f21y) * HALF; 
-            //s_sz -= z12 * (f12z - f21z) * HALF;
-            // This is also correct
             s_sx += x12 * f21x;
             s_sy += y12 * f21y;
             s_sz += z12 * f21z;
@@ -766,11 +762,13 @@ static __global__ void find_force_step0
         g_fx[n1] += s_fx; // save force
         g_fy[n1] += s_fy;
         g_fz[n1] += s_fz;
+
         // save stress and potential
-        g_sx[n1] += s_sx;
-        g_sy[n1] += s_sy;
-        g_sz[n1] += s_sz;
+        g_virial[n1 + 0 * number_of_particles] += s_sx;
+        g_virial[n1 + 1 * number_of_particles] += s_sy;
+        g_virial[n1 + 2 * number_of_particles] += s_sz;
         g_potential[n1] += s_pe;
+
         if (cal_j || cal_k) // save heat current
         {
             g_h[n1 + 0 * number_of_particles] += s_h1;
@@ -973,9 +971,7 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     real *fy = atom->fy;
     real *fz = atom->fz;
     real *box = atom->box.h;
-    real *sx = atom->virial_per_atom_x;
-    real *sy = atom->virial_per_atom_y;
-    real *sz = atom->virial_per_atom_z;
+    real *virial = atom->virial_per_atom;
     real *pe = atom->potential_per_atom;
     real *h = atom->heat_per_atom;
 

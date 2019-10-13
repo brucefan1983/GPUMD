@@ -35,9 +35,7 @@ public:
     real *vx; real *vy; real *vz; // per-atom velocity
     real *fx; real *fy; real *fz; // per-atom force
     real *heat_per_atom;          // per-atom heat current
-    real *virial_per_atom_x;      // per-atom virial
-    real *virial_per_atom_y;
-    real *virial_per_atom_z;
+    real *virial_per_atom;        // per-atom virial (6 components)
     real *potential_per_atom;     // per-atom potential energy
     real *thermo;                 // some thermodynamic quantities
 

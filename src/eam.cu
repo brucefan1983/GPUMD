@@ -35,8 +35,7 @@ The EAM potential. Currently two analytical versions:
         atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, atom->NN_local,     \
         atom->NL_local, eam_data.Fp, atom->x, atom->y, atom->z, atom->vx,      \
         atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,         \
-        atom->virial_per_atom_x, atom->virial_per_atom_y,                      \
-        atom->virial_per_atom_z, atom->potential_per_atom,                     \
+        atom->virial_per_atom, atom->potential_per_atom,                       \
         atom->heat_per_atom, atom->group[0].label, measure->shc.fv_index,      \
         measure->shc.fv, measure->shc.a_map, measure->shc.b_map,               \
         measure->shc.count_b                                                   \
@@ -329,7 +328,7 @@ static __global__ void find_force_eam_step2
     const real* __restrict__ g_vz,
     const real* __restrict__ g_box,
     real *g_fx, real *g_fy, real *g_fz,
-    real *g_sx, real *g_sy, real *g_sz, real *g_pe, 
+    real *g_virial, real *g_pe, 
     real *g_h, int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
 )
@@ -414,11 +413,7 @@ static __global__ void find_force_eam_step2
                 fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
             } 
 
-            // per-atom virial stress
-            //s_sx -= x12 * (f12x - f21x) * HALF; 
-            //s_sy -= y12 * (f12y - f21y) * HALF; 
-            //s_sz -= z12 * (f12z - f21z) * HALF;
-            // This is also correct
+            // per-atom virial
             s_sx += x12 * f21x;
             s_sy += y12 * f21y;
             s_sz += z12 * f21z;
@@ -469,9 +464,9 @@ static __global__ void find_force_eam_step2
         g_fz[n1] += s_fz;
 
         // accumulate virial and potential energy
-        g_sx[n1] += s_sx;
-        g_sy[n1] += s_sy;
-        g_sz[n1] += s_sz;
+        g_virial[n1 + 0 * N] += s_sx;
+        g_virial[n1 + 1 * N] += s_sy;
+        g_virial[n1 + 2 * N] += s_sz;
         g_pe[n1] += s_pe;
 
         if (cal_j || cal_k) // save heat current

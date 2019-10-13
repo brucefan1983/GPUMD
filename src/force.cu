@@ -454,7 +454,7 @@ static __global__ void gpu_correct_force
 static __global__ void initialize_properties
 (
     int N, real *g_fx, real *g_fy, real *g_fz, real *g_pe,
-    real *g_sx, real *g_sy, real *g_sz, real *g_h
+    real *g_virial, real *g_h
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -463,10 +463,13 @@ static __global__ void initialize_properties
         g_fx[n1] = ZERO;
         g_fy[n1] = ZERO;
         g_fz[n1] = ZERO;
-        g_sx[n1] = ZERO;
-        g_sy[n1] = ZERO;
-        g_sz[n1] = ZERO;
         g_pe[n1] = ZERO;
+        g_virial[n1 + 0 * N] = ZERO;
+        g_virial[n1 + 1 * N] = ZERO;
+        g_virial[n1 + 2 * N] = ZERO;
+        g_virial[n1 + 3 * N] = ZERO;
+        g_virial[n1 + 4 * N] = ZERO;
+        g_virial[n1 + 5 * N] = ZERO;
         g_h[n1 + 0 * N] = ZERO;
         g_h[n1 + 1 * N] = ZERO;
         g_h[n1 + 2 * N] = ZERO;
@@ -488,8 +491,7 @@ void Force::compute(Atom *atom, Measure* measure)
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
         atom->N, atom->fx, atom->fy, atom->fz, atom->potential_per_atom,
-        atom->virial_per_atom_x, atom->virial_per_atom_y,
-        atom->virial_per_atom_z, atom->heat_per_atom
+        atom->virial_per_atom, atom->heat_per_atom
     );
     CUDA_CHECK_KERNEL
 
