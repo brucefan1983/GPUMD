@@ -9,14 +9,14 @@
 | kappa.txt       | the final results I obtained    |
 
 * In kappa.txt
-  * the frist column gives the temperature
+  * the first column gives the temperature
   * the second column gives the average thermal conductivity
-  * the thrid column gives the standard error
+  * the third column gives the statistical error (standard error)
 
 * number of independent simulations:
 
-| folder            | number     |
-|----------------   |------------|
-| diamond           | 50  |
-| germanium         | 50  |
+| folder            | number of independent simulations |  method    |
+|----------------   |------------|----------------------|
+| diamond           | 50         | EMD                  |
+| germanium         | 50         | EMD                  |
 
