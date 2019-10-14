@@ -470,6 +470,9 @@ static __global__ void initialize_properties
         g_virial[n1 + 3 * N] = ZERO;
         g_virial[n1 + 4 * N] = ZERO;
         g_virial[n1 + 5 * N] = ZERO;
+        g_virial[n1 + 6 * N] = ZERO;
+        g_virial[n1 + 7 * N] = ZERO;
+        g_virial[n1 + 8 * N] = ZERO;
         g_h[n1 + 0 * N] = ZERO;
         g_h[n1 + 1 * N] = ZERO;
         g_h[n1 + 2 * N] = ZERO;

@@ -288,7 +288,7 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&fx,   m4));
     CHECK(cudaMalloc((void**)&fy,   m4));
     CHECK(cudaMalloc((void**)&fz,   m4));
-    CHECK(cudaMalloc((void**)&virial_per_atom,  m4 * 6));
+    CHECK(cudaMalloc((void**)&virial_per_atom,  m4 * 9));
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
     CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
     CHECK(cudaMalloc((void**)&thermo, sizeof(real) * 6));
