@@ -170,7 +170,7 @@ C, H, O, Si atoms.
         fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,           \
         NN, NL, NN_local, NL_local, type, shift,                               \
         x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,                           \
-        virial, pe, h, label, fv_index, fv, a_map, b_map, count_b              \
+        virial, pe, label, fv_index, fv, a_map, b_map, count_b                 \
     )
 
 
@@ -625,7 +625,7 @@ static __global__ void find_force_step0
     const real* __restrict__ g_box, real *g_p,  real *g_pp,
     real *g_fx, real *g_fy, real *g_fz,
     real *g_virial, real *g_potential, 
-    real *g_h, int *g_label, int *g_fv_index, real *g_fv,
+    int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
 )
 {
@@ -643,11 +643,7 @@ static __global__ void find_force_step0
     real s_szx = ZERO; // virial_stress_zx
     real s_szy = ZERO; // virial_stress_zy
     real s_szz = ZERO; // virial_stress_zz
-    real s_h1 = ZERO; // heat_x_in
-    real s_h2 = ZERO; // heat_x_out
-    real s_h3 = ZERO; // heat_y_in
-    real s_h4 = ZERO; // heat_y_out
-    real s_h5 = ZERO; // heat_z
+
     // driving force 
     real fx_driving = ZERO;
     real fy_driving = ZERO;
@@ -725,15 +721,6 @@ static __global__ void find_force_step0
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
 
-            if (cal_j || cal_k)
-            {
-                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s_h2 += (f21z * vz1) * x12;               // x-out
-                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s_h4 += (f21z * vz1) * y12;               // y-out
-                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
-            }
-
             // accumulate heat across some sections (for NEMD)
             //    	check if AB pair possible & exists
             if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
@@ -791,15 +778,6 @@ static __global__ void find_force_step0
 
         // save potential
         g_potential[n1] += s_pe;
-
-        if (cal_j || cal_k) // save heat current
-        {
-            g_h[n1 + 0 * number_of_particles] += s_h1;
-            g_h[n1 + 1 * number_of_particles] += s_h2;
-            g_h[n1 + 2 * number_of_particles] += s_h3;
-            g_h[n1 + 3 * number_of_particles] += s_h4;
-            g_h[n1 + 4 * number_of_particles] += s_h5;
-        }
     }
 }
 
@@ -996,7 +974,6 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     real *box = atom->box.h;
     real *virial = atom->virial_per_atom;
     real *pe = atom->potential_per_atom;
-    real *h = atom->heat_per_atom;
 
     int *label = atom->group[0].label;
     int *fv_index = measure->shc.fv_index;

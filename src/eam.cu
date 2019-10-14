@@ -36,7 +36,7 @@ The EAM potential. Currently two analytical versions:
         atom->NL_local, eam_data.Fp, atom->x, atom->y, atom->z, atom->vx,      \
         atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,         \
         atom->virial_per_atom, atom->potential_per_atom,                       \
-        atom->heat_per_atom, atom->group[0].label, measure->shc.fv_index,      \
+        atom->group[0].label, measure->shc.fv_index,                           \
         measure->shc.fv, measure->shc.a_map, measure->shc.b_map,               \
         measure->shc.count_b                                                   \
     ) 
@@ -329,7 +329,7 @@ static __global__ void find_force_eam_step2
     const real* __restrict__ g_box,
     real *g_fx, real *g_fy, real *g_fz,
     real *g_virial, real *g_pe, 
-    real *g_h, int *g_label, int *g_fv_index, real *g_fv,
+    int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
 )
 {
@@ -347,11 +347,6 @@ static __global__ void find_force_eam_step2
     real s_szx = ZERO; // virial_stress_zx
     real s_szy = ZERO; // virial_stress_zy
     real s_szz = ZERO; // virial_stress_zz
-    real s_h1 = ZERO; // heat_x_in
-    real s_h2 = ZERO; // heat_x_out
-    real s_h3 = ZERO; // heat_y_in
-    real s_h4 = ZERO; // heat_y_out
-    real s_h5 = ZERO; // heat_z
 
     // driving force 
     real fx_driving = ZERO;
@@ -430,16 +425,6 @@ static __global__ void find_force_eam_step2
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
 
-            // per-atom heat current
-            if (cal_j || cal_k)
-            {
-                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s_h2 += (f21z * vz1) * x12;               // x-out
-                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s_h4 += (f21z * vz1) * y12;               // y-out
-                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
-            }
- 
             // accumulate heat across some sections (for NEMD)
             //        check if AB pair possible & exists
             if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
@@ -491,15 +476,6 @@ static __global__ void find_force_eam_step2
 
         // save potential energy
         g_pe[n1] += s_pe;
-
-        if (cal_j || cal_k) // save heat current
-        {
-            g_h[n1 + 0 * N] += s_h1;
-            g_h[n1 + 1 * N] += s_h2;
-            g_h[n1 + 2 * N] += s_h3;
-            g_h[n1 + 3 * N] += s_h4;
-            g_h[n1 + 4 * N] += s_h5;
-        }
     }
 }   
 
