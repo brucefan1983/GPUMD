@@ -84,14 +84,18 @@ static __global__ void find_per_atom_temperature
 
 
 static __global__ void find_per_atom_jp
-(int N, real *g_j, real *g_jx, real* g_jy, real* g_jz)
+(
+    int N, real *sxx, real *sxy, real *sxz, real *syx, real *syy, real *syz,
+    real *szx, real *szy, real *szz, real *vx, real *vy, real *vz, 
+    real *jx, real *jy, real *jz
+)
 {
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    int n = threadIdx.x + blockIdx.x * blockDim.x;
     if (n < N)
     {
-        g_jx[n] = g_j[n] + g_j[n + N];
-        g_jy[n] = g_j[n + N * 2] + g_j[n + N * 3];
-        g_jz[n] = g_j[n + N * 4];
+        jx[n] = sxx[n] * vx[n] + sxy[n] * vy[n] + sxz[n] * vz[n];
+        jy[n] = syx[n] * vx[n] + syy[n] * vy[n] + syz[n] * vz[n];
+        jz[n] = szx[n] * vx[n] + szy[n] * vy[n] + szz[n] * vz[n];
     }
 }
 
@@ -246,15 +250,32 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            atom->virial_per_atom_x, atom->virial_per_atom_y,
-            atom->virial_per_atom_z, gpu_group_sum + offset);
+            atom->virial_per_atom, atom->virial_per_atom + N,
+            atom->virial_per_atom + N * 2, gpu_group_sum + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
     if (compute_jp)
     {
-        find_per_atom_jp<<<(N-1)/256+1, 256>>>(N, atom->heat_per_atom,
-            gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z);
+        // the virial tensor:
+        // xx xy xz    0 3 4
+        // yx yy yz    6 1 5
+        // zx zy zz    7 8 2
+        find_per_atom_jp<<<(N - 1) / 128 + 1, 128>>>
+        (
+            N, 
+            atom->virial_per_atom, 
+            atom->virial_per_atom + N * 3,
+            atom->virial_per_atom + N * 4,
+            atom->virial_per_atom + N * 6,
+            atom->virial_per_atom + N * 1,
+            atom->virial_per_atom + N * 5,
+            atom->virial_per_atom + N * 7,
+            atom->virial_per_atom + N * 8,
+            atom->virial_per_atom + N * 2,
+            atom->vx, atom->vy, atom->vz, 
+            gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z
+        );
         CUDA_CHECK_KERNEL
 
         find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,

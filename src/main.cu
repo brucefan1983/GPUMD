@@ -62,7 +62,7 @@ void print_welcome_information(void)
     printf("***************************************************************\n");
     printf("*                 Welcome to use GPUMD                        *\n");
     printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
-    printf("*                      Version 2.4                            *\n");
+    printf("*                   Developing Version                        *\n");
     printf("* Authors:                                                    *\n");
     printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
     printf("*     Ville Vierimaa                                          *\n");
@@ -86,9 +86,6 @@ void print_compile_information(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
     srand((time_t)ts.tv_nsec); // ns random number
     printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
-#endif
-#ifdef ZHEN_LI
-    printf("ZHEN_LI is on: Special version for Zhen Li.\n");
 #endif
 }
 

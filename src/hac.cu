@@ -42,6 +42,26 @@ void HAC::preprocess(Atom *atom)
 }
 
 
+// calculate the per-atom heat current 
+static __global__ void gpu_get_peratom_heat
+(
+    int N, real *sxx, real *sxy, real *sxz, real *syx, real *syy, real *syz,
+    real *szx, real *szy, real *szz, real *vx, real *vy, real *vz, 
+    real *jx_in, real *jx_out, real *jy_in, real *jy_out, real *jz
+)
+{
+    int n = threadIdx.x + blockIdx.x * blockDim.x;
+    if (n < N)
+    {
+        jx_in[n] = sxx[n] * vx[n] + sxy[n] * vy[n];
+        jx_out[n] = sxz[n] * vz[n];
+        jy_in[n] = syx[n] * vx[n] + syy[n] * vy[n];
+        jy_out[n] = syz[n] * vz[n];
+        jz[n] = szx[n] * vx[n] + szy[n] * vy[n] + szz[n] * vz[n];
+    }
+}
+
+
 // sum up the per-atom heat current to get the total heat current
 static __global__ void gpu_sum_heat
 (int N, int Nd, int nd, real *g_heat, real *g_heat_all)
@@ -75,12 +95,53 @@ void HAC::process(int step, char *input_dir, Atom *atom)
 {
     if (!compute) return; 
     if ((++step) % sample_interval != 0) return;
+
+    // the virial tensor:
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    gpu_get_peratom_heat<<<(atom->N - 1) / 128 + 1, 128>>>
+    (
+        atom->N, 
+        atom->virial_per_atom, 
+        atom->virial_per_atom + atom->N * 3,
+        atom->virial_per_atom + atom->N * 4,
+        atom->virial_per_atom + atom->N * 6,
+        atom->virial_per_atom + atom->N * 1,
+        atom->virial_per_atom + atom->N * 5,
+        atom->virial_per_atom + atom->N * 7,
+        atom->virial_per_atom + atom->N * 8,
+        atom->virial_per_atom + atom->N * 2,
+        atom->vx, atom->vy, atom->vz, 
+        atom->heat_per_atom, 
+        atom->heat_per_atom + atom->N,
+        atom->heat_per_atom + atom->N * 2,
+        atom->heat_per_atom + atom->N * 3,
+        atom->heat_per_atom + atom->N * 4
+    );
+    CUDA_CHECK_KERNEL
  
     int nd = step / sample_interval - 1;
     int Nd = atom->number_of_steps / sample_interval;
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(atom->N, Nd, nd,
         atom->heat_per_atom, heat_all);
     CUDA_CHECK_KERNEL
+
+/*
+    // just for testing; to be removed
+    // gives the same results as those from the force-evaluation kernels
+    // (if the velocities are not updated)
+    FILE *fid = my_fopen("j.txt", "w");
+    real *h_j; MY_MALLOC(h_j, real, sizeof(real) * atom->N * 5);
+    CHECK(cudaMemcpy(h_j, atom->heat_per_atom, sizeof(real) * atom->N * 5,
+        cudaMemcpyDeviceToHost));
+    for (int n = 0; n < atom->N * 5; ++n)
+    {
+        fprintf(fid, "%25.14e\n", h_j[n]);
+    }
+    MY_FREE(h_j);
+    fclose(fid);
+*/
 }
 
 

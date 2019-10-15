@@ -43,9 +43,8 @@ J. Chem. Phys. 124, 234104 (2006).
         atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, atom->NL_local,      \
         atom->type, shift, atom->x, atom->y, atom->z,                          \
         atom->vx, atom->vy, atom->vz,                                          \
-        atom->box.h, atom->fx, atom->fy, atom->fz, atom->virial_per_atom_x,    \
-        atom->virial_per_atom_y, atom->virial_per_atom_z,                      \
-        atom->potential_per_atom, atom->heat_per_atom, atom->group[0].label,   \
+        atom->box.h, atom->fx, atom->fy, atom->fz, atom->virial_per_atom,      \
+        atom->potential_per_atom, atom->group[0].label,                        \
         measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,            \
         measure->shc.b_map, measure->shc.count_b                               \
     )
@@ -146,8 +145,8 @@ static __global__ void gpu_find_force
     const real* __restrict__ g_vy,
     const real* __restrict__ g_vz,
     const real* __restrict__ g_box, real *g_fx, real *g_fy, real *g_fz,
-    real *g_sx, real *g_sy, real *g_sz, real *g_potential,
-    real *g_h, int *g_label, int *g_fv_index, real *g_fv,
+    real *g_virial, real *g_potential,
+    int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
 )
 {
@@ -156,14 +155,15 @@ static __global__ void gpu_find_force
     real s_fy = ZERO; // force_y
     real s_fz = ZERO; // force_z
     real s_pe = ZERO; // potential energy
-    real s_sx = ZERO; // virial_stress_x
-    real s_sy = ZERO; // virial_stress_y
-    real s_sz = ZERO; // virial_stress_z
-    real s_h1 = ZERO; // heat_x_in
-    real s_h2 = ZERO; // heat_x_out
-    real s_h3 = ZERO; // heat_y_in
-    real s_h4 = ZERO; // heat_y_out
-    real s_h5 = ZERO; // heat_z
+    real s_sxx = ZERO; // virial_stress_xx
+    real s_sxy = ZERO; // virial_stress_xy
+    real s_sxz = ZERO; // virial_stress_xz
+    real s_syx = ZERO; // virial_stress_yx
+    real s_syy = ZERO; // virial_stress_yy
+    real s_syz = ZERO; // virial_stress_yz
+    real s_szx = ZERO; // virial_stress_zx
+    real s_szy = ZERO; // virial_stress_zy
+    real s_szz = ZERO; // virial_stress_zz
 
     // driving force
     real fx_driving = ZERO;
@@ -225,19 +225,15 @@ static __global__ void gpu_find_force
 
             // accumulate potential energy and virial
             s_pe += p2 * HALF; // two-body potential
-            s_sx -= x12 * (f12x - f21x) * HALF;
-            s_sy -= y12 * (f12y - f21y) * HALF;
-            s_sz -= z12 * (f12z - f21z) * HALF;
-
-            // per-atom heat current
-            if (cal_j || cal_k)
-            {
-                s_h1 += (f21x * vx1 + f21y * vy1) * x12;  // x-in
-                s_h2 += (f21z * vz1) * x12;               // x-out
-                s_h3 += (f21x * vx1 + f21y * vy1) * y12;  // y-in
-                s_h4 += (f21z * vz1) * y12;               // y-out
-                s_h5 += (f21x*vx1+f21y*vy1+f21z*vz1)*z12; // z-all
-            }
+            s_sxx += x12 * f21x;
+            s_sxy += x12 * f21y;
+            s_sxz += x12 * f21z;
+            s_syx += y12 * f21x;
+            s_syy += y12 * f21y;
+            s_syz += y12 * f21z;
+            s_szx += z12 * f21x;
+            s_szy += z12 * f21y;
+            s_szz += z12 * f21z;
 
             // accumulate heat across some sections (for NEMD)
             //        check if AB pair possible & exists
@@ -273,21 +269,22 @@ static __global__ void gpu_find_force
         g_fy[n1] += s_fy;
         g_fz[n1] += s_fz;
 
-        // save stress and potential
-        g_sx[n1] += s_sx;
-        g_sy[n1] += s_sy;
-        g_sz[n1] += s_sz;
-        g_potential[n1] += s_pe;
+        // save virial
+        // xx xy xz    0 3 4
+        // yx yy yz    6 1 5
+        // zx zy zz    7 8 2
+        g_virial[n1 + 0 * number_of_particles] += s_sxx;
+        g_virial[n1 + 1 * number_of_particles] += s_syy;
+        g_virial[n1 + 2 * number_of_particles] += s_szz;
+        g_virial[n1 + 3 * number_of_particles] += s_sxy;
+        g_virial[n1 + 4 * number_of_particles] += s_sxz;
+        g_virial[n1 + 5 * number_of_particles] += s_syz;
+        g_virial[n1 + 6 * number_of_particles] += s_syx;
+        g_virial[n1 + 7 * number_of_particles] += s_szx;
+        g_virial[n1 + 8 * number_of_particles] += s_szy;
 
-        // save heat current
-        if (cal_j || cal_k)
-        {
-            g_h[n1 + 0 * number_of_particles] += s_h1;
-            g_h[n1 + 1 * number_of_particles] += s_h2;
-            g_h[n1 + 2 * number_of_particles] += s_h3;
-            g_h[n1 + 3 * number_of_particles] += s_h4;
-            g_h[n1 + 4 * number_of_particles] += s_h5;
-        }
+        // save potential
+        g_potential[n1] += s_pe;
     }
 }
 
