@@ -126,7 +126,9 @@ static __global__ void gpu_calc_xdotn
 {
     int neig = blockIdx.x * blockDim.x + threadIdx.x;
     int nglobal = neig + N1;
-    if (nglobal >= N1 && nglobal < N2)
+    int nm = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
     {
 
         real vx1, vy1, vz1;
@@ -135,15 +137,12 @@ static __global__ void gpu_calc_xdotn
         vz1 = LDG(g_vz, nglobal);
 
         real sqrtmass = sqrt(LDG(g_mass, nglobal));
-        for (int i = 0; i < num_modes; i++)
-        {
-            g_xdotn[neig + i*num_participating] =
-                    sqrtmass*g_eig[neig + i*3*num_participating]*vx1;
-            g_xdotn[neig + (i + num_modes)*num_participating] =
-                    sqrtmass*g_eig[neig + (1 + i*3)*num_participating]*vy1;
-            g_xdotn[neig + (i + 2*num_modes)*num_participating] =
-                    sqrtmass*g_eig[neig + (2 + i*3)*num_participating]*vz1;
-        }
+        g_xdotn[neig + nm*num_participating] =
+                sqrtmass*g_eig[neig + nm*3*num_participating]*vx1;
+        g_xdotn[neig + (nm + num_modes)*num_participating] =
+                sqrtmass*g_eig[neig + (1 + nm*3)*num_participating]*vy1;
+        g_xdotn[neig + (nm + 2*num_modes)*num_participating] =
+                sqrtmass*g_eig[neig + (2 + nm*3)*num_participating]*vz1;
     }
 }
 
@@ -290,7 +289,7 @@ void GKMA::compute_gkma_heat(Atom *atom)
     block.x = BLOCK_SIZE_FORCE; grid.x = grid_size;
     block.y = BLOCK_SIZE_GK;    grid.y = gk_grid_size;
     block.z = 1;                grid.z = 1;
-    gpu_calc_xdotn<<<grid_size, BLOCK_SIZE_FORCE>>>
+    gpu_calc_xdotn<<<grid, block>>>
     (
         num_participating, N1, N2, num_modes,
         atom->vx, atom->vy, atom->vz,
