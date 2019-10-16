@@ -38,11 +38,12 @@ Potential::~Potential(void)
     // nothing
 }
 
+
 static __global__ void gpu_find_force_many_body
 (
     int calculate_shc, int calculate_hnemd,
     real fe_x, real fe_y, real fe_z,
-    int N, int N1, int N2,
+    int number_of_particles, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list,
     const real* __restrict__ g_f12x,
@@ -92,7 +93,7 @@ static __global__ void gpu_find_force_many_body
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
-            int index = i1 * N + n1;
+            int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
             int neighbor_number_2 = g_neighbor_number[n2];
 
@@ -107,10 +108,10 @@ static __global__ void gpu_find_force_many_body
             int offset = 0;
             for (int k = 0; k < neighbor_number_2; ++k)
             {
-                if (n1 == g_neighbor_list[n2 + N * k])
+                if (n1 == g_neighbor_list[n2 + number_of_particles * k])
                 { offset = k; break; }
             }
-            index = offset * N + n2;
+            index = offset * number_of_particles + n2;
             real f21x = LDG(g_f12x, index);
             real f21y = LDG(g_f12y, index);
             real f21z = LDG(g_f12z, index);
@@ -190,6 +191,7 @@ static __global__ void gpu_find_force_many_body
     }
 }
 
+
 // Wrapper of the above kernel
 // used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body
@@ -199,7 +201,6 @@ void Potential::find_properties_many_body
 )
 {
     find_measurement_flags(atom, measure);
-
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
@@ -214,15 +215,6 @@ void Potential::find_properties_many_body
         measure->shc.b_map, measure->shc.count_b
     );
     CUDA_CHECK_KERNEL
-
-
-    if (compute_gkma)
-    {
-        measure->gkma.compute_gkma_heat
-        (
-            atom, NN, NL, f12x, f12y, f12z, grid_size, N1, N2
-        );
-    }
 }
 
 
@@ -243,11 +235,6 @@ void Potential::find_measurement_flags(Atom* atom, Measure* measure)
     if (measure->shc.compute)
     {
         compute_shc = (atom->step + 1) % measure->shc.sample_interval == 0;
-    }
-    compute_gkma = 0;
-    if (measure->gkma.compute)
-    {
-        compute_gkma = (atom->step + 1) % measure->gkma.sample_interval == 0;
     }
 }
 

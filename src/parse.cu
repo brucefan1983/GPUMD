@@ -873,13 +873,19 @@ void parse_compute_hac(char **param,  int num_param, Measure* measure)
     printf("    output_interval is %d\n", measure->hac.output_interval);
 }
 
-void parse_compute_gkma(char **param, int num_param, Measure* measure)
+void parse_compute_gkma(char **param, int num_param, Measure* measure, Atom* atom)
 {
     measure->gkma.compute = 1;
 
     printf("Compute modal heat current using GKMA method.\n");
 
-    if (num_param != 7)
+    /*
+     * There is a hidden feature that allows for specification of atom
+     * types to included (must be contiguously defined like potentials)
+     * -- Works for types only, not groups --
+     */
+
+    if (num_param != 7 && num_param != 10)
     {
         print_error("compute_gkma should have 6 parameters.\n");
     }
@@ -952,6 +958,45 @@ void parse_compute_gkma(char **param, int num_param, Measure* measure)
         printf("    Bin by modes.\n"
                "    bin_size is %d THz.\n", g->bin_size);
     }
+
+
+    // Hidden feature implementation
+    if (num_param == 10)
+    {
+        if (strcmp(param[7], "atom_range") == 0)
+        {
+            if(!is_valid_int(param[8], &measure->gkma.atom_begin) ||
+               !is_valid_int(param[8], &measure->gkma.atom_end))
+            {
+                print_error("GKMA atom_begin & atom_end must be integers.\n");
+            }
+            if (measure->gkma.atom_begin > measure->gkma.atom_end)
+            {
+                print_error("atom_begin must be less than atom_end.\n");
+            }
+            if (measure->gkma.atom_begin < 0)
+            {
+                print_error("atom_begin must be greater than 0.\n");
+            }
+            if (measure->gkma.atom_end >= atom->number_of_types)
+            {
+                print_error("atom_end must be greater than 0.\n");
+            }
+        }
+        else
+        {
+            print_error("Invalid GKMA keyword.\n");
+        }
+        printf("    Use select atom range.\n"
+               "    Atom types %d to %d.\n",
+               measure->gkma.atom_begin, measure->gkma.atom_end);
+    }
+    else // default behavior
+    {
+        measure->gkma.atom_begin = 0;
+        measure->gkma.atom_end = atom->number_of_types - 1;
+    }
+
 }
 
 

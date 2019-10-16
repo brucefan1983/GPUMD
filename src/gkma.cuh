@@ -30,6 +30,8 @@ public:
     real f_bin_size;    // freq. range per bin (THz)
     int f_flag;         // 0 -> modes, 1 -> freq.
     int num_modes;      // total number of modes to consider
+    int atom_begin;     // Beginning atom group/type
+    int atom_end;       // End atom group/type
 
     real* eig;          // eigenvectors
     real* xdotn;        // per-atom modal velocity
@@ -48,15 +50,17 @@ public:
     void process(int, Atom*);
     void postprocess();
 
-    void compute_gkma_heat
-    (
-        Atom*, int*, int*, real*, real*, real*, int, int, int
-    );
-
 private:
     int samples_per_output;// samples to be averaged for output
     int num_bins;          // number of bins to output
     real* cpu_jm;
     real* cpu_eig;
     real* cpu_bin_out;
+    int N1;                // Atom starting index
+    int N2;                // Atom ending index
+    int num_participating; // Number of particles participating
+
+    void compute_gkma_heat(Atom*);
+    void setN(Atom*);
+
 };

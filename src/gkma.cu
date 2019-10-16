@@ -65,14 +65,14 @@ static __global__ void gpu_average_jm
 
 static __global__ void gpu_gkma_reduce
 (
-        int N, int num_modes,
+        int num_participating, int num_modes,
         const real* __restrict__ data_n,
         real* data
 )
 {
     int tid = threadIdx.x;
     int bid = blockIdx.x;
-    int number_of_patches = (N - 1) / ACCUM_BLOCK + 1;
+    int number_of_patches = (num_participating - 1) / ACCUM_BLOCK + 1;
 
     __shared__ real s_data_x[ACCUM_BLOCK];
     __shared__ real s_data_y[ACCUM_BLOCK];
@@ -84,11 +84,11 @@ static __global__ void gpu_gkma_reduce
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
         int n = tid + patch * ACCUM_BLOCK;
-        if (n < N)
+        if (n < num_participating)
         {
-            s_data_x[tid] += data_n[n + bid*N ];
-            s_data_y[tid] += data_n[n + (bid + num_modes)*N];
-            s_data_z[tid] += data_n[n + (bid + 2*num_modes)*N];
+            s_data_x[tid] += data_n[n + bid*num_participating ];
+            s_data_y[tid] += data_n[n + (bid + num_modes)*num_participating];
+            s_data_z[tid] += data_n[n + (bid + 2*num_modes)*num_participating];
         }
     }
 
@@ -115,7 +115,7 @@ static __global__ void gpu_gkma_reduce
 
 static __global__ void gpu_calc_xdotn
 (
-        int N, int N1, int N2, int num_modes,
+        int num_participating, int N1, int N2, int num_modes,
         const real* __restrict__ g_vx,
         const real* __restrict__ g_vy,
         const real* __restrict__ g_vz,
@@ -124,23 +124,25 @@ static __global__ void gpu_calc_xdotn
         real* g_xdotn
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    if (n1 >= N1 && n1 < N2)
+    int neig = blockIdx.x * blockDim.x + threadIdx.x;
+    int nglobal = neig + N1;
+    if (nglobal >= N1 && nglobal < N2)
     {
 
         real vx1, vy1, vz1;
-        vx1 = LDG(g_vx, n1);
-        vy1 = LDG(g_vy, n1);
-        vz1 = LDG(g_vz, n1);
+        vx1 = LDG(g_vx, nglobal);
+        vy1 = LDG(g_vy, nglobal);
+        vz1 = LDG(g_vz, nglobal);
 
-        real sqrtmass = sqrt(LDG(g_mass, n1));
+        real sqrtmass = sqrt(LDG(g_mass, nglobal));
         for (int i = 0; i < num_modes; i++)
         {
-            g_xdotn[n1 + i*N] = sqrtmass*g_eig[n1 + i*3*N]*vx1;
-            g_xdotn[n1 + (i + num_modes)*N] =
-                    sqrtmass*g_eig[n1 + (1 + i*3)*N]*vy1;
-            g_xdotn[n1 + (i + 2*num_modes)*N] =
-                    sqrtmass*g_eig[n1 + (2 + i*3)*N]*vz1;
+            g_xdotn[neig + i*num_participating] =
+                    sqrtmass*g_eig[neig + i*3*num_participating]*vx1;
+            g_xdotn[neig + (i + num_modes)*num_participating] =
+                    sqrtmass*g_eig[neig + (1 + i*3)*num_participating]*vy1;
+            g_xdotn[neig + (i + 2*num_modes)*num_participating] =
+                    sqrtmass*g_eig[neig + (2 + i*3)*num_participating]*vz1;
         }
     }
 }
@@ -238,20 +240,16 @@ static __global__ void gpu_bin_frequencies
 
 static __global__ void gpu_find_gkma_jmn
 (
-    int N, int N1, int N2,
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int *g_neighbor_number, int *g_neighbor_list,
-    const real* __restrict__ g_f12x,
-    const real* __restrict__ g_f12y,
-    const real* __restrict__ g_f12z,
-    const real* __restrict__ g_x,
-    const real* __restrict__ g_y,
-    const real* __restrict__ g_z,
-    const real* __restrict__ g_vx,
-    const real* __restrict__ g_vy,
-    const real* __restrict__ g_vz,
-    const real* __restrict__ g_box,
-    real *g_fx, real *g_fy, real *g_fz,
+    int num_participating, int N1, int N2,
+    const real* __restrict__ sxx,
+    const real* __restrict__ sxy,
+    const real* __restrict__ sxz,
+    const real* __restrict__ syx,
+    const real* __restrict__ syy,
+    const real* __restrict__ syz,
+    const real* __restrict__ szx,
+    const real* __restrict__ szy,
+    const real* __restrict__ szz,
     const real* __restrict__ g_mass,
     const real* __restrict__ g_eig,
     const real* __restrict__ g_xdot,
@@ -259,65 +257,42 @@ static __global__ void gpu_find_gkma_jmn
     int num_modes
 )
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+    int neig = blockIdx.x * blockDim.x + threadIdx.x;
+    int nglobal = neig + N1;
     int nm = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (n1 >= N1 && n1 < N2 && nm < num_modes)
+    if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
     {
-        int neighbor_number = g_neighbor_number[n1];
-        real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
-        real vx_gk, vy_gk, vz_gk, j_common;
-        real rsqrtmass = rsqrt(LDG(g_mass, n1));
+        real vx_gk, vy_gk, vz_gk;
+        real rsqrtmass = rsqrt(LDG(g_mass, nglobal));
 
-        vx_gk=rsqrtmass*g_eig[n1 + nm*3*N]*g_xdot[nm];
-        vy_gk=rsqrtmass*g_eig[n1 + (1 + nm*3)*N]*g_xdot[nm + num_modes];
-        vz_gk=rsqrtmass*g_eig[n1 + (2 + nm*3)*N]*g_xdot[nm + 2*num_modes];
+        vx_gk=rsqrtmass*g_eig[neig + nm*3*num_participating]*g_xdot[nm];
+        vy_gk=rsqrtmass*g_eig[neig + (1 + nm*3)*num_participating]
+                              *g_xdot[nm + num_modes];
+        vz_gk=rsqrtmass*g_eig[neig + (2 + nm*3)*num_participating]
+                              *g_xdot[nm + 2*num_modes];
 
-        for (int i1 = 0; i1 < neighbor_number; ++i1)
-        {
-            int index = i1 * N + n1;
-            int n2 = g_neighbor_list[index];
-            int neighbor_number_2 = g_neighbor_number[n2];
+        g_jmn[neig + nm*num_participating] =
+                sxx[nglobal] * vx_gk + sxy[nglobal] * vy_gk + sxz[nglobal] * vz_gk; // x-all
+        g_jmn[neig + (nm+num_modes)*num_participating] =
+                syx[nglobal] * vx_gk + syy[nglobal] * vy_gk + syz[nglobal] * vz_gk; // y-all
+        g_jmn[neig + (nm+2*num_modes)*num_participating] =
+                szx[nglobal] * vx_gk + szy[nglobal] * vy_gk + szz[nglobal] * vz_gk; // z-all
 
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
-
-            int offset = 0;
-            for (int k = 0; k < neighbor_number_2; ++k)
-            {
-                if (n1 == g_neighbor_list[n2 + N * k])
-                { offset = k; break; }
-            }
-            index = offset * N + n2;
-            real f21x = LDG(g_f12x, index);
-            real f21y = LDG(g_f12y, index);
-            real f21z = LDG(g_f12z, index);
-
-            j_common = (f21x*vx_gk + f21y*vy_gk + f21z*vz_gk);
-
-            g_jmn[n1 + nm*N] += j_common*x12; // x-all
-            g_jmn[n1 + (nm+num_modes)*N] += j_common*y12; // y-all
-            g_jmn[n1 + (nm+2*num_modes)*N] += j_common*z12; // z-all
-        }
     }
 }
 
-void GKMA::compute_gkma_heat
-(
-        Atom *atom, int* NN, int* NL,
-        real* f12x, real* f12y, real* f12z, int grid_size, int N1, int N2
-)
+void GKMA::compute_gkma_heat(Atom *atom)
 {
     dim3 grid, block;
     int gk_grid_size = (num_modes - 1)/BLOCK_SIZE_GK + 1;
+    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     block.x = BLOCK_SIZE_FORCE; grid.x = grid_size;
     block.y = BLOCK_SIZE_GK;    grid.y = gk_grid_size;
     block.z = 1;                grid.z = 1;
     gpu_calc_xdotn<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        atom->N, N1, N2, num_modes,
+        num_participating, N1, N2, num_modes,
         atom->vx, atom->vy, atom->vz,
         atom->mass, eig, xdotn
     );
@@ -325,20 +300,43 @@ void GKMA::compute_gkma_heat
 
     gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
     (
-        atom->N, num_modes, xdotn, xdot
+        num_participating, num_modes, xdotn, xdot
     );
     CUDA_CHECK_KERNEL
 
 
     gpu_find_gkma_jmn<<<grid, block>>>
     (
-        atom->N, N1, N2, atom->box.triclinic,
-        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN, NL,
-        f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
-        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
+        num_participating, N1, N2,
+        atom->virial_per_atom + atom->N,
+        atom->virial_per_atom + atom->N * 3,
+        atom->virial_per_atom + atom->N * 4,
+        atom->virial_per_atom + atom->N * 6,
+        atom->virial_per_atom + atom->N * 1,
+        atom->virial_per_atom + atom->N * 5,
+        atom->virial_per_atom + atom->N * 7,
+        atom->virial_per_atom + atom->N * 8,
+        atom->virial_per_atom + atom->N * 2,
         atom->mass, eig, xdot, jmn, num_modes
     );
     CUDA_CHECK_KERNEL
+}
+
+
+void GKMA::setN(Atom *atom)
+{
+    N1 = 0;
+    N2 = 0;
+    for (int n = 0; n < atom_begin; ++n)
+    {
+        N1 += atom->cpu_type_size[n];
+    }
+    for (int n = atom_begin; n <= atom_end; ++n)
+    {
+        N2 += atom->cpu_type_size[n];
+    }
+
+    num_participating = N2 - N1;
 }
 
 
@@ -347,13 +345,13 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     if (!compute) return;
     num_modes = last_mode-first_mode+1;
     samples_per_output = output_interval/sample_interval;
+    setN(atom);
 
     strcpy(gkma_file_position, input_dir);
     strcat(gkma_file_position, "/heatmode.out");
 
-    int N = atom->N;
-    MY_MALLOC(cpu_eig, real, N * num_modes * 3);
-    CHECK(cudaMalloc(&eig, sizeof(real) * N * num_modes * 3));
+    MY_MALLOC(cpu_eig, real, num_participating * num_modes * 3);
+    CHECK(cudaMalloc(&eig, sizeof(real) * num_participating * num_modes * 3));
 
     // initialize eigenvector data structures
     strcpy(eig_file_position, input_dir);
@@ -426,16 +424,17 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     for (int i=1; i<first_mode; i++) { getline(eigfile,val); }
     for (int j=0; j<num_modes; j++) //modes
     {
-        for (int i=0; i<3*N; i++) // xyz of eigvec
+        for (int i=0; i<3*num_participating; i++) // xyz of eigvec
         {
             eigfile >> doubleval;
-            cpu_eig[i + 3*N*j] = doubleval;
+            cpu_eig[i + 3*num_participating*j] = doubleval;
         }
     }
     eigfile.close();
 
-    CHECK(cudaMemcpy(eig, cpu_eig, sizeof(real) * N * num_modes * 3,
-                            cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(eig, cpu_eig,
+            sizeof(real) * num_participating * num_modes * 3,
+            cudaMemcpyHostToDevice));
     MY_FREE(cpu_eig);
 
     // Allocate modal variables
@@ -443,8 +442,8 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     MY_MALLOC(cpu_bin_out, real, num_bins*3);
     CHECK(cudaMalloc(&xdot, sizeof(real) * num_modes * 3));
     CHECK(cudaMalloc(&jm, sizeof(real) * num_modes * 3));
-    CHECK(cudaMalloc(&xdotn, sizeof(real) * num_modes * 3 * N));
-    CHECK(cudaMalloc(&jmn, sizeof(real) * num_modes * 3 * N));
+    CHECK(cudaMalloc(&xdotn, sizeof(real) * num_modes * 3 * num_participating));
+    CHECK(cudaMalloc(&jmn, sizeof(real) * num_modes * 3 * num_participating));
     CHECK(cudaMalloc(&bin_out, sizeof(real) * num_bins * 3))
 
     int num_elements = num_modes*3;
@@ -454,9 +453,10 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    gpu_reset_data<<<(num_elements*N-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+    gpu_reset_data
+    <<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
-            num_elements*N, jmn
+            num_elements*num_participating, jmn
     );
     CUDA_CHECK_KERNEL
 
@@ -471,12 +471,15 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
 void GKMA::process(int step, Atom *atom)
 {
     if (!compute) return;
+    if (!((step+1) % sample_interval == 0)) return;
+
+    compute_gkma_heat(atom);
+
     if (!((step+1) % output_interval == 0)) return;
 
-    int N = atom->N;
     gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
     (
-            N, num_modes, jmn, jm
+        num_participating, num_modes, jmn, jm
     );
     CUDA_CHECK_KERNEL
 
@@ -520,9 +523,9 @@ void GKMA::process(int step, Atom *atom)
     fflush(fid);
     fclose(fid);
 
-    gpu_reset_data<<<(num_elements*N-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+    gpu_reset_data<<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
-            num_elements*N, jmn
+            num_elements*num_participating, jmn
     );
     CUDA_CHECK_KERNEL
 

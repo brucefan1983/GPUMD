@@ -384,7 +384,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute_gkma")   == 0)
     {
-        parse_compute_gkma(param, num_param, measure);
+        parse_compute_gkma(param, num_param, measure, atom);
     }
     else if (strcmp(param[0], "deform")         == 0)
     {
