@@ -308,7 +308,7 @@ void GKMA::compute_gkma_heat(Atom *atom)
     gpu_find_gkma_jmn<<<grid, block>>>
     (
         num_participating, N1, N2,
-        atom->virial_per_atom + atom->N,
+        atom->virial_per_atom,
         atom->virial_per_atom + atom->N * 3,
         atom->virial_per_atom + atom->N * 4,
         atom->virial_per_atom + atom->N * 6,
