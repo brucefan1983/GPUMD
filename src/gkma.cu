@@ -349,8 +349,8 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     strcpy(gkma_file_position, input_dir);
     strcat(gkma_file_position, "/heatmode.out");
 
-    MY_MALLOC(cpu_eig, real, num_participating * num_modes * 3);
-    CHECK(cudaMalloc(&eig, sizeof(real) * num_participating * num_modes * 3));
+    CHECK(cudaMallocManaged((void **)&eig,
+            sizeof(real) * num_participating * num_modes * 3));
 
     // initialize eigenvector data structures
     strcpy(eig_file_position, input_dir);
@@ -369,49 +369,42 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     // Setup binning
     if (f_flag)
     {
-        real *cpu_f;
-        MY_MALLOC(cpu_f, real, num_modes);
+        real *f;
+        CHECK(cudaMallocManaged((void **)&f, sizeof(real)*num_modes));
         getline(eigfile, val);
         std::stringstream ss(val);
-        for (int i=0; i<first_mode-1; i++) { ss >> cpu_f[0]; }
+        for (int i=0; i<first_mode-1; i++) { ss >> f[0]; }
         real temp;
         for (int i=0; i<num_modes; i++)
         {
             ss >> temp;
-            cpu_f[i] = copysign(sqrt(abs(temp))/(2.0*PI), temp);
+            f[i] = copysign(sqrt(abs(temp))/(2.0*PI), temp);
         }
         real fmax, fmin; // freq are in ascending order in file
         int shift;
-        fmax = (floor(abs(cpu_f[num_modes-1])/f_bin_size)+1)*f_bin_size;
-        fmin = floor(abs(cpu_f[0])/f_bin_size)*f_bin_size;
+        fmax = (floor(abs(f[num_modes-1])/f_bin_size)+1)*f_bin_size;
+        fmin = floor(abs(f[0])/f_bin_size)*f_bin_size;
         shift = floor(abs(fmin)/f_bin_size);
         num_bins = floor((fmax-fmin)/f_bin_size);
 
-        int *cpu_bin_count;
-        ZEROS(cpu_bin_count, int, num_bins);
+        CHECK(cudaMallocManaged((void **)&bin_count, sizeof(int)*num_bins));
+        for(int i_=0; i_<num_bins;i_++){bin_count[i_]=(int)0;}
 
         for (int i = 0; i< num_modes; i++)
         {
-            cpu_bin_count[int(abs(cpu_f[i]/f_bin_size))-shift]++;
+            bin_count[int(abs(f[i]/f_bin_size))-shift]++;
         }
-        int *cpu_bin_sum;
-        ZEROS(cpu_bin_sum, int, num_bins);
+        ZEROS(bin_sum, int, num_bins);
+
+        CHECK(cudaMallocManaged((void **)&bin_sum, sizeof(int)*num_bins));
+        for(int i_=0; i_<num_bins;i_++){bin_sum[i_]=(int)0;}
+
         for (int i = 1; i < num_bins; i++)
         {
-            cpu_bin_sum[i] = cpu_bin_sum[i-1] + cpu_bin_count[i-1];
+            bin_sum[i] = bin_sum[i-1] + bin_count[i-1];
         }
 
-        CHECK(cudaMalloc(&bin_count, sizeof(int) * num_bins));
-        CHECK(cudaMemcpy(bin_count, cpu_bin_count, sizeof(int) * num_bins,
-                cudaMemcpyHostToDevice));
-
-        CHECK(cudaMalloc(&bin_sum, sizeof(int) * num_bins));
-        CHECK(cudaMemcpy(bin_sum, cpu_bin_sum, sizeof(int) * num_bins,
-                cudaMemcpyHostToDevice));
-
-        MY_FREE(cpu_f);
-        MY_FREE(cpu_bin_count);
-        MY_FREE(cpu_bin_sum);
+        CHECK(cudaFree(f));
     }
     else
     {
@@ -426,24 +419,19 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
         for (int i=0; i<3*num_participating; i++) // xyz of eigvec
         {
             eigfile >> doubleval;
-            cpu_eig[i + 3*num_participating*j] = doubleval;
+            eig[i + 3*num_participating*j] = doubleval;
         }
     }
     eigfile.close();
 
-    CHECK(cudaMemcpy(eig, cpu_eig,
-            sizeof(real) * num_participating * num_modes * 3,
-            cudaMemcpyHostToDevice));
-    MY_FREE(cpu_eig);
-
     // Allocate modal variables
-    MY_MALLOC(cpu_jm, real, num_modes * 3) //cpu
-    MY_MALLOC(cpu_bin_out, real, num_bins*3);
-    CHECK(cudaMalloc(&xdot, sizeof(real) * num_modes * 3));
-    CHECK(cudaMalloc(&jm, sizeof(real) * num_modes * 3));
-    CHECK(cudaMalloc(&xdotn, sizeof(real) * num_modes * 3 * num_participating));
-    CHECK(cudaMalloc(&jmn, sizeof(real) * num_modes * 3 * num_participating));
-    CHECK(cudaMalloc(&bin_out, sizeof(real) * num_bins * 3))
+    CHECK(cudaMallocManaged((void **)&xdot, sizeof(real) * num_modes * 3));
+    CHECK(cudaMallocManaged((void **)&jm, sizeof(real) * num_modes * 3));
+    CHECK(cudaMallocManaged((void **)&xdotn,
+            sizeof(real) * num_modes * 3 * num_participating));
+    CHECK(cudaMallocManaged((void **)&jmn,
+            sizeof(real) * num_modes * 3 * num_participating));
+    CHECK(cudaMallocManaged((void **)&bin_out, sizeof(real) * num_bins * 3));
 
     int num_elements = num_modes*3;
     gpu_reset_data<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
@@ -509,15 +497,12 @@ void GKMA::process(int step, Atom *atom)
         CUDA_CHECK_KERNEL
     }
 
-
-    CHECK(cudaMemcpy(cpu_bin_out, bin_out, sizeof(real) * num_bins * 3,
-            cudaMemcpyDeviceToHost));
-
+    cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
     FILE *fid = fopen(gkma_file_position, "a");
     for (int i = 0; i < num_bins; i++)
     {
         fprintf(fid, "%25.15e %25.15e %25.15e\n",
-         cpu_bin_out[i], cpu_bin_out[i+num_bins], cpu_bin_out[i+2*num_bins]);
+         bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins]);
     }
     fflush(fid);
     fclose(fid);
@@ -539,8 +524,6 @@ void GKMA::postprocess()
     CHECK(cudaFree(jm));
     CHECK(cudaFree(jmn));
     CHECK(cudaFree(bin_out));
-    MY_FREE(cpu_jm);
-    MY_FREE(cpu_bin_out);
     if (f_flag)
     {
         CHECK(cudaFree(bin_count));

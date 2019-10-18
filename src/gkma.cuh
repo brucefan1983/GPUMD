@@ -53,9 +53,6 @@ public:
 private:
     int samples_per_output;// samples to be averaged for output
     int num_bins;          // number of bins to output
-    real* cpu_jm;
-    real* cpu_eig;
-    real* cpu_bin_out;
     int N1;                // Atom starting index
     int N2;                // Atom ending index
     int num_participating; // Number of particles participating
