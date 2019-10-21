@@ -966,7 +966,7 @@ void parse_compute_gkma(char **param, int num_param, Measure* measure, Atom* ato
         if (strcmp(param[7], "atom_range") == 0)
         {
             if(!is_valid_int(param[8], &measure->gkma.atom_begin) ||
-               !is_valid_int(param[8], &measure->gkma.atom_end))
+               !is_valid_int(param[9], &measure->gkma.atom_end))
             {
                 print_error("GKMA atom_begin & atom_end must be integers.\n");
             }
