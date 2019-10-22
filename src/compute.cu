@@ -83,6 +83,19 @@ static __global__ void find_per_atom_temperature
 }
 
 
+#ifdef USE_FCP
+static __global__ void find_per_atom_jp
+(int N, real *g_j, real *g_jx, real* g_jy, real* g_jz)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n < N)
+    {
+        g_jx[n] = g_j[n] + g_j[n + N];
+        g_jy[n] = g_j[n + N * 2] + g_j[n + N * 3];
+        g_jz[n] = g_j[n + N * 4];
+    }
+}
+#else
 static __global__ void find_per_atom_jp
 (
     int N, real *sxx, real *sxy, real *sxz, real *syx, real *syy, real *syz,
@@ -98,6 +111,7 @@ static __global__ void find_per_atom_jp
         jz[n] = szx[n] * vx[n] + szy[n] * vy[n] + szz[n] * vz[n];
     }
 }
+#endif
 
 
 static __global__ void find_per_atom_jk
@@ -257,6 +271,14 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
     }
     if (compute_jp)
     {
+#ifdef USE_FCP
+        find_per_atom_jp<<<(N - 1) / 256 + 1, 256>>>
+        (
+            N, atom->heat_per_atom,
+            gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z
+        );
+        CUDA_CHECK_KERNEL
+#else
         // the virial tensor:
         // xx xy xz    0 3 4
         // yx yy yz    6 1 5
@@ -277,7 +299,7 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
             gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z
         );
         CUDA_CHECK_KERNEL
-
+#endif
         find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,

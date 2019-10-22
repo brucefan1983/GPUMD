@@ -92,6 +92,7 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
     int output_flag = ((step+1) % output_interval == 0);
     step %= output_interval;
 
+#ifndef USE_FCP
     // the virial tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
@@ -116,6 +117,7 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
         atom->heat_per_atom + atom->N * 4
     );
     CUDA_CHECK_KERNEL
+#endif
 
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>
     (atom->N, step, atom->heat_per_atom, heat_all);
