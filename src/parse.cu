@@ -873,6 +873,132 @@ void parse_compute_hac(char **param,  int num_param, Measure* measure)
     printf("    output_interval is %d\n", measure->hac.output_interval);
 }
 
+void parse_compute_gkma(char **param, int num_param, Measure* measure, Atom* atom)
+{
+    measure->gkma.compute = 1;
+
+    printf("Compute modal heat current using GKMA method.\n");
+
+    /*
+     * There is a hidden feature that allows for specification of atom
+     * types to included (must be contiguously defined like potentials)
+     * -- Works for types only, not groups --
+     */
+
+    if (num_param != 7 && num_param != 10)
+    {
+        print_error("compute_gkma should have 6 parameters.\n");
+    }
+    if (!is_valid_int(param[1], &measure->gkma.sample_interval) ||
+        !is_valid_int(param[2], &measure->gkma.output_interval) ||
+        !is_valid_int(param[3], &measure->gkma.first_mode)      ||
+        !is_valid_int(param[4], &measure->gkma.last_mode)       )
+    {
+        print_error("A parameter for GKMA should be an integer.\n");
+    }
+
+    if (strcmp(param[5], "bin_size") == 0)
+    {
+        measure->gkma.f_flag = 0;
+        if(!is_valid_int(param[6], &measure->gkma.bin_size))
+        {
+            print_error("GKMA bin_size must be an integer.\n");
+        }
+    }
+    else if (strcmp(param[5], "f_bin_size") == 0)
+    {
+        measure->gkma.f_flag = 1;
+        if(!is_valid_real(param[6], &measure->gkma.f_bin_size))
+        {
+            print_error("GKMA f_bin_size must be a real number.\n");
+        }
+    }
+    else
+    {
+        print_error("Invalid binning keyword for compute_gkma.\n");
+    }
+
+    GKMA *g = &measure->gkma;
+    // Parameter checking
+    if (g->sample_interval < 1 || g->output_interval < 1 || g->first_mode < 1 ||
+            g->last_mode < 1)
+        print_error("compute_gkma parameters must be positive integers.\n");
+    if (g->sample_interval > g->output_interval)
+        print_error("sample_interval <= output_interval required.\n");
+    if (g->first_mode > g->last_mode)
+        print_error("first_mode <= last_mode required.\n");
+    if (g->output_interval % g->sample_interval != 0)
+        print_error("sample_interval must divide output_interval an integer\n"
+                " number of times.\n");
+
+    printf("    sample_interval is %d.\n"
+           "    output_interval is %d.\n"
+           "    first_mode is %d.\n"
+           "    last_mode is %d.\n",
+          g->sample_interval, g->output_interval, g->first_mode, g->last_mode);
+
+    if (g->f_flag)
+    {
+        if (g->f_bin_size <= 0.0)
+        {
+            print_error("bin_size must be greater than zero.\n");
+        }
+        printf("    Bin by frequency.\n"
+               "    f_bin_size is %f THz.\n", g->f_bin_size);
+    }
+    else
+    {
+        if (g->bin_size < 1)
+        {
+            print_error("compute_gkma parameters must be positive integers.\n");
+        }
+        int num_modes = g->last_mode - g->first_mode + 1;
+        if (num_modes % g->bin_size != 0)
+            print_error("number of modes must be divisible by bin_size.\n");
+        printf("    Bin by modes.\n"
+               "    bin_size is %d THz.\n", g->bin_size);
+    }
+
+
+    // Hidden feature implementation
+    if (num_param == 10)
+    {
+        if (strcmp(param[7], "atom_range") == 0)
+        {
+            if(!is_valid_int(param[8], &measure->gkma.atom_begin) ||
+               !is_valid_int(param[9], &measure->gkma.atom_end))
+            {
+                print_error("GKMA atom_begin & atom_end must be integers.\n");
+            }
+            if (measure->gkma.atom_begin > measure->gkma.atom_end)
+            {
+                print_error("atom_begin must be less than atom_end.\n");
+            }
+            if (measure->gkma.atom_begin < 0)
+            {
+                print_error("atom_begin must be greater than 0.\n");
+            }
+            if (measure->gkma.atom_end >= atom->number_of_types)
+            {
+                print_error("atom_end must be greater than 0.\n");
+            }
+        }
+        else
+        {
+            print_error("Invalid GKMA keyword.\n");
+        }
+        printf("    Use select atom range.\n"
+               "    Atom types %d to %d.\n",
+               measure->gkma.atom_begin, measure->gkma.atom_end);
+    }
+    else // default behavior
+    {
+        measure->gkma.atom_begin = 0;
+        measure->gkma.atom_end = atom->number_of_types - 1;
+    }
+
+}
+
 
 void parse_compute_hnemd(char **param, int num_param, Measure* measure)
 {

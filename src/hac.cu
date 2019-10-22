@@ -158,9 +158,8 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
 
     int tid = threadIdx.x;
     int bid = blockIdx.x;
-    int M = Nd - Nc;
-    int number_of_patches = M / 128; 
-    int number_of_data = number_of_patches * 128; 
+    int number_of_patches = (Nd - 1) / 128 + 1;
+    int number_of_data = Nd - bid;
 
     s_hac_xi[tid] = ZERO;
     s_hac_xo[tid] = ZERO;
@@ -171,15 +170,18 @@ __global__ void gpu_find_hac(int Nc, int Nd, real *g_heat, real *g_hac)
     for (int patch = 0; patch < number_of_patches; ++patch)
     { 
         int index = tid + patch * 128;
-        s_hac_xi[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 0]
-                       + g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 1];
-        s_hac_xo[tid] += g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 1]
-                       + g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 0];
-        s_hac_yi[tid] += g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 2]
-                       + g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 3];
-        s_hac_yo[tid] += g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 3]
-                       + g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 2];
-        s_hac_z[tid]  += g_heat[index + Nd * 4] * g_heat[index + bid + Nd * 4];
+        if (index + bid < Nd)
+        {
+            s_hac_xi[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 0]
+                           + g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 1];
+            s_hac_xo[tid] += g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 1]
+                           + g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 0];
+            s_hac_yi[tid] += g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 2]
+                           + g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 3];
+            s_hac_yo[tid] += g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 3]
+                           + g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 2];
+            s_hac_z[tid]  += g_heat[index + Nd * 4] * g_heat[index + bid + Nd * 4];
+        }
     }
     __syncthreads();
 

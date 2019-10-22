@@ -78,6 +78,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     shc.preprocess(atom);
     compute.preprocess(input_dir, atom);
     hnemd.preprocess(atom);
+    gkma.preprocess(input_dir, atom);
 }
 
 
@@ -97,6 +98,7 @@ void Measure::finalize
     shc.postprocess();
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);
+    gkma.postprocess();
 }
 
 
@@ -306,6 +308,7 @@ void Measure::process
     hac.process(step, input_dir, atom);
     shc.process(step, input_dir, atom);
     hnemd.process(step, input_dir, atom, integrate);
+    gkma.process(step, atom);
     if (dump_pos) dump_pos->dump(atom, step);
 
 }

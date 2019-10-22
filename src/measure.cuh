@@ -21,6 +21,7 @@
 #include "sdc.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
+#include "gkma.cuh"
 #include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
@@ -69,6 +70,7 @@ public:
     SHC shc;
     HNEMD hnemd;
     Compute compute;
+    GKMA gkma;
     DUMP_POS* dump_pos;
 protected:
     void dump_thermos(FILE*, Atom*, int);

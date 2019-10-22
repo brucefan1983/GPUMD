@@ -43,7 +43,7 @@ static __global__ void gpu_find_force_many_body
 (
     int calculate_shc, int calculate_hnemd,
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, 
+    int number_of_particles, int N1, int N2,
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
     int *g_neighbor_number, int *g_neighbor_list,
     const real* __restrict__ g_f12x,
@@ -206,7 +206,7 @@ void Potential::find_properties_many_body
     (
         compute_shc, measure->hnemd.compute,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
-        atom->N, N1, N2, atom->box.triclinic, 
+        atom->N, N1, N2, atom->box.triclinic,
         atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
         atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
