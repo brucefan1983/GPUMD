@@ -96,6 +96,7 @@ void HAC::process(int step, char *input_dir, Atom *atom)
     if (!compute) return; 
     if ((++step) % sample_interval != 0) return;
 
+#ifndef USE_FCP
     // the virial tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
@@ -120,28 +121,13 @@ void HAC::process(int step, char *input_dir, Atom *atom)
         atom->heat_per_atom + atom->N * 4
     );
     CUDA_CHECK_KERNEL
+#endif
  
     int nd = step / sample_interval - 1;
     int Nd = atom->number_of_steps / sample_interval;
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(atom->N, Nd, nd,
         atom->heat_per_atom, heat_all);
     CUDA_CHECK_KERNEL
-
-/*
-    // just for testing; to be removed
-    // gives the same results as those from the force-evaluation kernels
-    // (if the velocities are not updated)
-    FILE *fid = my_fopen("j.txt", "w");
-    real *h_j; MY_MALLOC(h_j, real, sizeof(real) * atom->N * 5);
-    CHECK(cudaMemcpy(h_j, atom->heat_per_atom, sizeof(real) * atom->N * 5,
-        cudaMemcpyDeviceToHost));
-    for (int n = 0; n < atom->N * 5; ++n)
-    {
-        fprintf(fid, "%25.14e\n", h_j[n]);
-    }
-    MY_FREE(h_j);
-    fclose(fid);
-*/
 }
 
 
