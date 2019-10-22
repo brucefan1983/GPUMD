@@ -51,18 +51,6 @@ static __global__ void gpu_reset_data
     }
 }
 
-static __global__ void gpu_average_jm
-(
-        int num_elements, int samples_per_output, real* jm
-)
-{
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < num_elements)
-    {
-        jm[n]/=(float)samples_per_output;
-    }
-}
-
 static __global__ void gpu_gkma_reduce
 (
         int num_participating, int num_modes,
@@ -343,7 +331,6 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
 {
     if (!compute) return;
     num_modes = last_mode-first_mode+1;
-    samples_per_output = output_interval/sample_interval;
     setN(atom);
 
     strcpy(gkma_file_position, input_dir);
@@ -462,19 +449,9 @@ void GKMA::process(int step, Atom *atom)
 
     compute_gkma_heat(atom);
 
-    if (!((step+1) % output_interval == 0)) return;
-
     gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
     (
         num_participating, num_modes, jmn, jm
-    );
-    CUDA_CHECK_KERNEL
-
-
-    int num_elements = num_modes*3;
-    gpu_average_jm<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-    (
-            num_elements, samples_per_output, jm
     );
     CUDA_CHECK_KERNEL
 
@@ -507,6 +484,7 @@ void GKMA::process(int step, Atom *atom)
     fflush(fid);
     fclose(fid);
 
+    int num_elements = num_modes*3;
     gpu_reset_data<<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
             num_elements*num_participating, jmn
