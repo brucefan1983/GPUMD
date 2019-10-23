@@ -32,6 +32,7 @@ https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 #include <iostream>
 #include <sstream>
 
+#define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128
 #define ACCUM_BLOCK 1024
 #define BIN_BLOCK 128
@@ -51,7 +52,7 @@ static __global__ void gpu_reset_data
     }
 }
 
-static __global__ void gpu_gkma_reduce
+static __global__ void gpu_gkma_reduce_xdotn
 (
         int num_participating, int num_modes,
         const real* __restrict__ data_n,
@@ -101,6 +102,71 @@ static __global__ void gpu_gkma_reduce
 
 }
 
+static __global__ void gpu_gkma_reduce_jmn
+(
+        int num_participating, int num_modes,
+        const real* __restrict__ data_n,
+        real* data
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int number_of_patches = (num_participating - 1) / ACCUM_BLOCK + 1;
+
+    __shared__ real s_data_xin[ACCUM_BLOCK];
+    __shared__ real s_data_xout[ACCUM_BLOCK];
+    __shared__ real s_data_yin[ACCUM_BLOCK];
+    __shared__ real s_data_yout[ACCUM_BLOCK];
+    __shared__ real s_data_z[ACCUM_BLOCK];
+    s_data_xin[tid] = ZERO;
+    s_data_xout[tid] = ZERO;
+    s_data_yin[tid] = ZERO;
+    s_data_xout[tid] = ZERO;
+    s_data_z[tid] = ZERO;
+
+    for (int patch = 0; patch < number_of_patches; ++patch)
+    {
+        int n = tid + patch * ACCUM_BLOCK;
+        if (n < num_participating)
+        {
+            s_data_xin[tid] +=
+                    data_n[n + bid*num_participating ];
+            s_data_xout[tid] +=
+                    data_n[n + (bid + num_modes)*num_participating];
+            s_data_yin[tid] +=
+                    data_n[n + (bid + 2*num_modes)*num_participating];
+            s_data_yout[tid] +=
+                    data_n[n + (bid + 3*num_modes)*num_participating];
+            s_data_z[tid] +=
+                    data_n[n + (bid + 4*num_modes)*num_participating];
+        }
+    }
+
+    __syncthreads();
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset)
+        {
+            s_data_xin[tid] += s_data_xin[tid + offset];
+            s_data_xout[tid] += s_data_xout[tid + offset];
+            s_data_yin[tid] += s_data_yin[tid + offset];
+            s_data_yout[tid] += s_data_yout[tid + offset];
+            s_data_z[tid] += s_data_z[tid + offset];
+        }
+        __syncthreads();
+    }
+    if (tid == 0)
+    {
+        data[bid] = s_data_xin[0];
+        data[bid + num_modes] = s_data_xout[0];
+        data[bid + 2*num_modes] = s_data_yin[0];
+        data[bid + 3*num_modes] = s_data_yout[0];
+        data[bid + 4*num_modes] = s_data_z[0];
+    }
+
+}
+
 static __global__ void gpu_calc_xdotn
 (
         int num_participating, int N1, int N2, int num_modes,
@@ -143,11 +209,15 @@ static __device__ void gpu_bin_reduce
        real* bin_out
 )
 {
-    __shared__ real s_data_x[BIN_BLOCK];
-    __shared__ real s_data_y[BIN_BLOCK];
+    __shared__ real s_data_xin[BIN_BLOCK];
+    __shared__ real s_data_xout[BIN_BLOCK];
+    __shared__ real s_data_yin[BIN_BLOCK];
+    __shared__ real s_data_yout[BIN_BLOCK];
     __shared__ real s_data_z[BIN_BLOCK];
-    s_data_x[tid] = ZERO;
-    s_data_y[tid] = ZERO;
+    s_data_xin[tid] = ZERO;
+    s_data_xout[tid] = ZERO;
+    s_data_yin[tid] = ZERO;
+    s_data_yout[tid] = ZERO;
     s_data_z[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
@@ -155,9 +225,11 @@ static __device__ void gpu_bin_reduce
         int n = tid + patch * BIN_BLOCK;
         if (n < bin_size)
         {
-            s_data_x[tid] += g_jm[n + shift];
-            s_data_y[tid] += g_jm[n + shift + num_modes];
-            s_data_z[tid] += g_jm[n + shift + 2*num_modes];
+            s_data_xin[tid] += g_jm[n + shift];
+            s_data_xout[tid] += g_jm[n + shift + num_modes];
+            s_data_yin[tid] += g_jm[n + shift + 2*num_modes];
+            s_data_yout[tid] += g_jm[n + shift + 3*num_modes];
+            s_data_z[tid] += g_jm[n + shift + 4*num_modes];
         }
     }
 
@@ -167,17 +239,21 @@ static __device__ void gpu_bin_reduce
     {
         if (tid < offset)
         {
-            s_data_x[tid] += s_data_x[tid + offset];
-            s_data_y[tid] += s_data_y[tid + offset];
+            s_data_xin[tid] += s_data_xin[tid + offset];
+            s_data_xout[tid] += s_data_xout[tid + offset];
+            s_data_yin[tid] += s_data_yin[tid + offset];
+            s_data_yout[tid] += s_data_yout[tid + offset];
             s_data_z[tid] += s_data_z[tid + offset];
         }
         __syncthreads();
     }
     if (tid == 0)
     {
-        bin_out[bid] = s_data_x[0];
-        bin_out[bid + num_bins] = s_data_y[0];
-        bin_out[bid + 2*num_bins] = s_data_z[0];
+        bin_out[bid] = s_data_xin[0];
+        bin_out[bid + num_bins] = s_data_xout[0];
+        bin_out[bid + 2*num_bins] = s_data_yin[0];
+        bin_out[bid + 3*num_bins] = s_data_yout[0];
+        bin_out[bid + 4*num_bins] = s_data_z[0];
     }
 }
 
@@ -260,10 +336,14 @@ static __global__ void gpu_find_gkma_jmn
                               *g_xdot[nm + 2*num_modes];
 
         g_jmn[neig + nm*num_participating] =
-                sxx[nglobal] * vx_gk + sxy[nglobal] * vy_gk + sxz[nglobal] * vz_gk; // x-all
+                sxx[nglobal] * vx_gk + sxy[nglobal] * vy_gk; // x-in
         g_jmn[neig + (nm+num_modes)*num_participating] =
-                syx[nglobal] * vx_gk + syy[nglobal] * vy_gk + syz[nglobal] * vz_gk; // y-all
+                sxz[nglobal] * vz_gk; // x-out
         g_jmn[neig + (nm+2*num_modes)*num_participating] =
+                syx[nglobal] * vx_gk + syy[nglobal] * vy_gk; // y-in
+        g_jmn[neig + (nm+3*num_modes)*num_participating] =
+                syz[nglobal] * vz_gk; // y-out
+        g_jmn[neig + (nm+4*num_modes)*num_participating] =
                 szx[nglobal] * vx_gk + szy[nglobal] * vy_gk + szz[nglobal] * vz_gk; // z-all
 
     }
@@ -285,7 +365,7 @@ void GKMA::compute_gkma_heat(Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
+    gpu_gkma_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
     (
         num_participating, num_modes, xdotn, xdot
     );
@@ -411,16 +491,38 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     }
     eigfile.close();
 
-    // Allocate modal variables
-    CHECK(cudaMallocManaged((void **)&xdot, sizeof(real) * num_modes * 3));
-    CHECK(cudaMallocManaged((void **)&jm, sizeof(real) * num_modes * 3));
-    CHECK(cudaMallocManaged((void **)&xdotn,
-            sizeof(real) * num_modes * 3 * num_participating));
-    CHECK(cudaMallocManaged((void **)&jmn,
-            sizeof(real) * num_modes * 3 * num_participating));
-    CHECK(cudaMallocManaged((void **)&bin_out, sizeof(real) * num_bins * 3));
+    // Allocate modal velocities
+    CHECK(cudaMallocManaged
+    (
+        (void **)&xdot,
+        sizeof(real) * num_modes * 3
+    ));
 
-    int num_elements = num_modes*3;
+    CHECK(cudaMallocManaged
+    (
+        (void **)&xdotn,
+        sizeof(real) * num_modes * 3 * num_participating
+    ));
+
+    // Allocate modal measured quantities
+    CHECK(cudaMallocManaged
+    (
+        (void **)&jm,
+        sizeof(real) * num_modes * NUM_OF_HEAT_COMPONENTS
+    ));
+    CHECK(cudaMallocManaged
+    (
+        (void **)&jmn,
+        sizeof(real) * num_modes * NUM_OF_HEAT_COMPONENTS * num_participating
+    ));
+    CHECK(cudaMallocManaged
+    (
+        (void **)&bin_out,
+        sizeof(real) * num_bins * NUM_OF_HEAT_COMPONENTS
+    ));
+
+    // Initialize modal measured quantities
+    int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
     gpu_reset_data<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
             num_elements, jm
@@ -434,9 +536,10 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    gpu_reset_data<<<(num_bins * 3 - 1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+    gpu_reset_data
+    <<<(num_bins * NUM_OF_HEAT_COMPONENTS - 1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
-            num_bins*3, bin_out
+            num_bins*NUM_OF_HEAT_COMPONENTS, bin_out
     );
 
 }
@@ -449,7 +552,7 @@ void GKMA::process(int step, Atom *atom)
 
     compute_gkma_heat(atom);
 
-    gpu_gkma_reduce<<<num_modes, ACCUM_BLOCK>>>
+    gpu_gkma_reduce_jmn<<<num_modes, ACCUM_BLOCK>>>
     (
         num_participating, num_modes, jmn, jm
     );
@@ -478,13 +581,14 @@ void GKMA::process(int step, Atom *atom)
     FILE *fid = fopen(gkma_file_position, "a");
     for (int i = 0; i < num_bins; i++)
     {
-        fprintf(fid, "%25.15e %25.15e %25.15e\n",
-         bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins]);
+        fprintf(fid, "%25.15e %25.15e %25.15e %25.15e %25.15e\n",
+         bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins],
+         bin_out[i+3*num_bins], bin_out[i+4*num_bins]);
     }
     fflush(fid);
     fclose(fid);
 
-    int num_elements = num_modes*3;
+    int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
     gpu_reset_data<<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
             num_elements*num_participating, jmn
