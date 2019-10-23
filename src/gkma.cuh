@@ -22,8 +22,7 @@ class GKMA
 {
 public:
     int compute = 0;
-    int sample_interval;// number of time steps per heat current computation
-    int output_interval;// number of time steps to output average heat current
+    int sample_interval;// steps per heat current computation and output
     int first_mode;     // first mode to consider
     int last_mode;      // last mode to consider
     int bin_size;       // number of modes per bin
@@ -51,7 +50,6 @@ public:
     void postprocess();
 
 private:
-    int samples_per_output;// samples to be averaged for output
     int num_bins;          // number of bins to output
     int N1;                // Atom starting index
     int N2;                // Atom ending index
