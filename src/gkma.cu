@@ -581,7 +581,7 @@ void GKMA::process(int step, Atom *atom)
     FILE *fid = fopen(gkma_file_position, "a");
     for (int i = 0; i < num_bins; i++)
     {
-        fprintf(fid, "%25.15e %25.15e %25.15e %25.15e %25.15e\n",
+        fprintf(fid, "%g %g %g %g %g\n",
          bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins],
          bin_out[i+3*num_bins], bin_out[i+4*num_bins]);
     }
