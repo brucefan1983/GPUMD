@@ -887,7 +887,7 @@ void parse_compute_gkma(char **param, int num_param, Measure* measure, Atom* ato
 
     if (num_param != 6 && num_param != 9)
     {
-        print_error("compute_gkma should have 6 parameters.\n");
+        print_error("compute_gkma should have 5 parameters.\n");
     }
     if (!is_valid_int(param[1], &measure->gkma.sample_interval) ||
         !is_valid_int(param[2], &measure->gkma.first_mode)      ||
@@ -991,6 +991,147 @@ void parse_compute_gkma(char **param, int num_param, Measure* measure, Atom* ato
 
 }
 
+void parse_compute_hnema(char **param, int num_param, Measure* measure, Atom* atom)
+{
+    measure->hnema.compute = 1;
+
+    printf("Compute modal thermal conductivity using HNEMA method.\n");
+
+    /*
+     * There is a hidden feature that allows for specification of atom
+     * types to included (must be contiguously defined like potentials)
+     * -- Works for types only, not groups --
+     */
+
+    if (num_param != 10 && num_param != 13)
+    {
+        print_error("compute_hnema should have 9 parameters.\n");
+    }
+    if (!is_valid_int(param[1], &measure->hnema.sample_interval) ||
+        !is_valid_int(param[2], &measure->hnema.output_interval) ||
+        !is_valid_int(param[6], &measure->hnema.first_mode)      ||
+        !is_valid_int(param[7], &measure->hnema.last_mode)       )
+    {
+        print_error("A parameter for HNEMA should be an integer.\n");
+    }
+
+    // HNEMD driving force parameters -> Use HNEMD object
+    if (!is_valid_real(param[3], &measure->hnemd.fe_x))
+    {
+        print_error("fe_x for HNEMD should be a real number.\n");
+    }
+    printf("    fe_x = %g /A\n", measure->hnemd.fe_x);
+    if (!is_valid_real(param[4], &measure->hnemd.fe_y))
+    {
+        print_error("fe_y for HNEMD should be a real number.\n");
+    }
+    printf("    fe_y = %g /A\n", measure->hnemd.fe_y);
+    if (!is_valid_real(param[5], &measure->hnemd.fe_z))
+    {
+        print_error("fe_z for HNEMD should be a real number.\n");
+    }
+    printf("    fe_z = %g /A\n", measure->hnemd.fe_z);
+
+
+    if (strcmp(param[8], "bin_size") == 0)
+    {
+        measure->hnema.f_flag = 0;
+        if(!is_valid_int(param[9], &measure->hnema.bin_size))
+        {
+            print_error("HNEMA bin_size must be an integer.\n");
+        }
+    }
+    else if (strcmp(param[8], "f_bin_size") == 0)
+    {
+        measure->hnema.f_flag = 1;
+        if(!is_valid_real(param[9], &measure->hnema.f_bin_size))
+        {
+            print_error("HNEMA f_bin_size must be a real number.\n");
+        }
+    }
+    else
+    {
+        print_error("Invalid binning keyword for compute_hnema.\n");
+    }
+
+    HNEMA *h = &measure->hnema;
+    // Parameter checking
+    if (h->sample_interval < 1  || h->output_interval < 1 ||
+            h->first_mode < 1 || h->last_mode < 1)
+        print_error("compute_hnema parameters must be positive integers.\n");
+    if (h->first_mode > h->last_mode)
+        print_error("first_mode <= last_mode required.\n");
+    if (h->output_interval % h->sample_interval != 0)
+            print_error("sample_interval must divide output_interval an integer\n"
+                    " number of times.\n");
+
+    printf("    sample_interval is %d.\n"
+           "    output_interval is %d.\n"
+           "    first_mode is %d.\n"
+           "    last_mode is %d.\n",
+          h->sample_interval, h->output_interval, h->first_mode, h->last_mode);
+
+    if (h->f_flag)
+    {
+        if (h->f_bin_size <= 0.0)
+        {
+            print_error("bin_size must be greater than zero.\n");
+        }
+        printf("    Bin by frequency.\n"
+               "    f_bin_size is %f THz.\n", g->f_bin_size);
+    }
+    else
+    {
+        if (h->bin_size < 1)
+        {
+            print_error("compute_hnema parameters must be positive integers.\n");
+        }
+        int num_modes = h->last_mode - h->first_mode + 1;
+        if (num_modes % h->bin_size != 0)
+            print_error("number of modes must be divisible by bin_size.\n");
+        printf("    Bin by modes.\n"
+               "    bin_size is %d THz.\n", h->bin_size);
+    }
+
+
+    // Hidden feature implementation
+    if (num_param == 13)
+    {
+        if (strcmp(param[10], "atom_range") == 0)
+        {
+            if(!is_valid_int(param[11], &measure->hnema.atom_begin) ||
+               !is_valid_int(param[12], &measure->hnema.atom_end))
+            {
+                print_error("HNEMA atom_begin & atom_end must be integers.\n");
+            }
+            if (measure->hnema.atom_begin > measure->hnema.atom_end)
+            {
+                print_error("atom_begin must be less than atom_end.\n");
+            }
+            if (measure->hnema.atom_begin < 0)
+            {
+                print_error("atom_begin must be greater than 0.\n");
+            }
+            if (measure->hnema.atom_end >= atom->number_of_types)
+            {
+                print_error("atom_end must be greater than 0.\n");
+            }
+        }
+        else
+        {
+            print_error("Invalid HNEMA keyword.\n");
+        }
+        printf("    Use select atom range.\n"
+               "    Atom types %d to %d.\n",
+               measure->hnema.atom_begin, measure->hnema.atom_end);
+    }
+    else // default behavior
+    {
+        measure->hnema.atom_begin = 0;
+        measure->hnema.atom_end = atom->number_of_types - 1;
+    }
+
+}
 
 void parse_compute_hnemd(char **param, int num_param, Measure* measure)
 {

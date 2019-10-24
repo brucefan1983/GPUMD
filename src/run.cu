@@ -386,6 +386,10 @@ void Run::parse
     {
         parse_compute_gkma(param, num_param, measure, atom);
     }
+    else if (strcmp(param[0], "compute_hnema")   == 0)
+    {
+        parse_compute_hnema(param, num_param, measure, atom);
+    }
     else if (strcmp(param[0], "deform")         == 0)
     {
         parse_deform(param, num_param, integrate);
