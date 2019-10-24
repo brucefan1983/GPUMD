@@ -602,7 +602,7 @@ void HNEMA::process(int step, Atom *atom, Integrate *integrate, real fe)
     FILE *fid = fopen(hnema_file_position, "a");
     for (int i = 0; i < num_bins; i++)
     {
-        fprintf(fid, "%25.15f %25.15f %25.15f %25.15f %25.15f\n",
+        fprintf(fid, "%g %g %g %g %g\n",
                 bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins],
                          bin_out[i+3*num_bins], bin_out[i+4*num_bins]);
     }
