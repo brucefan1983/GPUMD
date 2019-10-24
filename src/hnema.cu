@@ -344,15 +344,15 @@ static __global__ void gpu_find_hnema_jmn
         vz_gk=rsqrtmass*g_eig[neig + (2 + nm*3)*num_participating]
                               *g_xdot[nm + 2*num_modes];
 
-        g_jmn[neig + nm*num_participating] =
+        g_jmn[neig + nm*num_participating] +=
                 sxx[nglobal] * vx_gk + sxy[nglobal] * vy_gk; // x-in
-        g_jmn[neig + (nm+num_modes)*num_participating] =
+        g_jmn[neig + (nm+num_modes)*num_participating] +=
                 sxz[nglobal] * vz_gk; // x-out
-        g_jmn[neig + (nm+2*num_modes)*num_participating] =
+        g_jmn[neig + (nm+2*num_modes)*num_participating] +=
                 syx[nglobal] * vx_gk + syy[nglobal] * vy_gk; // y-in
-        g_jmn[neig + (nm+3*num_modes)*num_participating] =
+        g_jmn[neig + (nm+3*num_modes)*num_participating] +=
                 syz[nglobal] * vz_gk; // y-out
-        g_jmn[neig + (nm+4*num_modes)*num_participating] =
+        g_jmn[neig + (nm+4*num_modes)*num_participating] +=
                 szx[nglobal] * vx_gk + szy[nglobal] * vy_gk + szz[nglobal] * vz_gk; // z-all
 
     }
@@ -531,24 +531,12 @@ void HNEMA::preprocess(char *input_dir, Atom *atom)
 
         // Initialize modal measured quantities
         int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
-        gpu_reset_data<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-        (
-                num_elements, jm
-        );
-        CUDA_CHECK_KERNEL
-
         gpu_reset_data
         <<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
         (
                 num_elements*num_participating, jmn
         );
         CUDA_CHECK_KERNEL
-
-        gpu_reset_data
-        <<<(num_bins * NUM_OF_HEAT_COMPONENTS - 1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-        (
-                num_bins*NUM_OF_HEAT_COMPONENTS, bin_out
-        );
 }
 
 void HNEMA::process(int step, Atom *atom, Integrate *integrate, real fe)
