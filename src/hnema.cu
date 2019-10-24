@@ -23,11 +23,14 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #include "hnema.cuh"
 #include "atom.cuh"
+#include "integrate.cuh"
+#include "ensemble.cuh"
 #include <fstream>
 #include <string>
 #include <iostream>
 #include <sstream>
 
+#define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128
 #define ACCUM_BLOCK 1024
 #define BIN_BLOCK 128
@@ -46,15 +49,15 @@ static __global__ void gpu_reset_data
     }
 }
 
-static __global__ void gpu_average_jm
+static __global__ void gpu_scale_jm
 (
-        int num_elements, int samples_per_output, real* jm
+        int num_elements, real factor, real* jm
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < num_elements)
     {
-        jm[n]/=(float)samples_per_output;
+        jm[n]*=factor;
     }
 }
 
@@ -127,7 +130,7 @@ static __global__ void gpu_hnema_reduce_jmn
     s_data_xin[tid] = ZERO;
     s_data_xout[tid] = ZERO;
     s_data_yin[tid] = ZERO;
-    s_data_xout[tid] = ZERO;
+    s_data_yout[tid] = ZERO;
     s_data_z[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
@@ -371,7 +374,7 @@ void HNEMA::compute_hnema_heat(Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    gpu_hnema_reduce<<<num_modes, ACCUM_BLOCK>>>
+    gpu_hnema_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
     (
         num_participating, num_modes, xdotn, xdot
     );
@@ -548,7 +551,7 @@ void HNEMA::preprocess(char *input_dir, Atom *atom)
         );
 }
 
-void HNEMA::process(int step, Atom *atom)
+void HNEMA::process(int step, Atom *atom, Integrate *integrate, real fe)
 {
     if (!compute) return;
     if (!((step+1) % sample_interval == 0)) return;
@@ -565,9 +568,13 @@ void HNEMA::process(int step, Atom *atom)
 
 
     int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
-    gpu_average_jm<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+    real volume = atom->box.get_volume();
+    real factor = KAPPA_UNIT_CONVERSION/
+        (volume * integrate->ensemble->temperature
+                * fe * (real)samples_per_output);
+    gpu_scale_jm<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (
-            num_elements, samples_per_output, jm
+            num_elements, factor, jm
     );
     CUDA_CHECK_KERNEL
 
@@ -591,15 +598,16 @@ void HNEMA::process(int step, Atom *atom)
     }
 
     // Compute thermal conductivity and output
-//    cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
-//    FILE *fid = fopen(hnema_file_position, "a");
-//    for (int i = 0; i < num_bins; i++)
-//    {
-//        fprintf(fid, "%25.15e %25.15e %25.15e\n",
-//         bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins]);
-//    }
-//    fflush(fid);
-//    fclose(fid);
+    cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
+    FILE *fid = fopen(hnema_file_position, "a");
+    for (int i = 0; i < num_bins; i++)
+    {
+        fprintf(fid, "%25.15f %25.15f %25.15f %25.15f %25.15f\n",
+                bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins],
+                         bin_out[i+3*num_bins], bin_out[i+4*num_bins]);
+    }
+    fflush(fid);
+    fclose(fid);
 
     gpu_reset_data<<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
     (

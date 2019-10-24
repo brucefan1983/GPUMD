@@ -311,7 +311,7 @@ void Measure::process
     shc.process(step, input_dir, atom);
     hnemd.process(step, input_dir, atom, integrate);
     gkma.process(step, atom);
-    hnema.process(step, atom);
+    hnema.process(step, atom, integrate, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);
 
 }

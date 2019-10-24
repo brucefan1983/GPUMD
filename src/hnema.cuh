@@ -47,7 +47,7 @@ public:
     char hnema_file_position[FILE_NAME_LENGTH];
 
     void preprocess(char*, Atom*);
-    void process(int, Atom*);
+    void process(int, Atom*, Integrate*, real);
     void postprocess();
 
 private:

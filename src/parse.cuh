@@ -39,6 +39,7 @@ void parse_num_dos_points(char **param, Measure *measure, int *k);
 void parse_compute_dos(char**, int , Measure*, Group *group);
 void parse_compute_sdc(char**, int , Measure*, Group *group);
 void parse_compute_gkma(char**, int, Measure*, Atom*);
+void parse_compute_hnema(char **, int, Measure*, Atom*);
 void parse_compute_hac(char**, int , Measure*);
 void parse_compute_hnemd(char**, int, Measure*);
 void parse_compute_shc(char**,  int, Measure*);

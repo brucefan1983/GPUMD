@@ -1031,6 +1031,11 @@ void parse_compute_hnema(char **param, int num_param, Measure* measure, Atom* at
         print_error("fe_z for HNEMD should be a real number.\n");
     }
     printf("    fe_z = %g /A\n", measure->hnemd.fe_z);
+    // magnitude of the vector
+    measure->hnemd.fe  = measure->hnemd.fe_x * measure->hnemd.fe_x;
+    measure->hnemd.fe += measure->hnemd.fe_y * measure->hnemd.fe_y;
+    measure->hnemd.fe += measure->hnemd.fe_z * measure->hnemd.fe_z;
+    measure->hnemd.fe  = sqrt(measure->hnemd.fe);
 
 
     if (strcmp(param[8], "bin_size") == 0)
@@ -1078,7 +1083,7 @@ void parse_compute_hnema(char **param, int num_param, Measure* measure, Atom* at
             print_error("bin_size must be greater than zero.\n");
         }
         printf("    Bin by frequency.\n"
-               "    f_bin_size is %f THz.\n", g->f_bin_size);
+               "    f_bin_size is %f THz.\n", h->f_bin_size);
     }
     else
     {
