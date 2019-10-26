@@ -22,6 +22,7 @@
 #include "hac.cuh"
 #include "shc.cuh"
 #include "gkma.cuh"
+#include "hnema.cuh"
 #include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
@@ -71,6 +72,7 @@ public:
     HNEMD hnemd;
     Compute compute;
     GKMA gkma;
+    HNEMA hnema;
     DUMP_POS* dump_pos;
 protected:
     void dump_thermos(FILE*, Atom*, int);

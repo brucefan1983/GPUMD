@@ -204,7 +204,7 @@ void Potential::find_properties_many_body
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        compute_shc, measure->hnemd.compute,
+        compute_shc, compute_hnemd,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, N1, N2, atom->box.triclinic,
         atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
@@ -235,6 +235,11 @@ void Potential::find_measurement_flags(Atom* atom, Measure* measure)
     if (measure->shc.compute)
     {
         compute_shc = (atom->step + 1) % measure->shc.sample_interval == 0;
+    }
+    compute_hnemd = 0;
+    if (measure->hnemd.compute == 1 || measure->hnema.compute == 1)
+    {
+        compute_hnemd = 1;
     }
 }
 
