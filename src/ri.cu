@@ -299,15 +299,15 @@ void RI::compute(Atom *atom, Measure *measure, int potential_number)
     {
         GPU_FIND_FORCE(1, 0, 0);
     }
-    else if (compute_shc && !measure->hnemd.compute)
+    else if (compute_shc && !compute_hnemd)
     {
         GPU_FIND_FORCE(0, 1, 0);
     }
-    else if (measure->hnemd.compute && !compute_shc)
+    else if (compute_hnemd && !compute_shc)
     {
         GPU_FIND_FORCE(0, 0, 1);
     }
-    else if (measure->hnemd.compute && compute_shc)
+    else if (compute_hnemd && compute_shc)
     {
         GPU_FIND_FORCE(0, 1, 1);
     }

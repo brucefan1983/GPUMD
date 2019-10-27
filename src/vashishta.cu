@@ -611,7 +611,7 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
         }
         CUDA_CHECK_KERNEL
     }
-    else if (compute_shc && !measure->hnemd.compute)
+    else if (compute_shc && !compute_hnemd)
     {
         if (use_table == 0)
         {
@@ -623,7 +623,7 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
         }
         CUDA_CHECK_KERNEL
     }
-    else if (measure->hnemd.compute && !compute_shc)
+    else if (compute_hnemd && !compute_shc)
     {
         if (use_table == 0)
         {
@@ -635,7 +635,7 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
         }
         CUDA_CHECK_KERNEL
     }
-    else if (measure->hnemd.compute && compute_shc)
+    else if (compute_hnemd && compute_shc)
     {
         if (use_table == 0)
         {
