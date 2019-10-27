@@ -121,7 +121,7 @@ static __global__ void gpu_gkma_reduce_jmn
     s_data_xin[tid] = ZERO;
     s_data_xout[tid] = ZERO;
     s_data_yin[tid] = ZERO;
-    s_data_xout[tid] = ZERO;
+    s_data_yout[tid] = ZERO;
     s_data_z[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
