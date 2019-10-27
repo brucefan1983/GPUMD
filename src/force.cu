@@ -529,7 +529,7 @@ void Force::compute(Atom *atom, Measure* measure)
 
     CHECK(cudaFree(ftot));
 #else
-    if (measure->hnemd.compute)
+    if (measure->hnemd.compute || measure->hnema.compute)
     {
         real *ftot; // total force vector of the system
         CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));

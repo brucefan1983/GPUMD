@@ -1001,15 +1001,15 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     {
         FIND_FORCE_STEP0(1, 0, 0);
     }
-    else if (measure->hnemd.compute && !compute_shc)
+    else if (compute_hnemd && !compute_shc)
     {
         FIND_FORCE_STEP0(0, 0, 1);
     }
-    else if (compute_shc && !measure->hnemd.compute)
+    else if (compute_shc && !compute_hnemd)
     {
         FIND_FORCE_STEP0(0, 1, 0);
     }
-    else if (compute_shc && measure->hnemd.compute)
+    else if (compute_shc && compute_hnemd)
     {
         FIND_FORCE_STEP0(0, 1, 1);
     }

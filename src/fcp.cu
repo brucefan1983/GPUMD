@@ -681,6 +681,7 @@ static __global__ void gpu_save_pfj
 void FCP::compute(Atom *atom, Measure *measure, int potential_number)
 {
     const int block_size = 1024;
+    find_measurement_flags(atom, measure);
 
     gpu_get_uv<<<(atom->N - 1) / block_size + 1, block_size>>>
     (
@@ -693,7 +694,7 @@ void FCP::compute(Atom *atom, Measure *measure, int potential_number)
 
     gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>
     (
-        measure->hnemd.compute, 
+        compute_hnemd,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, number2, fcp_data.ia2, fcp_data.jb2, fcp_data.phi2,
         fcp_data.uv, fcp_data.xij2, fcp_data.yij2, fcp_data.zij2, fcp_data.pfj
