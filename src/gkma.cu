@@ -39,19 +39,6 @@ https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 #define BLOCK_SIZE_FORCE 64
 #define BLOCK_SIZE_GK 16
 
-
-static __global__ void gpu_reset_data
-(
-        int num_elements, real* data
-)
-{
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < num_elements)
-    {
-        data[n] = ZERO;
-    }
-}
-
 static __global__ void gpu_gkma_reduce_xdotn
 (
         int num_participating, int num_modes,
@@ -121,7 +108,7 @@ static __global__ void gpu_gkma_reduce_jmn
     s_data_xin[tid] = ZERO;
     s_data_xout[tid] = ZERO;
     s_data_yin[tid] = ZERO;
-    s_data_xout[tid] = ZERO;
+    s_data_yout[tid] = ZERO;
     s_data_z[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
@@ -521,27 +508,6 @@ void GKMA::preprocess(char *input_dir, Atom *atom)
         sizeof(real) * num_bins * NUM_OF_HEAT_COMPONENTS
     ));
 
-    // Initialize modal measured quantities
-    int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
-    gpu_reset_data<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-    (
-            num_elements, jm
-    );
-    CUDA_CHECK_KERNEL
-
-    gpu_reset_data
-    <<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-    (
-            num_elements*num_participating, jmn
-    );
-    CUDA_CHECK_KERNEL
-
-    gpu_reset_data
-    <<<(num_bins * NUM_OF_HEAT_COMPONENTS - 1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-    (
-            num_bins*NUM_OF_HEAT_COMPONENTS, bin_out
-    );
-
 }
 
 
@@ -587,13 +553,6 @@ void GKMA::process(int step, Atom *atom)
     }
     fflush(fid);
     fclose(fid);
-
-    int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
-    gpu_reset_data<<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-    (
-            num_elements*num_participating, jmn
-    );
-    CUDA_CHECK_KERNEL
 
 }
 
