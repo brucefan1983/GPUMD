@@ -79,6 +79,7 @@ void print_compile_information(void)
     print_line_1();
     printf("Compiling options:\n");
     print_line_2();
+
 #ifdef DEBUG
     printf("DEBUG is on: Use a fixed PRNG seed for different runs.\n");
 #else
@@ -86,6 +87,10 @@ void print_compile_information(void)
     clock_gettime(CLOCK_MONOTONIC, &ts);
     srand((time_t)ts.tv_nsec); // ns random number
     printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
+#endif
+
+#ifdef USE_FCP
+    printf("USE_FCP is on: Using the force constant potential only.\n");
 #endif
 }
 
