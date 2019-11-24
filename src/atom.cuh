@@ -21,7 +21,7 @@
 #include "neighbor.cuh"
 #include "common.cuh"
 
-#define MAX_NUMBER_OF_GROUPS 10
+const int MAX_NUMBER_OF_GROUPS = 10;
 
 class Atom
 {
@@ -29,7 +29,7 @@ public:
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
-    real *x0; real *y0; real *z0; // for determing when to update neighbor list
+    real *x0; real *y0; real *z0; // determining when to update neighbor list
     real *mass;                   // per-atom mass
     real *x; real *y; real *z;    // per-atom position
     real *vx; real *vy; real *vz; // per-atom velocity

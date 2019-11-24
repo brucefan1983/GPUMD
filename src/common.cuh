@@ -25,24 +25,24 @@
 
 #define LDG(a, n) __ldg(a + n)
 
-#define FILE_NAME_LENGTH      200
+const int FILE_NAME_LENGTH = 200;
 #define GPUMD_VERSION "2.5"
-// See section 3.1 in the manual for the unit conventions
+
 typedef double real;
-#define ZERO  0.0
-#define HALF  0.5
-#define ONE   1.0
-#define TWO   2.0
-#define THREE 3.0
-#define FOUR  4.0
-#define FIVE  5.0
-#define SIX   6.0
-#define PI    3.14159265358979
-#define K_B   8.617343e-5                      // Boltzmann's constant
-#define K_C   14.399645                        // 1/(4*PI*epsilon_0)
-#define PRESSURE_UNIT_CONVERSION 1.602177e+2   // from natural to GPa
-#define TIME_UNIT_CONVERSION     1.018051e+1   // from natural to fs
-#define KAPPA_UNIT_CONVERSION    1.573769e+5   // from natural to W/mK
+const real ZERO  = 0.0;
+const real HALF  = 0.5;
+const real ONE   = 1.0;
+const real TWO   = 2.0;
+const real THREE = 3.0;
+const real FOUR  = 4.0;
+const real FIVE  = 5.0;
+const real SIX   = 6.0;
+const real PI    = 3.14159265358979;
+const real K_B   = 8.617343e-5;                      // Boltzmann's constant
+const real K_C   = 14.399645;                        // 1/(4*PI*epsilon_0)
+const real PRESSURE_UNIT_CONVERSION = 1.602177e+2;   // from natural to GPa
+const real TIME_UNIT_CONVERSION     = 1.018051e+1;   // from natural to fs
+const real KAPPA_UNIT_CONVERSION    = 1.573769e+5;   // from natural to W/mK
 
 
 class Atom;

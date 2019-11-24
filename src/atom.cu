@@ -22,9 +22,7 @@ The class defining the simulation model.
 #include "atom.cuh"
 #include "error.cuh"
 
-#define DIM 3
-#define NUM_OF_HEAT_COMPONENTS 5
-#define FILE_NAME_LENGTH 200
+const int NUM_OF_HEAT_COMPONENTS = 5;
 
 
 Atom::Atom(char *input_dir)
@@ -80,10 +78,10 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
         printf("Specify initial velocities here.\n");
     if (num_of_grouping_methods == 0)
         printf("Have no grouping method.\n");
-    else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 2)
+    else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 10)
         printf("Have %d grouping method(s).\n", num_of_grouping_methods);
     else
-        print_error("Number of grouping methods should be 1 or 2.\n");
+        print_error("Number of grouping methods should be 1 to 10.\n");
 }  
 
 
