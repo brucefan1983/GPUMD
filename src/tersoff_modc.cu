@@ -235,15 +235,13 @@ static __device__ void find_e
 // step 1: pre-compute all the bond-order functions and their derivatives
 static __global__ void find_force_tersoff_step1
 (
-    int number_of_particles, int N1, int N2, 
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, int N1, int N2, Box box,
     int num_types, int* g_neighbor_number, int* g_neighbor_list,
     int* g_type, int shift,
     const real* __restrict__ ters,
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
-    const real* __restrict__ g_box,
     real* g_b, real* g_bp
 )
 {
@@ -263,7 +261,7 @@ static __global__ void find_force_tersoff_step1
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real zeta = ZERO;
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -274,8 +272,7 @@ static __global__ void find_force_tersoff_step1
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, 
-                    x13, y13, z13);
+                dev_apply_mic(box, x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 real fc_ijk_13, g_ijk, e_ijk_12_13;
@@ -310,8 +307,7 @@ static __global__ void find_force_tersoff_step1
 // step 2: calculate all the partial forces dU_i/dr_ij
 static __global__ void find_force_tersoff_step2
 (
-    int number_of_particles, int N1, int N2, 
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, int N1, int N2, Box box,
     int num_types, int *g_neighbor_number, int *g_neighbor_list,
     int *g_type, int shift,
     const real* __restrict__ ters,
@@ -320,7 +316,6 @@ static __global__ void find_force_tersoff_step2
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
     const real* __restrict__ g_z,
-    const real* __restrict__ g_box,
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {
@@ -343,7 +338,7 @@ static __global__ void find_force_tersoff_step2
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real d12inv = ONE / d12;
             real fc_ijj_12, fcp_ijj_12;
@@ -382,8 +377,7 @@ static __global__ void find_force_tersoff_step2
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, 
-                    x13, y13, z13);
+                dev_apply_mic(box, x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 real fc_ikk_13, fc_ijk_13, fa_ikk_13, fc_ikj_12, fcp_ikj_12;
                 int ikj = type1 * num_types2 + type3 * num_types + type2;
@@ -442,17 +436,12 @@ void Tersoff_modc::compute(Atom *atom, Measure *measure, int potential_number)
     int N = atom->N;
     int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    int triclinic = atom->box.triclinic;
-    int pbc_x = atom->box.pbc_x;
-    int pbc_y = atom->box.pbc_y;
-    int pbc_z = atom->box.pbc_z;
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
     int *type = atom->type;
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
-    real *box = atom->box.h;
     real *pe = atom->potential_per_atom;
 
     // special data for Tersoff potential
@@ -465,16 +454,16 @@ void Tersoff_modc::compute(Atom *atom, Measure *measure, int potential_number)
     // pre-compute the bond order functions and their derivatives
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, num_types,
-        NN, NL, type, shift, ters, x, y, z, box, b, bp
+        N, N1, N2, atom->box, num_types,
+        NN, NL, type, shift, ters, x, y, z, b, bp
     );
     CUDA_CHECK_KERNEL
 
     // pre-compute the partial forces
     find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, num_types,
-        NN, NL, type, shift, ters, b, bp, x, y, z, box, pe, f12x, f12y, f12z
+        N, N1, N2, atom->box, num_types,
+        NN, NL, type, shift, ters, b, bp, x, y, z, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 

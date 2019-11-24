@@ -131,11 +131,10 @@ static __global__ void prefix_sum
 // construct the Verlet neighbor list from the cell list
 static __global__ void gpu_find_neighbor_ON1
 (
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    int N, int* cell_counts, int* cell_count_sum, int* cell_contents, 
+    Box box, int N, int* cell_counts, int* cell_count_sum, int* cell_contents, 
     int* NN, int* NL,
     real* x, real* y, real* z, int cell_n_x, int cell_n_y, int cell_n_z, 
-    const real* __restrict__ box, real cutoff, real cutoff_square
+    real cutoff, real cutoff_square
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -154,9 +153,9 @@ static __global__ void gpu_find_neighbor_ON1
             x1, y1, z1, cutoff, cell_n_x, cell_n_y, cell_n_z, 
             &cell_id_x, &cell_id_y, &cell_id_z, &cell_id
         );
-        int klim = pbc_z ? 1 : 0;
-        int jlim = pbc_y ? 1 : 0;
-        int ilim = pbc_x ? 1 : 0;
+        int klim = box.pbc_z ? 1 : 0;
+        int jlim = box.pbc_y ? 1 : 0;
+        int ilim = box.pbc_x ? 1 : 0;
         // loop over the neighbor cells of the central cell
         for (int k=-klim; k<klim+1; ++k)
         {
@@ -185,8 +184,7 @@ static __global__ void gpu_find_neighbor_ON1
                         real x12 = x[n2]-x1;
                         real y12 = y[n2]-y1;
                         real z12 = z[n2]-z1;
-                        dev_apply_mic
-                        (triclinic, pbc_x, pbc_y, pbc_z, box, x12, y12, z12);
+                        dev_apply_mic(box, x12, y12, z12);
                         real d2 = x12*x12 + y12*y12 + z12*z12;
                         if (d2 < cutoff_square)
                         {
@@ -237,9 +235,8 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     CUDA_CHECK_KERNEL
     gpu_find_neighbor_ON1<<<grid_size, BLOCK_SIZE>>>
     (
-        box.triclinic, box.pbc_x, box.pbc_y, box.pbc_z,
-        N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
-        cell_n_x, cell_n_y, cell_n_z, box.h, rc, rc2
+        box, N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+        cell_n_x, cell_n_y, cell_n_z, rc, rc2
     );
     CUDA_CHECK_KERNEL
     CHECK(cudaFree(cell_count));

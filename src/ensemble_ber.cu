@@ -82,9 +82,9 @@ static __global__ void gpu_berendsen_temperature
 static __global__ void gpu_berendsen_pressure
 (
     int deform_x, int deform_y, int deform_z, real deform_rate,
-    int number_of_particles, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, Box box,
     real p0x, real p0y, real p0z, real p_coupling, 
-    real *g_prop, real *g_box_length, real *g_x, real *g_y, real *g_z
+    real *g_prop, real *g_x, real *g_y, real *g_z
 )
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -92,44 +92,87 @@ static __global__ void gpu_berendsen_pressure
     {
         if (deform_x)
         {
-            real scale_factor = g_box_length[0];
+            real scale_factor = box.cpu_h[0];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_x[i] *= scale_factor;
-            if (i == 0) { g_box_length[0] *= scale_factor; }
         }
-        else if (pbc_x == 1)
+        else if (box.pbc_x == 1)
         {
             real scale_factor = ONE - p_coupling * (p0x - g_prop[2]);
             g_x[i] *= scale_factor;
-            if (i == 0) { g_box_length[0] *= scale_factor; }
         }
         if (deform_y)
         {
-            real scale_factor = g_box_length[1];
+            real scale_factor = box.cpu_h[1];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_y[i] *= scale_factor;
-            if (i == 1) { g_box_length[1] *= scale_factor; }
         }
-        else if (pbc_y == 1)
+        else if (box.pbc_y == 1)
         {
             real scale_factor = ONE - p_coupling * (p0y - g_prop[3]);
             g_y[i] *= scale_factor;
-            if (i == 1) { g_box_length[1] *= scale_factor; }
         }
         if (deform_z)
         {
-            real scale_factor = g_box_length[2];
+            real scale_factor = box.cpu_h[2];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_z[i] *= scale_factor;
-            if (i == 2) {g_box_length[2] *= scale_factor;}
         }
-        else if (pbc_z == 1)
+        else if (box.pbc_z == 1)
         {
             real scale_factor = ONE - p_coupling * (p0z - g_prop[4]);
             g_z[i] *= scale_factor;
-            if (i == 2) {g_box_length[2] *= scale_factor;}
         }
     }
+}
+
+
+static void cpu_berendsen_pressure
+(
+    int deform_x, int deform_y, int deform_z, real deform_rate, Box& box,
+    real p0x, real p0y, real p0z, real p_coupling, real *thermo
+)
+{
+    real *p; MY_MALLOC(p, real, 3);
+    CHECK(cudaMemcpy(p, thermo+2, sizeof(real)*3, cudaMemcpyDeviceToHost));
+
+    if (deform_x)
+    {
+        real scale_factor = box.cpu_h[0];
+        scale_factor = (scale_factor + deform_rate) / scale_factor;
+        box.cpu_h[0] *= scale_factor;
+    }
+    else if (box.pbc_x == 1)
+    {
+        real scale_factor = ONE - p_coupling * (p0x - p[0]);
+        box.cpu_h[0] *= scale_factor;
+    }
+
+    if (deform_y)
+    {
+        real scale_factor = box.cpu_h[1];
+        scale_factor = (scale_factor + deform_rate) / scale_factor;
+        box.cpu_h[1] *= scale_factor;
+    }
+    else if (box.pbc_y == 1)
+    {
+        real scale_factor = ONE - p_coupling * (p0y - p[1]);
+        box.cpu_h[1] *= scale_factor;
+    }
+
+    if (deform_z)
+    {
+        real scale_factor = box.cpu_h[2];
+        scale_factor = (scale_factor + deform_rate) / scale_factor;
+        box.cpu_h[2] *= scale_factor;
+    }
+    else if (box.pbc_z == 1)
+    {
+        real scale_factor = ONE - p_coupling * (p0x - p[2]);
+        box.cpu_h[2] *= scale_factor;
+    }
+
+    MY_FREE(p);
 }
 
 
@@ -149,12 +192,16 @@ void Ensemble_BER::compute(Atom *atom, Force *force, Measure* measure)
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (
             deform_x, deform_y, deform_z, deform_rate, atom->N,
-            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, pressure_x, 
+            atom->box, pressure_x, 
             pressure_y, pressure_z, pressure_coupling, atom->thermo,
-            atom->box.h, atom->x, atom->y, atom->z
+            atom->x, atom->y, atom->z
         );
         CUDA_CHECK_KERNEL
-        atom->box.update_cpu_h();
+        cpu_berendsen_pressure
+        (
+            deform_x, deform_y, deform_z, deform_rate, atom->box, pressure_x,
+            pressure_y, pressure_z, pressure_coupling, atom->thermo
+        );
     }
 }
 

@@ -44,7 +44,7 @@ static __global__ void gpu_find_force_many_body
     int calculate_shc, int calculate_hnemd,
     real fe_x, real fe_y, real fe_z,
     int number_of_particles, int N1, int N2,
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    Box box,
     int *g_neighbor_number, int *g_neighbor_list,
     const real* __restrict__ g_f12x,
     const real* __restrict__ g_f12y,
@@ -55,7 +55,6 @@ static __global__ void gpu_find_force_many_body
     const real* __restrict__ g_vx,
     const real* __restrict__ g_vy,
     const real* __restrict__ g_vz,
-    const real* __restrict__ g_box,
     real *g_fx, real *g_fy, real *g_fz,
     real *g_virial,
     int *g_label, int *g_fv_index, real *g_fv,
@@ -100,7 +99,7 @@ static __global__ void gpu_find_force_many_body
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
 
             real f12x = LDG(g_f12x, index);
             real f12y = LDG(g_f12y, index);
@@ -206,10 +205,9 @@ void Potential::find_properties_many_body
     (
         compute_shc, compute_hnemd,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
-        atom->N, N1, N2, atom->box.triclinic,
-        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, NN,
+        atom->N, N1, N2, atom->box, NN,
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
-        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,
+        atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,
         atom->virial_per_atom, atom->group[0].label,
         measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,
         measure->shc.b_map, measure->shc.count_b

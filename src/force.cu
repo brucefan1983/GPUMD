@@ -298,11 +298,10 @@ void Force::add_potential(char* input_dir, Atom *atom)
 // Construct the local neighbor list from the global one (Kernel)
 static __global__ void gpu_find_neighbor_local
 (
-    int triclinic, int pbc_x, int pbc_y, int pbc_z, 
+    Box box, 
     int type_begin, int type_end, int *type,
     int *group, int group_method,
     int N, int N1, int N2, real cutoff_square, 
-    const real* __restrict__ box,
     int *NN, int *NL, int *NN_local, int *NL_local,
 #ifdef USE_LDG
     const real* __restrict__ x, 
@@ -316,7 +315,6 @@ static __global__ void gpu_find_neighbor_local
     //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
-
 
     if (n1 >= N1 && n1 < N2)
     {  
@@ -340,7 +338,7 @@ static __global__ void gpu_find_neighbor_local
             real x12  = LDG(x, n2) - x1;
             real y12  = LDG(y, n2) - y1;
             real z12  = LDG(z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
             {        
@@ -361,11 +359,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int N = atom->N;
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
-    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1; 
-    int triclinic = atom->box.triclinic;
-    int pbc_x = atom->box.pbc_x;
-    int pbc_y = atom->box.pbc_y;
-    int pbc_z = atom->box.pbc_z;
+    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
     int *group = atom->group[group_method].label;
     int *NN = atom->NN;
     int *NL = atom->NL;
@@ -376,12 +370,11 @@ void Force::find_neighbor_local(Atom *atom, int m)
     real *x = atom->x;
     real *y = atom->y;
     real *z = atom->z;
-    real *box = atom->box.h;
       
     gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
     (
-        triclinic, pbc_x, pbc_y, pbc_z, type1, type2, type, group,
-        group_method, N, N1, N2, rc2, box, NN, NL, NN_local, NL_local, x, y, z
+        atom->box, type1, type2, type, group,
+        group_method, N, N1, N2, rc2, NN, NL, NN_local, NL_local, x, y, z
     );
     CUDA_CHECK_KERNEL
 

@@ -107,29 +107,28 @@ int Atom::check_atom_distance(void)
 // pull the atoms back to the box after updating the neighbor list
 static __global__ void gpu_apply_pbc
 (
-    int N, int triclinic, int pbc_x, int pbc_y, int pbc_z, 
-    const real* __restrict__ h, real *g_x, real *g_y, real *g_z
+    int N, Box box, real *g_x, real *g_y, real *g_z
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
     {
-        if (triclinic == 0)
+        if (box.triclinic == 0)
         {
-            real lx = LDG(h, 0);
-            real ly = LDG(h, 1);
-            real lz = LDG(h, 2);
-            if (pbc_x == 1)
+            real lx = box.cpu_h[0];
+            real ly = box.cpu_h[1];
+            real lz = box.cpu_h[2];
+            if (box.pbc_x == 1)
             {
                 if      (g_x[n] < 0)  {g_x[n] += lx;}
                 else if (g_x[n] > lx) {g_x[n] -= lx;}
             }
-            if (pbc_y == 1)
+            if (box.pbc_y == 1)
             {
                 if      (g_y[n] < 0)  {g_y[n] += ly;}
                 else if (g_y[n] > ly) {g_y[n] -= ly;}
             }
-            if (pbc_z == 1)
+            if (box.pbc_z == 1)
             {
                 if      (g_z[n] < 0)  {g_z[n] += lz;}
                 else if (g_z[n] > lz) {g_z[n] -= lz;}
@@ -140,15 +139,15 @@ static __global__ void gpu_apply_pbc
             real x = g_x[n];
             real y = g_y[n];
             real z = g_z[n];
-            real sx = LDG(h,9)  * x + LDG(h,10) * y + LDG(h,11) * z;
-            real sy = LDG(h,12) * x + LDG(h,13) * y + LDG(h,14) * z;
-            real sz = LDG(h,15) * x + LDG(h,16) * y + LDG(h,17) * z;
-            if (pbc_x == 1) sx -= nearbyint(sx);
-            if (pbc_y == 1) sy -= nearbyint(sy);
-            if (pbc_z == 1) sz -= nearbyint(sz);
-            g_x[n] = LDG(h,0) * sx + LDG(h,1) * sy + LDG(h,2) * sz;
-            g_y[n] = LDG(h,3) * sx + LDG(h,4) * sy + LDG(h,5) * sz;
-            g_z[n] = LDG(h,6) * sx + LDG(h,7) * sy + LDG(h,8) * sz;
+            real sx = box.cpu_h[9]  * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+            real sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+            real sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+            if (box.pbc_x == 1) sx -= nearbyint(sx);
+            if (box.pbc_y == 1) sy -= nearbyint(sy);
+            if (box.pbc_z == 1) sz -= nearbyint(sz);
+            g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
+            g_y[n] = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
+            g_z[n] = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
         }
     }
 }
@@ -268,7 +267,7 @@ void Atom::find_neighbor(int is_first)
             find_neighbor();
             check_bound();
             gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-            (N, box.triclinic, box.pbc_x, box.pbc_y, box.pbc_z, box.h, x, y, z);
+            (N, box, x, y, z);
             CUDA_CHECK_KERNEL
             gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (N, x, y, z, x0, y0, z0);

@@ -39,11 +39,11 @@ J. Chem. Phys. 124, 234104 (2006).
     <<<grid_size, BLOCK_SIZE_FORCE>>>                                          \
     (                                                                          \
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
-        ri_para, atom->N, N1, N2,atom->box.triclinic, atom->box.pbc_x,         \
-        atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, atom->NL_local,      \
+        ri_para, atom->N, N1, N2, atom->box,                                   \
+        atom->NN_local, atom->NL_local,                                        \
         atom->type, shift, atom->x, atom->y, atom->z,                          \
         atom->vx, atom->vy, atom->vz,                                          \
-        atom->box.h, atom->fx, atom->fy, atom->fz, atom->virial_per_atom,      \
+        atom->fx, atom->fy, atom->fz, atom->virial_per_atom,                   \
         atom->potential_per_atom, atom->group[0].label,                        \
         measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,            \
         measure->shc.b_map, measure->shc.count_b                               \
@@ -135,8 +135,7 @@ static __global__ void gpu_find_force
 (
     real fe_x, real fe_y, real fe_z,
     RI_Para ri,
-    int number_of_particles, int N1, int N2,
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, int N1, int N2, Box box,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
     const real* __restrict__ g_x,
     const real* __restrict__ g_y,
@@ -144,7 +143,7 @@ static __global__ void gpu_find_force
     const real* __restrict__ g_vx,
     const real* __restrict__ g_vy,
     const real* __restrict__ g_vz,
-    const real* __restrict__ g_box, real *g_fx, real *g_fy, real *g_fz,
+    real *g_fx, real *g_fy, real *g_fz,
     real *g_virial, real *g_potential,
     int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
@@ -193,7 +192,7 @@ static __global__ void gpu_find_force
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12sq = x12 * x12 + y12 * y12 + z12 * z12;
 
             real p2, f2;

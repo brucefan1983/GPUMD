@@ -25,11 +25,10 @@
     <<<grid_size, BLOCK_SIZE_VASHISHTA>>>                                      \
     (                                                                          \
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
-        atom->N, N1, N2, atom->box.triclinic, atom->box.pbc_x,                 \
-        atom->box.pbc_y, atom->box.pbc_z, vashishta_para, atom->NN_local,      \
+        atom->N, N1, N2, atom->box, vashishta_para, atom->NN_local,            \
         atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,      \
         atom->type, shift, vashishta_data.table, atom->x, atom->y, atom->z,    \
-        atom->vx, atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy,         \
+        atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,                      \
         atom->fz, atom->virial_per_atom, atom->potential_per_atom,             \
         atom->group[0].label, measure->shc.fv_index,                           \
         measure->shc.fv, measure->shc.a_map, measure->shc.b_map,               \
@@ -306,8 +305,7 @@ template <int use_table, int cal_j, int cal_q, int cal_k>
 static __global__ void gpu_find_force_vashishta_2body
 (
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, 
-    int triclinic, int pbc_x, int pbc_y, int pbc_z, 
+    int number_of_particles, int N1, int N2, Box box, 
     Vashishta_Para vas,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
     int *g_type, int shift,
@@ -318,7 +316,7 @@ static __global__ void gpu_find_force_vashishta_2body
     const real* __restrict__ g_vx, 
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
-    const real* __restrict__ g_box, real *g_fx, real *g_fy, real *g_fz,
+    real *g_fx, real *g_fy, real *g_fz,
     real *g_virial, real *g_potential, 
     int *g_label, int *g_fv_index, real *g_fv,
     int *g_a_map, int *g_b_map, int g_count_b
@@ -368,7 +366,7 @@ static __global__ void gpu_find_force_vashishta_2body
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             if (d12 >= vas.rc) { continue; }
             if (d12 < vas.r0) // r0 is much smaller than rc
@@ -506,15 +504,13 @@ static __global__ void gpu_find_force_vashishta_2body
 // calculate the partial forces dU_i/dr_ij
 static __global__ void gpu_find_force_vashishta_partial
 (
-    int number_of_particles, int N1, int N2, 
-    int triclinic, int pbc_x, int pbc_y, int pbc_z, 
+    int number_of_particles, int N1, int N2, Box box, 
     Vashishta_Para vas,
     int *g_neighbor_number, int *g_neighbor_list,
     int *g_type, int shift,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z, 
-    const real* __restrict__ g_box,
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z  
 )
 {
@@ -537,7 +533,7 @@ static __global__ void gpu_find_force_vashishta_partial
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real d12inv = ONE / d12;
           
@@ -556,8 +552,7 @@ static __global__ void gpu_find_force_vashishta_partial
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box,
-                    x13, y13, z13);
+                dev_apply_mic(box, x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
                 real exp123 = exp(ONE / (d12 - vas.r0) + ONE / (d13 - vas.r0));
@@ -662,10 +657,9 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
     // 3-body part
     gpu_find_force_vashishta_partial<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        atom->N, N1, N2, atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y,
-        atom->box.pbc_z, vashishta_para, vashishta_data.NN_short,
+        atom->N, N1, N2, atom->box, vashishta_para, vashishta_data.NN_short,
         vashishta_data.NL_short, atom->type, shift, atom->x, atom->y, atom->z,
-        atom->box.h, atom->potential_per_atom, vashishta_data.f12x, 
+        atom->potential_per_atom, vashishta_data.f12x, 
         vashishta_data.f12y, vashishta_data.f12z
     );
     CUDA_CHECK_KERNEL

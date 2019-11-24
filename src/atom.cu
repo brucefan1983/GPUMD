@@ -63,12 +63,10 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
     if (box.triclinic == 0)
     {
         printf("Use orthogonal box.\n");
-        box.memory = sizeof(real) * 3;
     }
     else if (box.triclinic == 1)
     {
         printf("Use triclinic box.\n");
-        box.memory = sizeof(real) * 9;
     }
     else
         print_error("Invalid box type.\n");
@@ -89,7 +87,6 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 {
     if (box.triclinic == 1)
     {
-        MY_MALLOC(box.cpu_h, real, 18);
         double ax, ay, az, bx, by, bz, cx, cy, cz;
         int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf%lf%lf%lf%lf%lf%lf",
             &box.pbc_x, &box.pbc_y, &box.pbc_z, &ax, &ay, &az, &bx, &by, &bz,
@@ -102,7 +99,6 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
     }
     else
     {
-        MY_MALLOC(box.cpu_h, real, 6);
         double lx, ly, lz;
         int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf",
             &box.pbc_x, &box.pbc_y, &box.pbc_z, &lx, &ly, &lz);
@@ -290,7 +286,6 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
     CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
     CHECK(cudaMalloc((void**)&thermo, sizeof(real) * 6));
-    box.allocate_memory_gpu();
 }
 
 
@@ -315,7 +310,6 @@ void Atom::copy_from_cpu_to_gpu(void)
     CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(z, cpu_z, m3, cudaMemcpyHostToDevice));
-    box.copy_from_cpu_to_gpu();
 }
 
 
@@ -338,7 +332,6 @@ void Atom::free_memory_cpu(void)
     MY_FREE(cpu_vx);
     MY_FREE(cpu_vy);
     MY_FREE(cpu_vz);
-    box.free_memory_cpu();
 }
 
 
@@ -373,7 +366,6 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(potential_per_atom));
     CHECK(cudaFree(heat_per_atom));
     CHECK(cudaFree(thermo));
-    box.free_memory_gpu();
 }
 
 

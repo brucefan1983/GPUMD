@@ -23,36 +23,6 @@ The class defining the simulation box.
 #include "error.cuh"
 
 
-void Box::allocate_memory_gpu(void)
-{
-    CHECK(cudaMalloc((void**)&h, memory * 2));
-}
-
-
-void Box::copy_from_cpu_to_gpu(void)
-{
-    CHECK(cudaMemcpy(h, cpu_h, memory*2, cudaMemcpyHostToDevice));
-}
-
-
-void Box::free_memory_cpu(void)
-{
-    MY_FREE(cpu_h);
-}
-
-
-void Box::free_memory_gpu(void)
-{
-    CHECK(cudaFree(h));
-}
-
-
-void Box::update_cpu_h(void)
-{
-    CHECK(cudaMemcpy(cpu_h, h, memory, cudaMemcpyDeviceToHost));
-}
-
-
 real Box::get_volume(void)
 {
     real volume;

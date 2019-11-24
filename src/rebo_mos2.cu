@@ -167,9 +167,9 @@ C, H, O, Si atoms.
 #define FIND_FORCE_STEP0(A, B, C)                                              \
     find_force_step0<A, B, C><<<grid_size, BLOCK_SIZE_FORCE>>>                 \
     (                                                                          \
-        fe_x, fe_y, fe_z, N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z,           \
+        fe_x, fe_y, fe_z, N, N1, N2, atom->box,                                \
         NN, NL, NN_local, NL_local, type, shift,                               \
-        x, y, z, vx, vy, vz, box, p, pp, fx, fy, fz,                           \
+        x, y, z, vx, vy, vz, p, pp, fx, fy, fz,                                \
         virial, pe, label, fv_index, fv, a_map, b_map, count_b                 \
     )
 
@@ -612,8 +612,7 @@ template <int cal_j, int cal_q, int cal_k>
 static __global__ void find_force_step0
 (
     real fe_x, real fe_y, real fe_z,
-    int number_of_particles, int N1, int N2, 
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    int number_of_particles, int N1, int N2, Box box,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
     int *g_type, int shift,
     const real* __restrict__ g_x, 
@@ -622,7 +621,7 @@ static __global__ void find_force_step0
     const real* __restrict__ g_vx, 
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
-    const real* __restrict__ g_box, real *g_p,  real *g_pp,
+    real *g_p,  real *g_pp,
     real *g_fx, real *g_fy, real *g_fz,
     real *g_virial, real *g_potential, 
     int *g_label, int *g_fv_index, real *g_fv,
@@ -670,7 +669,7 @@ static __global__ void find_force_step0
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             int type2 = g_type[n2] - shift;
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
@@ -785,12 +784,11 @@ static __global__ void find_force_step0
 // Precompute the bond-order function and its derivative 
 static __global__ void find_force_step1
 (
-    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    int N, int N1, int N2, Box box,
     int* g_NN, int* g_NL, int* g_type, int shift,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z,
-    const real* __restrict__ g_box,
     real* g_b, real* g_bp, real *g_p
 )
 {
@@ -812,7 +810,7 @@ static __global__ void find_force_step1
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
 
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
             real zeta = ZERO;
@@ -825,8 +823,7 @@ static __global__ void find_force_step1
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
 
-                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box,
-                    x13, y13, z13);
+                dev_apply_mic(box, x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
                 real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
@@ -849,15 +846,14 @@ static __global__ void find_force_step1
 // calculate and save the partial forces dU_i/dr_ij
 static __global__ void find_force_step2
 (
-    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z,
+    int N, int N1, int N2, Box box,
     int *g_NN, int *g_NL, int *g_type, int shift,
     const real* __restrict__ g_b, 
     const real* __restrict__ g_bp,
     const real* __restrict__ g_pp,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
-    const real* __restrict__ g_z,
-    const real* __restrict__ g_box, 
+    const real* __restrict__ g_z, 
     real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
 )
 {
@@ -880,7 +876,7 @@ static __global__ void find_force_step2
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             real d12inv = ONE / d12;
 
@@ -911,8 +907,7 @@ static __global__ void find_force_step2
                 real x13 = LDG(g_x, n3) - x1;
                 real y13 = LDG(g_y, n3) - y1;
                 real z13 = LDG(g_z, n3) - z1;
-                dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, 
-                    x13, y13, z13);
+                dev_apply_mic(box, x13, y13, z13);
                 real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
                 real fc13, fa13;
@@ -951,10 +946,6 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     int N = atom->N;
     int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    int triclinic = atom->box.triclinic;
-    int pbc_x = atom->box.pbc_x;
-    int pbc_y = atom->box.pbc_y;
-    int pbc_z = atom->box.pbc_z;
 
     int *NN = atom->NN_local;           // for 2-body
     int *NL = atom->NL_local;           // for 2-body
@@ -971,7 +962,6 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     real *fx = atom->fx;
     real *fy = atom->fy;
     real *fz = atom->fz;
-    real *box = atom->box.h;
     real *virial = atom->virial_per_atom;
     real *pe = atom->potential_per_atom;
 
@@ -1022,16 +1012,16 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     // pre-compute the bond-order function and its derivative
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local,
-        type, shift, x, y, z, box, b, bp, p
+        N, N1, N2, atom->box, NN_local, NL_local,
+        type, shift, x, y, z, b, bp, p
     );
     CUDA_CHECK_KERNEL
 
     // pre-compute the partial force
     find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, triclinic, pbc_x, pbc_y, pbc_z, NN_local, NL_local,
-        type, shift, b, bp, pp, x, y, z, box, pe, f12x, f12y, f12z
+        N, N1, N2, atom->box, NN_local, NL_local,
+        type, shift, b, bp, pp, x, y, z, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 

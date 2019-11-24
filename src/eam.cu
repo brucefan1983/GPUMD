@@ -31,10 +31,10 @@ The EAM potential. Currently two analytical versions:
     find_force_eam_step2<A, B, C, D><<<grid_size, BLOCK_SIZE_FORCE>>>          \
     (                                                                          \
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
-        eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box.triclinic,         \
-        atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, atom->NN_local,     \
+        eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box,                   \
+        atom->NN_local,                                                        \
         atom->NL_local, eam_data.Fp, atom->x, atom->y, atom->z, atom->vx,      \
-        atom->vy, atom->vz, atom->box.h, atom->fx, atom->fy, atom->fz,         \
+        atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,                      \
         atom->virial_per_atom, atom->potential_per_atom,                       \
         atom->group[0].label, measure->shc.fv_index,                           \
         measure->shc.fv, measure->shc.a_map, measure->shc.b_map,               \
@@ -259,12 +259,11 @@ template <int potential_model>
 static __global__ void find_force_eam_step1
 (
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai, 
-    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z, 
+    int N, int N1, int N2, Box box, 
     int* g_NN, int* g_NL,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
-    const real* __restrict__ g_z,
-    const real* __restrict__ g_box, 
+    const real* __restrict__ g_z, 
     real* g_Fp, real* g_pe 
 )
 { 
@@ -286,7 +285,7 @@ static __global__ void find_force_eam_step1
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
             real rho12 = ZERO;
             if (potential_model == 0) 
@@ -317,7 +316,7 @@ static __global__ void find_force_eam_step2
 (
     real fe_x, real fe_y, real fe_z,
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
-    int N, int N1, int N2, int triclinic, int pbc_x, int pbc_y, int pbc_z, 
+    int N, int N1, int N2, Box box, 
     int *g_NN, int *g_NL,
     const real* __restrict__ g_Fp, 
     const real* __restrict__ g_x, 
@@ -326,7 +325,6 @@ static __global__ void find_force_eam_step2
     const real* __restrict__ g_vx, 
     const real* __restrict__ g_vy, 
     const real* __restrict__ g_vz,
-    const real* __restrict__ g_box,
     real *g_fx, real *g_fy, real *g_fz,
     real *g_virial, real *g_pe, 
     int *g_label, int *g_fv_index, real *g_fv,
@@ -375,7 +373,7 @@ static __global__ void find_force_eam_step2
             real x12  = LDG(g_x, n2) - x1;
             real y12  = LDG(g_y, n2) - y1;
             real z12  = LDG(g_z, n2) - z1;
-            dev_apply_mic(triclinic, pbc_x, pbc_y, pbc_z, g_box, x12, y12, z12);
+            dev_apply_mic(box, x12, y12, z12);
             real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         
             real phi, phip, fp;
@@ -489,9 +487,9 @@ void EAM::compute(Atom *atom, Measure *measure, int potential_number)
     {
         find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box.triclinic, 
-            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, 
-            atom->NL_local, atom->x, atom->y, atom->z, atom->box.h, 
+            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
+            atom->NN_local, 
+            atom->NL_local, atom->x, atom->y, atom->z, 
             eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
@@ -522,9 +520,9 @@ void EAM::compute(Atom *atom, Measure *measure, int potential_number)
     {
         find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box.triclinic, 
-            atom->box.pbc_x, atom->box.pbc_y, atom->box.pbc_z, atom->NN_local, 
-            atom->NL_local, atom->x, atom->y, atom->z, atom->box.h, 
+            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
+            atom->NN_local, 
+            atom->NL_local, atom->x, atom->y, atom->z, 
             eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
