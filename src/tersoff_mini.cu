@@ -201,7 +201,11 @@ static __global__ void find_force_step1
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12*d13);
                 double fc13, g123;
-                find_fc(para.r1[type13], para.r2[type13], para.pi_factor[type13], d13, fc13);
+                find_fc
+                (
+                    para.r1[type13], para.r2[type13], para.pi_factor[type13], 
+                    d13, fc13
+                );
                 find_g(para.h[type12], cos123, g123);
                 zeta += fc13 * g123;
             }
@@ -266,9 +270,16 @@ find_force_step2
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
             double fc12, fcp12, fa12, fap12, fr12, frp12;
-            find_fc_and_fcp(para.r1[type12], para.r2[type12], para.pi_factor[type12], d12, fc12, fcp12);
+            find_fc_and_fcp
+            (
+                para.r1[type12], para.r2[type12], para.pi_factor[type12], 
+                d12, fc12, fcp12
+            );
             find_fa_and_fap(para.b[type12], para.mu[type12], d12, fa12, fap12);
-            find_fr_and_frp(para.a[type12], para.lambda[type12], d12, fr12, frp12);
+            find_fr_and_frp
+            (
+                para.a[type12], para.lambda[type12], d12, fr12, frp12
+            );
 
             // (i,j) part
             double b12 = LDG(g_b, index);
@@ -297,7 +308,11 @@ find_force_step2
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double fc13, fa13;
-                find_fc(para.r1[type13], para.r2[type13], para.pi_factor[type13], d13, fc13);
+                find_fc
+                (
+                    para.r1[type13], para.r2[type13], para.pi_factor[type13], 
+                    d13, fc13
+                );
                 find_fa(para.b[type13], para.mu[type13], d13, fa13);
                 double bp13 = LDG(g_bp, index_2);
                 double one_over_d12d13 = ONE / (d12 * d13);
