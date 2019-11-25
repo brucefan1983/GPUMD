@@ -28,6 +28,22 @@ struct Tersoff_mini_Data
 };
 
 
+struct Tersoff_mini_Para
+{
+    real a[3];
+    real b[3];
+    real lambda[3];
+    real mu[3];
+    real beta[3];
+    real n[3];
+    real h[3];
+    real r1[3];
+    real r2[3];
+    real pi_factor[3];
+    real minus_half_over_n[3];
+};
+
+
 class Tersoff_mini : public Potential
 {
 public:   
@@ -36,7 +52,8 @@ public:
     virtual void compute(Atom*, Measure*, int);
 protected:
     int num_types; // number of atom tpyes
-    real *para;    // potential parameters
     Tersoff_mini_Data tersoff_mini_data;
+    Tersoff_mini_Para para;
 };
+
 

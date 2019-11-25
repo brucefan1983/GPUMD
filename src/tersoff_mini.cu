@@ -29,87 +29,56 @@ The minimal Tersoff potential
 
 #define BLOCK_SIZE_FORCE 64
 
-// Easy labels for indexing
-#define A                 0
-#define B                 1
-#define LAMBDA            2
-#define MU                3
-#define BETA              4
-#define EN                5
-#define H                 6
-#define R1                7
-#define R2                8
-#define PI_FACTOR         9
-#define MINUS_HALF_OVER_N 10
-#define NUM_PARAMS        11
-
 
 Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
 {
     num_types = num_of_types;
     printf("Use Tersoff-mini (%d-element) potential.\n", num_types);
-    int n_entries = num_types*num_types*num_types;
-    double *cpu_para;
-    MY_MALLOC(cpu_para, double, n_entries*NUM_PARAMS);
+    int n_entries = 2 * num_types - 1; // 1 or 3 entries
 
-    const char err[] = "Error: Illegal SBOP parameter.";
+    const char err[] = "Reading error for Tersoff-mini potential.\n";
     rc = 0.0;
     int count;
-    double d0, a, r0, beta, n, h, r1, r2;
+    double d0, a, r0, s, beta, n, h, r1, r2;
     for (int i = 0; i < n_entries; i++)
     {
         count = fscanf
         (
-            fid, "%lf%lf%lf%lf%lf%lf%lf%lf",
-            &d0, &a, &r0, &beta, &n, &h, &r1, &r2
+            fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf",
+            &d0, &a, &r0, &s, &beta, &n, &h, &r1, &r2
         );
-        if (count != 8) 
-            {printf("Error: reading error for SBOP potential.\n"); exit(1);}
+        if (count != 9) print_error(err);
+        if (d0 <= 0.0) print_error(err);
+        if (a <= 0.0) print_error(err);
+        if (r0 <= 0.0) print_error(err);
+        if(beta < 0.0) print_error(err);
+        if(n < 0.0) print_error(err);
+        if(h < -1.0 || h > 1.0) print_error(err);
+        if(r1 < 0.0) print_error(err);
+        if(r2 <= 0.0) print_error(err);
+        if(r2 <= r1) print_error(err);
 
-        if (d0 <= 0.0)
-            {printf("%s D0 must be > 0.\n",err); exit(1);}
-        if (a <= 0.0)
-            {printf("%s a must be > 0.\n",err); exit(1);}
-        if (r0 <= 0.0)
-            {printf("%s r0 must be > 0.\n",err); exit(1);}
-        if(beta < 0.0)
-            {printf("%s beta must be >= 0.\n",err); exit(1);}
-        if(n < 0.0)
-            {printf("%s n must be >= 0.\n",err); exit(1);}
-        if(h < -1.0 || h > 1.0)
-            {printf("%s |h| must be <= 1.\n",err); exit(1);}
-        if(r1 < 0.0)
-            {printf("%s R1 must be >= 0.\n",err); exit(1);}
-        if(r2 <= 0.0)
-            {printf("%s R2 must be > 0.\n",err); exit(1);}
-        if(r2 <= r1)
-            {printf("%s R2-R1 must be > 0.\n",err); exit(1);}
-
-        cpu_para[i*NUM_PARAMS + A] = d0 * exp(2.0 * a * r0);
-        cpu_para[i*NUM_PARAMS + B] = 2.0 * d0 * exp(a * r0);
-        cpu_para[i*NUM_PARAMS + LAMBDA] = 2.0 * a;
-        cpu_para[i*NUM_PARAMS + MU] = a;
-        cpu_para[i*NUM_PARAMS + BETA] = beta;
-        cpu_para[i*NUM_PARAMS + EN] = n;
-        cpu_para[i*NUM_PARAMS + H] = h;
-        cpu_para[i*NUM_PARAMS + R1] = r1;
-        cpu_para[i*NUM_PARAMS + R2] = r2;
-        cpu_para[i*NUM_PARAMS + PI_FACTOR] = PI / (r2 - r1);
-        cpu_para[i*NUM_PARAMS + MINUS_HALF_OVER_N] = - 0.5 / n;
+        para.a[i] = d0 / (s - 1.0) * exp(sqrt(2.0 * s) * a * r0);
+        para.b[i] = s * d0 / (s - 1.0) * exp(sqrt(2.0 / s) * a * r0);
+        para.lambda[i] = sqrt(2.0 * s) * a;
+        para.mu[i] = sqrt(2.0 / s) * a;
+        para.beta[i] = beta;
+        para.n[i] = n;
+        para.h[i] = h;
+        para.r1[i] = r1;
+        para.r2[i] = r2;
+        para.pi_factor[i] = PI / (r2 - r1);
+        para.minus_half_over_n[i] = - 0.5 / n;
         rc = r2 > rc ? r2 : rc;
     }
 
-    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
+    int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
     int memory1 = sizeof(double)* atom->N * num_of_neighbors;
-    int memory2 = sizeof(double)* n_entries * NUM_PARAMS;
     CHECK(cudaMalloc((void**)&tersoff_mini_data.b,    memory1));
     CHECK(cudaMalloc((void**)&tersoff_mini_data.bp,   memory1));
     CHECK(cudaMalloc((void**)&tersoff_mini_data.f12x, memory1));
     CHECK(cudaMalloc((void**)&tersoff_mini_data.f12y, memory1));
     CHECK(cudaMalloc((void**)&tersoff_mini_data.f12z, memory1));
-    CHECK(cudaMalloc((void**)&para, memory2));
-    CHECK(cudaMemcpy(para, cpu_para, memory2, cudaMemcpyHostToDevice));
-    MY_FREE(cpu_para);
 }
 
 
@@ -120,75 +89,69 @@ Tersoff_mini::~Tersoff_mini(void)
     CHECK(cudaFree(tersoff_mini_data.f12x));
     CHECK(cudaFree(tersoff_mini_data.f12y));
     CHECK(cudaFree(tersoff_mini_data.f12z));
-    CHECK(cudaFree(para));
 }
 
 
 static __device__ void find_fr_and_frp
-(int i, const double* __restrict__ para, double d12, double &fr, double &frp)
+(double a, double lambda, double d12, double &fr, double &frp)
 {
-    fr = LDG(para, i + A) * exp(- LDG(para, i + LAMBDA) * d12);
-    frp = - LDG(para, i + LAMBDA) * fr;
+    fr = a * exp(- lambda * d12);
+    frp = - lambda * fr;
 }
 
 
 static __device__ void find_fa_and_fap
-(int i, const double* __restrict__ para, double d12, double &fa, double &fap)
+(double b, double mu, double d12, double &fa, double &fap)
 {
-    fa  = LDG(para, i + B) * exp(- LDG(para, i + MU) * d12);
-    fap = - LDG(para, i + MU) * fa;
+    fa  = b * exp(- mu * d12);
+    fap = - mu * fa;
 }
 
 
-static __device__ void find_fa
-(int i, const double* __restrict__ para, double d12, double &fa)
+static __device__ void find_fa(double b, double mu, double d12, double &fa)
 {
-    fa = LDG(para, i + B) * exp(- LDG(para, i + MU) * d12);
+    fa = b * exp(- mu * d12);
 }
 
 
 static __device__ void find_fc_and_fcp
-(int i, const double* __restrict__ para, double d12, double &fc, double &fcp)
+(double r1, double r2, double pi_factor, double d12, double &fc, double &fcp)
 {
-    if (d12 < LDG(para, i + R1)){fc = 1.0; fcp = 0.0;}
-    else if (d12 < LDG(para, i + R2))
+    if (d12 < r1) {fc = 1.0; fcp = 0.0;}
+    else if (d12 < r2)
     {
-        fc = 0.5 * cos(LDG(para, i + PI_FACTOR) * (d12 - LDG(para, i + R1)))
-           + 0.5;
-
-        fcp = - sin(LDG(para, i + PI_FACTOR) * (d12 - LDG(para, i + R1))) 
-            * LDG(para, i + PI_FACTOR) * 0.5;
+        fc = 0.5 * cos(pi_factor * (d12 - r1)) + 0.5;
+        fcp = - sin(pi_factor * (d12 - r1)) * pi_factor * 0.5;
     }
     else {fc  = 0.0; fcp = 0.0;}
 }
 
 
 static __device__ void find_fc
-(int i, const double* __restrict__ para, double d12, double &fc)
+(double r1, double r2, double pi_factor, double d12, double &fc)
 {
-    if (d12 < LDG(para, i + R1)) {fc  = 1.0;}
-    else if (d12 < LDG(para, i + R2))
+    if (d12 < r1) {fc  = 1.0;}
+    else if (d12 < r2)
     {
-        fc = 0.5 * cos(LDG(para, i + PI_FACTOR) * (d12 - LDG(para, i + R1)))
-           + 0.5;
+        fc = 0.5 * cos(pi_factor * (d12 - r1)) + 0.5;
     }
     else {fc  = 0.0;}
 }
 
 
 static __device__ void find_g_and_gp
-(int i, const double* __restrict__ para, double cos, double &g, double &gp)
+(double h, double cos, double &g, double &gp)
 {
-    double tmp = cos - LDG(para, i + H);
+    double tmp = cos - h;
     g  = tmp * tmp;
     gp = 2.0 * tmp;
 }
 
 
 static __device__ void find_g
-(int i, const double* __restrict__ para, double cos, double &g)
+(double h, double cos, double &g)
 {
-    double tmp = cos - LDG(para, i + H);
+    double tmp = cos - h;
     g = tmp * tmp;
 }
 
@@ -199,7 +162,7 @@ static __global__ void find_force_step1
     int number_of_particles, int N1, int N2, Box box,
     int num_types, int* g_neighbor_number, int* g_neighbor_list,
     int* g_type, int shift,
-    const double* __restrict__ para,
+    Tersoff_mini_Para para,
     const double* __restrict__ g_x,
     const double* __restrict__ g_y,
     const double* __restrict__ g_z,
@@ -219,7 +182,7 @@ static __global__ void find_force_step1
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_neighbor_list[n1 + number_of_particles * i1];
-            int type2 = g_type[n2] - shift;
+            int type12 = type1 + g_type[n2] - shift;
             double x12  = LDG(g_x, n2) - x1;
             double y12  = LDG(g_y, n2) - y1;
             double z12  = LDG(g_z, n2) - z1;
@@ -229,8 +192,8 @@ static __global__ void find_force_step1
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int n3 = g_neighbor_list[n1 + number_of_particles * i2];
+                int type13 = type1 + g_type[n3] - shift;
                 if (n3 == n2) { continue; } // ensure that n3 != n2
-                int type3 = g_type[n3] - shift;
                 double x13 = LDG(g_x, n3) - x1;
                 double y13 = LDG(g_y, n3) - y1;
                 double z13 = LDG(g_z, n3) - z1;
@@ -238,17 +201,14 @@ static __global__ void find_force_step1
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12*d13);
                 double fc13, g123;
-                int type13 = (type1 + type3) * NUM_PARAMS;
-                if (d13 > LDG(para, type13 + R2)) {continue;}
-                find_fc(type13, para, d13, fc13);
-                find_g(type13, para, cos123, g123);
+                find_fc(para.r1[type13], para.r2[type13], para.pi_factor[type13], d13, fc13);
+                find_g(para.h[type12], cos123, g123);
                 zeta += fc13 * g123;
             }
 
             double bzn, b12;
-            int type12 = (type1 + type2) * NUM_PARAMS;
-            bzn = pow(LDG(para, type12 + BETA) * zeta, LDG(para, type12 + EN));
-            b12 = pow(1.0 + bzn, LDG(para, type12 + MINUS_HALF_OVER_N));
+            bzn = pow(para.beta[type12] * zeta, para.n[type12]);
+            b12 = pow(1.0 + bzn, para.minus_half_over_n[type12]);
             if (zeta < 1.0e-16) // avoid division by 0
             {
                 g_b[i1 * number_of_particles + n1]  = 1.0;
@@ -266,12 +226,14 @@ static __global__ void find_force_step1
 
 
 // step 2: calculate all the partial forces dU_i/dr_ij
-static __global__ void find_force_step2
+static __global__ void 
+__launch_bounds__(BLOCK_SIZE_FORCE, 10)
+find_force_step2
 (
     int number_of_particles, int N1, int N2, Box box,
     int num_types, int *g_neighbor_number, int *g_neighbor_list,
     int *g_type, int shift,
-    const double* __restrict__ para,
+    Tersoff_mini_Para para,
     const double* __restrict__ g_b,
     const double* __restrict__ g_bp,
     const double* __restrict__ g_x,
@@ -295,7 +257,7 @@ static __global__ void find_force_step2
         {
             int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
-            int type2 = g_type[n2] - shift;
+            int type12 = type1 + g_type[n2] - shift;
 
             double x12  = LDG(g_x, n2) - x1;
             double y12  = LDG(g_y, n2) - y1;
@@ -304,10 +266,9 @@ static __global__ void find_force_step2
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
             double fc12, fcp12, fa12, fap12, fr12, frp12;
-            int type12 = type1 + type2;
-            find_fc_and_fcp(type12, para, d12, fc12, fcp12);
-            find_fa_and_fap(type12, para, d12, fa12, fap12);
-            find_fr_and_frp(type12, para, d12, fr12, frp12);
+            find_fc_and_fcp(para.r1[type12], para.r2[type12], para.pi_factor[type12], d12, fc12, fcp12);
+            find_fa_and_fap(para.b[type12], para.mu[type12], d12, fa12, fap12);
+            find_fr_and_frp(para.a[type12], para.lambda[type12], d12, fr12, frp12);
 
             // (i,j) part
             double b12 = LDG(g_b, index);
@@ -329,22 +290,21 @@ static __global__ void find_force_step2
                 int index_2 = n1 + number_of_particles * i2;
                 int n3 = g_neighbor_list[index_2];
                 if (n3 == n2) { continue; }
-                int type3 = g_type[n3] - shift;
+                int type13 = type1 + g_type[n3] - shift;
                 double x13 = LDG(g_x, n3) - x1;
                 double y13 = LDG(g_y, n3) - y1;
                 double z13 = LDG(g_z, n3) - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double fc13, fa13;
-                int type13 = type1 + type3;
-                find_fc(type13, para, d13, fc13);
-                find_fa(type13, para, d13, fa13);
+                find_fc(para.r1[type13], para.r2[type13], para.pi_factor[type13], d13, fc13);
+                find_fa(para.b[type13], para.mu[type13], d13, fa13);
                 double bp13 = LDG(g_bp, index_2);
                 double one_over_d12d13 = ONE / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
                 double g123, gp123;
-                find_g_and_gp(type13, para, cos123, g123, gp123);
+                find_g_and_gp(para.h[type12], cos123, g123, gp123);
                 // derivatives with cosine
                 double dc = -fc12 * bp12 * fa12 * fc13 * gp123 
                             -fc12 * bp13 * fa13 * fc13 * gp123;
