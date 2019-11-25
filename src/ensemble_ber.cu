@@ -141,11 +141,13 @@ static void cpu_berendsen_pressure
         real scale_factor = box.cpu_h[0];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[0] *= scale_factor;
+        box.cpu_h[3] = box.cpu_h[0] * HALF;
     }
     else if (box.pbc_x == 1)
     {
         real scale_factor = ONE - p_coupling * (p0x - p[0]);
         box.cpu_h[0] *= scale_factor;
+        box.cpu_h[3] = box.cpu_h[0] * HALF;
     }
 
     if (deform_y)
@@ -153,11 +155,13 @@ static void cpu_berendsen_pressure
         real scale_factor = box.cpu_h[1];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[1] *= scale_factor;
+        box.cpu_h[4] = box.cpu_h[1] * HALF;
     }
     else if (box.pbc_y == 1)
     {
         real scale_factor = ONE - p_coupling * (p0y - p[1]);
         box.cpu_h[1] *= scale_factor;
+        box.cpu_h[4] = box.cpu_h[1] * HALF;
     }
 
     if (deform_z)
@@ -165,11 +169,13 @@ static void cpu_berendsen_pressure
         real scale_factor = box.cpu_h[2];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[2] *= scale_factor;
+        box.cpu_h[5] = box.cpu_h[2] * HALF;
     }
     else if (box.pbc_z == 1)
     {
         real scale_factor = ONE - p_coupling * (p0x - p[2]);
         box.cpu_h[2] *= scale_factor;
+        box.cpu_h[5] = box.cpu_h[2] * HALF;
     }
 
     MY_FREE(p);
