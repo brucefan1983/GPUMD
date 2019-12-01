@@ -41,7 +41,7 @@ Potential::~Potential(void)
 
 static __global__ void gpu_find_force_many_body
 (
-    int calculate_shc, int calculate_hnemd,
+    int calculate_hnemd,
     real fe_x, real fe_y, real fe_z,
     int number_of_particles, int N1, int N2,
     Box box,
@@ -56,9 +56,7 @@ static __global__ void gpu_find_force_many_body
     const real* __restrict__ g_vy,
     const real* __restrict__ g_vz,
     real *g_fx, real *g_fy, real *g_fz,
-    real *g_virial,
-    int *g_label, int *g_fv_index, real *g_fv,
-    int *g_a_map, int *g_b_map, int g_count_b
+    real *g_virial
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -84,11 +82,6 @@ static __global__ void gpu_find_force_many_body
     {
         int neighbor_number = g_neighbor_number[n1];
         real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
-
-        real vx1, vy1, vz1;
-        vx1 = LDG(g_vx, n1);
-        vy1 = LDG(g_vy, n1);
-        vz1 = LDG(g_vz, n1);
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -138,27 +131,6 @@ static __global__ void gpu_find_force_many_body
             s_szx += z12 * f21x;
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
-
-            // accumulate heat across some sections (for NEMD)
-            // check if AB pair possible & exists
-            if (calculate_shc && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-                g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
-            {
-                int index_12 =
-                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
-                g_fv[index_12 + 0]  += f12x;
-                g_fv[index_12 + 1]  += f12y;
-                g_fv[index_12 + 2]  += f12z;
-                g_fv[index_12 + 3]  += f21x;
-                g_fv[index_12 + 4]  += f21y;
-                g_fv[index_12 + 5]  += f21z;
-                g_fv[index_12 + 6]  = vx1;
-                g_fv[index_12 + 7]  = vy1;
-                g_fv[index_12 + 8]  = vz1;
-                g_fv[index_12 + 9]  = LDG(g_vx, n2);
-                g_fv[index_12 + 10] = LDG(g_vy, n2);
-                g_fv[index_12 + 11] = LDG(g_vz, n2);
-            }
         }
 
         // add driving force
@@ -203,14 +175,12 @@ void Potential::find_properties_many_body
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        compute_shc, compute_hnemd,
+        compute_hnemd,
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, N1, N2, atom->box, NN,
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
         atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,
-        atom->virial_per_atom, atom->group[0].label,
-        measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,
-        measure->shc.b_map, measure->shc.count_b
+        atom->virial_per_atom
     );
     CUDA_CHECK_KERNEL
 }
@@ -218,22 +188,6 @@ void Potential::find_properties_many_body
 
 void Potential::find_measurement_flags(Atom* atom, Measure* measure)
 {
-    int compute_hac = 0;
-    if (measure->hac.compute)
-    {
-        compute_hac = (atom->step + 1) % measure->hac.sample_interval == 0;
-    }
-    compute_j = 0;
-    if (measure->compute.compute_jp)
-    {
-        compute_j = (atom->step + 1) % measure->compute.sample_interval == 0;
-    }
-    compute_j = (compute_j || compute_hac);
-    compute_shc = 0;
-    if (measure->shc.compute)
-    {
-        compute_shc = (atom->step + 1) % measure->shc.sample_interval == 0;
-    }
     compute_hnemd = 0;
     if (measure->hnemd.compute == 1 || measure->hnema.compute == 1)
     {

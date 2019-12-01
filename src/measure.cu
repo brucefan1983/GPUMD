@@ -96,7 +96,7 @@ void Measure::finalize
     if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom, &dos, &sdc);
     hac.postprocess(input_dir, atom, integrate);
-    shc.postprocess();
+    shc.postprocess(input_dir);
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);
     gkma.postprocess();
@@ -308,7 +308,7 @@ void Measure::process
     compute.process(step, atom, integrate);
     vac.process(step, atom);
     hac.process(step, input_dir, atom);
-    shc.process(step, input_dir, atom);
+    shc.process(step, atom);
     hnemd.process(step, input_dir, atom, integrate);
     gkma.process(step, atom);
     hnema.process(step, atom, integrate, hnemd.fe);

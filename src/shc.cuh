@@ -21,31 +21,22 @@
 class SHC
 {
 public:
-    int compute = 0;
-    int sample_interval; // sample interval for heat current
-    int Nc;              // number of correlation points
-    int M;               // number of time origins for one average 
-    int number_of_pairs;    // number of atom pairs between block A and block B
-    int number_of_sections; // fixed to 1; may be changed in a future version
-    int block_A;         // record the heat flowing from block A
-    int block_B;         // record the heat flowing into block B
-    int count_a;
-    int count_b;
-
-    real* fv;
-    real* fv_all;
-    int* fv_index;
-    int *a_map;
-    int *b_map;
-
+    int compute = 0;       // 0 = not computing shc; 1 = computing shc
+    int group_method = -1; // -1 means not using a group method
+    int group_id = 0;      // calculating SHC for atoms in group id
+    int sample_interval;   // sample interval for heat current
+    int Nc;                // number of correlation points
+    int direction;         // transport direction: 0=x; 1=y; 2=z
     void preprocess(Atom*);
-    void process(int step, char *, Atom*);
-    void postprocess(void);
-
+    void process(int, Atom*);
+    void postprocess(char*);
 private:
-
-    void build_fv_table(Atom*, int*, int*, int*, int*, int*);
-    void find_k_time(char *input_dir, Atom *atom);
+    int num_time_origins;  // number of time origins for ensemble average
+    int group_size;        // number of atoms in group_id
+    real *vx, *vy, *vz;    // Nc frames of velocity data
+    real *sx, *sy, *sz;    // one frame of virial data
+    real *ki, *ko;         // The correlation functions Ki(t) and Ko(t)
+    void find_shc(char*, Atom*, int);
 };
 
 

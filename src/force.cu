@@ -475,13 +475,6 @@ static __global__ void initialize_properties
 }
 
 
-static __global__ void initialize_shc_properties(int M, real *g_fv)
-{
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n1 < M) { g_fv[n1] = ZERO; }
-}
-
-
 void Force::compute(Atom *atom, Measure* measure)
 {
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -490,14 +483,6 @@ void Force::compute(Atom *atom, Measure* measure)
         atom->virial_per_atom, atom->heat_per_atom
     );
     CUDA_CHECK_KERNEL
-
-    if (measure->shc.compute)
-    {
-        int M = measure->shc.number_of_pairs * 12;
-        initialize_shc_properties<<<(M - 1)/ BLOCK_SIZE + 1, BLOCK_SIZE>>>
-        (M, measure->shc.fv);
-        CUDA_CHECK_KERNEL
-    }
 
     for (int m = 0; m < num_of_potentials; m++)
     {

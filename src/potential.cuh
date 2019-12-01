@@ -29,7 +29,6 @@ public:
 
 protected:
     int compute_j   = 0; // 1 for computing heat current
-    int compute_shc = 0; // 1 for computing shc
     int compute_gkma = 0; // 1 for computing gkma
     int compute_hnemd = 0; // 1 for computing hnemd or hnema
     void find_properties_many_body

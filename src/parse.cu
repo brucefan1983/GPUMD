@@ -1187,13 +1187,47 @@ void parse_compute_shc(char **param,  int num_param, Measure* measure)
     printf("Compute SHC.\n");
     measure->shc.compute = 1;
 
-    if (num_param != 6)
+    // check the number of parameters
+    if ((num_param != 4) && (num_param != 5) && (num_param != 6))
     {
-        print_error("compute_shc should have 5 parameters.\n");
+        print_error("compute_shc should have 3 or 4 or 5 parameters.\n");
+    }
+
+    // group method and group id
+    int offset = 0;
+    if (num_param == 4)
+    {
+        measure->shc.group_method = -1;
+        printf("    for the whole system.\n");
+    }
+    else if (num_param == 5)
+    {
+        offset = 1;
+        measure->shc.group_method = 0;
+        if (!is_valid_int(param[1], &measure->shc.group_id))
+        {
+            print_error("grouping id should be an integer.\n");
+        }
+        printf("    for atoms in group %d.\n", measure->shc.group_id);
+        printf("    using group method 0.\n");
+    }
+    else
+    {
+        offset = 2;
+        if (!is_valid_int(param[1], &measure->shc.group_method))
+        {
+            print_error("group method should be an integer.\n");
+        }
+        if (!is_valid_int(param[2], &measure->shc.group_id))
+        {
+            print_error("grouping id should be an integer.\n");
+        }
+        printf("    for atoms in group %d.\n", measure->shc.group_id);
+        printf("    using group method %d.\n", measure->shc.group_method);
     }
 
     // sample interval 
-    if (!is_valid_int(param[1], &measure->shc.sample_interval))
+    if (!is_valid_int(param[1+offset], &measure->shc.sample_interval))
     {
         print_error("shc.sample_interval should be an integer.\n");
     }
@@ -1201,33 +1235,18 @@ void parse_compute_shc(char **param,  int num_param, Measure* measure)
     ("    sample interval for SHC is %d.\n", measure->shc.sample_interval);
 
     // number of correlation data
-    if (!is_valid_int(param[2], &measure->shc.Nc))
+    if (!is_valid_int(param[2+offset], &measure->shc.Nc))
     {
         print_error("Nc for SHC should be an integer.\n");
     }
     printf("    number of correlation data is %d.\n", measure->shc.Nc);
 
-    // number of time origins 
-    if (!is_valid_int(param[3], &measure->shc.M))
+    // transport direction
+    if (!is_valid_int(param[3+offset], &measure->shc.direction))
     {
-        print_error("M for SHC should be an integer.\n");
+        print_error("direction for SHC should be an integer.\n");
     }
-    printf("    number of time origions is %d.\n", measure->shc.M);
-
-    // block A 
-    if (!is_valid_int(param[4], &measure->shc.block_A))
-    {
-        print_error("block_A for SHC should be an integer.\n");
-    }
-    printf("    record the heat flowing from group %d.\n",
-        measure->shc.block_A);
-    // block B 
-    if (!is_valid_int(param[5], &measure->shc.block_B))
-    {
-        print_error("block_B for SHC should be an integer.\n");
-    }
-    printf("    record the heat flowing into group %d.\n",
-        measure->shc.block_B);
+    printf("    transport direction is %d.\n", measure->shc.direction);
 }
 
 

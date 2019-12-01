@@ -15,20 +15,11 @@
 
 
 /*----------------------------------------------------------------------------80
-The REBO potential
+The REBO potential for Mo-S systems
 References: 
-CH:   D. W. Brenner, PRB 42, 9458 (1990).
-CH:   D. W. Brenner et al., JPCM 14, 783 (2002).
-CHO:  B. Ni et al., JPCM 16, 7261 (2004).
-CHO:  A. F. Fonseca et al., PRB 84, 075460 (2011).
 MoS:  T. Liang et al., PRB 79, 245110 (2009).
 MoS:  T. Liang et al., PRB 85, 199903(E) (2012).
 MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
-Si:   J. D. Schall et al., PRB 77, 115209 (2008).
-CHSi: J. D. Schall et al., JPCC 117, 1323 (2013).
-
-TODO: Implement a general REBO potential applicable to systems with 
-C, H, O, Si atoms.
 ------------------------------------------------------------------------------*/
 
 
@@ -164,13 +155,13 @@ C, H, O, Si atoms.
 #define REBO_MOS2_D3_SS     -1.089810409215252
 #define REBO_MOS2_D3_MS     -0.137425146625715
 
-#define FIND_FORCE_STEP0(A, B, C)                                              \
-    find_force_step0<A, B, C><<<grid_size, BLOCK_SIZE_FORCE>>>                 \
+#define FIND_FORCE_STEP0(A)                                                    \
+    find_force_step0<A><<<grid_size, BLOCK_SIZE_FORCE>>>                       \
     (                                                                          \
         fe_x, fe_y, fe_z, N, N1, N2, atom->box,                                \
         NN, NL, NN_local, NL_local, type, shift,                               \
         x, y, z, vx, vy, vz, p, pp, fx, fy, fz,                                \
-        virial, pe, label, fv_index, fv, a_map, b_map, count_b                 \
+        virial, pe                                                             \
     )
 
 
@@ -608,7 +599,7 @@ static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
 
 
 // 2-body part (kernel)
-template <int cal_j, int cal_q, int cal_k>
+template <int cal_k>
 static __global__ void find_force_step0
 (
     real fe_x, real fe_y, real fe_z,
@@ -623,9 +614,7 @@ static __global__ void find_force_step0
     const real* __restrict__ g_vz,
     real *g_p,  real *g_pp,
     real *g_fx, real *g_fy, real *g_fz,
-    real *g_virial, real *g_potential, 
-    int *g_label, int *g_fv_index, real *g_fv,
-    int *g_a_map, int *g_b_map, int g_count_b
+    real *g_virial, real *g_potential
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -655,9 +644,6 @@ static __global__ void find_force_step0
         real x1 = LDG(g_x, n1); 
         real y1 = LDG(g_y, n1); 
         real z1 = LDG(g_z, n1);
-        real vx1 = LDG(g_vx, n1); 
-        real vy1 = LDG(g_vy, n1); 
-        real vz1 = LDG(g_vz, n1);
         
         int count = 0; // initialize g_NN_local[n1] to 0
         real coordination_number = ZERO;
@@ -719,27 +705,6 @@ static __global__ void find_force_step0
             s_szx += z12 * f21x;
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
-
-            // accumulate heat across some sections (for NEMD)
-            //    	check if AB pair possible & exists
-            if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-                g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
-            {
-                int index_12 = 
-                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
-                g_fv[index_12 + 0]  += f12x;
-                g_fv[index_12 + 1]  += f12y;
-                g_fv[index_12 + 2]  += f12z;
-                g_fv[index_12 + 3]  += f21x;
-                g_fv[index_12 + 4]  += f21y;
-                g_fv[index_12 + 5]  += f21z;
-                g_fv[index_12 + 6]  = vx1;
-                g_fv[index_12 + 7]  = vy1;
-                g_fv[index_12 + 8]  = vz1;
-                g_fv[index_12 + 9]  = LDG(g_vx, n2);
-                g_fv[index_12 + 10] = LDG(g_vy, n2);
-                g_fv[index_12 + 11] = LDG(g_vz, n2);
-            }
         }
 
         g_NN_local[n1] = count; // now the local neighbor list has been built
@@ -965,13 +930,6 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     real *virial = atom->virial_per_atom;
     real *pe = atom->potential_per_atom;
 
-    int *label = atom->group[0].label;
-    int *fv_index = measure->shc.fv_index;
-    int *a_map = measure->shc.a_map;
-    int *b_map = measure->shc.b_map;
-    int count_b = measure->shc.count_b;
-    real *fv = measure->shc.fv;
-
     real fe_x = measure->hnemd.fe_x;
     real fe_y = measure->hnemd.fe_y;
     real fe_z = measure->hnemd.fe_z;
@@ -987,25 +945,13 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     find_measurement_flags(atom, measure);
 
     // 2-body part
-    if (compute_j)
+    if (compute_hnemd)
     {
-        FIND_FORCE_STEP0(1, 0, 0);
-    }
-    else if (compute_hnemd && !compute_shc)
-    {
-        FIND_FORCE_STEP0(0, 0, 1);
-    }
-    else if (compute_shc && !compute_hnemd)
-    {
-        FIND_FORCE_STEP0(0, 1, 0);
-    }
-    else if (compute_shc && compute_hnemd)
-    {
-        FIND_FORCE_STEP0(0, 1, 1);
+        FIND_FORCE_STEP0(1);
     }
     else
     {
-        FIND_FORCE_STEP0(0, 0, 0);
+        FIND_FORCE_STEP0(0);
     }
     CUDA_CHECK_KERNEL
 

@@ -34,8 +34,8 @@ J. Chem. Phys. 124, 234104 (2006).
 #define RI_ALPHA     0.2
 #define RI_ALPHA_SQ  0.04
 #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)
-#define GPU_FIND_FORCE(A, B, C)                                                \
-    gpu_find_force<A, B, C>                                                    \
+#define GPU_FIND_FORCE(A)                                                      \
+    gpu_find_force<A>                                                          \
     <<<grid_size, BLOCK_SIZE_FORCE>>>                                          \
     (                                                                          \
         measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
@@ -44,9 +44,7 @@ J. Chem. Phys. 124, 234104 (2006).
         atom->type, shift, atom->x, atom->y, atom->z,                          \
         atom->vx, atom->vy, atom->vz,                                          \
         atom->fx, atom->fy, atom->fz, atom->virial_per_atom,                   \
-        atom->potential_per_atom, atom->group[0].label,                        \
-        measure->shc.fv_index, measure->shc.fv, measure->shc.a_map,            \
-        measure->shc.b_map, measure->shc.count_b                               \
+        atom->potential_per_atom                                               \
     )
 
 
@@ -130,7 +128,7 @@ static __device__ void find_p2_and_f2
 
 
 // force evaluation kernel
-template <int cal_j, int cal_q, int cal_k>
+template <int cal_k>
 static __global__ void gpu_find_force
 (
     real fe_x, real fe_y, real fe_z,
@@ -144,9 +142,7 @@ static __global__ void gpu_find_force
     const real* __restrict__ g_vy,
     const real* __restrict__ g_vz,
     real *g_fx, real *g_fy, real *g_fz,
-    real *g_virial, real *g_potential,
-    int *g_label, int *g_fv_index, real *g_fv,
-    int *g_a_map, int *g_b_map, int g_count_b
+    real *g_virial, real *g_potential
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -176,13 +172,6 @@ static __global__ void gpu_find_force
         real x1 = LDG(g_x, n1);
         real y1 = LDG(g_y, n1);
         real z1 = LDG(g_z, n1);
-        real vx1, vy1, vz1;
-        if (cal_j || cal_q || cal_k)
-        {
-            vx1 = LDG(g_vx, n1);
-            vy1 = LDG(g_vy, n1);
-            vz1 = LDG(g_vz, n1);
-        }
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -233,26 +222,6 @@ static __global__ void gpu_find_force
             s_szx += z12 * f21x;
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
-
-            // accumulate heat across some sections (for NEMD)
-            //        check if AB pair possible & exists
-            if (cal_q && g_a_map[n1] != -1 && g_b_map[n2] != -1 &&
-                    g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] != -1)
-            {
-                int index_12 = g_fv_index[g_a_map[n1] * g_count_b + g_b_map[n2]] * 12;
-                g_fv[index_12 + 0]  += f12x;
-                g_fv[index_12 + 1]  += f12y;
-                g_fv[index_12 + 2]  += f12z;
-                g_fv[index_12 + 3]  += f21x;
-                g_fv[index_12 + 4]  += f21y;
-                g_fv[index_12 + 5]  += f21z;
-                g_fv[index_12 + 6]  = vx1;
-                g_fv[index_12 + 7]  = vy1;
-                g_fv[index_12 + 8]  = vz1;
-                g_fv[index_12 + 9]  = LDG(g_vx, n2);
-                g_fv[index_12 + 10] = LDG(g_vy, n2);
-                g_fv[index_12 + 11] = LDG(g_vz, n2);
-            }
         }
 
         // add driving force
@@ -294,25 +263,13 @@ void RI::compute(Atom *atom, Measure *measure, int potential_number)
     int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-    if (compute_j)
+    if (compute_hnemd)
     {
-        GPU_FIND_FORCE(1, 0, 0);
-    }
-    else if (compute_shc && !compute_hnemd)
-    {
-        GPU_FIND_FORCE(0, 1, 0);
-    }
-    else if (compute_hnemd && !compute_shc)
-    {
-        GPU_FIND_FORCE(0, 0, 1);
-    }
-    else if (compute_hnemd && compute_shc)
-    {
-        GPU_FIND_FORCE(0, 1, 1);
+        GPU_FIND_FORCE(1);
     }
     else
     {
-        GPU_FIND_FORCE(0, 0, 0);
+        GPU_FIND_FORCE(0);
     }
     CUDA_CHECK_KERNEL
 }
