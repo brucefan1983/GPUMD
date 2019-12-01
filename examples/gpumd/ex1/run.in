@@ -2,6 +2,7 @@ potential   potentials/tersoff/Si_Fan_2019.txt 0
 velocity    100
 
 ensemble    npt_ber 100 100 0.01 0 0 0 0.0005
+time_step   1
 dump_thermo 10
 run         20000
 
