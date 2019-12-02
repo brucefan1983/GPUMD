@@ -27,10 +27,9 @@ The EAM potential. Currently two analytical versions:
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
-#define FIND_FORCE_EAM_STEP2(A, B)                                             \
-    find_force_eam_step2<A, B><<<grid_size, BLOCK_SIZE_FORCE>>>                \
+#define FIND_FORCE_EAM_STEP2(A)                                                \
+    find_force_eam_step2<A><<<grid_size, BLOCK_SIZE_FORCE>>>                   \
     (                                                                          \
-        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
         eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box,                   \
         atom->NN_local,                                                        \
         atom->NL_local, eam_data.Fp, atom->x, atom->y, atom->z, atom->vx,      \
@@ -308,10 +307,9 @@ static __global__ void find_force_eam_step1
 
 
 // Force evaluation kernel
-template <int potential_model, int cal_k>
+template <int potential_model>
 static __global__ void find_force_eam_step2
 (
-    real fe_x, real fe_y, real fe_z,
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
     int N, int N1, int N2, Box box, 
     int *g_NN, int *g_NL,
@@ -340,11 +338,6 @@ static __global__ void find_force_eam_step2
     real s_szx = ZERO; // virial_stress_zx
     real s_szy = ZERO; // virial_stress_zy
     real s_szz = ZERO; // virial_stress_zz
-
-    // driving force 
-    real fx_driving = ZERO;
-    real fy_driving = ZERO;
-    real fz_driving = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {  
@@ -392,14 +385,6 @@ static __global__ void find_force_eam_step2
             s_fy += f12y - f21y; 
             s_fz += f12z - f21z;  
 
-            // driving force
-            if (cal_k)
-            { 
-                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-            } 
-
             // per-atom virial
             s_sxx += x12 * f21x;
             s_sxy += x12 * f21y;
@@ -410,14 +395,6 @@ static __global__ void find_force_eam_step2
             s_szx += z12 * f21x;
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
-        }
-
-        // add driving force
-        if (cal_k)
-        { 
-            s_fx += fx_driving;
-            s_fy += fy_driving;
-            s_fz += fz_driving;
         }
 
         // save force
@@ -449,25 +426,18 @@ static __global__ void find_force_eam_step2
 void EAM::compute(Atom *atom, Measure *measure, int potential_number)
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    find_measurement_flags(atom, measure);
+
     if (potential_model == 0)
     {
         find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
-            atom->NN_local, 
-            atom->NL_local, atom->x, atom->y, atom->z, 
+            atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
             eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
-        if (compute_hnemd)
-        {
-            FIND_FORCE_EAM_STEP2(0, 1);
-        }
-        else
-        {
-            FIND_FORCE_EAM_STEP2(0, 0);
-        }
+
+        FIND_FORCE_EAM_STEP2(0);
         CUDA_CHECK_KERNEL
     }
 
@@ -476,19 +446,12 @@ void EAM::compute(Atom *atom, Measure *measure, int potential_number)
         find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
-            atom->NN_local, 
-            atom->NL_local, atom->x, atom->y, atom->z, 
+            atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
             eam_data.Fp, atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
-        if (compute_hnemd)
-        {
-            FIND_FORCE_EAM_STEP2(1, 1);
-        }
-        else
-        {
-            FIND_FORCE_EAM_STEP2(1, 0);
-        }
+        
+        FIND_FORCE_EAM_STEP2(1);
         CUDA_CHECK_KERNEL
     }
 }

@@ -41,8 +41,6 @@ Potential::~Potential(void)
 
 static __global__ void gpu_find_force_many_body
 (
-    int calculate_hnemd,
-    real fe_x, real fe_y, real fe_z,
     int number_of_particles, int N1, int N2,
     Box box,
     int *g_neighbor_number, int *g_neighbor_list,
@@ -72,11 +70,6 @@ static __global__ void gpu_find_force_many_body
     real s_szx = ZERO; // virial_stress_zx
     real s_szy = ZERO; // virial_stress_zy
     real s_szz = ZERO; // virial_stress_zz
-
-    // driving force in the HNEMD method
-    real fx_driving = ZERO;
-    real fy_driving = ZERO;
-    real fz_driving = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -113,14 +106,6 @@ static __global__ void gpu_find_force_many_body
             s_fy += f12y - f21y; 
             s_fz += f12z - f21z; 
 
-            // driving force
-            if (calculate_hnemd)
-            { 
-                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-            }
-
             // per-atom virial
             s_sxx += x12 * f21x;
             s_sxy += x12 * f21y;
@@ -131,14 +116,6 @@ static __global__ void gpu_find_force_many_body
             s_szx += z12 * f21x;
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
-        }
-
-        // add driving force
-        if (calculate_hnemd)
-        {
-            s_fx += fx_driving;
-            s_fy += fy_driving;
-            s_fz += fz_driving;
         }
 
         // save force
@@ -171,28 +148,15 @@ void Potential::find_properties_many_body
     real* f12x, real* f12y, real* f12z
 )
 {
-    find_measurement_flags(atom, measure);
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        compute_hnemd,
-        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, N1, N2, atom->box, NN,
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
         atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,
         atom->virial_per_atom
     );
     CUDA_CHECK_KERNEL
-}
-
-
-void Potential::find_measurement_flags(Atom* atom, Measure* measure)
-{
-    compute_hnemd = 0;
-    if (measure->hnemd.compute == 1 || measure->hnema.compute == 1)
-    {
-        compute_hnemd = 1;
-    }
 }
 
 

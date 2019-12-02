@@ -20,11 +20,10 @@
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_VASHISHTA 64
-#define GPU_FIND_FORCE_VASHISHTA_2BODY(A, B)                                   \
-    gpu_find_force_vashishta_2body<A, B>                                       \
+#define GPU_FIND_FORCE_VASHISHTA_2BODY(A)                                      \
+    gpu_find_force_vashishta_2body<A>                                          \
     <<<grid_size, BLOCK_SIZE_VASHISHTA>>>                                      \
     (                                                                          \
-        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
         atom->N, N1, N2, atom->box, vashishta_para, atom->NN_local,            \
         atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,      \
         atom->type, shift, vashishta_data.table, atom->x, atom->y, atom->z,    \
@@ -298,10 +297,9 @@ static __device__ void find_p2_and_f2
 
 
 // 2-body part of the Vashishta potential (kernel)
-template <int use_table, int cal_k>
+template <int use_table>
 static __global__ void gpu_find_force_vashishta_2body
 (
-    real fe_x, real fe_y, real fe_z,
     int number_of_particles, int N1, int N2, Box box, 
     Vashishta_Para vas,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
@@ -331,11 +329,6 @@ static __global__ void gpu_find_force_vashishta_2body
     real s_szx = ZERO; // virial_stress_zx
     real s_szy = ZERO; // virial_stress_zy
     real s_szz = ZERO; // virial_stress_zz
-
-    // driving force 
-    real fx_driving = ZERO;
-    real fy_driving = ZERO;
-    real fz_driving = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -411,15 +404,7 @@ static __global__ void gpu_find_force_vashishta_2body
             // accumulate force
             s_fx += f12x - f21x; 
             s_fy += f12y - f21y; 
-            s_fz += f12z - f21z; 
-
-            // driving force
-            if (cal_k)
-            { 
-                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-            } 
+            s_fz += f12z - f21z;
             
             // accumulate potential energy and virial
             s_pe += p2 * HALF; // two-body potential
@@ -435,14 +420,6 @@ static __global__ void gpu_find_force_vashishta_2body
         }
 
         g_NN_local[n1] = count; // now the local neighbor list has been built
-
-        // add driving force
-        if (cal_k)
-        {
-            s_fx += fx_driving;
-            s_fy += fy_driving;
-            s_fz += fz_driving;
-        }
 
         g_fx[n1] += s_fx; // save force
         g_fy[n1] += s_fy;
@@ -559,33 +536,17 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
     int shift = atom->shift[potential_number];
-    find_measurement_flags(atom, measure);
 
     // 2-body part
     if (use_table == 0)
     {
-        if (compute_hnemd)
-        {
-            GPU_FIND_FORCE_VASHISHTA_2BODY(0, 1);
-        }
-        else
-        {
-            GPU_FIND_FORCE_VASHISHTA_2BODY(0, 0);
-        }
-        CUDA_CHECK_KERNEL
+        GPU_FIND_FORCE_VASHISHTA_2BODY(0);
     }
     else
     {
-        if (compute_hnemd)
-        {
-            GPU_FIND_FORCE_VASHISHTA_2BODY(1, 1);
-        }
-        else
-        {
-            GPU_FIND_FORCE_VASHISHTA_2BODY(1, 0);
-        }
-        CUDA_CHECK_KERNEL
+        GPU_FIND_FORCE_VASHISHTA_2BODY(1); 
     }
+    CUDA_CHECK_KERNEL
 
     // 3-body part
     gpu_find_force_vashishta_partial<<<grid_size, BLOCK_SIZE_VASHISHTA>>>

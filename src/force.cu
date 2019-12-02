@@ -381,6 +381,26 @@ void Force::find_neighbor_local(Atom *atom, int m)
 }
 
 
+static __global__ void gpu_add_driving_force
+(
+    int N,
+    real fe_x, real fe_y, real fe_z,
+    real *g_sxx, real *g_sxy, real *g_sxz,
+    real *g_syx, real *g_syy, real *g_syz,
+    real *g_szx, real *g_szy, real *g_szz,
+    real *g_fx, real *g_fy, real *g_fz
+)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    if (i < N)
+    {
+        g_fx[i] += fe_x * g_sxx[i] + fe_y * g_syx[i] + fe_z * g_szx[i];
+        g_fy[i] += fe_x * g_sxy[i] + fe_y * g_syy[i] + fe_z * g_szy[i];
+        g_fz[i] += fe_x * g_sxz[i] + fe_y * g_syz[i] + fe_z * g_szz[i];
+    }
+}
+
+
 // get the total force
 static __global__ void gpu_sum_force
 (int N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
@@ -492,7 +512,7 @@ void Force::compute(Atom *atom, Measure* measure)
         potential[m]->compute(atom, measure, m);
     }
 
-    // correct the force when using the HNEMD method or the FCP potential
+    // always correct the force when using the FCP potential
 #ifdef USE_FCP
     real *ftot; // total force vector of the system
     CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
@@ -509,13 +529,35 @@ void Force::compute(Atom *atom, Measure* measure)
 #else
     if (measure->hnemd.compute || measure->hnema.compute)
     {
+        int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
+
+        // the virial tensor:
+        // xx xy xz    0 3 4
+        // yx yy yz    6 1 5
+        // zx zy zz    7 8 2
+        gpu_add_driving_force<<<grid_size, BLOCK_SIZE>>>
+        (
+            atom->N,
+            measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
+            atom->virial_per_atom + 0 * atom->N,
+            atom->virial_per_atom + 3 * atom->N,
+            atom->virial_per_atom + 4 * atom->N,
+            atom->virial_per_atom + 6 * atom->N,
+            atom->virial_per_atom + 1 * atom->N,
+            atom->virial_per_atom + 5 * atom->N,
+            atom->virial_per_atom + 7 * atom->N,
+            atom->virial_per_atom + 8 * atom->N,
+            atom->virial_per_atom + 2 * atom->N,      
+            atom->fx, atom->fy, atom->fz
+        );
+
         real *ftot; // total force vector of the system
         CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
+
         gpu_sum_force<<<3, 1024>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
         CUDA_CHECK_KERNEL
 
-        int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
         CUDA_CHECK_KERNEL

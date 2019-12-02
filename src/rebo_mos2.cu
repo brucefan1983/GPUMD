@@ -155,15 +155,6 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 #define REBO_MOS2_D3_SS     -1.089810409215252
 #define REBO_MOS2_D3_MS     -0.137425146625715
 
-#define FIND_FORCE_STEP0(A)                                                    \
-    find_force_step0<A><<<grid_size, BLOCK_SIZE_FORCE>>>                       \
-    (                                                                          \
-        fe_x, fe_y, fe_z, N, N1, N2, atom->box,                                \
-        NN, NL, NN_local, NL_local, type, shift,                               \
-        x, y, z, vx, vy, vz, p, pp, fx, fy, fz,                                \
-        virial, pe                                                             \
-    )
-
 
 REBO_MOS::REBO_MOS(Atom* atom)
 {
@@ -599,10 +590,8 @@ static __device__ void find_p2_and_f2(int type12, real d12, real &p2, real &f2)
 
 
 // 2-body part (kernel)
-template <int cal_k>
 static __global__ void find_force_step0
 (
-    real fe_x, real fe_y, real fe_z,
     int number_of_particles, int N1, int N2, Box box,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
     int *g_type, int shift,
@@ -631,11 +620,6 @@ static __global__ void find_force_step0
     real s_szx = ZERO; // virial_stress_zx
     real s_szy = ZERO; // virial_stress_zy
     real s_szz = ZERO; // virial_stress_zz
-
-    // driving force 
-    real fx_driving = ZERO;
-    real fy_driving = ZERO;
-    real fz_driving = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -686,14 +670,6 @@ static __global__ void find_force_step0
             s_fy += f12y - f21y; 
             s_fz += f12z - f21z; 
 
-            // driving force
-            if (cal_k)
-            {
-                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-            }
-
             // accumulate potential energy and virial 
             s_pe += p2 * HALF; // two-body potential
             s_sxx += x12 * f21x;
@@ -712,15 +688,7 @@ static __global__ void find_force_step0
         real p, pp;
         find_p_and_pp(type1, coordination_number, p, pp);
         g_p[n1] = p;    // will be used in find_force_step1 
-        g_pp[n1] = pp;  // will be used in find_force_step2 
-
-        // driving force
-        if (cal_k)
-        {
-            s_fx += fx_driving; // with driving force
-            s_fy += fy_driving; // with driving force
-            s_fz += fz_driving; // with driving force
-        }
+        g_pp[n1] = pp;  // will be used in find_force_step2
 
         g_fx[n1] += s_fx; // save force
         g_fy[n1] += s_fy;
@@ -930,10 +898,6 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     real *virial = atom->virial_per_atom;
     real *pe = atom->potential_per_atom;
 
-    real fe_x = measure->hnemd.fe_x;
-    real fe_y = measure->hnemd.fe_y;
-    real fe_z = measure->hnemd.fe_z;
-
     real *b    = rebo_mos_data.b;
     real *bp   = rebo_mos_data.bp;
     real *p    = rebo_mos_data.p;
@@ -942,17 +906,12 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     real *f12y = rebo_mos_data.f12y;
     real *f12z = rebo_mos_data.f12z;
 
-    find_measurement_flags(atom, measure);
-
     // 2-body part
-    if (compute_hnemd)
-    {
-        FIND_FORCE_STEP0(1);
-    }
-    else
-    {
-        FIND_FORCE_STEP0(0);
-    }
+    find_force_step0<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        N, N1, N2, atom->box, NN, NL, NN_local, NL_local, type, shift,
+        x, y, z, vx, vy, vz, p, pp, fx, fy, fz, virial, pe
+    );
     CUDA_CHECK_KERNEL
 
     // pre-compute the bond-order function and its derivative

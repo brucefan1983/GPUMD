@@ -34,18 +34,6 @@ J. Chem. Phys. 124, 234104 (2006).
 #define RI_ALPHA     0.2
 #define RI_ALPHA_SQ  0.04
 #define RI_PI_FACTOR 0.225675833419103 // ALPHA * 2 / SQRT(PI)
-#define GPU_FIND_FORCE(A)                                                      \
-    gpu_find_force<A>                                                          \
-    <<<grid_size, BLOCK_SIZE_FORCE>>>                                          \
-    (                                                                          \
-        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,         \
-        ri_para, atom->N, N1, N2, atom->box,                                   \
-        atom->NN_local, atom->NL_local,                                        \
-        atom->type, shift, atom->x, atom->y, atom->z,                          \
-        atom->vx, atom->vy, atom->vz,                                          \
-        atom->fx, atom->fy, atom->fz, atom->virial_per_atom,                   \
-        atom->potential_per_atom                                               \
-    )
 
 
 RI::RI(FILE *fid)
@@ -128,10 +116,8 @@ static __device__ void find_p2_and_f2
 
 
 // force evaluation kernel
-template <int cal_k>
 static __global__ void gpu_find_force
 (
-    real fe_x, real fe_y, real fe_z,
     RI_Para ri,
     int number_of_particles, int N1, int N2, Box box,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
@@ -159,11 +145,6 @@ static __global__ void gpu_find_force
     real s_szx = ZERO; // virial_stress_zx
     real s_szy = ZERO; // virial_stress_zy
     real s_szz = ZERO; // virial_stress_zz
-
-    // driving force
-    real fx_driving = ZERO;
-    real fy_driving = ZERO;
-    real fz_driving = ZERO;
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -203,14 +184,6 @@ static __global__ void gpu_find_force
             s_fy += f12y - f21y;
             s_fz += f12z - f21z;
 
-            // driving force
-            if (cal_k)
-            {
-                fx_driving += f21x * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fy_driving += f21y * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-                fz_driving += f21z * (x12 * fe_x + y12 * fe_y + z12 * fe_z);
-            }
-
             // accumulate potential energy and virial
             s_pe += p2 * HALF; // two-body potential
             s_sxx += x12 * f21x;
@@ -222,14 +195,6 @@ static __global__ void gpu_find_force
             s_szx += z12 * f21x;
             s_szy += z12 * f21y;
             s_szz += z12 * f21z;
-        }
-
-        // add driving force
-        if (cal_k)
-        {
-            s_fx += fx_driving;
-            s_fy += fy_driving;
-            s_fz += fz_driving;
         }
 
         // save force
@@ -259,18 +224,18 @@ static __global__ void gpu_find_force
 // Find force and related quantities for pair potentials (A wrapper)
 void RI::compute(Atom *atom, Measure *measure, int potential_number)
 {
-    find_measurement_flags(atom, measure);
     int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-    if (compute_hnemd)
-    {
-        GPU_FIND_FORCE(1);
-    }
-    else
-    {
-        GPU_FIND_FORCE(0);
-    }
+    gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>
+    (
+        ri_para, atom->N, N1, N2, atom->box,
+        atom->NN_local, atom->NL_local,
+        atom->type, shift, atom->x, atom->y, atom->z,
+        atom->vx, atom->vy, atom->vz,
+        atom->fx, atom->fy, atom->fz, atom->virial_per_atom,
+        atom->potential_per_atom
+    );
     CUDA_CHECK_KERNEL
 }
 
