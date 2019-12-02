@@ -231,8 +231,6 @@ Vashishta::Vashishta(FILE *fid, Atom* atom, int use_table_input)
 }
 
 
-
-
 Vashishta::~Vashishta(void)
 {
     if (use_table) { CHECK(cudaFree(vashishta_data.table)); }
