@@ -20,16 +20,6 @@
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_VASHISHTA 64
-#define GPU_FIND_FORCE_VASHISHTA_2BODY(A)                                      \
-    gpu_find_force_vashishta_2body<A>                                          \
-    <<<grid_size, BLOCK_SIZE_VASHISHTA>>>                                      \
-    (                                                                          \
-        atom->N, N1, N2, atom->box, vashishta_para, atom->NN_local,            \
-        atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,      \
-        atom->type, shift, vashishta_data.table, atom->x, atom->y, atom->z,    \
-        atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,                      \
-        atom->fz, atom->virial_per_atom, atom->potential_per_atom              \
-    )
 
 
 /*----------------------------------------------------------------------------80
@@ -38,7 +28,7 @@
 *-----------------------------------------------------------------------------*/
 
 
-void Vashishta::initialize_0(FILE *fid)
+void Vashishta::initialize_para(FILE *fid)
 {
     printf("Use Vashishta potential.\n");
     int count;
@@ -95,129 +85,9 @@ void Vashishta::initialize_0(FILE *fid)
 }
 
 
-// get U_ij and (d U_ij / d r_ij) / r_ij for the 2-body part
-static void find_p2_and_f2_host
-(
-    real H, int eta, real qq, real lambda_inv, real D, real xi_inv, real W, 
-    real v_rc, real dv_rc, real rc, real d12, real &p2, real &f2
-)
+Vashishta::Vashishta(FILE *fid, Atom* atom)
 {
-    real d12inv = ONE / d12;
-    real d12inv2 = d12inv * d12inv;
-    real p2_steric = eta; p2_steric = H * pow(d12inv, eta);
-    real p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
-    real p2_dipole = D * (d12inv2 * d12inv2) * exp(-d12 * xi_inv);
-    real p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
-    p2 = p2_steric + p2_charge - p2_dipole - p2_vander; 
-    p2 -= v_rc + (d12 - rc) * dv_rc; // shifted potential
-    f2 = p2_dipole * (xi_inv + FOUR*d12inv) + p2_vander * (SIX * d12inv);
-    f2 -= p2_charge * (lambda_inv + d12inv) + p2_steric * (eta * d12inv);
-    f2 = (f2 - dv_rc) * d12inv;      // shifted force
-}
-
-
-void Vashishta::initialize_1(FILE *fid)
-{
-    printf("Use tabulated Vashishta potential.\n");
-    int count;
-
-    int N; double rmin;
-    count = fscanf(fid, "%d%lf", &N, &rmin);
-    if (count != 2) 
-    {
-        print_error("reading error for Vashishta potential.\n");
-        exit(1);
-    }
-    vashishta_para.N = N;
-    vashishta_para.rmin = rmin;
-
-    real *table;
-    MY_MALLOC(table, real, N * 6);
-    
-    double B_0, B_1, cos0_0, cos0_1, C, r0, cut;
-    count = fscanf
-    (fid, "%lf%lf%lf%lf%lf%lf%lf", &B_0, &B_1, &cos0_0, &cos0_1, &C, &r0, &cut);
-    if (count != 7) print_error("reading error for Vashishta potential.\n");
-
-    vashishta_para.B[0] = B_0;
-    vashishta_para.B[1] = B_1;
-    vashishta_para.cos0[0] = cos0_0;
-    vashishta_para.cos0[1] = cos0_1;
-    vashishta_para.C = C;
-    vashishta_para.r0 = r0;
-    vashishta_para.rc = cut;
-    vashishta_para.scale = (N-ONE)/(cut-rmin);
-    rc = cut;
-
-    double H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
-    int eta[3];
-    for (int n = 0; n < 3; n++)
-    {
-        count = fscanf
-        (
-            fid, "%lf%d%lf%lf%lf%lf%lf", 
-            &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
-        );
-        if (count != 7) print_error("reading error for Vashishta potential.\n");
-
-        qq[n] *= K_C;         // Gauss -> SI
-        D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
-        lambda_inv[n] = ONE / lambda_inv[n];
-        xi_inv[n] = ONE / xi_inv[n];
-
-        vashishta_para.H[n] = H[n];
-        vashishta_para.eta[n] = eta[n];
-        vashishta_para.qq[n] = qq[n];
-        vashishta_para.lambda_inv[n] = lambda_inv[n];
-        vashishta_para.D[n] = D[n];
-        vashishta_para.xi_inv[n] = xi_inv[n];
-        vashishta_para.W[n] = W[n];
-
-        real rci = ONE / rc;
-        real rci4 = rci * rci * rci * rci;
-        real rci6 = rci4 * rci * rci;
-        real p2_steric = H[n] * pow(rci, real(eta[n]));
-        real p2_charge = qq[n] * rci * exp(-rc*lambda_inv[n]);
-        real p2_dipole = D[n] * rci4 * exp(-rc*xi_inv[n]);
-        real p2_vander = W[n] * rci6;
-        vashishta_para.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
-        vashishta_para.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
-                                + p2_vander * (SIX * rci)
-                                - p2_charge * (lambda_inv[n] + rci)
-                                - p2_steric * (eta[n] * rci);
-
-        // build the table
-        for (int m = 0; m < N; m++) 
-        {
-            real d12 = rmin + m * (cut - rmin) / (N-ONE);
-            real p2, f2;
-            find_p2_and_f2_host
-            (
-                H[n], eta[n], qq[n], lambda_inv[n], D[n], xi_inv[n], W[n], 
-                vashishta_para.v_rc[n], 
-                vashishta_para.dv_rc[n], 
-                rc, d12, p2, f2
-            );
-            int index_p = m + N * n;
-            int index_f = m + N * (n + 3);
-            table[index_p] = p2;
-            table[index_f] = f2;
-        }
-    }
-
-    int memory = sizeof(real) * N * 6;
-    CHECK(cudaMalloc((void**)&vashishta_data.table, memory));
-    CHECK(cudaMemcpy(vashishta_data.table, table, memory,
-        cudaMemcpyHostToDevice));
-    MY_FREE(table);
-}
-
-
-Vashishta::Vashishta(FILE *fid, Atom* atom, int use_table_input)
-{
-    use_table = use_table_input;
-    if (use_table == 0) initialize_0(fid);
-    if (use_table == 1) initialize_1(fid);
+    initialize_para(fid);
 
     int num = ((atom->neighbor.MN<20) ? atom->neighbor.MN : 20);
     int memory = sizeof(real) * atom->N * num;
@@ -233,7 +103,6 @@ Vashishta::Vashishta(FILE *fid, Atom* atom, int use_table_input)
 
 Vashishta::~Vashishta(void)
 {
-    if (use_table) { CHECK(cudaFree(vashishta_data.table)); }
     CHECK(cudaFree(vashishta_data.f12x));
     CHECK(cudaFree(vashishta_data.f12y));
     CHECK(cudaFree(vashishta_data.f12z));
@@ -295,14 +164,12 @@ static __device__ void find_p2_and_f2
 
 
 // 2-body part of the Vashishta potential (kernel)
-template <int use_table>
 static __global__ void gpu_find_force_vashishta_2body
 (
     int number_of_particles, int N1, int N2, Box box, 
     Vashishta_Para vas,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
     int *g_type, int shift,
-    const real* __restrict__ g_table,
     const real* __restrict__ g_x, 
     const real* __restrict__ g_y, 
     const real* __restrict__ g_z, 
@@ -356,40 +223,13 @@ static __global__ void gpu_find_force_vashishta_2body
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
             real p2, f2;
 
-            if (use_table == 1)
-            {
-                if (d12 > vas.rmin)
-                {
-                    real tmp = (d12 - vas.rmin) * vas.scale;
-                    int index = tmp; // 0 <= index < N-1
-                    real x = tmp - index; // 0 <= x < 1
-                    index += type12 * vas.N;
-                    p2 = (ONE-x)*LDG(g_table, index) + x*LDG(g_table, index+1);
-                    index += vas.N * 3;    
-                    f2 = (ONE-x)*LDG(g_table, index) + x*LDG(g_table, index+1);
-                }
-                else
-                {
-                    find_p2_and_f2
-                    (
-                        vas.H[type12], vas.eta[type12], vas.qq[type12], 
-                        vas.lambda_inv[type12], vas.D[type12], 
-                        vas.xi_inv[type12], vas.W[type12], vas.v_rc[type12], 
-                        vas.dv_rc[type12], vas.rc, d12, p2, f2
-                    );
-                }
-            }
-
-            if (use_table == 0)
-            {
-                find_p2_and_f2
-                (
-                    vas.H[type12], vas.eta[type12], vas.qq[type12], 
-                    vas.lambda_inv[type12], vas.D[type12], vas.xi_inv[type12],
-                    vas.W[type12], vas.v_rc[type12], vas.dv_rc[type12], 
-                    vas.rc, d12, p2, f2
-                );
-            }
+            find_p2_and_f2
+            (
+                vas.H[type12], vas.eta[type12], vas.qq[type12], 
+                vas.lambda_inv[type12], vas.D[type12], vas.xi_inv[type12],
+                vas.W[type12], vas.v_rc[type12], vas.dv_rc[type12], 
+                vas.rc, d12, p2, f2
+            );
 
             // treat two-body potential in the same way as many-body potential
             real f12x = f2 * x12 * HALF; 
@@ -536,14 +376,14 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
     int shift = atom->shift[potential_number];
 
     // 2-body part
-    if (use_table == 0)
-    {
-        GPU_FIND_FORCE_VASHISHTA_2BODY(0);
-    }
-    else
-    {
-        GPU_FIND_FORCE_VASHISHTA_2BODY(1); 
-    }
+    gpu_find_force_vashishta_2body<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
+    (
+        atom->N, N1, N2, atom->box, vashishta_para, atom->NN_local,
+        atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,
+        atom->type, shift, atom->x, atom->y, atom->z,
+        atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,
+        atom->fz, atom->virial_per_atom, atom->potential_per_atom
+    );
     CUDA_CHECK_KERNEL
 
     // 3-body part

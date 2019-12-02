@@ -133,11 +133,7 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     }
     else if (strcmp(potential_name, "vashishta") == 0)
     {
-        potential[m] = new Vashishta(fid_potential, atom, 0);
-    }
-    else if (strcmp(potential_name, "vashishta_table") == 0)
-    {
-        potential[m] = new Vashishta(fid_potential, atom, 1);
+        potential[m] = new Vashishta(fid_potential, atom);
     }
     else if (strcmp(potential_name, "fcp") == 0)
     {

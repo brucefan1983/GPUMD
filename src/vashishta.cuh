@@ -31,7 +31,6 @@ struct Vashishta_Para
 
 struct Vashishta_Data
 {
-    real *table; // for the two-body part
     real *f12x;  // partial forces
     real *f12y;
     real *f12z;
@@ -43,13 +42,11 @@ struct Vashishta_Data
 class Vashishta : public Potential
 {
 public:   
-    Vashishta(FILE*, Atom*, int use_table);  
+    Vashishta(FILE*, Atom*);  
     virtual ~Vashishta(void);
     virtual void compute(Atom*, Measure*, int);
-    void initialize_0(FILE*);
-    void initialize_1(FILE*);
 protected:
-    int            use_table;
+    void initialize_para(FILE*);
     Vashishta_Para vashishta_para;
     Vashishta_Data vashishta_data;
 };
