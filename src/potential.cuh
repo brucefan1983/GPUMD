@@ -28,11 +28,7 @@ public:
     virtual void compute(Atom*, Measure*, int) = 0;
 
 protected:
-    //int compute_j   = 0; // 1 for computing heat current
-    int compute_gkma = 0; // 1 for computing gkma
-    //int compute_hnemd = 0; // 1 for computing hnemd or hnema
-    void find_properties_many_body
-    (Atom*, Measure*, int*, int*, real*, real*, real*);
+    void find_properties_many_body(Atom*, int*, int*, real*, real*, real*);
 };
 
 

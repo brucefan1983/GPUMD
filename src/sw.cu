@@ -313,7 +313,7 @@ void SW2::compute(Atom *atom, Measure *measure, int potential_number)
     CUDA_CHECK_KERNEL
 
     // step 2: calculate force and related quantities
-    find_properties_many_body(atom, measure, NN, NL, f12x, f12y, f12z);
+    find_properties_many_body(atom, NN, NL, f12x, f12y, f12z);
 }
 
 

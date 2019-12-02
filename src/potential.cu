@@ -144,8 +144,7 @@ static __global__ void gpu_find_force_many_body
 // used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body
 (
-    Atom *atom, Measure *measure, int* NN, int* NL,
-    real* f12x, real* f12y, real* f12z
+    Atom *atom, int* NN, int* NL, real* f12x, real* f12y, real* f12z
 )
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;

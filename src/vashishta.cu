@@ -559,7 +559,7 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
     CUDA_CHECK_KERNEL
     find_properties_many_body
     (
-        atom, measure, vashishta_data.NN_short, vashishta_data.NL_short,
+        atom, vashishta_data.NN_short, vashishta_data.NL_short,
         vashishta_data.f12x, vashishta_data.f12y, vashishta_data.f12z
     );
 }

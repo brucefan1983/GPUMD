@@ -468,5 +468,5 @@ void Tersoff_modc::compute(Atom *atom, Measure *measure, int potential_number)
     CUDA_CHECK_KERNEL
 
     // the final step: calculate force and related quantities
-    find_properties_many_body(atom, measure, NN, NL, f12x, f12y, f12z);
+    find_properties_many_body(atom, NN, NL, f12x, f12y, f12z);
 }
