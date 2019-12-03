@@ -27,7 +27,7 @@
                            }
 
 #define ZEROS(p, t, n) p = MY_MALLOC(p, t, n)                                  \
-                       for(int i_=0; i_<(n);i_++){p[i_]=(t)0;}                  \
+                       for(int i_=0; i_<(n);i_++){p[i_]=(t)0;}                 \
 
 
 #define MY_FREE(p) if(p != NULL)                                               \
@@ -43,6 +43,7 @@
 
 
 #define CHECK(call)                                                            \
+do                                                                             \
 {                                                                              \
     const cudaError_t error_code = call;                                       \
     if (error_code != cudaSuccess)                                             \
@@ -55,19 +56,33 @@
             cudaGetErrorString(error_code));                                   \
         exit(1);                                                               \
     }                                                                          \
-}
+} while (0)
+
+
+#define PRINT_SCANF_ERROR(count, n, text)                                      \
+do                                                                             \
+{                                                                              \
+    if (count != n)                                                            \
+    {                                                                          \
+        fprintf(stderr, "Input Error:\n");                                     \
+        fprintf(stderr, "    File:       %s\n", __FILE__);                     \
+        fprintf(stderr, "    Line:       %d\n", __LINE__);                     \
+        fprintf(stderr, "    Error text: %s\n", text);                         \
+        exit(1);                                                               \
+    }                                                                          \
+} while (0)
 
 
 #ifdef STRONG_DEBUG
 #define CUDA_CHECK_KERNEL                                                      \
 {                                                                              \
-    CHECK(cudaGetLastError())                                                  \
-    CHECK(cudaDeviceSynchronize())                                             \
+    CHECK(cudaGetLastError());                                                 \
+    CHECK(cudaDeviceSynchronize());                                            \
 }
 #else
 #define CUDA_CHECK_KERNEL                                                      \
 {                                                                              \
-    CHECK(cudaGetLastError())                                                  \
+    CHECK(cudaGetLastError());                                                 \
 }
 #endif
 
