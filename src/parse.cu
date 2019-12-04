@@ -33,13 +33,13 @@ void parse_potential_definition
     // 'potential_definition' must be called before all 'potential' keywords
     if (force->num_of_potentials > 0)
     {
-        print_error("potential_definition must be called before all "
+        PRINT_INPUT_ERROR("potential_definition must be called before all "
                 "potential keywords.\n");
     }
 
     if (num_param != 2 && num_param != 3)
     {
-        print_error("potential_definition should have only 1 or 2 "
+        PRINT_INPUT_ERROR("potential_definition should have only 1 or 2 "
                 "parameters.\n");
     }
     if (num_param == 2)
@@ -47,12 +47,12 @@ void parse_potential_definition
         //default is to use type, check for deviations
         if(strcmp(param[1], "group") == 0)
         {
-            print_error("potential_definition must have "
+            PRINT_INPUT_ERROR("potential_definition must have "
                     "group_method listed.\n");
         }
         else if(strcmp(param[1], "type") != 0)
         {
-            print_error("potential_definition only accepts "
+            PRINT_INPUT_ERROR("potential_definition only accepts "
                     "'type' or 'group' kind.\n");
         }
     }
@@ -60,18 +60,18 @@ void parse_potential_definition
     {
         if(strcmp(param[1], "group") != 0)
         {
-            print_error("potential_definition: kind must be 'group' if 2 "
+            PRINT_INPUT_ERROR("potential_definition: kind must be 'group' if 2 "
                     "parameters are used.\n");
 
         }
         else if(!is_valid_int(param[2], &force->group_method))
         {
-            print_error("potential_definition: group_method should be an "
+            PRINT_INPUT_ERROR("potential_definition: group_method should be an "
                     "integer.\n");
         }
         else if(force->group_method > MAX_NUMBER_OF_GROUPS)
         {
-            print_error("Specified group_method is too large (> 10).\n");
+            PRINT_INPUT_ERROR("Specified group_method is too large (> 10).\n");
         }
     }
 }
@@ -82,7 +82,7 @@ void parse_potential(char **param, int num_param, Force *force)
     // check for at least the file path
     if (num_param < 3)
     {
-        print_error("potential should have at least 2 parameters.\n");
+        PRINT_INPUT_ERROR("potential should have at least 2 parameters.\n");
     }
     strcpy(force->file_potential[force->num_of_potentials], param[1]);
 
@@ -96,7 +96,7 @@ void parse_potential(char **param, int num_param, Force *force)
 
     if (num_param != num_types + 2)
     {
-        print_error("potential has incorrect number of types/groups defined.\n");
+        PRINT_INPUT_ERROR("potential has incorrect number of types/groups defined.\n");
     }
 
     force->participating_kinds.resize(num_types);
@@ -105,12 +105,12 @@ void parse_potential(char **param, int num_param, Force *force)
     {
         if(!is_valid_int(param[i+2], &force->participating_kinds[i]))
         {
-            print_error("type/groups should be an integer.\n");
+            PRINT_INPUT_ERROR("type/groups should be an integer.\n");
         }
         if (i != 0 &&
             force->participating_kinds[i] < force->participating_kinds[i-1])
         {
-            print_error("potential types/groups must be listed in "
+            PRINT_INPUT_ERROR("potential types/groups must be listed in "
                     "ascending order.\n");
         }
     }
@@ -128,15 +128,15 @@ void parse_velocity(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
     {
-        print_error("velocity should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("velocity should have 1 parameter.\n");
     }
     if (!is_valid_real(param[1], &atom->initial_temperature))
     {
-        print_error("initial temperature should be a real number.\n");
+        PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
     }
     if (atom->initial_temperature <= 0.0)
     {
-        print_error("initial temperature should be a positive number.\n");
+        PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
     }
 }
 
@@ -145,11 +145,11 @@ void parse_time_step (char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
     {
-        print_error("time_step should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("time_step should have 1 parameter.\n");
     }
     if (!is_valid_real(param[1], &atom->time_step))
     {
-        print_error("time_step should be a real number.\n");
+        PRINT_INPUT_ERROR("time_step should be a real number.\n");
     }
     printf("Time step for this run is %g fs.\n", atom->time_step);
     atom->time_step /= TIME_UNIT_CONVERSION;
@@ -163,11 +163,11 @@ void parse_neighbor
 
     if (num_param != 2)
     {
-        print_error("neighbor should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
     }
     if (!is_valid_real(param[1], &atom->neighbor.skin))
     {
-        print_error("neighbor list skin should be a number.\n");
+        PRINT_INPUT_ERROR("neighbor list skin should be a number.\n");
     }
     printf("Build neighbor list with a skin of %g A.\n", atom->neighbor.skin);
 
@@ -180,11 +180,11 @@ void parse_run(char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)
     {
-        print_error("run should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("run should have 1 parameter.\n");
     }
     if (!is_valid_int(param[1], &atom->number_of_steps))
     {
-        print_error("number of steps should be an integer.\n");
+        PRINT_INPUT_ERROR("number of steps should be an integer.\n");
     }
     printf("Run %d steps.\n", atom->number_of_steps);
 }
@@ -194,15 +194,15 @@ void parse_cutoff(char **param, int num_param, Hessian* hessian)
 {
     if (num_param != 2)
     {
-        print_error("cutoff should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("cutoff should have 1 parameter.\n");
     }
     if (!is_valid_real(param[1], &hessian->cutoff))
     {
-        print_error("cutoff for hessian should be a number.\n");
+        PRINT_INPUT_ERROR("cutoff for hessian should be a number.\n");
     }
     if (hessian->cutoff <= 0)
     {
-        print_error("cutoff for hessian should be positive.\n");
+        PRINT_INPUT_ERROR("cutoff for hessian should be positive.\n");
     }
     printf("Cutoff distance for hessian = %g A.\n", hessian->cutoff);
 }
@@ -212,15 +212,15 @@ void parse_delta(char **param, int num_param, Hessian* hessian)
 {
     if (num_param != 2)
     {
-        print_error("compute_hessian should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("compute_hessian should have 1 parameter.\n");
     }
     if (!is_valid_real(param[1], &hessian->dx))
     {
-        print_error("displacement for hessian should be a number.\n");
+        PRINT_INPUT_ERROR("displacement for hessian should be a number.\n");
     }
     if (hessian->dx <= 0)
     {
-        print_error("displacement for hessian should be positive.\n");
+        PRINT_INPUT_ERROR("displacement for hessian should be positive.\n");
     }
     printf("Displacement for hessian = %g A.\n", hessian->dx);
 }
