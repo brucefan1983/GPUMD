@@ -404,7 +404,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "fix") == 0)
     {
-        integrate->parse_fix(param, num_param);
+        integrate->parse_fix(param, num_param, atom);
     }
     else if (strcmp(param[0], "run") == 0)
     {

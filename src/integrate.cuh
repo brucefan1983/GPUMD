@@ -31,7 +31,7 @@ public:
     // get inputs from run.in
     void parse_ensemble(char**, int, Atom*);
     void parse_deform(char**, int);
-    void parse_fix(char**, int);
+    void parse_fix(char**, int, Atom*);
 
     // these data will be used to initialize ensemble
     int type;          // ensemble type in a specific run

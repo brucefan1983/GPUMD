@@ -146,7 +146,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 0;
         if (num_param != 2)
         {
-            print_error("ensemble nve should have 0 parameter.\n");
+            PRINT_INPUT_ERROR("ensemble nve should have 0 parameter.");
         }
     }
     else if (strcmp(param[1], "nvt_ber") == 0)
@@ -154,7 +154,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 1;
         if (num_param != 5)
         {
-            print_error("ensemble nvt_ber should have 3 parameters.\n");
+            PRINT_INPUT_ERROR("ensemble nvt_ber should have 3 parameters.");
         }
     }
     else if (strcmp(param[1], "nvt_nhc") == 0)
@@ -162,7 +162,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 2;
         if (num_param != 5)
         {
-            print_error("ensemble nvt_nhc should have 3 parameters.\n"); 
+            PRINT_INPUT_ERROR("ensemble nvt_nhc should have 3 parameters."); 
         }
     }
     else if (strcmp(param[1], "nvt_lan") == 0)
@@ -170,7 +170,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 3;
         if (num_param != 5)
         {
-            print_error("ensemble nvt_lan should have 3 parameters.\n"); 
+            PRINT_INPUT_ERROR("ensemble nvt_lan should have 3 parameters."); 
         }
     }
     else if (strcmp(param[1], "nvt_bdp") == 0)
@@ -178,7 +178,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 4;
         if (num_param != 5)
         {
-            print_error("ensemble nvt_bdp should have 3 parameters.\n"); 
+            PRINT_INPUT_ERROR("ensemble nvt_bdp should have 3 parameters."); 
         }
     }
     else if (strcmp(param[1], "npt_ber") == 0)
@@ -186,7 +186,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 11;
         if (num_param != 9)
         {
-            print_error("ensemble npt_ber should have 7 parameters.\n"); 
+            PRINT_INPUT_ERROR("ensemble npt_ber should have 7 parameters."); 
         } 
     }
     else if (strcmp(param[1], "heat_nhc") == 0)
@@ -194,7 +194,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 21;
         if (num_param != 7)
         {
-            print_error("ensemble heat_nhc should have 5 parameters.\n"); 
+            PRINT_INPUT_ERROR("ensemble heat_nhc should have 5 parameters."); 
         }
     }
     else if (strcmp(param[1], "heat_lan") == 0)
@@ -202,7 +202,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 22;
         if (num_param != 7)
         {
-            print_error("ensemble heat_lan should have 5 parameters.\n"); 
+            PRINT_INPUT_ERROR("ensemble heat_lan should have 5 parameters."); 
         }
     }
     else if (strcmp(param[1], "heat_bdp") == 0)
@@ -210,12 +210,12 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         type = 23;
         if (num_param != 7)
         {
-            print_error("ensemble heat_bdp should have 5 parameters.\n"); 
+            PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters."); 
         }
     }
     else
     {
-        print_error("invalid ensemble type.\n");
+        PRINT_INPUT_ERROR("Invalid ensemble type.");
     }
 
     // 2. Temperatures and temperature_coupling (NVT and NPT)
@@ -224,33 +224,48 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         // initial temperature
         if (!is_valid_real(param[2], &temperature1))
         {
-            print_error("ensemble temperature should be a real number.\n");
+            PRINT_INPUT_ERROR("Initial temperature should be a number.");
         }
         if (temperature1 <= 0.0)
         {
-            print_error("ensemble temperature should be a positive number.\n");
+            PRINT_INPUT_ERROR("Initial temperature should > 0.");
         }
 
         // final temperature
         if (!is_valid_real(param[3], &temperature2))
         {
-            print_error("ensemble temperature should be a real number.\n");
+            PRINT_INPUT_ERROR("Final temperature should be a number.");
         }
         if (temperature2 <= 0.0)
         {
-            print_error("ensemble temperature should be a positive number.\n");
+            PRINT_INPUT_ERROR("Final temperature should > 0.");
         }
 
+        // The current temperature is the initial temperature
         temperature = temperature1;
 
         // temperature_coupling
         if (!is_valid_real(param[4], &temperature_coupling))
         {
-            print_error("temperature_coupling should be a real number.\n");
+            PRINT_INPUT_ERROR("Temperature coupling should be a number.");
         }
         if (temperature_coupling <= 0.0)
         {
-            print_error("temperature_coupling should be a positive number.\n");
+            PRINT_INPUT_ERROR("Temperature coupling should > 0.");
+        }
+        if (1 == type || 11 == type) // ber
+        {
+            if (temperature_coupling > 1.0)
+            {
+                PRINT_INPUT_ERROR("Temperature coupling should <= 1.");
+            }
+        }
+        else // nhc, lan, bdp
+        {
+            if (temperature_coupling < 1.0)
+            {
+                PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+            }
         }
     }
 
@@ -261,12 +276,12 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         // pressures:   
         for (int i = 0; i < 3; i++)
         {
-            if (!is_valid_real(param[5+i], &pressure[i]))
+            if (!is_valid_real(param[5 + i], &pressure[i]))
             {
-                print_error("ensemble pressure should be a real number.\n");
+                PRINT_INPUT_ERROR("Pressure should be a number.");
             }
         }
-        // Change the unit of pressure form GPa to that used in the code
+        // Change the units of pressure form GPa to that used in the code
         pressure_x = pressure[0] / PRESSURE_UNIT_CONVERSION;
         pressure_y = pressure[1] / PRESSURE_UNIT_CONVERSION;
         pressure_z = pressure[2] / PRESSURE_UNIT_CONVERSION;
@@ -274,11 +289,15 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         // pressure_coupling:
         if (!is_valid_real(param[8], &pressure_coupling))
         {
-            print_error("pressure_coupling should be a real number.\n");
+            PRINT_INPUT_ERROR("Pressure coupling should be a number.");
         }
         if (pressure_coupling <= 0.0)
         {
-            print_error("pressure_coupling should be a positive number.\n");
+            PRINT_INPUT_ERROR("Pressure coupling should > 0.");
+        }
+        if (pressure_coupling > 1)
+        {
+            PRINT_INPUT_ERROR("Pressure coupling should <= 1.");
         }
     }
 
@@ -288,37 +307,65 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         // temperature
         if (!is_valid_real(param[2], &temperature))
         {
-            print_error("ensemble temperature should be a real number.\n");
+            PRINT_INPUT_ERROR("Temperature should be a number.");
         }
         if (temperature <= 0.0)
         {
-            print_error("ensemble temperature should be a positive number.\n");
+            PRINT_INPUT_ERROR("Temperature should > 0.");
         }
 
         // temperature_coupling
         if (!is_valid_real(param[3], &temperature_coupling))
         {
-            print_error("temperature_coupling should be a real number.\n");
+            PRINT_INPUT_ERROR("Temperature coupling should be a number.");
         }
-        if (temperature_coupling <= 0.0)
+        if (temperature_coupling < 1.0)
         {
-            print_error("temperature_coupling should be a positive number.\n");
+            PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
         }
 
         // temperature difference
         if (!is_valid_real(param[4], &delta_temperature))
         {
-            print_error("delta_temperature should be a real number.\n");
+            PRINT_INPUT_ERROR("Temperature difference should be a number.");
+        }
+        if (delta_temperature>=temperature || delta_temperature<=-temperature)
+        {
+            PRINT_INPUT_ERROR("|Temperature difference| is too large.");
         }
 
         // group labels of heat source and sink
         if (!is_valid_int(param[5], &source))
         {
-            print_error("heat.source should be an integer.\n");
+            PRINT_INPUT_ERROR("Group ID for heat source should be an integer.");
         }
         if (!is_valid_int(param[6], &sink))
         {
-            print_error("heat.sink should be an integer.\n");
+            PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
+        }
+        if (atom->num_of_grouping_methods < 1)
+        {
+            PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
+        }
+        if (source == sink)
+        {
+            PRINT_INPUT_ERROR("Source and sink cannot be the same group.");
+        }
+        if (source < 0)
+        {
+            PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
+        }
+        if (source >= atom->group[0].number)
+        {
+            PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
+        }
+        if (sink < 0)
+        {
+            PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
+        }
+        if (sink >= atom->group[0].number)
+        {
+            PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
         }
     }
 
@@ -369,48 +416,71 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         case 21:
             printf("Integrate with heating and cooling for this run.\n");
             printf("    choose the Nose-Hoover chain method.\n"); 
-            printf("    temperature is %g K.\n", temperature);
+            printf("    average temperature is %g K.\n", temperature);
             printf("    T_coupling is %g.\n", temperature_coupling);
             printf("    delta_T is %g K.\n", delta_temperature);
-            printf("    heat source is group %d.\n", source);
-            printf("    heat sink is group %d.\n", sink);
+            printf("    T_hot is %g K.\n", temperature + delta_temperature);
+            printf("    T_cold is %g K.\n", temperature - delta_temperature);
+            printf("    heat source is group %d in grouping method 0.\n", source);
+            printf("    heat sink is group %d in grouping method 0.\n", sink);
             break; 
         case 22:
             printf("Integrate with heating and cooling for this run.\n");
             printf("    choose the Langevin method.\n"); 
-            printf("    temperature is %g K.\n", temperature);
+            printf("    average temperature is %g K.\n", temperature);
             printf("    T_coupling is %g.\n", temperature_coupling);
             printf("    delta_T is %g K.\n", delta_temperature);
-            printf("    heat source is group %d.\n", source);
-            printf("    heat sink is group %d.\n", sink);
+            printf("    T_hot is %g K.\n", temperature + delta_temperature);
+            printf("    T_cold is %g K.\n", temperature - delta_temperature);
+            printf("    heat source is group %d in grouping method 0.\n", source);
+            printf("    heat sink is group %d in grouping method 0.\n", sink);
             break;
         case 23:
             printf("Integrate with heating and cooling for this run.\n");
             printf("    choose the Bussi-Donadio-Parrinello method.\n"); 
-            printf("    temperature is %g K.\n", temperature);
+            printf("    average temperature is %g K.\n", temperature);
             printf("    T_coupling is %g.\n", temperature_coupling);
             printf("    delta_T is %g K.\n", delta_temperature);
-            printf("    heat source is group %d.\n", source);
-            printf("    heat sink is group %d.\n", sink);
+            printf("    T_hot is %g K.\n", temperature + delta_temperature);
+            printf("    T_cold is %g K.\n", temperature - delta_temperature);
+            printf("    heat source is group %d in grouping method 0.\n", source);
+            printf("    heat sink is group %d in grouping method 0.\n", sink);
             break;
         default:
-            print_error("invalid ensemble type.\n");
+            PRINT_INPUT_ERROR("Invalid ensemble type.");
             break; 
     }
 }
 
 
-void Integrate::parse_fix(char **param, int num_param)
+void Integrate::parse_fix(char **param, int num_param, Atom *atom)
 {
     if (num_param != 2)
     {
-        print_error("fix should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("Keyword 'fix' should have 1 parameter.");
     }
+
     if (!is_valid_int(param[1], &fixed_group))
     {
-        print_error("fixed_group should be an integer.\n");
+        PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
     }
-    printf("Group %d will be fixed.\n", fixed_group);
+
+    if (atom->num_of_grouping_methods < 1)
+    {
+        PRINT_INPUT_ERROR("Cannot use 'fix' without grouping method.");
+    }
+
+    if (fixed_group < 0)
+    {
+        PRINT_INPUT_ERROR("Fixed group ID should >= 0.");
+    }
+
+    if (fixed_group >= atom->group[0].number)
+    {
+        PRINT_INPUT_ERROR("Fixed group ID should < number of groups.");
+    }
+
+    printf("Group %d in grouping method 0 will be fixed.\n", fixed_group);
 }
 
 
@@ -420,28 +490,28 @@ void Integrate::parse_deform(char **param, int num_param)
 
     if (num_param != 5)
     {
-        print_error("deform should have 4 parameters.\n");
+        PRINT_INPUT_ERROR("Keyword 'deform' should have 4 parameters.");
     }
 
     // strain rate
     if (!is_valid_real(param[1], &deform_rate))
     {
-        print_error("defrom rate should be a number.\n");
+        PRINT_INPUT_ERROR("Defrom rate should be a number.");
     }
     printf("    strain rate is %g A / step.\n", deform_rate);
 
     // direction
     if (!is_valid_int(param[2], &deform_x))
     {
-        print_error("deform_x should be integer.\n");
+        PRINT_INPUT_ERROR("deform_x should be integer.\n");
     }
     if (!is_valid_int(param[3], &deform_y))
     {
-        print_error("deform_y should be integer.\n");
+        PRINT_INPUT_ERROR("deform_y should be integer.\n");
     }
     if (!is_valid_int(param[4], &deform_z))
     {
-        print_error("deform_z should be integer.\n");
+        PRINT_INPUT_ERROR("deform_z should be integer.\n");
     }
 
     if (deform_x)
