@@ -321,35 +321,35 @@ void Run::parse
         *is_velocity = 1;
         parse_velocity(param, num_param, atom);
     }
-    else if (strcmp(param[0], "ensemble")       == 0)
+    else if (strcmp(param[0], "ensemble") == 0)
     {
         parse_ensemble(param, num_param, atom, integrate);
     }
-    else if (strcmp(param[0], "time_step")      == 0)
+    else if (strcmp(param[0], "time_step") == 0)
     {
         parse_time_step(param, num_param, atom);
     }
-    else if (strcmp(param[0], "neighbor")       == 0)
+    else if (strcmp(param[0], "neighbor") == 0)
     {
         parse_neighbor(param, num_param, atom, force);
     }
-    else if (strcmp(param[0], "dump_thermo")    == 0)
+    else if (strcmp(param[0], "dump_thermo") == 0)
     {
         parse_dump_thermo(param, num_param, measure);
     }
-    else if (strcmp(param[0], "dump_position")  == 0)
+    else if (strcmp(param[0], "dump_position") == 0)
     {
         parse_dump_position(param, num_param, measure, atom);
     }
-    else if (strcmp(param[0], "dump_restart")  == 0)
+    else if (strcmp(param[0], "dump_restart") == 0)
     {
         parse_dump_restart(param, num_param, measure);
     }
-    else if (strcmp(param[0], "dump_velocity")  == 0)
+    else if (strcmp(param[0], "dump_velocity") == 0)
     {
         parse_dump_velocity(param, num_param, measure);
     }
-    else if (strcmp(param[0], "dump_force")     == 0)
+    else if (strcmp(param[0], "dump_force") == 0)
     {
         parse_dump_force(param, num_param, measure);
     }
@@ -357,23 +357,23 @@ void Run::parse
     {
         parse_dump_potential(param, num_param, measure);
     }
-    else if (strcmp(param[0], "dump_virial")    == 0)
+    else if (strcmp(param[0], "dump_virial") == 0)
     {
         parse_dump_virial(param, num_param, measure);
     }
-    else if (strcmp(param[0], "dump_heat")    == 0)
+    else if (strcmp(param[0], "dump_heat") == 0)
     {
         parse_dump_heat(param, num_param, measure);
     }
-    else if (strcmp(param[0], "compute_dos")    == 0)
+    else if (strcmp(param[0], "compute_dos") == 0)
     {
         parse_compute_dos(param, num_param, measure, atom->group);
     }
-    else if (strcmp(param[0], "compute_sdc")    == 0)
-	{
-		parse_compute_sdc(param, num_param, measure, atom->group);
-	}
-    else if (strcmp(param[0], "compute_hac")    == 0)
+    else if (strcmp(param[0], "compute_sdc") == 0)
+    {
+        parse_compute_sdc(param, num_param, measure, atom->group);
+    }
+    else if (strcmp(param[0], "compute_hac") == 0)
     {
         parse_compute_hac(param, num_param, measure);
     }
@@ -381,31 +381,31 @@ void Run::parse
     {
         parse_compute_hnemd(param, num_param, measure);
     }
-    else if (strcmp(param[0], "compute_shc")    == 0)
+    else if (strcmp(param[0], "compute_shc") == 0)
     {
         parse_compute_shc(param, num_param, measure);
     }
-    else if (strcmp(param[0], "compute_gkma")   == 0)
+    else if (strcmp(param[0], "compute_gkma") == 0)
     {
         parse_compute_gkma(param, num_param, measure, atom);
     }
-    else if (strcmp(param[0], "compute_hnema")   == 0)
+    else if (strcmp(param[0], "compute_hnema") == 0)
     {
         parse_compute_hnema(param, num_param, measure, atom);
     }
-    else if (strcmp(param[0], "deform")         == 0)
+    else if (strcmp(param[0], "deform") == 0)
     {
         parse_deform(param, num_param, integrate);
     }
-    else if (strcmp(param[0], "compute")        == 0)
+    else if (strcmp(param[0], "compute") == 0)
     {
         parse_compute(param, num_param, measure);
     }
-    else if (strcmp(param[0], "fix")            == 0)
+    else if (strcmp(param[0], "fix") == 0)
     {
         parse_fix(param, num_param, atom);
     }
-    else if (strcmp(param[0], "run")            == 0)
+    else if (strcmp(param[0], "run") == 0)
     {
         *is_run = 1;
         parse_run(param, num_param, atom);
