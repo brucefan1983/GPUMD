@@ -56,47 +56,48 @@ void Integrate::initialize(Atom* atom)
     switch (type)
     {
         case 0: // NVE
-            ensemble = new Ensemble_NVE(type);
+            ensemble = new Ensemble_NVE(type, fixed_group);
             break;
         case 1: // NVT-Berendsen
             ensemble = new Ensemble_BER
-            (type, temperature, temperature_coupling);
+            (type, fixed_group, temperature, temperature_coupling);
             break;
         case 2: // NVT-NHC
             ensemble = new Ensemble_NHC            
             (
-                type, atom->N, temperature, temperature_coupling, 
+                type, fixed_group, atom->N, temperature, temperature_coupling, 
                 atom->time_step
             );
             break;
         case 3: // NVT-Langevin
             ensemble = new Ensemble_LAN
-            (type, atom->N, temperature, temperature_coupling);
+            (type, fixed_group, atom->N, temperature, temperature_coupling);
             break;
         case 4: // NVT-BDP
             ensemble = new Ensemble_BDP            
-            (type, temperature, temperature_coupling);
+            (type, fixed_group, temperature, temperature_coupling);
             break;
         case 11: // NPT-Berendsen
             ensemble = new Ensemble_BER
             (
-                type, temperature, temperature_coupling, pressure_x, 
-                pressure_y, pressure_z, pressure_coupling, deform_x,
-                deform_y, deform_z, deform_rate
+                type, fixed_group, temperature, temperature_coupling, 
+                pressure_x, pressure_y, pressure_z, pressure_coupling,
+                deform_x, deform_y, deform_z, deform_rate
             );
             break;
         case 21: // heat-NHC
             ensemble = new Ensemble_NHC
             (
-                type, source, sink, atom->group[0].cpu_size[source], 
-                atom->group[0].cpu_size[sink], temperature,
-                temperature_coupling, delta_temperature, atom->time_step
+                type, fixed_group, source, sink, 
+                atom->group[0].cpu_size[source], atom->group[0].cpu_size[sink],
+                temperature, temperature_coupling, delta_temperature, 
+                atom->time_step
             );
             break;
         case 22: // heat-Langevin
             ensemble = new Ensemble_LAN
             (
-                type, source, sink, 
+                type, fixed_group, source, sink, 
                 atom->group[0].cpu_size[source],
                 atom->group[0].cpu_size[sink],
                 atom->group[0].cpu_size_sum[source],
@@ -107,8 +108,8 @@ void Integrate::initialize(Atom* atom)
         case 23: // heat-BDP
             ensemble = new Ensemble_BDP
             (
-                type, source, sink, temperature, temperature_coupling, 
-                delta_temperature
+                type, fixed_group, source, sink, temperature, 
+                temperature_coupling, delta_temperature
             );
             break;
         default: 

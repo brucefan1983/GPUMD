@@ -22,8 +22,8 @@
 class Ensemble_LAN : public Ensemble
 {
 public:
-    Ensemble_LAN(int, int, real, real);   
-    Ensemble_LAN(int, int, int, int, int, int, int, real, real, real); 
+    Ensemble_LAN(int, int, int, real, real);   
+    Ensemble_LAN(int, int, int, int, int, int, int, int, real, real, real); 
     virtual ~Ensemble_LAN(void);
     virtual void compute(Atom*, Force*, Measure*);
 protected:

@@ -28,9 +28,10 @@ The Berendsen thermostat:
 #define BLOCK_SIZE 128
 
 
-Ensemble_BER::Ensemble_BER(int t, real T, real Tc)
+Ensemble_BER::Ensemble_BER(int t, int fg, real T, real Tc)
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
 }
@@ -38,11 +39,12 @@ Ensemble_BER::Ensemble_BER(int t, real T, real Tc)
 
 Ensemble_BER::Ensemble_BER
 (
-    int t, real T, real Tc, real px, real py, real pz, real pc,
+    int t, int fg, real T, real Tc, real px, real py, real pz, real pc,
     int dx, int dy, int dz, real rate
 )
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
     pressure_x = px;

@@ -29,6 +29,7 @@ public:
     int type;          // ensemble type in a specific run
     int source;
     int sink;
+    int fixed_group;   // ID of the group in which the atoms will be fixed 
     real temperature;  // target temperature at a specific time 
     real delta_temperature;
     real pressure_x;   // target pressure at a specific time

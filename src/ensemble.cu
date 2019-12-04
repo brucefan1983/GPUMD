@@ -62,13 +62,8 @@ static __global__ void gpu_velocity_verlet_1
         if (group_id[i] == fixed_group)
         {
             vx = ZERO;
-#ifdef ZHEN_LI // special version for Zhen Li
-            vy += ay * time_step_half;
-            vz += az * time_step_half;
-#else
             vy = ZERO;
             vz = ZERO;
-#endif 
         }
         else
         {
@@ -116,7 +111,7 @@ static __global__ void gpu_velocity_verlet_1
 // wrapper of the above kernel
 void Ensemble::velocity_verlet_1(Atom* atom)
 {
-    if (atom->fixed_group == -1)
+    if (fixed_group == -1)
     {
         gpu_velocity_verlet_1<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
@@ -128,7 +123,7 @@ void Ensemble::velocity_verlet_1(Atom* atom)
     {
         gpu_velocity_verlet_1<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, atom->fixed_group, atom->group[0].label, atom->time_step,
+            atom->N, fixed_group, atom->group[0].label, atom->time_step,
             atom->mass, atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz,
             atom->fx, atom->fy, atom->fz
         );
@@ -159,13 +154,8 @@ static __global__ void gpu_velocity_verlet_2
         if (group_id[i] == fixed_group)
         {
             vx = ZERO;
-#ifdef ZHEN_LI // special version for Zhen Li
-            vy += ay * time_step_half;
-            vz += az * time_step_half;
-#else
             vy = ZERO;
             vz = ZERO;
-#endif
         }
         else
         {
@@ -207,7 +197,7 @@ static __global__ void gpu_velocity_verlet_2
 // wrapper of the above kernel
 void Ensemble::velocity_verlet_2(Atom* atom)
 {
-    if (atom->fixed_group == -1)
+    if (fixed_group == -1)
     {
         gpu_velocity_verlet_2<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
@@ -219,7 +209,7 @@ void Ensemble::velocity_verlet_2(Atom* atom)
     {
         gpu_velocity_verlet_2<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, atom->fixed_group, atom->group[0].label, atom->time_step,
+            atom->N, fixed_group, atom->group[0].label, atom->time_step,
             atom->mass, atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,
             atom->fz
         );
@@ -277,11 +267,7 @@ static __global__ void gpu_find_thermo
             }
             if (tid ==  0)
             {
-#ifdef ZHEN_LI // special version for Zhen Li
-                    g_thermo[0] = s_ke[0] / ((DIM * N - N_fixed) * K_B);
-#else
-                    g_thermo[0] = s_ke[0] / (DIM * (N - N_fixed) * K_B);
-#endif  
+                g_thermo[0] = s_ke[0] / (DIM * (N - N_fixed) * K_B);
             }
             break;
         case 1:
@@ -516,7 +502,7 @@ static __global__ void gpu_find_thermo
 void Ensemble::find_thermo(Atom* atom)
 {
     real volume = atom->box.get_volume();
-    if (atom->fixed_group == -1)
+    if (fixed_group == -1)
     {
         gpu_find_thermo<<<5, 1024>>>
         (
@@ -530,10 +516,10 @@ void Ensemble::find_thermo(Atom* atom)
     }
     else
     {
-        int N_fixed = atom->group[0].cpu_size[atom->fixed_group];
+        int N_fixed = atom->group[0].cpu_size[fixed_group];
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N, N_fixed, atom->fixed_group, atom->group[0].label,
+            atom->N, N_fixed, fixed_group, atom->group[0].label,
             temperature, volume, atom->mass, atom->potential_per_atom,
             atom->vx, atom->vy, atom->vz, 
             atom->virial_per_atom,

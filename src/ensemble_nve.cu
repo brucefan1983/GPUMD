@@ -23,9 +23,10 @@ The NVE ensemble integrator.
 #include "force.cuh" 
 
 
-Ensemble_NVE::Ensemble_NVE(int t)
+Ensemble_NVE::Ensemble_NVE(int t, int fg)
 {
     type = t;
+    fixed_group = fg;
 }
 
 

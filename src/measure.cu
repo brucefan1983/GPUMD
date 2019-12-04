@@ -104,15 +104,16 @@ void Measure::finalize
 }
 
 
-void Measure::dump_thermos(FILE *fid, Atom *atom, int step)
+void Measure::dump_thermos
+(FILE *fid, Atom *atom, Integrate *integrate, int step)
 {
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
     real *thermo; MY_MALLOC(thermo, real, NUM_OF_PROPERTIES);
     int m1 = sizeof(real) * NUM_OF_PROPERTIES;
     CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
-    int N_fixed = (atom->fixed_group == -1) ? 0 :
-        atom->group[0].cpu_size[atom->fixed_group];
+    int N_fixed = (integrate->fixed_group == -1) ? 0 :
+        atom->group[0].cpu_size[integrate->fixed_group];
     real energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
     fprintf(fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0],
         energy_kin, thermo[1], thermo[2]*PRESSURE_UNIT_CONVERSION,
@@ -298,7 +299,7 @@ void Measure::dump_heats(FILE *fid, Atom *atom, int step)
 void Measure::process
 (char *input_dir, Atom *atom, Integrate *integrate, int step)
 {
-    dump_thermos(fid_thermo, atom, step);
+    dump_thermos(fid_thermo, atom, integrate, step);
     dump_restarts(atom, step);
     dump_velocities(fid_velocity, atom, step);
     dump_forces(fid_force, atom, step);

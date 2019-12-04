@@ -64,7 +64,7 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
 {
     atom->neighbor.update = 0;
     atom->neighbor.number_of_updates = 0;
-    atom->fixed_group     = -1; // no group has an index of -1
+    integrate->fixed_group = -1; // no group has an index of -1
     integrate->deform_x = 0;
     integrate->deform_y = 0;
     integrate->deform_z = 0;
@@ -404,7 +404,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "fix") == 0)
     {
-        parse_fix(param, num_param, atom);
+        parse_fix(param, num_param, integrate);
     }
     else if (strcmp(param[0], "run") == 0)
     {

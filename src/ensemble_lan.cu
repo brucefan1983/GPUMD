@@ -39,9 +39,10 @@ static __global__ void initialize_curand_states(curandState *state, int N)
 }
 
 
-Ensemble_LAN::Ensemble_LAN(int t, int N, real T, real Tc)
+Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, real T, real Tc)
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
     c1 = exp(-HALF/temperature_coupling);
@@ -55,11 +56,12 @@ Ensemble_LAN::Ensemble_LAN(int t, int N, real T, real Tc)
 
 Ensemble_LAN::Ensemble_LAN
 (
-    int t, int source_input, int sink_input, int source_size, int sink_size, 
-    int source_offset, int sink_offset, real T, real Tc, real dT
+    int t, int fg, int source_input, int sink_input, int source_size, 
+    int sink_size, int source_offset, int sink_offset, real T, real Tc, real dT
 )
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
     delta_temperature = dT;

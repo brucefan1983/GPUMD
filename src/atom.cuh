@@ -52,7 +52,6 @@ public:
     real* cpu_vz;
 
     int N;                // number of atoms 
-    int fixed_group;      // ID of the group in which the atoms will be fixed 
     int number_of_types;  // number of atom types 
 
     int has_velocity_in_xyz = 0;

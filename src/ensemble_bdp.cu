@@ -39,18 +39,20 @@ static double gasdev();
 static double gamdev(const int ia);
 
 
-Ensemble_BDP::Ensemble_BDP(int t, real T, real Tc)
+Ensemble_BDP::Ensemble_BDP(int t, int fg, real T, real Tc)
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
 }
 
 
 Ensemble_BDP::Ensemble_BDP
-(int t, int source_input, int sink_input, real T, real Tc, real dT)
+(int t, int fg, int source_input, int sink_input, real T, real Tc, real dT)
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
     delta_temperature = dT;
@@ -68,12 +70,10 @@ Ensemble_BDP::~Ensemble_BDP(void)
 }
 
 
-void Ensemble_BDP::integrate_nvt_bdp
-(Atom *atom, Force *force, Measure* measure)
+void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
 {
-    int  N           = atom->N;
-    int fixed_group = atom->fixed_group;
-    real *thermo             = atom->thermo;
+    int N = atom->N;
+    real *thermo = atom->thermo;
 
     // standard velocity-Verlet
     velocity_verlet(atom, force, measure);

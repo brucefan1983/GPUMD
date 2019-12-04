@@ -75,7 +75,7 @@ public:
     HNEMA hnema;
     DUMP_POS* dump_pos;
 protected:
-    void dump_thermos(FILE*, Atom*, int);
+    void dump_thermos(FILE*, Atom*, Integrate*, int);
     void dump_restarts(Atom*, int);
     void dump_velocities(FILE*, Atom*, int);
     void dump_forces(FILE*, Atom*, int);

@@ -1355,17 +1355,17 @@ void parse_compute(char **param,  int num_param, Measure* measure)
 }
 
 
-void parse_fix(char **param, int num_param, Atom *atom)
+void parse_fix(char **param, int num_param, Integrate *integrate)
 {
     if (num_param != 2)
     {
         print_error("fix should have 1 parameter.\n");
     }
-    if (!is_valid_int(param[1], &atom->fixed_group))
+    if (!is_valid_int(param[1], &integrate->fixed_group))
     {
         print_error("fixed_group should be an integer.\n");
     }
-    printf("Group %d will be fixed.\n", atom->fixed_group);
+    printf("Group %d will be fixed.\n", integrate->fixed_group);
 }
 
 

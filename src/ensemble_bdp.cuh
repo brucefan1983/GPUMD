@@ -21,8 +21,8 @@
 class Ensemble_BDP : public Ensemble
 {
 public:
-    Ensemble_BDP(int, real, real);   
-    Ensemble_BDP(int, int, int, real, real, real); 
+    Ensemble_BDP(int, int, real, real);   
+    Ensemble_BDP(int, int, int, int, real, real, real); 
     virtual ~Ensemble_BDP(void);
     virtual void compute(Atom*, Force*, Measure*);
 protected:

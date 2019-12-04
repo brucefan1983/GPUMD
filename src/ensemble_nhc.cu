@@ -30,9 +30,10 @@ Oxford University Press, 2010.
 #define DIM 3
 
 
-Ensemble_NHC::Ensemble_NHC(int t, int N, real T, real Tc, real dt)
+Ensemble_NHC::Ensemble_NHC(int t, int fg, int N, real T, real Tc, real dt)
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
     // position and momentum variables for one NHC
@@ -53,11 +54,12 @@ Ensemble_NHC::Ensemble_NHC(int t, int N, real T, real Tc, real dt)
 
 Ensemble_NHC::Ensemble_NHC
 (
-    int t, int source_input, int sink_input, int N1, int N2, 
+    int t, int fg, int source_input, int sink_input, int N1, int N2, 
     real T, real Tc, real dT, real time_step
 )
 {
     type = t;
+    fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
     delta_temperature = dT;
