@@ -238,26 +238,26 @@ void parse_ensemble
     if (integrate->type >= 1 && integrate->type <= 20)
     {
         // initial temperature
-        if (!is_valid_real(param[2], &atom->temperature1))
+        if (!is_valid_real(param[2], &integrate->temperature1))
         {
             print_error("ensemble temperature should be a real number.\n");
         }
-        if (atom->temperature1 <= 0.0)
+        if (integrate->temperature1 <= 0.0)
         {
             print_error("ensemble temperature should be a positive number.\n");
         }
 
         // final temperature
-        if (!is_valid_real(param[3], &atom->temperature2))
+        if (!is_valid_real(param[3], &integrate->temperature2))
         {
             print_error("ensemble temperature should be a real number.\n");
         }
-        if (atom->temperature2 <= 0.0)
+        if (integrate->temperature2 <= 0.0)
         {
             print_error("ensemble temperature should be a positive number.\n");
         }
 
-        integrate->temperature = atom->temperature1;
+        integrate->temperature = integrate->temperature1;
 
         // temperature_coupling
         if (!is_valid_real(param[4], &integrate->temperature_coupling))
@@ -346,36 +346,36 @@ void parse_ensemble
         case 1:
             printf("Use NVT ensemble for this run.\n");
             printf("    choose the Berendsen method.\n"); 
-            printf("    initial temperature is %g K.\n", atom->temperature1);
-            printf("    final temperature is %g K.\n", atom->temperature2);
+            printf("    initial temperature is %g K.\n", integrate->temperature1);
+            printf("    final temperature is %g K.\n", integrate->temperature2);
             printf("    T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 2:
             printf("Use NVT ensemble for this run.\n");
             printf("    choose the Nose-Hoover chain method.\n"); 
-            printf("    initial temperature is %g K.\n", atom->temperature1);
-            printf("    final temperature is %g K.\n", atom->temperature2);
+            printf("    initial temperature is %g K.\n", integrate->temperature1);
+            printf("    final temperature is %g K.\n", integrate->temperature2);
             printf("    T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 3:
             printf("Use NVT ensemble for this run.\n");
             printf("    choose the Langevin method.\n"); 
-            printf("    initial temperature is %g K.\n", atom->temperature1);
-            printf("    final temperature is %g K.\n", atom->temperature2);
+            printf("    initial temperature is %g K.\n", integrate->temperature1);
+            printf("    final temperature is %g K.\n", integrate->temperature2);
             printf("    T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 4:
             printf("Use NVT ensemble for this run.\n");
             printf("    choose the Bussi-Donadio-Parrinello method.\n"); 
-            printf("    initial temperature is %g K.\n", atom->temperature1);
-            printf("    final temperature is %g K.\n", atom->temperature2);
+            printf("    initial temperature is %g K.\n", integrate->temperature1);
+            printf("    final temperature is %g K.\n", integrate->temperature2);
             printf("    T_coupling is %g.\n", integrate->temperature_coupling);
             break;
         case 11:
             printf("Use NPT ensemble for this run.\n");
             printf("    choose the Berendsen method.\n");      
-            printf("    initial temperature is %g K.\n", atom->temperature1);
-            printf("    final temperature is %g K.\n", atom->temperature2);
+            printf("    initial temperature is %g K.\n", integrate->temperature1);
+            printf("    final temperature is %g K.\n", integrate->temperature2);
             printf("    T_coupling is %g.\n", integrate->temperature_coupling);
             printf("    pressure_x is %g GPa.\n", pressure[0]);
             printf("    pressure_y is %g GPa.\n", pressure[1]);

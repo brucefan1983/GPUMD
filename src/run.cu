@@ -139,17 +139,6 @@ static void check_run_parameters
 }
 
 
-static void update_temperature(Atom* atom, Integrate* integrate, int step)
-{
-    if (integrate->ensemble->type >= 1 && integrate->ensemble->type <= 20)
-    {
-        integrate->ensemble->temperature = atom->temperature1 
-            + (atom->temperature2 - atom->temperature1)
-            * real(step) / atom->number_of_steps;
-    }
-}
-
-
 static void print_finished_steps(int step, int number_of_steps)
 {
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
@@ -189,8 +178,9 @@ static void process_run
     {
         atom->step = step;
         atom->global_time += atom->time_step;
+
         if (atom->neighbor.update) { atom->find_neighbor(0); }
-        update_temperature(atom, integrate, step);
+
         integrate->compute(atom, force, measure);
         measure->process(input_dir, atom, integrate, step);
         print_finished_steps(step, atom->number_of_steps);

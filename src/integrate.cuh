@@ -33,6 +33,8 @@ public:
     int source;
     int sink;
     real temperature;  // target temperature at a specific time 
+    real temperature1; // target initial temperature for a run
+    real temperature2; // target final temperature for a run
     real delta_temperature;
     real pressure_x;   // target pressure at a specific time
     real pressure_y;   

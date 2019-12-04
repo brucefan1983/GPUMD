@@ -213,12 +213,11 @@ static void find_rtc(int Nc, real factor, real *hac, real *rtc)
 // Calculate 
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
-void HAC::find_hac_kappa
-(char *input_dir, Atom *atom, Integrate *integrate)
+void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
 {
     // rename variables
     int number_of_steps = atom->number_of_steps;
-    real temperature = atom->temperature2;
+    real temperature = integrate->temperature2;
     real time_step = atom->time_step;
 
     // other parameters

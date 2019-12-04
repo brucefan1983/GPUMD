@@ -118,9 +118,14 @@ void Integrate::initialize(Atom* atom)
 }
 
 
-void Integrate::compute
-(Atom *atom, Force *force, Measure* measure)
+void Integrate::compute(Atom *atom, Force *force, Measure* measure)
 {
+    if (type >= 1 && type <= 20)
+    {
+        ensemble->temperature = temperature1 + (temperature2 - temperature1)
+                              * real(atom->step) / atom->number_of_steps;
+    }
+
     ensemble->compute(atom, force, measure);
 }
 

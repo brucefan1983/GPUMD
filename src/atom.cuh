@@ -62,9 +62,7 @@ public:
     int step;
     int number_of_steps; // number of steps in a specific run
     real global_time = 0.0; // run time of entire simulation (fs)
-    real initial_temperature; // initial temperature for velocity
-    real temperature1;
-    real temperature2; 
+    real initial_temperature; // initial temperature for velocity 
     // time step in a specific run; default value is 1 fs
     real time_step = 1.0 / TIME_UNIT_CONVERSION;
 
