@@ -84,6 +84,17 @@ do                                                                             \
 } while (0)
 
 
+#define PRINT_KEYWORD_ERROR(keyword)                                           \
+do                                                                             \
+{                                                                              \
+    fprintf(stderr, "Input Error:\n");                                         \
+    fprintf(stderr, "    File:       %s\n", __FILE__);                         \
+    fprintf(stderr, "    Line:       %d\n", __LINE__);                         \
+    fprintf(stderr, "    Error text: '%s' is an invalid keyword.\n", keyword); \
+    exit(1);                                                                   \
+} while (0)
+
+
 #ifdef STRONG_DEBUG
 #define CUDA_CHECK_KERNEL                                                      \
 {                                                                              \

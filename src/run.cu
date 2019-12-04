@@ -279,6 +279,7 @@ void Run::run
     char *param[max_num_param];
     initialize_run(atom, integrate, measure); // set some default values
     print_start(check);
+
     while (input_ptr)
     {
         input_ptr = row_find_param(input_ptr, param, &num_param);
@@ -292,6 +293,7 @@ void Run::run
         check_velocity(is_velocity, check, atom);
         check_run(input_dir, is_run, check, atom, force, integrate, measure);
     }
+
     print_velocity_error();
     print_finish(check);
     MY_FREE(input); // Free the input file contents
@@ -410,8 +412,7 @@ void Run::parse
     }
     else
     {
-        printf("Error: '%s' is invalid keyword.\n", param[0]);
-        exit(1);
+        PRINT_KEYWORD_ERROR(param[0]);
     }
 }
 
