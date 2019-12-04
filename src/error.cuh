@@ -73,6 +73,17 @@ do                                                                             \
 } while (0)
 
 
+#define PRINT_INPUT_ERROR(text)                                                \
+do                                                                             \
+{                                                                              \
+    fprintf(stderr, "Input Error:\n");                                         \
+    fprintf(stderr, "    File:       %s\n", __FILE__);                         \
+    fprintf(stderr, "    Line:       %d\n", __LINE__);                         \
+    fprintf(stderr, "    Error text: %s\n", text);                             \
+    exit(1);                                                                   \
+} while (0)
+
+
 #ifdef STRONG_DEBUG
 #define CUDA_CHECK_KERNEL                                                      \
 {                                                                              \

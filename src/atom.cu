@@ -44,22 +44,41 @@ Atom::~Atom(void)
 void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 {
     double rc;
-    int count = fscanf(fid_xyz, "%d%d%lf%d%d%d\n", &N, &neighbor.MN, &rc,
-        &box.triclinic, &has_velocity_in_xyz, &num_of_grouping_methods);
-    if (count != 6) print_error("Reading error for line 1 of xyz.in.\n");
+    int count = fscanf
+    (
+        fid_xyz, "%d%d%lf%d%d%d\n", &N, &neighbor.MN, &rc, &box.triclinic, 
+        &has_velocity_in_xyz, &num_of_grouping_methods
+    );
+    PRINT_SCANF_ERROR(count, 6, "Reading error for line 1 of xyz.in.");
     neighbor.rc = rc;
+
     if (N < 2)
-        print_error("Number of atoms should >= 2\n");
+    {
+        PRINT_INPUT_ERROR("Number of atoms should >= 2.");
+    }
     else
+    {
         printf("Number of atoms is %d.\n", N);
+    }
+
     if (neighbor.MN < 1)
-        print_error("Maximum number of neighbors should >= 1\n");
+    {
+        PRINT_INPUT_ERROR("Maximum number of neighbors should >= 1.");
+    }
     else
+    {
         printf("Maximum number of neighbors is %d.\n", neighbor.MN);
+    }
+
     if (neighbor.rc <= 0)
-        print_error("Initial cutoff for neighbor list should > 0\n");
+    {
+        PRINT_INPUT_ERROR("Initial cutoff for neighbor list should > 0.");
+    }
     else
+    {
         printf("Initial cutoff for neighbor list is %g A.\n", neighbor.rc);
+    }
+
     if (box.triclinic == 0)
     {
         printf("Use orthogonal box.\n");
@@ -69,17 +88,35 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
         printf("Use triclinic box.\n");
     }
     else
-        print_error("Invalid box type.\n");
+    {
+        PRINT_INPUT_ERROR("Invalid box type.");
+    }
+
     if (has_velocity_in_xyz == 0)
+    {
         printf("Do not specify initial velocities here.\n");
-    else
+    }
+    else if (has_velocity_in_xyz == 1)
+    {
         printf("Specify initial velocities here.\n");
-    if (num_of_grouping_methods == 0)
-        printf("Have no grouping method.\n");
-    else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 10)
-        printf("Have %d grouping method(s).\n", num_of_grouping_methods);
+    }
     else
-        print_error("Number of grouping methods should be 1 to 10.\n");
+    {
+        PRINT_INPUT_ERROR("Invalid has_velocity flag.");
+    }
+
+    if (num_of_grouping_methods == 0)
+    {
+        printf("Have no grouping method.\n");
+    }
+    else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 10)
+    {
+        printf("Have %d grouping method(s).\n", num_of_grouping_methods);
+    }
+    else
+    {
+        PRINT_INPUT_ERROR("Number of grouping methods should be 1 to 10.");
+    }
 }  
 
 
@@ -88,43 +125,98 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
     if (box.triclinic == 1)
     {
         double ax, ay, az, bx, by, bz, cx, cy, cz;
-        int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf%lf%lf%lf%lf%lf%lf",
+        int count = fscanf
+        (
+            fid_xyz, "%d%d%d%lf%lf%lf%lf%lf%lf%lf%lf%lf",
             &box.pbc_x, &box.pbc_y, &box.pbc_z, &ax, &ay, &az, &bx, &by, &bz,
-            &cx, &cy, &cz);
-        if (count != 12) print_error("reading error for xyz.in.\n");
+            &cx, &cy, &cz
+        );
+        PRINT_SCANF_ERROR(count, 12, "Reading error for line 2 of xyz.in.");
+
         box.cpu_h[0] = ax; box.cpu_h[3] = ay; box.cpu_h[6] = az;
         box.cpu_h[1] = bx; box.cpu_h[4] = by; box.cpu_h[7] = bz;
         box.cpu_h[2] = cx; box.cpu_h[5] = cy; box.cpu_h[8] = cz;
         box.get_inverse();
+
+        printf("Box matrix h = [a, b, c] is\n");
+        for (int d1 = 0; d1 < 3; ++d1)
+        {
+            for (int d2 = 0; d2 < 3; ++d2)
+            {
+                printf ("%20.10e", box.cpu_h[d1 * 3 + d2]);
+            }
+            printf("\n");
+        }
+
+        printf("Inverse box matrix g = inv(h) is\n");
+        for (int d1 = 0; d1 < 3; ++d1)
+        {
+            for (int d2 = 0; d2 < 3; ++d2)
+            {
+                printf ("%20.10e", box.cpu_h[9 + d1 * 3 + d2]);
+            }
+            printf("\n");
+        }
     }
     else
     {
         double lx, ly, lz;
-        int count = fscanf(fid_xyz, "%d%d%d%lf%lf%lf",
-            &box.pbc_x, &box.pbc_y, &box.pbc_z, &lx, &ly, &lz);
-        if (count != 6) print_error("reading error for line 2 of xyz.in.\n");
+        int count = fscanf
+        (
+            fid_xyz, "%d%d%d%lf%lf%lf",
+            &box.pbc_x, &box.pbc_y, &box.pbc_z, &lx, &ly, &lz
+        );
+        PRINT_SCANF_ERROR(count, 6, "Reading error for line 2 of xyz.in.");
+
+        if (lx < 0) { PRINT_INPUT_ERROR("Box length in x direction < 0."); }
+        if (ly < 0) { PRINT_INPUT_ERROR("Box length in y direction < 0."); }
+        if (lz < 0) { PRINT_INPUT_ERROR("Box length in z direction < 0."); }
+
         box.cpu_h[0] = lx; box.cpu_h[1] = ly; box.cpu_h[2] = lz;
         box.cpu_h[3] = lx*0.5; box.cpu_h[4] = ly*0.5; box.cpu_h[5] = lz*0.5;
+
+        printf("Box lengths (lx, ly, lz) are\n");
+        printf("%20.10e%20.10e%20.10e\n", lx, ly, lz);
     }
 
     if (box.pbc_x == 1)
+    {
         printf("Use periodic boundary conditions along x.\n");
+    }
     else if (box.pbc_x == 0)
+    {
         printf("Use     free boundary conditions along x.\n");
+    }
     else
-        print_error("invalid boundary conditions along x.\n");
+    {
+        PRINT_INPUT_ERROR("Invalid boundary conditions along x.");
+    }
+
     if (box.pbc_y == 1)
+    {
         printf("Use periodic boundary conditions along y.\n");
+    }
     else if (box.pbc_y == 0)
+    {
         printf("Use     free boundary conditions along y.\n");
+    }
     else
-        print_error("invalid boundary conditions along y.\n");
+    {
+        PRINT_INPUT_ERROR("Invalid boundary conditions along y.");
+    }
+
     if (box.pbc_z == 1)
+    {
         printf("Use periodic boundary conditions along z.\n");
+    }
     else if (box.pbc_z == 0)
+    {
         printf("Use     free boundary conditions along z.\n");
+    }
     else
-        print_error("invalid boundary conditions along z.\n");
+    {
+        PRINT_INPUT_ERROR("Invalid boundary conditions along z.");
+    }
 }
 
 
@@ -139,37 +231,61 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
     MY_MALLOC(cpu_vy, real, N);
     MY_MALLOC(cpu_vz, real, N);
     number_of_types = -1;
+
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         MY_MALLOC(group[m].cpu_label, int, N);
         group[m].number = -1;
     }
+
     for (int n = 0; n < N; n++)
     {
         double mass, x, y, z;
-        int count = fscanf(fid_xyz, "%d%lf%lf%lf%lf", 
-            &(cpu_type[n]), &x, &y, &z, &mass);
-        if (count != 5) { print_error("reading error for xyz.in.\n"); }
+        int count = fscanf
+        (fid_xyz, "%d%lf%lf%lf%lf", &(cpu_type[n]), &x, &y, &z, &mass);
+        PRINT_SCANF_ERROR(count, 5, "Reading error for xyz.in.");
+
+        if (cpu_type[n] < 0 || cpu_type[n] >= N)
+        {
+            PRINT_INPUT_ERROR("Atom type should >= 0 and < N.");
+        }
+
+        if (mass <= 0)
+        {
+            PRINT_INPUT_ERROR("Atom mass should > 0.");
+        }
+
         cpu_mass[n] = mass; cpu_x[n] = x; cpu_y[n] = y; cpu_z[n] = z;
+
         if (cpu_type[n] > number_of_types) { number_of_types = cpu_type[n]; }
+
         if (has_velocity_in_xyz)
         {
             double vx, vy, vz;
             count = fscanf(fid_xyz, "%lf%lf%lf", &vx, &vy, &vz);
-            if (count != 3) { print_error("reading error for xyz.in.\n"); }
+            PRINT_SCANF_ERROR(count, 3, "Reading error for xyz.in.");
             cpu_vx[n] = vx; cpu_vy[n] = vy; cpu_vz[n] = vz;
         }
+
         for (int m = 0; m < num_of_grouping_methods; ++m)
         {
             count = fscanf(fid_xyz, "%d", &group[m].cpu_label[n]);
-            if (count != 1) { print_error("reading error for xyz.in.\n"); }
+            PRINT_SCANF_ERROR(count, 1, "Reading error for xyz.in.");
+
+            if (group[m].cpu_label[n] < 0 || group[m].cpu_label[n] >= N)
+            {
+                PRINT_INPUT_ERROR("Group label should >= 0 and < N.");
+            }
+
             if (group[m].cpu_label[n] > group[m].number)
             {
                 group[m].number = group[m].cpu_label[n];
             }
         }
     }
+
     for (int m = 0; m < num_of_grouping_methods; ++m) { group[m].number++; }
+
     number_of_types++;
 }
 
@@ -179,34 +295,59 @@ void Atom::find_group_size(int k)
     MY_MALLOC(group[k].cpu_size, int, group[k].number);
     MY_MALLOC(group[k].cpu_size_sum, int, group[k].number);
     MY_MALLOC(group[k].cpu_contents, int, N);
+
     if (group[k].number == 1)
+    {
         printf("There is only one group of atoms in grouping method %d.\n", k);
+    }
     else
-        printf("There are %d groups of atoms in grouping method %d.\n",
-            group[k].number, k);
+    {
+        printf
+        (
+            "There are %d groups of atoms in grouping method %d.\n",
+            group[k].number, k
+        );
+    }
+
     for (int m = 0; m < group[k].number; m++)
     {
         group[k].cpu_size[m] = 0;
         group[k].cpu_size_sum[m] = 0;
     }
-    for (int n = 0; n < N; n++) group[k].cpu_size[group[k].cpu_label[n]]++;
+
+    for (int n = 0; n < N; n++) { group[k].cpu_size[group[k].cpu_label[n]]++; }
+
     for (int m = 0; m < group[k].number; m++)
+    {
         printf("    %d atoms in group %d.\n", group[k].cpu_size[m], m);   
+    }
+
     for (int m = 1; m < group[k].number; m++)
+    {
         for (int n = 0; n < m; n++)
+        {
             group[k].cpu_size_sum[m] += group[k].cpu_size[n];
+        }
+    }
 }
 
 
+// re-arrange the atoms from the first to the last group
 void Atom::find_group_contents(int k)
 {
-    // determine the atom indices from the first to the last group
     int *offset; MY_MALLOC(offset, int, group[k].number);
-    for (int m = 0; m < group[k].number; m++) offset[m] = 0;
+    for (int m = 0; m < group[k].number; m++) { offset[m] = 0; }
+
     for (int n = 0; n < N; n++) 
+    {
         for (int m = 0; m < group[k].number; m++)
+        {
             if (group[k].cpu_label[n] == m)
+            {
                 group[k].cpu_contents[group[k].cpu_size_sum[m]+offset[m]++] = n;
+            }
+        }
+    }
     MY_FREE(offset);
 }
 
@@ -214,14 +355,22 @@ void Atom::find_group_contents(int k)
 void Atom::find_type_size(void)
 {
     MY_MALLOC(cpu_type_size, int, number_of_types);
+
     if (number_of_types == 1)
+    {
         printf("There is only one atom type.\n");
+    }
     else
+    {
         printf("There are %d atom types.\n", number_of_types);
-    for (int m = 0; m < number_of_types; m++) cpu_type_size[m] = 0;
-    for (int n = 0; n < N; n++) cpu_type_size[cpu_type[n]]++;
+    }
+
+    for (int m = 0; m < number_of_types; m++) { cpu_type_size[m] = 0; }
+    for (int n = 0; n < N; n++) { cpu_type_size[cpu_type[n]]++; }
     for (int m = 0; m < number_of_types; m++)
+    {
         printf("    %d atoms of type %d.\n", cpu_type_size[m], m);
+    }
 }
 
 
@@ -230,20 +379,26 @@ void Atom::initialize_position(char *input_dir)
     print_line_1();
     printf("Started initializing positions and related parameters.\n");
     print_line_2();
+
     char file_xyz[FILE_NAME_LENGTH];
     strcpy(file_xyz, input_dir);
     strcat(file_xyz, "/xyz.in");
     FILE *fid_xyz = my_fopen(file_xyz, "r");
+
     read_xyz_in_line_1(fid_xyz);
     read_xyz_in_line_2(fid_xyz);
     read_xyz_in_line_3(fid_xyz);
+
     fclose(fid_xyz);
+
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         find_group_size(m);
         find_group_contents(m);
     }
+
     find_type_size();
+
     print_line_1();
     printf("Finished initializing positions and related parameters.\n");
     print_line_2();
