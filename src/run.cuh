@@ -26,15 +26,17 @@ public:
 private:
     void initialize_run(Atom*, Integrate*, Measure*);
     void run(char*, Atom*, Force*, Integrate*, Measure*, int);
-    void parse
-    (char**, int, Atom*, Force*, Integrate*, Measure*, int*, int*, int*);
+    void parse(char**, int, Atom*, Force*, Integrate*, Measure*);
     void print_velocity_and_potential_error(void);
     void print_velocity_error(void);
-    void add_potential(char*, int, int, Atom*, Force*, Measure*);
-    void check_velocity(int, int, Atom*);
-    void check_run(char*, int, int, Atom*, Force*, Integrate*, Measure*);
+    void add_potential(char*, int, Atom*, Force*, Measure*);
+    void check_velocity(int, Atom*);
+    void check_run(char*, int, Atom*, Force*, Integrate*, Measure*);
     int number_of_times_velocity = 0;
     int number_of_times_potential = 0;
+    bool is_velocity;
+    bool is_potential;
+    bool is_run;
 };
 
 

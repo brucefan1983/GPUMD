@@ -213,8 +213,7 @@ static void print_finish(int check)
 // do something when the keyword is "potential"
 void Run::add_potential
 (
-    char* input_dir, int is_potential, int check,
-    Atom* atom, Force* force, Measure* measure
+    char* input_dir, int check, Atom* atom, Force* force, Measure* measure
 )
 {
     if (!is_potential) { return; }
@@ -227,7 +226,7 @@ void Run::add_potential
 
 
 // do something when the keyword is "velocity"
-void Run::check_velocity(int is_velocity, int check, Atom* atom)
+void Run::check_velocity(int check, Atom* atom)
 {
     if (!is_velocity) { return; }
     if (check) { number_of_times_velocity++; }
@@ -238,7 +237,7 @@ void Run::check_velocity(int is_velocity, int check, Atom* atom)
 // do something when the keyword is "run"
 void Run::check_run
 (
-    char* input_dir, int is_run, int check, Atom* atom,
+    char* input_dir, int check, Atom* atom,
     Force* force, Integrate* integrate, Measure* measure
 )
 {
@@ -285,16 +284,14 @@ void Run::run
 
         if (num_param == 0) { continue; } 
 
-        int is_potential = 0;
-        int is_velocity = 0;
-        int is_run = 0;
+        is_potential = false;
+        is_velocity = false;
+        is_run = false;
 
-        parse(param, num_param, atom, force, integrate, measure,
-            &is_potential, &is_velocity, &is_run);
-
-        add_potential(input_dir, is_potential, check, atom, force, measure);
-        check_velocity(is_velocity, check, atom);
-        check_run(input_dir, is_run, check, atom, force, integrate, measure);
+        parse(param, num_param, atom, force, integrate, measure);
+        add_potential(input_dir, check, atom, force, measure);
+        check_velocity(check, atom);
+        check_run(input_dir, check, atom, force, integrate, measure);
     }
 
     print_velocity_error();
@@ -308,8 +305,7 @@ void Run::run
 void Run::parse
 (
     char **param, int num_param, Atom* atom,
-    Force *force, Integrate *integrate, Measure *measure,
-    int *is_potential,int *is_velocity,int *is_run
+    Force *force, Integrate *integrate, Measure *measure
 )
 {
     if (strcmp(param[0], "potential_definition") == 0)
@@ -318,12 +314,12 @@ void Run::parse
     }
     else if (strcmp(param[0], "potential") == 0)
     {
-        *is_potential = 1;
+        is_potential = true;
         parse_potential(param, num_param, force);
     }
     else if (strcmp(param[0], "velocity") == 0)
     {
-        *is_velocity = 1;
+        is_velocity = true;
         parse_velocity(param, num_param, atom);
     }
     else if (strcmp(param[0], "ensemble") == 0)
@@ -412,7 +408,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "run") == 0)
     {
-        *is_run = 1;
+        is_run = true;
         parse_run(param, num_param, atom);
     }
     else
