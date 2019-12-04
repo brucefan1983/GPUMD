@@ -23,26 +23,6 @@ void parse_potential(char**, int, Force*);
 void parse_velocity(char**, int, Atom*);
 void parse_time_step (char**, int, Atom*);
 void parse_neighbor(char**, int, Atom*, Force*);
-void parse_dump_thermo(char**, int, Measure*);
-void parse_dump_position(char**, int, Measure*, Atom*);
-void parse_dump_restart(char**, int, Measure*);
-void parse_dump_velocity(char**, int, Measure*);
-void parse_dump_force(char**, int, Measure*);
-void parse_dump_potential(char**, int, Measure*);
-void parse_dump_virial(char**, int, Measure*);
-void parse_dump_heat(char**, int, Measure*);
-// Helpers for DOS, SDC
-void parse_group(char **param, Measure *measure, int *k, Group *group);
-void parse_num_dos_points(char **param, Measure *measure, int *k);
-//
-void parse_compute_dos(char**, int , Measure*, Group *group);
-void parse_compute_sdc(char**, int , Measure*, Group *group);
-void parse_compute_gkma(char**, int, Measure*, Atom*);
-void parse_compute_hnema(char **, int, Measure*, Atom*);
-void parse_compute_hac(char**, int , Measure*);
-void parse_compute_hnemd(char**, int, Measure*);
-void parse_compute_shc(char**,  int, Measure*);
-void parse_compute(char**, int, Measure*);
 void parse_run(char**, int, Atom*);
 void parse_cutoff(char**, int, Hessian*);
 void parse_delta(char**, int, Hessian*);

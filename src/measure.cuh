@@ -74,6 +74,27 @@ public:
     GKMA gkma;
     HNEMA hnema;
     DUMP_POS* dump_pos;
+
+    // functions to get inputs from run.in
+    void parse_dump_thermo(char**, int);
+    void parse_dump_position(char**, int, Atom*);
+    void parse_dump_restart(char**, int);
+    void parse_dump_velocity(char**, int);
+    void parse_dump_force(char**, int);
+    void parse_dump_potential(char**, int);
+    void parse_dump_virial(char**, int);
+    void parse_dump_heat(char**, int);
+    void parse_group(char **param, int *k, Group *group);
+    void parse_num_dos_points(char **param, int *k);
+    void parse_compute_dos(char**, int, Group *group);
+    void parse_compute_sdc(char**, int, Group *group);
+    void parse_compute_gkma(char**, int, Atom*);
+    void parse_compute_hnema(char **, int, Atom*);
+    void parse_compute_hac(char**, int);
+    void parse_compute_hnemd(char**, int);
+    void parse_compute_shc(char**, int);
+    void parse_compute(char**, int);
+
 protected:
     void dump_thermos(FILE*, Atom*, Integrate*, int);
     void dump_restarts(Atom*, int);

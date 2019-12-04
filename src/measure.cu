@@ -24,6 +24,11 @@ The driver class dealing with measurement.
 #include "ensemble.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "read_file.cuh"
+#include "dump_xyz.cuh"
+#ifdef USE_NETCDF
+#include "dump_netcdf.cuh"
+#endif
 
 #define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -315,6 +320,866 @@ void Measure::process
     hnema.process(step, atom, integrate, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);
 
+}
+
+
+void Measure::parse_dump_thermo(char **param,  int num_param)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_thermo should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &sample_interval_thermo))
+    {
+        print_error("thermo dump interval should be an integer number.\n");
+    }
+    dump_thermo = 1;
+    printf("Dump thermo every %d steps.\n", sample_interval_thermo);
+}
+
+
+void Measure::parse_dump_position(char **param, int num_param, Atom *atom)
+{
+	int interval;
+
+    if (num_param < 2)
+    {
+        print_error("dump_position should have at least 1 parameter.\n");
+    }
+    if (num_param > 6)
+    {
+    	print_error("dump_position has too many parameters.\n");
+    }
+
+    // sample interval
+    if (!is_valid_int(param[1], &interval))
+    {
+        print_error("position dump interval should be an integer number.\n");
+    }
+
+    int format = 0; // default xyz
+    int precision = 0; // default normal (unlesss netCDF -> 64 bit)
+    // Process optional arguments
+    for (int k = 2; k < num_param; k++)
+    {
+    	// format check
+    	if (strcmp(param[k], "format") == 0)
+    	{
+    		// check if there are enough inputs
+    		if (k + 2 > num_param)
+    		{
+    			print_error("Not enough arguments for optional "
+    					" 'format' dump_position command.\n");
+    		}
+    		if ((strcmp(param[k+1], "xyz") != 0) &&
+				(strcmp(param[k+1], "netcdf") != 0))
+    		{
+    			print_error("Invalid format for dump_position command.\n");
+    		}
+    		else if(strcmp(param[k+1], "netcdf") == 0)
+    		{
+    			format = 1;
+    			k++;
+    		}
+    	}
+    	// precision check
+    	else if(strcmp(param[k], "precision") == 0)
+    	{
+    		// check for enough inputs
+    		if (k + 2 > num_param)
+			{
+				print_error("Not enough arguments for optional "
+						" 'precision' dump_position command.\n");
+			}
+    		if ((strcmp(param[k+1], "single") != 0) &&
+				(strcmp(param[k+1], "double") != 0))
+			{
+				print_error("Invalid precision for dump_position command.\n");
+			}
+			else
+			{
+				if(strcmp(param[k+1], "single") == 0)
+				{
+					precision = 1;
+				}
+				else if(strcmp(param[k+1], "double") == 0)
+                {
+                    precision = 2;
+                }
+				k++;
+			}
+    	}
+    }
+
+    if (format == 1) // netcdf output
+    {
+#ifdef USE_NETCDF
+    	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N, atom->global_time);
+    	dump_pos = dump_netcdf;
+    	if (!precision) precision = 2; // double precision default
+#else
+    	print_error("USE_NETCDF flag is not set. NetCDF output not available.\n");
+#endif
+    }
+    else // xyz default output
+    {
+    	DUMP_XYZ *dump_xyz = new DUMP_XYZ();
+    	dump_pos = dump_xyz;
+    }
+    dump_pos->interval = interval;
+    dump_pos->precision = precision;
+
+
+    if (precision == 1 && format)
+    {
+    	printf("Note: Single precision netCDF output does not follow AMBER conventions.\n"
+    	       "      However, it will still work for many readers.\n");
+    }
+
+    printf("Dump position every %d steps.\n",
+        dump_pos->interval);
+}
+
+
+void Measure::parse_dump_restart(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_restart should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &sample_interval_restart))
+    {
+        print_error("restart dump interval should be an integer number.\n");
+    }
+    dump_restart = 1;
+    printf("Dump restart every %d steps.\n", sample_interval_restart);
+}
+
+
+void Measure::parse_dump_velocity(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_velocity should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &sample_interval_velocity))
+    {
+        print_error("velocity dump interval should be an integer number.\n");
+    }
+    dump_velocity = 1;
+    printf("Dump velocity every %d steps.\n",
+        sample_interval_velocity);
+}
+
+
+void Measure::parse_dump_force(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_force should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &sample_interval_force))
+    {
+        print_error("force dump interval should be an integer number.\n");
+    }
+    dump_force = 1;
+    printf("Dump force every %d steps.\n", sample_interval_force);
+}
+
+
+void Measure::parse_dump_potential(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_potential should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &sample_interval_potential))
+    {
+        print_error("potential dump interval should be an integer number.\n");
+    }
+    dump_potential = 1;
+    printf("Dump potential every %d steps.\n",
+        sample_interval_potential);
+}
+
+
+void Measure::parse_dump_virial(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_virial should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &sample_interval_virial))
+    {
+        print_error("virial dump interval should be an integer number.\n");
+    }
+    dump_virial = 1;
+    printf("Dump virial every %d steps.\n",
+        sample_interval_virial);
+}
+
+
+void Measure::parse_dump_heat(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        print_error("dump_heat should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &sample_interval_heat))
+    {
+        print_error("heat dump interval should be an integer number.\n");
+    }
+    dump_heat = 1;
+    printf("Dump heat every %d steps.\n", sample_interval_heat);
+}
+
+
+// Helper functions for parse_compute_dos
+void Measure::parse_group(char **param, int *k, Group *group)
+{
+	// grouping_method
+	if (!is_valid_int(param[*k+1], &vac.grouping_method))
+	{
+		print_error("grouping method for VAC should be an integer number.\n");
+	}
+	if (vac.grouping_method < 0 || vac.grouping_method > 2)
+	{
+		print_error("grouping method for VAC should be 0 <= x <= 2.\n");
+	}
+	// group
+	if (!is_valid_int(param[*k+2], &vac.group))
+	{
+		print_error("group for VAC should be an integer number.\n");
+	}
+	if (vac.group < 0 ||
+			vac.group > group[vac.grouping_method].number)
+	{
+		print_error("group for VAC must be >= 0 and < number of groups.\n");
+	}
+	*k += 2; // update index for next command
+}
+
+
+void Measure::parse_num_dos_points(char **param, int *k)
+{
+	// number of DOS points
+	if (!is_valid_int(param[*k+1], &dos.num_dos_points))
+	{
+		print_error("number of DOS points for VAC should be an integer "
+				"number.\n");
+	}
+	if (dos.num_dos_points < 1)
+	{
+		print_error("number of DOS points for DOS must be > 0.\n");
+	}
+	*k += 1; //
+}
+
+
+void Measure::parse_compute_dos(char **param,  int num_param, Group *group)
+{
+    printf("Compute phonon DOS.\n");
+    vac.compute_dos = 1;
+
+    if (num_param < 4)
+    {
+        print_error("compute_dos should have at least 3 parameters.\n");
+    }
+    if (num_param > 9)
+	{
+		print_error("compute_dos has too many parameters.\n");
+	}
+
+    // sample interval
+    if (!is_valid_int(param[1], &vac.sample_interval))
+    {
+        print_error("sample interval for VAC should be an integer number.\n");
+    }
+    if (vac.sample_interval <= 0)
+    {
+        print_error("sample interval for VAC should be positive.\n");
+    }
+    printf("    sample interval is %d.\n", vac.sample_interval);
+
+    // number of correlation steps
+    if (!is_valid_int(param[2], &vac.Nc))
+    {
+        print_error("Nc for VAC should be an integer number.\n");
+    }
+    if (vac.Nc <= 0)
+    {
+        print_error("Nc for VAC should be positive.\n");
+    }
+    printf("    Nc is %d.\n", vac.Nc);
+
+    // maximal omega
+    if (!is_valid_real(param[3], &dos.omega_max))
+    {
+        print_error("omega_max should be a real number.\n");
+    }
+    if (dos.omega_max <= 0)
+    {
+        print_error("omega_max should be positive.\n");
+    }
+    printf("    omega_max is %g THz.\n", dos.omega_max);
+
+    // Process optional arguments
+    for (int k = 4; k < num_param; k++)
+    {
+    	if (strcmp(param[k], "group") == 0)
+    	{
+    		// check if there are enough inputs
+    		if (k + 3 > num_param)
+    		{
+    			print_error("Not enough arguments for optional "
+    					"'group' DOS command.\n");
+    		}
+    		parse_group(param, &k, group);
+    		printf("    grouping_method is %d and group is %d.\n",
+    				vac.grouping_method, vac.group);
+    	}
+    	else if (strcmp(param[k], "num_dos_points") == 0)
+    	{
+    		// check if there are enough inputs
+    		if (k + 2 > num_param)
+    		{
+    			print_error("Not enough arguments for optional "
+						"'group' dos command.\n");
+    		}
+    		parse_num_dos_points(param, &k);
+    		printf("    num_dos_points is %d.\n",dos.num_dos_points);
+    	}
+    	else
+    	{
+    		print_error("Unrecognized argument in compute_dos.\n");
+    	}
+    }
+}
+
+
+void Measure::parse_compute_sdc(char **param,  int num_param, Group *group)
+{
+    printf("Compute SDC.\n");
+    vac.compute_sdc = 1;
+
+    if (num_param < 3)
+    {
+        print_error("compute_sdc should have at least 2 parameters.\n");
+    }
+    if (num_param > 6)
+    {
+    	print_error("compute_sdc has too many parameters.\n");
+    }
+
+    // sample interval
+    if (!is_valid_int(param[1], &vac.sample_interval))
+    {
+        print_error("sample interval for VAC should be an integer number.\n");
+    }
+    if (vac.sample_interval <= 0)
+    {
+        print_error("sample interval for VAC should be positive.\n");
+    }
+    printf("    sample interval is %d.\n", vac.sample_interval);
+
+    // number of correlation steps
+    if (!is_valid_int(param[2], &vac.Nc))
+    {
+        print_error("Nc for VAC should be an integer number.\n");
+    }
+    if (vac.Nc <= 0)
+    {
+        print_error("Nc for VAC should be positive.\n");
+    }
+    printf("    Nc is %d.\n", vac.Nc);
+
+    // Process optional arguments
+	for (int k = 3; k < num_param; k++)
+	{
+		if (strcmp(param[k], "group") == 0)
+		{
+			// check if there are enough inputs
+			if (k + 3 > num_param)
+			{
+				print_error("Not enough arguments for optional "
+						"'group' SDC command.\n");
+			}
+			parse_group(param, &k, group);
+			printf("    grouping_method is %d and group is %d.\n",
+					vac.grouping_method, vac.group);
+		}
+		else
+		{
+			print_error("Unrecognized argument in compute_sdc.\n");
+		}
+	}
+}
+
+
+void Measure::parse_compute_hac(char **param, int num_param)
+{
+    hac.compute = 1;
+
+    printf("Compute HAC.\n");
+
+    if (num_param != 4)
+    {
+        print_error("compute_hac should have 3 parameters.\n");
+    }
+
+    if (!is_valid_int(param[1], &hac.sample_interval))
+    {
+        print_error("sample interval for HAC should be an integer number.\n");
+    }
+    printf("    sample interval is %d.\n", hac.sample_interval);
+
+    if (!is_valid_int(param[2], &hac.Nc))
+    {
+        print_error("Nc for HAC should be an integer number.\n");
+    }
+    printf("    Nc is %d\n", hac.Nc);
+
+    if (!is_valid_int(param[3], &hac.output_interval))
+    {
+        print_error("output_interval for HAC should be an integer number.\n");
+    }
+    printf("    output_interval is %d\n", hac.output_interval);
+}
+
+
+void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
+{
+    gkma.compute = 1;
+
+    printf("Compute modal heat current using GKMA method.\n");
+
+    /*
+     * There is a hidden feature that allows for specification of atom
+     * types to included (must be contiguously defined like potentials)
+     * -- Works for types only, not groups --
+     */
+
+    if (num_param != 6 && num_param != 9)
+    {
+        print_error("compute_gkma should have 5 parameters.\n");
+    }
+    if (!is_valid_int(param[1], &gkma.sample_interval) ||
+        !is_valid_int(param[2], &gkma.first_mode)      ||
+        !is_valid_int(param[3], &gkma.last_mode)       )
+    {
+        print_error("A parameter for GKMA should be an integer.\n");
+    }
+
+    if (strcmp(param[4], "bin_size") == 0)
+    {
+        gkma.f_flag = 0;
+        if(!is_valid_int(param[5], &gkma.bin_size))
+        {
+            print_error("GKMA bin_size must be an integer.\n");
+        }
+    }
+    else if (strcmp(param[4], "f_bin_size") == 0)
+    {
+        gkma.f_flag = 1;
+        if(!is_valid_real(param[5], &gkma.f_bin_size))
+        {
+            print_error("GKMA f_bin_size must be a real number.\n");
+        }
+    }
+    else
+    {
+        print_error("Invalid binning keyword for compute_gkma.\n");
+    }
+
+    GKMA *g = &gkma;
+    // Parameter checking
+    if (g->sample_interval < 1  || g->first_mode < 1 || g->last_mode < 1)
+        print_error("compute_gkma parameters must be positive integers.\n");
+    if (g->first_mode > g->last_mode)
+        print_error("first_mode <= last_mode required.\n");
+
+    printf("    sample_interval is %d.\n"
+           "    first_mode is %d.\n"
+           "    last_mode is %d.\n",
+          g->sample_interval, g->first_mode, g->last_mode);
+
+    if (g->f_flag)
+    {
+        if (g->f_bin_size <= 0.0)
+        {
+            print_error("bin_size must be greater than zero.\n");
+        }
+        printf("    Bin by frequency.\n"
+               "    f_bin_size is %f THz.\n", g->f_bin_size);
+    }
+    else
+    {
+        if (g->bin_size < 1)
+        {
+            print_error("compute_gkma parameters must be positive integers.\n");
+        }
+        int num_modes = g->last_mode - g->first_mode + 1;
+        if (num_modes % g->bin_size != 0)
+            print_error("number of modes must be divisible by bin_size.\n");
+        printf("    Bin by modes.\n"
+               "    bin_size is %d THz.\n", g->bin_size);
+    }
+
+    // Hidden feature implementation
+    if (num_param == 9)
+    {
+        if (strcmp(param[6], "atom_range") == 0)
+        {
+            if(!is_valid_int(param[7], &gkma.atom_begin) ||
+               !is_valid_int(param[8], &gkma.atom_end))
+            {
+                print_error("GKMA atom_begin & atom_end must be integers.\n");
+            }
+            if (gkma.atom_begin > gkma.atom_end)
+            {
+                print_error("atom_begin must be less than atom_end.\n");
+            }
+            if (gkma.atom_begin < 0)
+            {
+                print_error("atom_begin must be greater than 0.\n");
+            }
+            if (gkma.atom_end >= atom->number_of_types)
+            {
+                print_error("atom_end must be greater than 0.\n");
+            }
+        }
+        else
+        {
+            print_error("Invalid GKMA keyword.\n");
+        }
+        printf("    Use select atom range.\n"
+               "    Atom types %d to %d.\n",
+               gkma.atom_begin, gkma.atom_end);
+    }
+    else // default behavior
+    {
+        gkma.atom_begin = 0;
+        gkma.atom_end = atom->number_of_types - 1;
+    }
+
+}
+
+
+void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
+{
+    hnema.compute = 1;
+
+    printf("Compute modal thermal conductivity using HNEMA method.\n");
+
+    /*
+     * There is a hidden feature that allows for specification of atom
+     * types to included (must be contiguously defined like potentials)
+     * -- Works for types only, not groups --
+     */
+
+    if (num_param != 10 && num_param != 13)
+    {
+        print_error("compute_hnema should have 9 parameters.\n");
+    }
+    if (!is_valid_int(param[1], &hnema.sample_interval) ||
+        !is_valid_int(param[2], &hnema.output_interval) ||
+        !is_valid_int(param[6], &hnema.first_mode)      ||
+        !is_valid_int(param[7], &hnema.last_mode)       )
+    {
+        print_error("A parameter for HNEMA should be an integer.\n");
+    }
+
+    // HNEMD driving force parameters -> Use HNEMD object
+    if (!is_valid_real(param[3], &hnemd.fe_x))
+    {
+        print_error("fe_x for HNEMD should be a real number.\n");
+    }
+    printf("    fe_x = %g /A\n", hnemd.fe_x);
+    if (!is_valid_real(param[4], &hnemd.fe_y))
+    {
+        print_error("fe_y for HNEMD should be a real number.\n");
+    }
+    printf("    fe_y = %g /A\n", hnemd.fe_y);
+    if (!is_valid_real(param[5], &hnemd.fe_z))
+    {
+        print_error("fe_z for HNEMD should be a real number.\n");
+    }
+    printf("    fe_z = %g /A\n", hnemd.fe_z);
+    // magnitude of the vector
+    hnemd.fe  = hnemd.fe_x * hnemd.fe_x;
+    hnemd.fe += hnemd.fe_y * hnemd.fe_y;
+    hnemd.fe += hnemd.fe_z * hnemd.fe_z;
+    hnemd.fe  = sqrt(hnemd.fe);
+
+
+    if (strcmp(param[8], "bin_size") == 0)
+    {
+        hnema.f_flag = 0;
+        if(!is_valid_int(param[9], &hnema.bin_size))
+        {
+            print_error("HNEMA bin_size must be an integer.\n");
+        }
+    }
+    else if (strcmp(param[8], "f_bin_size") == 0)
+    {
+        hnema.f_flag = 1;
+        if(!is_valid_real(param[9], &hnema.f_bin_size))
+        {
+            print_error("HNEMA f_bin_size must be a real number.\n");
+        }
+    }
+    else
+    {
+        print_error("Invalid binning keyword for compute_hnema.\n");
+    }
+
+    HNEMA *h = &hnema;
+    // Parameter checking
+    if (h->sample_interval < 1  || h->output_interval < 1 ||
+            h->first_mode < 1 || h->last_mode < 1)
+        print_error("compute_hnema parameters must be positive integers.\n");
+    if (h->first_mode > h->last_mode)
+        print_error("first_mode <= last_mode required.\n");
+    if (h->output_interval % h->sample_interval != 0)
+            print_error("sample_interval must divide output_interval an integer\n"
+                    " number of times.\n");
+
+    printf("    sample_interval is %d.\n"
+           "    output_interval is %d.\n"
+           "    first_mode is %d.\n"
+           "    last_mode is %d.\n",
+          h->sample_interval, h->output_interval, h->first_mode, h->last_mode);
+
+    if (h->f_flag)
+    {
+        if (h->f_bin_size <= 0.0)
+        {
+            print_error("bin_size must be greater than zero.\n");
+        }
+        printf("    Bin by frequency.\n"
+               "    f_bin_size is %f THz.\n", h->f_bin_size);
+    }
+    else
+    {
+        if (h->bin_size < 1)
+        {
+            print_error("compute_hnema parameters must be positive integers.\n");
+        }
+        int num_modes = h->last_mode - h->first_mode + 1;
+        if (num_modes % h->bin_size != 0)
+            print_error("number of modes must be divisible by bin_size.\n");
+        printf("    Bin by modes.\n"
+               "    bin_size is %d THz.\n", h->bin_size);
+    }
+
+    // Hidden feature implementation
+    if (num_param == 13)
+    {
+        if (strcmp(param[10], "atom_range") == 0)
+        {
+            if(!is_valid_int(param[11], &hnema.atom_begin) ||
+               !is_valid_int(param[12], &hnema.atom_end))
+            {
+                print_error("HNEMA atom_begin & atom_end must be integers.\n");
+            }
+            if (hnema.atom_begin > hnema.atom_end)
+            {
+                print_error("atom_begin must be less than atom_end.\n");
+            }
+            if (hnema.atom_begin < 0)
+            {
+                print_error("atom_begin must be greater than 0.\n");
+            }
+            if (hnema.atom_end >= atom->number_of_types)
+            {
+                print_error("atom_end must be greater than 0.\n");
+            }
+        }
+        else
+        {
+            print_error("Invalid HNEMA keyword.\n");
+        }
+        printf("    Use select atom range.\n"
+               "    Atom types %d to %d.\n",
+               hnema.atom_begin, hnema.atom_end);
+    }
+    else // default behavior
+    {
+        hnema.atom_begin = 0;
+        hnema.atom_end = atom->number_of_types - 1;
+    }
+
+}
+
+
+void Measure::parse_compute_hnemd(char **param, int num_param)
+{
+    hnemd.compute = 1;
+
+    printf("Compute thermal conductivity using the HNEMD method.\n");
+
+    if (num_param != 5)
+    {
+        print_error("compute_hnemd should have 4 parameters.\n");
+    }
+
+    if (!is_valid_int(param[1], &hnemd.output_interval))
+    {
+        print_error("output_interval for HNEMD should be an integer number.\n");
+    }
+    printf("    output_interval = %d\n", hnemd.output_interval);
+    if (hnemd.output_interval < 1)
+    {
+        print_error("output_interval for HNEMD should be larger than 0.\n");
+    }
+    if (!is_valid_real(param[2], &hnemd.fe_x))
+    {
+        print_error("fe_x for HNEMD should be a real number.\n");
+    }
+    printf("    fe_x = %g /A\n", hnemd.fe_x);
+    if (!is_valid_real(param[3], &hnemd.fe_y))
+    {
+        print_error("fe_y for HNEMD should be a real number.\n");
+    }
+    printf("    fe_y = %g /A\n", hnemd.fe_y);
+    if (!is_valid_real(param[4], &hnemd.fe_z))
+    {
+        print_error("fe_z for HNEMD should be a real number.\n");
+    }
+    printf("    fe_z = %g /A\n", hnemd.fe_z);
+
+    // magnitude of the vector
+    hnemd.fe  = hnemd.fe_x * hnemd.fe_x;
+    hnemd.fe += hnemd.fe_y * hnemd.fe_y;
+    hnemd.fe += hnemd.fe_z * hnemd.fe_z;
+    hnemd.fe  = sqrt(hnemd.fe);
+}
+
+
+void Measure::parse_compute_shc(char **param, int num_param)
+{
+    printf("Compute SHC.\n");
+    shc.compute = 1;
+
+    // check the number of parameters
+    if ((num_param != 4) && (num_param != 5) && (num_param != 6))
+    {
+        print_error("compute_shc should have 3 or 4 or 5 parameters.\n");
+    }
+
+    // group method and group id
+    int offset = 0;
+    if (num_param == 4)
+    {
+        shc.group_method = -1;
+        printf("    for the whole system.\n");
+    }
+    else if (num_param == 5)
+    {
+        offset = 1;
+        shc.group_method = 0;
+        if (!is_valid_int(param[1], &shc.group_id))
+        {
+            print_error("grouping id should be an integer.\n");
+        }
+        printf("    for atoms in group %d.\n", shc.group_id);
+        printf("    using group method 0.\n");
+    }
+    else
+    {
+        offset = 2;
+        if (!is_valid_int(param[1], &shc.group_method))
+        {
+            print_error("group method should be an integer.\n");
+        }
+        if (!is_valid_int(param[2], &shc.group_id))
+        {
+            print_error("grouping id should be an integer.\n");
+        }
+        printf("    for atoms in group %d.\n", shc.group_id);
+        printf("    using group method %d.\n", shc.group_method);
+    }
+
+    // sample interval 
+    if (!is_valid_int(param[1+offset], &shc.sample_interval))
+    {
+        print_error("shc.sample_interval should be an integer.\n");
+    }
+    printf
+    ("    sample interval for SHC is %d.\n", shc.sample_interval);
+
+    // number of correlation data
+    if (!is_valid_int(param[2+offset], &shc.Nc))
+    {
+        print_error("Nc for SHC should be an integer.\n");
+    }
+    printf("    number of correlation data is %d.\n", shc.Nc);
+
+    // transport direction
+    if (!is_valid_int(param[3+offset], &shc.direction))
+    {
+        print_error("direction for SHC should be an integer.\n");
+    }
+    printf("    transport direction is %d.\n", shc.direction);
+}
+
+
+void Measure::parse_compute(char **param, int num_param)
+{
+    printf("Compute group average of:\n");
+    if (num_param < 5)
+        print_error("compute should have at least 4 parameters.\n");
+    if (!is_valid_int(param[1], &compute.grouping_method))
+    {
+        print_error("grouping method of compute should be integer.\n");
+    }
+    if (!is_valid_int(param[2], &compute.sample_interval))
+    {
+        print_error("sampling interval of compute should be integer.\n");
+    }
+    if (!is_valid_int(param[3], &compute.output_interval))
+    {
+        print_error("output interval of compute should be integer.\n");
+    }
+    for (int k = 0; k < num_param - 4; ++k)
+    {
+        if (strcmp(param[k + 4], "temperature") == 0)
+        {
+            compute.compute_temperature = 1;
+            printf("    temperature\n");
+        }
+        else if (strcmp(param[k + 4], "potential") == 0)
+        {
+            compute.compute_potential = 1;
+            printf("    potential energy\n");
+        }
+        else if (strcmp(param[k + 4], "force") == 0)
+        {
+            compute.compute_force = 1;
+            printf("    force\n");
+        }
+        else if (strcmp(param[k + 4], "virial") == 0)
+        {
+            compute.compute_virial = 1;
+            printf("    virial\n");
+        }
+        else if (strcmp(param[k + 4], "jp") == 0)
+        {
+            compute.compute_jp = 1;
+            printf("    potential part of heat current\n");
+        }
+        else if (strcmp(param[k + 4], "jk") == 0)
+        {
+            compute.compute_jk = 1;
+            printf("    kinetic part of heat current\n");
+        }
+    }
+    printf("    using grouping method %d.\n",
+        compute.grouping_method);
+    printf("    with sampling interval %d.\n",
+        compute.sample_interval);
+    printf("    and output interval %d.\n",
+        compute.output_interval);
 }
 
 

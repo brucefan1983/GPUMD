@@ -336,63 +336,63 @@ void Run::parse
     }
     else if (strcmp(param[0], "dump_thermo") == 0)
     {
-        parse_dump_thermo(param, num_param, measure);
+        measure->parse_dump_thermo(param, num_param);
     }
     else if (strcmp(param[0], "dump_position") == 0)
     {
-        parse_dump_position(param, num_param, measure, atom);
+        measure->parse_dump_position(param, num_param, atom);
     }
     else if (strcmp(param[0], "dump_restart") == 0)
     {
-        parse_dump_restart(param, num_param, measure);
+        measure->parse_dump_restart(param, num_param);
     }
     else if (strcmp(param[0], "dump_velocity") == 0)
     {
-        parse_dump_velocity(param, num_param, measure);
+        measure->parse_dump_velocity(param, num_param);
     }
     else if (strcmp(param[0], "dump_force") == 0)
     {
-        parse_dump_force(param, num_param, measure);
+        measure->parse_dump_force(param, num_param);
     }
     else if (strcmp(param[0], "dump_potential") == 0)
     {
-        parse_dump_potential(param, num_param, measure);
+        measure->parse_dump_potential(param, num_param);
     }
     else if (strcmp(param[0], "dump_virial") == 0)
     {
-        parse_dump_virial(param, num_param, measure);
+        measure->parse_dump_virial(param, num_param);
     }
     else if (strcmp(param[0], "dump_heat") == 0)
     {
-        parse_dump_heat(param, num_param, measure);
+        measure->parse_dump_heat(param, num_param);
     }
     else if (strcmp(param[0], "compute_dos") == 0)
     {
-        parse_compute_dos(param, num_param, measure, atom->group);
+        measure->parse_compute_dos(param, num_param, atom->group);
     }
     else if (strcmp(param[0], "compute_sdc") == 0)
     {
-        parse_compute_sdc(param, num_param, measure, atom->group);
+        measure->parse_compute_sdc(param, num_param, atom->group);
     }
     else if (strcmp(param[0], "compute_hac") == 0)
     {
-        parse_compute_hac(param, num_param, measure);
+        measure->parse_compute_hac(param, num_param);
     }
     else if (strcmp(param[0], "compute_hnemd") == 0)
     {
-        parse_compute_hnemd(param, num_param, measure);
+        measure->parse_compute_hnemd(param, num_param);
     }
     else if (strcmp(param[0], "compute_shc") == 0)
     {
-        parse_compute_shc(param, num_param, measure);
+        measure->parse_compute_shc(param, num_param);
     }
     else if (strcmp(param[0], "compute_gkma") == 0)
     {
-        parse_compute_gkma(param, num_param, measure, atom);
+        measure->parse_compute_gkma(param, num_param, atom);
     }
     else if (strcmp(param[0], "compute_hnema") == 0)
     {
-        parse_compute_hnema(param, num_param, measure, atom);
+        measure->parse_compute_hnema(param, num_param, atom);
     }
     else if (strcmp(param[0], "deform") == 0)
     {
@@ -400,7 +400,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute") == 0)
     {
-        parse_compute(param, num_param, measure);
+        measure->parse_compute(param, num_param);
     }
     else if (strcmp(param[0], "fix") == 0)
     {
