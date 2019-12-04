@@ -324,7 +324,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "ensemble") == 0)
     {
-        parse_ensemble(param, num_param, atom, integrate);
+        integrate->parse_ensemble(param, num_param, atom);
     }
     else if (strcmp(param[0], "time_step") == 0)
     {
@@ -396,7 +396,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "deform") == 0)
     {
-        parse_deform(param, num_param, integrate);
+        integrate->parse_deform(param, num_param);
     }
     else if (strcmp(param[0], "compute") == 0)
     {
@@ -404,7 +404,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "fix") == 0)
     {
-        parse_fix(param, num_param, integrate);
+        integrate->parse_fix(param, num_param);
     }
     else if (strcmp(param[0], "run") == 0)
     {

@@ -21,7 +21,6 @@
 void parse_potential_definition(char**, int, Atom*, Force*);
 void parse_potential(char**, int, Force*);
 void parse_velocity(char**, int, Atom*);
-void parse_ensemble(char**, int, Atom*, Integrate*);
 void parse_time_step (char**, int, Atom*);
 void parse_neighbor(char**, int, Atom*, Force*);
 void parse_dump_thermo(char**, int, Measure*);
@@ -43,9 +42,7 @@ void parse_compute_hnema(char **, int, Measure*, Atom*);
 void parse_compute_hac(char**, int , Measure*);
 void parse_compute_hnemd(char**, int, Measure*);
 void parse_compute_shc(char**,  int, Measure*);
-void parse_deform(char**, int, Integrate*);
 void parse_compute(char**, int, Measure*);
-void parse_fix(char**, int, Integrate*);
 void parse_run(char**, int, Atom*);
 void parse_cutoff(char**, int, Hessian*);
 void parse_delta(char**, int, Hessian*);

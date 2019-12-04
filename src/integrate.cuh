@@ -28,6 +28,11 @@ public:
     void finalize(void);
     void compute(Atom*, Force*, Measure*);
 
+    // get inputs from run.in
+    void parse_ensemble(char**, int, Atom*);
+    void parse_deform(char**, int);
+    void parse_fix(char**, int);
+
     // these data will be used to initialize ensemble
     int type;          // ensemble type in a specific run
     int source;
