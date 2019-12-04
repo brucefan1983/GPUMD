@@ -109,18 +109,23 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
 void Run::print_velocity_and_potential_error(void)
 {
     if (0 == number_of_times_potential)
-    { print_error("No 'potential(s)' keyword before run.\n"); }
+    {
+        PRINT_INPUT_ERROR("No 'potential' keyword before run.");
+    }
+
     if (0 == number_of_times_velocity)
-    { print_error("No 'velocity' keyword before run.\n"); }
-    else if (1 < number_of_times_velocity)
-    { print_error("Multiple 'velocity' keywords before run.\n"); }
+    {
+        PRINT_INPUT_ERROR("No 'velocity' keyword before run.");
+    }
 }
 
 
 void Run::print_velocity_error(void)
 {
     if (1 < number_of_times_velocity)
-    { print_error("Multiple 'velocity' keywords.\n"); }
+    {
+        PRINT_INPUT_ERROR("Multiple 'velocity' keywords.");
+    }
 }
 
 
@@ -129,7 +134,7 @@ static void check_run_parameters
 {
     if (atom->box.triclinic == 1 && integrate->type == 11)
     {
-        print_error("Cannot use triclinic box with NPT ensemble.\n");
+        PRINT_INPUT_ERROR("Cannot use triclinic box with NPT ensemble.");
     }
 }
 
@@ -147,8 +152,8 @@ static void update_temperature(Atom* atom, Integrate* integrate, int step)
 
 static void print_finished_steps(int step, int number_of_steps)
 {
-    if (number_of_steps < 10) { return; }
-    if ((step + 1) % (number_of_steps / 10) == 0)
+    int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
+    if (0 == (step + 1) % base)
     {
         printf("    %d steps completed.\n", step + 1);
     }
@@ -179,6 +184,7 @@ static void process_run
     integrate->initialize(atom);
     measure->initialize(input_dir, atom);
     clock_t time_begin = clock();
+
     for (int step = 0; step < atom->number_of_steps; ++step)
     {
         atom->step = step;
@@ -189,6 +195,7 @@ static void process_run
         measure->process(input_dir, atom, integrate, step);
         print_finished_steps(step, atom->number_of_steps);
     }
+
     print_time_and_speed(time_begin, atom);
     measure->finalize(input_dir, atom, integrate);
     integrate->finalize();
@@ -254,7 +261,6 @@ void Run::check_run
     else
     {
         force->valdiate_potential_definitions();
-
         process_run(input_dir, atom, force, integrate, measure);
     }
     initialize_run(atom, integrate, measure);
@@ -274,28 +280,37 @@ void Run::run
     char *input = get_file_contents(file_run);
     char *input_ptr = input; // Keep the pointer in order to free later
     const int max_num_param = 10; // never use more than 9 parameters
-    force->num_of_potentials = 0;
     int num_param;
     char *param[max_num_param];
+
+    force->num_of_potentials = 0;
+
     initialize_run(atom, integrate, measure); // set some default values
+
     print_start(check);
 
     while (input_ptr)
     {
         input_ptr = row_find_param(input_ptr, param, &num_param);
+
         if (num_param == 0) { continue; } 
+
         int is_potential = 0;
         int is_velocity = 0;
         int is_run = 0;
+
         parse(param, num_param, atom, force, integrate, measure,
             &is_potential, &is_velocity, &is_run);
+
         add_potential(input_dir, is_potential, check, atom, force, measure);
         check_velocity(is_velocity, check, atom);
         check_run(input_dir, is_run, check, atom, force, integrate, measure);
     }
 
     print_velocity_error();
+
     print_finish(check);
+
     MY_FREE(input); // Free the input file contents
 }
 
