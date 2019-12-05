@@ -39,26 +39,11 @@ Measure::Measure(char *input_dir)
 {
     dump_thermo = 0;
     dump_restart = 0;
-    dump_velocity = 0;
-    dump_force = 0;
-    dump_potential = 0;
-    dump_virial = 0;
-    dump_heat = 0;
     dump_pos = NULL; // to avoid deleting random memory in run
     strcpy(file_thermo, input_dir);
     strcpy(file_restart, input_dir);
-    strcpy(file_velocity, input_dir);
-    strcpy(file_force, input_dir);
-    strcpy(file_potential, input_dir);
-    strcpy(file_virial, input_dir);
-    strcpy(file_heat, input_dir);
     strcat(file_thermo, "/thermo.out");
     strcat(file_restart, "/restart.out");
-    strcat(file_velocity, "/v.out");
-    strcat(file_force, "/f.out");
-    strcat(file_potential, "/potential.out");
-    strcat(file_virial, "/virial.out");
-    strcat(file_heat, "/heat.out");
 }
 
 
@@ -71,11 +56,6 @@ Measure::~Measure(void)
 void Measure::initialize(char* input_dir, Atom *atom)
 {
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
-    if (dump_velocity)  {fid_velocity = my_fopen(file_velocity, "a");}
-    if (dump_force)     {fid_force    = my_fopen(file_force,    "a");}
-    if (dump_potential) {fid_potential= my_fopen(file_potential,"a");}
-    if (dump_virial)    {fid_virial   = my_fopen(file_virial,   "a");}
-    if (dump_heat)      {fid_heat     = my_fopen(file_heat,     "a");}
     if (dump_pos)       {dump_pos->initialize(input_dir);}
     vac.preprocess(atom);
     dos.preprocess(atom, &vac);
@@ -93,11 +73,6 @@ void Measure::finalize
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
     if (dump_restart)   {                       dump_restart   = 0;}
-    if (dump_velocity)  {fclose(fid_velocity);  dump_velocity  = 0;}
-    if (dump_force)     {fclose(fid_force);     dump_force     = 0;}
-    if (dump_potential) {fclose(fid_potential); dump_potential = 0;}
-    if (dump_virial)    {fclose(fid_virial);    dump_virial    = 0;}
-    if (dump_heat)      {fclose(fid_heat);      dump_heat      = 0;}
     if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom, &dos, &sdc);
     hac.postprocess(input_dir, atom, integrate);
@@ -129,24 +104,6 @@ void Measure::dump_thermos
         fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
     }
     fprintf(fid, "\n"); fflush(fid); MY_FREE(thermo);
-}
-
-
-static void gpu_dump_3(int N, FILE *fid, real *a, real *b, real *c)
-{
-    real *cpu_a, *cpu_b, *cpu_c;
-    MY_MALLOC(cpu_a, real, N);
-    MY_MALLOC(cpu_b, real, N);
-    MY_MALLOC(cpu_c, real, N);
-    CHECK(cudaMemcpy(cpu_a, a, sizeof(real) * N, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(cpu_b, b, sizeof(real) * N, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(cpu_c, c, sizeof(real) * N, cudaMemcpyDeviceToHost));
-    for (int n = 0; n < N; n++)
-    {
-        fprintf(fid, "%g %g %g\n", cpu_a[n], cpu_b[n], cpu_c[n]);
-    }
-    fflush(fid);
-    MY_FREE(cpu_a); MY_FREE(cpu_b); MY_FREE(cpu_c);
 }
 
 
@@ -200,117 +157,11 @@ void Measure::dump_restarts(Atom *atom, int step)
 }
 
 
-void Measure::dump_velocities(FILE *fid, Atom *atom, int step)
-{
-    if (!dump_velocity) return;
-    if ((step + 1) % sample_interval_velocity != 0) return;
-    gpu_dump_3(atom->N, fid, atom->vx, atom->vy, atom->vz);
-}
-
-
-void Measure::dump_forces(FILE *fid, Atom *atom, int step)
-{
-    if (!dump_force) return;
-    if ((step + 1) % sample_interval_force != 0) return;
-    gpu_dump_3(atom->N, fid, atom->fx, atom->fy, atom->fz);
-}
-
-
-void Measure::dump_virials(FILE *fid, Atom *atom, int step)
-{
-    if (!dump_virial) return;
-    if ((step + 1) % sample_interval_virial != 0) return;
-    gpu_dump_3
-    (
-        atom->N, fid,
-        atom->virial_per_atom,
-        atom->virial_per_atom + atom->N,
-        atom->virial_per_atom + atom->N * 2
-    );
-}
-
-
-static void gpu_dump_1(int N, FILE *fid, real *a)
-{
-    real *cpu_a; MY_MALLOC(cpu_a, real, N);
-    CHECK(cudaMemcpy(cpu_a, a, sizeof(real) * N, cudaMemcpyDeviceToHost));
-    for (int n = 0; n < N; n++) { fprintf(fid, "%g\n", cpu_a[n]); }
-    fflush(fid); MY_FREE(cpu_a);
-}
-
-
-void Measure::dump_potentials(FILE *fid, Atom *atom, int step)
-{
-    if (!dump_potential) return;
-    if ((step + 1) % sample_interval_potential != 0) return;
-    gpu_dump_1(atom->N, fid, atom->potential_per_atom);
-}
-
-
-// calculate the per-atom heat current 
-static __global__ void gpu_get_peratom_heat
-(
-    int N, real *sxx, real *sxy, real *sxz, real *syx, real *syy, real *syz,
-    real *szx, real *szy, real *szz, real *vx, real *vy, real *vz, 
-    real *jx_in, real *jx_out, real *jy_in, real *jy_out, real *jz
-)
-{
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
-    if (n < N)
-    {
-        jx_in[n] = sxx[n] * vx[n] + sxy[n] * vy[n];
-        jx_out[n] = sxz[n] * vz[n];
-        jy_in[n] = syx[n] * vx[n] + syy[n] * vy[n];
-        jy_out[n] = syz[n] * vz[n];
-        jz[n] = szx[n] * vx[n] + szy[n] * vy[n] + szz[n] * vz[n];
-    }
-}
-
-
-void Measure::dump_heats(FILE *fid, Atom *atom, int step)
-{
-    if (!dump_heat) return;
-    if ((step + 1) % sample_interval_heat != 0) return;
-
-    // the virial tensor:
-    // xx xy xz    0 3 4
-    // yx yy yz    6 1 5
-    // zx zy zz    7 8 2
-    gpu_get_peratom_heat<<<(atom->N - 1) / 128 + 1, 128>>>
-    (
-        atom->N, 
-        atom->virial_per_atom, 
-        atom->virial_per_atom + atom->N * 3,
-        atom->virial_per_atom + atom->N * 4,
-        atom->virial_per_atom + atom->N * 6,
-        atom->virial_per_atom + atom->N * 1,
-        atom->virial_per_atom + atom->N * 5,
-        atom->virial_per_atom + atom->N * 7,
-        atom->virial_per_atom + atom->N * 8,
-        atom->virial_per_atom + atom->N * 2,
-        atom->vx, atom->vy, atom->vz, 
-        atom->heat_per_atom, 
-        atom->heat_per_atom + atom->N,
-        atom->heat_per_atom + atom->N * 2,
-        atom->heat_per_atom + atom->N * 3,
-        atom->heat_per_atom + atom->N * 4
-    );
-    CUDA_CHECK_KERNEL
-
-    gpu_dump_1(atom->N * NUM_OF_HEAT_COMPONENTS, fid, atom->heat_per_atom);
-}
-
-
 void Measure::process
 (char *input_dir, Atom *atom, Integrate *integrate, int step)
 {
     dump_thermos(fid_thermo, atom, integrate, step);
     dump_restarts(atom, step);
-    dump_velocities(fid_velocity, atom, step);
-    dump_forces(fid_force, atom, step);
-    dump_potentials(fid_potential, atom, step);
-    dump_virials(fid_virial, atom, step);
-    dump_heats(fid_heat, atom, step);
     compute.process(step, atom, integrate);
     vac.process(step, atom);
     hac.process(step, input_dir, atom);
@@ -323,16 +174,21 @@ void Measure::process
 }
 
 
-void Measure::parse_dump_thermo(char **param,  int num_param)
+void Measure::parse_dump_thermo(char **param, int num_param)
 {
     if (num_param != 2)
     {
-        PRINT_INPUT_ERROR("dump_thermo should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("dump_thermo should have 1 parameter.");
     }
     if (!is_valid_int(param[1], &sample_interval_thermo))
     {
-        PRINT_INPUT_ERROR("thermo dump interval should be an integer number.\n");
+        PRINT_INPUT_ERROR("thermo dump interval should be an integer.");
     }
+    if (0 >= sample_interval_thermo)
+    {
+        PRINT_INPUT_ERROR("thermo dump interval should > 0.");
+    }
+
     dump_thermo = 1;
     printf("Dump thermo every %d steps.\n", sample_interval_thermo);
 }
@@ -340,21 +196,21 @@ void Measure::parse_dump_thermo(char **param,  int num_param)
 
 void Measure::parse_dump_position(char **param, int num_param, Atom *atom)
 {
-	int interval;
+    int interval;
 
     if (num_param < 2)
     {
-        PRINT_INPUT_ERROR("dump_position should have at least 1 parameter.\n");
+        PRINT_INPUT_ERROR("dump_position should have at least 1 parameter.");
     }
     if (num_param > 6)
     {
-    	PRINT_INPUT_ERROR("dump_position has too many parameters.\n");
+        PRINT_INPUT_ERROR("dump_position has too many parameters.");
     }
 
     // sample interval
     if (!is_valid_int(param[1], &interval))
     {
-        PRINT_INPUT_ERROR("position dump interval should be an integer number.\n");
+        PRINT_INPUT_ERROR("position dump interval should be an integer.");
     }
 
     int format = 0; // default xyz
@@ -429,15 +285,13 @@ void Measure::parse_dump_position(char **param, int num_param, Atom *atom)
     dump_pos->interval = interval;
     dump_pos->precision = precision;
 
-
     if (precision == 1 && format)
     {
     	printf("Note: Single precision netCDF output does not follow AMBER conventions.\n"
     	       "      However, it will still work for many readers.\n");
     }
 
-    printf("Dump position every %d steps.\n",
-        dump_pos->interval);
+    printf("Dump position every %d steps.\n", dump_pos->interval);
 }
 
 
@@ -445,92 +299,19 @@ void Measure::parse_dump_restart(char **param, int num_param)
 {
     if (num_param != 2)
     {
-        PRINT_INPUT_ERROR("dump_restart should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("dump_restart should have 1 parameter.");
     }
     if (!is_valid_int(param[1], &sample_interval_restart))
     {
-        PRINT_INPUT_ERROR("restart dump interval should be an integer number.\n");
+        PRINT_INPUT_ERROR("restart dump interval should be an integer.");
     }
+    if (0 >= sample_interval_restart)
+    {
+        PRINT_INPUT_ERROR("restart dump interval should > 0.");
+    }
+
     dump_restart = 1;
     printf("Dump restart every %d steps.\n", sample_interval_restart);
-}
-
-
-void Measure::parse_dump_velocity(char **param, int num_param)
-{
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("dump_velocity should have 1 parameter.\n");
-    }
-    if (!is_valid_int(param[1], &sample_interval_velocity))
-    {
-        PRINT_INPUT_ERROR("velocity dump interval should be an integer number.\n");
-    }
-    dump_velocity = 1;
-    printf("Dump velocity every %d steps.\n",
-        sample_interval_velocity);
-}
-
-
-void Measure::parse_dump_force(char **param, int num_param)
-{
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("dump_force should have 1 parameter.\n");
-    }
-    if (!is_valid_int(param[1], &sample_interval_force))
-    {
-        PRINT_INPUT_ERROR("force dump interval should be an integer number.\n");
-    }
-    dump_force = 1;
-    printf("Dump force every %d steps.\n", sample_interval_force);
-}
-
-
-void Measure::parse_dump_potential(char **param, int num_param)
-{
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("dump_potential should have 1 parameter.\n");
-    }
-    if (!is_valid_int(param[1], &sample_interval_potential))
-    {
-        PRINT_INPUT_ERROR("potential dump interval should be an integer number.\n");
-    }
-    dump_potential = 1;
-    printf("Dump potential every %d steps.\n",
-        sample_interval_potential);
-}
-
-
-void Measure::parse_dump_virial(char **param, int num_param)
-{
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("dump_virial should have 1 parameter.\n");
-    }
-    if (!is_valid_int(param[1], &sample_interval_virial))
-    {
-        PRINT_INPUT_ERROR("virial dump interval should be an integer number.\n");
-    }
-    dump_virial = 1;
-    printf("Dump virial every %d steps.\n",
-        sample_interval_virial);
-}
-
-
-void Measure::parse_dump_heat(char **param, int num_param)
-{
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("dump_heat should have 1 parameter.\n");
-    }
-    if (!is_valid_int(param[1], &sample_interval_heat))
-    {
-        PRINT_INPUT_ERROR("heat dump interval should be an integer number.\n");
-    }
-    dump_heat = 1;
-    printf("Dump heat every %d steps.\n", sample_interval_heat);
 }
 
 

@@ -86,11 +86,6 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->hnemd.compute  = 0;
     measure->dump_thermo    = 0;
     measure->dump_restart   = 0;
-    measure->dump_velocity  = 0;
-    measure->dump_force     = 0;
-    measure->dump_potential = 0;
-    measure->dump_virial    = 0;
-    measure->dump_heat      = 0;
 
     /*
      * Delete dump_pos if it exists. Ensure that dump_pos is NULL in case
@@ -345,26 +340,6 @@ void Run::parse
     else if (strcmp(param[0], "dump_restart") == 0)
     {
         measure->parse_dump_restart(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_velocity") == 0)
-    {
-        measure->parse_dump_velocity(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_force") == 0)
-    {
-        measure->parse_dump_force(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_potential") == 0)
-    {
-        measure->parse_dump_potential(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_virial") == 0)
-    {
-        measure->parse_dump_virial(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_heat") == 0)
-    {
-        measure->parse_dump_heat(param, num_param);
     }
     else if (strcmp(param[0], "compute_dos") == 0)
     {
