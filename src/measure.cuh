@@ -67,8 +67,8 @@ public:
     void parse_compute_hnema(char **, int, Atom*);
     void parse_compute_hac(char**, int);
     void parse_compute_hnemd(char**, int);
-    void parse_compute_shc(char**, int);
-    void parse_compute(char**, int);
+    void parse_compute_shc(char**, int, Atom*);
+    void parse_compute(char**, int, Atom*);
 
 protected:
     void dump_thermos(FILE*, Atom*, Integrate*, int);

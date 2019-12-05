@@ -359,7 +359,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute_shc") == 0)
     {
-        measure->parse_compute_shc(param, num_param);
+        measure->parse_compute_shc(param, num_param, atom);
     }
     else if (strcmp(param[0], "compute_gkma") == 0)
     {
@@ -375,7 +375,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute") == 0)
     {
-        measure->parse_compute(param, num_param);
+        measure->parse_compute(param, num_param, atom);
     }
     else if (strcmp(param[0], "fix") == 0)
     {

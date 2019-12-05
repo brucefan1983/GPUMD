@@ -837,7 +837,7 @@ void Measure::parse_compute_hnemd(char **param, int num_param)
 }
 
 
-void Measure::parse_compute_shc(char **param, int num_param)
+void Measure::parse_compute_shc(char **param, int num_param, Atom *atom)
 {
     printf("Compute SHC.\n");
     shc.compute = 1;
@@ -845,7 +845,7 @@ void Measure::parse_compute_shc(char **param, int num_param)
     // check the number of parameters
     if ((num_param != 4) && (num_param != 5) && (num_param != 6))
     {
-        PRINT_INPUT_ERROR("compute_shc should have 3 or 4 or 5 parameters.\n");
+        PRINT_INPUT_ERROR("compute_shc should have 3 or 4 or 5 parameters.");
     }
 
     // group method and group id
@@ -861,67 +861,151 @@ void Measure::parse_compute_shc(char **param, int num_param)
         shc.group_method = 0;
         if (!is_valid_int(param[1], &shc.group_id))
         {
-            PRINT_INPUT_ERROR("grouping id should be an integer.\n");
+            PRINT_INPUT_ERROR("group id should be an integer.");
+        }
+        if (shc.group_id < 0)
+        {
+            PRINT_INPUT_ERROR("group id should >= 0.");
+        }
+        if (shc.group_id >= atom->group[0].number)
+        {
+            PRINT_INPUT_ERROR("group id should < #groups.");
         }
         printf("    for atoms in group %d.\n", shc.group_id);
-        printf("    using group method 0.\n");
+        printf("    using grouping method 0.\n");
     }
     else
     {
         offset = 2;
+        // grouping method
         if (!is_valid_int(param[1], &shc.group_method))
         {
-            PRINT_INPUT_ERROR("group method should be an integer.\n");
+            PRINT_INPUT_ERROR("grouping method should be an integer.");
         }
+        if (shc.group_method < 0)
+        {
+            PRINT_INPUT_ERROR("grouping method should >= 0.");
+        }
+        if (shc.group_method >= atom->num_of_grouping_methods)
+        {
+            PRINT_INPUT_ERROR("grouping method exceeds the bound.");
+        }
+
+        // group id
         if (!is_valid_int(param[2], &shc.group_id))
         {
-            PRINT_INPUT_ERROR("grouping id should be an integer.\n");
+            PRINT_INPUT_ERROR("group id should be an integer.");
+        }
+        if (shc.group_id < 0)
+        {
+            PRINT_INPUT_ERROR("group id should >= 0.");
+        }
+        if (shc.group_id >= atom->group[shc.group_method].number)
+        {
+            PRINT_INPUT_ERROR("group id should < #groups.");
         }
         printf("    for atoms in group %d.\n", shc.group_id);
         printf("    using group method %d.\n", shc.group_method);
     }
 
     // sample interval 
-    if (!is_valid_int(param[1+offset], &shc.sample_interval))
+    if (!is_valid_int(param[1 + offset], &shc.sample_interval))
     {
-        PRINT_INPUT_ERROR("shc.sample_interval should be an integer.\n");
+        PRINT_INPUT_ERROR("Sampling interval for SHC should be an integer.");
     }
-    printf
-    ("    sample interval for SHC is %d.\n", shc.sample_interval);
+    if (shc.sample_interval < 1)
+    {
+        PRINT_INPUT_ERROR("Sampling interval for SHC should >= 1.");
+    }
+    if (shc.sample_interval > 10)
+    {
+        PRINT_INPUT_ERROR("Sampling interval for SHC should <= 10 (trust me).");
+    }
+    printf("    sampling interval for SHC is %d.\n", shc.sample_interval);
 
     // number of correlation data
-    if (!is_valid_int(param[2+offset], &shc.Nc))
+    if (!is_valid_int(param[2 + offset], &shc.Nc))
     {
-        PRINT_INPUT_ERROR("Nc for SHC should be an integer.\n");
+        PRINT_INPUT_ERROR("Nc for SHC should be an integer.");
+    }
+    if (shc.Nc < 100)
+    {
+        PRINT_INPUT_ERROR("Nc for SHC should >= 100 (trust me).");
+    }
+    if (shc.Nc > 1000)
+    {
+        PRINT_INPUT_ERROR("Nc for SHC should <= 1000 (trust me).");
     }
     printf("    number of correlation data is %d.\n", shc.Nc);
 
     // transport direction
-    if (!is_valid_int(param[3+offset], &shc.direction))
+    if (!is_valid_int(param[3 + offset], &shc.direction))
     {
-        PRINT_INPUT_ERROR("direction for SHC should be an integer.\n");
+        PRINT_INPUT_ERROR("direction for SHC should be an integer.");
     }
-    printf("    transport direction is %d.\n", shc.direction);
+    if (shc.direction == 0)
+    {
+        printf("    transport direction is x.\n");
+    }
+    else if (shc.direction == 1)
+    {
+        printf("    transport direction is y.\n");
+    }
+    else if (shc.direction == 2)
+    {
+        printf("    transport direction is z.\n");
+    }
+    else
+    {
+        PRINT_INPUT_ERROR("Transport direction should be x or y or z.");
+    }
+    
 }
 
 
-void Measure::parse_compute(char **param, int num_param)
+void Measure::parse_compute(char **param, int num_param, Atom *atom)
 {
-    printf("Compute group average of:\n");
+    printf("Compute space and/or time average of:\n");
     if (num_param < 5)
-        PRINT_INPUT_ERROR("compute should have at least 4 parameters.\n");
+    {
+        PRINT_INPUT_ERROR("compute should have at least 4 parameters.");
+    }
+
+    // grouping_method
     if (!is_valid_int(param[1], &compute.grouping_method))
     {
-        PRINT_INPUT_ERROR("grouping method of compute should be integer.\n");
+        PRINT_INPUT_ERROR("grouping method of compute should be integer.");
     }
+    if (compute.grouping_method < 0)
+    {
+        PRINT_INPUT_ERROR("grouping method should >= 0.");
+    }
+    if (compute.grouping_method >= atom->num_of_grouping_methods)
+    {
+        PRINT_INPUT_ERROR("grouping method exceeds the bound.");
+    }
+
+    // sample_interval
     if (!is_valid_int(param[2], &compute.sample_interval))
     {
-        PRINT_INPUT_ERROR("sampling interval of compute should be integer.\n");
+        PRINT_INPUT_ERROR("sampling interval of compute should be integer.");
     }
+    if (compute.sample_interval <= 0)
+    {
+        PRINT_INPUT_ERROR("sampling interval of compute should > 0.");
+    }
+
+    // output_interval
     if (!is_valid_int(param[3], &compute.output_interval))
     {
-        PRINT_INPUT_ERROR("output interval of compute should be integer.\n");
+        PRINT_INPUT_ERROR("output interval of compute should be integer.");
     }
+    if (compute.output_interval <= 0)
+    {
+        PRINT_INPUT_ERROR("output interval of compute should > 0.");
+    }
+
+    // temperature potential force virial jp jk (order is not important)
     for (int k = 0; k < num_param - 4; ++k)
     {
         if (strcmp(param[k + 4], "temperature") == 0)
@@ -954,13 +1038,15 @@ void Measure::parse_compute(char **param, int num_param)
             compute.compute_jk = 1;
             printf("    kinetic part of heat current\n");
         }
+        else
+        {
+            PRINT_INPUT_ERROR("Invalid property for compute.");
+        }
     }
-    printf("    using grouping method %d.\n",
-        compute.grouping_method);
-    printf("    with sampling interval %d.\n",
-        compute.sample_interval);
-    printf("    and output interval %d.\n",
-        compute.output_interval);
+
+    printf("    using grouping method %d.\n", compute.grouping_method);
+    printf("    with sampling interval %d.\n", compute.sample_interval);
+    printf("    and output interval %d.\n", compute.output_interval);
 }
 
 
