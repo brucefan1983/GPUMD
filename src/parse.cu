@@ -59,26 +59,6 @@ void parse_time_step (char **param,  int num_param, Atom* atom)
 }
 
 
-void parse_neighbor
-(char **param,  int num_param, Atom* atom, Force *force)
-{
-    atom->neighbor.update = 1;
-
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
-    }
-    if (!is_valid_real(param[1], &atom->neighbor.skin))
-    {
-        PRINT_INPUT_ERROR("neighbor list skin should be a number.\n");
-    }
-    printf("Build neighbor list with a skin of %g A.\n", atom->neighbor.skin);
-
-    // change the cutoff
-    atom->neighbor.rc = force->rc_max + atom->neighbor.skin;
-}
-
-
 void parse_run(char **param,  int num_param, Atom* atom)
 {
     if (num_param != 2)

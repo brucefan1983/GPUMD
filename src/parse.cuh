@@ -19,7 +19,6 @@
 
 void parse_velocity(char**, int, Atom*);
 void parse_time_step (char**, int, Atom*);
-void parse_neighbor(char**, int, Atom*, Force*);
 void parse_run(char**, int, Atom*);
 void parse_cutoff(char**, int, Hessian*);
 void parse_delta(char**, int, Hessian*);

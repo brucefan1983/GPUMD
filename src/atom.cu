@@ -21,6 +21,7 @@ The class defining the simulation model.
 
 #include "atom.cuh"
 #include "error.cuh"
+#include "read_file.cuh"
 
 const int NUM_OF_HEAT_COMPONENTS = 5;
 
@@ -521,6 +522,25 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(potential_per_atom));
     CHECK(cudaFree(heat_per_atom));
     CHECK(cudaFree(thermo));
+}
+
+
+void Atom::parse_neighbor(char **param, int num_param, real force_rc_max)
+{
+    neighbor.update = 1;
+
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &neighbor.skin))
+    {
+        PRINT_INPUT_ERROR("neighbor list skin should be a number.\n");
+    }
+    printf("Build neighbor list with a skin of %g A.\n", neighbor.skin);
+
+    // change the cutoff
+    neighbor.rc = force_rc_max + neighbor.skin;
 }
 
 

@@ -327,7 +327,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "neighbor") == 0)
     {
-        parse_neighbor(param, num_param, atom, force);
+        atom->parse_neighbor(param, num_param, force->rc_max);
     }
     else if (strcmp(param[0], "dump_thermo") == 0)
     {

@@ -37,7 +37,6 @@ Phonon::Phonon(char* input_dir)
     Measure measure(input_dir);
     Hessian hessian;
 
-
     compute(input_dir, &atom, &force, &measure, &hessian, 1);
 
     if (force.group_method > -1)
@@ -49,7 +48,6 @@ Phonon::Phonon(char* input_dir)
     ZEROS(force.manybody_participation, int, force.num_kind);
     ZEROS(force.potential_participation, int, force.num_kind);
     ZEROS(atom.shift, int, MAX_NUM_OF_POTENTIALS);
-
 
     compute(input_dir, &atom, &force, &measure, &hessian, 0);
 }
@@ -97,12 +95,12 @@ void Phonon::parse
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
-        parse_potential_definition(param, num_param, atom, force);
+        force->parse_potential_definition(param, num_param, atom);
     }
     if (strcmp(param[0], "potential") == 0)
     {
         *is_potential = 1;
-        parse_potential(param, num_param, force);
+        force->parse_potential(param, num_param);
     }
     else if (strcmp(param[0], "cutoff") == 0)
     {
@@ -114,8 +112,7 @@ void Phonon::parse
     }
     else
     {
-        printf("Error: '%s' is invalid keyword.\n", param[0]);
-        exit(1);
+        PRINT_INPUT_ERROR("Invalid keyword.\n");
     }
 }
 
