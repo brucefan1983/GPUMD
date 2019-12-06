@@ -305,12 +305,12 @@ void Run::parse
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
-        parse_potential_definition(param, num_param, atom, force);
+        force->parse_potential_definition(param, num_param, atom);
     }
     else if (strcmp(param[0], "potential") == 0)
     {
         is_potential = true;
-        parse_potential(param, num_param, force);
+        force->parse_potential(param, num_param);
     }
     else if (strcmp(param[0], "velocity") == 0)
     {

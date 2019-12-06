@@ -36,6 +36,7 @@ The driver class calculating force and related quantities.
 #include "eam.cuh"
 #include "fcp.cuh"
 #include "measure.cuh"
+#include "read_file.cuh"
 
 #define BLOCK_SIZE 128
 
@@ -60,6 +61,98 @@ Force::~Force(void)
         potential[m] = NULL;
     }
     MY_FREE(manybody_participation);
+}
+
+
+void Force::parse_potential_definition(char **param, int num_param, Atom *atom)
+{
+    // 'potential_definition' must be called before all 'potential' keywords
+    if (num_of_potentials > 0)
+    {
+        PRINT_INPUT_ERROR("potential_definition must be called before all "
+                "potential keywords.\n");
+    }
+
+    if (num_param != 2 && num_param != 3)
+    {
+        PRINT_INPUT_ERROR("potential_definition should have only 1 or 2 "
+                "parameters.\n");
+    }
+    if (num_param == 2)
+    {
+        //default is to use type, check for deviations
+        if(strcmp(param[1], "group") == 0)
+        {
+            PRINT_INPUT_ERROR("potential_definition must have "
+                    "group_method listed.\n");
+        }
+        else if(strcmp(param[1], "type") != 0)
+        {
+            PRINT_INPUT_ERROR("potential_definition only accepts "
+                    "'type' or 'group' kind.\n");
+        }
+    }
+    if (num_param == 3)
+    {
+        if(strcmp(param[1], "group") != 0)
+        {
+            PRINT_INPUT_ERROR("potential_definition: kind must be 'group' if 2 "
+                    "parameters are used.\n");
+
+        }
+        else if(!is_valid_int(param[2], &group_method))
+        {
+            PRINT_INPUT_ERROR("potential_definition: group_method should be an "
+                    "integer.\n");
+        }
+        else if(group_method > MAX_NUMBER_OF_GROUPS)
+        {
+            PRINT_INPUT_ERROR("Specified group_method is too large (> 10).\n");
+        }
+    }
+}
+
+
+// a potential
+void Force::parse_potential(char **param, int num_param)
+{
+    // check for at least the file path
+    if (num_param < 3)
+    {
+        PRINT_INPUT_ERROR("potential should have at least 2 parameters.\n");
+    }
+    strcpy(file_potential[num_of_potentials], param[1]);
+
+    //open file to check number of types used in potential
+    char potential_name[20];
+    FILE *fid_potential = my_fopen(file_potential[num_of_potentials], "r");
+    int count = fscanf(fid_potential, "%s", potential_name);
+    int num_types = get_number_of_types(fid_potential);
+    fclose(fid_potential);
+
+    if (num_param != num_types + 2)
+    {
+        PRINT_INPUT_ERROR("potential has incorrect number of types/groups defined.\n");
+    }
+
+    participating_kinds.resize(num_types);
+
+    for (int i = 0; i < num_types; i++)
+    {
+        if(!is_valid_int(param[i+2], &participating_kinds[i]))
+        {
+            PRINT_INPUT_ERROR("type/groups should be an integer.\n");
+        }
+        if (i != 0 && participating_kinds[i] < participating_kinds[i-1])
+        {
+            PRINT_INPUT_ERROR("potential types/groups must be listed in "
+                    "ascending order.\n");
+        }
+    }
+    atom_begin[num_of_potentials] = participating_kinds[0];
+    atom_end[num_of_potentials] = participating_kinds[num_types-1];
+
+    num_of_potentials++;
 }
 
 
