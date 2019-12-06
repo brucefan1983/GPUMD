@@ -286,9 +286,7 @@ void Force::add_potential(char* input_dir, Atom *atom)
 // Construct the local neighbor list from the global one (Kernel)
 static __global__ void gpu_find_neighbor_local
 (
-    Box box, 
-    int type_begin, int type_end, int *type,
-    int *group, int group_method,
+    Box box, int type_begin, int type_end, int *type,
     int N, int N1, int N2, real cutoff_square, 
     int *NN, int *NL, int *NN_local, int *NL_local,
 #ifdef USE_LDG
@@ -316,11 +314,7 @@ static __global__ void gpu_find_neighbor_local
             int n2 = NL[n1 + N * i1];
 
             // only include neighbors with the correct types
-            int type_n2;
-            if (group_method > -1)
-                type_n2 = group[n2];
-            else
-                type_n2 = type[n2];
+            int type_n2 = type[n2];
             if (type_n2 < type_begin || type_n2 > type_end) continue;
 
             real x12  = LDG(x, n2) - x1;
@@ -348,12 +342,12 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
-    int *group = atom->group[group_method].label;
     int *NN = atom->NN;
     int *NL = atom->NL;
     int *NN_local = atom->NN_local;
     int *NL_local = atom->NL_local;
-    int *type = atom->type; // global type
+    int *type = (group_method >= 0) ? atom->group[group_method].label 
+                                    : atom->type;
     real rc2 = potential[m]->rc * potential[m]->rc;
     real *x = atom->x;
     real *y = atom->y;
@@ -361,8 +355,8 @@ void Force::find_neighbor_local(Atom *atom, int m)
       
     gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
     (
-        atom->box, type1, type2, type, group,
-        group_method, N, N1, N2, rc2, NN, NL, NN_local, NL_local, x, y, z
+        atom->box, type1, type2, type,
+        N, N1, N2, rc2, NN, NL, NN_local, NL_local, x, y, z
     );
     CUDA_CHECK_KERNEL
 
@@ -454,8 +448,7 @@ static __global__ void gpu_correct_force
 
 static __global__ void initialize_properties
 (
-    int N, real *g_fx, real *g_fy, real *g_fz, real *g_pe,
-    real *g_virial
+    int N, real *g_fx, real *g_fy, real *g_fz, real *g_pe, real *g_virial
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
