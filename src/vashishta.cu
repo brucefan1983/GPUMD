@@ -36,7 +36,7 @@ void Vashishta::initialize_para(FILE *fid)
     double B_0, B_1, cos0_0, cos0_1, C, r0, cut;
     count = fscanf
     (fid, "%lf%lf%lf%lf%lf%lf%lf", &B_0, &B_1, &cos0_0, &cos0_1, &C, &r0, &cut);
-    if (count != 7) print_error("reading error for Vashishta potential.\n");
+    PRINT_SCANF_ERROR(count, 7, "Reading error for Vashishta potential.");
     vashishta_para.B[0] = B_0;
     vashishta_para.B[1] = B_1;
     vashishta_para.cos0[0] = cos0_0;
@@ -55,7 +55,7 @@ void Vashishta::initialize_para(FILE *fid)
             fid, "%lf%d%lf%lf%lf%lf%lf", 
             &H[n], &eta[n], &qq[n], &lambda_inv[n], &D[n], &xi_inv[n], &W[n]
         );
-        if (count != 7) print_error("reading error for Vashishta potential.\n");
+        PRINT_SCANF_ERROR(count, 7, "Reading error for Vashishta potential.");
         qq[n] *= K_C;         // Gauss -> SI
         D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
         lambda_inv[n] = ONE / lambda_inv[n];

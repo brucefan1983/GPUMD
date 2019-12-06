@@ -434,7 +434,7 @@ void HNEMA::preprocess(char *input_dir, Atom *atom)
         eigfile.open(eig_file_position);
         if (!eigfile)
         {
-            print_error("Cannot open eigenvector.out file.\n");
+            PRINT_INPUT_ERROR("Cannot open eigenvector.out file.");
         }
 
         // GPU phonon code output format

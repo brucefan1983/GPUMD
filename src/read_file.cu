@@ -39,7 +39,7 @@ char* get_file_contents (char *filename)
     int size_read_in = fread(contents, sizeof(char), contents_size, in);
     if (size_read_in != contents_size)
     {
-        print_error ("File size mismatch.");
+        PRINT_INPUT_ERROR("File size mismatch.");
     }
     fclose(in);
     contents[contents_size] = '\0'; // Assures proper null termination

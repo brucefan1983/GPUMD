@@ -59,8 +59,7 @@ void EAM::initialize_eam2004zhou(FILE *fid)
     for (int n = 0; n < 21; n++)
     {
         int count = fscanf(fid, "%lf", &x[n]);
-        if (count != 1)
-        {print_error("reading error for potential.in.\n"); exit(1);}
+        PRINT_SCANF_ERROR(count, 1, "Reading error for EAM potential.");
     }
     eam2004zhou.re     = x[0];
     eam2004zhou.fe     = x[1];
@@ -99,8 +98,7 @@ void EAM::initialize_eam2006dai(FILE *fid)
     for (int n = 0; n < 9; n++)
     {
         int count = fscanf(fid, "%lf", &x[n]);
-        if (count != 1)
-        {print_error("reading error for potential.in.\n"); exit(1);}
+        PRINT_SCANF_ERROR(count, 1, "Reading error for EAM potential.");
     }
     eam2006dai.A  = x[0];
     eam2006dai.d  = x[1];

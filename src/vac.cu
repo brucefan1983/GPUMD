@@ -36,7 +36,7 @@ void VAC::preprocess(Atom *atom)
     if (!compute_dos && !compute_sdc) return;
     if (compute_dos == compute_sdc)
     {
-    	print_error("DOS and SDC commands cannot be used simultaneously.\n");
+        PRINT_INPUT_ERROR("DOS and SDC commands cannot be used simultaneously.");
     }
     Group sel_group;  //selected group
     if (grouping_method == -1) { N = atom->N; }

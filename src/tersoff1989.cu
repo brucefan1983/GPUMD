@@ -45,7 +45,8 @@ Tersoff1989::Tersoff1989(FILE *fid, Atom* atom, int num_of_types)
         fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
         &a, &b, &lambda, &mu, &beta, &n, &c, &d, &h, &r1, &r2
     );
-    if (count!=11) {printf("Error: reading error for potential.in.\n");exit(1);}
+    PRINT_SCANF_ERROR(count, 11, "Reading error for Tersoff-1989 potential.");
+
     ters0.a      = a;
     ters0.b      = b;
     ters0.lambda = lambda;
@@ -72,8 +73,8 @@ Tersoff1989::Tersoff1989(FILE *fid, Atom* atom, int num_of_types)
             fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf",
             &a, &b, &lambda, &mu, &beta, &n, &c, &d, &h, &r1, &r2
         );
-        if (count!=11) 
-            {printf("Error: reading error for potential.in.\n");exit(1);}
+        PRINT_SCANF_ERROR(count, 11, "Reading error for Tersoff-1989 potential.");
+
         ters1.a      = a;
         ters1.b      = b;
         ters1.lambda = lambda;
@@ -94,7 +95,7 @@ Tersoff1989::Tersoff1989(FILE *fid, Atom* atom, int num_of_types)
         // third line
         double chi;
         count = fscanf(fid, "%lf", &chi);
-        if (count != 1) { print_error("reading error for potential.in.\n"); }
+        PRINT_SCANF_ERROR(count, 1, "Reading error for Tersoff-1989 potential.");
 
         // mixing type 0 and type 1
         ters2.a = sqrt(ters0.a * ters1.a);

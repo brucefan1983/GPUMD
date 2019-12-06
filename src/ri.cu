@@ -43,8 +43,7 @@ RI::RI(FILE *fid)
     for (int n = 0; n < 4; n++)
     {
         int count = fscanf(fid, "%lf%lf%lf", &x[n][0], &x[n][1], &x[n][2]);
-        if (count != 3)
-        {print_error("reading error for potential.in.\n"); exit(1);}
+        PRINT_SCANF_ERROR(count, 3, "Reading error for rigid-ion potential.");
     }
     ri_para.cutoff = x[0][2];
     ri_para.qq11   = x[0][0] * x[0][0] * K_C;

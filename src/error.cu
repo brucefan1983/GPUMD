@@ -20,13 +20,6 @@
 #include <errno.h>
 
 
-void print_error (const char *str)
-{
-    printf("ERROR: %s", str);
-    exit(EXIT_FAILURE);
-}
-
-
 void print_line_1(void)
 {
     printf("\n");

@@ -30,19 +30,14 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
 {
     // get the highest order of the force constants
     int count = fscanf(fid, "%d", &order);
-    if (count != 1) 
-    {
-        print_error("reading error for force constant potential\n");
-    }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for force constant potential.");
+
     printf("Use the force constant potential.\n");
     printf("    up to order-%d.\n", order);
 
     // get the path of the files related to the force constants
     count = fscanf(fid, "%s", file_path);
-    if (count != 1) 
-    {
-        print_error("reading error for force constant potential\n");
-    }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for force constant potential.");
     printf("    Use the force constant data in %s.\n", file_path);
 
     // allocate memeory
@@ -123,7 +118,7 @@ void FCP::read_r0(Atom *atom)
             fid, "%f%f%f", &fcp_data.r0[n], 
             &fcp_data.r0[n + N], &fcp_data.r0[n + N + N]
         );
-        if (count != 3) { print_error("reading error for r0.in\n"); }
+        PRINT_SCANF_ERROR(count, 3, "Reading error for r0.in.");
     }
     fclose(fid);
     printf("    Data in r0.in have been read in.\n");
@@ -138,7 +133,7 @@ void FCP::read_fc2(Atom *atom)
     FILE *fid = my_fopen(file, "r");
 
     int count = fscanf(fid, "%d", &number2);
-    if (count != 1) { print_error("reading error for fc2.in\n"); }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for fc2.in.");
 
     CHECK(cudaMallocManaged(&fcp_data.ia2, sizeof(int) * number2));
     CHECK(cudaMallocManaged(&fcp_data.jb2, sizeof(int) * number2));
@@ -154,13 +149,13 @@ void FCP::read_fc2(Atom *atom)
         (
             fid, "%d%d%d%d%f", &i, &j, &a, &b, &fcp_data.phi2[index]
         );
-        if (count != 5) print_error("reading error for fc2.in\n");
+        PRINT_SCANF_ERROR(count, 5, "Reading error for fc2.in.");
 
-        if (i < 0 || i >= atom->N) print_error("reading error for fc2.in\n");
-        if (j < 0 || j >= atom->N) print_error("reading error for fc2.in\n");
-        if (a < 0 || a >= 3) print_error("reading error for fc2.in\n");
-        if (b < 0 || b >= 3) print_error("reading error for fc2.in\n");
-        if (i > j) print_error("reading error for fc2.in\n");
+        if (i < 0 || i >= atom->N) PRINT_INPUT_ERROR("reading error for fc2.in");
+        if (j < 0 || j >= atom->N) PRINT_INPUT_ERROR("reading error for fc2.in");
+        if (a < 0 || a >= 3) PRINT_INPUT_ERROR("reading error for fc2.in");
+        if (b < 0 || b >= 3) PRINT_INPUT_ERROR("reading error for fc2.in");
+        if (i > j) PRINT_INPUT_ERROR("reading error for fc2.in");
 
         fcp_data.ia2[index] = a * atom->N + i;
         fcp_data.jb2[index] = b * atom->N + j;
@@ -194,7 +189,7 @@ void FCP::read_fc3(Atom *atom)
     FILE *fid = my_fopen(file, "r");
 
     int count = fscanf(fid, "%d", &number3);
-    if (count != 1) { print_error("reading error for fc3.in\n"); }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for fc3.in.");
 
     CHECK(cudaMallocManaged(&fcp_data.ia3, sizeof(int) * number3));
     CHECK(cudaMallocManaged(&fcp_data.jb3, sizeof(int) * number3));
@@ -209,16 +204,16 @@ void FCP::read_fc3(Atom *atom)
             fid, "%d%d%d%d%d%d%f", &i, &j, &k, &a, &b, &c, 
             &fcp_data.phi3[index]
         );
-        if (count != 7) { print_error("reading error for fc3.in\n"); }
+        PRINT_SCANF_ERROR(count, 7, "Reading error for fc3.in.");
 
-        if (i < 0 || i >= atom->N) print_error("reading error for fc3.in\n");
-        if (j < 0 || j >= atom->N) print_error("reading error for fc3.in\n");
-        if (k < 0 || k >= atom->N) print_error("reading error for fc3.in\n");
-        if (a < 0 || a >= 3) print_error("reading error for fc3.in\n");
-        if (b < 0 || b >= 3) print_error("reading error for fc3.in\n");
-        if (c < 0 || c >= 3) print_error("reading error for fc3.in\n");
-        if (i > j) print_error("reading error for fc3.in\n");
-        if (j > k) print_error("reading error for fc3.in\n");
+        if (i < 0 || i >= atom->N) PRINT_INPUT_ERROR("reading error for fc3.in");
+        if (j < 0 || j >= atom->N) PRINT_INPUT_ERROR("reading error for fc3.in");
+        if (k < 0 || k >= atom->N) PRINT_INPUT_ERROR("reading error for fc3.in");
+        if (a < 0 || a >= 3) PRINT_INPUT_ERROR("reading error for fc3.in");
+        if (b < 0 || b >= 3) PRINT_INPUT_ERROR("reading error for fc3.in");
+        if (c < 0 || c >= 3) PRINT_INPUT_ERROR("reading error for fc3.in");
+        if (i > j) PRINT_INPUT_ERROR("reading error for fc3.in");
+        if (j > k) PRINT_INPUT_ERROR("reading error for fc3.in");
 
         fcp_data.ia3[index] = a * atom->N + i;
         fcp_data.jb3[index] = b * atom->N + j;
@@ -243,7 +238,7 @@ void FCP::read_fc4(Atom *atom)
     FILE *fid = my_fopen(file, "r");
 
     int count = fscanf(fid, "%d", &number4);
-    if (count != 1) { print_error("reading error for fc4.in\n"); }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for fc4.in.");
 
     CHECK(cudaMallocManaged(&fcp_data.ia4, sizeof(int) * number4));
     CHECK(cudaMallocManaged(&fcp_data.jb4, sizeof(int) * number4));
@@ -259,19 +254,19 @@ void FCP::read_fc4(Atom *atom)
             fid, "%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &a, &b, &c, &d, 
             &fcp_data.phi4[index]
         );
-        if (count != 9) { print_error("reading error for fc4.in\n"); }
+        PRINT_SCANF_ERROR(count, 9, "Reading error for fc4.in.");
 
-        if (i < 0 || i >= atom->N) print_error("reading error for fc4.in\n");
-        if (j < 0 || j >= atom->N) print_error("reading error for fc4.in\n");
-        if (k < 0 || k >= atom->N) print_error("reading error for fc4.in\n");
-        if (l < 0 || l >= atom->N) print_error("reading error for fc4.in\n");
-        if (a < 0 || a >= 3) print_error("reading error for fc4.in\n");
-        if (b < 0 || b >= 3) print_error("reading error for fc4.in\n");
-        if (c < 0 || c >= 3) print_error("reading error for fc4.in\n");
-        if (d < 0 || d >= 3) print_error("reading error for fc4.in\n");
-        if (i > j) print_error("reading error for fc4.in\n");
-        if (j > k) print_error("reading error for fc4.in\n");
-        if (k > l) print_error("reading error for fc4.in\n");
+        if (i < 0 || i >= atom->N) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (j < 0 || j >= atom->N) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (k < 0 || k >= atom->N) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (l < 0 || l >= atom->N) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (a < 0 || a >= 3) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (b < 0 || b >= 3) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (c < 0 || c >= 3) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (d < 0 || d >= 3) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (i > j) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (j > k) PRINT_INPUT_ERROR("reading error for fc4.in");
+        if (k > l) PRINT_INPUT_ERROR("reading error for fc4.in");
 
         fcp_data.ia4[index] = a * atom->N + i;
         fcp_data.jb4[index] = b * atom->N + j;
@@ -301,7 +296,7 @@ void FCP::read_fc5(Atom *atom)
     FILE *fid = my_fopen(file, "r");
 
     int count = fscanf(fid, "%d", &number5);
-    if (count != 1) { print_error("reading error for fc5.in\n"); }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for fc5.in.");
 
     CHECK(cudaMallocManaged(&fcp_data.ia5, sizeof(int) * number5));
     CHECK(cudaMallocManaged(&fcp_data.jb5, sizeof(int) * number5));
@@ -318,22 +313,22 @@ void FCP::read_fc5(Atom *atom)
             fid, "%d%d%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &m, 
             &a, &b, &c, &d, &e, &fcp_data.phi5[index]
         );
-        if (count != 11) { print_error("reading error for fc5.in\n"); }
+        PRINT_SCANF_ERROR(count, 11, "Reading error for fc5.in.");
 
-        if (i < 0 || i >= atom->N) print_error("reading error for fc5.in\n");
-        if (j < 0 || j >= atom->N) print_error("reading error for fc5.in\n");
-        if (k < 0 || k >= atom->N) print_error("reading error for fc5.in\n");
-        if (l < 0 || l >= atom->N) print_error("reading error for fc5.in\n");
-        if (m < 0 || m >= atom->N) print_error("reading error for fc5.in\n");
-        if (a < 0 || a >= 3) print_error("reading error for fc5.in\n");
-        if (b < 0 || b >= 3) print_error("reading error for fc5.in\n");
-        if (c < 0 || c >= 3) print_error("reading error for fc5.in\n");
-        if (d < 0 || d >= 3) print_error("reading error for fc5.in\n");
-        if (e < 0 || e >= 3) print_error("reading error for fc5.in\n");
-        if (i > j) print_error("reading error for fc5.in\n");
-        if (j > k) print_error("reading error for fc5.in\n");
-        if (k > l) print_error("reading error for fc5.in\n");
-        if (l > m) print_error("reading error for fc5.in\n");
+        if (i < 0 || i >= atom->N) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (j < 0 || j >= atom->N) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (k < 0 || k >= atom->N) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (l < 0 || l >= atom->N) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (m < 0 || m >= atom->N) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (a < 0 || a >= 3) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (b < 0 || b >= 3) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (c < 0 || c >= 3) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (d < 0 || d >= 3) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (e < 0 || e >= 3) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (i > j) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (j > k) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (k > l) PRINT_INPUT_ERROR("reading error for fc5.in");
+        if (l > m) PRINT_INPUT_ERROR("reading error for fc5.in");
 
         fcp_data.ia5[index] = a * atom->N + i;
         fcp_data.jb5[index] = b * atom->N + j;
@@ -372,7 +367,7 @@ void FCP::read_fc6(Atom *atom)
     FILE *fid = my_fopen(file, "r");
 
     int count = fscanf(fid, "%d", &number6);
-    if (count != 1) { print_error("reading error for fc6.in\n"); }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for fc6.in.");
 
     CHECK(cudaMallocManaged(&fcp_data.ia6, sizeof(int) * number6));
     CHECK(cudaMallocManaged(&fcp_data.jb6, sizeof(int) * number6));
@@ -390,25 +385,25 @@ void FCP::read_fc6(Atom *atom)
             fid, "%d%d%d%d%d%d%d%d%d%d%d%d%f", &i, &j, &k, &l, &m, &n,
             &a, &b, &c, &d, &e, &f, &fcp_data.phi6[index]
         );
-        if (count != 13) { print_error("reading error for fc6.in\n"); }
+        PRINT_SCANF_ERROR(count, 13, "Reading error for fc6.in.");
 
-        if (i < 0 || i >= atom->N) print_error("reading error for fc6.in\n");
-        if (j < 0 || j >= atom->N) print_error("reading error for fc6.in\n");
-        if (k < 0 || k >= atom->N) print_error("reading error for fc6.in\n");
-        if (l < 0 || l >= atom->N) print_error("reading error for fc6.in\n");
-        if (m < 0 || m >= atom->N) print_error("reading error for fc6.in\n");
-        if (n < 0 || n >= atom->N) print_error("reading error for fc6.in\n");
-        if (a < 0 || a >= 3) print_error("reading error for fc6.in\n");
-        if (b < 0 || b >= 3) print_error("reading error for fc6.in\n");
-        if (c < 0 || c >= 3) print_error("reading error for fc6.in\n");
-        if (d < 0 || d >= 3) print_error("reading error for fc6.in\n");
-        if (e < 0 || e >= 3) print_error("reading error for fc6.in\n");
-        if (f < 0 || f >= 3) print_error("reading error for fc6.in\n");
-        if (i > j) print_error("reading error for fc6.in\n");
-        if (j > k) print_error("reading error for fc6.in\n");
-        if (k > l) print_error("reading error for fc6.in\n");
-        if (l > m) print_error("reading error for fc6.in\n");
-        if (m > n) print_error("reading error for fc6.in\n");
+        if (i < 0 || i >= atom->N) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (j < 0 || j >= atom->N) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (k < 0 || k >= atom->N) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (l < 0 || l >= atom->N) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (m < 0 || m >= atom->N) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (n < 0 || n >= atom->N) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (a < 0 || a >= 3) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (b < 0 || b >= 3) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (c < 0 || c >= 3) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (d < 0 || d >= 3) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (e < 0 || e >= 3) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (f < 0 || f >= 3) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (i > j) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (j > k) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (k > l) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (l > m) PRINT_INPUT_ERROR("reading error for fc6.in");
+        if (m > n) PRINT_INPUT_ERROR("reading error for fc6.in");
 
         fcp_data.ia6[index] = a * atom->N + i;
         fcp_data.jb6[index] = b * atom->N + j;

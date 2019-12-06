@@ -67,10 +67,8 @@ int Force::get_number_of_types(FILE *fid_potential)
 {
     int num_of_types;
     int count = fscanf(fid_potential, "%d", &num_of_types);
-    if (count != 1)
-    {
-        print_error("Number of types not defined for potential.\n");
-    }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
+
     return num_of_types;
 }
 
@@ -80,8 +78,7 @@ void Force::valdiate_potential_definitions()
     {
         if (potential_participation[i] == 0)
         {
-            print_error("All atoms must participate in at least "
-                    "one potential.\n");
+            PRINT_INPUT_ERROR("All atoms must participate in at least one potential.");
         }
     }
 }
@@ -93,7 +90,7 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     int count = fscanf(fid_potential, "%s", potential_name);
     if (count != 1) 
     {
-        print_error("reading error for potential file.\n");
+        PRINT_INPUT_ERROR("reading error for potential file.");
     }
 
     int num_types = get_number_of_types(fid_potential);
@@ -149,30 +146,28 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     {
         if (!kinds_are_contiguous()) // special case for RI
         {
-            print_error("Defined types/groups for RI potential must be "
-                    "contiguous and ascending.\n");
+            PRINT_INPUT_ERROR("Defined types/groups for RI potential must be contiguous and ascending.\n");
         }
         potential[m] = new RI(fid_potential);
         potential_type = 1;
     }
     else
     {
-        print_error("illegal potential model.\n");
+        PRINT_INPUT_ERROR("illegal potential model.\n");
     }
 
     if (potential_type == 0)
     {
         if (atom_end[m] - atom_begin[m] + 1 > num_types)
         {
-            print_error("Error: types/groups must be listed contiguously.\n");
+            PRINT_INPUT_ERROR("Error: types/groups must be listed contiguously.\n");
         }
     }
 
     // check if manybody has sequential types (don't care for two-body)
     if (potential_type == 0 && !kinds_are_contiguous())
     {
-        print_error("Defined types/groups for manybody potentials must be "
-                            "contiguous and ascending.\n");
+        PRINT_INPUT_ERROR("Defined types/groups for manybody potentials must be contiguous and ascending.\n");
     }
 
     potential[m]->N1 = 0;
@@ -207,9 +202,7 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
 
         if (potential_type == 0 && manybody_participation[n1])
         {
-            print_error("Only a single many-body potential "
-                    "definition is allowed per atom type/group (depending "
-                    "on parse_potential keyword).\n");
+            PRINT_INPUT_ERROR("Only a single many-body potential definition is allowed per atom type/group.");
         }
 
         if (potential_type == 0)
@@ -228,7 +221,7 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     {
         printf
         (
-            "       applies to participating atoms [%d, %d) from group %d to "
+            "    applies to participating atoms [%d, %d) from group %d to "
             "group %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
             atom_end[m]
         );
@@ -237,12 +230,11 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     {
         printf
         (
-            "       applies to participating atoms [%d, %d) from type %d to "
+            "    applies to participating atoms [%d, %d) from type %d to "
             "type %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
             atom_end[m]
         );
     }
-
 
     fclose(fid_potential);
 }

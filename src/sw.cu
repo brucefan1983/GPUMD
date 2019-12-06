@@ -57,7 +57,8 @@ void SW2::initialize_sw_1985_1(FILE *fid)
         fid, "%lf%lf%lf%lf%lf%lf%lf%lf",
         &epsilon, &lambda, &A, &B, &a, &gamma, &sigma, &cos0
     );
-    if (count!=8) {print_error("reading error for potential.in.\n"); exit(1);}
+    PRINT_SCANF_ERROR(count, 8, "Reading error for SW potential.");
+
     sw2_para.A[0][0] = epsilon * A;
     sw2_para.B[0][0] = B;
     sw2_para.a[0][0] = a;
@@ -82,7 +83,7 @@ void SW2::initialize_sw_1985_2(FILE *fid)
     {
         count = fscanf
         (fid, "%lf%lf%lf%lf%lf", &A[n], &B[n], &a[n], &sigma[n], &gamma[n]);
-        if (count != 5) print_error("reading error for potential file.\n");
+        PRINT_SCANF_ERROR(count, 5, "Reading error for SW potential.");
     }
     for (int n1 = 0; n1 < 2; n1++)
     for (int n2 = 0; n2 < 2; n2++)
@@ -103,7 +104,7 @@ void SW2::initialize_sw_1985_2(FILE *fid)
     for (int n3 = 0; n3 < 2; n3++)
     {
         count = fscanf(fid, "%lf%lf", &lambda, &cos0);
-        if (count != 2) print_error("reading error for potential file.\n");
+        PRINT_SCANF_ERROR(count, 2, "Reading error for SW potential.");
         sw2_para.lambda[n1][n2][n3] = lambda;
         sw2_para.cos0[n1][n2][n3] = cos0;
     }
@@ -122,7 +123,7 @@ void SW2::initialize_sw_1985_3(FILE *fid)
     for (int n2 = 0; n2 < 3; n2++)
     {
         count = fscanf(fid, "%lf%lf%lf%lf%lf", &A, &B, &a, &sigma, &gamma);
-        if (count != 5) print_error("reading error for potential file.\n");
+        PRINT_SCANF_ERROR(count, 5, "Reading error for SW potential.");
         sw2_para.A[n1][n2] = A;
         sw2_para.B[n1][n2] = B;
         sw2_para.a[n1][n2] = a;
@@ -138,9 +139,8 @@ void SW2::initialize_sw_1985_3(FILE *fid)
     for (int n2 = 0; n2 < 3; n2++)
     for (int n3 = 0; n3 < 3; n3++)
     {
-        count = fscanf
-        (fid, "%lf%lf", &lambda, &cos0);
-        if (count != 2) print_error("reading error for potential file.\n");
+        count = fscanf(fid, "%lf%lf", &lambda, &cos0);
+        PRINT_SCANF_ERROR(count, 2, "Reading error for SW potential.");
         sw2_para.lambda[n1][n2][n3] = lambda;
         sw2_para.cos0[n1][n2][n3] = cos0;
     }

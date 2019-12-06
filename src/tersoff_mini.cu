@@ -47,16 +47,16 @@ Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
             fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf",
             &d0, &a, &r0, &s, &beta, &n, &h, &r1, &r2
         );
-        if (count != 9) print_error(err);
-        if (d0 <= 0.0) print_error(err);
-        if (a <= 0.0) print_error(err);
-        if (r0 <= 0.0) print_error(err);
-        if(beta < 0.0) print_error(err);
-        if(n < 0.0) print_error(err);
-        if(h < -1.0 || h > 1.0) print_error(err);
-        if(r1 < 0.0) print_error(err);
-        if(r2 <= 0.0) print_error(err);
-        if(r2 <= r1) print_error(err);
+        PRINT_SCANF_ERROR(count, 9, err);
+        if (d0 <= 0.0) PRINT_INPUT_ERROR(err);
+        if (a <= 0.0) PRINT_INPUT_ERROR(err);
+        if (r0 <= 0.0) PRINT_INPUT_ERROR(err);
+        if(beta < 0.0) PRINT_INPUT_ERROR(err);
+        if(n < 0.0) PRINT_INPUT_ERROR(err);
+        if(h < -1.0 || h > 1.0) PRINT_INPUT_ERROR(err);
+        if(r1 < 0.0) PRINT_INPUT_ERROR(err);
+        if(r2 <= 0.0) PRINT_INPUT_ERROR(err);
+        if(r2 <= r1) PRINT_INPUT_ERROR(err);
 
         para.a[i] = d0 / (s - 1.0) * exp(sqrt(2.0 * s) * a * r0);
         para.b[i] = s * d0 / (s - 1.0) * exp(sqrt(2.0 / s) * a * r0);

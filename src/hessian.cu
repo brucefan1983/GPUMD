@@ -55,19 +55,20 @@ void Hessian::read_basis(char* input_dir, int N)
     FILE *fid = fopen(file, "r");
     int count;
     count = fscanf(fid, "%d", &num_basis);
-    if (count != 1) print_error("reading error for basis.in\n");
+    PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
+
     MY_MALLOC(basis, int, num_basis);
     MY_MALLOC(mass, real, num_basis);
     for (int m = 0; m < num_basis; ++m)
     {
         count = fscanf(fid, "%d%lf", &basis[m], &mass[m]);
-        if (count != 2) print_error("reading error for basis.in\n");
+        PRINT_SCANF_ERROR(count, 2, "Reading error for basis.in.");
     }
     MY_MALLOC(label, int, N);
     for (int n = 0; n < N; ++n)
     {
         count = fscanf(fid, "%d", &label[n]);
-        if (count != 1) print_error("reading error for basis.in\n");
+        PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
     }
     fclose(fid);
 }
@@ -81,13 +82,14 @@ void Hessian::read_kpoints(char* input_dir)
     FILE *fid = fopen(file, "r");
     int count;
     count = fscanf(fid, "%d", &num_kpoints);
-    if (count != 1) print_error("reading error for kpoints.in\n");
+    PRINT_SCANF_ERROR(count, 1, "Reading error for kpoints.in.");
+
     MY_MALLOC(kpoints, real, num_kpoints * 3);
     for (int m = 0; m < num_kpoints; ++m)
     {
         count = fscanf(fid, "%lf%lf%lf", &kpoints[m * 3 + 0],
             &kpoints[m * 3 + 1], &kpoints[m * 3 + 2]);
-        if (count != 3) print_error("reading error for kpoints.in\n");
+        PRINT_SCANF_ERROR(count, 3, "Reading error for kpoints.in.");
     }
     fclose(fid);
 }

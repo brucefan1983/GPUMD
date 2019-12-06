@@ -36,7 +36,9 @@ LJ::LJ
 {
     printf("Use %d-element LJ potential.\n", num_types);
     if (!(num_types >= 1 && num_types <= MAX_TYPE))
-    { print_error("Incorrect number of LJ parameters.\n"); exit(1);}
+    {
+        PRINT_INPUT_ERROR("Incorrect number of LJ parameters.\n");
+    }
 
     double epsilon, sigma, cutoff;
     rc = 0.0;
@@ -47,8 +49,8 @@ LJ::LJ
             if (pair_participating(n,m,participating_kinds))
             {
                 int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
-                if (count!=3)
-                {print_error("reading error for potential file.\n");exit(1);}
+                PRINT_SCANF_ERROR(count, 3, "Reading error for LJ potential.");
+
                 lj_para.s6e4[n][m]   = pow(sigma, 6.0)  * epsilon * 4.0;
                 lj_para.s12e4[n][m]  = pow(sigma, 12.0) * epsilon * 4.0;
                 lj_para.cutoff_square[n][m] = cutoff * cutoff;

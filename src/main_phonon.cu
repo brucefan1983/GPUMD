@@ -32,10 +32,8 @@ int main(int argc, char *argv[])
     {
         char input_directory[200];
         int count = scanf("%s", input_directory);
-        if (count != 1)
-        {
-            print_error("reading error for input directory.\n");
-        }
+        PRINT_SCANF_ERROR(count, 1, "Reading error for input directory.");
+
         print_line_1();
         printf("Run simulation for '%s'.\n", input_directory);
         print_line_2();
@@ -77,10 +75,7 @@ int get_number_of_input_directories(void)
 {
     int number_of_inputs;
     int count = scanf("%d", &number_of_inputs);
-    if (count != 1)
-    {
-        print_error("reading error for number of inputs.\n");
-    }
+    PRINT_SCANF_ERROR(count, 1, "Reading error for number of inputs.");
     return number_of_inputs;
 }
 
