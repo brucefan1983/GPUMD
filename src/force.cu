@@ -392,7 +392,7 @@ static __global__ void gpu_sum_force
     int bid = blockIdx.x;
     int number_of_patches = (N - 1) / 1024 + 1; 
     __shared__ real s_f[1024];
-    s_f[tid] = ZERO;
+    real f = ZERO;
 
     switch (bid)
     {
@@ -400,25 +400,25 @@ static __global__ void gpu_sum_force
             for (int patch = 0; patch < number_of_patches; ++patch)
             {
                 int n = tid + patch * 1024;
-                if (n < N) s_f[tid] += g_fx[n];
+                if (n < N) f += g_fx[n];
             }
             break;
         case 1:
             for (int patch = 0; patch < number_of_patches; ++patch)
             {
                 int n = tid + patch * 1024;
-                if (n < N) s_f[tid] += g_fy[n];
+                if (n < N) f += g_fy[n];
             }
             break;
         case 2:
             for (int patch = 0; patch < number_of_patches; ++patch)
             {
                 int n = tid + patch * 1024;
-                if (n < N) s_f[tid] += g_fz[n];
+                if (n < N) f += g_fz[n];
             }
             break;
     }
-
+    s_f[tid] = f;
     __syncthreads();
 
     #pragma unroll
@@ -434,14 +434,14 @@ static __global__ void gpu_sum_force
 
 // correct the total force
 static __global__ void gpu_correct_force
-(int N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
+(int N, real one_over_N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N)
     {
-        g_fx[i] -= g_f[0] / N;
-        g_fy[i] -= g_f[1] / N;
-        g_fz[i] -= g_f[2] / N;
+        g_fx[i] -= g_f[0] * one_over_N;
+        g_fy[i] -= g_f[1] * one_over_N;
+        g_fz[i] -= g_f[2] * one_over_N;
     }
 }
 
@@ -498,7 +498,7 @@ void Force::compute(Atom *atom, Measure* measure)
 
     int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
     gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-    (atom->N, atom->fx, atom->fy, atom->fz, ftot);
+    (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot);
     CUDA_CHECK_KERNEL
 
     CHECK(cudaFree(ftot));
@@ -535,7 +535,7 @@ void Force::compute(Atom *atom, Measure* measure)
         CUDA_CHECK_KERNEL
 
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (atom->N, atom->fx, atom->fy, atom->fz, ftot);
+        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot);
         CUDA_CHECK_KERNEL
 
         CHECK(cudaFree(ftot));
