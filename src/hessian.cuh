@@ -24,6 +24,8 @@ public:
     real dx = 0.005;
     real cutoff = 4.0;
     void compute(char*, Atom*, Force*, Measure*);
+    void parse_cutoff(char**, int);
+    void parse_delta(char**, int);
 protected:
     int num_basis;
     int num_kpoints;

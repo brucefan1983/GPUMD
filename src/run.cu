@@ -315,7 +315,7 @@ void Run::parse
     else if (strcmp(param[0], "velocity") == 0)
     {
         is_velocity = true;
-        parse_velocity(param, num_param, atom);
+        atom->parse_velocity(param, num_param);
     }
     else if (strcmp(param[0], "ensemble") == 0)
     {
@@ -323,7 +323,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "time_step") == 0)
     {
-        parse_time_step(param, num_param, atom);
+        atom->parse_time_step(param, num_param);
     }
     else if (strcmp(param[0], "neighbor") == 0)
     {
@@ -384,7 +384,7 @@ void Run::parse
     else if (strcmp(param[0], "run") == 0)
     {
         is_run = true;
-        parse_run(param, num_param, atom);
+        atom->parse_run(param, num_param);
     }
     else
     {

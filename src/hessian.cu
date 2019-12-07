@@ -27,6 +27,8 @@ Then calculate the dynamical matrices with different k points.
 #include "error.cuh"
 #include "mic.cuh"
 #include "cusolver_wrapper.cuh"
+#include "read_file.cuh"
+
 #define BLOCK_SIZE 128
 
 
@@ -381,6 +383,42 @@ void Hessian::shift_atom(real dx, int n2, int beta, Atom* atom)
         gpu_shift_atom<<<1, 1>>>(dx, atom->z + n2);
         CUDA_CHECK_KERNEL
     }
+}
+
+
+void Hessian::parse_cutoff(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("cutoff should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &cutoff))
+    {
+        PRINT_INPUT_ERROR("cutoff for hessian should be a number.\n");
+    }
+    if (cutoff <= 0)
+    {
+        PRINT_INPUT_ERROR("cutoff for hessian should be positive.\n");
+    }
+    printf("Cutoff distance for hessian = %g A.\n", cutoff);
+}
+
+
+void Hessian::parse_delta(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("compute_hessian should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &dx))
+    {
+        PRINT_INPUT_ERROR("displacement for hessian should be a number.\n");
+    }
+    if (dx <= 0)
+    {
+        PRINT_INPUT_ERROR("displacement for hessian should be positive.\n");
+    }
+    printf("Displacement for hessian = %g A.\n", dx);
 }
 
 

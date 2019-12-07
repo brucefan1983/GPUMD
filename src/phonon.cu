@@ -104,11 +104,11 @@ void Phonon::parse
     }
     else if (strcmp(param[0], "cutoff") == 0)
     {
-        parse_cutoff(param, num_param, hessian);
+        hessian->parse_cutoff(param, num_param);
     }
     else if (strcmp(param[0], "delta") == 0)
     {
-        parse_delta(param, num_param, hessian);
+        hessian->parse_delta(param, num_param);
     }
     else
     {

@@ -525,6 +525,52 @@ void Atom::free_memory_gpu(void)
 }
 
 
+void Atom::parse_velocity(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("velocity should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &initial_temperature))
+    {
+        PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
+    }
+    if (initial_temperature <= 0.0)
+    {
+        PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
+    }
+}
+
+
+void Atom::parse_time_step (char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("time_step should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &time_step))
+    {
+        PRINT_INPUT_ERROR("time_step should be a real number.\n");
+    }
+    printf("Time step for this run is %g fs.\n", time_step);
+    time_step /= TIME_UNIT_CONVERSION;
+}
+
+
+void Atom::parse_run(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("run should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &number_of_steps))
+    {
+        PRINT_INPUT_ERROR("number of steps should be an integer.\n");
+    }
+    printf("Run %d steps.\n", number_of_steps);
+}
+
+
 void Atom::parse_neighbor(char **param, int num_param, real force_rc_max)
 {
     neighbor.update = 1;

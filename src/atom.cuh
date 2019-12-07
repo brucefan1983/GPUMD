@@ -76,6 +76,9 @@ public:
     void initialize_velocity(void);
     void find_neighbor(int is_first);
     void parse_neighbor(char**, int, real);
+    void parse_velocity(char**, int);
+    void parse_time_step (char**, int);
+    void parse_run(char**, int);
 
 private:
     void read_xyz_in_line_1(FILE*);
