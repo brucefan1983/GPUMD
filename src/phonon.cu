@@ -24,7 +24,6 @@ The driver class for phonon calculations
 #include "force.cuh"
 #include "measure.cuh"
 #include "hessian.cuh"
-#include "parse.cuh"
 #include "read_file.cuh"
 #include "error.cuh"
 #include <errno.h>

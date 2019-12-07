@@ -27,7 +27,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure.cuh"
 #include "atom.cuh"
 #include "read_file.cuh"
-#include "parse.cuh"
 #include "error.cuh"
 
 
