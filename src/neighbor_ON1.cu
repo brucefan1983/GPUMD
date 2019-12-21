@@ -177,13 +177,18 @@ static __global__ void gpu_find_neighbor_ON1
                     if (cell_id_z + k >= cell_n_z) 
                         neighbour -= cell_n_z*cell_n_y*cell_n_x;
 
+                    // number of atoms in the preceding cells
+                    int offset = LDG(cell_count_sum, neighbour);
+                    // number of atoms in the current cell
+                    int M = LDG(cell_counts, neighbour);
+
                     // loop over the atoms in a neighbor cell
-                    for (int m = 0; m < cell_counts[neighbour]; ++m)
+                    for (int m = 0; m < M; ++m)
                     {
-                        int n2 = cell_contents[cell_count_sum[neighbour] + m];
-                        real x12 = x[n2]-x1;
-                        real y12 = y[n2]-y1;
-                        real z12 = z[n2]-z1;
+                        int n2 = LDG(cell_contents, offset + m);
+                        real x12 = LDG(x, n2) - x1;
+                        real y12 = LDG(y, n2) - y1;
+                        real z12 = LDG(z, n2) - z1;
                         dev_apply_mic(box, x12, y12, z12);
                         real d2 = x12*x12 + y12*y12 + z12*z12;
 
