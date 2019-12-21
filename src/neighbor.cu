@@ -21,9 +21,8 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 
 #include "atom.cuh"
 #include "error.cuh"
-#define BLOCK_SIZE 256
-#define DIM 3
-#define NUM_OF_CELLS 50
+
+const int NUM_OF_CELLS = 50; // use the O(N^2) method when #cells < this number
 
 
 // the first step for determining whether a new neighbor list should be built
@@ -182,25 +181,30 @@ void Atom::check_bound(void)
 
 
 // simple version for sorting the neighbor indicies of each atom
+// to be optimized
 #ifdef DEBUG
-static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
+static __global__ void gpu_sort_neighbor_list
+(const int N, const int *NN, int *NL)
 {
     int bid = blockIdx.x;
     int tid = threadIdx.x;
     int neighbor_number = NN[bid];
     int atom_index;
-    __shared__ int atom_index_copy[BLOCK_SIZE];
+    extern __shared__ int atom_index_copy[];
+
     if (tid < neighbor_number) 
     {
-        atom_index = NL[bid + tid * N];
+        atom_index = LDG(NL, bid + tid * N);
         atom_index_copy[tid] = atom_index;
     }
     int count = 0;
     __syncthreads();
+
     for (int j = 0; j < neighbor_number; ++j)
     {
         if (atom_index > atom_index_copy[j]) { count++; }
     }
+
     if (tid < neighbor_number) { NL[bid + count * N] = atom_index; }
 }
 #endif
@@ -208,40 +212,51 @@ static __global__ void gpu_sort_neighbor_list(int N, int* NN, int* NL)
 
 void Atom::find_neighbor(void)
 {
-    int use_ON2 = 0;
-    int cell_n_x = 0; int cell_n_y = 0; int cell_n_z = 0;
-    if (box.triclinic == 1)
+    bool use_ON2 = false;
+    int cell_n_x = 0;
+    int cell_n_y = 0;
+    int cell_n_z = 0;
+
+    if (box.triclinic)
     {
-        use_ON2 = 1;
+        use_ON2 = true;
     }
     else
     {
         if (box.pbc_x)
         {
             cell_n_x = floor(box.cpu_h[0] / neighbor.rc);
-            if (cell_n_x < 3) {use_ON2 = 1;}
+            if (cell_n_x < 3) {use_ON2 = true;}
         }
         else {cell_n_x = 1;}
+
         if (box.pbc_y)
         {
             cell_n_y = floor(box.cpu_h[1] / neighbor.rc);
-            if (cell_n_y < 3) {use_ON2 = 1;}
+            if (cell_n_y < 3) {use_ON2 = true;}
         }
         else {cell_n_y = 1;}
+
         if (box.pbc_z)
         {
             cell_n_z = floor(box.cpu_h[2] / neighbor.rc);
-            if (cell_n_z < 3) {use_ON2 = 1;}
+            if (cell_n_z < 3) {use_ON2 = true;}
         }
         else {cell_n_z = 1;}
-        if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = 1;}
+
+        if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = true;}
     }
-    if (use_ON2) { find_neighbor_ON2(); }
+
+    if (use_ON2)
+    {
+        find_neighbor_ON2();
+    }
     else
     {
         find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z);
 #ifdef DEBUG
-        gpu_sort_neighbor_list<<<N, BLOCK_SIZE>>>(N, NN, NL);
+        const int smem = neighbor.MN * sizeof(int);
+        gpu_sort_neighbor_list<<<N, neighbor.MN, smem>>>(N, NN, NL);
 #endif
     }
 }
@@ -250,27 +265,32 @@ void Atom::find_neighbor(void)
 // the driver function to be called outside this file
 void Atom::find_neighbor(int is_first)
 {
+    const int block_size = 256;
+    const int grid_size = (N - 1) / block_size + 1;
+
     if (is_first == 1)
     {
         find_neighbor();
         check_bound();
-        gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-        (N, x, y, z, x0, y0, z0);
+
+        gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0, y0, z0);
         CUDA_CHECK_KERNEL
     }
     else
     {
         int update = check_atom_distance();
-        if (update != 0)
+
+        if (update)
         {
             neighbor.number_of_updates++;
+
             find_neighbor();
             check_bound();
-            gpu_apply_pbc<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-            (N, box, x, y, z);
+
+            gpu_apply_pbc<<<grid_size, block_size>>>(N, box, x, y, z);
             CUDA_CHECK_KERNEL
-            gpu_update_xyz0<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-            (N, x, y, z, x0, y0, z0);
+
+            gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0, y0, z0);
             CUDA_CHECK_KERNEL
         }
     }

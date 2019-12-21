@@ -66,6 +66,10 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
     {
         PRINT_INPUT_ERROR("Maximum number of neighbors should >= 1.");
     }
+    else if (neighbor.MN > 1024)
+    {
+        PRINT_INPUT_ERROR("Maximum number of neighbors should <= 1024.");
+    }
     else
     {
         printf("Maximum number of neighbors is %d.\n", neighbor.MN);

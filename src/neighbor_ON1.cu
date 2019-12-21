@@ -26,7 +26,6 @@ Written by Ville Vierimaa and optimized by Zheyong Fan.
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 #define USE_THRUST
-#define BLOCK_SIZE 128
 
 
 // find the cell id for an atom
@@ -156,6 +155,7 @@ static __global__ void gpu_find_neighbor_ON1
         int klim = box.pbc_z ? 1 : 0;
         int jlim = box.pbc_y ? 1 : 0;
         int ilim = box.pbc_x ? 1 : 0;
+
         // loop over the neighbor cells of the central cell
         for (int k=-klim; k<klim+1; ++k)
         {
@@ -176,17 +176,18 @@ static __global__ void gpu_find_neighbor_ON1
                         neighbour += cell_n_z*cell_n_y*cell_n_x;
                     if (cell_id_z + k >= cell_n_z) 
                         neighbour -= cell_n_z*cell_n_y*cell_n_x;
+
                     // loop over the atoms in a neighbor cell
                     for (int m = 0; m < cell_counts[neighbour]; ++m)
                     {
                         int n2 = cell_contents[cell_count_sum[neighbour] + m];
-                        if (n1 == n2) continue;
                         real x12 = x[n2]-x1;
                         real y12 = y[n2]-y1;
                         real z12 = z[n2]-z1;
                         dev_apply_mic(box, x12, y12, z12);
                         real d2 = x12*x12 + y12*y12 + z12*z12;
-                        if (d2 < cutoff_square)
+
+                        if (n1 != n2 && d2 < cutoff_square)
                         {
                             NL[count * N + n1] = n2;
                             count++;
@@ -203,22 +204,28 @@ static __global__ void gpu_find_neighbor_ON1
 // a wrapper of the above kernels
 void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
 {
-    int grid_size = (N - 1) / BLOCK_SIZE + 1; 
+    const int block_size = 128;
+    const int grid_size = (N - 1) / block_size + 1;
+ 
     real rc = neighbor.rc;
     real rc2 = rc * rc; 
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
     int* cell_count;
     int* cell_count_sum;
     int* cell_contents;
+
+    // to be optimized:
     CHECK(cudaMalloc((void**)&cell_count, sizeof(int)*N_cells));
     CHECK(cudaMemset(cell_count, 0, sizeof(int)*N_cells));
     CHECK(cudaMalloc((void**)&cell_count_sum, sizeof(int)*N_cells));
     CHECK(cudaMemset(cell_count_sum, 0, sizeof(int)*N_cells));
     CHECK(cudaMalloc((void**)&cell_contents, sizeof(int)*N));
     CHECK(cudaMemset(cell_contents, 0, sizeof(int)*N));
-    find_cell_counts<<<grid_size, BLOCK_SIZE>>>
+
+    find_cell_counts<<<grid_size, block_size>>>
     (N, cell_count, x, y, z, cell_n_x, cell_n_y, cell_n_z, rc);
     CUDA_CHECK_KERNEL
+
 #ifndef USE_THRUST
     prefix_sum<<<1, 1>>>(N_cells, cell_count, cell_count_sum);
     CUDA_CHECK_KERNEL
@@ -226,19 +233,23 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     thrust::exclusive_scan
     (thrust::device, cell_count, cell_count + N_cells, cell_count_sum);
 #endif
+
     CHECK(cudaMemset(cell_count, 0, sizeof(int)*N_cells));
-    find_cell_contents<<<grid_size, BLOCK_SIZE>>>
+
+    find_cell_contents<<<grid_size, block_size>>>
     (
         N, cell_count, cell_count_sum, cell_contents, 
         x, y, z, cell_n_x, cell_n_y, cell_n_z, rc
     );
     CUDA_CHECK_KERNEL
-    gpu_find_neighbor_ON1<<<grid_size, BLOCK_SIZE>>>
+
+    gpu_find_neighbor_ON1<<<grid_size, block_size>>>
     (
         box, N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
         cell_n_x, cell_n_y, cell_n_z, rc, rc2
     );
     CUDA_CHECK_KERNEL
+
     CHECK(cudaFree(cell_count));
     CHECK(cudaFree(cell_count_sum));
     CHECK(cudaFree(cell_contents));
