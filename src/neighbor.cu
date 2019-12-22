@@ -25,8 +25,8 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 const int NUM_OF_CELLS = 50; // use the O(N^2) method when #cells < this number
 
 
-// the first step for determining whether a new neighbor list should be built
-static __global__ void check_atom_distance_1
+// determining whether a new neighbor list should be built
+static __global__ void gpu_check_atom_distance
 (
     int N, real d2, real *x_old, real *y_old, real *z_old,
     real *x_new, real *y_new, real *z_new, int *g_sum
@@ -53,32 +53,7 @@ static __global__ void check_atom_distance_1
         __syncthreads();
     }
 
-    if (tid ==  0) { g_sum[bid] = s_sum[0]; }
-}
-
-
-// the second step for determining whether a new neighbor list should be built
-static __global__ void check_atom_distance_2(int M, int *g_sum_i, int *g_sum_o)
-{
-    int tid = threadIdx.x;
-    int number_of_patches = (M - 1) / 1024 + 1;
-    __shared__ int s_sum[1024];
-    s_sum[tid] = 0;
-    for (int patch = 0; patch < number_of_patches; ++patch)
-    {
-        int n = tid + patch * 1024;
-        if (n < M) { s_sum[tid] += g_sum_i[n]; }
-    }
-    __syncthreads();
-
-    #pragma unroll
-    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
-    {
-        if (tid < offset) { s_sum[tid] += s_sum[tid + offset]; }
-        __syncthreads();
-    }
-
-    if (tid ==  0) { g_sum_o[0] = s_sum[0]; }
+    if (tid == 0) { atomicAdd(g_sum, s_sum[0]); }
 }
 
 
@@ -87,15 +62,20 @@ int Atom::check_atom_distance(void)
 {
     int M = (N - 1) / 1024 + 1;
     real d2 = neighbor.skin * neighbor.skin * 0.25;
-    int *s1; CHECK(cudaMalloc((void**)&s1, sizeof(int) * M));
-    int *s2; CHECK(cudaMalloc((void**)&s2, sizeof(int)));
-    check_atom_distance_1<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s1);
+    int *s2;
+    CHECK(cudaMalloc((void**)&s2, sizeof(int)));
+
+    int *cpu_s2;
+    MY_MALLOC(cpu_s2, int, 1);
+    cpu_s2[0] = 0;
+
+    CHECK(cudaMemcpy(s2, cpu_s2, sizeof(int), cudaMemcpyHostToDevice));
+
+    gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s2);
     CUDA_CHECK_KERNEL
-    check_atom_distance_2<<<1, 1024>>>(M, s1, s2);
-    CUDA_CHECK_KERNEL
-    int *cpu_s2; MY_MALLOC(cpu_s2, int, 1);
+
     CHECK(cudaMemcpy(cpu_s2, s2, sizeof(int), cudaMemcpyDeviceToHost));
-    CHECK(cudaFree(s1));
+
     CHECK(cudaFree(s2));
     int update = cpu_s2[0];
     MY_FREE(cpu_s2);
@@ -181,7 +161,6 @@ void Atom::check_bound(void)
 
 
 // simple version for sorting the neighbor indicies of each atom
-// to be optimized
 #ifdef DEBUG
 static __global__ void gpu_sort_neighbor_list
 (const int N, const int *NN, int *NL)
