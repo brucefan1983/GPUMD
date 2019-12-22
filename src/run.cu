@@ -79,8 +79,8 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->gkma.compute   = 0;
     measure->hnema.compute  = 0;
     measure->vac.grouping_method = -1;
-    measure->vac.group		= -1;
-    measure->dos.num_dos_points = -1;
+    measure->vac.group = -1;
+    measure->vac.num_dos_points = -1;
     measure->hac.compute    = 0;
     measure->hnemd.compute  = 0;
     measure->dump_thermo    = 0;

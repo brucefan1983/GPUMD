@@ -17,7 +17,6 @@
 #pragma once
 #include "common.cuh"
 #include "vac.cuh"
-#include "dos.cuh"
 #include "sdc.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
@@ -45,7 +44,6 @@ public:
     char file_thermo[FILE_NAME_LENGTH];   
     char file_restart[FILE_NAME_LENGTH];
     VAC vac;
-    DOS dos;
     SDC sdc;
     HAC hac;
     SHC shc;

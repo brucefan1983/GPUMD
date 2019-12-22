@@ -18,7 +18,6 @@
 
 #pragma once
 #include "common.cuh"
-#include "dos.cuh"
 #include "sdc.cuh"
 
 //forward declarations
@@ -28,24 +27,30 @@ class SDC;
 class VAC
 {
 public:
-	// NOTE: (compute_dos && compute_sdc) == 1 yields failure
+    // NOTE: (compute_dos && compute_sdc) == 1 yields failure
     int compute_dos;     // 1 means mass-weighted VAC computed
-    int compute_sdc;	 // 1 means VAC computed
+    int compute_sdc; // 1 means VAC computed
     int sample_interval; // sample interval for velocity
     int grouping_method = -1; // grouping method to use, -1 means none set
-    int group = -1;		 // group to compute, -1 means none set
+    int group = -1; // group to compute, -1 means none set
     int Nc;              // number of correlation points
-    int N;				 // number of atoms for computation
+    int N; // number of atoms for computation
+
+    // parameters for DOS calculations
+    int num_dos_points = -1; // points to use for DOS output, -1 means not set
+    real omega_max;    // maximal angular frequency for phonons
+
     real *vac_x_normalized;
     real *vac_y_normalized;
     real *vac_z_normalized;
     real *vac_x, *vac_y, *vac_z;
     void preprocess(Atom*);
     void process(int step, Atom*);
-    void postprocess(char*, Atom*, DOS*, SDC*);
+    void postprocess(char*, Atom*, SDC*);
 
 private:
     void find_vac(char *input_dir, Atom *atom);
+    void find_dos(char *input_dir, Atom *atom);
     real *vx_all;
     real *vy_all;
     real *vz_all;

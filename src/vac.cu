@@ -63,6 +63,17 @@ void VAC::preprocess(Atom *atom)
     CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vz_all, sizeof(real) * num));
+
+    if (compute_dos)
+    {
+        // set default number of DOS points
+        if (num_dos_points == -1) {num_dos_points = Nc;}
+        float sample_frequency = 1000.0/(atom->time_step * sample_interval); // THz
+        if (sample_frequency < omega_max/PI)
+        {
+            printf("WARNING: VAC sampling rate is less than Nyquist frequency.\n");
+        }
+    }
 }
 
 
@@ -270,16 +281,113 @@ void VAC::find_vac(char *input_dir, Atom *atom)
 
 }
 
+// Calculate phonon density of states (DOS)
+// using the method by Dickey and Paskin
+static void perform_dft
+(
+    int N, int Nc, int num_dos_points,
+    real delta_t, real omega_0, real d_omega,
+    real *vac_x_normalized, real *vac_y_normalized, real *vac_z_normalized,
+    real *dos_x, real *dos_y, real *dos_z
+)
+{
+    // Apply Hann window and normalize by the correct factor
+    for (int nc = 0; nc < Nc; nc++)
+    {
+        real hann_window = (cos((PI * nc) / Nc) + 1.0) * 0.5;
+
+        real multiply_factor = 2.0 * hann_window;
+        if (nc == 0)
+        {
+            multiply_factor = 1.0 * hann_window;
+        }
+
+        vac_x_normalized[nc] *= multiply_factor;
+        vac_y_normalized[nc] *= multiply_factor;
+        vac_z_normalized[nc] *= multiply_factor;
+    }
+
+    // Calculate DOS by discrete Fourier transform
+    for (int nw = 0; nw < num_dos_points; nw++)
+    {
+        real omega = omega_0 + nw * d_omega;
+        for (int nc = 0; nc < Nc; nc++)
+        {
+            real cos_factor = cos(omega * nc * delta_t);
+            dos_x[nw] += vac_x_normalized[nc] * cos_factor;
+            dos_y[nw] += vac_y_normalized[nc] * cos_factor;
+            dos_z[nw] += vac_z_normalized[nc] * cos_factor;
+        }
+        dos_x[nw] *= delta_t*2.0*N;
+        dos_y[nw] *= delta_t*2.0*N;
+        dos_z[nw] *= delta_t*2.0*N;
+    }
+}
+
+
+// Calculate phonon density of states
+void VAC::find_dos(char *input_dir, Atom *atom)
+{
+    // rename variables
+    real time_step = atom->time_step;
+
+    // other parameters
+    real dt = time_step * sample_interval;
+    real dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // ps
+    real d_omega = omega_max / num_dos_points;
+    real omega_0 = d_omega;
+
+    // major data
+    real *dos_x, *dos_y, *dos_z;
+    MY_MALLOC(dos_x, real, num_dos_points);
+    MY_MALLOC(dos_y, real, num_dos_points);
+    MY_MALLOC(dos_z, real, num_dos_points);
+
+    for (int nw = 0; nw < num_dos_points; nw++)
+    {
+    	dos_x[nw] = dos_y[nw] = dos_z[nw] = 0.0;
+    }
+    perform_dft
+    (
+        N, Nc, num_dos_points, dt_in_ps, omega_0, d_omega,
+        vac_x_normalized, vac_y_normalized, vac_z_normalized,
+        dos_x, dos_y, dos_z
+    );
+
+    char file_dos[FILE_NAME_LENGTH];
+    strcpy(file_dos, input_dir);
+    strcat(file_dos, "/dos.out");
+    FILE *fid = fopen(file_dos, "a");
+    for (int nw = 0; nw < num_dos_points; nw++)
+    {
+        real omega = omega_0 + d_omega * nw;
+        fprintf(fid, "%25.15e",                                         omega);
+        fprintf(fid, "%25.15e%25.15e%25.15e", dos_x[nw], dos_y[nw], dos_z[nw]);
+        fprintf(fid, "\n");
+    }
+    fflush(fid);
+    fclose(fid);
+    MY_FREE(dos_x); MY_FREE(dos_y); MY_FREE(dos_z);
+}
+
 
 // postprocess VAC and related quantities.
-void VAC::postprocess(char *input_dir, Atom *atom, DOS *dos, SDC *sdc)
+void VAC::postprocess(char *input_dir, Atom *atom, SDC *sdc)
 {
     if (!(compute_dos || compute_sdc)) return;
     print_line_1();
     printf("Start to calculate VAC and related quantities.\n");
     find_vac(input_dir, atom);
-    if (compute_dos){dos->process(input_dir, atom, this);}
-    else{sdc->process(input_dir, atom, this);}
+
+    if (compute_dos)
+    {
+        find_dos(input_dir, atom);
+    }
+    else
+    {
+        sdc->process(input_dir, atom, this);
+    }
+
     MY_FREE(vac_x);
     MY_FREE(vac_y);
     MY_FREE(vac_z);
@@ -291,7 +399,7 @@ void VAC::postprocess(char *input_dir, Atom *atom, DOS *dos, SDC *sdc)
     CHECK(cudaFree(vz_all));
     if (grouping_method != -1)
     {
-    	CHECK(cudaFree(g_gindex));
+        CHECK(cudaFree(g_gindex));
     }
     printf("VAC and related quantities are calculated.\n");
     print_line_2();
