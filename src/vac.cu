@@ -15,10 +15,16 @@
 
 
 /*----------------------------------------------------------------------------80
-Calculate the velocity autocorrelation function (VAC)
-[1] J. M. Dickey and A. Paskin, 
-Computer Simulation of the Lattice Dynamics of Solids, 
-Phys. Rev. 188, 1407 (1969).
+Calculate:
+    Velocity AutoCorrelation (VAC) function
+    Self Diffusion Coefficient (SDC)
+    Mass-weighted VAC (MVAC)
+    Phonon Density Of States (PDOS or simply DOS)
+
+Reference for PDOS:
+    J. M. Dickey and A. Paskin, 
+    Computer Simulation of the Lattice Dynamics of Solids, 
+    Phys. Rev. 188, 1407 (1969).
 ------------------------------------------------------------------------------*/
 
 
@@ -27,38 +33,42 @@ Phys. Rev. 188, 1407 (1969).
 #include "atom.cuh"
 #include "error.cuh"
 
-#define BLOCK_SIZE 128
+const int BLOCK_SIZE = 128;
 
 
 // Allocate memory for recording velocity data
 void VAC::preprocess(Atom *atom)
 {
     if (!compute_dos && !compute_sdc) return;
+
     if (compute_dos == compute_sdc)
     {
-        PRINT_INPUT_ERROR("DOS and SDC commands cannot be used simultaneously.");
+        PRINT_INPUT_ERROR("Cannot calculate DOS and SDC simultaneously.");
     }
+
     Group sel_group;  //selected group
+
     if (grouping_method == -1) { N = atom->N; }
     else
     {
-    	sel_group = atom->group[grouping_method];
-    	N = sel_group.cpu_size[group];
+        sel_group = atom->group[grouping_method];
+        N = sel_group.cpu_size[group];
 
-    	// initialize array that stores atom indices for the group
-		int *gindex;
-		MY_MALLOC(gindex, int, N);
-		int group_index = sel_group.cpu_size_sum[group];
-		for (int i = 0; i < N; i++)
-		{
-			gindex[i] = sel_group.cpu_contents[group_index];
-			group_index++;
-		}
-	    // Copy indices to GPU
-	    CHECK(cudaMalloc((void**)&g_gindex, sizeof(int) * N));
-	    CHECK(cudaMemcpy(g_gindex, gindex, sizeof(int) * N, cudaMemcpyHostToDevice));
-	    MY_FREE(gindex);
+        // initialize array that stores atom indices for the group
+        int *gindex;
+        MY_MALLOC(gindex, int, N);
+        int group_index = sel_group.cpu_size_sum[group];
+        for (int i = 0; i < N; i++)
+        {
+            gindex[i] = sel_group.cpu_contents[group_index];
+            group_index++;
+        }
+        // Copy indices to GPU
+        CHECK(cudaMalloc((void**)&g_gindex, sizeof(int) * N));
+        CHECK(cudaMemcpy(g_gindex, gindex, sizeof(int) * N, cudaMemcpyHostToDevice));
+        MY_FREE(gindex);
     }
+
     int num = N * (atom->number_of_steps / sample_interval);
     CHECK(cudaMalloc((void**)&vx_all, sizeof(real) * num));
     CHECK(cudaMalloc((void**)&vy_all, sizeof(real) * num));
@@ -68,10 +78,11 @@ void VAC::preprocess(Atom *atom)
     {
         // set default number of DOS points
         if (num_dos_points == -1) {num_dos_points = Nc;}
-        float sample_frequency = 1000.0/(atom->time_step * sample_interval); // THz
-        if (sample_frequency < omega_max/PI)
+        // check if the sampling frequency is large enough
+        real nu_max = 1000.0/(atom->time_step * sample_interval); // THz
+        if (nu_max < omega_max/PI)
         {
-            printf("WARNING: VAC sampling rate is less than Nyquist frequency.\n");
+            PRINT_INPUT_ERROR("VAC sampling rate < Nyquist frequency.");
         }
     }
 }
@@ -92,15 +103,15 @@ static __global__ void gpu_copy_velocity
         int m = nd * N + n;
         if (grouped)
         {
-        	g_out_x[m] = g_in_x[LDG(g_gindex, n)];
-			g_out_y[m] = g_in_y[LDG(g_gindex, n)];
-			g_out_z[m] = g_in_z[LDG(g_gindex, n)];
+            g_out_x[m] = g_in_x[LDG(g_gindex, n)];
+            g_out_y[m] = g_in_y[LDG(g_gindex, n)];
+            g_out_z[m] = g_in_z[LDG(g_gindex, n)];
         }
         else
         {
-        	g_out_x[m] = g_in_x[n];
-			g_out_y[m] = g_in_y[n];
-			g_out_z[m] = g_in_z[n];
+            g_out_x[m] = g_in_x[n];
+            g_out_y[m] = g_in_y[n];
+            g_out_z[m] = g_in_z[n];
         }
     }
 }
@@ -116,7 +127,7 @@ void VAC::process(int step, Atom *atom)
     int grouped = (grouping_method != -1);
     gpu_copy_velocity<<<grid_size, BLOCK_SIZE>>>
     (N, nd, grouped,
-    		atom->vx, atom->vy, atom->vz, vx_all, vy_all, vz_all, g_gindex);
+            atom->vx, atom->vy, atom->vz, vx_all, vy_all, vz_all, g_gindex);
     CUDA_CHECK_KERNEL
 }
 
@@ -156,24 +167,24 @@ static __global__ void gpu_find_vac
             int n = tid + patch * 128;
             if (n < N)
             {
-            	if (compute_dos)
-            	{
-            		real mass;
-            		if (grouping_method != -1){ mass = LDG(g_mass, LDG(g_gindex,n));}
-            		else {mass = LDG(g_mass, n);}
-					s_vac_x[tid] += mass * LDG(g_vx, index_1 + n) *
-							LDG(g_vx, index_2 + n);
-					s_vac_y[tid] += mass * LDG(g_vy, index_1 + n) *
-							LDG(g_vy, index_2 + n);
-					s_vac_z[tid] += mass * LDG(g_vz, index_1 + n) *
-							LDG(g_vz, index_2 + n);
-            	}
-            	else
-            	{
-            		s_vac_x[tid] += LDG(g_vx, index_1 + n) * LDG(g_vx, index_2 + n);
-					s_vac_y[tid] += LDG(g_vy, index_1 + n) * LDG(g_vy, index_2 + n);
-					s_vac_z[tid] += LDG(g_vz, index_1 + n) * LDG(g_vz, index_2 + n);
-            	}
+                if (compute_dos)
+                {
+                    real mass;
+                    if (grouping_method != -1){ mass = LDG(g_mass, LDG(g_gindex,n));}
+                    else {mass = LDG(g_mass, n);}
+                    s_vac_x[tid] += mass * LDG(g_vx, index_1 + n) *
+                            LDG(g_vx, index_2 + n);
+                    s_vac_y[tid] += mass * LDG(g_vy, index_1 + n) *
+                            LDG(g_vy, index_2 + n);
+                    s_vac_z[tid] += mass * LDG(g_vz, index_1 + n) *
+                            LDG(g_vz, index_2 + n);
+                }
+                else
+                {
+                    s_vac_x[tid] += LDG(g_vx, index_1 + n) * LDG(g_vx, index_2 + n);
+                    s_vac_y[tid] += LDG(g_vy, index_1 + n) * LDG(g_vy, index_2 + n);
+                    s_vac_z[tid] += LDG(g_vz, index_1 + n) * LDG(g_vz, index_2 + n);
+                }
             }
         }
     }
@@ -258,31 +269,30 @@ void VAC::find_vac(char *input_dir, Atom *atom)
 
     if (compute_dos)
     {
-		char file_vac[FILE_NAME_LENGTH];
-		strcpy(file_vac, input_dir);
-		strcat(file_vac, "/mvac.out");
-		FILE *fid = fopen(file_vac, "a");
-		for (int nc = 0; nc < Nc; nc++)
-		{
-			real t = nc * dt_in_ps;
+        char file_vac[FILE_NAME_LENGTH];
+        strcpy(file_vac, input_dir);
+        strcat(file_vac, "/mvac.out");
+        FILE *fid = fopen(file_vac, "a");
+        for (int nc = 0; nc < Nc; nc++)
+        {
+            real t = nc * dt_in_ps;
 
-			// change to A^2/ps^2
-			vac_x[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
-			vac_y[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
-			vac_z[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
+            // change to A^2/ps^2
+            vac_x[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
+            vac_y[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
+            vac_z[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
 
-			fprintf(fid, "%25.15e",                                             t);
-			fprintf(fid, "%25.15e%25.15e%25.15e", vac_x[nc], vac_y[nc], vac_z[nc]);
-			fprintf(fid, "\n");
-		}
-		fflush(fid);
-		fclose(fid);
+            fprintf(fid, "%25.15e",                                             t);
+            fprintf(fid, "%25.15e%25.15e%25.15e", vac_x[nc], vac_y[nc], vac_z[nc]);
+            fprintf(fid, "\n");
+        }
+        fflush(fid);
+        fclose(fid);
     }
 
 }
 
-// Calculate phonon density of states (DOS)
-// using the method by Dickey and Paskin
+
 static void perform_dft
 (
     int N, int Nc, int num_dos_points,
@@ -325,7 +335,6 @@ static void perform_dft
 }
 
 
-// Calculate phonon density of states
 void VAC::find_dos(char *input_dir, Atom *atom)
 {
     // rename variables
@@ -345,7 +354,7 @@ void VAC::find_dos(char *input_dir, Atom *atom)
 
     for (int nw = 0; nw < num_dos_points; nw++)
     {
-    	dos_x[nw] = dos_y[nw] = dos_z[nw] = 0.0;
+        dos_x[nw] = dos_y[nw] = dos_z[nw] = 0.0;
     }
     perform_dft
     (
@@ -371,8 +380,6 @@ void VAC::find_dos(char *input_dir, Atom *atom)
 }
 
 
-// Calculate the Self Diffusion Coefficient (SDC)
-// from the VAC using the Green-Kubo formula
 static void integrate_vac
 (
     int Nc, real dt, real *vac_x, real *vac_y, real *vac_z,
