@@ -371,8 +371,74 @@ void VAC::find_dos(char *input_dir, Atom *atom)
 }
 
 
+// Calculate the Self Diffusion Coefficient (SDC)
+// from the VAC using the Green-Kubo formula
+static void integrate_vac
+(
+    int Nc, real dt, real *vac_x, real *vac_y, real *vac_z,
+    real *sdc_x, real *sdc_y, real *sdc_z
+)
+{
+    real dt2 = dt * 0.5;
+    for (int nc = 1; nc < Nc; nc++)
+    {
+        sdc_x[nc] = sdc_x[nc - 1] + (vac_x[nc - 1] + vac_x[nc]) * dt2;
+        sdc_y[nc] = sdc_y[nc - 1] + (vac_y[nc - 1] + vac_y[nc]) * dt2;
+        sdc_z[nc] = sdc_z[nc - 1] + (vac_z[nc - 1] + vac_z[nc]) * dt2;
+    }
+}
+
+
+void VAC::find_sdc(char *input_dir, Atom *atom)
+{
+    // rename variables
+    real time_step = atom->time_step;
+
+    // other parameters
+    real dt = time_step * sample_interval;
+    real dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // ps
+
+    // major data
+    real *sdc_x, *sdc_y, *sdc_z;
+    MY_MALLOC(sdc_x, real, Nc);
+    MY_MALLOC(sdc_y, real, Nc);
+    MY_MALLOC(sdc_z, real, Nc);
+
+    for (int nc = 0; nc < Nc; nc++) {sdc_x[nc] = sdc_y[nc] = sdc_z[nc] = 0.0;}
+
+    integrate_vac(Nc, dt, vac_x, vac_y, vac_z, sdc_x, sdc_y, sdc_z);
+
+    char file_sdc[FILE_NAME_LENGTH];
+    strcpy(file_sdc, input_dir);
+    strcat(file_sdc, "/sdc.out");
+    FILE *fid = fopen(file_sdc, "a");
+    for (int nc = 0; nc < Nc; nc++)
+    {
+        real t = nc * dt_in_ps;
+
+        // change to A^2/ps^2
+        vac_x[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
+        vac_y[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
+        vac_z[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
+
+        sdc_x[nc] *= 1000.0 / TIME_UNIT_CONVERSION; // change to A^2/ps
+        sdc_y[nc] *= 1000.0 / TIME_UNIT_CONVERSION; // change to A^2/ps
+        sdc_z[nc] *= 1000.0 / TIME_UNIT_CONVERSION; // change to A^2/ps
+
+        fprintf(fid, "%25.15e",                                             t);
+        fprintf(fid, "%25.15e%25.15e%25.15e", vac_x[nc], vac_y[nc], vac_z[nc]);
+        fprintf(fid, "%25.15e%25.15e%25.15e", sdc_x[nc], sdc_y[nc], sdc_z[nc]);
+        fprintf(fid, "\n");
+    }
+    fflush(fid);
+    fclose(fid);
+
+    MY_FREE(sdc_x); MY_FREE(sdc_y); MY_FREE(sdc_z);
+}
+
+
 // postprocess VAC and related quantities.
-void VAC::postprocess(char *input_dir, Atom *atom, SDC *sdc)
+void VAC::postprocess(char *input_dir, Atom *atom)
 {
     if (!(compute_dos || compute_sdc)) return;
     print_line_1();
@@ -385,7 +451,7 @@ void VAC::postprocess(char *input_dir, Atom *atom, SDC *sdc)
     }
     else
     {
-        sdc->process(input_dir, atom, this);
+        find_sdc(input_dir, atom);
     }
 
     MY_FREE(vac_x);

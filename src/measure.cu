@@ -73,7 +73,7 @@ void Measure::finalize
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
     if (dump_restart)   {                       dump_restart   = 0;}
     if (dump_pos)       {dump_pos->finalize();}
-    vac.postprocess(input_dir, atom, &sdc);
+    vac.postprocess(input_dir, atom);
     hac.postprocess(input_dir, atom, integrate);
     shc.postprocess(input_dir);
     compute.postprocess(atom, integrate);

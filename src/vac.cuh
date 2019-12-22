@@ -13,16 +13,10 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#ifndef VAC_H
-#define VAC_H
 
 #pragma once
 #include "common.cuh"
-#include "sdc.cuh"
 
-//forward declarations
-class DOS;
-class SDC;
 
 class VAC
 {
@@ -46,15 +40,16 @@ public:
     real *vac_x, *vac_y, *vac_z;
     void preprocess(Atom*);
     void process(int step, Atom*);
-    void postprocess(char*, Atom*, SDC*);
+    void postprocess(char*, Atom*);
 
 private:
     void find_vac(char *input_dir, Atom *atom);
     void find_dos(char *input_dir, Atom *atom);
+    void find_sdc(char *input_dir, Atom *atom);
     real *vx_all;
     real *vy_all;
     real *vz_all;
     int  *g_gindex; // atom indices for selected group for GPU
 };
 
-#endif //VAC_H
+
