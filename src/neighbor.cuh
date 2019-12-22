@@ -25,6 +25,11 @@ struct Neighbor
     int number_of_updates; // number of updates during a run
     real skin;             // skin distance 
     real rc;               // cutoff used when building the neighbor list
+
+    // some data for the ON1 method
+    int* cell_count;
+    int* cell_count_sum;
+    int* cell_contents;
 };
 
 

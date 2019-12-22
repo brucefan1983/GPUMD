@@ -215,16 +215,12 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     real rc = neighbor.rc;
     real rc2 = rc * rc; 
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
-    int* cell_count;
-    int* cell_count_sum;
-    int* cell_contents;
+    int* cell_count = neighbor.cell_count;
+    int* cell_count_sum = neighbor.cell_count_sum;
+    int* cell_contents = neighbor.cell_contents;
 
-    // to be optimized:
-    CHECK(cudaMalloc((void**)&cell_count, sizeof(int)*N_cells));
     CHECK(cudaMemset(cell_count, 0, sizeof(int)*N_cells));
-    CHECK(cudaMalloc((void**)&cell_count_sum, sizeof(int)*N_cells));
     CHECK(cudaMemset(cell_count_sum, 0, sizeof(int)*N_cells));
-    CHECK(cudaMalloc((void**)&cell_contents, sizeof(int)*N));
     CHECK(cudaMemset(cell_contents, 0, sizeof(int)*N));
 
     find_cell_counts<<<grid_size, block_size>>>
@@ -254,10 +250,6 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
         cell_n_x, cell_n_y, cell_n_z, rc, rc2
     );
     CUDA_CHECK_KERNEL
-
-    CHECK(cudaFree(cell_count));
-    CHECK(cudaFree(cell_count_sum));
-    CHECK(cudaFree(cell_contents));
 }
 
 

@@ -420,6 +420,11 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&NL, m2));
     CHECK(cudaMalloc((void**)&NN_local, m1));
     CHECK(cudaMalloc((void**)&NL_local, m2));
+
+    CHECK(cudaMalloc((void**)&neighbor.cell_count, m1));
+    CHECK(cudaMalloc((void**)&neighbor.cell_count_sum, m1));
+    CHECK(cudaMalloc((void**)&neighbor.cell_contents, m1));
+
     CHECK(cudaMalloc((void**)&type, m1));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
@@ -501,6 +506,11 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(NL));
     CHECK(cudaFree(NN_local));
     CHECK(cudaFree(NL_local));
+
+    CHECK(cudaFree(neighbor.cell_count));
+    CHECK(cudaFree(neighbor.cell_count_sum));
+    CHECK(cudaFree(neighbor.cell_contents));
+
     CHECK(cudaFree(type));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
