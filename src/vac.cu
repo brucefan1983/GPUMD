@@ -156,6 +156,24 @@ static __global__ void gpu_copy_velocity
 }
 
 
+static __global__ void gpu_copy_velocity
+(
+    int N, 
+    real *g_vx_o, real *g_vy_o, real *g_vz_o,
+    real *g_vx_i, real *g_vy_i, real *g_vz_i
+)
+{
+    int n = threadIdx.x + blockIdx.x * blockDim.x;
+
+    if (n < N)
+    {
+        g_vx_o[n] = g_vx_i[n];
+        g_vy_o[n] = g_vy_i[n];
+        g_vz_o[n] = g_vz_i[n];
+    }
+}
+
+
 static __global__ void gpu_find_vac
 (
     int N, int correlation_step, int compute_dos, real *g_mass,
@@ -241,10 +259,11 @@ void VAC::process(int step, Atom *atom)
     }
     else
     {
-        const int mem = sizeof(real) * N;
-        CHECK(cudaMemcpy(vx + offset, atom->vx, mem, cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vy + offset, atom->vy, mem, cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vz + offset, atom->vz, mem, cudaMemcpyDeviceToDevice));
+        gpu_copy_velocity<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+        (
+            N, vx + offset, vy + offset, vz + offset,
+            atom->vx, atom->vy, atom->vz
+        );
     }
     CUDA_CHECK_KERNEL 
 
