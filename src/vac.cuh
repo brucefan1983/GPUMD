@@ -21,35 +21,32 @@
 class VAC
 {
 public:
+
     // NOTE: (compute_dos && compute_sdc) == 1 yields failure
-    int compute_dos;     // 1 means mass-weighted VAC computed
-    int compute_sdc; // 1 means VAC computed
-    int sample_interval; // sample interval for velocity
+    int compute_dos;          // 1 means mass-weighted VAC computed
+    int compute_sdc;          // 1 means VAC computed
+    int sample_interval;      // sample interval for velocity
     int grouping_method = -1; // grouping method to use, -1 means none set
-    int group = -1; // group to compute, -1 means none set
-    int Nc;              // number of correlation points
-    int N; // number of atoms for computation
+    int group = -1;           // group to compute, -1 means none set
+    int Nc;                   // number of correlation points
+    int num_dos_points = -1;  // points to use for DOS output, -1 means not set
+    real omega_max;           // maximal angular frequency for phonons
 
-    // parameters for DOS calculations
-    int num_dos_points = -1; // points to use for DOS output, -1 means not set
-    real omega_max;    // maximal angular frequency for phonons
-
-    real *vac_x_normalized;
-    real *vac_y_normalized;
-    real *vac_z_normalized;
-    real *vac_x, *vac_y, *vac_z;
     void preprocess(Atom*);
-    void process(int step, Atom*);
+    void process(int, Atom*);
     void postprocess(char*, Atom*);
 
 private:
-    void find_vac(char *input_dir, Atom *atom);
-    void find_dos(char *input_dir, Atom *atom);
-    void find_sdc(char *input_dir, Atom *atom);
-    real *vx_all;
-    real *vy_all;
-    real *vz_all;
-    int  *g_gindex; // atom indices for selected group for GPU
+
+    int N;                    // number of atoms for computation
+    int num_time_origins;     // number of time origins
+    real dt;                  // time interval in natural units
+    real dt_in_ps;            // time interval in units of ps
+    void find_dos(char *, Atom *);
+    void find_sdc(char *, Atom *);
+    real *mass;
+    real *vx, *vy, *vz;
+    real *vac_x, *vac_y, *vac_z;
 };
 
 
