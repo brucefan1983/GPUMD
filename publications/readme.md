@@ -14,7 +14,7 @@ J. Chem. Phys. **151**, 234105 (2019).
 
 * Zheyong Fan, Yanzhou Wang, Xiaokun Gu, Ping Qian, Yanjing Su, and Tapio Ala-Nissila,
 [A minimal Tersoff potential for diamond silicon with improved descriptions of elastic and phonon transport properties](https://doi.org/10.1088/1361-648X/ab5c5f),
-Accepted to Journal of Physics: Condensed Matter.
+J. Phys.: Condens. Matter **32** 135901 (2020).
 
 * Leyla Isaeva, Giuseppe Barbalinardo, Davide Donadio, and Stefano Baroni,
 [Modeling heat transport in crystals and glasses from a unified lattice-dynamical approach](https://doi.org/10.1038/s41467-019-11572-4),
