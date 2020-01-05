@@ -6,15 +6,17 @@
 [Phonon Confinement and Transport in Ultrathin Films](https://arxiv.org/abs/1907.00969),
 arXiv:1907.00969 [cond-mat.mes-hall].
 
+## 2020 (1)
+
+* Zheyong Fan, Yanzhou Wang, Xiaokun Gu, Ping Qian, Yanjing Su, and Tapio Ala-Nissila,
+[A minimal Tersoff potential for diamond silicon with improved descriptions of elastic and phonon transport properties](https://doi.org/10.1088/1361-648X/ab5c5f),
+J. Phys.: Condens. Matter **32** 135901 (2020).
+
 ## 2019 (6)
 
 * Zhen Li, Shiyun Xiong, Charles Sievers, Yue Hu, Zheyong Fan, Ning Wei, Hua Bao, Shunda Chen, Davide Donadio, and Tapio Ala-Nissila,
 [Influence of Thermostatting on Nonequilibrium Molecular Dynamics Simulations of Heat Conduction in Solids](https://doi.org/10.1063/1.5132543),
 J. Chem. Phys. **151**, 234105 (2019).
-
-* Zheyong Fan, Yanzhou Wang, Xiaokun Gu, Ping Qian, Yanjing Su, and Tapio Ala-Nissila,
-[A minimal Tersoff potential for diamond silicon with improved descriptions of elastic and phonon transport properties](https://doi.org/10.1088/1361-648X/ab5c5f),
-J. Phys.: Condens. Matter **32** 135901 (2020).
 
 * Leyla Isaeva, Giuseppe Barbalinardo, Davide Donadio, and Stefano Baroni,
 [Modeling heat transport in crystals and glasses from a unified lattice-dynamical approach](https://doi.org/10.1038/s41467-019-11572-4),
