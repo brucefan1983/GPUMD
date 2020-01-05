@@ -12,7 +12,7 @@ arXiv:1907.00969 [cond-mat.mes-hall].
 [A minimal Tersoff potential for diamond silicon with improved descriptions of elastic and phonon transport properties](https://doi.org/10.1088/1361-648X/ab5c5f),
 J. Phys.: Condens. Matter **32** 135901 (2020).
 
-## 2019 (6)
+## 2019 (5)
 
 * Zhen Li, Shiyun Xiong, Charles Sievers, Yue Hu, Zheyong Fan, Ning Wei, Hua Bao, Shunda Chen, Davide Donadio, and Tapio Ala-Nissila,
 [Influence of Thermostatting on Nonequilibrium Molecular Dynamics Simulations of Heat Conduction in Solids](https://doi.org/10.1063/1.5132543),
