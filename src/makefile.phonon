@@ -1,5 +1,12 @@
 CC = nvcc
+
+# For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35
+
+# For Windows with the cl.exe compiler 
+#CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
+
+
 LFLAGS = -lcublas -lcusolver
 
 SOURCES = main_phonon.cu phonon.cu read_file.cu error.cu \

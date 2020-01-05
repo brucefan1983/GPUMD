@@ -1,5 +1,10 @@
 CC = nvcc
+
+# For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
+
+# For Windows with the cl.exe compiler 
+#CFLAGS = -O3 -arch=sm_35 -DDEBUG -Xcompiler "/wd 4819"
 
 INC =
 LDFLAGS = 
