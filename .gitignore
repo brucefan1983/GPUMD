@@ -6,6 +6,9 @@
 core
 
 *.o
+*.exe
+*.exp
+*.lib
 
 src/gpumd
 

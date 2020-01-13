@@ -172,8 +172,10 @@ static void process_run
     {
         atom->step = step;
         atom->global_time += atom->time_step;
-
+		
+#ifndef USE_FCP // the FCP does not use a neighbor list at all
         if (atom->neighbor.update) { atom->find_neighbor(0); }
+#endif
 
         integrate->compute(atom, force, measure);
         measure->process(input_dir, atom, integrate, step);

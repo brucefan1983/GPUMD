@@ -581,7 +581,9 @@ void Force::compute(Atom *atom, Measure* measure)
     for (int m = 0; m < num_of_potentials; m++)
     {
         // first build a local neighbor list
+#ifndef USE_FCP // the FCP does not use a neighbor list at all
         find_neighbor_local(atom, m);
+#endif
         // and then calculate the forces and related quantities
         potential[m]->compute(atom, measure, m);
     }

@@ -31,7 +31,9 @@ Atom::Atom(char *input_dir)
     initialize_position(input_dir);
     allocate_memory_gpu();
     copy_from_cpu_to_gpu();
+#ifndef USE_FCP // the FCP does not use a neighbor list at all
     find_neighbor(1);
+#endif
 }
 
 

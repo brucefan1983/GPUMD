@@ -1,5 +1,8 @@
 CC = nvcc
 
+# Note: add -DUSE_FCP to CFLAGS when you use the FCP potential
+# and remove it when you use any other potentials
+
 # For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
 
