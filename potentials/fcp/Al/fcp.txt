@@ -1,0 +1,3 @@
+fcp 1
+6
+potentials/fcp/Al
