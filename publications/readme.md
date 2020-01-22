@@ -1,16 +1,20 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (1)
+## Preprints (0)
+
+* Haikuan Dong, Zheyong Fan, Ping Qian, Tapio Ala-Nissila, and Yanjing Su,
+Thermal conductivity reduction in carbon nanotube by fullerene encapsulation: A molecular dynamics study,
+Submitted.
+
+## 2020 (2)
 
 * Bo Fu, Kevin D. Parrish, Hyun-Young Kim, Guihua Tang, and Alan J. H. McGaughey,
-[Phonon Confinement and Transport in Ultrathin Films](https://arxiv.org/abs/1907.00969),
-arXiv:1907.00969 [cond-mat.mes-hall].
-
-## 2020 (1)
+[Phonon Confinement and Transport in Ultrathin Films](https://doi.org/10.1103/PhysRevB.101.045417),
+Phys. Rev. B **101**, 045417 (2020).
 
 * Zheyong Fan, Yanzhou Wang, Xiaokun Gu, Ping Qian, Yanjing Su, and Tapio Ala-Nissila,
 [A minimal Tersoff potential for diamond silicon with improved descriptions of elastic and phonon transport properties](https://doi.org/10.1088/1361-648X/ab5c5f),
-J. Phys.: Condens. Matter **32** 135901 (2020).
+J. Phys.: Condens. Matter **32**, 135901 (2020).
 
 ## 2019 (5)
 
@@ -24,7 +28,7 @@ Nature Communications **10**, 3853 (2019).
 
 * Xiaokun Gu, Zheyong Fan, Hua Bao, and CY Zhao,
 [Revisiting phonon-phonon scattering in single-layer graphene](https://doi.org/10.1103/PhysRevB.100.064306),
-Phys. Rev. B **100**, 064306 (2019)
+Phys. Rev. B **100**, 064306 (2019).
 
 * Zheyong Fan, Haikuan Dong, Ari Harju, and Tapio Ala-Nissila, 
 [Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials](https://doi.org/10.1103/PhysRevB.99.064308),
