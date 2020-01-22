@@ -9,3 +9,4 @@
 | rebo      | Reactive empirical bond order potential     | many-body            |
 | sw        | Stillinger-Weber potential                  | many-body            |
 | vashishta | Vashishta potential                         | two-body + many-body |
+| fcp       | Force constant potential                    | many-body            |
