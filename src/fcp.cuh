@@ -25,7 +25,7 @@ struct FCP_Data
     int *ia4, *jb4, *kc4, *ld4;
     int *ia5, *jb5, *kc5, *ld5, *me5;
     int *ia6, *jb6, *kc6, *ld6, *me6, *nf6;
-    float *uv, *r0, *pfj, *xij2, *yij2, *zij2;
+    float *u, *r0, *pfv, *xij2, *yij2, *zij2;
     float *phi2, *phi3, *phi4, *phi5, *phi6;
 };
 

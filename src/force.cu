@@ -588,21 +588,6 @@ void Force::compute(Atom *atom, Measure* measure)
         potential[m]->compute(atom, measure, m);
     }
 
-    // always correct the force when using the FCP potential
-#ifdef USE_FCP
-    real *ftot; // total force vector of the system
-    CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
-    gpu_sum_force<<<3, 1024>>>
-    (atom->N, atom->fx, atom->fy, atom->fz, ftot);
-    CUDA_CHECK_KERNEL
-
-    int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
-    gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-    (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot);
-    CUDA_CHECK_KERNEL
-
-    CHECK(cudaFree(ftot));
-#else
     if (measure->hnemd.compute || measure->hnema.compute)
     {
         int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
@@ -634,6 +619,24 @@ void Force::compute(Atom *atom, Measure* measure)
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
         CUDA_CHECK_KERNEL
 
+        gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
+        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot);
+        CUDA_CHECK_KERNEL
+
+        CHECK(cudaFree(ftot));
+    }
+
+    // always correct the force when using the FCP potential
+#ifdef USE_FCP
+    if (!measure->hnemd.compute && !measure->hnema.compute)
+    {
+        real *ftot; // total force vector of the system
+        CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
+        gpu_sum_force<<<3, 1024>>>
+        (atom->N, atom->fx, atom->fy, atom->fz, ftot);
+        CUDA_CHECK_KERNEL
+
+        int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
         (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot);
         CUDA_CHECK_KERNEL

@@ -41,9 +41,9 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
     printf("    Use the force constant data in %s.\n", file_path);
 
     // allocate memeory
-    CHECK(cudaMalloc(&fcp_data.uv, sizeof(float) * atom->N * 6));
+    CHECK(cudaMalloc(&fcp_data.u, sizeof(float) * atom->N * 3));
     CHECK(cudaMallocManaged(&fcp_data.r0, sizeof(float) * atom->N * 3));
-    CHECK(cudaMalloc(&fcp_data.pfj, sizeof(float) * atom->N * 7));
+    CHECK(cudaMalloc(&fcp_data.pfv, sizeof(float) * atom->N * 13));
 
     // read in the equilibrium positions and force constants
     read_r0(atom);
@@ -57,9 +57,9 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
 
 FCP::~FCP(void)
 {
-    CHECK(cudaFree(fcp_data.uv));
+    CHECK(cudaFree(fcp_data.u));
     CHECK(cudaFree(fcp_data.r0));
-    CHECK(cudaFree(fcp_data.pfj));
+    CHECK(cudaFree(fcp_data.pfv));
     CHECK(cudaFree(fcp_data.ia2));
     CHECK(cudaFree(fcp_data.jb2));
     CHECK(cudaFree(fcp_data.phi2));
@@ -170,15 +170,20 @@ void FCP::read_fc2(Atom *atom)
     int num_clusters = 0;
     count = fscanf(fid_cluster, "%d", &num_clusters);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order2.in.");
+    if (num_clusters <= 0)
+    {
+        PRINT_INPUT_ERROR("number of clusters should > 0.");
+    }
     number2 = num_clusters * 9;
 
-    CHECK(cudaMallocManaged(&fcp_data.ia2, sizeof(int) * number2));
-    CHECK(cudaMallocManaged(&fcp_data.jb2, sizeof(int) * number2));
-    CHECK(cudaMallocManaged(&fcp_data.phi2, sizeof(float) * number2));
-    CHECK(cudaMallocManaged(&fcp_data.xij2, sizeof(float) * number2));
-    CHECK(cudaMallocManaged(&fcp_data.yij2, sizeof(float) * number2));
-    CHECK(cudaMallocManaged(&fcp_data.zij2, sizeof(float) * number2));
-
+    CHECK(cudaMallocManaged(&fcp_data.ia2, sizeof(int) * number2 * 2));
+    CHECK(cudaMallocManaged(&fcp_data.jb2, sizeof(int) * number2 * 2));
+    CHECK(cudaMallocManaged(&fcp_data.phi2, sizeof(float) * number2 * 2));
+    CHECK(cudaMallocManaged(&fcp_data.xij2, sizeof(float) * number2 * 2));
+    CHECK(cudaMallocManaged(&fcp_data.yij2, sizeof(float) * number2 * 2));
+    CHECK(cudaMallocManaged(&fcp_data.zij2, sizeof(float) * number2 * 2));
+	
+    int idx_clusters_new = 0;
     for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
     {
         int i, j, idx_fcs;
@@ -198,14 +203,11 @@ void FCP::read_fc2(Atom *atom)
             for (int b = 0; b < 3; ++b)
             {
                 int ab = a*3 + b;
-                int index = idx_clusters*9 + ab;
+                int index = idx_clusters_new*9 + ab;
                 fcp_data.ia2[index] = a * atom->N + i;
                 fcp_data.jb2[index] = b * atom->N + j;
                 fcp_data.phi2[index] = fc[idx_fcs*9 + ab];
 
-                // 2^1-1 = 1 case:
-                if (i == j) { fcp_data.phi2[index] /= 2; } // 11
-        
                 double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
                 double yij2 = fcp_data.r0[j + atom->N] 
                             - fcp_data.r0[i + atom->N];
@@ -221,7 +223,25 @@ void FCP::read_fc2(Atom *atom)
                 fcp_data.zij2[index] = zij2 * 0.5;
             }
         }
+        ++idx_clusters_new;
+		
+        if (i != j)
+        {
+            for (int ab = 0; ab < 9; ++ab)
+            {
+                int index = idx_clusters_new*9 + ab;
+                int index_old = index - 9;
+                fcp_data.ia2[index] = fcp_data.jb2[index_old];
+                fcp_data.jb2[index] = fcp_data.ia2[index_old];
+                fcp_data.phi2[index] = fcp_data.phi2[index_old];
+                fcp_data.xij2[index] = -fcp_data.xij2[index_old];
+                fcp_data.yij2[index] = -fcp_data.yij2[index_old];
+                fcp_data.zij2[index] = -fcp_data.zij2[index_old];
+            }
+            ++idx_clusters_new;
+        }
     }
+    number2 = idx_clusters_new * 9;
 
     fclose(fid_fc);
     fclose(fid_cluster);
@@ -271,6 +291,10 @@ void FCP::read_fc3(Atom *atom)
     int num_clusters = 0;
     count = fscanf(fid_cluster, "%d", &num_clusters);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order3.in.");
+    if (num_clusters <= 0)
+    {
+        PRINT_INPUT_ERROR("number of clusters should > 0.");
+    }
     number3 = num_clusters * 27;
 
     CHECK(cudaMallocManaged(&fcp_data.ia3, sizeof(int) * number3));
@@ -361,6 +385,10 @@ void FCP::read_fc4(Atom *atom)
     int num_clusters = 0;
     count = fscanf(fid_cluster, "%d", &num_clusters);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order4.in.");
+    if (num_clusters <= 0)
+    {
+        PRINT_INPUT_ERROR("number of clusters should > 0.");
+    }
     number4 = num_clusters * 81;
 
     CHECK(cudaMallocManaged(&fcp_data.ia4, sizeof(int) * number4));
@@ -469,6 +497,10 @@ void FCP::read_fc5(Atom *atom)
     int num_clusters = 0;
     count = fscanf(fid_cluster, "%d", &num_clusters);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order5.in.");
+    if (num_clusters <= 0)
+    {
+        PRINT_INPUT_ERROR("number of clusters should > 0.");
+    }
     number5 = num_clusters * 243;
 
     CHECK(cudaMallocManaged(&fcp_data.ia5, sizeof(int) * number5));
@@ -600,6 +632,10 @@ void FCP::read_fc6(Atom *atom)
     int num_clusters = 0;
     count = fscanf(fid_cluster, "%d", &num_clusters);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order6.in.");
+    if (num_clusters <= 0)
+    {
+        PRINT_INPUT_ERROR("number of clusters should > 0.");
+    }
     number6 = num_clusters * 729;
 
     CHECK(cudaMallocManaged(&fcp_data.ia6, sizeof(int) * number6));
@@ -723,13 +759,11 @@ void FCP::read_fc6(Atom *atom)
 }
 
 
-// potential, force, and heat current from the second-order force constants
+// potential, force, and virial from the second-order force constants
 static __global__ void gpu_find_force_fcp2
 (
-    int hnemd_compute, real fe_x, real fe_y, real fe_z,
-    int N, int number2, int *g_ia2, int *g_jb2, float *g_phi2,
-    const float* __restrict__ g_uv, 
-    float *g_xij2, float *g_yij2, float *g_zij2, float *g_pfj
+    int N, int number2, int *g_ia2, int *g_jb2, float *g_phi2, float* g_u, 
+    float *g_xij2, float *g_yij2, float *g_zij2, float *g_pfv
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -741,29 +775,21 @@ static __global__ void gpu_find_force_fcp2
         float xij2 = g_xij2[n];
         float yij2 = g_yij2[n];
         float zij2 = g_zij2[n];
-
-        float uia = LDG(g_uv, ia); 
-        float ujb = LDG(g_uv, jb);
-        float via = LDG(g_uv, ia + N * 3);
-        float vjb = LDG(g_uv, jb + N * 3);
-
+        float uia = LDG(g_u, ia);
+        float ujb = LDG(g_u, jb);
+        
         int atom_id = ia % N;
-        atomicAdd(&g_pfj[atom_id], phi * uia * ujb);
-        float fia = - phi * ujb;
-        float fjb = - phi * uia;
-        if (hnemd_compute)
-        {
-            float fe_times_rij2 = (fe_x * xij2 + fe_y * yij2 + fe_z * zij2);
-            fia = (1.0 - fe_times_rij2) * fia;
-            fjb = (1.0 + fe_times_rij2) * fjb;
-        }
-        atomicAdd(&g_pfj[ia + N], fia);
-        atomicAdd(&g_pfj[jb + N], fjb);
-
-        float uvij = via * ujb - uia * vjb;
-        atomicAdd(&g_pfj[atom_id + N * 4], phi * xij2 * uvij);
-        atomicAdd(&g_pfj[atom_id + N * 5], phi * yij2 * uvij);
-        atomicAdd(&g_pfj[atom_id + N * 6], phi * zij2 * uvij);
+        atomicAdd(&g_pfv[atom_id], 0.5f * phi * uia * ujb); // potential
+        atomicAdd(&g_pfv[ia + N], - phi * ujb); // force
+        
+        // virial tensor
+        int a = ia / N;
+        int x[3] = {4, 7, 8};
+        int y[3] = {10, 5, 9};
+        int z[3] = {11, 12, 6};
+        atomicAdd(&g_pfv[atom_id + N * x[a]], xij2 * phi * ujb);
+        atomicAdd(&g_pfv[atom_id + N * y[a]], yij2 * phi * ujb);
+        atomicAdd(&g_pfv[atom_id + N * z[a]], zij2 * phi * ujb);
     }
 }
 
@@ -887,59 +913,49 @@ static __global__ void gpu_find_force_fcp6
 }
 
 
-// initialize the local potential (p), force (f), and heat current (j)
-static __global__ void gpu_initialize_pfj(int N, float *pfj)
+// initialize the local potential (p), force (f), and virial (v)
+static __global__ void gpu_initialize_pfv(int N, float *pfv)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
     {
-        pfj[n] = 0.0;
-        pfj[n + N] = 0.0;
-        pfj[n + N * 2] = 0.0;
-        pfj[n + N * 3] = 0.0;
-        pfj[n + N * 4] = 0.0;
-        pfj[n + N * 5] = 0.0;
-        pfj[n + N * 6] = 0.0;
+        pfv[n] = 0.0f;
     }
 }
 
 
-// get the displacement (u=r-r0) and velocity (v)
-static __global__ void gpu_get_uv
+// get the displacement (u=r-r0)
+static __global__ void gpu_get_u
 (
     int N, double *x, double *y, double *z, 
-    double *vx, double *vy, double *vz, float *r0, float *uv
+    float *r0, float *u
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
     {
-        uv[n]         = x[n] - r0[n];
-        uv[n + N]     = y[n] - r0[n + N];
-        uv[n + N * 2] = z[n] - r0[n + N + N];
-        uv[n + N * 3] = vx[n];
-        uv[n + N * 4] = vy[n];
-        uv[n + N * 5] = vz[n];
+        u[n]         = x[n] - r0[n];
+        u[n + N]     = y[n] - r0[n + N];
+        u[n + N * 2] = z[n] - r0[n + N + N];
     }
 }
 
 
-// save potential (p), force (f), and heat current (j)
-static __global__ void gpu_save_pfj
-(
-    int N, float *pfj, double *p, double *fx, double *fy, double *fz, double *j
-)
+// save potential (p), force (f), and virial (v)
+static __global__ void gpu_save_pfv
+(int N, float *pfv, double *p, double *fx, double *fy, double *fz, double *v)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
     {
-        p[n]  = pfj[n];                // potential energy
-        fx[n] = pfj[n + N];            // fx
-        fy[n] = pfj[n + N * 2];        // fy
-        fz[n] = pfj[n + N * 3];        // fz
-        j[n]  = pfj[n + N * 4];        // jx_in (jx_out = 0)
-        j[n + N * 2] = pfj[n + N * 5]; // jy_in (jy_out = 0)
-        j[n + N * 4] = pfj[n + N * 6]; // jz
+        p[n]  = pfv[n];                // potential energy
+        fx[n] = pfv[n + N];            // fx
+        fy[n] = pfv[n + N * 2];        // fy
+        fz[n] = pfv[n + N * 3];        // fz
+        for (int m = 0; m < 9; ++m)    // virial tensor
+        {
+            v[n + N * m] = pfv[n + N * (m + 4)]; 
+        }
     }
 }
 
@@ -949,42 +965,39 @@ void FCP::compute(Atom *atom, Measure *measure, int potential_number)
 {
     const int block_size = 1024;
 
-    gpu_get_uv<<<(atom->N - 1) / block_size + 1, block_size>>>
+    gpu_get_u<<<(atom->N - 1) / block_size + 1, block_size>>>
     (
-        atom->N, atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz, 
-        fcp_data.r0, fcp_data.uv
+        atom->N, atom->x, atom->y, atom->z, fcp_data.r0, fcp_data.u
     );
 
-    gpu_initialize_pfj<<<(atom->N - 1) / block_size + 1, block_size>>>
-    (atom->N, fcp_data.pfj);
+    gpu_initialize_pfv<<<(atom->N*13 - 1) / block_size + 1, block_size>>>
+    (atom->N*13, fcp_data.pfv);
 
     gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>
     (
-        measure->hnemd.compute,
-        measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
         atom->N, number2, fcp_data.ia2, fcp_data.jb2, fcp_data.phi2,
-        fcp_data.uv, fcp_data.xij2, fcp_data.yij2, fcp_data.zij2, fcp_data.pfj
+        fcp_data.u, fcp_data.xij2, fcp_data.yij2, fcp_data.zij2, fcp_data.pfv
     );
 
     if (order >= 3)
     gpu_find_force_fcp3<<<(number3 - 1) / block_size + 1, block_size>>>
     (
         atom->N, number3, fcp_data.ia3, fcp_data.jb3, fcp_data.kc3,
-        fcp_data.phi3, fcp_data.uv, fcp_data.pfj
+        fcp_data.phi3, fcp_data.u, fcp_data.pfv
     );
 
     if (order >= 4)
     gpu_find_force_fcp4<<<(number4 - 1) / block_size + 1, block_size>>>
     (
         atom->N, number4, fcp_data.ia4, fcp_data.jb4, fcp_data.kc4,
-        fcp_data.ld4, fcp_data.phi4, fcp_data.uv, fcp_data.pfj
+        fcp_data.ld4, fcp_data.phi4, fcp_data.u, fcp_data.pfv
     );
 
     if (order >= 5)
     gpu_find_force_fcp5<<<(number5 - 1) / block_size + 1, block_size>>>
     (
         atom->N, number5, fcp_data.ia5, fcp_data.jb5, fcp_data.kc5,
-        fcp_data.ld5, fcp_data.me5, fcp_data.phi5, fcp_data.uv, fcp_data.pfj
+        fcp_data.ld5, fcp_data.me5, fcp_data.phi5, fcp_data.u, fcp_data.pfv
     );
 
     if (order >= 6)
@@ -992,13 +1005,13 @@ void FCP::compute(Atom *atom, Measure *measure, int potential_number)
     (
         atom->N, number6, fcp_data.ia6, fcp_data.jb6, fcp_data.kc6,
         fcp_data.ld6, fcp_data.me6, fcp_data.nf6, fcp_data.phi6, 
-        fcp_data.uv, fcp_data.pfj
+        fcp_data.u, fcp_data.pfv
     ); 
 
-    gpu_save_pfj<<<(atom->N - 1) / block_size + 1, block_size>>>
+    gpu_save_pfv<<<(atom->N - 1) / block_size + 1, block_size>>>
     (
-        atom->N, fcp_data.pfj, atom->potential_per_atom,
-        atom->fx, atom->fy, atom->fz, atom->heat_per_atom
+        atom->N, fcp_data.pfv, atom->potential_per_atom,
+        atom->fx, atom->fy, atom->fz, atom->virial_per_atom
     );
 
     CUDA_CHECK_KERNEL

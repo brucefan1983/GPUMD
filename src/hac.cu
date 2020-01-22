@@ -96,7 +96,6 @@ void HAC::process(int step, char *input_dir, Atom *atom)
     if (!compute) return; 
     if ((++step) % sample_interval != 0) return;
 
-#ifndef USE_FCP
     // the virial tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
@@ -121,7 +120,6 @@ void HAC::process(int step, char *input_dir, Atom *atom)
         atom->heat_per_atom + atom->N * 4
     );
     CUDA_CHECK_KERNEL
-#endif
  
     int nd = step / sample_interval - 1;
     int Nd = atom->number_of_steps / sample_interval;
