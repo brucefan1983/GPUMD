@@ -72,7 +72,7 @@ Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
         rc = r2 > rc ? r2 : rc;
     }
 
-    int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
+    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
     int memory1 = sizeof(double)* atom->N * num_of_neighbors;
     CHECK(cudaMalloc((void**)&tersoff_mini_data.b,    memory1));
     CHECK(cudaMalloc((void**)&tersoff_mini_data.bp,   memory1));

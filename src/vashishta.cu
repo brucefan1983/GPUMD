@@ -89,7 +89,7 @@ Vashishta::Vashishta(FILE *fid, Atom* atom)
 {
     initialize_para(fid);
 
-    int num = ((atom->neighbor.MN<20) ? atom->neighbor.MN : 20);
+    int num = (atom->neighbor.MN < 100) ? atom->neighbor.MN : 100;
     int memory = sizeof(real) * atom->N * num;
     CHECK(cudaMalloc((void**)&vashishta_data.f12x, memory));
     CHECK(cudaMalloc((void**)&vashishta_data.f12y, memory));

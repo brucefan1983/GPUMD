@@ -136,7 +136,7 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
         rc = r2 > rc ? r2 : rc;
     }
 
-    int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
+    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
     int memory = sizeof(real)* atom->N * num_of_neighbors;
     CHECK(cudaMalloc((void**)&tersoff_data.b,  memory));
     CHECK(cudaMalloc((void**)&tersoff_data.bp, memory));

@@ -39,7 +39,7 @@ SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
     if (num_of_types == 3) { initialize_sw_1985_3(fid); }
 
     // memory for the partial forces dU_i/dr_ij
-    int num_of_neighbors = (atom->neighbor.MN < 20) ? atom->neighbor.MN : 20;
+    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
     int memory = sizeof(real) * atom->N * num_of_neighbors;
     CHECK(cudaMalloc((void**)&sw2_data.f12x, memory));
     CHECK(cudaMalloc((void**)&sw2_data.f12y, memory));

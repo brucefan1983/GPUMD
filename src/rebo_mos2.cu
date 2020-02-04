@@ -158,7 +158,7 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 
 REBO_MOS::REBO_MOS(Atom* atom)
 {
-    int num = ((atom->neighbor.MN<20) ? atom->neighbor.MN : 20);
+    int num = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
     int memory1 = sizeof(real) * atom->N;
     int memory2 = sizeof(real) * atom->N * num;
     int memory3 = sizeof(int) * atom->N;
