@@ -1,10 +1,10 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (0)
+## Preprints (1)
 
 * Haikuan Dong, Zheyong Fan, Ping Qian, Tapio Ala-Nissila, and Yanjing Su,
-Thermal conductivity reduction in carbon nanotube by fullerene encapsulation: A molecular dynamics study,
-Submitted.
+[Thermal conductivity reduction in carbon nanotube by fullerene encapsulation: A molecular dynamics study](https://arxiv.org/abs/2002.00143),
+Accepted to Carbon.
 
 ## 2020 (2)
 
