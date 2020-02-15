@@ -1,12 +1,15 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (1)
+## Preprints (0)
+
+
+
+## 2020 (3)
 
 * Haikuan Dong, Zheyong Fan, Ping Qian, Tapio Ala-Nissila, and Yanjing Su,
-[Thermal conductivity reduction in carbon nanotube by fullerene encapsulation: A molecular dynamics study](https://arxiv.org/abs/2002.00143),
-Accepted to Carbon.
+[Thermal conductivity reduction in carbon nanotube by fullerene encapsulation: A molecular dynamics study](https://doi.org/10.1016/j.carbon.2020.01.114),
+Carbon **161**, 800 (2020).
 
-## 2020 (2)
 
 * Bo Fu, Kevin D. Parrish, Hyun-Young Kim, Guihua Tang, and Alan J. H. McGaughey,
 [Phonon Confinement and Transport in Ultrathin Films](https://doi.org/10.1103/PhysRevB.101.045417),
