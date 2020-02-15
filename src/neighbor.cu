@@ -225,6 +225,12 @@ void Atom::find_neighbor(void)
 
         if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {use_ON2 = true;}
     }
+	
+    int num_bins = cell_n_x * cell_n_y * cell_n_z;
+    if (num_bins > N)
+    {
+        PRINT_INPUT_ERROR("Number of bins is larger than number of atoms.\n");
+    }
 
     if (use_ON2)
     {
