@@ -49,7 +49,7 @@ protected:
     void find_H(Atom*, Force*, Measure*);
     void find_H12(int, int, Atom*, Force*, Measure*, real*);
     bool is_too_far(int, int, Atom*);
-    void find_D(char*, Atom*);
+    void find_dispersion(char*, Atom*);
     void find_eigenvectors(char*, Atom*);
     void output_D(char*);
     void find_omega(FILE*, int);

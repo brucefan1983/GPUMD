@@ -35,7 +35,7 @@ void Hessian::compute
 {
     initialize(input_dir, atom->N);
     find_H(atom, force, measure);
-    find_D(input_dir, atom);
+    find_dispersion(input_dir, atom);
 
     // currently for Alex's GKMA calculations
     if (num_kpoints == 1)
@@ -234,7 +234,7 @@ void Hessian::find_omega_batch(FILE* fid)
 }
 
 
-void Hessian::find_D(char* input_dir, Atom* atom)
+void Hessian::find_dispersion(char* input_dir, Atom* atom)
 {
     char file_omega2[200];
     strcpy(file_omega2, input_dir);
