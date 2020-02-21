@@ -24,14 +24,14 @@ Some wrappers for the cuSOLVER library
 #include <cusolverDn.h>
 
 
-void eig_hermitian_QR(int N, double* AR, double* AI, double* W_cpu)
+void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
 {
     // get A
-    int N2 = N * N;
+    size_t N2 = N * N;
     cuDoubleComplex *A, *A_cpu; 
     MY_MALLOC(A_cpu, cuDoubleComplex, N2);
     CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * N2));
-    for (int n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
+    for (size_t n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
     CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * N2, 
         cudaMemcpyHostToDevice));
 
@@ -66,14 +66,14 @@ void eig_hermitian_QR(int N, double* AR, double* AI, double* W_cpu)
 }
 
 
-void eig_hermitian_Jacobi(int N, double* AR, double* AI, double* W_cpu)
+void eig_hermitian_Jacobi(size_t N, double* AR, double* AI, double* W_cpu)
 {
     // get A
-    int N2 = N * N;
+    size_t N2 = N * N;
     cuDoubleComplex *A, *A_cpu; 
     MY_MALLOC(A_cpu, cuDoubleComplex, N2);
     CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * N2));
-    for (int n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
+    for (size_t n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
     CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * N2, 
         cudaMemcpyHostToDevice));
 
@@ -114,10 +114,10 @@ void eig_hermitian_Jacobi(int N, double* AR, double* AI, double* W_cpu)
 
 
 void eigenvectors_symmetric_Jacobi
-(int N, double* A_cpu, double* W_cpu, double* eigenvectors_cpu)
+(size_t N, double* A_cpu, double* W_cpu, double* eigenvectors_cpu)
 {
     // get A
-    int N2 = N * N;
+    size_t N2 = N * N;
     double *A; 
     CHECK(cudaMalloc((void**)&A, sizeof(double) * N2));
     CHECK(cudaMemcpy(A, A_cpu, sizeof(double) * N2, cudaMemcpyHostToDevice));
@@ -160,14 +160,14 @@ void eigenvectors_symmetric_Jacobi
 
 
 void eig_hermitian_Jacobi_batch
-(int N, int batch_size, double* AR, double* AI, double* W_cpu)
+(size_t N, size_t batch_size, double* AR, double* AI, double* W_cpu)
 {
     // get A
-    int M = N * N * batch_size;
+    size_t M = N * N * batch_size;
     cuDoubleComplex *A, *A_cpu; 
     MY_MALLOC(A_cpu, cuDoubleComplex, M);
     CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * M));
-    for (int n = 0; n < M; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
+    for (size_t n = 0; n < M; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
     CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * M, 
         cudaMemcpyHostToDevice));
 

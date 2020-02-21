@@ -24,35 +24,36 @@ public:
     real displacement = 0.005;
     real cutoff = 4.0;
     void compute(char*, Atom*, Force*, Measure*);
-    void parse_cutoff(char**, int);
-    void parse_delta(char**, int);
+    void parse_cutoff(char**, size_t);
+    void parse_delta(char**, size_t);
 
 protected:
 
-    int num_basis;
-    int num_kpoints;
+    size_t num_basis;
+    size_t num_kpoints;
 
-    int* basis;
-    int* label;
+    size_t* basis;
+    size_t* label;
     real* mass;
     real* kpoints;
     real* H;
     real* DR;
     real* DI;
 
-    void shift_atom(real, int, int, Atom*);
-    void get_f(real, int, int, int, Atom*, Force*, Measure*, real*);
-    void read_basis(char*, int N);
+    void shift_atom(real, size_t, size_t, Atom*);
+    void get_f(real, size_t, size_t, size_t, Atom*, Force*, Measure*, real*);
+    void read_basis(char*, size_t N);
     void read_kpoints(char*);
-    void initialize(char*, int);
+    void initialize(char*, size_t);
     void finalize(void);
     void find_H(Atom*, Force*, Measure*);
-    void find_H12(int, int, Atom*, Force*, Measure*, real*);
-    bool is_too_far(int, int, Atom*);
+    void find_H12(size_t, size_t, Atom*, Force*, Measure*, real*);
+    bool is_too_far(size_t, size_t, Atom*);
     void find_dispersion(char*, Atom*);
+    void find_D(Atom*);
     void find_eigenvectors(char*, Atom*);
     void output_D(char*);
-    void find_omega(FILE*, int);
+    void find_omega(FILE*, size_t);
     void find_omega_batch(FILE*);
 };
 

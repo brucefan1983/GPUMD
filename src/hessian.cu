@@ -35,39 +35,42 @@ void Hessian::compute
 {
     initialize(input_dir, atom->N);
     find_H(atom, force, measure);
-    find_dispersion(input_dir, atom);
 
-    // currently for Alex's GKMA calculations
-    if (num_kpoints == 1)
+    if (num_kpoints == 1) // currently for Alex's GKMA calculations
     {
+        find_D(atom);
         find_eigenvectors(input_dir, atom);
+    }
+    else
+    {
+        find_dispersion(input_dir, atom);
     }
 
     finalize();
 }
 
 
-void Hessian::read_basis(char* input_dir, int N)
+void Hessian::read_basis(char* input_dir, size_t N)
 {
     char file[200];
     strcpy(file, input_dir);
     strcat(file, "/basis.in");
     FILE *fid = fopen(file, "r");
-    int count;
-    count = fscanf(fid, "%d", &num_basis);
+    size_t count;
+    count = fscanf(fid, "%zu", &num_basis);
     PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
 
-    MY_MALLOC(basis, int, num_basis);
+    MY_MALLOC(basis, size_t, num_basis);
     MY_MALLOC(mass, real, num_basis);
-    for (int m = 0; m < num_basis; ++m)
+    for (size_t m = 0; m < num_basis; ++m)
     {
-        count = fscanf(fid, "%d%lf", &basis[m], &mass[m]);
+        count = fscanf(fid, "%zu%lf", &basis[m], &mass[m]);
         PRINT_SCANF_ERROR(count, 2, "Reading error for basis.in.");
     }
-    MY_MALLOC(label, int, N);
-    for (int n = 0; n < N; ++n)
+    MY_MALLOC(label, size_t, N);
+    for (size_t n = 0; n < N; ++n)
     {
-        count = fscanf(fid, "%d", &label[n]);
+        count = fscanf(fid, "%zu", &label[n]);
         PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
     }
     fclose(fid);
@@ -80,12 +83,12 @@ void Hessian::read_kpoints(char* input_dir)
     strcpy(file, input_dir);
     strcat(file, "/kpoints.in");
     FILE *fid = fopen(file, "r");
-    int count;
-    count = fscanf(fid, "%d", &num_kpoints);
+    size_t count;
+    count = fscanf(fid, "%zu", &num_kpoints);
     PRINT_SCANF_ERROR(count, 1, "Reading error for kpoints.in.");
 
     MY_MALLOC(kpoints, real, num_kpoints * 3);
-    for (int m = 0; m < num_kpoints; ++m)
+    for (size_t m = 0; m < num_kpoints; ++m)
     {
         count = fscanf(fid, "%lf%lf%lf", &kpoints[m * 3 + 0],
             &kpoints[m * 3 + 1], &kpoints[m * 3 + 2]);
@@ -95,17 +98,23 @@ void Hessian::read_kpoints(char* input_dir)
 }
 
 
-void Hessian::initialize(char* input_dir, int N)
+void Hessian::initialize(char* input_dir, size_t N)
 {
     read_basis(input_dir, N);
     read_kpoints(input_dir);
-    int num_H = num_basis * N * 9;
-    int num_D = num_basis * num_basis * 9 * num_kpoints;
+    size_t num_H = num_basis * N * 9;
+    size_t num_D = num_basis * num_basis * 9 * num_kpoints;
+
     MY_MALLOC(H, real, num_H);
     MY_MALLOC(DR, real, num_D);
-    MY_MALLOC(DI, real, num_D);
-    for (int n = 0; n < num_H; ++n) { H[n] = 0; }
-    for (int n = 0; n < num_D; ++n) { DR[n] = DI[n] = 0; }
+    for (size_t n = 0; n < num_H; ++n) { H[n] = 0; }
+    for (size_t n = 0; n < num_D; ++n) { DR[n] = 0; }
+
+    if (num_kpoints > 1) // for dispersion calculation
+    {
+        MY_MALLOC(DI, real, num_D);
+        for (size_t n = 0; n < num_D; ++n) { DI[n] = 0; }
+    }
 }
 
 
@@ -117,11 +126,15 @@ void Hessian::finalize(void)
     MY_FREE(kpoints);
     MY_FREE(H);
     MY_FREE(DR);
-    MY_FREE(DI);
+    
+    if (num_kpoints > 1) // for dispersion calculation
+    {
+        MY_FREE(DI);
+    }
 }
 
 
-bool Hessian::is_too_far(int n1, int n2, Atom* atom)
+bool Hessian::is_too_far(size_t n1, size_t n2, Atom* atom)
 {
     real x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
     real y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
@@ -138,14 +151,14 @@ bool Hessian::is_too_far(int n1, int n2, Atom* atom)
 
 void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
 {
-    int N = atom->N;
-    for (int nb = 0; nb < num_basis; ++nb)
+    size_t N = atom->N;
+    for (size_t nb = 0; nb < num_basis; ++nb)
     {
-        int n1 = basis[nb];
-        for (int n2 = 0; n2 < N; ++n2)
+        size_t n1 = basis[nb];
+        for (size_t n2 = 0; n2 < N; ++n2)
         {
             if(is_too_far(n1, n2, atom)) continue;
-            int offset = (nb * N + n2) * 9;
+            size_t offset = (nb * N + n2) * 9;
             find_H12(n1, n2, atom, force, measure, H + offset);
         }
     }
@@ -153,7 +166,7 @@ void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
 
 
 static void find_exp_ikr
-(int n1, int n2, real* k, Atom* atom, real& cos_kr, real& sin_kr)
+(size_t n1, size_t n2, real* k, Atom* atom, real& cos_kr, real& sin_kr)
 {
     real x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
     real y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
@@ -175,19 +188,19 @@ void Hessian::output_D(char* input_dir)
     strcpy(file, input_dir);
     strcat(file, "/D.out");
     FILE *fid = fopen(file, "w");
-    for (int nk = 0; nk < num_kpoints; ++nk)
+    for (size_t nk = 0; nk < num_kpoints; ++nk)
     {
-        int offset = nk * num_basis * num_basis * 9;
-        for (int n1 = 0; n1 < num_basis * 3; ++n1)
+        size_t offset = nk * num_basis * num_basis * 9;
+        for (size_t n1 = 0; n1 < num_basis * 3; ++n1)
         {
-            for (int n2 = 0; n2 < num_basis * 3; ++n2)
+            for (size_t n2 = 0; n2 < num_basis * 3; ++n2)
             {
                 // cuSOLVER requires column-major
                 fprintf(fid, "%g ", DR[offset + n1 + n2 * num_basis * 3]);
             }
             if (num_kpoints > 1)
             {
-                for (int n2 = 0; n2 < num_basis * 3; ++n2)
+                for (size_t n2 = 0; n2 < num_basis * 3; ++n2)
                 {
                     // cuSOLVER requires column-major
                     fprintf(fid, "%g ", DI[offset + n1 + n2 * num_basis * 3]);
@@ -200,13 +213,13 @@ void Hessian::output_D(char* input_dir)
 }
 
 
-void Hessian::find_omega(FILE* fid, int offset)
+void Hessian::find_omega(FILE* fid, size_t offset)
 {
-    int dim = num_basis * 3;
+    size_t dim = num_basis * 3;
     double* W; MY_MALLOC(W, double, dim);
     eig_hermitian_QR(dim, DR+offset, DI+offset, W);
     double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
-    for (int n = 0; n < dim; ++n)
+    for (size_t n = 0; n < dim; ++n)
     {
         fprintf(fid, "%g ", W[n] * natural_to_THz);
     }
@@ -217,14 +230,14 @@ void Hessian::find_omega(FILE* fid, int offset)
 
 void Hessian::find_omega_batch(FILE* fid)
 {
-    int dim = num_basis * 3;
+    size_t dim = num_basis * 3;
     double* W; MY_MALLOC(W, double, dim * num_kpoints);
     eig_hermitian_Jacobi_batch(dim, num_kpoints, DR, DI, W);
     double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
-    for (int nk = 0; nk < num_kpoints; ++nk)
+    for (size_t nk = 0; nk < num_kpoints; ++nk)
     {
-        int offset = nk * dim;
-        for (int n = 0; n < dim; ++n)
+        size_t offset = nk * dim;
+        for (size_t n = 0; n < dim; ++n)
         {
             fprintf(fid, "%g ", W[offset + n] * natural_to_THz);
         }
@@ -240,32 +253,32 @@ void Hessian::find_dispersion(char* input_dir, Atom* atom)
     strcpy(file_omega2, input_dir);
     strcat(file_omega2, "/omega2.out");
     FILE *fid_omega2 = fopen(file_omega2, "w");
-    for (int nk = 0; nk < num_kpoints; ++nk)
+    for (size_t nk = 0; nk < num_kpoints; ++nk)
     {
-        int offset = nk * num_basis * num_basis * 9;
-        for (int nb = 0; nb < num_basis; ++nb)
+        size_t offset = nk * num_basis * num_basis * 9;
+        for (size_t nb = 0; nb < num_basis; ++nb)
         {
-            int n1 = basis[nb];
-            int label_1 = label[n1];
+            size_t n1 = basis[nb];
+            size_t label_1 = label[n1];
             real mass_1 = mass[label_1];
-            for (int n2 = 0; n2 < atom->N; ++n2)
+            for (size_t n2 = 0; n2 < atom->N; ++n2)
             {
                 if(is_too_far(n1, n2, atom)) continue;
                 real cos_kr, sin_kr;
                 find_exp_ikr(n1, n2, kpoints + nk * 3, atom, cos_kr, sin_kr);
-                int label_2 = label[n2];
+                size_t label_2 = label[n2];
                 real mass_2 = mass[label_2];
                 real mass_factor = 1.0 / sqrt(mass_1 * mass_2);
                 real* H12 = H + (nb * atom->N + n2) * 9;
-                for (int a = 0; a < 3; ++a)
+                for (size_t a = 0; a < 3; ++a)
                 {
-                    for (int b = 0; b < 3; ++b)
+                    for (size_t b = 0; b < 3; ++b)
                     {
-                        int a3b = a * 3 + b;
-                        int row = label_1 * 3 + a;
-                        int col = label_2 * 3 + b;
+                        size_t a3b = a * 3 + b;
+                        size_t row = label_1 * 3 + a;
+                        size_t col = label_2 * 3 + b;
                         // cuSOLVER requires column-major
-                        int index = offset + col * num_basis * 3 + row;
+                        size_t index = offset + col * num_basis * 3 + row;
                         DR[index] += H12[a3b] * cos_kr * mass_factor;
                         DI[index] += H12[a3b] * sin_kr * mass_factor;
                     }
@@ -281,19 +294,50 @@ void Hessian::find_dispersion(char* input_dir, Atom* atom)
 
 
 void Hessian::find_H12
-(int n1, int n2, Atom *atom, Force *force, Measure* measure, real* H12)
+(size_t n1, size_t n2, Atom *atom, Force *force, Measure* measure, real* H12)
 {
     real dx2 = displacement * 2;
     real f_positive[3];
     real f_negative[3];
-    for (int beta = 0; beta < 3; ++beta)
+    for (size_t beta = 0; beta < 3; ++beta)
     {
         get_f(-displacement, n1, n2, beta, atom, force, measure, f_negative);
         get_f(displacement, n1, n2, beta, atom, force, measure, f_positive);
-        for (int alpha = 0; alpha < 3; ++alpha)
+        for (size_t alpha = 0; alpha < 3; ++alpha)
         {
-            int index = alpha * 3 + beta;
+            size_t index = alpha * 3 + beta;
             H12[index] = (f_negative[alpha] - f_positive[alpha]) / dx2;
+        }
+    }
+}
+
+
+void Hessian::find_D(Atom* atom)
+{
+    for (size_t nb = 0; nb < num_basis; ++nb)
+    {
+        size_t n1 = basis[nb];
+        size_t label_1 = label[n1];
+        real mass_1 = mass[label_1];
+        for (size_t n2 = 0; n2 < atom->N; ++n2)
+        {
+            if(is_too_far(n1, n2, atom)) continue;
+            size_t label_2 = label[n2];
+            real mass_2 = mass[label_2];
+            real mass_factor = 1.0 / sqrt(mass_1 * mass_2);
+            real* H12 = H + (nb * atom->N + n2) * 9;
+            for (size_t a = 0; a < 3; ++a)
+            {
+                for (size_t b = 0; b < 3; ++b)
+                {
+                    size_t a3b = a * 3 + b;
+                    size_t row = label_1 * 3 + a;
+                    size_t col = label_2 * 3 + b;
+                    // cuSOLVER requires column-major
+                    size_t index = col * num_basis * 3 + row;
+                    DR[index] += H12[a3b] * mass_factor;
+                }
+            }
         }
     }
 }
@@ -306,7 +350,7 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
     strcat(file_eigenvectors, "/eigenvector.out");
     FILE *fid_eigenvectors = my_fopen(file_eigenvectors, "w");
 
-    int dim = num_basis * 3;
+    size_t dim = num_basis * 3;
     double* W; MY_MALLOC(W, double, dim);
     double* eigenvectors; MY_MALLOC(eigenvectors, double, dim * dim);
     eigenvectors_symmetric_Jacobi(dim, DR, W, eigenvectors);
@@ -314,20 +358,20 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
     double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
 
     // output eigenvalues
-    for(int n = 0; n < dim; n++)
+    for(size_t n = 0; n < dim; n++)
     {
         fprintf(fid_eigenvectors, "%g ",  W[n] * natural_to_THz);
     }
     fprintf(fid_eigenvectors, "\n");
 
     // output eigenvectors
-    for(int col = 0; col < dim; col++)
+    for(size_t col = 0; col < dim; col++)
     {
-        for (int a = 0; a < 3; a++)
+        for (size_t a = 0; a < 3; a++)
         {
-            for(int b = 0; b < num_basis; b++)
+            for(size_t b = 0; b < num_basis; b++)
             {
-                 int row = a + b * 3;
+                 size_t row = a + b * 3;
                  // column-major order from cuSolver
                  fprintf(fid_eigenvectors, "%g ",  eigenvectors[row+col*dim]);
             }
@@ -343,13 +387,13 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
 
 void Hessian::get_f
 (
-    real dx, int n1, int n2, int beta, 
+    real dx, size_t n1, size_t n2, size_t beta, 
     Atom* atom, Force *force, Measure* measure, real* f
 )
 {
     shift_atom(dx, n2, beta, atom);
     force->compute(atom, measure);
-    int M = sizeof(real);
+    size_t M = sizeof(real);
     CHECK(cudaMemcpy(f + 0, atom->fx + n1, M, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(f + 1, atom->fy + n1, M, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(f + 2, atom->fz + n1, M, cudaMemcpyDeviceToHost));
@@ -363,7 +407,7 @@ static __global__ void gpu_shift_atom(real dx, real *x)
 }
 
 
-void Hessian::shift_atom(real dx, int n2, int beta, Atom* atom)
+void Hessian::shift_atom(real dx, size_t n2, size_t beta, Atom* atom)
 {
     if (beta == 0)
     {
@@ -383,7 +427,7 @@ void Hessian::shift_atom(real dx, int n2, int beta, Atom* atom)
 }
 
 
-void Hessian::parse_cutoff(char **param, int num_param)
+void Hessian::parse_cutoff(char **param, size_t num_param)
 {
     if (num_param != 2)
     {
@@ -401,7 +445,7 @@ void Hessian::parse_cutoff(char **param, int num_param)
 }
 
 
-void Hessian::parse_delta(char **param, int num_param)
+void Hessian::parse_delta(char **param, size_t num_param)
 {
     if (num_param != 2)
     {
