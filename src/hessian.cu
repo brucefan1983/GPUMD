@@ -99,7 +99,6 @@ void Hessian::read_kpoints(char* input_dir)
 
 void Hessian::initialize(char* input_dir, int N)
 {
-    cutoff_square = cutoff * cutoff;
     read_basis(input_dir, N);
     read_kpoints(input_dir);
     int num_H = num_basis * N * 9;
@@ -135,7 +134,7 @@ bool Hessian::is_too_far(int n1, int n2, Atom* atom)
         atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
     );
     real d12_square = x12 * x12 + y12 * y12 + z12 * z12;
-    return (d12_square > cutoff_square);
+    return (d12_square > (cutoff * cutoff));
 }
 
 
@@ -149,7 +148,7 @@ void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
         {
             if(is_too_far(n1, n2, atom)) continue;
             int offset = (nb * N + n2) * 9;
-            find_H12(dx, n1, n2, atom, force, measure, H + offset);
+            find_H12(n1, n2, atom, force, measure, H + offset);
         }
     }
 }
@@ -284,15 +283,15 @@ void Hessian::find_D(char* input_dir, Atom* atom)
 
 
 void Hessian::find_H12
-(real dx, int n1, int n2, Atom *atom, Force *force, Measure* measure, real* H12)
+(int n1, int n2, Atom *atom, Force *force, Measure* measure, real* H12)
 {
-    real dx2 = dx * 2;
+    real dx2 = displacement * 2;
     real f_positive[3];
     real f_negative[3];
     for (int beta = 0; beta < 3; ++beta)
     {
-        get_f(-dx, n1, n2, beta, atom, force, measure, f_negative);
-        get_f(dx, n1, n2, beta, atom, force, measure, f_positive);
+        get_f(-displacement, n1, n2, beta, atom, force, measure, f_negative);
+        get_f(displacement, n1, n2, beta, atom, force, measure, f_positive);
         for (int alpha = 0; alpha < 3; ++alpha)
         {
             int index = alpha * 3 + beta;
@@ -408,17 +407,17 @@ void Hessian::parse_delta(char **param, int num_param)
 {
     if (num_param != 2)
     {
-        PRINT_INPUT_ERROR("compute_hessian should have 1 parameter.\n");
+        PRINT_INPUT_ERROR("delta should have 1 parameter.\n");
     }
-    if (!is_valid_real(param[1], &dx))
+    if (!is_valid_real(param[1], &displacement))
     {
-        PRINT_INPUT_ERROR("displacement for hessian should be a number.\n");
+        PRINT_INPUT_ERROR("delta for hessian should be a number.\n");
     }
-    if (dx <= 0)
+    if (displacement <= 0)
     {
-        PRINT_INPUT_ERROR("displacement for hessian should be positive.\n");
+        PRINT_INPUT_ERROR("delta for hessian should be positive.\n");
     }
-    printf("Displacement for hessian = %g A.\n", dx);
+    printf("delta for hessian = %g A.\n", displacement);
 }
 
 

@@ -21,15 +21,17 @@
 class Hessian
 {
 public:
-    real dx = 0.005;
+    real displacement = 0.005;
     real cutoff = 4.0;
     void compute(char*, Atom*, Force*, Measure*);
     void parse_cutoff(char**, int);
     void parse_delta(char**, int);
+
 protected:
+
     int num_basis;
     int num_kpoints;
-    real cutoff_square;
+
     int* basis;
     int* label;
     real* mass;
@@ -37,6 +39,7 @@ protected:
     real* H;
     real* DR;
     real* DI;
+
     void shift_atom(real, int, int, Atom*);
     void get_f(real, int, int, int, Atom*, Force*, Measure*, real*);
     void read_basis(char*, int N);
@@ -44,7 +47,7 @@ protected:
     void initialize(char*, int);
     void finalize(void);
     void find_H(Atom*, Force*, Measure*);
-    void find_H12(real, int, int, Atom*, Force*, Measure*, real*);
+    void find_H12(int, int, Atom*, Force*, Measure*, real*);
     bool is_too_far(int, int, Atom*);
     void find_D(char*, Atom*);
     void find_eigenvectors(char*, Atom*);
