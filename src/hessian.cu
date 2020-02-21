@@ -29,8 +29,6 @@ Then calculate the dynamical matrices with different k points.
 #include "cusolver_wrapper.cuh"
 #include "read_file.cuh"
 
-#define BLOCK_SIZE 128
-
 
 void Hessian::compute
 (char* input_dir, Atom* atom, Force* force, Measure* measure)
