@@ -20,7 +20,7 @@ SOURCES = main.cu gpumd.cu read_file.cu run.cu error.cu validate.cu \
 	integrate.cu ensemble.cu ensemble_nve.cu ensemble_ber.cu \
 	ensemble_nhc.cu ensemble_lan.cu ensemble_bdp.cu \
 	measure.cu compute.cu shc.cu vac.cu hac.cu hnemd_kappa.cu box.cu \
-	dump_netcdf.cu dump_xyz.cu gkma.cu hnema.cu
+	dump_netcdf.cu dump_xyz.cu gkma.cu hnema.cu modal_analysis.cu
 
 _OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
 	mic.o atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
@@ -29,7 +29,7 @@ _OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
 	integrate.o ensemble.o ensemble_nve.o ensemble_ber.o \
 	ensemble_nhc.o ensemble_lan.o ensemble_bdp.o \
 	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o box.o \
-	dump_netcdf.o dump_xyz.o gkma.o hnema.o
+	dump_netcdf.o dump_xyz.o gkma.o hnema.o modal_analysis.o
 
 HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
 	mic.cuh common.cuh atom.cuh \
@@ -38,7 +38,7 @@ HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
 	integrate.cuh ensemble.cuh ensemble_nve.cuh ensemble_ber.cuh \
 	ensemble_nhc.cuh ensemble_lan.cuh ensemble_bdp.cuh \
 	measure.cuh compute.cuh shc.cuh vac.cuh hac.cuh hnemd_kappa.cuh box.cuh \
-	dump_pos.cuh dump_netcdf.cuh dump_xyz.cuh gkma.cuh hnema.cuh
+	dump_pos.cuh dump_netcdf.cuh dump_xyz.cuh gkma.cuh hnema.cuh modal_analysis.cuh
 
 ODIR = obj
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
