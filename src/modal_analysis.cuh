@@ -13,38 +13,45 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+/*----------------------------------------------------------------------------80
+GPUMD Contributing author: Alexander Gabourie (Stanford University)
+------------------------------------------------------------------------------*/
+
 #pragma once
 #include "common.cuh"
-#include "error.cuh"
 #include "mic.cuh"
+#include "atom.cuh"
+#include "integrate.cuh"
+#include "ensemble.cuh"
 
+#define NO_METHOD -1
 #define GKMA_METHOD 0
-#define HNEMD_METHOD 1
+#define HNEMA_METHOD 1
 
 class MODAL_ANALYSIS
 {
 public:
     int compute = 0;
-    int method = -1;    // 0 -> GKMA, 1 -> HNEMA
-    int output_interval;// number of times steps to output average heat current
-    int sample_interval;// steps per heat current computation
-    int first_mode;     // first mode to consider
-    int last_mode;      // last mode to consider
-    int bin_size;       // number of modes per bin
-    real f_bin_size;    // freq. range per bin (THz)
-    int f_flag;         // 0 -> modes, 1 -> freq.
-    int num_modes;      // total number of modes to consider
-    int atom_begin;     // Beginning atom group/type
-    int atom_end;       // End atom group/type
+    int method = NO_METHOD; // Method to compute
+    int output_interval;    // number of times steps to output average heat current
+    int sample_interval;    // steps per heat current computation
+    int first_mode;         // first mode to consider
+    int last_mode;          // last mode to consider
+    int bin_size;           // number of modes per bin
+    real f_bin_size;        // freq. range per bin (THz)
+    int f_flag;             // 0 -> modes, 1 -> freq.
+    int num_modes;          // total number of modes to consider
+    int atom_begin;         // Beginning atom group/type
+    int atom_end;           // End atom group/type
 
-    real* eig;          // eigenvectors
-    real* xdotn;        // per-atom modal velocity
-    real* xdot;         // modal velocities
-    real* jmn;          // per-atom modal heat current
-    real* jm;           // total modal heat current
-    real* bin_out;      // modal binning structure
-    int* bin_count;     // Number of modes per bin when f_flag=1
-    int* bin_sum;       // Running sum from bin_count
+    real* eig;              // eigenvectors
+    real* xdotn;            // per-atom modal velocity
+    real* xdot;             // modal velocities
+    real* jmn;              // per-atom modal heat current
+    real* jm;               // total modal heat current
+    real* bin_out;          // modal binning structure
+    int* bin_count;         // Number of modes per bin when f_flag=1
+    int* bin_sum;           // Running sum from bin_count
 
     char eig_file_position[FILE_NAME_LENGTH];
     char output_file_position[FILE_NAME_LENGTH];
@@ -54,11 +61,12 @@ public:
     void postprocess();
 
 private:
-    int samples_per_output;// samples to be averaged for output
-    int num_bins;          // number of bins to output
-    int N1;                // Atom starting index
-    int N2;                // Atom ending index
-    int num_participating; // Number of particles participating
+    int samples_per_output; // samples to be averaged for output
+    int num_bins;           // number of bins to output
+    int N1;                 // Atom starting index
+    int N2;                 // Atom ending index
+    int num_participating;  // Number of particles participating
+    int num_heat_stored;    // Number of stored heat current elements
 
     void compute_heat(Atom*);
     void setN(Atom*);

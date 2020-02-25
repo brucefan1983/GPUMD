@@ -588,7 +588,9 @@ void Force::compute(Atom *atom, Measure* measure)
         potential[m]->compute(atom, measure, m);
     }
 
-    if (measure->hnemd.compute || measure->hnema.compute)
+    if (measure->hnemd.compute ||
+        (measure->modal_analysis.compute &&
+         measure->modal_analysis.method == HNEMA_METHOD))
     {
         int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
 

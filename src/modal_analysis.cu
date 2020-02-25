@@ -14,15 +14,28 @@
 */
 
 /*----------------------------------------------------------------------------80
+Green-Kubo Modal Analysis (GKMA) and
+Homogenous Nonequilibrium Modal Analysis (HNEMA) implementations.
+
+Original GMKA method is detailed in:
+H.R. Seyf, K. Gordiz, F. DeAngelis, and A. Henry, "Using Green-Kubo modal
+analysis (GKMA) and interface conductance modal analysis (ICMA) to study
+phonon transport with molecular dynamics," J. Appl. Phys., 125, 081101 (2019).
+
+The code here is inspired by the LAMMPS implementation provided by the Henry
+group at MIT. This code can be found:
+https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
+
 GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #include "modal_analysis.cuh"
-#include "atom.cuh"
+#include "error.cuh"
 #include <fstream>
 #include <string>
 #include <iostream>
 #include <sstream>
+
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128
@@ -445,7 +458,7 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
             atom->mass, eig, xdot, jmn, num_modes
         );
     }
-    else if (method == HNEMD_METHOD)
+    else if (method == HNEMA_METHOD)
     {
         gpu_accumulate_jmn<<<grid, block>>>
         (
@@ -486,7 +499,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
 {
     if (!compute) return;
         num_modes = last_mode-first_mode+1;
-        samples_per_output = output_interval/sample_interval; // TODO make sure output and sample interval are same for GKMA
+        samples_per_output = output_interval/sample_interval;
         setN(atom);
 
         strcpy(output_file_position, input_dir);
@@ -494,7 +507,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         {
             strcat(output_file_position, "/heatmode.out");
         }
-        else if (method == HNEMD_METHOD)
+        else if (method == HNEMA_METHOD)
         {
             strcat(output_file_position, "/kappamode.out");
         }
@@ -544,8 +557,8 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
             {
                 bin_count[int(abs(f[i]/f_bin_size))-shift]++;
             }
-            ZEROS(bin_sum, int, num_bins);
 
+            int *bin_sum;
             CHECK(cudaMallocManaged((void **)&bin_sum, sizeof(int)*num_bins));
             for(int i_=0; i_<num_bins;i_++){bin_sum[i_]=(int)0;}
 
@@ -605,14 +618,14 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         ));
 
 
-        if (method == HNEMD_METHOD)
+        num_heat_stored = num_modes*NUM_OF_HEAT_COMPONENTS;
+        if (method == HNEMA_METHOD)
         {
             // Initialize modal measured quantities
-            int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
             gpu_reset_data
-            <<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+            <<<(num_heat_stored*num_participating-1)/BLOCK_SIZE+1,BLOCK_SIZE>>>
             (
-                    num_elements*num_participating, jmn
+                    num_heat_stored*num_participating, jmn
             );
             CUDA_CHECK_KERNEL
         }
@@ -636,14 +649,13 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, real fe
 
     if (method == HNEMA_METHOD)
     {
-        int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
         real volume = atom->box.get_volume();
         real factor = KAPPA_UNIT_CONVERSION/
             (volume * integrate->ensemble->temperature
                     * fe * (real)samples_per_output);
-        gpu_scale_jm<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+        gpu_scale_jm<<<(num_heat_stored-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
         (
-                num_elements, factor, jm
+                num_heat_stored, factor, jm
         );
         CUDA_CHECK_KERNEL
     }
@@ -681,9 +693,10 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, real fe
 
     if (method == HNEMA_METHOD)
     {
-        gpu_reset_data<<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+        gpu_reset_data
+        <<<(num_heat_stored*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
         (
-                num_elements*num_participating, jmn
+                num_heat_stored*num_participating, jmn
         );
         CUDA_CHECK_KERNEL
     }
