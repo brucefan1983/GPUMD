@@ -527,6 +527,20 @@ void Measure::parse_compute_hac(char **param, int num_param)
 void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
 {
     modal_analysis.compute = 1;
+    if (modal_analysis.method == GKMA_METHOD)
+    { // TODO add warning macro
+        printf("*******************************************************"
+                "WARNING: GKMA method already defined for this run.\n"
+                "         Parameters will be overwritten\n"
+                "*******************************************************");
+    }
+    else if (modal_analysis.method == HNEMA_METHOD)
+    {
+        printf("*******************************************************"
+                "WARNING: HNEMA method already defined for this run.\n"
+                "         GKMA will now run instead.\n"
+                "*******************************************************");
+    }
     modal_analysis.method = GKMA_METHOD;
 
     printf("Compute modal heat current using GKMA method.\n");
@@ -642,10 +656,23 @@ void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
 
 }
 
-
 void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
 {
     modal_analysis.compute = 1;
+    if (modal_analysis.method == HNEMA_METHOD)
+    {
+        printf("*******************************************************\n"
+                "WARNING: HNEMA method already defined for this run.\n"
+                "         Parameters will be overwritten\n"
+                "*******************************************************\n");
+    }
+    else if (modal_analysis.method == GKMA_METHOD)
+    {
+        printf("*******************************************************\n"
+                "WARNING: GKMA method already defined for this run.\n"
+                "         HNEMA will now run instead.\n"
+                "*******************************************************\n");
+    }
     modal_analysis.method = HNEMA_METHOD;
 
     printf("Compute modal thermal conductivity using HNEMA method.\n");

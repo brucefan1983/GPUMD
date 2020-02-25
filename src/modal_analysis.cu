@@ -558,7 +558,6 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
                 bin_count[int(abs(f[i]/f_bin_size))-shift]++;
             }
 
-            int *bin_sum;
             CHECK(cudaMallocManaged((void **)&bin_sum, sizeof(int)*num_bins));
             for(int i_=0; i_<num_bins;i_++){bin_sum[i_]=(int)0;}
 
