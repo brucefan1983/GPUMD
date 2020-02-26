@@ -44,12 +44,12 @@ public:
     int atom_begin;         // Beginning atom group/type
     int atom_end;           // End atom group/type
 
-    real* eig;              // eigenvectors
-    real* xdotn;            // per-atom modal velocity
-    real* xdot;             // modal velocities
-    real* jmn;              // per-atom modal heat current
-    real* jm;               // total modal heat current
-    real* bin_out;          // modal binning structure
+    float* eig;              // eigenvectors
+    float* xdotn;            // per-atom modal velocity
+    float* xdot;             // modal velocities
+    float* jmn;              // per-atom modal heat current
+    float* jm;               // total modal heat current
+    float* bin_out;          // modal binning structure
     int* bin_count;         // Number of modes per bin when f_flag=1
     int* bin_sum;           // Running sum from bin_count
 
