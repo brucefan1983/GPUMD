@@ -76,8 +76,8 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->shc.compute    = 0;
     measure->vac.compute_dos= 0;
     measure->vac.compute_sdc= 0;
-    measure->gkma.compute   = 0;
-    measure->hnema.compute  = 0;
+    measure->modal_analysis.compute   = 0;
+    measure->modal_analysis.method   = NO_METHOD;
     measure->vac.grouping_method = -1;
     measure->vac.group = -1;
     measure->vac.num_dos_points = -1;

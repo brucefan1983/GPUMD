@@ -19,8 +19,7 @@
 #include "vac.cuh"
 #include "hac.cuh"
 #include "shc.cuh"
-#include "gkma.cuh"
-#include "hnema.cuh"
+#include "modal_analysis.cuh"
 #include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
@@ -47,8 +46,7 @@ public:
     SHC shc;
     HNEMD hnemd;
     Compute compute;
-    GKMA gkma;
-    HNEMA hnema;
+    MODAL_ANALYSIS modal_analysis;
     DUMP_POS* dump_pos;
 
     // functions to get inputs from run.in

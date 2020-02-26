@@ -14,21 +14,28 @@
 */
 
 /*----------------------------------------------------------------------------80
-Homogeneous Non-Equilibrium Modal Analysis (HNEMA)
-An extension of the HNEMD method to decompose thermal conductivity into
-modal contributions
+Green-Kubo Modal Analysis (GKMA) and
+Homogenous Nonequilibrium Modal Analysis (HNEMA) implementations.
+
+Original GMKA method is detailed in:
+H.R. Seyf, K. Gordiz, F. DeAngelis, and A. Henry, "Using Green-Kubo modal
+analysis (GKMA) and interface conductance modal analysis (ICMA) to study
+phonon transport with molecular dynamics," J. Appl. Phys., 125, 081101 (2019).
+
+The code here is inspired by the LAMMPS implementation provided by the Henry
+group at MIT. This code can be found:
+https://drive.google.com/open?id=1IHJ7x-bLZISX3I090dW_Y_y-Mqkn07zg
 
 GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
-#include "hnema.cuh"
-#include "atom.cuh"
-#include "integrate.cuh"
-#include "ensemble.cuh"
+#include "modal_analysis.cuh"
+#include "error.cuh"
 #include <fstream>
 #include <string>
 #include <iostream>
 #include <sstream>
+
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128
@@ -37,21 +44,22 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #define BLOCK_SIZE_FORCE 64
 #define BLOCK_SIZE_GK 16
 
+
 static __global__ void gpu_reset_data
 (
-        int num_elements, real* data
+        int num_elements, float* data
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < num_elements)
     {
-        data[n] = ZERO;
+        data[n] = 0.0f;
     }
 }
 
 static __global__ void gpu_scale_jm
 (
-        int num_elements, real factor, real* jm
+        int num_elements, float factor, float* jm
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -61,23 +69,24 @@ static __global__ void gpu_scale_jm
     }
 }
 
-static __global__ void gpu_hnema_reduce_xdotn
+
+static __global__ void gpu_reduce_xdotn
 (
         int num_participating, int num_modes,
-        const real* __restrict__ data_n,
-        real* data
+        const float* __restrict__ data_n,
+        float* data
 )
 {
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int number_of_patches = (num_participating - 1) / ACCUM_BLOCK + 1;
 
-    __shared__ real s_data_x[ACCUM_BLOCK];
-    __shared__ real s_data_y[ACCUM_BLOCK];
-    __shared__ real s_data_z[ACCUM_BLOCK];
-    s_data_x[tid] = ZERO;
-    s_data_y[tid] = ZERO;
-    s_data_z[tid] = ZERO;
+    __shared__ float s_data_x[ACCUM_BLOCK];
+    __shared__ float s_data_y[ACCUM_BLOCK];
+    __shared__ float s_data_z[ACCUM_BLOCK];
+    s_data_x[tid] = 0.0f;
+    s_data_y[tid] = 0.0f;
+    s_data_z[tid] = 0.0f;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
@@ -111,27 +120,274 @@ static __global__ void gpu_hnema_reduce_xdotn
 
 }
 
-static __global__ void gpu_hnema_reduce_jmn
+static __global__ void gpu_calc_xdotn
+(
+        int num_participating, int N1, int N2, int num_modes,
+        const real* __restrict__ g_vx,
+        const real* __restrict__ g_vy,
+        const real* __restrict__ g_vz,
+        const real* __restrict__ g_mass,
+        const float* __restrict__ g_eig,
+        float* g_xdotn
+)
+{
+    int neig = blockIdx.x * blockDim.x + threadIdx.x;
+    int nglobal = neig + N1;
+    int nm = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
+    {
+
+        float vx1, vy1, vz1;
+        vx1 = __double2float_rn(LDG(g_vx, nglobal));
+        vy1 = __double2float_rn(LDG(g_vy, nglobal));
+        vz1 = __double2float_rn(LDG(g_vz, nglobal));
+
+        float sqrtmass = sqrt(__double2float_rn(LDG(g_mass, nglobal)));
+        g_xdotn[neig + nm*num_participating] =
+                sqrtmass*g_eig[neig + nm*3*num_participating]*vx1;
+        g_xdotn[neig + (nm + num_modes)*num_participating] =
+                sqrtmass*g_eig[neig + (1 + nm*3)*num_participating]*vy1;
+        g_xdotn[neig + (nm + 2*num_modes)*num_participating] =
+                sqrtmass*g_eig[neig + (2 + nm*3)*num_participating]*vz1;
+    }
+}
+
+
+static __device__ void gpu_bin_reduce
+(
+       int num_modes, int bin_size, int shift, int num_bins,
+       int tid, int bid, int number_of_patches,
+       const float* __restrict__ g_jm,
+       float* bin_out
+)
+{
+    __shared__ float s_data_xin[BIN_BLOCK];
+    __shared__ float s_data_xout[BIN_BLOCK];
+    __shared__ float s_data_yin[BIN_BLOCK];
+    __shared__ float s_data_yout[BIN_BLOCK];
+    __shared__ float s_data_z[BIN_BLOCK];
+    s_data_xin[tid] = 0.0f;
+    s_data_xout[tid] = 0.0f;
+    s_data_yin[tid] = 0.0f;
+    s_data_yout[tid] = 0.0f;
+    s_data_z[tid] = 0.0f;
+
+    for (int patch = 0; patch < number_of_patches; ++patch)
+    {
+        int n = tid + patch * BIN_BLOCK;
+        if (n < bin_size)
+        {
+            s_data_xin[tid] += g_jm[n + shift];
+            s_data_xout[tid] += g_jm[n + shift + num_modes];
+            s_data_yin[tid] += g_jm[n + shift + 2*num_modes];
+            s_data_yout[tid] += g_jm[n + shift + 3*num_modes];
+            s_data_z[tid] += g_jm[n + shift + 4*num_modes];
+        }
+    }
+
+    __syncthreads();
+    #pragma unroll
+    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
+    {
+        if (tid < offset)
+        {
+            s_data_xin[tid] += s_data_xin[tid + offset];
+            s_data_xout[tid] += s_data_xout[tid + offset];
+            s_data_yin[tid] += s_data_yin[tid + offset];
+            s_data_yout[tid] += s_data_yout[tid + offset];
+            s_data_z[tid] += s_data_z[tid + offset];
+        }
+        __syncthreads();
+    }
+    if (tid == 0)
+    {
+        bin_out[bid] = s_data_xin[0];
+        bin_out[bid + num_bins] = s_data_xout[0];
+        bin_out[bid + 2*num_bins] = s_data_yin[0];
+        bin_out[bid + 3*num_bins] = s_data_yout[0];
+        bin_out[bid + 4*num_bins] = s_data_z[0];
+    }
+}
+
+
+static __global__ void gpu_bin_modes
+(
+       int num_modes, int bin_size, int num_bins,
+       const float* __restrict__ g_jm,
+       float* bin_out
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
+    int shift = bid*bin_size;
+
+    gpu_bin_reduce
+    (
+           num_modes, bin_size, shift, num_bins,
+           tid, bid, number_of_patches, g_jm, bin_out
+    );
+
+}
+
+static __global__ void gpu_bin_frequencies
+(
+       int num_modes,
+       const int* __restrict__ bin_count,
+       const int* __restrict__ bin_sum,
+       int num_bins,
+       const float* __restrict__ g_jm,
+       float* bin_out
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int bin_size = bin_count[bid];
+    int shift = bin_sum[bid];
+    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
+
+    gpu_bin_reduce
+    (
+           num_modes, bin_size, shift, num_bins,
+           tid, bid, number_of_patches, g_jm, bin_out
+    );
+
+}
+
+
+static __global__ void gpu_set_jmn
+(
+    int num_participating, int N1, int N2,
+    const real* __restrict__ sxx,
+    const real* __restrict__ sxy,
+    const real* __restrict__ sxz,
+    const real* __restrict__ syx,
+    const real* __restrict__ syy,
+    const real* __restrict__ syz,
+    const real* __restrict__ szx,
+    const real* __restrict__ szy,
+    const real* __restrict__ szz,
+    const real* __restrict__ g_mass,
+    const float* __restrict__ g_eig,
+    const float* __restrict__ g_xdot,
+    float* g_jmn,
+    int num_modes
+)
+{
+    int neig = blockIdx.x * blockDim.x + threadIdx.x;
+    int nglobal = neig + N1;
+    int nm = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
+    {
+        float vx_ma, vy_ma, vz_ma;
+        float rsqrtmass = rsqrt(__double2float_rn(LDG(g_mass, nglobal)));
+
+        vx_ma=rsqrtmass*g_eig[neig + nm*3*num_participating]
+                              *__double2float_rn(g_xdot[nm]);
+        vy_ma=rsqrtmass*g_eig[neig + (1 + nm*3)*num_participating]
+                              *__double2float_rn(g_xdot[nm + num_modes]);
+        vz_ma=rsqrtmass*g_eig[neig + (2 + nm*3)*num_participating]
+                              *__double2float_rn(g_xdot[nm + 2*num_modes]);
+
+        g_jmn[neig + nm*num_participating] =
+                __double2float_rn(sxx[nglobal]) * vx_ma +
+                __double2float_rn(sxy[nglobal]) * vy_ma; // x-in
+        g_jmn[neig + (nm+num_modes)*num_participating] =
+                __double2float_rn(sxz[nglobal]) * vz_ma; // x-out
+
+        g_jmn[neig + (nm+2*num_modes)*num_participating] =
+                __double2float_rn(syx[nglobal]) * vx_ma +
+                __double2float_rn(syy[nglobal]) * vy_ma; // y-in
+        g_jmn[neig + (nm+3*num_modes)*num_participating] =
+                __double2float_rn(syz[nglobal]) * vz_ma; // y-out
+
+        g_jmn[neig + (nm+4*num_modes)*num_participating] =
+                __double2float_rn(szx[nglobal]) * vx_ma +
+                __double2float_rn(szy[nglobal]) * vy_ma +
+                __double2float_rn(szz[nglobal]) * vz_ma; // z-all
+
+    }
+}
+
+
+static __global__ void gpu_accumulate_jmn
+(
+    int num_participating, int N1, int N2,
+    const real* __restrict__ sxx,
+    const real* __restrict__ sxy,
+    const real* __restrict__ sxz,
+    const real* __restrict__ syx,
+    const real* __restrict__ syy,
+    const real* __restrict__ syz,
+    const real* __restrict__ szx,
+    const real* __restrict__ szy,
+    const real* __restrict__ szz,
+    const real* __restrict__ g_mass,
+    const float* __restrict__ g_eig,
+    const float* __restrict__ g_xdot,
+    float* g_jmn,
+    int num_modes
+)
+{
+    int neig = blockIdx.x * blockDim.x + threadIdx.x;
+    int nglobal = neig + N1;
+    int nm = blockIdx.y * blockDim.y + threadIdx.y;
+
+    if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
+    {
+        float vx_ma, vy_ma, vz_ma;
+        float rsqrtmass = rsqrt(__double2float_rn(LDG(g_mass, nglobal)));
+
+        vx_ma=rsqrtmass*g_eig[neig + nm*3*num_participating]
+                              *__double2float_rn(g_xdot[nm]);
+        vy_ma=rsqrtmass*g_eig[neig + (1 + nm*3)*num_participating]
+                              *__double2float_rn(g_xdot[nm + num_modes]);
+        vz_ma=rsqrtmass*g_eig[neig + (2 + nm*3)*num_participating]
+                              *__double2float_rn(g_xdot[nm + 2*num_modes]);
+
+        g_jmn[neig + nm*num_participating] +=
+                __double2float_rn(sxx[nglobal]) * vx_ma +
+                __double2float_rn(sxy[nglobal]) * vy_ma; // x-in
+        g_jmn[neig + (nm+num_modes)*num_participating] +=
+                __double2float_rn(sxz[nglobal]) * vz_ma; // x-out
+
+        g_jmn[neig + (nm+2*num_modes)*num_participating] +=
+                __double2float_rn(syx[nglobal]) * vx_ma +
+                __double2float_rn(syy[nglobal]) * vy_ma; // y-in
+        g_jmn[neig + (nm+3*num_modes)*num_participating] +=
+                __double2float_rn(syz[nglobal]) * vz_ma; // y-out
+
+        g_jmn[neig + (nm+4*num_modes)*num_participating] +=
+                __double2float_rn(szx[nglobal]) * vx_ma +
+                __double2float_rn(szy[nglobal]) * vy_ma +
+                __double2float_rn(szz[nglobal]) * vz_ma; // z-all
+
+    }
+}
+
+static __global__ void gpu_reduce_jmn
 (
         int num_participating, int num_modes,
-        const real* __restrict__ data_n,
-        real* data
+        const float* __restrict__ data_n,
+        float* data
 )
 {
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int number_of_patches = (num_participating - 1) / ACCUM_BLOCK + 1;
 
-    __shared__ real s_data_xin[ACCUM_BLOCK];
-    __shared__ real s_data_xout[ACCUM_BLOCK];
-    __shared__ real s_data_yin[ACCUM_BLOCK];
-    __shared__ real s_data_yout[ACCUM_BLOCK];
-    __shared__ real s_data_z[ACCUM_BLOCK];
-    s_data_xin[tid] = ZERO;
-    s_data_xout[tid] = ZERO;
-    s_data_yin[tid] = ZERO;
-    s_data_yout[tid] = ZERO;
-    s_data_z[tid] = ZERO;
+    __shared__ float s_data_xin[ACCUM_BLOCK];
+    __shared__ float s_data_xout[ACCUM_BLOCK];
+    __shared__ float s_data_yin[ACCUM_BLOCK];
+    __shared__ float s_data_yout[ACCUM_BLOCK];
+    __shared__ float s_data_z[ACCUM_BLOCK];
+    s_data_xin[tid] = 0.0f;
+    s_data_xout[tid] = 0.0f;
+    s_data_yin[tid] = 0.0f;
+    s_data_yout[tid] = 0.0f;
+    s_data_z[tid] = 0.0f;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
@@ -176,189 +432,8 @@ static __global__ void gpu_hnema_reduce_jmn
 
 }
 
-static __global__ void gpu_calc_xdotn
-(
-        int num_participating, int N1, int N2, int num_modes,
-        const real* __restrict__ g_vx,
-        const real* __restrict__ g_vy,
-        const real* __restrict__ g_vz,
-        const real* __restrict__ g_mass,
-        const real* __restrict__ g_eig,
-        real* g_xdotn
-)
-{
-    int neig = blockIdx.x * blockDim.x + threadIdx.x;
-    int nglobal = neig + N1;
-    int nm = blockIdx.y * blockDim.y + threadIdx.y;
 
-    if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
-    {
-
-        real vx1, vy1, vz1;
-        vx1 = LDG(g_vx, nglobal);
-        vy1 = LDG(g_vy, nglobal);
-        vz1 = LDG(g_vz, nglobal);
-
-        real sqrtmass = sqrt(LDG(g_mass, nglobal));
-        g_xdotn[neig + nm*num_participating] =
-                sqrtmass*g_eig[neig + nm*3*num_participating]*vx1;
-        g_xdotn[neig + (nm + num_modes)*num_participating] =
-                sqrtmass*g_eig[neig + (1 + nm*3)*num_participating]*vy1;
-        g_xdotn[neig + (nm + 2*num_modes)*num_participating] =
-                sqrtmass*g_eig[neig + (2 + nm*3)*num_participating]*vz1;
-    }
-}
-
-
-static __device__ void gpu_bin_reduce
-(
-       int num_modes, int bin_size, int shift, int num_bins,
-       int tid, int bid, int number_of_patches,
-       const real* __restrict__ g_jm,
-       real* bin_out
-)
-{
-    __shared__ real s_data_xin[BIN_BLOCK];
-    __shared__ real s_data_xout[BIN_BLOCK];
-    __shared__ real s_data_yin[BIN_BLOCK];
-    __shared__ real s_data_yout[BIN_BLOCK];
-    __shared__ real s_data_z[BIN_BLOCK];
-    s_data_xin[tid] = ZERO;
-    s_data_xout[tid] = ZERO;
-    s_data_yin[tid] = ZERO;
-    s_data_yout[tid] = ZERO;
-    s_data_z[tid] = ZERO;
-
-    for (int patch = 0; patch < number_of_patches; ++patch)
-    {
-        int n = tid + patch * BIN_BLOCK;
-        if (n < bin_size)
-        {
-            s_data_xin[tid] += g_jm[n + shift];
-            s_data_xout[tid] += g_jm[n + shift + num_modes];
-            s_data_yin[tid] += g_jm[n + shift + 2*num_modes];
-            s_data_yout[tid] += g_jm[n + shift + 3*num_modes];
-            s_data_z[tid] += g_jm[n + shift + 4*num_modes];
-        }
-    }
-
-    __syncthreads();
-    #pragma unroll
-    for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
-    {
-        if (tid < offset)
-        {
-            s_data_xin[tid] += s_data_xin[tid + offset];
-            s_data_xout[tid] += s_data_xout[tid + offset];
-            s_data_yin[tid] += s_data_yin[tid + offset];
-            s_data_yout[tid] += s_data_yout[tid + offset];
-            s_data_z[tid] += s_data_z[tid + offset];
-        }
-        __syncthreads();
-    }
-    if (tid == 0)
-    {
-        bin_out[bid] = s_data_xin[0];
-        bin_out[bid + num_bins] = s_data_xout[0];
-        bin_out[bid + 2*num_bins] = s_data_yin[0];
-        bin_out[bid + 3*num_bins] = s_data_yout[0];
-        bin_out[bid + 4*num_bins] = s_data_z[0];
-    }
-}
-
-static __global__ void gpu_bin_modes
-(
-       int num_modes, int bin_size, int num_bins,
-       const real* __restrict__ g_jm,
-       real* bin_out
-)
-{
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
-    int shift = bid*bin_size;
-
-    gpu_bin_reduce
-    (
-           num_modes, bin_size, shift, num_bins,
-           tid, bid, number_of_patches, g_jm, bin_out
-    );
-
-}
-
-static __global__ void gpu_bin_frequencies
-(
-       int num_modes,
-       const int* __restrict__ bin_count,
-       const int* __restrict__ bin_sum,
-       int num_bins,
-       const real* __restrict__ g_jm,
-       real* bin_out
-)
-{
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int bin_size = bin_count[bid];
-    int shift = bin_sum[bid];
-    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
-
-    gpu_bin_reduce
-    (
-           num_modes, bin_size, shift, num_bins,
-           tid, bid, number_of_patches, g_jm, bin_out
-    );
-
-}
-
-static __global__ void gpu_find_hnema_jmn
-(
-    int num_participating, int N1, int N2,
-    const real* __restrict__ sxx,
-    const real* __restrict__ sxy,
-    const real* __restrict__ sxz,
-    const real* __restrict__ syx,
-    const real* __restrict__ syy,
-    const real* __restrict__ syz,
-    const real* __restrict__ szx,
-    const real* __restrict__ szy,
-    const real* __restrict__ szz,
-    const real* __restrict__ g_mass,
-    const real* __restrict__ g_eig,
-    const real* __restrict__ g_xdot,
-    real* g_jmn,
-    int num_modes
-)
-{
-    int neig = blockIdx.x * blockDim.x + threadIdx.x;
-    int nglobal = neig + N1;
-    int nm = blockIdx.y * blockDim.y + threadIdx.y;
-
-    if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
-    {
-        real vx_gk, vy_gk, vz_gk;
-        real rsqrtmass = rsqrt(LDG(g_mass, nglobal));
-
-        vx_gk=rsqrtmass*g_eig[neig + nm*3*num_participating]*g_xdot[nm];
-        vy_gk=rsqrtmass*g_eig[neig + (1 + nm*3)*num_participating]
-                              *g_xdot[nm + num_modes];
-        vz_gk=rsqrtmass*g_eig[neig + (2 + nm*3)*num_participating]
-                              *g_xdot[nm + 2*num_modes];
-
-        g_jmn[neig + nm*num_participating] +=
-                sxx[nglobal] * vx_gk + sxy[nglobal] * vy_gk; // x-in
-        g_jmn[neig + (nm+num_modes)*num_participating] +=
-                sxz[nglobal] * vz_gk; // x-out
-        g_jmn[neig + (nm+2*num_modes)*num_participating] +=
-                syx[nglobal] * vx_gk + syy[nglobal] * vy_gk; // y-in
-        g_jmn[neig + (nm+3*num_modes)*num_participating] +=
-                syz[nglobal] * vz_gk; // y-out
-        g_jmn[neig + (nm+4*num_modes)*num_participating] +=
-                szx[nglobal] * vx_gk + szy[nglobal] * vy_gk + szz[nglobal] * vz_gk; // z-all
-
-    }
-}
-
-void HNEMA::compute_hnema_heat(Atom *atom)
+void MODAL_ANALYSIS::compute_heat(Atom *atom)
 {
     dim3 grid, block;
     int gk_grid_size = (num_modes - 1)/BLOCK_SIZE_GK + 1;
@@ -374,31 +449,51 @@ void HNEMA::compute_hnema_heat(Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    gpu_hnema_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
+    gpu_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
     (
         num_participating, num_modes, xdotn, xdot
     );
     CUDA_CHECK_KERNEL
 
-
-    gpu_find_hnema_jmn<<<grid, block>>>
-    (
-        num_participating, N1, N2,
-        atom->virial_per_atom,
-        atom->virial_per_atom + atom->N * 3,
-        atom->virial_per_atom + atom->N * 4,
-        atom->virial_per_atom + atom->N * 6,
-        atom->virial_per_atom + atom->N * 1,
-        atom->virial_per_atom + atom->N * 5,
-        atom->virial_per_atom + atom->N * 7,
-        atom->virial_per_atom + atom->N * 8,
-        atom->virial_per_atom + atom->N * 2,
-        atom->mass, eig, xdot, jmn, num_modes
-    );
+    if (method == GKMA_METHOD)
+    {
+        gpu_set_jmn<<<grid, block>>>
+        (
+            num_participating, N1, N2,
+            atom->virial_per_atom,
+            atom->virial_per_atom + atom->N * 3,
+            atom->virial_per_atom + atom->N * 4,
+            atom->virial_per_atom + atom->N * 6,
+            atom->virial_per_atom + atom->N * 1,
+            atom->virial_per_atom + atom->N * 5,
+            atom->virial_per_atom + atom->N * 7,
+            atom->virial_per_atom + atom->N * 8,
+            atom->virial_per_atom + atom->N * 2,
+            atom->mass, eig, xdot, jmn, num_modes
+        );
+    }
+    else if (method == HNEMA_METHOD)
+    {
+        gpu_accumulate_jmn<<<grid, block>>>
+        (
+            num_participating, N1, N2,
+            atom->virial_per_atom,
+            atom->virial_per_atom + atom->N * 3,
+            atom->virial_per_atom + atom->N * 4,
+            atom->virial_per_atom + atom->N * 6,
+            atom->virial_per_atom + atom->N * 1,
+            atom->virial_per_atom + atom->N * 5,
+            atom->virial_per_atom + atom->N * 7,
+            atom->virial_per_atom + atom->N * 8,
+            atom->virial_per_atom + atom->N * 2,
+            atom->mass, eig, xdot, jmn, num_modes
+        );
+    }
     CUDA_CHECK_KERNEL
 }
 
-void HNEMA::setN(Atom *atom)
+
+void MODAL_ANALYSIS::setN(Atom *atom)
 {
     N1 = 0;
     N2 = 0;
@@ -414,18 +509,25 @@ void HNEMA::setN(Atom *atom)
     num_participating = N2 - N1;
 }
 
-void HNEMA::preprocess(char *input_dir, Atom *atom)
+void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
 {
     if (!compute) return;
         num_modes = last_mode-first_mode+1;
         samples_per_output = output_interval/sample_interval;
         setN(atom);
 
-        strcpy(hnema_file_position, input_dir);
-        strcat(hnema_file_position, "/kappamode.out");
+        strcpy(output_file_position, input_dir);
+        if (method == GKMA_METHOD)
+        {
+            strcat(output_file_position, "/heatmode.out");
+        }
+        else if (method == HNEMA_METHOD)
+        {
+            strcat(output_file_position, "/kappamode.out");
+        }
 
         CHECK(cudaMallocManaged((void **)&eig,
-                sizeof(real) * num_participating * num_modes * 3));
+                sizeof(float) * num_participating * num_modes * 3));
 
         // initialize eigenvector data structures
         strcpy(eig_file_position, input_dir);
@@ -439,7 +541,7 @@ void HNEMA::preprocess(char *input_dir, Atom *atom)
 
         // GPU phonon code output format
         std::string val;
-        double doubleval;
+        float floatval;
 
         // Setup binning
         if (f_flag)
@@ -469,7 +571,6 @@ void HNEMA::preprocess(char *input_dir, Atom *atom)
             {
                 bin_count[int(abs(f[i]/f_bin_size))-shift]++;
             }
-            ZEROS(bin_sum, int, num_bins);
 
             CHECK(cudaMallocManaged((void **)&bin_sum, sizeof(int)*num_bins));
             for(int i_=0; i_<num_bins;i_++){bin_sum[i_]=(int)0;}
@@ -493,8 +594,8 @@ void HNEMA::preprocess(char *input_dir, Atom *atom)
         {
             for (int i=0; i<3*num_participating; i++) // xyz of eigvec
             {
-                eigfile >> doubleval;
-                eig[i + 3*num_participating*j] = doubleval;
+                eigfile >> floatval;
+                eig[i + 3*num_participating*j] = floatval;
             }
         }
         eigfile.close();
@@ -503,68 +604,74 @@ void HNEMA::preprocess(char *input_dir, Atom *atom)
         CHECK(cudaMallocManaged
         (
             (void **)&xdot,
-            sizeof(real) * num_modes * 3
+            sizeof(float) * num_modes * 3
         ));
 
         CHECK(cudaMallocManaged
         (
             (void **)&xdotn,
-            sizeof(real) * num_modes * 3 * num_participating
+            sizeof(float) * num_modes * 3 * num_participating
         ));
 
         // Allocate modal measured quantities
         CHECK(cudaMallocManaged
         (
             (void **)&jm,
-            sizeof(real) * num_modes * NUM_OF_HEAT_COMPONENTS
+            sizeof(float) * num_modes * NUM_OF_HEAT_COMPONENTS
         ));
         CHECK(cudaMallocManaged
         (
             (void **)&jmn,
-            sizeof(real) * num_modes * NUM_OF_HEAT_COMPONENTS * num_participating
+            sizeof(float) * num_modes * NUM_OF_HEAT_COMPONENTS * num_participating
         ));
         CHECK(cudaMallocManaged
         (
             (void **)&bin_out,
-            sizeof(real) * num_bins * NUM_OF_HEAT_COMPONENTS
+            sizeof(float) * num_bins * NUM_OF_HEAT_COMPONENTS
         ));
 
-        // Initialize modal measured quantities
-        int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
-        gpu_reset_data
-        <<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-        (
-                num_elements*num_participating, jmn
-        );
-        CUDA_CHECK_KERNEL
+
+        num_heat_stored = num_modes*NUM_OF_HEAT_COMPONENTS;
+        if (method == HNEMA_METHOD)
+        {
+            // Initialize modal measured quantities
+            gpu_reset_data
+            <<<(num_heat_stored*num_participating-1)/BLOCK_SIZE+1,BLOCK_SIZE>>>
+            (
+                    num_heat_stored*num_participating, jmn
+            );
+            CUDA_CHECK_KERNEL
+        }
 }
 
-void HNEMA::process(int step, Atom *atom, Integrate *integrate, real fe)
+void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, real fe)
 {
     if (!compute) return;
     if (!((step+1) % sample_interval == 0)) return;
 
-    compute_hnema_heat(atom);
+    compute_heat(atom);
 
-    if (!((step+1) % output_interval == 0)) return;
+    if (method == HNEMA_METHOD &&
+            !((step+1) % output_interval == 0)) return;
 
-    gpu_hnema_reduce_jmn<<<num_modes, ACCUM_BLOCK>>>
+    gpu_reduce_jmn<<<num_modes, ACCUM_BLOCK>>>
     (
         num_participating, num_modes, jmn, jm
     );
     CUDA_CHECK_KERNEL
 
-
-    int num_elements = num_modes*NUM_OF_HEAT_COMPONENTS;
-    real volume = atom->box.get_volume();
-    real factor = KAPPA_UNIT_CONVERSION/
-        (volume * integrate->ensemble->temperature
-                * fe * (real)samples_per_output);
-    gpu_scale_jm<<<(num_elements-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-    (
-            num_elements, factor, jm
-    );
-    CUDA_CHECK_KERNEL
+    if (method == HNEMA_METHOD)
+    {
+        float volume = atom->box.get_volume();
+        float factor = KAPPA_UNIT_CONVERSION/
+            (volume * integrate->ensemble->temperature
+                    * fe * (float)samples_per_output);
+        gpu_scale_jm<<<(num_heat_stored-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+        (
+                num_heat_stored, factor, jm
+        );
+        CUDA_CHECK_KERNEL
+    }
 
     if (f_flag)
     {
@@ -587,7 +694,7 @@ void HNEMA::process(int step, Atom *atom, Integrate *integrate, real fe)
 
     // Compute thermal conductivity and output
     cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
-    FILE *fid = fopen(hnema_file_position, "a");
+    FILE *fid = fopen(output_file_position, "a");
     for (int i = 0; i < num_bins; i++)
     {
         fprintf(fid, "%g %g %g %g %g\n",
@@ -597,15 +704,20 @@ void HNEMA::process(int step, Atom *atom, Integrate *integrate, real fe)
     fflush(fid);
     fclose(fid);
 
-    gpu_reset_data<<<(num_elements*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-    (
-            num_elements*num_participating, jmn
-    );
-    CUDA_CHECK_KERNEL
+    if (method == HNEMA_METHOD)
+    {
+        gpu_reset_data
+        <<<(num_heat_stored*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+        (
+                num_heat_stored*num_participating, jmn
+        );
+        CUDA_CHECK_KERNEL
+    }
 
 }
 
-void HNEMA::postprocess()
+
+void MODAL_ANALYSIS::postprocess()
 {
     if (!compute) return;
     CHECK(cudaFree(eig));

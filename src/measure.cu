@@ -62,8 +62,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     shc.preprocess(atom);
     compute.preprocess(input_dir, atom);
     hnemd.preprocess(atom);
-    gkma.preprocess(input_dir, atom);
-    hnema.preprocess(input_dir, atom);
+    modal_analysis.preprocess(input_dir, atom);
 }
 
 
@@ -78,8 +77,7 @@ void Measure::finalize
     shc.postprocess(input_dir);
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);
-    gkma.postprocess();
-    hnema.postprocess();
+    modal_analysis.postprocess();
 }
 
 
@@ -166,8 +164,7 @@ void Measure::process
     hac.process(step, input_dir, atom);
     shc.process(step, atom);
     hnemd.process(step, input_dir, atom, integrate);
-    gkma.process(step, atom);
-    hnema.process(step, atom, integrate, hnemd.fe);
+    modal_analysis.process(step, atom, integrate, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);
 
 }
@@ -529,7 +526,22 @@ void Measure::parse_compute_hac(char **param, int num_param)
 
 void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
 {
-    gkma.compute = 1;
+    modal_analysis.compute = 1;
+    if (modal_analysis.method == GKMA_METHOD)
+    { // TODO add warning macro
+        printf("*******************************************************"
+                "WARNING: GKMA method already defined for this run.\n"
+                "         Parameters will be overwritten\n"
+                "*******************************************************");
+    }
+    else if (modal_analysis.method == HNEMA_METHOD)
+    {
+        printf("*******************************************************"
+                "WARNING: HNEMA method already defined for this run.\n"
+                "         GKMA will now run instead.\n"
+                "*******************************************************");
+    }
+    modal_analysis.method = GKMA_METHOD;
 
     printf("Compute modal heat current using GKMA method.\n");
 
@@ -543,25 +555,25 @@ void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
     {
         PRINT_INPUT_ERROR("compute_gkma should have 5 parameters.\n");
     }
-    if (!is_valid_int(param[1], &gkma.sample_interval) ||
-        !is_valid_int(param[2], &gkma.first_mode)      ||
-        !is_valid_int(param[3], &gkma.last_mode)       )
+    if (!is_valid_int(param[1], &modal_analysis.sample_interval) ||
+        !is_valid_int(param[2], &modal_analysis.first_mode)      ||
+        !is_valid_int(param[3], &modal_analysis.last_mode)       )
     {
         PRINT_INPUT_ERROR("A parameter for GKMA should be an integer.\n");
     }
 
     if (strcmp(param[4], "bin_size") == 0)
     {
-        gkma.f_flag = 0;
-        if(!is_valid_int(param[5], &gkma.bin_size))
+        modal_analysis.f_flag = 0;
+        if(!is_valid_int(param[5], &modal_analysis.bin_size))
         {
             PRINT_INPUT_ERROR("GKMA bin_size must be an integer.\n");
         }
     }
     else if (strcmp(param[4], "f_bin_size") == 0)
     {
-        gkma.f_flag = 1;
-        if(!is_valid_real(param[5], &gkma.f_bin_size))
+        modal_analysis.f_flag = 1;
+        if(!is_valid_real(param[5], &modal_analysis.f_bin_size))
         {
             PRINT_INPUT_ERROR("GKMA f_bin_size must be a real number.\n");
         }
@@ -571,7 +583,7 @@ void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
         PRINT_INPUT_ERROR("Invalid binning keyword for compute_gkma.\n");
     }
 
-    GKMA *g = &gkma;
+    MODAL_ANALYSIS *g = &modal_analysis;
     // Parameter checking
     if (g->sample_interval < 1  || g->first_mode < 1 || g->last_mode < 1)
         PRINT_INPUT_ERROR("compute_gkma parameters must be positive integers.\n");
@@ -610,20 +622,20 @@ void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
     {
         if (strcmp(param[6], "atom_range") == 0)
         {
-            if(!is_valid_int(param[7], &gkma.atom_begin) ||
-               !is_valid_int(param[8], &gkma.atom_end))
+            if(!is_valid_int(param[7], &modal_analysis.atom_begin) ||
+               !is_valid_int(param[8], &modal_analysis.atom_end))
             {
                 PRINT_INPUT_ERROR("GKMA atom_begin & atom_end must be integers.\n");
             }
-            if (gkma.atom_begin > gkma.atom_end)
+            if (modal_analysis.atom_begin > modal_analysis.atom_end)
             {
                 PRINT_INPUT_ERROR("atom_begin must be less than atom_end.\n");
             }
-            if (gkma.atom_begin < 0)
+            if (modal_analysis.atom_begin < 0)
             {
                 PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
             }
-            if (gkma.atom_end >= atom->number_of_types)
+            if (modal_analysis.atom_end >= atom->number_of_types)
             {
                 PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
             }
@@ -634,20 +646,34 @@ void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
         }
         printf("    Use select atom range.\n"
                "    Atom types %d to %d.\n",
-               gkma.atom_begin, gkma.atom_end);
+               modal_analysis.atom_begin, modal_analysis.atom_end);
     }
     else // default behavior
     {
-        gkma.atom_begin = 0;
-        gkma.atom_end = atom->number_of_types - 1;
+        modal_analysis.atom_begin = 0;
+        modal_analysis.atom_end = atom->number_of_types - 1;
     }
 
 }
 
-
 void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
 {
-    hnema.compute = 1;
+    modal_analysis.compute = 1;
+    if (modal_analysis.method == HNEMA_METHOD)
+    {
+        printf("*******************************************************\n"
+                "WARNING: HNEMA method already defined for this run.\n"
+                "         Parameters will be overwritten\n"
+                "*******************************************************\n");
+    }
+    else if (modal_analysis.method == GKMA_METHOD)
+    {
+        printf("*******************************************************\n"
+                "WARNING: GKMA method already defined for this run.\n"
+                "         HNEMA will now run instead.\n"
+                "*******************************************************\n");
+    }
+    modal_analysis.method = HNEMA_METHOD;
 
     printf("Compute modal thermal conductivity using HNEMA method.\n");
 
@@ -661,10 +687,10 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
     {
         PRINT_INPUT_ERROR("compute_hnema should have 9 parameters.\n");
     }
-    if (!is_valid_int(param[1], &hnema.sample_interval) ||
-        !is_valid_int(param[2], &hnema.output_interval) ||
-        !is_valid_int(param[6], &hnema.first_mode)      ||
-        !is_valid_int(param[7], &hnema.last_mode)       )
+    if (!is_valid_int(param[1], &modal_analysis.sample_interval) ||
+        !is_valid_int(param[2], &modal_analysis.output_interval) ||
+        !is_valid_int(param[6], &modal_analysis.first_mode)      ||
+        !is_valid_int(param[7], &modal_analysis.last_mode)       )
     {
         PRINT_INPUT_ERROR("A parameter for HNEMA should be an integer.\n");
     }
@@ -694,16 +720,16 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
 
     if (strcmp(param[8], "bin_size") == 0)
     {
-        hnema.f_flag = 0;
-        if(!is_valid_int(param[9], &hnema.bin_size))
+        modal_analysis.f_flag = 0;
+        if(!is_valid_int(param[9], &modal_analysis.bin_size))
         {
             PRINT_INPUT_ERROR("HNEMA bin_size must be an integer.\n");
         }
     }
     else if (strcmp(param[8], "f_bin_size") == 0)
     {
-        hnema.f_flag = 1;
-        if(!is_valid_real(param[9], &hnema.f_bin_size))
+        modal_analysis.f_flag = 1;
+        if(!is_valid_real(param[9], &modal_analysis.f_bin_size))
         {
             PRINT_INPUT_ERROR("HNEMA f_bin_size must be a real number.\n");
         }
@@ -713,7 +739,7 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
         PRINT_INPUT_ERROR("Invalid binning keyword for compute_hnema.\n");
     }
 
-    HNEMA *h = &hnema;
+    MODAL_ANALYSIS *h = &modal_analysis;
     // Parameter checking
     if (h->sample_interval < 1  || h->output_interval < 1 ||
             h->first_mode < 1 || h->last_mode < 1)
@@ -757,20 +783,20 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
     {
         if (strcmp(param[10], "atom_range") == 0)
         {
-            if(!is_valid_int(param[11], &hnema.atom_begin) ||
-               !is_valid_int(param[12], &hnema.atom_end))
+            if(!is_valid_int(param[11], &modal_analysis.atom_begin) ||
+               !is_valid_int(param[12], &modal_analysis.atom_end))
             {
                 PRINT_INPUT_ERROR("HNEMA atom_begin & atom_end must be integers.\n");
             }
-            if (hnema.atom_begin > hnema.atom_end)
+            if (modal_analysis.atom_begin > modal_analysis.atom_end)
             {
                 PRINT_INPUT_ERROR("atom_begin must be less than atom_end.\n");
             }
-            if (hnema.atom_begin < 0)
+            if (modal_analysis.atom_begin < 0)
             {
                 PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
             }
-            if (hnema.atom_end >= atom->number_of_types)
+            if (modal_analysis.atom_end >= atom->number_of_types)
             {
                 PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
             }
@@ -781,12 +807,12 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
         }
         printf("    Use select atom range.\n"
                "    Atom types %d to %d.\n",
-               hnema.atom_begin, hnema.atom_end);
+               modal_analysis.atom_begin, modal_analysis.atom_end);
     }
     else // default behavior
     {
-        hnema.atom_begin = 0;
-        hnema.atom_end = atom->number_of_types - 1;
+        modal_analysis.atom_begin = 0;
+        modal_analysis.atom_end = atom->number_of_types - 1;
     }
 
 }
