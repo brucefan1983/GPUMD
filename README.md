@@ -55,7 +55,7 @@ https://www.freelists.org/list/gpumd
 
 * Zheyong Fan (Bohai University and Aalto University; Active developer)
   * brucenju(at)gmail.com
-  * Alexander J. Gabourie (Stanford University; Active developer)
+* Alexander J. Gabourie (Stanford University; Active developer)
   * gabourie(at)stanford.edu
 * Ville Vierimaa (Aalto University; Not an active developer any more)
 * Mikko Ervasti (Aalto University; Not an active developer any more)
