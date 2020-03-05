@@ -27,7 +27,6 @@
 const int FILE_NAME_LENGTH = 200;
 #define GPUMD_VERSION "2.5"
 
-//typedef double real;
 #define ZERO  0.0
 #define HALF  0.5
 #define ONE   1.0
