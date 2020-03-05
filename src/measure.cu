@@ -38,11 +38,14 @@ The driver class dealing with measurement.
 Measure::Measure(char *input_dir)
 {
     dump_thermo = 0;
+    dump_velocity = 0;
     dump_restart = 0;
     dump_pos = NULL; // to avoid deleting random memory in run
     strcpy(file_thermo, input_dir);
+    strcpy(file_velocity, input_dir);
     strcpy(file_restart, input_dir);
     strcat(file_thermo, "/thermo.out");
+    strcat(file_velocity, "/velocity.out");
     strcat(file_restart, "/restart.out");
 }
 
@@ -56,6 +59,7 @@ Measure::~Measure(void)
 void Measure::initialize(char* input_dir, Atom *atom)
 {
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
+    if (dump_velocity)  {fid_velocity = my_fopen(file_velocity, "a");}
     if (dump_pos)       {dump_pos->initialize(input_dir);}
     vac.preprocess(atom);
     hac.preprocess(atom);
@@ -70,6 +74,7 @@ void Measure::finalize
 (char *input_dir, Atom *atom, Integrate *integrate)
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
+    if (dump_velocity)  {fclose(fid_velocity);  dump_velocity  = 0;}
     if (dump_restart)   {                       dump_restart   = 0;}
     if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom);
@@ -101,6 +106,26 @@ void Measure::dump_thermos
         fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
     }
     fprintf(fid, "\n"); fflush(fid); MY_FREE(thermo);
+}
+
+
+void Measure::dump_velocities(FILE* fid, Atom *atom, int step)
+{
+    if (!dump_velocity) return;
+    if ((step + 1) % sample_interval_velocity != 0) return;
+    int memory = sizeof(real) * atom->N;
+    CHECK(cudaMemcpy(atom->cpu_vx, atom->vx, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
+    for (int n = 0; n < atom->N; n++)
+    {
+        fprintf
+        (
+            fid, "%g %g %g\n", 
+            atom->cpu_vx[n], atom->cpu_vy[n], atom->cpu_vz[n]
+        );
+    }
+    fflush(fid);
 }
 
 
@@ -158,6 +183,7 @@ void Measure::process
 (char *input_dir, Atom *atom, Integrate *integrate, int step)
 {
     dump_thermos(fid_thermo, atom, integrate, step);
+    dump_velocities(fid_velocity, atom, step);
     dump_restarts(atom, step);
     compute.process(step, atom, integrate);
     vac.process(step, atom);
@@ -187,6 +213,26 @@ void Measure::parse_dump_thermo(char **param, int num_param)
 
     dump_thermo = 1;
     printf("Dump thermo every %d steps.\n", sample_interval_thermo);
+}
+
+
+void Measure::parse_dump_velocity(char **param, int num_param)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("dump_velocity should have 1 parameter.");
+    }
+    if (!is_valid_int(param[1], &sample_interval_velocity))
+    {
+        PRINT_INPUT_ERROR("velocity dump interval should be an integer.");
+    }
+    if (0 >= sample_interval_velocity)
+    {
+        PRINT_INPUT_ERROR("velocity dump interval should > 0.");
+    }
+
+    dump_velocity = 1;
+    printf("Dump velocity every %d steps.\n", sample_interval_velocity);
 }
 
 

@@ -84,6 +84,7 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     measure->hac.compute    = 0;
     measure->hnemd.compute  = 0;
     measure->dump_thermo    = 0;
+    measure->dump_velocity  = 0;
     measure->dump_restart   = 0;
 
     /*
@@ -341,6 +342,10 @@ void Run::parse
     else if (strcmp(param[0], "dump_restart") == 0)
     {
         measure->parse_dump_restart(param, num_param);
+    }
+    else if (strcmp(param[0], "dump_velocity") == 0)
+    {
+        measure->parse_dump_velocity(param, num_param);
     }
     else if (strcmp(param[0], "compute_dos") == 0)
     {

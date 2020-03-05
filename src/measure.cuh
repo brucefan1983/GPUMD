@@ -34,12 +34,16 @@ public:
     void finalize(char*, Atom*, Integrate*);
     void process(char*, Atom*, Integrate*, int);
     int dump_thermo; 
+    int dump_velocity;
     int dump_restart;
     int sample_interval_thermo;
+    int sample_interval_velocity;
     int sample_interval_restart;
     FILE *fid_thermo;
+    FILE *fid_velocity;
     FILE *fid_restart;
-    char file_thermo[FILE_NAME_LENGTH];   
+    char file_thermo[FILE_NAME_LENGTH]; 
+    char file_velocity[FILE_NAME_LENGTH];  
     char file_restart[FILE_NAME_LENGTH];
     VAC vac;
     HAC hac;
@@ -51,6 +55,7 @@ public:
 
     // functions to get inputs from run.in
     void parse_dump_thermo(char**, int);
+    void parse_dump_velocity(char**, int);
     void parse_dump_position(char**, int, Atom*);
     void parse_dump_restart(char**, int);
     void parse_group(char **param, int *k, Group *group);
@@ -66,6 +71,7 @@ public:
 
 protected:
     void dump_thermos(FILE*, Atom*, Integrate*, int);
+    void dump_velocities(FILE*, Atom*, int);
     void dump_restarts(Atom*, int);
 };
 
