@@ -20,11 +20,11 @@
 
 struct Tersoff_modc_Data
 {
-    real *b;     // bond orders
-    real *bp;    // derivative of bond orders
-    real *f12x;  // partial forces
-    real *f12y;
-    real *f12z;
+    double *b;     // bond orders
+    double *bp;    // derivative of bond orders
+    double *f12x;  // partial forces
+    double *f12y;
+    double *f12z;
 };
 
 
@@ -38,7 +38,7 @@ public:
     virtual void compute(Atom*, Measure*, int);
 protected:
     int num_types;
-    real *ters;
+    double *ters;
     Tersoff_modc_Data tersoff_data;
 };
 

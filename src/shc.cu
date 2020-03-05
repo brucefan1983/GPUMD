@@ -29,7 +29,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 const int BLOCK_SIZE_SHC = 128;
 
 
-static __global__ void gpu_initialize_k(int Nc, real *g_ki, real *g_ko)
+static __global__ void gpu_initialize_k(int Nc, double *g_ki, double *g_ko)
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
     if (n < Nc)
@@ -54,14 +54,14 @@ void SHC::preprocess(Atom *atom)
         group_size = atom->group[group_method].cpu_size[group_id];
     }
 
-    CHECK(cudaMalloc((void**)&vx, sizeof(real) * group_size * Nc));
-    CHECK(cudaMalloc((void**)&vy, sizeof(real) * group_size * Nc));
-    CHECK(cudaMalloc((void**)&vz, sizeof(real) * group_size * Nc));
-    CHECK(cudaMalloc((void**)&sx, sizeof(real) * group_size));
-    CHECK(cudaMalloc((void**)&sy, sizeof(real) * group_size));
-    CHECK(cudaMalloc((void**)&sz, sizeof(real) * group_size));
-    CHECK(cudaMallocManaged((void**)&ki, sizeof(real) * Nc));
-    CHECK(cudaMallocManaged((void**)&ko, sizeof(real) * Nc));
+    CHECK(cudaMalloc((void**)&vx, sizeof(double) * group_size * Nc));
+    CHECK(cudaMalloc((void**)&vy, sizeof(double) * group_size * Nc));
+    CHECK(cudaMalloc((void**)&vz, sizeof(double) * group_size * Nc));
+    CHECK(cudaMalloc((void**)&sx, sizeof(double) * group_size));
+    CHECK(cudaMalloc((void**)&sy, sizeof(double) * group_size));
+    CHECK(cudaMalloc((void**)&sz, sizeof(double) * group_size));
+    CHECK(cudaMallocManaged((void**)&ki, sizeof(double) * Nc));
+    CHECK(cudaMallocManaged((void**)&ko, sizeof(double) * Nc));
 
     gpu_initialize_k<<<(Nc - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>
     (Nc, ki, ko);
@@ -72,19 +72,19 @@ void SHC::preprocess(Atom *atom)
 static __global__ void gpu_find_k
 (
     int group_size, int correlation_step,
-    real *g_sx, real *g_sy, real *g_sz,
-    real *g_vx, real *g_vy, real *g_vz,
-    real *g_ki, real *g_ko
+    double *g_sx, double *g_sy, double *g_sz,
+    double *g_vx, double *g_vy, double *g_vz,
+    double *g_ki, double *g_ko
 )
 {
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int size_sum = bid * group_size;
     int number_of_rounds = (group_size - 1) / BLOCK_SIZE_SHC + 1;
-    __shared__ real s_ki[BLOCK_SIZE_SHC];
-    __shared__ real s_ko[BLOCK_SIZE_SHC];
-    real ki = ZERO;
-    real ko = ZERO;
+    __shared__ double s_ki[BLOCK_SIZE_SHC];
+    __shared__ double s_ko[BLOCK_SIZE_SHC];
+    double ki = ZERO;
+    double ko = ZERO;
 
     for (int round = 0; round < number_of_rounds; ++round)
     {
@@ -128,10 +128,10 @@ static __global__ void gpu_find_k
 static __global__ void gpu_copy_data
 (
     int group_size, int offset, int *g_group_contents,
-    real *g_sx_o, real *g_sy_o, real *g_sz_o,
-    real *g_vx_o, real *g_vy_o, real *g_vz_o,
-    real *g_sx_i, real *g_sy_i, real *g_sz_i,
-    real *g_vx_i, real *g_vy_i, real *g_vz_i
+    double *g_sx_o, double *g_sy_o, double *g_sz_o,
+    double *g_vx_o, double *g_vy_o, double *g_vz_o,
+    double *g_sx_i, double *g_sy_i, double *g_sz_i,
+    double *g_vx_i, double *g_vy_i, double *g_vz_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -158,23 +158,23 @@ void SHC::process(int step, Atom *atom)
     int offset = correlation_step * group_size;
 
     const int tensor[3][3] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-    real *sx_tmp = atom->virial_per_atom + atom->N * tensor[direction][0];
-    real *sy_tmp = atom->virial_per_atom + atom->N * tensor[direction][1];
-    real *sz_tmp = atom->virial_per_atom + atom->N * tensor[direction][2];
+    double *sx_tmp = atom->virial_per_atom + atom->N * tensor[direction][0];
+    double *sy_tmp = atom->virial_per_atom + atom->N * tensor[direction][1];
+    double *sz_tmp = atom->virial_per_atom + atom->N * tensor[direction][2];
 
     if (-1 == group_method)
     {
-        CHECK(cudaMemcpy(sx, sx_tmp, group_size * sizeof(real), 
+        CHECK(cudaMemcpy(sx, sx_tmp, group_size * sizeof(double), 
             cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(sy, sy_tmp, group_size * sizeof(real), 
+        CHECK(cudaMemcpy(sy, sy_tmp, group_size * sizeof(double), 
             cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(sz, sz_tmp, group_size * sizeof(real), 
+        CHECK(cudaMemcpy(sz, sz_tmp, group_size * sizeof(double), 
             cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vx + offset, atom->vx, group_size * sizeof(real), 
+        CHECK(cudaMemcpy(vx + offset, atom->vx, group_size * sizeof(double), 
             cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vy + offset, atom->vy, group_size * sizeof(real), 
+        CHECK(cudaMemcpy(vy + offset, atom->vy, group_size * sizeof(double), 
             cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vz + offset, atom->vz, group_size * sizeof(real), 
+        CHECK(cudaMemcpy(vz + offset, atom->vz, group_size * sizeof(double), 
             cudaMemcpyDeviceToDevice));
     }
     else

@@ -21,17 +21,17 @@
 struct SW2_Para
 {
     // 2-body part
-    real A[3][3], B[3][3], a[3][3], sigma[3][3], gamma[3][3], rc[3][3];
+    double A[3][3], B[3][3], a[3][3], sigma[3][3], gamma[3][3], rc[3][3];
     // 3-body part
-    real lambda[3][3][3], cos0[3][3][3];
+    double lambda[3][3][3], cos0[3][3][3];
 };
 
 
 struct SW2_Data
 {
-    real *f12x;  // partial forces
-    real *f12y;
-    real *f12z;
+    double *f12x;  // partial forces
+    double *f12y;
+    double *f12z;
 };
 
 

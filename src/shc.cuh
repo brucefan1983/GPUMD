@@ -33,9 +33,9 @@ public:
 private:
     int num_time_origins;  // number of time origins for ensemble average
     int group_size;        // number of atoms in group_id
-    real *vx, *vy, *vz;    // Nc frames of velocity data
-    real *sx, *sy, *sz;    // one frame of virial data
-    real *ki, *ko;         // The correlation functions Ki(t) and Ko(t)
+    double *vx, *vy, *vz;    // Nc frames of velocity data
+    double *sx, *sy, *sz;    // one frame of virial data
+    double *ki, *ko;         // The correlation functions Ki(t) and Ko(t)
     void find_shc(char*, Atom*, int);
 };
 

@@ -29,14 +29,14 @@ If DEBUG is off, the velocities are different in different runs.
 
 void Atom::scale_velocity(void)
 {
-    real temperature = 0.0;
+    double temperature = 0.0;
     for (int n = 0; n < N; ++n) 
     {
-        real v2 = cpu_vx[n]*cpu_vx[n]+cpu_vy[n]*cpu_vy[n]+cpu_vz[n]*cpu_vz[n];
+        double v2 = cpu_vx[n]*cpu_vx[n]+cpu_vy[n]*cpu_vy[n]+cpu_vz[n]*cpu_vz[n];
         temperature += cpu_mass[n] * v2;
     }
     temperature /= 3.0 * K_B * N;
-    real factor = sqrt(initial_temperature / temperature);
+    double factor = sqrt(initial_temperature / temperature);
     for (int n = 0; n < N; ++n)
     {
         cpu_vx[n] *= factor; cpu_vy[n] *= factor; cpu_vz[n] *= factor;
@@ -44,7 +44,7 @@ void Atom::scale_velocity(void)
 }
 
 
-static void get_random_velocities(int N, real* vx, real* vy, real* vz)
+static void get_random_velocities(int N, double* vx, double* vy, double* vz)
 {
     for (int n = 0; n < N; ++n)
     {
@@ -55,9 +55,9 @@ static void get_random_velocities(int N, real* vx, real* vy, real* vz)
 }
 
 
-static void zero_linear_momentum(int N, real* m, real* vx, real* vy, real* vz)
+static void zero_linear_momentum(int N, double* m, double* vx, double* vy, double* vz)
 {
-    real p[3] = {0.0, 0.0, 0.0}; // linear momentum
+    double p[3] = {0.0, 0.0, 0.0}; // linear momentum
     for (int n = 0; n < N; ++n)
     {       
         p[0] += m[n]*vx[n]/N; p[1] += m[n]*vy[n]/N; p[2] += m[n]*vz[n]/N;
@@ -69,12 +69,12 @@ static void zero_linear_momentum(int N, real* m, real* vx, real* vy, real* vz)
 }
 
 
-static void get_center(int N, real r0[3], real* m, real* x, real* y, real* z)
+static void get_center(int N, double r0[3], double* m, double* x, double* y, double* z)
 {
-    real mass_total = 0;
+    double mass_total = 0;
     for (int i = 0; i < N; i++)
     {
-        real mass = m[i];
+        double mass = m[i];
         mass_total += mass;
         r0[0] += x[i] * mass; r0[1] += y[i] * mass; r0[2] += z[i] * mass;
     }
@@ -84,13 +84,13 @@ static void get_center(int N, real r0[3], real* m, real* x, real* y, real* z)
 
 static void get_angular_momentum
 (
-    int N, real L[3], real r0[3], real* m, real* x, real* y, real* z,
-    real* vx, real* vy, real* vz
+    int N, double L[3], double r0[3], double* m, double* x, double* y, double* z,
+    double* vx, double* vy, double* vz
 )
 {
     for (int i = 0; i < N; i++)
     {
-        real dx = x[i] - r0[0]; real dy = y[i] - r0[1]; real dz = z[i] - r0[2];
+        double dx = x[i] - r0[0]; double dy = y[i] - r0[1]; double dz = z[i] - r0[2];
         L[0] += m[i] * (dy * vz[i] - dz * vy[i]);
         L[1] += m[i] * (dz * vx[i] - dx * vz[i]);
         L[2] += m[i] * (dx * vy[i] - dy * vx[i]);
@@ -99,11 +99,11 @@ static void get_angular_momentum
 
 
 static void get_inertia
-(int N, real I[3][3], real r0[3], real* m, real* x, real* y, real* z)
+(int N, double I[3][3], double r0[3], double* m, double* x, double* y, double* z)
 {
     for (int i = 0; i < N; i++)
     {
-        real dx = x[i] - r0[0]; real dy = y[i] - r0[1]; real dz = z[i] - r0[2];
+        double dx = x[i] - r0[0]; double dy = y[i] - r0[1]; double dz = z[i] - r0[2];
         I[0][0] += m[i] * (dy*dy + dz*dz);
         I[1][1] += m[i] * (dx*dx + dz*dz);
         I[2][2] += m[i] * (dx*dx + dy*dy);
@@ -113,9 +113,9 @@ static void get_inertia
 }
 
 
-static void get_angular_velocity(real I[3][3], real L[3], real w[3])
+static void get_angular_velocity(double I[3][3], double L[3], double w[3])
 {
-    real inverse[3][3]; // inverse of I
+    double inverse[3][3]; // inverse of I
     inverse[0][0] =   I[1][1]*I[2][2] - I[1][2]*I[2][1];
     inverse[0][1] = -(I[0][1]*I[2][2] - I[0][2]*I[2][1]);
     inverse[0][2] =   I[0][1]*I[1][2] - I[0][2]*I[1][1];
@@ -125,7 +125,7 @@ static void get_angular_velocity(real I[3][3], real L[3], real w[3])
     inverse[2][0] =   I[1][0]*I[2][1] - I[1][1]*I[2][0];
     inverse[2][1] = -(I[0][0]*I[2][1] - I[0][1]*I[2][0]);
     inverse[2][2] =   I[0][0]*I[1][1] - I[0][1]*I[1][0];
-    real determinant = I[0][0]*I[1][1]*I[2][2] + I[0][1]*I[1][2]*I[2][0] +
+    double determinant = I[0][0]*I[1][1]*I[2][2] + I[0][1]*I[1][2]*I[2][0] +
                        I[0][2]*I[1][0]*I[2][1] - I[0][0]*I[1][2]*I[2][1] -
                        I[0][1]*I[1][0]*I[2][2] - I[2][0]*I[1][1]*I[0][2];
     for (int i = 0; i < 3; i++)
@@ -142,13 +142,13 @@ static void get_angular_velocity(real I[3][3], real L[3], real w[3])
 // v_i = v_i - w x dr_i
 static void zero_angular_momentum
 (
-    int N, real w[3], real r0[3], real* x, real* y, real* z,
-    real* vx, real* vy, real* vz
+    int N, double w[3], double r0[3], double* x, double* y, double* z,
+    double* vx, double* vy, double* vz
 )
 {
     for (int i = 0; i < N; i++)
     {
-        real dx = x[i] - r0[0]; real dy = y[i] - r0[1]; real dz = z[i] - r0[2];
+        double dx = x[i] - r0[0]; double dy = y[i] - r0[1]; double dz = z[i] - r0[2];
         vx[i]-=w[1]*dz-w[2]*dy; vy[i]-=w[2]*dx-w[0]*dz; vz[i]-=w[0]*dy-w[1]*dx;
     }
 }
@@ -158,14 +158,14 @@ void Atom::initialize_velocity_cpu(void)
 {
     get_random_velocities(N, cpu_vx, cpu_vy, cpu_vz);
     zero_linear_momentum(N, cpu_mass, cpu_vx, cpu_vy, cpu_vz);
-    real r0[3] = {0, 0, 0}; // center of mass position
+    double r0[3] = {0, 0, 0}; // center of mass position
     get_center(N, r0, cpu_mass, cpu_x, cpu_y, cpu_z);
-    real L[3] = {0, 0, 0}; // angular momentum
+    double L[3] = {0, 0, 0}; // angular momentum
     get_angular_momentum(N, L, r0, cpu_mass, cpu_x, cpu_y, cpu_z,
         cpu_vx, cpu_vy, cpu_vz);
-    real I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}; // moment of inertia
+    double I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}; // moment of inertia
     get_inertia(N, I, r0, cpu_mass, cpu_x, cpu_y, cpu_z);
-    real w[3]; // angular velocity
+    double w[3]; // angular velocity
     get_angular_velocity(I, L, w);
     zero_angular_momentum(N, w, r0, cpu_x, cpu_y, cpu_z,
         cpu_vx, cpu_vy, cpu_vz);
@@ -176,7 +176,7 @@ void Atom::initialize_velocity_cpu(void)
 void Atom::initialize_velocity(void)
 {
     if (has_velocity_in_xyz == 0) { initialize_velocity_cpu(); }
-    int M = sizeof(real) * N;
+    int M = sizeof(double) * N;
     CHECK(cudaMemcpy(vx, cpu_vx, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(vy, cpu_vy, M, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(vz, cpu_vz, M, cudaMemcpyHostToDevice));

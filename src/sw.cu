@@ -40,7 +40,7 @@ SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
 
     // memory for the partial forces dU_i/dr_ij
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory = sizeof(real) * atom->N * num_of_neighbors;
+    int memory = sizeof(double) * atom->N * num_of_neighbors;
     CHECK(cudaMalloc((void**)&sw2_data.f12x, memory));
     CHECK(cudaMalloc((void**)&sw2_data.f12y, memory));
     CHECK(cudaMalloc((void**)&sw2_data.f12z, memory));
@@ -157,11 +157,11 @@ SW2::~SW2(void)
 
 // two-body part of the SW potential
 static __device__ void find_p2_and_f2
-(real sigma, real a, real B, real epsilon_times_A, real d12, real &p2, real &f2)
+(double sigma, double a, double B, double epsilon_times_A, double d12, double &p2, double &f2)
 { 
-    real r12 = d12 / sigma;
-    real B_over_r12power4 = B / (r12*r12*r12*r12);
-    real exp_factor = epsilon_times_A * exp(ONE/(r12 - a));
+    double r12 = d12 / sigma;
+    double B_over_r12power4 = B / (r12*r12*r12*r12);
+    double exp_factor = epsilon_times_A * exp(ONE/(r12 - a));
     p2 = exp_factor * (B_over_r12power4 - ONE);
     f2 = -p2/((r12-a)*(r12-a))-exp_factor*FOUR*B_over_r12power4/r12;
     f2 /= (sigma * d12);
@@ -174,10 +174,10 @@ static __global__ void gpu_find_force_sw3_partial
     int number_of_particles, int N1, int N2,
     Box box, SW2_Para sw3,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
-    const real* __restrict__ g_x,
-    const real* __restrict__ g_y,
-    const real* __restrict__ g_z,
-    real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
+    const double* __restrict__ g_x,
+    const double* __restrict__ g_y,
+    const double* __restrict__ g_z,
+    double *g_potential, double *g_f12x, double *g_f12y, double *g_f12z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -185,27 +185,27 @@ static __global__ void gpu_find_force_sw3_partial
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
-        real potential_energy = ZERO;
+        double x1 = LDG(g_x, n1); double y1 = LDG(g_y, n1); double z1 = LDG(g_z, n1);
+        double potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
             int type2 = g_type[n2] - shift;
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            real d12inv = ONE / d12;
+            double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            double d12inv = ONE / d12;
             if (d12 >= sw3.rc[type1][type2]) {continue;} 
 
-            real gamma12 = sw3.gamma[type1][type2];
-            real sigma12 = sw3.sigma[type1][type2];
-            real a12     = sw3.a[type1][type2];
-            real tmp = gamma12 / (sigma12*(d12/sigma12-a12)*(d12/sigma12-a12));
-            real p2, f2;
+            double gamma12 = sw3.gamma[type1][type2];
+            double sigma12 = sw3.sigma[type1][type2];
+            double a12     = sw3.a[type1][type2];
+            double tmp = gamma12 / (sigma12*(d12/sigma12-a12)*(d12/sigma12-a12));
+            double p2, f2;
             find_p2_and_f2
             (
                 sigma12, a12, sw3.B[type1][type2], sw3.A[type1][type2],
@@ -213,9 +213,9 @@ static __global__ void gpu_find_force_sw3_partial
             );
 
             // treat the two-body part in the same way as the many-body part
-            real f12x = f2 * x12 * HALF;
-            real f12y = f2 * y12 * HALF;
-            real f12z = f2 * z12 * HALF;
+            double f12x = f2 * x12 * HALF;
+            double f12y = f2 * y12 * HALF;
+            double f12z = f2 * z12 * HALF;
             // accumulate potential energy
             potential_energy += p2 * HALF;
 
@@ -225,29 +225,29 @@ static __global__ void gpu_find_force_sw3_partial
                 int n3 = g_neighbor_list[n1 + number_of_particles * i2];
                 if (n3 == n2) { continue; }
                 int type3 = g_type[n3] - shift;
-                real x13 = LDG(g_x, n3) - x1;
-                real y13 = LDG(g_y, n3) - y1;
-                real z13 = LDG(g_z, n3) - z1;
+                double x13 = LDG(g_x, n3) - x1;
+                double y13 = LDG(g_y, n3) - y1;
+                double z13 = LDG(g_z, n3) - z1;
                 dev_apply_mic(box, x13, y13, z13);
-                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+                double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 if (d13 >= sw3.rc[type1][type3]) {continue;}
 
-                real cos0   = sw3.cos0[type1][type2][type3];
-                real lambda = sw3.lambda[type1][type2][type3];
-                real exp123 = d13/sw3.sigma[type1][type3] - sw3.a[type1][type3];
+                double cos0   = sw3.cos0[type1][type2][type3];
+                double lambda = sw3.lambda[type1][type2][type3];
+                double exp123 = d13/sw3.sigma[type1][type3] - sw3.a[type1][type3];
                 exp123 = sw3.gamma[type1][type3] / exp123;
                 exp123 = exp(gamma12 / (d12 / sigma12 - a12) + exp123);
-                real one_over_d12d13 = ONE / (d12 * d13);
-                real cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
-                real cos123_over_d12d12 = cos123*d12inv*d12inv;
+                double one_over_d12d13 = ONE / (d12 * d13);
+                double cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
+                double cos123_over_d12d12 = cos123*d12inv*d12inv;
 
-                real tmp1 = exp123 * (cos123 - cos0) * lambda;
-                real tmp2 = tmp * (cos123 - cos0) * d12inv;
+                double tmp1 = exp123 * (cos123 - cos0) * lambda;
+                double tmp2 = tmp * (cos123 - cos0) * d12inv;
 
                 // accumulate potential energy
                 potential_energy += (cos123 - cos0) * tmp1 * HALF;
 
-                real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12; 
+                double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12; 
                 f12x += tmp1 * (TWO * cos_d - tmp2 * x12);
 
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
@@ -265,7 +265,7 @@ static __global__ void gpu_find_force_sw3_partial
 
 
 static __global__ void gpu_set_f12_to_zero
-(int N, int N1, int N2, int *g_NN, real* g_f12x, real* g_f12y, real* g_f12z)
+(int N, int N1, int N2, int *g_NN, double* g_f12x, double* g_f12y, double* g_f12z)
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
     if (n1 >= N1 && n1 < N2)
@@ -291,15 +291,15 @@ void SW2::compute(Atom *atom, Measure *measure, int potential_number)
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
     int *type = atom->type;
-    real *x = atom->x;
-    real *y = atom->y;
-    real *z = atom->z;
-    real *pe = atom->potential_per_atom;
+    double *x = atom->x;
+    double *y = atom->y;
+    double *z = atom->z;
+    double *pe = atom->potential_per_atom;
 
     // special data for SW potential
-    real *f12x = sw2_data.f12x;
-    real *f12y = sw2_data.f12y;
-    real *f12z = sw2_data.f12z;
+    double *f12x = sw2_data.f12x;
+    double *f12y = sw2_data.f12y;
+    double *f12z = sw2_data.f12z;
     gpu_set_f12_to_zero<<<grid_size, BLOCK_SIZE_SW>>>
     (N, N1, N2, NN, f12x, f12y, f12z);
     CUDA_CHECK_KERNEL

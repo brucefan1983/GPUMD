@@ -57,8 +57,8 @@ Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
     num_types = num_of_types;
     printf("Use Tersoff-modc (%d-element) potential.\n", num_types);
     int n_entries = num_types*num_types*num_types;
-    real *cpu_ters;
-    MY_MALLOC(cpu_ters, real, n_entries*NUM_PARAMS);
+    double *cpu_ters;
+    MY_MALLOC(cpu_ters, double, n_entries*NUM_PARAMS);
 
     rc = 0;
     int count;
@@ -97,15 +97,15 @@ Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
     }
 
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory = sizeof(real)* atom->N * num_of_neighbors;
+    int memory = sizeof(double)* atom->N * num_of_neighbors;
     CHECK(cudaMalloc((void**)&tersoff_data.b,  memory));
     CHECK(cudaMalloc((void**)&tersoff_data.bp, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12x, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12y, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12z, memory));
-    CHECK(cudaMalloc((void**)&ters, sizeof(real) * n_entries*NUM_PARAMS));
+    CHECK(cudaMalloc((void**)&ters, sizeof(double) * n_entries*NUM_PARAMS));
     CHECK(cudaMemcpy(ters, cpu_ters,
-        sizeof(real) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
+        sizeof(double) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
     MY_FREE(cpu_ters);
 }
 
@@ -122,7 +122,7 @@ Tersoff_modc::~Tersoff_modc(void)
 
 
 static __device__ void find_fr_and_frp
-(int i, const real* __restrict__ ters, real d12, real &fr, real &frp)
+(int i, const double* __restrict__ ters, double d12, double &fr, double &frp)
 {
     fr  = LDG(ters,i + A) * exp(- LDG(ters,i + LAMBDA) * d12);
     frp = - LDG(ters,i + LAMBDA) * fr;
@@ -130,7 +130,7 @@ static __device__ void find_fr_and_frp
 
 
 static __device__ void find_fa_and_fap
-(int i, const real* __restrict__ ters, real d12, real &fa, real &fap)
+(int i, const double* __restrict__ ters, double d12, double &fa, double &fap)
 {
     fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
     fap = - LDG(ters, i + MU) * fa;
@@ -138,14 +138,14 @@ static __device__ void find_fa_and_fap
 
 
 static __device__ void find_fa
-(int i, const real* __restrict__ ters, real d12, real &fa)
+(int i, const double* __restrict__ ters, double d12, double &fa)
 {
     fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
 }
 
 
 static __device__ void find_fc_and_fcp
-(int i, const real* __restrict__ ters, real d12, real &fc, real &fcp)
+(int i, const double* __restrict__ ters, double d12, double &fc, double &fcp)
 {
     if (d12 < LDG(ters, i + R1)) {fc = 1.0; fcp = 0.0;}
     else if (d12 < LDG(ters, i + R2))
@@ -166,7 +166,7 @@ static __device__ void find_fc_and_fcp
 
 
 static __device__ void find_fc
-(int i, const real* __restrict__ ters, real d12, real &fc)
+(int i, const double* __restrict__ ters, double d12, double &fc)
 {
     if (d12 < LDG(ters, i + R1)) {fc  = 1.0;}
     else if (d12 < LDG(ters, i + R2))
@@ -181,11 +181,11 @@ static __device__ void find_fc
 
 
 static __device__ void find_g_and_gp
-(int i, const real* __restrict__ ters, real cos, real &g, real &gp)
+(int i, const double* __restrict__ ters, double cos, double &g, double &gp)
 {
-    real x = (cos - LDG(ters, i + H)) * (cos - LDG(ters, i + H));
-    real exp_factor = exp(-LDG(ters, i + C5) * x);
-    real c2c3_factor = LDG(ters, i + C2) * x / (LDG(ters, i + C3) + x);
+    double x = (cos - LDG(ters, i + H)) * (cos - LDG(ters, i + H));
+    double exp_factor = exp(-LDG(ters, i + C5) * x);
+    double c2c3_factor = LDG(ters, i + C2) * x / (LDG(ters, i + C3) + x);
     g  = (1.0 + LDG(ters, i + C4) * exp_factor) * c2c3_factor
        + LDG(ters, i + C1);
     gp = LDG(ters, i + C2) * LDG(ters, i + C3) 
@@ -198,9 +198,9 @@ static __device__ void find_g_and_gp
 
 
 static __device__ void find_g
-(int i, const real* __restrict__ ters, real cos, real &g)
+(int i, const double* __restrict__ ters, double cos, double &g)
 {
-    real x = (cos - LDG(ters, i + H)) * (cos - LDG(ters, i + H));
+    double x = (cos - LDG(ters, i + H)) * (cos - LDG(ters, i + H));
     g  = (1.0 + LDG(ters, i + C4) * exp(-LDG(ters, i + C5) * x))
        * LDG(ters, i + C2) * x / (LDG(ters, i + C3) + x)
        + LDG(ters, i + C1);
@@ -208,9 +208,9 @@ static __device__ void find_g
 
 
 static __device__ void find_e_and_ep
-(int i, const real* __restrict__ ters, real d12, real d13, real &e, real &ep)
+(int i, const double* __restrict__ ters, double d12, double d13, double &e, double &ep)
 {
-    real r = d12 - d13;
+    double r = d12 - d13;
     if (LDG(ters, i + BETA) > TWO) //if beta == 3
     {
         e = exp(LDG(ters, i + ALPHA) * r * r * r);
@@ -224,9 +224,9 @@ static __device__ void find_e_and_ep
 }
 
 static __device__ void find_e
-(int i, const real* __restrict__ ters, real d12, real d13, real &e)
+(int i, const double* __restrict__ ters, double d12, double d13, double &e)
 {
-    real r = d12 - d13;
+    double r = d12 - d13;
     if (LDG(ters, i + BETA) > TWO) { e = exp(LDG(ters, i + ALPHA) * r * r * r);}
     else {e = exp(LDG(ters, i + ALPHA) * r);}
 }
@@ -238,11 +238,11 @@ static __global__ void find_force_tersoff_step1
     int number_of_particles, int N1, int N2, Box box,
     int num_types, int* g_neighbor_number, int* g_neighbor_list,
     int* g_type, int shift,
-    const real* __restrict__ ters,
-    const real* __restrict__ g_x,
-    const real* __restrict__ g_y,
-    const real* __restrict__ g_z,
-    real* g_b, real* g_bp
+    const double* __restrict__ ters,
+    const double* __restrict__ g_x,
+    const double* __restrict__ g_y,
+    const double* __restrict__ g_z,
+    double* g_b, double* g_bp
 )
 {
     int num_types2 = num_types * num_types;
@@ -253,29 +253,29 @@ static __global__ void find_force_tersoff_step1
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
+        double x1 = LDG(g_x, n1); double y1 = LDG(g_y, n1); double z1 = LDG(g_z, n1);
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_neighbor_list[n1 + number_of_particles * i1];
             int type2 = g_type[n2] - shift;
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            real zeta = ZERO;
+            double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            double zeta = ZERO;
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int n3 = g_neighbor_list[n1 + number_of_particles * i2];
                 if (n3 == n2) { continue; } // ensure that n3 != n2
                 int type3 = g_type[n3] - shift;
-                real x13 = LDG(g_x, n3) - x1;
-                real y13 = LDG(g_y, n3) - y1;
-                real z13 = LDG(g_z, n3) - z1;
+                double x13 = LDG(g_x, n3) - x1;
+                double y13 = LDG(g_y, n3) - y1;
+                double z13 = LDG(g_z, n3) - z1;
                 dev_apply_mic(box, x13, y13, z13);
-                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
-                real cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
-                real fc_ijk_13, g_ijk, e_ijk_12_13;
+                double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+                double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
+                double fc_ijk_13, g_ijk, e_ijk_12_13;
                 int ijk = type1 * num_types2 + type2 * num_types + type3;
                 if (d13 > LDG(ters, ijk*NUM_PARAMS + R2)) {continue;}
                 find_fc(ijk*NUM_PARAMS, ters, d13, fc_ijk_13);
@@ -283,7 +283,7 @@ static __global__ void find_force_tersoff_step1
                 find_e(ijk*NUM_PARAMS, ters, d12, d13, e_ijk_12_13);
                 zeta += fc_ijk_13 * g_ijk * e_ijk_12_13;
             }
-            real zn, b_ijj;
+            double zn, b_ijj;
             int ijj = type1 * num_types2 + type2 * num_types + type2;
             zn = pow(zeta, LDG(ters, ijj*NUM_PARAMS + ETA));
             b_ijj = pow(ONE + zn, -LDG(ters, ijj*NUM_PARAMS + DELTA));
@@ -310,13 +310,13 @@ static __global__ void find_force_tersoff_step2
     int number_of_particles, int N1, int N2, Box box,
     int num_types, int *g_neighbor_number, int *g_neighbor_list,
     int *g_type, int shift,
-    const real* __restrict__ ters,
-    const real* __restrict__ g_b,
-    const real* __restrict__ g_bp,
-    const real* __restrict__ g_x,
-    const real* __restrict__ g_y,
-    const real* __restrict__ g_z,
-    real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z
+    const double* __restrict__ ters,
+    const double* __restrict__ g_b,
+    const double* __restrict__ g_bp,
+    const double* __restrict__ g_x,
+    const double* __restrict__ g_y,
+    const double* __restrict__ g_z,
+    double *g_potential, double *g_f12x, double *g_f12y, double *g_f12z
 )
 {
     // start from the N1-th atom
@@ -327,38 +327,38 @@ static __global__ void find_force_tersoff_step2
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
-        real pot_energy = ZERO;
+        double x1 = LDG(g_x, n1); double y1 = LDG(g_y, n1); double z1 = LDG(g_z, n1);
+        double pot_energy = ZERO;
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
             int type2 = g_type[n2] - shift;
 
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            real d12inv = ONE / d12;
-            real fc_ijj_12, fcp_ijj_12;
-            real fa_ijj_12, fap_ijj_12, fr_ijj_12, frp_ijj_12;
+            double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            double d12inv = ONE / d12;
+            double fc_ijj_12, fcp_ijj_12;
+            double fa_ijj_12, fap_ijj_12, fr_ijj_12, frp_ijj_12;
             int ijj = type1 * num_types2 + type2 * num_types + type2;
             find_fc_and_fcp(ijj*NUM_PARAMS, ters, d12, fc_ijj_12, fcp_ijj_12);
             find_fa_and_fap(ijj*NUM_PARAMS, ters, d12, fa_ijj_12, fap_ijj_12);
             find_fr_and_frp(ijj*NUM_PARAMS, ters, d12, fr_ijj_12, frp_ijj_12);
 
             // (i,j) part
-            real b12 = LDG(g_b, index);
-            real factor3 = d12inv *
+            double b12 = LDG(g_b, index);
+            double factor3 = d12inv *
             (
                 fcp_ijj_12 * 
                 (fr_ijj_12 - b12 * fa_ijj_12 + LDG(ters, ijj*NUM_PARAMS + C0))
                 + fc_ijj_12 * (frp_ijj_12 - b12 * fap_ijj_12)
             );
-            real f12x = x12 * factor3 * HALF;
-            real f12y = y12 * factor3 * HALF;
-            real f12z = z12 * factor3 * HALF;
+            double f12x = x12 * factor3 * HALF;
+            double f12y = y12 * factor3 * HALF;
+            double f12z = z12 * factor3 * HALF;
 
             // accumulate potential energy
             pot_energy += fc_ijj_12 * HALF *
@@ -367,19 +367,19 @@ static __global__ void find_force_tersoff_step2
             );
 
             // (i,j,k) part
-            real bp12 = LDG(g_bp, index);
+            double bp12 = LDG(g_bp, index);
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int index_2 = n1 + number_of_particles * i2;
                 int n3 = g_neighbor_list[index_2];
                 if (n3 == n2) { continue; }
                 int type3 = g_type[n3] - shift;
-                real x13 = LDG(g_x, n3) - x1;
-                real y13 = LDG(g_y, n3) - y1;
-                real z13 = LDG(g_z, n3) - z1;
+                double x13 = LDG(g_x, n3) - x1;
+                double y13 = LDG(g_y, n3) - y1;
+                double z13 = LDG(g_z, n3) - z1;
                 dev_apply_mic(box, x13, y13, z13);
-                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
-                real fc_ikk_13, fc_ijk_13, fa_ikk_13, fc_ikj_12, fcp_ikj_12;
+                double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+                double fc_ikk_13, fc_ijk_13, fa_ikk_13, fc_ikj_12, fcp_ikj_12;
                 int ikj = type1 * num_types2 + type3 * num_types + type2;
                 int ikk = type1 * num_types2 + type3 * num_types + type3;
                 int ijk = type1 * num_types2 + type2 * num_types + type3;
@@ -388,34 +388,34 @@ static __global__ void find_force_tersoff_step2
                 find_fa(ikk*NUM_PARAMS, ters, d13, fa_ikk_13);
                 find_fc_and_fcp(ikj*NUM_PARAMS, ters, d12,
                                 	fc_ikj_12, fcp_ikj_12);
-                real bp13 = LDG(g_bp, index_2);
-                real one_over_d12d13 = ONE / (d12 * d13);
-                real cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
-                real cos123_over_d12d12 = cos123*d12inv*d12inv;
-                real g_ijk, gp_ijk;
+                double bp13 = LDG(g_bp, index_2);
+                double one_over_d12d13 = ONE / (d12 * d13);
+                double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
+                double cos123_over_d12d12 = cos123*d12inv*d12inv;
+                double g_ijk, gp_ijk;
                 find_g_and_gp(ijk*NUM_PARAMS, ters, cos123, g_ijk, gp_ijk);
 
-                real g_ikj, gp_ikj;
+                double g_ikj, gp_ikj;
                 find_g_and_gp(ikj*NUM_PARAMS, ters, cos123, g_ikj, gp_ikj);
 
                 // exp with d12 - d13
-                real e_ijk_12_13, ep_ijk_12_13;
+                double e_ijk_12_13, ep_ijk_12_13;
                 find_e_and_ep(ijk*NUM_PARAMS, ters, d12, d13,
                                 	e_ijk_12_13, ep_ijk_12_13);
 
                 // exp with d13 - d12
-                real e_ikj_13_12, ep_ikj_13_12;
+                double e_ikj_13_12, ep_ikj_13_12;
                 find_e_and_ep(ikj*NUM_PARAMS, ters, d13, d12,
                                 	e_ikj_13_12, ep_ikj_13_12);
 
                 // derivatives with cosine
-                real dc=-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*gp_ijk*e_ijk_12_13+
+                double dc=-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*gp_ijk*e_ijk_12_13+
                         -fc_ikj_12*bp13*fa_ikk_13*fc_ikk_13*gp_ikj*e_ikj_13_12;
                 // derivatives with rij
-                real dr=(-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*g_ijk*ep_ijk_12_13 +
+                double dr=(-fc_ijj_12*bp12*fa_ijj_12*fc_ijk_13*g_ijk*ep_ijk_12_13 +
                   (-fcp_ikj_12*bp13*fa_ikk_13*g_ikj*e_ikj_13_12 +
                   fc_ikj_12*bp13*fa_ikk_13*g_ikj*ep_ikj_13_12)*fc_ikk_13)*d12inv;
-                real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
+                double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
                 f12x += (x12 * dr + dc * cos_d)*HALF;
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
                 f12y += (y12 * dr + dc * cos_d)*HALF;
@@ -439,17 +439,17 @@ void Tersoff_modc::compute(Atom *atom, Measure *measure, int potential_number)
     int *NN = atom->NN_local;
     int *NL = atom->NL_local;
     int *type = atom->type;
-    real *x = atom->x;
-    real *y = atom->y;
-    real *z = atom->z;
-    real *pe = atom->potential_per_atom;
+    double *x = atom->x;
+    double *y = atom->y;
+    double *z = atom->z;
+    double *pe = atom->potential_per_atom;
 
     // special data for Tersoff potential
-    real *f12x = tersoff_data.f12x;
-    real *f12y = tersoff_data.f12y;
-    real *f12z = tersoff_data.f12z;
-    real *b    = tersoff_data.b;
-    real *bp   = tersoff_data.bp;
+    double *f12x = tersoff_data.f12x;
+    double *f12y = tersoff_data.f12y;
+    double *f12z = tersoff_data.f12z;
+    double *b    = tersoff_data.b;
+    double *bp   = tersoff_data.bp;
 
     // pre-compute the bond order functions and their derivatives
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>

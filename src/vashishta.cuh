@@ -20,20 +20,20 @@
 
 struct Vashishta_Para
 {
-    real B[2], cos0[2], C, r0, rc; real v_rc[3], dv_rc[3];
-    real H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
+    double B[2], cos0[2], C, r0, rc; double v_rc[3], dv_rc[3];
+    double H[3], qq[3], lambda_inv[3], D[3], xi_inv[3], W[3];
     int eta[3];
-    real rmin;
-    real scale;
+    double rmin;
+    double scale;
     int N;
 };
 
 
 struct Vashishta_Data
 {
-    real *f12x;  // partial forces
-    real *f12y;
-    real *f12z;
+    double *f12x;  // partial forces
+    double *f12y;
+    double *f12z;
     int *NN_short; // for three-body part
     int *NL_short; // for three-body part
 };

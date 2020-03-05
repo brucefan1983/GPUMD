@@ -20,27 +20,27 @@
 
 struct Tersoff_mini_Data
 {
-    real *b;     // bond orders
-    real *bp;    // derivative of bond orders
-    real *f12x;  // partial forces
-    real *f12y;
-    real *f12z;
+    double *b;     // bond orders
+    double *bp;    // derivative of bond orders
+    double *f12x;  // partial forces
+    double *f12y;
+    double *f12z;
 };
 
 
 struct Tersoff_mini_Para
 {
-    real a[3];
-    real b[3];
-    real lambda[3];
-    real mu[3];
-    real beta[3];
-    real n[3];
-    real h[3];
-    real r1[3];
-    real r2[3];
-    real pi_factor[3];
-    real minus_half_over_n[3];
+    double a[3];
+    double b[3];
+    double lambda[3];
+    double mu[3];
+    double beta[3];
+    double n[3];
+    double h[3];
+    double r1[3];
+    double r2[3];
+    double pi_factor[3];
+    double minus_half_over_n[3];
 };
 
 

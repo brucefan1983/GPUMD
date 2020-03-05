@@ -20,18 +20,18 @@
 
 struct Tersoff1989_Parameters
 {
-    real a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
-    real pi_factor, one_plus_c2overd2, minus_half_over_n;
+    double a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
+    double pi_factor, one_plus_c2overd2, minus_half_over_n;
 };
 
 
 struct Tersoff1989_Data
 {
-    real *b;     // bond orders
-    real *bp;    // derivative of bond orders
-    real *f12x;  // partial forces
-    real *f12y;
-    real *f12z;
+    double *b;     // bond orders
+    double *bp;    // derivative of bond orders
+    double *f12x;  // partial forces
+    double *f12y;
+    double *f12z;
 };
 
 
