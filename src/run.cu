@@ -148,11 +148,11 @@ static void print_time_and_speed(clock_t time_begin, Atom* atom)
 {
     print_line_1();
     clock_t time_finish = clock();
-    real time_used = (time_finish - time_begin) / (real) CLOCKS_PER_SEC;
+    double time_used = (time_finish - time_begin) / (double) CLOCKS_PER_SEC;
     printf("Number of neighbor list updates = %d.\n",
         atom->neighbor.number_of_updates);
     printf("Time used for this run = %g s.\n", time_used);
-    real run_speed = atom->N * (atom->number_of_steps / time_used);
+    double run_speed = atom->N * (atom->number_of_steps / time_used);
     printf("Speed of this run = %g atom*step/second.\n", run_speed);
     print_line_2();
 }

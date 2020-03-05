@@ -91,12 +91,12 @@ void Measure::dump_thermos
 {
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
-    real *thermo; MY_MALLOC(thermo, real, NUM_OF_PROPERTIES);
-    int m1 = sizeof(real) * NUM_OF_PROPERTIES;
+    double *thermo; MY_MALLOC(thermo, double, NUM_OF_PROPERTIES);
+    int m1 = sizeof(double) * NUM_OF_PROPERTIES;
     CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
     int N_fixed = (integrate->fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[integrate->fixed_group];
-    real energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
+    double energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
     fprintf(fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0],
         energy_kin, thermo[1], thermo[2]*PRESSURE_UNIT_CONVERSION,
         thermo[3]*PRESSURE_UNIT_CONVERSION, thermo[4]*PRESSURE_UNIT_CONVERSION);
@@ -113,7 +113,7 @@ void Measure::dump_velocities(FILE* fid, Atom *atom, int step)
 {
     if (!dump_velocity) return;
     if ((step + 1) % sample_interval_velocity != 0) return;
-    int memory = sizeof(real) * atom->N;
+    int memory = sizeof(double) * atom->N;
     CHECK(cudaMemcpy(atom->cpu_vx, atom->vx, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
@@ -133,7 +133,7 @@ void Measure::dump_restarts(Atom *atom, int step)
 {
     if (!dump_restart) return;
     if ((step + 1) % sample_interval_restart != 0) return;
-    int memory = sizeof(real) * atom->N;
+    int memory = sizeof(double) * atom->N;
     CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
