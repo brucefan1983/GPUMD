@@ -22,13 +22,13 @@ class Potential
 {
 public:
     int N1; int N2;
-    real rc; // maximum cutoff distance
+    double rc; // maximum cutoff distance
     Potential(void);
     virtual ~Potential(void);
     virtual void compute(Atom*, Measure*, int) = 0;
 
 protected:
-    void find_properties_many_body(Atom*, int*, int*, real*, real*, real*);
+    void find_properties_many_body(Atom*, int*, int*, double*, double*, double*);
 };
 
 

@@ -40,12 +40,12 @@ public:
 private:
     FILE* fid;
 
-    real* cpu_group_sum;
-    real* cpu_group_sum_ave;
-    real* gpu_group_sum;
-    real* gpu_per_atom_x;
-    real* gpu_per_atom_y;
-    real* gpu_per_atom_z;
+    double* cpu_group_sum;
+    double* cpu_group_sum_ave;
+    double* gpu_group_sum;
+    double* gpu_per_atom_x;
+    double* gpu_per_atom_y;
+    double* gpu_per_atom_z;
 
     int number_of_scalars = 0;
 

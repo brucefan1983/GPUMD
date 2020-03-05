@@ -38,7 +38,7 @@ public:
     int first_mode;         // first mode to consider
     int last_mode;          // last mode to consider
     int bin_size;           // number of modes per bin
-    real f_bin_size;        // freq. range per bin (THz)
+    double f_bin_size;        // freq. range per bin (THz)
     int f_flag;             // 0 -> modes, 1 -> freq.
     int num_modes;          // total number of modes to consider
     int atom_begin;         // Beginning atom group/type
@@ -57,7 +57,7 @@ public:
     char output_file_position[FILE_NAME_LENGTH];
 
     void preprocess(char*, Atom*);
-    void process(int, Atom*, Integrate*, real);
+    void process(int, Atom*, Integrate*, double);
     void postprocess();
 
 private:

@@ -23,8 +23,8 @@ struct Neighbor
     int MN;                // upper bound of # neighbors for one particle
     int update;            // 1 means you want to update the neighbor list
     int number_of_updates; // number of updates during a run
-    real skin;             // skin distance 
-    real rc;               // cutoff used when building the neighbor list
+    double skin;             // skin distance 
+    double rc;               // cutoff used when building the neighbor list
 
     // some data for the ON1 method
     int* cell_count;

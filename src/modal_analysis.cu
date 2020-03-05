@@ -123,10 +123,10 @@ static __global__ void gpu_reduce_xdotn
 static __global__ void gpu_calc_xdotn
 (
         int num_participating, int N1, int N2, int num_modes,
-        const real* __restrict__ g_vx,
-        const real* __restrict__ g_vy,
-        const real* __restrict__ g_vz,
-        const real* __restrict__ g_mass,
+        const double* __restrict__ g_vx,
+        const double* __restrict__ g_vy,
+        const double* __restrict__ g_vz,
+        const double* __restrict__ g_mass,
         const float* __restrict__ g_eig,
         float* g_xdotn
 )
@@ -259,16 +259,16 @@ static __global__ void gpu_bin_frequencies
 static __global__ void gpu_set_jmn
 (
     int num_participating, int N1, int N2,
-    const real* __restrict__ sxx,
-    const real* __restrict__ sxy,
-    const real* __restrict__ sxz,
-    const real* __restrict__ syx,
-    const real* __restrict__ syy,
-    const real* __restrict__ syz,
-    const real* __restrict__ szx,
-    const real* __restrict__ szy,
-    const real* __restrict__ szz,
-    const real* __restrict__ g_mass,
+    const double* __restrict__ sxx,
+    const double* __restrict__ sxy,
+    const double* __restrict__ sxz,
+    const double* __restrict__ syx,
+    const double* __restrict__ syy,
+    const double* __restrict__ syz,
+    const double* __restrict__ szx,
+    const double* __restrict__ szy,
+    const double* __restrict__ szz,
+    const double* __restrict__ g_mass,
     const float* __restrict__ g_eig,
     const float* __restrict__ g_xdot,
     float* g_jmn,
@@ -315,16 +315,16 @@ static __global__ void gpu_set_jmn
 static __global__ void gpu_accumulate_jmn
 (
     int num_participating, int N1, int N2,
-    const real* __restrict__ sxx,
-    const real* __restrict__ sxy,
-    const real* __restrict__ sxz,
-    const real* __restrict__ syx,
-    const real* __restrict__ syy,
-    const real* __restrict__ syz,
-    const real* __restrict__ szx,
-    const real* __restrict__ szy,
-    const real* __restrict__ szz,
-    const real* __restrict__ g_mass,
+    const double* __restrict__ sxx,
+    const double* __restrict__ sxy,
+    const double* __restrict__ sxz,
+    const double* __restrict__ syx,
+    const double* __restrict__ syy,
+    const double* __restrict__ syz,
+    const double* __restrict__ szx,
+    const double* __restrict__ szy,
+    const double* __restrict__ szz,
+    const double* __restrict__ g_mass,
     const float* __restrict__ g_eig,
     const float* __restrict__ g_xdot,
     float* g_jmn,
@@ -546,18 +546,18 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         // Setup binning
         if (f_flag)
         {
-            real *f;
-            CHECK(cudaMallocManaged((void **)&f, sizeof(real)*num_modes));
+            double *f;
+            CHECK(cudaMallocManaged((void **)&f, sizeof(double)*num_modes));
             getline(eigfile, val);
             std::stringstream ss(val);
             for (int i=0; i<first_mode-1; i++) { ss >> f[0]; }
-            real temp;
+            double temp;
             for (int i=0; i<num_modes; i++)
             {
                 ss >> temp;
                 f[i] = copysign(sqrt(abs(temp))/(2.0*PI), temp);
             }
-            real fmax, fmin; // freq are in ascending order in file
+            double fmax, fmin; // freq are in ascending order in file
             int shift;
             fmax = (floor(abs(f[num_modes-1])/f_bin_size)+1)*f_bin_size;
             fmin = floor(abs(f[0])/f_bin_size)*f_bin_size;
@@ -644,7 +644,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         }
 }
 
-void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, real fe)
+void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double fe)
 {
     if (!compute) return;
     if (!((step+1) % sample_interval == 0)) return;

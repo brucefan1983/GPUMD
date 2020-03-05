@@ -230,13 +230,13 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
     MY_MALLOC(cpu_type, int, N);
-    MY_MALLOC(cpu_mass, real, N);
-    MY_MALLOC(cpu_x, real, N);
-    MY_MALLOC(cpu_y, real, N);
-    MY_MALLOC(cpu_z, real, N);
-    MY_MALLOC(cpu_vx, real, N);
-    MY_MALLOC(cpu_vy, real, N);
-    MY_MALLOC(cpu_vz, real, N);
+    MY_MALLOC(cpu_mass, double, N);
+    MY_MALLOC(cpu_x, double, N);
+    MY_MALLOC(cpu_y, double, N);
+    MY_MALLOC(cpu_z, double, N);
+    MY_MALLOC(cpu_vx, double, N);
+    MY_MALLOC(cpu_vy, double, N);
+    MY_MALLOC(cpu_vz, double, N);
     number_of_types = -1;
 
     for (int m = 0; m < num_of_grouping_methods; ++m)
@@ -416,7 +416,7 @@ void Atom::allocate_memory_gpu(void)
 {
     int m1 = sizeof(int) * N;
     int m2 = m1 * neighbor.MN;
-    int m4 = sizeof(real) * N;
+    int m4 = sizeof(double) * N;
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
     CHECK(cudaMalloc((void**)&NN, m1));
     CHECK(cudaMalloc((void**)&NL, m2));
@@ -452,14 +452,14 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&virial_per_atom,  m4 * 9));
     CHECK(cudaMalloc((void**)&potential_per_atom, m4));
     CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
-    CHECK(cudaMalloc((void**)&thermo, sizeof(real) * 6));
+    CHECK(cudaMalloc((void**)&thermo, sizeof(double) * 6));
 }
 
 
 void Atom::copy_from_cpu_to_gpu(void)
 {
     int m1 = sizeof(int) * N;
-    int m3 = sizeof(real) * N;
+    int m3 = sizeof(double) * N;
     CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
@@ -587,7 +587,7 @@ void Atom::parse_run(char **param, int num_param)
 }
 
 
-void Atom::parse_neighbor(char **param, int num_param, real force_rc_max)
+void Atom::parse_neighbor(char **param, int num_param, double force_rc_max)
 {
     neighbor.update = 1;
 

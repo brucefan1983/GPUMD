@@ -21,8 +21,8 @@
 class Ensemble_NHC : public Ensemble
 {
 public:
-    Ensemble_NHC(int, int, int, real, real, real);   
-    Ensemble_NHC(int, int, int, int, int, int, real, real, real, real); 
+    Ensemble_NHC(int, int, int, double, double, double);   
+    Ensemble_NHC(int, int, int, int, int, int, double, double, double, double); 
     virtual ~Ensemble_NHC(void);
     virtual void compute(Atom*, Force*, Measure*);
 protected:

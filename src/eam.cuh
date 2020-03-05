@@ -20,21 +20,21 @@
 
 struct EAM2004Zhou
 {
-    real re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
-    real Fn0, Fn1, Fn2, Fn3, F0, F1, F2, F3, eta, Fe;
-    real rc; // chosen by the user?
+    double re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
+    double Fn0, Fn1, Fn2, Fn3, F0, F1, F2, F3, eta, Fe;
+    double rc; // chosen by the user?
 };
 
 
 struct EAM2006Dai
 {
-    real A, d, c, c0, c1, c2, c3, c4, B, rc;
+    double A, d, c, c0, c1, c2, c3, c4, B, rc;
 };
 
 
 struct EAM_Data
 {
-    real *Fp;    // derivative of the density functional
+    double *Fp;    // derivative of the density functional
 };
 
 

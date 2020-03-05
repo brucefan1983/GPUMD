@@ -30,35 +30,35 @@ public:
     int source;
     int sink;
     int fixed_group;   // ID of the group in which the atoms will be fixed 
-    real temperature;  // target temperature at a specific time 
-    real delta_temperature;
-    real pressure_x;   // target pressure at a specific time
-    real pressure_y;   
-    real pressure_z; 
-    real temperature_coupling;
-    real pressure_coupling;  
+    double temperature;  // target temperature at a specific time 
+    double delta_temperature;
+    double pressure_x;   // target pressure at a specific time
+    double pressure_y;   
+    double pressure_z; 
+    double temperature_coupling;
+    double pressure_coupling;  
     int deform_x = 0;
     int deform_y = 0;
     int deform_z = 0;
-    real deform_rate;
+    double deform_rate;
 
-    real energy_transferred[2]; // energy transferred from system to heat baths
+    double energy_transferred[2]; // energy transferred from system to heat baths
     
-    real mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    real pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    real vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    real mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-    real pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-    real vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+    double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+    double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+    double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+    double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+    double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+    double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 
 protected:
     void velocity_verlet_1(Atom*);
     void velocity_verlet_2(Atom*);
     void velocity_verlet(Atom*, Force*, Measure*);
     void find_thermo(Atom*);
-    void scale_velocity_global(Atom* atom, real);
-    void find_vc_and_ke(Atom*, real*, real*, real*, real*);
-    void scale_velocity_local(Atom*, real, real, real*, real*, real*, real*);
+    void scale_velocity_global(Atom* atom, double);
+    void find_vc_and_ke(Atom*, double*, double*, double*, double*);
+    void scale_velocity_local(Atom*, double, double, double*, double*, double*, double*);
 };
 
 

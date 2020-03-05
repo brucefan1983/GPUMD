@@ -23,9 +23,9 @@
 
 struct LJ_Para
 {
-    real s6e4[MAX_TYPE][MAX_TYPE];
-    real s12e4[MAX_TYPE][MAX_TYPE];
-    real cutoff_square[MAX_TYPE][MAX_TYPE];
+    double s6e4[MAX_TYPE][MAX_TYPE];
+    double s12e4[MAX_TYPE][MAX_TYPE];
+    double cutoff_square[MAX_TYPE][MAX_TYPE];
 };
 
 class LJ : public Potential

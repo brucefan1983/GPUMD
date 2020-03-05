@@ -39,7 +39,7 @@ static __global__ void initialize_curand_states(curandState *state, int N)
 }
 
 
-Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, real T, real Tc)
+Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, double T, double Tc)
 {
     type = t;
     fixed_group = fg;
@@ -57,7 +57,7 @@ Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, real T, real Tc)
 Ensemble_LAN::Ensemble_LAN
 (
     int t, int fg, int source_input, int sink_input, int source_size, 
-    int sink_size, int source_offset, int sink_offset, real T, real Tc, real dT
+    int sink_size, int source_offset, int sink_offset, double T, double Tc, double dT
 )
 {
     type = t;
@@ -108,15 +108,15 @@ Ensemble_LAN::~Ensemble_LAN(void)
 // global Langevin thermostatting
 static __global__ void gpu_langevin
 (
-    curandState *g_state, int N, real c1, real c2, real *g_mass, 
-    real *g_vx, real *g_vy, real *g_vz
+    curandState *g_state, int N, double c1, double c2, double *g_mass, 
+    double *g_vx, double *g_vy, double *g_vz
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
     {
         curandState state = g_state[n];
-        real c2m = c2 * sqrt(ONE / g_mass[n]);
+        double c2m = c2 * sqrt(ONE / g_mass[n]);
         g_vx[n] = c1 * g_vx[n] + c2m * CURAND_NORMAL(&state);
         g_vy[n] = c1 * g_vy[n] + c2m * CURAND_NORMAL(&state);
         g_vz[n] = c1 * g_vz[n] + c2m * CURAND_NORMAL(&state);
@@ -139,7 +139,7 @@ void Ensemble_LAN::integrate_nvt_lan_half(Atom *atom)
 static __global__ void gpu_langevin
 (
     curandState *g_state, int N, int offset, int *g_group_contents,
-    real c1, real c2, real *g_mass, real *g_vx, real *g_vy, real *g_vz
+    double c1, double c2, double *g_mass, double *g_vx, double *g_vy, double *g_vz
 )
 {
     int m = blockIdx.x * blockDim.x + threadIdx.x;
@@ -147,7 +147,7 @@ static __global__ void gpu_langevin
     {
         curandState state = g_state[m];
         int n = g_group_contents[offset + m];
-        real c2m = c2 * sqrt(ONE / g_mass[n]);
+        double c2m = c2 * sqrt(ONE / g_mass[n]);
         g_vx[n] = c1 * g_vx[n] + c2m * CURAND_NORMAL(&state);
         g_vy[n] = c1 * g_vy[n] + c2m * CURAND_NORMAL(&state);
         g_vz[n] = c1 * g_vz[n] + c2m * CURAND_NORMAL(&state);
@@ -160,7 +160,7 @@ static __global__ void gpu_langevin
 static __global__ void find_ke
 (
     int  *g_group_size, int  *g_group_size_sum, int  *g_group_contents,
-    real *g_mass, real *g_vx, real *g_vy, real *g_vz, real *g_ke
+    double *g_mass, double *g_vx, double *g_vy, double *g_vz, double *g_ke
 )
 {
     //<<<number_of_groups, 512>>>
@@ -169,7 +169,7 @@ static __global__ void find_ke
     int group_size = g_group_size[bid];
     int offset = g_group_size_sum[bid];
     int number_of_patches = (group_size - 1) / 512 + 1; 
-    __shared__ real s_ke[512]; // relative kinetic energy
+    __shared__ double s_ke[512]; // relative kinetic energy
     s_ke[tid] = ZERO;
     for (int patch = 0; patch < number_of_patches; ++patch)
     { 
@@ -177,10 +177,10 @@ static __global__ void find_ke
         if (n < group_size)
         {  
             int index = g_group_contents[offset + n];     
-            real mass = g_mass[index];
-            real vx = g_vx[index];
-            real vy = g_vy[index];
-            real vz = g_vz[index];
+            double mass = g_mass[index];
+            double vx = g_vx[index];
+            double vy = g_vy[index];
+            double vz = g_vz[index];
             s_ke[tid] += (vx * vx + vy * vy + vz * vz) * mass;
         }
     }
@@ -202,16 +202,16 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
     int *group_size      = atom->group[0].size;
     int *group_size_sum  = atom->group[0].size_sum;
     int *group_contents  = atom->group[0].contents;
-    real *mass = atom->mass;
-    real *vx = atom->vx; real *vy = atom->vy; real *vz = atom->vz;
+    double *mass = atom->mass;
+    double *vx = atom->vx; double *vy = atom->vy; double *vz = atom->vz;
     int Ng = atom->group[0].number;
 
-    real *ek2; MY_MALLOC(ek2, real, sizeof(real) * Ng);
-    real *ke; CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
+    double *ek2; MY_MALLOC(ek2, double, sizeof(double) * Ng);
+    double *ke; CHECK(cudaMalloc((void**)&ke, sizeof(double) * Ng));
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
     CUDA_CHECK_KERNEL
-    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[source] * 0.5;
     energy_transferred[1] += ek2[sink] * 0.5;
     gpu_langevin<<<(N_source - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -229,7 +229,7 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
     CUDA_CHECK_KERNEL
-    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[source] * 0.5;
     energy_transferred[1] -= ek2[sink] * 0.5;
     MY_FREE(ek2); CHECK(cudaFree(ke));

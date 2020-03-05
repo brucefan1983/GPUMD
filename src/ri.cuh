@@ -18,11 +18,11 @@
 
 struct RI_Para
 {
-    real a11, b11, c11, qq11;
-    real a22, b22, c22, qq22;
-    real a12, b12, c12, qq12;
-    real v_rc, dv_rc; // potential and its derivative at the cutoff distance
-    real cutoff;
+    double a11, b11, c11, qq11;
+    double a22, b22, c22, qq22;
+    double a12, b12, c12, qq12;
+    double v_rc, dv_rc; // potential and its derivative at the cutoff distance
+    double cutoff;
 };
 
 class RI : public Potential

@@ -32,7 +32,7 @@ public:
 
 private:
     void find_hac_kappa(char*, Atom*, Integrate*);
-    real *heat_all;
+    double *heat_all;
 };
 
 

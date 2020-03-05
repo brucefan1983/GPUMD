@@ -21,8 +21,8 @@
 class Hessian
 {
 public:
-    real displacement = 0.005;
-    real cutoff = 4.0;
+    double displacement = 0.005;
+    double cutoff = 4.0;
     void compute(char*, Atom*, Force*, Measure*);
     void parse_cutoff(char**, size_t);
     void parse_delta(char**, size_t);
@@ -34,20 +34,20 @@ protected:
 
     size_t* basis;
     size_t* label;
-    real* mass;
-    real* kpoints;
-    real* H;
-    real* DR;
-    real* DI;
+    double* mass;
+    double* kpoints;
+    double* H;
+    double* DR;
+    double* DI;
 
-    void shift_atom(real, size_t, size_t, Atom*);
-    void get_f(real, size_t, size_t, size_t, Atom*, Force*, Measure*, real*);
+    void shift_atom(double, size_t, size_t, Atom*);
+    void get_f(double, size_t, size_t, size_t, Atom*, Force*, Measure*, double*);
     void read_basis(char*, size_t N);
     void read_kpoints(char*);
     void initialize(char*, size_t);
     void finalize(void);
     void find_H(Atom*, Force*, Measure*);
-    void find_H12(size_t, size_t, Atom*, Force*, Measure*, real*);
+    void find_H12(size_t, size_t, Atom*, Force*, Measure*, double*);
     bool is_too_far(size_t, size_t, Atom*);
     void find_dispersion(char*, Atom*);
     void find_D(Atom*);

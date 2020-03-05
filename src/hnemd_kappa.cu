@@ -35,16 +35,16 @@ void HNEMD::preprocess(Atom *atom)
 {
     if (!compute) return;
     int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-    CHECK(cudaMalloc((void**)&heat_all, sizeof(real) * num));
+    CHECK(cudaMalloc((void**)&heat_all, sizeof(double) * num));
 }
 
 
 // calculate the per-atom heat current 
 static __global__ void gpu_get_peratom_heat
 (
-    int N, real *sxx, real *sxy, real *sxz, real *syx, real *syy, real *syz,
-    real *szx, real *szy, real *szz, real *vx, real *vy, real *vz, 
-    real *jx_in, real *jx_out, real *jy_in, real *jy_out, real *jz
+    int N, double *sxx, double *sxy, double *sxz, double *syx, double *syy, double *syz,
+    double *szx, double *szy, double *szz, double *vx, double *vy, double *vz, 
+    double *jx_in, double *jx_out, double *jy_in, double *jy_out, double *jz
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -60,13 +60,13 @@ static __global__ void gpu_get_peratom_heat
 
 
 static __global__ void gpu_sum_heat
-(int N, int step, real *g_heat, real *g_heat_sum)
+(int N, int step, double *g_heat, double *g_heat_sum)
 {
     // <<<5, 1024>>> 
     int tid = threadIdx.x; 
     int bid = blockIdx.x;
     int number_of_patches = (N - 1) / 1024 + 1;
-    __shared__ real s_data[1024];  
+    __shared__ double s_data[1024];  
     s_data[tid] = ZERO;
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
@@ -124,12 +124,12 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
     if (output_flag)
     {
         int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-        int mem = sizeof(real) * num;
-        real volume = atom->box.get_volume();
-        real *heat_cpu;
-        MY_MALLOC(heat_cpu, real, num);
+        int mem = sizeof(double) * num;
+        double volume = atom->box.get_volume();
+        double *heat_cpu;
+        MY_MALLOC(heat_cpu, double, num);
         CHECK(cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost));
-        real kappa[NUM_OF_HEAT_COMPONENTS];
+        double kappa[NUM_OF_HEAT_COMPONENTS];
         for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
         {
             kappa[n] = ZERO;
@@ -141,7 +141,7 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
                 kappa[n] += heat_cpu[m * NUM_OF_HEAT_COMPONENTS + n];
             }
         }
-        real factor = KAPPA_UNIT_CONVERSION / output_interval;
+        double factor = KAPPA_UNIT_CONVERSION / output_interval;
         factor /= (volume * integrate->ensemble->temperature * fe);
 
         char file_kappa[FILE_NAME_LENGTH];

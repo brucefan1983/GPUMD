@@ -39,7 +39,7 @@ static double gasdev();
 static double gamdev(const int ia);
 
 
-Ensemble_BDP::Ensemble_BDP(int t, int fg, real T, real Tc)
+Ensemble_BDP::Ensemble_BDP(int t, int fg, double T, double Tc)
 {
     type = t;
     fixed_group = fg;
@@ -49,7 +49,7 @@ Ensemble_BDP::Ensemble_BDP(int t, int fg, real T, real Tc)
 
 
 Ensemble_BDP::Ensemble_BDP
-(int t, int fg, int source_input, int sink_input, real T, real Tc, real dT)
+(int t, int fg, int source_input, int sink_input, double T, double Tc, double dT)
 {
     type = t;
     fixed_group = fg;
@@ -73,7 +73,7 @@ Ensemble_BDP::~Ensemble_BDP(void)
 void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
 {
     int N = atom->N;
-    real *thermo = atom->thermo;
+    double *thermo = atom->thermo;
 
     // standard velocity-Verlet
     velocity_verlet(atom, force, measure);
@@ -84,13 +84,13 @@ void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
     find_thermo(atom);
 
     // re-scale the velocities
-    real *ek;
-    MY_MALLOC(ek, real, sizeof(real) * 1);
-    CHECK(cudaMemcpy(ek, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
+    double *ek;
+    MY_MALLOC(ek, double, sizeof(double) * 1);
+    CHECK(cudaMemcpy(ek, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
     int ndeg = 3 * (N - N_fixed);
     ek[0] *= ndeg * K_B * 0.5; // from temperature to kinetic energy
-    real sigma = ndeg * K_B * temperature * 0.5;
-    real factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
+    double sigma = ndeg * K_B * temperature * 0.5;
+    double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
     factor = sqrt(factor / ek[0]);
     MY_FREE(ek);
     scale_velocity_global(atom, factor);
@@ -105,35 +105,35 @@ void Ensemble_BDP::integrate_heat_bdp
     int label_2 = sink;
     int Ng = atom->group[0].number;
 
-    real kT1 = K_B * (temperature + delta_temperature); 
-    real kT2 = K_B * (temperature - delta_temperature); 
-    real dN1 = (real) DIM * (atom->group[0].cpu_size[source] - 1);
-    real dN2 = (real) DIM * (atom->group[0].cpu_size[sink] - 1);
-    real sigma_1 = dN1 * kT1 * 0.5;
-    real sigma_2 = dN2 * kT2 * 0.5;
+    double kT1 = K_B * (temperature + delta_temperature); 
+    double kT2 = K_B * (temperature - delta_temperature); 
+    double dN1 = (double) DIM * (atom->group[0].cpu_size[source] - 1);
+    double dN2 = (double) DIM * (atom->group[0].cpu_size[sink] - 1);
+    double sigma_1 = dN1 * kT1 * 0.5;
+    double sigma_2 = dN2 * kT2 * 0.5;
 
     // allocate some memory (to be improved)
-    real *ek;
-    MY_MALLOC(ek, real, sizeof(real) * Ng);
-    real *vcx, *vcy, *vcz, *ke;
-    CHECK(cudaMalloc((void**)&vcx, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&vcy, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&vcz, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
+    double *ek;
+    MY_MALLOC(ek, double, sizeof(double) * Ng);
+    double *vcx, *vcy, *vcz, *ke;
+    CHECK(cudaMalloc((void**)&vcx, sizeof(double) * Ng));
+    CHECK(cudaMalloc((void**)&vcy, sizeof(double) * Ng));
+    CHECK(cudaMalloc((void**)&vcz, sizeof(double) * Ng));
+    CHECK(cudaMalloc((void**)&ke, sizeof(double) * Ng));
 
     // veloicty-Verlet
     velocity_verlet(atom, force, measure);
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     ek[label_1] *= 0.5;
     ek[label_2] *= 0.5;
 
     // get the re-scaling factors
-    real factor_1 
+    double factor_1 
         = resamplekin(ek[label_1], sigma_1, dN1, temperature_coupling);
-    real factor_2 
+    double factor_2 
         = resamplekin(ek[label_2], sigma_2, dN2, temperature_coupling);
     factor_1 = sqrt(factor_1 / ek[label_1]);
     factor_2 = sqrt(factor_2 / ek[label_2]);

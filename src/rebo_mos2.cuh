@@ -20,13 +20,13 @@
 
 struct REBO_MOS_Data
 {
-    real *b;     // bond-order function
-    real *bp;
-    real *p;     // coordination function
-    real *pp;
-    real *f12x;  // partial forces
-    real *f12y;
-    real *f12z;
+    double *b;     // bond-order function
+    double *bp;
+    double *p;     // coordination function
+    double *pp;
+    double *f12x;  // partial forces
+    double *f12y;
+    double *f12z;
     int *NN_short; // for many-body part
     int *NL_short; // for many-body part
 };

@@ -45,7 +45,7 @@ EAM::EAM(FILE *fid, Atom* atom, char *name)
     if (strcmp(name, "eam_dai_2006") == 0)    initialize_eam2006dai(fid);
 
     // memory for the derivative of the density functional 
-    CHECK(cudaMalloc((void**)&eam_data.Fp, sizeof(real) * atom->N));
+    CHECK(cudaMalloc((void**)&eam_data.Fp, sizeof(double) * atom->N));
 }
 
 
@@ -122,17 +122,17 @@ EAM::~EAM(void)
 
 // pair function (phi and phip have been intentionally halved here)
 static __device__ void find_phi
-(EAM2004Zhou eam, real d12, real &phi, real &phip)
+(EAM2004Zhou eam, double d12, double &phi, double &phip)
 {
-    real r_ratio = d12 / eam.re;
-    real tmp1 = (r_ratio - eam.kappa) * (r_ratio - eam.kappa); // 2
+    double r_ratio = d12 / eam.re;
+    double tmp1 = (r_ratio - eam.kappa) * (r_ratio - eam.kappa); // 2
     tmp1 *= tmp1; // 4
     tmp1 *= tmp1 * tmp1 * tmp1 * tmp1; // 20
-    real tmp2 = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
+    double tmp2 = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
     tmp2 *= tmp2; // 4
     tmp2 *= tmp2 * tmp2 * tmp2 * tmp2; // 20    
-    real phi1 = HALF * eam.A * exp(-eam.alpha * (r_ratio - ONE)) / (ONE + tmp1);
-    real phi2 = HALF * eam.B * exp( -eam.beta * (r_ratio - ONE)) / (ONE + tmp2);
+    double phi1 = HALF * eam.A * exp(-eam.alpha * (r_ratio - ONE)) / (ONE + tmp1);
+    double phi2 = HALF * eam.B * exp( -eam.beta * (r_ratio - ONE)) / (ONE + tmp2);
     phi = phi1 - phi2;
     phip = (phi2/eam.re)*(eam.beta+20.0*tmp2/(r_ratio-eam.lambda)/(ONE+tmp2))
          - (phi1/eam.re)*(eam.alpha+20.0*tmp1/(r_ratio-eam.kappa)/(ONE+tmp1));
@@ -140,10 +140,10 @@ static __device__ void find_phi
 
 
 // density function f(r)
-static __device__ void find_f(EAM2004Zhou eam, real d12, real &f)
+static __device__ void find_f(EAM2004Zhou eam, double d12, double &f)
 {
-    real r_ratio = d12 / eam.re;
-    real tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
+    double r_ratio = d12 / eam.re;
+    double tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
     tmp *= tmp; // 4
     tmp *= tmp * tmp * tmp * tmp; // 20  
     f = eam.fe * exp(-eam.beta * (r_ratio - ONE)) / (ONE + tmp);
@@ -151,36 +151,36 @@ static __device__ void find_f(EAM2004Zhou eam, real d12, real &f)
 
 
 // derivative of the density function f'(r)
-static __device__ void find_fp(EAM2004Zhou eam, real d12, real &fp)
+static __device__ void find_fp(EAM2004Zhou eam, double d12, double &fp)
 {
-    real r_ratio = d12 / eam.re; 
-    real tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
+    double r_ratio = d12 / eam.re; 
+    double tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
     tmp *= tmp; // 4
     tmp *= tmp * tmp * tmp * tmp; // 20  
-    real f = eam.fe * exp(-eam.beta * (r_ratio - ONE)) / (ONE + tmp);
+    double f = eam.fe * exp(-eam.beta * (r_ratio - ONE)) / (ONE + tmp);
     fp = -(f/eam.re)*(eam.beta+20.0*tmp/(r_ratio-eam.lambda)/(ONE+tmp));
 }
 
 
 // embedding function
-static __device__ void find_F(EAM2004Zhou eam, real rho, real &F, real &Fp)
+static __device__ void find_F(EAM2004Zhou eam, double rho, double &F, double &Fp)
 {      
     if (rho < eam.rho_n)
     {
-        real x = rho / eam.rho_n - ONE;
+        double x = rho / eam.rho_n - ONE;
         F = ((eam.Fn3 * x + eam.Fn2) * x + eam.Fn1) * x + eam.Fn0;
         Fp = ((THREE * eam.Fn3 * x + TWO * eam.Fn2) * x + eam.Fn1) / eam.rho_n;
     }
     else if (rho < eam.rho_0)
     {
-        real x = rho / eam.rho_e - ONE;
+        double x = rho / eam.rho_e - ONE;
         F = ((eam.F3 * x + eam.F2) * x + eam.F1) * x + eam.F0;
         Fp = ((THREE * eam.F3 * x + TWO * eam.F2) * x + eam.F1) / eam.rho_e;
     }
     else
     {
-        real x = rho / eam.rho_s;
-        real x_eta = pow(x, eam.eta);
+        double x = rho / eam.rho_s;
+        double x_eta = pow(x, eam.eta);
         F = eam.Fe * (ONE - eam.eta * log(x)) * x_eta;
         Fp = (eam.eta / rho) * (F - eam.Fe * x_eta);
     }
@@ -188,7 +188,7 @@ static __device__ void find_F(EAM2004Zhou eam, real rho, real &F, real &Fp)
 
 
 // pair function (phi and phip have been intentionally halved here)
-static __device__ void find_phi(EAM2006Dai fs, real d12, real &phi, real &phip)
+static __device__ void find_phi(EAM2006Dai fs, double d12, double &phi, double &phip)
 {
     if (d12 > fs.c)
     {
@@ -197,7 +197,7 @@ static __device__ void find_phi(EAM2006Dai fs, real d12, real &phi, real &phip)
     }
     else
     {
-        real tmp=((((fs.c4*d12 + fs.c3)*d12 + fs.c2)*d12 + fs.c1)*d12 + fs.c0);
+        double tmp=((((fs.c4*d12 + fs.c3)*d12 + fs.c2)*d12 + fs.c1)*d12 + fs.c0);
         
         phi = HALF * (d12 - fs.c) * (d12 - fs.c) * tmp;
         
@@ -210,7 +210,7 @@ static __device__ void find_phi(EAM2006Dai fs, real d12, real &phi, real &phip)
 
 
 // density function f(r)
-static __device__ void find_f(EAM2006Dai fs, real d12, real &f)
+static __device__ void find_f(EAM2006Dai fs, double d12, double &f)
 {
     if (d12 > fs.d)
     {
@@ -218,14 +218,14 @@ static __device__ void find_f(EAM2006Dai fs, real d12, real &f)
     }
     else
     {
-        real tmp = (d12 - fs.d) * (d12 - fs.d);
+        double tmp = (d12 - fs.d) * (d12 - fs.d);
         f = tmp  + fs.B * fs.B * tmp * tmp;
     }
 }
 
 
 // derivative of the density function f'(r)
-static __device__ void find_fp(EAM2006Dai fs, real d12, real &fp)
+static __device__ void find_fp(EAM2006Dai fs, double d12, double &fp)
 {
     if (d12 > fs.d)
     {
@@ -233,16 +233,16 @@ static __device__ void find_fp(EAM2006Dai fs, real d12, real &fp)
     }
     else 
     {
-        real tmp = TWO * (d12 - fs.d);
+        double tmp = TWO * (d12 - fs.d);
         fp = tmp * (ONE + fs.B * fs.B * tmp * (d12 - fs.d));
     }
 }
 
 
 // embedding function
-static __device__ void find_F(EAM2006Dai fs, real rho, real &F, real &Fp)
+static __device__ void find_F(EAM2006Dai fs, double rho, double &F, double &Fp)
 {      
-    real sqrt_rho = sqrt(rho);
+    double sqrt_rho = sqrt(rho);
     F = -fs.A * sqrt_rho;
     Fp = -fs.A * HALF / sqrt_rho;
 }
@@ -255,10 +255,10 @@ static __global__ void find_force_eam_step1
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai, 
     int N, int N1, int N2, Box box, 
     int* g_NN, int* g_NL,
-    const real* __restrict__ g_x, 
-    const real* __restrict__ g_y, 
-    const real* __restrict__ g_z, 
-    real* g_Fp, real* g_pe 
+    const double* __restrict__ g_x, 
+    const double* __restrict__ g_y, 
+    const double* __restrict__ g_z, 
+    double* g_Fp, double* g_pe 
 )
 { 
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -267,21 +267,21 @@ static __global__ void find_force_eam_step1
     {
         int NN = g_NN[n1];
            
-        real x1 = LDG(g_x, n1); 
-        real y1 = LDG(g_y, n1); 
-        real z1 = LDG(g_z, n1);
+        double x1 = LDG(g_x, n1); 
+        double y1 = LDG(g_y, n1); 
+        double z1 = LDG(g_z, n1);
           
         // Calculate the density
-        real rho = ZERO;
+        double rho = ZERO;
         for (int i1 = 0; i1 < NN; ++i1)
         {      
             int n2 = g_NL[n1 + N * i1];
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
-            real rho12 = ZERO;
+            double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
+            double rho12 = ZERO;
             if (potential_model == 0) 
             {
                 find_f(eam2004zhou, d12, rho12);
@@ -294,7 +294,7 @@ static __global__ void find_force_eam_step1
         }
         
         // Calculate the embedding energy F and its derivative Fp
-        real F, Fp;
+        double F, Fp;
         if (potential_model == 0) find_F(eam2004zhou, rho, F, Fp);
         if (potential_model == 1) find_F(eam2006dai, rho, F, Fp);
 
@@ -311,51 +311,51 @@ static __global__ void find_force_eam_step2
     EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
     int N, int N1, int N2, Box box, 
     int *g_NN, int *g_NL,
-    const real* __restrict__ g_Fp, 
-    const real* __restrict__ g_x, 
-    const real* __restrict__ g_y, 
-    const real* __restrict__ g_z, 
-    const real* __restrict__ g_vx, 
-    const real* __restrict__ g_vy, 
-    const real* __restrict__ g_vz,
-    real *g_fx, real *g_fy, real *g_fz,
-    real *g_virial, real *g_pe
+    const double* __restrict__ g_Fp, 
+    const double* __restrict__ g_x, 
+    const double* __restrict__ g_y, 
+    const double* __restrict__ g_z, 
+    const double* __restrict__ g_vx, 
+    const double* __restrict__ g_vy, 
+    const double* __restrict__ g_vz,
+    double *g_fx, double *g_fy, double *g_fz,
+    double *g_virial, double *g_pe
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    real s_fx = ZERO; // force_x
-    real s_fy = ZERO; // force_y
-    real s_fz = ZERO; // force_z
-    real s_pe = ZERO; // potential energy
-    real s_sxx = ZERO; // virial_stress_xx
-    real s_sxy = ZERO; // virial_stress_xy
-    real s_sxz = ZERO; // virial_stress_xz
-    real s_syx = ZERO; // virial_stress_yx
-    real s_syy = ZERO; // virial_stress_yy
-    real s_syz = ZERO; // virial_stress_yz
-    real s_szx = ZERO; // virial_stress_zx
-    real s_szy = ZERO; // virial_stress_zy
-    real s_szz = ZERO; // virial_stress_zz
+    double s_fx = ZERO; // force_x
+    double s_fy = ZERO; // force_y
+    double s_fz = ZERO; // force_z
+    double s_pe = ZERO; // potential energy
+    double s_sxx = ZERO; // virial_stress_xx
+    double s_sxy = ZERO; // virial_stress_xy
+    double s_sxz = ZERO; // virial_stress_xz
+    double s_syx = ZERO; // virial_stress_yx
+    double s_syy = ZERO; // virial_stress_yy
+    double s_syz = ZERO; // virial_stress_yz
+    double s_szx = ZERO; // virial_stress_zx
+    double s_szy = ZERO; // virial_stress_zy
+    double s_szz = ZERO; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {  
         int NN = g_NN[n1];        
-        real x1 = LDG(g_x, n1); 
-        real y1 = LDG(g_y, n1); 
-        real z1 = LDG(g_z, n1);
-        real Fp1 = LDG(g_Fp, n1);
+        double x1 = LDG(g_x, n1); 
+        double y1 = LDG(g_y, n1); 
+        double z1 = LDG(g_z, n1);
+        double Fp1 = LDG(g_Fp, n1);
 
         for (int i1 = 0; i1 < NN; ++i1)
         {   
             int n2 = g_NL[n1 + N * i1];
-            real Fp2 = LDG(g_Fp, n2);
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double Fp2 = LDG(g_Fp, n2);
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         
-            real phi, phip, fp;
+            double phi, phip, fp;
             if (potential_model == 0) 
             {
                 find_phi(eam2004zhou, d12, phi, phip);
@@ -368,12 +368,12 @@ static __global__ void find_force_eam_step2
             }
             phip /= d12;
             fp   /= d12;
-            real f12x =  x12 * (phip + Fp1 * fp); 
-            real f12y =  y12 * (phip + Fp1 * fp); 
-            real f12z =  z12 * (phip + Fp1 * fp); 
-            real f21x = -x12 * (phip + Fp2 * fp); 
-            real f21y = -y12 * (phip + Fp2 * fp); 
-            real f21z = -z12 * (phip + Fp2 * fp); 
+            double f12x =  x12 * (phip + Fp1 * fp); 
+            double f12y =  y12 * (phip + Fp1 * fp); 
+            double f12z =  z12 * (phip + Fp1 * fp); 
+            double f21x = -x12 * (phip + Fp2 * fp); 
+            double f21y = -y12 * (phip + Fp2 * fp); 
+            double f21z = -z12 * (phip + Fp2 * fp); 
             
             // two-body potential energy
             s_pe += phi;

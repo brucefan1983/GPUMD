@@ -126,7 +126,7 @@ void Integrate::compute(Atom *atom, Force *force, Measure* measure)
     if (type >= 1 && type <= 20)
     {
         ensemble->temperature = temperature1 + (temperature2 - temperature1)
-                              * real(atom->step) / atom->number_of_steps;
+                              * double(atom->step) / atom->number_of_steps;
     }
 
     ensemble->compute(atom, force, measure);
@@ -270,7 +270,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
     }
 
     // 3. Pressures and pressure_coupling (NPT)
-    real pressure[3];
+    double pressure[3];
     if (type >= 11 && type <= 20)
     {  
         // pressures:   

@@ -27,7 +27,7 @@
 const int FILE_NAME_LENGTH = 200;
 #define GPUMD_VERSION "2.5"
 
-typedef double real;
+//typedef double real;
 #define ZERO  0.0
 #define HALF  0.5
 #define ONE   1.0
@@ -39,9 +39,9 @@ typedef double real;
 #define PI    3.14159265358979
 #define K_B   8.617343e-5                      // Boltzmann's constant
 #define K_C   14.399645                        // 1/(4*PI*epsilon_0)
-const real PRESSURE_UNIT_CONVERSION = 1.602177e+2;   // from natural to GPa
-const real TIME_UNIT_CONVERSION     = 1.018051e+1;   // from natural to fs
-const real KAPPA_UNIT_CONVERSION    = 1.573769e+5;   // from natural to W/mK
+const double PRESSURE_UNIT_CONVERSION = 1.602177e+2;   // from natural to GPa
+const double TIME_UNIT_CONVERSION     = 1.018051e+1;   // from natural to fs
+const double KAPPA_UNIT_CONVERSION    = 1.573769e+5;   // from natural to W/mK
 
 
 class Atom;

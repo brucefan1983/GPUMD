@@ -89,10 +89,10 @@ bool LJ::pair_participating
 
 // get U_ij and (d U_ij / d r_ij) / r_ij (the LJ potential)
 static __device__ void find_p2_and_f2
-(real s6e4, real s12e4, real d12sq, real &p2, real &f2)
+(double s6e4, double s12e4, double d12sq, double &p2, double &f2)
 {
-    real d12inv2 = ONE / d12sq;
-    real d12inv6 = d12inv2 * d12inv2 * d12inv2;
+    double d12inv2 = ONE / d12sq;
+    double d12inv6 = d12inv2 * d12inv2 * d12inv2;
     f2 = SIX * (s6e4 * d12inv6 - s12e4 * TWO * d12inv6 * d12inv6) * d12inv2;
     p2 = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;
 }
@@ -103,62 +103,62 @@ static __global__ void gpu_find_force
     LJ_Para lj,
     int number_of_particles, int N1, int N2, Box box,
     int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
-    const real* __restrict__ g_x,
-    const real* __restrict__ g_y,
-    const real* __restrict__ g_z,
-    const real* __restrict__ g_vx,
-    const real* __restrict__ g_vy,
-    const real* __restrict__ g_vz,
-    real *g_fx, real *g_fy, real *g_fz,
-    real *g_virial, real *g_potential
+    const double* __restrict__ g_x,
+    const double* __restrict__ g_y,
+    const double* __restrict__ g_z,
+    const double* __restrict__ g_vx,
+    const double* __restrict__ g_vy,
+    const double* __restrict__ g_vz,
+    double *g_fx, double *g_fy, double *g_fz,
+    double *g_virial, double *g_potential
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    real s_fx = ZERO; // force_x
-    real s_fy = ZERO; // force_y
-    real s_fz = ZERO; // force_z
-    real s_pe = ZERO; // potential energy
-    real s_sxx = ZERO; // virial_stress_xx
-    real s_sxy = ZERO; // virial_stress_xy
-    real s_sxz = ZERO; // virial_stress_xz
-    real s_syx = ZERO; // virial_stress_yx
-    real s_syy = ZERO; // virial_stress_yy
-    real s_syz = ZERO; // virial_stress_yz
-    real s_szx = ZERO; // virial_stress_zx
-    real s_szy = ZERO; // virial_stress_zy
-    real s_szz = ZERO; // virial_stress_zz
+    double s_fx = ZERO; // force_x
+    double s_fy = ZERO; // force_y
+    double s_fz = ZERO; // force_z
+    double s_pe = ZERO; // potential energy
+    double s_sxx = ZERO; // virial_stress_xx
+    double s_sxy = ZERO; // virial_stress_xy
+    double s_sxz = ZERO; // virial_stress_xz
+    double s_syx = ZERO; // virial_stress_yx
+    double s_syy = ZERO; // virial_stress_yy
+    double s_syz = ZERO; // virial_stress_yz
+    double s_szx = ZERO; // virial_stress_zx
+    double s_szy = ZERO; // virial_stress_zy
+    double s_szz = ZERO; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        real x1 = LDG(g_x, n1);
-        real y1 = LDG(g_y, n1);
-        real z1 = LDG(g_z, n1);
+        double x1 = LDG(g_x, n1);
+        double y1 = LDG(g_y, n1);
+        double z1 = LDG(g_z, n1);
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_neighbor_list[n1 + number_of_particles * i1];
             int type2 = g_type[n2] - shift;
 
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12sq = x12 * x12 + y12 * y12 + z12 * z12;
+            double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
 
-            real p2, f2;
+            double p2, f2;
             if (d12sq >= lj.cutoff_square[type1][type2]) {continue;}
             find_p2_and_f2
             (lj.s6e4[type1][type2], lj.s12e4[type1][type2], d12sq, p2, f2);
 
             // treat two-body potential in the same way as many-body potential
-            real f12x = f2 * x12 * HALF;
-            real f12y = f2 * y12 * HALF;
-            real f12z = f2 * z12 * HALF;
-            real f21x = -f12x;
-            real f21y = -f12y;
-            real f21z = -f12z;
+            double f12x = f2 * x12 * HALF;
+            double f12y = f2 * y12 * HALF;
+            double f12z = f2 * z12 * HALF;
+            double f21x = -f12x;
+            double f21y = -f12y;
+            double f21z = -f12z;
 
             // accumulate force
             s_fx += f12x - f21x;

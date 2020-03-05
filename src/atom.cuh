@@ -29,27 +29,27 @@ public:
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
-    real *x0; real *y0; real *z0; // determining when to update neighbor list
-    real *mass;                   // per-atom mass
-    real *x; real *y; real *z;    // per-atom position
-    real *vx; real *vy; real *vz; // per-atom velocity
-    real *fx; real *fy; real *fz; // per-atom force
-    real *heat_per_atom;          // per-atom heat current
-    real *virial_per_atom;        // per-atom virial (9 components)
-    real *potential_per_atom;     // per-atom potential energy
-    real *thermo;                 // some thermodynamic quantities
+    double *x0; double *y0; double *z0; // determining when to update neighbor list
+    double *mass;                   // per-atom mass
+    double *x; double *y; double *z;    // per-atom position
+    double *vx; double *vy; double *vz; // per-atom velocity
+    double *fx; double *fy; double *fz; // per-atom force
+    double *heat_per_atom;          // per-atom heat current
+    double *virial_per_atom;        // per-atom virial (9 components)
+    double *potential_per_atom;     // per-atom potential energy
+    double *thermo;                 // some thermodynamic quantities
 
     int* cpu_type;
     int* cpu_type_size;
     int* shift; // shift to correct type in force eval
 
-    real* cpu_mass;
-    real* cpu_x;
-    real* cpu_y;
-    real* cpu_z;
-    real* cpu_vx;
-    real* cpu_vy;
-    real* cpu_vz;
+    double* cpu_mass;
+    double* cpu_x;
+    double* cpu_y;
+    double* cpu_z;
+    double* cpu_vx;
+    double* cpu_vy;
+    double* cpu_vz;
 
     int N;                // number of atoms 
     int number_of_types;  // number of atom types 
@@ -60,10 +60,10 @@ public:
     // make a structure?
     int step;
     int number_of_steps; // number of steps in a specific run
-    real global_time = 0.0; // run time of entire simulation (fs)
-    real initial_temperature; // initial temperature for velocity 
+    double global_time = 0.0; // run time of entire simulation (fs)
+    double initial_temperature; // initial temperature for velocity 
     // time step in a specific run; default value is 1 fs
-    real time_step = 1.0 / TIME_UNIT_CONVERSION;
+    double time_step = 1.0 / TIME_UNIT_CONVERSION;
 
     // some well defined sub-structures
     Neighbor neighbor;
@@ -75,7 +75,7 @@ public:
 
     void initialize_velocity(void);
     void find_neighbor(int is_first);
-    void parse_neighbor(char**, int, real);
+    void parse_neighbor(char**, int, double);
     void parse_velocity(char**, int);
     void parse_time_step (char**, int);
     void parse_run(char**, int);

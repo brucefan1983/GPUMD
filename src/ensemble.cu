@@ -42,23 +42,23 @@ Ensemble::~Ensemble(void)
 // The first step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_1
 (
-    int number_of_particles, int fixed_group, int *group_id, real g_time_step,
-    real* g_mass, real* g_x, real* g_y, real* g_z, real* g_vx, real* g_vy,
-    real* g_vz, real* g_fx, real* g_fy, real* g_fz
+    int number_of_particles, int fixed_group, int *group_id, double g_time_step,
+    double* g_mass, double* g_x, double* g_y, double* g_z, double* g_vx, double* g_vy,
+    double* g_vz, double* g_fx, double* g_fy, double* g_fz
 )
 {
     //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        real time_step = g_time_step;
-        real time_step_half = time_step * HALF;
-        real x  = g_x[i];  real y  = g_y[i];  real z  = g_z[i];
-        real vx = g_vx[i]; real vy = g_vy[i]; real vz = g_vz[i];
-        real mass_inv = ONE / g_mass[i];
-        real ax = g_fx[i] * mass_inv;
-        real ay = g_fy[i] * mass_inv;
-        real az = g_fz[i] * mass_inv;
+        double time_step = g_time_step;
+        double time_step_half = time_step * HALF;
+        double x  = g_x[i];  double y  = g_y[i];  double z  = g_z[i];
+        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
+        double mass_inv = ONE / g_mass[i];
+        double ax = g_fx[i] * mass_inv;
+        double ay = g_fy[i] * mass_inv;
+        double az = g_fz[i] * mass_inv;
         if (group_id[i] == fixed_group)
         {
             vx = ZERO;
@@ -81,23 +81,23 @@ static __global__ void gpu_velocity_verlet_1
 // The first step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_1
 (
-    int number_of_particles, real g_time_step,
-    real* g_mass, real* g_x, real* g_y, real* g_z, real* g_vx, real* g_vy,
-    real* g_vz, real* g_fx, real* g_fy, real* g_fz
+    int number_of_particles, double g_time_step,
+    double* g_mass, double* g_x, double* g_y, double* g_z, double* g_vx, double* g_vy,
+    double* g_vz, double* g_fx, double* g_fy, double* g_fz
 )
 {
     //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        real time_step = g_time_step;
-        real time_step_half = time_step * HALF;
-        real x  = g_x[i];  real y  = g_y[i];  real z  = g_z[i];
-        real vx = g_vx[i]; real vy = g_vy[i]; real vz = g_vz[i];
-        real mass_inv = ONE / g_mass[i];
-        real ax = g_fx[i] * mass_inv;
-        real ay = g_fy[i] * mass_inv;
-        real az = g_fz[i] * mass_inv;
+        double time_step = g_time_step;
+        double time_step_half = time_step * HALF;
+        double x  = g_x[i];  double y  = g_y[i];  double z  = g_z[i];
+        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
+        double mass_inv = ONE / g_mass[i];
+        double ax = g_fx[i] * mass_inv;
+        double ay = g_fy[i] * mass_inv;
+        double az = g_fz[i] * mass_inv;
         vx += ax * time_step_half;
         vy += ay * time_step_half;
         vz += az * time_step_half;
@@ -136,21 +136,21 @@ void Ensemble::velocity_verlet_1(Atom* atom)
 // The second step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_2
 (
-    int number_of_particles, int fixed_group, int *group_id, real g_time_step,
-    real* g_mass, real* g_vx, real* g_vy, real* g_vz,
-    real* g_fx, real* g_fy, real* g_fz
+    int number_of_particles, int fixed_group, int *group_id, double g_time_step,
+    double* g_mass, double* g_vx, double* g_vy, double* g_vz,
+    double* g_fx, double* g_fy, double* g_fz
 )
 {
     //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        real time_step_half = g_time_step * HALF;
-        real vx = g_vx[i]; real vy = g_vy[i]; real vz = g_vz[i];
-        real mass_inv = ONE / g_mass[i];
-        real ax = g_fx[i] * mass_inv;
-        real ay = g_fy[i] * mass_inv;
-        real az = g_fz[i] * mass_inv;
+        double time_step_half = g_time_step * HALF;
+        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
+        double mass_inv = ONE / g_mass[i];
+        double ax = g_fx[i] * mass_inv;
+        double ay = g_fy[i] * mass_inv;
+        double az = g_fz[i] * mass_inv;
         if (group_id[i] == fixed_group)
         {
             vx = ZERO;
@@ -171,21 +171,21 @@ static __global__ void gpu_velocity_verlet_2
 // The second step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_2
 (
-    int number_of_particles, real g_time_step,
-    real* g_mass, real* g_vx, real* g_vy, real* g_vz,
-    real* g_fx, real* g_fy, real* g_fz
+    int number_of_particles, double g_time_step,
+    double* g_mass, double* g_vx, double* g_vy, double* g_vz,
+    double* g_fx, double* g_fy, double* g_fz
 )
 {
     //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        real time_step_half = g_time_step * HALF;
-        real vx = g_vx[i]; real vy = g_vy[i]; real vz = g_vz[i];
-        real mass_inv = ONE / g_mass[i];
-        real ax = g_fx[i] * mass_inv;
-        real ay = g_fy[i] * mass_inv;
-        real az = g_fz[i] * mass_inv;
+        double time_step_half = g_time_step * HALF;
+        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
+        double mass_inv = ONE / g_mass[i];
+        double ax = g_fx[i] * mass_inv;
+        double ay = g_fy[i] * mass_inv;
+        double az = g_fz[i] * mass_inv;
         vx += ax * time_step_half;
         vy += ay * time_step_half;
         vz += az * time_step_half;
@@ -231,9 +231,9 @@ void Ensemble::velocity_verlet(Atom* atom, Force* force, Measure* measure)
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
-    int N, int N_fixed, int fixed_group, int *group_id, real T,
-    real volume, real *g_mass, real *g_potential, real *g_vx,
-    real *g_vy, real *g_vz, real *g_sx, real *g_sy, real *g_sz, real *g_thermo
+    int N, int N_fixed, int fixed_group, int *group_id, double T,
+    double volume, double *g_mass, double *g_potential, double *g_vx,
+    double *g_vy, double *g_vz, double *g_sx, double *g_sy, double *g_sz, double *g_thermo
 )
 {
     //<<<5, MAX_THREAD>>>
@@ -241,12 +241,12 @@ static __global__ void gpu_find_thermo
     int bid = blockIdx.x;
     int patch, n;
     int number_of_patches = (N - 1) / 1024 + 1;
-    real mass, vx, vy, vz;
+    double mass, vx, vy, vz;
 
     switch (bid)
     {
         case 0:
-            __shared__ real s_ke[1024];
+            __shared__ double s_ke[1024];
             s_ke[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -271,7 +271,7 @@ static __global__ void gpu_find_thermo
             }
             break;
         case 1:
-            __shared__ real s_pe[1024];
+            __shared__ double s_pe[1024];
             s_pe[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -291,7 +291,7 @@ static __global__ void gpu_find_thermo
             if (tid ==  0) g_thermo[1] = s_pe[0];
             break;
         case 2:
-            __shared__ real s_sx[1024];
+            __shared__ double s_sx[1024];
             s_sx[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -314,7 +314,7 @@ static __global__ void gpu_find_thermo
             }
             break;
         case 3:
-            __shared__ real s_sy[1024];
+            __shared__ double s_sy[1024];
             s_sy[tid] = ZERO; 
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -337,7 +337,7 @@ static __global__ void gpu_find_thermo
             }
             break;
         case 4:
-            __shared__ real s_sz[1024];
+            __shared__ double s_sz[1024];
             s_sz[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -367,8 +367,8 @@ static __global__ void gpu_find_thermo
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
-    int N, real T, real volume, real *g_mass, real *g_potential, real *g_vx,
-    real *g_vy, real *g_vz, real *g_sx, real *g_sy, real *g_sz, real *g_thermo
+    int N, double T, double volume, double *g_mass, double *g_potential, double *g_vx,
+    double *g_vy, double *g_vz, double *g_sx, double *g_sy, double *g_sz, double *g_thermo
 )
 {
     //<<<5, MAX_THREAD>>>
@@ -376,12 +376,12 @@ static __global__ void gpu_find_thermo
     int bid = blockIdx.x;
     int patch, n;
     int number_of_patches = (N - 1) / 1024 + 1;
-    real mass, vx, vy, vz;
+    double mass, vx, vy, vz;
 
     switch (bid)
     {
         case 0:
-            __shared__ real s_ke[1024];
+            __shared__ double s_ke[1024];
             s_ke[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -406,7 +406,7 @@ static __global__ void gpu_find_thermo
             }
             break;
         case 1:
-            __shared__ real s_pe[1024];
+            __shared__ double s_pe[1024];
             s_pe[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -426,7 +426,7 @@ static __global__ void gpu_find_thermo
             if (tid ==  0) g_thermo[1] = s_pe[0];
             break;
         case 2:
-            __shared__ real s_sx[1024];
+            __shared__ double s_sx[1024];
             s_sx[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -449,7 +449,7 @@ static __global__ void gpu_find_thermo
             }
             break;
         case 3:
-            __shared__ real s_sy[1024];
+            __shared__ double s_sy[1024];
             s_sy[tid] = ZERO; 
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -472,7 +472,7 @@ static __global__ void gpu_find_thermo
             }
             break;
         case 4:
-            __shared__ real s_sz[1024];
+            __shared__ double s_sz[1024];
             s_sz[tid] = ZERO;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
@@ -501,7 +501,7 @@ static __global__ void gpu_find_thermo
 // wrapper of the above kernel
 void Ensemble::find_thermo(Atom* atom)
 {
-    real volume = atom->box.get_volume();
+    double volume = atom->box.get_volume();
     if (fixed_group == -1)
     {
         gpu_find_thermo<<<5, 1024>>>
@@ -534,7 +534,7 @@ void Ensemble::find_thermo(Atom* atom)
 
 // Scale the velocity of every particle in the systems by a factor
 static void __global__ gpu_scale_velocity
-(int N, real *g_vx, real *g_vy, real *g_vz, real factor)
+(int N, double *g_vx, double *g_vy, double *g_vz, double factor)
 {
     //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -548,7 +548,7 @@ static void __global__ gpu_scale_velocity
 
 
 // wrapper of the above kernel
-void Ensemble::scale_velocity_global(Atom* atom, real factor)
+void Ensemble::scale_velocity_global(Atom* atom, double factor)
 {
     gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (atom->N, atom->vx, atom->vy, atom->vz, factor);
@@ -559,8 +559,8 @@ void Ensemble::scale_velocity_global(Atom* atom, real factor)
 static __global__ void gpu_find_vc_and_ke
 (
     int* g_group_size, int* g_group_size_sum, int* g_group_contents, 
-    real* g_mass, real *g_vx, real *g_vy, real *g_vz, 
-    real *g_vcx, real *g_vcy, real *g_vcz, real *g_ke
+    double* g_mass, double *g_vx, double *g_vy, double *g_vz, 
+    double *g_vcx, double *g_vcy, double *g_vcz, double *g_ke
 )
 {
     //<<<number_of_groups, 512>>>
@@ -572,11 +572,11 @@ static __global__ void gpu_find_vc_and_ke
     int offset = g_group_size_sum[bid];
     int number_of_patches = (group_size - 1) / 512 + 1; 
 
-    __shared__ real s_mc[512]; // center of mass
-    __shared__ real s_vx[512]; // center of mass velocity
-    __shared__ real s_vy[512];
-    __shared__ real s_vz[512];
-    __shared__ real s_ke[512]; // relative kinetic energy
+    __shared__ double s_mc[512]; // center of mass
+    __shared__ double s_vx[512]; // center of mass velocity
+    __shared__ double s_vy[512];
+    __shared__ double s_vz[512];
+    __shared__ double s_ke[512]; // relative kinetic energy
 
     s_mc[tid] = ZERO;
     s_vx[tid] = ZERO;
@@ -590,10 +590,10 @@ static __global__ void gpu_find_vc_and_ke
         if (n < group_size)
         {  
             int index = g_group_contents[offset + n];     
-            real mass = g_mass[index];
-            real vx = g_vx[index];
-            real vy = g_vy[index];
-            real vz = g_vz[index];
+            double mass = g_mass[index];
+            double vx = g_vx[index];
+            double vy = g_vy[index];
+            double vz = g_vz[index];
 
             s_mc[tid] += mass;
             s_vx[tid] += mass * vx;
@@ -620,10 +620,10 @@ static __global__ void gpu_find_vc_and_ke
 
     if (tid == 0) 
     { 
-        real mc = s_mc[0];
-        real vx = s_vx[0] / mc;
-        real vy = s_vy[0] / mc;
-        real vz = s_vz[0] / mc;
+        double mc = s_mc[0];
+        double vx = s_vx[0] / mc;
+        double vy = s_vy[0] / mc;
+        double vz = s_vz[0] / mc;
         g_vcx[bid] = vx; // center of mass velocity
         g_vcy[bid] = vy;
         g_vcz[bid] = vz;
@@ -636,7 +636,7 @@ static __global__ void gpu_find_vc_and_ke
 
 // wrapper of the above kernel
 void Ensemble::find_vc_and_ke
-(Atom* atom, real* vcx, real* vcy, real* vcz, real* ke)
+(Atom* atom, double* vcx, double* vcy, double* vcz, double* ke)
 {
     gpu_find_vc_and_ke<<<atom->group[0].number, 512>>>
     (
@@ -650,8 +650,8 @@ void Ensemble::find_vc_and_ke
 static __global__ void gpu_scale_velocity
 (
     int number_of_particles, int label_1, int label_2, int *g_atom_label, 
-    real factor_1, real factor_2, real *g_vcx, real *g_vcy, real *g_vcz,
-    real *g_ke, real *g_vx, real *g_vy, real *g_vz
+    double factor_1, double factor_2, double *g_vcx, double *g_vcy, double *g_vcz,
+    double *g_ke, double *g_vx, double *g_vy, double *g_vz
 )
 {
     // <<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -664,9 +664,9 @@ static __global__ void gpu_scale_velocity
         if (atom_label == label_1) 
         {
             // center of mass velocity for the source
-            real vcx = g_vcx[atom_label]; 
-            real vcy = g_vcy[atom_label];
-            real vcz = g_vcz[atom_label];  
+            double vcx = g_vcx[atom_label]; 
+            double vcy = g_vcy[atom_label];
+            double vcz = g_vcz[atom_label];  
 
             // momentum is conserved
             g_vx[n] = vcx + factor_1 * (g_vx[n] - vcx);
@@ -676,9 +676,9 @@ static __global__ void gpu_scale_velocity
         if (atom_label == label_2)
         {
             // center of mass velocity for the sink
-            real vcx = g_vcx[atom_label]; 
-            real vcy = g_vcy[atom_label];
-            real vcz = g_vcz[atom_label];  
+            double vcx = g_vcx[atom_label]; 
+            double vcy = g_vcy[atom_label];
+            double vcz = g_vcz[atom_label];  
 
             // momentum is conserved
             g_vx[n] = vcx + factor_2 * (g_vx[n] - vcx);
@@ -692,8 +692,8 @@ static __global__ void gpu_scale_velocity
 // wrapper of the above kernel
 void Ensemble::scale_velocity_local
 (
-    Atom* atom, real factor_1, real factor_2,
-    real* vcx, real* vcy, real* vcz, real* ke
+    Atom* atom, double factor_1, double factor_2,
+    double* vcx, double* vcy, double* vcz, double* ke
 )
 {
     gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>

@@ -26,8 +26,8 @@ public:
     int pbc_y = 1;       // pbc_y = 1 means periodic in the y-direction
     int pbc_z = 1;       // pbc_z = 1 means periodic in the z-direction
     int triclinic = 0;   // triclinic = 1 means the box is non-orthogonal
-    real cpu_h[18];
-    real get_volume(void);   // get the volume of the box
+    double cpu_h[18];
+    double get_volume(void);   // get the volume of the box
     void get_inverse(void);  // get the inverse box matrix
 };
 

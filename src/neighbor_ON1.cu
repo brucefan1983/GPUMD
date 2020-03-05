@@ -31,7 +31,7 @@ Written by Ville Vierimaa and optimized by Zheyong Fan.
 // find the cell id for an atom
 static __device__ void find_cell_id
 (
-    real x, real y, real z, real cell_size, 
+    double x, double y, double z, double cell_size, 
     int cell_n_x, int cell_n_y, int cell_n_z, int* cell_id
 )
 {
@@ -51,7 +51,7 @@ static __device__ void find_cell_id
 // find the cell id for an atom
 static __device__ void find_cell_id
 (
-    real x, real y, real z, real cell_size, 
+    double x, double y, double z, double cell_size, 
     int cell_n_x, int cell_n_y, int cell_n_z, 
     int *cell_id_x, int *cell_id_y, int *cell_id_z, int *cell_id
 )
@@ -73,8 +73,8 @@ static __device__ void find_cell_id
 // cell_count[i] = number of atoms in the i-th cell
 static __global__ void find_cell_counts
 (
-    int N, int* cell_count, real* x, real* y,real* z, 
-    int cell_n_x, int cell_n_y, int cell_n_z, real cell_size
+    int N, int* cell_count, double* x, double* y,double* z, 
+    int cell_n_x, int cell_n_y, int cell_n_z, double cell_size
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -95,8 +95,8 @@ static __global__ void find_cell_counts
 static __global__ void find_cell_contents
 (
     int N, int* cell_count, int* cell_count_sum, int* cell_contents, 
-    real* x, real* y, real* z,
-    int cell_n_x, int cell_n_y, int cell_n_z, real cell_size
+    double* x, double* y, double* z,
+    int cell_n_x, int cell_n_y, int cell_n_z, double cell_size
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -132,17 +132,17 @@ static __global__ void gpu_find_neighbor_ON1
 (
     Box box, int N, int* cell_counts, int* cell_count_sum, int* cell_contents, 
     int* NN, int* NL,
-    real* x, real* y, real* z, int cell_n_x, int cell_n_y, int cell_n_z, 
-    real cutoff, real cutoff_square
+    double* x, double* y, double* z, int cell_n_x, int cell_n_y, int cell_n_z, 
+    double cutoff, double cutoff_square
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     int count = 0;
     if (n1 < N)
     {
-        real x1 = x[n1];
-        real y1 = y[n1];
-        real z1 = z[n1];
+        double x1 = x[n1];
+        double y1 = y[n1];
+        double z1 = z[n1];
         int cell_id;
         int cell_id_x;
         int cell_id_y;
@@ -186,11 +186,11 @@ static __global__ void gpu_find_neighbor_ON1
                     for (int m = 0; m < M; ++m)
                     {
                         int n2 = LDG(cell_contents, offset + m);
-                        real x12 = LDG(x, n2) - x1;
-                        real y12 = LDG(y, n2) - y1;
-                        real z12 = LDG(z, n2) - z1;
+                        double x12 = LDG(x, n2) - x1;
+                        double y12 = LDG(y, n2) - y1;
+                        double z12 = LDG(z, n2) - z1;
                         dev_apply_mic(box, x12, y12, z12);
-                        real d2 = x12*x12 + y12*y12 + z12*z12;
+                        double d2 = x12*x12 + y12*y12 + z12*z12;
 
                         if (n1 != n2 && d2 < cutoff_square)
                         {
@@ -212,8 +212,8 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     const int block_size = 128;
     const int grid_size = (N - 1) / block_size + 1;
  
-    real rc = neighbor.rc;
-    real rc2 = rc * rc; 
+    double rc = neighbor.rc;
+    double rc2 = rc * rc; 
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
     int* cell_count = neighbor.cell_count;
     int* cell_count_sum = neighbor.cell_count_sum;

@@ -38,19 +38,19 @@ public:
     int source;
     int sink;
     int fixed_group;   // ID of the group in which the atoms will be fixed 
-    real temperature;  // target temperature at a specific time 
-    real temperature1; // target initial temperature for a run
-    real temperature2; // target final temperature for a run
-    real delta_temperature;
-    real pressure_x;   // target pressure at a specific time
-    real pressure_y;   
-    real pressure_z; 
-    real temperature_coupling;
-    real pressure_coupling; 
+    double temperature;  // target temperature at a specific time 
+    double temperature1; // target initial temperature for a run
+    double temperature2; // target final temperature for a run
+    double delta_temperature;
+    double pressure_x;   // target pressure at a specific time
+    double pressure_y;   
+    double pressure_z; 
+    double temperature_coupling;
+    double pressure_coupling; 
     int deform_x = 0;
     int deform_y = 0;
     int deform_z = 0;
-    real deform_rate;
+    double deform_rate;
 };
 
 

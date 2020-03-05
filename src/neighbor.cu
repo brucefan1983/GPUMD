@@ -28,8 +28,8 @@ const int NUM_OF_CELLS = 50; // use the O(N^2) method when #cells < this number
 // determining whether a new neighbor list should be built
 static __global__ void gpu_check_atom_distance
 (
-    int N, real d2, real *x_old, real *y_old, real *z_old,
-    real *x_new, real *y_new, real *z_new, int *g_sum
+    int N, double d2, double *x_old, double *y_old, double *z_old,
+    double *x_new, double *y_new, double *z_new, int *g_sum
 )
 {
     int tid = threadIdx.x;
@@ -39,9 +39,9 @@ static __global__ void gpu_check_atom_distance
     s_sum[tid] = 0;
     if (n < N)
     {
-        real dx = x_new[n] - x_old[n];
-        real dy = y_new[n] - y_old[n];
-        real dz = z_new[n] - z_old[n];
+        double dx = x_new[n] - x_old[n];
+        double dy = y_new[n] - y_old[n];
+        double dz = z_new[n] - z_old[n];
         if ((dx * dx + dy * dy + dz * dz) > d2) { s_sum[tid] = 1; }
     }
     __syncthreads();
@@ -61,7 +61,7 @@ static __global__ void gpu_check_atom_distance
 int Atom::check_atom_distance(void)
 {
     int M = (N - 1) / 1024 + 1;
-    real d2 = neighbor.skin * neighbor.skin * 0.25;
+    double d2 = neighbor.skin * neighbor.skin * 0.25;
     int *s2;
     CHECK(cudaMalloc((void**)&s2, sizeof(int)));
 
@@ -86,7 +86,7 @@ int Atom::check_atom_distance(void)
 // pull the atoms back to the box after updating the neighbor list
 static __global__ void gpu_apply_pbc
 (
-    int N, Box box, real *g_x, real *g_y, real *g_z
+    int N, Box box, double *g_x, double *g_y, double *g_z
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -94,9 +94,9 @@ static __global__ void gpu_apply_pbc
     {
         if (box.triclinic == 0)
         {
-            real lx = box.cpu_h[0];
-            real ly = box.cpu_h[1];
-            real lz = box.cpu_h[2];
+            double lx = box.cpu_h[0];
+            double ly = box.cpu_h[1];
+            double lz = box.cpu_h[2];
             if (box.pbc_x == 1)
             {
                 if      (g_x[n] < 0)  {g_x[n] += lx;}
@@ -115,12 +115,12 @@ static __global__ void gpu_apply_pbc
         }
         else
         {
-            real x = g_x[n];
-            real y = g_y[n];
-            real z = g_z[n];
-            real sx = box.cpu_h[9]  * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-            real sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-            real sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+            double x = g_x[n];
+            double y = g_y[n];
+            double z = g_z[n];
+            double sx = box.cpu_h[9]  * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+            double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+            double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
             if (box.pbc_x == 1) sx -= nearbyint(sx);
             if (box.pbc_y == 1) sy -= nearbyint(sy);
             if (box.pbc_z == 1) sz -= nearbyint(sz);
@@ -134,7 +134,7 @@ static __global__ void gpu_apply_pbc
 
 // update the reference positions:
 static __global__ void gpu_update_xyz0
-(int N, real *x, real *y, real *z, real *x0, real *y0, real *z0)
+(int N, double *x, double *y, double *z, double *x0, double *y0, double *z0)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N) { x0[n] = x[n]; y0[n] = y[n]; z0[n] = z[n]; }

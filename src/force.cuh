@@ -34,7 +34,7 @@ public:
 
     int num_of_potentials;
     std::vector<int> participating_kinds;
-    real rc_max;
+    double rc_max;
     int atom_begin[MAX_NUM_OF_POTENTIALS];
     int atom_end[MAX_NUM_OF_POTENTIALS];
     char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];

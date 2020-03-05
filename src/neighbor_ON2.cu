@@ -27,26 +27,26 @@ Construct the neighbor list using the O(N^2) method.
 // a simple O(N^2) version of neighbor list construction
 static __global__ void gpu_find_neighbor_ON2
 (
-    Box box, int N, real cutoff_square, 
-    int *NN, int *NL, real *x, real *y, real *z
+    Box box, int N, double cutoff_square, 
+    int *NN, int *NL, double *x, double *y, double *z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (n1 < N)
     {
-        real x1 = x[n1];
-        real y1 = y[n1];
-        real z1 = z[n1];
+        double x1 = x[n1];
+        double y1 = y[n1];
+        double z1 = z[n1];
         int count = 0;
 
         for (int n2 = 0; n2 < N; ++n2)
         { 
-            real x12 = x[n2] - x1;
-            real y12 = y[n2] - y1;
-            real z12 = z[n2] - z1;
+            double x12 = x[n2] - x1;
+            double y12 = y[n2] - y1;
+            double z12 = z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d2 = x12 * x12 + y12 * y12 + z12 * z12;
+            double d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
             if (n1 != n2 && d2 < cutoff_square)
             {
@@ -63,7 +63,7 @@ void Atom::find_neighbor_ON2(void)
 {
     const int block_size = 128;
     const int grid_size = (N - 1) / block_size + 1;
-    real rc2 = neighbor.rc * neighbor.rc; 
+    double rc2 = neighbor.rc * neighbor.rc; 
 
     gpu_find_neighbor_ON2<<<grid_size, block_size>>>(box, N, rc2, NN, NL, x, y, z);
     CUDA_CHECK_KERNEL

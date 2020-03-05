@@ -61,7 +61,7 @@ void Hessian::read_basis(char* input_dir, size_t N)
     PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
 
     MY_MALLOC(basis, size_t, num_basis);
-    MY_MALLOC(mass, real, num_basis);
+    MY_MALLOC(mass, double, num_basis);
     for (size_t m = 0; m < num_basis; ++m)
     {
         count = fscanf(fid, "%zu%lf", &basis[m], &mass[m]);
@@ -87,7 +87,7 @@ void Hessian::read_kpoints(char* input_dir)
     count = fscanf(fid, "%zu", &num_kpoints);
     PRINT_SCANF_ERROR(count, 1, "Reading error for kpoints.in.");
 
-    MY_MALLOC(kpoints, real, num_kpoints * 3);
+    MY_MALLOC(kpoints, double, num_kpoints * 3);
     for (size_t m = 0; m < num_kpoints; ++m)
     {
         count = fscanf(fid, "%lf%lf%lf", &kpoints[m * 3 + 0],
@@ -105,14 +105,14 @@ void Hessian::initialize(char* input_dir, size_t N)
     size_t num_H = num_basis * N * 9;
     size_t num_D = num_basis * num_basis * 9 * num_kpoints;
 
-    MY_MALLOC(H, real, num_H);
-    MY_MALLOC(DR, real, num_D);
+    MY_MALLOC(H, double, num_H);
+    MY_MALLOC(DR, double, num_D);
     for (size_t n = 0; n < num_H; ++n) { H[n] = 0; }
     for (size_t n = 0; n < num_D; ++n) { DR[n] = 0; }
 
     if (num_kpoints > 1) // for dispersion calculation
     {
-        MY_MALLOC(DI, real, num_D);
+        MY_MALLOC(DI, double, num_D);
         for (size_t n = 0; n < num_D; ++n) { DI[n] = 0; }
     }
 }
@@ -136,15 +136,15 @@ void Hessian::finalize(void)
 
 bool Hessian::is_too_far(size_t n1, size_t n2, Atom* atom)
 {
-    real x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
-    real y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
-    real z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
+    double x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
+    double y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
+    double z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
     apply_mic
     (
         atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y,
         atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
     );
-    real d12_square = x12 * x12 + y12 * y12 + z12 * z12;
+    double d12_square = x12 * x12 + y12 * y12 + z12 * z12;
     return (d12_square > (cutoff * cutoff));
 }
 
@@ -166,17 +166,17 @@ void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
 
 
 static void find_exp_ikr
-(size_t n1, size_t n2, real* k, Atom* atom, real& cos_kr, real& sin_kr)
+(size_t n1, size_t n2, double* k, Atom* atom, double& cos_kr, double& sin_kr)
 {
-    real x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
-    real y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
-    real z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
+    double x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
+    double y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
+    double z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
     apply_mic
     (
         atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
         atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
     );
-    real kr = k[0] * x12 + k[1] * y12 + k[2] * z12;
+    double kr = k[0] * x12 + k[1] * y12 + k[2] * z12;
     cos_kr = cos(kr);
     sin_kr = sin(kr);
 }
@@ -260,16 +260,16 @@ void Hessian::find_dispersion(char* input_dir, Atom* atom)
         {
             size_t n1 = basis[nb];
             size_t label_1 = label[n1];
-            real mass_1 = mass[label_1];
+            double mass_1 = mass[label_1];
             for (size_t n2 = 0; n2 < atom->N; ++n2)
             {
                 if(is_too_far(n1, n2, atom)) continue;
-                real cos_kr, sin_kr;
+                double cos_kr, sin_kr;
                 find_exp_ikr(n1, n2, kpoints + nk * 3, atom, cos_kr, sin_kr);
                 size_t label_2 = label[n2];
-                real mass_2 = mass[label_2];
-                real mass_factor = 1.0 / sqrt(mass_1 * mass_2);
-                real* H12 = H + (nb * atom->N + n2) * 9;
+                double mass_2 = mass[label_2];
+                double mass_factor = 1.0 / sqrt(mass_1 * mass_2);
+                double* H12 = H + (nb * atom->N + n2) * 9;
                 for (size_t a = 0; a < 3; ++a)
                 {
                     for (size_t b = 0; b < 3; ++b)
@@ -294,11 +294,11 @@ void Hessian::find_dispersion(char* input_dir, Atom* atom)
 
 
 void Hessian::find_H12
-(size_t n1, size_t n2, Atom *atom, Force *force, Measure* measure, real* H12)
+(size_t n1, size_t n2, Atom *atom, Force *force, Measure* measure, double* H12)
 {
-    real dx2 = displacement * 2;
-    real f_positive[3];
-    real f_negative[3];
+    double dx2 = displacement * 2;
+    double f_positive[3];
+    double f_negative[3];
     for (size_t beta = 0; beta < 3; ++beta)
     {
         get_f(-displacement, n1, n2, beta, atom, force, measure, f_negative);
@@ -318,14 +318,14 @@ void Hessian::find_D(Atom* atom)
     {
         size_t n1 = basis[nb];
         size_t label_1 = label[n1];
-        real mass_1 = mass[label_1];
+        double mass_1 = mass[label_1];
         for (size_t n2 = 0; n2 < atom->N; ++n2)
         {
             if(is_too_far(n1, n2, atom)) continue;
             size_t label_2 = label[n2];
-            real mass_2 = mass[label_2];
-            real mass_factor = 1.0 / sqrt(mass_1 * mass_2);
-            real* H12 = H + (nb * atom->N + n2) * 9;
+            double mass_2 = mass[label_2];
+            double mass_factor = 1.0 / sqrt(mass_1 * mass_2);
+            double* H12 = H + (nb * atom->N + n2) * 9;
             for (size_t a = 0; a < 3; ++a)
             {
                 for (size_t b = 0; b < 3; ++b)
@@ -387,13 +387,13 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
 
 void Hessian::get_f
 (
-    real dx, size_t n1, size_t n2, size_t beta, 
-    Atom* atom, Force *force, Measure* measure, real* f
+    double dx, size_t n1, size_t n2, size_t beta, 
+    Atom* atom, Force *force, Measure* measure, double* f
 )
 {
     shift_atom(dx, n2, beta, atom);
     force->compute(atom, measure);
-    size_t M = sizeof(real);
+    size_t M = sizeof(double);
     CHECK(cudaMemcpy(f + 0, atom->fx + n1, M, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(f + 1, atom->fy + n1, M, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(f + 2, atom->fz + n1, M, cudaMemcpyDeviceToHost));
@@ -401,13 +401,13 @@ void Hessian::get_f
 }
 
 
-static __global__ void gpu_shift_atom(real dx, real *x)
+static __global__ void gpu_shift_atom(double dx, double *x)
 {
     x[0] += dx;
 }
 
 
-void Hessian::shift_atom(real dx, size_t n2, size_t beta, Atom* atom)
+void Hessian::shift_atom(double dx, size_t n2, size_t beta, Atom* atom)
 {
     if (beta == 0)
     {

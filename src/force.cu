@@ -380,14 +380,14 @@ void Force::add_potential(char* input_dir, Atom *atom)
 static __global__ void gpu_find_neighbor_local
 (
     Box box, int type_begin, int type_end, int *type,
-    int N, int N1, int N2, real cutoff_square, 
+    int N, int N1, int N2, double cutoff_square, 
     int *NN, int *NL, int *NN_local, int *NL_local,
 #ifdef USE_LDG
-    const real* __restrict__ x, 
-    const real* __restrict__ y, 
-    const real* __restrict__ z
+    const double* __restrict__ x, 
+    const double* __restrict__ y, 
+    const double* __restrict__ z
 #else
-    real *x, real *y, real *z
+    double *x, double *y, double *z
 #endif
 )
 {
@@ -399,9 +399,9 @@ static __global__ void gpu_find_neighbor_local
     {  
         int neighbor_number = NN[n1];
 
-        real x1 = LDG(x, n1);   
-        real y1 = LDG(y, n1);
-        real z1 = LDG(z, n1);  
+        double x1 = LDG(x, n1);   
+        double y1 = LDG(y, n1);
+        double z1 = LDG(z, n1);  
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = NL[n1 + N * i1];
@@ -410,11 +410,11 @@ static __global__ void gpu_find_neighbor_local
             int type_n2 = type[n2];
             if (type_n2 < type_begin || type_n2 > type_end) continue;
 
-            real x12  = LDG(x, n2) - x1;
-            real y12  = LDG(y, n2) - y1;
-            real z12  = LDG(z, n2) - z1;
+            double x12  = LDG(x, n2) - x1;
+            double y12  = LDG(y, n2) - y1;
+            double z12  = LDG(z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real distance_square = x12 * x12 + y12 * y12 + z12 * z12;
+            double distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
             {        
                 NL_local[count * N + n1] = n2;
@@ -441,10 +441,10 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int *NL_local = atom->NL_local;
     int *type = (group_method >= 0) ? atom->group[group_method].label 
                                     : atom->type;
-    real rc2 = potential[m]->rc * potential[m]->rc;
-    real *x = atom->x;
-    real *y = atom->y;
-    real *z = atom->z;
+    double rc2 = potential[m]->rc * potential[m]->rc;
+    double *x = atom->x;
+    double *y = atom->y;
+    double *z = atom->z;
       
     gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
     (
@@ -459,11 +459,11 @@ void Force::find_neighbor_local(Atom *atom, int m)
 static __global__ void gpu_add_driving_force
 (
     int N,
-    real fe_x, real fe_y, real fe_z,
-    real *g_sxx, real *g_sxy, real *g_sxz,
-    real *g_syx, real *g_syy, real *g_syz,
-    real *g_szx, real *g_szy, real *g_szz,
-    real *g_fx, real *g_fy, real *g_fz
+    double fe_x, double fe_y, double fe_z,
+    double *g_sxx, double *g_sxy, double *g_sxz,
+    double *g_syx, double *g_syy, double *g_syz,
+    double *g_szx, double *g_szy, double *g_szz,
+    double *g_fx, double *g_fy, double *g_fz
 )
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -478,14 +478,14 @@ static __global__ void gpu_add_driving_force
 
 // get the total force
 static __global__ void gpu_sum_force
-(int N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
+(int N, double *g_fx, double *g_fy, double *g_fz, double *g_f)
 {
     //<<<3, 1024>>>
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int number_of_patches = (N - 1) / 1024 + 1; 
-    __shared__ real s_f[1024];
-    real f = ZERO;
+    __shared__ double s_f[1024];
+    double f = ZERO;
 
     switch (bid)
     {
@@ -532,7 +532,7 @@ static __global__ void gpu_sum_force
 
 // correct the total force
 static __global__ void gpu_correct_force
-(int N, real one_over_N, real *g_fx, real *g_fy, real *g_fz, real *g_f)
+(int N, double one_over_N, double *g_fx, double *g_fy, double *g_fz, double *g_f)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N)
@@ -546,7 +546,7 @@ static __global__ void gpu_correct_force
 
 static __global__ void initialize_properties
 (
-    int N, real *g_fx, real *g_fy, real *g_fz, real *g_pe, real *g_virial
+    int N, double *g_fx, double *g_fy, double *g_fz, double *g_pe, double *g_virial
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -614,8 +614,8 @@ void Force::compute(Atom *atom, Measure* measure)
             atom->fx, atom->fy, atom->fz
         );
 
-        real *ftot; // total force vector of the system
-        CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
+        double *ftot; // total force vector of the system
+        CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));
 
         gpu_sum_force<<<3, 1024>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
@@ -632,8 +632,8 @@ void Force::compute(Atom *atom, Measure* measure)
 #ifdef USE_FCP
     if (!measure->hnemd.compute && !measure->hnema.compute)
     {
-        real *ftot; // total force vector of the system
-        CHECK(cudaMalloc((void**)&ftot, sizeof(real) * 3));
+        double *ftot; // total force vector of the system
+        CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));
         gpu_sum_force<<<3, 1024>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot);
         CUDA_CHECK_KERNEL

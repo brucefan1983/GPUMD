@@ -44,37 +44,37 @@ static __global__ void gpu_find_force_many_body
     int number_of_particles, int N1, int N2,
     Box box,
     int *g_neighbor_number, int *g_neighbor_list,
-    const real* __restrict__ g_f12x,
-    const real* __restrict__ g_f12y,
-    const real* __restrict__ g_f12z,
-    const real* __restrict__ g_x,
-    const real* __restrict__ g_y,
-    const real* __restrict__ g_z,
-    const real* __restrict__ g_vx,
-    const real* __restrict__ g_vy,
-    const real* __restrict__ g_vz,
-    real *g_fx, real *g_fy, real *g_fz,
-    real *g_virial
+    const double* __restrict__ g_f12x,
+    const double* __restrict__ g_f12y,
+    const double* __restrict__ g_f12z,
+    const double* __restrict__ g_x,
+    const double* __restrict__ g_y,
+    const double* __restrict__ g_z,
+    const double* __restrict__ g_vx,
+    const double* __restrict__ g_vy,
+    const double* __restrict__ g_vz,
+    double *g_fx, double *g_fy, double *g_fz,
+    double *g_virial
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    real s_fx = ZERO; // force_x
-    real s_fy = ZERO; // force_y
-    real s_fz = ZERO; // force_z
-    real s_sxx = ZERO; // virial_stress_xx
-    real s_sxy = ZERO; // virial_stress_xy
-    real s_sxz = ZERO; // virial_stress_xz
-    real s_syx = ZERO; // virial_stress_yx
-    real s_syy = ZERO; // virial_stress_yy
-    real s_syz = ZERO; // virial_stress_yz
-    real s_szx = ZERO; // virial_stress_zx
-    real s_szy = ZERO; // virial_stress_zy
-    real s_szz = ZERO; // virial_stress_zz
+    double s_fx = ZERO; // force_x
+    double s_fy = ZERO; // force_y
+    double s_fz = ZERO; // force_z
+    double s_sxx = ZERO; // virial_stress_xx
+    double s_sxy = ZERO; // virial_stress_xy
+    double s_sxz = ZERO; // virial_stress_xz
+    double s_syx = ZERO; // virial_stress_yx
+    double s_syy = ZERO; // virial_stress_yy
+    double s_syz = ZERO; // virial_stress_yz
+    double s_szx = ZERO; // virial_stress_zx
+    double s_szy = ZERO; // virial_stress_zy
+    double s_szz = ZERO; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
-        real x1 = LDG(g_x, n1); real y1 = LDG(g_y, n1); real z1 = LDG(g_z, n1);
+        double x1 = LDG(g_x, n1); double y1 = LDG(g_y, n1); double z1 = LDG(g_z, n1);
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -82,14 +82,14 @@ static __global__ void gpu_find_force_many_body
             int n2 = g_neighbor_list[index];
             int neighbor_number_2 = g_neighbor_number[n2];
 
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
 
-            real f12x = LDG(g_f12x, index);
-            real f12y = LDG(g_f12y, index);
-            real f12z = LDG(g_f12z, index);
+            double f12x = LDG(g_f12x, index);
+            double f12y = LDG(g_f12y, index);
+            double f12z = LDG(g_f12z, index);
             int offset = 0;
             for (int k = 0; k < neighbor_number_2; ++k)
             {
@@ -97,9 +97,9 @@ static __global__ void gpu_find_force_many_body
                 { offset = k; break; }
             }
             index = offset * number_of_particles + n2;
-            real f21x = LDG(g_f12x, index);
-            real f21y = LDG(g_f12y, index);
-            real f21z = LDG(g_f12z, index);
+            double f21x = LDG(g_f12x, index);
+            double f21y = LDG(g_f12y, index);
+            double f21z = LDG(g_f12z, index);
 
             // per atom force
             s_fx += f12x - f21x; 
@@ -144,7 +144,7 @@ static __global__ void gpu_find_force_many_body
 // used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body
 (
-    Atom *atom, int* NN, int* NL, real* f12x, real* f12y, real* f12z
+    Atom *atom, int* NN, int* NL, double* f12x, double* f12y, double* f12z
 )
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;

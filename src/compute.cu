@@ -41,14 +41,14 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 
     int number_of_columns = 
         atom->group[grouping_method].number * number_of_scalars;
-    MY_MALLOC(cpu_group_sum, real, number_of_columns);
-    MY_MALLOC(cpu_group_sum_ave, real, number_of_columns);
+    MY_MALLOC(cpu_group_sum, double, number_of_columns);
+    MY_MALLOC(cpu_group_sum_ave, double, number_of_columns);
     for (int n = 0; n < number_of_columns; ++n) cpu_group_sum_ave[n] = 0.0;
 
-    CHECK(cudaMalloc((void**)&gpu_group_sum, sizeof(real) * number_of_columns));
-    CHECK(cudaMalloc((void**)&gpu_per_atom_x, sizeof(real) * atom->N));
-    CHECK(cudaMalloc((void**)&gpu_per_atom_y, sizeof(real) * atom->N));
-    CHECK(cudaMalloc((void**)&gpu_per_atom_z, sizeof(real) * atom->N));
+    CHECK(cudaMalloc((void**)&gpu_group_sum, sizeof(double) * number_of_columns));
+    CHECK(cudaMalloc((void**)&gpu_per_atom_x, sizeof(double) * atom->N));
+    CHECK(cudaMalloc((void**)&gpu_per_atom_y, sizeof(double) * atom->N));
+    CHECK(cudaMalloc((void**)&gpu_per_atom_z, sizeof(double) * atom->N));
 
     char filename[200];
     strcpy(filename, input_dir);
@@ -71,13 +71,13 @@ void Compute::postprocess(Atom* atom, Integrate *integrate)
 
 
 static __global__ void find_per_atom_temperature
-(int N, real *g_mass, real *g_vx, real *g_vy, real *g_vz, real *g_temperature)
+(int N, double *g_mass, double *g_vx, double *g_vy, double *g_vz, double *g_temperature)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
     {
-        real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
-        real ek2 = g_mass[n] * (vx * vx + vy * vy + vz * vz);
+        double vx = g_vx[n]; double vy = g_vy[n]; double vz = g_vz[n];
+        double ek2 = g_mass[n] * (vx * vx + vy * vy + vz * vz);
         g_temperature[n] = ek2 / (DIM * K_B);
     }
 }
@@ -85,9 +85,9 @@ static __global__ void find_per_atom_temperature
 
 static __global__ void find_per_atom_jp
 (
-    int N, real *sxx, real *sxy, real *sxz, real *syx, real *syy, real *syz,
-    real *szx, real *szy, real *szz, real *vx, real *vy, real *vz, 
-    real *jx, real *jy, real *jz
+    int N, double *sxx, double *sxy, double *sxz, double *syx, double *syy, double *syz,
+    double *szx, double *szy, double *szz, double *vx, double *vy, double *vz, 
+    double *jx, double *jy, double *jz
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -102,16 +102,16 @@ static __global__ void find_per_atom_jp
 
 static __global__ void find_per_atom_jk
 (
-    int N, real* g_potential, real *g_mass, real *g_vx, real* g_vy, real* g_vz,
-    real* g_jx, real* g_jy, real* g_jz
+    int N, double* g_potential, double *g_mass, double *g_vx, double* g_vy, double* g_vz,
+    double* g_jx, double* g_jy, double* g_jz
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
     {
-        real potential = g_potential[n]; real mass = g_mass[n];
-        real vx = g_vx[n]; real vy = g_vy[n]; real vz = g_vz[n];
-        real energy = mass * (vx * vx + vy * vy + vz * vz) * HALF + potential;
+        double potential = g_potential[n]; double mass = g_mass[n];
+        double vx = g_vx[n]; double vy = g_vy[n]; double vz = g_vz[n];
+        double energy = mass * (vx * vx + vy * vy + vz * vz) * HALF + potential;
         g_jx[n] = vx * energy; g_jy[n] = vy * energy; g_jz[n] = vz * energy;
     }
 }
@@ -120,7 +120,7 @@ static __global__ void find_per_atom_jk
 static __global__ void find_group_sum_1
 (
     int  *g_group_size, int  *g_group_size_sum, int  *g_group_contents,
-    real *g_in, real *g_out
+    double *g_in, double *g_out
 )
 {
     // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
@@ -129,7 +129,7 @@ static __global__ void find_group_sum_1
     int group_size = g_group_size[bid];
     int offset = g_group_size_sum[bid];
     int number_of_patches = (group_size - 1) / 256 + 1;
-    __shared__ real s_data[256];
+    __shared__ double s_data[256];
     s_data[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; patch++)
@@ -157,7 +157,7 @@ static __global__ void find_group_sum_1
 static __global__ void find_group_sum_3
 (
     int *g_group_size, int *g_group_size_sum, int *g_group_contents,
-    real *g_fx, real *g_fy, real *g_fz, real *g_out
+    double *g_fx, double *g_fy, double *g_fz, double *g_out
 )
 {
     // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
@@ -166,9 +166,9 @@ static __global__ void find_group_sum_3
     int group_size = g_group_size[bid];
     int offset = g_group_size_sum[bid];
     int number_of_patches = (group_size - 1) / 256 + 1;
-    __shared__ real s_fx[256];
-    __shared__ real s_fy[256];
-    __shared__ real s_fz[256];
+    __shared__ double s_fx[256];
+    __shared__ double s_fy[256];
+    __shared__ double s_fz[256];
     s_fx[tid] = ZERO; s_fy[tid] = ZERO; s_fz[tid] = ZERO;
 
     for (int patch = 0; patch < number_of_patches; patch++)
@@ -303,7 +303,7 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
     }
 
     CHECK(cudaMemcpy(cpu_group_sum, gpu_group_sum, 
-        sizeof(real) * Ng * number_of_scalars, cudaMemcpyDeviceToHost));
+        sizeof(double) * Ng * number_of_scalars, cudaMemcpyDeviceToHost));
 
     for (int n = 0; n < Ng * number_of_scalars; ++n)
         cpu_group_sum_ave[n] += cpu_group_sum[n];
@@ -325,7 +325,7 @@ void Compute::output_results(Atom *atom, Integrate *integrate)
         int offset = n * Ng;
         for (int k = 0; k < Ng; k++)
         {
-            real tmp = cpu_group_sum_ave[k + offset] / output_interval;
+            double tmp = cpu_group_sum_ave[k + offset] / output_interval;
             if (compute_temperature && n == 0) 
             {
                 tmp /= atom->group[grouping_method].cpu_size[k];

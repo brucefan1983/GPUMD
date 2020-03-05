@@ -53,7 +53,7 @@ const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 bool DUMP_NETCDF::append = false;
 
-DUMP_NETCDF::DUMP_NETCDF(int N, real global_time)
+DUMP_NETCDF::DUMP_NETCDF(int N, double global_time)
 {
     this->N = N;
 }
@@ -241,12 +241,12 @@ void DUMP_NETCDF::write(Atom *atom)
 
     //// Write Frame Header ////
      // Get cell lengths and angles
-    real cell_lengths[3];
-    real cell_angles[3];
+    double cell_lengths[3];
+    double cell_angles[3];
     if (atom->box.triclinic)
     {
-        real *t = atom->box.cpu_h;
-        real cosgamma, cosbeta, cosalpha;
+        double *t = atom->box.cpu_h;
+        double cosgamma, cosbeta, cosalpha;
         cell_lengths[0] = sqrt(t[0]*t[0] + t[3]*t[3] + t[6]*t[6]); //a-side
         cell_lengths[1] = sqrt(t[1]*t[1] + t[4]*t[4] + t[7]*t[7]); //b-side
         cell_lengths[2] = sqrt(t[2]*t[2] + t[5]*t[5] + t[8]*t[8]); //c-side
@@ -281,14 +281,14 @@ void DUMP_NETCDF::write(Atom *atom)
 
     size_t countp[3] = {1, 3, 0}; //3rd dimension unused until per-atom
     size_t startp[3] = {lenp, 0, 0};
-    real time = atom->global_time/1000.0*TIME_UNIT_CONVERSION; // convert fs to ps
+    double time = atom->global_time/1000.0*TIME_UNIT_CONVERSION; // convert fs to ps
     NC_CHECK(nc_put_var1_double(ncid, time_var, startp, &time));
     NC_CHECK(nc_put_vara_double(ncid, cell_lengths_var, startp, countp, cell_lengths));
     NC_CHECK(nc_put_vara_double(ncid, cell_angles_var, startp, countp, cell_angles));
 
     //// Write Per-Atom Data ////
 
-    int memory = sizeof(real) * N;
+    int memory = sizeof(double) * N;
     CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));

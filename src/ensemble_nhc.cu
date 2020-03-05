@@ -30,7 +30,7 @@ Oxford University Press, 2010.
 #define DIM 3
 
 
-Ensemble_NHC::Ensemble_NHC(int t, int fg, int N, real T, real Tc, real dt)
+Ensemble_NHC::Ensemble_NHC(int t, int fg, int N, double T, double Tc, double dt)
 {
     type = t;
     fixed_group = fg;
@@ -41,9 +41,9 @@ Ensemble_NHC::Ensemble_NHC(int t, int fg, int N, real T, real Tc, real dt)
     vel_nhc1[0] = vel_nhc1[2] =  ONE;
     vel_nhc1[1] = vel_nhc1[3] = -ONE;
 
-    real tau = dt * temperature_coupling; 
-    real kT = K_B * temperature;
-    real dN = DIM * N;
+    double tau = dt * temperature_coupling; 
+    double kT = K_B * temperature;
+    double dN = DIM * N;
     for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; i++)
     {
         mas_nhc1[i] = kT * tau * tau;
@@ -55,7 +55,7 @@ Ensemble_NHC::Ensemble_NHC(int t, int fg, int N, real T, real Tc, real dt)
 Ensemble_NHC::Ensemble_NHC
 (
     int t, int fg, int source_input, int sink_input, int N1, int N2, 
-    real T, real Tc, real dT, real time_step
+    double T, double Tc, double dT, double time_step
 )
 {
     type = t;
@@ -72,11 +72,11 @@ Ensemble_NHC::Ensemble_NHC
     vel_nhc1[0] = vel_nhc1[2] = vel_nhc2[0] = vel_nhc2[2] =  ONE;
     vel_nhc1[1] = vel_nhc1[3] = vel_nhc2[1] = vel_nhc2[3] = -ONE;
 
-    real tau = time_step * temperature_coupling;
-    real kT1 = K_B * (temperature + delta_temperature);
-    real kT2 = K_B * (temperature - delta_temperature);
-    real dN1 = DIM * N1;
-    real dN2 = DIM * N2;
+    double tau = time_step * temperature_coupling;
+    double kT1 = K_B * (temperature + delta_temperature);
+    double kT2 = K_B * (temperature - delta_temperature);
+    double dN1 = DIM * N1;
+    double dN2 = DIM * N2;
     for (int i = 0; i < NOSE_HOOVER_CHAIN_LENGTH; i++)
     {
         mas_nhc1[i] = kT1 * tau * tau;
@@ -100,16 +100,16 @@ Ensemble_NHC::~Ensemble_NHC(void)
 //The Nose-Hover thermostat integrator
 //Run it on the CPU, which requires copying the kinetic energy 
 //from the GPU to the CPU
-static real nhc
+static double nhc
 (
-    int M, real* pos_eta, real *vel_eta, real *mas_eta,
-    real Ek2, real kT, real dN, real dt2_particle
+    int M, double* pos_eta, double *vel_eta, double *mas_eta,
+    double Ek2, double kT, double dN, double dt2_particle
 )
 {
     // These constants are taken from Tuckerman's book
     int n_sy = 7;
     int n_respa = 4;
-    const real w[7] = {
+    const double w[7] = {
                              0.784513610477560,
                              0.235573213359357,
                              -1.17767998417887,
@@ -119,24 +119,24 @@ static real nhc
                              0.784513610477560
                         };
                             
-    real factor = 1.0; // to be accumulated
+    double factor = 1.0; // to be accumulated
 
     for (int n1 = 0; n1 < n_sy; n1++)
     {
-        real dt2 = dt2_particle * w[n1] / n_respa;
-        real dt4 = dt2 * 0.5;
-        real dt8 = dt4 * 0.5;
+        double dt2 = dt2_particle * w[n1] / n_respa;
+        double dt4 = dt2 * 0.5;
+        double dt8 = dt4 * 0.5;
         for (int n2 = 0; n2 < n_respa; n2++)
         {
         
             // update velocity of the last (M - 1) thermostat:
-            real G = vel_eta[M - 2] * vel_eta[M - 2] / mas_eta[M - 2] - kT;
+            double G = vel_eta[M - 2] * vel_eta[M - 2] / mas_eta[M - 2] - kT;
             vel_eta[M - 1] += dt4 * G;
 
             // update thermostat velocities from M - 2 to 0:
             for (int m = M - 2; m >= 0; m--)
             { 
-                real tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
+                double tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
                 G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
                 if (m == 0) { G = Ek2 - dN  * kT; }
                 vel_eta[m] = tmp * (tmp * vel_eta[m] + dt4 * G);   
@@ -149,14 +149,14 @@ static real nhc
             } 
 
             // compute the scale factor 
-            real factor_local = exp(-dt2 * vel_eta[0] / mas_eta[0]); 
+            double factor_local = exp(-dt2 * vel_eta[0] / mas_eta[0]); 
             Ek2 *= factor_local * factor_local;
             factor *= factor_local;
 
             // update thermostat velocities from 0 to M - 2:
             for (int m = 0; m < M - 1; m++)
             { 
-                real tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
+                double tmp = exp(-dt8 * vel_eta[m + 1] / mas_eta[m + 1]);
                 G = vel_eta[m - 1] * vel_eta[m - 1] / mas_eta[m - 1] - kT;
                 if (m == 0) {G = Ek2 - dN * kT;}
                 vel_eta[m] = tmp * (tmp * vel_eta[m] + dt4 * G);   
@@ -175,27 +175,27 @@ void Ensemble_NHC::integrate_nvt_nhc
 (Atom *atom, Force *force, Measure* measure)
 {
     int  N           = atom->N;
-    real time_step   = atom->time_step;
-    real *thermo             = atom->thermo;
+    double time_step   = atom->time_step;
+    double *thermo             = atom->thermo;
 
-    real kT = K_B * temperature;
-    real dN = (real) DIM * N; 
-    real dt2 = time_step * HALF;
+    double kT = K_B * temperature;
+    double dN = (double) DIM * N; 
+    double dt2 = time_step * HALF;
 
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
     find_thermo(atom);
 
-    real *ek2;
-    MY_MALLOC(ek2, real, sizeof(real) * 1);
-    CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
+    double *ek2;
+    MY_MALLOC(ek2, double, sizeof(double) * 1);
+    CHECK(cudaMemcpy(ek2, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
-    real factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
+    double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     scale_velocity_global(atom, factor);
 
     velocity_verlet(atom, force, measure);
     find_thermo(atom);
 
-    CHECK(cudaMemcpy(ek2, thermo, sizeof(real) * 1, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
     factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     MY_FREE(ek2);
@@ -208,35 +208,35 @@ void Ensemble_NHC::integrate_nvt_nhc
 void Ensemble_NHC::integrate_heat_nhc
 (Atom *atom, Force *force, Measure* measure)
 {
-    real time_step   = atom->time_step;
+    double time_step   = atom->time_step;
 
     int label_1 = source;
     int label_2 = sink;
 
     int Ng = atom->group[0].number;
 
-    real kT1 = K_B * (temperature + delta_temperature); 
-    real kT2 = K_B * (temperature - delta_temperature); 
-    real dN1 = (real) DIM * atom->group[0].cpu_size[source];
-    real dN2 = (real) DIM * atom->group[0].cpu_size[sink];
-    real dt2 = time_step * HALF;
+    double kT1 = K_B * (temperature + delta_temperature); 
+    double kT2 = K_B * (temperature - delta_temperature); 
+    double dN1 = (double) DIM * atom->group[0].cpu_size[source];
+    double dN2 = (double) DIM * atom->group[0].cpu_size[sink];
+    double dt2 = time_step * HALF;
 
     // allocate some memory (to be improved)
-    real *ek2;
-    MY_MALLOC(ek2, real, sizeof(real) * Ng);
-    real *vcx, *vcy, *vcz, *ke;
-    CHECK(cudaMalloc((void**)&vcx, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&vcy, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&vcz, sizeof(real) * Ng));
-    CHECK(cudaMalloc((void**)&ke, sizeof(real) * Ng));
+    double *ek2;
+    MY_MALLOC(ek2, double, sizeof(double) * Ng);
+    double *vcx, *vcy, *vcz, *ke;
+    CHECK(cudaMalloc((void**)&vcx, sizeof(double) * Ng));
+    CHECK(cudaMalloc((void**)&vcy, sizeof(double) * Ng));
+    CHECK(cudaMalloc((void**)&vcz, sizeof(double) * Ng));
+    CHECK(cudaMalloc((void**)&ke, sizeof(double) * Ng));
 
     // NHC first
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
 
-    real factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
+    double factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
-    real factor_2 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
+    double factor_2 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc2, vel_nhc2, mas_nhc2, ek2[label_2], kT2, dN2, dt2);
 
     // accumulate the energies transferred from the system to the baths
@@ -249,7 +249,7 @@ void Ensemble_NHC::integrate_heat_nhc
 
     // NHC second
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek2, ke, sizeof(real) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
     factor_2 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 

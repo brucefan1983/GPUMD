@@ -28,7 +28,7 @@ The Berendsen thermostat:
 #define BLOCK_SIZE 128
 
 
-Ensemble_BER::Ensemble_BER(int t, int fg, real T, real Tc)
+Ensemble_BER::Ensemble_BER(int t, int fg, double T, double Tc)
 {
     type = t;
     fixed_group = fg;
@@ -39,8 +39,8 @@ Ensemble_BER::Ensemble_BER(int t, int fg, real T, real Tc)
 
 Ensemble_BER::Ensemble_BER
 (
-    int t, int fg, real T, real Tc, real px, real py, real pz, real pc,
-    int dx, int dy, int dz, real rate
+    int t, int fg, double T, double Tc, double px, double py, double pz, double pc,
+    int dx, int dy, int dz, double rate
 )
 {
     type = t;
@@ -66,14 +66,14 @@ Ensemble_BER::~Ensemble_BER(void)
 
 static __global__ void gpu_berendsen_temperature
 (
-    int N, real temperature, real coupling, real *g_prop, 
-    real *g_vx, real *g_vy, real *g_vz
+    int N, double temperature, double coupling, double *g_prop, 
+    double *g_vx, double *g_vy, double *g_vz
 )
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N)
     {  
-        real factor = sqrt(ONE + coupling * (temperature / g_prop[0] - ONE)); 
+        double factor = sqrt(ONE + coupling * (temperature / g_prop[0] - ONE)); 
         g_vx[i] *= factor; 
         g_vy[i] *= factor; 
         g_vz[i] *= factor;
@@ -83,10 +83,10 @@ static __global__ void gpu_berendsen_temperature
 
 static __global__ void gpu_berendsen_pressure
 (
-    int deform_x, int deform_y, int deform_z, real deform_rate,
+    int deform_x, int deform_y, int deform_z, double deform_rate,
     int number_of_particles, Box box,
-    real p0x, real p0y, real p0z, real p_coupling, 
-    real *g_prop, real *g_x, real *g_y, real *g_z
+    double p0x, double p0y, double p0z, double p_coupling, 
+    double *g_prop, double *g_x, double *g_y, double *g_z
 )
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -94,35 +94,35 @@ static __global__ void gpu_berendsen_pressure
     {
         if (deform_x)
         {
-            real scale_factor = box.cpu_h[0];
+            double scale_factor = box.cpu_h[0];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_x[i] *= scale_factor;
         }
         else if (box.pbc_x == 1)
         {
-            real scale_factor = ONE - p_coupling * (p0x - g_prop[2]);
+            double scale_factor = ONE - p_coupling * (p0x - g_prop[2]);
             g_x[i] *= scale_factor;
         }
         if (deform_y)
         {
-            real scale_factor = box.cpu_h[1];
+            double scale_factor = box.cpu_h[1];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_y[i] *= scale_factor;
         }
         else if (box.pbc_y == 1)
         {
-            real scale_factor = ONE - p_coupling * (p0y - g_prop[3]);
+            double scale_factor = ONE - p_coupling * (p0y - g_prop[3]);
             g_y[i] *= scale_factor;
         }
         if (deform_z)
         {
-            real scale_factor = box.cpu_h[2];
+            double scale_factor = box.cpu_h[2];
             scale_factor = (scale_factor + deform_rate) / scale_factor;
             g_z[i] *= scale_factor;
         }
         else if (box.pbc_z == 1)
         {
-            real scale_factor = ONE - p_coupling * (p0z - g_prop[4]);
+            double scale_factor = ONE - p_coupling * (p0z - g_prop[4]);
             g_z[i] *= scale_factor;
         }
     }
@@ -131,51 +131,51 @@ static __global__ void gpu_berendsen_pressure
 
 static void cpu_berendsen_pressure
 (
-    int deform_x, int deform_y, int deform_z, real deform_rate, Box& box,
-    real p0x, real p0y, real p0z, real p_coupling, real *thermo
+    int deform_x, int deform_y, int deform_z, double deform_rate, Box& box,
+    double p0x, double p0y, double p0z, double p_coupling, double *thermo
 )
 {
-    real *p; MY_MALLOC(p, real, 3);
-    CHECK(cudaMemcpy(p, thermo+2, sizeof(real)*3, cudaMemcpyDeviceToHost));
+    double *p; MY_MALLOC(p, double, 3);
+    CHECK(cudaMemcpy(p, thermo+2, sizeof(double)*3, cudaMemcpyDeviceToHost));
 
     if (deform_x)
     {
-        real scale_factor = box.cpu_h[0];
+        double scale_factor = box.cpu_h[0];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[0] *= scale_factor;
         box.cpu_h[3] = box.cpu_h[0] * HALF;
     }
     else if (box.pbc_x == 1)
     {
-        real scale_factor = ONE - p_coupling * (p0x - p[0]);
+        double scale_factor = ONE - p_coupling * (p0x - p[0]);
         box.cpu_h[0] *= scale_factor;
         box.cpu_h[3] = box.cpu_h[0] * HALF;
     }
 
     if (deform_y)
     {
-        real scale_factor = box.cpu_h[1];
+        double scale_factor = box.cpu_h[1];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[1] *= scale_factor;
         box.cpu_h[4] = box.cpu_h[1] * HALF;
     }
     else if (box.pbc_y == 1)
     {
-        real scale_factor = ONE - p_coupling * (p0y - p[1]);
+        double scale_factor = ONE - p_coupling * (p0y - p[1]);
         box.cpu_h[1] *= scale_factor;
         box.cpu_h[4] = box.cpu_h[1] * HALF;
     }
 
     if (deform_z)
     {
-        real scale_factor = box.cpu_h[2];
+        double scale_factor = box.cpu_h[2];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[2] *= scale_factor;
         box.cpu_h[5] = box.cpu_h[2] * HALF;
     }
     else if (box.pbc_z == 1)
     {
-        real scale_factor = ONE - p_coupling * (p0x - p[2]);
+        double scale_factor = ONE - p_coupling * (p0x - p[2]);
         box.cpu_h[2] *= scale_factor;
         box.cpu_h[5] = box.cpu_h[2] * HALF;
     }

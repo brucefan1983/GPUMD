@@ -30,7 +30,7 @@ public:
     void finalize();
     void dump(Atom *atom, int step);
 
-    DUMP_NETCDF(int N, real global_time);
+    DUMP_NETCDF(int N, double global_time);
     ~DUMP_NETCDF(){}
 
 private:
