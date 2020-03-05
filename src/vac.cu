@@ -36,7 +36,7 @@ const int BLOCK_SIZE = 128;
 
 
 static __global__ void gpu_initialize_vac
-(int Nc, real *g_vac_x, real *g_vac_y, real *g_vac_z)
+(int Nc, double *g_vac_x, double *g_vac_y, double *g_vac_z)
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
     if (n < Nc)
@@ -51,7 +51,7 @@ static __global__ void gpu_initialize_vac
 static __global__ void gpu_copy_mass
 (
     int N, int offset, int *g_group_contents,
-    real *g_mass_o, real *g_mass_i
+    double *g_mass_o, double *g_mass_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -90,14 +90,14 @@ void VAC::preprocess(Atom *atom)
     }
 
     // only need to record Nc frames of velocity data (saving a lot of memory)
-    CHECK(cudaMalloc((void**)&vx, sizeof(real) * N * Nc));
-    CHECK(cudaMalloc((void**)&vy, sizeof(real) * N * Nc));
-    CHECK(cudaMalloc((void**)&vz, sizeof(real) * N * Nc));
+    CHECK(cudaMalloc((void**)&vx, sizeof(double) * N * Nc));
+    CHECK(cudaMalloc((void**)&vy, sizeof(double) * N * Nc));
+    CHECK(cudaMalloc((void**)&vz, sizeof(double) * N * Nc));
 
     // using unified memory for VAC
-    CHECK(cudaMallocManaged((void**)&vac_x, sizeof(real) * Nc));
-    CHECK(cudaMallocManaged((void**)&vac_y, sizeof(real) * Nc));
-    CHECK(cudaMallocManaged((void**)&vac_z, sizeof(real) * Nc));
+    CHECK(cudaMallocManaged((void**)&vac_x, sizeof(double) * Nc));
+    CHECK(cudaMallocManaged((void**)&vac_y, sizeof(double) * Nc));
+    CHECK(cudaMallocManaged((void**)&vac_z, sizeof(double) * Nc));
 
     // initialize the VAC to zero
     gpu_initialize_vac<<<(Nc - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -110,14 +110,14 @@ void VAC::preprocess(Atom *atom)
         if (num_dos_points == -1) {num_dos_points = Nc;}
 
         // check if the sampling frequency is large enough
-        real nu_max = 1000.0/(atom->time_step * sample_interval); // THz
+        double nu_max = 1000.0/(atom->time_step * sample_interval); // THz
         if (nu_max < omega_max/PI)
         {
             PRINT_INPUT_ERROR("VAC sampling rate < Nyquist frequency.");
         }
 
         // need mass for DOS calculations
-        CHECK(cudaMalloc((void**)&mass, sizeof(real) * N));
+        CHECK(cudaMalloc((void**)&mass, sizeof(double) * N));
 
         if (grouping_method >= 0)
         {
@@ -130,7 +130,7 @@ void VAC::preprocess(Atom *atom)
         }
         else
         {
-            const int mem = sizeof(real) * N;
+            const int mem = sizeof(double) * N;
             CHECK(cudaMemcpy(mass, atom->mass, mem, cudaMemcpyDeviceToDevice));
         }
     }
@@ -140,8 +140,8 @@ void VAC::preprocess(Atom *atom)
 static __global__ void gpu_copy_velocity
 (
     int N, int offset, int *g_group_contents,
-    real *g_vx_o, real *g_vy_o, real *g_vz_o,
-    real *g_vx_i, real *g_vy_i, real *g_vz_i
+    double *g_vx_o, double *g_vy_o, double *g_vz_o,
+    double *g_vx_i, double *g_vy_i, double *g_vz_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -159,8 +159,8 @@ static __global__ void gpu_copy_velocity
 static __global__ void gpu_copy_velocity
 (
     int N, 
-    real *g_vx_o, real *g_vy_o, real *g_vz_o,
-    real *g_vx_i, real *g_vy_i, real *g_vz_i
+    double *g_vx_o, double *g_vy_o, double *g_vz_o,
+    double *g_vx_i, double *g_vy_i, double *g_vz_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -176,29 +176,29 @@ static __global__ void gpu_copy_velocity
 
 static __global__ void gpu_find_vac
 (
-    int N, int correlation_step, int compute_dos, real *g_mass,
-    real *g_vx, real *g_vy, real *g_vz,
-    real *g_vx_all, real *g_vy_all, real *g_vz_all,
-    real *g_vac_x, real *g_vac_y, real *g_vac_z
+    int N, int correlation_step, int compute_dos, double *g_mass,
+    double *g_vx, double *g_vy, double *g_vz,
+    double *g_vx_all, double *g_vy_all, double *g_vz_all,
+    double *g_vac_x, double *g_vac_y, double *g_vac_z
 )
 {
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int size_sum = bid * N;
     int number_of_rounds = (N - 1) / BLOCK_SIZE + 1;
-    __shared__ real s_vac_x[BLOCK_SIZE];
-    __shared__ real s_vac_y[BLOCK_SIZE];
-    __shared__ real s_vac_z[BLOCK_SIZE];
-    real vac_x = ZERO;
-    real vac_y = ZERO;
-    real vac_z = ZERO;
+    __shared__ double s_vac_x[BLOCK_SIZE];
+    __shared__ double s_vac_y[BLOCK_SIZE];
+    __shared__ double s_vac_z[BLOCK_SIZE];
+    double vac_x = ZERO;
+    double vac_y = ZERO;
+    double vac_z = ZERO;
 
     for (int round = 0; round < number_of_rounds; ++round)
     {
         int n = tid + round * BLOCK_SIZE;
         if (n < N)
         {
-            real mass = compute_dos ? g_mass[n] : ONE;
+            double mass = compute_dos ? g_mass[n] : ONE;
             vac_x += mass * g_vx[n] * g_vx_all[size_sum + n];
             vac_y += mass * g_vy[n] * g_vy_all[size_sum + n];
             vac_z += mass * g_vz[n] * g_vz_all[size_sum + n];
@@ -286,17 +286,17 @@ void VAC::process(int step, Atom *atom)
 static void perform_dft
 (
     int N, int Nc, int num_dos_points,
-    real delta_t, real omega_0, real d_omega,
-    real *vac_x, real *vac_y, real *vac_z,
-    real *dos_x, real *dos_y, real *dos_z
+    double delta_t, double omega_0, double d_omega,
+    double *vac_x, double *vac_y, double *vac_z,
+    double *dos_x, double *dos_y, double *dos_z
 )
 {
     // Apply Hann window and normalize by the correct factor
     for (int nc = 0; nc < Nc; nc++)
     {
-        real hann_window = (cos((PI * nc) / Nc) + 1.0) * 0.5;
+        double hann_window = (cos((PI * nc) / Nc) + 1.0) * 0.5;
 
-        real multiply_factor = 2.0 * hann_window;
+        double multiply_factor = 2.0 * hann_window;
         if (nc == 0)
         {
             multiply_factor = 1.0 * hann_window;
@@ -310,10 +310,10 @@ static void perform_dft
     // Calculate DOS by discrete Fourier transform
     for (int nw = 0; nw < num_dos_points; nw++)
     {
-        real omega = omega_0 + nw * d_omega;
+        double omega = omega_0 + nw * d_omega;
         for (int nc = 0; nc < Nc; nc++)
         {
-            real cos_factor = cos(omega * nc * delta_t);
+            double cos_factor = cos(omega * nc * delta_t);
             dos_x[nw] += vac_x[nc] * cos_factor;
             dos_y[nw] += vac_y[nc] * cos_factor;
             dos_z[nw] += vac_z[nc] * cos_factor;
@@ -327,14 +327,14 @@ static void perform_dft
 
 void VAC::find_dos(char *input_dir, Atom *atom)
 {
-    real d_omega = omega_max / num_dos_points;
-    real omega_0 = d_omega;
+    double d_omega = omega_max / num_dos_points;
+    double omega_0 = d_omega;
 
     // initialize DOS data
-    real *dos_x, *dos_y, *dos_z;
-    MY_MALLOC(dos_x, real, num_dos_points);
-    MY_MALLOC(dos_y, real, num_dos_points);
-    MY_MALLOC(dos_z, real, num_dos_points);
+    double *dos_x, *dos_y, *dos_z;
+    MY_MALLOC(dos_x, double, num_dos_points);
+    MY_MALLOC(dos_y, double, num_dos_points);
+    MY_MALLOC(dos_z, double, num_dos_points);
     for (int nw = 0; nw < num_dos_points; nw++)
     {
         dos_x[nw] = dos_y[nw] = dos_z[nw] = 0.0;
@@ -354,7 +354,7 @@ void VAC::find_dos(char *input_dir, Atom *atom)
     FILE *fid = fopen(file_dos, "a");
     for (int nw = 0; nw < num_dos_points; nw++)
     {
-        real omega = omega_0 + d_omega * nw;
+        double omega = omega_0 + d_omega * nw;
         fprintf(fid, "%g %g %g %g\n", omega, dos_x[nw], dos_y[nw], dos_z[nw]);
     }
     fflush(fid);
@@ -369,11 +369,11 @@ void VAC::find_dos(char *input_dir, Atom *atom)
 
 static void integrate_vac
 (
-    int Nc, real dt, real *vac_x, real *vac_y, real *vac_z,
-    real *sdc_x, real *sdc_y, real *sdc_z
+    int Nc, double dt, double *vac_x, double *vac_y, double *vac_z,
+    double *sdc_x, double *sdc_y, double *sdc_z
 )
 {
-    real dt2 = dt * 0.5;
+    double dt2 = dt * 0.5;
     for (int nc = 1; nc < Nc; nc++)
     {
         sdc_x[nc] = sdc_x[nc - 1] + (vac_x[nc - 1] + vac_x[nc]) * dt2;
@@ -386,10 +386,10 @@ static void integrate_vac
 void VAC::find_sdc(char *input_dir, Atom *atom)
 {
     // initialize the SDC data
-    real *sdc_x, *sdc_y, *sdc_z;
-    MY_MALLOC(sdc_x, real, Nc);
-    MY_MALLOC(sdc_y, real, Nc);
-    MY_MALLOC(sdc_z, real, Nc);
+    double *sdc_x, *sdc_y, *sdc_z;
+    MY_MALLOC(sdc_x, double, Nc);
+    MY_MALLOC(sdc_y, double, Nc);
+    MY_MALLOC(sdc_z, double, Nc);
     for (int nc = 0; nc < Nc; nc++)
     {
         sdc_x[nc] = sdc_y[nc] = sdc_z[nc] = 0.0;
@@ -405,7 +405,7 @@ void VAC::find_sdc(char *input_dir, Atom *atom)
     FILE *fid = fopen(file_sdc, "a");
     for (int nc = 0; nc < Nc; nc++)
     {
-        real t = nc * dt_in_ps;
+        double t = nc * dt_in_ps;
 
         // change to A^2/ps^2
         vac_x[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION;
@@ -439,9 +439,9 @@ void VAC::postprocess(char *input_dir, Atom *atom)
     if (compute_dos)
     {
         // normalize to vac_x[0] = vac_y[0] = vac_z[0] = 1
-        real vac_x_0 = vac_x[0];
-        real vac_y_0 = vac_y[0];
-        real vac_z_0 = vac_z[0];
+        double vac_x_0 = vac_x[0];
+        double vac_y_0 = vac_y[0];
+        double vac_z_0 = vac_z[0];
         for (int nc = 0; nc < Nc; nc++)
         {
             vac_x[nc] /= vac_x_0;
@@ -456,7 +456,7 @@ void VAC::postprocess(char *input_dir, Atom *atom)
         FILE *fid = fopen(file_vac, "a");
         for (int nc = 0; nc < Nc; nc++)
         {
-            real t = nc * dt_in_ps;
+            double t = nc * dt_in_ps;
             fprintf(fid, "%g %g %g %g\n", t, vac_x[nc], vac_y[nc], vac_z[nc]);
         }
         fflush(fid);
@@ -470,9 +470,9 @@ void VAC::postprocess(char *input_dir, Atom *atom)
         // normalize by the number of atoms and number of time origins
         for (int nc = 0; nc < Nc; nc++)
         {
-            vac_x[nc] /= real(N) * num_time_origins;
-            vac_y[nc] /= real(N) * num_time_origins;
-            vac_z[nc] /= real(N) * num_time_origins;
+            vac_x[nc] /= double(N) * num_time_origins;
+            vac_y[nc] /= double(N) * num_time_origins;
+            vac_z[nc] /= double(N) * num_time_origins;
         }
         find_sdc(input_dir, atom);
     }

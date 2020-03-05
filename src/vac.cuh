@@ -30,7 +30,7 @@ public:
     int group = -1;           // group to compute, -1 means none set
     int Nc;                   // number of correlation points
     int num_dos_points = -1;  // points to use for DOS output, -1 means not set
-    real omega_max;           // maximal angular frequency for phonons
+    double omega_max;           // maximal angular frequency for phonons
 
     void preprocess(Atom*);
     void process(int, Atom*);
@@ -40,13 +40,13 @@ private:
 
     int N;                    // number of atoms for computation
     int num_time_origins;     // number of time origins
-    real dt;                  // time interval in natural units
-    real dt_in_ps;            // time interval in units of ps
+    double dt;                  // time interval in natural units
+    double dt_in_ps;            // time interval in units of ps
     void find_dos(char *, Atom *);
     void find_sdc(char *, Atom *);
-    real *mass;
-    real *vx, *vy, *vz;
-    real *vac_x, *vac_y, *vac_z;
+    double *mass;
+    double *vx, *vy, *vz;
+    double *vac_x, *vac_y, *vac_z;
 };
 
 

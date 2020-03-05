@@ -20,7 +20,7 @@
 void apply_mic
 (
     int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    real* h, real &x12, real &y12, real &z12
+    double* h, double &x12, double &y12, double &z12
 )
 {
     if (triclinic == 0) // orthogonal box
@@ -34,9 +34,9 @@ void apply_mic
     }
     else // triclinic box
     {
-        real sx12 = h[9]  * x12 + h[10] * y12 + h[11] * z12;
-        real sy12 = h[12] * x12 + h[13] * y12 + h[14] * z12;
-        real sz12 = h[15] * x12 + h[16] * y12 + h[17] * z12;
+        double sx12 = h[9]  * x12 + h[10] * y12 + h[11] * z12;
+        double sy12 = h[12] * x12 + h[13] * y12 + h[14] * z12;
+        double sz12 = h[15] * x12 + h[16] * y12 + h[17] * z12;
         if (pbc_x == 1) sx12 -= nearbyint(sx12);
         if (pbc_y == 1) sy12 -= nearbyint(sy12);
         if (pbc_z == 1) sz12 -= nearbyint(sz12);

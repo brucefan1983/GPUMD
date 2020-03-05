@@ -69,13 +69,13 @@ void Vashishta::initialize_para(FILE *fid)
         vashishta_para.xi_inv[n] = xi_inv[n];
         vashishta_para.W[n] = W[n];
 
-        real rci = ONE / rc;
-        real rci4 = rci * rci * rci * rci;
-        real rci6 = rci4 * rci * rci;
-        real p2_steric = H[n] * pow(rci, real(eta[n]));
-        real p2_charge = qq[n] * rci * exp(-rc*lambda_inv[n]);
-        real p2_dipole = D[n] * rci4 * exp(-rc*xi_inv[n]);
-        real p2_vander = W[n] * rci6;
+        double rci = ONE / rc;
+        double rci4 = rci * rci * rci * rci;
+        double rci6 = rci4 * rci * rci;
+        double p2_steric = H[n] * pow(rci, double(eta[n]));
+        double p2_charge = qq[n] * rci * exp(-rc*lambda_inv[n]);
+        double p2_dipole = D[n] * rci4 * exp(-rc*xi_inv[n]);
+        double p2_vander = W[n] * rci6;
         vashishta_para.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
         vashishta_para.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
                                 + p2_vander * (SIX * rci)
@@ -90,7 +90,7 @@ Vashishta::Vashishta(FILE *fid, Atom* atom)
     initialize_para(fid);
 
     int num = (atom->neighbor.MN < 100) ? atom->neighbor.MN : 100;
-    int memory = sizeof(real) * atom->N * num;
+    int memory = sizeof(double) * atom->N * num;
     CHECK(cudaMalloc((void**)&vashishta_data.f12x, memory));
     CHECK(cudaMalloc((void**)&vashishta_data.f12y, memory));
     CHECK(cudaMalloc((void**)&vashishta_data.f12z, memory));
@@ -112,11 +112,11 @@ Vashishta::~Vashishta(void)
 
 
 // eta is always an integer and we don't need the very slow pow()
-static __device__ real my_pow(real x, int n) 
+static __device__ double my_pow(double x, int n) 
 {
     if (n == 7) 
     { 
-        real y = x;
+        double y = x;
         x *= x;
         y *= x; // x^3
         x *= x; // x^4
@@ -124,7 +124,7 @@ static __device__ real my_pow(real x, int n)
     }
     else if (n == 9) 
     { 
-        real y = x;
+        double y = x;
         x *= x; // x^2
         x *= x; // x^4
         y *= x; // x^5
@@ -132,7 +132,7 @@ static __device__ real my_pow(real x, int n)
     }
     else // n = 11
     { 
-        real y = x;
+        double y = x;
         x *= x; // x^2
         y *= x; // x^3
         x *= x; // x^4
@@ -145,16 +145,16 @@ static __device__ real my_pow(real x, int n)
 // get U_ij and (d U_ij / d r_ij) / r_ij for the 2-body part
 static __device__ void find_p2_and_f2
 (
-    real H, int eta, real qq, real lambda_inv, real D, real xi_inv, real W, 
-    real v_rc, real dv_rc, real rc, real d12, real &p2, real &f2
+    double H, int eta, double qq, double lambda_inv, double D, double xi_inv, double W, 
+    double v_rc, double dv_rc, double rc, double d12, double &p2, double &f2
 )
 {
-    real d12inv = ONE / d12;
-    real d12inv2 = d12inv * d12inv;
-    real p2_steric = H * my_pow(d12inv, eta);
-    real p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
-    real p2_dipole = D * (d12inv2 * d12inv2) * exp(-d12 * xi_inv);
-    real p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
+    double d12inv = ONE / d12;
+    double d12inv2 = d12inv * d12inv;
+    double p2_steric = H * my_pow(d12inv, eta);
+    double p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
+    double p2_dipole = D * (d12inv2 * d12inv2) * exp(-d12 * xi_inv);
+    double p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
     p2 = p2_steric + p2_charge - p2_dipole - p2_vander; 
     p2 -= v_rc + (d12 - rc) * dv_rc; // shifted potential
     f2 = p2_dipole * (xi_inv + FOUR*d12inv) + p2_vander * (SIX * d12inv);
@@ -170,38 +170,38 @@ static __global__ void gpu_find_force_vashishta_2body
     Vashishta_Para vas,
     int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
     int *g_type, int shift,
-    const real* __restrict__ g_x, 
-    const real* __restrict__ g_y, 
-    const real* __restrict__ g_z, 
-    const real* __restrict__ g_vx, 
-    const real* __restrict__ g_vy, 
-    const real* __restrict__ g_vz,
-    real *g_fx, real *g_fy, real *g_fz,
-    real *g_virial, real *g_potential
+    const double* __restrict__ g_x, 
+    const double* __restrict__ g_y, 
+    const double* __restrict__ g_z, 
+    const double* __restrict__ g_vx, 
+    const double* __restrict__ g_vy, 
+    const double* __restrict__ g_vz,
+    double *g_fx, double *g_fy, double *g_fz,
+    double *g_virial, double *g_potential
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    real s_fx = ZERO; // force_x
-    real s_fy = ZERO; // force_y
-    real s_fz = ZERO; // force_z
-    real s_pe = ZERO; // potential energy
-    real s_sxx = ZERO; // virial_stress_xx
-    real s_sxy = ZERO; // virial_stress_xy
-    real s_sxz = ZERO; // virial_stress_xz
-    real s_syx = ZERO; // virial_stress_yx
-    real s_syy = ZERO; // virial_stress_yy
-    real s_syz = ZERO; // virial_stress_yz
-    real s_szx = ZERO; // virial_stress_zx
-    real s_szy = ZERO; // virial_stress_zy
-    real s_szz = ZERO; // virial_stress_zz
+    double s_fx = ZERO; // force_x
+    double s_fy = ZERO; // force_y
+    double s_fz = ZERO; // force_z
+    double s_pe = ZERO; // potential energy
+    double s_sxx = ZERO; // virial_stress_xx
+    double s_sxy = ZERO; // virial_stress_xy
+    double s_sxz = ZERO; // virial_stress_xz
+    double s_syx = ZERO; // virial_stress_yx
+    double s_syy = ZERO; // virial_stress_yy
+    double s_syz = ZERO; // virial_stress_yz
+    double s_szx = ZERO; // virial_stress_zx
+    double s_szy = ZERO; // virial_stress_zy
+    double s_szz = ZERO; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        real x1 = LDG(g_x, n1); 
-        real y1 = LDG(g_y, n1); 
-        real z1 = LDG(g_z, n1);
+        double x1 = LDG(g_x, n1); 
+        double y1 = LDG(g_y, n1); 
+        double z1 = LDG(g_z, n1);
         
         int count = 0; // initialize g_NN_local[n1] to 0
 
@@ -209,11 +209,11 @@ static __global__ void gpu_find_force_vashishta_2body
         {   
             int n2 = g_NL[n1 + number_of_particles * i1];
             
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             if (d12 >= vas.rc) { continue; }
             if (d12 < vas.r0) // r0 is much smaller than rc
             {                    
@@ -221,7 +221,7 @@ static __global__ void gpu_find_force_vashishta_2body
             }
             int type2 = g_type[n2] - shift;
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
-            real p2, f2;
+            double p2, f2;
 
             find_p2_and_f2
             (
@@ -232,12 +232,12 @@ static __global__ void gpu_find_force_vashishta_2body
             );
 
             // treat two-body potential in the same way as many-body potential
-            real f12x = f2 * x12 * HALF; 
-            real f12y = f2 * y12 * HALF; 
-            real f12z = f2 * z12 * HALF; 
-            real f21x = -f12x; 
-            real f21y = -f12y; 
-            real f21z = -f12z; 
+            double f12x = f2 * x12 * HALF; 
+            double f12y = f2 * y12 * HALF; 
+            double f12z = f2 * z12 * HALF; 
+            double f21x = -f12x; 
+            double f21y = -f12y; 
+            double f21z = -f12z; 
        
             // accumulate force
             s_fx += f12x - f21x; 
@@ -290,10 +290,10 @@ static __global__ void gpu_find_force_vashishta_partial
     Vashishta_Para vas,
     int *g_neighbor_number, int *g_neighbor_list,
     int *g_type, int shift,
-    const real* __restrict__ g_x, 
-    const real* __restrict__ g_y, 
-    const real* __restrict__ g_z, 
-    real *g_potential, real *g_f12x, real *g_f12y, real *g_f12z  
+    const double* __restrict__ g_x, 
+    const double* __restrict__ g_y, 
+    const double* __restrict__ g_z, 
+    double *g_potential, double *g_f12x, double *g_f12y, double *g_f12z  
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -301,10 +301,10 @@ static __global__ void gpu_find_force_vashishta_partial
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        real x1 = LDG(g_x, n1); 
-        real y1 = LDG(g_y, n1); 
-        real z1 = LDG(g_z, n1);
-        real potential_energy = ZERO;
+        double x1 = LDG(g_x, n1); 
+        double y1 = LDG(g_y, n1); 
+        double z1 = LDG(g_z, n1);
+        double potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -312,15 +312,15 @@ static __global__ void gpu_find_force_vashishta_partial
             int n2 = g_neighbor_list[index];
             int type2 = g_type[n2] - shift;
 
-            real x12  = LDG(g_x, n2) - x1;
-            real y12  = LDG(g_y, n2) - y1;
-            real z12  = LDG(g_z, n2) - z1;
+            double x12  = LDG(g_x, n2) - x1;
+            double y12  = LDG(g_y, n2) - y1;
+            double z12  = LDG(g_z, n2) - z1;
             dev_apply_mic(box, x12, y12, z12);
-            real d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            real d12inv = ONE / d12;
+            double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+            double d12inv = ONE / d12;
           
-            real f12x = ZERO; real f12y = ZERO; real f12z = ZERO;
-            real gamma2 = ONE / ((d12 - vas.r0) * (d12 - vas.r0)); // gamma=1
+            double f12x = ZERO; double f12y = ZERO; double f12z = ZERO;
+            double gamma2 = ONE / ((d12 - vas.r0) * (d12 - vas.r0)); // gamma=1
              
             // accumulate_force_123
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -331,17 +331,17 @@ static __global__ void gpu_find_force_vashishta_partial
                 if (type3 != type2) { continue; } // exclude AAB, BBA, ABA, BAB
                 if (type3 == type1) { continue; } // exclude AAA, BBB
 
-                real x13 = LDG(g_x, n3) - x1;
-                real y13 = LDG(g_y, n3) - y1;
-                real z13 = LDG(g_z, n3) - z1;
+                double x13 = LDG(g_x, n3) - x1;
+                double y13 = LDG(g_y, n3) - y1;
+                double z13 = LDG(g_z, n3) - z1;
                 dev_apply_mic(box, x13, y13, z13);
-                real d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+                double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
-                real exp123 = exp(ONE / (d12 - vas.r0) + ONE / (d13 - vas.r0));
-                real one_over_d12d13 = ONE / (d12 * d13);
-                real cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
-                real cos123_over_d12d12 = cos123*d12inv*d12inv;
-                real cos_inv = cos123 - vas.cos0[type1];
+                double exp123 = exp(ONE / (d12 - vas.r0) + ONE / (d13 - vas.r0));
+                double one_over_d12d13 = ONE / (d12 * d13);
+                double cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
+                double cos123_over_d12d12 = cos123*d12inv*d12inv;
+                double cos_inv = cos123 - vas.cos0[type1];
                 cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv);
 
                 // accumulate potential energy
@@ -349,10 +349,10 @@ static __global__ void gpu_find_force_vashishta_partial
                                   * (cos123 - vas.cos0[type1])
                                   * cos_inv*HALF*vas.B[type1]*exp123;
 
-                real tmp1=vas.B[type1]*exp123*cos_inv*(cos123-vas.cos0[type1]);
-                real tmp2=gamma2 * (cos123 - vas.cos0[type1]) * d12inv;
+                double tmp1=vas.B[type1]*exp123*cos_inv*(cos123-vas.cos0[type1]);
+                double tmp2=gamma2 * (cos123 - vas.cos0[type1]) * d12inv;
 
-                real cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
+                double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
                 f12x += tmp1*(TWO*cos_d*cos_inv-tmp2*x12);
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
                 f12y += tmp1*(TWO*cos_d*cos_inv-tmp2*y12);

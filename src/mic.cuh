@@ -19,12 +19,12 @@
 #include "box.cuh"
 
 
-void apply_mic(int, int, int, int, real*, real&, real&, real&);
+void apply_mic(int, int, int, int, double*, double&, double&, double&);
 
 
 static __device__ void dev_apply_mic
 (
-    Box box, real &x12, real &y12, real &z12
+    Box box, double &x12, double &y12, double &z12
 )
 {
     if (box.triclinic == 0) // orthogonal box
@@ -38,9 +38,9 @@ static __device__ void dev_apply_mic
     }
     else // triclinic box
     {
-        real sx12 = box.cpu_h[9]  * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
-        real sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
-        real sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
+        double sx12 = box.cpu_h[9]  * x12 + box.cpu_h[10] * y12 + box.cpu_h[11] * z12;
+        double sy12 = box.cpu_h[12] * x12 + box.cpu_h[13] * y12 + box.cpu_h[14] * z12;
+        double sz12 = box.cpu_h[15] * x12 + box.cpu_h[16] * y12 + box.cpu_h[17] * z12;
         if (box.pbc_x == 1) sx12 -= nearbyint(sx12);
         if (box.pbc_y == 1) sy12 -= nearbyint(sy12);
         if (box.pbc_z == 1) sz12 -= nearbyint(sz12);

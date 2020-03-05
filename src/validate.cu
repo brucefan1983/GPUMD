@@ -33,7 +33,7 @@ Use finite difference to validate the analytical force calculations.
 
 // copy from xyz to xyz0
 static __global__ void copy_positions
-(int N, real *xi, real *yi, real *zi, real *xo, real *yo, real *zo)
+(int N, double *xi, double *yi, double *zi, double *xo, double *yo, double *zo)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
@@ -49,7 +49,7 @@ static __global__ void copy_positions
 static __global__ void shift_atom
 (
     int d, int n, int direction, 
-    real *x0, real *y0, real *z0, real *x, real *y, real *z
+    double *x0, double *y0, double *z0, double *x, double *y, double *z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -93,12 +93,12 @@ static __global__ void shift_atom
 
 
 // get the total potential form the per-atom potentials
-static __global__ void sum_potential(int N, int m, real *p, real *p_sum)
+static __global__ void sum_potential(int N, int m, double *p, double *p_sum)
 {
     int tid = threadIdx.x;
     int number_of_patches = (N - 1) / 1024 + 1; 
     
-    __shared__ real s_sum[1024];
+    __shared__ double s_sum[1024];
     s_sum[tid] = 0;
     
     for (int patch = 0; patch < number_of_patches; ++patch)
@@ -127,7 +127,7 @@ static __global__ void sum_potential(int N, int m, real *p, real *p_sum)
 
 // get the forces from the potential energies using finite difference
 static __global__ void find_force_from_potential
-(int N, real *p1, real *p2, real *fx, real *fy, real *fz)
+(int N, double *p1, double *p2, double *fx, double *fy, double *fz)
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     int m;
@@ -145,22 +145,22 @@ void validate_force
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    int M = sizeof(real) * N;
-    real *x = atom->x;
-    real *y = atom->y;
-    real *z = atom->z;
-    real *fx;
-    real *fy;
-    real *fz;
-    MY_MALLOC(fx, real, N);
-    MY_MALLOC(fy, real, N);
-    MY_MALLOC(fz, real, N);
+    int M = sizeof(double) * N;
+    double *x = atom->x;
+    double *y = atom->y;
+    double *z = atom->z;
+    double *fx;
+    double *fy;
+    double *fz;
+    MY_MALLOC(fx, double, N);
+    MY_MALLOC(fy, double, N);
+    MY_MALLOC(fz, double, N);
 
     // first calculate the forces directly:
     force->compute(atom, measure);
 
     // make a copy of the positions
-    real *x0, *y0, *z0;
+    double *x0, *y0, *z0;
     CHECK(cudaMalloc((void**)&x0, M));
     CHECK(cudaMalloc((void**)&y0, M));
     CHECK(cudaMalloc((void**)&z0, M));
@@ -168,7 +168,7 @@ void validate_force
     CUDA_CHECK_KERNEL
 
     // get the potentials
-    real *p1, *p2;
+    double *p1, *p2;
     CHECK(cudaMalloc((void**)&p1, M * 3));
     CHECK(cudaMalloc((void**)&p2, M * 3));
     for (int d = 0; d < 3; ++d)
@@ -208,7 +208,7 @@ void validate_force
     CUDA_CHECK_KERNEL
 
     // get the forces from the potential energies using finite difference
-    real *fx_compare, *fy_compare, *fz_compare;
+    double *fx_compare, *fy_compare, *fz_compare;
     CHECK(cudaMalloc((void**)&fx_compare, M));
     CHECK(cudaMalloc((void**)&fy_compare, M));
     CHECK(cudaMalloc((void**)&fz_compare, M));
