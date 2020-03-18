@@ -630,7 +630,9 @@ void Force::compute(Atom *atom, Measure* measure)
 
     // always correct the force when using the FCP potential
 #ifdef USE_FCP
-    if (!measure->hnemd.compute && !measure->hnema.compute)
+    if (!measure->hnemd.compute && 
+        !(measure->modal_analysis.compute &&
+         measure->modal_analysis.method == HNEMA_METHOD))
     {
         double *ftot; // total force vector of the system
         CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));
