@@ -149,7 +149,7 @@ void validate_force
     double *x = atom->x;
     double *y = atom->y;
     double *z = atom->z;
-	std::vector<double> fx(N);
+    std::vector<double> fx(N);
     std::vector<double> fy(N);
     std::vector<double> fz(N);
 
