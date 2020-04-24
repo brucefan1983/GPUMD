@@ -149,12 +149,9 @@ void validate_force
     double *x = atom->x;
     double *y = atom->y;
     double *z = atom->z;
-    double *fx;
-    double *fy;
-    double *fz;
-    MY_MALLOC(fx, double, N);
-    MY_MALLOC(fy, double, N);
-    MY_MALLOC(fz, double, N);
+	std::vector<double> fx(N);
+    std::vector<double> fy(N);
+    std::vector<double> fz(N);
 
     // first calculate the forces directly:
     force->compute(atom, measure);
@@ -220,18 +217,18 @@ void validate_force
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    CHECK(cudaMemcpy(fx, atom->fx, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy, atom->fy, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz, atom->fz, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fx.data(), atom->fx, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy.data(), atom->fy, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz.data(), atom->fz, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
     }
  
     // output the forces from finite difference
-    CHECK(cudaMemcpy(fx, fx_compare, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy, fy_compare, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz, fz_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fx.data(), fx_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy.data(), fy_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz.data(), fz_compare, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
@@ -242,9 +239,6 @@ void validate_force
     fclose(fid); 
     
     // free memory
-    MY_FREE(fx);
-    MY_FREE(fy);
-    MY_FREE(fz);
     CHECK(cudaFree(x0));
     CHECK(cudaFree(y0));
     CHECK(cudaFree(z0));

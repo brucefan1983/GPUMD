@@ -331,20 +331,15 @@ void VAC::find_dos(char *input_dir, Atom *atom)
     double omega_0 = d_omega;
 
     // initialize DOS data
-    double *dos_x, *dos_y, *dos_z;
-    MY_MALLOC(dos_x, double, num_dos_points);
-    MY_MALLOC(dos_y, double, num_dos_points);
-    MY_MALLOC(dos_z, double, num_dos_points);
-    for (int nw = 0; nw < num_dos_points; nw++)
-    {
-        dos_x[nw] = dos_y[nw] = dos_z[nw] = 0.0;
-    }
+	std::vector<double> dos_x(num_dos_points, 0.0);
+    std::vector<double> dos_y(num_dos_points, 0.0);
+    std::vector<double> dos_z(num_dos_points, 0.0);
 
     // perform DFT to get DOS from normalized MVAC
     perform_dft
     (
         N, Nc, num_dos_points, dt_in_ps, omega_0, d_omega,
-        vac_x, vac_y, vac_z, dos_x, dos_y, dos_z
+        vac_x, vac_y, vac_z, dos_x.data(), dos_y.data(), dos_z.data()
     );
 
     // output DOS
@@ -359,11 +354,6 @@ void VAC::find_dos(char *input_dir, Atom *atom)
     }
     fflush(fid);
     fclose(fid);
-
-    // free memory
-    MY_FREE(dos_x);
-    MY_FREE(dos_y);
-    MY_FREE(dos_z);
 }
 
 
@@ -386,17 +376,12 @@ static void integrate_vac
 void VAC::find_sdc(char *input_dir, Atom *atom)
 {
     // initialize the SDC data
-    double *sdc_x, *sdc_y, *sdc_z;
-    MY_MALLOC(sdc_x, double, Nc);
-    MY_MALLOC(sdc_y, double, Nc);
-    MY_MALLOC(sdc_z, double, Nc);
-    for (int nc = 0; nc < Nc; nc++)
-    {
-        sdc_x[nc] = sdc_y[nc] = sdc_z[nc] = 0.0;
-    }
+    std::vector<double> sdc_x(Nc, 0.0);
+    std::vector<double> sdc_y(Nc, 0.0);
+    std::vector<double> sdc_z(Nc, 0.0);
 
     // get the SDC from the VAC according to the Green-Kubo relation
-    integrate_vac(Nc, dt, vac_x, vac_y, vac_z, sdc_x, sdc_y, sdc_z);
+    integrate_vac(Nc, dt, vac_x, vac_y, vac_z, sdc_x.data(), sdc_y.data(), sdc_z.data());
 
     // output the VAC and SDC
     char file_sdc[FILE_NAME_LENGTH];
@@ -421,11 +406,6 @@ void VAC::find_sdc(char *input_dir, Atom *atom)
     }
     fflush(fid);
     fclose(fid);
-
-    // free memory
-    MY_FREE(sdc_x); 
-    MY_FREE(sdc_y); 
-    MY_FREE(sdc_z);
 }
 
 
