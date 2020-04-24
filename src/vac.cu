@@ -331,7 +331,7 @@ void VAC::find_dos(char *input_dir, Atom *atom)
     double omega_0 = d_omega;
 
     // initialize DOS data
-	std::vector<double> dos_x(num_dos_points, 0.0);
+    std::vector<double> dos_x(num_dos_points, 0.0);
     std::vector<double> dos_y(num_dos_points, 0.0);
     std::vector<double> dos_z(num_dos_points, 0.0);
 

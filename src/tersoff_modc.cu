@@ -56,9 +56,8 @@ Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
 {
     num_types = num_of_types;
     printf("Use Tersoff-modc (%d-element) potential.\n", num_types);
-    int n_entries = num_types*num_types*num_types;
-    double *cpu_ters;
-    MY_MALLOC(cpu_ters, double, n_entries*NUM_PARAMS);
+    int n_entries = num_types * num_types * num_types;
+    std::vector<double> cpu_ters(n_entries * NUM_PARAMS);
 
     rc = 0;
     int count;
@@ -104,9 +103,8 @@ Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
     CHECK(cudaMalloc((void**)&tersoff_data.f12y, memory));
     CHECK(cudaMalloc((void**)&tersoff_data.f12z, memory));
     CHECK(cudaMalloc((void**)&ters, sizeof(double) * n_entries*NUM_PARAMS));
-    CHECK(cudaMemcpy(ters, cpu_ters,
+    CHECK(cudaMemcpy(ters, cpu_ters.data(),
         sizeof(double) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
-    MY_FREE(cpu_ters);
 }
 
 

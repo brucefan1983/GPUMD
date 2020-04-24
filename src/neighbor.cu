@@ -64,22 +64,13 @@ int Atom::check_atom_distance(void)
     double d2 = neighbor.skin * neighbor.skin * 0.25;
     int *s2;
     CHECK(cudaMalloc((void**)&s2, sizeof(int)));
-
-    int *cpu_s2;
-    MY_MALLOC(cpu_s2, int, 1);
-    cpu_s2[0] = 0;
-
+	int cpu_s2[1] = {0};
     CHECK(cudaMemcpy(s2, cpu_s2, sizeof(int), cudaMemcpyHostToDevice));
-
     gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s2);
     CUDA_CHECK_KERNEL
-
     CHECK(cudaMemcpy(cpu_s2, s2, sizeof(int), cudaMemcpyDeviceToHost));
-
     CHECK(cudaFree(s2));
-    int update = cpu_s2[0];
-    MY_FREE(cpu_s2);
-    return update;
+    return cpu_s2[0];
 }
 
 
@@ -144,8 +135,8 @@ static __global__ void gpu_update_xyz0
 // check the bound of the neighbor list
 void Atom::check_bound(void)
 {
-    int *cpu_NN; MY_MALLOC(cpu_NN, int, N);
-    CHECK(cudaMemcpy(cpu_NN, NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
+    std::vector<int> cpu_NN(N);
+    CHECK(cudaMemcpy(cpu_NN.data(), NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
     int flag = 0;
     for (int n = 0; n < N; ++n)
     {
@@ -156,7 +147,6 @@ void Atom::check_bound(void)
         }
     }
     if (flag == 1) { exit(1); }
-    MY_FREE(cpu_NN);
 }
 
 
