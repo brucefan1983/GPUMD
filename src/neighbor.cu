@@ -64,7 +64,7 @@ int Atom::check_atom_distance(void)
     double d2 = neighbor.skin * neighbor.skin * 0.25;
     int *s2;
     CHECK(cudaMalloc((void**)&s2, sizeof(int)));
-	int cpu_s2[1] = {0};
+    int cpu_s2[1] = {0};
     CHECK(cudaMemcpy(s2, cpu_s2, sizeof(int), cudaMemcpyHostToDevice));
     gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s2);
     CUDA_CHECK_KERNEL

@@ -91,9 +91,9 @@ void Measure::dump_thermos
 {
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
-    double *thermo; MY_MALLOC(thermo, double, NUM_OF_PROPERTIES);
+    std::vector<double> thermo(NUM_OF_PROPERTIES);
     int m1 = sizeof(double) * NUM_OF_PROPERTIES;
-    CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(thermo.data(), atom->thermo, m1, cudaMemcpyDeviceToHost));
     int N_fixed = (integrate->fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[integrate->fixed_group];
     double energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
@@ -105,7 +105,7 @@ void Measure::dump_thermos
     {
         fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
     }
-    fprintf(fid, "\n"); fflush(fid); MY_FREE(thermo);
+    fprintf(fid, "\n"); fflush(fid);
 }
 
 
