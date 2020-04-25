@@ -2,12 +2,12 @@ CC = nvcc
 
 # Note: add -DUSE_FCP to CFLAGS when you use the FCP potential
 # and remove it when you use any other potentials
-
-# For linux
+ 
+ifdef OS # For Windows with the cl.exe compiler
+CFLAGS = -O3 -arch=sm_35 -DDEBUG -Xcompiler "/wd 4819"
+else # For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
-
-# For Windows with the cl.exe compiler 
-#CFLAGS = -O3 -arch=sm_35 -DDEBUG -Xcompiler "/wd 4819"
+endif
 
 INC =
 LDFLAGS = 
@@ -52,5 +52,9 @@ gpumd: $(OBJ)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 
 clean:
+ifdef OS
+	del $(ODIR)\*o gpumd.exe gpumd.exp gpumd.lib
+else
 	rm $(ODIR)/*o gpumd
+endif
 
