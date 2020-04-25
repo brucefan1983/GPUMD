@@ -1,10 +1,10 @@
 CC = nvcc
 
-# For linux
-CFLAGS = -std=c++11 -O3 -arch=sm_35
-
-# For Windows with the cl.exe compiler 
-#CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
+ifdef OS # For Windows with the cl.exe compiler
+CFLAGS = -O3 -arch=sm_35 -DDEBUG -Xcompiler "/wd 4819"
+else # For linux
+CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
+endif
 
 
 LFLAGS = -lcublas -lcusolver
@@ -42,5 +42,9 @@ phonon: $(OBJ)
 	$(CC) $^ -o $@ $(LFLAGS)
 
 clean:
-	rm $(ODIR)/*o phonon
+ifdef OS
+	del $(ODIR)\*o phonon.exe phonon.exp phonon.lib
+else
+	rm $(ODIR)/*o gpumd
+endif
 

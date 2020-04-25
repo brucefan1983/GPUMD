@@ -26,10 +26,10 @@ struct Group
     int *size_sum;          // # atoms in all previous groups
     int *contents;          // atom indices sorted based on groups
     // CPU data corresponding to the above GPU data
-    int* cpu_label;
-    int* cpu_size;
-    int* cpu_size_sum;
-    int* cpu_contents;
+    std::vector<int> cpu_label;
+    std::vector<int> cpu_size;
+    std::vector<int> cpu_size_sum;
+    std::vector<int> cpu_contents;
 };
 
 

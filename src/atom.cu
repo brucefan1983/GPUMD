@@ -39,7 +39,6 @@ Atom::Atom(char *input_dir)
 
 Atom::~Atom(void)
 {
-    free_memory_cpu();
     free_memory_gpu();
 }
 
@@ -229,19 +228,19 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 
 void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
-    MY_MALLOC(cpu_type, int, N);
-    MY_MALLOC(cpu_mass, double, N);
-    MY_MALLOC(cpu_x, double, N);
-    MY_MALLOC(cpu_y, double, N);
-    MY_MALLOC(cpu_z, double, N);
-    MY_MALLOC(cpu_vx, double, N);
-    MY_MALLOC(cpu_vy, double, N);
-    MY_MALLOC(cpu_vz, double, N);
+    cpu_type.resize(N);
+    cpu_mass.resize(N);
+    cpu_x.resize(N);
+    cpu_y.resize(N);
+    cpu_z.resize(N);
+    cpu_vx.resize(N);
+    cpu_vy.resize(N);
+    cpu_vz.resize(N);
     number_of_types = -1;
 
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
-        MY_MALLOC(group[m].cpu_label, int, N);
+        group[m].cpu_label.resize(N);
         group[m].number = -1;
     }
 
@@ -299,9 +298,9 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 
 void Atom::find_group_size(int k)
 {
-    MY_MALLOC(group[k].cpu_size, int, group[k].number);
-    MY_MALLOC(group[k].cpu_size_sum, int, group[k].number);
-    MY_MALLOC(group[k].cpu_contents, int, N);
+    group[k].cpu_size.resize(group[k].number);
+    group[k].cpu_size_sum.resize(group[k].number);
+    group[k].cpu_contents.resize(N);
 
     if (group[k].number == 1)
     {
@@ -342,7 +341,7 @@ void Atom::find_group_size(int k)
 // re-arrange the atoms from the first to the last group
 void Atom::find_group_contents(int k)
 {
-    int *offset; MY_MALLOC(offset, int, group[k].number);
+    std::vector<int> offset(group[k].number);
     for (int m = 0; m < group[k].number; m++) { offset[m] = 0; }
 
     for (int n = 0; n < N; n++) 
@@ -355,13 +354,12 @@ void Atom::find_group_contents(int k)
             }
         }
     }
-    MY_FREE(offset);
 }
 
 
 void Atom::find_type_size(void)
 {
-    MY_MALLOC(cpu_type_size, int, number_of_types);
+    cpu_type_size.resize(number_of_types);
 
     if (number_of_types == 1)
     {
@@ -460,45 +458,23 @@ void Atom::copy_from_cpu_to_gpu(void)
 {
     int m1 = sizeof(int) * N;
     int m3 = sizeof(double) * N;
-    CHECK(cudaMemcpy(type, cpu_type, m1, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(type, cpu_type.data(), m1, cudaMemcpyHostToDevice));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         int m2 = sizeof(int) * group[m].number;
-        CHECK(cudaMemcpy(group[m].label, group[m].cpu_label, m1,
+        CHECK(cudaMemcpy(group[m].label, group[m].cpu_label.data(), m1,
             cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(group[m].size, group[m].cpu_size, m2,
+        CHECK(cudaMemcpy(group[m].size, group[m].cpu_size.data(), m2,
             cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(group[m].size_sum, group[m].cpu_size_sum, m2,
+        CHECK(cudaMemcpy(group[m].size_sum, group[m].cpu_size_sum.data(), m2,
             cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(group[m].contents, group[m].cpu_contents, m1,
+        CHECK(cudaMemcpy(group[m].contents, group[m].cpu_contents.data(), m1,
             cudaMemcpyHostToDevice));
     }
-    CHECK(cudaMemcpy(mass, cpu_mass, m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(x, cpu_x, m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(y, cpu_y, m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(z, cpu_z, m3, cudaMemcpyHostToDevice));
-}
-
-
-void Atom::free_memory_cpu(void)
-{
-    MY_FREE(cpu_type);
-    MY_FREE(shift);
-    for (int m = 0; m < num_of_grouping_methods; ++m)
-    {
-        MY_FREE(group[m].cpu_label);
-        MY_FREE(group[m].cpu_size);
-        MY_FREE(group[m].cpu_size_sum);
-        MY_FREE(group[m].cpu_contents);
-    }
-    MY_FREE(cpu_type_size);
-    MY_FREE(cpu_mass);
-    MY_FREE(cpu_x);
-    MY_FREE(cpu_y);
-    MY_FREE(cpu_z);
-    MY_FREE(cpu_vx);
-    MY_FREE(cpu_vy);
-    MY_FREE(cpu_vz);
+    CHECK(cudaMemcpy(mass, cpu_mass.data(), m3, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(x, cpu_x.data(), m3, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(y, cpu_y.data(), m3, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(z, cpu_z.data(), m3, cudaMemcpyHostToDevice));
 }
 
 

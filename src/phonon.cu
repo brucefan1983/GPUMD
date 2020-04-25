@@ -46,7 +46,7 @@ Phonon::Phonon(char* input_dir)
     // initialize bookkeeping data structures
     ZEROS(force.manybody_participation, int, force.num_kind);
     ZEROS(force.potential_participation, int, force.num_kind);
-    ZEROS(atom.shift, int, MAX_NUM_OF_POTENTIALS);
+    atom.shift.resize(MAX_NUM_OF_POTENTIALS, 0);
 
     compute(input_dir, &atom, &force, &measure, &hessian, 0);
 }

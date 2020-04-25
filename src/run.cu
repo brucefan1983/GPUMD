@@ -46,7 +46,7 @@ Run::Run
     // initialize bookkeeping data structures
     ZEROS(force->manybody_participation, int, force->num_kind);
     ZEROS(force->potential_participation, int, force->num_kind);
-    ZEROS(atom->shift, int, MAX_NUM_OF_POTENTIALS);
+    atom->shift.resize(MAX_NUM_OF_POTENTIALS, 0);
 
     run(input_dir, atom, force, integrate, measure, 0);
 }
@@ -295,7 +295,7 @@ void Run::run
 
     print_finish(check);
 
-    MY_FREE(input); // Free the input file contents
+    free(input); // Free the input file contents
 }
 
 

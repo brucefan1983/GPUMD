@@ -48,9 +48,9 @@ void DUMP_XYZ::dump(Atom *atom, int step)
 {
     if ((step + 1) % interval != 0) return;
     int memory = sizeof(double) * atom->N;
-    CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_x.data(), atom->x, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_y.data(), atom->y, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_z.data(), atom->z, memory, cudaMemcpyDeviceToHost));
     fprintf(fid_position, "%d\n", atom->N);
     fprintf(fid_position, "%d\n", (step + 1) / interval - 1);
 
