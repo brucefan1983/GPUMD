@@ -229,28 +229,7 @@ static __device__ void gpu_bin_reduce
     }
 }
 
-
 static __global__ void gpu_bin_modes
-(
-       int num_modes, int bin_size, int num_bins,
-       const float* __restrict__ g_jm,
-       float* bin_out
-)
-{
-    int tid = threadIdx.x;
-    int bid = blockIdx.x;
-    int number_of_patches = (bin_size - 1) / BIN_BLOCK + 1;
-    int shift = bid*bin_size;
-
-    gpu_bin_reduce
-    (
-           num_modes, bin_size, shift, num_bins,
-           tid, bid, number_of_patches, g_jm, bin_out
-    );
-
-}
-
-static __global__ void gpu_bin_frequencies
 (
        int num_modes,
        const int* __restrict__ bin_count,
@@ -516,24 +495,33 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
             for(int i_=0; i_<num_bins;i_++){bin_count[i_]=(int)0;}
 
             for (int i = 0; i< num_modes; i++)
-            {
                 bin_count[int(abs(f[i]/f_bin_size))-shift]++;
-            }
 
             size_t bin_sum_size = sizeof(int)*num_bins;
             CHECK(cudaMallocManaged((void **)&bin_sum, bin_sum_size));
             for(int i_=0; i_<num_bins;i_++){bin_sum[i_]=(int)0;}
 
             for (int i = 1; i < num_bins; i++)
-            {
                 bin_sum[i] = bin_sum[i-1] + bin_count[i-1];
-            }
 
             CHECK(cudaFree(f));
         }
         else
         {
-            num_bins = num_modes/bin_size;
+            // TODO validate this section
+            num_bins = (int)ceil((double)num_modes/(double)bin_size);
+            size_t bin_count_size = sizeof(int)*num_bins;
+            CHECK(cudaMallocManaged((void **)&bin_count, bin_count_size));
+            for(int i_=0; i_<num_bins-1;i_++){bin_count[i_]=(int)bin_size;}
+            bin_count[num_bins-1] = num_modes%bin_size;
+
+            size_t bin_sum_size = sizeof(int)*num_bins;
+            CHECK(cudaMallocManaged((void **)&bin_sum, bin_sum_size));
+            for(int i_=0; i_<num_bins;i_++){bin_sum[i_]=(int)0;}
+
+            for (int i = 1; i < num_bins; i++)
+                bin_sum[i] = bin_sum[i-1] + bin_count[i-1];
+
             getline(eigfile,val);
         }
 
@@ -606,24 +594,12 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double 
         CUDA_CHECK_KERNEL
     }
 
-    if (f_flag)
-    {
-        gpu_bin_frequencies<<<num_bins, BIN_BLOCK>>>
-        (
-               num_modes, bin_count, bin_sum, num_bins,
-               jm, bin_out
-        );
-        CUDA_CHECK_KERNEL
-    }
-    else
-    {
-        gpu_bin_modes<<<num_bins, BIN_BLOCK>>>
-        (
-               num_modes, bin_size, num_bins,
-               jm, bin_out
-        );
-        CUDA_CHECK_KERNEL
-    }
+    gpu_bin_modes<<<num_bins, BIN_BLOCK>>>
+    (
+           num_modes, bin_count, bin_sum, num_bins,
+           jm, bin_out
+    );
+    CUDA_CHECK_KERNEL
 
     // Compute thermal conductivity and output
     cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
@@ -659,9 +635,6 @@ void MODAL_ANALYSIS::postprocess()
     CHECK(cudaFree(jm));
     CHECK(cudaFree(jmn));
     CHECK(cudaFree(bin_out));
-    if (f_flag)
-    {
-        CHECK(cudaFree(bin_count));
-        CHECK(cudaFree(bin_sum));
-    }
+    CHECK(cudaFree(bin_count));
+    CHECK(cudaFree(bin_sum));
 }
