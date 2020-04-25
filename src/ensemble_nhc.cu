@@ -185,8 +185,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
     find_thermo(atom);
 
-    double *ek2;
-    MY_MALLOC(ek2, double, sizeof(double) * 1);
+    double ek2[1];
     CHECK(cudaMemcpy(ek2, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
@@ -198,7 +197,6 @@ void Ensemble_NHC::integrate_nvt_nhc
     CHECK(cudaMemcpy(ek2, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
     ek2[0] *= DIM * N * K_B;
     factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
-    MY_FREE(ek2);
     scale_velocity_global(atom, factor);
 }
 
@@ -222,8 +220,7 @@ void Ensemble_NHC::integrate_heat_nhc
     double dt2 = time_step * HALF;
 
     // allocate some memory (to be improved)
-    double *ek2;
-    MY_MALLOC(ek2, double, sizeof(double) * Ng);
+    std::vector<double> ek2(Ng);
     double *vcx, *vcy, *vcz, *ke;
     CHECK(cudaMalloc((void**)&vcx, sizeof(double) * Ng));
     CHECK(cudaMalloc((void**)&vcy, sizeof(double) * Ng));
@@ -232,7 +229,7 @@ void Ensemble_NHC::integrate_heat_nhc
 
     // NHC first
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2.data(), ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
 
     double factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
@@ -249,7 +246,7 @@ void Ensemble_NHC::integrate_heat_nhc
 
     // NHC second
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2.data(), ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
     factor_2 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
@@ -262,7 +259,6 @@ void Ensemble_NHC::integrate_heat_nhc
     scale_velocity_local(atom, factor_1, factor_2, vcx, vcy, vcz, ke);
 
     // clean up
-    MY_FREE(ek2);
     CHECK(cudaFree(vcx));
     CHECK(cudaFree(vcy));
     CHECK(cudaFree(vcz));
