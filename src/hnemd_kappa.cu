@@ -126,9 +126,8 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
         int num = NUM_OF_HEAT_COMPONENTS * output_interval;
         int mem = sizeof(double) * num;
         double volume = atom->box.get_volume();
-        double *heat_cpu;
-        MY_MALLOC(heat_cpu, double, num);
-        CHECK(cudaMemcpy(heat_cpu, heat_all, mem, cudaMemcpyDeviceToHost));
+        std::vector<double> heat_cpu(num);
+        CHECK(cudaMemcpy(heat_cpu.data(), heat_all, mem, cudaMemcpyDeviceToHost));
         double kappa[NUM_OF_HEAT_COMPONENTS];
         for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
         {
@@ -155,7 +154,6 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
         fprintf(fid, "\n");
         fflush(fid);  
         fclose(fid);
-        MY_FREE(heat_cpu);
     }
 }
 
