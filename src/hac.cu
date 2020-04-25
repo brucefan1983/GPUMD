@@ -224,13 +224,8 @@ void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
     double dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // ps
 
     // major data
-    double *hac;
-    double *rtc;
-    MY_MALLOC(hac, double, Nc * NUM_OF_HEAT_COMPONENTS);
-    MY_MALLOC(rtc, double, Nc * NUM_OF_HEAT_COMPONENTS);
-    
-    for (int nc = 0; nc < Nc * NUM_OF_HEAT_COMPONENTS; nc++) 
-    { hac[nc] = rtc[nc] = 0.0; }
+    std::vector<double> hac(Nc * NUM_OF_HEAT_COMPONENTS, 0.0);
+    std::vector<double> rtc(Nc * NUM_OF_HEAT_COMPONENTS, 0.0);
 
     double *g_hac;
     CHECK
@@ -243,7 +238,7 @@ void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
     CHECK(cudaDeviceSynchronize());
     CHECK(cudaGetLastError());
 
-    CHECK(cudaMemcpy(hac, g_hac, sizeof(double) * Nc * NUM_OF_HEAT_COMPONENTS, 
+    CHECK(cudaMemcpy(hac.data(), g_hac, sizeof(double) * Nc * NUM_OF_HEAT_COMPONENTS, 
         cudaMemcpyDeviceToHost));
     CHECK(cudaFree(g_hac));
 
@@ -251,7 +246,7 @@ void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
     double factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
  
-    find_rtc(Nc, factor, hac, rtc);
+    find_rtc(Nc, factor, hac.data(), rtc.data());
 
     char file_hac[FILE_NAME_LENGTH];
     strcpy(file_hac, input_dir);
@@ -286,9 +281,7 @@ void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
         fprintf(fid, "\n");
     }  
     fflush(fid);  
-    fclose(fid);
-    MY_FREE(hac);
-    MY_FREE(rtc);    
+    fclose(fid);   
 }
 
 
