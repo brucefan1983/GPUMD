@@ -135,7 +135,7 @@ static void cpu_berendsen_pressure
     double p0x, double p0y, double p0z, double p_coupling, double *thermo
 )
 {
-    double *p; MY_MALLOC(p, double, 3);
+    double p[3];
     CHECK(cudaMemcpy(p, thermo+2, sizeof(double)*3, cudaMemcpyDeviceToHost));
 
     if (deform_x)
@@ -179,8 +179,6 @@ static void cpu_berendsen_pressure
         box.cpu_h[2] *= scale_factor;
         box.cpu_h[5] = box.cpu_h[2] * HALF;
     }
-
-    MY_FREE(p);
 }
 
 
