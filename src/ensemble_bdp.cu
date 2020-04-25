@@ -84,15 +84,13 @@ void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
     find_thermo(atom);
 
     // re-scale the velocities
-    double *ek;
-    MY_MALLOC(ek, double, sizeof(double) * 1);
+    double ek[1];
     CHECK(cudaMemcpy(ek, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
     int ndeg = 3 * (N - N_fixed);
     ek[0] *= ndeg * K_B * 0.5; // from temperature to kinetic energy
     double sigma = ndeg * K_B * temperature * 0.5;
     double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
     factor = sqrt(factor / ek[0]);
-    MY_FREE(ek);
     scale_velocity_global(atom, factor);
 }
 
@@ -113,8 +111,7 @@ void Ensemble_BDP::integrate_heat_bdp
     double sigma_2 = dN2 * kT2 * 0.5;
 
     // allocate some memory (to be improved)
-    double *ek;
-    MY_MALLOC(ek, double, sizeof(double) * Ng);
+    std::vector<double> ek(Ng);
     double *vcx, *vcy, *vcz, *ke;
     CHECK(cudaMalloc((void**)&vcx, sizeof(double) * Ng));
     CHECK(cudaMalloc((void**)&vcy, sizeof(double) * Ng));
@@ -126,7 +123,7 @@ void Ensemble_BDP::integrate_heat_bdp
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek.data(), ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     ek[label_1] *= 0.5;
     ek[label_2] *= 0.5;
 
@@ -146,7 +143,6 @@ void Ensemble_BDP::integrate_heat_bdp
     scale_velocity_local(atom, factor_1, factor_2, vcx, vcy, vcz, ke);
 
     // clean up
-    MY_FREE(ek);
     CHECK(cudaFree(vcx));
     CHECK(cudaFree(vcy));
     CHECK(cudaFree(vcz));

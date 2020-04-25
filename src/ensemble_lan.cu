@@ -206,12 +206,12 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
     double *vx = atom->vx; double *vy = atom->vy; double *vz = atom->vz;
     int Ng = atom->group[0].number;
 
-    double *ek2; MY_MALLOC(ek2, double, sizeof(double) * Ng);
+    std::vector<double> ek2(Ng);
     double *ke; CHECK(cudaMalloc((void**)&ke, sizeof(double) * Ng));
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
     CUDA_CHECK_KERNEL
-    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2.data(), ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] += ek2[source] * 0.5;
     energy_transferred[1] += ek2[sink] * 0.5;
     gpu_langevin<<<(N_source - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -229,10 +229,10 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
     find_ke<<<Ng, 512>>>
     (group_size, group_size_sum, group_contents, mass, vx, vy, vz, ke);
     CUDA_CHECK_KERNEL
-    CHECK(cudaMemcpy(ek2, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(ek2.data(), ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
     energy_transferred[0] -= ek2[source] * 0.5;
     energy_transferred[1] -= ek2[sink] * 0.5;
-    MY_FREE(ek2); CHECK(cudaFree(ke));
+    CHECK(cudaFree(ke));
 }
 
 
