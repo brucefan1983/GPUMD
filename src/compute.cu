@@ -41,9 +41,8 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 
     int number_of_columns = 
         atom->group[grouping_method].number * number_of_scalars;
-    MY_MALLOC(cpu_group_sum, double, number_of_columns);
-    MY_MALLOC(cpu_group_sum_ave, double, number_of_columns);
-    for (int n = 0; n < number_of_columns; ++n) cpu_group_sum_ave[n] = 0.0;
+    cpu_group_sum.resize(number_of_columns, 0.0);
+    cpu_group_sum_ave.resize(number_of_columns, 0.0);
 
     CHECK(cudaMalloc((void**)&gpu_group_sum, sizeof(double) * number_of_columns));
     CHECK(cudaMalloc((void**)&gpu_per_atom_x, sizeof(double) * atom->N));
@@ -60,8 +59,6 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 void Compute::postprocess(Atom* atom, Integrate *integrate)
 {
     if (number_of_scalars == 0) return;
-    MY_FREE(cpu_group_sum);
-    MY_FREE(cpu_group_sum_ave);
     CHECK(cudaFree(gpu_group_sum));
     CHECK(cudaFree(gpu_per_atom_x));
     CHECK(cudaFree(gpu_per_atom_y));
@@ -302,7 +299,7 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         offset += Ng * 3;
     }
 
-    CHECK(cudaMemcpy(cpu_group_sum, gpu_group_sum, 
+    CHECK(cudaMemcpy(cpu_group_sum.data(), gpu_group_sum, 
         sizeof(double) * Ng * number_of_scalars, cudaMemcpyDeviceToHost));
 
     for (int n = 0; n < Ng * number_of_scalars; ++n)

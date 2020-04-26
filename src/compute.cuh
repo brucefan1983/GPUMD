@@ -40,8 +40,8 @@ public:
 private:
     FILE* fid;
 
-    double* cpu_group_sum;
-    double* cpu_group_sum_ave;
+    std::vector<double> cpu_group_sum;
+    std::vector<double> cpu_group_sum_ave;
     double* gpu_group_sum;
     double* gpu_per_atom_x;
     double* gpu_per_atom_y;
