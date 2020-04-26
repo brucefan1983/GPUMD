@@ -60,7 +60,6 @@ Force::~Force(void)
         delete potential[m];
         potential[m] = NULL;
     }
-    MY_FREE(manybody_participation);
 }
 
 

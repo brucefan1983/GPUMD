@@ -38,8 +38,8 @@ public:
     int atom_begin[MAX_NUM_OF_POTENTIALS];
     int atom_end[MAX_NUM_OF_POTENTIALS];
     char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
-    int* potential_participation;
-    int* manybody_participation;
+    std::vector<int> potential_participation;
+    std::vector<int> manybody_participation;
     int group_method;
     int num_kind;
 

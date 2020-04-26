@@ -28,14 +28,13 @@ Some functions for dealing with text files. Written by Mikko Ervasti.
 // Read the input file to memory
 char* get_file_contents (char *filename)
 {
-    char *contents;
     int contents_size;
     FILE *in = my_fopen(filename, "r");
     // Find file size
     fseek(in, 0, SEEK_END);
     contents_size = ftell(in);
     rewind(in);
-    MY_MALLOC(contents, char, contents_size + 1);
+    char *contents = (char *) malloc(sizeof(char) * (contents_size + 1));
     int size_read_in = fread(contents, sizeof(char), contents_size, in);
     if (size_read_in != contents_size)
     {

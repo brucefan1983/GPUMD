@@ -44,8 +44,8 @@ Run::Run
         force->num_kind = atom->number_of_types;
 
     // initialize bookkeeping data structures
-    ZEROS(force->manybody_participation, int, force->num_kind);
-    ZEROS(force->potential_participation, int, force->num_kind);
+    force->manybody_participation.resize(force->num_kind);
+    force->potential_participation.resize(force->num_kind);
     atom->shift.resize(MAX_NUM_OF_POTENTIALS, 0);
 
     run(input_dir, atom, force, integrate, measure, 0);
