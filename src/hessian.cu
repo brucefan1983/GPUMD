@@ -28,6 +28,7 @@ Then calculate the dynamical matrices with different k points.
 #include "mic.cuh"
 #include "cusolver_wrapper.cuh"
 #include "read_file.cuh"
+#include <vector>
 
 
 void Hessian::compute
@@ -45,8 +46,6 @@ void Hessian::compute
     {
         find_dispersion(input_dir, atom);
     }
-
-    finalize();
 }
 
 
@@ -60,14 +59,14 @@ void Hessian::read_basis(char* input_dir, size_t N)
     count = fscanf(fid, "%zu", &num_basis);
     PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
 
-    MY_MALLOC(basis, size_t, num_basis);
-    MY_MALLOC(mass, double, num_basis);
+    basis.resize(num_basis);
+    mass.resize(num_basis);
     for (size_t m = 0; m < num_basis; ++m)
     {
         count = fscanf(fid, "%zu%lf", &basis[m], &mass[m]);
         PRINT_SCANF_ERROR(count, 2, "Reading error for basis.in.");
     }
-    MY_MALLOC(label, size_t, N);
+    label.resize(N);
     for (size_t n = 0; n < N; ++n)
     {
         count = fscanf(fid, "%zu", &label[n]);
@@ -87,7 +86,7 @@ void Hessian::read_kpoints(char* input_dir)
     count = fscanf(fid, "%zu", &num_kpoints);
     PRINT_SCANF_ERROR(count, 1, "Reading error for kpoints.in.");
 
-    MY_MALLOC(kpoints, double, num_kpoints * 3);
+    kpoints.resize(num_kpoints * 3);
     for (size_t m = 0; m < num_kpoints; ++m)
     {
         count = fscanf(fid, "%lf%lf%lf", &kpoints[m * 3 + 0],
@@ -104,32 +103,11 @@ void Hessian::initialize(char* input_dir, size_t N)
     read_kpoints(input_dir);
     size_t num_H = num_basis * N * 9;
     size_t num_D = num_basis * num_basis * 9 * num_kpoints;
-
-    MY_MALLOC(H, double, num_H);
-    MY_MALLOC(DR, double, num_D);
-    for (size_t n = 0; n < num_H; ++n) { H[n] = 0; }
-    for (size_t n = 0; n < num_D; ++n) { DR[n] = 0; }
-
+    H.resize(num_H, 0.0);
+    DR.resize(num_D, 0.0);
     if (num_kpoints > 1) // for dispersion calculation
     {
-        MY_MALLOC(DI, double, num_D);
-        for (size_t n = 0; n < num_D; ++n) { DI[n] = 0; }
-    }
-}
-
-
-void Hessian::finalize(void)
-{
-    MY_FREE(basis);
-    MY_FREE(label);
-    MY_FREE(mass);
-    MY_FREE(kpoints);
-    MY_FREE(H);
-    MY_FREE(DR);
-    
-    if (num_kpoints > 1) // for dispersion calculation
-    {
-        MY_FREE(DI);
+        DI.resize(num_D, 0.0);
     }
 }
 
@@ -159,7 +137,7 @@ void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
         {
             if(is_too_far(n1, n2, atom)) continue;
             size_t offset = (nb * N + n2) * 9;
-            find_H12(n1, n2, atom, force, measure, H + offset);
+            find_H12(n1, n2, atom, force, measure, H.data() + offset);
         }
     }
 }
@@ -216,23 +194,22 @@ void Hessian::output_D(char* input_dir)
 void Hessian::find_omega(FILE* fid, size_t offset)
 {
     size_t dim = num_basis * 3;
-    double* W; MY_MALLOC(W, double, dim);
-    eig_hermitian_QR(dim, DR+offset, DI+offset, W);
+    std::vector<double> W(dim);
+    eig_hermitian_QR(dim, DR.data() + offset, DI.data() + offset, W.data());
     double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
     for (size_t n = 0; n < dim; ++n)
     {
         fprintf(fid, "%g ", W[n] * natural_to_THz);
     }
     fprintf(fid, "\n");
-    MY_FREE(W);
 }
 
 
 void Hessian::find_omega_batch(FILE* fid)
 {
     size_t dim = num_basis * 3;
-    double* W; MY_MALLOC(W, double, dim * num_kpoints);
-    eig_hermitian_Jacobi_batch(dim, num_kpoints, DR, DI, W);
+    std::vector<double> W(dim * num_kpoints);
+    eig_hermitian_Jacobi_batch(dim, num_kpoints, DR.data(), DI.data(), W.data());
     double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
     for (size_t nk = 0; nk < num_kpoints; ++nk)
     {
@@ -243,7 +220,6 @@ void Hessian::find_omega_batch(FILE* fid)
         }
         fprintf(fid, "\n");
     }
-    MY_FREE(W);
 }
 
 
@@ -265,11 +241,11 @@ void Hessian::find_dispersion(char* input_dir, Atom* atom)
             {
                 if(is_too_far(n1, n2, atom)) continue;
                 double cos_kr, sin_kr;
-                find_exp_ikr(n1, n2, kpoints + nk * 3, atom, cos_kr, sin_kr);
+                find_exp_ikr(n1, n2, kpoints.data() + nk * 3, atom, cos_kr, sin_kr);
                 size_t label_2 = label[n2];
                 double mass_2 = mass[label_2];
                 double mass_factor = 1.0 / sqrt(mass_1 * mass_2);
-                double* H12 = H + (nb * atom->N + n2) * 9;
+                double* H12 = H.data() + (nb * atom->N + n2) * 9;
                 for (size_t a = 0; a < 3; ++a)
                 {
                     for (size_t b = 0; b < 3; ++b)
@@ -325,7 +301,7 @@ void Hessian::find_D(Atom* atom)
             size_t label_2 = label[n2];
             double mass_2 = mass[label_2];
             double mass_factor = 1.0 / sqrt(mass_1 * mass_2);
-            double* H12 = H + (nb * atom->N + n2) * 9;
+            double* H12 = H.data() + (nb * atom->N + n2) * 9;
             for (size_t a = 0; a < 3; ++a)
             {
                 for (size_t b = 0; b < 3; ++b)
@@ -351,9 +327,9 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
     FILE *fid_eigenvectors = my_fopen(file_eigenvectors, "w");
 
     size_t dim = num_basis * 3;
-    double* W; MY_MALLOC(W, double, dim);
-    double* eigenvectors; MY_MALLOC(eigenvectors, double, dim * dim);
-    eigenvectors_symmetric_Jacobi(dim, DR, W, eigenvectors);
+    std::vector<double> W(dim);
+    std::vector<double> eigenvectors(dim * dim);
+    eigenvectors_symmetric_Jacobi(dim, DR.data(), W.data(), eigenvectors.data());
 
     double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION*TIME_UNIT_CONVERSION);
 
@@ -378,9 +354,6 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
         }
         fprintf(fid_eigenvectors, "\n");
     }
-
-    MY_FREE(W);
-    MY_FREE(eigenvectors);
     fclose(fid_eigenvectors);
 }
 

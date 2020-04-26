@@ -22,17 +22,18 @@ Some wrappers for the cuSOLVER library
 #include "cusolver_wrapper.cuh"
 #include "error.cuh"
 #include <cusolverDn.h>
+#include <vector>
 
 
 void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
 {
     // get A
     size_t N2 = N * N;
-    cuDoubleComplex *A, *A_cpu; 
-    MY_MALLOC(A_cpu, cuDoubleComplex, N2);
+    cuDoubleComplex *A; 
+    std::vector<cuDoubleComplex> A_cpu(N2);
     CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * N2));
     for (size_t n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
-    CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * N2, 
+    CHECK(cudaMemcpy(A, A_cpu.data(), sizeof(cuDoubleComplex) * N2, 
         cudaMemcpyHostToDevice));
 
     // define W
@@ -58,7 +59,6 @@ void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
 
     // free
     cusolverDnDestroy(handle);
-    MY_FREE(A_cpu);
     CHECK(cudaFree(A));
     CHECK(cudaFree(W));
     CHECK(cudaFree(work));
@@ -70,11 +70,11 @@ void eig_hermitian_Jacobi(size_t N, double* AR, double* AI, double* W_cpu)
 {
     // get A
     size_t N2 = N * N;
-    cuDoubleComplex *A, *A_cpu; 
-    MY_MALLOC(A_cpu, cuDoubleComplex, N2);
+    cuDoubleComplex *A; 
+	std::vector<cuDoubleComplex> A_cpu(N2);
     CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * N2));
     for (size_t n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
-    CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * N2, 
+    CHECK(cudaMemcpy(A, A_cpu.data(), sizeof(cuDoubleComplex) * N2, 
         cudaMemcpyHostToDevice));
 
     // define W
@@ -105,7 +105,6 @@ void eig_hermitian_Jacobi(size_t N, double* AR, double* AI, double* W_cpu)
     // free
     cusolverDnDestroy(handle);
     cusolverDnDestroySyevjInfo(para);
-    MY_FREE(A_cpu);
     CHECK(cudaFree(A));
     CHECK(cudaFree(W));
     CHECK(cudaFree(work));
@@ -164,11 +163,11 @@ void eig_hermitian_Jacobi_batch
 {
     // get A
     size_t M = N * N * batch_size;
-    cuDoubleComplex *A, *A_cpu; 
-    MY_MALLOC(A_cpu, cuDoubleComplex, M);
+    cuDoubleComplex *A; 
+	std::vector<cuDoubleComplex> A_cpu(M);
     CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * M));
     for (size_t n = 0; n < M; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
-    CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * M, 
+    CHECK(cudaMemcpy(A, A_cpu.data(), sizeof(cuDoubleComplex) * M, 
         cudaMemcpyHostToDevice));
 
     // define W
@@ -201,7 +200,6 @@ void eig_hermitian_Jacobi_batch
     // free
     cusolverDnDestroy(handle);
     cusolverDnDestroySyevjInfo(para);
-    MY_FREE(A_cpu);
     CHECK(cudaFree(A));
     CHECK(cudaFree(W));
     CHECK(cudaFree(work));

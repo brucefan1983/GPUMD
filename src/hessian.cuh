@@ -16,6 +16,7 @@
 
 #pragma once
 #include "common.cuh"
+#include <vector>
 
 
 class Hessian
@@ -32,13 +33,13 @@ protected:
     size_t num_basis;
     size_t num_kpoints;
 
-    size_t* basis;
-    size_t* label;
-    double* mass;
-    double* kpoints;
-    double* H;
-    double* DR;
-    double* DI;
+    std::vector<size_t> basis;
+    std::vector<size_t> label;
+    std::vector<double> mass;
+    std::vector<double> kpoints;
+    std::vector<double> H;
+    std::vector<double> DR;
+    std::vector<double> DI;
 
     void shift_atom(double, size_t, size_t, Atom*);
     void get_f(double, size_t, size_t, size_t, Atom*, Force*, Measure*, double*);
