@@ -17,6 +17,11 @@
 #pragma once
 #include "common.cuh"
 
+class Atom;
+class Force;
+class Measure; // TODO: remove this dependence
+
+
 void validate_force(Force *force, Atom *atom, Measure* measure);
 
 

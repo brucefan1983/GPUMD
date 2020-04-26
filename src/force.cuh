@@ -18,6 +18,10 @@
 #include "common.cuh"
 #include <vector>
 
+class Atom;
+class Potential;
+class Measure; // TODO: remove this dependence
+
 #define MAX_NUM_OF_POTENTIALS 10
 
 class Force

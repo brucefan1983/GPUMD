@@ -18,6 +18,10 @@
 #include "common.cuh"
 #include <vector>
 
+class Atom;
+class Force;
+class Measure; // TODO: remove this dependence
+
 
 class Hessian
 {

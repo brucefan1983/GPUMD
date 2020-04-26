@@ -17,6 +17,11 @@
 #pragma once
 #include "common.cuh"
 
+class Atom; 
+class Force; // TODO: remove this dependence
+class Measure; // TODO: remove this dependence
+
+
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
 

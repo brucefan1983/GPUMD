@@ -19,6 +19,9 @@
 #include "common.cuh"
 #include <vector>
 
+class Atom;
+class Integrate; // TODO: remove this dependence
+
 
 class Compute
 {

@@ -17,6 +17,11 @@
 #pragma once
 #include "common.cuh"
 
+class Atom;
+class Force;
+class Integrate;
+class Measure;
+
 
 class Run
 {

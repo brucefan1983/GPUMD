@@ -17,6 +17,11 @@
 #pragma once
 #include "common.cuh"
 
+class Ensemble;
+class Atom;
+class Force;   // TODO: remove this dependence
+class Measure; // TODO: remove this dependence
+
 
 class Integrate 
 {

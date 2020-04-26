@@ -17,6 +17,11 @@
 #pragma once
 #include "common.cuh"
 
+class Atom;
+class Force;
+class Hessian;
+class Measure; // TODO: remove this dependence
+
 
 class Phonon
 {

@@ -37,13 +37,3 @@ const double PRESSURE_UNIT_CONVERSION = 1.602177e+2;   // from natural to GPa
 const double TIME_UNIT_CONVERSION     = 1.018051e+1;   // from natural to fs
 const double KAPPA_UNIT_CONVERSION    = 1.573769e+5;   // from natural to W/mK
 
-
-class Atom;
-class Potential;
-class Force;
-class Measure;
-class Integrate;
-class Ensemble;
-class Hessian;
-
-

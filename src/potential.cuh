@@ -17,6 +17,9 @@
 #pragma once
 #include "common.cuh"
 
+class Atom; 
+class Measure; // TODO: remove this dependence
+
 
 class Potential
 {
