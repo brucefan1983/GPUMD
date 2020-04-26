@@ -24,6 +24,7 @@ The force constant potential (FCP)
 #include "atom.cuh"
 #include "mic.cuh"
 #include "error.cuh"
+#include <vector>
 
 
 FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
@@ -143,8 +144,7 @@ void FCP::read_fc2(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    float *fc;
-    MY_MALLOC(fc, float, num_fcs * 9);
+    std::vector<float> fc(num_fcs * 9);
     for (int n = 0; n < num_fcs; ++n)
     {
         for (int a = 0; a < 3; ++a)
@@ -245,7 +245,6 @@ void FCP::read_fc2(Atom *atom)
 
     fclose(fid_fc);
     fclose(fid_cluster);
-    MY_FREE(fc);
 }
 
 
@@ -267,8 +266,7 @@ void FCP::read_fc3(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    float *fc;
-    MY_MALLOC(fc, float, num_fcs * 27);
+    std::vector<float> fc(num_fcs * 27);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -338,7 +336,6 @@ void FCP::read_fc3(Atom *atom)
 
     fclose(fid_fc);
     fclose(fid_cluster);
-    MY_FREE(fc);
 }
 
 
@@ -360,8 +357,7 @@ void FCP::read_fc4(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    float *fc;
-    MY_MALLOC(fc, float, num_fcs * 81);
+    std::vector<float> fc(num_fcs * 81);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -448,7 +444,6 @@ void FCP::read_fc4(Atom *atom)
 
     fclose(fid_fc);
     fclose(fid_cluster);
-    MY_FREE(fc);
 }
 
 
@@ -470,8 +465,7 @@ void FCP::read_fc5(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    float *fc;
-    MY_MALLOC(fc, float, num_fcs * 243);
+    std::vector<float> fc(num_fcs * 243);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -582,7 +576,6 @@ void FCP::read_fc5(Atom *atom)
 
     fclose(fid_fc);
     fclose(fid_cluster);
-    MY_FREE(fc);
 }
 
 
@@ -604,8 +597,7 @@ void FCP::read_fc6(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    float *fc;
-    MY_MALLOC(fc, float, num_fcs * 729);
+    std::vector<float> fc(num_fcs * 729);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -755,7 +747,6 @@ void FCP::read_fc6(Atom *atom)
 
     fclose(fid_fc);
     fclose(fid_cluster);
-    MY_FREE(fc);
 }
 
 
