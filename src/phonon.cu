@@ -44,8 +44,8 @@ Phonon::Phonon(char* input_dir)
         force.num_kind = atom.number_of_types;
 
     // initialize bookkeeping data structures
-    ZEROS(force.manybody_participation, int, force.num_kind);
-    ZEROS(force.potential_participation, int, force.num_kind);
+    force.manybody_participation.resize(force.num_kind, 0);
+    force.potential_participation.resize(force.num_kind, 0);
     atom.shift.resize(MAX_NUM_OF_POTENTIALS, 0);
 
     compute(input_dir, &atom, &force, &measure, &hessian, 0);
@@ -81,7 +81,7 @@ void Phonon::compute
         parse(param, num_param, atom, force, hessian, &is_potential);
         if (!check && is_potential) force->add_potential(input_dir, atom);
     }
-    MY_FREE(input); // Free the input file contents
+    free(input); // Free the input file contents
     if (!check) hessian->compute(input_dir, atom, force, measure);
 }
 
