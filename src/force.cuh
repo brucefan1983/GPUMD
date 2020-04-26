@@ -16,6 +16,7 @@
 
 #pragma once
 #include "common.cuh"
+#include <vector>
 
 #define MAX_NUM_OF_POTENTIALS 10
 

@@ -16,6 +16,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include <stdio.h>
 
 
 struct Tersoff_modc_Data

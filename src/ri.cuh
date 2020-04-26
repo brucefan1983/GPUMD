@@ -15,6 +15,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include <stdio.h>
 
 struct RI_Para
 {

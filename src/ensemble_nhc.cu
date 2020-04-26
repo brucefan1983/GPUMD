@@ -25,6 +25,7 @@ Oxford University Press, 2010.
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include <vector>
 
 #define BLOCK_SIZE 128
 #define DIM 3

@@ -37,6 +37,7 @@ The driver class calculating force and related quantities.
 #include "fcp.cuh"
 #include "measure.cuh"
 #include "read_file.cuh"
+#include <vector>
 
 #define BLOCK_SIZE 128
 

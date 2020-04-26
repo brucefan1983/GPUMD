@@ -17,6 +17,7 @@
 #pragma once
 
 #include "common.cuh"
+#include <vector>
 
 
 class Compute

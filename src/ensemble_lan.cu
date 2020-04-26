@@ -25,6 +25,7 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 #include <curand_kernel.h>
 #include "atom.cuh"
 #include "error.cuh"
+#include <vector>
 
 #define BLOCK_SIZE 128
 #define CURAND_NORMAL(a) curand_normal_double(a)

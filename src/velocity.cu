@@ -25,6 +25,7 @@ If DEBUG is off, the velocities are different in different runs.
 
 #include "atom.cuh"
 #include "error.cuh"
+#include <vector>
 
 
 void Atom::scale_velocity(void)

@@ -22,6 +22,7 @@ The class defining the simulation model.
 #include "atom.cuh"
 #include "error.cuh"
 #include "read_file.cuh"
+#include <vector>
 
 const int NUM_OF_HEAT_COMPONENTS = 5;
 

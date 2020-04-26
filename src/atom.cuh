@@ -20,6 +20,7 @@
 #include "group.cuh"
 #include "neighbor.cuh"
 #include "common.cuh"
+#include <vector>
 
 const int MAX_NUMBER_OF_GROUPS = 10;
 
