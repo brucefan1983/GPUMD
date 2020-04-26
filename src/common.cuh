@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include <string.h>
 
 #define LDG(a, n) __ldg(a + n)
 
