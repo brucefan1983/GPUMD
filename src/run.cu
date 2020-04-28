@@ -37,17 +37,7 @@ Run::Run
 )
 {
     run(input_dir, atom, force, integrate, measure, 1);
-
-    if (force->group_method > -1)
-        force->num_kind = atom->group[force->group_method].number;
-    else
-        force->num_kind = atom->number_of_types;
-
-    // initialize bookkeeping data structures
-    force->manybody_participation.resize(force->num_kind);
-    force->potential_participation.resize(force->num_kind);
-    atom->shift.resize(MAX_NUM_OF_POTENTIALS, 0);
-
+    force->initialize_participation_and_shift(atom);
     run(input_dir, atom, force, integrate, measure, 0);
 }
 

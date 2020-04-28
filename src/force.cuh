@@ -36,6 +36,7 @@ public:
     void compute(Atom*, Measure*);
     int get_number_of_types(FILE *fid_potential);
     void valdiate_potential_definitions(void);
+	void initialize_participation_and_shift(Atom*);
 
     int num_of_potentials;
     std::vector<int> participating_kinds;

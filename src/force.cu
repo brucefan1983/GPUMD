@@ -156,6 +156,20 @@ void Force::parse_potential(char **param, int num_param)
 }
 
 
+void Force::initialize_participation_and_shift(Atom* atom)
+{
+    if (group_method > -1)
+        num_kind = atom->group[group_method].number;
+    else
+        num_kind = atom->number_of_types;
+
+    // initialize bookkeeping data structures
+    manybody_participation.resize(num_kind, 0);
+    potential_participation.resize(num_kind, 0);
+    atom->shift.resize(MAX_NUM_OF_POTENTIALS, 0);
+}
+
+	
 int Force::get_number_of_types(FILE *fid_potential)
 {
     int num_of_types;
