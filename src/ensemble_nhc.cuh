@@ -24,10 +24,10 @@ public:
     Ensemble_NHC(int, int, int, double, double, double);   
     Ensemble_NHC(int, int, int, int, int, int, double, double, double, double); 
     virtual ~Ensemble_NHC(void);
-    virtual void compute(Atom*, Force*, Measure*);
+    virtual void compute(Atom*, Force*);
 protected:
-    void integrate_nvt_nhc(Atom*, Force*, Measure*);
-    void integrate_heat_nhc(Atom*, Force*, Measure*);
+    void integrate_nvt_nhc(Atom*, Force*);
+    void integrate_heat_nhc(Atom*, Force*);
 };
 
 

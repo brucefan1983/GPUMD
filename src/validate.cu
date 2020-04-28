@@ -140,8 +140,7 @@ static __global__ void find_force_from_potential
 }
 
 
-void validate_force
-(Force *force, Atom *atom, Measure* measure)
+void validate_force(Force *force, Atom *atom)
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -154,7 +153,7 @@ void validate_force
     std::vector<double> fz(N);
 
     // first calculate the forces directly:
-    force->compute(atom, measure);
+    force->compute(atom);
 
     // make a copy of the positions
     double *x0, *y0, *z0;
@@ -180,7 +179,7 @@ void validate_force
             CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(atom, measure);
+            force->compute(atom);
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p1);
@@ -192,7 +191,7 @@ void validate_force
             CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(atom, measure);
+            force->compute(atom);
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2);

@@ -71,13 +71,13 @@ Ensemble_BDP::~Ensemble_BDP(void)
 }
 
 
-void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
+void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force)
 {
     int N = atom->N;
     double *thermo = atom->thermo;
 
     // standard velocity-Verlet
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
 
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 : 
@@ -98,7 +98,7 @@ void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
 
 // integrate by one step, with heating and cooling, using the BDP method
 void Ensemble_BDP::integrate_heat_bdp
-(Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force)
 {
     int label_1 = source;
     int label_2 = sink;
@@ -120,7 +120,7 @@ void Ensemble_BDP::integrate_heat_bdp
     CHECK(cudaMalloc((void**)&ke, sizeof(double) * Ng));
 
     // veloicty-Verlet
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
@@ -152,15 +152,15 @@ void Ensemble_BDP::integrate_heat_bdp
 
 
 void Ensemble_BDP::compute
-(Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force)
 {
     if (type == 4)
     {
-        integrate_nvt_bdp(atom, force, measure);
+        integrate_nvt_bdp(atom, force);
     }
     else
     {
-        integrate_heat_bdp(atom, force, measure);
+        integrate_heat_bdp(atom, force);
     }
 }
 

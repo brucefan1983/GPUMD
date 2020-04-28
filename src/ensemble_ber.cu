@@ -182,10 +182,10 @@ static void cpu_berendsen_pressure
 }
 
 
-void Ensemble_BER::compute(Atom *atom, Force *force, Measure* measure)
+void Ensemble_BER::compute(Atom *atom, Force *force)
 {
     int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
     find_thermo(atom);
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
     (

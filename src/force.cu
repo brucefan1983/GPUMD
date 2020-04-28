@@ -35,7 +35,6 @@ The driver class calculating force and related quantities.
 #include "ri.cuh"
 #include "eam.cuh"
 #include "fcp.cuh"
-#include "measure.cuh"
 #include "read_file.cuh"
 #include <vector>
 
@@ -583,7 +582,25 @@ static __global__ void initialize_properties
 }
 
 
-void Force::compute(Atom *atom, Measure* measure)
+void Force::set_hnemd_parameters
+(
+    const bool compute_hnemd, 
+    const double hnemd_fe_x, 
+    const double hnemd_fe_y, 
+    const double hnemd_fe_z
+)
+{
+    compute_hnemd_ = compute_hnemd;
+    if (compute_hnemd)
+    {
+        hnemd_fe_[0] = hnemd_fe_x;
+        hnemd_fe_[1] = hnemd_fe_y;
+        hnemd_fe_[2] = hnemd_fe_z;
+    }
+} 
+
+
+void Force::compute(Atom *atom)
 {
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
@@ -602,9 +619,7 @@ void Force::compute(Atom *atom, Measure* measure)
         potential[m]->compute(atom, m);
     }
 
-    if (measure->hnemd.compute ||
-        (measure->modal_analysis.compute &&
-         measure->modal_analysis.method == HNEMA_METHOD))
+    if (compute_hnemd_)
     {
         int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
 
@@ -615,7 +630,7 @@ void Force::compute(Atom *atom, Measure* measure)
         gpu_add_driving_force<<<grid_size, BLOCK_SIZE>>>
         (
             atom->N,
-            measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
+            hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
             atom->virial_per_atom + 0 * atom->N,
             atom->virial_per_atom + 3 * atom->N,
             atom->virial_per_atom + 4 * atom->N,
@@ -644,9 +659,7 @@ void Force::compute(Atom *atom, Measure* measure)
 
     // always correct the force when using the FCP potential
 #ifdef USE_FCP
-    if (!measure->hnemd.compute && 
-        !(measure->modal_analysis.compute &&
-         measure->modal_analysis.method == HNEMA_METHOD))
+    if (!compute_hnemd)
     {
         double *ftot; // total force vector of the system
         CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));

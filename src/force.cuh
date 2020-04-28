@@ -20,7 +20,6 @@
 
 class Atom;
 class Potential;
-class Measure; // TODO: remove this dependence
 
 #define MAX_NUM_OF_POTENTIALS 10
 
@@ -33,10 +32,11 @@ public:
     void parse_potential_definition(char**, int, Atom*);
     void parse_potential(char**, int);
     void add_potential(char* input_dir, Atom*);
-    void compute(Atom*, Measure*);
+    void compute(Atom*);
     int get_number_of_types(FILE *fid_potential);
     void valdiate_potential_definitions(void);
     void initialize_participation_and_shift(Atom*);
+	void set_hnemd_parameters(const bool, const double, const double, const double);
 
     int num_of_potentials;
     std::vector<int> participating_kinds;
@@ -48,6 +48,9 @@ public:
     std::vector<int> manybody_participation;
     int group_method;
     int num_kind;
+	
+	bool compute_hnemd_ = false;
+	double hnemd_fe_[3];
 
 private:
 

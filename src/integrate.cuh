@@ -20,7 +20,6 @@
 class Ensemble;
 class Atom;
 class Force;   // TODO: remove this dependence
-class Measure; // TODO: remove this dependence
 
 
 class Integrate 
@@ -31,7 +30,7 @@ public:
     ~Integrate(void);   
     void initialize(Atom*);
     void finalize(void);
-    void compute(Atom*, Force*, Measure*);
+    void compute(Atom*, Force*);
 
     // get inputs from run.in
     void parse_ensemble(char**, int, Atom*);

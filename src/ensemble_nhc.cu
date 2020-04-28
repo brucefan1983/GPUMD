@@ -173,7 +173,7 @@ static double nhc
 
 
 void Ensemble_NHC::integrate_nvt_nhc
-(Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force)
 {
     int  N           = atom->N;
     double time_step   = atom->time_step;
@@ -192,7 +192,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     scale_velocity_global(atom, factor);
 
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
     find_thermo(atom);
 
     CHECK(cudaMemcpy(ek2, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
@@ -205,7 +205,7 @@ void Ensemble_NHC::integrate_nvt_nhc
 // integrate by one step, with heating and cooling, 
 // using Nose-Hoover chain method
 void Ensemble_NHC::integrate_heat_nhc
-(Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force)
 {
     double time_step   = atom->time_step;
 
@@ -243,7 +243,7 @@ void Ensemble_NHC::integrate_heat_nhc
     
     scale_velocity_local(atom, factor_1, factor_2, vcx, vcy, vcz, ke);
 
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
 
     // NHC second
     find_vc_and_ke(atom, vcx, vcy, vcz, ke);
@@ -268,15 +268,15 @@ void Ensemble_NHC::integrate_heat_nhc
 
 
 void Ensemble_NHC::compute
-(Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force)
 {
     if (type == 2)
     {
-        integrate_nvt_nhc(atom, force, measure);
+        integrate_nvt_nhc(atom, force);
     }
     else
     {
-        integrate_heat_nhc(atom, force, measure);
+        integrate_heat_nhc(atom, force);
     }
 }
 

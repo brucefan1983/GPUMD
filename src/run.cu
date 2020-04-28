@@ -168,7 +168,7 @@ static void process_run
         if (atom->neighbor.update) { atom->find_neighbor(0); }
 #endif
 
-        integrate->compute(atom, force, measure);
+        integrate->compute(atom, force);
         measure->process(input_dir, atom, integrate, step);
         print_finished_steps(step, atom->number_of_steps);
     }
@@ -237,6 +237,16 @@ void Run::check_run
     else
     {
         force->valdiate_potential_definitions();
+		bool compute_hnemd = measure->hnemd.compute ||
+            (
+                measure->modal_analysis.compute &&
+                measure->modal_analysis.method == HNEMA_METHOD
+            );
+		force->set_hnemd_parameters
+        (
+            compute_hnemd, measure->hnemd.fe_x, measure->hnemd.fe_y, 
+            measure->hnemd.fe_z
+        );
         process_run(input_dir, atom, force, integrate, measure);
     }
     initialize_run(atom, integrate, measure);

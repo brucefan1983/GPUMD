@@ -20,7 +20,6 @@
 
 class Atom;
 class Force;
-class Measure; // TODO: remove this dependence
 
 
 class Hessian
@@ -28,7 +27,7 @@ class Hessian
 public:
     double displacement = 0.005;
     double cutoff = 4.0;
-    void compute(char*, Atom*, Force*, Measure*);
+    void compute(char*, Atom*, Force*);
     void parse_cutoff(char**, size_t);
     void parse_delta(char**, size_t);
 
@@ -46,13 +45,13 @@ protected:
     std::vector<double> DI;
 
     void shift_atom(double, size_t, size_t, Atom*);
-    void get_f(double, size_t, size_t, size_t, Atom*, Force*, Measure*, double*);
+    void get_f(double, size_t, size_t, size_t, Atom*, Force*, double*);
     void read_basis(char*, size_t N);
     void read_kpoints(char*);
     void initialize(char*, size_t);
     void finalize(void);
-    void find_H(Atom*, Force*, Measure*);
-    void find_H12(size_t, size_t, Atom*, Force*, Measure*, double*);
+    void find_H(Atom*, Force*);
+    void find_H12(size_t, size_t, Atom*, Force*, double*);
     bool is_too_far(size_t, size_t, Atom*);
     void find_dispersion(char*, Atom*);
     void find_D(Atom*);

@@ -36,9 +36,9 @@ Ensemble_NVE::~Ensemble_NVE(void)
 }
 
 
-void Ensemble_NVE::compute(Atom *atom, Force *force, Measure* measure)
+void Ensemble_NVE::compute(Atom *atom, Force *force)
 {
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
     find_thermo(atom);
 }
 

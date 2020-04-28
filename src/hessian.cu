@@ -32,10 +32,10 @@ Then calculate the dynamical matrices with different k points.
 
 
 void Hessian::compute
-(char* input_dir, Atom* atom, Force* force, Measure* measure)
+(char* input_dir, Atom* atom, Force* force)
 {
     initialize(input_dir, atom->N);
-    find_H(atom, force, measure);
+    find_H(atom, force);
 
     if (num_kpoints == 1) // currently for Alex's GKMA calculations
     {
@@ -127,7 +127,7 @@ bool Hessian::is_too_far(size_t n1, size_t n2, Atom* atom)
 }
 
 
-void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
+void Hessian::find_H(Atom* atom, Force* force)
 {
     size_t N = atom->N;
     for (size_t nb = 0; nb < num_basis; ++nb)
@@ -137,7 +137,7 @@ void Hessian::find_H(Atom* atom, Force* force, Measure* measure)
         {
             if(is_too_far(n1, n2, atom)) continue;
             size_t offset = (nb * N + n2) * 9;
-            find_H12(n1, n2, atom, force, measure, H.data() + offset);
+            find_H12(n1, n2, atom, force, H.data() + offset);
         }
     }
 }
@@ -270,15 +270,15 @@ void Hessian::find_dispersion(char* input_dir, Atom* atom)
 
 
 void Hessian::find_H12
-(size_t n1, size_t n2, Atom *atom, Force *force, Measure* measure, double* H12)
+(size_t n1, size_t n2, Atom *atom, Force *force, double* H12)
 {
     double dx2 = displacement * 2;
     double f_positive[3];
     double f_negative[3];
     for (size_t beta = 0; beta < 3; ++beta)
     {
-        get_f(-displacement, n1, n2, beta, atom, force, measure, f_negative);
-        get_f(displacement, n1, n2, beta, atom, force, measure, f_positive);
+        get_f(-displacement, n1, n2, beta, atom, force, f_negative);
+        get_f(displacement, n1, n2, beta, atom, force, f_positive);
         for (size_t alpha = 0; alpha < 3; ++alpha)
         {
             size_t index = alpha * 3 + beta;
@@ -361,11 +361,11 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
 void Hessian::get_f
 (
     double dx, size_t n1, size_t n2, size_t beta, 
-    Atom* atom, Force *force, Measure* measure, double* f
+    Atom* atom, Force *force, double* f
 )
 {
     shift_atom(dx, n2, beta, atom);
-    force->compute(atom, measure);
+    force->compute(atom);
     size_t M = sizeof(double);
     CHECK(cudaMemcpy(f + 0, atom->fx + n1, M, cudaMemcpyDeviceToHost));
     CHECK(cudaMemcpy(f + 1, atom->fy + n1, M, cudaMemcpyDeviceToHost));

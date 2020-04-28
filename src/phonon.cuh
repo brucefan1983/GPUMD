@@ -20,7 +20,6 @@
 class Atom;
 class Force;
 class Hessian;
-class Measure; // TODO: remove this dependence
 
 
 class Phonon
@@ -29,7 +28,7 @@ public:
     Phonon(char*);
     ~Phonon(void);
 private:
-    void compute(char*, Atom*, Force*, Measure*, Hessian*, int);
+    void compute(char*, Atom*, Force*, Hessian*, int);
     void parse(char**, int, Atom*, Force*, Hessian*, int*);
 };
 

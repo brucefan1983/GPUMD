@@ -219,10 +219,10 @@ void Ensemble::velocity_verlet_2(Atom* atom)
 
 
 // the standard velocity-Verlet, including force updating
-void Ensemble::velocity_verlet(Atom* atom, Force* force, Measure* measure)
+void Ensemble::velocity_verlet(Atom* atom, Force* force)
 {
     velocity_verlet_1(atom);
-    force->compute(atom, measure);
+    force->compute(atom);
     velocity_verlet_2(atom);
 }
 
