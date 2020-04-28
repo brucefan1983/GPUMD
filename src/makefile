@@ -22,6 +22,16 @@ SOURCES = main.cu gpumd.cu read_file.cu run.cu error.cu validate.cu \
 	measure.cu compute.cu shc.cu vac.cu hac.cu hnemd_kappa.cu box.cu \
 	dump_netcdf.cu dump_xyz.cu modal_analysis.cu
 
+ifdef OS # For Windows with the cl.exe compiler
+_OBJ = main.obj gpumd.obj read_file.obj run.obj error.obj validate.obj \
+	mic.obj atom.obj velocity.obj neighbor.obj neighbor_ON1.obj neighbor_ON2.obj \
+	force.obj potential.obj ri.obj lj.obj eam.obj sw.obj vashishta.obj fcp.obj \
+	tersoff1988.obj tersoff1989.obj tersoff_modc.obj rebo_mos2.obj tersoff_mini.obj \
+	integrate.obj ensemble.obj ensemble_nve.obj ensemble_ber.obj \
+	ensemble_nhc.obj ensemble_lan.obj ensemble_bdp.obj \
+	measure.obj compute.obj shc.obj vac.obj hac.obj hnemd_kappa.obj box.obj \
+	dump_netcdf.obj dump_xyz.obj modal_analysis.obj
+else
 _OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
 	mic.o atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
 	force.o potential.o ri.o lj.o eam.o sw.o vashishta.o fcp.o \
@@ -30,6 +40,7 @@ _OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
 	ensemble_nhc.o ensemble_lan.o ensemble_bdp.o \
 	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o box.o \
 	dump_netcdf.o dump_xyz.o modal_analysis.o
+endif
 
 HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
 	mic.cuh common.cuh atom.cuh \
@@ -44,9 +55,14 @@ ODIR = obj
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: gpumd
-
+	
+ifdef OS # for Windows
+$(ODIR)/%.obj: %.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+else # for Linux
 $(ODIR)/%.o: %.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+endif
 
 gpumd: $(OBJ)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)

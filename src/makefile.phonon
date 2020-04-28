@@ -16,12 +16,21 @@ SOURCES = main_phonon.cu phonon.cu read_file.cu error.cu \
 	measure.cu compute.cu shc.cu vac.cu hac.cu hnemd_kappa.cu box.cu \
 	cusolver_wrapper.cu mic.cu dump_xyz.cu modal_analysis.cu
 
+ifdef OS # for Windows
+_OBJ = main_phonon.obj phonon.obj read_file.obj error.obj \
+	atom.obj velocity.obj neighbor.obj neighbor_ON1.obj neighbor_ON2.obj \
+	force.obj potential.obj lj.obj ri.obj eam.obj sw.obj vashishta.obj fcp.obj \
+	tersoff1988.obj tersoff1989.obj tersoff_modc.obj rebo_mos2.obj tersoff_mini.obj hessian.obj \
+	measure.obj compute.obj shc.obj vac.obj hac.obj hnemd_kappa.obj box.obj \
+	cusolver_wrapper.obj mic.obj dump_xyz.obj modal_analysis.obj
+else # for Linux
 _OBJ = main_phonon.o phonon.o read_file.o error.o \
 	atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
 	force.o potential.o lj.o ri.o eam.o sw.o vashishta.o fcp.o \
 	tersoff1988.o tersoff1989.o tersoff_modc.o rebo_mos2.o tersoff_mini.o hessian.o \
 	measure.o compute.o shc.o vac.o hac.o hnemd_kappa.o box.o \
 	cusolver_wrapper.o mic.o dump_xyz.o modal_analysis.o
+endif
 
 HEADERS = phonon.cuh read_file.cuh error.cuh mic.cuh \
 	common.cuh atom.cuh \
@@ -34,9 +43,14 @@ ODIR = obj_phonon
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
 
 all: phonon
-
+	
+ifdef OS # for Windows
+$(ODIR)/%.obj: %.cu $(HEADERS)
+	$(CC) $(CFLAGS) -c $< -o $@
+else # for Linux
 $(ODIR)/%.o: %.cu $(HEADERS)
 	$(CC) $(CFLAGS) -c $< -o $@
+endif
 
 phonon: $(OBJ)
 	$(CC) $^ -o $@ $(LFLAGS)
