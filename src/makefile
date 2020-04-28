@@ -69,7 +69,7 @@ gpumd: $(OBJ)
 
 clean:
 ifdef OS
-	del $(ODIR)\*o gpumd.exe gpumd.exp gpumd.lib
+	del $(ODIR)\*obj gpumd.exe gpumd.exp gpumd.lib
 else
 	rm $(ODIR)/*o gpumd
 endif

@@ -57,7 +57,7 @@ phonon: $(OBJ)
 
 clean:
 ifdef OS
-	del $(ODIR)\*o phonon.exe phonon.exp phonon.lib
+	del $(ODIR)\*obj phonon.exe phonon.exp phonon.lib
 else
 	rm $(ODIR)/*o gpumd
 endif
