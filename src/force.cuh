@@ -36,7 +36,7 @@ public:
     int get_number_of_types(FILE *fid_potential);
     void valdiate_potential_definitions(void);
     void initialize_participation_and_shift(Atom*);
-	void set_hnemd_parameters(const bool, const double, const double, const double);
+    void set_hnemd_parameters(const bool, const double, const double, const double);
 
     int num_of_potentials;
     std::vector<int> participating_kinds;
@@ -49,8 +49,8 @@ public:
     int group_method;
     int num_kind;
 	
-	bool compute_hnemd_ = false;
-	double hnemd_fe_[3];
+    bool compute_hnemd_ = false;
+    double hnemd_fe_[3];
 
 private:
 
