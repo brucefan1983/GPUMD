@@ -599,7 +599,7 @@ void Force::compute(Atom *atom, Measure* measure)
         find_neighbor_local(atom, m);
 #endif
         // and then calculate the forces and related quantities
-        potential[m]->compute(atom, measure, m);
+        potential[m]->compute(atom, m);
     }
 
     if (measure->hnemd.compute ||

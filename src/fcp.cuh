@@ -36,7 +36,7 @@ class FCP : public Potential
 public:   
     FCP(FILE* fid, char *input_dir, Atom *atom);  
     virtual ~FCP(void);
-    virtual void compute(Atom*, Measure*, int);
+    virtual void compute(Atom*, int);
 protected:
     int order, number2, number3, number4, number5, number6;
     char file_path[FILE_NAME_LENGTH];

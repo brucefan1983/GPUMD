@@ -25,7 +25,6 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 
 #include "rebo_mos2.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -874,7 +873,7 @@ static __global__ void find_force_step2
 
 
 // Force evaluation wrapper
-void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
+void REBO_MOS::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];

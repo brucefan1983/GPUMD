@@ -16,7 +16,6 @@
 
 #include "vashishta.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_VASHISHTA 64
@@ -370,7 +369,7 @@ static __global__ void gpu_find_force_vashishta_partial
 
 
 // Find force and related quantities for the Vashishta potential (A wrapper)
-void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
+void Vashishta::compute(Atom *atom, int potential_number)
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
     int shift = atom->shift[potential_number];

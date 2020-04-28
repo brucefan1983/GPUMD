@@ -44,7 +44,7 @@ class EAM : public Potential
 public:   
     EAM(FILE*, Atom*, char*);  
     virtual ~EAM(void);
-    virtual void compute(Atom*, Measure*, int);
+    virtual void compute(Atom*, int);
     void initialize_eam2004zhou(FILE*);
     void initialize_eam2006dai(FILE*);
 protected:

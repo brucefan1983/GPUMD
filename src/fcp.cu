@@ -20,7 +20,6 @@ The force constant potential (FCP)
 
 
 #include "fcp.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "mic.cuh"
 #include "error.cuh"
@@ -952,7 +951,7 @@ static __global__ void gpu_save_pfv
 
 
 // Wrapper of the above kernels
-void FCP::compute(Atom *atom, Measure *measure, int potential_number)
+void FCP::compute(Atom *atom, int potential_number)
 {
     const int block_size = 1024;
 

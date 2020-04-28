@@ -36,7 +36,7 @@ class Tersoff_modc : public Potential
 public:   
     Tersoff_modc(FILE*, Atom*, int sum_of_types);
     virtual ~Tersoff_modc(void);
-    virtual void compute(Atom*, Measure*, int);
+    virtual void compute(Atom*, int);
 protected:
     int num_types;
     double *ters;

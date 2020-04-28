@@ -20,7 +20,6 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 
 #include "lj.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -204,7 +203,7 @@ static __global__ void gpu_find_force
 
 
 // Find force and related quantities for pair potentials (A wrapper)
-void LJ::compute(Atom *atom, Measure *measure, int potential_number)
+void LJ::compute(Atom *atom, int potential_number)
 {
     int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;

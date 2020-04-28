@@ -16,7 +16,6 @@
 
 #include "sw.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -283,7 +282,7 @@ static __global__ void gpu_set_f12_to_zero
 
 
 // Find force and related quantities for the SW potential (A wrapper)
-void SW2::compute(Atom *atom, Measure *measure, int potential_number)
+void SW2::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];

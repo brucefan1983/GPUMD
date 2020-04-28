@@ -23,7 +23,6 @@ The double-element version of the Tersoff potential as described in
 
 #include "tersoff1989.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -516,7 +515,7 @@ find_force_tersoff_step2
 
 
 // Wrapper of force evaluation for the Tersoff potential
-void Tersoff1989::compute(Atom *atom, Measure *measure, int potential_number)
+void Tersoff1989::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];

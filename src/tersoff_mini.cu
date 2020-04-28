@@ -23,7 +23,6 @@ The minimal Tersoff potential
 
 #include "tersoff_mini.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -341,7 +340,7 @@ find_force_step2
 
 
 // Wrapper of force evaluation for the SBOP potential
-void Tersoff_mini::compute(Atom *atom, Measure *measure, int potential_number)
+void Tersoff_mini::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];

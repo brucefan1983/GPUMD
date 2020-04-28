@@ -23,7 +23,6 @@ The modified Tersoff potentials as described in
 
 #include "tersoff_modc.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
@@ -429,7 +428,7 @@ static __global__ void find_force_tersoff_step2
 
 
 // Wrapper of force evaluation for the Tersoff potential
-void Tersoff_modc::compute(Atom *atom, Measure *measure, int potential_number)
+void Tersoff_modc::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];
