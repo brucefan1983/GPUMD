@@ -15,6 +15,7 @@
 
 
 #pragma once
+#include "gpu_vector.cuh"
 #include "common.cuh"
 
 class Atom;
@@ -46,9 +47,9 @@ private:
     double dt_in_ps;            // time interval in units of ps
     void find_dos(char *, Atom *);
     void find_sdc(char *, Atom *);
-    double *mass;
-    double *vx, *vy, *vz;
-    double *vac_x, *vac_y, *vac_z;
+    GPU_Vector<double> mass;
+    GPU_Vector<double> vx, vy, vz;
+    GPU_Vector<double> vac_x, vac_y, vac_z;
 };
 
 

@@ -133,6 +133,19 @@ public:
         const size_t memory = sizeof(T) * size;
         CHECK(cudaMemcpy(data_, h_data, memory, cudaMemcpyHostToDevice));
     }
+
+    // copy data from device with the default size
+    void copy_from_device(const T* d_data)
+    {
+        CHECK(cudaMemcpy(data_, d_data, memory_, cudaMemcpyDeviceToDevice));
+    }
+
+    // copy data from host with a given size
+    void copy_from_device(const T* d_data, const size_t size)
+    {
+        const size_t memory = sizeof(T) * size;
+        CHECK(cudaMemcpy(data_, d_data, memory, cudaMemcpyDeviceToDevice));
+    }
 	
     // copy data to host with the default size
     void copy_to_host(T* h_data)
@@ -155,11 +168,18 @@ public:
             const int block_size = 128;
             const int grid_size = (size_ + block_size - 1) / block_size;
             gpu_fill<<<grid_size, block_size>>>(size_, value, data_);
+            CUDA_CHECK_KERNEL
         }
         else // managed (or unified) memory
         {
             for (int i = 0; i < size_; ++i) data_[i] = value;
         }
+    }
+
+    // the [] operator
+    T& operator[](int index)
+    {
+        return data_[index];
     }
 
     // some getters
