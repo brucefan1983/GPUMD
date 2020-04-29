@@ -37,8 +37,11 @@ const int BLOCK_SIZE = 128;
 
 static __global__ void gpu_copy_mass
 (
-    int N, int offset, int *g_group_contents,
-    double *g_mass_o, double *g_mass_i
+    const int N,
+    const int offset,
+    const int *g_group_contents,
+    double *g_mass_o,
+    const double *g_mass_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -123,9 +126,15 @@ void VAC::preprocess(Atom *atom)
 
 static __global__ void gpu_copy_velocity
 (
-    int N, int offset, int *g_group_contents,
-    double *g_vx_o, double *g_vy_o, double *g_vz_o,
-    double *g_vx_i, double *g_vy_i, double *g_vz_i
+    const int N,
+    const int offset,
+    const int *g_group_contents,
+    double *g_vx_o,
+    double *g_vy_o,
+    double *g_vz_o,
+    const double *g_vx_i,
+    const double *g_vy_i,
+    const double *g_vz_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -142,9 +151,13 @@ static __global__ void gpu_copy_velocity
 
 static __global__ void gpu_copy_velocity
 (
-    int N, 
-    double *g_vx_o, double *g_vy_o, double *g_vz_o,
-    double *g_vx_i, double *g_vy_i, double *g_vz_i
+    const int N,
+    double *g_vx_o,
+    double *g_vy_o,
+    double *g_vz_o,
+    const double *g_vx_i,
+    const double *g_vy_i,
+    const double *g_vz_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -160,10 +173,19 @@ static __global__ void gpu_copy_velocity
 
 static __global__ void gpu_find_vac
 (
-    int N, int correlation_step, int compute_dos, double *g_mass,
-    double *g_vx, double *g_vy, double *g_vz,
-    double *g_vx_all, double *g_vy_all, double *g_vz_all,
-    double *g_vac_x, double *g_vac_y, double *g_vac_z
+    const int N,
+    const int correlation_step,
+    const int compute_dos,
+    const double *g_mass,
+    const double *g_vx,
+    const double *g_vy,
+    const double *g_vz,
+    const double *g_vx_all,
+    const double *g_vy_all,
+    const double *g_vz_all,
+    double *g_vac_x,
+    double *g_vac_y,
+    double *g_vac_z
 )
 {
     int tid = threadIdx.x;
@@ -222,7 +244,11 @@ static __global__ void gpu_find_vac
 }
 
 
-void VAC::process(int step, Atom *atom)
+void VAC::process
+(
+    const int step,
+    Atom *atom
+)
 {
     if (!(compute_dos || compute_sdc)) return;
     if ((step + 1) % sample_interval != 0) { return; }
@@ -289,10 +315,18 @@ void VAC::process(int step, Atom *atom)
 
 static void perform_dft
 (
-    int N, int Nc, int num_dos_points,
-    double delta_t, double omega_0, double d_omega,
-    double *vac_x, double *vac_y, double *vac_z,
-    double *dos_x, double *dos_y, double *dos_z
+    const int N,
+    const int Nc,
+    const int num_dos_points,
+    const double delta_t,
+    const double omega_0,
+    const double d_omega,
+    double *vac_x,
+    double *vac_y,
+    double *vac_z,
+    double *dos_x,
+    double *dos_y,
+    double *dos_z
 )
 {
     // Apply Hann window and normalize by the correct factor
@@ -329,7 +363,11 @@ static void perform_dft
 }
 
 
-void VAC::find_dos(char *input_dir, Atom *atom)
+void VAC::find_dos
+(
+    const char *input_dir,
+    Atom *atom
+)
 {
     double d_omega = omega_max / num_dos_points;
     double omega_0 = d_omega;
@@ -373,8 +411,14 @@ void VAC::find_dos(char *input_dir, Atom *atom)
 
 static void integrate_vac
 (
-    int Nc, double dt, double *vac_x, double *vac_y, double *vac_z,
-    double *sdc_x, double *sdc_y, double *sdc_z
+    const int Nc,
+    const double dt,
+    const double *vac_x,
+    const double *vac_y,
+    const double *vac_z,
+    double *sdc_x,
+    double *sdc_y,
+    double *sdc_z
 )
 {
     double dt2 = dt * 0.5;
@@ -387,7 +431,11 @@ static void integrate_vac
 }
 
 
-void VAC::find_sdc(char *input_dir, Atom *atom)
+void VAC::find_sdc
+(
+    const char *input_dir,
+    Atom *atom
+)
 {
     // initialize the SDC data
     std::vector<double> sdc_x(Nc, 0.0);
@@ -441,7 +489,11 @@ void VAC::find_sdc(char *input_dir, Atom *atom)
 }
 
 
-void VAC::postprocess(char *input_dir, Atom *atom)
+void VAC::postprocess
+(
+    const char *input_dir,
+    Atom *atom
+)
 {
     if (!(compute_dos || compute_sdc)) return;
 
@@ -456,9 +508,9 @@ void VAC::postprocess(char *input_dir, Atom *atom)
         double vac_z_0 = vac_z[0];
         for (int nc = 0; nc < Nc; nc++)
         {
-            vac_x.data()[nc] /= vac_x_0;
-            vac_y.data()[nc] /= vac_y_0;
-            vac_z.data()[nc] /= vac_z_0;
+            vac_x[nc] /= vac_x_0;
+            vac_y[nc] /= vac_y_0;
+            vac_z[nc] /= vac_z_0;
         }
 
         // output normalized MVAC

@@ -36,8 +36,8 @@ public:
     double omega_max;           // maximal angular frequency for phonons
 
     void preprocess(Atom*);
-    void process(int, Atom*);
-    void postprocess(char*, Atom*);
+    void process(const int, Atom*);
+    void postprocess(const char*, Atom*);
 
 private:
 
@@ -45,8 +45,8 @@ private:
     int num_time_origins;     // number of time origins
     double dt;                  // time interval in natural units
     double dt_in_ps;            // time interval in units of ps
-    void find_dos(char *, Atom *);
-    void find_sdc(char *, Atom *);
+    void find_dos(const char *, Atom *);
+    void find_sdc(const char *, Atom *);
     GPU_Vector<double> mass;
     GPU_Vector<double> vx, vy, vz;
     GPU_Vector<double> vac_x, vac_y, vac_z;
