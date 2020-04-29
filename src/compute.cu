@@ -45,10 +45,10 @@ void Compute::preprocess(char* input_dir, Atom* atom)
     cpu_group_sum.resize(number_of_columns, 0.0);
     cpu_group_sum_ave.resize(number_of_columns, 0.0);
 
-    CHECK(cudaMalloc((void**)&gpu_group_sum, sizeof(double) * number_of_columns));
-    CHECK(cudaMalloc((void**)&gpu_per_atom_x, sizeof(double) * atom->N));
-    CHECK(cudaMalloc((void**)&gpu_per_atom_y, sizeof(double) * atom->N));
-    CHECK(cudaMalloc((void**)&gpu_per_atom_z, sizeof(double) * atom->N));
+    gpu_group_sum.resize(number_of_columns);
+    gpu_per_atom_x.resize(atom->N);
+    gpu_per_atom_y.resize(atom->N);
+    gpu_per_atom_z.resize(atom->N);
 
     char filename[200];
     strcpy(filename, input_dir);
@@ -60,10 +60,6 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 void Compute::postprocess(Atom* atom, Integrate *integrate)
 {
     if (number_of_scalars == 0) return;
-    CHECK(cudaFree(gpu_group_sum));
-    CHECK(cudaFree(gpu_per_atom_x));
-    CHECK(cudaFree(gpu_per_atom_y));
-    CHECK(cudaFree(gpu_per_atom_z));
     fclose(fid);
 }
 
@@ -215,12 +211,12 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
     if (compute_temperature)
     {
         find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(N, atom->mass,
-            atom->vx, atom->vy, atom->vz, gpu_per_atom_x);
+            atom->vx, atom->vy, atom->vz, gpu_per_atom_x.data());
         CUDA_CHECK_KERNEL
         find_group_sum_1<<<Ng, 256>>>(atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            gpu_per_atom_x, gpu_group_sum + offset);
+            gpu_per_atom_x.data(), gpu_group_sum.data() + offset);
         CUDA_CHECK_KERNEL
         offset += Ng;
     }
@@ -229,27 +225,37 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         find_group_sum_1<<<Ng, 256>>>(atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            atom->potential_per_atom, gpu_group_sum + offset);
+            atom->potential_per_atom, gpu_group_sum.data() + offset);
         CUDA_CHECK_KERNEL
         offset += Ng;
     }
     if (compute_force)
     {
-        find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
+        find_group_sum_3<<<Ng, 256>>>
+        (
+            atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            atom->fx, atom->fy, atom->fz,
-            gpu_group_sum + offset);
+            atom->fx,
+            atom->fy,
+            atom->fz,
+            gpu_group_sum.data() + offset
+        );
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
     if (compute_virial)
     {
-        find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
+        find_group_sum_3<<<Ng, 256>>>
+        (
+            atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            atom->virial_per_atom, atom->virial_per_atom + N,
-            atom->virial_per_atom + N * 2, gpu_group_sum + offset);
+            atom->virial_per_atom,
+            atom->virial_per_atom + N,
+            atom->virial_per_atom + N * 2,
+            gpu_group_sum.data() + offset
+        );
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
@@ -272,36 +278,37 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
             atom->virial_per_atom + N * 8,
             atom->virial_per_atom + N * 2,
             atom->vx, atom->vy, atom->vz, 
-            gpu_per_atom_x, gpu_per_atom_y, gpu_per_atom_z
+            gpu_per_atom_x.data(),
+            gpu_per_atom_y.data(),
+            gpu_per_atom_z.data()
         );
         CUDA_CHECK_KERNEL
 
         find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            gpu_per_atom_x, gpu_per_atom_y,
-            gpu_per_atom_z, gpu_group_sum + offset);
+            gpu_per_atom_x.data(), gpu_per_atom_y.data(),
+            gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
     if (compute_jk)
     {
         find_per_atom_jk<<<(N-1)/256+1, 256>>>(N, atom->potential_per_atom,
-            atom->mass, atom->vx, atom->vy, atom->vz, gpu_per_atom_x,
-            gpu_per_atom_y, gpu_per_atom_z);
+            atom->mass, atom->vx, atom->vy, atom->vz, gpu_per_atom_x.data(),
+            gpu_per_atom_y.data(), gpu_per_atom_z.data());
         CUDA_CHECK_KERNEL
 
         find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            gpu_per_atom_x, gpu_per_atom_y,
-            gpu_per_atom_z, gpu_group_sum + offset);
+            gpu_per_atom_x.data(), gpu_per_atom_y.data(),
+            gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
 
-    CHECK(cudaMemcpy(cpu_group_sum.data(), gpu_group_sum, 
-        sizeof(double) * Ng * number_of_scalars, cudaMemcpyDeviceToHost));
+    gpu_group_sum.copy_to_host(cpu_group_sum.data());
 
     for (int n = 0; n < Ng * number_of_scalars; ++n)
         cpu_group_sum_ave[n] += cpu_group_sum[n];

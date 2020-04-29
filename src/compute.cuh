@@ -17,6 +17,7 @@
 #pragma once
 
 #include "common.cuh"
+#include "gpu_vector.cuh"
 #include <vector>
 
 class Atom;
@@ -46,10 +47,10 @@ private:
 
     std::vector<double> cpu_group_sum;
     std::vector<double> cpu_group_sum_ave;
-    double* gpu_group_sum;
-    double* gpu_per_atom_x;
-    double* gpu_per_atom_y;
-    double* gpu_per_atom_z;
+    GPU_Vector<double> gpu_group_sum;
+    GPU_Vector<double> gpu_per_atom_x;
+    GPU_Vector<double> gpu_per_atom_y;
+    GPU_Vector<double> gpu_per_atom_z;
 
     int number_of_scalars = 0;
 
