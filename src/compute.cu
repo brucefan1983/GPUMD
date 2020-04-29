@@ -65,7 +65,14 @@ void Compute::postprocess(Atom* atom, Integrate *integrate)
 
 
 static __global__ void find_per_atom_temperature
-(int N, double *g_mass, double *g_vx, double *g_vy, double *g_vz, double *g_temperature)
+(
+    int N,
+    double *g_mass,
+    double *g_vx,
+    double *g_vy,
+    double *g_vz,
+    double *g_temperature
+)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
@@ -79,9 +86,22 @@ static __global__ void find_per_atom_temperature
 
 static __global__ void find_per_atom_jp
 (
-    int N, double *sxx, double *sxy, double *sxz, double *syx, double *syy, double *syz,
-    double *szx, double *szy, double *szz, double *vx, double *vy, double *vz, 
-    double *jx, double *jy, double *jz
+    int N,
+    double *sxx,
+    double *sxy,
+    double *sxz,
+    double *syx,
+    double *syy,
+    double *syz,
+    double *szx,
+    double *szy,
+    double *szz,
+    double *vx,
+    double *vy,
+    double *vz,
+    double *jx,
+    double *jy,
+    double *jz
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -96,8 +116,15 @@ static __global__ void find_per_atom_jp
 
 static __global__ void find_per_atom_jk
 (
-    int N, double* g_potential, double *g_mass, double *g_vx, double* g_vy, double* g_vz,
-    double* g_jx, double* g_jy, double* g_jz
+    int N,
+    double* g_potential,
+    double *g_mass,
+    double *g_vx,
+    double* g_vy,
+    double* g_vz,
+    double* g_jx,
+    double* g_jy,
+    double* g_jz
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -113,8 +140,11 @@ static __global__ void find_per_atom_jk
 
 static __global__ void find_group_sum_1
 (
-    int  *g_group_size, int  *g_group_size_sum, int  *g_group_contents,
-    double *g_in, double *g_out
+    int  *g_group_size,
+    int  *g_group_size_sum,
+    int  *g_group_contents,
+    double *g_in,
+    double *g_out
 )
 {
     // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
@@ -150,8 +180,13 @@ static __global__ void find_group_sum_1
 
 static __global__ void find_group_sum_3
 (
-    int *g_group_size, int *g_group_size_sum, int *g_group_contents,
-    double *g_fx, double *g_fy, double *g_fz, double *g_out
+    int *g_group_size,
+    int *g_group_size_sum,
+    int *g_group_contents,
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_out
 )
 {
     // <<<number_of_groups, 256>>> (one CUDA block for one group of atoms)
@@ -210,22 +245,37 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
     int offset = 0;
     if (compute_temperature)
     {
-        find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(N, atom->mass,
-            atom->vx, atom->vy, atom->vz, gpu_per_atom_x.data());
+        find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>
+        (
+            N,
+            atom->mass,
+            atom->vx,
+            atom->vy,
+            atom->vz,
+            gpu_per_atom_x.data()
+        );
         CUDA_CHECK_KERNEL
-        find_group_sum_1<<<Ng, 256>>>(atom->group[grouping_method].size,
+        find_group_sum_1<<<Ng, 256>>>
+        (
+            atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            gpu_per_atom_x.data(), gpu_group_sum.data() + offset);
+            gpu_per_atom_x.data(),
+            gpu_group_sum.data() + offset
+        );
         CUDA_CHECK_KERNEL
         offset += Ng;
     }
     if (compute_potential)
     {
-        find_group_sum_1<<<Ng, 256>>>(atom->group[grouping_method].size,
+        find_group_sum_1<<<Ng, 256>>>
+        (
+            atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            atom->potential_per_atom, gpu_group_sum.data() + offset);
+            atom->potential_per_atom,
+            gpu_group_sum.data() + offset
+        );
         CUDA_CHECK_KERNEL
         offset += Ng;
     }
@@ -284,26 +334,45 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
         );
         CUDA_CHECK_KERNEL
 
-        find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
+        find_group_sum_3<<<Ng, 256>>>
+        (
+            atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            gpu_per_atom_x.data(), gpu_per_atom_y.data(),
-            gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
+            gpu_per_atom_x.data(),
+            gpu_per_atom_y.data(),
+            gpu_per_atom_z.data(),
+            gpu_group_sum.data() + offset
+        );
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
     if (compute_jk)
     {
-        find_per_atom_jk<<<(N-1)/256+1, 256>>>(N, atom->potential_per_atom,
-            atom->mass, atom->vx, atom->vy, atom->vz, gpu_per_atom_x.data(),
-            gpu_per_atom_y.data(), gpu_per_atom_z.data());
+        find_per_atom_jk<<<(N-1)/256+1, 256>>>
+        (
+            N,
+            atom->potential_per_atom,
+            atom->mass,
+            atom->vx,
+            atom->vy,
+            atom->vz,
+            gpu_per_atom_x.data(),
+            gpu_per_atom_y.data(),
+            gpu_per_atom_z.data()
+        );
         CUDA_CHECK_KERNEL
 
-        find_group_sum_3<<<Ng, 256>>>(atom->group[grouping_method].size,
+        find_group_sum_3<<<Ng, 256>>>
+        (
+            atom->group[grouping_method].size,
             atom->group[grouping_method].size_sum,
             atom->group[grouping_method].contents,
-            gpu_per_atom_x.data(), gpu_per_atom_y.data(),
-            gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
+            gpu_per_atom_x.data(),
+            gpu_per_atom_y.data(),
+            gpu_per_atom_z.data(),
+            gpu_group_sum.data() + offset
+        );
         CUDA_CHECK_KERNEL
         offset += Ng * 3;
     }
