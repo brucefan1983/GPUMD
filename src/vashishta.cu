@@ -87,26 +87,18 @@ void Vashishta::initialize_para(FILE *fid)
 Vashishta::Vashishta(FILE *fid, Atom* atom)
 {
     initialize_para(fid);
-
     int num = (atom->neighbor.MN < 100) ? atom->neighbor.MN : 100;
-    int memory = sizeof(double) * atom->N * num;
-    CHECK(cudaMalloc((void**)&vashishta_data.f12x, memory));
-    CHECK(cudaMalloc((void**)&vashishta_data.f12y, memory));
-    CHECK(cudaMalloc((void**)&vashishta_data.f12z, memory));
-    memory = sizeof(int) * atom->N;
-    CHECK(cudaMalloc((void**)&vashishta_data.NN_short, memory));
-    memory = sizeof(int) * atom->N * num;
-    CHECK(cudaMalloc((void**)&vashishta_data.NL_short, memory));
+    vashishta_data.f12x.resize(atom->N * num);
+    vashishta_data.f12y.resize(atom->N * num);
+    vashishta_data.f12z.resize(atom->N * num);
+    vashishta_data.NN_short.resize(atom->N);
+    vashishta_data.NL_short.resize(atom->N * num);
 }
 
 
 Vashishta::~Vashishta(void)
 {
-    CHECK(cudaFree(vashishta_data.f12x));
-    CHECK(cudaFree(vashishta_data.f12y));
-    CHECK(cudaFree(vashishta_data.f12z));
-    CHECK(cudaFree(vashishta_data.NN_short));
-    CHECK(cudaFree(vashishta_data.NL_short));
+    // nothing
 }
 
 
@@ -377,27 +369,60 @@ void Vashishta::compute(Atom *atom, int potential_number)
     // 2-body part
     gpu_find_force_vashishta_2body<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        atom->N, N1, N2, atom->box, vashishta_para, atom->NN_local,
-        atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,
-        atom->type, shift, atom->x, atom->y, atom->z,
-        atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,
-        atom->fz, atom->virial_per_atom, atom->potential_per_atom
+        atom->N,
+        N1,
+        N2,
+        atom->box,
+        vashishta_para,
+        atom->NN_local,
+        atom->NL_local,
+        vashishta_data.NN_short.data(),
+        vashishta_data.NL_short.data(),
+        atom->type,
+        shift,
+        atom->x,
+        atom->y,
+        atom->z,
+        atom->vx,
+        atom->vy,
+        atom->vz,
+        atom->fx,
+        atom->fy,
+        atom->fz,
+        atom->virial_per_atom,
+        atom->potential_per_atom
     );
     CUDA_CHECK_KERNEL
 
     // 3-body part
     gpu_find_force_vashishta_partial<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        atom->N, N1, N2, atom->box, vashishta_para, vashishta_data.NN_short,
-        vashishta_data.NL_short, atom->type, shift, atom->x, atom->y, atom->z,
-        atom->potential_per_atom, vashishta_data.f12x, 
-        vashishta_data.f12y, vashishta_data.f12z
+        atom->N,
+        N1,
+        N2,
+        atom->box,
+        vashishta_para,
+        vashishta_data.NN_short.data(),
+        vashishta_data.NL_short.data(),
+        atom->type,
+        shift,
+        atom->x,
+        atom->y,
+        atom->z,
+        atom->potential_per_atom,
+        vashishta_data.f12x.data(),
+        vashishta_data.f12y.data(),
+        vashishta_data.f12z.data()
     );
     CUDA_CHECK_KERNEL
     find_properties_many_body
     (
-        atom, vashishta_data.NN_short, vashishta_data.NL_short,
-        vashishta_data.f12x, vashishta_data.f12y, vashishta_data.f12z
+        atom,
+        vashishta_data.NN_short.data(),
+        vashishta_data.NL_short.data(),
+        vashishta_data.f12x.data(),
+        vashishta_data.f12y.data(),
+        vashishta_data.f12z.data()
     );
 }
 

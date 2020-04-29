@@ -33,7 +33,7 @@ _OBJ = main_phonon.o phonon.o read_file.o error.o \
 endif
 
 HEADERS = phonon.cuh read_file.cuh error.cuh mic.cuh \
-	common.cuh atom.cuh \
+	common.cuh atom.cuh gpu_vector.cuh \
 	force.cuh potential.cuh lj.cuh ri.cuh eam.cuh sw.cuh vashishta.cuh fcp.cuh \
 	tersoff1988.cuh tersoff1989.cuh tersoff_modc.cuh rebo_mos2.cuh tersoff_mini.cuh hessian.cuh \
 	measure.cuh compute.cuh shc.cuh vac.cuh hac.cuh hnemd_kappa.cuh box.cuh \

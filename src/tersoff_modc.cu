@@ -95,12 +95,12 @@ Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
     }
 
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory = sizeof(double)* atom->N * num_of_neighbors;
-    CHECK(cudaMalloc((void**)&tersoff_data.b,  memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.bp, memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.f12x, memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.f12y, memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.f12z, memory));
+    tersoff_data.b.resize(atom->N * num_of_neighbors);
+    tersoff_data.bp.resize(atom->N * num_of_neighbors);
+    tersoff_data.f12x.resize(atom->N * num_of_neighbors);
+    tersoff_data.f12y.resize(atom->N * num_of_neighbors);
+    tersoff_data.f12z.resize(atom->N * num_of_neighbors);
+
     CHECK(cudaMalloc((void**)&ters, sizeof(double) * n_entries*NUM_PARAMS));
     CHECK(cudaMemcpy(ters, cpu_ters.data(),
         sizeof(double) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
@@ -109,11 +109,6 @@ Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
 
 Tersoff_modc::~Tersoff_modc(void)
 {
-    CHECK(cudaFree(tersoff_data.b));
-    CHECK(cudaFree(tersoff_data.bp));
-    CHECK(cudaFree(tersoff_data.f12x));
-    CHECK(cudaFree(tersoff_data.f12y));
-    CHECK(cudaFree(tersoff_data.f12z));
     CHECK(cudaFree(ters));
 }
 
@@ -442,11 +437,11 @@ void Tersoff_modc::compute(Atom *atom, int potential_number)
     double *pe = atom->potential_per_atom;
 
     // special data for Tersoff potential
-    double *f12x = tersoff_data.f12x;
-    double *f12y = tersoff_data.f12y;
-    double *f12z = tersoff_data.f12z;
-    double *b    = tersoff_data.b;
-    double *bp   = tersoff_data.bp;
+    double *f12x = tersoff_data.f12x.data();
+    double *f12y = tersoff_data.f12y.data();
+    double *f12z = tersoff_data.f12z.data();
+    double *b    = tersoff_data.b.data();
+    double *bp   = tersoff_data.bp.data();
 
     // pre-compute the bond order functions and their derivatives
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>

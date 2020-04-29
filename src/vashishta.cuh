@@ -16,6 +16,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include "gpu_vector.cuh"
 #include <stdio.h>
 
 
@@ -32,11 +33,11 @@ struct Vashishta_Para
 
 struct Vashishta_Data
 {
-    double *f12x;  // partial forces
-    double *f12y;
-    double *f12z;
-    int *NN_short; // for three-body part
-    int *NL_short; // for three-body part
+    GPU_Vector<double> f12x;  // partial forces
+    GPU_Vector<double> f12y;
+    GPU_Vector<double> f12z;
+    GPU_Vector<int> NN_short; // for three-body part
+    GPU_Vector<int> NL_short; // for three-body part
 };
 
 

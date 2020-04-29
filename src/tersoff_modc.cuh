@@ -16,16 +16,17 @@
 
 #pragma once
 #include "potential.cuh"
+#include "gpu_vector.cuh"
 #include <stdio.h>
 
 
 struct Tersoff_modc_Data
 {
-    double *b;     // bond orders
-    double *bp;    // derivative of bond orders
-    double *f12x;  // partial forces
-    double *f12y;
-    double *f12z;
+    GPU_Vector<double> b;    // bond orders
+    GPU_Vector<double> bp;   // derivative of bond orders
+    GPU_Vector<double> f12x; // partial forces
+    GPU_Vector<double> f12y;
+    GPU_Vector<double> f12z;
 };
 
 

@@ -72,22 +72,17 @@ Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
     }
 
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory1 = sizeof(double)* atom->N * num_of_neighbors;
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.b,    memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.bp,   memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12x, memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12y, memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12z, memory1));
+    tersoff_mini_data.b.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.bp.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.f12x.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.f12y.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.f12z.resize(atom->N * num_of_neighbors);
 }
 
 
 Tersoff_mini::~Tersoff_mini(void)
 {
-    CHECK(cudaFree(tersoff_mini_data.b));
-    CHECK(cudaFree(tersoff_mini_data.bp));
-    CHECK(cudaFree(tersoff_mini_data.f12x));
-    CHECK(cudaFree(tersoff_mini_data.f12y));
-    CHECK(cudaFree(tersoff_mini_data.f12z));
+    // nothing
 }
 
 
@@ -354,11 +349,11 @@ void Tersoff_mini::compute(Atom *atom, int potential_number)
     double *pe = atom->potential_per_atom;
 
     // special data for SBOP potential
-    double *f12x = tersoff_mini_data.f12x;
-    double *f12y = tersoff_mini_data.f12y;
-    double *f12z = tersoff_mini_data.f12z;
-    double *b    = tersoff_mini_data.b;
-    double *bp   = tersoff_mini_data.bp;
+    double *f12x = tersoff_mini_data.f12x.data();
+    double *f12y = tersoff_mini_data.f12y.data();
+    double *f12z = tersoff_mini_data.f12z.data();
+    double *b    = tersoff_mini_data.b.data();
+    double *bp   = tersoff_mini_data.bp.data();
 
     // pre-compute the bond order functions and their derivatives
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>

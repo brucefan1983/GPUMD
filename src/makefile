@@ -49,7 +49,8 @@ HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
 	integrate.cuh ensemble.cuh ensemble_nve.cuh ensemble_ber.cuh \
 	ensemble_nhc.cuh ensemble_lan.cuh ensemble_bdp.cuh \
 	measure.cuh compute.cuh shc.cuh vac.cuh hac.cuh hnemd_kappa.cuh box.cuh \
-	dump_pos.cuh dump_netcdf.cuh dump_xyz.cuh modal_analysis.cuh
+	dump_pos.cuh dump_netcdf.cuh dump_xyz.cuh modal_analysis.cuh \
+	gpu_vector.cuh
 
 ODIR = obj
 OBJ = $(patsubst %,$(ODIR)/%,$(_OBJ))
