@@ -88,6 +88,7 @@ public:
         size_ = size;
         memory_ = size_ * sizeof(T);
         memory_type_ = memory_type;
+        if (!data_) CHECK(cudaFree(data_)); // if memory is already allocated
         if (memory_type_ == Memory_Type::global)
         {
             CHECK(cudaMalloc((void**)&data_, memory_));
