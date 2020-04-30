@@ -15,9 +15,12 @@
 
 
 /*----------------------------------------------------------------------------80
-The minimal Tersoff potential
-    Written by Zheyong Fan.
-    This is a new potential I proposed. 
+The minimal Tersoff potential, as developed in the following paper:
+
+Z. Fan, Y. Wang, X. Gu, P. Qian, Y. Su, and T. Ala-Nissila,
+A minimal Tersoff potential for diamond silicon with improved
+descriptions of elastic and phonon transport properties,
+J. Phys.: Condens. Matter 32, 135901 (2020).
 ------------------------------------------------------------------------------*/
 
 
