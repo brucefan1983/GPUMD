@@ -48,7 +48,7 @@ public:
         size_ = 0;
         memory_ = 0;
         memory_type_ = Memory_Type::global;
-        data_ = NULL;
+        allocated_ = false;
     }
 
     // only allocate memory
@@ -75,7 +75,11 @@ public:
     // deallocate memory
     ~GPU_Vector()
     {
-        if (!data_) CHECK(cudaFree(data_));
+        if (allocated_)
+        {
+            CHECK(cudaFree(data_));
+            allocated_ = false;
+        }
     }
 	
     // only allocate memory
@@ -88,14 +92,20 @@ public:
         size_ = size;
         memory_ = size_ * sizeof(T);
         memory_type_ = memory_type;
-        if (!data_) CHECK(cudaFree(data_)); // if memory is already allocated
+        if (allocated_)
+        {
+            CHECK(cudaFree(data_));
+            allocated_ = false;
+        }
         if (memory_type_ == Memory_Type::global)
         {
             CHECK(cudaMalloc((void**)&data_, memory_));
+            allocated_ = true;
         }
         else
         {
             CHECK(cudaMallocManaged((void**)&data_, memory_));
+            allocated_ = true;
         }
     }
 	
@@ -110,13 +120,20 @@ public:
         size_ = size;
         memory_ = size_ * sizeof(T);
         memory_type_ = memory_type;
+        if (allocated_)
+        {
+            CHECK(cudaFree(data_));
+            allocated_ = false;
+        }
         if (memory_type == Memory_Type::global)
         {
             CHECK(cudaMalloc((void**)&data_, memory_));
+            allocated_ = true;
         }
         else
         {
             CHECK(cudaMallocManaged((void**)&data_, memory_));
+            allocated_ = true;
         }
         fill(value);
     }
@@ -189,6 +206,7 @@ public:
 	
 private:
 
+    bool allocated_;          // true for allocated memory
     size_t size_;             // number of elements
     size_t memory_;           // memory in bytes
     Memory_Type memory_type_; // global or unified memory

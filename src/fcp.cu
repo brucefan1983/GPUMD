@@ -41,9 +41,9 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
     printf("    Use the force constant data in %s.\n", file_path);
 
     // allocate memeory
-    CHECK(cudaMalloc(&fcp_data.u, sizeof(float) * atom->N * 3));
-    CHECK(cudaMallocManaged(&fcp_data.r0, sizeof(float) * atom->N * 3));
-    CHECK(cudaMalloc(&fcp_data.pfv, sizeof(float) * atom->N * 13));
+    fcp_data.u.resize(atom->N * 3);
+    fcp_data.r0.resize(atom->N * 3, Memory_Type::managed);
+    fcp_data.pfv.resize(atom->N * 13);
 
     // read in the equilibrium positions and force constants
     read_r0(atom);
@@ -57,49 +57,7 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
 
 FCP::~FCP(void)
 {
-    CHECK(cudaFree(fcp_data.u));
-    CHECK(cudaFree(fcp_data.r0));
-    CHECK(cudaFree(fcp_data.pfv));
-    CHECK(cudaFree(fcp_data.ia2));
-    CHECK(cudaFree(fcp_data.jb2));
-    CHECK(cudaFree(fcp_data.phi2));
-    CHECK(cudaFree(fcp_data.xij2));
-    CHECK(cudaFree(fcp_data.yij2));
-    CHECK(cudaFree(fcp_data.zij2));
-    if (order >= 3)
-    {
-        CHECK(cudaFree(fcp_data.ia3));
-        CHECK(cudaFree(fcp_data.jb3));
-        CHECK(cudaFree(fcp_data.kc3));
-        CHECK(cudaFree(fcp_data.phi3));
-    }
-    if (order >= 4)
-    {
-        CHECK(cudaFree(fcp_data.ia4));
-        CHECK(cudaFree(fcp_data.jb4));
-        CHECK(cudaFree(fcp_data.kc4));
-        CHECK(cudaFree(fcp_data.ld4));
-        CHECK(cudaFree(fcp_data.phi4));
-    }
-    if (order >= 5)
-    {
-        CHECK(cudaFree(fcp_data.ia5));
-        CHECK(cudaFree(fcp_data.jb5));
-        CHECK(cudaFree(fcp_data.kc5));
-        CHECK(cudaFree(fcp_data.ld5));
-        CHECK(cudaFree(fcp_data.me5));
-        CHECK(cudaFree(fcp_data.phi5));
-    }
-    if (order >= 6)
-    {
-        CHECK(cudaFree(fcp_data.ia6));
-        CHECK(cudaFree(fcp_data.jb6));
-        CHECK(cudaFree(fcp_data.kc6));
-        CHECK(cudaFree(fcp_data.ld6));
-        CHECK(cudaFree(fcp_data.me6));
-        CHECK(cudaFree(fcp_data.nf6));
-        CHECK(cudaFree(fcp_data.phi6));
-    }
+  // nothing
 }
 
 
@@ -175,12 +133,12 @@ void FCP::read_fc2(Atom *atom)
     }
     number2 = num_clusters * 9;
 
-    CHECK(cudaMallocManaged(&fcp_data.ia2, sizeof(int) * number2 * 2));
-    CHECK(cudaMallocManaged(&fcp_data.jb2, sizeof(int) * number2 * 2));
-    CHECK(cudaMallocManaged(&fcp_data.phi2, sizeof(float) * number2 * 2));
-    CHECK(cudaMallocManaged(&fcp_data.xij2, sizeof(float) * number2 * 2));
-    CHECK(cudaMallocManaged(&fcp_data.yij2, sizeof(float) * number2 * 2));
-    CHECK(cudaMallocManaged(&fcp_data.zij2, sizeof(float) * number2 * 2));
+    fcp_data.ia2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.jb2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.phi2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.xij2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.yij2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.zij2.resize(number2 * 2, Memory_Type::managed);
 	
     int idx_clusters_new = 0;
     for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
@@ -294,10 +252,10 @@ void FCP::read_fc3(Atom *atom)
     }
     number3 = num_clusters * 27;
 
-    CHECK(cudaMallocManaged(&fcp_data.ia3, sizeof(int) * number3));
-    CHECK(cudaMallocManaged(&fcp_data.jb3, sizeof(int) * number3));
-    CHECK(cudaMallocManaged(&fcp_data.kc3, sizeof(int) * number3));
-    CHECK(cudaMallocManaged(&fcp_data.phi3, sizeof(float) * number3));
+    fcp_data.ia3.resize(number3, Memory_Type::managed);
+    fcp_data.jb3.resize(number3, Memory_Type::managed);
+    fcp_data.kc3.resize(number3, Memory_Type::managed);
+    fcp_data.phi3.resize(number3, Memory_Type::managed);
 
     for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
     {
@@ -386,11 +344,11 @@ void FCP::read_fc4(Atom *atom)
     }
     number4 = num_clusters * 81;
 
-    CHECK(cudaMallocManaged(&fcp_data.ia4, sizeof(int) * number4));
-    CHECK(cudaMallocManaged(&fcp_data.jb4, sizeof(int) * number4));
-    CHECK(cudaMallocManaged(&fcp_data.kc4, sizeof(int) * number4));
-    CHECK(cudaMallocManaged(&fcp_data.ld4, sizeof(int) * number4));
-    CHECK(cudaMallocManaged(&fcp_data.phi4, sizeof(float) * number4));
+    fcp_data.ia4.resize(number4, Memory_Type::managed);
+    fcp_data.jb4.resize(number4, Memory_Type::managed);
+    fcp_data.kc4.resize(number4, Memory_Type::managed);
+    fcp_data.ld4.resize(number4, Memory_Type::managed);
+    fcp_data.phi4.resize(number4, Memory_Type::managed);
 
     for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
     {
@@ -496,12 +454,12 @@ void FCP::read_fc5(Atom *atom)
     }
     number5 = num_clusters * 243;
 
-    CHECK(cudaMallocManaged(&fcp_data.ia5, sizeof(int) * number5));
-    CHECK(cudaMallocManaged(&fcp_data.jb5, sizeof(int) * number5));
-    CHECK(cudaMallocManaged(&fcp_data.kc5, sizeof(int) * number5));
-    CHECK(cudaMallocManaged(&fcp_data.ld5, sizeof(int) * number5));
-    CHECK(cudaMallocManaged(&fcp_data.me5, sizeof(int) * number5));
-    CHECK(cudaMallocManaged(&fcp_data.phi5, sizeof(float) * number5));
+    fcp_data.ia5.resize(number5, Memory_Type::managed);
+    fcp_data.jb5.resize(number5, Memory_Type::managed);
+    fcp_data.kc5.resize(number5, Memory_Type::managed);
+    fcp_data.ld5.resize(number5, Memory_Type::managed);
+    fcp_data.me5.resize(number5, Memory_Type::managed);
+    fcp_data.phi5.resize(number5, Memory_Type::managed);
 
     for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
     {
@@ -629,13 +587,13 @@ void FCP::read_fc6(Atom *atom)
     }
     number6 = num_clusters * 729;
 
-    CHECK(cudaMallocManaged(&fcp_data.ia6, sizeof(int) * number6));
-    CHECK(cudaMallocManaged(&fcp_data.jb6, sizeof(int) * number6));
-    CHECK(cudaMallocManaged(&fcp_data.kc6, sizeof(int) * number6));
-    CHECK(cudaMallocManaged(&fcp_data.ld6, sizeof(int) * number6));
-    CHECK(cudaMallocManaged(&fcp_data.me6, sizeof(int) * number6));
-    CHECK(cudaMallocManaged(&fcp_data.nf6, sizeof(int) * number6));
-    CHECK(cudaMallocManaged(&fcp_data.phi6, sizeof(float) * number6));
+    fcp_data.ia6.resize(number6, Memory_Type::managed);
+    fcp_data.jb6.resize(number6, Memory_Type::managed);
+    fcp_data.kc6.resize(number6, Memory_Type::managed);
+    fcp_data.ld6.resize(number6, Memory_Type::managed);
+    fcp_data.me6.resize(number6, Memory_Type::managed);
+    fcp_data.nf6.resize(number6, Memory_Type::managed);
+    fcp_data.phi6.resize(number6, Memory_Type::managed);
 
     for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
     {
@@ -957,51 +915,101 @@ void FCP::compute(Atom *atom, int potential_number)
 
     gpu_get_u<<<(atom->N - 1) / block_size + 1, block_size>>>
     (
-        atom->N, atom->x, atom->y, atom->z, fcp_data.r0, fcp_data.u
+        atom->N,
+        atom->x,
+        atom->y,
+        atom->z,
+        fcp_data.r0.data(),
+        fcp_data.u.data()
     );
 
-    gpu_initialize_pfv<<<(atom->N*13 - 1) / block_size + 1, block_size>>>
-    (atom->N*13, fcp_data.pfv);
+    gpu_initialize_pfv<<<(atom->N * 13 - 1) / block_size + 1, block_size>>>
+    (
+        atom->N * 13,
+        fcp_data.pfv.data()
+    );
 
     gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>
     (
-        atom->N, number2, fcp_data.ia2, fcp_data.jb2, fcp_data.phi2,
-        fcp_data.u, fcp_data.xij2, fcp_data.yij2, fcp_data.zij2, fcp_data.pfv
+        atom->N,
+        number2,
+        fcp_data.ia2.data(),
+        fcp_data.jb2.data(),
+        fcp_data.phi2.data(),
+        fcp_data.u.data(),
+        fcp_data.xij2.data(),
+        fcp_data.yij2.data(),
+        fcp_data.zij2.data(),
+        fcp_data.pfv.data()
     );
 
     if (order >= 3)
     gpu_find_force_fcp3<<<(number3 - 1) / block_size + 1, block_size>>>
     (
-        atom->N, number3, fcp_data.ia3, fcp_data.jb3, fcp_data.kc3,
-        fcp_data.phi3, fcp_data.u, fcp_data.pfv
+        atom->N,
+        number3,
+        fcp_data.ia3.data(),
+        fcp_data.jb3.data(),
+        fcp_data.kc3.data(),
+        fcp_data.phi3.data(),
+        fcp_data.u.data(),
+        fcp_data.pfv.data()
     );
 
     if (order >= 4)
     gpu_find_force_fcp4<<<(number4 - 1) / block_size + 1, block_size>>>
     (
-        atom->N, number4, fcp_data.ia4, fcp_data.jb4, fcp_data.kc4,
-        fcp_data.ld4, fcp_data.phi4, fcp_data.u, fcp_data.pfv
+        atom->N,
+        number4,
+        fcp_data.ia4.data(),
+        fcp_data.jb4.data(),
+        fcp_data.kc4.data(),
+        fcp_data.ld4.data(),
+        fcp_data.phi4.data(),
+        fcp_data.u.data(),
+        fcp_data.pfv.data()
     );
 
     if (order >= 5)
     gpu_find_force_fcp5<<<(number5 - 1) / block_size + 1, block_size>>>
     (
-        atom->N, number5, fcp_data.ia5, fcp_data.jb5, fcp_data.kc5,
-        fcp_data.ld5, fcp_data.me5, fcp_data.phi5, fcp_data.u, fcp_data.pfv
+        atom->N,
+        number5,
+        fcp_data.ia5.data(),
+        fcp_data.jb5.data(),
+        fcp_data.kc5.data(),
+        fcp_data.ld5.data(),
+        fcp_data.me5.data(),
+        fcp_data.phi5.data(),
+        fcp_data.u.data(),
+        fcp_data.pfv.data()
     );
 
     if (order >= 6)
     gpu_find_force_fcp6<<<(number6 - 1) / block_size + 1, block_size>>>
     (
-        atom->N, number6, fcp_data.ia6, fcp_data.jb6, fcp_data.kc6,
-        fcp_data.ld6, fcp_data.me6, fcp_data.nf6, fcp_data.phi6, 
-        fcp_data.u, fcp_data.pfv
+        atom->N,
+        number6,
+        fcp_data.ia6.data(),
+        fcp_data.jb6.data(),
+        fcp_data.kc6.data(),
+        fcp_data.ld6.data(),
+        fcp_data.me6.data(),
+        fcp_data.nf6.data(),
+        fcp_data.phi6.data(),
+        fcp_data.u.data(),
+        fcp_data.pfv.data()
     ); 
 
     gpu_save_pfv<<<(atom->N - 1) / block_size + 1, block_size>>>
     (
-        atom->N, fcp_data.pfv, atom->potential_per_atom,
-        atom->fx, atom->fy, atom->fz, atom->virial_per_atom
+        atom->N,
+        fcp_data.pfv.data(),
+        atom->potential_per_atom,
+        atom->fx,
+        atom->fy,
+        atom->fz,
+        atom->virial_per_atom
     );
 
     CUDA_CHECK_KERNEL
