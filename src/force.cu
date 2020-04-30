@@ -659,7 +659,7 @@ void Force::compute(Atom *atom)
 
     // always correct the force when using the FCP potential
 #ifdef USE_FCP
-    if (!compute_hnemd)
+    if (!compute_hnemd_)
     {
         double *ftot; // total force vector of the system
         CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));
