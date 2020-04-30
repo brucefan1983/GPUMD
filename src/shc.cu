@@ -54,17 +54,17 @@ void SHC::preprocess(Atom *atom)
         group_size = atom->group[group_method].cpu_size[group_id];
     }
 
-    CHECK(cudaMalloc((void**)&vx, sizeof(double) * group_size * Nc));
-    CHECK(cudaMalloc((void**)&vy, sizeof(double) * group_size * Nc));
-    CHECK(cudaMalloc((void**)&vz, sizeof(double) * group_size * Nc));
-    CHECK(cudaMalloc((void**)&sx, sizeof(double) * group_size));
-    CHECK(cudaMalloc((void**)&sy, sizeof(double) * group_size));
-    CHECK(cudaMalloc((void**)&sz, sizeof(double) * group_size));
-    CHECK(cudaMallocManaged((void**)&ki, sizeof(double) * Nc));
-    CHECK(cudaMallocManaged((void**)&ko, sizeof(double) * Nc));
+    vx.resize(group_size * Nc);
+    vy.resize(group_size * Nc);
+    vz.resize(group_size * Nc);
+    sx.resize(group_size);
+    sy.resize(group_size);
+    sz.resize(group_size);
+    ki.resize(Nc, Memory_Type::managed);
+    ko.resize(Nc, Memory_Type::managed);
 
     gpu_initialize_k<<<(Nc - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>
-    (Nc, ki, ko);
+    (Nc, ki.data(), ko.data());
     CUDA_CHECK_KERNEL
 }
 
@@ -164,17 +164,14 @@ void SHC::process(int step, Atom *atom)
 
     if (-1 == group_method)
     {
-        CHECK(cudaMemcpy(sx, sx_tmp, group_size * sizeof(double), 
+        sx.copy_from_device(sx_tmp);
+        sy.copy_from_device(sy_tmp);
+        sz.copy_from_device(sz_tmp);
+        CHECK(cudaMemcpy(vx.data() + offset, atom->vx, group_size * sizeof(double),
             cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(sy, sy_tmp, group_size * sizeof(double), 
+        CHECK(cudaMemcpy(vy.data() + offset, atom->vy, group_size * sizeof(double),
             cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(sz, sz_tmp, group_size * sizeof(double), 
-            cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vx + offset, atom->vx, group_size * sizeof(double), 
-            cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vy + offset, atom->vy, group_size * sizeof(double), 
-            cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vz + offset, atom->vz, group_size * sizeof(double), 
+        CHECK(cudaMemcpy(vz.data() + offset, atom->vz, group_size * sizeof(double),
             cudaMemcpyDeviceToDevice));
     }
     else
@@ -183,7 +180,7 @@ void SHC::process(int step, Atom *atom)
         (
             group_size, atom->group[group_method].cpu_size_sum[group_id],
             atom->group[group_method].contents,
-            sx, sy, sz, vx + offset, vy + offset, vz + offset,
+            sx.data(), sy.data(), sz.data(), vx.data() + offset, vy.data() + offset, vz.data() + offset,
             sx_tmp, sy_tmp, sz_tmp, atom->vx , atom->vy, atom->vz
         );
         CUDA_CHECK_KERNEL 
@@ -194,7 +191,7 @@ void SHC::process(int step, Atom *atom)
         ++num_time_origins;
         
         gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>
-        (group_size, correlation_step, sx, sy, sz, vx, vy, vz, ki, ko);
+        (group_size, correlation_step, sx.data(), sy.data(), sz.data(), vx.data(), vy.data(), vz.data(), ki.data(), ko.data());
         CUDA_CHECK_KERNEL 
     }
 }
@@ -220,15 +217,6 @@ void SHC::postprocess(char *input_dir)
     }
     fflush(fid);
     fclose(fid);
-
-    CHECK(cudaFree(vx));
-    CHECK(cudaFree(vy));
-    CHECK(cudaFree(vz));
-    CHECK(cudaFree(sx));
-    CHECK(cudaFree(sy));
-    CHECK(cudaFree(sz));
-    CHECK(cudaFree(ki));
-    CHECK(cudaFree(ko));
 }
 
 
