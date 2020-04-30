@@ -35,8 +35,15 @@ Use finite difference to validate the analytical force calculations.
 // move one atom left or right
 static __global__ void shift_atom
 (
-    int d, int n, int direction, 
-    double *x0, double *y0, double *z0, double *x, double *y, double *z
+    const int d,
+    const int n,
+    const int direction,
+    const double *x0,
+    const double *y0,
+    const double *z0,
+    double *x,
+    double *y,
+    double *z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -80,7 +87,13 @@ static __global__ void shift_atom
 
 
 // get the total potential form the per-atom potentials
-static __global__ void sum_potential(int N, int m, double *p, double *p_sum)
+static __global__ void sum_potential
+(
+    const int N,
+    const int m,
+    const double *p,
+    double *p_sum
+)
 {
     int tid = threadIdx.x;
     int number_of_patches = (N - 1) / 1024 + 1; 
@@ -114,7 +127,14 @@ static __global__ void sum_potential(int N, int m, double *p, double *p_sum)
 
 // get the forces from the potential energies using finite difference
 static __global__ void find_force_from_potential
-(int N, double *p1, double *p2, double *fx, double *fy, double *fz)
+(
+    const int N,
+    const double *p1,
+    const double *p2,
+    double *fx,
+    double *fy,
+    double *fz
+)
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     int m;
@@ -127,7 +147,11 @@ static __global__ void find_force_from_potential
 }
 
 
-void validate_force(Force *force, Atom *atom)
+void validate_force
+(
+    Force *force,
+    Atom *atom
+)
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -158,26 +182,58 @@ void validate_force(Force *force, Atom *atom)
 
             // shift one atom to the left by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
-            (d, n, 1, x0.data(), y0.data(), z0.data(), x, y, z);
+            (
+                d,
+                n,
+                1,
+                x0.data(),
+                y0.data(),
+                z0.data(),
+                x,
+                y,
+                z
+            );
             CUDA_CHECK_KERNEL
 
             // get the potential energy
             force->compute(atom);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p1.data());
+            sum_potential<<<1, 1024>>>
+            (
+                N,
+                m,
+                atom->potential_per_atom,
+                p1.data()
+            );
             CUDA_CHECK_KERNEL
 
             // shift one atom to the right by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
-            (d, n, 2, x0.data(), y0.data(), z0.data(), x, y, z);
+            (
+                d,
+                n,
+                2,
+                x0.data(),
+                y0.data(),
+                z0.data(),
+                x,
+                y,
+                z
+            );
             CUDA_CHECK_KERNEL
 
             // get the potential energy
             force->compute(atom);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2.data());
+            sum_potential<<<1, 1024>>>
+            (
+                N,
+                m,
+                atom->potential_per_atom,
+                p2.data()
+            );
             CUDA_CHECK_KERNEL
         }
     }
@@ -190,7 +246,14 @@ void validate_force(Force *force, Atom *atom)
     // get the forces from the potential energies using finite difference
     GPU_Vector<double> fx_compare(N), fy_compare(N), fz_compare(N);
     find_force_from_potential<<<grid_size, BLOCK_SIZE>>>
-    (N, p1.data(), p2.data(), fx_compare.data(), fy_compare.data(), fz_compare.data());
+    (
+        N,
+        p1.data(),
+        p2.data(),
+        fx_compare.data(),
+        fy_compare.data(),
+        fz_compare.data()
+    );
     CUDA_CHECK_KERNEL
 
     // open file
