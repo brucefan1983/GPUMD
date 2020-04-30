@@ -43,12 +43,27 @@ void HNEMD::preprocess(Atom *atom)
 // calculate the per-atom heat current 
 static __global__ void gpu_get_peratom_heat
 (
-    int N, double *sxx, double *sxy, double *sxz, double *syx, double *syy, double *syz,
-    double *szx, double *szy, double *szz, double *vx, double *vy, double *vz, 
-    double *jx_in, double *jx_out, double *jy_in, double *jy_out, double *jz
+    const int N,
+    const double *sxx,
+    const double *sxy,
+    const double *sxz,
+    const double *syx,
+    const double *syy,
+    const double *syz,
+    const double *szx,
+    const double *szy,
+    const double *szz,
+    const double *vx,
+    const double *vy,
+    const double *vz,
+    double *jx_in,
+    double *jx_out,
+    double *jy_in,
+    double *jy_out,
+    double *jz
 )
 {
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
+    const int n = threadIdx.x + blockIdx.x * blockDim.x;
     if (n < N)
     {
         jx_in[n] = sxx[n] * vx[n] + sxy[n] * vy[n];
@@ -61,17 +76,22 @@ static __global__ void gpu_get_peratom_heat
 
 
 static __global__ void gpu_sum_heat
-(int N, int step, double *g_heat, double *g_heat_sum)
+(
+    const int N,
+    const int step,
+    const double *g_heat,
+    double *g_heat_sum
+)
 {
     // <<<5, 1024>>> 
-    int tid = threadIdx.x; 
-    int bid = blockIdx.x;
-    int number_of_patches = (N - 1) / 1024 + 1;
+    const int tid = threadIdx.x;
+    const int bid = blockIdx.x;
+    const int number_of_patches = (N - 1) / 1024 + 1;
     __shared__ double s_data[1024];  
     s_data[tid] = ZERO;
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
-        int n = tid + patch * 1024; 
+        const int n = tid + patch * 1024;
         if (n < N) { s_data[tid] += g_heat[n + N * bid]; }
     }
     __syncthreads();
@@ -83,14 +103,23 @@ static __global__ void gpu_sum_heat
         __syncthreads();
     }
 
-    if (tid ==  0) { g_heat_sum[step*NUM_OF_HEAT_COMPONENTS+bid] = s_data[0]; }
+    if (tid ==  0)
+    {
+        g_heat_sum[step*NUM_OF_HEAT_COMPONENTS+bid] = s_data[0];
+    }
 }
 
 
-void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
+void HNEMD::process
+(
+    int step,
+    const char *input_dir,
+    Atom *atom,
+    Integrate *integrate
+)
 {
     if (!compute) return;
-    int output_flag = ((step+1) % output_interval == 0);
+    const int output_flag = ((step+1) % output_interval == 0);
     step %= output_interval;
 
     // the virial tensor:
@@ -119,13 +148,18 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
     CUDA_CHECK_KERNEL
 
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>
-    (atom->N, step, atom->heat_per_atom, heat_all.data());
+    (
+        atom->N,
+        step,
+        atom->heat_per_atom,
+        heat_all.data()
+    );
     CUDA_CHECK_KERNEL
 
     if (output_flag)
     {
-        int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-        double volume = atom->box.get_volume();
+        const int num = NUM_OF_HEAT_COMPONENTS * output_interval;
+        const double volume = atom->box.get_volume();
         std::vector<double> heat_cpu(num);
         heat_all.copy_to_host(heat_cpu.data());
         double kappa[NUM_OF_HEAT_COMPONENTS];

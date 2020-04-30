@@ -38,7 +38,7 @@ public:
     GPU_Vector<double> heat_all;
 
     void preprocess(Atom *atom);
-    void process(int, char*, Atom*, Integrate*);
+    void process(int, const char*, Atom*, Integrate*);
     void postprocess(Atom*);
 };
 
