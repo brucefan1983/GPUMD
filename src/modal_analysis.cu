@@ -31,10 +31,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #include "modal_analysis.cuh"
 #include "error.cuh"
-#include <fstream>
-#include <string>
-#include <iostream>
-#include <sstream>
+#include <cublas_v2.h>
 
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -388,34 +385,141 @@ static __global__ void gpu_reduce_jmn
 
 }
 
+static __global__ void elemwise_mass_scale
+(
+        int num_participating, int N1,
+        const float* __restrict__ g_sqrtmass,
+        const double* __restrict__ g_vx,
+        const double* __restrict__ g_vy,
+        const double* __restrict__ g_vz,
+        float* g_mv_x, float* g_mv_y, float* g_mv_z
+)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int nglobal = i + N1;
+    if (i < num_participating)
+    {
+        float sqrtmass = g_sqrtmass[i];
+        float vx, vy, vz;
+        vx = __double2float_rn(LDG(g_vx, nglobal));
+        vy = __double2float_rn(LDG(g_vy, nglobal));
+        vz = __double2float_rn(LDG(g_vz, nglobal));
+        g_mv_x[i] = sqrtmass*vx;
+        g_mv_y[i] = sqrtmass*vy;
+        g_mv_z[i] = sqrtmass*vz;
+    }
+}
+
+static __global__ void gpu_set_mass_terms
+(
+    int num_participating, int N1,
+    const double* __restrict__ g_mass,
+    float* g_sqrtmass,
+    float* g_rsqrtmass
+)
+{
+    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    int nglobal = i + N1;
+    if (i < num_participating)
+    {
+        float mass = __double2float_rn(LDG(g_mass, nglobal));
+        g_sqrtmass[i] = sqrt(mass);
+        g_rsqrtmass[i] = rsqrt(mass);
+    }
+}
+
+
 
 void MODAL_ANALYSIS::compute_heat(Atom *atom)
 {
-    dim3 grid, block;
-    int gk_grid_size = (num_modes - 1)/BLOCK_SIZE_GK + 1;
-    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    block.x = BLOCK_SIZE_FORCE; grid.x = grid_size;
-    block.y = BLOCK_SIZE_GK;    grid.y = gk_grid_size;
-    block.z = 1;                grid.z = 1;
-    gpu_calc_xdotn<<<grid, block>>>
-    (
-        num_participating, N1, N2, num_modes,
-        atom->vx, atom->vy, atom->vz,
-        atom->mass, eig, xdotn
-    );
-    CUDA_CHECK_KERNEL
+//    dim3 grid, block;
+//    int gk_grid_size = (num_modes - 1)/BLOCK_SIZE_GK + 1;
+//    int grid_size = (num_participating - 1) / BLOCK_SIZE_FORCE + 1;
+//    block.x = BLOCK_SIZE_FORCE; grid.x = grid_size;
+//    block.y = BLOCK_SIZE_GK;    grid.y = gk_grid_size;
+//    block.z = 1;                grid.z = 1;
 
-    gpu_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
+    int grid_size = (num_participating - 1) / BLOCK_SIZE + 1;
+    elemwise_mass_scale<<<grid_size, BLOCK_SIZE>>>
     (
-        num_participating, num_modes, xdotn, xdot
+          num_participating, N1, sqrtmass,
+          atom->vx, atom->vy, atom->vz,
+          mv_x, mv_y, mv_z
     );
-    CUDA_CHECK_KERNEL
 
+    cublasHandle_t handle;
+    cublasCreate(&handle);
+
+    float alpha = 1.0;
+    float beta = 0.0;
+    int stride = 1;
+    cublasSgemv(handle, CUBLAS_OP_N, num_modes, num_participating,
+            &alpha, eig_x, num_modes, mv_x, stride, &beta, xdot_x, stride);
+    cublasSgemv(handle, CUBLAS_OP_N, num_modes, num_participating,
+            &alpha, eig_y, num_modes, mv_y, stride, &beta, xdot_y, stride);
+    cublasSgemv(handle, CUBLAS_OP_N, num_modes, num_participating,
+            &alpha, eig_z, num_modes, mv_z, stride, &beta, xdot_z, stride);
+
+//    cublasSdgmm(handle, CUBLAS_SIDE_LEFT,num_modes, num_participating,
+//            eig_x, num_modes, xdot_x, stride, vim_x, num_modes);
+//    cublasSdgmm(handle, CUBLAS_SIDE_LEFT,num_modes, num_participating,
+//            eig_y, num_modes, xdot_y, stride, vim_y, num_modes);
+//    cublasSdgmm(handle, CUBLAS_SIDE_LEFT,num_modes, num_participating,
+//            eig_z, num_modes, xdot_z, stride, vim_z, num_modes);
+
+
+    cublasDestroy(handle);
+
+    /*
+     * original intention was to do the binning here, but that actually means we would
+     * bin every time step, which is super inefficient... Need to rethink strategy
+     */
     if (method == GKMA_METHOD)
-        UPDATE_JMN(SET);
+    {
+
+    }
     else if (method == HNEMA_METHOD)
-        UPDATE_JMN(ACCUMULATE);
-    CUDA_CHECK_KERNEL
+    {
+
+    }
+
+
+
+//    cudaDeviceSynchronize();
+//    printf("\n\n*********Xdot_x***********\n\n");
+//    for (int i = 0; i < num_modes; i++)
+//    {
+//        printf("%g\n", xdot_x[i]);
+//    }
+//    printf("\n\n*********Xdot_y***********\n\n");
+//    for (int i = 0; i < num_modes; i++)
+//    {
+//        printf("%g\n", xdot_y[i]);
+//    }
+//    printf("\n\n*********Xdot_z***********\n\n");
+//    for (int i = 0; i < num_modes; i++)
+//    {
+//        printf("%g\n", xdot_z[i]);
+//    }
+//    gpu_calc_xdotn<<<grid, block>>>
+//    (
+//        num_participating, N1, N2, num_modes,
+//        atom->vx, atom->vy, atom->vz,
+//        atom->mass, eig, xdotn
+//    );
+//    CUDA_CHECK_KERNEL
+//
+//    gpu_reduce_xdotn<<<num_modes, ACCUM_BLOCK>>>
+//    (
+//        num_participating, num_modes, xdotn, xdot
+//    );
+//    CUDA_CHECK_KERNEL
+
+//    if (method == GKMA_METHOD)
+//        UPDATE_JMN(SET);
+//    else if (method == HNEMA_METHOD)
+//        UPDATE_JMN(ACCUMULATE);
+//    CUDA_CHECK_KERNEL
 }
 
 
@@ -435,6 +539,17 @@ void MODAL_ANALYSIS::setN(Atom *atom)
     num_participating = N2 - N1;
 }
 
+void MODAL_ANALYSIS::set_eigmode(int mode, std::ifstream &eigfile, float* eig)
+{
+    float floatval;
+    for (int i=0; i<num_participating; i++)
+    {
+        eigfile >> floatval;
+        // column major ordering for cuBLAS
+        eig[mode + i*num_modes] = floatval;
+    }
+}
+
 void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
 {
     if (!compute) return;
@@ -452,12 +567,14 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
             strcat(output_file_position, "/kappamode.out");
         }
 
-        size_t eig_size = sizeof(float) * num_participating * num_modes * 3;
-        CHECK(cudaMallocManaged((void **)&eig,eig_size));
+        size_t eig_size = sizeof(float) * num_participating * num_modes;
+        CHECK(cudaMallocManaged((void **)&eig_x,eig_size));
+        CHECK(cudaMallocManaged((void **)&eig_y,eig_size));
+        CHECK(cudaMallocManaged((void **)&eig_z,eig_size));
 
         // initialize eigenvector data structures
         strcpy(eig_file_position, input_dir);
-        strcat(eig_file_position, "/eigenvector.out");
+        strcat(eig_file_position, "/eigenvector.out"); //TODO change to .in
         std::ifstream eigfile;
         eigfile.open(eig_file_position);
         if (!eigfile)
@@ -467,7 +584,6 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
 
         // GPU phonon code output format
         std::string val;
-        float floatval;
 
         // Setup binning
         if (f_flag)
@@ -529,19 +645,31 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         for (int i=1; i<first_mode; i++) { getline(eigfile,val); }
         for (int j=0; j<num_modes; j++) //modes
         {
-            for (int i=0; i<3*num_participating; i++) // xyz of eigvec
-            {
-                eigfile >> floatval;
-                eig[i + 3*num_participating*j] = floatval;
-            }
+            set_eigmode(j, eigfile, eig_x);
+            set_eigmode(j, eigfile, eig_y);
+            set_eigmode(j, eigfile, eig_z);
         }
         eigfile.close();
 
+        // Allocate intermediate vector
+        size_t mv_n_size = sizeof(float) * num_participating;
+        CHECK(cudaMallocManaged((void **)&mv_x, mv_n_size));
+        CHECK(cudaMallocManaged((void **)&mv_y, mv_n_size));
+        CHECK(cudaMallocManaged((void **)&mv_z, mv_n_size));
+
         // Allocate modal velocities
-        size_t xdot_size = sizeof(float) * num_modes * 3;
-        size_t xdotn_size = sizeof(float) * num_modes * 3 * num_participating;
-        CHECK(cudaMallocManaged((void **)&xdot, xdot_size));
-        CHECK(cudaMallocManaged((void **)&xdotn,xdotn_size));
+        size_t xdot_size = sizeof(float) * num_modes;
+
+//        size_t xdotn_size = sizeof(float) * num_modes * 3 * num_participating;
+        CHECK(cudaMallocManaged((void **)&xdot_x, xdot_size));
+        CHECK(cudaMallocManaged((void **)&xdot_y, xdot_size));
+        CHECK(cudaMallocManaged((void **)&xdot_z, xdot_size));
+//        CHECK(cudaMallocManaged((void **)&xdotn,xdotn_size));
+
+        size_t vim_size = sizeof(float) * num_modes * num_participating;
+        CHECK(cudaMallocManaged((void **)&vim_x, vim_size));
+        CHECK(cudaMallocManaged((void **)&vim_y, vim_size));
+        CHECK(cudaMallocManaged((void **)&vim_z, vim_size));
 
         // Allocate modal measured quantities
         size_t jm_size = sizeof(float) * num_modes * NUM_OF_HEAT_COMPONENTS;
@@ -563,6 +691,17 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
             );
             CUDA_CHECK_KERNEL
         }
+
+        // prepare masses
+        size_t mass_size = sizeof(float) * num_participating;
+        CHECK(cudaMallocManaged((void **)&sqrtmass, mass_size));
+        CHECK(cudaMallocManaged((void **)&rsqrtmass, mass_size));
+        gpu_set_mass_terms
+        <<<(num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+        (
+            num_participating, N1, atom->mass, sqrtmass, rsqrtmass
+        );
+        CUDA_CHECK_KERNEL
 }
 
 void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double fe)
@@ -572,56 +711,56 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double 
 
     compute_heat(atom);
 
-    if (method == HNEMA_METHOD &&
-            !((step+1) % output_interval == 0)) return;
-
-    gpu_reduce_jmn<<<num_modes, ACCUM_BLOCK>>>
-    (
-        num_participating, num_modes, jmn, jm
-    );
-    CUDA_CHECK_KERNEL
-
-    if (method == HNEMA_METHOD)
-    {
-        float volume = atom->box.get_volume();
-        float factor = KAPPA_UNIT_CONVERSION/
-            (volume * integrate->ensemble->temperature
-                    * fe * (float)samples_per_output);
-        gpu_scale_jm<<<(num_heat_stored-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-        (
-                num_heat_stored, factor, jm
-        );
-        CUDA_CHECK_KERNEL
-    }
-
-    gpu_bin_modes<<<num_bins, BIN_BLOCK>>>
-    (
-           num_modes, bin_count, bin_sum, num_bins,
-           jm, bin_out
-    );
-    CUDA_CHECK_KERNEL
-
-    // Compute thermal conductivity and output
-    cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
-    FILE *fid = fopen(output_file_position, "a");
-    for (int i = 0; i < num_bins; i++)
-    {
-        fprintf(fid, "%g %g %g %g %g\n",
-                bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins],
-                         bin_out[i+3*num_bins], bin_out[i+4*num_bins]);
-    }
-    fflush(fid);
-    fclose(fid);
-
-    if (method == HNEMA_METHOD)
-    {
-        gpu_reset_data
-        <<<(num_heat_stored*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
-        (
-                num_heat_stored*num_participating, jmn
-        );
-        CUDA_CHECK_KERNEL
-    }
+//    if (method == HNEMA_METHOD &&
+//            !((step+1) % output_interval == 0)) return;
+//
+//    gpu_reduce_jmn<<<num_modes, ACCUM_BLOCK>>>
+//    (
+//        num_participating, num_modes, jmn, jm
+//    );
+//    CUDA_CHECK_KERNEL
+//
+//    if (method == HNEMA_METHOD)
+//    {
+//        float volume = atom->box.get_volume();
+//        float factor = KAPPA_UNIT_CONVERSION/
+//            (volume * integrate->ensemble->temperature
+//                    * fe * (float)samples_per_output);
+//        gpu_scale_jm<<<(num_heat_stored-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+//        (
+//                num_heat_stored, factor, jm
+//        );
+//        CUDA_CHECK_KERNEL
+//    }
+//
+//    gpu_bin_modes<<<num_bins, BIN_BLOCK>>>
+//    (
+//           num_modes, bin_count, bin_sum, num_bins,
+//           jm, bin_out
+//    );
+//    CUDA_CHECK_KERNEL
+//
+//    // Compute thermal conductivity and output
+//    cudaDeviceSynchronize(); // ensure GPU ready to move data to CPU
+//    FILE *fid = fopen(output_file_position, "a");
+//    for (int i = 0; i < num_bins; i++)
+//    {
+//        fprintf(fid, "%g %g %g %g %g\n",
+//                bin_out[i], bin_out[i+num_bins], bin_out[i+2*num_bins],
+//                         bin_out[i+3*num_bins], bin_out[i+4*num_bins]);
+//    }
+//    fflush(fid);
+//    fclose(fid);
+//
+//    if (method == HNEMA_METHOD)
+//    {
+//        gpu_reset_data
+//        <<<(num_heat_stored*num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
+//        (
+//                num_heat_stored*num_participating, jmn
+//        );
+//        CUDA_CHECK_KERNEL
+//    }
 
 }
 
@@ -629,9 +768,9 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double 
 void MODAL_ANALYSIS::postprocess()
 {
     if (!compute) return;
-    CHECK(cudaFree(eig));
-    CHECK(cudaFree(xdot));
-    CHECK(cudaFree(xdotn));
+//    CHECK(cudaFree(eig));
+//    CHECK(cudaFree(xdot));
+//    CHECK(cudaFree(xdotn));
     CHECK(cudaFree(jm));
     CHECK(cudaFree(jmn));
     CHECK(cudaFree(bin_out));

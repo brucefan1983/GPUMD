@@ -23,6 +23,10 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #include "atom.cuh"
 #include "integrate.cuh"
 #include "ensemble.cuh"
+#include <fstream>
+#include <string>
+#include <iostream>
+#include <sstream>
 
 #define NO_METHOD -1
 #define GKMA_METHOD 0
@@ -31,6 +35,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 class MODAL_ANALYSIS
 {
 public:
+    // Bookkeeping variables
     int compute = 0;
     int method = NO_METHOD; // Method to compute
     int output_interval;    // number of times steps to output average heat current
@@ -44,14 +49,31 @@ public:
     int atom_begin;         // Beginning atom group/type
     int atom_end;           // End atom group/type
 
-    float* eig;              // eigenvectors
-    float* xdotn;            // per-atom modal velocity
-    float* xdot;             // modal velocities
+    // Data variables
+    float* eig_x;            // eigenvectors x
+    float* eig_y;            // eigenvectors y
+    float* eig_z;            // eigenvectors z
+
+    float* xdot_x;           // modal velocities
+    float* xdot_y;
+    float* xdot_z;
+
+    float* vim_x;            // real velocity mode projection
+    float* vim_y;
+    float* vim_z;
+
+    float* vib_x;            // real velocity binned
+    float* vib_y;
+    float* vib_z;
+
+    float* sqrtmass;         // precalculated mass values
+    float* rsqrtmass;
+
     float* jmn;              // per-atom modal heat current
     float* jm;               // total modal heat current
     float* bin_out;          // modal binning structure
-    int* bin_count;         // Number of modes per bin when f_flag=1
-    int* bin_sum;           // Running sum from bin_count
+    int* bin_count;          // Number of modes per bin when f_flag=1
+    int* bin_sum;            // Running sum from bin_count
 
     char eig_file_position[FILE_NAME_LENGTH];
     char output_file_position[FILE_NAME_LENGTH];
@@ -61,15 +83,18 @@ public:
     void postprocess();
 
 private:
-    int samples_per_output; // samples to be averaged for output
-    int num_bins;           // number of bins to output
-    int N1;                 // Atom starting index
-    int N2;                 // Atom ending index
-    int num_participating;  // Number of particles participating
-    int num_heat_stored;    // Number of stored heat current elements
+    int samples_per_output;  // samples to be averaged for output
+    int num_bins;            // number of bins to output
+    int N1;                  // Atom starting index
+    int N2;                  // Atom ending index
+    int num_participating;   // Number of particles participating
+    int num_heat_stored;     // Number of stored heat current elements
+    float* mv_x;             // sqrt(mass)*velocity intermediate variable
+    float* mv_y;
+    float* mv_z;
 
     void compute_heat(Atom*);
     void setN(Atom*);
-
+    void set_eigmode(int, std::ifstream&, float*);
 
 };
