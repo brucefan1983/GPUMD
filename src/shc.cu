@@ -226,7 +226,7 @@ void SHC::process
 }
 
 
-void SHC::postprocess(char *input_dir)
+void SHC::postprocess(const char *input_dir)
 {
     if (!compute) { return; }
 

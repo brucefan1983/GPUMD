@@ -31,15 +31,14 @@ public:
     int Nc;                // number of correlation points
     int direction;         // transport direction: 0=x; 1=y; 2=z
     void preprocess(Atom*);
-    void process(int, Atom*);
-    void postprocess(char*);
+    void process(const int, Atom*);
+    void postprocess(const char*);
 private:
     int num_time_origins;  // number of time origins for ensemble average
     int group_size;        // number of atoms in group_id
     GPU_Vector<double> vx, vy, vz; // Nc frames of velocity data
     GPU_Vector<double> sx, sy, sz; // one frame of virial data
     GPU_Vector<double> ki, ko;     // The correlation functions Ki(t) and Ko(t)
-    void find_shc(char*, Atom*, int);
 };
 
 
