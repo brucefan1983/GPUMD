@@ -35,9 +35,8 @@ void HAC::preprocess(Atom *atom)
 {
     if (compute)
     {
-        int num = NUM_OF_HEAT_COMPONENTS * atom->number_of_steps 
-                / sample_interval;
-        CHECK(cudaMalloc((void**)&heat_all, sizeof(double) * num));
+        int number_of_frames = atom->number_of_steps / sample_interval;
+        heat_all.resize(NUM_OF_HEAT_COMPONENTS * number_of_frames);
     }
 }
 
@@ -124,7 +123,7 @@ void HAC::process(int step, char *input_dir, Atom *atom)
     int nd = step / sample_interval - 1;
     int Nd = atom->number_of_steps / sample_interval;
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(atom->N, Nd, nd,
-        atom->heat_per_atom, heat_all);
+        atom->heat_per_atom, heat_all.data());
     CUDA_CHECK_KERNEL
 }
 
@@ -232,7 +231,7 @@ void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
     (cudaMalloc((void**)&g_hac, sizeof(double) * Nc * NUM_OF_HEAT_COMPONENTS));
 
     // Here, the block size is fixed to 128, which is a good choice
-    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all, g_hac);
+    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all.data(), g_hac);
     CUDA_CHECK_KERNEL
 
     CHECK(cudaDeviceSynchronize());
@@ -293,7 +292,6 @@ void HAC::postprocess(char *input_dir, Atom *atom, Integrate *integrate)
     print_line_1();
     printf("Start to calculate HAC and related quantities.\n");
     find_hac_kappa(input_dir, atom, integrate);
-    CHECK(cudaFree(heat_all));
     printf("HAC and related quantities are calculated.\n");
     print_line_2();
 }

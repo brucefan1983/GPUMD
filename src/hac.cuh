@@ -15,6 +15,7 @@
 
 
 #pragma once
+#include "gpu_vector.cuh"
 #include "common.cuh"
 
 class Atom;
@@ -35,7 +36,7 @@ public:
 
 private:
     void find_hac_kappa(char*, Atom*, Integrate*);
-    double *heat_all;
+    GPU_Vector<double> heat_all;
 };
 
 
