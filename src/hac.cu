@@ -44,12 +44,27 @@ void HAC::preprocess(Atom *atom)
 // calculate the per-atom heat current 
 static __global__ void gpu_get_peratom_heat
 (
-    int N, double *sxx, double *sxy, double *sxz, double *syx, double *syy, double *syz,
-    double *szx, double *szy, double *szz, double *vx, double *vy, double *vz, 
-    double *jx_in, double *jx_out, double *jy_in, double *jy_out, double *jz
+    const int N,
+    const double *sxx,
+    const double *sxy,
+    const double *sxz,
+    const double *syx,
+    const double *syy,
+    const double *syz,
+    const double *szx,
+    const double *szy,
+    const double *szz,
+    const double *vx,
+    const double *vy,
+    const double *vz,
+    double *jx_in,
+    double *jx_out,
+    double *jy_in,
+    double *jy_out,
+    double *jz
 )
 {
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
+    const int n = threadIdx.x + blockIdx.x * blockDim.x;
     if (n < N)
     {
         jx_in[n] = sxx[n] * vx[n] + sxy[n] * vy[n];
@@ -63,18 +78,24 @@ static __global__ void gpu_get_peratom_heat
 
 // sum up the per-atom heat current to get the total heat current
 static __global__ void gpu_sum_heat
-(int N, int Nd, int nd, double *g_heat, double *g_heat_all)
+(
+    int N,
+    const int Nd,
+    const int nd,
+    const double *g_heat,
+    double *g_heat_all
+)
 {
     // <<<NUM_OF_HEAT_COMPONENTS, 1024>>> 
-    int tid = threadIdx.x; 
-    int number_of_patches = (N - 1) / 1024 + 1;
+    const int tid = threadIdx.x;
+    const int number_of_patches = (N - 1) / 1024 + 1;
 
     __shared__ double s_data[1024];  
     s_data[tid] = ZERO;
  
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
-        int n = tid + patch * 1024; 
+        const int n = tid + patch * 1024;
         if (n < N) { s_data[tid] += g_heat[n + N * blockIdx.x]; }
     }
 
@@ -90,7 +111,12 @@ static __global__ void gpu_sum_heat
 
 
 // sample heat current data for HAC calculations.
-void HAC::process(int step, char *input_dir, Atom *atom)
+void HAC::process
+(
+    int step,
+    const char *input_dir,
+    Atom *atom
+)
 {
     if (!compute) return; 
     if ((++step) % sample_interval != 0) return;
@@ -122,14 +148,26 @@ void HAC::process(int step, char *input_dir, Atom *atom)
  
     int nd = step / sample_interval - 1;
     int Nd = atom->number_of_steps / sample_interval;
-    gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(atom->N, Nd, nd,
-        atom->heat_per_atom, heat_all.data());
+    gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>
+    (
+        atom->N,
+        Nd,
+        nd,
+        atom->heat_per_atom,
+        heat_all.data()
+    );
     CUDA_CHECK_KERNEL
 }
 
 
 // Calculate the Heat current Auto-Correlation function (HAC) 
-__global__ void gpu_find_hac(int Nc, int Nd, double *g_heat, double *g_hac)
+__global__ void gpu_find_hac
+(
+    const int Nc,
+    const int Nd,
+    const double *g_heat,
+    double *g_hac
+)
 {
     //<<<Nc, 128>>>
 
@@ -155,15 +193,24 @@ __global__ void gpu_find_hac(int Nc, int Nd, double *g_heat, double *g_hac)
         int index = tid + patch * 128;
         if (index + bid < Nd)
         {
-            s_hac_xi[tid] += g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 0]
-                           + g_heat[index + Nd * 0] * g_heat[index + bid + Nd * 1];
-            s_hac_xo[tid] += g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 1]
-                           + g_heat[index + Nd * 1] * g_heat[index + bid + Nd * 0];
-            s_hac_yi[tid] += g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 2]
-                           + g_heat[index + Nd * 2] * g_heat[index + bid + Nd * 3];
-            s_hac_yo[tid] += g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 3]
-                           + g_heat[index + Nd * 3] * g_heat[index + bid + Nd * 2];
-            s_hac_z[tid]  += g_heat[index + Nd * 4] * g_heat[index + bid + Nd * 4];
+            s_hac_xi[tid] += g_heat[index + Nd * 0]
+                           * g_heat[index + bid + Nd * 0]
+                           + g_heat[index + Nd * 0]
+                           * g_heat[index + bid + Nd * 1];
+            s_hac_xo[tid] += g_heat[index + Nd * 1]
+                           * g_heat[index + bid + Nd * 1]
+                           + g_heat[index + Nd * 1]
+                           * g_heat[index + bid + Nd * 0];
+            s_hac_yi[tid] += g_heat[index + Nd * 2]
+                           * g_heat[index + bid + Nd * 2]
+                           + g_heat[index + Nd * 2]
+                           * g_heat[index + bid + Nd * 3];
+            s_hac_yo[tid] += g_heat[index + Nd * 3]
+                           * g_heat[index + bid + Nd * 3]
+                           + g_heat[index + Nd * 3]
+                           * g_heat[index + bid + Nd * 2];
+            s_hac_z[tid]  += g_heat[index + Nd * 4]
+                           * g_heat[index + bid + Nd * 4];
         }
     }
     __syncthreads();
@@ -194,13 +241,19 @@ __global__ void gpu_find_hac(int Nc, int Nd, double *g_heat, double *g_hac)
 
 
 // Calculate the Running Thermal Conductivity (RTC) from the HAC
-static void find_rtc(int Nc, double factor, double *hac, double *rtc)
+static void find_rtc
+(
+    const const int Nc,
+    const double factor,
+    const double *hac,
+    double *rtc
+)
 {
     for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
     {
         for (int nc = 1; nc < Nc; nc++)  
         {
-            int index = Nc * k + nc;
+            const int index = Nc * k + nc;
             rtc[index] = rtc[index - 1] + (hac[index - 1] + hac[index])*factor;
         }
     }
@@ -210,7 +263,12 @@ static void find_rtc(int Nc, double factor, double *hac, double *rtc)
 // Calculate 
 // (1) HAC = Heat current Auto-Correlation and 
 // (2) RTC = Running Thermal Conductivity
-void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
+void HAC::find_hac_kappa
+(
+    const char *input_dir,
+    Atom *atom,
+    Integrate *integrate
+)
 {
     // rename variables
     int number_of_steps = atom->number_of_steps;
@@ -286,7 +344,12 @@ void HAC::find_hac_kappa(char *input_dir, Atom *atom, Integrate *integrate)
 
 // Calculate HAC (heat currant auto-correlation function) 
 // and RTC (running thermal conductivity)
-void HAC::postprocess(char *input_dir, Atom *atom, Integrate *integrate)
+void HAC::postprocess
+(
+    const char *input_dir,
+    Atom *atom,
+    Integrate *integrate
+)
 {
     if (!compute) return;
     print_line_1();

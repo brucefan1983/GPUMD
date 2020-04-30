@@ -31,11 +31,11 @@ public:
     int output_interval; // only output Nc/output_interval data
 
     void preprocess(Atom*);
-    void process(int, char*, Atom*);
-    void postprocess(char*, Atom*, Integrate*);
+    void process(int, const char*, Atom*);
+    void postprocess(const char*, Atom*, Integrate*);
 
 private:
-    void find_hac_kappa(char*, Atom*, Integrate*);
+    void find_hac_kappa(const char*, Atom*, Integrate*);
     GPU_Vector<double> heat_all;
 };
 
