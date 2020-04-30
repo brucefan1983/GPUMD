@@ -157,7 +157,7 @@ public:
         CHECK(cudaMemcpy(data_, d_data, memory_, cudaMemcpyDeviceToDevice));
     }
 
-    // copy data from host with a given size
+    // copy data from device with a given size
     void copy_from_device(const T* d_data, const size_t size)
     {
         const size_t memory = sizeof(T) * size;
@@ -175,6 +175,19 @@ public:
     {
         const size_t memory = sizeof(T) * size;
         CHECK(cudaMemcpy(h_data, data_, memory, cudaMemcpyDeviceToHost));
+    }
+
+    // copy data to device with the default size
+    void copy_to_device(T* d_data)
+    {
+        CHECK(cudaMemcpy(data_, d_data, memory_, cudaMemcpyDeviceToDevice));
+    }
+
+    // copy data to device with a given size
+    void copy_to_device(T* d_data, const size_t size)
+    {
+        const size_t memory = sizeof(T) * size;
+        CHECK(cudaMemcpy(data_, d_data, memory, cudaMemcpyDeviceToDevice));
     }
 	
     // give "value" to each element
