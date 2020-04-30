@@ -180,14 +180,14 @@ public:
     // copy data to device with the default size
     void copy_to_device(T* d_data)
     {
-        CHECK(cudaMemcpy(data_, d_data, memory_, cudaMemcpyDeviceToDevice));
+        CHECK(cudaMemcpy(d_data, data_, memory_, cudaMemcpyDeviceToDevice));
     }
 
     // copy data to device with a given size
     void copy_to_device(T* d_data, const size_t size)
     {
         const size_t memory = sizeof(T) * size;
-        CHECK(cudaMemcpy(data_, d_data, memory, cudaMemcpyDeviceToDevice));
+        CHECK(cudaMemcpy(d_data, data_, memory, cudaMemcpyDeviceToDevice));
     }
 	
     // give "value" to each element
