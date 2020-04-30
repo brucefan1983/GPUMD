@@ -17,7 +17,9 @@
 /*----------------------------------------------------------------------------80
 Calculate the thermal conductivity using the HNEMD method.
 Reference:
-[1] arXiv:1805.00277
+[1] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium
+molecular dynamics method for heat transport and spectral decomposition
+with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 ------------------------------------------------------------------------------*/
 
 
@@ -34,8 +36,7 @@ Reference:
 void HNEMD::preprocess(Atom *atom)
 {
     if (!compute) return;
-    int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-    CHECK(cudaMalloc((void**)&heat_all, sizeof(double) * num));
+    heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
 }
 
 
@@ -118,16 +119,15 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
     CUDA_CHECK_KERNEL
 
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>
-    (atom->N, step, atom->heat_per_atom, heat_all);
+    (atom->N, step, atom->heat_per_atom, heat_all.data());
     CUDA_CHECK_KERNEL
 
     if (output_flag)
     {
         int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-        int mem = sizeof(double) * num;
         double volume = atom->box.get_volume();
         std::vector<double> heat_cpu(num);
-        CHECK(cudaMemcpy(heat_cpu.data(), heat_all, mem, cudaMemcpyDeviceToHost));
+        heat_all.copy_to_host(heat_cpu.data());
         double kappa[NUM_OF_HEAT_COMPONENTS];
         for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
         {
@@ -160,7 +160,10 @@ void HNEMD::process(int step, char *input_dir, Atom *atom, Integrate *integrate)
 
 void HNEMD::postprocess(Atom *atom)
 {
-    if (compute) { CHECK(cudaFree(heat_all)); }
+    if (compute)
+    {
+        // nothing now
+    }
 }
 
 

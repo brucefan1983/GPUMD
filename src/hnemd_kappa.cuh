@@ -15,6 +15,7 @@
 
 
 #pragma once
+#include "gpu_vector.cuh"
 #include "common.cuh"
 
 class Atom;
@@ -34,7 +35,7 @@ public:
     double fe_z = 0.0;
     double fe = 0.0; // magnitude of the driving "force" vector
 
-    double *heat_all;
+    GPU_Vector<double> heat_all;
 
     void preprocess(Atom *atom);
     void process(int, char*, Atom*, Integrate*);
