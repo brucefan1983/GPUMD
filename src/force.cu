@@ -659,7 +659,6 @@ void Force::compute(Atom *atom)
     if (!compute_hnemd_)
     {
         GPU_Vector<double> ftot(3); // total force vector of the system
-        CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));
         gpu_sum_force<<<3, 1024>>>
         (atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
         CUDA_CHECK_KERNEL
