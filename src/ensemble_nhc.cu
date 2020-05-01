@@ -238,7 +238,16 @@ void Ensemble_NHC::integrate_heat_nhc
     energy_transferred[0] += ek2[label_1] * 0.5 * (1.0 - factor_1 * factor_1);
     energy_transferred[1] += ek2[label_2] * 0.5 * (1.0 - factor_2 * factor_2);
     
-    scale_velocity_local(atom, factor_1, factor_2, vcx.data(), vcy.data(), vcz.data(), ke.data());
+    scale_velocity_local
+    (
+        atom,
+        factor_1,
+        factor_2,
+        vcx.data(),
+        vcy.data(),
+        vcz.data(),
+        ke.data()
+    );
 
     velocity_verlet(atom, force);
 
@@ -254,7 +263,16 @@ void Ensemble_NHC::integrate_heat_nhc
     energy_transferred[0] += ek2[label_1] * 0.5 * (1.0 - factor_1 * factor_1);
     energy_transferred[1] += ek2[label_2] * 0.5 * (1.0 - factor_2 * factor_2);
 
-    scale_velocity_local(atom, factor_1, factor_2, vcx.data(), vcy.data(), vcz.data(), ke.data());
+    scale_velocity_local
+    (
+        atom,
+        factor_1,
+        factor_2,
+        vcx.data(),
+        vcy.data(),
+        vcz.data(),
+        ke.data()
+    );
 }
 
 
