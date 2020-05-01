@@ -16,6 +16,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include "gpu_vector.cuh"
 #include <stdio.h>
 
 
@@ -35,7 +36,7 @@ struct EAM2006Dai
 
 struct EAM_Data
 {
-    double *Fp;    // derivative of the density functional
+    GPU_Vector<double> Fp;    // derivative of the density functional
 };
 
 

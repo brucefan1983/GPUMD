@@ -31,7 +31,8 @@ The EAM potential. Currently two analytical versions:
     (                                                                          \
         eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box,                   \
         atom->NN_local,                                                        \
-        atom->NL_local, eam_data.Fp, atom->x, atom->y, atom->z, atom->vx,      \
+        atom->NL_local, eam_data.Fp.data(),                                    \
+        atom->x, atom->y, atom->z, atom->vx,                                   \
         atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,                      \
         atom->virial_per_atom, atom->potential_per_atom                        \
     ) 
@@ -39,12 +40,9 @@ The EAM potential. Currently two analytical versions:
 
 EAM::EAM(FILE *fid, Atom* atom, char *name)
 {
-
     if (strcmp(name, "eam_zhou_2004") == 0)  initialize_eam2004zhou(fid);
     if (strcmp(name, "eam_dai_2006") == 0)    initialize_eam2006dai(fid);
-
-    // memory for the derivative of the density functional 
-    CHECK(cudaMalloc((void**)&eam_data.Fp, sizeof(double) * atom->N));
+    eam_data.Fp.resize(atom->N);
 }
 
 
@@ -115,7 +113,7 @@ void EAM::initialize_eam2006dai(FILE *fid)
 
 EAM::~EAM(void)
 {
-    CHECK(cudaFree(eam_data.Fp));
+    // nothing
 }
 
 
@@ -430,7 +428,7 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
             atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
-            eam_data.Fp, atom->potential_per_atom
+            eam_data.Fp.data(), atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
 
@@ -444,7 +442,7 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
             atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
-            eam_data.Fp, atom->potential_per_atom
+            eam_data.Fp.data(), atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
         
