@@ -189,7 +189,7 @@ void Measure::process
     vac.process(step, atom);
     hac.process(step, input_dir, atom);
     shc.process(step, atom);
-    hnemd.process(step, input_dir, atom, integrate);
+    hnemd.process(step, input_dir, integrate->temperature2, atom);
     modal_analysis.process(step, atom, integrate, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);
 

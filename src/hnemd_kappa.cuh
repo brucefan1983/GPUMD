@@ -19,7 +19,6 @@
 #include "common.cuh"
 
 class Atom;
-class Integrate; // TODO: remove this dependence
 
 
 class HNEMD
@@ -38,7 +37,7 @@ public:
     GPU_Vector<double> heat_all;
 
     void preprocess(Atom *atom);
-    void process(int, const char*, Atom*, Integrate*);
+    void process(int, const char*, const double, Atom*);
     void postprocess(Atom*);
 };
 

@@ -24,8 +24,6 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 
 
 #include "hnemd_kappa.cuh"
-#include "integrate.cuh"
-#include "ensemble.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -114,8 +112,8 @@ void HNEMD::process
 (
     int step,
     const char *input_dir,
-    Atom *atom,
-    Integrate *integrate
+    const double temperature,
+    Atom *atom
 )
 {
     if (!compute) return;
@@ -175,7 +173,7 @@ void HNEMD::process
             }
         }
         double factor = KAPPA_UNIT_CONVERSION / output_interval;
-        factor /= (volume * integrate->ensemble->temperature * fe);
+        factor /= (volume * temperature * fe);
 
         char file_kappa[FILE_NAME_LENGTH];
         strcpy(file_kappa, input_dir);
