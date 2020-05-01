@@ -80,7 +80,7 @@ void Measure::finalize
     vac.postprocess(input_dir, atom);
     hac.postprocess(input_dir, integrate->temperature2, atom);
     shc.postprocess(input_dir);
-    compute.postprocess(atom, integrate);
+    compute.postprocess();
     hnemd.postprocess(atom);
     modal_analysis.postprocess();
 }
@@ -185,7 +185,7 @@ void Measure::process
     dump_thermos(fid_thermo, atom, integrate, step);
     dump_velocities(fid_velocity, atom, step);
     dump_restarts(atom, step);
-    compute.process(step, atom, integrate);
+    compute.process(step, integrate->ensemble->energy_transferred, atom);
     vac.process(step, atom);
     hac.process(step, input_dir, atom);
     shc.process(step, atom);

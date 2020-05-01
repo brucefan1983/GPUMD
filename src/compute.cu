@@ -20,8 +20,6 @@ Compute block (space) averages of various per-atom quantities.
 
 
 #include "compute.cuh"
-#include "integrate.cuh"
-#include "ensemble.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #include <vector>
@@ -57,7 +55,7 @@ void Compute::preprocess(char* input_dir, Atom* atom)
 }
 
 
-void Compute::postprocess(Atom* atom, Integrate *integrate)
+void Compute::postprocess()
 {
     if (number_of_scalars == 0) return;
     fclose(fid);
@@ -232,7 +230,7 @@ static __global__ void find_group_sum_3
 }
 
 
-void Compute::process(int step, Atom *atom, Integrate *integrate)
+void Compute::process(int step, const double energy_transferred[], Atom *atom)
 {
     if (number_of_scalars == 0) return;
     if ((++step) % sample_interval != 0) return;
@@ -384,14 +382,14 @@ void Compute::process(int step, Atom *atom, Integrate *integrate)
 
     if (output_flag) 
     { 
-        output_results(atom, integrate);
+        output_results(energy_transferred, atom);
         for (int n = 0; n < Ng * number_of_scalars; ++n)
             cpu_group_sum_ave[n] = 0.0;
     }
 }
 
 
-void Compute::output_results(Atom *atom, Integrate *integrate)
+void Compute::output_results(const double energy_transferred[], Atom *atom)
 {
     int Ng = atom->group[grouping_method].number;
     for (int n = 0; n < number_of_scalars; ++n)
@@ -410,8 +408,8 @@ void Compute::output_results(Atom *atom, Integrate *integrate)
 
     if (compute_temperature)
     {
-        fprintf(fid, "%15.6e", integrate->ensemble->energy_transferred[0]);
-        fprintf(fid, "%15.6e", integrate->ensemble->energy_transferred[1]);
+        fprintf(fid, "%15.6e", energy_transferred[0]);
+        fprintf(fid, "%15.6e", energy_transferred[1]);
     }
 
     fprintf(fid, "\n");

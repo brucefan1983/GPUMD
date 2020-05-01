@@ -21,7 +21,6 @@
 #include <vector>
 
 class Atom;
-class Integrate; // TODO: remove this dependence
 
 
 class Compute
@@ -39,8 +38,8 @@ public:
     int grouping_method = 0;
 
     void preprocess(char*, Atom*);
-    void postprocess(Atom* atom, Integrate*);
-    void process(int, Atom*, Integrate*);
+    void postprocess();
+    void process(int, const double[], Atom*);
 
 private:
     FILE* fid;
@@ -54,7 +53,7 @@ private:
 
     int number_of_scalars = 0;
 
-    void output_results(Atom*, Integrate*);
+    void output_results(const double[], Atom*);
 };
 
 
