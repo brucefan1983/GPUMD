@@ -16,6 +16,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include "gpu_vector.cuh"
 #include <stdio.h>
 
 
@@ -30,9 +31,9 @@ struct SW2_Para
 
 struct SW2_Data
 {
-    double *f12x;  // partial forces
-    double *f12y;
-    double *f12z;
+    GPU_Vector<double> f12x;  // partial forces
+    GPU_Vector<double> f12y;
+    GPU_Vector<double> f12z;
 };
 
 
