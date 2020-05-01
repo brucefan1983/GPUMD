@@ -79,7 +79,7 @@ static __global__ void gpu_get_peratom_heat
 // sum up the per-atom heat current to get the total heat current
 static __global__ void gpu_sum_heat
 (
-    int N,
+    const int N,
     const int Nd,
     const int nd,
     const double *g_heat,
@@ -243,7 +243,7 @@ __global__ void gpu_find_hac
 // Calculate the Running Thermal Conductivity (RTC) from the HAC
 static void find_rtc
 (
-    const const int Nc,
+    const int Nc,
     const double factor,
     const double *hac,
     double *rtc
@@ -271,35 +271,26 @@ void HAC::find_hac_kappa
 )
 {
     // rename variables
-    int number_of_steps = atom->number_of_steps;
-    double temperature = integrate->temperature2;
-    double time_step = atom->time_step;
+    const int number_of_steps = atom->number_of_steps;
+    const double temperature = integrate->temperature2;
+    const double time_step = atom->time_step;
 
     // other parameters
-    int Nd = number_of_steps / sample_interval;
-    double dt = time_step * sample_interval;
-    double dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // ps
+    const int Nd = number_of_steps / sample_interval;
+    const double dt = time_step * sample_interval;
+    const double dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // ps
 
     // major data
-    std::vector<double> hac(Nc * NUM_OF_HEAT_COMPONENTS, 0.0);
     std::vector<double> rtc(Nc * NUM_OF_HEAT_COMPONENTS, 0.0);
-
-    double *g_hac;
-    CHECK
-    (cudaMalloc((void**)&g_hac, sizeof(double) * Nc * NUM_OF_HEAT_COMPONENTS));
+    GPU_Vector<double> hac(Nc * NUM_OF_HEAT_COMPONENTS, Memory_Type::managed);
 
     // Here, the block size is fixed to 128, which is a good choice
-    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all.data(), g_hac);
+    gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all.data(), hac.data());
     CUDA_CHECK_KERNEL
 
-    CHECK(cudaDeviceSynchronize());
-    CHECK(cudaGetLastError());
+    CHECK(cudaDeviceSynchronize()); // Needed for Windows
 
-    CHECK(cudaMemcpy(hac.data(), g_hac, sizeof(double) * Nc * NUM_OF_HEAT_COMPONENTS, 
-        cudaMemcpyDeviceToHost));
-    CHECK(cudaFree(g_hac));
-
-    double volume = atom->box.get_volume();
+    const double volume = atom->box.get_volume();
     double factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
  
@@ -309,17 +300,17 @@ void HAC::find_hac_kappa
     strcpy(file_hac, input_dir);
     strcat(file_hac, "/hac.out");
     FILE *fid = fopen(file_hac, "a");
-    int number_of_output_data = Nc / output_interval;
+    const int number_of_output_data = Nc / output_interval;
     for (int nd = 0; nd < number_of_output_data; nd++)
     {
-        int nc = nd * output_interval;
+        const int nc = nd * output_interval;
         double hac_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
         double rtc_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
         for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
         {
             for (int m = 0; m < output_interval; m++)
             {
-                int count = Nc * k + nc + m;
+                const int count = Nc * k + nc + m;
                 hac_ave[k] += hac[count];
                 rtc_ave[k] += rtc[count];
             }
@@ -330,11 +321,19 @@ void HAC::find_hac_kappa
             rtc_ave[m] /= output_interval;
         }
         fprintf
-        (fid, "%25.15e", (nc + output_interval * 0.5) * dt_in_ps);
+        (
+            fid,
+            "%25.15e",
+            (nc + output_interval * 0.5) * dt_in_ps
+        );
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
-        { fprintf(fid, "%25.15e", hac_ave[m]); }
+        {
+            fprintf(fid, "%25.15e", hac_ave[m]);
+        }
         for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
-        { fprintf(fid, "%25.15e", rtc_ave[m]); }
+        {
+            fprintf(fid, "%25.15e", rtc_ave[m]);
+        }
         fprintf(fid, "\n");
     }  
     fflush(fid);  

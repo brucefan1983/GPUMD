@@ -58,6 +58,7 @@ public:
         const Memory_Type memory_type = Memory_Type::global
     ) 
     {
+        allocated_ = false;
         resize(size, memory_type);
     }
 
@@ -69,6 +70,7 @@ public:
         const Memory_Type memory_type = Memory_Type::global
     )
     {
+        allocated_ = false;
         resize(size, value, memory_type);
     }
 
