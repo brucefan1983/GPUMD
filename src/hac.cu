@@ -20,7 +20,6 @@ Calculate the heat current autocorrelation (HAC) function.
 
 
 #include "hac.cuh"
-#include "integrate.cuh"
 #include "ensemble.cuh"
 #include "atom.cuh"
 #include "error.cuh"
