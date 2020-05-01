@@ -140,15 +140,14 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
     tersoff_data.f12x.resize(atom->N * num_of_neighbors);
     tersoff_data.f12y.resize(atom->N * num_of_neighbors);
     tersoff_data.f12z.resize(atom->N * num_of_neighbors);
-    CHECK(cudaMalloc((void**)&ters, sizeof(double) * n_entries*NUM_PARAMS));
-    CHECK(cudaMemcpy(ters, cpu_ters.data(),
-        sizeof(double) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
+    ters.resize(n_entries * NUM_PARAMS);
+    ters.copy_from_host(cpu_ters.data());
 }
 
 
 Tersoff1988::~Tersoff1988(void)
 {
-    CHECK(cudaFree(ters));
+    // nothing
 }
 
 
@@ -474,7 +473,7 @@ void Tersoff1988::compute(Atom *atom, int potential_number)
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         N, N1, N2, atom->box, num_types,
-        NN, NL, type, shift, ters, x, y, z, b, bp
+        NN, NL, type, shift, ters.data(), x, y, z, b, bp
     );
     CUDA_CHECK_KERNEL
 
@@ -482,7 +481,7 @@ void Tersoff1988::compute(Atom *atom, int potential_number)
     find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         N, N1, N2, atom->box, num_types,
-        NN, NL, type, shift, ters, b, bp, x, y, z, pe, f12x, f12y, f12z
+        NN, NL, type, shift, ters.data(), b, bp, x, y, z, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 

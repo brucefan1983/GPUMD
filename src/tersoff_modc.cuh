@@ -30,8 +30,6 @@ struct Tersoff_modc_Data
 };
 
 
-
-
 class Tersoff_modc : public Potential
 {
 public:   
@@ -40,10 +38,8 @@ public:
     virtual void compute(Atom*, int);
 protected:
     int num_types;
-    double *ters;
+    GPU_Vector<double> ters;
     Tersoff_modc_Data tersoff_data;
 };
-
-
 
 

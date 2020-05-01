@@ -30,8 +30,6 @@ struct Tersoff1988_Data
 };
 
 
-
-
 class Tersoff1988 : public Potential
 {
 public:   
@@ -40,10 +38,8 @@ public:
     virtual void compute(Atom*, int);
 protected:
     int num_types;
-    double *ters;
+    GPU_Vector<double> ters;
     Tersoff1988_Data tersoff_data;
 };
-
-
 
 
