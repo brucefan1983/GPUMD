@@ -78,7 +78,7 @@ void Measure::finalize
     if (dump_restart)   {                       dump_restart   = 0;}
     if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom);
-    hac.postprocess(input_dir, atom, integrate);
+    hac.postprocess(input_dir, integrate->temperature2, atom);
     shc.postprocess(input_dir);
     compute.postprocess(atom, integrate);
     hnemd.postprocess(atom);

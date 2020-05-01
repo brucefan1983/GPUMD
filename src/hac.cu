@@ -266,13 +266,12 @@ static void find_rtc
 void HAC::find_hac_kappa
 (
     const char *input_dir,
-    Atom *atom,
-    Integrate *integrate
+    const double temperature,
+    Atom *atom
 )
 {
     // rename variables
     const int number_of_steps = atom->number_of_steps;
-    const double temperature = integrate->temperature2;
     const double time_step = atom->time_step;
 
     // other parameters
@@ -346,14 +345,15 @@ void HAC::find_hac_kappa
 void HAC::postprocess
 (
     const char *input_dir,
-    Atom *atom,
-    Integrate *integrate
+    const double temperature,
+    Atom *atom
+
 )
 {
     if (!compute) return;
     print_line_1();
     printf("Start to calculate HAC and related quantities.\n");
-    find_hac_kappa(input_dir, atom, integrate);
+    find_hac_kappa(input_dir, temperature, atom);
     printf("HAC and related quantities are calculated.\n");
     print_line_2();
 }

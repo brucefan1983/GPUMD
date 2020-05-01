@@ -19,7 +19,6 @@
 #include "common.cuh"
 
 class Atom;
-class Integrate; // TODO: remove this dependence
 
 
 class HAC
@@ -32,10 +31,10 @@ public:
 
     void preprocess(Atom*);
     void process(int, const char*, Atom*);
-    void postprocess(const char*, Atom*, Integrate*);
+    void postprocess(const char*, const double, Atom*);
 
 private:
-    void find_hac_kappa(const char*, Atom*, Integrate*);
+    void find_hac_kappa(const char*, const double, Atom*);
     GPU_Vector<double> heat_all;
 };
 
