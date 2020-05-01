@@ -21,6 +21,7 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 
 #include "atom.cuh"
 #include "error.cuh"
+#include "gpu_vector.cuh"
 
 const int NUM_OF_CELLS = 50; // use the O(N^2) method when #cells < this number
 
@@ -62,14 +63,12 @@ int Atom::check_atom_distance(void)
 {
     int M = (N - 1) / 1024 + 1;
     double d2 = neighbor.skin * neighbor.skin * 0.25;
-    int *s2;
-    CHECK(cudaMalloc((void**)&s2, sizeof(int)));
+    GPU_Vector<int> s2(1);
     int cpu_s2[1] = {0};
-    CHECK(cudaMemcpy(s2, cpu_s2, sizeof(int), cudaMemcpyHostToDevice));
-    gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s2);
+    s2.copy_from_host(cpu_s2);
+    gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s2.data());
     CUDA_CHECK_KERNEL
-    CHECK(cudaMemcpy(cpu_s2, s2, sizeof(int), cudaMemcpyDeviceToHost));
-    CHECK(cudaFree(s2));
+    s2.copy_to_host(cpu_s2);
     return cpu_s2[0];
 }
 
