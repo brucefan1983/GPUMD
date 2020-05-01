@@ -48,9 +48,9 @@ Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, double T, double Tc)
     temperature_coupling = Tc;
     c1 = exp(-HALF/temperature_coupling);
     c2 = sqrt((1 - c1 * c1) * K_B * T);
-    CHECK(cudaMalloc((void**)&curand_states, sizeof(curandState) * N));
+    curand_states.resize(N);
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
-    initialize_curand_states<<<grid_size, BLOCK_SIZE>>>(curand_states, N);
+    initialize_curand_states<<<grid_size, BLOCK_SIZE>>>(curand_states.data(), N);
     CUDA_CHECK_KERNEL
 }
 
@@ -75,17 +75,15 @@ Ensemble_LAN::Ensemble_LAN
     c1 = exp(-HALF/temperature_coupling);
     c2_source = sqrt((1 - c1 * c1) * K_B * (T + dT));
     c2_sink   = sqrt((1 - c1 * c1) * K_B * (T - dT));
-    CHECK(cudaMalloc((void**)&curand_states_source,
-        sizeof(curandState) * N_source));
-    CHECK(cudaMalloc((void**)&curand_states_sink,
-        sizeof(curandState) * N_sink));
+    curand_states_source.resize(N_source);
+    curand_states_sink.resize(N_sink);
     int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
     int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
     initialize_curand_states<<<grid_size_source, BLOCK_SIZE>>>
-    (curand_states_source, N_source);
+    (curand_states_source.data(), N_source);
     CUDA_CHECK_KERNEL
     initialize_curand_states<<<grid_size_sink, BLOCK_SIZE>>>
-    (curand_states_sink,   N_sink);
+    (curand_states_sink.data(),   N_sink);
     CUDA_CHECK_KERNEL
     energy_transferred[0] = 0.0;
     energy_transferred[1] = 0.0;
@@ -94,15 +92,7 @@ Ensemble_LAN::Ensemble_LAN
 
 Ensemble_LAN::~Ensemble_LAN(void)
 {
-    if (type == 3)
-    {
-        CHECK(cudaFree(curand_states));
-    }
-    else
-    {
-        CHECK(cudaFree(curand_states_source));
-        CHECK(cudaFree(curand_states_sink));
-    }
+    // nothing
 }
 
 
@@ -131,7 +121,7 @@ void Ensemble_LAN::integrate_nvt_lan_half(Atom *atom)
 {
     // the first half of Langevin, before velocity-Verlet
     gpu_langevin<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    (curand_states, atom->N, c1, c2, atom->mass, atom->vx, atom->vy, atom->vz);
+    (curand_states.data(), atom->N, c1, c2, atom->mass, atom->vx, atom->vy, atom->vz);
     CUDA_CHECK_KERNEL
 }
 
@@ -217,13 +207,13 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
     energy_transferred[1] += ek2[sink] * 0.5;
     gpu_langevin<<<(N_source - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        curand_states_source, N_source, offset_source, group_contents, 
+        curand_states_source.data(), N_source, offset_source, group_contents,
         c1, c2_source, mass, vx, vy, vz
     );
     CUDA_CHECK_KERNEL
     gpu_langevin<<<(N_sink - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        curand_states_sink, N_sink, offset_sink, group_contents, 
+        curand_states_sink.data(), N_sink, offset_sink, group_contents,
         c1, c2_sink, mass, vx, vy, vz
     );
     CUDA_CHECK_KERNEL
