@@ -158,19 +158,15 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 REBO_MOS::REBO_MOS(Atom* atom)
 {
     int num = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory1 = sizeof(double) * atom->N;
-    int memory2 = sizeof(double) * atom->N * num;
-    int memory3 = sizeof(int) * atom->N;
-    int memory4 = sizeof(int) * atom->N * num;
-    CHECK(cudaMalloc((void**)&rebo_mos_data.p,    memory1));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.pp,   memory1));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.b,    memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.bp,   memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.f12x, memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.f12y, memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.f12z, memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.NN_short, memory3));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.NL_short, memory4));
+    rebo_mos_data.p.resize(atom->N);
+    rebo_mos_data.pp.resize(atom->N);
+    rebo_mos_data.b.resize(atom->N * num);
+    rebo_mos_data.bp.resize(atom->N * num);
+    rebo_mos_data.f12x.resize(atom->N * num);
+    rebo_mos_data.f12y.resize(atom->N * num);
+    rebo_mos_data.f12z.resize(atom->N * num);
+    rebo_mos_data.NN_short.resize(atom->N);
+    rebo_mos_data.NL_short.resize(atom->N * num);
 
     printf("Use the potential in [PRB 79, 245110 (2009)].\n");
     rc = 10.5;
@@ -179,15 +175,7 @@ REBO_MOS::REBO_MOS(Atom* atom)
 
 REBO_MOS::~REBO_MOS(void)
 {
-    CHECK(cudaFree(rebo_mos_data.p));
-    CHECK(cudaFree(rebo_mos_data.pp));
-    CHECK(cudaFree(rebo_mos_data.b));
-    CHECK(cudaFree(rebo_mos_data.bp));
-    CHECK(cudaFree(rebo_mos_data.f12x));
-    CHECK(cudaFree(rebo_mos_data.f12y));
-    CHECK(cudaFree(rebo_mos_data.f12z));
-    CHECK(cudaFree(rebo_mos_data.NN_short));
-    CHECK(cudaFree(rebo_mos_data.NL_short));
+    // nothing
 }
 
 
@@ -881,8 +869,8 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
 
     int *NN = atom->NN_local;           // for 2-body
     int *NL = atom->NL_local;           // for 2-body
-    int *NN_local = rebo_mos_data.NN_short; // for 3-body
-    int *NL_local = rebo_mos_data.NL_short; // for 3-body
+    int *NN_local = rebo_mos_data.NN_short.data(); // for 3-body
+    int *NL_local = rebo_mos_data.NL_short.data(); // for 3-body
 
     int *type = atom->type;
     double *x = atom->x;
@@ -897,13 +885,13 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
     double *virial = atom->virial_per_atom;
     double *pe = atom->potential_per_atom;
 
-    double *b    = rebo_mos_data.b;
-    double *bp   = rebo_mos_data.bp;
-    double *p    = rebo_mos_data.p;
-    double *pp   = rebo_mos_data.pp;
-    double *f12x = rebo_mos_data.f12x;
-    double *f12y = rebo_mos_data.f12y;
-    double *f12z = rebo_mos_data.f12z;
+    double *b    = rebo_mos_data.b.data();
+    double *bp   = rebo_mos_data.bp.data();
+    double *p    = rebo_mos_data.p.data();
+    double *pp   = rebo_mos_data.pp.data();
+    double *f12x = rebo_mos_data.f12x.data();
+    double *f12y = rebo_mos_data.f12y.data();
+    double *f12z = rebo_mos_data.f12z.data();
 
     // 2-body part
     find_force_step0<<<grid_size, BLOCK_SIZE_FORCE>>>
