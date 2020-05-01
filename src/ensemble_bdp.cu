@@ -24,6 +24,7 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "gpu_vector.cuh"
 #include <vector>
 
 #define BLOCK_SIZE 128
@@ -50,7 +51,15 @@ Ensemble_BDP::Ensemble_BDP(int t, int fg, double T, double Tc)
 
 
 Ensemble_BDP::Ensemble_BDP
-(int t, int fg, int source_input, int sink_input, double T, double Tc, double dT)
+(
+    int t,
+    int fg,
+    int source_input,
+    int sink_input,
+    double T,
+    double Tc,
+    double dT
+)
 {
     type = t;
     fixed_group = fg;
@@ -111,20 +120,16 @@ void Ensemble_BDP::integrate_heat_bdp
     double sigma_1 = dN1 * kT1 * 0.5;
     double sigma_2 = dN2 * kT2 * 0.5;
 
-    // allocate some memory (to be improved)
+    // allocate some memory 
     std::vector<double> ek(Ng);
-    double *vcx, *vcy, *vcz, *ke;
-    CHECK(cudaMalloc((void**)&vcx, sizeof(double) * Ng));
-    CHECK(cudaMalloc((void**)&vcy, sizeof(double) * Ng));
-    CHECK(cudaMalloc((void**)&vcz, sizeof(double) * Ng));
-    CHECK(cudaMalloc((void**)&ke, sizeof(double) * Ng));
+    GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
 
     // veloicty-Verlet
     velocity_verlet(atom, force);
 
     // get center of mass velocity and relative kinetic energy
-    find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek.data(), ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
+    find_vc_and_ke(atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
+    ke.copy_to_host(ek.data());
     ek[label_1] *= 0.5;
     ek[label_2] *= 0.5;
 
@@ -141,13 +146,16 @@ void Ensemble_BDP::integrate_heat_bdp
     energy_transferred[1] += ek[label_2] * (1.0 - factor_2 * factor_2);
 
     // re-scale the velocities
-    scale_velocity_local(atom, factor_1, factor_2, vcx, vcy, vcz, ke);
-
-    // clean up
-    CHECK(cudaFree(vcx));
-    CHECK(cudaFree(vcy));
-    CHECK(cudaFree(vcz));
-    CHECK(cudaFree(ke));
+    scale_velocity_local
+    (
+        atom,
+        factor_1,
+        factor_2,
+        vcx.data(),
+        vcy.data(),
+        vcz.data(),
+        ke.data()
+    );
 }
 
 
