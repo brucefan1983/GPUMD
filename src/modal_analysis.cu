@@ -334,17 +334,6 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
 
     cublasDestroy(handle);
 
-//    cudaDeviceSynchronize();
-//    float jxi = 0;
-//    float jxo = 0;
-//    for (int i = 0; i < num_modes; i++)
-//    {
-//        jxi += jmx[i] + jmy[i];
-//        jxo += jmz[i];
-//    }
-//    printf("jxi = %g, jxo = %g\n", jxi, jxo);
-
-
     grid_size = (num_modes - 1) / BLOCK_SIZE + 1;
     if (method == GKMA_METHOD)
     {
@@ -415,12 +404,12 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
 
         // initialize eigenvector data structures
         strcpy(eig_file_position, input_dir);
-        strcat(eig_file_position, "/eigenvector.out"); //TODO change to .in
+        strcat(eig_file_position, "/eigenvector.in");
         std::ifstream eigfile;
         eigfile.open(eig_file_position);
         if (!eigfile)
         {
-            PRINT_INPUT_ERROR("Cannot open eigenvector.out file.");
+            PRINT_INPUT_ERROR("Cannot open eigenvector.in file.");
         }
 
         // GPU phonon code output format
@@ -465,7 +454,6 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         }
         else
         {
-            // TODO validate this section
             num_bins = (int)ceil((double)num_modes/(double)bin_size);
             size_t bin_count_size = sizeof(int)*num_bins;
             CHECK(cudaMallocManaged((void **)&bin_count, bin_count_size));
@@ -593,7 +581,6 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double 
     }
 
 }
-
 
 void MODAL_ANALYSIS::postprocess()
 {
