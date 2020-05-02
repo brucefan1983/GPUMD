@@ -131,18 +131,18 @@ static __global__ void gpu_find_force
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1);
-        double y1 = LDG(g_y, n1);
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_neighbor_list[n1 + number_of_particles * i1];
             int type2 = g_type[n2] - shift;
 
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
 
