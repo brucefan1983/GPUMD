@@ -40,7 +40,7 @@ public:
     virtual void compute(Atom*, int);
 protected:
     int order, number2, number3, number4, number5, number6;
-    char file_path[FILE_NAME_LENGTH];
+    char file_path[200];
     FCP_Data fcp_data;
     void read_r0(Atom *atom);
     void read_fc2(Atom *atom);
