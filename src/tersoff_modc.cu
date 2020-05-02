@@ -112,37 +112,60 @@ Tersoff_modc::~Tersoff_modc(void)
 
 
 static __device__ void find_fr_and_frp
-(int i, const double* __restrict__ ters, double d12, double &fr, double &frp)
+(
+    int i,
+    const double* __restrict__ ters,
+    double d12,
+    double &fr,
+    double &frp
+)
 {
-    fr  = LDG(ters,i + A) * exp(- LDG(ters,i + LAMBDA) * d12);
-    frp = - LDG(ters,i + LAMBDA) * fr;
+    fr  = ters[i + A] * exp(- ters[i + LAMBDA] * d12);
+    frp = - ters[i + LAMBDA] * fr;
 }
 
 
 static __device__ void find_fa_and_fap
-(int i, const double* __restrict__ ters, double d12, double &fa, double &fap)
+(
+    int i,
+    const double* __restrict__ ters,
+    double d12,
+    double &fa,
+    double &fap
+)
 {
-    fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
-    fap = - LDG(ters, i + MU) * fa;
+    fa  = ters[i + B] * exp(- ters[i + MU] * d12);
+    fap = - ters[i + MU] * fa;
 }
 
 
 static __device__ void find_fa
-(int i, const double* __restrict__ ters, double d12, double &fa)
+(
+    int i,
+    const double* __restrict__ ters,
+    double d12,
+    double &fa
+)
 {
-    fa  = LDG(ters, i + B) * exp(- LDG(ters, i + MU) * d12);
+    fa  = ters[i + B] * exp(- ters[i + MU] * d12);
 }
 
 
 static __device__ void find_fc_and_fcp
-(int i, const double* __restrict__ ters, double d12, double &fc, double &fcp)
+(
+    int i,
+    const double* __restrict__ ters,
+    double d12,
+    double &fc,
+    double &fcp
+)
 {
-    if (d12 < LDG(ters, i + R1)) {fc = 1.0; fcp = 0.0;}
-    else if (d12 < LDG(ters, i + R2))
+    if (d12 < ters[i + R1]) {fc = 1.0; fcp = 0.0;}
+    else if (d12 < ters[i + R2])
     {
-        double tmp = d12 - LDG(ters, i + R1);
-        double pi_factor1 = LDG(ters, i + PI_FACTOR1);
-        double pi_factor3 = LDG(ters, i + PI_FACTOR3);
+        double tmp = d12 - ters[i + R1];
+        double pi_factor1 = ters[i + PI_FACTOR1];
+        double pi_factor3 = ters[i + PI_FACTOR3];
 
         fc = NINE_OVER_16 * cos(pi_factor1 * tmp)
            - ONE_OVER_16  * cos(pi_factor3 * tmp)
@@ -156,14 +179,19 @@ static __device__ void find_fc_and_fcp
 
 
 static __device__ void find_fc
-(int i, const double* __restrict__ ters, double d12, double &fc)
+(
+    int i,
+    const double* __restrict__ ters,
+    double d12,
+    double &fc
+)
 {
-    if (d12 < LDG(ters, i + R1)) {fc  = 1.0;}
-    else if (d12 < LDG(ters, i + R2))
+    if (d12 < ters[i + R1]) {fc  = 1.0;}
+    else if (d12 < ters[i + R2])
     {
-        double tmp = d12 - LDG(ters, i + R1);
-        fc = NINE_OVER_16 * cos(LDG(ters, i + PI_FACTOR1) * tmp)
-           - ONE_OVER_16  * cos(LDG(ters, i + PI_FACTOR3) * tmp)
+        double tmp = d12 - ters[i + R1];
+        fc = NINE_OVER_16 * cos(ters[i + PI_FACTOR1] * tmp)
+           - ONE_OVER_16  * cos(ters[i + PI_FACTOR3] * tmp)
            + 0.5;
     }
     else {fc  = 0.0;}
@@ -171,54 +199,78 @@ static __device__ void find_fc
 
 
 static __device__ void find_g_and_gp
-(int i, const double* __restrict__ ters, double cos, double &g, double &gp)
+(
+    int i,
+    const double* __restrict__ ters,
+    double cos,
+    double &g,
+    double &gp
+)
 {
-    double x = (cos - LDG(ters, i + H)) * (cos - LDG(ters, i + H));
-    double exp_factor = exp(-LDG(ters, i + C5) * x);
-    double c2c3_factor = LDG(ters, i + C2) * x / (LDG(ters, i + C3) + x);
-    g  = (1.0 + LDG(ters, i + C4) * exp_factor) * c2c3_factor
-       + LDG(ters, i + C1);
-    gp = LDG(ters, i + C2) * LDG(ters, i + C3) 
-       / ( (LDG(ters, i + C3) + x) * (LDG(ters, i + C3) + x) )
-       * (1.0 + LDG(ters, i + C4) * exp_factor)
-       - LDG(ters, i + C4) * LDG(ters, i + C5) * c2c3_factor 
+    double x = (cos - ters[i + H]) * (cos - ters[i + H]);
+    double exp_factor = exp(-ters[i + C5] * x);
+    double c2c3_factor = ters[i + C2] * x / (ters[i + C3] + x);
+    g  = (1.0 + ters[i + C4] * exp_factor) * c2c3_factor
+       + ters[i + C1];
+    gp = ters[i + C2] * ters[i + C3]
+       / ( (ters[i + C3] + x) * (ters[i + C3] + x) )
+       * (1.0 + ters[i + C4] * exp_factor)
+       - ters[i + C4] * ters[i + C5] * c2c3_factor
        * exp_factor;
-    gp *= 2.0 * (cos - LDG(ters, i + H));
+    gp *= 2.0 * (cos - ters[i + H]);
 }
 
 
 static __device__ void find_g
-(int i, const double* __restrict__ ters, double cos, double &g)
+(
+    int i,
+    const double* __restrict__ ters,
+    double cos,
+    double &g
+)
 {
-    double x = (cos - LDG(ters, i + H)) * (cos - LDG(ters, i + H));
-    g  = (1.0 + LDG(ters, i + C4) * exp(-LDG(ters, i + C5) * x))
-       * LDG(ters, i + C2) * x / (LDG(ters, i + C3) + x)
-       + LDG(ters, i + C1);
+    double x = (cos - ters[i + H]) * (cos - ters[i + H]);
+    g  = (1.0 + ters[i + C4] * exp(-ters[i + C5] * x))
+       * ters[i + C2] * x / (ters[i + C3] + x)
+       + ters[i + C1];
 }
 
 
 static __device__ void find_e_and_ep
-(int i, const double* __restrict__ ters, double d12, double d13, double &e, double &ep)
+(
+    int i,
+    const double* __restrict__ ters,
+    double d12,
+    double d13,
+    double &e,
+    double &ep
+)
 {
     double r = d12 - d13;
-    if (LDG(ters, i + BETA) > TWO) //if beta == 3
+    if (ters[i + BETA] > TWO) //if beta == 3
     {
-        e = exp(LDG(ters, i + ALPHA) * r * r * r);
-        ep = LDG(ters, i + ALPHA) * THREE * r * r * e;
+        e = exp(ters[i + ALPHA] * r * r * r);
+        ep = ters[i + ALPHA] * THREE * r * r * e;
     }
     else // beta = 1
     {
-        e = exp(LDG(ters, i + ALPHA) * r);
-        ep = LDG(ters, i + ALPHA) * e;
+        e = exp(ters[i + ALPHA] * r);
+        ep = ters[i + ALPHA] * e;
     }
 }
 
 static __device__ void find_e
-(int i, const double* __restrict__ ters, double d12, double d13, double &e)
+(
+    int i,
+    const double* __restrict__ ters,
+    double d12,
+    double d13,
+    double &e
+)
 {
     double r = d12 - d13;
-    if (LDG(ters, i + BETA) > TWO) { e = exp(LDG(ters, i + ALPHA) * r * r * r);}
-    else {e = exp(LDG(ters, i + ALPHA) * r);}
+    if (ters[i + BETA] > TWO) { e = exp(ters[i + ALPHA] * r * r * r);}
+    else {e = exp(ters[i + ALPHA] * r);}
 }
 
 
@@ -269,7 +321,7 @@ static __global__ void find_force_tersoff_step1
                 double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 double fc_ijk_13, g_ijk, e_ijk_12_13;
                 int ijk = type1 * num_types2 + type2 * num_types + type3;
-                if (d13 > LDG(ters, ijk*NUM_PARAMS + R2)) {continue;}
+                if (d13 > ters[ijk*NUM_PARAMS + R2]) {continue;}
                 find_fc(ijk*NUM_PARAMS, ters, d13, fc_ijk_13);
                 find_g(ijk*NUM_PARAMS, ters, cos123, g_ijk);
                 find_e(ijk*NUM_PARAMS, ters, d12, d13, e_ijk_12_13);
@@ -277,8 +329,8 @@ static __global__ void find_force_tersoff_step1
             }
             double zn, b_ijj;
             int ijj = type1 * num_types2 + type2 * num_types + type2;
-            zn = pow(zeta, LDG(ters, ijj*NUM_PARAMS + ETA));
-            b_ijj = pow(ONE + zn, -LDG(ters, ijj*NUM_PARAMS + DELTA));
+            zn = pow(zeta, ters[ijj*NUM_PARAMS + ETA]);
+            b_ijj = pow(ONE + zn, -ters[ijj*NUM_PARAMS + DELTA]);
             if (zeta < 1.0e-16) // avoid division by 0
             {
                 g_b[i1 * number_of_particles + n1]  = ONE;
@@ -288,8 +340,8 @@ static __global__ void find_force_tersoff_step1
             {
                 g_b[i1 * number_of_particles + n1]  = b_ijj;
                 g_bp[i1 * number_of_particles + n1]
-                    = - b_ijj * zn * LDG(ters, ijj*NUM_PARAMS + ETA) 
-                    * LDG(ters, ijj*NUM_PARAMS + DELTA) / ((ONE + zn) * zeta);
+                    = - b_ijj * zn * ters[ijj*NUM_PARAMS + ETA]
+                    * ters[ijj*NUM_PARAMS + DELTA] / ((ONE + zn) * zeta);
             }
         }
     }
@@ -343,11 +395,11 @@ static __global__ void find_force_tersoff_step2
             find_fr_and_frp(ijj*NUM_PARAMS, ters, d12, fr_ijj_12, frp_ijj_12);
 
             // (i,j) part
-            double b12 = LDG(g_b, index);
+            double b12 = g_b[index];
             double factor3 = d12inv *
             (
                 fcp_ijj_12 * 
-                (fr_ijj_12 - b12 * fa_ijj_12 + LDG(ters, ijj*NUM_PARAMS + C0))
+                (fr_ijj_12 - b12 * fa_ijj_12 + ters[ijj*NUM_PARAMS + C0])
                 + fc_ijj_12 * (frp_ijj_12 - b12 * fap_ijj_12)
             );
             double f12x = x12 * factor3 * HALF;
@@ -357,11 +409,11 @@ static __global__ void find_force_tersoff_step2
             // accumulate potential energy
             pot_energy += fc_ijj_12 * HALF *
             (
-                fr_ijj_12 - b12 * fa_ijj_12 + LDG(ters, ijj*NUM_PARAMS + C0)
+                fr_ijj_12 - b12 * fa_ijj_12 + ters[ijj*NUM_PARAMS + C0]
             );
 
             // (i,j,k) part
-            double bp12 = LDG(g_bp, index);
+            double bp12 = g_bp[index];
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int index_2 = n1 + number_of_particles * i2;
@@ -382,7 +434,7 @@ static __global__ void find_force_tersoff_step2
                 find_fa(ikk*NUM_PARAMS, ters, d13, fa_ikk_13);
                 find_fc_and_fcp(ikj*NUM_PARAMS, ters, d12,
                                 	fc_ikj_12, fcp_ikj_12);
-                double bp13 = LDG(g_bp, index_2);
+                double bp13 = g_bp[index_2];
                 double one_over_d12d13 = ONE / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
