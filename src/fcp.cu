@@ -710,8 +710,16 @@ void FCP::read_fc6(Atom *atom)
 // potential, force, and virial from the second-order force constants
 static __global__ void gpu_find_force_fcp2
 (
-    int N, int number2, int *g_ia2, int *g_jb2, float *g_phi2, float* g_u, 
-    float *g_xij2, float *g_yij2, float *g_zij2, float *g_pfv
+    const int N,
+    const int number2,
+    const int *g_ia2,
+    const int *g_jb2,
+    const float *g_phi2,
+    const float* __restrict__ g_u,
+    const float *g_xij2,
+    const float *g_yij2,
+    const float *g_zij2,
+    float *g_pfv
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -723,8 +731,8 @@ static __global__ void gpu_find_force_fcp2
         float xij2 = g_xij2[n];
         float yij2 = g_yij2[n];
         float zij2 = g_zij2[n];
-        float uia = LDG(g_u, ia);
-        float ujb = LDG(g_u, jb);
+        float uia = g_u[ia];
+        float ujb = g_u[jb];
         
         int atom_id = ia % N;
         atomicAdd(&g_pfv[atom_id], 0.5f * phi * uia * ujb); // potential
@@ -745,8 +753,14 @@ static __global__ void gpu_find_force_fcp2
 // potential and force from the third-order force constants
 static __global__ void gpu_find_force_fcp3
 (
-    int N, int number3, int *g_ia3, int *g_jb3, int *g_kc3, float *g_phi3,
-    const float* __restrict__ g_u, float *g_pf
+    const int N,
+    const int number3,
+    const int *g_ia3,
+    const int *g_jb3,
+    const int *g_kc3,
+    const float *g_phi3,
+    const float* __restrict__ g_u,
+    float *g_pf
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -756,9 +770,9 @@ static __global__ void gpu_find_force_fcp3
         int jb = g_jb3[n]; 
         int kc = g_kc3[n]; 
         float phi = g_phi3[n];
-        float uia = LDG(g_u, ia); 
-        float ujb = LDG(g_u, jb);
-        float ukc = LDG(g_u, kc);
+        float uia = g_u[ia];
+        float ujb = g_u[jb];
+        float ukc = g_u[kc];
         atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc);
@@ -770,8 +784,15 @@ static __global__ void gpu_find_force_fcp3
 // potential and force from the fourth-order force constants
 static __global__ void gpu_find_force_fcp4
 (
-    int N, int number4, int *g_ia4, int *g_jb4, int *g_kc4, int *g_ld4,
-    float *g_phi4, const float* __restrict__ g_u, float *g_pf
+    const int N,
+    const int number4,
+    const int *g_ia4,
+    const int *g_jb4,
+    const int *g_kc4,
+    const int *g_ld4,
+    const float *g_phi4,
+    const float* __restrict__ g_u,
+    float *g_pf
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -782,10 +803,10 @@ static __global__ void gpu_find_force_fcp4
         int kc = g_kc4[n];
         int ld = g_ld4[n];
         float phi = g_phi4[n];
-        float uia = LDG(g_u, ia); 
-        float ujb = LDG(g_u, jb);
-        float ukc = LDG(g_u, kc);
-        float uld = LDG(g_u, ld);
+        float uia = g_u[ia];
+        float ujb = g_u[jb];
+        float ukc = g_u[kc];
+        float uld = g_u[ld];
         atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld);
@@ -798,8 +819,16 @@ static __global__ void gpu_find_force_fcp4
 // potential and force from the fifth-order force constants
 static __global__ void gpu_find_force_fcp5
 (
-    int N, int number5, int *g_ia5, int *g_jb5, int *g_kc5, int *g_ld5,
-    int *g_me5, float *g_phi5, const float* __restrict__ g_u, float *g_pf
+    const int N,
+    const int number5,
+    const int *g_ia5,
+    const int *g_jb5,
+    const int *g_kc5,
+    const int *g_ld5,
+    const int *g_me5,
+    const float *g_phi5,
+    const float* __restrict__ g_u,
+    float *g_pf
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -811,11 +840,11 @@ static __global__ void gpu_find_force_fcp5
         int ld = g_ld5[n];
         int me = g_me5[n];
         float phi = g_phi5[n];
-        float uia = LDG(g_u, ia); 
-        float ujb = LDG(g_u, jb);
-        float ukc = LDG(g_u, kc);
-        float uld = LDG(g_u, ld);
-        float ume = LDG(g_u, me);
+        float uia = g_u[ia];
+        float ujb = g_u[jb];
+        float ukc = g_u[kc];
+        float uld = g_u[ld];
+        float ume = g_u[me];
         atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld * ume);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld * ume);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld * ume);
@@ -829,8 +858,16 @@ static __global__ void gpu_find_force_fcp5
 // potential and force from the sixth-order force constants
 static __global__ void gpu_find_force_fcp6
 (
-    int N, int number6, int *g_ia6, int *g_jb6, int *g_kc6, int *g_ld6,
-    int *g_me6, int *g_nf6, float *g_phi6, const float* __restrict__ g_u, 
+    const int N,
+    const int number6,
+    const int *g_ia6,
+    const int *g_jb6,
+    const int *g_kc6,
+    const int *g_ld6,
+    const int *g_me6,
+    const int *g_nf6,
+    const float *g_phi6,
+    const float* __restrict__ g_u,
     float *g_pf
 )
 {
@@ -844,12 +881,12 @@ static __global__ void gpu_find_force_fcp6
         int me = g_me6[n];
         int nf = g_nf6[n];
         float phi = g_phi6[n];
-        float uia = LDG(g_u, ia); 
-        float ujb = LDG(g_u, jb);
-        float ukc = LDG(g_u, kc);
-        float uld = LDG(g_u, ld);
-        float ume = LDG(g_u, me);
-        float unf = LDG(g_u, nf);
+        float uia = g_u[ia];
+        float ujb = g_u[jb];
+        float ukc = g_u[kc];
+        float uld = g_u[ld];
+        float ume = g_u[me];
+        float unf = g_u[nf];
         atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld * ume * unf);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld * ume * unf);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld * ume * unf);
@@ -862,7 +899,7 @@ static __global__ void gpu_find_force_fcp6
 
 
 // initialize the local potential (p), force (f), and virial (v)
-static __global__ void gpu_initialize_pfv(int N, float *pfv)
+static __global__ void gpu_initialize_pfv(const int N, float *pfv)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
@@ -875,8 +912,12 @@ static __global__ void gpu_initialize_pfv(int N, float *pfv)
 // get the displacement (u=r-r0)
 static __global__ void gpu_get_u
 (
-    int N, double *x, double *y, double *z, 
-    float *r0, float *u
+    const int N,
+    const double *x,
+    const double *y,
+    const double *z,
+    const float *r0,
+    float *u
 )
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -891,7 +932,15 @@ static __global__ void gpu_get_u
 
 // save potential (p), force (f), and virial (v)
 static __global__ void gpu_save_pfv
-(int N, float *pfv, double *p, double *fx, double *fy, double *fz, double *v)
+(
+    const int N,
+    const float *pfv,
+    double *p,
+    double *fx,
+    double *fy,
+    double *fz,
+    double *v
+)
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n < N)
