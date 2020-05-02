@@ -15,7 +15,6 @@
 
 
 #pragma once
-#include "common.cuh"
 #include <vector>
 
 class Atom;
@@ -43,7 +42,7 @@ public:
     double rc_max;
     int atom_begin[MAX_NUM_OF_POTENTIALS];
     int atom_end[MAX_NUM_OF_POTENTIALS];
-    char file_potential[MAX_NUM_OF_POTENTIALS][FILE_NAME_LENGTH];
+    char file_potential[MAX_NUM_OF_POTENTIALS][200];
     std::vector<int> potential_participation;
     std::vector<int> manybody_participation;
     int group_method;
