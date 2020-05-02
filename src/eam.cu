@@ -264,18 +264,18 @@ static __global__ void find_force_eam_step1
     {
         int NN = g_NN[n1];
            
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
           
         // Calculate the density
         double rho = ZERO;
         for (int i1 = 0; i1 < NN; ++i1)
         {      
             int n2 = g_NL[n1 + N * i1];
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
             double rho12 = ZERO;
@@ -337,18 +337,18 @@ static __global__ void find_force_eam_step2
     if (n1 >= N1 && n1 < N2)
     {  
         int NN = g_NN[n1];        
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double Fp1 = LDG(g_Fp, n1);
 
         for (int i1 = 0; i1 < NN; ++i1)
         {   
             int n2 = g_NL[n1 + N * i1];
             double Fp2 = LDG(g_Fp, n2);
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         
