@@ -139,11 +139,11 @@ static __global__ void gpu_calc_xdotn
     {
 
         float vx1, vy1, vz1;
-        vx1 = __double2float_rn(LDG(g_vx, nglobal));
-        vy1 = __double2float_rn(LDG(g_vy, nglobal));
-        vz1 = __double2float_rn(LDG(g_vz, nglobal));
+        vx1 = __double2float_rn(g_vx[nglobal]);
+        vy1 = __double2float_rn(g_vy[nglobal]);
+        vz1 = __double2float_rn(g_vz[nglobal]);
 
-        float sqrtmass = sqrt(__double2float_rn(LDG(g_mass, nglobal)));
+        float sqrtmass = sqrt(__double2float_rn(g_mass[nglobal]));
         g_xdotn[neig + nm*num_participating] =
                 sqrtmass*g_eig[neig + nm*3*num_participating]*vx1;
         g_xdotn[neig + (nm + num_modes)*num_participating] =
@@ -282,7 +282,7 @@ static __global__ void gpu_set_jmn
     if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
     {
         float vx_ma, vy_ma, vz_ma;
-        float rsqrtmass = rsqrt(__double2float_rn(LDG(g_mass, nglobal)));
+        float rsqrtmass = rsqrt(__double2float_rn(g_mass[nglobal]));
 
         vx_ma=rsqrtmass*g_eig[neig + nm*3*num_participating]
                               *__double2float_rn(g_xdot[nm]);
@@ -338,7 +338,7 @@ static __global__ void gpu_accumulate_jmn
     if (nglobal >= N1 && nglobal < N2 && nm < num_modes)
     {
         float vx_ma, vy_ma, vz_ma;
-        float rsqrtmass = rsqrt(__double2float_rn(LDG(g_mass, nglobal)));
+        float rsqrtmass = rsqrt(__double2float_rn(g_mass[nglobal]));
 
         vx_ma=rsqrtmass*g_eig[neig + nm*3*num_participating]
                               *__double2float_rn(g_xdot[nm]);
