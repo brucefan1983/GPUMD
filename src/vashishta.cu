@@ -190,9 +190,9 @@ static __global__ void gpu_find_force_vashishta_2body
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         
         int count = 0; // initialize g_NN_local[n1] to 0
 
@@ -200,9 +200,9 @@ static __global__ void gpu_find_force_vashishta_2body
         {   
             int n2 = g_NL[n1 + number_of_particles * i1];
             
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             if (d12 >= vas.rc) { continue; }
@@ -292,9 +292,9 @@ static __global__ void gpu_find_force_vashishta_partial
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -303,9 +303,9 @@ static __global__ void gpu_find_force_vashishta_partial
             int n2 = g_neighbor_list[index];
             int type2 = g_type[n2] - shift;
 
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
@@ -322,9 +322,9 @@ static __global__ void gpu_find_force_vashishta_partial
                 if (type3 != type2) { continue; } // exclude AAB, BBA, ABA, BAB
                 if (type3 == type1) { continue; } // exclude AAA, BBB
 
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
