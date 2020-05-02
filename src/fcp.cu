@@ -898,17 +898,6 @@ static __global__ void gpu_find_force_fcp6
 }
 
 
-// initialize the local potential (p), force (f), and virial (v)
-static __global__ void gpu_initialize_pfv(const int N, float *pfv)
-{
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < N)
-    {
-        pfv[n] = 0.0f;
-    }
-}
-
-
 // get the displacement (u=r-r0)
 static __global__ void gpu_get_u
 (
@@ -972,11 +961,7 @@ void FCP::compute(Atom *atom, int potential_number)
         fcp_data.u.data()
     );
 
-    gpu_initialize_pfv<<<(atom->N * 13 - 1) / block_size + 1, block_size>>>
-    (
-        atom->N * 13,
-        fcp_data.pfv.data()
-    );
+    fcp_data.pfv.fill(0.0f);
 
     gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>
     (
