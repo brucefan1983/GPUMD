@@ -15,7 +15,7 @@
 
 
 #pragma once
-#include "common.cuh"
+
 
 class Ensemble;
 class Atom;

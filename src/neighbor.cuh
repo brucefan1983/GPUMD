@@ -15,7 +15,6 @@
 
 
 #pragma once
-#include "common.cuh"
 
 
 struct Neighbor
