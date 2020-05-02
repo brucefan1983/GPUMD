@@ -785,7 +785,7 @@ static __global__ void find_force_step2
         double x1 = g_x[n1];
         double y1 = g_y[n1];
         double z1 = g_z[n1];
-        double pp1 = LDG(g_pp, n1); 
+        double pp1 = g_pp[n1];
         double potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -807,8 +807,8 @@ static __global__ void find_force_step2
             find_fr_and_frp(type12, d12, fr12, frp12);
 
             // accumulate_force_12 
-            double b12 = LDG(g_b, index);
-            double bp12 = LDG(g_bp, index);
+            double b12 = g_b[index];
+            double bp12 = g_bp[index];
             double factor3 = (fcp12*(fr12-b12*fa12) + fc12*(frp12-b12*fap12) 
                          - fc12*fcp12*fa12*bp12*pp1)/d12;
             double f12x = x12 * factor3 * HALF;
@@ -834,7 +834,7 @@ static __global__ void find_force_step2
                 int type13 = type1 + type3;
                 find_fc(type13, d13, fc13);
                 find_fa(type13, d13, fa13);
-                double bp13 = LDG(g_bp, i2 * N + n1);
+                double bp13 = g_bp[i2 * N + n1];
                 double one_over_d12d13 = ONE / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;

@@ -279,7 +279,7 @@ find_force_step2
             );
 
             // (i,j) part
-            double b12 = LDG(g_b, index);
+            double b12 = g_b[index];
             double factor3 = 
             (
                 fcp12 * (fr12 - b12 * fa12) + fc12 * (frp12-b12 * fap12)
@@ -292,7 +292,7 @@ find_force_step2
             pot_energy += fc12 * (fr12 - b12 * fa12) * 0.5;
 
             // (i,j,k) part
-            double bp12 = LDG(g_bp, index);
+            double bp12 = g_bp[index];
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int index_2 = n1 + number_of_particles * i2;
@@ -311,7 +311,7 @@ find_force_step2
                     d13, fc13
                 );
                 find_fa(para.b[type13], para.mu[type13], d13, fa13);
-                double bp13 = LDG(g_bp, index_2);
+                double bp13 = g_bp[index_2];
                 double one_over_d12d13 = ONE / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
