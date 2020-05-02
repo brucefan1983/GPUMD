@@ -69,8 +69,18 @@ public:
     float* sqrtmass;         // precalculated mass values
     float* rsqrtmass;
 
-    float* jmn;              // per-atom modal heat current
-    float* jm;               // total modal heat current
+    float* jmx;
+    float* jmy;
+    float* jmz;
+
+    float* smx;               // stress by by square root mass
+    float* smy;
+    float* smz;
+
+    float* jtmp;             // placeholder for intermediate
+
+    //    float* jmn;              // per-atom modal heat current
+//    float* jm;               // total modal heat current
     float* bin_out;          // modal binning structure
     int* bin_count;          // Number of modes per bin when f_flag=1
     int* bin_sum;            // Running sum from bin_count
