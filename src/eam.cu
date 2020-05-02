@@ -340,12 +340,12 @@ static __global__ void find_force_eam_step2
         double x1 = g_x[n1];
         double y1 = g_y[n1];
         double z1 = g_z[n1];
-        double Fp1 = LDG(g_Fp, n1);
+        double Fp1 = g_Fp[n1];
 
         for (int i1 = 0; i1 < NN; ++i1)
         {   
             int n2 = g_NL[n1 + N * i1];
-            double Fp2 = LDG(g_Fp, n2);
+            double Fp2 = g_Fp[n2];
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
