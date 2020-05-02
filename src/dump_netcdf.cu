@@ -32,6 +32,7 @@ http://ambermd.org/netcdf/nctraj.xhtml
 
 #include <unistd.h>
 #include "dump_netcdf.cuh"
+#include "common.cuh"
 
 /* Handle errors by printing an error message and exiting with a
  * non-zero status. */

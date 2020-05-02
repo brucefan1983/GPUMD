@@ -15,7 +15,6 @@
 
 
 #pragma once
-#include "common.cuh"
 
 class Atom; 
 class Force; // TODO: remove this dependence

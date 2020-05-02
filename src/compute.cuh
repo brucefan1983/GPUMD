@@ -16,7 +16,6 @@
 
 #pragma once
 
-#include "common.cuh"
 #include "gpu_vector.cuh"
 #include <vector>
 
