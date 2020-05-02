@@ -395,13 +395,9 @@ static __global__ void gpu_find_neighbor_local
     Box box, int type_begin, int type_end, int *type,
     int N, int N1, int N2, double cutoff_square, 
     int *NN, int *NL, int *NN_local, int *NL_local,
-#ifdef USE_LDG
     const double* __restrict__ x, 
     const double* __restrict__ y, 
     const double* __restrict__ z
-#else
-    double *x, double *y, double *z
-#endif
 )
 {
     //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -412,9 +408,9 @@ static __global__ void gpu_find_neighbor_local
     {  
         int neighbor_number = NN[n1];
 
-        double x1 = LDG(x, n1);   
-        double y1 = LDG(y, n1);
-        double z1 = LDG(z, n1);  
+        double x1 = x[n1];
+        double y1 = y[n1];
+        double z1 = z[n1];
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = NL[n1 + N * i1];
@@ -423,9 +419,9 @@ static __global__ void gpu_find_neighbor_local
             int type_n2 = type[n2];
             if (type_n2 < type_begin || type_n2 > type_end) continue;
 
-            double x12  = LDG(x, n2) - x1;
-            double y12  = LDG(y, n2) - y1;
-            double z12  = LDG(z, n2) - z1;
+            double x12  = x[n2] - x1;
+            double y12  = y[n2] - y1;
+            double z12  = z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
