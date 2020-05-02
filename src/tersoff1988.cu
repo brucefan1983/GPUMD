@@ -27,6 +27,7 @@ The version of the Tersoff potential as described in
 #include "atom.cuh"
 #include "error.cuh"
 
+#define LDG(a, n) __ldg(a + n)
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 #define EPSILON 1.0e-15
 

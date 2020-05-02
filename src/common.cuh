@@ -17,8 +17,6 @@
 #pragma once
 
 
-#define LDG(a, n) __ldg(a + n)
-
 const int FILE_NAME_LENGTH = 200;
 #define GPUMD_VERSION "2.5"
 
