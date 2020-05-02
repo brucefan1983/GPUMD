@@ -162,7 +162,7 @@ static __global__ void gpu_sort_neighbor_list
 
     if (tid < neighbor_number) 
     {
-        atom_index = LDG(NL, bid + tid * N);
+        atom_index = NL[bid + tid * N];
         atom_index_copy[tid] = atom_index;
     }
     int count = 0;
