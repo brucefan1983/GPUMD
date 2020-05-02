@@ -612,9 +612,9 @@ static __global__ void find_force_step0
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         
         int count = 0; // initialize g_NN_local[n1] to 0
         double coordination_number = ZERO;
@@ -623,9 +623,9 @@ static __global__ void find_force_step0
         {
             int n2 = g_NL[n1 + number_of_particles * i1];
             
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             int type2 = g_type[n2] - shift;
@@ -717,18 +717,18 @@ static __global__ void find_force_step1
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double p = g_p[n1]; // coordination number function P(N)
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_NL[n1 + N * i1];
 
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
 
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
@@ -739,9 +739,9 @@ static __global__ void find_force_step1
                 int n3 = g_NL[n1 + N * i2];
                 if (n3 == n2) { continue; } // ensure that n3 != n2
                 int type3 = g_type[n3] - shift;
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
 
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
@@ -782,9 +782,9 @@ static __global__ void find_force_step2
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double pp1 = LDG(g_pp, n1); 
         double potential_energy = ZERO;
 
@@ -793,9 +793,9 @@ static __global__ void find_force_step2
             int index = i1 * N + n1;
             int n2 = g_NL[index];
             int type2 = g_type[n2] - shift;
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
@@ -824,9 +824,9 @@ static __global__ void find_force_step2
                 int n3 = g_NL[n1 + N * i2];
                 if (n3 == n2) { continue; }
                 int type3 = g_type[n3] - shift;
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
