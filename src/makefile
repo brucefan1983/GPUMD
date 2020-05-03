@@ -11,7 +11,7 @@ endif
 
 INC =
 LDFLAGS = 
-LIBS = 
+LIBS = -lcublas
 
 SOURCES = main.cu gpumd.cu read_file.cu run.cu error.cu validate.cu \
 	mic.cu atom.cu velocity.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \

@@ -817,11 +817,8 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
         {
             PRINT_INPUT_ERROR("compute_hnema parameters must be positive integers.\n");
         }
-        int num_modes = h->last_mode - h->first_mode + 1;
-        if (num_modes % h->bin_size != 0)
-            PRINT_INPUT_ERROR("number of modes must be divisible by bin_size.\n");
         printf("    Bin by modes.\n"
-               "    bin_size is %d THz.\n", h->bin_size);
+               "    bin_size is %d modes.\n", h->bin_size);
     }
 
     // Hidden feature implementation
