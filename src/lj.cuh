@@ -16,6 +16,7 @@
 #pragma once
 #include "potential.cuh"
 #include <vector>
+#include <stdio.h>
 
 //TODO allow a much larger MAX_TYPE -> need to allocate GPU memory
 #define MAX_TYPE 10 // == max number of potentials
