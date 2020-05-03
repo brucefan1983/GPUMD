@@ -33,7 +33,7 @@ class LJ : public Potential
 public:
     LJ(FILE*, int, const std::vector<int>, int);
     virtual ~LJ(void);
-    virtual void compute(Atom*, Measure*, int);
+    virtual void compute(Atom*, int);
     void initialize_lj(FILE *fid, int, const std::vector<int>, int);
 
 protected:

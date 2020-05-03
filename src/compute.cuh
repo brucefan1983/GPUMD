@@ -16,7 +16,10 @@
 
 #pragma once
 
-#include "common.cuh"
+#include "gpu_vector.cuh"
+#include <vector>
+
+class Atom;
 
 
 class Compute
@@ -34,22 +37,22 @@ public:
     int grouping_method = 0;
 
     void preprocess(char*, Atom*);
-    void postprocess(Atom* atom, Integrate*);
-    void process(int, Atom*, Integrate*);
+    void postprocess();
+    void process(int, const double[], Atom*);
 
 private:
     FILE* fid;
 
-    double* cpu_group_sum;
-    double* cpu_group_sum_ave;
-    double* gpu_group_sum;
-    double* gpu_per_atom_x;
-    double* gpu_per_atom_y;
-    double* gpu_per_atom_z;
+    std::vector<double> cpu_group_sum;
+    std::vector<double> cpu_group_sum_ave;
+    GPU_Vector<double> gpu_group_sum;
+    GPU_Vector<double> gpu_per_atom_x;
+    GPU_Vector<double> gpu_per_atom_y;
+    GPU_Vector<double> gpu_per_atom_z;
 
     int number_of_scalars = 0;
 
-    void output_results(Atom*, Integrate*);
+    void output_results(const double[], Atom*);
 };
 
 

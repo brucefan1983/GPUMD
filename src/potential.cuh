@@ -15,7 +15,8 @@
 
 
 #pragma once
-#include "common.cuh"
+
+class Atom; 
 
 
 class Potential
@@ -25,7 +26,7 @@ public:
     double rc; // maximum cutoff distance
     Potential(void);
     virtual ~Potential(void);
-    virtual void compute(Atom*, Measure*, int) = 0;
+    virtual void compute(Atom*, int) = 0;
 
 protected:
     void find_properties_many_body(Atom*, int*, int*, double*, double*, double*);

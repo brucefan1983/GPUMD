@@ -32,6 +32,7 @@ http://ambermd.org/netcdf/nctraj.xhtml
 
 #include <unistd.h>
 #include "dump_netcdf.cuh"
+#include "common.cuh"
 
 /* Handle errors by printing an error message and exiting with a
  * non-zero status. */
@@ -289,9 +290,9 @@ void DUMP_NETCDF::write(Atom *atom)
     //// Write Per-Atom Data ////
 
     int memory = sizeof(double) * N;
-    CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_x.data(), atom->x, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_y.data(), atom->y, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_z.data(), atom->z, memory, cudaMemcpyDeviceToHost));
 
     if (precision == 1) // single precision
     {
@@ -322,11 +323,11 @@ void DUMP_NETCDF::write(Atom *atom)
         countp[1] = N;
         countp[2] = 1;
         NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type));
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_x));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_x.data()));
         startp[2] = 1;
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_y));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_y.data()));
         startp[2] = 2;
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_z));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_z.data()));
     }
 }
 

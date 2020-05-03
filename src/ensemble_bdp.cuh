@@ -24,10 +24,10 @@ public:
     Ensemble_BDP(int, int, double, double);   
     Ensemble_BDP(int, int, int, int, double, double, double); 
     virtual ~Ensemble_BDP(void);
-    virtual void compute(Atom*, Force*, Measure*);
+    virtual void compute(Atom*, Force*);
 protected:
-    void integrate_nvt_bdp(Atom*, Force*, Measure*);
-    void integrate_heat_bdp(Atom*, Force*, Measure*);
+    void integrate_nvt_bdp(Atom*, Force*);
+    void integrate_heat_bdp(Atom*, Force*);
 };
 
 

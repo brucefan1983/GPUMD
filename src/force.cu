@@ -35,8 +35,8 @@ The driver class calculating force and related quantities.
 #include "ri.cuh"
 #include "eam.cuh"
 #include "fcp.cuh"
-#include "measure.cuh"
 #include "read_file.cuh"
+#include <vector>
 
 #define BLOCK_SIZE 128
 
@@ -60,7 +60,6 @@ Force::~Force(void)
         delete potential[m];
         potential[m] = NULL;
     }
-    MY_FREE(manybody_participation);
 }
 
 
@@ -156,6 +155,20 @@ void Force::parse_potential(char **param, int num_param)
 }
 
 
+void Force::initialize_participation_and_shift(Atom* atom)
+{
+    if (group_method > -1)
+        num_kind = atom->group[group_method].number;
+    else
+        num_kind = atom->number_of_types;
+
+    // initialize bookkeeping data structures
+    manybody_participation.resize(num_kind, 0);
+    potential_participation.resize(num_kind, 0);
+    atom->shift.resize(MAX_NUM_OF_POTENTIALS, 0);
+}
+
+	
 int Force::get_number_of_types(FILE *fid_potential)
 {
     int num_of_types;
@@ -382,13 +395,9 @@ static __global__ void gpu_find_neighbor_local
     Box box, int type_begin, int type_end, int *type,
     int N, int N1, int N2, double cutoff_square, 
     int *NN, int *NL, int *NN_local, int *NL_local,
-#ifdef USE_LDG
     const double* __restrict__ x, 
     const double* __restrict__ y, 
     const double* __restrict__ z
-#else
-    double *x, double *y, double *z
-#endif
 )
 {
     //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
@@ -399,9 +408,9 @@ static __global__ void gpu_find_neighbor_local
     {  
         int neighbor_number = NN[n1];
 
-        double x1 = LDG(x, n1);   
-        double y1 = LDG(y, n1);
-        double z1 = LDG(z, n1);  
+        double x1 = x[n1];
+        double y1 = y[n1];
+        double z1 = z[n1];
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = NL[n1 + N * i1];
@@ -410,9 +419,9 @@ static __global__ void gpu_find_neighbor_local
             int type_n2 = type[n2];
             if (type_n2 < type_begin || type_n2 > type_end) continue;
 
-            double x12  = LDG(x, n2) - x1;
-            double y12  = LDG(y, n2) - y1;
-            double z12  = LDG(z, n2) - z1;
+            double x12  = x[n2] - x1;
+            double y12  = y[n2] - y1;
+            double z12  = z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < cutoff_square)
@@ -569,7 +578,25 @@ static __global__ void initialize_properties
 }
 
 
-void Force::compute(Atom *atom, Measure* measure)
+void Force::set_hnemd_parameters
+(
+    const bool compute_hnemd, 
+    const double hnemd_fe_x, 
+    const double hnemd_fe_y, 
+    const double hnemd_fe_z
+)
+{
+    compute_hnemd_ = compute_hnemd;
+    if (compute_hnemd)
+    {
+        hnemd_fe_[0] = hnemd_fe_x;
+        hnemd_fe_[1] = hnemd_fe_y;
+        hnemd_fe_[2] = hnemd_fe_z;
+    }
+} 
+
+
+void Force::compute(Atom *atom)
 {
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
@@ -585,12 +612,10 @@ void Force::compute(Atom *atom, Measure* measure)
         find_neighbor_local(atom, m);
 #endif
         // and then calculate the forces and related quantities
-        potential[m]->compute(atom, measure, m);
+        potential[m]->compute(atom, m);
     }
 
-    if (measure->hnemd.compute ||
-        (measure->modal_analysis.compute &&
-         measure->modal_analysis.method == HNEMA_METHOD))
+    if (compute_hnemd_)
     {
         int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
 
@@ -601,7 +626,7 @@ void Force::compute(Atom *atom, Measure* measure)
         gpu_add_driving_force<<<grid_size, BLOCK_SIZE>>>
         (
             atom->N,
-            measure->hnemd.fe_x, measure->hnemd.fe_y, measure->hnemd.fe_z,
+            hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
             atom->virial_per_atom + 0 * atom->N,
             atom->virial_per_atom + 3 * atom->N,
             atom->virial_per_atom + 4 * atom->N,
@@ -614,38 +639,30 @@ void Force::compute(Atom *atom, Measure* measure)
             atom->fx, atom->fy, atom->fz
         );
 
-        double *ftot; // total force vector of the system
-        CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));
+        GPU_Vector<double> ftot(3); // total force vector of the system
 
         gpu_sum_force<<<3, 1024>>>
-        (atom->N, atom->fx, atom->fy, atom->fz, ftot);
+        (atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
         CUDA_CHECK_KERNEL
 
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot);
+        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
         CUDA_CHECK_KERNEL
-
-        CHECK(cudaFree(ftot));
     }
 
     // always correct the force when using the FCP potential
 #ifdef USE_FCP
-    if (!measure->hnemd.compute && 
-        !(measure->modal_analysis.compute &&
-         measure->modal_analysis.method == HNEMA_METHOD))
+    if (!compute_hnemd_)
     {
-        double *ftot; // total force vector of the system
-        CHECK(cudaMalloc((void**)&ftot, sizeof(double) * 3));
+        GPU_Vector<double> ftot(3); // total force vector of the system
         gpu_sum_force<<<3, 1024>>>
-        (atom->N, atom->fx, atom->fy, atom->fz, ftot);
+        (atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
         CUDA_CHECK_KERNEL
 
         int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot);
+        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
         CUDA_CHECK_KERNEL
-
-        CHECK(cudaFree(ftot));
     }
 #endif
 }

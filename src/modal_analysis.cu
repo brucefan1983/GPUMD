@@ -68,7 +68,6 @@ static __global__ void gpu_scale_jm
     }
 }
 
-
 static __device__ void gpu_bin_reduce
 (
        int num_modes, int bin_size, int shift, int num_bins,
@@ -272,7 +271,6 @@ static __global__ void gpu_update_jm
 
     }
 }
-
 
 void MODAL_ANALYSIS::compute_heat(Atom *atom)
 {

@@ -16,6 +16,8 @@
 
 #pragma once
 #include "potential.cuh"
+#include "gpu_vector.cuh"
+#include <stdio.h>
 
 
 struct Tersoff1989_Parameters
@@ -27,11 +29,11 @@ struct Tersoff1989_Parameters
 
 struct Tersoff1989_Data
 {
-    double *b;     // bond orders
-    double *bp;    // derivative of bond orders
-    double *f12x;  // partial forces
-    double *f12y;
-    double *f12z;
+    GPU_Vector<double> b;    // bond orders
+    GPU_Vector<double> bp;   // derivative of bond orders
+    GPU_Vector<double> f12x; // partial forces
+    GPU_Vector<double> f12y;
+    GPU_Vector<double> f12z;
 };
 
 
@@ -40,7 +42,7 @@ class Tersoff1989 : public Potential
 public:   
     Tersoff1989(FILE*, Atom*, int sum_of_types);  
     virtual ~Tersoff1989(void);
-    virtual void compute(Atom*, Measure*, int);
+    virtual void compute(Atom*, int);
 protected:
     Tersoff1989_Parameters ters0;
     Tersoff1989_Parameters ters1;

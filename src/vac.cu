@@ -35,23 +35,13 @@ Reference for PDOS:
 const int BLOCK_SIZE = 128;
 
 
-static __global__ void gpu_initialize_vac
-(int Nc, double *g_vac_x, double *g_vac_y, double *g_vac_z)
-{
-    int n = threadIdx.x + blockIdx.x * blockDim.x;
-    if (n < Nc)
-    {
-        g_vac_x[n] = ZERO;
-        g_vac_y[n] = ZERO;
-        g_vac_z[n] = ZERO;
-    }
-}
-
-
 static __global__ void gpu_copy_mass
 (
-    int N, int offset, int *g_group_contents,
-    double *g_mass_o, double *g_mass_i
+    const int N,
+    const int offset,
+    const int *g_group_contents,
+    double *g_mass_o,
+    const double *g_mass_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -90,19 +80,14 @@ void VAC::preprocess(Atom *atom)
     }
 
     // only need to record Nc frames of velocity data (saving a lot of memory)
-    CHECK(cudaMalloc((void**)&vx, sizeof(double) * N * Nc));
-    CHECK(cudaMalloc((void**)&vy, sizeof(double) * N * Nc));
-    CHECK(cudaMalloc((void**)&vz, sizeof(double) * N * Nc));
+    vx.resize(N * Nc);
+    vy.resize(N * Nc);
+    vz.resize(N * Nc);
 
-    // using unified memory for VAC
-    CHECK(cudaMallocManaged((void**)&vac_x, sizeof(double) * Nc));
-    CHECK(cudaMallocManaged((void**)&vac_y, sizeof(double) * Nc));
-    CHECK(cudaMallocManaged((void**)&vac_z, sizeof(double) * Nc));
-
-    // initialize the VAC to zero
-    gpu_initialize_vac<<<(Nc - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    (Nc, vac_x, vac_y, vac_z);
-    CUDA_CHECK_KERNEL
+    // using unified memory for VAC and initializing to zero
+    vac_x.resize(Nc, 0.0, Memory_Type::managed);
+    vac_y.resize(Nc, 0.0, Memory_Type::managed);
+    vac_z.resize(Nc, 0.0, Memory_Type::managed);
 
     if (compute_dos)
     {
@@ -117,21 +102,23 @@ void VAC::preprocess(Atom *atom)
         }
 
         // need mass for DOS calculations
-        CHECK(cudaMalloc((void**)&mass, sizeof(double) * N));
+        mass.resize(N);
 
         if (grouping_method >= 0)
         {
             gpu_copy_mass<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (
-                N, atom->group[grouping_method].cpu_size_sum[group],
-                atom->group[grouping_method].contents, mass, atom->mass
+                N,
+                atom->group[grouping_method].cpu_size_sum[group],
+                atom->group[grouping_method].contents,
+                mass.data(),
+                atom->mass
             );
             CUDA_CHECK_KERNEL
         }
         else
         {
-            const int mem = sizeof(double) * N;
-            CHECK(cudaMemcpy(mass, atom->mass, mem, cudaMemcpyDeviceToDevice));
+            mass.copy_from_device(atom->mass);
         }
     }
 }
@@ -139,9 +126,15 @@ void VAC::preprocess(Atom *atom)
 
 static __global__ void gpu_copy_velocity
 (
-    int N, int offset, int *g_group_contents,
-    double *g_vx_o, double *g_vy_o, double *g_vz_o,
-    double *g_vx_i, double *g_vy_i, double *g_vz_i
+    const int N,
+    const int offset,
+    const int *g_group_contents,
+    double *g_vx_o,
+    double *g_vy_o,
+    double *g_vz_o,
+    const double *g_vx_i,
+    const double *g_vy_i,
+    const double *g_vz_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -158,9 +151,13 @@ static __global__ void gpu_copy_velocity
 
 static __global__ void gpu_copy_velocity
 (
-    int N, 
-    double *g_vx_o, double *g_vy_o, double *g_vz_o,
-    double *g_vx_i, double *g_vy_i, double *g_vz_i
+    const int N,
+    double *g_vx_o,
+    double *g_vy_o,
+    double *g_vz_o,
+    const double *g_vx_i,
+    const double *g_vy_i,
+    const double *g_vz_i
 )
 {
     int n = threadIdx.x + blockIdx.x * blockDim.x;
@@ -176,10 +173,19 @@ static __global__ void gpu_copy_velocity
 
 static __global__ void gpu_find_vac
 (
-    int N, int correlation_step, int compute_dos, double *g_mass,
-    double *g_vx, double *g_vy, double *g_vz,
-    double *g_vx_all, double *g_vy_all, double *g_vz_all,
-    double *g_vac_x, double *g_vac_y, double *g_vac_z
+    const int N,
+    const int correlation_step,
+    const int compute_dos,
+    const double *g_mass,
+    const double *g_vx,
+    const double *g_vy,
+    const double *g_vz,
+    const double *g_vx_all,
+    const double *g_vy_all,
+    const double *g_vz_all,
+    double *g_vac_x,
+    double *g_vac_y,
+    double *g_vac_z
 )
 {
     int tid = threadIdx.x;
@@ -238,7 +244,11 @@ static __global__ void gpu_find_vac
 }
 
 
-void VAC::process(int step, Atom *atom)
+void VAC::process
+(
+    const int step,
+    Atom *atom
+)
 {
     if (!(compute_dos || compute_sdc)) return;
     if ((step + 1) % sample_interval != 0) { return; }
@@ -251,18 +261,28 @@ void VAC::process(int step, Atom *atom)
     {
         gpu_copy_velocity<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            N, atom->group[grouping_method].cpu_size_sum[group],
+            N,
+            atom->group[grouping_method].cpu_size_sum[group],
             atom->group[grouping_method].contents,
-            vx + offset, vy + offset, vz + offset,
-            atom->vx, atom->vy, atom->vz
+            vx.data() + offset,
+            vy.data() + offset,
+            vz.data() + offset,
+            atom->vx,
+            atom->vy,
+            atom->vz
         );
     }
     else
     {
         gpu_copy_velocity<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            N, vx + offset, vy + offset, vz + offset,
-            atom->vx, atom->vy, atom->vz
+            N,
+            vx.data() + offset,
+            vy.data() + offset,
+            vz.data() + offset,
+            atom->vx,
+            atom->vy,
+            atom->vz
         );
     }
     CUDA_CHECK_KERNEL 
@@ -274,9 +294,19 @@ void VAC::process(int step, Atom *atom)
         
         gpu_find_vac<<<Nc, BLOCK_SIZE>>>
         (
-            N, correlation_step, compute_dos, mass, 
-            vx + offset, vy + offset, vz + offset, 
-            vx, vy, vz, vac_x, vac_y, vac_z
+            N,
+            correlation_step,
+            compute_dos,
+            mass.data(),
+            vx.data() + offset,
+            vy.data() + offset,
+            vz.data() + offset,
+            vx.data(),
+            vy.data(),
+            vz.data(),
+            vac_x.data(),
+            vac_y.data(),
+            vac_z.data()
         );
         CUDA_CHECK_KERNEL 
     }
@@ -285,10 +315,18 @@ void VAC::process(int step, Atom *atom)
 
 static void perform_dft
 (
-    int N, int Nc, int num_dos_points,
-    double delta_t, double omega_0, double d_omega,
-    double *vac_x, double *vac_y, double *vac_z,
-    double *dos_x, double *dos_y, double *dos_z
+    const int N,
+    const int Nc,
+    const int num_dos_points,
+    const double delta_t,
+    const double omega_0,
+    const double d_omega,
+    double *vac_x,
+    double *vac_y,
+    double *vac_z,
+    double *dos_x,
+    double *dos_y,
+    double *dos_z
 )
 {
     // Apply Hann window and normalize by the correct factor
@@ -325,26 +363,35 @@ static void perform_dft
 }
 
 
-void VAC::find_dos(char *input_dir, Atom *atom)
+void VAC::find_dos
+(
+    const char *input_dir,
+    Atom *atom
+)
 {
     double d_omega = omega_max / num_dos_points;
     double omega_0 = d_omega;
 
     // initialize DOS data
-    double *dos_x, *dos_y, *dos_z;
-    MY_MALLOC(dos_x, double, num_dos_points);
-    MY_MALLOC(dos_y, double, num_dos_points);
-    MY_MALLOC(dos_z, double, num_dos_points);
-    for (int nw = 0; nw < num_dos_points; nw++)
-    {
-        dos_x[nw] = dos_y[nw] = dos_z[nw] = 0.0;
-    }
+    std::vector<double> dos_x(num_dos_points, 0.0);
+    std::vector<double> dos_y(num_dos_points, 0.0);
+    std::vector<double> dos_z(num_dos_points, 0.0);
 
     // perform DFT to get DOS from normalized MVAC
     perform_dft
     (
-        N, Nc, num_dos_points, dt_in_ps, omega_0, d_omega,
-        vac_x, vac_y, vac_z, dos_x, dos_y, dos_z
+        N,
+        Nc,
+        num_dos_points,
+        dt_in_ps,
+        omega_0,
+        d_omega,
+        vac_x.data(),
+        vac_y.data(),
+        vac_z.data(),
+        dos_x.data(),
+        dos_y.data(),
+        dos_z.data()
     );
 
     // output DOS
@@ -359,18 +406,19 @@ void VAC::find_dos(char *input_dir, Atom *atom)
     }
     fflush(fid);
     fclose(fid);
-
-    // free memory
-    MY_FREE(dos_x);
-    MY_FREE(dos_y);
-    MY_FREE(dos_z);
 }
 
 
 static void integrate_vac
 (
-    int Nc, double dt, double *vac_x, double *vac_y, double *vac_z,
-    double *sdc_x, double *sdc_y, double *sdc_z
+    const int Nc,
+    const double dt,
+    const double *vac_x,
+    const double *vac_y,
+    const double *vac_z,
+    double *sdc_x,
+    double *sdc_y,
+    double *sdc_z
 )
 {
     double dt2 = dt * 0.5;
@@ -383,20 +431,29 @@ static void integrate_vac
 }
 
 
-void VAC::find_sdc(char *input_dir, Atom *atom)
+void VAC::find_sdc
+(
+    const char *input_dir,
+    Atom *atom
+)
 {
     // initialize the SDC data
-    double *sdc_x, *sdc_y, *sdc_z;
-    MY_MALLOC(sdc_x, double, Nc);
-    MY_MALLOC(sdc_y, double, Nc);
-    MY_MALLOC(sdc_z, double, Nc);
-    for (int nc = 0; nc < Nc; nc++)
-    {
-        sdc_x[nc] = sdc_y[nc] = sdc_z[nc] = 0.0;
-    }
+    std::vector<double> sdc_x(Nc, 0.0);
+    std::vector<double> sdc_y(Nc, 0.0);
+    std::vector<double> sdc_z(Nc, 0.0);
 
     // get the SDC from the VAC according to the Green-Kubo relation
-    integrate_vac(Nc, dt, vac_x, vac_y, vac_z, sdc_x, sdc_y, sdc_z);
+    integrate_vac
+    (
+        Nc,
+        dt,
+        vac_x.data(),
+        vac_y.data(),
+        vac_z.data(),
+        sdc_x.data(),
+        sdc_y.data(),
+        sdc_z.data()
+    );
 
     // output the VAC and SDC
     char file_sdc[FILE_NAME_LENGTH];
@@ -416,20 +473,27 @@ void VAC::find_sdc(char *input_dir, Atom *atom)
         sdc_y[nc] *= 1000.0 / TIME_UNIT_CONVERSION; // change to A^2/ps
         sdc_z[nc] *= 1000.0 / TIME_UNIT_CONVERSION; // change to A^2/ps
 
-        fprintf(fid, "%g %g %g %g ", t, vac_x[nc], vac_y[nc], vac_z[nc]);
+        fprintf
+        (
+            fid,
+            "%g %g %g %g ",
+            t,
+            vac_x[nc],
+            vac_y[nc],
+            vac_z[nc]
+        );
         fprintf(fid, "%g %g %g\n", sdc_x[nc], sdc_y[nc], sdc_z[nc]);
     }
     fflush(fid);
     fclose(fid);
-
-    // free memory
-    MY_FREE(sdc_x); 
-    MY_FREE(sdc_y); 
-    MY_FREE(sdc_z);
 }
 
 
-void VAC::postprocess(char *input_dir, Atom *atom)
+void VAC::postprocess
+(
+    const char *input_dir,
+    Atom *atom
+)
 {
     if (!(compute_dos || compute_sdc)) return;
 
@@ -457,7 +521,15 @@ void VAC::postprocess(char *input_dir, Atom *atom)
         for (int nc = 0; nc < Nc; nc++)
         {
             double t = nc * dt_in_ps;
-            fprintf(fid, "%g %g %g %g\n", t, vac_x[nc], vac_y[nc], vac_z[nc]);
+            fprintf
+            (
+                fid,
+                "%g %g %g %g\n",
+                t,
+                vac_x[nc],
+                vac_y[nc],
+                vac_z[nc]
+            );
         }
         fflush(fid);
         fclose(fid);
@@ -475,18 +547,6 @@ void VAC::postprocess(char *input_dir, Atom *atom)
             vac_z[nc] /= double(N) * num_time_origins;
         }
         find_sdc(input_dir, atom);
-    }
-
-    // free memory
-    CHECK(cudaFree(vac_x));
-    CHECK(cudaFree(vac_y));
-    CHECK(cudaFree(vac_z));
-    CHECK(cudaFree(vx));
-    CHECK(cudaFree(vy));
-    CHECK(cudaFree(vz));
-    if (compute_dos)
-    {
-        CHECK(cudaFree(mass));
     }
 }
 

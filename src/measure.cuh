@@ -15,7 +15,6 @@
 
 
 #pragma once
-#include "common.cuh"
 #include "vac.cuh"
 #include "hac.cuh"
 #include "shc.cuh"

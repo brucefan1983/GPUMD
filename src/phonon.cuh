@@ -15,7 +15,10 @@
 
 
 #pragma once
-#include "common.cuh"
+
+class Atom;
+class Force;
+class Hessian;
 
 
 class Phonon
@@ -24,7 +27,7 @@ public:
     Phonon(char*);
     ~Phonon(void);
 private:
-    void compute(char*, Atom*, Force*, Measure*, Hessian*, int);
+    void compute(char*, Atom*, Force*, Hessian*, int);
     void parse(char**, int, Atom*, Force*, Hessian*, int*);
 };
 

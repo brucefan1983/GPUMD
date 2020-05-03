@@ -23,7 +23,6 @@ The EAM potential. Currently two analytical versions:
 
 #include "eam.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
@@ -32,7 +31,8 @@ The EAM potential. Currently two analytical versions:
     (                                                                          \
         eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box,                   \
         atom->NN_local,                                                        \
-        atom->NL_local, eam_data.Fp, atom->x, atom->y, atom->z, atom->vx,      \
+        atom->NL_local, eam_data.Fp.data(),                                    \
+        atom->x, atom->y, atom->z, atom->vx,                                   \
         atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,                      \
         atom->virial_per_atom, atom->potential_per_atom                        \
     ) 
@@ -40,12 +40,9 @@ The EAM potential. Currently two analytical versions:
 
 EAM::EAM(FILE *fid, Atom* atom, char *name)
 {
-
     if (strcmp(name, "eam_zhou_2004") == 0)  initialize_eam2004zhou(fid);
     if (strcmp(name, "eam_dai_2006") == 0)    initialize_eam2006dai(fid);
-
-    // memory for the derivative of the density functional 
-    CHECK(cudaMalloc((void**)&eam_data.Fp, sizeof(double) * atom->N));
+    eam_data.Fp.resize(atom->N);
 }
 
 
@@ -116,7 +113,7 @@ void EAM::initialize_eam2006dai(FILE *fid)
 
 EAM::~EAM(void)
 {
-    CHECK(cudaFree(eam_data.Fp));
+    // nothing
 }
 
 
@@ -267,18 +264,18 @@ static __global__ void find_force_eam_step1
     {
         int NN = g_NN[n1];
            
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
           
         // Calculate the density
         double rho = ZERO;
         for (int i1 = 0; i1 < NN; ++i1)
         {      
             int n2 = g_NL[n1 + N * i1];
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
             double rho12 = ZERO;
@@ -340,18 +337,18 @@ static __global__ void find_force_eam_step2
     if (n1 >= N1 && n1 < N2)
     {  
         int NN = g_NN[n1];        
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
-        double Fp1 = LDG(g_Fp, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
+        double Fp1 = g_Fp[n1];
 
         for (int i1 = 0; i1 < NN; ++i1)
         {   
             int n2 = g_NL[n1 + N * i1];
-            double Fp2 = LDG(g_Fp, n2);
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double Fp2 = g_Fp[n2];
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         
@@ -421,7 +418,7 @@ static __global__ void find_force_eam_step2
 
 
 // Force evaluation wrapper
-void EAM::compute(Atom *atom, Measure *measure, int potential_number)
+void EAM::compute(Atom *atom, int potential_number)
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
@@ -431,7 +428,7 @@ void EAM::compute(Atom *atom, Measure *measure, int potential_number)
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
             atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
-            eam_data.Fp, atom->potential_per_atom
+            eam_data.Fp.data(), atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
 
@@ -445,7 +442,7 @@ void EAM::compute(Atom *atom, Measure *measure, int potential_number)
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
             atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
-            eam_data.Fp, atom->potential_per_atom
+            eam_data.Fp.data(), atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
         

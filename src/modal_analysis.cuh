@@ -18,7 +18,6 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "common.cuh"
 #include "mic.cuh"
 #include "atom.cuh"
 #include "integrate.cuh"

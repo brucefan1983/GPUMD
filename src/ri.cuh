@@ -15,6 +15,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include <stdio.h>
 
 struct RI_Para
 {
@@ -30,7 +31,7 @@ class RI : public Potential
 public:
     RI(FILE*);
     virtual ~RI(void);
-    virtual void compute(Atom*, Measure*, int);
+    virtual void compute(Atom*, int);
     void initialize_ri(FILE *fid);
 protected:
     RI_Para  ri_para;

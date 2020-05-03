@@ -19,29 +19,6 @@
 //#define STRONG_DEBUG // never use it for production run; too slow
 
 
-#define MY_MALLOC(p, t, n) p = (t *) malloc(sizeof(t) * (n));                  \
-                           if(p == NULL)                                       \
-                           {                                                   \
-                               printf("Failed to allocate!\n");                \
-                               exit(EXIT_FAILURE);                             \
-                           }
-
-#define ZEROS(p, t, n) p = MY_MALLOC(p, t, n)                                  \
-                       for(int i_=0; i_<(n);i_++){p[i_]=(t)0;}                 \
-
-
-#define MY_FREE(p) if(p != NULL)                                               \
-                   {                                                           \
-                       free(p);                                                \
-                       p = NULL;                                               \
-                   }                                                           \
-                   else                                                        \
-                   {                                                           \
-                       printf("Try to free NULL!\n");                          \
-                       exit(EXIT_FAILURE);                                     \
-                   }
-
-
 #define CHECK(call)                                                            \
 do                                                                             \
 {                                                                              \

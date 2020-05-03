@@ -21,7 +21,6 @@ The abstract base class (ABC) for the potential classes.
 
 #include "potential.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
@@ -74,7 +73,9 @@ static __global__ void gpu_find_force_many_body
     if (n1 >= N1 && n1 < N2)
     {
         int neighbor_number = g_neighbor_number[n1];
-        double x1 = LDG(g_x, n1); double y1 = LDG(g_y, n1); double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -82,14 +83,14 @@ static __global__ void gpu_find_force_many_body
             int n2 = g_neighbor_list[index];
             int neighbor_number_2 = g_neighbor_number[n2];
 
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
 
-            double f12x = LDG(g_f12x, index);
-            double f12y = LDG(g_f12y, index);
-            double f12z = LDG(g_f12z, index);
+            double f12x = g_f12x[index];
+            double f12y = g_f12y[index];
+            double f12z = g_f12z[index];
             int offset = 0;
             for (int k = 0; k < neighbor_number_2; ++k)
             {
@@ -97,9 +98,9 @@ static __global__ void gpu_find_force_many_body
                 { offset = k; break; }
             }
             index = offset * number_of_particles + n2;
-            double f21x = LDG(g_f12x, index);
-            double f21y = LDG(g_f12y, index);
-            double f21z = LDG(g_f12z, index);
+            double f21x = g_f12x[index];
+            double f21y = g_f12y[index];
+            double f21z = g_f12z[index];
 
             // per atom force
             s_fx += f12x - f21x; 

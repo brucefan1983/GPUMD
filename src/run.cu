@@ -37,17 +37,7 @@ Run::Run
 )
 {
     run(input_dir, atom, force, integrate, measure, 1);
-
-    if (force->group_method > -1)
-        force->num_kind = atom->group[force->group_method].number;
-    else
-        force->num_kind = atom->number_of_types;
-
-    // initialize bookkeeping data structures
-    ZEROS(force->manybody_participation, int, force->num_kind);
-    ZEROS(force->potential_participation, int, force->num_kind);
-    ZEROS(atom->shift, int, MAX_NUM_OF_POTENTIALS);
-
+    force->initialize_participation_and_shift(atom);
     run(input_dir, atom, force, integrate, measure, 0);
 }
 
@@ -178,7 +168,7 @@ static void process_run
         if (atom->neighbor.update) { atom->find_neighbor(0); }
 #endif
 
-        integrate->compute(atom, force, measure);
+        integrate->compute(atom, force);
         measure->process(input_dir, atom, integrate, step);
         print_finished_steps(step, atom->number_of_steps);
     }
@@ -247,6 +237,16 @@ void Run::check_run
     else
     {
         force->valdiate_potential_definitions();
+        bool compute_hnemd = measure->hnemd.compute ||
+            (
+                measure->modal_analysis.compute &&
+                measure->modal_analysis.method == HNEMA_METHOD
+            );
+        force->set_hnemd_parameters
+        (
+            compute_hnemd, measure->hnemd.fe_x, measure->hnemd.fe_y, 
+            measure->hnemd.fe_z
+        );
         process_run(input_dir, atom, force, integrate, measure);
     }
     initialize_run(atom, integrate, measure);
@@ -295,7 +295,7 @@ void Run::run
 
     print_finish(check);
 
-    MY_FREE(input); // Free the input file contents
+    free(input); // Free the input file contents
 }
 
 

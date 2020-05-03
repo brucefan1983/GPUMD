@@ -121,7 +121,7 @@ void Integrate::initialize(Atom* atom)
 }
 
 
-void Integrate::compute(Atom *atom, Force *force, Measure* measure)
+void Integrate::compute(Atom *atom, Force *force)
 {
     if (type >= 1 && type <= 20)
     {
@@ -129,7 +129,7 @@ void Integrate::compute(Atom *atom, Force *force, Measure* measure)
                               * double(atom->step) / atom->number_of_steps;
     }
 
-    ensemble->compute(atom, force, measure);
+    ensemble->compute(atom, force);
 }
 
 

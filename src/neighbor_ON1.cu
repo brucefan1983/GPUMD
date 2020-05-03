@@ -130,10 +130,21 @@ static __global__ void prefix_sum
 // construct the Verlet neighbor list from the cell list
 static __global__ void gpu_find_neighbor_ON1
 (
-    Box box, int N, int* cell_counts, int* cell_count_sum, int* cell_contents, 
-    int* NN, int* NL,
-    double* x, double* y, double* z, int cell_n_x, int cell_n_y, int cell_n_z, 
-    double cutoff, double cutoff_square
+    const Box box,
+    const int N,
+    const int* __restrict__ cell_counts,
+    const int* __restrict__ cell_count_sum,
+    const int* __restrict__ cell_contents,
+    int* NN,
+    int* NL,
+    const double* __restrict__ x,
+    const double* __restrict__ y,
+    const double* __restrict__ z,
+    const int cell_n_x,
+    const int cell_n_y,
+    const int cell_n_z,
+    const double cutoff,
+    const double cutoff_square
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -178,17 +189,17 @@ static __global__ void gpu_find_neighbor_ON1
                         neighbour -= cell_n_z*cell_n_y*cell_n_x;
 
                     // number of atoms in the preceding cells
-                    int offset = LDG(cell_count_sum, neighbour);
+                    int offset = cell_count_sum[neighbour];
                     // number of atoms in the current cell
-                    int M = LDG(cell_counts, neighbour);
+                    int M = cell_counts[neighbour];
 
                     // loop over the atoms in a neighbor cell
                     for (int m = 0; m < M; ++m)
                     {
-                        int n2 = LDG(cell_contents, offset + m);
-                        double x12 = LDG(x, n2) - x1;
-                        double y12 = LDG(y, n2) - y1;
-                        double z12 = LDG(z, n2) - z1;
+                        int n2 = cell_contents[offset + m];
+                        double x12 = x[n2] - x1;
+                        double y12 = y[n2] - y1;
+                        double z12 = z[n2] - z1;
                         dev_apply_mic(box, x12, y12, z12);
                         double d2 = x12*x12 + y12*y12 + z12*z12;
 

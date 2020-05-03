@@ -25,6 +25,7 @@ If DEBUG is off, the velocities are different in different runs.
 
 #include "atom.cuh"
 #include "error.cuh"
+#include <vector>
 
 
 void Atom::scale_velocity(void)
@@ -156,19 +157,19 @@ static void zero_angular_momentum
 
 void Atom::initialize_velocity_cpu(void)
 {
-    get_random_velocities(N, cpu_vx, cpu_vy, cpu_vz);
-    zero_linear_momentum(N, cpu_mass, cpu_vx, cpu_vy, cpu_vz);
+    get_random_velocities(N, cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
+    zero_linear_momentum(N, cpu_mass.data(), cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
     double r0[3] = {0, 0, 0}; // center of mass position
-    get_center(N, r0, cpu_mass, cpu_x, cpu_y, cpu_z);
+    get_center(N, r0, cpu_mass.data(), cpu_x.data(), cpu_y.data(), cpu_z.data());
     double L[3] = {0, 0, 0}; // angular momentum
-    get_angular_momentum(N, L, r0, cpu_mass, cpu_x, cpu_y, cpu_z,
-        cpu_vx, cpu_vy, cpu_vz);
+    get_angular_momentum(N, L, r0, cpu_mass.data(), cpu_x.data(), cpu_y.data(), cpu_z.data(),
+        cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
     double I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}; // moment of inertia
-    get_inertia(N, I, r0, cpu_mass, cpu_x, cpu_y, cpu_z);
+    get_inertia(N, I, r0, cpu_mass.data(), cpu_x.data(), cpu_y.data(), cpu_z.data());
     double w[3]; // angular velocity
     get_angular_velocity(I, L, w);
-    zero_angular_momentum(N, w, r0, cpu_x, cpu_y, cpu_z,
-        cpu_vx, cpu_vy, cpu_vz);
+    zero_angular_momentum(N, w, r0, cpu_x.data(), cpu_y.data(), cpu_z.data(),
+        cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
     scale_velocity();
 }
 
@@ -177,9 +178,9 @@ void Atom::initialize_velocity(void)
 {
     if (has_velocity_in_xyz == 0) { initialize_velocity_cpu(); }
     int M = sizeof(double) * N;
-    CHECK(cudaMemcpy(vx, cpu_vx, M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(vy, cpu_vy, M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(vz, cpu_vz, M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(vx, cpu_vx.data(), M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(vy, cpu_vy.data(), M, cudaMemcpyHostToDevice));
+    CHECK(cudaMemcpy(vz, cpu_vz.data(), M, cudaMemcpyHostToDevice));
     printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
 

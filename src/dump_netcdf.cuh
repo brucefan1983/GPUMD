@@ -19,7 +19,6 @@
 #ifndef DUMP_NETCDF_H
 #define DUMP_NETCDF_H
 
-#include "common.cuh"
 #include "dump_pos.cuh"
 #include "netcdf.h"
 

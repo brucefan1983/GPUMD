@@ -25,12 +25,12 @@ void apply_mic
 {
     if (triclinic == 0) // orthogonal box
     {
-        if      (pbc_x == 1 && x12 < - h[0] * HALF) {x12 += h[0];}
-        else if (pbc_x == 1 && x12 > + h[0] * HALF) {x12 -= h[0];}
-        if      (pbc_y == 1 && y12 < - h[1] * HALF) {y12 += h[1];}
-        else if (pbc_y == 1 && y12 > + h[1] * HALF) {y12 -= h[1];}
-        if      (pbc_z == 1 && z12 < - h[2] * HALF) {z12 += h[2];}
-        else if (pbc_z == 1 && z12 > + h[2] * HALF) {z12 -= h[2];}
+        if      (pbc_x == 1 && x12 < - h[0] * 0.5) {x12 += h[0];}
+        else if (pbc_x == 1 && x12 > + h[0] * 0.5) {x12 -= h[0];}
+        if      (pbc_y == 1 && y12 < - h[1] * 0.5) {y12 += h[1];}
+        else if (pbc_y == 1 && y12 > + h[1] * 0.5) {y12 -= h[1];}
+        if      (pbc_z == 1 && z12 < - h[2] * 0.5) {z12 += h[2];}
+        else if (pbc_z == 1 && z12 > + h[2] * 0.5) {z12 -= h[2];}
     }
     else // triclinic box
     {

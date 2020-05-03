@@ -15,15 +15,17 @@
 
 
 /*----------------------------------------------------------------------------80
-The minimal Tersoff potential
-    Written by Zheyong Fan.
-    This is a new potential I proposed. 
+The minimal Tersoff potential, as developed in the following paper:
+
+Z. Fan, Y. Wang, X. Gu, P. Qian, Y. Su, and T. Ala-Nissila,
+A minimal Tersoff potential for diamond silicon with improved
+descriptions of elastic and phonon transport properties,
+J. Phys.: Condens. Matter 32, 135901 (2020).
 ------------------------------------------------------------------------------*/
 
 
 #include "tersoff_mini.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -73,22 +75,17 @@ Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
     }
 
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory1 = sizeof(double)* atom->N * num_of_neighbors;
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.b,    memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.bp,   memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12x, memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12y, memory1));
-    CHECK(cudaMalloc((void**)&tersoff_mini_data.f12z, memory1));
+    tersoff_mini_data.b.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.bp.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.f12x.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.f12y.resize(atom->N * num_of_neighbors);
+    tersoff_mini_data.f12z.resize(atom->N * num_of_neighbors);
 }
 
 
 Tersoff_mini::~Tersoff_mini(void)
 {
-    CHECK(cudaFree(tersoff_mini_data.b));
-    CHECK(cudaFree(tersoff_mini_data.bp));
-    CHECK(cudaFree(tersoff_mini_data.f12x));
-    CHECK(cudaFree(tersoff_mini_data.f12y));
-    CHECK(cudaFree(tersoff_mini_data.f12z));
+    // nothing
 }
 
 
@@ -176,16 +173,16 @@ static __global__ void find_force_step1
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_neighbor_list[n1 + number_of_particles * i1];
             int type12 = type1 + g_type[n2] - shift;
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double zeta = 0.0;
@@ -194,9 +191,9 @@ static __global__ void find_force_step1
                 int n3 = g_neighbor_list[n1 + number_of_particles * i2];
                 int type13 = type1 + g_type[n3] - shift;
                 if (n3 == n2) { continue; } // ensure that n3 != n2
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12*d13);
@@ -253,9 +250,9 @@ find_force_step2
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double pot_energy = 0.0;
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -263,9 +260,9 @@ find_force_step2
             int n2 = g_neighbor_list[index];
             int type12 = type1 + g_type[n2] - shift;
 
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
@@ -282,7 +279,7 @@ find_force_step2
             );
 
             // (i,j) part
-            double b12 = LDG(g_b, index);
+            double b12 = g_b[index];
             double factor3 = 
             (
                 fcp12 * (fr12 - b12 * fa12) + fc12 * (frp12-b12 * fap12)
@@ -295,16 +292,16 @@ find_force_step2
             pot_energy += fc12 * (fr12 - b12 * fa12) * 0.5;
 
             // (i,j,k) part
-            double bp12 = LDG(g_bp, index);
+            double bp12 = g_bp[index];
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int index_2 = n1 + number_of_particles * i2;
                 int n3 = g_neighbor_list[index_2];
                 if (n3 == n2) { continue; }
                 int type13 = type1 + g_type[n3] - shift;
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double fc13, fa13;
@@ -314,7 +311,7 @@ find_force_step2
                     d13, fc13
                 );
                 find_fa(para.b[type13], para.mu[type13], d13, fa13);
-                double bp13 = LDG(g_bp, index_2);
+                double bp13 = g_bp[index_2];
                 double one_over_d12d13 = ONE / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
@@ -341,7 +338,7 @@ find_force_step2
 
 
 // Wrapper of force evaluation for the SBOP potential
-void Tersoff_mini::compute(Atom *atom, Measure *measure, int potential_number)
+void Tersoff_mini::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];
@@ -355,11 +352,11 @@ void Tersoff_mini::compute(Atom *atom, Measure *measure, int potential_number)
     double *pe = atom->potential_per_atom;
 
     // special data for SBOP potential
-    double *f12x = tersoff_mini_data.f12x;
-    double *f12y = tersoff_mini_data.f12y;
-    double *f12z = tersoff_mini_data.f12z;
-    double *b    = tersoff_mini_data.b;
-    double *bp   = tersoff_mini_data.bp;
+    double *f12x = tersoff_mini_data.f12x.data();
+    double *f12y = tersoff_mini_data.f12y.data();
+    double *f12z = tersoff_mini_data.f12z.data();
+    double *b    = tersoff_mini_data.b.data();
+    double *bp   = tersoff_mini_data.bp.data();
 
     // pre-compute the bond order functions and their derivatives
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>

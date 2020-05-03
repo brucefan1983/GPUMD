@@ -16,8 +16,6 @@
 
 #pragma once
 
-#include "common.cuh"
-
 
 class Box
 {

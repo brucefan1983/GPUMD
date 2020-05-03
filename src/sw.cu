@@ -16,7 +16,6 @@
 
 #include "sw.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -40,10 +39,9 @@ SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
 
     // memory for the partial forces dU_i/dr_ij
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory = sizeof(double) * atom->N * num_of_neighbors;
-    CHECK(cudaMalloc((void**)&sw2_data.f12x, memory));
-    CHECK(cudaMalloc((void**)&sw2_data.f12y, memory));
-    CHECK(cudaMalloc((void**)&sw2_data.f12z, memory));
+    sw2_data.f12x.resize(atom->N * num_of_neighbors);
+    sw2_data.f12y.resize(atom->N * num_of_neighbors);
+    sw2_data.f12z.resize(atom->N * num_of_neighbors);
 }
 
 
@@ -149,15 +147,21 @@ void SW2::initialize_sw_1985_3(FILE *fid)
 
 SW2::~SW2(void)
 {
-    CHECK(cudaFree(sw2_data.f12x));
-    CHECK(cudaFree(sw2_data.f12y));
-    CHECK(cudaFree(sw2_data.f12z));
+    // nothing
 }
 
 
 // two-body part of the SW potential
 static __device__ void find_p2_and_f2
-(double sigma, double a, double B, double epsilon_times_A, double d12, double &p2, double &f2)
+(
+    double sigma,
+    double a,
+    double B,
+    double epsilon_times_A,
+    double d12,
+    double &p2,
+    double &f2
+)
 { 
     double r12 = d12 / sigma;
     double B_over_r12power4 = B / (r12*r12*r12*r12);
@@ -185,7 +189,9 @@ static __global__ void gpu_find_force_sw3_partial
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); double y1 = LDG(g_y, n1); double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -193,9 +199,9 @@ static __global__ void gpu_find_force_sw3_partial
             int index = i1 * number_of_particles + n1;
             int n2 = g_neighbor_list[index];
             int type2 = g_type[n2] - shift;
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
@@ -225,9 +231,9 @@ static __global__ void gpu_find_force_sw3_partial
                 int n3 = g_neighbor_list[n1 + number_of_particles * i2];
                 if (n3 == n2) { continue; }
                 int type3 = g_type[n3] - shift;
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 if (d13 >= sw3.rc[type1][type3]) {continue;}
@@ -265,7 +271,15 @@ static __global__ void gpu_find_force_sw3_partial
 
 
 static __global__ void gpu_set_f12_to_zero
-(int N, int N1, int N2, int *g_NN, double* g_f12x, double* g_f12y, double* g_f12z)
+(
+    int N,
+    int N1,
+    int N2,
+    int *g_NN,
+    double* g_f12x,
+    double* g_f12y,
+    double* g_f12z
+)
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
     if (n1 >= N1 && n1 < N2)
@@ -283,7 +297,7 @@ static __global__ void gpu_set_f12_to_zero
 
 
 // Find force and related quantities for the SW potential (A wrapper)
-void SW2::compute(Atom *atom, Measure *measure, int potential_number)
+void SW2::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];
@@ -297,9 +311,9 @@ void SW2::compute(Atom *atom, Measure *measure, int potential_number)
     double *pe = atom->potential_per_atom;
 
     // special data for SW potential
-    double *f12x = sw2_data.f12x;
-    double *f12y = sw2_data.f12y;
-    double *f12z = sw2_data.f12z;
+    double *f12x = sw2_data.f12x.data();
+    double *f12y = sw2_data.f12y.data();
+    double *f12z = sw2_data.f12z.data();
     gpu_set_f12_to_zero<<<grid_size, BLOCK_SIZE_SW>>>
     (N, N1, N2, NN, f12x, f12y, f12z);
     CUDA_CHECK_KERNEL

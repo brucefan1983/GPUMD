@@ -15,7 +15,10 @@
 
 
 #pragma once
-#include "common.cuh"
+#include "gpu_vector.cuh"
+
+
+class Atom;
 
 
 class HNEMD
@@ -31,10 +34,10 @@ public:
     double fe_z = 0.0;
     double fe = 0.0; // magnitude of the driving "force" vector
 
-    double *heat_all;
+    GPU_Vector<double> heat_all;
 
     void preprocess(Atom *atom);
-    void process(int, char*, Atom*, Integrate*);
+    void process(int, const char*, const double, Atom*);
     void postprocess(Atom*);
 };
 

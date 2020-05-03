@@ -24,10 +24,10 @@ The version of the Tersoff potential as described in
 #include "tersoff1988.cuh"
 
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
+#define LDG(a, n) __ldg(a + n)
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 #define EPSILON 1.0e-15
 
@@ -59,10 +59,9 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
 {
     num_types = num_of_types;
     printf("Use Tersoff-1988 (%d-element) potential.\n", num_types);
-    int n_entries = num_types*num_types*num_types;
+    int n_entries = num_types * num_types * num_types;
     // 14 parameters per entry of tersoff1988 + 5 pre-calculated values
-    double *cpu_ters;
-    MY_MALLOC(cpu_ters, double, n_entries*NUM_PARAMS);
+    std::vector<double> cpu_ters(n_entries * NUM_PARAMS);
 
     char err[50] = "Error: Illegal Tersoff parameter.";
     rc = 0;
@@ -137,28 +136,19 @@ Tersoff1988::Tersoff1988(FILE *fid, Atom* atom, int num_of_types)
     }
 
     int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory = sizeof(double)* atom->N * num_of_neighbors;
-    CHECK(cudaMalloc((void**)&tersoff_data.b,  memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.bp, memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.f12x, memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.f12y, memory));
-    CHECK(cudaMalloc((void**)&tersoff_data.f12z, memory));
-    CHECK(cudaMalloc((void**)&ters, sizeof(double) * n_entries*NUM_PARAMS));
-    CHECK(cudaMemcpy(ters, cpu_ters,
-        sizeof(double) * n_entries*NUM_PARAMS, cudaMemcpyHostToDevice));
-
-    MY_FREE(cpu_ters);
+    tersoff_data.b.resize(atom->N * num_of_neighbors);
+    tersoff_data.bp.resize(atom->N * num_of_neighbors);
+    tersoff_data.f12x.resize(atom->N * num_of_neighbors);
+    tersoff_data.f12y.resize(atom->N * num_of_neighbors);
+    tersoff_data.f12z.resize(atom->N * num_of_neighbors);
+    ters.resize(n_entries * NUM_PARAMS);
+    ters.copy_from_host(cpu_ters.data());
 }
 
 
 Tersoff1988::~Tersoff1988(void)
 {
-    CHECK(cudaFree(tersoff_data.b));
-    CHECK(cudaFree(tersoff_data.bp));
-    CHECK(cudaFree(tersoff_data.f12x));
-    CHECK(cudaFree(tersoff_data.f12y));
-    CHECK(cudaFree(tersoff_data.f12z));
-    CHECK(cudaFree(ters));
+    // nothing
 }
 
 
@@ -460,7 +450,7 @@ static __global__ void find_force_tersoff_step2
 
 
 // Wrapper of force evaluation for the Tersoff potential
-void Tersoff1988::compute(Atom *atom, Measure *measure, int potential_number)
+void Tersoff1988::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];
@@ -474,17 +464,17 @@ void Tersoff1988::compute(Atom *atom, Measure *measure, int potential_number)
     double *pe = atom->potential_per_atom;
 
     // special data for Tersoff potential
-    double *f12x = tersoff_data.f12x;
-    double *f12y = tersoff_data.f12y;
-    double *f12z = tersoff_data.f12z;
-    double *b    = tersoff_data.b;
-    double *bp   = tersoff_data.bp;
+    double *f12x = tersoff_data.f12x.data();
+    double *f12y = tersoff_data.f12y.data();
+    double *f12z = tersoff_data.f12z.data();
+    double *b    = tersoff_data.b.data();
+    double *bp   = tersoff_data.bp.data();
 
     // pre-compute the bond order functions and their derivatives
     find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         N, N1, N2, atom->box, num_types,
-        NN, NL, type, shift, ters, x, y, z, b, bp
+        NN, NL, type, shift, ters.data(), x, y, z, b, bp
     );
     CUDA_CHECK_KERNEL
 
@@ -492,7 +482,7 @@ void Tersoff1988::compute(Atom *atom, Measure *measure, int potential_number)
     find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         N, N1, N2, atom->box, num_types,
-        NN, NL, type, shift, ters, b, bp, x, y, z, pe, f12x, f12y, f12z
+        NN, NL, type, shift, ters.data(), b, bp, x, y, z, pe, f12x, f12y, f12z
     );
     CUDA_CHECK_KERNEL
 

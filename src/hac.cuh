@@ -15,7 +15,10 @@
 
 
 #pragma once
-#include "common.cuh"
+#include "gpu_vector.cuh"
+
+
+class Atom;
 
 
 class HAC
@@ -27,12 +30,12 @@ public:
     int output_interval; // only output Nc/output_interval data
 
     void preprocess(Atom*);
-    void process(int, char*, Atom*);
-    void postprocess(char*, Atom*, Integrate*);
+    void process(int, const char*, Atom*);
+    void postprocess(const char*, const double, Atom*);
 
 private:
-    void find_hac_kappa(char*, Atom*, Integrate*);
-    double *heat_all;
+    void find_hac_kappa(const char*, const double, Atom*);
+    GPU_Vector<double> heat_all;
 };
 
 

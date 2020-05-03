@@ -16,18 +16,18 @@
 
 #pragma once
 #include "potential.cuh"
+#include "gpu_vector.cuh"
+#include <stdio.h>
 
 
 struct Tersoff_modc_Data
 {
-    double *b;     // bond orders
-    double *bp;    // derivative of bond orders
-    double *f12x;  // partial forces
-    double *f12y;
-    double *f12z;
+    GPU_Vector<double> b;    // bond orders
+    GPU_Vector<double> bp;   // derivative of bond orders
+    GPU_Vector<double> f12x; // partial forces
+    GPU_Vector<double> f12y;
+    GPU_Vector<double> f12z;
 };
-
-
 
 
 class Tersoff_modc : public Potential
@@ -35,13 +35,11 @@ class Tersoff_modc : public Potential
 public:   
     Tersoff_modc(FILE*, Atom*, int sum_of_types);
     virtual ~Tersoff_modc(void);
-    virtual void compute(Atom*, Measure*, int);
+    virtual void compute(Atom*, int);
 protected:
     int num_types;
-    double *ters;
+    GPU_Vector<double> ters;
     Tersoff_modc_Data tersoff_data;
 };
-
-
 
 

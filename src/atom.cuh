@@ -20,6 +20,7 @@
 #include "group.cuh"
 #include "neighbor.cuh"
 #include "common.cuh"
+#include <vector>
 
 const int MAX_NUMBER_OF_GROUPS = 10;
 
@@ -39,17 +40,17 @@ public:
     double *potential_per_atom;     // per-atom potential energy
     double *thermo;                 // some thermodynamic quantities
 
-    int* cpu_type;
-    int* cpu_type_size;
-    int* shift; // shift to correct type in force eval
+    std::vector<int> cpu_type;
+    std::vector<int> cpu_type_size;
+    std::vector<int> shift; // shift to correct type in force eval
 
-    double* cpu_mass;
-    double* cpu_x;
-    double* cpu_y;
-    double* cpu_z;
-    double* cpu_vx;
-    double* cpu_vy;
-    double* cpu_vz;
+    std::vector<double> cpu_mass;
+    std::vector<double> cpu_x;
+    std::vector<double> cpu_y;
+    std::vector<double> cpu_z;
+    std::vector<double> cpu_vx;
+    std::vector<double> cpu_vy;
+    std::vector<double> cpu_vz;
 
     int N;                // number of atoms 
     int number_of_types;  // number of atom types 
@@ -91,7 +92,6 @@ private:
 
     void allocate_memory_gpu(void);
     void copy_from_cpu_to_gpu(void);
-    void free_memory_cpu(void);
     void free_memory_gpu(void);
 
     void find_neighbor_ON2(void);

@@ -33,10 +33,9 @@ Phonon::Phonon(char* input_dir)
 {
     Atom atom(input_dir);
     Force force;
-    Measure measure(input_dir);
     Hessian hessian;
 
-    compute(input_dir, &atom, &force, &measure, &hessian, 1);
+    compute(input_dir, &atom, &force, &hessian, 1);
 
     if (force.group_method > -1)
         force.num_kind = atom.group[force.group_method].number;
@@ -44,11 +43,11 @@ Phonon::Phonon(char* input_dir)
         force.num_kind = atom.number_of_types;
 
     // initialize bookkeeping data structures
-    ZEROS(force.manybody_participation, int, force.num_kind);
-    ZEROS(force.potential_participation, int, force.num_kind);
-    ZEROS(atom.shift, int, MAX_NUM_OF_POTENTIALS);
+    force.manybody_participation.resize(force.num_kind, 0);
+    force.potential_participation.resize(force.num_kind, 0);
+    atom.shift.resize(MAX_NUM_OF_POTENTIALS, 0);
 
-    compute(input_dir, &atom, &force, &measure, &hessian, 0);
+    compute(input_dir, &atom, &force, &hessian, 0);
 }
 
 
@@ -61,7 +60,7 @@ Phonon::~Phonon(void)
 void Phonon::compute
 (
     char* input_dir, Atom* atom, Force* force,
-    Measure* measure, Hessian* hessian, int check
+    Hessian* hessian, int check
 )
 {
     char file_run[200];
@@ -81,8 +80,8 @@ void Phonon::compute
         parse(param, num_param, atom, force, hessian, &is_potential);
         if (!check && is_potential) force->add_potential(input_dir, atom);
     }
-    MY_FREE(input); // Free the input file contents
-    if (!check) hessian->compute(input_dir, atom, force, measure);
+    free(input); // Free the input file contents
+    if (!check) hessian->compute(input_dir, atom, force);
 }
 
 

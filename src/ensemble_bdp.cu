@@ -24,6 +24,8 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
+#include "gpu_vector.cuh"
+#include <vector>
 
 #define BLOCK_SIZE 128
 #define DIM 3
@@ -49,7 +51,15 @@ Ensemble_BDP::Ensemble_BDP(int t, int fg, double T, double Tc)
 
 
 Ensemble_BDP::Ensemble_BDP
-(int t, int fg, int source_input, int sink_input, double T, double Tc, double dT)
+(
+    int t,
+    int fg,
+    int source_input,
+    int sink_input,
+    double T,
+    double Tc,
+    double dT
+)
 {
     type = t;
     fixed_group = fg;
@@ -70,13 +80,13 @@ Ensemble_BDP::~Ensemble_BDP(void)
 }
 
 
-void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
+void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force)
 {
     int N = atom->N;
     double *thermo = atom->thermo;
 
     // standard velocity-Verlet
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
 
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 : 
@@ -84,22 +94,20 @@ void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force, Measure* measure)
     find_thermo(atom);
 
     // re-scale the velocities
-    double *ek;
-    MY_MALLOC(ek, double, sizeof(double) * 1);
+    double ek[1];
     CHECK(cudaMemcpy(ek, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
     int ndeg = 3 * (N - N_fixed);
     ek[0] *= ndeg * K_B * 0.5; // from temperature to kinetic energy
     double sigma = ndeg * K_B * temperature * 0.5;
     double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
     factor = sqrt(factor / ek[0]);
-    MY_FREE(ek);
     scale_velocity_global(atom, factor);
 }
 
 
 // integrate by one step, with heating and cooling, using the BDP method
 void Ensemble_BDP::integrate_heat_bdp
-(Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force)
 {
     int label_1 = source;
     int label_2 = sink;
@@ -112,21 +120,16 @@ void Ensemble_BDP::integrate_heat_bdp
     double sigma_1 = dN1 * kT1 * 0.5;
     double sigma_2 = dN2 * kT2 * 0.5;
 
-    // allocate some memory (to be improved)
-    double *ek;
-    MY_MALLOC(ek, double, sizeof(double) * Ng);
-    double *vcx, *vcy, *vcz, *ke;
-    CHECK(cudaMalloc((void**)&vcx, sizeof(double) * Ng));
-    CHECK(cudaMalloc((void**)&vcy, sizeof(double) * Ng));
-    CHECK(cudaMalloc((void**)&vcz, sizeof(double) * Ng));
-    CHECK(cudaMalloc((void**)&ke, sizeof(double) * Ng));
+    // allocate some memory 
+    std::vector<double> ek(Ng);
+    GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
 
     // veloicty-Verlet
-    velocity_verlet(atom, force, measure);
+    velocity_verlet(atom, force);
 
     // get center of mass velocity and relative kinetic energy
-    find_vc_and_ke(atom, vcx, vcy, vcz, ke);
-    CHECK(cudaMemcpy(ek, ke, sizeof(double) * Ng, cudaMemcpyDeviceToHost));
+    find_vc_and_ke(atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
+    ke.copy_to_host(ek.data());
     ek[label_1] *= 0.5;
     ek[label_2] *= 0.5;
 
@@ -143,27 +146,29 @@ void Ensemble_BDP::integrate_heat_bdp
     energy_transferred[1] += ek[label_2] * (1.0 - factor_2 * factor_2);
 
     // re-scale the velocities
-    scale_velocity_local(atom, factor_1, factor_2, vcx, vcy, vcz, ke);
-
-    // clean up
-    MY_FREE(ek);
-    CHECK(cudaFree(vcx));
-    CHECK(cudaFree(vcy));
-    CHECK(cudaFree(vcz));
-    CHECK(cudaFree(ke));
+    scale_velocity_local
+    (
+        atom,
+        factor_1,
+        factor_2,
+        vcx.data(),
+        vcy.data(),
+        vcz.data(),
+        ke.data()
+    );
 }
 
 
 void Ensemble_BDP::compute
-(Atom *atom, Force *force, Measure* measure)
+(Atom *atom, Force *force)
 {
     if (type == 4)
     {
-        integrate_nvt_bdp(atom, force, measure);
+        integrate_nvt_bdp(atom, force);
     }
     else
     {
-        integrate_heat_bdp(atom, force, measure);
+        integrate_heat_bdp(atom, force);
     }
 }
 

@@ -16,6 +16,7 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include "gpu_vector.cuh"
 #include <curand_kernel.h>
 
 
@@ -25,11 +26,13 @@ public:
     Ensemble_LAN(int, int, int, double, double);   
     Ensemble_LAN(int, int, int, int, int, int, int, int, double, double, double); 
     virtual ~Ensemble_LAN(void);
-    virtual void compute(Atom*, Force*, Measure*);
+    virtual void compute(Atom*, Force*);
 protected:
     int N_source, N_sink, offset_source, offset_sink;
     double c1, c2, c2_source, c2_sink;
-    curandState *curand_states, *curand_states_source, *curand_states_sink;
+    GPU_Vector<curandState> curand_states;
+    GPU_Vector<curandState> curand_states_source;
+    GPU_Vector<curandState> curand_states_sink;
     void integrate_nvt_lan_half(Atom*);
     void integrate_heat_lan_half(Atom*);
 };

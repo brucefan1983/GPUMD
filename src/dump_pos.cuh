@@ -21,7 +21,6 @@ Parent class for position dumping
 #ifndef DUMP_POS_H
 #define DUMP_POS_H
 
-#include "common.cuh"
 #include "error.cuh"
 #include "atom.cuh"
 

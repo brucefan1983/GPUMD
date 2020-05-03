@@ -25,7 +25,6 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 
 #include "rebo_mos2.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -159,19 +158,15 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 REBO_MOS::REBO_MOS(Atom* atom)
 {
     int num = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    int memory1 = sizeof(double) * atom->N;
-    int memory2 = sizeof(double) * atom->N * num;
-    int memory3 = sizeof(int) * atom->N;
-    int memory4 = sizeof(int) * atom->N * num;
-    CHECK(cudaMalloc((void**)&rebo_mos_data.p,    memory1));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.pp,   memory1));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.b,    memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.bp,   memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.f12x, memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.f12y, memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.f12z, memory2));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.NN_short, memory3));
-    CHECK(cudaMalloc((void**)&rebo_mos_data.NL_short, memory4));
+    rebo_mos_data.p.resize(atom->N);
+    rebo_mos_data.pp.resize(atom->N);
+    rebo_mos_data.b.resize(atom->N * num);
+    rebo_mos_data.bp.resize(atom->N * num);
+    rebo_mos_data.f12x.resize(atom->N * num);
+    rebo_mos_data.f12y.resize(atom->N * num);
+    rebo_mos_data.f12z.resize(atom->N * num);
+    rebo_mos_data.NN_short.resize(atom->N);
+    rebo_mos_data.NL_short.resize(atom->N * num);
 
     printf("Use the potential in [PRB 79, 245110 (2009)].\n");
     rc = 10.5;
@@ -180,15 +175,7 @@ REBO_MOS::REBO_MOS(Atom* atom)
 
 REBO_MOS::~REBO_MOS(void)
 {
-    CHECK(cudaFree(rebo_mos_data.p));
-    CHECK(cudaFree(rebo_mos_data.pp));
-    CHECK(cudaFree(rebo_mos_data.b));
-    CHECK(cudaFree(rebo_mos_data.bp));
-    CHECK(cudaFree(rebo_mos_data.f12x));
-    CHECK(cudaFree(rebo_mos_data.f12y));
-    CHECK(cudaFree(rebo_mos_data.f12z));
-    CHECK(cudaFree(rebo_mos_data.NN_short));
-    CHECK(cudaFree(rebo_mos_data.NL_short));
+    // nothing
 }
 
 
@@ -625,9 +612,9 @@ static __global__ void find_force_step0
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         
         int count = 0; // initialize g_NN_local[n1] to 0
         double coordination_number = ZERO;
@@ -636,9 +623,9 @@ static __global__ void find_force_step0
         {
             int n2 = g_NL[n1 + number_of_particles * i1];
             
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             int type2 = g_type[n2] - shift;
@@ -730,18 +717,18 @@ static __global__ void find_force_step1
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double p = g_p[n1]; // coordination number function P(N)
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int n2 = g_NL[n1 + N * i1];
 
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
 
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
@@ -752,9 +739,9 @@ static __global__ void find_force_step1
                 int n3 = g_NL[n1 + N * i2];
                 if (n3 == n2) { continue; } // ensure that n3 != n2
                 int type3 = g_type[n3] - shift;
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
 
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
@@ -795,10 +782,10 @@ static __global__ void find_force_step2
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
-        double pp1 = LDG(g_pp, n1); 
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
+        double pp1 = g_pp[n1];
         double potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -806,9 +793,9 @@ static __global__ void find_force_step2
             int index = i1 * N + n1;
             int n2 = g_NL[index];
             int type2 = g_type[n2] - shift;
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
@@ -820,8 +807,8 @@ static __global__ void find_force_step2
             find_fr_and_frp(type12, d12, fr12, frp12);
 
             // accumulate_force_12 
-            double b12 = LDG(g_b, index);
-            double bp12 = LDG(g_bp, index);
+            double b12 = g_b[index];
+            double bp12 = g_bp[index];
             double factor3 = (fcp12*(fr12-b12*fa12) + fc12*(frp12-b12*fap12) 
                          - fc12*fcp12*fa12*bp12*pp1)/d12;
             double f12x = x12 * factor3 * HALF;
@@ -837,9 +824,9 @@ static __global__ void find_force_step2
                 int n3 = g_NL[n1 + N * i2];
                 if (n3 == n2) { continue; }
                 int type3 = g_type[n3] - shift;
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
@@ -847,7 +834,7 @@ static __global__ void find_force_step2
                 int type13 = type1 + type3;
                 find_fc(type13, d13, fc13);
                 find_fa(type13, d13, fa13);
-                double bp13 = LDG(g_bp, i2 * N + n1);
+                double bp13 = g_bp[i2 * N + n1];
                 double one_over_d12d13 = ONE / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
@@ -874,7 +861,7 @@ static __global__ void find_force_step2
 
 
 // Force evaluation wrapper
-void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
+void REBO_MOS::compute(Atom *atom, int potential_number)
 {
     int N = atom->N;
     int shift = atom->shift[potential_number];
@@ -882,8 +869,8 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
 
     int *NN = atom->NN_local;           // for 2-body
     int *NL = atom->NL_local;           // for 2-body
-    int *NN_local = rebo_mos_data.NN_short; // for 3-body
-    int *NL_local = rebo_mos_data.NL_short; // for 3-body
+    int *NN_local = rebo_mos_data.NN_short.data(); // for 3-body
+    int *NL_local = rebo_mos_data.NL_short.data(); // for 3-body
 
     int *type = atom->type;
     double *x = atom->x;
@@ -898,13 +885,13 @@ void REBO_MOS::compute(Atom *atom, Measure *measure, int potential_number)
     double *virial = atom->virial_per_atom;
     double *pe = atom->potential_per_atom;
 
-    double *b    = rebo_mos_data.b;
-    double *bp   = rebo_mos_data.bp;
-    double *p    = rebo_mos_data.p;
-    double *pp   = rebo_mos_data.pp;
-    double *f12x = rebo_mos_data.f12x;
-    double *f12y = rebo_mos_data.f12y;
-    double *f12z = rebo_mos_data.f12z;
+    double *b    = rebo_mos_data.b.data();
+    double *bp   = rebo_mos_data.bp.data();
+    double *p    = rebo_mos_data.p.data();
+    double *pp   = rebo_mos_data.pp.data();
+    double *f12x = rebo_mos_data.f12x.data();
+    double *f12y = rebo_mos_data.f12y.data();
+    double *f12z = rebo_mos_data.f12z.data();
 
     // 2-body part
     find_force_step0<<<grid_size, BLOCK_SIZE_FORCE>>>

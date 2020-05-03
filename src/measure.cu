@@ -78,9 +78,9 @@ void Measure::finalize
     if (dump_restart)   {                       dump_restart   = 0;}
     if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom);
-    hac.postprocess(input_dir, atom, integrate);
+    hac.postprocess(input_dir, integrate->temperature2, atom);
     shc.postprocess(input_dir);
-    compute.postprocess(atom, integrate);
+    compute.postprocess();
     hnemd.postprocess(atom);
     modal_analysis.postprocess();
 }
@@ -91,9 +91,9 @@ void Measure::dump_thermos
 {
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
-    double *thermo; MY_MALLOC(thermo, double, NUM_OF_PROPERTIES);
+    std::vector<double> thermo(NUM_OF_PROPERTIES);
     int m1 = sizeof(double) * NUM_OF_PROPERTIES;
-    CHECK(cudaMemcpy(thermo, atom->thermo, m1, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(thermo.data(), atom->thermo, m1, cudaMemcpyDeviceToHost));
     int N_fixed = (integrate->fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[integrate->fixed_group];
     double energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
@@ -105,7 +105,7 @@ void Measure::dump_thermos
     {
         fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
     }
-    fprintf(fid, "\n"); fflush(fid); MY_FREE(thermo);
+    fprintf(fid, "\n"); fflush(fid);
 }
 
 
@@ -114,9 +114,9 @@ void Measure::dump_velocities(FILE* fid, Atom *atom, int step)
     if (!dump_velocity) return;
     if ((step + 1) % sample_interval_velocity != 0) return;
     int memory = sizeof(double) * atom->N;
-    CHECK(cudaMemcpy(atom->cpu_vx, atom->vx, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vx.data(), atom->vx, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vy.data(), atom->vy, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vz.data(), atom->vz, memory, cudaMemcpyDeviceToHost));
     for (int n = 0; n < atom->N; n++)
     {
         fprintf
@@ -134,12 +134,12 @@ void Measure::dump_restarts(Atom *atom, int step)
     if (!dump_restart) return;
     if ((step + 1) % sample_interval_restart != 0) return;
     int memory = sizeof(double) * atom->N;
-    CHECK(cudaMemcpy(atom->cpu_x, atom->x, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_y, atom->y, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_z, atom->z, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vx, atom->vx, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vy, atom->vy, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vz, atom->vz, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_x.data(), atom->x, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_y.data(), atom->y, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_z.data(), atom->z, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vx.data(), atom->vx, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vy.data(), atom->vy, memory, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(atom->cpu_vz.data(), atom->vz, memory, cudaMemcpyDeviceToHost));
     fid_restart = my_fopen(file_restart, "w"); 
     fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
         atom->neighbor.rc, atom->box.triclinic, 1,
@@ -185,11 +185,11 @@ void Measure::process
     dump_thermos(fid_thermo, atom, integrate, step);
     dump_velocities(fid_velocity, atom, step);
     dump_restarts(atom, step);
-    compute.process(step, atom, integrate);
+    compute.process(step, integrate->ensemble->energy_transferred, atom);
     vac.process(step, atom);
     hac.process(step, input_dir, atom);
     shc.process(step, atom);
-    hnemd.process(step, input_dir, atom, integrate);
+    hnemd.process(step, input_dir, integrate->temperature2, atom);
     modal_analysis.process(step, atom, integrate, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);
 

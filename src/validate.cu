@@ -22,6 +22,7 @@ Use finite difference to validate the analytical force calculations.
 #include "validate.cuh"
 #include "force.cuh"
 #include "atom.cuh"
+#include "gpu_vector.cuh"
 #include "error.cuh"
 
 #define BLOCK_SIZE 128
@@ -31,25 +32,18 @@ Use finite difference to validate the analytical force calculations.
 #define DX2 2.0e-7
 
 
-// copy from xyz to xyz0
-static __global__ void copy_positions
-(int N, double *xi, double *yi, double *zi, double *xo, double *yo, double *zo)
-{
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < N)
-    {  
-        xo[n] = xi[n];
-        yo[n] = yi[n];
-        zo[n] = zi[n];  
-    }
-}
-
-
 // move one atom left or right
 static __global__ void shift_atom
 (
-    int d, int n, int direction, 
-    double *x0, double *y0, double *z0, double *x, double *y, double *z
+    const int d,
+    const int n,
+    const int direction,
+    const double *x0,
+    const double *y0,
+    const double *z0,
+    double *x,
+    double *y,
+    double *z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
@@ -93,7 +87,13 @@ static __global__ void shift_atom
 
 
 // get the total potential form the per-atom potentials
-static __global__ void sum_potential(int N, int m, double *p, double *p_sum)
+static __global__ void sum_potential
+(
+    const int N,
+    const int m,
+    const double *p,
+    double *p_sum
+)
 {
     int tid = threadIdx.x;
     int number_of_patches = (N - 1) / 1024 + 1; 
@@ -127,7 +127,14 @@ static __global__ void sum_potential(int N, int m, double *p, double *p_sum)
 
 // get the forces from the potential energies using finite difference
 static __global__ void find_force_from_potential
-(int N, double *p1, double *p2, double *fx, double *fy, double *fz)
+(
+    const int N,
+    const double *p1,
+    const double *p2,
+    double *fx,
+    double *fy,
+    double *fz
+)
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     int m;
@@ -141,7 +148,10 @@ static __global__ void find_force_from_potential
 
 
 void validate_force
-(Force *force, Atom *atom, Measure* measure)
+(
+    Force *force,
+    Atom *atom
+)
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
@@ -149,28 +159,21 @@ void validate_force
     double *x = atom->x;
     double *y = atom->y;
     double *z = atom->z;
-    double *fx;
-    double *fy;
-    double *fz;
-    MY_MALLOC(fx, double, N);
-    MY_MALLOC(fy, double, N);
-    MY_MALLOC(fz, double, N);
+    std::vector<double> fx(N);
+    std::vector<double> fy(N);
+    std::vector<double> fz(N);
 
     // first calculate the forces directly:
-    force->compute(atom, measure);
+    force->compute(atom);
 
     // make a copy of the positions
-    double *x0, *y0, *z0;
-    CHECK(cudaMalloc((void**)&x0, M));
-    CHECK(cudaMalloc((void**)&y0, M));
-    CHECK(cudaMalloc((void**)&z0, M));
-    copy_positions<<<grid_size, BLOCK_SIZE>>>(N, x, y, z, x0, y0, z0);
-    CUDA_CHECK_KERNEL
+    GPU_Vector<double> x0(N), y0(N), z0(N);
+    x0.copy_from_device(x);
+    y0.copy_from_device(y);
+    z0.copy_from_device(z);
 
     // get the potentials
-    double *p1, *p2;
-    CHECK(cudaMalloc((void**)&p1, M * 3));
-    CHECK(cudaMalloc((void**)&p2, M * 3));
+    GPU_Vector<double> p1(N * 3), p2(N * 3);
     for (int d = 0; d < 3; ++d)
     {
         for (int n = 0; n < N; ++n)
@@ -179,59 +182,96 @@ void validate_force
 
             // shift one atom to the left by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
-            (d, n, 1, x0, y0, z0, x, y, z);
+            (
+                d,
+                n,
+                1,
+                x0.data(),
+                y0.data(),
+                z0.data(),
+                x,
+                y,
+                z
+            );
             CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(atom, measure);
+            force->compute(atom);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p1);
+            sum_potential<<<1, 1024>>>
+            (
+                N,
+                m,
+                atom->potential_per_atom,
+                p1.data()
+            );
             CUDA_CHECK_KERNEL
 
             // shift one atom to the right by a small amount
             shift_atom<<<grid_size, BLOCK_SIZE>>>
-            (d, n, 2, x0, y0, z0, x, y, z);
+            (
+                d,
+                n,
+                2,
+                x0.data(),
+                y0.data(),
+                z0.data(),
+                x,
+                y,
+                z
+            );
             CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(atom, measure);
+            force->compute(atom);
 
             // sum up the potential energy
-            sum_potential<<<1, 1024>>>(N, m, atom->potential_per_atom, p2);
+            sum_potential<<<1, 1024>>>
+            (
+                N,
+                m,
+                atom->potential_per_atom,
+                p2.data()
+            );
             CUDA_CHECK_KERNEL
         }
     }
 
     // copy the positions back (as if nothing happens)
-    copy_positions<<<grid_size, BLOCK_SIZE>>>(N, x0, y0, z0, x, y, z);
-    CUDA_CHECK_KERNEL
+    x0.copy_to_device(x);
+    y0.copy_to_device(y);
+    z0.copy_to_device(z);
 
     // get the forces from the potential energies using finite difference
-    double *fx_compare, *fy_compare, *fz_compare;
-    CHECK(cudaMalloc((void**)&fx_compare, M));
-    CHECK(cudaMalloc((void**)&fy_compare, M));
-    CHECK(cudaMalloc((void**)&fz_compare, M));
+    GPU_Vector<double> fx_compare(N), fy_compare(N), fz_compare(N);
     find_force_from_potential<<<grid_size, BLOCK_SIZE>>>
-    (N, p1, p2, fx_compare, fy_compare, fz_compare);
+    (
+        N,
+        p1.data(),
+        p2.data(),
+        fx_compare.data(),
+        fy_compare.data(),
+        fz_compare.data()
+    );
     CUDA_CHECK_KERNEL
 
     // open file
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    CHECK(cudaMemcpy(fx, atom->fx, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy, atom->fy, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz, atom->fz, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fx.data(), atom->fx, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy.data(), atom->fy, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz.data(), atom->fz, M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
     }
  
     // output the forces from finite difference
-    CHECK(cudaMemcpy(fx, fx_compare, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy, fy_compare, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz, fz_compare, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fx.data(), fx_compare.data(), M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fy.data(), fy_compare.data(), M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(fz.data(), fz_compare.data(), M, cudaMemcpyDeviceToHost));
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
@@ -240,19 +280,6 @@ void validate_force
     // close file
     fflush(fid);
     fclose(fid); 
-    
-    // free memory
-    MY_FREE(fx);
-    MY_FREE(fy);
-    MY_FREE(fz);
-    CHECK(cudaFree(x0));
-    CHECK(cudaFree(y0));
-    CHECK(cudaFree(z0));
-    CHECK(cudaFree(p1));
-    CHECK(cudaFree(p2));
-    CHECK(cudaFree(fx_compare));
-    CHECK(cudaFree(fy_compare));
-    CHECK(cudaFree(fz_compare));
 }
 
 

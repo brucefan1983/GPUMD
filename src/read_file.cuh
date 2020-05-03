@@ -15,7 +15,6 @@
 
 
 #pragma once
-#include "common.cuh"
 
 
 char* get_file_contents(char*);

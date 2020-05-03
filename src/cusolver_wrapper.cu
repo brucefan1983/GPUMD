@@ -21,22 +21,33 @@ Some wrappers for the cuSOLVER library
 
 #include "cusolver_wrapper.cuh"
 #include "error.cuh"
+#include "gpu_vector.cuh"
 #include <cusolverDn.h>
+#include <vector>
 
 
-void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
+void eig_hermitian_QR
+(
+    size_t N,
+    double* AR,
+    double* AI,
+    double* W_cpu
+)
 {
     // get A
     size_t N2 = N * N;
-    cuDoubleComplex *A, *A_cpu; 
-    MY_MALLOC(A_cpu, cuDoubleComplex, N2);
-    CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * N2));
-    for (size_t n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
-    CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * N2, 
-        cudaMemcpyHostToDevice));
+    GPU_Vector<cuDoubleComplex> A(N2);
+    std::vector<cuDoubleComplex> A_cpu(N2);
+
+    for (size_t n = 0; n < N2; ++n)
+    {
+        A_cpu[n].x = AR[n];
+        A_cpu[n].y = AI[n];
+    }
+    A.copy_from_host(A_cpu.data());
 
     // define W
-    double* W; CHECK(cudaMalloc((void**)&W, sizeof(double) * N));
+    GPU_Vector<double> W(N);
 
     // get handle
     cusolverDnHandle_t handle = NULL;
@@ -46,39 +57,62 @@ void eig_hermitian_QR(size_t N, double* AR, double* AI, double* W_cpu)
 
     // get work
     int lwork = 0;
-    cusolverDnZheevd_bufferSize(handle, jobz, uplo, N, A, N, W, &lwork);
-    cuDoubleComplex* work;
-    CHECK(cudaMalloc((void**)&work, sizeof(cuDoubleComplex) * lwork));
+    cusolverDnZheevd_bufferSize
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N,
+        W.data(),
+        &lwork
+    );
+    GPU_Vector<cuDoubleComplex> work(lwork);
 
     // get W
-    int* info;
-    CHECK(cudaMalloc((void**)&info, sizeof(int)));
-    cusolverDnZheevd(handle, jobz, uplo, N, A, N, W, work, lwork, info);
-    cudaMemcpy(W_cpu, W, sizeof(double) * N, cudaMemcpyDeviceToHost);
+    GPU_Vector<int> info(1);
+    cusolverDnZheevd
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N,
+        W.data(),
+        work.data(),
+        lwork,
+        info.data()
+    );
+    W.copy_to_host(W_cpu);
 
     // free
     cusolverDnDestroy(handle);
-    MY_FREE(A_cpu);
-    CHECK(cudaFree(A));
-    CHECK(cudaFree(W));
-    CHECK(cudaFree(work));
-    CHECK(cudaFree(info));
 }
 
 
-void eig_hermitian_Jacobi(size_t N, double* AR, double* AI, double* W_cpu)
+void eig_hermitian_Jacobi
+(
+    size_t N,
+    double* AR,
+    double* AI,
+    double* W_cpu
+)
 {
     // get A
     size_t N2 = N * N;
-    cuDoubleComplex *A, *A_cpu; 
-    MY_MALLOC(A_cpu, cuDoubleComplex, N2);
-    CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * N2));
-    for (size_t n = 0; n < N2; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
-    CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * N2, 
-        cudaMemcpyHostToDevice));
+    GPU_Vector<cuDoubleComplex> A(N2);
+    std::vector<cuDoubleComplex> A_cpu(N2);
+    for (size_t n = 0; n < N2; ++n)
+    {
+        A_cpu[n].x = AR[n];
+        A_cpu[n].y = AI[n];
+    }
+    A.copy_from_host(A_cpu.data());
 
     // define W
-    double* W; CHECK(cudaMalloc((void**)&W, sizeof(double) * N));
+    GPU_Vector<double> W(N);
 
     // get handle
     cusolverDnHandle_t handle = NULL;
@@ -92,38 +126,58 @@ void eig_hermitian_Jacobi(size_t N, double* AR, double* AI, double* W_cpu)
 
     // get work
     int lwork = 0;
-    cusolverDnZheevj_bufferSize(handle, jobz, uplo, N, A, N, W, &lwork, para);
-    cuDoubleComplex* work;
-    CHECK(cudaMalloc((void**)&work, sizeof(cuDoubleComplex) * lwork));
+    cusolverDnZheevj_bufferSize
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N,
+        W.data(),
+        &lwork,
+        para
+    );
+    GPU_Vector<cuDoubleComplex> work(lwork);
 
     // get W
-    int* info;
-    CHECK(cudaMalloc((void**)&info, sizeof(int)));
-    cusolverDnZheevj(handle, jobz, uplo, N, A, N, W, work, lwork, info, para);
-    CHECK(cudaMemcpy(W_cpu, W, sizeof(double) * N, cudaMemcpyDeviceToHost));
+    GPU_Vector<int> info(1);
+    cusolverDnZheevj
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N, W.data(),
+        work.data(),
+        lwork,
+        info.data(),
+        para
+    );
+    W.copy_to_host(W_cpu);
 
     // free
     cusolverDnDestroy(handle);
     cusolverDnDestroySyevjInfo(para);
-    MY_FREE(A_cpu);
-    CHECK(cudaFree(A));
-    CHECK(cudaFree(W));
-    CHECK(cudaFree(work));
-    CHECK(cudaFree(info));
 }
 
 
 void eigenvectors_symmetric_Jacobi
-(size_t N, double* A_cpu, double* W_cpu, double* eigenvectors_cpu)
+(
+    size_t N,
+    double* A_cpu,
+    double* W_cpu,
+    double* eigenvectors_cpu
+)
 {
     // get A
     size_t N2 = N * N;
-    double *A; 
-    CHECK(cudaMalloc((void**)&A, sizeof(double) * N2));
-    CHECK(cudaMemcpy(A, A_cpu, sizeof(double) * N2, cudaMemcpyHostToDevice));
+    GPU_Vector<double> A(N2);
+    A.copy_from_host(A_cpu);
 
     // define W
-    double* W; CHECK(cudaMalloc((void**)&W, sizeof(double) * N));
+    GPU_Vector<double> W(N);
 
     // get handle
     cusolverDnHandle_t handle = NULL;
@@ -137,42 +191,67 @@ void eigenvectors_symmetric_Jacobi
 
     // get work
     int lwork = 0;
-    cusolverDnDsyevj_bufferSize(handle, jobz, uplo, N, A, N, W, &lwork, para);
-    double* work;
-    CHECK(cudaMalloc((void**)&work, sizeof(double) * lwork));
+    cusolverDnDsyevj_bufferSize
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N,
+        W.data(),
+        &lwork,
+        para
+    );
+    GPU_Vector<double> work(lwork);
 
     // get W
-    int* info;
-    CHECK(cudaMalloc((void**)&info, sizeof(int)));
-    cusolverDnDsyevj(handle, jobz, uplo, N, A, N, W, work, lwork, info, para);
-    CHECK(cudaMemcpy(W_cpu, W, sizeof(double) * N, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(eigenvectors_cpu, A, sizeof(double)*N*N, 
-        cudaMemcpyDeviceToHost));
+    GPU_Vector<int> info(1);
+    cusolverDnDsyevj
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N,
+        W.data(),
+        work.data(),
+        lwork,
+        info.data(),
+        para
+    );
+    W.copy_to_host(W_cpu);
+    A.copy_to_host(eigenvectors_cpu);
 
     // free
     cusolverDnDestroy(handle);
     cusolverDnDestroySyevjInfo(para);
-    CHECK(cudaFree(W));
-    CHECK(cudaFree(A));
-    CHECK(cudaFree(work));
-    CHECK(cudaFree(info));
 }
 
 
 void eig_hermitian_Jacobi_batch
-(size_t N, size_t batch_size, double* AR, double* AI, double* W_cpu)
+(
+    size_t N,
+    size_t batch_size,
+    double* AR,
+    double* AI,
+    double* W_cpu
+)
 {
     // get A
     size_t M = N * N * batch_size;
-    cuDoubleComplex *A, *A_cpu; 
-    MY_MALLOC(A_cpu, cuDoubleComplex, M);
-    CHECK(cudaMalloc((void**)&A, sizeof(cuDoubleComplex) * M));
-    for (size_t n = 0; n < M; ++n) { A_cpu[n].x = AR[n]; A_cpu[n].y = AI[n]; }
-    CHECK(cudaMemcpy(A, A_cpu, sizeof(cuDoubleComplex) * M, 
-        cudaMemcpyHostToDevice));
+    GPU_Vector<cuDoubleComplex> A(M);
+    std::vector<cuDoubleComplex> A_cpu(M);
+    for (size_t n = 0; n < M; ++n)
+    {
+        A_cpu[n].x = AR[n];
+        A_cpu[n].y = AI[n];
+    }
+    A.copy_from_host(A_cpu.data());
 
     // define W
-    double* W; CHECK(cudaMalloc((void**)&W, sizeof(double) * N * batch_size));
+    GPU_Vector<double> W(N * batch_size);
 
     // get handle
     cusolverDnHandle_t handle = NULL;
@@ -187,25 +266,42 @@ void eig_hermitian_Jacobi_batch
     // get work
     int lwork = 0;
     cusolverDnZheevjBatched_bufferSize
-    (handle, jobz, uplo, N, A, N, W, &lwork, para, batch_size);
-    cuDoubleComplex* work;
-    CHECK(cudaMalloc((void**)&work, sizeof(cuDoubleComplex) * lwork));
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N,
+        W.data(),
+        &lwork,
+        para,
+        batch_size
+    );
+    GPU_Vector<cuDoubleComplex> work(lwork);
 
     // get W
-    int* info;
-    CHECK(cudaMalloc((void**)&info, sizeof(int) * batch_size));
+    GPU_Vector<int> info(batch_size);
     cusolverDnZheevjBatched
-    (handle, jobz, uplo, N, A, N, W, work, lwork, info, para, batch_size);
-    cudaMemcpy(W_cpu, W, sizeof(double)*N*batch_size, cudaMemcpyDeviceToHost);
+    (
+        handle,
+        jobz,
+        uplo,
+        N,
+        A.data(),
+        N,
+        W.data(),
+        work.data(),
+        lwork,
+        info.data(),
+        para,
+        batch_size
+    );
+    W.copy_to_host(W_cpu);
 
     // free
     cusolverDnDestroy(handle);
     cusolverDnDestroySyevjInfo(para);
-    MY_FREE(A_cpu);
-    CHECK(cudaFree(A));
-    CHECK(cudaFree(W));
-    CHECK(cudaFree(work));
-    CHECK(cudaFree(info));
 }
 
 

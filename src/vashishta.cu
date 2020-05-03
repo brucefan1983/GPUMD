@@ -16,7 +16,6 @@
 
 #include "vashishta.cuh"
 #include "mic.cuh"
-#include "measure.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_VASHISHTA 64
@@ -88,26 +87,18 @@ void Vashishta::initialize_para(FILE *fid)
 Vashishta::Vashishta(FILE *fid, Atom* atom)
 {
     initialize_para(fid);
-
     int num = (atom->neighbor.MN < 100) ? atom->neighbor.MN : 100;
-    int memory = sizeof(double) * atom->N * num;
-    CHECK(cudaMalloc((void**)&vashishta_data.f12x, memory));
-    CHECK(cudaMalloc((void**)&vashishta_data.f12y, memory));
-    CHECK(cudaMalloc((void**)&vashishta_data.f12z, memory));
-    memory = sizeof(int) * atom->N;
-    CHECK(cudaMalloc((void**)&vashishta_data.NN_short, memory));
-    memory = sizeof(int) * atom->N * num;
-    CHECK(cudaMalloc((void**)&vashishta_data.NL_short, memory));
+    vashishta_data.f12x.resize(atom->N * num);
+    vashishta_data.f12y.resize(atom->N * num);
+    vashishta_data.f12z.resize(atom->N * num);
+    vashishta_data.NN_short.resize(atom->N);
+    vashishta_data.NL_short.resize(atom->N * num);
 }
 
 
 Vashishta::~Vashishta(void)
 {
-    CHECK(cudaFree(vashishta_data.f12x));
-    CHECK(cudaFree(vashishta_data.f12y));
-    CHECK(cudaFree(vashishta_data.f12z));
-    CHECK(cudaFree(vashishta_data.NN_short));
-    CHECK(cudaFree(vashishta_data.NL_short));
+    // nothing
 }
 
 
@@ -199,9 +190,9 @@ static __global__ void gpu_find_force_vashishta_2body
     {
         int neighbor_number = g_NN[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         
         int count = 0; // initialize g_NN_local[n1] to 0
 
@@ -209,9 +200,9 @@ static __global__ void gpu_find_force_vashishta_2body
         {   
             int n2 = g_NL[n1 + number_of_particles * i1];
             
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             if (d12 >= vas.rc) { continue; }
@@ -301,9 +292,9 @@ static __global__ void gpu_find_force_vashishta_partial
     {
         int neighbor_number = g_neighbor_number[n1];
         int type1 = g_type[n1] - shift;
-        double x1 = LDG(g_x, n1); 
-        double y1 = LDG(g_y, n1); 
-        double z1 = LDG(g_z, n1);
+        double x1 = g_x[n1];
+        double y1 = g_y[n1];
+        double z1 = g_z[n1];
         double potential_energy = ZERO;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
@@ -312,9 +303,9 @@ static __global__ void gpu_find_force_vashishta_partial
             int n2 = g_neighbor_list[index];
             int type2 = g_type[n2] - shift;
 
-            double x12  = LDG(g_x, n2) - x1;
-            double y12  = LDG(g_y, n2) - y1;
-            double z12  = LDG(g_z, n2) - z1;
+            double x12  = g_x[n2] - x1;
+            double y12  = g_y[n2] - y1;
+            double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = ONE / d12;
@@ -331,9 +322,9 @@ static __global__ void gpu_find_force_vashishta_partial
                 if (type3 != type2) { continue; } // exclude AAB, BBA, ABA, BAB
                 if (type3 == type1) { continue; } // exclude AAA, BBB
 
-                double x13 = LDG(g_x, n3) - x1;
-                double y13 = LDG(g_y, n3) - y1;
-                double z13 = LDG(g_z, n3) - z1;
+                double x13 = g_x[n3] - x1;
+                double y13 = g_y[n3] - y1;
+                double z13 = g_z[n3] - z1;
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
@@ -370,7 +361,7 @@ static __global__ void gpu_find_force_vashishta_partial
 
 
 // Find force and related quantities for the Vashishta potential (A wrapper)
-void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
+void Vashishta::compute(Atom *atom, int potential_number)
 {
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
     int shift = atom->shift[potential_number];
@@ -378,27 +369,60 @@ void Vashishta::compute(Atom *atom, Measure *measure, int potential_number)
     // 2-body part
     gpu_find_force_vashishta_2body<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        atom->N, N1, N2, atom->box, vashishta_para, atom->NN_local,
-        atom->NL_local, vashishta_data.NN_short, vashishta_data.NL_short,
-        atom->type, shift, atom->x, atom->y, atom->z,
-        atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,
-        atom->fz, atom->virial_per_atom, atom->potential_per_atom
+        atom->N,
+        N1,
+        N2,
+        atom->box,
+        vashishta_para,
+        atom->NN_local,
+        atom->NL_local,
+        vashishta_data.NN_short.data(),
+        vashishta_data.NL_short.data(),
+        atom->type,
+        shift,
+        atom->x,
+        atom->y,
+        atom->z,
+        atom->vx,
+        atom->vy,
+        atom->vz,
+        atom->fx,
+        atom->fy,
+        atom->fz,
+        atom->virial_per_atom,
+        atom->potential_per_atom
     );
     CUDA_CHECK_KERNEL
 
     // 3-body part
     gpu_find_force_vashishta_partial<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        atom->N, N1, N2, atom->box, vashishta_para, vashishta_data.NN_short,
-        vashishta_data.NL_short, atom->type, shift, atom->x, atom->y, atom->z,
-        atom->potential_per_atom, vashishta_data.f12x, 
-        vashishta_data.f12y, vashishta_data.f12z
+        atom->N,
+        N1,
+        N2,
+        atom->box,
+        vashishta_para,
+        vashishta_data.NN_short.data(),
+        vashishta_data.NL_short.data(),
+        atom->type,
+        shift,
+        atom->x,
+        atom->y,
+        atom->z,
+        atom->potential_per_atom,
+        vashishta_data.f12x.data(),
+        vashishta_data.f12y.data(),
+        vashishta_data.f12z.data()
     );
     CUDA_CHECK_KERNEL
     find_properties_many_body
     (
-        atom, vashishta_data.NN_short, vashishta_data.NL_short,
-        vashishta_data.f12x, vashishta_data.f12y, vashishta_data.f12z
+        atom,
+        vashishta_data.NN_short.data(),
+        vashishta_data.NL_short.data(),
+        vashishta_data.f12x.data(),
+        vashishta_data.f12y.data(),
+        vashishta_data.f12z.data()
     );
 }
 
