@@ -16,6 +16,7 @@
 
 #pragma once
 #include <vector>
+#include <stdio.h>
 
 class Atom;
 class Force;
