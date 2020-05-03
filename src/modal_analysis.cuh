@@ -26,6 +26,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #include <string>
 #include <iostream>
 #include <sstream>
+#include "gpu_vector.cuh"
 
 #define NO_METHOD -1
 #define GKMA_METHOD 0
@@ -36,42 +37,42 @@ class MODAL_ANALYSIS
 public:
     // Bookkeeping variables
     int compute = 0;
-    int method = NO_METHOD; // Method to compute
-    int output_interval;    // number of times steps to output average heat current
-    int sample_interval;    // steps per heat current computation
-    int first_mode;         // first mode to consider
-    int last_mode;          // last mode to consider
-    int bin_size;           // number of modes per bin
-    double f_bin_size;        // freq. range per bin (THz)
-    int f_flag;             // 0 -> modes, 1 -> freq.
-    int num_modes;          // total number of modes to consider
-    int atom_begin;         // Beginning atom group/type
-    int atom_end;           // End atom group/type
+    int method = NO_METHOD;     // Method to compute
+    int output_interval;        // number of times steps to output average heat current
+    int sample_interval;        // steps per heat current computation
+    int first_mode;             // first mode to consider
+    int last_mode;              // last mode to consider
+    int bin_size;               // number of modes per bin
+    double f_bin_size;          // freq. range per bin (THz)
+    int f_flag;                 // 0 -> modes, 1 -> freq.
+    int num_modes;              // total number of modes to consider
+    int atom_begin;             // Beginning atom group/type
+    int atom_end;               // End atom group/type
 
-    // Data variables
-    float* eig_x;            // eigenvectors x
-    float* eig_y;            // eigenvectors y
-    float* eig_z;            // eigenvectors z
+    // Data structures
+    // eigenvectors x,y, and z
+    GPU_Vector<float> eigx;
+    GPU_Vector<float> eigy;
+    GPU_Vector<float> eigz;
 
-    float* xdot_x;           // modal velocities
-    float* xdot_y;
-    float* xdot_z;
+    // modal velocities
+    GPU_Vector<float> xdotx;
+    GPU_Vector<float> xdoty;
+    GPU_Vector<float> xdotz;
 
-    float* sqrtmass;         // precalculated mass values
-    float* rsqrtmass;
+    // precalculated mass values
+    GPU_Vector<float> sqrtmass;
+    GPU_Vector<float> rsqrtmass;
 
-    float* jmx;
-    float* jmy;
-    float* jmz;
-    float* jm;
+    // modal heat currents
+    GPU_Vector<float> jmx;
+    GPU_Vector<float> jmy;
+    GPU_Vector<float> jmz;
+    GPU_Vector<float> jm;
 
-    float* smx;               // stress by by square root mass
-    float* smy;
-    float* smz;
-
-    float* bin_out;          // modal binning structure
-    int* bin_count;          // Number of modes per bin when f_flag=1
-    int* bin_sum;            // Running sum from bin_count
+    GPU_Vector<float> bin_out;  // modal binning structure
+    GPU_Vector<int> bin_count;  // Number of modes per bin when f_flag=1
+    GPU_Vector<int> bin_sum;    // Running sum from bin_count
 
     char eig_file_position[FILE_NAME_LENGTH];
     char output_file_position[FILE_NAME_LENGTH];
@@ -87,12 +88,19 @@ private:
     int N2;                  // Atom ending index
     int num_participating;   // Number of particles participating
     int num_heat_stored;     // Number of stored heat current elements
-    float* mv_x;             // sqrt(mass)*velocity intermediate variable
-    float* mv_y;
-    float* mv_z;
+
+    // stress by by square root mass (intermediate term)
+    GPU_Vector<float> smx;
+    GPU_Vector<float> smy;
+    GPU_Vector<float> smz;
+
+    // sqrt(mass)*velocity (intermediate term)
+    GPU_Vector<float> mvx;
+    GPU_Vector<float> mvy;
+    GPU_Vector<float> mvz;
 
     void compute_heat(Atom*);
     void setN(Atom*);
-    void set_eigmode(int, std::ifstream&, float*);
+    void set_eigmode(int, std::ifstream&, GPU_Vector<float>&);
 
 };
