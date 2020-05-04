@@ -31,8 +31,6 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #include "modal_analysis.cuh"
 #include "error.cuh"
-#include <cublas_v2.h>
-
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128
@@ -303,29 +301,26 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
     );
     CUDA_CHECK_KERNEL
 
-    cublasHandle_t handle;
-    cublasCreate(&handle);
-
     const float alpha = 1.0;
     const float beta = 0.0;
     int stride = 1;
 
     // Calculate modal velocities
-    cublasSgemv(handle, CUBLAS_OP_N,
+    cublasSgemv(ma_handle, CUBLAS_OP_N,
             num_modes, num_participating,
             &alpha,
             eigx.data(), num_modes,
             mvx.data(), stride,
             &beta,
             xdotx.data(),stride);
-    cublasSgemv(handle, CUBLAS_OP_N,
+    cublasSgemv(ma_handle, CUBLAS_OP_N,
             num_modes, num_participating,
             &alpha,
             eigy.data(), num_modes,
             mvy.data(), stride,
             &beta,
             xdoty.data(), stride);
-    cublasSgemv(handle, CUBLAS_OP_N,
+    cublasSgemv(ma_handle, CUBLAS_OP_N,
             num_modes, num_participating,
             &alpha,
             eigz.data(), num_modes,
@@ -335,7 +330,7 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
 
     // Calculate intermediate value
     // (i.e. heat current without modal velocities)
-    cublasSgemm(handle,
+    cublasSgemm(ma_handle,
             CUBLAS_OP_N, CUBLAS_OP_N,
             num_modes, 3, num_participating,
             &alpha,
@@ -343,7 +338,7 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
             smx.data(), num_participating,
             &beta,
             jmx.data(), num_modes);
-    cublasSgemm(handle,
+    cublasSgemm(ma_handle,
             CUBLAS_OP_N, CUBLAS_OP_N,
             num_modes, 3, num_participating,
             &alpha,
@@ -351,7 +346,7 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
             smy.data(), num_participating,
             &beta,
             jmy.data(), num_modes);
-    cublasSgemm(handle,
+    cublasSgemm(ma_handle,
             CUBLAS_OP_N, CUBLAS_OP_N,
             num_modes, 3, num_participating,
             &alpha,
@@ -361,23 +356,21 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
             jmz.data(), num_modes);
 
     // calculate modal heat current
-    cublasSdgmm(handle, CUBLAS_SIDE_LEFT,
+    cublasSdgmm(ma_handle, CUBLAS_SIDE_LEFT,
             num_modes, 3,
             jmx.data(), num_modes,
             xdotx.data(), stride,
             jmx.data(), num_modes);
-    cublasSdgmm(handle, CUBLAS_SIDE_LEFT,
+    cublasSdgmm(ma_handle, CUBLAS_SIDE_LEFT,
             num_modes, 3,
             jmy.data(), num_modes,
             xdoty.data(), stride,
             jmy.data(), num_modes);
-    cublasSdgmm(handle, CUBLAS_SIDE_LEFT,
+    cublasSdgmm(ma_handle, CUBLAS_SIDE_LEFT,
             num_modes, 3,
             jmz.data(), num_modes,
             xdotz.data(), stride,
             jmz.data(), num_modes);
-
-    cublasDestroy(handle);
 
     // Prepare modal heat current for jxi, jxo, jyi, jyo, jz format
     grid_size = (num_modes - 1) / BLOCK_SIZE + 1;
@@ -561,6 +554,8 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
             sqrtmass.data(), rsqrtmass.data()
         );
         CUDA_CHECK_KERNEL
+
+        cublasCreate(&ma_handle);
 }
 
 void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double fe)
@@ -617,5 +612,5 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double 
 
 void MODAL_ANALYSIS::postprocess()
 {
-    // do nothing
+    cublasDestroy(ma_handle);
 }

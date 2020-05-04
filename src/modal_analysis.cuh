@@ -27,6 +27,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #include <iostream>
 #include <sstream>
 #include "gpu_vector.cuh"
+#include <cublas_v2.h>
 
 #define NO_METHOD -1
 #define GKMA_METHOD 0
@@ -88,6 +89,8 @@ private:
     int N2;                  // Atom ending index
     int num_participating;   // Number of particles participating
     int num_heat_stored;     // Number of stored heat current elements
+
+    cublasHandle_t ma_handle;
 
     // stress by by square root mass (intermediate term)
     GPU_Vector<float> smx;
