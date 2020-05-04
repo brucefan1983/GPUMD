@@ -48,7 +48,7 @@ Force::Force(void)
         potential[m] = NULL;
     }
     num_of_potentials = 0;
-    rc_max = ZERO;
+    rc_max = 0.0;
     group_method = -1;
 }
 
@@ -494,7 +494,7 @@ static __global__ void gpu_sum_force
     int bid = blockIdx.x;
     int number_of_patches = (N - 1) / 1024 + 1; 
     __shared__ double s_f[1024];
-    double f = ZERO;
+    double f = 0.0;
 
     switch (bid)
     {
@@ -561,19 +561,19 @@ static __global__ void initialize_properties
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;
     if (n1 < N)
     {
-        g_fx[n1] = ZERO;
-        g_fy[n1] = ZERO;
-        g_fz[n1] = ZERO;
-        g_pe[n1] = ZERO;
-        g_virial[n1 + 0 * N] = ZERO;
-        g_virial[n1 + 1 * N] = ZERO;
-        g_virial[n1 + 2 * N] = ZERO;
-        g_virial[n1 + 3 * N] = ZERO;
-        g_virial[n1 + 4 * N] = ZERO;
-        g_virial[n1 + 5 * N] = ZERO;
-        g_virial[n1 + 6 * N] = ZERO;
-        g_virial[n1 + 7 * N] = ZERO;
-        g_virial[n1 + 8 * N] = ZERO;
+        g_fx[n1] = 0.0;
+        g_fy[n1] = 0.0;
+        g_fz[n1] = 0.0;
+        g_pe[n1] = 0.0;
+        g_virial[n1 + 0 * N] = 0.0;
+        g_virial[n1 + 1 * N] = 0.0;
+        g_virial[n1 + 2 * N] = 0.0;
+        g_virial[n1 + 3 * N] = 0.0;
+        g_virial[n1 + 4 * N] = 0.0;
+        g_virial[n1 + 5 * N] = 0.0;
+        g_virial[n1 + 6 * N] = 0.0;
+        g_virial[n1 + 7 * N] = 0.0;
+        g_virial[n1 + 8 * N] = 0.0;
     }
 }
 

@@ -195,16 +195,16 @@ static __global__ void gpu_find_vac
     __shared__ double s_vac_x[BLOCK_SIZE];
     __shared__ double s_vac_y[BLOCK_SIZE];
     __shared__ double s_vac_z[BLOCK_SIZE];
-    double vac_x = ZERO;
-    double vac_y = ZERO;
-    double vac_z = ZERO;
+    double vac_x = 0.0;
+    double vac_y = 0.0;
+    double vac_z = 0.0;
 
     for (int round = 0; round < number_of_rounds; ++round)
     {
         int n = tid + round * BLOCK_SIZE;
         if (n < N)
         {
-            double mass = compute_dos ? g_mass[n] : ONE;
+            double mass = compute_dos ? g_mass[n] : 1.0;
             vac_x += mass * g_vx[n] * g_vx_all[size_sum + n];
             vac_y += mass * g_vy[n] * g_vy_all[size_sum + n];
             vac_z += mass * g_vz[n] * g_vz_all[size_sum + n];

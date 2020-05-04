@@ -128,11 +128,11 @@ static __device__ void find_phi
     double tmp2 = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
     tmp2 *= tmp2; // 4
     tmp2 *= tmp2 * tmp2 * tmp2 * tmp2; // 20    
-    double phi1 = HALF * eam.A * exp(-eam.alpha * (r_ratio - ONE)) / (ONE + tmp1);
-    double phi2 = HALF * eam.B * exp( -eam.beta * (r_ratio - ONE)) / (ONE + tmp2);
+    double phi1 = 0.5 * eam.A * exp(-eam.alpha * (r_ratio - 1.0)) / (1.0 + tmp1);
+    double phi2 = 0.5 * eam.B * exp( -eam.beta * (r_ratio - 1.0)) / (1.0 + tmp2);
     phi = phi1 - phi2;
-    phip = (phi2/eam.re)*(eam.beta+20.0*tmp2/(r_ratio-eam.lambda)/(ONE+tmp2))
-         - (phi1/eam.re)*(eam.alpha+20.0*tmp1/(r_ratio-eam.kappa)/(ONE+tmp1));
+    phip = (phi2/eam.re)*(eam.beta+20.0*tmp2/(r_ratio-eam.lambda)/(1.0+tmp2))
+         - (phi1/eam.re)*(eam.alpha+20.0*tmp1/(r_ratio-eam.kappa)/(1.0+tmp1));
 }
 
 
@@ -143,7 +143,7 @@ static __device__ void find_f(EAM2004Zhou eam, double d12, double &f)
     double tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
     tmp *= tmp; // 4
     tmp *= tmp * tmp * tmp * tmp; // 20  
-    f = eam.fe * exp(-eam.beta * (r_ratio - ONE)) / (ONE + tmp);
+    f = eam.fe * exp(-eam.beta * (r_ratio - 1.0)) / (1.0 + tmp);
 }
 
 
@@ -154,8 +154,8 @@ static __device__ void find_fp(EAM2004Zhou eam, double d12, double &fp)
     double tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
     tmp *= tmp; // 4
     tmp *= tmp * tmp * tmp * tmp; // 20  
-    double f = eam.fe * exp(-eam.beta * (r_ratio - ONE)) / (ONE + tmp);
-    fp = -(f/eam.re)*(eam.beta+20.0*tmp/(r_ratio-eam.lambda)/(ONE+tmp));
+    double f = eam.fe * exp(-eam.beta * (r_ratio - 1.0)) / (1.0 + tmp);
+    fp = -(f/eam.re)*(eam.beta+20.0*tmp/(r_ratio-eam.lambda)/(1.0+tmp));
 }
 
 
@@ -164,21 +164,21 @@ static __device__ void find_F(EAM2004Zhou eam, double rho, double &F, double &Fp
 {      
     if (rho < eam.rho_n)
     {
-        double x = rho / eam.rho_n - ONE;
+        double x = rho / eam.rho_n - 1.0;
         F = ((eam.Fn3 * x + eam.Fn2) * x + eam.Fn1) * x + eam.Fn0;
-        Fp = ((THREE * eam.Fn3 * x + TWO * eam.Fn2) * x + eam.Fn1) / eam.rho_n;
+        Fp = ((3.0 * eam.Fn3 * x + 2.0 * eam.Fn2) * x + eam.Fn1) / eam.rho_n;
     }
     else if (rho < eam.rho_0)
     {
-        double x = rho / eam.rho_e - ONE;
+        double x = rho / eam.rho_e - 1.0;
         F = ((eam.F3 * x + eam.F2) * x + eam.F1) * x + eam.F0;
-        Fp = ((THREE * eam.F3 * x + TWO * eam.F2) * x + eam.F1) / eam.rho_e;
+        Fp = ((3.0 * eam.F3 * x + 2.0 * eam.F2) * x + eam.F1) / eam.rho_e;
     }
     else
     {
         double x = rho / eam.rho_s;
         double x_eta = pow(x, eam.eta);
-        F = eam.Fe * (ONE - eam.eta * log(x)) * x_eta;
+        F = eam.Fe * (1.0 - eam.eta * log(x)) * x_eta;
         Fp = (eam.eta / rho) * (F - eam.Fe * x_eta);
     }
 }
@@ -189,19 +189,19 @@ static __device__ void find_phi(EAM2006Dai fs, double d12, double &phi, double &
 {
     if (d12 > fs.c)
     {
-        phi = ZERO;
-        phip = ZERO;
+        phi = 0.0;
+        phip = 0.0;
     }
     else
     {
         double tmp=((((fs.c4*d12 + fs.c3)*d12 + fs.c2)*d12 + fs.c1)*d12 + fs.c0);
         
-        phi = HALF * (d12 - fs.c) * (d12 - fs.c) * tmp;
+        phi = 0.5 * (d12 - fs.c) * (d12 - fs.c) * tmp;
         
-        phip = TWO * (d12 - fs.c) * tmp;
-        phip += (((FOUR*fs.c4*d12 + THREE*fs.c3)*d12 + TWO*fs.c2)*d12 + fs.c1)
+        phip = 2.0 * (d12 - fs.c) * tmp;
+        phip += (((4.0*fs.c4*d12 + 3.0*fs.c3)*d12 + 2.0*fs.c2)*d12 + fs.c1)
               * (d12 - fs.c) * (d12 - fs.c);
-        phip *= HALF;
+        phip *= 0.5;
     }
 }
 
@@ -211,7 +211,7 @@ static __device__ void find_f(EAM2006Dai fs, double d12, double &f)
 {
     if (d12 > fs.d)
     {
-        f = ZERO;
+        f = 0.0;
     }
     else
     {
@@ -226,12 +226,12 @@ static __device__ void find_fp(EAM2006Dai fs, double d12, double &fp)
 {
     if (d12 > fs.d)
     {
-        fp = ZERO;
+        fp = 0.0;
     }
     else 
     {
-        double tmp = TWO * (d12 - fs.d);
-        fp = tmp * (ONE + fs.B * fs.B * tmp * (d12 - fs.d));
+        double tmp = 2.0 * (d12 - fs.d);
+        fp = tmp * (1.0 + fs.B * fs.B * tmp * (d12 - fs.d));
     }
 }
 
@@ -241,7 +241,7 @@ static __device__ void find_F(EAM2006Dai fs, double rho, double &F, double &Fp)
 {      
     double sqrt_rho = sqrt(rho);
     F = -fs.A * sqrt_rho;
-    Fp = -fs.A * HALF / sqrt_rho;
+    Fp = -fs.A * 0.5 / sqrt_rho;
 }
 
 
@@ -269,7 +269,7 @@ static __global__ void find_force_eam_step1
         double z1 = g_z[n1];
           
         // Calculate the density
-        double rho = ZERO;
+        double rho = 0.0;
         for (int i1 = 0; i1 < NN; ++i1)
         {      
             int n2 = g_NL[n1 + N * i1];
@@ -278,7 +278,7 @@ static __global__ void find_force_eam_step1
             double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
-            double rho12 = ZERO;
+            double rho12 = 0.0;
             if (potential_model == 0) 
             {
                 find_f(eam2004zhou, d12, rho12);
@@ -320,19 +320,19 @@ static __global__ void find_force_eam_step2
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    double s_fx = ZERO; // force_x
-    double s_fy = ZERO; // force_y
-    double s_fz = ZERO; // force_z
-    double s_pe = ZERO; // potential energy
-    double s_sxx = ZERO; // virial_stress_xx
-    double s_sxy = ZERO; // virial_stress_xy
-    double s_sxz = ZERO; // virial_stress_xz
-    double s_syx = ZERO; // virial_stress_yx
-    double s_syy = ZERO; // virial_stress_yy
-    double s_syz = ZERO; // virial_stress_yz
-    double s_szx = ZERO; // virial_stress_zx
-    double s_szy = ZERO; // virial_stress_zy
-    double s_szz = ZERO; // virial_stress_zz
+    double s_fx = 0.0; // force_x
+    double s_fy = 0.0; // force_y
+    double s_fz = 0.0; // force_z
+    double s_pe = 0.0; // potential energy
+    double s_sxx = 0.0; // virial_stress_xx
+    double s_sxy = 0.0; // virial_stress_xy
+    double s_sxz = 0.0; // virial_stress_xz
+    double s_syx = 0.0; // virial_stress_yx
+    double s_syy = 0.0; // virial_stress_yy
+    double s_syz = 0.0; // virial_stress_yz
+    double s_szx = 0.0; // virial_stress_zx
+    double s_szy = 0.0; // virial_stress_zy
+    double s_szz = 0.0; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {  

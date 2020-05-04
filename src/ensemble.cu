@@ -52,18 +52,18 @@ static __global__ void gpu_velocity_verlet_1
     if (i < number_of_particles)
     {
         double time_step = g_time_step;
-        double time_step_half = time_step * HALF;
+        double time_step_half = time_step * 0.5;
         double x  = g_x[i];  double y  = g_y[i];  double z  = g_z[i];
         double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = ONE / g_mass[i];
+        double mass_inv = 1.0 / g_mass[i];
         double ax = g_fx[i] * mass_inv;
         double ay = g_fy[i] * mass_inv;
         double az = g_fz[i] * mass_inv;
         if (group_id[i] == fixed_group)
         {
-            vx = ZERO;
-            vy = ZERO;
-            vz = ZERO;
+            vx = 0.0;
+            vy = 0.0;
+            vz = 0.0;
         }
         else
         {
@@ -91,10 +91,10 @@ static __global__ void gpu_velocity_verlet_1
     if (i < number_of_particles)
     {
         double time_step = g_time_step;
-        double time_step_half = time_step * HALF;
+        double time_step_half = time_step * 0.5;
         double x  = g_x[i];  double y  = g_y[i];  double z  = g_z[i];
         double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = ONE / g_mass[i];
+        double mass_inv = 1.0 / g_mass[i];
         double ax = g_fx[i] * mass_inv;
         double ay = g_fy[i] * mass_inv;
         double az = g_fz[i] * mass_inv;
@@ -145,17 +145,17 @@ static __global__ void gpu_velocity_verlet_2
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        double time_step_half = g_time_step * HALF;
+        double time_step_half = g_time_step * 0.5;
         double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = ONE / g_mass[i];
+        double mass_inv = 1.0 / g_mass[i];
         double ax = g_fx[i] * mass_inv;
         double ay = g_fy[i] * mass_inv;
         double az = g_fz[i] * mass_inv;
         if (group_id[i] == fixed_group)
         {
-            vx = ZERO;
-            vy = ZERO;
-            vz = ZERO;
+            vx = 0.0;
+            vy = 0.0;
+            vz = 0.0;
         }
         else
         {
@@ -180,9 +180,9 @@ static __global__ void gpu_velocity_verlet_2
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        double time_step_half = g_time_step * HALF;
+        double time_step_half = g_time_step * 0.5;
         double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = ONE / g_mass[i];
+        double mass_inv = 1.0 / g_mass[i];
         double ax = g_fx[i] * mass_inv;
         double ay = g_fy[i] * mass_inv;
         double az = g_fz[i] * mass_inv;
@@ -247,7 +247,7 @@ static __global__ void gpu_find_thermo
     {
         case 0:
             __shared__ double s_ke[1024];
-            s_ke[tid] = ZERO;
+            s_ke[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -272,7 +272,7 @@ static __global__ void gpu_find_thermo
             break;
         case 1:
             __shared__ double s_pe[1024];
-            s_pe[tid] = ZERO;
+            s_pe[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -292,7 +292,7 @@ static __global__ void gpu_find_thermo
             break;
         case 2:
             __shared__ double s_sx[1024];
-            s_sx[tid] = ZERO;
+            s_sx[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -315,7 +315,7 @@ static __global__ void gpu_find_thermo
             break;
         case 3:
             __shared__ double s_sy[1024];
-            s_sy[tid] = ZERO; 
+            s_sy[tid] = 0.0; 
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -338,7 +338,7 @@ static __global__ void gpu_find_thermo
             break;
         case 4:
             __shared__ double s_sz[1024];
-            s_sz[tid] = ZERO;
+            s_sz[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -382,7 +382,7 @@ static __global__ void gpu_find_thermo
     {
         case 0:
             __shared__ double s_ke[1024];
-            s_ke[tid] = ZERO;
+            s_ke[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -407,7 +407,7 @@ static __global__ void gpu_find_thermo
             break;
         case 1:
             __shared__ double s_pe[1024];
-            s_pe[tid] = ZERO;
+            s_pe[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -427,7 +427,7 @@ static __global__ void gpu_find_thermo
             break;
         case 2:
             __shared__ double s_sx[1024];
-            s_sx[tid] = ZERO;
+            s_sx[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -450,7 +450,7 @@ static __global__ void gpu_find_thermo
             break;
         case 3:
             __shared__ double s_sy[1024];
-            s_sy[tid] = ZERO; 
+            s_sy[tid] = 0.0; 
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -473,7 +473,7 @@ static __global__ void gpu_find_thermo
             break;
         case 4:
             __shared__ double s_sz[1024];
-            s_sz[tid] = ZERO;
+            s_sz[tid] = 0.0;
             for (patch = 0; patch < number_of_patches; ++patch)
             {
                 n = tid + patch * 1024;
@@ -578,11 +578,11 @@ static __global__ void gpu_find_vc_and_ke
     __shared__ double s_vz[512];
     __shared__ double s_ke[512]; // relative kinetic energy
 
-    s_mc[tid] = ZERO;
-    s_vx[tid] = ZERO;
-    s_vy[tid] = ZERO;
-    s_vz[tid] = ZERO;
-    s_ke[tid] = ZERO;
+    s_mc[tid] = 0.0;
+    s_vx[tid] = 0.0;
+    s_vy[tid] = 0.0;
+    s_vz[tid] = 0.0;
+    s_ke[tid] = 0.0;
     
     for (int patch = 0; patch < number_of_patches; ++patch)
     { 

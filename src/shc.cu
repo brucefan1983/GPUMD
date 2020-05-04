@@ -74,8 +74,8 @@ static __global__ void gpu_find_k
     int number_of_rounds = (group_size - 1) / BLOCK_SIZE_SHC + 1;
     __shared__ double s_ki[BLOCK_SIZE_SHC];
     __shared__ double s_ko[BLOCK_SIZE_SHC];
-    double ki = ZERO;
-    double ko = ZERO;
+    double ki = 0.0;
+    double ko = 0.0;
 
     for (int round = 0; round < number_of_rounds; ++round)
     {

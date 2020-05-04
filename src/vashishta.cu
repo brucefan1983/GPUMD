@@ -56,9 +56,9 @@ void Vashishta::initialize_para(FILE *fid)
         );
         PRINT_SCANF_ERROR(count, 7, "Reading error for Vashishta potential.");
         qq[n] *= K_C;         // Gauss -> SI
-        D[n] *= (K_C * HALF); // Gauss -> SI and D -> D/2
-        lambda_inv[n] = ONE / lambda_inv[n];
-        xi_inv[n] = ONE / xi_inv[n];
+        D[n] *= (K_C * 0.5); // Gauss -> SI and D -> D/2
+        lambda_inv[n] = 1.0 / lambda_inv[n];
+        xi_inv[n] = 1.0 / xi_inv[n];
 
         vashishta_para.H[n] = H[n];
         vashishta_para.eta[n] = eta[n];
@@ -68,7 +68,7 @@ void Vashishta::initialize_para(FILE *fid)
         vashishta_para.xi_inv[n] = xi_inv[n];
         vashishta_para.W[n] = W[n];
 
-        double rci = ONE / rc;
+        double rci = 1.0 / rc;
         double rci4 = rci * rci * rci * rci;
         double rci6 = rci4 * rci * rci;
         double p2_steric = H[n] * pow(rci, double(eta[n]));
@@ -76,8 +76,8 @@ void Vashishta::initialize_para(FILE *fid)
         double p2_dipole = D[n] * rci4 * exp(-rc*xi_inv[n]);
         double p2_vander = W[n] * rci6;
         vashishta_para.v_rc[n] = p2_steric+p2_charge-p2_dipole-p2_vander;
-        vashishta_para.dv_rc[n] = p2_dipole * (xi_inv[n] + FOUR * rci) 
-                                + p2_vander * (SIX * rci)
+        vashishta_para.dv_rc[n] = p2_dipole * (xi_inv[n] + 4.0 * rci) 
+                                + p2_vander * (6.0 * rci)
                                 - p2_charge * (lambda_inv[n] + rci)
                                 - p2_steric * (eta[n] * rci);
     }
@@ -140,7 +140,7 @@ static __device__ void find_p2_and_f2
     double v_rc, double dv_rc, double rc, double d12, double &p2, double &f2
 )
 {
-    double d12inv = ONE / d12;
+    double d12inv = 1.0 / d12;
     double d12inv2 = d12inv * d12inv;
     double p2_steric = H * my_pow(d12inv, eta);
     double p2_charge = qq * d12inv * exp(-d12 * lambda_inv);
@@ -148,7 +148,7 @@ static __device__ void find_p2_and_f2
     double p2_vander = W * (d12inv2 * d12inv2 * d12inv2);
     p2 = p2_steric + p2_charge - p2_dipole - p2_vander; 
     p2 -= v_rc + (d12 - rc) * dv_rc; // shifted potential
-    f2 = p2_dipole * (xi_inv + FOUR*d12inv) + p2_vander * (SIX * d12inv);
+    f2 = p2_dipole * (xi_inv + 4.0*d12inv) + p2_vander * (6.0 * d12inv);
     f2 -= p2_charge * (lambda_inv + d12inv) + p2_steric * (eta * d12inv);
     f2 = (f2 - dv_rc) * d12inv;      // shifted force
 }
@@ -172,19 +172,19 @@ static __global__ void gpu_find_force_vashishta_2body
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    double s_fx = ZERO; // force_x
-    double s_fy = ZERO; // force_y
-    double s_fz = ZERO; // force_z
-    double s_pe = ZERO; // potential energy
-    double s_sxx = ZERO; // virial_stress_xx
-    double s_sxy = ZERO; // virial_stress_xy
-    double s_sxz = ZERO; // virial_stress_xz
-    double s_syx = ZERO; // virial_stress_yx
-    double s_syy = ZERO; // virial_stress_yy
-    double s_syz = ZERO; // virial_stress_yz
-    double s_szx = ZERO; // virial_stress_zx
-    double s_szy = ZERO; // virial_stress_zy
-    double s_szz = ZERO; // virial_stress_zz
+    double s_fx = 0.0; // force_x
+    double s_fy = 0.0; // force_y
+    double s_fz = 0.0; // force_z
+    double s_pe = 0.0; // potential energy
+    double s_sxx = 0.0; // virial_stress_xx
+    double s_sxy = 0.0; // virial_stress_xy
+    double s_sxz = 0.0; // virial_stress_xz
+    double s_syx = 0.0; // virial_stress_yx
+    double s_syy = 0.0; // virial_stress_yy
+    double s_syz = 0.0; // virial_stress_yz
+    double s_szx = 0.0; // virial_stress_zx
+    double s_szy = 0.0; // virial_stress_zy
+    double s_szz = 0.0; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -223,9 +223,9 @@ static __global__ void gpu_find_force_vashishta_2body
             );
 
             // treat two-body potential in the same way as many-body potential
-            double f12x = f2 * x12 * HALF; 
-            double f12y = f2 * y12 * HALF; 
-            double f12z = f2 * z12 * HALF; 
+            double f12x = f2 * x12 * 0.5; 
+            double f12y = f2 * y12 * 0.5; 
+            double f12z = f2 * z12 * 0.5; 
             double f21x = -f12x; 
             double f21y = -f12y; 
             double f21z = -f12z; 
@@ -236,7 +236,7 @@ static __global__ void gpu_find_force_vashishta_2body
             s_fz += f12z - f21z;
             
             // accumulate potential energy and virial
-            s_pe += p2 * HALF; // two-body potential
+            s_pe += p2 * 0.5; // two-body potential
             s_sxx += x12 * f21x;
             s_sxy += x12 * f21y;
             s_sxz += x12 * f21z;
@@ -295,7 +295,7 @@ static __global__ void gpu_find_force_vashishta_partial
         double x1 = g_x[n1];
         double y1 = g_y[n1];
         double z1 = g_z[n1];
-        double potential_energy = ZERO;
+        double potential_energy = 0.0;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -308,10 +308,10 @@ static __global__ void gpu_find_force_vashishta_partial
             double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            double d12inv = ONE / d12;
+            double d12inv = 1.0 / d12;
           
-            double f12x = ZERO; double f12y = ZERO; double f12z = ZERO;
-            double gamma2 = ONE / ((d12 - vas.r0) * (d12 - vas.r0)); // gamma=1
+            double f12x = 0.0; double f12y = 0.0; double f12z = 0.0;
+            double gamma2 = 1.0 / ((d12 - vas.r0) * (d12 - vas.r0)); // gamma=1
              
             // accumulate_force_123
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -328,27 +328,27 @@ static __global__ void gpu_find_force_vashishta_partial
                 dev_apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
-                double exp123 = exp(ONE / (d12 - vas.r0) + ONE / (d13 - vas.r0));
-                double one_over_d12d13 = ONE / (d12 * d13);
+                double exp123 = exp(1.0 / (d12 - vas.r0) + 1.0 / (d13 - vas.r0));
+                double one_over_d12d13 = 1.0 / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
                 double cos_inv = cos123 - vas.cos0[type1];
-                cos_inv = ONE / (ONE + vas.C * cos_inv * cos_inv);
+                cos_inv = 1.0 / (1.0 + vas.C * cos_inv * cos_inv);
 
                 // accumulate potential energy
                 potential_energy += (cos123 - vas.cos0[type1])
                                   * (cos123 - vas.cos0[type1])
-                                  * cos_inv*HALF*vas.B[type1]*exp123;
+                                  * cos_inv*0.5*vas.B[type1]*exp123;
 
                 double tmp1=vas.B[type1]*exp123*cos_inv*(cos123-vas.cos0[type1]);
                 double tmp2=gamma2 * (cos123 - vas.cos0[type1]) * d12inv;
 
                 double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
-                f12x += tmp1*(TWO*cos_d*cos_inv-tmp2*x12);
+                f12x += tmp1*(2.0*cos_d*cos_inv-tmp2*x12);
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
-                f12y += tmp1*(TWO*cos_d*cos_inv-tmp2*y12);
+                f12y += tmp1*(2.0*cos_d*cos_inv-tmp2*y12);
                 cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
-                f12z += tmp1*(TWO*cos_d*cos_inv-tmp2*z12);
+                f12z += tmp1*(2.0*cos_d*cos_inv-tmp2*z12);
             }
             g_f12x[index] = f12x;
             g_f12y[index] = f12y;

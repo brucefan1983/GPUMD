@@ -39,9 +39,9 @@ Ensemble_NHC::Ensemble_NHC(int t, int fg, int N, double T, double Tc, double dt)
     temperature = T;
     temperature_coupling = Tc;
     // position and momentum variables for one NHC
-    pos_nhc1[0] = pos_nhc1[1] = pos_nhc1[2] = pos_nhc1[3] = ZERO;
-    vel_nhc1[0] = vel_nhc1[2] =  ONE;
-    vel_nhc1[1] = vel_nhc1[3] = -ONE;
+    pos_nhc1[0] = pos_nhc1[1] = pos_nhc1[2] = pos_nhc1[3] = 0.0;
+    vel_nhc1[0] = vel_nhc1[2] =  1.0;
+    vel_nhc1[1] = vel_nhc1[3] = -1.0;
 
     double tau = dt * temperature_coupling; 
     double kT = K_B * temperature;
@@ -69,10 +69,10 @@ Ensemble_NHC::Ensemble_NHC
     sink = sink_input;
 
     // position and momentum variables for NHC
-    pos_nhc1[0] = pos_nhc1[1] = pos_nhc1[2] = pos_nhc1[3] =  ZERO;
-    pos_nhc2[0] = pos_nhc2[1] = pos_nhc2[2] = pos_nhc2[3] =  ZERO;
-    vel_nhc1[0] = vel_nhc1[2] = vel_nhc2[0] = vel_nhc2[2] =  ONE;
-    vel_nhc1[1] = vel_nhc1[3] = vel_nhc2[1] = vel_nhc2[3] = -ONE;
+    pos_nhc1[0] = pos_nhc1[1] = pos_nhc1[2] = pos_nhc1[3] =  0.0;
+    pos_nhc2[0] = pos_nhc2[1] = pos_nhc2[2] = pos_nhc2[3] =  0.0;
+    vel_nhc1[0] = vel_nhc1[2] = vel_nhc2[0] = vel_nhc2[2] =  1.0;
+    vel_nhc1[1] = vel_nhc1[3] = vel_nhc2[1] = vel_nhc2[3] = -1.0;
 
     double tau = time_step * temperature_coupling;
     double kT1 = K_B * (temperature + delta_temperature);
@@ -182,7 +182,7 @@ void Ensemble_NHC::integrate_nvt_nhc
 
     double kT = K_B * temperature;
     double dN = (double) DIM * N; 
-    double dt2 = time_step * HALF;
+    double dt2 = time_step * 0.5;
 
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
     find_thermo(atom);
@@ -219,7 +219,7 @@ void Ensemble_NHC::integrate_heat_nhc
     double kT2 = K_B * (temperature - delta_temperature); 
     double dN1 = (double) DIM * atom->group[0].cpu_size[source];
     double dN2 = (double) DIM * atom->group[0].cpu_size[sink];
-    double dt2 = time_step * HALF;
+    double dt2 = time_step * 0.5;
 
     // allocate some memory (to be improved)
     std::vector<double> ek2(Ng);

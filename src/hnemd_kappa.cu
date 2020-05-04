@@ -86,7 +86,7 @@ static __global__ void gpu_sum_heat
     const int bid = blockIdx.x;
     const int number_of_patches = (N - 1) / 1024 + 1;
     __shared__ double s_data[1024];  
-    s_data[tid] = ZERO;
+    s_data[tid] = 0.0;
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
         const int n = tid + patch * 1024;
@@ -163,7 +163,7 @@ void HNEMD::process
         double kappa[NUM_OF_HEAT_COMPONENTS];
         for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) 
         {
-            kappa[n] = ZERO;
+            kappa[n] = 0.0;
         }
         for (int m = 0; m < output_interval; m++)
         {

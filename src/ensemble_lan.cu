@@ -46,7 +46,7 @@ Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, double T, double Tc)
     fixed_group = fg;
     temperature = T;
     temperature_coupling = Tc;
-    c1 = exp(-HALF/temperature_coupling);
+    c1 = exp(-0.5/temperature_coupling);
     c2 = sqrt((1 - c1 * c1) * K_B * T);
     curand_states.resize(N);
     int grid_size = (N - 1) / BLOCK_SIZE + 1;
@@ -72,7 +72,7 @@ Ensemble_LAN::Ensemble_LAN
     N_sink = sink_size;
     offset_source = source_offset; 
     offset_sink = sink_offset;
-    c1 = exp(-HALF/temperature_coupling);
+    c1 = exp(-0.5/temperature_coupling);
     c2_source = sqrt((1 - c1 * c1) * K_B * (T + dT));
     c2_sink   = sqrt((1 - c1 * c1) * K_B * (T - dT));
     curand_states_source.resize(N_source);
@@ -107,7 +107,7 @@ static __global__ void gpu_langevin
     if (n < N)
     {
         curandState state = g_state[n];
-        double c2m = c2 * sqrt(ONE / g_mass[n]);
+        double c2m = c2 * sqrt(1.0 / g_mass[n]);
         g_vx[n] = c1 * g_vx[n] + c2m * CURAND_NORMAL(&state);
         g_vy[n] = c1 * g_vy[n] + c2m * CURAND_NORMAL(&state);
         g_vz[n] = c1 * g_vz[n] + c2m * CURAND_NORMAL(&state);
@@ -138,7 +138,7 @@ static __global__ void gpu_langevin
     {
         curandState state = g_state[m];
         int n = g_group_contents[offset + m];
-        double c2m = c2 * sqrt(ONE / g_mass[n]);
+        double c2m = c2 * sqrt(1.0 / g_mass[n]);
         g_vx[n] = c1 * g_vx[n] + c2m * CURAND_NORMAL(&state);
         g_vy[n] = c1 * g_vy[n] + c2m * CURAND_NORMAL(&state);
         g_vz[n] = c1 * g_vz[n] + c2m * CURAND_NORMAL(&state);
@@ -161,7 +161,7 @@ static __global__ void find_ke
     int offset = g_group_size_sum[bid];
     int number_of_patches = (group_size - 1) / 512 + 1; 
     __shared__ double s_ke[512]; // relative kinetic energy
-    s_ke[tid] = ZERO;
+    s_ke[tid] = 0.0;
     for (int patch = 0; patch < number_of_patches; ++patch)
     { 
         int n = tid + patch * 512;

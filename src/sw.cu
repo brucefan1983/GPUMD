@@ -165,9 +165,9 @@ static __device__ void find_p2_and_f2
 { 
     double r12 = d12 / sigma;
     double B_over_r12power4 = B / (r12*r12*r12*r12);
-    double exp_factor = epsilon_times_A * exp(ONE/(r12 - a));
-    p2 = exp_factor * (B_over_r12power4 - ONE);
-    f2 = -p2/((r12-a)*(r12-a))-exp_factor*FOUR*B_over_r12power4/r12;
+    double exp_factor = epsilon_times_A * exp(1.0/(r12 - a));
+    p2 = exp_factor * (B_over_r12power4 - 1.0);
+    f2 = -p2/((r12-a)*(r12-a))-exp_factor*4.0*B_over_r12power4/r12;
     f2 /= (sigma * d12);
 }
 
@@ -192,7 +192,7 @@ static __global__ void gpu_find_force_sw3_partial
         double x1 = g_x[n1];
         double y1 = g_y[n1];
         double z1 = g_z[n1];
-        double potential_energy = ZERO;
+        double potential_energy = 0.0;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -204,7 +204,7 @@ static __global__ void gpu_find_force_sw3_partial
             double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            double d12inv = ONE / d12;
+            double d12inv = 1.0 / d12;
             if (d12 >= sw3.rc[type1][type2]) {continue;} 
 
             double gamma12 = sw3.gamma[type1][type2];
@@ -219,11 +219,11 @@ static __global__ void gpu_find_force_sw3_partial
             );
 
             // treat the two-body part in the same way as the many-body part
-            double f12x = f2 * x12 * HALF;
-            double f12y = f2 * y12 * HALF;
-            double f12z = f2 * z12 * HALF;
+            double f12x = f2 * x12 * 0.5;
+            double f12y = f2 * y12 * 0.5;
+            double f12z = f2 * z12 * 0.5;
             // accumulate potential energy
-            potential_energy += p2 * HALF;
+            potential_energy += p2 * 0.5;
 
             // three-body part
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -243,7 +243,7 @@ static __global__ void gpu_find_force_sw3_partial
                 double exp123 = d13/sw3.sigma[type1][type3] - sw3.a[type1][type3];
                 exp123 = sw3.gamma[type1][type3] / exp123;
                 exp123 = exp(gamma12 / (d12 / sigma12 - a12) + exp123);
-                double one_over_d12d13 = ONE / (d12 * d13);
+                double one_over_d12d13 = 1.0 / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13) * one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
 
@@ -251,16 +251,16 @@ static __global__ void gpu_find_force_sw3_partial
                 double tmp2 = tmp * (cos123 - cos0) * d12inv;
 
                 // accumulate potential energy
-                potential_energy += (cos123 - cos0) * tmp1 * HALF;
+                potential_energy += (cos123 - cos0) * tmp1 * 0.5;
 
                 double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12; 
-                f12x += tmp1 * (TWO * cos_d - tmp2 * x12);
+                f12x += tmp1 * (2.0 * cos_d - tmp2 * x12);
 
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
-                f12y += tmp1 * (TWO * cos_d - tmp2 * y12);
+                f12y += tmp1 * (2.0 * cos_d - tmp2 * y12);
 
                 cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
-                f12z += tmp1 * (TWO * cos_d - tmp2 * z12);
+                f12z += tmp1 * (2.0 * cos_d - tmp2 * z12);
             }
             g_f12x[index] = f12x; g_f12y[index] = f12y; g_f12z[index] = f12z;
         }
@@ -288,9 +288,9 @@ static __global__ void gpu_set_f12_to_zero
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
             int index = i1 * N + n1;
-            g_f12x[index] = ZERO;
-            g_f12y[index] = ZERO;
-            g_f12z[index] = ZERO;
+            g_f12x[index] = 0.0;
+            g_f12y[index] = 0.0;
+            g_f12z[index] = 0.0;
         }
     }
 }

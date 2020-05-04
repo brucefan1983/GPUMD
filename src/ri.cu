@@ -57,9 +57,9 @@ RI::RI(FILE *fid)
     ri_para.a12    = x[3][0];
     ri_para.b12    = x[3][1];
     ri_para.c12    = x[3][2];
-    ri_para.b11 = ONE / ri_para.b11;
-    ri_para.b22 = ONE / ri_para.b22;
-    ri_para.b12 = ONE / ri_para.b12;
+    ri_para.b11 = 1.0 / ri_para.b11;
+    ri_para.b22 = 1.0 / ri_para.b22;
+    ri_para.b12 = 1.0 / ri_para.b12;
 
     rc = ri_para.cutoff; // force cutoff
 
@@ -101,13 +101,13 @@ static __device__ void find_p2_and_f2
     }
 
     double d12         = sqrt(d12sq);
-    double d12inv      = ONE / d12;
+    double d12inv      = 1.0 / d12;
     double d12inv3     = d12inv * d12inv * d12inv;
     double exponential = exp(-d12 * b);     // b = 1/rho
     double erfc_r = erfc(RI_ALPHA * d12) * d12inv;
     p2 = a * exponential - c * d12inv3 * d12inv3;
     p2 += qq * ( erfc_r - ri.v_rc - ri.dv_rc * (d12 - ri.cutoff) );
-    f2 = SIX*c*(d12inv3*d12inv3*d12inv) - a*exponential*b;
+    f2 = 6.0*c*(d12inv3*d12inv3*d12inv) - a*exponential*b;
     f2-=qq*(erfc_r*d12inv+RI_PI_FACTOR*d12inv*exp(-RI_ALPHA_SQ*d12sq)+ri.dv_rc);
     f2 *= d12inv;
 }
@@ -130,19 +130,19 @@ static __global__ void gpu_find_force
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    double s_fx = ZERO; // force_x
-    double s_fy = ZERO; // force_y
-    double s_fz = ZERO; // force_z
-    double s_pe = ZERO; // potential energy
-    double s_sxx = ZERO; // virial_stress_xx
-    double s_sxy = ZERO; // virial_stress_xy
-    double s_sxz = ZERO; // virial_stress_xz
-    double s_syx = ZERO; // virial_stress_yx
-    double s_syy = ZERO; // virial_stress_yy
-    double s_syz = ZERO; // virial_stress_yz
-    double s_szx = ZERO; // virial_stress_zx
-    double s_szy = ZERO; // virial_stress_zy
-    double s_szz = ZERO; // virial_stress_zz
+    double s_fx = 0.0; // force_x
+    double s_fy = 0.0; // force_y
+    double s_fz = 0.0; // force_z
+    double s_pe = 0.0; // potential energy
+    double s_sxx = 0.0; // virial_stress_xx
+    double s_sxy = 0.0; // virial_stress_xy
+    double s_sxz = 0.0; // virial_stress_xz
+    double s_syx = 0.0; // virial_stress_yx
+    double s_syy = 0.0; // virial_stress_yy
+    double s_syz = 0.0; // virial_stress_yz
+    double s_szx = 0.0; // virial_stress_zx
+    double s_szy = 0.0; // virial_stress_zy
+    double s_szz = 0.0; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -170,9 +170,9 @@ static __global__ void gpu_find_force
             find_p2_and_f2(type1, type2, ri, d12sq, p2, f2);
 
             // treat two-body potential in the same way as many-body potential
-            double f12x = f2 * x12 * HALF;
-            double f12y = f2 * y12 * HALF;
-            double f12z = f2 * z12 * HALF;
+            double f12x = f2 * x12 * 0.5;
+            double f12y = f2 * y12 * 0.5;
+            double f12z = f2 * z12 * 0.5;
             double f21x = -f12x;
             double f21y = -f12y;
             double f21z = -f12z;
@@ -183,7 +183,7 @@ static __global__ void gpu_find_force
             s_fz += f12z - f21z;
 
             // accumulate potential energy and virial
-            s_pe += p2 * HALF; // two-body potential
+            s_pe += p2 * 0.5; // two-body potential
             s_sxx += x12 * f21x;
             s_sxy += x12 * f21y;
             s_sxz += x12 * f21z;

@@ -57,18 +57,18 @@ static __global__ void gpu_find_force_many_body
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    double s_fx = ZERO; // force_x
-    double s_fy = ZERO; // force_y
-    double s_fz = ZERO; // force_z
-    double s_sxx = ZERO; // virial_stress_xx
-    double s_sxy = ZERO; // virial_stress_xy
-    double s_sxz = ZERO; // virial_stress_xz
-    double s_syx = ZERO; // virial_stress_yx
-    double s_syy = ZERO; // virial_stress_yy
-    double s_syz = ZERO; // virial_stress_yz
-    double s_szx = ZERO; // virial_stress_zx
-    double s_szy = ZERO; // virial_stress_zy
-    double s_szz = ZERO; // virial_stress_zz
+    double s_fx = 0.0; // force_x
+    double s_fy = 0.0; // force_y
+    double s_fz = 0.0; // force_z
+    double s_sxx = 0.0; // virial_stress_xx
+    double s_sxy = 0.0; // virial_stress_xy
+    double s_sxz = 0.0; // virial_stress_xz
+    double s_syx = 0.0; // virial_stress_yx
+    double s_syy = 0.0; // virial_stress_yy
+    double s_syz = 0.0; // virial_stress_yz
+    double s_szx = 0.0; // virial_stress_zx
+    double s_szy = 0.0; // virial_stress_zy
+    double s_szz = 0.0; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {

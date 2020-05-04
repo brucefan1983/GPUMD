@@ -265,7 +265,7 @@ find_force_step2
             double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            double d12inv = ONE / d12;
+            double d12inv = 1.0 / d12;
             double fc12, fcp12, fa12, fap12, fr12, frp12;
             find_fc_and_fcp
             (
@@ -312,7 +312,7 @@ find_force_step2
                 );
                 find_fa(para.b[type13], para.mu[type13], d13, fa13);
                 double bp13 = g_bp[index_2];
-                double one_over_d12d13 = ONE / (d12 * d13);
+                double one_over_d12d13 = 1.0 / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
                 double g123, gp123;

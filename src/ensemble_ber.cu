@@ -73,7 +73,7 @@ static __global__ void gpu_berendsen_temperature
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N)
     {  
-        double factor = sqrt(ONE + coupling * (temperature / g_prop[0] - ONE)); 
+        double factor = sqrt(1.0 + coupling * (temperature / g_prop[0] - 1.0)); 
         g_vx[i] *= factor; 
         g_vy[i] *= factor; 
         g_vz[i] *= factor;
@@ -100,7 +100,7 @@ static __global__ void gpu_berendsen_pressure
         }
         else if (box.pbc_x == 1)
         {
-            double scale_factor = ONE - p_coupling * (p0x - g_prop[2]);
+            double scale_factor = 1.0 - p_coupling * (p0x - g_prop[2]);
             g_x[i] *= scale_factor;
         }
         if (deform_y)
@@ -111,7 +111,7 @@ static __global__ void gpu_berendsen_pressure
         }
         else if (box.pbc_y == 1)
         {
-            double scale_factor = ONE - p_coupling * (p0y - g_prop[3]);
+            double scale_factor = 1.0 - p_coupling * (p0y - g_prop[3]);
             g_y[i] *= scale_factor;
         }
         if (deform_z)
@@ -122,7 +122,7 @@ static __global__ void gpu_berendsen_pressure
         }
         else if (box.pbc_z == 1)
         {
-            double scale_factor = ONE - p_coupling * (p0z - g_prop[4]);
+            double scale_factor = 1.0 - p_coupling * (p0z - g_prop[4]);
             g_z[i] *= scale_factor;
         }
     }
@@ -143,13 +143,13 @@ static void cpu_berendsen_pressure
         double scale_factor = box.cpu_h[0];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[0] *= scale_factor;
-        box.cpu_h[3] = box.cpu_h[0] * HALF;
+        box.cpu_h[3] = box.cpu_h[0] * 0.5;
     }
     else if (box.pbc_x == 1)
     {
-        double scale_factor = ONE - p_coupling * (p0x - p[0]);
+        double scale_factor = 1.0 - p_coupling * (p0x - p[0]);
         box.cpu_h[0] *= scale_factor;
-        box.cpu_h[3] = box.cpu_h[0] * HALF;
+        box.cpu_h[3] = box.cpu_h[0] * 0.5;
     }
 
     if (deform_y)
@@ -157,13 +157,13 @@ static void cpu_berendsen_pressure
         double scale_factor = box.cpu_h[1];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[1] *= scale_factor;
-        box.cpu_h[4] = box.cpu_h[1] * HALF;
+        box.cpu_h[4] = box.cpu_h[1] * 0.5;
     }
     else if (box.pbc_y == 1)
     {
-        double scale_factor = ONE - p_coupling * (p0y - p[1]);
+        double scale_factor = 1.0 - p_coupling * (p0y - p[1]);
         box.cpu_h[1] *= scale_factor;
-        box.cpu_h[4] = box.cpu_h[1] * HALF;
+        box.cpu_h[4] = box.cpu_h[1] * 0.5;
     }
 
     if (deform_z)
@@ -171,13 +171,13 @@ static void cpu_berendsen_pressure
         double scale_factor = box.cpu_h[2];
         scale_factor = (scale_factor + deform_rate) / scale_factor;
         box.cpu_h[2] *= scale_factor;
-        box.cpu_h[5] = box.cpu_h[2] * HALF;
+        box.cpu_h[5] = box.cpu_h[2] * 0.5;
     }
     else if (box.pbc_z == 1)
     {
-        double scale_factor = ONE - p_coupling * (p0x - p[2]);
+        double scale_factor = 1.0 - p_coupling * (p0x - p[2]);
         box.cpu_h[2] *= scale_factor;
-        box.cpu_h[5] = box.cpu_h[2] * HALF;
+        box.cpu_h[5] = box.cpu_h[2] * 0.5;
     }
 }
 

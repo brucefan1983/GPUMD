@@ -57,9 +57,9 @@ LJ::LJ
             }
             else // pair not participating, but must still be defined
             {
-                lj_para.s6e4[n][m]   = ONE;
-                lj_para.s12e4[n][m]  = ONE;
-                lj_para.cutoff_square[n][m] = ZERO;
+                lj_para.s6e4[n][m]   = 1.0;
+                lj_para.s12e4[n][m]  = 1.0;
+                lj_para.cutoff_square[n][m] = 0.0;
             }
         }
     }
@@ -90,9 +90,9 @@ bool LJ::pair_participating
 static __device__ void find_p2_and_f2
 (double s6e4, double s12e4, double d12sq, double &p2, double &f2)
 {
-    double d12inv2 = ONE / d12sq;
+    double d12inv2 = 1.0 / d12sq;
     double d12inv6 = d12inv2 * d12inv2 * d12inv2;
-    f2 = SIX * (s6e4 * d12inv6 - s12e4 * TWO * d12inv6 * d12inv6) * d12inv2;
+    f2 = 6.0 * (s6e4 * d12inv6 - s12e4 * 2.0 * d12inv6 * d12inv6) * d12inv2;
     p2 = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;
 }
 
@@ -113,19 +113,19 @@ static __global__ void gpu_find_force
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    double s_fx = ZERO; // force_x
-    double s_fy = ZERO; // force_y
-    double s_fz = ZERO; // force_z
-    double s_pe = ZERO; // potential energy
-    double s_sxx = ZERO; // virial_stress_xx
-    double s_sxy = ZERO; // virial_stress_xy
-    double s_sxz = ZERO; // virial_stress_xz
-    double s_syx = ZERO; // virial_stress_yx
-    double s_syy = ZERO; // virial_stress_yy
-    double s_syz = ZERO; // virial_stress_yz
-    double s_szx = ZERO; // virial_stress_zx
-    double s_szy = ZERO; // virial_stress_zy
-    double s_szz = ZERO; // virial_stress_zz
+    double s_fx = 0.0; // force_x
+    double s_fy = 0.0; // force_y
+    double s_fz = 0.0; // force_z
+    double s_pe = 0.0; // potential energy
+    double s_sxx = 0.0; // virial_stress_xx
+    double s_sxy = 0.0; // virial_stress_xy
+    double s_sxz = 0.0; // virial_stress_xz
+    double s_syx = 0.0; // virial_stress_yx
+    double s_syy = 0.0; // virial_stress_yy
+    double s_syz = 0.0; // virial_stress_yz
+    double s_szx = 0.0; // virial_stress_zx
+    double s_szy = 0.0; // virial_stress_zy
+    double s_szz = 0.0; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -152,9 +152,9 @@ static __global__ void gpu_find_force
             (lj.s6e4[type1][type2], lj.s12e4[type1][type2], d12sq, p2, f2);
 
             // treat two-body potential in the same way as many-body potential
-            double f12x = f2 * x12 * HALF;
-            double f12y = f2 * y12 * HALF;
-            double f12z = f2 * z12 * HALF;
+            double f12x = f2 * x12 * 0.5;
+            double f12y = f2 * y12 * 0.5;
+            double f12z = f2 * z12 * 0.5;
             double f21x = -f12x;
             double f21y = -f12y;
             double f21z = -f12z;
@@ -165,7 +165,7 @@ static __global__ void gpu_find_force
             s_fz += f12z - f21z;
 
             // accumulate potential energy and virial
-            s_pe += p2 * HALF; // two-body potential
+            s_pe += p2 * 0.5; // two-body potential
             s_sxx += x12 * f21x;
             s_sxy += x12 * f21y;
             s_sxz += x12 * f21z;

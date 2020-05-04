@@ -185,21 +185,21 @@ static __device__ void find_fr_and_frp
 {     
     if (type12 == 0)
     {   
-        fr  = (ONE + REBO_MOS2_Q_MM / d12) * REBO_MOS2_A_MM 
+        fr  = (1.0 + REBO_MOS2_Q_MM / d12) * REBO_MOS2_A_MM 
             * exp(-REBO_MOS2_a_MM * d12);  
         frp = REBO_MOS2_a_MM + REBO_MOS2_Q_MM / (d12 * (d12 + REBO_MOS2_Q_MM));
         frp *= -fr;
     }
     else if (type12 == 2)
     {
-        fr  = (ONE + REBO_MOS2_Q_SS / d12) * REBO_MOS2_A_SS 
+        fr  = (1.0 + REBO_MOS2_Q_SS / d12) * REBO_MOS2_A_SS 
             * exp(-REBO_MOS2_a_SS * d12);  
         frp = REBO_MOS2_a_SS + REBO_MOS2_Q_SS / (d12 * (d12 + REBO_MOS2_Q_SS));
         frp *= -fr;
     }  
     else
     {
-        fr  = (ONE + REBO_MOS2_Q_MS / d12) * REBO_MOS2_A_MS 
+        fr  = (1.0 + REBO_MOS2_Q_MS / d12) * REBO_MOS2_A_MS 
             * exp(-REBO_MOS2_a_MS * d12);  
         frp = REBO_MOS2_a_MS + REBO_MOS2_Q_MS / (d12 * (d12 + REBO_MOS2_Q_MS));
         frp *= -fr;
@@ -254,39 +254,39 @@ static __device__ void find_fc_and_fcp
 {
     if (type12 == 0)
     {
-        if (d12 < REBO_MOS2_r1_MM) {fc = ONE; fcp = ZERO;}
+        if (d12 < REBO_MOS2_r1_MM) {fc = 1.0; fcp = 0.0;}
         else if (d12 < REBO_MOS2_r2_MM)
         {              
             fc  = cos(REBO_MOS2_pi_factor_MM * (d12 - REBO_MOS2_r1_MM)) 
-                * HALF + HALF;
+                * 0.5 + 0.5;
             fcp = -sin(REBO_MOS2_pi_factor_MM * (d12 - REBO_MOS2_r1_MM))
-                * REBO_MOS2_pi_factor_MM * HALF;
+                * REBO_MOS2_pi_factor_MM * 0.5;
         }
-        else {fc  = ZERO; fcp = ZERO;}
+        else {fc  = 0.0; fcp = 0.0;}
     }
     else if (type12 == 2)
     { 
-        if (d12 < REBO_MOS2_r1_SS) {fc = ONE; fcp = ZERO;}
+        if (d12 < REBO_MOS2_r1_SS) {fc = 1.0; fcp = 0.0;}
         else if (d12 < REBO_MOS2_r2_SS)
         {      
             fc  = cos(REBO_MOS2_pi_factor_SS * (d12 - REBO_MOS2_r1_SS)) 
-                * HALF + HALF;
+                * 0.5 + 0.5;
             fcp = -sin(REBO_MOS2_pi_factor_SS * (d12 - REBO_MOS2_r1_SS))
-                * REBO_MOS2_pi_factor_SS * HALF;
+                * REBO_MOS2_pi_factor_SS * 0.5;
         }
-        else {fc  = ZERO; fcp = ZERO;}
+        else {fc  = 0.0; fcp = 0.0;}
     }
     else  
     {
-        if (d12 < REBO_MOS2_r1_MS) {fc = ONE; fcp = ZERO;}
+        if (d12 < REBO_MOS2_r1_MS) {fc = 1.0; fcp = 0.0;}
         else if (d12 < REBO_MOS2_r2_MS)
         {              
             fc  = cos(REBO_MOS2_pi_factor_MS * (d12 - REBO_MOS2_r1_MS)) 
-                * HALF + HALF;
+                * 0.5 + 0.5;
             fcp = -sin(REBO_MOS2_pi_factor_MS * (d12 - REBO_MOS2_r1_MS))
-                * REBO_MOS2_pi_factor_MS * HALF;
+                * REBO_MOS2_pi_factor_MS * 0.5;
         }
-        else {fc  = ZERO; fcp = ZERO;}
+        else {fc  = 0.0; fcp = 0.0;}
     }
 }
 
@@ -296,33 +296,33 @@ static __device__ void find_fc(int type12, double d12, double &fc)
 {
     if (type12 == 0)
     {
-        if (d12 < REBO_MOS2_r1_MM) {fc = ONE;}
+        if (d12 < REBO_MOS2_r1_MM) {fc = 1.0;}
         else if (d12 < REBO_MOS2_r2_MM)
         {
             fc  = cos(REBO_MOS2_pi_factor_MM * (d12 - REBO_MOS2_r1_MM)) 
-                * HALF + HALF;
+                * 0.5 + 0.5;
         }
-        else {fc  = ZERO;}
+        else {fc  = 0.0;}
     }
     else if (type12 == 2)
     {
-        if (d12 < REBO_MOS2_r1_SS) {fc = ONE;}
+        if (d12 < REBO_MOS2_r1_SS) {fc = 1.0;}
         else if (d12 < REBO_MOS2_r2_SS)
         {
             fc  = cos(REBO_MOS2_pi_factor_SS * (d12 - REBO_MOS2_r1_SS)) 
-                * HALF + HALF;
+                * 0.5 + 0.5;
         }
-        else {fc  = ZERO;}
+        else {fc  = 0.0;}
     }
     else  
     {
-        if (d12 < REBO_MOS2_r1_MS) {fc = ONE;}
+        if (d12 < REBO_MOS2_r1_MS) {fc = 1.0;}
         else if (d12 < REBO_MOS2_r2_MS)
         {
             fc  = cos(REBO_MOS2_pi_factor_MS * (d12 - REBO_MOS2_r1_MS)) 
-                * HALF + HALF;
+                * 0.5 + 0.5;
         }
-        else {fc  = ZERO;}
+        else {fc  = 0.0;}
     }
 }
 
@@ -340,14 +340,14 @@ static __device__ void find_g_and_gp(int type1, double x, double &g, double &gp)
         g = g * x + REBO_MOS2_b1_M;
         g = g * x + REBO_MOS2_b0_M;
 
-        gp =          SIX   * REBO_MOS2_b6_M; 
-        gp = gp * x + FIVE  * REBO_MOS2_b5_M;
-        gp = gp * x + FOUR  * REBO_MOS2_b4_M;
-        gp = gp * x + THREE * REBO_MOS2_b3_M;
-        gp = gp * x + TWO   * REBO_MOS2_b2_M;
+        gp =          6.0   * REBO_MOS2_b6_M;
+        gp = gp * x + 5.0  * REBO_MOS2_b5_M;
+        gp = gp * x + 4.0  * REBO_MOS2_b4_M;
+        gp = gp * x + 3.0 * REBO_MOS2_b3_M;
+        gp = gp * x + 2.0   * REBO_MOS2_b2_M;
         gp = gp * x +         REBO_MOS2_b1_M;
 
-        if (x > HALF)
+        if (x > 0.5)
         {
             // tmp = (gamma - G)
             double tmp =      REBO_MOS2_c6_M;
@@ -359,20 +359,20 @@ static __device__ void find_g_and_gp(int type1, double x, double &g, double &gp)
             tmp = tmp * x + REBO_MOS2_c0_M;
 
             // psi
-            double psi = HALF * ( ONE - cos( TWOPI * (x-HALF) ) );
+            double psi = 0.5 * ( 1.0 - cos( TWOPI * (x-0.5) ) );
 
             // g = G + psi * (gamma - G)
             g += psi * tmp;
 
             // gp = G' + psi' * (gamma - G) now
-            gp += PI * sin( TWOPI * (x-HALF) ) * tmp;
+            gp += PI * sin( TWOPI * (x-0.5) ) * tmp;
 
             // tmp = (gamma - G)'
-            tmp =           SIX   * REBO_MOS2_c6_M;
-            tmp = tmp * x + FIVE  * REBO_MOS2_c5_M;
-            tmp = tmp * x + FOUR  * REBO_MOS2_c4_M;
-            tmp = tmp * x + THREE * REBO_MOS2_c3_M;
-            tmp = tmp * x + TWO   * REBO_MOS2_c2_M;
+            tmp =           6.0   * REBO_MOS2_c6_M;
+            tmp = tmp * x + 5.0  * REBO_MOS2_c5_M;
+            tmp = tmp * x + 4.0  * REBO_MOS2_c4_M;
+            tmp = tmp * x + 3.0 * REBO_MOS2_c3_M;
+            tmp = tmp * x + 2.0   * REBO_MOS2_c2_M;
             tmp = tmp * x +         REBO_MOS2_c1_M;
 
             // gp = G' + psi' * (gamma - G) + psi * (gamma - G)' now
@@ -389,14 +389,14 @@ static __device__ void find_g_and_gp(int type1, double x, double &g, double &gp)
         g = g * x + REBO_MOS2_b1_S;
         g = g * x + REBO_MOS2_b0_S;
 
-        gp =          SIX   * REBO_MOS2_b6_S;
-        gp = gp * x + FIVE  * REBO_MOS2_b5_S;
-        gp = gp * x + FOUR  * REBO_MOS2_b4_S;
-        gp = gp * x + THREE * REBO_MOS2_b3_S;
-        gp = gp * x + TWO   * REBO_MOS2_b2_S;
+        gp =          6.0   * REBO_MOS2_b6_S;
+        gp = gp * x + 5.0  * REBO_MOS2_b5_S;
+        gp = gp * x + 4.0  * REBO_MOS2_b4_S;
+        gp = gp * x + 3.0 * REBO_MOS2_b3_S;
+        gp = gp * x + 2.0   * REBO_MOS2_b2_S;
         gp = gp * x +         REBO_MOS2_b1_S;
 
-        if (x > HALF)
+        if (x > 0.5)
         {
             // tmp = (gamma - G)
             double tmp =      REBO_MOS2_c6_S;
@@ -408,20 +408,20 @@ static __device__ void find_g_and_gp(int type1, double x, double &g, double &gp)
             tmp = tmp * x + REBO_MOS2_c0_S;
 
             // psi
-            double psi = HALF * ( ONE - cos( TWOPI * (x-HALF) ) );
+            double psi = 0.5 * ( 1.0 - cos( TWOPI * (x-0.5) ) );
 
             // g = G + psi * (gamma - G)
             g += psi * tmp;
 
             // gp = G' + psi' * (gamma - G) now
-            gp += PI * sin( TWOPI * (x-HALF) ) * tmp;
+            gp += PI * sin( TWOPI * (x-0.5) ) * tmp;
 
             // tmp = (gamma - G)'
-            tmp =           SIX   * REBO_MOS2_c6_S;
-            tmp = tmp * x + FIVE  * REBO_MOS2_c5_S;
-            tmp = tmp * x + FOUR  * REBO_MOS2_c4_S;
-            tmp = tmp * x + THREE * REBO_MOS2_c3_S;
-            tmp = tmp * x + TWO   * REBO_MOS2_c2_S;
+            tmp =           6.0   * REBO_MOS2_c6_S;
+            tmp = tmp * x + 5.0  * REBO_MOS2_c5_S;
+            tmp = tmp * x + 4.0  * REBO_MOS2_c4_S;
+            tmp = tmp * x + 3.0 * REBO_MOS2_c3_S;
+            tmp = tmp * x + 2.0   * REBO_MOS2_c2_S;
             tmp = tmp * x +         REBO_MOS2_c1_S;
 
             // gp = G' + psi' * (gamma - G) + psi * (gamma - G)' now
@@ -444,7 +444,7 @@ static __device__ void find_g(int type1, double x, double &g)
         g = g * x + REBO_MOS2_b1_M;
         g = g * x + REBO_MOS2_b0_M;
 
-        if (x > HALF)
+        if (x > 0.5)
         {
             // tmp = (gamma - G)
             double tmp =      REBO_MOS2_c6_M;
@@ -455,7 +455,7 @@ static __device__ void find_g(int type1, double x, double &g)
             tmp = tmp * x + REBO_MOS2_c1_M;
             tmp = tmp * x + REBO_MOS2_c0_M;
             
-            tmp *= HALF * ( ONE - cos( TWOPI * (x-HALF) ) );
+            tmp *= 0.5 * ( 1.0 - cos( TWOPI * (x-0.5) ) );
             g += tmp;
         }
     }
@@ -468,7 +468,7 @@ static __device__ void find_g(int type1, double x, double &g)
         g = g * x + REBO_MOS2_b2_S;
         g = g * x + REBO_MOS2_b1_S;
         g = g * x + REBO_MOS2_b0_S;
-        if (x > HALF)
+        if (x > 0.5)
         {
             // tmp = (gamma - G)
             double tmp =      REBO_MOS2_c6_S;
@@ -479,7 +479,7 @@ static __device__ void find_g(int type1, double x, double &g)
             tmp = tmp * x + REBO_MOS2_c1_S;
             tmp = tmp * x + REBO_MOS2_c0_S;
             
-            tmp *= HALF * ( ONE - cos( TWOPI * (x-HALF) ) );
+            tmp *= 0.5 * ( 1.0 - cos( TWOPI * (x-0.5) ) );
             g += tmp;
         }
     }
@@ -493,13 +493,13 @@ static __device__ void find_p_and_pp(int type1, double x, double &p, double &pp)
     {
         p = REBO_MOS2_a1_M * exp(- REBO_MOS2_a2_M * x);
         pp = p * REBO_MOS2_a2_M - REBO_MOS2_a0_M;
-        p = REBO_MOS2_a3_M - REBO_MOS2_a0_M * (x - ONE) - p;
+        p = REBO_MOS2_a3_M - REBO_MOS2_a0_M * (x - 1.0) - p;
     }
     else
     {
         p = REBO_MOS2_a1_S * exp(- REBO_MOS2_a2_S * x);
         pp = p * REBO_MOS2_a2_S - REBO_MOS2_a0_S;
-        p = REBO_MOS2_a3_S - REBO_MOS2_a0_S * (x - ONE) - p;
+        p = REBO_MOS2_a3_S - REBO_MOS2_a0_S * (x - 1.0) - p;
     }
 }
 
@@ -509,10 +509,10 @@ static __device__ void find_p2_and_f2(int type12, double d12, double &p2, double
 {
     if (type12 == 0) // Mo-Mo
     {
-        if      (d12 >= REBO_MOS2_LJCUT2_MM) { p2 = ZERO; f2 = ZERO; }
+        if      (d12 >= REBO_MOS2_LJCUT2_MM) { p2 = 0.0; f2 = 0.0; }
         else if (d12 >  REBO_MOS2_LJCUT1_MM)
         {
-            double d12inv2 = ONE / (d12 * d12);
+            double d12inv2 = 1.0 / (d12 * d12);
             double d12inv6 = d12inv2 * d12inv2 * d12inv2;
             p2  = REBO_MOS2_s12e4_MM * d12inv6 * d12inv6;
             p2 -= REBO_MOS2_s6e4_MM * d12inv6;
@@ -524,17 +524,17 @@ static __device__ void find_p2_and_f2(int type12, double d12, double &p2, double
         {
             double dr = d12 - REBO_MOS2_r1_MM;
             p2 = (REBO_MOS2_D2_MM + REBO_MOS2_D3_MM * dr) * dr * dr;
-            f2 = (REBO_MOS2_D2_MM * TWO + REBO_MOS2_D3_MM * THREE * dr) * dr;
+            f2 = (REBO_MOS2_D2_MM * 2.0 + REBO_MOS2_D3_MM * 3.0 * dr) * dr;
             f2 /= d12;
         }
-        else { p2 = ZERO; f2 = ZERO; }
+        else { p2 = 0.0; f2 = 0.0; }
     }
     else if (type12 == 1) // Mo-S
     {
-        if      (d12 >= REBO_MOS2_LJCUT2_MS) { p2 = ZERO; f2 = ZERO; }
+        if      (d12 >= REBO_MOS2_LJCUT2_MS) { p2 = 0.0; f2 = 0.0; }
         else if (d12 >  REBO_MOS2_LJCUT1_MS)
         {
-            double d12inv2 = ONE / (d12 * d12);
+            double d12inv2 = 1.0 / (d12 * d12);
             double d12inv6 = d12inv2 * d12inv2 * d12inv2;
             p2  = REBO_MOS2_s12e4_MS * d12inv6 * d12inv6;
             p2 -= REBO_MOS2_s6e4_MS * d12inv6;
@@ -546,17 +546,17 @@ static __device__ void find_p2_and_f2(int type12, double d12, double &p2, double
         {
             double dr = d12 - REBO_MOS2_r1_MS;
             p2 = (REBO_MOS2_D2_MS + REBO_MOS2_D3_MS * dr) * dr * dr;
-            f2 = (REBO_MOS2_D2_MS * TWO + REBO_MOS2_D3_MS * THREE * dr) * dr;
+            f2 = (REBO_MOS2_D2_MS * 2.0 + REBO_MOS2_D3_MS * 3.0 * dr) * dr;
             f2 /= d12;
         }
-        else { p2 = ZERO; f2 = ZERO; }
+        else { p2 = 0.0; f2 = 0.0; }
     }
     else // S-S
     {
-        if      (d12 >= REBO_MOS2_LJCUT2_SS) { p2 = ZERO; f2 = ZERO; }
+        if      (d12 >= REBO_MOS2_LJCUT2_SS) { p2 = 0.0; f2 = 0.0; }
         else if (d12 >  REBO_MOS2_LJCUT1_SS)
         {
-            double d12inv2 = ONE / (d12 * d12);
+            double d12inv2 = 1.0 / (d12 * d12);
             double d12inv6 = d12inv2 * d12inv2 * d12inv2;
             p2  = REBO_MOS2_s12e4_SS * d12inv6 * d12inv6;
             p2 -= REBO_MOS2_s6e4_SS * d12inv6;
@@ -568,10 +568,10 @@ static __device__ void find_p2_and_f2(int type12, double d12, double &p2, double
         {
             double dr = d12 - REBO_MOS2_r1_SS;
             p2 = (REBO_MOS2_D2_SS + REBO_MOS2_D3_SS * dr) * dr * dr;
-            f2 = (REBO_MOS2_D2_SS * TWO + REBO_MOS2_D3_SS * THREE * dr) * dr;
+            f2 = (REBO_MOS2_D2_SS * 2.0 + REBO_MOS2_D3_SS * 3.0 * dr) * dr;
             f2 /= d12;
         }
-        else { p2 = ZERO; f2 = ZERO; }
+        else { p2 = 0.0; f2 = 0.0; }
     }
 }
 
@@ -594,19 +594,19 @@ static __global__ void find_force_step0
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
-    double s_fx = ZERO; // force_x
-    double s_fy = ZERO; // force_y
-    double s_fz = ZERO; // force_z
-    double s_pe = ZERO; // potential energy
-    double s_sxx = ZERO; // virial_stress_xx
-    double s_sxy = ZERO; // virial_stress_xy
-    double s_sxz = ZERO; // virial_stress_xz
-    double s_syx = ZERO; // virial_stress_yx
-    double s_syy = ZERO; // virial_stress_yy
-    double s_syz = ZERO; // virial_stress_yz
-    double s_szx = ZERO; // virial_stress_zx
-    double s_szy = ZERO; // virial_stress_zy
-    double s_szz = ZERO; // virial_stress_zz
+    double s_fx = 0.0; // force_x
+    double s_fy = 0.0; // force_y
+    double s_fz = 0.0; // force_z
+    double s_pe = 0.0; // potential energy
+    double s_sxx = 0.0; // virial_stress_xx
+    double s_sxy = 0.0; // virial_stress_xy
+    double s_sxz = 0.0; // virial_stress_xz
+    double s_syx = 0.0; // virial_stress_yx
+    double s_syy = 0.0; // virial_stress_yy
+    double s_syz = 0.0; // virial_stress_yz
+    double s_szx = 0.0; // virial_stress_zx
+    double s_szy = 0.0; // virial_stress_zy
+    double s_szz = 0.0; // virial_stress_zz
 
     if (n1 >= N1 && n1 < N2)
     {
@@ -617,7 +617,7 @@ static __global__ void find_force_step0
         double z1 = g_z[n1];
         
         int count = 0; // initialize g_NN_local[n1] to 0
-        double coordination_number = ZERO;
+        double coordination_number = 0.0;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -641,13 +641,13 @@ static __global__ void find_force_step0
                 coordination_number += fc12;
             }
 
-            double p2 = ZERO, f2 = ZERO;
+            double p2 = 0.0, f2 = 0.0;
             find_p2_and_f2(type12, d12, p2, f2);
 
             // treat two-body potential in the same way as many-body potential
-            double f12x = f2 * x12 * HALF; 
-            double f12y = f2 * y12 * HALF; 
-            double f12z = f2 * z12 * HALF; 
+            double f12x = f2 * x12 * 0.5; 
+            double f12y = f2 * y12 * 0.5; 
+            double f12z = f2 * z12 * 0.5; 
             double f21x = -f12x; 
             double f21y = -f12y; 
             double f21z = -f12z; 
@@ -658,7 +658,7 @@ static __global__ void find_force_step0
             s_fz += f12z - f21z; 
 
             // accumulate potential energy and virial 
-            s_pe += p2 * HALF; // two-body potential
+            s_pe += p2 * 0.5; // two-body potential
             s_sxx += x12 * f21x;
             s_sxy += x12 * f21y;
             s_sxz += x12 * f21z;
@@ -733,7 +733,7 @@ static __global__ void find_force_step1
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
-            double zeta = ZERO;
+            double zeta = 0.0;
             for (int i2 = 0; i2 < neighbor_number; ++i2)
             {
                 int n3 = g_NL[n1 + N * i2];
@@ -755,9 +755,9 @@ static __global__ void find_force_step1
             }
 
             zeta += p;
-            double b12 = pow(ONE + zeta, -HALF);
+            double b12 = pow(1.0 + zeta, -0.5);
             g_b[i1 * N + n1]  = b12;
-            g_bp[i1 * N + n1] = (-HALF)*b12/(ONE+zeta); 
+            g_bp[i1 * N + n1] = (-0.5)*b12/(1.0+zeta); 
         }
     }
 }
@@ -786,7 +786,7 @@ static __global__ void find_force_step2
         double y1 = g_y[n1];
         double z1 = g_z[n1];
         double pp1 = g_pp[n1];
-        double potential_energy = ZERO;
+        double potential_energy = 0.0;
 
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {
@@ -798,7 +798,7 @@ static __global__ void find_force_step2
             double z12  = g_z[n2] - z1;
             dev_apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-            double d12inv = ONE / d12;
+            double d12inv = 1.0 / d12;
 
             double fc12, fcp12, fa12, fap12, fr12, frp12;
             int type12 = type1 + type2;
@@ -811,12 +811,12 @@ static __global__ void find_force_step2
             double bp12 = g_bp[index];
             double factor3 = (fcp12*(fr12-b12*fa12) + fc12*(frp12-b12*fap12) 
                          - fc12*fcp12*fa12*bp12*pp1)/d12;
-            double f12x = x12 * factor3 * HALF;
-            double f12y = y12 * factor3 * HALF;
-            double f12z = z12 * factor3 * HALF;
+            double f12x = x12 * factor3 * 0.5;
+            double f12y = y12 * factor3 * 0.5;
+            double f12z = z12 * factor3 * 0.5;
 
             // accumulate potential energy
-            potential_energy += fc12 * (fr12 - b12 * fa12) * HALF;
+            potential_energy += fc12 * (fr12 - b12 * fa12) * 0.5;
 
             // accumulate_force_123
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -835,7 +835,7 @@ static __global__ void find_force_step2
                 find_fc(type13, d13, fc13);
                 find_fa(type13, d13, fa13);
                 double bp13 = g_bp[i2 * N + n1];
-                double one_over_d12d13 = ONE / (d12 * d13);
+                double one_over_d12d13 = 1.0 / (d12 * d13);
                 double cos123 = (x12*x13 + y12*y13 + z12*z13)*one_over_d12d13;
                 double cos123_over_d12d12 = cos123*d12inv*d12inv;
                 double g123, gp123;
@@ -844,11 +844,11 @@ static __global__ void find_force_step2
                 double temp123a=(-bp12*fc12*fa12*fc13-bp13*fc13*fa13*fc12)*gp123;
                 double temp123b= - bp13 * fc13 * fa13 * fcp12 * (g123+pp1) / d12;
                 double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
-                f12x += (x12 * temp123b + temp123a * cos_d)*HALF;
+                f12x += (x12 * temp123b + temp123a * cos_d)*0.5;
                 cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
-                f12y += (y12 * temp123b + temp123a * cos_d)*HALF;
+                f12y += (y12 * temp123b + temp123a * cos_d)*0.5;
                 cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
-                f12z += (z12 * temp123b + temp123a * cos_d)*HALF;
+                f12z += (z12 * temp123b + temp123a * cos_d)*0.5;
             }
             g_f12x[index] = f12x;
             g_f12y[index] = f12y;

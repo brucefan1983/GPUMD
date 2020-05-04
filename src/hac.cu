@@ -90,7 +90,7 @@ static __global__ void gpu_sum_heat
     const int number_of_patches = (N - 1) / 1024 + 1;
 
     __shared__ double s_data[1024];  
-    s_data[tid] = ZERO;
+    s_data[tid] = 0.0;
  
     for (int patch = 0; patch < number_of_patches; ++patch)
     {
@@ -181,11 +181,11 @@ __global__ void gpu_find_hac
     int number_of_patches = (Nd - 1) / 128 + 1;
     int number_of_data = Nd - bid;
 
-    s_hac_xi[tid] = ZERO;
-    s_hac_xo[tid] = ZERO;
-    s_hac_yi[tid] = ZERO;
-    s_hac_yo[tid] = ZERO;
-    s_hac_z[tid]  = ZERO;
+    s_hac_xi[tid] = 0.0;
+    s_hac_xo[tid] = 0.0;
+    s_hac_yi[tid] = 0.0;
+    s_hac_yo[tid] = 0.0;
+    s_hac_z[tid]  = 0.0;
 
     for (int patch = 0; patch < number_of_patches; ++patch)
     { 
@@ -302,8 +302,8 @@ void HAC::find_hac_kappa
     for (int nd = 0; nd < number_of_output_data; nd++)
     {
         const int nc = nd * output_interval;
-        double hac_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
-        double rtc_ave[NUM_OF_HEAT_COMPONENTS] = {ZERO};
+        double hac_ave[NUM_OF_HEAT_COMPONENTS] = {0.0};
+        double rtc_ave[NUM_OF_HEAT_COMPONENTS] = {0.0};
         for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++)
         {
             for (int m = 0; m < output_interval; m++)

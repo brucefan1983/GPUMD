@@ -130,7 +130,7 @@ static __global__ void find_per_atom_jk
     {
         double potential = g_potential[n]; double mass = g_mass[n];
         double vx = g_vx[n]; double vy = g_vy[n]; double vz = g_vz[n];
-        double energy = mass * (vx * vx + vy * vy + vz * vz) * HALF + potential;
+        double energy = mass * (vx * vx + vy * vy + vz * vz) * 0.5 + potential;
         g_jx[n] = vx * energy; g_jy[n] = vy * energy; g_jz[n] = vz * energy;
     }
 }
@@ -152,7 +152,7 @@ static __global__ void find_group_sum_1
     int offset = g_group_size_sum[bid];
     int number_of_patches = (group_size - 1) / 256 + 1;
     __shared__ double s_data[256];
-    s_data[tid] = ZERO;
+    s_data[tid] = 0.0;
 
     for (int patch = 0; patch < number_of_patches; patch++)
     {
@@ -196,7 +196,7 @@ static __global__ void find_group_sum_3
     __shared__ double s_fx[256];
     __shared__ double s_fy[256];
     __shared__ double s_fz[256];
-    s_fx[tid] = ZERO; s_fy[tid] = ZERO; s_fz[tid] = ZERO;
+    s_fx[tid] = 0.0; s_fy[tid] = 0.0; s_fz[tid] = 0.0;
 
     for (int patch = 0; patch < number_of_patches; patch++)
     {
