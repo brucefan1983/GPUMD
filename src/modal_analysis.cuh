@@ -75,8 +75,8 @@ public:
     GPU_Vector<int> bin_count;  // Number of modes per bin when f_flag=1
     GPU_Vector<int> bin_sum;    // Running sum from bin_count
 
-    char eig_file_position[FILE_NAME_LENGTH];
-    char output_file_position[FILE_NAME_LENGTH];
+    char eig_file_position[200];
+    char output_file_position[200];
 
     void preprocess(char*, Atom*);
     void process(int, Atom*, Integrate*, double);

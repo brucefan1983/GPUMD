@@ -395,7 +395,7 @@ void VAC::find_dos
     );
 
     // output DOS
-    char file_dos[FILE_NAME_LENGTH];
+    char file_dos[200];
     strcpy(file_dos, input_dir);
     strcat(file_dos, "/dos.out");
     FILE *fid = fopen(file_dos, "a");
@@ -456,7 +456,7 @@ void VAC::find_sdc
     );
 
     // output the VAC and SDC
-    char file_sdc[FILE_NAME_LENGTH];
+    char file_sdc[200];
     strcpy(file_sdc, input_dir);
     strcat(file_sdc, "/sdc.out");
     FILE *fid = fopen(file_sdc, "a");
@@ -514,7 +514,7 @@ void VAC::postprocess
         }
 
         // output normalized MVAC
-        char file_vac[FILE_NAME_LENGTH];
+        char file_vac[517];
         strcpy(file_vac, input_dir);
         strcat(file_vac, "/mvac.out");
         FILE *fid = fopen(file_vac, "a");

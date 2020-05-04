@@ -17,9 +17,6 @@
 #pragma once
 
 
-const int FILE_NAME_LENGTH = 200;
-#define GPUMD_VERSION "2.5"
-
 #define PI    3.14159265358979
 #define K_B   8.617343e-5                      // Boltzmann's constant
 #define K_C   14.399645                        // 1/(4*PI*epsilon_0)

@@ -34,6 +34,9 @@ http://ambermd.org/netcdf/nctraj.xhtml
 #include "dump_netcdf.cuh"
 #include "common.cuh"
 
+const int FILE_NAME_LENGTH = 200;
+#define GPUMD_VERSION "2.5"
+
 /* Handle errors by printing an error message and exiting with a
  * non-zero status. */
 #define ERRCODE 2

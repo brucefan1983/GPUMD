@@ -231,7 +231,7 @@ void SHC::postprocess(const char *input_dir)
     if (!compute) { return; }
 
     CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
-    char file_shc[FILE_NAME_LENGTH];
+    char file_shc[200];
     strcpy(file_shc, input_dir);
     strcat(file_shc, "/shc.out");
     FILE *fid = my_fopen(file_shc, "a");

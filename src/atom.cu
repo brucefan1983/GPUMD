@@ -386,7 +386,7 @@ void Atom::initialize_position(char *input_dir)
     printf("Started initializing positions and related parameters.\n");
     print_line_2();
 
-    char file_xyz[FILE_NAME_LENGTH];
+    char file_xyz[200];
     strcpy(file_xyz, input_dir);
     strcat(file_xyz, "/xyz.in");
     FILE *fid_xyz = my_fopen(file_xyz, "r");

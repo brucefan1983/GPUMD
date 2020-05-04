@@ -41,9 +41,9 @@ public:
     FILE *fid_thermo;
     FILE *fid_velocity;
     FILE *fid_restart;
-    char file_thermo[FILE_NAME_LENGTH]; 
-    char file_velocity[FILE_NAME_LENGTH];  
-    char file_restart[FILE_NAME_LENGTH];
+    char file_thermo[200];
+    char file_velocity[200];
+    char file_restart[200];
     VAC vac;
     HAC hac;
     SHC shc;
