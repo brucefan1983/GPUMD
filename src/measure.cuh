@@ -22,6 +22,8 @@
 #include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
+#include "integrate.cuh"
+#include "ensemble.cuh"
 
 
 class Measure

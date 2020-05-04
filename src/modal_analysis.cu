@@ -558,7 +558,13 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         cublasCreate(&ma_handle);
 }
 
-void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double fe)
+void MODAL_ANALYSIS::process
+(
+    int step,
+    Atom *atom,
+    double temperature,
+    double fe
+)
 {
     if (!compute) return;
     if (!((step+1) % sample_interval == 0)) return;
@@ -579,8 +585,7 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double 
     {
         float volume = atom->box.get_volume();
         float factor = KAPPA_UNIT_CONVERSION/
-            (volume * integrate->ensemble->temperature
-                    * fe * (float)samples_per_output);
+            (volume * temperature * fe * (float)samples_per_output);
         int num_bins_stored = num_bins * NUM_OF_HEAT_COMPONENTS;
         gpu_scale_jm<<<(num_bins_stored-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
         (

@@ -20,8 +20,6 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 #pragma once
 #include "mic.cuh"
 #include "atom.cuh"
-#include "integrate.cuh"
-#include "ensemble.cuh"
 #include <fstream>
 #include <string>
 #include <iostream>
@@ -79,7 +77,7 @@ public:
     char output_file_position[200];
 
     void preprocess(char*, Atom*);
-    void process(int, Atom*, Integrate*, double);
+    void process(int, Atom*, double, double);
     void postprocess();
 
 private:

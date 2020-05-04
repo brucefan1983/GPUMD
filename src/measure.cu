@@ -20,8 +20,6 @@ The driver class dealing with measurement.
 
 
 #include "measure.cuh"
-#include "integrate.cuh"
-#include "ensemble.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #include "read_file.cuh"
@@ -190,7 +188,7 @@ void Measure::process
     hac.process(step, input_dir, atom);
     shc.process(step, atom);
     hnemd.process(step, input_dir, integrate->temperature2, atom);
-    modal_analysis.process(step, atom, integrate, hnemd.fe);
+    modal_analysis.process(step, atom, integrate->temperature2, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);
 
 }
