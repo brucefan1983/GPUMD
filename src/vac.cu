@@ -514,7 +514,7 @@ void VAC::postprocess
         }
 
         // output normalized MVAC
-        char file_vac[517];
+        char file_vac[200];
         strcpy(file_vac, input_dir);
         strcat(file_vac, "/mvac.out");
         FILE *fid = fopen(file_vac, "a");
