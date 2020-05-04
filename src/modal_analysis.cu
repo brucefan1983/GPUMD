@@ -612,5 +612,6 @@ void MODAL_ANALYSIS::process(int step, Atom *atom, Integrate *integrate, double 
 
 void MODAL_ANALYSIS::postprocess()
 {
+    if (!compute) return;
     cublasDestroy(ma_handle);
 }
