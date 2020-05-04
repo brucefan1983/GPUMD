@@ -447,7 +447,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
             strcat(output_file_position, "/kappamode.out");
         }
 
-        size_t eig_size = sizeof(float) * num_participating * num_modes;
+        size_t eig_size = num_participating * num_modes;
         eigx.resize(eig_size, Memory_Type::managed);
         eigy.resize(eig_size, Memory_Type::managed);
         eigz.resize(eig_size, Memory_Type::managed);
@@ -468,9 +468,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         // Setup binning
         if (f_flag)
         {
-            GPU_Vector<double> f;
-            size_t f_size = num_modes;
-            f.resize(f_size, Memory_Type::managed);
+            GPU_Vector<double> f(num_modes, Memory_Type::managed);
             getline(eigfile, val);
             std::stringstream ss(val);
             for (int i=0; i<first_mode-1; i++) { ss >> f[0]; }
@@ -487,21 +485,18 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
             shift = floor(abs(fmin)/f_bin_size);
             num_bins = floor((fmax-fmin)/f_bin_size);
 
-            size_t bin_count_size = num_bins;
-            bin_count.resize(bin_count_size, 0, Memory_Type::managed);
+            bin_count.resize(num_bins, 0, Memory_Type::managed);
             for (int i = 0; i< num_modes; i++)
                 bin_count[int(abs(f[i]/f_bin_size))-shift]++;
 
-            size_t bin_sum_size = num_bins;
-            bin_sum.resize(bin_sum_size, 0, Memory_Type::managed);
+            bin_sum.resize(num_bins, 0, Memory_Type::managed);
             for (int i = 1; i < num_bins; i++)
                 bin_sum[i] = bin_sum[i-1] + bin_count[i-1];
         }
         else
         {
             num_bins = (int)ceil((double)num_modes/(double)bin_size);
-            size_t bin_count_size = num_bins;
-            bin_count.resize(bin_count_size, Memory_Type::managed);
+            bin_count.resize(num_bins, Memory_Type::managed);
             if (num_modes%bin_size != 0)
             {
                 for(int i_=0; i_<num_bins-1;i_++){bin_count[i_]=(int)bin_size;}
@@ -512,8 +507,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
                 bin_count[0] = (int)bin_size;
             }
 
-            size_t bin_sum_size = num_bins;
-            bin_sum.resize(bin_sum_size, 0, Memory_Type::managed);
+            bin_sum.resize(num_bins, 0, Memory_Type::managed);
             for (int i = 1; i < num_bins; i++)
                 bin_sum[i] = bin_sum[i-1] + bin_count[i-1];
 
@@ -531,16 +525,14 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         eigfile.close();
 
         // Allocate intermediate vector
-        size_t mv_size = num_participating;
-        mvx.resize(mv_size, Memory_Type::managed);
-        mvy.resize(mv_size, Memory_Type::managed);
-        mvz.resize(mv_size, Memory_Type::managed);
+        mvx.resize(num_participating, Memory_Type::managed);
+        mvy.resize(num_participating, Memory_Type::managed);
+        mvz.resize(num_participating, Memory_Type::managed);
 
         // Allocate modal velocities
-        size_t xdot_size = num_modes;
-        xdotx.resize(xdot_size, Memory_Type::managed);
-        xdoty.resize(xdot_size, Memory_Type::managed);
-        xdotz.resize(xdot_size, Memory_Type::managed);
+        xdotx.resize(num_modes, Memory_Type::managed);
+        xdoty.resize(num_modes, Memory_Type::managed);
+        xdotz.resize(num_modes, Memory_Type::managed);
 
         // Allocate modal measured quantities
         size_t jmxyz_size = num_modes*3;
@@ -549,8 +541,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         jmz.resize(jmxyz_size, Memory_Type::managed);
 
         num_heat_stored = num_modes*NUM_OF_HEAT_COMPONENTS;
-        size_t jm_size = num_heat_stored;
-        jm.resize(jm_size, 0.0f, Memory_Type::managed);
+        jm.resize(num_heat_stored, 0.0f, Memory_Type::managed);
 
         size_t bin_out_size = num_bins * NUM_OF_HEAT_COMPONENTS;
         bin_out.resize(bin_out_size, Memory_Type::managed);
@@ -561,9 +552,8 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         smz.resize(sm_size, Memory_Type::managed);
 
         // prepare masses
-        size_t mass_size = num_participating;
-        sqrtmass.resize(mass_size, Memory_Type::managed);
-        rsqrtmass.resize(mass_size, Memory_Type::managed);
+        sqrtmass.resize(num_participating, Memory_Type::managed);
+        rsqrtmass.resize(num_participating, Memory_Type::managed);
         gpu_set_mass_terms
         <<<(num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
         (
