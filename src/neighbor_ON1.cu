@@ -257,7 +257,7 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
 
     gpu_find_neighbor_ON1<<<grid_size, block_size>>>
     (
-        box, N, cell_count, cell_count_sum, cell_contents, NN, NL, x, y, z, 
+        box, N, cell_count, cell_count_sum, cell_contents, neighbor.NN.data(), neighbor.NL.data(), x, y, z,
         cell_n_x, cell_n_y, cell_n_z, rc, rc2
     );
     CUDA_CHECK_KERNEL

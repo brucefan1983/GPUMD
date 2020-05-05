@@ -302,8 +302,8 @@ void SW2::compute(Atom *atom, int potential_number)
     int N = atom->N;
     int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
-    int *NN = atom->NN_local;
-    int *NL = atom->NL_local;
+    int *NN = atom->neighbor.NN_local.data();
+    int *NL = atom->neighbor.NL_local.data();
     int *type = atom->type;
     double *x = atom->x;
     double *y = atom->y;

@@ -135,7 +135,7 @@ static __global__ void gpu_update_xyz0
 void Atom::check_bound(void)
 {
     std::vector<int> cpu_NN(N);
-    CHECK(cudaMemcpy(cpu_NN.data(), NN, sizeof(int)*N, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(cpu_NN.data(), neighbor.NN.data(), sizeof(int)*N, cudaMemcpyDeviceToHost));
     int flag = 0;
     for (int n = 0; n < N; ++n)
     {
@@ -230,7 +230,7 @@ void Atom::find_neighbor(void)
         find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z);
 #ifdef DEBUG
         const int smem = neighbor.MN * sizeof(int);
-        gpu_sort_neighbor_list<<<N, neighbor.MN, smem>>>(N, NN, NL);
+        gpu_sort_neighbor_list<<<N, neighbor.MN, smem>>>(N, neighbor.NN.data(), neighbor.NL.data());
 #endif
     }
 }

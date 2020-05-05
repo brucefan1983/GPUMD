@@ -26,6 +26,9 @@ struct Neighbor
     double skin;             // skin distance 
     double rc;               // cutoff used when building the neighbor list
 
+    GPU_Vector<int> NN, NL;             // global neighbor list
+    GPU_Vector<int> NN_local, NL_local; // local neighbor list
+
     // some data for the ON1 method
     GPU_Vector<int> cell_count;
     GPU_Vector<int> cell_count_sum;

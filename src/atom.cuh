@@ -28,8 +28,6 @@ const int MAX_NUMBER_OF_GROUPS = 10;
 class Atom
 {
 public:
-    int *NN; int *NL;             // global neighbor list
-    int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
     double *mass;                   // per-atom mass
     double *x; double *y; double *z;    // per-atom position

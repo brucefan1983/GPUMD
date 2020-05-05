@@ -867,8 +867,8 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
     int shift = atom->shift[potential_number];
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-    int *NN = atom->NN_local;           // for 2-body
-    int *NL = atom->NL_local;           // for 2-body
+    int *NN = atom->neighbor.NN_local.data(); // for 2-body
+    int *NL = atom->neighbor.NL_local.data(); // for 2-body
     int *NN_local = rebo_mos_data.NN_short.data(); // for 3-body
     int *NL_local = rebo_mos_data.NL_short.data(); // for 3-body
 

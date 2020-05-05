@@ -444,10 +444,10 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int N1 = potential[m]->N1;
     int N2 = potential[m]->N2;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
-    int *NN = atom->NN;
-    int *NL = atom->NL;
-    int *NN_local = atom->NN_local;
-    int *NL_local = atom->NL_local;
+    int *NN = atom->neighbor.NN.data();
+    int *NL = atom->neighbor.NL.data();
+    int *NN_local = atom->neighbor.NN_local.data();
+    int *NL_local = atom->neighbor.NL_local.data();
     int *type = (group_method >= 0) ? atom->group[group_method].label.data()
                                     : atom->type;
     double rc2 = potential[m]->rc * potential[m]->rc;

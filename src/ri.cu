@@ -228,7 +228,7 @@ void RI::compute(Atom *atom, int potential_number)
     gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         ri_para, atom->N, N1, N2, atom->box,
-        atom->NN_local, atom->NL_local,
+        atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(),
         atom->type, shift, atom->x, atom->y, atom->z,
         atom->vx, atom->vy, atom->vz,
         atom->fx, atom->fy, atom->fz, atom->virial_per_atom,

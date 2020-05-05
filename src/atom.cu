@@ -414,13 +414,12 @@ void Atom::initialize_position(char *input_dir)
 void Atom::allocate_memory_gpu(void)
 {
     int m1 = sizeof(int) * N;
-    int m2 = m1 * neighbor.MN;
     int m4 = sizeof(double) * N;
     int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
-    CHECK(cudaMalloc((void**)&NN, m1));
-    CHECK(cudaMalloc((void**)&NL, m2));
-    CHECK(cudaMalloc((void**)&NN_local, m1));
-    CHECK(cudaMalloc((void**)&NL_local, m2));
+    neighbor.NN.resize(N);
+    neighbor.NL.resize(N * neighbor.MN);
+    neighbor.NN_local.resize(N);
+    neighbor.NL_local.resize(N * neighbor.MN);
 
     neighbor.cell_count.resize(N);
     neighbor.cell_count_sum.resize(N);
@@ -475,11 +474,6 @@ void Atom::copy_from_cpu_to_gpu(void)
 
 void Atom::free_memory_gpu(void)
 {
-    CHECK(cudaFree(NN));
-    CHECK(cudaFree(NL));
-    CHECK(cudaFree(NN_local));
-    CHECK(cudaFree(NL_local));
-
     CHECK(cudaFree(type));
     CHECK(cudaFree(mass));
     CHECK(cudaFree(x));

@@ -65,7 +65,7 @@ void Atom::find_neighbor_ON2(void)
     const int grid_size = (N - 1) / block_size + 1;
     double rc2 = neighbor.rc * neighbor.rc; 
 
-    gpu_find_neighbor_ON2<<<grid_size, block_size>>>(box, N, rc2, NN, NL, x, y, z);
+    gpu_find_neighbor_ON2<<<grid_size, block_size>>>(box, N, rc2, neighbor.NN.data(), neighbor.NL.data(), x, y, z);
     CUDA_CHECK_KERNEL
 }
 

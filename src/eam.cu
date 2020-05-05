@@ -30,8 +30,8 @@ The EAM potential. Currently two analytical versions:
     find_force_eam_step2<A><<<grid_size, BLOCK_SIZE_FORCE>>>                   \
     (                                                                          \
         eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box,                   \
-        atom->NN_local,                                                        \
-        atom->NL_local, eam_data.Fp.data(),                                    \
+        atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(),        \
+        eam_data.Fp.data(),                                                    \
         atom->x, atom->y, atom->z, atom->vx,                                   \
         atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,                      \
         atom->virial_per_atom, atom->potential_per_atom                        \
@@ -427,7 +427,7 @@ void EAM::compute(Atom *atom, int potential_number)
         find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
-            atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
+            atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(), atom->x, atom->y, atom->z,
             eam_data.Fp.data(), atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
@@ -441,7 +441,7 @@ void EAM::compute(Atom *atom, int potential_number)
         find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
-            atom->NN_local, atom->NL_local, atom->x, atom->y, atom->z, 
+            atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(), atom->x, atom->y, atom->z,
             eam_data.Fp.data(), atom->potential_per_atom
         );
         CUDA_CHECK_KERNEL
