@@ -435,9 +435,9 @@ void Atom::allocate_memory_gpu(void)
         group[m].contents.resize(N);
     }
     CHECK(cudaMalloc((void**)&mass, m4));
-    CHECK(cudaMalloc((void**)&x0,   m4));
-    CHECK(cudaMalloc((void**)&y0,   m4));
-    CHECK(cudaMalloc((void**)&z0,   m4));
+    neighbor.x0.resize(N);
+    neighbor.y0.resize(N);
+    neighbor.z0.resize(N);
     CHECK(cudaMalloc((void**)&x,    m4));
     CHECK(cudaMalloc((void**)&y,    m4));
     CHECK(cudaMalloc((void**)&z,    m4));
@@ -482,9 +482,6 @@ void Atom::free_memory_gpu(void)
 
     CHECK(cudaFree(type));
     CHECK(cudaFree(mass));
-    CHECK(cudaFree(x0));
-    CHECK(cudaFree(y0));
-    CHECK(cudaFree(z0));
     CHECK(cudaFree(x));
     CHECK(cudaFree(y));
     CHECK(cudaFree(z));

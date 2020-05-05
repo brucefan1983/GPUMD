@@ -30,6 +30,9 @@ struct Neighbor
     GPU_Vector<int> cell_count;
     GPU_Vector<int> cell_count_sum;
     GPU_Vector<int> cell_contents;
+
+    // used to determine when to update neighbor list
+    GPU_Vector<double> x0, y0, z0;
 };
 
 

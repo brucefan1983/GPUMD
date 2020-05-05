@@ -31,7 +31,6 @@ public:
     int *NN; int *NL;             // global neighbor list
     int *NN_local; int *NL_local; // local neighbor list
     int *type;                    // atom type (for force)
-    double *x0; double *y0; double *z0; // determining when to update neighbor list
     double *mass;                   // per-atom mass
     double *x; double *y; double *z;    // per-atom position
     double *vx; double *vy; double *vz; // per-atom velocity

@@ -66,7 +66,7 @@ int Atom::check_atom_distance(void)
     GPU_Vector<int> s2(1);
     int cpu_s2[1] = {0};
     s2.copy_from_host(cpu_s2);
-    gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0, y0, z0, x, y, z, s2.data());
+    gpu_check_atom_distance<<<M, 1024>>>(N, d2, neighbor.x0.data(), neighbor.y0.data(), neighbor.z0.data(), x, y, z, s2.data());
     CUDA_CHECK_KERNEL
     s2.copy_to_host(cpu_s2);
     return cpu_s2[0];
@@ -247,7 +247,7 @@ void Atom::find_neighbor(int is_first)
         find_neighbor();
         check_bound();
 
-        gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0, y0, z0);
+        gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, neighbor.x0.data(), neighbor.y0.data(), neighbor.z0.data());
         CUDA_CHECK_KERNEL
     }
     else
@@ -264,7 +264,7 @@ void Atom::find_neighbor(int is_first)
             gpu_apply_pbc<<<grid_size, block_size>>>(N, box, x, y, z);
             CUDA_CHECK_KERNEL
 
-            gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0, y0, z0);
+            gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, neighbor.x0.data(), neighbor.y0.data(), neighbor.z0.data());
             CUDA_CHECK_KERNEL
         }
     }
