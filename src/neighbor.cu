@@ -67,7 +67,18 @@ int Neighbor::check_atom_distance(double* x, double* y, double* z)
     GPU_Vector<int> s2(1);
     int cpu_s2[1] = {0};
     s2.copy_from_host(cpu_s2);
-    gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0.data(), y0.data(), z0.data(), x, y, z, s2.data());
+    gpu_check_atom_distance<<<M, 1024>>>
+    (
+        N,
+        d2,
+        x0.data(),
+        y0.data(),
+        z0.data(),
+        x,
+        y,
+        z,
+        s2.data()
+    );
     CUDA_CHECK_KERNEL
     s2.copy_to_host(cpu_s2);
     return cpu_s2[0];
@@ -137,7 +148,7 @@ void Neighbor::check_bound(void)
 {
     const int N = NN.size();
     std::vector<int> cpu_NN(N);
-    CHECK(cudaMemcpy(cpu_NN.data(), NN.data(), sizeof(int)*N, cudaMemcpyDeviceToHost));
+    NN.copy_to_host(cpu_NN.data());
     int flag = 0;
     for (int n = 0; n < N; ++n)
     {
@@ -240,7 +251,14 @@ void Neighbor::find_neighbor(const Box& box, double* x, double* y, double* z)
 
 
 // the driver function to be called outside this file
-void Neighbor::find_neighbor(int is_first, const Box& box, double* x, double* y, double* z)
+void Neighbor::find_neighbor
+(
+    int is_first,
+    const Box& box,
+    double* x,
+    double* y,
+    double* z
+)
 {
     const int N = NN.size();
     const int block_size = 256;
@@ -251,7 +269,16 @@ void Neighbor::find_neighbor(int is_first, const Box& box, double* x, double* y,
         find_neighbor(box, x, y, z);
         check_bound();
 
-        gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
+        gpu_update_xyz0<<<grid_size, block_size>>>
+        (
+            N,
+            x,
+            y,
+            z,
+            x0.data(),
+            y0.data(),
+            z0.data()
+        );
         CUDA_CHECK_KERNEL
     }
     else
@@ -268,7 +295,16 @@ void Neighbor::find_neighbor(int is_first, const Box& box, double* x, double* y,
             gpu_apply_pbc<<<grid_size, block_size>>>(N, box, x, y, z);
             CUDA_CHECK_KERNEL
 
-            gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
+            gpu_update_xyz0<<<grid_size, block_size>>>
+            (
+                N,
+                x,
+                y,
+                z,
+                x0.data(),
+                y0.data(),
+                z0.data()
+            );
             CUDA_CHECK_KERNEL
         }
     }

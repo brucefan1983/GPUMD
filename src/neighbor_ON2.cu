@@ -59,14 +59,30 @@ static __global__ void gpu_find_neighbor_ON2
 
 
 // a wrapper function of the above kernel
-void Neighbor::find_neighbor_ON2(const Box& box, double* x, double* y, double* z)
+void Neighbor::find_neighbor_ON2
+(
+    const Box& box,
+    double* x,
+    double* y,
+    double* z
+)
 {
     const int N = NN.size();
     const int block_size = 128;
     const int grid_size = (N - 1) / block_size + 1;
     double rc2 = rc * rc;
 
-    gpu_find_neighbor_ON2<<<grid_size, block_size>>>(box, N, rc2, NN.data(), NL.data(), x, y, z);
+    gpu_find_neighbor_ON2<<<grid_size, block_size>>>
+    (
+        box,
+        N,
+        rc2,
+        NN.data(),
+        NL.data(),
+        x,
+        y,
+        z
+    );
     CUDA_CHECK_KERNEL
 }
 
