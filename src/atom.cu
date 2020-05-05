@@ -429,11 +429,10 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&type, m1));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
-        int m3 = sizeof(int) * group[m].number;
-        CHECK(cudaMalloc((void**)&group[m].label, m1));
-        CHECK(cudaMalloc((void**)&group[m].size, m3));
-        CHECK(cudaMalloc((void**)&group[m].size_sum, m3));
-        CHECK(cudaMalloc((void**)&group[m].contents, m1));
+        group[m].label.resize(N);
+        group[m].size.resize(group[m].number);
+        group[m].size_sum.resize(group[m].number);
+        group[m].contents.resize(N);
     }
     CHECK(cudaMalloc((void**)&mass, m4));
     CHECK(cudaMalloc((void**)&x0,   m4));
@@ -462,15 +461,10 @@ void Atom::copy_from_cpu_to_gpu(void)
     CHECK(cudaMemcpy(type, cpu_type.data(), m1, cudaMemcpyHostToDevice));
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
-        int m2 = sizeof(int) * group[m].number;
-        CHECK(cudaMemcpy(group[m].label, group[m].cpu_label.data(), m1,
-            cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(group[m].size, group[m].cpu_size.data(), m2,
-            cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(group[m].size_sum, group[m].cpu_size_sum.data(), m2,
-            cudaMemcpyHostToDevice));
-        CHECK(cudaMemcpy(group[m].contents, group[m].cpu_contents.data(), m1,
-            cudaMemcpyHostToDevice));
+        group[m].label.copy_from_host(group[m].cpu_label.data());
+        group[m].size.copy_from_host(group[m].cpu_size.data());
+        group[m].size_sum.copy_from_host(group[m].cpu_size_sum.data());
+        group[m].contents.copy_from_host(group[m].cpu_contents.data());
     }
     CHECK(cudaMemcpy(mass, cpu_mass.data(), m3, cudaMemcpyHostToDevice));
     CHECK(cudaMemcpy(x, cpu_x.data(), m3, cudaMemcpyHostToDevice));
@@ -491,13 +485,6 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(neighbor.cell_contents));
 
     CHECK(cudaFree(type));
-    for (int m = 0; m < num_of_grouping_methods; ++m)
-    {
-        CHECK(cudaFree(group[m].label));
-        CHECK(cudaFree(group[m].size));
-        CHECK(cudaFree(group[m].size_sum));
-        CHECK(cudaFree(group[m].contents));
-    }
     CHECK(cudaFree(mass));
     CHECK(cudaFree(x0));
     CHECK(cudaFree(y0));

@@ -110,7 +110,7 @@ void VAC::preprocess(Atom *atom)
             (
                 N,
                 atom->group[grouping_method].cpu_size_sum[group],
-                atom->group[grouping_method].contents,
+                atom->group[grouping_method].contents.data(),
                 mass.data(),
                 atom->mass
             );
@@ -263,7 +263,7 @@ void VAC::process
         (
             N,
             atom->group[grouping_method].cpu_size_sum[group],
-            atom->group[grouping_method].contents,
+            atom->group[grouping_method].contents.data(),
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,

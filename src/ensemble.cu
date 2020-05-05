@@ -123,7 +123,7 @@ void Ensemble::velocity_verlet_1(Atom* atom)
     {
         gpu_velocity_verlet_1<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, fixed_group, atom->group[0].label, atom->time_step,
+            atom->N, fixed_group, atom->group[0].label.data(), atom->time_step,
             atom->mass, atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz,
             atom->fx, atom->fy, atom->fz
         );
@@ -209,7 +209,7 @@ void Ensemble::velocity_verlet_2(Atom* atom)
     {
         gpu_velocity_verlet_2<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, fixed_group, atom->group[0].label, atom->time_step,
+            atom->N, fixed_group, atom->group[0].label.data(), atom->time_step,
             atom->mass, atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,
             atom->fz
         );
@@ -519,7 +519,7 @@ void Ensemble::find_thermo(Atom* atom)
         int N_fixed = atom->group[0].cpu_size[fixed_group];
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N, N_fixed, fixed_group, atom->group[0].label,
+            atom->N, N_fixed, fixed_group, atom->group[0].label.data(),
             temperature, volume, atom->mass, atom->potential_per_atom,
             atom->vx, atom->vy, atom->vz, 
             atom->virial_per_atom,
@@ -640,7 +640,7 @@ void Ensemble::find_vc_and_ke
 {
     gpu_find_vc_and_ke<<<atom->group[0].number, 512>>>
     (
-        atom->group[0].size, atom->group[0].size_sum, atom->group[0].contents, 
+        atom->group[0].size.data(), atom->group[0].size_sum.data(), atom->group[0].contents.data(),
         atom->mass, atom->vx, atom->vy, atom->vz, vcx, vcy, vcz, ke
     );
     CUDA_CHECK_KERNEL
@@ -698,7 +698,7 @@ void Ensemble::scale_velocity_local
 {
     gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N, source, sink, atom->group[0].label, factor_1, factor_2, 
+        atom->N, source, sink, atom->group[0].label.data(), factor_1, factor_2,
         vcx, vcy, vcz, ke, atom->vx, atom->vy, atom->vz
     );
     CUDA_CHECK_KERNEL

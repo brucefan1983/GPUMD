@@ -448,7 +448,7 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int *NL = atom->NL;
     int *NN_local = atom->NN_local;
     int *NL_local = atom->NL_local;
-    int *type = (group_method >= 0) ? atom->group[group_method].label 
+    int *type = (group_method >= 0) ? atom->group[group_method].label.data()
                                     : atom->type;
     double rc2 = potential[m]->rc * potential[m]->rc;
     double *x = atom->x;

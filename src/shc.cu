@@ -187,7 +187,7 @@ void SHC::process
         (
             group_size,
             atom->group[group_method].cpu_size_sum[group_id],
-            atom->group[group_method].contents,
+            atom->group[group_method].contents.data(),
             sx.data(),
             sy.data(),
             sz.data(),

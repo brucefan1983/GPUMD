@@ -190,9 +190,9 @@ static __global__ void find_ke
 // wrapper of the above two kernels
 void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
 {
-    int *group_size      = atom->group[0].size;
-    int *group_size_sum  = atom->group[0].size_sum;
-    int *group_contents  = atom->group[0].contents;
+    int *group_size      = atom->group[0].size.data();
+    int *group_size_sum  = atom->group[0].size_sum.data();
+    int *group_contents  = atom->group[0].contents.data();
     double *mass = atom->mass;
     double *vx = atom->vx; double *vy = atom->vy; double *vz = atom->vz;
     int Ng = atom->group[0].number;

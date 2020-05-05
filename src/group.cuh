@@ -15,6 +15,7 @@
 
 
 #pragma once
+#include "gpu_vector.cuh"
 #include <vector>
 
 
@@ -22,10 +23,10 @@ struct Group
 {
     int number;             // number of groups
     // GPU data
-    int *label;             // atom label
-    int *size;              // # atoms in each group
-    int *size_sum;          // # atoms in all previous groups
-    int *contents;          // atom indices sorted based on groups
+    GPU_Vector<int> label;             // atom label
+    GPU_Vector<int> size;              // # atoms in each group
+    GPU_Vector<int> size_sum;          // # atoms in all previous groups
+    GPU_Vector<int> contents;          // atom indices sorted based on groups
     // CPU data corresponding to the above GPU data
     std::vector<int> cpu_label;
     std::vector<int> cpu_size;

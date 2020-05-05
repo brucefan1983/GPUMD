@@ -255,9 +255,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
         CUDA_CHECK_KERNEL
         find_group_sum_1<<<Ng, 256>>>
         (
-            atom->group[grouping_method].size,
-            atom->group[grouping_method].size_sum,
-            atom->group[grouping_method].contents,
+            atom->group[grouping_method].size.data(),
+            atom->group[grouping_method].size_sum.data(),
+            atom->group[grouping_method].contents.data(),
             gpu_per_atom_x.data(),
             gpu_group_sum.data() + offset
         );
@@ -268,9 +268,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
     {
         find_group_sum_1<<<Ng, 256>>>
         (
-            atom->group[grouping_method].size,
-            atom->group[grouping_method].size_sum,
-            atom->group[grouping_method].contents,
+            atom->group[grouping_method].size.data(),
+            atom->group[grouping_method].size_sum.data(),
+            atom->group[grouping_method].contents.data(),
             atom->potential_per_atom,
             gpu_group_sum.data() + offset
         );
@@ -281,9 +281,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
     {
         find_group_sum_3<<<Ng, 256>>>
         (
-            atom->group[grouping_method].size,
-            atom->group[grouping_method].size_sum,
-            atom->group[grouping_method].contents,
+            atom->group[grouping_method].size.data(),
+            atom->group[grouping_method].size_sum.data(),
+            atom->group[grouping_method].contents.data(),
             atom->fx,
             atom->fy,
             atom->fz,
@@ -296,9 +296,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
     {
         find_group_sum_3<<<Ng, 256>>>
         (
-            atom->group[grouping_method].size,
-            atom->group[grouping_method].size_sum,
-            atom->group[grouping_method].contents,
+            atom->group[grouping_method].size.data(),
+            atom->group[grouping_method].size_sum.data(),
+            atom->group[grouping_method].contents.data(),
             atom->virial_per_atom,
             atom->virial_per_atom + N,
             atom->virial_per_atom + N * 2,
@@ -334,9 +334,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
 
         find_group_sum_3<<<Ng, 256>>>
         (
-            atom->group[grouping_method].size,
-            atom->group[grouping_method].size_sum,
-            atom->group[grouping_method].contents,
+            atom->group[grouping_method].size.data(),
+            atom->group[grouping_method].size_sum.data(),
+            atom->group[grouping_method].contents.data(),
             gpu_per_atom_x.data(),
             gpu_per_atom_y.data(),
             gpu_per_atom_z.data(),
@@ -363,9 +363,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
 
         find_group_sum_3<<<Ng, 256>>>
         (
-            atom->group[grouping_method].size,
-            atom->group[grouping_method].size_sum,
-            atom->group[grouping_method].contents,
+            atom->group[grouping_method].size.data(),
+            atom->group[grouping_method].size_sum.data(),
+            atom->group[grouping_method].contents.data(),
             gpu_per_atom_x.data(),
             gpu_per_atom_y.data(),
             gpu_per_atom_z.data(),
