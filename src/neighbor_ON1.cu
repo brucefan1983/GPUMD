@@ -226,9 +226,9 @@ void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
     double rc = neighbor.rc;
     double rc2 = rc * rc; 
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
-    int* cell_count = neighbor.cell_count;
-    int* cell_count_sum = neighbor.cell_count_sum;
-    int* cell_contents = neighbor.cell_contents;
+    int* cell_count = neighbor.cell_count.data();
+    int* cell_count_sum = neighbor.cell_count_sum.data();
+    int* cell_contents = neighbor.cell_contents.data();
 
     CHECK(cudaMemset(cell_count, 0, sizeof(int)*N_cells));
     CHECK(cudaMemset(cell_count_sum, 0, sizeof(int)*N_cells));
