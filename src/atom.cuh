@@ -73,7 +73,6 @@ public:
     ~Atom(void);
 
     void initialize_velocity(void);
-    void find_neighbor(int is_first);
     void parse_neighbor(char**, int, double);
     void parse_velocity(char**, int);
     void parse_time_step (char**, int);
@@ -91,12 +90,6 @@ private:
     void allocate_memory_gpu(void);
     void copy_from_cpu_to_gpu(void);
     void free_memory_gpu(void);
-
-    void find_neighbor_ON2(void);
-    void find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z);
-    void find_neighbor(void);
-    void check_bound(void);
-    int check_atom_distance(void);
 
     void initialize_velocity_cpu(void);
     void scale_velocity(void);

@@ -19,7 +19,7 @@ Construct the neighbor list using the O(N^2) method.
 ------------------------------------------------------------------------------*/
 
 
-#include "atom.cuh"
+#include "neighbor.cuh"
 #include "error.cuh"
 #include "mic.cuh"
 
@@ -59,13 +59,14 @@ static __global__ void gpu_find_neighbor_ON2
 
 
 // a wrapper function of the above kernel
-void Atom::find_neighbor_ON2(void)
+void Neighbor::find_neighbor_ON2(const Box& box, double* x, double* y, double* z)
 {
+    const int N = NN.size();
     const int block_size = 128;
     const int grid_size = (N - 1) / block_size + 1;
-    double rc2 = neighbor.rc * neighbor.rc; 
+    double rc2 = rc * rc;
 
-    gpu_find_neighbor_ON2<<<grid_size, block_size>>>(box, N, rc2, neighbor.NN.data(), neighbor.NL.data(), x, y, z);
+    gpu_find_neighbor_ON2<<<grid_size, block_size>>>(box, N, rc2, NN.data(), NL.data(), x, y, z);
     CUDA_CHECK_KERNEL
 }
 

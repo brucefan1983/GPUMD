@@ -15,11 +15,13 @@
 
 
 #pragma once
+#include "box.cuh"
 #include "gpu_vector.cuh"
 
 
-struct Neighbor
+class Neighbor
 {
+public:
     int MN;                // upper bound of # neighbors for one particle
     int update;            // 1 means you want to update the neighbor list
     int number_of_updates; // number of updates during a run
@@ -36,6 +38,15 @@ struct Neighbor
 
     // used to determine when to update neighbor list
     GPU_Vector<double> x0, y0, z0;
+
+    void find_neighbor(int, const Box&, double*, double*, double*);
+
+private:
+    void find_neighbor_ON2(const Box&, double*, double*, double*);
+    void find_neighbor_ON1(int, int, int, const Box&, double*, double*, double*);
+    void find_neighbor(const Box&, double*, double*, double*);
+    void check_bound(void);
+    int check_atom_distance(double* x, double* y, double* z);
 };
 
 

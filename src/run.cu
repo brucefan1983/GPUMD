@@ -26,6 +26,8 @@ Run simulation according to the inputs in the run.in file.
 #include "ensemble.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
+#include "neighbor.cuh"
+#include "box.cuh"
 #include "read_file.cuh"
 #include "error.cuh"
 
@@ -165,7 +167,7 @@ static void process_run
         atom->global_time += atom->time_step;
 		
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-        if (atom->neighbor.update) { atom->find_neighbor(0); }
+        if (atom->neighbor.update) { atom->neighbor.find_neighbor(0, atom->box, atom->x, atom->y, atom->z); }
 #endif
 
         integrate->compute(atom, force);

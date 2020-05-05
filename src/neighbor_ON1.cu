@@ -218,46 +218,43 @@ static __global__ void gpu_find_neighbor_ON1
 
 
 // a wrapper of the above kernels
-void Atom::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z)
+void Neighbor::find_neighbor_ON1(int cell_n_x, int cell_n_y, int cell_n_z, const Box& box, double* x, double* y, double* z)
 {
+    const int N = NN.size();
     const int block_size = 128;
     const int grid_size = (N - 1) / block_size + 1;
  
-    double rc = neighbor.rc;
     double rc2 = rc * rc; 
     int N_cells = cell_n_x * cell_n_y * cell_n_z;
-    int* cell_count = neighbor.cell_count.data();
-    int* cell_count_sum = neighbor.cell_count_sum.data();
-    int* cell_contents = neighbor.cell_contents.data();
 
-    CHECK(cudaMemset(cell_count, 0, sizeof(int)*N_cells));
-    CHECK(cudaMemset(cell_count_sum, 0, sizeof(int)*N_cells));
-    CHECK(cudaMemset(cell_contents, 0, sizeof(int)*N));
+    CHECK(cudaMemset(cell_count.data(), 0, sizeof(int)*N_cells));
+    CHECK(cudaMemset(cell_count_sum.data(), 0, sizeof(int)*N_cells));
+    CHECK(cudaMemset(cell_contents.data(), 0, sizeof(int)*N));
 
     find_cell_counts<<<grid_size, block_size>>>
-    (N, cell_count, x, y, z, cell_n_x, cell_n_y, cell_n_z, rc);
+    (N, cell_count.data(), x, y, z, cell_n_x, cell_n_y, cell_n_z, rc);
     CUDA_CHECK_KERNEL
 
 #ifndef USE_THRUST
-    prefix_sum<<<1, 1>>>(N_cells, cell_count, cell_count_sum);
+    prefix_sum<<<1, 1>>>(N_cells, cell_count.data(), cell_count_sum.data());
     CUDA_CHECK_KERNEL
 #else
     thrust::exclusive_scan
-    (thrust::device, cell_count, cell_count + N_cells, cell_count_sum);
+    (thrust::device, cell_count.data(), cell_count.data() + N_cells, cell_count_sum.data());
 #endif
 
-    CHECK(cudaMemset(cell_count, 0, sizeof(int)*N_cells));
+    CHECK(cudaMemset(cell_count.data(), 0, sizeof(int)*N_cells));
 
     find_cell_contents<<<grid_size, block_size>>>
     (
-        N, cell_count, cell_count_sum, cell_contents, 
+        N, cell_count.data(), cell_count_sum.data(), cell_contents.data(),
         x, y, z, cell_n_x, cell_n_y, cell_n_z, rc
     );
     CUDA_CHECK_KERNEL
 
     gpu_find_neighbor_ON1<<<grid_size, block_size>>>
     (
-        box, N, cell_count, cell_count_sum, cell_contents, neighbor.NN.data(), neighbor.NL.data(), x, y, z,
+        box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), NN.data(), NL.data(), x, y, z,
         cell_n_x, cell_n_y, cell_n_z, rc, rc2
     );
     CUDA_CHECK_KERNEL

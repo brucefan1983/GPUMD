@@ -59,14 +59,15 @@ static __global__ void gpu_check_atom_distance
 
 
 // If the returned value > 0, the neighbor list will be updated.
-int Atom::check_atom_distance(void)
+int Neighbor::check_atom_distance(double* x, double* y, double* z)
 {
+    const int N = NN.size();
     int M = (N - 1) / 1024 + 1;
-    double d2 = neighbor.skin * neighbor.skin * 0.25;
+    double d2 = skin * skin * 0.25;
     GPU_Vector<int> s2(1);
     int cpu_s2[1] = {0};
     s2.copy_from_host(cpu_s2);
-    gpu_check_atom_distance<<<M, 1024>>>(N, d2, neighbor.x0.data(), neighbor.y0.data(), neighbor.z0.data(), x, y, z, s2.data());
+    gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0.data(), y0.data(), z0.data(), x, y, z, s2.data());
     CUDA_CHECK_KERNEL
     s2.copy_to_host(cpu_s2);
     return cpu_s2[0];
@@ -132,16 +133,17 @@ static __global__ void gpu_update_xyz0
 
 
 // check the bound of the neighbor list
-void Atom::check_bound(void)
+void Neighbor::check_bound(void)
 {
+    const int N = NN.size();
     std::vector<int> cpu_NN(N);
-    CHECK(cudaMemcpy(cpu_NN.data(), neighbor.NN.data(), sizeof(int)*N, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(cpu_NN.data(), NN.data(), sizeof(int)*N, cudaMemcpyDeviceToHost));
     int flag = 0;
     for (int n = 0; n < N; ++n)
     {
-        if (cpu_NN[n] > neighbor.MN)
+        if (cpu_NN[n] > MN)
         {
-            printf("Error: NN[%d] = %d > %d\n", n, cpu_NN[n], neighbor.MN);
+            printf("Error: NN[%d] = %d > %d\n", n, cpu_NN[n], MN);
             flag = 1;
         }
     }
@@ -178,8 +180,9 @@ static __global__ void gpu_sort_neighbor_list
 #endif
 
 
-void Atom::find_neighbor(void)
+void Neighbor::find_neighbor(const Box& box, double* x, double* y, double* z)
 {
+    const int N = NN.size();
     bool use_ON2 = false;
     int cell_n_x = 0;
     int cell_n_y = 0;
@@ -193,21 +196,21 @@ void Atom::find_neighbor(void)
     {
         if (box.pbc_x)
         {
-            cell_n_x = floor(box.cpu_h[0] / neighbor.rc);
+            cell_n_x = floor(box.cpu_h[0] / rc);
             if (cell_n_x < 3) {use_ON2 = true;}
         }
         else {cell_n_x = 1;}
 
         if (box.pbc_y)
         {
-            cell_n_y = floor(box.cpu_h[1] / neighbor.rc);
+            cell_n_y = floor(box.cpu_h[1] / rc);
             if (cell_n_y < 3) {use_ON2 = true;}
         }
         else {cell_n_y = 1;}
 
         if (box.pbc_z)
         {
-            cell_n_z = floor(box.cpu_h[2] / neighbor.rc);
+            cell_n_z = floor(box.cpu_h[2] / rc);
             if (cell_n_z < 3) {use_ON2 = true;}
         }
         else {cell_n_z = 1;}
@@ -223,48 +226,49 @@ void Atom::find_neighbor(void)
 
     if (use_ON2)
     {
-        find_neighbor_ON2();
+        find_neighbor_ON2(box, x, y, z);
     }
     else
     {
-        find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z);
+        find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z, box, x, y, z);
 #ifdef DEBUG
-        const int smem = neighbor.MN * sizeof(int);
-        gpu_sort_neighbor_list<<<N, neighbor.MN, smem>>>(N, neighbor.NN.data(), neighbor.NL.data());
+        const int smem = MN * sizeof(int);
+        gpu_sort_neighbor_list<<<N, MN, smem>>>(N, NN.data(), NL.data());
 #endif
     }
 }
 
 
 // the driver function to be called outside this file
-void Atom::find_neighbor(int is_first)
+void Neighbor::find_neighbor(int is_first, const Box& box, double* x, double* y, double* z)
 {
+    const int N = NN.size();
     const int block_size = 256;
     const int grid_size = (N - 1) / block_size + 1;
 
     if (is_first == 1)
     {
-        find_neighbor();
+        find_neighbor(box, x, y, z);
         check_bound();
 
-        gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, neighbor.x0.data(), neighbor.y0.data(), neighbor.z0.data());
+        gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
         CUDA_CHECK_KERNEL
     }
     else
     {
-        int update = check_atom_distance();
+        int update = check_atom_distance(x, y, z);
 
         if (update)
         {
-            neighbor.number_of_updates++;
+            number_of_updates++;
 
-            find_neighbor();
+            find_neighbor(box, x, y, z);
             check_bound();
 
             gpu_apply_pbc<<<grid_size, block_size>>>(N, box, x, y, z);
             CUDA_CHECK_KERNEL
 
-            gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, neighbor.x0.data(), neighbor.y0.data(), neighbor.z0.data());
+            gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
             CUDA_CHECK_KERNEL
         }
     }
