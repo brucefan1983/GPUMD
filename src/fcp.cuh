@@ -23,12 +23,13 @@
 struct FCP_Data
 {
     GPU_Vector<int> ia2, jb2;
-    GPU_Vector<int> ia3, jb3, kc3;
-    GPU_Vector<int> ia4, jb4, kc4, ld4;
-    GPU_Vector<int> ia5, jb5, kc5, ld5, me5;
-    GPU_Vector<int> ia6, jb6, kc6, ld6, me6, nf6;
+    GPU_Vector<int> i3, j3, k3, index3;
+    GPU_Vector<int> i4, j4, k4, l4, index4;
+    GPU_Vector<int> i5, j5, k5, l5, m5, index5;
+    GPU_Vector<int> i6, j6, k6, l6, m6, n6, index6;
     GPU_Vector<float> u, r0, pfv, xij2, yij2, zij2;
     GPU_Vector<float> phi2, phi3, phi4, phi5, phi6;
+    GPU_Vector<float> weight3, weight4, weight5, weight6;
 };
 
 

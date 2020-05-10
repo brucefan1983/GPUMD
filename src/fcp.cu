@@ -223,7 +223,7 @@ void FCP::read_fc3(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    std::vector<float> fc(num_fcs * 27);
+    fcp_data.phi3.resize(num_fcs * 27, Memory_Type::managed);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -231,7 +231,15 @@ void FCP::read_fc3(Atom *atom)
     {
         int index = n*27 + a*9 + b*3 + c;
         int aa, bb, cc; // not used
-        count = fscanf(fid_fc, "%d%d%d%f", &aa, &bb, &cc, &fc[index]);
+        count = fscanf
+        (
+            fid_fc,
+            "%d%d%d%f",
+            &aa,
+            &bb,
+            &cc,
+            &fcp_data.phi3[index]
+        );
         PRINT_SCANF_ERROR(count, 4, "Reading error for fcs_order3.in.");
     }
         
@@ -243,52 +251,44 @@ void FCP::read_fc3(Atom *atom)
     
     printf("    Reading data from %s\n", file_cluster);
     
-    int num_clusters = 0;
-    count = fscanf(fid_cluster, "%d", &num_clusters);
+    count = fscanf(fid_cluster, "%d", &number3);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order3.in.");
-    if (num_clusters <= 0)
+    if (number3 <= 0)
     {
         PRINT_INPUT_ERROR("number of clusters should > 0.");
     }
-    number3 = num_clusters * 27;
 
-    fcp_data.ia3.resize(number3, Memory_Type::managed);
-    fcp_data.jb3.resize(number3, Memory_Type::managed);
-    fcp_data.kc3.resize(number3, Memory_Type::managed);
-    fcp_data.phi3.resize(number3, Memory_Type::managed);
+    fcp_data.i3.resize(number3, Memory_Type::managed);
+    fcp_data.j3.resize(number3, Memory_Type::managed);
+    fcp_data.k3.resize(number3, Memory_Type::managed);
+    fcp_data.index3.resize(number3, Memory_Type::managed);
+    fcp_data.weight3.resize(number3, 1.0f, Memory_Type::managed);
 
-    for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
+    for (int nc = 0; nc < number3; nc++)
     {
-        int i, j, k, idx_fcs;
-        count = fscanf(fid_cluster, "%d%d%d%d", &i, &j, &k, &idx_fcs);
+        int i, j, k, index;
+        count = fscanf(fid_cluster, "%d%d%d%d", &i, &j, &k, &index);
         PRINT_SCANF_ERROR(count, 4, "Reading error for clusters_order3.in.");
-        
-        if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
-        if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); } 
-        if (k < 0 || k >= atom->N) { PRINT_INPUT_ERROR("k < 0 or >= N."); } 
-        if (i > j) { PRINT_INPUT_ERROR("i > j."); } 
-        if (j > k) { PRINT_INPUT_ERROR("j > k."); } 
-        if (idx_fcs < 0 || idx_fcs >= num_fcs) 
+
+        if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
+        if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
+        if (k < 0 || k >= atom->N) { PRINT_INPUT_ERROR("k < 0 or >= N."); }
+        if (i > j) { PRINT_INPUT_ERROR("i > j."); }
+        if (j > k) { PRINT_INPUT_ERROR("j > k."); }
+        if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
-        } 
-
-        for (int a = 0; a < 3; ++a)
-        for (int b = 0; b < 3; ++b)
-        for (int c = 0; c < 3; ++c)
-        {
-            int abc = a*9 + b*3 + c;
-            int index = idx_clusters*27 + abc;
-            fcp_data.ia3[index] = a * atom->N + i;
-            fcp_data.jb3[index] = b * atom->N + j;
-            fcp_data.kc3[index] = c * atom->N + k;
-            fcp_data.phi3[index] = fc[idx_fcs*27 + abc];
-
-            // 2^2-1 = 3 cases:
-            if (i == j && j != k) { fcp_data.phi3[index] /= 2; } // 112
-            if (i != j && j == k) { fcp_data.phi3[index] /= 2; } // 122
-            if (i == j && j == k) { fcp_data.phi3[index] /= 6; } // 111
         }
+
+        fcp_data.i3[nc] = i;
+        fcp_data.j3[nc] = j;
+        fcp_data.k3[nc] = k;
+        fcp_data.index3[nc] = index;
+
+        // 2^2-1 = 3 cases:
+        if (i == j && j != k) { fcp_data.weight3[nc] /= 2; } // 112
+        if (i != j && j == k) { fcp_data.weight3[nc] /= 2; } // 122
+        if (i == j && j == k) { fcp_data.weight3[nc] /= 6; } // 111
     } 
 
     fclose(fid_fc);
@@ -314,7 +314,7 @@ void FCP::read_fc4(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    std::vector<float> fc(num_fcs * 81);
+    fcp_data.phi4.resize(num_fcs * 81, Memory_Type::managed);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -323,7 +323,16 @@ void FCP::read_fc4(Atom *atom)
     {
         int index = n*81 + a*27 + b*9 + c*3 + d;
         int aa, bb, cc, dd; // not used
-        count = fscanf(fid_fc, "%d%d%d%d%f", &aa, &bb, &cc, &dd, &fc[index]);
+        count = fscanf
+        (
+            fid_fc,
+            "%d%d%d%d%f",
+            &aa,
+            &bb,
+            &cc,
+            &dd,
+            &fcp_data.phi4[index]
+        );
         PRINT_SCANF_ERROR(count, 5, "Reading error for fcs_order4.in.");
     }
         
@@ -335,25 +344,24 @@ void FCP::read_fc4(Atom *atom)
     
     printf("    Reading data from %s\n", file_cluster);
     
-    int num_clusters = 0;
-    count = fscanf(fid_cluster, "%d", &num_clusters);
+    count = fscanf(fid_cluster, "%d", &number4);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order4.in.");
-    if (num_clusters <= 0)
+    if (number4 <= 0)
     {
         PRINT_INPUT_ERROR("number of clusters should > 0.");
     }
-    number4 = num_clusters * 81;
 
-    fcp_data.ia4.resize(number4, Memory_Type::managed);
-    fcp_data.jb4.resize(number4, Memory_Type::managed);
-    fcp_data.kc4.resize(number4, Memory_Type::managed);
-    fcp_data.ld4.resize(number4, Memory_Type::managed);
-    fcp_data.phi4.resize(number4, Memory_Type::managed);
+    fcp_data.i4.resize(number4, Memory_Type::managed);
+    fcp_data.j4.resize(number4, Memory_Type::managed);
+    fcp_data.k4.resize(number4, Memory_Type::managed);
+    fcp_data.l4.resize(number4, Memory_Type::managed);
+    fcp_data.index4.resize(number4, Memory_Type::managed);
+    fcp_data.weight4.resize(number4, 1.0f, Memory_Type::managed);
 
-    for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
+    for (int nc = 0; nc < number4; nc++)
     {
-        int i, j, k, l, idx_fcs;
-        count = fscanf(fid_cluster, "%d%d%d%d%d", &i, &j, &k, &l, &idx_fcs);
+        int i, j, k, l, index;
+        count = fscanf(fid_cluster, "%d%d%d%d%d", &i, &j, &k, &l, &index);
         PRINT_SCANF_ERROR(count, 5, "Reading error for clusters_order4.in.");
         
         if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
@@ -363,40 +371,32 @@ void FCP::read_fc4(Atom *atom)
         if (i > j) { PRINT_INPUT_ERROR("i > j."); } 
         if (j > k) { PRINT_INPUT_ERROR("j > k."); } 
         if (k > l) { PRINT_INPUT_ERROR("k > l."); } 
-        if (idx_fcs < 0 || idx_fcs >= num_fcs) 
+        if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
         } 
 
-        for (int a = 0; a < 3; ++a)
-        for (int b = 0; b < 3; ++b)
-        for (int c = 0; c < 3; ++c)
-        for (int d = 0; d < 3; ++d)
-        {
-            int abcd = a*27 + b*9 + c*3 + d;
-            int index = idx_clusters*81 + abcd;
-            fcp_data.ia4[index] = a * atom->N + i;
-            fcp_data.jb4[index] = b * atom->N + j;
-            fcp_data.kc4[index] = c * atom->N + k;
-            fcp_data.ld4[index] = d * atom->N + l;
-            fcp_data.phi4[index] = fc[idx_fcs*81 + abcd];
+        fcp_data.i4[nc] = i;
+        fcp_data.j4[nc] = j;
+        fcp_data.k4[nc] = k;
+        fcp_data.l4[nc] = l;
+        fcp_data.index4[nc] = index;
 
-            // 2^3-1 = 7 cases:
-            if (i == j && j != k && k != l) 
-            { fcp_data.phi4[index] /= 2; }  // 1123
-            if (i != j && j == k && k != l) 
-            { fcp_data.phi4[index] /= 2; }  // 1223
-            if (i != j && j != k && k == l) 
-            { fcp_data.phi4[index] /= 2; }  // 1233
-            if (i == j && j != k && k == l) 
-            { fcp_data.phi4[index] /= 4; }  // 1122
-            if (i == j && j == k && k != l) 
-            { fcp_data.phi4[index] /= 6; }  // 1112
-            if (i != j && j == k && k == l) 
-            { fcp_data.phi4[index] /= 6; }  // 1222
-            if (i == j && j == k && k == l) 
-            { fcp_data.phi4[index] /= 24; } // 1111
-        }
+        // 2^3-1 = 7 cases:
+        if (i == j && j != k && k != l)
+        { fcp_data.weight4[nc] /= 2; }  // 1123
+        if (i != j && j == k && k != l)
+        { fcp_data.weight4[nc] /= 2; }  // 1223
+        if (i != j && j != k && k == l)
+        { fcp_data.weight4[nc] /= 2; }  // 1233
+        if (i == j && j != k && k == l)
+        { fcp_data.weight4[nc] /= 4; }  // 1122
+        if (i == j && j == k && k != l)
+        { fcp_data.weight4[nc] /= 6; }  // 1112
+        if (i != j && j == k && k == l)
+        { fcp_data.weight4[nc] /= 6; }  // 1222
+        if (i == j && j == k && k == l)
+        { fcp_data.weight4[nc] /= 24; } // 1111
     }
 
     fclose(fid_fc);
@@ -422,7 +422,7 @@ void FCP::read_fc5(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    std::vector<float> fc(num_fcs * 243);
+    fcp_data.phi5.resize(num_fcs * 243, Memory_Type::managed);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -433,7 +433,16 @@ void FCP::read_fc5(Atom *atom)
         int index = n*243 + a*81 + b*27 + c*9 + d*3 + e;
         int aa, bb, cc, dd, ee; // not used
         count = fscanf
-        (fid_fc, "%d%d%d%d%d%f", &aa, &bb, &cc, &dd, &ee, &fc[index]);
+        (
+            fid_fc,
+            "%d%d%d%d%d%f",
+            &aa,
+            &bb,
+            &cc,
+            &dd,
+            &ee,
+            &fcp_data.phi5[index]
+        );
         PRINT_SCANF_ERROR(count, 6, "Reading error for fcs_order5.in.");
     }
         
@@ -445,27 +454,35 @@ void FCP::read_fc5(Atom *atom)
     
     printf("    Reading data from %s\n", file_cluster);
     
-    int num_clusters = 0;
-    count = fscanf(fid_cluster, "%d", &num_clusters);
+    count = fscanf(fid_cluster, "%d", &number5);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order5.in.");
-    if (num_clusters <= 0)
+    if (number5 <= 0)
     {
         PRINT_INPUT_ERROR("number of clusters should > 0.");
     }
-    number5 = num_clusters * 243;
 
-    fcp_data.ia5.resize(number5, Memory_Type::managed);
-    fcp_data.jb5.resize(number5, Memory_Type::managed);
-    fcp_data.kc5.resize(number5, Memory_Type::managed);
-    fcp_data.ld5.resize(number5, Memory_Type::managed);
-    fcp_data.me5.resize(number5, Memory_Type::managed);
-    fcp_data.phi5.resize(number5, Memory_Type::managed);
+    fcp_data.i5.resize(number5, Memory_Type::managed);
+    fcp_data.j5.resize(number5, Memory_Type::managed);
+    fcp_data.k5.resize(number5, Memory_Type::managed);
+    fcp_data.l5.resize(number5, Memory_Type::managed);
+    fcp_data.m5.resize(number5, Memory_Type::managed);
+    fcp_data.index5.resize(number5, Memory_Type::managed);
+    fcp_data.weight5.resize(number5, 1.0f, Memory_Type::managed);
 
-    for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
+    for (int nc = 0; nc < number5; nc++)
     {
-        int i, j, k, l, m, idx_fcs;
+        int i, j, k, l, m, index;
         count = fscanf
-        (fid_cluster, "%d%d%d%d%d%d", &i, &j, &k, &l, &m, &idx_fcs);
+        (
+            fid_cluster,
+            "%d%d%d%d%d%d",
+            &i,
+            &j,
+            &k,
+            &l,
+            &m,
+            &index
+        );
         PRINT_SCANF_ERROR(count, 6, "Reading error for clusters_order5.in.");
         
         if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
@@ -477,58 +494,49 @@ void FCP::read_fc5(Atom *atom)
         if (j > k) { PRINT_INPUT_ERROR("j > k."); } 
         if (k > l) { PRINT_INPUT_ERROR("k > l."); } 
         if (l > m) { PRINT_INPUT_ERROR("l > m."); }
-        if (idx_fcs < 0 || idx_fcs >= num_fcs) 
+        if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
         } 
 
-        for (int a = 0; a < 3; ++a)
-        for (int b = 0; b < 3; ++b)
-        for (int c = 0; c < 3; ++c)
-        for (int d = 0; d < 3; ++d)
-        for (int e = 0; e < 3; ++e)
-        {
-            int abcde = a*81 + b*27 + c*9 + d*3 + e;
-            int index = idx_clusters*243 + abcde;
-            fcp_data.ia5[index] = a * atom->N + i;
-            fcp_data.jb5[index] = b * atom->N + j;
-            fcp_data.kc5[index] = c * atom->N + k;
-            fcp_data.ld5[index] = d * atom->N + l;
-            fcp_data.me5[index] = e * atom->N + m;
-            fcp_data.phi5[index] = fc[idx_fcs*243 + abcde];
+        fcp_data.i5[nc] = i;
+        fcp_data.j5[nc] = j;
+        fcp_data.k5[nc] = k;
+        fcp_data.l5[nc] = l;
+        fcp_data.m5[nc] = m;
+        fcp_data.index5[nc] = index;
 
-            // 2^4-1 = 15 cases:
-            if (i == j && j != k && k != l && l != m) 
-            { fcp_data.phi5[index] /= 2; }   // 11234
-            if (i != j && j == k && k != l && l != m) 
-            { fcp_data.phi5[index] /= 2; }   // 12234
-            if (i != j && j != k && k == l && l != m) 
-            { fcp_data.phi5[index] /= 2; }   // 12334
-            if (i != j && j != k && k != l && l == m) 
-            { fcp_data.phi5[index] /= 2; }   // 12344
-            if (i == j && j == k && k != l && l != m) 
-            { fcp_data.phi5[index] /= 6; }   // 11123
-            if (i != j && j == k && k == l && l != m) 
-            { fcp_data.phi5[index] /= 6; }   // 12223
-            if (i != j && j != k && k == l && l == m) 
-            { fcp_data.phi5[index] /= 6; }   // 12333
-            if (i == j && j == k && k == l && l != m) 
-            { fcp_data.phi5[index] /= 24; }  // 11112
-            if (i != j && j == k && k == l && l == m) 
-            { fcp_data.phi5[index] /= 24; }  // 12222
-            if (i == j && j == k && k == l && l == m) 
-            { fcp_data.phi5[index] /= 120; } // 11111
-            if (i == j && j != k && k == l && l != m) 
-            { fcp_data.phi5[index] /= 4; }   // 11223
-            if (i == j && j != k && k != l && l == m) 
-            { fcp_data.phi5[index] /= 4; }   // 11233
-            if (i != j && j == k && k != l && l == m) 
-            { fcp_data.phi5[index] /= 4; }   // 12233
-            if (i == j && j != k && k == l && l == m) 
-            { fcp_data.phi5[index] /= 12; }  // 11222
-            if (i == j && j == k && k != l && l == m) 
-            { fcp_data.phi5[index] /= 12; }  // 11122
-        }
+        // 2^4-1 = 15 cases:
+        if (i == j && j != k && k != l && l != m)
+        { fcp_data.weight5[nc] /= 2; }   // 11234
+        if (i != j && j == k && k != l && l != m)
+        { fcp_data.weight5[nc] /= 2; }   // 12234
+        if (i != j && j != k && k == l && l != m)
+        { fcp_data.weight5[nc] /= 2; }   // 12334
+        if (i != j && j != k && k != l && l == m)
+        { fcp_data.weight5[nc] /= 2; }   // 12344
+        if (i == j && j == k && k != l && l != m)
+        { fcp_data.weight5[nc] /= 6; }   // 11123
+        if (i != j && j == k && k == l && l != m)
+        { fcp_data.weight5[nc] /= 6; }   // 12223
+        if (i != j && j != k && k == l && l == m)
+        { fcp_data.weight5[nc] /= 6; }   // 12333
+        if (i == j && j == k && k == l && l != m)
+        { fcp_data.weight5[nc] /= 24; }  // 11112
+        if (i != j && j == k && k == l && l == m)
+        { fcp_data.weight5[nc] /= 24; }  // 12222
+        if (i == j && j == k && k == l && l == m)
+        { fcp_data.weight5[nc] /= 120; } // 11111
+        if (i == j && j != k && k == l && l != m)
+        { fcp_data.weight5[nc] /= 4; }   // 11223
+        if (i == j && j != k && k != l && l == m)
+        { fcp_data.weight5[nc] /= 4; }   // 11233
+        if (i != j && j == k && k != l && l == m)
+        { fcp_data.weight5[nc] /= 4; }   // 12233
+        if (i == j && j != k && k == l && l == m)
+        { fcp_data.weight5[nc] /= 12; }  // 11222
+        if (i == j && j == k && k != l && l == m)
+        { fcp_data.weight5[nc] /= 12; }  // 11122
     } 
 
     fclose(fid_fc);
@@ -554,7 +562,7 @@ void FCP::read_fc6(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    std::vector<float> fc(num_fcs * 729);
+    fcp_data.phi6.resize(num_fcs * 729, Memory_Type::managed);
     for (int n = 0; n < num_fcs; ++n)
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -566,7 +574,17 @@ void FCP::read_fc6(Atom *atom)
         int index = n*729 + a*243 + b*81 + c*27 + d*9 + e*3 + f;
         int aa, bb, cc, dd, ee, ff; // not used
         count = fscanf
-        (fid_fc, "%d%d%d%d%d%d%f", &aa, &bb, &cc, &dd, &ee, &ff, &fc[index]);
+        (
+            fid_fc,
+            "%d%d%d%d%d%d%f",
+            &aa,
+            &bb,
+            &cc,
+            &dd,
+            &ee,
+            &ff,
+            &fcp_data.phi6[index]
+        );
         PRINT_SCANF_ERROR(count, 7, "Reading error for fcs_order6.in.");
     }
         
@@ -578,28 +596,37 @@ void FCP::read_fc6(Atom *atom)
     
     printf("    Reading data from %s\n", file_cluster);
     
-    int num_clusters = 0;
-    count = fscanf(fid_cluster, "%d", &num_clusters);
+    count = fscanf(fid_cluster, "%d", &number6);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order6.in.");
-    if (num_clusters <= 0)
+    if (number6 <= 0)
     {
         PRINT_INPUT_ERROR("number of clusters should > 0.");
     }
-    number6 = num_clusters * 729;
 
-    fcp_data.ia6.resize(number6, Memory_Type::managed);
-    fcp_data.jb6.resize(number6, Memory_Type::managed);
-    fcp_data.kc6.resize(number6, Memory_Type::managed);
-    fcp_data.ld6.resize(number6, Memory_Type::managed);
-    fcp_data.me6.resize(number6, Memory_Type::managed);
-    fcp_data.nf6.resize(number6, Memory_Type::managed);
-    fcp_data.phi6.resize(number6, Memory_Type::managed);
+    fcp_data.i6.resize(number6, Memory_Type::managed);
+    fcp_data.j6.resize(number6, Memory_Type::managed);
+    fcp_data.k6.resize(number6, Memory_Type::managed);
+    fcp_data.l6.resize(number6, Memory_Type::managed);
+    fcp_data.m6.resize(number6, Memory_Type::managed);
+    fcp_data.n6.resize(number6, Memory_Type::managed);
+    fcp_data.index6.resize(number6, Memory_Type::managed);
+    fcp_data.weight6.resize(number6, 1.0f, Memory_Type::managed);
 
-    for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
+    for (int nc = 0; nc < number6; nc++)
     {
-        int i, j, k, l, m, n, idx_fcs;
+        int i, j, k, l, m, n, index;
         count = fscanf
-        (fid_cluster, "%d%d%d%d%d%d%d", &i, &j, &k, &l, &m, &n, &idx_fcs);
+        (
+            fid_cluster,
+            "%d%d%d%d%d%d%d",
+            &i,
+            &j,
+            &k,
+            &l,
+            &m,
+            &n,
+            &index
+        );
         PRINT_SCANF_ERROR(count, 7, "Reading error for clusters_order6.in.");
         
         if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
@@ -613,93 +640,82 @@ void FCP::read_fc6(Atom *atom)
         if (k > l) { PRINT_INPUT_ERROR("k > l."); } 
         if (l > m) { PRINT_INPUT_ERROR("l > m."); }
         if (m > n) { PRINT_INPUT_ERROR("m > n."); }
-        if (idx_fcs < 0 || idx_fcs >= num_fcs) 
+        if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
         } 
 
-        for (int a = 0; a < 3; ++a)
-        for (int b = 0; b < 3; ++b)
-        for (int c = 0; c < 3; ++c)
-        for (int d = 0; d < 3; ++d)
-        for (int e = 0; e < 3; ++e)
-        for (int f = 0; f < 3; ++f)
-        {
-            int abcdef = a*243 + b*81 + c*27 + d*9 + e*3 + f;
-            int index = idx_clusters*729 + abcdef;
-            fcp_data.ia6[index] = a * atom->N + i;
-            fcp_data.jb6[index] = b * atom->N + j;
-            fcp_data.kc6[index] = c * atom->N + k;
-            fcp_data.ld6[index] = d * atom->N + l;
-            fcp_data.me6[index] = e * atom->N + m;
-            fcp_data.nf6[index] = f * atom->N + n;
-            fcp_data.phi6[index] = fc[idx_fcs*729 + abcdef];
+        fcp_data.i6[nc] = i;
+        fcp_data.j6[nc] = j;
+        fcp_data.k6[nc] = k;
+        fcp_data.l6[nc] = l;
+        fcp_data.m6[nc] = m;
+        fcp_data.n6[nc] = n;
+        fcp_data.index6[nc] = index;
 
-            // 2^5-1 = 31 cases:
-            if (i == j && j != k && k != l && l != m && m != n) 
-            { fcp_data.phi6[index] /= 2; }   // 112345
-            if (i != j && j == k && k != l && l != m && m != n) 
-            { fcp_data.phi6[index] /= 2; }   // 122345
-            if (i != j && j != k && k == l && l != m && m != n) 
-            { fcp_data.phi6[index] /= 2; }   // 123345
-            if (i != j && j != k && k != l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 2; }   // 123445
-            if (i != j && j != k && k != l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 2; }   // 123455
-            if (i == j && j == k && k != l && l != m && m != n) 
-            { fcp_data.phi6[index] /= 6; }   // 111234
-            if (i != j && j == k && k == l && l != m && m != n) 
-            { fcp_data.phi6[index] /= 6; }   // 122234
-            if (i != j && j != k && k == l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 6; }   // 123334
-            if (i != j && j != k && k != l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 6; }   // 123444
-            if (i == j && j == k && k == l && l != m && m != n) 
-            { fcp_data.phi6[index] /= 24; }  // 111123
-            if (i != j && j == k && k == l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 24; }  // 122223
-            if (i != j && j != k && k == l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 24; }  // 122223
-            if (i == j && j == k && k == l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 120; } // 111112
-            if (i != j && j == k && k == l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 120; } // 122222
-            if (i == j && j == k && k == l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 720; } // 111111
-            if (i == j && j != k && k == l && l != m && m != n) 
-            { fcp_data.phi6[index] /= 4; }   // 112234
-            if (i == j && j != k && k != l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 4; }   // 112334
-            if (i == j && j != k && k != l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 4; }   // 112344
-            if (i != j && j == k && k != l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 4; }   // 122334
-            if (i != j && j == k && k != l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 4; }   // 122344
-            if (i != j && j != k && k == l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 4; }   // 123344
-            if (i == j && j != k && k == l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 12; }  // 112223
-            if (i == j && j != k && k != l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 12; }  // 112333
-            if (i != j && j == k && k != l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 12; }  // 122333
-            if (i == j && j == k && k != l && l == m && m != n) 
-            { fcp_data.phi6[index] /= 12; }  // 111223
-            if (i == j && j == k && k != l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 12; }  // 111233
-            if (i != j && j == k && k == l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 12; }  // 122233
-            if (i == j && j != k && k == l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 48; }  // 112222
-            if (i == j && j == k && k == l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 48; }  // 111122
-            if (i == j && j == k && k != l && l == m && m == n) 
-            { fcp_data.phi6[index] /= 36; }  // 111222
-            if (i == j && j != k && k == l && l != m && m == n) 
-            { fcp_data.phi6[index] /= 8; }   // 112233
-
-        }
+        // 2^5-1 = 31 cases:
+        if (i == j && j != k && k != l && l != m && m != n)
+        { fcp_data.weight6[nc] /= 2; }   // 112345
+        if (i != j && j == k && k != l && l != m && m != n)
+        { fcp_data.weight6[nc] /= 2; }   // 122345
+        if (i != j && j != k && k == l && l != m && m != n)
+        { fcp_data.weight6[nc] /= 2; }   // 123345
+        if (i != j && j != k && k != l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 2; }   // 123445
+        if (i != j && j != k && k != l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 2; }   // 123455
+        if (i == j && j == k && k != l && l != m && m != n)
+        { fcp_data.weight6[nc] /= 6; }   // 111234
+        if (i != j && j == k && k == l && l != m && m != n)
+        { fcp_data.weight6[nc] /= 6; }   // 122234
+        if (i != j && j != k && k == l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 6; }   // 123334
+        if (i != j && j != k && k != l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 6; }   // 123444
+        if (i == j && j == k && k == l && l != m && m != n)
+        { fcp_data.weight6[nc] /= 24; }  // 111123
+        if (i != j && j == k && k == l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 24; }  // 122223
+        if (i != j && j != k && k == l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 24; }  // 122223
+        if (i == j && j == k && k == l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 120; } // 111112
+        if (i != j && j == k && k == l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 120; } // 122222
+        if (i == j && j == k && k == l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 720; } // 111111
+        if (i == j && j != k && k == l && l != m && m != n)
+        { fcp_data.weight6[nc] /= 4; }   // 112234
+        if (i == j && j != k && k != l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 4; }   // 112334
+        if (i == j && j != k && k != l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 4; }   // 112344
+        if (i != j && j == k && k != l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 4; }   // 122334
+        if (i != j && j == k && k != l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 4; }   // 122344
+        if (i != j && j != k && k == l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 4; }   // 123344
+        if (i == j && j != k && k == l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 12; }  // 112223
+        if (i == j && j != k && k != l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 12; }  // 112333
+        if (i != j && j == k && k != l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 12; }  // 122333
+        if (i == j && j == k && k != l && l == m && m != n)
+        { fcp_data.weight6[nc] /= 12; }  // 111223
+        if (i == j && j == k && k != l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 12; }  // 111233
+        if (i != j && j == k && k == l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 12; }  // 122233
+        if (i == j && j != k && k == l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 48; }  // 112222
+        if (i == j && j == k && k == l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 48; }  // 111122
+        if (i == j && j == k && k != l && l == m && m == n)
+        { fcp_data.weight6[nc] /= 36; }  // 111222
+        if (i == j && j != k && k == l && l != m && m == n)
+        { fcp_data.weight6[nc] /= 8; }   // 112233
     } 
 
     fclose(fid_fc);
@@ -754,26 +770,39 @@ static __global__ void gpu_find_force_fcp2
 static __global__ void gpu_find_force_fcp3
 (
     const int N,
-    const int number3,
-    const int *g_ia3,
-    const int *g_jb3,
-    const int *g_kc3,
-    const float *g_phi3,
+    const int number_of_clusters,
+    const int *g_i,
+    const int *g_j,
+    const int *g_k,
+    const int *g_index,
+    const float *g_weight,
+    const float *g_phi,
     const float* __restrict__ g_u,
     float *g_pf
 )
 {
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < number3)
+    int nc = blockIdx.x * blockDim.x + threadIdx.x;
+    if (nc >= number_of_clusters) return;
+
+    int i = g_i[nc];
+    int j = g_j[nc];
+    int k = g_k[nc];
+    int index = g_index[nc];
+    const float weight = g_weight[nc];
+
+    for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b)
+    for (int c = 0; c < 3; ++c)
     {
-        int ia = g_ia3[n];
-        int jb = g_jb3[n]; 
-        int kc = g_kc3[n]; 
-        float phi = g_phi3[n];
+        const int abc = a * 9 + b * 3 + c;
+        const int ia = i + a * N;
+        const int jb = j + b * N;
+        const int kc = k + c * N;
+        float phi = weight * g_phi[index * 27 + abc];
         float uia = g_u[ia];
         float ujb = g_u[jb];
         float ukc = g_u[kc];
-        atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc);
+        atomicAdd(&g_pf[i], phi * uia * ujb * ukc);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc);
         atomicAdd(&g_pf[kc + N], - phi * uia * ujb);
@@ -785,29 +814,44 @@ static __global__ void gpu_find_force_fcp3
 static __global__ void gpu_find_force_fcp4
 (
     const int N,
-    const int number4,
-    const int *g_ia4,
-    const int *g_jb4,
-    const int *g_kc4,
-    const int *g_ld4,
-    const float *g_phi4,
+    const int number_of_clusters,
+    const int *g_i,
+    const int *g_j,
+    const int *g_k,
+    const int *g_l,
+    const int *g_index,
+    const float *g_weight,
+    const float *g_phi,
     const float* __restrict__ g_u,
     float *g_pf
 )
 {
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < number4)
+    const int nc = blockIdx.x * blockDim.x + threadIdx.x;
+    if (nc >= number_of_clusters) return;
+
+    const int i = g_i[nc];
+    const int j = g_j[nc];
+    const int k = g_k[nc];
+    const int l = g_l[nc];
+    const int index = g_index[nc];
+    const float weight = g_weight[nc];
+
+    for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b)
+    for (int c = 0; c < 3; ++c)
+    for (int d = 0; d < 3; ++d)
     {
-        int ia = g_ia4[n];
-        int jb = g_jb4[n]; 
-        int kc = g_kc4[n];
-        int ld = g_ld4[n];
-        float phi = g_phi4[n];
-        float uia = g_u[ia];
-        float ujb = g_u[jb];
-        float ukc = g_u[kc];
-        float uld = g_u[ld];
-        atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld);
+        const int abcd = a * 27 + b * 9 + c * 3 + d;
+        const int ia = i + a * N;
+        const int jb = j + b * N;
+        const int kc = k + c * N;
+        const int ld = l + d * N;
+        const float phi = weight * g_phi[index * 81 + abcd];
+        const float uia = g_u[ia];
+        const float ujb = g_u[jb];
+        const float ukc = g_u[kc];
+        const float uld = g_u[ld];
+        atomicAdd(&g_pf[i], phi * uia * ujb * ukc * uld);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld);
         atomicAdd(&g_pf[kc + N], - phi * uia * ujb * uld);
@@ -820,32 +864,49 @@ static __global__ void gpu_find_force_fcp4
 static __global__ void gpu_find_force_fcp5
 (
     const int N,
-    const int number5,
-    const int *g_ia5,
-    const int *g_jb5,
-    const int *g_kc5,
-    const int *g_ld5,
-    const int *g_me5,
-    const float *g_phi5,
+    const int number_of_clusters,
+    const int *g_i,
+    const int *g_j,
+    const int *g_k,
+    const int *g_l,
+    const int *g_m,
+    const int *g_index,
+    const float *g_weight,
+    const float *g_phi,
     const float* __restrict__ g_u,
     float *g_pf
 )
 {
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < number5)
+    const int nc = blockIdx.x * blockDim.x + threadIdx.x;
+    if (nc >= number_of_clusters) return;
+
+    const int i = g_i[nc];
+    const int j = g_j[nc];
+    const int k = g_k[nc];
+    const int l = g_l[nc];
+    const int m = g_m[nc];
+    const int index = g_index[nc];
+    const float weight = g_weight[nc];
+
+    for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b)
+    for (int c = 0; c < 3; ++c)
+    for (int d = 0; d < 3; ++d)
+    for (int e = 0; e < 3; ++e)
     {
-        int ia = g_ia5[n];
-        int jb = g_jb5[n]; 
-        int kc = g_kc5[n];
-        int ld = g_ld5[n];
-        int me = g_me5[n];
-        float phi = g_phi5[n];
-        float uia = g_u[ia];
-        float ujb = g_u[jb];
-        float ukc = g_u[kc];
-        float uld = g_u[ld];
-        float ume = g_u[me];
-        atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld * ume);
+        const int abcde = a*81 + b*27 + c*9 + d*3 + e;
+        const int ia = i + a * N;
+        const int jb = j + b * N;
+        const int kc = k + c * N;
+        const int ld = l + d * N;
+        const int me = m + e * N;
+        const float phi = weight * g_phi[index * 243 + abcde];
+        const float uia = g_u[ia];
+        const float ujb = g_u[jb];
+        const float ukc = g_u[kc];
+        const float uld = g_u[ld];
+        const float ume = g_u[me];
+        atomicAdd(&g_pf[i], phi * uia * ujb * ukc * uld * ume);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld * ume);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld * ume);
         atomicAdd(&g_pf[kc + N], - phi * uia * ujb * uld * ume);
@@ -859,35 +920,54 @@ static __global__ void gpu_find_force_fcp5
 static __global__ void gpu_find_force_fcp6
 (
     const int N,
-    const int number6,
-    const int *g_ia6,
-    const int *g_jb6,
-    const int *g_kc6,
-    const int *g_ld6,
-    const int *g_me6,
-    const int *g_nf6,
-    const float *g_phi6,
+    const int number_of_clusters,
+    const int *g_i,
+    const int *g_j,
+    const int *g_k,
+    const int *g_l,
+    const int *g_m,
+    const int *g_n,
+    const int *g_index,
+    const float *g_weight,
+    const float *g_phi,
     const float* __restrict__ g_u,
     float *g_pf
 )
 {
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < number6)
+    const int nc = blockIdx.x * blockDim.x + threadIdx.x;
+    if (nc >= number_of_clusters) return;
+
+    const int i = g_i[nc];
+    const int j = g_j[nc];
+    const int k = g_k[nc];
+    const int l = g_l[nc];
+    const int m = g_m[nc];
+    const int n = g_n[nc];
+    const int index = g_index[nc];
+    const float weight = g_weight[nc];
+
+    for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b)
+    for (int c = 0; c < 3; ++c)
+    for (int d = 0; d < 3; ++d)
+    for (int e = 0; e < 3; ++e)
+    for (int f = 0; f < 3; ++f)
     {
-        int ia = g_ia6[n];
-        int jb = g_jb6[n]; 
-        int kc = g_kc6[n];
-        int ld = g_ld6[n];
-        int me = g_me6[n];
-        int nf = g_nf6[n];
-        float phi = g_phi6[n];
-        float uia = g_u[ia];
-        float ujb = g_u[jb];
-        float ukc = g_u[kc];
-        float uld = g_u[ld];
-        float ume = g_u[me];
-        float unf = g_u[nf];
-        atomicAdd(&g_pf[ia % N], phi * uia * ujb * ukc * uld * ume * unf);
+        const int abcdef = a*243 + b*81 + c*27 + d*9 + e*3 + f;
+        const int ia = i + a * N;
+        const int jb = j + b * N;
+        const int kc = k + c * N;
+        const int ld = l + d * N;
+        const int me = m + e * N;
+        const int nf = n + f * N;
+        const float phi = weight * g_phi[index * 729 + abcdef];
+        const float uia = g_u[ia];
+        const float ujb = g_u[jb];
+        const float ukc = g_u[kc];
+        const float uld = g_u[ld];
+        const float ume = g_u[me];
+        const float unf = g_u[nf];
+        atomicAdd(&g_pf[i], phi * uia * ujb * ukc * uld * ume * unf);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc * uld * ume * unf);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc * uld * ume * unf);
         atomicAdd(&g_pf[kc + N], - phi * uia * ujb * uld * ume * unf);
@@ -982,9 +1062,11 @@ void FCP::compute(Atom *atom, int potential_number)
     (
         atom->N,
         number3,
-        fcp_data.ia3.data(),
-        fcp_data.jb3.data(),
-        fcp_data.kc3.data(),
+        fcp_data.i3.data(),
+        fcp_data.j3.data(),
+        fcp_data.k3.data(),
+        fcp_data.index3.data(),
+        fcp_data.weight3.data(),
         fcp_data.phi3.data(),
         fcp_data.u.data(),
         fcp_data.pfv.data()
@@ -995,10 +1077,12 @@ void FCP::compute(Atom *atom, int potential_number)
     (
         atom->N,
         number4,
-        fcp_data.ia4.data(),
-        fcp_data.jb4.data(),
-        fcp_data.kc4.data(),
-        fcp_data.ld4.data(),
+        fcp_data.i4.data(),
+        fcp_data.j4.data(),
+        fcp_data.k4.data(),
+        fcp_data.l4.data(),
+        fcp_data.index4.data(),
+        fcp_data.weight4.data(),
         fcp_data.phi4.data(),
         fcp_data.u.data(),
         fcp_data.pfv.data()
@@ -1009,11 +1093,13 @@ void FCP::compute(Atom *atom, int potential_number)
     (
         atom->N,
         number5,
-        fcp_data.ia5.data(),
-        fcp_data.jb5.data(),
-        fcp_data.kc5.data(),
-        fcp_data.ld5.data(),
-        fcp_data.me5.data(),
+        fcp_data.i5.data(),
+        fcp_data.j5.data(),
+        fcp_data.k5.data(),
+        fcp_data.l5.data(),
+        fcp_data.m5.data(),
+        fcp_data.index5.data(),
+        fcp_data.weight5.data(),
         fcp_data.phi5.data(),
         fcp_data.u.data(),
         fcp_data.pfv.data()
@@ -1024,12 +1110,14 @@ void FCP::compute(Atom *atom, int potential_number)
     (
         atom->N,
         number6,
-        fcp_data.ia6.data(),
-        fcp_data.jb6.data(),
-        fcp_data.kc6.data(),
-        fcp_data.ld6.data(),
-        fcp_data.me6.data(),
-        fcp_data.nf6.data(),
+        fcp_data.i6.data(),
+        fcp_data.j6.data(),
+        fcp_data.k6.data(),
+        fcp_data.l6.data(),
+        fcp_data.m6.data(),
+        fcp_data.n6.data(),
+        fcp_data.index6.data(),
+        fcp_data.weight6.data(),
         fcp_data.phi6.data(),
         fcp_data.u.data(),
         fcp_data.pfv.data()
