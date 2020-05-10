@@ -42,6 +42,7 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
 
     // allocate memeory
     fcp_data.u.resize(atom->N * 3);
+    fcp_data.utot.resize(3);
     fcp_data.r0.resize(atom->N * 3, Memory_Type::managed);
     fcp_data.pfv.resize(atom->N * 13);
 
@@ -999,6 +1000,56 @@ static __global__ void gpu_get_u
 }
 
 
+static __global__ void gpu_sum_u
+(
+    const int N,
+    const float *g_u,
+    float *g_utot
+)
+{
+    int tid = threadIdx.x;
+    int bid = blockIdx.x;
+    int number_of_rounds = (N - 1) / 1024 + 1;
+    __shared__ float s_f[1024];
+    float f = 0.0f;
+
+    for (int round = 0; round < number_of_rounds; ++round)
+    {
+        int n = tid + round * 1024;
+        if (n < N) f += g_u[n + bid * N];
+    }
+    s_f[tid] = f;
+    __syncthreads();
+
+    for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1)
+    {
+        if (tid < offset) { s_f[tid] += s_f[tid + offset]; }
+        __syncthreads();
+    }
+    for (int offset = 32; offset > 0; offset >>= 1)
+    {
+        if (tid < offset) { s_f[tid] += s_f[tid + offset]; }
+        __syncwarp();
+    }
+
+    if (tid == 0) { g_utot[bid] = s_f[0]; }
+}
+
+
+static __global__ void gpu_correct_u
+(
+    const int N,
+    const float one_over_N,
+    const float *g_utot,
+    float *g_u
+)
+{
+    int n = blockIdx.x * blockDim.x + threadIdx.x;
+    if (n >= N) return;
+    g_u[n + blockDim.x * N] -= g_utot[blockDim.x] * one_over_N;
+}
+
+
 // save potential (p), force (f), and virial (v)
 static __global__ void gpu_save_pfv
 (
@@ -1040,6 +1091,24 @@ void FCP::compute(Atom *atom, int potential_number)
         fcp_data.r0.data(),
         fcp_data.u.data()
     );
+    CUDA_CHECK_KERNEL
+
+    gpu_sum_u<<<3, block_size>>>
+    (
+        atom->N,
+        fcp_data.u.data(),
+        fcp_data.utot.data()
+    );
+    CUDA_CHECK_KERNEL
+
+    gpu_correct_u<<<3, block_size>>>
+    (
+        atom->N,
+        1.0f / atom->N,
+        fcp_data.utot.data(),
+        fcp_data.u.data()
+    );
+    CUDA_CHECK_KERNEL
 
     fcp_data.pfv.fill(0.0f);
 

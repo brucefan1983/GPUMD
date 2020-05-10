@@ -649,22 +649,6 @@ void Force::compute(Atom *atom)
         (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
         CUDA_CHECK_KERNEL
     }
-
-    // always correct the force when using the FCP potential
-#ifdef USE_FCP
-    if (!compute_hnemd_)
-    {
-        GPU_Vector<double> ftot(3); // total force vector of the system
-        gpu_sum_force<<<3, 1024>>>
-        (atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
-        CUDA_CHECK_KERNEL
-
-        int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
-        gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
-        CUDA_CHECK_KERNEL
-    }
-#endif
 }
 
 
