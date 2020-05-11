@@ -36,8 +36,8 @@ https://www.freelists.org/list/gpumd
 
 ## Prerequisites
 
-* You need to have a GPU card with compute capability no less than 3.5 and a `CUDA` toolkit which supports your GPU card installed.
-* We have only tested the code in linux operating system, although I know that some users also managed to compile and run the code in Windows operating system with mininal modifications (I don't know exactly what they are) of the code. 
+* You need to have a GPU card with compute capability no less than 3.5 and a `CUDA` toolkit no less than `CUDA` 9.0.
+* Works for both linux and Windows operating systems. 
 * We will try our best to keep `GPUMD` as a standalone code. So far, it does not depend on any other program other than the standard `C`, `C++`, and `CUDA` libraries.
 
 ## Compile GPUMD
