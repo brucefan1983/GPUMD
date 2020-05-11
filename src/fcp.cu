@@ -1046,7 +1046,9 @@ static __global__ void gpu_correct_u
 {
     int n = blockIdx.x * blockDim.x + threadIdx.x;
     if (n >= N) return;
-    g_u[n + blockDim.x * N] -= g_utot[blockDim.x] * one_over_N;
+    g_u[n]         -= g_utot[0] * one_over_N;
+    g_u[n + N]     -= g_utot[1] * one_over_N;
+    g_u[n + 2 * N] -= g_utot[2] * one_over_N;
 }
 
 
@@ -1101,7 +1103,7 @@ void FCP::compute(Atom *atom, int potential_number)
     );
     CUDA_CHECK_KERNEL
 
-    gpu_correct_u<<<3, block_size>>>
+    gpu_correct_u<<<(atom->N - 1) / block_size + 1, block_size>>>
     (
         atom->N,
         1.0f / atom->N,
