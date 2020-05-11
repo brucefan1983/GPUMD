@@ -102,104 +102,98 @@ void FCP::read_fc2(Atom *atom)
         PRINT_INPUT_ERROR("number of force constant matrix should > 0.");
     }
 
-    std::vector<float> fc(num_fcs * 9);
+    fcp_data.phi2.resize(num_fcs * 9, Memory_Type::managed);
     for (int n = 0; n < num_fcs; ++n)
+    for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b)
     {
-        for (int a = 0; a < 3; ++a)
-        {
-            for (int b = 0; b < 3; ++b)
-            {
-                int index = n*9 + a*3 + b;
-                int aa, bb; // not used
-                count = fscanf(fid_fc, "%d%d%f", &aa, &bb, &fc[index]);
-                PRINT_SCANF_ERROR(count, 3, "Reading error for fcs_order2.in.");
-            }
-        }
+        int index = n*9 + a*3 + b;
+        int aa, bb; // not used
+        count = fscanf
+        (
+            fid_fc,
+            "%d%d%f",
+            &aa,
+            &bb,
+            &fcp_data.phi2[index]
+        );
+        PRINT_SCANF_ERROR(count, 3, "Reading error for fcs_order2.in.");
     }
-        
+
     // reading clusters_order2.in
     char file_cluster[200];
     strcpy(file_cluster, file_path);
     strcat(file_cluster, "/clusters_order2.in");
     FILE *fid_cluster = my_fopen(file_cluster, "r");
-    
+
     printf("    Reading data from %s\n", file_cluster);
     
-    int num_clusters = 0;
-    count = fscanf(fid_cluster, "%d", &num_clusters);
+    count = fscanf(fid_cluster, "%d", &number2);
     PRINT_SCANF_ERROR(count, 1, "Reading error for clusters_order2.in.");
-    if (num_clusters <= 0)
+    if (number2 <= 0)
     {
         PRINT_INPUT_ERROR("number of clusters should > 0.");
     }
-    number2 = num_clusters * 9;
 
-    fcp_data.ia2.resize(number2 * 2, Memory_Type::managed);
-    fcp_data.jb2.resize(number2 * 2, Memory_Type::managed);
-    fcp_data.phi2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.i2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.j2.resize(number2 * 2, Memory_Type::managed);
+    fcp_data.index2.resize(number2 * 2, Memory_Type::managed);
     fcp_data.xij2.resize(number2 * 2, Memory_Type::managed);
     fcp_data.yij2.resize(number2 * 2, Memory_Type::managed);
     fcp_data.zij2.resize(number2 * 2, Memory_Type::managed);
 	
-    int idx_clusters_new = 0;
-    for (int idx_clusters = 0; idx_clusters < num_clusters; idx_clusters++)
+    int number2new = 0;
+    for (int nc = 0; nc < number2; nc++)
     {
-        int i, j, idx_fcs;
-        count = fscanf(fid_cluster, "%d%d%d", &i, &j, &idx_fcs);
+        int i, j, index;
+        count = fscanf(fid_cluster, "%d%d%d", &i, &j, &index);
         PRINT_SCANF_ERROR(count, 3, "Reading error for clusters_order2.in.");
 
         if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
         if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); } 
         if (i > j) { PRINT_INPUT_ERROR("i > j."); } 
-        if (idx_fcs < 0 || idx_fcs >= num_fcs) 
+        if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
         } 
 
-        for (int a = 0; a < 3; ++a)
-        {
-            for (int b = 0; b < 3; ++b)
-            {
-                int ab = a*3 + b;
-                int index = idx_clusters_new*9 + ab;
-                fcp_data.ia2[index] = a * atom->N + i;
-                fcp_data.jb2[index] = b * atom->N + j;
-                fcp_data.phi2[index] = fc[idx_fcs*9 + ab];
+        fcp_data.i2[number2new] = i;
+        fcp_data.j2[number2new] = j;
+        fcp_data.index2[number2new] = index;
 
-                double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
-                double yij2 = fcp_data.r0[j + atom->N] 
-                            - fcp_data.r0[i + atom->N];
-                double zij2 = fcp_data.r0[j + atom->N*2] 
-                            - fcp_data.r0[i + atom->N*2];
-                apply_mic
-                (
-                    atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
-                    atom->box.pbc_z, atom->box.cpu_h, xij2, yij2, zij2
-                );
-                fcp_data.xij2[index] = xij2 * 0.5;
-                fcp_data.yij2[index] = yij2 * 0.5;
-                fcp_data.zij2[index] = zij2 * 0.5;
-            }
-        }
-        ++idx_clusters_new;
+        double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
+        double yij2 = fcp_data.r0[j + atom->N] - fcp_data.r0[i + atom->N];
+        double zij2 = fcp_data.r0[j + atom->N*2] - fcp_data.r0[i + atom->N*2];
+        apply_mic
+        (
+            atom->box.triclinic,
+            atom->box.pbc_x,
+            atom->box.pbc_y,
+            atom->box.pbc_z,
+            atom->box.cpu_h,
+            xij2,
+            yij2,
+            zij2
+        );
+        fcp_data.xij2[number2new] = xij2 * 0.5;
+        fcp_data.yij2[number2new] = yij2 * 0.5;
+        fcp_data.zij2[number2new] = zij2 * 0.5;
+
+        ++number2new;
 		
         if (i != j)
         {
-            for (int ab = 0; ab < 9; ++ab)
-            {
-                int index = idx_clusters_new*9 + ab;
-                int index_old = index - 9;
-                fcp_data.ia2[index] = fcp_data.jb2[index_old];
-                fcp_data.jb2[index] = fcp_data.ia2[index_old];
-                fcp_data.phi2[index] = fcp_data.phi2[index_old];
-                fcp_data.xij2[index] = -fcp_data.xij2[index_old];
-                fcp_data.yij2[index] = -fcp_data.yij2[index_old];
-                fcp_data.zij2[index] = -fcp_data.zij2[index_old];
-            }
-            ++idx_clusters_new;
+            fcp_data.i2[number2new] = fcp_data.j2[number2new - 1];
+            fcp_data.j2[number2new] = fcp_data.i2[number2new - 1];
+            fcp_data.index2[number2new] = fcp_data.index2[number2new - 1];
+            fcp_data.xij2[number2new] = -fcp_data.xij2[number2new - 1];
+            fcp_data.yij2[number2new] = -fcp_data.yij2[number2new - 1];
+            fcp_data.zij2[number2new] = -fcp_data.zij2[number2new - 1];
+
+            ++number2new;
         }
     }
-    number2 = idx_clusters_new * 9;
+    number2 = number2new;
 
     fclose(fid_fc);
     fclose(fid_cluster);
@@ -728,10 +722,11 @@ void FCP::read_fc6(Atom *atom)
 static __global__ void gpu_find_force_fcp2
 (
     const int N,
-    const int number2,
-    const int *g_ia2,
-    const int *g_jb2,
-    const float *g_phi2,
+    const int number_of_clusters,
+    const int *g_i,
+    const int *g_j,
+    const int *g_index,
+    const float *g_phi,
     const float* __restrict__ g_u,
     const float *g_xij2,
     const float *g_yij2,
@@ -739,30 +734,36 @@ static __global__ void gpu_find_force_fcp2
     float *g_pfv
 )
 {
-    int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < number2)
+    const int nc = blockIdx.x * blockDim.x + threadIdx.x;
+    if (nc >= number_of_clusters) return;
+
+    const int i = g_i[nc];
+    const int j = g_j[nc];
+    const int index = g_index[nc];
+    const float xij2 = g_xij2[nc];
+    const float yij2 = g_yij2[nc];
+    const float zij2 = g_zij2[nc];
+
+    for (int a = 0; a < 3; ++a)
+    for (int b = 0; b < 3; ++b)
     {
-        int ia = g_ia2[n]; 
-        int jb = g_jb2[n];
-        float phi = g_phi2[n];
-        float xij2 = g_xij2[n];
-        float yij2 = g_yij2[n];
-        float zij2 = g_zij2[n];
-        float uia = g_u[ia];
-        float ujb = g_u[jb];
-        
-        int atom_id = ia % N;
-        atomicAdd(&g_pfv[atom_id], 0.5f * phi * uia * ujb); // potential
+        const int ab = a * 3 + b;
+        const int ia = i + a * N;
+        const int jb = j + b * N;
+        const float phi = g_phi[index * 9 + ab];
+        const float uia = g_u[ia];
+        const float ujb = g_u[jb];
+
+        atomicAdd(&g_pfv[i], 0.5f * phi * uia * ujb); // potential
         atomicAdd(&g_pfv[ia + N], - phi * ujb); // force
         
         // virial tensor
-        int a = ia / N;
-        int x[3] = {4, 7, 8};
-        int y[3] = {10, 5, 9};
-        int z[3] = {11, 12, 6};
-        atomicAdd(&g_pfv[atom_id + N * x[a]], xij2 * phi * ujb);
-        atomicAdd(&g_pfv[atom_id + N * y[a]], yij2 * phi * ujb);
-        atomicAdd(&g_pfv[atom_id + N * z[a]], zij2 * phi * ujb);
+        const int x[3] = {4, 7, 8};
+        const int y[3] = {10, 5, 9};
+        const int z[3] = {11, 12, 6};
+        atomicAdd(&g_pfv[i + N * x[a]], xij2 * phi * ujb);
+        atomicAdd(&g_pfv[i + N * y[a]], yij2 * phi * ujb);
+        atomicAdd(&g_pfv[i + N * z[a]], zij2 * phi * ujb);
     }
 }
 
@@ -782,13 +783,13 @@ static __global__ void gpu_find_force_fcp3
     float *g_pf
 )
 {
-    int nc = blockIdx.x * blockDim.x + threadIdx.x;
+    const int nc = blockIdx.x * blockDim.x + threadIdx.x;
     if (nc >= number_of_clusters) return;
 
-    int i = g_i[nc];
-    int j = g_j[nc];
-    int k = g_k[nc];
-    int index = g_index[nc];
+    const int i = g_i[nc];
+    const int j = g_j[nc];
+    const int k = g_k[nc];
+    const int index = g_index[nc];
     const float weight = g_weight[nc];
 
     for (int a = 0; a < 3; ++a)
@@ -799,10 +800,10 @@ static __global__ void gpu_find_force_fcp3
         const int ia = i + a * N;
         const int jb = j + b * N;
         const int kc = k + c * N;
-        float phi = weight * g_phi[index * 27 + abc];
-        float uia = g_u[ia];
-        float ujb = g_u[jb];
-        float ukc = g_u[kc];
+        const float phi = weight * g_phi[index * 27 + abc];
+        const float uia = g_u[ia];
+        const float ujb = g_u[jb];
+        const float ukc = g_u[kc];
         atomicAdd(&g_pf[i], phi * uia * ujb * ukc);
         atomicAdd(&g_pf[ia + N], - phi * ujb * ukc);
         atomicAdd(&g_pf[jb + N], - phi * uia * ukc);
@@ -1118,8 +1119,9 @@ void FCP::compute(Atom *atom, int potential_number)
     (
         atom->N,
         number2,
-        fcp_data.ia2.data(),
-        fcp_data.jb2.data(),
+        fcp_data.i2.data(),
+        fcp_data.j2.data(),
+        fcp_data.index2.data(),
         fcp_data.phi2.data(),
         fcp_data.u.data(),
         fcp_data.xij2.data(),

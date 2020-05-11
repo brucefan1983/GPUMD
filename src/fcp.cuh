@@ -22,7 +22,7 @@
 
 struct FCP_Data
 {
-    GPU_Vector<int> ia2, jb2;
+    GPU_Vector<int> i2, j2, index2;
     GPU_Vector<int> i3, j3, k3, index3;
     GPU_Vector<int> i4, j4, k4, l4, index4;
     GPU_Vector<int> i5, j5, k5, l5, m5, index5;
