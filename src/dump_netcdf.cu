@@ -313,7 +313,7 @@ void DUMP_NETCDF::write(Atom *atom)
         countp[0] = 1;
         countp[1] = N;
         countp[2] = 1;
-        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type));
+        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type.data()));
         NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_x));
         startp[2] = 1;
         NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_y));
@@ -325,7 +325,7 @@ void DUMP_NETCDF::write(Atom *atom)
         countp[0] = 1;
         countp[1] = N;
         countp[2] = 1;
-        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type));
+        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type.data()));
         NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_x.data()));
         startp[2] = 1;
         NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_y.data()));
