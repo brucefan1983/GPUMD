@@ -415,7 +415,6 @@ void Atom::allocate_memory_gpu(void)
 {
     int m1 = sizeof(int) * N;
     int m4 = sizeof(double) * N;
-    int m5 = m4 * NUM_OF_HEAT_COMPONENTS;
     neighbor.NN.resize(N);
     neighbor.NL.resize(N * neighbor.MN);
     neighbor.NN_local.resize(N);

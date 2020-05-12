@@ -426,9 +426,19 @@ void EAM::compute(Atom *atom, int potential_number)
     {
         find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
-            atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(), atom->x, atom->y, atom->z,
-            eam_data.Fp.data(), atom->potential_per_atom.data()
+            eam2004zhou,
+            eam2006dai,
+            atom->N,
+            N1,
+            N2,
+            atom->box,
+            atom->neighbor.NN_local.data(),
+            atom->neighbor.NL_local.data(),
+            atom->x,
+            atom->y,
+            atom->z,
+            eam_data.Fp.data(),
+            atom->potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
 
@@ -440,9 +450,19 @@ void EAM::compute(Atom *atom, int potential_number)
     {
         find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>
         (
-            eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
-            atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(), atom->x, atom->y, atom->z,
-            eam_data.Fp.data(), atom->potential_per_atom.data()
+            eam2004zhou,
+            eam2006dai,
+            atom->N,
+            N1,
+            N2,
+            atom->box,
+            atom->neighbor.NN_local.data(),
+            atom->neighbor.NL_local.data(),
+            atom->x,
+            atom->y,
+            atom->z,
+            eam_data.Fp.data(),
+            atom->potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
         

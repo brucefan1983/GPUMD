@@ -42,23 +42,34 @@ Ensemble::~Ensemble(void)
 // The first step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_1
 (
-    int number_of_particles, int fixed_group, int *group_id, double g_time_step,
-    double* g_mass, double* g_x, double* g_y, double* g_z, double* g_vx, double* g_vy,
-    double* g_vz, double* g_fx, double* g_fy, double* g_fz
+    const int number_of_particles,
+    const int fixed_group,
+    const int *group_id,
+    const double g_time_step,
+    const double* g_mass,
+    double* g_x,
+    double* g_y,
+    double* g_z,
+    double* g_vx,
+    double* g_vy,
+    double* g_vz,
+    const double* g_fx,
+    const double* g_fy,
+    const double* g_fz
 )
 {
-    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        double time_step = g_time_step;
-        double time_step_half = time_step * 0.5;
-        double x  = g_x[i];  double y  = g_y[i];  double z  = g_z[i];
-        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = 1.0 / g_mass[i];
-        double ax = g_fx[i] * mass_inv;
-        double ay = g_fy[i] * mass_inv;
-        double az = g_fz[i] * mass_inv;
+        const double time_step = g_time_step;
+        const double time_step_half = time_step * 0.5;
+        double vx = g_vx[i];
+        double vy = g_vy[i];
+        double vz = g_vz[i];
+        const double mass_inv = 1.0 / g_mass[i];
+        const double ax = g_fx[i] * mass_inv;
+        const double ay = g_fy[i] * mass_inv;
+        const double az = g_fz[i] * mass_inv;
         if (group_id[i] == fixed_group)
         {
             vx = 0.0;
@@ -71,9 +82,12 @@ static __global__ void gpu_velocity_verlet_1
             vy += ay * time_step_half;
             vz += az * time_step_half;
         }
-        x += vx * time_step; y += vy * time_step;z += vz * time_step;
-        g_x[i]  = x;  g_y[i]  = y;  g_z[i]  = z;
-        g_vx[i] = vx; g_vy[i] = vy; g_vz[i] = vz;
+        g_x[i] += vx * time_step;
+        g_y[i] += vy * time_step;
+        g_z[i] += vz * time_step;
+        g_vx[i] = vx;
+        g_vy[i] = vy;
+        g_vz[i] = vz;
     }
 }
 
@@ -81,29 +95,41 @@ static __global__ void gpu_velocity_verlet_1
 // The first step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_1
 (
-    int number_of_particles, double g_time_step,
-    double* g_mass, double* g_x, double* g_y, double* g_z, double* g_vx, double* g_vy,
-    double* g_vz, double* g_fx, double* g_fy, double* g_fz
+    const int number_of_particles,
+    const double g_time_step,
+    const double* g_mass,
+    double* g_x,
+    double* g_y,
+    double* g_z,
+    double* g_vx,
+    double* g_vy,
+    double* g_vz,
+    const double* g_fx,
+    const double* g_fy,
+    const double* g_fz
 )
 {
-    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        double time_step = g_time_step;
-        double time_step_half = time_step * 0.5;
-        double x  = g_x[i];  double y  = g_y[i];  double z  = g_z[i];
-        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = 1.0 / g_mass[i];
-        double ax = g_fx[i] * mass_inv;
-        double ay = g_fy[i] * mass_inv;
-        double az = g_fz[i] * mass_inv;
+        const double time_step = g_time_step;
+        const double time_step_half = time_step * 0.5;
+        double vx = g_vx[i];
+        double vy = g_vy[i];
+        double vz = g_vz[i];
+        const double mass_inv = 1.0 / g_mass[i];
+        const double ax = g_fx[i] * mass_inv;
+        const double ay = g_fy[i] * mass_inv;
+        const double az = g_fz[i] * mass_inv;
         vx += ax * time_step_half;
         vy += ay * time_step_half;
         vz += az * time_step_half;
-        x += vx * time_step; y += vy * time_step;z += vz * time_step;
-        g_x[i]  = x;  g_y[i]  = y;  g_z[i]  = z;
-        g_vx[i] = vx; g_vy[i] = vy; g_vz[i] = vz;
+        g_x[i] += vx * time_step;
+        g_y[i] += vy * time_step;
+        g_z[i] += vz * time_step;
+        g_vx[i] = vx;
+        g_vy[i] = vy;
+        g_vz[i] = vz;
     }
 }
 
@@ -136,34 +162,39 @@ void Ensemble::velocity_verlet_1(Atom* atom)
 // The second step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_2
 (
-    int number_of_particles, int fixed_group, int *group_id, double g_time_step,
-    double* g_mass, double* g_vx, double* g_vy, double* g_vz,
-    double* g_fx, double* g_fy, double* g_fz
+    const int number_of_particles,
+    const int fixed_group,
+    const int *group_id,
+    const double g_time_step,
+    const double* g_mass,
+    double* g_vx,
+    double* g_vy,
+    double* g_vz,
+    const double* g_fx,
+    const double* g_fy,
+    const double* g_fz
 )
 {
-    //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        double time_step_half = g_time_step * 0.5;
-        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = 1.0 / g_mass[i];
-        double ax = g_fx[i] * mass_inv;
-        double ay = g_fy[i] * mass_inv;
-        double az = g_fz[i] * mass_inv;
+        const double time_step_half = g_time_step * 0.5;
+        const double mass_inv = 1.0 / g_mass[i];
+        const double ax = g_fx[i] * mass_inv;
+        const double ay = g_fy[i] * mass_inv;
+        const double az = g_fz[i] * mass_inv;
         if (group_id[i] == fixed_group)
         {
-            vx = 0.0;
-            vy = 0.0;
-            vz = 0.0;
+            g_vx[i] = 0.0;
+            g_vy[i] = 0.0;
+            g_vz[i] = 0.0;
         }
         else
         {
-            vx += ax * time_step_half;
-            vy += ay * time_step_half;
-            vz += az * time_step_half;
+            g_vx[i] += ax * time_step_half;
+            g_vy[i] += ay * time_step_half;
+            g_vz[i] += az * time_step_half;
         }
-        g_vx[i] = vx; g_vy[i] = vy; g_vz[i] = vz;
     }
 }
 
@@ -171,25 +202,29 @@ static __global__ void gpu_velocity_verlet_2
 // The second step of velocity-Verlet
 static __global__ void gpu_velocity_verlet_2
 (
-    int number_of_particles, double g_time_step,
-    double* g_mass, double* g_vx, double* g_vy, double* g_vz,
-    double* g_fx, double* g_fy, double* g_fz
+    const int number_of_particles,
+    const double g_time_step,
+    const double* g_mass,
+    double* g_vx,
+    double* g_vy,
+    double* g_vz,
+    const double* g_fx,
+    const double* g_fy,
+    const double* g_fz
 )
 {
     //<<<(number_of_particles - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    int i = blockIdx.x * blockDim.x + threadIdx.x;
+    const int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < number_of_particles)
     {
-        double time_step_half = g_time_step * 0.5;
-        double vx = g_vx[i]; double vy = g_vy[i]; double vz = g_vz[i];
-        double mass_inv = 1.0 / g_mass[i];
-        double ax = g_fx[i] * mass_inv;
-        double ay = g_fy[i] * mass_inv;
-        double az = g_fz[i] * mass_inv;
-        vx += ax * time_step_half;
-        vy += ay * time_step_half;
-        vz += az * time_step_half;
-        g_vx[i] = vx; g_vy[i] = vy; g_vz[i] = vz;
+        const double time_step_half = g_time_step * 0.5;
+        const double mass_inv = 1.0 / g_mass[i];
+        const double ax = g_fx[i] * mass_inv;
+        const double ay = g_fy[i] * mass_inv;
+        const double az = g_fz[i] * mass_inv;
+        g_vx[i] += ax * time_step_half;
+        g_vy[i] += ay * time_step_half;
+        g_vz[i] += az * time_step_half;
     }
 }
 
@@ -231,9 +266,21 @@ void Ensemble::velocity_verlet(Atom* atom, Force* force)
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
-    int N, int N_fixed, int fixed_group, int *group_id, double T,
-    double volume, double *g_mass, double *g_potential, double *g_vx,
-    double *g_vy, double *g_vz, double *g_sx, double *g_sy, double *g_sz, double *g_thermo
+    int N,
+    int N_fixed,
+    int fixed_group,
+    int *group_id,
+    double T,
+    double volume,
+    double *g_mass,
+    double *g_potential,
+    double *g_vx,
+    double *g_vy,
+    double *g_vz,
+    double *g_sx,
+    double *g_sy,
+    double *g_sz,
+    double *g_thermo
 )
 {
     //<<<5, MAX_THREAD>>>
@@ -367,8 +414,18 @@ static __global__ void gpu_find_thermo
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
-    int N, double T, double volume, double *g_mass, double *g_potential, double *g_vx,
-    double *g_vy, double *g_vz, double *g_sx, double *g_sy, double *g_sz, double *g_thermo
+    int N,
+    double T,
+    double volume,
+    double *g_mass,
+    double *g_potential,
+    double *g_vx,
+    double *g_vy,
+    double *g_vz,
+    double *g_sx,
+    double *g_sy,
+    double *g_sz,
+    double *g_thermo
 )
 {
     //<<<5, MAX_THREAD>>>
@@ -506,8 +563,14 @@ void Ensemble::find_thermo(Atom* atom)
     {
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N, temperature, volume, atom->mass, atom->potential_per_atom.data(),
-            atom->vx, atom->vy, atom->vz,
+            atom->N,
+            temperature,
+            volume,
+            atom->mass,
+            atom->potential_per_atom.data(),
+            atom->vx,
+            atom->vy,
+            atom->vz,
             atom->virial_per_atom.data(),
             atom->virial_per_atom.data() + atom->N,
             atom->virial_per_atom.data() + atom->N * 2,
@@ -519,9 +582,17 @@ void Ensemble::find_thermo(Atom* atom)
         int N_fixed = atom->group[0].cpu_size[fixed_group];
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N, N_fixed, fixed_group, atom->group[0].label.data(),
-            temperature, volume, atom->mass, atom->potential_per_atom.data(),
-            atom->vx, atom->vy, atom->vz, 
+            atom->N,
+            N_fixed,
+            fixed_group,
+            atom->group[0].label.data(),
+            temperature,
+            volume,
+            atom->mass,
+            atom->potential_per_atom.data(),
+            atom->vx,
+            atom->vy,
+            atom->vz,
             atom->virial_per_atom.data(),
             atom->virial_per_atom.data() + atom->N,
             atom->virial_per_atom.data() + atom->N * 2,
@@ -640,8 +711,17 @@ void Ensemble::find_vc_and_ke
 {
     gpu_find_vc_and_ke<<<atom->group[0].number, 512>>>
     (
-        atom->group[0].size.data(), atom->group[0].size_sum.data(), atom->group[0].contents.data(),
-        atom->mass, atom->vx, atom->vy, atom->vz, vcx, vcy, vcz, ke
+        atom->group[0].size.data(),
+        atom->group[0].size_sum.data(),
+        atom->group[0].contents.data(),
+        atom->mass,
+        atom->vx,
+        atom->vy,
+        atom->vz,
+        vcx,
+        vcy,
+        vcz,
+        ke
     );
     CUDA_CHECK_KERNEL
 }
@@ -649,9 +729,19 @@ void Ensemble::find_vc_and_ke
 
 static __global__ void gpu_scale_velocity
 (
-    int number_of_particles, int label_1, int label_2, int *g_atom_label, 
-    double factor_1, double factor_2, double *g_vcx, double *g_vcy, double *g_vcz,
-    double *g_ke, double *g_vx, double *g_vy, double *g_vz
+    int number_of_particles,
+    int label_1,
+    int label_2,
+    int *g_atom_label,
+    double factor_1,
+    double factor_2,
+    double *g_vcx,
+    double *g_vcy,
+    double *g_vcz,
+    double *g_ke,
+    double *g_vx,
+    double *g_vy,
+    double *g_vz
 )
 {
     // <<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>

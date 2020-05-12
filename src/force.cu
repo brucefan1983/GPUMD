@@ -541,7 +541,14 @@ static __global__ void gpu_sum_force
 
 // correct the total force
 static __global__ void gpu_correct_force
-(int N, double one_over_N, double *g_fx, double *g_fy, double *g_fz, double *g_f)
+(
+    int N,
+    double one_over_N,
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_f
+)
 {
     int i = blockIdx.x * blockDim.x + threadIdx.x;
     if (i < N)
@@ -555,7 +562,12 @@ static __global__ void gpu_correct_force
 
 static __global__ void initialize_properties
 (
-    int N, double *g_fx, double *g_fy, double *g_fz, double *g_pe, double *g_virial
+    int N,
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_pe,
+    double *g_virial
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x;

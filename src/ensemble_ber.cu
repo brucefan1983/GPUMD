@@ -39,8 +39,18 @@ Ensemble_BER::Ensemble_BER(int t, int fg, double T, double Tc)
 
 Ensemble_BER::Ensemble_BER
 (
-    int t, int fg, double T, double Tc, double px, double py, double pz, double pc,
-    int dx, int dy, int dz, double rate
+    int t,
+    int fg,
+    double T,
+    double Tc,
+    double px,
+    double py,
+    double pz,
+    double pc,
+    int dx,
+    int dy,
+    int dz,
+    double rate
 )
 {
     type = t;
