@@ -155,10 +155,6 @@ void validate_force
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    int M = sizeof(double) * N;
-    double *x = atom->x;
-    double *y = atom->y;
-    double *z = atom->z;
     std::vector<double> fx(N);
     std::vector<double> fy(N);
     std::vector<double> fz(N);
@@ -168,9 +164,9 @@ void validate_force
 
     // make a copy of the positions
     GPU_Vector<double> x0(N), y0(N), z0(N);
-    x0.copy_from_device(x);
-    y0.copy_from_device(y);
-    z0.copy_from_device(z);
+    x0.copy_from_device(atom->x.data());
+    y0.copy_from_device(atom->y.data());
+    z0.copy_from_device(atom->z.data());
 
     // get the potentials
     GPU_Vector<double> p1(N * 3), p2(N * 3);
@@ -189,9 +185,9 @@ void validate_force
                 x0.data(),
                 y0.data(),
                 z0.data(),
-                x,
-                y,
-                z
+                atom->x.data(),
+                atom->y.data(),
+                atom->z.data()
             );
             CUDA_CHECK_KERNEL
 
@@ -217,9 +213,9 @@ void validate_force
                 x0.data(),
                 y0.data(),
                 z0.data(),
-                x,
-                y,
-                z
+                atom->x.data(),
+                atom->y.data(),
+                atom->z.data()
             );
             CUDA_CHECK_KERNEL
 
@@ -239,9 +235,9 @@ void validate_force
     }
 
     // copy the positions back (as if nothing happens)
-    x0.copy_to_device(x);
-    y0.copy_to_device(y);
-    z0.copy_to_device(z);
+    x0.copy_to_device(atom->x.data());
+    y0.copy_to_device(atom->y.data());
+    z0.copy_to_device(atom->z.data());
 
     // get the forces from the potential energies using finite difference
     GPU_Vector<double> fx_compare(N), fy_compare(N), fz_compare(N);
@@ -260,18 +256,18 @@ void validate_force
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    CHECK(cudaMemcpy(fx.data(), atom->fx, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy.data(), atom->fy, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz.data(), atom->fz, M, cudaMemcpyDeviceToHost));
+    atom->fx.copy_to_host(fx.data());
+    atom->fy.copy_to_host(fy.data());
+    atom->fz.copy_to_host(fz.data());
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
     }
  
     // output the forces from finite difference
-    CHECK(cudaMemcpy(fx.data(), fx_compare.data(), M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fy.data(), fy_compare.data(), M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(fz.data(), fz_compare.data(), M, cudaMemcpyDeviceToHost));
+    fx_compare.copy_to_host(fx.data());
+    fy_compare.copy_to_host(fy.data());
+    fz_compare.copy_to_host(fz.data());
     for (int n = 0; n < N; n++)
     {
         fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);

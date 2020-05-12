@@ -33,14 +33,14 @@ Atom::Atom(char *input_dir)
     allocate_memory_gpu();
     copy_from_cpu_to_gpu();
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-    neighbor.find_neighbor(1, box, x, y, z);
+    neighbor.find_neighbor(1, box, x.data(), y.data(), z.data());
 #endif
 }
 
 
 Atom::~Atom(void)
 {
-    free_memory_gpu();
+    // nothing now
 }
 
 
@@ -413,8 +413,6 @@ void Atom::initialize_position(char *input_dir)
 
 void Atom::allocate_memory_gpu(void)
 {
-    int m1 = sizeof(int) * N;
-    int m4 = sizeof(double) * N;
     neighbor.NN.resize(N);
     neighbor.NL.resize(N * neighbor.MN);
     neighbor.NN_local.resize(N);
@@ -424,7 +422,7 @@ void Atom::allocate_memory_gpu(void)
     neighbor.cell_count_sum.resize(N);
     neighbor.cell_contents.resize(N);
 
-    CHECK(cudaMalloc((void**)&type, m1));
+    type.resize(N);
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         group[m].label.resize(N);
@@ -432,19 +430,19 @@ void Atom::allocate_memory_gpu(void)
         group[m].size_sum.resize(group[m].number);
         group[m].contents.resize(N);
     }
-    CHECK(cudaMalloc((void**)&mass, m4));
+    mass.resize(N);
     neighbor.x0.resize(N);
     neighbor.y0.resize(N);
     neighbor.z0.resize(N);
-    CHECK(cudaMalloc((void**)&x,    m4));
-    CHECK(cudaMalloc((void**)&y,    m4));
-    CHECK(cudaMalloc((void**)&z,    m4));
-    CHECK(cudaMalloc((void**)&vx,   m4));
-    CHECK(cudaMalloc((void**)&vy,   m4));
-    CHECK(cudaMalloc((void**)&vz,   m4));
-    CHECK(cudaMalloc((void**)&fx,   m4));
-    CHECK(cudaMalloc((void**)&fy,   m4));
-    CHECK(cudaMalloc((void**)&fz,   m4));
+    x.resize(N);
+    y.resize(N);
+    z.resize(N);
+    vx.resize(N);
+    vy.resize(N);
+    vz.resize(N);
+    fx.resize(N);
+    fy.resize(N);
+    fz.resize(N);
     virial_per_atom.resize(N * 9);
     potential_per_atom.resize(N);
     heat_per_atom.resize(N * NUM_OF_HEAT_COMPONENTS);
@@ -454,9 +452,7 @@ void Atom::allocate_memory_gpu(void)
 
 void Atom::copy_from_cpu_to_gpu(void)
 {
-    int m1 = sizeof(int) * N;
-    int m3 = sizeof(double) * N;
-    CHECK(cudaMemcpy(type, cpu_type.data(), m1, cudaMemcpyHostToDevice));
+    type.copy_from_host(cpu_type.data());
     for (int m = 0; m < num_of_grouping_methods; ++m)
     {
         group[m].label.copy_from_host(group[m].cpu_label.data());
@@ -464,26 +460,10 @@ void Atom::copy_from_cpu_to_gpu(void)
         group[m].size_sum.copy_from_host(group[m].cpu_size_sum.data());
         group[m].contents.copy_from_host(group[m].cpu_contents.data());
     }
-    CHECK(cudaMemcpy(mass, cpu_mass.data(), m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(x, cpu_x.data(), m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(y, cpu_y.data(), m3, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(z, cpu_z.data(), m3, cudaMemcpyHostToDevice));
-}
-
-
-void Atom::free_memory_gpu(void)
-{
-    CHECK(cudaFree(type));
-    CHECK(cudaFree(mass));
-    CHECK(cudaFree(x));
-    CHECK(cudaFree(y));
-    CHECK(cudaFree(z));
-    CHECK(cudaFree(vx));
-    CHECK(cudaFree(vy));
-    CHECK(cudaFree(vz));
-    CHECK(cudaFree(fx));
-    CHECK(cudaFree(fy));
-    CHECK(cudaFree(fz));
+    mass.copy_from_host(cpu_mass.data());
+    x.copy_from_host(cpu_x.data());
+    y.copy_from_host(cpu_y.data());
+    z.copy_from_host(cpu_z.data());
 }
 
 

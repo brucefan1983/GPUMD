@@ -278,7 +278,7 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
     elemwise_mass_scale<<<grid_size, BLOCK_SIZE>>>
     (
           num_participating, N1, sqrtmass.data(),
-          atom->vx, atom->vy, atom->vz,
+          atom->vx.data(), atom->vy.data(), atom->vz.data(),
           mvx.data(), mvy.data(), mvz.data()
     );
     CUDA_CHECK_KERNEL
@@ -550,7 +550,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         gpu_set_mass_terms
         <<<(num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
         (
-            num_participating, N1, atom->mass,
+            num_participating, N1, atom->mass.data(),
             sqrtmass.data(), rsqrtmass.data()
         );
         CUDA_CHECK_KERNEL

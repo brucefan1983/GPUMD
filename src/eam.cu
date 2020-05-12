@@ -26,16 +26,6 @@ The EAM potential. Currently two analytical versions:
 #include "atom.cuh"
 #include "error.cuh"
 #define BLOCK_SIZE_FORCE 64
-#define FIND_FORCE_EAM_STEP2(A)                                                \
-    find_force_eam_step2<A><<<grid_size, BLOCK_SIZE_FORCE>>>                   \
-    (                                                                          \
-        eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box,                   \
-        atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(),        \
-        eam_data.Fp.data(),                                                    \
-        atom->x, atom->y, atom->z, atom->vx,                                   \
-        atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,                      \
-        atom->virial_per_atom.data(), atom->potential_per_atom.data()          \
-    ) 
 
 
 EAM::EAM(FILE *fid, Atom* atom, char *name)
@@ -434,15 +424,37 @@ void EAM::compute(Atom *atom, int potential_number)
             atom->box,
             atom->neighbor.NN_local.data(),
             atom->neighbor.NL_local.data(),
-            atom->x,
-            atom->y,
-            atom->z,
+            atom->x.data(),
+            atom->y.data(),
+            atom->z.data(),
             eam_data.Fp.data(),
             atom->potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
 
-        FIND_FORCE_EAM_STEP2(0);
+        find_force_eam_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            eam2004zhou,
+            eam2006dai,
+            atom->N,
+            N1,
+            N2,
+            atom->box,
+            atom->neighbor.NN_local.data(),
+            atom->neighbor.NL_local.data(),
+            eam_data.Fp.data(),
+            atom->x.data(),
+            atom->y.data(),
+            atom->z.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data(),
+            atom->virial_per_atom.data(),
+            atom->potential_per_atom.data()
+        );
         CUDA_CHECK_KERNEL
     }
 
@@ -458,15 +470,37 @@ void EAM::compute(Atom *atom, int potential_number)
             atom->box,
             atom->neighbor.NN_local.data(),
             atom->neighbor.NL_local.data(),
-            atom->x,
-            atom->y,
-            atom->z,
+            atom->x.data(),
+            atom->y.data(),
+            atom->z.data(),
             eam_data.Fp.data(),
             atom->potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
-        
-        FIND_FORCE_EAM_STEP2(1);
+
+        find_force_eam_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>
+        (
+            eam2004zhou,
+            eam2006dai,
+            atom->N,
+            N1,
+            N2,
+            atom->box,
+            atom->neighbor.NN_local.data(),
+            atom->neighbor.NL_local.data(),
+            eam_data.Fp.data(),
+            atom->x.data(),
+            atom->y.data(),
+            atom->z.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data(),
+            atom->virial_per_atom.data(),
+            atom->potential_per_atom.data()
+        );
         CUDA_CHECK_KERNEL
     }
 }

@@ -112,13 +112,13 @@ void VAC::preprocess(Atom *atom)
                 atom->group[grouping_method].cpu_size_sum[group],
                 atom->group[grouping_method].contents.data(),
                 mass.data(),
-                atom->mass
+                atom->mass.data()
             );
             CUDA_CHECK_KERNEL
         }
         else
         {
-            mass.copy_from_device(atom->mass);
+            mass.copy_from_device(atom->mass.data());
         }
     }
 }
@@ -267,9 +267,9 @@ void VAC::process
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,
-            atom->vx,
-            atom->vy,
-            atom->vz
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data()
         );
     }
     else
@@ -280,9 +280,9 @@ void VAC::process
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,
-            atom->vx,
-            atom->vy,
-            atom->vz
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data()
         );
     }
     CUDA_CHECK_KERNEL 

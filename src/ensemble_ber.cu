@@ -200,7 +200,7 @@ void Ensemble_BER::compute(Atom *atom, Force *force)
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
     (
         atom->N, temperature, temperature_coupling, atom->thermo.data(),
-        atom->vx, atom->vy, atom->vz
+        atom->vx.data(), atom->vy.data(), atom->vz.data()
     );
     CUDA_CHECK_KERNEL
     if (type == 11)
@@ -210,7 +210,7 @@ void Ensemble_BER::compute(Atom *atom, Force *force)
             deform_x, deform_y, deform_z, deform_rate, atom->N,
             atom->box, pressure_x, 
             pressure_y, pressure_z, pressure_coupling, atom->thermo.data(),
-            atom->x, atom->y, atom->z
+            atom->x.data(), atom->y.data(), atom->z.data()
         );
         CUDA_CHECK_KERNEL
         cpu_berendsen_pressure

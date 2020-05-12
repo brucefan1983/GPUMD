@@ -29,11 +29,11 @@ const int MAX_NUMBER_OF_GROUPS = 10;
 class Atom
 {
 public:
-    int *type;                    // atom type (for force)
-    double *mass;                   // per-atom mass
-    double *x; double *y; double *z;    // per-atom position
-    double *vx; double *vy; double *vz; // per-atom velocity
-    double *fx; double *fy; double *fz; // per-atom force
+    GPU_Vector<int> type;                  // atom type (for force)
+    GPU_Vector<double> mass;               // per-atom mass
+    GPU_Vector<double> x, y, z;            // per-atom position
+    GPU_Vector<double> vx, vy, vz;         // per-atom velocity
+    GPU_Vector<double> fx, fy, fz;         // per-atom force
     GPU_Vector<double> heat_per_atom;      // per-atom heat current
     GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
     GPU_Vector<double> potential_per_atom; // per-atom potential energy

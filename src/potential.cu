@@ -152,8 +152,16 @@ void Potential::find_properties_many_body
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         atom->N, N1, N2, atom->box, NN,
-        NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
-        atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,
+        NL, f12x, f12y, f12z,
+        atom->x.data(),
+        atom->y.data(),
+        atom->z.data(),
+        atom->vx.data(),
+        atom->vy.data(),
+        atom->vz.data(),
+        atom->fx.data(),
+        atom->fy.data(),
+        atom->fz.data(),
         atom->virial_per_atom.data()
     );
     CUDA_CHECK_KERNEL

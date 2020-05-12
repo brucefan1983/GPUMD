@@ -172,14 +172,9 @@ void SHC::process
         sx.copy_from_device(sx_tmp);
         sy.copy_from_device(sy_tmp);
         sz.copy_from_device(sz_tmp);
-
-        // TODO: will be simplified soon
-        CHECK(cudaMemcpy(vx.data() + offset, atom->vx, group_size * sizeof(double),
-            cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vy.data() + offset, atom->vy, group_size * sizeof(double),
-            cudaMemcpyDeviceToDevice));
-        CHECK(cudaMemcpy(vz.data() + offset, atom->vz, group_size * sizeof(double),
-            cudaMemcpyDeviceToDevice));
+        atom->vx.copy_to_device(vx.data() + offset);
+        atom->vy.copy_to_device(vy.data() + offset);
+        atom->vz.copy_to_device(vz.data() + offset);
     }
     else
     {
@@ -197,9 +192,9 @@ void SHC::process
             sx_tmp,
             sy_tmp,
             sz_tmp,
-            atom->vx ,
-            atom->vy,
-            atom->vz
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data()
         );
         CUDA_CHECK_KERNEL 
     }

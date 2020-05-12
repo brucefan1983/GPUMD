@@ -177,10 +177,9 @@ void Atom::initialize_velocity_cpu(void)
 void Atom::initialize_velocity(void)
 {
     if (has_velocity_in_xyz == 0) { initialize_velocity_cpu(); }
-    int M = sizeof(double) * N;
-    CHECK(cudaMemcpy(vx, cpu_vx.data(), M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(vy, cpu_vy.data(), M, cudaMemcpyHostToDevice));
-    CHECK(cudaMemcpy(vz, cpu_vz.data(), M, cudaMemcpyHostToDevice));
+    vx.copy_from_host(cpu_vx.data());
+    vy.copy_from_host(cpu_vy.data());
+    vz.copy_from_host(cpu_vz.data());
     printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
 

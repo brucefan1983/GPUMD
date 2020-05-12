@@ -136,7 +136,7 @@ void HAC::process
         atom->virial_per_atom.data() + atom->N * 7,
         atom->virial_per_atom.data() + atom->N * 8,
         atom->virial_per_atom.data() + atom->N * 2,
-        atom->vx, atom->vy, atom->vz, 
+        atom->vx.data(), atom->vy.data(), atom->vz.data(),
         atom->heat_per_atom.data(),
         atom->heat_per_atom.data() + atom->N,
         atom->heat_per_atom.data() + atom->N * 2,

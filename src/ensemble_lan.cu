@@ -121,7 +121,16 @@ void Ensemble_LAN::integrate_nvt_lan_half(Atom *atom)
 {
     // the first half of Langevin, before velocity-Verlet
     gpu_langevin<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    (curand_states.data(), atom->N, c1, c2, atom->mass, atom->vx, atom->vy, atom->vz);
+    (
+        curand_states.data(),
+        atom->N,
+        c1,
+        c2,
+        atom->mass.data(),
+        atom->vx.data(),
+        atom->vy.data(),
+        atom->vz.data()
+    );
     CUDA_CHECK_KERNEL
 }
 
@@ -193,8 +202,10 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
     int *group_size      = atom->group[0].size.data();
     int *group_size_sum  = atom->group[0].size_sum.data();
     int *group_contents  = atom->group[0].contents.data();
-    double *mass = atom->mass;
-    double *vx = atom->vx; double *vy = atom->vy; double *vz = atom->vz;
+    double *mass = atom->mass.data();
+    double *vx = atom->vx.data();
+    double *vy = atom->vy.data();
+    double *vz = atom->vz.data();
     int Ng = atom->group[0].number;
 
     std::vector<double> ek2(Ng);

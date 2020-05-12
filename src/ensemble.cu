@@ -141,17 +141,38 @@ void Ensemble::velocity_verlet_1(Atom* atom)
     {
         gpu_velocity_verlet_1<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, atom->time_step, atom->mass, atom->x, atom->y, atom->z,
-            atom->vx, atom->vy, atom->vz, atom->fx, atom->fy, atom->fz
+            atom->N,
+            atom->time_step,
+            atom->mass.data(),
+            atom->x.data(),
+            atom->y.data(),
+            atom->z.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data()
         );
     }
     else
     {
         gpu_velocity_verlet_1<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, fixed_group, atom->group[0].label.data(), atom->time_step,
-            atom->mass, atom->x, atom->y, atom->z, atom->vx, atom->vy, atom->vz,
-            atom->fx, atom->fy, atom->fz
+            atom->N,
+            fixed_group,
+            atom->group[0].label.data(),
+            atom->time_step,
+            atom->mass.data(),
+            atom->x.data(),
+            atom->y.data(),
+            atom->z.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data()
         );
 
     }  
@@ -236,17 +257,32 @@ void Ensemble::velocity_verlet_2(Atom* atom)
     {
         gpu_velocity_verlet_2<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, atom->time_step, atom->mass, atom->vx, atom->vy, atom->vz,
-            atom->fx, atom->fy, atom->fz
+            atom->N,
+            atom->time_step,
+            atom->mass.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data()
         );
     }
     else
     {
         gpu_velocity_verlet_2<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
-            atom->N, fixed_group, atom->group[0].label.data(), atom->time_step,
-            atom->mass, atom->vx, atom->vy, atom->vz, atom->fx, atom->fy,
-            atom->fz
+            atom->N,
+            fixed_group,
+            atom->group[0].label.data(),
+            atom->time_step,
+            atom->mass.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data()
         );
     }
     CUDA_CHECK_KERNEL
@@ -566,11 +602,11 @@ void Ensemble::find_thermo(Atom* atom)
             atom->N,
             temperature,
             volume,
-            atom->mass,
+            atom->mass.data(),
             atom->potential_per_atom.data(),
-            atom->vx,
-            atom->vy,
-            atom->vz,
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
             atom->virial_per_atom.data(),
             atom->virial_per_atom.data() + atom->N,
             atom->virial_per_atom.data() + atom->N * 2,
@@ -588,11 +624,11 @@ void Ensemble::find_thermo(Atom* atom)
             atom->group[0].label.data(),
             temperature,
             volume,
-            atom->mass,
+            atom->mass.data(),
             atom->potential_per_atom.data(),
-            atom->vx,
-            atom->vy,
-            atom->vz,
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
             atom->virial_per_atom.data(),
             atom->virial_per_atom.data() + atom->N,
             atom->virial_per_atom.data() + atom->N * 2,
@@ -622,7 +658,12 @@ static void __global__ gpu_scale_velocity
 void Ensemble::scale_velocity_global(Atom* atom, double factor)
 {
     gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
-    (atom->N, atom->vx, atom->vy, atom->vz, factor);
+    (
+        atom->N,
+        atom->vx.data(),
+        atom->vy.data(),
+        atom->vz.data(), factor
+    );
     CUDA_CHECK_KERNEL
 }
 
@@ -714,10 +755,10 @@ void Ensemble::find_vc_and_ke
         atom->group[0].size.data(),
         atom->group[0].size_sum.data(),
         atom->group[0].contents.data(),
-        atom->mass,
-        atom->vx,
-        atom->vy,
-        atom->vz,
+        atom->mass.data(),
+        atom->vx.data(),
+        atom->vy.data(),
+        atom->vz.data(),
         vcx,
         vcy,
         vcz,
@@ -788,8 +829,19 @@ void Ensemble::scale_velocity_local
 {
     gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N, source, sink, atom->group[0].label.data(), factor_1, factor_2,
-        vcx, vcy, vcz, ke, atom->vx, atom->vy, atom->vz
+        atom->N,
+        source,
+        sink,
+        atom->group[0].label.data(),
+        factor_1,
+        factor_2,
+        vcx,
+        vcy,
+        vcz,
+        ke,
+        atom->vx.data(),
+        atom->vy.data(),
+        atom->vz.data()
     );
     CUDA_CHECK_KERNEL
 }

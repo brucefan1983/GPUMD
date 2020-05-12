@@ -246,10 +246,10 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
         find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>
         (
             N,
-            atom->mass,
-            atom->vx,
-            atom->vy,
-            atom->vz,
+            atom->mass.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
             gpu_per_atom_x.data()
         );
         CUDA_CHECK_KERNEL
@@ -284,9 +284,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
             atom->group[grouping_method].size.data(),
             atom->group[grouping_method].size_sum.data(),
             atom->group[grouping_method].contents.data(),
-            atom->fx,
-            atom->fy,
-            atom->fz,
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data(),
             gpu_group_sum.data() + offset
         );
         CUDA_CHECK_KERNEL
@@ -325,7 +325,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
             atom->virial_per_atom.data() + N * 7,
             atom->virial_per_atom.data() + N * 8,
             atom->virial_per_atom.data() + N * 2,
-            atom->vx, atom->vy, atom->vz, 
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
             gpu_per_atom_x.data(),
             gpu_per_atom_y.data(),
             gpu_per_atom_z.data()
@@ -351,10 +353,10 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
         (
             N,
             atom->potential_per_atom.data(),
-            atom->mass,
-            atom->vx,
-            atom->vy,
-            atom->vz,
+            atom->mass.data(),
+            atom->vx.data(),
+            atom->vy.data(),
+            atom->vz.data(),
             gpu_per_atom_x.data(),
             gpu_per_atom_y.data(),
             gpu_per_atom_z.data()

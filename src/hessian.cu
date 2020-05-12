@@ -367,9 +367,9 @@ void Hessian::get_f
     shift_atom(dx, n2, beta, atom);
     force->compute(atom);
     size_t M = sizeof(double);
-    CHECK(cudaMemcpy(f + 0, atom->fx + n1, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(f + 1, atom->fy + n1, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(f + 2, atom->fz + n1, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 0, atom->fx.data() + n1, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 1, atom->fy.data() + n1, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 2, atom->fz.data() + n1, M, cudaMemcpyDeviceToHost));
     shift_atom(-dx, n2, beta, atom);
 }
 
@@ -384,17 +384,17 @@ void Hessian::shift_atom(double dx, size_t n2, size_t beta, Atom* atom)
 {
     if (beta == 0)
     {
-        gpu_shift_atom<<<1, 1>>>(dx, atom->x + n2);
+        gpu_shift_atom<<<1, 1>>>(dx, atom->x.data() + n2);
         CUDA_CHECK_KERNEL
     }
     else if (beta == 1)
     {
-        gpu_shift_atom<<<1, 1>>>(dx, atom->y + n2);
+        gpu_shift_atom<<<1, 1>>>(dx, atom->y.data() + n2);
         CUDA_CHECK_KERNEL
     }
     else
     {
-        gpu_shift_atom<<<1, 1>>>(dx, atom->z + n2);
+        gpu_shift_atom<<<1, 1>>>(dx, atom->z.data() + n2);
         CUDA_CHECK_KERNEL
     }
 }

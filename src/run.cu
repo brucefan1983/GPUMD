@@ -173,9 +173,9 @@ static void process_run
             (
                 0,
                 atom->box,
-                atom->x,
-                atom->y,
-                atom->z
+                atom->x.data(),
+                atom->y.data(),
+                atom->z.data()
             );
         }
 #endif

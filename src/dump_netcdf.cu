@@ -291,11 +291,9 @@ void DUMP_NETCDF::write(Atom *atom)
     NC_CHECK(nc_put_vara_double(ncid, cell_angles_var, startp, countp, cell_angles));
 
     //// Write Per-Atom Data ////
-
-    int memory = sizeof(double) * N;
-    CHECK(cudaMemcpy(atom->cpu_x.data(), atom->x, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_y.data(), atom->y, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_z.data(), atom->z, memory, cudaMemcpyDeviceToHost));
+    atom->x.copy_to_host(atom->cpu_x.data());
+    atom->y.copy_to_host(atom->cpu_y.data());
+    atom->z.copy_to_host(atom->cpu_z.data());
 
     if (precision == 1) // single precision
     {

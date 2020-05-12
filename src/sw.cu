@@ -304,10 +304,10 @@ void SW2::compute(Atom *atom, int potential_number)
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
     int *NN = atom->neighbor.NN_local.data();
     int *NL = atom->neighbor.NL_local.data();
-    int *type = atom->type;
-    double *x = atom->x;
-    double *y = atom->y;
-    double *z = atom->z;
+    int *type = atom->type.data();
+    double *x = atom->x.data();
+    double *y = atom->y.data();
+    double *z = atom->z.data();
     double *pe = atom->potential_per_atom.data();
 
     // special data for SW potential

@@ -585,9 +585,6 @@ static __global__ void find_force_step0
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z, 
-    const double* __restrict__ g_vx, 
-    const double* __restrict__ g_vy, 
-    const double* __restrict__ g_vz,
     double *g_p,  double *g_pp,
     double *g_fx, double *g_fy, double *g_fz,
     double *g_virial, double *g_potential
@@ -872,16 +869,13 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
     int *NN_local = rebo_mos_data.NN_short.data(); // for 3-body
     int *NL_local = rebo_mos_data.NL_short.data(); // for 3-body
 
-    int *type = atom->type;
-    double *x = atom->x;
-    double *y = atom->y;
-    double *z = atom->z;
-    double *vx = atom->vx;
-    double *vy = atom->vy;
-    double *vz = atom->vz;
-    double *fx = atom->fx;
-    double *fy = atom->fy;
-    double *fz = atom->fz;
+    int *type = atom->type.data();
+    double *x = atom->x.data();
+    double *y = atom->y.data();
+    double *z = atom->z.data();
+    double *fx = atom->fx.data();
+    double *fy = atom->fy.data();
+    double *fz = atom->fz.data();
     double *virial = atom->virial_per_atom.data();
     double *pe = atom->potential_per_atom.data();
 
@@ -897,7 +891,7 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
     find_force_step0<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         N, N1, N2, atom->box, NN, NL, NN_local, NL_local, type, shift,
-        x, y, z, vx, vy, vz, p, pp, fx, fy, fz, virial, pe
+        x, y, z, p, pp, fx, fy, fz, virial, pe
     );
     CUDA_CHECK_KERNEL
 

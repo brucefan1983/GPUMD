@@ -210,11 +210,25 @@ void LJ::compute(Atom *atom, int potential_number)
 
     gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        lj_para, atom->N, N1, N2, atom->box,
-        atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(),
-        atom->type, shift, atom->x, atom->y, atom->z,
-        atom->vx, atom->vy, atom->vz,
-        atom->fx, atom->fy, atom->fz, atom->virial_per_atom.data(),
+        lj_para,
+        atom->N,
+        N1,
+        N2,
+        atom->box,
+        atom->neighbor.NN_local.data(),
+        atom->neighbor.NL_local.data(),
+        atom->type.data(),
+        shift,
+        atom->x.data(),
+        atom->y.data(),
+        atom->z.data(),
+        atom->vx.data(),
+        atom->vy.data(),
+        atom->vz.data(),
+        atom->fx.data(),
+        atom->fy.data(),
+        atom->fz.data(),
+        atom->virial_per_atom.data(),
         atom->potential_per_atom.data()
     );
     CUDA_CHECK_KERNEL

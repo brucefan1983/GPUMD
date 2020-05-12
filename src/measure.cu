@@ -110,10 +110,10 @@ void Measure::dump_velocities(FILE* fid, Atom *atom, int step)
 {
     if (!dump_velocity) return;
     if ((step + 1) % sample_interval_velocity != 0) return;
-    int memory = sizeof(double) * atom->N;
-    CHECK(cudaMemcpy(atom->cpu_vx.data(), atom->vx, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vy.data(), atom->vy, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vz.data(), atom->vz, memory, cudaMemcpyDeviceToHost));
+
+    atom->vx.copy_to_host(atom->cpu_vx.data());
+    atom->vy.copy_to_host(atom->cpu_vy.data());
+    atom->vz.copy_to_host(atom->cpu_vz.data());
     for (int n = 0; n < atom->N; n++)
     {
         fprintf
@@ -130,13 +130,13 @@ void Measure::dump_restarts(Atom *atom, int step)
 {
     if (!dump_restart) return;
     if ((step + 1) % sample_interval_restart != 0) return;
-    int memory = sizeof(double) * atom->N;
-    CHECK(cudaMemcpy(atom->cpu_x.data(), atom->x, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_y.data(), atom->y, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_z.data(), atom->z, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vx.data(), atom->vx, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vy.data(), atom->vy, memory, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(atom->cpu_vz.data(), atom->vz, memory, cudaMemcpyDeviceToHost));
+
+    atom->x.copy_to_host(atom->cpu_x.data());
+    atom->y.copy_to_host(atom->cpu_y.data());
+    atom->z.copy_to_host(atom->cpu_z.data());
+    atom->vx.copy_to_host(atom->cpu_vx.data());
+    atom->vy.copy_to_host(atom->cpu_vy.data());
+    atom->vz.copy_to_host(atom->cpu_vz.data());
     fid_restart = my_fopen(file_restart, "w"); 
     fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
         atom->neighbor.rc, atom->box.triclinic, 1,

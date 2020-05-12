@@ -449,16 +449,14 @@ void Force::find_neighbor_local(Atom *atom, int m)
     int *NN_local = atom->neighbor.NN_local.data();
     int *NL_local = atom->neighbor.NL_local.data();
     int *type = (group_method >= 0) ? atom->group[group_method].label.data()
-                                    : atom->type;
+                                    : atom->type.data();
     double rc2 = potential[m]->rc * potential[m]->rc;
-    double *x = atom->x;
-    double *y = atom->y;
-    double *z = atom->z;
       
     gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
     (
         atom->box, type1, type2, type,
-        N, N1, N2, rc2, NN, NL, NN_local, NL_local, x, y, z
+        N, N1, N2, rc2, NN, NL, NN_local, NL_local,
+        atom->x.data(), atom->y.data(), atom->z.data()
     );
     CUDA_CHECK_KERNEL
 
@@ -612,7 +610,11 @@ void Force::compute(Atom *atom)
 {
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N, atom->fx, atom->fy, atom->fz, atom->potential_per_atom.data(),
+        atom->N,
+        atom->fx.data(),
+        atom->fy.data(),
+        atom->fz.data(),
+        atom->potential_per_atom.data(),
         atom->virial_per_atom.data()
     );
     CUDA_CHECK_KERNEL
@@ -648,17 +650,30 @@ void Force::compute(Atom *atom)
             atom->virial_per_atom.data() + 7 * atom->N,
             atom->virial_per_atom.data() + 8 * atom->N,
             atom->virial_per_atom.data() + 2 * atom->N,
-            atom->fx, atom->fy, atom->fz
+            atom->fx.data(), atom->fy.data(), atom->fz.data()
         );
 
         GPU_Vector<double> ftot(3); // total force vector of the system
 
         gpu_sum_force<<<3, 1024>>>
-        (atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
+        (
+            atom->N,
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data(),
+            ftot.data()
+        );
         CUDA_CHECK_KERNEL
 
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
+        (
+            atom->N,
+            1.0 / atom->N,
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data(),
+            ftot.data()
+        );
         CUDA_CHECK_KERNEL
     }
 
@@ -668,12 +683,25 @@ void Force::compute(Atom *atom)
     {
         GPU_Vector<double> ftot(3); // total force vector of the system
         gpu_sum_force<<<3, 1024>>>
-        (atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
+        (
+            atom->N,
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data(),
+            ftot.data()
+        );
         CUDA_CHECK_KERNEL
 
         int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
         gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
-        (atom->N, 1.0 / atom->N, atom->fx, atom->fy, atom->fz, ftot.data());
+        (
+            atom->N,
+            1.0 / atom->N,
+            atom->fx.data(),
+            atom->fy.data(),
+            atom->fz.data(),
+            ftot.data()
+        );
         CUDA_CHECK_KERNEL
     }
 #endif
