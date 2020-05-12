@@ -271,7 +271,7 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
             atom->group[grouping_method].size.data(),
             atom->group[grouping_method].size_sum.data(),
             atom->group[grouping_method].contents.data(),
-            atom->potential_per_atom,
+            atom->potential_per_atom.data(),
             gpu_group_sum.data() + offset
         );
         CUDA_CHECK_KERNEL
@@ -299,9 +299,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
             atom->group[grouping_method].size.data(),
             atom->group[grouping_method].size_sum.data(),
             atom->group[grouping_method].contents.data(),
-            atom->virial_per_atom,
-            atom->virial_per_atom + N,
-            atom->virial_per_atom + N * 2,
+            atom->virial_per_atom.data(),
+            atom->virial_per_atom.data() + N,
+            atom->virial_per_atom.data() + N * 2,
             gpu_group_sum.data() + offset
         );
         CUDA_CHECK_KERNEL
@@ -316,15 +316,15 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
         find_per_atom_jp<<<(N - 1) / 128 + 1, 128>>>
         (
             N, 
-            atom->virial_per_atom, 
-            atom->virial_per_atom + N * 3,
-            atom->virial_per_atom + N * 4,
-            atom->virial_per_atom + N * 6,
-            atom->virial_per_atom + N * 1,
-            atom->virial_per_atom + N * 5,
-            atom->virial_per_atom + N * 7,
-            atom->virial_per_atom + N * 8,
-            atom->virial_per_atom + N * 2,
+            atom->virial_per_atom.data(),
+            atom->virial_per_atom.data() + N * 3,
+            atom->virial_per_atom.data() + N * 4,
+            atom->virial_per_atom.data() + N * 6,
+            atom->virial_per_atom.data() + N * 1,
+            atom->virial_per_atom.data() + N * 5,
+            atom->virial_per_atom.data() + N * 7,
+            atom->virial_per_atom.data() + N * 8,
+            atom->virial_per_atom.data() + N * 2,
             atom->vx, atom->vy, atom->vz, 
             gpu_per_atom_x.data(),
             gpu_per_atom_y.data(),
@@ -350,7 +350,7 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
         find_per_atom_jk<<<(N-1)/256+1, 256>>>
         (
             N,
-            atom->potential_per_atom,
+            atom->potential_per_atom.data(),
             atom->mass,
             atom->vx,
             atom->vy,

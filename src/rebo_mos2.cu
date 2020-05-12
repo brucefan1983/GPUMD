@@ -882,8 +882,8 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
     double *fx = atom->fx;
     double *fy = atom->fy;
     double *fz = atom->fz;
-    double *virial = atom->virial_per_atom;
-    double *pe = atom->potential_per_atom;
+    double *virial = atom->virial_per_atom.data();
+    double *pe = atom->potential_per_atom.data();
 
     double *b    = rebo_mos_data.b.data();
     double *bp   = rebo_mos_data.bp.data();

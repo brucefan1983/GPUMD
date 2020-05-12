@@ -446,10 +446,10 @@ void Atom::allocate_memory_gpu(void)
     CHECK(cudaMalloc((void**)&fx,   m4));
     CHECK(cudaMalloc((void**)&fy,   m4));
     CHECK(cudaMalloc((void**)&fz,   m4));
-    CHECK(cudaMalloc((void**)&virial_per_atom,  m4 * 9));
-    CHECK(cudaMalloc((void**)&potential_per_atom, m4));
-    CHECK(cudaMalloc((void**)&heat_per_atom,      m5));
-    CHECK(cudaMalloc((void**)&thermo, sizeof(double) * 6));
+    virial_per_atom.resize(N * 9);
+    potential_per_atom.resize(N);
+    heat_per_atom.resize(N * NUM_OF_HEAT_COMPONENTS);
+    thermo.resize(6);
 }
 
 
@@ -485,10 +485,6 @@ void Atom::free_memory_gpu(void)
     CHECK(cudaFree(fx));
     CHECK(cudaFree(fy));
     CHECK(cudaFree(fz));
-    CHECK(cudaFree(virial_per_atom));
-    CHECK(cudaFree(potential_per_atom));
-    CHECK(cudaFree(heat_per_atom));
-    CHECK(cudaFree(thermo));
 }
 
 

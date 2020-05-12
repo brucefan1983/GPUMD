@@ -214,8 +214,8 @@ void LJ::compute(Atom *atom, int potential_number)
         atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(),
         atom->type, shift, atom->x, atom->y, atom->z,
         atom->vx, atom->vy, atom->vz,
-        atom->fx, atom->fy, atom->fz, atom->virial_per_atom,
-        atom->potential_per_atom
+        atom->fx, atom->fy, atom->fz, atom->virial_per_atom.data(),
+        atom->potential_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 }

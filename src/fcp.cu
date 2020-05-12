@@ -1200,11 +1200,11 @@ void FCP::compute(Atom *atom, int potential_number)
     (
         atom->N,
         fcp_data.pfv.data(),
-        atom->potential_per_atom,
+        atom->potential_per_atom.data(),
         atom->fx,
         atom->fy,
         atom->fz,
-        atom->virial_per_atom
+        atom->virial_per_atom.data()
     );
 
     CUDA_CHECK_KERNEL

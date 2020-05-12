@@ -20,6 +20,7 @@
 #include "group.cuh"
 #include "neighbor.cuh"
 #include "common.cuh"
+#include "gpu_vector.cuh"
 #include <stdio.h>
 #include <vector>
 
@@ -33,10 +34,10 @@ public:
     double *x; double *y; double *z;    // per-atom position
     double *vx; double *vy; double *vz; // per-atom velocity
     double *fx; double *fy; double *fz; // per-atom force
-    double *heat_per_atom;          // per-atom heat current
-    double *virial_per_atom;        // per-atom virial (9 components)
-    double *potential_per_atom;     // per-atom potential energy
-    double *thermo;                 // some thermodynamic quantities
+    GPU_Vector<double> heat_per_atom;      // per-atom heat current
+    GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
+    GPU_Vector<double> potential_per_atom; // per-atom potential energy
+    GPU_Vector<double> thermo;             // some thermodynamic quantities
 
     std::vector<int> cpu_type;
     std::vector<int> cpu_type_size;

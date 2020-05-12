@@ -488,7 +488,7 @@ void Tersoff_modc::compute(Atom *atom, int potential_number)
     double *x = atom->x;
     double *y = atom->y;
     double *z = atom->z;
-    double *pe = atom->potential_per_atom;
+    double *pe = atom->potential_per_atom.data();
 
     // special data for Tersoff potential
     double *f12x = tersoff_data.f12x.data();

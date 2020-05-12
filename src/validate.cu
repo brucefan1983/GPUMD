@@ -203,7 +203,7 @@ void validate_force
             (
                 N,
                 m,
-                atom->potential_per_atom,
+                atom->potential_per_atom.data(),
                 p1.data()
             );
             CUDA_CHECK_KERNEL
@@ -231,7 +231,7 @@ void validate_force
             (
                 N,
                 m,
-                atom->potential_per_atom,
+                atom->potential_per_atom.data(),
                 p2.data()
             );
             CUDA_CHECK_KERNEL

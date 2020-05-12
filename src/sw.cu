@@ -308,7 +308,7 @@ void SW2::compute(Atom *atom, int potential_number)
     double *x = atom->x;
     double *y = atom->y;
     double *z = atom->z;
-    double *pe = atom->potential_per_atom;
+    double *pe = atom->potential_per_atom.data();
 
     // special data for SW potential
     double *f12x = sw2_data.f12x.data();

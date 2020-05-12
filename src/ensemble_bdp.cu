@@ -83,7 +83,6 @@ Ensemble_BDP::~Ensemble_BDP(void)
 void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force)
 {
     int N = atom->N;
-    double *thermo = atom->thermo;
 
     // standard velocity-Verlet
     velocity_verlet(atom, force);
@@ -95,7 +94,7 @@ void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force)
 
     // re-scale the velocities
     double ek[1];
-    CHECK(cudaMemcpy(ek, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
+    atom->thermo.copy_to_host(ek, 1);
     int ndeg = 3 * (N - N_fixed);
     ek[0] *= ndeg * K_B * 0.5; // from temperature to kinetic energy
     double sigma = ndeg * K_B * temperature * 0.5;

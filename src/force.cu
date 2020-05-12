@@ -600,8 +600,8 @@ void Force::compute(Atom *atom)
 {
     initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     (
-        atom->N, atom->fx, atom->fy, atom->fz, atom->potential_per_atom,
-        atom->virial_per_atom
+        atom->N, atom->fx, atom->fy, atom->fz, atom->potential_per_atom.data(),
+        atom->virial_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 
@@ -627,15 +627,15 @@ void Force::compute(Atom *atom)
         (
             atom->N,
             hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
-            atom->virial_per_atom + 0 * atom->N,
-            atom->virial_per_atom + 3 * atom->N,
-            atom->virial_per_atom + 4 * atom->N,
-            atom->virial_per_atom + 6 * atom->N,
-            atom->virial_per_atom + 1 * atom->N,
-            atom->virial_per_atom + 5 * atom->N,
-            atom->virial_per_atom + 7 * atom->N,
-            atom->virial_per_atom + 8 * atom->N,
-            atom->virial_per_atom + 2 * atom->N,      
+            atom->virial_per_atom.data() + 0 * atom->N,
+            atom->virial_per_atom.data() + 3 * atom->N,
+            atom->virial_per_atom.data() + 4 * atom->N,
+            atom->virial_per_atom.data() + 6 * atom->N,
+            atom->virial_per_atom.data() + 1 * atom->N,
+            atom->virial_per_atom.data() + 5 * atom->N,
+            atom->virial_per_atom.data() + 7 * atom->N,
+            atom->virial_per_atom.data() + 8 * atom->N,
+            atom->virial_per_atom.data() + 2 * atom->N,
             atom->fx, atom->fy, atom->fz
         );
 

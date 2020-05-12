@@ -389,8 +389,8 @@ void Vashishta::compute(Atom *atom, int potential_number)
         atom->fx,
         atom->fy,
         atom->fz,
-        atom->virial_per_atom,
-        atom->potential_per_atom
+        atom->virial_per_atom.data(),
+        atom->potential_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 
@@ -409,7 +409,7 @@ void Vashishta::compute(Atom *atom, int potential_number)
         atom->x,
         atom->y,
         atom->z,
-        atom->potential_per_atom,
+        atom->potential_per_atom.data(),
         vashishta_data.f12x.data(),
         vashishta_data.f12y.data(),
         vashishta_data.f12z.data()

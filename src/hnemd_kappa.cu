@@ -127,21 +127,21 @@ void HNEMD::process
     gpu_get_peratom_heat<<<(atom->N - 1) / 128 + 1, 128>>>
     (
         atom->N, 
-        atom->virial_per_atom, 
-        atom->virial_per_atom + atom->N * 3,
-        atom->virial_per_atom + atom->N * 4,
-        atom->virial_per_atom + atom->N * 6,
-        atom->virial_per_atom + atom->N * 1,
-        atom->virial_per_atom + atom->N * 5,
-        atom->virial_per_atom + atom->N * 7,
-        atom->virial_per_atom + atom->N * 8,
-        atom->virial_per_atom + atom->N * 2,
+        atom->virial_per_atom.data(),
+        atom->virial_per_atom.data() + atom->N * 3,
+        atom->virial_per_atom.data() + atom->N * 4,
+        atom->virial_per_atom.data() + atom->N * 6,
+        atom->virial_per_atom.data() + atom->N * 1,
+        atom->virial_per_atom.data() + atom->N * 5,
+        atom->virial_per_atom.data() + atom->N * 7,
+        atom->virial_per_atom.data() + atom->N * 8,
+        atom->virial_per_atom.data() + atom->N * 2,
         atom->vx, atom->vy, atom->vz, 
-        atom->heat_per_atom, 
-        atom->heat_per_atom + atom->N,
-        atom->heat_per_atom + atom->N * 2,
-        atom->heat_per_atom + atom->N * 3,
-        atom->heat_per_atom + atom->N * 4
+        atom->heat_per_atom.data(),
+        atom->heat_per_atom.data() + atom->N,
+        atom->heat_per_atom.data() + atom->N * 2,
+        atom->heat_per_atom.data() + atom->N * 3,
+        atom->heat_per_atom.data() + atom->N * 4
     );
     CUDA_CHECK_KERNEL
 
@@ -149,7 +149,7 @@ void HNEMD::process
     (
         atom->N,
         step,
-        atom->heat_per_atom,
+        atom->heat_per_atom.data(),
         heat_all.data()
     );
     CUDA_CHECK_KERNEL

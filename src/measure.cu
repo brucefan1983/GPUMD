@@ -90,8 +90,7 @@ void Measure::dump_thermos
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
     std::vector<double> thermo(NUM_OF_PROPERTIES);
-    int m1 = sizeof(double) * NUM_OF_PROPERTIES;
-    CHECK(cudaMemcpy(thermo.data(), atom->thermo, m1, cudaMemcpyDeviceToHost));
+    atom->thermo.copy_to_host(thermo.data(), NUM_OF_PROPERTIES);
     int N_fixed = (integrate->fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[integrate->fixed_group];
     double energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];

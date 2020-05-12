@@ -506,12 +506,12 @@ void Ensemble::find_thermo(Atom* atom)
     {
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N, temperature, volume, atom->mass, atom->potential_per_atom,
+            atom->N, temperature, volume, atom->mass, atom->potential_per_atom.data(),
             atom->vx, atom->vy, atom->vz,
-            atom->virial_per_atom,
-            atom->virial_per_atom + atom->N,
-            atom->virial_per_atom + atom->N * 2, 
-            atom->thermo
+            atom->virial_per_atom.data(),
+            atom->virial_per_atom.data() + atom->N,
+            atom->virial_per_atom.data() + atom->N * 2,
+            atom->thermo.data()
         );
     }
     else
@@ -520,12 +520,12 @@ void Ensemble::find_thermo(Atom* atom)
         gpu_find_thermo<<<5, 1024>>>
         (
             atom->N, N_fixed, fixed_group, atom->group[0].label.data(),
-            temperature, volume, atom->mass, atom->potential_per_atom,
+            temperature, volume, atom->mass, atom->potential_per_atom.data(),
             atom->vx, atom->vy, atom->vz, 
-            atom->virial_per_atom,
-            atom->virial_per_atom + atom->N,
-            atom->virial_per_atom + atom->N * 2,
-            atom->thermo
+            atom->virial_per_atom.data(),
+            atom->virial_per_atom.data() + atom->N,
+            atom->virial_per_atom.data() + atom->N * 2,
+            atom->thermo.data()
         );
     }
     CUDA_CHECK_KERNEL

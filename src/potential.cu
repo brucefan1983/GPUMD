@@ -154,7 +154,7 @@ void Potential::find_properties_many_body
         atom->N, N1, N2, atom->box, NN,
         NL, f12x, f12y, f12z, atom->x, atom->y, atom->z, atom->vx,
         atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,
-        atom->virial_per_atom
+        atom->virial_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 }

@@ -163,9 +163,9 @@ void SHC::process
     int offset = correlation_step * group_size;
 
     const int tensor[3][3] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-    double *sx_tmp = atom->virial_per_atom + atom->N * tensor[direction][0];
-    double *sy_tmp = atom->virial_per_atom + atom->N * tensor[direction][1];
-    double *sz_tmp = atom->virial_per_atom + atom->N * tensor[direction][2];
+    double *sx_tmp = atom->virial_per_atom.data() + atom->N * tensor[direction][0];
+    double *sy_tmp = atom->virial_per_atom.data() + atom->N * tensor[direction][1];
+    double *sz_tmp = atom->virial_per_atom.data() + atom->N * tensor[direction][2];
 
     if (-1 == group_method)
     {

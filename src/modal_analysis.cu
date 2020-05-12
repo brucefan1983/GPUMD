@@ -287,15 +287,15 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
     prepare_sm<<<grid_size, BLOCK_SIZE>>>
     (
            num_participating, N1,
-           atom->virial_per_atom,
-           atom->virial_per_atom + atom->N * 3,
-           atom->virial_per_atom + atom->N * 4,
-           atom->virial_per_atom + atom->N * 6,
-           atom->virial_per_atom + atom->N * 1,
-           atom->virial_per_atom + atom->N * 5,
-           atom->virial_per_atom + atom->N * 7,
-           atom->virial_per_atom + atom->N * 8,
-           atom->virial_per_atom + atom->N * 2,
+           atom->virial_per_atom.data(),
+           atom->virial_per_atom.data() + atom->N * 3,
+           atom->virial_per_atom.data() + atom->N * 4,
+           atom->virial_per_atom.data() + atom->N * 6,
+           atom->virial_per_atom.data() + atom->N * 1,
+           atom->virial_per_atom.data() + atom->N * 5,
+           atom->virial_per_atom.data() + atom->N * 7,
+           atom->virial_per_atom.data() + atom->N * 8,
+           atom->virial_per_atom.data() + atom->N * 2,
            rsqrtmass.data(),
            smx.data(), smy.data(), smz.data()
     );

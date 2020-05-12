@@ -34,7 +34,7 @@ The EAM potential. Currently two analytical versions:
         eam_data.Fp.data(),                                                    \
         atom->x, atom->y, atom->z, atom->vx,                                   \
         atom->vy, atom->vz, atom->fx, atom->fy, atom->fz,                      \
-        atom->virial_per_atom, atom->potential_per_atom                        \
+        atom->virial_per_atom.data(), atom->potential_per_atom.data()          \
     ) 
 
 
@@ -428,7 +428,7 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
             atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(), atom->x, atom->y, atom->z,
-            eam_data.Fp.data(), atom->potential_per_atom
+            eam_data.Fp.data(), atom->potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
 
@@ -442,7 +442,7 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou, eam2006dai, atom->N, N1, N2, atom->box, 
             atom->neighbor.NN_local.data(), atom->neighbor.NL_local.data(), atom->x, atom->y, atom->z,
-            eam_data.Fp.data(), atom->potential_per_atom
+            eam_data.Fp.data(), atom->potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
         

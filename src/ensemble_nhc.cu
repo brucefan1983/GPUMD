@@ -178,7 +178,6 @@ void Ensemble_NHC::integrate_nvt_nhc
 {
     int  N           = atom->N;
     double time_step   = atom->time_step;
-    double *thermo             = atom->thermo;
 
     double kT = K_B * temperature;
     double dN = (double) DIM * N; 
@@ -188,7 +187,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     find_thermo(atom);
 
     double ek2[1];
-    CHECK(cudaMemcpy(ek2, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
+    atom->thermo.copy_to_host(ek2, 1);
     ek2[0] *= DIM * N * K_B;
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     scale_velocity_global(atom, factor);
@@ -196,7 +195,7 @@ void Ensemble_NHC::integrate_nvt_nhc
     velocity_verlet(atom, force);
     find_thermo(atom);
 
-    CHECK(cudaMemcpy(ek2, thermo, sizeof(double) * 1, cudaMemcpyDeviceToHost));
+    atom->thermo.copy_to_host(ek2, 1);
     ek2[0] *= DIM * N * K_B;
     factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     scale_velocity_global(atom, factor);
