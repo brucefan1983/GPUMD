@@ -99,14 +99,10 @@ void Force::parse_potential_definition(char **param, int num_param, Atom *atom)
                     "parameters are used.\n");
 
         }
-        else if(!is_valid_int(param[2], &group_method))
+        else if (!is_valid_int(param[2], &group_method))
         {
             PRINT_INPUT_ERROR("potential_definition: group_method should be an "
                     "integer.\n");
-        }
-        else if(group_method > MAX_NUMBER_OF_GROUPS)
-        {
-            PRINT_INPUT_ERROR("Specified group_method is too large (> 10).\n");
         }
     }
 }

@@ -391,11 +391,11 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute_dos") == 0)
     {
-        measure->parse_compute_dos(param, num_param, atom->group);
+        measure->parse_compute_dos(param, num_param, atom->group.data());
     }
     else if (strcmp(param[0], "compute_sdc") == 0)
     {
-        measure->parse_compute_sdc(param, num_param, atom->group);
+        measure->parse_compute_sdc(param, num_param, atom->group.data());
     }
     else if (strcmp(param[0], "compute_hac") == 0)
     {

@@ -144,7 +144,7 @@ void Measure::dump_restarts(Atom *atom, int step)
     fid_restart = my_fopen(file_restart, "w"); 
     fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
         atom->neighbor.rc, atom->box.triclinic, 1,
-        atom->num_of_grouping_methods);
+        atom->group.size());
     if (atom->box.triclinic == 0)
     {
         fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->box.pbc_x,
@@ -169,7 +169,7 @@ void Measure::dump_restarts(Atom *atom, int step)
         fprintf(fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
             atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n], atom->cpu_mass[n],
             atom->cpu_vx[n], atom->cpu_vy[n], atom->cpu_vz[n]);
-        for (int m = 0; m < atom->num_of_grouping_methods; ++m)
+        for (int m = 0; m < atom->group.size(); ++m)
         {
             fprintf(fid_restart, "%d ", atom->group[m].cpu_label[n]);
         }
@@ -962,7 +962,7 @@ void Measure::parse_compute_shc(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("grouping method should >= 0.");
         }
-        if (shc.group_method >= atom->num_of_grouping_methods)
+        if (shc.group_method >= atom->group.size())
         {
             PRINT_INPUT_ERROR("grouping method exceeds the bound.");
         }
@@ -1056,7 +1056,7 @@ void Measure::parse_compute(char **param, int num_param, Atom *atom)
     {
         PRINT_INPUT_ERROR("grouping method should >= 0.");
     }
-    if (compute.grouping_method >= atom->num_of_grouping_methods)
+    if (compute.grouping_method >= atom->group.size())
     {
         PRINT_INPUT_ERROR("grouping method exceeds the bound.");
     }

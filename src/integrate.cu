@@ -343,7 +343,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
         }
-        if (atom->num_of_grouping_methods < 1)
+        if (atom->group.size() < 1)
         {
             PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
         }
@@ -465,7 +465,7 @@ void Integrate::parse_fix(char **param, int num_param, Atom *atom)
         PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
     }
 
-    if (atom->num_of_grouping_methods < 1)
+    if (atom->group.size() < 1)
     {
         PRINT_INPUT_ERROR("Cannot use 'fix' without grouping method.");
     }

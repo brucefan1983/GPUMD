@@ -31,21 +31,15 @@ Atom::Atom(char *input_dir)
 { 
     initialize_position(input_dir);
     allocate_memory_gpu();
-    copy_from_cpu_to_gpu();
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
     neighbor.find_neighbor(1, box, x.data(), y.data(), z.data());
 #endif
 }
 
 
-Atom::~Atom(void)
-{
-    // nothing now
-}
-
-
 void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 {
+    int num_of_grouping_methods = 0;
     double rc;
     int count = fscanf
     (
@@ -54,6 +48,7 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
     );
     PRINT_SCANF_ERROR(count, 6, "Reading error for line 1 of xyz.in.");
     neighbor.rc = rc;
+    group.resize(num_of_grouping_methods);
 
     if (N < 2)
     {
@@ -239,7 +234,7 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
     cpu_vz.resize(N);
     number_of_types = -1;
 
-    for (int m = 0; m < num_of_grouping_methods; ++m)
+    for (int m = 0; m < group.size(); ++m)
     {
         group[m].cpu_label.resize(N);
         group[m].number = -1;
@@ -274,7 +269,7 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
             cpu_vx[n] = vx; cpu_vy[n] = vy; cpu_vz[n] = vz;
         }
 
-        for (int m = 0; m < num_of_grouping_methods; ++m)
+        for (int m = 0; m < group.size(); ++m)
         {
             count = fscanf(fid_xyz, "%d", &group[m].cpu_label[n]);
             PRINT_SCANF_ERROR(count, 1, "Reading error for xyz.in.");
@@ -291,7 +286,7 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
         }
     }
 
-    for (int m = 0; m < num_of_grouping_methods; ++m) { group[m].number++; }
+    for (int m = 0; m < group.size(); ++m) { group[m].number++; }
 
     number_of_types++;
 }
@@ -397,7 +392,7 @@ void Atom::initialize_position(char *input_dir)
 
     fclose(fid_xyz);
 
-    for (int m = 0; m < num_of_grouping_methods; ++m)
+    for (int m = 0; m < group.size(); ++m)
     {
         find_group_size(m);
         find_group_contents(m);
@@ -423,20 +418,29 @@ void Atom::allocate_memory_gpu(void)
     neighbor.cell_contents.resize(N);
 
     type.resize(N);
-    for (int m = 0; m < num_of_grouping_methods; ++m)
+    type.copy_from_host(cpu_type.data());
+    for (int m = 0; m < group.size(); ++m)
     {
         group[m].label.resize(N);
         group[m].size.resize(group[m].number);
         group[m].size_sum.resize(group[m].number);
         group[m].contents.resize(N);
+        group[m].label.copy_from_host(group[m].cpu_label.data());
+        group[m].size.copy_from_host(group[m].cpu_size.data());
+        group[m].size_sum.copy_from_host(group[m].cpu_size_sum.data());
+        group[m].contents.copy_from_host(group[m].cpu_contents.data());
     }
     mass.resize(N);
+    mass.copy_from_host(cpu_mass.data());
     neighbor.x0.resize(N);
     neighbor.y0.resize(N);
     neighbor.z0.resize(N);
     x.resize(N);
     y.resize(N);
     z.resize(N);
+    x.copy_from_host(cpu_x.data());
+    y.copy_from_host(cpu_y.data());
+    z.copy_from_host(cpu_z.data());
     vx.resize(N);
     vy.resize(N);
     vz.resize(N);
@@ -447,23 +451,6 @@ void Atom::allocate_memory_gpu(void)
     potential_per_atom.resize(N);
     heat_per_atom.resize(N * NUM_OF_HEAT_COMPONENTS);
     thermo.resize(6);
-}
-
-
-void Atom::copy_from_cpu_to_gpu(void)
-{
-    type.copy_from_host(cpu_type.data());
-    for (int m = 0; m < num_of_grouping_methods; ++m)
-    {
-        group[m].label.copy_from_host(group[m].cpu_label.data());
-        group[m].size.copy_from_host(group[m].cpu_size.data());
-        group[m].size_sum.copy_from_host(group[m].cpu_size_sum.data());
-        group[m].contents.copy_from_host(group[m].cpu_contents.data());
-    }
-    mass.copy_from_host(cpu_mass.data());
-    x.copy_from_host(cpu_x.data());
-    y.copy_from_host(cpu_y.data());
-    z.copy_from_host(cpu_z.data());
 }
 
 

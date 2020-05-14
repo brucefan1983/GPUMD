@@ -24,7 +24,6 @@
 #include <stdio.h>
 #include <vector>
 
-const int MAX_NUMBER_OF_GROUPS = 10;
 
 class Atom
 {
@@ -55,7 +54,6 @@ public:
     int number_of_types;  // number of atom types 
 
     int has_velocity_in_xyz = 0;
-    int num_of_grouping_methods = 0;
 
     // make a structure?
     int step;
@@ -68,10 +66,9 @@ public:
     // some well defined sub-structures
     Neighbor neighbor;
     Box box;
-    Group group[MAX_NUMBER_OF_GROUPS];
+    std::vector<Group> group;
 
     Atom(char *input_dir);
-    ~Atom(void);
 
     void parse_neighbor(char**, int, double);
     void parse_velocity(char**, int);
@@ -88,8 +85,6 @@ private:
     void initialize_position(char *input_dir);
 
     void allocate_memory_gpu(void);
-    void copy_from_cpu_to_gpu(void);
-    void free_memory_gpu(void);
 };
 
 
