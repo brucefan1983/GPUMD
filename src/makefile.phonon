@@ -10,20 +10,20 @@ endif
 LFLAGS = -lcublas -lcusolver
 
 SOURCES = main_phonon.cu phonon.cu read_file.cu error.cu \
-	atom.cu velocity.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
+	atom.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
 	force.cu potential.cu lj.cu ri.cu eam.cu sw.cu vashishta.cu fcp.cu \
 	tersoff1988.cu tersoff1989.cu tersoff_modc.cu rebo_mos2.cu tersoff_mini.cu hessian.cu \
 	box.cu cusolver_wrapper.cu mic.cu 
 
 ifdef OS # for Windows
 _OBJ = main_phonon.obj phonon.obj read_file.obj error.obj \
-	atom.obj velocity.obj neighbor.obj neighbor_ON1.obj neighbor_ON2.obj \
+	atom.obj neighbor.obj neighbor_ON1.obj neighbor_ON2.obj \
 	force.obj potential.obj lj.obj ri.obj eam.obj sw.obj vashishta.obj fcp.obj \
 	tersoff1988.obj tersoff1989.obj tersoff_modc.obj rebo_mos2.obj tersoff_mini.obj hessian.obj \
 	box.obj cusolver_wrapper.obj mic.obj 
 else # for Linux
 _OBJ = main_phonon.o phonon.o read_file.o error.o \
-	atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
+	atom.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
 	force.o potential.o lj.o ri.o eam.o sw.o vashishta.o fcp.o \
 	tersoff1988.o tersoff1989.o tersoff_modc.o rebo_mos2.o tersoff_mini.o hessian.o \
 	box.o cusolver_wrapper.o mic.o 

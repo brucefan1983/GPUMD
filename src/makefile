@@ -43,7 +43,7 @@ _OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
 endif
 
 HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
-	mic.cuh common.cuh atom.cuh \
+	mic.cuh common.cuh atom.cuh velocity.cuh \
 	force.cuh potential.cuh ri.cuh lj.cuh eam.cuh sw.cuh vashishta.cuh fcp.cuh \
 	tersoff1988.cuh tersoff1989.cuh tersoff_modc.cuh rebo_mos2.cuh tersoff_mini.cuh \
 	integrate.cuh ensemble.cuh ensemble_nve.cuh ensemble_ber.cuh \

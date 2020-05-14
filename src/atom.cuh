@@ -73,7 +73,6 @@ public:
     Atom(char *input_dir);
     ~Atom(void);
 
-    void initialize_velocity(void);
     void parse_neighbor(char**, int, double);
     void parse_velocity(char**, int);
     void parse_time_step (char**, int);
@@ -91,9 +90,6 @@ private:
     void allocate_memory_gpu(void);
     void copy_from_cpu_to_gpu(void);
     void free_memory_gpu(void);
-
-    void initialize_velocity_cpu(void);
-    void scale_velocity(void);
 };
 
 

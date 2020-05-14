@@ -26,6 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "ensemble.cuh"
 #include "measure.cuh"
 #include "atom.cuh"
+#include "velocity.cuh"
 #include "neighbor.cuh"
 #include "box.cuh"
 #include "read_file.cuh"
@@ -236,8 +237,29 @@ void Run::add_potential
 void Run::check_velocity(int check, Atom* atom)
 {
     if (!is_velocity) { return; }
-    if (check) { number_of_times_velocity++; }
-    else { atom->initialize_velocity(); }
+    if (check)
+    {
+        number_of_times_velocity++;
+    }
+    else
+    {
+        Velocity velocity;
+        velocity.initialize
+        (
+            atom->has_velocity_in_xyz,
+            atom->initial_temperature,
+            atom->cpu_mass,
+            atom->cpu_x,
+            atom->cpu_y,
+            atom->cpu_z,
+            atom->cpu_vx,
+            atom->cpu_vy,
+            atom->cpu_vz,
+            atom->vx,
+            atom->vy,
+            atom->vz
+        );
+    }
 }
 
 

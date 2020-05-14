@@ -23,29 +23,48 @@ If DEBUG is off, the velocities are different in different runs.
 ------------------------------------------------------------------------------*/
 
 
-#include "atom.cuh"
-#include "error.cuh"
+#include "velocity.cuh"
+#include "common.cuh"
+#include "gpu_vector.cuh"
 #include <vector>
 
 
-void Atom::scale_velocity(void)
+void Velocity::scale
+(
+    const double initial_temperature,
+    const std::vector<double>& cpu_mass,
+    std::vector<double>& cpu_vx,
+    std::vector<double>& cpu_vy,
+    std::vector<double>& cpu_vz
+)
 {
+    const int N = cpu_vx.size();
     double temperature = 0.0;
     for (int n = 0; n < N; ++n) 
     {
-        double v2 = cpu_vx[n]*cpu_vx[n]+cpu_vy[n]*cpu_vy[n]+cpu_vz[n]*cpu_vz[n];
+        double v2 = cpu_vx[n] * cpu_vx[n]
+                  + cpu_vy[n] * cpu_vy[n]
+                  + cpu_vz[n] * cpu_vz[n];
         temperature += cpu_mass[n] * v2;
     }
     temperature /= 3.0 * K_B * N;
     double factor = sqrt(initial_temperature / temperature);
     for (int n = 0; n < N; ++n)
     {
-        cpu_vx[n] *= factor; cpu_vy[n] *= factor; cpu_vz[n] *= factor;
+        cpu_vx[n] *= factor;
+        cpu_vy[n] *= factor;
+        cpu_vz[n] *= factor;
     }
 }
 
 
-static void get_random_velocities(int N, double* vx, double* vy, double* vz)
+static void get_random_velocities
+(
+    const int N,
+    double* vx,
+    double* vy,
+    double* vz
+)
 {
     for (int n = 0; n < N; ++n)
     {
@@ -56,42 +75,75 @@ static void get_random_velocities(int N, double* vx, double* vy, double* vz)
 }
 
 
-static void zero_linear_momentum(int N, double* m, double* vx, double* vy, double* vz)
+static void zero_linear_momentum
+(
+    const int N,
+    const double* m,
+    double* vx,
+    double* vy,
+    double* vz
+)
 {
     double p[3] = {0.0, 0.0, 0.0}; // linear momentum
     for (int n = 0; n < N; ++n)
     {       
-        p[0] += m[n]*vx[n]/N; p[1] += m[n]*vy[n]/N; p[2] += m[n]*vz[n]/N;
+        p[0] += m[n] * vx[n] / N;
+        p[1] += m[n] * vy[n] / N;
+        p[2] += m[n] * vz[n] / N;
     }
     for (int n = 0; n < N; ++n) 
     { 
-        vx[n] -= p[0] / m[n]; vy[n] -= p[1] / m[n]; vz[n] -= p[2] / m[n]; 
+        vx[n] -= p[0] / m[n];
+        vy[n] -= p[1] / m[n];
+        vz[n] -= p[2] / m[n];
     }
 }
 
 
-static void get_center(int N, double r0[3], double* m, double* x, double* y, double* z)
+static void get_center
+(
+    const int N,
+    double r0[3],
+    const double* m,
+    const double* x,
+    const double* y,
+    const double* z
+)
 {
     double mass_total = 0;
     for (int i = 0; i < N; i++)
     {
         double mass = m[i];
         mass_total += mass;
-        r0[0] += x[i] * mass; r0[1] += y[i] * mass; r0[2] += z[i] * mass;
+        r0[0] += x[i] * mass;
+        r0[1] += y[i] * mass;
+        r0[2] += z[i] * mass;
     }
-    r0[0] /= mass_total; r0[1] /= mass_total; r0[2] /= mass_total;
+    r0[0] /= mass_total;
+    r0[1] /= mass_total;
+    r0[2] /= mass_total;
 }
 
 
 static void get_angular_momentum
 (
-    int N, double L[3], double r0[3], double* m, double* x, double* y, double* z,
-    double* vx, double* vy, double* vz
+    const int N,
+    double L[3],
+    const double r0[3],
+    const double* m,
+    const double* x,
+    const double* y,
+    const double* z,
+    const double* vx,
+    const double* vy,
+    const double* vz
 )
 {
     for (int i = 0; i < N; i++)
     {
-        double dx = x[i] - r0[0]; double dy = y[i] - r0[1]; double dz = z[i] - r0[2];
+        const double dx = x[i] - r0[0];
+        const double dy = y[i] - r0[1];
+        const double dz = z[i] - r0[2];
         L[0] += m[i] * (dy * vz[i] - dz * vy[i]);
         L[1] += m[i] * (dz * vx[i] - dx * vz[i]);
         L[2] += m[i] * (dx * vy[i] - dy * vx[i]);
@@ -100,21 +152,40 @@ static void get_angular_momentum
 
 
 static void get_inertia
-(int N, double I[3][3], double r0[3], double* m, double* x, double* y, double* z)
+(
+    const int N,
+    double I[3][3],
+    const double r0[3],
+    const double* m,
+    const double* x,
+    const double* y,
+    const double* z
+)
 {
     for (int i = 0; i < N; i++)
     {
-        double dx = x[i] - r0[0]; double dy = y[i] - r0[1]; double dz = z[i] - r0[2];
+        const double dx = x[i] - r0[0];
+        const double dy = y[i] - r0[1];
+        const double dz = z[i] - r0[2];
         I[0][0] += m[i] * (dy*dy + dz*dz);
         I[1][1] += m[i] * (dx*dx + dz*dz);
         I[2][2] += m[i] * (dx*dx + dy*dy);
-        I[0][1] -= m[i]*dx*dy; I[1][2] -= m[i]*dy*dz; I[0][2] -= m[i]*dx*dz;
+        I[0][1] -= m[i]*dx*dy;
+        I[1][2] -= m[i]*dy*dz;
+        I[0][2] -= m[i]*dx*dz;
     }
-    I[1][0] = I[0][1]; I[2][1] = I[1][2]; I[2][0] = I[0][2];
+    I[1][0] = I[0][1];
+    I[2][1] = I[1][2];
+    I[2][0] = I[0][2];
 }
 
 
-static void get_angular_velocity(double I[3][3], double L[3], double w[3])
+static void get_angular_velocity
+(
+    const double I[3][3],
+    const double L[3],
+    double w[3]
+)
 {
     double inverse[3][3]; // inverse of I
     inverse[0][0] =   I[1][1]*I[2][2] - I[1][2]*I[2][1];
@@ -127,8 +198,8 @@ static void get_angular_velocity(double I[3][3], double L[3], double w[3])
     inverse[2][1] = -(I[0][0]*I[2][1] - I[0][1]*I[2][0]);
     inverse[2][2] =   I[0][0]*I[1][1] - I[0][1]*I[1][0];
     double determinant = I[0][0]*I[1][1]*I[2][2] + I[0][1]*I[1][2]*I[2][0] +
-                       I[0][2]*I[1][0]*I[2][1] - I[0][0]*I[1][2]*I[2][1] -
-                       I[0][1]*I[1][0]*I[2][2] - I[2][0]*I[1][1]*I[0][2];
+                         I[0][2]*I[1][0]*I[2][1] - I[0][0]*I[1][2]*I[2][1] -
+                         I[0][1]*I[1][0]*I[2][2] - I[2][0]*I[1][1]*I[0][2];
     for (int i = 0; i < 3; i++)
     {
         for (int j = 0; j < 3; j++) { inverse[i][j] /= determinant; }
@@ -143,43 +214,154 @@ static void get_angular_velocity(double I[3][3], double L[3], double w[3])
 // v_i = v_i - w x dr_i
 static void zero_angular_momentum
 (
-    int N, double w[3], double r0[3], double* x, double* y, double* z,
-    double* vx, double* vy, double* vz
+    const int N,
+    const double w[3],
+    const double r0[3],
+    const double* x,
+    const double* y,
+    const double* z,
+    double* vx,
+    double* vy,
+    double* vz
 )
 {
     for (int i = 0; i < N; i++)
     {
-        double dx = x[i] - r0[0]; double dy = y[i] - r0[1]; double dz = z[i] - r0[2];
-        vx[i]-=w[1]*dz-w[2]*dy; vy[i]-=w[2]*dx-w[0]*dz; vz[i]-=w[0]*dy-w[1]*dx;
+        const double dx = x[i] - r0[0];
+        const double dy = y[i] - r0[1];
+        const double dz = z[i] - r0[2];
+        vx[i] -= w[1] * dz - w[2] * dy;
+        vy[i] -= w[2] * dx - w[0] * dz;
+        vz[i] -= w[0] * dy - w[1] * dx;
     }
 }
 
 
-void Atom::initialize_velocity_cpu(void)
+void Velocity::initialize_cpu
+(
+    const double initial_temperature,
+    const std::vector<double>& cpu_mass,
+    const std::vector<double>& cpu_x,
+    const std::vector<double>& cpu_y,
+    const std::vector<double>& cpu_z,
+    std::vector<double>& cpu_vx,
+    std::vector<double>& cpu_vy,
+    std::vector<double>& cpu_vz
+)
 {
-    get_random_velocities(N, cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
-    zero_linear_momentum(N, cpu_mass.data(), cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
+    const int N = cpu_mass.size();
+
+    get_random_velocities
+    (
+        N,
+        cpu_vx.data(),
+        cpu_vy.data(),
+        cpu_vz.data()
+    );
+
+    zero_linear_momentum
+    (
+        N,
+        cpu_mass.data(),
+        cpu_vx.data(),
+        cpu_vy.data(),
+        cpu_vz.data()
+    );
+
     double r0[3] = {0, 0, 0}; // center of mass position
-    get_center(N, r0, cpu_mass.data(), cpu_x.data(), cpu_y.data(), cpu_z.data());
+    get_center
+    (
+        N,
+        r0,
+        cpu_mass.data(),
+        cpu_x.data(),
+        cpu_y.data(),
+        cpu_z.data()
+    );
+
+
     double L[3] = {0, 0, 0}; // angular momentum
-    get_angular_momentum(N, L, r0, cpu_mass.data(), cpu_x.data(), cpu_y.data(), cpu_z.data(),
-        cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
+    get_angular_momentum
+    (
+        N,
+        L,
+        r0,
+        cpu_mass.data(),
+        cpu_x.data(),
+        cpu_y.data(),
+        cpu_z.data(),
+        cpu_vx.data(),
+        cpu_vy.data(),
+        cpu_vz.data()
+    );
+
     double I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}; // moment of inertia
-    get_inertia(N, I, r0, cpu_mass.data(), cpu_x.data(), cpu_y.data(), cpu_z.data());
+    get_inertia
+    (
+        N,
+        I,
+        r0,
+        cpu_mass.data(),
+        cpu_x.data(),
+        cpu_y.data(),
+        cpu_z.data()
+    );
+
     double w[3]; // angular velocity
     get_angular_velocity(I, L, w);
-    zero_angular_momentum(N, w, r0, cpu_x.data(), cpu_y.data(), cpu_z.data(),
-        cpu_vx.data(), cpu_vy.data(), cpu_vz.data());
-    scale_velocity();
+
+    zero_angular_momentum
+    (
+        N,
+        w,
+        r0,
+        cpu_x.data(),
+        cpu_y.data(),
+        cpu_z.data(),
+        cpu_vx.data(),
+        cpu_vy.data(),
+        cpu_vz.data()
+    );
+
+    scale(initial_temperature, cpu_mass, cpu_vx, cpu_vy, cpu_vz);
 }
 
 
-void Atom::initialize_velocity(void)
+void Velocity::initialize
+(
+    const bool has_velocity_in_xyz,
+    const double initial_temperature,
+    const std::vector<double>& cpu_mass,
+    const std::vector<double>& cpu_x,
+    const std::vector<double>& cpu_y,
+    const std::vector<double>& cpu_z,
+    std::vector<double>& cpu_vx,
+    std::vector<double>& cpu_vy,
+    std::vector<double>& cpu_vz,
+    GPU_Vector<double>& vx,
+    GPU_Vector<double>& vy,
+    GPU_Vector<double>& vz
+)
 {
-    if (has_velocity_in_xyz == 0) { initialize_velocity_cpu(); }
+    if (!has_velocity_in_xyz)
+    {
+        initialize_cpu
+        (
+            initial_temperature,
+            cpu_mass,
+            cpu_x,
+            cpu_y,
+            cpu_z,
+            cpu_vx,
+            cpu_vy,
+            cpu_vz
+        );
+    }
+
     vx.copy_from_host(cpu_vx.data());
     vy.copy_from_host(cpu_vy.data());
     vz.copy_from_host(cpu_vz.data());
+
     printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
 
