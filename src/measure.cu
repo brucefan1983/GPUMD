@@ -142,9 +142,13 @@ void Measure::dump_restarts(Atom *atom, int step)
     atom->vy.copy_to_host(atom->cpu_vy.data());
     atom->vz.copy_to_host(atom->cpu_vz.data());
     fid_restart = my_fopen(file_restart, "w"); 
-    fprintf(fid_restart, "%d %d %g %d %d %d\n", atom->N, atom->neighbor.MN,
+    fprintf
+    (
+        fid_restart, "%d %d %g %d %d %d\n",
+        atom->N, atom->neighbor.MN,
         atom->neighbor.rc, atom->box.triclinic, 1,
-        atom->group.size());
+        static_cast<int>(atom->group.size())
+    );
     if (atom->box.triclinic == 0)
     {
         fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->box.pbc_x,
