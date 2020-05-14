@@ -79,8 +79,6 @@ private:
     void read_xyz_in_line_1(FILE*);
     void read_xyz_in_line_2(FILE*);
     void read_xyz_in_line_3(FILE*);
-    void find_group_size(int);
-    void find_group_contents(int);
     void find_type_size(void);
     void initialize_position(char *input_dir);
 

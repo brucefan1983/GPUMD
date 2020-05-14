@@ -292,67 +292,6 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 }
 
 
-void Atom::find_group_size(int k)
-{
-    group[k].cpu_size.resize(group[k].number);
-    group[k].cpu_size_sum.resize(group[k].number);
-    group[k].cpu_contents.resize(N);
-
-    if (group[k].number == 1)
-    {
-        printf("There is only one group of atoms in grouping method %d.\n", k);
-    }
-    else
-    {
-        printf
-        (
-            "There are %d groups of atoms in grouping method %d.\n",
-            group[k].number, k
-        );
-    }
-
-    for (int m = 0; m < group[k].number; m++)
-    {
-        group[k].cpu_size[m] = 0;
-        group[k].cpu_size_sum[m] = 0;
-    }
-
-    for (int n = 0; n < N; n++) { group[k].cpu_size[group[k].cpu_label[n]]++; }
-
-    for (int m = 0; m < group[k].number; m++)
-    {
-        printf("    %d atoms in group %d.\n", group[k].cpu_size[m], m);   
-    }
-
-    for (int m = 1; m < group[k].number; m++)
-    {
-        for (int n = 0; n < m; n++)
-        {
-            group[k].cpu_size_sum[m] += group[k].cpu_size[n];
-        }
-    }
-}
-
-
-// re-arrange the atoms from the first to the last group
-void Atom::find_group_contents(int k)
-{
-    std::vector<int> offset(group[k].number);
-    for (int m = 0; m < group[k].number; m++) { offset[m] = 0; }
-
-    for (int n = 0; n < N; n++) 
-    {
-        for (int m = 0; m < group[k].number; m++)
-        {
-            if (group[k].cpu_label[n] == m)
-            {
-                group[k].cpu_contents[group[k].cpu_size_sum[m]+offset[m]++] = n;
-            }
-        }
-    }
-}
-
-
 void Atom::find_type_size(void)
 {
     cpu_type_size.resize(number_of_types);
@@ -394,8 +333,8 @@ void Atom::initialize_position(char *input_dir)
 
     for (int m = 0; m < group.size(); ++m)
     {
-        find_group_size(m);
-        find_group_contents(m);
+        group[m].find_size(N, m);
+        group[m].find_contents(N);
     }
 
     find_type_size();

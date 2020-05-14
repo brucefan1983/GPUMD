@@ -19,8 +19,9 @@
 #include <vector>
 
 
-struct Group
+class Group
 {
+public:
     int number;             // number of groups
     // GPU data
     GPU_Vector<int> label;             // atom label
@@ -32,6 +33,10 @@ struct Group
     std::vector<int> cpu_size;
     std::vector<int> cpu_size_sum;
     std::vector<int> cpu_contents;
+
+    void find_size(const int N, const int k);
+    void find_contents(const int N);
+
 };
 
 
