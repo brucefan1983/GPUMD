@@ -181,12 +181,20 @@ static void process_run
 #endif
 
         integrate->compute(atom, force);
-        measure->process(input_dir, atom, integrate, step);
+        measure->process
+        (
+            input_dir,
+            atom,
+            integrate->fixed_group,
+            integrate->temperature2,
+            integrate->ensemble->energy_transferred,
+            step
+        );
         print_finished_steps(step, atom->number_of_steps);
     }
 
     print_time_and_speed(time_begin, atom);
-    measure->finalize(input_dir, atom, integrate);
+    measure->finalize(input_dir, atom, integrate->temperature2);
     integrate->finalize();
 }
 

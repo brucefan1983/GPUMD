@@ -69,14 +69,18 @@ void Measure::initialize(char* input_dir, Atom *atom)
 
 
 void Measure::finalize
-(char *input_dir, Atom *atom, Integrate *integrate)
+(
+    char *input_dir,
+    Atom *atom,
+    const double temperature
+)
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
     if (dump_velocity)  {fclose(fid_velocity);  dump_velocity  = 0;}
     if (dump_restart)   {                       dump_restart   = 0;}
     if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom);
-    hac.postprocess(input_dir, integrate->temperature2, atom);
+    hac.postprocess(input_dir, temperature, atom);
     shc.postprocess(input_dir);
     compute.postprocess();
     hnemd.postprocess(atom);
@@ -85,14 +89,14 @@ void Measure::finalize
 
 
 void Measure::dump_thermos
-(FILE *fid, Atom *atom, Integrate *integrate, int step)
+(FILE *fid, Atom *atom, const int fixed_group, int step)
 {
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
     std::vector<double> thermo(NUM_OF_PROPERTIES);
     atom->thermo.copy_to_host(thermo.data(), NUM_OF_PROPERTIES);
-    int N_fixed = (integrate->fixed_group == -1) ? 0 :
-        atom->group[0].cpu_size[integrate->fixed_group];
+    int N_fixed = (fixed_group == -1) ? 0 :
+        atom->group[0].cpu_size[fixed_group];
     double energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
     fprintf(fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0],
         energy_kin, thermo[1], thermo[2]*PRESSURE_UNIT_CONVERSION,
@@ -177,17 +181,24 @@ void Measure::dump_restarts(Atom *atom, int step)
 
 
 void Measure::process
-(char *input_dir, Atom *atom, Integrate *integrate, int step)
+(
+    char *input_dir,
+    Atom *atom,
+    const int fixed_group,
+    const double temperature,
+    const double energy_transferred[],
+    int step
+)
 {
-    dump_thermos(fid_thermo, atom, integrate, step);
+    dump_thermos(fid_thermo, atom, fixed_group, step);
     dump_velocities(fid_velocity, atom, step);
     dump_restarts(atom, step);
-    compute.process(step, integrate->ensemble->energy_transferred, atom);
+    compute.process(step, energy_transferred, atom);
     vac.process(step, atom);
     hac.process(step, input_dir, atom);
     shc.process(step, atom);
-    hnemd.process(step, input_dir, integrate->temperature2, atom);
-    modal_analysis.process(step, atom, integrate->temperature2, hnemd.fe);
+    hnemd.process(step, input_dir, temperature, atom);
+    modal_analysis.process(step, atom, temperature, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);
 
 }

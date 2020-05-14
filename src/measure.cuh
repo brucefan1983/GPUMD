@@ -22,8 +22,6 @@
 #include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
-#include "integrate.cuh"
-#include "ensemble.cuh"
 
 
 class Measure
@@ -32,8 +30,8 @@ public:
     Measure(char *input_dir);
     ~Measure(void);
     void initialize(char*, Atom*);
-    void finalize(char*, Atom*, Integrate*);
-    void process(char*, Atom*, Integrate*, int);
+    void finalize(char*, Atom*, const double);
+    void process(char*, Atom*, const int, const double, const double[], int);
     int dump_thermo; 
     int dump_velocity;
     int dump_restart;
@@ -71,7 +69,7 @@ public:
     void parse_compute(char**, int, Atom*);
 
 protected:
-    void dump_thermos(FILE*, Atom*, Integrate*, int);
+    void dump_thermos(FILE*, Atom*, const int, int);
     void dump_velocities(FILE*, Atom*, int);
     void dump_restarts(Atom*, int);
 };
