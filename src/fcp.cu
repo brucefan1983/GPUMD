@@ -142,7 +142,7 @@ void FCP::read_fc2(Atom *atom)
     fcp_data.yij2.resize(number2 * 2, Memory_Type::managed);
     fcp_data.zij2.resize(number2 * 2, Memory_Type::managed);
 	
-    int number2new = 0;
+    int delta = 0;
     for (int nc = 0; nc < number2; nc++)
     {
         int i, j, index;
@@ -157,9 +157,9 @@ void FCP::read_fc2(Atom *atom)
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
         } 
 
-        fcp_data.i2[number2new] = i;
-        fcp_data.j2[number2new] = j;
-        fcp_data.index2[number2new] = index;
+        fcp_data.i2[nc] = i;
+        fcp_data.j2[nc] = j;
+        fcp_data.index2[nc] = index;
 
         double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
         double yij2 = fcp_data.r0[j + atom->N] - fcp_data.r0[i + atom->N];
@@ -175,25 +175,23 @@ void FCP::read_fc2(Atom *atom)
             yij2,
             zij2
         );
-        fcp_data.xij2[number2new] = xij2 * 0.5;
-        fcp_data.yij2[number2new] = yij2 * 0.5;
-        fcp_data.zij2[number2new] = zij2 * 0.5;
-
-        ++number2new;
+        fcp_data.xij2[nc] = xij2 * 0.5;
+        fcp_data.yij2[nc] = yij2 * 0.5;
+        fcp_data.zij2[nc] = zij2 * 0.5;
 		
         if (i != j)
         {
-            fcp_data.i2[number2new] = fcp_data.j2[number2new - 1];
-            fcp_data.j2[number2new] = fcp_data.i2[number2new - 1];
-            fcp_data.index2[number2new] = fcp_data.index2[number2new - 1];
-            fcp_data.xij2[number2new] = -fcp_data.xij2[number2new - 1];
-            fcp_data.yij2[number2new] = -fcp_data.yij2[number2new - 1];
-            fcp_data.zij2[number2new] = -fcp_data.zij2[number2new - 1];
+            fcp_data.i2[number2 + delta] = fcp_data.j2[nc];
+            fcp_data.j2[number2 + delta] = fcp_data.i2[nc];
+            fcp_data.index2[number2 + delta] = fcp_data.index2[nc];
+            fcp_data.xij2[number2 + delta] = -fcp_data.xij2[nc];
+            fcp_data.yij2[number2 + delta] = -fcp_data.yij2[nc];
+            fcp_data.zij2[number2 + delta] = -fcp_data.zij2[nc];
 
-            ++number2new;
+            ++delta;
         }
     }
-    number2 = number2new;
+    number2 += delta;
 
     fclose(fid_fc);
     fclose(fid_cluster);
