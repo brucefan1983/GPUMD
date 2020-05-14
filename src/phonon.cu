@@ -32,6 +32,20 @@ The driver class for phonon calculations
 Phonon::Phonon(char* input_dir)
 {
     Atom atom(input_dir);
+
+    atom.allocate_memory_gpu();
+
+#ifndef USE_FCP // the FCP does not use a neighbor list at all
+    atom.neighbor.find_neighbor
+    (
+        1,
+        atom.box,
+        atom.x.data(),
+        atom.y.data(),
+        atom.z.data()
+    );
+#endif
+
     Force force;
     Hessian hessian;
 

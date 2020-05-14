@@ -75,7 +75,6 @@ public:
     void parse_time_step (char**, int);
     void parse_run(char**, int);
 
-private:
     void read_xyz_in_line_1(FILE*);
     void read_xyz_in_line_2(FILE*);
     void read_xyz_in_line_3(FILE*);

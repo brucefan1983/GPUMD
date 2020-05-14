@@ -30,10 +30,6 @@ const int NUM_OF_HEAT_COMPONENTS = 5;
 Atom::Atom(char *input_dir)
 { 
     initialize_position(input_dir);
-    allocate_memory_gpu();
-#ifndef USE_FCP // the FCP does not use a neighbor list at all
-    neighbor.find_neighbor(1, box, x.data(), y.data(), z.data());
-#endif
 }
 
 
