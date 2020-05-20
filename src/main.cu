@@ -19,6 +19,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <time.h>
+#include <chrono>
 
 void print_welcome_information(void);
 void print_compile_information(void);
@@ -89,9 +90,7 @@ void print_compile_information(void)
 #ifdef DEBUG
     printf("DEBUG is on: Use a fixed PRNG seed for different runs.\n");
 #else
-    struct timespec ts;
-    clock_gettime(CLOCK_MONOTONIC, &ts);
-    srand((time_t)ts.tv_nsec); // ns random number
+    srand(std::chrono::system_clock::now().time_since_epoch().count());
     printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
 #endif
 
