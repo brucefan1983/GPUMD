@@ -8,4 +8,3 @@ ensemble nve
 time_step 0 # do not move the system
 compute 0 1 1 force # only one frame of forces
 run 1
-
