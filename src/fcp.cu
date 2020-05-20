@@ -135,14 +135,13 @@ void FCP::read_fc2(Atom *atom)
         PRINT_INPUT_ERROR("number of clusters should > 0.");
     }
 
-    fcp_data.i2.resize(number2 * 2, Memory_Type::managed);
-    fcp_data.j2.resize(number2 * 2, Memory_Type::managed);
-    fcp_data.index2.resize(number2 * 2, Memory_Type::managed);
-    fcp_data.xij2.resize(number2 * 2, Memory_Type::managed);
-    fcp_data.yij2.resize(number2 * 2, Memory_Type::managed);
-    fcp_data.zij2.resize(number2 * 2, Memory_Type::managed);
-	
-    int delta = 0;
+    fcp_data.i2.resize(number2, Memory_Type::managed);
+    fcp_data.j2.resize(number2, Memory_Type::managed);
+    fcp_data.index2.resize(number2, Memory_Type::managed);
+    fcp_data.xij2.resize(number2, Memory_Type::managed);
+    fcp_data.yij2.resize(number2, Memory_Type::managed);
+    fcp_data.zij2.resize(number2, Memory_Type::managed);
+
     for (int nc = 0; nc < number2; nc++)
     {
         int i, j, index;
@@ -151,7 +150,6 @@ void FCP::read_fc2(Atom *atom)
 
         if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
         if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); } 
-        if (i > j) { PRINT_INPUT_ERROR("i > j."); } 
         if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
@@ -178,20 +176,7 @@ void FCP::read_fc2(Atom *atom)
         fcp_data.xij2[nc] = xij2 * 0.5;
         fcp_data.yij2[nc] = yij2 * 0.5;
         fcp_data.zij2[nc] = zij2 * 0.5;
-		
-        if (i != j)
-        {
-            fcp_data.i2[number2 + delta] = fcp_data.j2[nc];
-            fcp_data.j2[number2 + delta] = fcp_data.i2[nc];
-            fcp_data.index2[number2 + delta] = fcp_data.index2[nc];
-            fcp_data.xij2[number2 + delta] = -fcp_data.xij2[nc];
-            fcp_data.yij2[number2 + delta] = -fcp_data.yij2[nc];
-            fcp_data.zij2[number2 + delta] = -fcp_data.zij2[nc];
-
-            ++delta;
-        }
     }
-    number2 += delta;
 
     fclose(fid_fc);
     fclose(fid_cluster);
@@ -255,7 +240,9 @@ void FCP::read_fc3(Atom *atom)
     fcp_data.j3.resize(number3, Memory_Type::managed);
     fcp_data.k3.resize(number3, Memory_Type::managed);
     fcp_data.index3.resize(number3, Memory_Type::managed);
-    fcp_data.weight3.resize(number3, 1.0f, Memory_Type::managed);
+    fcp_data.xij3.resize(number3, Memory_Type::managed);
+    fcp_data.yij3.resize(number3, Memory_Type::managed);
+    fcp_data.zij3.resize(number3, Memory_Type::managed);
 
     for (int nc = 0; nc < number3; nc++)
     {
@@ -266,8 +253,6 @@ void FCP::read_fc3(Atom *atom)
         if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
         if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
         if (k < 0 || k >= atom->N) { PRINT_INPUT_ERROR("k < 0 or >= N."); }
-        if (i > j) { PRINT_INPUT_ERROR("i > j."); }
-        if (j > k) { PRINT_INPUT_ERROR("j > k."); }
         if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
@@ -278,10 +263,23 @@ void FCP::read_fc3(Atom *atom)
         fcp_data.k3[nc] = k;
         fcp_data.index3[nc] = index;
 
-        // 2^2-1 = 3 cases:
-        if (i == j && j != k) { fcp_data.weight3[nc] /= 2; } // 112
-        if (i != j && j == k) { fcp_data.weight3[nc] /= 2; } // 122
-        if (i == j && j == k) { fcp_data.weight3[nc] /= 6; } // 111
+        double xij3 = fcp_data.r0[j] - fcp_data.r0[i];
+        double yij3 = fcp_data.r0[j + atom->N] - fcp_data.r0[i + atom->N];
+        double zij3 = fcp_data.r0[j + atom->N*2] - fcp_data.r0[i + atom->N*2];
+        apply_mic
+        (
+            atom->box.triclinic,
+            atom->box.pbc_x,
+            atom->box.pbc_y,
+            atom->box.pbc_z,
+            atom->box.cpu_h,
+            xij3,
+            yij3,
+            zij3
+        );
+        fcp_data.xij3[nc] = xij3 / 3.0;
+        fcp_data.yij3[nc] = yij3 / 3.0;
+        fcp_data.zij3[nc] = zij3 / 3.0;
     } 
 
     fclose(fid_fc);
@@ -742,6 +740,11 @@ static __global__ void gpu_find_force_fcp2
     const float yij2 = g_yij2[nc];
     const float zij2 = g_zij2[nc];
 
+    // for virial tensor
+    const int x[3] = {4, 7, 8};
+    const int y[3] = {10, 5, 9};
+    const int z[3] = {11, 12, 6};
+
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
     {
@@ -752,13 +755,11 @@ static __global__ void gpu_find_force_fcp2
         const float uia = g_u[ia];
         const float ujb = g_u[jb];
 
-        atomicAdd(&g_pfv[i], 0.5f * phi * uia * ujb); // potential
-        atomicAdd(&g_pfv[ia + N], - phi * ujb); // force
-        
+        // potential
+        atomicAdd(&g_pfv[i], 0.5f * phi * uia * ujb);
+        // force
+        atomicAdd(&g_pfv[ia + N], - phi * ujb); 
         // virial tensor
-        const int x[3] = {4, 7, 8};
-        const int y[3] = {10, 5, 9};
-        const int z[3] = {11, 12, 6};
         atomicAdd(&g_pfv[i + N * x[a]], xij2 * phi * ujb);
         atomicAdd(&g_pfv[i + N * y[a]], yij2 * phi * ujb);
         atomicAdd(&g_pfv[i + N * z[a]], zij2 * phi * ujb);
@@ -775,10 +776,12 @@ static __global__ void gpu_find_force_fcp3
     const int *g_j,
     const int *g_k,
     const int *g_index,
-    const float *g_weight,
     const float *g_phi,
     const float* __restrict__ g_u,
-    float *g_pf
+    const float *g_xij3,
+    const float *g_yij3,
+    const float *g_zij3,
+    float *g_pfv
 )
 {
     const int nc = blockIdx.x * blockDim.x + threadIdx.x;
@@ -788,7 +791,16 @@ static __global__ void gpu_find_force_fcp3
     const int j = g_j[nc];
     const int k = g_k[nc];
     const int index = g_index[nc];
-    const float weight = g_weight[nc];
+    const float xij3 = g_xij3[nc];
+    const float yij3 = g_yij3[nc];
+    const float zij3 = g_zij3[nc];
+
+    const float one_over_factorial3 = 1.0f / 6.0f;
+
+    // for virial tensor
+    const int x[3] = {4, 7, 8};
+    const int y[3] = {10, 5, 9};
+    const int z[3] = {11, 12, 6};
 
     for (int a = 0; a < 3; ++a)
     for (int b = 0; b < 3; ++b)
@@ -798,14 +810,20 @@ static __global__ void gpu_find_force_fcp3
         const int ia = i + a * N;
         const int jb = j + b * N;
         const int kc = k + c * N;
-        const float phi = weight * g_phi[index * 27 + abc];
+        const float phi = g_phi[index * 27 + abc];
         const float uia = g_u[ia];
         const float ujb = g_u[jb];
         const float ukc = g_u[kc];
-        atomicAdd(&g_pf[i], phi * uia * ujb * ukc);
-        atomicAdd(&g_pf[ia + N], - phi * ujb * ukc);
-        atomicAdd(&g_pf[jb + N], - phi * uia * ukc);
-        atomicAdd(&g_pf[kc + N], - phi * uia * ujb);
+
+        const float phi_ujb_ukc = phi * ujb * ukc;
+        // potential
+        atomicAdd(&g_pfv[i], one_over_factorial3 * phi_ujb_ukc * uia);
+        // force
+        atomicAdd(&g_pfv[ia + N], - 0.5f * phi_ujb_ukc);
+        // virial tensor
+        atomicAdd(&g_pfv[i + N * x[a]], xij3 * phi_ujb_ukc);
+        atomicAdd(&g_pfv[i + N * y[a]], yij3 * phi_ujb_ukc);
+        atomicAdd(&g_pfv[i + N * z[a]], zij3 * phi_ujb_ukc);
     }
 }
 
@@ -1137,9 +1155,11 @@ void FCP::compute(Atom *atom, int potential_number)
         fcp_data.j3.data(),
         fcp_data.k3.data(),
         fcp_data.index3.data(),
-        fcp_data.weight3.data(),
         fcp_data.phi3.data(),
         fcp_data.u.data(),
+        fcp_data.xij3.data(),
+        fcp_data.yij3.data(),
+        fcp_data.zij3.data(),
         fcp_data.pfv.data()
     );
 
