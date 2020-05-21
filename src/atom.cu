@@ -173,8 +173,10 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
         box.cpu_h[0] = lx; box.cpu_h[1] = ly; box.cpu_h[2] = lz;
         box.cpu_h[3] = lx*0.5; box.cpu_h[4] = ly*0.5; box.cpu_h[5] = lz*0.5;
 
-        printf("Box lengths (lx, ly, lz) are\n");
-        printf("%20.10e%20.10e%20.10e\n", lx, ly, lz);
+        printf("Box lengths are\n");
+        printf("    Lx = %20.10e A\n", lx);
+        printf("    Ly = %20.10e A\n", ly);
+        printf("    Lz = %20.10e A\n", lz);
     }
 
     if (box.pbc_x == 1)
