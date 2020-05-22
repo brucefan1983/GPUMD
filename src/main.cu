@@ -46,10 +46,12 @@ int main(int argc, char *argv[])
         printf("Run simulation for '%s'.\n", input_directory);
         print_line_2();
 
+        CHECK(cudaDeviceSynchronize());
         clock_t time_begin = clock();
 
         GPUMD gpumd(input_directory);
 
+        CHECK(cudaDeviceSynchronize());
         clock_t time_finish = clock();
         double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
