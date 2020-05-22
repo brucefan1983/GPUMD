@@ -9,27 +9,27 @@ endif
 
 LFLAGS = -lcublas -lcusolver
 
-SOURCES = main_phonon.cu phonon.cu read_file.cu error.cu group.cu \
+SOURCES = main_common.cu main_phonon.cu phonon.cu read_file.cu error.cu group.cu \
 	atom.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
 	force.cu potential.cu lj.cu ri.cu eam.cu sw.cu vashishta.cu fcp.cu \
 	tersoff1988.cu tersoff1989.cu tersoff_modc.cu rebo_mos2.cu tersoff_mini.cu hessian.cu \
 	box.cu cusolver_wrapper.cu mic.cu 
 
 ifdef OS # for Windows
-_OBJ = main_phonon.obj phonon.obj read_file.obj error.obj group.obj \
+_OBJ = main_common.obj main_phonon.obj phonon.obj read_file.obj error.obj group.obj \
 	atom.obj neighbor.obj neighbor_ON1.obj neighbor_ON2.obj \
 	force.obj potential.obj lj.obj ri.obj eam.obj sw.obj vashishta.obj fcp.obj \
 	tersoff1988.obj tersoff1989.obj tersoff_modc.obj rebo_mos2.obj tersoff_mini.obj hessian.obj \
 	box.obj cusolver_wrapper.obj mic.obj 
 else # for Linux
-_OBJ = main_phonon.o phonon.o read_file.o error.o group.o \
+_OBJ = main_common.o main_phonon.o phonon.o read_file.o error.o group.o \
 	atom.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
 	force.o potential.o lj.o ri.o eam.o sw.o vashishta.o fcp.o \
 	tersoff1988.o tersoff1989.o tersoff_modc.o rebo_mos2.o tersoff_mini.o hessian.o \
 	box.o cusolver_wrapper.o mic.o 
 endif
 
-HEADERS = phonon.cuh read_file.cuh error.cuh mic.cuh group.cuh \
+HEADERS = main_common.cuh phonon.cuh read_file.cuh error.cuh mic.cuh group.cuh \
 	common.cuh atom.cuh gpu_vector.cuh \
 	force.cuh potential.cuh lj.cuh ri.cuh eam.cuh sw.cuh vashishta.cuh fcp.cuh \
 	tersoff1988.cuh tersoff1989.cuh tersoff_modc.cuh rebo_mos2.cuh tersoff_mini.cuh hessian.cuh \

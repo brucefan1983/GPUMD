@@ -13,7 +13,7 @@ INC =
 LDFLAGS = 
 LIBS = -lcublas
 
-SOURCES = main.cu gpumd.cu read_file.cu run.cu error.cu validate.cu \
+SOURCES = main_common.cu main.cu gpumd.cu read_file.cu run.cu error.cu validate.cu \
 	mic.cu atom.cu velocity.cu neighbor.cu neighbor_ON1.cu neighbor_ON2.cu \
 	force.cu potential.cu ri.cu lj.cu eam.cu sw.cu vashishta.cu fcp.cu \
 	tersoff1988.cu tersoff1989.cu tersoff_modc.cu rebo_mos2.cu tersoff_mini.cu \
@@ -23,7 +23,7 @@ SOURCES = main.cu gpumd.cu read_file.cu run.cu error.cu validate.cu \
 	dump_netcdf.cu dump_xyz.cu modal_analysis.cu group.cu
 
 ifdef OS # For Windows with the cl.exe compiler
-_OBJ = main.obj gpumd.obj read_file.obj run.obj error.obj validate.obj \
+_OBJ = main_common.obj main.obj gpumd.obj read_file.obj run.obj error.obj validate.obj \
 	mic.obj atom.obj velocity.obj neighbor.obj neighbor_ON1.obj neighbor_ON2.obj \
 	force.obj potential.obj ri.obj lj.obj eam.obj sw.obj vashishta.obj fcp.obj \
 	tersoff1988.obj tersoff1989.obj tersoff_modc.obj rebo_mos2.obj tersoff_mini.obj \
@@ -32,7 +32,7 @@ _OBJ = main.obj gpumd.obj read_file.obj run.obj error.obj validate.obj \
 	measure.obj compute.obj shc.obj vac.obj hac.obj hnemd_kappa.obj box.obj \
 	dump_netcdf.obj dump_xyz.obj modal_analysis.obj group.obj
 else
-_OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
+_OBJ = main_common.o main.o gpumd.o read_file.o run.o error.o validate.o \
 	mic.o atom.o velocity.o neighbor.o neighbor_ON1.o neighbor_ON2.o \
 	force.o potential.o ri.o lj.o eam.o sw.o vashishta.o fcp.o \
 	tersoff1988.o tersoff1989.o tersoff_modc.o rebo_mos2.o tersoff_mini.o \
@@ -42,7 +42,7 @@ _OBJ = main.o gpumd.o read_file.o run.o error.o validate.o \
 	dump_netcdf.o dump_xyz.o modal_analysis.o group.o
 endif
 
-HEADERS = gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
+HEADERS = main_common.cuh gpumd.cuh read_file.cuh run.cuh error.cuh validate.cuh \
 	mic.cuh common.cuh atom.cuh velocity.cuh \
 	force.cuh potential.cuh ri.cuh lj.cuh eam.cuh sw.cuh vashishta.cuh fcp.cuh \
 	tersoff1988.cuh tersoff1989.cuh tersoff_modc.cuh rebo_mos2.cuh tersoff_mini.cuh \
