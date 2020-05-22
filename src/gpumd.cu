@@ -51,9 +51,3 @@ GPUMD::GPUMD(char* input_dir)
 }
 
 
-GPUMD::~GPUMD(void)
-{
-    // nothing
-}
-
-

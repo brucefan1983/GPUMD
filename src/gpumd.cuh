@@ -21,7 +21,6 @@ class GPUMD
 {
 public:
     GPUMD(char*);
-    ~GPUMD(void);
 };
 
 
