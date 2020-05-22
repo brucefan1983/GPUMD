@@ -75,6 +75,7 @@ void print_welcome_information(void)
     printf("*                 Welcome to use GPUMD                        *\n");
     printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
     printf("*                   Developing Version                        *\n");
+    printf("*              This is the gpumd executable                   *\n");
     printf("* Authors:                                                    *\n");
     printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
     printf("*     Alexander J. Gabourie <gabourie@stanford.edu>           *\n");

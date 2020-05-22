@@ -21,13 +21,17 @@
 #include <time.h>
 
 void print_welcome_information(void);
+void print_gpu_information(void);
 int get_number_of_input_directories(void);
 
 
 int main(int argc, char *argv[])
 {
     print_welcome_information();
+    print_gpu_information();
+
     int number_of_inputs = get_number_of_input_directories();
+
     for (int n = 0; n < number_of_inputs; ++n)
     {
         char input_directory[200];
@@ -37,10 +41,16 @@ int main(int argc, char *argv[])
         print_line_1();
         printf("Run simulation for '%s'.\n", input_directory);
         print_line_2();
+
+        CHECK(cudaDeviceSynchronize());
         clock_t time_begin = clock();
+
         Phonon phonon(input_directory);
+
+        CHECK(cudaDeviceSynchronize());
         clock_t time_finish = clock();
         double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
+
         print_line_1();
         printf("Time used for '%s' = %f s.\n", input_directory, time_used);
         print_line_2();
@@ -58,13 +68,13 @@ void print_welcome_information(void)
     printf("***************************************************************\n");
     printf("*                 Welcome to use GPUMD                        *\n");
     printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
-    printf("*                      Version 2.4                            *\n");
-    printf("*              This is the phonon excutable                   *\n");
+    printf("*                  Developing Version                         *\n");
+    printf("*             This is the phonon executable                   *\n");
     printf("* Authors:                                                    *\n");
     printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
+    printf("*     Alexander J. Gabourie <gabourie@stanford.edu>           *\n");
     printf("*     Ville Vierimaa                                          *\n");
     printf("*     Mikko Ervasti                                           *\n");
-    printf("*     Alexander J. Gabourie                                   *\n");
     printf("*     Ari Harju                                               *\n");
     printf("***************************************************************\n");
     printf("\n");
@@ -77,6 +87,49 @@ int get_number_of_input_directories(void)
     int count = scanf("%d", &number_of_inputs);
     PRINT_SCANF_ERROR(count, 1, "Reading error for number of inputs.");
     return number_of_inputs;
+}
+
+
+void print_gpu_information(void)
+{
+    print_line_1();
+    printf("GPU information:\n");
+    print_line_2();
+
+    int device_id = 0;
+    cudaDeviceProp prop;
+    CHECK(cudaGetDeviceProperties(&prop, device_id));
+
+    printf("Device id:                                 %d\n",
+        device_id);
+    printf("Device name:                               %s\n",
+        prop.name);
+    printf("Compute capability:                        %d.%d\n",
+        prop.major, prop.minor);
+    printf("Amount of global memory:                   %g GB\n",
+        prop.totalGlobalMem / (1024.0 * 1024 * 1024));
+    printf("Amount of constant memory:                 %g KB\n",
+        prop.totalConstMem  / 1024.0);
+    printf("Maximum grid size:                         %d %d %d\n",
+        prop.maxGridSize[0],
+        prop.maxGridSize[1], prop.maxGridSize[2]);
+    printf("Maximum block size:                        %d %d %d\n",
+        prop.maxThreadsDim[0], prop.maxThreadsDim[1],
+        prop.maxThreadsDim[2]);
+    printf("Number of SMs:                             %d\n",
+        prop.multiProcessorCount);
+    printf("Maximum amount of shared memory per block: %g KB\n",
+        prop.sharedMemPerBlock / 1024.0);
+    printf("Maximum amount of shared memory per SM:    %g KB\n",
+        prop.sharedMemPerMultiprocessor / 1024.0);
+    printf("Maximum number of registers per block:     %d K\n",
+        prop.regsPerBlock / 1024);
+    printf("Maximum number of registers per SM:        %d K\n",
+        prop.regsPerMultiprocessor / 1024);
+    printf("Maximum number of threads per block:       %d\n",
+        prop.maxThreadsPerBlock);
+    printf("Maximum number of threads per SM:          %d\n",
+        prop.maxThreadsPerMultiProcessor);
 }
 
 
