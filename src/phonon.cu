@@ -65,12 +65,6 @@ Phonon::Phonon(char* input_dir)
 }
 
 
-Phonon::~Phonon(void)
-{
-    // nothing
-}
-
-
 void Phonon::compute
 (
     char* input_dir, Atom* atom, Force* force,
