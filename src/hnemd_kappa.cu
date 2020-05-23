@@ -31,7 +31,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #define FILE_NAME_LENGTH       200
 
 
-void HNEMD::preprocess(Atom *atom)
+void HNEMD::preprocess()
 {
     if (!compute) return;
     heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
@@ -113,45 +113,50 @@ void HNEMD::process
     int step,
     const char *input_dir,
     const double temperature,
-    Atom *atom
+    const double volume,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& heat_per_atom
 )
 {
     if (!compute) return;
     const int output_flag = ((step+1) % output_interval == 0);
     step %= output_interval;
 
+    const int N = velocity_per_atom.size() / 3;
+
     // the virial tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
-    gpu_get_peratom_heat<<<(atom->N - 1) / 128 + 1, 128>>>
+    gpu_get_peratom_heat<<<(N - 1) / 128 + 1, 128>>>
     (
-        atom->N, 
-        atom->virial_per_atom.data(),
-        atom->virial_per_atom.data() + atom->N * 3,
-        atom->virial_per_atom.data() + atom->N * 4,
-        atom->virial_per_atom.data() + atom->N * 6,
-        atom->virial_per_atom.data() + atom->N * 1,
-        atom->virial_per_atom.data() + atom->N * 5,
-        atom->virial_per_atom.data() + atom->N * 7,
-        atom->virial_per_atom.data() + atom->N * 8,
-        atom->virial_per_atom.data() + atom->N * 2,
-        atom->velocity_per_atom.data(),
-        atom->velocity_per_atom.data() + atom->N,
-        atom->velocity_per_atom.data() + 2 * atom->N,
-        atom->heat_per_atom.data(),
-        atom->heat_per_atom.data() + atom->N,
-        atom->heat_per_atom.data() + atom->N * 2,
-        atom->heat_per_atom.data() + atom->N * 3,
-        atom->heat_per_atom.data() + atom->N * 4
+        N, 
+        virial_per_atom.data(),
+        virial_per_atom.data() + N * 3,
+        virial_per_atom.data() + N * 4,
+        virial_per_atom.data() + N * 6,
+        virial_per_atom.data() + N * 1,
+        virial_per_atom.data() + N * 5,
+        virial_per_atom.data() + N * 7,
+        virial_per_atom.data() + N * 8,
+        virial_per_atom.data() + N * 2,
+        velocity_per_atom.data(),
+        velocity_per_atom.data() + N,
+        velocity_per_atom.data() + 2 * N,
+        heat_per_atom.data(),
+        heat_per_atom.data() + N,
+        heat_per_atom.data() + N * 2,
+        heat_per_atom.data() + N * 3,
+        heat_per_atom.data() + N * 4
     );
     CUDA_CHECK_KERNEL
 
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>
     (
-        atom->N,
+        N,
         step,
-        atom->heat_per_atom.data(),
+        heat_per_atom.data(),
         heat_all.data()
     );
     CUDA_CHECK_KERNEL
@@ -159,7 +164,6 @@ void HNEMD::process
     if (output_flag)
     {
         const int num = NUM_OF_HEAT_COMPONENTS * output_interval;
-        const double volume = atom->box.get_volume();
         std::vector<double> heat_cpu(num);
         heat_all.copy_to_host(heat_cpu.data());
         double kappa[NUM_OF_HEAT_COMPONENTS];
@@ -192,7 +196,7 @@ void HNEMD::process
 }
 
 
-void HNEMD::postprocess(Atom *atom)
+void HNEMD::postprocess()
 {
     if (compute)
     {

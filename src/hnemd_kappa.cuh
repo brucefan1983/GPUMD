@@ -18,9 +18,6 @@
 #include "gpu_vector.cuh"
 
 
-class Atom;
-
-
 class HNEMD
 {
 public:
@@ -36,9 +33,20 @@ public:
 
     GPU_Vector<double> heat_all;
 
-    void preprocess(Atom *atom);
-    void process(int, const char*, const double, Atom*);
-    void postprocess(Atom*);
+    void preprocess();
+
+    void process
+    (
+        int step,
+        const char *input_dir,
+        const double temperature,
+        const double volume,
+        const GPU_Vector<double>& velocity_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        GPU_Vector<double>& heat_per_atom
+    );
+
+    void postprocess();
 };
 
 
