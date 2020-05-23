@@ -18,9 +18,6 @@
 #include "gpu_vector.cuh"
 
 
-class Atom;
-
-
 class HAC
 {
 public:
@@ -29,12 +26,28 @@ public:
     int Nc;              // number of correlation points
     int output_interval; // only output Nc/output_interval data
 
-    void preprocess(Atom*);
-    void process(int, const char*, Atom*);
-    void postprocess(const char*, const double, Atom*);
+    void preprocess(const int number_of_steps);
+
+    void process
+    (
+        const int number_of_steps,
+        const int step,
+        const char *input_dir,
+        const GPU_Vector<double>& velocity_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        GPU_Vector<double>& heat_per_atom
+    );
+
+    void postprocess
+    (
+        const int number_of_steps,
+        const char *input_dir,
+        const double temperature,
+        const double time_step,
+        const double volume
+    );
 
 private:
-    void find_hac_kappa(const char*, const double, Atom*);
     GPU_Vector<double> heat_all;
 };
 

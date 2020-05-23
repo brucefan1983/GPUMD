@@ -60,7 +60,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     if (dump_velocity)  {fid_velocity = my_fopen(file_velocity, "a");}
     if (dump_pos)       {dump_pos->initialize(input_dir);}
     vac.preprocess(atom);
-    hac.preprocess(atom);
+    hac.preprocess(atom->number_of_steps);
     shc.preprocess(atom->N, atom->group);
     compute.preprocess(input_dir, atom);
     hnemd.preprocess(atom);
@@ -80,7 +80,14 @@ void Measure::finalize
     if (dump_restart)   {                       dump_restart   = 0;}
     if (dump_pos)       {dump_pos->finalize();}
     vac.postprocess(input_dir, atom);
-    hac.postprocess(input_dir, temperature, atom);
+    hac.postprocess
+    (
+        atom->number_of_steps,
+        input_dir,
+        temperature,
+        atom->time_step,
+        atom->box.get_volume()
+    );
     shc.postprocess(input_dir);
     compute.postprocess();
     hnemd.postprocess(atom);
@@ -203,7 +210,15 @@ void Measure::process
     dump_restarts(atom, step);
     compute.process(step, energy_transferred, atom);
     vac.process(step, atom);
-    hac.process(step, input_dir, atom);
+    hac.process
+    (
+        atom->number_of_steps,
+        step,
+        input_dir,
+        atom->velocity_per_atom,
+        atom->virial_per_atom,
+        atom->heat_per_atom
+    );
     shc.process
     (
         step,

@@ -30,11 +30,11 @@ Calculate the heat current autocorrelation (HAC) function.
 
 
 //Allocate memory for recording heat current data
-void HAC::preprocess(Atom *atom)
+void HAC::preprocess(const int number_of_steps)
 {
     if (compute)
     {
-        int number_of_frames = atom->number_of_steps / sample_interval;
+        int number_of_frames = number_of_steps / sample_interval;
         heat_all.resize(NUM_OF_HEAT_COMPONENTS * number_of_frames);
     }
 }
@@ -112,49 +112,54 @@ static __global__ void gpu_sum_heat
 // sample heat current data for HAC calculations.
 void HAC::process
 (
-    int step,
+    const int number_of_steps,
+    const int step,
     const char *input_dir,
-    Atom *atom
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& heat_per_atom
 )
 {
     if (!compute) return; 
-    if ((++step) % sample_interval != 0) return;
+    if ((step + 1) % sample_interval != 0) return;
+
+    const int N = velocity_per_atom.size() / 3;
 
     // the virial tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
-    gpu_get_peratom_heat<<<(atom->N - 1) / 128 + 1, 128>>>
+    gpu_get_peratom_heat<<<(N - 1) / 128 + 1, 128>>>
     (
-        atom->N, 
-        atom->virial_per_atom.data(),
-        atom->virial_per_atom.data() + atom->N * 3,
-        atom->virial_per_atom.data() + atom->N * 4,
-        atom->virial_per_atom.data() + atom->N * 6,
-        atom->virial_per_atom.data() + atom->N * 1,
-        atom->virial_per_atom.data() + atom->N * 5,
-        atom->virial_per_atom.data() + atom->N * 7,
-        atom->virial_per_atom.data() + atom->N * 8,
-        atom->virial_per_atom.data() + atom->N * 2,
-        atom->velocity_per_atom.data(),
-        atom->velocity_per_atom.data() + atom->N,
-        atom->velocity_per_atom.data() + 2 * atom->N,
-        atom->heat_per_atom.data(),
-        atom->heat_per_atom.data() + atom->N,
-        atom->heat_per_atom.data() + atom->N * 2,
-        atom->heat_per_atom.data() + atom->N * 3,
-        atom->heat_per_atom.data() + atom->N * 4
+        N,
+        virial_per_atom.data(),
+        virial_per_atom.data() + N * 3,
+        virial_per_atom.data() + N * 4,
+        virial_per_atom.data() + N * 6,
+        virial_per_atom.data() + N * 1,
+        virial_per_atom.data() + N * 5,
+        virial_per_atom.data() + N * 7,
+        virial_per_atom.data() + N * 8,
+        virial_per_atom.data() + N * 2,
+        velocity_per_atom.data(),
+        velocity_per_atom.data() + N,
+        velocity_per_atom.data() + 2 * N,
+        heat_per_atom.data(),
+        heat_per_atom.data() + N,
+        heat_per_atom.data() + N * 2,
+        heat_per_atom.data() + N * 3,
+        heat_per_atom.data() + N * 4
     );
     CUDA_CHECK_KERNEL
  
-    int nd = step / sample_interval - 1;
-    int Nd = atom->number_of_steps / sample_interval;
+    int nd = (step + 1) / sample_interval - 1;
+    int Nd = number_of_steps / sample_interval;
     gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>
     (
-        atom->N,
+        N,
         Nd,
         nd,
-        atom->heat_per_atom.data(),
+        heat_per_atom.data(),
         heat_all.data()
     );
     CUDA_CHECK_KERNEL
@@ -261,21 +266,21 @@ static void find_rtc
 }
 
 
-// Calculate 
-// (1) HAC = Heat current Auto-Correlation and 
-// (2) RTC = Running Thermal Conductivity
-void HAC::find_hac_kappa
+// Calculate HAC (heat currant auto-correlation function) 
+// and RTC (running thermal conductivity)
+void HAC::postprocess
 (
+    const int number_of_steps,
     const char *input_dir,
     const double temperature,
-    Atom *atom
+    const double time_step,
+    const double volume
 )
 {
-    // rename variables
-    const int number_of_steps = atom->number_of_steps;
-    const double time_step = atom->time_step;
+    if (!compute) return;
+    print_line_1();
+    printf("Start to calculate HAC and related quantities.\n");
 
-    // other parameters
     const int Nd = number_of_steps / sample_interval;
     const double dt = time_step * sample_interval;
     const double dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // ps
@@ -290,10 +295,10 @@ void HAC::find_hac_kappa
 
     CHECK(cudaDeviceSynchronize()); // Needed for Windows
 
-    const double volume = atom->box.get_volume();
+    //const double volume = atom->box.get_volume();
     double factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
- 
+
     find_rtc(Nc, factor, hac.data(), rtc.data());
 
     char file_hac[FILE_NAME_LENGTH];
@@ -326,35 +331,19 @@ void HAC::find_hac_kappa
             "%25.15e",
             (nc + output_interval * 0.5) * dt_in_ps
         );
-        for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
+        for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++)
         {
             fprintf(fid, "%25.15e", hac_ave[m]);
         }
-        for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++) 
+        for (int m = 0; m < NUM_OF_HEAT_COMPONENTS; m++)
         {
             fprintf(fid, "%25.15e", rtc_ave[m]);
         }
         fprintf(fid, "\n");
-    }  
-    fflush(fid);  
-    fclose(fid);   
-}
+    }
+    fflush(fid);
+    fclose(fid);
 
-
-// Calculate HAC (heat currant auto-correlation function) 
-// and RTC (running thermal conductivity)
-void HAC::postprocess
-(
-    const char *input_dir,
-    const double temperature,
-    Atom *atom
-
-)
-{
-    if (!compute) return;
-    print_line_1();
-    printf("Start to calculate HAC and related quantities.\n");
-    find_hac_kappa(input_dir, temperature, atom);
     printf("HAC and related quantities are calculated.\n");
     print_line_2();
 }
