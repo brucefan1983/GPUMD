@@ -155,9 +155,7 @@ void validate_force
 {
     int N = atom->N;
     int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    std::vector<double> fx(N);
-    std::vector<double> fy(N);
-    std::vector<double> fz(N);
+    std::vector<double> cpu_force(N * 3);
 
     // first calculate the forces directly:
     force->compute(atom);
@@ -240,15 +238,15 @@ void validate_force
     z0.copy_to_device(atom->z.data());
 
     // get the forces from the potential energies using finite difference
-    GPU_Vector<double> fx_compare(N), fy_compare(N), fz_compare(N);
+    GPU_Vector<double> force_compare(N * 3);
     find_force_from_potential<<<grid_size, BLOCK_SIZE>>>
     (
         N,
         p1.data(),
         p2.data(),
-        fx_compare.data(),
-        fy_compare.data(),
-        fz_compare.data()
+        force_compare.data(),
+        force_compare.data() + N,
+        force_compare.data() + N * 2
     );
     CUDA_CHECK_KERNEL
 
@@ -256,21 +254,25 @@ void validate_force
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    atom->fx.copy_to_host(fx.data());
-    atom->fy.copy_to_host(fy.data());
-    atom->fz.copy_to_host(fz.data());
+    atom->force_per_atom.copy_to_host(cpu_force.data());
     for (int n = 0; n < N; n++)
     {
-        fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
+        fprintf
+        (
+            fid, "%25.15e%25.15e%25.15e\n",
+            cpu_force[n], cpu_force[n + N], cpu_force[n + N * 2]
+        );
     }
  
     // output the forces from finite difference
-    fx_compare.copy_to_host(fx.data());
-    fy_compare.copy_to_host(fy.data());
-    fz_compare.copy_to_host(fz.data());
+    force_compare.copy_to_host(cpu_force.data());
     for (int n = 0; n < N; n++)
     {
-        fprintf(fid, "%25.15e%25.15e%25.15e\n", fx[n], fy[n], fz[n]);
+        fprintf
+        (
+            fid, "%25.15e%25.15e%25.15e\n",
+            cpu_force[n], cpu_force[n + N], cpu_force[n + N * 2]
+        );
     }
     
     // close file

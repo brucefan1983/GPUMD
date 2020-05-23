@@ -150,9 +150,9 @@ void Ensemble::velocity_verlet_1(Atom* atom)
             atom->vx.data(),
             atom->vy.data(),
             atom->vz.data(),
-            atom->fx.data(),
-            atom->fy.data(),
-            atom->fz.data()
+            atom->force_per_atom.data(),
+            atom->force_per_atom.data() + atom->N,
+            atom->force_per_atom.data() + 2 * atom->N
         );
     }
     else
@@ -170,9 +170,9 @@ void Ensemble::velocity_verlet_1(Atom* atom)
             atom->vx.data(),
             atom->vy.data(),
             atom->vz.data(),
-            atom->fx.data(),
-            atom->fy.data(),
-            atom->fz.data()
+            atom->force_per_atom.data(),
+            atom->force_per_atom.data() + atom->N,
+            atom->force_per_atom.data() + 2 * atom->N
         );
 
     }  
@@ -263,9 +263,9 @@ void Ensemble::velocity_verlet_2(Atom* atom)
             atom->vx.data(),
             atom->vy.data(),
             atom->vz.data(),
-            atom->fx.data(),
-            atom->fy.data(),
-            atom->fz.data()
+            atom->force_per_atom.data(),
+            atom->force_per_atom.data() + atom->N,
+            atom->force_per_atom.data() + 2 * atom->N
         );
     }
     else
@@ -280,9 +280,9 @@ void Ensemble::velocity_verlet_2(Atom* atom)
             atom->vx.data(),
             atom->vy.data(),
             atom->vz.data(),
-            atom->fx.data(),
-            atom->fy.data(),
-            atom->fz.data()
+            atom->force_per_atom.data(),
+            atom->force_per_atom.data() + atom->N,
+            atom->force_per_atom.data() + 2 * atom->N
         );
     }
     CUDA_CHECK_KERNEL

@@ -381,9 +381,7 @@ void Atom::allocate_memory_gpu(void)
     vx.resize(N);
     vy.resize(N);
     vz.resize(N);
-    fx.resize(N);
-    fy.resize(N);
-    fz.resize(N);
+    force_per_atom.resize(N * 3);
     virial_per_atom.resize(N * 9);
     potential_per_atom.resize(N);
     heat_per_atom.resize(N * NUM_OF_HEAT_COMPONENTS);

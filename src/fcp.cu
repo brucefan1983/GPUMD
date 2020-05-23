@@ -1219,9 +1219,9 @@ void FCP::compute(Atom *atom, int potential_number)
         atom->N,
         fcp_data.pfv.data(),
         atom->potential_per_atom.data(),
-        atom->fx.data(),
-        atom->fy.data(),
-        atom->fz.data(),
+        atom->force_per_atom.data(),
+        atom->force_per_atom.data() + atom->N,
+        atom->force_per_atom.data() + 2 * atom->N,
         atom->virial_per_atom.data()
     );
 

@@ -284,9 +284,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
             atom->group[grouping_method].size.data(),
             atom->group[grouping_method].size_sum.data(),
             atom->group[grouping_method].contents.data(),
-            atom->fx.data(),
-            atom->fy.data(),
-            atom->fz.data(),
+            atom->force_per_atom.data(),
+            atom->force_per_atom.data() + atom->N,
+            atom->force_per_atom.data() + 2 * atom->N,
             gpu_group_sum.data() + offset
         );
         CUDA_CHECK_KERNEL

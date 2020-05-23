@@ -367,9 +367,9 @@ void Hessian::get_f
     shift_atom(dx, n2, beta, atom);
     force->compute(atom);
     size_t M = sizeof(double);
-    CHECK(cudaMemcpy(f + 0, atom->fx.data() + n1, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(f + 1, atom->fy.data() + n1, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(f + 2, atom->fz.data() + n1, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 0, atom->force_per_atom.data() + n1, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 1, atom->force_per_atom.data() + n1 + atom->N, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 2, atom->force_per_atom.data() + n1 + atom->N * 2, M, cudaMemcpyDeviceToHost));
     shift_atom(-dx, n2, beta, atom);
 }
 
