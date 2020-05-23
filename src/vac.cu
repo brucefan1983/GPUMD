@@ -54,7 +54,12 @@ static __global__ void gpu_copy_mass
 }
 
 
-void VAC::preprocess(Atom *atom)
+void VAC::preprocess
+(
+    const double time_step,
+    const std::vector<Group>& groups,
+    const GPU_Vector<double>& mass
+)
 {
     if (!compute_dos && !compute_sdc) return;
 
@@ -63,7 +68,7 @@ void VAC::preprocess(Atom *atom)
         PRINT_INPUT_ERROR("Cannot calculate DOS and SDC simultaneously.");
     }
 
-    dt = atom->time_step * sample_interval;
+    dt = time_step * sample_interval;
     dt_in_ps = dt * TIME_UNIT_CONVERSION / 1000.0; // natural to ps
 
     // initialize the number of time origins
@@ -72,11 +77,11 @@ void VAC::preprocess(Atom *atom)
     // determine the number of atoms in the selected group
     if (-1 == grouping_method)
     {
-        N = atom->N;
+        N = mass.size();
     }
     else
     {
-        N = atom->group[grouping_method].cpu_size[group];
+        N = groups[grouping_method].cpu_size[group];
     }
 
     // only need to record Nc frames of velocity data (saving a lot of memory)
@@ -95,30 +100,30 @@ void VAC::preprocess(Atom *atom)
         if (num_dos_points == -1) {num_dos_points = Nc;}
 
         // check if the sampling frequency is large enough
-        double nu_max = 1000.0/(atom->time_step * sample_interval); // THz
+        double nu_max = 1000.0 / (time_step * sample_interval); // THz
         if (nu_max < omega_max/PI)
         {
             PRINT_INPUT_ERROR("VAC sampling rate < Nyquist frequency.");
         }
 
         // need mass for DOS calculations
-        mass.resize(N);
+        mass_.resize(N);
 
         if (grouping_method >= 0)
         {
             gpu_copy_mass<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
             (
                 N,
-                atom->group[grouping_method].cpu_size_sum[group],
-                atom->group[grouping_method].contents.data(),
-                mass.data(),
-                atom->mass.data()
+                groups[grouping_method].cpu_size_sum[group],
+                groups[grouping_method].contents.data(),
+                mass_.data(),
+                mass.data()
             );
             CUDA_CHECK_KERNEL
         }
         else
         {
-            mass.copy_from_device(atom->mass.data());
+            mass_.copy_from_device(mass.data());
         }
     }
 }
@@ -247,7 +252,8 @@ static __global__ void gpu_find_vac
 void VAC::process
 (
     const int step,
-    Atom *atom
+    const std::vector<Group>& groups,
+    const GPU_Vector<double>& velocity_per_atom
 )
 {
     if (!(compute_dos || compute_sdc)) return;
@@ -256,20 +262,22 @@ void VAC::process
     int correlation_step = sample_step % Nc;  // 0, 1, ..., Nc-1, 0, 1, ...
     int offset = correlation_step * N;
 
+    const int number_of_atoms_total = velocity_per_atom.size() / 3;
+
     // copy the velocity data at the current step to appropriate place
     if (grouping_method >= 0)
     {
         gpu_copy_velocity<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
         (
             N,
-            atom->group[grouping_method].cpu_size_sum[group],
-            atom->group[grouping_method].contents.data(),
+            groups[grouping_method].cpu_size_sum[group],
+            groups[grouping_method].contents.data(),
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,
-            atom->velocity_per_atom.data(),
-            atom->velocity_per_atom.data() + atom->N,
-            atom->velocity_per_atom.data() + 2 * atom->N
+            velocity_per_atom.data(),
+            velocity_per_atom.data() + number_of_atoms_total,
+            velocity_per_atom.data() + 2 * number_of_atoms_total
         );
     }
     else
@@ -280,9 +288,9 @@ void VAC::process
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,
-            atom->velocity_per_atom.data(),
-            atom->velocity_per_atom.data() + atom->N,
-            atom->velocity_per_atom.data() + 2 * atom->N
+            velocity_per_atom.data(),
+            velocity_per_atom.data() + number_of_atoms_total,
+            velocity_per_atom.data() + 2 * number_of_atoms_total
         );
     }
     CUDA_CHECK_KERNEL 
@@ -297,7 +305,7 @@ void VAC::process
             N,
             correlation_step,
             compute_dos,
-            mass.data(),
+            mass_.data(),
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,
@@ -365,8 +373,7 @@ static void perform_dft
 
 void VAC::find_dos
 (
-    const char *input_dir,
-    Atom *atom
+    const char *input_dir
 )
 {
     double d_omega = omega_max / num_dos_points;
@@ -433,8 +440,7 @@ static void integrate_vac
 
 void VAC::find_sdc
 (
-    const char *input_dir,
-    Atom *atom
+    const char *input_dir
 )
 {
     // initialize the SDC data
@@ -491,8 +497,7 @@ void VAC::find_sdc
 
 void VAC::postprocess
 (
-    const char *input_dir,
-    Atom *atom
+    const char *input_dir
 )
 {
     if (!(compute_dos || compute_sdc)) return;
@@ -535,7 +540,7 @@ void VAC::postprocess
         fclose(fid);
 
         // calculate and output DOS
-        find_dos(input_dir, atom);
+        find_dos(input_dir);
     }
     else
     {
@@ -546,7 +551,7 @@ void VAC::postprocess
             vac_y[nc] /= double(N) * num_time_origins;
             vac_z[nc] /= double(N) * num_time_origins;
         }
-        find_sdc(input_dir, atom);
+        find_sdc(input_dir);
     }
 }
 

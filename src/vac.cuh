@@ -16,9 +16,7 @@
 
 #pragma once
 #include "gpu_vector.cuh"
-
-
-class Atom;
+#include "group.cuh"
 
 
 class VAC
@@ -35,9 +33,21 @@ public:
     int num_dos_points = -1;  // points to use for DOS output, -1 means not set
     double omega_max;           // maximal angular frequency for phonons
 
-    void preprocess(Atom*);
-    void process(const int, Atom*);
-    void postprocess(const char*, Atom*);
+    void preprocess
+    (
+        const double time_step,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass
+    );
+
+    void process
+    (
+        const int step,
+        const std::vector<Group>& groups,
+        const GPU_Vector<double>& velocity_per_atom
+    );
+
+    void postprocess(const char*);
 
 private:
 
@@ -45,9 +55,9 @@ private:
     int num_time_origins;     // number of time origins
     double dt;                  // time interval in natural units
     double dt_in_ps;            // time interval in units of ps
-    void find_dos(const char *, Atom *);
-    void find_sdc(const char *, Atom *);
-    GPU_Vector<double> mass;
+    void find_dos(const char *);
+    void find_sdc(const char *);
+    GPU_Vector<double> mass_;
     GPU_Vector<double> vx, vy, vz;
     GPU_Vector<double> vac_x, vac_y, vac_z;
 };
