@@ -683,9 +683,9 @@ void Force::compute(Atom *atom)
         gpu_sum_force<<<3, 1024>>>
         (
             atom->N,
-            atom->fx.data(),
-            atom->fy.data(),
-            atom->fz.data(),
+            atom->force_per_atom.data(),
+            atom->force_per_atom.data() + atom->N,
+            atom->force_per_atom.data() + 2 * atom->N,
             ftot.data()
         );
         CUDA_CHECK_KERNEL
@@ -695,9 +695,9 @@ void Force::compute(Atom *atom)
         (
             atom->N,
             1.0 / atom->N,
-            atom->fx.data(),
-            atom->fy.data(),
-            atom->fz.data(),
+            atom->force_per_atom.data(),
+            atom->force_per_atom.data() + atom->N,
+            atom->force_per_atom.data() + 2 * atom->N,
             ftot.data()
         );
         CUDA_CHECK_KERNEL
