@@ -114,9 +114,12 @@ void Hessian::initialize(char* input_dir, size_t N)
 
 bool Hessian::is_too_far(size_t n1, size_t n2, Atom* atom)
 {
-    double x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
-    double y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
-    double z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
+    double x12 = atom->cpu_position_per_atom[n2]
+               - atom->cpu_position_per_atom[n1];
+    double y12 = atom->cpu_position_per_atom[n2 + atom->N]
+               - atom->cpu_position_per_atom[n1 + atom->N];
+    double z12 = atom->cpu_position_per_atom[n2 + atom->N * 2]
+               - atom->cpu_position_per_atom[n1 + atom->N * 2];
     apply_mic
     (
         atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y,
@@ -146,9 +149,12 @@ void Hessian::find_H(Atom* atom, Force* force)
 static void find_exp_ikr
 (size_t n1, size_t n2, double* k, Atom* atom, double& cos_kr, double& sin_kr)
 {
-    double x12 = atom->cpu_x[n2] - atom->cpu_x[n1];
-    double y12 = atom->cpu_y[n2] - atom->cpu_y[n1];
-    double z12 = atom->cpu_z[n2] - atom->cpu_z[n1];
+    double x12 = atom->cpu_position_per_atom[n2]
+               - atom->cpu_position_per_atom[n1];
+    double y12 = atom->cpu_position_per_atom[n2 + atom->N]
+               - atom->cpu_position_per_atom[n1 + atom->N];
+    double z12 = atom->cpu_position_per_atom[n2 + atom->N * 2]
+               - atom->cpu_position_per_atom[n1 + atom->N * 2];
     apply_mic
     (
         atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
@@ -384,17 +390,17 @@ void Hessian::shift_atom(double dx, size_t n2, size_t beta, Atom* atom)
 {
     if (beta == 0)
     {
-        gpu_shift_atom<<<1, 1>>>(dx, atom->x.data() + n2);
+        gpu_shift_atom<<<1, 1>>>(dx, atom->position_per_atom.data() + n2);
         CUDA_CHECK_KERNEL
     }
     else if (beta == 1)
     {
-        gpu_shift_atom<<<1, 1>>>(dx, atom->y.data() + n2);
+        gpu_shift_atom<<<1, 1>>>(dx, atom->position_per_atom.data() + atom->N + n2);
         CUDA_CHECK_KERNEL
     }
     else
     {
-        gpu_shift_atom<<<1, 1>>>(dx, atom->z.data() + n2);
+        gpu_shift_atom<<<1, 1>>>(dx, atom->position_per_atom.data() + atom->N * 2 + n2);
         CUDA_CHECK_KERNEL
     }
 }

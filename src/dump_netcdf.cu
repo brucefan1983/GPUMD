@@ -291,9 +291,7 @@ void DUMP_NETCDF::write(Atom *atom)
     NC_CHECK(nc_put_vara_double(ncid, cell_angles_var, startp, countp, cell_angles));
 
     //// Write Per-Atom Data ////
-    atom->x.copy_to_host(atom->cpu_x.data());
-    atom->y.copy_to_host(atom->cpu_y.data());
-    atom->z.copy_to_host(atom->cpu_z.data());
+    atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
 
     if (precision == 1) // single precision
     {
@@ -303,9 +301,9 @@ void DUMP_NETCDF::write(Atom *atom)
         float cpu_z[N];
         for (int i = 0; i < N; i++)
         {
-            cpu_x[i] = (float) atom->cpu_x[i];
-            cpu_y[i] = (float) atom->cpu_y[i];
-            cpu_z[i] = (float) atom->cpu_z[i];
+            cpu_x[i] = (float) atom->cpu_position_per_atom[i];
+            cpu_y[i] = (float) atom->cpu_position_per_atom[i + N];
+            cpu_z[i] = (float) atom->cpu_position_per_atom[i + N * 2];
         }
 
         countp[0] = 1;

@@ -150,9 +150,9 @@ void Potential::find_properties_many_body
     (
         atom->N, N1, N2, atom->box, NN,
         NL, f12x, f12y, f12z,
-        atom->x.data(),
-        atom->y.data(),
-        atom->z.data(),
+        atom->position_per_atom.data(),
+        atom->position_per_atom.data() + atom->N,
+        atom->position_per_atom.data() + atom->N * 2,
         atom->force_per_atom.data(),
         atom->force_per_atom.data() + atom->N,
         atom->force_per_atom.data() + 2 * atom->N,

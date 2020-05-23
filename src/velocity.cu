@@ -241,9 +241,7 @@ void Velocity::initialize_cpu
 (
     const double initial_temperature,
     const std::vector<double>& cpu_mass,
-    const std::vector<double>& cpu_x,
-    const std::vector<double>& cpu_y,
-    const std::vector<double>& cpu_z,
+    const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom
 )
 {
@@ -272,9 +270,9 @@ void Velocity::initialize_cpu
         N,
         r0,
         cpu_mass.data(),
-        cpu_x.data(),
-        cpu_y.data(),
-        cpu_z.data()
+        cpu_position_per_atom.data(),
+        cpu_position_per_atom.data() + N,
+        cpu_position_per_atom.data() + N * 2
     );
 
 
@@ -285,9 +283,9 @@ void Velocity::initialize_cpu
         L,
         r0,
         cpu_mass.data(),
-        cpu_x.data(),
-        cpu_y.data(),
-        cpu_z.data(),
+        cpu_position_per_atom.data(),
+        cpu_position_per_atom.data() + N,
+        cpu_position_per_atom.data() + N * 2,
         cpu_velocity_per_atom.data(),
         cpu_velocity_per_atom.data() + N,
         cpu_velocity_per_atom.data() + N * 2
@@ -300,9 +298,9 @@ void Velocity::initialize_cpu
         I,
         r0,
         cpu_mass.data(),
-        cpu_x.data(),
-        cpu_y.data(),
-        cpu_z.data()
+        cpu_position_per_atom.data(),
+        cpu_position_per_atom.data() + N,
+        cpu_position_per_atom.data() + N * 2
     );
 
     double w[3]; // angular velocity
@@ -313,9 +311,9 @@ void Velocity::initialize_cpu
         N,
         w,
         r0,
-        cpu_x.data(),
-        cpu_y.data(),
-        cpu_z.data(),
+        cpu_position_per_atom.data(),
+        cpu_position_per_atom.data() + N,
+        cpu_position_per_atom.data() + N * 2,
         cpu_velocity_per_atom.data(),
         cpu_velocity_per_atom.data() + N,
         cpu_velocity_per_atom.data() + N * 2
@@ -337,9 +335,7 @@ void Velocity::initialize
     const bool has_velocity_in_xyz,
     const double initial_temperature,
     const std::vector<double>& cpu_mass,
-    const std::vector<double>& cpu_x,
-    const std::vector<double>& cpu_y,
-    const std::vector<double>& cpu_z,
+    const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom,
     GPU_Vector<double>& velocity_per_atom
 )
@@ -350,9 +346,7 @@ void Velocity::initialize
         (
             initial_temperature,
             cpu_mass,
-            cpu_x,
-            cpu_y,
-            cpu_z,
+            cpu_position_per_atom,
             cpu_velocity_per_atom
         );
     }

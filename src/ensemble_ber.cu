@@ -212,7 +212,9 @@ void Ensemble_BER::compute(Atom *atom, Force *force)
             deform_x, deform_y, deform_z, deform_rate, atom->N,
             atom->box, pressure_x, 
             pressure_y, pressure_z, pressure_coupling, atom->thermo.data(),
-            atom->x.data(), atom->y.data(), atom->z.data()
+            atom->position_per_atom.data(),
+            atom->position_per_atom.data() + atom->N,
+            atom->position_per_atom.data() + atom->N * 2
         );
         CUDA_CHECK_KERNEL
         cpu_berendsen_pressure

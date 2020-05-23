@@ -161,10 +161,8 @@ void validate_force
     force->compute(atom);
 
     // make a copy of the positions
-    GPU_Vector<double> x0(N), y0(N), z0(N);
-    x0.copy_from_device(atom->x.data());
-    y0.copy_from_device(atom->y.data());
-    z0.copy_from_device(atom->z.data());
+    GPU_Vector<double> r0(N * 3);
+    r0.copy_from_device(atom->position_per_atom.data());
 
     // get the potentials
     GPU_Vector<double> p1(N * 3), p2(N * 3);
@@ -180,12 +178,12 @@ void validate_force
                 d,
                 n,
                 1,
-                x0.data(),
-                y0.data(),
-                z0.data(),
-                atom->x.data(),
-                atom->y.data(),
-                atom->z.data()
+                r0.data(),
+                r0.data() + N,
+                r0.data() + N * 2,
+                atom->position_per_atom.data(),
+                atom->position_per_atom.data() + N,
+                atom->position_per_atom.data() + N * 2
             );
             CUDA_CHECK_KERNEL
 
@@ -208,12 +206,12 @@ void validate_force
                 d,
                 n,
                 2,
-                x0.data(),
-                y0.data(),
-                z0.data(),
-                atom->x.data(),
-                atom->y.data(),
-                atom->z.data()
+                r0.data(),
+                r0.data() + N,
+                r0.data() + N * 2,
+                atom->position_per_atom.data(),
+                atom->position_per_atom.data() + N,
+                atom->position_per_atom.data() + N * 2
             );
             CUDA_CHECK_KERNEL
 
@@ -233,9 +231,7 @@ void validate_force
     }
 
     // copy the positions back (as if nothing happens)
-    x0.copy_to_device(atom->x.data());
-    y0.copy_to_device(atom->y.data());
-    z0.copy_to_device(atom->z.data());
+    r0.copy_to_device(atom->position_per_atom.data());
 
     // get the forces from the potential energies using finite difference
     GPU_Vector<double> force_compare(N * 3);

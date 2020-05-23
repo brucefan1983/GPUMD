@@ -452,7 +452,9 @@ void Force::find_neighbor_local(Atom *atom, int m)
     (
         atom->box, type1, type2, type,
         N, N1, N2, rc2, NN, NL, NN_local, NL_local,
-        atom->x.data(), atom->y.data(), atom->z.data()
+        atom->position_per_atom.data(),
+        atom->position_per_atom.data() + N,
+        atom->position_per_atom.data() + N * 2
     );
     CUDA_CHECK_KERNEL
 

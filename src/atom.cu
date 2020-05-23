@@ -224,9 +224,7 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 {
     cpu_type.resize(N);
     cpu_mass.resize(N);
-    cpu_x.resize(N);
-    cpu_y.resize(N);
-    cpu_z.resize(N);
+    cpu_position_per_atom.resize(N * 3);
     cpu_velocity_per_atom.resize(N * 3);
     number_of_types = -1;
 
@@ -253,7 +251,10 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
             PRINT_INPUT_ERROR("Atom mass should > 0.");
         }
 
-        cpu_mass[n] = mass; cpu_x[n] = x; cpu_y[n] = y; cpu_z[n] = z;
+        cpu_mass[n] = mass;
+        cpu_position_per_atom[n] = x;
+        cpu_position_per_atom[n + N] = y;
+        cpu_position_per_atom[n + N * 2] = z;
 
         if (cpu_type[n] > number_of_types) { number_of_types = cpu_type[n]; }
 
@@ -372,12 +373,8 @@ void Atom::allocate_memory_gpu(void)
     neighbor.x0.resize(N);
     neighbor.y0.resize(N);
     neighbor.z0.resize(N);
-    x.resize(N);
-    y.resize(N);
-    z.resize(N);
-    x.copy_from_host(cpu_x.data());
-    y.copy_from_host(cpu_y.data());
-    z.copy_from_host(cpu_z.data());
+    position_per_atom.resize(N * 3);
+    position_per_atom.copy_from_host(cpu_position_per_atom.data());
     velocity_per_atom.resize(N * 3);
     force_per_atom.resize(N * 3);
     virial_per_atom.resize(N * 9);

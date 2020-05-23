@@ -39,7 +39,7 @@ public:
     // used to determine when to update neighbor list
     GPU_Vector<double> x0, y0, z0;
 
-    void find_neighbor(int, const Box&, double*, double*, double*);
+    void find_neighbor(int, const Box&, GPU_Vector<double>&);
 
 private:
     void find_neighbor_ON2(const Box&, double*, double*, double*);

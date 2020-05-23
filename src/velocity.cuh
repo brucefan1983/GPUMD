@@ -29,9 +29,7 @@ public:
         const bool has_velocity_in_xyz,
         const double initial_temperature,
         const std::vector<double>& cpu_mass,
-        const std::vector<double>& cpu_x,
-        const std::vector<double>& cpu_y,
-        const std::vector<double>& cpu_z,
+        const std::vector<double>& cpu_position_per_atom,
         std::vector<double>& cpu_velocity_per_atom,
         GPU_Vector<double>& velocity_per_atom
     );
@@ -42,9 +40,7 @@ private:
     (
         const double initial_temperature,
         const std::vector<double>& cpu_mass,
-        const std::vector<double>& cpu_x,
-        const std::vector<double>& cpu_y,
-        const std::vector<double>& cpu_z,
+        const std::vector<double>& cpu_position_per_atom,
         std::vector<double>& cpu_velocity_per_atom
     );
 

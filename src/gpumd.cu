@@ -38,9 +38,7 @@ GPUMD::GPUMD(char* input_dir)
     (
         1,
         atom.box,
-        atom.x.data(),
-        atom.y.data(),
-        atom.z.data()
+        atom.position_per_atom
     );
 #endif
 

@@ -255,14 +255,16 @@ void Neighbor::find_neighbor
 (
     int is_first,
     const Box& box,
-    double* x,
-    double* y,
-    double* z
+    GPU_Vector<double>& position_per_atom
 )
 {
     const int N = NN.size();
     const int block_size = 256;
     const int grid_size = (N - 1) / block_size + 1;
+
+    double* x = position_per_atom.data();
+    double* y = position_per_atom.data() + N;
+    double* z = position_per_atom.data() + N * 2;
 
     if (is_first == 1)
     {

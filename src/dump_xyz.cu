@@ -47,16 +47,19 @@ void DUMP_XYZ::finalize()
 void DUMP_XYZ::dump(Atom *atom, int step)
 {
     if ((step + 1) % interval != 0) return;
-    atom->x.copy_to_host(atom->cpu_x.data());
-    atom->y.copy_to_host(atom->cpu_y.data());
-    atom->z.copy_to_host(atom->cpu_z.data());
+    atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
     fprintf(fid_position, "%d\n", atom->N);
     fprintf(fid_position, "%d\n", (step + 1) / interval - 1);
 
     for (int n = 0; n < atom->N; n++)
     {
-        fprintf(fid_position, precision_str, atom->cpu_type[n],
-            atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n]);
+        fprintf
+        (
+            fid_position, precision_str, atom->cpu_type[n],
+            atom->cpu_position_per_atom[n],
+            atom->cpu_position_per_atom[n + atom->N],
+            atom->cpu_position_per_atom[n + 2 * atom->N]
+        );
     }
     fflush(fid_position);
 }

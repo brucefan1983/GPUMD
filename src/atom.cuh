@@ -30,7 +30,7 @@ class Atom
 public:
     GPU_Vector<int> type;                  // atom type (for force)
     GPU_Vector<double> mass;               // per-atom mass
-    GPU_Vector<double> x, y, z;            // per-atom position
+    GPU_Vector<double> position_per_atom;  // per-atom position
     GPU_Vector<double> velocity_per_atom;  // per-atom velocity
     GPU_Vector<double> force_per_atom;     // per-atom force
     GPU_Vector<double> heat_per_atom;      // per-atom heat current
@@ -43,9 +43,7 @@ public:
     std::vector<int> shift; // shift to correct type in force eval
 
     std::vector<double> cpu_mass;
-    std::vector<double> cpu_x;
-    std::vector<double> cpu_y;
-    std::vector<double> cpu_z;
+    std::vector<double> cpu_position_per_atom;
     std::vector<double> cpu_velocity_per_atom;
 
     int N;                // number of atoms 

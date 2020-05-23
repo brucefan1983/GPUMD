@@ -346,9 +346,9 @@ void Tersoff_mini::compute(Atom *atom, int potential_number)
     int *NN = atom->neighbor.NN_local.data();
     int *NL = atom->neighbor.NL_local.data();
     int *type = atom->type.data();
-    double *x = atom->x.data();
-    double *y = atom->y.data();
-    double *z = atom->z.data();
+    double *x = atom->position_per_atom.data();
+    double *y = atom->position_per_atom.data() + atom->N;
+    double *z = atom->position_per_atom.data() + atom->N * 2;
     double *pe = atom->potential_per_atom.data();
 
     // special data for SBOP potential

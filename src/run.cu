@@ -174,9 +174,7 @@ static void process_run
             (
                 0,
                 atom->box,
-                atom->x.data(),
-                atom->y.data(),
-                atom->z.data()
+                atom->position_per_atom
             );
         }
 #endif
@@ -249,9 +247,7 @@ void Run::check_velocity(int check, Atom* atom)
             atom->has_velocity_in_xyz,
             atom->initial_temperature,
             atom->cpu_mass,
-            atom->cpu_x,
-            atom->cpu_y,
-            atom->cpu_z,
+            atom->cpu_position_per_atom,
             atom->cpu_velocity_per_atom,
             atom->velocity_per_atom
         );

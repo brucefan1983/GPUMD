@@ -1104,9 +1104,9 @@ void FCP::compute(Atom *atom, int potential_number)
     gpu_get_u<<<(atom->N - 1) / block_size + 1, block_size>>>
     (
         atom->N,
-        atom->x.data(),
-        atom->y.data(),
-        atom->z.data(),
+        atom->position_per_atom.data(),
+        atom->position_per_atom.data() + atom->N,
+        atom->position_per_atom.data() + atom->N * 2,
         fcp_data.r0.data(),
         fcp_data.u.data()
     );

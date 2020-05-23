@@ -135,9 +135,7 @@ void Measure::dump_restarts(Atom *atom, int step)
     if (!dump_restart) return;
     if ((step + 1) % sample_interval_restart != 0) return;
 
-    atom->x.copy_to_host(atom->cpu_x.data());
-    atom->y.copy_to_host(atom->cpu_y.data());
-    atom->z.copy_to_host(atom->cpu_z.data());
+    atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
     atom->velocity_per_atom.copy_to_host(atom->cpu_velocity_per_atom.data());
     fid_restart = my_fopen(file_restart, "w"); 
     fprintf
@@ -171,7 +169,10 @@ void Measure::dump_restarts(Atom *atom, int step)
         fprintf
         (
             fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
-            atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n], atom->cpu_mass[n],
+            atom->cpu_position_per_atom[n],
+            atom->cpu_position_per_atom[n + atom->N],
+            atom->cpu_position_per_atom[n + 2 * atom->N],
+            atom->cpu_mass[n],
             atom->cpu_velocity_per_atom[n],
             atom->cpu_velocity_per_atom[n + atom->N],
             atom->cpu_velocity_per_atom[n + 2 * atom->N]

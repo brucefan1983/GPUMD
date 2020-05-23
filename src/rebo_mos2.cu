@@ -870,9 +870,9 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
     int *NL_local = rebo_mos_data.NL_short.data(); // for 3-body
 
     int *type = atom->type.data();
-    double *x = atom->x.data();
-    double *y = atom->y.data();
-    double *z = atom->z.data();
+    double *x = atom->position_per_atom.data();
+    double *y = atom->position_per_atom.data() + atom->N;
+    double *z = atom->position_per_atom.data() + atom->N * 2;
     double *fx = atom->force_per_atom.data();
     double *fy = atom->force_per_atom.data() + atom->N;
     double *fz = atom->force_per_atom.data() + 2 * atom->N;
