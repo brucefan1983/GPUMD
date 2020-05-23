@@ -61,7 +61,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     if (dump_pos)       {dump_pos->initialize(input_dir);}
     vac.preprocess(atom);
     hac.preprocess(atom);
-    shc.preprocess(atom);
+    shc.preprocess(atom->N, atom->group);
     compute.preprocess(input_dir, atom);
     hnemd.preprocess(atom);
     modal_analysis.preprocess(input_dir, atom);
@@ -204,7 +204,13 @@ void Measure::process
     compute.process(step, energy_transferred, atom);
     vac.process(step, atom);
     hac.process(step, input_dir, atom);
-    shc.process(step, atom);
+    shc.process
+    (
+        step,
+        atom->group,
+        atom->velocity_per_atom,
+        atom->virial_per_atom
+    );
     hnemd.process(step, input_dir, temperature, atom);
     modal_analysis.process(step, atom, temperature, hnemd.fe);
     if (dump_pos) dump_pos->dump(atom, step);

@@ -16,9 +16,7 @@
 
 #pragma once
 #include "gpu_vector.cuh"
-
-
-class Atom;
+#include "group.cuh"
 
 
 class SHC
@@ -30,8 +28,14 @@ public:
     int sample_interval;   // sample interval for heat current
     int Nc;                // number of correlation points
     int direction;         // transport direction: 0=x; 1=y; 2=z
-    void preprocess(Atom*);
-    void process(const int, Atom*);
+    void preprocess(const int N, const std::vector<Group>& group);
+    void process
+    (
+        const int step,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& velocity_per_atom,
+        const GPU_Vector<double>& virial_per_atom
+    );
     void postprocess(const char*);
 private:
     int num_time_origins;  // number of time origins for ensemble average

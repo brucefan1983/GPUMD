@@ -29,18 +29,18 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 const int BLOCK_SIZE_SHC = 128;
 
 
-void SHC::preprocess(Atom *atom)
+void SHC::preprocess(const int N, const std::vector<Group>& group)
 {
     if (!compute) { return; }
 
     num_time_origins = 0;
     if (-1 == group_method)
     {
-        group_size = atom->N;
+        group_size = N;
     }
     else
     {
-        group_size = atom->group[group_method].cpu_size[group_id];
+        group_size = group[group_method].cpu_size[group_id];
     }
 
     vx.resize(group_size * Nc);
@@ -153,7 +153,9 @@ static __global__ void gpu_copy_data
 void SHC::process
 (
     const int step,
-    Atom *atom
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom
 )
 {
     if (!compute) { return; }
@@ -162,10 +164,12 @@ void SHC::process
     int correlation_step = sample_step % Nc;  // 0, 1, ..., Nc-1, 0, 1, ...
     int offset = correlation_step * group_size;
 
+    const int N = velocity_per_atom.size() / 3;
+
     const int tensor[3][3] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-    double *sx_tmp = atom->virial_per_atom.data() + atom->N * tensor[direction][0];
-    double *sy_tmp = atom->virial_per_atom.data() + atom->N * tensor[direction][1];
-    double *sz_tmp = atom->virial_per_atom.data() + atom->N * tensor[direction][2];
+    const double *sx_tmp = virial_per_atom.data() + N * tensor[direction][0];
+    const double *sy_tmp = virial_per_atom.data() + N * tensor[direction][1];
+    const double *sz_tmp = virial_per_atom.data() + N * tensor[direction][2];
 
     if (-1 == group_method)
     {
@@ -173,22 +177,22 @@ void SHC::process
         sy.copy_from_device(sy_tmp);
         sz.copy_from_device(sz_tmp);
         CHECK(cudaMemcpy(vx.data() + offset,
-            atom->velocity_per_atom.data(),
-            sizeof(double) * atom->N, cudaMemcpyDeviceToDevice));
+            velocity_per_atom.data(),
+            sizeof(double) * N, cudaMemcpyDeviceToDevice));
         CHECK(cudaMemcpy(vy.data() + offset,
-            atom->velocity_per_atom.data() + atom->N,
-            sizeof(double) * atom->N, cudaMemcpyDeviceToDevice));
+            velocity_per_atom.data() + N,
+            sizeof(double) * N, cudaMemcpyDeviceToDevice));
         CHECK(cudaMemcpy(vz.data() + offset,
-            atom->velocity_per_atom.data() + atom->N * 2,
-            sizeof(double) * atom->N, cudaMemcpyDeviceToDevice));
+            velocity_per_atom.data() + N * 2,
+            sizeof(double) * N, cudaMemcpyDeviceToDevice));
     }
     else
     {
         gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>
         (
             group_size,
-            atom->group[group_method].cpu_size_sum[group_id],
-            atom->group[group_method].contents.data(),
+            group[group_method].cpu_size_sum[group_id],
+            group[group_method].contents.data(),
             sx.data(),
             sy.data(),
             sz.data(),
@@ -198,9 +202,9 @@ void SHC::process
             sx_tmp,
             sy_tmp,
             sz_tmp,
-            atom->velocity_per_atom.data(),
-            atom->velocity_per_atom.data() + atom->N,
-            atom->velocity_per_atom.data() + 2 * atom->N
+            velocity_per_atom.data(),
+            velocity_per_atom.data() + N,
+            velocity_per_atom.data() + 2 * N
         );
         CUDA_CHECK_KERNEL 
     }
