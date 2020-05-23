@@ -17,9 +17,8 @@
 #pragma once
 
 #include "gpu_vector.cuh"
+#include "group.cuh"
 #include <vector>
-
-class Atom;
 
 
 class Compute
@@ -36,9 +35,25 @@ public:
     int output_interval = 1;
     int grouping_method = 0;
 
-    void preprocess(char*, Atom*);
+    void preprocess
+    (
+        const int N,
+        const char* input_dir,
+        const std::vector<Group>& group
+    );
+
     void postprocess();
-    void process(int, const double[], Atom*);
+    void process
+    (
+        const int step,
+        const double energy_transferred[],
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& force_per_atom,
+        const GPU_Vector<double>& velocity_per_atom,
+        const GPU_Vector<double>& virial_per_atom
+    );
 
 private:
     FILE* fid;
@@ -52,7 +67,11 @@ private:
 
     int number_of_scalars = 0;
 
-    void output_results(const double[], Atom*);
+    void output_results
+    (
+        const double energy_transferred[],
+        const std::vector<Group>& group
+    );
 };
 
 

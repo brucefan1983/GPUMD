@@ -62,7 +62,7 @@ void Measure::initialize(char* input_dir, Atom *atom)
     vac.preprocess(atom);
     hac.preprocess(atom->number_of_steps);
     shc.preprocess(atom->N, atom->group);
-    compute.preprocess(input_dir, atom);
+    compute.preprocess(atom->N, input_dir, atom->group);
     hnemd.preprocess();
     modal_analysis.preprocess(input_dir, atom);
 }
@@ -208,7 +208,19 @@ void Measure::process
     dump_thermos(fid_thermo, atom, fixed_group, step);
     dump_velocities(fid_velocity, atom, step);
     dump_restarts(atom, step);
-    compute.process(step, energy_transferred, atom);
+
+    compute.process
+    (
+        step,
+        energy_transferred,
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->force_per_atom,
+        atom->velocity_per_atom,
+        atom->virial_per_atom
+    );
+
     vac.process(step, atom);
 
     hac.process
