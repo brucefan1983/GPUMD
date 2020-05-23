@@ -227,9 +227,7 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
     cpu_x.resize(N);
     cpu_y.resize(N);
     cpu_z.resize(N);
-    cpu_vx.resize(N);
-    cpu_vy.resize(N);
-    cpu_vz.resize(N);
+    cpu_velocity_per_atom.resize(N * 3);
     number_of_types = -1;
 
     for (int m = 0; m < group.size(); ++m)
@@ -264,7 +262,9 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
             double vx, vy, vz;
             count = fscanf(fid_xyz, "%lf%lf%lf", &vx, &vy, &vz);
             PRINT_SCANF_ERROR(count, 3, "Reading error for xyz.in.");
-            cpu_vx[n] = vx; cpu_vy[n] = vy; cpu_vz[n] = vz;
+            cpu_velocity_per_atom[n] = vx;
+            cpu_velocity_per_atom[n + N] = vy;
+            cpu_velocity_per_atom[n + N * 2] = vz;
         }
 
         for (int m = 0; m < group.size(); ++m)
@@ -378,9 +378,7 @@ void Atom::allocate_memory_gpu(void)
     x.copy_from_host(cpu_x.data());
     y.copy_from_host(cpu_y.data());
     z.copy_from_host(cpu_z.data());
-    vx.resize(N);
-    vy.resize(N);
-    vz.resize(N);
+    velocity_per_atom.resize(N * 3);
     force_per_atom.resize(N * 3);
     virial_per_atom.resize(N * 9);
     potential_per_atom.resize(N);

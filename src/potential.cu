@@ -49,9 +49,6 @@ static __global__ void gpu_find_force_many_body
     const double* __restrict__ g_x,
     const double* __restrict__ g_y,
     const double* __restrict__ g_z,
-    const double* __restrict__ g_vx,
-    const double* __restrict__ g_vy,
-    const double* __restrict__ g_vz,
     double *g_fx, double *g_fy, double *g_fz,
     double *g_virial
 )
@@ -156,9 +153,6 @@ void Potential::find_properties_many_body
         atom->x.data(),
         atom->y.data(),
         atom->z.data(),
-        atom->vx.data(),
-        atom->vy.data(),
-        atom->vz.data(),
         atom->force_per_atom.data(),
         atom->force_per_atom.data() + atom->N,
         atom->force_per_atom.data() + 2 * atom->N,

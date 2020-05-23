@@ -32,12 +32,8 @@ public:
         const std::vector<double>& cpu_x,
         const std::vector<double>& cpu_y,
         const std::vector<double>& cpu_z,
-        std::vector<double>& cpu_vx,
-        std::vector<double>& cpu_vy,
-        std::vector<double>& cpu_vz,
-        GPU_Vector<double>& vx,
-        GPU_Vector<double>& vy,
-        GPU_Vector<double>& vz
+        std::vector<double>& cpu_velocity_per_atom,
+        GPU_Vector<double>& velocity_per_atom
     );
 
 private:
@@ -49,18 +45,16 @@ private:
         const std::vector<double>& cpu_x,
         const std::vector<double>& cpu_y,
         const std::vector<double>& cpu_z,
-        std::vector<double>& cpu_vx,
-        std::vector<double>& cpu_vy,
-        std::vector<double>& cpu_vz
+        std::vector<double>& cpu_velocity_per_atom
     );
 
     void scale
     (
         const double initial_temperature,
         const std::vector<double>& cpu_mass,
-        std::vector<double>& cpu_vx,
-        std::vector<double>& cpu_vy,
-        std::vector<double>& cpu_vz
+        double* cpu_vx,
+        double* cpu_vy,
+        double* cpu_vz
     );
 };
 

@@ -115,15 +115,15 @@ void Measure::dump_velocities(FILE* fid, Atom *atom, int step)
     if (!dump_velocity) return;
     if ((step + 1) % sample_interval_velocity != 0) return;
 
-    atom->vx.copy_to_host(atom->cpu_vx.data());
-    atom->vy.copy_to_host(atom->cpu_vy.data());
-    atom->vz.copy_to_host(atom->cpu_vz.data());
+    atom->velocity_per_atom.copy_to_host(atom->cpu_velocity_per_atom.data());
     for (int n = 0; n < atom->N; n++)
     {
         fprintf
         (
             fid, "%g %g %g\n", 
-            atom->cpu_vx[n], atom->cpu_vy[n], atom->cpu_vz[n]
+            atom->cpu_velocity_per_atom[n],
+            atom->cpu_velocity_per_atom[n + atom->N],
+            atom->cpu_velocity_per_atom[n + 2 * atom->N]
         );
     }
     fflush(fid);
@@ -138,9 +138,7 @@ void Measure::dump_restarts(Atom *atom, int step)
     atom->x.copy_to_host(atom->cpu_x.data());
     atom->y.copy_to_host(atom->cpu_y.data());
     atom->z.copy_to_host(atom->cpu_z.data());
-    atom->vx.copy_to_host(atom->cpu_vx.data());
-    atom->vy.copy_to_host(atom->cpu_vy.data());
-    atom->vz.copy_to_host(atom->cpu_vz.data());
+    atom->velocity_per_atom.copy_to_host(atom->cpu_velocity_per_atom.data());
     fid_restart = my_fopen(file_restart, "w"); 
     fprintf
     (
@@ -170,9 +168,14 @@ void Measure::dump_restarts(Atom *atom, int step)
     }
     for (int n = 0; n < atom->N; n++)
     {
-        fprintf(fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
+        fprintf
+        (
+            fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
             atom->cpu_x[n], atom->cpu_y[n], atom->cpu_z[n], atom->cpu_mass[n],
-            atom->cpu_vx[n], atom->cpu_vy[n], atom->cpu_vz[n]);
+            atom->cpu_velocity_per_atom[n],
+            atom->cpu_velocity_per_atom[n + atom->N],
+            atom->cpu_velocity_per_atom[n + 2 * atom->N]
+        );
         for (int m = 0; m < atom->group.size(); ++m)
         {
             fprintf(fid_restart, "%d ", atom->group[m].cpu_label[n]);

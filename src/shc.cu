@@ -172,9 +172,15 @@ void SHC::process
         sx.copy_from_device(sx_tmp);
         sy.copy_from_device(sy_tmp);
         sz.copy_from_device(sz_tmp);
-        atom->vx.copy_to_device(vx.data() + offset);
-        atom->vy.copy_to_device(vy.data() + offset);
-        atom->vz.copy_to_device(vz.data() + offset);
+        CHECK(cudaMemcpy(vx.data() + offset,
+            atom->velocity_per_atom.data(),
+            sizeof(double) * atom->N, cudaMemcpyDeviceToDevice));
+        CHECK(cudaMemcpy(vy.data() + offset,
+            atom->velocity_per_atom.data() + atom->N,
+            sizeof(double) * atom->N, cudaMemcpyDeviceToDevice));
+        CHECK(cudaMemcpy(vz.data() + offset,
+            atom->velocity_per_atom.data() + atom->N * 2,
+            sizeof(double) * atom->N, cudaMemcpyDeviceToDevice));
     }
     else
     {
@@ -192,9 +198,9 @@ void SHC::process
             sx_tmp,
             sy_tmp,
             sz_tmp,
-            atom->vx.data(),
-            atom->vy.data(),
-            atom->vz.data()
+            atom->velocity_per_atom.data(),
+            atom->velocity_per_atom.data() + atom->N,
+            atom->velocity_per_atom.data() + 2 * atom->N
         );
         CUDA_CHECK_KERNEL 
     }

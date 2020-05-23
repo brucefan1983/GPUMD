@@ -252,12 +252,8 @@ void Run::check_velocity(int check, Atom* atom)
             atom->cpu_x,
             atom->cpu_y,
             atom->cpu_z,
-            atom->cpu_vx,
-            atom->cpu_vy,
-            atom->cpu_vz,
-            atom->vx,
-            atom->vy,
-            atom->vz
+            atom->cpu_velocity_per_atom,
+            atom->velocity_per_atom
         );
     }
 }

@@ -247,9 +247,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
         (
             N,
             atom->mass.data(),
-            atom->vx.data(),
-            atom->vy.data(),
-            atom->vz.data(),
+            atom->velocity_per_atom.data(),
+            atom->velocity_per_atom.data() + N,
+            atom->velocity_per_atom.data() + 2 * N,
             gpu_per_atom_x.data()
         );
         CUDA_CHECK_KERNEL
@@ -325,9 +325,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
             atom->virial_per_atom.data() + N * 7,
             atom->virial_per_atom.data() + N * 8,
             atom->virial_per_atom.data() + N * 2,
-            atom->vx.data(),
-            atom->vy.data(),
-            atom->vz.data(),
+            atom->velocity_per_atom.data(),
+            atom->velocity_per_atom.data() + N,
+            atom->velocity_per_atom.data() + 2 * N,
             gpu_per_atom_x.data(),
             gpu_per_atom_y.data(),
             gpu_per_atom_z.data()
@@ -354,9 +354,9 @@ void Compute::process(int step, const double energy_transferred[], Atom *atom)
             N,
             atom->potential_per_atom.data(),
             atom->mass.data(),
-            atom->vx.data(),
-            atom->vy.data(),
-            atom->vz.data(),
+            atom->velocity_per_atom.data(),
+            atom->velocity_per_atom.data() + N,
+            atom->velocity_per_atom.data() + 2 * N,
             gpu_per_atom_x.data(),
             gpu_per_atom_y.data(),
             gpu_per_atom_z.data()

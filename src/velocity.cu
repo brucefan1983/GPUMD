@@ -33,12 +33,12 @@ void Velocity::scale
 (
     const double initial_temperature,
     const std::vector<double>& cpu_mass,
-    std::vector<double>& cpu_vx,
-    std::vector<double>& cpu_vy,
-    std::vector<double>& cpu_vz
+    double* cpu_vx,
+    double* cpu_vy,
+    double* cpu_vz
 )
 {
-    const int N = cpu_vx.size();
+    const int N = cpu_mass.size();
     double temperature = 0.0;
     for (int n = 0; n < N; ++n) 
     {
@@ -244,9 +244,7 @@ void Velocity::initialize_cpu
     const std::vector<double>& cpu_x,
     const std::vector<double>& cpu_y,
     const std::vector<double>& cpu_z,
-    std::vector<double>& cpu_vx,
-    std::vector<double>& cpu_vy,
-    std::vector<double>& cpu_vz
+    std::vector<double>& cpu_velocity_per_atom
 )
 {
     const int N = cpu_mass.size();
@@ -254,18 +252,18 @@ void Velocity::initialize_cpu
     get_random_velocities
     (
         N,
-        cpu_vx.data(),
-        cpu_vy.data(),
-        cpu_vz.data()
+        cpu_velocity_per_atom.data(),
+        cpu_velocity_per_atom.data() + N,
+        cpu_velocity_per_atom.data() + N * 2
     );
 
     zero_linear_momentum
     (
         N,
         cpu_mass.data(),
-        cpu_vx.data(),
-        cpu_vy.data(),
-        cpu_vz.data()
+        cpu_velocity_per_atom.data(),
+        cpu_velocity_per_atom.data() + N,
+        cpu_velocity_per_atom.data() + N * 2
     );
 
     double r0[3] = {0, 0, 0}; // center of mass position
@@ -290,9 +288,9 @@ void Velocity::initialize_cpu
         cpu_x.data(),
         cpu_y.data(),
         cpu_z.data(),
-        cpu_vx.data(),
-        cpu_vy.data(),
-        cpu_vz.data()
+        cpu_velocity_per_atom.data(),
+        cpu_velocity_per_atom.data() + N,
+        cpu_velocity_per_atom.data() + N * 2
     );
 
     double I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}; // moment of inertia
@@ -318,12 +316,19 @@ void Velocity::initialize_cpu
         cpu_x.data(),
         cpu_y.data(),
         cpu_z.data(),
-        cpu_vx.data(),
-        cpu_vy.data(),
-        cpu_vz.data()
+        cpu_velocity_per_atom.data(),
+        cpu_velocity_per_atom.data() + N,
+        cpu_velocity_per_atom.data() + N * 2
     );
 
-    scale(initial_temperature, cpu_mass, cpu_vx, cpu_vy, cpu_vz);
+    scale
+    (
+        initial_temperature,
+        cpu_mass,
+        cpu_velocity_per_atom.data(),
+        cpu_velocity_per_atom.data() + N,
+        cpu_velocity_per_atom.data() + N * 2
+    );
 }
 
 
@@ -335,12 +340,8 @@ void Velocity::initialize
     const std::vector<double>& cpu_x,
     const std::vector<double>& cpu_y,
     const std::vector<double>& cpu_z,
-    std::vector<double>& cpu_vx,
-    std::vector<double>& cpu_vy,
-    std::vector<double>& cpu_vz,
-    GPU_Vector<double>& vx,
-    GPU_Vector<double>& vy,
-    GPU_Vector<double>& vz
+    std::vector<double>& cpu_velocity_per_atom,
+    GPU_Vector<double>& velocity_per_atom
 )
 {
     if (!has_velocity_in_xyz)
@@ -352,15 +353,11 @@ void Velocity::initialize
             cpu_x,
             cpu_y,
             cpu_z,
-            cpu_vx,
-            cpu_vy,
-            cpu_vz
+            cpu_velocity_per_atom
         );
     }
 
-    vx.copy_from_host(cpu_vx.data());
-    vy.copy_from_host(cpu_vy.data());
-    vz.copy_from_host(cpu_vz.data());
+    velocity_per_atom.copy_from_host(cpu_velocity_per_atom.data());
 
     printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }

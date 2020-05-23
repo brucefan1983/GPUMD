@@ -127,9 +127,9 @@ void Ensemble_LAN::integrate_nvt_lan_half(Atom *atom)
         c1,
         c2,
         atom->mass.data(),
-        atom->vx.data(),
-        atom->vy.data(),
-        atom->vz.data()
+        atom->velocity_per_atom.data(),
+        atom->velocity_per_atom.data() + atom->N,
+        atom->velocity_per_atom.data() + 2 * atom->N
     );
     CUDA_CHECK_KERNEL
 }
@@ -203,9 +203,9 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
     int *group_size_sum  = atom->group[0].size_sum.data();
     int *group_contents  = atom->group[0].contents.data();
     double *mass = atom->mass.data();
-    double *vx = atom->vx.data();
-    double *vy = atom->vy.data();
-    double *vz = atom->vz.data();
+    double *vx = atom->velocity_per_atom.data();
+    double *vy = atom->velocity_per_atom.data() + atom->N;
+    double *vz = atom->velocity_per_atom.data() + 2 * atom->N;
     int Ng = atom->group[0].number;
 
     std::vector<double> ek2(Ng);

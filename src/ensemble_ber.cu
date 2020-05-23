@@ -200,7 +200,9 @@ void Ensemble_BER::compute(Atom *atom, Force *force)
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
     (
         atom->N, temperature, temperature_coupling, atom->thermo.data(),
-        atom->vx.data(), atom->vy.data(), atom->vz.data()
+        atom->velocity_per_atom.data(),
+        atom->velocity_per_atom.data() + atom->N,
+        atom->velocity_per_atom.data() + 2 * atom->N
     );
     CUDA_CHECK_KERNEL
     if (type == 11)

@@ -31,7 +31,7 @@ public:
     GPU_Vector<int> type;                  // atom type (for force)
     GPU_Vector<double> mass;               // per-atom mass
     GPU_Vector<double> x, y, z;            // per-atom position
-    GPU_Vector<double> vx, vy, vz;         // per-atom velocity
+    GPU_Vector<double> velocity_per_atom;  // per-atom velocity
     GPU_Vector<double> force_per_atom;     // per-atom force
     GPU_Vector<double> heat_per_atom;      // per-atom heat current
     GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
@@ -46,9 +46,7 @@ public:
     std::vector<double> cpu_x;
     std::vector<double> cpu_y;
     std::vector<double> cpu_z;
-    std::vector<double> cpu_vx;
-    std::vector<double> cpu_vy;
-    std::vector<double> cpu_vz;
+    std::vector<double> cpu_velocity_per_atom;
 
     int N;                // number of atoms 
     int number_of_types;  // number of atom types 

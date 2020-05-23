@@ -267,9 +267,9 @@ void VAC::process
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,
-            atom->vx.data(),
-            atom->vy.data(),
-            atom->vz.data()
+            atom->velocity_per_atom.data(),
+            atom->velocity_per_atom.data() + atom->N,
+            atom->velocity_per_atom.data() + 2 * atom->N
         );
     }
     else
@@ -280,9 +280,9 @@ void VAC::process
             vx.data() + offset,
             vy.data() + offset,
             vz.data() + offset,
-            atom->vx.data(),
-            atom->vy.data(),
-            atom->vz.data()
+            atom->velocity_per_atom.data(),
+            atom->velocity_per_atom.data() + atom->N,
+            atom->velocity_per_atom.data() + 2 * atom->N
         );
     }
     CUDA_CHECK_KERNEL 

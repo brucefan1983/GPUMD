@@ -278,7 +278,9 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
     elemwise_mass_scale<<<grid_size, BLOCK_SIZE>>>
     (
           num_participating, N1, sqrtmass.data(),
-          atom->vx.data(), atom->vy.data(), atom->vz.data(),
+          atom->velocity_per_atom.data(),
+          atom->velocity_per_atom.data() + atom->N,
+          atom->velocity_per_atom.data() + 2 * atom->N,
           mvx.data(), mvy.data(), mvz.data()
     );
     CUDA_CHECK_KERNEL
