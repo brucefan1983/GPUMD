@@ -912,7 +912,18 @@ void REBO_MOS::compute(Atom *atom, int potential_number)
     CUDA_CHECK_KERNEL
 
     // 3-body part
-    find_properties_many_body(atom, NN_local, NL_local, f12x, f12y, f12z);
+    find_properties_many_body
+    (
+        atom->box,
+        NN_local,
+        NL_local,
+        f12x,
+        f12y,
+        f12z,
+        atom->position_per_atom,
+        atom->force_per_atom,
+        atom->virial_per_atom
+    );
 }
 
 

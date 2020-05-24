@@ -40,9 +40,12 @@ Potential::~Potential(void)
 
 static __global__ void gpu_find_force_many_body
 (
-    int number_of_particles, int N1, int N2,
-    Box box,
-    int *g_neighbor_number, int *g_neighbor_list,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int *g_neighbor_number,
+    const int *g_neighbor_list,
     const double* __restrict__ g_f12x,
     const double* __restrict__ g_f12y,
     const double* __restrict__ g_f12z,
@@ -142,21 +145,31 @@ static __global__ void gpu_find_force_many_body
 // used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body
 (
-    Atom *atom, int* NN, int* NL, double* f12x, double* f12y, double* f12z
+    const Box& box,
+    const int* NN,
+    const int* NL,
+    const double* f12x,
+    const double* f12y,
+    const double* f12z,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
 )
 {
+    const int number_of_atoms = position_per_atom.size() / 3;
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+
     gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        atom->N, N1, N2, atom->box, NN,
+        number_of_atoms, N1, N2, box, NN,
         NL, f12x, f12y, f12z,
-        atom->position_per_atom.data(),
-        atom->position_per_atom.data() + atom->N,
-        atom->position_per_atom.data() + atom->N * 2,
-        atom->force_per_atom.data(),
-        atom->force_per_atom.data() + atom->N,
-        atom->force_per_atom.data() + 2 * atom->N,
-        atom->virial_per_atom.data()
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
+        virial_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 }

@@ -15,6 +15,8 @@
 
 
 #pragma once
+#include "box.cuh"
+#include "gpu_vector.cuh"
 
 class Atom; 
 
@@ -29,7 +31,18 @@ public:
     virtual void compute(Atom*, int) = 0;
 
 protected:
-    void find_properties_many_body(Atom*, int*, int*, double*, double*, double*);
+    void find_properties_many_body
+    (
+        const Box& box,
+        const int* NN,
+        const int* NL,
+        const double* f12x,
+        const double* f12y,
+        const double* f12z,
+        const GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& virial_per_atom
+    );
 };
 
 

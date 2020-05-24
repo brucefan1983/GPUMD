@@ -411,12 +411,15 @@ void Vashishta::compute(Atom *atom, int potential_number)
     CUDA_CHECK_KERNEL
     find_properties_many_body
     (
-        atom,
+        atom->box,
         vashishta_data.NN_short.data(),
         vashishta_data.NL_short.data(),
         vashishta_data.f12x.data(),
         vashishta_data.f12y.data(),
-        vashishta_data.f12z.data()
+        vashishta_data.f12z.data(),
+        atom->position_per_atom,
+        atom->force_per_atom,
+        atom->virial_per_atom
     );
 }
 
