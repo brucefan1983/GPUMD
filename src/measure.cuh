@@ -22,6 +22,7 @@
 #include "dump_pos.cuh"
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
+#include "gpu_vector.cuh"
 
 
 class Measure
@@ -69,9 +70,42 @@ public:
     void parse_compute(char**, int, Atom*);
 
 protected:
-    void dump_thermos(FILE*, Atom*, const int, int);
-    void dump_velocities(FILE*, Atom*, int);
-    void dump_restarts(Atom*, int);
+
+    void dump_thermos
+    (
+        FILE *fid,
+        const int step,
+        const int number_of_atoms,
+        const int number_of_atoms_fixed,
+        GPU_Vector<double>& gpu_thermo,
+        const Box& box
+    );
+
+    void dump_velocities
+    (
+        FILE* fid,
+        const int step,
+        GPU_Vector<double>& velocity_per_atom,
+        std::vector<double>& cpu_velocity_per_atom
+    );
+
+    void dump_restarts
+    (
+        const int step,
+        const Neighbor& neighbor,
+        const Box& box,
+        const std::vector<Group>& group,
+        const std::vector<int>& cpu_type,
+        const std::vector<double>& cpu_mass,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        std::vector<double>& cpu_position_per_atom,
+        std::vector<double>& cpu_velocity_per_atom
+    );
 };
+
+
+
+
 
 

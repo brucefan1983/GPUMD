@@ -27,10 +27,7 @@ The driver class dealing with measurement.
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
-
-#define DIM 3
 #define NUM_OF_HEAT_COMPONENTS 5
-#define NUM_OF_PROPERTIES      5 
 
 
 Measure::Measure(char *input_dir)
@@ -96,100 +93,171 @@ void Measure::finalize
 
 
 void Measure::dump_thermos
-(FILE *fid, Atom *atom, const int fixed_group, int step)
+(
+    FILE *fid,
+    const int step,
+    const int number_of_atoms,
+    const int number_of_atoms_fixed,
+    GPU_Vector<double>& gpu_thermo,
+    const Box& box
+)
 {
     if (!dump_thermo) return;
     if ((step + 1) % sample_interval_thermo != 0) return;
-    std::vector<double> thermo(NUM_OF_PROPERTIES);
-    atom->thermo.copy_to_host(thermo.data(), NUM_OF_PROPERTIES);
-    int N_fixed = (fixed_group == -1) ? 0 :
-        atom->group[0].cpu_size[fixed_group];
-    double energy_kin = (0.5 * DIM) * (atom->N - N_fixed) * K_B * thermo[0];
-    fprintf(fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0],
-        energy_kin, thermo[1], thermo[2]*PRESSURE_UNIT_CONVERSION,
-        thermo[3]*PRESSURE_UNIT_CONVERSION, thermo[4]*PRESSURE_UNIT_CONVERSION);
-    int number_of_box_variables = atom->box.triclinic ? 9 : 3;
+
+    std::vector<double> thermo(5);
+    gpu_thermo.copy_to_host(thermo.data(), 5);
+
+    const int number_of_atoms_moving = number_of_atoms- number_of_atoms_fixed;
+    double energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
+
+    fprintf
+    (
+        fid,
+        "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
+        thermo[0],
+        energy_kin,
+        thermo[1],
+        thermo[2] * PRESSURE_UNIT_CONVERSION,
+        thermo[3] * PRESSURE_UNIT_CONVERSION,
+        thermo[4] * PRESSURE_UNIT_CONVERSION
+    );
+
+    int number_of_box_variables = box.triclinic ? 9 : 3;
     for (int m = 0; m < number_of_box_variables; ++m)
     {
-        fprintf(fid, "%20.10e", atom->box.cpu_h[m]);
+        fprintf(fid, "%20.10e", box.cpu_h[m]);
     }
-    fprintf(fid, "\n"); fflush(fid);
-}
 
-
-void Measure::dump_velocities(FILE* fid, Atom *atom, int step)
-{
-    if (!dump_velocity) return;
-    if ((step + 1) % sample_interval_velocity != 0) return;
-
-    atom->velocity_per_atom.copy_to_host(atom->cpu_velocity_per_atom.data());
-    for (int n = 0; n < atom->N; n++)
-    {
-        fprintf
-        (
-            fid, "%g %g %g\n", 
-            atom->cpu_velocity_per_atom[n],
-            atom->cpu_velocity_per_atom[n + atom->N],
-            atom->cpu_velocity_per_atom[n + 2 * atom->N]
-        );
-    }
+    fprintf(fid, "\n");
     fflush(fid);
 }
 
 
-void Measure::dump_restarts(Atom *atom, int step)
+void Measure::dump_velocities
+(
+    FILE* fid,
+    const int step,
+    GPU_Vector<double>& velocity_per_atom,
+    std::vector<double>& cpu_velocity_per_atom
+)
+{
+    if (!dump_velocity) return;
+    if ((step + 1) % sample_interval_velocity != 0) return;
+
+    const int number_of_atoms = velocity_per_atom.size() / 3;
+
+    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
+
+    for (int n = 0; n < number_of_atoms; n++)
+    {
+        fprintf
+        (
+            fid, "%g %g %g\n", 
+            cpu_velocity_per_atom[n],
+            cpu_velocity_per_atom[n + number_of_atoms],
+            cpu_velocity_per_atom[n + 2 * number_of_atoms]
+        );
+    }
+
+    fflush(fid);
+}
+
+
+void Measure::dump_restarts
+(
+    const int step,
+    const Neighbor& neighbor,
+    const Box& box,
+    const std::vector<Group>& group,
+    const std::vector<int>& cpu_type,
+    const std::vector<double>& cpu_mass,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    std::vector<double>& cpu_position_per_atom,
+    std::vector<double>& cpu_velocity_per_atom
+)
 {
     if (!dump_restart) return;
     if ((step + 1) % sample_interval_restart != 0) return;
 
-    atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
-    atom->velocity_per_atom.copy_to_host(atom->cpu_velocity_per_atom.data());
+    const int number_of_atoms = cpu_mass.size();
+
+    position_per_atom.copy_to_host(cpu_position_per_atom.data());
+    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
+
     fid_restart = my_fopen(file_restart, "w"); 
+
     fprintf
     (
         fid_restart, "%d %d %g %d %d %d\n",
-        atom->N, atom->neighbor.MN,
-        atom->neighbor.rc, atom->box.triclinic, 1,
-        static_cast<int>(atom->group.size())
+        number_of_atoms,
+        neighbor.MN,
+        neighbor.rc,
+        box.triclinic,
+        1,
+        int(group.size())
     );
-    if (atom->box.triclinic == 0)
-    {
-        fprintf(fid_restart, "%d %d %d %g %g %g\n", atom->box.pbc_x,
-            atom->box.pbc_y, atom->box.pbc_z, atom->box.cpu_h[0],
-            atom->box.cpu_h[1], atom->box.cpu_h[2]);
-    }
-    else
-    {
-        fprintf(fid_restart, "%d %d %d\n", atom->box.pbc_x,
-            atom->box.pbc_y, atom->box.pbc_z);
-        for (int d1 = 0; d1 < 3; ++d1)
-        {
-            for (int d2 = 0; d2 < 3; ++d2)
-            {
-                fprintf(fid_restart, "%g ", atom->box.cpu_h[d1 * 3 + d2]);
-            }
-            fprintf(fid_restart, "\n");
-        }
-    }
-    for (int n = 0; n < atom->N; n++)
+
+    if (box.triclinic == 0)
     {
         fprintf
         (
-            fid_restart, "%d %g %g %g %g %g %g %g ", atom->cpu_type[n],
-            atom->cpu_position_per_atom[n],
-            atom->cpu_position_per_atom[n + atom->N],
-            atom->cpu_position_per_atom[n + 2 * atom->N],
-            atom->cpu_mass[n],
-            atom->cpu_velocity_per_atom[n],
-            atom->cpu_velocity_per_atom[n + atom->N],
-            atom->cpu_velocity_per_atom[n + 2 * atom->N]
+            fid_restart,
+            "%d %d %d %g %g %g\n",
+            box.pbc_x,
+            box.pbc_y,
+            box.pbc_z,
+            box.cpu_h[0],
+            box.cpu_h[1],
+            box.cpu_h[2]
         );
-        for (int m = 0; m < atom->group.size(); ++m)
+    }
+    else
+    {
+        fprintf
+        (
+            fid_restart,
+            "%d %d %d %g %g %g %g %g %g %g %g %g\n",
+            box.pbc_x,
+            box.pbc_y,
+            box.pbc_z,
+            box.cpu_h[0],
+            box.cpu_h[3],
+            box.cpu_h[6],
+            box.cpu_h[1],
+            box.cpu_h[4],
+            box.cpu_h[7],
+            box.cpu_h[2],
+            box.cpu_h[5],
+            box.cpu_h[8]
+        );
+    }
+
+    for (int n = 0; n < number_of_atoms; n++)
+    {
+        fprintf
+        (
+            fid_restart,
+            "%d %g %g %g %g %g %g %g ",
+            cpu_type[n],
+            cpu_position_per_atom[n],
+            cpu_position_per_atom[n + number_of_atoms],
+            cpu_position_per_atom[n + 2 * number_of_atoms],
+            cpu_mass[n],
+            cpu_velocity_per_atom[n],
+            cpu_velocity_per_atom[n + number_of_atoms],
+            cpu_velocity_per_atom[n + 2 * number_of_atoms]
+        );
+
+        for (int m = 0; m < group.size(); ++m)
         {
-            fprintf(fid_restart, "%d ", atom->group[m].cpu_label[n]);
+            fprintf(fid_restart, "%d ", group[m].cpu_label[n]);
         }
+
         fprintf(fid_restart, "\n");
     }
+
     fflush(fid_restart);
     fclose(fid_restart);
 }
@@ -205,9 +273,37 @@ void Measure::process
     int step
 )
 {
-    dump_thermos(fid_thermo, atom, fixed_group, step);
-    dump_velocities(fid_velocity, atom, step);
-    dump_restarts(atom, step);
+    dump_thermos
+    (
+        fid_thermo,
+        step,
+        atom->N,
+        (fixed_group < 0) ? 0 : atom->group[0].cpu_size[fixed_group],
+        atom->thermo,
+        atom->box
+    );
+
+    dump_velocities
+    (
+        fid_velocity,
+        step,
+        atom->velocity_per_atom,
+        atom->cpu_velocity_per_atom
+    );
+
+    dump_restarts
+    (
+        step,
+        atom->neighbor,
+        atom->box,
+        atom->group,
+        atom->cpu_type,
+        atom->cpu_mass,
+        atom->position_per_atom,
+        atom->velocity_per_atom,
+        atom->cpu_position_per_atom,
+        atom->cpu_velocity_per_atom
+    );
 
     compute.process
     (
