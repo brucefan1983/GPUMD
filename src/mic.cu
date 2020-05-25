@@ -19,8 +19,8 @@
 
 void apply_mic
 (
-    int triclinic, int pbc_x, int pbc_y, int pbc_z,
-    double* h, double &x12, double &y12, double &z12
+    const int triclinic, const int pbc_x, const int pbc_y, const int pbc_z,
+    const double* h, double &x12, double &y12, double &z12
 )
 {
     if (triclinic == 0) // orthogonal box

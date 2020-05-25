@@ -28,11 +28,11 @@ The EAM potential. Currently two analytical versions:
 #define BLOCK_SIZE_FORCE 64
 
 
-EAM::EAM(FILE *fid, Atom* atom, char *name)
+EAM::EAM(FILE *fid, char *name, const int number_of_atoms)
 {
     if (strcmp(name, "eam_zhou_2004") == 0)  initialize_eam2004zhou(fid);
     if (strcmp(name, "eam_dai_2006") == 0)    initialize_eam2006dai(fid);
-    eam_data.Fp.resize(atom->N);
+    eam_data.Fp.resize(number_of_atoms);
 }
 
 

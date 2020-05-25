@@ -33,7 +33,7 @@ struct Tersoff1988_Data
 class Tersoff1988 : public Potential
 {
 public:   
-    Tersoff1988(FILE*, Atom*, int sum_of_types);
+    Tersoff1988(FILE*, int sum_of_types, const Neighbor& neighbor);
     virtual ~Tersoff1988(void);
     virtual void compute(Atom*, int);
 protected:

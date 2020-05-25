@@ -155,18 +155,20 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 #define REBO_MOS2_D3_MS     -0.137425146625715
 
 
-REBO_MOS::REBO_MOS(Atom* atom)
+REBO_MOS::REBO_MOS(const Neighbor& neighbor)
 {
-    int num = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    rebo_mos_data.p.resize(atom->N);
-    rebo_mos_data.pp.resize(atom->N);
-    rebo_mos_data.b.resize(atom->N * num);
-    rebo_mos_data.bp.resize(atom->N * num);
-    rebo_mos_data.f12x.resize(atom->N * num);
-    rebo_mos_data.f12y.resize(atom->N * num);
-    rebo_mos_data.f12z.resize(atom->N * num);
-    rebo_mos_data.NN_short.resize(atom->N);
-    rebo_mos_data.NL_short.resize(atom->N * num);
+    const int number_of_atoms = neighbor.NN.size();
+    const int num_of_neighbors = min(neighbor.MN, 50) * number_of_atoms;
+
+    rebo_mos_data.p.resize(number_of_atoms);
+    rebo_mos_data.pp.resize(number_of_atoms);
+    rebo_mos_data.b.resize(num_of_neighbors);
+    rebo_mos_data.bp.resize(num_of_neighbors);
+    rebo_mos_data.f12x.resize(num_of_neighbors);
+    rebo_mos_data.f12y.resize(num_of_neighbors);
+    rebo_mos_data.f12z.resize(num_of_neighbors);
+    rebo_mos_data.NN_short.resize(number_of_atoms);
+    rebo_mos_data.NL_short.resize(num_of_neighbors);
 
     printf("Use the potential in [PRB 79, 245110 (2009)].\n");
     rc = 10.5;

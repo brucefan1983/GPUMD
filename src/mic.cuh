@@ -18,7 +18,11 @@
 #include "box.cuh"
 
 
-void apply_mic(int, int, int, int, double*, double&, double&, double&);
+void apply_mic
+(
+    const int triclinic, const int pbc_x, const int pbc_y, const int pbc_z,
+    const double* h, double &x12, double &y12, double &z12
+);
 
 
 static __device__ void dev_apply_mic

@@ -40,7 +40,7 @@ struct SW2_Data
 class SW2 : public Potential
 {
 public:   
-    SW2(FILE*, Atom*, int num_of_types);
+    SW2(FILE*, int num_of_types, const Neighbor& neighbor);
     virtual ~SW2(void);
     virtual void compute(Atom*, int);
     void initialize_sw_1985_1(FILE*); // called by the constructor

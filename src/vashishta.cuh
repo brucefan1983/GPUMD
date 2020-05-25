@@ -44,7 +44,7 @@ struct Vashishta_Data
 class Vashishta : public Potential
 {
 public:   
-    Vashishta(FILE*, Atom*);  
+    Vashishta(FILE*, const Neighbor& neighbor);
     virtual ~Vashishta(void);
     virtual void compute(Atom*, int);
 protected:

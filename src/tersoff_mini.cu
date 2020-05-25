@@ -32,7 +32,7 @@ J. Phys.: Condens. Matter 32, 135901 (2020).
 #define BLOCK_SIZE_FORCE 64
 
 
-Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
+Tersoff_mini::Tersoff_mini(FILE *fid, int num_of_types, const Neighbor& neighbor)
 {
     num_types = num_of_types;
     printf("Use Tersoff-mini (%d-element) potential.\n", num_types);
@@ -74,12 +74,12 @@ Tersoff_mini::Tersoff_mini(FILE *fid, Atom* atom, int num_of_types)
         rc = r2 > rc ? r2 : rc;
     }
 
-    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    tersoff_mini_data.b.resize(atom->N * num_of_neighbors);
-    tersoff_mini_data.bp.resize(atom->N * num_of_neighbors);
-    tersoff_mini_data.f12x.resize(atom->N * num_of_neighbors);
-    tersoff_mini_data.f12y.resize(atom->N * num_of_neighbors);
-    tersoff_mini_data.f12z.resize(atom->N * num_of_neighbors);
+    const int num_of_neighbors = min(neighbor.MN, 50) * neighbor.NN.size();
+    tersoff_mini_data.b.resize(num_of_neighbors);
+    tersoff_mini_data.bp.resize(num_of_neighbors);
+    tersoff_mini_data.f12x.resize(num_of_neighbors);
+    tersoff_mini_data.f12y.resize(num_of_neighbors);
+    tersoff_mini_data.f12z.resize(num_of_neighbors);
 }
 
 

@@ -49,7 +49,7 @@ struct Tersoff_mini_Para
 class Tersoff_mini : public Potential
 {
 public:   
-    Tersoff_mini(FILE*, Atom*, int);
+    Tersoff_mini(FILE*, int, const Neighbor& neighbor);
     virtual ~Tersoff_mini(void);
     virtual void compute(Atom*, int);
 protected:

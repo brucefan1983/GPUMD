@@ -31,17 +31,17 @@ This file implements the Stillinger-Weber (SW) potential.
 ------------------------------------------------------------------------------*/
 
 
-SW2::SW2(FILE *fid, Atom* atom, int num_of_types)
+SW2::SW2(FILE *fid, int num_of_types, const Neighbor& neighbor)
 {
     if (num_of_types == 1) { initialize_sw_1985_1(fid); }
     if (num_of_types == 2) { initialize_sw_1985_2(fid); }
     if (num_of_types == 3) { initialize_sw_1985_3(fid); }
 
     // memory for the partial forces dU_i/dr_ij
-    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    sw2_data.f12x.resize(atom->N * num_of_neighbors);
-    sw2_data.f12y.resize(atom->N * num_of_neighbors);
-    sw2_data.f12z.resize(atom->N * num_of_neighbors);
+    const int num_of_neighbors = min(neighbor.MN, 50) * neighbor.NN.size();
+    sw2_data.f12x.resize(num_of_neighbors);
+    sw2_data.f12y.resize(num_of_neighbors);
+    sw2_data.f12z.resize(num_of_neighbors);
 }
 
 

@@ -33,7 +33,7 @@ struct Tersoff_modc_Data
 class Tersoff_modc : public Potential
 {
 public:   
-    Tersoff_modc(FILE*, Atom*, int sum_of_types);
+    Tersoff_modc(FILE*, int sum_of_types, const Neighbor& neighbor);
     virtual ~Tersoff_modc(void);
     virtual void compute(Atom*, int);
 protected:

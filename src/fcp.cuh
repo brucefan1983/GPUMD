@@ -36,19 +36,19 @@ struct FCP_Data
 class FCP : public Potential
 {
 public:   
-    FCP(FILE* fid, char *input_dir, Atom *atom);  
+    FCP(FILE* fid, char *input_dir, const int N, const Box& box);
     virtual ~FCP(void);
     virtual void compute(Atom*, int);
 protected:
     int order, number2, number3, number4, number5, number6;
     char file_path[200];
     FCP_Data fcp_data;
-    void read_r0(Atom *atom);
-    void read_fc2(Atom *atom);
-    void read_fc3(Atom *atom);
-    void read_fc4(Atom *atom);
-    void read_fc5(Atom *atom);
-    void read_fc6(Atom *atom);
+    void read_r0(const int N);
+    void read_fc2(const int N, const Box& box);
+    void read_fc3(const int N, const Box& box);
+    void read_fc4(const int N);
+    void read_fc5(const int N);
+    void read_fc6(const int N);
 };
 
 

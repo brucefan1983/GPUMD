@@ -51,7 +51,7 @@ The modified Tersoff potentials as described in
 #define NUM_PARAMS 19
 
 
-Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
+Tersoff_modc::Tersoff_modc(FILE *fid, int num_of_types, const Neighbor& neighbor)
 {
     num_types = num_of_types;
     printf("Use Tersoff-modc (%d-element) potential.\n", num_types);
@@ -94,12 +94,12 @@ Tersoff_modc::Tersoff_modc(FILE *fid, Atom* atom, int num_of_types)
         rc = r2 > rc ? r2 : rc;
     }
 
-    int num_of_neighbors = (atom->neighbor.MN < 50) ? atom->neighbor.MN : 50;
-    tersoff_data.b.resize(atom->N * num_of_neighbors);
-    tersoff_data.bp.resize(atom->N * num_of_neighbors);
-    tersoff_data.f12x.resize(atom->N * num_of_neighbors);
-    tersoff_data.f12y.resize(atom->N * num_of_neighbors);
-    tersoff_data.f12z.resize(atom->N * num_of_neighbors);
+    int num_of_neighbors = min(neighbor.MN, 50) * neighbor.NN.size();
+    tersoff_data.b.resize(num_of_neighbors);
+    tersoff_data.bp.resize(num_of_neighbors);
+    tersoff_data.f12x.resize(num_of_neighbors);
+    tersoff_data.f12y.resize(num_of_neighbors);
+    tersoff_data.f12z.resize(num_of_neighbors);
     ters.resize(n_entries * NUM_PARAMS);
     ters.copy_from_host(cpu_ters.data());
 }

@@ -84,15 +84,16 @@ void Vashishta::initialize_para(FILE *fid)
 }
 
 
-Vashishta::Vashishta(FILE *fid, Atom* atom)
+Vashishta::Vashishta(FILE *fid, const Neighbor& neighbor)
 {
     initialize_para(fid);
-    int num = (atom->neighbor.MN < 100) ? atom->neighbor.MN : 100;
-    vashishta_data.f12x.resize(atom->N * num);
-    vashishta_data.f12y.resize(atom->N * num);
-    vashishta_data.f12z.resize(atom->N * num);
-    vashishta_data.NN_short.resize(atom->N);
-    vashishta_data.NL_short.resize(atom->N * num);
+    const int number_of_atoms = neighbor.NN.size();
+    const int num_of_neighbors = min(neighbor.MN, 100) * number_of_atoms;
+    vashishta_data.f12x.resize(num_of_neighbors);
+    vashishta_data.f12y.resize(num_of_neighbors);
+    vashishta_data.f12z.resize(num_of_neighbors);
+    vashishta_data.NN_short.resize(number_of_atoms);
+    vashishta_data.NL_short.resize(num_of_neighbors);
 }
 
 

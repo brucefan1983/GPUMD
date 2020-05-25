@@ -17,6 +17,7 @@
 #pragma once
 #include "box.cuh"
 #include "gpu_vector.cuh"
+#include "neighbor.cuh"
 
 class Atom; 
 

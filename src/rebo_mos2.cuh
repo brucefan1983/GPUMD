@@ -36,7 +36,7 @@ struct REBO_MOS_Data
 class REBO_MOS : public Potential
 {
 public:   
-    REBO_MOS(Atom*);
+    REBO_MOS(const Neighbor& neighbor);
     virtual ~REBO_MOS(void);
     virtual void compute(Atom*, int);
 protected:

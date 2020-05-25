@@ -26,7 +26,7 @@ The force constant potential (FCP)
 #include <vector>
 
 
-FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
+FCP::FCP(FILE* fid, char *input_dir, const int N, const Box& box)
 {
     // get the highest order of the force constants
     int count = fscanf(fid, "%d", &order);
@@ -41,18 +41,18 @@ FCP::FCP(FILE* fid, char *input_dir, Atom *atom)
     printf("    Use the force constant data in %s.\n", file_path);
 
     // allocate memeory
-    fcp_data.u.resize(atom->N * 3);
+    fcp_data.u.resize(N * 3);
     fcp_data.utot.resize(3);
-    fcp_data.r0.resize(atom->N * 3, Memory_Type::managed);
-    fcp_data.pfv.resize(atom->N * 13);
+    fcp_data.r0.resize(N * 3, Memory_Type::managed);
+    fcp_data.pfv.resize(N * 13);
 
     // read in the equilibrium positions and force constants
-    read_r0(atom);
-    read_fc2(atom);
-    if (order >= 3) read_fc3(atom);
-    if (order >= 4) read_fc4(atom);
-    if (order >= 5) read_fc5(atom);
-    if (order >= 6) read_fc6(atom);
+    read_r0(N);
+    read_fc2(N, box);
+    if (order >= 3) read_fc3(N, box);
+    if (order >= 4) read_fc4(N);
+    if (order >= 5) read_fc5(N);
+    if (order >= 6) read_fc6(N);
 }
 
 
@@ -62,14 +62,13 @@ FCP::~FCP(void)
 }
 
 
-void FCP::read_r0(Atom *atom)
+void FCP::read_r0(const int N)
 {
     char file[200];
     strcpy(file, file_path);
     strcat(file, "/r0.in");
     FILE *fid = my_fopen(file, "r");
 
-    int N = atom->N;
     for (int n = 0; n < N; n++)
     {
         int count = fscanf
@@ -84,7 +83,7 @@ void FCP::read_r0(Atom *atom)
 }
 
 
-void FCP::read_fc2(Atom *atom)
+void FCP::read_fc2(const int N, const Box& box)
 {
     // reading fcs_order2.in
     char file_fc[200];
@@ -148,8 +147,8 @@ void FCP::read_fc2(Atom *atom)
         count = fscanf(fid_cluster, "%d%d%d", &i, &j, &index);
         PRINT_SCANF_ERROR(count, 3, "Reading error for clusters_order2.in.");
 
-        if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
-        if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); } 
+        if (i < 0 || i >= N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
+        if (j < 0 || j >= N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
         if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
@@ -160,15 +159,15 @@ void FCP::read_fc2(Atom *atom)
         fcp_data.index2[nc] = index;
 
         double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
-        double yij2 = fcp_data.r0[j + atom->N] - fcp_data.r0[i + atom->N];
-        double zij2 = fcp_data.r0[j + atom->N*2] - fcp_data.r0[i + atom->N*2];
+        double yij2 = fcp_data.r0[j + N] - fcp_data.r0[i + N];
+        double zij2 = fcp_data.r0[j + N*2] - fcp_data.r0[i + N*2];
         apply_mic
         (
-            atom->box.triclinic,
-            atom->box.pbc_x,
-            atom->box.pbc_y,
-            atom->box.pbc_z,
-            atom->box.cpu_h,
+            box.triclinic,
+            box.pbc_x,
+            box.pbc_y,
+            box.pbc_z,
+            box.cpu_h,
             xij2,
             yij2,
             zij2
@@ -183,7 +182,7 @@ void FCP::read_fc2(Atom *atom)
 }
 
 
-void FCP::read_fc3(Atom *atom)
+void FCP::read_fc3(const int N, const Box& box)
 {
     // reading fcs_order3.in
     char file_fc[200];
@@ -250,9 +249,9 @@ void FCP::read_fc3(Atom *atom)
         count = fscanf(fid_cluster, "%d%d%d%d", &i, &j, &k, &index);
         PRINT_SCANF_ERROR(count, 4, "Reading error for clusters_order3.in.");
 
-        if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
-        if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
-        if (k < 0 || k >= atom->N) { PRINT_INPUT_ERROR("k < 0 or >= N."); }
+        if (i < 0 || i >= N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
+        if (j < 0 || j >= N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
+        if (k < 0 || k >= N) { PRINT_INPUT_ERROR("k < 0 or >= N."); }
         if (index < 0 || index >= num_fcs)
         {
             PRINT_INPUT_ERROR("idx_fcs < 0 or >= num_fcs");
@@ -264,15 +263,15 @@ void FCP::read_fc3(Atom *atom)
         fcp_data.index3[nc] = index;
 
         double xij3 = fcp_data.r0[j] - fcp_data.r0[i];
-        double yij3 = fcp_data.r0[j + atom->N] - fcp_data.r0[i + atom->N];
-        double zij3 = fcp_data.r0[j + atom->N*2] - fcp_data.r0[i + atom->N*2];
+        double yij3 = fcp_data.r0[j + N] - fcp_data.r0[i + N];
+        double zij3 = fcp_data.r0[j + N*2] - fcp_data.r0[i + N*2];
         apply_mic
         (
-            atom->box.triclinic,
-            atom->box.pbc_x,
-            atom->box.pbc_y,
-            atom->box.pbc_z,
-            atom->box.cpu_h,
+            box.triclinic,
+            box.pbc_x,
+            box.pbc_y,
+            box.pbc_z,
+            box.cpu_h,
             xij3,
             yij3,
             zij3
@@ -287,7 +286,7 @@ void FCP::read_fc3(Atom *atom)
 }
 
 
-void FCP::read_fc4(Atom *atom)
+void FCP::read_fc4(const int N)
 {
     // reading fcs_order4.in
     char file_fc[200];
@@ -355,10 +354,10 @@ void FCP::read_fc4(Atom *atom)
         count = fscanf(fid_cluster, "%d%d%d%d%d", &i, &j, &k, &l, &index);
         PRINT_SCANF_ERROR(count, 5, "Reading error for clusters_order4.in.");
         
-        if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
-        if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); } 
-        if (k < 0 || k >= atom->N) { PRINT_INPUT_ERROR("k < 0 or >= N."); } 
-        if (l < 0 || l >= atom->N) { PRINT_INPUT_ERROR("l < 0 or >= N."); } 
+        if (i < 0 || i >= N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
+        if (j < 0 || j >= N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
+        if (k < 0 || k >= N) { PRINT_INPUT_ERROR("k < 0 or >= N."); }
+        if (l < 0 || l >= N) { PRINT_INPUT_ERROR("l < 0 or >= N."); }
         if (i > j) { PRINT_INPUT_ERROR("i > j."); } 
         if (j > k) { PRINT_INPUT_ERROR("j > k."); } 
         if (k > l) { PRINT_INPUT_ERROR("k > l."); } 
@@ -395,7 +394,7 @@ void FCP::read_fc4(Atom *atom)
 }
 
 
-void FCP::read_fc5(Atom *atom)
+void FCP::read_fc5(const int N)
 {
     // reading fcs_order5.in
     char file_fc[200];
@@ -476,11 +475,11 @@ void FCP::read_fc5(Atom *atom)
         );
         PRINT_SCANF_ERROR(count, 6, "Reading error for clusters_order5.in.");
         
-        if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
-        if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); } 
-        if (k < 0 || k >= atom->N) { PRINT_INPUT_ERROR("k < 0 or >= N."); } 
-        if (l < 0 || l >= atom->N) { PRINT_INPUT_ERROR("l < 0 or >= N."); } 
-        if (m < 0 || m >= atom->N) { PRINT_INPUT_ERROR("m < 0 or >= N."); }
+        if (i < 0 || i >= N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
+        if (j < 0 || j >= N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
+        if (k < 0 || k >= N) { PRINT_INPUT_ERROR("k < 0 or >= N."); }
+        if (l < 0 || l >= N) { PRINT_INPUT_ERROR("l < 0 or >= N."); }
+        if (m < 0 || m >= N) { PRINT_INPUT_ERROR("m < 0 or >= N."); }
         if (i > j) { PRINT_INPUT_ERROR("i > j."); } 
         if (j > k) { PRINT_INPUT_ERROR("j > k."); } 
         if (k > l) { PRINT_INPUT_ERROR("k > l."); } 
@@ -535,7 +534,7 @@ void FCP::read_fc5(Atom *atom)
 }
 
 
-void FCP::read_fc6(Atom *atom)
+void FCP::read_fc6(const int N)
 {
     // reading fcs_order6.in
     char file_fc[200];
@@ -620,12 +619,12 @@ void FCP::read_fc6(Atom *atom)
         );
         PRINT_SCANF_ERROR(count, 7, "Reading error for clusters_order6.in.");
         
-        if (i < 0 || i >= atom->N) { PRINT_INPUT_ERROR("i < 0 or >= N."); } 
-        if (j < 0 || j >= atom->N) { PRINT_INPUT_ERROR("j < 0 or >= N."); } 
-        if (k < 0 || k >= atom->N) { PRINT_INPUT_ERROR("k < 0 or >= N."); } 
-        if (l < 0 || l >= atom->N) { PRINT_INPUT_ERROR("l < 0 or >= N."); } 
-        if (m < 0 || m >= atom->N) { PRINT_INPUT_ERROR("m < 0 or >= N."); }
-        if (n < 0 || n >= atom->N) { PRINT_INPUT_ERROR("n < 0 or >= N."); }
+        if (i < 0 || i >= N) { PRINT_INPUT_ERROR("i < 0 or >= N."); }
+        if (j < 0 || j >= N) { PRINT_INPUT_ERROR("j < 0 or >= N."); }
+        if (k < 0 || k >= N) { PRINT_INPUT_ERROR("k < 0 or >= N."); }
+        if (l < 0 || l >= N) { PRINT_INPUT_ERROR("l < 0 or >= N."); }
+        if (m < 0 || m >= N) { PRINT_INPUT_ERROR("m < 0 or >= N."); }
+        if (n < 0 || n >= N) { PRINT_INPUT_ERROR("n < 0 or >= N."); }
         if (i > j) { PRINT_INPUT_ERROR("i > j."); } 
         if (j > k) { PRINT_INPUT_ERROR("j > k."); } 
         if (k > l) { PRINT_INPUT_ERROR("k > l."); } 

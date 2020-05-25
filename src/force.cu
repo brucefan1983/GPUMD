@@ -200,43 +200,43 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
-        potential[m] = new Tersoff1989(fid_potential, atom, num_types);
+        potential[m] = new Tersoff1989(fid_potential, num_types, atom->neighbor);
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
     {
-        potential[m] = new Tersoff1988(fid_potential, atom, num_types);
+        potential[m] = new Tersoff1988(fid_potential, num_types, atom->neighbor);
     }
     else if (strcmp(potential_name, "tersoff_modc") == 0)
     {
-        potential[m] = new Tersoff_modc(fid_potential, atom, num_types);
+        potential[m] = new Tersoff_modc(fid_potential, num_types, atom->neighbor);
     }
     else if (strcmp(potential_name, "tersoff_mini") == 0)
     {
-        potential[m] = new Tersoff_mini(fid_potential, atom, num_types);
+        potential[m] = new Tersoff_mini(fid_potential, num_types, atom->neighbor);
     }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
-        potential[m] = new SW2(fid_potential, atom, num_types);
+        potential[m] = new SW2(fid_potential, num_types, atom->neighbor);
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0)
     {
-        potential[m] = new REBO_MOS(atom);
+        potential[m] = new REBO_MOS(atom->neighbor);
     }
     else if (strcmp(potential_name, "eam_zhou_2004") == 0)
     {
-        potential[m] = new EAM(fid_potential, atom, potential_name);
+        potential[m] = new EAM(fid_potential, potential_name, atom->N);
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0)
     {
-        potential[m] = new EAM(fid_potential, atom, potential_name);
+        potential[m] = new EAM(fid_potential, potential_name, atom->N);
     }
     else if (strcmp(potential_name, "vashishta") == 0)
     {
-        potential[m] = new Vashishta(fid_potential, atom);
+        potential[m] = new Vashishta(fid_potential, atom->neighbor);
     }
     else if (strcmp(potential_name, "fcp") == 0)
     {
-        potential[m] = new FCP(fid_potential, input_dir, atom);
+        potential[m] = new FCP(fid_potential, input_dir, atom->N, atom->box);
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
