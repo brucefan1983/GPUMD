@@ -462,29 +462,39 @@ static __global__ void gpu_find_neighbor_local
 
 
 // Construct the local neighbor list from the global one (Wrapper)
-void Force::find_neighbor_local(Atom *atom, int m)
+void Force::find_neighbor_local
+(
+    const int m,
+    std::vector<Group>& group,
+    GPU_Vector<int>& atom_type,
+    const GPU_Vector<double>& position_per_atom,
+    const Box& box,
+    Neighbor& neighbor
+)
 {
-    int type1 = atom_begin[m];
-    int type2 = atom_end[m];
-    int N = atom->N;
-    int N1 = potential[m]->N1;
-    int N2 = potential[m]->N2;
-    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
-    int *NN = atom->neighbor.NN.data();
-    int *NL = atom->neighbor.NL.data();
-    int *NN_local = atom->neighbor.NN_local.data();
-    int *NL_local = atom->neighbor.NL_local.data();
-    int *type = (group_method >= 0) ? atom->group[group_method].label.data()
-                                    : atom->type.data();
-    double rc2 = potential[m]->rc * potential[m]->rc;
-      
+    const int number_of_atoms = neighbor.NN.size();
+    int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / BLOCK_SIZE + 1;
+
+    int *type = (group_method >= 0) ? group[group_method].label.data()
+                                    : atom_type.data();
+
     gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
     (
-        atom->box, type1, type2, type,
-        N, N1, N2, rc2, NN, NL, NN_local, NL_local,
-        atom->position_per_atom.data(),
-        atom->position_per_atom.data() + N,
-        atom->position_per_atom.data() + N * 2
+        box,
+        atom_begin[m],
+        atom_end[m],
+        type,
+        number_of_atoms,
+        potential[m]->N1,
+        potential[m]->N2,
+        potential[m]->rc * potential[m]->rc,
+        neighbor.NN.data(),
+        neighbor.NL.data(),
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2
     );
     CUDA_CHECK_KERNEL
 
@@ -651,7 +661,15 @@ void Force::compute(Atom *atom)
     {
         // first build a local neighbor list
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-        find_neighbor_local(atom, m);
+        find_neighbor_local
+        (
+            m,
+            atom->group,
+            atom->type,
+            atom->position_per_atom,
+            atom->box,
+            atom->neighbor
+        );
 #endif
         // and then calculate the forces and related quantities
         potential[m]->compute

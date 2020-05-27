@@ -83,7 +83,16 @@ private:
         const int m
     );
 
-    void find_neighbor_local(Atom*, int);
+    void find_neighbor_local
+    (
+        const int m,
+        std::vector<Group>& group,
+        GPU_Vector<int>& atom_type,
+        const GPU_Vector<double>& position_per_atom,
+        const Box& box,
+        Neighbor& neighbor
+    );
+
     bool kind_is_participating(int, int);
     bool kinds_are_contiguous(void);
 
