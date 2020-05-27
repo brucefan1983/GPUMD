@@ -151,12 +151,16 @@ void Force::parse_potential(char **param, int num_param)
 }
 
 
-void Force::initialize_participation_and_shift(Atom* atom)
+void Force::initialize_participation_and_shift
+(
+    const std::vector<Group>& group_vector,
+    const int number_of_types
+)
 {
     if (group_method > -1)
-        num_kind = atom->group[group_method].number;
+        num_kind = group_vector[group_method].number;
     else
-        num_kind = atom->number_of_types;
+        num_kind = number_of_types;
 
     // initialize bookkeeping data structures
     manybody_participation.resize(num_kind, 0);

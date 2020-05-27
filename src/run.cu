@@ -40,7 +40,11 @@ Run::Run
 )
 {
     run(input_dir, atom, force, integrate, measure, 1);
-    force->initialize_participation_and_shift(atom);
+    force->initialize_participation_and_shift
+    (
+        atom->group,
+        atom->number_of_types
+    );
     run(input_dir, atom, force, integrate, measure, 0);
 }
 

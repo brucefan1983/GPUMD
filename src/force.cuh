@@ -15,6 +15,8 @@
 
 
 #pragma once
+
+#include "group.cuh"
 #include <vector>
 #include <stdio.h>
 
@@ -35,7 +37,11 @@ public:
     void compute(Atom*);
     int get_number_of_types(FILE *fid_potential);
     void valdiate_potential_definitions(void);
-    void initialize_participation_and_shift(Atom*);
+    void initialize_participation_and_shift
+    (
+        const std::vector<Group>& group_vector,
+        const int umber_of_types
+    );
     void set_hnemd_parameters(const bool, const double, const double, const double);
 
     int num_of_potentials;
