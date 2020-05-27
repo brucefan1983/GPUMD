@@ -373,16 +373,24 @@ bool Force::kinds_are_contiguous()
     return true;
 }
 
-void Force::add_potential(char* input_dir, Atom *atom)
+void Force::add_potential
+(
+    char* input_dir,
+    const Box& box,
+    const Neighbor& neighbor,
+    const std::vector<Group>& group,
+    const std::vector<int>& cpu_type,
+    const std::vector<int>& cpu_type_size
+)
 {
     int m = num_of_potentials-1;
     initialize_potential
     (
         input_dir,
-        atom->box,
-        atom->neighbor,
-        atom->group,
-        atom->cpu_type_size,
+        box,
+        neighbor,
+        group,
+        cpu_type_size,
         m
     );
 
@@ -392,8 +400,8 @@ void Force::add_potential(char* input_dir, Atom *atom)
     for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
     {
         int kind;
-        if (group_method > -1) kind = atom->group[group_method].cpu_label[n];
-        else kind = atom->cpu_type[n];
+        if (group_method > -1) kind = group[group_method].cpu_label[n];
+        else kind = cpu_type[n];
 
         if (kind < atom_begin[m] || kind > atom_end[m])
         {

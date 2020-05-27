@@ -230,7 +230,15 @@ void Run::add_potential
     if (check) { number_of_times_potential++; }
     else
     {
-        force->add_potential(input_dir, atom);
+        force->add_potential
+        (
+            input_dir,
+            atom->box,
+            atom->neighbor,
+            atom->group,
+            atom->cpu_type,
+            atom->cpu_type_size
+        );
     }
 }
 

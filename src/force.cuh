@@ -35,7 +35,16 @@ public:
     ~Force(void);
     void parse_potential_definition(char**, int);
     void parse_potential(char**, int);
-    void add_potential(char* input_dir, Atom*);
+    void add_potential
+    (
+        char* input_dir,
+        const Box& box,
+        const Neighbor& neighbor,
+        const std::vector<Group>& group,
+        const std::vector<int>& cpu_type,
+        const std::vector<int>& cpu_type_size
+    );
+
     void compute(Atom*);
     int get_number_of_types(FILE *fid_potential);
     void valdiate_potential_definitions(void);
