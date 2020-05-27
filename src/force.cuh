@@ -29,7 +29,7 @@ public:
 
     Force(void);
     ~Force(void);
-    void parse_potential_definition(char**, int, Atom*);
+    void parse_potential_definition(char**, int);
     void parse_potential(char**, int);
     void add_potential(char* input_dir, Atom*);
     void compute(Atom*);

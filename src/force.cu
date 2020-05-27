@@ -63,7 +63,7 @@ Force::~Force(void)
 }
 
 
-void Force::parse_potential_definition(char **param, int num_param, Atom *atom)
+void Force::parse_potential_definition(char **param, int num_param)
 {
     // 'potential_definition' must be called before all 'potential' keywords
     if (num_of_potentials > 0)

@@ -341,7 +341,7 @@ void Run::parse
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
-        force->parse_potential_definition(param, num_param, atom);
+        force->parse_potential_definition(param, num_param);
     }
     else if (strcmp(param[0], "potential") == 0)
     {
