@@ -16,7 +16,9 @@
 
 #pragma once
 
+#include "box.cuh"
 #include "group.cuh"
+#include "neighbor.cuh"
 #include <vector>
 #include <stdio.h>
 
@@ -62,7 +64,16 @@ private:
 
     std::vector<int> type_shift_; // shift to correct type in force eval
 
-    void initialize_potential(char* input_dir, Atom*, int);
+    void initialize_potential
+    (
+        char* input_dir,
+        const Box& box,
+        const Neighbor& neighbor,
+        const std::vector<Group>& group,
+        const std::vector<int>& cpu_type_size,
+        const int m
+    );
+
     void find_neighbor_local(Atom*, int);
     bool kind_is_participating(int, int);
     bool kinds_are_contiguous(void);

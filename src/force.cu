@@ -189,8 +189,17 @@ void Force::valdiate_potential_definitions()
     }
 }
 
-void Force::initialize_potential(char* input_dir, Atom* atom, int m)
+void Force::initialize_potential
+(
+    char* input_dir,
+    const Box& box,
+    const Neighbor& neighbor,
+    const std::vector<Group>& group,
+    const std::vector<int>& cpu_type_size,
+    const int m
+)
 {
+    const int number_of_atoms = neighbor.NN.size();
     FILE *fid_potential = my_fopen(file_potential[m], "r");
     char potential_name[20];
     int count = fscanf(fid_potential, "%s", potential_name);
@@ -204,43 +213,43 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
-        potential[m] = new Tersoff1989(fid_potential, num_types, atom->neighbor);
+        potential[m] = new Tersoff1989(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
     {
-        potential[m] = new Tersoff1988(fid_potential, num_types, atom->neighbor);
+        potential[m] = new Tersoff1988(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "tersoff_modc") == 0)
     {
-        potential[m] = new Tersoff_modc(fid_potential, num_types, atom->neighbor);
+        potential[m] = new Tersoff_modc(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "tersoff_mini") == 0)
     {
-        potential[m] = new Tersoff_mini(fid_potential, num_types, atom->neighbor);
+        potential[m] = new Tersoff_mini(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
-        potential[m] = new SW2(fid_potential, num_types, atom->neighbor);
+        potential[m] = new SW2(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0)
     {
-        potential[m] = new REBO_MOS(atom->neighbor);
+        potential[m] = new REBO_MOS(neighbor);
     }
     else if (strcmp(potential_name, "eam_zhou_2004") == 0)
     {
-        potential[m] = new EAM(fid_potential, potential_name, atom->N);
+        potential[m] = new EAM(fid_potential, potential_name, number_of_atoms);
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0)
     {
-        potential[m] = new EAM(fid_potential, potential_name, atom->N);
+        potential[m] = new EAM(fid_potential, potential_name, number_of_atoms);
     }
     else if (strcmp(potential_name, "vashishta") == 0)
     {
-        potential[m] = new Vashishta(fid_potential, atom->neighbor);
+        potential[m] = new Vashishta(fid_potential, neighbor);
     }
     else if (strcmp(potential_name, "fcp") == 0)
     {
-        potential[m] = new FCP(fid_potential, input_dir, atom->N, atom->box);
+        potential[m] = new FCP(fid_potential, input_dir, number_of_atoms, box);
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
@@ -283,22 +292,22 @@ void Force::initialize_potential(char* input_dir, Atom* atom, int m)
     {
         for (int n = 0; n < atom_begin[m]; ++n)
         {
-            potential[m]->N1 += atom->group[group_method].cpu_size[n];
+            potential[m]->N1 += group[group_method].cpu_size[n];
         }
         for (int n = 0; n <= atom_end[m]; ++n)
         {
-            potential[m]->N2 += atom->group[group_method].cpu_size[n];
+            potential[m]->N2 += group[group_method].cpu_size[n];
         }
     }
     else
     {
         for (int n = 0; n < atom_begin[m]; ++n)
         {
-            potential[m]->N1 += atom->cpu_type_size[n];
+            potential[m]->N1 += cpu_type_size[n];
         }
         for (int n = 0; n <= atom_end[m]; ++n)
         {
-            potential[m]->N2 += atom->cpu_type_size[n];
+            potential[m]->N2 += cpu_type_size[n];
         }
     }
 
@@ -367,7 +376,16 @@ bool Force::kinds_are_contiguous()
 void Force::add_potential(char* input_dir, Atom *atom)
 {
     int m = num_of_potentials-1;
-    initialize_potential(input_dir, atom, m);
+    initialize_potential
+    (
+        input_dir,
+        atom->box,
+        atom->neighbor,
+        atom->group,
+        atom->cpu_type_size,
+        m
+    );
+
     if (rc_max < potential[m]->rc) rc_max = potential[m]->rc;
 
     // check the atom types in xyz.in
