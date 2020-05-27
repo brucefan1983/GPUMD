@@ -161,7 +161,7 @@ void Force::initialize_participation_and_shift(Atom* atom)
     // initialize bookkeeping data structures
     manybody_participation.resize(num_kind, 0);
     potential_participation.resize(num_kind, 0);
-    atom->shift.resize(MAX_NUM_OF_POTENTIALS, 0);
+    type_shift_.resize(MAX_NUM_OF_POTENTIALS, 0);
 }
 
 	
@@ -380,7 +380,7 @@ void Force::add_potential(char* input_dir, Atom *atom)
             exit(1);
         }
     }
-    atom->shift[m] = atom_begin[m];
+    type_shift_[m] = atom_begin[m];
     participating_kinds.clear(); // reset after every definition
 }
 
@@ -626,7 +626,7 @@ void Force::compute(Atom *atom)
         // and then calculate the forces and related quantities
         potential[m]->compute
         (
-            atom->shift[m],
+            type_shift_[m],
             atom->box,
             atom->neighbor,
             atom->type,

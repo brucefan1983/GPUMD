@@ -40,7 +40,6 @@ public:
 
     std::vector<int> cpu_type;
     std::vector<int> cpu_type_size;
-    std::vector<int> shift; // shift to correct type in force eval
 
     std::vector<double> cpu_mass;
     std::vector<double> cpu_position_per_atom;

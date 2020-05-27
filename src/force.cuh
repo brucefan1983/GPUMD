@@ -54,6 +54,8 @@ public:
 
 private:
 
+    std::vector<int> type_shift_; // shift to correct type in force eval
+
     void initialize_potential(char* input_dir, Atom*, int);
     void find_neighbor_local(Atom*, int);
     bool kind_is_participating(int, int);
