@@ -42,7 +42,17 @@ class SW2 : public Potential
 public:   
     SW2(FILE*, int num_of_types, const Neighbor& neighbor);
     virtual ~SW2(void);
-    virtual void compute(Atom*, int);
+    virtual void compute
+    (
+        const int type_shift,
+        const Box& box,
+        const Neighbor& neighbor,
+        const GPU_Vector<int>& type,
+        const GPU_Vector<double>& position,
+        GPU_Vector<double>& potential,
+        GPU_Vector<double>& force,
+        GPU_Vector<double>& virial
+    );
     void initialize_sw_1985_1(FILE*); // called by the constructor
     void initialize_sw_1985_2(FILE*); // called by the constructor
     void initialize_sw_1985_3(FILE*); // called by the constructor

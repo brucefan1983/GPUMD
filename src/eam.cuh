@@ -45,7 +45,17 @@ class EAM : public Potential
 public:   
     EAM(FILE*, char*, const int number_of_atoms);
     virtual ~EAM(void);
-    virtual void compute(Atom*, int);
+    virtual void compute
+    (
+        const int type_shift,
+        const Box& box,
+        const Neighbor& neighbor,
+        const GPU_Vector<int>& type,
+        const GPU_Vector<double>& position,
+        GPU_Vector<double>& potential,
+        GPU_Vector<double>& force,
+        GPU_Vector<double>& virial
+    );
     void initialize_eam2004zhou(FILE*);
     void initialize_eam2006dai(FILE*);
 protected:

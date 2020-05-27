@@ -239,13 +239,19 @@ static __device__ void find_F(EAM2006Dai fs, double rho, double &F, double &Fp)
 template <int potential_model>
 static __global__ void find_force_eam_step1
 (
-    EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai, 
-    int N, int N1, int N2, Box box, 
-    int* g_NN, int* g_NL,
+    const EAM2004Zhou eam2004zhou,
+    const EAM2006Dai eam2006dai,
+    const int N,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int* g_NN,
+    const int* g_NL,
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z, 
-    double* g_Fp, double* g_pe 
+    double* g_Fp,
+    double* g_pe
 )
 { 
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -295,15 +301,23 @@ static __global__ void find_force_eam_step1
 template <int potential_model>
 static __global__ void find_force_eam_step2
 (
-    EAM2004Zhou  eam2004zhou, EAM2006Dai eam2006dai,
-    int N, int N1, int N2, Box box, 
-    int *g_NN, int *g_NL,
+    const EAM2004Zhou eam2004zhou,
+    const EAM2006Dai eam2006dai,
+    const int N,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int *g_NN,
+    const int *g_NL,
     const double* __restrict__ g_Fp, 
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z, 
-    double *g_fx, double *g_fy, double *g_fz,
-    double *g_virial, double *g_pe
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_virial,
+    double *g_pe
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -405,8 +419,19 @@ static __global__ void find_force_eam_step2
 
 
 // Force evaluation wrapper
-void EAM::compute(Atom *atom, int potential_number)
+void EAM::compute
+(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
+    const int number_of_atoms = type.size();
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
     if (potential_model == 0)
@@ -415,17 +440,17 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou,
             eam2006dai,
-            atom->N,
+            number_of_atoms,
             N1,
             N2,
-            atom->box,
-            atom->neighbor.NN_local.data(),
-            atom->neighbor.NL_local.data(),
-            atom->position_per_atom.data(),
-            atom->position_per_atom.data() + atom->N,
-            atom->position_per_atom.data() + atom->N * 2,
+            box,
+            neighbor.NN_local.data(),
+            neighbor.NL_local.data(),
+            position_per_atom.data(),
+            position_per_atom.data() + number_of_atoms,
+            position_per_atom.data() + number_of_atoms * 2,
             eam_data.Fp.data(),
-            atom->potential_per_atom.data()
+            potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
 
@@ -433,21 +458,21 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou,
             eam2006dai,
-            atom->N,
+            number_of_atoms,
             N1,
             N2,
-            atom->box,
-            atom->neighbor.NN_local.data(),
-            atom->neighbor.NL_local.data(),
+            box,
+            neighbor.NN_local.data(),
+            neighbor.NL_local.data(),
             eam_data.Fp.data(),
-            atom->position_per_atom.data(),
-            atom->position_per_atom.data() + atom->N,
-            atom->position_per_atom.data() + atom->N * 2,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N,
-            atom->virial_per_atom.data(),
-            atom->potential_per_atom.data()
+            position_per_atom.data(),
+            position_per_atom.data() + number_of_atoms,
+            position_per_atom.data() + number_of_atoms * 2,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms,
+            virial_per_atom.data(),
+            potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
     }
@@ -458,17 +483,17 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou,
             eam2006dai,
-            atom->N,
+            number_of_atoms,
             N1,
             N2,
-            atom->box,
-            atom->neighbor.NN_local.data(),
-            atom->neighbor.NL_local.data(),
-            atom->position_per_atom.data(),
-            atom->position_per_atom.data() + atom->N,
-            atom->position_per_atom.data() + atom->N * 2,
+            box,
+            neighbor.NN_local.data(),
+            neighbor.NL_local.data(),
+            position_per_atom.data(),
+            position_per_atom.data() + number_of_atoms,
+            position_per_atom.data() + number_of_atoms * 2,
             eam_data.Fp.data(),
-            atom->potential_per_atom.data()
+            potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
 
@@ -476,21 +501,21 @@ void EAM::compute(Atom *atom, int potential_number)
         (
             eam2004zhou,
             eam2006dai,
-            atom->N,
+            number_of_atoms,
             N1,
             N2,
-            atom->box,
-            atom->neighbor.NN_local.data(),
-            atom->neighbor.NL_local.data(),
+            box,
+            neighbor.NN_local.data(),
+            neighbor.NL_local.data(),
             eam_data.Fp.data(),
-            atom->position_per_atom.data(),
-            atom->position_per_atom.data() + atom->N,
-            atom->position_per_atom.data() + atom->N * 2,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N,
-            atom->virial_per_atom.data(),
-            atom->potential_per_atom.data()
+            position_per_atom.data(),
+            position_per_atom.data() + number_of_atoms,
+            position_per_atom.data() + number_of_atoms * 2,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms,
+            virial_per_atom.data(),
+            potential_per_atom.data()
         );
         CUDA_CHECK_KERNEL
     }

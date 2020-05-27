@@ -581,15 +581,26 @@ static __device__ void find_p2_and_f2(int type12, double d12, double &p2, double
 // 2-body part (kernel)
 static __global__ void find_force_step0
 (
-    int number_of_particles, int N1, int N2, Box box,
-    int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
-    int *g_type, int shift,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int *g_NN,
+    const int *g_NL,
+    int *g_NN_local,
+    int *g_NL_local,
+    const int *g_type,
+    const int shift,
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z, 
-    double *g_p,  double *g_pp,
-    double *g_fx, double *g_fy, double *g_fz,
-    double *g_virial, double *g_potential
+    double *g_p,
+    double *g_pp,
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_virial,
+    double *g_potential
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -703,12 +714,20 @@ static __global__ void find_force_step0
 // Precompute the bond-order function and its derivative 
 static __global__ void find_force_step1
 (
-    int N, int N1, int N2, Box box,
-    int* g_NN, int* g_NL, int* g_type, int shift,
+    const int N,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int* g_NN,
+    const int* g_NL,
+    const int* g_type,
+    const int shift,
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z,
-    double* g_b, double* g_bp, double *g_p
+    double* g_b,
+    double* g_bp,
+    double *g_p
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -765,15 +784,24 @@ static __global__ void find_force_step1
 // calculate and save the partial forces dU_i/dr_ij
 static __global__ void find_force_step2
 (
-    int N, int N1, int N2, Box box,
-    int *g_NN, int *g_NL, int *g_type, int shift,
+    const int N,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int *g_NN,
+    const int *g_NL,
+    const int *g_type,
+    const int shift,
     const double* __restrict__ g_b, 
     const double* __restrict__ g_bp,
     const double* __restrict__ g_pp,
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z, 
-    double *g_potential, double *g_f12x, double *g_f12y, double *g_f12z
+    double *g_potential,
+    double *g_f12x,
+    double *g_f12y,
+    double *g_f12z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -860,71 +888,103 @@ static __global__ void find_force_step2
 
 
 // Force evaluation wrapper
-void REBO_MOS::compute(Atom *atom, int potential_number)
+void REBO_MOS::compute
+(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
-    int N = atom->N;
-    int shift = atom->shift[potential_number];
+    const int number_of_atoms = type.size();
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-
-    int *NN = atom->neighbor.NN_local.data(); // for 2-body
-    int *NL = atom->neighbor.NL_local.data(); // for 2-body
-    int *NN_local = rebo_mos_data.NN_short.data(); // for 3-body
-    int *NL_local = rebo_mos_data.NL_short.data(); // for 3-body
-
-    int *type = atom->type.data();
-    double *x = atom->position_per_atom.data();
-    double *y = atom->position_per_atom.data() + atom->N;
-    double *z = atom->position_per_atom.data() + atom->N * 2;
-    double *fx = atom->force_per_atom.data();
-    double *fy = atom->force_per_atom.data() + atom->N;
-    double *fz = atom->force_per_atom.data() + 2 * atom->N;
-    double *virial = atom->virial_per_atom.data();
-    double *pe = atom->potential_per_atom.data();
-
-    double *b    = rebo_mos_data.b.data();
-    double *bp   = rebo_mos_data.bp.data();
-    double *p    = rebo_mos_data.p.data();
-    double *pp   = rebo_mos_data.pp.data();
-    double *f12x = rebo_mos_data.f12x.data();
-    double *f12y = rebo_mos_data.f12y.data();
-    double *f12z = rebo_mos_data.f12z.data();
 
     // 2-body part
     find_force_step0<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, atom->box, NN, NL, NN_local, NL_local, type, shift,
-        x, y, z, p, pp, fx, fy, fz, virial, pe
+        number_of_atoms,
+        N1,
+        N2,
+        box,
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        rebo_mos_data.NN_short.data(),
+        rebo_mos_data.NL_short.data(),
+        type.data(),
+        type_shift,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        rebo_mos_data.p.data(),
+        rebo_mos_data.pp.data(),
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
+        virial_per_atom.data(),
+        potential_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 
     // pre-compute the bond-order function and its derivative
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, atom->box, NN_local, NL_local,
-        type, shift, x, y, z, b, bp, p
+        number_of_atoms,
+        N1,
+        N2,
+        box,
+        rebo_mos_data.NN_short.data(),
+        rebo_mos_data.NL_short.data(),
+        type.data(),
+        type_shift,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        rebo_mos_data.b.data(),
+        rebo_mos_data.bp.data(),
+        rebo_mos_data.p.data()
     );
     CUDA_CHECK_KERNEL
 
     // pre-compute the partial force
     find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, atom->box, NN_local, NL_local,
-        type, shift, b, bp, pp, x, y, z, pe, f12x, f12y, f12z
+        number_of_atoms,
+        N1,
+        N2,
+        box,
+        rebo_mos_data.NN_short.data(),
+        rebo_mos_data.NL_short.data(),
+        type.data(),
+        type_shift,
+        rebo_mos_data.b.data(),
+        rebo_mos_data.bp.data(),
+        rebo_mos_data.pp.data(),
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        potential_per_atom.data(),
+        rebo_mos_data.f12x.data(),
+        rebo_mos_data.f12y.data(),
+        rebo_mos_data.f12z.data()
     );
     CUDA_CHECK_KERNEL
 
     // 3-body part
     find_properties_many_body
     (
-        atom->box,
-        NN_local,
-        NL_local,
-        f12x,
-        f12y,
-        f12z,
-        atom->position_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom
+        box,
+        rebo_mos_data.NN_short.data(),
+        rebo_mos_data.NL_short.data(),
+        rebo_mos_data.f12x.data(),
+        rebo_mos_data.f12y.data(),
+        rebo_mos_data.f12z.data(),
+        position_per_atom,
+        force_per_atom,
+        virial_per_atom
     );
 }
 

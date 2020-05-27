@@ -19,8 +19,6 @@
 #include "gpu_vector.cuh"
 #include "neighbor.cuh"
 
-class Atom; 
-
 
 class Potential
 {
@@ -29,7 +27,18 @@ public:
     double rc; // maximum cutoff distance
     Potential(void);
     virtual ~Potential(void);
-    virtual void compute(Atom*, int) = 0;
+
+    virtual void compute
+    (
+        const int type_shift,
+        const Box& box,
+        const Neighbor& neighbor,
+        const GPU_Vector<int>& type,
+        const GPU_Vector<double>& position,
+        GPU_Vector<double>& potential,
+        GPU_Vector<double>& force,
+        GPU_Vector<double>& virial
+    ) = 0;
 
 protected:
     void find_properties_many_body

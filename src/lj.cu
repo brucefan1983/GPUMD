@@ -100,13 +100,22 @@ static __device__ void find_p2_and_f2
 static __global__ void gpu_find_force
 (
     LJ_Para lj,
-    int number_of_particles, int N1, int N2, Box box,
-    int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int *g_neighbor_number,
+    const int *g_neighbor_list,
+    const int *g_type,
+    const int shift,
     const double* __restrict__ g_x,
     const double* __restrict__ g_y,
     const double* __restrict__ g_z,
-    double *g_fx, double *g_fy, double *g_fz,
-    double *g_virial, double *g_potential
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_virial,
+    double *g_potential
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -200,30 +209,40 @@ static __global__ void gpu_find_force
 
 
 // Find force and related quantities for pair potentials (A wrapper)
-void LJ::compute(Atom *atom, int potential_number)
+void LJ::compute
+(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
-    int shift = atom->shift[potential_number];
+    const int number_of_atoms = type.size();
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
     gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
         lj_para,
-        atom->N,
+        number_of_atoms,
         N1,
         N2,
-        atom->box,
-        atom->neighbor.NN_local.data(),
-        atom->neighbor.NL_local.data(),
-        atom->type.data(),
-        shift,
-        atom->position_per_atom.data(),
-        atom->position_per_atom.data() + atom->N,
-        atom->position_per_atom.data() + atom->N * 2,
-        atom->force_per_atom.data(),
-        atom->force_per_atom.data() + atom->N,
-        atom->force_per_atom.data() + 2 * atom->N,
-        atom->virial_per_atom.data(),
-        atom->potential_per_atom.data()
+        box,
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        type.data(),
+        type_shift,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
+        virial_per_atom.data(),
+        potential_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 }

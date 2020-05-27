@@ -175,13 +175,22 @@ static __device__ void find_p2_and_f2
 // find the partial forces dU_i/dr_ij
 static __global__ void gpu_find_force_sw3_partial
 (
-    int number_of_particles, int N1, int N2,
-    Box box, SW2_Para sw3,
-    int *g_neighbor_number, int *g_neighbor_list, int *g_type, int shift,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const SW2_Para sw3,
+    const int *g_neighbor_number,
+    const int *g_neighbor_list,
+    const int *g_type,
+    const int shift,
     const double* __restrict__ g_x,
     const double* __restrict__ g_y,
     const double* __restrict__ g_z,
-    double *g_potential, double *g_f12x, double *g_f12y, double *g_f12z
+    double *g_potential,
+    double *g_f12x,
+    double *g_f12y,
+    double *g_f12z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -272,10 +281,10 @@ static __global__ void gpu_find_force_sw3_partial
 
 static __global__ void gpu_set_f12_to_zero
 (
-    int N,
-    int N1,
-    int N2,
-    int *g_NN,
+    const int N,
+    const int N1,
+    const int N2,
+    const int *g_NN,
     double* g_f12x,
     double* g_f12y,
     double* g_f12z
@@ -297,47 +306,67 @@ static __global__ void gpu_set_f12_to_zero
 
 
 // Find force and related quantities for the SW potential (A wrapper)
-void SW2::compute(Atom *atom, int potential_number)
+void SW2::compute
+(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
-    int N = atom->N;
-    int shift = atom->shift[potential_number];
-    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
-    int *NN = atom->neighbor.NN_local.data();
-    int *NL = atom->neighbor.NL_local.data();
-    int *type = atom->type.data();
-    double *x = atom->position_per_atom.data();
-    double *y = atom->position_per_atom.data() + atom->N;
-    double *z = atom->position_per_atom.data() + atom->N * 2;
-    double *pe = atom->potential_per_atom.data();
+    const int number_of_atoms = type.size();
+    const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
 
-    // special data for SW potential
-    double *f12x = sw2_data.f12x.data();
-    double *f12y = sw2_data.f12y.data();
-    double *f12z = sw2_data.f12z.data();
     gpu_set_f12_to_zero<<<grid_size, BLOCK_SIZE_SW>>>
-    (N, N1, N2, NN, f12x, f12y, f12z);
+    (
+        number_of_atoms,
+        N1,
+        N2,
+        neighbor.NN_local.data(),
+        sw2_data.f12x.data(),
+        sw2_data.f12y.data(),
+        sw2_data.f12z.data()
+    );
     CUDA_CHECK_KERNEL
 
     // step 1: calculate the partial forces
     gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>
     (
-        N, N1, N2, atom->box, sw2_para, NN, NL,
-        type, shift, x, y, z, pe, f12x, f12y, f12z
+        number_of_atoms,
+        N1,
+        N2,
+        box,
+        sw2_para,
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        type.data(),
+        type_shift,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        potential_per_atom.data(),
+        sw2_data.f12x.data(),
+        sw2_data.f12y.data(),
+        sw2_data.f12z.data()
     );
     CUDA_CHECK_KERNEL
 
     // step 2: calculate force and related quantities
     find_properties_many_body
     (
-        atom->box,
-        NN,
-        NL,
-        f12x,
-        f12y,
-        f12z,
-        atom->position_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom
+        box,
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        sw2_data.f12x.data(),
+        sw2_data.f12y.data(),
+        sw2_data.f12z.data(),
+        position_per_atom,
+        force_per_atom,
+        virial_per_atom
     );
 }
 

@@ -51,7 +51,17 @@ class Tersoff_mini : public Potential
 public:   
     Tersoff_mini(FILE*, int, const Neighbor& neighbor);
     virtual ~Tersoff_mini(void);
-    virtual void compute(Atom*, int);
+    virtual void compute
+    (
+        const int type_shift,
+        const Box& box,
+        const Neighbor& neighbor,
+        const GPU_Vector<int>& type,
+        const GPU_Vector<double>& position,
+        GPU_Vector<double>& potential,
+        GPU_Vector<double>& force,
+        GPU_Vector<double>& virial
+    );
 protected:
     int num_types; // number of atom tpyes
     Tersoff_mini_Data tersoff_mini_data;

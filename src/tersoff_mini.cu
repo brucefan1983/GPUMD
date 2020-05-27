@@ -156,14 +156,21 @@ static __device__ void find_g
 // step 1: pre-compute all the bond-order functions and their derivatives
 static __global__ void find_force_step1
 (
-    int number_of_particles, int N1, int N2, Box box,
-    int num_types, int* g_neighbor_number, int* g_neighbor_list,
-    int* g_type, int shift,
-    Tersoff_mini_Para para,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int num_types,
+    const int* g_neighbor_number,
+    const int* g_neighbor_list,
+    const int* g_type,
+    const int shift,
+    const Tersoff_mini_Para para,
     const double* __restrict__ g_x,
     const double* __restrict__ g_y,
     const double* __restrict__ g_z,
-    double* g_b, double* g_bp
+    double* g_b,
+    double* g_bp
 )
 {
     // start from the N1-th atom
@@ -231,16 +238,25 @@ static __global__ void
 __launch_bounds__(BLOCK_SIZE_FORCE, 10)
 find_force_step2
 (
-    int number_of_particles, int N1, int N2, Box box,
-    int num_types, int *g_neighbor_number, int *g_neighbor_list,
-    int *g_type, int shift,
-    Tersoff_mini_Para para,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const int num_types,
+    const int *g_neighbor_number,
+    const int *g_neighbor_list,
+    const int *g_type,
+    const int shift,
+    const Tersoff_mini_Para para,
     const double* __restrict__ g_b,
     const double* __restrict__ g_bp,
     const double* __restrict__ g_x,
     const double* __restrict__ g_y,
     const double* __restrict__ g_z,
-    double *g_potential, double *g_f12x, double *g_f12y, double *g_f12z
+    double *g_potential,
+    double *g_f12x,
+    double *g_f12y,
+    double *g_f12z
 )
 {
     // start from the N1-th atom
@@ -338,54 +354,80 @@ find_force_step2
 
 
 // Wrapper of force evaluation for the SBOP potential
-void Tersoff_mini::compute(Atom *atom, int potential_number)
+void Tersoff_mini::compute
+(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
-    int N = atom->N;
-    int shift = atom->shift[potential_number];
-    int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
-    int *NN = atom->neighbor.NN_local.data();
-    int *NL = atom->neighbor.NL_local.data();
-    int *type = atom->type.data();
-    double *x = atom->position_per_atom.data();
-    double *y = atom->position_per_atom.data() + atom->N;
-    double *z = atom->position_per_atom.data() + atom->N * 2;
-    double *pe = atom->potential_per_atom.data();
-
-    // special data for SBOP potential
-    double *f12x = tersoff_mini_data.f12x.data();
-    double *f12y = tersoff_mini_data.f12y.data();
-    double *f12z = tersoff_mini_data.f12z.data();
-    double *b    = tersoff_mini_data.b.data();
-    double *bp   = tersoff_mini_data.bp.data();
+    const int number_of_atoms = type.size();
+    const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
     // pre-compute the bond order functions and their derivatives
     find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, atom->box, num_types,
-        NN, NL, type, shift, para, x, y, z, b, bp
+        number_of_atoms,
+        N1,
+        N2,
+        box,
+        num_types,
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        type.data(),
+        type_shift,
+        para,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        tersoff_mini_data.b.data(),
+        tersoff_mini_data.bp.data()
     );
     CUDA_CHECK_KERNEL
 
     // pre-compute the partial forces
     find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>
     (
-        N, N1, N2, atom->box, num_types,
-        NN, NL, type, shift, para, b, bp, x, y, z, pe, f12x, f12y, f12z
+        number_of_atoms,
+        N1,
+        N2,
+        box,
+        num_types,
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        type.data(),
+        type_shift,
+        para,
+        tersoff_mini_data.b.data(),
+        tersoff_mini_data.bp.data(),
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        potential_per_atom.data(),
+        tersoff_mini_data.f12x.data(),
+        tersoff_mini_data.f12y.data(),
+        tersoff_mini_data.f12z.data()
     );
     CUDA_CHECK_KERNEL
 
     // the final step: calculate force and related quantities
     find_properties_many_body
     (
-        atom->box,
-        NN,
-        NL,
-        f12x,
-        f12y,
-        f12z,
-        atom->position_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom
+        box,
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
+        tersoff_mini_data.f12x.data(),
+        tersoff_mini_data.f12y.data(),
+        tersoff_mini_data.f12z.data(),
+        position_per_atom,
+        force_per_atom,
+        virial_per_atom
     );
 }
+
 

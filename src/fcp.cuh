@@ -38,7 +38,17 @@ class FCP : public Potential
 public:   
     FCP(FILE* fid, char *input_dir, const int N, const Box& box);
     virtual ~FCP(void);
-    virtual void compute(Atom*, int);
+    virtual void compute
+    (
+        const int type_shift,
+        const Box& box,
+        const Neighbor& neighbor,
+        const GPU_Vector<int>& type,
+        const GPU_Vector<double>& position,
+        GPU_Vector<double>& potential,
+        GPU_Vector<double>& force,
+        GPU_Vector<double>& virial
+    );
 protected:
     int order, number2, number3, number4, number5, number6;
     char file_path[200];

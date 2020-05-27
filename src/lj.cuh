@@ -34,7 +34,17 @@ class LJ : public Potential
 public:
     LJ(FILE*, int, const std::vector<int>, int);
     virtual ~LJ(void);
-    virtual void compute(Atom*, int);
+    virtual void compute
+    (
+        const int type_shift,
+        const Box& box,
+        const Neighbor& neighbor,
+        const GPU_Vector<int>& type,
+        const GPU_Vector<double>& position,
+        GPU_Vector<double>& potential,
+        GPU_Vector<double>& force,
+        GPU_Vector<double>& virial
+    );
     void initialize_lj(FILE *fid, int, const std::vector<int>, int);
 
 protected:

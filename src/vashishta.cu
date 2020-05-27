@@ -158,15 +158,25 @@ static __device__ void find_p2_and_f2
 // 2-body part of the Vashishta potential (kernel)
 static __global__ void gpu_find_force_vashishta_2body
 (
-    int number_of_particles, int N1, int N2, Box box, 
-    Vashishta_Para vas,
-    int *g_NN, int *g_NL, int *g_NN_local, int *g_NL_local,
-    int *g_type, int shift,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const Vashishta_Para vas,
+    const int *g_NN,
+    const int *g_NL,
+    int *g_NN_local,
+    int *g_NL_local,
+    const int *g_type,
+    const int shift,
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z, 
-    double *g_fx, double *g_fy, double *g_fz,
-    double *g_virial, double *g_potential
+    double *g_fx,
+    double *g_fy,
+    double *g_fz,
+    double *g_virial,
+    double *g_potential
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -275,14 +285,22 @@ static __global__ void gpu_find_force_vashishta_2body
 // calculate the partial forces dU_i/dr_ij
 static __global__ void gpu_find_force_vashishta_partial
 (
-    int number_of_particles, int N1, int N2, Box box, 
-    Vashishta_Para vas,
-    int *g_neighbor_number, int *g_neighbor_list,
-    int *g_type, int shift,
+    const int number_of_particles,
+    const int N1,
+    const int N2,
+    const Box box,
+    const Vashishta_Para vas,
+    const int *g_neighbor_number,
+    const int *g_neighbor_list,
+    const int *g_type,
+    const int shift,
     const double* __restrict__ g_x, 
     const double* __restrict__ g_y, 
     const double* __restrict__ g_z, 
-    double *g_potential, double *g_f12x, double *g_f12y, double *g_f12z  
+    double *g_potential,
+    double *g_f12x,
+    double *g_f12y,
+    double *g_f12z
 )
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -359,52 +377,62 @@ static __global__ void gpu_find_force_vashishta_partial
 
 
 // Find force and related quantities for the Vashishta potential (A wrapper)
-void Vashishta::compute(Atom *atom, int potential_number)
+void Vashishta::compute
+(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
+    const int number_of_atoms = type.size();
     int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_VASHISHTA + 1;
-    int shift = atom->shift[potential_number];
 
     // 2-body part
     gpu_find_force_vashishta_2body<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        atom->N,
+        number_of_atoms,
         N1,
         N2,
-        atom->box,
+        box,
         vashishta_para,
-        atom->neighbor.NN_local.data(),
-        atom->neighbor.NL_local.data(),
+        neighbor.NN_local.data(),
+        neighbor.NL_local.data(),
         vashishta_data.NN_short.data(),
         vashishta_data.NL_short.data(),
-        atom->type.data(),
-        shift,
-        atom->position_per_atom.data(),
-        atom->position_per_atom.data() + atom->N,
-        atom->position_per_atom.data() + atom->N * 2,
-        atom->force_per_atom.data(),
-        atom->force_per_atom.data() + atom->N,
-        atom->force_per_atom.data() + 2 * atom->N,
-        atom->virial_per_atom.data(),
-        atom->potential_per_atom.data()
+        type.data(),
+        type_shift,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
+        virial_per_atom.data(),
+        potential_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 
     // 3-body part
     gpu_find_force_vashishta_partial<<<grid_size, BLOCK_SIZE_VASHISHTA>>>
     (
-        atom->N,
+        number_of_atoms,
         N1,
         N2,
-        atom->box,
+        box,
         vashishta_para,
         vashishta_data.NN_short.data(),
         vashishta_data.NL_short.data(),
-        atom->type.data(),
-        shift,
-        atom->position_per_atom.data(),
-        atom->position_per_atom.data() + atom->N,
-        atom->position_per_atom.data() + atom->N * 2,
-        atom->potential_per_atom.data(),
+        type.data(),
+        type_shift,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
+        potential_per_atom.data(),
         vashishta_data.f12x.data(),
         vashishta_data.f12y.data(),
         vashishta_data.f12z.data()
@@ -412,15 +440,15 @@ void Vashishta::compute(Atom *atom, int potential_number)
     CUDA_CHECK_KERNEL
     find_properties_many_body
     (
-        atom->box,
+        box,
         vashishta_data.NN_short.data(),
         vashishta_data.NL_short.data(),
         vashishta_data.f12x.data(),
         vashishta_data.f12y.data(),
         vashishta_data.f12z.data(),
-        atom->position_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom
+        position_per_atom,
+        force_per_atom,
+        virial_per_atom
     );
 }
 

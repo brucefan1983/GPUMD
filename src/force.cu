@@ -624,7 +624,17 @@ void Force::compute(Atom *atom)
         find_neighbor_local(atom, m);
 #endif
         // and then calculate the forces and related quantities
-        potential[m]->compute(atom, m);
+        potential[m]->compute
+        (
+            atom->shift[m],
+            atom->box,
+            atom->neighbor,
+            atom->type,
+            atom->position_per_atom,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom
+        );
     }
 
     if (compute_hnemd_)

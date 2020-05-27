@@ -1096,16 +1096,27 @@ static __global__ void gpu_save_pfv
 
 
 // Wrapper of the above kernels
-void FCP::compute(Atom *atom, int potential_number)
+void FCP::compute
+(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
+    const int number_of_atoms = type.size();
     const int block_size = 1024;
 
-    gpu_get_u<<<(atom->N - 1) / block_size + 1, block_size>>>
+    gpu_get_u<<<(number_of_atoms - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
-        atom->position_per_atom.data(),
-        atom->position_per_atom.data() + atom->N,
-        atom->position_per_atom.data() + atom->N * 2,
+        number_of_atoms,
+        position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms,
+        position_per_atom.data() + number_of_atoms * 2,
         fcp_data.r0.data(),
         fcp_data.u.data()
     );
@@ -1113,16 +1124,16 @@ void FCP::compute(Atom *atom, int potential_number)
 
     gpu_sum_u<<<3, block_size>>>
     (
-        atom->N,
+        number_of_atoms,
         fcp_data.u.data(),
         fcp_data.utot.data()
     );
     CUDA_CHECK_KERNEL
 
-    gpu_correct_u<<<(atom->N - 1) / block_size + 1, block_size>>>
+    gpu_correct_u<<<(number_of_atoms - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
-        1.0f / atom->N,
+        number_of_atoms,
+        1.0f / number_of_atoms,
         fcp_data.utot.data(),
         fcp_data.u.data()
     );
@@ -1132,7 +1143,7 @@ void FCP::compute(Atom *atom, int potential_number)
 
     gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
+        number_of_atoms,
         number2,
         fcp_data.i2.data(),
         fcp_data.j2.data(),
@@ -1148,7 +1159,7 @@ void FCP::compute(Atom *atom, int potential_number)
     if (order >= 3)
     gpu_find_force_fcp3<<<(number3 - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
+        number_of_atoms,
         number3,
         fcp_data.i3.data(),
         fcp_data.j3.data(),
@@ -1165,7 +1176,7 @@ void FCP::compute(Atom *atom, int potential_number)
     if (order >= 4)
     gpu_find_force_fcp4<<<(number4 - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
+        number_of_atoms,
         number4,
         fcp_data.i4.data(),
         fcp_data.j4.data(),
@@ -1181,7 +1192,7 @@ void FCP::compute(Atom *atom, int potential_number)
     if (order >= 5)
     gpu_find_force_fcp5<<<(number5 - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
+        number_of_atoms,
         number5,
         fcp_data.i5.data(),
         fcp_data.j5.data(),
@@ -1198,7 +1209,7 @@ void FCP::compute(Atom *atom, int potential_number)
     if (order >= 6)
     gpu_find_force_fcp6<<<(number6 - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
+        number_of_atoms,
         number6,
         fcp_data.i6.data(),
         fcp_data.j6.data(),
@@ -1213,15 +1224,15 @@ void FCP::compute(Atom *atom, int potential_number)
         fcp_data.pfv.data()
     ); 
 
-    gpu_save_pfv<<<(atom->N - 1) / block_size + 1, block_size>>>
+    gpu_save_pfv<<<(number_of_atoms - 1) / block_size + 1, block_size>>>
     (
-        atom->N,
+        number_of_atoms,
         fcp_data.pfv.data(),
-        atom->potential_per_atom.data(),
-        atom->force_per_atom.data(),
-        atom->force_per_atom.data() + atom->N,
-        atom->force_per_atom.data() + 2 * atom->N,
-        atom->virial_per_atom.data()
+        potential_per_atom.data(),
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
+        virial_per_atom.data()
     );
 
     CUDA_CHECK_KERNEL

@@ -43,7 +43,17 @@ class Tersoff1989 : public Potential
 public:   
     Tersoff1989(FILE*, int sum_of_types, const Neighbor& neighbor);
     virtual ~Tersoff1989(void);
-    virtual void compute(Atom*, int);
+    virtual void compute
+    (
+        const int type_shift,
+        const Box& box,
+        const Neighbor& neighbor,
+        const GPU_Vector<int>& type,
+        const GPU_Vector<double>& position,
+        GPU_Vector<double>& potential,
+        GPU_Vector<double>& force,
+        GPU_Vector<double>& virial
+    );
 protected:
     Tersoff1989_Parameters ters0;
     Tersoff1989_Parameters ters1;
