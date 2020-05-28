@@ -162,7 +162,8 @@ static void process_run
     Measure *measure
 )
 {
-    integrate->initialize(atom);
+    integrate->initialize(atom->N, atom->time_step, atom->group);
+
     measure->initialize(input_dir, atom);
     clock_t time_begin = clock();
 

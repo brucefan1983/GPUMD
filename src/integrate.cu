@@ -52,7 +52,12 @@ void Integrate::finalize(void)
 }
 
 
-void Integrate::initialize(Atom* atom)
+void Integrate::initialize
+(
+    const int number_of_atoms,
+    const double time_step,
+    const std::vector<Group>& group
+)
 {
     // determine the integrator
     switch (type)
@@ -67,13 +72,23 @@ void Integrate::initialize(Atom* atom)
         case 2: // NVT-NHC
             ensemble = new Ensemble_NHC            
             (
-                type, fixed_group, atom->N, temperature, temperature_coupling, 
-                atom->time_step
+                type,
+                fixed_group,
+                number_of_atoms,
+                temperature,
+                temperature_coupling,
+                time_step
             );
             break;
         case 3: // NVT-Langevin
             ensemble = new Ensemble_LAN
-            (type, fixed_group, atom->N, temperature, temperature_coupling);
+            (
+                type,
+                fixed_group,
+                number_of_atoms,
+                temperature,
+                temperature_coupling
+            );
             break;
         case 4: // NVT-BDP
             ensemble = new Ensemble_BDP            
@@ -91,19 +106,19 @@ void Integrate::initialize(Atom* atom)
             ensemble = new Ensemble_NHC
             (
                 type, fixed_group, source, sink, 
-                atom->group[0].cpu_size[source], atom->group[0].cpu_size[sink],
+                group[0].cpu_size[source], group[0].cpu_size[sink],
                 temperature, temperature_coupling, delta_temperature, 
-                atom->time_step
+                time_step
             );
             break;
         case 22: // heat-Langevin
             ensemble = new Ensemble_LAN
             (
                 type, fixed_group, source, sink, 
-                atom->group[0].cpu_size[source],
-                atom->group[0].cpu_size[sink],
-                atom->group[0].cpu_size_sum[source],
-                atom->group[0].cpu_size_sum[sink],
+                group[0].cpu_size[source],
+                group[0].cpu_size[sink],
+                group[0].cpu_size_sum[source],
+                group[0].cpu_size_sum[sink],
                 temperature, temperature_coupling, delta_temperature
             );
             break;

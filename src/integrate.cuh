@@ -16,6 +16,9 @@
 
 #pragma once
 
+#include "group.cuh"
+#include <vector>
+
 
 class Ensemble;
 class Atom;
@@ -26,8 +29,15 @@ class Integrate
 public:
     Ensemble *ensemble; 
     Integrate(void);
-    ~Integrate(void);   
-    void initialize(Atom*);
+    ~Integrate(void);
+ 
+    void initialize
+    (
+        const int number_of_atoms,
+        const double time_step,
+        const std::vector<Group>& group
+    );
+
     void finalize(void);
     void compute1(Atom*);
     void compute2(Atom*);
