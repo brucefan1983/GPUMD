@@ -26,7 +26,8 @@ public:
     Ensemble_LAN(int, int, int, double, double);   
     Ensemble_LAN(int, int, int, int, int, int, int, int, double, double, double); 
     virtual ~Ensemble_LAN(void);
-    virtual void compute(Atom*, Force*);
+    virtual void compute1(Atom*);
+    virtual void compute2(Atom*);
 protected:
     int N_source, N_sink, offset_source, offset_sink;
     double c1, c2, c2_source, c2_sink;

@@ -237,19 +237,32 @@ void Ensemble_LAN::integrate_heat_lan_half(Atom *atom)
 }
 
 
-void Ensemble_LAN::compute(Atom *atom, Force *force)
+void Ensemble_LAN::compute1(Atom *atom)
 {
     if (type == 3)
     {
         integrate_nvt_lan_half(atom);
-        velocity_verlet(atom, force);
+        velocity_verlet_1(atom);
+    }
+    else
+    {
+        integrate_heat_lan_half(atom);
+        velocity_verlet_1(atom);
+    }
+}
+
+
+void Ensemble_LAN::compute2(Atom *atom)
+{
+    if (type == 3)
+    {
+        velocity_verlet_2(atom);
         integrate_nvt_lan_half(atom);
         find_thermo(atom);
     }
     else
     {
-        integrate_heat_lan_half(atom);
-        velocity_verlet(atom, force);
+        velocity_verlet_2(atom);
         integrate_heat_lan_half(atom);
     }
 }

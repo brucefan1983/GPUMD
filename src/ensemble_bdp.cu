@@ -80,15 +80,20 @@ Ensemble_BDP::~Ensemble_BDP(void)
 }
 
 
-void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force)
+void Ensemble_BDP::integrate_nvt_bdp_1(Atom *atom)
+{
+    velocity_verlet_1(atom);
+}
+
+
+void Ensemble_BDP::integrate_nvt_bdp_2(Atom *atom)
 {
     int N = atom->N;
 
-    // standard velocity-Verlet
-    velocity_verlet(atom, force);
+    velocity_verlet_2(atom);
 
     // get thermo
-    int N_fixed = (fixed_group == -1) ? 0 : 
+    int N_fixed = (fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[fixed_group];
     find_thermo(atom);
 
@@ -105,26 +110,32 @@ void Ensemble_BDP::integrate_nvt_bdp(Atom *atom, Force *force)
 
 
 // integrate by one step, with heating and cooling, using the BDP method
-void Ensemble_BDP::integrate_heat_bdp
-(Atom *atom, Force *force)
+void Ensemble_BDP::integrate_heat_bdp_1(Atom *atom)
+{
+    velocity_verlet_1(atom);
+}
+
+
+// integrate by one step, with heating and cooling, using the BDP method
+void Ensemble_BDP::integrate_heat_bdp_2(Atom *atom)
 {
     int label_1 = source;
     int label_2 = sink;
     int Ng = atom->group[0].number;
 
-    double kT1 = K_B * (temperature + delta_temperature); 
-    double kT2 = K_B * (temperature - delta_temperature); 
+    double kT1 = K_B * (temperature + delta_temperature);
+    double kT2 = K_B * (temperature - delta_temperature);
     double dN1 = (double) DIM * (atom->group[0].cpu_size[source] - 1);
     double dN2 = (double) DIM * (atom->group[0].cpu_size[sink] - 1);
     double sigma_1 = dN1 * kT1 * 0.5;
     double sigma_2 = dN2 * kT2 * 0.5;
 
-    // allocate some memory 
+    // allocate some memory
     std::vector<double> ek(Ng);
     GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
 
     // veloicty-Verlet
-    velocity_verlet(atom, force);
+    velocity_verlet_2(atom);
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke(atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
@@ -133,13 +144,13 @@ void Ensemble_BDP::integrate_heat_bdp
     ek[label_2] *= 0.5;
 
     // get the re-scaling factors
-    double factor_1 
+    double factor_1
         = resamplekin(ek[label_1], sigma_1, dN1, temperature_coupling);
-    double factor_2 
+    double factor_2
         = resamplekin(ek[label_2], sigma_2, dN2, temperature_coupling);
     factor_1 = sqrt(factor_1 / ek[label_1]);
     factor_2 = sqrt(factor_2 / ek[label_2]);
-    
+
     // accumulate the energies transferred from the system to the baths
     energy_transferred[0] += ek[label_1] * (1.0 - factor_1 * factor_1);
     energy_transferred[1] += ek[label_2] * (1.0 - factor_2 * factor_2);
@@ -158,16 +169,28 @@ void Ensemble_BDP::integrate_heat_bdp
 }
 
 
-void Ensemble_BDP::compute
-(Atom *atom, Force *force)
+void Ensemble_BDP::compute1(Atom *atom)
 {
     if (type == 4)
     {
-        integrate_nvt_bdp(atom, force);
+        integrate_nvt_bdp_1(atom);
     }
     else
     {
-        integrate_heat_bdp(atom, force);
+        integrate_heat_bdp_1(atom);
+    }
+}
+
+
+void Ensemble_BDP::compute2(Atom *atom)
+{
+    if (type == 4)
+    {
+        integrate_nvt_bdp_2(atom);
+    }
+    else
+    {
+        integrate_heat_bdp_2(atom);
     }
 }
 

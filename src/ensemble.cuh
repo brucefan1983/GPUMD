@@ -17,7 +17,6 @@
 #pragma once
 
 class Atom; 
-class Force; // TODO: remove this dependence
 
 
 #define NOSE_HOOVER_CHAIN_LENGTH 4
@@ -28,7 +27,8 @@ class Ensemble
 public:
     Ensemble(void);      
     virtual ~Ensemble(void);
-    virtual void compute(Atom*, Force*) = 0;
+    virtual void compute1(Atom*) = 0;
+    virtual void compute2(Atom*) = 0;
     int type;          // ensemble type in a specific run
     int source;
     int sink;
@@ -57,7 +57,6 @@ public:
 protected:
     void velocity_verlet_1(Atom*);
     void velocity_verlet_2(Atom*);
-    void velocity_verlet(Atom*, Force*);
     void find_thermo(Atom*);
     void scale_velocity_global(Atom* atom, double);
     void find_vc_and_ke(Atom*, double*, double*, double*, double*);

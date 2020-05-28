@@ -289,27 +289,6 @@ void Ensemble::velocity_verlet_2(Atom* atom)
 }
 
 
-// the standard velocity-Verlet, including force updating
-void Ensemble::velocity_verlet(Atom* atom, Force* force)
-{
-    velocity_verlet_1(atom);
-
-    force->compute
-    (
-        atom->box,
-        atom->position_per_atom,
-        atom->type,
-        atom->group,
-        atom->neighbor,
-        atom->potential_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom
-    );
-
-    velocity_verlet_2(atom);
-}
-
-
 // Find some thermodynamic properties:
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo

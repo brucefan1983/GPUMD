@@ -121,7 +121,7 @@ void Integrate::initialize(Atom* atom)
 }
 
 
-void Integrate::compute(Atom *atom, Force *force)
+void Integrate::compute1(Atom *atom)
 {
     if (type >= 1 && type <= 20)
     {
@@ -129,7 +129,19 @@ void Integrate::compute(Atom *atom, Force *force)
                               * double(atom->step) / atom->number_of_steps;
     }
 
-    ensemble->compute(atom, force);
+    ensemble->compute1(atom);
+}
+
+
+void Integrate::compute2(Atom *atom)
+{
+    if (type >= 1 && type <= 20)
+    {
+        ensemble->temperature = temperature1 + (temperature2 - temperature1)
+                              * double(atom->step) / atom->number_of_steps;
+    }
+
+    ensemble->compute2(atom);
 }
 
 

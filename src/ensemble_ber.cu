@@ -192,10 +192,16 @@ static void cpu_berendsen_pressure
 }
 
 
-void Ensemble_BER::compute(Atom *atom, Force *force)
+void Ensemble_BER::compute1(Atom *atom)
+{
+    velocity_verlet_1(atom);
+}
+
+
+void Ensemble_BER::compute2(Atom *atom)
 {
     int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
-    velocity_verlet(atom, force);
+    velocity_verlet_2(atom);
     find_thermo(atom);
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
     (
@@ -210,7 +216,7 @@ void Ensemble_BER::compute(Atom *atom, Force *force)
         gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
         (
             deform_x, deform_y, deform_z, deform_rate, atom->N,
-            atom->box, pressure_x, 
+            atom->box, pressure_x,
             pressure_y, pressure_z, pressure_coupling, atom->thermo.data(),
             atom->position_per_atom.data(),
             atom->position_per_atom.data() + atom->N,

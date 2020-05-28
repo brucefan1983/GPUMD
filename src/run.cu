@@ -183,7 +183,22 @@ static void process_run
         }
 #endif
 
-        integrate->compute(atom, force);
+        integrate->compute1(atom);
+
+        force->compute
+        (
+            atom->box,
+            atom->position_per_atom,
+            atom->type,
+            atom->group,
+            atom->neighbor,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom
+        );
+
+        integrate->compute2(atom);
+
         measure->process
         (
             input_dir,

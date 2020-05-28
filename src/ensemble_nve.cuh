@@ -23,7 +23,8 @@ class Ensemble_NVE : public Ensemble
 public:
     Ensemble_NVE(int, int);
     virtual ~Ensemble_NVE(void);
-    virtual void compute(Atom*, Force*);
+    virtual void compute1(Atom*);
+    virtual void compute2(Atom*);
 };
 
 
