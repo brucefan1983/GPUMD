@@ -158,7 +158,17 @@ void validate_force
     std::vector<double> cpu_force(N * 3);
 
     // first calculate the forces directly:
-    force->compute(atom);
+    force->compute
+    (
+        atom->box,
+        atom->position_per_atom,
+        atom->type,
+        atom->group,
+        atom->neighbor,
+        atom->potential_per_atom,
+        atom->force_per_atom,
+        atom->virial_per_atom
+    );
 
     // make a copy of the positions
     GPU_Vector<double> r0(N * 3);
@@ -188,7 +198,17 @@ void validate_force
             CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(atom);
+            force->compute
+            (
+                atom->box,
+                atom->position_per_atom,
+                atom->type,
+                atom->group,
+                atom->neighbor,
+                atom->potential_per_atom,
+                atom->force_per_atom,
+                atom->virial_per_atom
+            );
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>
@@ -216,7 +236,17 @@ void validate_force
             CUDA_CHECK_KERNEL
 
             // get the potential energy
-            force->compute(atom);
+            force->compute
+            (
+                atom->box,
+                atom->position_per_atom,
+                atom->type,
+                atom->group,
+                atom->neighbor,
+                atom->potential_per_atom,
+                atom->force_per_atom,
+                atom->virial_per_atom
+            );
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>

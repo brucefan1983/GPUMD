@@ -20,7 +20,6 @@ The driver class calculating force and related quantities.
 
 
 #include "force.cuh"
-#include "atom.cuh"
 #include "error.cuh"
 #include "mic.cuh"
 #include "potential.cuh"
@@ -644,16 +643,28 @@ void Force::set_hnemd_parameters
 } 
 
 
-void Force::compute(Atom *atom)
+void Force::compute
+(
+    const Box& box,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
-    initialize_properties<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    const int number_of_atoms = type.size();
+
+    initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>
     (
-        atom->N,
-        atom->force_per_atom.data(),
-        atom->force_per_atom.data() + atom->N,
-        atom->force_per_atom.data() + atom->N * 2,
-        atom->potential_per_atom.data(),
-        atom->virial_per_atom.data()
+        number_of_atoms,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + number_of_atoms * 2,
+        potential_per_atom.data(),
+        virial_per_atom.data()
     );
     CUDA_CHECK_KERNEL
 
@@ -664,72 +675,70 @@ void Force::compute(Atom *atom)
         find_neighbor_local
         (
             m,
-            atom->group,
-            atom->type,
-            atom->position_per_atom,
-            atom->box,
-            atom->neighbor
+            group,
+            type,
+            position_per_atom,
+            box,
+            neighbor
         );
 #endif
         // and then calculate the forces and related quantities
         potential[m]->compute
         (
             type_shift_[m],
-            atom->box,
-            atom->neighbor,
-            atom->type,
-            atom->position_per_atom,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom
+            box,
+            neighbor,
+            type,
+            position_per_atom,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom
         );
     }
 
     if (compute_hnemd_)
     {
-        int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
-
         // the virial tensor:
         // xx xy xz    0 3 4
         // yx yy yz    6 1 5
         // zx zy zz    7 8 2
-        gpu_add_driving_force<<<grid_size, BLOCK_SIZE>>>
+        gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>
         (
-            atom->N,
+            number_of_atoms,
             hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
-            atom->virial_per_atom.data() + 0 * atom->N,
-            atom->virial_per_atom.data() + 3 * atom->N,
-            atom->virial_per_atom.data() + 4 * atom->N,
-            atom->virial_per_atom.data() + 6 * atom->N,
-            atom->virial_per_atom.data() + 1 * atom->N,
-            atom->virial_per_atom.data() + 5 * atom->N,
-            atom->virial_per_atom.data() + 7 * atom->N,
-            atom->virial_per_atom.data() + 8 * atom->N,
-            atom->virial_per_atom.data() + 2 * atom->N,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N
+            virial_per_atom.data() + 0 * number_of_atoms,
+            virial_per_atom.data() + 3 * number_of_atoms,
+            virial_per_atom.data() + 4 * number_of_atoms,
+            virial_per_atom.data() + 6 * number_of_atoms,
+            virial_per_atom.data() + 1 * number_of_atoms,
+            virial_per_atom.data() + 5 * number_of_atoms,
+            virial_per_atom.data() + 7 * number_of_atoms,
+            virial_per_atom.data() + 8 * number_of_atoms,
+            virial_per_atom.data() + 2 * number_of_atoms,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms
         );
 
         GPU_Vector<double> ftot(3); // total force vector of the system
 
         gpu_sum_force<<<3, 1024>>>
         (
-            atom->N,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N,
+            number_of_atoms,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms,
             ftot.data()
         );
         CUDA_CHECK_KERNEL
 
-        gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
+        gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>
         (
-            atom->N,
-            1.0 / atom->N,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N,
+            number_of_atoms,
+            1.0 / number_of_atoms,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms,
             ftot.data()
         );
         CUDA_CHECK_KERNEL
@@ -742,22 +751,21 @@ void Force::compute(Atom *atom)
         GPU_Vector<double> ftot(3); // total force vector of the system
         gpu_sum_force<<<3, 1024>>>
         (
-            atom->N,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N,
+            number_of_atoms,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms,
             ftot.data()
         );
         CUDA_CHECK_KERNEL
 
-        int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
-        gpu_correct_force<<<grid_size, BLOCK_SIZE>>>
+        gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>
         (
-            atom->N,
-            1.0 / atom->N,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N,
+            number_of_atoms,
+            1.0 / number_of_atoms,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms,
             ftot.data()
         );
         CUDA_CHECK_KERNEL

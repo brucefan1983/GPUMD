@@ -22,7 +22,6 @@
 #include <vector>
 #include <stdio.h>
 
-class Atom;
 class Potential;
 
 #define MAX_NUM_OF_POTENTIALS 10
@@ -45,7 +44,18 @@ public:
         const std::vector<int>& cpu_type_size
     );
 
-    void compute(Atom*);
+    void compute
+    (
+        const Box& box,
+        const GPU_Vector<double>& position_per_atom,
+        GPU_Vector<int>& type,
+        std::vector<Group>& group,
+        Neighbor& neighbor,
+        GPU_Vector<double>& potential_per_atom,
+        GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& virial_per_atom
+    );
+
     int get_number_of_types(FILE *fid_potential);
     void valdiate_potential_definitions(void);
     void initialize_participation_and_shift

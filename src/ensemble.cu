@@ -293,7 +293,19 @@ void Ensemble::velocity_verlet_2(Atom* atom)
 void Ensemble::velocity_verlet(Atom* atom, Force* force)
 {
     velocity_verlet_1(atom);
-    force->compute(atom);
+
+    force->compute
+    (
+        atom->box,
+        atom->position_per_atom,
+        atom->type,
+        atom->group,
+        atom->neighbor,
+        atom->potential_per_atom,
+        atom->force_per_atom,
+        atom->virial_per_atom
+    );
+
     velocity_verlet_2(atom);
 }
 

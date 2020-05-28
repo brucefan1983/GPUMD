@@ -49,15 +49,11 @@ Phonon::Phonon(char* input_dir)
 
     compute(input_dir, &atom, &force, &hessian, 1);
 
-    if (force.group_method > -1)
-        force.num_kind = atom.group[force.group_method].number;
-    else
-        force.num_kind = atom.number_of_types;
-
-    // initialize bookkeeping data structures
-    force.manybody_participation.resize(force.num_kind, 0);
-    force.potential_participation.resize(force.num_kind, 0);
-    atom.shift.resize(MAX_NUM_OF_POTENTIALS, 0);
+    force.initialize_participation_and_shift
+    (
+        atom.group,
+        atom.number_of_types
+    );
 
     compute(input_dir, &atom, &force, &hessian, 0);
 }
@@ -84,7 +80,18 @@ void Phonon::compute
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
         parse(param, num_param, atom, force, hessian, &is_potential);
-        if (!check && is_potential) force->add_potential(input_dir, atom);
+        if (!check && is_potential)
+        {
+            force->add_potential
+            (
+                input_dir,
+                atom->box,
+                atom->neighbor,
+                atom->group,
+                atom->cpu_type,
+                atom->cpu_type_size
+            );
+        }
     }
     free(input); // Free the input file contents
     if (!check) hessian->compute(input_dir, atom, force);
@@ -99,7 +106,7 @@ void Phonon::parse
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
-        force->parse_potential_definition(param, num_param, atom);
+        force->parse_potential_definition(param, num_param);
     }
     if (strcmp(param[0], "potential") == 0)
     {
