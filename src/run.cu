@@ -383,7 +383,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "ensemble") == 0)
     {
-        integrate->parse_ensemble(param, num_param, atom);
+        integrate->parse_ensemble(param, num_param, atom->group);
     }
     else if (strcmp(param[0], "time_step") == 0)
     {
@@ -447,7 +447,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "fix") == 0)
     {
-        integrate->parse_fix(param, num_param, atom);
+        integrate->parse_fix(param, num_param, atom->group);
     }
     else if (strcmp(param[0], "run") == 0)
     {

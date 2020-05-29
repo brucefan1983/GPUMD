@@ -43,9 +43,9 @@ public:
     void compute2(Atom*);
 
     // get inputs from run.in
-    void parse_ensemble(char**, int, Atom*);
+    void parse_ensemble(char **param, int num_param, std::vector<Group>& group);
     void parse_deform(char**, int);
-    void parse_fix(char**, int, Atom*);
+    void parse_fix(char**, int, std::vector<Group>& group);
 
     // these data will be used to initialize ensemble
     int type;          // ensemble type in a specific run

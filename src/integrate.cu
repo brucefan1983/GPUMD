@@ -165,7 +165,8 @@ void Integrate::compute2(Atom *atom)
 //1-10:  NVT
 //11-20: NPT
 //21-30: heat (NEMD method for heat conductivity)
-void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
+void Integrate::parse_ensemble
+(char **param, int num_param, std::vector<Group>& group)
 {
     // 1. Determine the integration method
     if (strcmp(param[1], "nve") == 0)
@@ -370,7 +371,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("Group ID for heat sink should be an integer.");
         }
-        if (atom->group.size() < 1)
+        if (group.size() < 1)
         {
             PRINT_INPUT_ERROR("Cannot heat/cold without grouping method.");
         }
@@ -382,7 +383,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("Group ID for heat source should >= 0.");
         }
-        if (source >= atom->group[0].number)
+        if (source >= group[0].number)
         {
             PRINT_INPUT_ERROR("Group ID for heat source should < #groups.");
         }
@@ -390,7 +391,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("Group ID for heat sink should >= 0.");
         }
-        if (sink >= atom->group[0].number)
+        if (sink >= group[0].number)
         {
             PRINT_INPUT_ERROR("Group ID for heat sink should < #groups.");
         }
@@ -480,7 +481,7 @@ void Integrate::parse_ensemble(char **param, int num_param, Atom *atom)
 }
 
 
-void Integrate::parse_fix(char **param, int num_param, Atom *atom)
+void Integrate::parse_fix(char **param, int num_param, std::vector<Group>& group)
 {
     if (num_param != 2)
     {
@@ -492,7 +493,7 @@ void Integrate::parse_fix(char **param, int num_param, Atom *atom)
         PRINT_INPUT_ERROR("Fixed group ID should be an integer.");
     }
 
-    if (atom->group.size() < 1)
+    if (group.size() < 1)
     {
         PRINT_INPUT_ERROR("Cannot use 'fix' without grouping method.");
     }
@@ -502,7 +503,7 @@ void Integrate::parse_fix(char **param, int num_param, Atom *atom)
         PRINT_INPUT_ERROR("Fixed group ID should >= 0.");
     }
 
-    if (fixed_group >= atom->group[0].number)
+    if (fixed_group >= group[0].number)
     {
         PRINT_INPUT_ERROR("Fixed group ID should < number of groups.");
     }
