@@ -105,7 +105,7 @@ void Ensemble_BDP::integrate_nvt_bdp_2(Atom *atom)
     double sigma = ndeg * K_B * temperature * 0.5;
     double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
     factor = sqrt(factor / ek[0]);
-    scale_velocity_global(atom, factor);
+    scale_velocity_global(factor, atom->velocity_per_atom);
 }
 
 
@@ -138,7 +138,17 @@ void Ensemble_BDP::integrate_heat_bdp_2(Atom *atom)
     velocity_verlet(false, atom);
 
     // get center of mass velocity and relative kinetic energy
-    find_vc_and_ke(atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
+    find_vc_and_ke
+    (
+        atom->group,
+        atom->mass,
+        atom->velocity_per_atom,
+        vcx.data(),
+        vcy.data(),
+        vcz.data(),
+        ke.data()
+    );
+
     ke.copy_to_host(ek.data());
     ek[label_1] *= 0.5;
     ek[label_2] *= 0.5;
@@ -155,16 +165,16 @@ void Ensemble_BDP::integrate_heat_bdp_2(Atom *atom)
     energy_transferred[0] += ek[label_1] * (1.0 - factor_1 * factor_1);
     energy_transferred[1] += ek[label_2] * (1.0 - factor_2 * factor_2);
 
-    // re-scale the velocities
     scale_velocity_local
     (
-        atom,
         factor_1,
         factor_2,
         vcx.data(),
         vcy.data(),
         vcz.data(),
-        ke.data()
+        ke.data(),
+        atom->group,
+        atom->velocity_per_atom
     );
 }
 

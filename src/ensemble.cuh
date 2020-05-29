@@ -15,6 +15,8 @@
 
 
 #pragma once
+#include "gpu_vector.cuh"
+#include "group.cuh"
 
 class Atom; 
 
@@ -57,9 +59,35 @@ public:
 protected:
     void velocity_verlet(const bool is_step1, Atom*);
     void find_thermo(Atom*);
-    void scale_velocity_global(Atom* atom, double);
-    void find_vc_and_ke(Atom*, double*, double*, double*, double*);
-    void scale_velocity_local(Atom*, double, double, double*, double*, double*, double*);
+
+    void scale_velocity_global
+    (
+        const double factor,
+        GPU_Vector<double>& velocity_per_atom
+    );
+
+    void find_vc_and_ke
+    (
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& velocity_per_atom,
+        double* vcx,
+        double* vcy,
+        double* vcz,
+        double* ke
+    );
+
+    void scale_velocity_local
+    (
+        const double factor_1,
+        const double factor_2,
+        const double* vcx,
+        const double* vcy,
+        const double* vcz,
+        const double* ke,
+        const std::vector<Group>& group,
+        GPU_Vector<double>& velocity_per_atom
+    );
 };
 
 

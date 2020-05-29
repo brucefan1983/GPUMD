@@ -544,14 +544,19 @@ static void __global__ gpu_scale_velocity
 
 
 // wrapper of the above kernel
-void Ensemble::scale_velocity_global(Atom* atom, double factor)
+void Ensemble::scale_velocity_global
+(
+    const double factor,
+    GPU_Vector<double>& velocity_per_atom
+)
 {
-    gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    const int number_of_atoms = velocity_per_atom.size() / 3;
+    gpu_scale_velocity<<<(number_of_atoms - 1) / 128 + 1, 128>>>
     (
-        atom->N,
-        atom->velocity_per_atom.data(),
-        atom->velocity_per_atom.data() + atom->N,
-        atom->velocity_per_atom.data() + 2 * atom->N,
+        number_of_atoms,
+        velocity_per_atom.data(),
+        velocity_per_atom.data() + number_of_atoms,
+        velocity_per_atom.data() + 2 * number_of_atoms,
         factor
     );
     CUDA_CHECK_KERNEL
@@ -560,9 +565,17 @@ void Ensemble::scale_velocity_global(Atom* atom, double factor)
 
 static __global__ void gpu_find_vc_and_ke
 (
-    int* g_group_size, int* g_group_size_sum, int* g_group_contents, 
-    double* g_mass, double *g_vx, double *g_vy, double *g_vz, 
-    double *g_vcx, double *g_vcy, double *g_vcz, double *g_ke
+    const int* g_group_size,
+    const int* g_group_size_sum,
+    const int* g_group_contents,
+    const double* g_mass,
+    const double *g_vx,
+    const double *g_vy,
+    const double *g_vz,
+    double *g_vcx,
+    double *g_vcy,
+    double *g_vcz,
+    double *g_ke
 )
 {
     //<<<number_of_groups, 512>>>
@@ -638,17 +651,27 @@ static __global__ void gpu_find_vc_and_ke
 
 // wrapper of the above kernel
 void Ensemble::find_vc_and_ke
-(Atom* atom, double* vcx, double* vcy, double* vcz, double* ke)
+(
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& velocity_per_atom,
+    double* vcx,
+    double* vcy,
+    double* vcz,
+    double* ke
+)
 {
-    gpu_find_vc_and_ke<<<atom->group[0].number, 512>>>
+    const int number_of_atoms = mass.size();
+
+    gpu_find_vc_and_ke<<<group[0].number, 512>>>
     (
-        atom->group[0].size.data(),
-        atom->group[0].size_sum.data(),
-        atom->group[0].contents.data(),
-        atom->mass.data(),
-        atom->velocity_per_atom.data(),
-        atom->velocity_per_atom.data() + atom->N,
-        atom->velocity_per_atom.data() + 2 * atom->N,
+        group[0].size.data(),
+        group[0].size_sum.data(),
+        group[0].contents.data(),
+        mass.data(),
+        velocity_per_atom.data(),
+        velocity_per_atom.data() + number_of_atoms,
+        velocity_per_atom.data() + 2 * number_of_atoms,
         vcx,
         vcy,
         vcz,
@@ -660,16 +683,16 @@ void Ensemble::find_vc_and_ke
 
 static __global__ void gpu_scale_velocity
 (
-    int number_of_particles,
-    int label_1,
-    int label_2,
-    int *g_atom_label,
-    double factor_1,
-    double factor_2,
-    double *g_vcx,
-    double *g_vcy,
-    double *g_vcz,
-    double *g_ke,
+    const int number_of_particles,
+    const int label_1,
+    const int label_2,
+    const int *g_atom_label,
+    const double factor_1,
+    const double factor_2,
+    const double *g_vcx,
+    const double *g_vcy,
+    const double *g_vcz,
+    const double *g_ke,
     double *g_vx,
     double *g_vy,
     double *g_vz
@@ -713,25 +736,33 @@ static __global__ void gpu_scale_velocity
 // wrapper of the above kernel
 void Ensemble::scale_velocity_local
 (
-    Atom* atom, double factor_1, double factor_2,
-    double* vcx, double* vcy, double* vcz, double* ke
+    const double factor_1,
+    const double factor_2,
+    const double* vcx,
+    const double* vcy,
+    const double* vcz,
+    const double* ke,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& velocity_per_atom
 )
 {
-    gpu_scale_velocity<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+    const int number_of_atoms = velocity_per_atom.size() / 3;
+
+    gpu_scale_velocity<<<(number_of_atoms - 1) / 128 + 1, 128>>>
     (
-        atom->N,
+        number_of_atoms,
         source,
         sink,
-        atom->group[0].label.data(),
+        group[0].label.data(),
         factor_1,
         factor_2,
         vcx,
         vcy,
         vcz,
         ke,
-        atom->velocity_per_atom.data(),
-        atom->velocity_per_atom.data() + atom->N,
-        atom->velocity_per_atom.data() + 2 * atom->N
+        velocity_per_atom.data(),
+        velocity_per_atom.data() + number_of_atoms,
+        velocity_per_atom.data() + 2 * number_of_atoms
     );
     CUDA_CHECK_KERNEL
 }

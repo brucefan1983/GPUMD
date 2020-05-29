@@ -189,7 +189,7 @@ void Ensemble_NHC::integrate_nvt_nhc_1(Atom *atom)
     atom->thermo.copy_to_host(ek2, 1);
     ek2[0] *= DIM * N * K_B;
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
-    scale_velocity_global(atom, factor);
+    scale_velocity_global(factor, atom->velocity_per_atom);
 
     velocity_verlet(true, atom);
 }
@@ -211,7 +211,7 @@ void Ensemble_NHC::integrate_nvt_nhc_2(Atom *atom)
     atom->thermo.copy_to_host(ek2, 1);
     ek2[0] *= DIM * N * K_B;
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
-    scale_velocity_global(atom, factor);
+    scale_velocity_global(factor, atom->velocity_per_atom);
 }
 
 
@@ -237,7 +237,17 @@ void Ensemble_NHC::integrate_heat_nhc_1(Atom *atom)
     GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
 
     // NHC first
-    find_vc_and_ke(atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
+    find_vc_and_ke
+    (
+        atom->group,
+        atom->mass,
+        atom->velocity_per_atom,
+        vcx.data(),
+        vcy.data(),
+        vcz.data(),
+        ke.data()
+    );
+
     ke.copy_to_host(ek2.data());
 
     double factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH, 
@@ -251,13 +261,14 @@ void Ensemble_NHC::integrate_heat_nhc_1(Atom *atom)
     
     scale_velocity_local
     (
-        atom,
         factor_1,
         factor_2,
         vcx.data(),
         vcy.data(),
         vcz.data(),
-        ke.data()
+        ke.data(),
+        atom->group,
+        atom->velocity_per_atom
     );
 
     velocity_verlet(true, atom);
@@ -288,7 +299,17 @@ void Ensemble_NHC::integrate_heat_nhc_2(Atom *atom)
     velocity_verlet(false, atom);
 
     // NHC second
-    find_vc_and_ke(atom, vcx.data(), vcy.data(), vcz.data(), ke.data());
+    find_vc_and_ke
+    (
+        atom->group,
+        atom->mass,
+        atom->velocity_per_atom,
+        vcx.data(),
+        vcy.data(),
+        vcz.data(),
+        ke.data()
+    );
+
     ke.copy_to_host(ek2.data());
     double factor_1 = nhc(NOSE_HOOVER_CHAIN_LENGTH,
         pos_nhc1, vel_nhc1, mas_nhc1, ek2[label_1], kT1, dN1, dt2);
@@ -301,13 +322,14 @@ void Ensemble_NHC::integrate_heat_nhc_2(Atom *atom)
 
     scale_velocity_local
     (
-        atom,
         factor_1,
         factor_2,
         vcx.data(),
         vcy.data(),
         vcz.data(),
-        ke.data()
+        ke.data(),
+        atom->group,
+        atom->velocity_per_atom
     );
 }
 
