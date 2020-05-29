@@ -82,7 +82,7 @@ Ensemble_BDP::~Ensemble_BDP(void)
 
 void Ensemble_BDP::integrate_nvt_bdp_1(Atom *atom)
 {
-    velocity_verlet_1(atom);
+    velocity_verlet(true, atom);
 }
 
 
@@ -90,7 +90,7 @@ void Ensemble_BDP::integrate_nvt_bdp_2(Atom *atom)
 {
     int N = atom->N;
 
-    velocity_verlet_2(atom);
+    velocity_verlet(false, atom);
 
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 :
@@ -112,7 +112,7 @@ void Ensemble_BDP::integrate_nvt_bdp_2(Atom *atom)
 // integrate by one step, with heating and cooling, using the BDP method
 void Ensemble_BDP::integrate_heat_bdp_1(Atom *atom)
 {
-    velocity_verlet_1(atom);
+    velocity_verlet(true, atom);
 }
 
 
@@ -135,7 +135,7 @@ void Ensemble_BDP::integrate_heat_bdp_2(Atom *atom)
     GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
 
     // veloicty-Verlet
-    velocity_verlet_2(atom);
+    velocity_verlet(false, atom);
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke(atom, vcx.data(), vcy.data(), vcz.data(), ke.data());

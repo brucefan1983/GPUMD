@@ -38,13 +38,13 @@ Ensemble_NVE::~Ensemble_NVE(void)
 
 void Ensemble_NVE::compute1(Atom *atom)
 {
-    velocity_verlet_1(atom);
+    velocity_verlet(true, atom);
 }
 
 
 void Ensemble_NVE::compute2(Atom *atom)
 {
-    velocity_verlet_2(atom);
+    velocity_verlet(false, atom);
     find_thermo(atom);
 }
 

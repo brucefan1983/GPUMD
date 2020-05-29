@@ -55,8 +55,7 @@ public:
     double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 
 protected:
-    void velocity_verlet_1(Atom*);
-    void velocity_verlet_2(Atom*);
+    void velocity_verlet(const bool is_step1, Atom*);
     void find_thermo(Atom*);
     void scale_velocity_global(Atom* atom, double);
     void find_vc_and_ke(Atom*, double*, double*, double*, double*);

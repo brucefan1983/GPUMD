@@ -242,12 +242,12 @@ void Ensemble_LAN::compute1(Atom *atom)
     if (type == 3)
     {
         integrate_nvt_lan_half(atom);
-        velocity_verlet_1(atom);
+        velocity_verlet(true, atom);
     }
     else
     {
         integrate_heat_lan_half(atom);
-        velocity_verlet_1(atom);
+        velocity_verlet(true, atom);
     }
 }
 
@@ -256,13 +256,13 @@ void Ensemble_LAN::compute2(Atom *atom)
 {
     if (type == 3)
     {
-        velocity_verlet_2(atom);
+        velocity_verlet(false, atom);
         integrate_nvt_lan_half(atom);
         find_thermo(atom);
     }
     else
     {
-        velocity_verlet_2(atom);
+        velocity_verlet(false, atom);
         integrate_heat_lan_half(atom);
     }
 }
