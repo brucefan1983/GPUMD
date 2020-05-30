@@ -18,13 +18,14 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 ------------------------------------------------------------------------------*/
 
 #pragma once
-#include "mic.cuh"
-#include "atom.cuh"
+
+#include "gpu_vector.cuh"
+#include "common.cuh"
 #include <fstream>
 #include <string>
 #include <iostream>
 #include <sstream>
-#include "gpu_vector.cuh"
+#include <vector>
 #include <cublas_v2.h>
 
 #define NO_METHOD -1
@@ -78,12 +79,21 @@ public:
 
     void preprocess
     (
-        char*,
+        char *input_dir,
         const std::vector<int>& cpu_type_size,
         const GPU_Vector<double>& mass
     );
 
-    void process(int, Atom*, double, double);
+    void process
+    (
+        const int step,
+        const double temperature,
+        const double volume,
+        const double fe,
+        const GPU_Vector<double>& velocity_per_atom,
+        const GPU_Vector<double>& virial_per_atom
+    );
+
     void postprocess();
 
 private:
@@ -106,7 +116,12 @@ private:
     GPU_Vector<float> mvy;
     GPU_Vector<float> mvz;
 
-    void compute_heat(Atom*);
+    void compute_heat
+    (
+        const GPU_Vector<double>& velocity_per_atom,
+        const GPU_Vector<double>& virial_per_atom
+    );
+
     void setN(const std::vector<int>& cpu_type_size);
     void set_eigmode(int, std::ifstream&, GPU_Vector<float>&);
 

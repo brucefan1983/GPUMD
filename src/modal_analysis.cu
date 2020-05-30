@@ -270,17 +270,22 @@ static __global__ void gpu_update_jm
     }
 }
 
-void MODAL_ANALYSIS::compute_heat(Atom *atom)
+void MODAL_ANALYSIS::compute_heat
+(
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom
+)
 {
+    const int number_of_atoms = velocity_per_atom.size() / 3;
 
     int grid_size = (num_participating - 1) / BLOCK_SIZE + 1;
     // precalculate velocity*sqrt(mass)
     elemwise_mass_scale<<<grid_size, BLOCK_SIZE>>>
     (
           num_participating, N1, sqrtmass.data(),
-          atom->velocity_per_atom.data(),
-          atom->velocity_per_atom.data() + atom->N,
-          atom->velocity_per_atom.data() + 2 * atom->N,
+          velocity_per_atom.data(),
+          velocity_per_atom.data() + number_of_atoms,
+          velocity_per_atom.data() + 2 * number_of_atoms,
           mvx.data(), mvy.data(), mvz.data()
     );
     CUDA_CHECK_KERNEL
@@ -289,15 +294,15 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
     prepare_sm<<<grid_size, BLOCK_SIZE>>>
     (
            num_participating, N1,
-           atom->virial_per_atom.data(),
-           atom->virial_per_atom.data() + atom->N * 3,
-           atom->virial_per_atom.data() + atom->N * 4,
-           atom->virial_per_atom.data() + atom->N * 6,
-           atom->virial_per_atom.data() + atom->N * 1,
-           atom->virial_per_atom.data() + atom->N * 5,
-           atom->virial_per_atom.data() + atom->N * 7,
-           atom->virial_per_atom.data() + atom->N * 8,
-           atom->virial_per_atom.data() + atom->N * 2,
+           virial_per_atom.data(),
+           virial_per_atom.data() + number_of_atoms * 3,
+           virial_per_atom.data() + number_of_atoms * 4,
+           virial_per_atom.data() + number_of_atoms * 6,
+           virial_per_atom.data() + number_of_atoms * 1,
+           virial_per_atom.data() + number_of_atoms * 5,
+           virial_per_atom.data() + number_of_atoms * 7,
+           virial_per_atom.data() + number_of_atoms * 8,
+           virial_per_atom.data() + number_of_atoms * 2,
            rsqrtmass.data(),
            smx.data(), smy.data(), smz.data()
     );
@@ -567,16 +572,18 @@ void MODAL_ANALYSIS::preprocess
 
 void MODAL_ANALYSIS::process
 (
-    int step,
-    Atom *atom,
-    double temperature,
-    double fe
+    const int step,
+    const double temperature,
+    const double volume,
+    const double fe,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom
 )
 {
     if (!compute) return;
     if (!((step+1) % sample_interval == 0)) return;
 
-    compute_heat(atom);
+    compute_heat(velocity_per_atom, virial_per_atom);
 
     if (method == HNEMA_METHOD &&
             !((step+1) % output_interval == 0)) return;
@@ -590,7 +597,6 @@ void MODAL_ANALYSIS::process
 
     if (method == HNEMA_METHOD)
     {
-        float volume = atom->box.get_volume();
         float factor = KAPPA_UNIT_CONVERSION/
             (volume * temperature * fe * (float)samples_per_output);
         int num_bins_stored = num_bins * NUM_OF_HEAT_COMPONENTS;

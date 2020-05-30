@@ -365,7 +365,16 @@ void Measure::process
         atom->heat_per_atom
     );
 
-    modal_analysis.process(step, atom, temperature, hnemd.fe);
+    modal_analysis.process
+    (
+        step,
+        temperature,
+        atom->box.get_volume(),
+        hnemd.fe,
+        atom->velocity_per_atom,
+        atom->virial_per_atom
+    );
+
     if (dump_pos) dump_pos->dump(atom, step);
 }
 
