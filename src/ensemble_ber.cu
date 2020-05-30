@@ -193,14 +193,34 @@ static void cpu_berendsen_pressure
 
 void Ensemble_BER::compute1(Atom *atom)
 {
-    velocity_verlet(true, atom);
+    velocity_verlet
+    (
+        true,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 }
 
 
 void Ensemble_BER::compute2(Atom *atom)
 {
     int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
-    velocity_verlet(false, atom);
+
+    velocity_verlet
+    (
+        false,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
+
     find_thermo
     (
         atom->box.get_volume(),

@@ -57,7 +57,16 @@ public:
     double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 
 protected:
-    void velocity_verlet(const bool is_step1, Atom*);
+    void velocity_verlet
+    (
+        const bool is_step1,
+        const double time_step,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom
+    );
 
     void find_thermo
     (

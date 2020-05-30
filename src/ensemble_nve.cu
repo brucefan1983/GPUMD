@@ -38,13 +38,32 @@ Ensemble_NVE::~Ensemble_NVE(void)
 
 void Ensemble_NVE::compute1(Atom *atom)
 {
-    velocity_verlet(true, atom);
+    velocity_verlet
+    (
+        true,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 }
 
 
 void Ensemble_NVE::compute2(Atom *atom)
 {
-    velocity_verlet(false, atom);
+    velocity_verlet
+    (
+        false,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
+
     find_thermo
     (
         atom->box.get_volume(),

@@ -81,7 +81,16 @@ Ensemble_BDP::~Ensemble_BDP(void)
 
 void Ensemble_BDP::integrate_nvt_bdp_1(Atom *atom)
 {
-    velocity_verlet(true, atom);
+    velocity_verlet
+    (
+        true,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 }
 
 
@@ -89,7 +98,16 @@ void Ensemble_BDP::integrate_nvt_bdp_2(Atom *atom)
 {
     int N = atom->N;
 
-    velocity_verlet(false, atom);
+    velocity_verlet
+    (
+        false,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 :
@@ -120,7 +138,16 @@ void Ensemble_BDP::integrate_nvt_bdp_2(Atom *atom)
 // integrate by one step, with heating and cooling, using the BDP method
 void Ensemble_BDP::integrate_heat_bdp_1(Atom *atom)
 {
-    velocity_verlet(true, atom);
+    velocity_verlet
+    (
+        true,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 }
 
 
@@ -142,8 +169,16 @@ void Ensemble_BDP::integrate_heat_bdp_2(Atom *atom)
     std::vector<double> ek(Ng);
     GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
 
-    // veloicty-Verlet
-    velocity_verlet(false, atom);
+    velocity_verlet
+    (
+        false,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 
     // get center of mass velocity and relative kinetic energy
     find_vc_and_ke

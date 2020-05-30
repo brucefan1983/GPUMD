@@ -140,46 +140,57 @@ static __global__ void gpu_velocity_verlet
 }
 
 
-void Ensemble::velocity_verlet(const bool is_step1, Atom* atom)
+void Ensemble::velocity_verlet
+(
+    const bool is_step1,
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom
+)
 {
+    const int number_of_atoms = mass.size();
+
     if (fixed_group == -1)
     {
-        gpu_velocity_verlet<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+        gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>
         (
             is_step1,
-            atom->N,
-            atom->time_step,
-            atom->mass.data(),
-            atom->position_per_atom.data(),
-            atom->position_per_atom.data() + atom->N,
-            atom->position_per_atom.data() + atom->N * 2,
-            atom->velocity_per_atom.data(),
-            atom->velocity_per_atom.data() + atom->N,
-            atom->velocity_per_atom.data() + 2 * atom->N,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N
+            number_of_atoms,
+            time_step,
+            mass.data(),
+            position_per_atom.data(),
+            position_per_atom.data() + number_of_atoms,
+            position_per_atom.data() + number_of_atoms * 2,
+            velocity_per_atom.data(),
+            velocity_per_atom.data() + number_of_atoms,
+            velocity_per_atom.data() + 2 * number_of_atoms,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms
         );
     }
     else
     {
-        gpu_velocity_verlet<<<(atom->N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
+        gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>
         (
             is_step1,
-            atom->N,
+            number_of_atoms,
             fixed_group,
-            atom->group[0].label.data(),
-            atom->time_step,
-            atom->mass.data(),
-            atom->position_per_atom.data(),
-            atom->position_per_atom.data() + atom->N,
-            atom->position_per_atom.data() + atom->N * 2,
-            atom->velocity_per_atom.data(),
-            atom->velocity_per_atom.data() + atom->N,
-            atom->velocity_per_atom.data() + 2 * atom->N,
-            atom->force_per_atom.data(),
-            atom->force_per_atom.data() + atom->N,
-            atom->force_per_atom.data() + 2 * atom->N
+            group[0].label.data(),
+            time_step,
+            mass.data(),
+            position_per_atom.data(),
+            position_per_atom.data() + number_of_atoms,
+            position_per_atom.data() + number_of_atoms * 2,
+            velocity_per_atom.data(),
+            velocity_per_atom.data() + number_of_atoms,
+            velocity_per_atom.data() + 2 * number_of_atoms,
+            force_per_atom.data(),
+            force_per_atom.data() + number_of_atoms,
+            force_per_atom.data() + 2 * number_of_atoms
         );
 
     }

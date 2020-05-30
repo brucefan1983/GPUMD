@@ -199,7 +199,16 @@ void Ensemble_NHC::integrate_nvt_nhc_1(Atom *atom)
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
     scale_velocity_global(factor, atom->velocity_per_atom);
 
-    velocity_verlet(true, atom);
+    velocity_verlet
+    (
+        true,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 }
 
 
@@ -213,7 +222,17 @@ void Ensemble_NHC::integrate_nvt_nhc_2(Atom *atom)
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
     double ek2[1];
 
-    velocity_verlet(false, atom);
+    velocity_verlet
+    (
+        false,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
+
     find_thermo
     (
         atom->box.get_volume(),
@@ -288,7 +307,16 @@ void Ensemble_NHC::integrate_heat_nhc_1(Atom *atom)
         atom->velocity_per_atom
     );
 
-    velocity_verlet(true, atom);
+    velocity_verlet
+    (
+        true,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 }
 
 
@@ -313,7 +341,16 @@ void Ensemble_NHC::integrate_heat_nhc_2(Atom *atom)
     std::vector<double> ek2(Ng);
     GPU_Vector<double> vcx(Ng), vcy(Ng), vcz(Ng), ke(Ng);
 
-    velocity_verlet(false, atom);
+    velocity_verlet
+    (
+        false,
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->force_per_atom,
+        atom->position_per_atom,
+        atom->velocity_per_atom
+     );
 
     // NHC second
     find_vc_and_ke
