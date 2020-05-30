@@ -394,17 +394,17 @@ void MODAL_ANALYSIS::compute_heat(Atom *atom)
 
 }
 
-void MODAL_ANALYSIS::setN(Atom *atom)
+void MODAL_ANALYSIS::setN(const std::vector<int>& cpu_type_size)
 {
     N1 = 0;
     N2 = 0;
     for (int n = 0; n < atom_begin; ++n)
     {
-        N1 += atom->cpu_type_size[n];
+        N1 += cpu_type_size[n];
     }
     for (int n = atom_begin; n <= atom_end; ++n)
     {
-        N2 += atom->cpu_type_size[n];
+        N2 += cpu_type_size[n];
     }
 
     num_participating = N2 - N1;
@@ -425,12 +425,17 @@ void MODAL_ANALYSIS::set_eigmode
     }
 }
 
-void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
+void MODAL_ANALYSIS::preprocess
+(
+    char *input_dir,
+    const std::vector<int>& cpu_type_size,
+    const GPU_Vector<double>& mass
+)
 {
     if (!compute) return;
         num_modes = last_mode-first_mode+1;
         samples_per_output = output_interval/sample_interval;
-        setN(atom);
+        setN(cpu_type_size);
 
         strcpy(output_file_position, input_dir);
         if (method == GKMA_METHOD)
@@ -552,7 +557,7 @@ void MODAL_ANALYSIS::preprocess(char *input_dir, Atom *atom)
         gpu_set_mass_terms
         <<<(num_participating-1)/BLOCK_SIZE+1, BLOCK_SIZE>>>
         (
-            num_participating, N1, atom->mass.data(),
+            num_participating, N1, mass.data(),
             sqrtmass.data(), rsqrtmass.data()
         );
         CUDA_CHECK_KERNEL

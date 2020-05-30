@@ -164,7 +164,16 @@ static void process_run
 {
     integrate->initialize(atom->N, atom->time_step, atom->group);
 
-    measure->initialize(input_dir, atom);
+    measure->initialize
+    (
+        input_dir,
+        atom->number_of_steps,
+        atom->time_step,
+        atom->group,
+        atom->cpu_type_size,
+        atom->mass
+    );
+
     clock_t time_begin = clock();
 
     for (int step = 0; step < atom->number_of_steps; ++step)

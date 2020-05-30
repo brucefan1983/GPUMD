@@ -76,7 +76,13 @@ public:
     char eig_file_position[200];
     char output_file_position[200];
 
-    void preprocess(char*, Atom*);
+    void preprocess
+    (
+        char*,
+        const std::vector<int>& cpu_type_size,
+        const GPU_Vector<double>& mass
+    );
+
     void process(int, Atom*, double, double);
     void postprocess();
 
@@ -101,7 +107,7 @@ private:
     GPU_Vector<float> mvz;
 
     void compute_heat(Atom*);
-    void setN(Atom*);
+    void setN(const std::vector<int>& cpu_type_size);
     void set_eigmode(int, std::ifstream&, GPU_Vector<float>&);
 
 };

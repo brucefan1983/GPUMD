@@ -51,17 +51,27 @@ Measure::~Measure(void)
 }
 
 
-void Measure::initialize(char* input_dir, Atom *atom)
+void Measure::initialize
+(
+    char* input_dir,
+    const int number_of_steps,
+    const double time_step,
+    const std::vector<Group>& group,
+    const std::vector<int>& cpu_type_size,
+    const GPU_Vector<double>& mass
+)
 {
+    const int number_of_atoms = mass.size();
+
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_velocity)  {fid_velocity = my_fopen(file_velocity, "a");}
     if (dump_pos)       {dump_pos->initialize(input_dir);}
-    vac.preprocess(atom->time_step, atom->group, atom->mass);
-    hac.preprocess(atom->number_of_steps);
-    shc.preprocess(atom->N, atom->group);
-    compute.preprocess(atom->N, input_dir, atom->group);
+    vac.preprocess(time_step, group, mass);
+    hac.preprocess(number_of_steps);
+    shc.preprocess(number_of_atoms, group);
+    compute.preprocess(number_of_atoms, input_dir, group);
     hnemd.preprocess();
-    modal_analysis.preprocess(input_dir, atom);
+    modal_analysis.preprocess(input_dir, cpu_type_size, mass);
 }
 
 

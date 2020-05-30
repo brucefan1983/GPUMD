@@ -30,7 +30,15 @@ class Measure
 public:
     Measure(char *input_dir);
     ~Measure(void);
-    void initialize(char*, Atom*);
+    void initialize
+    (
+        char* input_dir,
+        const int number_of_steps,
+        const double time_step,
+        const std::vector<Group>& group,
+        const std::vector<int>& cpu_type_size,
+        const GPU_Vector<double>& mass
+    );
 
     void finalize
     (
