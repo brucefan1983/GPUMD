@@ -21,7 +21,6 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 
 
 #include "ensemble_lan.cuh"
-#include "force.cuh"
 #include <curand_kernel.h>
 #include "atom.cuh"
 #include "error.cuh"
@@ -258,7 +257,16 @@ void Ensemble_LAN::compute2(Atom *atom)
     {
         velocity_verlet(false, atom);
         integrate_nvt_lan_half(atom);
-        find_thermo(atom);
+        find_thermo
+        (
+            atom->box.get_volume(),
+            atom->group,
+            atom->mass,
+            atom->potential_per_atom,
+            atom->velocity_per_atom,
+            atom->virial_per_atom,
+            atom->thermo
+        );
     }
     else
     {

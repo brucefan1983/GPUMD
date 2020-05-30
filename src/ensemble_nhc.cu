@@ -22,7 +22,6 @@ Oxford University Press, 2010.
 
 
 #include "ensemble_nhc.cuh"
-#include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #include "gpu_vector.cuh"
@@ -183,7 +182,16 @@ void Ensemble_NHC::integrate_nvt_nhc_1(Atom *atom)
     double dt2 = time_step * 0.5;
 
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
-    find_thermo(atom);
+    find_thermo
+    (
+        atom->box.get_volume(),
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->velocity_per_atom,
+        atom->virial_per_atom,
+        atom->thermo
+    );
 
     double ek2[1];
     atom->thermo.copy_to_host(ek2, 1);
@@ -206,7 +214,16 @@ void Ensemble_NHC::integrate_nvt_nhc_2(Atom *atom)
     double ek2[1];
 
     velocity_verlet(false, atom);
-    find_thermo(atom);
+    find_thermo
+    (
+        atom->box.get_volume(),
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->velocity_per_atom,
+        atom->virial_per_atom,
+        atom->thermo
+    );
 
     atom->thermo.copy_to_host(ek2, 1);
     ek2[0] *= DIM * N * K_B;

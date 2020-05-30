@@ -21,7 +21,6 @@ The Berendsen thermostat:
 
 
 #include "ensemble_ber.cuh"
-#include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 
@@ -202,7 +201,16 @@ void Ensemble_BER::compute2(Atom *atom)
 {
     int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
     velocity_verlet(false, atom);
-    find_thermo(atom);
+    find_thermo
+    (
+        atom->box.get_volume(),
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->velocity_per_atom,
+        atom->virial_per_atom,
+        atom->thermo
+    );
     gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
     (
         atom->N, temperature, temperature_coupling, atom->thermo.data(),

@@ -20,7 +20,7 @@ The NVE ensemble integrator.
 
 
 #include "ensemble_nve.cuh"
-#include "force.cuh" 
+#include "atom.cuh"
 
 
 Ensemble_NVE::Ensemble_NVE(int t, int fg)
@@ -45,7 +45,16 @@ void Ensemble_NVE::compute1(Atom *atom)
 void Ensemble_NVE::compute2(Atom *atom)
 {
     velocity_verlet(false, atom);
-    find_thermo(atom);
+    find_thermo
+    (
+        atom->box.get_volume(),
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->velocity_per_atom,
+        atom->virial_per_atom,
+        atom->thermo
+    );
 }
 
 

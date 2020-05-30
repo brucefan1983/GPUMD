@@ -191,20 +191,20 @@ void Ensemble::velocity_verlet(const bool is_step1, Atom* atom)
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
-    int N,
-    int N_fixed,
-    int fixed_group,
-    int *group_id,
-    double T,
-    double volume,
-    double *g_mass,
-    double *g_potential,
-    double *g_vx,
-    double *g_vy,
-    double *g_vz,
-    double *g_sx,
-    double *g_sy,
-    double *g_sz,
+    const int N,
+    const int N_fixed,
+    const int fixed_group,
+    const int *group_id,
+    const double T,
+    const double volume,
+    const double *g_mass,
+    const double *g_potential,
+    const double *g_vx,
+    const double *g_vy,
+    const double *g_vz,
+    const double *g_sx,
+    const double *g_sy,
+    const double *g_sz,
     double *g_thermo
 )
 {
@@ -339,17 +339,17 @@ static __global__ void gpu_find_thermo
 // g_thermo[0-4] = T, U, p_x, p_y, p_z
 static __global__ void gpu_find_thermo
 (
-    int N,
-    double T,
-    double volume,
-    double *g_mass,
-    double *g_potential,
-    double *g_vx,
-    double *g_vy,
-    double *g_vz,
-    double *g_sx,
-    double *g_sy,
-    double *g_sz,
+    const int N,
+    const double T,
+    const double volume,
+    const double *g_mass,
+    const double *g_potential,
+    const double *g_vx,
+    const double *g_vy,
+    const double *g_vz,
+    const double *g_sx,
+    const double *g_sy,
+    const double *g_sz,
     double *g_thermo
 )
 {
@@ -481,47 +481,57 @@ static __global__ void gpu_find_thermo
 
 
 // wrapper of the above kernel
-void Ensemble::find_thermo(Atom* atom)
+void Ensemble::find_thermo
+(
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
-    double volume = atom->box.get_volume();
+    const int number_of_atoms = mass.size();
+
     if (fixed_group == -1)
     {
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N,
+            number_of_atoms,
             temperature,
             volume,
-            atom->mass.data(),
-            atom->potential_per_atom.data(),
-            atom->velocity_per_atom.data(),
-            atom->velocity_per_atom.data() + atom->N,
-            atom->velocity_per_atom.data() + 2 * atom->N,
-            atom->virial_per_atom.data(),
-            atom->virial_per_atom.data() + atom->N,
-            atom->virial_per_atom.data() + atom->N * 2,
-            atom->thermo.data()
+            mass.data(),
+            potential_per_atom.data(),
+            velocity_per_atom.data(),
+            velocity_per_atom.data() + number_of_atoms,
+            velocity_per_atom.data() + 2 * number_of_atoms,
+            virial_per_atom.data(),
+            virial_per_atom.data() + number_of_atoms,
+            virial_per_atom.data() + number_of_atoms * 2,
+            thermo.data()
         );
     }
     else
     {
-        int N_fixed = atom->group[0].cpu_size[fixed_group];
+        int N_fixed = group[0].cpu_size[fixed_group];
         gpu_find_thermo<<<5, 1024>>>
         (
-            atom->N,
+            number_of_atoms,
             N_fixed,
             fixed_group,
-            atom->group[0].label.data(),
+            group[0].label.data(),
             temperature,
             volume,
-            atom->mass.data(),
-            atom->potential_per_atom.data(),
-            atom->velocity_per_atom.data(),
-            atom->velocity_per_atom.data() + atom->N,
-            atom->velocity_per_atom.data() + 2 * atom->N,
-            atom->virial_per_atom.data(),
-            atom->virial_per_atom.data() + atom->N,
-            atom->virial_per_atom.data() + atom->N * 2,
-            atom->thermo.data()
+            mass.data(),
+            potential_per_atom.data(),
+            velocity_per_atom.data(),
+            velocity_per_atom.data() + number_of_atoms,
+            velocity_per_atom.data() + 2 * number_of_atoms,
+            virial_per_atom.data(),
+            virial_per_atom.data() + number_of_atoms,
+            virial_per_atom.data() + number_of_atoms * 2,
+            thermo.data()
         );
     }
     CUDA_CHECK_KERNEL

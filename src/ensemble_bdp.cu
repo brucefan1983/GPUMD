@@ -21,7 +21,6 @@ The Bussi-Donadio-Parrinello thermostat:
 
 
 #include "ensemble_bdp.cuh"
-#include "force.cuh"
 #include "atom.cuh"
 #include "error.cuh"
 #include "gpu_vector.cuh"
@@ -95,7 +94,16 @@ void Ensemble_BDP::integrate_nvt_bdp_2(Atom *atom)
     // get thermo
     int N_fixed = (fixed_group == -1) ? 0 :
         atom->group[0].cpu_size[fixed_group];
-    find_thermo(atom);
+    find_thermo
+    (
+        atom->box.get_volume(),
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->velocity_per_atom,
+        atom->virial_per_atom,
+        atom->thermo
+    );
 
     // re-scale the velocities
     double ek[1];

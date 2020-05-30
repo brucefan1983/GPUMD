@@ -58,7 +58,17 @@ public:
 
 protected:
     void velocity_verlet(const bool is_step1, Atom*);
-    void find_thermo(Atom*);
+
+    void find_thermo
+    (
+        const double volume,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& velocity_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        GPU_Vector<double>& thermo
+    );
 
     void scale_velocity_global
     (
