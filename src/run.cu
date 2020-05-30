@@ -239,7 +239,16 @@ static void process_run
     }
 
     print_time_and_speed(time_begin, atom);
-    measure->finalize(input_dir, atom, integrate->temperature2);
+
+    measure->finalize
+    (
+        input_dir,
+        atom->number_of_steps,
+        atom->time_step,
+        integrate->temperature2,
+        atom->box.get_volume()
+    );
+
     integrate->finalize();
 }
 
@@ -425,7 +434,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "dump_position") == 0)
     {
-        measure->parse_dump_position(param, num_param, atom);
+        measure->parse_dump_position(param, num_param);
     }
     else if (strcmp(param[0], "dump_restart") == 0)
     {
@@ -453,15 +462,15 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute_shc") == 0)
     {
-        measure->parse_compute_shc(param, num_param, atom);
+        measure->parse_compute_shc(param, num_param, atom->group);
     }
     else if (strcmp(param[0], "compute_gkma") == 0)
     {
-        measure->parse_compute_gkma(param, num_param, atom);
+        measure->parse_compute_gkma(param, num_param, atom->number_of_types);
     }
     else if (strcmp(param[0], "compute_hnema") == 0)
     {
-        measure->parse_compute_hnema(param, num_param, atom);
+        measure->parse_compute_hnema(param, num_param, atom->number_of_types);
     }
     else if (strcmp(param[0], "deform") == 0)
     {
@@ -469,7 +478,7 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute") == 0)
     {
-        measure->parse_compute(param, num_param, atom);
+        measure->parse_compute(param, num_param, atom->group);
     }
     else if (strcmp(param[0], "fix") == 0)
     {

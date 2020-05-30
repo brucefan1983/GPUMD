@@ -68,8 +68,10 @@ void Measure::initialize(char* input_dir, Atom *atom)
 void Measure::finalize
 (
     char *input_dir,
-    Atom *atom,
-    const double temperature
+    const int number_of_steps,
+    const double time_step,
+    const double temperature,
+    const double volume
 )
 {
     if (dump_thermo)    {fclose(fid_thermo);    dump_thermo    = 0;}
@@ -79,11 +81,11 @@ void Measure::finalize
     vac.postprocess(input_dir);
     hac.postprocess
     (
-        atom->number_of_steps,
+        number_of_steps,
         input_dir,
         temperature,
-        atom->time_step,
-        atom->box.get_volume()
+        time_step,
+        volume
     );
     shc.postprocess(input_dir);
     compute.postprocess();
@@ -398,7 +400,7 @@ void Measure::parse_dump_velocity(char **param, int num_param)
 }
 
 
-void Measure::parse_dump_position(char **param, int num_param, Atom *atom)
+void Measure::parse_dump_position(char **param, int num_param)
 {
     int interval;
 
@@ -732,7 +734,7 @@ void Measure::parse_compute_hac(char **param, int num_param)
 }
 
 
-void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
+void Measure::parse_compute_gkma(char **param, int num_param, const int number_of_types)
 {
     modal_analysis.compute = 1;
     if (modal_analysis.method == GKMA_METHOD)
@@ -843,7 +845,7 @@ void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
             {
                 PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
             }
-            if (modal_analysis.atom_end >= atom->number_of_types)
+            if (modal_analysis.atom_end >= number_of_types)
             {
                 PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
             }
@@ -859,12 +861,12 @@ void Measure::parse_compute_gkma(char **param, int num_param, Atom* atom)
     else // default behavior
     {
         modal_analysis.atom_begin = 0;
-        modal_analysis.atom_end = atom->number_of_types - 1;
+        modal_analysis.atom_end = number_of_types - 1;
     }
 
 }
 
-void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
+void Measure::parse_compute_hnema(char **param, int num_param, const int number_of_types)
 {
     modal_analysis.compute = 1;
     if (modal_analysis.method == HNEMA_METHOD)
@@ -1001,7 +1003,7 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
             {
                 PRINT_INPUT_ERROR("atom_begin must be greater than 0.\n");
             }
-            if (modal_analysis.atom_end >= atom->number_of_types)
+            if (modal_analysis.atom_end >= number_of_types)
             {
                 PRINT_INPUT_ERROR("atom_end must be greater than 0.\n");
             }
@@ -1017,7 +1019,7 @@ void Measure::parse_compute_hnema(char **param, int num_param, Atom* atom)
     else // default behavior
     {
         modal_analysis.atom_begin = 0;
-        modal_analysis.atom_end = atom->number_of_types - 1;
+        modal_analysis.atom_end = number_of_types - 1;
     }
 
 }
@@ -1067,7 +1069,7 @@ void Measure::parse_compute_hnemd(char **param, int num_param)
 }
 
 
-void Measure::parse_compute_shc(char **param, int num_param, Atom *atom)
+void Measure::parse_compute_shc(char **param, int num_param, const std::vector<Group>& group)
 {
     printf("Compute SHC.\n");
     shc.compute = 1;
@@ -1097,7 +1099,7 @@ void Measure::parse_compute_shc(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("group id should >= 0.");
         }
-        if (shc.group_id >= atom->group[0].number)
+        if (shc.group_id >= group[0].number)
         {
             PRINT_INPUT_ERROR("group id should < #groups.");
         }
@@ -1116,7 +1118,7 @@ void Measure::parse_compute_shc(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("grouping method should >= 0.");
         }
-        if (shc.group_method >= atom->group.size())
+        if (shc.group_method >= group.size())
         {
             PRINT_INPUT_ERROR("grouping method exceeds the bound.");
         }
@@ -1130,7 +1132,7 @@ void Measure::parse_compute_shc(char **param, int num_param, Atom *atom)
         {
             PRINT_INPUT_ERROR("group id should >= 0.");
         }
-        if (shc.group_id >= atom->group[shc.group_method].number)
+        if (shc.group_id >= group[shc.group_method].number)
         {
             PRINT_INPUT_ERROR("group id should < #groups.");
         }
@@ -1193,7 +1195,7 @@ void Measure::parse_compute_shc(char **param, int num_param, Atom *atom)
 }
 
 
-void Measure::parse_compute(char **param, int num_param, Atom *atom)
+void Measure::parse_compute(char **param, int num_param, const std::vector<Group>& group)
 {
     printf("Compute space and/or time average of:\n");
     if (num_param < 5)
@@ -1210,7 +1212,7 @@ void Measure::parse_compute(char **param, int num_param, Atom *atom)
     {
         PRINT_INPUT_ERROR("grouping method should >= 0.");
     }
-    if (compute.grouping_method >= atom->group.size())
+    if (compute.grouping_method >= group.size())
     {
         PRINT_INPUT_ERROR("grouping method exceeds the bound.");
     }

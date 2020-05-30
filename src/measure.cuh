@@ -31,7 +31,16 @@ public:
     Measure(char *input_dir);
     ~Measure(void);
     void initialize(char*, Atom*);
-    void finalize(char*, Atom*, const double);
+
+    void finalize
+    (
+        char *input_dir,
+        const int number_of_steps,
+        const double time_step,
+        const double temperature,
+        const double volume
+    );
+
     void process(char*, Atom*, const int, const double, const double[], int);
     int dump_thermo; 
     int dump_velocity;
@@ -56,18 +65,18 @@ public:
     // functions to get inputs from run.in
     void parse_dump_thermo(char**, int);
     void parse_dump_velocity(char**, int);
-    void parse_dump_position(char**, int, Atom*);
+    void parse_dump_position(char**, int);
     void parse_dump_restart(char**, int);
     void parse_group(char **param, int *k, Group *group);
     void parse_num_dos_points(char **param, int *k);
     void parse_compute_dos(char**, int, Group *group);
     void parse_compute_sdc(char**, int, Group *group);
-    void parse_compute_gkma(char**, int, Atom*);
-    void parse_compute_hnema(char **, int, Atom*);
+    void parse_compute_gkma(char**, int, const int number_of_types);
+    void parse_compute_hnema(char **, int, const int number_of_types);
     void parse_compute_hac(char**, int);
     void parse_compute_hnemd(char**, int);
-    void parse_compute_shc(char**, int, Atom*);
-    void parse_compute(char**, int, Atom*);
+    void parse_compute_shc(char**, int, const std::vector<Group>& group);
+    void parse_compute(char**, int, const std::vector<Group>& group);
 
 protected:
 
