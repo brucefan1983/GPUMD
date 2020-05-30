@@ -322,11 +322,11 @@ void DUMP_NETCDF::write(Atom *atom)
         countp[1] = N;
         countp[2] = 1;
         NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type.data()));
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_x.data()));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_position_per_atom.data()));
         startp[2] = 1;
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_y.data()));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_position_per_atom.data() + N));
         startp[2] = 2;
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_z.data()));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_position_per_atom.data() + N * 2));
     }
 }
 
