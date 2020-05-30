@@ -184,7 +184,20 @@ static void process_run
         }
 #endif
 
-        integrate->compute1(atom);
+        integrate->compute1
+        (
+            atom->time_step,
+            double(step) / atom->number_of_steps,
+            atom->group,
+            atom->mass,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom,
+            atom->box,
+            atom->position_per_atom,
+            atom->velocity_per_atom,
+            atom->thermo
+        );
 
         force->compute
         (
@@ -198,7 +211,20 @@ static void process_run
             atom->virial_per_atom
         );
 
-        integrate->compute2(atom);
+        integrate->compute2
+        (
+            atom->time_step,
+            double(step) / atom->number_of_steps,
+            atom->group,
+            atom->mass,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom,
+            atom->box,
+            atom->position_per_atom,
+            atom->velocity_per_atom,
+            atom->thermo
+        );
 
         measure->process
         (

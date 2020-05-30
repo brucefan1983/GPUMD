@@ -17,11 +17,11 @@
 #pragma once
 
 #include "group.cuh"
+#include "box.cuh"
 #include <vector>
 
 
 class Ensemble;
-class Atom;
 
 
 class Integrate 
@@ -39,8 +39,36 @@ public:
     );
 
     void finalize(void);
-    void compute1(Atom*);
-    void compute2(Atom*);
+
+    void compute1
+    (
+        const double time_step,
+        const double step_over_number_of_steps,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& force_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        Box& box,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        GPU_Vector<double>& thermo
+    );
+
+    void compute2
+    (
+        const double time_step,
+        const double step_over_number_of_steps,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& force_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        Box& box,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        GPU_Vector<double>& thermo
+    );
 
     // get inputs from run.in
     void parse_ensemble(char **param, int num_param, std::vector<Group>& group);

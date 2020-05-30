@@ -20,16 +20,13 @@ The driver class for the various integrators.
 
 
 #include "integrate.cuh"
-
-#include "atom.cuh"
 #include "ensemble.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble_lan.cuh"
 #include "ensemble_bdp.cuh"
-#include "error.cuh"
-#include "force.cuh"
+#include "common.cuh"
 #include "read_file.cuh"
 
 
@@ -136,50 +133,76 @@ void Integrate::initialize
 }
 
 
-void Integrate::compute1(Atom *atom)
+void Integrate::compute1
+(
+    const double time_step,
+    const double step_over_number_of_steps,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     if (type >= 1 && type <= 20)
     {
         ensemble->temperature = temperature1 + (temperature2 - temperature1)
-                              * double(atom->step) / atom->number_of_steps;
+                              * step_over_number_of_steps;
     }
 
     ensemble->compute1
     (
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->potential_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom,
-        atom->box,
-        atom->position_per_atom,
-        atom->velocity_per_atom,
-        atom->thermo
+        time_step,
+        group,
+        mass,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom,
+        box,
+        position_per_atom,
+        velocity_per_atom,
+        thermo
     );
 }
 
 
-void Integrate::compute2(Atom *atom)
+void Integrate::compute2
+(
+    const double time_step,
+    const double step_over_number_of_steps,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     if (type >= 1 && type <= 20)
     {
         ensemble->temperature = temperature1 + (temperature2 - temperature1)
-                              * double(atom->step) / atom->number_of_steps;
+                              * step_over_number_of_steps;
     }
 
     ensemble->compute2
     (
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->potential_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom,
-        atom->box,
-        atom->position_per_atom,
-        atom->velocity_per_atom,
-        atom->thermo
+        time_step,
+        group,
+        mass,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom,
+        box,
+        position_per_atom,
+        velocity_per_atom,
+        thermo
     );
 }
 
