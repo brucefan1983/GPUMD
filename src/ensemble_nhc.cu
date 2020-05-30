@@ -22,13 +22,7 @@ Oxford University Press, 2010.
 
 
 #include "ensemble_nhc.cuh"
-#include "atom.cuh"
-#include "box.cuh"
-#include "error.cuh"
-#include "gpu_vector.cuh"
-#include <vector>
-
-#define BLOCK_SIZE 128
+#include "common.cuh"
 #define DIM 3
 
 
@@ -424,67 +418,91 @@ void Ensemble_NHC::integrate_heat_nhc_2
 }
 
 
-void Ensemble_NHC::compute1(Atom *atom)
+void Ensemble_NHC::compute1
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     if (type == 2)
     {
         integrate_nvt_nhc_1
         (
-            atom->time_step,
-            atom->box.get_volume(),
-            atom->group,
-            atom->mass,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom,
-            atom->thermo
+            time_step,
+            box.get_volume(),
+            group,
+            mass,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
+            position_per_atom,
+            velocity_per_atom,
+            thermo
         );
     }
     else
     {
         integrate_heat_nhc_1
         (
-            atom->time_step,
-            atom->group,
-            atom->mass,
-            atom->force_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom
+            time_step,
+            group,
+            mass,
+            force_per_atom,
+            position_per_atom,
+            velocity_per_atom
         );
     }
 }
 
 
-void Ensemble_NHC::compute2(Atom *atom)
+void Ensemble_NHC::compute2
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     if (type == 2)
     {
         integrate_nvt_nhc_2
         (
-            atom->time_step,
-            atom->box.get_volume(),
-            atom->group,
-            atom->mass,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom,
-            atom->thermo
+            time_step,
+            box.get_volume(),
+            group,
+            mass,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
+            position_per_atom,
+            velocity_per_atom,
+            thermo
         );
     }
     else
     {
         integrate_heat_nhc_2
         (
-            atom->time_step,
-            atom->group,
-            atom->mass,
-            atom->force_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom
+            time_step,
+            group,
+            mass,
+            force_per_atom,
+            position_per_atom,
+            velocity_per_atom
         );
     }
 }

@@ -21,12 +21,7 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 
 
 #include "ensemble_lan.cuh"
-#include <curand_kernel.h>
-#include "atom.cuh"
-#include "error.cuh"
-#include <vector>
-
-#define BLOCK_SIZE 128
+#include "common.cuh"
 #define CURAND_NORMAL(a) curand_normal_double(a)
 
 
@@ -48,8 +43,8 @@ Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, double T, double Tc)
     c1 = exp(-0.5/temperature_coupling);
     c2 = sqrt((1 - c1 * c1) * K_B * T);
     curand_states.resize(N);
-    int grid_size = (N - 1) / BLOCK_SIZE + 1;
-    initialize_curand_states<<<grid_size, BLOCK_SIZE>>>(curand_states.data(), N);
+    int grid_size = (N - 1) / 128 + 1;
+    initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N);
     CUDA_CHECK_KERNEL
 }
 
@@ -76,12 +71,12 @@ Ensemble_LAN::Ensemble_LAN
     c2_sink   = sqrt((1 - c1 * c1) * K_B * (T - dT));
     curand_states_source.resize(N_source);
     curand_states_sink.resize(N_sink);
-    int grid_size_source = (N_source - 1) / BLOCK_SIZE + 1;
-    int grid_size_sink   = (N_sink - 1)   / BLOCK_SIZE + 1;
-    initialize_curand_states<<<grid_size_source, BLOCK_SIZE>>>
+    int grid_size_source = (N_source - 1) / 128 + 1;
+    int grid_size_sink   = (N_sink - 1)   / 128 + 1;
+    initialize_curand_states<<<grid_size_source, 128>>>
     (curand_states_source.data(), N_source);
     CUDA_CHECK_KERNEL
-    initialize_curand_states<<<grid_size_sink, BLOCK_SIZE>>>
+    initialize_curand_states<<<grid_size_sink, 128>>>
     (curand_states_sink.data(),   N_sink);
     CUDA_CHECK_KERNEL
     energy_transferred[0] = 0.0;
@@ -301,80 +296,104 @@ void Ensemble_LAN::integrate_heat_lan_half
 }
 
 
-void Ensemble_LAN::compute1(Atom *atom)
+void Ensemble_LAN::compute1
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     if (type == 3)
     {
         integrate_nvt_lan_half
         (
-            atom->mass,
-            atom->velocity_per_atom
+            mass,
+            velocity_per_atom
         );
 
         velocity_verlet
         (
             true,
-            atom->time_step,
-            atom->group,
-            atom->mass,
-            atom->force_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom
+            time_step,
+            group,
+            mass,
+            force_per_atom,
+            position_per_atom,
+            velocity_per_atom
         );
     }
     else
     {
         integrate_heat_lan_half
         (
-            atom->group,
-            atom->mass,
-            atom->velocity_per_atom
+            group,
+            mass,
+            velocity_per_atom
         );
 
         velocity_verlet
         (
             true,
-            atom->time_step,
-            atom->group,
-            atom->mass,
-            atom->force_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom
+            time_step,
+            group,
+            mass,
+            force_per_atom,
+            position_per_atom,
+            velocity_per_atom
         );
     }
 }
 
 
-void Ensemble_LAN::compute2(Atom *atom)
+void Ensemble_LAN::compute2
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     if (type == 3)
     {
         velocity_verlet
         (
             false,
-            atom->time_step,
-            atom->group,
-            atom->mass,
-            atom->force_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom
+            time_step,
+            group,
+            mass,
+            force_per_atom,
+            position_per_atom,
+            velocity_per_atom
         );
 
         integrate_nvt_lan_half
         (
-            atom->mass,
-            atom->velocity_per_atom
+            mass,
+            velocity_per_atom
         );
 
         find_thermo
         (
-            atom->box.get_volume(),
-            atom->group,
-            atom->mass,
-            atom->potential_per_atom,
-            atom->velocity_per_atom,
-            atom->virial_per_atom,
-            atom->thermo
+            box.get_volume(),
+            group,
+            mass,
+            potential_per_atom,
+            velocity_per_atom,
+            virial_per_atom,
+            thermo
         );
     }
     else
@@ -382,19 +401,19 @@ void Ensemble_LAN::compute2(Atom *atom)
         velocity_verlet
         (
             false,
-            atom->time_step,
-            atom->group,
-            atom->mass,
-            atom->force_per_atom,
-            atom->position_per_atom,
-            atom->velocity_per_atom
+            time_step,
+            group,
+            mass,
+            force_per_atom,
+            position_per_atom,
+            velocity_per_atom
         );
 
         integrate_heat_lan_half
         (
-            atom->group,
-            atom->mass,
-            atom->velocity_per_atom
+            group,
+            mass,
+            velocity_per_atom
         );
     }
 }

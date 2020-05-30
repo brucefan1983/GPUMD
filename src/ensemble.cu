@@ -20,11 +20,7 @@ The abstract base class (ABC) for the ensemble classes.
 
 
 #include "ensemble.cuh"
-#include "atom.cuh"
-#include "error.cuh"
-#include "force.cuh"
-
-#define BLOCK_SIZE 128
+#include "common.cuh"
 #define DIM 3
 
 

@@ -21,10 +21,6 @@ The Berendsen thermostat:
 
 
 #include "ensemble_ber.cuh"
-#include "atom.cuh"
-#include "error.cuh"
-
-#define BLOCK_SIZE 128
 
 
 Ensemble_BER::Ensemble_BER(int t, int fg, double T, double Tc)
@@ -191,70 +187,113 @@ static void cpu_berendsen_pressure
 }
 
 
-void Ensemble_BER::compute1(Atom *atom)
+void Ensemble_BER::compute1
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     velocity_verlet
     (
         true,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 }
 
 
-void Ensemble_BER::compute2(Atom *atom)
+void Ensemble_BER::compute2
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
-    int grid_size = (atom->N - 1) / BLOCK_SIZE + 1;
+    const int number_of_atoms = mass.size();
 
     velocity_verlet
     (
         false,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 
     find_thermo
     (
-        atom->box.get_volume(),
-        atom->group,
-        atom->mass,
-        atom->potential_per_atom,
-        atom->velocity_per_atom,
-        atom->virial_per_atom,
-        atom->thermo
+        box.get_volume(),
+        group,
+        mass,
+        potential_per_atom,
+        velocity_per_atom,
+        virial_per_atom,
+        thermo
     );
-    gpu_berendsen_temperature<<<grid_size, BLOCK_SIZE>>>
+    gpu_berendsen_temperature<<<(number_of_atoms - 1) / 128 + 1, 128>>>
     (
-        atom->N, temperature, temperature_coupling, atom->thermo.data(),
-        atom->velocity_per_atom.data(),
-        atom->velocity_per_atom.data() + atom->N,
-        atom->velocity_per_atom.data() + 2 * atom->N
+        number_of_atoms,
+        temperature,
+        temperature_coupling,
+        thermo.data(),
+        velocity_per_atom.data(),
+        velocity_per_atom.data() + number_of_atoms,
+        velocity_per_atom.data() + 2 * number_of_atoms
     );
     CUDA_CHECK_KERNEL
     if (type == 11)
     {
-        gpu_berendsen_pressure<<<grid_size, BLOCK_SIZE>>>
+        gpu_berendsen_pressure<<<(number_of_atoms - 1) / 128 + 1, 128>>>
         (
-            deform_x, deform_y, deform_z, deform_rate, atom->N,
-            atom->box, pressure_x,
-            pressure_y, pressure_z, pressure_coupling, atom->thermo.data(),
-            atom->position_per_atom.data(),
-            atom->position_per_atom.data() + atom->N,
-            atom->position_per_atom.data() + atom->N * 2
+            deform_x,
+            deform_y,
+            deform_z,
+            deform_rate,
+            number_of_atoms,
+            box,
+            pressure_x,
+            pressure_y,
+            pressure_z,
+            pressure_coupling,
+            thermo.data(),
+            position_per_atom.data(),
+            position_per_atom.data() + number_of_atoms,
+            position_per_atom.data() + number_of_atoms * 2
         );
         CUDA_CHECK_KERNEL
         cpu_berendsen_pressure
         (
-            deform_x, deform_y, deform_z, deform_rate, atom->box, pressure_x,
-            pressure_y, pressure_z, pressure_coupling, atom->thermo.data()
+            deform_x,
+            deform_y,
+            deform_z,
+            deform_rate,
+            box,
+            pressure_x,
+            pressure_y,
+            pressure_z,
+            pressure_coupling,
+            thermo.data()
         );
     }
 }

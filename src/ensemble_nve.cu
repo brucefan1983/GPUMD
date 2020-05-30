@@ -20,7 +20,6 @@ The NVE ensemble integrator.
 
 
 #include "ensemble_nve.cuh"
-#include "atom.cuh"
 
 
 Ensemble_NVE::Ensemble_NVE(int t, int fg)
@@ -36,43 +35,67 @@ Ensemble_NVE::~Ensemble_NVE(void)
 }
 
 
-void Ensemble_NVE::compute1(Atom *atom)
+void Ensemble_NVE::compute1
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     velocity_verlet
     (
         true,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 }
 
 
-void Ensemble_NVE::compute2(Atom *atom)
+void Ensemble_NVE::compute2
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     velocity_verlet
     (
         false,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 
     find_thermo
     (
-        atom->box.get_volume(),
-        atom->group,
-        atom->mass,
-        atom->potential_per_atom,
-        atom->velocity_per_atom,
-        atom->virial_per_atom,
-        atom->thermo
+        box.get_volume(),
+        group,
+        mass,
+        potential_per_atom,
+        velocity_per_atom,
+        virial_per_atom,
+        thermo
     );
 }
 

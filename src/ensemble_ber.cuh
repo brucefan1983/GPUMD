@@ -24,8 +24,34 @@ public:
     Ensemble_BER(int, int, double, double);   
     Ensemble_BER(int, int, double, double, double, double, double, double, int, int, int, double);    
     virtual ~Ensemble_BER(void);
-    virtual void compute1(Atom*);
-    virtual void compute2(Atom*);
+
+    virtual void compute1
+    (
+        const double time_step,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& force_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        Box& box,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        GPU_Vector<double>& thermo
+    );
+
+    virtual void compute2
+    (
+        const double time_step,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& force_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        Box& box,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        GPU_Vector<double>& thermo
+    );
 };
 
 

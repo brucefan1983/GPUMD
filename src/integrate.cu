@@ -144,7 +144,19 @@ void Integrate::compute1(Atom *atom)
                               * double(atom->step) / atom->number_of_steps;
     }
 
-    ensemble->compute1(atom);
+    ensemble->compute1
+    (
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->force_per_atom,
+        atom->virial_per_atom,
+        atom->box,
+        atom->position_per_atom,
+        atom->velocity_per_atom,
+        atom->thermo
+    );
 }
 
 
@@ -156,7 +168,19 @@ void Integrate::compute2(Atom *atom)
                               * double(atom->step) / atom->number_of_steps;
     }
 
-    ensemble->compute2(atom);
+    ensemble->compute2
+    (
+        atom->time_step,
+        atom->group,
+        atom->mass,
+        atom->potential_per_atom,
+        atom->force_per_atom,
+        atom->virial_per_atom,
+        atom->box,
+        atom->position_per_atom,
+        atom->velocity_per_atom,
+        atom->thermo
+    );
 }
 
 
