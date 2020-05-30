@@ -17,6 +17,7 @@
 #pragma once
 #include "gpu_vector.cuh"
 #include "group.cuh"
+#include "box.cuh"
 
 class Atom; 
 

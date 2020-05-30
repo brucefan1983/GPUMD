@@ -27,10 +27,53 @@ public:
     virtual void compute1(Atom*);
     virtual void compute2(Atom*);
 protected:
-    void integrate_nvt_nhc_1(Atom*);
-    void integrate_nvt_nhc_2(Atom*);
-    void integrate_heat_nhc_1(Atom*);
-    void integrate_heat_nhc_2(Atom*);
+    void integrate_nvt_nhc_1
+    (
+        const double time_step,
+        const double volume,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& force_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        GPU_Vector<double>& thermo
+    );
+
+    void integrate_nvt_nhc_2
+    (
+        const double time_step,
+        const double volume,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& potential_per_atom,
+        const GPU_Vector<double>& force_per_atom,
+        const GPU_Vector<double>& virial_per_atom,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        GPU_Vector<double>& thermo
+    );
+
+    void integrate_heat_nhc_1
+    (
+        const double time_step,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom
+    );
+
+    void integrate_heat_nhc_2
+    (
+        const double time_step,
+        const std::vector<Group>& group,
+        const GPU_Vector<double>& mass,
+        const GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<double>& velocity_per_atom
+    );
 };
 
 

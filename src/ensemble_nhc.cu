@@ -23,6 +23,7 @@ Oxford University Press, 2010.
 
 #include "ensemble_nhc.cuh"
 #include "atom.cuh"
+#include "box.cuh"
 #include "error.cuh"
 #include "gpu_vector.cuh"
 #include <vector>
@@ -172,52 +173,75 @@ static double nhc
 }
 
 
-void Ensemble_NHC::integrate_nvt_nhc_1(Atom *atom)
+void Ensemble_NHC::integrate_nvt_nhc_1
+(
+    const double time_step,
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
-    int  N           = atom->N;
-    double time_step   = atom->time_step;
+    const int number_of_atoms = mass.size();
 
     double kT = K_B * temperature;
-    double dN = (double) DIM * N; 
+    double dN = (double) DIM * number_of_atoms;
     double dt2 = time_step * 0.5;
 
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
     find_thermo
     (
-        atom->box.get_volume(),
-        atom->group,
-        atom->mass,
-        atom->potential_per_atom,
-        atom->velocity_per_atom,
-        atom->virial_per_atom,
-        atom->thermo
+        volume,
+        group,
+        mass,
+        potential_per_atom,
+        velocity_per_atom,
+        virial_per_atom,
+        thermo
     );
 
     double ek2[1];
-    atom->thermo.copy_to_host(ek2, 1);
-    ek2[0] *= DIM * N * K_B;
+    thermo.copy_to_host(ek2, 1);
+    ek2[0] *= DIM * number_of_atoms * K_B;
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
-    scale_velocity_global(factor, atom->velocity_per_atom);
+    scale_velocity_global(factor, velocity_per_atom);
 
     velocity_verlet
     (
         true,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 }
 
 
-void Ensemble_NHC::integrate_nvt_nhc_2(Atom *atom)
+void Ensemble_NHC::integrate_nvt_nhc_2
+(
+    const double time_step,
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
-    int  N           = atom->N;
-    double time_step   = atom->time_step;
+    const int number_of_atoms = mass.size();
+
     double kT = K_B * temperature;
-    double dN = (double) DIM * N;
+    double dN = (double) DIM * number_of_atoms;
     double dt2 = time_step * 0.5;
     const int M = NOSE_HOOVER_CHAIN_LENGTH;
     double ek2[1];
@@ -225,47 +249,53 @@ void Ensemble_NHC::integrate_nvt_nhc_2(Atom *atom)
     velocity_verlet
     (
         false,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 
     find_thermo
     (
-        atom->box.get_volume(),
-        atom->group,
-        atom->mass,
-        atom->potential_per_atom,
-        atom->velocity_per_atom,
-        atom->virial_per_atom,
-        atom->thermo
+        volume,
+        group,
+        mass,
+        potential_per_atom,
+        velocity_per_atom,
+        virial_per_atom,
+        thermo
     );
 
-    atom->thermo.copy_to_host(ek2, 1);
-    ek2[0] *= DIM * N * K_B;
+    thermo.copy_to_host(ek2, 1);
+    ek2[0] *= DIM * number_of_atoms * K_B;
     double factor = nhc(M, pos_nhc1, vel_nhc1, mas_nhc1, ek2[0], kT, dN, dt2);
-    scale_velocity_global(factor, atom->velocity_per_atom);
+    scale_velocity_global(factor, velocity_per_atom);
 }
 
 
 // integrate by one step, with heating and cooling, 
 // using Nose-Hoover chain method
-void Ensemble_NHC::integrate_heat_nhc_1(Atom *atom)
+void Ensemble_NHC::integrate_heat_nhc_1
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom
+)
 {
-    double time_step   = atom->time_step;
-
     int label_1 = source;
     int label_2 = sink;
 
-    int Ng = atom->group[0].number;
+    int Ng = group[0].number;
 
     double kT1 = K_B * (temperature + delta_temperature); 
     double kT2 = K_B * (temperature - delta_temperature); 
-    double dN1 = (double) DIM * atom->group[0].cpu_size[source];
-    double dN2 = (double) DIM * atom->group[0].cpu_size[sink];
+    double dN1 = (double) DIM * group[0].cpu_size[source];
+    double dN2 = (double) DIM * group[0].cpu_size[sink];
     double dt2 = time_step * 0.5;
 
     // allocate some memory (to be improved)
@@ -275,9 +305,9 @@ void Ensemble_NHC::integrate_heat_nhc_1(Atom *atom)
     // NHC first
     find_vc_and_ke
     (
-        atom->group,
-        atom->mass,
-        atom->velocity_per_atom,
+        group,
+        mass,
+        velocity_per_atom,
         vcx.data(),
         vcy.data(),
         vcz.data(),
@@ -303,38 +333,44 @@ void Ensemble_NHC::integrate_heat_nhc_1(Atom *atom)
         vcy.data(),
         vcz.data(),
         ke.data(),
-        atom->group,
-        atom->velocity_per_atom
+        group,
+        velocity_per_atom
     );
 
     velocity_verlet
     (
         true,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 }
 
 
 // integrate by one step, with heating and cooling,
 // using Nose-Hoover chain method
-void Ensemble_NHC::integrate_heat_nhc_2(Atom *atom)
+void Ensemble_NHC::integrate_heat_nhc_2
+(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom
+)
 {
-    double time_step   = atom->time_step;
-
     int label_1 = source;
     int label_2 = sink;
 
-    int Ng = atom->group[0].number;
+    int Ng = group[0].number;
 
     double kT1 = K_B * (temperature + delta_temperature);
     double kT2 = K_B * (temperature - delta_temperature);
-    double dN1 = (double) DIM * atom->group[0].cpu_size[source];
-    double dN2 = (double) DIM * atom->group[0].cpu_size[sink];
+    double dN1 = (double) DIM * group[0].cpu_size[source];
+    double dN2 = (double) DIM * group[0].cpu_size[sink];
     double dt2 = time_step * 0.5;
 
     // allocate some memory (to be improved)
@@ -344,20 +380,20 @@ void Ensemble_NHC::integrate_heat_nhc_2(Atom *atom)
     velocity_verlet
     (
         false,
-        atom->time_step,
-        atom->group,
-        atom->mass,
-        atom->force_per_atom,
-        atom->position_per_atom,
-        atom->velocity_per_atom
+        time_step,
+        group,
+        mass,
+        force_per_atom,
+        position_per_atom,
+        velocity_per_atom
      );
 
     // NHC second
     find_vc_and_ke
     (
-        atom->group,
-        atom->mass,
-        atom->velocity_per_atom,
+        group,
+        mass,
+        velocity_per_atom,
         vcx.data(),
         vcy.data(),
         vcz.data(),
@@ -382,8 +418,8 @@ void Ensemble_NHC::integrate_heat_nhc_2(Atom *atom)
         vcy.data(),
         vcz.data(),
         ke.data(),
-        atom->group,
-        atom->velocity_per_atom
+        group,
+        velocity_per_atom
     );
 }
 
@@ -392,11 +428,31 @@ void Ensemble_NHC::compute1(Atom *atom)
 {
     if (type == 2)
     {
-        integrate_nvt_nhc_1(atom);
+        integrate_nvt_nhc_1
+        (
+            atom->time_step,
+            atom->box.get_volume(),
+            atom->group,
+            atom->mass,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom,
+            atom->position_per_atom,
+            atom->velocity_per_atom,
+            atom->thermo
+        );
     }
     else
     {
-        integrate_heat_nhc_1(atom);
+        integrate_heat_nhc_1
+        (
+            atom->time_step,
+            atom->group,
+            atom->mass,
+            atom->force_per_atom,
+            atom->position_per_atom,
+            atom->velocity_per_atom
+        );
     }
 }
 
@@ -405,11 +461,31 @@ void Ensemble_NHC::compute2(Atom *atom)
 {
     if (type == 2)
     {
-        integrate_nvt_nhc_2(atom);
+        integrate_nvt_nhc_2
+        (
+            atom->time_step,
+            atom->box.get_volume(),
+            atom->group,
+            atom->mass,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom,
+            atom->position_per_atom,
+            atom->velocity_per_atom,
+            atom->thermo
+        );
     }
     else
     {
-        integrate_heat_nhc_2(atom);
+        integrate_heat_nhc_2
+        (
+            atom->time_step,
+            atom->group,
+            atom->mass,
+            atom->force_per_atom,
+            atom->position_per_atom,
+            atom->velocity_per_atom
+        );
     }
 }
 
