@@ -21,11 +21,9 @@ Use finite difference to validate the analytical force calculations.
 
 #include "validate.cuh"
 #include "force.cuh"
-#include "atom.cuh"
 #include "gpu_vector.cuh"
 #include "error.cuh"
 
-#define BLOCK_SIZE 128
 
 // This choice gives optimal accuracy for finite-difference calculations
 #define DX1 1.0e-7
@@ -149,111 +147,118 @@ static __global__ void find_force_from_potential
 
 void validate_force
 (
-    Force *force,
-    Atom *atom
+    const Box& box,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<Group>& group,
+    GPU_Vector<int>& type,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    Neighbor& neighbor,
+    Force *force
 )
 {
-    int N = atom->N;
-    int grid_size = (N - 1) / BLOCK_SIZE + 1; 
-    std::vector<double> cpu_force(N * 3);
+    const int number_of_atoms = type.size();
+
+    std::vector<double> cpu_force(number_of_atoms * 3);
 
     // first calculate the forces directly:
     force->compute
     (
-        atom->box,
-        atom->position_per_atom,
-        atom->type,
-        atom->group,
-        atom->neighbor,
-        atom->potential_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom
+        box,
+        position_per_atom,
+        type,
+        group,
+        neighbor,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom
     );
 
     // make a copy of the positions
-    GPU_Vector<double> r0(N * 3);
-    r0.copy_from_device(atom->position_per_atom.data());
+    GPU_Vector<double> r0(number_of_atoms * 3);
+    r0.copy_from_device(position_per_atom.data());
 
     // get the potentials
-    GPU_Vector<double> p1(N * 3), p2(N * 3);
+    GPU_Vector<double> p1(number_of_atoms * 3), p2(number_of_atoms * 3);
     for (int d = 0; d < 3; ++d)
     {
-        for (int n = 0; n < N; ++n)
+        for (int n = 0; n < number_of_atoms; ++n)
         {
-            int m = d * N + n;
+            int m = d * number_of_atoms + n;
 
             // shift one atom to the left by a small amount
-            shift_atom<<<grid_size, BLOCK_SIZE>>>
+            shift_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>
             (
                 d,
                 n,
                 1,
                 r0.data(),
-                r0.data() + N,
-                r0.data() + N * 2,
-                atom->position_per_atom.data(),
-                atom->position_per_atom.data() + N,
-                atom->position_per_atom.data() + N * 2
+                r0.data() + number_of_atoms,
+                r0.data() + number_of_atoms * 2,
+                position_per_atom.data(),
+                position_per_atom.data() + number_of_atoms,
+                position_per_atom.data() + number_of_atoms * 2
             );
             CUDA_CHECK_KERNEL
 
             // get the potential energy
             force->compute
             (
-                atom->box,
-                atom->position_per_atom,
-                atom->type,
-                atom->group,
-                atom->neighbor,
-                atom->potential_per_atom,
-                atom->force_per_atom,
-                atom->virial_per_atom
+                box,
+                position_per_atom,
+                type,
+                group,
+                neighbor,
+                potential_per_atom,
+                force_per_atom,
+                virial_per_atom
             );
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>
             (
-                N,
+                number_of_atoms,
                 m,
-                atom->potential_per_atom.data(),
+                potential_per_atom.data(),
                 p1.data()
             );
             CUDA_CHECK_KERNEL
 
             // shift one atom to the right by a small amount
-            shift_atom<<<grid_size, BLOCK_SIZE>>>
+            shift_atom<<<(number_of_atoms - 1) / 128 + 1, 128>>>
             (
                 d,
                 n,
                 2,
                 r0.data(),
-                r0.data() + N,
-                r0.data() + N * 2,
-                atom->position_per_atom.data(),
-                atom->position_per_atom.data() + N,
-                atom->position_per_atom.data() + N * 2
+                r0.data() + number_of_atoms,
+                r0.data() + number_of_atoms * 2,
+                position_per_atom.data(),
+                position_per_atom.data() + number_of_atoms,
+                position_per_atom.data() + number_of_atoms * 2
             );
             CUDA_CHECK_KERNEL
 
             // get the potential energy
             force->compute
             (
-                atom->box,
-                atom->position_per_atom,
-                atom->type,
-                atom->group,
-                atom->neighbor,
-                atom->potential_per_atom,
-                atom->force_per_atom,
-                atom->virial_per_atom
+                box,
+                position_per_atom,
+                type,
+                group,
+                neighbor,
+                potential_per_atom,
+                force_per_atom,
+                virial_per_atom
             );
 
             // sum up the potential energy
             sum_potential<<<1, 1024>>>
             (
-                N,
+                number_of_atoms,
                 m,
-                atom->potential_per_atom.data(),
+                potential_per_atom.data(),
                 p2.data()
             );
             CUDA_CHECK_KERNEL
@@ -261,18 +266,18 @@ void validate_force
     }
 
     // copy the positions back (as if nothing happens)
-    r0.copy_to_device(atom->position_per_atom.data());
+    r0.copy_to_device(position_per_atom.data());
 
     // get the forces from the potential energies using finite difference
-    GPU_Vector<double> force_compare(N * 3);
-    find_force_from_potential<<<grid_size, BLOCK_SIZE>>>
+    GPU_Vector<double> force_compare(number_of_atoms * 3);
+    find_force_from_potential<<<(number_of_atoms - 1) / 128 + 1, 128>>>
     (
-        N,
+        number_of_atoms,
         p1.data(),
         p2.data(),
         force_compare.data(),
-        force_compare.data() + N,
-        force_compare.data() + N * 2
+        force_compare.data() + number_of_atoms,
+        force_compare.data() + number_of_atoms * 2
     );
     CUDA_CHECK_KERNEL
 
@@ -280,24 +285,28 @@ void validate_force
     FILE *fid = my_fopen("f_compare.out", "w");
     
     // output the forces from direct calculations
-    atom->force_per_atom.copy_to_host(cpu_force.data());
-    for (int n = 0; n < N; n++)
+    force_per_atom.copy_to_host(cpu_force.data());
+    for (int n = 0; n < number_of_atoms; n++)
     {
         fprintf
         (
             fid, "%25.15e%25.15e%25.15e\n",
-            cpu_force[n], cpu_force[n + N], cpu_force[n + N * 2]
+            cpu_force[n],
+            cpu_force[n + number_of_atoms],
+            cpu_force[n + number_of_atoms * 2]
         );
     }
  
     // output the forces from finite difference
     force_compare.copy_to_host(cpu_force.data());
-    for (int n = 0; n < N; n++)
+    for (int n = 0; n < number_of_atoms; n++)
     {
         fprintf
         (
             fid, "%25.15e%25.15e%25.15e\n",
-            cpu_force[n], cpu_force[n + N], cpu_force[n + N * 2]
+            cpu_force[n],
+            cpu_force[n + number_of_atoms],
+            cpu_force[n + number_of_atoms * 2]
         );
     }
     
