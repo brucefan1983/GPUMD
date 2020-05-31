@@ -283,8 +283,43 @@ void Hessian::find_H12
     double f_negative[3];
     for (size_t beta = 0; beta < 3; ++beta)
     {
-        get_f(-displacement, n1, n2, beta, atom, force, f_negative);
-        get_f(displacement, n1, n2, beta, atom, force, f_positive);
+        get_f
+        (
+            -displacement,
+            n1,
+            n2,
+            beta,
+            atom->box,
+            atom->position_per_atom,
+            atom->type,
+            atom->group,
+            atom->neighbor,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom,
+            force,
+            f_negative
+        );
+
+        get_f
+        (
+            displacement,
+            n1,
+            n2,
+            beta,
+            atom->box,
+            atom->position_per_atom,
+            atom->type,
+            atom->group,
+            atom->neighbor,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom,
+            force,
+            f_positive
+        );
+
+
         for (size_t alpha = 0; alpha < 3; ++alpha)
         {
             size_t index = alpha * 3 + beta;
@@ -366,29 +401,44 @@ void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
 
 void Hessian::get_f
 (
-    double dx, size_t n1, size_t n2, size_t beta, 
-    Atom* atom, Force *force, double* f
+    const double dx,
+    const size_t n1,
+    const size_t n2,
+    const size_t beta,
+    const Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    Force *force,
+    double* f
 )
 {
-    shift_atom(dx, n2, beta, atom->position_per_atom);
+    const int number_of_atoms = type.size();
+
+    shift_atom(dx, n2, beta, position_per_atom);
 
     force->compute
     (
-        atom->box,
-        atom->position_per_atom,
-        atom->type,
-        atom->group,
-        atom->neighbor,
-        atom->potential_per_atom,
-        atom->force_per_atom,
-        atom->virial_per_atom
+        box,
+        position_per_atom,
+        type,
+        group,
+        neighbor,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom
     );
 
     size_t M = sizeof(double);
-    CHECK(cudaMemcpy(f + 0, atom->force_per_atom.data() + n1, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(f + 1, atom->force_per_atom.data() + n1 + atom->N, M, cudaMemcpyDeviceToHost));
-    CHECK(cudaMemcpy(f + 2, atom->force_per_atom.data() + n1 + atom->N * 2, M, cudaMemcpyDeviceToHost));
-    shift_atom(-dx, n2, beta, atom->position_per_atom);
+    CHECK(cudaMemcpy(f + 0, force_per_atom.data() + n1, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 1, force_per_atom.data() + n1 + number_of_atoms, M, cudaMemcpyDeviceToHost));
+    CHECK(cudaMemcpy(f + 2, force_per_atom.data() + n1 + number_of_atoms * 2, M, cudaMemcpyDeviceToHost));
+
+    shift_atom(-dx, n2, beta, position_per_atom);
 }
 
 

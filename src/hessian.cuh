@@ -19,6 +19,9 @@
 #include <vector>
 #include <stdio.h>
 
+class Box;
+class Neighbor;
+class Group;
 class Atom;
 class Force;
 
@@ -53,7 +56,24 @@ protected:
         GPU_Vector<double>& position_per_atom
     );
 
-    void get_f(double, size_t, size_t, size_t, Atom*, Force*, double*);
+    void get_f
+    (
+        const double dx,
+        const size_t n1,
+        const size_t n2,
+        const size_t beta,
+        const Box& box,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<int>& type,
+        std::vector<Group>& group,
+        Neighbor& neighbor,
+        GPU_Vector<double>& potential_per_atom,
+        GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& virial_per_atom,
+        Force *force,
+        double* f
+    );
+
     void read_basis(char*, size_t N);
     void read_kpoints(char*);
     void initialize(char*, size_t);
