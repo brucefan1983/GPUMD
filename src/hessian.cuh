@@ -15,6 +15,7 @@
 
 
 #pragma once
+#include "gpu_vector.cuh"
 #include <vector>
 #include <stdio.h>
 
@@ -44,7 +45,14 @@ protected:
     std::vector<double> DR;
     std::vector<double> DI;
 
-    void shift_atom(double, size_t, size_t, Atom*);
+    void shift_atom
+    (
+        const double dx,
+        const size_t n2,
+        const size_t beta,
+        GPU_Vector<double>& position_per_atom
+    );
+
     void get_f(double, size_t, size_t, size_t, Atom*, Force*, double*);
     void read_basis(char*, size_t N);
     void read_kpoints(char*);
