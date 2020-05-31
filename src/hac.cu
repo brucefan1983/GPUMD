@@ -295,7 +295,6 @@ void HAC::postprocess
 
     CHECK(cudaDeviceSynchronize()); // Needed for Windows
 
-    //const double volume = atom->box.get_volume();
     double factor = dt * 0.5 / (K_B * temperature * temperature * volume);
     factor *= KAPPA_UNIT_CONVERSION;
 
