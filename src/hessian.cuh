@@ -80,10 +80,23 @@ protected:
     void finalize(void);
     void find_H(Atom*, Force*);
     void find_H12(size_t, size_t, Atom*, Force*, double*);
-    bool is_too_far(size_t, size_t, Atom*);
-    void find_dispersion(char*, Atom*);
+    bool is_too_far
+    (
+        const Box& box,
+        const std::vector<double>& cpu_position_per_atom,
+        const size_t n1,
+        const size_t n2
+    );
+
+    void find_dispersion
+    (
+        char* input_dir,
+        const Box& box,
+        const std::vector<double>& cpu_position_per_atom
+    );
+
     void find_D(Atom*);
-    void find_eigenvectors(char*, Atom*);
+    void find_eigenvectors(char*);
     void output_D(char*);
     void find_omega(FILE*, size_t);
     void find_omega_batch(FILE*);

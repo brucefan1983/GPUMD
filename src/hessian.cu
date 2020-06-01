@@ -40,11 +40,11 @@ void Hessian::compute
     if (num_kpoints == 1) // currently for Alex's GKMA calculations
     {
         find_D(atom);
-        find_eigenvectors(input_dir, atom);
+        find_eigenvectors(input_dir);
     }
     else
     {
-        find_dispersion(input_dir, atom);
+        find_dispersion(input_dir, atom->box, atom->cpu_position_per_atom);
     }
 }
 
@@ -112,18 +112,25 @@ void Hessian::initialize(char* input_dir, size_t N)
 }
 
 
-bool Hessian::is_too_far(size_t n1, size_t n2, Atom* atom)
+bool Hessian::is_too_far
+(
+    const Box& box,
+    const std::vector<double>& cpu_position_per_atom,
+    const size_t n1,
+    const size_t n2
+)
 {
-    double x12 = atom->cpu_position_per_atom[n2]
-               - atom->cpu_position_per_atom[n1];
-    double y12 = atom->cpu_position_per_atom[n2 + atom->N]
-               - atom->cpu_position_per_atom[n1 + atom->N];
-    double z12 = atom->cpu_position_per_atom[n2 + atom->N * 2]
-               - atom->cpu_position_per_atom[n1 + atom->N * 2];
+    const int number_of_atoms = cpu_position_per_atom.size() / 3;
+    double x12 = cpu_position_per_atom[n2]
+               - cpu_position_per_atom[n1];
+    double y12 = cpu_position_per_atom[n2 + number_of_atoms]
+               - cpu_position_per_atom[n1 + number_of_atoms];
+    double z12 = cpu_position_per_atom[n2 + number_of_atoms * 2]
+               - cpu_position_per_atom[n1 + number_of_atoms * 2];
     apply_mic
     (
-        atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y,
-        atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
+        box.triclinic, box.pbc_x, box.pbc_y,
+        box.pbc_z, box.cpu_h, x12, y12, z12
     );
     double d12_square = x12 * x12 + y12 * y12 + z12 * z12;
     return (d12_square > (cutoff * cutoff));
@@ -138,7 +145,10 @@ void Hessian::find_H(Atom* atom, Force* force)
         size_t n1 = basis[nb];
         for (size_t n2 = 0; n2 < N; ++n2)
         {
-            if(is_too_far(n1, n2, atom)) continue;
+            if(is_too_far(atom->box, atom->cpu_position_per_atom, n1, n2))
+            {
+                continue;
+            }
             size_t offset = (nb * N + n2) * 9;
             find_H12(n1, n2, atom, force, H.data() + offset);
         }
@@ -147,18 +157,27 @@ void Hessian::find_H(Atom* atom, Force* force)
 
 
 static void find_exp_ikr
-(size_t n1, size_t n2, double* k, Atom* atom, double& cos_kr, double& sin_kr)
+(
+    const size_t n1,
+    const size_t n2,
+    const double* k,
+    const Box& box,
+    const std::vector<double>& cpu_position_per_atom,
+    double& cos_kr,
+    double& sin_kr
+)
 {
-    double x12 = atom->cpu_position_per_atom[n2]
-               - atom->cpu_position_per_atom[n1];
-    double y12 = atom->cpu_position_per_atom[n2 + atom->N]
-               - atom->cpu_position_per_atom[n1 + atom->N];
-    double z12 = atom->cpu_position_per_atom[n2 + atom->N * 2]
-               - atom->cpu_position_per_atom[n1 + atom->N * 2];
+    const int number_of_atoms = cpu_position_per_atom.size() / 3;
+    double x12 = cpu_position_per_atom[n2]
+               - cpu_position_per_atom[n1];
+    double y12 = cpu_position_per_atom[n2 + number_of_atoms]
+               - cpu_position_per_atom[n1 + number_of_atoms];
+    double z12 = cpu_position_per_atom[n2 + number_of_atoms * 2]
+               - cpu_position_per_atom[n1 + number_of_atoms * 2];
     apply_mic
     (
-        atom->box.triclinic, atom->box.pbc_x, atom->box.pbc_y, 
-        atom->box.pbc_z, atom->box.cpu_h, x12, y12, z12
+        box.triclinic, box.pbc_x, box.pbc_y,
+        box.pbc_z, box.cpu_h, x12, y12, z12
     );
     double kr = k[0] * x12 + k[1] * y12 + k[2] * z12;
     cos_kr = cos(kr);
@@ -229,8 +248,15 @@ void Hessian::find_omega_batch(FILE* fid)
 }
 
 
-void Hessian::find_dispersion(char* input_dir, Atom* atom)
+void Hessian::find_dispersion
+(
+    char* input_dir,
+    const Box& box,
+    const std::vector<double>& cpu_position_per_atom
+)
 {
+    const int number_of_atoms = cpu_position_per_atom.size() / 3;
+
     char file_omega2[200];
     strcpy(file_omega2, input_dir);
     strcat(file_omega2, "/omega2.out");
@@ -243,15 +269,25 @@ void Hessian::find_dispersion(char* input_dir, Atom* atom)
             size_t n1 = basis[nb];
             size_t label_1 = label[n1];
             double mass_1 = mass[label_1];
-            for (size_t n2 = 0; n2 < atom->N; ++n2)
+            for (size_t n2 = 0; n2 < number_of_atoms; ++n2)
             {
-                if(is_too_far(n1, n2, atom)) continue;
+                if(is_too_far(box, cpu_position_per_atom, n1, n2)) continue;
                 double cos_kr, sin_kr;
-                find_exp_ikr(n1, n2, kpoints.data() + nk * 3, atom, cos_kr, sin_kr);
+                find_exp_ikr
+                (
+                    n1,
+                    n2,
+                    kpoints.data() + nk * 3,
+                    box,
+                    cpu_position_per_atom,
+                    cos_kr,
+                    sin_kr
+                );
+
                 size_t label_2 = label[n2];
                 double mass_2 = mass[label_2];
                 double mass_factor = 1.0 / sqrt(mass_1 * mass_2);
-                double* H12 = H.data() + (nb * atom->N + n2) * 9;
+                double* H12 = H.data() + (nb * number_of_atoms + n2) * 9;
                 for (size_t a = 0; a < 3; ++a)
                 {
                     for (size_t b = 0; b < 3; ++b)
@@ -338,7 +374,11 @@ void Hessian::find_D(Atom* atom)
         double mass_1 = mass[label_1];
         for (size_t n2 = 0; n2 < atom->N; ++n2)
         {
-            if(is_too_far(n1, n2, atom)) continue;
+            if(is_too_far(atom->box, atom->cpu_position_per_atom, n1, n2))
+            {
+                continue;
+            }
+
             size_t label_2 = label[n2];
             double mass_2 = mass[label_2];
             double mass_factor = 1.0 / sqrt(mass_1 * mass_2);
@@ -360,7 +400,7 @@ void Hessian::find_D(Atom* atom)
 }
 
 
-void Hessian::find_eigenvectors(char* input_dir, Atom* atom)
+void Hessian::find_eigenvectors(char* input_dir)
 {
     char file_eigenvectors[200];
     strcpy(file_eigenvectors, input_dir);
