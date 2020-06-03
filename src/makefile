@@ -1,0 +1,121 @@
+###########################################################
+# Note: 
+# 1) Add -DUSE_FCP to CFLAGS when use the FCP potential 
+#    and remove it otherwise
+# 2) Remove -DDEBUG for production run. 
+# 3) You can modify -arch=sm_35 according to 
+#    your GPU architecture
+###########################################################
+
+
+###########################################################
+# some flags
+###########################################################
+CC = nvcc
+ifdef OS # For Windows with the cl.exe compiler
+CFLAGS = -O3 -arch=sm_35 -DDEBUG -Xcompiler "/wd 4819" 
+else # For linux
+CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
+endif
+INC = -I./
+LDFLAGS = 
+LIBS = -lcublas -lcusolver
+
+
+###########################################################
+# source files
+###########################################################
+SOURCES_GPUMD = $(wildcard main_gpumd/*.cu)   \
+                $(wildcard integrate/*.cu)    \
+                $(wildcard force/*.cu)        \
+                $(wildcard measure/*.cu)      \
+	            $(wildcard model/*.cu)        \
+		        $(wildcard utilities/*.cu)
+SOURCES_PHONON = $(wildcard main_phonon/*.cu) \
+                 $(wildcard force/*.cu)       \
+	             $(wildcard model/*.cu)       \
+		         $(wildcard utilities/*.cu)
+
+
+###########################################################
+# objective files
+###########################################################
+ifdef OS # For Windows with the cl.exe compiler
+OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
+OBJ_PHONON = $(SOURCES_PHONON:.cu=.obj)
+else
+OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
+OBJ_PHONON = $(SOURCES_PHONON:.cu=.o)
+endif
+
+
+###########################################################
+# headers
+###########################################################
+HEADERS = $(wildcard utilities/*.cuh)  \
+          $(wildcard main_gpumd/*.cuh) \
+	      $(wildcard integrate/*.cuh)  \
+	      $(wildcard force/*.cuh)      \
+	      $(wildcard measure/*.cuh)    \
+	      $(wildcard model/*.cuh)      \
+		  $(wildcard main_phonon/*.cuh)
+
+
+###########################################################
+# executables
+###########################################################
+all: gpumd phonon
+gpumd: $(OBJ_GPUMD)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+phonon: $(OBJ_PHONON)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+	
+
+###########################################################
+# rules for building objective files
+###########################################################
+ifdef OS # for Windows
+integrate/%.obj: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.obj: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.obj: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.obj: utilities/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.obj: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_phonon/%.obj: main_phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+else # for Linux
+%.o: %.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+integrate/%.o: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+force/%.o: force/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+utilities/%.o: utilities/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+model/%.o: model/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_phonon/%.o: main_phonon/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+endif
+
+
+###########################################################
+# clean up
+###########################################################
+clean:
+ifdef OS
+	del /s *.obj *.exp *.lib *.exe
+else
+	rm */*.o gpumd phonon
+endif
+
