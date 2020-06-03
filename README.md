@@ -41,7 +41,7 @@ https://www.freelists.org/list/gpumd
 * We will try our best to keep `GPUMD` as a standalone code. So far, it does not depend on any other program other than the standard `C`, `C++`, and `CUDA` libraries.
 
 ## Compile GPUMD
-* o to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `phoon`, will be generated in the `src` directory. 
+* Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `phoon`, will be generated in the `src` directory. 
 
 ## Run GPUMD
 * Go to the directory where you can see `src`.
