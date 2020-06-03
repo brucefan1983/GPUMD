@@ -13,11 +13,11 @@
 ###########################################################
 CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_35 -DDEBUG -Xcompiler "/wd 4819" -DUSE_FCP
+CFLAGS = -O3 -arch=sm_35 -DDEBUG -Xcompiler "/wd 4819" 
 else # For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35 -DDEBUG
 endif
-INC = -I./
+INC = -Isrc/
 LDFLAGS = 
 LIBS = -lcublas -lcusolver
 
@@ -25,16 +25,16 @@ LIBS = -lcublas -lcusolver
 ###########################################################
 # source files
 ###########################################################
-SOURCES_GPUMD = $(wildcard utilities/*.cu) \
-          $(wildcard gpumd/*.cu)           \
-          $(wildcard integrate/*.cu)       \
-          $(wildcard force/*.cu)           \
-          $(wildcard measure/*.cu)         \
-	      $(wildcard model/*.cu)
-SOURCES_PHONON = $(wildcard utilities/*.cu) \
-          $(wildcard phonon/*.cu)           \
-          $(wildcard force/*.cu)            \
-	      $(wildcard model/*.cu) 
+SOURCES_GPUMD = $(wildcard src/utilities/*.cu) \
+          $(wildcard src/gpumd/*.cu)           \
+          $(wildcard src/integrate/*.cu)       \
+          $(wildcard src/force/*.cu)           \
+          $(wildcard src/measure/*.cu)         \
+	      $(wildcard src/model/*.cu)
+SOURCES_PHONON = $(wildcard src/utilities/*.cu) \
+          $(wildcard src/phonon/*.cu)           \
+          $(wildcard src/force/*.cu)            \
+	      $(wildcard src/model/*.cu) 
 
 
 ###########################################################
@@ -52,13 +52,13 @@ endif
 ###########################################################
 # headers
 ###########################################################
-HEADERS = $(wildcard utilities/*.cuh)  \
-          $(wildcard gpumd/*.cuh)      \
-	      $(wildcard integrate/*.cuh)  \
-	      $(wildcard force/*.cuh)      \
-	      $(wildcard measure/*.cuh)    \
-	      $(wildcard model/*.cuh)      \
-		  $(wildcard phonon/*.cuh)
+HEADERS = $(wildcard src/utilities/*.cuh)  \
+          $(wildcard src/gpumd/*.cuh)      \
+	      $(wildcard src/integrate/*.cuh)  \
+	      $(wildcard src/force/*.cuh)      \
+	      $(wildcard src/measure/*.cuh)    \
+	      $(wildcard src/model/*.cuh)      \
+		  $(wildcard src/phonon/*.cuh)
 
 
 ###########################################################
@@ -75,38 +75,36 @@ phonon: $(OBJ_PHONON)
 # rules for building objective files
 ###########################################################
 ifdef OS # for Windows
-%.obj: %.cu $(HEADERS)
+src/integrate/%.obj: src/integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-integrate/%.obj: integrate/%.cu $(HEADERS)
+src/force/%.obj: src/force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.obj: force/%.cu $(HEADERS)
+src/measure/%.obj: src/measure/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-measure/%.obj: measure/%.cu $(HEADERS)
+src/gpumd/%.obj: src/gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-gpumd/%.obj: gpumd/%.cu $(HEADERS)
+src/utilities/%.obj: src/utilities/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.obj: utilities/%.cu $(HEADERS)
+src/model/%.obj: src/model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.obj: model/%.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.obj: phonon/%.cu $(HEADERS)
+src/phonon/%.obj: src/phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 %.o: %.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-integrate/%.o: integrate/%.cu $(HEADERS)
+src/integrate/%.o: src/integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-force/%.o: force/%.cu $(HEADERS)
+src/force/%.o: src/force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-measure/%.o: measure/%.cu $(HEADERS)
+src/measure/%.o: src/measure/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-gpumd/%.o: gpumd/%.cu $(HEADERS)
+src/gpumd/%.o: src/gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-utilities/%.o: utilities/%.cu $(HEADERS)
+src/utilities/%.o: src/utilities/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-model/%.o: model/%.cu $(HEADERS)
+src/model/%.o: src/model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-phonon/%.o: phonon/%.cu $(HEADERS)
+src/phonon/%.o: src/phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
