@@ -41,9 +41,7 @@ https://www.freelists.org/list/gpumd
 * We will try our best to keep `GPUMD` as a standalone code. So far, it does not depend on any other program other than the standard `C`, `C++`, and `CUDA` libraries.
 
 ## Compile GPUMD
-* Now one can build two executables: `gpumd` and `phonon`.
-* To build `gpumd`, one just needs to go to the `src` directory and type `make`. When the compilation finishes, an executable named `gpumd` will be generated in the `src` directory. 
-* To build `phonon`, one just needs to go to the `src` directory and type `make -f makefile.phonon`. When the compilation finishes, an executable named `phonon` will be generated in the `src` directory. 
+* o to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `phoon`, will be generated in the `src` directory. 
 
 ## Run GPUMD
 * Go to the directory where you can see `src`.
