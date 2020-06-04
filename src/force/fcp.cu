@@ -20,7 +20,6 @@ The force constant potential (FCP)
 
 
 #include "fcp.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include <vector>
 

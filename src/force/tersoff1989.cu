@@ -22,7 +22,6 @@ The double-element version of the Tersoff potential as described in
 
 
 #include "tersoff1989.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 

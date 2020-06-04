@@ -20,7 +20,6 @@ The abstract base class (ABC) for the potential classes.
 
 
 #include "potential.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #define BLOCK_SIZE_FORCE 64
 

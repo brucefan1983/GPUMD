@@ -15,7 +15,6 @@
 
 
 #include "sw.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 
 #define BLOCK_SIZE_SW 64 // 128 is also good

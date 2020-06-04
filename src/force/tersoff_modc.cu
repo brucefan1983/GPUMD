@@ -22,7 +22,6 @@ The modified Tersoff potentials as described in
 
 
 #include "tersoff_modc.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include <vector>

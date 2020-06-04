@@ -25,7 +25,6 @@ J. Phys.: Condens. Matter 32, 135901 (2020).
 
 
 #include "tersoff_mini.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 

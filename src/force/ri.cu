@@ -25,7 +25,6 @@ J. Chem. Phys. 124, 234104 (2006).
 ------------------------------------------------------------------------------*/
 
 #include "ri.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 

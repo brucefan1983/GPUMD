@@ -19,7 +19,6 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 ------------------------------------------------------------------------------*/
 
 #include "lj.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 
 // best block size here: 128

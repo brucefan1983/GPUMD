@@ -24,7 +24,6 @@ MoS:  J. A. Stewart et al., MSMSE 21, 045003 (2013).
 
 
 #include "rebo_mos2.cuh"
-#include "model/mic.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 

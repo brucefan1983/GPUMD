@@ -22,7 +22,6 @@ The version of the Tersoff potential as described in
 
 
 #include "tersoff1988.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include <vector>

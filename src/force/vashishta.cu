@@ -15,7 +15,6 @@
 
 
 #include "vashishta.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #define BLOCK_SIZE_VASHISHTA 64

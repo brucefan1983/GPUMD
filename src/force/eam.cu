@@ -22,7 +22,6 @@ The EAM potential. Currently two analytical versions:
 
 
 #include "eam.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #define BLOCK_SIZE_FORCE 64
 

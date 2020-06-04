@@ -32,7 +32,6 @@ The driver class calculating force and related quantities.
 #include "ri.cuh"
 #include "eam.cuh"
 #include "fcp.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
