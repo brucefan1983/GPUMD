@@ -25,7 +25,6 @@ Then calculate the dynamical matrices with different k points.
 #include "cusolver_wrapper.cuh"
 #include "force/force.cuh"
 #include "model/atom.cuh"
-#include "model/mic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
