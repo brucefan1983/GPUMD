@@ -126,11 +126,7 @@ bool Hessian::is_too_far
                - cpu_position_per_atom[n1 + number_of_atoms];
     double z12 = cpu_position_per_atom[n2 + number_of_atoms * 2]
                - cpu_position_per_atom[n1 + number_of_atoms * 2];
-    apply_mic
-    (
-        box.triclinic, box.pbc_x, box.pbc_y,
-        box.pbc_z, box.cpu_h, x12, y12, z12
-    );
+    dev_apply_mic(box, x12, y12, z12);
     double d12_square = x12 * x12 + y12 * y12 + z12 * z12;
     return (d12_square > (cutoff * cutoff));
 }
@@ -173,11 +169,7 @@ static void find_exp_ikr
                - cpu_position_per_atom[n1 + number_of_atoms];
     double z12 = cpu_position_per_atom[n2 + number_of_atoms * 2]
                - cpu_position_per_atom[n1 + number_of_atoms * 2];
-    apply_mic
-    (
-        box.triclinic, box.pbc_x, box.pbc_y,
-        box.pbc_z, box.cpu_h, x12, y12, z12
-    );
+    dev_apply_mic(box, x12, y12, z12);
     double kr = k[0] * x12 + k[1] * y12 + k[2] * z12;
     cos_kr = cos(kr);
     sin_kr = sin(kr);
