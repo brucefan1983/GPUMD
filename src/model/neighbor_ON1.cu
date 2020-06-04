@@ -22,7 +22,6 @@ Written by Ville Vierimaa and optimized by Zheyong Fan.
 
 #include "atom.cuh"
 #include "utilities/error.cuh"
-#include "mic.cuh"
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>
 #define USE_THRUST

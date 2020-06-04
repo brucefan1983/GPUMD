@@ -21,7 +21,6 @@ Construct the neighbor list using the O(N^2) method.
 
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
-#include "mic.cuh"
 
 
 // a simple O(N^2) version of neighbor list construction
