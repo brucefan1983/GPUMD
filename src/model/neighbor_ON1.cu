@@ -199,7 +199,7 @@ static __global__ void gpu_find_neighbor_ON1
                         double x12 = x[n2] - x1;
                         double y12 = y[n2] - y1;
                         double z12 = z[n2] - z1;
-                        dev_apply_mic(box, x12, y12, z12);
+                        apply_mic(box, x12, y12, z12);
                         double d2 = x12*x12 + y12*y12 + z12*z12;
 
                         if (n1 != n2 && d2 < cutoff_square)

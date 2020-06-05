@@ -159,17 +159,7 @@ void FCP::read_fc2(const int N, const Box& box)
         double xij2 = fcp_data.r0[j] - fcp_data.r0[i];
         double yij2 = fcp_data.r0[j + N] - fcp_data.r0[i + N];
         double zij2 = fcp_data.r0[j + N*2] - fcp_data.r0[i + N*2];
-        apply_mic
-        (
-            box.triclinic,
-            box.pbc_x,
-            box.pbc_y,
-            box.pbc_z,
-            box.cpu_h,
-            xij2,
-            yij2,
-            zij2
-        );
+        apply_mic(box, xij2, yij2, zij2);
         fcp_data.xij2[nc] = xij2 * 0.5;
         fcp_data.yij2[nc] = yij2 * 0.5;
         fcp_data.zij2[nc] = zij2 * 0.5;
@@ -263,17 +253,7 @@ void FCP::read_fc3(const int N, const Box& box)
         double xij3 = fcp_data.r0[j] - fcp_data.r0[i];
         double yij3 = fcp_data.r0[j + N] - fcp_data.r0[i + N];
         double zij3 = fcp_data.r0[j + N*2] - fcp_data.r0[i + N*2];
-        apply_mic
-        (
-            box.triclinic,
-            box.pbc_x,
-            box.pbc_y,
-            box.pbc_z,
-            box.cpu_h,
-            xij3,
-            yij3,
-            zij3
-        );
+        apply_mic(box, xij3, yij3, zij3);
         fcp_data.xij3[nc] = xij3 / 3.0;
         fcp_data.yij3[nc] = yij3 / 3.0;
         fcp_data.zij3[nc] = zij3 / 3.0;

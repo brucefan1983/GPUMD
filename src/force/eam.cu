@@ -270,7 +270,7 @@ static __global__ void find_force_eam_step1
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12); 
             double rho12 = 0.0;
             if (potential_model == 0) 
@@ -348,7 +348,7 @@ static __global__ void find_force_eam_step2
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         
             double phi, phip, fp;

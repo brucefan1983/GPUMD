@@ -209,7 +209,7 @@ static __global__ void gpu_find_force_sw3_partial
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = 1.0 / d12;
             if (d12 >= sw3.rc[type1][type2]) {continue;} 
@@ -241,7 +241,7 @@ static __global__ void gpu_find_force_sw3_partial
                 double x13 = g_x[n3] - x1;
                 double y13 = g_y[n3] - y1;
                 double z13 = g_z[n3] - z1;
-                dev_apply_mic(box, x13, y13, z13);
+                apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 if (d13 >= sw3.rc[type1][type3]) {continue;}
 
