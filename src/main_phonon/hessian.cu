@@ -145,7 +145,21 @@ void Hessian::find_H(Atom* atom, Force* force)
                 continue;
             }
             size_t offset = (nb * N + n2) * 9;
-            find_H12(n1, n2, atom, force, H.data() + offset);
+            find_H12
+            (
+                n1,
+                n2,
+                atom->box,
+                atom->position_per_atom,
+                atom->type,
+                atom->group,
+                atom->neighbor,
+                atom->potential_per_atom,
+                atom->force_per_atom,
+                atom->virial_per_atom,
+                force,
+                H.data() + offset
+            );
         }
     }
 }
@@ -303,7 +317,20 @@ void Hessian::find_dispersion
 
 
 void Hessian::find_H12
-(size_t n1, size_t n2, Atom *atom, Force *force, double* H12)
+(
+    const size_t n1,
+    const size_t n2,
+    const Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    Force *force,
+    double* H12
+)
 {
     double dx2 = displacement * 2;
     double f_positive[3];
@@ -316,14 +343,14 @@ void Hessian::find_H12
             n1,
             n2,
             beta,
-            atom->box,
-            atom->position_per_atom,
-            atom->type,
-            atom->group,
-            atom->neighbor,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
+            box,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
             force,
             f_negative
         );
@@ -334,14 +361,14 @@ void Hessian::find_H12
             n1,
             n2,
             beta,
-            atom->box,
-            atom->position_per_atom,
-            atom->type,
-            atom->group,
-            atom->neighbor,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
+            box,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
             force,
             f_positive
         );
