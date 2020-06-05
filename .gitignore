@@ -1,17 +1,8 @@
-
 \.cproject
-
 \.project
-
 core
 
-*.o
-*.exe
-*.exp
-*.lib
-
-src/gpumd
-
-src/phonon
-
-doc/gpumd.synctex.gz
+src/*/*.obj
+src/*/*.o
+src/gpumd*
+src/phonon*
