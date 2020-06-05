@@ -30,7 +30,7 @@ public:
 };
 
 
-static __host__ __device__ void dev_apply_mic
+inline __host__ __device__ void apply_mic
 (
     Box box, double &x12, double &y12, double &z12
 )

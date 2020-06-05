@@ -147,7 +147,7 @@ static __global__ void gpu_find_force
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
 
             double p2, f2;

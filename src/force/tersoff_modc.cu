@@ -313,7 +313,7 @@ static __global__ void find_force_tersoff_step1
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double zeta = 0.0;
             for (int i2 = 0; i2 < neighbor_number; ++i2)
@@ -324,7 +324,7 @@ static __global__ void find_force_tersoff_step1
                 double x13 = g_x[n3] - x1;
                 double y13 = g_y[n3] - y1;
                 double z13 = g_z[n3] - z1;
-                dev_apply_mic(box, x13, y13, z13);
+                apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
                 double fc_ijk_13, g_ijk, e_ijk_12_13;
@@ -400,7 +400,7 @@ static __global__ void find_force_tersoff_step2
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = 1.0 / d12;
             double fc_ijj_12, fcp_ijj_12;
@@ -439,7 +439,7 @@ static __global__ void find_force_tersoff_step2
                 double x13 = g_x[n3] - x1;
                 double y13 = g_y[n3] - y1;
                 double z13 = g_z[n3] - z1;
-                dev_apply_mic(box, x13, y13, z13);
+                apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
                 double fc_ikk_13, fc_ijk_13, fa_ikk_13, fc_ikj_12, fcp_ikj_12;
                 int ikj = type1 * num_types2 + type3 * num_types + type2;

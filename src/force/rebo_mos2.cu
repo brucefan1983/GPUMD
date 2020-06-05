@@ -635,7 +635,7 @@ static __global__ void find_force_step0
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             int type2 = g_type[n2] - shift;
             int type12 = type1 + type2; // 0 = AA; 1 = AB or BA; 2 = BB
@@ -747,7 +747,7 @@ static __global__ void find_force_step1
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
 
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
             double zeta = 0.0;
@@ -760,7 +760,7 @@ static __global__ void find_force_step1
                 double y13 = g_y[n3] - y1;
                 double z13 = g_z[n3] - z1;
 
-                dev_apply_mic(box, x13, y13, z13);
+                apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
                 double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
@@ -822,7 +822,7 @@ static __global__ void find_force_step2
             double x12  = g_x[n2] - x1;
             double y12  = g_y[n2] - y1;
             double z12  = g_z[n2] - z1;
-            dev_apply_mic(box, x12, y12, z12);
+            apply_mic(box, x12, y12, z12);
             double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
             double d12inv = 1.0 / d12;
 
@@ -853,7 +853,7 @@ static __global__ void find_force_step2
                 double x13 = g_x[n3] - x1;
                 double y13 = g_y[n3] - y1;
                 double z13 = g_z[n3] - z1;
-                dev_apply_mic(box, x13, y13, z13);
+                apply_mic(box, x13, y13, z13);
                 double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
 
                 double fc13, fa13;
