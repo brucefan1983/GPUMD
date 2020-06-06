@@ -93,7 +93,23 @@ void Phonon::compute
         }
     }
     free(input); // Free the input file contents
-    if (!check) hessian->compute(input_dir, atom, force);
+    if (!check)
+    {
+        hessian->compute
+        (
+            input_dir,
+            force,
+            atom->box,
+            atom->cpu_position_per_atom,
+            atom->position_per_atom,
+            atom->type,
+            atom->group,
+            atom->neighbor,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom
+        );
+    }
 }
 
 

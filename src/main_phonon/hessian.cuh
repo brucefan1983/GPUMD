@@ -22,7 +22,6 @@
 class Box;
 class Neighbor;
 class Group;
-class Atom;
 class Force;
 
 
@@ -31,7 +30,22 @@ class Hessian
 public:
     double displacement = 0.005;
     double cutoff = 4.0;
-    void compute(char*, Atom*, Force*);
+
+    void compute
+    (
+        char* input_dir,
+        Force* force,
+        Box& box,
+        std::vector<double>& cpu_position_per_atom,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<int>& type,
+        std::vector<Group>& group,
+        Neighbor& neighbor,
+        GPU_Vector<double>& potential_per_atom,
+        GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& virial_per_atom
+    );
+
     void parse_cutoff(char**, size_t);
     void parse_delta(char**, size_t);
 
@@ -78,7 +92,20 @@ protected:
     void read_kpoints(char*);
     void initialize(char*, size_t);
     void finalize(void);
-    void find_H(Atom*, Force*);
+
+    void find_H
+    (
+        Force* force,
+        Box& box,
+        std::vector<double>& cpu_position_per_atom,
+        GPU_Vector<double>& position_per_atom,
+        GPU_Vector<int>& type,
+        std::vector<Group>& group,
+        Neighbor& neighbor,
+        GPU_Vector<double>& potential_per_atom,
+        GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& virial_per_atom
+    );
 
     void find_H12
     (
@@ -111,7 +138,12 @@ protected:
         const std::vector<double>& cpu_position_per_atom
     );
 
-    void find_D(Atom*);
+    void find_D
+    (
+        const Box& box,
+        std::vector<double>& cpu_position_per_atom
+    );
+
     void find_eigenvectors(char*);
     void output_D(char*);
     void find_omega(FILE*, size_t);
