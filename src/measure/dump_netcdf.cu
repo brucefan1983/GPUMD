@@ -32,7 +32,7 @@ http://ambermd.org/netcdf/nctraj.xhtml
 
 #include <unistd.h>
 #include "dump_netcdf.cuh"
-#include "../common.cuh"
+#include "utilities/common.cuh"
 
 const int FILE_NAME_LENGTH = 200;
 #define GPUMD_VERSION "2.5"
