@@ -1,33 +1,25 @@
-cd gpumd\graphene_dos
-del thermo.out dos.out mvac.out velocity.out
+cd gpumd\graphene
+del compute.out
+del kappa.out
+del shc.out
+del hac.out
+del thermo.out
+del dos.out
+del mvac.out
+del restart.out
+del velocity.out
+del movie.xyz
 ..\..\..\src\gpumd < input.txt
-fc thermo.out thermo.out1
-fc mvac.out mvac.out1
-fc dos.out dos.out1
-fc velocity.out velocity.out1
-cd ..\..
-
-cd gpumd\graphene_kappa_emd
-del thermo.out hac.out
-..\..\..\src\gpumd < input.txt
-fc thermo.out thermo.out1
-fc hac.out hac.out1
-cd ..\..
-
-cd gpumd\graphene_kappa_nemd
-del thermo.out compute.out shc.out
-..\..\..\src\gpumd < input.txt
-fc thermo.out thermo.out1
-fc compute.out compute.out1
-fc shc.out shc.out1
-cd ..\..
-
-cd gpumd\graphene_kappa_hnemd
-del thermo.out kappa.out shc.out
-..\..\..\src\gpumd < input.txt
-fc thermo.out thermo.out1
-fc kappa.out kappa.out1
-fc shc.out shc.out1
+fc compute.out compute.out.ref
+fc kappa.out kappa.out.ref
+fc shc.out shc.out.ref
+fc hac.out hac.out.ref
+fc thermo.out thermo.out.ref
+fc dos.out dos.out.ref
+fc mvac.out mvac.out.ref
+fc restart.out restart.out.ref
+fc velocity.out velocity.out.ref
+fc movie.xyz movie.xyz.ref
 cd ..\..
 
 

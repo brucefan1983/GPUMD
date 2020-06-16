@@ -1,0 +1,55 @@
+# This is a test run.in script for the GPUMD code. 
+# It uses most of the keywords available.
+# Reference outputs will be kept and possibly updated.
+# New outputs will be compared to old ones to validate the code.
+
+potential     ../../../potentials/tersoff/Graphene_Lindsay_2010_modified.txt 0
+velocity      300
+
+ensemble      npt_ber 300 300 0.01 0 0 0 0.0001
+time_step     1
+neighbor      1 
+deform        0.00001 0 1 0  
+dump_thermo   10
+run           1000
+
+ensemble      nvt_ber 300 300 0.01
+dump_thermo   10
+dump_position 1000
+run           1000
+
+ensemble      nvt_nhc 300 300 100
+dump_thermo   10
+dump_velocity 1000
+run           1000
+
+ensemble      nvt_bdp 300 300 100
+dump_thermo   10
+dump_restart  1000
+run           1000
+
+ensemble      nve
+dump_thermo   10
+compute_dos   2 50 400.0 
+run           1000
+
+ensemble      nve
+dump_thermo   10
+compute_hac   2 50 1
+run           1000
+
+ensemble      nvt_nhc 300 300 100
+compute_hnemd 10 0 0.00001 0
+compute_shc   4 1 200 1
+run           1000
+
+ensemble      heat_lan 300 100 10 1 8 
+fix           0
+compute       0 10 1 temperature
+#compute_shc   4 1 200 1
+run           1000
+
+
+
+
+
