@@ -375,7 +375,18 @@ void Measure::process
         atom->virial_per_atom
     );
 
-    if (dump_pos) dump_pos->dump(atom, step);
+    if (dump_pos)
+    {
+        dump_pos->dump
+        (
+            step,
+            atom->global_time,
+            atom->box,
+            atom->cpu_type,
+            atom->position_per_atom,
+            atom->cpu_position_per_atom
+        );
+    }
 }
 
 

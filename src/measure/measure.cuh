@@ -23,6 +23,7 @@
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "model/atom.cuh"
 
 
 class Measure

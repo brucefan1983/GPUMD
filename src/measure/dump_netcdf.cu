@@ -240,16 +240,23 @@ void DUMP_NETCDF::open_file(int frame_in_run)
 
 }
 
-void DUMP_NETCDF::write(Atom *atom)
+void DUMP_NETCDF::write
+(
+    const double global_time,
+    const Box& box,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom
+)
 {
 
     //// Write Frame Header ////
      // Get cell lengths and angles
     double cell_lengths[3];
     double cell_angles[3];
-    if (atom->box.triclinic)
+    if (box.triclinic)
     {
-        double *t = atom->box.cpu_h;
+        double *t = box.cpu_h;
         double cosgamma, cosbeta, cosalpha;
         cell_lengths[0] = sqrt(t[0]*t[0] + t[3]*t[3] + t[6]*t[6]); //a-side
         cell_lengths[1] = sqrt(t[1]*t[1] + t[4]*t[4] + t[7]*t[7]); //b-side
@@ -269,9 +276,9 @@ void DUMP_NETCDF::write(Atom *atom)
     }
     else
     {
-        cell_lengths[0] = atom->box.cpu_h[0];
-        cell_lengths[1] = atom->box.cpu_h[1];
-        cell_lengths[2] = atom->box.cpu_h[2];
+        cell_lengths[0] = box.cpu_h[0];
+        cell_lengths[1] = box.cpu_h[1];
+        cell_lengths[2] = box.cpu_h[2];
 
         cell_angles[0] = 90;
         cell_angles[1] = 90;
@@ -279,19 +286,19 @@ void DUMP_NETCDF::write(Atom *atom)
     }
 
     // Set lengths to 0 if PBC is off
-    if (!atom->box.pbc_x) cell_lengths[0] = 0;
-    if (!atom->box.pbc_y) cell_lengths[1] = 0;
-    if (!atom->box.pbc_z) cell_lengths[2] = 0;
+    if (!box.pbc_x) cell_lengths[0] = 0;
+    if (!box.pbc_y) cell_lengths[1] = 0;
+    if (!box.pbc_z) cell_lengths[2] = 0;
 
     size_t countp[3] = {1, 3, 0}; //3rd dimension unused until per-atom
     size_t startp[3] = {lenp, 0, 0};
-    double time = atom->global_time/1000.0*TIME_UNIT_CONVERSION; // convert fs to ps
+    double time = global_time/1000.0*TIME_UNIT_CONVERSION; // convert fs to ps
     NC_CHECK(nc_put_var1_double(ncid, time_var, startp, &time));
     NC_CHECK(nc_put_vara_double(ncid, cell_lengths_var, startp, countp, cell_lengths));
     NC_CHECK(nc_put_vara_double(ncid, cell_angles_var, startp, countp, cell_angles));
 
     //// Write Per-Atom Data ////
-    atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
+    position_per_atom.copy_to_host(cpu_position_per_atom.data());
 
     if (precision == 1) // single precision
     {
@@ -301,15 +308,15 @@ void DUMP_NETCDF::write(Atom *atom)
         float cpu_z[N];
         for (int i = 0; i < N; i++)
         {
-            cpu_x[i] = (float) atom->cpu_position_per_atom[i];
-            cpu_y[i] = (float) atom->cpu_position_per_atom[i + N];
-            cpu_z[i] = (float) atom->cpu_position_per_atom[i + N * 2];
+            cpu_x[i] = (float) cpu_position_per_atom[i];
+            cpu_y[i] = (float) cpu_position_per_atom[i + N];
+            cpu_z[i] = (float) cpu_position_per_atom[i + N * 2];
         }
 
         countp[0] = 1;
         countp[1] = N;
         countp[2] = 1;
-        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type.data()));
+        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, cpu_type.data()));
         NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_x));
         startp[2] = 1;
         NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_y));
@@ -321,12 +328,12 @@ void DUMP_NETCDF::write(Atom *atom)
         countp[0] = 1;
         countp[1] = N;
         countp[2] = 1;
-        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, atom->cpu_type.data()));
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_position_per_atom.data()));
+        NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, cpu_type.data()));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, cpu_position_per_atom.data()));
         startp[2] = 1;
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_position_per_atom.data() + N));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, cpu_position_per_atom.data() + N));
         startp[2] = 2;
-        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, atom->cpu_position_per_atom.data() + N * 2));
+        NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, cpu_position_per_atom.data() + N * 2));
     }
 }
 
@@ -335,12 +342,29 @@ void DUMP_NETCDF::finalize()
     // Do nothing. Needed to satisfy virtual dump_pos parent class function
 }
 
-void DUMP_NETCDF::dump(Atom *atom, int step)
+void DUMP_NETCDF::dump
+(
+    const int step,
+    const double global_time,
+    const Box& box,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom
+)
 {
     int frame_in_run = (step + 1) / interval;
     if ((step + 1) % interval != 0) return;
     open_file(frame_in_run);
-    write(atom);
+
+    write
+    (
+        global_time,
+        box,
+        cpu_type,
+        position_per_atom,
+        cpu_position_per_atom
+    );
+
     NC_CHECK(nc_close(ncid));
 }
 

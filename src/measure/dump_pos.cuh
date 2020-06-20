@@ -22,7 +22,10 @@ Parent class for position dumping
 #define DUMP_POS_H
 
 #include "utilities/error.cuh"
-#include "model/atom.cuh"
+#include "utilities/gpu_vector.cuh"
+#include "utilities/common.cuh"
+#include "model/box.cuh"
+#include <vector>
 
 class DUMP_POS
 {
@@ -32,7 +35,15 @@ public:
     int precision; // 0 = normal output, 1 = single precision, 2 = double
     virtual void initialize(char*) = 0;
     virtual void finalize() = 0;
-    virtual void dump(Atom *atom, int step) = 0;
+    virtual void dump
+    (
+        const int step,
+        const double global_time,
+        const Box& box,
+        const std::vector<int>& cpu_type,
+        GPU_Vector<double>& position_per_atom,
+        std::vector<double>& cpu_position_per_atom
+    ) = 0;
 
     DUMP_POS(){}
     virtual ~DUMP_POS(){}

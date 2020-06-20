@@ -26,7 +26,16 @@ public:
     FILE *fid_position;
     void initialize(char*);
     void finalize();
-    void dump(Atom *atom, int step);
+
+    void dump
+    (
+        const int step,
+        const double global_time,
+        const Box& box,
+        const std::vector<int>& cpu_type,
+        GPU_Vector<double>& position_per_atom,
+        std::vector<double>& cpu_position_per_atom
+    );
 
     DUMP_XYZ();
     ~DUMP_XYZ(){};

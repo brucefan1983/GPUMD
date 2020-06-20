@@ -44,22 +44,39 @@ void DUMP_XYZ::finalize()
     fclose(fid_position);
 }
 
-void DUMP_XYZ::dump(Atom *atom, int step)
+
+void DUMP_XYZ::dump
+(
+    const int step,
+    const double global_time,
+    const Box& box,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom
+)
 {
     if ((step + 1) % interval != 0) return;
-    atom->position_per_atom.copy_to_host(atom->cpu_position_per_atom.data());
-    fprintf(fid_position, "%d\n", atom->N);
+
+    const int number_of_atoms = cpu_type.size();
+
+    position_per_atom.copy_to_host(cpu_position_per_atom.data());
+
+    fprintf(fid_position, "%d\n", number_of_atoms);
     fprintf(fid_position, "%d\n", (step + 1) / interval - 1);
 
-    for (int n = 0; n < atom->N; n++)
+    for (int n = 0; n < number_of_atoms; n++)
     {
         fprintf
         (
-            fid_position, precision_str, atom->cpu_type[n],
-            atom->cpu_position_per_atom[n],
-            atom->cpu_position_per_atom[n + atom->N],
-            atom->cpu_position_per_atom[n + 2 * atom->N]
+            fid_position,
+            precision_str,
+            cpu_type[n],
+            cpu_position_per_atom[n],
+            cpu_position_per_atom[n + number_of_atoms],
+            cpu_position_per_atom[n + 2 * number_of_atoms]
         );
     }
     fflush(fid_position);
 }
+
+
