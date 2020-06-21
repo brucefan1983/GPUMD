@@ -237,11 +237,27 @@ static void process_run
         measure->process
         (
             input_dir,
-            atom,
+            atom->number_of_steps,
+            step,
             integrate->fixed_group,
+            atom->global_time,
             integrate->temperature2,
             integrate->ensemble->energy_transferred,
-            step
+            atom->cpu_type,
+            atom->box,
+            atom->neighbor,
+            atom->group,
+            atom->thermo,
+            atom->mass,
+            atom->cpu_mass,
+            atom->position_per_atom,
+            atom->cpu_position_per_atom,
+            atom->velocity_per_atom,
+            atom->cpu_velocity_per_atom,
+            atom->potential_per_atom,
+            atom->force_per_atom,
+            atom->virial_per_atom,
+            atom->heat_per_atom
         );
         print_finished_steps(step, atom->number_of_steps);
     }

@@ -278,80 +278,98 @@ void Measure::dump_restarts
 void Measure::process
 (
     char *input_dir,
-    Atom *atom,
+    const int number_of_steps,
+    int step,
     const int fixed_group,
+    const double global_time,
     const double temperature,
     const double energy_transferred[],
-    int step
+    const std::vector<int>& cpu_type,
+    Box& box,
+    const Neighbor& neighbor,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    const GPU_Vector<double>& mass,
+    const std::vector<double>& cpu_mass,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    std::vector<double>& cpu_velocity_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& heat_per_atom
 )
 {
+    const int number_of_atoms = cpu_type.size();
+
     dump_thermos
     (
         fid_thermo,
         step,
-        atom->N,
-        (fixed_group < 0) ? 0 : atom->group[0].cpu_size[fixed_group],
-        atom->thermo,
-        atom->box
+        number_of_atoms,
+        (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group],
+        thermo,
+        box
     );
 
     dump_velocities
     (
         fid_velocity,
         step,
-        atom->velocity_per_atom,
-        atom->cpu_velocity_per_atom
+        velocity_per_atom,
+        cpu_velocity_per_atom
     );
 
     dump_restarts
     (
         step,
-        atom->neighbor,
-        atom->box,
-        atom->group,
-        atom->cpu_type,
-        atom->cpu_mass,
-        atom->position_per_atom,
-        atom->velocity_per_atom,
-        atom->cpu_position_per_atom,
-        atom->cpu_velocity_per_atom
+        neighbor,
+        box,
+        group,
+        cpu_type,
+        cpu_mass,
+        position_per_atom,
+        velocity_per_atom,
+        cpu_position_per_atom,
+        cpu_velocity_per_atom
     );
 
     compute.process
     (
         step,
         energy_transferred,
-        atom->group,
-        atom->mass,
-        atom->potential_per_atom,
-        atom->force_per_atom,
-        atom->velocity_per_atom,
-        atom->virial_per_atom
+        group,
+        mass,
+        potential_per_atom,
+        force_per_atom,
+        velocity_per_atom,
+        virial_per_atom
     );
 
     vac.process
     (
         step,
-        atom->group,
-        atom->velocity_per_atom
+        group,
+        velocity_per_atom
     );
 
     hac.process
     (
-        atom->number_of_steps,
+        number_of_steps,
         step,
         input_dir,
-        atom->velocity_per_atom,
-        atom->virial_per_atom,
-        atom->heat_per_atom
+        velocity_per_atom,
+        virial_per_atom,
+        heat_per_atom
     );
 
     shc.process
     (
         step,
-        atom->group,
-        atom->velocity_per_atom,
-        atom->virial_per_atom
+        group,
+        velocity_per_atom,
+        virial_per_atom
     );
 
     hnemd.process
@@ -359,20 +377,20 @@ void Measure::process
         step,
         input_dir,
         temperature,
-        atom->box.get_volume(),
-        atom->velocity_per_atom,
-        atom->virial_per_atom,
-        atom->heat_per_atom
+        box.get_volume(),
+        velocity_per_atom,
+        virial_per_atom,
+        heat_per_atom
     );
 
     modal_analysis.process
     (
         step,
         temperature,
-        atom->box.get_volume(),
+        box.get_volume(),
         hnemd.fe,
-        atom->velocity_per_atom,
-        atom->virial_per_atom
+        velocity_per_atom,
+        virial_per_atom
     );
 
     if (dump_pos)
@@ -380,11 +398,11 @@ void Measure::process
         dump_pos->dump
         (
             step,
-            atom->global_time,
-            atom->box,
-            atom->cpu_type,
-            atom->position_per_atom,
-            atom->cpu_position_per_atom
+            global_time,
+            box,
+            cpu_type,
+            position_per_atom,
+            cpu_position_per_atom
         );
     }
 }

@@ -23,7 +23,9 @@
 #include "hnemd_kappa.cuh"
 #include "compute.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "model/atom.cuh"
+#include "model/neighbor.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
 
 
 class Measure
@@ -50,7 +52,32 @@ public:
         const double volume
     );
 
-    void process(char*, Atom*, const int, const double, const double[], int);
+    void process
+    (
+        char *input_dir,
+        const int number_of_steps,
+        int step,
+        const int fixed_group,
+        const double global_time,
+        const double temperature,
+        const double energy_transferred[],
+        const std::vector<int>& cpu_type,
+        Box& box,
+        const Neighbor& neighbor,
+        std::vector<Group>& group,
+        GPU_Vector<double>& thermo,
+        const GPU_Vector<double>& mass,
+        const std::vector<double>& cpu_mass,
+        GPU_Vector<double>& position_per_atom,
+        std::vector<double>& cpu_position_per_atom,
+        GPU_Vector<double>& velocity_per_atom,
+        std::vector<double>& cpu_velocity_per_atom,
+        GPU_Vector<double>& potential_per_atom,
+        GPU_Vector<double>& force_per_atom,
+        GPU_Vector<double>& virial_per_atom,
+        GPU_Vector<double>& heat_per_atom
+    );
+
     int dump_thermo; 
     int dump_velocity;
     int dump_restart;
