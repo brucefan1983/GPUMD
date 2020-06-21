@@ -27,7 +27,16 @@ class DUMP_NETCDF: public DUMP_POS
 public:
     void initialize(char*);
     void finalize();
-    void dump(Atom *atom, int step);
+
+    void dump
+    (
+        const int step,
+        const double global_time,
+        const Box& box,
+        const std::vector<int>& cpu_type,
+        GPU_Vector<double>& position_per_atom,
+        std::vector<double>& cpu_position_per_atom
+    );
 
     DUMP_NETCDF(int N, double global_time);
     ~DUMP_NETCDF(){}

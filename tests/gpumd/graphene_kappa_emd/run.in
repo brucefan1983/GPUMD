@@ -4,8 +4,8 @@ velocity    300
 ensemble    npt_ber 300 300 0.01 0 0 0 0.0005 
 time_step   1     
 dump_thermo 100     
-run         100000
+run         10000
 
 ensemble    nve
 compute_hac 20 500 10
-run         100000
+run         10000

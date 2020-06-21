@@ -24,26 +24,50 @@ Then calculate the dynamical matrices with different k points.
 #include "hessian.cuh"
 #include "cusolver_wrapper.cuh"
 #include "force/force.cuh"
-#include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include "utilities/common.cuh"
 #include <vector>
 
 
 void Hessian::compute
-(char* input_dir, Atom* atom, Force* force)
+(
+    char* input_dir,
+    Force* force,
+    Box& box,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
-    initialize(input_dir, atom->N);
-    find_H(atom, force);
+    initialize(input_dir, type.size());
+    find_H
+    (
+        force,
+        box,
+        cpu_position_per_atom,
+        position_per_atom,
+        type,
+        group,
+        neighbor,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom
+    );
 
     if (num_kpoints == 1) // currently for Alex's GKMA calculations
     {
-        find_D(atom);
+        find_D(box, cpu_position_per_atom);
         find_eigenvectors(input_dir);
     }
     else
     {
-        find_dispersion(input_dir, atom->box, atom->cpu_position_per_atom);
+        find_dispersion(input_dir, box, cpu_position_per_atom);
     }
 }
 
@@ -132,20 +156,47 @@ bool Hessian::is_too_far
 }
 
 
-void Hessian::find_H(Atom* atom, Force* force)
+void Hessian::find_H
+(
+    Force* force,
+    Box& box,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom
+)
 {
-    size_t N = atom->N;
+    const int number_of_atoms = type.size();
+
     for (size_t nb = 0; nb < num_basis; ++nb)
     {
         size_t n1 = basis[nb];
-        for (size_t n2 = 0; n2 < N; ++n2)
+        for (size_t n2 = 0; n2 < number_of_atoms; ++n2)
         {
-            if(is_too_far(atom->box, atom->cpu_position_per_atom, n1, n2))
+            if(is_too_far(box, cpu_position_per_atom, n1, n2))
             {
                 continue;
             }
-            size_t offset = (nb * N + n2) * 9;
-            find_H12(n1, n2, atom, force, H.data() + offset);
+            size_t offset = (nb * number_of_atoms + n2) * 9;
+            find_H12
+            (
+                n1,
+                n2,
+                box,
+                position_per_atom,
+                type,
+                group,
+                neighbor,
+                potential_per_atom,
+                force_per_atom,
+                virial_per_atom,
+                force,
+                H.data() + offset
+            );
         }
     }
 }
@@ -303,7 +354,20 @@ void Hessian::find_dispersion
 
 
 void Hessian::find_H12
-(size_t n1, size_t n2, Atom *atom, Force *force, double* H12)
+(
+    const size_t n1,
+    const size_t n2,
+    const Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    Force *force,
+    double* H12
+)
 {
     double dx2 = displacement * 2;
     double f_positive[3];
@@ -316,14 +380,14 @@ void Hessian::find_H12
             n1,
             n2,
             beta,
-            atom->box,
-            atom->position_per_atom,
-            atom->type,
-            atom->group,
-            atom->neighbor,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
+            box,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
             force,
             f_negative
         );
@@ -334,14 +398,14 @@ void Hessian::find_H12
             n1,
             n2,
             beta,
-            atom->box,
-            atom->position_per_atom,
-            atom->type,
-            atom->group,
-            atom->neighbor,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
+            box,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
             force,
             f_positive
         );
@@ -356,16 +420,22 @@ void Hessian::find_H12
 }
 
 
-void Hessian::find_D(Atom* atom)
+void Hessian::find_D
+(
+    const Box& box,
+    std::vector<double>& cpu_position_per_atom
+)
 {
+    const int number_of_atoms = cpu_position_per_atom.size() / 3;
+
     for (size_t nb = 0; nb < num_basis; ++nb)
     {
         size_t n1 = basis[nb];
         size_t label_1 = label[n1];
         double mass_1 = mass[label_1];
-        for (size_t n2 = 0; n2 < atom->N; ++n2)
+        for (size_t n2 = 0; n2 < number_of_atoms; ++n2)
         {
-            if(is_too_far(atom->box, atom->cpu_position_per_atom, n1, n2))
+            if(is_too_far(box, cpu_position_per_atom, n1, n2))
             {
                 continue;
             }
@@ -373,7 +443,7 @@ void Hessian::find_D(Atom* atom)
             size_t label_2 = label[n2];
             double mass_2 = mass[label_2];
             double mass_factor = 1.0 / sqrt(mass_1 * mass_2);
-            double* H12 = H.data() + (nb * atom->N + n2) * 9;
+            double* H12 = H.data() + (nb * number_of_atoms + n2) * 9;
             for (size_t a = 0; a < 3; ++a)
             {
                 for (size_t b = 0; b < 3; ++b)

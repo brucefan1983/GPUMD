@@ -3,13 +3,13 @@ velocity     300
 
 ensemble     nvt_nhc 300 300 100
 time_step    1 
-dump_thermo  1000        
-run          10000
+dump_thermo  100        
+run          1000
 
 ensemble      nvt_nhc 300 300 100
 compute_hnemd 1000 0 0.00001 0
 compute_shc   4 2 250 1
-run           10000
+run           1000
 
 
 
