@@ -20,7 +20,6 @@ The driver class dealing with measurement.
 
 
 #include "measure.cuh"
-#include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include "dump_xyz.cuh"
