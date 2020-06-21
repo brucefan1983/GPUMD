@@ -38,12 +38,11 @@ public:
         std::vector<double>& cpu_position_per_atom
     );
 
-    DUMP_NETCDF(int N, double global_time);
+    DUMP_NETCDF();
     ~DUMP_NETCDF(){}
 
 private:
     int ncid; // NetCDF ID
-    int N; // number of atoms
     static bool append;
 
     // dimensions

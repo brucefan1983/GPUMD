@@ -33,7 +33,7 @@ public:
     int interval;  // output interval
     char file_position[200];
     int precision; // 0 = normal output, 1 = single precision, 2 = double
-    virtual void initialize(char*) = 0;
+    virtual void initialize(char* input_dir, const int number_of_atoms) = 0;
     virtual void finalize() = 0;
     virtual void dump
     (

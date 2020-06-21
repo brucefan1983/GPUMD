@@ -24,7 +24,7 @@ DUMP_XYZ::DUMP_XYZ()
 
 }
 
-void DUMP_XYZ::initialize(char *input_dir)
+void DUMP_XYZ::initialize(char *input_dir, const int number_of_atoms)
 {
     strcpy(file_position, input_dir);
     strcat(file_position, "/movie.xyz");

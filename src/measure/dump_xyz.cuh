@@ -24,7 +24,7 @@ class DUMP_XYZ: public DUMP_POS
 public:
     char precision_str[25];
     FILE *fid_position;
-    void initialize(char*);
+    virtual void initialize(char* input_dir, const int number_of_atoms);
     void finalize();
 
     void dump

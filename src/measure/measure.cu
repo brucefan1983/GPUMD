@@ -64,7 +64,7 @@ void Measure::initialize
 
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_velocity)  {fid_velocity = my_fopen(file_velocity, "a");}
-    if (dump_pos)       {dump_pos->initialize(input_dir);}
+    if (dump_pos)       {dump_pos->initialize(input_dir, number_of_atoms);}
     vac.preprocess(time_step, group, mass);
     hac.preprocess(number_of_steps);
     shc.preprocess(number_of_atoms, group);
@@ -523,7 +523,7 @@ void Measure::parse_dump_position(char **param, int num_param)
     if (format == 1) // netcdf output
     {
 #ifdef USE_NETCDF
-    	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF(atom->N, atom->global_time);
+    	DUMP_NETCDF *dump_netcdf = new DUMP_NETCDF();
     	dump_pos = dump_netcdf;
     	if (!precision) precision = 2; // double precision default
 #else

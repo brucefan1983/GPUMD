@@ -57,12 +57,11 @@ const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 bool DUMP_NETCDF::append = false;
 
-DUMP_NETCDF::DUMP_NETCDF(int N, double global_time)
+DUMP_NETCDF::DUMP_NETCDF()
 {
-    this->N = N;
 }
 
-void DUMP_NETCDF::initialize(char *input_dir)
+void DUMP_NETCDF::initialize(char *input_dir, const int N)
 {
     strcpy(file_position, input_dir);
     strcat(file_position, "/movie.nc");
@@ -249,6 +248,7 @@ void DUMP_NETCDF::write
     std::vector<double>& cpu_position_per_atom
 )
 {
+    const int N = cpu_type.size();
 
     //// Write Frame Header ////
      // Get cell lengths and angles
