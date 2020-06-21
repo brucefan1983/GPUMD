@@ -25,7 +25,7 @@ class Measure;
 class Run
 {
 public:
-    Run(char*, Atom*, Force*, Integrate*, Measure*);
+    Run(char*);
     ~Run(void);
 private:
     void initialize_run(Atom*, Integrate*, Measure*);

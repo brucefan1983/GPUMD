@@ -32,19 +32,31 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/error.cuh"
 
 
-Run::Run
-(
-    char* input_dir, Atom* atom, Force* force,
-    Integrate* integrate, Measure* measure
-)
+Run::Run(char* input_dir)
 {
-    run(input_dir, atom, force, integrate, measure, 1);
-    force->initialize_participation_and_shift
+    Atom atom(input_dir);
+    atom.allocate_memory_gpu();
+
+#ifndef USE_FCP // the FCP does not use a neighbor list at all
+    atom.neighbor.find_neighbor
     (
-        atom->group,
-        atom->number_of_types
+        1,
+        atom.box,
+        atom.position_per_atom
     );
-    run(input_dir, atom, force, integrate, measure, 0);
+#endif
+
+    Force force;
+    Integrate integrate;
+    Measure measure(input_dir);
+
+    run(input_dir, &atom, &force, &integrate, &measure, 1);
+    force.initialize_participation_and_shift
+    (
+        atom.group,
+        atom.number_of_types
+    );
+    run(input_dir, &atom, &force, &integrate, &measure, 0);
 }
 
 

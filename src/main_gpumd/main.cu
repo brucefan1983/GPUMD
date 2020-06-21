@@ -14,7 +14,7 @@
 */
 
 
-#include "gpumd.cuh"
+#include "run.cuh"
 #include "utilities/main_common.cuh"
 #include "utilities/error.cuh"
 #include <stdlib.h>
@@ -47,7 +47,7 @@ int main(int argc, char *argv[])
         CHECK(cudaDeviceSynchronize());
         clock_t time_begin = clock();
 
-        GPUMD gpumd(input_directory);
+        Run run(input_directory);
 
         CHECK(cudaDeviceSynchronize());
         clock_t time_finish = clock();
