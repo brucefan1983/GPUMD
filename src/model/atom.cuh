@@ -70,10 +70,6 @@ public:
     void parse_time_step (char**, int);
     void parse_run(char**, int);
 
-    void read_xyz_in_line_1(FILE*);
-    void read_xyz_in_line_2(FILE*);
-    void read_xyz_in_line_3(FILE*);
-    void find_type_size(void);
     void initialize_position(char *input_dir);
 
     void allocate_memory_gpu(void);

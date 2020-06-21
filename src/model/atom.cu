@@ -33,17 +33,24 @@ Atom::Atom(char *input_dir)
 }
 
 
-void Atom::read_xyz_in_line_1(FILE* fid_xyz)
+void read_xyz_in_line_1
+(
+    FILE* fid_xyz,
+    int& N,
+    int& MN,
+    double& rc,
+    int& triclinic,
+    int& has_velocity_in_xyz,
+    std::vector<Group>& group
+)
 {
     int num_of_grouping_methods = 0;
-    double rc;
     int count = fscanf
     (
-        fid_xyz, "%d%d%lf%d%d%d\n", &N, &neighbor.MN, &rc, &box.triclinic, 
+        fid_xyz, "%d%d%lf%d%d%d\n", &N, &MN, &rc, &triclinic,
         &has_velocity_in_xyz, &num_of_grouping_methods
     );
     PRINT_SCANF_ERROR(count, 6, "Reading error for line 1 of xyz.in.");
-    neighbor.rc = rc;
     group.resize(num_of_grouping_methods);
 
     if (N < 2)
@@ -55,33 +62,33 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
         printf("Number of atoms is %d.\n", N);
     }
 
-    if (neighbor.MN < 1)
+    if (MN < 1)
     {
         PRINT_INPUT_ERROR("Maximum number of neighbors should >= 1.");
     }
-    else if (neighbor.MN > 1024)
+    else if (MN > 1024)
     {
         PRINT_INPUT_ERROR("Maximum number of neighbors should <= 1024.");
     }
     else
     {
-        printf("Maximum number of neighbors is %d.\n", neighbor.MN);
+        printf("Maximum number of neighbors is %d.\n", MN);
     }
 
-    if (neighbor.rc <= 0)
+    if (rc <= 0)
     {
         PRINT_INPUT_ERROR("Initial cutoff for neighbor list should > 0.");
     }
     else
     {
-        printf("Initial cutoff for neighbor list is %g A.\n", neighbor.rc);
+        printf("Initial cutoff for neighbor list is %g A.\n", rc);
     }
 
-    if (box.triclinic == 0)
+    if (triclinic == 0)
     {
         printf("Use orthogonal box.\n");
     }
-    else if (box.triclinic == 1)
+    else if (triclinic == 1)
     {
         printf("Use triclinic box.\n");
     }
@@ -118,7 +125,11 @@ void Atom::read_xyz_in_line_1(FILE* fid_xyz)
 }  
 
 
-void Atom::read_xyz_in_line_2(FILE* fid_xyz)
+void read_xyz_in_line_2
+(
+    FILE* fid_xyz,
+    Box& box
+)
 {
     if (box.triclinic == 1)
     {
@@ -220,7 +231,18 @@ void Atom::read_xyz_in_line_2(FILE* fid_xyz)
 }
 
 
-void Atom::read_xyz_in_line_3(FILE* fid_xyz)
+void read_xyz_in_line_3
+(
+    FILE* fid_xyz,
+    const int N,
+    const int has_velocity_in_xyz,
+    int& number_of_types,
+    std::vector<int>& cpu_type,
+    std::vector<double>& cpu_mass,
+    std::vector<double>& cpu_position_per_atom,
+    std::vector<double>& cpu_velocity_per_atom,
+    std::vector<Group>& group
+)
 {
     cpu_type.resize(N);
     cpu_mass.resize(N);
@@ -291,7 +313,13 @@ void Atom::read_xyz_in_line_3(FILE* fid_xyz)
 }
 
 
-void Atom::find_type_size(void)
+void find_type_size
+(
+    const int N,
+    const int number_of_types,
+    const std::vector<int>& cpu_type,
+    std::vector<int>& cpu_type_size
+)
 {
     cpu_type_size.resize(number_of_types);
 
@@ -324,9 +352,31 @@ void Atom::initialize_position(char *input_dir)
     strcat(file_xyz, "/xyz.in");
     FILE *fid_xyz = my_fopen(file_xyz, "r");
 
-    read_xyz_in_line_1(fid_xyz);
-    read_xyz_in_line_2(fid_xyz);
-    read_xyz_in_line_3(fid_xyz);
+    read_xyz_in_line_1
+    (
+        fid_xyz,
+        N,
+        neighbor.MN,
+        neighbor.rc,
+        box.triclinic,
+        has_velocity_in_xyz,
+        group
+    );
+
+    read_xyz_in_line_2(fid_xyz, box);
+
+    read_xyz_in_line_3
+    (
+        fid_xyz,
+        N,
+        has_velocity_in_xyz,
+        number_of_types,
+        cpu_type,
+        cpu_mass,
+        cpu_position_per_atom,
+        cpu_velocity_per_atom,
+        group
+    );
 
     fclose(fid_xyz);
 
@@ -336,7 +386,13 @@ void Atom::initialize_position(char *input_dir)
         group[m].find_contents(N);
     }
 
-    find_type_size();
+    find_type_size
+    (
+        N,
+        number_of_types,
+        cpu_type,
+        cpu_type_size
+    );
 
     print_line_1();
     printf("Finished initializing positions and related parameters.\n");
