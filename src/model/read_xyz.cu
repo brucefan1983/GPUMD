@@ -19,11 +19,12 @@ The class defining the simulation model.
 ------------------------------------------------------------------------------*/
 
 
-#include "atom.cuh"
+#include "read_xyz.cuh"
+#include "box.cuh"
+#include "group.cuh"
+#include "neighbor.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/read_file.cuh"
-#include <vector>
-
 
 
 void read_xyz_in_line_1
@@ -462,6 +463,5 @@ void allocate_memory_gpu
     heat_per_atom.resize(N * 5);
     thermo.resize(6);
 }
-
 
 

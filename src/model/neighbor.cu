@@ -19,9 +19,11 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 ------------------------------------------------------------------------------*/
 
 
-#include "atom.cuh"
+#include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <vector>
+
 
 const int NUM_OF_CELLS = 50; // use the O(N^2) method when #cells < this number
 

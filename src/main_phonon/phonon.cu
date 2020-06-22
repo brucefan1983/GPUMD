@@ -21,7 +21,7 @@ The driver class for phonon calculations
 
 #include "phonon.cuh"
 #include "hessian.cuh"
-#include "model/atom.cuh"
+#include "model/read_xyz.cuh"
 #include "force/force.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/error.cuh"
@@ -30,70 +30,68 @@ The driver class for phonon calculations
 
 Phonon::Phonon(char* input_dir)
 {
-    Atom atom;
-
     initialize_position
     (
         input_dir,
-        atom.N,
-        atom.has_velocity_in_xyz,
-        atom.number_of_types,
-        atom.box,
-        atom.neighbor,
-        atom.group,
-        atom.cpu_type,
-        atom.cpu_type_size,
-        atom.cpu_mass,
-        atom.cpu_position_per_atom,
-        atom.cpu_velocity_per_atom
+        N,
+        has_velocity_in_xyz,
+        number_of_types,
+        box,
+        neighbor,
+        group,
+        cpu_type,
+        cpu_type_size,
+        cpu_mass,
+        cpu_position_per_atom,
+        cpu_velocity_per_atom
     );
 
     allocate_memory_gpu
     (
-        atom.N,
-        atom.neighbor,
-        atom.group,
-        atom.cpu_type,
-        atom.cpu_mass,
-        atom.cpu_position_per_atom,
-        atom.type,
-        atom.mass,
-        atom.position_per_atom,
-        atom.velocity_per_atom,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom,
-        atom.heat_per_atom,
-        atom.thermo
+        N,
+        neighbor,
+        group,
+        cpu_type,
+        cpu_mass,
+        cpu_position_per_atom,
+        type,
+        mass,
+        position_per_atom,
+        velocity_per_atom,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom,
+        heat_per_atom,
+        thermo
     );
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-    atom.neighbor.find_neighbor
+    neighbor.find_neighbor
     (
         1,
-        atom.box,
-        atom.position_per_atom
+        box,
+        position_per_atom
     );
 #endif
 
     Force force;
     Hessian hessian;
 
-    compute(input_dir, &atom, &force, &hessian, 1);
+    compute(input_dir, &force, &hessian, 1);
 
     force.initialize_participation_and_shift
     (
-        atom.group,
-        atom.number_of_types
+        group,
+        number_of_types
     );
 
-    compute(input_dir, &atom, &force, &hessian, 0);
+    compute(input_dir, &force, &hessian, 0);
 }
 
 
 void Phonon::compute
 (
-    char* input_dir, Atom* atom, Force* force,
+    char* input_dir, Force* force,
     Hessian* hessian, int check
 )
 {
@@ -111,17 +109,17 @@ void Phonon::compute
         int is_potential = 0;
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-        parse(param, num_param, atom, force, hessian, &is_potential);
+        parse(param, num_param, force, hessian, &is_potential);
         if (!check && is_potential)
         {
             force->add_potential
             (
                 input_dir,
-                atom->box,
-                atom->neighbor,
-                atom->group,
-                atom->cpu_type,
-                atom->cpu_type_size
+                box,
+                neighbor,
+                group,
+                cpu_type,
+                cpu_type_size
             );
         }
     }
@@ -132,15 +130,15 @@ void Phonon::compute
         (
             input_dir,
             force,
-            atom->box,
-            atom->cpu_position_per_atom,
-            atom->position_per_atom,
-            atom->type,
-            atom->group,
-            atom->neighbor,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom
+            box,
+            cpu_position_per_atom,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom
         );
     }
 }
@@ -148,7 +146,7 @@ void Phonon::compute
 
 void Phonon::parse
 (
-    char **param, int num_param, Atom* atom,
+    char **param, int num_param,
     Force *force, Hessian* hessian, int* is_potential
 )
 {

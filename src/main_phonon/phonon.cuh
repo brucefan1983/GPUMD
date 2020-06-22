@@ -16,9 +16,17 @@
 
 #pragma once
 
-class Atom;
+
 class Force;
 class Hessian;
+
+
+#include "model/box.cuh"
+#include "model/group.cuh"
+#include "model/neighbor.cuh"
+#include "utilities/gpu_vector.cuh"
+#include "utilities/common.cuh"
+#include <vector>
 
 
 class Phonon
@@ -26,8 +34,37 @@ class Phonon
 public:
     Phonon(char*);
 private:
-    void compute(char*, Atom*, Force*, Hessian*, int);
-    void parse(char**, int, Atom*, Force*, Hessian*, int*);
+    void compute(char*, Force*, Hessian*, int);
+    void parse(char**, int, Force*, Hessian*, int*);
+
+
+
+    // data in the original Atom class
+    int N;                // number of atoms
+    int number_of_types;  // number of atom types
+    int has_velocity_in_xyz = 0;
+    int step;
+    int number_of_steps; // number of steps in a specific run
+    double global_time = 0.0; // run time of entire simulation (fs)
+    double initial_temperature; // initial temperature for velocity
+    double time_step = 1.0 / TIME_UNIT_CONVERSION;
+    std::vector<int> cpu_type;
+    std::vector<int> cpu_type_size;
+    std::vector<double> cpu_mass;
+    std::vector<double> cpu_position_per_atom;
+    std::vector<double> cpu_velocity_per_atom;
+    GPU_Vector<int> type;                  // atom type (for force)
+    GPU_Vector<double> mass;               // per-atom mass
+    GPU_Vector<double> position_per_atom;  // per-atom position
+    GPU_Vector<double> velocity_per_atom;  // per-atom velocity
+    GPU_Vector<double> force_per_atom;     // per-atom force
+    GPU_Vector<double> heat_per_atom;      // per-atom heat current
+    GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
+    GPU_Vector<double> potential_per_atom; // per-atom potential energy
+    GPU_Vector<double> thermo;             // some thermodynamic quantities
+    Neighbor neighbor;
+    Box box;
+    std::vector<Group> group;
 };
 
 

@@ -20,7 +20,7 @@ Written by Ville Vierimaa and optimized by Zheyong Fan.
 ------------------------------------------------------------------------------*/
 
 
-#include "atom.cuh"
+#include "neighbor.cuh"
 #include "utilities/error.cuh"
 #include <thrust/scan.h>
 #include <thrust/execution_policy.h>

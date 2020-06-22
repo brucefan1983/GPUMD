@@ -25,7 +25,7 @@ Run simulation according to the inputs in the run.in file.
 #include "integrate/integrate.cuh"
 #include "integrate/ensemble.cuh"
 #include "measure/measure.cuh"
-#include "model/atom.cuh"
+#include "model/read_xyz.cuh"
 #include "model/neighbor.cuh"
 #include "model/box.cuh"
 #include "utilities/read_file.cuh"
@@ -34,49 +34,47 @@ Run simulation according to the inputs in the run.in file.
 
 Run::Run(char* input_dir)
 {
-    Atom atom;
-
     initialize_position
     (
         input_dir,
-        atom.N,
-        atom.has_velocity_in_xyz,
-        atom.number_of_types,
-        atom.box,
-        atom.neighbor,
-        atom.group,
-        atom.cpu_type,
-        atom.cpu_type_size,
-        atom.cpu_mass,
-        atom.cpu_position_per_atom,
-        atom.cpu_velocity_per_atom
+        N,
+        has_velocity_in_xyz,
+        number_of_types,
+        box,
+        neighbor,
+        group,
+        cpu_type,
+        cpu_type_size,
+        cpu_mass,
+        cpu_position_per_atom,
+        cpu_velocity_per_atom
     );
 
     allocate_memory_gpu
     (
-        atom.N,
-        atom.neighbor,
-        atom.group,
-        atom.cpu_type,
-        atom.cpu_mass,
-        atom.cpu_position_per_atom,
-        atom.type,
-        atom.mass,
-        atom.position_per_atom,
-        atom.velocity_per_atom,
-        atom.potential_per_atom,
-        atom.force_per_atom,
-        atom.virial_per_atom,
-        atom.heat_per_atom,
-        atom.thermo
+        N,
+        neighbor,
+        group,
+        cpu_type,
+        cpu_mass,
+        cpu_position_per_atom,
+        type,
+        mass,
+        position_per_atom,
+        velocity_per_atom,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom,
+        heat_per_atom,
+        thermo
     );
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-    atom.neighbor.find_neighbor
+    neighbor.find_neighbor
     (
         1,
-        atom.box,
-        atom.position_per_atom
+        box,
+        position_per_atom
     );
 #endif
 
@@ -84,13 +82,13 @@ Run::Run(char* input_dir)
     Integrate integrate;
     Measure measure(input_dir);
 
-    parse_run_in(input_dir, &atom, &force, &integrate, &measure);
+    parse_run_in(input_dir, &force, &integrate, &measure);
     force.initialize_participation_and_shift
     (
-        atom.group,
-        atom.number_of_types
+        group,
+        number_of_types
     );
-    run(input_dir, &atom, &force, &integrate, &measure);
+    run(input_dir, &force, &integrate, &measure);
 }
 
 
@@ -142,112 +140,112 @@ void Run::initialize_run
 
 
 // run a number of steps for a given set of inputs
-static void process_run
+void Run::process_run
 (
-    char *input_dir, Atom *atom, Force *force, Integrate *integrate,
+    char *input_dir, Force *force, Integrate *integrate,
     Measure *measure
 )
 {
-    integrate->initialize(atom->N, atom->time_step, atom->group);
+    integrate->initialize(N, time_step, group);
 
     measure->initialize
     (
         input_dir,
-        atom->number_of_steps,
-        atom->time_step,
-        atom->group,
-        atom->cpu_type_size,
-        atom->mass
+        number_of_steps,
+        time_step,
+        group,
+        cpu_type_size,
+        mass
     );
 
     clock_t time_begin = clock();
 
-    for (int step = 0; step < atom->number_of_steps; ++step)
+    for (int step = 0; step < number_of_steps; ++step)
     {
-        atom->step = step;
-        atom->global_time += atom->time_step;
+        step = step;
+        global_time += time_step;
 		
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-        if (atom->neighbor.update)
+        if (neighbor.update)
         {
-            atom->neighbor.find_neighbor
+            neighbor.find_neighbor
             (
                 0,
-                atom->box,
-                atom->position_per_atom
+                box,
+                position_per_atom
             );
         }
 #endif
 
         integrate->compute1
         (
-            atom->time_step,
-            double(step) / atom->number_of_steps,
-            atom->group,
-            atom->mass,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
-            atom->box,
-            atom->position_per_atom,
-            atom->velocity_per_atom,
-            atom->thermo
+            time_step,
+            double(step) / number_of_steps,
+            group,
+            mass,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
+            box,
+            position_per_atom,
+            velocity_per_atom,
+            thermo
         );
 
         force->compute
         (
-            atom->box,
-            atom->position_per_atom,
-            atom->type,
-            atom->group,
-            atom->neighbor,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom
+            box,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom
         );
 
         integrate->compute2
         (
-            atom->time_step,
-            double(step) / atom->number_of_steps,
-            atom->group,
-            atom->mass,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
-            atom->box,
-            atom->position_per_atom,
-            atom->velocity_per_atom,
-            atom->thermo
+            time_step,
+            double(step) / number_of_steps,
+            group,
+            mass,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
+            box,
+            position_per_atom,
+            velocity_per_atom,
+            thermo
         );
 
         measure->process
         (
             input_dir,
-            atom->number_of_steps,
+            number_of_steps,
             step,
             integrate->fixed_group,
-            atom->global_time,
+            global_time,
             integrate->temperature2,
             integrate->ensemble->energy_transferred,
-            atom->cpu_type,
-            atom->box,
-            atom->neighbor,
-            atom->group,
-            atom->thermo,
-            atom->mass,
-            atom->cpu_mass,
-            atom->position_per_atom,
-            atom->cpu_position_per_atom,
-            atom->velocity_per_atom,
-            atom->cpu_velocity_per_atom,
-            atom->potential_per_atom,
-            atom->force_per_atom,
-            atom->virial_per_atom,
-            atom->heat_per_atom
+            cpu_type,
+            box,
+            neighbor,
+            group,
+            thermo,
+            mass,
+            cpu_mass,
+            position_per_atom,
+            cpu_position_per_atom,
+            velocity_per_atom,
+            cpu_velocity_per_atom,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom,
+            heat_per_atom
         );
 
-        int base = (10 <= atom->number_of_steps) ? (atom->number_of_steps / 10) : 1;
+        int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
         if (0 == (step + 1) % base)
         {
             printf("    %d steps completed.\n", step + 1);
@@ -258,19 +256,19 @@ static void process_run
     clock_t time_finish = clock();
     double time_used = (time_finish - time_begin) / (double) CLOCKS_PER_SEC;
     printf("Number of neighbor list updates = %d.\n",
-        atom->neighbor.number_of_updates);
+        neighbor.number_of_updates);
     printf("Time used for this run = %g s.\n", time_used);
-    double run_speed = atom->N * (atom->number_of_steps / time_used);
+    double run_speed = N * (number_of_steps / time_used);
     printf("Speed of this run = %g atom*step/second.\n", run_speed);
     print_line_2();
 
     measure->finalize
     (
         input_dir,
-        atom->number_of_steps,
-        atom->time_step,
+        number_of_steps,
+        time_step,
         integrate->temperature2,
-        atom->box.get_volume()
+        box.get_volume()
     );
 
     integrate->finalize();
@@ -298,7 +296,7 @@ static void print_finish(int check)
 // Read and process the inputs from the "run.in" file
 void Run::run
 (
-    char *input_dir, Atom *atom, Force *force, Integrate *integrate,
+    char *input_dir, Force *force, Integrate *integrate,
     Measure *measure
 )
 {
@@ -313,7 +311,7 @@ void Run::run
 
     force->num_of_potentials = 0;
 
-    initialize_run(atom->neighbor, integrate, measure); // set some default values
+    initialize_run(neighbor, integrate, measure); // set some default values
 
     print_start(false);
 
@@ -327,18 +325,18 @@ void Run::run
         is_velocity = false;
         is_run = false;
 
-        parse(param, num_param, atom, force, integrate, measure);
+        parse(param, num_param, force, integrate, measure);
 
         if (is_potential)
         {
                 force->add_potential
                 (
                     input_dir,
-                    atom->box,
-                    atom->neighbor,
-                    atom->group,
-                    atom->cpu_type,
-                    atom->cpu_type_size
+                    box,
+                    neighbor,
+                    group,
+                    cpu_type,
+                    cpu_type_size
                 );
         }
 
@@ -347,12 +345,12 @@ void Run::run
                 Velocity velocity;
                 velocity.initialize
                 (
-                    atom->has_velocity_in_xyz,
-                    atom->initial_temperature,
-                    atom->cpu_mass,
-                    atom->cpu_position_per_atom,
-                    atom->cpu_velocity_per_atom,
-                    atom->velocity_per_atom
+                    has_velocity_in_xyz,
+                    initial_temperature,
+                    cpu_mass,
+                    cpu_position_per_atom,
+                    cpu_velocity_per_atom,
+                    velocity_per_atom
                 );
         }
 
@@ -369,8 +367,8 @@ void Run::run
                     compute_hnemd, measure->hnemd.fe_x, measure->hnemd.fe_y,
                     measure->hnemd.fe_z
                 );
-                process_run(input_dir, atom, force, integrate, measure);
-            initialize_run(atom->neighbor, integrate, measure);
+                process_run(input_dir, force, integrate, measure);
+            initialize_run(neighbor, integrate, measure);
         }
 
     }
@@ -385,7 +383,7 @@ void Run::run
 // Read and process the inputs from the "run.in" file
 void Run::parse_run_in
 (
-    char *input_dir, Atom *atom, Force *force, Integrate *integrate,
+    char *input_dir, Force *force, Integrate *integrate,
     Measure *measure
 )
 {
@@ -400,7 +398,7 @@ void Run::parse_run_in
 
     force->num_of_potentials = 0;
 
-    initialize_run(atom->neighbor, integrate, measure); // set some default values
+    initialize_run(neighbor, integrate, measure); // set some default values
 
     print_start(true);
 
@@ -414,11 +412,11 @@ void Run::parse_run_in
         is_velocity = false;
         is_run = false;
 
-        parse(param, num_param, atom, force, integrate, measure);
+        parse(param, num_param, force, integrate, measure);
 
         if (is_run)
         {
-            initialize_run(atom->neighbor, integrate, measure);
+            initialize_run(neighbor, integrate, measure);
         }
 
     }
@@ -437,7 +435,7 @@ void parse_run(char**, int, int&);
 
 void Run::parse
 (
-    char **param, int num_param, Atom* atom,
+    char **param, int num_param,
     Force *force, Integrate *integrate, Measure *measure
 )
 {
@@ -453,19 +451,19 @@ void Run::parse
     else if (strcmp(param[0], "velocity") == 0)
     {
         is_velocity = true;
-        parse_velocity(param, num_param, atom->initial_temperature);
+        parse_velocity(param, num_param, initial_temperature);
     }
     else if (strcmp(param[0], "ensemble") == 0)
     {
-        integrate->parse_ensemble(param, num_param, atom->group);
+        integrate->parse_ensemble(param, num_param, group);
     }
     else if (strcmp(param[0], "time_step") == 0)
     {
-        parse_time_step(param, num_param, atom->time_step);
+        parse_time_step(param, num_param, time_step);
     }
     else if (strcmp(param[0], "neighbor") == 0)
     {
-        parse_neighbor(param, num_param, force->rc_max, atom->neighbor);
+        parse_neighbor(param, num_param, force->rc_max, neighbor);
     }
     else if (strcmp(param[0], "dump_thermo") == 0)
     {
@@ -485,11 +483,11 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute_dos") == 0)
     {
-        measure->parse_compute_dos(param, num_param, atom->group.data());
+        measure->parse_compute_dos(param, num_param, group.data());
     }
     else if (strcmp(param[0], "compute_sdc") == 0)
     {
-        measure->parse_compute_sdc(param, num_param, atom->group.data());
+        measure->parse_compute_sdc(param, num_param, group.data());
     }
     else if (strcmp(param[0], "compute_hac") == 0)
     {
@@ -501,15 +499,15 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute_shc") == 0)
     {
-        measure->parse_compute_shc(param, num_param, atom->group);
+        measure->parse_compute_shc(param, num_param, group);
     }
     else if (strcmp(param[0], "compute_gkma") == 0)
     {
-        measure->parse_compute_gkma(param, num_param, atom->number_of_types);
+        measure->parse_compute_gkma(param, num_param, number_of_types);
     }
     else if (strcmp(param[0], "compute_hnema") == 0)
     {
-        measure->parse_compute_hnema(param, num_param, atom->number_of_types);
+        measure->parse_compute_hnema(param, num_param, number_of_types);
     }
     else if (strcmp(param[0], "deform") == 0)
     {
@@ -517,16 +515,16 @@ void Run::parse
     }
     else if (strcmp(param[0], "compute") == 0)
     {
-        measure->parse_compute(param, num_param, atom->group);
+        measure->parse_compute(param, num_param, group);
     }
     else if (strcmp(param[0], "fix") == 0)
     {
-        integrate->parse_fix(param, num_param, atom->group);
+        integrate->parse_fix(param, num_param, group);
     }
     else if (strcmp(param[0], "run") == 0)
     {
         is_run = true;
-        parse_run(param, num_param, atom->number_of_steps);
+        parse_run(param, num_param, number_of_steps);
     }
     else
     {
