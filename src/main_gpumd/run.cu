@@ -52,7 +52,24 @@ Run::Run(char* input_dir)
         atom.cpu_velocity_per_atom
     );
 
-    atom.allocate_memory_gpu();
+    allocate_memory_gpu
+    (
+        atom.N,
+        atom.neighbor,
+        atom.group,
+        atom.cpu_type,
+        atom.cpu_mass,
+        atom.cpu_position_per_atom,
+        atom.type,
+        atom.mass,
+        atom.position_per_atom,
+        atom.velocity_per_atom,
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom,
+        atom.heat_per_atom,
+        atom.thermo
+    );
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
     atom.neighbor.find_neighbor

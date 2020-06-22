@@ -24,7 +24,6 @@ The class defining the simulation model.
 #include "utilities/read_file.cuh"
 #include <vector>
 
-const int NUM_OF_HEAT_COMPONENTS = 5;
 
 
 void read_xyz_in_line_1
@@ -408,7 +407,24 @@ void initialize_position
 }
 
 
-void Atom::allocate_memory_gpu(void)
+void allocate_memory_gpu
+(
+    const int N,
+    Neighbor& neighbor,
+    std::vector<Group>& group,
+    std::vector<int>& cpu_type,
+    std::vector<double>& cpu_mass,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<int>& type,
+    GPU_Vector<double>& mass,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& heat_per_atom,
+    GPU_Vector<double>& thermo
+)
 {
     neighbor.NN.resize(N);
     neighbor.NL.resize(N * neighbor.MN);
@@ -443,7 +459,7 @@ void Atom::allocate_memory_gpu(void)
     force_per_atom.resize(N * 3);
     virial_per_atom.resize(N * 9);
     potential_per_atom.resize(N);
-    heat_per_atom.resize(N * NUM_OF_HEAT_COMPONENTS);
+    heat_per_atom.resize(N * 5);
     thermo.resize(6);
 }
 

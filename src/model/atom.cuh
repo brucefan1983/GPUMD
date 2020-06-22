@@ -42,6 +42,26 @@ void initialize_position
 );
 
 
+void allocate_memory_gpu
+(
+    const int N,
+    Neighbor& neighbor,
+    std::vector<Group>& group,
+    std::vector<int>& cpu_type,
+    std::vector<double>& cpu_mass,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<int>& type,
+    GPU_Vector<double>& mass,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& heat_per_atom,
+    GPU_Vector<double>& thermo
+);
+
+
 class Atom
 {
 public:
@@ -79,9 +99,6 @@ public:
     Neighbor neighbor;
     Box box;
     std::vector<Group> group;
-
-
-    void allocate_memory_gpu(void);
 };
 
 
