@@ -50,13 +50,13 @@ Run::Run(char* input_dir)
     Integrate integrate;
     Measure measure(input_dir);
 
-    run(input_dir, &atom, &force, &integrate, &measure, 1);
+    parse_run_in(input_dir, &atom, &force, &integrate, &measure);
     force.initialize_participation_and_shift
     (
         atom.group,
         atom.number_of_types
     );
-    run(input_dir, &atom, &force, &integrate, &measure, 0);
+    run(input_dir, &atom, &force, &integrate, &measure);
 }
 
 
@@ -265,7 +265,7 @@ static void print_finish(int check)
 void Run::run
 (
     char *input_dir, Atom *atom, Force *force, Integrate *integrate,
-    Measure *measure, int check
+    Measure *measure
 )
 {
     char file_run[200];
@@ -281,13 +281,13 @@ void Run::run
 
     initialize_run(atom->neighbor, integrate, measure); // set some default values
 
-    print_start(check);
+    print_start(false);
 
     while (input_ptr)
     {
         input_ptr = row_find_param(input_ptr, param, &num_param);
 
-        if (num_param == 0) { continue; } 
+        if (num_param == 0) { continue; }
 
         is_potential = false;
         is_velocity = false;
@@ -295,7 +295,7 @@ void Run::run
 
         parse(param, num_param, atom, force, integrate, measure);
 
-        if (is_potential && !check)
+        if (is_potential)
         {
                 force->add_potential
                 (
@@ -308,7 +308,7 @@ void Run::run
                 );
         }
 
-        if (is_velocity && !check)
+        if (is_velocity)
         {
                 Velocity velocity;
                 velocity.initialize
@@ -324,8 +324,6 @@ void Run::run
 
         if (is_run)
         {
-            if (!check)
-            {
                 force->valdiate_potential_definitions();
                 bool compute_hnemd = measure->hnemd.compute ||
                 (
@@ -338,13 +336,60 @@ void Run::run
                     measure->hnemd.fe_z
                 );
                 process_run(input_dir, atom, force, integrate, measure);
-            }
             initialize_run(atom->neighbor, integrate, measure);
         }
 
     }
 
-    print_finish(check);
+    print_finish(false);
+
+    free(input); // Free the input file contents
+}
+
+
+
+// Read and process the inputs from the "run.in" file
+void Run::parse_run_in
+(
+    char *input_dir, Atom *atom, Force *force, Integrate *integrate,
+    Measure *measure
+)
+{
+    char file_run[200];
+    strcpy(file_run, input_dir);
+    strcat(file_run, "/run.in");
+    char *input = get_file_contents(file_run);
+    char *input_ptr = input; // Keep the pointer in order to free later
+    const int max_num_param = 10; // never use more than 9 parameters
+    int num_param;
+    char *param[max_num_param];
+
+    force->num_of_potentials = 0;
+
+    initialize_run(atom->neighbor, integrate, measure); // set some default values
+
+    print_start(true);
+
+    while (input_ptr)
+    {
+        input_ptr = row_find_param(input_ptr, param, &num_param);
+
+        if (num_param == 0) { continue; } 
+
+        is_potential = false;
+        is_velocity = false;
+        is_run = false;
+
+        parse(param, num_param, atom, force, integrate, measure);
+
+        if (is_run)
+        {
+            initialize_run(atom->neighbor, integrate, measure);
+        }
+
+    }
+
+    print_finish(true);
 
     free(input); // Free the input file contents
 }

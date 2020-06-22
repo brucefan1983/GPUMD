@@ -29,7 +29,8 @@ public:
     Run(char*);
 private:
     void initialize_run(Neighbor&, Integrate*, Measure*);
-    void run(char*, Atom*, Force*, Integrate*, Measure*, int);
+    void parse_run_in(char*, Atom*, Force*, Integrate*, Measure*);
+    void run(char*, Atom*, Force*, Integrate*, Measure*);
     void parse(char**, int, Atom*, Force*, Integrate*, Measure*);
     bool is_velocity;
     bool is_potential;
