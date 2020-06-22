@@ -65,11 +65,6 @@ public:
 
     Atom(char *input_dir);
 
-    void parse_neighbor(char**, int, double);
-    void parse_velocity(char**, int);
-    void parse_time_step (char**, int);
-    void parse_run(char**, int);
-
     void initialize_position(char *input_dir);
 
     void allocate_memory_gpu(void);

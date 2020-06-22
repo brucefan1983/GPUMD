@@ -432,6 +432,12 @@ void Run::run
 }
 
 
+
+void parse_neighbor(char**, int, double, Neighbor&);
+void parse_velocity(char**, int, double&);
+void parse_time_step (char**, int, double&);
+void parse_run(char**, int, int&);
+
 void Run::parse
 (
     char **param, int num_param, Atom* atom,
@@ -450,7 +456,7 @@ void Run::parse
     else if (strcmp(param[0], "velocity") == 0)
     {
         is_velocity = true;
-        atom->parse_velocity(param, num_param);
+        parse_velocity(param, num_param, atom->initial_temperature);
     }
     else if (strcmp(param[0], "ensemble") == 0)
     {
@@ -458,11 +464,11 @@ void Run::parse
     }
     else if (strcmp(param[0], "time_step") == 0)
     {
-        atom->parse_time_step(param, num_param);
+        parse_time_step(param, num_param, atom->time_step);
     }
     else if (strcmp(param[0], "neighbor") == 0)
     {
-        atom->parse_neighbor(param, num_param, force->rc_max);
+        parse_neighbor(param, num_param, force->rc_max, atom->neighbor);
     }
     else if (strcmp(param[0], "dump_thermo") == 0)
     {
@@ -523,12 +529,78 @@ void Run::parse
     else if (strcmp(param[0], "run") == 0)
     {
         is_run = true;
-        atom->parse_run(param, num_param);
+        parse_run(param, num_param, atom->number_of_steps);
     }
     else
     {
         PRINT_KEYWORD_ERROR(param[0]);
     }
+}
+
+
+void parse_velocity(char **param, int num_param, double& initial_temperature)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("velocity should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &initial_temperature))
+    {
+        PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
+    }
+    if (initial_temperature <= 0.0)
+    {
+        PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
+    }
+}
+
+
+void parse_time_step (char **param, int num_param, double& time_step)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("time_step should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &time_step))
+    {
+        PRINT_INPUT_ERROR("time_step should be a real number.\n");
+    }
+    printf("Time step for this run is %g fs.\n", time_step);
+    time_step /= TIME_UNIT_CONVERSION;
+}
+
+
+void parse_run(char **param, int num_param, int& number_of_steps)
+{
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("run should have 1 parameter.\n");
+    }
+    if (!is_valid_int(param[1], &number_of_steps))
+    {
+        PRINT_INPUT_ERROR("number of steps should be an integer.\n");
+    }
+    printf("Run %d steps.\n", number_of_steps);
+}
+
+
+void parse_neighbor
+(char **param, int num_param, double force_rc_max, Neighbor& neighbor)
+{
+    neighbor.update = 1;
+
+    if (num_param != 2)
+    {
+        PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
+    }
+    if (!is_valid_real(param[1], &neighbor.skin))
+    {
+        PRINT_INPUT_ERROR("neighbor list skin should be a number.\n");
+    }
+    printf("Build neighbor list with a skin of %g A.\n", neighbor.skin);
+
+    // change the cutoff
+    neighbor.rc = force_rc_max + neighbor.skin;
 }
 
 
