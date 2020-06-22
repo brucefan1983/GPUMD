@@ -34,7 +34,24 @@ Run simulation according to the inputs in the run.in file.
 
 Run::Run(char* input_dir)
 {
-    Atom atom(input_dir);
+    Atom atom;
+
+    initialize_position
+    (
+        input_dir,
+        atom.N,
+        atom.has_velocity_in_xyz,
+        atom.number_of_types,
+        atom.box,
+        atom.neighbor,
+        atom.group,
+        atom.cpu_type,
+        atom.cpu_type_size,
+        atom.cpu_mass,
+        atom.cpu_position_per_atom,
+        atom.cpu_velocity_per_atom
+    );
+
     atom.allocate_memory_gpu();
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all

@@ -25,6 +25,23 @@
 #include <vector>
 
 
+void initialize_position
+(
+    char *input_dir,
+    int& N,
+    int& has_velocity_in_xyz,
+    int& number_of_types,
+    Box& box,
+    Neighbor& neighbor,
+    std::vector<Group>& group,
+    std::vector<int>& cpu_type,
+    std::vector<int>& cpu_type_size,
+    std::vector<double>& cpu_mass,
+    std::vector<double>& cpu_position_per_atom,
+    std::vector<double>& cpu_velocity_per_atom
+);
+
+
 class Atom
 {
 public:
@@ -63,9 +80,6 @@ public:
     Box box;
     std::vector<Group> group;
 
-    Atom(char *input_dir);
-
-    void initialize_position(char *input_dir);
 
     void allocate_memory_gpu(void);
 };
