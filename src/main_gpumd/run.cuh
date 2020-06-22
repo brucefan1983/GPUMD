@@ -17,6 +17,7 @@
 #pragma once
 
 class Atom;
+class Neighbor;
 class Force;
 class Integrate;
 class Measure;
@@ -26,18 +27,10 @@ class Run
 {
 public:
     Run(char*);
-    ~Run(void);
 private:
-    void initialize_run(Atom*, Integrate*, Measure*);
+    void initialize_run(Neighbor&, Integrate*, Measure*);
     void run(char*, Atom*, Force*, Integrate*, Measure*, int);
     void parse(char**, int, Atom*, Force*, Integrate*, Measure*);
-    void print_velocity_and_potential_error(void);
-    void print_velocity_error(void);
-    void add_potential(char*, int, Atom*, Force*, Measure*);
-    void check_velocity(int, Atom*);
-    void check_run(char*, int, Atom*, Force*, Integrate*, Measure*);
-    int number_of_times_velocity = 0;
-    int number_of_times_potential = 0;
     bool is_velocity;
     bool is_potential;
     bool is_run;

@@ -60,17 +60,16 @@ Run::Run(char* input_dir)
 }
 
 
-Run::~Run(void)
-{
-    // nothing
-}
-
-
 // set some default values after each run
-void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
+void Run::initialize_run
+(
+    Neighbor& neighbor,
+    Integrate* integrate,
+    Measure* measure
+)
 {
-    atom->neighbor.update = 0;
-    atom->neighbor.number_of_updates = 0;
+    neighbor.update = 0;
+    neighbor.number_of_updates = 0;
     integrate->fixed_group = -1; // no group has an index of -1
     integrate->deform_x = 0;
     integrate->deform_y = 0;
@@ -105,64 +104,6 @@ void Run::initialize_run(Atom* atom, Integrate* integrate, Measure* measure)
     	delete measure->dump_pos;
     }
     measure->dump_pos = NULL;
-
-}
-
-
-void Run::print_velocity_and_potential_error(void)
-{
-    if (0 == number_of_times_potential)
-    {
-        PRINT_INPUT_ERROR("No 'potential' keyword before run.");
-    }
-
-    if (0 == number_of_times_velocity)
-    {
-        PRINT_INPUT_ERROR("No 'velocity' keyword before run.");
-    }
-}
-
-
-void Run::print_velocity_error(void)
-{
-    if (1 < number_of_times_velocity)
-    {
-        PRINT_INPUT_ERROR("Multiple 'velocity' keywords.");
-    }
-}
-
-
-static void check_run_parameters
-(Atom *atom, Integrate *integrate, Measure *measure)
-{
-    if (atom->box.triclinic == 1 && integrate->type == 11)
-    {
-        PRINT_INPUT_ERROR("Cannot use triclinic box with NPT ensemble.");
-    }
-}
-
-
-static void print_finished_steps(int step, int number_of_steps)
-{
-    int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
-    if (0 == (step + 1) % base)
-    {
-        printf("    %d steps completed.\n", step + 1);
-    }
-}
-
-
-static void print_time_and_speed(clock_t time_begin, Atom* atom)
-{
-    print_line_1();
-    clock_t time_finish = clock();
-    double time_used = (time_finish - time_begin) / (double) CLOCKS_PER_SEC;
-    printf("Number of neighbor list updates = %d.\n",
-        atom->neighbor.number_of_updates);
-    printf("Time used for this run = %g s.\n", time_used);
-    double run_speed = atom->N * (atom->number_of_steps / time_used);
-    printf("Speed of this run = %g atom*step/second.\n", run_speed);
-    print_line_2();
 }
 
 
@@ -271,10 +212,23 @@ static void process_run
             atom->virial_per_atom,
             atom->heat_per_atom
         );
-        print_finished_steps(step, atom->number_of_steps);
+
+        int base = (10 <= atom->number_of_steps) ? (atom->number_of_steps / 10) : 1;
+        if (0 == (step + 1) % base)
+        {
+            printf("    %d steps completed.\n", step + 1);
+        }
     }
 
-    print_time_and_speed(time_begin, atom);
+    print_line_1();
+    clock_t time_finish = clock();
+    double time_used = (time_finish - time_begin) / (double) CLOCKS_PER_SEC;
+    printf("Number of neighbor list updates = %d.\n",
+        atom->neighbor.number_of_updates);
+    printf("Time used for this run = %g s.\n", time_used);
+    double run_speed = atom->N * (atom->number_of_steps / time_used);
+    printf("Speed of this run = %g atom*step/second.\n", run_speed);
+    print_line_2();
 
     measure->finalize
     (
@@ -307,85 +261,6 @@ static void print_finish(int check)
 }
 
 
-// do something when the keyword is "potential"
-void Run::add_potential
-(
-    char* input_dir, int check, Atom* atom, Force* force, Measure* measure
-)
-{
-    if (!is_potential) { return; }
-    if (check) { number_of_times_potential++; }
-    else
-    {
-        force->add_potential
-        (
-            input_dir,
-            atom->box,
-            atom->neighbor,
-            atom->group,
-            atom->cpu_type,
-            atom->cpu_type_size
-        );
-    }
-}
-
-
-// do something when the keyword is "velocity"
-void Run::check_velocity(int check, Atom* atom)
-{
-    if (!is_velocity) { return; }
-    if (check)
-    {
-        number_of_times_velocity++;
-    }
-    else
-    {
-        Velocity velocity;
-        velocity.initialize
-        (
-            atom->has_velocity_in_xyz,
-            atom->initial_temperature,
-            atom->cpu_mass,
-            atom->cpu_position_per_atom,
-            atom->cpu_velocity_per_atom,
-            atom->velocity_per_atom
-        );
-    }
-}
-
-
-// do something when the keyword is "run"
-void Run::check_run
-(
-    char* input_dir, int check, Atom* atom,
-    Force* force, Integrate* integrate, Measure* measure
-)
-{
-    if (!is_run) { return; }
-    if (check)
-    {
-        print_velocity_and_potential_error();
-        check_run_parameters(atom, integrate, measure);
-    }
-    else
-    {
-        force->valdiate_potential_definitions();
-        bool compute_hnemd = measure->hnemd.compute ||
-            (
-                measure->modal_analysis.compute &&
-                measure->modal_analysis.method == HNEMA_METHOD
-            );
-        force->set_hnemd_parameters
-        (
-            compute_hnemd, measure->hnemd.fe_x, measure->hnemd.fe_y, 
-            measure->hnemd.fe_z
-        );
-        process_run(input_dir, atom, force, integrate, measure);
-    }
-    initialize_run(atom, integrate, measure);
-}
-
-
 // Read and process the inputs from the "run.in" file
 void Run::run
 (
@@ -404,7 +279,7 @@ void Run::run
 
     force->num_of_potentials = 0;
 
-    initialize_run(atom, integrate, measure); // set some default values
+    initialize_run(atom->neighbor, integrate, measure); // set some default values
 
     print_start(check);
 
@@ -419,12 +294,55 @@ void Run::run
         is_run = false;
 
         parse(param, num_param, atom, force, integrate, measure);
-        add_potential(input_dir, check, atom, force, measure);
-        check_velocity(check, atom);
-        check_run(input_dir, check, atom, force, integrate, measure);
-    }
 
-    print_velocity_error();
+        if (is_potential && !check)
+        {
+                force->add_potential
+                (
+                    input_dir,
+                    atom->box,
+                    atom->neighbor,
+                    atom->group,
+                    atom->cpu_type,
+                    atom->cpu_type_size
+                );
+        }
+
+        if (is_velocity && !check)
+        {
+                Velocity velocity;
+                velocity.initialize
+                (
+                    atom->has_velocity_in_xyz,
+                    atom->initial_temperature,
+                    atom->cpu_mass,
+                    atom->cpu_position_per_atom,
+                    atom->cpu_velocity_per_atom,
+                    atom->velocity_per_atom
+                );
+        }
+
+        if (is_run)
+        {
+            if (!check)
+            {
+                force->valdiate_potential_definitions();
+                bool compute_hnemd = measure->hnemd.compute ||
+                (
+                    measure->modal_analysis.compute &&
+                    measure->modal_analysis.method == HNEMA_METHOD
+                );
+                force->set_hnemd_parameters
+                (
+                    compute_hnemd, measure->hnemd.fe_x, measure->hnemd.fe_y,
+                    measure->hnemd.fe_z
+                );
+                process_run(input_dir, atom, force, integrate, measure);
+            }
+            initialize_run(atom->neighbor, integrate, measure);
+        }
+
+    }
 
     print_finish(check);
 
