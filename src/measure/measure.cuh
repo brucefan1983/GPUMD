@@ -31,8 +31,7 @@
 class Measure
 {
 public:
-    Measure(char *input_dir);
-    ~Measure(void);
+
     void initialize
     (
         char* input_dir,
@@ -96,7 +95,7 @@ public:
     HNEMD hnemd;
     Compute compute;
     MODAL_ANALYSIS modal_analysis;
-    DUMP_POS* dump_pos;
+    DUMP_POS* dump_pos = NULL;
 
     // functions to get inputs from run.in
     void parse_dump_thermo(char**, int);

@@ -29,27 +29,6 @@ The driver class dealing with measurement.
 #define NUM_OF_HEAT_COMPONENTS 5
 
 
-Measure::Measure(char *input_dir)
-{
-    dump_thermo = 0;
-    dump_velocity = 0;
-    dump_restart = 0;
-    dump_pos = NULL; // to avoid deleting random memory in run
-    strcpy(file_thermo, input_dir);
-    strcpy(file_velocity, input_dir);
-    strcpy(file_restart, input_dir);
-    strcat(file_thermo, "/thermo.out");
-    strcat(file_velocity, "/velocity.out");
-    strcat(file_restart, "/restart.out");
-}
-
-
-Measure::~Measure(void)
-{
-    // nothing
-}
-
-
 void Measure::initialize
 (
     char* input_dir,
@@ -61,6 +40,13 @@ void Measure::initialize
 )
 {
     const int number_of_atoms = mass.size();
+
+    strcpy(file_thermo, input_dir);
+    strcpy(file_velocity, input_dir);
+    strcpy(file_restart, input_dir);
+    strcat(file_thermo, "/thermo.out");
+    strcat(file_velocity, "/velocity.out");
+    strcat(file_restart, "/restart.out");
 
     if (dump_thermo)    {fid_thermo   = my_fopen(file_thermo,   "a");}
     if (dump_velocity)  {fid_velocity = my_fopen(file_velocity, "a");}
