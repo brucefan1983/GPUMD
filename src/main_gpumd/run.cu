@@ -405,20 +405,13 @@ void Run::parse_run_in
     while (input_ptr)
     {
         input_ptr = row_find_param(input_ptr, param, &num_param);
-
-        if (num_param == 0) { continue; } 
-
-        is_potential = false;
-        is_velocity = false;
+        if (num_param == 0) { continue; }
         is_run = false;
-
         parse(param, num_param, force, integrate, measure);
-
         if (is_run)
         {
             initialize_run(neighbor, integrate, measure);
         }
-
     }
 
     print_finish(true);
