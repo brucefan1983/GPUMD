@@ -78,13 +78,15 @@ Run::Run(char* input_dir)
     );
 #endif
 
-    parse_run_in(input_dir, &force, &integrate, &measure);
+    parse_run_in(input_dir);
+
     force.initialize_participation_and_shift
     (
         group,
         number_of_types
     );
-    run(input_dir, &force, &integrate, &measure);
+
+    execute_run_in(input_dir);
 }
 
 
@@ -280,12 +282,7 @@ static void print_finish(int check)
 }
 
 
-// Read and process the inputs from the "run.in" file
-void Run::run
-(
-    char *input_dir, Force *force, Integrate *integrate,
-    Measure *measure
-)
+void Run::execute_run_in(char* input_dir)
 {
     char file_run[200];
     strcpy(file_run, input_dir);
@@ -296,7 +293,7 @@ void Run::run
     int num_param;
     char *param[max_num_param];
 
-    force->num_of_potentials = 0;
+    force.num_of_potentials = 0;
 
     initialize_run();
 
@@ -312,52 +309,51 @@ void Run::run
         is_velocity = false;
         is_run = false;
 
-        parse(param, num_param, force, integrate, measure);
+        parse_one_keyword(param, num_param);
 
         if (is_potential)
         {
-                force->add_potential
-                (
-                    input_dir,
-                    box,
-                    neighbor,
-                    group,
-                    cpu_type,
-                    cpu_type_size
-                );
+            force.add_potential
+            (
+                input_dir,
+                box,
+                neighbor,
+                group,
+                cpu_type,
+                cpu_type_size
+            );
         }
 
         if (is_velocity)
         {
-                Velocity velocity;
-                velocity.initialize
-                (
-                    has_velocity_in_xyz,
-                    initial_temperature,
-                    cpu_mass,
-                    cpu_position_per_atom,
-                    cpu_velocity_per_atom,
-                    velocity_per_atom
-                );
+            Velocity velocity;
+            velocity.initialize
+            (
+                has_velocity_in_xyz,
+                initial_temperature,
+                cpu_mass,
+                cpu_position_per_atom,
+                cpu_velocity_per_atom,
+                velocity_per_atom
+            );
         }
 
         if (is_run)
         {
-                force->valdiate_potential_definitions();
-                bool compute_hnemd = measure->hnemd.compute ||
-                (
-                    measure->modal_analysis.compute &&
-                    measure->modal_analysis.method == HNEMA_METHOD
-                );
-                force->set_hnemd_parameters
-                (
-                    compute_hnemd, measure->hnemd.fe_x, measure->hnemd.fe_y,
-                    measure->hnemd.fe_z
-                );
-                process_run(input_dir);
+            force.valdiate_potential_definitions();
+            bool compute_hnemd = measure.hnemd.compute ||
+            (
+                measure.modal_analysis.compute &&
+                measure.modal_analysis.method == HNEMA_METHOD
+            );
+            force.set_hnemd_parameters
+            (
+                compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y,
+                measure.hnemd.fe_z
+            );
+            process_run(input_dir);
             initialize_run();
         }
-
     }
 
     print_finish(false);
@@ -366,13 +362,7 @@ void Run::run
 }
 
 
-
-// Read and process the inputs from the "run.in" file
-void Run::parse_run_in
-(
-    char *input_dir, Force *force, Integrate *integrate,
-    Measure *measure
-)
+void Run::parse_run_in(char* input_dir)
 {
     char file_run[200];
     strcpy(file_run, input_dir);
@@ -383,7 +373,7 @@ void Run::parse_run_in
     int num_param;
     char *param[max_num_param];
 
-    force->num_of_potentials = 0;
+    force.num_of_potentials = 0;
 
     initialize_run();
 
@@ -394,7 +384,7 @@ void Run::parse_run_in
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; }
         is_run = false;
-        parse(param, num_param, force, integrate, measure);
+        parse_one_keyword(param, num_param);
         if (is_run)
         {
             initialize_run();
@@ -407,104 +397,94 @@ void Run::parse_run_in
 }
 
 
-
-void parse_neighbor(char**, int, double, Neighbor&);
-void parse_velocity(char**, int, double&);
-void parse_time_step (char**, int, double&);
-void parse_run(char**, int, int&);
-
-void Run::parse
-(
-    char **param, int num_param,
-    Force *force, Integrate *integrate, Measure *measure
-)
+void Run::parse_one_keyword(char** param, int num_param)
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
-        force->parse_potential_definition(param, num_param);
+        force.parse_potential_definition(param, num_param);
     }
     else if (strcmp(param[0], "potential") == 0)
     {
         is_potential = true;
-        force->parse_potential(param, num_param);
+        force.parse_potential(param, num_param);
     }
     else if (strcmp(param[0], "velocity") == 0)
     {
         is_velocity = true;
-        parse_velocity(param, num_param, initial_temperature);
+        parse_velocity(param, num_param);
     }
     else if (strcmp(param[0], "ensemble") == 0)
     {
-        integrate->parse_ensemble(param, num_param, group);
+        integrate.parse_ensemble(param, num_param, group);
     }
     else if (strcmp(param[0], "time_step") == 0)
     {
-        parse_time_step(param, num_param, time_step);
+        parse_time_step(param, num_param);
     }
     else if (strcmp(param[0], "neighbor") == 0)
     {
-        parse_neighbor(param, num_param, force->rc_max, neighbor);
+        parse_neighbor(param, num_param);
     }
     else if (strcmp(param[0], "dump_thermo") == 0)
     {
-        measure->parse_dump_thermo(param, num_param);
+        measure.parse_dump_thermo(param, num_param);
     }
     else if (strcmp(param[0], "dump_position") == 0)
     {
-        measure->parse_dump_position(param, num_param);
+        measure.parse_dump_position(param, num_param);
     }
     else if (strcmp(param[0], "dump_restart") == 0)
     {
-        measure->parse_dump_restart(param, num_param);
+        measure.parse_dump_restart(param, num_param);
     }
     else if (strcmp(param[0], "dump_velocity") == 0)
     {
-        measure->parse_dump_velocity(param, num_param);
+        measure.parse_dump_velocity(param, num_param);
     }
     else if (strcmp(param[0], "compute_dos") == 0)
     {
-        measure->parse_compute_dos(param, num_param, group.data());
+        measure.parse_compute_dos(param, num_param, group.data());
     }
     else if (strcmp(param[0], "compute_sdc") == 0)
     {
-        measure->parse_compute_sdc(param, num_param, group.data());
+        measure.parse_compute_sdc(param, num_param, group.data());
     }
     else if (strcmp(param[0], "compute_hac") == 0)
     {
-        measure->parse_compute_hac(param, num_param);
+        measure.parse_compute_hac(param, num_param);
     }
     else if (strcmp(param[0], "compute_hnemd") == 0)
     {
-        measure->parse_compute_hnemd(param, num_param);
+        measure.parse_compute_hnemd(param, num_param);
     }
     else if (strcmp(param[0], "compute_shc") == 0)
     {
-        measure->parse_compute_shc(param, num_param, group);
+        measure.parse_compute_shc(param, num_param, group);
     }
     else if (strcmp(param[0], "compute_gkma") == 0)
     {
-        measure->parse_compute_gkma(param, num_param, number_of_types);
+        measure.parse_compute_gkma(param, num_param, number_of_types);
     }
     else if (strcmp(param[0], "compute_hnema") == 0)
     {
-        measure->parse_compute_hnema(param, num_param, number_of_types);
+        measure.parse_compute_hnema(param, num_param, number_of_types);
     }
     else if (strcmp(param[0], "deform") == 0)
     {
-        integrate->parse_deform(param, num_param);
+        integrate.parse_deform(param, num_param);
     }
     else if (strcmp(param[0], "compute") == 0)
     {
-        measure->parse_compute(param, num_param, group);
+        measure.parse_compute(param, num_param, group);
     }
     else if (strcmp(param[0], "fix") == 0)
     {
-        integrate->parse_fix(param, num_param, group);
+        integrate.parse_fix(param, num_param, group);
     }
     else if (strcmp(param[0], "run") == 0)
     {
         is_run = true;
-        parse_run(param, num_param, number_of_steps);
+        parse_run(param, num_param);
     }
     else
     {
@@ -513,7 +493,7 @@ void Run::parse
 }
 
 
-void parse_velocity(char **param, int num_param, double& initial_temperature)
+void Run::parse_velocity(char **param, int num_param)
 {
     if (num_param != 2)
     {
@@ -530,7 +510,7 @@ void parse_velocity(char **param, int num_param, double& initial_temperature)
 }
 
 
-void parse_time_step (char **param, int num_param, double& time_step)
+void Run::parse_time_step (char **param, int num_param)
 {
     if (num_param != 2)
     {
@@ -545,7 +525,7 @@ void parse_time_step (char **param, int num_param, double& time_step)
 }
 
 
-void parse_run(char **param, int num_param, int& number_of_steps)
+void Run::parse_run(char **param, int num_param)
 {
     if (num_param != 2)
     {
@@ -559,8 +539,7 @@ void parse_run(char **param, int num_param, int& number_of_steps)
 }
 
 
-void parse_neighbor
-(char **param, int num_param, double force_rc_max, Neighbor& neighbor)
+void Run::parse_neighbor(char **param, int num_param)
 {
     neighbor.update = 1;
 
@@ -575,7 +554,7 @@ void parse_neighbor
     printf("Build neighbor list with a skin of %g A.\n", neighbor.skin);
 
     // change the cutoff
-    neighbor.rc = force_rc_max + neighbor.skin;
+    neighbor.rc = force.rc_max + neighbor.skin;
 }
 
 
