@@ -89,62 +89,53 @@ Run::Run(char* input_dir)
 
 
 // set some default values after each run
-void Run::initialize_run
-(
-    Neighbor& neighbor,
-    Integrate* integrate,
-    Measure* measure
-)
+void Run::initialize_run()
 {
     neighbor.update = 0;
     neighbor.number_of_updates = 0;
-    integrate->fixed_group = -1; // no group has an index of -1
-    integrate->deform_x = 0;
-    integrate->deform_y = 0;
-    integrate->deform_z = 0;
-    measure->compute.compute_temperature  = 0;
-    measure->compute.compute_potential    = 0;
-    measure->compute.compute_force        = 0;
-    measure->compute.compute_virial       = 0;
-    measure->compute.compute_jp           = 0;
-    measure->compute.compute_jk           = 0;
-    measure->shc.compute    = 0;
-    measure->vac.compute_dos= 0;
-    measure->vac.compute_sdc= 0;
-    measure->modal_analysis.compute   = 0;
-    measure->modal_analysis.method   = NO_METHOD;
-    measure->vac.grouping_method = -1;
-    measure->vac.group = -1;
-    measure->vac.num_dos_points = -1;
-    measure->hac.compute    = 0;
-    measure->hnemd.compute  = 0;
-    measure->dump_thermo    = 0;
-    measure->dump_velocity  = 0;
-    measure->dump_restart   = 0;
+    integrate.fixed_group = -1; // no group has an index of -1
+    integrate.deform_x = 0;
+    integrate.deform_y = 0;
+    integrate.deform_z = 0;
+    measure.compute.compute_temperature  = 0;
+    measure.compute.compute_potential    = 0;
+    measure.compute.compute_force        = 0;
+    measure.compute.compute_virial       = 0;
+    measure.compute.compute_jp           = 0;
+    measure.compute.compute_jk           = 0;
+    measure.shc.compute    = 0;
+    measure.vac.compute_dos= 0;
+    measure.vac.compute_sdc= 0;
+    measure.modal_analysis.compute   = 0;
+    measure.modal_analysis.method   = NO_METHOD;
+    measure.vac.grouping_method = -1;
+    measure.vac.group = -1;
+    measure.vac.num_dos_points = -1;
+    measure.hac.compute    = 0;
+    measure.hnemd.compute  = 0;
+    measure.dump_thermo    = 0;
+    measure.dump_velocity  = 0;
+    measure.dump_restart   = 0;
 
     /*
      * Delete dump_pos if it exists. Ensure that dump_pos is NULL in case
      * it isn't set in parse. If we don't set to NULL, then we may end up
      * deleting some random address, corrupting memory.
      */
-    if (measure->dump_pos)
+    if (measure.dump_pos)
     {
-    	delete measure->dump_pos;
+    	delete measure.dump_pos;
     }
-    measure->dump_pos = NULL;
+    measure.dump_pos = NULL;
 }
 
 
 // run a number of steps for a given set of inputs
-void Run::process_run
-(
-    char *input_dir, Force *force, Integrate *integrate,
-    Measure *measure
-)
+void Run::process_run(char *input_dir)
 {
-    integrate->initialize(N, time_step, group);
+    integrate.initialize(N, time_step, group);
 
-    measure->initialize
+    measure.initialize
     (
         input_dir,
         number_of_steps,
@@ -173,7 +164,7 @@ void Run::process_run
         }
 #endif
 
-        integrate->compute1
+        integrate.compute1
         (
             time_step,
             double(step) / number_of_steps,
@@ -188,7 +179,7 @@ void Run::process_run
             thermo
         );
 
-        force->compute
+        force.compute
         (
             box,
             position_per_atom,
@@ -200,7 +191,7 @@ void Run::process_run
             virial_per_atom
         );
 
-        integrate->compute2
+        integrate.compute2
         (
             time_step,
             double(step) / number_of_steps,
@@ -215,15 +206,15 @@ void Run::process_run
             thermo
         );
 
-        measure->process
+        measure.process
         (
             input_dir,
             number_of_steps,
             step,
-            integrate->fixed_group,
+            integrate.fixed_group,
             global_time,
-            integrate->temperature2,
-            integrate->ensemble->energy_transferred,
+            integrate.temperature2,
+            integrate.ensemble->energy_transferred,
             cpu_type,
             box,
             neighbor,
@@ -258,16 +249,16 @@ void Run::process_run
     printf("Speed of this run = %g atom*step/second.\n", run_speed);
     print_line_2();
 
-    measure->finalize
+    measure.finalize
     (
         input_dir,
         number_of_steps,
         time_step,
-        integrate->temperature2,
+        integrate.temperature2,
         box.get_volume()
     );
 
-    integrate->finalize();
+    integrate.finalize();
 }
 
 
@@ -307,7 +298,7 @@ void Run::run
 
     force->num_of_potentials = 0;
 
-    initialize_run(neighbor, integrate, measure); // set some default values
+    initialize_run();
 
     print_start(false);
 
@@ -363,8 +354,8 @@ void Run::run
                     compute_hnemd, measure->hnemd.fe_x, measure->hnemd.fe_y,
                     measure->hnemd.fe_z
                 );
-                process_run(input_dir, force, integrate, measure);
-            initialize_run(neighbor, integrate, measure);
+                process_run(input_dir);
+            initialize_run();
         }
 
     }
@@ -394,7 +385,7 @@ void Run::parse_run_in
 
     force->num_of_potentials = 0;
 
-    initialize_run(neighbor, integrate, measure); // set some default values
+    initialize_run();
 
     print_start(true);
 
@@ -406,7 +397,7 @@ void Run::parse_run_in
         parse(param, num_param, force, integrate, measure);
         if (is_run)
         {
-            initialize_run(neighbor, integrate, measure);
+            initialize_run();
         }
     }
 

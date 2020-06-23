@@ -37,15 +37,8 @@ public:
     Run(char*);
 private:
 
-    void Run::process_run
-    (
-        char *input_dir,
-        Force *force,
-        Integrate *integrate,
-        Measure *measure
-    );
-
-    void initialize_run(Neighbor&, Integrate*, Measure*);
+    void process_run(char *input_dir);
+    void initialize_run();
     void parse_run_in(char*, Force*, Integrate*, Measure*);
     void run(char*, Force*, Integrate*, Measure*);
     void parse(char**, int, Force*, Integrate*, Measure*);
