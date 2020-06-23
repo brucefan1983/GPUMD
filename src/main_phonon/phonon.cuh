@@ -37,17 +37,10 @@ private:
     void compute(char*, Force*, Hessian*, int);
     void parse(char**, int, Force*, Hessian*, int*);
 
-
-
     // data in the original Atom class
     int N;                // number of atoms
     int number_of_types;  // number of atom types
     int has_velocity_in_xyz = 0;
-    int step;
-    int number_of_steps; // number of steps in a specific run
-    double global_time = 0.0; // run time of entire simulation (fs)
-    double initial_temperature; // initial temperature for velocity
-    double time_step = 1.0 / TIME_UNIT_CONVERSION;
     std::vector<int> cpu_type;
     std::vector<int> cpu_type_size;
     std::vector<double> cpu_mass;

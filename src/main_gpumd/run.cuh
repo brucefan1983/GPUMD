@@ -46,20 +46,16 @@ private:
     bool is_potential;
     bool is_run;
 
-
     // keyword parsing functions
     void parse_neighbor(char** param, int num_param);
     void parse_velocity(char** param, int num_param);
     void parse_time_step(char** param, int num_param);
     void parse_run(char** param, int num_param);
 
-
-
     // data in the original Atom class
     int N;                // number of atoms
     int number_of_types;  // number of atom types
     int has_velocity_in_xyz = 0;
-    int step;
     int number_of_steps; // number of steps in a specific run
     double global_time = 0.0; // run time of entire simulation (fs)
     double initial_temperature; // initial temperature for velocity

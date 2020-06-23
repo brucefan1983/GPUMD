@@ -151,7 +151,6 @@ void Run::process_run(char *input_dir)
 
     for (int step = 0; step < number_of_steps; ++step)
     {
-        step = step;
         global_time += time_step;
 		
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
