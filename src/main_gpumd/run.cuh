@@ -23,6 +23,9 @@ class Measure;
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "model/neighbor.cuh"
+#include "force/force.cuh"
+#include "integrate/integrate.cuh"
+#include "measure/measure.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/common.cuh"
 #include <vector>
@@ -78,6 +81,10 @@ private:
     Neighbor neighbor;
     Box box;
     std::vector<Group> group;
+
+    Force force;
+    Integrate integrate;
+    Measure measure;
 };
 
 

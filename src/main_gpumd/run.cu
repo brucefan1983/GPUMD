@@ -78,10 +78,6 @@ Run::Run(char* input_dir)
     );
 #endif
 
-    Force force;
-    Integrate integrate;
-    Measure measure;
-
     parse_run_in(input_dir, &force, &integrate, &measure);
     force.initialize_participation_and_shift
     (
