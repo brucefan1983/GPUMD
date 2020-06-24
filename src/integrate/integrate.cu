@@ -20,7 +20,6 @@ The driver class for the various integrators.
 
 
 #include "integrate.cuh"
-#include "ensemble.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_nhc.cuh"
@@ -28,25 +27,6 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
-
-
-Integrate::Integrate(void)
-{
-    ensemble = NULL;
-}
-
-
-Integrate::~Integrate(void)
-{
-    // nothing
-}
-
-
-void Integrate::finalize(void)
-{
-    delete ensemble;
-    ensemble = NULL;
-}
 
 
 void Integrate::initialize
@@ -60,14 +40,14 @@ void Integrate::initialize
     switch (type)
     {
         case 0: // NVE
-            ensemble = new Ensemble_NVE(type, fixed_group);
+            ensemble = std::make_unique<Ensemble_NVE>(type, fixed_group);
             break;
         case 1: // NVT-Berendsen
-            ensemble = new Ensemble_BER
+            ensemble = std::make_unique<Ensemble_BER>
             (type, fixed_group, temperature, temperature_coupling);
             break;
         case 2: // NVT-NHC
-            ensemble = new Ensemble_NHC            
+            ensemble = std::make_unique<Ensemble_NHC>
             (
                 type,
                 fixed_group,
@@ -78,7 +58,7 @@ void Integrate::initialize
             );
             break;
         case 3: // NVT-Langevin
-            ensemble = new Ensemble_LAN
+            ensemble = std::make_unique<Ensemble_LAN>
             (
                 type,
                 fixed_group,
@@ -88,11 +68,11 @@ void Integrate::initialize
             );
             break;
         case 4: // NVT-BDP
-            ensemble = new Ensemble_BDP            
+            ensemble = std::make_unique<Ensemble_BDP>
             (type, fixed_group, temperature, temperature_coupling);
             break;
         case 11: // NPT-Berendsen
-            ensemble = new Ensemble_BER
+            ensemble = std::make_unique<Ensemble_BER>
             (
                 type, fixed_group, temperature, temperature_coupling, 
                 pressure_x, pressure_y, pressure_z, pressure_coupling,
@@ -100,7 +80,7 @@ void Integrate::initialize
             );
             break;
         case 21: // heat-NHC
-            ensemble = new Ensemble_NHC
+            ensemble = std::make_unique<Ensemble_NHC>
             (
                 type, fixed_group, source, sink, 
                 group[0].cpu_size[source], group[0].cpu_size[sink],
@@ -109,7 +89,7 @@ void Integrate::initialize
             );
             break;
         case 22: // heat-Langevin
-            ensemble = new Ensemble_LAN
+            ensemble = std::make_unique<Ensemble_LAN>
             (
                 type, fixed_group, source, sink, 
                 group[0].cpu_size[source],
@@ -120,7 +100,7 @@ void Integrate::initialize
             );
             break;
         case 23: // heat-BDP
-            ensemble = new Ensemble_BDP
+            ensemble = std::make_unique<Ensemble_BDP>
             (
                 type, fixed_group, source, sink, temperature, 
                 temperature_coupling, delta_temperature

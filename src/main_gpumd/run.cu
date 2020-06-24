@@ -258,8 +258,6 @@ void Run::process_run(char *input_dir)
         integrate.temperature2,
         box.get_volume()
     );
-
-    integrate.finalize();
 }
 
 

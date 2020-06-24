@@ -18,18 +18,16 @@
 
 #include "model/group.cuh"
 #include "model/box.cuh"
+#include "ensemble.cuh"
+#include <memory>
 #include <vector>
-
-
-class Ensemble;
 
 
 class Integrate 
 {
 public:
-    Ensemble *ensemble; 
-    Integrate(void);
-    ~Integrate(void);
+
+    std::unique_ptr<Ensemble> ensemble;
  
     void initialize
     (
