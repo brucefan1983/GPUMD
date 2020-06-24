@@ -25,7 +25,7 @@
 class DUMP_NETCDF: public DUMP_POS
 {
 public:
-    void initialize(char*);
+    void initialize(char*, const int);
     void finalize();
 
     void dump
