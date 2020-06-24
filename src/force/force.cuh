@@ -16,22 +16,22 @@
 
 #pragma once
 
+#include "potential.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "model/neighbor.cuh"
+#include <memory>
 #include <vector>
 #include <stdio.h>
 
-class Potential;
-
 #define MAX_NUM_OF_POTENTIALS 10
+
 
 class Force
 {
 public:
 
     Force(void);
-    ~Force(void);
     void parse_potential_definition(char**, int);
     void parse_potential(char**, int);
     void add_potential
@@ -106,7 +106,7 @@ private:
     bool kind_is_participating(int, int);
     bool kinds_are_contiguous(void);
 
-    Potential *potential[MAX_NUM_OF_POTENTIALS];
+    std::unique_ptr<Potential> potential[MAX_NUM_OF_POTENTIALS];
 };
 
 

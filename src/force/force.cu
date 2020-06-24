@@ -41,23 +41,9 @@ The driver class calculating force and related quantities.
 
 Force::Force(void)
 {
-    for (int m = 0; m < MAX_NUM_OF_POTENTIALS; m++)
-    {
-        potential[m] = NULL;
-    }
     num_of_potentials = 0;
     rc_max = 0.0;
     group_method = -1;
-}
-
-
-Force::~Force(void)
-{
-    for (int m = 0; m < num_of_potentials; m++)
-    {
-        delete potential[m];
-        potential[m] = NULL;
-    }
 }
 
 
@@ -211,47 +197,47 @@ void Force::initialize_potential
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
-        potential[m] = new Tersoff1989(fid_potential, num_types, neighbor);
+        potential[m] = std::make_unique<Tersoff1989>(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
     {
-        potential[m] = new Tersoff1988(fid_potential, num_types, neighbor);
+        potential[m] = std::make_unique<Tersoff1988>(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "tersoff_modc") == 0)
     {
-        potential[m] = new Tersoff_modc(fid_potential, num_types, neighbor);
+        potential[m] = std::make_unique<Tersoff_modc>(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "tersoff_mini") == 0)
     {
-        potential[m] = new Tersoff_mini(fid_potential, num_types, neighbor);
+        potential[m] = std::make_unique<Tersoff_mini>(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
-        potential[m] = new SW2(fid_potential, num_types, neighbor);
+        potential[m] = std::make_unique<SW2>(fid_potential, num_types, neighbor);
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0)
     {
-        potential[m] = new REBO_MOS(neighbor);
+        potential[m] = std::make_unique<REBO_MOS>(neighbor);
     }
     else if (strcmp(potential_name, "eam_zhou_2004") == 0)
     {
-        potential[m] = new EAM(fid_potential, potential_name, number_of_atoms);
+        potential[m] = std::make_unique<EAM>(fid_potential, potential_name, number_of_atoms);
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0)
     {
-        potential[m] = new EAM(fid_potential, potential_name, number_of_atoms);
+        potential[m] = std::make_unique<EAM>(fid_potential, potential_name, number_of_atoms);
     }
     else if (strcmp(potential_name, "vashishta") == 0)
     {
-        potential[m] = new Vashishta(fid_potential, neighbor);
+        potential[m] = std::make_unique<Vashishta>(fid_potential, neighbor);
     }
     else if (strcmp(potential_name, "fcp") == 0)
     {
-        potential[m] = new FCP(fid_potential, input_dir, number_of_atoms, box);
+        potential[m] = std::make_unique<FCP>(fid_potential, input_dir, number_of_atoms, box);
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
-        potential[m] = new LJ(fid_potential, num_types,
+        potential[m] = std::make_unique<LJ>(fid_potential, num_types,
                 participating_kinds, atom_end[m]-atom_begin[m]+1);
         potential_type = 1;
     }
@@ -261,7 +247,7 @@ void Force::initialize_potential
         {
             PRINT_INPUT_ERROR("Defined types/groups for RI potential must be contiguous and ascending.\n");
         }
-        potential[m] = new RI(fid_potential);
+        potential[m] = std::make_unique<RI>(fid_potential);
         potential_type = 1;
     }
     else
