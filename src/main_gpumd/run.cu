@@ -253,24 +253,6 @@ void Run::process_run(char *input_dir)
 }
 
 
-static void print_start(int check)
-{
-    print_line_1();
-    if (check) { printf("Started checking the inputs in run.in.\n"); }
-    else { printf("Started executing the commands in run.in.\n"); }
-    print_line_2();
-}
-
-
-static void print_finish(int check)
-{
-    print_line_1();
-    if (check) { printf("Finished checking the inputs in run.in.\n"); }
-    else { printf("Finished executing the commands in run.in.\n"); }
-    print_line_2();
-}
-
-
 void Run::execute_run_in(char* input_dir)
 {
     char file_run[200];
@@ -287,7 +269,9 @@ void Run::execute_run_in(char* input_dir)
 
     initialize_run();
 
-    print_start(false);
+    print_line_1();
+    printf("Started executing the commands in run.in.\n");
+    print_line_2();
 
     while (input_ptr)
     {
@@ -351,7 +335,9 @@ void Run::execute_run_in(char* input_dir)
         }
     }
 
-    print_finish(false);
+    print_line_1();
+    printf("Finished executing the commands in run.in.\n");
+    print_line_2();
 
     free(input); // Free the input file contents
 }
