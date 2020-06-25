@@ -94,11 +94,9 @@ void Phonon::compute
     char *input_ptr = input; // Keep the pointer in order to free later
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
-
-    force->initialize_participation_and_shift(group, number_of_types);
-    force->num_of_potentials = 0;
-	
     char *param[max_num_param];
+	
+    force->initialize_participation_and_shift(group, number_of_types);
 	
     while (input_ptr)
     {

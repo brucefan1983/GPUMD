@@ -255,8 +255,6 @@ void Run::execute_run_in(char* input_dir)
     char *param[max_num_param];
 
     force.initialize_participation_and_shift(group, number_of_types);
-    force.num_of_potentials = 0;
-
     initialize_run();
 
     print_line_1();
