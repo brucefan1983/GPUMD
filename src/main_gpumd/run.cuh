@@ -39,12 +39,12 @@ private:
 
     void process_run(char *input_dir);
     void initialize_run();
-    void parse_run_in(char* input_dir);
     void execute_run_in(char* input_dir);
     void parse_one_keyword(char** param, int num_param);
     bool is_velocity;
     bool is_potential;
     bool is_run;
+    bool is_potential_definition;
 
     // keyword parsing functions
     void parse_neighbor(char** param, int num_param);

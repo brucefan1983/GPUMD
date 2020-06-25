@@ -34,8 +34,11 @@ class Phonon
 public:
     Phonon(char*);
 private:
-    void compute(char*, Force*, Hessian*, int);
-    void parse(char**, int, Force*, Hessian*, int*);
+    void compute(char*, Force*, Hessian*);
+    void parse(char**, int, Force*, Hessian*);
+
+    bool is_potential;
+    bool is_potential_definition;
 
     // data in the original Atom class
     int N;                // number of atoms

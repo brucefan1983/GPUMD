@@ -77,22 +77,14 @@ Phonon::Phonon(char* input_dir)
     Force force;
     Hessian hessian;
 
-    compute(input_dir, &force, &hessian, 1);
-
-    force.initialize_participation_and_shift
-    (
-        group,
-        number_of_types
-    );
-
-    compute(input_dir, &force, &hessian, 0);
+    compute(input_dir, &force, &hessian);
 }
 
 
 void Phonon::compute
 (
     char* input_dir, Force* force,
-    Hessian* hessian, int check
+    Hessian* hessian
 )
 {
     char file_run[200];
@@ -102,15 +94,27 @@ void Phonon::compute
     char *input_ptr = input; // Keep the pointer in order to free later
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
+
+    force->initialize_participation_and_shift(group, number_of_types);
     force->num_of_potentials = 0;
+	
     char *param[max_num_param];
+	
     while (input_ptr)
     {
-        int is_potential = 0;
+        is_potential_definition = false;
+        is_potential = false;
+		
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-        parse(param, num_param, force, hessian, &is_potential);
-        if (!check && is_potential)
+        parse(param, num_param, force, hessian);
+		
+        if (is_potential_definition)
+        {
+            force->initialize_participation_and_shift(group, number_of_types);
+        }
+		
+        if (is_potential)
         {
             force->add_potential
             (
@@ -124,39 +128,38 @@ void Phonon::compute
         }
     }
     free(input); // Free the input file contents
-    if (!check)
-    {
-        hessian->compute
-        (
-            input_dir,
-            force,
-            box,
-            cpu_position_per_atom,
-            position_per_atom,
-            type,
-            group,
-            neighbor,
-            potential_per_atom,
-            force_per_atom,
-            virial_per_atom
-        );
-    }
+
+    hessian->compute
+    (
+        input_dir,
+        force,
+        box,
+        cpu_position_per_atom,
+        position_per_atom,
+        type,
+        group,
+        neighbor,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom
+    );
 }
 
 
 void Phonon::parse
 (
     char **param, int num_param,
-    Force *force, Hessian* hessian, int* is_potential
+    Force *force, Hessian* hessian
 )
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
+        is_potential_definition = true;
         force->parse_potential_definition(param, num_param);
     }
     if (strcmp(param[0], "potential") == 0)
     {
-        *is_potential = 1;
+        is_potential = true;
         force->parse_potential(param, num_param);
     }
     else if (strcmp(param[0], "cutoff") == 0)

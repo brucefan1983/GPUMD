@@ -78,14 +78,6 @@ Run::Run(char* input_dir)
     );
 #endif
 
-    parse_run_in(input_dir);
-
-    force.initialize_participation_and_shift
-    (
-        group,
-        number_of_types
-    );
-
     execute_run_in(input_dir);
 }
 
@@ -290,6 +282,7 @@ void Run::execute_run_in(char* input_dir)
     int num_param;
     char *param[max_num_param];
 
+    force.initialize_participation_and_shift(group, number_of_types);
     force.num_of_potentials = 0;
 
     initialize_run();
@@ -301,12 +294,17 @@ void Run::execute_run_in(char* input_dir)
         input_ptr = row_find_param(input_ptr, param, &num_param);
 
         if (num_param == 0) { continue; }
-
+        is_potential_definition = false;
         is_potential = false;
         is_velocity = false;
         is_run = false;
 
         parse_one_keyword(param, num_param);
+		
+        if (is_potential_definition)
+        {
+            force.initialize_participation_and_shift(group, number_of_types);
+        }
 
         if (is_potential)
         {
@@ -359,45 +357,11 @@ void Run::execute_run_in(char* input_dir)
 }
 
 
-void Run::parse_run_in(char* input_dir)
-{
-    char file_run[200];
-    strcpy(file_run, input_dir);
-    strcat(file_run, "/run.in");
-    char *input = get_file_contents(file_run);
-    char *input_ptr = input; // Keep the pointer in order to free later
-    const int max_num_param = 10; // never use more than 9 parameters
-    int num_param;
-    char *param[max_num_param];
-
-    force.num_of_potentials = 0;
-
-    initialize_run();
-
-    print_start(true);
-
-    while (input_ptr)
-    {
-        input_ptr = row_find_param(input_ptr, param, &num_param);
-        if (num_param == 0) { continue; }
-        is_run = false;
-        parse_one_keyword(param, num_param);
-        if (is_run)
-        {
-            initialize_run();
-        }
-    }
-
-    print_finish(true);
-
-    free(input); // Free the input file contents
-}
-
-
 void Run::parse_one_keyword(char** param, int num_param)
 {
     if (strcmp(param[0], "potential_definition") == 0)
     {
+        is_potential_definition = true;
         force.parse_potential_definition(param, num_param);
     }
     else if (strcmp(param[0], "potential") == 0)
