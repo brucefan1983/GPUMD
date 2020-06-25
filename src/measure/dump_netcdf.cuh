@@ -68,7 +68,14 @@ private:
     size_t lenp; // frame number
 
     void open_file(int frame_in_run);
-    void write(Atom *atom);
+    void write
+    (
+        const double global_time,
+        const Box& box,
+        const std::vector<int>& cpu_type,
+        GPU_Vector<double>& position_per_atom,
+        std::vector<double>& cpu_position_per_atom
+    );
 
 };
 
