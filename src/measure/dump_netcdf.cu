@@ -256,7 +256,7 @@ void DUMP_NETCDF::write
     double cell_angles[3];
     if (box.triclinic)
     {
-        double *t = box.cpu_h;
+        const double *t = box.cpu_h;
         double cosgamma, cosbeta, cosalpha;
         cell_lengths[0] = sqrt(t[0]*t[0] + t[3]*t[3] + t[6]*t[6]); //a-side
         cell_lengths[1] = sqrt(t[1]*t[1] + t[4]*t[4] + t[7]*t[7]); //b-side
