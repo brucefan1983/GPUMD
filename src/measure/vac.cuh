@@ -24,8 +24,8 @@ class VAC
 public:
 
     // NOTE: (compute_dos && compute_sdc) == 1 yields failure
-    int compute_dos;          // 1 means mass-weighted VAC computed
-    int compute_sdc;          // 1 means VAC computed
+    int compute_dos = 0;          // 1 means mass-weighted VAC computed
+    int compute_sdc = 0;          // 1 means VAC computed
     int sample_interval;      // sample interval for velocity
     int grouping_method = -1; // grouping method to use, -1 means none set
     int group = -1;           // group to compute, -1 means none set

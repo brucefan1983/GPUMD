@@ -86,36 +86,6 @@ void Run::initialize_run()
     integrate.deform_x = 0;
     integrate.deform_y = 0;
     integrate.deform_z = 0;
-    measure.compute.compute_temperature  = 0;
-    measure.compute.compute_potential    = 0;
-    measure.compute.compute_force        = 0;
-    measure.compute.compute_virial       = 0;
-    measure.compute.compute_jp           = 0;
-    measure.compute.compute_jk           = 0;
-    measure.shc.compute    = 0;
-    measure.vac.compute_dos= 0;
-    measure.vac.compute_sdc= 0;
-    measure.modal_analysis.compute   = 0;
-    measure.modal_analysis.method   = NO_METHOD;
-    measure.vac.grouping_method = -1;
-    measure.vac.group = -1;
-    measure.vac.num_dos_points = -1;
-    measure.hac.compute    = 0;
-    measure.hnemd.compute  = 0;
-    measure.dump_thermo    = 0;
-    measure.dump_velocity  = 0;
-    measure.dump_restart   = 0;
-
-    /*
-     * Delete dump_pos if it exists. Ensure that dump_pos is NULL in case
-     * it isn't set in parse. If we don't set to NULL, then we may end up
-     * deleting some random address, corrupting memory.
-     */
-    if (measure.dump_pos)
-    {
-    	delete measure.dump_pos;
-    }
-    measure.dump_pos = NULL;
 }
 
 

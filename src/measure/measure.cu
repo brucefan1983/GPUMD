@@ -86,6 +86,33 @@ void Measure::finalize
     compute.postprocess();
     hnemd.postprocess();
     modal_analysis.postprocess();
+	
+    // reset the defaults
+    compute.compute_temperature  = 0;
+    compute.compute_potential    = 0;
+    compute.compute_force        = 0;
+    compute.compute_virial       = 0;
+    compute.compute_jp           = 0;
+    compute.compute_jk           = 0;
+    shc.compute    = 0;
+    vac.compute_dos= 0;
+    vac.compute_sdc= 0;
+    modal_analysis.compute   = 0;
+    modal_analysis.method   = NO_METHOD;
+    vac.grouping_method = -1;
+    vac.group = -1;
+    vac.num_dos_points = -1;
+    hac.compute    = 0;
+    hnemd.compute  = 0;
+    dump_thermo    = 0;
+    dump_velocity  = 0;
+    dump_restart   = 0;
+
+    if (dump_pos)
+    {
+    	delete dump_pos;
+    }
+    dump_pos = NULL;
 }
 
 

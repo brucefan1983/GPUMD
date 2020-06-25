@@ -77,9 +77,9 @@ public:
         GPU_Vector<double>& heat_per_atom
     );
 
-    int dump_thermo; 
-    int dump_velocity;
-    int dump_restart;
+    int dump_thermo = 0; 
+    int dump_velocity = 0;
+    int dump_restart = 0;
     int sample_interval_thermo;
     int sample_interval_velocity;
     int sample_interval_restart;
