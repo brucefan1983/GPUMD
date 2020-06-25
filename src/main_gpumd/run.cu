@@ -70,12 +70,7 @@ Run::Run(char* input_dir)
     );
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-    neighbor.find_neighbor
-    (
-        1,
-        box,
-        position_per_atom
-    );
+    neighbor.find_neighbor(/*is_first=*/true, box, position_per_atom);
 #endif
 
     execute_run_in(input_dir);
@@ -148,12 +143,7 @@ void Run::process_run(char *input_dir)
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
         if (neighbor.update)
         {
-            neighbor.find_neighbor
-            (
-                0,
-                box,
-                position_per_atom
-            );
+            neighbor.find_neighbor(/*is_first=*/false, box, position_per_atom);
         }
 #endif
 

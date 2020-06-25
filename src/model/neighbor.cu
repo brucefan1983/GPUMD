@@ -255,7 +255,7 @@ void Neighbor::find_neighbor(const Box& box, double* x, double* y, double* z)
 // the driver function to be called outside this file
 void Neighbor::find_neighbor
 (
-    int is_first,
+    const bool is_first,
     const Box& box,
     GPU_Vector<double>& position_per_atom
 )
@@ -268,7 +268,7 @@ void Neighbor::find_neighbor
     double* y = position_per_atom.data() + N;
     double* z = position_per_atom.data() + N * 2;
 
-    if (is_first == 1)
+    if (is_first)
     {
         find_neighbor(box, x, y, z);
         check_bound();
