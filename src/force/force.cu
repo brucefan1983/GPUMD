@@ -74,6 +74,8 @@ void Force::parse_potential(char **param, int num_param)
                 PRINT_INPUT_ERROR("Group method for LJ potential should be an integer.\n");
             }
         }
+        atom_begin[num_of_potentials] = 0;
+        atom_end[num_of_potentials] = num_types - 1;
     }
     else
     {
@@ -262,7 +264,6 @@ static __global__ void gpu_find_neighbor_local
     const double* __restrict__ z
 )
 {
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
 
@@ -309,17 +310,14 @@ void Force::find_neighbor_local
 )
 {
     const int number_of_atoms = neighbor.NN.size();
-    int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / BLOCK_SIZE + 1;
+    int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / 128 + 1;
 
-    int *type = (group_method >= 0) ? group[group_method].label.data()
-                                    : atom_type.data();
-
-    gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
+    gpu_find_neighbor_local<<<grid_size, 128>>>
     (
         box,
         atom_begin[m],
         atom_end[m],
-        type,
+        atom_type.data(),
         number_of_atoms,
         potential[m]->N1,
         potential[m]->N2,
