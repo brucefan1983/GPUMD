@@ -80,8 +80,6 @@ Run::Run(char* input_dir)
 // set some default values after each run
 void Run::initialize_run()
 {
-    neighbor.update = 0;
-    neighbor.number_of_updates = 0;
     integrate.fixed_group = -1; // no group has an index of -1
     integrate.deform_x = 0;
     integrate.deform_y = 0;
@@ -210,6 +208,8 @@ void Run::process_run(char *input_dir)
         integrate.temperature2,
         box.get_volume()
     );
+
+    neighbor.finalize();
 }
 
 

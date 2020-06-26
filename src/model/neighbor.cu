@@ -315,3 +315,9 @@ void Neighbor::find_neighbor
 }
 
 
+void Neighbor::finalize()
+{
+    update = 0;
+    number_of_updates = 0;
+}
+
