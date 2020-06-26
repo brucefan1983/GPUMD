@@ -35,10 +35,10 @@ class Run
 {
 public:
     Run(char*);
+	
 private:
-
-    void process_run(char *input_dir);
     void execute_run_in(char* input_dir);
+    void perform_a_run(char *input_dir);
     void parse_one_keyword(char** param, int num_param);
     bool is_velocity;
     bool is_potential;
@@ -51,7 +51,6 @@ private:
     void parse_time_step(char** param, int num_param);
     void parse_run(char** param, int num_param);
 
-    // data in the original Atom class
     int N;                // number of atoms
     int number_of_types;  // number of atom types
     int has_velocity_in_xyz = 0;
@@ -81,5 +80,4 @@ private:
     Integrate integrate;
     Measure measure;
 };
-
 

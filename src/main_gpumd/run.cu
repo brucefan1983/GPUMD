@@ -77,8 +77,93 @@ Run::Run(char* input_dir)
 }
 
 
-// run a number of steps for a given set of inputs
-void Run::process_run(char *input_dir)
+void Run::execute_run_in(char* input_dir)
+{
+    char file_run[200];
+    strcpy(file_run, input_dir);
+    strcat(file_run, "/run.in");
+    char *input = get_file_contents(file_run);
+    char *input_ptr = input; // Keep the pointer in order to free later
+    const int max_num_param = 10; // never use more than 9 parameters
+    int num_param;
+    char *param[max_num_param];
+
+    force.initialize_participation_and_shift(group, number_of_types);
+
+    print_line_1();
+    printf("Started executing the commands in run.in.\n");
+    print_line_2();
+
+    while (input_ptr)
+    {
+        input_ptr = row_find_param(input_ptr, param, &num_param);
+
+        if (num_param == 0) { continue; }
+        is_potential_definition = false;
+        is_potential = false;
+        is_velocity = false;
+        is_run = false;
+
+        parse_one_keyword(param, num_param);
+		
+        if (is_potential_definition)
+        {
+            force.initialize_participation_and_shift(group, number_of_types);
+        }
+
+        if (is_potential)
+        {
+            force.add_potential
+            (
+                input_dir,
+                box,
+                neighbor,
+                group,
+                cpu_type,
+                cpu_type_size
+            );
+        }
+
+        if (is_velocity)
+        {
+            Velocity velocity;
+            velocity.initialize
+            (
+                has_velocity_in_xyz,
+                initial_temperature,
+                cpu_mass,
+                cpu_position_per_atom,
+                cpu_velocity_per_atom,
+                velocity_per_atom
+            );
+        }
+
+        if (is_run)
+        {
+            force.valdiate_potential_definitions();
+            bool compute_hnemd = measure.hnemd.compute ||
+            (
+                measure.modal_analysis.compute &&
+                measure.modal_analysis.method == HNEMA_METHOD
+            );
+            force.set_hnemd_parameters
+            (
+                compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y,
+                measure.hnemd.fe_z
+            );
+            perform_a_run(input_dir);
+        }
+    }
+
+    print_line_1();
+    printf("Finished executing the commands in run.in.\n");
+    print_line_2();
+
+    free(input); // Free the input file contents
+}
+
+
+void Run::perform_a_run(char *input_dir)
 {
     integrate.initialize(N, time_step, group);
 
@@ -201,92 +286,6 @@ void Run::process_run(char *input_dir)
 
     integrate.finalize();
     neighbor.finalize();
-}
-
-
-void Run::execute_run_in(char* input_dir)
-{
-    char file_run[200];
-    strcpy(file_run, input_dir);
-    strcat(file_run, "/run.in");
-    char *input = get_file_contents(file_run);
-    char *input_ptr = input; // Keep the pointer in order to free later
-    const int max_num_param = 10; // never use more than 9 parameters
-    int num_param;
-    char *param[max_num_param];
-
-    force.initialize_participation_and_shift(group, number_of_types);
-
-    print_line_1();
-    printf("Started executing the commands in run.in.\n");
-    print_line_2();
-
-    while (input_ptr)
-    {
-        input_ptr = row_find_param(input_ptr, param, &num_param);
-
-        if (num_param == 0) { continue; }
-        is_potential_definition = false;
-        is_potential = false;
-        is_velocity = false;
-        is_run = false;
-
-        parse_one_keyword(param, num_param);
-		
-        if (is_potential_definition)
-        {
-            force.initialize_participation_and_shift(group, number_of_types);
-        }
-
-        if (is_potential)
-        {
-            force.add_potential
-            (
-                input_dir,
-                box,
-                neighbor,
-                group,
-                cpu_type,
-                cpu_type_size
-            );
-        }
-
-        if (is_velocity)
-        {
-            Velocity velocity;
-            velocity.initialize
-            (
-                has_velocity_in_xyz,
-                initial_temperature,
-                cpu_mass,
-                cpu_position_per_atom,
-                cpu_velocity_per_atom,
-                velocity_per_atom
-            );
-        }
-
-        if (is_run)
-        {
-            force.valdiate_potential_definitions();
-            bool compute_hnemd = measure.hnemd.compute ||
-            (
-                measure.modal_analysis.compute &&
-                measure.modal_analysis.method == HNEMA_METHOD
-            );
-            force.set_hnemd_parameters
-            (
-                compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y,
-                measure.hnemd.fe_z
-            );
-            process_run(input_dir);
-        }
-    }
-
-    print_line_1();
-    printf("Finished executing the commands in run.in.\n");
-    print_line_2();
-
-    free(input); // Free the input file contents
 }
 
 
