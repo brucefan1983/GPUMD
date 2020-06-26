@@ -98,24 +98,9 @@ void Phonon::compute
 
     while (input_ptr)
     {
-        is_potential_definition = false;
-        is_potential = false;
-		
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-        parse(param, num_param, force, hessian);
-		
-        if (is_potential)
-        {
-            force->add_potential
-            (
-                input_dir,
-                box,
-                neighbor,
-                cpu_type,
-                cpu_type_size
-            );
-        }
+        parse(param, num_param, force, hessian, input_dir);
     }
     free(input); // Free the input file contents
 
@@ -139,13 +124,22 @@ void Phonon::compute
 void Phonon::parse
 (
     char **param, int num_param,
-    Force *force, Hessian* hessian
+    Force *force, Hessian* hessian, 
+    char* input_dir
 )
 {
     if (strcmp(param[0], "potential") == 0)
     {
-        is_potential = true;
-        force->parse_potential(param, num_param);
+        force->parse_potential
+        (
+            param, 
+            num_param,
+            input_dir,
+            box,
+            neighbor,
+            cpu_type,
+            cpu_type_size
+        );
     }
     else if (strcmp(param[0], "cutoff") == 0)
     {

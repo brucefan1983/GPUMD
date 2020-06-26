@@ -95,55 +95,8 @@ void Run::execute_run_in(char* input_dir)
     while (input_ptr)
     {
         input_ptr = row_find_param(input_ptr, param, &num_param);
-
         if (num_param == 0) { continue; }
-        is_potential_definition = false;
-        is_potential = false;
-        is_velocity = false;
-        is_run = false;
-
-        parse_one_keyword(param, num_param);
-
-        if (is_potential)
-        {
-            force.add_potential
-            (
-                input_dir,
-                box,
-                neighbor,
-                cpu_type,
-                cpu_type_size
-            );
-        }
-
-        if (is_velocity)
-        {
-            Velocity velocity;
-            velocity.initialize
-            (
-                has_velocity_in_xyz,
-                initial_temperature,
-                cpu_mass,
-                cpu_position_per_atom,
-                cpu_velocity_per_atom,
-                velocity_per_atom
-            );
-        }
-
-        if (is_run)
-        {
-            bool compute_hnemd = measure.hnemd.compute ||
-            (
-                measure.modal_analysis.compute &&
-                measure.modal_analysis.method == HNEMA_METHOD
-            );
-            force.set_hnemd_parameters
-            (
-                compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y,
-                measure.hnemd.fe_z
-            );
-            perform_a_run(input_dir);
-        }
+        parse_one_keyword(param, num_param, input_dir);
     }
 
     print_line_1();
@@ -280,16 +233,23 @@ void Run::perform_a_run(char *input_dir)
 }
 
 
-void Run::parse_one_keyword(char** param, int num_param)
+void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
 {
     if (strcmp(param[0], "potential") == 0)
     {
-        is_potential = true;
-        force.parse_potential(param, num_param);
+        force.parse_potential
+        (
+            param, 
+            num_param,
+            input_dir,
+            box,
+            neighbor,
+            cpu_type,
+            cpu_type_size
+        );
     }
     else if (strcmp(param[0], "velocity") == 0)
     {
-        is_velocity = true;
         parse_velocity(param, num_param);
     }
     else if (strcmp(param[0], "ensemble") == 0)
@@ -362,8 +322,7 @@ void Run::parse_one_keyword(char** param, int num_param)
     }
     else if (strcmp(param[0], "run") == 0)
     {
-        is_run = true;
-        parse_run(param, num_param);
+        parse_run(param, num_param, input_dir);
     }
     else
     {
@@ -386,6 +345,17 @@ void Run::parse_velocity(char **param, int num_param)
     {
         PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
     }
+
+    Velocity velocity;
+    velocity.initialize
+    (
+        has_velocity_in_xyz,
+        initial_temperature,
+        cpu_mass,
+        cpu_position_per_atom,
+        cpu_velocity_per_atom,
+        velocity_per_atom
+    );
 }
 
 
@@ -404,7 +374,7 @@ void Run::parse_time_step (char **param, int num_param)
 }
 
 
-void Run::parse_run(char **param, int num_param)
+void Run::parse_run(char **param, int num_param, char* input_dir)
 {
     if (num_param != 2)
     {
@@ -415,6 +385,19 @@ void Run::parse_run(char **param, int num_param)
         PRINT_INPUT_ERROR("number of steps should be an integer.\n");
     }
     printf("Run %d steps.\n", number_of_steps);
+
+    bool compute_hnemd = measure.hnemd.compute ||
+    (
+        measure.modal_analysis.compute &&
+        measure.modal_analysis.method == HNEMA_METHOD
+    );
+    force.set_hnemd_parameters
+    (
+        compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y,
+        measure.hnemd.fe_z
+    );
+
+    perform_a_run(input_dir);
 }
 
 

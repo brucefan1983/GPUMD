@@ -33,7 +33,16 @@ public:
 
     Force(void);
 
-    void parse_potential(char**, int);
+    void parse_potential
+    (
+        char **param, 
+        int num_param,
+        char* input_dir,
+        const Box& box,
+        const Neighbor& neighbor,
+        const std::vector<int>& cpu_type,
+        const std::vector<int>& cpu_type_size
+    );
 
     void add_potential
     (

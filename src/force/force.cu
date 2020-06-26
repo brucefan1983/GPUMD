@@ -47,7 +47,16 @@ Force::Force(void)
 }
 
 
-void Force::parse_potential(char **param, int num_param)
+void Force::parse_potential
+(
+    char **param, 
+    int num_param,
+    char* input_dir,
+    const Box& box,
+    const Neighbor& neighbor,
+    const std::vector<int>& cpu_type,
+    const std::vector<int>& cpu_type_size
+)
 {
     // check for at least the file path
     if (num_param < 2)
@@ -108,6 +117,15 @@ void Force::parse_potential(char **param, int num_param)
     }
 
     num_of_potentials++;
+
+    add_potential
+    (
+        input_dir,
+        box,
+        neighbor,
+        cpu_type,
+        cpu_type_size
+    );
 }
 
 	
