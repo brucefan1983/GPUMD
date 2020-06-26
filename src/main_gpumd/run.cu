@@ -111,7 +111,6 @@ void Run::execute_run_in(char* input_dir)
                 input_dir,
                 box,
                 neighbor,
-                group,
                 cpu_type,
                 cpu_type_size
             );

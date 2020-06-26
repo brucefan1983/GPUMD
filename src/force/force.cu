@@ -47,7 +47,6 @@ Force::Force(void)
 }
 
 
-// a potential
 void Force::parse_potential(char **param, int num_param)
 {
     // check for at least the file path
@@ -61,6 +60,7 @@ void Force::parse_potential(char **param, int num_param)
     char potential_name[20];
     FILE *fid_potential = my_fopen(file_potential[num_of_potentials], "r");
     int count = fscanf(fid_potential, "%s", potential_name);
+    PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
     int num_types = get_number_of_types(fid_potential);
     fclose(fid_potential);
 
@@ -88,19 +88,19 @@ void Force::parse_potential(char **param, int num_param)
         {
             if(!is_valid_int(param[i + 2], &atom_type[i]))
             {
-                PRINT_INPUT_ERROR("type/groups should be an integer.\n");
+                PRINT_INPUT_ERROR("type should be an integer.\n");
             }
             if (i != 0 && atom_type[i] < atom_type[i - 1])
             {
-                PRINT_INPUT_ERROR("potential types must be listed in ascending order.\n");
+                PRINT_INPUT_ERROR("potential types must be in ascending order.\n");
             }
         }
         atom_begin[num_of_potentials] = atom_type[0];
         atom_end[num_of_potentials] = atom_type[num_types - 1];
 
-        if (atom_end[num_of_potentials] - atom_begin[num_of_potentials] + 1 > num_types)
+        if (atom_type[num_types - 1] - atom_type[0] + 1 > num_types)
         {
-            PRINT_INPUT_ERROR("Error: types for one potential must be listed contiguously.\n");
+            PRINT_INPUT_ERROR("Error: types for one potential must be contiguous.\n");
         }
     }
 
@@ -122,7 +122,6 @@ void Force::initialize_potential
     char* input_dir,
     const Box& box,
     const Neighbor& neighbor,
-    const std::vector<Group>& group,
     const std::vector<int>& cpu_type_size,
     const int m
 )
@@ -195,27 +194,13 @@ void Force::initialize_potential
     potential[m]->N1 = 0;
     potential[m]->N2 = 0;
 
-    if (group_method > -1)
+    for (int n = 0; n < atom_begin[m]; ++n)
     {
-        for (int n = 0; n < atom_begin[m]; ++n)
-        {
-            potential[m]->N1 += group[group_method].cpu_size[n];
-        }
-        for (int n = 0; n <= atom_end[m]; ++n)
-        {
-            potential[m]->N2 += group[group_method].cpu_size[n];
-        }
+        potential[m]->N1 += cpu_type_size[n];
     }
-    else
+    for (int n = 0; n <= atom_end[m]; ++n)
     {
-        for (int n = 0; n < atom_begin[m]; ++n)
-        {
-            potential[m]->N1 += cpu_type_size[n];
-        }
-        for (int n = 0; n <= atom_end[m]; ++n)
-        {
-            potential[m]->N2 += cpu_type_size[n];
-        }
+        potential[m]->N2 += cpu_type_size[n];
     }
 
     printf
@@ -236,7 +221,6 @@ void Force::add_potential
     char* input_dir,
     const Box& box,
     const Neighbor& neighbor,
-    const std::vector<Group>& group,
     const std::vector<int>& cpu_type,
     const std::vector<int>& cpu_type_size
 )
@@ -247,7 +231,6 @@ void Force::add_potential
         input_dir,
         box,
         neighbor,
-        group,
         cpu_type_size,
         m
     );
@@ -257,11 +240,7 @@ void Force::add_potential
     // check the atom types in xyz.in
     for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
     {
-        int kind;
-        if (group_method > -1) kind = group[group_method].cpu_label[n];
-        else kind = cpu_type[n];
-
-        if (kind < atom_begin[m] || kind > atom_end[m])
+        if (cpu_type[n] < atom_begin[m] || cpu_type[n] > atom_end[m])
         {
             printf("ERROR: type for potential # %d not from %d to %d.",
                 m, atom_begin[m], atom_end[m]);

@@ -40,7 +40,6 @@ public:
         char* input_dir,
         const Box& box,
         const Neighbor& neighbor,
-        const std::vector<Group>& group,
         const std::vector<int>& cpu_type,
         const std::vector<int>& cpu_type_size
     );
@@ -79,7 +78,6 @@ private:
         char* input_dir,
         const Box& box,
         const Neighbor& neighbor,
-        const std::vector<Group>& group,
         const std::vector<int>& cpu_type_size,
         const int m
     );

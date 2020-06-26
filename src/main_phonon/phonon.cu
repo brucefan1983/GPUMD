@@ -112,7 +112,6 @@ void Phonon::compute
                 input_dir,
                 box,
                 neighbor,
-                group,
                 cpu_type,
                 cpu_type_size
             );
