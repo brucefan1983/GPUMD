@@ -47,51 +47,6 @@ Force::Force(void)
 }
 
 
-void Force::parse_potential_definition(char **param, int num_param)
-{
-    // 'potential_definition' must be called before all 'potential' keywords
-    if (num_of_potentials > 0)
-    {
-        PRINT_INPUT_ERROR("potential_definition must be called before all "
-                "potential keywords.\n");
-    }
-
-    if (num_param != 2 && num_param != 3)
-    {
-        PRINT_INPUT_ERROR("potential_definition should have only 1 or 2 "
-                "parameters.\n");
-    }
-    if (num_param == 2)
-    {
-        //default is to use type, check for deviations
-        if(strcmp(param[1], "group") == 0)
-        {
-            PRINT_INPUT_ERROR("potential_definition must have "
-                    "group_method listed.\n");
-        }
-        else if(strcmp(param[1], "type") != 0)
-        {
-            PRINT_INPUT_ERROR("potential_definition only accepts "
-                    "'type' or 'group' kind.\n");
-        }
-    }
-    if (num_param == 3)
-    {
-        if(strcmp(param[1], "group") != 0)
-        {
-            PRINT_INPUT_ERROR("potential_definition: kind must be 'group' if 2 "
-                    "parameters are used.\n");
-
-        }
-        else if (!is_valid_int(param[2], &group_method))
-        {
-            PRINT_INPUT_ERROR("potential_definition: group_method should be an "
-                    "integer.\n");
-        }
-    }
-}
-
-
 // a potential
 void Force::parse_potential(char **param, int num_param)
 {
@@ -137,16 +92,10 @@ void Force::parse_potential(char **param, int num_param)
 
 void Force::initialize_participation_and_shift
 (
-    const std::vector<Group>& group_vector,
     const int number_of_types
 )
 {
-    if (group_method > -1)
-        num_kind = group_vector[group_method].number;
-    else
-        num_kind = number_of_types;
-
-    // initialize bookkeeping data structures
+    num_kind = number_of_types;
     manybody_participation.resize(num_kind, 0);
     potential_participation.resize(num_kind, 0);
     type_shift_.resize(MAX_NUM_OF_POTENTIALS, 0);

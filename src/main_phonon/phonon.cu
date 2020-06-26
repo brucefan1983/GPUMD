@@ -96,7 +96,7 @@ void Phonon::compute
     int num_param;
     char *param[max_num_param];
 	
-    force->initialize_participation_and_shift(group, number_of_types);
+    force->initialize_participation_and_shift(number_of_types);
 	
     while (input_ptr)
     {
@@ -106,11 +106,6 @@ void Phonon::compute
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
         parse(param, num_param, force, hessian);
-		
-        if (is_potential_definition)
-        {
-            force->initialize_participation_and_shift(group, number_of_types);
-        }
 		
         if (is_potential)
         {
@@ -150,11 +145,6 @@ void Phonon::parse
     Force *force, Hessian* hessian
 )
 {
-    if (strcmp(param[0], "potential_definition") == 0)
-    {
-        is_potential_definition = true;
-        force->parse_potential_definition(param, num_param);
-    }
     if (strcmp(param[0], "potential") == 0)
     {
         is_potential = true;
@@ -173,5 +163,4 @@ void Phonon::parse
         PRINT_INPUT_ERROR("Invalid keyword.\n");
     }
 }
-
 

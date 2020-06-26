@@ -32,7 +32,6 @@ class Force
 public:
 
     Force(void);
-    void parse_potential_definition(char**, int);
     void parse_potential(char**, int);
     void add_potential
     (
@@ -60,7 +59,6 @@ public:
     void valdiate_potential_definitions(void);
     void initialize_participation_and_shift
     (
-        const std::vector<Group>& group_vector,
         const int umber_of_types
     );
     void set_hnemd_parameters(const bool, const double, const double, const double);

@@ -88,7 +88,7 @@ void Run::execute_run_in(char* input_dir)
     int num_param;
     char *param[max_num_param];
 
-    force.initialize_participation_and_shift(group, number_of_types);
+    force.initialize_participation_and_shift(number_of_types);
 
     print_line_1();
     printf("Started executing the commands in run.in.\n");
@@ -105,11 +105,6 @@ void Run::execute_run_in(char* input_dir)
         is_run = false;
 
         parse_one_keyword(param, num_param);
-		
-        if (is_potential_definition)
-        {
-            force.initialize_participation_and_shift(group, number_of_types);
-        }
 
         if (is_potential)
         {
@@ -291,12 +286,7 @@ void Run::perform_a_run(char *input_dir)
 
 void Run::parse_one_keyword(char** param, int num_param)
 {
-    if (strcmp(param[0], "potential_definition") == 0)
-    {
-        is_potential_definition = true;
-        force.parse_potential_definition(param, num_param);
-    }
-    else if (strcmp(param[0], "potential") == 0)
+    if (strcmp(param[0], "potential") == 0)
     {
         is_potential = true;
         force.parse_potential(param, num_param);
