@@ -77,16 +77,6 @@ Run::Run(char* input_dir)
 }
 
 
-// set some default values after each run
-void Run::initialize_run()
-{
-    integrate.fixed_group = -1; // no group has an index of -1
-    integrate.deform_x = 0;
-    integrate.deform_y = 0;
-    integrate.deform_z = 0;
-}
-
-
 // run a number of steps for a given set of inputs
 void Run::process_run(char *input_dir)
 {
@@ -209,6 +199,7 @@ void Run::process_run(char *input_dir)
         box.get_volume()
     );
 
+    integrate.finalize();
     neighbor.finalize();
 }
 
@@ -225,7 +216,6 @@ void Run::execute_run_in(char* input_dir)
     char *param[max_num_param];
 
     force.initialize_participation_and_shift(group, number_of_types);
-    initialize_run();
 
     print_line_1();
     printf("Started executing the commands in run.in.\n");
@@ -289,7 +279,6 @@ void Run::execute_run_in(char* input_dir)
                 measure.hnemd.fe_z
             );
             process_run(input_dir);
-            initialize_run();
         }
     }
 

@@ -113,6 +113,15 @@ void Integrate::initialize
 }
 
 
+void Integrate::finalize()
+{
+    fixed_group = -1; // no group has an index of -1
+    deform_x = 0;
+    deform_y = 0;
+    deform_z = 0;
+}
+
+
 void Integrate::compute1
 (
     const double time_step,
@@ -582,5 +591,4 @@ void Integrate::parse_deform(char **param, int num_param)
         printf("    apply strain in z direction.\n");
     }
 }
-
 

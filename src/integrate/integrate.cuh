@@ -36,7 +36,7 @@ public:
         const std::vector<Group>& group
     );
 
-    void finalize(void);
+    void finalize();
 
     void compute1
     (
@@ -77,7 +77,7 @@ public:
     int type;          // ensemble type in a specific run
     int source;
     int sink;
-    int fixed_group;   // ID of the group in which the atoms will be fixed 
+    int fixed_group = -1; // ID of the group in which the atoms will be fixed 
     double temperature;  // target temperature at a specific time 
     double temperature1; // target initial temperature for a run
     double temperature2; // target final temperature for a run

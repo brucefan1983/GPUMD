@@ -38,7 +38,6 @@ public:
 private:
 
     void process_run(char *input_dir);
-    void initialize_run();
     void execute_run_in(char* input_dir);
     void parse_one_keyword(char** param, int num_param);
     bool is_velocity;
