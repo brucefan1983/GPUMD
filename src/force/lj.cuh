@@ -32,7 +32,7 @@ struct LJ_Para
 class LJ : public Potential
 {
 public:
-    LJ(FILE*, int, const std::vector<int>, int);
+    LJ(FILE*, int);
     virtual ~LJ(void);
     virtual void compute
     (

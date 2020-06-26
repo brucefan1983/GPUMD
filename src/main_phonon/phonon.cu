@@ -95,9 +95,7 @@ void Phonon::compute
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
     char *param[max_num_param];
-	
-    force->initialize_participation_and_shift(number_of_types);
-	
+
     while (input_ptr)
     {
         is_potential_definition = false;

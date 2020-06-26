@@ -79,40 +79,32 @@ void Force::parse_potential(char **param, int num_param)
     {
         if (num_param != num_types + 2)
         {
-            PRINT_INPUT_ERROR("potential has incorrect number of types/groups defined.\n");
+            PRINT_INPUT_ERROR("potential has incorrect number of types defined.\n");
         }
 
-        participating_kinds.resize(num_types);
+        std::vector<int> atom_type(num_types);
 
         for (int i = 0; i < num_types; i++)
         {
-            if(!is_valid_int(param[i + 2], &participating_kinds[i]))
+            if(!is_valid_int(param[i + 2], &atom_type[i]))
             {
                 PRINT_INPUT_ERROR("type/groups should be an integer.\n");
             }
-            if (i != 0 && participating_kinds[i] < participating_kinds[i - 1])
+            if (i != 0 && atom_type[i] < atom_type[i - 1])
             {
-                PRINT_INPUT_ERROR("potential types/groups must be listed in "
-                    "ascending order.\n");
+                PRINT_INPUT_ERROR("potential types must be listed in ascending order.\n");
             }
         }
-        atom_begin[num_of_potentials] = participating_kinds[0];
-        atom_end[num_of_potentials] = participating_kinds[num_types - 1];
+        atom_begin[num_of_potentials] = atom_type[0];
+        atom_end[num_of_potentials] = atom_type[num_types - 1];
+
+        if (atom_end[num_of_potentials] - atom_begin[num_of_potentials] + 1 > num_types)
+        {
+            PRINT_INPUT_ERROR("Error: types for one potential must be listed contiguously.\n");
+        }
     }
 
     num_of_potentials++;
-}
-
-
-void Force::initialize_participation_and_shift
-(
-    const int number_of_types
-)
-{
-    num_kind = number_of_types;
-    manybody_participation.resize(num_kind, 0);
-    potential_participation.resize(num_kind, 0);
-    type_shift_.resize(MAX_NUM_OF_POTENTIALS, 0);
 }
 
 	
@@ -121,20 +113,9 @@ int Force::get_number_of_types(FILE *fid_potential)
     int num_of_types;
     int count = fscanf(fid_potential, "%d", &num_of_types);
     PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
-
     return num_of_types;
 }
 
-void Force::valdiate_potential_definitions()
-{
-    for (int i = 0; i < num_kind; i++)
-    {
-        if (potential_participation[i] == 0)
-        {
-            PRINT_INPUT_ERROR("All atoms must participate in at least one potential.");
-        }
-    }
-}
 
 void Force::initialize_potential
 (
@@ -156,7 +137,7 @@ void Force::initialize_potential
     }
 
     int num_types = get_number_of_types(fid_potential);
-    int potential_type = 0; // 0 - manybody, 1 - two-body
+
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
@@ -200,36 +181,15 @@ void Force::initialize_potential
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
-        potential[m] = std::make_unique<LJ>(fid_potential, num_types,
-                participating_kinds, atom_end[m]-atom_begin[m]+1);
-        potential_type = 1;
+        potential[m] = std::make_unique<LJ>(fid_potential, num_types);
     }
     else if (strcmp(potential_name, "ri") == 0)
     {
-        if (!kinds_are_contiguous()) // special case for RI
-        {
-            PRINT_INPUT_ERROR("Defined types/groups for RI potential must be contiguous and ascending.\n");
-        }
         potential[m] = std::make_unique<RI>(fid_potential);
-        potential_type = 1;
     }
     else
     {
         PRINT_INPUT_ERROR("illegal potential model.\n");
-    }
-
-    if (potential_type == 0)
-    {
-        if (atom_end[m] - atom_begin[m] + 1 > num_types)
-        {
-            PRINT_INPUT_ERROR("Error: types/groups must be listed contiguously.\n");
-        }
-    }
-
-    // check if manybody has sequential types (don't care for two-body)
-    if (potential_type == 0 && !kinds_are_contiguous())
-    {
-        PRINT_INPUT_ERROR("Defined types/groups for manybody potentials must be contiguous and ascending.\n");
     }
 
     potential[m]->N1 = 0;
@@ -258,67 +218,18 @@ void Force::initialize_potential
         }
     }
 
-    // definition bookkeeping
-    for (int n1 = atom_begin[m]; n1 < atom_end[m]+1; n1++)
-    {
-
-        if (potential_type == 0 && manybody_participation[n1])
-        {
-            PRINT_INPUT_ERROR("Only a single many-body potential definition is allowed per atom type/group.");
-        }
-
-        if (potential_type == 0)
-        {
-            manybody_participation[n1] = 1;
-            potential_participation[n1]++;
-        }
-        else
-        {
-            if (kind_is_participating(n1, m))
-                potential_participation[n1]++;
-        }
-    }
-
-    if (group_method > -1)
-    {
-        printf
-        (
-            "    applies to participating atoms [%d, %d) from group %d to "
-            "group %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
-            atom_end[m]
-        );
-    }
-    else
-    {
-        printf
-        (
-            "    applies to participating atoms [%d, %d) from type %d to "
-            "type %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
-            atom_end[m]
-        );
-    }
+    printf
+    (
+        "    applies to atoms [%d, %d) from type %d to type %d.\n", 
+        potential[m]->N1, 
+        potential[m]->N2, 
+        atom_begin[m],
+        atom_end[m]
+    );
 
     fclose(fid_potential);
 }
 
-bool Force::kind_is_participating(int kind, int pot_idx)
-{
-    for (int i = 0; i < (int)participating_kinds.size(); i++)
-    {
-        if(kind == participating_kinds[i]) return true;
-    }
-    return false;
-}
-
-bool Force::kinds_are_contiguous()
-{
-    for (int i = 0; i < (int)participating_kinds.size()-1; i++)
-    {
-        if (participating_kinds[i] + 1 != participating_kinds[i+1])
-            return false;
-    }
-    return true;
-}
 
 void Force::add_potential
 (
@@ -330,7 +241,7 @@ void Force::add_potential
     const std::vector<int>& cpu_type_size
 )
 {
-    int m = num_of_potentials-1;
+    int m = num_of_potentials - 1; // current potential ID
     initialize_potential
     (
         input_dir,
@@ -358,7 +269,6 @@ void Force::add_potential
         }
     }
     type_shift_[m] = atom_begin[m];
-    participating_kinds.clear(); // reset after every definition
 }
 
 

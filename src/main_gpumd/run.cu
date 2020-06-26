@@ -88,8 +88,6 @@ void Run::execute_run_in(char* input_dir)
     int num_param;
     char *param[max_num_param];
 
-    force.initialize_participation_and_shift(number_of_types);
-
     print_line_1();
     printf("Started executing the commands in run.in.\n");
     print_line_2();
@@ -135,7 +133,6 @@ void Run::execute_run_in(char* input_dir)
 
         if (is_run)
         {
-            force.valdiate_potential_definitions();
             bool compute_hnemd = measure.hnemd.compute ||
             (
                 measure.modal_analysis.compute &&

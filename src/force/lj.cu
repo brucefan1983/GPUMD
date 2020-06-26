@@ -25,11 +25,7 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 #define BLOCK_SIZE_FORCE 128
 
 
-LJ::LJ
-(
-    FILE *fid, int num_types,
-    const std::vector<int> participating_kinds, int type_range
-)
+LJ::LJ(FILE *fid, int num_types)
 {
     printf("Use %d-element LJ potential.\n", num_types);
     if (!(num_types >= 1 && num_types <= MAX_TYPE))
@@ -39,50 +35,27 @@ LJ::LJ
 
     double epsilon, sigma, cutoff;
     rc = 0.0;
-    for (int n = 0; n < type_range; n++)
+    for (int n = 0; n < num_types; n++)
     {
-        for (int m = 0; m < type_range; m++)
+        for (int m = 0; m < num_types; m++)
         {
-            if (pair_participating(n,m,participating_kinds))
-            {
-                int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
-                PRINT_SCANF_ERROR(count, 3, "Reading error for LJ potential.");
+            int count = fscanf(fid, "%lf%lf%lf", &epsilon, &sigma, &cutoff);
+            PRINT_SCANF_ERROR(count, 3, "Reading error for LJ potential.");
 
-                lj_para.s6e4[n][m]   = pow(sigma, 6.0)  * epsilon * 4.0;
-                lj_para.s12e4[n][m]  = pow(sigma, 12.0) * epsilon * 4.0;
-                lj_para.cutoff_square[n][m] = cutoff * cutoff;
-                if (rc < cutoff) rc = cutoff;
-            }
-            else // pair not participating, but must still be defined
-            {
-                lj_para.s6e4[n][m]   = 1.0;
-                lj_para.s12e4[n][m]  = 1.0;
-                lj_para.cutoff_square[n][m] = 0.0;
-            }
+            lj_para.s6e4[n][m]   = pow(sigma, 6.0)  * epsilon * 4.0;
+            lj_para.s12e4[n][m]  = pow(sigma, 12.0) * epsilon * 4.0;
+            lj_para.cutoff_square[n][m] = cutoff * cutoff;
+            if (rc < cutoff) rc = cutoff;
         }
     }
 }
+
 
 LJ::~LJ(void)
 {
     // nothing
 }
 
-bool LJ::pair_participating
-(
-    int n, int m, const std::vector<int> participating_kinds
-)
-{
-    bool m_part = false;
-    bool n_part = false;
-    for (int i = 0; i < (int)participating_kinds.size(); i++)
-    {
-        if (participating_kinds[i] == m) m_part = true;
-        if (participating_kinds[i] == n) n_part = true;
-        if (m_part && n_part) return true; // early exit
-    }
-    return false;
-}
 
 // get U_ij and (d U_ij / d r_ij) / r_ij (the LJ potential)
 static __device__ void find_p2_and_f2
@@ -93,6 +66,7 @@ static __device__ void find_p2_and_f2
     f2 = 6.0 * (s6e4 * d12inv6 - s12e4 * 2.0 * d12inv6 * d12inv6) * d12inv2;
     p2 = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;
 }
+
 
 // force evaluation kernel
 static __global__ void gpu_find_force
@@ -244,5 +218,4 @@ void LJ::compute
     );
     CUDA_CHECK_KERNEL
 }
-
 
