@@ -51,40 +51,54 @@ Force::Force(void)
 void Force::parse_potential(char **param, int num_param)
 {
     // check for at least the file path
-    if (num_param < 3)
+    if (num_param < 2)
     {
-        PRINT_INPUT_ERROR("potential should have at least 2 parameters.\n");
+        PRINT_INPUT_ERROR("potential should have at least 1 parameter.\n");
     }
     strcpy(file_potential[num_of_potentials], param[1]);
 
-    //open file to check number of types used in potential
+    // open file to check number of types used in potential
     char potential_name[20];
     FILE *fid_potential = my_fopen(file_potential[num_of_potentials], "r");
     int count = fscanf(fid_potential, "%s", potential_name);
     int num_types = get_number_of_types(fid_potential);
     fclose(fid_potential);
 
-    if (num_param != num_types + 2)
+    if (strcmp(potential_name, "lj") == 0) 
     {
-        PRINT_INPUT_ERROR("potential has incorrect number of types/groups defined.\n");
-    }
-
-    participating_kinds.resize(num_types);
-
-    for (int i = 0; i < num_types; i++)
-    {
-        if(!is_valid_int(param[i+2], &participating_kinds[i]))
+        is_lj[num_of_potentials] = true; 
+        if (num_param == 3)
         {
-            PRINT_INPUT_ERROR("type/groups should be an integer.\n");
+            if(!is_valid_int(param[2], &group_method))
+            {
+                PRINT_INPUT_ERROR("Group method for LJ potential should be an integer.\n");
+            }
         }
-        if (i != 0 && participating_kinds[i] < participating_kinds[i-1])
+    }
+    else
+    {
+        if (num_param != num_types + 2)
         {
-            PRINT_INPUT_ERROR("potential types/groups must be listed in "
+            PRINT_INPUT_ERROR("potential has incorrect number of types/groups defined.\n");
+        }
+
+        participating_kinds.resize(num_types);
+
+        for (int i = 0; i < num_types; i++)
+        {
+            if(!is_valid_int(param[i + 2], &participating_kinds[i]))
+            {
+                PRINT_INPUT_ERROR("type/groups should be an integer.\n");
+            }
+            if (i != 0 && participating_kinds[i] < participating_kinds[i - 1])
+            {
+                PRINT_INPUT_ERROR("potential types/groups must be listed in "
                     "ascending order.\n");
+            }
         }
+        atom_begin[num_of_potentials] = participating_kinds[0];
+        atom_end[num_of_potentials] = participating_kinds[num_types - 1];
     }
-    atom_begin[num_of_potentials] = participating_kinds[0];
-    atom_end[num_of_potentials] = participating_kinds[num_types-1];
 
     num_of_potentials++;
 }
