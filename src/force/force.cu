@@ -79,6 +79,7 @@ void Force::parse_potential(char **param, int num_param)
     }
     else
     {
+        is_lj[num_of_potentials] = false;
         if (num_param != num_types + 2)
         {
             PRINT_INPUT_ERROR("potential has incorrect number of types defined.\n");
@@ -256,6 +257,8 @@ void Force::add_potential
 // Construct the local neighbor list from the global one (Kernel)
 static __global__ void gpu_find_neighbor_local
 (
+    const bool use_group, 
+    int* group_label,
     Box box, int type_begin, int type_end, int *type,
     int N, int N1, int N2, double cutoff_square, 
     int *NN, int *NL, int *NN_local, int *NL_local,
@@ -266,17 +269,23 @@ static __global__ void gpu_find_neighbor_local
 {
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
+    int layer_n1;
 
     if (n1 >= N1 && n1 < N2)
     {  
         int neighbor_number = NN[n1];
-
+        if (use_group) layer_n1 = group_label[n1];
         double x1 = x[n1];
         double y1 = y[n1];
         double z1 = z[n1];
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = NL[n1 + N * i1];
+
+            if (use_group) 
+            {
+                if (layer_n1 == group_label[n2]) continue;
+            }
 
             // only include neighbors with the correct types
             int type_n2 = type[n2];
@@ -312,8 +321,14 @@ void Force::find_neighbor_local
     const int number_of_atoms = neighbor.NN.size();
     int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / 128 + 1;
 
+    const bool use_group = is_lj[m] && (group_method > -1);
+    int* group_label = nullptr;
+    if (use_group) group_label = group[group_method].label.data();
+
     gpu_find_neighbor_local<<<grid_size, 128>>>
     (
+        use_group,
+        group_label,
         box,
         atom_begin[m],
         atom_end[m],
@@ -331,7 +346,6 @@ void Force::find_neighbor_local
         position_per_atom.data() + number_of_atoms * 2
     );
     CUDA_CHECK_KERNEL
-
 }
 
 
