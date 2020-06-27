@@ -49,7 +49,5 @@ public:
 
 protected:
     LJ_Para  lj_para;
-    bool pair_participating(int, int, const std::vector<int>);
 };
-
 
