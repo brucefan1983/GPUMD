@@ -32,14 +32,23 @@ class Force
 public:
 
     Force(void);
-    void parse_potential_definition(char**, int);
-    void parse_potential(char**, int);
+
+    void parse_potential
+    (
+        char **param, 
+        int num_param,
+        char* input_dir,
+        const Box& box,
+        const Neighbor& neighbor,
+        const std::vector<int>& cpu_type,
+        const std::vector<int>& cpu_type_size
+    );
+
     void add_potential
     (
         char* input_dir,
         const Box& box,
         const Neighbor& neighbor,
-        const std::vector<Group>& group,
         const std::vector<int>& cpu_type,
         const std::vector<int>& cpu_type_size
     );
@@ -57,38 +66,27 @@ public:
     );
 
     int get_number_of_types(FILE *fid_potential);
-    void valdiate_potential_definitions(void);
-    void initialize_participation_and_shift
-    (
-        const std::vector<Group>& group_vector,
-        const int umber_of_types
-    );
     void set_hnemd_parameters(const bool, const double, const double, const double);
 
     int num_of_potentials;
-    std::vector<int> participating_kinds;
     double rc_max;
     int atom_begin[MAX_NUM_OF_POTENTIALS];
     int atom_end[MAX_NUM_OF_POTENTIALS];
+    bool is_lj[MAX_NUM_OF_POTENTIALS];
     char file_potential[MAX_NUM_OF_POTENTIALS][200];
-    std::vector<int> potential_participation;
-    std::vector<int> manybody_participation;
     int group_method;
-    int num_kind;
-	
     bool compute_hnemd_ = false;
     double hnemd_fe_[3];
 
 private:
 
-    std::vector<int> type_shift_; // shift to correct type in force eval
+    int type_shift_[MAX_NUM_OF_POTENTIALS]; // shift to correct type in force eval
 
     void initialize_potential
     (
         char* input_dir,
         const Box& box,
         const Neighbor& neighbor,
-        const std::vector<Group>& group,
         const std::vector<int>& cpu_type_size,
         const int m
     );
@@ -102,9 +100,6 @@ private:
         const Box& box,
         Neighbor& neighbor
     );
-
-    bool kind_is_participating(int, int);
-    bool kinds_are_contiguous(void);
 
     std::unique_ptr<Potential> potential[MAX_NUM_OF_POTENTIALS];
 };

@@ -95,35 +95,12 @@ void Phonon::compute
     const int max_num_param = 10; // never use more than 9 parameters
     int num_param;
     char *param[max_num_param];
-	
-    force->initialize_participation_and_shift(group, number_of_types);
-	
+
     while (input_ptr)
     {
-        is_potential_definition = false;
-        is_potential = false;
-		
         input_ptr = row_find_param(input_ptr, param, &num_param);
         if (num_param == 0) { continue; } 
-        parse(param, num_param, force, hessian);
-		
-        if (is_potential_definition)
-        {
-            force->initialize_participation_and_shift(group, number_of_types);
-        }
-		
-        if (is_potential)
-        {
-            force->add_potential
-            (
-                input_dir,
-                box,
-                neighbor,
-                group,
-                cpu_type,
-                cpu_type_size
-            );
-        }
+        parse(param, num_param, force, hessian, input_dir);
     }
     free(input); // Free the input file contents
 
@@ -147,18 +124,22 @@ void Phonon::compute
 void Phonon::parse
 (
     char **param, int num_param,
-    Force *force, Hessian* hessian
+    Force *force, Hessian* hessian, 
+    char* input_dir
 )
 {
-    if (strcmp(param[0], "potential_definition") == 0)
-    {
-        is_potential_definition = true;
-        force->parse_potential_definition(param, num_param);
-    }
     if (strcmp(param[0], "potential") == 0)
     {
-        is_potential = true;
-        force->parse_potential(param, num_param);
+        force->parse_potential
+        (
+            param, 
+            num_param,
+            input_dir,
+            box,
+            neighbor,
+            cpu_type,
+            cpu_type_size
+        );
     }
     else if (strcmp(param[0], "cutoff") == 0)
     {
@@ -173,5 +154,4 @@ void Phonon::parse
         PRINT_INPUT_ERROR("Invalid keyword.\n");
     }
 }
-
 

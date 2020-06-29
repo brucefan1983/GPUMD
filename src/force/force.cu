@@ -47,109 +47,85 @@ Force::Force(void)
 }
 
 
-void Force::parse_potential_definition(char **param, int num_param)
-{
-    // 'potential_definition' must be called before all 'potential' keywords
-    if (num_of_potentials > 0)
-    {
-        PRINT_INPUT_ERROR("potential_definition must be called before all "
-                "potential keywords.\n");
-    }
-
-    if (num_param != 2 && num_param != 3)
-    {
-        PRINT_INPUT_ERROR("potential_definition should have only 1 or 2 "
-                "parameters.\n");
-    }
-    if (num_param == 2)
-    {
-        //default is to use type, check for deviations
-        if(strcmp(param[1], "group") == 0)
-        {
-            PRINT_INPUT_ERROR("potential_definition must have "
-                    "group_method listed.\n");
-        }
-        else if(strcmp(param[1], "type") != 0)
-        {
-            PRINT_INPUT_ERROR("potential_definition only accepts "
-                    "'type' or 'group' kind.\n");
-        }
-    }
-    if (num_param == 3)
-    {
-        if(strcmp(param[1], "group") != 0)
-        {
-            PRINT_INPUT_ERROR("potential_definition: kind must be 'group' if 2 "
-                    "parameters are used.\n");
-
-        }
-        else if (!is_valid_int(param[2], &group_method))
-        {
-            PRINT_INPUT_ERROR("potential_definition: group_method should be an "
-                    "integer.\n");
-        }
-    }
-}
-
-
-// a potential
-void Force::parse_potential(char **param, int num_param)
+void Force::parse_potential
+(
+    char **param, 
+    int num_param,
+    char* input_dir,
+    const Box& box,
+    const Neighbor& neighbor,
+    const std::vector<int>& cpu_type,
+    const std::vector<int>& cpu_type_size
+)
 {
     // check for at least the file path
-    if (num_param < 3)
+    if (num_param < 2)
     {
-        PRINT_INPUT_ERROR("potential should have at least 2 parameters.\n");
+        PRINT_INPUT_ERROR("potential should have at least 1 parameter.\n");
     }
     strcpy(file_potential[num_of_potentials], param[1]);
 
-    //open file to check number of types used in potential
+    // open file to check number of types used in potential
     char potential_name[20];
     FILE *fid_potential = my_fopen(file_potential[num_of_potentials], "r");
     int count = fscanf(fid_potential, "%s", potential_name);
+    PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
     int num_types = get_number_of_types(fid_potential);
     fclose(fid_potential);
 
-    if (num_param != num_types + 2)
+    if (strcmp(potential_name, "lj") == 0) 
     {
-        PRINT_INPUT_ERROR("potential has incorrect number of types/groups defined.\n");
+        is_lj[num_of_potentials] = true; 
+        if (num_param == 3)
+        {
+            if(!is_valid_int(param[2], &group_method))
+            {
+                PRINT_INPUT_ERROR("Group method for LJ potential should be an integer.\n");
+            }
+        }
+        atom_begin[num_of_potentials] = 0;
+        atom_end[num_of_potentials] = num_types - 1;
     }
-
-    participating_kinds.resize(num_types);
-
-    for (int i = 0; i < num_types; i++)
+    else
     {
-        if(!is_valid_int(param[i+2], &participating_kinds[i]))
+        is_lj[num_of_potentials] = false;
+        if (num_param != num_types + 2)
         {
-            PRINT_INPUT_ERROR("type/groups should be an integer.\n");
+            PRINT_INPUT_ERROR("potential has incorrect number of types defined.\n");
         }
-        if (i != 0 && participating_kinds[i] < participating_kinds[i-1])
+
+        std::vector<int> atom_type(num_types);
+
+        for (int i = 0; i < num_types; i++)
         {
-            PRINT_INPUT_ERROR("potential types/groups must be listed in "
-                    "ascending order.\n");
+            if(!is_valid_int(param[i + 2], &atom_type[i]))
+            {
+                PRINT_INPUT_ERROR("type should be an integer.\n");
+            }
+            if (i != 0 && atom_type[i] < atom_type[i - 1])
+            {
+                PRINT_INPUT_ERROR("potential types must be in ascending order.\n");
+            }
+        }
+        atom_begin[num_of_potentials] = atom_type[0];
+        atom_end[num_of_potentials] = atom_type[num_types - 1];
+
+        if (atom_type[num_types - 1] - atom_type[0] + 1 > num_types)
+        {
+            PRINT_INPUT_ERROR("Error: types for one potential must be contiguous.\n");
         }
     }
-    atom_begin[num_of_potentials] = participating_kinds[0];
-    atom_end[num_of_potentials] = participating_kinds[num_types-1];
 
     num_of_potentials++;
-}
 
-
-void Force::initialize_participation_and_shift
-(
-    const std::vector<Group>& group_vector,
-    const int number_of_types
-)
-{
-    if (group_method > -1)
-        num_kind = group_vector[group_method].number;
-    else
-        num_kind = number_of_types;
-
-    // initialize bookkeeping data structures
-    manybody_participation.resize(num_kind, 0);
-    potential_participation.resize(num_kind, 0);
-    type_shift_.resize(MAX_NUM_OF_POTENTIALS, 0);
+    add_potential
+    (
+        input_dir,
+        box,
+        neighbor,
+        cpu_type,
+        cpu_type_size
+    );
 }
 
 	
@@ -158,27 +134,15 @@ int Force::get_number_of_types(FILE *fid_potential)
     int num_of_types;
     int count = fscanf(fid_potential, "%d", &num_of_types);
     PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
-
     return num_of_types;
 }
 
-void Force::valdiate_potential_definitions()
-{
-    for (int i = 0; i < num_kind; i++)
-    {
-        if (potential_participation[i] == 0)
-        {
-            PRINT_INPUT_ERROR("All atoms must participate in at least one potential.");
-        }
-    }
-}
 
 void Force::initialize_potential
 (
     char* input_dir,
     const Box& box,
     const Neighbor& neighbor,
-    const std::vector<Group>& group,
     const std::vector<int>& cpu_type_size,
     const int m
 )
@@ -193,7 +157,7 @@ void Force::initialize_potential
     }
 
     int num_types = get_number_of_types(fid_potential);
-    int potential_type = 0; // 0 - manybody, 1 - two-body
+
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
@@ -237,143 +201,57 @@ void Force::initialize_potential
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
-        potential[m] = std::make_unique<LJ>(fid_potential, num_types,
-                participating_kinds, atom_end[m]-atom_begin[m]+1);
-        potential_type = 1;
+        potential[m] = std::make_unique<LJ>(fid_potential, num_types);
     }
     else if (strcmp(potential_name, "ri") == 0)
     {
-        if (!kinds_are_contiguous()) // special case for RI
-        {
-            PRINT_INPUT_ERROR("Defined types/groups for RI potential must be contiguous and ascending.\n");
-        }
         potential[m] = std::make_unique<RI>(fid_potential);
-        potential_type = 1;
     }
     else
     {
         PRINT_INPUT_ERROR("illegal potential model.\n");
     }
 
-    if (potential_type == 0)
-    {
-        if (atom_end[m] - atom_begin[m] + 1 > num_types)
-        {
-            PRINT_INPUT_ERROR("Error: types/groups must be listed contiguously.\n");
-        }
-    }
-
-    // check if manybody has sequential types (don't care for two-body)
-    if (potential_type == 0 && !kinds_are_contiguous())
-    {
-        PRINT_INPUT_ERROR("Defined types/groups for manybody potentials must be contiguous and ascending.\n");
-    }
-
     potential[m]->N1 = 0;
     potential[m]->N2 = 0;
 
-    if (group_method > -1)
+    for (int n = 0; n < atom_begin[m]; ++n)
     {
-        for (int n = 0; n < atom_begin[m]; ++n)
-        {
-            potential[m]->N1 += group[group_method].cpu_size[n];
-        }
-        for (int n = 0; n <= atom_end[m]; ++n)
-        {
-            potential[m]->N2 += group[group_method].cpu_size[n];
-        }
+        potential[m]->N1 += cpu_type_size[n];
     }
-    else
+    for (int n = 0; n <= atom_end[m]; ++n)
     {
-        for (int n = 0; n < atom_begin[m]; ++n)
-        {
-            potential[m]->N1 += cpu_type_size[n];
-        }
-        for (int n = 0; n <= atom_end[m]; ++n)
-        {
-            potential[m]->N2 += cpu_type_size[n];
-        }
+        potential[m]->N2 += cpu_type_size[n];
     }
 
-    // definition bookkeeping
-    for (int n1 = atom_begin[m]; n1 < atom_end[m]+1; n1++)
-    {
-
-        if (potential_type == 0 && manybody_participation[n1])
-        {
-            PRINT_INPUT_ERROR("Only a single many-body potential definition is allowed per atom type/group.");
-        }
-
-        if (potential_type == 0)
-        {
-            manybody_participation[n1] = 1;
-            potential_participation[n1]++;
-        }
-        else
-        {
-            if (kind_is_participating(n1, m))
-                potential_participation[n1]++;
-        }
-    }
-
-    if (group_method > -1)
-    {
-        printf
-        (
-            "    applies to participating atoms [%d, %d) from group %d to "
-            "group %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
-            atom_end[m]
-        );
-    }
-    else
-    {
-        printf
-        (
-            "    applies to participating atoms [%d, %d) from type %d to "
-            "type %d.\n", potential[m]->N1, potential[m]->N2, atom_begin[m],
-            atom_end[m]
-        );
-    }
+    printf
+    (
+        "    applies to atoms [%d, %d) from type %d to type %d.\n", 
+        potential[m]->N1, 
+        potential[m]->N2, 
+        atom_begin[m],
+        atom_end[m]
+    );
 
     fclose(fid_potential);
 }
 
-bool Force::kind_is_participating(int kind, int pot_idx)
-{
-    for (int i = 0; i < (int)participating_kinds.size(); i++)
-    {
-        if(kind == participating_kinds[i]) return true;
-    }
-    return false;
-}
-
-bool Force::kinds_are_contiguous()
-{
-    for (int i = 0; i < (int)participating_kinds.size()-1; i++)
-    {
-        if (participating_kinds[i] + 1 != participating_kinds[i+1])
-            return false;
-    }
-    return true;
-}
 
 void Force::add_potential
 (
     char* input_dir,
     const Box& box,
     const Neighbor& neighbor,
-    const std::vector<Group>& group,
     const std::vector<int>& cpu_type,
     const std::vector<int>& cpu_type_size
 )
 {
-    int m = num_of_potentials-1;
+    int m = num_of_potentials - 1; // current potential ID
     initialize_potential
     (
         input_dir,
         box,
         neighbor,
-        group,
         cpu_type_size,
         m
     );
@@ -383,11 +261,7 @@ void Force::add_potential
     // check the atom types in xyz.in
     for (int n = potential[m]->N1; n < potential[m]->N2; ++n)
     {
-        int kind;
-        if (group_method > -1) kind = group[group_method].cpu_label[n];
-        else kind = cpu_type[n];
-
-        if (kind < atom_begin[m] || kind > atom_end[m])
+        if (cpu_type[n] < atom_begin[m] || cpu_type[n] > atom_end[m])
         {
             printf("ERROR: type for potential # %d not from %d to %d.",
                 m, atom_begin[m], atom_end[m]);
@@ -395,13 +269,14 @@ void Force::add_potential
         }
     }
     type_shift_[m] = atom_begin[m];
-    participating_kinds.clear(); // reset after every definition
 }
 
 
 // Construct the local neighbor list from the global one (Kernel)
 static __global__ void gpu_find_neighbor_local
 (
+    const bool use_group, 
+    int* group_label,
     Box box, int type_begin, int type_end, int *type,
     int N, int N1, int N2, double cutoff_square, 
     int *NN, int *NL, int *NN_local, int *NL_local,
@@ -410,20 +285,25 @@ static __global__ void gpu_find_neighbor_local
     const double* __restrict__ z
 )
 {
-    //<<<(N - 1) / BLOCK_SIZE + 1, BLOCK_SIZE>>>
     int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
     int count = 0;
+    int layer_n1;
 
     if (n1 >= N1 && n1 < N2)
     {  
         int neighbor_number = NN[n1];
-
+        if (use_group) layer_n1 = group_label[n1];
         double x1 = x[n1];
         double y1 = y[n1];
         double z1 = z[n1];
         for (int i1 = 0; i1 < neighbor_number; ++i1)
         {   
             int n2 = NL[n1 + N * i1];
+
+            if (use_group) 
+            {
+                if (layer_n1 == group_label[n2]) continue;
+            }
 
             // only include neighbors with the correct types
             int type_n2 = type[n2];
@@ -457,17 +337,20 @@ void Force::find_neighbor_local
 )
 {
     const int number_of_atoms = neighbor.NN.size();
-    int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / BLOCK_SIZE + 1;
+    int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / 128 + 1;
 
-    int *type = (group_method >= 0) ? group[group_method].label.data()
-                                    : atom_type.data();
+    const bool use_group = is_lj[m] && (group_method > -1);
+    int* group_label = nullptr;
+    if (use_group) group_label = group[group_method].label.data();
 
-    gpu_find_neighbor_local<<<grid_size, BLOCK_SIZE>>>
+    gpu_find_neighbor_local<<<grid_size, 128>>>
     (
+        use_group,
+        group_label,
         box,
         atom_begin[m],
         atom_end[m],
-        type,
+        atom_type.data(),
         number_of_atoms,
         potential[m]->N1,
         potential[m]->N2,
@@ -481,7 +364,6 @@ void Force::find_neighbor_local
         position_per_atom.data() + number_of_atoms * 2
     );
     CUDA_CHECK_KERNEL
-
 }
 
 

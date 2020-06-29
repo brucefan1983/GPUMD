@@ -30,6 +30,12 @@ fc shc.out shc.out1
 del thermo.out kappa.out shc.out
 cd ..\..
 
+cd gpumd\multiple_potentials
+..\..\..\src\gpumd < input.txt
+fc thermo.out thermo.out1
+del thermo.out 
+cd ..\..
+
 cd phonon\silicon_dispersion
 ..\..\..\src\phonon < input.txt
 fc D.out D.out1
