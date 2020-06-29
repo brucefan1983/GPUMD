@@ -1,0 +1,3 @@
+rebo_mos2 2
+# Nothing here, because this is a special potential model and 
+# the parameters are thus hard coded
