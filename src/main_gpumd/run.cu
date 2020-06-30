@@ -20,6 +20,7 @@ Run simulation according to the inputs in the run.in file.
 
 
 #include "run.cuh"
+#include "minimize/minimize.cuh"
 #include "velocity.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
@@ -246,6 +247,24 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
             neighbor,
             cpu_type,
             cpu_type_size
+        );
+    }
+    else if (strcmp(param[0], "minimize") == 0)
+    {
+        Minimize minimize;
+        minimize.parse_minimize
+        (
+            param, 
+            num_param,
+            force,
+            box,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom
         );
     }
     else if (strcmp(param[0], "velocity") == 0)
