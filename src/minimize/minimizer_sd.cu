@@ -31,7 +31,7 @@ namespace
 
 __global__ void update_positions
 (
-    const int number_of_atoms,
+    const int size,
     const double position_step,
     const double* force_per_atom,
     const double* position_per_atom,
@@ -39,7 +39,7 @@ __global__ void update_positions
 )
 {
     const int n = blockIdx.x * blockDim.x + threadIdx.x;
-    if (n < number_of_atoms) 
+    if (n < size) 
     {
         const double position_change = force_per_atom[n] * position_step;
         position_per_atom_temp[n] = position_per_atom[n] + position_change;
@@ -63,8 +63,6 @@ void Minimizer_SD::compute
     GPU_Vector<double>& virial_per_atom
 )
 {
-    const int number_of_atoms = type.size();
-
     force.compute
     (
         box,
@@ -77,17 +75,19 @@ void Minimizer_SD::compute
         virial_per_atom
     );
 
+    int number_of_force_evaluations = 1;
     double position_step = 0.1;
 
-    for (int n = 0; n < number_of_steps_; ++n)
+    for (int step = 0; step < number_of_steps_; ++step)
     {
         calculate_force_square_sum(force_per_atom);
 
         if (cpu_force_square_sum_[0] < force_tolerance_square_) break;
 
-        update_positions<<<(number_of_atoms_ - 1) / 128 + 1 , 128>>>
+        const int size = number_of_atoms_ * 3;
+        update_positions<<<(size - 1) / 128 + 1 , 128>>>
         (
-            number_of_atoms_,
+            size,
             position_step,
             force_per_atom.data(),
             position_per_atom.data(),
@@ -106,6 +106,8 @@ void Minimizer_SD::compute
             virial_per_atom
         );
 
+        ++number_of_force_evaluations;
+
         calculate_potential_difference(potential_per_atom);
 
         if (cpu_potential_difference_[0] > 0.0) 
@@ -120,5 +122,10 @@ void Minimizer_SD::compute
             position_step *= increasing_factor;
         }
     }
+
+    printf("Minimization completed.\n");
+    printf("    with %d force evaluations.\n", number_of_force_evaluations);
+    const double force_2norm = sqrt(cpu_force_square_sum_[0]);
+    printf("    and final force 2-norm of %g eV/A.\n", force_2norm);
 }
 
