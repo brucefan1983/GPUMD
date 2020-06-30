@@ -67,13 +67,13 @@ void Minimize::parse_minimize
             PRINT_INPUT_ERROR("Force tolerance should > 0.");
         }
 
-        if (!is_valid_int(param[2], &number_of_steps))
+        if (!is_valid_int(param[3], &number_of_steps))
         {
-            PRINT_INPUT_ERROR("Force tolerance should be a number.");
+            PRINT_INPUT_ERROR("Number of steps should be an integer.");
         }
-        if (number_of_steps <= 0.0)
+        if (number_of_steps <= 0)
         {
-            PRINT_INPUT_ERROR("Force tolerance should > 0.");
+            PRINT_INPUT_ERROR("Number of steps should > 0.");
         }
     }
     else
