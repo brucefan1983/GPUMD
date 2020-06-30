@@ -24,6 +24,7 @@ The driver class for minimizers.
 #include "force/force.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include <memory>
 
 
 void Minimize::parse_minimize

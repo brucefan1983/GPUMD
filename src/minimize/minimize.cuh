@@ -15,9 +15,12 @@
 
 
 #pragma once
-
-#include "minimizer.cuh"
-#include <memory>
+#include "utilities/gpu_vector.cuh"
+#include <vector>
+class Force;
+class Box;
+class Neighbor;
+class Group;
 
 
 class Minimize 
