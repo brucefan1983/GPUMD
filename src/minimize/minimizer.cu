@@ -28,14 +28,13 @@ namespace
 
 __global__ void gpu_calculate_potential_difference
 (
-    const int number_of_atoms,
+    const int size,
+    const int number_of_rounds,
     const double* potential_per_atom,
     const double* potential_per_atom_temp,
     double* potential_difference
 )
 {
-    const int number_of_rounds = (number_of_atoms - 1) / 1024 + 1;
-
     __shared__ double s_diff[1024];
     s_diff[threadIdx.x] = 0.0;
 
@@ -44,7 +43,7 @@ __global__ void gpu_calculate_potential_difference
     for (int round = 0; round < number_of_rounds; ++round)
     {
         const int n = threadIdx.x + round * 1024;
-        if (n < number_of_atoms) 
+        if (n < size) 
         {
             diff += potential_per_atom_temp[n] - potential_per_atom[n];
         }
@@ -71,14 +70,13 @@ __global__ void gpu_calculate_potential_difference
 
 __global__ void gpu_calculate_force_square_sum
 (
-    const int number_of_atoms,
+    const int size,
+    const int number_of_rounds,
     const double* force_per_atom,
     double* force_square_sum
 )
 {
-    const int number_of_rounds = (number_of_atoms - 1) / 1024 + 1;
-
-    __shared__ double s_force_square[128];
+    __shared__ double s_force_square[1024];
     s_force_square[threadIdx.x] = 0.0;
 
     double force_square = 0.0f;
@@ -86,7 +84,7 @@ __global__ void gpu_calculate_force_square_sum
     for (int round = 0; round < number_of_rounds; ++round)
     {
         const int n = threadIdx.x + round * 1024;
-        if (n < number_of_atoms) 
+        if (n < size) 
         {
             const double f = force_per_atom[n];
             force_square += f * f;
@@ -121,9 +119,11 @@ void Minimizer::calculate_potential_difference
 )
 {
     const int size = potential_per_atom.size();
-    gpu_calculate_potential_difference<<<(size - 1) / 128 + 1 , 128>>>
+    const int number_of_rounds = (size - 1) / 1024 + 1;
+    gpu_calculate_potential_difference<<<1 , 1024>>>
     (
         size,
+        number_of_rounds,
         potential_per_atom.data(),
         potential_per_atom_temp_.data(),
         potential_difference_.data()
@@ -139,9 +139,11 @@ void Minimizer::calculate_force_square_sum
 )
 {
     const int size = force_per_atom.size();
-    gpu_calculate_force_square_sum<<<(size - 1) / 128 + 1, 128>>>
+    const int number_of_rounds = (size - 1) / 1024 + 1;
+    gpu_calculate_force_square_sum<<<1, 1024>>>
     (
         size,
+        number_of_rounds,
         force_per_atom.data(),
         force_square_sum_.data()
     );

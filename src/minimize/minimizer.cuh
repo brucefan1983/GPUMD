@@ -33,7 +33,8 @@ public:
         const double force_tolerance, 
         const int number_of_steps
     )
-    : force_tolerance_(force_tolerance)
+    : number_of_atoms_(number_of_atoms)
+    , force_tolerance_(force_tolerance)
     , number_of_steps_(number_of_steps)
     {
         force_tolerance_square_ = force_tolerance_ * force_tolerance_;
