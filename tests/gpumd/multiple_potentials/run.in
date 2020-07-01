@@ -10,4 +10,3 @@ time_step   0.1
 dump_thermo 10
 run         100
 
-minimize sd 0.01 1000

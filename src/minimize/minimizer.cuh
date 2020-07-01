@@ -30,23 +30,19 @@ public:
     Minimizer
     (
         const int number_of_atoms,
-        const double force_tolerance, 
         const int number_of_steps
     )
     : number_of_atoms_(number_of_atoms)
-    , force_tolerance_(force_tolerance)
     , number_of_steps_(number_of_steps)
     {
-        force_tolerance_square_ = force_tolerance_ * force_tolerance_;
-
         position_per_atom_temp_.resize(number_of_atoms * 3);
         potential_per_atom_temp_.resize(number_of_atoms);
         force_per_atom_temp_.resize(number_of_atoms * 3);
 
-        force_square_sum_.resize(1);
+        force_square_max_.resize(1);
         potential_difference_.resize(1);
 
-        cpu_force_square_sum_.resize(1);
+        cpu_force_square_max_.resize(1);
         cpu_potential_difference_.resize(1);
     }
      
@@ -72,22 +68,20 @@ protected:
         const GPU_Vector<double>& potential_per_atom
     );
 
-    void calculate_force_square_sum
+    void calculate_force_square_max
     (
         const GPU_Vector<double>& force_per_atom
     );
 
-    double force_tolerance_ = 1.0e-3;  
-    double force_tolerance_square_ = 1.0e-6;
     int number_of_steps_ = 1000;
     int number_of_atoms_ = 0;
     
     GPU_Vector<double> position_per_atom_temp_;
     GPU_Vector<double> potential_per_atom_temp_;
     GPU_Vector<double> force_per_atom_temp_;
-    GPU_Vector<double> force_square_sum_;
+    GPU_Vector<double> force_square_max_;
     GPU_Vector<double> potential_difference_;
-    std::vector<double> cpu_force_square_sum_;
+    std::vector<double> cpu_force_square_max_;
     std::vector<double> cpu_potential_difference_;
 };
 

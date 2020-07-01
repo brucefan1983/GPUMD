@@ -80,15 +80,14 @@ void Minimizer_SD::compute
 
     for (int step = 0; step < number_of_steps_; ++step)
     {
-        calculate_force_square_sum(force_per_atom);
-        const double average_force = sqrt(cpu_force_square_sum_[0] / number_of_atoms_);
-        if (average_force < force_tolerance_) break;
+        calculate_force_square_max(force_per_atom);
+        const double force_max = sqrt(cpu_force_square_max_[0]);
 
         const int size = number_of_atoms_ * 3;
         update_positions<<<(size - 1) / 128 + 1 , 128>>>
         (
             size,
-            position_step / average_force,
+            position_step / force_max,
             force_per_atom.data(),
             position_per_atom.data(),
             position_per_atom_temp_.data()
@@ -110,8 +109,6 @@ void Minimizer_SD::compute
 
         calculate_potential_difference(potential_per_atom);
 
-        //printf("step %d, Fave = %g, dU = %g.\n", step, average_force, cpu_potential_difference_[0]);
-
         if (cpu_potential_difference_[0] > 0.0) 
         {
             position_step *= decreasing_factor;
@@ -123,11 +120,17 @@ void Minimizer_SD::compute
             potential_per_atom_temp_.copy_to_device(potential_per_atom.data());
             position_step *= increasing_factor;
         }
-    }
 
-    printf("Minimization completed.\n");
-    printf("    with %d force evaluations.\n", number_of_force_evaluations);
-    const double average_force = sqrt(cpu_force_square_sum_[0] / number_of_atoms_);
-    printf("    and final average force of %g eV/A.\n", average_force);
+        int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
+
+        if (step == 0)
+        {
+            printf("step 0: maximal force = %g eV/A.\n", force_max);
+        }
+        if ((step + 1) % base == 0)
+        { 
+            printf("step %d: maximal force = %g eV/A.\n", step + 1, force_max);
+        }
+    }
 }
 

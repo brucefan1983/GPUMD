@@ -68,44 +68,49 @@ __global__ void gpu_calculate_potential_difference
 }
 
 
-__global__ void gpu_calculate_force_square_sum
+__global__ void gpu_calculate_force_square_max
 (
     const int size,
     const int number_of_rounds,
     const double* force_per_atom,
-    double* force_square_sum
+    double* force_square_max
 )
 {
-    __shared__ double s_force_square[1024];
-    s_force_square[threadIdx.x] = 0.0;
+    const int tid = threadIdx.x;
 
-    double force_square = 0.0f;
+    __shared__ double s_force_square[1024];
+    s_force_square[tid] = 0.0;
+
+    double force_square = 0.0;
 
     for (int round = 0; round < number_of_rounds; ++round)
     {
-        const int n = threadIdx.x + round * 1024;
+        const int n = tid + round * 1024;
         if (n < size) 
         {
             const double f = force_per_atom[n];
-            force_square += f * f;
+            if (f * f > force_square) force_square = f * f;
         }
     }
 
-    s_force_square[threadIdx.x] = force_square;
+    s_force_square[tid] = force_square;
     __syncthreads();
 
     for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1)
     {
-        if (threadIdx.x < offset)
+        if (tid < offset)
         {
-            s_force_square[threadIdx.x] += s_force_square[threadIdx.x + offset];
+            if (s_force_square[tid + offset] > s_force_square[tid]) 
+            {
+                s_force_square[tid] = s_force_square[tid + offset];
+            }   
         }
         __syncthreads();
     }
 
-    if (threadIdx.x == 0)
+    if (tid == 0)
     {
-        force_square_sum[0] = s_force_square[0];
+        force_square_max[0] = s_force_square[0];
     }
 }
 
@@ -133,21 +138,21 @@ void Minimizer::calculate_potential_difference
 }
 
 
-void Minimizer::calculate_force_square_sum
+void Minimizer::calculate_force_square_max
 (
     const GPU_Vector<double>& force_per_atom
 )
 {
     const int size = force_per_atom.size();
     const int number_of_rounds = (size - 1) / 1024 + 1;
-    gpu_calculate_force_square_sum<<<1, 1024>>>
+    gpu_calculate_force_square_max<<<1, 1024>>>
     (
         size,
         number_of_rounds,
         force_per_atom.data(),
-        force_square_sum_.data()
+        force_square_max_.data()
     );
 
-    force_square_sum_.copy_to_host(cpu_force_square_sum_.data());
+    force_square_max_.copy_to_host(cpu_force_square_max_.data());
 }
 

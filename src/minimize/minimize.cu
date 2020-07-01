@@ -45,7 +45,6 @@ void Minimize::parse_minimize
     
     int minimizer_type = 0; 
     int number_of_steps = 0;
-    double force_tolerance = 0;
     std::unique_ptr<Minimizer> minimizer;
     const int number_of_atoms = type.size();
 
@@ -53,21 +52,12 @@ void Minimize::parse_minimize
     {
         minimizer_type = 0;
 
-        if (num_param != 4)
+        if (num_param != 3)
         {
-            PRINT_INPUT_ERROR("minimize sd should have 2 parameters.");
+            PRINT_INPUT_ERROR("minimize sd should have 1 parameter.");
         }
 
-        if (!is_valid_real(param[2], &force_tolerance))
-        {
-            PRINT_INPUT_ERROR("Force tolerance should be a number.");
-        }
-        if (force_tolerance <= 0.0)
-        {
-            PRINT_INPUT_ERROR("Force tolerance should > 0.");
-        }
-
-        if (!is_valid_int(param[3], &number_of_steps))
+        if (!is_valid_int(param[2], &number_of_steps))
         {
             PRINT_INPUT_ERROR("Number of steps should be an integer.");
         }
@@ -84,14 +74,15 @@ void Minimize::parse_minimize
     switch (minimizer_type)
     {
     case 0:
-        printf("Minimize using the steepest decent method.\n");
-        printf("    force tolerance is %g eV/A.\n", force_tolerance); 
-        printf("    maximum number of steps is %d.\n", number_of_steps);
+        printf
+        (
+            "\nMinimize for %d steps with steepest descent (fixed box).\n", 
+            number_of_steps
+        );
 
         minimizer = std::make_unique<Minimizer_SD>
         (
             number_of_atoms,
-            force_tolerance, 
             number_of_steps
         );
 
