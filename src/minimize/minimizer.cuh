@@ -30,10 +30,12 @@ public:
     Minimizer
     (
         const int number_of_atoms,
-        const int number_of_steps
+        const int number_of_steps,
+        const double force_tolerance
     )
     : number_of_atoms_(number_of_atoms)
     , number_of_steps_(number_of_steps)
+    , force_tolerance_(force_tolerance)
     {
         position_per_atom_temp_.resize(number_of_atoms * 3);
         potential_per_atom_temp_.resize(number_of_atoms);
@@ -75,6 +77,7 @@ protected:
 
     int number_of_steps_ = 1000;
     int number_of_atoms_ = 0;
+    double force_tolerance_ = 1.0e-6;
     
     GPU_Vector<double> position_per_atom_temp_;
     GPU_Vector<double> potential_per_atom_temp_;

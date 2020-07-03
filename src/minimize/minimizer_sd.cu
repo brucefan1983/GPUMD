@@ -83,6 +83,12 @@ void Minimizer_SD::compute
         calculate_force_square_max(force_per_atom);
         const double force_max = sqrt(cpu_force_square_max_[0]);
 
+        if (force_max < force_tolerance_)
+        {
+            printf("    step %d: f_max = %g eV/A.\n", step, force_max);
+            break;
+        }
+
         const int size = number_of_atoms_ * 3;
         update_positions<<<(size - 1) / 128 + 1 , 128>>>
         (
@@ -125,12 +131,14 @@ void Minimizer_SD::compute
 
         if (step == 0)
         {
-            printf("step 0: maximal force = %g eV/A.\n", force_max);
+            printf("    step 0: f_max = %g eV/A.\n", force_max);
         }
         if ((step + 1) % base == 0)
         { 
-            printf("step %d: maximal force = %g eV/A.\n", step + 1, force_max);
+            printf("    step %d: f_max = %g eV/A.\n", step + 1, force_max);
         }
     }
+
+    printf("Energy minimization finished.\n\n");
 }
 

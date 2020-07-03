@@ -25,9 +25,10 @@ public:
     Minimizer_SD
     (
         const int number_of_atoms,
-        const int number_of_steps
+        const int number_of_steps,
+        const double force_tolerance
     )
-    : Minimizer(number_of_atoms, number_of_steps)
+    : Minimizer(number_of_atoms, number_of_steps, force_tolerance)
     {
     }
 
