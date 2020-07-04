@@ -161,51 +161,51 @@ void Force::initialize_potential
     // determine the potential
     if (strcmp(potential_name, "tersoff_1989") == 0)
     {
-        potential[m] = std::make_unique<Tersoff1989>(fid_potential, num_types, neighbor);
+        potential[m].reset(new Tersoff1989(fid_potential, num_types, neighbor));
     }
     else if (strcmp(potential_name, "tersoff_1988") == 0)
     {
-        potential[m] = std::make_unique<Tersoff1988>(fid_potential, num_types, neighbor);
+        potential[m].reset(new Tersoff1988(fid_potential, num_types, neighbor));
     }
     else if (strcmp(potential_name, "tersoff_modc") == 0)
     {
-        potential[m] = std::make_unique<Tersoff_modc>(fid_potential, num_types, neighbor);
+        potential[m].reset(new Tersoff_modc(fid_potential, num_types, neighbor));
     }
     else if (strcmp(potential_name, "tersoff_mini") == 0)
     {
-        potential[m] = std::make_unique<Tersoff_mini>(fid_potential, num_types, neighbor);
+        potential[m].reset(new Tersoff_mini(fid_potential, num_types, neighbor));
     }
     else if (strcmp(potential_name, "sw_1985") == 0)
     {
-        potential[m] = std::make_unique<SW2>(fid_potential, num_types, neighbor);
+        potential[m].reset(new SW2(fid_potential, num_types, neighbor));
     }
     else if (strcmp(potential_name, "rebo_mos2") == 0)
     {
-        potential[m] = std::make_unique<REBO_MOS>(neighbor);
+        potential[m].reset(new REBO_MOS(neighbor));
     }
     else if (strcmp(potential_name, "eam_zhou_2004") == 0)
     {
-        potential[m] = std::make_unique<EAM>(fid_potential, potential_name, number_of_atoms);
+        potential[m].reset(new EAM(fid_potential, potential_name, number_of_atoms));
     }
     else if (strcmp(potential_name, "eam_dai_2006") == 0)
     {
-        potential[m] = std::make_unique<EAM>(fid_potential, potential_name, number_of_atoms);
+        potential[m].reset(new EAM(fid_potential, potential_name, number_of_atoms));
     }
     else if (strcmp(potential_name, "vashishta") == 0)
     {
-        potential[m] = std::make_unique<Vashishta>(fid_potential, neighbor);
+        potential[m].reset(new Vashishta(fid_potential, neighbor));
     }
     else if (strcmp(potential_name, "fcp") == 0)
     {
-        potential[m] = std::make_unique<FCP>(fid_potential, input_dir, number_of_atoms, box);
+        potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
     }
     else if (strcmp(potential_name, "lj") == 0)
     {
-        potential[m] = std::make_unique<LJ>(fid_potential, num_types);
+        potential[m].reset(new LJ(fid_potential, num_types));
     }
     else if (strcmp(potential_name, "ri") == 0)
     {
-        potential[m] = std::make_unique<RI>(fid_potential);
+        potential[m].reset(new RI(fid_potential));
     }
     else
     {

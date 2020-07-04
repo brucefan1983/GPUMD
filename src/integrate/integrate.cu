@@ -40,70 +40,98 @@ void Integrate::initialize
     switch (type)
     {
         case 0: // NVE
-            ensemble = std::make_unique<Ensemble_NVE>(type, fixed_group);
+            ensemble.reset(new Ensemble_NVE(type, fixed_group));
             break;
         case 1: // NVT-Berendsen
-            ensemble = std::make_unique<Ensemble_BER>
-            (type, fixed_group, temperature, temperature_coupling);
+            ensemble.reset
+            (
+                new Ensemble_BER
+                (
+                    type, fixed_group, temperature, temperature_coupling
+                )
+            );
             break;
         case 2: // NVT-NHC
-            ensemble = std::make_unique<Ensemble_NHC>
+            ensemble.reset
             (
-                type,
-                fixed_group,
-                number_of_atoms,
-                temperature,
-                temperature_coupling,
-                time_step
+                new Ensemble_NHC
+                (
+                    type,
+                    fixed_group,
+                    number_of_atoms,
+                    temperature,
+                    temperature_coupling,
+                    time_step
+                )
             );
             break;
         case 3: // NVT-Langevin
-            ensemble = std::make_unique<Ensemble_LAN>
+            ensemble.reset
             (
-                type,
-                fixed_group,
-                number_of_atoms,
-                temperature,
-                temperature_coupling
+                new Ensemble_LAN
+                (
+                    type,
+                    fixed_group,
+                    number_of_atoms,
+                    temperature,
+                    temperature_coupling
+                )
             );
             break;
         case 4: // NVT-BDP
-            ensemble = std::make_unique<Ensemble_BDP>
-            (type, fixed_group, temperature, temperature_coupling);
+            ensemble.reset
+            (
+                new Ensemble_BDP
+                (
+                    type, fixed_group, temperature, temperature_coupling
+                )
+            );
             break;
         case 11: // NPT-Berendsen
-            ensemble = std::make_unique<Ensemble_BER>
+            ensemble.reset
             (
-                type, fixed_group, temperature, temperature_coupling, 
-                pressure_x, pressure_y, pressure_z, pressure_coupling,
-                deform_x, deform_y, deform_z, deform_rate
+                new Ensemble_BER
+                (
+                    type, fixed_group, temperature, temperature_coupling, 
+                    pressure_x, pressure_y, pressure_z, pressure_coupling,
+                    deform_x, deform_y, deform_z, deform_rate
+                )
             );
             break;
         case 21: // heat-NHC
-            ensemble = std::make_unique<Ensemble_NHC>
+            ensemble.reset
             (
-                type, fixed_group, source, sink, 
-                group[0].cpu_size[source], group[0].cpu_size[sink],
-                temperature, temperature_coupling, delta_temperature, 
-                time_step
+                new Ensemble_NHC
+                (
+                    type, fixed_group, source, sink, 
+                    group[0].cpu_size[source], group[0].cpu_size[sink],
+                    temperature, temperature_coupling, delta_temperature, 
+                    time_step
+                )
             );
             break;
         case 22: // heat-Langevin
-            ensemble = std::make_unique<Ensemble_LAN>
+            ensemble.reset
             (
-                type, fixed_group, source, sink, 
-                group[0].cpu_size[source],
-                group[0].cpu_size[sink],
-                group[0].cpu_size_sum[source],
-                group[0].cpu_size_sum[sink],
-                temperature, temperature_coupling, delta_temperature
+                new Ensemble_LAN
+                (
+                    type, fixed_group, source, sink, 
+                    group[0].cpu_size[source],
+                    group[0].cpu_size[sink],
+                    group[0].cpu_size_sum[source],
+                    group[0].cpu_size_sum[sink],
+                    temperature, temperature_coupling, delta_temperature
+                )
             );
             break;
         case 23: // heat-BDP
-            ensemble = std::make_unique<Ensemble_BDP>
+            ensemble.reset
             (
-                type, fixed_group, source, sink, temperature, 
-                temperature_coupling, delta_temperature
+                new Ensemble_BDP
+                (
+                    type, fixed_group, source, sink, temperature, 
+                    temperature_coupling, delta_temperature
+                )
             );
             break;
         default: 

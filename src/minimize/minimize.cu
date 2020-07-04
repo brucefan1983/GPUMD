@@ -86,11 +86,14 @@ void Minimize::parse_minimize
         printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
         printf("    for maximally %d steps.\n", number_of_steps);
 
-        minimizer = std::make_unique<Minimizer_SD>
+        minimizer.reset
         (
-            number_of_atoms,
-            number_of_steps,
-            force_tolerance
+            new Minimizer_SD
+            (
+                number_of_atoms,
+                number_of_steps,
+                force_tolerance
+            )
         );
 
         minimizer->compute
