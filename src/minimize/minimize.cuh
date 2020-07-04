@@ -26,7 +26,7 @@ class Group;
 class Minimize 
 {
 public:
-    void Minimize::parse_minimize
+    void parse_minimize
     (
         char** param, 
         int num_param,
