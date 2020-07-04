@@ -1,4 +1,5 @@
 potential       ../../../potentials/tersoff/Si_Tersoff_1989.txt 0
+minimize        sd 1.0e-6 10000
 cutoff          4.0 # in units of A
 delta           0.005 # displacement in units of A
 
