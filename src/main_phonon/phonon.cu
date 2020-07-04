@@ -23,6 +23,7 @@ The driver class for phonon calculations
 #include "hessian.cuh"
 #include "model/read_xyz.cuh"
 #include "force/force.cuh"
+#include "minimize/minimize.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/error.cuh"
 #include <errno.h>
@@ -77,14 +78,15 @@ Phonon::Phonon(char* input_dir)
     Force force;
     Hessian hessian;
 
-    compute(input_dir, &force, &hessian);
+    compute(input_dir, force, hessian);
 }
 
 
 void Phonon::compute
 (
-    char* input_dir, Force* force,
-    Hessian* hessian
+    char* input_dir, 
+    Force& force,
+    Hessian& hessian
 )
 {
     char file_run[200];
@@ -104,7 +106,7 @@ void Phonon::compute
     }
     free(input); // Free the input file contents
 
-    hessian->compute
+    hessian.compute
     (
         input_dir,
         force,
@@ -123,14 +125,16 @@ void Phonon::compute
 
 void Phonon::parse
 (
-    char **param, int num_param,
-    Force *force, Hessian* hessian, 
+    char **param, 
+    int num_param,
+    Force& force, 
+    Hessian& hessian, 
     char* input_dir
 )
 {
     if (strcmp(param[0], "potential") == 0)
     {
-        force->parse_potential
+        force.parse_potential
         (
             param, 
             num_param,
@@ -141,13 +145,31 @@ void Phonon::parse
             cpu_type_size
         );
     }
+    else if (strcmp(param[0], "minimize") == 0)
+    {
+        Minimize minimize;
+        minimize.parse_minimize
+        (
+            param, 
+            num_param,
+            force,
+            box,
+            position_per_atom,
+            type,
+            group,
+            neighbor,
+            potential_per_atom,
+            force_per_atom,
+            virial_per_atom
+        );
+    }
     else if (strcmp(param[0], "cutoff") == 0)
     {
-        hessian->parse_cutoff(param, num_param);
+        hessian.parse_cutoff(param, num_param);
     }
     else if (strcmp(param[0], "delta") == 0)
     {
-        hessian->parse_delta(param, num_param);
+        hessian.parse_delta(param, num_param);
     }
     else
     {

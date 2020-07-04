@@ -33,7 +33,7 @@ Then calculate the dynamical matrices with different k points.
 void Hessian::compute
 (
     char* input_dir,
-    Force* force,
+    Force& force,
     Box& box,
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& position_per_atom,
@@ -158,7 +158,7 @@ bool Hessian::is_too_far
 
 void Hessian::find_H
 (
-    Force* force,
+    Force& force,
     Box& box,
     std::vector<double>& cpu_position_per_atom,
     GPU_Vector<double>& position_per_atom,
@@ -365,7 +365,7 @@ void Hessian::find_H12
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
-    Force *force,
+    Force& force,
     double* H12
 )
 {
@@ -514,7 +514,7 @@ void Hessian::get_f
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
-    Force *force,
+    Force& force,
     double* f
 )
 {
@@ -522,7 +522,7 @@ void Hessian::get_f
 
     shift_atom(dx, n2, beta, position_per_atom);
 
-    force->compute
+    force.compute
     (
         box,
         position_per_atom,

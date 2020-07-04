@@ -34,7 +34,7 @@ public:
     void compute
     (
         char* input_dir,
-        Force* force,
+        Force& force,
         Box& box,
         std::vector<double>& cpu_position_per_atom,
         GPU_Vector<double>& position_per_atom,
@@ -84,7 +84,7 @@ protected:
         GPU_Vector<double>& potential_per_atom,
         GPU_Vector<double>& force_per_atom,
         GPU_Vector<double>& virial_per_atom,
-        Force *force,
+        Force& force,
         double* f
     );
 
@@ -95,7 +95,7 @@ protected:
 
     void find_H
     (
-        Force* force,
+        Force& force,
         Box& box,
         std::vector<double>& cpu_position_per_atom,
         GPU_Vector<double>& position_per_atom,
@@ -119,7 +119,7 @@ protected:
         GPU_Vector<double>& potential_per_atom,
         GPU_Vector<double>& force_per_atom,
         GPU_Vector<double>& virial_per_atom,
-        Force *force,
+        Force& force,
         double* H12
     );
 

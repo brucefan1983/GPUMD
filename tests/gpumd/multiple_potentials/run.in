@@ -9,3 +9,4 @@ ensemble    nvt_ber 10 10 0.1
 time_step   0.1
 dump_thermo 10
 run         100
+

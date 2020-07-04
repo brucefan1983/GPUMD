@@ -34,8 +34,8 @@ class Phonon
 public:
     Phonon(char*);
 private:
-    void compute(char*, Force*, Hessian*);
-    void parse(char**, int, Force*, Hessian*, char* input_dir);
+    void compute(char*, Force&, Hessian&);
+    void parse(char**, int, Force&, Hessian&, char* input_dir);
 
     // data in the original Atom class
     int N;                // number of atoms

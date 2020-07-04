@@ -25,16 +25,20 @@ LIBS = -lcublas -lcusolver
 ###########################################################
 # source files
 ###########################################################
-SOURCES_GPUMD = $(wildcard main_gpumd/*.cu)   \
-                $(wildcard integrate/*.cu)    \
-                $(wildcard force/*.cu)        \
-                $(wildcard measure/*.cu)      \
-	            $(wildcard model/*.cu)        \
-		        $(wildcard utilities/*.cu)
-SOURCES_PHONON = $(wildcard main_phonon/*.cu) \
-                 $(wildcard force/*.cu)       \
-	             $(wildcard model/*.cu)       \
-		         $(wildcard utilities/*.cu)
+SOURCES_GPUMD =                   \
+	$(wildcard main_gpumd/*.cu)   \
+	$(wildcard minimize/*.cu)     \
+	$(wildcard integrate/*.cu)    \
+	$(wildcard force/*.cu)        \
+	$(wildcard measure/*.cu)      \
+	$(wildcard model/*.cu)        \
+	$(wildcard utilities/*.cu)
+SOURCES_PHONON =                  \
+	$(wildcard main_phonon/*.cu)  \
+	$(wildcard minimize/*.cu)     \
+	$(wildcard force/*.cu)        \
+	$(wildcard model/*.cu)        \
+	$(wildcard utilities/*.cu)
 
 
 ###########################################################
@@ -52,13 +56,15 @@ endif
 ###########################################################
 # headers
 ###########################################################
-HEADERS = $(wildcard utilities/*.cuh)  \
-          $(wildcard main_gpumd/*.cuh) \
-	      $(wildcard integrate/*.cuh)  \
-	      $(wildcard force/*.cuh)      \
-	      $(wildcard measure/*.cuh)    \
-	      $(wildcard model/*.cuh)      \
-		  $(wildcard main_phonon/*.cuh)
+HEADERS =                         \
+	$(wildcard utilities/*.cuh)   \
+	$(wildcard main_gpumd/*.cuh)  \
+	$(wildcard integrate/*.cuh)   \
+	$(wildcard minimize/*.cuh)    \
+	$(wildcard force/*.cuh)       \
+	$(wildcard measure/*.cuh)     \
+	$(wildcard model/*.cuh)       \
+	$(wildcard main_phonon/*.cuh)
 
 
 ###########################################################
@@ -77,6 +83,8 @@ phonon: $(OBJ_PHONON)
 ifdef OS # for Windows
 integrate/%.obj: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.obj: minimize/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 force/%.obj: force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 measure/%.obj: measure/%.cu $(HEADERS)
@@ -93,6 +101,8 @@ else # for Linux
 %.o: %.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 integrate/%.o: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+minimize/%.o: minimize/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 force/%.o: force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
