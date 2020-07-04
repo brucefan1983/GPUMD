@@ -25,8 +25,6 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "shc.cuh"
 #include "utilities/error.cuh"
 
-const int BLOCK_SIZE_SHC = 128;
-
 
 void SHC::preprocess(const int N, const std::vector<Group>& group)
 {
@@ -70,15 +68,15 @@ static __global__ void gpu_find_k
     int tid = threadIdx.x;
     int bid = blockIdx.x;
     int size_sum = bid * group_size;
-    int number_of_rounds = (group_size - 1) / BLOCK_SIZE_SHC + 1;
-    __shared__ double s_ki[BLOCK_SIZE_SHC];
-    __shared__ double s_ko[BLOCK_SIZE_SHC];
+    int number_of_rounds = (group_size - 1) / 128 + 1;
+    __shared__ double s_ki[128];
+    __shared__ double s_ko[128];
     double ki = 0.0;
     double ko = 0.0;
 
     for (int round = 0; round < number_of_rounds; ++round)
     {
-        int n = tid + round * BLOCK_SIZE_SHC;
+        int n = tid + round * 128;
         if (n < group_size)
         {
             ki += g_sx[n] * g_vx[size_sum + n] + g_sy[n] * g_vy[size_sum + n];
@@ -187,7 +185,7 @@ void SHC::process
     }
     else
     {
-        gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>
+        gpu_copy_data<<<(group_size - 1) / 128 + 1, 128>>>
         (
             group_size,
             group[group_method].cpu_size_sum[group_id],
@@ -212,7 +210,7 @@ void SHC::process
     {
         ++num_time_origins;
         
-        gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>
+        gpu_find_k<<<Nc, 128>>>
         (
             group_size,
             correlation_step,
