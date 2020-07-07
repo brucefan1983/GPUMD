@@ -13,36 +13,25 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "minimizer.cuh"
-
 
 class Minimizer_SD : public Minimizer
 {
 public:
-
-    Minimizer_SD
-    (
-        const int number_of_atoms,
-        const int number_of_steps,
-        const double force_tolerance
-    )
+  Minimizer_SD(const int number_of_atoms, const int number_of_steps, const double force_tolerance)
     : Minimizer(number_of_atoms, number_of_steps, force_tolerance)
-    {
-    }
+  {
+  }
 
-    void compute
-    (
-        Force& force,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<int>& type,
-        std::vector<Group>& group,
-        Neighbor& neighbor,
-        GPU_Vector<double>& potential_per_atom,
-        GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& virial_per_atom
-    );
+  void compute(
+    Force& force,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 };
-

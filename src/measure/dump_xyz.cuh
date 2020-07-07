@@ -19,27 +19,24 @@
 
 #include "dump_pos.cuh"
 
-class DUMP_XYZ: public DUMP_POS
+class DUMP_XYZ : public DUMP_POS
 {
 public:
-    char precision_str[25];
-    FILE *fid_position;
-    void initialize(char* input_dir, const int number_of_atoms);
-    void finalize();
+  char precision_str[25];
+  FILE* fid_position;
+  void initialize(char* input_dir, const int number_of_atoms);
+  void finalize();
 
-    void dump
-    (
-        const int step,
-        const double global_time,
-        const Box& box,
-        const std::vector<int>& cpu_type,
-        GPU_Vector<double>& position_per_atom,
-        std::vector<double>& cpu_position_per_atom
-    );
+  void dump(
+    const int step,
+    const double global_time,
+    const Box& box,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom);
 
-    DUMP_XYZ();
-    ~DUMP_XYZ(){};
+  DUMP_XYZ();
+  ~DUMP_XYZ(){};
 };
-
 
 #endif // DUMP_XYZ

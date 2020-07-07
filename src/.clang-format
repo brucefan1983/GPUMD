@@ -1,0 +1,11 @@
+BasedOnStyle: LLVM
+AlignAfterOpenBracket: AlwaysBreak
+AlwaysBreakTemplateDeclarations: Yes
+BinPackParameters: false
+BreakBeforeBraces: Linux
+ColumnLimit: 100
+ConstructorInitializerAllOnOneLineOrOnePerLine: true
+ConstructorInitializerIndentWidth: 2
+ContinuationIndentWidth: 2
+IndentCaseLabels: true
+PointerAlignment: Left

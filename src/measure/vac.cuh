@@ -13,53 +13,39 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
-#include "utilities/gpu_vector.cuh"
 #include "model/group.cuh"
-
+#include "utilities/gpu_vector.cuh"
 
 class VAC
 {
 public:
+  // NOTE: (compute_dos && compute_sdc) == 1 yields failure
+  int compute_dos = 0;      // 1 means mass-weighted VAC computed
+  int compute_sdc = 0;      // 1 means VAC computed
+  int sample_interval;      // sample interval for velocity
+  int grouping_method = -1; // grouping method to use, -1 means none set
+  int group = -1;           // group to compute, -1 means none set
+  int Nc;                   // number of correlation points
+  int num_dos_points = -1;  // points to use for DOS output, -1 means not set
+  double omega_max;         // maximal angular frequency for phonons
 
-    // NOTE: (compute_dos && compute_sdc) == 1 yields failure
-    int compute_dos = 0;          // 1 means mass-weighted VAC computed
-    int compute_sdc = 0;          // 1 means VAC computed
-    int sample_interval;      // sample interval for velocity
-    int grouping_method = -1; // grouping method to use, -1 means none set
-    int group = -1;           // group to compute, -1 means none set
-    int Nc;                   // number of correlation points
-    int num_dos_points = -1;  // points to use for DOS output, -1 means not set
-    double omega_max;           // maximal angular frequency for phonons
+  void preprocess(
+    const double time_step, const std::vector<Group>& group, const GPU_Vector<double>& mass);
 
-    void preprocess
-    (
-        const double time_step,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass
-    );
+  void process(
+    const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom);
 
-    void process
-    (
-        const int step,
-        const std::vector<Group>& groups,
-        const GPU_Vector<double>& velocity_per_atom
-    );
-
-    void postprocess(const char*);
+  void postprocess(const char*);
 
 private:
-
-    int N;                    // number of atoms for computation
-    int num_time_origins;     // number of time origins
-    double dt;                  // time interval in natural units
-    double dt_in_ps;            // time interval in units of ps
-    void find_dos(const char *);
-    void find_sdc(const char *);
-    GPU_Vector<double> mass_;
-    GPU_Vector<double> vx, vy, vz;
-    GPU_Vector<double> vac_x, vac_y, vac_z;
+  int N;                // number of atoms for computation
+  int num_time_origins; // number of time origins
+  double dt;            // time interval in natural units
+  double dt_in_ps;      // time interval in units of ps
+  void find_dos(const char*);
+  void find_sdc(const char*);
+  GPU_Vector<double> mass_;
+  GPU_Vector<double> vx, vy, vz;
+  GPU_Vector<double> vac_x, vac_y, vac_z;
 };
-
-

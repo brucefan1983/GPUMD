@@ -13,56 +13,45 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
-
-struct EAM2004Zhou
-{
-    double re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
-    double Fn0, Fn1, Fn2, Fn3, F0, F1, F2, F3, eta, Fe;
-    double rc; // chosen by the user?
+struct EAM2004Zhou {
+  double re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
+  double Fn0, Fn1, Fn2, Fn3, F0, F1, F2, F3, eta, Fe;
+  double rc; // chosen by the user?
 };
 
-
-struct EAM2006Dai
-{
-    double A, d, c, c0, c1, c2, c3, c4, B, rc;
+struct EAM2006Dai {
+  double A, d, c, c0, c1, c2, c3, c4, B, rc;
 };
 
-
-struct EAM_Data
-{
-    GPU_Vector<double> Fp;    // derivative of the density functional
+struct EAM_Data {
+  GPU_Vector<double> Fp; // derivative of the density functional
 };
-
 
 class EAM : public Potential
 {
-public:   
-    EAM(FILE*, char*, const int number_of_atoms);
-    virtual ~EAM(void);
-    virtual void compute
-    (
-        const int type_shift,
-        const Box& box,
-        const Neighbor& neighbor,
-        const GPU_Vector<int>& type,
-        const GPU_Vector<double>& position,
-        GPU_Vector<double>& potential,
-        GPU_Vector<double>& force,
-        GPU_Vector<double>& virial
-    );
-    void initialize_eam2004zhou(FILE*);
-    void initialize_eam2006dai(FILE*);
+public:
+  EAM(FILE*, char*, const int number_of_atoms);
+  virtual ~EAM(void);
+  virtual void compute(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+  void initialize_eam2004zhou(FILE*);
+  void initialize_eam2006dai(FILE*);
+
 protected:
-    int          potential_model; 
-    EAM2004Zhou  eam2004zhou;
-    EAM2006Dai   eam2006dai;
-    EAM_Data     eam_data;
+  int potential_model;
+  EAM2004Zhou eam2004zhou;
+  EAM2006Dai eam2006dai;
+  EAM_Data eam_data;
 };
-
-

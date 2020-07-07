@@ -13,52 +13,43 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
+#include "model/neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "model/neighbor.cuh"
 #include <stdio.h>
 
-
-struct Tersoff1989_Parameters
-{
-    double a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
-    double pi_factor, one_plus_c2overd2, minus_half_over_n;
+struct Tersoff1989_Parameters {
+  double a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
+  double pi_factor, one_plus_c2overd2, minus_half_over_n;
 };
 
-
-struct Tersoff1989_Data
-{
-    GPU_Vector<double> b;    // bond orders
-    GPU_Vector<double> bp;   // derivative of bond orders
-    GPU_Vector<double> f12x; // partial forces
-    GPU_Vector<double> f12y;
-    GPU_Vector<double> f12z;
+struct Tersoff1989_Data {
+  GPU_Vector<double> b;    // bond orders
+  GPU_Vector<double> bp;   // derivative of bond orders
+  GPU_Vector<double> f12x; // partial forces
+  GPU_Vector<double> f12y;
+  GPU_Vector<double> f12z;
 };
-
 
 class Tersoff1989 : public Potential
 {
-public:   
-    Tersoff1989(FILE*, int sum_of_types, const Neighbor& neighbor);
-    virtual ~Tersoff1989(void);
-    virtual void compute
-    (
-        const int type_shift,
-        const Box& box,
-        const Neighbor& neighbor,
-        const GPU_Vector<int>& type,
-        const GPU_Vector<double>& position,
-        GPU_Vector<double>& potential,
-        GPU_Vector<double>& force,
-        GPU_Vector<double>& virial
-    );
+public:
+  Tersoff1989(FILE*, int sum_of_types, const Neighbor& neighbor);
+  virtual ~Tersoff1989(void);
+  virtual void compute(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
 protected:
-    Tersoff1989_Parameters ters0;
-    Tersoff1989_Parameters ters1;
-    Tersoff1989_Parameters ters2;
-    Tersoff1989_Data tersoff_data;
+  Tersoff1989_Parameters ters0;
+  Tersoff1989_Parameters ters1;
+  Tersoff1989_Parameters ters2;
+  Tersoff1989_Data tersoff_data;
 };
-
-

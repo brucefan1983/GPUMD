@@ -13,90 +13,54 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 /*----------------------------------------------------------------------------80
 The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
-
 #include "ensemble_nve.cuh"
-
 
 Ensemble_NVE::Ensemble_NVE(int t, int fg)
 {
-    type = t;
-    fixed_group = fg;
+  type = t;
+  fixed_group = fg;
 }
-
 
 Ensemble_NVE::~Ensemble_NVE(void)
 {
-    // nothing now
+  // nothing now
 }
 
-
-void Ensemble_NVE::compute1
-(
-    const double time_step,
-    const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
-    Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    GPU_Vector<double>& thermo
-)
+void Ensemble_NVE::compute1(
+  const double time_step,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& potential_per_atom,
+  const GPU_Vector<double>& force_per_atom,
+  const GPU_Vector<double>& virial_per_atom,
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom,
+  GPU_Vector<double>& thermo)
 {
-    velocity_verlet
-    (
-        true,
-        time_step,
-        group,
-        mass,
-        force_per_atom,
-        position_per_atom,
-        velocity_per_atom
-     );
+  velocity_verlet(
+    true, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 }
 
-
-void Ensemble_NVE::compute2
-(
-    const double time_step,
-    const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
-    Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    GPU_Vector<double>& thermo
-)
+void Ensemble_NVE::compute2(
+  const double time_step,
+  const std::vector<Group>& group,
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& potential_per_atom,
+  const GPU_Vector<double>& force_per_atom,
+  const GPU_Vector<double>& virial_per_atom,
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& velocity_per_atom,
+  GPU_Vector<double>& thermo)
 {
-    velocity_verlet
-    (
-        false,
-        time_step,
-        group,
-        mass,
-        force_per_atom,
-        position_per_atom,
-        velocity_per_atom
-     );
+  velocity_verlet(
+    false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
-    find_thermo
-    (
-        box.get_volume(),
-        group,
-        mass,
-        potential_per_atom,
-        velocity_per_atom,
-        virial_per_atom,
-        thermo
-    );
+  find_thermo(
+    box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
 }
-
-

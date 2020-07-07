@@ -22,63 +22,58 @@
 #include "dump_pos.cuh"
 #include "netcdf.h"
 
-class DUMP_NETCDF: public DUMP_POS
+class DUMP_NETCDF : public DUMP_POS
 {
 public:
-    void initialize(char*, const int);
-    void finalize();
+  void initialize(char*, const int);
+  void finalize();
 
-    void dump
-    (
-        const int step,
-        const double global_time,
-        const Box& box,
-        const std::vector<int>& cpu_type,
-        GPU_Vector<double>& position_per_atom,
-        std::vector<double>& cpu_position_per_atom
-    );
+  void dump(
+    const int step,
+    const double global_time,
+    const Box& box,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom);
 
-    DUMP_NETCDF();
-    ~DUMP_NETCDF(){}
+  DUMP_NETCDF();
+  ~DUMP_NETCDF() {}
 
 private:
-    int ncid; // NetCDF ID
-    static bool append;
+  int ncid; // NetCDF ID
+  static bool append;
 
-    // dimensions
-    int frame_dim;
-    int spatial_dim;
-    int atom_dim;
-    int cell_spatial_dim;
-    int cell_angular_dim;
-    int label_dim;
+  // dimensions
+  int frame_dim;
+  int spatial_dim;
+  int atom_dim;
+  int cell_spatial_dim;
+  int cell_angular_dim;
+  int label_dim;
 
-    // label variables
-    int spatial_var;
-    int cell_spatial_var;
-    int cell_angular_var;
+  // label variables
+  int spatial_var;
+  int cell_spatial_var;
+  int cell_angular_var;
 
-    // data variables
-    int time_var;
-    int cell_lengths_var;
-    int cell_angles_var;
-    int coordinates_var;
-    int type_var;
+  // data variables
+  int time_var;
+  int cell_lengths_var;
+  int cell_angles_var;
+  int coordinates_var;
+  int type_var;
 
-    size_t lenp; // frame number
+  size_t lenp; // frame number
 
-    void open_file(int frame_in_run);
-    void write
-    (
-        const double global_time,
-        const Box& box,
-        const std::vector<int>& cpu_type,
-        GPU_Vector<double>& position_per_atom,
-        std::vector<double>& cpu_position_per_atom
-    );
-
+  void open_file(int frame_in_run);
+  void write(
+    const double global_time,
+    const Box& box,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom);
 };
 
-#endif //DUMP_NETCDF
+#endif // DUMP_NETCDF
 
 #endif
