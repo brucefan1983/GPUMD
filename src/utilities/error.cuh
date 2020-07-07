@@ -13,81 +13,65 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include <stdio.h>
 //#define STRONG_DEBUG // never use it for production run; too slow
 
+#define CHECK(call)                                                                                \
+  do {                                                                                             \
+    const cudaError_t error_code = call;                                                           \
+    if (error_code != cudaSuccess) {                                                               \
+      fprintf(stderr, "CUDA Error:\n");                                                            \
+      fprintf(stderr, "    File:       %s\n", __FILE__);                                           \
+      fprintf(stderr, "    Line:       %d\n", __LINE__);                                           \
+      fprintf(stderr, "    Error code: %d\n", error_code);                                         \
+      fprintf(stderr, "    Error text: %s\n", cudaGetErrorString(error_code));                     \
+      exit(1);                                                                                     \
+    }                                                                                              \
+  } while (0)
 
-#define CHECK(call)                                                            \
-do                                                                             \
-{                                                                              \
-    const cudaError_t error_code = call;                                       \
-    if (error_code != cudaSuccess)                                             \
-    {                                                                          \
-        fprintf(stderr, "CUDA Error:\n");                                      \
-        fprintf(stderr, "    File:       %s\n", __FILE__);                     \
-        fprintf(stderr, "    Line:       %d\n", __LINE__);                     \
-        fprintf(stderr, "    Error code: %d\n", error_code);                   \
-        fprintf(stderr, "    Error text: %s\n",                                \
-            cudaGetErrorString(error_code));                                   \
-        exit(1);                                                               \
-    }                                                                          \
-} while (0)
+#define PRINT_SCANF_ERROR(count, n, text)                                                          \
+  do {                                                                                             \
+    if (count != n) {                                                                              \
+      fprintf(stderr, "Input Error:\n");                                                           \
+      fprintf(stderr, "    File:       %s\n", __FILE__);                                           \
+      fprintf(stderr, "    Line:       %d\n", __LINE__);                                           \
+      fprintf(stderr, "    Error text: %s\n", text);                                               \
+      exit(1);                                                                                     \
+    }                                                                                              \
+  } while (0)
 
+#define PRINT_INPUT_ERROR(text)                                                                    \
+  do {                                                                                             \
+    fprintf(stderr, "Input Error:\n");                                                             \
+    fprintf(stderr, "    File:       %s\n", __FILE__);                                             \
+    fprintf(stderr, "    Line:       %d\n", __LINE__);                                             \
+    fprintf(stderr, "    Error text: %s\n", text);                                                 \
+    exit(1);                                                                                       \
+  } while (0)
 
-#define PRINT_SCANF_ERROR(count, n, text)                                      \
-do                                                                             \
-{                                                                              \
-    if (count != n)                                                            \
-    {                                                                          \
-        fprintf(stderr, "Input Error:\n");                                     \
-        fprintf(stderr, "    File:       %s\n", __FILE__);                     \
-        fprintf(stderr, "    Line:       %d\n", __LINE__);                     \
-        fprintf(stderr, "    Error text: %s\n", text);                         \
-        exit(1);                                                               \
-    }                                                                          \
-} while (0)
-
-
-#define PRINT_INPUT_ERROR(text)                                                \
-do                                                                             \
-{                                                                              \
-    fprintf(stderr, "Input Error:\n");                                         \
-    fprintf(stderr, "    File:       %s\n", __FILE__);                         \
-    fprintf(stderr, "    Line:       %d\n", __LINE__);                         \
-    fprintf(stderr, "    Error text: %s\n", text);                             \
-    exit(1);                                                                   \
-} while (0)
-
-
-#define PRINT_KEYWORD_ERROR(keyword)                                           \
-do                                                                             \
-{                                                                              \
-    fprintf(stderr, "Input Error:\n");                                         \
-    fprintf(stderr, "    File:       %s\n", __FILE__);                         \
-    fprintf(stderr, "    Line:       %d\n", __LINE__);                         \
-    fprintf(stderr, "    Error text: '%s' is an invalid keyword.\n", keyword); \
-    exit(1);                                                                   \
-} while (0)
-
+#define PRINT_KEYWORD_ERROR(keyword)                                                               \
+  do {                                                                                             \
+    fprintf(stderr, "Input Error:\n");                                                             \
+    fprintf(stderr, "    File:       %s\n", __FILE__);                                             \
+    fprintf(stderr, "    Line:       %d\n", __LINE__);                                             \
+    fprintf(stderr, "    Error text: '%s' is an invalid keyword.\n", keyword);                     \
+    exit(1);                                                                                       \
+  } while (0)
 
 #ifdef STRONG_DEBUG
-#define CUDA_CHECK_KERNEL                                                      \
-{                                                                              \
-    CHECK(cudaGetLastError());                                                 \
-    CHECK(cudaDeviceSynchronize());                                            \
-}
+#define CUDA_CHECK_KERNEL                                                                          \
+  {                                                                                                \
+    CHECK(cudaGetLastError());                                                                     \
+    CHECK(cudaDeviceSynchronize());                                                                \
+  }
 #else
-#define CUDA_CHECK_KERNEL                                                      \
-{                                                                              \
-    CHECK(cudaGetLastError());                                                 \
-}
+#define CUDA_CHECK_KERNEL                                                                          \
+  {                                                                                                \
+    CHECK(cudaGetLastError());                                                                     \
+  }
 #endif
-
 
 void print_line_1(void);
 void print_line_2(void);
-FILE* my_fopen(const char *filename, const char *mode);
-
-
+FILE* my_fopen(const char* filename, const char* mode);

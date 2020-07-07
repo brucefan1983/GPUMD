@@ -13,72 +13,58 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "ensemble.cuh"
-
 
 class Ensemble_BDP : public Ensemble
 {
 public:
-    Ensemble_BDP(int, int, double, double);   
-    Ensemble_BDP(int, int, int, int, double, double, double); 
-    virtual ~Ensemble_BDP(void);
+  Ensemble_BDP(int, int, double, double);
+  Ensemble_BDP(int, int, int, int, double, double, double);
+  virtual ~Ensemble_BDP(void);
 
-    virtual void compute1
-    (
-        const double time_step,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& force_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom,
-        GPU_Vector<double>& thermo
-    );
+  virtual void compute1(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo);
 
-    virtual void compute2
-    (
-        const double time_step,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& force_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom,
-        GPU_Vector<double>& thermo
-    );
+  virtual void compute2(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo);
 
 protected:
+  void integrate_nvt_bdp_2(
+    const double time_step,
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo);
 
-    void integrate_nvt_bdp_2
-    (
-        const double time_step,
-        const double volume,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& force_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom,
-        GPU_Vector<double>& thermo
-    );
-
-
-    void integrate_heat_bdp_2
-    (
-        const double time_step,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom
-    );
+  void integrate_heat_bdp_2(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom);
 };
-
-

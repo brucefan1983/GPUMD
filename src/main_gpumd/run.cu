@@ -13,429 +13,238 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 /*----------------------------------------------------------------------------80
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
-
-#include "run.cuh"
-#include "minimize/minimize.cuh"
-#include "velocity.cuh"
 #include "force/force.cuh"
-#include "integrate/integrate.cuh"
 #include "integrate/ensemble.cuh"
+#include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
-#include "model/read_xyz.cuh"
-#include "model/neighbor.cuh"
+#include "minimize/minimize.cuh"
 #include "model/box.cuh"
-#include "utilities/read_file.cuh"
+#include "model/neighbor.cuh"
+#include "model/read_xyz.cuh"
+#include "run.cuh"
 #include "utilities/error.cuh"
-
+#include "utilities/read_file.cuh"
+#include "velocity.cuh"
 
 Run::Run(char* input_dir)
 {
-    initialize_position
-    (
-        input_dir,
-        N,
-        has_velocity_in_xyz,
-        number_of_types,
-        box,
-        neighbor,
-        group,
-        cpu_type,
-        cpu_type_size,
-        cpu_mass,
-        cpu_position_per_atom,
-        cpu_velocity_per_atom
-    );
+  initialize_position(
+    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, cpu_type,
+    cpu_type_size, cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
 
-    allocate_memory_gpu
-    (
-        N,
-        neighbor,
-        group,
-        cpu_type,
-        cpu_mass,
-        cpu_position_per_atom,
-        type,
-        mass,
-        position_per_atom,
-        velocity_per_atom,
-        potential_per_atom,
-        force_per_atom,
-        virial_per_atom,
-        heat_per_atom,
-        thermo
-    );
+  allocate_memory_gpu(
+    N, neighbor, group, cpu_type, cpu_mass, cpu_position_per_atom, type, mass, position_per_atom,
+    velocity_per_atom, potential_per_atom, force_per_atom, virial_per_atom, heat_per_atom, thermo);
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-    neighbor.find_neighbor(/*is_first=*/true, box, position_per_atom);
+  neighbor.find_neighbor(/*is_first=*/true, box, position_per_atom);
 #endif
 
-    execute_run_in(input_dir);
+  execute_run_in(input_dir);
 }
-
 
 void Run::execute_run_in(char* input_dir)
 {
-    char file_run[200];
-    strcpy(file_run, input_dir);
-    strcat(file_run, "/run.in");
-    char *input = get_file_contents(file_run);
-    char *input_ptr = input; // Keep the pointer in order to free later
-    const int max_num_param = 10; // never use more than 9 parameters
-    int num_param;
-    char *param[max_num_param];
+  char file_run[200];
+  strcpy(file_run, input_dir);
+  strcat(file_run, "/run.in");
+  char* input = get_file_contents(file_run);
+  char* input_ptr = input;      // Keep the pointer in order to free later
+  const int max_num_param = 10; // never use more than 9 parameters
+  int num_param;
+  char* param[max_num_param];
 
-    print_line_1();
-    printf("Started executing the commands in run.in.\n");
-    print_line_2();
+  print_line_1();
+  printf("Started executing the commands in run.in.\n");
+  print_line_2();
 
-    while (input_ptr)
-    {
-        input_ptr = row_find_param(input_ptr, param, &num_param);
-        if (num_param == 0) { continue; }
-        parse_one_keyword(param, num_param, input_dir);
+  while (input_ptr) {
+    input_ptr = row_find_param(input_ptr, param, &num_param);
+    if (num_param == 0) {
+      continue;
     }
+    parse_one_keyword(param, num_param, input_dir);
+  }
 
-    print_line_1();
-    printf("Finished executing the commands in run.in.\n");
-    print_line_2();
+  print_line_1();
+  printf("Finished executing the commands in run.in.\n");
+  print_line_2();
 
-    free(input); // Free the input file contents
+  free(input); // Free the input file contents
 }
 
-
-void Run::perform_a_run(char *input_dir)
+void Run::perform_a_run(char* input_dir)
 {
-    integrate.initialize(N, time_step, group);
+  integrate.initialize(N, time_step, group);
 
-    measure.initialize
-    (
-        input_dir,
-        number_of_steps,
-        time_step,
-        group,
-        cpu_type_size,
-        mass
-    );
+  measure.initialize(input_dir, number_of_steps, time_step, group, cpu_type_size, mass);
 
-    clock_t time_begin = clock();
+  clock_t time_begin = clock();
 
-    for (int step = 0; step < number_of_steps; ++step)
-    {
-        global_time += time_step;
-		
+  for (int step = 0; step < number_of_steps; ++step) {
+    global_time += time_step;
+
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-        if (neighbor.update)
-        {
-            neighbor.find_neighbor(/*is_first=*/false, box, position_per_atom);
-        }
+    if (neighbor.update) {
+      neighbor.find_neighbor(/*is_first=*/false, box, position_per_atom);
+    }
 #endif
 
-        integrate.compute1
-        (
-            time_step,
-            double(step) / number_of_steps,
-            group,
-            mass,
-            potential_per_atom,
-            force_per_atom,
-            virial_per_atom,
-            box,
-            position_per_atom,
-            velocity_per_atom,
-            thermo
-        );
+    integrate.compute1(
+      time_step, double(step) / number_of_steps, group, mass, potential_per_atom, force_per_atom,
+      virial_per_atom, box, position_per_atom, velocity_per_atom, thermo);
 
-        force.compute
-        (
-            box,
-            position_per_atom,
-            type,
-            group,
-            neighbor,
-            potential_per_atom,
-            force_per_atom,
-            virial_per_atom
-        );
+    force.compute(
+      box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
+      virial_per_atom);
 
-        integrate.compute2
-        (
-            time_step,
-            double(step) / number_of_steps,
-            group,
-            mass,
-            potential_per_atom,
-            force_per_atom,
-            virial_per_atom,
-            box,
-            position_per_atom,
-            velocity_per_atom,
-            thermo
-        );
+    integrate.compute2(
+      time_step, double(step) / number_of_steps, group, mass, potential_per_atom, force_per_atom,
+      virial_per_atom, box, position_per_atom, velocity_per_atom, thermo);
 
-        measure.process
-        (
-            input_dir,
-            number_of_steps,
-            step,
-            integrate.fixed_group,
-            global_time,
-            integrate.temperature2,
-            integrate.ensemble->energy_transferred,
-            cpu_type,
-            box,
-            neighbor,
-            group,
-            thermo,
-            mass,
-            cpu_mass,
-            position_per_atom,
-            cpu_position_per_atom,
-            velocity_per_atom,
-            cpu_velocity_per_atom,
-            potential_per_atom,
-            force_per_atom,
-            virial_per_atom,
-            heat_per_atom
-        );
+    measure.process(
+      input_dir, number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
+      integrate.ensemble->energy_transferred, cpu_type, box, neighbor, group, thermo, mass,
+      cpu_mass, position_per_atom, cpu_position_per_atom, velocity_per_atom, cpu_velocity_per_atom,
+      potential_per_atom, force_per_atom, virial_per_atom, heat_per_atom);
 
-        int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
-        if (0 == (step + 1) % base)
-        {
-            printf("    %d steps completed.\n", step + 1);
-        }
+    int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
+    if (0 == (step + 1) % base) {
+      printf("    %d steps completed.\n", step + 1);
     }
+  }
 
-    print_line_1();
-    clock_t time_finish = clock();
-    double time_used = (time_finish - time_begin) / (double) CLOCKS_PER_SEC;
-    printf("Number of neighbor list updates = %d.\n",
-        neighbor.number_of_updates);
-    printf("Time used for this run = %g s.\n", time_used);
-    double run_speed = N * (number_of_steps / time_used);
-    printf("Speed of this run = %g atom*step/second.\n", run_speed);
-    print_line_2();
+  print_line_1();
+  clock_t time_finish = clock();
+  double time_used = (time_finish - time_begin) / (double)CLOCKS_PER_SEC;
+  printf("Number of neighbor list updates = %d.\n", neighbor.number_of_updates);
+  printf("Time used for this run = %g s.\n", time_used);
+  double run_speed = N * (number_of_steps / time_used);
+  printf("Speed of this run = %g atom*step/second.\n", run_speed);
+  print_line_2();
 
-    measure.finalize
-    (
-        input_dir,
-        number_of_steps,
-        time_step,
-        integrate.temperature2,
-        box.get_volume()
-    );
+  measure.finalize(input_dir, number_of_steps, time_step, integrate.temperature2, box.get_volume());
 
-    integrate.finalize();
-    neighbor.finalize();
+  integrate.finalize();
+  neighbor.finalize();
 }
-
 
 void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
 {
-    if (strcmp(param[0], "potential") == 0)
-    {
-        force.parse_potential
-        (
-            param, 
-            num_param,
-            input_dir,
-            box,
-            neighbor,
-            cpu_type,
-            cpu_type_size
-        );
-    }
-    else if (strcmp(param[0], "minimize") == 0)
-    {
-        Minimize minimize;
-        minimize.parse_minimize
-        (
-            param, 
-            num_param,
-            force,
-            box,
-            position_per_atom,
-            type,
-            group,
-            neighbor,
-            potential_per_atom,
-            force_per_atom,
-            virial_per_atom
-        );
-    }
-    else if (strcmp(param[0], "velocity") == 0)
-    {
-        parse_velocity(param, num_param);
-    }
-    else if (strcmp(param[0], "ensemble") == 0)
-    {
-        integrate.parse_ensemble(param, num_param, group);
-    }
-    else if (strcmp(param[0], "time_step") == 0)
-    {
-        parse_time_step(param, num_param);
-    }
-    else if (strcmp(param[0], "neighbor") == 0)
-    {
-        parse_neighbor(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_thermo") == 0)
-    {
-        measure.parse_dump_thermo(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_position") == 0)
-    {
-        measure.parse_dump_position(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_restart") == 0)
-    {
-        measure.parse_dump_restart(param, num_param);
-    }
-    else if (strcmp(param[0], "dump_velocity") == 0)
-    {
-        measure.parse_dump_velocity(param, num_param);
-    }
-    else if (strcmp(param[0], "compute_dos") == 0)
-    {
-        measure.parse_compute_dos(param, num_param, group.data());
-    }
-    else if (strcmp(param[0], "compute_sdc") == 0)
-    {
-        measure.parse_compute_sdc(param, num_param, group.data());
-    }
-    else if (strcmp(param[0], "compute_hac") == 0)
-    {
-        measure.parse_compute_hac(param, num_param);
-    }
-    else if (strcmp(param[0], "compute_hnemd") == 0)
-    {
-        measure.parse_compute_hnemd(param, num_param);
-    }
-    else if (strcmp(param[0], "compute_shc") == 0)
-    {
-        measure.parse_compute_shc(param, num_param, group);
-    }
-    else if (strcmp(param[0], "compute_gkma") == 0)
-    {
-        measure.parse_compute_gkma(param, num_param, number_of_types);
-    }
-    else if (strcmp(param[0], "compute_hnema") == 0)
-    {
-        measure.parse_compute_hnema(param, num_param, number_of_types);
-    }
-    else if (strcmp(param[0], "deform") == 0)
-    {
-        integrate.parse_deform(param, num_param);
-    }
-    else if (strcmp(param[0], "compute") == 0)
-    {
-        measure.parse_compute(param, num_param, group);
-    }
-    else if (strcmp(param[0], "fix") == 0)
-    {
-        integrate.parse_fix(param, num_param, group);
-    }
-    else if (strcmp(param[0], "run") == 0)
-    {
-        parse_run(param, num_param, input_dir);
-    }
-    else
-    {
-        PRINT_KEYWORD_ERROR(param[0]);
-    }
+  if (strcmp(param[0], "potential") == 0) {
+    force.parse_potential(param, num_param, input_dir, box, neighbor, cpu_type, cpu_type_size);
+  } else if (strcmp(param[0], "minimize") == 0) {
+    Minimize minimize;
+    minimize.parse_minimize(
+      param, num_param, force, box, position_per_atom, type, group, neighbor, potential_per_atom,
+      force_per_atom, virial_per_atom);
+  } else if (strcmp(param[0], "velocity") == 0) {
+    parse_velocity(param, num_param);
+  } else if (strcmp(param[0], "ensemble") == 0) {
+    integrate.parse_ensemble(param, num_param, group);
+  } else if (strcmp(param[0], "time_step") == 0) {
+    parse_time_step(param, num_param);
+  } else if (strcmp(param[0], "neighbor") == 0) {
+    parse_neighbor(param, num_param);
+  } else if (strcmp(param[0], "dump_thermo") == 0) {
+    measure.parse_dump_thermo(param, num_param);
+  } else if (strcmp(param[0], "dump_position") == 0) {
+    measure.parse_dump_position(param, num_param);
+  } else if (strcmp(param[0], "dump_restart") == 0) {
+    measure.parse_dump_restart(param, num_param);
+  } else if (strcmp(param[0], "dump_velocity") == 0) {
+    measure.parse_dump_velocity(param, num_param);
+  } else if (strcmp(param[0], "compute_dos") == 0) {
+    measure.parse_compute_dos(param, num_param, group.data());
+  } else if (strcmp(param[0], "compute_sdc") == 0) {
+    measure.parse_compute_sdc(param, num_param, group.data());
+  } else if (strcmp(param[0], "compute_hac") == 0) {
+    measure.parse_compute_hac(param, num_param);
+  } else if (strcmp(param[0], "compute_hnemd") == 0) {
+    measure.parse_compute_hnemd(param, num_param);
+  } else if (strcmp(param[0], "compute_shc") == 0) {
+    measure.parse_compute_shc(param, num_param, group);
+  } else if (strcmp(param[0], "compute_gkma") == 0) {
+    measure.parse_compute_gkma(param, num_param, number_of_types);
+  } else if (strcmp(param[0], "compute_hnema") == 0) {
+    measure.parse_compute_hnema(param, num_param, number_of_types);
+  } else if (strcmp(param[0], "deform") == 0) {
+    integrate.parse_deform(param, num_param);
+  } else if (strcmp(param[0], "compute") == 0) {
+    measure.parse_compute(param, num_param, group);
+  } else if (strcmp(param[0], "fix") == 0) {
+    integrate.parse_fix(param, num_param, group);
+  } else if (strcmp(param[0], "run") == 0) {
+    parse_run(param, num_param, input_dir);
+  } else {
+    PRINT_KEYWORD_ERROR(param[0]);
+  }
 }
 
-
-void Run::parse_velocity(char **param, int num_param)
+void Run::parse_velocity(char** param, int num_param)
 {
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("velocity should have 1 parameter.\n");
-    }
-    if (!is_valid_real(param[1], &initial_temperature))
-    {
-        PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
-    }
-    if (initial_temperature <= 0.0)
-    {
-        PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
-    }
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("velocity should have 1 parameter.\n");
+  }
+  if (!is_valid_real(param[1], &initial_temperature)) {
+    PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
+  }
+  if (initial_temperature <= 0.0) {
+    PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
+  }
 
-    Velocity velocity;
-    velocity.initialize
-    (
-        has_velocity_in_xyz,
-        initial_temperature,
-        cpu_mass,
-        cpu_position_per_atom,
-        cpu_velocity_per_atom,
-        velocity_per_atom
-    );
+  Velocity velocity;
+  velocity.initialize(
+    has_velocity_in_xyz, initial_temperature, cpu_mass, cpu_position_per_atom,
+    cpu_velocity_per_atom, velocity_per_atom);
 }
 
-
-void Run::parse_time_step (char **param, int num_param)
+void Run::parse_time_step(char** param, int num_param)
 {
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("time_step should have 1 parameter.\n");
-    }
-    if (!is_valid_real(param[1], &time_step))
-    {
-        PRINT_INPUT_ERROR("time_step should be a real number.\n");
-    }
-    printf("Time step for this run is %g fs.\n", time_step);
-    time_step /= TIME_UNIT_CONVERSION;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("time_step should have 1 parameter.\n");
+  }
+  if (!is_valid_real(param[1], &time_step)) {
+    PRINT_INPUT_ERROR("time_step should be a real number.\n");
+  }
+  printf("Time step for this run is %g fs.\n", time_step);
+  time_step /= TIME_UNIT_CONVERSION;
 }
 
-
-void Run::parse_run(char **param, int num_param, char* input_dir)
+void Run::parse_run(char** param, int num_param, char* input_dir)
 {
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("run should have 1 parameter.\n");
-    }
-    if (!is_valid_int(param[1], &number_of_steps))
-    {
-        PRINT_INPUT_ERROR("number of steps should be an integer.\n");
-    }
-    printf("Run %d steps.\n", number_of_steps);
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("run should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &number_of_steps)) {
+    PRINT_INPUT_ERROR("number of steps should be an integer.\n");
+  }
+  printf("Run %d steps.\n", number_of_steps);
 
-    bool compute_hnemd = measure.hnemd.compute ||
-    (
-        measure.modal_analysis.compute &&
-        measure.modal_analysis.method == HNEMA_METHOD
-    );
-    force.set_hnemd_parameters
-    (
-        compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y,
-        measure.hnemd.fe_z
-    );
+  bool compute_hnemd = measure.hnemd.compute || (measure.modal_analysis.compute &&
+                                                 measure.modal_analysis.method == HNEMA_METHOD);
+  force.set_hnemd_parameters(
+    compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y, measure.hnemd.fe_z);
 
-    perform_a_run(input_dir);
+  perform_a_run(input_dir);
 }
 
-
-void Run::parse_neighbor(char **param, int num_param)
+void Run::parse_neighbor(char** param, int num_param)
 {
-    neighbor.update = 1;
+  neighbor.update = 1;
 
-    if (num_param != 2)
-    {
-        PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
-    }
-    if (!is_valid_real(param[1], &neighbor.skin))
-    {
-        PRINT_INPUT_ERROR("neighbor list skin should be a number.\n");
-    }
-    printf("Build neighbor list with a skin of %g A.\n", neighbor.skin);
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
+  }
+  if (!is_valid_real(param[1], &neighbor.skin)) {
+    PRINT_INPUT_ERROR("neighbor list skin should be a number.\n");
+  }
+  printf("Build neighbor list with a skin of %g A.\n", neighbor.skin);
 
-    // change the cutoff
-    neighbor.rc = force.rc_max + neighbor.skin;
+  // change the cutoff
+  neighbor.rc = force.rc_max + neighbor.skin;
 }
-
-

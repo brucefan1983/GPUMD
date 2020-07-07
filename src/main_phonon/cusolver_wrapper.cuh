@@ -13,14 +13,9 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
-
 
 void eig_hermitian_QR(size_t, double*, double*, double*);
 void eig_hermitian_Jacobi(size_t, double*, double*, double*);
 void eig_hermitian_Jacobi_batch(size_t, size_t, double*, double*, double*);
-void eigenvectors_symmetric_Jacobi
-(size_t N, double* A, double* W_cpu, double* eigenvectors_cpu);
-
-
+void eigenvectors_symmetric_Jacobi(size_t N, double* A, double* W_cpu, double* eigenvectors_cpu);

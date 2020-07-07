@@ -21,33 +21,30 @@ Parent class for position dumping
 #ifndef DUMP_POS_H
 #define DUMP_POS_H
 
+#include "model/box.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "utilities/common.cuh"
-#include "model/box.cuh"
 #include <vector>
 
 class DUMP_POS
 {
 public:
-    int interval;  // output interval
-    char file_position[200];
-    int precision; // 0 = normal output, 1 = single precision, 2 = double
-    virtual void initialize(char* input_dir, const int number_of_atoms) = 0;
-    virtual void finalize() = 0;
-    virtual void dump
-    (
-        const int step,
-        const double global_time,
-        const Box& box,
-        const std::vector<int>& cpu_type,
-        GPU_Vector<double>& position_per_atom,
-        std::vector<double>& cpu_position_per_atom
-    ) = 0;
+  int interval; // output interval
+  char file_position[200];
+  int precision; // 0 = normal output, 1 = single precision, 2 = double
+  virtual void initialize(char* input_dir, const int number_of_atoms) = 0;
+  virtual void finalize() = 0;
+  virtual void dump(
+    const int step,
+    const double global_time,
+    const Box& box,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom) = 0;
 
-    DUMP_POS(){}
-    virtual ~DUMP_POS(){}
+  DUMP_POS() {}
+  virtual ~DUMP_POS() {}
 };
 
-
-#endif //DUMP_POS
+#endif // DUMP_POS

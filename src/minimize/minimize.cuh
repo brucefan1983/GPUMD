@@ -13,7 +13,6 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "utilities/gpu_vector.cuh"
 #include <vector>
@@ -22,23 +21,19 @@ class Box;
 class Neighbor;
 class Group;
 
-
-class Minimize 
+class Minimize
 {
 public:
-    void parse_minimize
-    (
-        char** param, 
-        int num_param,
-        Force& force,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<int>& type,
-        std::vector<Group>& group,
-        Neighbor& neighbor,
-        GPU_Vector<double>& potential_per_atom,
-        GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& virial_per_atom
-    );
+  void parse_minimize(
+    char** param,
+    int num_param,
+    Force& force,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 };
-

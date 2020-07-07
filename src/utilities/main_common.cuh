@@ -15,9 +15,6 @@
 
 #pragma once
 
-
 void print_compile_information(void);
 void print_gpu_information(void);
 int get_number_of_input_directories(void);
-
-

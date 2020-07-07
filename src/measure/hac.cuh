@@ -13,42 +13,34 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "utilities/gpu_vector.cuh"
-
 
 class HAC
 {
 public:
-    int compute = 0;
-    int sample_interval; // sample interval for heat current
-    int Nc;              // number of correlation points
-    int output_interval; // only output Nc/output_interval data
+  int compute = 0;
+  int sample_interval; // sample interval for heat current
+  int Nc;              // number of correlation points
+  int output_interval; // only output Nc/output_interval data
 
-    void preprocess(const int number_of_steps);
+  void preprocess(const int number_of_steps);
 
-    void process
-    (
-        const int number_of_steps,
-        const int step,
-        const char *input_dir,
-        const GPU_Vector<double>& velocity_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        GPU_Vector<double>& heat_per_atom
-    );
+  void process(
+    const int number_of_steps,
+    const int step,
+    const char* input_dir,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& heat_per_atom);
 
-    void postprocess
-    (
-        const int number_of_steps,
-        const char *input_dir,
-        const double temperature,
-        const double time_step,
-        const double volume
-    );
+  void postprocess(
+    const int number_of_steps,
+    const char* input_dir,
+    const double temperature,
+    const double time_step,
+    const double volume);
 
 private:
-    GPU_Vector<double> heat_all;
+  GPU_Vector<double> heat_all;
 };
-
-

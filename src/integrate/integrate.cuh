@@ -13,84 +13,71 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 
-#include "model/group.cuh"
-#include "model/box.cuh"
 #include "ensemble.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
 #include <memory>
 #include <vector>
 
-
-class Integrate 
+class Integrate
 {
 public:
+  std::unique_ptr<Ensemble> ensemble;
 
-    std::unique_ptr<Ensemble> ensemble;
- 
-    void initialize
-    (
-        const int number_of_atoms,
-        const double time_step,
-        const std::vector<Group>& group
-    );
+  void
+  initialize(const int number_of_atoms, const double time_step, const std::vector<Group>& group);
 
-    void finalize();
+  void finalize();
 
-    void compute1
-    (
-        const double time_step,
-        const double step_over_number_of_steps,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& force_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom,
-        GPU_Vector<double>& thermo
-    );
+  void compute1(
+    const double time_step,
+    const double step_over_number_of_steps,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo);
 
-    void compute2
-    (
-        const double time_step,
-        const double step_over_number_of_steps,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& force_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom,
-        GPU_Vector<double>& thermo
-    );
+  void compute2(
+    const double time_step,
+    const double step_over_number_of_steps,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo);
 
-    // get inputs from run.in
-    void parse_ensemble(char **param, int num_param, std::vector<Group>& group);
-    void parse_deform(char**, int);
-    void parse_fix(char**, int, std::vector<Group>& group);
+  // get inputs from run.in
+  void parse_ensemble(char** param, int num_param, std::vector<Group>& group);
+  void parse_deform(char**, int);
+  void parse_fix(char**, int, std::vector<Group>& group);
 
-    // these data will be used to initialize ensemble
-    int type;          // ensemble type in a specific run
-    int source;
-    int sink;
-    int fixed_group = -1; // ID of the group in which the atoms will be fixed 
-    double temperature;  // target temperature at a specific time 
-    double temperature1; // target initial temperature for a run
-    double temperature2; // target final temperature for a run
-    double delta_temperature;
-    double pressure_x;   // target pressure at a specific time
-    double pressure_y;   
-    double pressure_z; 
-    double temperature_coupling;
-    double pressure_coupling; 
-    int deform_x = 0;
-    int deform_y = 0;
-    int deform_z = 0;
-    double deform_rate;
+  // these data will be used to initialize ensemble
+  int type; // ensemble type in a specific run
+  int source;
+  int sink;
+  int fixed_group = -1; // ID of the group in which the atoms will be fixed
+  double temperature;   // target temperature at a specific time
+  double temperature1;  // target initial temperature for a run
+  double temperature2;  // target final temperature for a run
+  double delta_temperature;
+  double pressure_x; // target pressure at a specific time
+  double pressure_y;
+  double pressure_z;
+  double temperature_coupling;
+  double pressure_coupling;
+  int deform_x = 0;
+  int deform_y = 0;
+  int deform_z = 0;
+  double deform_rate;
 };
-
-

@@ -13,43 +13,36 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
-
-struct Tersoff_modc_Data
-{
-    GPU_Vector<double> b;    // bond orders
-    GPU_Vector<double> bp;   // derivative of bond orders
-    GPU_Vector<double> f12x; // partial forces
-    GPU_Vector<double> f12y;
-    GPU_Vector<double> f12z;
+struct Tersoff_modc_Data {
+  GPU_Vector<double> b;    // bond orders
+  GPU_Vector<double> bp;   // derivative of bond orders
+  GPU_Vector<double> f12x; // partial forces
+  GPU_Vector<double> f12y;
+  GPU_Vector<double> f12z;
 };
-
 
 class Tersoff_modc : public Potential
 {
-public:   
-    Tersoff_modc(FILE*, int sum_of_types, const Neighbor& neighbor);
-    virtual ~Tersoff_modc(void);
-    virtual void compute
-    (
-        const int type_shift,
-        const Box& box,
-        const Neighbor& neighbor,
-        const GPU_Vector<int>& type,
-        const GPU_Vector<double>& position,
-        GPU_Vector<double>& potential,
-        GPU_Vector<double>& force,
-        GPU_Vector<double>& virial
-    );
+public:
+  Tersoff_modc(FILE*, int sum_of_types, const Neighbor& neighbor);
+  virtual ~Tersoff_modc(void);
+  virtual void compute(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
 protected:
-    int num_types;
-    GPU_Vector<double> ters;
-    Tersoff_modc_Data tersoff_data;
+  int num_types;
+  GPU_Vector<double> ters;
+  Tersoff_modc_Data tersoff_data;
 };
-
-

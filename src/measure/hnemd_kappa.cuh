@@ -13,40 +13,33 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "utilities/gpu_vector.cuh"
-
 
 class HNEMD
 {
 public:
+  int compute = 0;
+  int output_interval; // average the data every so many time steps
 
-    int compute = 0;
-    int output_interval;   // average the data every so many time steps
+  // the driving "force" vector (in units of 1/A)
+  double fe_x = 0.0;
+  double fe_y = 0.0;
+  double fe_z = 0.0;
+  double fe = 0.0; // magnitude of the driving "force" vector
 
-    // the driving "force" vector (in units of 1/A)
-    double fe_x = 0.0;
-    double fe_y = 0.0;
-    double fe_z = 0.0;
-    double fe = 0.0; // magnitude of the driving "force" vector
+  GPU_Vector<double> heat_all;
 
-    GPU_Vector<double> heat_all;
+  void preprocess();
 
-    void preprocess();
+  void process(
+    int step,
+    const char* input_dir,
+    const double temperature,
+    const double volume,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& heat_per_atom);
 
-    void process
-    (
-        int step,
-        const char *input_dir,
-        const double temperature,
-        const double volume,
-        const GPU_Vector<double>& velocity_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        GPU_Vector<double>& heat_per_atom
-    );
-
-    void postprocess();
+  void postprocess();
 };
-
-

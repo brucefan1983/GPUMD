@@ -13,45 +13,33 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-
 class Velocity
 {
 public:
-
-    void initialize
-    (
-        const bool has_velocity_in_xyz,
-        const double initial_temperature,
-        const std::vector<double>& cpu_mass,
-        const std::vector<double>& cpu_position_per_atom,
-        std::vector<double>& cpu_velocity_per_atom,
-        GPU_Vector<double>& velocity_per_atom
-    );
+  void initialize(
+    const bool has_velocity_in_xyz,
+    const double initial_temperature,
+    const std::vector<double>& cpu_mass,
+    const std::vector<double>& cpu_position_per_atom,
+    std::vector<double>& cpu_velocity_per_atom,
+    GPU_Vector<double>& velocity_per_atom);
 
 private:
+  void initialize_cpu(
+    const double initial_temperature,
+    const std::vector<double>& cpu_mass,
+    const std::vector<double>& cpu_position_per_atom,
+    std::vector<double>& cpu_velocity_per_atom);
 
-    void initialize_cpu
-    (
-        const double initial_temperature,
-        const std::vector<double>& cpu_mass,
-        const std::vector<double>& cpu_position_per_atom,
-        std::vector<double>& cpu_velocity_per_atom
-    );
-
-    void scale
-    (
-        const double initial_temperature,
-        const std::vector<double>& cpu_mass,
-        double* cpu_vx,
-        double* cpu_vy,
-        double* cpu_vz
-    );
+  void scale(
+    const double initial_temperature,
+    const std::vector<double>& cpu_mass,
+    double* cpu_vx,
+    double* cpu_vy,
+    double* cpu_vz);
 };
-
-

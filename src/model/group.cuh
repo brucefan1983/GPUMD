@@ -13,30 +13,25 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-
 class Group
 {
 public:
-    int number;             // number of groups
-    // GPU data
-    GPU_Vector<int> label;             // atom label
-    GPU_Vector<int> size;              // # atoms in each group
-    GPU_Vector<int> size_sum;          // # atoms in all previous groups
-    GPU_Vector<int> contents;          // atom indices sorted based on groups
-    // CPU data corresponding to the above GPU data
-    std::vector<int> cpu_label;
-    std::vector<int> cpu_size;
-    std::vector<int> cpu_size_sum;
-    std::vector<int> cpu_contents;
+  int number; // number of groups
+  // GPU data
+  GPU_Vector<int> label;    // atom label
+  GPU_Vector<int> size;     // # atoms in each group
+  GPU_Vector<int> size_sum; // # atoms in all previous groups
+  GPU_Vector<int> contents; // atom indices sorted based on groups
+  // CPU data corresponding to the above GPU data
+  std::vector<int> cpu_label;
+  std::vector<int> cpu_size;
+  std::vector<int> cpu_size_sum;
+  std::vector<int> cpu_contents;
 
-    void find_size(const int N, const int k);
-    void find_contents(const int N);
-
+  void find_size(const int N, const int k);
+  void find_contents(const int N);
 };
-
-

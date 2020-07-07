@@ -15,39 +15,34 @@
 
 #pragma once
 #include "potential.cuh"
-#include <vector>
 #include <stdio.h>
+#include <vector>
 
-//TODO allow a much larger MAX_TYPE -> need to allocate GPU memory
+// TODO allow a much larger MAX_TYPE -> need to allocate GPU memory
 #define MAX_TYPE 10 // == max number of potentials
 
-
-struct LJ_Para
-{
-    double s6e4[MAX_TYPE][MAX_TYPE];
-    double s12e4[MAX_TYPE][MAX_TYPE];
-    double cutoff_square[MAX_TYPE][MAX_TYPE];
+struct LJ_Para {
+  double s6e4[MAX_TYPE][MAX_TYPE];
+  double s12e4[MAX_TYPE][MAX_TYPE];
+  double cutoff_square[MAX_TYPE][MAX_TYPE];
 };
 
 class LJ : public Potential
 {
 public:
-    LJ(FILE*, int);
-    virtual ~LJ(void);
-    virtual void compute
-    (
-        const int type_shift,
-        const Box& box,
-        const Neighbor& neighbor,
-        const GPU_Vector<int>& type,
-        const GPU_Vector<double>& position,
-        GPU_Vector<double>& potential,
-        GPU_Vector<double>& force,
-        GPU_Vector<double>& virial
-    );
-    void initialize_lj(FILE *fid, int, const std::vector<int>, int);
+  LJ(FILE*, int);
+  virtual ~LJ(void);
+  virtual void compute(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+  void initialize_lj(FILE* fid, int, const std::vector<int>, int);
 
 protected:
-    LJ_Para  lj_para;
+  LJ_Para lj_para;
 };
-

@@ -13,141 +13,113 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
 #include "utilities/gpu_vector.cuh"
-#include <vector>
 #include <stdio.h>
+#include <vector>
 
 class Box;
 class Neighbor;
 class Group;
 class Force;
 
-
 class Hessian
 {
 public:
-    double displacement = 0.005;
-    double cutoff = 4.0;
+  double displacement = 0.005;
+  double cutoff = 4.0;
 
-    void compute
-    (
-        char* input_dir,
-        Force& force,
-        Box& box,
-        std::vector<double>& cpu_position_per_atom,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<int>& type,
-        std::vector<Group>& group,
-        Neighbor& neighbor,
-        GPU_Vector<double>& potential_per_atom,
-        GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& virial_per_atom
-    );
+  void compute(
+    char* input_dir,
+    Force& force,
+    Box& box,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 
-    void parse_cutoff(char**, size_t);
-    void parse_delta(char**, size_t);
+  void parse_cutoff(char**, size_t);
+  void parse_delta(char**, size_t);
 
 protected:
+  size_t num_basis;
+  size_t num_kpoints;
 
-    size_t num_basis;
-    size_t num_kpoints;
+  std::vector<size_t> basis;
+  std::vector<size_t> label;
+  std::vector<double> mass;
+  std::vector<double> kpoints;
+  std::vector<double> H;
+  std::vector<double> DR;
+  std::vector<double> DI;
 
-    std::vector<size_t> basis;
-    std::vector<size_t> label;
-    std::vector<double> mass;
-    std::vector<double> kpoints;
-    std::vector<double> H;
-    std::vector<double> DR;
-    std::vector<double> DI;
+  void shift_atom(
+    const double dx, const size_t n2, const size_t beta, GPU_Vector<double>& position_per_atom);
 
-    void shift_atom
-    (
-        const double dx,
-        const size_t n2,
-        const size_t beta,
-        GPU_Vector<double>& position_per_atom
-    );
+  void get_f(
+    const double dx,
+    const size_t n1,
+    const size_t n2,
+    const size_t beta,
+    const Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    Force& force,
+    double* f);
 
-    void get_f
-    (
-        const double dx,
-        const size_t n1,
-        const size_t n2,
-        const size_t beta,
-        const Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<int>& type,
-        std::vector<Group>& group,
-        Neighbor& neighbor,
-        GPU_Vector<double>& potential_per_atom,
-        GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& virial_per_atom,
-        Force& force,
-        double* f
-    );
+  void read_basis(char*, size_t N);
+  void read_kpoints(char*);
+  void initialize(char*, size_t);
+  void finalize(void);
 
-    void read_basis(char*, size_t N);
-    void read_kpoints(char*);
-    void initialize(char*, size_t);
-    void finalize(void);
+  void find_H(
+    Force& force,
+    Box& box,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 
-    void find_H
-    (
-        Force& force,
-        Box& box,
-        std::vector<double>& cpu_position_per_atom,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<int>& type,
-        std::vector<Group>& group,
-        Neighbor& neighbor,
-        GPU_Vector<double>& potential_per_atom,
-        GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& virial_per_atom
-    );
+  void find_H12(
+    const size_t n1,
+    const size_t n2,
+    const Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    Neighbor& neighbor,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    Force& force,
+    double* H12);
 
-    void find_H12
-    (
-        const size_t n1,
-        const size_t n2,
-        const Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<int>& type,
-        std::vector<Group>& group,
-        Neighbor& neighbor,
-        GPU_Vector<double>& potential_per_atom,
-        GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& virial_per_atom,
-        Force& force,
-        double* H12
-    );
+  bool is_too_far(
+    const Box& box,
+    const std::vector<double>& cpu_position_per_atom,
+    const size_t n1,
+    const size_t n2);
 
-    bool is_too_far
-    (
-        const Box& box,
-        const std::vector<double>& cpu_position_per_atom,
-        const size_t n1,
-        const size_t n2
-    );
+  void find_dispersion(
+    char* input_dir, const Box& box, const std::vector<double>& cpu_position_per_atom);
 
-    void find_dispersion
-    (
-        char* input_dir,
-        const Box& box,
-        const std::vector<double>& cpu_position_per_atom
-    );
+  void find_D(const Box& box, std::vector<double>& cpu_position_per_atom);
 
-    void find_D
-    (
-        const Box& box,
-        std::vector<double>& cpu_position_per_atom
-    );
-
-    void find_eigenvectors(char*);
-    void output_D(char*);
-    void find_omega(FILE*, size_t);
-    void find_omega_batch(FILE*);
+  void find_eigenvectors(char*);
+  void output_D(char*);
+  void find_omega(FILE*, size_t);
+  void find_omega_batch(FILE*);
 };
-
-

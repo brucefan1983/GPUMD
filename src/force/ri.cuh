@@ -17,34 +17,32 @@
 #include "potential.cuh"
 #include <stdio.h>
 
-struct RI_Para
-{
-    double a11, b11, c11, qq11;
-    double a22, b22, c22, qq22;
-    double a12, b12, c12, qq12;
-    double v_rc, dv_rc; // potential and its derivative at the cutoff distance
-    double cutoff;
+struct RI_Para {
+  double a11, b11, c11, qq11;
+  double a22, b22, c22, qq22;
+  double a12, b12, c12, qq12;
+  double v_rc, dv_rc; // potential and its derivative at the cutoff distance
+  double cutoff;
 };
 
 class RI : public Potential
 {
 public:
-    RI(FILE*);
-    virtual ~RI(void);
+  RI(FILE*);
+  virtual ~RI(void);
 
-    virtual void compute
-    (
-        const int type_shift,
-        const Box& box,
-        const Neighbor& neighbor,
-        const GPU_Vector<int>& type,
-        const GPU_Vector<double>& position,
-        GPU_Vector<double>& potential,
-        GPU_Vector<double>& force,
-        GPU_Vector<double>& virial
-    );
+  virtual void compute(
+    const int type_shift,
+    const Box& box,
+    const Neighbor& neighbor,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
 
-    void initialize_ri(FILE *fid);
+  void initialize_ri(FILE* fid);
+
 protected:
-    RI_Para  ri_para;
+  RI_Para ri_para;
 };

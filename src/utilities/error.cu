@@ -13,37 +13,30 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #include "error.cuh"
+#include <errno.h>
 #include <stdio.h>
 #include <stdlib.h>
-#include <errno.h>
-
 
 void print_line_1(void)
 {
-    printf("\n");
-    printf("---------------------------------------------------------------\n");
+  printf("\n");
+  printf("---------------------------------------------------------------\n");
 }
-
 
 void print_line_2(void)
 {
-    printf("---------------------------------------------------------------\n");
-    printf("\n");
+  printf("---------------------------------------------------------------\n");
+  printf("\n");
 }
 
-
-FILE *my_fopen(const char *filename, const char *mode)
+FILE* my_fopen(const char* filename, const char* mode)
 {
-    FILE *fid = fopen(filename, mode);
-    if (fid == NULL) 
-    {
-        printf ("Failed to open %s!\n", filename);
-        printf ("%s\n", strerror(errno));
-        exit(EXIT_FAILURE);
-    }
-    return fid;
+  FILE* fid = fopen(filename, mode);
+  if (fid == NULL) {
+    printf("Failed to open %s!\n", filename);
+    printf("%s\n", strerror(errno));
+    exit(EXIT_FAILURE);
+  }
+  return fid;
 }
-
-

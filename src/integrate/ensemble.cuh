@@ -13,126 +13,106 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-
 #pragma once
-#include "utilities/gpu_vector.cuh"
-#include "model/group.cuh"
 #include "model/box.cuh"
+#include "model/group.cuh"
+#include "utilities/gpu_vector.cuh"
 #include <vector>
 
 #define NOSE_HOOVER_CHAIN_LENGTH 4
 
-
-class Ensemble 
+class Ensemble
 {
 public:
-    Ensemble(void);      
-    virtual ~Ensemble(void);
+  Ensemble(void);
+  virtual ~Ensemble(void);
 
-    virtual void compute1
-    (
-        const double time_step,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& force_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom,
-        GPU_Vector<double>& thermo
-    ) = 0;
+  virtual void compute1(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo) = 0;
 
-    virtual void compute2
-    (
-        const double time_step,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& force_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        Box& box,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom,
-        GPU_Vector<double>& thermo
-    ) = 0;
+  virtual void compute2(
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& force_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& thermo) = 0;
 
-    int type;          // ensemble type in a specific run
-    int source;
-    int sink;
-    int fixed_group;   // ID of the group in which the atoms will be fixed 
-    double temperature;  // target temperature at a specific time 
-    double delta_temperature;
-    double pressure_x;   // target pressure at a specific time
-    double pressure_y;   
-    double pressure_z; 
-    double temperature_coupling;
-    double pressure_coupling;  
-    int deform_x = 0;
-    int deform_y = 0;
-    int deform_z = 0;
-    double deform_rate;
+  int type; // ensemble type in a specific run
+  int source;
+  int sink;
+  int fixed_group;    // ID of the group in which the atoms will be fixed
+  double temperature; // target temperature at a specific time
+  double delta_temperature;
+  double pressure_x; // target pressure at a specific time
+  double pressure_y;
+  double pressure_z;
+  double temperature_coupling;
+  double pressure_coupling;
+  int deform_x = 0;
+  int deform_y = 0;
+  int deform_z = 0;
+  double deform_rate;
 
-    double energy_transferred[2]; // energy transferred from system to heat baths
-    
-    double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
-    double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-    double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
-    double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+  double energy_transferred[2]; // energy transferred from system to heat baths
+
+  double mas_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double pos_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double vel_nhc1[NOSE_HOOVER_CHAIN_LENGTH];
+  double mas_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+  double pos_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
+  double vel_nhc2[NOSE_HOOVER_CHAIN_LENGTH];
 
 protected:
-    void velocity_verlet
-    (
-        const bool is_step1,
-        const double time_step,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& force_per_atom,
-        GPU_Vector<double>& position_per_atom,
-        GPU_Vector<double>& velocity_per_atom
-    );
+  void velocity_verlet(
+    const bool is_step1,
+    const double time_step,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& velocity_per_atom);
 
-    void find_thermo
-    (
-        const double volume,
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& potential_per_atom,
-        const GPU_Vector<double>& velocity_per_atom,
-        const GPU_Vector<double>& virial_per_atom,
-        GPU_Vector<double>& thermo
-    );
+  void find_thermo(
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& thermo);
 
-    void scale_velocity_global
-    (
-        const double factor,
-        GPU_Vector<double>& velocity_per_atom
-    );
+  void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 
-    void find_vc_and_ke
-    (
-        const std::vector<Group>& group,
-        const GPU_Vector<double>& mass,
-        const GPU_Vector<double>& velocity_per_atom,
-        double* vcx,
-        double* vcy,
-        double* vcz,
-        double* ke
-    );
+  void find_vc_and_ke(
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& velocity_per_atom,
+    double* vcx,
+    double* vcy,
+    double* vcz,
+    double* ke);
 
-    void scale_velocity_local
-    (
-        const double factor_1,
-        const double factor_2,
-        const double* vcx,
-        const double* vcy,
-        const double* vcz,
-        const double* ke,
-        const std::vector<Group>& group,
-        GPU_Vector<double>& velocity_per_atom
-    );
+  void scale_velocity_local(
+    const double factor_1,
+    const double factor_2,
+    const double* vcx,
+    const double* vcy,
+    const double* vcz,
+    const double* ke,
+    const std::vector<Group>& group,
+    GPU_Vector<double>& velocity_per_atom);
 };
-
-
