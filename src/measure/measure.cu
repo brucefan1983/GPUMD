@@ -37,17 +37,12 @@ void Measure::initialize(
   const int number_of_atoms = mass.size();
 
   strcpy(file_thermo, input_dir);
-  strcpy(file_velocity, input_dir);
   strcpy(file_restart, input_dir);
   strcat(file_thermo, "/thermo.out");
-  strcat(file_velocity, "/velocity.out");
   strcat(file_restart, "/restart.out");
 
   if (dump_thermo) {
     fid_thermo = my_fopen(file_thermo, "a");
-  }
-  if (dump_velocity) {
-    fid_velocity = my_fopen(file_velocity, "a");
   }
   if (dump_pos) {
     dump_pos->initialize(input_dir, number_of_atoms);
@@ -58,6 +53,7 @@ void Measure::initialize(
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
   modal_analysis.preprocess(input_dir, cpu_type_size, mass);
+  dump_velocity.preprocess(input_dir);
 }
 
 void Measure::finalize(
@@ -71,16 +67,13 @@ void Measure::finalize(
     fclose(fid_thermo);
     dump_thermo = 0;
   }
-  if (dump_velocity) {
-    fclose(fid_velocity);
-    dump_velocity = 0;
-  }
   if (dump_restart) {
     dump_restart = 0;
   }
   if (dump_pos) {
     dump_pos->finalize();
   }
+  dump_velocity.postprocess();
   vac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
   shc.postprocess(input_dir);
@@ -106,7 +99,6 @@ void Measure::finalize(
   hac.compute = 0;
   hnemd.compute = 0;
   dump_thermo = 0;
-  dump_velocity = 0;
   dump_restart = 0;
 
   if (dump_pos) {
@@ -145,30 +137,6 @@ void Measure::dump_thermos(
   }
 
   fprintf(fid, "\n");
-  fflush(fid);
-}
-
-void Measure::dump_velocities(
-  FILE* fid,
-  const int step,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
-{
-  if (!dump_velocity)
-    return;
-  if ((step + 1) % sample_interval_velocity != 0)
-    return;
-
-  const int number_of_atoms = velocity_per_atom.size() / 3;
-
-  velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
-
-  for (int n = 0; n < number_of_atoms; n++) {
-    fprintf(
-      fid, "%g %g %g\n", cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
-      cpu_velocity_per_atom[n + 2 * number_of_atoms]);
-  }
-
   fflush(fid);
 }
 
@@ -259,7 +227,7 @@ void Measure::process(
     fid_thermo, step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group],
     thermo, box);
 
-  dump_velocities(fid_velocity, step, velocity_per_atom, cpu_velocity_per_atom);
+  dump_velocity.process(step, velocity_per_atom, cpu_velocity_per_atom);
 
   dump_restarts(
     step, neighbor, box, group, cpu_type, cpu_mass, position_per_atom, velocity_per_atom,
@@ -301,22 +269,6 @@ void Measure::parse_dump_thermo(char** param, int num_param)
 
   dump_thermo = 1;
   printf("Dump thermo every %d steps.\n", sample_interval_thermo);
-}
-
-void Measure::parse_dump_velocity(char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("dump_velocity should have 1 parameter.");
-  }
-  if (!is_valid_int(param[1], &sample_interval_velocity)) {
-    PRINT_INPUT_ERROR("velocity dump interval should be an integer.");
-  }
-  if (0 >= sample_interval_velocity) {
-    PRINT_INPUT_ERROR("velocity dump interval should > 0.");
-  }
-
-  dump_velocity = 1;
-  printf("Dump velocity every %d steps.\n", sample_interval_velocity);
 }
 
 void Measure::parse_dump_position(char** param, int num_param)

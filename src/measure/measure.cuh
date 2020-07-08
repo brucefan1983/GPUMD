@@ -16,6 +16,7 @@
 #pragma once
 #include "compute.cuh"
 #include "dump_pos.cuh"
+#include "dump_velocity.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
 #include "modal_analysis.cuh"
@@ -69,16 +70,12 @@ public:
     GPU_Vector<double>& heat_per_atom);
 
   int dump_thermo = 0;
-  int dump_velocity = 0;
   int dump_restart = 0;
   int sample_interval_thermo;
-  int sample_interval_velocity;
   int sample_interval_restart;
   FILE* fid_thermo;
-  FILE* fid_velocity;
   FILE* fid_restart;
   char file_thermo[200];
-  char file_velocity[200];
   char file_restart[200];
   VAC vac;
   HAC hac;
@@ -87,10 +84,10 @@ public:
   Compute compute;
   MODAL_ANALYSIS modal_analysis;
   DUMP_POS* dump_pos = NULL;
+  Dump_Velocity dump_velocity;
 
   // functions to get inputs from run.in
   void parse_dump_thermo(char**, int);
-  void parse_dump_velocity(char**, int);
   void parse_dump_position(char**, int);
   void parse_dump_restart(char**, int);
   void parse_group(char** param, int* k, Group* group);
@@ -112,12 +109,6 @@ protected:
     const int number_of_atoms_fixed,
     GPU_Vector<double>& gpu_thermo,
     const Box& box);
-
-  void dump_velocities(
-    FILE* fid,
-    const int step,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom);
 
   void dump_restarts(
     const int step,
