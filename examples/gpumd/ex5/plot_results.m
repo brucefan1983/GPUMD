@@ -1,9 +1,9 @@
 close all; 
 clear;
-load compute.out;
+load force.out;
 load forces_hiphive.txt;
-forces_gpumd=compute;
-forces_hiphive=reshape(forces_hiphive,108*3,1).';
+forces_gpumd=reshape(force,108*3,1);
+forces_hiphive=reshape(forces_hiphive,108*3,1);
 
 figure;
 subplot(1,2,1);
