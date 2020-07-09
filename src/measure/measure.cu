@@ -35,15 +35,8 @@ void Measure::initialize(
   const GPU_Vector<double>& mass)
 {
   const int number_of_atoms = mass.size();
-
-  strcpy(file_thermo, input_dir);
   strcpy(file_restart, input_dir);
-  strcat(file_thermo, "/thermo.out");
   strcat(file_restart, "/restart.out");
-
-  if (dump_thermo) {
-    fid_thermo = my_fopen(file_thermo, "a");
-  }
   if (dump_pos) {
     dump_pos->initialize(input_dir, number_of_atoms);
   }
@@ -54,6 +47,7 @@ void Measure::initialize(
   hnemd.preprocess();
   modal_analysis.preprocess(input_dir, cpu_type_size, mass);
   dump_velocity.preprocess(input_dir);
+  dump_thermo.preprocess(input_dir);
 }
 
 void Measure::finalize(
@@ -63,10 +57,6 @@ void Measure::finalize(
   const double temperature,
   const double volume)
 {
-  if (dump_thermo) {
-    fclose(fid_thermo);
-    dump_thermo = 0;
-  }
   if (dump_restart) {
     dump_restart = 0;
   }
@@ -74,6 +64,7 @@ void Measure::finalize(
     dump_pos->finalize();
   }
   dump_velocity.postprocess();
+  dump_thermo.postprocess();
   vac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
   shc.postprocess(input_dir);
@@ -98,46 +89,12 @@ void Measure::finalize(
   vac.num_dos_points = -1;
   hac.compute = 0;
   hnemd.compute = 0;
-  dump_thermo = 0;
   dump_restart = 0;
 
   if (dump_pos) {
     delete dump_pos;
   }
   dump_pos = NULL;
-}
-
-void Measure::dump_thermos(
-  FILE* fid,
-  const int step,
-  const int number_of_atoms,
-  const int number_of_atoms_fixed,
-  GPU_Vector<double>& gpu_thermo,
-  const Box& box)
-{
-  if (!dump_thermo)
-    return;
-  if ((step + 1) % sample_interval_thermo != 0)
-    return;
-
-  std::vector<double> thermo(5);
-  gpu_thermo.copy_to_host(thermo.data(), 5);
-
-  const int number_of_atoms_moving = number_of_atoms - number_of_atoms_fixed;
-  double energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
-
-  fprintf(
-    fid, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0], energy_kin, thermo[1],
-    thermo[2] * PRESSURE_UNIT_CONVERSION, thermo[3] * PRESSURE_UNIT_CONVERSION,
-    thermo[4] * PRESSURE_UNIT_CONVERSION);
-
-  int number_of_box_variables = box.triclinic ? 9 : 3;
-  for (int m = 0; m < number_of_box_variables; ++m) {
-    fprintf(fid, "%20.10e", box.cpu_h[m]);
-  }
-
-  fprintf(fid, "\n");
-  fflush(fid);
 }
 
 void Measure::dump_restarts(
@@ -223,9 +180,8 @@ void Measure::process(
 {
   const int number_of_atoms = cpu_type.size();
 
-  dump_thermos(
-    fid_thermo, step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group],
-    thermo, box);
+  dump_thermo.process(
+    step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group], box, thermo);
 
   dump_velocity.process(step, velocity_per_atom, cpu_velocity_per_atom);
 
@@ -253,22 +209,6 @@ void Measure::process(
   if (dump_pos) {
     dump_pos->dump(step, global_time, box, cpu_type, position_per_atom, cpu_position_per_atom);
   }
-}
-
-void Measure::parse_dump_thermo(char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("dump_thermo should have 1 parameter.");
-  }
-  if (!is_valid_int(param[1], &sample_interval_thermo)) {
-    PRINT_INPUT_ERROR("thermo dump interval should be an integer.");
-  }
-  if (0 >= sample_interval_thermo) {
-    PRINT_INPUT_ERROR("thermo dump interval should > 0.");
-  }
-
-  dump_thermo = 1;
-  printf("Dump thermo every %d steps.\n", sample_interval_thermo);
 }
 
 void Measure::parse_dump_position(char** param, int num_param)

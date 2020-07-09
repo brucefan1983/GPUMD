@@ -17,56 +17,70 @@
 Dump velocity data to a file at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
-#include "dump_velocity.cuh"
+#include "dump_thermo.cuh"
+#include "model/box.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 
-void Dump_Velocity::parse(char** param, int num_param)
+void Dump_Thermo::parse(char** param, int num_param)
 {
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("dump_velocity should have 1 parameter.");
+    PRINT_INPUT_ERROR("dump_thermo should have 1 parameter.");
   }
   if (!is_valid_int(param[1], &dump_interval_)) {
-    PRINT_INPUT_ERROR("velocity dump interval should be an integer.");
+    PRINT_INPUT_ERROR("thermo dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
-    PRINT_INPUT_ERROR("velocity dump interval should > 0.");
+    PRINT_INPUT_ERROR("thermo dump interval should > 0.");
   }
   dump_ = true;
-  printf("Dump velocity every %d steps.\n", dump_interval_);
+  printf("Dump thermo every %d steps.\n", dump_interval_);
 }
 
-void Dump_Velocity::preprocess(char* input_dir)
+void Dump_Thermo::preprocess(char* input_dir)
 {
   if (dump_) {
     strcpy(filename_, input_dir);
-    strcat(filename_, "/velocity.out");
+    strcat(filename_, "/thermo.out");
     fid_ = my_fopen(filename_, "a");
   }
 }
 
-void Dump_Velocity::process(
-  const int step, GPU_Vector<double>& velocity_per_atom, std::vector<double>& cpu_velocity_per_atom)
+void Dump_Thermo::process(
+  const int step,
+  const int number_of_atoms,
+  const int number_of_atoms_fixed,
+  const Box& box,
+  GPU_Vector<double>& gpu_thermo)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int number_of_atoms = velocity_per_atom.size() / 3;
-  velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
-  for (int n = 0; n < number_of_atoms; n++) {
-    fprintf(
-      fid_, "%g %g %g\n", cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
-      cpu_velocity_per_atom[n + 2 * number_of_atoms]);
+  double thermo[5];
+  gpu_thermo.copy_to_host(thermo, 5);
+
+  const int number_of_atoms_moving = number_of_atoms - number_of_atoms_fixed;
+  double energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
+
+  fprintf(
+    fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0], energy_kin, thermo[1],
+    thermo[2] * PRESSURE_UNIT_CONVERSION, thermo[3] * PRESSURE_UNIT_CONVERSION,
+    thermo[4] * PRESSURE_UNIT_CONVERSION);
+
+  int number_of_box_variables = box.triclinic ? 9 : 3;
+  for (int m = 0; m < number_of_box_variables; ++m) {
+    fprintf(fid_, "%20.10e", box.cpu_h[m]);
   }
 
+  fprintf(fid_, "\n");
   fflush(fid_);
 }
 
-void Dump_Velocity::postprocess()
+void Dump_Thermo::postprocess()
 {
   if (dump_) {
     fclose(fid_);
