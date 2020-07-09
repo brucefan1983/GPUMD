@@ -21,7 +21,6 @@ Dump a restart file
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "model/neighbor.cuh"
-//#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"

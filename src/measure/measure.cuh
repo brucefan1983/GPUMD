@@ -15,6 +15,7 @@
 
 #pragma once
 #include "compute.cuh"
+#include "dump_force.cuh"
 #include "dump_pos.cuh"
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
@@ -81,6 +82,7 @@ public:
   Dump_Velocity dump_velocity;
   Dump_Thermo dump_thermo;
   Dump_Restart dump_restart;
+  Dump_Force dump_force;
 
   // functions to get inputs from run.in
   void parse_dump_position(char**, int);

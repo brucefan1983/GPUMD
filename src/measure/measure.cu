@@ -47,6 +47,7 @@ void Measure::initialize(
   dump_velocity.preprocess(input_dir);
   dump_restart.preprocess(input_dir);
   dump_thermo.preprocess(input_dir);
+  dump_force.preprocess(input_dir, number_of_atoms);
 }
 
 void Measure::finalize(
@@ -62,6 +63,7 @@ void Measure::finalize(
   dump_velocity.postprocess();
   dump_restart.postprocess();
   dump_thermo.postprocess();
+  dump_force.postprocess();
   vac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
   shc.postprocess(input_dir);
@@ -127,6 +129,8 @@ void Measure::process(
   dump_restart.process(
     step, neighbor, box, group, cpu_type, cpu_mass, position_per_atom, velocity_per_atom,
     cpu_position_per_atom, cpu_velocity_per_atom);
+
+  dump_force.process(step, force_per_atom);
 
   compute.process(
     step, energy_transferred, group, mass, potential_per_atom, force_per_atom, velocity_per_atom,
