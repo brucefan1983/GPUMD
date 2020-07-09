@@ -15,7 +15,11 @@
 
 #pragma once
 #include "compute.cuh"
+#include "dump_force.cuh"
 #include "dump_pos.cuh"
+#include "dump_restart.cuh"
+#include "dump_thermo.cuh"
+#include "dump_velocity.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
 #include "modal_analysis.cuh"
@@ -68,18 +72,6 @@ public:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& heat_per_atom);
 
-  int dump_thermo = 0;
-  int dump_velocity = 0;
-  int dump_restart = 0;
-  int sample_interval_thermo;
-  int sample_interval_velocity;
-  int sample_interval_restart;
-  FILE* fid_thermo;
-  FILE* fid_velocity;
-  FILE* fid_restart;
-  char file_thermo[200];
-  char file_velocity[200];
-  char file_restart[200];
   VAC vac;
   HAC hac;
   SHC shc;
@@ -87,12 +79,13 @@ public:
   Compute compute;
   MODAL_ANALYSIS modal_analysis;
   DUMP_POS* dump_pos = NULL;
+  Dump_Velocity dump_velocity;
+  Dump_Thermo dump_thermo;
+  Dump_Restart dump_restart;
+  Dump_Force dump_force;
 
   // functions to get inputs from run.in
-  void parse_dump_thermo(char**, int);
-  void parse_dump_velocity(char**, int);
   void parse_dump_position(char**, int);
-  void parse_dump_restart(char**, int);
   void parse_group(char** param, int* k, Group* group);
   void parse_num_dos_points(char** param, int* k);
   void parse_compute_dos(char**, int, Group* group);
@@ -103,31 +96,4 @@ public:
   void parse_compute_hnemd(char**, int);
   void parse_compute_shc(char**, int, const std::vector<Group>& group);
   void parse_compute(char**, int, const std::vector<Group>& group);
-
-protected:
-  void dump_thermos(
-    FILE* fid,
-    const int step,
-    const int number_of_atoms,
-    const int number_of_atoms_fixed,
-    GPU_Vector<double>& gpu_thermo,
-    const Box& box);
-
-  void dump_velocities(
-    FILE* fid,
-    const int step,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom);
-
-  void dump_restarts(
-    const int step,
-    const Neighbor& neighbor,
-    const Box& box,
-    const std::vector<Group>& group,
-    const std::vector<int>& cpu_type,
-    const std::vector<double>& cpu_mass,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    std::vector<double>& cpu_velocity_per_atom);
 };
