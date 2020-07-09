@@ -35,8 +35,6 @@ void Measure::initialize(
   const GPU_Vector<double>& mass)
 {
   const int number_of_atoms = mass.size();
-  strcpy(file_restart, input_dir);
-  strcat(file_restart, "/restart.out");
   if (dump_pos) {
     dump_pos->initialize(input_dir, number_of_atoms);
   }
@@ -47,6 +45,7 @@ void Measure::initialize(
   hnemd.preprocess();
   modal_analysis.preprocess(input_dir, cpu_type_size, mass);
   dump_velocity.preprocess(input_dir);
+  dump_restart.preprocess(input_dir);
   dump_thermo.preprocess(input_dir);
 }
 
@@ -57,13 +56,11 @@ void Measure::finalize(
   const double temperature,
   const double volume)
 {
-  if (dump_restart) {
-    dump_restart = 0;
-  }
   if (dump_pos) {
     dump_pos->finalize();
   }
   dump_velocity.postprocess();
+  dump_restart.postprocess();
   dump_thermo.postprocess();
   vac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
@@ -89,69 +86,11 @@ void Measure::finalize(
   vac.num_dos_points = -1;
   hac.compute = 0;
   hnemd.compute = 0;
-  dump_restart = 0;
 
   if (dump_pos) {
     delete dump_pos;
   }
   dump_pos = NULL;
-}
-
-void Measure::dump_restarts(
-  const int step,
-  const Neighbor& neighbor,
-  const Box& box,
-  const std::vector<Group>& group,
-  const std::vector<int>& cpu_type,
-  const std::vector<double>& cpu_mass,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
-{
-  if (!dump_restart)
-    return;
-  if ((step + 1) % sample_interval_restart != 0)
-    return;
-
-  const int number_of_atoms = cpu_mass.size();
-
-  position_per_atom.copy_to_host(cpu_position_per_atom.data());
-  velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
-
-  fid_restart = my_fopen(file_restart, "w");
-
-  fprintf(
-    fid_restart, "%d %d %g %d %d %d\n", number_of_atoms, neighbor.MN, neighbor.rc, box.triclinic, 1,
-    int(group.size()));
-
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_restart, "%d %d %d %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z, box.cpu_h[0],
-      box.cpu_h[1], box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_restart, "%d %d %d %g %g %g %g %g %g %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z,
-      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
-  }
-
-  for (int n = 0; n < number_of_atoms; n++) {
-    fprintf(
-      fid_restart, "%d %g %g %g %g %g %g %g ", cpu_type[n], cpu_position_per_atom[n],
-      cpu_position_per_atom[n + number_of_atoms], cpu_position_per_atom[n + 2 * number_of_atoms],
-      cpu_mass[n], cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
-      cpu_velocity_per_atom[n + 2 * number_of_atoms]);
-
-    for (int m = 0; m < group.size(); ++m) {
-      fprintf(fid_restart, "%d ", group[m].cpu_label[n]);
-    }
-
-    fprintf(fid_restart, "\n");
-  }
-
-  fflush(fid_restart);
-  fclose(fid_restart);
 }
 
 void Measure::process(
@@ -185,7 +124,7 @@ void Measure::process(
 
   dump_velocity.process(step, velocity_per_atom, cpu_velocity_per_atom);
 
-  dump_restarts(
+  dump_restart.process(
     step, neighbor, box, group, cpu_type, cpu_mass, position_per_atom, velocity_per_atom,
     cpu_position_per_atom, cpu_velocity_per_atom);
 
@@ -289,22 +228,6 @@ void Measure::parse_dump_position(char** param, int num_param)
   }
 
   printf("Dump position every %d steps.\n", dump_pos->interval);
-}
-
-void Measure::parse_dump_restart(char** param, int num_param)
-{
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("dump_restart should have 1 parameter.");
-  }
-  if (!is_valid_int(param[1], &sample_interval_restart)) {
-    PRINT_INPUT_ERROR("restart dump interval should be an integer.");
-  }
-  if (0 >= sample_interval_restart) {
-    PRINT_INPUT_ERROR("restart dump interval should > 0.");
-  }
-
-  dump_restart = 1;
-  printf("Dump restart every %d steps.\n", sample_interval_restart);
 }
 
 // Helper functions for parse_compute_dos

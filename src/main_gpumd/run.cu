@@ -155,7 +155,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "dump_position") == 0) {
     measure.parse_dump_position(param, num_param);
   } else if (strcmp(param[0], "dump_restart") == 0) {
-    measure.parse_dump_restart(param, num_param);
+    measure.dump_restart.parse(param, num_param);
   } else if (strcmp(param[0], "dump_velocity") == 0) {
     measure.dump_velocity.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
