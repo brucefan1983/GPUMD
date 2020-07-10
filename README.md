@@ -2,17 +2,14 @@
 
 ## What is `GPUMD`?
 
-* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). This code is highly efficient. For details, see Ref. [1].
-
-* Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. 
+* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). Force evaluation for many-body potentials has been significantly accelerated by using GPUs [1]. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. 
    
-* Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [3，4].
+* Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [3, 4].
 
 ## Prerequisites
 
 * You need to have a GPU card with compute capability no less than 3.5 and a `CUDA` toolkit no less than `CUDA` 9.0.
-* Works for both linux and Windows operating systems. 
-* We will try our best to keep `GPUMD` as a standalone code. So far, it does not depend on any other program other than the standard `C`, `C++`, and `CUDA` libraries.
+* Works for both linux (with GCC) and Windows (with MSVC) operating systems. 
 
 ## Compile GPUMD
 * Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `phoon`, will be generated in the `src` directory. 
@@ -21,7 +18,6 @@
 * Go to the directory where you can see `src`.
 * Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`.
 * Type `src/phonon < examples/input_phonon.txt` to run the examples in `examples/phonon`.
-* Please read the manual (https://gpumd.zheyongfan.org) to study the examples. These examples should get you started. 
 
 ## Manual
 * We only maintain the online manual now: https://gpumd.zheyongfan.org
