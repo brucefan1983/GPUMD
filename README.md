@@ -1,38 +1,12 @@
 # `GPUMD`
 
-## Manual
-* We only maintain the online manual now: https://gpumd.zheyongfan.org
-
-## Warnings in the beginning:
-
-* Do not treat the code as a black box. Do as many tests as you can until you trust some part of it (the part you will use). The best way is to check the source code and make sure that it makes sense to you. Whenever you feel unsure about something regarding the code, you are welcome to ask questions in the mailing list.
-  * You can use the following link to subscribe and unsubscribe the mailing list:
-https://www.freelists.org/list/gpumd
-  * To post a question, you can send an email to gpumd(at)freelists.org
-  * Here is the archive (public): https://www.freelists.org/archive/gpumd/
-
-* There are no functionalities for building simulation models. Users of `GPUMD` are supposed to be able to build simulation models by their own. 
-  * One of the developers, Alexander J. Gabourie, has written some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo
-  * A graduate student, Ke Xu, is also publishing some python scripts for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/Kick-H/For_gpumd
-
 ## What is `GPUMD`?
 
 * `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). This code is highly efficient. For details, see Ref. [1].
 
-* Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. We have implemented the following many-body potentials in `GPUMD`:
-   * The EAM-type potential with some analytical forms
-   * The general Tersoff potential with an arbitrary number of atom types
-   * The REBO potential for Mo-S systems (2009)
-   * The Stillinger-Weber (1985) potential with up to three atom types
-   * The Vashishta (2007) potential
+* Force evaluation for many-body potentials has been significantly accelerated by using GPUs. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. Detailed algorithms for efficient CUDA-implementation have been presented in Ref. [1]. 
    
-* Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport. The current version of `GPUMD` can calculate the following quantities related to heat transport:
-   * It can calculate the phonon density of states (DOS) from the velocity autocorrelation (VAC).
-   * It can calculate the equilibrium heat current autocorrelation (HAC), whose time integral gives the running thermal conductivity   according to the Green-Kubo relation. As stressed in Ref. [2], the heat current as implemented in LAMMPS does not apply to many-body  potentials and significantly underestimates the thermal conductivity in 2D materials described by many-body potentials. `GPUMD` also contains the thermal conductivity decomposition method as introduced in Ref. [3], which is useful for 2D materials.
-   * It can calculate the thermal conductivity of a system of finite length or the thermal boundary resistance (Kapitza resistance) of an interface or similar structures using nonequilibrium MD (NEMD) methods. The spectral decomposition method as described in Ref. [3] has also been implemented.
-   * It can calculate the thermal conductivity using the homogeneous nonequilibrium MD (HNEMD) method as detailed in Ref. [4].
-     
-* `GPUMD` was firstly used for heat transport simulations only but we are now making it more and more general. However, the functionalities in `GPUMD` are still very limited. We are working on implementing (1) more potential models, (2) more integrators (including external conditions), and (3) more measurements.
+* Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [3，4].
 
 ## Prerequisites
 
@@ -48,6 +22,21 @@ https://www.freelists.org/list/gpumd
 * Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`.
 * Type `src/phonon < examples/input_phonon.txt` to run the examples in `examples/phonon`.
 * Please read the manual (https://gpumd.zheyongfan.org) to study the examples. These examples should get you started. 
+
+## Manual
+* We only maintain the online manual now: https://gpumd.zheyongfan.org
+
+## Mailing list:
+* You can use the following link to subscribe and unsubscribe the mailing list:
+https://www.freelists.org/list/gpumd
+
+* To post a question, you can send an email to gpumd(at)freelists.org
+
+* Here is the archive (public): https://www.freelists.org/archive/gpumd/
+
+## Python interface:
+
+* One of the developers, Alexander J. Gabourie, has written a Python package for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo
   
 ## Authors:
 
