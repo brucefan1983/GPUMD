@@ -88,7 +88,6 @@ public:
   void parse_dump_position(char**, int);
   void parse_compute_gkma(char**, int, const int number_of_types);
   void parse_compute_hnema(char**, int, const int number_of_types);
-  void parse_compute_hac(char**, int);
   void parse_compute_hnemd(char**, int);
   void parse_compute_shc(char**, int, const std::vector<Group>& group);
   void parse_compute(char**, int, const std::vector<Group>& group);

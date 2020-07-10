@@ -81,8 +81,6 @@ void Measure::finalize(
   shc.compute = 0;
   modal_analysis.compute = 0;
   modal_analysis.method = NO_METHOD;
-
-  hac.compute = 0;
   hnemd.compute = 0;
 
   if (dump_pos) {
@@ -228,32 +226,6 @@ void Measure::parse_dump_position(char** param, int num_param)
   }
 
   printf("Dump position every %d steps.\n", dump_pos->interval);
-}
-
-void Measure::parse_compute_hac(char** param, int num_param)
-{
-  hac.compute = 1;
-
-  printf("Compute HAC.\n");
-
-  if (num_param != 4) {
-    PRINT_INPUT_ERROR("compute_hac should have 3 parameters.\n");
-  }
-
-  if (!is_valid_int(param[1], &hac.sample_interval)) {
-    PRINT_INPUT_ERROR("sample interval for HAC should be an integer number.\n");
-  }
-  printf("    sample interval is %d.\n", hac.sample_interval);
-
-  if (!is_valid_int(param[2], &hac.Nc)) {
-    PRINT_INPUT_ERROR("Nc for HAC should be an integer number.\n");
-  }
-  printf("    Nc is %d\n", hac.Nc);
-
-  if (!is_valid_int(param[3], &hac.output_interval)) {
-    PRINT_INPUT_ERROR("output_interval for HAC should be an integer number.\n");
-  }
-  printf("    output_interval is %d\n", hac.output_interval);
 }
 
 void Measure::parse_compute_gkma(char** param, int num_param, const int number_of_types)

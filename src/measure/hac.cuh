@@ -41,6 +41,8 @@ public:
     const double time_step,
     const double volume);
 
+  void parse(char**, int);
+
 private:
   GPU_Vector<double> heat_all;
 };
