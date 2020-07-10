@@ -24,6 +24,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "hnemd_kappa.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
 #include <vector>
 
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -158,9 +159,41 @@ void HNEMD::process(
   }
 }
 
-void HNEMD::postprocess()
+void HNEMD::postprocess() { compute = 0; }
+
+void HNEMD::parse(char** param, int num_param)
 {
-  if (compute) {
-    // nothing now
+  compute = 1;
+
+  printf("Compute thermal conductivity using the HNEMD method.\n");
+
+  if (num_param != 5) {
+    PRINT_INPUT_ERROR("compute_hnemd should have 4 parameters.\n");
   }
+
+  if (!is_valid_int(param[1], &output_interval)) {
+    PRINT_INPUT_ERROR("output_interval for HNEMD should be an integer number.\n");
+  }
+  printf("    output_interval = %d\n", output_interval);
+  if (output_interval < 1) {
+    PRINT_INPUT_ERROR("output_interval for HNEMD should be larger than 0.\n");
+  }
+  if (!is_valid_real(param[2], &fe_x)) {
+    PRINT_INPUT_ERROR("fe_x for HNEMD should be a real number.\n");
+  }
+  printf("    fe_x = %g /A\n", fe_x);
+  if (!is_valid_real(param[3], &fe_y)) {
+    PRINT_INPUT_ERROR("fe_y for HNEMD should be a real number.\n");
+  }
+  printf("    fe_y = %g /A\n", fe_y);
+  if (!is_valid_real(param[4], &fe_z)) {
+    PRINT_INPUT_ERROR("fe_z for HNEMD should be a real number.\n");
+  }
+  printf("    fe_z = %g /A\n", fe_z);
+
+  // magnitude of the vector
+  fe = fe_x * fe_x;
+  fe += fe_y * fe_y;
+  fe += fe_z * fe_z;
+  fe = sqrt(fe);
 }

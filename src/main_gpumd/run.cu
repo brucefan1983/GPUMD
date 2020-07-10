@@ -167,7 +167,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
-    measure.parse_compute_hnemd(param, num_param);
+    measure.hnemd.parse(param, num_param);
   } else if (strcmp(param[0], "compute_shc") == 0) {
     measure.shc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_gkma") == 0) {

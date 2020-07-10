@@ -88,5 +88,4 @@ public:
   void parse_dump_position(char**, int);
   void parse_compute_gkma(char**, int, const int number_of_types);
   void parse_compute_hnema(char**, int, const int number_of_types);
-  void parse_compute_hnemd(char**, int);
 };

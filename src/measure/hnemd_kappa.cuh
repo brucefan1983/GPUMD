@@ -42,4 +42,6 @@ public:
     GPU_Vector<double>& heat_per_atom);
 
   void postprocess();
+
+  void parse(char** param, int num_param);
 };

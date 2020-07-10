@@ -74,7 +74,6 @@ void Measure::finalize(
   // reset the defaults
   modal_analysis.compute = 0;
   modal_analysis.method = NO_METHOD;
-  hnemd.compute = 0;
 
   if (dump_pos) {
     delete dump_pos;
@@ -466,41 +465,4 @@ void Measure::parse_compute_hnema(char** param, int num_param, const int number_
     modal_analysis.atom_begin = 0;
     modal_analysis.atom_end = number_of_types - 1;
   }
-}
-
-void Measure::parse_compute_hnemd(char** param, int num_param)
-{
-  hnemd.compute = 1;
-
-  printf("Compute thermal conductivity using the HNEMD method.\n");
-
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("compute_hnemd should have 4 parameters.\n");
-  }
-
-  if (!is_valid_int(param[1], &hnemd.output_interval)) {
-    PRINT_INPUT_ERROR("output_interval for HNEMD should be an integer number.\n");
-  }
-  printf("    output_interval = %d\n", hnemd.output_interval);
-  if (hnemd.output_interval < 1) {
-    PRINT_INPUT_ERROR("output_interval for HNEMD should be larger than 0.\n");
-  }
-  if (!is_valid_real(param[2], &hnemd.fe_x)) {
-    PRINT_INPUT_ERROR("fe_x for HNEMD should be a real number.\n");
-  }
-  printf("    fe_x = %g /A\n", hnemd.fe_x);
-  if (!is_valid_real(param[3], &hnemd.fe_y)) {
-    PRINT_INPUT_ERROR("fe_y for HNEMD should be a real number.\n");
-  }
-  printf("    fe_y = %g /A\n", hnemd.fe_y);
-  if (!is_valid_real(param[4], &hnemd.fe_z)) {
-    PRINT_INPUT_ERROR("fe_z for HNEMD should be a real number.\n");
-  }
-  printf("    fe_z = %g /A\n", hnemd.fe_z);
-
-  // magnitude of the vector
-  hnemd.fe = hnemd.fe_x * hnemd.fe_x;
-  hnemd.fe += hnemd.fe_y * hnemd.fe_y;
-  hnemd.fe += hnemd.fe_z * hnemd.fe_z;
-  hnemd.fe = sqrt(hnemd.fe);
 }
