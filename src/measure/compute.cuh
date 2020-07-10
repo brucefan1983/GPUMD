@@ -46,6 +46,8 @@ public:
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom);
 
+  void parse(char**, int, const std::vector<Group>& group);
+
 private:
   FILE* fid;
 

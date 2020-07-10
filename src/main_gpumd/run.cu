@@ -169,7 +169,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
     measure.parse_compute_hnemd(param, num_param);
   } else if (strcmp(param[0], "compute_shc") == 0) {
-    measure.parse_compute_shc(param, num_param, group);
+    measure.shc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_gkma") == 0) {
     measure.parse_compute_gkma(param, num_param, number_of_types);
   } else if (strcmp(param[0], "compute_hnema") == 0) {
@@ -177,7 +177,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "deform") == 0) {
     integrate.parse_deform(param, num_param);
   } else if (strcmp(param[0], "compute") == 0) {
-    measure.parse_compute(param, num_param, group);
+    measure.compute.parse(param, num_param, group);
   } else if (strcmp(param[0], "fix") == 0) {
     integrate.parse_fix(param, num_param, group);
   } else if (strcmp(param[0], "run") == 0) {

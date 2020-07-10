@@ -20,6 +20,7 @@ Compute block (space) averages of various per-atom quantities.
 #include "compute.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
 #include <vector>
 
 #define DIM 3
@@ -62,6 +63,13 @@ void Compute::postprocess()
   if (number_of_scalars == 0)
     return;
   fclose(fid);
+
+  compute_temperature = 0;
+  compute_potential = 0;
+  compute_force = 0;
+  compute_virial = 0;
+  compute_jp = 0;
+  compute_jk = 0;
 }
 
 static __global__ void find_per_atom_temperature(
@@ -346,4 +354,68 @@ void Compute::output_results(const double energy_transferred[], const std::vecto
 
   fprintf(fid, "\n");
   fflush(fid);
+}
+
+void Compute::parse(char** param, int num_param, const std::vector<Group>& group)
+{
+  printf("Compute space and/or time average of:\n");
+  if (num_param < 5) {
+    PRINT_INPUT_ERROR("compute should have at least 4 parameters.");
+  }
+
+  // grouping_method
+  if (!is_valid_int(param[1], &grouping_method)) {
+    PRINT_INPUT_ERROR("grouping method of compute should be integer.");
+  }
+  if (grouping_method < 0) {
+    PRINT_INPUT_ERROR("grouping method should >= 0.");
+  }
+  if (grouping_method >= group.size()) {
+    PRINT_INPUT_ERROR("grouping method exceeds the bound.");
+  }
+
+  // sample_interval
+  if (!is_valid_int(param[2], &sample_interval)) {
+    PRINT_INPUT_ERROR("sampling interval of compute should be integer.");
+  }
+  if (sample_interval <= 0) {
+    PRINT_INPUT_ERROR("sampling interval of compute should > 0.");
+  }
+
+  // output_interval
+  if (!is_valid_int(param[3], &output_interval)) {
+    PRINT_INPUT_ERROR("output interval of compute should be integer.");
+  }
+  if (output_interval <= 0) {
+    PRINT_INPUT_ERROR("output interval of compute should > 0.");
+  }
+
+  // temperature potential force virial jp jk (order is not important)
+  for (int k = 0; k < num_param - 4; ++k) {
+    if (strcmp(param[k + 4], "temperature") == 0) {
+      compute_temperature = 1;
+      printf("    temperature\n");
+    } else if (strcmp(param[k + 4], "potential") == 0) {
+      compute_potential = 1;
+      printf("    potential energy\n");
+    } else if (strcmp(param[k + 4], "force") == 0) {
+      compute_force = 1;
+      printf("    force\n");
+    } else if (strcmp(param[k + 4], "virial") == 0) {
+      compute_virial = 1;
+      printf("    virial\n");
+    } else if (strcmp(param[k + 4], "jp") == 0) {
+      compute_jp = 1;
+      printf("    potential part of heat current\n");
+    } else if (strcmp(param[k + 4], "jk") == 0) {
+      compute_jk = 1;
+      printf("    kinetic part of heat current\n");
+    } else {
+      PRINT_INPUT_ERROR("Invalid property for compute.");
+    }
+  }
+
+  printf("    using grouping method %d.\n", grouping_method);
+  printf("    with sampling interval %d.\n", sample_interval);
+  printf("    and output interval %d.\n", output_interval);
 }

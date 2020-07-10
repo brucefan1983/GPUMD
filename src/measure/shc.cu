@@ -22,6 +22,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 
 #include "shc.cuh"
 #include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
 
 const int BLOCK_SIZE_SHC = 128;
 
@@ -200,4 +201,101 @@ void SHC::postprocess(const char* input_dir)
   }
   fflush(fid);
   fclose(fid);
+
+  compute = 0;
+}
+
+void SHC::parse(char** param, int num_param, const std::vector<Group>& group)
+{
+  printf("Compute SHC.\n");
+  compute = 1;
+
+  // check the number of parameters
+  if ((num_param != 4) && (num_param != 5) && (num_param != 6)) {
+    PRINT_INPUT_ERROR("compute_shc should have 3 or 4 or 5 parameters.");
+  }
+
+  // group method and group id
+  int offset = 0;
+  if (num_param == 4) {
+    group_method = -1;
+    printf("    for the whole system.\n");
+  } else if (num_param == 5) {
+    offset = 1;
+    group_method = 0;
+    if (!is_valid_int(param[1], &group_id)) {
+      PRINT_INPUT_ERROR("group id should be an integer.");
+    }
+    if (group_id < 0) {
+      PRINT_INPUT_ERROR("group id should >= 0.");
+    }
+    if (group_id >= group[0].number) {
+      PRINT_INPUT_ERROR("group id should < #groups.");
+    }
+    printf("    for atoms in group %d.\n", group_id);
+    printf("    using grouping method 0.\n");
+  } else {
+    offset = 2;
+    // grouping method
+    if (!is_valid_int(param[1], &group_method)) {
+      PRINT_INPUT_ERROR("grouping method should be an integer.");
+    }
+    if (group_method < 0) {
+      PRINT_INPUT_ERROR("grouping method should >= 0.");
+    }
+    if (group_method >= group.size()) {
+      PRINT_INPUT_ERROR("grouping method exceeds the bound.");
+    }
+
+    // group id
+    if (!is_valid_int(param[2], &group_id)) {
+      PRINT_INPUT_ERROR("group id should be an integer.");
+    }
+    if (group_id < 0) {
+      PRINT_INPUT_ERROR("group id should >= 0.");
+    }
+    if (group_id >= group[group_method].number) {
+      PRINT_INPUT_ERROR("group id should < #groups.");
+    }
+    printf("    for atoms in group %d.\n", group_id);
+    printf("    using group method %d.\n", group_method);
+  }
+
+  // sample interval
+  if (!is_valid_int(param[1 + offset], &sample_interval)) {
+    PRINT_INPUT_ERROR("Sampling interval for SHC should be an integer.");
+  }
+  if (sample_interval < 1) {
+    PRINT_INPUT_ERROR("Sampling interval for SHC should >= 1.");
+  }
+  if (sample_interval > 10) {
+    PRINT_INPUT_ERROR("Sampling interval for SHC should <= 10 (trust me).");
+  }
+  printf("    sampling interval for SHC is %d.\n", sample_interval);
+
+  // number of correlation data
+  if (!is_valid_int(param[2 + offset], &Nc)) {
+    PRINT_INPUT_ERROR("Nc for SHC should be an integer.");
+  }
+  if (Nc < 100) {
+    PRINT_INPUT_ERROR("Nc for SHC should >= 100 (trust me).");
+  }
+  if (Nc > 1000) {
+    PRINT_INPUT_ERROR("Nc for SHC should <= 1000 (trust me).");
+  }
+  printf("    number of correlation data is %d.\n", Nc);
+
+  // transport direction
+  if (!is_valid_int(param[3 + offset], &direction)) {
+    PRINT_INPUT_ERROR("direction for SHC should be an integer.");
+  }
+  if (direction == 0) {
+    printf("    transport direction is x.\n");
+  } else if (direction == 1) {
+    printf("    transport direction is y.\n");
+  } else if (direction == 2) {
+    printf("    transport direction is z.\n");
+  } else {
+    PRINT_INPUT_ERROR("Transport direction should be x or y or z.");
+  }
 }

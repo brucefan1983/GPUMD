@@ -33,6 +33,7 @@ public:
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom);
   void postprocess(const char*);
+  void parse(char**, int, const std::vector<Group>& group);
 
 private:
   int num_time_origins;          // number of time origins for ensemble average
