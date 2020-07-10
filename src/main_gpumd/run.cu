@@ -161,9 +161,9 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "dump_force") == 0) {
     measure.dump_force.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
-    measure.parse_compute_dos(param, num_param, group.data());
+    measure.vac.parse_compute_dos(param, num_param, group.data());
   } else if (strcmp(param[0], "compute_sdc") == 0) {
-    measure.parse_compute_sdc(param, num_param, group.data());
+    measure.vac.parse_compute_sdc(param, num_param, group.data());
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.parse_compute_hac(param, num_param);
   } else if (strcmp(param[0], "compute_hnemd") == 0) {

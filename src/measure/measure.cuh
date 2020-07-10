@@ -86,10 +86,6 @@ public:
 
   // functions to get inputs from run.in
   void parse_dump_position(char**, int);
-  void parse_group(char** param, int* k, Group* group);
-  void parse_num_dos_points(char** param, int* k);
-  void parse_compute_dos(char**, int, Group* group);
-  void parse_compute_sdc(char**, int, Group* group);
   void parse_compute_gkma(char**, int, const int number_of_types);
   void parse_compute_hnema(char**, int, const int number_of_types);
   void parse_compute_hac(char**, int);
