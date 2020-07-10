@@ -21,6 +21,7 @@ molecular dynamics method for heat transport and spectral decomposition
 with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 ------------------------------------------------------------------------------*/
 
+#include "compute_heat.cuh"
 #include "hnemd_kappa.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -35,37 +36,6 @@ void HNEMD::preprocess()
   if (!compute)
     return;
   heat_all.resize(NUM_OF_HEAT_COMPONENTS * output_interval);
-}
-
-// calculate the per-atom heat current
-static __global__ void gpu_get_peratom_heat(
-  const int N,
-  const double* sxx,
-  const double* sxy,
-  const double* sxz,
-  const double* syx,
-  const double* syy,
-  const double* syz,
-  const double* szx,
-  const double* szy,
-  const double* szz,
-  const double* vx,
-  const double* vy,
-  const double* vz,
-  double* jx_in,
-  double* jx_out,
-  double* jy_in,
-  double* jy_out,
-  double* jz)
-{
-  const int n = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n < N) {
-    jx_in[n] = sxx[n] * vx[n] + sxy[n] * vy[n];
-    jx_out[n] = sxz[n] * vz[n];
-    jy_in[n] = syx[n] * vx[n] + syy[n] * vy[n];
-    jy_out[n] = syz[n] * vz[n];
-    jz[n] = szx[n] * vx[n] + szy[n] * vy[n] + szz[n] * vz[n];
-  }
 }
 
 static __global__ void
@@ -114,18 +84,7 @@ void HNEMD::process(
 
   const int N = velocity_per_atom.size() / 3;
 
-  // the virial tensor:
-  // xx xy xz    0 3 4
-  // yx yy yz    6 1 5
-  // zx zy zz    7 8 2
-  gpu_get_peratom_heat<<<(N - 1) / 128 + 1, 128>>>(
-    N, virial_per_atom.data(), virial_per_atom.data() + N * 3, virial_per_atom.data() + N * 4,
-    virial_per_atom.data() + N * 6, virial_per_atom.data() + N * 1, virial_per_atom.data() + N * 5,
-    virial_per_atom.data() + N * 7, virial_per_atom.data() + N * 8, virial_per_atom.data() + N * 2,
-    velocity_per_atom.data(), velocity_per_atom.data() + N, velocity_per_atom.data() + 2 * N,
-    heat_per_atom.data(), heat_per_atom.data() + N, heat_per_atom.data() + N * 2,
-    heat_per_atom.data() + N * 3, heat_per_atom.data() + N * 4);
-  CUDA_CHECK_KERNEL
+  compute_heat(virial_per_atom, velocity_per_atom, heat_per_atom);
 
   gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, step, heat_per_atom.data(), heat_all.data());
   CUDA_CHECK_KERNEL
