@@ -54,7 +54,7 @@ void Run::execute_run_in(char* input_dir)
   strcat(file_run, "/run.in");
   char* input = get_file_contents(file_run);
   char* input_ptr = input;      // Keep the pointer in order to free later
-  const int max_num_param = 10; // never use more than 9 parameters
+  const int max_num_param = 20; // never use more than 19 parameters
   int num_param;
   char* param[max_num_param];
 
