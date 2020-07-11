@@ -38,8 +38,8 @@ public:
 
   void postprocess(const char*);
 
-  void parse_compute_dos(char**, int, Group* group);
-  void parse_compute_sdc(char**, int, Group* group);
+  void parse_compute_dos(char** param, const int num_param, const std::vector<Group>& groups);
+  void parse_compute_sdc(char** param, const int num_param, const std::vector<Group>& groups);
 
 private:
   int N;                // number of atoms for computation
@@ -52,6 +52,5 @@ private:
   GPU_Vector<double> vx, vy, vz;
   GPU_Vector<double> vac_x, vac_y, vac_z;
 
-  void parse_group(char** param, int* k, Group* group);
   void parse_num_dos_points(char** param, int* k);
 };

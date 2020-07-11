@@ -26,6 +26,7 @@ Reference for PDOS:
     Phys. Rev. 188, 1407 (1969).
 ------------------------------------------------------------------------------*/
 
+#include "parse_group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -423,26 +424,6 @@ void VAC::postprocess(const char* input_dir)
   num_dos_points = -1;
 }
 
-// Helper functions for parse_compute_dos
-void VAC::parse_group(char** param, int* k, Group* groups)
-{
-  // grouping_method
-  if (!is_valid_int(param[*k + 1], &grouping_method)) {
-    PRINT_INPUT_ERROR("grouping method for VAC should be ans integer number.\n");
-  }
-  if (grouping_method < 0 || grouping_method > 2) {
-    PRINT_INPUT_ERROR("grouping method for VAC should be 0 <= x <= 2.\n");
-  }
-  // group
-  if (!is_valid_int(param[*k + 2], &group)) {
-    PRINT_INPUT_ERROR("group for VAC should be an integer number.\n");
-  }
-  if (group < 0 || group > groups[grouping_method].number) {
-    PRINT_INPUT_ERROR("group for VAC must be >= 0 and < number of groups.\n");
-  }
-  *k += 2; // update index for next command
-}
-
 void VAC::parse_num_dos_points(char** param, int* k)
 {
   // number of DOS points
@@ -456,7 +437,7 @@ void VAC::parse_num_dos_points(char** param, int* k)
   *k += 1; //
 }
 
-void VAC::parse_compute_dos(char** param, int num_param, Group* groups)
+void VAC::parse_compute_dos(char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute phonon DOS.\n");
   compute_dos = 1;
@@ -503,7 +484,7 @@ void VAC::parse_compute_dos(char** param, int num_param, Group* groups)
         PRINT_INPUT_ERROR("Not enough arguments for optional "
                           "'group' DOS command.\n");
       }
-      parse_group(param, &k, groups);
+      parse_group(param, groups, k, grouping_method, group);
       printf("    grouping_method is %d and group is %d.\n", grouping_method, group);
     } else if (strcmp(param[k], "num_dos_points") == 0) {
       // check if there are enough inputs
@@ -519,7 +500,7 @@ void VAC::parse_compute_dos(char** param, int num_param, Group* groups)
   }
 }
 
-void VAC::parse_compute_sdc(char** param, int num_param, Group* groups)
+void VAC::parse_compute_sdc(char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute SDC.\n");
   compute_sdc = 1;
@@ -557,7 +538,7 @@ void VAC::parse_compute_sdc(char** param, int num_param, Group* groups)
         PRINT_INPUT_ERROR("Not enough arguments for optional "
                           "'group' SDC command.\n");
       }
-      parse_group(param, &k, groups);
+      parse_group(param, groups, k, grouping_method, group);
       printf("    grouping_method is %d and group is %d.\n", grouping_method, group);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_sdc.\n");
