@@ -428,8 +428,7 @@ void VAC::parse_num_dos_points(char** param, int* k)
 {
   // number of DOS points
   if (!is_valid_int(param[*k + 1], &num_dos_points)) {
-    PRINT_INPUT_ERROR("number of DOS points for VAC should be an integer "
-                      "number.\n");
+    PRINT_INPUT_ERROR("number of DOS points for VAC should be an integer.\n");
   }
   if (num_dos_points < 1) {
     PRINT_INPUT_ERROR("number of DOS points for DOS must be > 0.\n");
@@ -481,16 +480,14 @@ void VAC::parse_compute_dos(char** param, const int num_param, const std::vector
     if (strcmp(param[k], "group") == 0) {
       // check if there are enough inputs
       if (k + 3 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for optional "
-                          "'group' DOS command.\n");
+        PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
       }
       parse_group(param, groups, k, grouping_method, group);
       printf("    grouping_method is %d and group is %d.\n", grouping_method, group);
     } else if (strcmp(param[k], "num_dos_points") == 0) {
       // check if there are enough inputs
       if (k + 2 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for optional "
-                          "'group' dos command.\n");
+        PRINT_INPUT_ERROR("Not enough arguments for option 'num_dos_points'.\n");
       }
       parse_num_dos_points(param, &k);
       printf("    num_dos_points is %d.\n", num_dos_points);
@@ -535,8 +532,7 @@ void VAC::parse_compute_sdc(char** param, const int num_param, const std::vector
     if (strcmp(param[k], "group") == 0) {
       // check if there are enough inputs
       if (k + 3 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for optional "
-                          "'group' SDC command.\n");
+        PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
       }
       parse_group(param, groups, k, grouping_method, group);
       printf("    grouping_method is %d and group is %d.\n", grouping_method, group);
