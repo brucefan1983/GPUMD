@@ -14,8 +14,8 @@
 */
 
 #pragma once
-#include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
+class Group;
 
 class SHC
 {

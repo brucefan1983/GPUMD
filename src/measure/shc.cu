@@ -20,6 +20,8 @@ molecular dynamics method for heat transport and spectral decomposition
 with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 ------------------------------------------------------------------------------*/
 
+#include "model/group.cuh"
+#include "parse_group.cuh"
 #include "shc.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -203,66 +205,19 @@ void SHC::postprocess(const char* input_dir)
   fclose(fid);
 
   compute = 0;
+  group_method = -1;
 }
 
-void SHC::parse(char** param, int num_param, const std::vector<Group>& group)
+void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
   printf("Compute SHC.\n");
   compute = 1;
 
-  // check the number of parameters
-  if ((num_param != 4) && (num_param != 5) && (num_param != 6)) {
-    PRINT_INPUT_ERROR("compute_shc should have 3 or 4 or 5 parameters.");
+  if ((num_param != 4) && (num_param != 7)) {
+    PRINT_INPUT_ERROR("compute_shc should have 3 or 6 parameters.");
   }
 
-  // group method and group id
-  int offset = 0;
-  if (num_param == 4) {
-    group_method = -1;
-    printf("    for the whole system.\n");
-  } else if (num_param == 5) {
-    offset = 1;
-    group_method = 0;
-    if (!is_valid_int(param[1], &group_id)) {
-      PRINT_INPUT_ERROR("group id should be an integer.");
-    }
-    if (group_id < 0) {
-      PRINT_INPUT_ERROR("group id should >= 0.");
-    }
-    if (group_id >= group[0].number) {
-      PRINT_INPUT_ERROR("group id should < #groups.");
-    }
-    printf("    for atoms in group %d.\n", group_id);
-    printf("    using grouping method 0.\n");
-  } else {
-    offset = 2;
-    // grouping method
-    if (!is_valid_int(param[1], &group_method)) {
-      PRINT_INPUT_ERROR("grouping method should be an integer.");
-    }
-    if (group_method < 0) {
-      PRINT_INPUT_ERROR("grouping method should >= 0.");
-    }
-    if (group_method >= group.size()) {
-      PRINT_INPUT_ERROR("grouping method exceeds the bound.");
-    }
-
-    // group id
-    if (!is_valid_int(param[2], &group_id)) {
-      PRINT_INPUT_ERROR("group id should be an integer.");
-    }
-    if (group_id < 0) {
-      PRINT_INPUT_ERROR("group id should >= 0.");
-    }
-    if (group_id >= group[group_method].number) {
-      PRINT_INPUT_ERROR("group id should < #groups.");
-    }
-    printf("    for atoms in group %d.\n", group_id);
-    printf("    using group method %d.\n", group_method);
-  }
-
-  // sample interval
-  if (!is_valid_int(param[1 + offset], &sample_interval)) {
+  if (!is_valid_int(param[1], &sample_interval)) {
     PRINT_INPUT_ERROR("Sampling interval for SHC should be an integer.");
   }
   if (sample_interval < 1) {
@@ -273,8 +228,7 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& group)
   }
   printf("    sampling interval for SHC is %d.\n", sample_interval);
 
-  // number of correlation data
-  if (!is_valid_int(param[2 + offset], &Nc)) {
+  if (!is_valid_int(param[2], &Nc)) {
     PRINT_INPUT_ERROR("Nc for SHC should be an integer.");
   }
   if (Nc < 100) {
@@ -285,8 +239,7 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& group)
   }
   printf("    number of correlation data is %d.\n", Nc);
 
-  // transport direction
-  if (!is_valid_int(param[3 + offset], &direction)) {
+  if (!is_valid_int(param[3], &direction)) {
     PRINT_INPUT_ERROR("direction for SHC should be an integer.");
   }
   if (direction == 0) {
@@ -297,5 +250,17 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& group)
     printf("    transport direction is z.\n");
   } else {
     PRINT_INPUT_ERROR("Transport direction should be x or y or z.");
+  }
+
+  for (int k = 4; k < num_param; k++) {
+    if (strcmp(param[k], "group") == 0) {
+      parse_group(param, groups, k, group_method, group_id);
+      if (group_id < 0) {
+        PRINT_INPUT_ERROR("group ID should >= 0.\n");
+      }
+      printf("    grouping_method is %d and group is %d.\n", group_method, group_id);
+    } else {
+      PRINT_INPUT_ERROR("Unrecognized argument in dump_force.\n");
+    }
   }
 }

@@ -14,6 +14,8 @@
 */
 
 #pragma once
+#include <vector>
+class Group;
 
 void parse_group(
   char** param, const std::vector<Group>& groups, int& k, int& grouping_method, int& group_id);

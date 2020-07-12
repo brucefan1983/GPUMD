@@ -14,28 +14,30 @@
 */
 
 #pragma once
-
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Group;
 
-class Dump_Velocity
+class SDC
 {
 public:
-  void parse(char** param, int num_param, const std::vector<Group>& groups);
-  void preprocess(char* input_dir);
-  void process(
-    const int step,
-    const std::vector<Group>& groups,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom);
-  void postprocess();
-
-private:
-  bool dump_ = false;
-  int dump_interval_ = 1;
+  bool compute_ = false;
+  int sample_interval_ = 1;
+  int num_correlation_steps_ = 100;
   int grouping_method_ = -1;
   int group_id_ = -1;
-  FILE* fid_;
-  char filename_[200];
+
+  void preprocess(const int num_atoms, const double time_step, const std::vector<Group>& groups);
+  void process(
+    const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom);
+  void postprocess(const char*);
+  void parse(char** param, const int num_param, const std::vector<Group>& groups);
+
+private:
+  int num_atoms_;
+  int num_time_origins_;
+  double dt_in_natural_units_;
+  double dt_in_ps_;
+  GPU_Vector<double> vx_, vy_, vz_;
+  GPU_Vector<double> vacx_, vacy_, vacz_;
 };
