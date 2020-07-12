@@ -150,9 +150,9 @@ void SDC::process(
 {
   if (!compute_)
     return;
-  if ((step + 1) % sample_interval_ != 0) {
+  if ((step + 1) % sample_interval_ != 0)
     return;
-  }
+
   const int sample_step = step / sample_interval_;
   const int correlation_step = sample_step % num_correlation_steps_;
   const int step_offset = correlation_step * num_atoms_;
@@ -194,10 +194,11 @@ void SDC::postprocess(const char* input_dir)
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
   // normalize by the number of atoms and number of time origins
+  const double vac_scaler = 1.0 / (num_atoms_ * num_time_origins_);
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    vacx_[nc] /= double(num_atoms_) * num_time_origins_;
-    vacy_[nc] /= double(num_atoms_) * num_time_origins_;
-    vacz_[nc] /= double(num_atoms_) * num_time_origins_;
+    vacx_[nc] *= vac_scaler;
+    vacy_[nc] *= vac_scaler;
+    vacz_[nc] *= vac_scaler;
   }
 
   std::vector<double> sdc_x(num_correlation_steps_, 0.0);
@@ -210,25 +211,25 @@ void SDC::postprocess(const char* input_dir)
     sdc_z[nc] = sdc_z[nc - 1] + (vacz_[nc - 1] + vacz_[nc]) * dt2;
   }
 
+  const double sdc_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
+  const double vac_unit_conversion = sdc_unit_conversion * sdc_unit_conversion;
+
   char file_sdc[200];
   strcpy(file_sdc, input_dir);
   strcat(file_sdc, "/sdc.out");
   FILE* fid = fopen(file_sdc, "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    double t = nc * dt_in_ps_;
-    vacx_[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION; // change to A^2/ps^2
-    vacy_[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION; // change to A^2/ps^2
-    vacz_[nc] *= 1000000.0 / TIME_UNIT_CONVERSION / TIME_UNIT_CONVERSION; // change to A^2/ps^2
-    sdc_x[nc] *= 1000.0 / TIME_UNIT_CONVERSION;                           // change to A^2/ps
-    sdc_y[nc] *= 1000.0 / TIME_UNIT_CONVERSION;                           // change to A^2/ps
-    sdc_z[nc] *= 1000.0 / TIME_UNIT_CONVERSION;                           // change to A^2/ps
-    fprintf(fid, "%g %g %g %g ", t, vacx_[nc], vacy_[nc], vacz_[nc]);
-    fprintf(fid, "%g %g %g\n", sdc_x[nc], sdc_y[nc], sdc_z[nc]);
+    fprintf(
+      fid, "%g %g %g %g %g %g %g\n", nc * dt_in_ps_, vacx_[nc] * vac_unit_conversion,
+      vacy_[nc] * vac_unit_conversion, vacz_[nc] * vac_unit_conversion,
+      sdc_x[nc] * sdc_unit_conversion, sdc_y[nc] * sdc_unit_conversion,
+      sdc_z[nc] * sdc_unit_conversion);
   }
   fflush(fid);
   fclose(fid);
 
   compute_ = false;
+  grouping_method_ = -1;
 }
 
 void SDC::parse(char** param, const int num_param, const std::vector<Group>& groups)
@@ -268,6 +269,9 @@ void SDC::parse(char** param, const int num_param, const std::vector<Group>& gro
         PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
       }
       parse_group(param, groups, k, grouping_method_, group_id_);
+      if (group_id_ < 0) {
+        PRINT_INPUT_ERROR("group ID should >= 0.\n");
+      }
       printf("    grouping_method is %d and group is %d.\n", grouping_method_, group_id_);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_sdc.\n");
