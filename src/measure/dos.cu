@@ -33,22 +33,18 @@ Reference for DOS:
 
 namespace
 {
+
 __global__ void gpu_copy_mass(
-  const int num_atoms,
-  const int offset,
-  const int* g_group_contents,
-  const double* g_mass_i,
-  double* g_mass_o)
+  const int num_atoms, const int* g_group_contents, const double* g_mass_i, double* g_mass_o)
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < num_atoms) {
-    g_mass_o[n] = g_mass_i[g_group_contents[offset + n]];
+    g_mass_o[n] = g_mass_i[g_group_contents[n]];
   }
 }
 
 __global__ void gpu_copy_velocity(
   const int num_atoms,
-  const int offset,
   const int* g_group_contents,
   const double* g_vx_i,
   const double* g_vy_i,
@@ -59,7 +55,7 @@ __global__ void gpu_copy_velocity(
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < num_atoms) {
-    const int m = g_group_contents[offset + n];
+    const int m = g_group_contents[n];
     g_vx_o[n] = g_vx_i[m];
     g_vy_o[n] = g_vy_i[m];
     g_vz_o[n] = g_vz_i[m];
@@ -146,182 +142,6 @@ __global__ void gpu_find_vac(
 
 } // namespace
 
-void DOS::preprocess(
-  const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass)
-{
-  if (!compute_)
-    return;
-
-  dt_in_natural_units_ = time_step * sample_interval_;
-  dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
-
-  if (1.0 / dt_in_ps_ < omega_max_ / PI) {
-    PRINT_INPUT_ERROR("Velocity sampling rate < Nyquist frequency.");
-  }
-
-  if (grouping_method_ < 0) {
-    num_atoms_ = mass.size();
-    num_groups_ = 1;
-  } else {
-    if (group_id_ < 0) {
-      num_atoms_ = mass.size();
-      num_groups_ = groups[grouping_method_].number;
-    } else {
-      num_atoms_ = groups[grouping_method_].cpu_size[group_id_];
-      num_groups_ = 1;
-    }
-  }
-
-  if (num_dos_points_ < 0) {
-    num_dos_points_ = num_correlation_steps_;
-  }
-
-  vx_.resize(num_atoms_ * num_correlation_steps_);
-  vy_.resize(num_atoms_ * num_correlation_steps_);
-  vz_.resize(num_atoms_ * num_correlation_steps_);
-  vacx_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
-  vacy_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
-  vacz_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
-  mass_.resize(num_atoms_);
-
-  if (grouping_method_ < 0) {
-    mass_.copy_from_device(mass.data());
-  } else {
-    const int offset = (group_id_ < 0) ? 0 : groups[grouping_method_].cpu_size_sum[group_id_];
-    gpu_copy_mass<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
-      num_atoms_, offset, groups[grouping_method_].contents.data(), mass.data(), mass_.data());
-    CUDA_CHECK_KERNEL
-  }
-
-  num_time_origins_ = 0;
-}
-
-void DOS::process(
-  const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom)
-{
-  if (!compute_)
-    return;
-  if ((step + 1) % sample_interval_ != 0) {
-    return;
-  }
-  const int sample_step = step / sample_interval_;
-  const int correlation_step = sample_step % num_correlation_steps_;
-  const int step_offset = correlation_step * num_atoms_;
-  const int number_of_atoms_total = velocity_per_atom.size() / 3;
-
-  // copy the velocity data at the current step to appropriate place
-  if (grouping_method_ < 0) {
-    gpu_copy_velocity<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
-      num_atoms_, velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms_total,
-      velocity_per_atom.data() + 2 * number_of_atoms_total, vx_.data() + step_offset,
-      vy_.data() + step_offset, vz_.data() + step_offset);
-  } else {
-    const int group_offset = (group_id_ < 0) ? 0 : groups[grouping_method_].cpu_size_sum[group_id_];
-    gpu_copy_velocity<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
-      num_atoms_, group_offset, groups[grouping_method_].contents.data(), velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms_total,
-      velocity_per_atom.data() + 2 * number_of_atoms_total, vx_.data() + step_offset,
-      vy_.data() + step_offset, vz_.data() + step_offset);
-  }
-  CUDA_CHECK_KERNEL
-
-  // start to calculate the MVAC when we have enough frames
-  if (sample_step >= num_correlation_steps_ - 1) {
-    ++num_time_origins_;
-
-    gpu_find_vac<<<num_correlation_steps_, 128>>>(
-      num_atoms_, correlation_step, mass_.data(), vx_.data() + step_offset,
-      vy_.data() + step_offset, vz_.data() + step_offset, vx_.data(), vy_.data(), vz_.data(),
-      vacx_.data(), vacy_.data(), vacz_.data());
-    CUDA_CHECK_KERNEL
-  }
-}
-
-void DOS::postprocess(const char* input_dir)
-{
-  if (!compute_)
-    return;
-
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
-
-  // normalize MVAC
-  double vacx_0 = vacx_[0];
-  double vacy_0 = vacy_[0];
-  double vacz_0 = vacz_[0];
-  for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    vacx_[nc] /= vacx_0;
-    vacy_[nc] /= vacy_0;
-    vacz_[nc] /= vacz_0;
-  }
-
-  // output normalized MVAC
-  char file_vac[200];
-  strcpy(file_vac, input_dir);
-  strcat(file_vac, "/mvac.out");
-  FILE* fid = fopen(file_vac, "a");
-  for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    double t = nc * dt_in_ps_;
-    fprintf(fid, "%g %g %g %g\n", t, vacx_[nc], vacy_[nc], vacz_[nc]);
-  }
-  fflush(fid);
-  fclose(fid);
-
-  // calculate DOS
-  double d_omega = omega_max_ / num_dos_points_;
-  double omega_0 = d_omega;
-  std::vector<double> dos_x(num_dos_points_, 0.0);
-  std::vector<double> dos_y(num_dos_points_, 0.0);
-  std::vector<double> dos_z(num_dos_points_, 0.0);
-  for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    double hann_window = (cos((PI * nc) / num_correlation_steps_) + 1.0) * 0.5;
-    double multiply_factor = (nc == 0) ? 1.0 * hann_window : 2.0 * hann_window;
-    vacx_[nc] *= multiply_factor;
-    vacy_[nc] *= multiply_factor;
-    vacz_[nc] *= multiply_factor;
-  }
-  for (int nw = 0; nw < num_dos_points_; nw++) {
-    double omega = omega_0 + nw * d_omega;
-    for (int nc = 0; nc < num_correlation_steps_; nc++) {
-      double cos_factor = cos(omega * nc * dt_in_ps_);
-      dos_x[nw] += vacx_[nc] * cos_factor;
-      dos_y[nw] += vacy_[nc] * cos_factor;
-      dos_z[nw] += vacz_[nc] * cos_factor;
-    }
-    dos_x[nw] *= dt_in_ps_ * 2.0 * num_atoms_;
-    dos_y[nw] *= dt_in_ps_ * 2.0 * num_atoms_;
-    dos_z[nw] *= dt_in_ps_ * 2.0 * num_atoms_;
-  }
-
-  // output DOS
-  char file_dos[200];
-  strcpy(file_dos, input_dir);
-  strcat(file_dos, "/dos.out");
-  FILE* fid_dos = fopen(file_dos, "a");
-  for (int nw = 0; nw < num_dos_points_; nw++) {
-    double omega = omega_0 + d_omega * nw;
-    fprintf(fid_dos, "%g %g %g %g\n", omega, dos_x[nw], dos_y[nw], dos_z[nw]);
-  }
-  fflush(fid_dos);
-  fclose(fid_dos);
-
-  compute_ = false;
-  grouping_method_ = -1;
-  group_id_ = -1;
-  num_dos_points_ = -1;
-}
-
-void DOS::parse_num_dos_points(char** param, int& k)
-{
-  // number of DOS points
-  if (!is_valid_int(param[k + 1], &num_dos_points_)) {
-    PRINT_INPUT_ERROR("number of DOS points for VAC should be an integer.\n");
-  }
-  if (num_dos_points_ < 1) {
-    PRINT_INPUT_ERROR("number of DOS points for DOS must be > 0.\n");
-  }
-  k += 1;
-}
-
 void DOS::parse(char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute phonon DOS.\n");
@@ -334,44 +154,38 @@ void DOS::parse(char** param, const int num_param, const std::vector<Group>& gro
     PRINT_INPUT_ERROR("compute_dos has too many parameters.\n");
   }
 
-  // sample interval
   if (!is_valid_int(param[1], &sample_interval_)) {
-    PRINT_INPUT_ERROR("sample interval for VAC should be an integer number.\n");
+    PRINT_INPUT_ERROR("sample interval should be an integer.\n");
   }
   if (sample_interval_ <= 0) {
-    PRINT_INPUT_ERROR("sample interval for VAC should be positive.\n");
+    PRINT_INPUT_ERROR("sample interval should be positive.\n");
   }
   printf("    sample interval is %d.\n", sample_interval_);
 
-  // number of correlation steps
   if (!is_valid_int(param[2], &num_correlation_steps_)) {
-    PRINT_INPUT_ERROR("Nc for VAC should be an integer number.\n");
+    PRINT_INPUT_ERROR("number of correlation steps should be an integer.\n");
   }
   if (num_correlation_steps_ <= 0) {
-    PRINT_INPUT_ERROR("Nc for VAC should be positive.\n");
+    PRINT_INPUT_ERROR("number of correlation steps should be positive.\n");
   }
-  printf("    Nc is %d.\n", num_correlation_steps_);
+  printf("    number of correlation steps is %d.\n", num_correlation_steps_);
 
-  // maximal omega
   if (!is_valid_real(param[3], &omega_max_)) {
-    PRINT_INPUT_ERROR("omega_max should be a real number.\n");
+    PRINT_INPUT_ERROR("maximal angular frequency should be a number.\n");
   }
   if (omega_max_ <= 0) {
-    PRINT_INPUT_ERROR("omega_max should be positive.\n");
+    PRINT_INPUT_ERROR("maximal angular frequency should be positive.\n");
   }
-  printf("    omega_max is %g THz.\n", omega_max_);
+  printf("    maximal angular frequency is %g THz.\n", omega_max_);
 
-  // Process optional arguments
   for (int k = 4; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
-      // check if there are enough inputs
       if (k + 3 > num_param) {
         PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
       }
       parse_group(param, groups, k, grouping_method_, group_id_);
       printf("    grouping_method is %d and group is %d.\n", grouping_method_, group_id_);
     } else if (strcmp(param[k], "num_dos_points") == 0) {
-      // check if there are enough inputs
       if (k + 2 > num_param) {
         PRINT_INPUT_ERROR("Not enough arguments for option 'num_dos_points'.\n");
       }
@@ -381,4 +195,269 @@ void DOS::parse(char** param, const int num_param, const std::vector<Group>& gro
       PRINT_INPUT_ERROR("Unrecognized argument in compute_dos.\n");
     }
   }
+}
+
+void DOS::preprocess(
+  const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass)
+{
+  if (!compute_)
+    return;
+  initialize_parameters(time_step, groups, mass);
+  allocate_memory();
+  copy_mass(mass);
+}
+
+void DOS::process(
+  const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom)
+{
+  if (!compute_)
+    return;
+  if ((step + 1) % sample_interval_ != 0)
+    return;
+
+  const int sample_step = step / sample_interval_;
+  const int correlation_step = sample_step % num_correlation_steps_;
+  copy_velocity(correlation_step, velocity_per_atom);
+  if (sample_step >= num_correlation_steps_ - 1) {
+    ++num_time_origins_;
+    find_vac(correlation_step);
+  }
+}
+
+void DOS::postprocess(const char* input_dir)
+{
+  if (!compute_)
+    return;
+
+  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+
+  normalize_vac();
+  output_vac(input_dir);
+  find_dos();
+  output_dos(input_dir);
+
+  compute_ = false;
+  grouping_method_ = -1;
+  num_dos_points_ = -1;
+}
+
+void DOS::parse_num_dos_points(char** param, int& k)
+{
+  if (!is_valid_int(param[k + 1], &num_dos_points_)) {
+    PRINT_INPUT_ERROR("number of DOS points should be an integer.\n");
+  }
+  if (num_dos_points_ < 1) {
+    PRINT_INPUT_ERROR("number of DOS points must be > 0.\n");
+  }
+  k += 1;
+}
+
+void DOS::initialize_parameters(
+  const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass)
+{
+  num_time_origins_ = 0;
+  dt_in_natural_units_ = time_step * sample_interval_;
+  dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
+  if (1.0 / dt_in_ps_ < omega_max_ / PI) {
+    PRINT_INPUT_ERROR("Velocity sampling rate < Nyquist frequency.");
+  }
+
+  if (grouping_method_ < 0) {
+    num_atoms_ = mass.size();
+    num_groups_ = 1;
+  } else {
+    group_ = &groups[grouping_method_];
+    if (group_id_ < 0) {
+      num_atoms_ = mass.size();
+      num_groups_ = group_->number;
+    } else {
+      num_atoms_ = group_->cpu_size[group_id_];
+      num_groups_ = 1;
+    }
+  }
+
+  if (num_dos_points_ < 0) {
+    num_dos_points_ = num_correlation_steps_;
+  }
+}
+
+void DOS::allocate_memory()
+{
+  vx_.resize(num_atoms_ * num_correlation_steps_);
+  vy_.resize(num_atoms_ * num_correlation_steps_);
+  vz_.resize(num_atoms_ * num_correlation_steps_);
+  vacx_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
+  vacy_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
+  vacz_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
+  dosx_.resize(num_groups_ * num_dos_points_, 0.0);
+  dosy_.resize(num_groups_ * num_dos_points_, 0.0);
+  dosz_.resize(num_groups_ * num_dos_points_, 0.0);
+  mass_.resize(num_atoms_);
+}
+
+void DOS::copy_mass(const GPU_Vector<double>& mass)
+{
+  if (grouping_method_ < 0) {
+    mass_.copy_from_device(mass.data());
+  } else {
+    const int offset = (group_id_ < 0) ? 0 : group_->cpu_size_sum[group_id_];
+    gpu_copy_mass<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
+      num_atoms_, group_->contents.data() + offset, mass.data(), mass_.data());
+    CUDA_CHECK_KERNEL
+  }
+}
+
+void DOS::copy_velocity(const int correlation_step, const GPU_Vector<double>& velocity_per_atom)
+{
+  const int number_of_atoms_total = velocity_per_atom.size() / 3;
+  const int step_offset = correlation_step * num_atoms_;
+  const double* vxi = velocity_per_atom.data();
+  const double* vyi = velocity_per_atom.data() + number_of_atoms_total;
+  const double* vzi = velocity_per_atom.data() + number_of_atoms_total * 2;
+  double* vxo = vx_.data() + step_offset;
+  double* vyo = vy_.data() + step_offset;
+  double* vzo = vz_.data() + step_offset;
+
+  if (grouping_method_ < 0) {
+    gpu_copy_velocity<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
+      num_atoms_, vxi, vyi, vzi, vxo, vyo, vzo);
+  } else {
+    if (group_id_ >= 0) {
+      const int* group_contents = group_->contents.data() + group_->cpu_size_sum[group_id_];
+      gpu_copy_velocity<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
+        num_atoms_, group_contents, vxi, vyi, vzi, vxo, vyo, vzo);
+    } else {
+      for (int n = 0; n < num_groups_; ++n) {
+        const int group_size = group_->cpu_size[n];
+        const int step_offset =
+          num_correlation_steps_ * group_->cpu_size_sum[n] + correlation_step * group_size;
+        const int* group_contents = group_->contents.data() + group_->cpu_size_sum[n];
+        vxo = vx_.data() + step_offset;
+        vyo = vy_.data() + step_offset;
+        vzo = vz_.data() + step_offset;
+        gpu_copy_velocity<<<(group_size - 1) / 128 + 1, 128>>>(
+          group_size, group_contents, vxi, vyi, vzi, vxo, vyo, vzo);
+      }
+    }
+  }
+  CUDA_CHECK_KERNEL
+}
+
+void DOS::find_vac(const int correlation_step)
+{
+  if (grouping_method_ >= 0 && group_id_ < 0) {
+    for (int n = 0; n < num_groups_; ++n) {
+      const int size_n = group_->cpu_size[n];
+      const double* mass = mass_.data() + group_->cpu_size_sum[n];
+      const double* vx_all = vx_.data() + num_correlation_steps_ * group_->cpu_size_sum[n];
+      const double* vy_all = vy_.data() + num_correlation_steps_ * group_->cpu_size_sum[n];
+      const double* vz_all = vz_.data() + num_correlation_steps_ * group_->cpu_size_sum[n];
+      const double* vx = vx_all + correlation_step * size_n;
+      const double* vy = vy_all + correlation_step * size_n;
+      const double* vz = vz_all + correlation_step * size_n;
+      double* vacx = vacx_.data() + num_correlation_steps_ * n;
+      double* vacy = vacy_.data() + num_correlation_steps_ * n;
+      double* vacz = vacz_.data() + num_correlation_steps_ * n;
+      gpu_find_vac<<<num_correlation_steps_, 128>>>(
+        size_n, correlation_step, mass, vx, vy, vz, vx_all, vy_all, vz_all, vacx, vacy, vacz);
+    }
+  } else {
+    const int step_offset = correlation_step * num_atoms_;
+    const double* vx = vx_.data() + step_offset;
+    const double* vy = vy_.data() + step_offset;
+    const double* vz = vz_.data() + step_offset;
+    gpu_find_vac<<<num_correlation_steps_, 128>>>(
+      num_atoms_, correlation_step, mass_.data(), vx, vy, vz, vx_.data(), vy_.data(), vz_.data(),
+      vacx_.data(), vacy_.data(), vacz_.data());
+  }
+  CUDA_CHECK_KERNEL
+}
+
+void DOS::normalize_vac()
+{
+  for (int n = 0; n < num_groups_; ++n) {
+    const int vac_offset = num_correlation_steps_ * n;
+    const double vacx_0 = vacx_[vac_offset];
+    const double vacy_0 = vacy_[vac_offset];
+    const double vacz_0 = vacz_[vac_offset];
+    for (int nc = 0; nc < num_correlation_steps_; nc++) {
+      vacx_[nc + vac_offset] /= vacx_0;
+      vacy_[nc + vac_offset] /= vacy_0;
+      vacz_[nc + vac_offset] /= vacz_0;
+    }
+  }
+}
+
+void DOS::output_vac(const char* input_dir)
+{
+  char file_vac[200];
+  strcpy(file_vac, input_dir);
+  strcat(file_vac, "/mvac.out");
+  FILE* fid = fopen(file_vac, "a");
+
+  for (int n = 0; n < num_groups_; ++n) {
+    const int offset = num_correlation_steps_ * n;
+    for (int nc = 0; nc < num_correlation_steps_; nc++) {
+      fprintf(
+        fid, "%g %g %g %g\n", nc * dt_in_ps_, vacx_[nc + offset], vacy_[nc + offset],
+        vacz_[nc + offset]);
+    }
+  }
+
+  fflush(fid);
+  fclose(fid);
+}
+
+void DOS::find_dos()
+{
+  const double d_omega = omega_max_ / num_dos_points_;
+
+  for (int n = 0; n < num_groups_; ++n) {
+
+    for (int nc = 0; nc < num_correlation_steps_; nc++) {
+      const double hann_window = (cos((PI * nc) / num_correlation_steps_) + 1.0) * 0.5;
+      const double multiply_factor = (nc == 0) ? hann_window : 2.0 * hann_window;
+      vacx_[nc + num_correlation_steps_ * n] *= multiply_factor;
+      vacy_[nc + num_correlation_steps_ * n] *= multiply_factor;
+      vacz_[nc + num_correlation_steps_ * n] *= multiply_factor;
+    }
+
+    for (int nw = 0; nw < num_dos_points_; nw++) {
+      const double omega = d_omega + nw * d_omega;
+
+      for (int nc = 0; nc < num_correlation_steps_; nc++) {
+        const double cos_factor = cos(omega * nc * dt_in_ps_);
+        dosx_[nw + num_dos_points_ * n] += vacx_[nc + num_correlation_steps_ * n] * cos_factor;
+        dosy_[nw + num_dos_points_ * n] += vacy_[nc + num_correlation_steps_ * n] * cos_factor;
+        dosz_[nw + num_dos_points_ * n] += vacz_[nc + num_correlation_steps_ * n] * cos_factor;
+      }
+
+      const int group_size = (num_groups_ == 1) ? num_atoms_ : group_->cpu_size[n];
+
+      dosx_[nw + num_dos_points_ * n] *= dt_in_ps_ * 2.0 * group_size;
+      dosy_[nw + num_dos_points_ * n] *= dt_in_ps_ * 2.0 * group_size;
+      dosz_[nw + num_dos_points_ * n] *= dt_in_ps_ * 2.0 * group_size;
+    }
+  }
+}
+
+void DOS::output_dos(const char* input_dir)
+{
+  char file_dos[200];
+  strcpy(file_dos, input_dir);
+  strcat(file_dos, "/dos.out");
+  FILE* fid_dos = fopen(file_dos, "a");
+
+  const double d_omega = omega_max_ / num_dos_points_;
+  for (int ng = 0; ng < num_groups_; ++ng) {
+    const int offset = num_dos_points_ * ng;
+    for (int nw = 0; nw < num_dos_points_; nw++) {
+      fprintf(
+        fid_dos, "%g %g %g %g\n", d_omega + d_omega * nw, dosx_[nw + offset], dosy_[nw + offset],
+        dosz_[nw + offset]);
+    }
+  }
+
+  fflush(fid_dos);
+  fclose(fid_dos);
 }

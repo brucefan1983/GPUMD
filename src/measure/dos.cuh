@@ -29,12 +29,12 @@ public:
   int group_id_ = -1;
   int num_dos_points_ = -1;
 
+  void parse(char** param, const int num_param, const std::vector<Group>& groups);
   void preprocess(
     const double time_step, const std::vector<Group>& group, const GPU_Vector<double>& mass);
   void process(
     const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom);
   void postprocess(const char*);
-  void parse(char** param, const int num_param, const std::vector<Group>& groups);
 
 private:
   int num_atoms_;
@@ -42,10 +42,24 @@ private:
   int num_time_origins_;
   double dt_in_natural_units_;
   double dt_in_ps_;
-  void find_dos(const char*);
+  const Group* group_;
+
   GPU_Vector<double> mass_;
   GPU_Vector<double> vx_, vy_, vz_;
   GPU_Vector<double> vacx_, vacy_, vacz_;
+  std::vector<double> dosx_;
+  std::vector<double> dosy_;
+  std::vector<double> dosz_;
 
   void parse_num_dos_points(char** param, int& k);
+  void initialize_parameters(
+    const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass);
+  void allocate_memory();
+  void copy_mass(const GPU_Vector<double>& mass);
+  void copy_velocity(const int correlation_step, const GPU_Vector<double>& velocity_per_atom);
+  void find_vac(const int correlation_step);
+  void normalize_vac();
+  void output_vac(const char* input_dir);
+  void find_dos();
+  void output_dos(const char* input_dir);
 };
