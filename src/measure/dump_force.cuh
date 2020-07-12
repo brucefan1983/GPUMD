@@ -17,18 +17,22 @@
 
 #include "utilities/gpu_vector.cuh"
 #include <vector>
+class Group;
 
 class Dump_Force
 {
 public:
-  void parse(char** param, int num_param);
-  void preprocess(char* input_dir, const int number_of_atoms);
-  void process(const int step, GPU_Vector<double>& force_per_atom);
+  void parse(char** param, int num_param, const std::vector<Group>& groups);
+  void preprocess(char* input_dir, const int number_of_atoms, const std::vector<Group>& groups);
+  void
+  process(const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom);
   void postprocess();
 
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
+  int grouping_method_ = -1;
+  int group_id_ = -1;
   FILE* fid_;
   char filename_[200];
   std::vector<double> cpu_force_per_atom;

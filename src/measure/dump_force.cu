@@ -18,15 +18,20 @@ Dump force data to a file at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_force.cuh"
+#include "model/group.cuh"
+#include "parse_group.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
 
-void Dump_Force::parse(char** param, int num_param)
+void Dump_Force::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("dump_force should have 1 parameter.");
+  dump_ = true;
+  printf("Dump force every %d steps.\n", dump_interval_);
+
+  if (num_param != 2 && num_param != 5) {
+    PRINT_INPUT_ERROR("dump_force should have 1 or 4 parameters.");
   }
   if (!is_valid_int(param[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("force dump interval should be an integer.");
@@ -34,21 +39,37 @@ void Dump_Force::parse(char** param, int num_param)
   if (dump_interval_ <= 0) {
     PRINT_INPUT_ERROR("force dump interval should > 0.");
   }
-  dump_ = true;
-  printf("Dump force every %d steps.\n", dump_interval_);
+
+  for (int k = 2; k < num_param; k++) {
+    if (strcmp(param[k], "group") == 0) {
+      parse_group(param, groups, k, grouping_method_, group_id_);
+      if (group_id_ < 0) {
+        PRINT_INPUT_ERROR("group ID should >= 0.\n");
+      }
+      printf("    grouping_method is %d and group is %d.\n", grouping_method_, group_id_);
+    } else {
+      PRINT_INPUT_ERROR("Unrecognized argument in dump_force.\n");
+    }
+  }
 }
 
-void Dump_Force::preprocess(char* input_dir, const int number_of_atoms)
+void Dump_Force::preprocess(
+  char* input_dir, const int number_of_atoms, const std::vector<Group>& groups)
 {
   if (dump_) {
     strcpy(filename_, input_dir);
     strcat(filename_, "/force.out");
     fid_ = my_fopen(filename_, "a");
-    cpu_force_per_atom.resize(number_of_atoms * 3);
+
+    if (grouping_method_ < 0)
+      cpu_force_per_atom.resize(number_of_atoms * 3);
+    else
+      cpu_force_per_atom.resize(groups[grouping_method_].cpu_size[group_id_] * 3);
   }
 }
 
-void Dump_Force::process(const int step, GPU_Vector<double>& force_per_atom)
+void Dump_Force::process(
+  const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom)
 {
   if (!dump_)
     return;
@@ -56,11 +77,28 @@ void Dump_Force::process(const int step, GPU_Vector<double>& force_per_atom)
     return;
 
   const int number_of_atoms = force_per_atom.size() / 3;
-  force_per_atom.copy_to_host(cpu_force_per_atom.data());
-  for (int n = 0; n < number_of_atoms; n++) {
-    fprintf(
-      fid_, "%g %g %g\n", cpu_force_per_atom[n], cpu_force_per_atom[n + number_of_atoms],
-      cpu_force_per_atom[n + 2 * number_of_atoms]);
+
+  if (grouping_method_ < 0) {
+    force_per_atom.copy_to_host(cpu_force_per_atom.data());
+    for (int n = 0; n < number_of_atoms; n++) {
+      fprintf(
+        fid_, "%g %g %g\n", cpu_force_per_atom[n], cpu_force_per_atom[n + number_of_atoms],
+        cpu_force_per_atom[n + 2 * number_of_atoms]);
+    }
+  } else {
+    const int group_size = groups[grouping_method_].cpu_size[group_id_];
+    const int group_size_sum = groups[grouping_method_].cpu_size_sum[group_id_];
+
+    for (int d = 0; d < 3; ++d) {
+      double* cpu_f = cpu_force_per_atom.data() + group_size * d;
+      double* gpu_f = force_per_atom.data() + number_of_atoms * d + group_size_sum;
+      CHECK(cudaMemcpy(cpu_f, gpu_f, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+    }
+    for (int n = 0; n < group_size; n++) {
+      fprintf(
+        fid_, "%g %g %g\n", cpu_force_per_atom[n], cpu_force_per_atom[n + group_size],
+        cpu_force_per_atom[n + 2 * group_size]);
+    }
   }
 
   fflush(fid_);
@@ -71,5 +109,6 @@ void Dump_Force::postprocess()
   if (dump_) {
     fclose(fid_);
     dump_ = false;
+    grouping_method_ = -1;
   }
 }
