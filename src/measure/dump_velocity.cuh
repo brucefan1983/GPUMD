@@ -17,14 +17,16 @@
 
 #include "utilities/gpu_vector.cuh"
 #include <vector>
+class Group;
 
 class Dump_Velocity
 {
 public:
-  void parse(char** param, int num_param);
+  void parse(char** param, int num_param, const std::vector<Group>& groups);
   void preprocess(char* input_dir);
   void process(
     const int step,
+    const std::vector<Group>& groups,
     GPU_Vector<double>& velocity_per_atom,
     std::vector<double>& cpu_velocity_per_atom);
   void postprocess();
@@ -32,6 +34,8 @@ public:
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
+  int grouping_method_ = -1;
+  int group_id_ = -1;
   FILE* fid_;
   char filename_[200];
 };
