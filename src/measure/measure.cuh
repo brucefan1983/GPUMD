@@ -15,6 +15,7 @@
 
 #pragma once
 #include "compute.cuh"
+#include "dos.cuh"
 #include "dump_force.cuh"
 #include "dump_pos.cuh"
 #include "dump_restart.cuh"
@@ -26,9 +27,9 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "model/neighbor.cuh"
+#include "sdc.cuh"
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
-#include "vac.cuh"
 
 class Measure
 {
@@ -72,7 +73,8 @@ public:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& heat_per_atom);
 
-  VAC vac;
+  DOS dos;
+  SDC sdc;
   HAC hac;
   SHC shc;
   HNEMD hnemd;

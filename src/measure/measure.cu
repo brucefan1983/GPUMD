@@ -38,7 +38,8 @@ void Measure::initialize(
   if (dump_pos) {
     dump_pos->initialize(input_dir, number_of_atoms);
   }
-  vac.preprocess(time_step, group, mass);
+  dos.preprocess(time_step, group, mass);
+  sdc.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
   compute.preprocess(number_of_atoms, input_dir, group);
@@ -64,7 +65,8 @@ void Measure::finalize(
   dump_restart.postprocess();
   dump_thermo.postprocess();
   dump_force.postprocess();
-  vac.postprocess(input_dir);
+  dos.postprocess(input_dir);
+  sdc.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
   shc.postprocess(input_dir);
   compute.postprocess();
@@ -122,7 +124,8 @@ void Measure::process(
     step, energy_transferred, group, mass, potential_per_atom, force_per_atom, velocity_per_atom,
     virial_per_atom);
 
-  vac.process(step, group, velocity_per_atom);
+  dos.process(step, group, velocity_per_atom);
+  sdc.process(step, group, velocity_per_atom);
 
   hac.process(number_of_steps, step, input_dir, velocity_per_atom, virial_per_atom, heat_per_atom);
 
