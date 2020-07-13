@@ -35,9 +35,6 @@ void Measure::initialize(
   const GPU_Vector<double>& mass)
 {
   const int number_of_atoms = mass.size();
-  if (dump_pos) {
-    dump_pos->initialize(input_dir, number_of_atoms);
-  }
   dos.preprocess(time_step, group, mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
@@ -45,6 +42,7 @@ void Measure::initialize(
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
   modal_analysis.preprocess(input_dir, cpu_type_size, mass);
+  dump_position.preprocess(input_dir);
   dump_velocity.preprocess(input_dir);
   dump_restart.preprocess(input_dir);
   dump_thermo.preprocess(input_dir);
@@ -58,9 +56,7 @@ void Measure::finalize(
   const double temperature,
   const double volume)
 {
-  if (dump_pos) {
-    dump_pos->finalize();
-  }
+  dump_position.postprocess();
   dump_velocity.postprocess();
   dump_restart.postprocess();
   dump_thermo.postprocess();
@@ -73,14 +69,9 @@ void Measure::finalize(
   hnemd.postprocess();
   modal_analysis.postprocess();
 
-  // reset the defaults
+  // TODO: move to the relevant class
   modal_analysis.compute = 0;
   modal_analysis.method = NO_METHOD;
-
-  if (dump_pos) {
-    delete dump_pos;
-  }
-  dump_pos = NULL;
 }
 
 void Measure::process(
@@ -108,41 +99,28 @@ void Measure::process(
   GPU_Vector<double>& heat_per_atom)
 {
   const int number_of_atoms = cpu_type.size();
-
   dump_thermo.process(
     step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group], box, thermo);
-
+  dump_position.process(step, group, cpu_type, position_per_atom, cpu_position_per_atom);
   dump_velocity.process(step, group, velocity_per_atom, cpu_velocity_per_atom);
-
   dump_restart.process(
     step, neighbor, box, group, cpu_type, cpu_mass, position_per_atom, velocity_per_atom,
     cpu_position_per_atom, cpu_velocity_per_atom);
-
   dump_force.process(step, group, force_per_atom);
-
   compute.process(
     step, energy_transferred, group, mass, potential_per_atom, force_per_atom, velocity_per_atom,
     virial_per_atom);
-
   dos.process(step, group, velocity_per_atom);
   sdc.process(step, group, velocity_per_atom);
-
   hac.process(number_of_steps, step, input_dir, velocity_per_atom, virial_per_atom, heat_per_atom);
-
   shc.process(step, group, velocity_per_atom, virial_per_atom);
-
   hnemd.process(
     step, input_dir, temperature, box.get_volume(), velocity_per_atom, virial_per_atom,
     heat_per_atom);
-
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, velocity_per_atom, virial_per_atom);
-
-  if (dump_pos) {
-    dump_pos->dump(step, global_time, box, cpu_type, position_per_atom, cpu_position_per_atom);
-  }
 }
-
+/*
 void Measure::parse_dump_position(char** param, int num_param)
 {
   int interval;
@@ -222,7 +200,7 @@ void Measure::parse_dump_position(char** param, int num_param)
 
   printf("Dump position every %d steps.\n", dump_pos->interval);
 }
-
+*/
 void Measure::parse_compute_gkma(char** param, int num_param, const int number_of_types)
 {
   modal_analysis.compute = 1;

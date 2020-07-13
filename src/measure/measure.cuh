@@ -17,7 +17,7 @@
 #include "compute.cuh"
 #include "dos.cuh"
 #include "dump_force.cuh"
-#include "dump_pos.cuh"
+#include "dump_position.cuh"
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
 #include "dump_velocity.cuh"
@@ -80,7 +80,7 @@ public:
   HNEMD hnemd;
   Compute compute;
   MODAL_ANALYSIS modal_analysis;
-  DUMP_POS* dump_pos = NULL;
+  Dump_Position dump_position;
   Dump_Velocity dump_velocity;
   Dump_Thermo dump_thermo;
   Dump_Restart dump_restart;
