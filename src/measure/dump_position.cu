@@ -28,11 +28,15 @@ Dump position data to movie.xyz.
 void Dump_Position::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
-  printf("Dump position every %d steps.\n", dump_interval_);
+  printf("Dump position.\n");
 
-  if (num_param != 2 && num_param != 5) {
-    PRINT_INPUT_ERROR("dump_position should have 1 or 4 parameters.");
+  if (num_param < 2) {
+    PRINT_INPUT_ERROR("dump_position should have at least 1 parameter.\n");
   }
+  if (num_param > 7) {
+    PRINT_INPUT_ERROR("dump_position has too many parameters.\n");
+  }
+
   if (!is_valid_int(param[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("position dump interval should be an integer.");
   }
@@ -40,13 +44,34 @@ void Dump_Position::parse(char** param, int num_param, const std::vector<Group>&
     PRINT_INPUT_ERROR("position dump interval should > 0.");
   }
 
+  printf("    every %d steps.\n", dump_interval_);
+
   for (int k = 2; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
+      if (k + 3 > num_param) { // TODO: move to parse_group
+        PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
+      }
       parse_group(param, groups, k, grouping_method_, group_id_);
-      if (group_id_ < 0) {
+      if (group_id_ < 0) { // TODO: move to parse_group
         PRINT_INPUT_ERROR("group ID should >= 0.\n");
       }
+      // TODO: move to parse_group
       printf("    grouping_method is %d and group is %d.\n", grouping_method_, group_id_);
+    } else if (strcmp(param[k], "precision") == 0) {
+      // TODO: move to parse_precision
+      if (k + 2 > num_param) {
+        PRINT_INPUT_ERROR("Not enough arguments for option 'precision'.\n");
+      }
+      if (strcmp(param[k + 1], "single") == 0) {
+        precision_ = 1;
+        printf("    with single precision.\n");
+      } else if (strcmp(param[k + 1], "double") == 0) {
+        precision_ = 2;
+        printf("    with double  precision.\n");
+      } else {
+        PRINT_INPUT_ERROR("Invalid precision.\n");
+      }
+      k++;
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_position.\n");
     }
@@ -59,6 +84,13 @@ void Dump_Position::preprocess(char* input_dir)
     strcpy(filename_, input_dir);
     strcat(filename_, "/movie.xyz");
     fid_ = my_fopen(filename_, "a");
+
+    if (precision_ == 0)
+      strcpy(precision_str_, "%d %g %g %g\n");
+    else if (precision_ == 1) // single precision
+      strcpy(precision_str_, "%d %0.9g %0.9g %0.9g\n");
+    else if (precision_ == 2) // double precision
+      strcpy(precision_str_, "%d %.17f %.17f %.17f\n");
   }
 }
 
@@ -82,7 +114,7 @@ void Dump_Position::process(
     fprintf(fid_, "%d\n", (step + 1) / dump_interval_ - 1);
     for (int n = 0; n < num_atoms_total; n++) {
       fprintf(
-        fid_, "%d %g %g %g\n", cpu_type[n], cpu_position_per_atom[n],
+        fid_, precision_str_, cpu_type[n], cpu_position_per_atom[n],
         cpu_position_per_atom[n + num_atoms_total], cpu_position_per_atom[n + 2 * num_atoms_total]);
     }
   } else {
@@ -99,7 +131,7 @@ void Dump_Position::process(
     fprintf(fid_, "%d\n", (step + 1) / dump_interval_ - 1);
     for (int n = 0; n < group_size; n++) {
       fprintf(
-        fid_, "%d %g %g %g\n", cpu_type[n], cpu_position_per_atom[n + group_size_sum],
+        fid_, precision_str_, cpu_type[n], cpu_position_per_atom[n + group_size_sum],
         cpu_position_per_atom[n + num_atoms_total + group_size_sum],
         cpu_position_per_atom[n + 2 * num_atoms_total + group_size_sum]);
     }

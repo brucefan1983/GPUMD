@@ -37,6 +37,8 @@ private:
   int dump_interval_ = 1;
   int grouping_method_ = -1;
   int group_id_ = -1;
+  int precision_ = 0;
   FILE* fid_;
   char filename_[200];
+  char precision_str_[25];
 };
