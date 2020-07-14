@@ -10,7 +10,7 @@
 
 ## Prerequisites
 
-* You need to have a GPU card with compute capability no less than 3.5 and a `CUDA` toolkit no less than `CUDA` 9.0.
+* You need to have a GPU card with compute capability no less than 3.5 and a `CUDA` toolkit no older than `CUDA` 9.0.
 * Works for both linux (with GCC) and Windows (with MSVC) operating systems. 
 
 ## Compile GPUMD
