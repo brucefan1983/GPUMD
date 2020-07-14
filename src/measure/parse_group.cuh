@@ -20,6 +20,7 @@ class Group;
 void parse_group(
   char** param,
   const int num_param,
+  const bool allow_all_groups,
   const std::vector<Group>& groups,
   int& k,
   int& grouping_method,

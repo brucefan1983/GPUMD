@@ -24,6 +24,7 @@ A function parsing the "group" option in some keywords
 void parse_group(
   char** param,
   const int num_param,
+  const bool allow_all_groups,
   const std::vector<Group>& groups,
   int& k,
   int& grouping_method,
@@ -48,6 +49,9 @@ void parse_group(
   }
   if (group_id >= groups[grouping_method].number) {
     PRINT_INPUT_ERROR("Group ID should < number of groups.");
+  }
+  if (group_id < 0 && !allow_all_groups) {
+    PRINT_INPUT_ERROR("group ID should >= 0.\n");
   }
 
   printf("    grouping method is %d and group ID is %d.\n", grouping_method, group_id);

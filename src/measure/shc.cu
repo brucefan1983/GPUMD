@@ -254,10 +254,7 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
 
   for (int k = 4; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, groups, k, group_method, group_id);
-      if (group_id < 0) {
-        PRINT_INPUT_ERROR("group ID should >= 0.\n");
-      }
+      parse_group(param, num_param, false, groups, k, group_method, group_id);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_force.\n");
     }

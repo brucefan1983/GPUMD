@@ -265,10 +265,7 @@ void SDC::parse(char** param, const int num_param, const std::vector<Group>& gro
   // Process optional arguments
   for (int k = 3; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
-      parse_group(param, num_param, groups, k, grouping_method_, group_id_);
-      if (group_id_ < 0) {
-        PRINT_INPUT_ERROR("group ID should >= 0.\n");
-      }
+      parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in compute_sdc.\n");
     }
