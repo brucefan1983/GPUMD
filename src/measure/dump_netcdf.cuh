@@ -16,30 +16,31 @@
 #ifdef USE_NETCDF
 
 #pragma once
-#ifndef DUMP_NETCDF_H
-#define DUMP_NETCDF_H
 
-#include "dump_pos.cuh"
-#include "netcdf.h"
+#include "utilities/gpu_vector.cuh"
+#include <vector>
+class Box;
 
-class DUMP_NETCDF : public DUMP_POS
+class DUMP_NETCDF
 {
 public:
-  void initialize(char*, const int);
-  void finalize();
-
-  void dump(
+  void parse(char** param, int num_param);
+  void preprocess(char* input_dir, const int N);
+  void process(
     const int step,
     const double global_time,
     const Box& box,
     const std::vector<int>& cpu_type,
     GPU_Vector<double>& position_per_atom,
     std::vector<double>& cpu_position_per_atom);
-
-  DUMP_NETCDF();
-  ~DUMP_NETCDF() {}
+  void postprocess();
 
 private:
+  bool dump_ = false;
+  int interval = 1; // output interval
+  char file_position[200];
+  int precision = 2; // 1 = single precision, 2 = double
+
   int ncid; // NetCDF ID
   static bool append;
 
@@ -73,7 +74,5 @@ private:
     GPU_Vector<double>& position_per_atom,
     std::vector<double>& cpu_position_per_atom);
 };
-
-#endif // DUMP_NETCDF
 
 #endif

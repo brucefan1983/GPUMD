@@ -14,10 +14,10 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Dump velocity data to a file at a given interval.
+Dump position data to movie.xyz.
 --------------------------------------------------------------------------------------------------*/
 
-#include "dump_velocity.cuh"
+#include "dump_position.cuh"
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/error.cuh"
@@ -25,84 +25,106 @@ Dump velocity data to a file at a given interval.
 #include "utilities/read_file.cuh"
 #include <vector>
 
-void Dump_Velocity::parse(char** param, int num_param, const std::vector<Group>& groups)
+void Dump_Position::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
-  printf("Dump velocity every %d steps.\n", dump_interval_);
+  printf("Dump position.\n");
 
-  if (num_param != 2 && num_param != 5) {
-    PRINT_INPUT_ERROR("dump_velocity should have 1 or 4 parameters.");
+  if (num_param < 2) {
+    PRINT_INPUT_ERROR("dump_position should have at least 1 parameter.\n");
   }
+  if (num_param > 7) {
+    PRINT_INPUT_ERROR("dump_position has too many parameters.\n");
+  }
+
   if (!is_valid_int(param[1], &dump_interval_)) {
-    PRINT_INPUT_ERROR("velocity dump interval should be an integer.");
+    PRINT_INPUT_ERROR("position dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
-    PRINT_INPUT_ERROR("velocity dump interval should > 0.");
+    PRINT_INPUT_ERROR("position dump interval should > 0.");
   }
+
+  printf("    every %d steps.\n", dump_interval_);
 
   for (int k = 2; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
+    } else if (strcmp(param[k], "precision") == 0) {
+      parse_precision(param, num_param, k, precision_);
     } else {
-      PRINT_INPUT_ERROR("Unrecognized argument in dump_velocity.\n");
+      PRINT_INPUT_ERROR("Unrecognized argument in dump_position.\n");
     }
   }
 }
 
-void Dump_Velocity::preprocess(char* input_dir)
+void Dump_Position::preprocess(char* input_dir)
 {
   if (dump_) {
     strcpy(filename_, input_dir);
-    strcat(filename_, "/velocity.out");
+    strcat(filename_, "/movie.xyz");
     fid_ = my_fopen(filename_, "a");
+
+    if (precision_ == 0)
+      strcpy(precision_str_, "%d %g %g %g\n");
+    else if (precision_ == 1) // single precision
+      strcpy(precision_str_, "%d %0.9g %0.9g %0.9g\n");
+    else if (precision_ == 2) // double precision
+      strcpy(precision_str_, "%d %.17f %.17f %.17f\n");
   }
 }
 
-void Dump_Velocity::process(
+void Dump_Position::process(
   const int step,
   const std::vector<Group>& groups,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
+  const std::vector<int>& cpu_type,
+  GPU_Vector<double>& position_per_atom,
+  std::vector<double>& cpu_position_per_atom)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int num_atoms_total = velocity_per_atom.size() / 3;
+  const int num_atoms_total = position_per_atom.size() / 3;
 
   if (grouping_method_ < 0) {
-    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
+    position_per_atom.copy_to_host(cpu_position_per_atom.data());
+    fprintf(fid_, "%d\n", num_atoms_total);
+    fprintf(fid_, "%d\n", (step + 1) / dump_interval_ - 1);
     for (int n = 0; n < num_atoms_total; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + num_atoms_total],
-        cpu_velocity_per_atom[n + 2 * num_atoms_total]);
+        fid_, precision_str_, cpu_type[n], cpu_position_per_atom[n],
+        cpu_position_per_atom[n + num_atoms_total], cpu_position_per_atom[n + 2 * num_atoms_total]);
     }
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
     const int group_size_sum = groups[grouping_method_].cpu_size_sum[group_id_];
 
     for (int d = 0; d < 3; ++d) {
-      double* cpu_v = cpu_velocity_per_atom.data() + num_atoms_total * d + group_size_sum;
-      double* gpu_v = velocity_per_atom.data() + num_atoms_total * d + group_size_sum;
+      double* cpu_v = cpu_position_per_atom.data() + num_atoms_total * d + group_size_sum;
+      double* gpu_v = position_per_atom.data() + num_atoms_total * d + group_size_sum;
       CHECK(cudaMemcpy(cpu_v, gpu_v, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
     }
+
+    fprintf(fid_, "%d\n", group_size);
+    fprintf(fid_, "%d\n", (step + 1) / dump_interval_ - 1);
     for (int n = 0; n < group_size; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_velocity_per_atom[n + group_size_sum],
-        cpu_velocity_per_atom[n + num_atoms_total + group_size_sum],
-        cpu_velocity_per_atom[n + 2 * num_atoms_total + group_size_sum]);
+        fid_, precision_str_, cpu_type[n], cpu_position_per_atom[n + group_size_sum],
+        cpu_position_per_atom[n + num_atoms_total + group_size_sum],
+        cpu_position_per_atom[n + 2 * num_atoms_total + group_size_sum]);
     }
   }
 
   fflush(fid_);
 }
 
-void Dump_Velocity::postprocess()
+void Dump_Position::postprocess()
 {
   if (dump_) {
     fclose(fid_);
     dump_ = false;
     grouping_method_ = -1;
+    precision_ = 0;
   }
 }

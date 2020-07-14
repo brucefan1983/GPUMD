@@ -153,7 +153,13 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     measure.dump_thermo.parse(param, num_param);
   } else if (strcmp(param[0], "dump_position") == 0) {
-    measure.parse_dump_position(param, num_param);
+    measure.dump_position.parse(param, num_param, group);
+  } else if (strcmp(param[0], "dump_netcdf") == 0) {
+#ifdef USE_NETCDF
+    measure.dump_netcdf.parse(param, num_param);
+#else
+    PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
+#endif
   } else if (strcmp(param[0], "dump_restart") == 0) {
     measure.dump_restart.parse(param, num_param);
   } else if (strcmp(param[0], "dump_velocity") == 0) {

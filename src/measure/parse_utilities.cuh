@@ -14,29 +14,16 @@
 */
 
 #pragma once
-#ifndef DUMP_XYZ_H
-#define DUMP_XYZ_H
+#include <vector>
+class Group;
 
-#include "dump_pos.cuh"
+void parse_group(
+  char** param,
+  const int num_param,
+  const bool allow_all_groups,
+  const std::vector<Group>& groups,
+  int& k,
+  int& grouping_method,
+  int& group_id);
 
-class DUMP_XYZ : public DUMP_POS
-{
-public:
-  char precision_str[25];
-  FILE* fid_position;
-  void initialize(char* input_dir, const int number_of_atoms);
-  void finalize();
-
-  void dump(
-    const int step,
-    const double global_time,
-    const Box& box,
-    const std::vector<int>& cpu_type,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom);
-
-  DUMP_XYZ();
-  ~DUMP_XYZ(){};
-};
-
-#endif // DUMP_XYZ
+void parse_precision(char** param, const int num_param, int& k, int& precision);

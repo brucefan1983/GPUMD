@@ -13,38 +13,32 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-/*----------------------------------------------------------------------------80
-Parent class for position dumping
-------------------------------------------------------------------------------*/
-
 #pragma once
-#ifndef DUMP_POS_H
-#define DUMP_POS_H
 
-#include "model/box.cuh"
-#include "utilities/common.cuh"
-#include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
+class Group;
 
-class DUMP_POS
+class Dump_Position
 {
 public:
-  int interval; // output interval
-  char file_position[200];
-  int precision; // 0 = normal output, 1 = single precision, 2 = double
-  virtual void initialize(char* input_dir, const int number_of_atoms) = 0;
-  virtual void finalize() = 0;
-  virtual void dump(
+  void parse(char** param, int num_param, const std::vector<Group>& groups);
+  void preprocess(char* input_dir);
+  void process(
     const int step,
-    const double global_time,
-    const Box& box,
+    const std::vector<Group>& groups,
     const std::vector<int>& cpu_type,
     GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom) = 0;
+    std::vector<double>& cpu_position_per_atom);
+  void postprocess();
 
-  DUMP_POS() {}
-  virtual ~DUMP_POS() {}
+private:
+  bool dump_ = false;
+  int dump_interval_ = 1;
+  int grouping_method_ = -1;
+  int group_id_ = -1;
+  int precision_ = 0;
+  FILE* fid_;
+  char filename_[200];
+  char precision_str_[25];
 };
-
-#endif // DUMP_POS

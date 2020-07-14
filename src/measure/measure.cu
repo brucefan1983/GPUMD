@@ -17,13 +17,9 @@
 The driver class dealing with measurement.
 ------------------------------------------------------------------------------*/
 
-#include "dump_xyz.cuh"
 #include "measure.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#ifdef USE_NETCDF
-#include "dump_netcdf.cuh"
-#endif
 #define NUM_OF_HEAT_COMPONENTS 5
 
 void Measure::initialize(
@@ -35,9 +31,6 @@ void Measure::initialize(
   const GPU_Vector<double>& mass)
 {
   const int number_of_atoms = mass.size();
-  if (dump_pos) {
-    dump_pos->initialize(input_dir, number_of_atoms);
-  }
   dos.preprocess(time_step, group, mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
@@ -45,10 +38,14 @@ void Measure::initialize(
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
   modal_analysis.preprocess(input_dir, cpu_type_size, mass);
+  dump_position.preprocess(input_dir);
   dump_velocity.preprocess(input_dir);
   dump_restart.preprocess(input_dir);
   dump_thermo.preprocess(input_dir);
   dump_force.preprocess(input_dir, number_of_atoms, group);
+#ifdef USE_NETCDF
+  dump_netcdf.preprocess(input_dir, number_of_atoms);
+#endif
 }
 
 void Measure::finalize(
@@ -58,9 +55,7 @@ void Measure::finalize(
   const double temperature,
   const double volume)
 {
-  if (dump_pos) {
-    dump_pos->finalize();
-  }
+  dump_position.postprocess();
   dump_velocity.postprocess();
   dump_restart.postprocess();
   dump_thermo.postprocess();
@@ -72,15 +67,13 @@ void Measure::finalize(
   compute.postprocess();
   hnemd.postprocess();
   modal_analysis.postprocess();
+#ifdef USE_NETCDF
+  dump_netcdf.postprocess();
+#endif
 
-  // reset the defaults
+  // TODO: move to the relevant class
   modal_analysis.compute = 0;
   modal_analysis.method = NO_METHOD;
-
-  if (dump_pos) {
-    delete dump_pos;
-  }
-  dump_pos = NULL;
 }
 
 void Measure::process(
@@ -108,119 +101,29 @@ void Measure::process(
   GPU_Vector<double>& heat_per_atom)
 {
   const int number_of_atoms = cpu_type.size();
-
   dump_thermo.process(
     step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group], box, thermo);
-
+  dump_position.process(step, group, cpu_type, position_per_atom, cpu_position_per_atom);
   dump_velocity.process(step, group, velocity_per_atom, cpu_velocity_per_atom);
-
   dump_restart.process(
     step, neighbor, box, group, cpu_type, cpu_mass, position_per_atom, velocity_per_atom,
     cpu_position_per_atom, cpu_velocity_per_atom);
-
   dump_force.process(step, group, force_per_atom);
-
   compute.process(
     step, energy_transferred, group, mass, potential_per_atom, force_per_atom, velocity_per_atom,
     virial_per_atom);
-
   dos.process(step, group, velocity_per_atom);
   sdc.process(step, group, velocity_per_atom);
-
   hac.process(number_of_steps, step, input_dir, velocity_per_atom, virial_per_atom, heat_per_atom);
-
   shc.process(step, group, velocity_per_atom, virial_per_atom);
-
   hnemd.process(
     step, input_dir, temperature, box.get_volume(), velocity_per_atom, virial_per_atom,
     heat_per_atom);
-
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, velocity_per_atom, virial_per_atom);
-
-  if (dump_pos) {
-    dump_pos->dump(step, global_time, box, cpu_type, position_per_atom, cpu_position_per_atom);
-  }
-}
-
-void Measure::parse_dump_position(char** param, int num_param)
-{
-  int interval;
-
-  if (num_param < 2) {
-    PRINT_INPUT_ERROR("dump_position should have at least 1 parameter.");
-  }
-  if (num_param > 6) {
-    PRINT_INPUT_ERROR("dump_position has too many parameters.");
-  }
-
-  // sample interval
-  if (!is_valid_int(param[1], &interval)) {
-    PRINT_INPUT_ERROR("position dump interval should be an integer.");
-  }
-
-  int format = 0;    // default xyz
-  int precision = 0; // default normal (unlesss netCDF -> 64 bit)
-  // Process optional arguments
-  for (int k = 2; k < num_param; k++) {
-    // format check
-    if (strcmp(param[k], "format") == 0) {
-      // check if there are enough inputs
-      if (k + 2 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for optional "
-                          " 'format' dump_position command.\n");
-      }
-      if ((strcmp(param[k + 1], "xyz") != 0) && (strcmp(param[k + 1], "netcdf") != 0)) {
-        PRINT_INPUT_ERROR("Invalid format for dump_position command.\n");
-      } else if (strcmp(param[k + 1], "netcdf") == 0) {
-        format = 1;
-        k++;
-      }
-    }
-    // precision check
-    else if (strcmp(param[k], "precision") == 0) {
-      // check for enough inputs
-      if (k + 2 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for optional "
-                          " 'precision' dump_position command.\n");
-      }
-      if ((strcmp(param[k + 1], "single") != 0) && (strcmp(param[k + 1], "double") != 0)) {
-        PRINT_INPUT_ERROR("Invalid precision for dump_position command.\n");
-      } else {
-        if (strcmp(param[k + 1], "single") == 0) {
-          precision = 1;
-        } else if (strcmp(param[k + 1], "double") == 0) {
-          precision = 2;
-        }
-        k++;
-      }
-    }
-  }
-
-  if (format == 1) // netcdf output
-  {
 #ifdef USE_NETCDF
-    DUMP_NETCDF* dump_netcdf = new DUMP_NETCDF();
-    dump_pos = dump_netcdf;
-    if (!precision)
-      precision = 2; // double precision default
-#else
-    PRINT_INPUT_ERROR("USE_NETCDF flag is not set. NetCDF output not available.\n");
+  dump_netcdf.process(step, global_time, box, cpu_type, position_per_atom, cpu_position_per_atom);
 #endif
-  } else // xyz default output
-  {
-    DUMP_XYZ* dump_xyz = new DUMP_XYZ();
-    dump_pos = dump_xyz;
-  }
-  dump_pos->interval = interval;
-  dump_pos->precision = precision;
-
-  if (precision == 1 && format) {
-    printf("Note: Single precision netCDF output does not follow AMBER conventions.\n"
-           "      However, it will still work for many readers.\n");
-  }
-
-  printf("Dump position every %d steps.\n", dump_pos->interval);
 }
 
 void Measure::parse_compute_gkma(char** param, int num_param, const int number_of_types)

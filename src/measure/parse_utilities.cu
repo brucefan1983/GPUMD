@@ -18,30 +18,60 @@ A function parsing the "group" option in some keywords
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"
-#include "parse_group.cuh"
+#include "parse_utilities.cuh"
 #include "utilities/read_file.cuh"
 
 void parse_group(
-  char** param, const std::vector<Group>& groups, int& k, int& grouping_method, int& group_id)
+  char** param,
+  const int num_param,
+  const bool allow_all_groups,
+  const std::vector<Group>& groups,
+  int& k,
+  int& grouping_method,
+  int& group_id)
 {
-  // grouping_method
+  if (k + 3 > num_param) {
+    PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
+  }
+
   if (!is_valid_int(param[k + 1], &grouping_method)) {
-    PRINT_INPUT_ERROR("grouping method should be an integer.\n");
+    PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
   }
   if (grouping_method < 0) {
-    PRINT_INPUT_ERROR("grouping method should >= 0.");
+    PRINT_INPUT_ERROR("Grouping method should >= 0.");
   }
   if (grouping_method >= groups.size()) {
-    PRINT_INPUT_ERROR("grouping method should < number of grouping methods.");
+    PRINT_INPUT_ERROR("Grouping method should < number of grouping methods.");
   }
 
-  // group_id
   if (!is_valid_int(param[k + 2], &group_id)) {
-    PRINT_INPUT_ERROR("group ID should be an integer.\n");
+    PRINT_INPUT_ERROR("Group ID should be an integer.\n");
   }
   if (group_id >= groups[grouping_method].number) {
-    PRINT_INPUT_ERROR("group id should < number of groups.");
+    PRINT_INPUT_ERROR("Group ID should < number of groups.");
+  }
+  if (group_id < 0 && !allow_all_groups) {
+    PRINT_INPUT_ERROR("group ID should >= 0.\n");
   }
 
+  printf("    grouping method is %d and group ID is %d.\n", grouping_method, group_id);
+
   k += 2; // update index for next command
+}
+
+void parse_precision(char** param, const int num_param, int& k, int& precision)
+{
+  if (k + 2 > num_param) {
+    PRINT_INPUT_ERROR("Not enough arguments for option 'precision'.\n");
+  }
+  if (strcmp(param[k + 1], "single") == 0) {
+    precision = 1;
+    printf("    with single precision.\n");
+  } else if (strcmp(param[k + 1], "double") == 0) {
+    precision = 2;
+    printf("    with double precision.\n");
+  } else {
+    PRINT_INPUT_ERROR("Invalid precision.\n");
+  }
+  k++; // update index for next command
 }
