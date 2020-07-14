@@ -35,6 +35,7 @@ http://ambermd.org/netcdf/nctraj.xhtml
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
 #include <unistd.h>
 
 const int FILE_NAME_LENGTH = 200;
@@ -83,7 +84,7 @@ void DUMP_NETCDF::parse(char** param, int num_param)
   if (!is_valid_int(param[1], &interval)) {
     PRINT_INPUT_ERROR("position dump interval should be an integer.");
   }
-  if (dump_interval_ <= 0) {
+  if (interval <= 0) {
     PRINT_INPUT_ERROR("position dump interval should > 0.");
   }
   printf("    every %d steps.\n", interval);

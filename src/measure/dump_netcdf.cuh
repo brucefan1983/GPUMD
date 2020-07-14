@@ -19,6 +19,7 @@
 
 #include "utilities/gpu_vector.cuh"
 #include <vector>
+class Box;
 
 class DUMP_NETCDF
 {
