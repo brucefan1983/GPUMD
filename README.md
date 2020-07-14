@@ -2,7 +2,9 @@
 
 ## What is `GPUMD`?
 
-* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a new molecular dynamics (MD) code implemented fully on graphics processing units (GPUs). Force evaluation for many-body potentials has been significantly accelerated by using GPUs [1]. Our efficient and flexible GPU implementation of the force evaluation for many-body potentials relies on a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. 
+* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a general-purpose molecular dynamics (MD) code fully implemented on graphics processing units (GPUs). 
+
+* Force evaluation for many-body potentials has been significantly accelerated by using GPUs [1], thanks to a set of simple expressions for force, virial stress, and heat current derived in Ref. [2]. 
    
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [3, 4].
 
