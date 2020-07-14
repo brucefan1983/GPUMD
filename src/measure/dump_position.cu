@@ -125,5 +125,6 @@ void Dump_Position::postprocess()
     fclose(fid_);
     dump_ = false;
     grouping_method_ = -1;
+    precision_ = 0;
   }
 }

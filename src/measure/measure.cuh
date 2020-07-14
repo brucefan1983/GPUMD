@@ -30,6 +30,9 @@
 #include "sdc.cuh"
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
+#ifdef USE_NETCDF
+#include "dump_netcdf.cuh"
+#endif
 
 class Measure
 {
@@ -85,6 +88,9 @@ public:
   Dump_Thermo dump_thermo;
   Dump_Restart dump_restart;
   Dump_Force dump_force;
+#ifdef USE_NETCDF
+  DUMP_NETCDF dump_netcdf;
+#endif
 
   // functions to get inputs from run.in
   void parse_dump_position(char**, int);

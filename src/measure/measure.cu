@@ -17,13 +17,9 @@
 The driver class dealing with measurement.
 ------------------------------------------------------------------------------*/
 
-#include "dump_xyz.cuh"
 #include "measure.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#ifdef USE_NETCDF
-#include "dump_netcdf.cuh"
-#endif
 #define NUM_OF_HEAT_COMPONENTS 5
 
 void Measure::initialize(
@@ -47,6 +43,9 @@ void Measure::initialize(
   dump_restart.preprocess(input_dir);
   dump_thermo.preprocess(input_dir);
   dump_force.preprocess(input_dir, number_of_atoms, group);
+#ifdef USE_NETCDF
+  dump_netcdf.preprocess(input_dir, number_of_atoms);
+#endif
 }
 
 void Measure::finalize(
@@ -68,6 +67,9 @@ void Measure::finalize(
   compute.postprocess();
   hnemd.postprocess();
   modal_analysis.postprocess();
+#ifdef USE_NETCDF
+  dump_netcdf.postprocess();
+#endif
 
   // TODO: move to the relevant class
   modal_analysis.compute = 0;
@@ -119,88 +121,11 @@ void Measure::process(
     heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, velocity_per_atom, virial_per_atom);
-}
-/*
-void Measure::parse_dump_position(char** param, int num_param)
-{
-  int interval;
-
-  if (num_param < 2) {
-    PRINT_INPUT_ERROR("dump_position should have at least 1 parameter.");
-  }
-  if (num_param > 6) {
-    PRINT_INPUT_ERROR("dump_position has too many parameters.");
-  }
-
-  // sample interval
-  if (!is_valid_int(param[1], &interval)) {
-    PRINT_INPUT_ERROR("position dump interval should be an integer.");
-  }
-
-  int format = 0;    // default xyz
-  int precision = 0; // default normal (unlesss netCDF -> 64 bit)
-  // Process optional arguments
-  for (int k = 2; k < num_param; k++) {
-    // format check
-    if (strcmp(param[k], "format") == 0) {
-      // check if there are enough inputs
-      if (k + 2 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for optional "
-                          " 'format' dump_position command.\n");
-      }
-      if ((strcmp(param[k + 1], "xyz") != 0) && (strcmp(param[k + 1], "netcdf") != 0)) {
-        PRINT_INPUT_ERROR("Invalid format for dump_position command.\n");
-      } else if (strcmp(param[k + 1], "netcdf") == 0) {
-        format = 1;
-        k++;
-      }
-    }
-    // precision check
-    else if (strcmp(param[k], "precision") == 0) {
-      // check for enough inputs
-      if (k + 2 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for optional "
-                          " 'precision' dump_position command.\n");
-      }
-      if ((strcmp(param[k + 1], "single") != 0) && (strcmp(param[k + 1], "double") != 0)) {
-        PRINT_INPUT_ERROR("Invalid precision for dump_position command.\n");
-      } else {
-        if (strcmp(param[k + 1], "single") == 0) {
-          precision = 1;
-        } else if (strcmp(param[k + 1], "double") == 0) {
-          precision = 2;
-        }
-        k++;
-      }
-    }
-  }
-
-  if (format == 1) // netcdf output
-  {
 #ifdef USE_NETCDF
-    DUMP_NETCDF* dump_netcdf = new DUMP_NETCDF();
-    dump_pos = dump_netcdf;
-    if (!precision)
-      precision = 2; // double precision default
-#else
-    PRINT_INPUT_ERROR("USE_NETCDF flag is not set. NetCDF output not available.\n");
+  dump_netcdf.process(step, global_time, box, cpu_type, position_per_atom, cpu_position_per_atom);
 #endif
-  } else // xyz default output
-  {
-    DUMP_XYZ* dump_xyz = new DUMP_XYZ();
-    dump_pos = dump_xyz;
-  }
-  dump_pos->interval = interval;
-  dump_pos->precision = precision;
-
-  if (precision == 1 && format) {
-    printf("Note: Single precision netCDF output does not follow AMBER conventions.\n"
-           "      However, it will still work for many readers.\n");
-  }
-
-  printf("Dump position every %d steps.\n", dump_pos->interval);
 }
-*/
+
 void Measure::parse_compute_gkma(char** param, int num_param, const int number_of_types)
 {
   modal_analysis.compute = 1;

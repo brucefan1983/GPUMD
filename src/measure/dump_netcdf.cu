@@ -30,7 +30,10 @@ http://ambermd.org/netcdf/nctraj.xhtml
 #ifdef USE_NETCDF
 
 #include "dump_netcdf.cuh"
+#include "model/box.cuh"
+#include "netcdf.h"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include <unistd.h>
 
 const int FILE_NAME_LENGTH = 200;
@@ -64,10 +67,45 @@ const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 bool DUMP_NETCDF::append = false;
 
-DUMP_NETCDF::DUMP_NETCDF() {}
-
-void DUMP_NETCDF::initialize(char* input_dir, const int N)
+void DUMP_NETCDF::parse(char** param, int num_param)
 {
+  dump_ = true;
+  printf("Dump positions in netCDF format.\n");
+
+  if (num_param < 2) {
+    PRINT_INPUT_ERROR("dump_netcdf should have at least 1 parameter.");
+  }
+  if (num_param > 4) {
+    PRINT_INPUT_ERROR("dump_netcdf has too many parameters.");
+  }
+
+  if (!is_valid_int(param[1], &interval)) {
+    PRINT_INPUT_ERROR("position dump interval should be an integer.");
+  }
+  if (dump_interval_ <= 0) {
+    PRINT_INPUT_ERROR("position dump interval should > 0.");
+  }
+  printf("    every %d steps.\n", interval);
+
+  for (int k = 2; k < num_param; k++) {
+    if (strcmp(param[k], "precision") == 0) {
+      parse_precision(param, num_param, k, precision);
+    } else {
+      PRINT_INPUT_ERROR("Unrecognized argument in dump_netcdf.\n");
+    }
+  }
+
+  if (precision == 1) {
+    printf("Note: Single precision netCDF output does not follow AMBER conventions.\n"
+           "      However, it will still work for many readers.\n");
+  }
+}
+
+void DUMP_NETCDF::preprocess(char* input_dir, const int N)
+{
+  if (!dump_)
+    return;
+
   strcpy(file_position, input_dir);
   strcat(file_position, "/movie.nc");
 
@@ -325,12 +363,15 @@ void DUMP_NETCDF::write(
   }
 }
 
-void DUMP_NETCDF::finalize()
+void DUMP_NETCDF::postprocess()
 {
-  // Do nothing. Needed to satisfy virtual dump_pos parent class function
+  if (dump_) {
+    dump_ = false;
+    precision = 2;
+  }
 }
 
-void DUMP_NETCDF::dump(
+void DUMP_NETCDF::process(
   const int step,
   const double global_time,
   const Box& box,
@@ -338,13 +379,14 @@ void DUMP_NETCDF::dump(
   GPU_Vector<double>& position_per_atom,
   std::vector<double>& cpu_position_per_atom)
 {
-  int frame_in_run = (step + 1) / interval;
+  if (!dump_)
+    return;
   if ((step + 1) % interval != 0)
     return;
+
+  int frame_in_run = (step + 1) / interval;
   open_file(frame_in_run);
-
   write(global_time, box, cpu_type, position_per_atom, cpu_position_per_atom);
-
   NC_CHECK(nc_close(ncid));
 }
 
