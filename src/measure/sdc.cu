@@ -20,7 +20,7 @@ Calculate:
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"
-#include "parse_group.cuh"
+#include "parse_utilities.cuh"
 #include "sdc.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"

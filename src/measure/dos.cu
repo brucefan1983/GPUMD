@@ -26,7 +26,7 @@ Reference for DOS:
 
 #include "dos.cuh"
 #include "model/group.cuh"
-#include "parse_group.cuh"
+#include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"

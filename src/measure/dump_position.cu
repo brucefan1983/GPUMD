@@ -19,7 +19,7 @@ Dump position data to movie.xyz.
 
 #include "dump_position.cuh"
 #include "model/group.cuh"
-#include "parse_group.cuh"
+#include "parse_utilities.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"

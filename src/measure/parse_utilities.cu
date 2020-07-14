@@ -18,7 +18,7 @@ A function parsing the "group" option in some keywords
 --------------------------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"
-#include "parse_group.cuh"
+#include "parse_utilities.cuh"
 #include "utilities/read_file.cuh"
 
 void parse_group(

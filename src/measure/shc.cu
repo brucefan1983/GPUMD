@@ -21,7 +21,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 ------------------------------------------------------------------------------*/
 
 #include "model/group.cuh"
-#include "parse_group.cuh"
+#include "parse_utilities.cuh"
 #include "shc.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
