@@ -25,3 +25,5 @@ void parse_group(
   int& k,
   int& grouping_method,
   int& group_id);
+
+void parse_precision(char** param, const int num_param, int& k, int& precision);

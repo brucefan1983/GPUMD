@@ -58,3 +58,20 @@ void parse_group(
 
   k += 2; // update index for next command
 }
+
+void parse_precision(char** param, const int num_param, int& k, int& precision)
+{
+  if (k + 2 > num_param) {
+    PRINT_INPUT_ERROR("Not enough arguments for option 'precision'.\n");
+  }
+  if (strcmp(param[k + 1], "single") == 0) {
+    precision = 1;
+    printf("    with single precision.\n");
+  } else if (strcmp(param[k + 1], "double") == 0) {
+    precision = 2;
+    printf("    with double precision.\n");
+  } else {
+    PRINT_INPUT_ERROR("Invalid precision.\n");
+  }
+  k++; // update index for next command
+}

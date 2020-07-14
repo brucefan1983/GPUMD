@@ -50,20 +50,7 @@ void Dump_Position::parse(char** param, int num_param, const std::vector<Group>&
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
     } else if (strcmp(param[k], "precision") == 0) {
-      // TODO: move to parse_precision
-      if (k + 2 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for option 'precision'.\n");
-      }
-      if (strcmp(param[k + 1], "single") == 0) {
-        precision_ = 1;
-        printf("    with single precision.\n");
-      } else if (strcmp(param[k + 1], "double") == 0) {
-        precision_ = 2;
-        printf("    with double  precision.\n");
-      } else {
-        PRINT_INPUT_ERROR("Invalid precision.\n");
-      }
-      k++;
+      parse_precision(param, num_param, k, precision_);
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_position.\n");
     }
