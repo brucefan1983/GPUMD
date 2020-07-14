@@ -32,6 +32,7 @@ http://ambermd.org/netcdf/nctraj.xhtml
 #include "dump_netcdf.cuh"
 #include "model/box.cuh"
 #include "netcdf.h"
+#include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include <unistd.h>
