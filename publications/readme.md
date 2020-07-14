@@ -2,9 +2,11 @@
 
 ## Preprints (0)
 
+## 2020 (4)
 
-
-## 2020 (3)
+* Alexander Joseph Gabourie, Saurabh Vinayak Suryavanshi, Amir Barati Farimani, and Eric Pop,
+[Reduced Thermal Conductivity of Supported and Encased Monolayer and Bilayer MoS<sub>2</sub>](https://doi.org/10.1088/2053-1583/aba4ed),
+2D Materials, Accepted.
 
 * Haikuan Dong, Zheyong Fan, Ping Qian, Tapio Ala-Nissila, and Yanjing Su,
 [Thermal conductivity reduction in carbon nanotube by fullerene encapsulation: A molecular dynamics study](https://doi.org/10.1016/j.carbon.2020.01.114),
