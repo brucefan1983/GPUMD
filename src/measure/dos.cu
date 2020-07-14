@@ -180,11 +180,7 @@ void DOS::parse(char** param, const int num_param, const std::vector<Group>& gro
 
   for (int k = 4; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
-      if (k + 3 > num_param) {
-        PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
-      }
-      parse_group(param, groups, k, grouping_method_, group_id_);
-      printf("    grouping_method is %d and group is %d.\n", grouping_method_, group_id_);
+      parse_group(param, num_param, groups, k, grouping_method_, group_id_);
     } else if (strcmp(param[k], "num_dos_points") == 0) {
       if (k + 2 > num_param) {
         PRINT_INPUT_ERROR("Not enough arguments for option 'num_dos_points'.\n");

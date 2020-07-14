@@ -22,26 +22,35 @@ A function parsing the "group" option in some keywords
 #include "utilities/read_file.cuh"
 
 void parse_group(
-  char** param, const std::vector<Group>& groups, int& k, int& grouping_method, int& group_id)
+  char** param,
+  const int num_param,
+  const std::vector<Group>& groups,
+  int& k,
+  int& grouping_method,
+  int& group_id)
 {
-  // grouping_method
-  if (!is_valid_int(param[k + 1], &grouping_method)) {
-    PRINT_INPUT_ERROR("grouping method should be an integer.\n");
-  }
-  if (grouping_method < 0) {
-    PRINT_INPUT_ERROR("grouping method should >= 0.");
-  }
-  if (grouping_method >= groups.size()) {
-    PRINT_INPUT_ERROR("grouping method should < number of grouping methods.");
+  if (k + 3 > num_param) {
+    PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
   }
 
-  // group_id
+  if (!is_valid_int(param[k + 1], &grouping_method)) {
+    PRINT_INPUT_ERROR("Grouping method should be an integer.\n");
+  }
+  if (grouping_method < 0) {
+    PRINT_INPUT_ERROR("Grouping method should >= 0.");
+  }
+  if (grouping_method >= groups.size()) {
+    PRINT_INPUT_ERROR("Grouping method should < number of grouping methods.");
+  }
+
   if (!is_valid_int(param[k + 2], &group_id)) {
-    PRINT_INPUT_ERROR("group ID should be an integer.\n");
+    PRINT_INPUT_ERROR("Group ID should be an integer.\n");
   }
   if (group_id >= groups[grouping_method].number) {
-    PRINT_INPUT_ERROR("group id should < number of groups.");
+    PRINT_INPUT_ERROR("Group ID should < number of groups.");
   }
+
+  printf("    grouping method is %d and group ID is %d.\n", grouping_method, group_id);
 
   k += 2; // update index for next command
 }

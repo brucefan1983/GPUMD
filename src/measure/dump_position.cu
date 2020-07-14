@@ -48,15 +48,10 @@ void Dump_Position::parse(char** param, int num_param, const std::vector<Group>&
 
   for (int k = 2; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
-      if (k + 3 > num_param) { // TODO: move to parse_group
-        PRINT_INPUT_ERROR("Not enough arguments for option 'group'.\n");
-      }
-      parse_group(param, groups, k, grouping_method_, group_id_);
+      parse_group(param, num_param, groups, k, grouping_method_, group_id_);
       if (group_id_ < 0) { // TODO: move to parse_group
         PRINT_INPUT_ERROR("group ID should >= 0.\n");
       }
-      // TODO: move to parse_group
-      printf("    grouping_method is %d and group is %d.\n", grouping_method_, group_id_);
     } else if (strcmp(param[k], "precision") == 0) {
       // TODO: move to parse_precision
       if (k + 2 > num_param) {
