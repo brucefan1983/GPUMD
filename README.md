@@ -14,7 +14,7 @@
 * Works for both linux (with GCC) and Windows (with MSVC) operating systems. 
 
 ## Compile GPUMD
-* Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `phoon`, will be generated in the `src` directory. 
+* Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `phonon`, will be generated in the `src` directory. 
 
 ## Run GPUMD
 * Go to the directory where you can see `src`.
