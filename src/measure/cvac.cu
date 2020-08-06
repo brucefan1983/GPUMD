@@ -35,9 +35,9 @@ __global__ void gpu_copy_velocity(
   const double* g_vx_i,
   const double* g_vy_i,
   const double* g_vz_i,
-  double* g_vx_o,
-  double* g_vy_o,
-  double* g_vz_o)
+  float* g_vx_o,
+  float* g_vy_o,
+  float* g_vz_o)
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < num_atoms) {
@@ -53,9 +53,9 @@ __global__ void gpu_copy_velocity(
   const double* g_vx_i,
   const double* g_vy_i,
   const double* g_vz_i,
-  double* g_vx_o,
-  double* g_vy_o,
-  double* g_vz_o)
+  float* g_vx_o,
+  float* g_vy_o,
+  float* g_vz_o)
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < num_atoms) {
@@ -68,59 +68,30 @@ __global__ void gpu_copy_velocity(
 __global__ void gpu_find_vac(
   const int num_atoms,
   const int correlation_step,
-  const double* g_vx,
-  const double* g_vy,
-  const double* g_vz,
-  const double* g_vx_all,
-  const double* g_vy_all,
-  const double* g_vz_all,
-  double* g_vac_x,
-  double* g_vac_y,
-  double* g_vac_z)
+  const int num_correlation_steps,
+  const float* g_vx,
+  const float* g_vy,
+  const float* g_vz,
+  const float* g_vx_all,
+  const float* g_vy_all,
+  const float* g_vz_all,
+  float* g_vac_x,
+  float* g_vac_y,
+  float* g_vac_z)
 {
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int size_sum = bid * num_atoms;
-  int number_of_rounds = (num_atoms - 1) / 128 + 1;
-  __shared__ double s_vac_x[128];
-  __shared__ double s_vac_y[128];
-  __shared__ double s_vac_z[128];
-  double vac_x = 0.0;
-  double vac_y = 0.0;
-  double vac_z = 0.0;
-
-  for (int round = 0; round < number_of_rounds; ++round) {
-    int n = tid + round * 128;
-    if (n < num_atoms) {
-      vac_x += g_vx[n] * g_vx_all[size_sum + n];
-      vac_y += g_vy[n] * g_vy_all[size_sum + n];
-      vac_z += g_vz[n] * g_vz_all[size_sum + n];
-    }
-  }
-  s_vac_x[tid] = vac_x;
-  s_vac_y[tid] = vac_y;
-  s_vac_z[tid] = vac_z;
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_vac_x[tid] += s_vac_x[tid + offset];
-      s_vac_y[tid] += s_vac_y[tid + offset];
-      s_vac_z[tid] += s_vac_z[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  if (tid == 0) {
-    if (bid <= correlation_step) {
-      g_vac_x[correlation_step - bid] += s_vac_x[0];
-      g_vac_y[correlation_step - bid] += s_vac_y[0];
-      g_vac_z[correlation_step - bid] += s_vac_z[0];
-    } else {
-      g_vac_x[correlation_step + gridDim.x - bid] += s_vac_x[0];
-      g_vac_y[correlation_step + gridDim.x - bid] += s_vac_y[0];
-      g_vac_z[correlation_step + gridDim.x - bid] += s_vac_z[0];
-    }
+  const int num_atoms_sq = num_atoms * num_atoms;
+  const int n1n2 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1n2 >= num_atoms_sq)
+    return;
+  const int n1 = n1n2 / num_atoms;
+  const int n2 = n1n2 - n1 * num_atoms;
+  for (int k = 0; k < num_correlation_steps; ++k) {
+    int nc = correlation_step - k;
+    if (nc < 0)
+      nc += num_correlation_steps;
+    g_vac_x[nc * num_atoms_sq + n1n2] += g_vx[n1] * g_vx_all[k * num_atoms + n2];
+    g_vac_y[nc * num_atoms_sq + n1n2] += g_vy[n1] * g_vy_all[k * num_atoms + n2];
+    g_vac_z[nc * num_atoms_sq + n1n2] += g_vz[n1] * g_vz_all[k * num_atoms + n2];
   }
 }
 
@@ -137,9 +108,9 @@ void CVAC::preprocess(const int num_atoms, const double time_step, const std::ve
   vx_.resize(num_atoms_ * num_correlation_steps_);
   vy_.resize(num_atoms_ * num_correlation_steps_);
   vz_.resize(num_atoms_ * num_correlation_steps_);
-  vacx_.resize(num_correlation_steps_, 0.0, Memory_Type::managed);
-  vacy_.resize(num_correlation_steps_, 0.0, Memory_Type::managed);
-  vacz_.resize(num_correlation_steps_, 0.0, Memory_Type::managed);
+  vacx_.resize(num_atoms_ * num_atoms_ * num_correlation_steps_, 0.0, Memory_Type::managed);
+  vacy_.resize(num_atoms_ * num_atoms_ * num_correlation_steps_, 0.0, Memory_Type::managed);
+  vacz_.resize(num_atoms_ * num_atoms_ * num_correlation_steps_, 0.0, Memory_Type::managed);
 
   num_time_origins_ = 0;
 }
@@ -177,10 +148,10 @@ void CVAC::process(
   if (sample_step >= num_correlation_steps_ - 1) {
     ++num_time_origins_;
 
-    gpu_find_vac<<<num_correlation_steps_, 128>>>(
-      num_atoms_, correlation_step, vx_.data() + step_offset, vy_.data() + step_offset,
-      vz_.data() + step_offset, vx_.data(), vy_.data(), vz_.data(), vacx_.data(), vacy_.data(),
-      vacz_.data());
+    gpu_find_vac<<<(num_atoms_ * num_atoms_ - 1) / 128 + 1, 128>>>(
+      num_atoms_, correlation_step, num_correlation_steps_, vx_.data() + step_offset,
+      vy_.data() + step_offset, vz_.data() + step_offset, vx_.data(), vy_.data(), vz_.data(),
+      vacx_.data(), vacy_.data(), vacz_.data());
     CUDA_CHECK_KERNEL
   }
 }
@@ -192,37 +163,18 @@ void CVAC::postprocess(const char* input_dir)
 
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
-  // normalize by the number of atoms and number of time origins
-  const double vac_scaler = 1.0 / (num_atoms_ * num_time_origins_);
+  float vac_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
+  vac_unit_conversion *= vac_unit_conversion;
+
+  char file_cvac[200];
+  strcpy(file_cvac, input_dir);
+  strcat(file_cvac, "/cvac.out");
+  FILE* fid = fopen(file_cvac, "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    vacx_[nc] *= vac_scaler;
-    vacy_[nc] *= vac_scaler;
-    vacz_[nc] *= vac_scaler;
-  }
-
-  std::vector<double> sdc_x(num_correlation_steps_, 0.0);
-  std::vector<double> sdc_y(num_correlation_steps_, 0.0);
-  std::vector<double> sdc_z(num_correlation_steps_, 0.0);
-  const double dt2 = dt_in_natural_units_ * 0.5;
-  for (int nc = 1; nc < num_correlation_steps_; nc++) {
-    sdc_x[nc] = sdc_x[nc - 1] + (vacx_[nc - 1] + vacx_[nc]) * dt2;
-    sdc_y[nc] = sdc_y[nc - 1] + (vacy_[nc - 1] + vacy_[nc]) * dt2;
-    sdc_z[nc] = sdc_z[nc - 1] + (vacz_[nc - 1] + vacz_[nc]) * dt2;
-  }
-
-  const double sdc_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
-  const double vac_unit_conversion = sdc_unit_conversion * sdc_unit_conversion;
-
-  char file_sdc[200];
-  strcpy(file_sdc, input_dir);
-  strcat(file_sdc, "/sdc.out");
-  FILE* fid = fopen(file_sdc, "a");
-  for (int nc = 0; nc < num_correlation_steps_; nc++) {
-    fprintf(
-      fid, "%g %g %g %g %g %g %g\n", nc * dt_in_ps_, vacx_[nc] * vac_unit_conversion,
-      vacy_[nc] * vac_unit_conversion, vacz_[nc] * vac_unit_conversion,
-      sdc_x[nc] * sdc_unit_conversion, sdc_y[nc] * sdc_unit_conversion,
-      sdc_z[nc] * sdc_unit_conversion);
+    for (int n = 0; n < num_atoms_ * num_atoms_; ++n) {
+      const int i = nc * num_atoms_ * num_atoms_ + n;
+      fprintf(fid, "%g %g %g\n", vacx_[i], vacy_[i], vacz_[i]);
+    }
   }
   fflush(fid);
   fclose(fid);
@@ -233,14 +185,14 @@ void CVAC::postprocess(const char* input_dir)
 
 void CVAC::parse(char** param, const int num_param, const std::vector<Group>& groups)
 {
-  printf("Compute self diffusion coefficient (SDC).\n");
+  printf("Compute cross velocity auto-correlation (CVAC).\n");
   compute_ = true;
 
   if (num_param < 3) {
-    PRINT_INPUT_ERROR("compute_sdc should have at least 2 parameters.\n");
+    PRINT_INPUT_ERROR("compute_cvac should have at least 2 parameters.\n");
   }
   if (num_param > 6) {
-    PRINT_INPUT_ERROR("compute_sdc has too many parameters.\n");
+    PRINT_INPUT_ERROR("compute_cvac has too many parameters.\n");
   }
 
   // sample interval
@@ -266,7 +218,7 @@ void CVAC::parse(char** param, const int num_param, const std::vector<Group>& gr
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, grouping_method_, group_id_);
     } else {
-      PRINT_INPUT_ERROR("Unrecognized argument in compute_sdc.\n");
+      PRINT_INPUT_ERROR("Unrecognized argument in compute_cvac.\n");
     }
   }
 }

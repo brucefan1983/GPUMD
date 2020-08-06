@@ -38,6 +38,6 @@ private:
   int num_time_origins_;
   double dt_in_natural_units_;
   double dt_in_ps_;
-  GPU_Vector<double> vx_, vy_, vz_;
-  GPU_Vector<double> vacx_, vacy_, vacz_;
+  GPU_Vector<float> vx_, vy_, vz_;
+  GPU_Vector<float> vacx_, vacy_, vacz_;
 };
