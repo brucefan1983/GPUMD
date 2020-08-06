@@ -15,6 +15,7 @@
 
 #pragma once
 #include "compute.cuh"
+#include "cvac.cuh"
 #include "dos.cuh"
 #include "dump_force.cuh"
 #include "dump_position.cuh"
@@ -78,6 +79,7 @@ public:
 
   DOS dos;
   SDC sdc;
+  CVAC cvac;
   HAC hac;
   SHC shc;
   HNEMD hnemd;

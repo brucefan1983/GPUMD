@@ -33,6 +33,7 @@ void Measure::initialize(
   const int number_of_atoms = mass.size();
   dos.preprocess(time_step, group, mass);
   sdc.preprocess(number_of_atoms, time_step, group);
+  cvac.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
   compute.preprocess(number_of_atoms, input_dir, group);
@@ -62,6 +63,7 @@ void Measure::finalize(
   dump_force.postprocess();
   dos.postprocess(input_dir);
   sdc.postprocess(input_dir);
+  cvac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
   shc.postprocess(input_dir);
   compute.postprocess();
@@ -114,6 +116,7 @@ void Measure::process(
     virial_per_atom);
   dos.process(step, group, velocity_per_atom);
   sdc.process(step, group, velocity_per_atom);
+  cvac.process(step, group, velocity_per_atom);
   hac.process(number_of_steps, step, input_dir, velocity_per_atom, virial_per_atom, heat_per_atom);
   shc.process(step, group, velocity_per_atom, virial_per_atom);
   hnemd.process(
@@ -126,6 +129,7 @@ void Measure::process(
 #endif
 }
 
+// TODO: move to the relevant class
 void Measure::parse_compute_gkma(char** param, int num_param, const int number_of_types)
 {
   modal_analysis.compute = 1;
@@ -239,6 +243,7 @@ void Measure::parse_compute_gkma(char** param, int num_param, const int number_o
   }
 }
 
+// TODO: move to the relevant class
 void Measure::parse_compute_hnema(char** param, int num_param, const int number_of_types)
 {
   modal_analysis.compute = 1;
