@@ -35,9 +35,6 @@ public:
 
 private:
   int num_atoms_;
-  int num_time_origins_;
-  double dt_in_natural_units_;
-  double dt_in_ps_;
   GPU_Vector<float> vx_, vy_, vz_;
   GPU_Vector<float> vacx_, vacy_, vacz_;
 };

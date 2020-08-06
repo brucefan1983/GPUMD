@@ -14,8 +14,8 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Calculate:
-    Cross Velocity AutoCorrelation (CVAC) function
+Calculate the cross Velocity Auto-Correlation (CVAC) VAC(i, j, t) for all particle pairs (i,j)
+within the whole system or a specified group at specified correlation times t.
 --------------------------------------------------------------------------------------------------*/
 
 #include "cvac.cuh"
@@ -103,16 +103,12 @@ void CVAC::preprocess(const int num_atoms, const double time_step, const std::ve
     return;
 
   num_atoms_ = (grouping_method_ < 0) ? num_atoms : groups[grouping_method_].cpu_size[group_id_];
-  dt_in_natural_units_ = time_step * sample_interval_;
-  dt_in_ps_ = dt_in_natural_units_ * TIME_UNIT_CONVERSION / 1000.0;
   vx_.resize(num_atoms_ * num_correlation_steps_);
   vy_.resize(num_atoms_ * num_correlation_steps_);
   vz_.resize(num_atoms_ * num_correlation_steps_);
   vacx_.resize(num_atoms_ * num_atoms_ * num_correlation_steps_, 0.0, Memory_Type::managed);
   vacy_.resize(num_atoms_ * num_atoms_ * num_correlation_steps_, 0.0, Memory_Type::managed);
   vacz_.resize(num_atoms_ * num_atoms_ * num_correlation_steps_, 0.0, Memory_Type::managed);
-
-  num_time_origins_ = 0;
 }
 
 void CVAC::process(
@@ -146,8 +142,6 @@ void CVAC::process(
 
   // start to calculate the VAC when we have enough frames
   if (sample_step >= num_correlation_steps_ - 1) {
-    ++num_time_origins_;
-
     gpu_find_vac<<<(num_atoms_ * num_atoms_ - 1) / 128 + 1, 128>>>(
       num_atoms_, correlation_step, num_correlation_steps_, vx_.data() + step_offset,
       vy_.data() + step_offset, vz_.data() + step_offset, vx_.data(), vy_.data(), vz_.data(),
@@ -162,9 +156,6 @@ void CVAC::postprocess(const char* input_dir)
     return;
 
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
-
-  float vac_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
-  vac_unit_conversion *= vac_unit_conversion;
 
   char file_cvac[200];
   strcpy(file_cvac, input_dir);
