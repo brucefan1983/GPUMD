@@ -1,6 +1,10 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (0)
+## Preprints (1)
+
+Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura, Sebastian Volz,
+[A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384)
+arXiv:2003.02384 [cond-mat.mes-hall]
 
 ## 2020 (4)
 
