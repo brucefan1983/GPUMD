@@ -392,27 +392,22 @@ void MODAL_ANALYSIS::preprocess(
     for (int i = 0; i < num_modes; i++)
       bin_count[int(abs(f[i] / f_bin_size)) - shift]++;
 
-    bin_sum.resize(num_bins, 0, Memory_Type::managed);
-    for (int i = 1; i < num_bins; i++)
-      bin_sum[i] = bin_sum[i - 1] + bin_count[i - 1];
   } else {
     num_bins = (int)ceil((double)num_modes / (double)bin_size);
     bin_count.resize(num_bins, Memory_Type::managed);
-    if (num_modes % bin_size != 0) {
-      for (int i_ = 0; i_ < num_bins - 1; i_++) {
-        bin_count[i_] = (int)bin_size;
-      }
-      bin_count[num_bins - 1] = num_modes % bin_size;
-    } else {
-      bin_count[0] = (int)bin_size;
+    for (int i_ = 0; i_ < num_bins; i_++) {
+      bin_count[i_] = (int)bin_size;
     }
-
-    bin_sum.resize(num_bins, 0, Memory_Type::managed);
-    for (int i = 1; i < num_bins; i++)
-      bin_sum[i] = bin_sum[i - 1] + bin_count[i - 1];
+    if (num_modes % bin_size != 0) {
+      bin_count[num_bins - 1] = num_modes % bin_size;
+    }
 
     getline(eigfile, val);
   }
+
+  bin_sum.resize(num_bins, 0, Memory_Type::managed);
+  for (int i = 1; i < num_bins; i++)
+    bin_sum[i] = bin_sum[i - 1] + bin_count[i - 1];
 
   // skips modes up to first_mode
   for (int i = 1; i < first_mode; i++) {

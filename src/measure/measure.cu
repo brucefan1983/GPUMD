@@ -203,12 +203,9 @@ void Measure::parse_compute_gkma(char** param, int num_param, const int number_o
     if (g->bin_size < 1) {
       PRINT_INPUT_ERROR("compute_gkma parameters must be positive integers.\n");
     }
-    int num_modes = g->last_mode - g->first_mode + 1;
-    if (num_modes % g->bin_size != 0)
-      PRINT_INPUT_ERROR("number of modes must be divisible by bin_size.\n");
     printf(
       "    Bin by modes.\n"
-      "    bin_size is %d THz.\n",
+      "    bin_size is %d bins.\n",
       g->bin_size);
   }
 
