@@ -2,6 +2,7 @@
 \.project
 core
 
+src/.vscode/*
 src/*/*.obj
 src/*/*.o
 src/gpumd*
