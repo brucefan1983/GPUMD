@@ -2,11 +2,15 @@
 
 ## Preprints (1)
 
-Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura, Sebastian Volz,
+* Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura, Sebastian Volz,
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384)
 arXiv:2003.02384 [cond-mat.mes-hall]
 
-## 2020 (4)
+## 2020 (5)
+
+* Xin Wu and Qiang Han
+[Thermal conductivity of monolayer hexagonal boron nitride: From defective to amorphous](https://doi.org/10.1016/j.commatsci.2020.109938),
+Computational Materials Science **184**, 109938 (2020).
 
 * Alexander Joseph Gabourie, Saurabh Vinayak Suryavanshi, Amir Barati Farimani, and Eric Pop,
 [Reduced Thermal Conductivity of Supported and Encased Monolayer and Bilayer MoS<sub>2</sub>](https://doi.org/10.1088/2053-1583/aba4ed),
