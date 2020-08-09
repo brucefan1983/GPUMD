@@ -6,20 +6,23 @@
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384)
 arXiv:2003.02384 [cond-mat.mes-hall]
 
-## 2020 (5)
-
-* Xin Wu and Qiang Han
-[Thermal conductivity of monolayer hexagonal boron nitride: From defective to amorphous](https://doi.org/10.1016/j.commatsci.2020.109938),
-Computational Materials Science **184**, 109938 (2020).
+## 2020 (6)
 
 * Alexander Joseph Gabourie, Saurabh Vinayak Suryavanshi, Amir Barati Farimani, and Eric Pop,
 [Reduced Thermal Conductivity of Supported and Encased Monolayer and Bilayer MoS<sub>2</sub>](https://doi.org/10.1088/2053-1583/aba4ed),
 2D Materials, Accepted.
 
+* Xin Wu and Qiang Han
+[Thermal conductivity of monolayer hexagonal boron nitride: From defective to amorphous](https://doi.org/10.1016/j.commatsci.2020.109938),
+Computational Materials Science **184**, 109938 (2020).
+
+* Xin Wu and Qiang Han
+[Thermal conductivity of defective graphene: an efficient molecular dynamics study based on graphics processing units](https://doi.org/10.1088/1361-6528/ab73bc),
+Nanotechnology **31** 215708 (2020).
+
 * Haikuan Dong, Zheyong Fan, Ping Qian, Tapio Ala-Nissila, and Yanjing Su,
 [Thermal conductivity reduction in carbon nanotube by fullerene encapsulation: A molecular dynamics study](https://doi.org/10.1016/j.carbon.2020.01.114),
 Carbon **161**, 800 (2020).
-
 
 * Bo Fu, Kevin D. Parrish, Hyun-Young Kim, Guihua Tang, and Alan J. H. McGaughey,
 [Phonon Confinement and Transport in Ultrathin Films](https://doi.org/10.1103/PhysRevB.101.045417),
