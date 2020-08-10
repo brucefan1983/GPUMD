@@ -57,25 +57,6 @@ protected:
   std::vector<double> DR;
   std::vector<double> DI;
 
-  void shift_atom(
-    const double dx, const size_t n2, const size_t beta, GPU_Vector<double>& position_per_atom);
-
-  void get_f(
-    const double dx,
-    const size_t n1,
-    const size_t n2,
-    const size_t beta,
-    const Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    Neighbor& neighbor,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
-    Force& force,
-    double* f);
-
   void read_basis(char*, size_t N);
   void read_kpoints(char*);
   void initialize(char*, size_t);
@@ -92,20 +73,6 @@ protected:
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
-
-  void find_H12(
-    const size_t n1,
-    const size_t n2,
-    const Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<int>& type,
-    std::vector<Group>& group,
-    Neighbor& neighbor,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
-    Force& force,
-    double* H12);
 
   bool is_too_far(
     const Box& box,

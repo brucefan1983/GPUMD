@@ -20,6 +20,7 @@ Then calculate the dynamical matrices with different k points.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
+#include "force/force_constant.cuh"
 #include "hessian.cuh"
 #include "utilities/common.cuh"
 #include "utilities/cusolver_wrapper.cuh"
@@ -149,8 +150,8 @@ void Hessian::find_H(
       }
       size_t offset = (nb * number_of_atoms + n2) * 9;
       find_H12(
-        n1, n2, box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-        virial_per_atom, force, H.data() + offset);
+        displacement, n1, n2, box, position_per_atom, type, group, neighbor, potential_per_atom,
+        force_per_atom, virial_per_atom, force, H.data() + offset);
     }
   }
 }
@@ -277,39 +278,6 @@ void Hessian::find_dispersion(
   fclose(fid_omega2);
 }
 
-void Hessian::find_H12(
-  const size_t n1,
-  const size_t n2,
-  const Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& type,
-  std::vector<Group>& group,
-  Neighbor& neighbor,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  Force& force,
-  double* H12)
-{
-  double dx2 = displacement * 2;
-  double f_positive[3];
-  double f_negative[3];
-  for (size_t beta = 0; beta < 3; ++beta) {
-    get_f(
-      -displacement, n1, n2, beta, box, position_per_atom, type, group, neighbor,
-      potential_per_atom, force_per_atom, virial_per_atom, force, f_negative);
-
-    get_f(
-      displacement, n1, n2, beta, box, position_per_atom, type, group, neighbor, potential_per_atom,
-      force_per_atom, virial_per_atom, force, f_positive);
-
-    for (size_t alpha = 0; alpha < 3; ++alpha) {
-      size_t index = alpha * 3 + beta;
-      H12[index] = (f_negative[alpha] - f_positive[alpha]) / dx2;
-    }
-  }
-}
-
 void Hessian::find_D(const Box& box, std::vector<double>& cpu_position_per_atom)
 {
   const int number_of_atoms = cpu_position_per_atom.size() / 3;
@@ -373,58 +341,6 @@ void Hessian::find_eigenvectors(char* input_dir)
     fprintf(fid_eigenvectors, "\n");
   }
   fclose(fid_eigenvectors);
-}
-
-void Hessian::get_f(
-  const double dx,
-  const size_t n1,
-  const size_t n2,
-  const size_t beta,
-  const Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& type,
-  std::vector<Group>& group,
-  Neighbor& neighbor,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  Force& force,
-  double* f)
-{
-  const int number_of_atoms = type.size();
-
-  shift_atom(dx, n2, beta, position_per_atom);
-
-  force.compute(
-    box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-    virial_per_atom);
-
-  size_t M = sizeof(double);
-  CHECK(cudaMemcpy(f + 0, force_per_atom.data() + n1, M, cudaMemcpyDeviceToHost));
-  CHECK(cudaMemcpy(f + 1, force_per_atom.data() + n1 + number_of_atoms, M, cudaMemcpyDeviceToHost));
-  CHECK(
-    cudaMemcpy(f + 2, force_per_atom.data() + n1 + number_of_atoms * 2, M, cudaMemcpyDeviceToHost));
-
-  shift_atom(-dx, n2, beta, position_per_atom);
-}
-
-static __global__ void gpu_shift_atom(const double dx, double* x) { x[0] += dx; }
-
-void Hessian::shift_atom(
-  const double dx, const size_t n2, const size_t beta, GPU_Vector<double>& position_per_atom)
-{
-  const int number_of_atoms = position_per_atom.size() / 3;
-
-  if (beta == 0) {
-    gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + n2);
-    CUDA_CHECK_KERNEL
-  } else if (beta == 1) {
-    gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + number_of_atoms + n2);
-    CUDA_CHECK_KERNEL
-  } else {
-    gpu_shift_atom<<<1, 1>>>(dx, position_per_atom.data() + number_of_atoms * 2 + n2);
-    CUDA_CHECK_KERNEL
-  }
 }
 
 void Hessian::parse_cutoff(char** param, size_t num_param)
