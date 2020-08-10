@@ -18,8 +18,8 @@ Some wrappers for the cuSOLVER library
 ------------------------------------------------------------------------------*/
 
 #include "cusolver_wrapper.cuh"
-#include "utilities/error.cuh"
-#include "utilities/gpu_vector.cuh"
+#include "error.cuh"
+#include "gpu_vector.cuh"
 #include <cusolverDn.h>
 #include <vector>
 

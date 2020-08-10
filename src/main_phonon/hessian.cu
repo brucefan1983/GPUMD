@@ -19,10 +19,10 @@ Use finite difference to calculate the hessian (force constants).
 Then calculate the dynamical matrices with different k points.
 ------------------------------------------------------------------------------*/
 
-#include "cusolver_wrapper.cuh"
 #include "force/force.cuh"
 #include "hessian.cuh"
 #include "utilities/common.cuh"
+#include "utilities/cusolver_wrapper.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
