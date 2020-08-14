@@ -26,9 +26,16 @@ void Measure::initialize(
   char* input_dir,
   const int number_of_steps,
   const double time_step,
-  const std::vector<Group>& group,
   const std::vector<int>& cpu_type_size,
-  const GPU_Vector<double>& mass)
+  const GPU_Vector<double>& mass,
+  Box& box,
+  Neighbor& neighbor,
+  std::vector<Group>& group,
+  Force& force,
+  GPU_Vector<int>& type,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = mass.size();
   dos.preprocess(time_step, group, mass);
@@ -36,6 +43,9 @@ void Measure::initialize(
   cvac.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
+  shc_harmonic.preprocess(
+    input_dir, number_of_atoms, box, neighbor, group, force, type, potential_per_atom,
+    force_per_atom, virial_per_atom);
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
   modal_analysis.preprocess(input_dir, cpu_type_size, mass);
@@ -66,6 +76,7 @@ void Measure::finalize(
   cvac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
   shc.postprocess(input_dir);
+  shc_harmonic.postprocess(input_dir);
   compute.postprocess();
   hnemd.postprocess();
   modal_analysis.postprocess();
@@ -119,6 +130,7 @@ void Measure::process(
   cvac.process(step, group, velocity_per_atom);
   hac.process(number_of_steps, step, input_dir, velocity_per_atom, virial_per_atom, heat_per_atom);
   shc.process(step, group, velocity_per_atom, virial_per_atom);
+  shc_harmonic.process(step, group, velocity_per_atom, virial_per_atom);
   hnemd.process(
     step, input_dir, temperature, box.get_volume(), velocity_per_atom, virial_per_atom,
     heat_per_atom);
