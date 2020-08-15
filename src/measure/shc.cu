@@ -256,7 +256,7 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, group_method, group_id);
     } else {
-      PRINT_INPUT_ERROR("Unrecognized argument in dump_force.\n");
+      PRINT_INPUT_ERROR("Unrecognized argument in compute_shc.\n");
     }
   }
 }

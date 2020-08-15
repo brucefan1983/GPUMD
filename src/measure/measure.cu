@@ -130,7 +130,7 @@ void Measure::process(
   cvac.process(step, group, velocity_per_atom);
   hac.process(number_of_steps, step, input_dir, velocity_per_atom, virial_per_atom, heat_per_atom);
   shc.process(step, group, velocity_per_atom, virial_per_atom);
-  shc_harmonic.process(step, group, velocity_per_atom, virial_per_atom);
+  shc_harmonic.process(step, group, position_per_atom, velocity_per_atom, virial_per_atom);
   hnemd.process(
     step, input_dir, temperature, box.get_volume(), velocity_per_atom, virial_per_atom,
     heat_per_atom);

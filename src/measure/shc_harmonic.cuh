@@ -43,6 +43,7 @@ public:
   void process(
     const int step,
     const std::vector<Group>& group,
+    const GPU_Vector<double>& position_per_atom,
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom);
   void postprocess(const char*);
@@ -51,9 +52,11 @@ public:
 private:
   int num_time_origins;          // number of time origins for ensemble average
   int group_size;                // number of atoms in group_id
-  std::vector<double> H;         // hessian matrix
-  std::vector<double> r0cpu;     // initial position (CPU)
+  GPU_Vector<int> NN;            // neighbor number for rH
+  GPU_Vector<int> NL;            // neighbor list for rH
+  GPU_Vector<double> rH;         // rij * Hij
   GPU_Vector<double> r0;         // initial position
+  GPU_Vector<double> u;          // displacement u = r - r0
   GPU_Vector<double> vx, vy, vz; // Nc frames of velocity data
   GPU_Vector<double> sx, sy, sz; // one frame of virial data
   GPU_Vector<double> ki, ko;     // The correlation functions Ki(t) and Ko(t)
