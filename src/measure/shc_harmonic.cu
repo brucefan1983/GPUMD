@@ -75,6 +75,8 @@ void SHC_harmonic::preprocess(
   for (int m1 = 0; m1 < group_size; ++m1) {
     int n1 = group[group_method].cpu_contents[group[group_method].cpu_size_sum[group_id] + m1];
     for (int n2 = 0; n2 < N; ++n2) {
+      if (n1 == n2)
+        continue;
       double r12[3];
       r12[0] = r0cpu[n2] - r0cpu[n1];
       r12[1] = r0cpu[n2 + N] - r0cpu[n1 + N];
@@ -89,12 +91,8 @@ void SHC_harmonic::preprocess(
       find_H12(
         displacement, n1, n2, box, r0, type, group, neighbor, potential_per_atom, force_per_atom,
         virial_per_atom, force, rHcpu12);
-      for (int a = 0; a < 3; ++a) {
-        for (int b = 0; b < 3; ++b) {
-          const int ab = a * 3 + b;
-          rHcpu12[ab] *= r12[direction];
-        }
-      }
+      for (int ab = 0; ab < 9; ++ab)
+        rHcpu12[ab] *= r12[direction] * 0.5;
       NNcpu[m1]++;
     }
   }
