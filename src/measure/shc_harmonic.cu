@@ -252,8 +252,8 @@ void SHC_harmonic::process(
     velocity_per_atom.data() + N, velocity_per_atom.data() + 2 * N);
   CUDA_CHECK_KERNEL
 
-  gpu_find_u<<<(N - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
-    N, position_per_atom.data(), r0.data(), u.data());
+  gpu_find_u<<<(3 * N - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
+    3 * N, position_per_atom.data(), r0.data(), u.data());
   CUDA_CHECK_KERNEL
 
   gpu_find_virial<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
