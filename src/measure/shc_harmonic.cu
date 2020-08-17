@@ -20,27 +20,91 @@ molecular dynamics method for heat transport and spectral decomposition
 with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 ------------------------------------------------------------------------------*/
 
+#include "force/force.cuh"
+#include "force/force_constant.cuh"
+#include "model/box.cuh"
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
-#include "shc.cuh"
+#include "shc_harmonic.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 
 const int BLOCK_SIZE_SHC = 128;
+const int MN = 1024;
+const double displacement = 0.01;
+const double cutoff = 4.0;
 
-void SHC::preprocess(const int N, const std::vector<Group>& group)
+void SHC_harmonic::preprocess(
+  char* input_dir,
+  const int N,
+  Box& box,
+  Neighbor& neighbor,
+  std::vector<Group>& group,
+  Force& force,
+  GPU_Vector<int>& type,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
 {
   if (!compute) {
     return;
   }
 
   num_time_origins = 0;
-  if (-1 == group_method) {
-    group_size = N;
-  } else {
-    group_size = group[group_method].cpu_size[group_id];
+  group_size = group[group_method].cpu_size[group_id];
+
+  // read in initial positions
+  std::vector<double> r0cpu(N * 3);
+  char file[200];
+  strcpy(file, input_dir);
+  strcat(file, "/r0.in");
+  FILE* fid = my_fopen(file, "r");
+  for (int n = 0; n < N; n++) {
+    int count = fscanf(fid, "%lf%lf%lf", &r0cpu[n], &r0cpu[n + N], &r0cpu[n + N * 2]);
+    PRINT_SCANF_ERROR(count, 3, "Reading error for r0.in.");
+  }
+  fclose(fid);
+
+  r0.resize(N * 3);
+  r0.copy_from_host(r0cpu.data());
+
+  // Calculate Hessian matrix for the specified group
+  std::vector<double> rHcpu(group_size * MN * 9, 0.0);
+  std::vector<int> NNcpu(group_size, 0);
+  std::vector<int> NLcpu(group_size * MN);
+  for (int m1 = 0; m1 < group_size; ++m1) {
+    int n1 = group[group_method].cpu_contents[group[group_method].cpu_size_sum[group_id] + m1];
+    for (int n2 = 0; n2 < N; ++n2) {
+      if (n1 == n2)
+        continue;
+      double r12[3];
+      r12[0] = r0cpu[n2] - r0cpu[n1];
+      r12[1] = r0cpu[n2 + N] - r0cpu[n1 + N];
+      r12[2] = r0cpu[n2 + N * 2] - r0cpu[n1 + N * 2];
+      apply_mic(box, r12[0], r12[1], r12[2]);
+      const double d12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+      if (d12_square > (cutoff * cutoff))
+        continue;
+      const int index = m1 * MN + NNcpu[m1];
+      NLcpu[index] = n2;
+      double* rHcpu12 = rHcpu.data() + index * 9;
+      find_H12(
+        displacement, n1, n2, box, r0, type, group, neighbor, potential_per_atom, force_per_atom,
+        virial_per_atom, force, rHcpu12);
+      for (int ab = 0; ab < 9; ++ab)
+        rHcpu12[ab] *= r12[direction] * 0.5;
+      NNcpu[m1]++;
+    }
   }
 
+  rH.resize(group_size * MN * 9);
+  NN.resize(group_size);
+  NL.resize(group_size * MN);
+  rH.copy_from_host(rHcpu.data());
+  NN.copy_from_host(NNcpu.data());
+  NL.copy_from_host(NLcpu.data());
+
+  u.resize(N * 3);
   vx.resize(group_size * Nc);
   vy.resize(group_size * Nc);
   vz.resize(group_size * Nc);
@@ -102,19 +166,13 @@ static __global__ void gpu_find_k(
   }
 }
 
-static __global__ void gpu_copy_data(
+static __global__ void gpu_copy_velocity(
   const int group_size,
   const int offset,
   const int* g_group_contents,
-  double* g_sx_o,
-  double* g_sy_o,
-  double* g_sz_o,
   double* g_vx_o,
   double* g_vy_o,
   double* g_vz_o,
-  const double* g_sx_i,
-  const double* g_sy_i,
-  const double* g_sz_i,
   const double* g_vx_i,
   const double* g_vy_i,
   const double* g_vz_i)
@@ -123,18 +181,56 @@ static __global__ void gpu_copy_data(
 
   if (n < group_size) {
     int m = g_group_contents[offset + n];
-    g_sx_o[n] = g_sx_i[m];
-    g_sy_o[n] = g_sy_i[m];
-    g_sz_o[n] = g_sz_i[m];
     g_vx_o[n] = g_vx_i[m];
     g_vy_o[n] = g_vy_i[m];
     g_vz_o[n] = g_vz_i[m];
   }
 }
 
-void SHC::process(
+static __global__ void gpu_find_u(const int N, const double* g_r, const double* g_r0, double* g_u)
+{
+  int n = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n < N) {
+    g_u[n] = g_r[n] - g_r0[n];
+  }
+}
+
+__global__ void gpu_find_virial(
+  const int group_size,
+  const int* g_NN,
+  const int* g_NL,
+  const double* g_rH,
+  const double* g_ux,
+  const double* g_uy,
+  const double* g_uz,
+  double* g_virial_x,
+  double* g_virial_y,
+  double* g_virial_z)
+{
+  const int i = threadIdx.x + blockIdx.x * blockDim.x;
+  if (i >= group_size)
+    return;
+  double virial[3] = {0.0, 0.0, 0.0};
+  for (int k = 0; k < g_NN[i]; ++k) {
+    const int j = g_NL[i * MN + k];
+    const int index9 = (i * MN + k) * 9;
+    const double u[3] = {g_ux[j], g_uy[j], g_uz[j]};
+    for (int a = 0; a < 3; ++a) {
+      for (int b = 0; b < 3; ++b) {
+        const int ab = a * 3 + b;
+        virial[a] += g_rH[index9 + ab] * u[b];
+      }
+    }
+  }
+  g_virial_x[i] = virial[0];
+  g_virial_y[i] = virial[1];
+  g_virial_z[i] = virial[2];
+}
+
+void SHC_harmonic::process(
   const int step,
   const std::vector<Group>& group,
+  const GPU_Vector<double>& position_per_atom,
   const GPU_Vector<double>& velocity_per_atom,
   const GPU_Vector<double>& virial_per_atom)
 {
@@ -150,35 +246,23 @@ void SHC::process(
 
   const int N = velocity_per_atom.size() / 3;
 
-  const int tensor[3][3] = {0, 3, 4, 6, 1, 5, 7, 8, 2};
-  const double* sx_tmp = virial_per_atom.data() + N * tensor[direction][0];
-  const double* sy_tmp = virial_per_atom.data() + N * tensor[direction][1];
-  const double* sz_tmp = virial_per_atom.data() + N * tensor[direction][2];
+  gpu_copy_velocity<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
+    group_size, group[group_method].cpu_size_sum[group_id], group[group_method].contents.data(),
+    vx.data() + offset, vy.data() + offset, vz.data() + offset, velocity_per_atom.data(),
+    velocity_per_atom.data() + N, velocity_per_atom.data() + 2 * N);
+  CUDA_CHECK_KERNEL
 
-  if (-1 == group_method) {
-    sx.copy_from_device(sx_tmp);
-    sy.copy_from_device(sy_tmp);
-    sz.copy_from_device(sz_tmp);
-    CHECK(cudaMemcpy(
-      vx.data() + offset, velocity_per_atom.data(), sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(
-      vy.data() + offset, velocity_per_atom.data() + N, sizeof(double) * N,
-      cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(
-      vz.data() + offset, velocity_per_atom.data() + N * 2, sizeof(double) * N,
-      cudaMemcpyDeviceToDevice));
-  } else {
-    gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
-      group_size, group[group_method].cpu_size_sum[group_id], group[group_method].contents.data(),
-      sx.data(), sy.data(), sz.data(), vx.data() + offset, vy.data() + offset, vz.data() + offset,
-      sx_tmp, sy_tmp, sz_tmp, velocity_per_atom.data(), velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N);
-    CUDA_CHECK_KERNEL
-  }
+  gpu_find_u<<<(3 * N - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
+    3 * N, position_per_atom.data(), r0.data(), u.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_find_virial<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
+    group_size, NN.data(), NL.data(), rH.data(), u.data(), u.data() + N, u.data() + N * 2,
+    sx.data(), sy.data(), sz.data());
+  CUDA_CHECK_KERNEL
 
   if (sample_step >= Nc - 1) {
     ++num_time_origins;
-
     gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
       group_size, correlation_step, sx.data(), sy.data(), sz.data(), vx.data(), vy.data(),
       vz.data(), ki.data(), ko.data());
@@ -186,7 +270,7 @@ void SHC::process(
   }
 }
 
-void SHC::postprocess(const char* input_dir)
+void SHC_harmonic::postprocess(const char* input_dir)
 {
   if (!compute) {
     return;
@@ -208,13 +292,13 @@ void SHC::postprocess(const char* input_dir)
   group_method = -1;
 }
 
-void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
+void SHC_harmonic::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
-  printf("Compute SHC.\n");
+  printf("Compute harmonic SHC.\n");
   compute = 1;
 
   if ((num_param != 4) && (num_param != 7)) {
-    PRINT_INPUT_ERROR("compute_shc should have 3 or 6 parameters.");
+    PRINT_INPUT_ERROR("compute_shc_harmonic should have 3 or 6 parameters.");
   }
 
   if (!is_valid_int(param[1], &sample_interval)) {
@@ -256,7 +340,7 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, group_method, group_id);
     } else {
-      PRINT_INPUT_ERROR("Unrecognized argument in compute_shc.\n");
+      PRINT_INPUT_ERROR("Unrecognized argument in compute_shc_harmonic.\n");
     }
   }
 }

@@ -30,6 +30,7 @@
 #include "model/neighbor.cuh"
 #include "sdc.cuh"
 #include "shc.cuh"
+#include "shc_harmonic.cuh"
 #include "utilities/gpu_vector.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
@@ -42,9 +43,16 @@ public:
     char* input_dir,
     const int number_of_steps,
     const double time_step,
-    const std::vector<Group>& group,
     const std::vector<int>& cpu_type_size,
-    const GPU_Vector<double>& mass);
+    const GPU_Vector<double>& mass,
+    Box& box,
+    Neighbor& neighbor,
+    std::vector<Group>& group,
+    Force& force,
+    GPU_Vector<int>& type,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
 
   void finalize(
     char* input_dir,
@@ -82,6 +90,7 @@ public:
   CVAC cvac;
   HAC hac;
   SHC shc;
+  SHC_harmonic shc_harmonic;
   HNEMD hnemd;
   Compute compute;
   MODAL_ANALYSIS modal_analysis;

@@ -81,7 +81,9 @@ void Run::perform_a_run(char* input_dir)
 {
   integrate.initialize(N, time_step, group);
 
-  measure.initialize(input_dir, number_of_steps, time_step, group, cpu_type_size, mass);
+  measure.initialize(
+    input_dir, number_of_steps, time_step, cpu_type_size, mass, box, neighbor, group, force, type,
+    potential_per_atom, force_per_atom, virial_per_atom);
 
   clock_t time_begin = clock();
 
@@ -178,6 +180,8 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     measure.hnemd.parse(param, num_param);
   } else if (strcmp(param[0], "compute_shc") == 0) {
     measure.shc.parse(param, num_param, group);
+  } else if (strcmp(param[0], "compute_shc_harmonic") == 0) {
+    measure.shc_harmonic.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_gkma") == 0) {
     measure.parse_compute_gkma(param, num_param, number_of_types);
   } else if (strcmp(param[0], "compute_hnema") == 0) {
