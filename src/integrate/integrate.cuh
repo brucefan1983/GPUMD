@@ -21,6 +21,8 @@
 #include <memory>
 #include <vector>
 
+class Atom;
+
 class Integrate
 {
 public:
@@ -35,26 +37,16 @@ public:
     const double time_step,
     const double step_over_number_of_steps,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo);
 
   void compute2(
     const double time_step,
     const double step_over_number_of_steps,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo);
 
   // get inputs from run.in

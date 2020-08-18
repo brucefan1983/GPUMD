@@ -23,6 +23,7 @@ The driver class for the various integrators.
 #include "ensemble_nhc.cuh"
 #include "ensemble_nve.cuh"
 #include "integrate.cuh"
+#include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 
@@ -86,13 +87,8 @@ void Integrate::compute1(
   const double time_step,
   const double step_over_number_of_steps,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   if (type >= 1 && type <= 20) {
@@ -101,21 +97,16 @@ void Integrate::compute1(
   }
 
   ensemble->compute1(
-    time_step, group, mass, potential_per_atom, force_per_atom, virial_per_atom, box,
-    position_per_atom, velocity_per_atom, thermo);
+    time_step, group, atom.mass, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom,
+    box, atom.position_per_atom, atom.velocity_per_atom, thermo);
 }
 
 void Integrate::compute2(
   const double time_step,
   const double step_over_number_of_steps,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   if (type >= 1 && type <= 20) {
@@ -124,8 +115,8 @@ void Integrate::compute2(
   }
 
   ensemble->compute2(
-    time_step, group, mass, potential_per_atom, force_per_atom, virial_per_atom, box,
-    position_per_atom, velocity_per_atom, thermo);
+    time_step, group, atom.mass, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom,
+    box, atom.position_per_atom, atom.velocity_per_atom, thermo);
 }
 
 // coding conventions:

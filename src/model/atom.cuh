@@ -14,34 +14,23 @@
 */
 
 #pragma once
-
-class Force;
-class Hessian;
-
-#include "model/atom.cuh"
-#include "model/box.cuh"
-#include "model/group.cuh"
-#include "model/neighbor.cuh"
-#include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-class Phonon
+class Atom
 {
 public:
-  Phonon(char*);
-
-private:
-  void compute(char*, Force&, Hessian&);
-  void parse(char**, int, Force&, Hessian&, char* input_dir);
-
-  // data in the original Atom class
-  int N;               // number of atoms
-  int number_of_types; // number of atom types
-  int has_velocity_in_xyz = 0;
-  Atom atom;
-  GPU_Vector<double> thermo; // some thermodynamic quantities
-  Neighbor neighbor;
-  Box box;
-  std::vector<Group> group;
+  std::vector<int> cpu_type;
+  std::vector<int> cpu_type_size;
+  std::vector<double> cpu_mass;
+  std::vector<double> cpu_position_per_atom;
+  std::vector<double> cpu_velocity_per_atom;
+  GPU_Vector<int> type;                  // per-atom type (1 component)
+  GPU_Vector<double> mass;               // per-atom mass (1 component)
+  GPU_Vector<double> position_per_atom;  // per-atom position (3 components)
+  GPU_Vector<double> velocity_per_atom;  // per-atom velocity (3 components)
+  GPU_Vector<double> force_per_atom;     // per-atom force (3 components)
+  GPU_Vector<double> heat_per_atom;      // per-atom heat current (5 components)
+  GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
+  GPU_Vector<double> potential_per_atom; // per-atom potential energy (1 component)
 };

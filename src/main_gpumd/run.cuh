@@ -22,6 +22,7 @@ class Measure;
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
+#include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "model/neighbor.cuh"
@@ -52,20 +53,8 @@ private:
   double global_time = 0.0;   // run time of entire simulation (fs)
   double initial_temperature; // initial temperature for velocity
   double time_step = 1.0 / TIME_UNIT_CONVERSION;
-  std::vector<int> cpu_type;
-  std::vector<int> cpu_type_size;
-  std::vector<double> cpu_mass;
-  std::vector<double> cpu_position_per_atom;
-  std::vector<double> cpu_velocity_per_atom;
-  GPU_Vector<int> type;                  // atom type (for force)
-  GPU_Vector<double> mass;               // per-atom mass
-  GPU_Vector<double> position_per_atom;  // per-atom position
-  GPU_Vector<double> velocity_per_atom;  // per-atom velocity
-  GPU_Vector<double> force_per_atom;     // per-atom force
-  GPU_Vector<double> heat_per_atom;      // per-atom heat current
-  GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
-  GPU_Vector<double> potential_per_atom; // per-atom potential energy
-  GPU_Vector<double> thermo;             // some thermodynamic quantities
+  Atom atom;
+  GPU_Vector<double> thermo; // some thermodynamic quantities
   Neighbor neighbor;
   Box box;
   std::vector<Group> group;
