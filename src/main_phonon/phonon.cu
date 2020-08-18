@@ -29,8 +29,7 @@ The driver class for phonon calculations
 Phonon::Phonon(char* input_dir)
 {
   initialize_position(
-    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, atom.cpu_type,
-    atom.cpu_type_size, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, atom);
 
   allocate_memory_gpu(N, neighbor, group, atom, thermo);
 

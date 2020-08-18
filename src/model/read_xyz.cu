@@ -282,11 +282,7 @@ void initialize_position(
   Box& box,
   Neighbor& neighbor,
   std::vector<Group>& group,
-  std::vector<int>& cpu_type,
-  std::vector<int>& cpu_type_size,
-  std::vector<double>& cpu_mass,
-  std::vector<double>& cpu_position_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
+  Atom& atom)
 {
   print_line_1();
   printf("Started initializing positions and related parameters.\n");
@@ -303,8 +299,8 @@ void initialize_position(
   read_xyz_in_line_2(fid_xyz, box);
 
   read_xyz_in_line_3(
-    fid_xyz, N, has_velocity_in_xyz, number_of_types, cpu_type, cpu_mass, cpu_position_per_atom,
-    cpu_velocity_per_atom, group);
+    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom.cpu_type, atom.cpu_mass,
+    atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, group);
 
   fclose(fid_xyz);
 
@@ -313,7 +309,7 @@ void initialize_position(
     group[m].find_contents(N);
   }
 
-  find_type_size(N, number_of_types, cpu_type, cpu_type_size);
+  find_type_size(N, number_of_types, atom.cpu_type, atom.cpu_type_size);
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");

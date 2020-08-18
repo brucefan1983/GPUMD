@@ -30,11 +30,7 @@ void initialize_position(
   Box& box,
   Neighbor& neighbor,
   std::vector<Group>& group,
-  std::vector<int>& cpu_type,
-  std::vector<int>& cpu_type_size,
-  std::vector<double>& cpu_mass,
-  std::vector<double>& cpu_position_per_atom,
-  std::vector<double>& cpu_velocity_per_atom);
+  Atom& atom);
 
 void allocate_memory_gpu(
   const int N,
