@@ -33,15 +33,16 @@ Run simulation according to the inputs in the run.in file.
 Run::Run(char* input_dir)
 {
   initialize_position(
-    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, cpu_type,
-    cpu_type_size, cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
+    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, atom.cpu_type,
+    atom.cpu_type_size, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
 
   allocate_memory_gpu(
-    N, neighbor, group, cpu_type, cpu_mass, cpu_position_per_atom, type, mass, position_per_atom,
-    velocity_per_atom, potential_per_atom, force_per_atom, virial_per_atom, heat_per_atom, thermo);
+    N, neighbor, group, atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom, atom.type,
+    atom.mass, atom.position_per_atom, atom.velocity_per_atom, atom.potential_per_atom,
+    atom.force_per_atom, atom.virial_per_atom, atom.heat_per_atom, thermo);
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-  neighbor.find_neighbor(/*is_first=*/true, box, position_per_atom);
+  neighbor.find_neighbor(/*is_first=*/true, box, atom.position_per_atom);
 #endif
 
   execute_run_in(input_dir);
@@ -82,8 +83,8 @@ void Run::perform_a_run(char* input_dir)
   integrate.initialize(N, time_step, group);
 
   measure.initialize(
-    input_dir, number_of_steps, time_step, cpu_type_size, mass, box, neighbor, group, force, type,
-    potential_per_atom, force_per_atom, virial_per_atom);
+    input_dir, number_of_steps, time_step, atom.cpu_type_size, atom.mass, box, neighbor, group,
+    force, atom.type, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
 
   clock_t time_begin = clock();
 
@@ -92,27 +93,30 @@ void Run::perform_a_run(char* input_dir)
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
     if (neighbor.update) {
-      neighbor.find_neighbor(/*is_first=*/false, box, position_per_atom);
+      neighbor.find_neighbor(/*is_first=*/false, box, atom.position_per_atom);
     }
 #endif
 
     integrate.compute1(
-      time_step, double(step) / number_of_steps, group, mass, potential_per_atom, force_per_atom,
-      virial_per_atom, box, position_per_atom, velocity_per_atom, thermo);
+      time_step, double(step) / number_of_steps, group, atom.mass, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom, box, atom.position_per_atom,
+      atom.velocity_per_atom, thermo);
 
     force.compute(
-      box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-      virial_per_atom);
+      box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom);
 
     integrate.compute2(
-      time_step, double(step) / number_of_steps, group, mass, potential_per_atom, force_per_atom,
-      virial_per_atom, box, position_per_atom, velocity_per_atom, thermo);
+      time_step, double(step) / number_of_steps, group, atom.mass, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom, box, atom.position_per_atom,
+      atom.velocity_per_atom, thermo);
 
     measure.process(
       input_dir, number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
-      integrate.ensemble->energy_transferred, cpu_type, box, neighbor, group, thermo, mass,
-      cpu_mass, position_per_atom, cpu_position_per_atom, velocity_per_atom, cpu_velocity_per_atom,
-      potential_per_atom, force_per_atom, virial_per_atom, heat_per_atom);
+      integrate.ensemble->energy_transferred, atom.cpu_type, box, neighbor, group, thermo,
+      atom.mass, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
+      atom.velocity_per_atom, atom.cpu_velocity_per_atom, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom, atom.heat_per_atom);
 
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
@@ -138,12 +142,13 @@ void Run::perform_a_run(char* input_dir)
 void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
 {
   if (strcmp(param[0], "potential") == 0) {
-    force.parse_potential(param, num_param, input_dir, box, neighbor, cpu_type, cpu_type_size);
+    force.parse_potential(
+      param, num_param, input_dir, box, neighbor, atom.cpu_type, atom.cpu_type_size);
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
-      param, num_param, force, box, position_per_atom, type, group, neighbor, potential_per_atom,
-      force_per_atom, virial_per_atom);
+      param, num_param, force, box, atom.position_per_atom, atom.type, group, neighbor,
+      atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
@@ -213,8 +218,8 @@ void Run::parse_velocity(char** param, int num_param)
 
   Velocity velocity;
   velocity.initialize(
-    has_velocity_in_xyz, initial_temperature, cpu_mass, cpu_position_per_atom,
-    cpu_velocity_per_atom, velocity_per_atom);
+    has_velocity_in_xyz, initial_temperature, atom.cpu_mass, atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom, atom.velocity_per_atom);
 }
 
 void Run::parse_time_step(char** param, int num_param)
