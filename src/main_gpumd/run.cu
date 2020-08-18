@@ -91,19 +91,13 @@ void Run::perform_a_run(char* input_dir)
     }
 #endif
 
-    integrate.compute1(
-      time_step, double(step) / number_of_steps, group, atom.mass, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom, box, atom.position_per_atom,
-      atom.velocity_per_atom, thermo);
+    integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     force.compute(
       box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
       atom.force_per_atom, atom.virial_per_atom);
 
-    integrate.compute2(
-      time_step, double(step) / number_of_steps, group, atom.mass, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom, box, atom.position_per_atom,
-      atom.velocity_per_atom, thermo);
+    integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     measure.process(
       input_dir, number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
