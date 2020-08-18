@@ -18,6 +18,7 @@
 class Box;
 class Neighbor;
 class Group;
+class Atom;
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
@@ -39,15 +40,5 @@ void allocate_memory_gpu(
   const int N,
   Neighbor& neighbor,
   std::vector<Group>& group,
-  std::vector<int>& cpu_type,
-  std::vector<double>& cpu_mass,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<int>& type,
-  GPU_Vector<double>& mass,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& heat_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo);

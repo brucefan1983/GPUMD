@@ -29,15 +29,13 @@ The driver class for phonon calculations
 Phonon::Phonon(char* input_dir)
 {
   initialize_position(
-    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, cpu_type,
-    cpu_type_size, cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
+    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, atom.cpu_type,
+    atom.cpu_type_size, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
 
-  allocate_memory_gpu(
-    N, neighbor, group, cpu_type, cpu_mass, cpu_position_per_atom, type, mass, position_per_atom,
-    velocity_per_atom, potential_per_atom, force_per_atom, virial_per_atom, heat_per_atom, thermo);
+  allocate_memory_gpu(N, neighbor, group, atom, thermo);
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
-  neighbor.find_neighbor(1, box, position_per_atom);
+  neighbor.find_neighbor(1, box, atom.position_per_atom);
 #endif
 
   Force force;
@@ -67,19 +65,20 @@ void Phonon::compute(char* input_dir, Force& force, Hessian& hessian)
   free(input); // Free the input file contents
 
   hessian.compute(
-    input_dir, force, box, cpu_position_per_atom, position_per_atom, type, group, neighbor,
-    potential_per_atom, force_per_atom, virial_per_atom);
+    input_dir, force, box, atom.cpu_position_per_atom, atom.position_per_atom, atom.type, group,
+    neighbor, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
 }
 
 void Phonon::parse(char** param, int num_param, Force& force, Hessian& hessian, char* input_dir)
 {
   if (strcmp(param[0], "potential") == 0) {
-    force.parse_potential(param, num_param, input_dir, box, neighbor, cpu_type, cpu_type_size);
+    force.parse_potential(
+      param, num_param, input_dir, box, neighbor, atom.cpu_type, atom.cpu_type_size);
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
-      param, num_param, force, box, position_per_atom, type, group, neighbor, potential_per_atom,
-      force_per_atom, virial_per_atom);
+      param, num_param, force, box, atom.position_per_atom, atom.type, group, neighbor,
+      atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
   } else if (strcmp(param[0], "cutoff") == 0) {
     hessian.parse_cutoff(param, num_param);
   } else if (strcmp(param[0], "delta") == 0) {

@@ -14,6 +14,8 @@
 */
 
 #pragma once
+#include "utilities/gpu_vector.cuh"
+#include <vector>
 
 class Atom
 {
