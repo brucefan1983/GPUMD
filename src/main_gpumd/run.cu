@@ -78,10 +78,7 @@ void Run::execute_run_in(char* input_dir)
 void Run::perform_a_run(char* input_dir)
 {
   integrate.initialize(N, time_step, group);
-
-  measure.initialize(
-    input_dir, number_of_steps, time_step, atom.cpu_type_size, atom.mass, box, neighbor, group,
-    force, atom.type, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+  measure.initialize(input_dir, number_of_steps, time_step, box, neighbor, group, force, atom);
 
   clock_t time_begin = clock();
 
@@ -110,10 +107,7 @@ void Run::perform_a_run(char* input_dir)
 
     measure.process(
       input_dir, number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
-      integrate.ensemble->energy_transferred, atom.cpu_type, box, neighbor, group, thermo,
-      atom.mass, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
-      atom.velocity_per_atom, atom.cpu_velocity_per_atom, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom, atom.heat_per_atom);
+      integrate.ensemble->energy_transferred, box, neighbor, group, thermo, atom);
 
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {

@@ -36,6 +36,8 @@
 #include "dump_netcdf.cuh"
 #endif
 
+class Atom;
+
 class Measure
 {
 public:
@@ -43,16 +45,11 @@ public:
     char* input_dir,
     const int number_of_steps,
     const double time_step,
-    const std::vector<int>& cpu_type_size,
-    const GPU_Vector<double>& mass,
     Box& box,
     Neighbor& neighbor,
     std::vector<Group>& group,
     Force& force,
-    GPU_Vector<int>& type,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    Atom& atom);
 
   void finalize(
     char* input_dir,
@@ -69,21 +66,11 @@ public:
     const double global_time,
     const double temperature,
     const double energy_transferred[],
-    const std::vector<int>& cpu_type,
     Box& box,
     const Neighbor& neighbor,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
-    const GPU_Vector<double>& mass,
-    const std::vector<double>& cpu_mass,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& heat_per_atom);
+    Atom& atom);
 
   DOS dos;
   SDC sdc;
