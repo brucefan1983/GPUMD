@@ -17,6 +17,7 @@
 The class defining the simulation model.
 ------------------------------------------------------------------------------*/
 
+#include "atom.cuh"
 #include "box.cuh"
 #include "group.cuh"
 #include "neighbor.cuh"
@@ -281,11 +282,7 @@ void initialize_position(
   Box& box,
   Neighbor& neighbor,
   std::vector<Group>& group,
-  std::vector<int>& cpu_type,
-  std::vector<int>& cpu_type_size,
-  std::vector<double>& cpu_mass,
-  std::vector<double>& cpu_position_per_atom,
-  std::vector<double>& cpu_velocity_per_atom)
+  Atom& atom)
 {
   print_line_1();
   printf("Started initializing positions and related parameters.\n");
@@ -302,8 +299,8 @@ void initialize_position(
   read_xyz_in_line_2(fid_xyz, box);
 
   read_xyz_in_line_3(
-    fid_xyz, N, has_velocity_in_xyz, number_of_types, cpu_type, cpu_mass, cpu_position_per_atom,
-    cpu_velocity_per_atom, group);
+    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom.cpu_type, atom.cpu_mass,
+    atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, group);
 
   fclose(fid_xyz);
 
@@ -312,7 +309,7 @@ void initialize_position(
     group[m].find_contents(N);
   }
 
-  find_type_size(N, number_of_types, cpu_type, cpu_type_size);
+  find_type_size(N, number_of_types, atom.cpu_type, atom.cpu_type_size);
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
@@ -323,17 +320,7 @@ void allocate_memory_gpu(
   const int N,
   Neighbor& neighbor,
   std::vector<Group>& group,
-  std::vector<int>& cpu_type,
-  std::vector<double>& cpu_mass,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<int>& type,
-  GPU_Vector<double>& mass,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& heat_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   neighbor.NN.resize(N);
@@ -345,8 +332,8 @@ void allocate_memory_gpu(
   neighbor.cell_count_sum.resize(N);
   neighbor.cell_contents.resize(N);
 
-  type.resize(N);
-  type.copy_from_host(cpu_type.data());
+  atom.type.resize(N);
+  atom.type.copy_from_host(atom.cpu_type.data());
   for (int m = 0; m < group.size(); ++m) {
     group[m].label.resize(N);
     group[m].size.resize(group[m].number);
@@ -357,17 +344,17 @@ void allocate_memory_gpu(
     group[m].size_sum.copy_from_host(group[m].cpu_size_sum.data());
     group[m].contents.copy_from_host(group[m].cpu_contents.data());
   }
-  mass.resize(N);
-  mass.copy_from_host(cpu_mass.data());
+  atom.mass.resize(N);
+  atom.mass.copy_from_host(atom.cpu_mass.data());
   neighbor.x0.resize(N);
   neighbor.y0.resize(N);
   neighbor.z0.resize(N);
-  position_per_atom.resize(N * 3);
-  position_per_atom.copy_from_host(cpu_position_per_atom.data());
-  velocity_per_atom.resize(N * 3);
-  force_per_atom.resize(N * 3);
-  virial_per_atom.resize(N * 9);
-  potential_per_atom.resize(N);
-  heat_per_atom.resize(N * 5);
+  atom.position_per_atom.resize(N * 3);
+  atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
+  atom.velocity_per_atom.resize(N * 3);
+  atom.force_per_atom.resize(N * 3);
+  atom.virial_per_atom.resize(N * 9);
+  atom.potential_per_atom.resize(N);
+  atom.heat_per_atom.resize(N * 5);
   thermo.resize(6);
 }

@@ -18,6 +18,7 @@ The driver class dealing with measurement.
 ------------------------------------------------------------------------------*/
 
 #include "measure.cuh"
+#include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #define NUM_OF_HEAT_COMPONENTS 5
@@ -26,29 +27,24 @@ void Measure::initialize(
   char* input_dir,
   const int number_of_steps,
   const double time_step,
-  const std::vector<int>& cpu_type_size,
-  const GPU_Vector<double>& mass,
   Box& box,
   Neighbor& neighbor,
   std::vector<Group>& group,
   Force& force,
-  GPU_Vector<int>& type,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  Atom& atom)
 {
-  const int number_of_atoms = mass.size();
-  dos.preprocess(time_step, group, mass);
+  const int number_of_atoms = atom.mass.size();
+  dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   cvac.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
   shc_harmonic.preprocess(
-    input_dir, number_of_atoms, box, neighbor, group, force, type, potential_per_atom,
-    force_per_atom, virial_per_atom);
+    input_dir, number_of_atoms, box, neighbor, group, force, atom.type, atom.potential_per_atom,
+    atom.force_per_atom, atom.virial_per_atom);
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
-  modal_analysis.preprocess(input_dir, cpu_type_size, mass);
+  modal_analysis.preprocess(input_dir, atom.cpu_type_size, atom.mass);
   dump_position.preprocess(input_dir);
   dump_velocity.preprocess(input_dir);
   dump_restart.preprocess(input_dir);
@@ -97,47 +93,42 @@ void Measure::process(
   const double global_time,
   const double temperature,
   const double energy_transferred[],
-  const std::vector<int>& cpu_type,
   Box& box,
   const Neighbor& neighbor,
   std::vector<Group>& group,
   GPU_Vector<double>& thermo,
-  const GPU_Vector<double>& mass,
-  const std::vector<double>& cpu_mass,
-  GPU_Vector<double>& position_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& heat_per_atom)
+  Atom& atom)
 {
-  const int number_of_atoms = cpu_type.size();
+  const int number_of_atoms = atom.cpu_type.size();
   dump_thermo.process(
     step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group], box, thermo);
-  dump_position.process(step, group, cpu_type, position_per_atom, cpu_position_per_atom);
-  dump_velocity.process(step, group, velocity_per_atom, cpu_velocity_per_atom);
+  dump_position.process(
+    step, group, atom.cpu_type, atom.position_per_atom, atom.cpu_position_per_atom);
+  dump_velocity.process(step, group, atom.velocity_per_atom, atom.cpu_velocity_per_atom);
   dump_restart.process(
-    step, neighbor, box, group, cpu_type, cpu_mass, position_per_atom, velocity_per_atom,
-    cpu_position_per_atom, cpu_velocity_per_atom);
-  dump_force.process(step, group, force_per_atom);
+    step, neighbor, box, group, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,
+    atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+  dump_force.process(step, group, atom.force_per_atom);
   compute.process(
-    step, energy_transferred, group, mass, potential_per_atom, force_per_atom, velocity_per_atom,
-    virial_per_atom);
-  dos.process(step, group, velocity_per_atom);
-  sdc.process(step, group, velocity_per_atom);
-  cvac.process(step, group, velocity_per_atom);
-  hac.process(number_of_steps, step, input_dir, velocity_per_atom, virial_per_atom, heat_per_atom);
-  shc.process(step, group, velocity_per_atom, virial_per_atom);
-  shc_harmonic.process(step, group, position_per_atom, velocity_per_atom, virial_per_atom);
+    step, energy_transferred, group, atom.mass, atom.potential_per_atom, atom.force_per_atom,
+    atom.velocity_per_atom, atom.virial_per_atom);
+  dos.process(step, group, atom.velocity_per_atom);
+  sdc.process(step, group, atom.velocity_per_atom);
+  cvac.process(step, group, atom.velocity_per_atom);
+  hac.process(
+    number_of_steps, step, input_dir, atom.velocity_per_atom, atom.virial_per_atom,
+    atom.heat_per_atom);
+  shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
+  shc_harmonic.process(
+    step, group, atom.position_per_atom, atom.velocity_per_atom, atom.virial_per_atom);
   hnemd.process(
-    step, input_dir, temperature, box.get_volume(), velocity_per_atom, virial_per_atom,
-    heat_per_atom);
+    step, input_dir, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
+    atom.heat_per_atom);
   modal_analysis.process(
-    step, temperature, box.get_volume(), hnemd.fe, velocity_per_atom, virial_per_atom);
+    step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 #ifdef USE_NETCDF
-  dump_netcdf.process(step, global_time, box, cpu_type, position_per_atom, cpu_position_per_atom);
+  dump_netcdf.process(
+    step, global_time, box, atom.cpu_type, atom.position_per_atom, atom.cpu_position_per_atom);
 #endif
 }
 
