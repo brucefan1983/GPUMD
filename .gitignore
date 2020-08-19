@@ -7,3 +7,5 @@ src/*/*.obj
 src/*/*.o
 src/gpumd*
 src/phonon*
+src/makefile.debug
+src/makefile.fcp
