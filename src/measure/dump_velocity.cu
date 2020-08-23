@@ -20,6 +20,7 @@ Dump velocity data to a file at a given interval.
 #include "dump_velocity.cuh"
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
@@ -70,13 +71,15 @@ void Dump_Velocity::process(
     return;
 
   const int num_atoms_total = velocity_per_atom.size() / 3;
+  const double natural_to_A_per_ps = 1000.0 / TIME_UNIT_CONVERSION;
 
   if (grouping_method_ < 0) {
     velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
     for (int n = 0; n < num_atoms_total; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + num_atoms_total],
-        cpu_velocity_per_atom[n + 2 * num_atoms_total]);
+        fid_, "%g %g %g\n", cpu_velocity_per_atom[n] * natural_to_A_per_ps,
+        cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_ps,
+        cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_ps);
     }
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
@@ -89,9 +92,9 @@ void Dump_Velocity::process(
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_velocity_per_atom[n + group_size_sum],
-        cpu_velocity_per_atom[n + num_atoms_total + group_size_sum],
-        cpu_velocity_per_atom[n + 2 * num_atoms_total + group_size_sum]);
+        fid_, "%g %g %g\n", cpu_velocity_per_atom[n + group_size_sum] * natural_to_A_per_ps,
+        cpu_velocity_per_atom[n + num_atoms_total + group_size_sum] * natural_to_A_per_ps,
+        cpu_velocity_per_atom[n + 2 * num_atoms_total + group_size_sum] * natural_to_A_per_ps);
     }
   }
 
