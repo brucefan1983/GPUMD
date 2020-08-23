@@ -8,7 +8,7 @@ arXiv:2003.02384 [cond-mat.mes-hall]
 
 ## 2020 (7)
 
-* Edgar Alejandro Bea, María Florencia Carusela, Alejandro Soba, Alejandro Gabriel Monastra and Agustín Matias Mancardo Viotti, [https://doi.org/10.1088/1361-651X/aba8eb ''Thermal conductance of structured Silicon nanocrystals, Modelling and Simulation in Materials Science and Engineering''], Accepted.
+* Edgar Alejandro Bea, María Florencia Carusela, Alejandro Soba, Alejandro Gabriel Monastra and Agustín Matias Mancardo Viotti, [Thermal conductance of structured Silicon nanocrystals, Modelling and Simulation in Materials Science and Engineering](https://doi.org/10.1088/1361-651X/aba8eb), Accepted.
 
 * Alexander Joseph Gabourie, Saurabh Vinayak Suryavanshi, Amir Barati Farimani, and Eric Pop,
 [Reduced Thermal Conductivity of Supported and Encased Monolayer and Bilayer MoS<sub>2</sub>](https://doi.org/10.1088/2053-1583/aba4ed),
