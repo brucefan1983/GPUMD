@@ -1,5 +1,3 @@
-2
-examples/phonon/phonon_dispersion/tersoff_1989
-examples/phonon/phonon_dispersion/tersoff_mini
-
+1
+examples/phonon/phonon_dispersion
 
