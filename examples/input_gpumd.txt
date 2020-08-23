@@ -1,7 +1,7 @@
 5
-examples/gpumd/ex1
-examples/gpumd/ex2
-examples/gpumd/ex3
-examples/gpumd/ex4/ballistic
-examples/gpumd/ex4/diffusive
+examples/gpumd/thermal_expansion
+examples/gpumd/density_of_states
+examples/gpumd/thermal_transport_emd
+examples/gpumd/thermal_transport_nemd_and_hnemd
+examples/gpumd/fcp_force_comparison
 
