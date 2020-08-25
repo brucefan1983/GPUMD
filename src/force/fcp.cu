@@ -37,7 +37,6 @@ FCP::FCP(FILE* fid, char* input_dir, const int N, const Box& box)
 
   // allocate memeory
   fcp_data.u.resize(N * 3);
-  fcp_data.utot.resize(3);
   fcp_data.r0.resize(N * 3, Memory_Type::managed);
   fcp_data.pfv.resize(N * 13);
 
@@ -987,51 +986,6 @@ gpu_get_u(const int N, const double* x, const double* y, const double* z, const 
   }
 }
 
-static __global__ void gpu_sum_u(const int N, const float* g_u, float* g_utot)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int number_of_rounds = (N - 1) / 1024 + 1;
-  __shared__ float s_f[1024];
-  float f = 0.0f;
-
-  for (int round = 0; round < number_of_rounds; ++round) {
-    int n = tid + round * 1024;
-    if (n < N)
-      f += g_u[n + bid * N];
-  }
-  s_f[tid] = f;
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
-    if (tid < offset) {
-      s_f[tid] += s_f[tid + offset];
-    }
-    __syncthreads();
-  }
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_f[tid] += s_f[tid + offset];
-    }
-    __syncwarp();
-  }
-
-  if (tid == 0) {
-    g_utot[bid] = s_f[0];
-  }
-}
-
-static __global__ void
-gpu_correct_u(const int N, const float one_over_N, const float* g_utot, float* g_u)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n >= N)
-    return;
-  g_u[n] -= g_utot[0] * one_over_N;
-  g_u[n + N] -= g_utot[1] * one_over_N;
-  g_u[n + 2 * N] -= g_utot[2] * one_over_N;
-}
-
 // save potential (p), force (f), and virial (v)
 static __global__ void gpu_save_pfv(
   const int N, const float* pfv, double* p, double* fx, double* fy, double* fz, double* v)
@@ -1066,13 +1020,6 @@ void FCP::compute(
   gpu_get_u<<<(number_of_atoms - 1) / block_size + 1, block_size>>>(
     number_of_atoms, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, fcp_data.r0.data(), fcp_data.u.data());
-  CUDA_CHECK_KERNEL
-
-  gpu_sum_u<<<3, block_size>>>(number_of_atoms, fcp_data.u.data(), fcp_data.utot.data());
-  CUDA_CHECK_KERNEL
-
-  gpu_correct_u<<<(number_of_atoms - 1) / block_size + 1, block_size>>>(
-    number_of_atoms, 1.0f / number_of_atoms, fcp_data.utot.data(), fcp_data.u.data());
   CUDA_CHECK_KERNEL
 
   fcp_data.pfv.fill(0.0f);
