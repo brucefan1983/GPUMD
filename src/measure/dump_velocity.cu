@@ -29,7 +29,7 @@ Dump velocity data to a file at a given interval.
 void Dump_Velocity::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
-  printf("Dump velocity every %d steps.\n", dump_interval_);
+  printf("Dump velocity.\n");
 
   if (num_param != 2 && num_param != 5) {
     PRINT_INPUT_ERROR("dump_velocity should have 1 or 4 parameters.");
@@ -40,6 +40,8 @@ void Dump_Velocity::parse(char** param, int num_param, const std::vector<Group>&
   if (dump_interval_ <= 0) {
     PRINT_INPUT_ERROR("velocity dump interval should > 0.");
   }
+
+  printf("    every %d steps.\n", dump_interval_);
 
   for (int k = 2; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {

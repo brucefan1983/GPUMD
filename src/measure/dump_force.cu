@@ -28,7 +28,7 @@ Dump force data to a file at a given interval.
 void Dump_Force::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
-  printf("Dump force every %d steps.\n", dump_interval_);
+  printf("Dump force.\n");
 
   if (num_param != 2 && num_param != 5) {
     PRINT_INPUT_ERROR("dump_force should have 1 or 4 parameters.");
@@ -39,6 +39,8 @@ void Dump_Force::parse(char** param, int num_param, const std::vector<Group>& gr
   if (dump_interval_ <= 0) {
     PRINT_INPUT_ERROR("force dump interval should > 0.");
   }
+
+  printf("    every %d steps.\n", dump_interval_);
 
   for (int k = 2; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
