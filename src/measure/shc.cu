@@ -202,11 +202,11 @@ void SHC::postprocess(const char* input_dir)
   strcat(file_shc, "/shc.out");
   FILE* fid = my_fopen(file_shc, "a");
 
+  for (int nc = Nc - 1; nc > 0; --nc) {
+    fprintf(fid, "%g %g\n", ki_negative[nc] / num_time_origins, ko_negative[nc] / num_time_origins);
+  }
   for (int nc = 0; nc < Nc; ++nc) {
-    fprintf(
-      fid, "%25.15e%25.15e%25.15e%25.15e\n", ki_negative[nc] / num_time_origins,
-      ko_negative[nc] / num_time_origins, ki_positive[nc] / num_time_origins,
-      ko_positive[nc] / num_time_origins);
+    fprintf(fid, "%g %g\n", ki_positive[nc] / num_time_origins, ko_positive[nc] / num_time_origins);
   }
   fflush(fid);
   fclose(fid);
