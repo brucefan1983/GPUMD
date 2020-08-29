@@ -23,6 +23,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
 #include "shc.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 
@@ -190,24 +191,35 @@ void SHC::process(
   }
 }
 
-void SHC::postprocess(const char* input_dir)
+void SHC::postprocess(const char* input_dir, const double time_step)
 {
   if (!compute) {
     return;
   }
 
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+
+  const double dt_in_ps = time_step * sample_interval * TIME_UNIT_CONVERSION / 1000.0;
+
   char file_shc[200];
   strcpy(file_shc, input_dir);
   strcat(file_shc, "/shc.out");
   FILE* fid = my_fopen(file_shc, "a");
 
   for (int nc = Nc - 1; nc > 0; --nc) {
-    fprintf(fid, "%g %g\n", ki_negative[nc] / num_time_origins, ko_negative[nc] / num_time_origins);
+    const double t = -nc * dt_in_ps;
+    const double ki = ki_negative[nc] / num_time_origins;
+    const double ko = ko_negative[nc] / num_time_origins;
+    fprintf(fid, "%g %g %g\n", t, ki, ko);
   }
+
   for (int nc = 0; nc < Nc; ++nc) {
-    fprintf(fid, "%g %g\n", ki_positive[nc] / num_time_origins, ko_positive[nc] / num_time_origins);
+    const double t = nc * dt_in_ps;
+    const double ki = ki_positive[nc] / num_time_origins;
+    const double ko = ko_positive[nc] / num_time_origins;
+    fprintf(fid, "%g %g %g\n", t, ki, ko);
   }
+
   fflush(fid);
   fclose(fid);
 

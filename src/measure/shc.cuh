@@ -32,7 +32,7 @@ public:
     const std::vector<Group>& group,
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom);
-  void postprocess(const char*);
+  void postprocess(const char*, const double time_step);
   void parse(char**, int, const std::vector<Group>& group);
 
 private:
