@@ -44,11 +44,13 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
   vx.resize(group_size * Nc);
   vy.resize(group_size * Nc);
   vz.resize(group_size * Nc);
-  sx.resize(group_size);
-  sy.resize(group_size);
-  sz.resize(group_size);
-  ki.resize(Nc, 0.0, Memory_Type::managed);
-  ko.resize(Nc, 0.0, Memory_Type::managed);
+  sx.resize(group_size * Nc);
+  sy.resize(group_size * Nc);
+  sz.resize(group_size * Nc);
+  ki_negative.resize(Nc, 0.0, Memory_Type::managed);
+  ko_negative.resize(Nc, 0.0, Memory_Type::managed);
+  ki_positive.resize(Nc, 0.0, Memory_Type::managed);
+  ko_positive.resize(Nc, 0.0, Memory_Type::managed);
 }
 
 static __global__ void gpu_find_k(
@@ -154,25 +156,22 @@ void SHC::process(
   const double* sx_tmp = virial_per_atom.data() + N * tensor[direction][0];
   const double* sy_tmp = virial_per_atom.data() + N * tensor[direction][1];
   const double* sz_tmp = virial_per_atom.data() + N * tensor[direction][2];
+  const double* vx_tmp = velocity_per_atom.data();
+  const double* vy_tmp = velocity_per_atom.data() + N;
+  const double* vz_tmp = velocity_per_atom.data() + N * 2;
 
   if (-1 == group_method) {
-    sx.copy_from_device(sx_tmp);
-    sy.copy_from_device(sy_tmp);
-    sz.copy_from_device(sz_tmp);
-    CHECK(cudaMemcpy(
-      vx.data() + offset, velocity_per_atom.data(), sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(
-      vy.data() + offset, velocity_per_atom.data() + N, sizeof(double) * N,
-      cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(
-      vz.data() + offset, velocity_per_atom.data() + N * 2, sizeof(double) * N,
-      cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
   } else {
     gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
       group_size, group[group_method].cpu_size_sum[group_id], group[group_method].contents.data(),
-      sx.data(), sy.data(), sz.data(), vx.data() + offset, vy.data() + offset, vz.data() + offset,
-      sx_tmp, sy_tmp, sz_tmp, velocity_per_atom.data(), velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N);
+      sx.data() + offset, sy.data() + offset, sz.data() + offset, vx.data() + offset,
+      vy.data() + offset, vz.data() + offset, sx_tmp, sy_tmp, sz_tmp, vx_tmp, vy_tmp, vz_tmp);
     CUDA_CHECK_KERNEL
   }
 
@@ -180,8 +179,13 @@ void SHC::process(
     ++num_time_origins;
 
     gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
-      group_size, correlation_step, sx.data(), sy.data(), sz.data(), vx.data(), vy.data(),
-      vz.data(), ki.data(), ko.data());
+      group_size, correlation_step, sx.data() + offset, sy.data() + offset, sz.data() + offset,
+      vx.data(), vy.data(), vz.data(), ki_negative.data(), ko_negative.data());
+    CUDA_CHECK_KERNEL
+
+    gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
+      group_size, correlation_step, vx.data() + offset, vy.data() + offset, vz.data() + offset,
+      sx.data(), sy.data(), sz.data(), ki_positive.data(), ko_positive.data());
     CUDA_CHECK_KERNEL
   }
 }
@@ -199,7 +203,10 @@ void SHC::postprocess(const char* input_dir)
   FILE* fid = my_fopen(file_shc, "a");
 
   for (int nc = 0; nc < Nc; ++nc) {
-    fprintf(fid, "%25.15e%25.15e\n", ki[nc] / num_time_origins, ko[nc] / num_time_origins);
+    fprintf(
+      fid, "%25.15e%25.15e%25.15e%25.15e\n", ki_negative[nc] / num_time_origins,
+      ko_negative[nc] / num_time_origins, ki_positive[nc] / num_time_origins,
+      ko_positive[nc] / num_time_origins);
   }
   fflush(fid);
   fclose(fid);

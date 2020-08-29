@@ -36,9 +36,10 @@ public:
   void parse(char**, int, const std::vector<Group>& group);
 
 private:
-  int num_time_origins;          // number of time origins for ensemble average
-  int group_size;                // number of atoms in group_id
-  GPU_Vector<double> vx, vy, vz; // Nc frames of velocity data
-  GPU_Vector<double> sx, sy, sz; // one frame of virial data
-  GPU_Vector<double> ki, ko;     // The correlation functions Ki(t) and Ko(t)
+  int num_time_origins;                        // number of time origins for ensemble average
+  int group_size;                              // number of atoms in group_id
+  GPU_Vector<double> vx, vy, vz;               // Nc frames of velocity data
+  GPU_Vector<double> sx, sy, sz;               // one frame of virial data
+  GPU_Vector<double> ki_negative, ko_negative; // The correlation functions K(t) with t < 0
+  GPU_Vector<double> ki_positive, ko_positive; // The correlation functions K(t) with t > 0
 };
