@@ -246,11 +246,13 @@ void SHC::postprocess(const char* input_dir, const double time_step)
   strcat(file_shc, "/shc.out");
   FILE* fid = my_fopen(file_shc, "a");
 
+  // ki and ko are in units of A*eV/ps
   average_k();
   for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
     fprintf(fid, "%g %g %g\n", (nc + 1 - Nc) * dt_in_ps, ki[nc], ko[nc]);
   }
 
+  // shc_i and shc_o are in units of A*eV = A*eV/ps/THz
   find_shc(dt_in_ps, d_omega);
   for (int nc = 0; nc < num_omega; ++nc) {
     fprintf(fid, "%g %g %g\n", (nc + 1) * d_omega, shc_i[nc], shc_o[nc]);
