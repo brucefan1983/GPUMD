@@ -269,7 +269,7 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
   compute = 1;
 
   if ((num_param != 6) && (num_param != 9)) {
-    PRINT_INPUT_ERROR("compute_shc should have 3 or 6 parameters.");
+    PRINT_INPUT_ERROR("compute_shc should have 5 or 8 parameters.");
   }
 
   if (!is_valid_int(param[1], &sample_interval)) {
