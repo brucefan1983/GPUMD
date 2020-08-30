@@ -10,7 +10,7 @@ run          100000
 ensemble     heat_lan 300 100 10 1 8 
 fix          0
 compute      0 10 100 temperature
-compute_shc  2 250 1 group 0 4
+compute_shc  2 250 1 1000 400.0 group 0 4
 run          1000000
 
 
