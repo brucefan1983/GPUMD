@@ -52,6 +52,10 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
   ko_negative.resize(Nc, 0.0, Memory_Type::managed);
   ki_positive.resize(Nc, 0.0, Memory_Type::managed);
   ko_positive.resize(Nc, 0.0, Memory_Type::managed);
+  ki.resize(Nc * 2 - 1, 0.0);
+  ko.resize(Nc * 2 - 1, 0.0);
+  shc_i.resize(num_omega, 0.0);
+  shc_o.resize(num_omega, 0.0);
 }
 
 static __global__ void gpu_find_k(
@@ -191,6 +195,41 @@ void SHC::process(
   }
 }
 
+void SHC::average_k()
+{
+  const double scalar = 1000.0 / TIME_UNIT_CONVERSION / num_time_origins;
+  for (int nc = 0; nc < Nc - 1; ++nc) {
+    ki[nc] = ki_negative[Nc - nc - 1] * scalar;
+    ko[nc] = ko_negative[Nc - nc - 1] * scalar;
+  }
+
+  for (int nc = 0; nc < Nc; ++nc) {
+    ki[nc + Nc - 1] = ki_positive[nc] * scalar;
+    ko[nc + Nc - 1] = ko_positive[nc] * scalar;
+  }
+}
+
+void SHC::find_shc(const double dt_in_ps, const double d_omega)
+{
+  for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
+    const double hann_window = (cos(PI * (nc + 1 - Nc) / Nc) + 1.0) * 0.5;
+    ki[nc] *= hann_window;
+    ko[nc] *= hann_window;
+  }
+
+  for (int nw = 0; nw < num_omega; ++nw) {
+    const double omega = (nw + 1) * d_omega;
+    for (int nc = 0; nc < Nc * 2 - 1; nc++) {
+      const double t_in_ps = (nc + 1 - Nc) * dt_in_ps;
+      const double cos_factor = cos(omega * t_in_ps);
+      shc_i[nw] += ki[nc] * cos_factor;
+      shc_o[nw] += ko[nc] * cos_factor;
+    }
+    shc_i[nw] *= 2.0 * dt_in_ps;
+    shc_o[nw] *= 2.0 * dt_in_ps;
+  }
+}
+
 void SHC::postprocess(const char* input_dir, const double time_step)
 {
   if (!compute) {
@@ -200,24 +239,21 @@ void SHC::postprocess(const char* input_dir, const double time_step)
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
   const double dt_in_ps = time_step * sample_interval * TIME_UNIT_CONVERSION / 1000.0;
+  const double d_omega = max_omega / num_omega;
 
   char file_shc[200];
   strcpy(file_shc, input_dir);
   strcat(file_shc, "/shc.out");
   FILE* fid = my_fopen(file_shc, "a");
 
-  for (int nc = Nc - 1; nc > 0; --nc) {
-    const double t = -nc * dt_in_ps;
-    const double ki = ki_negative[nc] / num_time_origins;
-    const double ko = ko_negative[nc] / num_time_origins;
-    fprintf(fid, "%g %g %g\n", t, ki, ko);
+  average_k();
+  for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
+    fprintf(fid, "%g %g %g\n", (nc + 1 - Nc) * dt_in_ps, ki[nc], ko[nc]);
   }
 
-  for (int nc = 0; nc < Nc; ++nc) {
-    const double t = nc * dt_in_ps;
-    const double ki = ki_positive[nc] / num_time_origins;
-    const double ko = ko_positive[nc] / num_time_origins;
-    fprintf(fid, "%g %g %g\n", t, ki, ko);
+  find_shc(dt_in_ps, d_omega);
+  for (int nc = 0; nc < num_omega; ++nc) {
+    fprintf(fid, "%g %g %g\n", (nc + 1) * d_omega, shc_i[nc], shc_o[nc]);
   }
 
   fflush(fid);
@@ -232,7 +268,7 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
   printf("Compute SHC.\n");
   compute = 1;
 
-  if ((num_param != 4) && (num_param != 7)) {
+  if ((num_param != 6) && (num_param != 9)) {
     PRINT_INPUT_ERROR("compute_shc should have 3 or 6 parameters.");
   }
 
@@ -271,7 +307,23 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
     PRINT_INPUT_ERROR("Transport direction should be x or y or z.");
   }
 
-  for (int k = 4; k < num_param; k++) {
+  if (!is_valid_int(param[4], &num_omega)) {
+    PRINT_INPUT_ERROR("num_omega for SHC should be an integer.");
+  }
+  if (num_omega < 0) {
+    PRINT_INPUT_ERROR("num_omega for SHC should >= 0.");
+  }
+  printf("    num_omega for SHC is %d.\n", num_omega);
+
+  if (!is_valid_real(param[5], &max_omega)) {
+    PRINT_INPUT_ERROR("max_omega for SHC should be a number.");
+  }
+  if (max_omega <= 0) {
+    PRINT_INPUT_ERROR("max_omega for SHC should > 0.");
+  }
+  printf("    max_omega for SHC is %g.\n", max_omega);
+
+  for (int k = 6; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, group_method, group_id);
     } else {
