@@ -23,6 +23,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
 #include "shc.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 
@@ -44,11 +45,17 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
   vx.resize(group_size * Nc);
   vy.resize(group_size * Nc);
   vz.resize(group_size * Nc);
-  sx.resize(group_size);
-  sy.resize(group_size);
-  sz.resize(group_size);
-  ki.resize(Nc, 0.0, Memory_Type::managed);
-  ko.resize(Nc, 0.0, Memory_Type::managed);
+  sx.resize(group_size * Nc);
+  sy.resize(group_size * Nc);
+  sz.resize(group_size * Nc);
+  ki_negative.resize(Nc, 0.0, Memory_Type::managed);
+  ko_negative.resize(Nc, 0.0, Memory_Type::managed);
+  ki_positive.resize(Nc, 0.0, Memory_Type::managed);
+  ko_positive.resize(Nc, 0.0, Memory_Type::managed);
+  ki.resize(Nc * 2 - 1, 0.0);
+  ko.resize(Nc * 2 - 1, 0.0);
+  shc_i.resize(num_omega, 0.0);
+  shc_o.resize(num_omega, 0.0);
 }
 
 static __global__ void gpu_find_k(
@@ -154,25 +161,22 @@ void SHC::process(
   const double* sx_tmp = virial_per_atom.data() + N * tensor[direction][0];
   const double* sy_tmp = virial_per_atom.data() + N * tensor[direction][1];
   const double* sz_tmp = virial_per_atom.data() + N * tensor[direction][2];
+  const double* vx_tmp = velocity_per_atom.data();
+  const double* vy_tmp = velocity_per_atom.data() + N;
+  const double* vz_tmp = velocity_per_atom.data() + N * 2;
 
   if (-1 == group_method) {
-    sx.copy_from_device(sx_tmp);
-    sy.copy_from_device(sy_tmp);
-    sz.copy_from_device(sz_tmp);
-    CHECK(cudaMemcpy(
-      vx.data() + offset, velocity_per_atom.data(), sizeof(double) * N, cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(
-      vy.data() + offset, velocity_per_atom.data() + N, sizeof(double) * N,
-      cudaMemcpyDeviceToDevice));
-    CHECK(cudaMemcpy(
-      vz.data() + offset, velocity_per_atom.data() + N * 2, sizeof(double) * N,
-      cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(sx.data() + offset, sx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(sy.data() + offset, sy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(sz.data() + offset, sz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(vx.data() + offset, vx_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(vy.data() + offset, vy_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
+    CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
   } else {
     gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
       group_size, group[group_method].cpu_size_sum[group_id], group[group_method].contents.data(),
-      sx.data(), sy.data(), sz.data(), vx.data() + offset, vy.data() + offset, vz.data() + offset,
-      sx_tmp, sy_tmp, sz_tmp, velocity_per_atom.data(), velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N);
+      sx.data() + offset, sy.data() + offset, sz.data() + offset, vx.data() + offset,
+      vy.data() + offset, vz.data() + offset, sx_tmp, sy_tmp, sz_tmp, vx_tmp, vy_tmp, vz_tmp);
     CUDA_CHECK_KERNEL
   }
 
@@ -180,27 +184,80 @@ void SHC::process(
     ++num_time_origins;
 
     gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
-      group_size, correlation_step, sx.data(), sy.data(), sz.data(), vx.data(), vy.data(),
-      vz.data(), ki.data(), ko.data());
+      group_size, correlation_step, sx.data() + offset, sy.data() + offset, sz.data() + offset,
+      vx.data(), vy.data(), vz.data(), ki_negative.data(), ko_negative.data());
+    CUDA_CHECK_KERNEL
+
+    gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
+      group_size, correlation_step, vx.data() + offset, vy.data() + offset, vz.data() + offset,
+      sx.data(), sy.data(), sz.data(), ki_positive.data(), ko_positive.data());
     CUDA_CHECK_KERNEL
   }
 }
 
-void SHC::postprocess(const char* input_dir)
+void SHC::average_k()
+{
+  const double scalar = 1000.0 / TIME_UNIT_CONVERSION / num_time_origins;
+  for (int nc = 0; nc < Nc - 1; ++nc) {
+    ki[nc] = ki_negative[Nc - nc - 1] * scalar;
+    ko[nc] = ko_negative[Nc - nc - 1] * scalar;
+  }
+
+  for (int nc = 0; nc < Nc; ++nc) {
+    ki[nc + Nc - 1] = ki_positive[nc] * scalar;
+    ko[nc + Nc - 1] = ko_positive[nc] * scalar;
+  }
+}
+
+void SHC::find_shc(const double dt_in_ps, const double d_omega)
+{
+  for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
+    const double hann_window = (cos(PI * (nc + 1 - Nc) / Nc) + 1.0) * 0.5;
+    ki[nc] *= hann_window;
+    ko[nc] *= hann_window;
+  }
+
+  for (int nw = 0; nw < num_omega; ++nw) {
+    const double omega = (nw + 1) * d_omega;
+    for (int nc = 0; nc < Nc * 2 - 1; nc++) {
+      const double t_in_ps = (nc + 1 - Nc) * dt_in_ps;
+      const double cos_factor = cos(omega * t_in_ps);
+      shc_i[nw] += ki[nc] * cos_factor;
+      shc_o[nw] += ko[nc] * cos_factor;
+    }
+    shc_i[nw] *= 2.0 * dt_in_ps;
+    shc_o[nw] *= 2.0 * dt_in_ps;
+  }
+}
+
+void SHC::postprocess(const char* input_dir, const double time_step)
 {
   if (!compute) {
     return;
   }
 
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+
+  const double dt_in_ps = time_step * sample_interval * TIME_UNIT_CONVERSION / 1000.0;
+  const double d_omega = max_omega / num_omega;
+
   char file_shc[200];
   strcpy(file_shc, input_dir);
   strcat(file_shc, "/shc.out");
   FILE* fid = my_fopen(file_shc, "a");
 
-  for (int nc = 0; nc < Nc; ++nc) {
-    fprintf(fid, "%25.15e%25.15e\n", ki[nc] / num_time_origins, ko[nc] / num_time_origins);
+  // ki and ko are in units of A*eV/ps
+  average_k();
+  for (int nc = 0; nc < Nc * 2 - 1; ++nc) {
+    fprintf(fid, "%g %g %g\n", (nc + 1 - Nc) * dt_in_ps, ki[nc], ko[nc]);
   }
+
+  // shc_i and shc_o are in units of A*eV = A*eV/ps/THz
+  find_shc(dt_in_ps, d_omega);
+  for (int nc = 0; nc < num_omega; ++nc) {
+    fprintf(fid, "%g %g %g\n", (nc + 1) * d_omega, shc_i[nc], shc_o[nc]);
+  }
+
   fflush(fid);
   fclose(fid);
 
@@ -213,8 +270,8 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
   printf("Compute SHC.\n");
   compute = 1;
 
-  if ((num_param != 4) && (num_param != 7)) {
-    PRINT_INPUT_ERROR("compute_shc should have 3 or 6 parameters.");
+  if ((num_param != 6) && (num_param != 9)) {
+    PRINT_INPUT_ERROR("compute_shc should have 5 or 8 parameters.");
   }
 
   if (!is_valid_int(param[1], &sample_interval)) {
@@ -252,7 +309,23 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
     PRINT_INPUT_ERROR("Transport direction should be x or y or z.");
   }
 
-  for (int k = 4; k < num_param; k++) {
+  if (!is_valid_int(param[4], &num_omega)) {
+    PRINT_INPUT_ERROR("num_omega for SHC should be an integer.");
+  }
+  if (num_omega < 0) {
+    PRINT_INPUT_ERROR("num_omega for SHC should >= 0.");
+  }
+  printf("    num_omega for SHC is %d.\n", num_omega);
+
+  if (!is_valid_real(param[5], &max_omega)) {
+    PRINT_INPUT_ERROR("max_omega for SHC should be a number.");
+  }
+  if (max_omega <= 0) {
+    PRINT_INPUT_ERROR("max_omega for SHC should > 0.");
+  }
+  printf("    max_omega for SHC is %g.\n", max_omega);
+
+  for (int k = 6; k < num_param; k++) {
     if (strcmp(param[k], "group") == 0) {
       parse_group(param, num_param, false, groups, k, group_method, group_id);
     } else {

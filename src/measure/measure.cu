@@ -71,7 +71,7 @@ void Measure::finalize(
   sdc.postprocess(input_dir);
   cvac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
-  shc.postprocess(input_dir);
+  shc.postprocess(input_dir, time_step);
   shc_harmonic.postprocess(input_dir);
   compute.postprocess();
   hnemd.postprocess();

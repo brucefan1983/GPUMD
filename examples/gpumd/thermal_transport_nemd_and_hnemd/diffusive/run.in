@@ -8,7 +8,7 @@ run          1000000
 
 ensemble      nvt_nhc 300 300 100
 compute_hnemd 1000 0 0.00001 0
-compute_shc   2 250 1 group 0 4
+compute_shc   2 250 1 1000 400.0 group 0 0
 run           10000000
 
 

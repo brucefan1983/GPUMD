@@ -26,19 +26,26 @@ public:
   int sample_interval;   // sample interval for heat current
   int Nc;                // number of correlation points
   int direction;         // transport direction: 0=x; 1=y; 2=z
+  int num_omega;         // number of frequency points
+  double max_omega;      // maximum angular frequency
   void preprocess(const int N, const std::vector<Group>& group);
   void process(
     const int step,
     const std::vector<Group>& group,
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom);
-  void postprocess(const char*);
+  void postprocess(const char*, const double time_step);
   void parse(char**, int, const std::vector<Group>& group);
+  void find_shc(const double dt_in_ps, const double d_omega);
+  void average_k();
 
 private:
-  int num_time_origins;          // number of time origins for ensemble average
-  int group_size;                // number of atoms in group_id
-  GPU_Vector<double> vx, vy, vz; // Nc frames of velocity data
-  GPU_Vector<double> sx, sy, sz; // one frame of virial data
-  GPU_Vector<double> ki, ko;     // The correlation functions Ki(t) and Ko(t)
+  int num_time_origins;                        // number of time origins for ensemble average
+  int group_size;                              // number of atoms in group_id
+  GPU_Vector<double> vx, vy, vz;               // Nc frames of velocity data
+  GPU_Vector<double> sx, sy, sz;               // Nc frames of virial data
+  GPU_Vector<double> ki_negative, ko_negative; // The correlation functions K(t) with t < 0
+  GPU_Vector<double> ki_positive, ko_positive; // The correlation functions K(t) with t > 0
+  std::vector<double> ki, ko;                  // The correlation functions K(t) with all t
+  std::vector<double> shc_i, shc_o;            // The SHC(omega)
 };
