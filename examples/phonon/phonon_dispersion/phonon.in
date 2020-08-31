@@ -1,4 +1,4 @@
-potential       potentials/Tersoff/Si_Fan_2019.txt 0
+potential       potentials/tersoff/Si_Fan_2019.txt 0
 cutoff          5 # in units of A
 delta           0.005 # displacement in units of A
 
