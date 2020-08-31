@@ -1,10 +1,11 @@
 ###########################################################
 # Note: 
 # 1) Add -DUSE_FCP to CFLAGS when use the FCP potential 
-#    and remove it otherwise
-# 2) Remove -DDEBUG for production run. 
+#    and remove it otherwise.
+# 2) Add -DDEBUG to CFLAGS if you want to have the same
+#    outputs for the same inputs and remove it otherwise.
 # 3) You can modify -arch=sm_35 according to 
-#    your GPU architecture
+#    your GPU architecture.
 ###########################################################
 
 
@@ -13,7 +14,7 @@
 ###########################################################
 CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819" -DDEBUG
+CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
 else # For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35 
 endif
