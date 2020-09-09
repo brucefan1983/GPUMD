@@ -43,7 +43,7 @@ SOURCES_PHONON =                  \
 
 
 ###########################################################
-# objective files
+# object files
 ###########################################################
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
@@ -79,7 +79,7 @@ phonon: $(OBJ_PHONON)
 	
 
 ###########################################################
-# rules for building objective files
+# rules for building object files
 ###########################################################
 ifdef OS # for Windows
 integrate/%.obj: integrate/%.cu $(HEADERS)
