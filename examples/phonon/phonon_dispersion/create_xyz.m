@@ -26,7 +26,7 @@ end
 
 % create xyz.in
 fid = fopen('xyz.in', 'w');
-fprintf(fid, '%d %d %g 0 0 0 0\n', N, 4, 3);
+fprintf(fid, '%d %d %g 0 0 0\n', N, 4, 3);
 fprintf(fid, '%d %d %d %g %g %g\n', 1, 1, 1, box_length);
 for n =1 : N
     fprintf(fid, '%d %g %g %g %g\n', 0, r(n, :), 28);
@@ -46,7 +46,7 @@ fclose(fid);
 % create kpoints.in
 primitive_cell=[0 1 1;1 0 1;1 1 0]*a(1)/2;
 special_k=[0,0,0;    1/2,0,1/2;    % Gamma -> X
-    1/2,0,1/2;       5/8,1/4,5/8;  % X -> U=K
+    1/2,0,1/2;       3/8,3/8,3/4;  % X -> K
     3/8,3/8,3/4;     0,0,0;        % K -> Gamma
     0,0,0;           1/2,1/2,1/2]; % Gamma -> L
 Nk=100; % number of k points between two special ones
