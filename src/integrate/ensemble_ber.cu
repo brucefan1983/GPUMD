@@ -167,7 +167,7 @@ static void cpu_berendsen_pressure(
     box.cpu_h[2] *= scale_factor;
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else if (box.pbc_z == 1) {
-    double scale_factor = 1.0 - p_coupling * (p0x - p[2]);
+    double scale_factor = 1.0 - p_coupling * (p0z - p[2]);
     box.cpu_h[2] *= scale_factor;
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   }
