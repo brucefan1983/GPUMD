@@ -46,7 +46,7 @@ fclose(fid);
 % create kpoints.in
 primitive_cell=[0 1 1;1 0 1;1 1 0]*a(1)/2;
 special_k=[0,0,0;    1/2,0,1/2;    % Gamma -> X
-    1/2,0,1/2;       3/8,3/8,3/4;  % X -> K
+    1/2,0,1/2;       5/8,1/4,5/8;  % X -> U=K
     3/8,3/8,3/4;     0,0,0;        % K -> Gamma
     0,0,0;           1/2,1/2,1/2]; % Gamma -> L
 Nk=100; % number of k points between two special ones
