@@ -26,7 +26,7 @@ end
 
 % create xyz.in
 fid = fopen('xyz.in', 'w');
-fprintf(fid, '%d %d %g 0 0 0 0\n', N, 4, 3);
+fprintf(fid, '%d %d %g 0 0 0\n', N, 4, 3);
 fprintf(fid, '%d %d %d %g %g %g\n', 1, 1, 1, box_length);
 for n =1 : N
     fprintf(fid, '%d %g %g %g %g\n', 0, r(n, :), 28);
