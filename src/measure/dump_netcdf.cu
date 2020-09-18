@@ -39,7 +39,7 @@ http://ambermd.org/netcdf/nctraj.xhtml
 #include <unistd.h>
 
 const int FILE_NAME_LENGTH = 200;
-#define GPUMD_VERSION "2.5"
+#define GPUMD_VERSION "2.5.1"
 
 /* Handle errors by printing an error message and exiting with a
  * non-zero status. */
