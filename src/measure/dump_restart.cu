@@ -46,7 +46,6 @@ void Dump_Restart::preprocess(char* input_dir)
   if (dump_) {
     strcpy(filename_, input_dir);
     strcat(filename_, "/restart.out");
-    fid_ = my_fopen(filename_, "w");
   }
 }
 
@@ -67,47 +66,49 @@ void Dump_Restart::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
+  FILE* fid = my_fopen(filename_, "w");
+
   const int number_of_atoms = cpu_mass.size();
 
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
   velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
 
   fprintf(
-    fid_, "%d %d %g %d %d %d\n", number_of_atoms, neighbor.MN, neighbor.rc, box.triclinic, 1,
+    fid, "%d %d %g %d %d %d\n", number_of_atoms, neighbor.MN, neighbor.rc, box.triclinic, 1,
     int(group.size()));
 
   if (box.triclinic == 0) {
     fprintf(
-      fid_, "%d %d %d %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z, box.cpu_h[0], box.cpu_h[1],
+      fid, "%d %d %d %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z, box.cpu_h[0], box.cpu_h[1],
       box.cpu_h[2]);
   } else {
     fprintf(
-      fid_, "%d %d %d %g %g %g %g %g %g %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z, box.cpu_h[0],
+      fid, "%d %d %d %g %g %g %g %g %g %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z, box.cpu_h[0],
       box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2],
       box.cpu_h[5], box.cpu_h[8]);
   }
 
   for (int n = 0; n < number_of_atoms; n++) {
     fprintf(
-      fid_, "%d %g %g %g %g %g %g %g ", cpu_type[n], cpu_position_per_atom[n],
+      fid, "%d %g %g %g %g %g %g %g ", cpu_type[n], cpu_position_per_atom[n],
       cpu_position_per_atom[n + number_of_atoms], cpu_position_per_atom[n + 2 * number_of_atoms],
       cpu_mass[n], cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
       cpu_velocity_per_atom[n + 2 * number_of_atoms]);
 
     for (int m = 0; m < group.size(); ++m) {
-      fprintf(fid_, "%d ", group[m].cpu_label[n]);
+      fprintf(fid, "%d ", group[m].cpu_label[n]);
     }
 
-    fprintf(fid_, "\n");
+    fprintf(fid, "\n");
   }
 
-  fflush(fid_);
+  fflush(fid);
+  fclose(fid);
 }
 
 void Dump_Restart::postprocess()
 {
   if (dump_) {
-    fclose(fid_);
     dump_ = false;
   }
 }
