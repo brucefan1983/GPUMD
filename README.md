@@ -48,14 +48,21 @@ https://www.freelists.org/list/gpumd
 
 ## Citations
 
+## Mandatory citation for any work used GPUMD:
 If you use `GPUMD` in your published work, we kindly ask you to cite the following paper which describes the central algorithms used in `GPUMD`:
 * [1] Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. Efficient molecular dynamics simulations with many-body potentials on graphics processing units. Computer Physics Communications **218**, 10 (2017). https://doi.org/10.1016/j.cpc.2017.05.003
 
+## Optional citation to the code repository:
+If you wants to cite a link to the GPUMD code you can cite the current Github page (https://github.com/brucefan1983/GPUMD). However, if the journal does not accept this citation, you can check the Zenodo page of GPUMD (https://zenodo.org/record/4037256#.X2jkqWj7SUk) and cite the version you used. Each version has a unique DOI, which is very suitable for citation. **Remember to change the author list to Zheyong Fan and Alexander J. Gabourie.**
+
+## Optional citation for the force, heat current, and virial formulas:
 If your work involves using heat current and virial stress formulas as implemented in `GPUMD`, the following paper can be cited:
 * [2] Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations. Phys. Rev. B **92**, 094301, (2015). https://doi.org/10.1103/PhysRevB.92.094301
 
+## Optional citation for the in-out decomposition for 2D materials:
 You can cite the following paper if you use `GPUMD` to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
 * [3] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity decomposition in two-dimensional materials: Application to graphene. Phys. Rev. B **95**, 144309, (2017). https://doi.org/10.1103/PhysRevB.95.144309 
 
+## Optional citation for the HNEMD method and the related spectral decomposition method:
 You can cite the following paper if you use `GPUMD` to study heat transport using the HNEMD method and the associated spectral decomposition method:
 * [4] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, Phys. Rev. B **99**, 064308 (2019). https://doi.org/10.1103/PhysRevB.99.064308
