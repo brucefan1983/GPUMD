@@ -12,7 +12,7 @@ arXiv:2003.02384 [cond-mat.mes-hall]
 
 * Alexander Joseph Gabourie, Saurabh Vinayak Suryavanshi, Amir Barati Farimani, and Eric Pop,
 [Reduced Thermal Conductivity of Supported and Encased Monolayer and Bilayer MoS<sub>2</sub>](https://doi.org/10.1088/2053-1583/aba4ed),
-2D Materials, **8**, 011001 (2021).
+2D Materials, **8**, 011001 (2020).
 
 * Xin Wu and Qiang Han
 [Thermal conductivity of monolayer hexagonal boron nitride: From defective to amorphous](https://doi.org/10.1016/j.commatsci.2020.109938),
