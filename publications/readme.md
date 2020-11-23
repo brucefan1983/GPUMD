@@ -1,6 +1,6 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (1)
+## Preprints (3)
 
 * Haikuan Dong, Shiyun Xiong, Zheyong Fan, Ping Qian, Yanjing Su, Tapio Ala-Nissila,
 [Interpretation of apparent thermal conductivity in finite systems from equilibrium molecular dynamics simulations](https://arxiv.org/abs/2011.10371)
