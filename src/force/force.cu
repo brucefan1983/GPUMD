@@ -29,6 +29,7 @@ The driver class calculating force and related quantities.
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
 #include "tersoff_modc.cuh"
+#include "lattice_inv.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include "vashishta.cuh"
@@ -154,6 +155,8 @@ void Force::initialize_potential(
     potential[m].reset(new LJ(fid_potential, num_types));
   } else if (strcmp(potential_name, "ri") == 0) {
     potential[m].reset(new RI(fid_potential));
+  }	else if (strcmp(potential_name, "lattice_inv") == 0) {
+    potential[m].reset(new Lattice_Inv(fid_potential, num_types, neighbor));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
