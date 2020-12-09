@@ -275,7 +275,7 @@ static __global__ void find_force_step1(
       double z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
       double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-   double zeta = 0.0;
+      double zeta = 0.0;
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int n3 = g_neighbor_list[n1 + number_of_particles * i2];
         if (n3 == n2) {
