@@ -1,0 +1,10 @@
+potential   potentials/lattice_inv/Si_lattice_2020.txt 0
+velocity    1
+
+ensemble    nve 
+time_step   0.0
+dump_thermo 10
+run         10
+
+
+

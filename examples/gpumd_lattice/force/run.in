@@ -1,0 +1,16 @@
+potential   potentials/lattice_inv/Si_lattice_2020.txt 0
+velocity    1
+
+ensemble    nve 
+time_step   0
+dump_thermo 1
+compute 0 1 1  force
+run         1
+
+#ensemble    nvt_nhc 300 300 100
+#dump_thermo 1000
+#compute_hnemd 1000 0.00001 0 0
+#run         10000000
+
+
+
