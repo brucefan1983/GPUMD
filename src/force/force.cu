@@ -20,6 +20,7 @@ The driver class calculating force and related quantities.
 #include "eam.cuh"
 #include "fcp.cuh"
 #include "force.cuh"
+#include "limt.cuh"
 #include "lj.cuh"
 #include "potential.cuh"
 #include "rebo_mos2.cuh"
@@ -138,6 +139,8 @@ void Force::initialize_potential(
     potential[m].reset(new Tersoff_modc(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "tersoff_mini") == 0) {
     potential[m].reset(new Tersoff_mini(fid_potential, num_types, neighbor));
+  } else if (strcmp(potential_name, "limt") == 0) {
+    potential[m].reset(new LIMT(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "sw_1985") == 0) {
     potential[m].reset(new SW2(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "rebo_mos2") == 0) {
