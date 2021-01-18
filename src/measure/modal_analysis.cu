@@ -383,10 +383,11 @@ void MODAL_ANALYSIS::preprocess(
     }
     double fmax, fmin; // freq are in ascending order in file
     int shift;
+    const double epsilon = 1.e-6;
     fmax = (floor(abs(f[num_modes - 1]) / f_bin_size) + 1) * f_bin_size;
     fmin = floor(abs(f[0]) / f_bin_size) * f_bin_size;
-    shift = floor(abs(fmin) / f_bin_size);
-    num_bins = floor((fmax - fmin) / f_bin_size);
+    shift = floor(abs(fmin) / f_bin_size + epsilon);
+    num_bins = floor((fmax - fmin) / f_bin_size + epsilon);
 
     bin_count.resize(num_bins, 0, Memory_Type::managed);
     for (int i = 0; i < num_modes; i++)
