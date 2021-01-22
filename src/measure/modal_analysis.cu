@@ -34,11 +34,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128
-#define ACCUM_BLOCK 1024
 #define BIN_BLOCK 128
-#define BLOCK_SIZE_FORCE 64
-#define BLOCK_SIZE_GK 16
-
 #define ACCUMULATE 0
 #define SET 1
 
