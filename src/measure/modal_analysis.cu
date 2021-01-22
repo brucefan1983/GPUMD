@@ -34,11 +34,7 @@ GPUMD Contributing author: Alexander Gabourie (Stanford University)
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define BLOCK_SIZE 128
-#define ACCUM_BLOCK 1024
 #define BIN_BLOCK 128
-#define BLOCK_SIZE_FORCE 64
-#define BLOCK_SIZE_GK 16
-
 #define ACCUMULATE 0
 #define SET 1
 
@@ -444,7 +440,7 @@ void MODAL_ANALYSIS::preprocess(
   size_t bin_out_size = num_bins * NUM_OF_HEAT_COMPONENTS;
   bin_out.resize(bin_out_size, Memory_Type::managed);
 
-  size_t sm_size = num_modes * 3;
+  size_t sm_size = num_participating * 3;
   smx.resize(sm_size, Memory_Type::managed);
   smy.resize(sm_size, Memory_Type::managed);
   smz.resize(sm_size, Memory_Type::managed);
