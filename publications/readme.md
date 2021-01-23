@@ -1,18 +1,20 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (3)
-
-* Haikuan Dong, Shiyun Xiong, Zheyong Fan, Ping Qian, Yanjing Su, Tapio Ala-Nissila,
-[Interpretation of apparent thermal conductivity in finite systems from equilibrium molecular dynamics simulations](https://arxiv.org/abs/2011.10371),
-arXiv:2011.10371 [cond-mat.stat-mech] 
-
-* Nicholas W. Lundgren, Giuseppe Barbalinardo, Davide Donadio,
-[Mode Localization and Suppressed Heat Transport in Amorphous Alloys](https://arxiv.org/abs/2011.08318),
-arXiv:2011.08318 [cond-mat.mtrl-sci]
+## Preprints (1)
 
 * Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura, Sebastian Volz,
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384),
 arXiv:2003.02384 [cond-mat.mes-hall]
+
+## 2021 (2)
+
+* Haikuan Dong, Shiyun Xiong, Zheyong Fan, Ping Qian, Yanjing Su, Tapio Ala-Nissila,
+[Interpretation of apparent thermal conductivity in finite systems from equilibrium molecular dynamics simulations](https://doi.org/10.1103/PhysRevB.103.035417),
+Phys. Rev. B **103**, 035417 (2021)
+
+* Nicholas W. Lundgren, Giuseppe Barbalinardo, Davide Donadio,
+[Mode Localization and Suppressed Heat Transport in Amorphous Alloys](https://doi.org/10.1103/PhysRevB.103.024204),
+Phys. Rev. B **103**, 024204 (2021)
 
 ## 2020 (7)
 
@@ -20,7 +22,7 @@ arXiv:2003.02384 [cond-mat.mes-hall]
 
 * Alexander Joseph Gabourie, Saurabh Vinayak Suryavanshi, Amir Barati Farimani, and Eric Pop,
 [Reduced Thermal Conductivity of Supported and Encased Monolayer and Bilayer MoS<sub>2</sub>](https://doi.org/10.1088/2053-1583/aba4ed),
-2D Materials, **8**, 011001 (2020).
+2D Materials **8**, 011001 (2020).
 
 * Xin Wu and Qiang Han
 [Thermal conductivity of monolayer hexagonal boron nitride: From defective to amorphous](https://doi.org/10.1016/j.commatsci.2020.109938),
