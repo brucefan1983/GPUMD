@@ -6,7 +6,11 @@
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384),
 arXiv:2003.02384 [cond-mat.mes-hall]
 
-## 2021 (2)
+## 2021 (3)
+
+* Xin Wu and Qiang Han,
+[Semidefective Graphene/h-BN In-Plane Heterostructures: Enhancing Interface Thermal Conductance by Topological Defects](https://doi.org/10.1021/acs.jpcc.0c10387),
+Accepted to J. Phys. Chem. C (2021)
 
 * Haikuan Dong, Shiyun Xiong, Zheyong Fan, Ping Qian, Yanjing Su, Tapio Ala-Nissila,
 [Interpretation of apparent thermal conductivity in finite systems from equilibrium molecular dynamics simulations](https://doi.org/10.1103/PhysRevB.103.035417),
