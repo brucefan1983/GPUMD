@@ -29,7 +29,6 @@ The driver class calculating force and related quantities.
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
-#include "tersoff_modc.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include "vashishta.cuh"
@@ -135,8 +134,6 @@ void Force::initialize_potential(
     potential[m].reset(new Tersoff1989(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "tersoff_1988") == 0) {
     potential[m].reset(new Tersoff1988(fid_potential, num_types, neighbor));
-  } else if (strcmp(potential_name, "tersoff_modc") == 0) {
-    potential[m].reset(new Tersoff_modc(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "tersoff_mini") == 0) {
     potential[m].reset(new Tersoff_mini(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "limt") == 0) {
