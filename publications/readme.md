@@ -1,6 +1,6 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (1)
+## Preprints (2)
 
 * Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
 [Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://arxiv.org/abs/2102.03691),
