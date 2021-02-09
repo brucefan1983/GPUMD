@@ -2,6 +2,11 @@
 
 ## Preprints (1)
 
+* Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
+[Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://arxiv.org/abs/2102.03691),
+arXiv:2102.03691 [cond-mat.mtrl-sci]
+
+
 * Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura, Sebastian Volz,
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384),
 arXiv:2003.02384 [cond-mat.mes-hall]
@@ -10,15 +15,15 @@ arXiv:2003.02384 [cond-mat.mes-hall]
 
 * Xin Wu and Qiang Han,
 [Semidefective Graphene/h-BN In-Plane Heterostructures: Enhancing Interface Thermal Conductance by Topological Defects](https://doi.org/10.1021/acs.jpcc.0c10387),
-Accepted to J. Phys. Chem. C (2021)
+J. Phys. Chem. C **125**, 2748 (2021).
 
 * Haikuan Dong, Shiyun Xiong, Zheyong Fan, Ping Qian, Yanjing Su, Tapio Ala-Nissila,
 [Interpretation of apparent thermal conductivity in finite systems from equilibrium molecular dynamics simulations](https://doi.org/10.1103/PhysRevB.103.035417),
-Phys. Rev. B **103**, 035417 (2021)
+Phys. Rev. B **103**, 035417 (2021).
 
 * Nicholas W. Lundgren, Giuseppe Barbalinardo, Davide Donadio,
 [Mode Localization and Suppressed Heat Transport in Amorphous Alloys](https://doi.org/10.1103/PhysRevB.103.024204),
-Phys. Rev. B **103**, 024204 (2021)
+Phys. Rev. B **103**, 024204 (2021).
 
 ## 2020 (7)
 
