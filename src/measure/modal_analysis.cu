@@ -323,11 +323,11 @@ void MODAL_ANALYSIS::setN(const std::vector<int>& cpu_type_size)
 
 void MODAL_ANALYSIS::set_eigmode(int mode, std::ifstream& eigfile, GPU_Vector<float>& eig)
 {
-  float floatval;
+  std::vector<float> floatval(num_participating);
+  eigfile.read((char *)(&floatval[0]), num_participating * sizeof(float));
   for (int i = 0; i < num_participating; i++) {
-    eigfile >> floatval;
     // column major ordering for cuBLAS
-    eig[mode + i * num_modes] = floatval;
+    eig[mode + i * num_modes] = floatval[i];
   }
 }
 
@@ -356,26 +356,20 @@ void MODAL_ANALYSIS::preprocess(
   strcpy(eig_file_position, input_dir);
   strcat(eig_file_position, "/eigenvector.in");
   std::ifstream eigfile;
-  eigfile.open(eig_file_position);
+  eigfile.open(eig_file_position, std::ios::in | std::ios::binary);
   if (!eigfile) {
     PRINT_INPUT_ERROR("Cannot open eigenvector.in file.");
   }
 
-  // GPU phonon code output format
-  std::string val;
-
   // Setup binning
   if (f_flag) {
     GPU_Vector<double> f(num_modes, Memory_Type::managed);
-    getline(eigfile, val);
-    std::stringstream ss(val);
-    for (int i = 0; i < first_mode - 1; i++) {
-      ss >> f[0];
-    }
-    double temp;
+    eigfile.seekg((first_mode - 1) * sizeof(float));
+    float om2;
     for (int i = 0; i < num_modes; i++) {
-      ss >> temp;
-      f[i] = copysign(sqrt(abs(temp)) / (2.0 * PI), temp);
+      eigfile.read((char *)(&om2), sizeof(float));
+      f[i] = copysign(sqrt(abs(om2)) / (2.0 * PI), om2);
+
     }
     double fmax, fmin; // freq are in ascending order in file
     int shift;
@@ -398,8 +392,6 @@ void MODAL_ANALYSIS::preprocess(
     if (num_modes % bin_size != 0) {
       bin_count[num_bins - 1] = num_modes % bin_size;
     }
-
-    getline(eigfile, val);
   }
 
   bin_sum.resize(num_bins, 0, Memory_Type::managed);
@@ -407,9 +399,7 @@ void MODAL_ANALYSIS::preprocess(
     bin_sum[i] = bin_sum[i - 1] + bin_count[i - 1];
 
   // skips modes up to first_mode
-  for (int i = 1; i < first_mode; i++) {
-    getline(eigfile, val);
-  }
+  eigfile.seekg((3 * num_participating * first_mode) * sizeof(float));
   for (int j = 0; j < num_modes; j++) // modes
   {
     set_eigmode(j, eigfile, eigx);

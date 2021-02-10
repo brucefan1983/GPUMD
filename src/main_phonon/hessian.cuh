@@ -17,6 +17,8 @@
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 #include <vector>
+#include <fstream>
+#include <iostream>
 
 class Box;
 class Neighbor;

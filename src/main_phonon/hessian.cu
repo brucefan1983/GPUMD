@@ -314,7 +314,8 @@ void Hessian::find_eigenvectors(char* input_dir)
   char file_eigenvectors[200];
   strcpy(file_eigenvectors, input_dir);
   strcat(file_eigenvectors, "/eigenvector.out");
-  FILE* fid_eigenvectors = my_fopen(file_eigenvectors, "w");
+  std::ofstream eigfile;
+  eigfile.open(file_eigenvectors, std::ios::out | std::ios::binary);
 
   size_t dim = num_basis * 3;
   std::vector<double> W(dim);
@@ -324,23 +325,25 @@ void Hessian::find_eigenvectors(char* input_dir)
   double natural_to_THz = 1.0e6 / (TIME_UNIT_CONVERSION * TIME_UNIT_CONVERSION);
 
   // output eigenvalues
+  float om2;
   for (size_t n = 0; n < dim; n++) {
-    fprintf(fid_eigenvectors, "%g ", W[n] * natural_to_THz);
+    om2 = (float)(W[n] * natural_to_THz);
+    eigfile.write((char *)&om2, sizeof(float));
   }
-  fprintf(fid_eigenvectors, "\n");
 
   // output eigenvectors
+  float eig;
   for (size_t col = 0; col < dim; col++) {
     for (size_t a = 0; a < 3; a++) {
       for (size_t b = 0; b < num_basis; b++) {
         size_t row = a + b * 3;
         // column-major order from cuSolver
-        fprintf(fid_eigenvectors, "%g ", eigenvectors[row + col * dim]);
+        eig = (float)eigenvectors[row + col * dim];
+        eigfile.write((char *)&eig, sizeof(float));
       }
     }
-    fprintf(fid_eigenvectors, "\n");
   }
-  fclose(fid_eigenvectors);
+  eigfile.close();
 }
 
 void Hessian::parse_cutoff(char** param, size_t num_param)
