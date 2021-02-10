@@ -331,9 +331,9 @@ void DUMP_NETCDF::write(
   if (precision == 1) // single precision
   {
     // must convert data
-    float cpu_x[N];
-    float cpu_y[N];
-    float cpu_z[N];
+    std::vector<float> cpu_x(N);
+    std::vector<float> cpu_y(N);
+    std::vector<float> cpu_z(N);
     for (int i = 0; i < N; i++) {
       cpu_x[i] = (float)cpu_position_per_atom[i];
       cpu_y[i] = (float)cpu_position_per_atom[i + N];
@@ -344,11 +344,11 @@ void DUMP_NETCDF::write(
     countp[1] = N;
     countp[2] = 1;
     NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, cpu_type.data()));
-    NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_x));
+    NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_x.data()));
     startp[2] = 1;
-    NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_y));
+    NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_y.data()));
     startp[2] = 2;
-    NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_z));
+    NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_z.data()));
   } else {
     countp[0] = 1;
     countp[1] = N;
