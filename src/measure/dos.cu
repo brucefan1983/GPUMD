@@ -285,9 +285,12 @@ void DOS::allocate_memory()
   vacx_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
   vacy_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
   vacz_.resize(num_groups_ * num_correlation_steps_, 0.0, Memory_Type::managed);
-  dosx_.resize(num_groups_ * num_dos_points_, 0.0);
-  dosy_.resize(num_groups_ * num_dos_points_, 0.0);
-  dosz_.resize(num_groups_ * num_dos_points_, 0.0);
+  dosx_.resize(num_groups_ * num_dos_points_);
+  dosy_.resize(num_groups_ * num_dos_points_);
+  dosz_.resize(num_groups_ * num_dos_points_);
+  dosx_.assign(num_groups_ * num_dos_points_, 0.0);
+  dosy_.assign(num_groups_ * num_dos_points_, 0.0);
+  dosz_.assign(num_groups_ * num_dos_points_, 0.0);
   mass_.resize(num_atoms_);
 }
 
