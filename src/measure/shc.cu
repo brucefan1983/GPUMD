@@ -52,10 +52,14 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
   ko_negative.resize(Nc, 0.0, Memory_Type::managed);
   ki_positive.resize(Nc, 0.0, Memory_Type::managed);
   ko_positive.resize(Nc, 0.0, Memory_Type::managed);
-  ki.resize(Nc * 2 - 1, 0.0);
-  ko.resize(Nc * 2 - 1, 0.0);
-  shc_i.resize(num_omega, 0.0);
-  shc_o.resize(num_omega, 0.0);
+  ki.resize(Nc * 2 - 1);
+  ko.resize(Nc * 2 - 1);
+  ki.assign(Nc * 2 - 1, 0.0);
+  ko.assign(Nc * 2 - 1, 0.0);
+  shc_i.resize(num_omega);
+  shc_o.resize(num_omega);
+  shc_i.assign(num_omega, 0.0);
+  shc_o.assign(num_omega, 0.0);
 }
 
 static __global__ void gpu_find_k(
