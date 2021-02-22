@@ -24,11 +24,15 @@ The force constant potential (FCP)
 FCP::FCP(FILE* fid, char* input_dir, const int N, const Box& box)
 {
   // get the highest order of the force constants
-  int count = fscanf(fid, "%d", &order);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for force constant potential.");
+  int count = fscanf(fid, "%d%d", &order, &heat_order);
+  PRINT_SCANF_ERROR(count, 2, "Reading error for force constant potential.");
 
   printf("Use the force constant potential.\n");
   printf("    up to order-%d.\n", order);
+  printf("    and compute heat current up to order-%d.\n", heat_order);
+  if (heat_order != 2 && heat_order != 3) {
+    PRINT_INPUT_ERROR("heat current order should be 2 or 3.");
+  }
 
   // get the path of the files related to the force constants
   count = fscanf(fid, "%s", file_path);
@@ -759,6 +763,7 @@ static __global__ void gpu_find_force_fcp2(
 
 // potential and force from the third-order force constants
 static __global__ void gpu_find_force_fcp3(
+  const int heat_order,
   const int N,
   const int number_of_clusters,
   const int* g_i,
@@ -809,9 +814,11 @@ static __global__ void gpu_find_force_fcp3(
         // force
         atomicAdd(&g_pfv[ia + N], -0.5f * phi_ujb_ukc);
         // virial tensor
-        atomicAdd(&g_pfv[i + N * x[a]], xij3 * phi_ujb_ukc);
-        atomicAdd(&g_pfv[i + N * y[a]], yij3 * phi_ujb_ukc);
-        atomicAdd(&g_pfv[i + N * z[a]], zij3 * phi_ujb_ukc);
+        if (heat_order == 3) {
+          atomicAdd(&g_pfv[i + N * x[a]], xij3 * phi_ujb_ukc);
+          atomicAdd(&g_pfv[i + N * y[a]], yij3 * phi_ujb_ukc);
+          atomicAdd(&g_pfv[i + N * z[a]], zij3 * phi_ujb_ukc);
+        }
       }
 }
 
@@ -1031,9 +1038,9 @@ void FCP::compute(
 
   if (order >= 3)
     gpu_find_force_fcp3<<<(number3 - 1) / block_size + 1, block_size>>>(
-      number_of_atoms, number3, fcp_data.i3.data(), fcp_data.j3.data(), fcp_data.k3.data(),
-      fcp_data.index3.data(), fcp_data.phi3.data(), fcp_data.u.data(), fcp_data.xij3.data(),
-      fcp_data.yij3.data(), fcp_data.zij3.data(), fcp_data.pfv.data());
+      heat_order, number_of_atoms, number3, fcp_data.i3.data(), fcp_data.j3.data(),
+      fcp_data.k3.data(), fcp_data.index3.data(), fcp_data.phi3.data(), fcp_data.u.data(),
+      fcp_data.xij3.data(), fcp_data.yij3.data(), fcp_data.zij3.data(), fcp_data.pfv.data());
 
   if (order >= 4)
     gpu_find_force_fcp4<<<(number4 - 1) / block_size + 1, block_size>>>(

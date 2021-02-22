@@ -45,7 +45,7 @@ public:
     GPU_Vector<double>& virial);
 
 protected:
-  int order, number2, number3, number4, number5, number6;
+  int order, heat_order, number2, number3, number4, number5, number6;
   char file_path[200];
   FCP_Data fcp_data;
   void read_r0(const int N);
