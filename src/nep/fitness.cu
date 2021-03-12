@@ -245,8 +245,6 @@ void Fitness::read_potential(char* input_dir)
     print_error("unsupported potential type.\n");
   }
 
-  parameters_min.resize(number_of_variables);
-  parameters_max.resize(number_of_variables);
   parameters.resize(number_of_variables);
 
   count = fscanf(fid, "%s%f", name, &neighbor.cutoff);
@@ -282,11 +280,6 @@ void Fitness::read_potential(char* input_dir)
   }
   printf("weight for stress is %g.\n", weight.stress);
 
-  for (int n = 0; n < number_of_variables; ++n) {
-    parameters_min[n] = -10.0f; // TODO: use L1 and L2 regularizations
-    parameters_max[n] = 10.0f;
-  }
-
   fclose(fid);
 }
 
@@ -295,9 +288,7 @@ void Fitness::compute(int population_size, float* population, float* fitness)
   for (int n = 0; n < population_size; ++n) {
     float* individual = population + n * number_of_variables;
     for (int m = 0; m < number_of_variables; ++m) {
-      float a = parameters_min[m];
-      float b = parameters_max[m] - a;
-      parameters[m] = a + b * individual[m];
+      parameters[m] = individual[m];
     }
     potential->update_potential(parameters);
     potential->find_force(
@@ -324,16 +315,14 @@ void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
 void Fitness::predict(char* input_dir, float* elite)
 {
   for (int m = 0; m < number_of_variables; ++m) {
-    float a = parameters_min[m];
-    float b = parameters_max[m] - a;
-    parameters[m] = a + b * elite[m];
+    parameters[m] = elite[m];
   }
   potential->update_potential(parameters);
   potential->find_force(
     Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
     virial, pe);
 
-  CHECK(cudaDeviceSynchronize()); // needed for CC < 6.0
+  CHECK(cudaDeviceSynchronize());
 
   char file_force[200];
   strcpy(file_force, input_dir);

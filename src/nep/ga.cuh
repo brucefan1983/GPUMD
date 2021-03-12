@@ -24,37 +24,20 @@ public:
   GA(char*, Fitness*);
 
 protected:
-  // parameters
   std::mt19937 rng;
-  int maximum_generation = 1000;
+  int maximum_generation = 10000;
   int number_of_variables = 10;
   int population_size = 20;
-  int parent_number = 10;
-  int child_number = 10;
-  float mutation_rate = 0.01;
-  // data
+  float eta_sigma = 0.1f;
   std::vector<int> index;
   std::vector<float> fitness;
-  std::vector<float> cumulative_probabilities;
   std::vector<float> population;
-  std::vector<float> population_copy;
-  std::vector<float> parameters_min;
-  std::vector<float> parameters_max;
-  // for evolution
-  void compute(char*, Fitness*);
-  void sort_population(int);
-  void output(int, FILE*);
-  void crossover(void);
-  int get_a_parent(void);
-  void mutation(int);
-
-  // for SNES
-  int population_size_auto = 0;
-  float eta_sigma = 0.1f;
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;
   std::vector<float> s;
-  void compute_snes(char*, Fitness*);
-  void output_snes(int, FILE*);
+  std::vector<float> s_copy;
+  void compute(char*, Fitness*);
+  void sort();
+  void output(int, FILE*);
 };

@@ -1,9 +1,9 @@
 potential_type        0
 num_neurons           10
 cutoff                5
-weight_force          0.4
-weight_energy         0.3
-weight_virial         0.4
+weight_force          0.8
+weight_energy         0.1
+weight_virial         0.1
 
 
 
