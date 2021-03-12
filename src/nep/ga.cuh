@@ -47,4 +47,11 @@ protected:
   void crossover(void);
   int get_a_parent(void);
   void mutation(int);
+
+  // for SNES
+  int population_size_auto = 0;
+  float eta_sigma = 0.1f;
+  std::vector<float> mu;
+  std::vector<float> sigma;
+  std::vector<float> utility;
 };

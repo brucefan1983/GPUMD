@@ -21,6 +21,7 @@ Use the genetic algorithm to fit potential parameters.
 #include "fitness.cuh"
 #include "ga.cuh"
 #include <chrono>
+#include <cmath>
 #include <errno.h>
 
 GA::GA(char* input_dir, Fitness* fitness_function)
@@ -56,6 +57,30 @@ GA::GA(char* input_dir, Fitness* fitness_function)
   std::uniform_real_distribution<float> r1(0, 1);
   for (int n = 0; n < population_size * number_of_variables; ++n) {
     population[n] = r1(rng);
+  }
+
+  // for SNES
+  population_size_auto = 4 + int(floor(3.0f * std::log(number_of_variables * 1.0f)));
+  eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
+              (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
+  printf("number_of_variables = %d\n", number_of_variables);
+  printf("population_size_auto = %d\n", population_size_auto);
+  printf("eta_sigma = %f\n", eta_sigma);
+  mu.resize(number_of_variables);
+  sigma.resize(number_of_variables);
+  utility.resize(population_size_auto);
+  for (int n = 0; n < number_of_variables; ++n) {
+    // mu[n] = r1(rng) * 2.0f - 1.0f;
+    sigma[n] = 1.0f;
+  }
+  float utility_sum = 0.0f;
+  for (int n = 0; n < population_size_auto; ++n) {
+    utility[n] = std::max(0.0f, std::log(population_size_auto * 0.5f + 1.0f) - std::log(n + 1.0f));
+    utility_sum += utility[n];
+  }
+  for (int n = 0; n < population_size_auto; ++n) {
+    utility[n] = utility[n] / utility_sum - 1.0f / population_size_auto;
+    printf("n = %d, utility = %f\n", n, utility[n]);
   }
 
   // run the GA
