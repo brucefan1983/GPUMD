@@ -54,4 +54,7 @@ protected:
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;
+  std::vector<float> s;
+  void compute_snes(char*, Fitness*);
+  void output_snes(int, FILE*);
 };

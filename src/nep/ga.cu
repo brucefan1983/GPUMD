@@ -80,8 +80,8 @@ GA::GA(char* input_dir, Fitness* fitness_function)
   }
   for (int n = 0; n < population_size_auto; ++n) {
     utility[n] = utility[n] / utility_sum - 1.0f / population_size_auto;
-    printf("n = %d, utility = %f\n", n, utility[n]);
   }
+  s.resize(population_size_auto * number_of_variables);
 
   // run the GA
   compute(input_dir, fitness_function);
@@ -105,6 +105,42 @@ void GA::compute(char* input_dir, Fitness* fitness_function)
   }
   fclose(fid);
 
+  fitness_function->predict(input_dir, population.data());
+}
+
+void GA::compute_snes(char* input_dir, Fitness* fitness_function)
+{
+  print_line_1();
+  printf("Started training.\n");
+  print_line_2();
+  char file[200];
+  strcpy(file, input_dir);
+  strcat(file, "/ga.out");
+  FILE* fid = my_fopen(file, "w");
+  for (int n = 0; n < maximum_generation; ++n) {
+    std::normal_distribution<float> r1(0, 1);
+    for (int p = 0; p < population_size_auto; ++p) {
+      for (int v = 0; v < number_of_variables; ++v) {
+        int pv = p * number_of_variables + v;
+        s[pv] = r1(rng);
+        population[pv] = sigma[v] * s[pv] + mu[v];
+      }
+    }
+    fitness_function->compute(population_size_auto, population.data(), fitness.data());
+    sort_population(n);
+    output(n, fid);
+    for (int v = 0; v < number_of_variables; ++v) {
+      float gradient_mu = 0.0f, gradient_sigma = 0.0f;
+      for (int p = 0; p < population_size_auto; ++p) {
+        int pv = p * number_of_variables + v;
+        gradient_mu += s[pv] * utility[p];
+        gradient_sigma += (s[pv] * s[pv] - 1.0f) * utility[p];
+      }
+      mu[v] += sigma[v] * gradient_mu;
+      sigma[v] *= std::exp(eta_sigma * gradient_sigma);
+    }
+  }
+  fclose(fid);
   fitness_function->predict(input_dir, population.data());
 }
 
@@ -159,6 +195,25 @@ void GA::output(int generation, FILE* fid)
       float a = parameters_min[m];
       float b = parameters_max[m] - a;
       printf("%g ", a + b * population[m]);
+    }
+    printf("\n");
+  }
+}
+
+void GA::output_snes(int generation, FILE* fid)
+{
+  // to file
+  fprintf(fid, "%d %g ", generation, fitness[0]);
+  for (int m = 0; m < number_of_variables; ++m) {
+    fprintf(fid, "%g ", population[m]);
+  }
+  fprintf(fid, "\n");
+  fflush(fid);
+  // to screen
+  if (0 == (generation + 1) % 10) {
+    printf("%d %g ", generation + 1, fitness[0]);
+    for (int m = 0; m < number_of_variables; ++m) {
+      printf("%g ", population[m]);
     }
     printf("\n");
   }
