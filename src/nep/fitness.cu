@@ -22,7 +22,6 @@ Get the fitness
 #include "gpu_vector.cuh"
 #include "neighbor.cuh"
 #include "nn2b.cuh"
-#include "read_file.cuh"
 #include <vector>
 
 Fitness::Fitness(char* input_dir)

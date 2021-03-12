@@ -20,7 +20,6 @@ Use the genetic algorithm to fit potential parameters.
 #include "error.cuh"
 #include "fitness.cuh"
 #include "ga.cuh"
-#include "read_file.cuh"
 #include <chrono>
 #include <errno.h>
 
