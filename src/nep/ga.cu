@@ -35,11 +35,11 @@ GA::GA(char* input_dir, Fitness* fitness_function)
   }
 
   // memory
-  MY_MALLOC(fitness, float, population_size);
-  MY_MALLOC(index, int, population_size);
-  MY_MALLOC(cumulative_probabilities, float, parent_number);
-  MY_MALLOC(population, float, population_size* number_of_variables);
-  MY_MALLOC(population_copy, float, population_size* number_of_variables);
+  fitness.resize(population_size);
+  index.resize(population_size);
+  cumulative_probabilities.resize(parent_number);
+  population.resize(population_size * number_of_variables);
+  population_copy.resize(population_size * number_of_variables);
   // constants used for slecting parents
   float numerator = 0.0;
   float denominator = (1.0 + parent_number) * parent_number / 2.0;
@@ -72,7 +72,7 @@ void GA::compute(char* input_dir, Fitness* fitness_function)
   strcat(file, "/ga.out");
   FILE* fid = my_fopen(file, "w");
   for (int n = 0; n < maximum_generation; ++n) {
-    fitness_function->compute(population_size, population, fitness);
+    fitness_function->compute(population_size, population.data(), fitness.data());
     sort_population(n);
     output(n, fid);
     crossover();
@@ -80,16 +80,7 @@ void GA::compute(char* input_dir, Fitness* fitness_function)
   }
   fclose(fid);
 
-  fitness_function->predict(input_dir, population);
-}
-
-GA::~GA(void)
-{
-  MY_FREE(cumulative_probabilities);
-  MY_FREE(fitness);
-  MY_FREE(index);
-  MY_FREE(population);
-  MY_FREE(population_copy);
+  fitness_function->predict(input_dir, population.data());
 }
 
 static void insertion_sort(float array[], int index[], int n)
@@ -112,7 +103,7 @@ void GA::sort_population(int generation)
   for (int n = 0; n < population_size; ++n) {
     index[n] = n;
   }
-  insertion_sort(fitness, index, population_size);
+  insertion_sort(fitness.data(), index.data(), population_size);
   for (int n = 0; n < population_size * number_of_variables; ++n) {
     population_copy[n] = population[n];
   }

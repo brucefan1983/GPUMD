@@ -22,7 +22,6 @@ class GA
 {
 public:
   GA(char*, Fitness*);
-  ~GA(void);
 
 protected:
   // parameters
@@ -34,11 +33,11 @@ protected:
   int child_number = 10;
   float mutation_rate = 0.01;
   // data
-  int* index;
-  float* fitness;
-  float* cumulative_probabilities;
-  float* population;
-  float* population_copy;
+  std::vector<int> index;
+  std::vector<float> fitness;
+  std::vector<float> cumulative_probabilities;
+  std::vector<float> population;
+  std::vector<float> population_copy;
   std::vector<float> parameters_min;
   std::vector<float> parameters_max;
   // for evolution
