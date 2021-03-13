@@ -30,7 +30,6 @@ GA::GA(char* input_dir, Fitness* fitness_function)
   population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
-
   fitness.resize(population_size);
   index.resize(population_size);
   population.resize(population_size * number_of_variables);
@@ -40,18 +39,32 @@ GA::GA(char* input_dir, Fitness* fitness_function)
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   utility.resize(population_size);
+  initialize_rng();
+  initialize_mu_and_sigma();
+  calculate_utility();
+  compute(input_dir, fitness_function);
+}
 
+void GA::initialize_rng()
+{
 #ifdef DEBUG
   rng = std::mt19937(12345678);
 #else
   rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
 #endif
-  std::uniform_real_distribution<float> r1(0, 1);
+};
 
+void GA::initialize_mu_and_sigma()
+{
+  std::uniform_real_distribution<float> r1(0, 1);
   for (int n = 0; n < number_of_variables; ++n) {
     mu[n] = r1(rng) * 2.0f - 1.0f;
     sigma[n] = 1.0f;
   }
+}
+
+void GA::calculate_utility()
+{
   float utility_sum = 0.0f;
   for (int n = 0; n < population_size; ++n) {
     utility[n] = std::max(0.0f, std::log(population_size * 0.5f + 1.0f) - std::log(n + 1.0f));
@@ -60,8 +73,6 @@ GA::GA(char* input_dir, Fitness* fitness_function)
   for (int n = 0; n < population_size; ++n) {
     utility[n] = utility[n] / utility_sum - 1.0f / population_size;
   }
-
-  compute(input_dir, fitness_function);
 }
 
 void GA::compute(char* input_dir, Fitness* fitness_function)
@@ -143,17 +154,13 @@ void GA::sort()
 
 void GA::output(int generation, FILE* fid)
 {
-  // to file
-  if (0 == (generation + 1) % 1) {
-    fprintf(fid, "%d %g ", generation + 1, fitness[0]);
-    for (int m = 0; m < number_of_variables; ++m) {
-      fprintf(fid, "%g ", population[m]);
-    }
-    fprintf(fid, "\n");
-    fflush(fid);
-  }
-  // to screen
   if (0 == (generation + 1) % 100) {
-    printf("%d %g\n", generation + 1, fitness[0]);
+    fprintf(fid, "%d %g ", generation + 1, fitness[0]); // to file
+    printf("%d %g\n", generation + 1, fitness[0]);      // to screen
+    for (int m = 0; m < number_of_variables; ++m) {
+      fprintf(fid, "%g ", population[m]); // to file
+    }
+    fprintf(fid, "\n"); // to file
+    fflush(fid);        // to file
   }
 }

@@ -25,7 +25,7 @@ public:
 
 protected:
   std::mt19937 rng;
-  int maximum_generation = 20000;
+  int maximum_generation = 2000;
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
@@ -38,6 +38,9 @@ protected:
   std::vector<float> utility;
   std::vector<float> s;
   std::vector<float> s_copy;
+  void initialize_rng();
+  void initialize_mu_and_sigma();
+  void calculate_utility();
   void compute(char*, Fitness*);
   void sort();
   void output(int, FILE*);
