@@ -85,36 +85,37 @@ void GA::compute(char* input_dir, Fitness* fitness_function)
   strcat(file, "/ga.out");
   FILE* fid = my_fopen(file, "w");
   for (int n = 0; n < maximum_generation; ++n) {
-    std::normal_distribution<float> r1(0, 1);
-    for (int p = 0; p < population_size; ++p) {
-      for (int v = 0; v < number_of_variables; ++v) {
-        int pv = p * number_of_variables + v;
-        s[pv] = r1(rng);
-        population[pv] = sigma[v] * s[pv] + mu[v];
-      }
-    }
+    create_population();
     fitness_function->compute(population_size, population.data(), fitness.data());
-    for (int p = 0; p < population_size; ++p) {
-      for (int v = 0; v < number_of_variables; ++v) {
-        int pv = p * number_of_variables + v;
-        fitness[p] += 1.0e-5f * (0.5f * population[pv] * population[pv] + std::abs(population[pv]));
-      }
-    }
+    regularize();
     sort();
     output(n, fid);
-    for (int v = 0; v < number_of_variables; ++v) {
-      float gradient_mu = 0.0f, gradient_sigma = 0.0f;
-      for (int p = 0; p < population_size; ++p) {
-        int pv = p * number_of_variables + v;
-        gradient_mu += s[pv] * utility[p];
-        gradient_sigma += (s[pv] * s[pv] - 1.0f) * utility[p];
-      }
-      mu[v] += sigma[v] * gradient_mu;
-      sigma[v] *= std::exp(eta_sigma * gradient_sigma);
-    }
+    update_mu_and_sigma();
   }
   fclose(fid);
   fitness_function->predict(input_dir, population.data());
+}
+
+void GA::create_population()
+{
+  std::normal_distribution<float> r1(0, 1);
+  for (int p = 0; p < population_size; ++p) {
+    for (int v = 0; v < number_of_variables; ++v) {
+      int pv = p * number_of_variables + v;
+      s[pv] = r1(rng);
+      population[pv] = sigma[v] * s[pv] + mu[v];
+    }
+  }
+}
+
+void GA::regularize()
+{
+  for (int p = 0; p < population_size; ++p) {
+    for (int v = 0; v < number_of_variables; ++v) {
+      int pv = p * number_of_variables + v;
+      fitness[p] += 1.0e-5f * (0.5f * population[pv] * population[pv] + std::abs(population[pv]));
+    }
+  }
 }
 
 static void insertion_sort(float array[], int index[], int n)
@@ -162,5 +163,19 @@ void GA::output(int generation, FILE* fid)
     }
     fprintf(fid, "\n"); // to file
     fflush(fid);        // to file
+  }
+}
+
+void GA::update_mu_and_sigma()
+{
+  for (int v = 0; v < number_of_variables; ++v) {
+    float gradient_mu = 0.0f, gradient_sigma = 0.0f;
+    for (int p = 0; p < population_size; ++p) {
+      int pv = p * number_of_variables + v;
+      gradient_mu += s[pv] * utility[p];
+      gradient_sigma += (s[pv] * s[pv] - 1.0f) * utility[p];
+    }
+    mu[v] += sigma[v] * gradient_mu;
+    sigma[v] *= std::exp(eta_sigma * gradient_sigma);
   }
 }
