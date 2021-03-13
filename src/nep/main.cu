@@ -14,7 +14,8 @@
 */
 
 #include "error.cuh"
-#include "gpuga.cuh"
+#include "fitness.cuh"
+#include "snes.cuh"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
@@ -39,7 +40,8 @@ int main(int argc, char* argv[])
     print_line_2();
 
     clock_t time_begin = clock();
-    GPUGA gpuga(input_directory);
+    Fitness fitness(input_directory);
+    SNES snes(input_directory, &fitness);
     clock_t time_finish = clock();
 
     float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
@@ -60,9 +62,10 @@ void print_welcome_information(void)
 {
   printf("\n");
   printf("***************************************************************\n");
-  printf("*                 Welcome to use GPUGA                        *\n");
+  printf("*                 Welcome to use GPUMD                        *\n");
   printf("*     (Graphics Processing Units Genetic Algorithm)           *\n");
-  printf("*                      Version 1.0                            *\n");
+  printf("*                  Developing Version                         *\n");
+  printf("*              This is the nep executable                     *\n");
   printf("* Author:                                                     *\n");
   printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
   printf("***************************************************************\n");
