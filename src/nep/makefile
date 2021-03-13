@@ -46,8 +46,8 @@ HEADERS = $(wildcard *.cuh)
 ###########################################################
 # executables
 ###########################################################
-all: gpuga
-gpuga: $(OBJ)
+all: nep
+nep: $(OBJ)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	
 
@@ -70,5 +70,5 @@ clean:
 ifdef OS
 	del *.obj *.exp *.lib *.exe
 else
-	rm *.o gpuga
+	rm *.o nep
 endif

@@ -52,7 +52,7 @@ int main(int argc, char* argv[])
   }
 
   print_line_1();
-  printf("Finished running gpuga.\n");
+  printf("Finished running nep.\n");
   print_line_2();
 
   return EXIT_SUCCESS;
