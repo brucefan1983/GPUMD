@@ -88,7 +88,7 @@ void GA::compute(char* input_dir, Fitness* fitness_function)
     create_population();
     fitness_function->compute(population_size, population.data(), fitness.data());
     regularize();
-    sort();
+    sort_population();
     output(n, fid);
     update_mu_and_sigma();
   }
@@ -133,7 +133,7 @@ static void insertion_sort(float array[], int index[], int n)
   }
 }
 
-void GA::sort()
+void GA::sort_population()
 {
   for (int n = 0; n < population_size; ++n) {
     index[n] = n;
