@@ -18,13 +18,13 @@ The driver class for GPUGA
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "ga.cuh"
 #include "gpuga.cuh"
+#include "snes.cuh"
 
 GPUGA::GPUGA(char* input_dir)
 {
   Fitness fitness(input_dir);
-  GA ga(input_dir, &fitness);
+  SNES snes(input_dir, &fitness);
 }
 
 GPUGA::~GPUGA(void)

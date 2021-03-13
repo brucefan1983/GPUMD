@@ -14,16 +14,16 @@
 */
 
 /*----------------------------------------------------------------------------80
-Use the genetic algorithm to fit potential parameters.
+Use the separable natural evolution strategy (SNES) to fit potential parameters.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
 #include "fitness.cuh"
-#include "ga.cuh"
+#include "snes.cuh"
 #include <chrono>
 #include <cmath>
 
-GA::GA(char* input_dir, Fitness* fitness_function)
+SNES::SNES(char* input_dir, Fitness* fitness_function)
 {
   number_of_variables = fitness_function->number_of_variables;
   population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
@@ -44,7 +44,7 @@ GA::GA(char* input_dir, Fitness* fitness_function)
   compute(input_dir, fitness_function);
 }
 
-void GA::initialize_rng()
+void SNES::initialize_rng()
 {
 #ifdef DEBUG
   rng = std::mt19937(12345678);
@@ -53,7 +53,7 @@ void GA::initialize_rng()
 #endif
 };
 
-void GA::initialize_mu_and_sigma()
+void SNES::initialize_mu_and_sigma()
 {
   std::uniform_real_distribution<float> r1(0, 1);
   for (int n = 0; n < number_of_variables; ++n) {
@@ -62,7 +62,7 @@ void GA::initialize_mu_and_sigma()
   }
 }
 
-void GA::calculate_utility()
+void SNES::calculate_utility()
 {
   float utility_sum = 0.0f;
   for (int n = 0; n < population_size; ++n) {
@@ -74,7 +74,7 @@ void GA::calculate_utility()
   }
 }
 
-void GA::compute(char* input_dir, Fitness* fitness_function)
+void SNES::compute(char* input_dir, Fitness* fitness_function)
 {
   print_line_1();
   printf("Started training.\n");
@@ -95,7 +95,7 @@ void GA::compute(char* input_dir, Fitness* fitness_function)
   fitness_function->predict(input_dir, population.data());
 }
 
-void GA::create_population()
+void SNES::create_population()
 {
   std::normal_distribution<float> r1(0, 1);
   for (int p = 0; p < population_size; ++p) {
@@ -107,7 +107,7 @@ void GA::create_population()
   }
 }
 
-void GA::regularize()
+void SNES::regularize()
 {
   for (int p = 0; p < population_size; ++p) {
     for (int v = 0; v < number_of_variables; ++v) {
@@ -132,7 +132,7 @@ static void insertion_sort(float array[], int index[], int n)
   }
 }
 
-void GA::sort_population()
+void SNES::sort_population()
 {
   for (int n = 0; n < population_size; ++n) {
     index[n] = n;
@@ -152,7 +152,7 @@ void GA::sort_population()
   }
 }
 
-void GA::output(int generation, FILE* fid)
+void SNES::output(int generation, FILE* fid)
 {
   if (0 == (generation + 1) % 100) {
     fprintf(fid, "%d %g ", generation + 1, fitness[0]); // to file
@@ -165,7 +165,7 @@ void GA::output(int generation, FILE* fid)
   }
 }
 
-void GA::update_mu_and_sigma()
+void SNES::update_mu_and_sigma()
 {
   for (int v = 0; v < number_of_variables; ++v) {
     float gradient_mu = 0.0f, gradient_sigma = 0.0f;

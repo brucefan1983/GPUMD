@@ -18,10 +18,10 @@
 #include <vector>
 class Fitness;
 
-class GA
+class SNES
 {
 public:
-  GA(char*, Fitness*);
+  SNES(char*, Fitness*);
 
 protected:
   std::mt19937 rng;
