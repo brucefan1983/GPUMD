@@ -25,13 +25,14 @@ public:
 
 protected:
   std::mt19937 rng;
-  int maximum_generation = 10000;
+  int maximum_generation = 20000;
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> population;
+  std::vector<float> population_copy;
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;

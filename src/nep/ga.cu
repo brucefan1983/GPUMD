@@ -27,13 +27,14 @@ Use the genetic algorithm to fit potential parameters.
 GA::GA(char* input_dir, Fitness* fitness_function)
 {
   number_of_variables = fitness_function->number_of_variables;
-  population_size = 4 + int(floor(3.0f * std::log(number_of_variables * 1.0f)));
+  population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
 
   fitness.resize(population_size);
   index.resize(population_size);
   population.resize(population_size * number_of_variables);
+  population_copy.resize(population_size * number_of_variables);
   s.resize(population_size * number_of_variables);
   s_copy.resize(population_size * number_of_variables);
   mu.resize(number_of_variables);
@@ -102,7 +103,7 @@ void GA::compute(char* input_dir, Fitness* fitness_function)
     }
   }
   fclose(fid);
-  fitness_function->predict(input_dir, population.data() + number_of_variables * index[0]);
+  fitness_function->predict(input_dir, population.data());
 }
 
 static void insertion_sort(float array[], int index[], int n)
@@ -128,32 +129,31 @@ void GA::sort()
   insertion_sort(fitness.data(), index.data(), population_size);
   for (int n = 0; n < population_size * number_of_variables; ++n) {
     s_copy[n] = s[n];
+    population_copy[n] = population[n];
   }
   for (int n = 0; n < population_size; ++n) {
     int n1 = n * number_of_variables;
     int n2 = index[n] * number_of_variables;
     for (int m = 0; m < number_of_variables; ++m) {
       s[n1 + m] = s_copy[n2 + m];
+      population[n1 + m] = population_copy[n2 + m];
     }
   }
 }
 
 void GA::output(int generation, FILE* fid)
 {
-  int offset = number_of_variables * index[0];
   // to file
-  fprintf(fid, "%d %g ", generation, fitness[index[0]]);
-  for (int m = 0; m < number_of_variables; ++m) {
-    fprintf(fid, "%g ", population[m + offset]);
+  if (0 == (generation + 1) % 1) {
+    fprintf(fid, "%d %g ", generation + 1, fitness[0]);
+    for (int m = 0; m < number_of_variables; ++m) {
+      fprintf(fid, "%g ", population[m]);
+    }
+    fprintf(fid, "\n");
+    fflush(fid);
   }
-  fprintf(fid, "\n");
-  fflush(fid);
   // to screen
   if (0 == (generation + 1) % 100) {
-    printf("%d %g ", generation + 1, fitness[index[0]]);
-    for (int m = 0; m < number_of_variables; ++m) {
-      printf("%g ", population[m + offset]);
-    }
-    printf("\n");
+    printf("%d %g\n", generation + 1, fitness[0]);
   }
 }
