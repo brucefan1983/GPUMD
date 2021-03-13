@@ -22,7 +22,6 @@ Use the genetic algorithm to fit potential parameters.
 #include "ga.cuh"
 #include <chrono>
 #include <cmath>
-#include <errno.h>
 
 GA::GA(char* input_dir, Fitness* fitness_function)
 {
