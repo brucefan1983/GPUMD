@@ -30,7 +30,7 @@ void NN2B::initialize(int N, int MAX_ATOM_NUMBER)
   // nothing
 }
 
-void NN2B::update_potential(const std::vector<float>& parameters)
+void NN2B::update_potential(const float* parameters)
 {
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
     para.w0[n] = parameters[n];

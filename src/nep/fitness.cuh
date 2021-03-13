@@ -31,10 +31,9 @@ class Fitness
 {
 public:
   Fitness(char*);
-  void compute(int, float*, float*);
-  void predict(char*, float*);
-  int number_of_variables;       // number of variables in the potential
-  std::vector<float> parameters; // an instance of the potential parameters
+  void compute(const int, const float*, float*);
+  void predict(char*, const float*);
+  int number_of_variables; // number of variables in the potential
 
 protected:
   // functions related to initialization

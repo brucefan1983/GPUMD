@@ -40,7 +40,7 @@ public:
 
   NN2B(int num_neurons_per_layer);
   void initialize(int, int);
-  void update_potential(const std::vector<float>&);
+  void update_potential(const float*);
   void find_force(
     int Nc,
     int N,

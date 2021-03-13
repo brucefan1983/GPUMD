@@ -245,8 +245,6 @@ void Fitness::read_potential(char* input_dir)
     print_error("unsupported potential type.\n");
   }
 
-  parameters.resize(number_of_variables);
-
   count = fscanf(fid, "%s%f", name, &neighbor.cutoff);
   if (count != 2) {
     print_error("reading error for potential.in.");
@@ -283,14 +281,11 @@ void Fitness::read_potential(char* input_dir)
   fclose(fid);
 }
 
-void Fitness::compute(int population_size, float* population, float* fitness)
+void Fitness::compute(const int population_size, const float* population, float* fitness)
 {
   for (int n = 0; n < population_size; ++n) {
-    float* individual = population + n * number_of_variables;
-    for (int m = 0; m < number_of_variables; ++m) {
-      parameters[m] = individual[m];
-    }
-    potential->update_potential(parameters);
+    const float* individual = population + n * number_of_variables;
+    potential->update_potential(individual);
     potential->find_force(
       Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
       virial, pe);
@@ -312,12 +307,9 @@ void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
   }
 }
 
-void Fitness::predict(char* input_dir, float* elite)
+void Fitness::predict(char* input_dir, const float* elite)
 {
-  for (int m = 0; m < number_of_variables; ++m) {
-    parameters[m] = elite[m];
-  }
-  potential->update_potential(parameters);
+  potential->update_potential(elite);
   potential->find_force(
     Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
     virial, pe);

@@ -24,7 +24,7 @@ class Potential
 public:
   virtual ~Potential() = default;
   virtual void initialize(int, int) = 0;
-  virtual void update_potential(const std::vector<float>&) = 0;
+  virtual void update_potential(const float*) = 0;
   virtual void find_force(
     int,
     int,
