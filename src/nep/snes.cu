@@ -15,6 +15,12 @@
 
 /*----------------------------------------------------------------------------80
 Use the separable natural evolution strategy (SNES) to fit potential parameters.
+
+Reference:
+
+T. Schaul, T. Glasmachers, and J. Schmidhuber,
+High Dimensions and Heavy Tails for Natural Evolution Strategies,
+https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
