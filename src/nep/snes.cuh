@@ -25,7 +25,7 @@ public:
 
 protected:
   std::mt19937 rng;
-  int maximum_generation = 2000;
+  int maximum_generation = 10000;
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;

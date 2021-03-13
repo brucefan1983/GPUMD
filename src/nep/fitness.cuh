@@ -50,9 +50,7 @@ protected:
 
   int potential_type;     // 0=NN2B
   int Nc;                 // number of configurations
-  int Nc_force;           // number of force configurations
   int N;                  // total number of atoms (sum of Na[])
-  int N_force;            // total number of atoms in force configurations
   int max_Na;             // number of atoms in the largest configuration
   GPU_Vector<int> Na;     // number of atoms in each configuration
   GPU_Vector<int> Na_sum; // prefix sum of Na

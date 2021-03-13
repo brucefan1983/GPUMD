@@ -89,17 +89,16 @@ void Fitness::read_train_in(char* input_dir)
     int count;
 
     // energy, virial
-    if (n >= Nc_force) {
-      count = fscanf(
-        fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
-        &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
-        &virial_ref[n + Nc * 5]);
-      if (count != 7) {
-        print_error("reading error for train.in.\n");
-      }
-      if (pe_ref[n] < energy_minimum)
-        energy_minimum = pe_ref[n];
+
+    count = fscanf(
+      fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
+      &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
+      &virial_ref[n + Nc * 5]);
+    if (count != 7) {
+      print_error("reading error for train.in.\n");
     }
+    if (pe_ref[n] < energy_minimum)
+      energy_minimum = pe_ref[n];
 
     // box (transpose of VASP input matrix)
     float h_tmp[9];
@@ -123,32 +122,22 @@ void Fitness::read_train_in(char* input_dir)
 
     // type, position, force
     for (int k = 0; k < Na[n]; ++k) {
-      if (n < Nc_force) {
-        count = fscanf(
-          fid, "%d%f%f%f%f%f%f", &type[Na_sum[n] + k], &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
-          &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k], &force_ref[Na_sum[n] + k + N],
-          &force_ref[Na_sum[n] + k + N * 2]);
-        if (count != 7) {
-          print_error("reading error for train.in.\n");
-        }
-
-        force_square_sum += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
-                            force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
-                            force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
-      } else {
-        count = fscanf(
-          fid, "%d%f%f%f", &type[Na_sum[n] + k], &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
-          &r[Na_sum[n] + k + N * 2]);
-        if (count != 4) {
-          print_error("reading error for train.in.\n");
-        }
+      count = fscanf(
+        fid, "%d%f%f%f%f%f%f", &type[Na_sum[n] + k], &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
+        &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k], &force_ref[Na_sum[n] + k + N],
+        &force_ref[Na_sum[n] + k + N * 2]);
+      if (count != 7) {
+        print_error("reading error for train.in.\n");
       }
+      force_square_sum += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
+                          force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
+                          force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
     }
   }
 
   fclose(fid);
 
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     float energy = pe_ref[n] - energy_minimum;
     potential_square_sum += energy * energy;
     for (int k = 0; k < 6; ++k) {
@@ -159,23 +148,14 @@ void Fitness::read_train_in(char* input_dir)
 
 void Fitness::read_Nc(FILE* fid)
 {
-  int count = fscanf(fid, "%d%d", &Nc, &Nc_force);
-  if (count != 2)
+  int count = fscanf(fid, "%d", &Nc);
+  if (count != 1)
     print_error("Reading error for xyz.in.\n");
 
   if (Nc < 2) {
     print_error("Number of configurations should >= 2\n");
   }
-
-  if (Nc_force < 1) {
-    print_error("Number of force configurations should >= 1\n");
-  } else if (Nc_force > Nc - 1) {
-    print_error("Number of potential configurations should >= 1\n");
-  }
-
   printf("Number of configurations is %d:\n", Nc);
-  printf("    %d force configurations;\n", Nc_force);
-  printf("    %d energy-virial configurations.\n", Nc - Nc_force);
 }
 
 void Fitness::read_Na(FILE* fid)
@@ -204,14 +184,8 @@ void Fitness::read_Na(FILE* fid)
     Na_sum[nc] = Na_sum[nc - 1] + Na[nc - 1];
   }
 
-  N_force = 0;
-  for (int nc = 0; nc < Nc_force; ++nc) {
-    N_force += Na[nc];
-  }
   printf("Total number of atoms is %d:\n", N);
   printf("    %d atoms in the largest configuration;\n", max_Na);
-  printf("    %d atoms in force configurations;\n", N_force);
-  printf("    %d atoms in energy-virial configurations.\n", N - N_force);
 }
 
 void Fitness::read_potential(char* input_dir)
@@ -297,7 +271,7 @@ void Fitness::compute(const int population_size, const float* population, float*
 
 void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
 {
-  for (int nc = Nc_force; nc < Nc; ++nc) {
+  for (int nc = 0; nc < Nc; ++nc) {
     int offset = Na_sum[nc];
     float data_nc = 0.0;
     for (int m = 0; m < Na[nc]; ++m) {
@@ -320,7 +294,7 @@ void Fitness::predict(char* input_dir, const float* elite)
   strcpy(file_force, input_dir);
   strcat(file_force, "/force.out");
   FILE* fid_force = my_fopen(file_force, "w");
-  for (int n = 0; n < N_force; ++n) {
+  for (int n = 0; n < N; ++n) {
     fprintf(
       fid_force, "%g %g %g %g %g %g\n", force[n], force[n + N], force[n + N * 2], force_ref[n],
       force_ref[n + N], force_ref[n + N * 2]);
@@ -395,8 +369,8 @@ static __global__ void gpu_sum_force_error(
 float Fitness::get_fitness_force(void)
 {
   gpu_sum_force_error<<<1, 512, sizeof(float) * 512>>>(
-    N_force, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(),
-    force_ref.data() + N, force_ref.data() + N * 2, error_gpu.data());
+    N, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(), force_ref.data() + N,
+    force_ref.data() + N * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), sizeof(float), cudaMemcpyDeviceToHost));
   return sqrt(error_cpu[0] / force_square_sum);
 }
@@ -455,7 +429,7 @@ float Fitness::get_fitness_energy(void)
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_ave = 0.0;
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
   return sqrt(error_ave / potential_square_sum);
@@ -470,42 +444,42 @@ float Fitness::get_fitness_stress(void)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data(), virial_ref.data(), error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N, virial_ref.data() + Nc, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref.data() + Nc * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref.data() + Nc * 3, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref.data() + Nc * 4, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref.data() + Nc * 5, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = Nc_force; n < Nc; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
 
