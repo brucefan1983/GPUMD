@@ -80,7 +80,7 @@ void Fitness::read_train_in(char* input_dir)
   pe.resize(N, Memory_Type::managed);
   virial.resize(N * 6, Memory_Type::managed);
 
-  float energy_minimum = 0.0;
+  float energy_ave = 0.0, virial_ave = 0.0;
   cost.potential_square_sum = 0.0;
   cost.virial_square_sum = 0.0;
   cost.force_square_sum = 0.0;
@@ -96,8 +96,9 @@ void Fitness::read_train_in(char* input_dir)
     if (count != 7) {
       print_error("reading error for train.in.\n");
     }
-    if (pe_ref[n] < energy_minimum)
-      energy_minimum = pe_ref[n];
+    energy_ave += pe_ref[n];
+    virial_ave += virial_ref[n + Nc * 0] + virial_ref[n + Nc * 1] + virial_ref[n + Nc * 2] +
+                  virial_ref[n + Nc * 3] + virial_ref[n + Nc * 4] + virial_ref[n + Nc * 5];
 
     // box (transpose of VASP input matrix)
     float h_tmp[9];
@@ -136,11 +137,15 @@ void Fitness::read_train_in(char* input_dir)
 
   fclose(fid);
 
+  energy_ave /= Nc;
+  virial_ave /= (Nc * 6);
+
   for (int n = 0; n < Nc; ++n) {
-    float energy = pe_ref[n] - energy_minimum;
-    cost.potential_square_sum += energy * energy;
+    float energy_diff = pe_ref[n] - energy_ave;
+    cost.potential_square_sum += energy_diff * energy_diff;
     for (int k = 0; k < 6; ++k) {
-      cost.virial_square_sum += virial_ref[n + Nc * k] * virial_ref[n + Nc * k];
+      float virial_diff = virial_ref[n + Nc * k] - virial_ave;
+      cost.virial_square_sum += virial_diff * virial_diff;
     }
   }
 }
