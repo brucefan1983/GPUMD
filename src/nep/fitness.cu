@@ -96,6 +96,10 @@ void Fitness::read_train_in(char* input_dir)
     if (count != 7) {
       print_error("reading error for train.in.\n");
     }
+    pe_ref[n] /= Na[n];
+    for (int k = 0; k < 6; ++k) {
+      virial_ref[n + Nc * k] /= Na[n];
+    }
     energy_ave += pe_ref[n];
     virial_ave += virial_ref[n + Nc * 0] + virial_ref[n + Nc * 1] + virial_ref[n + Nc * 2] +
                   virial_ref[n + Nc * 3] + virial_ref[n + Nc * 4] + virial_ref[n + Nc * 5];
@@ -290,7 +294,7 @@ void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
     for (int m = 0; m < Na[nc]; ++m) {
       data_nc += data[offset + m];
     }
-    fprintf(fid, "%g %g\n", data_nc, ref[nc]);
+    fprintf(fid, "%g %g\n", data_nc / Na[nc], ref[nc]);
   }
 }
 
@@ -418,7 +422,7 @@ gpu_sum_pe_error(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* 
   }
 
   if (tid == 0) {
-    float diff = s_pe[0] - g_pe_ref[bid];
+    float diff = s_pe[0] / Na - g_pe_ref[bid];
     error_gpu[bid] = diff * diff;
   }
 }
