@@ -21,10 +21,10 @@
 #include <stdio.h>
 #include <vector>
 
-struct Weight {
-  float force;
-  float energy;
-  float stress;
+struct Cost {
+  float weight_force;
+  float weight_energy;
+  float weight_stress;
 };
 
 class Fitness
@@ -73,5 +73,5 @@ protected:
   // other classes
   Neighbor neighbor;
   std::unique_ptr<Potential> potential;
-  Weight weight;
+  Cost cost;
 };

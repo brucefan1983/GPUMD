@@ -162,12 +162,15 @@ void SNES::output(int generation, FILE* fid)
 {
   if (0 == (generation + 1) % 100) {
     fprintf(fid, "%d %g ", generation + 1, fitness[0]); // to file
-    printf("%d %g\n", generation + 1, fitness[0]);      // to screen
+
     for (int m = 0; m < number_of_variables; ++m) {
       fprintf(fid, "%g ", population[m]); // to file
     }
     fprintf(fid, "\n"); // to file
     fflush(fid);        // to file
+  }
+  if (0 == (generation + 1) % 1000) {
+    printf("%d %g\n", generation + 1, fitness[0]); // to screen
   }
 }
 

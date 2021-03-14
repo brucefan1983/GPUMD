@@ -225,32 +225,32 @@ void Fitness::read_potential(char* input_dir)
   }
   printf("cutoff for neighbor list is %g A.\n", neighbor.cutoff);
 
-  count = fscanf(fid, "%s%f", name, &weight.force);
+  count = fscanf(fid, "%s%f", name, &cost.weight_force);
   if (count != 2) {
     print_error("reading error for potential.in.");
   }
-  if (weight.force < 0) {
+  if (cost.weight_force < 0) {
     print_error("weight for force should >= 0\n");
   }
-  printf("weight for force is %g.\n", weight.force);
+  printf("weight for force is %g.\n", cost.weight_force);
 
-  count = fscanf(fid, "%s%f", name, &weight.energy);
+  count = fscanf(fid, "%s%f", name, &cost.weight_energy);
   if (count != 2) {
     print_error("reading error for potential.in.");
   }
-  if (weight.energy < 0) {
+  if (cost.weight_energy < 0) {
     print_error("weight for energy should >= 0\n");
   }
-  printf("weight for energy is %g.\n", weight.energy);
+  printf("weight for energy is %g.\n", cost.weight_energy);
 
-  count = fscanf(fid, "%s%f", name, &weight.stress);
+  count = fscanf(fid, "%s%f", name, &cost.weight_stress);
   if (count != 2) {
     print_error("reading error for potential.in.");
   }
-  if (weight.stress < 0) {
+  if (cost.weight_stress < 0) {
     print_error("weight for stress should >= 0\n");
   }
-  printf("weight for stress is %g.\n", weight.stress);
+  printf("weight for stress is %g.\n", cost.weight_stress);
 
   fclose(fid);
 }
@@ -263,9 +263,9 @@ void Fitness::compute(const int population_size, const float* population, float*
     potential->find_force(
       Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
       virial, pe);
-    fitness[n] = weight.energy * get_fitness_energy();
-    fitness[n] += weight.stress * get_fitness_stress();
-    fitness[n] += weight.force * get_fitness_force();
+    fitness[n] = cost.weight_energy * get_fitness_energy();
+    fitness[n] += cost.weight_stress * get_fitness_stress();
+    fitness[n] += cost.weight_force * get_fitness_force();
   }
 }
 
