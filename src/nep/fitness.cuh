@@ -34,6 +34,7 @@ public:
   void compute(const int, const float*, float*);
   void predict(char*, const float*);
   int number_of_variables; // number of variables in the potential
+  int maximum_generation;  // maximum number of generations for SNES;
 
 protected:
   // functions related to initialization

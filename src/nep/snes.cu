@@ -31,6 +31,7 @@ https://doi.org/10.1145/2001576.2001692
 
 SNES::SNES(char* input_dir, Fitness* fitness_function)
 {
+  maximum_generation = fitness_function->maximum_generation;
   number_of_variables = fitness_function->number_of_variables;
   population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /

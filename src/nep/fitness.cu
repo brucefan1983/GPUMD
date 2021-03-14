@@ -252,6 +252,15 @@ void Fitness::read_potential(char* input_dir)
   }
   printf("weight for stress is %g.\n", cost.weight_stress);
 
+  count = fscanf(fid, "%s%d", name, &maximum_generation);
+  if (count != 2) {
+    print_error("reading error for potential.in.");
+  }
+  if (maximum_generation < 1) {
+    print_error("maximum_generation should >= 1\n");
+  }
+  printf("maximum_generation is %d.\n", maximum_generation);
+
   fclose(fid);
 }
 
