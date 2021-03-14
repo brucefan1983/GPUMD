@@ -25,6 +25,9 @@ struct Cost {
   float weight_force;
   float weight_energy;
   float weight_stress;
+  float force_square_sum;     // sum of force square
+  float potential_square_sum; // sum of potential square
+  float virial_square_sum;    // sum of virial square
 };
 
 class Fitness
@@ -67,9 +70,6 @@ protected:
   GPU_Vector<float> force_ref;  // reference force
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force
-  float force_square_sum;       // sum of force square
-  float potential_square_sum;   // sum of potential square
-  float virial_square_sum;      // sum of virial square
 
   // other classes
   Neighbor neighbor;

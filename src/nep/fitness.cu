@@ -81,15 +81,14 @@ void Fitness::read_train_in(char* input_dir)
   virial.resize(N * 6, Memory_Type::managed);
 
   float energy_minimum = 0.0;
-  potential_square_sum = 0.0;
-  virial_square_sum = 0.0;
-  force_square_sum = 0.0;
+  cost.potential_square_sum = 0.0;
+  cost.virial_square_sum = 0.0;
+  cost.force_square_sum = 0.0;
 
   for (int n = 0; n < Nc; ++n) {
     int count;
 
     // energy, virial
-
     count = fscanf(
       fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
       &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
@@ -129,9 +128,9 @@ void Fitness::read_train_in(char* input_dir)
       if (count != 7) {
         print_error("reading error for train.in.\n");
       }
-      force_square_sum += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
-                          force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
-                          force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
+      cost.force_square_sum += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
+                               force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
+                               force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
     }
   }
 
@@ -139,9 +138,9 @@ void Fitness::read_train_in(char* input_dir)
 
   for (int n = 0; n < Nc; ++n) {
     float energy = pe_ref[n] - energy_minimum;
-    potential_square_sum += energy * energy;
+    cost.potential_square_sum += energy * energy;
     for (int k = 0; k < 6; ++k) {
-      virial_square_sum += virial_ref[n + Nc * k] * virial_ref[n + Nc * k];
+      cost.virial_square_sum += virial_ref[n + Nc * k] * virial_ref[n + Nc * k];
     }
   }
 }
@@ -381,7 +380,7 @@ float Fitness::get_fitness_force(void)
     N, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(), force_ref.data() + N,
     force_ref.data() + N * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), sizeof(float), cudaMemcpyDeviceToHost));
-  return sqrt(error_cpu[0] / force_square_sum);
+  return sqrt(error_cpu[0] / cost.force_square_sum);
 }
 
 static __global__ void
@@ -441,7 +440,7 @@ float Fitness::get_fitness_energy(void)
   for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
-  return sqrt(error_ave / potential_square_sum);
+  return sqrt(error_ave / cost.potential_square_sum);
 }
 
 float Fitness::get_fitness_stress(void)
@@ -492,5 +491,5 @@ float Fitness::get_fitness_stress(void)
     error_ave += error_cpu[n];
   }
 
-  return sqrt(error_ave / virial_square_sum);
+  return sqrt(error_ave / cost.virial_square_sum);
 }
