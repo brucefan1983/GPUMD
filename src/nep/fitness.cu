@@ -64,7 +64,7 @@ void Fitness::read_train_in(char* input_dir)
   strcat(file_train, "/train.in");
   FILE* fid = my_fopen(file_train, "r");
 
-  // get Nc and Nc_force
+  // get Nc
   read_Nc(fid);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);
