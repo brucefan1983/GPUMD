@@ -192,8 +192,8 @@ void Fitness::read_Na(FILE* fid)
     Na_sum[nc] = Na_sum[nc - 1] + Na[nc - 1];
   }
 
-  printf("Total number of atoms is %d:\n", N);
-  printf("    %d atoms in the largest configuration;\n", max_Na);
+  printf("Total number of atoms is %d.\n", N);
+  printf("%d atoms in the largest configuration.\n", max_Na);
 }
 
 void Fitness::read_potential(char* input_dir)

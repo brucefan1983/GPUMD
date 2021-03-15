@@ -74,10 +74,12 @@ void Neighbor::compute(int Nc, int N, int max_Na, int* Na, int* Na_sum, float* r
   gpu_find_neighbor<<<Nc, max_Na>>>(N, Na, Na_sum, rc2, h, NN, NL, r, r + N, r + N * 2);
   CUDA_CHECK_KERNEL
 
+#if 0 // only for debugging:
   CHECK(cudaDeviceSynchronize());
   for (int nc = 0; nc < Nc; ++nc) {
     printf("NN[%d]=%d,", nc, NN[Na_sum[nc]]);
     if (0 == (nc + 1) % 8)
       printf("\n");
   }
+#endif
 }
