@@ -1,5 +1,5 @@
 function [energy, virial, force] = find_E(r, box)
-epsilon = 1.032e-2;
+epsilon = 1.032;
 epsilon4 = epsilon * 4;
 sigma = 3.405;
 sigma6 = sigma^6;

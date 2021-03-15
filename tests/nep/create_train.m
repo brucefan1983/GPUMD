@@ -1,7 +1,7 @@
 clear; close all;
 [r0, box0] = find_r0_box0();
 Na = size(r0, 1); % number of atoms in one configuration
-Nc = 30; % number of configurations
+Nc = 40; % number of configurations
 fid = fopen('train.in', 'w');
 fprintf(fid,'%d\n',Nc);
 for nc=1:(Nc)
