@@ -280,9 +280,9 @@ void Fitness::compute(const int population_size, const float* population, float*
     potential->find_force(
       Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
       virial, pe);
-    fitness[n] = cost.weight_energy * get_fitness_energy();
-    fitness[n] += cost.weight_stress * get_fitness_stress();
-    fitness[n] += cost.weight_force * get_fitness_force();
+    fitness[n + 0 * population_size] = cost.weight_energy * get_fitness_energy();
+    fitness[n + 1 * population_size] = cost.weight_force * get_fitness_force();
+    fitness[n + 2 * population_size] = cost.weight_stress * get_fitness_stress();
   }
 }
 

@@ -36,8 +36,8 @@ SNES::SNES(char* input_dir, Fitness* fitness_function)
   population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
-  fitness.resize(population_size * 3);
-  fitness_copy.resize(population_size * 3);
+  fitness.resize(population_size * 6);
+  fitness_copy.resize(population_size * 6);
   index.resize(population_size);
   population.resize(population_size * number_of_variables);
   population_copy.resize(population_size * number_of_variables);
@@ -92,11 +92,14 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
   strcat(file, "/ga.out");
   FILE* fid = my_fopen(file, "w");
 
-  printf("%12s%12s%12s%12s\n", "generation", "cost_total", "cost_L1", "cost_L2");
+  printf(
+    "%-13s%-13s%-13s%-13s%-13s%-13s%-13s\n", "generation", "cost_total", "cost_L1", "cost_L2",
+    "cost_energy", "cost_force", "cost_virial");
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
-    fitness_function->compute(population_size, population.data(), fitness.data());
+    fitness_function->compute(
+      population_size, population.data(), fitness.data() + 3 * population_size);
     regularize();
     sort_population();
     output(n, fid);
@@ -121,13 +124,14 @@ void SNES::create_population()
 void SNES::regularize()
 {
   for (int p = 0; p < population_size; ++p) {
-    float cost_L1 = 0.0, cost_L2 = 0.0, cost_potential = fitness[p];
+    float cost_L1 = 0.0, cost_L2 = 0.0;
     for (int v = 0; v < number_of_variables; ++v) {
       int pv = p * number_of_variables + v;
       cost_L1 += 1.0e-5f * std::abs(population[pv]);
       cost_L2 += 1.0e-5f * 0.5f * population[pv] * population[pv];
     }
-    fitness[p] = cost_potential + cost_L1 + cost_L2;
+    fitness[p] = cost_L1 + cost_L2 + fitness[p + 3 * population_size] +
+                 fitness[p + 4 * population_size] + fitness[p + 5 * population_size];
     fitness[p + 1 * population_size] = cost_L1;
     fitness[p + 2 * population_size] = cost_L2;
   }
@@ -159,8 +163,9 @@ void SNES::sort_population()
     population_copy[n] = population[n];
   }
   for (int n = 0; n < population_size; ++n) {
-    fitness_copy[n + 1 * population_size] = fitness[n + 1 * population_size];
-    fitness_copy[n + 2 * population_size] = fitness[n + 2 * population_size];
+    for (int k = 1; k < 6; ++k) {
+      fitness_copy[n + k * population_size] = fitness[n + k * population_size];
+    }
   }
   for (int n = 0; n < population_size; ++n) {
     int n1 = n * number_of_variables;
@@ -169,28 +174,31 @@ void SNES::sort_population()
       s[n1 + m] = s_copy[n2 + m];
       population[n1 + m] = population_copy[n2 + m];
     }
-    fitness[n + 1 * population_size] = fitness_copy[index[n] + 1 * population_size];
-    fitness[n + 2 * population_size] = fitness_copy[index[n] + 2 * population_size];
+    for (int k = 1; k < 6; ++k) {
+      fitness[n + k * population_size] = fitness_copy[index[n] + k * population_size];
+    }
   }
 }
 
 void SNES::output(int generation, FILE* fid)
 {
   if (0 == (generation + 1) % 100) {
-    fprintf(
-      fid, "%d %g %g %g ", generation + 1, fitness[0], fitness[0 + 1 * population_size],
-      fitness[0 + 2 * population_size]); // to file
-
-    for (int m = 0; m < number_of_variables; ++m) {
-      fprintf(fid, "%g ", population[m]); // to file
+    fprintf(fid, "%d ", generation + 1);
+    for (int k = 0; k < 6; ++k) {
+      fprintf(fid, "%g ", fitness[0 + k * population_size]);
     }
-    fprintf(fid, "\n"); // to file
-    fflush(fid);        // to file
+    for (int m = 0; m < number_of_variables; ++m) {
+      fprintf(fid, "%g ", population[m]);
+    }
+    fprintf(fid, "\n");
+    fflush(fid);
   }
   if (0 == (generation + 1) % 1000) {
-    printf(
-      "%12d%12g%12g%12g\n", generation + 1, fitness[0], fitness[0 + 1 * population_size],
-      fitness[0 + 2 * population_size]); // to screen
+    printf("%-13d", generation + 1);
+    for (int k = 0; k < 6; ++k) {
+      printf("%-13.5e", fitness[0 + k * population_size]);
+    }
+    printf("\n");
   }
 }
 
