@@ -127,9 +127,11 @@ void SNES::regularize()
     float cost_L1 = 0.0, cost_L2 = 0.0;
     for (int v = 0; v < number_of_variables; ++v) {
       int pv = p * number_of_variables + v;
-      cost_L1 += 1.0e-5f * std::abs(population[pv]);
-      cost_L2 += 1.0e-5f * 0.5f * population[pv] * population[pv];
+      cost_L1 += std::abs(population[pv]);
+      cost_L2 += population[pv] * population[pv];
     }
+    cost_L1 *= 1.0e-3f / number_of_variables;                // good choice
+    cost_L2 = 5.0e-3f * sqrt(cost_L2 / number_of_variables); // good choice
     fitness[p] = cost_L1 + cost_L2 + fitness[p + 3 * population_size] +
                  fitness[p + 4 * population_size] + fitness[p + 5 * population_size];
     fitness[p + 1 * population_size] = cost_L1;
