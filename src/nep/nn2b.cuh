@@ -33,7 +33,7 @@ public:
     float b2;
     // global scaling
     float scaling = 1.0f;
-    float r1 = 0.0f;
+    float r1 = 4.0f;
     float r2 = 5.0f;
     float pi_factor = 3.1415927f;
   };
