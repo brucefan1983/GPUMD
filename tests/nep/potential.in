@@ -1,0 +1,12 @@
+potential_type        0
+num_neurons           6
+cutoff                5
+weight_force          0.8
+weight_energy         0.1
+weight_virial         0.1
+maximum_generation    30000
+
+
+
+
+
