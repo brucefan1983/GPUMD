@@ -81,9 +81,9 @@ void Fitness::read_train_in(char* input_dir)
   virial.resize(N * 6, Memory_Type::managed);
 
   float energy_ave = 0.0, virial_ave = 0.0;
-  cost.potential_square_sum = 0.0;
-  cost.virial_square_sum = 0.0;
-  cost.force_square_sum = 0.0;
+  cost.potential_std = 0.0;
+  cost.virial_std = 0.0;
+  cost.force_std = 0.0;
 
   for (int n = 0; n < Nc; ++n) {
     int count;
@@ -133,9 +133,9 @@ void Fitness::read_train_in(char* input_dir)
       if (count != 7) {
         print_error("reading error for train.in.\n");
       }
-      cost.force_square_sum += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
-                               force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
-                               force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
+      cost.force_std += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
+                        force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
+                        force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
     }
   }
 
@@ -146,12 +146,16 @@ void Fitness::read_train_in(char* input_dir)
 
   for (int n = 0; n < Nc; ++n) {
     float energy_diff = pe_ref[n] - energy_ave;
-    cost.potential_square_sum += energy_diff * energy_diff;
+    cost.potential_std += energy_diff * energy_diff;
     for (int k = 0; k < 6; ++k) {
       float virial_diff = virial_ref[n + Nc * k] - virial_ave;
-      cost.virial_square_sum += virial_diff * virial_diff;
+      cost.virial_std += virial_diff * virial_diff;
     }
   }
+
+  cost.potential_std = sqrt(cost.potential_std / Nc);
+  cost.force_std = sqrt(cost.force_std / (N * 3));
+  cost.virial_std = sqrt(cost.virial_std / (Nc * 6));
 }
 
 void Fitness::read_Nc(FILE* fid)
@@ -280,9 +284,33 @@ void Fitness::compute(const int population_size, const float* population, float*
     potential->find_force(
       Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
       virial, pe);
-    fitness[n + 0 * population_size] = cost.weight_energy * get_fitness_energy();
-    fitness[n + 1 * population_size] = cost.weight_force * get_fitness_force();
-    fitness[n + 2 * population_size] = cost.weight_stress * get_fitness_stress();
+    fitness[n + 0 * population_size] =
+      cost.weight_energy * get_fitness_energy() / cost.potential_std;
+    fitness[n + 1 * population_size] = cost.weight_force * get_fitness_force() / cost.force_std;
+    fitness[n + 2 * population_size] = cost.weight_stress * get_fitness_stress() / cost.virial_std;
+  }
+}
+
+void Fitness::report_error(
+  const int generation,
+  const float loss_total,
+  const float loss_L1,
+  const float loss_L2,
+  const float* elite)
+{
+  if (0 == (generation + 1) % 1000) {
+    potential->update_potential(elite);
+    potential->find_force(
+      Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
+      virial, pe);
+    float rmse_energy = get_fitness_energy();
+    float rmse_force = get_fitness_force();
+    float rmse_virial = get_fitness_stress();
+    printf(
+      "%-7d%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f\n", generation + 1,
+      loss_total, loss_L1, loss_L2, rmse_energy / cost.potential_std * 100.0f,
+      rmse_force / cost.force_std * 100.0f, rmse_virial / cost.virial_std * 100.0f, rmse_energy,
+      rmse_force, rmse_virial);
   }
 }
 
@@ -389,7 +417,7 @@ float Fitness::get_fitness_force(void)
     N, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(), force_ref.data() + N,
     force_ref.data() + N * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), sizeof(float), cudaMemcpyDeviceToHost));
-  return sqrt(error_cpu[0] / cost.force_square_sum);
+  return sqrt(error_cpu[0] / (N * 3));
 }
 
 static __global__ void
@@ -449,7 +477,7 @@ float Fitness::get_fitness_energy(void)
   for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
-  return sqrt(error_ave / cost.potential_square_sum);
+  return sqrt(error_ave / Nc);
 }
 
 float Fitness::get_fitness_stress(void)
@@ -500,5 +528,5 @@ float Fitness::get_fitness_stress(void)
     error_ave += error_cpu[n];
   }
 
-  return sqrt(error_ave / cost.virial_square_sum);
+  return sqrt(error_ave / (Nc * 6));
 }

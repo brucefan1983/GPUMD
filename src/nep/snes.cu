@@ -89,12 +89,12 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
   print_line_2();
   char file[200];
   strcpy(file, input_dir);
-  strcat(file, "/ga.out");
+  strcat(file, "/potential.out");
   FILE* fid = my_fopen(file, "w");
 
   printf(
-    "%-13s%-13s%-13s%-13s%-13s%-13s%-13s\n", "generation", "cost_total", "cost_L1", "cost_L2",
-    "cost_energy", "cost_force", "cost_virial");
+    "%-7s%-12s%-12s%-12s%-12s%-12s%-12s%-12s%-12s%-12s\n", "step", "cost_total", "cost_L1",
+    "cost_L2", "Energy(%)", "Force(%)", "Virial(%)", "Energy(eV)", "Force(eV/A)", "Virial(eV)");
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
@@ -103,6 +103,9 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
     regularize();
     sort_population();
     output(n, fid);
+    fitness_function->report_error(
+      n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
+      fitness[0 + 2 * population_size], population.data());
     update_mu_and_sigma();
   }
   fclose(fid);
@@ -184,23 +187,13 @@ void SNES::sort_population()
 
 void SNES::output(int generation, FILE* fid)
 {
-  if (0 == (generation + 1) % 100) {
+  if (0 == (generation + 1) % 1000) {
     fprintf(fid, "%d ", generation + 1);
-    for (int k = 0; k < 6; ++k) {
-      fprintf(fid, "%g ", fitness[0 + k * population_size]);
-    }
     for (int m = 0; m < number_of_variables; ++m) {
       fprintf(fid, "%g ", population[m]);
     }
     fprintf(fid, "\n");
     fflush(fid);
-  }
-  if (0 == (generation + 1) % 1000) {
-    printf("%-13d", generation + 1);
-    for (int k = 0; k < 6; ++k) {
-      printf("%-13.5e", fitness[0 + k * population_size]);
-    }
-    printf("\n");
   }
 }
 

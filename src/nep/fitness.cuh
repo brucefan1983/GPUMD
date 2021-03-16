@@ -25,9 +25,9 @@ struct Cost {
   float weight_force;
   float weight_energy;
   float weight_stress;
-  float force_square_sum;     // sum of force square
-  float potential_square_sum; // sum of potential square
-  float virial_square_sum;    // sum of virial square
+  float force_std;     // std of force
+  float potential_std; // std of potential
+  float virial_std;    // std of virial
 };
 
 class Fitness
@@ -36,6 +36,12 @@ public:
   Fitness(char*);
   void compute(const int, const float*, float*);
   void predict(char*, const float*);
+  void report_error(
+    const int generation,
+    const float loss_total,
+    const float loss_L1,
+    const float loss_L2,
+    const float* elite);
   int number_of_variables; // number of variables in the potential
   int maximum_generation;  // maximum number of generations for SNES;
 
