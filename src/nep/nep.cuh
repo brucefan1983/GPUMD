@@ -34,6 +34,19 @@ public:
     float pi_factor = 3.1415927f;
   };
 
+  struct Para3B {
+    int num_neurons_per_layer;
+    float w0[10];    // from the input layer to the first hidden layer
+    float b0[10];    // from the input layer to the first hidden layer
+    float w1[100];   // from the first hidden layer to the second hidden layer
+    float b1[10];    // from the first hidden layer to the second hidden layer
+    float w2[10];    // from the second hidden layer to the output layer
+    float b2;        // from the second hidden layer to the output layer
+    float r1 = 4.0f; // inner cutoff
+    float r2 = 5.0f; // outer cutoff
+    float pi_factor = 3.1415927f;
+  };
+
   NEP(int num_neurons_per_layer);
   void initialize(int, int);
   void update_potential(const float*);
@@ -53,4 +66,5 @@ public:
 
 private:
   Para2B para2b;
+  Para3B para3b;
 };
