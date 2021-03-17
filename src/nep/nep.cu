@@ -23,7 +23,7 @@ NN2B: The neuroevolution potential (NEP)
 #include "neighbor.cuh"
 #include "nep.cuh"
 
-NEP::NEP(int num_neurons_per_layer) { para.num_neurons_per_layer = num_neurons_per_layer; };
+NEP::NEP(int num_neurons_per_layer) { para2b.num_neurons_per_layer = num_neurons_per_layer; };
 
 void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 {
@@ -32,21 +32,23 @@ void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 
 void NEP::update_potential(const float* parameters)
 {
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    para.w0[n] = parameters[n];
-    para.b0[n] = parameters[n + para.num_neurons_per_layer];
-    for (int m = 0; m < para.num_neurons_per_layer; ++m) {
-      int nm = n * para.num_neurons_per_layer + m;
-      para.w1[nm] = parameters[nm + para.num_neurons_per_layer * 2];
+  for (int n = 0; n < para2b.num_neurons_per_layer; ++n) {
+    para2b.w0[n] = parameters[n];
+    para2b.b0[n] = parameters[n + para2b.num_neurons_per_layer];
+    for (int m = 0; m < para2b.num_neurons_per_layer; ++m) {
+      int nm = n * para2b.num_neurons_per_layer + m;
+      para2b.w1[nm] = parameters[nm + para2b.num_neurons_per_layer * 2];
     }
-    para.b1[n] = parameters[n + para.num_neurons_per_layer * (para.num_neurons_per_layer + 2)];
-    para.w2[n] = parameters[n + para.num_neurons_per_layer * (para.num_neurons_per_layer + 3)];
+    para2b.b1[n] =
+      parameters[n + para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 2)];
+    para2b.w2[n] =
+      parameters[n + para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 3)];
   }
-  para.b2 = parameters[para.num_neurons_per_layer * (para.num_neurons_per_layer + 4)];
+  para2b.b2 = parameters[para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 4)];
 }
 
 // get U_ij and (d U_ij / d r_ij) / r_ij
-static __device__ void find_p2_and_f2(NEP::Para para, float d12, float& p2, float& f2)
+static __device__ void find_p2_and_f2(NEP::Para2B para, float d12, float& p2, float& f2)
 {
   // from the input layer to the first hidden layer
   float x1[10] = {0.0f}; // hidden layer nuerons
@@ -73,11 +75,10 @@ static __device__ void find_p2_and_f2(NEP::Para para, float d12, float& p2, floa
     p2 += para.w2[n] * x2[n];
     f2 += para.w2[n] * y2[n];
   }
-  p2 = para.scaling * (p2 - para.b2);
-  f2 *= para.scaling;
+  p2 -= para.b2;
 }
 
-static __device__ void find_fc_and_fcp(NEP::Para para, float d12, float& fc, float& fcp)
+static __device__ void find_fc_and_fcp(NEP::Para2B para, float d12, float& fc, float& fcp)
 {
   if (d12 < para.r1) {
     fc = 1.0f;
@@ -98,7 +99,7 @@ static __global__ void find_force_2body(
   int* g_neighbor_number,
   int* g_neighbor_list,
   int* g_type,
-  NEP::Para para,
+  NEP::Para2B para,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
@@ -187,7 +188,7 @@ void NEP::find_force(
   GPU_Vector<float>& pe)
 {
   find_force_2body<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para, r, r + N, r + N * 2, h, f.data(),
+    N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, r, r + N, r + N * 2, h, f.data(),
     f.data() + N, f.data() + N * 2, virial.data(), pe.data());
   CUDA_CHECK_KERNEL
 }
