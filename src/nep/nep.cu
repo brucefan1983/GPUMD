@@ -119,14 +119,17 @@ static __global__ void find_force_2body(
   int number_of_particles,
   int* Na,
   int* Na_sum,
-  int* g_neighbor_number,
-  int* g_neighbor_list,
+  int* g_NN2b,
+  int* g_NL2b,
   int* g_type,
-  NEP::Para2B para,
+  NEP::Para2B para2b,
+  float r2_3b,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
   const float* __restrict__ g_box,
+  int* g_NN3b,
+  int* g_NL3b,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -138,7 +141,7 @@ static __global__ void find_force_2body(
   int n1 = N1 + threadIdx.x;
   if (n1 < N2) {
     const float* __restrict__ h = g_box + 18 * blockIdx.x;
-    int neighbor_number = g_neighbor_number[n1];
+    int neighbor_number = g_NN2b[n1];
 
     float x1 = g_x[n1];
     float y1 = g_y[n1];
@@ -155,8 +158,10 @@ static __global__ void find_force_2body(
     float virial_yz = 0.0f;
     float virial_zx = 0.0f;
 
+    int count = 0;
+
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int n2 = g_neighbor_list[n1 + number_of_particles * i1];
+      int n2 = g_NL2b[n1 + number_of_particles * i1];
 
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
@@ -164,10 +169,14 @@ static __global__ void find_force_2body(
       dev_apply_mic(h, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
+      if (d12 < r2_3b) {
+        g_NL3b[n1 + number_of_particles * (count++)] = n2;
+      }
+
       float p2 = 0.0f, f2 = 0.0f;
-      find_p2_and_f2(para, d12, p2, f2);
+      find_p2_and_f2(para2b, d12, p2, f2);
       float fc, fcp;
-      find_fc_and_fcp(para, d12, fc, fcp);
+      find_fc_and_fcp(para2b, d12, fc, fcp);
       p2 *= fc;
       f2 = (f2 * fc + p2 * fcp) / d12;
 
@@ -182,6 +191,8 @@ static __global__ void find_force_2body(
       virial_zx -= z12 * x12 * f2 * 0.5f;
       pe += p2 * 0.5f;
     }
+
+    g_NN3b[n1] = count;
 
     g_fx[n1] = fx;
     g_fy[n1] = fy;
@@ -211,7 +222,8 @@ void NEP::find_force(
   GPU_Vector<float>& pe)
 {
   find_force_2body<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, r, r + N, r + N * 2, h, f.data(),
-    f.data() + N, f.data() + N * 2, virial.data(), pe.data());
+    N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, para3b.r2, r, r + N, r + N * 2, h,
+    nep_data.NN3b.data(), nep_data.NL3b.data(), f.data(), f.data() + N, f.data() + N * 2,
+    virial.data(), pe.data());
   CUDA_CHECK_KERNEL
 }
