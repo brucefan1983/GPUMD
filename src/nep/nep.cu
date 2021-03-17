@@ -70,8 +70,7 @@ void NEP::update_potential(const float* parameters)
   para2b.b2 = parameters[para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 4)];
 }
 
-// get U_ij and (d U_ij / d r_ij) / r_ij
-static __device__ void find_p2_and_f2(NEP::Para2B para, float d12, float& p2, float& f2)
+static __device__ void apply_nn2b(NEP::Para2B para, float d12, float& p2, float& f2)
 {
   // from the input layer to the first hidden layer
   float x1[10] = {0.0f}; // hidden layer nuerons
@@ -101,14 +100,31 @@ static __device__ void find_p2_and_f2(NEP::Para2B para, float d12, float& p2, fl
   p2 -= para.b2;
 }
 
-static __device__ void find_fc_and_fcp(NEP::Para2B para, float d12, float& fc, float& fcp)
+static __device__ void apply_nn3b(NEP::Para3B para, float* q, float& p123, float* f123)
 {
-  if (d12 < para.r1) {
+  // TODO
+}
+
+static __device__ void find_fc(float r1, float r2, float pi_factor, float d12, float& fc)
+{
+  if (d12 < r1) {
+    fc = 1.0f;
+  } else if (d12 < r2) {
+    fc = 0.5f * cos(pi_factor * (d12 - r1)) + 0.5f;
+  } else {
+    fc = 0.0f;
+  }
+}
+
+static __device__ void
+find_fc_and_fcp(float r1, float r2, float pi_factor, float d12, float& fc, float& fcp)
+{
+  if (d12 < r1) {
     fc = 1.0f;
     fcp = 0.0f;
-  } else if (d12 < para.r2) {
-    fc = 0.5f * cos(para.pi_factor * (d12 - para.r1)) + 0.5f;
-    fcp = -sin(para.pi_factor * (d12 - para.r1)) * para.pi_factor * 0.5f;
+  } else if (d12 < r2) {
+    fc = 0.5f * cos(pi_factor * (d12 - r1)) + 0.5f;
+    fcp = -sin(pi_factor * (d12 - r1)) * pi_factor * 0.5f;
   } else {
     fc = 0.0f;
     fcp = 0.0f;
@@ -174,9 +190,9 @@ static __global__ void find_force_2body(
       }
 
       float p2 = 0.0f, f2 = 0.0f;
-      find_p2_and_f2(para2b, d12, p2, f2);
+      apply_nn2b(para2b, d12, p2, f2);
       float fc, fcp;
-      find_fc_and_fcp(para2b, d12, fc, fcp);
+      find_fc_and_fcp(para2b.r1, para2b.r2, para2b.pi_factor, d12, fc, fcp);
       p2 *= fc;
       f2 = (f2 * fc + p2 * fcp) / d12;
 
@@ -204,6 +220,173 @@ static __global__ void find_force_2body(
     g_virial[n1 + number_of_particles * 4] = virial_yz;
     g_virial[n1 + number_of_particles * 5] = virial_zx;
     g_pe[n1] = pe;
+  }
+}
+
+static __global__ void find_partial_force_3body(
+  int number_of_particles,
+  int* Na,
+  int* Na_sum,
+  int* g_neighbor_number,
+  int* g_neighbor_list,
+  int* g_type,
+  NEP::Para3B para3b,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
+  const float* __restrict__ g_box,
+  float* g_potential,
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+
+  if (n1 < N2) {
+    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    int neighbor_number = g_neighbor_number[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
+    float pot_energy = 0.0f;
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * number_of_particles + n1;
+      int n2 = g_neighbor_list[index];
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float d12inv = 1.0f / d12;
+      float fc12, fcp12;
+      find_fc_and_fcp(para3b.r1, para3b.r2, para3b.pi_factor, d12, fc12, fcp12);
+
+      float p12 = 0.0f, f12[3] = {0.0f, 0.0f, 0.0f};
+
+      for (int i2 = 0; i2 < neighbor_number; ++i2) {
+        int n3 = g_neighbor_list[n1 + number_of_particles * i2];
+        if (n3 == n2) {
+          continue;
+        }
+        float x13 = g_x[n3] - x1;
+        float y13 = g_y[n3] - y1;
+        float z13 = g_z[n3] - z1;
+        dev_apply_mic(h, x13, y13, z13);
+        float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+        float fc13;
+        find_fc(para3b.r1, para3b.r2, para3b.pi_factor, d13, fc13);
+
+        float x23 = x13 - x12;
+        float y23 = y13 - y12;
+        float z23 = z13 - z12;
+        float d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);
+        float d23inv = 1.0f / d23;
+        float q[3] = {d12 + d13, (d12 - d13) * (d12 - d13), d23};
+        float p123 = 0.0f, f123[3] = {0.0f, 0.0f, 0.0f};
+        apply_nn3b(para3b, q, p123, f123);
+
+        p12 += p123 * fc12 * fc13;
+        float tmp = p123 * fcp12 * fc13 + (f123[0] + f123[1] * (d12 - d13) * 2.0f) * fc12 * fc13;
+        f12[0] += 2.0f * (tmp * x12 * d12inv - f123[2] * fc12 * fc13 * x23 * d23inv);
+        f12[1] += 2.0f * (tmp * y12 * d12inv - f123[2] * fc12 * fc13 * y23 * d23inv);
+        f12[2] += 2.0f * (tmp * z12 * d12inv - f123[2] * fc12 * fc13 * z23 * d23inv);
+      }
+      pot_energy += p12;
+      g_f12x[index] = f12[0];
+      g_f12y[index] = f12[1];
+      g_f12z[index] = f12[2];
+    }
+    g_potential[n1] = pot_energy;
+  }
+}
+
+static __global__ void find_force_3body(
+  int number_of_particles,
+  int* Na,
+  int* Na_sum,
+  int* g_neighbor_number,
+  int* g_neighbor_list,
+  const float* __restrict__ g_f12x,
+  const float* __restrict__ g_f12y,
+  const float* __restrict__ g_f12z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
+  const float* __restrict__ g_box,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_virial)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    float s_fx = 0.0f;
+    float s_fy = 0.0f;
+    float s_fz = 0.0f;
+    float s_virial_xx = 0.0f;
+    float s_virial_yy = 0.0f;
+    float s_virial_zz = 0.0f;
+    float s_virial_xy = 0.0f;
+    float s_virial_yz = 0.0f;
+    float s_virial_zx = 0.0f;
+    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    int neighbor_number = g_neighbor_number[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * number_of_particles + n1;
+      int n2 = g_neighbor_list[index];
+      int neighbor_number_2 = g_neighbor_number[n2];
+
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+
+      float f12x = g_f12x[index];
+      float f12y = g_f12y[index];
+      float f12z = g_f12z[index];
+      int offset = 0;
+      for (int k = 0; k < neighbor_number_2; ++k) {
+        if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
+          offset = k;
+          break;
+        }
+      }
+      index = offset * number_of_particles + n2;
+      float f21x = g_f12x[index];
+      float f21y = g_f12y[index];
+      float f21z = g_f12z[index];
+
+      s_fx += f12x - f21x;
+      s_fy += f12y - f21y;
+      s_fz += f12z - f21z;
+
+      s_virial_xx -= x12 * (f12x - f21x) * 0.5f;
+      s_virial_yy -= y12 * (f12y - f21y) * 0.5f;
+      s_virial_zz -= z12 * (f12z - f21z) * 0.5f;
+      s_virial_xy -= x12 * (f12y - f21y) * 0.5f;
+      s_virial_yz -= y12 * (f12z - f21z) * 0.5f;
+      s_virial_zx -= z12 * (f12x - f21x) * 0.5f;
+    }
+
+    g_fx[n1] = s_fx;
+    g_fy[n1] = s_fy;
+    g_fz[n1] = s_fz;
+
+    g_virial[n1] = s_virial_xx;
+    g_virial[n1 + number_of_particles] = s_virial_yy;
+    g_virial[n1 + number_of_particles * 2] = s_virial_zz;
+    g_virial[n1 + number_of_particles * 3] = s_virial_xy;
+    g_virial[n1 + number_of_particles * 4] = s_virial_yz;
+    g_virial[n1 + number_of_particles * 5] = s_virial_zx;
   }
 }
 
