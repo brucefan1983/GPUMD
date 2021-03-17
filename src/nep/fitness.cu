@@ -229,10 +229,10 @@ void Fitness::read_potential(char* input_dir)
   }
   printf("three_body: %d neurons, %g A to %g A.\n", num_neurons_3b, r1_3b, r2_3b);
 
-  potential = std::make_unique<NEP>(num_neurons_2b);
+  potential = std::make_unique<NEP>(num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b);
 
-  number_of_variables = num_neurons_2b * (num_neurons_2b + 4) + 1;
-  neighbor.cutoff = r2_2b;
+  number_of_variables = num_neurons_2b * (num_neurons_2b + 4) + 1; // TODO
+  neighbor.cutoff = r2_2b;                                         // TODO
 
   count = fscanf(fid, "%s%f", name, &cost.weight_force);
   if (count != 2) {

@@ -14,7 +14,7 @@
 */
 
 /*----------------------------------------------------------------------------80
-NN2B: The neuroevolution potential (NEP)
+The neuroevolution potential (NEP)
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
@@ -23,11 +23,34 @@ NN2B: The neuroevolution potential (NEP)
 #include "neighbor.cuh"
 #include "nep.cuh"
 
-NEP::NEP(int num_neurons_per_layer) { para2b.num_neurons_per_layer = num_neurons_per_layer; };
+NEP::NEP(int num_neurons_2b, float r1_2b, float r2_2b, int num_neurons_3b, float r1_3b, float r2_3b)
+{
+  para2b.num_neurons_per_layer = num_neurons_2b;
+  para2b.r1 = r1_2b;
+  para2b.r2 = r2_2b;
+  para2b.pi_factor = 3.1415927f / (r2_2b - r1_2b);
+  para3b.num_neurons_per_layer = num_neurons_3b;
+  para3b.r1 = r1_3b;
+  para3b.r2 = r2_3b;
+  para3b.pi_factor = 3.1415927f / (r2_3b - r1_3b);
+
+  if (num_neurons_2b > 0) {
+    has_2b = true;
+  }
+  if (num_neurons_3b > 0) {
+    has_3b = true;
+  }
+};
 
 void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 {
-  // nothing
+  if (has_3b) {
+    nep_data.f12x3b.resize(N * MAX_ATOM_NUMBER);
+    nep_data.f12y3b.resize(N * MAX_ATOM_NUMBER);
+    nep_data.f12z3b.resize(N * MAX_ATOM_NUMBER);
+    nep_data.NN3b.resize(N);
+    nep_data.NL3b.resize(N * MAX_ATOM_NUMBER);
+  }
 }
 
 void NEP::update_potential(const float* parameters)
