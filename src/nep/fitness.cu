@@ -213,29 +213,26 @@ void Fitness::read_potential(char* input_dir)
 
   char name[20];
 
-  int count = fscanf(fid, "%s%d", name, &potential_type);
-  if (count != 2) {
+  int num_neurons_2b = 0;
+  float r1_2b, r2_2b;
+  int count = fscanf(fid, "%s%d%f%f", name, &num_neurons_2b, &r1_2b, &r2_2b);
+  if (count != 4) {
     print_error("reading error for potential.in.");
   }
-  if (potential_type == 0) {
-    int num_neurons_per_layer = 0;
-    count = fscanf(fid, "%s%d", name, &num_neurons_per_layer);
-    if (count != 2) {
-      print_error("reading error for potential.in.");
-    }
-    printf("num_neurons_per_layer is %d.\n", num_neurons_per_layer);
-    number_of_variables = num_neurons_per_layer * (num_neurons_per_layer + 4) + 1;
-    printf("Use the NN2B potential with %d parameters.\n", number_of_variables);
-    potential = std::make_unique<NEP>(num_neurons_per_layer);
-  } else {
-    print_error("unsupported potential type.\n");
-  }
+  printf("two_body: %d neurons, %g A to %g A.\n", num_neurons_2b, r1_2b, r2_2b);
 
-  count = fscanf(fid, "%s%f", name, &neighbor.cutoff);
-  if (count != 2) {
+  int num_neurons_3b = 0;
+  float r1_3b, r2_3b;
+  count = fscanf(fid, "%s%d%f%f", name, &num_neurons_3b, &r1_3b, &r2_3b);
+  if (count != 4) {
     print_error("reading error for potential.in.");
   }
-  printf("cutoff for neighbor list is %g A.\n", neighbor.cutoff);
+  printf("three_body: %d neurons, %g A to %g A.\n", num_neurons_3b, r1_3b, r2_3b);
+
+  potential = std::make_unique<NEP>(num_neurons_2b);
+
+  number_of_variables = num_neurons_2b * (num_neurons_2b + 4) + 1;
+  neighbor.cutoff = r2_2b;
 
   count = fscanf(fid, "%s%f", name, &cost.weight_force);
   if (count != 2) {
