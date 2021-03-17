@@ -21,7 +21,7 @@ Get the fitness
 #include "fitness.cuh"
 #include "gpu_vector.cuh"
 #include "neighbor.cuh"
-#include "nn2b.cuh"
+#include "nep.cuh"
 #include <vector>
 
 Fitness::Fitness(char* input_dir)
@@ -226,7 +226,7 @@ void Fitness::read_potential(char* input_dir)
     printf("num_neurons_per_layer is %d.\n", num_neurons_per_layer);
     number_of_variables = num_neurons_per_layer * (num_neurons_per_layer + 4) + 1;
     printf("Use the NN2B potential with %d parameters.\n", number_of_variables);
-    potential = std::make_unique<NN2B>(num_neurons_per_layer);
+    potential = std::make_unique<NEP>(num_neurons_per_layer);
   } else {
     print_error("unsupported potential type.\n");
   }

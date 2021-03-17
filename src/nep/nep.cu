@@ -14,23 +14,23 @@
 */
 
 /*----------------------------------------------------------------------------80
-NN2B: The general 2-body potential based on neural network (NN)
+NN2B: The neuroevolution potential (NEP)
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
 #include "gpu_vector.cuh"
 #include "mic.cuh"
 #include "neighbor.cuh"
-#include "nn2b.cuh"
+#include "nep.cuh"
 
-NN2B::NN2B(int num_neurons_per_layer) { para.num_neurons_per_layer = num_neurons_per_layer; };
+NEP::NEP(int num_neurons_per_layer) { para.num_neurons_per_layer = num_neurons_per_layer; };
 
-void NN2B::initialize(int N, int MAX_ATOM_NUMBER)
+void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 {
   // nothing
 }
 
-void NN2B::update_potential(const float* parameters)
+void NEP::update_potential(const float* parameters)
 {
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
     para.w0[n] = parameters[n];
@@ -46,7 +46,7 @@ void NN2B::update_potential(const float* parameters)
 }
 
 // get U_ij and (d U_ij / d r_ij) / r_ij
-static __device__ void find_p2_and_f2(NN2B::Para para, float d12, float& p2, float& f2)
+static __device__ void find_p2_and_f2(NEP::Para para, float d12, float& p2, float& f2)
 {
   // from the input layer to the first hidden layer
   float x1[10] = {0.0f}; // hidden layer nuerons
@@ -77,7 +77,7 @@ static __device__ void find_p2_and_f2(NN2B::Para para, float d12, float& p2, flo
   f2 *= para.scaling;
 }
 
-static __device__ void find_fc_and_fcp(NN2B::Para para, float d12, float& fc, float& fcp)
+static __device__ void find_fc_and_fcp(NEP::Para para, float d12, float& fc, float& fcp)
 {
   if (d12 < para.r1) {
     fc = 1.0f;
@@ -98,7 +98,7 @@ static __global__ void find_force_2body(
   int* g_neighbor_number,
   int* g_neighbor_list,
   int* g_type,
-  NN2B::Para para,
+  NEP::Para para,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
@@ -172,7 +172,7 @@ static __global__ void find_force_2body(
   }
 }
 
-void NN2B::find_force(
+void NEP::find_force(
   int Nc,
   int N,
   int* Na,

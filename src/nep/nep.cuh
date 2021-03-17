@@ -18,7 +18,7 @@
 #include "potential.cuh"
 class Neighbor;
 
-class NN2B : public Potential
+class NEP : public Potential
 {
 public:
   struct Para {
@@ -38,7 +38,7 @@ public:
     float pi_factor = 3.1415927f;
   };
 
-  NN2B(int num_neurons_per_layer);
+  NEP(int num_neurons_per_layer);
   void initialize(int, int);
   void update_potential(const float*);
   void find_force(
