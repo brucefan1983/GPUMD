@@ -72,37 +72,78 @@ void NEP::update_potential(const float* parameters)
 
 static __device__ void apply_nn2b(NEP::Para2B para, float d12, float& p2, float& f2)
 {
-  // from the input layer to the first hidden layer
-  float x1[10] = {0.0f}; // hidden layer nuerons
-  float y1[10] = {0.0f}; // derivatives of the hidden layer nuerons
+  // energy
+  float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
+  float x2[10] = {0.0f}; // states of the 2nd hidden layer nuerons
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
     x1[n] = tanh(para.w0[n] * d12 / para.r2 - para.b0[n]);
-    y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n] / para.r2;
   }
-
-  // from the first hidden layer to the second hidden layer
-  float x2[10] = {0.0f}; // hidden layer nuerons
-  float y2[10] = {0.0f}; // derivatives of the hidden layer nuerons
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
     for (int m = 0; m < para.num_neurons_per_layer; ++m) {
       x2[n] += para.w1[n * para.num_neurons_per_layer + m] * x1[m];
-      y2[n] += para.w1[n * para.num_neurons_per_layer + m] * y1[m];
     }
     x2[n] = tanh(x2[n] - para.b1[n]);
-    y2[n] *= 1.0f - x2[n] * x2[n];
   }
-
-  // from the hidden layer to the output layer
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
     p2 += para.w2[n] * x2[n];
-    f2 += para.w2[n] * y2[n];
   }
   p2 -= para.b2;
+
+  // energy gradient (only one component here)
+  float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer nuerons
+  float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer nuerons
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n] / para.r2;
+  }
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    for (int m = 0; m < para.num_neurons_per_layer; ++m) {
+      y2[n] += para.w1[n * para.num_neurons_per_layer + m] * y1[m];
+    }
+    y2[n] *= 1.0f - x2[n] * x2[n];
+  }
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    f2 += para.w2[n] * y2[n];
+  }
 }
 
 static __device__ void apply_nn3b(NEP::Para3B para, float* q, float& p123, float* f123)
 {
-  // TODO
+  // energy
+  float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
+  float x2[10] = {0.0f}; // states of the 2nd hidden layer nuerons
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    float w0_times_q =
+      para.w0[n * 3 + 0] * q[0] + para.w0[n * 3 + 1] * q[1] + para.w0[n * 3 + 2] * q[2];
+    x1[n] = tanh(w0_times_q - para.b0[n]);
+  }
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    for (int m = 0; m < para.num_neurons_per_layer; ++m) {
+      x2[n] += para.w1[n * para.num_neurons_per_layer + m] * x1[m];
+    }
+    x2[n] = tanh(x2[n] - para.b1[n]);
+  }
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    p123 += para.w2[n] * x2[n];
+  }
+  p123 -= para.b2;
+
+  // energy gradient (compute it component by component)
+  float y1[10] = {0.0f};        // derivatives of the states of the 1st hidden layer nuerons
+  float y2[10] = {0.0f};        // derivatives of the states of the 2nd hidden layer nuerons
+  for (int d = 0; d < 3; ++d) { // loop over the descriptor components
+    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+      y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n * 3 + d];
+    }
+    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+      for (int m = 0; m < para.num_neurons_per_layer; ++m) {
+        y2[n] += para.w1[n * para.num_neurons_per_layer + m] * y1[m];
+      }
+      y2[n] *= 1.0f - x2[n] * x2[n];
+    }
+    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+      f123[d] += para.w2[n] * y2[n];
+    }
+  }
 }
 
 static __device__ void find_fc(float r1, float r2, float pi_factor, float d12, float& fc)
