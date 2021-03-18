@@ -1,5 +1,5 @@
 two_body              6 4 5
-three_body            6 4 5
+three_body            0 4 5
 weight_force          0.8
 weight_energy         0.1
 weight_virial         0.1

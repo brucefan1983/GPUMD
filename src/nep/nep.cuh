@@ -19,11 +19,11 @@
 class Neighbor;
 
 struct NEP_Data {
-  GPU_Vector<double> f12x3b; // 3-body partial forces
-  GPU_Vector<double> f12y3b; // 3-body partial forces
-  GPU_Vector<double> f12z3b; // 3-body partial forces
-  GPU_Vector<int> NN3b;      // 3-body neighbor number
-  GPU_Vector<int> NL3b;      // 3-body neighbor list
+  GPU_Vector<float> f12x3b; // 3-body partial forces
+  GPU_Vector<float> f12y3b; // 3-body partial forces
+  GPU_Vector<float> f12z3b; // 3-body partial forces
+  GPU_Vector<int> NN3b;     // 3-body neighbor number
+  GPU_Vector<int> NL3b;     // 3-body neighbor list
 };
 
 class NEP : public Potential
@@ -73,9 +73,6 @@ public:
     GPU_Vector<float>& pe);
 
 private:
-  bool has_2b = false;
-  bool has_3b = false;
-
   Para2B para2b;
   Para3B para3b;
   NEP_Data nep_data;
