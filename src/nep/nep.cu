@@ -81,13 +81,13 @@ void NEP::update_potential(const float* parameters)
   }
 }
 
-static __device__ void apply_nn2b(NEP::Para2B para, float d12, float& p2, float& f2)
+static __device__ void apply_nn2b(NEP::Para2B para, float q, float& p2, float& f2)
 {
   // energy
   float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
   float x2[10] = {0.0f}; // states of the 2nd hidden layer nuerons
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    x1[n] = tanh(para.w0[n] * d12 / para.r2 - para.b0[n]);
+    x1[n] = tanh(para.w0[n] * q - para.b0[n]);
   }
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
     for (int m = 0; m < para.num_neurons_per_layer; ++m) {
@@ -104,7 +104,7 @@ static __device__ void apply_nn2b(NEP::Para2B para, float d12, float& p2, float&
   float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer nuerons
   float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer nuerons
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n] / para.r2;
+    y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n];
   }
   for (int n = 0; n < para.num_neurons_per_layer; ++n) {
     for (int m = 0; m < para.num_neurons_per_layer; ++m) {
@@ -282,7 +282,8 @@ static __global__ void find_force_2body(
       }
 
       float p2 = 0.0f, f2 = 0.0f;
-      apply_nn2b(para2b, d12, p2, f2);
+      apply_nn2b(para2b, d12 / para2b.r2, p2, f2);
+      f2 /= para2b.r2;
       float fc, fcp;
       find_fc_and_fcp(para2b.r1, para2b.r2, para2b.pi_factor, d12, fc, fcp);
       p2 *= fc;
