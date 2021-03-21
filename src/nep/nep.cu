@@ -68,18 +68,23 @@ void NEP::update_potential(const float* parameters)
   if (ann3b.num_neurons_per_layer > 0) {
     const int offset = ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
     for (int n = 0; n < ann3b.num_neurons_per_layer; ++n) {
-      ann3b.w0[n] = parameters[n + offset];
-      ann3b.b0[n] = parameters[n + ann3b.num_neurons_per_layer + offset];
+      for (int d = 0; d < ann3b.dim; ++d) {
+        ann3b.w0[n * ann3b.dim + d] = parameters[n * ann3b.dim + d + offset];
+      }
+      ann3b.b0[n] = parameters[n + ann3b.num_neurons_per_layer * ann3b.dim + offset];
       for (int m = 0; m < ann3b.num_neurons_per_layer; ++m) {
         int nm = n * ann3b.num_neurons_per_layer + m;
-        ann3b.w1[nm] = parameters[nm + ann3b.num_neurons_per_layer * 2 + offset];
+        ann3b.w1[nm] = parameters[nm + ann3b.num_neurons_per_layer * (ann3b.dim + 1) + offset];
       }
-      ann3b.b1[n] =
-        parameters[n + ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + 2) + offset];
-      ann3b.w2[n] =
-        parameters[n + ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + 3) + offset];
+      ann3b.b1[n] = parameters
+        [n + ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + (ann3b.dim + 1)) +
+         offset];
+      ann3b.w2[n] = parameters
+        [n + ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + (ann3b.dim + 2)) +
+         offset];
     }
-    ann3b.b2 = parameters[ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + 4) + offset];
+    ann3b.b2 = parameters
+      [ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + (ann3b.dim + 3)) + offset];
   }
 }
 
