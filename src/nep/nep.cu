@@ -157,6 +157,46 @@ static __device__ void apply_nn3b(NEP::Para3B para, float* q, float& p123, float
   }
 }
 
+static __device__ void apply_nnmb(NEP::ParaMB para, float* q, float& p123, float* f123)
+{
+  // energy
+  float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
+  float x2[10] = {0.0f}; // states of the 2nd hidden layer nuerons
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    float w0_times_q =
+      para.w0[n * 3 + 0] * q[0] + para.w0[n * 3 + 1] * q[1] + para.w0[n * 3 + 2] * q[2];
+    x1[n] = tanh(w0_times_q - para.b0[n]);
+  }
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    for (int m = 0; m < para.num_neurons_per_layer; ++m) {
+      x2[n] += para.w1[n * para.num_neurons_per_layer + m] * x1[m];
+    }
+    x2[n] = tanh(x2[n] - para.b1[n]);
+  }
+  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+    p123 += para.w2[n] * x2[n];
+  }
+  p123 -= para.b2;
+
+  // energy gradient (compute it component by component)
+  for (int d = 0; d < 3; ++d) {
+    float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer nuerons
+    float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer nuerons
+    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+      y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n * 3 + d];
+    }
+    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+      for (int m = 0; m < para.num_neurons_per_layer; ++m) {
+        y2[n] += para.w1[n * para.num_neurons_per_layer + m] * y1[m];
+      }
+      y2[n] *= 1.0f - x2[n] * x2[n];
+    }
+    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
+      f123[d] += para.w2[n] * y2[n];
+    }
+  }
+}
+
 static __device__ void find_fc(float r1, float r2, float pi_factor, float d12, float& fc)
 {
   if (d12 < r1) {
@@ -441,6 +481,67 @@ static __global__ void find_force_3body(
     g_virial[n1 + number_of_particles * 3] += s_virial_xy;
     g_virial[n1 + number_of_particles * 4] += s_virial_yz;
     g_virial[n1 + number_of_particles * 5] += s_virial_zx;
+  }
+}
+
+static __global__ void find_energy_manybody(
+  int number_of_particles,
+  int* Na,
+  int* Na_sum,
+  int* g_NN,
+  int* g_NL,
+  int* g_type,
+  NEP::ParaMB paramb,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
+  const float* __restrict__ g_box,
+  float* g_pe,
+  float* g_Fp)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    int neighbor_number = g_NN[n1];
+
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
+
+    float rho[24] = {0.0f};
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int n2 = g_NL[n1 + number_of_particles * i1];
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float fc12;
+      find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
+
+      for (int k = 0; k < paramb.num_rs; ++k) {
+        float radial_function = exp(-paramb.alpha * (d12 - paramb.rs[k]) * (d12 - paramb.rs[k]));
+        radial_function *= fc12;
+        rho[k * 3 + 0] = radial_function;
+        rho[k * 3 + 1] = radial_function * (x12 + y12 + z12);
+        rho[k * 3 + 2] =
+          radial_function * (x12 * x12 + y12 * y12 + z12 * z12 + x12 * y12 + y12 * z12 + z12 * x12);
+      }
+    }
+    for (int k = 0; k < paramb.num_rs * 3; ++k) {
+      rho[k] = rho[k] * rho[k];
+    }
+
+    float F, Fp[24];
+    apply_nnmb(paramb, rho, F, Fp);
+
+    g_pe[n1] += F;
+    for (int k = 0; k < paramb.num_rs * 3; ++k) {
+      g_Fp[k * number_of_particles + n1] = Fp[k];
+    }
   }
 }
 

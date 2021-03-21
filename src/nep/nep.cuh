@@ -55,6 +55,23 @@ public:
     float pi_factor = 0.0f; // pi/(r2-r1)
   };
 
+  struct ParaMB {
+    int num_neurons_per_layer;
+    float w0[30];           // from the input layer to the first hidden layer
+    float b0[10];           // from the input layer to the first hidden layer
+    float w1[100];          // from the first hidden layer to the second hidden layer
+    float b1[10];           // from the first hidden layer to the second hidden layer
+    float w2[10];           // from the second hidden layer to the output layer
+    float b2;               // from the second hidden layer to the output layer
+    float r1 = 0.0f;        // inner cutoff
+    float r2 = 0.0f;        // outer cutoff
+    float pi_factor = 0.0f; // pi/(r2-r1)
+
+    float num_rs = 8;
+    float alpha = 0.36;
+    float rs[10];
+  };
+
   NEP(int num_neurons_2b, float r1_2b, float r2_2b, int num_neurons_3b, float r1_3b, float r2_3b);
   void initialize(int, int);
   void update_potential(const float*);
@@ -75,5 +92,6 @@ public:
 private:
   Para2B para2b;
   Para3B para3b;
+  ParaMB paramb;
   NEP_Data nep_data;
 };
