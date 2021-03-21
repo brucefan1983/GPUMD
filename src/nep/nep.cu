@@ -23,7 +23,18 @@ The neuroevolution potential (NEP)
 #include "neighbor.cuh"
 #include "nep.cuh"
 
-NEP::NEP(int num_neurons_2b, float r1_2b, float r2_2b, int num_neurons_3b, float r1_3b, float r2_3b)
+NEP::NEP(
+  int num_neurons_2b,
+  float r1_2b,
+  float r2_2b,
+  int num_neurons_3b,
+  float r1_3b,
+  float r2_3b,
+  int num_neurons_mb,
+  int n_max,
+  int L_max,
+  float r1_mb,
+  float r2_mb)
 {
   // 2body
   ann2b.dim = 1;
@@ -37,7 +48,14 @@ NEP::NEP(int num_neurons_2b, float r1_2b, float r2_2b, int num_neurons_3b, float
   para3b.r1 = r1_3b;
   para3b.r2 = r2_3b;
   para3b.pi_factor = 3.1415927f / (r2_3b - r1_3b);
-  // manybody (TODO)
+  // manybody
+  paramb.n_max = n_max;
+  paramb.L_max = L_max;
+  paramb.r1 = r1_mb;
+  paramb.r2 = r2_mb;
+  paramb.pi_factor = 3.1415927f / (r2_mb - r1_mb);
+  annmb.dim = n_max * (L_max + 1);
+  annmb.num_neurons_per_layer = num_neurons_mb;
 };
 
 void NEP::initialize(int N, int MAX_ATOM_NUMBER)

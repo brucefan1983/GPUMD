@@ -229,22 +229,42 @@ void Fitness::read_potential(char* input_dir)
   }
   printf("three_body: %d neurons, %g A to %g A.\n", num_neurons_3b, r1_3b, r2_3b);
 
-  potential = std::make_unique<NEP>(num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b);
+  int num_neurons_mb = 0;
+  float r1_mb, r2_mb;
+  int n_max, L_max;
+  count = fscanf(fid, "%s%d%d%d%f%f", name, &num_neurons_mb, &n_max, &L_max, &r1_mb, &r2_mb);
+  if (count != 6) {
+    print_error("reading error for potential.in.");
+  }
+  printf(
+    "many_body: %d neurons, %d radial bases, %d angular bases, %g A to %g A.\n", num_neurons_mb,
+    n_max, L_max, r1_mb, r2_mb);
+
+  potential = std::make_unique<NEP>(
+    num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b, num_neurons_mb, n_max, L_max, r1_mb,
+    r2_mb);
 
   int number_of_variables_2b = 0;
   number_of_variables = 0;
   if (num_neurons_2b > 0) {
-    number_of_variables_2b = num_neurons_2b * (num_neurons_2b + 4) + 1;
+    number_of_variables_2b = num_neurons_2b * (num_neurons_2b + 3 + 1) + 1;
     number_of_variables += number_of_variables_2b;
   }
   printf("number of parameters to be optimized for 2-body part = %d.\n", number_of_variables_2b);
 
   int number_of_variables_3b = 0;
   if (num_neurons_3b > 0) {
-    number_of_variables_3b = num_neurons_3b * (num_neurons_3b + 6) + 1;
+    number_of_variables_3b = num_neurons_3b * (num_neurons_3b + 3 + 3) + 1;
     number_of_variables += number_of_variables_3b;
   }
   printf("number of parameters to be optimized for 3-body part = %d.\n", number_of_variables_3b);
+
+  int number_of_variables_mb = 0;
+  if (num_neurons_mb > 0) {
+    number_of_variables_mb = num_neurons_mb * (num_neurons_mb + 3 + n_max * (L_max + 1)) + 1;
+    number_of_variables += number_of_variables_mb;
+  }
+  printf("number of parameters to be optimized for manybody part = %d.\n", number_of_variables_mb);
   printf("total number of parameters to be optimized = %d.\n", number_of_variables);
 
   neighbor.cutoff = r2_2b;

@@ -57,12 +57,26 @@ public:
     float r2 = 0.0f;        // outer cutoff
     float pi_factor = 0.0f; // pi/(r2-r1)
 
+    int n_max;
+    int L_max;
+
     float num_rs = 8;
     float alpha = 0.36;
     float rs[10];
   };
 
-  NEP(int num_neurons_2b, float r1_2b, float r2_2b, int num_neurons_3b, float r1_3b, float r2_3b);
+  NEP(
+    int num_neurons_2b,
+    float r1_2b,
+    float r2_2b,
+    int num_neurons_3b,
+    float r1_3b,
+    float r2_3b,
+    int num_neurons_mb,
+    int n_max,
+    int L_max,
+    float r1_mb,
+    float r2_mb);
   void initialize(int, int);
   void update_potential(const float*);
   void find_force(
