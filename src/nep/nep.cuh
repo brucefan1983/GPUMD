@@ -30,14 +30,6 @@ class NEP : public Potential
 {
 public:
   struct Para2B {
-    int dim = 1;
-    int num_neurons_per_layer;
-    float w0[10];           // from the input layer to the first hidden layer
-    float b0[10];           // from the input layer to the first hidden layer
-    float w1[100];          // from the first hidden layer to the second hidden layer
-    float b1[10];           // from the first hidden layer to the second hidden layer
-    float w2[10];           // from the second hidden layer to the output layer
-    float b2;               // from the second hidden layer to the output layer
     float r1 = 0.0f;        // inner cutoff
     float r2 = 0.0f;        // outer cutoff
     float pi_factor = 0.0f; // pi/(r2-r1)
@@ -61,13 +53,6 @@ public:
   };
 
   struct ParaMB {
-    int num_neurons_per_layer;
-    float w0[30];           // from the input layer to the first hidden layer
-    float b0[10];           // from the input layer to the first hidden layer
-    float w1[100];          // from the first hidden layer to the second hidden layer
-    float b1[10];           // from the first hidden layer to the second hidden layer
-    float w2[10];           // from the second hidden layer to the output layer
-    float b2;               // from the second hidden layer to the output layer
     float r1 = 0.0f;        // inner cutoff
     float r2 = 0.0f;        // outer cutoff
     float pi_factor = 0.0f; // pi/(r2-r1)
@@ -97,7 +82,9 @@ public:
 private:
   Para2B para2b;
   Para3B para3b;
-  ANN ann3b;
   ParaMB paramb;
+  ANN ann2b;
+  ANN ann3b;
+  ANN annmb;
   NEP_Data nep_data;
 };

@@ -25,7 +25,9 @@ The neuroevolution potential (NEP)
 
 NEP::NEP(int num_neurons_2b, float r1_2b, float r2_2b, int num_neurons_3b, float r1_3b, float r2_3b)
 {
-  para2b.num_neurons_per_layer = num_neurons_2b;
+  // 2body
+  ann2b.dim = 1;
+  ann2b.num_neurons_per_layer = num_neurons_2b;
   para2b.r1 = r1_2b;
   para2b.r2 = r2_2b;
   para2b.pi_factor = 3.1415927f / (r2_2b - r1_2b);
@@ -35,6 +37,7 @@ NEP::NEP(int num_neurons_2b, float r1_2b, float r2_2b, int num_neurons_3b, float
   para3b.r1 = r1_3b;
   para3b.r2 = r2_3b;
   para3b.pi_factor = 3.1415927f / (r2_3b - r1_3b);
+  // manybody (TODO)
 };
 
 void NEP::initialize(int N, int MAX_ATOM_NUMBER)
@@ -50,22 +53,20 @@ void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 
 void NEP::update_potential(const float* parameters)
 {
-  for (int n = 0; n < para2b.num_neurons_per_layer; ++n) {
-    para2b.w0[n] = parameters[n];
-    para2b.b0[n] = parameters[n + para2b.num_neurons_per_layer];
-    for (int m = 0; m < para2b.num_neurons_per_layer; ++m) {
-      int nm = n * para2b.num_neurons_per_layer + m;
-      para2b.w1[nm] = parameters[nm + para2b.num_neurons_per_layer * 2];
+  for (int n = 0; n < ann2b.num_neurons_per_layer; ++n) {
+    ann2b.w0[n] = parameters[n];
+    ann2b.b0[n] = parameters[n + ann2b.num_neurons_per_layer];
+    for (int m = 0; m < ann2b.num_neurons_per_layer; ++m) {
+      int nm = n * ann2b.num_neurons_per_layer + m;
+      ann2b.w1[nm] = parameters[nm + ann2b.num_neurons_per_layer * 2];
     }
-    para2b.b1[n] =
-      parameters[n + para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 2)];
-    para2b.w2[n] =
-      parameters[n + para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 3)];
+    ann2b.b1[n] = parameters[n + ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 2)];
+    ann2b.w2[n] = parameters[n + ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 3)];
   }
-  para2b.b2 = parameters[para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 4)];
+  ann2b.b2 = parameters[ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4)];
 
   if (ann3b.num_neurons_per_layer > 0) {
-    const int offset = para2b.num_neurons_per_layer * (para2b.num_neurons_per_layer + 4) + 1;
+    const int offset = ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
     for (int n = 0; n < ann3b.num_neurons_per_layer; ++n) {
       ann3b.w0[n] = parameters[n + offset];
       ann3b.b0[n] = parameters[n + ann3b.num_neurons_per_layer + offset];
@@ -82,42 +83,6 @@ void NEP::update_potential(const float* parameters)
   }
 }
 
-static __device__ void apply_nn2b(NEP::Para2B para, float q, float& p2, float& f2)
-{
-  // energy
-  float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
-  float x2[10] = {0.0f}; // states of the 2nd hidden layer nuerons
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    x1[n] = tanh(para.w0[n] * q - para.b0[n]);
-  }
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    for (int m = 0; m < para.num_neurons_per_layer; ++m) {
-      x2[n] += para.w1[n * para.num_neurons_per_layer + m] * x1[m];
-    }
-    x2[n] = tanh(x2[n] - para.b1[n]);
-  }
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    p2 += para.w2[n] * x2[n];
-  }
-  p2 -= para.b2;
-
-  // energy gradient (only one component here)
-  float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer nuerons
-  float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer nuerons
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n];
-  }
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    for (int m = 0; m < para.num_neurons_per_layer; ++m) {
-      y2[n] += para.w1[n * para.num_neurons_per_layer + m] * y1[m];
-    }
-    y2[n] *= 1.0f - x2[n] * x2[n];
-  }
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    f2 += para.w2[n] * y2[n];
-  }
-}
-
 static __device__ void apply_ann(NEP::ANN ann, float* q, float& p123, float* f123)
 {
   // energy
@@ -126,7 +91,7 @@ static __device__ void apply_ann(NEP::ANN ann, float* q, float& p123, float* f12
   for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
     float w0_times_q = 0.0f;
     for (int d = 0; d < ann.dim; ++d) {
-      w0_times_q += ann.w0[n * 3 + d] * q[d];
+      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
     }
     x1[n] = tanh(w0_times_q - ann.b0[n]);
   }
@@ -146,7 +111,7 @@ static __device__ void apply_ann(NEP::ANN ann, float* q, float& p123, float* f12
     float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer nuerons
     float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer nuerons
     for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-      y1[n] = (1.0f - x1[n] * x1[n]) * ann.w0[n * 3 + d];
+      y1[n] = (1.0f - x1[n] * x1[n]) * ann.w0[n * ann.dim + d];
     }
     for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
       for (int m = 0; m < ann.num_neurons_per_layer; ++m) {
@@ -156,46 +121,6 @@ static __device__ void apply_ann(NEP::ANN ann, float* q, float& p123, float* f12
     }
     for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
       f123[d] += ann.w2[n] * y2[n];
-    }
-  }
-}
-
-static __device__ void apply_nnmb(NEP::ParaMB para, float* q, float& p123, float* f123)
-{
-  // energy
-  float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
-  float x2[10] = {0.0f}; // states of the 2nd hidden layer nuerons
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    float w0_times_q =
-      para.w0[n * 3 + 0] * q[0] + para.w0[n * 3 + 1] * q[1] + para.w0[n * 3 + 2] * q[2];
-    x1[n] = tanh(w0_times_q - para.b0[n]);
-  }
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    for (int m = 0; m < para.num_neurons_per_layer; ++m) {
-      x2[n] += para.w1[n * para.num_neurons_per_layer + m] * x1[m];
-    }
-    x2[n] = tanh(x2[n] - para.b1[n]);
-  }
-  for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-    p123 += para.w2[n] * x2[n];
-  }
-  p123 -= para.b2;
-
-  // energy gradient (compute it component by component)
-  for (int d = 0; d < 3; ++d) {
-    float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer nuerons
-    float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer nuerons
-    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-      y1[n] = (1.0f - x1[n] * x1[n]) * para.w0[n * 3 + d];
-    }
-    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-      for (int m = 0; m < para.num_neurons_per_layer; ++m) {
-        y2[n] += para.w1[n * para.num_neurons_per_layer + m] * y1[m];
-      }
-      y2[n] *= 1.0f - x2[n] * x2[n];
-    }
-    for (int n = 0; n < para.num_neurons_per_layer; ++n) {
-      f123[d] += para.w2[n] * y2[n];
     }
   }
 }
@@ -234,6 +159,7 @@ static __global__ void find_force_2body(
   int* g_NL2b,
   int* g_type,
   NEP::Para2B para2b,
+  NEP::ANN ann2b,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
@@ -275,23 +201,24 @@ static __global__ void find_force_2body(
       dev_apply_mic(h, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
-      float p2 = 0.0f, f2 = 0.0f;
-      apply_nn2b(para2b, d12 / para2b.r2, p2, f2);
-      f2 /= para2b.r2;
+      float p2 = 0.0f, f2[1] = {0.0f};
+      float q[1] = {d12 / para2b.r2};
+      apply_ann(ann2b, q, p2, f2);
+      f2[0] /= para2b.r2;
       float fc, fcp;
       find_fc_and_fcp(para2b.r1, para2b.r2, para2b.pi_factor, d12, fc, fcp);
       p2 *= fc;
-      f2 = (f2 * fc + p2 * fcp) / d12;
+      f2[0] = (f2[0] * fc + p2 * fcp) / d12;
 
-      fx += x12 * f2;
-      fy += y12 * f2;
-      fz += z12 * f2;
-      virial_xx -= x12 * x12 * f2 * 0.5f;
-      virial_yy -= y12 * y12 * f2 * 0.5f;
-      virial_zz -= z12 * z12 * f2 * 0.5f;
-      virial_xy -= x12 * y12 * f2 * 0.5f;
-      virial_yz -= y12 * z12 * f2 * 0.5f;
-      virial_zx -= z12 * x12 * f2 * 0.5f;
+      fx += x12 * f2[0];
+      fy += y12 * f2[0];
+      fz += z12 * f2[0];
+      virial_xx -= x12 * x12 * f2[0] * 0.5f;
+      virial_yy -= y12 * y12 * f2[0] * 0.5f;
+      virial_zz -= z12 * z12 * f2[0] * 0.5f;
+      virial_xy -= x12 * y12 * f2[0] * 0.5f;
+      virial_yz -= y12 * z12 * f2[0] * 0.5f;
+      virial_zx -= z12 * x12 * f2[0] * 0.5f;
       pe += p2 * 0.5f;
     }
 
@@ -529,6 +456,7 @@ static __global__ void find_energy_manybody(
   int* g_NL,
   int* g_type,
   NEP::ParaMB paramb,
+  NEP::ANN annmb,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
@@ -573,7 +501,7 @@ static __global__ void find_energy_manybody(
     }
 
     float F, Fp[24];
-    apply_nnmb(paramb, rho, F, Fp);
+    apply_ann(annmb, rho, F, Fp);
 
     g_pe[n1] += F;
     for (int k = 0; k < paramb.num_rs * 3; ++k) {
@@ -597,8 +525,8 @@ void NEP::find_force(
   GPU_Vector<float>& pe)
 {
   find_force_2body<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, r, r + N, r + N * 2, h, f.data(),
-    f.data() + N, f.data() + N * 2, virial.data(), pe.data());
+    N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, ann2b, r, r + N, r + N * 2, h,
+    f.data(), f.data() + N, f.data() + N * 2, virial.data(), pe.data());
   CUDA_CHECK_KERNEL
 
   if (ann3b.num_neurons_per_layer > 0) {
