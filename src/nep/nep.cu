@@ -495,37 +495,47 @@ static __global__ void find_energy_manybody(
     float y1 = g_y[n1];
     float z1 = g_z[n1];
 
-    float rho[24] = {0.0f};
+    float r2inv2 = 1.0f / (paramb.r2 * paramb.r2);
+    float r2inv4 = r2inv2 * r2inv2;
 
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int n2 = g_NL[n1 + number_of_particles * i1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
-      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float fc12;
-      find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
-
-      for (int k = 0; k < paramb.num_rs; ++k) {
-        float radial_function = exp(-paramb.alpha * (d12 - paramb.rs[k]) * (d12 - paramb.rs[k]));
-        radial_function *= fc12;
-        rho[k * 3 + 0] = radial_function;
-        rho[k * 3 + 1] = radial_function * (x12 + y12 + z12);
-        rho[k * 3 + 2] =
-          radial_function * (x12 * x12 + y12 * y12 + z12 * z12 + x12 * y12 + y12 * z12 + z12 * x12);
+    float q[27] = {0.0f};
+    for (int n = 0; n < paramb.n_max; ++n) {
+      float tmp_sum[10] = {0.0f};
+      for (int i1 = 0; i1 < neighbor_number; ++i1) {
+        int n2 = g_NL[n1 + number_of_particles * i1];
+        float x12 = g_x[n2] - x1;
+        float y12 = g_y[n2] - y1;
+        float z12 = g_z[n2] - z1;
+        dev_apply_mic(h, x12, y12, z12);
+        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+        float fc12;
+        find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
+        float fn = fc12 * exp(-paramb.alpha * (d12 - paramb.rs[n]) * (d12 - paramb.rs[n]));
+        tmp_sum[0] += fn;
+        tmp_sum[1] += x12 * fn;
+        tmp_sum[2] += y12 * fn;
+        tmp_sum[3] += z12 * fn;
+        tmp_sum[4] += x12 * x12 * fn;
+        tmp_sum[5] += y12 * y12 * fn;
+        tmp_sum[6] += z12 * z12 * fn;
+        tmp_sum[7] += x12 * y12 * fn;
+        tmp_sum[8] += x12 * z12 * fn;
+        tmp_sum[9] += y12 * z12 * fn;
       }
-    }
-    for (int k = 0; k < paramb.num_rs * 3; ++k) {
-      rho[k] = rho[k] * rho[k];
+      q[n * 3 + 0] = tmp_sum[0] * tmp_sum[0];
+      q[n * 3 + 1] = tmp_sum[1] * tmp_sum[1] + tmp_sum[2] * tmp_sum[2] + tmp_sum[3] * tmp_sum[3];
+      q[n * 3 + 1] *= r2inv2;
+      q[n * 3 + 2] = tmp_sum[7] * tmp_sum[7] + tmp_sum[8] * tmp_sum[8] + tmp_sum[9] * tmp_sum[9];
+      q[n * 3 + 2] *= 2.0f;
+      q[n * 3 + 2] += tmp_sum[4] * tmp_sum[4] + tmp_sum[5] * tmp_sum[5] + tmp_sum[6] * tmp_sum[6];
+      q[n * 3 + 2] *= r2inv4;
     }
 
-    float F, Fp[24];
-    apply_ann(annmb, rho, F, Fp);
-
+    float F, Fp[27];
+    apply_ann(annmb, q, F, Fp);
     g_pe[n1] += F;
-    for (int k = 0; k < paramb.num_rs * 3; ++k) {
-      g_Fp[k * number_of_particles + n1] = Fp[k];
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[d * number_of_particles + n1] = Fp[d];
     }
   }
 }
