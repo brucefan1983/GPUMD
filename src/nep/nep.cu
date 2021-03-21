@@ -53,39 +53,36 @@ void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 
 void NEP::update_potential(const float* parameters)
 {
-  for (int n = 0; n < ann2b.num_neurons_per_layer; ++n) {
-    ann2b.w0[n] = parameters[n];
-    ann2b.b0[n] = parameters[n + ann2b.num_neurons_per_layer];
-    for (int m = 0; m < ann2b.num_neurons_per_layer; ++m) {
-      int nm = n * ann2b.num_neurons_per_layer + m;
-      ann2b.w1[nm] = parameters[nm + ann2b.num_neurons_per_layer * 2];
-    }
-    ann2b.b1[n] = parameters[n + ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 2)];
-    ann2b.w2[n] = parameters[n + ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 3)];
+  int offset = 0;
+  if (ann2b.num_neurons_per_layer > 0) {
+    update_potential(parameters, offset, ann2b);
   }
-  ann2b.b2 = parameters[ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4)];
-
   if (ann3b.num_neurons_per_layer > 0) {
-    const int offset = ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
-    for (int n = 0; n < ann3b.num_neurons_per_layer; ++n) {
-      for (int d = 0; d < ann3b.dim; ++d) {
-        ann3b.w0[n * ann3b.dim + d] = parameters[n * ann3b.dim + d + offset];
-      }
-      ann3b.b0[n] = parameters[n + ann3b.num_neurons_per_layer * ann3b.dim + offset];
-      for (int m = 0; m < ann3b.num_neurons_per_layer; ++m) {
-        int nm = n * ann3b.num_neurons_per_layer + m;
-        ann3b.w1[nm] = parameters[nm + ann3b.num_neurons_per_layer * (ann3b.dim + 1) + offset];
-      }
-      ann3b.b1[n] = parameters
-        [n + ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + (ann3b.dim + 1)) +
-         offset];
-      ann3b.w2[n] = parameters
-        [n + ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + (ann3b.dim + 2)) +
-         offset];
+    if (ann2b.num_neurons_per_layer > 0) {
+      offset = ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
     }
-    ann3b.b2 = parameters
-      [ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + (ann3b.dim + 3)) + offset];
+    update_potential(parameters, offset, ann3b);
   }
+}
+
+void NEP::update_potential(const float* parameters, const int offset, NEP::ANN& ann)
+{
+  for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
+    for (int d = 0; d < ann.dim; ++d) {
+      ann.w0[n * ann.dim + d] = parameters[n * ann.dim + d + offset];
+    }
+    ann.b0[n] = parameters[n + ann.num_neurons_per_layer * ann.dim + offset];
+    for (int m = 0; m < ann.num_neurons_per_layer; ++m) {
+      int nm = n * ann.num_neurons_per_layer + m;
+      ann.w1[nm] = parameters[nm + ann.num_neurons_per_layer * (ann.dim + 1) + offset];
+    }
+    ann.b1[n] = parameters
+      [n + ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 1)) + offset];
+    ann.w2[n] = parameters
+      [n + ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 2)) + offset];
+  }
+  ann.b2 =
+    parameters[ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 3)) + offset];
 }
 
 static __device__ void apply_ann(NEP::ANN ann, float* q, float& p123, float* f123)
@@ -515,6 +512,24 @@ static __global__ void find_energy_manybody(
   }
 }
 
+static __global__ void
+initialize_properties(int N, float* g_pe, float* g_fx, float* g_fy, float* g_fz, float* g_virial)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    g_pe[n1] = 0.0f;
+    g_fx[n1] = 0.0f;
+    g_fy[n1] = 0.0f;
+    g_fz[n1] = 0.0f;
+    g_virial[n1 + 0 * N] = 0.0f;
+    g_virial[n1 + 1 * N] = 0.0f;
+    g_virial[n1 + 2 * N] = 0.0f;
+    g_virial[n1 + 3 * N] = 0.0f;
+    g_virial[n1 + 4 * N] = 0.0f;
+    g_virial[n1 + 5 * N] = 0.0f;
+  }
+}
+
 void NEP::find_force(
   int Nc,
   int N,
@@ -529,10 +544,16 @@ void NEP::find_force(
   GPU_Vector<float>& virial,
   GPU_Vector<float>& pe)
 {
-  find_force_2body<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, ann2b, r, r + N, r + N * 2, h,
-    f.data(), f.data() + N, f.data() + N * 2, virial.data(), pe.data());
-  CUDA_CHECK_KERNEL
+  if (ann2b.num_neurons_per_layer > 0) {
+    find_force_2body<<<Nc, max_Na>>>(
+      N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, ann2b, r, r + N, r + N * 2, h,
+      f.data(), f.data() + N, f.data() + N * 2, virial.data(), pe.data());
+    CUDA_CHECK_KERNEL
+  } else {
+    initialize_properties<<<(N - 1) / 64 + 1, 64>>>(
+      N, pe.data(), f.data(), f.data() + N, f.data() + N * 2, virial.data());
+    CUDA_CHECK_KERNEL
+  }
 
   if (ann3b.num_neurons_per_layer > 0) {
     find_neighbor_list_3body<<<Nc, max_Na>>>(

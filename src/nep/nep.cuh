@@ -87,4 +87,5 @@ private:
   ANN ann3b;
   ANN annmb;
   NEP_Data nep_data;
+  void update_potential(const float* parameters, const int offset, NEP::ANN& ann);
 };

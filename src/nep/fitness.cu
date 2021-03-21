@@ -231,11 +231,21 @@ void Fitness::read_potential(char* input_dir)
 
   potential = std::make_unique<NEP>(num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b);
 
-  number_of_variables = num_neurons_2b * (num_neurons_2b + 4) + 1;
-  if (num_neurons_3b > 0) {
-    number_of_variables += num_neurons_3b * (num_neurons_3b + 6) + 1;
+  int number_of_variables_2b = 0;
+  number_of_variables = 0;
+  if (num_neurons_2b > 0) {
+    number_of_variables_2b = num_neurons_2b * (num_neurons_2b + 4) + 1;
+    number_of_variables += number_of_variables_2b;
   }
-  printf("total number of parameters = %d.\n", number_of_variables);
+  printf("number of parameters to be optimized for 2-body part = %d.\n", number_of_variables_2b);
+
+  int number_of_variables_3b = 0;
+  if (num_neurons_3b > 0) {
+    number_of_variables_3b = num_neurons_3b * (num_neurons_3b + 6) + 1;
+    number_of_variables += number_of_variables_3b;
+  }
+  printf("number of parameters to be optimized for 3-body part = %d.\n", number_of_variables_3b);
+  printf("total number of parameters to be optimized = %d.\n", number_of_variables);
 
   neighbor.cutoff = r2_2b;
 
