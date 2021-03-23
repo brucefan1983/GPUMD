@@ -24,6 +24,7 @@ struct NEP_Data {
   GPU_Vector<float> f12z3b; // 3-body partial forces
   GPU_Vector<int> NN3b;     // 3-body neighbor number
   GPU_Vector<int> NL3b;     // 3-body neighbor list
+  GPU_Vector<float> Fp;     // derivative of the manybody descriptor
 };
 
 class NEP : public Potential

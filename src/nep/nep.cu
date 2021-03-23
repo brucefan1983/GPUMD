@@ -70,6 +70,9 @@ void NEP::initialize(int N, int MAX_ATOM_NUMBER)
     nep_data.NN3b.resize(N);
     nep_data.NL3b.resize(N * MAX_ATOM_NUMBER);
   }
+  if (annmb.num_neurons_per_layer > 0) {
+    nep_data.Fp.resize(N * annmb.dim);
+  }
 }
 
 void NEP::update_potential(const float* parameters)
@@ -622,5 +625,11 @@ void NEP::find_force(
       nep_data.f12y3b.data(), nep_data.f12z3b.data(), r, r + N, r + N * 2, h, f.data(),
       f.data() + N, f.data() + N * 2, virial.data());
     CUDA_CHECK_KERNEL
+  }
+
+  if (annmb.num_neurons_per_layer > 0) {
+    find_energy_manybody<<<Nc, max_Na>>>(
+      N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
+      pe.data(), nep_data.Fp.data());
   }
 }
