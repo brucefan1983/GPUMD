@@ -14,7 +14,7 @@ CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 -arch=sm_35 --use_fast_math -Xcompiler "/wd 4819" -DDEBUG
 else # For linux
-CFLAGS = -std=c++14 -O3 -arch=sm_35 --use_fast_math
+CFLAGS = -std=c++11 -O3 -arch=sm_35 --use_fast_math
 endif
 INC = -I./
 LDFLAGS = 

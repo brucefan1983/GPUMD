@@ -240,9 +240,15 @@ void Fitness::read_potential(char* input_dir)
     "many_body: %d neurons, %d radial bases, %d angular bases, %g A to %g A.\n", num_neurons_mb,
     n_max, L_max, r1_mb, r2_mb);
 
-  potential = std::make_unique<NEP>(
+  // old c++11 way:
+  potential.reset(new NEP(
     num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b, num_neurons_mb, n_max, L_max, r1_mb,
-    r2_mb);
+    r2_mb));
+
+  // switch to the following when c++14 is used in Haikuan's machine!
+  // potential = std::make_unique<NEP>(
+  // num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b, num_neurons_mb, n_max, L_max,
+  // r1_mb, r2_mb);
 
   int number_of_variables_2b = 0;
   number_of_variables = 0;
