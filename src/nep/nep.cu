@@ -106,7 +106,7 @@ void NEP::update_potential(const float* parameters, const int offset, NEP::ANN& 
     parameters[ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 3)) + offset];
 }
 
-static __device__ void apply_ann(NEP::ANN ann, float* q, float& p123, float* f123)
+static __device__ void apply_ann(const NEP::ANN& ann, float* q, float& p123, float* f123)
 {
   // energy
   float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
