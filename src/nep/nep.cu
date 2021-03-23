@@ -471,6 +471,25 @@ static __global__ void find_force_3body(
   }
 }
 
+static __device__ float find_Tn(const int n, const int x)
+{
+  if (n == 0) {
+    return 1.0f;
+  } else if (n == 1) {
+    return x;
+  } else {
+    float t0 = 1.0f;
+    float t1 = x;
+    float t2;
+    for (int m = 2; m <= n; ++m) {
+      t2 = 2.0f * t1 + t0;
+      t0 = t1;
+      t1 = t2;
+    }
+    return t2;
+  }
+}
+
 static __global__ void find_energy_manybody(
   int number_of_particles,
   int* Na,
@@ -498,9 +517,6 @@ static __global__ void find_energy_manybody(
     float y1 = g_y[n1];
     float z1 = g_z[n1];
 
-    float r2inv2 = 1.0f / (paramb.r2 * paramb.r2);
-    float r2inv4 = r2inv2 * r2inv2;
-
     float q[27] = {0.0f};
     for (int n = 0; n < paramb.n_max; ++n) {
       float tmp_sum[10] = {0.0f};
@@ -513,7 +529,12 @@ static __global__ void find_energy_manybody(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
-        float fn = fc12 * 1.0f; // TODO
+        float fn = fc12 * find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
+
+        float d12inv = 1.0f / d12;
+        x12 *= d12inv;
+        y12 *= d12inv;
+        z12 *= d12inv;
         tmp_sum[0] += fn;
         tmp_sum[1] += x12 * fn;
         tmp_sum[2] += y12 * fn;
@@ -527,11 +548,9 @@ static __global__ void find_energy_manybody(
       }
       q[n * 3 + 0] = tmp_sum[0] * tmp_sum[0];
       q[n * 3 + 1] = tmp_sum[1] * tmp_sum[1] + tmp_sum[2] * tmp_sum[2] + tmp_sum[3] * tmp_sum[3];
-      q[n * 3 + 1] *= r2inv2;
       q[n * 3 + 2] = tmp_sum[7] * tmp_sum[7] + tmp_sum[8] * tmp_sum[8] + tmp_sum[9] * tmp_sum[9];
       q[n * 3 + 2] *= 2.0f;
       q[n * 3 + 2] += tmp_sum[4] * tmp_sum[4] + tmp_sum[5] * tmp_sum[5] + tmp_sum[6] * tmp_sum[6];
-      q[n * 3 + 2] *= r2inv4;
     }
 
     float F, Fp[27];
