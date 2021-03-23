@@ -32,12 +32,14 @@ public:
   struct Para2B {
     float r1 = 0.0f;        // inner cutoff
     float r2 = 0.0f;        // outer cutoff
+    float r2inv = 0.0f;     // inverse of the outer cutoff
     float pi_factor = 0.0f; // pi/(r2-r1)
   };
 
   struct Para3B {
     float r1 = 0.0f;        // inner cutoff
     float r2 = 0.0f;        // outer cutoff
+    float r2inv = 0.0f;     // inverse of the outer cutoff
     float pi_factor = 0.0f; // pi/(r2-r1)
   };
 
@@ -55,6 +57,7 @@ public:
   struct ParaMB {
     float r1 = 0.0f;        // inner cutoff
     float r2 = 0.0f;        // outer cutoff
+    float r2inv = 0.0f;     // inverse of the outer cutoff
     float pi_factor = 0.0f; // pi/(r2-r1)
     int n_max;
     int L_max;

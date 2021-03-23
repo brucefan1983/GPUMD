@@ -41,20 +41,23 @@ NEP::NEP(
   ann2b.num_neurons_per_layer = num_neurons_2b;
   para2b.r1 = r1_2b;
   para2b.r2 = r2_2b;
+  para2b.r2inv = 1.0f / para2b.r2;
   para2b.pi_factor = 3.1415927f / (r2_2b - r1_2b);
   // 3body
   ann3b.dim = 3;
   ann3b.num_neurons_per_layer = num_neurons_3b;
   para3b.r1 = r1_3b;
   para3b.r2 = r2_3b;
+  para3b.r2inv = 1.0f / para3b.r2;
   para3b.pi_factor = 3.1415927f / (r2_3b - r1_3b);
   // manybody
   paramb.n_max = n_max;
   paramb.L_max = L_max;
   paramb.r1 = r1_mb;
   paramb.r2 = r2_mb;
+  paramb.r2inv = 1.0f / paramb.r2;
   paramb.pi_factor = 3.1415927f / (r2_mb - r1_mb);
-  annmb.dim = n_max * (L_max + 1);
+  annmb.dim = (n_max + 1) * (L_max + 1);
   annmb.num_neurons_per_layer = num_neurons_mb;
 };
 
