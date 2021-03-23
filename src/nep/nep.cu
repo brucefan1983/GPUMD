@@ -510,7 +510,7 @@ static __global__ void find_energy_manybody(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
-        float fn = fc12 * exp(-paramb.alpha * (d12 - paramb.rs[n]) * (d12 - paramb.rs[n]));
+        float fn = fc12 * 1.0f; // TODO
         tmp_sum[0] += fn;
         tmp_sum[1] += x12 * fn;
         tmp_sum[2] += y12 * fn;

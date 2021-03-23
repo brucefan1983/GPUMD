@@ -56,13 +56,8 @@ public:
     float r1 = 0.0f;        // inner cutoff
     float r2 = 0.0f;        // outer cutoff
     float pi_factor = 0.0f; // pi/(r2-r1)
-
     int n_max;
     int L_max;
-
-    float num_rs = 8;
-    float alpha = 0.36;
-    float rs[10];
   };
 
   NEP(
