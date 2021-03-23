@@ -565,6 +565,103 @@ static __global__ void find_energy_manybody(
   }
 }
 
+static __global__ void find_partial_force_manybody(
+  int number_of_particles,
+  int* Na,
+  int* Na_sum,
+  int* g_NN,
+  int* g_NL,
+  int* g_type,
+  NEP::ParaMB paramb,
+  NEP::ANN annmb,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
+  const float* __restrict__ g_box,
+  const float* __restrict__ g_Fp,
+  const float* __restrict__ g_sum_f,
+  const float* __restrict__ g_sum_fx,
+  const float* __restrict__ g_sum_fy,
+  const float* __restrict__ g_sum_fz,
+  const float* __restrict__ g_sum_fxx,
+  const float* __restrict__ g_sum_fyy,
+  const float* __restrict__ g_sum_fzz,
+  const float* __restrict__ g_sum_fxy,
+  const float* __restrict__ g_sum_fxz,
+  const float* __restrict__ g_sum_fyz,
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    int neighbor_number = g_NN[n1];
+
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * number_of_particles + n1;
+      int n2 = g_NL[index];
+
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float fc12;
+      find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
+      float d12inv = 1.0f / d12;
+
+      float f12[3];
+      for (int n = 0; n < paramb.n_max; ++n) {
+        float fn = fc12 * find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
+        float fnp = 0.0f; // TODO
+
+        // x
+        float dqdx_n0 = 2.0f * g_sum_f[n1 + number_of_particles * n] * fnp * x12;
+        f12[0] += g_Fp[(n * 3 + 0) * number_of_particles + n1] * dqdx_n0;
+        float dqdx_n1 = 2.0f * g_sum_fx[n1 + number_of_particles * n] *
+                          (fnp * x12 * x12 + fn * (1.0f - x12 * x12) * d12inv) +
+                        2.0f * g_sum_fy[n1 + number_of_particles * n] * (fnp * x12 * y12) +
+                        2.0f * g_sum_fz[n1 + number_of_particles * n] * (fnp * x12 * z12);
+        f12[0] += g_Fp[(n * 3 + 1) * number_of_particles + n1] * dqdx_n1;
+        float dqdx_n2 = 0; // TODO
+        f12[0] += g_Fp[(n * 3 + 2) * number_of_particles + n1] * dqdx_n2;
+
+        // y
+        float dqdy_n0 = 2.0f * g_sum_f[n1 + number_of_particles * n] * fnp * y12;
+        f12[1] += g_Fp[(n * 3 + 0) * number_of_particles + n1] * dqdy_n0;
+        float dqdy_n1 = 2.0f * g_sum_fx[n1 + number_of_particles * n] * (fnp * y12 * x12) +
+                        2.0f * g_sum_fy[n1 + number_of_particles * n] *
+                          (fnp * y12 * y12 + fn * (1.0f - y12 * y12) * d12inv) +
+                        2.0f * g_sum_fz[n1 + number_of_particles * n] * (fnp * y12 * z12);
+        f12[1] += g_Fp[(n * 3 + 1) * number_of_particles + n1] * dqdy_n1;
+        float dqdy_n2 = 0; // TODO
+        f12[1] += g_Fp[(n * 3 + 2) * number_of_particles + n1] * dqdy_n2;
+
+        // z
+        float dqdz_n0 = 2.0f * g_sum_f[n1 + number_of_particles * n] * fnp * z12;
+        f12[2] += g_Fp[(n * 3 + 0) * number_of_particles + n1] * dqdz_n0;
+        float dqdz_n1 = 2.0f * g_sum_fx[n1 + number_of_particles * n] * (fnp * z12 * x12) +
+                        2.0f * g_sum_fy[n1 + number_of_particles * n] * (fnp * z12 * y12) +
+                        2.0f * g_sum_fz[n1 + number_of_particles * n] *
+                          (fnp * z12 * z12 + fn * (1.0f - z12 * z12) * d12inv);
+        f12[2] += g_Fp[(n * 3 + 1) * number_of_particles + n1] * dqdz_n1;
+        float dqdz_n2 = 0; // TODO
+        f12[2] += g_Fp[(n * 3 + 2) * number_of_particles + n1] * dqdz_n2;
+      }
+      g_f12x[index] = f12[0];
+      g_f12y[index] = f12[1];
+      g_f12z[index] = f12[2];
+    }
+  }
+}
+
 static __global__ void
 initialize_properties(int N, float* g_pe, float* g_fx, float* g_fy, float* g_fz, float* g_virial)
 {
