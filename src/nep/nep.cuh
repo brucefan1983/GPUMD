@@ -73,9 +73,7 @@ public:
     float r2_3b,
     int num_neurons_mb,
     int n_max,
-    int L_max,
-    float r1_mb,
-    float r2_mb);
+    int L_max);
   void initialize(int, int);
   void update_potential(const float*);
   void find_force(

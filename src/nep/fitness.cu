@@ -230,20 +230,18 @@ void Fitness::read_potential(char* input_dir)
   printf("three_body: %d neurons, %g A to %g A.\n", num_neurons_3b, r1_3b, r2_3b);
 
   int num_neurons_mb = 0;
-  float r1_mb, r2_mb;
   int n_max, L_max;
-  count = fscanf(fid, "%s%d%d%d%f%f", name, &num_neurons_mb, &n_max, &L_max, &r1_mb, &r2_mb);
-  if (count != 6) {
+  count = fscanf(fid, "%s%d%d%d", name, &num_neurons_mb, &n_max, &L_max);
+  if (count != 4) {
     print_error("reading error for potential.in.");
   }
   printf(
     "many_body: %d neurons, %d radial bases, %d angular bases, %g A to %g A.\n", num_neurons_mb,
-    n_max, L_max, r1_mb, r2_mb);
+    n_max, L_max, r1_2b, r2_2b);
 
   // old c++11 way:
   potential.reset(new NEP(
-    num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b, num_neurons_mb, n_max, L_max, r1_mb,
-    r2_mb));
+    num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b, num_neurons_mb, n_max, L_max));
 
   // switch to the following when c++14 is used in Haikuan's machine!
   // potential = std::make_unique<NEP>(

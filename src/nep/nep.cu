@@ -32,9 +32,7 @@ NEP::NEP(
   float r2_3b,
   int num_neurons_mb,
   int n_max,
-  int L_max,
-  float r1_mb,
-  float r2_mb)
+  int L_max)
 {
   // 2body
   ann2b.dim = 1;
@@ -53,10 +51,10 @@ NEP::NEP(
   // manybody
   paramb.n_max = n_max;
   paramb.L_max = L_max;
-  paramb.r1 = r1_mb;
-  paramb.r2 = r2_mb;
+  paramb.r1 = r1_2b; // manybody has the same cutoff as twobody
+  paramb.r2 = r2_2b; // manybody has the same cutoff as twobody
   paramb.r2inv = 1.0f / paramb.r2;
-  paramb.pi_factor = 3.1415927f / (r2_mb - r1_mb);
+  paramb.pi_factor = 3.1415927f / (paramb.r2 - paramb.r1);
   annmb.dim = (n_max + 1) * (L_max + 1);
   annmb.num_neurons_per_layer = num_neurons_mb;
 };
