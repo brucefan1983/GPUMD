@@ -178,7 +178,7 @@ find_fc_and_fcp(float r1, float r2, float pi_factor, float d12, float& fc, float
 }
 
 static __global__ void find_force_2body(
-  int number_of_particles,
+  int N,
   int* Na,
   int* Na_sum,
   int* g_NN2b,
@@ -219,7 +219,7 @@ static __global__ void find_force_2body(
     float virial_zx = 0.0f;
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int n2 = g_NL2b[n1 + number_of_particles * i1];
+      int n2 = g_NL2b[n1 + N * i1];
 
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
@@ -251,18 +251,18 @@ static __global__ void find_force_2body(
     g_fx[n1] = fx;
     g_fy[n1] = fy;
     g_fz[n1] = fz;
-    g_virial[n1 + number_of_particles * 0] = virial_xx;
-    g_virial[n1 + number_of_particles * 1] = virial_yy;
-    g_virial[n1 + number_of_particles * 2] = virial_zz;
-    g_virial[n1 + number_of_particles * 3] = virial_xy;
-    g_virial[n1 + number_of_particles * 4] = virial_yz;
-    g_virial[n1 + number_of_particles * 5] = virial_zx;
+    g_virial[n1 + N * 0] = virial_xx;
+    g_virial[n1 + N * 1] = virial_yy;
+    g_virial[n1 + N * 2] = virial_zz;
+    g_virial[n1 + N * 3] = virial_xy;
+    g_virial[n1 + N * 4] = virial_yz;
+    g_virial[n1 + N * 5] = virial_zx;
     g_pe[n1] = pe;
   }
 }
 
 static __global__ void find_neighbor_list_3body(
-  int number_of_particles,
+  int N,
   int* Na,
   int* Na_sum,
   int* g_NN2b,
@@ -289,7 +289,7 @@ static __global__ void find_neighbor_list_3body(
     int count = 0;
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int n2 = g_NL2b[n1 + number_of_particles * i1];
+      int n2 = g_NL2b[n1 + N * i1];
 
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
@@ -298,7 +298,7 @@ static __global__ void find_neighbor_list_3body(
       float d12sq = x12 * x12 + y12 * y12 + z12 * z12;
 
       if (d12sq < para3b.r2 * para3b.r2) {
-        g_NL3b[n1 + number_of_particles * (count++)] = n2;
+        g_NL3b[n1 + N * (count++)] = n2;
       }
     }
 
@@ -307,7 +307,7 @@ static __global__ void find_neighbor_list_3body(
 }
 
 static __global__ void find_partial_force_3body(
-  int number_of_particles,
+  int N,
   int* Na,
   int* Na_sum,
   int* g_neighbor_number,
@@ -337,7 +337,7 @@ static __global__ void find_partial_force_3body(
     float pot_energy = 0.0f;
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * number_of_particles + n1;
+      int index = i1 * N + n1;
       int n2 = g_neighbor_list[index];
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
@@ -351,7 +351,7 @@ static __global__ void find_partial_force_3body(
       float p12 = 0.0f, f12[3] = {0.0f, 0.0f, 0.0f};
 
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
-        int n3 = g_neighbor_list[n1 + number_of_particles * i2];
+        int n3 = g_neighbor_list[n1 + N * i2];
         if (n3 == n2) {
           continue;
         }
@@ -388,7 +388,7 @@ static __global__ void find_partial_force_3body(
 }
 
 static __global__ void find_force_3body_or_manybody(
-  int number_of_particles,
+  int N,
   int* Na,
   int* Na_sum,
   int* g_neighbor_number,
@@ -425,7 +425,7 @@ static __global__ void find_force_3body_or_manybody(
     float z1 = g_z[n1];
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * number_of_particles + n1;
+      int index = i1 * N + n1;
       int n2 = g_neighbor_list[index];
       int neighbor_number_2 = g_neighbor_number[n2];
 
@@ -439,12 +439,12 @@ static __global__ void find_force_3body_or_manybody(
       float f12z = g_f12z[index];
       int offset = 0;
       for (int k = 0; k < neighbor_number_2; ++k) {
-        if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
+        if (n1 == g_neighbor_list[n2 + N * k]) {
           offset = k;
           break;
         }
       }
-      index = offset * number_of_particles + n2;
+      index = offset * N + n2;
       float f21x = g_f12x[index];
       float f21y = g_f12y[index];
       float f21z = g_f12z[index];
@@ -466,11 +466,11 @@ static __global__ void find_force_3body_or_manybody(
     g_fz[n1] += s_fz;
 
     g_virial[n1] += s_virial_xx;
-    g_virial[n1 + number_of_particles] += s_virial_yy;
-    g_virial[n1 + number_of_particles * 2] += s_virial_zz;
-    g_virial[n1 + number_of_particles * 3] += s_virial_xy;
-    g_virial[n1 + number_of_particles * 4] += s_virial_yz;
-    g_virial[n1 + number_of_particles * 5] += s_virial_zx;
+    g_virial[n1 + N] += s_virial_yy;
+    g_virial[n1 + N * 2] += s_virial_zz;
+    g_virial[n1 + N * 3] += s_virial_xy;
+    g_virial[n1 + N * 4] += s_virial_yz;
+    g_virial[n1 + N * 5] += s_virial_zx;
   }
 }
 
@@ -494,7 +494,7 @@ static __device__ float find_Tn(const int n, const int x)
 }
 
 static __global__ void find_energy_manybody(
-  int number_of_particles,
+  int N,
   int* Na,
   int* Na_sum,
   int* g_NN,
@@ -524,7 +524,7 @@ static __global__ void find_energy_manybody(
     for (int n = 0; n < paramb.n_max; ++n) {
       float tmp_sum[10] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
-        int n2 = g_NL[n1 + number_of_particles * i1];
+        int n2 = g_NL[n1 + N * i1];
         float x12 = g_x[n2] - x1;
         float y12 = g_y[n2] - y1;
         float z12 = g_z[n2] - z1;
@@ -560,13 +560,13 @@ static __global__ void find_energy_manybody(
     apply_ann(annmb, q, F, Fp);
     g_pe[n1] += F;
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * number_of_particles + n1] = Fp[d];
+      g_Fp[d * N + n1] = Fp[d];
     }
   }
 }
 
 static __global__ void find_partial_force_manybody(
-  int number_of_particles,
+  int N,
   int* Na,
   int* Na_sum,
   int* g_NN,
@@ -605,7 +605,7 @@ static __global__ void find_partial_force_manybody(
     float z1 = g_z[n1];
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * number_of_particles + n1;
+      int index = i1 * N + n1;
       int n2 = g_NL[index];
 
       float x12 = g_x[n2] - x1;
@@ -623,37 +623,37 @@ static __global__ void find_partial_force_manybody(
         float fnp = 0.0f; // TODO
 
         // x
-        float dqdx_n0 = 2.0f * g_sum_f[n1 + number_of_particles * n] * fnp * x12;
-        f12[0] += g_Fp[(n * 3 + 0) * number_of_particles + n1] * dqdx_n0;
-        float dqdx_n1 = 2.0f * g_sum_fx[n1 + number_of_particles * n] *
-                          (fnp * x12 * x12 + fn * (1.0f - x12 * x12) * d12inv) +
-                        2.0f * g_sum_fy[n1 + number_of_particles * n] * (fnp * x12 * y12) +
-                        2.0f * g_sum_fz[n1 + number_of_particles * n] * (fnp * x12 * z12);
-        f12[0] += g_Fp[(n * 3 + 1) * number_of_particles + n1] * dqdx_n1;
+        float dqdx_n0 = 2.0f * g_sum_f[n1 + N * n] * fnp * x12;
+        f12[0] += g_Fp[(n * 3 + 0) * N + n1] * dqdx_n0;
+        float dqdx_n1 =
+          2.0f * g_sum_fx[n1 + N * n] * (fnp * x12 * x12 + fn * (1.0f - x12 * x12) * d12inv) +
+          2.0f * g_sum_fy[n1 + N * n] * (fnp * x12 * y12) +
+          2.0f * g_sum_fz[n1 + N * n] * (fnp * x12 * z12);
+        f12[0] += g_Fp[(n * 3 + 1) * N + n1] * dqdx_n1;
         float dqdx_n2 = 0; // TODO
-        f12[0] += g_Fp[(n * 3 + 2) * number_of_particles + n1] * dqdx_n2;
+        f12[0] += g_Fp[(n * 3 + 2) * N + n1] * dqdx_n2;
 
         // y
-        float dqdy_n0 = 2.0f * g_sum_f[n1 + number_of_particles * n] * fnp * y12;
-        f12[1] += g_Fp[(n * 3 + 0) * number_of_particles + n1] * dqdy_n0;
-        float dqdy_n1 = 2.0f * g_sum_fx[n1 + number_of_particles * n] * (fnp * y12 * x12) +
-                        2.0f * g_sum_fy[n1 + number_of_particles * n] *
-                          (fnp * y12 * y12 + fn * (1.0f - y12 * y12) * d12inv) +
-                        2.0f * g_sum_fz[n1 + number_of_particles * n] * (fnp * y12 * z12);
-        f12[1] += g_Fp[(n * 3 + 1) * number_of_particles + n1] * dqdy_n1;
+        float dqdy_n0 = 2.0f * g_sum_f[n1 + N * n] * fnp * y12;
+        f12[1] += g_Fp[(n * 3 + 0) * N + n1] * dqdy_n0;
+        float dqdy_n1 =
+          2.0f * g_sum_fx[n1 + N * n] * (fnp * y12 * x12) +
+          2.0f * g_sum_fy[n1 + N * n] * (fnp * y12 * y12 + fn * (1.0f - y12 * y12) * d12inv) +
+          2.0f * g_sum_fz[n1 + N * n] * (fnp * y12 * z12);
+        f12[1] += g_Fp[(n * 3 + 1) * N + n1] * dqdy_n1;
         float dqdy_n2 = 0; // TODO
-        f12[1] += g_Fp[(n * 3 + 2) * number_of_particles + n1] * dqdy_n2;
+        f12[1] += g_Fp[(n * 3 + 2) * N + n1] * dqdy_n2;
 
         // z
-        float dqdz_n0 = 2.0f * g_sum_f[n1 + number_of_particles * n] * fnp * z12;
-        f12[2] += g_Fp[(n * 3 + 0) * number_of_particles + n1] * dqdz_n0;
-        float dqdz_n1 = 2.0f * g_sum_fx[n1 + number_of_particles * n] * (fnp * z12 * x12) +
-                        2.0f * g_sum_fy[n1 + number_of_particles * n] * (fnp * z12 * y12) +
-                        2.0f * g_sum_fz[n1 + number_of_particles * n] *
-                          (fnp * z12 * z12 + fn * (1.0f - z12 * z12) * d12inv);
-        f12[2] += g_Fp[(n * 3 + 1) * number_of_particles + n1] * dqdz_n1;
+        float dqdz_n0 = 2.0f * g_sum_f[n1 + N * n] * fnp * z12;
+        f12[2] += g_Fp[(n * 3 + 0) * N + n1] * dqdz_n0;
+        float dqdz_n1 =
+          2.0f * g_sum_fx[n1 + N * n] * (fnp * z12 * x12) +
+          2.0f * g_sum_fy[n1 + N * n] * (fnp * z12 * y12) +
+          2.0f * g_sum_fz[n1 + N * n] * (fnp * z12 * z12 + fn * (1.0f - z12 * z12) * d12inv);
+        f12[2] += g_Fp[(n * 3 + 1) * N + n1] * dqdz_n1;
         float dqdz_n2 = 0; // TODO
-        f12[2] += g_Fp[(n * 3 + 2) * number_of_particles + n1] * dqdz_n2;
+        f12[2] += g_Fp[(n * 3 + 2) * N + n1] * dqdz_n2;
       }
       g_f12x[index] = f12[0];
       g_f12y[index] = f12[1];
