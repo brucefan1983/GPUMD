@@ -625,11 +625,9 @@ static __global__ void find_partial_force_manybody(
       int index = i1 * N + n1;
       int n2 = g_NL[index];
 
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
-      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float r12[3] = {g_x[n2] - x1, g_y[n2] - y1, g_z[n2] - z1};
+      dev_apply_mic(h, r12[0], r12[1], r12[2]);
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       find_fc_and_fcp(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12, fcp12);
       float d12inv = 1.0f / d12;
@@ -639,47 +637,52 @@ static __global__ void find_partial_force_manybody(
         float Tn = find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
         float Tnp = find_Tnp(n, 2 * d12 * paramb.r2inv - 1.0f);
         float fn = Tn * fc12;
-        float fnp = Tnp * fc12 + Tn * fcp12;
-
-        // x
-        float dqdx_n0 = 2.0f * g_sum_fxyz[(0 * (paramb.n_max + 1) + n) * N + n1] * fnp * x12;
-        f12[0] += g_Fp[(n * 3 + 0) * N + n1] * dqdx_n0;
-        float dqdx_n1 =
-          2.0f * g_sum_fxyz[(1 * (paramb.n_max + 1) + n) * N + n1] *
-            (fnp * x12 * x12 + fn * (1.0f - x12 * x12) * d12inv) +
-          2.0f * g_sum_fxyz[(2 * (paramb.n_max + 1) + n) * N + n1] * (fnp * x12 * y12) +
-          2.0f * g_sum_fxyz[(3 * (paramb.n_max + 1) + n) * N + n1] * (fnp * x12 * z12);
-        f12[0] += g_Fp[(n * 3 + 1) * N + n1] * dqdx_n1;
-        float dqdx_n2 = 0; // TODO
-        f12[0] += g_Fp[(n * 3 + 2) * N + n1] * dqdx_n2;
-
-        // y
-        float dqdy_n0 = 2.0f * g_sum_fxyz[(0 * (paramb.n_max + 1) + n1) * N + n1] * fnp * y12;
-        f12[1] += g_Fp[(n * 3 + 0) * N + n1] * dqdy_n0;
-        float dqdy_n1 =
-          2.0f * g_sum_fxyz[(1 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * y12 * x12) +
-          2.0f * g_sum_fxyz[(2 * (paramb.n_max + 1) + n1) * N + n1] *
-            (fnp * y12 * y12 + fn * (1.0f - y12 * y12) * d12inv) +
-          2.0f * g_sum_fxyz[(3 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * y12 * z12);
-        f12[1] += g_Fp[(n * 3 + 1) * N + n1] * dqdy_n1;
-        float dqdy_n2 = 0; // TODO
-        f12[1] += g_Fp[(n * 3 + 2) * N + n1] * dqdy_n2;
-
-        // z
-        float dqdz_n0 = 2.0f * g_sum_fxyz[(0 * (paramb.n_max + 1) + n1) * N + n1] * fnp * z12;
-        f12[2] += g_Fp[(n * 3 + 0) * N + n1] * dqdz_n0;
-        float dqdz_n1 =
-          2.0f * g_sum_fxyz[(1 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * z12 * x12) +
-          2.0f * g_sum_fxyz[(2 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * z12 * y12) +
-          2.0f * g_sum_fxyz[(3 * (paramb.n_max + 1) + n1) * N + n1] *
-            (fnp * z12 * z12 + fn * (1.0f - z12 * z12) * d12inv);
-        f12[2] += g_Fp[(n * 3 + 1) * N + n1] * dqdz_n1;
-        float dqdz_n2 = 0; // TODO
-        f12[2] += g_Fp[(n * 3 + 2) * N + n1] * dqdz_n2;
+        float fn0p = Tnp * fc12 + Tn * fcp12;
+        float fn1p = fn0p * d12inv - fn * d12inv * d12inv;
+        float fn2p = fn0p * d12inv * d12inv - 2.0f * fn * d12inv * d12inv * d12inv;
+        // l=0
+        float Fp0 = g_Fp[(n * 3 + 0) * N + n1];
+        float sum_f0 = g_sum_fxyz[(0 * (paramb.n_max + 1) + n) * N + n1];
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += Fp0 * sum_f0 * fn0p * r12[d];
+        }
+        // l=1
+        float Fp1 = g_Fp[(n * 3 + 1) * N + n1];
+        float sum_f1[3] = {
+          g_sum_fxyz[(1 * (paramb.n_max + 1) + n) * N + n1],
+          g_sum_fxyz[(2 * (paramb.n_max + 1) + n) * N + n1],
+          g_sum_fxyz[(3 * (paramb.n_max + 1) + n) * N + n1]};
+        float tmp1 =
+          Fp1 * fn1p * (sum_f1[0] * r12[0] + sum_f1[1] * r12[1] + sum_f1[2] * r12[2]) * d12inv;
+        float tmp2 = Fp1 * fn * d12inv;
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp1 * r12[d] + tmp2 * sum_f1[d];
+        }
+        // l=2
+        float Fp2 = g_Fp[(n * 3 + 2) * N + n1];
+        float sum_f2[6] = {
+          g_sum_fxyz[(4 * (paramb.n_max + 1) + n) * N + n1],
+          g_sum_fxyz[(5 * (paramb.n_max + 1) + n) * N + n1],
+          g_sum_fxyz[(6 * (paramb.n_max + 1) + n) * N + n1],
+          g_sum_fxyz[(7 * (paramb.n_max + 1) + n) * N + n1],
+          g_sum_fxyz[(8 * (paramb.n_max + 1) + n) * N + n1],
+          g_sum_fxyz[(9 * (paramb.n_max + 1) + n) * N + n1]};
+        tmp1 = Fp2 * fn2p *
+               (sum_f2[0] * r12[0] * r12[0] + sum_f2[1] * r12[1] * r12[1] +
+                sum_f2[2] * r12[2] * r12[2] + 2.0f * sum_f2[3] * r12[0] * r12[1] +
+                2.0f * sum_f2[4] * r12[0] * r12[2] + 2.0f * sum_f2[5] * r12[1] * r12[2]) *
+               d12inv;
+        tmp2 = 2.0f * Fp1 * fn * d12inv * d12inv;
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp1 * r12[d] + tmp2 * sum_f2[d] * r12[d];
+        }
+        f12[0] += tmp2 * (sum_f2[3] * r12[1] + sum_f2[4] * r12[2]);
+        f12[1] += tmp2 * (sum_f2[3] * r12[0] + sum_f2[5] * r12[2]);
+        f12[2] += tmp2 * (sum_f2[5] * r12[0] + sum_f2[4] * r12[1]);
       }
-      g_f12x[index] = f12[0];
-      g_f12y[index] = f12[1];
-      g_f12z[index] = f12[2];
+      g_f12x[index] = f12[0] * 2.0f;
+      g_f12y[index] = f12[1] * 2.0f;
+      g_f12z[index] = f12[2] * 2.0f;
     }
   }
 }
