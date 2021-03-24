@@ -387,7 +387,7 @@ static __global__ void find_partial_force_3body(
   }
 }
 
-static __global__ void find_force_3body(
+static __global__ void find_force_3body_or_manybody(
   int number_of_particles,
   int* Na,
   int* Na_sum,
@@ -716,7 +716,7 @@ void NEP::find_force(
       r + N * 2, h, pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
     CUDA_CHECK_KERNEL
 
-    find_force_3body<<<Nc, max_Na>>>(
+    find_force_3body_or_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), nep_data.f12x.data(),
       nep_data.f12y.data(), nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N,
       f.data() + N * 2, virial.data());
@@ -727,5 +727,13 @@ void NEP::find_force(
     find_energy_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
       pe.data(), nep_data.Fp.data());
+
+    // TODO: call partial force
+
+    find_force_3body_or_manybody<<<Nc, max_Na>>>(
+      N, Na, Na_sum, neighbor->NN, neighbor->NL, nep_data.f12x.data(), nep_data.f12y.data(),
+      nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N, f.data() + N * 2,
+      virial.data());
+    CUDA_CHECK_KERNEL
   }
 }
