@@ -643,8 +643,9 @@ static __global__ void find_partial_force_manybody(
         // l=0
         float Fp0 = g_Fp[(n * 3 + 0) * N + n1];
         float sum_f0 = g_sum_fxyz[(0 * (paramb.n_max + 1) + n) * N + n1];
+        float tmp = Fp0 * sum_f0 * fn0p * d12inv;
         for (int d = 0; d < 3; ++d) {
-          f12[d] += Fp0 * sum_f0 * fn0p * r12[d];
+          f12[d] += tmp * r12[d];
         }
         // l=1
         float Fp1 = g_Fp[(n * 3 + 1) * N + n1];
@@ -672,13 +673,13 @@ static __global__ void find_partial_force_manybody(
                 sum_f2[2] * r12[2] * r12[2] + 2.0f * sum_f2[3] * r12[0] * r12[1] +
                 2.0f * sum_f2[4] * r12[0] * r12[2] + 2.0f * sum_f2[5] * r12[1] * r12[2]) *
                d12inv;
-        tmp2 = 2.0f * Fp1 * fn * d12inv * d12inv;
+        tmp2 = 2.0f * Fp2 * fn * d12inv * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp1 * r12[d] + tmp2 * sum_f2[d] * r12[d];
         }
         f12[0] += tmp2 * (sum_f2[3] * r12[1] + sum_f2[4] * r12[2]);
         f12[1] += tmp2 * (sum_f2[3] * r12[0] + sum_f2[5] * r12[2]);
-        f12[2] += tmp2 * (sum_f2[5] * r12[0] + sum_f2[4] * r12[1]);
+        f12[2] += tmp2 * (sum_f2[4] * r12[0] + sum_f2[5] * r12[1]);
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
