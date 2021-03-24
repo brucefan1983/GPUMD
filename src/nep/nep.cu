@@ -23,6 +23,8 @@ The neuroevolution potential (NEP)
 #include "neighbor.cuh"
 #include "nep.cuh"
 
+const int NUM_OF_ABC = 10;
+
 NEP::NEP(
   int num_neurons_2b,
   float r1_2b,
@@ -67,6 +69,7 @@ void NEP::initialize(int N, int MAX_ATOM_NUMBER)
   }
   if (annmb.num_neurons_per_layer > 0) {
     nep_data.Fp.resize(N * annmb.dim);
+    nep_data.sum_fxyz.resize(N * (paramb.n_max + 1) * NUM_OF_ABC);
   }
   if (ann3b.num_neurons_per_layer > 0 || annmb.num_neurons_per_layer > 0) {
     nep_data.f12x.resize(N * MAX_ATOM_NUMBER);
@@ -542,7 +545,7 @@ static __global__ void find_energy_manybody(
 
     float q[27] = {0.0f};
     for (int n = 0; n < paramb.n_max; ++n) {
-      float sum_xyz[10] = {0.0f};
+      float sum_xyz[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
         int n2 = g_NL[n1 + N * i1];
         float x12 = g_x[n2] - x1;
@@ -574,7 +577,7 @@ static __global__ void find_energy_manybody(
       q[n * 3 + 2] = sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8] + sum_xyz[9] * sum_xyz[9];
       q[n * 3 + 2] *= 2.0f;
       q[n * 3 + 2] += sum_xyz[4] * sum_xyz[4] + sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6];
-      for (int abc = 0; abc < 10; ++abc) {
+      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(abc * (paramb.n_max + 1) + n) * N + n1] = sum_xyz[abc];
       }
     }
