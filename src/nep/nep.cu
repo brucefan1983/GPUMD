@@ -526,7 +526,8 @@ static __global__ void find_energy_manybody(
   const float* __restrict__ g_z,
   const float* __restrict__ g_box,
   float* g_pe,
-  float* g_Fp)
+  float* g_Fp,
+  float* g_sum_fxyz)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -541,7 +542,7 @@ static __global__ void find_energy_manybody(
 
     float q[27] = {0.0f};
     for (int n = 0; n < paramb.n_max; ++n) {
-      float tmp_sum[10] = {0.0f};
+      float sum_xyz[10] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
         int n2 = g_NL[n1 + N * i1];
         float x12 = g_x[n2] - x1;
@@ -557,22 +558,25 @@ static __global__ void find_energy_manybody(
         x12 *= d12inv;
         y12 *= d12inv;
         z12 *= d12inv;
-        tmp_sum[0] += fn;
-        tmp_sum[1] += x12 * fn;
-        tmp_sum[2] += y12 * fn;
-        tmp_sum[3] += z12 * fn;
-        tmp_sum[4] += x12 * x12 * fn;
-        tmp_sum[5] += y12 * y12 * fn;
-        tmp_sum[6] += z12 * z12 * fn;
-        tmp_sum[7] += x12 * y12 * fn;
-        tmp_sum[8] += x12 * z12 * fn;
-        tmp_sum[9] += y12 * z12 * fn;
+        sum_xyz[0] += fn;
+        sum_xyz[1] += x12 * fn;
+        sum_xyz[2] += y12 * fn;
+        sum_xyz[3] += z12 * fn;
+        sum_xyz[4] += x12 * x12 * fn;
+        sum_xyz[5] += y12 * y12 * fn;
+        sum_xyz[6] += z12 * z12 * fn;
+        sum_xyz[7] += x12 * y12 * fn;
+        sum_xyz[8] += x12 * z12 * fn;
+        sum_xyz[9] += y12 * z12 * fn;
       }
-      q[n * 3 + 0] = tmp_sum[0] * tmp_sum[0];
-      q[n * 3 + 1] = tmp_sum[1] * tmp_sum[1] + tmp_sum[2] * tmp_sum[2] + tmp_sum[3] * tmp_sum[3];
-      q[n * 3 + 2] = tmp_sum[7] * tmp_sum[7] + tmp_sum[8] * tmp_sum[8] + tmp_sum[9] * tmp_sum[9];
+      q[n * 3 + 0] = sum_xyz[0] * sum_xyz[0];
+      q[n * 3 + 1] = sum_xyz[1] * sum_xyz[1] + sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
+      q[n * 3 + 2] = sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8] + sum_xyz[9] * sum_xyz[9];
       q[n * 3 + 2] *= 2.0f;
-      q[n * 3 + 2] += tmp_sum[4] * tmp_sum[4] + tmp_sum[5] * tmp_sum[5] + tmp_sum[6] * tmp_sum[6];
+      q[n * 3 + 2] += sum_xyz[4] * sum_xyz[4] + sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6];
+      for (int abc = 0; abc < 10; ++abc) {
+        g_sum_fxyz[(abc * (paramb.n_max + 1) + n) * N + n1] = sum_xyz[abc];
+      }
     }
 
     float F, Fp[27];
@@ -598,16 +602,7 @@ static __global__ void find_partial_force_manybody(
   const float* __restrict__ g_z,
   const float* __restrict__ g_box,
   const float* __restrict__ g_Fp,
-  const float* __restrict__ g_sum_f,
-  const float* __restrict__ g_sum_fx,
-  const float* __restrict__ g_sum_fy,
-  const float* __restrict__ g_sum_fz,
-  const float* __restrict__ g_sum_fxx,
-  const float* __restrict__ g_sum_fyy,
-  const float* __restrict__ g_sum_fzz,
-  const float* __restrict__ g_sum_fxy,
-  const float* __restrict__ g_sum_fxz,
-  const float* __restrict__ g_sum_fyz,
+  const float* __restrict__ g_sum_fxyz,
   float* g_f12x,
   float* g_f12y,
   float* g_f12z)
@@ -644,34 +639,37 @@ static __global__ void find_partial_force_manybody(
         float fnp = Tnp * fc12 + Tn * fcp12;
 
         // x
-        float dqdx_n0 = 2.0f * g_sum_f[n1 + N * n] * fnp * x12;
+        float dqdx_n0 = 2.0f * g_sum_fxyz[(0 * (paramb.n_max + 1) + n) * N + n1] * fnp * x12;
         f12[0] += g_Fp[(n * 3 + 0) * N + n1] * dqdx_n0;
         float dqdx_n1 =
-          2.0f * g_sum_fx[n1 + N * n] * (fnp * x12 * x12 + fn * (1.0f - x12 * x12) * d12inv) +
-          2.0f * g_sum_fy[n1 + N * n] * (fnp * x12 * y12) +
-          2.0f * g_sum_fz[n1 + N * n] * (fnp * x12 * z12);
+          2.0f * g_sum_fxyz[(1 * (paramb.n_max + 1) + n) * N + n1] *
+            (fnp * x12 * x12 + fn * (1.0f - x12 * x12) * d12inv) +
+          2.0f * g_sum_fxyz[(2 * (paramb.n_max + 1) + n) * N + n1] * (fnp * x12 * y12) +
+          2.0f * g_sum_fxyz[(3 * (paramb.n_max + 1) + n) * N + n1] * (fnp * x12 * z12);
         f12[0] += g_Fp[(n * 3 + 1) * N + n1] * dqdx_n1;
         float dqdx_n2 = 0; // TODO
         f12[0] += g_Fp[(n * 3 + 2) * N + n1] * dqdx_n2;
 
         // y
-        float dqdy_n0 = 2.0f * g_sum_f[n1 + N * n] * fnp * y12;
+        float dqdy_n0 = 2.0f * g_sum_fxyz[(0 * (paramb.n_max + 1) + n1) * N + n1] * fnp * y12;
         f12[1] += g_Fp[(n * 3 + 0) * N + n1] * dqdy_n0;
         float dqdy_n1 =
-          2.0f * g_sum_fx[n1 + N * n] * (fnp * y12 * x12) +
-          2.0f * g_sum_fy[n1 + N * n] * (fnp * y12 * y12 + fn * (1.0f - y12 * y12) * d12inv) +
-          2.0f * g_sum_fz[n1 + N * n] * (fnp * y12 * z12);
+          2.0f * g_sum_fxyz[(1 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * y12 * x12) +
+          2.0f * g_sum_fxyz[(2 * (paramb.n_max + 1) + n1) * N + n1] *
+            (fnp * y12 * y12 + fn * (1.0f - y12 * y12) * d12inv) +
+          2.0f * g_sum_fxyz[(3 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * y12 * z12);
         f12[1] += g_Fp[(n * 3 + 1) * N + n1] * dqdy_n1;
         float dqdy_n2 = 0; // TODO
         f12[1] += g_Fp[(n * 3 + 2) * N + n1] * dqdy_n2;
 
         // z
-        float dqdz_n0 = 2.0f * g_sum_f[n1 + N * n] * fnp * z12;
+        float dqdz_n0 = 2.0f * g_sum_fxyz[(0 * (paramb.n_max + 1) + n1) * N + n1] * fnp * z12;
         f12[2] += g_Fp[(n * 3 + 0) * N + n1] * dqdz_n0;
         float dqdz_n1 =
-          2.0f * g_sum_fx[n1 + N * n] * (fnp * z12 * x12) +
-          2.0f * g_sum_fy[n1 + N * n] * (fnp * z12 * y12) +
-          2.0f * g_sum_fz[n1 + N * n] * (fnp * z12 * z12 + fn * (1.0f - z12 * z12) * d12inv);
+          2.0f * g_sum_fxyz[(1 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * z12 * x12) +
+          2.0f * g_sum_fxyz[(2 * (paramb.n_max + 1) + n1) * N + n1] * (fnp * z12 * y12) +
+          2.0f * g_sum_fxyz[(3 * (paramb.n_max + 1) + n1) * N + n1] *
+            (fnp * z12 * z12 + fn * (1.0f - z12 * z12) * d12inv);
         f12[2] += g_Fp[(n * 3 + 1) * N + n1] * dqdz_n1;
         float dqdz_n2 = 0; // TODO
         f12[2] += g_Fp[(n * 3 + 2) * N + n1] * dqdz_n2;
@@ -747,9 +745,13 @@ void NEP::find_force(
   if (annmb.num_neurons_per_layer > 0) {
     find_energy_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
-      pe.data(), nep_data.Fp.data());
+      pe.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
 
-    // TODO: call partial force
+    find_partial_force_manybody<<<Nc, max_Na>>>(
+      N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
+      nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
+      nep_data.f12z.data());
+    CUDA_CHECK_KERNEL
 
     find_force_3body_or_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, nep_data.f12x.data(), nep_data.f12y.data(),

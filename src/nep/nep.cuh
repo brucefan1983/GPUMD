@@ -19,12 +19,13 @@
 class Neighbor;
 
 struct NEP_Data {
-  GPU_Vector<int> NN3b;   // 3-body neighbor number
-  GPU_Vector<int> NL3b;   // 3-body neighbor list
-  GPU_Vector<float> f12x; // 3-body or manybody partial forces
-  GPU_Vector<float> f12y; // 3-body or manybody partial forces
-  GPU_Vector<float> f12z; // 3-body or manybody partial forces
-  GPU_Vector<float> Fp;   // derivative of the manybody descriptor
+  GPU_Vector<int> NN3b;       // 3-body neighbor number
+  GPU_Vector<int> NL3b;       // 3-body neighbor list
+  GPU_Vector<float> f12x;     // 3-body or manybody partial forces
+  GPU_Vector<float> f12y;     // 3-body or manybody partial forces
+  GPU_Vector<float> f12z;     // 3-body or manybody partial forces
+  GPU_Vector<float> Fp;       // derivative of energy with respect to manybody descriptor
+  GPU_Vector<float> sum_fxyz; // \sum_k f(n, r_{ik}) \hat{x}_{ik}^a \hat{y}_{ik}^b \hat{z}_{ik}^c
 };
 
 class NEP : public Potential
