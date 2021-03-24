@@ -44,6 +44,15 @@ public:
     float pi_factor = 0.0f; // pi/(r2-r1)
   };
 
+  struct ParaMB {
+    float r1 = 0.0f;        // inner cutoff
+    float r2 = 0.0f;        // outer cutoff
+    float r2inv = 0.0f;     // inverse of the outer cutoff
+    float pi_factor = 0.0f; // pi/(r2-r1)
+    int n_max;
+    int L_max;
+  };
+
   struct ANN {
     int dim = 3;
     int num_neurons_per_layer;
@@ -53,15 +62,6 @@ public:
     float b1[10];  // from the first hidden layer to the second hidden layer
     float w2[10];  // from the second hidden layer to the output layer
     float b2;      // from the second hidden layer to the output layer
-  };
-
-  struct ParaMB {
-    float r1 = 0.0f;        // inner cutoff
-    float r2 = 0.0f;        // outer cutoff
-    float r2inv = 0.0f;     // inverse of the outer cutoff
-    float pi_factor = 0.0f; // pi/(r2-r1)
-    int n_max;
-    int L_max;
   };
 
   NEP(
