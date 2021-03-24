@@ -62,14 +62,16 @@ NEP::NEP(
 void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 {
   if (ann3b.num_neurons_per_layer > 0) {
-    nep_data.f12x3b.resize(N * MAX_ATOM_NUMBER);
-    nep_data.f12y3b.resize(N * MAX_ATOM_NUMBER);
-    nep_data.f12z3b.resize(N * MAX_ATOM_NUMBER);
     nep_data.NN3b.resize(N);
     nep_data.NL3b.resize(N * MAX_ATOM_NUMBER);
   }
   if (annmb.num_neurons_per_layer > 0) {
     nep_data.Fp.resize(N * annmb.dim);
+  }
+  if (ann3b.num_neurons_per_layer > 0 || annmb.num_neurons_per_layer > 0) {
+    nep_data.f12x.resize(N * MAX_ATOM_NUMBER);
+    nep_data.f12y.resize(N * MAX_ATOM_NUMBER);
+    nep_data.f12z.resize(N * MAX_ATOM_NUMBER);
   }
 }
 
@@ -711,14 +713,13 @@ void NEP::find_force(
 
     find_partial_force_3body<<<Nc, max_Na>>>(
       N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), type, para3b, ann3b, r, r + N,
-      r + N * 2, h, pe.data(), nep_data.f12x3b.data(), nep_data.f12y3b.data(),
-      nep_data.f12z3b.data());
+      r + N * 2, h, pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
     CUDA_CHECK_KERNEL
 
     find_force_3body<<<Nc, max_Na>>>(
-      N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), nep_data.f12x3b.data(),
-      nep_data.f12y3b.data(), nep_data.f12z3b.data(), r, r + N, r + N * 2, h, f.data(),
-      f.data() + N, f.data() + N * 2, virial.data());
+      N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), nep_data.f12x.data(),
+      nep_data.f12y.data(), nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N,
+      f.data() + N * 2, virial.data());
     CUDA_CHECK_KERNEL
   }
 
