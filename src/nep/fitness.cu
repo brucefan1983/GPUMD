@@ -264,7 +264,7 @@ void Fitness::read_potential(char* input_dir)
 
   int number_of_variables_mb = 0;
   if (num_neurons_mb > 0) {
-    number_of_variables_mb = num_neurons_mb * (num_neurons_mb + 3 + n_max * (L_max + 1)) + 1;
+    number_of_variables_mb = num_neurons_mb * (num_neurons_mb + 3 + (n_max + 1) * (L_max + 1)) + 1;
     number_of_variables += number_of_variables_mb;
   }
   printf("number of parameters to be optimized for manybody part = %d.\n", number_of_variables_mb);
