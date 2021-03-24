@@ -485,11 +485,30 @@ static __device__ float find_Tn(const int n, const int x)
     float t1 = x;
     float t2;
     for (int m = 2; m <= n; ++m) {
-      t2 = 2.0f * t1 + t0;
+      t2 = 2.0f * x * t1 + t0;
       t0 = t1;
       t1 = t2;
     }
     return t2;
+  }
+}
+
+static __device__ float find_Tnp(const int n, const int x)
+{
+  if (n == 0) {
+    return 0.0f;
+  } else if (n == 1) {
+    return 1.0;
+  } else {
+    float u0 = 1.0f;
+    float u1 = 2.0f * x;
+    float u2;
+    for (int m = 2; m <= n; ++m) {
+      u2 = 2.0f * x * u1 + u0;
+      u0 = u1;
+      u1 = u2;
+    }
+    return n * u0;
   }
 }
 
@@ -613,14 +632,16 @@ static __global__ void find_partial_force_manybody(
       float z12 = g_z[n2] - z1;
       dev_apply_mic(h, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float fc12;
-      find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
+      float fc12, fcp12;
+      find_fc_and_fcp(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12, fcp12);
       float d12inv = 1.0f / d12;
 
       float f12[3];
       for (int n = 0; n < paramb.n_max; ++n) {
-        float fn = fc12 * find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
-        float fnp = 0.0f; // TODO
+        float Tn = find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
+        float Tnp = find_Tnp(n, 2 * d12 * paramb.r2inv - 1.0f);
+        float fn = Tn * fc12;
+        float fnp = Tnp * fc12 + Tn * fcp12;
 
         // x
         float dqdx_n0 = 2.0f * g_sum_f[n1 + N * n] * fnp * x12;
