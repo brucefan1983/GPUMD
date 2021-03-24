@@ -544,7 +544,7 @@ static __global__ void find_energy_manybody(
     float z1 = g_z[n1];
 
     float q[27] = {0.0f};
-    for (int n = 0; n < paramb.n_max; ++n) {
+    for (int n = 0; n <= paramb.n_max; ++n) {
       float sum_xyz[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
         int n2 = g_NL[n1 + N * i1];
@@ -633,7 +633,7 @@ static __global__ void find_partial_force_manybody(
       float d12inv = 1.0f / d12;
 
       float f12[3];
-      for (int n = 0; n < paramb.n_max; ++n) {
+      for (int n = 0; n <= paramb.n_max; ++n) {
         float Tn = find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
         float Tnp = find_Tnp(n, 2 * d12 * paramb.r2inv - 1.0f);
         float fn = Tn * fc12;
