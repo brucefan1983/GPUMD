@@ -634,8 +634,8 @@ static __global__ void find_partial_force_manybody(
 
       float f12[3];
       for (int n = 0; n <= paramb.n_max; ++n) {
-        float Tn = find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
-        float Tnp = find_Tnp(n, 2 * d12 * paramb.r2inv - 1.0f);
+        float Tn = find_Tn(n, 2.0f * d12 * paramb.r2inv - 1.0f);
+        float Tnp = find_Tnp(n, 2.0f * d12 * paramb.r2inv - 1.0f) * 2.0f * paramb.r2inv;
         float fn = Tn * fc12;
         float fn0p = Tnp * fc12 + Tn * fcp12;
         float fn1p = fn0p * d12inv - fn * d12inv * d12inv;
