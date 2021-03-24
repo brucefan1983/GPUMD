@@ -110,8 +110,8 @@ void NEP::update_potential(const float* parameters, const int offset, NEP::ANN& 
 static __device__ void apply_ann(const NEP::ANN& ann, float* q, float& p123, float* f123)
 {
   // energy
-  float x1[10] = {0.0f}; // states of the 1st hidden layer nuerons
-  float x2[10] = {0.0f}; // states of the 2nd hidden layer nuerons
+  float x1[10] = {0.0f}; // states of the 1st hidden layer neurons
+  float x2[10] = {0.0f}; // states of the 2nd hidden layer neurons
   for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
     float w0_times_q = 0.0f;
     for (int d = 0; d < ann.dim; ++d) {
@@ -132,8 +132,8 @@ static __device__ void apply_ann(const NEP::ANN& ann, float* q, float& p123, flo
 
   // energy gradient (compute it component by component)
   for (int d = 0; d < ann.dim; ++d) {
-    float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer nuerons
-    float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer nuerons
+    float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer neurons
+    float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer neurons
     for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
       y1[n] = (1.0f - x1[n] * x1[n]) * ann.w0[n * ann.dim + d];
     }
