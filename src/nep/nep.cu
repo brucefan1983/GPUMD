@@ -90,6 +90,15 @@ void NEP::update_potential(const float* parameters)
     }
     update_potential(parameters, offset, ann3b);
   }
+  if (annmb.num_neurons_per_layer > 0) {
+    if (ann2b.num_neurons_per_layer > 0) {
+      offset = ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
+    }
+    if (ann3b.num_neurons_per_layer > 0) {
+      offset = ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + 6) + 1;
+    }
+    update_potential(parameters, offset, annmb);
+  }
 }
 
 void NEP::update_potential(const float* parameters, const int offset, NEP::ANN& ann)
