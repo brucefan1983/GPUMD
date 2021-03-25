@@ -572,7 +572,7 @@ static __global__ void find_energy_manybody(
       }
     }
 
-    float F, Fp[27];
+    float F = 0.0f, Fp[27] = {0.0f};
     apply_ann(annmb, q, F, Fp);
     g_pe[n1] += F;
     for (int d = 0; d < annmb.dim; ++d) {
