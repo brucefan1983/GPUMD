@@ -57,7 +57,7 @@ public:
   struct ANN {
     int dim = 3;
     int num_neurons_per_layer;
-    float w0[30];  // from the input layer to the first hidden layer
+    float w0[270]; // from the input layer to the first hidden layer
     float b0[10];  // from the input layer to the first hidden layer
     float w1[100]; // from the first hidden layer to the second hidden layer
     float b1[10];  // from the first hidden layer to the second hidden layer
