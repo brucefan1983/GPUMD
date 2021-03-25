@@ -622,7 +622,7 @@ static __global__ void find_partial_force_manybody(
       find_fc_and_fcp(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12, fcp12);
       float d12inv = 1.0f / d12;
 
-      float f12[3];
+      float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max; ++n) {
         float fn;
         float fnp;
