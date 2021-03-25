@@ -25,7 +25,7 @@ struct NEP_Data {
   GPU_Vector<float> f12y;     // 3-body or manybody partial forces
   GPU_Vector<float> f12z;     // 3-body or manybody partial forces
   GPU_Vector<float> Fp;       // derivative of energy with respect to manybody descriptor
-  GPU_Vector<float> sum_fxyz; // \sum_k f(n, r_{ik}) \hat{x}_{ik}^a \hat{y}_{ik}^b \hat{z}_{ik}^c
+  GPU_Vector<float> sum_fxyz; // \sum_k f(n, l, r_{ik}) x_{ik}^a y_{ik}^b z_{ik}^c
 };
 
 class NEP : public Potential
