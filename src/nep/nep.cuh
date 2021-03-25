@@ -52,6 +52,7 @@ public:
     float pi_factor = 0.0f; // pi/(r2-r1)
     int n_max;
     int L_max;
+    float delta_r = 0.0f;
   };
 
   struct ANN {

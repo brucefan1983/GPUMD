@@ -53,10 +53,11 @@ NEP::NEP(
   // manybody
   paramb.n_max = n_max;
   paramb.L_max = L_max;
-  paramb.r1 = r1_2b; // manybody has the same cutoff as twobody
+  paramb.r1 = 0.0f;  // inner cutoff for manybody is fixed to 0
   paramb.r2 = r2_2b; // manybody has the same cutoff as twobody
   paramb.r2inv = 1.0f / paramb.r2;
   paramb.pi_factor = 3.1415927f / (paramb.r2 - paramb.r1);
+  paramb.delta_r = paramb.r2 / paramb.n_max;
   annmb.dim = (n_max + 1) * (L_max + 1);
   annmb.num_neurons_per_layer = num_neurons_mb;
 };
@@ -488,42 +489,18 @@ static __global__ void find_force_3body_or_manybody(
   }
 }
 
-static __device__ float find_Tn(const int n, const int x)
+static __device__ void find_fn(const int n, const float delta_r, const int d12, float& fn)
 {
-  if (n == 0) {
-    return 1.0f;
-  } else if (n == 1) {
-    return x;
-  } else {
-    float t0 = 1.0f;
-    float t1 = x;
-    float t2;
-    for (int m = 2; m <= n; ++m) {
-      t2 = 2.0f * x * t1 + t0;
-      t0 = t1;
-      t1 = t2;
-    }
-    return t2;
-  }
+  float tmp = d12 - n * delta_r;
+  fn = exp(-tmp * tmp);
 }
 
-static __device__ float find_Tnp(const int n, const int x)
+static __device__ void
+find_fn_and_fnp(const int n, const float delta_r, const int d12, float& fn, float& fnp)
 {
-  if (n == 0) {
-    return 0.0f;
-  } else if (n == 1) {
-    return 1.0;
-  } else {
-    float u0 = 1.0f;
-    float u1 = 2.0f * x;
-    float u2;
-    for (int m = 2; m <= n; ++m) {
-      u2 = 2.0f * x * u1 + u0;
-      u0 = u1;
-      u1 = u2;
-    }
-    return n * u0;
-  }
+  float tmp = d12 - n * delta_r;
+  fn = exp(-tmp * tmp);
+  fnp = -2.0f * tmp * fn;
 }
 
 static __global__ void find_energy_manybody(
@@ -566,7 +543,9 @@ static __global__ void find_energy_manybody(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
-        float fn = fc12 * find_Tn(n, 2 * d12 * paramb.r2inv - 1.0f);
+        float fn;
+        find_fn(n, paramb.delta_r, d12, fn);
+        fn *= fc12;
 
         float d12inv = 1.0f / d12;
         x12 *= d12inv;
@@ -645,13 +624,12 @@ static __global__ void find_partial_force_manybody(
 
       float f12[3];
       for (int n = 0; n <= paramb.n_max; ++n) {
-        float Tn = find_Tn(n, 2.0f * d12 * paramb.r2inv - 1.0f);
-        float Tnp = find_Tnp(n, 2.0f * d12 * paramb.r2inv - 1.0f) * 2.0f * paramb.r2inv;
-        float fn = Tn * fc12;
-        float fn0p = Tnp * fc12 + Tn * fcp12;
-        float fn1p = fn0p * d12inv - fn * d12inv * d12inv;
-        float fn2p = fn0p * d12inv * d12inv - 2.0f * fn * d12inv * d12inv * d12inv;
+        float fn;
+        float fnp;
+        find_fn_and_fnp(n, paramb.delta_r, d12, fn, fnp);
         // l=0
+        float fn0 = fn * fc12;
+        float fn0p = fnp * fc12 + fn * fcp12;
         float Fp0 = g_Fp[(n * 3 + 0) * N + n1];
         float sum_f0 = g_sum_fxyz[(0 * (paramb.n_max + 1) + n) * N + n1];
         float tmp = Fp0 * sum_f0 * fn0p * d12inv;
@@ -659,6 +637,8 @@ static __global__ void find_partial_force_manybody(
           f12[d] += tmp * r12[d];
         }
         // l=1
+        float fn1 = fn0 * d12inv;
+        float fn1p = fn0p * d12inv - fn0 * d12inv * d12inv;
         float Fp1 = g_Fp[(n * 3 + 1) * N + n1];
         float sum_f1[3] = {
           g_sum_fxyz[(1 * (paramb.n_max + 1) + n) * N + n1],
@@ -666,11 +646,13 @@ static __global__ void find_partial_force_manybody(
           g_sum_fxyz[(3 * (paramb.n_max + 1) + n) * N + n1]};
         float tmp1 =
           Fp1 * fn1p * (sum_f1[0] * r12[0] + sum_f1[1] * r12[1] + sum_f1[2] * r12[2]) * d12inv;
-        float tmp2 = Fp1 * fn * d12inv;
+        float tmp2 = Fp1 * fn1;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp1 * r12[d] + tmp2 * sum_f1[d];
         }
         // l=2
+        float fn2 = fn1 * d12inv;
+        float fn2p = fn1p * d12inv - fn1 * d12inv * d12inv;
         float Fp2 = g_Fp[(n * 3 + 2) * N + n1];
         float sum_f2[6] = {
           g_sum_fxyz[(4 * (paramb.n_max + 1) + n) * N + n1],
@@ -684,7 +666,7 @@ static __global__ void find_partial_force_manybody(
                 sum_f2[2] * r12[2] * r12[2] + 2.0f * sum_f2[3] * r12[0] * r12[1] +
                 2.0f * sum_f2[4] * r12[0] * r12[2] + 2.0f * sum_f2[5] * r12[1] * r12[2]) *
                d12inv;
-        tmp2 = 2.0f * Fp2 * fn * d12inv * d12inv;
+        tmp2 = 2.0f * Fp2 * fn2;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp1 * r12[d] + tmp2 * sum_f2[d] * r12[d];
         }
@@ -764,6 +746,7 @@ void NEP::find_force(
     find_energy_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
       pe.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
+    CUDA_CHECK_KERNEL
 
     find_partial_force_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
