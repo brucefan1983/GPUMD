@@ -80,22 +80,24 @@ void NEP::initialize(int N, int MAX_ATOM_NUMBER)
 
 void NEP::update_potential(const float* parameters)
 {
-  int offset = 0;
   if (ann2b.num_neurons_per_layer > 0) {
+    int offset = 0;
     update_potential(parameters, offset, ann2b);
   }
   if (ann3b.num_neurons_per_layer > 0) {
+    int offset = 0;
     if (ann2b.num_neurons_per_layer > 0) {
-      offset = ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
+      offset += ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
     }
     update_potential(parameters, offset, ann3b);
   }
   if (annmb.num_neurons_per_layer > 0) {
+    int offset = 0;
     if (ann2b.num_neurons_per_layer > 0) {
-      offset = ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
+      offset += ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 4) + 1;
     }
     if (ann3b.num_neurons_per_layer > 0) {
-      offset = ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + 6) + 1;
+      offset += ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + 6) + 1;
     }
     update_potential(parameters, offset, annmb);
   }
