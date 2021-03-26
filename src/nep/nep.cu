@@ -245,9 +245,9 @@ static __global__ void find_force_2body(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
       float p2 = 0.0f, f2[1] = {0.0f};
-      float q[1] = {d12 / para2b.r2};
+      float q[1] = {d12 * para2b.r2inv};
       apply_ann(ann2b, q, p2, f2);
-      f2[0] /= para2b.r2;
+      f2[0] *= para2b.r2inv;
       float fc, fcp;
       find_fc_and_fcp(para2b.r1, para2b.r2, para2b.pi_factor, d12, fc, fcp);
       p2 *= fc;
