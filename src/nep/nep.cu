@@ -470,12 +470,12 @@ static __global__ void find_force_3body_or_manybody(
       s_fy += f12y - f21y;
       s_fz += f12z - f21z;
 
-      s_virial_xx -= x12 * (f12x - f21x) * 0.5f;
-      s_virial_yy -= y12 * (f12y - f21y) * 0.5f;
-      s_virial_zz -= z12 * (f12z - f21z) * 0.5f;
-      s_virial_xy -= x12 * (f12y - f21y) * 0.5f;
-      s_virial_yz -= y12 * (f12z - f21z) * 0.5f;
-      s_virial_zx -= z12 * (f12x - f21x) * 0.5f;
+      s_virial_xx += x12 * f21x;
+      s_virial_yy += y12 * f21y;
+      s_virial_zz += z12 * f21z;
+      s_virial_xy += x12 * f21y;
+      s_virial_yz += y12 * f21z;
+      s_virial_zx += z12 * f21x;
     }
 
     g_fx[n1] += s_fx;
