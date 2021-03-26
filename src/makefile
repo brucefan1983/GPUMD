@@ -6,6 +6,9 @@
 #    outputs for the same inputs and remove it otherwise.
 # 3) You can modify -arch=sm_35 according to 
 #    your GPU architecture.
+# 4) For Windows systems, if you got errors like 
+#    c1xx : fatal error C1083: Cannot open source file: ...
+#    You can consider removing "-Xcompiler "/wd 4819"
 ###########################################################
 
 
