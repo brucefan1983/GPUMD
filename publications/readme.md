@@ -1,6 +1,10 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (2)
+## Preprints (3)
+
+* Giuseppe Barbalinardo, Zekun Chen, Haikuan Dong, Zheyong Fan, Davide Donadio,
+[Ultrahigh yet convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling](https://arxiv.org/abs/2103.10633), 	
+arXiv:2103.10633 [cond-mat.mes-hall]
 
 * Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
 [Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://arxiv.org/abs/2102.03691),
