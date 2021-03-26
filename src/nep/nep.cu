@@ -56,7 +56,7 @@ NEP::NEP(
   paramb.n_max = n_max;
   paramb.L_max = L_max;
   paramb.r1 = 0.0f;  // inner cutoff for manybody is fixed to 0
-  paramb.r2 = r2_2b; // manybody has the same cutoff as twobody
+  paramb.r2 = r2_2b; // manybody has the same outer cutoff as twobody
   paramb.r2inv = 1.0f / paramb.r2;
   paramb.pi_factor = 3.1415927f / (paramb.r2 - paramb.r1);
   paramb.delta_r = paramb.r2 / paramb.n_max;
@@ -368,7 +368,7 @@ static __global__ void find_partial_force_3body(
         float d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);
         float d23inv = 1.0f / d23;
         float q[3] = {d12 + d13, (d12 - d13) * (d12 - d13), d23};
-        float p123 = 0.0f, f123[3] = {0.0f, 0.0f, 0.0f};
+        float p123 = 0.0f, f123[3] = {0.0f};
         apply_ann(ann3b, q, p123, f123);
         p12 += p123 * fc12 * fc13;
         float tmp = p123 * fcp12 * fc13 + (f123[0] + f123[1] * (d12 - d13) * 2.0f) * fc12 * fc13;
@@ -544,7 +544,7 @@ static __global__ void find_energy_manybody(
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc];
       }
     }
-    float F = 0.0f, Fp[27] = {0.0f};
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann(annmb, q, F, Fp);
     g_pe[n1] += F;
     for (int d = 0; d < annmb.dim; ++d) {
