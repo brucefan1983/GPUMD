@@ -533,7 +533,7 @@ static __global__ void find_energy_manybody(
     float y1 = g_y[n1];
     float z1 = g_z[n1];
 
-    float q[27] = {0.0f};
+    float q[MAX_DIM] = {0.0f};
     for (int n = 0; n <= paramb.n_max; ++n) {
       float sum_xyz[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
