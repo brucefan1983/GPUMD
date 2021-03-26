@@ -219,11 +219,9 @@ static __global__ void find_force_2body(
   if (n1 < N2) {
     const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN2b[n1];
-
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
-
     float pe = 0.0f;
     float fx = 0.0f;
     float fy = 0.0f;
@@ -234,16 +232,13 @@ static __global__ void find_force_2body(
     float virial_xy = 0.0f;
     float virial_yz = 0.0f;
     float virial_zx = 0.0f;
-
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_NL2b[n1 + N * i1];
-
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
       dev_apply_mic(h, x12, y12, z12);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-
       float p2 = 0.0f, f2[1] = {0.0f};
       float q[1] = {d12 * para2b.r2inv};
       apply_ann(ann2b, q, p2, f2);
@@ -252,7 +247,6 @@ static __global__ void find_force_2body(
       find_fc_and_fcp(para2b.r1, para2b.r2, para2b.pi_factor, d12, fc, fcp);
       p2 *= fc;
       f2[0] = (f2[0] * fc + p2 * fcp) / d12;
-
       fx += x12 * f2[0];
       fy += y12 * f2[0];
       fz += z12 * f2[0];
@@ -264,7 +258,6 @@ static __global__ void find_force_2body(
       virial_zx -= z12 * x12 * f2[0] * 0.5f;
       pe += p2 * 0.5f;
     }
-
     g_fx[n1] = fx;
     g_fy[n1] = fy;
     g_fz[n1] = fz;
@@ -298,27 +291,21 @@ static __global__ void find_neighbor_list_3body(
   if (n1 < N2) {
     const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN2b[n1];
-
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
-
     int count = 0;
-
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_NL2b[n1 + N * i1];
-
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
       dev_apply_mic(h, x12, y12, z12);
       float d12sq = x12 * x12 + y12 * y12 + z12 * z12;
-
       if (d12sq < para3b.r2 * para3b.r2) {
         g_NL3b[n1 + N * (count++)] = n2;
       }
     }
-
     g_NN3b[n1] = count;
   }
 }
@@ -344,7 +331,6 @@ static __global__ void find_partial_force_3body(
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
   int n1 = N1 + threadIdx.x;
-
   if (n1 < N2) {
     const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_neighbor_number[n1];
@@ -352,7 +338,6 @@ static __global__ void find_partial_force_3body(
     float y1 = g_y[n1];
     float z1 = g_z[n1];
     float pot_energy = 0.0f;
-
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_neighbor_list[index];
@@ -364,9 +349,7 @@ static __global__ void find_partial_force_3body(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(para3b.r1, para3b.r2, para3b.pi_factor, d12, fc12, fcp12);
-
       float p12 = 0.0f, f12[3] = {0.0f, 0.0f, 0.0f};
-
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int n3 = g_neighbor_list[n1 + N * i2];
         if (n3 == n2) {
@@ -379,7 +362,6 @@ static __global__ void find_partial_force_3body(
         float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
         float fc13;
         find_fc(para3b.r1, para3b.r2, para3b.pi_factor, d13, fc13);
-
         float x23 = x13 - x12;
         float y23 = y13 - y12;
         float z23 = z13 - z12;
@@ -388,7 +370,6 @@ static __global__ void find_partial_force_3body(
         float q[3] = {d12 + d13, (d12 - d13) * (d12 - d13), d23};
         float p123 = 0.0f, f123[3] = {0.0f, 0.0f, 0.0f};
         apply_ann(ann3b, q, p123, f123);
-
         p12 += p123 * fc12 * fc13;
         float tmp = p123 * fcp12 * fc13 + (f123[0] + f123[1] * (d12 - d13) * 2.0f) * fc12 * fc13;
         f12[0] += 2.0f * (tmp * x12 * d12inv - f123[2] * fc12 * fc13 * x23 * d23inv);
@@ -440,17 +421,14 @@ static __global__ void find_force_3body_or_manybody(
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
-
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_neighbor_list[index];
       int neighbor_number_2 = g_neighbor_number[n2];
-
       float x12 = g_x[n2] - x1;
       float y12 = g_y[n2] - y1;
       float z12 = g_z[n2] - z1;
       dev_apply_mic(h, x12, y12, z12);
-
       float f12x = g_f12x[index];
       float f12y = g_f12y[index];
       float f12z = g_f12z[index];
@@ -465,11 +443,9 @@ static __global__ void find_force_3body_or_manybody(
       float f21x = g_f12x[index];
       float f21y = g_f12y[index];
       float f21z = g_f12z[index];
-
       s_fx += f12x - f21x;
       s_fy += f12y - f21y;
       s_fz += f12z - f21z;
-
       s_virial_xx += x12 * f21x;
       s_virial_yy += y12 * f21y;
       s_virial_zz += z12 * f21z;
@@ -477,11 +453,9 @@ static __global__ void find_force_3body_or_manybody(
       s_virial_yz += y12 * f21z;
       s_virial_zx += z12 * f21x;
     }
-
     g_fx[n1] += s_fx;
     g_fy[n1] += s_fy;
     g_fz[n1] += s_fz;
-
     g_virial[n1] += s_virial_xx;
     g_virial[n1 + N] += s_virial_yy;
     g_virial[n1 + N * 2] += s_virial_zz;
@@ -528,11 +502,9 @@ static __global__ void find_energy_manybody(
   if (n1 < N2) {
     const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN[n1];
-
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
-
     float q[MAX_DIM] = {0.0f};
     for (int n = 0; n <= paramb.n_max; ++n) {
       float sum_xyz[NUM_OF_ABC] = {0.0f};
@@ -548,7 +520,6 @@ static __global__ void find_energy_manybody(
         float fn;
         find_fn(n, paramb.delta_r, d12, fn);
         fn *= fc12;
-
         float d12inv = 1.0f / d12;
         x12 *= d12inv;
         y12 *= d12inv;
@@ -573,7 +544,6 @@ static __global__ void find_energy_manybody(
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc];
       }
     }
-
     float F = 0.0f, Fp[27] = {0.0f};
     apply_ann(annmb, q, F, Fp);
     g_pe[n1] += F;
@@ -608,22 +578,18 @@ static __global__ void find_partial_force_manybody(
   if (n1 < N2) {
     const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN[n1];
-
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
-
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
-
       float r12[3] = {g_x[n2] - x1, g_y[n2] - y1, g_z[n2] - z1};
       dev_apply_mic(h, r12[0], r12[1], r12[2]);
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       find_fc_and_fcp(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12, fcp12);
       float d12inv = 1.0f / d12;
-
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max; ++n) {
         float fn;
@@ -721,37 +687,31 @@ void NEP::find_force(
       N, pe.data(), f.data(), f.data() + N, f.data() + N * 2, virial.data());
     CUDA_CHECK_KERNEL
   }
-
   if (ann3b.num_neurons_per_layer > 0) {
     find_neighbor_list_3body<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, para3b, r, r + N, r + N * 2, h,
       nep_data.NN3b.data(), nep_data.NL3b.data());
     CUDA_CHECK_KERNEL
-
     find_partial_force_3body<<<Nc, max_Na>>>(
       N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), type, para3b, ann3b, r, r + N,
       r + N * 2, h, pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
     CUDA_CHECK_KERNEL
-
     find_force_3body_or_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), nep_data.f12x.data(),
       nep_data.f12y.data(), nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N,
       f.data() + N * 2, virial.data());
     CUDA_CHECK_KERNEL
   }
-
   if (annmb.num_neurons_per_layer > 0) {
     find_energy_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
       pe.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
     CUDA_CHECK_KERNEL
-
     find_partial_force_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
       nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
       nep_data.f12z.data());
     CUDA_CHECK_KERNEL
-
     find_force_3body_or_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, neighbor->NN, neighbor->NL, nep_data.f12x.data(), nep_data.f12y.data(),
       nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N, f.data() + N * 2,
