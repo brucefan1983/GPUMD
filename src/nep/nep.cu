@@ -570,7 +570,7 @@ static __global__ void find_energy_manybody(
       q[n * 3 + 2] *= 2.0f;
       q[n * 3 + 2] += sum_xyz[4] * sum_xyz[4] + sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6];
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-        g_sum_fxyz[(abc * (paramb.n_max + 1) + n) * N + n1] = sum_xyz[abc];
+        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc];
       }
     }
 
@@ -633,7 +633,7 @@ static __global__ void find_partial_force_manybody(
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
         float Fp0 = g_Fp[(n * 3 + 0) * N + n1];
-        float sum_f0 = g_sum_fxyz[(0 * (paramb.n_max + 1) + n) * N + n1];
+        float sum_f0 = g_sum_fxyz[(n * NUM_OF_ABC + 0) * N + n1];
         float tmp = Fp0 * sum_f0 * fn0p * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
@@ -643,9 +643,8 @@ static __global__ void find_partial_force_manybody(
         float fn1p = fn0p * d12inv - fn0 * d12inv * d12inv;
         float Fp1 = g_Fp[(n * 3 + 1) * N + n1];
         float sum_f1[3] = {
-          g_sum_fxyz[(1 * (paramb.n_max + 1) + n) * N + n1],
-          g_sum_fxyz[(2 * (paramb.n_max + 1) + n) * N + n1],
-          g_sum_fxyz[(3 * (paramb.n_max + 1) + n) * N + n1]};
+          g_sum_fxyz[(n * NUM_OF_ABC + 1) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 2) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 3) * N + n1]};
         float tmp1 =
           Fp1 * fn1p * (sum_f1[0] * r12[0] + sum_f1[1] * r12[1] + sum_f1[2] * r12[2]) * d12inv;
         float tmp2 = Fp1 * fn1;
@@ -657,12 +656,9 @@ static __global__ void find_partial_force_manybody(
         float fn2p = fn1p * d12inv - fn1 * d12inv * d12inv;
         float Fp2 = g_Fp[(n * 3 + 2) * N + n1];
         float sum_f2[6] = {
-          g_sum_fxyz[(4 * (paramb.n_max + 1) + n) * N + n1],
-          g_sum_fxyz[(5 * (paramb.n_max + 1) + n) * N + n1],
-          g_sum_fxyz[(6 * (paramb.n_max + 1) + n) * N + n1],
-          g_sum_fxyz[(7 * (paramb.n_max + 1) + n) * N + n1],
-          g_sum_fxyz[(8 * (paramb.n_max + 1) + n) * N + n1],
-          g_sum_fxyz[(9 * (paramb.n_max + 1) + n) * N + n1]};
+          g_sum_fxyz[(n * NUM_OF_ABC + 4) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 5) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 6) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 7) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 8) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 9) * N + n1]};
         tmp1 = Fp2 * fn2p *
                (sum_f2[0] * r12[0] * r12[0] + sum_f2[1] * r12[1] * r12[1] +
                 sum_f2[2] * r12[2] * r12[2] + 2.0f * sum_f2[3] * r12[0] * r12[1] +
