@@ -15,6 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 The neuroevolution potential (NEP)
+Ref: Zheyong Fan et al., in preparison.
 ------------------------------------------------------------------------------*/
 
 #include "error.cuh"
@@ -23,7 +24,8 @@ The neuroevolution potential (NEP)
 #include "neighbor.cuh"
 #include "nep.cuh"
 
-const int NUM_OF_ABC = 10;
+const int NUM_OF_ABC = 10;               // 1 + 3 + 6 for L_max = 2
+const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 
 NEP::NEP(
   int num_neurons_2b,
@@ -124,11 +126,12 @@ void NEP::update_potential(const float* parameters, const int offset, NEP::ANN& 
     parameters[ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 3)) + offset];
 }
 
-static __device__ void apply_ann(const NEP::ANN& ann, float* q, float& p123, float* f123)
+static __device__ void
+apply_ann(const NEP::ANN& ann, float* q, float& energy, float* energy_derivative)
 {
   // energy
-  float x1[10] = {0.0f}; // states of the 1st hidden layer neurons
-  float x2[10] = {0.0f}; // states of the 2nd hidden layer neurons
+  float x1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 1st hidden layer neurons
+  float x2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 2nd hidden layer neurons
   for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
     float w0_times_q = 0.0f;
     for (int d = 0; d < ann.dim; ++d) {
@@ -143,14 +146,13 @@ static __device__ void apply_ann(const NEP::ANN& ann, float* q, float& p123, flo
     x2[n] = tanh(x2[n] - ann.b1[n]);
   }
   for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-    p123 += ann.w2[n] * x2[n];
+    energy += ann.w2[n] * x2[n];
   }
-  p123 -= ann.b2;
-
+  energy -= ann.b2;
   // energy gradient (compute it component by component)
   for (int d = 0; d < ann.dim; ++d) {
-    float y1[10] = {0.0f}; // derivatives of the states of the 1st hidden layer neurons
-    float y2[10] = {0.0f}; // derivatives of the states of the 2nd hidden layer neurons
+    float y1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // derivatives of the 1st hidden layer neurons
+    float y2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // derivatives of the 2nd hidden layer neurons
     for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
       y1[n] = (1.0f - x1[n] * x1[n]) * ann.w0[n * ann.dim + d];
     }
@@ -161,7 +163,7 @@ static __device__ void apply_ann(const NEP::ANN& ann, float* q, float& p123, flo
       y2[n] *= 1.0f - x2[n] * x2[n];
     }
     for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-      f123[d] += ann.w2[n] * y2[n];
+      energy_derivative[d] += ann.w2[n] * y2[n];
     }
   }
 }
@@ -215,7 +217,7 @@ static __global__ void find_force_2body(
   int N2 = N1 + Na[blockIdx.x];
   int n1 = N1 + threadIdx.x;
   if (n1 < N2) {
-    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN2b[n1];
 
     float x1 = g_x[n1];
@@ -294,7 +296,7 @@ static __global__ void find_neighbor_list_3body(
   int N2 = N1 + Na[blockIdx.x];
   int n1 = N1 + threadIdx.x;
   if (n1 < N2) {
-    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN2b[n1];
 
     float x1 = g_x[n1];
@@ -344,7 +346,7 @@ static __global__ void find_partial_force_3body(
   int n1 = N1 + threadIdx.x;
 
   if (n1 < N2) {
-    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_neighbor_number[n1];
     float x1 = g_x[n1];
     float y1 = g_y[n1];
@@ -433,7 +435,7 @@ static __global__ void find_force_3body_or_manybody(
     float s_virial_xy = 0.0f;
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
-    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_neighbor_number[n1];
     float x1 = g_x[n1];
     float y1 = g_y[n1];
@@ -524,7 +526,7 @@ static __global__ void find_energy_manybody(
   int N2 = N1 + Na[blockIdx.x];
   int n1 = N1 + threadIdx.x;
   if (n1 < N2) {
-    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN[n1];
 
     float x1 = g_x[n1];
@@ -604,7 +606,7 @@ static __global__ void find_partial_force_manybody(
   int N2 = N1 + Na[blockIdx.x];
   int n1 = N1 + threadIdx.x;
   if (n1 < N2) {
-    const float* __restrict__ h = g_box + 18 * blockIdx.x;
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN[n1];
 
     float x1 = g_x[n1];
