@@ -18,9 +18,9 @@
 #include "utilities/gpu_vector.cuh"
 class Neighbor;
 
-const int MAX_NUM_NEURONS_PER_LAYER = 15;
-const int MAX_NUM_N = 15; // n_max+1 = 14+1
-const int MAX_NUM_L = 3;  // L_max+1 = 2+1
+const int MAX_NUM_NEURONS_PER_LAYER = 18;
+const int MAX_NUM_N = 9; // n_max+1 = 8+1
+const int MAX_NUM_L = 3; // L_max+1 = 2+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 const int MAX_W0_SIZE = MAX_DIM * MAX_NUM_NEURONS_PER_LAYER;
 const int MAX_W1_SIZE = MAX_NUM_NEURONS_PER_LAYER * MAX_NUM_NEURONS_PER_LAYER;
