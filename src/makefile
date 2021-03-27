@@ -17,7 +17,7 @@
 ###########################################################
 CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
+CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819" -DDEBUG
 else # For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35 
 endif
@@ -43,6 +43,8 @@ SOURCES_PHONON =                  \
 	$(wildcard force/*.cu)        \
 	$(wildcard model/*.cu)        \
 	$(wildcard utilities/*.cu)
+SOURCES_NEP =                     \
+	$(wildcard main_nep/*.cu)
 
 
 ###########################################################
@@ -51,9 +53,11 @@ SOURCES_PHONON =                  \
 ifdef OS # For Windows with the cl.exe compiler
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.obj)
 OBJ_PHONON = $(SOURCES_PHONON:.cu=.obj)
+OBJ_NEP = $(SOURCES_NEP:.cu=.obj)
 else
 OBJ_GPUMD = $(SOURCES_GPUMD:.cu=.o)
 OBJ_PHONON = $(SOURCES_PHONON:.cu=.o)
+OBJ_NEP = $(SOURCES_NEP:.cu=.o)
 endif
 
 
@@ -68,16 +72,19 @@ HEADERS =                         \
 	$(wildcard force/*.cuh)       \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
-	$(wildcard main_phonon/*.cuh)
+	$(wildcard main_phonon/*.cuh) \
+	$(wildcard main_nep/*.cuh)
 
 
 ###########################################################
 # executables
 ###########################################################
-all: gpumd phonon
+all: gpumd phonon nep
 gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 phonon: $(OBJ_PHONON)
+	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
+nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 	
 
@@ -101,6 +108,8 @@ model/%.obj: model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_phonon/%.obj: main_phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.obj: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 %.o: %.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
@@ -120,6 +129,8 @@ model/%.o: model/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_phonon/%.o: main_phonon/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+main_nep/%.o: main_nep/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 endif
 
 
@@ -130,6 +141,6 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm */*.o gpumd phonon
+	rm */*.o gpumd phonon nep
 endif
 
