@@ -318,10 +318,11 @@ void Fitness::report_error(
     float rmse_force = get_fitness_force();
     float rmse_virial = get_fitness_stress();
     printf(
-      "%-7d%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f%-12.4f\n", generation + 1,
-      loss_total, loss_L1, loss_L2, rmse_energy / cost.potential_std * 100.0f,
-      rmse_force / cost.force_std * 100.0f, rmse_virial / cost.virial_std * 100.0f, rmse_energy,
-      rmse_force, rmse_virial);
+      "%-7d%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-12.1f%-10.1f%-12.1f\n", generation + 1,
+      loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
+      rmse_energy / cost.potential_std * 100.0f, rmse_force / cost.force_std * 100.0f,
+      rmse_virial / cost.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
+      rmse_virial * 1000.0f);
   }
 }
 

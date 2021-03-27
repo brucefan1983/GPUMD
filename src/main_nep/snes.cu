@@ -23,9 +23,9 @@ High Dimensions and Heavy Tails for Natural Evolution Strategies,
 https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
-#include "utilities/error.cuh"
 #include "fitness.cuh"
 #include "snes.cuh"
+#include "utilities/error.cuh"
 #include <chrono>
 #include <cmath>
 
@@ -93,8 +93,8 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
   FILE* fid = my_fopen(file, "w");
 
   printf(
-    "%-7s%-12s%-12s%-12s%-12s%-12s%-12s%-12s%-12s%-12s\n", "step", "cost_total", "cost_L1",
-    "cost_L2", "Energy(%)", "Force(%)", "Virial(%)", "Energy(eV)", "Force(eV/A)", "Virial(eV)");
+    "%-7s%-10s%-10s%-10s%-10s%-10s%-10s%-12s%-10s%-12s\n", "Step", "Z_tot(%)", "Z_L1(%)", "Z_L2(%)",
+    "U(%)", "F(%)", "W(%)", "U(meV/atom)", "F(meV/A)", "W(meV/atom)");
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
@@ -133,7 +133,7 @@ void SNES::regularize()
       cost_L1 += std::abs(population[pv]);
       cost_L2 += population[pv] * population[pv];
     }
-    cost_L1 *= 1.0e-3f / number_of_variables;                // good choice
+    cost_L1 *= 2.0e-3f / number_of_variables;                // good choice
     cost_L2 = 5.0e-3f * sqrt(cost_L2 / number_of_variables); // good choice
     fitness[p] = cost_L1 + cost_L2 + fitness[p + 3 * population_size] +
                  fitness[p + 4 * population_size] + fitness[p + 5 * population_size];
