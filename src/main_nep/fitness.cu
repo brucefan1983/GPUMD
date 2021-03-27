@@ -220,7 +220,7 @@ void Fitness::read_potential(char* input_dir)
   count = fscanf(fid, "%s%d%d%d", name, &num_neurons_mb, &n_max, &L_max);
   PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
   printf(
-    "many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max, r1_2b, r2_2b);
+    "many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max);
 
   // old c++11 way:
   potential.reset(new NEP(
