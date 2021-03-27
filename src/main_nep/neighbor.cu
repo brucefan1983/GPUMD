@@ -17,7 +17,7 @@
 find the neighbor list
 ------------------------------------------------------------------------------*/
 
-#include "error.cuh"
+#include "utilities/error.cuh"
 #include "mic.cuh"
 #include "neighbor.cuh"
 

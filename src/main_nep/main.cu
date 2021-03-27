@@ -13,15 +13,15 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#include "error.cuh"
 #include "fitness.cuh"
 #include "snes.cuh"
+#include "utilities/error.cuh"
+#include "utilities/main_common.cuh"
 #include <stdio.h>
 #include <stdlib.h>
 #include <time.h>
 
 void print_welcome_information(void);
-int get_number_of_input_directories(void);
 
 int main(int argc, char* argv[])
 {
@@ -31,9 +31,7 @@ int main(int argc, char* argv[])
   for (int n = 0; n < number_of_inputs; ++n) {
     char input_directory[200];
     int count = scanf("%s", input_directory);
-    if (count != 1) {
-      print_error("reading error for input directory.\n");
-    }
+    PRINT_SCANF_ERROR(count, 1, "reading error for input directory.");
 
     print_line_1();
     printf("Run simulation for '%s'.\n", input_directory);
@@ -70,14 +68,4 @@ void print_welcome_information(void)
   printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
   printf("***************************************************************\n");
   printf("\n");
-}
-
-int get_number_of_input_directories(void)
-{
-  int number_of_inputs;
-  int count = scanf("%d", &number_of_inputs);
-  if (count != 1) {
-    print_error("reading error for number of inputs.\n");
-  }
-  return number_of_inputs;
 }

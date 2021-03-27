@@ -23,7 +23,7 @@ High Dimensions and Heavy Tails for Natural Evolution Strategies,
 https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
-#include "error.cuh"
+#include "utilities/error.cuh"
 #include "fitness.cuh"
 #include "snes.cuh"
 #include <chrono>

@@ -18,8 +18,8 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., in preparison.
 ------------------------------------------------------------------------------*/
 
-#include "error.cuh"
-#include "gpu_vector.cuh"
+#include "utilities/error.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "mic.cuh"
 #include "neighbor.cuh"
 #include "nep.cuh"

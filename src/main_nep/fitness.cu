@@ -17,11 +17,11 @@
 Get the fitness
 ------------------------------------------------------------------------------*/
 
-#include "error.cuh"
 #include "fitness.cuh"
-#include "gpu_vector.cuh"
 #include "neighbor.cuh"
 #include "nep.cuh"
+#include "utilities/error.cuh"
+#include "utilities/gpu_vector.cuh"
 #include <vector>
 
 Fitness::Fitness(char* input_dir)
@@ -93,9 +93,7 @@ void Fitness::read_train_in(char* input_dir)
       fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
       &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
       &virial_ref[n + Nc * 5]);
-    if (count != 7) {
-      print_error("reading error for train.in.\n");
-    }
+    PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
     pe_ref[n] /= Na[n];
     for (int k = 0; k < 6; ++k) {
       virial_ref[n + Nc * k] /= Na[n];
@@ -108,9 +106,7 @@ void Fitness::read_train_in(char* input_dir)
     float h_tmp[9];
     for (int k = 0; k < 9; ++k) {
       count = fscanf(fid, "%f", &h_tmp[k]);
-      if (count != 1) {
-        print_error("reading error for train.in.\n");
-      }
+      PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
     }
     h[0 + 18 * n] = h_tmp[0];
     h[3 + 18 * n] = h_tmp[1];
@@ -130,9 +126,7 @@ void Fitness::read_train_in(char* input_dir)
         fid, "%d%f%f%f%f%f%f", &type[Na_sum[n] + k], &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
         &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k], &force_ref[Na_sum[n] + k + N],
         &force_ref[Na_sum[n] + k + N * 2]);
-      if (count != 7) {
-        print_error("reading error for train.in.\n");
-      }
+      PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
       cost.force_std += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
                         force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
                         force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
@@ -161,11 +155,9 @@ void Fitness::read_train_in(char* input_dir)
 void Fitness::read_Nc(FILE* fid)
 {
   int count = fscanf(fid, "%d", &Nc);
-  if (count != 1)
-    print_error("Reading error for xyz.in.\n");
-
+  PRINT_SCANF_ERROR(count, 1, "reading error for xyz.in.");
   if (Nc < 2) {
-    print_error("Number of configurations should >= 2\n");
+    PRINT_INPUT_ERROR("Number of configurations should >= 2");
   }
   printf("Number of configurations is %d:\n", Nc);
 }
@@ -180,15 +172,13 @@ void Fitness::read_Na(FILE* fid)
 
   for (int nc = 0; nc < Nc; ++nc) {
     int count = fscanf(fid, "%d", &Na[nc]);
-    if (count != 1) {
-      print_error("Reading error for train.in.\n");
-    }
+    PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
     N += Na[nc];
     if (Na[nc] > max_Na) {
       max_Na = Na[nc];
     }
     if (Na[nc] < 2) {
-      print_error("Number of atoms %d should >= 2\n");
+      PRINT_INPUT_ERROR("Number of atoms % d should >= 2.");
     }
   }
 
@@ -216,25 +206,19 @@ void Fitness::read_potential(char* input_dir)
   int num_neurons_2b = 0;
   float r1_2b, r2_2b;
   int count = fscanf(fid, "%s%d%f%f", name, &num_neurons_2b, &r1_2b, &r2_2b);
-  if (count != 4) {
-    print_error("reading error for potential.in.");
-  }
+  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
   printf("two_body: %d neurons, %g A to %g A.\n", num_neurons_2b, r1_2b, r2_2b);
 
   int num_neurons_3b = 0;
   float r1_3b, r2_3b;
   count = fscanf(fid, "%s%d%f%f", name, &num_neurons_3b, &r1_3b, &r2_3b);
-  if (count != 4) {
-    print_error("reading error for potential.in.");
-  }
+  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
   printf("three_body: %d neurons, %g A to %g A.\n", num_neurons_3b, r1_3b, r2_3b);
 
   int num_neurons_mb = 0;
   int n_max, L_max;
   count = fscanf(fid, "%s%d%d%d", name, &num_neurons_mb, &n_max, &L_max);
-  if (count != 4) {
-    print_error("reading error for potential.in.");
-  }
+  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
   printf(
     "many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max, r1_2b, r2_2b);
 
@@ -273,38 +257,30 @@ void Fitness::read_potential(char* input_dir)
   neighbor.cutoff = r2_2b;
 
   count = fscanf(fid, "%s%f", name, &cost.weight_force);
-  if (count != 2) {
-    print_error("reading error for potential.in.");
-  }
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   if (cost.weight_force < 0) {
-    print_error("weight for force should >= 0\n");
+    PRINT_INPUT_ERROR("weight for force should >= 0.");
   }
   printf("weight for force is %g.\n", cost.weight_force);
 
   count = fscanf(fid, "%s%f", name, &cost.weight_energy);
-  if (count != 2) {
-    print_error("reading error for potential.in.");
-  }
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   if (cost.weight_energy < 0) {
-    print_error("weight for energy should >= 0\n");
+    PRINT_INPUT_ERROR("weight for energy should >= 0.");
   }
   printf("weight for energy is %g.\n", cost.weight_energy);
 
   count = fscanf(fid, "%s%f", name, &cost.weight_stress);
-  if (count != 2) {
-    print_error("reading error for potential.in.");
-  }
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   if (cost.weight_stress < 0) {
-    print_error("weight for stress should >= 0\n");
+    PRINT_INPUT_ERROR("weight for stress should >= 0.");
   }
   printf("weight for stress is %g.\n", cost.weight_stress);
 
   count = fscanf(fid, "%s%d", name, &maximum_generation);
-  if (count != 2) {
-    print_error("reading error for potential.in.");
-  }
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   if (maximum_generation < 1) {
-    print_error("maximum_generation should >= 1\n");
+    PRINT_INPUT_ERROR("maximum_generation should >= 1.");
   }
   printf("maximum_generation is %d.\n", maximum_generation);
 

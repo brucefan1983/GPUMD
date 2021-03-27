@@ -14,7 +14,7 @@
 */
 
 #pragma once
-#include "gpu_vector.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "potential.cuh"
 class Neighbor;
 
