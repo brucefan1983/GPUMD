@@ -18,11 +18,11 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., in preparison.
 ------------------------------------------------------------------------------*/
 
-#include "utilities/error.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "mic.cuh"
 #include "neighbor.cuh"
 #include "nep.cuh"
+#include "utilities/error.cuh"
+#include "utilities/gpu_vector.cuh"
 
 const int NUM_OF_ABC = 10;               // 1 + 3 + 6 for L_max = 2
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
@@ -60,6 +60,7 @@ NEP::NEP(
   paramb.r2inv = 1.0f / paramb.r2;
   paramb.pi_factor = 3.1415927f / (paramb.r2 - paramb.r1);
   paramb.delta_r = paramb.r2 / paramb.n_max;
+  paramb.eta = 0.5f / (paramb.delta_r * paramb.delta_r * 4.0f);
   annmb.dim = (n_max + 1) * (L_max + 1);
   annmb.num_neurons_per_layer = num_neurons_mb;
 };
@@ -465,18 +466,19 @@ static __global__ void find_force_3body_or_manybody(
   }
 }
 
-static __device__ void find_fn(const int n, const float delta_r, const int d12, float& fn)
+static __device__ void
+find_fn(const int n, const float delta_r, const float eta, const int d12, float& fn)
 {
   float tmp = d12 - n * delta_r;
-  fn = exp(-tmp * tmp);
+  fn = exp(-eta * tmp * tmp);
 }
 
-static __device__ void
-find_fn_and_fnp(const int n, const float delta_r, const int d12, float& fn, float& fnp)
+static __device__ void find_fn_and_fnp(
+  const int n, const float delta_r, const float eta, const int d12, float& fn, float& fnp)
 {
   float tmp = d12 - n * delta_r;
-  fn = exp(-tmp * tmp);
-  fnp = -2.0f * tmp * fn;
+  fn = exp(-eta * tmp * tmp);
+  fnp = -2.0f * eta * tmp * fn;
 }
 
 static __global__ void find_energy_manybody(
@@ -518,7 +520,7 @@ static __global__ void find_energy_manybody(
         float fc12;
         find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
         float fn;
-        find_fn(n, paramb.delta_r, d12, fn);
+        find_fn(n, paramb.delta_r, paramb.eta, d12, fn);
         fn *= fc12;
         float d12inv = 1.0f / d12;
         x12 *= d12inv;
@@ -594,7 +596,7 @@ static __global__ void find_partial_force_manybody(
       for (int n = 0; n <= paramb.n_max; ++n) {
         float fn;
         float fnp;
-        find_fn_and_fnp(n, paramb.delta_r, d12, fn, fnp);
+        find_fn_and_fnp(n, paramb.delta_r, paramb.eta, d12, fn, fnp);
         // l=0
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;

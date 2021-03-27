@@ -14,12 +14,12 @@
 */
 
 #pragma once
-#include "utilities/gpu_vector.cuh"
 #include "potential.cuh"
+#include "utilities/gpu_vector.cuh"
 class Neighbor;
 
 const int MAX_NUM_NEURONS_PER_LAYER = 15;
-const int MAX_NUM_N = 11; // n_max+1 = 10+1
+const int MAX_NUM_N = 15; // n_max+1 = 14+1
 const int MAX_NUM_L = 3;  // L_max+1 = 2+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 const int MAX_W0_SIZE = MAX_DIM * MAX_NUM_NEURONS_PER_LAYER;
@@ -60,6 +60,7 @@ public:
     int n_max = 0;          // n = 0, 1, 2, ..., n_max
     int L_max = 0;          // l = 0, 1, 2, ..., L_max
     float delta_r = 0.0f;   // r2/n_max
+    float eta = 0.0f;       // \eta in \exp{-\eta * (r - r_i)^2}
   };
 
   struct ANN {
