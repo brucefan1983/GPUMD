@@ -54,7 +54,7 @@ NEP::NEP(FILE* fid, const Neighbor& neighbor)
   // 3body
   ann3b.dim = 3;
   para3b.r2inv = 1.0f / para3b.r2;
-  para3b.pi_factor = 3.1415927f / (para2b.r2 - para2b.r1);
+  para3b.pi_factor = 3.1415927f / (para3b.r2 - para3b.r1);
   // manybody
   paramb.r1 = 0.0f;      // inner cutoff for manybody is fixed to 0
   paramb.r2 = para2b.r2; // manybody has the same outer cutoff as twobody
