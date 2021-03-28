@@ -242,18 +242,22 @@ static __global__ void find_force_2body(
     float fy = 0.0f;
     float fz = 0.0f;
     float virial_xx = 0.0f;
-    float virial_yy = 0.0f;
-    float virial_zz = 0.0f;
     float virial_xy = 0.0f;
+    float virial_xz = 0.0f;
+    float virial_yx = 0.0f;
+    float virial_yy = 0.0f;
     float virial_yz = 0.0f;
     float virial_zx = 0.0f;
+    float virial_zy = 0.0f;
+    float virial_zz = 0.0f;
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      double x12 = g_x[n2] - x1;
-      double y12 = g_y[n2] - y1;
-      double z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float d12 = sqrt(float(x12 * x12 + y12 * y12 + z12 * z12));
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float p2 = 0.0f, f2[1] = {0.0f};
       float q[1] = {d12 * para2b.r2inv};
       apply_ann(ann2b, q, p2, f2);
@@ -266,22 +270,32 @@ static __global__ void find_force_2body(
       fy += y12 * f2[0];
       fz += z12 * f2[0];
       virial_xx -= x12 * x12 * f2[0] * 0.5f;
-      virial_yy -= y12 * y12 * f2[0] * 0.5f;
-      virial_zz -= z12 * z12 * f2[0] * 0.5f;
       virial_xy -= x12 * y12 * f2[0] * 0.5f;
+      virial_xz -= x12 * z12 * f2[0] * 0.5f;
+      virial_yx -= y12 * x12 * f2[0] * 0.5f;
+      virial_yy -= y12 * y12 * f2[0] * 0.5f;
       virial_yz -= y12 * z12 * f2[0] * 0.5f;
       virial_zx -= z12 * x12 * f2[0] * 0.5f;
+      virial_zy -= z12 * y12 * f2[0] * 0.5f;
+      virial_zz -= z12 * z12 * f2[0] * 0.5f;
       pe += p2 * 0.5f;
     }
     g_fx[n1] = fx;
     g_fy[n1] = fy;
     g_fz[n1] = fz;
-    g_virial[n1 + N * 0] = virial_xx;
-    g_virial[n1 + N * 1] = virial_yy;
-    g_virial[n1 + N * 2] = virial_zz;
-    g_virial[n1 + N * 3] = virial_xy;
-    g_virial[n1 + N * 4] = virial_yz;
-    g_virial[n1 + N * 5] = virial_zx;
+    // save virial
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    g_virial[n1 + 0 * N] += virial_xx;
+    g_virial[n1 + 1 * N] += virial_yy;
+    g_virial[n1 + 2 * N] += virial_zz;
+    g_virial[n1 + 3 * N] += virial_xy;
+    g_virial[n1 + 4 * N] += virial_xz;
+    g_virial[n1 + 5 * N] += virial_yz;
+    g_virial[n1 + 6 * N] += virial_yx;
+    g_virial[n1 + 7 * N] += virial_zx;
+    g_virial[n1 + 8 * N] += virial_zy;
     g_pe[n1] = pe;
   }
 }
@@ -349,12 +363,12 @@ static __global__ void find_partial_force_3body(
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_neighbor_list[index];
-      double x12 = g_x[n2] - x1;
-      double y12 = g_y[n2] - y1;
-      double z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      float r12[3] = {float(x12), float(y12), float(z12)};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(para3b.r1, para3b.r2, para3b.pi_factor, d12, fc12, fcp12);
@@ -364,16 +378,17 @@ static __global__ void find_partial_force_3body(
         if (n3 == n2) {
           continue;
         }
-        double x13 = g_x[n3] - x1;
-        double y13 = g_y[n3] - y1;
-        double z13 = g_z[n3] - z1;
-        apply_mic(box, x13, y13, z13);
-        float d13 = sqrt(float(x13 * x13 + y13 * y13 + z13 * z13));
+        double x13double = g_x[n3] - x1;
+        double y13double = g_y[n3] - y1;
+        double z13double = g_z[n3] - z1;
+        apply_mic(box, x13double, y13double, z13double);
+        float x13 = float(x13double), y13 = float(y13double), z13 = float(z13double);
+        float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
         float fc13;
         find_fc(para3b.r1, para3b.r2, para3b.pi_factor, d13, fc13);
-        float x23 = float(x13) - r12[0];
-        float y23 = float(y13) - r12[1];
-        float z23 = float(z13) - r12[2];
+        float x23 = x13 - x12;
+        float y23 = y13 - y12;
+        float z23 = z13 - z12;
         float d23 = sqrt(x23 * x23 + y23 * y23 + z23 * z23);
         float d23inv = 1.0f / d23;
         float q[3] = {d12 + d13, (d12 - d13) * (d12 - d13), d23};
@@ -381,9 +396,9 @@ static __global__ void find_partial_force_3body(
         apply_ann(ann3b, q, p123, f123);
         p12 += p123 * fc12 * fc13;
         float tmp = p123 * fcp12 * fc13 + (f123[0] + f123[1] * (d12 - d13) * 2.0f) * fc12 * fc13;
-        f12[0] += 2.0f * (tmp * r12[0] * d12inv - f123[2] * fc12 * fc13 * x23 * d23inv);
-        f12[1] += 2.0f * (tmp * r12[1] * d12inv - f123[2] * fc12 * fc13 * y23 * d23inv);
-        f12[2] += 2.0f * (tmp * r12[2] * d12inv - f123[2] * fc12 * fc13 * z23 * d23inv);
+        f12[0] += 2.0f * (tmp * x12 * d12inv - f123[2] * fc12 * fc13 * x23 * d23inv);
+        f12[1] += 2.0f * (tmp * y12 * d12inv - f123[2] * fc12 * fc13 * y23 * d23inv);
+        f12[2] += 2.0f * (tmp * z12 * d12inv - f123[2] * fc12 * fc13 * z23 * d23inv);
       }
       pot_energy += p12;
       g_f12x[index] = f12[0];
@@ -436,11 +451,12 @@ static __global__ void find_energy_manybody(
       float sum_xyz[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < neighbor_number; ++i1) {
         int n2 = g_NL[n1 + N * i1];
-        double x12 = g_x[n2] - x1;
-        double y12 = g_y[n2] - y1;
-        double z12 = g_z[n2] - z1;
-        apply_mic(box, x12, y12, z12);
-        float d12 = sqrt(float(x12 * x12 + y12 * y12 + z12 * z12));
+        double x12double = g_x[n2] - x1;
+        double y12double = g_y[n2] - y1;
+        double z12double = g_z[n2] - z1;
+        apply_mic(box, x12double, y12double, z12double);
+        float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         find_fc(paramb.r1, paramb.r2, paramb.pi_factor, d12, fc12);
         float fn;
