@@ -30,17 +30,17 @@ NEP::NEP(FILE* fid, const Neighbor& neighbor)
   char name[20];
 
   int count = fscanf(fid, "%s%d%f%f", name, &ann2b.num_neurons_per_layer, &para2b.r1, &para2b.r2);
-  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 4, "reading error for NEP potential.");
   printf(
     "two_body: %d neurons, %g A to %g A.\n", ann2b.num_neurons_per_layer, para2b.r1, para2b.r2);
 
   count = fscanf(fid, "%s%d%f%f", name, &ann3b.num_neurons_per_layer, &para3b.r1, &para3b.r2);
-  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 4, "reading error for NEP potential.");
   printf(
     "three_body: %d neurons, %g A to %g A.\n", ann3b.num_neurons_per_layer, para3b.r1, para3b.r2);
 
   count = fscanf(fid, "%s%d%d%d", name, &annmb.num_neurons_per_layer, &paramb.n_max, &paramb.L_max);
-  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 4, "reading error for NEP potential.");
   printf(
     "many_body: %d neurons, n_max = %d, l_max = %d.\n", annmb.num_neurons_per_layer, paramb.n_max,
     paramb.L_max);
@@ -109,6 +109,11 @@ void NEP::update_potential(FILE* fid)
   }
 
   std::vector<float> parameters(number_of_variables);
+  for (int n = 0; n < number_of_variables; ++n) {
+    int count = fscanf(fid, "%f", &parameters[n]);
+    PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
+  }
+
   if (ann2b.num_neurons_per_layer > 0) {
     update_potential(parameters.data(), 0, ann2b);
   }
@@ -120,7 +125,7 @@ void NEP::update_potential(FILE* fid)
   }
 }
 
-void NEP::update_potential(const float* parameters, const int offset, NEP::ANN& ann)
+void NEP::update_potential(const float* parameters, const int offset, ANN& ann)
 {
   for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
     for (int d = 0; d < ann.dim; ++d) {
