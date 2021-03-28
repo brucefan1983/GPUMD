@@ -77,6 +77,7 @@ NEP::NEP(FILE* fid, const Neighbor& neighbor)
     nep_data.f12y.resize(neighbor.NN.size() * neighbor.MN);
     nep_data.f12z.resize(neighbor.NN.size() * neighbor.MN);
   }
+  update_potential(fid);
 }
 
 NEP::~NEP(void)
