@@ -161,20 +161,25 @@ apply_ann(const NEP::ANN& ann, float* q, float& energy, float* energy_derivative
   }
 }
 
-static __device__ void find_fc(float rc, float d12, float& fc)
+static __device__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {
-    fc = 0.5f * cos((3.1415927f / rc) * d12) + 0.5f;
+    float x = d12 * rcinv;
+    float y = 1.0f + x * x * (2.0f * x - 3.0f);
+    fc = y * y;
   } else {
     fc = 0.0f;
   }
 }
 
-static __device__ void find_fc_and_fcp(float rc, float d12, float& fc, float& fcp)
+static __device__ void find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& fcp)
 {
   if (d12 < rc) {
-    fc = 0.5f * cos((3.1415927f / rc) * d12) + 0.5f;
-    fcp = -sin((3.1415927f / rc) * d12) * (3.1415927f / rc) * 0.5f;
+    float x = d12 * rcinv;
+    float y = 1.0f + x * x * (2.0f * x - 3.0f);
+    fc = y * y;
+    fcp = 12.0f * y * x * (x - 1.0f);
+    fcp *= rcinv;
   } else {
     fc = 0.0f;
     fcp = 0.0f;
@@ -231,7 +236,7 @@ static __global__ void find_force_2body(
       apply_ann(ann2b, q, p2, f2);
       f2[0] *= para2b.rcinv;
       float fc, fcp;
-      find_fc_and_fcp(para2b.rc, d12, fc, fcp);
+      find_fc_and_fcp(para2b.rc, para2b.rcinv, d12, fc, fcp);
       f2[0] = (f2[0] * fc + p2 * fcp) / d12;
       fx += x12 * f2[0];
       fy += y12 * f2[0];
@@ -334,7 +339,7 @@ static __global__ void find_partial_force_3body(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      find_fc_and_fcp(para3b.rc, d12, fc12, fcp12);
+      find_fc_and_fcp(para3b.rc, para3b.rcinv, d12, fc12, fcp12);
       float p12 = 0.0f, f12[3] = {0.0f, 0.0f, 0.0f};
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int n3 = g_neighbor_list[n1 + N * i2];
@@ -347,7 +352,7 @@ static __global__ void find_partial_force_3body(
         dev_apply_mic(h, x13, y13, z13);
         float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
         float fc13;
-        find_fc(para3b.rc, d13, fc13);
+        find_fc(para3b.rc, para3b.rcinv, d13, fc13);
         float x23 = x13 - x12;
         float y23 = y13 - y12;
         float z23 = z13 - z12;
@@ -503,7 +508,7 @@ static __global__ void find_energy_manybody(
         dev_apply_mic(h, x12, y12, z12);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
-        find_fc(paramb.rc, d12, fc12);
+        find_fc(paramb.rc, paramb.rcinv, d12, fc12);
         float fn;
         find_fn(n, paramb.delta_r, paramb.eta, d12, fn);
         fn *= fc12;
@@ -575,7 +580,7 @@ static __global__ void find_partial_force_manybody(
       dev_apply_mic(h, r12[0], r12[1], r12[2]);
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc, d12, fc12, fcp12);
+      find_fc_and_fcp(paramb.rc, paramb.rcinv, d12, fc12, fcp12);
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max; ++n) {
