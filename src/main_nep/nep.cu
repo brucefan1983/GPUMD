@@ -246,7 +246,6 @@ static __global__ void find_force_2body(
       f2[0] *= para2b.r2inv;
       float fc, fcp;
       find_fc_and_fcp(para2b.r1, para2b.r2, para2b.pi_factor, d12, fc, fcp);
-      p2 *= fc;
       f2[0] = (f2[0] * fc + p2 * fcp) / d12;
       fx += x12 * f2[0];
       fy += y12 * f2[0];
@@ -257,7 +256,7 @@ static __global__ void find_force_2body(
       virial_xy -= x12 * y12 * f2[0] * 0.5f;
       virial_yz -= y12 * z12 * f2[0] * 0.5f;
       virial_zx -= z12 * x12 * f2[0] * 0.5f;
-      pe += p2 * 0.5f;
+      pe += p2 * fc * 0.5f;
     }
     g_fx[n1] = fx;
     g_fy[n1] = fy;
