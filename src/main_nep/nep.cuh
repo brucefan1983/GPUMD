@@ -39,28 +39,22 @@ class NEP : public Potential
 {
 public:
   struct Para2B {
-    float r1 = 0.0f;        // inner cutoff
-    float r2 = 0.0f;        // outer cutoff
-    float r2inv = 0.0f;     // inverse of the outer cutoff
-    float pi_factor = 0.0f; // pi/(r2-r1)
+    float rc = 0.0f;    // cutoff
+    float rcinv = 0.0f; // inverse of the cutoff
   };
 
   struct Para3B {
-    float r1 = 0.0f;        // inner cutoff
-    float r2 = 0.0f;        // outer cutoff
-    float r2inv = 0.0f;     // inverse of the outer cutoff
-    float pi_factor = 0.0f; // pi/(r2-r1)
+    float rc = 0.0f;    // cutoff
+    float rcinv = 0.0f; // inverse of the cutoff
   };
 
   struct ParaMB {
-    float r1 = 0.0f;        // inner cutoff
-    float r2 = 0.0f;        // outer cutoff
-    float r2inv = 0.0f;     // inverse of the outer cutoff
-    float pi_factor = 0.0f; // pi/(r2-r1)
-    int n_max = 0;          // n = 0, 1, 2, ..., n_max
-    int L_max = 0;          // l = 0, 1, 2, ..., L_max
-    float delta_r = 0.0f;   // r2/n_max
-    float eta = 0.0f;       // \eta in \exp{-\eta * (r - r_i)^2}
+    float rc = 0.0f;      // cutoff
+    float rcinv = 0.0f;   // inverse of the cutoff
+    int n_max = 0;        // n = 0, 1, 2, ..., n_max
+    int L_max = 0;        // l = 0, 1, 2, ..., L_max
+    float delta_r = 0.0f; // r2/n_max
+    float eta = 0.0f;     // \eta in \exp{-\eta * (r - r_i)^2}
   };
 
   struct ANN {
@@ -76,11 +70,9 @@ public:
 
   NEP(
     int num_neurons_2b,
-    float r1_2b,
-    float r2_2b,
+    float rc_2b,
     int num_neurons_3b,
-    float r1_3b,
-    float r2_3b,
+    float rc_3b,
     int num_neurons_mb,
     int n_max,
     int L_max);

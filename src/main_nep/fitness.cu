@@ -206,24 +206,23 @@ void Fitness::read_potential(char* input_dir)
   strcat(file, "/potential.in");
   FILE* fid = my_fopen(file, "r");
   char name[20];
-  int count = fscanf(fid, "%s%d%f%f", name, &num_neurons_2b, &r1_2b, &r2_2b);
-  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
-  printf("two_body: %d neurons, %g A to %g A.\n", num_neurons_2b, r1_2b, r2_2b);
-  count = fscanf(fid, "%s%d%f%f", name, &num_neurons_3b, &r1_3b, &r2_3b);
-  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
-  printf("three_body: %d neurons, %g A to %g A.\n", num_neurons_3b, r1_3b, r2_3b);
+  int count = fscanf(fid, "%s%d%f", name, &num_neurons_2b, &rc_2b);
+  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
+  printf("two_body: number of neurons = %d, cutoff = %g A.\n", num_neurons_2b, rc_2b);
+  count = fscanf(fid, "%s%d%f", name, &num_neurons_3b, &rc_3b);
+  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
+  printf("three_body: number of neurons = %d, cutoff = %g A.\n", num_neurons_3b, rc_3b);
   count = fscanf(fid, "%s%d%d%d", name, &num_neurons_mb, &n_max, &L_max);
   PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
   printf("many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max);
 
   // old c++11 way:
-  potential.reset(new NEP(
-    num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b, num_neurons_mb, n_max, L_max));
+  potential.reset(
+    new NEP(num_neurons_2b, rc_2b, num_neurons_3b, rc_3b, num_neurons_mb, n_max, L_max));
 
   // switch to the following when c++14 is used in Haikuan's machine!
-  // potential = std::make_unique<NEP>(
-  // num_neurons_2b, r1_2b, r2_2b, num_neurons_3b, r1_3b, r2_3b, num_neurons_mb, n_max, L_max,
-  // r1_mb, r2_mb);
+  // potential = std::make_unique<NEP>(num_neurons_2b, rc_2b, num_neurons_3b, rc_3b, num_neurons_mb,
+  // n_max, L_max);
 
   int number_of_variables_2b = 0;
   number_of_variables = 0;
@@ -248,7 +247,7 @@ void Fitness::read_potential(char* input_dir)
   printf("number of parameters to be optimized for manybody part = %d.\n", number_of_variables_mb);
   printf("total number of parameters to be optimized = %d.\n", number_of_variables);
 
-  neighbor.cutoff = r2_2b;
+  neighbor.cutoff = rc_2b;
 
   count = fscanf(fid, "%s%f", name, &cost.weight_force);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
@@ -311,8 +310,8 @@ void Fitness::report_error(
     strcat(file, "/potential.out");
     FILE* fid = my_fopen(file, "w");
     fprintf(fid, "nep 1\n");
-    fprintf(fid, "two_body %d %g %g\n", num_neurons_2b, r1_2b, r2_2b);
-    fprintf(fid, "three_body %d %g %g\n", num_neurons_3b, r1_3b, r2_3b);
+    fprintf(fid, "two_body %d %g\n", num_neurons_2b, rc_2b);
+    fprintf(fid, "three_body %d %g\n", num_neurons_3b, rc_3b);
     fprintf(fid, "many_body %d %d %d\n", num_neurons_mb, n_max, L_max);
     for (int m = 0; m < number_of_variables; ++m) {
       fprintf(fid, "%g ", elite[m]);

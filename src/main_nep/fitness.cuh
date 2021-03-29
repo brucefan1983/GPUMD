@@ -64,9 +64,9 @@ protected:
 
   // input potential parameters:
   int num_neurons_2b = 0;
-  float r1_2b, r2_2b;
+  float rc_2b;
   int num_neurons_3b = 0;
-  float r1_3b, r2_3b;
+  float rc_3b;
   int num_neurons_mb = 0;
   int n_max, L_max;
 
