@@ -47,6 +47,9 @@ public:
   int maximum_generation;  // maximum number of generations for SNES;
 
 protected:
+  // output files:
+  FILE* fid_train_out;
+
   // functions related to initialization
   void read_Nc(FILE*);
   void read_Na(FILE*);

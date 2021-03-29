@@ -32,6 +32,11 @@ Fitness::Fitness(char* input_dir)
   potential->initialize(N, max_Na);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
+
+  char file_train_out[200];
+  strcpy(file_train_out, input_dir);
+  strcat(file_train_out, "/train.out");
+  fid_train_out = my_fopen(file_train_out, "w");
 }
 
 static void get_inverse(float* cpu_h)
@@ -305,6 +310,7 @@ void Fitness::report_error(
     strcpy(file, input_dir);
     strcat(file, "/potential.out");
     FILE* fid = my_fopen(file, "w");
+    fprintf(fid, "nep 1\n");
     fprintf(fid, "two_body %d %g %g\n", num_neurons_2b, r1_2b, r2_2b);
     fprintf(fid, "three_body %d %g %g\n", num_neurons_3b, r1_3b, r2_3b);
     fprintf(fid, "many_body %d %d %d\n", num_neurons_mb, n_max, L_max);
@@ -324,6 +330,12 @@ void Fitness::report_error(
     printf(
       "%-7d%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-12.1f%-10.1f%-12.1f\n", generation + 1,
       loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
+      rmse_energy / cost.potential_std * 100.0f, rmse_force / cost.force_std * 100.0f,
+      rmse_virial / cost.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
+      rmse_virial * 1000.0f);
+    fprintf(
+      fid_train_out, "%-7d%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-12.1f%-10.1f%-12.1f\n",
+      generation + 1, loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
       rmse_energy / cost.potential_std * 100.0f, rmse_force / cost.force_std * 100.0f,
       rmse_virial / cost.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
       rmse_virial * 1000.0f);
