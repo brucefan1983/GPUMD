@@ -87,10 +87,6 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
   print_line_1();
   printf("Started training.\n");
   print_line_2();
-  char file[200];
-  strcpy(file, input_dir);
-  strcat(file, "/potential.out");
-  FILE* fid = my_fopen(file, "w");
 
   printf(
     "%-7s%-10s%-10s%-10s%-10s%-10s%-10s%-12s%-10s%-12s\n", "Step", "Z_tot(%)", "Z_L1(%)", "Z_L2(%)",
@@ -102,13 +98,11 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
       population_size, population.data(), fitness.data() + 3 * population_size);
     regularize();
     sort_population();
-    output(n, fid);
     fitness_function->report_error(
-      n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
+      input_dir, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
       fitness[0 + 2 * population_size], population.data());
     update_mu_and_sigma();
   }
-  fclose(fid);
   fitness_function->predict(input_dir, population.data());
 }
 
@@ -182,18 +176,6 @@ void SNES::sort_population()
     for (int k = 1; k < 6; ++k) {
       fitness[n + k * population_size] = fitness_copy[index[n] + k * population_size];
     }
-  }
-}
-
-void SNES::output(int generation, FILE* fid)
-{
-  if (0 == (generation + 1) % 1000) {
-    fprintf(fid, "%d ", generation + 1);
-    for (int m = 0; m < number_of_variables; ++m) {
-      fprintf(fid, "%g ", population[m]);
-    }
-    fprintf(fid, "\n");
-    fflush(fid);
   }
 }
 

@@ -200,27 +200,16 @@ void Fitness::read_potential(char* input_dir)
   strcpy(file, input_dir);
   strcat(file, "/potential.in");
   FILE* fid = my_fopen(file, "r");
-
   char name[20];
-
-  int num_neurons_2b = 0;
-  float r1_2b, r2_2b;
   int count = fscanf(fid, "%s%d%f%f", name, &num_neurons_2b, &r1_2b, &r2_2b);
   PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
   printf("two_body: %d neurons, %g A to %g A.\n", num_neurons_2b, r1_2b, r2_2b);
-
-  int num_neurons_3b = 0;
-  float r1_3b, r2_3b;
   count = fscanf(fid, "%s%d%f%f", name, &num_neurons_3b, &r1_3b, &r2_3b);
   PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
   printf("three_body: %d neurons, %g A to %g A.\n", num_neurons_3b, r1_3b, r2_3b);
-
-  int num_neurons_mb = 0;
-  int n_max, L_max;
   count = fscanf(fid, "%s%d%d%d", name, &num_neurons_mb, &n_max, &L_max);
   PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
-  printf(
-    "many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max);
+  printf("many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max);
 
   // old c++11 way:
   potential.reset(new NEP(
@@ -303,6 +292,7 @@ void Fitness::compute(const int population_size, const float* population, float*
 }
 
 void Fitness::report_error(
+  char* input_dir,
   const int generation,
   const float loss_total,
   const float loss_L1,
@@ -310,6 +300,20 @@ void Fitness::report_error(
   const float* elite)
 {
   if (0 == (generation + 1) % 1000) {
+    // save a potential
+    char file[200];
+    strcpy(file, input_dir);
+    strcat(file, "/potential.out");
+    FILE* fid = my_fopen(file, "w");
+    fprintf(fid, "two_body %d %g %g\n", num_neurons_2b, r1_2b, r2_2b);
+    fprintf(fid, "three_body %d %g %g\n", num_neurons_3b, r1_3b, r2_3b);
+    fprintf(fid, "many_body %d %d %d\n", num_neurons_mb, n_max, L_max);
+    for (int m = 0; m < number_of_variables; ++m) {
+      fprintf(fid, "%g ", elite[m]);
+    }
+    fprintf(fid, "\n");
+    fclose(fid);
+    // report errors
     potential->update_potential(elite);
     potential->find_force(
       Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,

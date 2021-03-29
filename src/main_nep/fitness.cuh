@@ -14,9 +14,9 @@
 */
 
 #pragma once
-#include "utilities/gpu_vector.cuh"
 #include "neighbor.cuh"
 #include "potential.cuh"
+#include "utilities/gpu_vector.cuh"
 #include <memory>
 #include <stdio.h>
 #include <vector>
@@ -37,6 +37,7 @@ public:
   void compute(const int, const float*, float*);
   void predict(char*, const float*);
   void report_error(
+    char* input_dir,
     const int generation,
     const float loss_total,
     const float loss_L1,
@@ -57,6 +58,14 @@ protected:
   float get_fitness_force(void);
   float get_fitness_energy(void);
   float get_fitness_stress(void);
+
+  // input potential parameters:
+  int num_neurons_2b = 0;
+  float r1_2b, r2_2b;
+  int num_neurons_3b = 0;
+  float r1_3b, r2_3b;
+  int num_neurons_mb = 0;
+  int n_max, L_max;
 
   int potential_type;     // 0=NN2B
   int Nc;                 // number of configurations
