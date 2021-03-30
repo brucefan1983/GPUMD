@@ -27,7 +27,7 @@ Ref: Zheyong Fan et al., in preparison.
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 // set by me:
 const int NUM_OF_ABC = 10;                // 1 + 3 + 6 for L_max = 2
-const int MAX_NUM_NEURONS_PER_LAYER = 30; // largest ANN: input-30-30-output
+const int MAX_NUM_NEURONS_PER_LAYER = 20; // largest ANN: input-20-20-output
 const int MAX_NUM_N = 11;                 // n_max+1 = 10+1
 const int MAX_NUM_L = 3;                  // L_max+1 = 2+1
 // calculated:
