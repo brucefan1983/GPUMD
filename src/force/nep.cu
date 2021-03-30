@@ -22,7 +22,19 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include <vector>
 
-const int NUM_OF_ABC = 10; // 1 + 3 + 6 for L_max = 2
+// set by me:
+const int NUM_OF_ABC = 10;                // 1 + 3 + 6 for L_max = 2
+const int MAX_NUM_NEURONS_PER_LAYER = 20; // largest ANN: input-20-20-output
+const int MAX_NUM_N = 11;                 // n_max+1 = 10+1
+const int MAX_NUM_L = 3;                  // L_max+1 = 2+1
+// calculated:
+const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
+const int MAX_2B_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + 1) + 1;
+const int MAX_3B_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + 3) + 1;
+const int MAX_MB_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + MAX_DIM) + 1;
+const int MAX_ANN_SIZE = MAX_2B_SIZE + MAX_3B_SIZE + MAX_MB_SIZE;
+// constant memory
+__constant__ float c_parameters[MAX_ANN_SIZE];
 
 NEP::NEP(FILE* fid, const Neighbor& neighbor)
 {
@@ -47,9 +59,17 @@ NEP::NEP(FILE* fid, const Neighbor& neighbor)
 
   // 2body
   ann2b.dim = 1;
+  ann2b.num_para =
+    ann2b.num_neurons_per_layer > 0
+      ? ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + ann2b.dim + 3) + 1
+      : 0;
   para2b.rcinv = 1.0f / para2b.rc;
   // 3body
   ann3b.dim = 3;
+  ann3b.num_para =
+    ann3b.num_neurons_per_layer > 0
+      ? ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + ann3b.dim + 3) + 1
+      : 0;
   para3b.rcinv = 1.0f / para3b.rc;
   // manybody
   paramb.rc = para2b.rc; // manybody has the same cutoff as twobody
@@ -57,6 +77,10 @@ NEP::NEP(FILE* fid, const Neighbor& neighbor)
   paramb.delta_r = paramb.rc / paramb.n_max;
   paramb.eta = 0.5f / (paramb.delta_r * paramb.delta_r * 4.0f);
   annmb.dim = (paramb.n_max + 1) * (paramb.L_max + 1);
+  annmb.num_para =
+    annmb.num_neurons_per_layer > 0
+      ? annmb.num_neurons_per_layer * (annmb.num_neurons_per_layer + annmb.dim + 3) + 1
+      : 0;
 
   if (ann3b.num_neurons_per_layer > 0) {
     nep_data.NN3b.resize(neighbor.NN.size());
@@ -79,65 +103,36 @@ NEP::~NEP(void)
   // nothing
 }
 
+void NEP::update_potential(const float* parameters, ANN& ann)
+{
+  ann.w0 = parameters;
+  ann.b0 = ann.w0 + ann.num_neurons_per_layer * ann.dim;
+  ann.w1 = ann.b0 + ann.num_neurons_per_layer;
+  ann.b1 = ann.w1 + ann.num_neurons_per_layer * ann.num_neurons_per_layer;
+  ann.w2 = ann.b1 + ann.num_neurons_per_layer;
+  ann.b2 = ann.w2 + ann.num_neurons_per_layer;
+}
+
 void NEP::update_potential(FILE* fid)
 {
-  int number_of_variables_2b = 0;
-  int number_of_variables = 0;
-  if (ann2b.num_neurons_per_layer > 0) {
-    number_of_variables_2b =
-      ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + 3 + 1) + 1;
-    number_of_variables += number_of_variables_2b;
-  }
-
-  int number_of_variables_3b = 0;
-  if (ann3b.num_neurons_per_layer > 0) {
-    number_of_variables_3b =
-      ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + 3 + 3) + 1;
-    number_of_variables += number_of_variables_3b;
-  }
-
-  int number_of_variables_mb = 0;
-  if (annmb.num_neurons_per_layer > 0) {
-    number_of_variables_mb =
-      annmb.num_neurons_per_layer * (annmb.num_neurons_per_layer + 3 + annmb.dim) + 1;
-    number_of_variables += number_of_variables_mb;
-  }
-
-  std::vector<float> parameters(number_of_variables);
-  for (int n = 0; n < number_of_variables; ++n) {
+  const int num_para = ann2b.num_para + ann3b.num_para + annmb.num_para;
+  std::vector<float> parameters(num_para);
+  for (int n = 0; n < num_para; ++n) {
     int count = fscanf(fid, "%f", &parameters[n]);
     PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
   }
-
+  CHECK(cudaMemcpyToSymbol(c_parameters, parameters.data(), sizeof(float) * num_para));
+  float* address_c_parameters;
+  CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
   if (ann2b.num_neurons_per_layer > 0) {
-    update_potential(parameters.data(), 0, ann2b);
+    update_potential(address_c_parameters, ann2b);
   }
   if (ann3b.num_neurons_per_layer > 0) {
-    update_potential(parameters.data(), number_of_variables_2b, ann3b);
+    update_potential(address_c_parameters + ann2b.num_para, ann3b);
   }
   if (annmb.num_neurons_per_layer > 0) {
-    update_potential(parameters.data(), number_of_variables_2b + number_of_variables_3b, annmb);
+    update_potential(address_c_parameters + ann2b.num_para + ann3b.num_para, annmb);
   }
-}
-
-void NEP::update_potential(const float* parameters, const int offset, ANN& ann)
-{
-  for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-    for (int d = 0; d < ann.dim; ++d) {
-      ann.w0[n * ann.dim + d] = parameters[n * ann.dim + d + offset];
-    }
-    ann.b0[n] = parameters[n + ann.num_neurons_per_layer * ann.dim + offset];
-    for (int m = 0; m < ann.num_neurons_per_layer; ++m) {
-      int nm = n * ann.num_neurons_per_layer + m;
-      ann.w1[nm] = parameters[nm + ann.num_neurons_per_layer * (ann.dim + 1) + offset];
-    }
-    ann.b1[n] = parameters
-      [n + ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 1)) + offset];
-    ann.w2[n] = parameters
-      [n + ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 2)) + offset];
-  }
-  ann.b2 =
-    parameters[ann.num_neurons_per_layer * (ann.num_neurons_per_layer + (ann.dim + 3)) + offset];
 }
 
 static __device__ void
@@ -162,7 +157,7 @@ apply_ann(const NEP::ANN& ann, float* q, float& energy, float* energy_derivative
   for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
     energy += ann.w2[n] * x2[n];
   }
-  energy -= ann.b2;
+  energy -= ann.b2[0];
   // energy gradient (compute it component by component)
   for (int d = 0; d < ann.dim; ++d) {
     float y1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // derivatives of the 1st hidden layer neurons
