@@ -83,5 +83,5 @@ private:
   ANN annmb;
   NEP_Data nep_data;
   void update_potential(FILE* fid);
-  void NEP::update_potential(const float* parameters, ANN& ann);
+  void update_potential(const float* parameters, ANN& ann);
 };
