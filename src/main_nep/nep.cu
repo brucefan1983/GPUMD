@@ -463,14 +463,14 @@ static __global__ void find_force_3body_or_manybody(
 }
 
 static __device__ void
-find_fn(const int n, const float delta_r, const float eta, const int d12, float& fn)
+find_fn(const int n, const float delta_r, const float eta, const float d12, float& fn)
 {
   float tmp = d12 - n * delta_r;
   fn = exp(-eta * tmp * tmp);
 }
 
 static __device__ void find_fn_and_fnp(
-  const int n, const float delta_r, const float eta, const int d12, float& fn, float& fnp)
+  const int n, const float delta_r, const float eta, const float d12, float& fn, float& fnp)
 {
   float tmp = d12 - n * delta_r;
   fn = exp(-eta * tmp * tmp);
