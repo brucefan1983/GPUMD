@@ -1,0 +1,12 @@
+two_body              0  5
+three_body            0  3.5
+many_body             18  8  2
+weight_force          0.6
+weight_energy         0.2
+weight_virial         0.2
+maximum_generation    200000
+
+
+
+
+
