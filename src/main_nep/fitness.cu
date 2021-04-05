@@ -76,6 +76,7 @@ void Fitness::read_train_in(char* input_dir)
   virial_ref.resize(Nc * 6, Memory_Type::managed);
   Na.resize(Nc, Memory_Type::managed);
   Na_sum.resize(Nc, Memory_Type::managed);
+  has_virial.resize(Nc);
 
   read_Na(fid);
   type.resize(N, Memory_Type::managed);
@@ -94,18 +95,22 @@ void Fitness::read_train_in(char* input_dir)
     int count;
 
     // energy, virial
-    count = fscanf(
-      fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
-      &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
-      &virial_ref[n + Nc * 5]);
-    PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
-    pe_ref[n] /= Na[n];
-    for (int k = 0; k < 6; ++k) {
-      virial_ref[n + Nc * k] /= Na[n];
+    if (has_virial[n]) {
+      count = fscanf(
+        fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
+        &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
+        &virial_ref[n + Nc * 5]);
+      PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
+      for (int k = 0; k < 6; ++k) {
+        virial_ref[n + Nc * k] /= Na[n];
+        virial_ave += virial_ref[n + Nc * k];
+      }
+    } else {
+      count = fscanf(fid, "%f", &pe_ref[n]);
+      PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
     }
+    pe_ref[n] /= Na[n];
     energy_ave += pe_ref[n];
-    virial_ave += virial_ref[n + Nc * 0] + virial_ref[n + Nc * 1] + virial_ref[n + Nc * 2] +
-                  virial_ref[n + Nc * 3] + virial_ref[n + Nc * 4] + virial_ref[n + Nc * 5];
 
     // box (transpose of VASP input matrix)
     float h_tmp[9];
@@ -141,20 +146,26 @@ void Fitness::read_train_in(char* input_dir)
   fclose(fid);
 
   energy_ave /= Nc;
-  virial_ave /= (Nc * 6);
+  if (num_virial_configurations > 0) {
+    virial_ave /= (6 * num_virial_configurations);
+  }
 
   for (int n = 0; n < Nc; ++n) {
     float energy_diff = pe_ref[n] - energy_ave;
     cost.potential_std += energy_diff * energy_diff;
-    for (int k = 0; k < 6; ++k) {
-      float virial_diff = virial_ref[n + Nc * k] - virial_ave;
-      cost.virial_std += virial_diff * virial_diff;
+    if (has_virial[n]) {
+      for (int k = 0; k < 6; ++k) {
+        float virial_diff = virial_ref[n + Nc * k] - virial_ave;
+        cost.virial_std += virial_diff * virial_diff;
+      }
     }
   }
 
   cost.potential_std = sqrt(cost.potential_std / Nc);
   cost.force_std = sqrt(cost.force_std / (N * 3));
-  cost.virial_std = sqrt(cost.virial_std / (Nc * 6));
+  cost.virial_std = (num_virial_configurations == 0)
+                      ? 1.0f
+                      : sqrt(cost.virial_std / (num_virial_configurations * 6));
 }
 
 void Fitness::read_Nc(FILE* fid)
@@ -171,13 +182,14 @@ void Fitness::read_Na(FILE* fid)
 {
   N = 0;
   max_Na = 0;
+  num_virial_configurations = 0;
   for (int nc = 0; nc < Nc; ++nc) {
     Na_sum[nc] = 0;
   }
 
   for (int nc = 0; nc < Nc; ++nc) {
-    int count = fscanf(fid, "%d", &Na[nc]);
-    PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
+    int count = fscanf(fid, "%d%d", &Na[nc], &has_virial[nc]);
+    PRINT_SCANF_ERROR(count, 2, "reading error for train.in.");
     N += Na[nc];
     if (Na[nc] > max_Na) {
       max_Na = Na[nc];
@@ -185,6 +197,7 @@ void Fitness::read_Na(FILE* fid)
     if (Na[nc] < 2) {
       PRINT_INPUT_ERROR("Number of atoms % d should >= 2.");
     }
+    num_virial_configurations += has_virial[nc];
   }
 
   for (int nc = 1; nc < Nc; ++nc) {
@@ -193,6 +206,7 @@ void Fitness::read_Na(FILE* fid)
 
   printf("Total number of atoms is %d.\n", N);
   printf("%d atoms in the largest configuration.\n", max_Na);
+  printf("Number of configurations having virial = %d.\n", num_virial_configurations);
 }
 
 void Fitness::read_potential(char* input_dir)
@@ -303,7 +317,7 @@ void Fitness::report_error(
   const float loss_L2,
   const float* elite)
 {
-  if (0 == (generation + 1) % 1000) {
+  if (0 == (generation + 1) % 100) {
     // save a potential
     char file[200];
     strcpy(file, input_dir);
@@ -509,6 +523,10 @@ float Fitness::get_fitness_energy(void)
 
 float Fitness::get_fitness_stress(void)
 {
+  if (num_virial_configurations == 0) {
+    return 0.0f;
+  }
+
   float error_ave = 0.0;
   int mem = sizeof(float) * Nc;
   int block_size = get_block_size(max_Na);
@@ -517,43 +535,55 @@ float Fitness::get_fitness_stress(void)
     Na.data(), Na_sum.data(), virial.data(), virial_ref.data(), error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
+    if (has_virial[n]) {
+      error_ave += error_cpu[n];
+    }
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N, virial_ref.data() + Nc, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
+    if (has_virial[n]) {
+      error_ave += error_cpu[n];
+    }
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref.data() + Nc * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
+    if (has_virial[n]) {
+      error_ave += error_cpu[n];
+    }
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref.data() + Nc * 3, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
+    if (has_virial[n]) {
+      error_ave += error_cpu[n];
+    }
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref.data() + Nc * 4, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
+    if (has_virial[n]) {
+      error_ave += error_cpu[n];
+    }
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref.data() + Nc * 5, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
+    if (has_virial[n]) {
+      error_ave += error_cpu[n];
+    }
   }
 
-  return sqrt(error_ave / (Nc * 6));
+  return sqrt(error_ave / (num_virial_configurations * 6));
 }
