@@ -79,7 +79,7 @@ void Fitness::read_train_in(char* input_dir)
   has_virial.resize(Nc);
 
   read_Na(fid);
-  type.resize(N, Memory_Type::managed);
+  atomic_number.resize(N, Memory_Type::managed);
   r.resize(N * 3, Memory_Type::managed);
   force.resize(N * 3, Memory_Type::managed);
   force_ref.resize(N * 3, Memory_Type::managed);
@@ -90,6 +90,7 @@ void Fitness::read_train_in(char* input_dir)
   cost.potential_std = 0.0;
   cost.virial_std = 0.0;
   cost.force_std = 0.0;
+  int atomic_number_max = 0;
 
   for (int n = 0; n < Nc; ++n) {
     int count;
@@ -130,13 +131,22 @@ void Fitness::read_train_in(char* input_dir)
 
     get_inverse(h.data() + 18 * n);
 
-    // type, position, force
+    // atomic number, position, force
     for (int k = 0; k < Na[n]; ++k) {
+      int atomic_number_tmp = 0;
       count = fscanf(
-        fid, "%d%f%f%f%f%f%f", &type[Na_sum[n] + k], &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
+        fid, "%d%f%f%f%f%f%f", &atomic_number_tmp, &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
         &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k], &force_ref[Na_sum[n] + k + N],
         &force_ref[Na_sum[n] + k + N * 2]);
       PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
+      if (atomic_number_tmp < 1) {
+        PRINT_INPUT_ERROR("Atomic number should > 0.\n");
+      } else {
+        atomic_number[Na_sum[n] + k] = atomic_number_tmp;
+        if (atomic_number_tmp > atomic_number_max) {
+          atomic_number_max = atomic_number_tmp;
+        }
+      }
       cost.force_std += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
                         force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
                         force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
@@ -144,6 +154,11 @@ void Fitness::read_train_in(char* input_dir)
   }
 
   fclose(fid);
+
+  // normalize the atomic number by the largest one
+  for (int n = 0; n < N; ++n) {
+    atomic_number[n] /= atomic_number_max;
+  }
 
   energy_ave /= Nc;
   if (num_virial_configurations > 0) {
@@ -300,8 +315,8 @@ void Fitness::compute(const int population_size, const float* population, float*
     const float* individual = population + n * number_of_variables;
     potential->update_potential(individual);
     potential->find_force(
-      Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
-      virial, pe);
+      Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
+      force, virial, pe);
     fitness[n + 0 * population_size] =
       cost.weight_energy * get_fitness_energy() / cost.potential_std;
     fitness[n + 1 * population_size] = cost.weight_force * get_fitness_force() / cost.force_std;
@@ -335,8 +350,8 @@ void Fitness::report_error(
     // report errors
     potential->update_potential(elite);
     potential->find_force(
-      Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
-      virial, pe);
+      Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
+      force, virial, pe);
     float rmse_energy = get_fitness_energy();
     float rmse_force = get_fitness_force();
     float rmse_virial = get_fitness_stress();
@@ -371,8 +386,8 @@ void Fitness::predict(char* input_dir, const float* elite)
 {
   potential->update_potential(elite);
   potential->find_force(
-    Nc, N, Na.data(), Na_sum.data(), max_Na, type.data(), h.data(), &neighbor, r.data(), force,
-    virial, pe);
+    Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
+    force, virial, pe);
 
   CHECK(cudaDeviceSynchronize());
 

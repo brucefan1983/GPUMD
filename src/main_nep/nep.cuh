@@ -78,7 +78,7 @@ public:
     int* Na,
     int* Na_sum,
     int max_Na,
-    int* type,
+    float* atomic_number,
     float* h,
     Neighbor* neighbor,
     float* r,

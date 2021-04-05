@@ -26,16 +26,16 @@ public:
   virtual void initialize(int, int) = 0;
   virtual void update_potential(const float*) = 0;
   virtual void find_force(
-    int,
-    int,
-    int*,
-    int*,
-    int,
-    int*,
-    float*,
-    Neighbor*,
-    float*,
-    GPU_Vector<float>&,
-    GPU_Vector<float>&,
-    GPU_Vector<float>&) = 0;
+    int Nc,
+    int N,
+    int* Na,
+    int* Na_sum,
+    int max_Na,
+    float* atomic_number,
+    float* h,
+    Neighbor* neighbor,
+    float* r,
+    GPU_Vector<float>& f,
+    GPU_Vector<float>& virial,
+    GPU_Vector<float>& pe) = 0;
 };

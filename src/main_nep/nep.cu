@@ -198,7 +198,6 @@ static __global__ void find_force_2body(
   int* Na_sum,
   int* g_NN2b,
   int* g_NL2b,
-  int* g_type,
   NEP::Para2B para2b,
   NEP::ANN ann2b,
   const float* __restrict__ g_x,
@@ -313,7 +312,6 @@ static __global__ void find_partial_force_3body(
   int* Na_sum,
   int* g_neighbor_number,
   int* g_neighbor_list,
-  int* g_type,
   NEP::Para3B para3b,
   NEP::ANN ann3b,
   const float* __restrict__ g_x,
@@ -483,9 +481,9 @@ static __global__ void find_energy_manybody(
   int* Na_sum,
   int* g_NN,
   int* g_NL,
-  int* g_type,
   NEP::ParaMB paramb,
   NEP::ANN annmb,
+  const float* __restrict__ g_atomic_number,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
@@ -515,6 +513,7 @@ static __global__ void find_energy_manybody(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         find_fc(paramb.rc, paramb.rcinv, d12, fc12);
+        fc12 *= g_atomic_number[n2];
         float fn;
         find_fn(n, paramb.delta_r, paramb.eta, d12, fn);
         fn *= fc12;
@@ -557,9 +556,9 @@ static __global__ void find_partial_force_manybody(
   int* Na_sum,
   int* g_NN,
   int* g_NL,
-  int* g_type,
   NEP::ParaMB paramb,
   NEP::ANN annmb,
+  const float* __restrict__ g_atomic_number,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
@@ -587,6 +586,9 @@ static __global__ void find_partial_force_manybody(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc, paramb.rcinv, d12, fc12, fcp12);
+      float atomic_number_n2 = g_atomic_number[n2];
+      fc12 *= atomic_number_n2;
+      fcp12 *= atomic_number_n2;
       float d12inv = 1.0f / d12;
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max; ++n) {
@@ -667,7 +669,7 @@ void NEP::find_force(
   int* Na,
   int* Na_sum,
   int max_Na,
-  int* type,
+  float* atomic_number,
   float* h,
   Neighbor* neighbor,
   float* r,
@@ -677,8 +679,8 @@ void NEP::find_force(
 {
   if (ann2b.num_neurons_per_layer > 0) {
     find_force_2body<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, type, para2b, ann2b, r, r + N, r + N * 2, h,
-      f.data(), f.data() + N, f.data() + N * 2, virial.data(), pe.data());
+      N, Na, Na_sum, neighbor->NN, neighbor->NL, para2b, ann2b, r, r + N, r + N * 2, h, f.data(),
+      f.data() + N, f.data() + N * 2, virial.data(), pe.data());
     CUDA_CHECK_KERNEL
   } else {
     initialize_properties<<<(N - 1) / 64 + 1, 64>>>(
@@ -691,8 +693,8 @@ void NEP::find_force(
       nep_data.NN3b.data(), nep_data.NL3b.data());
     CUDA_CHECK_KERNEL
     find_partial_force_3body<<<Nc, max_Na>>>(
-      N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), type, para3b, ann3b, r, r + N,
-      r + N * 2, h, pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+      N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), para3b, ann3b, r, r + N, r + N * 2,
+      h, pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
     CUDA_CHECK_KERNEL
     find_force_3body_or_manybody<<<Nc, max_Na>>>(
       N, Na, Na_sum, nep_data.NN3b.data(), nep_data.NL3b.data(), nep_data.f12x.data(),
@@ -702,12 +704,12 @@ void NEP::find_force(
   }
   if (annmb.num_neurons_per_layer > 0) {
     find_energy_manybody<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
-      pe.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
+      N, Na, Na_sum, neighbor->NN, neighbor->NL, paramb, annmb, atomic_number, r, r + N, r + N * 2,
+      h, pe.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
     CUDA_CHECK_KERNEL
     find_partial_force_manybody<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, type, paramb, annmb, r, r + N, r + N * 2, h,
-      nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
+      N, Na, Na_sum, neighbor->NN, neighbor->NL, paramb, annmb, atomic_number, r, r + N, r + N * 2,
+      h, nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
       nep_data.f12z.data());
     CUDA_CHECK_KERNEL
     find_force_3body_or_manybody<<<Nc, max_Na>>>(
