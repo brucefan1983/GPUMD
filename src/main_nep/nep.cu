@@ -24,6 +24,8 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 
+#define USE_TWOBODY_FORM
+
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 // set by me:
 const int NUM_OF_ABC = 10;                // 1 + 3 + 6 for L_max = 2
@@ -532,7 +534,11 @@ static __global__ void find_energy_manybody(
         sum_xyz[8] += x12 * z12 * fn;
         sum_xyz[9] += y12 * z12 * fn;
       }
+#ifdef USE_TWOBODY_FORM
+      q[n * 3 + 0] = sum_xyz[0];
+#else
       q[n * 3 + 0] = sum_xyz[0] * sum_xyz[0];
+#endif
       q[n * 3 + 1] = sum_xyz[1] * sum_xyz[1] + sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
       q[n * 3 + 2] = sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8] + sum_xyz[9] * sum_xyz[9];
       q[n * 3 + 2] *= 2.0f;
@@ -599,7 +605,11 @@ static __global__ void find_partial_force_manybody(
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
         float Fp0 = g_Fp[(n * 3 + 0) * N + n1];
+#ifdef USE_TWOBODY_FORM
+        float sum_f0 = 0.5f;
+#else
         float sum_f0 = g_sum_fxyz[(n * NUM_OF_ABC + 0) * N + n1];
+#endif
         float tmp = Fp0 * sum_f0 * fn0p * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
