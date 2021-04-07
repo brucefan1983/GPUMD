@@ -477,6 +477,48 @@ static __device__ void find_fn_and_fnp(
   fnp = -2.0f * eta * tmp * fn;
 }
 
+#define INDEX(l, m) ((l * (l + 1)) / 2 + m)
+
+static __device__ __host__ void find_plm(const int L_max, const float x, const float y, float* plm)
+{
+  plm[0] = 1.0f;
+  for (int L = 1; L <= L_max; ++L) {
+    plm[INDEX(L, L)] = (1 - 2 * L) * y * plm[INDEX(L - 1, L - 1)];
+  }
+  for (int L = 1; L <= L_max; ++L) {
+    plm[INDEX(L, L - 1)] = (2 * L - 1) * x * plm[INDEX(L - 1, L - 1)];
+  }
+  for (int m = 0; m <= L_max - 2; ++m) {
+    for (int L = m + 2; L <= L_max; ++L) {
+      plm[INDEX(L, m)] =
+        ((2 * L - 1) * x * plm[INDEX(L - 1, m)] - (L + m - 1) * plm[INDEX(L - 2, m)]) / (L - m);
+    }
+  }
+}
+
+static __device__ __host__ void
+find_plmp(const int L_max, const float x, const float y, const float* plm, float* plmp)
+{
+  const float yp = -x / y;
+  plmp[0] = 0.0f;
+  for (int L = 1; L <= L_max; ++L) {
+    plmp[INDEX(L, L)] =
+      (1 - 2 * L) * yp * plm[INDEX(L - 1, L - 1)] + (1 - 2 * L) * y * plmp[INDEX(L - 1, L - 1)];
+  }
+  for (int L = 1; L <= L_max; ++L) {
+    plmp[INDEX(L, L - 1)] =
+      (2 * L - 1) * plm[INDEX(L - 1, L - 1)] + (2 * L - 1) * x * plmp[INDEX(L - 1, L - 1)];
+  }
+  for (int m = 0; m <= L_max - 2; ++m) {
+    for (int L = m + 2; L <= L_max; ++L) {
+      plmp[INDEX(L, m)] =
+        ((2 * L - 1) * plm[INDEX(L - 1, m)] + (2 * L - 1) * x * plmp[INDEX(L - 1, m)] -
+         (L + m - 1) * plmp[INDEX(L - 2, m)]) /
+        (L - m);
+    }
+  }
+}
+
 static __global__ void find_energy_manybody(
   int N,
   int* Na,
