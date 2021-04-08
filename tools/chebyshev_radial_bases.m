@@ -12,7 +12,7 @@ for n = 3 : n_max
     f(n,:) = 2 * x .* f(n-1,:) - f(n-2,:);
 end
 for n = 1 : n_max
-    f(n,:) = f(n,:) .* f_poly2;
+    f(n,:) = (1+f(n,:))/2 .* f_poly2;
 end
 
 figure;
