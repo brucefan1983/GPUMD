@@ -25,6 +25,7 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/gpu_vector.cuh"
 
 #define USE_TWOBODY_FORM
+//#define USE_CHEBYSHEV
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 // set by me:
@@ -462,6 +463,48 @@ static __global__ void find_force_3body_or_manybody(
   }
 }
 
+#ifdef USE_CHEBYSHEV
+static __device__ void find_fn(const int n, const float rcinv, const float d12, float& fn)
+{
+  if (n == 0) {
+    fn = 1.0f;
+  } else if (n == 1) {
+    float x = 2.0f * d12 * rcinv - 1.0f;
+    fn = x;
+  } else {
+    float x = 2.0f * d12 * rcinv - 1.0f;
+    float t0 = 1.0f;
+    float t1 = x;
+    float t2;
+    for (int m = 2; m <= n; ++m) {
+      t2 = 2.0f * x * t1 - t0;
+      t0 = t1;
+      t1 = t2;
+    }
+    fn = t2;
+  }
+}
+
+static __device__ void find_fnp(const int n, const float rcinv, const float d12, float& fnp)
+{
+  if (n == 0) {
+    fnp = 0.0f;
+  } else if (n == 1) {
+    fnp = 2.0f * rcinv;
+  } else {
+    float x = 2.0f * d12 * rcinv - 1.0f;
+    float u0 = 1.0f;
+    float u1 = 2.0f * x;
+    float u2;
+    for (int m = 2; m <= n; ++m) {
+      u2 = 2.0f * x * u1 - u0;
+      u0 = u1;
+      u1 = u2;
+    }
+    fnp = n * u0 * 2.0f * rcinv;
+  }
+}
+#else
 static __device__ void
 find_fn(const int n, const float delta_r, const float eta, const float d12, float& fn)
 {
@@ -476,6 +519,7 @@ static __device__ void find_fn_and_fnp(
   fn = exp(-eta * tmp * tmp);
   fnp = -2.0f * eta * tmp * fn;
 }
+#endif
 
 #define INDEX(l, m) ((l * (l + 1)) / 2 + m)
 
@@ -559,7 +603,11 @@ static __global__ void find_energy_manybody(
         find_fc(paramb.rc, paramb.rcinv, d12, fc12);
         fc12 *= g_atomic_number[n2];
         float fn;
+#ifdef USE_CHEBYSHEV
+        find_fn(n, paramb.rcinv, d12, fn);
+#else
         find_fn(n, paramb.delta_r, paramb.eta, d12, fn);
+#endif
         fn *= fc12;
         float d12inv = 1.0f / d12;
         x12 *= d12inv;
@@ -642,7 +690,12 @@ static __global__ void find_partial_force_manybody(
       for (int n = 0; n <= paramb.n_max; ++n) {
         float fn;
         float fnp;
+#ifdef USE_CHEBYSHEV
+        find_fn(n, paramb.rcinv, d12, fn);
+        find_fnp(n, paramb.rcinv, d12, fnp);
+#else
         find_fn_and_fnp(n, paramb.delta_r, paramb.eta, d12, fn, fnp);
+#endif
         // l=0
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
