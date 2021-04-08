@@ -23,8 +23,8 @@ Use finite difference to validate the analytical force calculations.
 #include "validate.cuh"
 
 // This choice gives optimal accuracy for finite-difference calculations
-#define DX1 1.0e-7
-#define DX2 2.0e-7
+#define DX1 0.5e-3
+#define DX2 1.0e-3
 
 // move one atom left or right
 static __global__ void shift_atom(

@@ -18,6 +18,7 @@ Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
 #include "force/force.cuh"
+#include "force/validate.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
@@ -107,6 +108,13 @@ void Run::perform_a_run(char* input_dir)
       printf("    %d steps completed.\n", step + 1);
     }
   }
+
+// only for my test
+#if 0
+  validate_force(
+    box, atom.position_per_atom, group, atom.type, atom.potential_per_atom, atom.force_per_atom,
+    atom.virial_per_atom, neighbor, &force);
+#endif
 
   print_line_1();
   clock_t time_finish = clock();
