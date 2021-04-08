@@ -23,7 +23,7 @@ Ref: Zheyong Fan et al., in preparison.
 #include <vector>
 
 #define USE_TWOBODY_FORM
-//#define USE_CHEBYSHEV
+#define USE_CHEBYSHEV
 
 // set by me:
 const int NUM_OF_ABC = 10;                // 1 + 3 + 6 for L_max = 2
@@ -406,10 +406,10 @@ static __device__ void find_fn(const int n, const float rcinv, const float d12, 
   if (n == 0) {
     fn = 1.0f;
   } else if (n == 1) {
-    float x = 2.0f * d12 * rcinv - 1.0f;
-    fn = x;
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+    fn = (x + 1.0f) * 0.5f;
   } else {
-    float x = 2.0f * d12 * rcinv - 1.0f;
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
     float t0 = 1.0f;
     float t1 = x;
     float t2;
@@ -418,7 +418,7 @@ static __device__ void find_fn(const int n, const float rcinv, const float d12, 
       t0 = t1;
       t1 = t2;
     }
-    fn = t2;
+    fn = (t2 + 1.0f) * 0.5f;
   }
 }
 
@@ -427,9 +427,9 @@ static __device__ void find_fnp(const int n, const float rcinv, const float d12,
   if (n == 0) {
     fnp = 0.0f;
   } else if (n == 1) {
-    fnp = 2.0f * rcinv;
+    fnp = 2.0f * (d12 * rcinv - 1.0f) * rcinv;
   } else {
-    float x = 2.0f * d12 * rcinv - 1.0f;
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
     float u0 = 1.0f;
     float u1 = 2.0f * x;
     float u2;
@@ -438,7 +438,7 @@ static __device__ void find_fnp(const int n, const float rcinv, const float d12,
       u0 = u1;
       u1 = u2;
     }
-    fnp = n * u0 * 2.0f * rcinv;
+    fnp = n * u0 * 2.0f * (d12 * rcinv - 1.0f) * rcinv;
   }
 }
 #else
