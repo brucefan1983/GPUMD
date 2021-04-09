@@ -22,7 +22,6 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include <vector>
 
-#define USE_TWOBODY_FORM
 #define USE_CHEBYSHEV
 
 // set by me:

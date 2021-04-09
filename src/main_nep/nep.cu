@@ -24,7 +24,6 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 
-#define USE_TWOBODY_FORM
 #define USE_CHEBYSHEV
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
