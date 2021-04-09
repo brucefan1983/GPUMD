@@ -558,14 +558,17 @@ static __global__ void find_energy_manybody(
         sum_xyz[9] += y12 * z12 * fn;
       }
 #ifdef USE_TWOBODY_FORM
-      q[n * 3 + 0] = sum_xyz[0];
+      q[n * MAX_NUM_L + 0] = sum_xyz[0];
 #else
-      q[n * 3 + 0] = sum_xyz[0] * sum_xyz[0];
+      q[n * MAX_NUM_L + 0] = sum_xyz[0] * sum_xyz[0];
 #endif
-      q[n * 3 + 1] = sum_xyz[1] * sum_xyz[1] + sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
-      q[n * 3 + 2] = sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8] + sum_xyz[9] * sum_xyz[9];
-      q[n * 3 + 2] *= 2.0f;
-      q[n * 3 + 2] += sum_xyz[4] * sum_xyz[4] + sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6];
+      q[n * MAX_NUM_L + 1] =
+        sum_xyz[1] * sum_xyz[1] + sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
+      q[n * MAX_NUM_L + 2] =
+        sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8] + sum_xyz[9] * sum_xyz[9];
+      q[n * MAX_NUM_L + 2] *= 2.0f;
+      q[n * MAX_NUM_L + 2] +=
+        sum_xyz[4] * sum_xyz[4] + sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6];
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc];
       }
@@ -628,7 +631,7 @@ static __global__ void find_partial_force_manybody(
         // l=0
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
-        float Fp0 = g_Fp[(n * 3 + 0) * N + n1];
+        float Fp0 = g_Fp[(n * MAX_NUM_L + 0) * N + n1];
 #ifdef USE_TWOBODY_FORM
         float sum_f0 = 0.5f;
 #else
@@ -641,7 +644,7 @@ static __global__ void find_partial_force_manybody(
         // l=1
         float fn1 = fn0 * d12inv;
         float fn1p = fn0p * d12inv - fn0 * d12inv * d12inv;
-        float Fp1 = g_Fp[(n * 3 + 1) * N + n1];
+        float Fp1 = g_Fp[(n * MAX_NUM_L + 1) * N + n1];
         float sum_f1[3] = {
           g_sum_fxyz[(n * NUM_OF_ABC + 1) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 2) * N + n1],
           g_sum_fxyz[(n * NUM_OF_ABC + 3) * N + n1]};
@@ -654,7 +657,7 @@ static __global__ void find_partial_force_manybody(
         // l=2
         float fn2 = fn1 * d12inv;
         float fn2p = fn1p * d12inv - fn1 * d12inv * d12inv;
-        float Fp2 = g_Fp[(n * 3 + 2) * N + n1];
+        float Fp2 = g_Fp[(n * MAX_NUM_L + 2) * N + n1];
         float sum_f2[6] = {
           g_sum_fxyz[(n * NUM_OF_ABC + 4) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 5) * N + n1],
           g_sum_fxyz[(n * NUM_OF_ABC + 6) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 7) * N + n1],
