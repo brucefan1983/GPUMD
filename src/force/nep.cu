@@ -557,11 +557,7 @@ static __global__ void find_energy_manybody(
         sum_xyz[8] += x12 * z12 * fn;
         sum_xyz[9] += y12 * z12 * fn;
       }
-#ifdef USE_TWOBODY_FORM
       q[n * MAX_NUM_L + 0] = sum_xyz[0];
-#else
-      q[n * MAX_NUM_L + 0] = sum_xyz[0] * sum_xyz[0];
-#endif
       q[n * MAX_NUM_L + 1] =
         sum_xyz[1] * sum_xyz[1] + sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
       q[n * MAX_NUM_L + 2] =
@@ -632,11 +628,7 @@ static __global__ void find_partial_force_manybody(
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
         float Fp0 = g_Fp[(n * MAX_NUM_L + 0) * N + n1];
-#ifdef USE_TWOBODY_FORM
         float sum_f0 = 0.5f;
-#else
-        float sum_f0 = g_sum_fxyz[(n * NUM_OF_ABC + 0) * N + n1];
-#endif
         float tmp = Fp0 * sum_f0 * fn0p * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
