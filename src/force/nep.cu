@@ -418,22 +418,33 @@ static __device__ void find_fn(const int n, const float rcinv, const float d12, 
   }
 }
 
-static __device__ void find_fnp(const int n, const float rcinv, const float d12, float& fnp)
+static __device__ void
+find_fn_and_fnp(const int n, const float rcinv, const float d12, float& fn, float& fnp)
 {
   if (n == 0) {
+    fn = 1.0f;
     fnp = 0.0f;
   } else if (n == 1) {
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+    fn = (x + 1.0f) * 0.5f;
     fnp = 2.0f * (d12 * rcinv - 1.0f) * rcinv;
   } else {
     float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+    float t0 = 1.0f;
+    float t1 = x;
+    float t2;
     float u0 = 1.0f;
     float u1 = 2.0f * x;
     float u2;
     for (int m = 2; m <= n; ++m) {
+      t2 = 2.0f * x * t1 - t0;
+      t0 = t1;
+      t1 = t2;
       u2 = 2.0f * x * u1 - u0;
       u0 = u1;
       u1 = u2;
     }
+    fn = (t2 + 1.0f) * 0.5f;
     fnp = n * u0 * 2.0f * (d12 * rcinv - 1.0f) * rcinv;
   }
 }
@@ -552,8 +563,7 @@ static __global__ void find_partial_force_manybody(
       for (int n = 0; n <= paramb.n_max; ++n) {
         float fn;
         float fnp;
-        find_fn(n, paramb.rcinv, d12, fn);
-        find_fnp(n, paramb.rcinv, d12, fnp);
+        find_fn_and_fnp(n, paramb.rcinv, d12, fn, fnp);
         // l=0
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
