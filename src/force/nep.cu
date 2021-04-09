@@ -22,8 +22,6 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include <vector>
 
-#define USE_CHEBYSHEV
-
 // set by me:
 const int NUM_OF_ABC = 10;                // 1 + 3 + 6 for L_max = 2
 const int MAX_NUM_NEURONS_PER_LAYER = 20; // largest ANN: input-20-20-output
@@ -399,7 +397,6 @@ static __global__ void find_partial_force_3body(
   }
 }
 
-#ifdef USE_CHEBYSHEV
 static __device__ void find_fn(const int n, const float rcinv, const float d12, float& fn)
 {
   if (n == 0) {
@@ -440,64 +437,6 @@ static __device__ void find_fnp(const int n, const float rcinv, const float d12,
     fnp = n * u0 * 2.0f * (d12 * rcinv - 1.0f) * rcinv;
   }
 }
-#else
-static __device__ void
-find_fn(const int n, const float delta_r, const float eta, const float d12, float& fn)
-{
-  float tmp = d12 - n * delta_r;
-  fn = exp(-eta * tmp * tmp);
-}
-
-static __device__ void find_fn_and_fnp(
-  const int n, const float delta_r, const float eta, const float d12, float& fn, float& fnp)
-{
-  float tmp = d12 - n * delta_r;
-  fn = exp(-eta * tmp * tmp);
-  fnp = -2.0f * eta * tmp * fn;
-}
-#endif
-
-#define INDEX(l, m) ((l * (l + 1)) / 2 + m)
-
-static __device__ __host__ void find_plm(const int L_max, const float x, const float y, float* plm)
-{
-  plm[0] = 1.0f;
-  for (int L = 1; L <= L_max; ++L) {
-    plm[INDEX(L, L)] = (1 - 2 * L) * y * plm[INDEX(L - 1, L - 1)];
-  }
-  for (int L = 1; L <= L_max; ++L) {
-    plm[INDEX(L, L - 1)] = (2 * L - 1) * x * plm[INDEX(L - 1, L - 1)];
-  }
-  for (int m = 0; m <= L_max - 2; ++m) {
-    for (int L = m + 2; L <= L_max; ++L) {
-      plm[INDEX(L, m)] =
-        ((2 * L - 1) * x * plm[INDEX(L - 1, m)] - (L + m - 1) * plm[INDEX(L - 2, m)]) / (L - m);
-    }
-  }
-}
-
-static __device__ __host__ void
-find_plmp(const int L_max, const float x, const float y, const float* plm, float* plmp)
-{
-  const float yp = -x / y;
-  plmp[0] = 0.0f;
-  for (int L = 1; L <= L_max; ++L) {
-    plmp[INDEX(L, L)] =
-      (1 - 2 * L) * yp * plm[INDEX(L - 1, L - 1)] + (1 - 2 * L) * y * plmp[INDEX(L - 1, L - 1)];
-  }
-  for (int L = 1; L <= L_max; ++L) {
-    plmp[INDEX(L, L - 1)] =
-      (2 * L - 1) * plm[INDEX(L - 1, L - 1)] + (2 * L - 1) * x * plmp[INDEX(L - 1, L - 1)];
-  }
-  for (int m = 0; m <= L_max - 2; ++m) {
-    for (int L = m + 2; L <= L_max; ++L) {
-      plmp[INDEX(L, m)] =
-        ((2 * L - 1) * plm[INDEX(L - 1, m)] + (2 * L - 1) * x * plmp[INDEX(L - 1, m)] -
-         (L + m - 1) * plmp[INDEX(L - 2, m)]) /
-        (L - m);
-    }
-  }
-}
 
 static __global__ void find_energy_manybody(
   NEP::ParaMB paramb,
@@ -535,11 +474,7 @@ static __global__ void find_energy_manybody(
         float fc12;
         find_fc(paramb.rc, paramb.rcinv, d12, fc12);
         float fn;
-#ifdef USE_CHEBYSHEV
         find_fn(n, paramb.rcinv, d12, fn);
-#else
-        find_fn(n, paramb.delta_r, paramb.eta, d12, fn);
-#endif
         fn *= fc12;
         float d12inv = 1.0f / d12;
         x12 *= d12inv;
@@ -617,12 +552,8 @@ static __global__ void find_partial_force_manybody(
       for (int n = 0; n <= paramb.n_max; ++n) {
         float fn;
         float fnp;
-#ifdef USE_CHEBYSHEV
         find_fn(n, paramb.rcinv, d12, fn);
         find_fnp(n, paramb.rcinv, d12, fnp);
-#else
-        find_fn_and_fnp(n, paramb.delta_r, paramb.eta, d12, fn, fnp);
-#endif
         // l=0
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
