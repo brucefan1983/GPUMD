@@ -22,8 +22,14 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include <vector>
 
+//#define USE_YLM
+#ifdef USE_YLM
+const int NUM_OF_ABC = 9; // 1 + 3 + 5 for L_max = 2
+#else
+const int NUM_OF_ABC = 10; // 1 + 3 + 6 for L_max = 2
+#endif
+
 // set by me:
-const int NUM_OF_ABC = 10;                // 1 + 3 + 6 for L_max = 2
 const int MAX_NUM_NEURONS_PER_LAYER = 20; // largest ANN: input-20-20-output
 const int MAX_NUM_N = 11;                 // n_max+1 = 10+1
 const int MAX_NUM_L = 3;                  // L_max+1 = 2+1
@@ -449,6 +455,13 @@ find_fn_and_fnp(const int n, const float rcinv, const float d12, float& fn, floa
   }
 }
 
+#ifdef USE_YLM
+__constant__ float YLM_PREFACTOR[NUM_OF_ABC] = {
+  0.282094791773878f,  0.488602511902920f, -0.345494149471336f,
+  -0.345494149471336f, 0.315391565252520f, -0.772548404046379f,
+  -0.772548404046379f, 0.386274202023190f, 0.386274202023190f};
+#endif
+
 static __global__ void find_energy_manybody(
   NEP::ParaMB paramb,
   NEP::ANN annmb,
@@ -491,6 +504,17 @@ static __global__ void find_energy_manybody(
         x12 *= d12inv;
         y12 *= d12inv;
         z12 *= d12inv;
+#ifdef USE_YLM
+        sum_xyz[0] += fn;                                                // Y00 without prefactor
+        sum_xyz[1] += YLM_PREFACTOR[1] * z12 * fn;                       // Y10
+        sum_xyz[2] += YLM_PREFACTOR[2] * x12 * fn;                       // Y11_real
+        sum_xyz[3] += YLM_PREFACTOR[3] * y12 * fn;                       // Y11_imag
+        sum_xyz[4] += YLM_PREFACTOR[4] * (3.0f * z12 * z12 - 1.0f) * fn; // Y20
+        sum_xyz[5] += YLM_PREFACTOR[5] * x12 * z12 * fn;                 // Y21_real
+        sum_xyz[6] += YLM_PREFACTOR[6] * y12 * z12 * fn;                 // Y21_imag
+        sum_xyz[7] += YLM_PREFACTOR[7] * (x12 * x12 - y12 * y12) * fn;   // Y22_real
+        sum_xyz[8] += YLM_PREFACTOR[8] * 2.0f * x12 * y12 * fn;          // Y22_imag
+#else
         sum_xyz[0] += fn;
         sum_xyz[1] += x12 * fn;
         sum_xyz[2] += y12 * fn;
@@ -501,7 +525,16 @@ static __global__ void find_energy_manybody(
         sum_xyz[7] += x12 * y12 * fn;
         sum_xyz[8] += x12 * z12 * fn;
         sum_xyz[9] += y12 * z12 * fn;
+#endif
       }
+#ifdef USE_YLM
+      q[n * MAX_NUM_L + 0] = sum_xyz[0];
+      q[n * MAX_NUM_L + 1] =
+        sum_xyz[1] * sum_xyz[1] + 2.0f * sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
+      q[n * MAX_NUM_L + 2] =
+        sum_xyz[4] * sum_xyz[4] + 2.0f * (sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6] +
+                                          sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8]);
+#else
       q[n * MAX_NUM_L + 0] = sum_xyz[0];
       q[n * MAX_NUM_L + 1] =
         sum_xyz[1] * sum_xyz[1] + sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
@@ -510,6 +543,7 @@ static __global__ void find_energy_manybody(
       q[n * MAX_NUM_L + 2] *= 2.0f;
       q[n * MAX_NUM_L + 2] +=
         sum_xyz[4] * sum_xyz[4] + sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6];
+#endif
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc];
       }
@@ -568,11 +602,62 @@ static __global__ void find_partial_force_manybody(
         float fn0 = fn * fc12;
         float fn0p = fnp * fc12 + fn * fcp12;
         float Fp0 = g_Fp[(n * MAX_NUM_L + 0) * N + n1];
-        float sum_f0 = 0.5f;
-        float tmp = Fp0 * sum_f0 * fn0p * d12inv;
+        float tmp = Fp0 * 0.5f * fn0p * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
+#ifdef USE_YLM
+        float sum_xyz[9] = {
+          /*not used*/ 0.0f,
+          g_sum_fxyz[(n * NUM_OF_ABC + 1) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 2) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 3) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 4) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 5) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 6) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 7) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 8) * N + n1]};
+        // l=1
+        float fn1 = fn0 * d12inv;
+        float fn1p = fn0p * d12inv - fn0 * d12inv * d12inv;
+        float Fp1 = g_Fp[(n * MAX_NUM_L + 1) * N + n1];
+        float tmp =
+          Fp1 * fn1p * d12inv *
+          (sum_xyz[1] * YLM_PREFECTOR[1] * r12[2] + 2.0f * sum_xyz[2] * YLM_PREFECTOR[2] * r12[0] +
+           2.0f * sum_xyz[3] * YLM_PREFECTOR[3] * r12[1]);
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp * r12[d];
+        }
+        tmp = Fp1 * fn1;
+        f12[0] += tmp * 2.0f * sum_xyz[2] * YLM_PREFECTOR[2];
+        f12[1] += tmp * 2.0f * sum_xyz[3] * YLM_PREFECTOR[3];
+        f12[2] += tmp * sum_xyz[1] * YLM_PREFECTOR[1];
+        // l=2
+        float fn2 = fn1 * d12inv;
+        float fn2p = fn1p * d12inv - fn1 * d12inv * d12inv;
+        float Fp2 = g_Fp[(n * MAX_NUM_L + 2) * N + n1];
+        tmp = Fp2 * fn2p * d12inv *
+              (sum_xyz[4] * YLM_PREFECTOR[4] * (3.0f * r12[2] * r12[2] - d12 * d12) +
+               2.0f * sum_xyz[5] * YLM_PREFECTOR[5] * r12[0] * r12[2] +
+               2.0f * sum_xyz[6] * YLM_PREFECTOR[6] * r12[1] * r12[2] +
+               2.0f * sum_xyz[7] * YLM_PREFECTOR[7] * (r12[0] * r12[0] - r12[1] * r12[1]) +
+               2.0f * sum_xyz[8] * YLM_PREFECTOR[8] * 2.0f * r12[0] * r12[1]);
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp * r12[d];
+        }
+        tmp = Fp2 * fn2;
+        f12[0] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFECTOR[4] * r12[0] +
+                         2.0f * sum_xyz[5] * YLM_PREFECTOR[5] * r12[2] +
+                         4.0f * sum_xyz[7] * YLM_PREFECTOR[7] * r12[0] +
+                         4.0f * sum_xyz[8] * YLM_PREFECTOR[8] * r12[1]);
+        f12[1] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFECTOR[4] * r12[1] +
+                         2.0f * sum_xyz[6] * YLM_PREFECTOR[6] * r12[2] -
+                         4.0f * sum_xyz[7] * YLM_PREFECTOR[7] * r12[1] +
+                         4.0f * sum_xyz[8] * YLM_PREFECTOR[8] * r12[0]);
+        f12[2] += tmp * (4.0f * sum_xyz[4] * YLM_PREFECTOR[4] * r12[2] +
+                         2.0f * sum_xyz[5] * YLM_PREFECTOR[5] * r12[0] +
+                         2.0f * sum_xyz[6] * YLM_PREFECTOR[6] * r12[1]);
+#else
         // l=1
         float fn1 = fn0 * d12inv;
         float fn1p = fn0p * d12inv - fn0 * d12inv * d12inv;
@@ -606,6 +691,7 @@ static __global__ void find_partial_force_manybody(
         f12[0] += tmp2 * (sum_f2[3] * r12[1] + sum_f2[4] * r12[2]);
         f12[1] += tmp2 * (sum_f2[3] * r12[0] + sum_f2[5] * r12[2]);
         f12[2] += tmp2 * (sum_f2[4] * r12[0] + sum_f2[5] * r12[1]);
+#endif
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
