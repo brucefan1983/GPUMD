@@ -22,7 +22,7 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include <vector>
 
-//#define USE_YLM
+#define USE_YLM
 #ifdef USE_YLM
 const int NUM_OF_ABC = 9; // 1 + 3 + 5 for L_max = 2
 #else
@@ -530,7 +530,7 @@ static __global__ void find_energy_manybody(
 #ifdef USE_YLM
       q[n * MAX_NUM_L + 0] = sum_xyz[0];
       q[n * MAX_NUM_L + 1] =
-        sum_xyz[1] * sum_xyz[1] + 2.0f * sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3];
+        sum_xyz[1] * sum_xyz[1] + 2.0f * (sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3]);
       q[n * MAX_NUM_L + 2] =
         sum_xyz[4] * sum_xyz[4] + 2.0f * (sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6] +
                                           sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8]);
@@ -621,42 +621,42 @@ static __global__ void find_partial_force_manybody(
         float fn1 = fn0 * d12inv;
         float fn1p = fn0p * d12inv - fn0 * d12inv * d12inv;
         float Fp1 = g_Fp[(n * MAX_NUM_L + 1) * N + n1];
-        float tmp =
+        tmp =
           Fp1 * fn1p * d12inv *
-          (sum_xyz[1] * YLM_PREFECTOR[1] * r12[2] + 2.0f * sum_xyz[2] * YLM_PREFECTOR[2] * r12[0] +
-           2.0f * sum_xyz[3] * YLM_PREFECTOR[3] * r12[1]);
+          (sum_xyz[1] * YLM_PREFACTOR[1] * r12[2] + 2.0f * sum_xyz[2] * YLM_PREFACTOR[2] * r12[0] +
+           2.0f * sum_xyz[3] * YLM_PREFACTOR[3] * r12[1]);
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
         tmp = Fp1 * fn1;
-        f12[0] += tmp * 2.0f * sum_xyz[2] * YLM_PREFECTOR[2];
-        f12[1] += tmp * 2.0f * sum_xyz[3] * YLM_PREFECTOR[3];
-        f12[2] += tmp * sum_xyz[1] * YLM_PREFECTOR[1];
+        f12[0] += tmp * 2.0f * sum_xyz[2] * YLM_PREFACTOR[2];
+        f12[1] += tmp * 2.0f * sum_xyz[3] * YLM_PREFACTOR[3];
+        f12[2] += tmp * sum_xyz[1] * YLM_PREFACTOR[1];
         // l=2
         float fn2 = fn1 * d12inv;
         float fn2p = fn1p * d12inv - fn1 * d12inv * d12inv;
         float Fp2 = g_Fp[(n * MAX_NUM_L + 2) * N + n1];
         tmp = Fp2 * fn2p * d12inv *
-              (sum_xyz[4] * YLM_PREFECTOR[4] * (3.0f * r12[2] * r12[2] - d12 * d12) +
-               2.0f * sum_xyz[5] * YLM_PREFECTOR[5] * r12[0] * r12[2] +
-               2.0f * sum_xyz[6] * YLM_PREFECTOR[6] * r12[1] * r12[2] +
-               2.0f * sum_xyz[7] * YLM_PREFECTOR[7] * (r12[0] * r12[0] - r12[1] * r12[1]) +
-               2.0f * sum_xyz[8] * YLM_PREFECTOR[8] * 2.0f * r12[0] * r12[1]);
+              (sum_xyz[4] * YLM_PREFACTOR[4] * (3.0f * r12[2] * r12[2] - d12 * d12) +
+               2.0f * sum_xyz[5] * YLM_PREFACTOR[5] * r12[0] * r12[2] +
+               2.0f * sum_xyz[6] * YLM_PREFACTOR[6] * r12[1] * r12[2] +
+               2.0f * sum_xyz[7] * YLM_PREFACTOR[7] * (r12[0] * r12[0] - r12[1] * r12[1]) +
+               2.0f * sum_xyz[8] * YLM_PREFACTOR[8] * 2.0f * r12[0] * r12[1]);
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
         tmp = Fp2 * fn2;
-        f12[0] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFECTOR[4] * r12[0] +
-                         2.0f * sum_xyz[5] * YLM_PREFECTOR[5] * r12[2] +
-                         4.0f * sum_xyz[7] * YLM_PREFECTOR[7] * r12[0] +
-                         4.0f * sum_xyz[8] * YLM_PREFECTOR[8] * r12[1]);
-        f12[1] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFECTOR[4] * r12[1] +
-                         2.0f * sum_xyz[6] * YLM_PREFECTOR[6] * r12[2] -
-                         4.0f * sum_xyz[7] * YLM_PREFECTOR[7] * r12[1] +
-                         4.0f * sum_xyz[8] * YLM_PREFECTOR[8] * r12[0]);
-        f12[2] += tmp * (4.0f * sum_xyz[4] * YLM_PREFECTOR[4] * r12[2] +
-                         2.0f * sum_xyz[5] * YLM_PREFECTOR[5] * r12[0] +
-                         2.0f * sum_xyz[6] * YLM_PREFECTOR[6] * r12[1]);
+        f12[0] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFACTOR[4] * r12[0] +
+                         2.0f * sum_xyz[5] * YLM_PREFACTOR[5] * r12[2] +
+                         4.0f * sum_xyz[7] * YLM_PREFACTOR[7] * r12[0] +
+                         4.0f * sum_xyz[8] * YLM_PREFACTOR[8] * r12[1]);
+        f12[1] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFACTOR[4] * r12[1] +
+                         2.0f * sum_xyz[6] * YLM_PREFACTOR[6] * r12[2] -
+                         4.0f * sum_xyz[7] * YLM_PREFACTOR[7] * r12[1] +
+                         4.0f * sum_xyz[8] * YLM_PREFACTOR[8] * r12[0]);
+        f12[2] += tmp * (4.0f * sum_xyz[4] * YLM_PREFACTOR[4] * r12[2] +
+                         2.0f * sum_xyz[5] * YLM_PREFACTOR[5] * r12[0] +
+                         2.0f * sum_xyz[6] * YLM_PREFACTOR[6] * r12[1]);
 #else
         // l=1
         float fn1 = fn0 * d12inv;
