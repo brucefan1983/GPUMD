@@ -520,9 +520,9 @@ find_fn_and_fnp(const int n, const float rcinv, const float d12, float& fn, floa
 
 #ifdef USE_YLM
 __constant__ float YLM_PREFACTOR[NUM_OF_ABC] = {
-  0.282094791773878f,  0.488602511902920f, -0.345494149471336f,
-  -0.345494149471336f, 0.315391565252520f, -0.772548404046379f,
-  -0.772548404046379f, 0.386274202023190f, 0.386274202023190f};
+  0.079577471545948f, 0.238732414637843f, 0.119366207318922f,
+  0.119366207318922f, 0.099471839432435f, 0.596831036594608f,
+  0.596831036594608f, 0.149207759148652f, 0.149207759148652f};
 #endif
 
 static __global__ void find_energy_manybody(
@@ -572,15 +572,15 @@ static __global__ void find_energy_manybody(
         y12 *= d12inv;
         z12 *= d12inv;
 #ifdef USE_YLM
-        sum_xyz[0] += fn;                                                // Y00 without prefactor
-        sum_xyz[1] += YLM_PREFACTOR[1] * z12 * fn;                       // Y10
-        sum_xyz[2] += YLM_PREFACTOR[2] * x12 * fn;                       // Y11_real
-        sum_xyz[3] += YLM_PREFACTOR[3] * y12 * fn;                       // Y11_imag
-        sum_xyz[4] += YLM_PREFACTOR[4] * (3.0f * z12 * z12 - 1.0f) * fn; // Y20
-        sum_xyz[5] += YLM_PREFACTOR[5] * x12 * z12 * fn;                 // Y21_real
-        sum_xyz[6] += YLM_PREFACTOR[6] * y12 * z12 * fn;                 // Y21_imag
-        sum_xyz[7] += YLM_PREFACTOR[7] * (x12 * x12 - y12 * y12) * fn;   // Y22_real
-        sum_xyz[8] += YLM_PREFACTOR[8] * 2.0f * x12 * y12 * fn;          // Y22_imag
+        sum_xyz[0] += fn;                             // Y00 without prefactor
+        sum_xyz[1] += z12 * fn;                       // Y10
+        sum_xyz[2] += x12 * fn;                       // Y11_real
+        sum_xyz[3] += y12 * fn;                       // Y11_imag
+        sum_xyz[4] += (3.0f * z12 * z12 - 1.0f) * fn; // Y20
+        sum_xyz[5] += x12 * z12 * fn;                 // Y21_real
+        sum_xyz[6] += y12 * z12 * fn;                 // Y21_imag
+        sum_xyz[7] += (x12 * x12 - y12 * y12) * fn;   // Y22_real
+        sum_xyz[8] += 2.0f * x12 * y12 * fn;          // Y22_imag
 #else
         sum_xyz[0] += fn;
         sum_xyz[1] += x12 * fn;
@@ -596,11 +596,14 @@ static __global__ void find_energy_manybody(
       }
 #ifdef USE_YLM
       q[n * MAX_NUM_L + 0] = sum_xyz[0];
-      q[n * MAX_NUM_L + 1] =
-        sum_xyz[1] * sum_xyz[1] + 2.0f * (sum_xyz[2] * sum_xyz[2] + sum_xyz[3] * sum_xyz[3]);
+      q[n * MAX_NUM_L + 1] = YLM_PREFACTOR[1] * sum_xyz[1] * sum_xyz[1] +
+                             2.0f * (YLM_PREFACTOR[2] * sum_xyz[2] * sum_xyz[2] +
+                                     YLM_PREFACTOR[3] * sum_xyz[3] * sum_xyz[3]);
       q[n * MAX_NUM_L + 2] =
-        sum_xyz[4] * sum_xyz[4] + 2.0f * (sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6] +
-                                          sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8]);
+        YLM_PREFACTOR[4] * sum_xyz[4] * sum_xyz[4] +
+        2.0f *
+          (YLM_PREFACTOR[5] * sum_xyz[5] * sum_xyz[5] + YLM_PREFACTOR[6] * sum_xyz[6] * sum_xyz[6] +
+           YLM_PREFACTOR[7] * sum_xyz[7] * sum_xyz[7] + YLM_PREFACTOR[8] * sum_xyz[8] * sum_xyz[8]);
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc] * YLM_PREFACTOR[abc];
       }
