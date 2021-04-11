@@ -534,6 +534,9 @@ static __global__ void find_energy_manybody(
       q[n * MAX_NUM_L + 2] =
         sum_xyz[4] * sum_xyz[4] + 2.0f * (sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6] +
                                           sum_xyz[7] * sum_xyz[7] + sum_xyz[8] * sum_xyz[8]);
+      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
+        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc] * YLM_PREFACTOR[abc];
+      }
 #else
       q[n * MAX_NUM_L + 0] = sum_xyz[0];
       q[n * MAX_NUM_L + 1] =
@@ -543,10 +546,10 @@ static __global__ void find_energy_manybody(
       q[n * MAX_NUM_L + 2] *= 2.0f;
       q[n * MAX_NUM_L + 2] +=
         sum_xyz[4] * sum_xyz[4] + sum_xyz[5] * sum_xyz[5] + sum_xyz[6] * sum_xyz[6];
-#endif
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = sum_xyz[abc];
       }
+#endif
     }
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann(annmb, q, F, Fp);
@@ -621,42 +624,34 @@ static __global__ void find_partial_force_manybody(
         float fn1 = fn0 * d12inv;
         float fn1p = fn0p * d12inv - fn0 * d12inv * d12inv;
         float Fp1 = g_Fp[(n * MAX_NUM_L + 1) * N + n1];
-        tmp =
-          Fp1 * fn1p * d12inv *
-          (sum_xyz[1] * YLM_PREFACTOR[1] * r12[2] + 2.0f * sum_xyz[2] * YLM_PREFACTOR[2] * r12[0] +
-           2.0f * sum_xyz[3] * YLM_PREFACTOR[3] * r12[1]);
+        tmp = Fp1 * fn1p * d12inv *
+              (sum_xyz[1] * r12[2] + 2.0f * sum_xyz[2] * r12[0] + 2.0f * sum_xyz[3] * r12[1]);
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
         tmp = Fp1 * fn1;
-        f12[0] += tmp * 2.0f * sum_xyz[2] * YLM_PREFACTOR[2];
-        f12[1] += tmp * 2.0f * sum_xyz[3] * YLM_PREFACTOR[3];
-        f12[2] += tmp * sum_xyz[1] * YLM_PREFACTOR[1];
+        f12[0] += tmp * 2.0f * sum_xyz[2];
+        f12[1] += tmp * 2.0f * sum_xyz[3];
+        f12[2] += tmp * sum_xyz[1];
         // l=2
         float fn2 = fn1 * d12inv;
         float fn2p = fn1p * d12inv - fn1 * d12inv * d12inv;
         float Fp2 = g_Fp[(n * MAX_NUM_L + 2) * N + n1];
         tmp = Fp2 * fn2p * d12inv *
-              (sum_xyz[4] * YLM_PREFACTOR[4] * (3.0f * r12[2] * r12[2] - d12 * d12) +
-               2.0f * sum_xyz[5] * YLM_PREFACTOR[5] * r12[0] * r12[2] +
-               2.0f * sum_xyz[6] * YLM_PREFACTOR[6] * r12[1] * r12[2] +
-               2.0f * sum_xyz[7] * YLM_PREFACTOR[7] * (r12[0] * r12[0] - r12[1] * r12[1]) +
-               2.0f * sum_xyz[8] * YLM_PREFACTOR[8] * 2.0f * r12[0] * r12[1]);
+              (sum_xyz[4] * (3.0f * r12[2] * r12[2] - d12 * d12) +
+               2.0f * sum_xyz[5] * r12[0] * r12[2] + 2.0f * sum_xyz[6] * r12[1] * r12[2] +
+               2.0f * sum_xyz[7] * (r12[0] * r12[0] - r12[1] * r12[1]) +
+               2.0f * sum_xyz[8] * 2.0f * r12[0] * r12[1]);
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
         tmp = Fp2 * fn2;
-        f12[0] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFACTOR[4] * r12[0] +
-                         2.0f * sum_xyz[5] * YLM_PREFACTOR[5] * r12[2] +
-                         4.0f * sum_xyz[7] * YLM_PREFACTOR[7] * r12[0] +
-                         4.0f * sum_xyz[8] * YLM_PREFACTOR[8] * r12[1]);
-        f12[1] += tmp * (-2.0f * sum_xyz[4] * YLM_PREFACTOR[4] * r12[1] +
-                         2.0f * sum_xyz[6] * YLM_PREFACTOR[6] * r12[2] -
-                         4.0f * sum_xyz[7] * YLM_PREFACTOR[7] * r12[1] +
-                         4.0f * sum_xyz[8] * YLM_PREFACTOR[8] * r12[0]);
-        f12[2] += tmp * (4.0f * sum_xyz[4] * YLM_PREFACTOR[4] * r12[2] +
-                         2.0f * sum_xyz[5] * YLM_PREFACTOR[5] * r12[0] +
-                         2.0f * sum_xyz[6] * YLM_PREFACTOR[6] * r12[1]);
+        f12[0] += tmp * (-2.0f * sum_xyz[4] * r12[0] + 2.0f * sum_xyz[5] * r12[2] +
+                         4.0f * sum_xyz[7] * r12[0] + 4.0f * sum_xyz[8] * r12[1]);
+        f12[1] += tmp * (-2.0f * sum_xyz[4] * r12[1] + 2.0f * sum_xyz[6] * r12[2] -
+                         4.0f * sum_xyz[7] * r12[1] + 4.0f * sum_xyz[8] * r12[0]);
+        f12[2] += tmp * (4.0f * sum_xyz[4] * r12[2] + 2.0f * sum_xyz[5] * r12[0] +
+                         2.0f * sum_xyz[6] * r12[1]);
 #else
         // l=1
         float fn1 = fn0 * d12inv;
