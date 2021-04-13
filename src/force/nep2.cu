@@ -545,13 +545,11 @@ static __global__ void find_partial_force_manybody(
         float fc13;
         find_fc(paramb.rc, paramb.rcinv, d13, fc13);
         float cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
-        float fn13[MAX_NUM_N];
-        find_fn(paramb.n_max, paramb.rcinv, d13, fc13, fn13);
         float poly_cos[MAX_NUM_L];
         find_poly_cos(paramb.L_max, cos123, poly_cos);
         for (int n = 0; n <= paramb.n_max; ++n) {
           for (int l = 0; l <= paramb.L_max; ++l) {
-            q[n * (paramb.L_max + 1) + l] += fn12[n] * fn13[n] * poly_cos[l];
+            q[n * (paramb.L_max + 1) + l] += fn12[n] * fc13 * poly_cos[l];
           }
         }
       }
@@ -599,8 +597,8 @@ static __global__ void find_partial_force_manybody(
           x13 * d13inv - r12[0] * d12inv * cos123, y13 * d13inv - r12[1] * d12inv * cos123,
           z13 * d13inv - r12[2] * d12inv * cos123};
         for (int n = 0; n <= paramb.n_max; ++n) {
-          float tmp_n_a = fnp12[n] * fn13[n] * d12inv;
-          float tmp_n_b = fn12[n] * fn13[n] * d12inv;
+          float tmp_n_a = (fnp12[n] * fn13[0] + fnp12[0] * fn13[n]) * d12inv;
+          float tmp_n_b = (fn12[n] * fn13[0] + fn12[0] * fn13[n]) * d12inv;
           for (int l = 0; l <= paramb.L_max; ++l) {
             float tmp_nl_a = Fp[n * (paramb.L_max + 1) + l] * tmp_n_a * poly_cos[l];
             float tmp_nl_b = Fp[n * (paramb.L_max + 1) + l] * tmp_n_b * poly_cos_der[l];
@@ -610,9 +608,9 @@ static __global__ void find_partial_force_manybody(
           }
         }
       }
-      g_f12x[index] = f12[0] * 2.0f;
-      g_f12y[index] = f12[1] * 2.0f;
-      g_f12z[index] = f12[2] * 2.0f;
+      g_f12x[index] = f12[0];
+      g_f12y[index] = f12[1];
+      g_f12z[index] = f12[2];
     }
   }
 }
