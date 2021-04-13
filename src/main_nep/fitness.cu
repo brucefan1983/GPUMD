@@ -20,6 +20,7 @@ Get the fitness
 #include "fitness.cuh"
 #include "neighbor.cuh"
 #include "nep.cuh"
+#include "nep2.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
@@ -247,7 +248,7 @@ void Fitness::read_potential(char* input_dir)
 
   // old c++11 way:
   potential.reset(
-    new NEP(num_neurons_2b, rc_2b, num_neurons_3b, rc_3b, num_neurons_mb, n_max, L_max));
+    new NEP2(num_neurons_2b, rc_2b, num_neurons_3b, rc_3b, num_neurons_mb, n_max, L_max));
 
   // switch to the following when c++14 is used in Haikuan's machine!
   // potential = std::make_unique<NEP>(num_neurons_2b, rc_2b, num_neurons_3b, rc_3b, num_neurons_mb,
