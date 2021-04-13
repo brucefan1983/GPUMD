@@ -404,6 +404,38 @@ find_fn(const int n_max, const float rcinv, const float d12, const float fc12, f
   }
 }
 
+static __device__ __forceinline__ void find_fn_and_fnp(
+  const int n_max,
+  const float rcinv,
+  const float d12,
+  const float fc12,
+  const float fcp12,
+  float* fn,
+  float* fnp)
+{
+  float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+  fn[0] = 1.0f;
+  fnp[0] = 0.0f;
+  fn[1] = x;
+  fnp[1] = 1.0f;
+  float u0 = 1.0f;
+  float u1 = 2.0f * x;
+  float u2;
+  for (int m = 2; m <= n_max; ++m) {
+    fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
+    fnp[m] = m * u1;
+    u2 = 2.0f * x * u1 - u0;
+    u0 = u1;
+    u1 = u2;
+  }
+  for (int m = 0; m <= n_max; ++m) {
+    fn[m] = (fn[m] + 1.0f) * 0.5f;
+    fnp[m] *= 2.0f * (d12 * rcinv - 1.0f) * rcinv;
+    fnp[m] = fnp[m] * fc12 + fn[m] * fcp12;
+    fn[m] *= fc12;
+  }
+}
+
 #if USE_POLY
 
 static __device__ __forceinline__ void
@@ -464,38 +496,6 @@ find_poly_cos_der(const int L_max, const float x, float* poly_cos_der)
   poly_cos_der[6] = 89.614180144680319f * x5 - 81.467436495163923f * x3 + 13.577906082527321f * x;
 }
 #endif
-
-static __device__ __forceinline__ void find_fn_and_fnp(
-  const int n_max,
-  const float rcinv,
-  const float d12,
-  const float fc12,
-  const float fcp12,
-  float* fn,
-  float* fnp)
-{
-  float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
-  fn[0] = 1.0f;
-  fnp[0] = 0.0f;
-  fn[1] = x;
-  fnp[1] = 1.0f;
-  float u0 = 1.0f;
-  float u1 = 2.0f * x;
-  float u2;
-  for (int m = 2; m <= n_max; ++m) {
-    fn[m] = 2.0f * x * fn[m - 1] - fn[m - 2];
-    fnp[m] = m * u1;
-    u2 = 2.0f * x * u1 - u0;
-    u0 = u1;
-    u1 = u2;
-  }
-  for (int m = 0; m <= n_max; ++m) {
-    fn[m] = (fn[m] + 1.0f) * 0.5f;
-    fnp[m] *= 2.0f * (d12 * rcinv - 1.0f) * rcinv;
-    fnp[m] = fnp[m] * fc12 + fn[m] * fcp12;
-    fn[m] *= fc12;
-  }
-}
 
 static __global__ void find_partial_force_manybody(
   NEP2::ParaMB paramb,
