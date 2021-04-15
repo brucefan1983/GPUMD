@@ -59,6 +59,19 @@ static void get_inverse(float* cpu_h)
   }
 }
 
+static void transpose(const int n, const float* h_tmp, float* h)
+{
+  h[0 + 18 * n] = h_tmp[0];
+  h[3 + 18 * n] = h_tmp[1];
+  h[6 + 18 * n] = h_tmp[2];
+  h[1 + 18 * n] = h_tmp[3];
+  h[4 + 18 * n] = h_tmp[4];
+  h[7 + 18 * n] = h_tmp[5];
+  h[2 + 18 * n] = h_tmp[6];
+  h[5 + 18 * n] = h_tmp[7];
+  h[8 + 18 * n] = h_tmp[8];
+}
+
 void Fitness::read_train_in(char* input_dir)
 {
   print_line_1();
@@ -87,7 +100,7 @@ void Fitness::read_train_in(char* input_dir)
   pe.resize(N, Memory_Type::managed);
   virial.resize(N * 6, Memory_Type::managed);
 
-  float energy_ave = 0.0, virial_ave = 0.0;
+  double energy_ave = 0.0, virial_ave = 0.0;
   cost.potential_std = 0.0;
   cost.virial_std = 0.0;
   cost.force_std = 0.0;
@@ -114,13 +127,14 @@ void Fitness::read_train_in(char* input_dir)
     pe_ref[n] /= Na[n];
     energy_ave += pe_ref[n];
 
-    // box (transpose of VASP input matrix)
+    // box (ax, ay, az, bx, by, bz, cx, cy, cz)
     float h_tmp[9];
     for (int k = 0; k < 9; ++k) {
       count = fscanf(fid, "%f", &h_tmp[k]);
       PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
     }
-    h[0 + 18 * n] = h_tmp[0];
+    transpose(n, h_tmp, h.data());
+    /*h[0 + 18 * n] = h_tmp[0];
     h[3 + 18 * n] = h_tmp[1];
     h[6 + 18 * n] = h_tmp[2];
     h[1 + 18 * n] = h_tmp[3];
@@ -128,7 +142,7 @@ void Fitness::read_train_in(char* input_dir)
     h[7 + 18 * n] = h_tmp[5];
     h[2 + 18 * n] = h_tmp[6];
     h[5 + 18 * n] = h_tmp[7];
-    h[8 + 18 * n] = h_tmp[8];
+    h[8 + 18 * n] = h_tmp[8];*/
 
     get_inverse(h.data() + 18 * n);
 
