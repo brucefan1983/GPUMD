@@ -188,8 +188,11 @@ void Fitness::read_Nc(FILE* fid)
 {
   int count = fscanf(fid, "%d", &Nc);
   PRINT_SCANF_ERROR(count, 1, "reading error for xyz.in.");
-  if (Nc < 2) {
-    PRINT_INPUT_ERROR("Number of configurations should >= 2");
+  if (Nc < 10) {
+    PRINT_INPUT_ERROR("Number of configurations should >= 10");
+  }
+  if (Nc > 100000) {
+    PRINT_INPUT_ERROR("Number of configurations should <= 100000");
   }
   printf("Number of configurations is %d:\n", Nc);
 }
