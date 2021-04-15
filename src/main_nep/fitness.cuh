@@ -25,9 +25,9 @@ struct Cost {
   float weight_force;
   float weight_energy;
   float weight_stress;
-  float force_std;     // std of force
-  float potential_std; // std of potential
-  float virial_std;    // std of virial
+  double force_std;     // std of force
+  double potential_std; // std of potential
+  double virial_std;    // std of virial
 };
 
 class Fitness
