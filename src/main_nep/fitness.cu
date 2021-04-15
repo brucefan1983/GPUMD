@@ -214,7 +214,10 @@ void Fitness::read_Na(FILE* fid)
       max_Na = Na[nc];
     }
     if (Na[nc] < 2) {
-      PRINT_INPUT_ERROR("Number of atoms % d should >= 2.");
+      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 2.");
+    }
+    if (Na[nc] > 1024) {
+      PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
     }
     num_virial_configurations += has_virial[nc];
   }
