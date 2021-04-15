@@ -44,6 +44,7 @@ public:
     const float loss_L2,
     const float* elite);
   int number_of_variables; // number of variables in the potential
+  int population_size;     // population size for SNES
   int maximum_generation;  // maximum number of generations for SNES;
 
 protected:

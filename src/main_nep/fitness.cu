@@ -300,6 +300,13 @@ void Fitness::read_potential(char* input_dir)
   }
   printf("weight for stress is %g.\n", cost.weight_stress);
 
+  count = fscanf(fid, "%s%d", name, &population_size);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  if (population_size < 10) {
+    PRINT_INPUT_ERROR("population_size should >= 10.");
+  }
+  printf("population_size is %d.\n", population_size);
+
   count = fscanf(fid, "%s%d", name, &maximum_generation);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   if (maximum_generation < 1) {
