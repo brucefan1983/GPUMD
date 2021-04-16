@@ -65,8 +65,8 @@ void SNES::initialize_mu_and_sigma()
 {
   std::uniform_real_distribution<float> r1(0, 1);
   for (int n = 0; n < number_of_variables; ++n) {
-    mu[n] = r1(rng) * 2.0f - 1.0f;
-    sigma[n] = 1.0f;
+    mu[n] = r1(rng) - 0.5f;
+    sigma[n] = 0.1f;
   }
 }
 
