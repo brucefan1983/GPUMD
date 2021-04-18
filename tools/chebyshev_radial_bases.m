@@ -1,5 +1,5 @@
 clear; close all;
-n_max = 8;
+n_max = 9;
 r = 0 : 0.001 : 1;
 x = 2 * (r-1).^2 - 1;
 f_poly1=1+2*r.^3-3.*r.^2;
