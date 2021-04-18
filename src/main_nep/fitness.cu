@@ -365,11 +365,14 @@ void Fitness::report_error(
     }
     fprintf(fid, "\n");
     fclose(fid);
-    // report errors
+
+    // calculate force, energy, and virial
     potential->update_potential(elite);
     potential->find_force(
       Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
       force, virial, pe);
+
+    // report errors
     float rmse_energy = get_fitness_energy();
     float rmse_force = get_fitness_force();
     float rmse_virial = get_fitness_stress();
@@ -385,6 +388,42 @@ void Fitness::report_error(
       rmse_energy / cost.potential_std * 100.0f, rmse_force / cost.force_std * 100.0f,
       rmse_virial / cost.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
       rmse_virial * 1000.0f);
+
+    // Synchronize
+    CHECK(cudaDeviceSynchronize());
+
+    // update force.out
+    char file_force[200];
+    strcpy(file_force, input_dir);
+    strcat(file_force, "/force.out");
+    FILE* fid_force = my_fopen(file_force, "w");
+    for (int n = 0; n < N; ++n) {
+      fprintf(
+        fid_force, "%g %g %g %g %g %g\n", force[n], force[n + N], force[n + N * 2], force_ref[n],
+        force_ref[n + N], force_ref[n + N * 2]);
+    }
+    fclose(fid_force);
+
+    // update energy.out
+    char file_energy[200];
+    strcpy(file_energy, input_dir);
+    strcat(file_energy, "/energy.out");
+    FILE* fid_energy = my_fopen(file_energy, "w");
+    predict_energy_or_stress(fid_energy, pe.data(), pe_ref.data());
+    fclose(fid_energy);
+
+    // update virial.out
+    char file_virial[200];
+    strcpy(file_virial, input_dir);
+    strcat(file_virial, "/virial.out");
+    FILE* fid_virial = my_fopen(file_virial, "w");
+    predict_energy_or_stress(fid_virial, virial.data(), virial_ref.data());
+    predict_energy_or_stress(fid_virial, virial.data() + N, virial_ref.data() + Nc);
+    predict_energy_or_stress(fid_virial, virial.data() + N * 2, virial_ref.data() + Nc * 2);
+    predict_energy_or_stress(fid_virial, virial.data() + N * 3, virial_ref.data() + Nc * 3);
+    predict_energy_or_stress(fid_virial, virial.data() + N * 4, virial_ref.data() + Nc * 4);
+    predict_energy_or_stress(fid_virial, virial.data() + N * 5, virial_ref.data() + Nc * 5);
+    fclose(fid_virial);
   }
 }
 
@@ -398,46 +437,6 @@ void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
     }
     fprintf(fid, "%g %g\n", data_nc / Na[nc], ref[nc]);
   }
-}
-
-void Fitness::predict(char* input_dir, const float* elite)
-{
-  potential->update_potential(elite);
-  potential->find_force(
-    Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
-    force, virial, pe);
-
-  CHECK(cudaDeviceSynchronize());
-
-  char file_force[200];
-  strcpy(file_force, input_dir);
-  strcat(file_force, "/force.out");
-  FILE* fid_force = my_fopen(file_force, "w");
-  for (int n = 0; n < N; ++n) {
-    fprintf(
-      fid_force, "%g %g %g %g %g %g\n", force[n], force[n + N], force[n + N * 2], force_ref[n],
-      force_ref[n + N], force_ref[n + N * 2]);
-  }
-  fclose(fid_force);
-
-  char file_energy[200];
-  strcpy(file_energy, input_dir);
-  strcat(file_energy, "/energy.out");
-  FILE* fid_energy = my_fopen(file_energy, "w");
-  predict_energy_or_stress(fid_energy, pe.data(), pe_ref.data());
-  fclose(fid_energy);
-
-  char file_virial[200];
-  strcpy(file_virial, input_dir);
-  strcat(file_virial, "/virial.out");
-  FILE* fid_virial = my_fopen(file_virial, "w");
-  predict_energy_or_stress(fid_virial, virial.data(), virial_ref.data());
-  predict_energy_or_stress(fid_virial, virial.data() + N, virial_ref.data() + Nc);
-  predict_energy_or_stress(fid_virial, virial.data() + N * 2, virial_ref.data() + Nc * 2);
-  predict_energy_or_stress(fid_virial, virial.data() + N * 3, virial_ref.data() + Nc * 3);
-  predict_energy_or_stress(fid_virial, virial.data() + N * 4, virial_ref.data() + Nc * 4);
-  predict_energy_or_stress(fid_virial, virial.data() + N * 5, virial_ref.data() + Nc * 5);
-  fclose(fid_virial);
 }
 
 static __global__ void gpu_sum_force_error(

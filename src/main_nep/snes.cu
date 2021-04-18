@@ -103,7 +103,6 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
       fitness[0 + 2 * population_size], population.data());
     update_mu_and_sigma();
   }
-  fitness_function->predict(input_dir, population.data());
 }
 
 void SNES::create_population()

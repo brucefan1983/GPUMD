@@ -35,7 +35,6 @@ class Fitness
 public:
   Fitness(char*);
   void compute(const int, const float*, float*);
-  void predict(char*, const float*);
   void report_error(
     char* input_dir,
     const int generation,
