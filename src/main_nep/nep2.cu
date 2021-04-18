@@ -518,19 +518,28 @@ find_poly_cos(const int L_max, const float x, float* poly_cos)
 }
 
 static __device__ __forceinline__ void
-find_poly_cos_der(const int L_max, const float x, float* poly_cos_der)
+find_poly_cos_and_der(const int L_max, const float x, float* poly_cos, float* poly_cos_der)
 {
+  poly_cos[0] = 0.079577471545948f;
+  poly_cos[1] = 0.238732414637843f * x;
   poly_cos_der[0] = 0.0f;
   poly_cos_der[1] = 0.238732414637843f;
   poly_cos_der[2] = 1.193662073189215f * x;
   float x2 = x * x;
+  poly_cos[2] = 0.596831036594608f * x2 - 0.198943678864869f;
   poly_cos_der[3] = 4.177817256162252f * x2 - 0.835563451232451f;
   float x3 = x2 * x;
+  poly_cos[3] = 1.392605752054084f * x3 - 0.835563451232451f * x;
   poly_cos_der[4] = 12.533451768486758f * x3 - 5.371479329351468f * x;
   float x4 = x3 * x;
+  poly_cos[4] = 3.133362942121690f * x4 - 2.685739664675734f * x2 + 0.268573966467573f;
   poly_cos_der[5] = 34.466992363338584f * x4 - 22.977994908892391f * x2 + 1.641285350635171f;
   float x5 = x4 * x;
+  poly_cos[5] = 6.893398472667717f * x5 - 7.659331636297464f * x3 + 1.641285350635171f * x;
   poly_cos_der[6] = 89.614180144680319f * x5 - 81.467436495163923f * x3 + 13.577906082527321f * x;
+  float x6 = x5 * x;
+  poly_cos[6] = 14.935696690780054f * x6 - 20.366859123790981f * x4 + 6.788953041263660f * x2 -
+                0.323283478155412f;
 }
 
 static __global__ void find_partial_force_manybody(
@@ -639,9 +648,8 @@ static __global__ void find_partial_force_manybody(
         float fn13[MAX_NUM_N];
         find_fn(paramb.n_max, paramb.rcinv, d13, fc13, fn13);
         float poly_cos[MAX_NUM_L];
-        find_poly_cos(paramb.L_max, cos123, poly_cos);
         float poly_cos_der[MAX_NUM_L];
-        find_poly_cos_der(paramb.L_max, cos123, poly_cos_der);
+        find_poly_cos_and_der(paramb.L_max, cos123, poly_cos, poly_cos_der);
         float cos_der[3] = {
           x13 * d13inv - r12[0] * d12inv * cos123, y13 * d13inv - r12[1] * d12inv * cos123,
           z13 * d13inv - r12[2] * d12inv * cos123};
