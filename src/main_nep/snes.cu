@@ -96,7 +96,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
     fitness_function->compute(para, population.data(), fitness.data() + 3 * population_size);
-    regularize();
+    regularize(para);
     sort_population();
     fitness_function->report_error(
       input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
@@ -117,17 +117,17 @@ void SNES::create_population()
   }
 }
 
-void SNES::regularize()
+void SNES::regularize(Parameters& para)
 {
   for (int p = 0; p < population_size; ++p) {
-    float cost_L1 = 0.0, cost_L2 = 0.0;
+    float cost_L1 = 0.0f, cost_L2 = 0.0f;
     for (int v = 0; v < number_of_variables; ++v) {
       int pv = p * number_of_variables + v;
       cost_L1 += std::abs(population[pv]);
       cost_L2 += population[pv] * population[pv];
     }
-    cost_L1 *= 5.0e-3f / number_of_variables;                // good choice
-    cost_L2 = 5.0e-3f * sqrt(cost_L2 / number_of_variables); // good choice
+    cost_L1 *= para.L1_reg_para / number_of_variables;
+    cost_L2 = para.L2_reg_para * sqrt(cost_L2 / number_of_variables);
     fitness[p] = cost_L1 + cost_L2 + fitness[p + 3 * population_size] +
                  fitness[p + 4 * population_size] + fitness[p + 5 * population_size];
     fitness[p + 1 * population_size] = cost_L1;
