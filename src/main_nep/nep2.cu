@@ -499,32 +499,6 @@ static __device__ __forceinline__ void find_fn_and_fnp(
   }
 }
 
-#if USE_POLY
-
-static __device__ __forceinline__ void
-find_poly_cos(const int L_max, const float x, float* poly_cos)
-{
-  poly_cos[0] = 1.0f;
-  poly_cos[1] = x;
-  for (int l = 2; l <= L_max; ++l) {
-    poly_cos[l] = poly_cos[l - 1] * x;
-  }
-}
-
-static __device__ __forceinline__ void
-find_poly_cos_der(const int L_max, const float x, float* poly_cos_der)
-{
-  poly_cos_der[0] = 0.0f;
-  poly_cos_der[1] = 1.0f;
-  float tmp = 1.0f;
-  for (int l = 2; l <= L_max; ++l) {
-    tmp *= x;
-    poly_cos_der[l] = l * tmp;
-  }
-}
-
-#else
-
 static __device__ __forceinline__ void
 find_poly_cos(const int L_max, const float x, float* poly_cos)
 {
@@ -558,7 +532,6 @@ find_poly_cos_der(const int L_max, const float x, float* poly_cos_der)
   float x5 = x4 * x;
   poly_cos_der[6] = 89.614180144680319f * x5 - 81.467436495163923f * x3 + 13.577906082527321f * x;
 }
-#endif
 
 static __global__ void find_partial_force_manybody(
   int N,
