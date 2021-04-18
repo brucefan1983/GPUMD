@@ -24,16 +24,17 @@ https://doi.org/10.1145/2001576.2001692
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
+#include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
 #include <chrono>
 #include <cmath>
 
-SNES::SNES(char* input_dir, Fitness* fitness_function)
+SNES::SNES(char* input_dir, Parameters& para, Fitness* fitness_function)
 {
-  maximum_generation = fitness_function->maximum_generation;
-  number_of_variables = fitness_function->number_of_variables;
-  population_size = fitness_function->population_size;
+  maximum_generation = para.maximum_generation;
+  number_of_variables = para.number_of_variables;
+  population_size = para.population_size;
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
   fitness.resize(population_size * 6);
@@ -49,7 +50,7 @@ SNES::SNES(char* input_dir, Fitness* fitness_function)
   initialize_rng();
   initialize_mu_and_sigma();
   calculate_utility();
-  compute(input_dir, fitness_function);
+  compute(input_dir, para, fitness_function);
 }
 
 void SNES::initialize_rng()
@@ -82,7 +83,7 @@ void SNES::calculate_utility()
   }
 }
 
-void SNES::compute(char* input_dir, Fitness* fitness_function)
+void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
 {
   print_line_1();
   printf("Started training.\n");
@@ -94,12 +95,11 @@ void SNES::compute(char* input_dir, Fitness* fitness_function)
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
-    fitness_function->compute(
-      population_size, population.data(), fitness.data() + 3 * population_size);
+    fitness_function->compute(para, population.data(), fitness.data() + 3 * population_size);
     regularize();
     sort_population();
     fitness_function->report_error(
-      input_dir, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
+      input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
       fitness[0 + 2 * population_size], population.data());
     update_mu_and_sigma();
   }

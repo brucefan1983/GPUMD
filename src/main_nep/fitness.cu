@@ -21,13 +21,18 @@ Get the fitness
 #include "neighbor.cuh"
 #include "nep.cuh"
 #include "nep2.cuh"
+#include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-Fitness::Fitness(char* input_dir)
+Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  read_potential(input_dir);
+  potential.reset(new NEP2(
+    para.num_neurons_2b, para.rc_2b, para.num_neurons_3b, para.rc_3b, para.num_neurons_mb,
+    para.n_max, para.L_max));
+  neighbor.cutoff = para.rc_2b;
+
   read_train_in(input_dir);
   neighbor.compute(Nc, N, max_Na, Na.data(), Na_sum.data(), r.data(), h.data());
   potential->initialize(N, max_Na);
@@ -235,115 +240,26 @@ void Fitness::read_Na(FILE* fid)
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
 }
 
-void Fitness::read_potential(char* input_dir)
+void Fitness::compute(Parameters& para, const float* population, float* fitness)
 {
-  print_line_1();
-  printf("Started reading potential.in.\n");
-  print_line_2();
-
-  char file[200];
-  strcpy(file, input_dir);
-  strcat(file, "/potential.in");
-  FILE* fid = my_fopen(file, "r");
-  char name[20];
-  int count = fscanf(fid, "%s%d%f", name, &num_neurons_2b, &rc_2b);
-  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
-  printf("two_body: number of neurons = %d, cutoff = %g A.\n", num_neurons_2b, rc_2b);
-  count = fscanf(fid, "%s%d%f", name, &num_neurons_3b, &rc_3b);
-  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
-  printf("three_body: number of neurons = %d, cutoff = %g A.\n", num_neurons_3b, rc_3b);
-  count = fscanf(fid, "%s%d%d%d", name, &num_neurons_mb, &n_max, &L_max);
-  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
-  printf("many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max);
-
-  // old c++11 way:
-  potential.reset(
-    new NEP2(num_neurons_2b, rc_2b, num_neurons_3b, rc_3b, num_neurons_mb, n_max, L_max));
-
-  // switch to the following when c++14 is used in Haikuan's machine!
-  // potential = std::make_unique<NEP>(num_neurons_2b, rc_2b, num_neurons_3b, rc_3b, num_neurons_mb,
-  // n_max, L_max);
-
-  int number_of_variables_2b = 0;
-  number_of_variables = 0;
-  if (num_neurons_2b > 0) {
-    number_of_variables_2b = num_neurons_2b * (num_neurons_2b + 3 + 1) + 1;
-    number_of_variables += number_of_variables_2b;
-  }
-  printf("number of parameters to be optimized for 2-body part = %d.\n", number_of_variables_2b);
-
-  int number_of_variables_3b = 0;
-  if (num_neurons_3b > 0) {
-    number_of_variables_3b = num_neurons_3b * (num_neurons_3b + 3 + 3) + 1;
-    number_of_variables += number_of_variables_3b;
-  }
-  printf("number of parameters to be optimized for 3-body part = %d.\n", number_of_variables_3b);
-
-  int number_of_variables_mb = 0;
-  if (num_neurons_mb > 0) {
-    number_of_variables_mb = num_neurons_mb * (num_neurons_mb + 3 + (n_max + 1) * (L_max + 1)) + 1;
-    number_of_variables += number_of_variables_mb;
-  }
-  printf("number of parameters to be optimized for manybody part = %d.\n", number_of_variables_mb);
-  printf("total number of parameters to be optimized = %d.\n", number_of_variables);
-
-  neighbor.cutoff = rc_2b;
-
-  count = fscanf(fid, "%s%f", name, &cost.weight_force);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (cost.weight_force < 0) {
-    PRINT_INPUT_ERROR("weight for force should >= 0.");
-  }
-  printf("weight for force is %g.\n", cost.weight_force);
-
-  count = fscanf(fid, "%s%f", name, &cost.weight_energy);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (cost.weight_energy < 0) {
-    PRINT_INPUT_ERROR("weight for energy should >= 0.");
-  }
-  printf("weight for energy is %g.\n", cost.weight_energy);
-
-  count = fscanf(fid, "%s%f", name, &cost.weight_stress);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (cost.weight_stress < 0) {
-    PRINT_INPUT_ERROR("weight for stress should >= 0.");
-  }
-  printf("weight for stress is %g.\n", cost.weight_stress);
-
-  count = fscanf(fid, "%s%d", name, &population_size);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (population_size < 10) {
-    PRINT_INPUT_ERROR("population_size should >= 10.");
-  }
-  printf("population_size is %d.\n", population_size);
-
-  count = fscanf(fid, "%s%d", name, &maximum_generation);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (maximum_generation < 1) {
-    PRINT_INPUT_ERROR("maximum_generation should >= 1.");
-  }
-  printf("maximum_generation is %d.\n", maximum_generation);
-
-  fclose(fid);
-}
-
-void Fitness::compute(const int population_size, const float* population, float* fitness)
-{
-  for (int n = 0; n < population_size; ++n) {
-    const float* individual = population + n * number_of_variables;
+  for (int n = 0; n < para.population_size; ++n) {
+    const float* individual = population + n * para.number_of_variables;
     potential->update_potential(individual);
     potential->find_force(
       Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
       force, virial, pe);
-    fitness[n + 0 * population_size] =
-      cost.weight_energy * get_fitness_energy() / cost.potential_std;
-    fitness[n + 1 * population_size] = cost.weight_force * get_fitness_force() / cost.force_std;
-    fitness[n + 2 * population_size] = cost.weight_stress * get_fitness_stress() / cost.virial_std;
+    fitness[n + 0 * para.population_size] =
+      para.weight_energy * get_fitness_energy() / cost.potential_std;
+    fitness[n + 1 * para.population_size] =
+      para.weight_force * get_fitness_force() / cost.force_std;
+    fitness[n + 2 * para.population_size] =
+      para.weight_stress * get_fitness_stress() / cost.virial_std;
   }
 }
 
 void Fitness::report_error(
   char* input_dir,
+  Parameters& para,
   const int generation,
   const float loss_total,
   const float loss_L1,
@@ -357,10 +273,10 @@ void Fitness::report_error(
     strcat(file, "/potential.out");
     FILE* fid = my_fopen(file, "w");
     fprintf(fid, "nep 1\n");
-    fprintf(fid, "two_body %d %g\n", num_neurons_2b, rc_2b);
-    fprintf(fid, "three_body %d %g\n", num_neurons_3b, rc_3b);
-    fprintf(fid, "many_body %d %d %d\n", num_neurons_mb, n_max, L_max);
-    for (int m = 0; m < number_of_variables; ++m) {
+    fprintf(fid, "two_body %d %g\n", para.num_neurons_2b, para.rc_2b);
+    fprintf(fid, "three_body %d %g\n", para.num_neurons_3b, para.rc_3b);
+    fprintf(fid, "many_body %d %d %d\n", para.num_neurons_mb, para.n_max, para.L_max);
+    for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid, "%g ", elite[m]);
     }
     fprintf(fid, "\n");

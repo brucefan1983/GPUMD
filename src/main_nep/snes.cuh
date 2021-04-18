@@ -17,11 +17,12 @@
 #include <random>
 #include <vector>
 class Fitness;
+class Fitness;
 
 class SNES
 {
 public:
-  SNES(char*, Fitness*);
+  SNES(char*, Parameters&, Fitness*);
 
 protected:
   std::mt19937 rng;
@@ -42,7 +43,7 @@ protected:
   void initialize_rng();
   void initialize_mu_and_sigma();
   void calculate_utility();
-  void compute(char*, Fitness*);
+  void compute(char*, Parameters&, Fitness*);
   void create_population();
   void regularize();
   void sort_population();

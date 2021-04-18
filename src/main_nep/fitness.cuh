@@ -21,10 +21,9 @@
 #include <stdio.h>
 #include <vector>
 
+class Parameters;
+
 struct Cost {
-  float weight_force;
-  float weight_energy;
-  float weight_stress;
   double force_std;     // std of force
   double potential_std; // std of potential
   double virial_std;    // std of virial
@@ -33,18 +32,16 @@ struct Cost {
 class Fitness
 {
 public:
-  Fitness(char*);
-  void compute(const int, const float*, float*);
+  Fitness(char*, Parameters& para);
+  void compute(Parameters& para, const float*, float*);
   void report_error(
     char* input_dir,
+    Parameters& para,
     const int generation,
     const float loss_total,
     const float loss_L1,
     const float loss_L2,
     const float* elite);
-  int number_of_variables; // number of variables in the potential
-  int population_size;     // population size for SNES
-  int maximum_generation;  // maximum number of generations for SNES;
 
 protected:
   // output files:
@@ -53,7 +50,6 @@ protected:
   // functions related to initialization
   void read_Nc(FILE*);
   void read_Na(FILE*);
-  void read_potential(char*);
   void read_train_in(char*);
 
   // functions related to fitness evaluation
@@ -62,15 +58,6 @@ protected:
   float get_fitness_energy(void);
   float get_fitness_stress(void);
 
-  // input potential parameters:
-  int num_neurons_2b = 0;
-  float rc_2b;
-  int num_neurons_3b = 0;
-  float rc_3b;
-  int num_neurons_mb = 0;
-  int n_max, L_max;
-
-  int potential_type;              // 0=NN2B
   int Nc;                          // number of configurations
   int N;                           // total number of atoms (sum of Na[])
   int max_Na;                      // number of atoms in the largest configuration

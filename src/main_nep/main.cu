@@ -14,6 +14,7 @@
 */
 
 #include "fitness.cuh"
+#include "parameters.cuh"
 #include "snes.cuh"
 #include "utilities/error.cuh"
 #include "utilities/main_common.cuh"
@@ -38,8 +39,9 @@ int main(int argc, char* argv[])
     print_line_2();
 
     clock_t time_begin = clock();
-    Fitness fitness(input_directory);
-    SNES snes(input_directory, &fitness);
+    Parameters para(input_directory);
+    Fitness fitness(input_directory, para);
+    SNES snes(input_directory, para, &fitness);
     clock_t time_finish = clock();
 
     float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
