@@ -134,16 +134,6 @@ void Fitness::read_train_in(char* input_dir)
       PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
     }
     transpose(n, h_tmp, h.data());
-    /*h[0 + 18 * n] = h_tmp[0];
-    h[3 + 18 * n] = h_tmp[1];
-    h[6 + 18 * n] = h_tmp[2];
-    h[1 + 18 * n] = h_tmp[3];
-    h[4 + 18 * n] = h_tmp[4];
-    h[7 + 18 * n] = h_tmp[5];
-    h[2 + 18 * n] = h_tmp[6];
-    h[5 + 18 * n] = h_tmp[7];
-    h[8 + 18 * n] = h_tmp[8];*/
-
     get_inverse(h.data() + 18 * n);
 
     // atomic number, position, force
