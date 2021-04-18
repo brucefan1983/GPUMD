@@ -49,6 +49,8 @@ public:
   struct ANN {
     int dim = 0;                   // dimension of the descriptor
     int num_neurons_per_layer = 0; // number of neurons per hidden layer
+    int num_neurons1 = 0;          // number of neurons in the 1st hidden layer
+    int num_neurons2 = 0;          // number of neurons in the 2nd hidden layer
     int num_para = 0;              // number of parameters
     const float* w0;               // weight from the input to the first hidden layer
     const float* b0;               // bias for the first hidden layer

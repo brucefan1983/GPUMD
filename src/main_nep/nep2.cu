@@ -26,9 +26,9 @@ Ref: Zheyong Fan et al., in preparison.
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 // set by me:
-const int MAX_NUM_NEURONS_PER_LAYER = 20; // largest ANN: input-20-20-output
+const int MAX_NUM_NEURONS_PER_LAYER = 40; // largest ANN: input-40-40-output
 const int MAX_NUM_N = 9;                  // n_max+1 = 8+1
-const int MAX_NUM_L = 7;                  // L_max+1 = 6+1
+const int MAX_NUM_L = 9;                  // L_max+1 = 8+1
 // calculated:
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 const int MAX_2B_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + 1) + 1;
@@ -54,6 +54,8 @@ NEP2::NEP2(
     ann2b.num_neurons_per_layer > 0
       ? ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + ann2b.dim + 3) + 1
       : 0;
+  ann2b.num_neurons1 = num_neurons_2b;
+  ann2b.num_neurons2 = num_neurons_2b;
   para2b.rc = rc_2b;
   para2b.rcinv = 1.0f / para2b.rc;
   // 3body
@@ -63,6 +65,8 @@ NEP2::NEP2(
     ann3b.num_neurons_per_layer > 0
       ? ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + ann3b.dim + 3) + 1
       : 0;
+  ann3b.num_neurons1 = num_neurons_3b;
+  ann3b.num_neurons2 = num_neurons_3b;
   para3b.rc = rc_3b;
   para3b.rcinv = 1.0f / para3b.rc;
   // manybody
@@ -76,6 +80,8 @@ NEP2::NEP2(
     annmb.num_neurons_per_layer > 0
       ? annmb.num_neurons_per_layer * (annmb.num_neurons_per_layer + annmb.dim + 3) + 1
       : 0;
+  annmb.num_neurons1 = num_neurons_mb;
+  annmb.num_neurons2 = num_neurons_mb;
 };
 
 void NEP2::initialize(int N, int MAX_ATOM_NUMBER)
@@ -124,38 +130,32 @@ apply_ann(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivativ
   // energy
   float x1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 1st hidden layer neurons
   float x2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 2nd hidden layer neurons
-  for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
+  for (int n = 0; n < ann.num_neurons1; ++n) {
     float w0_times_q = 0.0f;
     for (int d = 0; d < ann.dim; ++d) {
       w0_times_q += ann.w0[n * ann.dim + d] * q[d];
     }
     x1[n] = tanh(w0_times_q - ann.b0[n]);
   }
-  for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-    for (int m = 0; m < ann.num_neurons_per_layer; ++m) {
-      x2[n] += ann.w1[n * ann.num_neurons_per_layer + m] * x1[m];
+  for (int n = 0; n < ann.num_neurons2; ++n) {
+    for (int m = 0; m < ann.num_neurons1; ++m) {
+      x2[n] += ann.w1[n * ann.num_neurons1 + m] * x1[m];
     }
     x2[n] = tanh(x2[n] - ann.b1[n]);
-  }
-  for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
     energy += ann.w2[n] * x2[n];
   }
   energy -= ann.b2[0];
   // energy gradient (compute it component by component)
   for (int d = 0; d < ann.dim; ++d) {
-    float y1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // derivatives of the 1st hidden layer neurons
-    float y2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // derivatives of the 2nd hidden layer neurons
-    for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-      y1[n] = (1.0f - x1[n] * x1[n]) * ann.w0[n * ann.dim + d];
-    }
-    for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-      for (int m = 0; m < ann.num_neurons_per_layer; ++m) {
-        y2[n] += ann.w1[n * ann.num_neurons_per_layer + m] * y1[m];
+    float y2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f};
+    for (int n1 = 0; n1 < ann.num_neurons1; ++n1) {
+      float y1 = (1.0f - x1[n1] * x1[n1]) * ann.w0[n1 * ann.dim + d];
+      for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
+        y2[n2] += ann.w1[n2 * ann.num_neurons1 + n1] * y1;
       }
-      y2[n] *= 1.0f - x2[n] * x2[n];
     }
-    for (int n = 0; n < ann.num_neurons_per_layer; ++n) {
-      energy_derivative[d] += ann.w2[n] * y2[n];
+    for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
+      energy_derivative[d] += ann.w2[n2] * (y2[n2] * (1.0f - x2[n2] * x2[n2]));
     }
   }
 }
