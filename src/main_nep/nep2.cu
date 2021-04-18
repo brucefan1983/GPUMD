@@ -601,6 +601,9 @@ static __global__ void find_partial_force_manybody(
       fc12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max, paramb.rcinv, d12, fc12, fn12);
+      for (int n = 0; n <= paramb.n_max; ++n) {
+        q[n * (paramb.L_max + 1) + 0] += fn12[n];
+      }
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int n3 = g_NL[n1 + N * i2];
         float x13 = g_x[n3] - x1;
@@ -615,7 +618,7 @@ static __global__ void find_partial_force_manybody(
         float poly_cos[MAX_NUM_L];
         find_poly_cos(paramb.L_max, cos123, poly_cos);
         for (int n = 0; n <= paramb.n_max; ++n) {
-          for (int l = 0; l <= paramb.L_max; ++l) {
+          for (int l = 1; l <= paramb.L_max; ++l) {
             q[n * (paramb.L_max + 1) + l] += fn12[n] * fc13 * poly_cos[l];
           }
         }
@@ -642,6 +645,12 @@ static __global__ void find_partial_force_manybody(
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max, paramb.rcinv, d12, fc12, fcp12, fn12, fnp12);
       float f12[3] = {0.0f};
+      for (int n = 0; n <= paramb.n_max; ++n) {
+        float tmp = Fp[n * (paramb.L_max + 1) + 0] * fnp12[n] * d12inv;
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += tmp * r12[d];
+        }
+      }
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int n3 = g_NL[n1 + N * i2];
         float x13 = g_x[n3] - x1;
@@ -666,7 +675,7 @@ static __global__ void find_partial_force_manybody(
         for (int n = 0; n <= paramb.n_max; ++n) {
           float tmp_n_a = (fnp12[n] * fn13[0] + fnp12[0] * fn13[n]) * d12inv;
           float tmp_n_b = (fn12[n] * fn13[0] + fn12[0] * fn13[n]) * d12inv;
-          for (int l = 0; l <= paramb.L_max; ++l) {
+          for (int l = 1; l <= paramb.L_max; ++l) {
             float tmp_nl_a = Fp[n * (paramb.L_max + 1) + l] * tmp_n_a * poly_cos[l];
             float tmp_nl_b = Fp[n * (paramb.L_max + 1) + l] * tmp_n_b * poly_cos_der[l];
             for (int d = 0; d < 3; ++d) {
