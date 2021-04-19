@@ -33,211 +33,18 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     para.n_max, para.L_max));
   neighbor.cutoff = para.rc_2b;
 
-  read_train_in(input_dir);
-  neighbor.compute(Nc, N, max_Na, Na.data(), Na_sum.data(), r.data(), h.data());
-  potential->initialize(N, max_Na);
-  error_cpu.resize(Nc);
-  error_gpu.resize(Nc);
+  training_set.read_train_in(input_dir);
+  neighbor.compute(
+    training_set.Nc, training_set.N, training_set.max_Na, training_set.Na.data(),
+    training_set.Na_sum.data(), training_set.r.data(), training_set.h.data());
+  potential->initialize(training_set.N, training_set.max_Na);
+  training_set.error_cpu.resize(training_set.Nc);
+  training_set.error_gpu.resize(training_set.Nc);
 
   char file_train_out[200];
   strcpy(file_train_out, input_dir);
   strcat(file_train_out, "/train.out");
   fid_train_out = my_fopen(file_train_out, "w");
-}
-
-static void get_inverse(float* cpu_h)
-{
-  cpu_h[9] = cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7];
-  cpu_h[10] = cpu_h[2] * cpu_h[7] - cpu_h[1] * cpu_h[8];
-  cpu_h[11] = cpu_h[1] * cpu_h[5] - cpu_h[2] * cpu_h[4];
-  cpu_h[12] = cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8];
-  cpu_h[13] = cpu_h[0] * cpu_h[8] - cpu_h[2] * cpu_h[6];
-  cpu_h[14] = cpu_h[2] * cpu_h[3] - cpu_h[0] * cpu_h[5];
-  cpu_h[15] = cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6];
-  cpu_h[16] = cpu_h[1] * cpu_h[6] - cpu_h[0] * cpu_h[7];
-  cpu_h[17] = cpu_h[0] * cpu_h[4] - cpu_h[1] * cpu_h[3];
-  float volume = cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
-                 cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
-                 cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]);
-  for (int n = 9; n < 18; n++) {
-    cpu_h[n] /= volume;
-  }
-}
-
-static void transpose(const int n, const float* h_tmp, float* h)
-{
-  h[0 + 18 * n] = h_tmp[0];
-  h[3 + 18 * n] = h_tmp[1];
-  h[6 + 18 * n] = h_tmp[2];
-  h[1 + 18 * n] = h_tmp[3];
-  h[4 + 18 * n] = h_tmp[4];
-  h[7 + 18 * n] = h_tmp[5];
-  h[2 + 18 * n] = h_tmp[6];
-  h[5 + 18 * n] = h_tmp[7];
-  h[8 + 18 * n] = h_tmp[8];
-}
-
-void Fitness::read_train_in(char* input_dir)
-{
-  print_line_1();
-  printf("Started reading train.in.\n");
-  print_line_2();
-
-  char file_train[200];
-  strcpy(file_train, input_dir);
-  strcat(file_train, "/train.in");
-  FILE* fid = my_fopen(file_train, "r");
-
-  // get Nc
-  read_Nc(fid);
-  h.resize(Nc * 18, Memory_Type::managed);
-  pe_ref.resize(Nc, Memory_Type::managed);
-  virial_ref.resize(Nc * 6, Memory_Type::managed);
-  Na.resize(Nc, Memory_Type::managed);
-  Na_sum.resize(Nc, Memory_Type::managed);
-  has_virial.resize(Nc);
-
-  read_Na(fid);
-  atomic_number.resize(N, Memory_Type::managed);
-  r.resize(N * 3, Memory_Type::managed);
-  force.resize(N * 3, Memory_Type::managed);
-  force_ref.resize(N * 3, Memory_Type::managed);
-  pe.resize(N, Memory_Type::managed);
-  virial.resize(N * 6, Memory_Type::managed);
-
-  double energy_ave = 0.0, virial_ave = 0.0;
-  cost.potential_std = 0.0;
-  cost.virial_std = 0.0;
-  cost.force_std = 0.0;
-  int atomic_number_max = 0;
-
-  for (int n = 0; n < Nc; ++n) {
-    int count;
-
-    // energy, virial
-    if (has_virial[n]) {
-      count = fscanf(
-        fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
-        &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
-        &virial_ref[n + Nc * 5]);
-      PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
-      for (int k = 0; k < 6; ++k) {
-        virial_ref[n + Nc * k] /= Na[n];
-        virial_ave += virial_ref[n + Nc * k];
-      }
-    } else {
-      count = fscanf(fid, "%f", &pe_ref[n]);
-      PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
-    }
-    pe_ref[n] /= Na[n];
-    energy_ave += pe_ref[n];
-
-    // box (ax, ay, az, bx, by, bz, cx, cy, cz)
-    float h_tmp[9];
-    for (int k = 0; k < 9; ++k) {
-      count = fscanf(fid, "%f", &h_tmp[k]);
-      PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
-    }
-    transpose(n, h_tmp, h.data());
-    get_inverse(h.data() + 18 * n);
-
-    // atomic number, position, force
-    for (int k = 0; k < Na[n]; ++k) {
-      int atomic_number_tmp = 0;
-      count = fscanf(
-        fid, "%d%f%f%f%f%f%f", &atomic_number_tmp, &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
-        &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k], &force_ref[Na_sum[n] + k + N],
-        &force_ref[Na_sum[n] + k + N * 2]);
-      PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
-      if (atomic_number_tmp < 1) {
-        PRINT_INPUT_ERROR("Atomic number should > 0.\n");
-      } else {
-        atomic_number[Na_sum[n] + k] = atomic_number_tmp;
-        if (atomic_number_tmp > atomic_number_max) {
-          atomic_number_max = atomic_number_tmp;
-        }
-      }
-      cost.force_std += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
-                        force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
-                        force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
-    }
-  }
-
-  fclose(fid);
-
-  // normalize the atomic number by the largest one
-  for (int n = 0; n < N; ++n) {
-    atomic_number[n] /= atomic_number_max;
-  }
-
-  energy_ave /= Nc;
-  if (num_virial_configurations > 0) {
-    virial_ave /= (6 * num_virial_configurations);
-  }
-
-  for (int n = 0; n < Nc; ++n) {
-    float energy_diff = pe_ref[n] - energy_ave;
-    cost.potential_std += energy_diff * energy_diff;
-    if (has_virial[n]) {
-      for (int k = 0; k < 6; ++k) {
-        float virial_diff = virial_ref[n + Nc * k] - virial_ave;
-        cost.virial_std += virial_diff * virial_diff;
-      }
-    }
-  }
-
-  cost.potential_std = sqrt(cost.potential_std / Nc);
-  cost.force_std = sqrt(cost.force_std / (N * 3));
-  cost.virial_std = (num_virial_configurations == 0)
-                      ? 1.0f
-                      : sqrt(cost.virial_std / (num_virial_configurations * 6));
-}
-
-void Fitness::read_Nc(FILE* fid)
-{
-  int count = fscanf(fid, "%d", &Nc);
-  PRINT_SCANF_ERROR(count, 1, "reading error for xyz.in.");
-  if (Nc < 10) {
-    PRINT_INPUT_ERROR("Number of configurations should >= 10");
-  }
-  if (Nc > 100000) {
-    PRINT_INPUT_ERROR("Number of configurations should <= 100000");
-  }
-  printf("Number of configurations is %d:\n", Nc);
-}
-
-void Fitness::read_Na(FILE* fid)
-{
-  N = 0;
-  max_Na = 0;
-  num_virial_configurations = 0;
-  for (int nc = 0; nc < Nc; ++nc) {
-    Na_sum[nc] = 0;
-  }
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    int count = fscanf(fid, "%d%d", &Na[nc], &has_virial[nc]);
-    PRINT_SCANF_ERROR(count, 2, "reading error for train.in.");
-    N += Na[nc];
-    if (Na[nc] > max_Na) {
-      max_Na = Na[nc];
-    }
-    if (Na[nc] < 2) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 2.");
-    }
-    if (Na[nc] > 1024) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
-    }
-    num_virial_configurations += has_virial[nc];
-  }
-
-  for (int nc = 1; nc < Nc; ++nc) {
-    Na_sum[nc] = Na_sum[nc - 1] + Na[nc - 1];
-  }
-
-  printf("Total number of atoms is %d.\n", N);
-  printf("%d atoms in the largest configuration.\n", max_Na);
-  printf("Number of configurations having virial = %d.\n", num_virial_configurations);
 }
 
 void Fitness::compute(Parameters& para, const float* population, float* fitness)
@@ -246,14 +53,15 @@ void Fitness::compute(Parameters& para, const float* population, float* fitness)
     const float* individual = population + n * para.number_of_variables;
     potential->update_potential(individual);
     potential->find_force(
-      Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
-      force, virial, pe);
+      training_set.Nc, training_set.N, training_set.Na.data(), training_set.Na_sum.data(),
+      training_set.max_Na, training_set.atomic_number.data(), training_set.h.data(), &neighbor,
+      training_set.r.data(), training_set.force, training_set.virial, training_set.pe);
     fitness[n + 0 * para.population_size] =
-      para.weight_energy * get_fitness_energy() / cost.potential_std;
+      para.weight_energy * training_set.get_fitness_energy() / training_set.potential_std;
     fitness[n + 1 * para.population_size] =
-      para.weight_force * get_fitness_force() / cost.force_std;
+      para.weight_force * training_set.get_fitness_force() / training_set.force_std;
     fitness[n + 2 * para.population_size] =
-      para.weight_stress * get_fitness_stress() / cost.virial_std;
+      para.weight_stress * training_set.get_fitness_stress() / training_set.virial_std;
   }
 }
 
@@ -285,25 +93,26 @@ void Fitness::report_error(
     // calculate force, energy, and virial
     potential->update_potential(elite);
     potential->find_force(
-      Nc, N, Na.data(), Na_sum.data(), max_Na, atomic_number.data(), h.data(), &neighbor, r.data(),
-      force, virial, pe);
+      training_set.Nc, training_set.N, training_set.Na.data(), training_set.Na_sum.data(),
+      training_set.max_Na, training_set.atomic_number.data(), training_set.h.data(), &neighbor,
+      training_set.r.data(), training_set.force, training_set.virial, training_set.pe);
 
     // report errors
-    float rmse_energy = get_fitness_energy();
-    float rmse_force = get_fitness_force();
-    float rmse_virial = get_fitness_stress();
+    float rmse_energy = training_set.get_fitness_energy();
+    float rmse_force = training_set.get_fitness_force();
+    float rmse_virial = training_set.get_fitness_stress();
     printf(
       "%-7d%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-12.1f%-10.1f%-12.1f\n", generation + 1,
       loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
-      rmse_energy / cost.potential_std * 100.0f, rmse_force / cost.force_std * 100.0f,
-      rmse_virial / cost.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
-      rmse_virial * 1000.0f);
+      rmse_energy / training_set.potential_std * 100.0f,
+      rmse_force / training_set.force_std * 100.0f, rmse_virial / training_set.virial_std * 100.0f,
+      rmse_energy * 1000.0f, rmse_force * 1000.0f, rmse_virial * 1000.0f);
     fprintf(
       fid_train_out, "%-7d%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-12.1f%-10.1f%-12.1f\n",
       generation + 1, loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
-      rmse_energy / cost.potential_std * 100.0f, rmse_force / cost.force_std * 100.0f,
-      rmse_virial / cost.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
-      rmse_virial * 1000.0f);
+      rmse_energy / training_set.potential_std * 100.0f,
+      rmse_force / training_set.force_std * 100.0f, rmse_virial / training_set.virial_std * 100.0f,
+      rmse_energy * 1000.0f, rmse_force * 1000.0f, rmse_virial * 1000.0f);
 
     // Synchronize
     CHECK(cudaDeviceSynchronize());
@@ -313,10 +122,12 @@ void Fitness::report_error(
     strcpy(file_force, input_dir);
     strcat(file_force, "/force.out");
     FILE* fid_force = my_fopen(file_force, "w");
-    for (int n = 0; n < N; ++n) {
+    for (int n = 0; n < training_set.N; ++n) {
       fprintf(
-        fid_force, "%g %g %g %g %g %g\n", force[n], force[n + N], force[n + N * 2], force_ref[n],
-        force_ref[n + N], force_ref[n + N * 2]);
+        fid_force, "%g %g %g %g %g %g\n", training_set.force[n],
+        training_set.force[n + training_set.N], training_set.force[n + training_set.N * 2],
+        training_set.force_ref[n], training_set.force_ref[n + training_set.N],
+        training_set.force_ref[n + training_set.N * 2]);
     }
     fclose(fid_force);
 
@@ -325,7 +136,7 @@ void Fitness::report_error(
     strcpy(file_energy, input_dir);
     strcat(file_energy, "/energy.out");
     FILE* fid_energy = my_fopen(file_energy, "w");
-    predict_energy_or_stress(fid_energy, pe.data(), pe_ref.data());
+    predict_energy_or_stress(fid_energy, training_set.pe.data(), training_set.pe_ref.data());
     fclose(fid_energy);
 
     // update virial.out
@@ -333,205 +144,35 @@ void Fitness::report_error(
     strcpy(file_virial, input_dir);
     strcat(file_virial, "/virial.out");
     FILE* fid_virial = my_fopen(file_virial, "w");
-    predict_energy_or_stress(fid_virial, virial.data(), virial_ref.data());
-    predict_energy_or_stress(fid_virial, virial.data() + N, virial_ref.data() + Nc);
-    predict_energy_or_stress(fid_virial, virial.data() + N * 2, virial_ref.data() + Nc * 2);
-    predict_energy_or_stress(fid_virial, virial.data() + N * 3, virial_ref.data() + Nc * 3);
-    predict_energy_or_stress(fid_virial, virial.data() + N * 4, virial_ref.data() + Nc * 4);
-    predict_energy_or_stress(fid_virial, virial.data() + N * 5, virial_ref.data() + Nc * 5);
+    predict_energy_or_stress(
+      fid_virial, training_set.virial.data(), training_set.virial_ref.data());
+    predict_energy_or_stress(
+      fid_virial, training_set.virial.data() + training_set.N,
+      training_set.virial_ref.data() + training_set.Nc);
+    predict_energy_or_stress(
+      fid_virial, training_set.virial.data() + training_set.N * 2,
+      training_set.virial_ref.data() + training_set.Nc * 2);
+    predict_energy_or_stress(
+      fid_virial, training_set.virial.data() + training_set.N * 3,
+      training_set.virial_ref.data() + training_set.Nc * 3);
+    predict_energy_or_stress(
+      fid_virial, training_set.virial.data() + training_set.N * 4,
+      training_set.virial_ref.data() + training_set.Nc * 4);
+    predict_energy_or_stress(
+      fid_virial, training_set.virial.data() + training_set.N * 5,
+      training_set.virial_ref.data() + training_set.Nc * 5);
     fclose(fid_virial);
   }
 }
 
 void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
 {
-  for (int nc = 0; nc < Nc; ++nc) {
-    int offset = Na_sum[nc];
+  for (int nc = 0; nc < training_set.Nc; ++nc) {
+    int offset = training_set.Na_sum[nc];
     float data_nc = 0.0;
-    for (int m = 0; m < Na[nc]; ++m) {
+    for (int m = 0; m < training_set.Na[nc]; ++m) {
       data_nc += data[offset + m];
     }
-    fprintf(fid, "%g %g\n", data_nc / Na[nc], ref[nc]);
+    fprintf(fid, "%g %g\n", data_nc / training_set.Na[nc], ref[nc]);
   }
-}
-
-static __global__ void gpu_sum_force_error(
-  int N,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_fx_ref,
-  float* g_fy_ref,
-  float* g_fz_ref,
-  float* g_error)
-{
-  int tid = threadIdx.x;
-  int number_of_rounds = (N - 1) / blockDim.x + 1;
-  extern __shared__ float s_error[];
-  s_error[tid] = 0.0f;
-  for (int round = 0; round < number_of_rounds; ++round) {
-    int n = tid + round * blockDim.x;
-    if (n < N) {
-      float dx = g_fx[n] - g_fx_ref[n];
-      float dy = g_fy[n] - g_fy_ref[n];
-      float dz = g_fz[n] - g_fz_ref[n];
-      s_error[tid] += dx * dx + dy * dy + dz * dz;
-    }
-  }
-
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
-    if (tid < offset) {
-      s_error[tid] += s_error[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_error[tid] += s_error[tid + offset];
-    }
-    __syncwarp();
-  }
-
-  if (tid == 0) {
-    g_error[0] = s_error[0];
-  }
-}
-
-float Fitness::get_fitness_force(void)
-{
-  gpu_sum_force_error<<<1, 512, sizeof(float) * 512>>>(
-    N, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(), force_ref.data() + N,
-    force_ref.data() + N * 2, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), sizeof(float), cudaMemcpyDeviceToHost));
-  return sqrt(error_cpu[0] / (N * 3));
-}
-
-static __global__ void
-gpu_sum_pe_error(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
-{
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int Na = g_Na[bid];
-  int offset = g_Na_sum[bid];
-  extern __shared__ float s_pe[];
-  s_pe[tid] = 0.0f;
-  if (tid < Na) {
-    int n = offset + tid; // particle index
-    s_pe[tid] += g_pe[n];
-  }
-  __syncthreads();
-
-  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncthreads();
-  }
-
-  for (int offset = 32; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      s_pe[tid] += s_pe[tid + offset];
-    }
-    __syncwarp();
-  }
-
-  if (tid == 0) {
-    float diff = s_pe[0] / Na - g_pe_ref[bid];
-    error_gpu[bid] = diff * diff;
-  }
-}
-
-static int get_block_size(int max_num_atom)
-{
-  int block_size = 64;
-  for (int n = 64; n < 1024; n <<= 1) {
-    if (max_num_atom > n) {
-      block_size = n << 1;
-    }
-  }
-  return block_size;
-}
-
-float Fitness::get_fitness_energy(void)
-{
-  int block_size = get_block_size(max_Na);
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), pe.data(), pe_ref.data(), error_gpu.data());
-  int mem = sizeof(float) * Nc;
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  float error_ave = 0.0;
-  for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
-  }
-  return sqrt(error_ave / Nc);
-}
-
-float Fitness::get_fitness_stress(void)
-{
-  if (num_virial_configurations == 0) {
-    return 0.0f;
-  }
-
-  float error_ave = 0.0;
-  int mem = sizeof(float) * Nc;
-  int block_size = get_block_size(max_Na);
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data(), virial_ref.data(), error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (has_virial[n]) {
-      error_ave += error_cpu[n];
-    }
-  }
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N, virial_ref.data() + Nc, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (has_virial[n]) {
-      error_ave += error_cpu[n];
-    }
-  }
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref.data() + Nc * 2, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (has_virial[n]) {
-      error_ave += error_cpu[n];
-    }
-  }
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref.data() + Nc * 3, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (has_virial[n]) {
-      error_ave += error_cpu[n];
-    }
-  }
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref.data() + Nc * 4, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (has_virial[n]) {
-      error_ave += error_cpu[n];
-    }
-  }
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref.data() + Nc * 5, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (has_virial[n]) {
-      error_ave += error_cpu[n];
-    }
-  }
-
-  return sqrt(error_ave / (num_virial_configurations * 6));
 }
