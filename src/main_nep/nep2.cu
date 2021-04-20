@@ -99,19 +99,10 @@ void NEP2::initialize(int N, int MAX_ATOM_NUMBER)
 
 void NEP2::update_potential(const float* parameters)
 {
-  const int num_para = ann2b.num_para + ann3b.num_para + annmb.num_para;
-  CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * num_para));
+  CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
   float* address_c_parameters;
   CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
-  if (ann2b.num_neurons_per_layer > 0) {
-    update_potential(address_c_parameters, ann2b);
-  }
-  if (ann3b.num_neurons_per_layer > 0) {
-    update_potential(address_c_parameters + ann2b.num_para, ann3b);
-  }
-  if (annmb.num_neurons_per_layer > 0) {
-    update_potential(address_c_parameters + ann2b.num_para + ann3b.num_para, annmb);
-  }
+  update_potential(address_c_parameters, annmb);
 }
 
 void NEP2::update_potential(const float* parameters, ANN& ann)
