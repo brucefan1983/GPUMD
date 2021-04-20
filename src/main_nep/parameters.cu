@@ -74,9 +74,9 @@ Parameters::Parameters(char* input_dir)
   }
 
   int dim = (n_max + 1) * (L_max + 1);
-  number_of_variables = (dim + 1) * num_neurons1;           // w0 and b0
-  number_of_variables += (num_neurons1 + 1) * num_neurons2; // w1 and b1
-  number_of_variables += num_neurons2 + 1;                  // w2 and b2
+  number_of_variables = (dim + 1) * num_neurons1;
+  number_of_variables += (num_neurons1 + 1) * num_neurons2;
+  number_of_variables += (num_neurons2 == 0 ? num_neurons1 : num_neurons2) + 1;
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%f", name, &weight_force);

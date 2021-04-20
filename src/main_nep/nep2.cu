@@ -43,9 +43,9 @@ NEP2::NEP2(Parameters& para)
   annmb.dim = (para.n_max + 1) * (para.L_max + 1);
   annmb.num_neurons1 = para.num_neurons1;
   annmb.num_neurons2 = para.num_neurons2;
-  annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;           // w0 and b0
-  annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2; // w1 and b1
-  annmb.num_para += annmb.num_neurons2 + 1;                        // w2 and b2
+  annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;
+  annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2;
+  annmb.num_para += (annmb.num_neurons2 == 0 ? annmb.num_neurons1 : annmb.num_neurons2) + 1;
   paramb.n_max = para.n_max;
   paramb.L_max = para.L_max;
 };
@@ -70,9 +70,31 @@ void NEP2::update_potential(const float* parameters, ANN& ann)
   ann.w0 = parameters;
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
   ann.w1 = ann.b0 + ann.num_neurons1;
-  ann.b1 = ann.w1 + ann.num_neurons1 * ann.num_neurons2;
-  ann.w2 = ann.b1 + ann.num_neurons2;
-  ann.b2 = ann.w2 + ann.num_neurons2;
+  if (ann.num_neurons2 == 0) {
+    ann.b1 = ann.w1 + ann.num_neurons1;
+  } else {
+    ann.b1 = ann.w1 + ann.num_neurons1 * ann.num_neurons2;
+    ann.w2 = ann.b1 + ann.num_neurons2;
+    ann.b2 = ann.w2 + ann.num_neurons2;
+  }
+}
+
+static __device__ void
+apply_ann_one_layer(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
+{
+  for (int n = 0; n < ann.num_neurons1; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < ann.dim; ++d) {
+      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
+    }
+    float x1 = tanh(w0_times_q - ann.b0[n]);
+    energy += ann.w1[n] * x1;
+    for (int d = 0; d < ann.dim; ++d) {
+      float y1 = (1.0f - x1 * x1) * ann.w0[n * ann.dim + d];
+      energy_derivative[d] += ann.w1[n] * y1;
+    }
+  }
+  energy -= ann.b1[0];
 }
 
 static __device__ void
@@ -387,7 +409,11 @@ static __global__ void find_partial_force_manybody(
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    apply_ann(annmb, q, F, Fp);
+    if (annmb.num_neurons2 == 0) {
+      apply_ann_one_layer(annmb, q, F, Fp);
+    } else {
+      apply_ann(annmb, q, F, Fp);
+    }
     g_pe[n1] += F;
     // get partial force
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
