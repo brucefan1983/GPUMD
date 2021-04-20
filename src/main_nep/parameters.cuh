@@ -22,8 +22,8 @@ public:
 
   int population_size = 80;        // population size for SNES
   int maximum_generation = 500000; // maximum number of generations for SNES;
-  int num_neurons_mb = 40;         // number of nuerons per layer for manybody part
-  float rc_mb = 5.0f;              // cutoff distance for manybody part
+  int num_neurons = 40;            // number of nuerons per layer
+  float rc = 5.0f;                 // cutoff distance
   int n_max = 8;                   // maximum order of the radial Chebyshev polynomials
   int L_max = 8;                   // maximum order of the angular Legendre polynomials
   int number_of_variables = 0;     // total number of parameters
@@ -32,10 +32,4 @@ public:
   float weight_stress = 0.1f;      // good default
   float L1_reg_para = 5.0e-3f;     // good default
   float L2_reg_para = 5.0e-3f;     // good default
-
-  // might be removed later:
-  int num_neurons_2b = 0; // number of nuerons per layer for 2body part
-  float rc_2b = 0;        // cutoff distance for 2body part
-  int num_neurons_3b = 0; // number of nuerons per layer for 3body part
-  float rc_3b = 0;        // cutoff distance for 3body part
 };

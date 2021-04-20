@@ -27,38 +27,25 @@ Parameters::Parameters(char* input_dir)
   strcat(file, "/potential.in");
   FILE* fid = my_fopen(file, "r");
   char name[20];
-  int count = fscanf(fid, "%s%d%f", name, &num_neurons_2b, &rc_2b);
-  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
-  printf("two_body: number of neurons = %d, cutoff = %g A.\n", num_neurons_2b, rc_2b);
-  count = fscanf(fid, "%s%d%f", name, &num_neurons_3b, &rc_3b);
-  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
-  printf("three_body: number of neurons = %d, cutoff = %g A.\n", num_neurons_3b, rc_3b);
-  count = fscanf(fid, "%s%d%d%d", name, &num_neurons_mb, &n_max, &L_max);
-  PRINT_SCANF_ERROR(count, 4, "reading error for potential.in.");
-  printf("many_body: %d neurons, n_max = %d, l_max = %d.\n", num_neurons_mb, n_max, L_max);
 
-  int number_of_variables_2b = 0;
-  number_of_variables = 0;
-  if (num_neurons_2b > 0) {
-    number_of_variables_2b = num_neurons_2b * (num_neurons_2b + 3 + 1) + 1;
-    number_of_variables += number_of_variables_2b;
-  }
-  printf("number of parameters to be optimized for 2-body part = %d.\n", number_of_variables_2b);
+  int count = fscanf(fid, "%s%f", name, &rc);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("cutoff = %g A.\n", rc);
 
-  int number_of_variables_3b = 0;
-  if (num_neurons_3b > 0) {
-    number_of_variables_3b = num_neurons_3b * (num_neurons_3b + 3 + 3) + 1;
-    number_of_variables += number_of_variables_3b;
-  }
-  printf("number of parameters to be optimized for 3-body part = %d.\n", number_of_variables_3b);
+  count = fscanf(fid, "%s%d", name, &num_neurons);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("number of neurons = %d.\n", num_neurons);
 
-  int number_of_variables_mb = 0;
-  if (num_neurons_mb > 0) {
-    number_of_variables_mb = num_neurons_mb * (num_neurons_mb + 3 + (n_max + 1) * (L_max + 1)) + 1;
-    number_of_variables += number_of_variables_mb;
-  }
-  printf("number of parameters to be optimized for manybody part = %d.\n", number_of_variables_mb);
-  printf("total number of parameters to be optimized = %d.\n", number_of_variables);
+  count = fscanf(fid, "%s%d", name, &n_max);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("n_max = %d.\n", n_max);
+
+  count = fscanf(fid, "%s%d", name, &L_max);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("l_max = %d.\n", L_max);
+
+  number_of_variables = num_neurons * (num_neurons + 3 + (n_max + 1) * (L_max + 1)) + 1;
+  printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%f", name, &weight_force);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
