@@ -101,13 +101,13 @@ void Fitness::report_error(
     float rmse_force = training_set.get_fitness_force();
     float rmse_virial = training_set.get_fitness_stress();
     printf(
-      "%-7d%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-12.1f%-10.1f%-12.1f\n", generation + 1,
+      "%-7d%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-12.2f%-10.2f%-12.2f\n", generation + 1,
       loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
       rmse_energy / training_set.potential_std * 100.0f,
       rmse_force / training_set.force_std * 100.0f, rmse_virial / training_set.virial_std * 100.0f,
       rmse_energy * 1000.0f, rmse_force * 1000.0f, rmse_virial * 1000.0f);
     fprintf(
-      fid_train_out, "%-7d%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-10.1f%-12.1f%-10.1f%-12.1f\n",
+      fid_train_out, "%-7d%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-12.2f%-10.2f%-12.2f\n",
       generation + 1, loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
       rmse_energy / training_set.potential_std * 100.0f,
       rmse_force / training_set.force_std * 100.0f, rmse_virial / training_set.virial_std * 100.0f,
