@@ -32,9 +32,13 @@ Parameters::Parameters(char* input_dir)
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("cutoff = %g A.\n", rc);
 
-  count = fscanf(fid, "%s%d", name, &num_neurons);
+  count = fscanf(fid, "%s%d", name, &num_neurons1);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("number of neurons = %d.\n", num_neurons);
+  printf("num_neurons1 = %d.\n", num_neurons1);
+
+  count = fscanf(fid, "%s%d", name, &num_neurons2);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("num_neurons2 = %d.\n", num_neurons2);
 
   count = fscanf(fid, "%s%d", name, &n_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
@@ -44,7 +48,10 @@ Parameters::Parameters(char* input_dir)
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("l_max = %d.\n", L_max);
 
-  number_of_variables = num_neurons * (num_neurons + 3 + (n_max + 1) * (L_max + 1)) + 1;
+  int dim = (n_max + 1) * (L_max + 1);
+  number_of_variables = (dim + 1) * num_neurons1;           // w0 and b0
+  number_of_variables += (num_neurons1 + 1) * num_neurons2; // w1 and b1
+  number_of_variables += num_neurons2 + 1;                  // w2 and b2
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%f", name, &weight_force);

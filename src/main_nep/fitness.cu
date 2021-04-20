@@ -28,7 +28,7 @@ Get the fitness
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  potential.reset(new NEP2(para.rc, para.num_neurons, para.n_max, para.L_max));
+  potential.reset(new NEP2(para));
   neighbor.cutoff = para.rc;
 
   training_set.read_train_in(input_dir);
@@ -80,7 +80,8 @@ void Fitness::report_error(
     FILE* fid = my_fopen(file, "w");
     fprintf(fid, "nep 1\n");
     fprintf(fid, "cutoff %g\n", para.rc);
-    fprintf(fid, "num_neurons %d\n", para.num_neurons);
+    fprintf(fid, "num_neurons1 %d\n", para.num_neurons1);
+    fprintf(fid, "num_neurons2 %d\n", para.num_neurons2);
     fprintf(fid, "n_max %d\n", para.n_max);
     fprintf(fid, "l_max %d\n", para.L_max);
     for (int m = 0; m < para.number_of_variables; ++m) {

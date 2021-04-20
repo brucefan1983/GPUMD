@@ -21,6 +21,7 @@ Ref: Zheyong Fan et al., in preparison.
 #include "mic.cuh"
 #include "neighbor.cuh"
 #include "nep2.cuh"
+#include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 
@@ -35,20 +36,18 @@ const int MAX_ANN_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER 
 // constant memory
 __constant__ float c_parameters[MAX_ANN_SIZE];
 
-NEP2::NEP2(float rc, int num_neurons, int n_max, int L_max)
+NEP2::NEP2(Parameters& para)
 {
-  paramb.n_max = n_max;
-  paramb.L_max = L_max;
-  paramb.rc = rc;
+  paramb.rc = para.rc;
   paramb.rcinv = 1.0f / paramb.rc;
-  annmb.dim = (n_max + 1) * (L_max + 1);
-  annmb.num_neurons_per_layer = num_neurons;
-  annmb.num_para =
-    annmb.num_neurons_per_layer > 0
-      ? annmb.num_neurons_per_layer * (annmb.num_neurons_per_layer + annmb.dim + 3) + 1
-      : 0;
-  annmb.num_neurons1 = num_neurons;
-  annmb.num_neurons2 = num_neurons;
+  annmb.dim = (para.n_max + 1) * (para.L_max + 1);
+  annmb.num_neurons1 = para.num_neurons1;
+  annmb.num_neurons2 = para.num_neurons2;
+  annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;           // w0 and b0
+  annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2; // w1 and b1
+  annmb.num_para += annmb.num_neurons2 + 1;                        // w2 and b2
+  paramb.n_max = para.n_max;
+  paramb.L_max = para.L_max;
 };
 
 void NEP2::initialize(int N, int MAX_ATOM_NUMBER)
@@ -69,11 +68,11 @@ void NEP2::update_potential(const float* parameters)
 void NEP2::update_potential(const float* parameters, ANN& ann)
 {
   ann.w0 = parameters;
-  ann.b0 = ann.w0 + ann.num_neurons_per_layer * ann.dim;
-  ann.w1 = ann.b0 + ann.num_neurons_per_layer;
-  ann.b1 = ann.w1 + ann.num_neurons_per_layer * ann.num_neurons_per_layer;
-  ann.w2 = ann.b1 + ann.num_neurons_per_layer;
-  ann.b2 = ann.w2 + ann.num_neurons_per_layer;
+  ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
+  ann.w1 = ann.b0 + ann.num_neurons1;
+  ann.b1 = ann.w1 + ann.num_neurons1 * ann.num_neurons2;
+  ann.w2 = ann.b1 + ann.num_neurons2;
+  ann.b2 = ann.w2 + ann.num_neurons2;
 }
 
 static __device__ void

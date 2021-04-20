@@ -22,7 +22,8 @@ public:
 
   int population_size = 80;        // population size for SNES
   int maximum_generation = 500000; // maximum number of generations for SNES;
-  int num_neurons = 40;            // number of nuerons per layer
+  int num_neurons1 = 60;           // number of nuerons in the 1st hidden layer
+  int num_neurons2 = 20;           // number of nuerons in the 2nd hidden layer
   float rc = 5.0f;                 // cutoff distance
   int n_max = 8;                   // maximum order of the radial Chebyshev polynomials
   int L_max = 8;                   // maximum order of the angular Legendre polynomials
