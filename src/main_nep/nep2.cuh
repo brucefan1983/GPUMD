@@ -19,8 +19,6 @@
 class Neighbor;
 
 struct NEP2_Data {
-  GPU_Vector<int> NN3b;   // 3-body neighbor number
-  GPU_Vector<int> NL3b;   // 3-body neighbor list
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
@@ -29,16 +27,6 @@ struct NEP2_Data {
 class NEP2 : public Potential
 {
 public:
-  struct Para2B {
-    float rc = 0.0f;    // cutoff
-    float rcinv = 0.0f; // inverse of the cutoff
-  };
-
-  struct Para3B {
-    float rc = 0.0f;    // cutoff
-    float rcinv = 0.0f; // inverse of the cutoff
-  };
-
   struct ParaMB {
     float rc = 0.0f;    // cutoff
     float rcinv = 0.0f; // inverse of the cutoff
@@ -85,11 +73,7 @@ public:
     GPU_Vector<float>& pe);
 
 private:
-  Para2B para2b;
-  Para3B para3b;
   ParaMB paramb;
-  ANN ann2b;
-  ANN ann3b;
   ANN annmb;
   NEP2_Data nep_data;
   void update_potential(const float* parameters, ANN& ann);

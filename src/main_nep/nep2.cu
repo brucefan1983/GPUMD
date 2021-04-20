@@ -31,10 +31,7 @@ const int MAX_NUM_N = 9;                  // n_max+1 = 8+1
 const int MAX_NUM_L = 9;                  // L_max+1 = 8+1
 // calculated:
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
-const int MAX_2B_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + 1) + 1;
-const int MAX_3B_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + 3) + 1;
-const int MAX_MB_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + MAX_DIM) + 1;
-const int MAX_ANN_SIZE = MAX_2B_SIZE + MAX_3B_SIZE + MAX_MB_SIZE;
+const int MAX_ANN_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + MAX_DIM) + 1;
 // constant memory
 __constant__ float c_parameters[MAX_ANN_SIZE];
 
@@ -47,32 +44,9 @@ NEP2::NEP2(
   int n_max,
   int L_max)
 {
-  // 2body
-  ann2b.dim = 1;
-  ann2b.num_neurons_per_layer = num_neurons_2b;
-  ann2b.num_para =
-    ann2b.num_neurons_per_layer > 0
-      ? ann2b.num_neurons_per_layer * (ann2b.num_neurons_per_layer + ann2b.dim + 3) + 1
-      : 0;
-  ann2b.num_neurons1 = num_neurons_2b;
-  ann2b.num_neurons2 = num_neurons_2b;
-  para2b.rc = rc_2b;
-  para2b.rcinv = 1.0f / para2b.rc;
-  // 3body
-  ann3b.dim = 3;
-  ann3b.num_neurons_per_layer = num_neurons_3b;
-  ann3b.num_para =
-    ann3b.num_neurons_per_layer > 0
-      ? ann3b.num_neurons_per_layer * (ann3b.num_neurons_per_layer + ann3b.dim + 3) + 1
-      : 0;
-  ann3b.num_neurons1 = num_neurons_3b;
-  ann3b.num_neurons2 = num_neurons_3b;
-  para3b.rc = rc_3b;
-  para3b.rcinv = 1.0f / para3b.rc;
-  // manybody
   paramb.n_max = n_max;
   paramb.L_max = L_max;
-  paramb.rc = rc_2b; // manybody has the same cutoff as twobody
+  paramb.rc = rc_2b;
   paramb.rcinv = 1.0f / paramb.rc;
   annmb.dim = (n_max + 1) * (L_max + 1);
   annmb.num_neurons_per_layer = num_neurons_mb;
@@ -86,15 +60,9 @@ NEP2::NEP2(
 
 void NEP2::initialize(int N, int MAX_ATOM_NUMBER)
 {
-  if (ann3b.num_neurons_per_layer > 0) {
-    nep_data.NN3b.resize(N);
-    nep_data.NL3b.resize(N * MAX_ATOM_NUMBER);
-  }
-  if (ann3b.num_neurons_per_layer > 0 || annmb.num_neurons_per_layer > 0) {
-    nep_data.f12x.resize(N * MAX_ATOM_NUMBER);
-    nep_data.f12y.resize(N * MAX_ATOM_NUMBER);
-    nep_data.f12z.resize(N * MAX_ATOM_NUMBER);
-  }
+  nep_data.f12x.resize(N * MAX_ATOM_NUMBER);
+  nep_data.f12y.resize(N * MAX_ATOM_NUMBER);
+  nep_data.f12z.resize(N * MAX_ATOM_NUMBER);
 }
 
 void NEP2::update_potential(const float* parameters)
