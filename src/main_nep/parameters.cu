@@ -31,22 +31,47 @@ Parameters::Parameters(char* input_dir)
   int count = fscanf(fid, "%s%f", name, &rc);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("cutoff = %g A.\n", rc);
+  if (rc < 3.0f) {
+    PRINT_INPUT_ERROR("cutoff should >= 3 A.");
+  } else if (rc > 10.0f) {
+    PRINT_INPUT_ERROR("cutoff should <= 10 A.");
+  }
 
   count = fscanf(fid, "%s%d", name, &num_neurons1);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("num_neurons1 = %d.\n", num_neurons1);
+  if (num_neurons1 < 1) {
+    PRINT_INPUT_ERROR("num_neurons1 should >= 1.");
+  } else if (num_neurons1 > 100) {
+    PRINT_INPUT_ERROR("num_neurons1 should <= 100.");
+  }
 
   count = fscanf(fid, "%s%d", name, &num_neurons2);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("num_neurons2 = %d.\n", num_neurons2);
+  if (num_neurons2 < 0) {
+    PRINT_INPUT_ERROR("num_neurons2 should >= 0.");
+  } else if (num_neurons2 > 100) {
+    PRINT_INPUT_ERROR("num_neurons2 should <= 100.");
+  }
 
   count = fscanf(fid, "%s%d", name, &n_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("n_max = %d.\n", n_max);
+  if (n_max < 0) {
+    PRINT_INPUT_ERROR("n_max should >= 0.");
+  } else if (n_max > 8) {
+    PRINT_INPUT_ERROR("n_max should <= 8.");
+  }
 
   count = fscanf(fid, "%s%d", name, &L_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("l_max = %d.\n", L_max);
+  if (L_max < 0) {
+    PRINT_INPUT_ERROR("l_max should >= 0.");
+  } else if (L_max > 8) {
+    PRINT_INPUT_ERROR("l_max should <= 8.");
+  }
 
   int dim = (n_max + 1) * (L_max + 1);
   number_of_variables = (dim + 1) * num_neurons1;           // w0 and b0
@@ -77,17 +102,21 @@ Parameters::Parameters(char* input_dir)
 
   count = fscanf(fid, "%s%d", name, &population_size);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("population_size is %d.\n", population_size);
   if (population_size < 10) {
     PRINT_INPUT_ERROR("population_size should >= 10.");
+  } else if (population_size > 100) {
+    PRINT_INPUT_ERROR("population_size should <= 100.");
   }
-  printf("population_size is %d.\n", population_size);
 
   count = fscanf(fid, "%s%d", name, &maximum_generation);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (maximum_generation < 1) {
-    PRINT_INPUT_ERROR("maximum_generation should >= 1.");
-  }
   printf("maximum_generation is %d.\n", maximum_generation);
+  if (maximum_generation < 100) {
+    PRINT_INPUT_ERROR("maximum_generation should >= 100.");
+  } else if (maximum_generation > 1000000) {
+    PRINT_INPUT_ERROR("maximum_generation should <= 1000000.");
+  }
 
   fclose(fid);
 }
