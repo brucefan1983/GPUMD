@@ -48,14 +48,7 @@ public:
     const float* b2;               // bias for the output layer
   };
 
-  NEP2(
-    int num_neurons_2b,
-    float rc_2b,
-    int num_neurons_3b,
-    float rc_3b,
-    int num_neurons_mb,
-    int n_max,
-    int L_max);
+  NEP2(float rc, int num_neurons, int n_max, int L_max);
   void initialize(int N, int MAX_ATOM_NUMBER);
   void update_potential(const float* parameters);
   void find_force(

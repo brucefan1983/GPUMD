@@ -35,27 +35,20 @@ const int MAX_ANN_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER 
 // constant memory
 __constant__ float c_parameters[MAX_ANN_SIZE];
 
-NEP2::NEP2(
-  int num_neurons_2b,
-  float rc_2b,
-  int num_neurons_3b,
-  float rc_3b,
-  int num_neurons_mb,
-  int n_max,
-  int L_max)
+NEP2::NEP2(float rc, int num_neurons, int n_max, int L_max)
 {
   paramb.n_max = n_max;
   paramb.L_max = L_max;
-  paramb.rc = rc_2b;
+  paramb.rc = rc;
   paramb.rcinv = 1.0f / paramb.rc;
   annmb.dim = (n_max + 1) * (L_max + 1);
-  annmb.num_neurons_per_layer = num_neurons_mb;
+  annmb.num_neurons_per_layer = num_neurons;
   annmb.num_para =
     annmb.num_neurons_per_layer > 0
       ? annmb.num_neurons_per_layer * (annmb.num_neurons_per_layer + annmb.dim + 3) + 1
       : 0;
-  annmb.num_neurons1 = num_neurons_mb;
-  annmb.num_neurons2 = num_neurons_mb;
+  annmb.num_neurons1 = num_neurons;
+  annmb.num_neurons2 = num_neurons;
 };
 
 void NEP2::initialize(int N, int MAX_ATOM_NUMBER)

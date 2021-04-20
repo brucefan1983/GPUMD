@@ -28,9 +28,7 @@ Get the fitness
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  potential.reset(new NEP2(
-    para.num_neurons_2b, para.rc_2b, para.num_neurons_3b, para.rc_3b, para.num_neurons_mb,
-    para.n_max, para.L_max));
+  potential.reset(new NEP2(para.rc_2b, para.num_neurons_mb, para.n_max, para.L_max));
   neighbor.cutoff = para.rc_2b;
 
   training_set.read_train_in(input_dir);
