@@ -25,16 +25,12 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 
-const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
-// set by me:
+const int SIZE_BOX_AND_INVERSE_BOX = 18;  // (3 * 3) * 2
 const int MAX_NUM_NEURONS_PER_LAYER = 40; // largest ANN: input-40-40-output
 const int MAX_NUM_N = 9;                  // n_max+1 = 8+1
 const int MAX_NUM_L = 9;                  // L_max+1 = 8+1
-// calculated:
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
-const int MAX_ANN_SIZE = MAX_NUM_NEURONS_PER_LAYER * (MAX_NUM_NEURONS_PER_LAYER + 3 + MAX_DIM) + 1;
-// constant memory
-__constant__ float c_parameters[MAX_ANN_SIZE];
+__constant__ float c_parameters[16384]; // 64 KB maximum
 
 NEP2::NEP2(Parameters& para)
 {
