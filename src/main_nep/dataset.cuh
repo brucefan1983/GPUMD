@@ -20,9 +20,10 @@
 class Dataset
 {
 public:
-  double force_std;                // std of force
-  double potential_std;            // std of potential
-  double virial_std;               // std of virial
+  float force_std = 1.0f;  // target accuracy of force times 100
+  float energy_std = 0.1f; // target accuracy of energy times 100
+  float virial_std = 1.0f; // target accuracy of virial times 100
+
   int Nc;                          // number of configurations
   int N;                           // total number of atoms (sum of Na[])
   int max_Na;                      // number of atoms in the largest configuration

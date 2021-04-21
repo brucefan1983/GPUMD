@@ -77,10 +77,6 @@ void Dataset::read_train_in(char* input_dir)
   pe.resize(N, Memory_Type::managed);
   virial.resize(N * 6, Memory_Type::managed);
 
-  double energy_ave = 0.0, virial_ave = 0.0;
-  potential_std = 0.0;
-  virial_std = 0.0;
-  force_std = 0.0;
   int atomic_number_max = 0;
 
   for (int n = 0; n < Nc; ++n) {
@@ -95,14 +91,12 @@ void Dataset::read_train_in(char* input_dir)
       PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
       for (int k = 0; k < 6; ++k) {
         virial_ref[n + Nc * k] /= Na[n];
-        virial_ave += virial_ref[n + Nc * k];
       }
     } else {
       count = fscanf(fid, "%f", &pe_ref[n]);
       PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
     }
     pe_ref[n] /= Na[n];
-    energy_ave += pe_ref[n];
 
     // box (ax, ay, az, bx, by, bz, cx, cy, cz)
     float h_tmp[9];
@@ -129,9 +123,6 @@ void Dataset::read_train_in(char* input_dir)
           atomic_number_max = atomic_number_tmp;
         }
       }
-      force_std += force_ref[Na_sum[n] + k] * force_ref[Na_sum[n] + k] +
-                   force_ref[Na_sum[n] + k + N] * force_ref[Na_sum[n] + k + N] +
-                   force_ref[Na_sum[n] + k + N * 2] * force_ref[Na_sum[n] + k + N * 2];
     }
   }
 
@@ -141,27 +132,6 @@ void Dataset::read_train_in(char* input_dir)
   for (int n = 0; n < N; ++n) {
     atomic_number[n] /= atomic_number_max;
   }
-
-  energy_ave /= Nc;
-  if (num_virial_configurations > 0) {
-    virial_ave /= (6 * num_virial_configurations);
-  }
-
-  for (int n = 0; n < Nc; ++n) {
-    float energy_diff = pe_ref[n] - energy_ave;
-    potential_std += energy_diff * energy_diff;
-    if (has_virial[n]) {
-      for (int k = 0; k < 6; ++k) {
-        float virial_diff = virial_ref[n + Nc * k] - virial_ave;
-        virial_std += virial_diff * virial_diff;
-      }
-    }
-  }
-
-  potential_std = sqrt(potential_std / Nc);
-  force_std = sqrt(force_std / (N * 3));
-  virial_std =
-    (num_virial_configurations == 0) ? 1.0f : sqrt(virial_std / (num_virial_configurations * 6));
 }
 
 void Dataset::read_Nc(FILE* fid)
