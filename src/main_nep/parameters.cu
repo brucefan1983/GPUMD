@@ -51,8 +51,14 @@ Parameters::Parameters(char* input_dir)
   printf("num_neurons2 = %d.\n", num_neurons2);
   if (num_neurons2 < 0) {
     PRINT_INPUT_ERROR("num_neurons2 should >= 0.");
-  } else if (num_neurons2 > 100) {
-    PRINT_INPUT_ERROR("num_neurons2 should <= 100.");
+  } else if (num_neurons2 > 50) {
+    PRINT_INPUT_ERROR("num_neurons2 should <= 50.");
+  }
+
+  if (num_neurons2 > 0) {
+    if (num_neurons1 > 50) {
+      PRINT_INPUT_ERROR("num_neurons1 should <= 50 when num_neurons1 > 0.");
+    }
   }
 
   count = fscanf(fid, "%s%d", name, &n_max);
