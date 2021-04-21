@@ -66,7 +66,7 @@ Parameters::Parameters(char* input_dir)
   printf("n_max = %d.\n", n_max);
   if (n_max < 0) {
     PRINT_INPUT_ERROR("n_max should >= 0.");
-  } else if (n_max > 8) {
+  } else if (n_max > 12) {
     PRINT_INPUT_ERROR("n_max should <= 12.");
   }
 
@@ -75,7 +75,7 @@ Parameters::Parameters(char* input_dir)
   printf("l_max = %d.\n", L_max);
   if (L_max < 0) {
     PRINT_INPUT_ERROR("l_max should >= 0.");
-  } else if (L_max > 8) {
+  } else if (L_max > 6) {
     PRINT_INPUT_ERROR("l_max should <= 6.");
   }
 
