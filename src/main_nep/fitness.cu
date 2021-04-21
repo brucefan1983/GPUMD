@@ -55,11 +55,11 @@ void Fitness::compute(Parameters& para, const float* population, float* fitness)
       training_set.max_Na, training_set.atomic_number.data(), training_set.h.data(), &neighbor,
       training_set.r.data(), training_set.force, training_set.virial, training_set.pe);
     fitness[n + 0 * para.population_size] =
-      para.weight_energy * training_set.get_fitness_energy() / training_set.potential_std;
+      training_set.get_fitness_energy() / training_set.energy_std;
     fitness[n + 1 * para.population_size] =
-      para.weight_force * training_set.get_fitness_force() / training_set.force_std;
+      training_set.get_fitness_force() / training_set.force_std;
     fitness[n + 2 * para.population_size] =
-      para.weight_stress * training_set.get_fitness_stress() / training_set.virial_std;
+      training_set.get_fitness_stress() / training_set.virial_std;
   }
 }
 
@@ -104,15 +104,15 @@ void Fitness::report_error(
     printf(
       "%-7d%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-12.2f%-10.2f%-12.2f\n", generation + 1,
       loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
-      rmse_energy / training_set.potential_std * 100.0f,
-      rmse_force / training_set.force_std * 100.0f, rmse_virial / training_set.virial_std * 100.0f,
-      rmse_energy * 1000.0f, rmse_force * 1000.0f, rmse_virial * 1000.0f);
+      rmse_energy / training_set.energy_std * 100.0f, rmse_force / training_set.force_std * 100.0f,
+      rmse_virial / training_set.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
+      rmse_virial * 1000.0f);
     fprintf(
       fid_train_out, "%-7d%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-10.2f%-12.2f%-10.2f%-12.2f\n",
       generation + 1, loss_total * 100.0f, loss_L1 * 100.0f, loss_L2 * 100.0f,
-      rmse_energy / training_set.potential_std * 100.0f,
-      rmse_force / training_set.force_std * 100.0f, rmse_virial / training_set.virial_std * 100.0f,
-      rmse_energy * 1000.0f, rmse_force * 1000.0f, rmse_virial * 1000.0f);
+      rmse_energy / training_set.energy_std * 100.0f, rmse_force / training_set.force_std * 100.0f,
+      rmse_virial / training_set.virial_std * 100.0f, rmse_energy * 1000.0f, rmse_force * 1000.0f,
+      rmse_virial * 1000.0f);
 
     // Synchronize
     CHECK(cudaDeviceSynchronize());

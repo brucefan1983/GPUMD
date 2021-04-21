@@ -85,27 +85,6 @@ Parameters::Parameters(char* input_dir)
   number_of_variables += (num_neurons2 == 0 ? num_neurons1 : num_neurons2) + 1;
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
-  count = fscanf(fid, "%s%f", name, &weight_force);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (weight_force < 0) {
-    PRINT_INPUT_ERROR("weight for force should >= 0.");
-  }
-  printf("weight for force is %g.\n", weight_force);
-
-  count = fscanf(fid, "%s%f", name, &weight_energy);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (weight_energy < 0) {
-    PRINT_INPUT_ERROR("weight for energy should >= 0.");
-  }
-  printf("weight for energy is %g.\n", weight_energy);
-
-  count = fscanf(fid, "%s%f", name, &weight_stress);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  if (weight_stress < 0) {
-    PRINT_INPUT_ERROR("weight for stress should >= 0.");
-  }
-  printf("weight for stress is %g.\n", weight_stress);
-
   count = fscanf(fid, "%s%d", name, &population_size);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("population_size is %d.\n", population_size);
