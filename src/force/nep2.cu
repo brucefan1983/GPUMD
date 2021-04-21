@@ -22,7 +22,7 @@ Ref: Zheyong Fan et al., in preparison.
 #include "utilities/error.cuh"
 #include <vector>
 
-const int MAX_NUM_NEURONS_PER_LAYER = 40; // largest ANN: input-40-40-output
+const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
 const int MAX_NUM_N = 9;                  // n_max+1 = 8+1
 const int MAX_NUM_L = 9;                  // L_max+1 = 8+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
