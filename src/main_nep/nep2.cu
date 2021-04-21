@@ -27,8 +27,8 @@ Ref: Zheyong Fan et al., in preparison.
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18;  // (3 * 3) * 2
 const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
-const int MAX_NUM_N = 9;                  // n_max+1 = 8+1
-const int MAX_NUM_L = 9;                  // L_max+1 = 8+1
+const int MAX_NUM_N = 13;                 // n_max+1 = 12+1
+const int MAX_NUM_L = 7;                  // L_max+1 = 6+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 __constant__ float c_parameters[16384]; // 64 KB maximum
 
@@ -296,12 +296,6 @@ find_poly_cos(const int L_max, const float x, float* poly_cos)
   float x6 = x5 * x;
   poly_cos[6] = 14.935696690780054f * x6 - 20.366859123790981f * x4 + 6.788953041263660f * x2 -
                 0.323283478155412f;
-  float x7 = x6 * x;
-  poly_cos[7] =
-    32.0050643373858f * x7 - 51.7004885450079f * x5 + 23.5002220659127f * x3 - 2.6111357851014f * x;
-  float x8 = x7 * x;
-  poly_cos[8] = 68.0107617169449f * x8 - 126.9534218716305f * x6 + 73.2423587720945f * x4 -
-                13.3167925040172f * x2 + 0.3699109028894f;
 }
 
 static __device__ __forceinline__ void
@@ -327,16 +321,6 @@ find_poly_cos_and_der(const int L_max, const float x, float* poly_cos, float* po
   float x6 = x5 * x;
   poly_cos[6] = 14.935696690780054f * x6 - 20.366859123790981f * x4 + 6.788953041263660f * x2 -
                 0.323283478155412f;
-  poly_cos_der[7] =
-    224.0354503617008f * x6 - 258.5024427250394f * x4 + 70.5006661977380f * x2 - 2.6111357851014f;
-  float x7 = x6 * x;
-  poly_cos[7] =
-    32.0050643373858f * x7 - 51.7004885450079f * x5 + 23.5002220659127f * x3 - 2.6111357851014f * x;
-  poly_cos_der[8] = 544.0860937355591f * x7 - 761.7205312297828f * x5 + 292.9694350883780f * x3 -
-                    26.6335850080344f * x;
-  float x8 = x7 * x;
-  poly_cos[8] = 68.0107617169449f * x8 - 126.9534218716305f * x6 + 73.2423587720945f * x4 -
-                13.3167925040172f * x2 + 0.3699109028894f;
 }
 
 static __global__ void find_partial_force_manybody(

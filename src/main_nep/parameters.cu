@@ -67,7 +67,7 @@ Parameters::Parameters(char* input_dir)
   if (n_max < 0) {
     PRINT_INPUT_ERROR("n_max should >= 0.");
   } else if (n_max > 8) {
-    PRINT_INPUT_ERROR("n_max should <= 8.");
+    PRINT_INPUT_ERROR("n_max should <= 12.");
   }
 
   count = fscanf(fid, "%s%d", name, &L_max);
@@ -76,7 +76,7 @@ Parameters::Parameters(char* input_dir)
   if (L_max < 0) {
     PRINT_INPUT_ERROR("l_max should >= 0.");
   } else if (L_max > 8) {
-    PRINT_INPUT_ERROR("l_max should <= 8.");
+    PRINT_INPUT_ERROR("l_max should <= 6.");
   }
 
   int dim = (n_max + 1) * (L_max + 1);
