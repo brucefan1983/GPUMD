@@ -68,6 +68,8 @@ void Dataset::read_train_in(char* input_dir)
   Na.resize(Nc, Memory_Type::managed);
   Na_sum.resize(Nc, Memory_Type::managed);
   has_virial.resize(Nc);
+  error_cpu.resize(Nc);
+  error_gpu.resize(Nc);
 
   read_Na(fid);
   atomic_number.resize(N, Memory_Type::managed);

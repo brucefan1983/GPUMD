@@ -32,8 +32,6 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   neighbor.compute(training_set);
   potential.reset(new NEP2(para));
   potential->initialize(training_set.N, training_set.max_Na);
-  training_set.error_cpu.resize(training_set.Nc); // TODO
-  training_set.error_gpu.resize(training_set.Nc); // TODO
 
   char file_train_out[200];
   strcpy(file_train_out, input_dir);
