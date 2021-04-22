@@ -144,7 +144,7 @@ void Dataset::read_Nc(FILE* fid)
   if (Nc > 100000) {
     PRINT_INPUT_ERROR("Number of configurations should <= 100000");
   }
-  printf("Number of configurations is %d:\n", Nc);
+  printf("Number of configurations = %d.\n", Nc);
 }
 
 void Dataset::read_Na(FILE* fid)
@@ -176,8 +176,8 @@ void Dataset::read_Na(FILE* fid)
     Na_sum[nc] = Na_sum[nc - 1] + Na[nc - 1];
   }
 
-  printf("Total number of atoms is %d.\n", N);
-  printf("%d atoms in the largest configuration.\n", max_Na);
+  printf("Total number of atoms = %d.\n", N);
+  printf("Number of atoms in the largest configuration = %d.\n", max_Na);
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
 }
 

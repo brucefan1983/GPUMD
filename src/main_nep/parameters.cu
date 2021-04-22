@@ -87,7 +87,7 @@ Parameters::Parameters(char* input_dir)
 
   count = fscanf(fid, "%s%d", name, &population_size);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("population_size is %d.\n", population_size);
+  printf("population_size = %d.\n", population_size);
   if (population_size < 10) {
     PRINT_INPUT_ERROR("population_size should >= 10.");
   } else if (population_size > 100) {
@@ -96,7 +96,7 @@ Parameters::Parameters(char* input_dir)
 
   count = fscanf(fid, "%s%d", name, &maximum_generation);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("maximum_generation is %d.\n", maximum_generation);
+  printf("maximum_generation = %d.\n", maximum_generation);
   if (maximum_generation < 100) {
     PRINT_INPUT_ERROR("maximum_generation should >= 100.");
   } else if (maximum_generation > 1000000) {
