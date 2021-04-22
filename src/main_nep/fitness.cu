@@ -19,7 +19,7 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "neighbor.cuh"
-#include "nep2.cuh"
+#include "nep.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"

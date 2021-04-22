@@ -23,7 +23,6 @@ The driver class calculating force and related quantities.
 #include "limt.cuh"
 #include "lj.cuh"
 #include "nep.cuh"
-#include "nep2.cuh"
 #include "potential.cuh"
 #include "rebo_mos2.cuh"
 #include "ri.cuh"
