@@ -37,6 +37,17 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   strcpy(file_train_out, input_dir);
   strcat(file_train_out, "/train.out");
   fid_train_out = my_fopen(file_train_out, "w");
+
+  char file_potential_out[200];
+  strcpy(file_potential_out, input_dir);
+  strcat(file_potential_out, "/potential.out");
+  fid_potential_out = my_fopen(file_potential_out, "w");
+}
+
+Fitness::~Fitness()
+{
+  fclose(fid_train_out);
+  fclose(fid_potential_out);
 }
 
 void Fitness::compute(Parameters& para, const float* population, float* fitness)
@@ -64,22 +75,11 @@ void Fitness::report_error(
   const float* elite)
 {
   if (0 == (generation + 1) % 100) {
-    // save a potential
-    char file[200];
-    strcpy(file, input_dir);
-    strcat(file, "/potential.out");
-    FILE* fid = my_fopen(file, "w");
-    fprintf(fid, "nep 1\n");
-    fprintf(fid, "cutoff %g\n", para.rc);
-    fprintf(fid, "num_neurons1 %d\n", para.num_neurons1);
-    fprintf(fid, "num_neurons2 %d\n", para.num_neurons2);
-    fprintf(fid, "n_max %d\n", para.n_max);
-    fprintf(fid, "l_max %d\n", para.L_max);
     for (int m = 0; m < para.number_of_variables; ++m) {
-      fprintf(fid, "%g ", elite[m]);
+      fprintf(fid_potential_out, "%g ", elite[m]);
     }
-    fprintf(fid, "\n");
-    fclose(fid);
+    fprintf(fid_potential_out, "\n");
+    fflush(fid_potential_out);
 
     // calculate force, energy, and virial
     potential->update_potential(elite);

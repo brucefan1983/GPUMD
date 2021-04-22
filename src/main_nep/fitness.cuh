@@ -28,6 +28,7 @@ class Fitness
 {
 public:
   Fitness(char*, Parameters& para);
+  ~Fitness();
   void compute(Parameters& para, const float*, float*);
   void report_error(
     char* input_dir,
@@ -41,6 +42,7 @@ public:
 protected:
   // output files:
   FILE* fid_train_out;
+  FILE* fid_potential_out;
 
   // functions related to fitness evaluation
   void predict_energy_or_stress(FILE*, float*, float*);
