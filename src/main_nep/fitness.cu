@@ -94,9 +94,11 @@ void Fitness::report_error(
     printf(
       "%-7d%-10.2f%-12.2f%-12.2f%-12.2f\n", generation + 1, loss_total, rmse_energy * 1000.0f,
       rmse_force * 1000.0f, rmse_virial * 1000.0f);
+    fflush(stdout);
     fprintf(
       fid_train_out, "%-7d%-10.2f%-12.2f%-12.2f%-12.2f\n", generation + 1, loss_total,
       rmse_energy * 1000.0f, rmse_force * 1000.0f, rmse_virial * 1000.0f);
+    fflush(fid_train_out);
 
     // Synchronize
     CHECK(cudaDeviceSynchronize());
