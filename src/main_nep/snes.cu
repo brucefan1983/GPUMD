@@ -90,8 +90,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
   print_line_2();
 
   printf(
-    "%-7s%-10s%-10s%-10s%-10s%-10s%-10s%-12s%-10s%-12s\n", "Step", "Z_tot(%)", "Z_L1(%)", "Z_L2(%)",
-    "U(%)", "F(%)", "W(%)", "U(meV/atom)", "F(meV/A)", "W(meV/atom)");
+    "%-7s%-10s%-12s%-12s%-12s\n", "Step", "Loss_tot", "U(meV/atom)", "F(meV/Ang)", "W(meV/atom)");
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
