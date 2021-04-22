@@ -15,12 +15,13 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+class Dataset;
 
 class Neighbor
 {
 public:
   GPU_Vector<int> NN;
   GPU_Vector<int> NL;
-  void compute(int, int, int, int*, int*, float*, float*);
+  void compute(Dataset& dataset);
   float cutoff = 0;
 };

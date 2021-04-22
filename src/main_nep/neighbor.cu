@@ -17,6 +17,7 @@
 find the neighbor list
 ------------------------------------------------------------------------------*/
 
+#include "dataset.cuh"
 #include "mic.cuh"
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
@@ -59,19 +60,20 @@ static __global__ void gpu_find_neighbor(
   }
 }
 
-void Neighbor::compute(int Nc, int N, int max_Na, int* Na, int* Na_sum, float* r, float* h)
+void Neighbor::compute(Dataset& dataset)
 {
-  NN.resize(N, Memory_Type::managed);
-  NL.resize(N * max_Na, Memory_Type::managed);
+  NN.resize(dataset.N, Memory_Type::managed);
+  NL.resize(dataset.N * dataset.max_Na, Memory_Type::managed);
   float rc2 = cutoff * cutoff;
-  gpu_find_neighbor<<<Nc, max_Na>>>(
-    N, Na, Na_sum, rc2, h, NN.data(), NL.data(), r, r + N, r + N * 2);
+  gpu_find_neighbor<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), rc2, dataset.h.data(), NN.data(),
+    NL.data(), dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2);
   CUDA_CHECK_KERNEL
 
-#if 0 // only for debugging:
+#if 1 // only for debugging:
   CHECK(cudaDeviceSynchronize());
-  for (int nc = 0; nc < Nc; ++nc) {
-    printf("NN[%d]=%d,", nc, NN[Na_sum[nc]]);
+  for (int nc = 0; nc < dataset.Nc; ++nc) {
+    printf("NN[%d]=%d,", nc, NN[dataset.Na_sum[nc]]);
     if (0 == (nc + 1) % 8)
       printf("\n");
   }
