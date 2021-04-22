@@ -19,7 +19,6 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "neighbor.cuh"
-#include "nep.cuh"
 #include "nep2.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
@@ -47,10 +46,7 @@ void Fitness::compute(Parameters& para, const float* population, float* fitness)
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
     potential->update_potential(individual);
-    potential->find_force(
-      training_set.Nc, training_set.N, training_set.Na.data(), training_set.Na_sum.data(),
-      training_set.max_Na, training_set.atomic_number.data(), training_set.h.data(), &neighbor,
-      training_set.r.data(), training_set.force, training_set.virial, training_set.pe);
+    potential->find_force(training_set, &neighbor);
     fitness[n + 0 * para.population_size] =
       training_set.get_fitness_energy() / training_set.energy_std;
     fitness[n + 1 * para.population_size] =
@@ -89,10 +85,7 @@ void Fitness::report_error(
 
     // calculate force, energy, and virial
     potential->update_potential(elite);
-    potential->find_force(
-      training_set.Nc, training_set.N, training_set.Na.data(), training_set.Na_sum.data(),
-      training_set.max_Na, training_set.atomic_number.data(), training_set.h.data(), &neighbor,
-      training_set.r.data(), training_set.force, training_set.virial, training_set.pe);
+    potential->find_force(training_set, &neighbor);
 
     // report errors
     float rmse_energy = training_set.get_fitness_energy();

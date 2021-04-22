@@ -18,6 +18,7 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., in preparison.
 ------------------------------------------------------------------------------*/
 
+#include "dataset.cuh"
 #include "mic.cuh"
 #include "neighbor.cuh"
 #include "nep2.cuh"
@@ -475,31 +476,24 @@ initialize_properties(int N, float* g_pe, float* g_fx, float* g_fy, float* g_fz,
   }
 }
 
-void NEP2::find_force(
-  int Nc,
-  int N,
-  int* Na,
-  int* Na_sum,
-  int max_Na,
-  float* atomic_number,
-  float* h,
-  Neighbor* neighbor,
-  float* r,
-  GPU_Vector<float>& f,
-  GPU_Vector<float>& virial,
-  GPU_Vector<float>& pe)
+void NEP2::find_force(Dataset& dataset, Neighbor* neighbor)
 {
-  initialize_properties<<<(N - 1) / 64 + 1, 64>>>(
-    N, pe.data(), f.data(), f.data() + N, f.data() + N * 2, virial.data());
+  initialize_properties<<<(dataset.N - 1) / 64 + 1, 64>>>(
+    dataset.N, dataset.pe.data(), dataset.force.data(), dataset.force.data() + dataset.N,
+    dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
-  find_partial_force_manybody<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), paramb, annmb, atomic_number, r, r + N,
-    r + N * 2, h, pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+  find_partial_force_manybody<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), neighbor->NN.data(), neighbor->NL.data(),
+    paramb, annmb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2, dataset.h.data(), dataset.pe.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
-  find_force_3body_or_manybody<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), nep_data.f12x.data(),
-    nep_data.f12y.data(), nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N,
-    f.data() + N * 2, virial.data());
+  find_force_3body_or_manybody<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), neighbor->NN.data(), neighbor->NL.data(),
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.r.data(),
+    dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
+    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
+    dataset.virial.data());
   CUDA_CHECK_KERNEL
 }

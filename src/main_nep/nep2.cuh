@@ -18,6 +18,7 @@
 #include "utilities/gpu_vector.cuh"
 class Neighbor;
 class Parameters;
+class Dataset;
 
 struct NEP2_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -51,19 +52,7 @@ public:
   NEP2(Parameters& para);
   void initialize(int N, int MAX_ATOM_NUMBER);
   void update_potential(const float* parameters);
-  void find_force(
-    int Nc,
-    int N,
-    int* Na,
-    int* Na_sum,
-    int max_Na,
-    float* atomic_number,
-    float* h,
-    Neighbor* neighbor,
-    float* r,
-    GPU_Vector<float>& f,
-    GPU_Vector<float>& virial,
-    GPU_Vector<float>& pe);
+  void find_force(Dataset& dataset, Neighbor* neighbor);
 
 private:
   ParaMB paramb;
