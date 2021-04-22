@@ -803,8 +803,8 @@ void NEP::find_force(
 {
   if (ann2b.num_neurons_per_layer > 0) {
     find_force_2body<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, para2b, ann2b, r, r + N, r + N * 2, h, f.data(),
-      f.data() + N, f.data() + N * 2, virial.data(), pe.data());
+      N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), para2b, ann2b, r, r + N, r + N * 2,
+      h, f.data(), f.data() + N, f.data() + N * 2, virial.data(), pe.data());
     CUDA_CHECK_KERNEL
   } else {
     initialize_properties<<<(N - 1) / 64 + 1, 64>>>(
@@ -813,7 +813,7 @@ void NEP::find_force(
   }
   if (ann3b.num_neurons_per_layer > 0) {
     find_neighbor_list_3body<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, para3b, r, r + N, r + N * 2, h,
+      N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), para3b, r, r + N, r + N * 2, h,
       nep_data.NN3b.data(), nep_data.NL3b.data());
     CUDA_CHECK_KERNEL
     find_partial_force_3body<<<Nc, max_Na>>>(
@@ -828,18 +828,18 @@ void NEP::find_force(
   }
   if (annmb.num_neurons_per_layer > 0) {
     find_energy_manybody<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, paramb, annmb, atomic_number, r, r + N, r + N * 2,
-      h, pe.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
+      N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), paramb, annmb, atomic_number, r,
+      r + N, r + N * 2, h, pe.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
     CUDA_CHECK_KERNEL
     find_partial_force_manybody<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, paramb, annmb, atomic_number, r, r + N, r + N * 2,
-      h, nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
-      nep_data.f12z.data());
+      N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), paramb, annmb, atomic_number, r,
+      r + N, r + N * 2, h, nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(),
+      nep_data.f12y.data(), nep_data.f12z.data());
     CUDA_CHECK_KERNEL
     find_force_3body_or_manybody<<<Nc, max_Na>>>(
-      N, Na, Na_sum, neighbor->NN, neighbor->NL, nep_data.f12x.data(), nep_data.f12y.data(),
-      nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N, f.data() + N * 2,
-      virial.data());
+      N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), nep_data.f12x.data(),
+      nep_data.f12y.data(), nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N,
+      f.data() + N * 2, virial.data());
     CUDA_CHECK_KERNEL
   }
 }

@@ -14,12 +14,13 @@
 */
 
 #pragma once
+#include "utilities/gpu_vector.cuh"
 
 class Neighbor
 {
 public:
-  int *NN, *NL;
-  ~Neighbor(void);
+  GPU_Vector<int> NN;
+  GPU_Vector<int> NL;
   void compute(int, int, int, int*, int*, float*, float*);
   float cutoff = 0;
 };

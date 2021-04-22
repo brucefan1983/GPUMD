@@ -21,12 +21,6 @@ find the neighbor list
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 
-Neighbor::~Neighbor(void)
-{
-  CHECK(cudaFree(NN));
-  CHECK(cudaFree(NL));
-}
-
 static __global__ void gpu_find_neighbor(
   int N,
   int* Na,
@@ -67,11 +61,11 @@ static __global__ void gpu_find_neighbor(
 
 void Neighbor::compute(int Nc, int N, int max_Na, int* Na, int* Na_sum, float* r, float* h)
 {
-  int m1 = sizeof(int) * N;
-  CHECK(cudaMallocManaged((void**)&NN, m1));
-  CHECK(cudaMallocManaged((void**)&NL, m1 * max_Na));
+  NN.resize(N, Memory_Type::managed);
+  NL.resize(N * max_Na, Memory_Type::managed);
   float rc2 = cutoff * cutoff;
-  gpu_find_neighbor<<<Nc, max_Na>>>(N, Na, Na_sum, rc2, h, NN, NL, r, r + N, r + N * 2);
+  gpu_find_neighbor<<<Nc, max_Na>>>(
+    N, Na, Na_sum, rc2, h, NN.data(), NL.data(), r, r + N, r + N * 2);
   CUDA_CHECK_KERNEL
 
 #if 0 // only for debugging:

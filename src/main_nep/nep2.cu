@@ -494,12 +494,12 @@ void NEP2::find_force(
   CUDA_CHECK_KERNEL
 
   find_partial_force_manybody<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN, neighbor->NL, paramb, annmb, atomic_number, r, r + N, r + N * 2, h,
-    pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+    N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), paramb, annmb, atomic_number, r, r + N,
+    r + N * 2, h, pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_force_3body_or_manybody<<<Nc, max_Na>>>(
-    N, Na, Na_sum, neighbor->NN, neighbor->NL, nep_data.f12x.data(), nep_data.f12y.data(),
-    nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N, f.data() + N * 2,
-    virial.data());
+    N, Na, Na_sum, neighbor->NN.data(), neighbor->NL.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data(), r, r + N, r + N * 2, h, f.data(), f.data() + N,
+    f.data() + N * 2, virial.data());
   CUDA_CHECK_KERNEL
 }
