@@ -84,14 +84,11 @@ void Fitness::report_error(
     fprintf(fid_potential_out, "\n");
     fflush(fid_potential_out);
 
-    // TODO: calculate errors for test set
-    // potential->find_force(0, test_set.Nc, elite, test_set);
-    // float rmse_energy_test = test_set.get_rmse_energy();
-    // float rmse_force_test = test_set.get_rmse_force();
-    // float rmse_virial_test = test_set.get_rmse_virial();
-    float rmse_energy_train = loss_energy * training_set.energy_std * 1000.0f;
-    float rmse_force_train = loss_force * training_set.force_std * 1000.0f;
-    float rmse_virial_train = loss_virial * training_set.virial_std * 1000.0f;
+    // TODO: change to use test errors
+    potential->find_force(0, training_set.Nc, elite, training_set);
+    float rmse_energy_train = training_set.get_rmse_energy() * 1000.0f;
+    float rmse_force_train = training_set.get_rmse_force() * 1000.0f;
+    float rmse_virial_train = training_set.get_rmse_virial() * 1000.0f;
 
     printf(
       "%-8d%-12.2f%-12.2f%-12.2f\n", generation + 1, rmse_energy_train, rmse_force_train,
