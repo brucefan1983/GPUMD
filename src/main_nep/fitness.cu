@@ -50,8 +50,7 @@ void Fitness::compute(Parameters& para, const float* population, float* fitness)
 {
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->update_potential(individual);
-    potential->find_force(training_set);
+    potential->find_force(individual, training_set);
     fitness[n + 0 * para.population_size] =
       training_set.get_fitness_energy() / training_set.energy_std;
     fitness[n + 1 * para.population_size] =
@@ -78,8 +77,7 @@ void Fitness::report_error(
     fflush(fid_potential_out);
 
     // calculate force, energy, and virial
-    potential->update_potential(elite);
-    potential->find_force(training_set);
+    potential->find_force(elite, training_set);
 
     // report errors
     float rmse_energy = training_set.get_fitness_energy();

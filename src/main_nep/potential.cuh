@@ -22,6 +22,5 @@ class Potential
 {
 public:
   virtual ~Potential() = default;
-  virtual void update_potential(const float*) = 0;
-  virtual void find_force(Dataset& dataset) = 0;
+  virtual void find_force(const float* parameters, Dataset& dataset) = 0;
 };

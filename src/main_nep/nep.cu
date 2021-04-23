@@ -49,14 +49,6 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   nep_data.f12z.resize(dataset.N * dataset.max_Na);
 };
 
-void NEP2::update_potential(const float* parameters)
-{
-  CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
-  float* address_c_parameters;
-  CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
-  update_potential(address_c_parameters, annmb);
-}
-
 void NEP2::update_potential(const float* parameters, ANN& ann)
 {
   ann.w0 = parameters;
@@ -471,8 +463,13 @@ initialize_properties(int N, float* g_pe, float* g_fx, float* g_fy, float* g_fz,
   }
 }
 
-void NEP2::find_force(Dataset& dataset)
+void NEP2::find_force(const float* parameters, Dataset& dataset)
 {
+  CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
+  float* address_c_parameters;
+  CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
+  update_potential(address_c_parameters, annmb);
+
   initialize_properties<<<(dataset.N - 1) / 64 + 1, 64>>>(
     dataset.N, dataset.pe.data(), dataset.force.data(), dataset.force.data() + dataset.N,
     dataset.force.data() + dataset.N * 2, dataset.virial.data());

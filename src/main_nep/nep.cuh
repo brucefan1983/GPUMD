@@ -49,8 +49,7 @@ public:
   };
 
   NEP2(Parameters& para, Dataset& dataset);
-  void update_potential(const float* parameters);
-  void find_force(Dataset& dataset);
+  void find_force(const float* parameters, Dataset& dataset);
 
 private:
   ParaMB paramb;
