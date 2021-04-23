@@ -28,8 +28,7 @@ Get the fitness
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
   training_set.read_train_in(input_dir);
-  neighbor.cutoff = para.rc;
-  neighbor.compute(training_set);
+  neighbor.compute(para, training_set);
   potential.reset(new NEP2(para, training_set));
 
   char file_train_out[200];

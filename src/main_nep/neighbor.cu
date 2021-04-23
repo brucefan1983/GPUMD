@@ -20,6 +20,7 @@ find the neighbor list
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "neighbor.cuh"
+#include "parameters.cuh"
 #include "utilities/error.cuh"
 
 static __global__ void gpu_find_neighbor(
@@ -60,22 +61,26 @@ static __global__ void gpu_find_neighbor(
   }
 }
 
-void Neighbor::compute(Dataset& dataset)
+void Neighbor::compute(Parameters& para, Dataset& dataset)
 {
   NN.resize(dataset.N, Memory_Type::managed);
   NL.resize(dataset.N * dataset.max_Na, Memory_Type::managed);
-  float rc2 = cutoff * cutoff;
+  float rc2 = para.rc * para.rc;
   gpu_find_neighbor<<<dataset.Nc, dataset.max_Na>>>(
     dataset.N, dataset.Na.data(), dataset.Na_sum.data(), rc2, dataset.h.data(), NN.data(),
     NL.data(), dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2);
   CUDA_CHECK_KERNEL
 
-#if 1 // only for debugging:
   CHECK(cudaDeviceSynchronize());
-  for (int nc = 0; nc < dataset.Nc; ++nc) {
-    printf("NN[%d]=%d,", nc, NN[dataset.Na_sum[nc]]);
-    if (0 == (nc + 1) % 8)
-      printf("\n");
+  int min_NN = 10000, max_NN = -1;
+  for (int n = 0; n < dataset.N; ++n) {
+    if (NN[n] < min_NN) {
+      min_NN = NN[n];
+    }
+    if (NN[n] > max_NN) {
+      max_NN = NN[n];
+    }
   }
-#endif
+  printf("Minimum number of neighbors for one atom = %d.\n", min_NN);
+  printf("Maximum number of neighbors for one atom = %d.\n", max_NN);
 }
