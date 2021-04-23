@@ -20,6 +20,7 @@ class Parameters
 public:
   Parameters(char* input_dir);
 
+  int batch_size = 68;             // number of configurations in one batch
   int population_size = 80;        // population size for SNES
   int maximum_generation = 500000; // maximum number of generations for SNES;
   int num_neurons1 = 60;           // number of nuerons in the 1st hidden layer

@@ -89,17 +89,17 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
   printf("Started training.\n");
   print_line_2();
 
-  printf(
-    "%-7s%-10s%-12s%-12s%-12s\n", "Step", "Loss_tot", "U(meV/atom)", "F(meV/Ang)", "W(meV/atom)");
+  printf("%-8s%-12s%-12s%-12s\n", "Step", "U(meV/atom)", "F(meV/Ang)", "W(meV/atom)");
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();
-    fitness_function->compute(para, population.data(), fitness.data() + 3 * population_size);
+    fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
     regularize(para);
     sort_population();
     fitness_function->report_error(
       input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
-      fitness[0 + 2 * population_size], population.data());
+      fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
+      fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
     update_mu_and_sigma();
   }
 }

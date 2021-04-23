@@ -445,24 +445,30 @@ static __global__ void find_partial_force_manybody(
   }
 }
 
-void NEP2::find_force(const float* parameters, Dataset& dataset)
+void NEP2::find_force(
+  const int configuration_start,
+  const int configuration_end,
+  const float* parameters,
+  Dataset& dataset)
 {
   CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
   float* address_c_parameters;
   CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
   update_potential(address_c_parameters, annmb);
 
-  find_partial_force_manybody<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
-    paramb, annmb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
-    dataset.r.data() + dataset.N * 2, dataset.h.data(), dataset.pe.data(), nep_data.f12x.data(),
-    nep_data.f12y.data(), nep_data.f12z.data());
+  find_partial_force_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
+    dataset.NN.data(), dataset.NL.data(), paramb, annmb, dataset.atomic_number.data(),
+    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
+    dataset.h.data() + SIZE_BOX_AND_INVERSE_BOX * configuration_start, dataset.pe.data(),
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
-  find_force_3body_or_manybody<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
-    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.r.data(),
-    dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
-    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
-    dataset.virial.data());
+  find_force_3body_or_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
+    dataset.NN.data(), dataset.NL.data(), nep_data.f12x.data(), nep_data.f12y.data(),
+    nep_data.f12z.data(), dataset.r.data(), dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2,
+    dataset.h.data() + SIZE_BOX_AND_INVERSE_BOX * configuration_start, dataset.force.data(),
+    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 }

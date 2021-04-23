@@ -22,6 +22,7 @@ Get the fitness
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <algorithm>
 #include <vector>
 
 Fitness::Fitness(char* input_dir, Parameters& para)
@@ -46,11 +47,16 @@ Fitness::~Fitness()
   fclose(fid_potential_out);
 }
 
-void Fitness::compute(Parameters& para, const float* population, float* fitness)
+void Fitness::compute(
+  const int generation, Parameters& para, const float* population, float* fitness)
 {
+  const int num_of_batches = (training_set.Nc - 1) / para.batch_size + 1;
+  const int batch_id = generation % num_of_batches;
+  const int configuration_start = batch_id * para.batch_size;
+  const int configuration_end = std::min(training_set.Nc, configuration_start + para.batch_size);
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->find_force(individual, training_set);
+    potential->find_force(configuration_start, configuration_end, individual, training_set);
     fitness[n + 0 * para.population_size] =
       training_set.get_rmse_energy() / training_set.energy_std;
     fitness[n + 1 * para.population_size] = training_set.get_rmse_force() / training_set.force_std;
@@ -63,9 +69,12 @@ void Fitness::report_error(
   char* input_dir,
   Parameters& para,
   const int generation,
-  const float loss_total,
-  const float loss_L1,
-  const float loss_L2,
+  const float loss_total, // not used, but keep for a while
+  const float loss_L1,    // not used, but keep for a while
+  const float loss_L2,    // not used, but keep for a while
+  const float loss_energy,
+  const float loss_force,
+  const float loss_virial,
   const float* elite)
 {
   if (0 == (generation + 1) % 100) {
@@ -75,20 +84,22 @@ void Fitness::report_error(
     fprintf(fid_potential_out, "\n");
     fflush(fid_potential_out);
 
-    // calculate force, energy, and virial
-    potential->find_force(elite, training_set);
+    // TODO: calculate errors for test set
+    // potential->find_force(0, test_set.Nc, elite, test_set);
+    // float rmse_energy_test = test_set.get_rmse_energy();
+    // float rmse_force_test = test_set.get_rmse_force();
+    // float rmse_virial_test = test_set.get_rmse_virial();
+    float rmse_energy_train = loss_energy * training_set.energy_std * 1000.0f;
+    float rmse_force_train = loss_force * training_set.force_std * 1000.0f;
+    float rmse_virial_train = loss_virial * training_set.virial_std * 1000.0f;
 
-    // report errors
-    float rmse_energy = training_set.get_rmse_energy();
-    float rmse_force = training_set.get_rmse_force();
-    float rmse_virial = training_set.get_rmse_virial();
     printf(
-      "%-7d%-10.2f%-12.2f%-12.2f%-12.2f\n", generation + 1, loss_total, rmse_energy * 1000.0f,
-      rmse_force * 1000.0f, rmse_virial * 1000.0f);
+      "%-8d%-12.2f%-12.2f%-12.2f\n", generation + 1, rmse_energy_train, rmse_force_train,
+      rmse_virial_train);
     fflush(stdout);
     fprintf(
-      fid_train_out, "%-7d%-10.2f%-12.2f%-12.2f%-12.2f\n", generation + 1, loss_total,
-      rmse_energy * 1000.0f, rmse_force * 1000.0f, rmse_virial * 1000.0f);
+      fid_train_out, "%-8d%-12.2f%-12.2f%-12.2f\n", generation + 1, rmse_energy_train,
+      rmse_force_train, rmse_virial_train);
     fflush(fid_train_out);
 
     // Synchronize

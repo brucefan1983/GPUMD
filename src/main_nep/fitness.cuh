@@ -28,7 +28,7 @@ class Fitness
 public:
   Fitness(char*, Parameters& para);
   ~Fitness();
-  void compute(Parameters& para, const float*, float*);
+  void compute(const int generation, Parameters& para, const float*, float*);
   void report_error(
     char* input_dir,
     Parameters& para,
@@ -36,6 +36,9 @@ public:
     const float loss_total,
     const float loss_L1,
     const float loss_L2,
+    const float,
+    const float,
+    const float,
     const float* elite);
 
 protected:

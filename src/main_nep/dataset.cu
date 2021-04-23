@@ -75,10 +75,10 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   read_Na(fid);
   atomic_number.resize(N, Memory_Type::managed);
   r.resize(N * 3, Memory_Type::managed);
-  force.resize(N * 3, Memory_Type::managed);
+  force.resize(N * 3, 0.0f, Memory_Type::managed);
   force_ref.resize(N * 3, Memory_Type::managed);
-  pe.resize(N, Memory_Type::managed);
-  virial.resize(N * 6, Memory_Type::managed);
+  pe.resize(N, 0.0f, Memory_Type::managed);
+  virial.resize(N * 6, 0.0f, Memory_Type::managed);
 
   int atomic_number_max = 0;
 
