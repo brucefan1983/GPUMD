@@ -231,7 +231,7 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-float Dataset::get_fitness_force(void)
+float Dataset::get_rmse_force(void)
 {
   gpu_sum_force_error<<<1, 512, sizeof(float) * 512>>>(
     N, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(), force_ref.data() + N,
@@ -286,7 +286,7 @@ static int get_block_size(int max_num_atom)
   return block_size;
 }
 
-float Dataset::get_fitness_energy(void)
+float Dataset::get_rmse_energy(void)
 {
   int block_size = get_block_size(max_Na);
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
@@ -300,7 +300,7 @@ float Dataset::get_fitness_energy(void)
   return sqrt(error_ave / Nc);
 }
 
-float Dataset::get_fitness_stress(void)
+float Dataset::get_rmse_virial(void)
 {
   if (num_virial_configurations == 0) {
     return 0.0f;

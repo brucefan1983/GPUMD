@@ -50,8 +50,8 @@ public:
   void read_Nc(FILE*);
   void read_Na(FILE*);
   void read_train_in(char*, Parameters& para);
-  float get_fitness_force(void);
-  float get_fitness_energy(void);
-  float get_fitness_stress(void);
+  float get_rmse_force(void);
+  float get_rmse_energy(void);
+  float get_rmse_virial(void);
   void find_neighbor(Parameters& para);
 };

@@ -52,11 +52,10 @@ void Fitness::compute(Parameters& para, const float* population, float* fitness)
     const float* individual = population + n * para.number_of_variables;
     potential->find_force(individual, training_set);
     fitness[n + 0 * para.population_size] =
-      training_set.get_fitness_energy() / training_set.energy_std;
-    fitness[n + 1 * para.population_size] =
-      training_set.get_fitness_force() / training_set.force_std;
+      training_set.get_rmse_energy() / training_set.energy_std;
+    fitness[n + 1 * para.population_size] = training_set.get_rmse_force() / training_set.force_std;
     fitness[n + 2 * para.population_size] =
-      training_set.get_fitness_stress() / training_set.virial_std;
+      training_set.get_rmse_virial() / training_set.virial_std;
   }
 }
 
@@ -80,9 +79,9 @@ void Fitness::report_error(
     potential->find_force(elite, training_set);
 
     // report errors
-    float rmse_energy = training_set.get_fitness_energy();
-    float rmse_force = training_set.get_fitness_force();
-    float rmse_virial = training_set.get_fitness_stress();
+    float rmse_energy = training_set.get_rmse_energy();
+    float rmse_force = training_set.get_rmse_force();
+    float rmse_virial = training_set.get_rmse_virial();
     printf(
       "%-7d%-10.2f%-12.2f%-12.2f%-12.2f\n", generation + 1, loss_total, rmse_energy * 1000.0f,
       rmse_force * 1000.0f, rmse_virial * 1000.0f);
