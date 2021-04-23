@@ -18,7 +18,6 @@ Get the fitness
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "neighbor.cuh"
 #include "nep.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
@@ -27,8 +26,7 @@ Get the fitness
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  training_set.read_train_in(input_dir);
-  neighbor.compute(para, training_set);
+  training_set.read_train_in(input_dir, para);
   potential.reset(new NEP2(para, training_set));
 
   char file_train_out[200];
@@ -53,7 +51,7 @@ void Fitness::compute(Parameters& para, const float* population, float* fitness)
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
     potential->update_potential(individual);
-    potential->find_force(training_set, &neighbor);
+    potential->find_force(training_set);
     fitness[n + 0 * para.population_size] =
       training_set.get_fitness_energy() / training_set.energy_std;
     fitness[n + 1 * para.population_size] =
@@ -81,7 +79,7 @@ void Fitness::report_error(
 
     // calculate force, energy, and virial
     potential->update_potential(elite);
-    potential->find_force(training_set, &neighbor);
+    potential->find_force(training_set);
 
     // report errors
     float rmse_energy = training_set.get_fitness_energy();

@@ -16,8 +16,6 @@
 #pragma once
 #include "utilities/gpu_vector.cuh"
 #include <vector>
-
-class Neighbor;
 class Dataset;
 
 class Potential
@@ -25,5 +23,5 @@ class Potential
 public:
   virtual ~Potential() = default;
   virtual void update_potential(const float*) = 0;
-  virtual void find_force(Dataset& dataset, Neighbor* neighbor) = 0;
+  virtual void find_force(Dataset& dataset) = 0;
 };

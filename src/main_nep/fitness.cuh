@@ -15,7 +15,6 @@
 
 #pragma once
 #include "dataset.cuh"
-#include "neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <memory>
@@ -48,7 +47,6 @@ protected:
   void predict_energy_or_stress(FILE*, float*, float*);
 
   // other classes
-  Neighbor neighbor;
   std::unique_ptr<Potential> potential;
   Dataset training_set;
 };

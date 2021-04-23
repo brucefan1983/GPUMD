@@ -20,7 +20,6 @@ Ref: Zheyong Fan et al., in preparison.
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "neighbor.cuh"
 #include "nep.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
@@ -472,7 +471,7 @@ initialize_properties(int N, float* g_pe, float* g_fx, float* g_fy, float* g_fz,
   }
 }
 
-void NEP2::find_force(Dataset& dataset, Neighbor* neighbor)
+void NEP2::find_force(Dataset& dataset)
 {
   initialize_properties<<<(dataset.N - 1) / 64 + 1, 64>>>(
     dataset.N, dataset.pe.data(), dataset.force.data(), dataset.force.data() + dataset.N,
@@ -480,13 +479,13 @@ void NEP2::find_force(Dataset& dataset, Neighbor* neighbor)
   CUDA_CHECK_KERNEL
 
   find_partial_force_manybody<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), neighbor->NN.data(), neighbor->NL.data(),
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
     paramb, annmb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
     dataset.r.data() + dataset.N * 2, dataset.h.data(), dataset.pe.data(), nep_data.f12x.data(),
     nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_force_3body_or_manybody<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), neighbor->NN.data(), neighbor->NL.data(),
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
     nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.r.data(),
     dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
     dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,

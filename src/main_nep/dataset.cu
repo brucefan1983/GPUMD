@@ -14,6 +14,7 @@
 */
 
 #include "dataset.cuh"
+#include "mic.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
@@ -49,7 +50,7 @@ static void transpose(const int n, const float* h_tmp, float* h)
   h[8 + 18 * n] = h_tmp[8];
 }
 
-void Dataset::read_train_in(char* input_dir)
+void Dataset::read_train_in(char* input_dir, Parameters& para)
 {
   print_line_1();
   printf("Started reading train.in.\n");
@@ -134,6 +135,8 @@ void Dataset::read_train_in(char* input_dir)
   for (int n = 0; n < N; ++n) {
     atomic_number[n] /= atomic_number_max;
   }
+
+  find_neighbor(para);
 }
 
 void Dataset::read_Nc(FILE* fid)
@@ -362,4 +365,66 @@ float Dataset::get_fitness_stress(void)
   }
 
   return sqrt(error_ave / (num_virial_configurations * 6));
+}
+
+static __global__ void gpu_find_neighbor(
+  int N,
+  int* Na,
+  int* Na_sum,
+  float cutoff_square,
+  const float* __restrict__ box,
+  int* NN,
+  int* NL,
+  float* x,
+  float* y,
+  float* z)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = box + 18 * blockIdx.x;
+    float x1 = x[n1];
+    float y1 = y[n1];
+    float z1 = z[n1];
+    int count = 0;
+    for (int n2 = N1; n2 < N2; ++n2) {
+      if (n2 == n1) {
+        continue;
+      }
+      float x12 = x[n2] - x1;
+      float y12 = y[n2] - y1;
+      float z12 = z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
+      if (distance_square < cutoff_square) {
+        NL[count++ * N + n1] = n2;
+      }
+    }
+    NN[n1] = count;
+  }
+}
+
+void Dataset::find_neighbor(Parameters& para)
+{
+  NN.resize(N, Memory_Type::managed);
+  NL.resize(N * max_Na, Memory_Type::managed);
+  float rc2 = para.rc * para.rc;
+  gpu_find_neighbor<<<Nc, max_Na>>>(
+    N, Na.data(), Na_sum.data(), rc2, h.data(), NN.data(), NL.data(), r.data(), r.data() + N,
+    r.data() + N * 2);
+  CUDA_CHECK_KERNEL
+
+  CHECK(cudaDeviceSynchronize());
+  int min_NN = 10000, max_NN = -1;
+  for (int n = 0; n < N; ++n) {
+    if (NN[n] < min_NN) {
+      min_NN = NN[n];
+    }
+    if (NN[n] > max_NN) {
+      max_NN = NN[n];
+    }
+  }
+  printf("Minimum number of neighbors for one atom = %d.\n", min_NN);
+  printf("Maximum number of neighbors for one atom = %d.\n", max_NN);
 }

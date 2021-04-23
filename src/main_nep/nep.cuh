@@ -16,7 +16,6 @@
 #pragma once
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-class Neighbor;
 class Parameters;
 class Dataset;
 
@@ -51,7 +50,7 @@ public:
 
   NEP2(Parameters& para, Dataset& dataset);
   void update_potential(const float* parameters);
-  void find_force(Dataset& dataset, Neighbor* neighbor);
+  void find_force(Dataset& dataset);
 
 private:
   ParaMB paramb;
