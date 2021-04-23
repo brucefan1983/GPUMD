@@ -1,0 +1,8 @@
+cutoff               5
+n_max                6
+l_max                4
+num_neurons1         20
+num_neurons2         0
+batch_size           36
+population_size      20
+maximum_generation   10000
