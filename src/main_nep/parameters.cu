@@ -37,6 +37,27 @@ Parameters::Parameters(char* input_dir)
     PRINT_INPUT_ERROR("cutoff should <= 10 A.");
   }
 
+  count = fscanf(fid, "%s%d", name, &n_max);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("n_max = %d.\n", n_max);
+  if (n_max < 0) {
+    PRINT_INPUT_ERROR("n_max should >= 0.");
+  } else if (n_max > 12) {
+    PRINT_INPUT_ERROR("n_max should <= 12.");
+  }
+
+  count = fscanf(fid, "%s%d", name, &L_max);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("l_max = %d.\n", L_max);
+  if (L_max < 0) {
+    PRINT_INPUT_ERROR("l_max should >= 0.");
+  } else if (L_max > 6) {
+    PRINT_INPUT_ERROR("l_max should <= 6.");
+  }
+
+  int dim = (n_max + 1) * (L_max + 1);
+  printf("number of descriptor components = %d.\n", dim);
+
   count = fscanf(fid, "%s%d", name, &num_neurons1);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("num_neurons1 = %d.\n", num_neurons1);
@@ -61,29 +82,17 @@ Parameters::Parameters(char* input_dir)
     }
   }
 
-  count = fscanf(fid, "%s%d", name, &n_max);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("n_max = %d.\n", n_max);
-  if (n_max < 0) {
-    PRINT_INPUT_ERROR("n_max should >= 0.");
-  } else if (n_max > 12) {
-    PRINT_INPUT_ERROR("n_max should <= 12.");
-  }
-
-  count = fscanf(fid, "%s%d", name, &L_max);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("l_max = %d.\n", L_max);
-  if (L_max < 0) {
-    PRINT_INPUT_ERROR("l_max should >= 0.");
-  } else if (L_max > 6) {
-    PRINT_INPUT_ERROR("l_max should <= 6.");
-  }
-
-  int dim = (n_max + 1) * (L_max + 1);
   number_of_variables = (dim + 1) * num_neurons1;
   number_of_variables += (num_neurons1 + 1) * num_neurons2;
   number_of_variables += (num_neurons2 == 0 ? num_neurons1 : num_neurons2) + 1;
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
+
+  count = fscanf(fid, "%s%d", name, &batch_size);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("batch_size = %d.\n", batch_size);
+  if (batch_size < 1) {
+    PRINT_INPUT_ERROR("batch_size should >= 1.");
+  }
 
   count = fscanf(fid, "%s%d", name, &population_size);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
