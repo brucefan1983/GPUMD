@@ -33,7 +33,7 @@ const int MAX_NUM_L = 7;                  // L_max+1 = 6+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 __constant__ float c_parameters[16384]; // 64 KB maximum
 
-NEP2::NEP2(Parameters& para)
+NEP2::NEP2(Parameters& para, Dataset& dataset)
 {
   paramb.rc = para.rc;
   paramb.rcinv = 1.0f / paramb.rc;
@@ -45,14 +45,10 @@ NEP2::NEP2(Parameters& para)
   annmb.num_para += (annmb.num_neurons2 == 0 ? annmb.num_neurons1 : annmb.num_neurons2) + 1;
   paramb.n_max = para.n_max;
   paramb.L_max = para.L_max;
+  nep_data.f12x.resize(dataset.N * dataset.max_Na);
+  nep_data.f12y.resize(dataset.N * dataset.max_Na);
+  nep_data.f12z.resize(dataset.N * dataset.max_Na);
 };
-
-void NEP2::initialize(int N, int MAX_ATOM_NUMBER)
-{
-  nep_data.f12x.resize(N * MAX_ATOM_NUMBER);
-  nep_data.f12y.resize(N * MAX_ATOM_NUMBER);
-  nep_data.f12z.resize(N * MAX_ATOM_NUMBER);
-}
 
 void NEP2::update_potential(const float* parameters)
 {

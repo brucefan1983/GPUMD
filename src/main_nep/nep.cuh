@@ -49,8 +49,7 @@ public:
     const float* b2;      // bias for the output layer
   };
 
-  NEP2(Parameters& para);
-  void initialize(int N, int MAX_ATOM_NUMBER);
+  NEP2(Parameters& para, Dataset& dataset);
   void update_potential(const float* parameters);
   void find_force(Dataset& dataset, Neighbor* neighbor);
 
