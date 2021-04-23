@@ -210,15 +210,15 @@ static __global__ void find_force_3body_or_manybody(
       s_virial_yz += y12 * f21z;
       s_virial_zx += z12 * f21x;
     }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
-    g_virial[n1] += s_virial_xx;
-    g_virial[n1 + N] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
+    g_fx[n1] = s_fx;
+    g_fy[n1] = s_fy;
+    g_fz[n1] = s_fz;
+    g_virial[n1] = s_virial_xx;
+    g_virial[n1 + N] = s_virial_yy;
+    g_virial[n1 + N * 2] = s_virial_zz;
+    g_virial[n1 + N * 3] = s_virial_xy;
+    g_virial[n1 + N * 4] = s_virial_yz;
+    g_virial[n1 + N * 5] = s_virial_zx;
   }
 }
 
@@ -382,7 +382,7 @@ static __global__ void find_partial_force_manybody(
     } else {
       apply_ann(annmb, q, F, Fp);
     }
-    g_pe[n1] += F;
+    g_pe[n1] = F;
     // get partial force
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
@@ -445,35 +445,12 @@ static __global__ void find_partial_force_manybody(
   }
 }
 
-static __global__ void
-initialize_properties(int N, float* g_pe, float* g_fx, float* g_fy, float* g_fz, float* g_virial)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_pe[n1] = 0.0f;
-    g_fx[n1] = 0.0f;
-    g_fy[n1] = 0.0f;
-    g_fz[n1] = 0.0f;
-    g_virial[n1 + 0 * N] = 0.0f;
-    g_virial[n1 + 1 * N] = 0.0f;
-    g_virial[n1 + 2 * N] = 0.0f;
-    g_virial[n1 + 3 * N] = 0.0f;
-    g_virial[n1 + 4 * N] = 0.0f;
-    g_virial[n1 + 5 * N] = 0.0f;
-  }
-}
-
 void NEP2::find_force(const float* parameters, Dataset& dataset)
 {
   CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
   float* address_c_parameters;
   CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
   update_potential(address_c_parameters, annmb);
-
-  initialize_properties<<<(dataset.N - 1) / 64 + 1, 64>>>(
-    dataset.N, dataset.pe.data(), dataset.force.data(), dataset.force.data() + dataset.N,
-    dataset.force.data() + dataset.N * 2, dataset.virial.data());
-  CUDA_CHECK_KERNEL
 
   find_partial_force_manybody<<<dataset.Nc, dataset.max_Na>>>(
     dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
