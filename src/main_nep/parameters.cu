@@ -15,6 +15,7 @@
 
 #include "parameters.cuh"
 #include "utilities/error.cuh"
+#include <cmath>
 
 Parameters::Parameters(char* input_dir)
 {
@@ -94,14 +95,8 @@ Parameters::Parameters(char* input_dir)
     PRINT_INPUT_ERROR("batch_size should >= 1.");
   }
 
-  count = fscanf(fid, "%s%d", name, &population_size);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   printf("population_size = %d.\n", population_size);
-  if (population_size < 10) {
-    PRINT_INPUT_ERROR("population_size should >= 10.");
-  } else if (population_size > 100) {
-    PRINT_INPUT_ERROR("population_size should <= 100.");
-  }
 
   count = fscanf(fid, "%s%d", name, &maximum_generation);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
