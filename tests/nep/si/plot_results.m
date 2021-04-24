@@ -8,7 +8,7 @@ load potential.out
 figure;
 subplot(2,3,1);
 plot(force(:,4:6),force(:,1:3),'.'); hold on;
-plot(-3:0.01:3,-3:0.01:3);
+plot(-4:0.01:4,-4:0.01:4);
 xlabel('DFT force (eV/$\AA$)','fontsize',12,'interpreter','latex');
 ylabel('NEP force (eV/$\AA$)','fontsize',12,'interpreter','latex');
 set(gca,'fontsize',12,'ticklength',get(gca,'ticklength')*2);
@@ -33,26 +33,27 @@ axis tight;
 
 subplot(2,3,4);
 loglog(train(:,1),train(:,2),'-'); hold on;
+ylim([0.1,100]);
 xlabel('training step','fontsize',12,'interpreter','latex');
 ylabel('Energy RMSE (meV/atom)','fontsize',12,'interpreter','latex');
 set(gca,'fontsize',12,'ticklength',get(gca,'ticklength')*2);
 
 subplot(2,3,5);
 loglog(train(:,1),train(:,3),'-'); hold on;
+ylim([10,1000]);
 xlabel('training step','fontsize',12,'interpreter','latex');
 ylabel('Force RMSE (meV/A)','fontsize',12,'interpreter','latex');
 set(gca,'fontsize',12,'ticklength',get(gca,'ticklength')*2);
 
 subplot(2,3,6);
 loglog(train(:,1),train(:,4),'-'); hold on;
+ylim([1,1000]);
 xlabel('training step','fontsize',12,'interpreter','latex');
 ylabel('Virial RMSE (meV/atom)','fontsize',12,'interpreter','latex');
 set(gca,'fontsize',12,'ticklength',get(gca,'ticklength')*2);
 
 figure;
-plot(train(:,1),potential);
+semilogx(potential);
 xlabel('training step','fontsize',12,'interpreter','latex');
 ylabel('ANN parameters','fontsize',12,'interpreter','latex');
 set(gca,'fontsize',12,'ticklength',get(gca,'ticklength')*2);
-
-
