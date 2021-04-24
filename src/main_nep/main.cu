@@ -27,6 +27,7 @@ void print_welcome_information(void);
 int main(int argc, char* argv[])
 {
   print_welcome_information();
+  print_gpu_information();
   int number_of_inputs = get_number_of_input_directories();
 
   for (int n = 0; n < number_of_inputs; ++n) {

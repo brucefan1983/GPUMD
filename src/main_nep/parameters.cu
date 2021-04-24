@@ -88,12 +88,10 @@ Parameters::Parameters(char* input_dir)
   number_of_variables += (num_neurons2 == 0 ? num_neurons1 : num_neurons2) + 1;
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
-  count = fscanf(fid, "%s%d", name, &batch_size);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("batch_size = %d.\n", batch_size);
-  if (batch_size < 1) {
-    PRINT_INPUT_ERROR("batch_size should >= 1.");
-  }
+  cudaDeviceProp prop;
+  CHECK(cudaGetDeviceProperties(&prop, 0));
+  batch_size = prop.multiProcessorCount;
+  printf("batch_size = number of SMs in the GPU = %d.\n", batch_size);
 
   population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   printf("population_size = %d.\n", population_size);
