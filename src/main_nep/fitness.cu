@@ -51,17 +51,23 @@ void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
   const int num_of_batches = (training_set.Nc - 1) / para.batch_size + 1;
-  const int batch_id = generation % num_of_batches;
+  const int batch_id = (generation / 1000) % num_of_batches;
   const int configuration_start = batch_id * para.batch_size;
   const int configuration_end = std::min(training_set.Nc, configuration_start + para.batch_size);
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
     potential->find_force(configuration_start, configuration_end, individual, training_set);
     fitness[n + 0 * para.population_size] =
-      training_set.get_rmse_energy() / training_set.energy_std;
-    fitness[n + 1 * para.population_size] = training_set.get_rmse_force() / training_set.force_std;
+      training_set.get_rmse_energy(configuration_start, configuration_end) /
+      training_set.energy_std;
+    fitness[n + 1 * para.population_size] =
+      training_set.get_rmse_force(
+        training_set.Na_sum[configuration_start],
+        training_set.Na_sum[configuration_end - 1] + training_set.Na[configuration_end - 1]) /
+      training_set.force_std;
     fitness[n + 2 * para.population_size] =
-      training_set.get_rmse_virial() / training_set.virial_std;
+      training_set.get_rmse_virial(configuration_start, configuration_end) /
+      training_set.virial_std;
   }
 }
 
@@ -77,7 +83,7 @@ void Fitness::report_error(
   const float loss_virial,
   const float* elite)
 {
-  if (0 == (generation + 1) % 100) {
+  if (0 == (generation + 1) % 1000) {
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_potential_out, "%g ", elite[m]);
     }
@@ -86,9 +92,9 @@ void Fitness::report_error(
 
     // TODO: change to use test errors
     potential->find_force(0, training_set.Nc, elite, training_set);
-    float rmse_energy_train = training_set.get_rmse_energy() * 1000.0f;
-    float rmse_force_train = training_set.get_rmse_force() * 1000.0f;
-    float rmse_virial_train = training_set.get_rmse_virial() * 1000.0f;
+    float rmse_energy_train = training_set.get_rmse_energy(0, training_set.Nc) * 1000.0f;
+    float rmse_force_train = training_set.get_rmse_force(0, training_set.N) * 1000.0f;
+    float rmse_virial_train = training_set.get_rmse_virial(0, training_set.Nc) * 1000.0f;
 
     printf(
       "%-8d%-12.2f%-12.2f%-12.2f\n", generation + 1, rmse_energy_train, rmse_force_train,

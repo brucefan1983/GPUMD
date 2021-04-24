@@ -231,13 +231,14 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-float Dataset::get_rmse_force(void)
+float Dataset::get_rmse_force(const int n1, const int n2)
 {
   gpu_sum_force_error<<<1, 512, sizeof(float) * 512>>>(
-    N, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(), force_ref.data() + N,
-    force_ref.data() + N * 2, error_gpu.data());
+    n2 - n1, force.data() + n1, force.data() + N + n1, force.data() + N * 2 + n1,
+    force_ref.data() + n1, force_ref.data() + N + n1, force_ref.data() + N * 2 + n1,
+    error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), sizeof(float), cudaMemcpyDeviceToHost));
-  return sqrt(error_cpu[0] / (N * 3));
+  return sqrt(error_cpu[0] / ((n2 - n1) * 3));
 }
 
 static __global__ void
@@ -286,7 +287,7 @@ static int get_block_size(int max_num_atom)
   return block_size;
 }
 
-float Dataset::get_rmse_energy(void)
+float Dataset::get_rmse_energy(const int nc1, const int nc2)
 {
   int block_size = get_block_size(max_Na);
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
@@ -294,13 +295,13 @@ float Dataset::get_rmse_energy(void)
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_ave = 0.0;
-  for (int n = 0; n < Nc; ++n) {
+  for (int n = nc1; n < nc2; ++n) {
     error_ave += error_cpu[n];
   }
-  return sqrt(error_ave / Nc);
+  return sqrt(error_ave / (nc2 - nc1));
 }
 
-float Dataset::get_rmse_virial(void)
+float Dataset::get_rmse_virial(const int nc1, const int nc2)
 {
   if (num_virial_configurations == 0) {
     return 0.0f;
@@ -313,8 +314,10 @@ float Dataset::get_rmse_virial(void)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data(), virial_ref.data(), error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
+  int num = 0;
+  for (int n = nc1; n < nc2; ++n) {
     if (has_virial[n]) {
+      ++num;
       error_ave += error_cpu[n];
     }
   }
@@ -322,7 +325,7 @@ float Dataset::get_rmse_virial(void)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N, virial_ref.data() + Nc, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
+  for (int n = nc1; n < nc2; ++n) {
     if (has_virial[n]) {
       error_ave += error_cpu[n];
     }
@@ -331,7 +334,7 @@ float Dataset::get_rmse_virial(void)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref.data() + Nc * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
+  for (int n = nc1; n < nc2; ++n) {
     if (has_virial[n]) {
       error_ave += error_cpu[n];
     }
@@ -340,7 +343,7 @@ float Dataset::get_rmse_virial(void)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref.data() + Nc * 3, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
+  for (int n = nc1; n < nc2; ++n) {
     if (has_virial[n]) {
       error_ave += error_cpu[n];
     }
@@ -349,7 +352,7 @@ float Dataset::get_rmse_virial(void)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref.data() + Nc * 4, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
+  for (int n = nc1; n < nc2; ++n) {
     if (has_virial[n]) {
       error_ave += error_cpu[n];
     }
@@ -358,13 +361,13 @@ float Dataset::get_rmse_virial(void)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref.data() + Nc * 5, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
+  for (int n = nc1; n < nc2; ++n) {
     if (has_virial[n]) {
       error_ave += error_cpu[n];
     }
   }
 
-  return sqrt(error_ave / (num_virial_configurations * 6));
+  return sqrt(error_ave / (num * 6));
 }
 
 static __global__ void gpu_find_neighbor(

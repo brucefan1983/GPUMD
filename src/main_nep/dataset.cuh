@@ -22,7 +22,7 @@ class Dataset
 {
 public:
   float force_std = 1.0f;  // target accuracy of force times 100
-  float energy_std = 0.1f; // target accuracy of energy times 100
+  float energy_std = 1.0f; // target accuracy of energy times 100
   float virial_std = 1.0f; // target accuracy of virial times 100
 
   int Nc;                          // number of configurations
@@ -50,8 +50,8 @@ public:
   void read_Nc(FILE*);
   void read_Na(FILE*);
   void read_train_in(char*, Parameters& para);
-  float get_rmse_force(void);
-  float get_rmse_energy(void);
-  float get_rmse_virial(void);
+  float get_rmse_force(const int, const int);
+  float get_rmse_energy(const int, const int);
+  float get_rmse_virial(const int, const int);
   void find_neighbor(Parameters& para);
 };
