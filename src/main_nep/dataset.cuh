@@ -53,5 +53,5 @@ public:
   float get_rmse_energy(const int, const int);
   float get_rmse_virial(const int, const int);
   void find_neighbor(Parameters& para);
-  void make_train_set(Dataset& train_set);
+  void make_train_set(int num, std::vector<int>& configuration_id, Dataset& train_set);
 };

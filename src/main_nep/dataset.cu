@@ -434,12 +434,12 @@ void Dataset::find_neighbor(Parameters& para)
   printf("Maximum number of neighbors for one atom = %d.\n", max_NN);
 }
 
-void Dataset::make_train_set(Dataset& train_set)
+void Dataset::make_train_set(int num, std::vector<int>& configuration_id, Dataset& train_set)
 {
-  train_set.N = N;
-  train_set.Nc = Nc;
-  train_set.max_Na = max_Na;
-  // allocate memory
+  // get the number of configurations
+  train_set.Nc = num;
+
+  // allocate per-configuration memory
   train_set.Na.resize(train_set.Nc, Memory_Type::managed);
   train_set.Na_sum.resize(train_set.Nc, Memory_Type::managed);
   train_set.has_virial.resize(train_set.Nc);
@@ -448,44 +448,62 @@ void Dataset::make_train_set(Dataset& train_set)
   train_set.virial_ref.resize(train_set.Nc * 6, Memory_Type::managed);
   train_set.error_cpu.resize(train_set.Nc);
   train_set.error_gpu.resize(train_set.Nc);
+
+  // determine the number of atoms and per-configuration quantities
+  train_set.N = 0;
+  train_set.max_Na = -1;
+  for (int nc = 0; nc < train_set.Nc; ++nc) {
+    int nc_global = configuration_id[nc];
+    train_set.Na[nc] = Na[nc_global];
+    train_set.N += train_set.Na[nc];
+    if (train_set.Na[nc] > train_set.max_Na) {
+      train_set.max_Na = train_set.Na[nc];
+    }
+    train_set.Na_sum[nc] = 0;
+    train_set.has_virial[nc] = has_virial[nc_global];
+    for (int i = 0; i < 18; ++i) {
+      train_set.h[nc * 18 + i] = h[nc_global * 18 + i];
+    }
+    train_set.pe_ref[nc] = pe_ref[nc_global];
+    for (int i = 0; i < 6; ++i) {
+      train_set.virial_ref[nc + i * train_set.Nc] = virial_ref[nc_global + i * Nc];
+    }
+  }
+  for (int nc = 1; nc < train_set.Nc; ++nc) {
+    train_set.Na_sum[nc] = train_set.Na_sum[nc - 1] + train_set.Na[nc - 1];
+  }
+
+  // allocate per-atom memory
   train_set.atomic_number.resize(train_set.N, Memory_Type::managed);
   train_set.r.resize(train_set.N * 3, Memory_Type::managed);
   train_set.force.resize(train_set.N * 3, Memory_Type::managed);
   train_set.pe.resize(train_set.N, Memory_Type::managed);
   train_set.virial.resize(train_set.N * 6, Memory_Type::managed);
   train_set.force_ref.resize(train_set.N * 3, Memory_Type::managed);
+
   // copy data
-  // CHECK(cudaDeviceSynchronize());
-  for (int nc = 0; nc < Nc; ++nc) {
-    train_set.Na[nc] = Na[nc];
-    train_set.Na_sum[nc] = Na_sum[nc];
-    train_set.has_virial[nc] = has_virial[nc];
-    for (int i = 0; i < 18; ++i) {
-      train_set.h[nc * 18 + i] = h[nc * 18 + i];
-    }
-    train_set.pe_ref[nc] = pe_ref[nc];
-    for (int i = 0; i < 6; ++i) {
-      train_set.virial_ref[nc * 6 + i] = virial_ref[nc * 6 + i];
-    }
+  for (int nc = 0; nc < train_set.Nc; ++nc) {
+    int nc_global = configuration_id[nc];
     for (int i = 0; i < train_set.Na[nc]; ++i) {
       int index = train_set.Na_sum[nc] + i;
-      train_set.atomic_number[index] = atomic_number[index];
-      train_set.pe[index] = pe[index];
-      train_set.r[index] = r[index];
-      train_set.r[index + N] = r[index + N];
-      train_set.r[index + N * 2] = r[index + N * 2];
-      train_set.force[index] = force[index];
-      train_set.force[index + N] = force[index + N];
-      train_set.force[index + N * 2] = force[index + N * 2];
-      train_set.force_ref[index] = force_ref[index];
-      train_set.force_ref[index + N] = force_ref[index + N];
-      train_set.force_ref[index + N * 2] = force_ref[index + N * 2];
-      train_set.virial[index] = virial[index];
-      train_set.virial[index + N] = virial[index + N];
-      train_set.virial[index + N * 2] = virial[index + N * 2];
-      train_set.virial[index + N * 3] = virial[index + N * 3];
-      train_set.virial[index + N * 4] = virial[index + N * 4];
-      train_set.virial[index + N * 5] = virial[index + N * 5];
+      int index_global = Na_sum[nc_global] + i;
+      train_set.atomic_number[index] = atomic_number[index_global];
+      train_set.pe[index] = pe[index_global];
+      train_set.r[index] = r[index_global];
+      train_set.r[index + train_set.N] = r[index_global + N];
+      train_set.r[index + train_set.N * 2] = r[index_global + N * 2];
+      train_set.force[index] = force[index_global];
+      train_set.force[index + train_set.N] = force[index_global + N];
+      train_set.force[index + train_set.N * 2] = force[index_global + N * 2];
+      train_set.force_ref[index] = force_ref[index_global];
+      train_set.force_ref[index + train_set.N] = force_ref[index_global + N];
+      train_set.force_ref[index + train_set.N * 2] = force_ref[index_global + N * 2];
+      train_set.virial[index] = virial[index_global];
+      train_set.virial[index + train_set.N] = virial[index_global + N];
+      train_set.virial[index + train_set.N * 2] = virial[index_global + N * 2];
+      train_set.virial[index + train_set.N * 3] = virial[index_global + N * 3];
+      train_set.virial[index + train_set.N * 4] = virial[index_global + N * 4];
+      train_set.virial[index + train_set.N * 5] = virial[index_global + N * 5];
     }
   }
 }
