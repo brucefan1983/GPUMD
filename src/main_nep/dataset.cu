@@ -156,7 +156,7 @@ void Dataset::read_Na(FILE* fid)
 {
   N = 0;
   max_Na = 0;
-  num_virial_configurations = 0;
+  int num_virial_configurations = 0;
   for (int nc = 0; nc < Nc; ++nc) {
     Na_sum[nc] = 0;
   }
@@ -303,6 +303,12 @@ float Dataset::get_rmse_energy(const int nc1, const int nc2)
 
 float Dataset::get_rmse_virial(const int nc1, const int nc2)
 {
+  int num_virial_configurations = 0;
+  for (int n = nc1; n < nc2; ++n) {
+    if (has_virial[n]) {
+      ++num_virial_configurations;
+    }
+  }
   if (num_virial_configurations == 0) {
     return 0.0f;
   }
@@ -314,10 +320,8 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data(), virial_ref.data(), error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  int num = 0;
   for (int n = nc1; n < nc2; ++n) {
     if (has_virial[n]) {
-      ++num;
       error_ave += error_cpu[n];
     }
   }
@@ -367,7 +371,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
     }
   }
 
-  return sqrt(error_ave / (num * 6));
+  return sqrt(error_ave / (num_virial_configurations * 6));
 }
 
 static __global__ void gpu_find_neighbor(

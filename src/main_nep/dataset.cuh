@@ -28,7 +28,6 @@ public:
   int Nc;                          // number of configurations
   int N;                           // total number of atoms (sum of Na[])
   int max_Na;                      // number of atoms in the largest configuration
-  int num_virial_configurations;   // number of configurations having virial
   GPU_Vector<int> Na;              // number of atoms in each configuration
   GPU_Vector<int> Na_sum;          // prefix sum of Na
   std::vector<int> has_virial;     // 1 if has virial for a configuration, 0 otherwise
