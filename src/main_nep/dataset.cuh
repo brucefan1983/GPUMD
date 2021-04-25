@@ -21,6 +21,7 @@ class Parameters;
 class Dataset
 {
 public:
+  // can be removed:
   float force_std = 1.0f;  // target accuracy of force times 100
   float energy_std = 1.0f; // target accuracy of energy times 100
   float virial_std = 1.0f; // target accuracy of virial times 100
@@ -53,5 +54,6 @@ public:
   float get_rmse_energy(const int, const int);
   float get_rmse_virial(const int, const int);
   void find_neighbor(Parameters& para);
-  void make_train_set(int num, std::vector<int>& configuration_id, Dataset& train_set);
+  void make_train_or_test_set(
+    int num, int offset, std::vector<int>& configuration_id, Dataset& train_set);
 };

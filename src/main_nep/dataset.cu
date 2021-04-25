@@ -434,7 +434,8 @@ void Dataset::find_neighbor(Parameters& para)
   printf("Maximum number of neighbors for one atom = %d.\n", max_NN);
 }
 
-void Dataset::make_train_set(int num, std::vector<int>& configuration_id, Dataset& train_set)
+void Dataset::make_train_or_test_set(
+  int num, int offset, std::vector<int>& configuration_id, Dataset& train_set)
 {
   // get the number of configurations
   train_set.Nc = num;
@@ -453,7 +454,7 @@ void Dataset::make_train_set(int num, std::vector<int>& configuration_id, Datase
   train_set.N = 0;
   train_set.max_Na = -1;
   for (int nc = 0; nc < train_set.Nc; ++nc) {
-    int nc_global = configuration_id[nc];
+    int nc_global = configuration_id[nc + offset];
     train_set.Na[nc] = Na[nc_global];
     train_set.N += train_set.Na[nc];
     if (train_set.Na[nc] > train_set.max_Na) {
@@ -483,7 +484,7 @@ void Dataset::make_train_set(int num, std::vector<int>& configuration_id, Datase
 
   // copy data
   for (int nc = 0; nc < train_set.Nc; ++nc) {
-    int nc_global = configuration_id[nc];
+    int nc_global = configuration_id[nc + offset];
     for (int i = 0; i < train_set.Na[nc]; ++i) {
       int index = train_set.Na_sum[nc] + i;
       int index_global = Na_sum[nc_global] + i;

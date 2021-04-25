@@ -64,7 +64,14 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   std::vector<int> configuration_id(data_set.Nc);
   find_permuted_indices(input_dir, data_set.Na, configuration_id);
 
-  data_set.make_train_set(data_set.Nc, configuration_id, train_set);
+  data_set.make_train_or_test_set(data_set.Nc, 0, configuration_id, train_set);
+  // TODO:
+  // data_set.make_train_or_test_set(data_set.Nc - para.test_set_size, 0, configuration_id,
+  // train_set);
+
+  // data_set.make_train_or_test_set(
+  //  para.test_set_size, data_set.Nc - para.test_set_size, configuration_id, test_set);
+
   train_set.find_neighbor(para);
 
   potential.reset(new NEP2(para, train_set));
