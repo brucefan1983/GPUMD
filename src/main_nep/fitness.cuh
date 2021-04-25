@@ -51,5 +51,5 @@ protected:
 
   // other classes
   std::unique_ptr<Potential> potential;
-  Dataset training_set;
+  Dataset train_set;
 };
