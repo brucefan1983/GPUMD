@@ -51,7 +51,7 @@ void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
   const int num_of_batches = (training_set.Nc - 1) / para.batch_size + 1;
-  const int batch_id = (generation / 1000) % num_of_batches;
+  const int batch_id = (generation / 1) % num_of_batches;
   const int configuration_start = batch_id * para.batch_size;
   const int configuration_end = std::min(training_set.Nc, configuration_start + para.batch_size);
   for (int n = 0; n < para.population_size; ++n) {
