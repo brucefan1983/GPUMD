@@ -27,7 +27,10 @@ Get the fitness
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  train_set.read_train_in(input_dir, para);
+  data_set.read_train_in(input_dir, para);
+  data_set.make_train_set(train_set);
+  train_set.find_neighbor(para);
+
   potential.reset(new NEP2(para, train_set));
 
   char file_train_out[200];

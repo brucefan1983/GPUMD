@@ -51,5 +51,7 @@ protected:
 
   // other classes
   std::unique_ptr<Potential> potential;
+  Dataset data_set; // the whole data set, which is divided into a training set and a test set
   Dataset train_set;
+  Dataset test_set;
 };

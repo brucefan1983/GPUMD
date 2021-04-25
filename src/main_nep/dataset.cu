@@ -135,8 +135,6 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   for (int n = 0; n < N; ++n) {
     atomic_number[n] /= atomic_number_max;
   }
-
-  find_neighbor(para);
 }
 
 void Dataset::read_Nc(FILE* fid)
@@ -434,4 +432,60 @@ void Dataset::find_neighbor(Parameters& para)
   }
   printf("Minimum number of neighbors for one atom = %d.\n", min_NN);
   printf("Maximum number of neighbors for one atom = %d.\n", max_NN);
+}
+
+void Dataset::make_train_set(Dataset& train_set)
+{
+  train_set.N = N;
+  train_set.Nc = Nc;
+  train_set.max_Na = max_Na;
+  // allocate memory
+  train_set.Na.resize(train_set.Nc, Memory_Type::managed);
+  train_set.Na_sum.resize(train_set.Nc, Memory_Type::managed);
+  train_set.has_virial.resize(train_set.Nc);
+  train_set.h.resize(train_set.Nc * 18, Memory_Type::managed);
+  train_set.pe_ref.resize(train_set.Nc, Memory_Type::managed);
+  train_set.virial_ref.resize(train_set.Nc * 6, Memory_Type::managed);
+  train_set.error_cpu.resize(train_set.Nc);
+  train_set.error_gpu.resize(train_set.Nc);
+  train_set.atomic_number.resize(train_set.N, Memory_Type::managed);
+  train_set.r.resize(train_set.N * 3, Memory_Type::managed);
+  train_set.force.resize(train_set.N * 3, Memory_Type::managed);
+  train_set.pe.resize(train_set.N, Memory_Type::managed);
+  train_set.virial.resize(train_set.N * 6, Memory_Type::managed);
+  train_set.force_ref.resize(train_set.N * 3, Memory_Type::managed);
+  // copy data
+  // CHECK(cudaDeviceSynchronize());
+  for (int nc = 0; nc < Nc; ++nc) {
+    train_set.Na[nc] = Na[nc];
+    train_set.Na_sum[nc] = Na_sum[nc];
+    train_set.has_virial[nc] = has_virial[nc];
+    for (int i = 0; i < 18; ++i) {
+      train_set.h[nc * 18 + i] = h[nc * 18 + i];
+    }
+    train_set.pe_ref[nc] = pe_ref[nc];
+    for (int i = 0; i < 6; ++i) {
+      train_set.virial_ref[nc * 6 + i] = virial_ref[nc * 6 + i];
+    }
+    for (int i = 0; i < train_set.Na[nc]; ++i) {
+      int index = train_set.Na_sum[nc] + i;
+      train_set.atomic_number[index] = atomic_number[index];
+      train_set.pe[index] = pe[index];
+      train_set.r[index] = r[index];
+      train_set.r[index + N] = r[index + N];
+      train_set.r[index + N * 2] = r[index + N * 2];
+      train_set.force[index] = force[index];
+      train_set.force[index + N] = force[index + N];
+      train_set.force[index + N * 2] = force[index + N * 2];
+      train_set.force_ref[index] = force_ref[index];
+      train_set.force_ref[index + N] = force_ref[index + N];
+      train_set.force_ref[index + N * 2] = force_ref[index + N * 2];
+      train_set.virial[index] = virial[index];
+      train_set.virial[index + N] = virial[index + N];
+      train_set.virial[index + N * 2] = virial[index + N * 2];
+      train_set.virial[index + N * 3] = virial[index + N * 3];
+      train_set.virial[index + N * 4] = virial[index + N * 4];
+      train_set.virial[index + N * 5] = virial[index + N * 5];
+    }
+  }
 }
