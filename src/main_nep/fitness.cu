@@ -81,12 +81,12 @@ Fitness::Fitness(char* input_dir, Parameters& para)
 
   char file_train_out[200];
   strcpy(file_train_out, input_dir);
-  strcat(file_train_out, "/train.out");
+  strcat(file_train_out, "/loss.out");
   fid_train_out = my_fopen(file_train_out, "w");
 
   char file_potential_out[200];
   strcpy(file_potential_out, input_dir);
-  strcat(file_potential_out, "/potential.out");
+  strcat(file_potential_out, "/ann.out");
   fid_potential_out = my_fopen(file_potential_out, "w");
 }
 
@@ -142,8 +142,24 @@ void Fitness::report_error(
   const float* elite)
 {
   if (0 == (generation + 1) % 1000) {
+    char file_nep[200];
+    strcpy(file_nep, input_dir);
+    strcat(file_nep, "/nep.out");
+    FILE* fid_nep = my_fopen(file_nep, "w");
+
+    fprintf(fid_nep, "nep 1\n"); // TODO: output the correct # types
+    fprintf(fid_nep, "cutoff %g\n", para.rc);
+    fprintf(fid_nep, "n_max %d\n", para.n_max);
+    fprintf(fid_nep, "l_max %d\n", para.L_max);
+    fprintf(fid_nep, "num_neurons1 %d\n", para.num_neurons1);
+    fprintf(fid_nep, "num_neurons2 %d\n", para.num_neurons1);
     for (int m = 0; m < para.number_of_variables; ++m) {
-      fprintf(fid_potential_out, "%g ", elite[m]);
+      fprintf(fid_nep, "%15.7e ", elite[m]);
+    }
+    fprintf(fid_nep, "\n");
+
+    for (int m = 0; m < para.number_of_variables; ++m) {
+      fprintf(fid_potential_out, "%15.7e ", elite[m]);
     }
     fprintf(fid_potential_out, "\n");
     fflush(fid_potential_out);

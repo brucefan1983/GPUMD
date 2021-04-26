@@ -25,7 +25,7 @@ Parameters::Parameters(char* input_dir)
 
   char file[200];
   strcpy(file, input_dir);
-  strcat(file, "/potential.in");
+  strcat(file, "/nep.in");
   FILE* fid = my_fopen(file, "r");
   char name[20];
 
