@@ -96,6 +96,13 @@ Parameters::Parameters(char* input_dir)
   population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   printf("population_size = %d.\n", population_size);
 
+  count = fscanf(fid, "%s%d", name, &test_set_size);
+  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  printf("test_set_size = %d.\n", test_set_size);
+  if (test_set_size < 10) {
+    PRINT_INPUT_ERROR("test_set_size should >= 10.");
+  }
+
   count = fscanf(fid, "%s%d", name, &maximum_generation);
   PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
   printf("maximum_generation = %d.\n", maximum_generation);

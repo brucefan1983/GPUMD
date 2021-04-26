@@ -62,7 +62,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   FILE* fid = my_fopen(file_train, "r");
 
   // get Nc
-  read_Nc(fid);
+  read_Nc(fid, para);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);
   virial_ref.resize(Nc * 6, Memory_Type::managed);
@@ -137,12 +137,12 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   }
 }
 
-void Dataset::read_Nc(FILE* fid)
+void Dataset::read_Nc(FILE* fid, Parameters& para)
 {
   int count = fscanf(fid, "%d", &Nc);
   PRINT_SCANF_ERROR(count, 1, "reading error for xyz.in.");
-  if (Nc < 10) {
-    PRINT_INPUT_ERROR("Number of configurations should >= 10");
+  if (Nc - para.test_set_size < 100) {
+    PRINT_INPUT_ERROR("Number of configurations minus test set size should >= 100");
   }
   if (Nc > 100000) {
     PRINT_INPUT_ERROR("Number of configurations should <= 100000");
@@ -435,7 +435,7 @@ void Dataset::find_neighbor(Parameters& para)
 }
 
 void Dataset::make_train_or_test_set(
-  int num, int offset, std::vector<int>& configuration_id, Dataset& train_set)
+  Parameters& para, int num, int offset, std::vector<int>& configuration_id, Dataset& train_set)
 {
   // get the number of configurations
   train_set.Nc = num;
@@ -507,4 +507,6 @@ void Dataset::make_train_or_test_set(
       train_set.virial[index + train_set.N * 5] = virial[index_global + N * 5];
     }
   }
+
+  train_set.find_neighbor(para);
 }

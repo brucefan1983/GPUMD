@@ -47,7 +47,7 @@ public:
   GPU_Vector<int> NL;              // neighbor list
 
   // functions related to initialization
-  void read_Nc(FILE*);
+  void read_Nc(FILE*, Parameters& para);
   void read_Na(FILE*);
   void read_train_in(char*, Parameters& para);
   float get_rmse_force(const int, const int);
@@ -55,5 +55,5 @@ public:
   float get_rmse_virial(const int, const int);
   void find_neighbor(Parameters& para);
   void make_train_or_test_set(
-    int num, int offset, std::vector<int>& configuration_id, Dataset& train_set);
+    Parameters& para, int num, int offset, std::vector<int>& configuration_id, Dataset& train_set);
 };
