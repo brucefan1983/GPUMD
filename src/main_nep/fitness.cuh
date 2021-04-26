@@ -45,10 +45,6 @@ protected:
   // output files:
   FILE* fid_train_out;
   FILE* fid_potential_out;
-
-  // functions related to fitness evaluation
-  void predict_energy_or_stress(FILE*, float*, float*);
-
   // other classes
   std::unique_ptr<Potential> potential_train;
   std::unique_ptr<Potential> potential_test;
