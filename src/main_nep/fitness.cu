@@ -69,7 +69,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   data_set.make_train_or_test_set(
     para, para.test_set_size, data_set.Nc - para.test_set_size, configuration_id, test_set);
 
-  potential.reset(new NEP2(para, train_set));
+  potential_train.reset(new NEP2(para, train_set));
 
   char file_train_out[200];
   strcpy(file_train_out, input_dir);
@@ -97,7 +97,7 @@ void Fitness::compute(
   const int configuration_end = std::min(train_set.Nc, configuration_start + para.batch_size);
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->find_force(configuration_start, configuration_end, individual, train_set);
+    potential_train->find_force(configuration_start, configuration_end, individual, train_set);
     fitness[n + 0 * para.population_size] =
       train_set.get_rmse_energy(configuration_start, configuration_end) / train_set.energy_std;
     fitness[n + 1 * para.population_size] =
@@ -130,7 +130,7 @@ void Fitness::report_error(
     fflush(fid_potential_out);
 
     // TODO: change to use test errors
-    potential->find_force(0, train_set.Nc, elite, train_set);
+    potential_train->find_force(0, train_set.Nc, elite, train_set);
     float rmse_energy_train = train_set.get_rmse_energy(0, train_set.Nc);
     float rmse_force_train = train_set.get_rmse_force(0, train_set.N);
     float rmse_virial_train = train_set.get_rmse_virial(0, train_set.Nc);

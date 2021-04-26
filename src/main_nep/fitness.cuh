@@ -50,7 +50,8 @@ protected:
   void predict_energy_or_stress(FILE*, float*, float*);
 
   // other classes
-  std::unique_ptr<Potential> potential;
+  std::unique_ptr<Potential> potential_train;
+  std::unique_ptr<Potential> potential_test;
   Dataset data_set; // the whole data set, which is divided into a training set and a test set
   Dataset train_set;
   Dataset test_set;
