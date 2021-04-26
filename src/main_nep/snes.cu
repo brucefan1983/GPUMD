@@ -86,12 +86,13 @@ void SNES::calculate_utility()
 void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
 {
   print_line_1();
-  printf("Started training.\n");
+  printf("Started training and testing.\n");
   print_line_2();
 
   printf(
-    "%-8s%-11s%-13s%-13s%-13s%-12s%-12s%-12s\n", "Step", "Total-Loss", "RMSE-U-train",
-    "RMSE-F-train", "RMSE-W-train", "RMSE-U-test", "RMSE-F-test", "RMSE-W-test");
+    "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-12s%-12s%-12s\n", "Step", "Total-Loss", "L1Reg-Loss",
+    "L2Reg-Loss", "RMSE-U-train", "RMSE-F-train", "RMSE-W-train", "RMSE-U-test", "RMSE-F-test",
+    "RMSE-W-test");
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population();

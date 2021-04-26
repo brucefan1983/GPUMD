@@ -60,16 +60,24 @@ find_permuted_indices(char* input_dir, GPU_Vector<int>& Na, std::vector<int>& pe
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
   data_set.read_train_in(input_dir, para);
-
   std::vector<int> configuration_id(data_set.Nc);
   find_permuted_indices(input_dir, data_set.Na, configuration_id);
 
+  print_line_1();
+  printf("Started building the training set:\n");
+  print_line_2();
+
   data_set.make_train_or_test_set(
     para, data_set.Nc - para.test_set_size, 0, configuration_id, train_set);
+
+  print_line_1();
+  printf("Started building the testing set:\n");
+  print_line_2();
   data_set.make_train_or_test_set(
     para, para.test_set_size, data_set.Nc - para.test_set_size, configuration_id, test_set);
 
   potential_train.reset(new NEP2(para, train_set));
+  potential_test.reset(new NEP2(para, test_set));
 
   char file_train_out[200];
   strcpy(file_train_out, input_dir);
@@ -99,14 +107,12 @@ void Fitness::compute(
     const float* individual = population + n * para.number_of_variables;
     potential_train->find_force(configuration_start, configuration_end, individual, train_set);
     fitness[n + 0 * para.population_size] =
-      train_set.get_rmse_energy(configuration_start, configuration_end) / train_set.energy_std;
-    fitness[n + 1 * para.population_size] =
-      train_set.get_rmse_force(
-        train_set.Na_sum[configuration_start],
-        train_set.Na_sum[configuration_end - 1] + train_set.Na[configuration_end - 1]) /
-      train_set.force_std;
+      train_set.get_rmse_energy(configuration_start, configuration_end);
+    fitness[n + 1 * para.population_size] = train_set.get_rmse_force(
+      train_set.Na_sum[configuration_start],
+      train_set.Na_sum[configuration_end - 1] + train_set.Na[configuration_end - 1]);
     fitness[n + 2 * para.population_size] =
-      train_set.get_rmse_virial(configuration_start, configuration_end) / train_set.virial_std;
+      train_set.get_rmse_virial(configuration_start, configuration_end);
   }
 }
 
@@ -114,12 +120,12 @@ void Fitness::report_error(
   char* input_dir,
   Parameters& para,
   const int generation,
-  const float loss_total, // not used, but keep for a while
+  const float loss_total,
   const float loss_L1,
   const float loss_L2,
-  const float loss_energy, // not used, but keep for a while
-  const float loss_force,  // not used, but keep for a while
-  const float loss_virial, // not used, but keep for a while
+  const float loss_energy,
+  const float loss_force,
+  const float loss_virial,
   const float* elite)
 {
   if (0 == (generation + 1) % 1000) {
@@ -129,20 +135,20 @@ void Fitness::report_error(
     fprintf(fid_potential_out, "\n");
     fflush(fid_potential_out);
 
-    // TODO: change to use test errors
-    potential_train->find_force(0, train_set.Nc, elite, train_set);
-    float rmse_energy_train = train_set.get_rmse_energy(0, train_set.Nc);
-    float rmse_force_train = train_set.get_rmse_force(0, train_set.N);
-    float rmse_virial_train = train_set.get_rmse_virial(0, train_set.Nc);
-    float total_loss = loss_L1 + loss_L2 + rmse_energy_train + rmse_force_train + rmse_virial_train;
+    potential_test->find_force(0, test_set.Nc, elite, test_set);
+    float rmse_energy_test = test_set.get_rmse_energy(0, test_set.Nc);
+    float rmse_force_test = test_set.get_rmse_force(0, test_set.N);
+    float rmse_virial_test = test_set.get_rmse_virial(0, test_set.Nc);
 
     printf(
-      "%-8d%-11.5f%-13.5f%-13.5f%-13.5f\n", generation + 1, total_loss, rmse_energy_train,
-      rmse_force_train, rmse_virial_train);
+      "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-12.5f%-12.5f%-12.5f\n", generation + 1,
+      loss_total, loss_L1, loss_L2, loss_energy, loss_force, loss_virial, rmse_energy_test,
+      rmse_force_test, rmse_virial_test);
     fflush(stdout);
     fprintf(
-      fid_train_out, "%-8d%-11.5f%-13.5f%-13.5f%-13.5f\n", generation + 1, total_loss,
-      rmse_energy_train, rmse_force_train, rmse_virial_train);
+      fid_train_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-12.5f%-12.5f%-12.5f\n",
+      generation + 1, loss_total, loss_L1, loss_L2, loss_energy, loss_force, loss_virial,
+      rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_train_out);
 
     // Synchronize

@@ -439,6 +439,7 @@ void Dataset::make_train_or_test_set(
 {
   // get the number of configurations
   train_set.Nc = num;
+  printf("Number of configurations = %d.\n", train_set.Nc);
 
   // allocate per-configuration memory
   train_set.Na.resize(train_set.Nc, Memory_Type::managed);
@@ -473,6 +474,8 @@ void Dataset::make_train_or_test_set(
   for (int nc = 1; nc < train_set.Nc; ++nc) {
     train_set.Na_sum[nc] = train_set.Na_sum[nc - 1] + train_set.Na[nc - 1];
   }
+
+  printf("Total number of atoms = %d.\n", train_set.N);
 
   // allocate per-atom memory
   train_set.atomic_number.resize(train_set.N, Memory_Type::managed);

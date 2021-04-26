@@ -21,11 +21,6 @@ class Parameters;
 class Dataset
 {
 public:
-  // can be removed:
-  float force_std = 1.0f;  // target accuracy of force times 100
-  float energy_std = 1.0f; // target accuracy of energy times 100
-  float virial_std = 1.0f; // target accuracy of virial times 100
-
   int Nc;                          // number of configurations
   int N;                           // total number of atoms (sum of Na[])
   int max_Na;                      // number of atoms in the largest configuration
