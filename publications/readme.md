@@ -15,7 +15,11 @@ arXiv:2102.03691 [cond-mat.mtrl-sci]
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384),
 arXiv:2003.02384 [cond-mat.mes-hall]
 
-## 2021 (3)
+## 2021 (4)
+
+* Xin Wu and Qiang Han,
+[Thermal transport in pristine and defective two-dimensional polyaniline](https://doi.org/10.1016/j.ijheatmasstransfer.2021.121235),
+International Journal of Heat and Mass Transfer **173**, 121235 (2021).
 
 * Xin Wu and Qiang Han,
 [Semidefective Graphene/h-BN In-Plane Heterostructures: Enhancing Interface Thermal Conductance by Topological Defects](https://doi.org/10.1021/acs.jpcc.0c10387),
