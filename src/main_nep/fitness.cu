@@ -152,7 +152,7 @@ void Fitness::report_error(
     fprintf(fid_nep, "n_max %d\n", para.n_max);
     fprintf(fid_nep, "l_max %d\n", para.L_max);
     fprintf(fid_nep, "num_neurons1 %d\n", para.num_neurons1);
-    fprintf(fid_nep, "num_neurons2 %d\n", para.num_neurons1);
+    fprintf(fid_nep, "num_neurons2 %d\n", para.num_neurons2);
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_nep, "%15.7e ", elite[m]);
     }
