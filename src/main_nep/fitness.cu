@@ -165,6 +165,9 @@ void Fitness::report_error(
     fflush(fid_potential_out);
 
     potential_train->find_force(0, train_set.Nc, elite, train_set);
+    float rmse_energy_train = train_set.get_rmse_energy(0, train_set.Nc);
+    float rmse_force_train = train_set.get_rmse_force(0, train_set.N);
+    float rmse_virial_train = train_set.get_rmse_virial(0, train_set.Nc);
     potential_test->find_force(0, test_set.Nc, elite, test_set);
     float rmse_energy_test = test_set.get_rmse_energy(0, test_set.Nc);
     float rmse_force_test = test_set.get_rmse_force(0, test_set.N);
@@ -172,13 +175,13 @@ void Fitness::report_error(
 
     printf(
       "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-12.5f%-12.5f%-12.5f\n", generation + 1,
-      loss_total, loss_L1, loss_L2, loss_energy, loss_force, loss_virial, rmse_energy_test,
-      rmse_force_test, rmse_virial_test);
+      loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train,
+      rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(stdout);
     fprintf(
       fid_train_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-12.5f%-12.5f%-12.5f\n",
-      generation + 1, loss_total, loss_L1, loss_L2, loss_energy, loss_force, loss_virial,
-      rmse_energy_test, rmse_force_test, rmse_virial_test);
+      generation + 1, loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train,
+      rmse_virial_train, rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_train_out);
 
     // Synchronize
