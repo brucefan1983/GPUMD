@@ -37,14 +37,6 @@ NEP2::NEP2(FILE* fid, const Neighbor& neighbor)
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
   printf("cutoff = %g A.\n", paramb.rc);
 
-  count = fscanf(fid, "%s%d", name, &annmb.num_neurons1);
-  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-  printf("num_neurons1 = %d.\n", annmb.num_neurons1);
-
-  count = fscanf(fid, "%s%d", name, &annmb.num_neurons2);
-  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-  printf("num_neurons2 = %d.\n", annmb.num_neurons2);
-
   count = fscanf(fid, "%s%d", name, &paramb.n_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
   printf("n_max = %d.\n", paramb.n_max);
@@ -52,6 +44,14 @@ NEP2::NEP2(FILE* fid, const Neighbor& neighbor)
   count = fscanf(fid, "%s%d", name, &paramb.L_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
   printf("l_max = %d.\n", paramb.L_max);
+
+  count = fscanf(fid, "%s%d", name, &annmb.num_neurons1);
+  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
+  printf("num_neurons1 = %d.\n", annmb.num_neurons1);
+
+  count = fscanf(fid, "%s%d", name, &annmb.num_neurons2);
+  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
+  printf("num_neurons2 = %d.\n", annmb.num_neurons2);
 
   rc = paramb.rc; // largest cutoff
 
