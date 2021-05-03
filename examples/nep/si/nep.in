@@ -1,0 +1,7 @@
+cutoff               5
+n_max                6
+l_max                6
+num_neurons1         49
+num_neurons2         0
+test_set_size        80
+maximum_generation   200000
