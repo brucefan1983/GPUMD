@@ -94,7 +94,7 @@ void Fitness::report_error(
   const float loss_virial,
   const float* elite)
 {
-  if (0 == (generation + 1) % 10) {
+  if (0 == (generation + 1) % 1000) {
     char file_nep[200];
     strcpy(file_nep, input_dir);
     strcat(file_nep, "/nep.out");
