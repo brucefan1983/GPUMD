@@ -46,9 +46,6 @@ protected:
   FILE* fid_train_out;
   FILE* fid_potential_out;
   // other classes
-  std::unique_ptr<Potential> potential_train;
-  std::unique_ptr<Potential> potential_test;
-  Dataset data_set; // the whole data set, which is divided into a training set and a test set
+  std::unique_ptr<Potential> potential;
   Dataset train_set;
-  Dataset test_set;
 };
