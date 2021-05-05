@@ -110,6 +110,7 @@ void Fitness::report_error(
       fprintf(fid_nep, "%15.7e ", elite[m]);
     }
     fprintf(fid_nep, "\n");
+    fclose(fid_nep);
 
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_potential_out, "%15.7e ", elite[m]);
