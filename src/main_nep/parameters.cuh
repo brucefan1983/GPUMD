@@ -28,6 +28,6 @@ public:
   int n_max = 0;               // maximum order of the radial Chebyshev polynomials
   int L_max = 0;               // maximum order of the angular Legendre polynomials
   int number_of_variables = 0; // total number of parameters
-  float L1_reg_para = 2.0e-2f; // good default
-  float L2_reg_para = 2.0e-2f; // good default
+  float L1_reg_para = 5.0e-2f; // good default
+  float L2_reg_para = 5.0e-2f; // good default
 };
