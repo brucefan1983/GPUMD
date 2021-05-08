@@ -146,6 +146,58 @@ find_poly_cos_and_der(const int L_max, const float x, float* poly_cos, float* po
                 0.323283478155412f;
 }
 
+static __global__ void find_pair_quantities(
+  int N,
+  int* Na,
+  int* Na_sum,
+  int* g_NN,
+  int* g_NL,
+  NEP2::ParaMB paramb,
+  const float* __restrict__ g_atomic_number,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
+  const float* __restrict__ g_box,
+  float* g_x12,
+  float* g_y12,
+  float* g_z12,
+  float* g_d12,
+  float* g_d12inv,
+  float* g_fc12,
+  float* g_fcp12)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
+    int neighbor_number = g_NN[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[n1 + N * i1];
+      float r12[3] = {g_x[n2] - x1, g_y[n2] - y1, g_z[n2] - z1};
+      dev_apply_mic(h, r12[0], r12[1], r12[2]);
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float fc12, fcp12;
+      find_fc_and_fcp(paramb.rc, paramb.rcinv, d12, fc12, fcp12);
+      float atomic_number_n2 = g_atomic_number[n2];
+      fc12 *= atomic_number_n2;
+      fcp12 *= atomic_number_n2;
+      g_x12[index] = r12[0];
+      g_y12[index] = r12[1];
+      g_z12[index] = r12[2];
+      g_d12[index] = d12;
+      g_d12inv[index] = d12inv;
+      g_fc12[index] = fc12;
+      g_fcp12[index] = fcp12;
+    }
+  }
+}
+
 static __global__ void find_descriptors(
   int N,
   int* Na,
@@ -230,11 +282,28 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   nep_data.f12x.resize(dataset.N * dataset.max_Na);
   nep_data.f12y.resize(dataset.N * dataset.max_Na);
   nep_data.f12z.resize(dataset.N * dataset.max_Na);
+  nep_data.x12.resize(dataset.N * dataset.max_Na);
+  nep_data.y12.resize(dataset.N * dataset.max_Na);
+  nep_data.z12.resize(dataset.N * dataset.max_Na);
+  nep_data.d12.resize(dataset.N * dataset.max_Na);
+  nep_data.d12inv.resize(dataset.N * dataset.max_Na);
+  nep_data.fc12.resize(dataset.N * dataset.max_Na);
+  nep_data.fcp12.resize(dataset.N * dataset.max_Na);
   nep_data.descriptors.resize(dataset.N * annmb.dim);
+
   find_descriptors<<<dataset.Nc, dataset.max_Na>>>(
     dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
     paramb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
     dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.descriptors.data());
+  CUDA_CHECK_KERNEL
+
+  find_pair_quantities<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
+    paramb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.x12.data(), nep_data.y12.data(),
+    nep_data.z12.data(), nep_data.d12.data(), nep_data.d12inv.data(), nep_data.fc12.data(),
+    nep_data.fcp12.data());
+  CUDA_CHECK_KERNEL
 }
 
 void NEP2::update_potential(const float* parameters, ANN& ann)
@@ -313,11 +382,13 @@ static __global__ void find_partial_force_manybody(
   int* g_NL,
   NEP2::ParaMB paramb,
   NEP2::ANN annmb,
-  const float* __restrict__ g_atomic_number,
-  const float* __restrict__ g_x,
-  const float* __restrict__ g_y,
-  const float* __restrict__ g_z,
-  const float* __restrict__ g_box,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  const float* __restrict__ g_d12,
+  const float* __restrict__ g_d12inv,
+  const float* __restrict__ g_fc12,
+  const float* __restrict__ g_fcp12,
   const float* __restrict__ g_descriptors,
   float* g_pe,
   float* g_f12x,
@@ -328,11 +399,7 @@ static __global__ void find_partial_force_manybody(
   int N2 = N1 + Na[blockIdx.x];
   int n1 = N1 + threadIdx.x;
   if (n1 < N2) {
-    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN[n1];
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
     // get descriptors
     float q[MAX_DIM] = {0.0f};
     for (int n = 0; n <= paramb.n_max; ++n) {
@@ -341,7 +408,6 @@ static __global__ void find_partial_force_manybody(
         q[index] = g_descriptors[n1 + index * N];
       }
     }
-
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     if (annmb.num_neurons2 == 0) {
@@ -353,16 +419,10 @@ static __global__ void find_partial_force_manybody(
     // get partial force
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
-      int n2 = g_NL[n1 + N * i1];
-      float r12[3] = {g_x[n2] - x1, g_y[n2] - y1, g_z[n2] - z1};
-      dev_apply_mic(h, r12[0], r12[1], r12[2]);
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-      float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc, paramb.rcinv, d12, fc12, fcp12);
-      float atomic_number_n2 = g_atomic_number[n2];
-      fc12 *= atomic_number_n2;
-      fcp12 *= atomic_number_n2;
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = g_d12[index];
+      float d12inv = g_d12inv[index];
+      float fc12 = g_fc12[index], fcp12 = g_fcp12[index];
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max, paramb.rcinv, d12, fc12, fcp12, fn12, fnp12);
@@ -374,16 +434,13 @@ static __global__ void find_partial_force_manybody(
         }
       }
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
-        int n3 = g_NL[n1 + N * i2];
-        float x13 = g_x[n3] - x1;
-        float y13 = g_y[n3] - y1;
-        float z13 = g_z[n3] - z1;
-        dev_apply_mic(h, x13, y13, z13);
-        float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
-        float d13inv = 1.0f / d13;
-        float fc13;
-        find_fc(paramb.rc, paramb.rcinv, d13, fc13);
-        fc13 *= g_atomic_number[n3];
+        int index13 = n1 + N * i2;
+        float x13 = g_x12[index13];
+        float y13 = g_y12[index13];
+        float z13 = g_z12[index13];
+        float d13 = g_d12[index13];
+        float d13inv = g_d12inv[index13];
+        float fc13 = g_fc12[index13];
         float cos123 = (r12[0] * x13 + r12[1] * y13 + r12[2] * z13) / (d12 * d13);
         float fn13[MAX_NUM_N];
         find_fn(paramb.n_max, paramb.rcinv, d13, fc13, fn13);
@@ -421,10 +478,9 @@ static __global__ void find_force_3body_or_manybody(
   const float* __restrict__ g_f12x,
   const float* __restrict__ g_f12y,
   const float* __restrict__ g_f12z,
-  const float* __restrict__ g_x,
-  const float* __restrict__ g_y,
-  const float* __restrict__ g_z,
-  const float* __restrict__ g_box,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -443,19 +499,14 @@ static __global__ void find_force_3body_or_manybody(
     float s_virial_xy = 0.0f;
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
-    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_neighbor_number[n1];
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_neighbor_list[index];
       int neighbor_number_2 = g_neighbor_number[n2];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
+      float x12 = g_x12[index];
+      float y12 = g_y12[index];
+      float z12 = g_z12[index];
       float f12x = g_f12x[index];
       float f12y = g_f12y[index];
       float f12z = g_f12z[index];
@@ -505,17 +556,16 @@ void NEP2::find_force(
 
   find_partial_force_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
-    dataset.NN.data(), dataset.NL.data(), paramb, annmb, dataset.atomic_number.data(),
-    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    dataset.h.data() + SIZE_BOX_AND_INVERSE_BOX * configuration_start, nep_data.descriptors.data(),
-    dataset.pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+    dataset.NN.data(), dataset.NL.data(), paramb, annmb, nep_data.x12.data(), nep_data.y12.data(),
+    nep_data.z12.data(), nep_data.d12.data(), nep_data.d12inv.data(), nep_data.fc12.data(),
+    nep_data.fcp12.data(), nep_data.descriptors.data(), dataset.pe.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_force_3body_or_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
     dataset.NN.data(), dataset.NL.data(), nep_data.f12x.data(), nep_data.f12y.data(),
-    nep_data.f12z.data(), dataset.r.data(), dataset.r.data() + dataset.N,
-    dataset.r.data() + dataset.N * 2,
-    dataset.h.data() + SIZE_BOX_AND_INVERSE_BOX * configuration_start, dataset.force.data(),
-    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
+    nep_data.f12z.data(), nep_data.x12.data(), nep_data.y12.data(), nep_data.z12.data(),
+    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
+    dataset.virial.data());
   CUDA_CHECK_KERNEL
 }

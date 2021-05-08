@@ -23,6 +23,13 @@ struct NEP2_Data {
   GPU_Vector<float> f12x;        // partial forces
   GPU_Vector<float> f12y;        // partial forces
   GPU_Vector<float> f12z;        // partial forces
+  GPU_Vector<float> x12;         // x2-x1
+  GPU_Vector<float> y12;         // y2-y1
+  GPU_Vector<float> z12;         // z2-z1
+  GPU_Vector<float> d12;         // distance between atoms 1 and 2
+  GPU_Vector<float> d12inv;      // inverse of d12
+  GPU_Vector<float> fc12;        // cutoff function between atoms 1 and 2
+  GPU_Vector<float> fcp12;       // derivative of fc12 with respect to d12
   GPU_Vector<float> descriptors; // descriptors
 };
 
