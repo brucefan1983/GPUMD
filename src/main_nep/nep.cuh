@@ -20,9 +20,10 @@ class Parameters;
 class Dataset;
 
 struct NEP2_Data {
-  GPU_Vector<float> f12x; // 3-body or manybody partial forces
-  GPU_Vector<float> f12y; // 3-body or manybody partial forces
-  GPU_Vector<float> f12z; // 3-body or manybody partial forces
+  GPU_Vector<float> f12x;        // partial forces
+  GPU_Vector<float> f12y;        // partial forces
+  GPU_Vector<float> f12z;        // partial forces
+  GPU_Vector<float> descriptors; // descriptors
 };
 
 class NEP2 : public Potential

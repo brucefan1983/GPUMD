@@ -32,91 +32,6 @@ const int MAX_NUM_L = 7;                  // L_max+1 = 6+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 __constant__ float c_parameters[16384]; // 64 KB maximum
 
-NEP2::NEP2(Parameters& para, Dataset& dataset)
-{
-  paramb.rc = para.rc;
-  paramb.rcinv = 1.0f / paramb.rc;
-  annmb.dim = (para.n_max + 1) * (para.L_max + 1);
-  annmb.num_neurons1 = para.num_neurons1;
-  annmb.num_neurons2 = para.num_neurons2;
-  annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;
-  annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2;
-  annmb.num_para += (annmb.num_neurons2 == 0 ? annmb.num_neurons1 : annmb.num_neurons2) + 1;
-  paramb.n_max = para.n_max;
-  paramb.L_max = para.L_max;
-  nep_data.f12x.resize(dataset.N * dataset.max_Na);
-  nep_data.f12y.resize(dataset.N * dataset.max_Na);
-  nep_data.f12z.resize(dataset.N * dataset.max_Na);
-};
-
-void NEP2::update_potential(const float* parameters, ANN& ann)
-{
-  ann.w0 = parameters;
-  ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
-  ann.w1 = ann.b0 + ann.num_neurons1;
-  if (ann.num_neurons2 == 0) {
-    ann.b1 = ann.w1 + ann.num_neurons1;
-  } else {
-    ann.b1 = ann.w1 + ann.num_neurons1 * ann.num_neurons2;
-    ann.w2 = ann.b1 + ann.num_neurons2;
-    ann.b2 = ann.w2 + ann.num_neurons2;
-  }
-}
-
-static __device__ void
-apply_ann_one_layer(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
-{
-  for (int n = 0; n < ann.num_neurons1; ++n) {
-    float w0_times_q = 0.0f;
-    for (int d = 0; d < ann.dim; ++d) {
-      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
-    }
-    float x1 = tanh(w0_times_q - ann.b0[n]);
-    energy += ann.w1[n] * x1;
-    for (int d = 0; d < ann.dim; ++d) {
-      float y1 = (1.0f - x1 * x1) * ann.w0[n * ann.dim + d];
-      energy_derivative[d] += ann.w1[n] * y1;
-    }
-  }
-  energy -= ann.b1[0];
-}
-
-static __device__ void
-apply_ann(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
-{
-  // energy
-  float x1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 1st hidden layer neurons
-  float x2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 2nd hidden layer neurons
-  for (int n = 0; n < ann.num_neurons1; ++n) {
-    float w0_times_q = 0.0f;
-    for (int d = 0; d < ann.dim; ++d) {
-      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
-    }
-    x1[n] = tanh(w0_times_q - ann.b0[n]);
-  }
-  for (int n = 0; n < ann.num_neurons2; ++n) {
-    for (int m = 0; m < ann.num_neurons1; ++m) {
-      x2[n] += ann.w1[n * ann.num_neurons1 + m] * x1[m];
-    }
-    x2[n] = tanh(x2[n] - ann.b1[n]);
-    energy += ann.w2[n] * x2[n];
-  }
-  energy -= ann.b2[0];
-  // energy gradient (compute it component by component)
-  for (int d = 0; d < ann.dim; ++d) {
-    float y2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f};
-    for (int n1 = 0; n1 < ann.num_neurons1; ++n1) {
-      float y1 = (1.0f - x1[n1] * x1[n1]) * ann.w0[n1 * ann.dim + d];
-      for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
-        y2[n2] += ann.w1[n2 * ann.num_neurons1 + n1] * y1;
-      }
-    }
-    for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
-      energy_derivative[d] += ann.w2[n2] * (y2[n2] * (1.0f - x2[n2] * x2[n2]));
-    }
-  }
-}
-
 static __device__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {
@@ -139,86 +54,6 @@ static __device__ void find_fc_and_fcp(float rc, float rcinv, float d12, float& 
   } else {
     fc = 0.0f;
     fcp = 0.0f;
-  }
-}
-
-static __global__ void find_force_3body_or_manybody(
-  int N,
-  int* Na,
-  int* Na_sum,
-  int* g_neighbor_number,
-  int* g_neighbor_list,
-  const float* __restrict__ g_f12x,
-  const float* __restrict__ g_f12y,
-  const float* __restrict__ g_f12z,
-  const float* __restrict__ g_x,
-  const float* __restrict__ g_y,
-  const float* __restrict__ g_z,
-  const float* __restrict__ g_box,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_virial)
-{
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
-    float s_fx = 0.0f;
-    float s_fy = 0.0f;
-    float s_fz = 0.0f;
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
-    int neighbor_number = g_neighbor_number[n1];
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_neighbor_list[index];
-      int neighbor_number_2 = g_neighbor_number[n2];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
-      float f12x = g_f12x[index];
-      float f12y = g_f12y[index];
-      float f12z = g_f12z[index];
-      int offset = 0;
-      for (int k = 0; k < neighbor_number_2; ++k) {
-        if (n1 == g_neighbor_list[n2 + N * k]) {
-          offset = k;
-          break;
-        }
-      }
-      index = offset * N + n2;
-      float f21x = g_f12x[index];
-      float f21y = g_f12y[index];
-      float f21z = g_f12z[index];
-      s_fx += f12x - f21x;
-      s_fy += f12y - f21y;
-      s_fz += f12z - f21z;
-      s_virial_xx += x12 * f21x;
-      s_virial_yy += y12 * f21y;
-      s_virial_zz += z12 * f21z;
-      s_virial_xy += x12 * f21y;
-      s_virial_yz += y12 * f21z;
-      s_virial_zx += z12 * f21x;
-    }
-    g_fx[n1] = s_fx;
-    g_fy[n1] = s_fy;
-    g_fz[n1] = s_fz;
-    g_virial[n1] = s_virial_xx;
-    g_virial[n1 + N] = s_virial_yy;
-    g_virial[n1 + N * 2] = s_virial_zz;
-    g_virial[n1 + N * 3] = s_virial_xy;
-    g_virial[n1 + N * 4] = s_virial_yz;
-    g_virial[n1 + N * 5] = s_virial_zx;
   }
 }
 
@@ -311,23 +146,19 @@ find_poly_cos_and_der(const int L_max, const float x, float* poly_cos, float* po
                 0.323283478155412f;
 }
 
-static __global__ void find_partial_force_manybody(
+static __global__ void find_descriptors(
   int N,
   int* Na,
   int* Na_sum,
   int* g_NN,
   int* g_NL,
   NEP2::ParaMB paramb,
-  NEP2::ANN annmb,
   const float* __restrict__ g_atomic_number,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
   const float* __restrict__ g_box,
-  float* g_pe,
-  float* g_f12x,
-  float* g_f12y,
-  float* g_f12z)
+  float* g_descriptors)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -375,6 +206,142 @@ static __global__ void find_partial_force_manybody(
         }
       }
     }
+    for (int n = 0; n <= paramb.n_max; ++n) {
+      for (int l = 0; l <= paramb.L_max; ++l) {
+        int index = n * (paramb.L_max + 1) + l;
+        g_descriptors[n1 + index * N] = q[index];
+      }
+    }
+  }
+}
+
+NEP2::NEP2(Parameters& para, Dataset& dataset)
+{
+  paramb.rc = para.rc;
+  paramb.rcinv = 1.0f / paramb.rc;
+  annmb.dim = (para.n_max + 1) * (para.L_max + 1);
+  annmb.num_neurons1 = para.num_neurons1;
+  annmb.num_neurons2 = para.num_neurons2;
+  annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;
+  annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2;
+  annmb.num_para += (annmb.num_neurons2 == 0 ? annmb.num_neurons1 : annmb.num_neurons2) + 1;
+  paramb.n_max = para.n_max;
+  paramb.L_max = para.L_max;
+  nep_data.f12x.resize(dataset.N * dataset.max_Na);
+  nep_data.f12y.resize(dataset.N * dataset.max_Na);
+  nep_data.f12z.resize(dataset.N * dataset.max_Na);
+  nep_data.descriptors.resize(dataset.N * annmb.dim);
+  find_descriptors<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
+    paramb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.descriptors.data());
+}
+
+void NEP2::update_potential(const float* parameters, ANN& ann)
+{
+  ann.w0 = parameters;
+  ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
+  ann.w1 = ann.b0 + ann.num_neurons1;
+  if (ann.num_neurons2 == 0) {
+    ann.b1 = ann.w1 + ann.num_neurons1;
+  } else {
+    ann.b1 = ann.w1 + ann.num_neurons1 * ann.num_neurons2;
+    ann.w2 = ann.b1 + ann.num_neurons2;
+    ann.b2 = ann.w2 + ann.num_neurons2;
+  }
+}
+
+static __device__ void
+apply_ann_one_layer(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
+{
+  for (int n = 0; n < ann.num_neurons1; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < ann.dim; ++d) {
+      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
+    }
+    float x1 = tanh(w0_times_q - ann.b0[n]);
+    energy += ann.w1[n] * x1;
+    for (int d = 0; d < ann.dim; ++d) {
+      float y1 = (1.0f - x1 * x1) * ann.w0[n * ann.dim + d];
+      energy_derivative[d] += ann.w1[n] * y1;
+    }
+  }
+  energy -= ann.b1[0];
+}
+
+static __device__ void
+apply_ann(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
+{
+  // energy
+  float x1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 1st hidden layer neurons
+  float x2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 2nd hidden layer neurons
+  for (int n = 0; n < ann.num_neurons1; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < ann.dim; ++d) {
+      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
+    }
+    x1[n] = tanh(w0_times_q - ann.b0[n]);
+  }
+  for (int n = 0; n < ann.num_neurons2; ++n) {
+    for (int m = 0; m < ann.num_neurons1; ++m) {
+      x2[n] += ann.w1[n * ann.num_neurons1 + m] * x1[m];
+    }
+    x2[n] = tanh(x2[n] - ann.b1[n]);
+    energy += ann.w2[n] * x2[n];
+  }
+  energy -= ann.b2[0];
+  // energy gradient (compute it component by component)
+  for (int d = 0; d < ann.dim; ++d) {
+    float y2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f};
+    for (int n1 = 0; n1 < ann.num_neurons1; ++n1) {
+      float y1 = (1.0f - x1[n1] * x1[n1]) * ann.w0[n1 * ann.dim + d];
+      for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
+        y2[n2] += ann.w1[n2 * ann.num_neurons1 + n1] * y1;
+      }
+    }
+    for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
+      energy_derivative[d] += ann.w2[n2] * (y2[n2] * (1.0f - x2[n2] * x2[n2]));
+    }
+  }
+}
+
+static __global__ void find_partial_force_manybody(
+  int N,
+  int* Na,
+  int* Na_sum,
+  int* g_NN,
+  int* g_NL,
+  NEP2::ParaMB paramb,
+  NEP2::ANN annmb,
+  const float* __restrict__ g_atomic_number,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
+  const float* __restrict__ g_box,
+  const float* __restrict__ g_descriptors,
+  float* g_pe,
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
+    int neighbor_number = g_NN[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
+    // get descriptors
+    float q[MAX_DIM] = {0.0f};
+    for (int n = 0; n <= paramb.n_max; ++n) {
+      for (int l = 0; l <= paramb.L_max; ++l) {
+        int index = n * (paramb.L_max + 1) + l;
+        q[index] = g_descriptors[n1 + index * N];
+      }
+    }
+
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     if (annmb.num_neurons2 == 0) {
@@ -445,6 +412,86 @@ static __global__ void find_partial_force_manybody(
   }
 }
 
+static __global__ void find_force_3body_or_manybody(
+  int N,
+  int* Na,
+  int* Na_sum,
+  int* g_neighbor_number,
+  int* g_neighbor_list,
+  const float* __restrict__ g_f12x,
+  const float* __restrict__ g_f12y,
+  const float* __restrict__ g_f12z,
+  const float* __restrict__ g_x,
+  const float* __restrict__ g_y,
+  const float* __restrict__ g_z,
+  const float* __restrict__ g_box,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_virial)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    float s_fx = 0.0f;
+    float s_fy = 0.0f;
+    float s_fz = 0.0f;
+    float s_virial_xx = 0.0f;
+    float s_virial_yy = 0.0f;
+    float s_virial_zz = 0.0f;
+    float s_virial_xy = 0.0f;
+    float s_virial_yz = 0.0f;
+    float s_virial_zx = 0.0f;
+    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
+    int neighbor_number = g_neighbor_number[n1];
+    float x1 = g_x[n1];
+    float y1 = g_y[n1];
+    float z1 = g_z[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_neighbor_list[index];
+      int neighbor_number_2 = g_neighbor_number[n2];
+      float x12 = g_x[n2] - x1;
+      float y12 = g_y[n2] - y1;
+      float z12 = g_z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float f12x = g_f12x[index];
+      float f12y = g_f12y[index];
+      float f12z = g_f12z[index];
+      int offset = 0;
+      for (int k = 0; k < neighbor_number_2; ++k) {
+        if (n1 == g_neighbor_list[n2 + N * k]) {
+          offset = k;
+          break;
+        }
+      }
+      index = offset * N + n2;
+      float f21x = g_f12x[index];
+      float f21y = g_f12y[index];
+      float f21z = g_f12z[index];
+      s_fx += f12x - f21x;
+      s_fy += f12y - f21y;
+      s_fz += f12z - f21z;
+      s_virial_xx += x12 * f21x;
+      s_virial_yy += y12 * f21y;
+      s_virial_zz += z12 * f21z;
+      s_virial_xy += x12 * f21y;
+      s_virial_yz += y12 * f21z;
+      s_virial_zx += z12 * f21x;
+    }
+    g_fx[n1] = s_fx;
+    g_fy[n1] = s_fy;
+    g_fz[n1] = s_fz;
+    g_virial[n1] = s_virial_xx;
+    g_virial[n1 + N] = s_virial_yy;
+    g_virial[n1 + N * 2] = s_virial_zz;
+    g_virial[n1 + N * 3] = s_virial_xy;
+    g_virial[n1 + N * 4] = s_virial_yz;
+    g_virial[n1 + N * 5] = s_virial_zx;
+  }
+}
+
 void NEP2::find_force(
   const int configuration_start,
   const int configuration_end,
@@ -460,8 +507,8 @@ void NEP2::find_force(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
     dataset.NN.data(), dataset.NL.data(), paramb, annmb, dataset.atomic_number.data(),
     dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    dataset.h.data() + SIZE_BOX_AND_INVERSE_BOX * configuration_start, dataset.pe.data(),
-    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+    dataset.h.data() + SIZE_BOX_AND_INVERSE_BOX * configuration_start, nep_data.descriptors.data(),
+    dataset.pe.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_force_3body_or_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
