@@ -267,6 +267,62 @@ static __global__ void find_descriptors(
   }
 }
 
+#ifdef NORMALIZE_DESCRIPTOR
+__device__ float device_q_scaler[MAX_DIM];
+__device__ float device_q_min[MAX_DIM];
+
+void __global__ find_max_min(const int N, const float* g_q)
+{
+  const int tid = threadIdx.x;
+  const int bid = blockIdx.x;
+  __shared__ float s_max[1024];
+  __shared__ float s_min[1024];
+  s_max[tid] = -1000000.0f; // a small number
+  s_min[tid] = +1000000.0f; // a large number
+  const int stride = 1024;
+  const int number_of_rounds = (N - 1) / stride + 1;
+  for (int round = 0; round < number_of_rounds; ++round) {
+    const int n = round * stride + tid;
+    if (n < N) {
+      const int m = n + N * bid;
+      float q = g_q[m];
+      if (q > s_max[tid]) {
+        s_max[tid] = q;
+      }
+      if (q < s_min[tid]) {
+        s_min[tid] = q;
+      }
+    }
+  }
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      if (s_max[tid] < s_max[tid + offset]) {
+        s_max[tid] = s_max[tid + offset];
+      }
+      if (s_min[tid] > s_min[tid + offset]) {
+        s_min[tid] = s_min[tid + offset];
+      }
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    device_q_scaler[bid] = 1.0f / (s_max[0] - s_min[0]);
+    device_q_min[bid] = s_min[0];
+  }
+}
+
+void __global__ normalize_descriptors(NEP2::ParaMB paramb, const int N, float* g_q)
+{
+  int n1 = blockDim.x * blockIdx.x + threadIdx.x;
+  if (n1 < N) {
+    for (int d = 0; d < paramb.dim; ++d) {
+      g_q[n1 + d * N] = (g_q[n1 + d * N] - device_q_min[d]) * device_q_scaler[d];
+    }
+  }
+}
+#endif
+
 NEP2::NEP2(Parameters& para, Dataset& dataset)
 {
   paramb.rc = para.rc;
@@ -297,6 +353,14 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
     dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
+#ifdef NORMALIZE_DESCRIPTOR
+  find_max_min<<<annmb.dim, 1024>>>(dataset.N, nep_data.descriptors.data());
+  CUDA_CHECK_KERNEL
+  normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
+    paramb, dataset.N, nep_data.descriptors.data());
+  CUDA_CHECK_KERNEL
+#endif
+
   find_pair_quantities<<<dataset.Nc, dataset.max_Na>>>(
     dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
     paramb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
@@ -304,6 +368,17 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
     nep_data.z12.data(), nep_data.d12.data(), nep_data.d12inv.data(), nep_data.fc12.data(),
     nep_data.fcp12.data());
   CUDA_CHECK_KERNEL
+
+#if 0 // for testing:
+  std::vector<float> q(dataset.N * annmb.dim);
+  FILE* fid = my_fopen("q.txt", "w");
+  nep_data.descriptors.copy_to_host(q.data());
+  for (int n = 0; n < q.size(); ++n) {
+    fprintf(fid, "%g\n", q[n]);
+  }
+  fclose(fid);
+  exit(1);
+#endif
 }
 
 void NEP2::update_potential(const float* parameters, ANN& ann)
@@ -402,11 +477,8 @@ static __global__ void find_partial_force_manybody(
     int neighbor_number = g_NN[n1];
     // get descriptors
     float q[MAX_DIM] = {0.0f};
-    for (int n = 0; n <= paramb.n_max; ++n) {
-      for (int l = 0; l <= paramb.L_max; ++l) {
-        int index = n * (paramb.L_max + 1) + l;
-        q[index] = g_descriptors[n1 + index * N];
-      }
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = g_descriptors[n1 + d * N];
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -416,6 +488,11 @@ static __global__ void find_partial_force_manybody(
       apply_ann(annmb, q, F, Fp);
     }
     g_pe[n1] = F;
+#ifdef NORMALIZE_DESCRIPTOR
+    for (int d = 0; n <= paramb.dim; ++n) {
+      Fp[d] *= device_q_scaler[d];
+    }
+#endif
     // get partial force
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
