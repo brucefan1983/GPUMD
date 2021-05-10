@@ -74,6 +74,7 @@ static __device__ void find_fc_and_fcp(float rc, float rcinv, float d12, float& 
     float x = d12 * rcinv;
     fc = 0.5f * cos(3.1415927f * x) + 0.5f;
     fcp = -1.5707963f * sin(3.1415927f * x);
+    fcp *= rcinv;
   } else {
     fc = 0.0f;
     fcp = 0.0f;
