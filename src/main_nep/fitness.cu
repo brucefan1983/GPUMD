@@ -58,7 +58,7 @@ void Fitness::compute(
   const int configuration_end = std::min(train_set.Nc, configuration_start + para.batch_size);
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->find_force(configuration_start, configuration_end, individual, train_set);
+    potential->find_force(para, configuration_start, configuration_end, individual, train_set);
     fitness[n + 0 * para.population_size] =
       train_set.get_rmse_energy(configuration_start, configuration_end);
     fitness[n + 1 * para.population_size] = train_set.get_rmse_force(
@@ -95,6 +95,9 @@ void Fitness::report_error(
   const float* elite)
 {
   if (0 == (generation + 1) % 100) {
+    // Synchronize
+    CHECK(cudaDeviceSynchronize());
+
     char file_nep[200];
     strcpy(file_nep, input_dir);
     strcat(file_nep, "/nep.out");
@@ -110,6 +113,11 @@ void Fitness::report_error(
       fprintf(fid_nep, "%15.7e ", elite[m]);
     }
     fprintf(fid_nep, "\n");
+#ifdef NORMALIZE_DESCRIPTOR
+    for (int d = 0; d < para.q_scaler.size(); ++d) {
+      fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler[d], para.q_min[d]);
+    }
+#endif
     fclose(fid_nep);
 
     for (int m = 0; m < para.number_of_variables; ++m) {
@@ -118,7 +126,7 @@ void Fitness::report_error(
     fprintf(fid_potential_out, "\n");
     fflush(fid_potential_out);
 
-    potential->find_force(0, train_set.Nc, elite, train_set);
+    potential->find_force(para, 0, train_set.Nc, elite, train_set);
     float rmse_energy_train = train_set.get_rmse_energy(0, train_set.Nc);
     float rmse_force_train = train_set.get_rmse_force(0, train_set.N);
     float rmse_virial_train = train_set.get_rmse_virial(0, train_set.Nc);
@@ -131,9 +139,6 @@ void Fitness::report_error(
       fid_train_out, "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total,
       loss_L1, loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train);
     fflush(fid_train_out);
-
-    // Synchronize
-    CHECK(cudaDeviceSynchronize());
 
     // update force.out
     char file_force[200];

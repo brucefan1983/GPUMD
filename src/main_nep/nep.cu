@@ -293,10 +293,7 @@ static __global__ void find_descriptors(
 }
 
 #ifdef NORMALIZE_DESCRIPTOR
-__device__ float device_q_scaler[MAX_DIM];
-__device__ float device_q_min[MAX_DIM];
-
-void __global__ find_max_min(const int N, const float* g_q)
+void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
@@ -332,17 +329,18 @@ void __global__ find_max_min(const int N, const float* g_q)
     __syncthreads();
   }
   if (tid == 0) {
-    device_q_scaler[bid] = 1.0f / (s_max[0] - s_min[0]);
-    device_q_min[bid] = s_min[0];
+    g_q_scaler[bid] = 1.0f / (s_max[0] - s_min[0]);
+    g_q_min[bid] = s_min[0];
   }
 }
 
-void __global__ normalize_descriptors(NEP2::ANN annmb, const int N, float* g_q)
+void __global__ normalize_descriptors(
+  NEP2::ANN annmb, const int N, const float* g_q_scaler, const float* g_q_min, float* g_q)
 {
   int n1 = blockDim.x * blockIdx.x + threadIdx.x;
   if (n1 < N) {
     for (int d = 0; d < annmb.dim; ++d) {
-      g_q[n1 + d * N] = (g_q[n1 + d * N] - device_q_min[d]) * device_q_scaler[d];
+      g_q[n1 + d * N] = (g_q[n1 + d * N] - g_q_min[d]) * g_q_scaler[d];
     }
   }
 }
@@ -379,10 +377,13 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   CUDA_CHECK_KERNEL
 
 #ifdef NORMALIZE_DESCRIPTOR
-  find_max_min<<<annmb.dim, 1024>>>(dataset.N, nep_data.descriptors.data());
+  para.q_scaler.resize(annmb.dim, Memory_Type::managed);
+  para.q_min.resize(annmb.dim, Memory_Type::managed);
+  find_max_min<<<annmb.dim, 1024>>>(
+    dataset.N, nep_data.descriptors.data(), para.q_scaler.data(), para.q_min.data());
   CUDA_CHECK_KERNEL
   normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
-    annmb, dataset.N, nep_data.descriptors.data());
+    annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 #endif
 
@@ -490,6 +491,7 @@ static __global__ void find_partial_force_manybody(
   const float* __restrict__ g_fc12,
   const float* __restrict__ g_fcp12,
   const float* __restrict__ g_descriptors,
+  const float* __restrict__ g_q_scaler,
   float* g_pe,
   float* g_f12x,
   float* g_f12y,
@@ -515,7 +517,7 @@ static __global__ void find_partial_force_manybody(
     g_pe[n1] = F;
 #ifdef NORMALIZE_DESCRIPTOR
     for (int d = 0; d <= annmb.dim; ++d) {
-      Fp[d] *= device_q_scaler[d];
+      Fp[d] *= g_q_scaler[d];
     }
 #endif
     // get partial force
@@ -646,6 +648,7 @@ static __global__ void find_force_3body_or_manybody(
 }
 
 void NEP2::find_force(
+  Parameters& para,
   const int configuration_start,
   const int configuration_end,
   const float* parameters,
@@ -660,8 +663,8 @@ void NEP2::find_force(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
     dataset.NN.data(), dataset.NL.data(), paramb, annmb, nep_data.x12.data(), nep_data.y12.data(),
     nep_data.z12.data(), nep_data.d12.data(), nep_data.d12inv.data(), nep_data.fc12.data(),
-    nep_data.fcp12.data(), nep_data.descriptors.data(), dataset.pe.data(), nep_data.f12x.data(),
-    nep_data.f12y.data(), nep_data.f12z.data());
+    nep_data.fcp12.data(), nep_data.descriptors.data(), para.q_scaler.data(), dataset.pe.data(),
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_force_3body_or_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,

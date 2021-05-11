@@ -17,12 +17,14 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Dataset;
+class Parameters;
 
 class Potential
 {
 public:
   virtual ~Potential() = default;
   virtual void find_force(
+    Parameters& para,
     const int configuration_start,
     const int configuration_end,
     const float* parameters,

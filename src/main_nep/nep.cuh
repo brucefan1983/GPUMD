@@ -58,6 +58,7 @@ public:
 
   NEP2(Parameters& para, Dataset& dataset);
   void find_force(
+    Parameters& para,
     const int configuration_start,
     const int configuration_end,
     const float* parameters,
