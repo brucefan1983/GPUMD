@@ -516,7 +516,7 @@ static __global__ void find_partial_force_manybody(
     }
     g_pe[n1] = F;
 #ifdef NORMALIZE_DESCRIPTOR
-    for (int d = 0; d <= annmb.dim; ++d) {
+    for (int d = 0; d < annmb.dim; ++d) {
       Fp[d] *= g_q_scaler[d];
     }
 #endif

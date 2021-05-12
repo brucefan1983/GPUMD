@@ -32,6 +32,8 @@ public:
     float rcinv = 0.0f; // inverse of the cutoff
     int n_max = 0;      // n = 0, 1, 2, ..., n_max
     int L_max = 0;      // l = 0, 1, 2, ..., L_max
+    float q_scaler[91];
+    float q_min[91];
   };
 
   struct ANN {

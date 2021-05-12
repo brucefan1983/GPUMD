@@ -98,6 +98,13 @@ void NEP2::update_potential(FILE* fid)
   float* address_c_parameters;
   CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
   update_potential(address_c_parameters, annmb);
+
+#ifdef NORMALIZE_DESCRIPTOR
+  for (int d = 0; d < annmb.dim; ++d) {
+    int count = fscanf(fid, "%f%f", &paramb.q_scaler[d], &paramb.q_min[d]);
+    PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
+  }
+#endif
 }
 
 static __device__ void
@@ -353,6 +360,11 @@ static __global__ void find_partial_force_manybody(
         }
       }
     }
+#ifdef NORMALIZE_DESCRIPTOR
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = (q[d] - paramb.q_min[d]) * paramb.q_scaler[d];
+    }
+#endif
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     if (annmb.num_neurons2 == 0) {
@@ -361,6 +373,11 @@ static __global__ void find_partial_force_manybody(
       apply_ann(annmb, q, F, Fp);
     }
     g_pe[n1] += F;
+#ifdef NORMALIZE_DESCRIPTOR
+    for (int d = 0; d < annmb.dim; ++d) {
+      Fp[d] *= paramb.q_scaler[d];
+    }
+#endif
     // get partial force
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
