@@ -161,32 +161,6 @@ apply_ann(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivativ
   }
 }
 
-#ifdef USE_NEW_FC
-static __device__ void find_fc(float rc, float rcinv, float d12, float& fc)
-{
-  if (d12 < rc) {
-    float x = d12 * rcinv;
-    float y = 1.0f + x * x * (2.0f * x - 3.0f);
-    fc = y * y;
-  } else {
-    fc = 0.0f;
-  }
-}
-
-static __device__ void find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& fcp)
-{
-  if (d12 < rc) {
-    float x = d12 * rcinv;
-    float y = 1.0f + x * x * (2.0f * x - 3.0f);
-    fc = y * y;
-    fcp = 12.0f * y * x * (x - 1.0f);
-    fcp *= rcinv;
-  } else {
-    fc = 0.0f;
-    fcp = 0.0f;
-  }
-}
-#else
 static __device__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {
@@ -209,7 +183,6 @@ static __device__ void find_fc_and_fcp(float rc, float rcinv, float d12, float& 
     fcp = 0.0f;
   }
 }
-#endif
 
 static __device__ __forceinline__ void
 find_fn(const int n_max, const float rcinv, const float d12, const float fc12, float* fn)
