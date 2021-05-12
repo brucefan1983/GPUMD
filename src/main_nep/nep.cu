@@ -265,7 +265,6 @@ static __global__ void find_descriptors(
   }
 }
 
-#ifdef NORMALIZE_DESCRIPTOR
 void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
 {
   const int tid = threadIdx.x;
@@ -317,7 +316,6 @@ void __global__ normalize_descriptors(
     }
   }
 }
-#endif
 
 NEP2::NEP2(Parameters& para, Dataset& dataset)
 {
@@ -349,7 +347,6 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
     dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
-#ifdef NORMALIZE_DESCRIPTOR
   para.q_scaler.resize(annmb.dim, Memory_Type::managed);
   para.q_min.resize(annmb.dim, Memory_Type::managed);
   find_max_min<<<annmb.dim, 1024>>>(
@@ -358,7 +355,6 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
     annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
-#endif
 
   find_pair_quantities<<<dataset.Nc, dataset.max_Na>>>(
     dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
@@ -488,11 +484,9 @@ static __global__ void find_partial_force_manybody(
       apply_ann(annmb, q, F, Fp);
     }
     g_pe[n1] = F;
-#ifdef NORMALIZE_DESCRIPTOR
     for (int d = 0; d < annmb.dim; ++d) {
       Fp[d] *= g_q_scaler[d];
     }
-#endif
     // get partial force
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
