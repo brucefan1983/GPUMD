@@ -2,8 +2,7 @@ clear; close all;
 n_max = 9;
 r = 0 : 0.001 : 1;
 x = 2 * (r-1).^2 - 1;
-f_poly1=1+2*r.^3-3.*r.^2;
-f_poly2=f_poly1.^2;
+fc=0.5*cos(pi*r)+0.5;
 
 f = zeros(n_max, length(x));
 f(1,:) = 1;
@@ -12,7 +11,7 @@ for n = 3 : n_max
     f(n,:) = 2 * x .* f(n-1,:) - f(n-2,:);
 end
 for n = 1 : n_max
-    f(n,:) = (1+f(n,:))/2 .* f_poly2;
+    f(n,:) = (1+f(n,:))/2 .* fc;
 end
 
 figure;
