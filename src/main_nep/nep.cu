@@ -480,11 +480,11 @@ apply_ann(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivativ
 }
 
 static __global__ void apply_ann(
-  int N,
-  int* Na,
-  int* Na_sum,
-  NEP2::ParaMB paramb,
-  NEP2::ANN annmb,
+  const int N,
+  const int* Na,
+  const int* Na_sum,
+  const NEP2::ParaMB paramb,
+  const NEP2::ANN annmb,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
   float* g_pe,
@@ -514,13 +514,13 @@ static __global__ void apply_ann(
 }
 
 static __global__ void find_partial_force_radial(
-  int N,
-  int* Na,
-  int* Na_sum,
-  int* g_NN,
-  int* g_NL,
-  NEP2::ParaMB paramb,
-  NEP2::ANN annmb,
+  const int N,
+  const int* Na,
+  const int* Na_sum,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP2::ParaMB paramb,
+  const NEP2::ANN annmb,
   const float* __restrict__ g_atomic_number,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
@@ -554,6 +554,7 @@ static __global__ void find_partial_force_radial(
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
       fc12 *= g_atomic_number[n2];
+      fcp12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
@@ -572,13 +573,13 @@ static __global__ void find_partial_force_radial(
 }
 
 static __global__ void find_partial_force_angular(
-  int N,
-  int* Na,
-  int* Na_sum,
-  int* g_NN,
-  int* g_NL,
-  NEP2::ParaMB paramb,
-  NEP2::ANN annmb,
+  const int N,
+  const int* Na,
+  const int* Na_sum,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP2::ParaMB paramb,
+  const NEP2::ANN annmb,
   const float* __restrict__ g_atomic_number,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
@@ -612,6 +613,7 @@ static __global__ void find_partial_force_angular(
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
       fc12 *= g_atomic_number[n2];
+      fcp12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
@@ -657,15 +659,14 @@ static __global__ void find_partial_force_angular(
 
 static __global__ void find_force_manybody(
   const bool is_radial,
-  int N,
-  int* Na,
-  int* Na_sum,
-  int* g_neighbor_number,
-  int* g_neighbor_list,
+  const int N,
+  const int* Na,
+  const int* Na_sum,
+  const int* g_neighbor_number,
+  const int* g_neighbor_list,
   const float* __restrict__ g_f12x,
   const float* __restrict__ g_f12y,
   const float* __restrict__ g_f12z,
-  const float* __restrict__ g_atomic_number,
   const float* __restrict__ g_x,
   const float* __restrict__ g_y,
   const float* __restrict__ g_z,
@@ -780,10 +781,10 @@ void NEP2::find_force(
   find_force_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     true, dataset.N, dataset.Na.data() + configuration_start,
     dataset.Na_sum.data() + configuration_start, dataset.NN.data(), dataset.NL.data(),
-    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.atomic_number.data(),
-    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    dataset.h.data(), dataset.force.data(), dataset.force.data() + dataset.N,
-    dataset.force.data() + dataset.N * 2, dataset.virial.data());
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.r.data(),
+    dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
+    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
+    dataset.virial.data());
   CUDA_CHECK_KERNEL
 
   // use angular neighbor list
@@ -799,9 +800,9 @@ void NEP2::find_force(
   find_force_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     false, dataset.N, dataset.Na.data() + configuration_start,
     dataset.Na_sum.data() + configuration_start, nep_data.NN.data(), nep_data.NL.data(),
-    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.atomic_number.data(),
-    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    dataset.h.data(), dataset.force.data(), dataset.force.data() + dataset.N,
-    dataset.force.data() + dataset.N * 2, dataset.virial.data());
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.r.data(),
+    dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
+    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
+    dataset.virial.data());
   CUDA_CHECK_KERNEL
 }
