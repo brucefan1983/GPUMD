@@ -181,12 +181,11 @@ static __global__ void find_descriptors_radial(
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        q[n * (paramb.L_max + 1) + 0] += fn12[n];
+        q[n] += fn12[n];
       }
     }
     for (int n = 0; n <= paramb.n_max_radial; ++n) {
-      int index = n * (paramb.L_max + 1) + 0;
-      g_descriptors[n1 + index * N] = q[index];
+      g_descriptors[n1 + n * N] = q[n];
     }
   }
 }
@@ -242,14 +241,15 @@ static __global__ void find_descriptors_angular(
         find_poly_cos(paramb.L_max, cos123, poly_cos);
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
           for (int l = 1; l <= paramb.L_max; ++l) {
-            q[n * (paramb.L_max + 1) + l] += fn12[n] * fc13 * poly_cos[l];
+            q[(paramb.n_max_radial + 1) + (l - 1) * (paramb.n_max_angular + 1) + n] +=
+              fn12[n] * fc13 * poly_cos[l];
           }
         }
       }
     }
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       for (int l = 1; l <= paramb.L_max; ++l) {
-        int index = n * (paramb.L_max + 1) + l;
+        int index = (paramb.n_max_radial + 1) + (l - 1) * (paramb.n_max_angular + 1) + n;
         g_descriptors[n1 + index * N] = q[index];
       }
     }
@@ -560,7 +560,7 @@ static __global__ void find_partial_force_radial(
       find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float tmp = Fp[n * (paramb.L_max + 1) + 0] * fnp12[n] * d12inv;
+        float tmp = Fp[n] * fnp12[n] * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
@@ -642,8 +642,9 @@ static __global__ void find_partial_force_angular(
           float tmp_n_a = (fnp12[n] * fn13[0] + fnp12[0] * fn13[n]) * d12inv;
           float tmp_n_b = (fn12[n] * fn13[0] + fn12[0] * fn13[n]) * d12inv;
           for (int l = 1; l <= paramb.L_max; ++l) {
-            float tmp_nl_a = Fp[n * (paramb.L_max + 1) + l] * tmp_n_a * poly_cos[l];
-            float tmp_nl_b = Fp[n * (paramb.L_max + 1) + l] * tmp_n_b * poly_cos_der[l];
+            int nl = (paramb.n_max_radial + 1) + (l - 1) * (paramb.n_max_angular + 1) + n;
+            float tmp_nl_a = Fp[nl] * tmp_n_a * poly_cos[l];
+            float tmp_nl_b = Fp[nl] * tmp_n_b * poly_cos_der[l];
             for (int d = 0; d < 3; ++d) {
               f12[d] += tmp_nl_a * r12[d] + tmp_nl_b * cos_der[d];
             }
