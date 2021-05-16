@@ -399,7 +399,7 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
     annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
-#if 1 // for testing:
+#if 0 // for testing:
   std::vector<float> q(dataset.N * annmb.dim);
   FILE* fid = my_fopen("q.txt", "w");
   nep_data.descriptors.copy_to_host(q.data());
