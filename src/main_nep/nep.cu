@@ -611,7 +611,7 @@ static __global__ void find_partial_force_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
+      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
       fc12 *= g_atomic_number[n2];
       fcp12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
