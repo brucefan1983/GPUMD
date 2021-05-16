@@ -29,22 +29,33 @@ Parameters::Parameters(char* input_dir)
   FILE* fid = my_fopen(file, "r");
   char name[20];
 
-  int count = fscanf(fid, "%s%f", name, &rc);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("cutoff = %g A.\n", rc);
-  if (rc < 3.0f) {
-    PRINT_INPUT_ERROR("cutoff should >= 3 A.");
-  } else if (rc > 10.0f) {
-    PRINT_INPUT_ERROR("cutoff should <= 10 A.");
+  int count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
+  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
+  printf("radial cutoff = %g A.\n", rc_radial);
+  printf("angular cutoff = %g A.\n", rc_angular);
+  if (rc_angular > rc_radial) {
+    PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
+  }
+  if (rc_angular < 1.0f) {
+    PRINT_INPUT_ERROR("angular cutoff should >= 1 A.");
+  }
+  if (rc_radial > 10.0f) {
+    PRINT_INPUT_ERROR("radial cutoff should <= 10 A.");
   }
 
-  count = fscanf(fid, "%s%d", name, &n_max);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("n_max = %d.\n", n_max);
-  if (n_max < 0) {
-    PRINT_INPUT_ERROR("n_max should >= 0.");
-  } else if (n_max > 12) {
-    PRINT_INPUT_ERROR("n_max should <= 12.");
+  count = fscanf(fid, "%s%d%d", name, &n_max_radial, &n_max_angular);
+  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
+  printf("n_max_radial = %d.\n", n_max_radial);
+  printf("n_max_angular = %d.\n", n_max_angular);
+  if (n_max_radial < 0) {
+    PRINT_INPUT_ERROR("n_max_radial should >= 0.");
+  } else if (n_max_radial > 12) {
+    PRINT_INPUT_ERROR("n_max_radial should <= 12.");
+  }
+  if (n_max_angular < 0) {
+    PRINT_INPUT_ERROR("n_max_angular should >= 0.");
+  } else if (n_max_angular > 12) {
+    PRINT_INPUT_ERROR("n_max_angular should <= 12.");
   }
 
   count = fscanf(fid, "%s%d", name, &L_max);
@@ -56,7 +67,7 @@ Parameters::Parameters(char* input_dir)
     PRINT_INPUT_ERROR("l_max should <= 6.");
   }
 
-  int dim = (n_max + 1) * (L_max + 1);
+  int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
   printf("number of descriptor components = %d.\n", dim);
 
   count = fscanf(fid, "%s%d", name, &num_neurons1);

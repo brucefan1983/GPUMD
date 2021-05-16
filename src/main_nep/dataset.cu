@@ -413,7 +413,7 @@ void Dataset::find_neighbor(Parameters& para)
 {
   NN.resize(N, Memory_Type::managed);
   NL.resize(N * max_Na, Memory_Type::managed);
-  float rc2 = para.rc * para.rc;
+  float rc2 = para.rc_radial * para.rc_radial;
   gpu_find_neighbor<<<Nc, max_Na>>>(
     N, Na.data(), Na_sum.data(), rc2, h.data(), NN.data(), NL.data(), r.data(), r.data() + N,
     r.data() + N * 2);

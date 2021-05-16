@@ -25,8 +25,10 @@ public:
   int maximum_generation = 0;  // maximum number of generations for SNES;
   int num_neurons1 = 0;        // number of nuerons in the 1st hidden layer
   int num_neurons2 = 0;        // number of nuerons in the 2nd hidden layer
-  float rc = 0.0f;             // cutoff distance
-  int n_max = 0;               // maximum order of the radial Chebyshev polynomials
+  float rc_radial = 0.0f;      // radial cutoff distance
+  float rc_angular = 0.0f;     // angular cutoff distance
+  int n_max_radial = 0;        // maximum order of the radial Chebyshev polynomials
+  int n_max_angular = 0;       // maximum order of the angular Chebyshev polynomials
   int L_max = 0;               // maximum order of the angular Legendre polynomials
   int number_of_variables = 0; // total number of parameters
   float L1_reg_para = 1.0e-2f; // good default
