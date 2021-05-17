@@ -10,7 +10,11 @@ arXiv:2103.10633 [cond-mat.mes-hall]
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384),
 arXiv:2003.02384 [cond-mat.mes-hall]
 
-## 2021 (5)
+## 2021 (6)
+
+Hongying Wang,   Yajuan Cheng,   Zheyong Fan,   Yangyu Guo,   Zhongwei Zhang,   Marc Bescond,   M. Nomura,   Sebastian Volz,   Tapio Ala-Nissila  and  Shiyun Xiong,
+[Anomalous thermal conductivity enhancement in low dimensional resonant nanostructures due to imperfections](https://doi.org/10.1039/D1NR01679B)
+
 
 * Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
 [Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://doi.org/10.1103/PhysRevB.103.205421),
