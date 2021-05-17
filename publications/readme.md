@@ -1,21 +1,26 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (3)
+## Preprints (2)
 
 * Giuseppe Barbalinardo, Zekun Chen, Haikuan Dong, Zheyong Fan, Davide Donadio,
 [Ultrahigh yet convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling](https://arxiv.org/abs/2103.10633), 	
 arXiv:2103.10633 [cond-mat.mes-hall]
 
-* Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
-[Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://arxiv.org/abs/2102.03691),
-arXiv:2102.03691 [cond-mat.mtrl-sci]
-
-
 * Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura, Sebastian Volz,
 [A generalized decay law for particle- and wave-like thermal phonons](https://arxiv.org/abs/2003.02384),
 arXiv:2003.02384 [cond-mat.mes-hall]
 
-## 2021 (4)
+## 2021 (6)
+
+* Hongying Wang,   Yajuan Cheng,   Zheyong Fan,   Yangyu Guo,   Zhongwei Zhang,   Marc Bescond,   M. Nomura,   Sebastian Volz,   Tapio Ala-Nissila  and  Shiyun Xiong,
+[Anomalous thermal conductivity enhancement in low dimensional resonant nanostructures due to imperfections](https://doi.org/10.1039/D1NR01679B)
+Accepted to Nanoscale.
+
+
+* Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
+[Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://doi.org/10.1103/PhysRevB.103.205421),
+Phys. Rev. B **103**, 205421 (2021).
+
 
 * Xin Wu and Qiang Han,
 [Thermal transport in pristine and defective two-dimensional polyaniline](https://doi.org/10.1016/j.ijheatmasstransfer.2021.121235),
