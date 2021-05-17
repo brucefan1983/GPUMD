@@ -106,7 +106,7 @@ Parameters::Parameters(char* input_dir)
     PRINT_INPUT_ERROR("num_neurons2 should >= 1.");
   }
 
-  population_size = 50; // use this default
+  population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
   printf("population_size = %d.\n", population_size);
 
   count = fscanf(fid, "%s%d", name, &maximum_generation);
