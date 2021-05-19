@@ -22,16 +22,22 @@ struct NEP2_Data {
   GPU_Vector<double> f12x; // 3-body or manybody partial forces
   GPU_Vector<double> f12y; // 3-body or manybody partial forces
   GPU_Vector<double> f12z; // 3-body or manybody partial forces
+  GPU_Vector<float> Fp;
+  GPU_Vector<int> NN;
+  GPU_Vector<int> NL;
 };
 
 class NEP2 : public Potential
 {
 public:
   struct ParaMB {
-    float rc = 0.0f;    // cutoff
-    float rcinv = 0.0f; // inverse of the cutoff
-    int n_max = 0;      // n = 0, 1, 2, ..., n_max
-    int L_max = 0;      // l = 0, 1, 2, ..., L_max
+    float rc_radial = 0.0f;     // radial cutoff
+    float rc_angular = 0.0f;    // angular cutoff
+    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
+    float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
+    int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
+    int L_max = 0;              // l = 0, 1, 2, ..., L_max
     float q_scaler[91];
     float q_min[91];
   };

@@ -33,13 +33,13 @@ NEP2::NEP2(FILE* fid, const Neighbor& neighbor)
   printf("Use the NEP potential.\n");
   char name[20];
 
-  int count = fscanf(fid, "%s%f", name, &paramb.rc);
-  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-  printf("cutoff = %g A.\n", paramb.rc);
+  int count = fscanf(fid, "%s%f%f", name, &paramb.rc_radial, &paramb.rc_angular);
+  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+  printf("rc_radial = %g A, rc_angular = %g A.\n", paramb.rc_radial, paramb.rc_angular);
 
-  count = fscanf(fid, "%s%d", name, &paramb.n_max);
-  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-  printf("n_max = %d.\n", paramb.n_max);
+  count = fscanf(fid, "%s%d%d", name, &paramb.n_max_radial, &paramb.n_max_angular);
+  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+  printf("n_max_radial = %d, n_max_angular = %d.\n", paramb.n_max_radial, paramb.n_max_angular);
 
   count = fscanf(fid, "%s%d", name, &paramb.L_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
@@ -53,10 +53,11 @@ NEP2::NEP2(FILE* fid, const Neighbor& neighbor)
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
   printf("num_neurons2 = %d.\n", annmb.num_neurons2);
 
-  rc = paramb.rc; // largest cutoff
+  rc = paramb.rc_radial; // largest cutoff
 
-  paramb.rcinv = 1.0f / paramb.rc;
-  annmb.dim = (paramb.n_max + 1) * (paramb.L_max + 1);
+  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
+  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
+  annmb.dim = (paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) * paramb.L_max;
   annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;
   annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2;
   annmb.num_para += (annmb.num_neurons2 == 0 ? annmb.num_neurons1 : annmb.num_neurons2) + 1;
@@ -64,6 +65,9 @@ NEP2::NEP2(FILE* fid, const Neighbor& neighbor)
   nep_data.f12x.resize(neighbor.NN.size() * neighbor.MN);
   nep_data.f12y.resize(neighbor.NN.size() * neighbor.MN);
   nep_data.f12z.resize(neighbor.NN.size() * neighbor.MN);
+  nep_data.NN.resize(neighbor.NN.size());
+  nep_data.NL.resize(neighbor.NN.size() * neighbor.MN);
+  nep_data.Fp.resize(neighbor.NN.size() * annmb.dim);
 
   update_potential(fid);
 }
@@ -271,9 +275,8 @@ find_poly_cos_and_der(const int L_max, const float x, float* poly_cos, float* po
                 0.323283478155412f;
 }
 
-static __global__ void find_partial_force_manybody(
+static __global__ void find_neighbor_angular(
   NEP2::ParaMB paramb,
-  NEP2::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -283,20 +286,60 @@ static __global__ void find_partial_force_manybody(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
+  int* g_NN_angular,
+  int* g_NL_angular)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    int count = 0;
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int n2 = g_NL[n1 + N * i1];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float d12sq = x12 * x12 + y12 * y12 + z12 * z12;
+      if (d12sq < paramb.rc_angular * paramb.rc_angular) {
+        g_NL_angular[count++ * N + n1] = n2;
+      }
+    }
+    g_NN_angular[n1] = count;
+  }
+}
+
+static __global__ void find_partial_force_radial(
+  NEP2::ParaMB paramb,
+  NEP2::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const int* g_NN_angular,
+  const int* g_NL_angular,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
   double* g_pe,
+  float* g_Fp,
   double* g_f12x,
   double* g_f12y,
   double* g_f12z)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
-    int neighbor_number = g_NN[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
-    // get descriptors
     float q[MAX_DIM] = {0.0f};
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+
+    // get radial descriptors
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
@@ -305,14 +348,29 @@ static __global__ void find_partial_force_manybody(
       float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
-      find_fc(paramb.rc, paramb.rcinv, d12, fc12);
+      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       float fn12[MAX_NUM_N];
-      find_fn(paramb.n_max, paramb.rcinv, d12, fc12, fn12);
-      for (int n = 0; n <= paramb.n_max; ++n) {
-        q[n * (paramb.L_max + 1) + 0] += fn12[n];
+      find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        q[n] += fn12[n];
       }
-      for (int i2 = 0; i2 < neighbor_number; ++i2) {
-        int n3 = g_NL[n1 + N * i2];
+    }
+
+    // get angular descriptors
+    for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
+      int n2 = g_NL_angular[n1 + N * i1];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float fc12;
+      find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+      float fn12[MAX_NUM_N];
+      find_fn(paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fn12);
+      for (int i2 = 0; i2 < g_NN_angular[n1]; ++i2) {
+        int n3 = g_NL_angular[n1 + N * i2];
         double x13double = g_x[n3] - x1;
         double y13double = g_y[n3] - y1;
         double z13double = g_z[n3] - z1;
@@ -320,20 +378,24 @@ static __global__ void find_partial_force_manybody(
         float x13 = float(x13double), y13 = float(y13double), z13 = float(z13double);
         float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
         float fc13;
-        find_fc(paramb.rc, paramb.rcinv, d13, fc13);
+        find_fc(paramb.rc_angular, paramb.rcinv_angular, d13, fc13);
         float cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
         float poly_cos[MAX_NUM_L];
         find_poly_cos(paramb.L_max, cos123, poly_cos);
-        for (int n = 0; n <= paramb.n_max; ++n) {
+        for (int n = 0; n <= paramb.n_max_angular; ++n) {
           for (int l = 1; l <= paramb.L_max; ++l) {
-            q[n * (paramb.L_max + 1) + l] += fn12[n] * fc13 * poly_cos[l];
+            q[(paramb.n_max_radial + 1) + (l - 1) * (paramb.n_max_angular + 1) + n] +=
+              fn12[n] * fc13 * poly_cos[l];
           }
         }
       }
     }
+
+    // nomalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = (q[d] - paramb.q_min[d]) * paramb.q_scaler[d];
     }
+
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     if (annmb.num_neurons2 == 0) {
@@ -341,12 +403,16 @@ static __global__ void find_partial_force_manybody(
     } else {
       apply_ann(annmb, q, F, Fp);
     }
+
     g_pe[n1] += F;
+
     for (int d = 0; d < annmb.dim; ++d) {
       Fp[d] *= paramb.q_scaler[d];
+      g_Fp[d * N + n1] = Fp[d];
     }
-    // get partial force
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+
+    // get partial force for radial descriptors
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[n1 + N * i1];
       double x12double = g_x[n2] - x1;
@@ -357,19 +423,63 @@ static __global__ void find_partial_force_manybody(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc, paramb.rcinv, d12, fc12, fcp12);
+      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.n_max, paramb.rcinv, d12, fc12, fcp12, fn12, fnp12);
+      find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
       float f12[3] = {0.0f};
-      for (int n = 0; n <= paramb.n_max; ++n) {
-        float tmp = Fp[n * (paramb.L_max + 1) + 0] * fnp12[n] * d12inv;
+      for (int n = 0; n <= paramb.n_max_radial; ++n) {
+        float tmp = Fp[n] * fnp12[n] * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
       }
-      for (int i2 = 0; i2 < neighbor_number; ++i2) {
-        int n3 = g_NL[n1 + N * i2];
+      g_f12x[index] = f12[0];
+      g_f12y[index] = f12[1];
+      g_f12z[index] = f12[2];
+    }
+  }
+}
+
+static __global__ void find_partial_force_angular(
+  NEP2::ParaMB paramb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN_angular,
+  const int* g_NL_angular,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  float* g_Fp,
+  double* g_f12x,
+  double* g_f12y,
+  double* g_f12z)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL_angular[n1 + N * i1];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float fc12, fcp12;
+      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      find_fn_and_fnp(paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+      float f12[3] = {0.0f};
+      for (int i2 = 0; i2 < g_NN_angular[n1]; ++i2) {
+        int n3 = g_NL_angular[n1 + N * i2];
         double x13double = g_x[n3] - x1;
         double y13double = g_y[n3] - y1;
         double z13double = g_z[n3] - z1;
@@ -378,22 +488,23 @@ static __global__ void find_partial_force_manybody(
         float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
         float d13inv = 1.0f / d13;
         float fc13;
-        find_fc(paramb.rc, paramb.rcinv, d13, fc13);
+        find_fc(paramb.rc_angular, paramb.rcinv_angular, d13, fc13);
         float cos123 = (r12[0] * x13 + r12[1] * y13 + r12[2] * z13) / (d12 * d13);
         float fn13[MAX_NUM_N];
-        find_fn(paramb.n_max, paramb.rcinv, d13, fc13, fn13);
+        find_fn(paramb.n_max_angular, paramb.rcinv_angular, d13, fc13, fn13);
         float poly_cos[MAX_NUM_L];
         float poly_cos_der[MAX_NUM_L];
         find_poly_cos_and_der(paramb.L_max, cos123, poly_cos, poly_cos_der);
         float cos_der[3] = {
           x13 * d13inv - r12[0] * d12inv * cos123, y13 * d13inv - r12[1] * d12inv * cos123,
           z13 * d13inv - r12[2] * d12inv * cos123};
-        for (int n = 0; n <= paramb.n_max; ++n) {
+        for (int n = 0; n <= paramb.n_max_angular; ++n) {
           float tmp_n_a = (fnp12[n] * fn13[0] + fnp12[0] * fn13[n]) * d12inv;
           float tmp_n_b = (fn12[n] * fn13[0] + fn12[0] * fn13[n]) * d12inv;
           for (int l = 1; l <= paramb.L_max; ++l) {
-            float tmp_nl_a = Fp[n * (paramb.L_max + 1) + l] * tmp_n_a * poly_cos[l];
-            float tmp_nl_b = Fp[n * (paramb.L_max + 1) + l] * tmp_n_b * poly_cos_der[l];
+            int nl = (paramb.n_max_radial + 1) + (l - 1) * (paramb.n_max_angular + 1) + n;
+            float tmp_nl_a = g_Fp[nl * N + n1] * tmp_n_a * poly_cos[l];
+            float tmp_nl_b = g_Fp[nl * N + n1] * tmp_n_b * poly_cos_der[l];
             for (int d = 0; d < 3; ++d) {
               f12[d] += tmp_nl_a * r12[d] + tmp_nl_b * cos_der[d];
             }
@@ -420,13 +531,33 @@ void NEP2::compute(
   const int BLOCK_SIZE = 64;
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
-  find_partial_force_manybody<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
+
+  find_neighbor_angular<<<grid_size, BLOCK_SIZE>>>(
+    paramb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
-    potential_per_atom.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+    nep_data.NN.data(), nep_data.NL.data());
+  CUDA_CHECK_KERNEL
+
+  // full descriptor and radial force
+  find_partial_force_radial<<<grid_size, BLOCK_SIZE>>>(
+    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
+    nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(), position_per_atom.data() + N,
+    position_per_atom.data() + N * 2, potential_per_atom.data(), nep_data.Fp.data(),
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_properties_many_body(
     box, neighbor.NN_local.data(), neighbor.NL_local.data(), nep_data.f12x.data(),
     nep_data.f12y.data(), nep_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
+  CUDA_CHECK_KERNEL
+
+  // angular force
+  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+    paramb, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(),
+    position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.Fp.data(),
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+  CUDA_CHECK_KERNEL
+  find_properties_many_body(
+    box, nep_data.NN.data(), nep_data.NL.data(), nep_data.f12x.data(), nep_data.f12y.data(),
+    nep_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
   CUDA_CHECK_KERNEL
 }
