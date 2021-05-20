@@ -25,6 +25,7 @@ struct NEP2_Data {
   GPU_Vector<float> Fp;
   GPU_Vector<int> NN;
   GPU_Vector<int> NL;
+  GPU_Vector<float> atomic_number;
 };
 
 class NEP2 : public Potential
@@ -55,7 +56,7 @@ public:
     const float* b2;      // bias for the output layer
   };
 
-  NEP2(FILE* fid, const Neighbor& neighbor);
+  NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor);
   virtual ~NEP2(void);
   virtual void compute(
     const int type_shift,

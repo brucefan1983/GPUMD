@@ -28,7 +28,32 @@ const int MAX_NUM_L = 7;                  // L_max+1 = 6+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 __constant__ float c_parameters[10000];
 
-NEP2::NEP2(FILE* fid, const Neighbor& neighbor)
+static void read_atomic_number(char* input_dir, GPU_Vector<float>& atomic_number)
+{
+  std::vector<float> atomic_number_cpu(atomic_number.size());
+  char file_atomic_number[200];
+  strcpy(file_atomic_number, input_dir);
+  strcat(file_atomic_number, "/atomic_number.in");
+  FILE* fid_atomic_number = my_fopen(file_atomic_number, "r");
+  for (int n = 0; n < atomic_number.size(); ++n) {
+    fscanf(fid_atomic_number, "%f", &atomic_number_cpu[n]);
+  }
+  fclose(fid_atomic_number);
+
+  float max_atomic_number = -1;
+  for (int n = 0; n < atomic_number.size(); ++n) {
+    if (max_atomic_number < atomic_number_cpu[n]) {
+      max_atomic_number = atomic_number_cpu[n];
+    }
+  }
+  for (int n = 0; n < atomic_number.size(); ++n) {
+    atomic_number_cpu[n] /= max_atomic_number;
+  }
+
+  atomic_number.copy_from_host(atomic_number_cpu.data());
+}
+
+NEP2::NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor)
 {
   printf("Use the NEP potential.\n");
   char name[20];
@@ -68,8 +93,10 @@ NEP2::NEP2(FILE* fid, const Neighbor& neighbor)
   nep_data.NN.resize(neighbor.NN.size());
   nep_data.NL.resize(neighbor.NN.size() * neighbor.MN);
   nep_data.Fp.resize(neighbor.NN.size() * annmb.dim);
+  nep_data.atomic_number.resize(neighbor.NN.size());
 
   update_potential(fid);
+  read_atomic_number(input_dir, nep_data.atomic_number);
 }
 
 NEP2::~NEP2(void)
@@ -322,6 +349,7 @@ static __global__ void find_partial_force_radial(
   const int* g_NL,
   const int* g_NN_angular,
   const int* g_NL_angular,
+  const float* __restrict__ g_atomic_number,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -349,6 +377,7 @@ static __global__ void find_partial_force_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
+      fc12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
@@ -367,6 +396,7 @@ static __global__ void find_partial_force_radial(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+      fc12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fn12);
       for (int i2 = 0; i2 < g_NN_angular[n1]; ++i2) {
@@ -379,6 +409,7 @@ static __global__ void find_partial_force_radial(
         float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
         float fc13;
         find_fc(paramb.rc_angular, paramb.rcinv_angular, d13, fc13);
+        fc13 *= g_atomic_number[n3];
         float cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
         float poly_cos[MAX_NUM_L];
         find_poly_cos(paramb.L_max, cos123, poly_cos);
@@ -424,6 +455,8 @@ static __global__ void find_partial_force_radial(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
+      fc12 *= g_atomic_number[n2];
+      fcp12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
@@ -449,6 +482,7 @@ static __global__ void find_partial_force_angular(
   const Box box,
   const int* g_NN_angular,
   const int* g_NL_angular,
+  const float* __restrict__ g_atomic_number,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -474,6 +508,8 @@ static __global__ void find_partial_force_angular(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
+      fc12 *= g_atomic_number[n2];
+      fcp12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
@@ -489,6 +525,7 @@ static __global__ void find_partial_force_angular(
         float d13inv = 1.0f / d13;
         float fc13;
         find_fc(paramb.rc_angular, paramb.rcinv_angular, d13, fc13);
+        fc13 *= g_atomic_number[n3];
         float cos123 = (r12[0] * x13 + r12[1] * y13 + r12[2] * z13) / (d12 * d13);
         float fn13[MAX_NUM_N];
         find_fn(paramb.n_max_angular, paramb.rcinv_angular, d13, fc13, fn13);
@@ -541,9 +578,9 @@ void NEP2::compute(
   // full descriptor and radial force
   find_partial_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, potential_per_atom.data(), nep_data.Fp.data(),
-    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+    nep_data.NN.data(), nep_data.NL.data(), nep_data.atomic_number.data(), position_per_atom.data(),
+    position_per_atom.data() + N, position_per_atom.data() + N * 2, potential_per_atom.data(),
+    nep_data.Fp.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_properties_many_body(
     box, neighbor.NN_local.data(), neighbor.NL_local.data(), nep_data.f12x.data(),
@@ -552,9 +589,9 @@ void NEP2::compute(
 
   // angular force
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(),
-    position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.Fp.data(),
-    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+    paramb, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), nep_data.atomic_number.data(),
+    position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
+    nep_data.Fp.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
   find_properties_many_body(
     box, nep_data.NN.data(), nep_data.NL.data(), nep_data.f12x.data(), nep_data.f12y.data(),
