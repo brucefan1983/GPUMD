@@ -68,20 +68,14 @@ Parameters::Parameters(char* input_dir)
   }
 
   int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
-  printf("number of descriptor components = %d.\n", dim);
 
-  count = fscanf(fid, "%s%d", name, &num_neurons1);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("num_neurons1 = %d.\n", num_neurons1);
+  count = fscanf(fid, "%s%d%d", name, &num_neurons1, &num_neurons2);
+  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("num_neurons1 should >= 1.");
   } else if (num_neurons1 > 100) {
     PRINT_INPUT_ERROR("num_neurons1 should <= 100.");
   }
-
-  count = fscanf(fid, "%s%d", name, &num_neurons2);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
-  printf("num_neurons2 = %d.\n", num_neurons2);
   if (num_neurons2 < 0) {
     PRINT_INPUT_ERROR("num_neurons2 should >= 0.");
   } else if (num_neurons2 > 50) {
@@ -92,6 +86,12 @@ Parameters::Parameters(char* input_dir)
     if (num_neurons1 > 50) {
       PRINT_INPUT_ERROR("num_neurons1 should <= 50 when num_neurons1 > 0.");
     }
+  }
+
+  if (num_neurons2 == 0) {
+    printf("ANN = %d-%d-1.\n", dim, num_neurons1);
+  } else {
+    printf("ANN = %d-%d-%d-1.\n", dim, num_neurons1, num_neurons2);
   }
 
   number_of_variables = (dim + 1) * num_neurons1;

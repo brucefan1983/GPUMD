@@ -60,29 +60,33 @@ NEP2::NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor)
 
   int count = fscanf(fid, "%s%f%f", name, &paramb.rc_radial, &paramb.rc_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
-  printf("rc_radial = %g A, rc_angular = %g A.\n", paramb.rc_radial, paramb.rc_angular);
+  printf("    radial cutoff = %g A.\n", paramb.rc_radial);
+  printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
   count = fscanf(fid, "%s%d%d", name, &paramb.n_max_radial, &paramb.n_max_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
-  printf("n_max_radial = %d, n_max_angular = %d.\n", paramb.n_max_radial, paramb.n_max_angular);
+  printf("    n_max_radial = %d.\n", paramb.n_max_radial);
+  printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
   count = fscanf(fid, "%s%d", name, &paramb.L_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-  printf("l_max = %d.\n", paramb.L_max);
+  printf("    l_max = %d.\n", paramb.L_max);
 
-  count = fscanf(fid, "%s%d", name, &annmb.num_neurons1);
-  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-  printf("num_neurons1 = %d.\n", annmb.num_neurons1);
-
-  count = fscanf(fid, "%s%d", name, &annmb.num_neurons2);
-  PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-  printf("num_neurons2 = %d.\n", annmb.num_neurons2);
+  count = fscanf(fid, "%s%d%d", name, &annmb.num_neurons1, &annmb.num_neurons2);
+  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
 
   rc = paramb.rc_radial; // largest cutoff
 
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   annmb.dim = (paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) * paramb.L_max;
+
+  if (annmb.num_neurons2 == 0) {
+    printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
+  } else {
+    printf("    ANN = %d-%d-%d-1.\n", annmb.dim, annmb.num_neurons1, annmb.num_neurons2);
+  }
+
   annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;
   annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2;
   annmb.num_para += (annmb.num_neurons2 == 0 ? annmb.num_neurons1 : annmb.num_neurons2) + 1;
