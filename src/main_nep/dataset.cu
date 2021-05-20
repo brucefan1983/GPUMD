@@ -81,6 +81,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   virial.resize(N * 6, 0.0f, Memory_Type::managed);
 
   int atomic_number_max = 0;
+  std::vector<int> types;
 
   for (int n = 0; n < Nc; ++n) {
     int count;
@@ -125,6 +126,16 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
         if (atomic_number_tmp > atomic_number_max) {
           atomic_number_max = atomic_number_tmp;
         }
+
+        bool find_a_new_type = true;
+        for (int k = 0; k < types.size(); ++k) {
+          if (types[k] == atomic_number_tmp) {
+            find_a_new_type = false;
+          }
+        }
+        if (find_a_new_type) {
+          types.emplace_back(atomic_number_tmp);
+        }
       }
     }
   }
@@ -135,6 +146,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   for (int n = 0; n < N; ++n) {
     atomic_number[n] /= atomic_number_max;
   }
+  num_types = types.size();
 
   find_neighbor(para);
 }

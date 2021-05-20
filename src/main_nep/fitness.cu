@@ -103,7 +103,7 @@ void Fitness::report_error(
     strcat(file_nep, "/nep.out");
     FILE* fid_nep = my_fopen(file_nep, "w");
 
-    fprintf(fid_nep, "nep 1\n"); // TODO: output the correct # types
+    fprintf(fid_nep, "nep %d\n", train_set.num_types);
     fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
     fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
     fprintf(fid_nep, "l_max %d\n", para.L_max);
