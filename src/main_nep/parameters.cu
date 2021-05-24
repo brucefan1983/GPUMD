@@ -20,7 +20,7 @@
 Parameters::Parameters(char* input_dir)
 {
   print_line_1();
-  printf("Started reading potential.in.\n");
+  printf("Started reading nep.in.\n");
   print_line_2();
 
   char file[200];
@@ -30,7 +30,7 @@ Parameters::Parameters(char* input_dir)
   char name[20];
 
   int count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
-  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 3, "reading error for cutoff.");
   printf("radial cutoff = %g A.\n", rc_radial);
   printf("angular cutoff = %g A.\n", rc_angular);
   if (rc_angular > rc_radial) {
@@ -44,7 +44,7 @@ Parameters::Parameters(char* input_dir)
   }
 
   count = fscanf(fid, "%s%d%d", name, &n_max_radial, &n_max_angular);
-  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 3, "reading error for n_max.");
   printf("n_max_radial = %d.\n", n_max_radial);
   printf("n_max_angular = %d.\n", n_max_angular);
   if (n_max_radial < 0) {
@@ -59,7 +59,7 @@ Parameters::Parameters(char* input_dir)
   }
 
   count = fscanf(fid, "%s%d", name, &L_max);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 2, "reading error for l_max.");
   printf("l_max = %d.\n", L_max);
   if (L_max < 0) {
     PRINT_INPUT_ERROR("l_max should >= 0.");
@@ -70,7 +70,7 @@ Parameters::Parameters(char* input_dir)
   int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
 
   count = fscanf(fid, "%s%d%d", name, &num_neurons1, &num_neurons2);
-  PRINT_SCANF_ERROR(count, 3, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 3, "reading error for ANN.");
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("num_neurons1 should >= 1.");
   } else if (num_neurons1 > 100) {
@@ -100,17 +100,17 @@ Parameters::Parameters(char* input_dir)
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%d", name, &batch_size);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 2, "reading error for batch_size.");
   printf("batch_size = %d.\n", batch_size);
   if (batch_size < 1) {
     PRINT_INPUT_ERROR("num_neurons2 should >= 1.");
   }
 
-  population_size = 4 + int(std::floor(3.0f * std::log(number_of_variables * 1.0f)));
+  population_size = 50;
   printf("population_size = %d.\n", population_size);
 
   count = fscanf(fid, "%s%d", name, &maximum_generation);
-  PRINT_SCANF_ERROR(count, 2, "reading error for potential.in.");
+  PRINT_SCANF_ERROR(count, 2, "reading error for maximum_generation.");
   printf("maximum_generation = %d.\n", maximum_generation);
   if (maximum_generation < 100) {
     PRINT_INPUT_ERROR("maximum_generation should >= 100.");
