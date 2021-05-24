@@ -99,15 +99,16 @@ Parameters::Parameters(char* input_dir)
   number_of_variables += (num_neurons2 == 0 ? num_neurons1 : num_neurons2) + 1;
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
-  count = fscanf(fid, "%s%d", name, &batch_size);
-  PRINT_SCANF_ERROR(count, 2, "reading error for batch_size.");
-  printf("batch_size = %d.\n", batch_size);
-  if (batch_size < 1) {
-    PRINT_INPUT_ERROR("num_neurons2 should >= 1.");
-  }
+  batch_size = 100000; // use a single batch currently
 
-  population_size = 50;
+  count = fscanf(fid, "%s%d", name, &population_size);
+  PRINT_SCANF_ERROR(count, 2, "reading error for population_size.");
   printf("population_size = %d.\n", population_size);
+  if (population_size < 10) {
+    PRINT_INPUT_ERROR("population_size should >= 10.");
+  } else if (population_size > 100) {
+    PRINT_INPUT_ERROR("population_size should <= 100.");
+  }
 
   count = fscanf(fid, "%s%d", name, &maximum_generation);
   PRINT_SCANF_ERROR(count, 2, "reading error for maximum_generation.");
