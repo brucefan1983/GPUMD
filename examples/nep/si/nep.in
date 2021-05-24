@@ -1,7 +1,6 @@
-cutoff               5
-n_max                6
-l_max                6
-num_neurons1         20
-num_neurons2         0
-batch_size        1000
-maximum_generation   100000
+cutoff               5 3
+n_max                6 4
+l_max                4
+ANN                  20 0
+population_size      20
+maximum_generation   10000
