@@ -176,6 +176,7 @@ void read_xyz_in_line_2(FILE* fid_xyz, Box& box)
 }
 
 void read_xyz_in_line_3(
+  char* input_dir,
   FILE* fid_xyz,
   const int N,
   const int has_velocity_in_xyz,
@@ -190,7 +191,7 @@ void read_xyz_in_line_3(
   cpu_mass.resize(N);
   cpu_position_per_atom.resize(N * 3);
   cpu_velocity_per_atom.resize(N * 3);
-  number_of_types = -1;
+  std::vector<int> types;
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].cpu_label.resize(N);
@@ -202,8 +203,8 @@ void read_xyz_in_line_3(
     int count = fscanf(fid_xyz, "%d%lf%lf%lf%lf", &(cpu_type[n]), &x, &y, &z, &mass);
     PRINT_SCANF_ERROR(count, 5, "Reading error for xyz.in.");
 
-    if (cpu_type[n] < 0 || cpu_type[n] >= N) {
-      PRINT_INPUT_ERROR("Atom type should >= 0 and < N.");
+    if (cpu_type[n] < 0) {
+      PRINT_INPUT_ERROR("Atom type should >= 0.");
     }
 
     if (mass <= 0) {
@@ -215,8 +216,14 @@ void read_xyz_in_line_3(
     cpu_position_per_atom[n + N] = y;
     cpu_position_per_atom[n + N * 2] = z;
 
-    if (cpu_type[n] > number_of_types) {
-      number_of_types = cpu_type[n];
+    bool find_a_new_type = true;
+    for (int k = 0; k < types.size(); ++k) {
+      if (types[k] == cpu_type[n]) {
+        find_a_new_type = false;
+      }
+    }
+    if (find_a_new_type) {
+      types.emplace_back(cpu_type[n]);
     }
 
     if (has_velocity_in_xyz) {
@@ -246,7 +253,37 @@ void read_xyz_in_line_3(
     group[m].number++;
   }
 
-  number_of_types++;
+  number_of_types = types.size();
+
+  bool is_nep = true;
+  for (int k = 0; k < types.size(); ++k) {
+    if (types[k] == 0) {
+      is_nep = false;
+    }
+  }
+  if (is_nep) {
+    // generate a file that will be read by the NEP potential
+    char file_atomic_number[200];
+    strcpy(file_atomic_number, input_dir);
+    strcat(file_atomic_number, "/atomic_number.in");
+    FILE* fid_atomic_number = my_fopen(file_atomic_number, "w");
+    for (int n = 0; n < N; ++n) {
+      fprintf(fid_atomic_number, "%d\n", cpu_type[n]);
+    }
+    fclose(fid_atomic_number);
+
+    // to be consistent with other potentials, transform atomic numbers to types 0, 1, 2, ...
+    for (int n = 0; n < N; ++n) {
+      int index = 0;
+      for (int k = 0; k < types.size(); ++k) {
+        if (cpu_type[n] == types[k]) {
+          index = k;
+          break;
+        }
+      }
+      cpu_type[n] = index;
+    }
+  }
 }
 
 void find_type_size(
@@ -299,7 +336,7 @@ void initialize_position(
   read_xyz_in_line_2(fid_xyz, box);
 
   read_xyz_in_line_3(
-    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom.cpu_type, atom.cpu_mass,
+    input_dir, fid_xyz, N, has_velocity_in_xyz, number_of_types, atom.cpu_type, atom.cpu_mass,
     atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, group);
 
   fclose(fid_xyz);

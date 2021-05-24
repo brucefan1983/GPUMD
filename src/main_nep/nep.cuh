@@ -23,24 +23,23 @@ struct NEP2_Data {
   GPU_Vector<float> f12x;        // partial forces
   GPU_Vector<float> f12y;        // partial forces
   GPU_Vector<float> f12z;        // partial forces
-  GPU_Vector<float> x12;         // x2-x1
-  GPU_Vector<float> y12;         // y2-y1
-  GPU_Vector<float> z12;         // z2-z1
-  GPU_Vector<float> d12;         // distance between atoms 1 and 2
-  GPU_Vector<float> d12inv;      // inverse of d12
-  GPU_Vector<float> fc12;        // cutoff function between atoms 1 and 2
-  GPU_Vector<float> fcp12;       // derivative of fc12 with respect to d12
   GPU_Vector<float> descriptors; // descriptors
+  GPU_Vector<float> Fp;          // gradient of descriptors
+  GPU_Vector<int> NN;
+  GPU_Vector<int> NL;
 };
 
 class NEP2 : public Potential
 {
 public:
   struct ParaMB {
-    float rc = 0.0f;    // cutoff
-    float rcinv = 0.0f; // inverse of the cutoff
-    int n_max = 0;      // n = 0, 1, 2, ..., n_max
-    int L_max = 0;      // l = 0, 1, 2, ..., L_max
+    float rc_radial = 0.0f;     // radial cutoff
+    float rc_angular = 0.0f;    // angular cutoff
+    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
+    float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
+    int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
+    int L_max = 0;              // l = 1, 2, ..., L_max
   };
 
   struct ANN {
