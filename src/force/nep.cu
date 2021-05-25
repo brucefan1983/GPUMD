@@ -47,7 +47,7 @@ static void read_atomic_number(char* input_dir, GPU_Vector<float>& atomic_number
     }
   }
   for (int n = 0; n < atomic_number.size(); ++n) {
-    atomic_number_cpu[n] /= max_atomic_number;
+    atomic_number_cpu[n] = sqrt(atomic_number_cpu[n] / max_atomic_number);
   }
 
   atomic_number.copy_from_host(atomic_number_cpu.data());

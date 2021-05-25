@@ -142,9 +142,8 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
 
   fclose(fid);
 
-  // normalize the atomic number by the largest one
   for (int n = 0; n < N; ++n) {
-    atomic_number[n] /= atomic_number_max;
+    atomic_number[n] = sqrt(atomic_number[n] / atomic_number_max);
   }
   num_types = types.size();
 
