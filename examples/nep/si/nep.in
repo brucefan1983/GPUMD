@@ -1,6 +1,6 @@
 cutoff               5 3
 n_max                6 4
 l_max                4
-ANN                  20 0
+number_of_neurons    20
 population_size      20
 maximum_generation   10000
