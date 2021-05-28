@@ -506,10 +506,10 @@ static __global__ void find_force_radial(
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
-    float Fp[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim; ++d) {
-      Fp[d] = g_Fp[n1 + d * N];
-    }
+    // float Fp[MAX_DIM] = {0.0f};
+    // for (int d = 0; d < annmb.dim; ++d) {
+    // Fp[d] = g_Fp[n1 + d * N];
+    //}
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
@@ -526,7 +526,7 @@ static __global__ void find_force_radial(
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float tmp12 = Fp[n] * fnp12[n] * atomic_number_n2 * d12inv;
+        float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * atomic_number_n2 * d12inv;
         float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * atomic_number_n1 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
