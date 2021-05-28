@@ -372,15 +372,16 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
 
   // build the angular neighbor list
   find_neighbor_angular<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
-    paramb, dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    dataset.h.data(), nep_data.NN.data(), nep_data.NL.data());
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
+    dataset.NL_radial.data(), paramb, dataset.r.data(), dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.NN.data(), nep_data.NL.data());
 
   // use radial neighbor list
   find_descriptors_radial<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN.data(), dataset.NL.data(),
-    paramb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
-    dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.descriptors.data());
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
+    dataset.NL_radial.data(), paramb, dataset.atomic_number.data(), dataset.r.data(),
+    dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
+    nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
   // use angular neighbor list
@@ -772,7 +773,7 @@ void NEP2::find_force(
   // use radial neighbor list
   find_partial_force_radial<<<configuration_end - configuration_start, dataset.max_Na>>>(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
-    dataset.NN.data(), dataset.NL.data(), paramb, annmb, dataset.atomic_number.data(),
+    dataset.NN_radial.data(), dataset.NL_radial.data(), paramb, annmb, dataset.atomic_number.data(),
     dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
     dataset.h.data(), nep_data.Fp.data(), nep_data.f12x.data(), nep_data.f12y.data(),
     nep_data.f12z.data());
@@ -781,7 +782,7 @@ void NEP2::find_force(
   // use radial neighbor list
   find_force_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     true, dataset.N, dataset.Na.data() + configuration_start,
-    dataset.Na_sum.data() + configuration_start, dataset.NN.data(), dataset.NL.data(),
+    dataset.Na_sum.data() + configuration_start, dataset.NN_radial.data(), dataset.NL_radial.data(),
     nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.r.data(),
     dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
     dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,

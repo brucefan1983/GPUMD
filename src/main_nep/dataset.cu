@@ -422,24 +422,35 @@ static __global__ void gpu_find_neighbor(
 
 void Dataset::find_neighbor(Parameters& para)
 {
-  NN.resize(N, Memory_Type::managed);
-  NL.resize(N * max_Na, Memory_Type::managed);
+  NN_radial.resize(N, Memory_Type::managed);
+  GPU_Vector<int> NL_raidal_tmp(N * max_Na);
   float rc2 = para.rc_radial * para.rc_radial;
+
+  // first run to check the neighbor list size
   gpu_find_neighbor<<<Nc, max_Na>>>(
-    N, Na.data(), Na_sum.data(), rc2, h.data(), NN.data(), NL.data(), r.data(), r.data() + N,
-    r.data() + N * 2);
+    N, Na.data(), Na_sum.data(), rc2, h.data(), NN_radial.data(), NL_raidal_tmp.data(), r.data(),
+    r.data() + N, r.data() + N * 2);
   CUDA_CHECK_KERNEL
 
   CHECK(cudaDeviceSynchronize());
   int min_NN = 10000, max_NN = -1;
   for (int n = 0; n < N; ++n) {
-    if (NN[n] < min_NN) {
-      min_NN = NN[n];
+    if (NN_radial[n] < min_NN) {
+      min_NN = NN_radial[n];
     }
-    if (NN[n] > max_NN) {
-      max_NN = NN[n];
+    if (NN_radial[n] > max_NN) {
+      max_NN = NN_radial[n];
     }
   }
   printf("Minimum number of neighbors for one atom = %d.\n", min_NN);
   printf("Maximum number of neighbors for one atom = %d.\n", max_NN);
+
+  // allocate the minimal amount of memory
+  NL_radial.resize(N * max_NN);
+
+  // second run to store the data
+  gpu_find_neighbor<<<Nc, max_Na>>>(
+    N, Na.data(), Na_sum.data(), rc2, h.data(), NN_radial.data(), NL_radial.data(), r.data(),
+    r.data() + N, r.data() + N * 2);
+  CUDA_CHECK_KERNEL
 }

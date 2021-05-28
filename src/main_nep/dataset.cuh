@@ -39,8 +39,10 @@ public:
   GPU_Vector<float> force_ref;     // reference force
   std::vector<float> error_cpu;    // error in energy, virial, or force
   GPU_Vector<float> error_gpu;     // error in energy, virial, or force
-  GPU_Vector<int> NN;              // neighbor number
-  GPU_Vector<int> NL;              // neighbor list
+  GPU_Vector<int> NN_radial;       // neighbor number
+  GPU_Vector<int> NL_radial;       // neighbor list
+  GPU_Vector<int> NN_angular;
+  GPU_Vector<int> NL_angular;
 
   // functions related to initialization
   void read_Nc(FILE*, Parameters& para);
