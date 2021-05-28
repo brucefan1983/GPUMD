@@ -15,7 +15,7 @@
 
 /*----------------------------------------------------------------------------80
 The neuroevolution potential (NEP)
-Ref: Zheyong Fan et al., in preparison.
+Ref: Zheyong Fan et al., in preparation.
 ------------------------------------------------------------------------------*/
 
 #include "nep.cuh"
