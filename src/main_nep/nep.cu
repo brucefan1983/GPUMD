@@ -323,9 +323,9 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
-  nep_data.f12x.resize(dataset.N * dataset.max_NN_radial);
-  nep_data.f12y.resize(dataset.N * dataset.max_NN_radial);
-  nep_data.f12z.resize(dataset.N * dataset.max_NN_radial);
+  nep_data.f12x.resize(dataset.N * dataset.max_NN_angular);
+  nep_data.f12y.resize(dataset.N * dataset.max_NN_angular);
+  nep_data.f12z.resize(dataset.N * dataset.max_NN_angular);
   nep_data.descriptors.resize(dataset.N * annmb.dim);
   nep_data.Fp.resize(dataset.N * annmb.dim);
 
@@ -506,10 +506,6 @@ static __global__ void find_force_radial(
     float x1 = g_x[n1];
     float y1 = g_y[n1];
     float z1 = g_z[n1];
-    // float Fp[MAX_DIM] = {0.0f};
-    // for (int d = 0; d < annmb.dim; ++d) {
-    // Fp[d] = g_Fp[n1 + d * N];
-    //}
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
