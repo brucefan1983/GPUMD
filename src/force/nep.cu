@@ -342,7 +342,7 @@ static __global__ void find_neighbor_angular(
   }
 }
 
-static __global__ void find_partial_force_radial(
+static __global__ void find_descriptor(
   NEP2::ParaMB paramb,
   NEP2::ANN annmb,
   const int N,
@@ -358,10 +358,7 @@ static __global__ void find_partial_force_radial(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_pe,
-  float* g_Fp,
-  double* g_f12x,
-  double* g_f12y,
-  double* g_f12z)
+  float* g_Fp)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -445,11 +442,49 @@ static __global__ void find_partial_force_radial(
       Fp[d] *= paramb.q_scaler[d];
       g_Fp[d * N + n1] = Fp[d];
     }
+  }
+}
 
-    // get partial force for radial descriptors
+static __global__ void find_force_radial(
+  NEP2::ParaMB paramb,
+  NEP2::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const float* __restrict__ g_atomic_number,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  const float* __restrict__ g_Fp,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    float atomic_number_n1 = g_atomic_number[n1];
+    float s_fx = 0.0f;
+    float s_fy = 0.0f;
+    float s_fz = 0.0f;
+    float s_sxx = 0.0f;
+    float s_sxy = 0.0f;
+    float s_sxz = 0.0f;
+    float s_syx = 0.0f;
+    float s_syy = 0.0f;
+    float s_syz = 0.0f;
+    float s_szx = 0.0f;
+    float s_szy = 0.0f;
+    float s_szz = 0.0f;
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int index = i1 * N + n1;
       int n2 = g_NL[n1 + N * i1];
+      float atomic_number_n2 = g_atomic_number[n2];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
@@ -459,22 +494,48 @@ static __global__ void find_partial_force_radial(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      fc12 *= g_atomic_number[n2];
-      fcp12 *= g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
       float f12[3] = {0.0f};
+      float f21[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float tmp = Fp[n] * fnp12[n] * d12inv;
+        float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * atomic_number_n2 * d12inv;
+        float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * atomic_number_n1 * d12inv;
         for (int d = 0; d < 3; ++d) {
-          f12[d] += tmp * r12[d];
+          f12[d] += tmp12 * r12[d];
+          f21[d] -= tmp21 * r12[d];
         }
       }
-      g_f12x[index] = f12[0];
-      g_f12y[index] = f12[1];
-      g_f12z[index] = f12[2];
+      s_fx += f12[0] - f21[0];
+      s_fy += f12[1] - f21[1];
+      s_fz += f12[2] - f21[2];
+      s_sxx += r12[0] * f12[0];
+      s_sxy += r12[0] * f12[1];
+      s_sxz += r12[0] * f12[2];
+      s_syx += r12[1] * f12[0];
+      s_syy += r12[1] * f12[1];
+      s_syz += r12[1] * f12[2];
+      s_szx += r12[2] * f12[0];
+      s_szy += r12[2] * f12[1];
+      s_szz += r12[2] * f12[2];
     }
+    g_fx[n1] += s_fx;
+    g_fy[n1] += s_fy;
+    g_fz[n1] += s_fz;
+    // save virial
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    g_virial[n1 + 0 * N] += s_sxx;
+    g_virial[n1 + 1 * N] += s_syy;
+    g_virial[n1 + 2 * N] += s_szz;
+    g_virial[n1 + 3 * N] += s_sxy;
+    g_virial[n1 + 4 * N] += s_sxz;
+    g_virial[n1 + 5 * N] += s_syz;
+    g_virial[n1 + 6 * N] += s_syx;
+    g_virial[n1 + 7 * N] += s_szx;
+    g_virial[n1 + 8 * N] += s_szy;
   }
 }
 
@@ -579,19 +640,20 @@ void NEP2::compute(
     nep_data.NN.data(), nep_data.NL.data());
   CUDA_CHECK_KERNEL
 
-  // full descriptor and radial force
-  find_partial_force_radial<<<grid_size, BLOCK_SIZE>>>(
+  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
     nep_data.NN.data(), nep_data.NL.data(), nep_data.atomic_number.data(), position_per_atom.data(),
     position_per_atom.data() + N, position_per_atom.data() + N * 2, potential_per_atom.data(),
-    nep_data.Fp.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
-  CUDA_CHECK_KERNEL
-  find_properties_many_body(
-    box, neighbor.NN_local.data(), neighbor.NL_local.data(), nep_data.f12x.data(),
-    nep_data.f12y.data(), nep_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
+    nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 
-  // angular force
+  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
+    nep_data.atomic_number.data(), position_per_atom.data(), position_per_atom.data() + N,
+    position_per_atom.data() + N * 2, nep_data.Fp.data(), force_per_atom.data(),
+    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
+  CUDA_CHECK_KERNEL
+
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
     paramb, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), nep_data.atomic_number.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
