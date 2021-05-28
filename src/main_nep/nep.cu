@@ -468,7 +468,7 @@ static __global__ void apply_ann(
   }
 }
 
-static __global__ void find_partial_force_radial(
+static __global__ void find_force_radial(
   const int N,
   const int* Na,
   const int* Na_sum,
@@ -513,24 +513,21 @@ static __global__ void find_partial_force_radial(
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
+      float atomic_number_n2 = g_atomic_number[n2];
       float r12[3] = {g_x[n2] - x1, g_y[n2] - y1, g_z[n2] - z1};
       dev_apply_mic(h, r12[0], r12[1], r12[2]);
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      float atomic_number_n2 = g_atomic_number[n2];
-      float atomic_number_n1_over_n2 = atomic_number_n1 / atomic_number_n2;
-      fc12 *= atomic_number_n2;
-      fcp12 *= atomic_number_n2;
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float tmp12 = Fp[n] * fnp12[n] * d12inv;
-        float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * d12inv * atomic_number_n1_over_n2;
+        float tmp12 = Fp[n] * fnp12[n] * atomic_number_n2 * d12inv;
+        float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * atomic_number_n1 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
           f21[d] -= tmp21 * r12[d];
@@ -558,7 +555,7 @@ static __global__ void find_partial_force_radial(
   }
 }
 
-static __global__ void find_force_angular(
+static __global__ void find_partial_force_angular(
   const int N,
   const int* Na,
   const int* Na_sum,
