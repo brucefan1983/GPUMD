@@ -485,7 +485,8 @@ void Dataset::find_neighbor(Parameters& para)
   CUDA_CHECK_KERNEL
 
   CHECK(cudaDeviceSynchronize());
-  int min_NN_radial = 10000, max_NN_radial = -1;
+  int min_NN_radial = 10000;
+  max_NN_radial = -1;
   for (int n = 0; n < N; ++n) {
     if (NN_radial[n] < min_NN_radial) {
       min_NN_radial = NN_radial[n];
@@ -494,7 +495,8 @@ void Dataset::find_neighbor(Parameters& para)
       max_NN_radial = NN_radial[n];
     }
   }
-  int min_NN_angular = 10000, max_NN_angular = -1;
+  int min_NN_angular = 10000;
+  max_NN_angular = -1;
   for (int n = 0; n < N; ++n) {
     if (NN_angular[n] < min_NN_angular) {
       min_NN_angular = NN_angular[n];

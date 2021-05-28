@@ -323,9 +323,9 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
-  nep_data.f12x.resize(dataset.N * dataset.max_Na);
-  nep_data.f12y.resize(dataset.N * dataset.max_Na);
-  nep_data.f12z.resize(dataset.N * dataset.max_Na);
+  nep_data.f12x.resize(dataset.N * dataset.max_NN_radial);
+  nep_data.f12y.resize(dataset.N * dataset.max_NN_radial);
+  nep_data.f12z.resize(dataset.N * dataset.max_NN_radial);
   nep_data.descriptors.resize(dataset.N * annmb.dim);
   nep_data.Fp.resize(dataset.N * annmb.dim);
 
