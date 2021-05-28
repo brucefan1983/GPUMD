@@ -383,16 +383,19 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
 }
 
 static __global__ void gpu_find_neighbor(
-  int N,
-  int* Na,
-  int* Na_sum,
-  float cutoff_square,
+  const int N,
+  const int* Na,
+  const int* Na_sum,
+  const float rc2_radial,
+  const float rc2_angular,
   const float* __restrict__ box,
-  int* NN,
-  int* NL,
-  float* x,
-  float* y,
-  float* z)
+  const float* x,
+  const float* y,
+  const float* z,
+  int* NN_radial,
+  int* NL_radial,
+  int* NN_angular,
+  int* NL_angular)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -402,7 +405,8 @@ static __global__ void gpu_find_neighbor(
     float x1 = x[n1];
     float y1 = y[n1];
     float z1 = z[n1];
-    int count = 0;
+    int count_radial = 0;
+    int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
       if (n2 == n1) {
         continue;
@@ -412,45 +416,68 @@ static __global__ void gpu_find_neighbor(
       float z12 = z[n2] - z1;
       dev_apply_mic(h, x12, y12, z12);
       float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-      if (distance_square < cutoff_square) {
-        NL[count++ * N + n1] = n2;
+      if (distance_square < rc2_radial) {
+        NL_radial[count_radial++ * N + n1] = n2;
+      }
+      if (distance_square < rc2_angular) {
+        NL_angular[count_angular++ * N + n1] = n2;
       }
     }
-    NN[n1] = count;
+    NN_radial[n1] = count_radial;
+    NN_angular[n1] = count_angular;
   }
 }
 
 void Dataset::find_neighbor(Parameters& para)
 {
   NN_radial.resize(N, Memory_Type::managed);
-  GPU_Vector<int> NL_raidal_tmp(N * max_Na);
-  float rc2 = para.rc_radial * para.rc_radial;
+  NN_angular.resize(N, Memory_Type::managed);
+  GPU_Vector<int> NL_radial_tmp(N * max_Na);
+  GPU_Vector<int> NL_angular_tmp(N * max_Na);
+  float rc2_radial = para.rc_radial * para.rc_radial;
+  float rc2_angular = para.rc_angular * para.rc_angular;
 
   // first run to check the neighbor list size
   gpu_find_neighbor<<<Nc, max_Na>>>(
-    N, Na.data(), Na_sum.data(), rc2, h.data(), NN_radial.data(), NL_raidal_tmp.data(), r.data(),
-    r.data() + N, r.data() + N * 2);
+    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
+    r.data() + N * 2, NN_radial.data(), NL_radial_tmp.data(), NN_angular.data(),
+    NL_angular_tmp.data());
   CUDA_CHECK_KERNEL
 
   CHECK(cudaDeviceSynchronize());
-  int min_NN = 10000, max_NN = -1;
+  int min_NN_radial = 10000, max_NN_radial = -1;
   for (int n = 0; n < N; ++n) {
-    if (NN_radial[n] < min_NN) {
-      min_NN = NN_radial[n];
+    if (NN_radial[n] < min_NN_radial) {
+      min_NN_radial = NN_radial[n];
     }
-    if (NN_radial[n] > max_NN) {
-      max_NN = NN_radial[n];
+    if (NN_radial[n] > max_NN_radial) {
+      max_NN_radial = NN_radial[n];
     }
   }
-  printf("Minimum number of neighbors for one atom = %d.\n", min_NN);
-  printf("Maximum number of neighbors for one atom = %d.\n", max_NN);
+  int min_NN_angular = 10000, max_NN_angular = -1;
+  for (int n = 0; n < N; ++n) {
+    if (NN_angular[n] < min_NN_angular) {
+      min_NN_angular = NN_angular[n];
+    }
+    if (NN_angular[n] > max_NN_angular) {
+      max_NN_angular = NN_angular[n];
+    }
+  }
+
+  printf("Radial descriptor:\n");
+  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
+  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
+  printf("Angular descriptor:\n");
+  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
+  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
 
   // allocate the minimal amount of memory
-  NL_radial.resize(N * max_NN);
+  NL_radial.resize(N * max_NN_radial);
+  NL_angular.resize(N * max_NN_angular);
 
   // second run to store the data
   gpu_find_neighbor<<<Nc, max_Na>>>(
-    N, Na.data(), Na_sum.data(), rc2, h.data(), NN_radial.data(), NL_radial.data(), r.data(),
-    r.data() + N, r.data() + N * 2);
+    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
+    r.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data());
   CUDA_CHECK_KERNEL
 }

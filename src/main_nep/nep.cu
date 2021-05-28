@@ -308,45 +308,6 @@ void __global__ normalize_descriptors(
   }
 }
 
-static __global__ void find_neighbor_angular(
-  const int N,
-  const int* Na,
-  const int* Na_sum,
-  const int* g_NN_radial,
-  const int* g_NL_radial,
-  NEP2::ParaMB paramb,
-  const float* __restrict__ g_x,
-  const float* __restrict__ g_y,
-  const float* __restrict__ g_z,
-  const float* __restrict__ g_box,
-  int* g_NN_angular,
-  int* g_NL_angular)
-{
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
-    const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
-    int neighbor_number = g_NN_radial[n1];
-    float x1 = g_x[n1];
-    float y1 = g_y[n1];
-    float z1 = g_z[n1];
-    int count = 0;
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int n2 = g_NL_radial[n1 + N * i1];
-      float x12 = g_x[n2] - x1;
-      float y12 = g_y[n2] - y1;
-      float z12 = g_z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
-      float d12sq = x12 * x12 + y12 * y12 + z12 * z12;
-      if (d12sq < paramb.rc_angular * paramb.rc_angular) {
-        g_NL_angular[count++ * N + n1] = n2;
-      }
-    }
-    g_NN_angular[n1] = count;
-  }
-}
-
 NEP2::NEP2(Parameters& para, Dataset& dataset)
 {
   paramb.rc_radial = para.rc_radial;
@@ -365,16 +326,8 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   nep_data.f12x.resize(dataset.N * dataset.max_Na);
   nep_data.f12y.resize(dataset.N * dataset.max_Na);
   nep_data.f12z.resize(dataset.N * dataset.max_Na);
-  nep_data.NN.resize(dataset.N);
-  nep_data.NL.resize(dataset.N * dataset.max_Na);
   nep_data.descriptors.resize(dataset.N * annmb.dim);
   nep_data.Fp.resize(dataset.N * annmb.dim);
-
-  // build the angular neighbor list
-  find_neighbor_angular<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
-    dataset.NL_radial.data(), paramb, dataset.r.data(), dataset.r.data() + dataset.N,
-    dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.NN.data(), nep_data.NL.data());
 
   // use radial neighbor list
   find_descriptors_radial<<<dataset.Nc, dataset.max_Na>>>(
@@ -386,9 +339,10 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
 
   // use angular neighbor list
   find_descriptors_angular<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), nep_data.NN.data(), nep_data.NL.data(),
-    paramb, dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
-    dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.descriptors.data());
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
+    dataset.NL_angular.data(), paramb, dataset.atomic_number.data(), dataset.r.data(),
+    dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
+    nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
   para.q_scaler.resize(annmb.dim, Memory_Type::managed);
@@ -792,19 +746,19 @@ void NEP2::find_force(
   // use angular neighbor list
   find_partial_force_angular<<<configuration_end - configuration_start, dataset.max_Na>>>(
     dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
-    nep_data.NN.data(), nep_data.NL.data(), paramb, annmb, dataset.atomic_number.data(),
-    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
-    dataset.h.data(), nep_data.Fp.data(), nep_data.f12x.data(), nep_data.f12y.data(),
-    nep_data.f12z.data());
+    dataset.NN_angular.data(), dataset.NL_angular.data(), paramb, annmb,
+    dataset.atomic_number.data(), dataset.r.data(), dataset.r.data() + dataset.N,
+    dataset.r.data() + dataset.N * 2, dataset.h.data(), nep_data.Fp.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // use angular neighbor list
   find_force_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
     false, dataset.N, dataset.Na.data() + configuration_start,
-    dataset.Na_sum.data() + configuration_start, nep_data.NN.data(), nep_data.NL.data(),
-    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(), dataset.r.data(),
-    dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2, dataset.h.data(),
-    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
-    dataset.virial.data());
+    dataset.Na_sum.data() + configuration_start, dataset.NN_angular.data(),
+    dataset.NL_angular.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(),
+    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
+    dataset.h.data(), dataset.force.data(), dataset.force.data() + dataset.N,
+    dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 }
