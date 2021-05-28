@@ -69,30 +69,16 @@ Parameters::Parameters(char* input_dir)
 
   int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
 
-  count = fscanf(fid, "%s%d%d", name, &num_neurons1, &num_neurons2);
-  PRINT_SCANF_ERROR(count, 3, "reading error for ANN.");
+  count = fscanf(fid, "%s%d", name, &num_neurons1);
+  PRINT_SCANF_ERROR(count, 2, "reading error for ANN.");
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("num_neurons1 should >= 1.");
   } else if (num_neurons1 > 100) {
     PRINT_INPUT_ERROR("num_neurons1 should <= 100.");
   }
-  if (num_neurons2 < 0) {
-    PRINT_INPUT_ERROR("num_neurons2 should >= 0.");
-  } else if (num_neurons2 > 50) {
-    PRINT_INPUT_ERROR("num_neurons2 should <= 50.");
-  }
+  num_neurons2 = 0; // use a single hidden layer currently
 
-  if (num_neurons2 > 0) {
-    if (num_neurons1 > 50) {
-      PRINT_INPUT_ERROR("num_neurons1 should <= 50 when num_neurons1 > 0.");
-    }
-  }
-
-  if (num_neurons2 == 0) {
-    printf("ANN = %d-%d-1.\n", dim, num_neurons1);
-  } else {
-    printf("ANN = %d-%d-%d-1.\n", dim, num_neurons1, num_neurons2);
-  }
+  printf("ANN = %d-%d-1.\n", dim, num_neurons1);
 
   number_of_variables = (dim + 1) * num_neurons1;
   number_of_variables += (num_neurons1 + 1) * num_neurons2;
