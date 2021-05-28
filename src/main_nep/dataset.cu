@@ -504,10 +504,10 @@ void Dataset::find_neighbor(Parameters& para)
     }
   }
 
-  printf("Radial descriptor:\n");
+  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("Angular descriptor:\n");
+  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular);
   printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
   printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
 
