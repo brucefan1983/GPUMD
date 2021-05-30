@@ -362,6 +362,7 @@ static __global__ void find_descriptor(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
+    float atomic_number_n1 = g_atomic_number[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -378,7 +379,7 @@ static __global__ void find_descriptor(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      fc12 *= g_atomic_number[n2];
+      fc12 *= atomic_number_n1 * g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
@@ -397,7 +398,7 @@ static __global__ void find_descriptor(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
-      fc12 *= g_atomic_number[n2];
+      fc12 *= atomic_number_n1 * g_atomic_number[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fn12);
       for (int i2 = 0; i2 < g_NN_angular[n1]; ++i2) {
@@ -410,7 +411,7 @@ static __global__ void find_descriptor(
         float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
         float fc13;
         find_fc(paramb.rc_angular, paramb.rcinv_angular, d13, fc13);
-        fc13 *= g_atomic_number[n3];
+        fc13 *= atomic_number_n1 * g_atomic_number[n3];
         float cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
         float poly_cos[MAX_NUM_L];
         find_poly_cos(paramb.L_max, cos123, poly_cos);
@@ -484,7 +485,7 @@ static __global__ void find_force_radial(
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      float atomic_number_n2 = g_atomic_number[n2];
+      float atomic_number_n12 = atomic_number_n1 * g_atomic_number[n2];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
@@ -500,8 +501,8 @@ static __global__ void find_force_radial(
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * atomic_number_n2 * d12inv;
-        float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * atomic_number_n1 * d12inv;
+        float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * atomic_number_n12 * d12inv;
+        float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * atomic_number_n12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
           f21[d] -= tmp21 * r12[d];
@@ -558,6 +559,7 @@ static __global__ void find_partial_force_angular(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
+    float atomic_number_n1 = g_atomic_number[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -573,8 +575,9 @@ static __global__ void find_partial_force_angular(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
-      fc12 *= g_atomic_number[n2];
-      fcp12 *= g_atomic_number[n2];
+      float atomic_number_n12 = atomic_number_n1 * g_atomic_number[n2];
+      fc12 *= atomic_number_n12;
+      fcp12 *= atomic_number_n12;
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
@@ -590,7 +593,7 @@ static __global__ void find_partial_force_angular(
         float d13inv = 1.0f / d13;
         float fc13;
         find_fc(paramb.rc_angular, paramb.rcinv_angular, d13, fc13);
-        fc13 *= g_atomic_number[n3];
+        fc13 *= atomic_number_n1 * g_atomic_number[n3];
         float cos123 = (r12[0] * x13 + r12[1] * y13 + r12[2] * z13) / (d12 * d13);
         float fn13[MAX_NUM_N];
         find_fn(paramb.n_max_angular, paramb.rcinv_angular, d13, fc13, fn13);
