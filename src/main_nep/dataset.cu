@@ -50,6 +50,19 @@ static void transpose(const int n, const float* h_tmp, float* h)
   h[8 + 18 * n] = h_tmp[8];
 }
 
+void update_type(int atomic_number_tmp, std::vector<int>& types)
+{
+  bool find_a_new_type = true;
+  for (int k = 0; k < types.size(); ++k) {
+    if (types[k] == atomic_number_tmp) {
+      find_a_new_type = false;
+    }
+  }
+  if (find_a_new_type) {
+    types.emplace_back(atomic_number_tmp);
+  }
+}
+
 void Dataset::read_train_in(char* input_dir, Parameters& para)
 {
   print_line_1();
@@ -126,16 +139,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
         if (atomic_number_tmp > atomic_number_max) {
           atomic_number_max = atomic_number_tmp;
         }
-
-        bool find_a_new_type = true;
-        for (int k = 0; k < types.size(); ++k) {
-          if (types[k] == atomic_number_tmp) {
-            find_a_new_type = false;
-          }
-        }
-        if (find_a_new_type) {
-          types.emplace_back(atomic_number_tmp);
-        }
+        update_type(atomic_number_tmp, types);
       }
     }
   }
