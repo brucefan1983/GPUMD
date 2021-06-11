@@ -47,7 +47,7 @@ public:
   GPU_Vector<int> NL_angular;      // angular neighbor list
 
   // functions related to initialization
-  void read_Nc(FILE*, Parameters& para);
+  void read_Nc(FILE*);
   void read_Na(FILE*);
   void read_train_in(char*, Parameters& para);
   float get_rmse_force(const int, const int);

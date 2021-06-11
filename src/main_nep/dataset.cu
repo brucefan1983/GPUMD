@@ -75,7 +75,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   FILE* fid = my_fopen(file_train, "r");
 
   // get Nc
-  read_Nc(fid, para);
+  read_Nc(fid);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);
   virial_ref.resize(Nc * 6, Memory_Type::managed);
@@ -154,7 +154,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   find_neighbor(para);
 }
 
-void Dataset::read_Nc(FILE* fid, Parameters& para)
+void Dataset::read_Nc(FILE* fid)
 {
   int count = fscanf(fid, "%d", &Nc);
   PRINT_SCANF_ERROR(count, 1, "reading error for xyz.in.");
