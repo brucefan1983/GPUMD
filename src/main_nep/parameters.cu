@@ -87,6 +87,16 @@ Parameters::Parameters(char* input_dir)
 
   batch_size = 100000; // use a single batch currently
 
+  count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);
+  PRINT_SCANF_ERROR(count, 3, "reading error for regularization.");
+  printf("regularization = %f, %f.\n", L1_reg_para, L2_reg_para);
+  if (L1_reg_para < 0.0f) {
+    PRINT_INPUT_ERROR("L1 regularization >= 0.");
+  }
+  if (L2_reg_para < 0.0f) {
+    PRINT_INPUT_ERROR("L2 regularization >= 0.");
+  }
+
   count = fscanf(fid, "%s%d", name, &population_size);
   PRINT_SCANF_ERROR(count, 2, "reading error for population_size.");
   printf("population_size = %d.\n", population_size);
