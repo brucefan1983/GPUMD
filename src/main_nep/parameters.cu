@@ -89,7 +89,7 @@ Parameters::Parameters(char* input_dir)
 
   count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);
   PRINT_SCANF_ERROR(count, 3, "reading error for regularization.");
-  printf("regularization = %f, %f.\n", L1_reg_para, L2_reg_para);
+  printf("regularization = %g, %g.\n", L1_reg_para, L2_reg_para);
   if (L1_reg_para < 0.0f) {
     PRINT_INPUT_ERROR("L1 regularization >= 0.");
   }
