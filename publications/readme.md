@@ -14,7 +14,7 @@ arXiv:2003.02384 [cond-mat.mes-hall]
 
 * Hongying Wang,   Yajuan Cheng,   Zheyong Fan,   Yangyu Guo,   Zhongwei Zhang,   Marc Bescond,   M. Nomura,   Sebastian Volz,   Tapio Ala-Nissila  and  Shiyun Xiong,
 [Anomalous thermal conductivity enhancement in low dimensional resonant nanostructures due to imperfections](https://doi.org/10.1039/D1NR01679B)
-Accepted to Nanoscale.
+Nanoscale **13**, 10010 (2021),
 
 
 * Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
