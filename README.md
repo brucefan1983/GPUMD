@@ -62,7 +62,9 @@ https://www.freelists.org/list/gpumd
 
 [2] Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations. Phys. Rev. B **92**, 094301, (2015). https://doi.org/10.1103/PhysRevB.92.094301
 
-[3] Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop, Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations, arXiv:2102.03691 [cond-mat.mtrl-sci]. https://arxiv.org/abs/2102.03691
+[3] Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, Eric Pop,
+[Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://doi.org/10.1103/PhysRevB.103.205421),
+Phys. Rev. B **103**, 205421 (2021).
 
 ### Optional citation for the in-out decomposition for 2D materials:
 * You can cite the following paper if you use `GPUMD` to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
