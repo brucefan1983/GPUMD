@@ -85,8 +85,6 @@ Parameters::Parameters(char* input_dir)
   number_of_variables += (num_neurons2 == 0 ? num_neurons1 : num_neurons2) + 1;
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
-  batch_size = 100000; // use a single batch currently
-
   count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);
   PRINT_SCANF_ERROR(count, 3, "reading error for regularization.");
   printf("regularization = %g, %g.\n", L1_reg_para, L2_reg_para);
@@ -95,6 +93,13 @@ Parameters::Parameters(char* input_dir)
   }
   if (L2_reg_para < 0.0f) {
     PRINT_INPUT_ERROR("L2 regularization >= 0.");
+  }
+
+  count = fscanf(fid, "%s%d", name, &batch_size);
+  PRINT_SCANF_ERROR(count, 2, "reading error for batch_size.");
+  printf("batch_size = %d.\n", batch_size);
+  if (batch_size < 1) {
+    PRINT_INPUT_ERROR("batch_size should >= 1.");
   }
 
   count = fscanf(fid, "%s%d", name, &population_size);
