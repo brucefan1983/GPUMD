@@ -427,6 +427,13 @@ static __global__ void find_descriptor(
     // nomalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = (q[d] - paramb.q_min[d]) * paramb.q_scaler[d];
+#ifdef CHECK_DESCRIPTOR
+      if (q[d] > 1.1f) {
+        printf("q[%d][%d]=%g\n", n1, d, q[d]);
+      } else if (q[d] < -0.1f) {
+        printf("q[%d][%d]=%g\n", n1, d, q[d]);
+      }
+#endif
     }
 
     // get energy and energy gradient
