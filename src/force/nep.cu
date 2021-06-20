@@ -36,7 +36,8 @@ static void read_atomic_number(char* input_dir, GPU_Vector<float>& atomic_number
   strcat(file_atomic_number, "/atomic_number.in");
   FILE* fid_atomic_number = my_fopen(file_atomic_number, "r");
   for (int n = 0; n < atomic_number.size(); ++n) {
-    fscanf(fid_atomic_number, "%f", &atomic_number_cpu[n]);
+    int count = fscanf(fid_atomic_number, "%f", &atomic_number_cpu[n]);
+    PRINT_SCANF_ERROR(count, 1, "reading error for atomic_number.in.");
   }
   fclose(fid_atomic_number);
 

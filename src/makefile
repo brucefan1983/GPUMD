@@ -17,7 +17,7 @@
 ###########################################################
 CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819" -DDEBUG
+CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819" -DDEBUG -DCHECK_DESCRIPTOR
 else # For linux
 CFLAGS = -std=c++11 -O3 -arch=sm_35 
 endif
