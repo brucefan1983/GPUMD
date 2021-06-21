@@ -114,10 +114,10 @@ Parameters::Parameters(char* input_dir)
   count = fscanf(fid, "%s%d", name, &maximum_generation);
   PRINT_SCANF_ERROR(count, 2, "reading error for maximum_generation.");
   printf("maximum_generation = %d.\n", maximum_generation);
-  if (maximum_generation < 100) {
-    PRINT_INPUT_ERROR("maximum_generation should >= 100.");
-  } else if (maximum_generation > 1000000) {
-    PRINT_INPUT_ERROR("maximum_generation should <= 1000000.");
+  if (maximum_generation < 0) {
+    PRINT_INPUT_ERROR("maximum_generation should >= 0.");
+  } else if (maximum_generation > 10000000) {
+    PRINT_INPUT_ERROR("maximum_generation should <= 10000000.");
   }
 
   fclose(fid);

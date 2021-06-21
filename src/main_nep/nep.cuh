@@ -53,7 +53,7 @@ public:
     const float* b2;      // bias for the output layer
   };
 
-  NEP2(Parameters& para, Dataset& dataset);
+  NEP2(char* input_dir, Parameters& para, Dataset& dataset);
   void find_force(
     Parameters& para,
     const int configuration_start,

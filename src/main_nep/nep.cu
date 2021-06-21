@@ -310,7 +310,7 @@ void __global__ normalize_descriptors(
   }
 }
 
-NEP2::NEP2(Parameters& para, Dataset& dataset)
+NEP2::NEP2(char* input_dir, Parameters& para, Dataset& dataset)
 {
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
@@ -347,6 +347,21 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
     nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
+  // output descriptors
+  char file_descriptors[200];
+  strcpy(file_descriptors, input_dir);
+  strcat(file_descriptors, "/descriptors.out");
+  FILE* fid = my_fopen(file_descriptors, "w");
+  std::vector<float> descriptors(dataset.N * annmb.dim);
+  nep_data.descriptors.copy_to_host(descriptors.data());
+  for (int n = 0; n < dataset.N; ++n) {
+    for (int d = 0; d < annmb.dim; ++d) {
+      fprintf(fid, "%g ", descriptors[d * dataset.N + n]);
+    }
+    fprintf(fid, "\n");
+  }
+  fclose(fid);
+
   para.q_scaler.resize(annmb.dim, Memory_Type::managed);
   para.q_min.resize(annmb.dim, Memory_Type::managed);
   find_max_min<<<annmb.dim, 1024>>>(
@@ -355,17 +370,6 @@ NEP2::NEP2(Parameters& para, Dataset& dataset)
   normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
     annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
-
-#if 0 // for testing:
-  std::vector<float> q(dataset.N * annmb.dim);
-  FILE* fid = my_fopen("q.txt", "w");
-  nep_data.descriptors.copy_to_host(q.data());
-  for (int n = 0; n < q.size(); ++n) {
-    fprintf(fid, "%g\n", q[n]);
-  }
-  fclose(fid);
-  exit(1);
-#endif
 }
 
 void NEP2::update_potential(const float* parameters, ANN& ann)
