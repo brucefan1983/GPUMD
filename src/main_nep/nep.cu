@@ -538,12 +538,12 @@ static __global__ void find_force_radial(
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
-      s_virial_xx += r12[0] * f12[0];
-      s_virial_yy += r12[1] * f12[1];
-      s_virial_zz += r12[2] * f12[2];
-      s_virial_xy += r12[0] * f12[1];
-      s_virial_yz += r12[1] * f12[2];
-      s_virial_zx += r12[2] * f12[0];
+      s_virial_xx += r12[0] * f21[0];
+      s_virial_yy += r12[1] * f21[1];
+      s_virial_zz += r12[2] * f21[2];
+      s_virial_xy += r12[0] * f21[1];
+      s_virial_yz += r12[1] * f21[2];
+      s_virial_zx += r12[2] * f21[0];
     }
     g_fx[n1] = s_fx;
     g_fy[n1] = s_fy;

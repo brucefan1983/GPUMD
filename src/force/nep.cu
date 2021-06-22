@@ -426,16 +426,24 @@ static __global__ void find_descriptor(
     }
 
     // nomalize descriptor
+#ifdef CHECK_DESCRIPTOR
+    float q_error = 0.0f;
+#endif
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = (q[d] - paramb.q_min[d]) * paramb.q_scaler[d];
 #ifdef CHECK_DESCRIPTOR
-      if (q[d] > 1.1f) {
-        printf("q[%d][%d]=%g\n", n1, d, q[d]);
-      } else if (q[d] < -0.1f) {
-        printf("q[%d][%d]=%g\n", n1, d, q[d]);
+      if (q[d] > 1.0f) {
+        q_error += q[d] - 1.0f;
+      } else if (q[d] < 0.0f) {
+        q_error -= q[d];
       }
 #endif
     }
+#ifdef CHECK_DESCRIPTOR
+    if (q_error > annmb.dim * 0.01f) {
+      printf("relative error q[%d] = %g% > 1%\n", n1, 100.0f * q_error / annmb.dim);
+    }
+#endif
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -519,15 +527,15 @@ static __global__ void find_force_radial(
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
-      s_sxx += r12[0] * f12[0];
-      s_sxy += r12[0] * f12[1];
-      s_sxz += r12[0] * f12[2];
-      s_syx += r12[1] * f12[0];
-      s_syy += r12[1] * f12[1];
-      s_syz += r12[1] * f12[2];
-      s_szx += r12[2] * f12[0];
-      s_szy += r12[2] * f12[1];
-      s_szz += r12[2] * f12[2];
+      s_sxx += r12[0] * f21[0];
+      s_sxy += r12[0] * f21[1];
+      s_sxz += r12[0] * f21[2];
+      s_syx += r12[1] * f21[0];
+      s_syy += r12[1] * f21[1];
+      s_syz += r12[1] * f21[2];
+      s_szx += r12[2] * f21[0];
+      s_szy += r12[2] * f21[1];
+      s_szz += r12[2] * f21[2];
     }
     g_fx[n1] += s_fx;
     g_fy[n1] += s_fy;
