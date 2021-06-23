@@ -49,14 +49,6 @@ void Dataset::read_Na(FILE* fid)
     if (structures[nc].num_atom > 1024) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
     }
-
-    structures[nc].atomic_number.resize(structures[nc].num_atom);
-    structures[nc].x.resize(structures[nc].num_atom);
-    structures[nc].y.resize(structures[nc].num_atom);
-    structures[nc].z.resize(structures[nc].num_atom);
-    structures[nc].fx.resize(structures[nc].num_atom);
-    structures[nc].fy.resize(structures[nc].num_atom);
-    structures[nc].fz.resize(structures[nc].num_atom);
   }
 }
 
@@ -152,7 +144,23 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
 
 void Dataset::read_force(FILE* fid, int nc)
 {
-  for (int na = 0; na < structures[nc].num_atom; ++na) {
+  int num_atom_original = structures[nc].num_atom;
+  structures[nc].num_atom *=
+    structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
+  if (structures[nc].num_atom > 1024) {
+    PRINT_INPUT_ERROR("Number of atoms for one configuration after replication should <=1024; "
+                      "consider using smaller cutoff.");
+  }
+
+  structures[nc].atomic_number.resize(structures[nc].num_atom);
+  structures[nc].x.resize(structures[nc].num_atom);
+  structures[nc].y.resize(structures[nc].num_atom);
+  structures[nc].z.resize(structures[nc].num_atom);
+  structures[nc].fx.resize(structures[nc].num_atom);
+  structures[nc].fy.resize(structures[nc].num_atom);
+  structures[nc].fz.resize(structures[nc].num_atom);
+
+  for (int na = 0; na < num_atom_original; ++na) {
     int count = fscanf(
       fid, "%d%f%f%f%f%f%f", &structures[nc].atomic_number[na], &structures[nc].x[na],
       &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
@@ -162,6 +170,8 @@ void Dataset::read_force(FILE* fid, int nc)
       PRINT_INPUT_ERROR("Atomic number should > 0.\n");
     }
   }
+
+  // replicate the structure here:
 }
 
 void Dataset::read_train_in(char* input_dir, Parameters& para)
