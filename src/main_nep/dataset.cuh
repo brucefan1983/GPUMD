@@ -62,17 +62,19 @@ public:
   };
   std::vector<Structure> structures;
 
-  // functions related to initialization
+  void construct(char*, Parameters& para);
+  float get_rmse_force(const int, const int);
+  float get_rmse_energy(const int, const int);
+  float get_rmse_virial(const int, const int);
+
+private:
   void read_Nc(FILE*);
   void read_Na(FILE*);
   void report_Na();
-  void read_train_in(char*, Parameters& para);
+  void read_train_in(char*);
   void read_box(FILE* fid, int nc);
   void read_energy_virial(FILE* fid, int nc);
   void read_force(FILE* fid, int nc);
   void calculate_types();
-  float get_rmse_force(const int, const int);
-  float get_rmse_energy(const int, const int);
-  float get_rmse_virial(const int, const int);
   void find_neighbor(Parameters& para);
 };

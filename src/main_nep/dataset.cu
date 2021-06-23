@@ -37,20 +37,7 @@ static void get_inverse(float* cpu_h)
   }
 }
 
-void update_type(int atomic_number_tmp, std::vector<int>& types)
-{
-  bool find_a_new_type = true;
-  for (int k = 0; k < types.size(); ++k) {
-    if (types[k] == atomic_number_tmp) {
-      find_a_new_type = false;
-    }
-  }
-  if (find_a_new_type) {
-    types.emplace_back(atomic_number_tmp);
-  }
-}
-
-void Dataset::read_train_in(char* input_dir, Parameters& para)
+void Dataset::read_train_in(char* input_dir)
 {
   print_line_1();
   printf("Started reading train.in.\n");
@@ -70,6 +57,11 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
     read_force(fid, n);
   }
   fclose(fid);
+}
+
+void Dataset::construct(char* input_dir, Parameters& para)
+{
+  read_train_in(input_dir);
 
   for (int nc = 0; nc < Nc; ++nc) {
     Na[nc] = structures[nc].num_atom;
@@ -116,7 +108,15 @@ void Dataset::calculate_types()
       if (atomic_number_tmp > atomic_number_max) {
         atomic_number_max = atomic_number_tmp;
       }
-      update_type(atomic_number_tmp, types);
+      bool find_a_new_type = true;
+      for (int k = 0; k < types.size(); ++k) {
+        if (types[k] == atomic_number_tmp) {
+          find_a_new_type = false;
+        }
+      }
+      if (find_a_new_type) {
+        types.emplace_back(atomic_number_tmp);
+      }
     }
   }
 
