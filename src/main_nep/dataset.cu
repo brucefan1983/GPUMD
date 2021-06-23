@@ -231,8 +231,13 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   fclose(fid);
 }
 
-void Dataset::report_Na()
+void Dataset::find_Na()
 {
+  for (int nc = 0; nc < Nc; ++nc) {
+    Na[nc] = structures[nc].num_atom;
+    has_virial[nc] = structures[nc].has_virial;
+  }
+
   N = 0;
   max_Na = 0;
   int num_virial_configurations = 0;
@@ -255,6 +260,34 @@ void Dataset::report_Na()
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
+}
+
+void Dataset::initialize_gpu_data()
+{
+  atomic_number.resize(N, Memory_Type::managed);
+  r.resize(N * 3, Memory_Type::managed);
+  force.resize(N * 3, 0.0f, Memory_Type::managed);
+  force_ref.resize(N * 3, Memory_Type::managed);
+  pe.resize(N, 0.0f, Memory_Type::managed);
+  virial.resize(N * 6, 0.0f, Memory_Type::managed);
+
+  for (int n = 0; n < Nc; ++n) {
+    pe_ref[n] = structures[n].energy;
+    for (int k = 0; k < 6; ++k) {
+      virial_ref[n] = structures[n].virial[k];
+    }
+    for (int k = 0; k < 18; ++k) {
+      h[k + n * 18] = structures[n].box[k];
+    }
+    for (int na = 0; na < structures[n].num_atom; ++na) {
+      r[Na_sum[n] + na] = structures[n].x[na];
+      r[Na_sum[n] + na + N] = structures[n].y[na];
+      r[Na_sum[n] + na + N * 2] = structures[n].z[na];
+      force_ref[Na_sum[n] + na] = structures[n].fx[na];
+      force_ref[Na_sum[n] + na + N] = structures[n].fy[na];
+      force_ref[Na_sum[n] + na + N * 2] = structures[n].fz[na];
+    }
+  }
 }
 
 void Dataset::calculate_types()
@@ -432,38 +465,8 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(char* input_dir, Parameters& para)
 {
   read_train_in(input_dir, para);
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    Na[nc] = structures[nc].num_atom;
-    has_virial[nc] = structures[nc].has_virial;
-  }
-  report_Na();
-
-  atomic_number.resize(N, Memory_Type::managed);
-  r.resize(N * 3, Memory_Type::managed);
-  force.resize(N * 3, 0.0f, Memory_Type::managed);
-  force_ref.resize(N * 3, Memory_Type::managed);
-  pe.resize(N, 0.0f, Memory_Type::managed);
-  virial.resize(N * 6, 0.0f, Memory_Type::managed);
-
-  for (int n = 0; n < Nc; ++n) {
-    pe_ref[n] = structures[n].energy;
-    for (int k = 0; k < 6; ++k) {
-      virial_ref[n] = structures[n].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      h[k + n * 18] = structures[n].box[k];
-    }
-    for (int na = 0; na < structures[n].num_atom; ++na) {
-      r[Na_sum[n] + na] = structures[n].x[na];
-      r[Na_sum[n] + na + N] = structures[n].y[na];
-      r[Na_sum[n] + na + N * 2] = structures[n].z[na];
-      force_ref[Na_sum[n] + na] = structures[n].fx[na];
-      force_ref[Na_sum[n] + na + N] = structures[n].fy[na];
-      force_ref[Na_sum[n] + na + N * 2] = structures[n].fz[na];
-    }
-  }
-
+  find_Na();
+  initialize_gpu_data();
   calculate_types();
   find_neighbor(para);
 }
