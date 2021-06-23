@@ -65,7 +65,6 @@ public:
   // functions related to initialization
   void read_Nc(FILE*);
   void read_Na(FILE*);
-  void copy_structures();
   void report_Na();
   void read_train_in(char*, Parameters& para);
   void read_box(FILE* fid, int nc);
@@ -76,6 +75,4 @@ public:
   float get_rmse_energy(const int, const int);
   float get_rmse_virial(const int, const int);
   void find_neighbor(Parameters& para);
-  void make_train_or_test_set(
-    Parameters& para, int num, int offset, std::vector<int>& configuration_id, Dataset& train_set);
 };

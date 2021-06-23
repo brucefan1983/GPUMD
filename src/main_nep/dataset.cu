@@ -62,29 +62,12 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   FILE* fid = my_fopen(file_train, "r");
 
   read_Nc(fid);
-
-  structures.resize(Nc);
-  h.resize(Nc * 18, Memory_Type::managed);
-  pe_ref.resize(Nc, Memory_Type::managed);
-  virial_ref.resize(Nc * 6, Memory_Type::managed);
-  Na.resize(Nc, Memory_Type::managed);
-  Na_sum.resize(Nc, Memory_Type::managed);
-  has_virial.resize(Nc);
-  error_cpu.resize(Nc);
-  error_gpu.resize(Nc);
-
   read_Na(fid);
-
-  copy_structures();
-
+  for (int nc = 0; nc < Nc; ++nc) {
+    Na[nc] = structures[nc].num_atom;
+    has_virial[nc] = structures[nc].has_virial;
+  }
   report_Na();
-
-  atomic_number.resize(N, Memory_Type::managed);
-  r.resize(N * 3, Memory_Type::managed);
-  force.resize(N * 3, 0.0f, Memory_Type::managed);
-  force_ref.resize(N * 3, Memory_Type::managed);
-  pe.resize(N, 0.0f, Memory_Type::managed);
-  virial.resize(N * 6, 0.0f, Memory_Type::managed);
 
   for (int n = 0; n < Nc; ++n) {
     read_energy_virial(fid, n);
@@ -93,6 +76,13 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
     read_force(fid, n);
   }
   fclose(fid);
+
+  atomic_number.resize(N, Memory_Type::managed);
+  r.resize(N * 3, Memory_Type::managed);
+  force.resize(N * 3, 0.0f, Memory_Type::managed);
+  force_ref.resize(N * 3, Memory_Type::managed);
+  pe.resize(N, 0.0f, Memory_Type::managed);
+  virial.resize(N * 6, 0.0f, Memory_Type::managed);
 
   for (int n = 0; n < Nc; ++n) {
     pe_ref[n] = structures[n].energy;
@@ -148,6 +138,16 @@ void Dataset::read_Nc(FILE* fid)
     PRINT_INPUT_ERROR("Number of configurations should <= 100000");
   }
   printf("Number of configurations = %d.\n", Nc);
+
+  structures.resize(Nc);
+  h.resize(Nc * 18, Memory_Type::managed);
+  pe_ref.resize(Nc, Memory_Type::managed);
+  virial_ref.resize(Nc * 6, Memory_Type::managed);
+  Na.resize(Nc, Memory_Type::managed);
+  Na_sum.resize(Nc, Memory_Type::managed);
+  has_virial.resize(Nc);
+  error_cpu.resize(Nc);
+  error_gpu.resize(Nc);
 }
 
 void Dataset::read_Na(FILE* fid)
@@ -161,6 +161,7 @@ void Dataset::read_Na(FILE* fid)
     if (structures[nc].num_atom > 1024) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
     }
+
     structures[nc].atomic_number.resize(structures[nc].num_atom);
     structures[nc].x.resize(structures[nc].num_atom);
     structures[nc].y.resize(structures[nc].num_atom);
@@ -210,14 +211,6 @@ void Dataset::read_force(FILE* fid, int nc)
     if (structures[nc].atomic_number[na] < 1) {
       PRINT_INPUT_ERROR("Atomic number should > 0.\n");
     }
-  }
-}
-
-void Dataset::copy_structures()
-{
-  for (int nc = 0; nc < Nc; ++nc) {
-    Na[nc] = structures[nc].num_atom;
-    has_virial[nc] = structures[nc].has_virial;
   }
 }
 
