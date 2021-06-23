@@ -74,8 +74,8 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   strcat(file_train, "/train.in");
   FILE* fid = my_fopen(file_train, "r");
 
-  // get Nc
   read_Nc(fid);
+
   structures.resize(Nc);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);
@@ -87,6 +87,11 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   error_gpu.resize(Nc);
 
   read_Na(fid);
+
+  copy_structures();
+
+  report_Na();
+
   atomic_number.resize(N, Memory_Type::managed);
   r.resize(N * 3, Memory_Type::managed);
   force.resize(N * 3, 0.0f, Memory_Type::managed);
@@ -158,7 +163,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
 void Dataset::read_Nc(FILE* fid)
 {
   int count = fscanf(fid, "%d", &Nc);
-  PRINT_SCANF_ERROR(count, 1, "reading error for xyz.in.");
+  PRINT_SCANF_ERROR(count, 1, "reading error for number of configurations in train.in.");
   if (Nc > 100000) {
     PRINT_INPUT_ERROR("Number of configurations should <= 100000");
   }
@@ -166,6 +171,28 @@ void Dataset::read_Nc(FILE* fid)
 }
 
 void Dataset::read_Na(FILE* fid)
+{
+  for (int nc = 0; nc < Nc; ++nc) {
+    int count = fscanf(fid, "%d%d", &structures[nc].num_atom, &structures[nc].has_virial);
+    PRINT_SCANF_ERROR(count, 2, "reading error for number of atoms and virial flag in train.in.");
+    if (structures[nc].num_atom < 2) {
+      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 2.");
+    }
+    if (structures[nc].num_atom > 1024) {
+      PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
+    }
+  }
+}
+
+void Dataset::copy_structures()
+{
+  for (int nc = 0; nc < Nc; ++nc) {
+    Na[nc] = structures[nc].num_atom;
+    has_virial[nc] = structures[nc].has_virial;
+  }
+}
+
+void Dataset::report_Na()
 {
   N = 0;
   max_Na = 0;
@@ -175,19 +202,11 @@ void Dataset::read_Na(FILE* fid)
   }
 
   for (int nc = 0; nc < Nc; ++nc) {
-    int count = fscanf(fid, "%d%d", &Na[nc], &has_virial[nc]);
-    PRINT_SCANF_ERROR(count, 2, "reading error for train.in.");
-    N += Na[nc];
-    if (Na[nc] > max_Na) {
-      max_Na = Na[nc];
+    N += structures[nc].num_atom;
+    if (structures[nc].num_atom > max_Na) {
+      max_Na = structures[nc].num_atom;
     }
-    if (Na[nc] < 2) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 2.");
-    }
-    if (Na[nc] > 1024) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
-    }
-    num_virial_configurations += has_virial[nc];
+    num_virial_configurations += structures[nc].has_virial;
   }
 
   for (int nc = 1; nc < Nc; ++nc) {

@@ -48,7 +48,7 @@ public:
 
   struct Structure {
     int num_atom;
-    bool has_virial;
+    int has_virial;
     float energy;
     float virial[6];
     float box[18];
@@ -65,6 +65,8 @@ public:
   // functions related to initialization
   void read_Nc(FILE*);
   void read_Na(FILE*);
+  void copy_structures();
+  void report_Na();
   void read_train_in(char*, Parameters& para);
   float get_rmse_force(const int, const int);
   float get_rmse_energy(const int, const int);
