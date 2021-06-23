@@ -107,6 +107,14 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
   structures[nc].num_cell_b = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
   structures[nc].num_cell_c = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
 
+  if (
+    structures[nc].num_cell_a > 1 || structures[nc].num_cell_b > 1 ||
+    structures[nc].num_cell_c > 1) {
+    printf(
+      "    Configuration %d (0-based indexing) will be replicated by %d x %d x %d times.\n", nc,
+      structures[nc].num_cell_a, structures[nc].num_cell_b, structures[nc].num_cell_c);
+  }
+
   structures[nc].box[0] = structures[nc].box_original[0] * structures[nc].num_cell_a;
   structures[nc].box[3] = structures[nc].box_original[3] * structures[nc].num_cell_a;
   structures[nc].box[6] = structures[nc].box_original[6] * structures[nc].num_cell_a;
