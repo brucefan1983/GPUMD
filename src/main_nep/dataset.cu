@@ -99,9 +99,6 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   pe.resize(N, 0.0f, Memory_Type::managed);
   virial.resize(N * 6, 0.0f, Memory_Type::managed);
 
-  int atomic_number_max = 0;
-  std::vector<int> types;
-
   for (int n = 0; n < Nc; ++n) {
     int count;
 
@@ -132,32 +129,45 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
 
     // atomic number, position, force
     for (int k = 0; k < Na[n]; ++k) {
-      int atomic_number_tmp = 0;
       count = fscanf(
-        fid, "%d%f%f%f%f%f%f", &atomic_number_tmp, &r[Na_sum[n] + k], &r[Na_sum[n] + k + N],
-        &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k], &force_ref[Na_sum[n] + k + N],
-        &force_ref[Na_sum[n] + k + N * 2]);
+        fid, "%d%f%f%f%f%f%f", &structures[n].atomic_number[k], &r[Na_sum[n] + k],
+        &r[Na_sum[n] + k + N], &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k],
+        &force_ref[Na_sum[n] + k + N], &force_ref[Na_sum[n] + k + N * 2]);
       PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
-      if (atomic_number_tmp < 1) {
+      if (structures[n].atomic_number[k] < 1) {
         PRINT_INPUT_ERROR("Atomic number should > 0.\n");
-      } else {
-        atomic_number[Na_sum[n] + k] = atomic_number_tmp;
-        if (atomic_number_tmp > atomic_number_max) {
-          atomic_number_max = atomic_number_tmp;
-        }
-        update_type(atomic_number_tmp, types);
       }
     }
   }
 
   fclose(fid);
-
-  for (int n = 0; n < N; ++n) {
-    atomic_number[n] = sqrt(atomic_number[n] / atomic_number_max);
-  }
-  num_types = types.size();
+  calculate_types();
 
   find_neighbor(para);
+}
+
+void Dataset::calculate_types()
+{
+  int atomic_number_max = 0;
+  std::vector<int> types;
+  for (int nc = 0; nc < Nc; ++nc) {
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      int atomic_number_tmp = structures[nc].atomic_number[na];
+      if (atomic_number_tmp > atomic_number_max) {
+        atomic_number_max = atomic_number_tmp;
+      }
+      update_type(atomic_number_tmp, types);
+    }
+  }
+
+  for (int nc = 0; nc < Nc; ++nc) {
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      atomic_number[Na_sum[nc] + na] =
+        sqrt(float(structures[nc].atomic_number[na]) / atomic_number_max);
+    }
+  }
+
+  num_types = types.size();
 }
 
 void Dataset::read_Nc(FILE* fid)
@@ -181,6 +191,13 @@ void Dataset::read_Na(FILE* fid)
     if (structures[nc].num_atom > 1024) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
     }
+    structures[nc].atomic_number.resize(structures[nc].num_atom);
+    structures[nc].x.resize(structures[nc].num_atom);
+    structures[nc].y.resize(structures[nc].num_atom);
+    structures[nc].z.resize(structures[nc].num_atom);
+    structures[nc].fx.resize(structures[nc].num_atom);
+    structures[nc].fy.resize(structures[nc].num_atom);
+    structures[nc].fz.resize(structures[nc].num_atom);
   }
 }
 

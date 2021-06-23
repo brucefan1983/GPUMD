@@ -68,6 +68,7 @@ public:
   void copy_structures();
   void report_Na();
   void read_train_in(char*, Parameters& para);
+  void calculate_types();
   float get_rmse_force(const int, const int);
   float get_rmse_energy(const int, const int);
   float get_rmse_virial(const int, const int);
