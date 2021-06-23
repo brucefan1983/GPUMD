@@ -63,12 +63,6 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
 
   read_Nc(fid);
   read_Na(fid);
-  for (int nc = 0; nc < Nc; ++nc) {
-    Na[nc] = structures[nc].num_atom;
-    has_virial[nc] = structures[nc].has_virial;
-  }
-  report_Na();
-
   for (int n = 0; n < Nc; ++n) {
     read_energy_virial(fid, n);
     read_box(fid, n);
@@ -76,6 +70,12 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
     read_force(fid, n);
   }
   fclose(fid);
+
+  for (int nc = 0; nc < Nc; ++nc) {
+    Na[nc] = structures[nc].num_atom;
+    has_virial[nc] = structures[nc].has_virial;
+  }
+  report_Na();
 
   atomic_number.resize(N, Memory_Type::managed);
   r.resize(N * 3, Memory_Type::managed);
