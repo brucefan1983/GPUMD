@@ -18,26 +18,7 @@
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
-static void get_inverse(float* cpu_h)
-{
-  cpu_h[9] = cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7];
-  cpu_h[10] = cpu_h[2] * cpu_h[7] - cpu_h[1] * cpu_h[8];
-  cpu_h[11] = cpu_h[1] * cpu_h[5] - cpu_h[2] * cpu_h[4];
-  cpu_h[12] = cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8];
-  cpu_h[13] = cpu_h[0] * cpu_h[8] - cpu_h[2] * cpu_h[6];
-  cpu_h[14] = cpu_h[2] * cpu_h[3] - cpu_h[0] * cpu_h[5];
-  cpu_h[15] = cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6];
-  cpu_h[16] = cpu_h[1] * cpu_h[6] - cpu_h[0] * cpu_h[7];
-  cpu_h[17] = cpu_h[0] * cpu_h[4] - cpu_h[1] * cpu_h[3];
-  float volume = cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
-                 cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
-                 cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]);
-  for (int n = 9; n < 18; n++) {
-    cpu_h[n] /= volume;
-  }
-}
-
-void Dataset::read_train_in(char* input_dir)
+void Dataset::read_train_in(char* input_dir, Parameters& para)
 {
   print_line_1();
   printf("Started reading train.in.\n");
@@ -52,16 +33,16 @@ void Dataset::read_train_in(char* input_dir)
   read_Na(fid);
   for (int n = 0; n < Nc; ++n) {
     read_energy_virial(fid, n);
-    read_box(fid, n);
-    get_inverse(structures[n].box);
+    read_box(fid, n, para);
     read_force(fid, n);
   }
+
   fclose(fid);
 }
 
 void Dataset::construct(char* input_dir, Parameters& para)
 {
-  read_train_in(input_dir);
+  read_train_in(input_dir, para);
 
   for (int nc = 0; nc < Nc; ++nc) {
     Na[nc] = structures[nc].num_atom;
@@ -190,14 +171,76 @@ void Dataset::read_energy_virial(FILE* fid, int nc)
   structures[nc].energy /= structures[nc].num_atom;
 }
 
-void Dataset::read_box(FILE* fid, int nc)
+static float get_area(const float* a, const float* b)
 {
-  // input order of the box parameters is: ax, ay, az, bx, by, bz, cx, cy, cz
+  float s1 = a[1] * b[2] - a[2] * b[1];
+  float s2 = a[2] * b[0] - a[0] * b[2];
+  float s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+static float get_volume(const float* box)
+{
+  return box[0] * (box[4] * box[8] - box[5] * box[7]) +
+         box[1] * (box[5] * box[6] - box[3] * box[8]) +
+         box[2] * (box[3] * box[7] - box[4] * box[6]);
+}
+
+void Dataset::read_box(FILE* fid, int nc, Parameters& para)
+{
+  float a[3], b[3], c[3];
   int count = fscanf(
-    fid, "%f%f%f%f%f%f%f%f%f", &structures[nc].box[0], &structures[nc].box[3],
-    &structures[nc].box[6], &structures[nc].box[1], &structures[nc].box[4], &structures[nc].box[7],
-    &structures[nc].box[2], &structures[nc].box[5], &structures[nc].box[8]);
-  PRINT_SCANF_ERROR(count, 9, "reading error for train.in.");
+    fid, "%f%f%f%f%f%f%f%f%f", &a[0], &a[1], &a[2], &b[0], &b[1], &b[2], &c[0], &c[1], &c[2]);
+  PRINT_SCANF_ERROR(count, 9, "reading error for box in train.in.");
+
+  structures[nc].box[0] = a[0];
+  structures[nc].box[3] = a[1];
+  structures[nc].box[6] = a[2];
+  structures[nc].box[1] = b[0];
+  structures[nc].box[4] = b[1];
+  structures[nc].box[7] = b[2];
+  structures[nc].box[2] = c[0];
+  structures[nc].box[5] = c[1];
+  structures[nc].box[8] = c[2];
+
+  float volume = get_volume(structures[nc].box);
+  structures[nc].num_cell_a = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
+  structures[nc].num_cell_b = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
+  structures[nc].num_cell_c = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
+
+  structures[nc].box[0] *= structures[nc].num_cell_a;
+  structures[nc].box[3] *= structures[nc].num_cell_a;
+  structures[nc].box[6] *= structures[nc].num_cell_a;
+  structures[nc].box[1] *= structures[nc].num_cell_b;
+  structures[nc].box[4] *= structures[nc].num_cell_b;
+  structures[nc].box[7] *= structures[nc].num_cell_b;
+  structures[nc].box[2] *= structures[nc].num_cell_c;
+  structures[nc].box[5] *= structures[nc].num_cell_c;
+  structures[nc].box[8] *= structures[nc].num_cell_c;
+
+  structures[nc].box[9] =
+    structures[nc].box[4] * structures[nc].box[8] - structures[nc].box[5] * structures[nc].box[7];
+  structures[nc].box[10] =
+    structures[nc].box[2] * structures[nc].box[7] - structures[nc].box[1] * structures[nc].box[8];
+  structures[nc].box[11] =
+    structures[nc].box[1] * structures[nc].box[5] - structures[nc].box[2] * structures[nc].box[4];
+  structures[nc].box[12] =
+    structures[nc].box[5] * structures[nc].box[6] - structures[nc].box[3] * structures[nc].box[8];
+  structures[nc].box[13] =
+    structures[nc].box[0] * structures[nc].box[8] - structures[nc].box[2] * structures[nc].box[6];
+  structures[nc].box[14] =
+    structures[nc].box[2] * structures[nc].box[3] - structures[nc].box[0] * structures[nc].box[5];
+  structures[nc].box[15] =
+    structures[nc].box[3] * structures[nc].box[7] - structures[nc].box[4] * structures[nc].box[6];
+  structures[nc].box[16] =
+    structures[nc].box[1] * structures[nc].box[6] - structures[nc].box[0] * structures[nc].box[7];
+  structures[nc].box[17] =
+    structures[nc].box[0] * structures[nc].box[4] - structures[nc].box[1] * structures[nc].box[3];
+
+  volume *= structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
+  for (int n = 9; n < 18; n++) {
+    structures[nc].box[n] /= volume;
+  }
 }
 
 void Dataset::read_force(FILE* fid, int nc)

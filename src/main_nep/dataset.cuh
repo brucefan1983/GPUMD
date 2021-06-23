@@ -47,6 +47,9 @@ public:
   GPU_Vector<int> NL_angular;      // angular neighbor list
 
   struct Structure {
+    int num_cell_a;
+    int num_cell_b;
+    int num_cell_c;
     int num_atom;
     int has_virial;
     float energy;
@@ -71,10 +74,11 @@ private:
   void read_Nc(FILE*);
   void read_Na(FILE*);
   void report_Na();
-  void read_train_in(char*);
-  void read_box(FILE* fid, int nc);
+  void read_box(FILE* fid, int nc, Parameters& para);
   void read_energy_virial(FILE* fid, int nc);
   void read_force(FILE* fid, int nc);
+  void read_train_in(char*, Parameters& para);
+
   void calculate_types();
   void find_neighbor(Parameters& para);
 };
