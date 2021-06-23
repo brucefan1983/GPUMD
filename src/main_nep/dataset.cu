@@ -103,6 +103,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
     int count;
 
     read_energy_virial(fid, n);
+    // to be moved:
     pe_ref[n] = structures[n].energy;
     for (int k = 0; k < 6; ++k) {
       virial_ref[n] = structures[n].virial[k];
@@ -117,16 +118,15 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
     transpose(n, h_tmp, h.data());
     get_inverse(h.data() + 18 * n);
 
-    // atomic number, position, force
-    for (int k = 0; k < Na[n]; ++k) {
-      count = fscanf(
-        fid, "%d%f%f%f%f%f%f", &structures[n].atomic_number[k], &r[Na_sum[n] + k],
-        &r[Na_sum[n] + k + N], &r[Na_sum[n] + k + N * 2], &force_ref[Na_sum[n] + k],
-        &force_ref[Na_sum[n] + k + N], &force_ref[Na_sum[n] + k + N * 2]);
-      PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
-      if (structures[n].atomic_number[k] < 1) {
-        PRINT_INPUT_ERROR("Atomic number should > 0.\n");
-      }
+    read_force(fid, n);
+    // to be moved:
+    for (int na = 0; na < structures[n].num_atom; ++na) {
+      r[Na_sum[n] + na] = structures[n].x[na];
+      r[Na_sum[n] + na + N] = structures[n].y[na];
+      r[Na_sum[n] + na + N * 2] = structures[n].z[na];
+      force_ref[Na_sum[n] + na] = structures[n].fx[na];
+      force_ref[Na_sum[n] + na + N] = structures[n].fy[na];
+      force_ref[Na_sum[n] + na + N * 2] = structures[n].fz[na];
     }
   }
 
@@ -207,6 +207,20 @@ void Dataset::read_energy_virial(FILE* fid, int nc)
     PRINT_SCANF_ERROR(count, 1, "reading error for energy in train.in.");
   }
   structures[nc].energy /= structures[nc].num_atom;
+}
+
+void Dataset::read_force(FILE* fid, int nc)
+{
+  for (int na = 0; na < structures[nc].num_atom; ++na) {
+    int count = fscanf(
+      fid, "%d%f%f%f%f%f%f", &structures[nc].atomic_number[na], &structures[nc].x[na],
+      &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
+      &structures[nc].fz[na]);
+    PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
+    if (structures[nc].atomic_number[na] < 1) {
+      PRINT_INPUT_ERROR("Atomic number should > 0.\n");
+    }
+  }
 }
 
 void Dataset::copy_structures()

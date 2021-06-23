@@ -69,6 +69,7 @@ public:
   void report_Na();
   void read_train_in(char*, Parameters& para);
   void read_energy_virial(FILE* fid, int nc);
+  void read_force(FILE* fid, int nc);
   void calculate_types();
   float get_rmse_force(const int, const int);
   float get_rmse_energy(const int, const int);
