@@ -46,6 +46,22 @@ public:
   GPU_Vector<int> NN_angular;      // angular neighbor number
   GPU_Vector<int> NL_angular;      // angular neighbor list
 
+  struct Structure {
+    int num_atom;
+    bool has_virial;
+    float energy;
+    float virial[6];
+    float box[18];
+    std::vector<int> atomic_number;
+    std::vector<float> x;
+    std::vector<float> y;
+    std::vector<float> z;
+    std::vector<float> fx;
+    std::vector<float> fy;
+    std::vector<float> fz;
+  };
+  std::vector<Structure> structures;
+
   // functions related to initialization
   void read_Nc(FILE*);
   void read_Na(FILE*);

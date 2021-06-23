@@ -76,6 +76,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
 
   // get Nc
   read_Nc(fid);
+  structures.resize(Nc);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);
   virial_ref.resize(Nc * 6, Memory_Type::managed);
