@@ -68,6 +68,7 @@ public:
   void copy_structures();
   void report_Na();
   void read_train_in(char*, Parameters& para);
+  void read_box(FILE* fid, int nc);
   void read_energy_virial(FILE* fid, int nc);
   void read_force(FILE* fid, int nc);
   void calculate_types();

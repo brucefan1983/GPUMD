@@ -37,19 +37,6 @@ static void get_inverse(float* cpu_h)
   }
 }
 
-static void transpose(const int n, const float* h_tmp, float* h)
-{
-  h[0 + 18 * n] = h_tmp[0];
-  h[3 + 18 * n] = h_tmp[1];
-  h[6 + 18 * n] = h_tmp[2];
-  h[1 + 18 * n] = h_tmp[3];
-  h[4 + 18 * n] = h_tmp[4];
-  h[7 + 18 * n] = h_tmp[5];
-  h[2 + 18 * n] = h_tmp[6];
-  h[5 + 18 * n] = h_tmp[7];
-  h[8 + 18 * n] = h_tmp[8];
-}
-
 void update_type(int atomic_number_tmp, std::vector<int>& types)
 {
   bool find_a_new_type = true;
@@ -100,8 +87,6 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   virial.resize(N * 6, 0.0f, Memory_Type::managed);
 
   for (int n = 0; n < Nc; ++n) {
-    int count;
-
     read_energy_virial(fid, n);
     // to be moved:
     pe_ref[n] = structures[n].energy;
@@ -109,14 +94,12 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
       virial_ref[n] = structures[n].virial[k];
     }
 
-    // box (ax, ay, az, bx, by, bz, cx, cy, cz)
-    float h_tmp[9];
-    for (int k = 0; k < 9; ++k) {
-      count = fscanf(fid, "%f", &h_tmp[k]);
-      PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
+    read_box(fid, n);
+    get_inverse(structures[n].box);
+    // to be moved:
+    for (int k = 0; k < 18; ++k) {
+      h[k + n * 18] = structures[n].box[k];
     }
-    transpose(n, h_tmp, h.data());
-    get_inverse(h.data() + 18 * n);
 
     read_force(fid, n);
     // to be moved:
@@ -207,6 +190,16 @@ void Dataset::read_energy_virial(FILE* fid, int nc)
     PRINT_SCANF_ERROR(count, 1, "reading error for energy in train.in.");
   }
   structures[nc].energy /= structures[nc].num_atom;
+}
+
+void Dataset::read_box(FILE* fid, int nc)
+{
+  // input order of the box parameters is: ax, ay, az, bx, by, bz, cx, cy, cz
+  int count = fscanf(
+    fid, "%f%f%f%f%f%f%f%f%f", &structures[nc].box[0], &structures[nc].box[3],
+    &structures[nc].box[6], &structures[nc].box[1], &structures[nc].box[4], &structures[nc].box[7],
+    &structures[nc].box[2], &structures[nc].box[5], &structures[nc].box[8]);
+  PRINT_SCANF_ERROR(count, 9, "reading error for train.in.");
 }
 
 void Dataset::read_force(FILE* fid, int nc)
