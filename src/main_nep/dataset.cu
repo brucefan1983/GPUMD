@@ -18,99 +18,6 @@
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
-void Dataset::read_train_in(char* input_dir, Parameters& para)
-{
-  print_line_1();
-  printf("Started reading train.in.\n");
-  print_line_2();
-
-  char file_train[200];
-  strcpy(file_train, input_dir);
-  strcat(file_train, "/train.in");
-  FILE* fid = my_fopen(file_train, "r");
-
-  read_Nc(fid);
-  read_Na(fid);
-  for (int n = 0; n < Nc; ++n) {
-    read_energy_virial(fid, n);
-    read_box(fid, n, para);
-    read_force(fid, n);
-  }
-
-  fclose(fid);
-}
-
-void Dataset::construct(char* input_dir, Parameters& para)
-{
-  read_train_in(input_dir, para);
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    Na[nc] = structures[nc].num_atom;
-    has_virial[nc] = structures[nc].has_virial;
-  }
-  report_Na();
-
-  atomic_number.resize(N, Memory_Type::managed);
-  r.resize(N * 3, Memory_Type::managed);
-  force.resize(N * 3, 0.0f, Memory_Type::managed);
-  force_ref.resize(N * 3, Memory_Type::managed);
-  pe.resize(N, 0.0f, Memory_Type::managed);
-  virial.resize(N * 6, 0.0f, Memory_Type::managed);
-
-  for (int n = 0; n < Nc; ++n) {
-    pe_ref[n] = structures[n].energy;
-    for (int k = 0; k < 6; ++k) {
-      virial_ref[n] = structures[n].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      h[k + n * 18] = structures[n].box[k];
-    }
-    for (int na = 0; na < structures[n].num_atom; ++na) {
-      r[Na_sum[n] + na] = structures[n].x[na];
-      r[Na_sum[n] + na + N] = structures[n].y[na];
-      r[Na_sum[n] + na + N * 2] = structures[n].z[na];
-      force_ref[Na_sum[n] + na] = structures[n].fx[na];
-      force_ref[Na_sum[n] + na + N] = structures[n].fy[na];
-      force_ref[Na_sum[n] + na + N * 2] = structures[n].fz[na];
-    }
-  }
-
-  calculate_types();
-  find_neighbor(para);
-}
-
-void Dataset::calculate_types()
-{
-  int atomic_number_max = 0;
-  std::vector<int> types;
-  for (int nc = 0; nc < Nc; ++nc) {
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      int atomic_number_tmp = structures[nc].atomic_number[na];
-      if (atomic_number_tmp > atomic_number_max) {
-        atomic_number_max = atomic_number_tmp;
-      }
-      bool find_a_new_type = true;
-      for (int k = 0; k < types.size(); ++k) {
-        if (types[k] == atomic_number_tmp) {
-          find_a_new_type = false;
-        }
-      }
-      if (find_a_new_type) {
-        types.emplace_back(atomic_number_tmp);
-      }
-    }
-  }
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      atomic_number[Na_sum[nc] + na] =
-        sqrt(float(structures[nc].atomic_number[na]) / atomic_number_max);
-    }
-  }
-
-  num_types = types.size();
-}
-
 void Dataset::read_Nc(FILE* fid)
 {
   int count = fscanf(fid, "%d", &Nc);
@@ -257,6 +164,28 @@ void Dataset::read_force(FILE* fid, int nc)
   }
 }
 
+void Dataset::read_train_in(char* input_dir, Parameters& para)
+{
+  print_line_1();
+  printf("Started reading train.in.\n");
+  print_line_2();
+
+  char file_train[200];
+  strcpy(file_train, input_dir);
+  strcat(file_train, "/train.in");
+  FILE* fid = my_fopen(file_train, "r");
+
+  read_Nc(fid);
+  read_Na(fid);
+  for (int n = 0; n < Nc; ++n) {
+    read_energy_virial(fid, n);
+    read_box(fid, n, para);
+    read_force(fid, n);
+  }
+
+  fclose(fid);
+}
+
 void Dataset::report_Na()
 {
   N = 0;
@@ -281,6 +210,217 @@ void Dataset::report_Na()
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
+}
+
+void Dataset::calculate_types()
+{
+  int atomic_number_max = 0;
+  std::vector<int> types;
+  for (int nc = 0; nc < Nc; ++nc) {
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      int atomic_number_tmp = structures[nc].atomic_number[na];
+      if (atomic_number_tmp > atomic_number_max) {
+        atomic_number_max = atomic_number_tmp;
+      }
+      bool find_a_new_type = true;
+      for (int k = 0; k < types.size(); ++k) {
+        if (types[k] == atomic_number_tmp) {
+          find_a_new_type = false;
+        }
+      }
+      if (find_a_new_type) {
+        types.emplace_back(atomic_number_tmp);
+      }
+    }
+  }
+
+  for (int nc = 0; nc < Nc; ++nc) {
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      atomic_number[Na_sum[nc] + na] =
+        sqrt(float(structures[nc].atomic_number[na]) / atomic_number_max);
+    }
+  }
+
+  num_types = types.size();
+}
+
+static __global__ void gpu_find_neighbor_number(
+  const int N,
+  const int* Na,
+  const int* Na_sum,
+  const float rc2_radial,
+  const float rc2_angular,
+  const float* __restrict__ box,
+  const float* x,
+  const float* y,
+  const float* z,
+  int* NN_radial,
+  int* NN_angular)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = box + 18 * blockIdx.x;
+    float x1 = x[n1];
+    float y1 = y[n1];
+    float z1 = z[n1];
+    int count_radial = 0;
+    int count_angular = 0;
+    for (int n2 = N1; n2 < N2; ++n2) {
+      if (n2 == n1) {
+        continue;
+      }
+      float x12 = x[n2] - x1;
+      float y12 = y[n2] - y1;
+      float z12 = z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
+      if (distance_square < rc2_radial) {
+        count_radial++;
+      }
+      if (distance_square < rc2_angular) {
+        count_angular++;
+      }
+    }
+    NN_radial[n1] = count_radial;
+    NN_angular[n1] = count_angular;
+  }
+}
+
+static __global__ void gpu_find_neighbor_list(
+  const int N,
+  const int* Na,
+  const int* Na_sum,
+  const float rc2_radial,
+  const float rc2_angular,
+  const float* __restrict__ box,
+  const float* x,
+  const float* y,
+  const float* z,
+  int* NN_radial,
+  int* NL_radial,
+  int* NN_angular,
+  int* NL_angular)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = box + 18 * blockIdx.x;
+    float x1 = x[n1];
+    float y1 = y[n1];
+    float z1 = z[n1];
+    int count_radial = 0;
+    int count_angular = 0;
+    for (int n2 = N1; n2 < N2; ++n2) {
+      if (n2 == n1) {
+        continue;
+      }
+      float x12 = x[n2] - x1;
+      float y12 = y[n2] - y1;
+      float z12 = z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
+      if (distance_square < rc2_radial) {
+        NL_radial[count_radial++ * N + n1] = n2;
+      }
+      if (distance_square < rc2_angular) {
+        NL_angular[count_angular++ * N + n1] = n2;
+      }
+    }
+    NN_radial[n1] = count_radial;
+    NN_angular[n1] = count_angular;
+  }
+}
+
+void Dataset::find_neighbor(Parameters& para)
+{
+  NN_radial.resize(N, Memory_Type::managed);
+  NN_angular.resize(N, Memory_Type::managed);
+  float rc2_radial = para.rc_radial * para.rc_radial;
+  float rc2_angular = para.rc_angular * para.rc_angular;
+
+  gpu_find_neighbor_number<<<Nc, max_Na>>>(
+    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
+    r.data() + N * 2, NN_radial.data(), NN_angular.data());
+  CUDA_CHECK_KERNEL
+
+  CHECK(cudaDeviceSynchronize());
+  int min_NN_radial = 10000;
+  max_NN_radial = -1;
+  for (int n = 0; n < N; ++n) {
+    if (NN_radial[n] < min_NN_radial) {
+      min_NN_radial = NN_radial[n];
+    }
+    if (NN_radial[n] > max_NN_radial) {
+      max_NN_radial = NN_radial[n];
+    }
+  }
+  int min_NN_angular = 10000;
+  max_NN_angular = -1;
+  for (int n = 0; n < N; ++n) {
+    if (NN_angular[n] < min_NN_angular) {
+      min_NN_angular = NN_angular[n];
+    }
+    if (NN_angular[n] > max_NN_angular) {
+      max_NN_angular = NN_angular[n];
+    }
+  }
+
+  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial);
+  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
+  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
+  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular);
+  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
+  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
+
+  NL_radial.resize(N * max_NN_radial);
+  NL_angular.resize(N * max_NN_angular);
+
+  gpu_find_neighbor_list<<<Nc, max_Na>>>(
+    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
+    r.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data());
+  CUDA_CHECK_KERNEL
+}
+
+void Dataset::construct(char* input_dir, Parameters& para)
+{
+  read_train_in(input_dir, para);
+
+  for (int nc = 0; nc < Nc; ++nc) {
+    Na[nc] = structures[nc].num_atom;
+    has_virial[nc] = structures[nc].has_virial;
+  }
+  report_Na();
+
+  atomic_number.resize(N, Memory_Type::managed);
+  r.resize(N * 3, Memory_Type::managed);
+  force.resize(N * 3, 0.0f, Memory_Type::managed);
+  force_ref.resize(N * 3, Memory_Type::managed);
+  pe.resize(N, 0.0f, Memory_Type::managed);
+  virial.resize(N * 6, 0.0f, Memory_Type::managed);
+
+  for (int n = 0; n < Nc; ++n) {
+    pe_ref[n] = structures[n].energy;
+    for (int k = 0; k < 6; ++k) {
+      virial_ref[n] = structures[n].virial[k];
+    }
+    for (int k = 0; k < 18; ++k) {
+      h[k + n * 18] = structures[n].box[k];
+    }
+    for (int na = 0; na < structures[n].num_atom; ++na) {
+      r[Na_sum[n] + na] = structures[n].x[na];
+      r[Na_sum[n] + na + N] = structures[n].y[na];
+      r[Na_sum[n] + na + N * 2] = structures[n].z[na];
+      force_ref[Na_sum[n] + na] = structures[n].fx[na];
+      force_ref[Na_sum[n] + na + N] = structures[n].fy[na];
+      force_ref[Na_sum[n] + na + N * 2] = structures[n].fz[na];
+    }
+  }
+
+  calculate_types();
+  find_neighbor(para);
 }
 
 static __global__ void gpu_sum_force_error(
@@ -469,144 +609,4 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   }
 
   return sqrt(error_ave / (num_virial_configurations * 6));
-}
-
-static __global__ void gpu_find_neighbor_number(
-  const int N,
-  const int* Na,
-  const int* Na_sum,
-  const float rc2_radial,
-  const float rc2_angular,
-  const float* __restrict__ box,
-  const float* x,
-  const float* y,
-  const float* z,
-  int* NN_radial,
-  int* NN_angular)
-{
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
-    const float* __restrict__ h = box + 18 * blockIdx.x;
-    float x1 = x[n1];
-    float y1 = y[n1];
-    float z1 = z[n1];
-    int count_radial = 0;
-    int count_angular = 0;
-    for (int n2 = N1; n2 < N2; ++n2) {
-      if (n2 == n1) {
-        continue;
-      }
-      float x12 = x[n2] - x1;
-      float y12 = y[n2] - y1;
-      float z12 = z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
-      float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-      if (distance_square < rc2_radial) {
-        count_radial++;
-      }
-      if (distance_square < rc2_angular) {
-        count_angular++;
-      }
-    }
-    NN_radial[n1] = count_radial;
-    NN_angular[n1] = count_angular;
-  }
-}
-
-static __global__ void gpu_find_neighbor_list(
-  const int N,
-  const int* Na,
-  const int* Na_sum,
-  const float rc2_radial,
-  const float rc2_angular,
-  const float* __restrict__ box,
-  const float* x,
-  const float* y,
-  const float* z,
-  int* NN_radial,
-  int* NL_radial,
-  int* NN_angular,
-  int* NL_angular)
-{
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
-    const float* __restrict__ h = box + 18 * blockIdx.x;
-    float x1 = x[n1];
-    float y1 = y[n1];
-    float z1 = z[n1];
-    int count_radial = 0;
-    int count_angular = 0;
-    for (int n2 = N1; n2 < N2; ++n2) {
-      if (n2 == n1) {
-        continue;
-      }
-      float x12 = x[n2] - x1;
-      float y12 = y[n2] - y1;
-      float z12 = z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
-      float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-      if (distance_square < rc2_radial) {
-        NL_radial[count_radial++ * N + n1] = n2;
-      }
-      if (distance_square < rc2_angular) {
-        NL_angular[count_angular++ * N + n1] = n2;
-      }
-    }
-    NN_radial[n1] = count_radial;
-    NN_angular[n1] = count_angular;
-  }
-}
-
-void Dataset::find_neighbor(Parameters& para)
-{
-  NN_radial.resize(N, Memory_Type::managed);
-  NN_angular.resize(N, Memory_Type::managed);
-  float rc2_radial = para.rc_radial * para.rc_radial;
-  float rc2_angular = para.rc_angular * para.rc_angular;
-
-  gpu_find_neighbor_number<<<Nc, max_Na>>>(
-    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
-    r.data() + N * 2, NN_radial.data(), NN_angular.data());
-  CUDA_CHECK_KERNEL
-
-  CHECK(cudaDeviceSynchronize());
-  int min_NN_radial = 10000;
-  max_NN_radial = -1;
-  for (int n = 0; n < N; ++n) {
-    if (NN_radial[n] < min_NN_radial) {
-      min_NN_radial = NN_radial[n];
-    }
-    if (NN_radial[n] > max_NN_radial) {
-      max_NN_radial = NN_radial[n];
-    }
-  }
-  int min_NN_angular = 10000;
-  max_NN_angular = -1;
-  for (int n = 0; n < N; ++n) {
-    if (NN_angular[n] < min_NN_angular) {
-      min_NN_angular = NN_angular[n];
-    }
-    if (NN_angular[n] > max_NN_angular) {
-      max_NN_angular = NN_angular[n];
-    }
-  }
-
-  printf("Radial descriptor with a cutoff of %g A:\n", para.rc_radial);
-  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_radial);
-  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_radial);
-  printf("Angular descriptor with a cutoff of %g A:\n", para.rc_angular);
-  printf("    Minimum number of neighbors for one atom = %d.\n", min_NN_angular);
-  printf("    Maximum number of neighbors for one atom = %d.\n", max_NN_angular);
-
-  NL_radial.resize(N * max_NN_radial);
-  NL_angular.resize(N * max_NN_angular);
-
-  gpu_find_neighbor_list<<<Nc, max_Na>>>(
-    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
-    r.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data());
-  CUDA_CHECK_KERNEL
 }

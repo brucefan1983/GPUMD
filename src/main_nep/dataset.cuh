@@ -71,14 +71,15 @@ public:
   float get_rmse_virial(const int, const int);
 
 private:
+  // functions called by construct:
+  void read_train_in(char*, Parameters& para);
+  void report_Na();
+  void calculate_types();
+  void find_neighbor(Parameters& para);
+  // functions called by read_train_in:
   void read_Nc(FILE*);
   void read_Na(FILE*);
-  void report_Na();
   void read_box(FILE* fid, int nc, Parameters& para);
   void read_energy_virial(FILE* fid, int nc);
   void read_force(FILE* fid, int nc);
-  void read_train_in(char*, Parameters& para);
-
-  void calculate_types();
-  void find_neighbor(Parameters& para);
 };
