@@ -54,6 +54,7 @@ public:
     int has_virial;
     float energy;
     float virial[6];
+    float box_original[9];
     float box[18];
     std::vector<int> atomic_number;
     std::vector<float> x;

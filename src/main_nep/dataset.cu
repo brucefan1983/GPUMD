@@ -92,30 +92,30 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
     fid, "%f%f%f%f%f%f%f%f%f", &a[0], &a[1], &a[2], &b[0], &b[1], &b[2], &c[0], &c[1], &c[2]);
   PRINT_SCANF_ERROR(count, 9, "reading error for box in train.in.");
 
-  structures[nc].box[0] = a[0];
-  structures[nc].box[3] = a[1];
-  structures[nc].box[6] = a[2];
-  structures[nc].box[1] = b[0];
-  structures[nc].box[4] = b[1];
-  structures[nc].box[7] = b[2];
-  structures[nc].box[2] = c[0];
-  structures[nc].box[5] = c[1];
-  structures[nc].box[8] = c[2];
+  structures[nc].box_original[0] = a[0];
+  structures[nc].box_original[3] = a[1];
+  structures[nc].box_original[6] = a[2];
+  structures[nc].box_original[1] = b[0];
+  structures[nc].box_original[4] = b[1];
+  structures[nc].box_original[7] = b[2];
+  structures[nc].box_original[2] = c[0];
+  structures[nc].box_original[5] = c[1];
+  structures[nc].box_original[8] = c[2];
 
-  float volume = get_volume(structures[nc].box);
+  float volume = get_volume(structures[nc].box_original);
   structures[nc].num_cell_a = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
   structures[nc].num_cell_b = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
   structures[nc].num_cell_c = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
 
-  structures[nc].box[0] *= structures[nc].num_cell_a;
-  structures[nc].box[3] *= structures[nc].num_cell_a;
-  structures[nc].box[6] *= structures[nc].num_cell_a;
-  structures[nc].box[1] *= structures[nc].num_cell_b;
-  structures[nc].box[4] *= structures[nc].num_cell_b;
-  structures[nc].box[7] *= structures[nc].num_cell_b;
-  structures[nc].box[2] *= structures[nc].num_cell_c;
-  structures[nc].box[5] *= structures[nc].num_cell_c;
-  structures[nc].box[8] *= structures[nc].num_cell_c;
+  structures[nc].box[0] = structures[nc].box_original[0] * structures[nc].num_cell_a;
+  structures[nc].box[3] = structures[nc].box_original[3] * structures[nc].num_cell_a;
+  structures[nc].box[6] = structures[nc].box_original[6] * structures[nc].num_cell_a;
+  structures[nc].box[1] = structures[nc].box_original[1] * structures[nc].num_cell_b;
+  structures[nc].box[4] = structures[nc].box_original[4] * structures[nc].num_cell_b;
+  structures[nc].box[7] = structures[nc].box_original[7] * structures[nc].num_cell_b;
+  structures[nc].box[2] = structures[nc].box_original[2] * structures[nc].num_cell_c;
+  structures[nc].box[5] = structures[nc].box_original[5] * structures[nc].num_cell_c;
+  structures[nc].box[8] = structures[nc].box_original[8] * structures[nc].num_cell_c;
 
   structures[nc].box[9] =
     structures[nc].box[4] * structures[nc].box[8] - structures[nc].box[5] * structures[nc].box[7];
@@ -171,7 +171,34 @@ void Dataset::read_force(FILE* fid, int nc)
     }
   }
 
-  // replicate the structure here:
+  for (int ia = 0; ia < structures[nc].num_cell_a; ++ia) {
+    for (int ib = 0; ib < structures[nc].num_cell_b; ++ib) {
+      for (int ic = 0; ic < structures[nc].num_cell_c; ++ic) {
+        if (ia != 0 || ib != 0 || ic != 0) {
+          for (int na = 0; na < num_atom_original; ++na) {
+            int na_new =
+              na + ia + (ib + ic * structures[nc].num_cell_b) * structures[nc].num_cell_a;
+            float delta_x = structures[nc].box_original[0] * ia +
+                            structures[nc].box_original[1] * ib +
+                            structures[nc].box_original[2] * ic;
+            float delta_y = structures[nc].box_original[3] * ia +
+                            structures[nc].box_original[4] * ib +
+                            structures[nc].box_original[5] * ic;
+            float delta_z = structures[nc].box_original[6] * ia +
+                            structures[nc].box_original[7] * ib +
+                            structures[nc].box_original[8] * ic;
+            structures[nc].atomic_number[na_new] = structures[nc].atomic_number[na];
+            structures[nc].x[na_new] = structures[nc].x[na] + delta_x;
+            structures[nc].y[na_new] = structures[nc].y[na] + delta_y;
+            structures[nc].z[na_new] = structures[nc].z[na] + delta_z;
+            structures[nc].fx[na_new] = structures[nc].fx[na];
+            structures[nc].fy[na_new] = structures[nc].fy[na];
+            structures[nc].fz[na_new] = structures[nc].fz[na];
+          }
+        }
+      }
+    }
+  }
 }
 
 void Dataset::read_train_in(char* input_dir, Parameters& para)
