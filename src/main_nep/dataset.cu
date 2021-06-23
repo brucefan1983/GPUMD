@@ -102,21 +102,11 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   for (int n = 0; n < Nc; ++n) {
     int count;
 
-    // energy, virial
-    if (has_virial[n]) {
-      count = fscanf(
-        fid, "%f%f%f%f%f%f%f", &pe_ref[n], &virial_ref[n + Nc * 0], &virial_ref[n + Nc * 1],
-        &virial_ref[n + Nc * 2], &virial_ref[n + Nc * 3], &virial_ref[n + Nc * 4],
-        &virial_ref[n + Nc * 5]);
-      PRINT_SCANF_ERROR(count, 7, "reading error for train.in.");
-      for (int k = 0; k < 6; ++k) {
-        virial_ref[n + Nc * k] /= Na[n];
-      }
-    } else {
-      count = fscanf(fid, "%f", &pe_ref[n]);
-      PRINT_SCANF_ERROR(count, 1, "reading error for train.in.");
+    read_energy_virial(fid, n);
+    pe_ref[n] = structures[n].energy;
+    for (int k = 0; k < 6; ++k) {
+      virial_ref[n] = structures[n].virial[k];
     }
-    pe_ref[n] /= Na[n];
 
     // box (ax, ay, az, bx, by, bz, cx, cy, cz)
     float h_tmp[9];
@@ -199,6 +189,24 @@ void Dataset::read_Na(FILE* fid)
     structures[nc].fy.resize(structures[nc].num_atom);
     structures[nc].fz.resize(structures[nc].num_atom);
   }
+}
+
+void Dataset::read_energy_virial(FILE* fid, int nc)
+{
+  if (structures[nc].has_virial) {
+    int count = fscanf(
+      fid, "%f%f%f%f%f%f%f", &structures[nc].energy, &structures[nc].virial[0],
+      &structures[nc].virial[1], &structures[nc].virial[2], &structures[nc].virial[3],
+      &structures[nc].virial[4], &structures[nc].virial[5]);
+    PRINT_SCANF_ERROR(count, 7, "reading error for energy and virial in train.in.");
+    for (int k = 0; k < 6; ++k) {
+      structures[nc].virial[k] /= structures[nc].num_atom;
+    }
+  } else {
+    int count = fscanf(fid, "%f", &structures[nc].energy);
+    PRINT_SCANF_ERROR(count, 1, "reading error for energy in train.in.");
+  }
+  structures[nc].energy /= structures[nc].num_atom;
 }
 
 void Dataset::copy_structures()
