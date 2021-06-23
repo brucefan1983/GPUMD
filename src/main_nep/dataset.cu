@@ -88,21 +88,20 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
 
   for (int n = 0; n < Nc; ++n) {
     read_energy_virial(fid, n);
-    // to be moved:
+    read_box(fid, n);
+    get_inverse(structures[n].box);
+    read_force(fid, n);
+  }
+  fclose(fid);
+
+  for (int n = 0; n < Nc; ++n) {
     pe_ref[n] = structures[n].energy;
     for (int k = 0; k < 6; ++k) {
       virial_ref[n] = structures[n].virial[k];
     }
-
-    read_box(fid, n);
-    get_inverse(structures[n].box);
-    // to be moved:
     for (int k = 0; k < 18; ++k) {
       h[k + n * 18] = structures[n].box[k];
     }
-
-    read_force(fid, n);
-    // to be moved:
     for (int na = 0; na < structures[n].num_atom; ++na) {
       r[Na_sum[n] + na] = structures[n].x[na];
       r[Na_sum[n] + na + N] = structures[n].y[na];
@@ -113,9 +112,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
     }
   }
 
-  fclose(fid);
   calculate_types();
-
   find_neighbor(para);
 }
 
