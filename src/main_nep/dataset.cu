@@ -185,7 +185,8 @@ void Dataset::read_force(FILE* fid, int nc)
         if (ia != 0 || ib != 0 || ic != 0) {
           for (int na = 0; na < num_atom_original; ++na) {
             int na_new =
-              na + ia + (ib + ic * structures[nc].num_cell_b) * structures[nc].num_cell_a;
+              na + (ia + (ib + ic * structures[nc].num_cell_b) * structures[nc].num_cell_a) *
+                     num_atom_original;
             float delta_x = structures[nc].box_original[0] * ia +
                             structures[nc].box_original[1] * ib +
                             structures[nc].box_original[2] * ic;
