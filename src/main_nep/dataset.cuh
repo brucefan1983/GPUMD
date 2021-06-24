@@ -74,6 +74,7 @@ public:
 private:
   // functions called by construct:
   void read_train_in(char*, Parameters& para);
+  void reorder(char* input_dir);
   void find_Na();
   void initialize_gpu_data();
   void calculate_types();
