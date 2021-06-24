@@ -29,7 +29,6 @@ public:
   int max_NN_angular;              // angular neighbor list size
   GPU_Vector<int> Na;              // number of atoms in each configuration
   GPU_Vector<int> Na_sum;          // prefix sum of Na
-  std::vector<int> has_virial;     // 1 if has virial for a configuration, 0 otherwise
   GPU_Vector<float> atomic_number; // atomic number (number of protons)
   GPU_Vector<float> r;             // position
   GPU_Vector<float> force;         // force

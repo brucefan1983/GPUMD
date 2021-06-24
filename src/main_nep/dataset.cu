@@ -35,7 +35,6 @@ void Dataset::read_Nc(FILE* fid)
   virial_ref.resize(Nc * 6, Memory_Type::managed);
   Na.resize(Nc, Memory_Type::managed);
   Na_sum.resize(Nc, Memory_Type::managed);
-  has_virial.resize(Nc);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
 }
@@ -329,15 +328,11 @@ void Dataset::reorder(char* input_dir)
 
 void Dataset::find_Na()
 {
-  for (int nc = 0; nc < Nc; ++nc) {
-    Na[nc] = structures[nc].num_atom;
-    has_virial[nc] = structures[nc].has_virial;
-  }
-
   N = 0;
   max_Na = 0;
   int num_virial_configurations = 0;
   for (int nc = 0; nc < Nc; ++nc) {
+    Na[nc] = structures[nc].num_atom;
     Na_sum[nc] = 0;
   }
 
@@ -687,7 +682,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
 {
   int num_virial_configurations = 0;
   for (int n = nc1; n < nc2; ++n) {
-    if (has_virial[n]) {
+    if (structures[n].has_virial) {
       ++num_virial_configurations;
     }
   }
@@ -703,7 +698,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
     Na.data(), Na_sum.data(), virial.data(), virial_ref.data(), error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = nc1; n < nc2; ++n) {
-    if (has_virial[n]) {
+    if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
   }
@@ -712,7 +707,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
     Na.data(), Na_sum.data(), virial.data() + N, virial_ref.data() + Nc, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = nc1; n < nc2; ++n) {
-    if (has_virial[n]) {
+    if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
   }
@@ -721,7 +716,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
     Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref.data() + Nc * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = nc1; n < nc2; ++n) {
-    if (has_virial[n]) {
+    if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
   }
@@ -730,7 +725,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
     Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref.data() + Nc * 3, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = nc1; n < nc2; ++n) {
-    if (has_virial[n]) {
+    if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
   }
@@ -739,7 +734,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
     Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref.data() + Nc * 4, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = nc1; n < nc2; ++n) {
-    if (has_virial[n]) {
+    if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
   }
@@ -748,7 +743,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
     Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref.data() + Nc * 5, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = nc1; n < nc2; ++n) {
-    if (has_virial[n]) {
+    if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
   }
