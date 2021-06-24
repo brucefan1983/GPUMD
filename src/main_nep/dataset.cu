@@ -253,19 +253,31 @@ static void find_permuted_indices(std::vector<int>& permuted_indices)
   }
 }
 
+static void insertion_sort(int* array, int* index, int n)
+{
+  for (int i = 1; i < n; i++) {
+    int key = array[i];
+    int j = i - 1;
+    while (j >= 0 && array[j] > key) {
+      array[j + 1] = array[j];
+      index[j + 1] = index[j];
+      --j;
+    }
+    array[j + 1] = key;
+    index[j + 1] = i;
+  }
+}
+
 void Dataset::reorder(char* input_dir)
 {
   std::vector<int> configuration_id(Nc);
   find_permuted_indices(configuration_id);
-
-  char filename[200];
-  strcpy(filename, input_dir);
-  strcat(filename, "/configuration_id.out");
-  FILE* fid = my_fopen(filename, "w");
+  std::vector<int> configuration_id_copy(Nc);
   for (int nc = 0; nc < Nc; ++nc) {
-    fprintf(fid, "%d %d\n", configuration_id[nc], structures[configuration_id[nc]].num_atom);
+    configuration_id_copy[nc] = configuration_id[nc];
   }
-  fclose(fid);
+  id_of_original_structures.resize(Nc);
+  insertion_sort(configuration_id_copy.data(), id_of_original_structures.data(), Nc);
 
   std::vector<Structure> structures_copy(Nc);
 

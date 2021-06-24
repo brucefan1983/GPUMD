@@ -69,16 +69,16 @@ void Fitness::compute(
   }
 }
 
-static void
-predict_energy_or_stress(FILE* fid, int Nc, int* Na, int* Na_sum, float* data, float* ref)
+void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
 {
-  for (int nc = 0; nc < Nc; ++nc) {
-    int offset = Na_sum[nc];
+  for (int nc = 0; nc < train_set.Nc; ++nc) {
+    int nc_new = train_set.id_of_original_structures[nc];
+    int offset = train_set.Na_sum[nc_new];
     float data_nc = 0.0f;
-    for (int m = 0; m < Na[nc]; ++m) {
+    for (int m = 0; m < train_set.Na[nc_new]; ++m) {
       data_nc += data[offset + m];
     }
-    fprintf(fid, "%g %g\n", data_nc / Na[nc], ref[nc]);
+    fprintf(fid, "%g %g\n", data_nc / train_set.Na[nc_new], ref[nc_new]);
   }
 }
 
@@ -142,11 +142,16 @@ void Fitness::report_error(
     strcpy(file_force, input_dir);
     strcat(file_force, "/force.out");
     FILE* fid_force = my_fopen(file_force, "w");
-    for (int n = 0; n < train_set.N; ++n) {
-      fprintf(
-        fid_force, "%g %g %g %g %g %g\n", train_set.force[n], train_set.force[n + train_set.N],
-        train_set.force[n + train_set.N * 2], train_set.force_ref[n],
-        train_set.force_ref[n + train_set.N], train_set.force_ref[n + train_set.N * 2]);
+    for (int nc = 0; nc < train_set.Nc; ++nc) {
+      int nc_new = train_set.id_of_original_structures[nc];
+      int offset = train_set.Na_sum[nc_new];
+      for (int m = 0; m < train_set.Na[nc_new]; ++m) {
+        int n = offset + m;
+        fprintf(
+          fid_force, "%g %g %g %g %g %g\n", train_set.force[n], train_set.force[n + train_set.N],
+          train_set.force[n + train_set.N * 2], train_set.force_ref[n],
+          train_set.force_ref[n + train_set.N], train_set.force_ref[n + train_set.N * 2]);
+      }
     }
     fclose(fid_force);
 
@@ -155,9 +160,7 @@ void Fitness::report_error(
     strcpy(file_energy, input_dir);
     strcat(file_energy, "/energy.out");
     FILE* fid_energy = my_fopen(file_energy, "w");
-    predict_energy_or_stress(
-      fid_energy, train_set.Nc, train_set.Na.data(), train_set.Na_sum.data(), train_set.pe.data(),
-      train_set.pe_ref.data());
+    predict_energy_or_stress(fid_energy, train_set.pe.data(), train_set.pe_ref.data());
     fclose(fid_energy);
 
     // update virial.out
@@ -165,29 +168,27 @@ void Fitness::report_error(
     strcpy(file_virial, input_dir);
     strcat(file_virial, "/virial.out");
     FILE* fid_virial = my_fopen(file_virial, "w");
-    predict_energy_or_stress(
-      fid_virial, train_set.Nc, train_set.Na.data(), train_set.Na_sum.data(),
-      train_set.virial.data(), train_set.virial_ref.data());
+    predict_energy_or_stress(fid_virial, train_set.virial.data(), train_set.virial_ref.data());
 
     predict_energy_or_stress(
-      fid_virial, train_set.Nc, train_set.Na.data(), train_set.Na_sum.data(),
-      train_set.virial.data() + train_set.N, train_set.virial_ref.data() + train_set.Nc);
+      fid_virial, train_set.virial.data() + train_set.N,
+      train_set.virial_ref.data() + train_set.Nc);
 
     predict_energy_or_stress(
-      fid_virial, train_set.Nc, train_set.Na.data(), train_set.Na_sum.data(),
-      train_set.virial.data() + train_set.N * 2, train_set.virial_ref.data() + train_set.Nc * 2);
+      fid_virial, train_set.virial.data() + train_set.N * 2,
+      train_set.virial_ref.data() + train_set.Nc * 2);
 
     predict_energy_or_stress(
-      fid_virial, train_set.Nc, train_set.Na.data(), train_set.Na_sum.data(),
-      train_set.virial.data() + train_set.N * 3, train_set.virial_ref.data() + train_set.Nc * 3);
+      fid_virial, train_set.virial.data() + train_set.N * 3,
+      train_set.virial_ref.data() + train_set.Nc * 3);
 
     predict_energy_or_stress(
-      fid_virial, train_set.Nc, train_set.Na.data(), train_set.Na_sum.data(),
-      train_set.virial.data() + train_set.N * 4, train_set.virial_ref.data() + train_set.Nc * 4);
+      fid_virial, train_set.virial.data() + train_set.N * 4,
+      train_set.virial_ref.data() + train_set.Nc * 4);
 
     predict_energy_or_stress(
-      fid_virial, train_set.Nc, train_set.Na.data(), train_set.Na_sum.data(),
-      train_set.virial.data() + train_set.N * 5, train_set.virial_ref.data() + train_set.Nc * 5);
+      fid_virial, train_set.virial.data() + train_set.N * 5,
+      train_set.virial_ref.data() + train_set.Nc * 5);
 
     fclose(fid_virial);
   }

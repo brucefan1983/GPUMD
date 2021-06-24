@@ -45,6 +45,8 @@ public:
   GPU_Vector<int> NN_angular;      // angular neighbor number
   GPU_Vector<int> NL_angular;      // angular neighbor list
 
+  std::vector<int> id_of_original_structures;
+
   struct Structure {
     int num_cell_a;
     int num_cell_b;

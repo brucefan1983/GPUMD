@@ -48,4 +48,6 @@ protected:
   // other classes
   std::unique_ptr<Potential> potential;
   Dataset train_set;
+
+  void predict_energy_or_stress(FILE* fid, float* data, float* ref);
 };
