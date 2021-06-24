@@ -43,8 +43,8 @@ public:
 
 protected:
   // output files:
-  FILE* fid_train_out;
-  FILE* fid_potential_out;
+  FILE* fid_loss_out;
+  FILE* fid_ann_out;
   // other classes
   std::unique_ptr<Potential> potential;
   Dataset train_set;

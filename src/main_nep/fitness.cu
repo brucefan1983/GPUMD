@@ -32,21 +32,21 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   train_set.construct(input_dir, para);
   potential.reset(new NEP2(input_dir, para, train_set));
 
-  char file_train_out[200];
-  strcpy(file_train_out, input_dir);
-  strcat(file_train_out, "/loss.out");
-  fid_train_out = my_fopen(file_train_out, "w");
+  char file_loss_out[200];
+  strcpy(file_loss_out, input_dir);
+  strcat(file_loss_out, "/loss.out");
+  fid_loss_out = my_fopen(file_loss_out, "w");
 
-  char file_potential_out[200];
-  strcpy(file_potential_out, input_dir);
-  strcat(file_potential_out, "/ann.out");
-  fid_potential_out = my_fopen(file_potential_out, "w");
+  char file_ann_out[200];
+  strcpy(file_ann_out, input_dir);
+  strcat(file_ann_out, "/ann.out");
+  fid_ann_out = my_fopen(file_ann_out, "w");
 }
 
 Fitness::~Fitness()
 {
-  fclose(fid_train_out);
-  fclose(fid_potential_out);
+  fclose(fid_loss_out);
+  fclose(fid_ann_out);
 }
 
 void Fitness::compute(
@@ -100,7 +100,7 @@ void Fitness::report_error(
 
     char file_nep[200];
     strcpy(file_nep, input_dir);
-    strcat(file_nep, "/nep.out");
+    strcat(file_nep, "/nep.txt");
     FILE* fid_nep = my_fopen(file_nep, "w");
 
     fprintf(fid_nep, "nep %d\n", train_set.num_types);
@@ -118,10 +118,10 @@ void Fitness::report_error(
     fclose(fid_nep);
 
     for (int m = 0; m < para.number_of_variables; ++m) {
-      fprintf(fid_potential_out, "%15.7e ", elite[m]);
+      fprintf(fid_ann_out, "%15.7e ", elite[m]);
     }
-    fprintf(fid_potential_out, "\n");
-    fflush(fid_potential_out);
+    fprintf(fid_ann_out, "\n");
+    fflush(fid_ann_out);
 
     potential->find_force(para, 0, train_set.Nc, elite, train_set);
     float rmse_energy_train = train_set.get_rmse_energy(0, train_set.Nc);
@@ -133,9 +133,9 @@ void Fitness::report_error(
       loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train);
     fflush(stdout);
     fprintf(
-      fid_train_out, "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total,
+      fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total,
       loss_L1, loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train);
-    fflush(fid_train_out);
+    fflush(fid_loss_out);
 
     // update force.out
     char file_force[200];
