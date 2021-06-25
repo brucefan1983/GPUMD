@@ -44,8 +44,8 @@ void Dataset::read_Na(FILE* fid)
   for (int nc = 0; nc < Nc; ++nc) {
     int count = fscanf(fid, "%d%d", &structures[nc].num_atom, &structures[nc].has_virial);
     PRINT_SCANF_ERROR(count, 2, "reading error for number of atoms and virial flag in train.in.");
-    if (structures[nc].num_atom < 2) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 2.");
+    if (structures[nc].num_atom < 1) {
+      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 1.");
     }
     if (structures[nc].num_atom > 1024) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
