@@ -81,9 +81,9 @@ static float get_area(const float* a, const float* b)
 
 static float get_volume(const float* box)
 {
-  return box[0] * (box[4] * box[8] - box[5] * box[7]) +
-         box[1] * (box[5] * box[6] - box[3] * box[8]) +
-         box[2] * (box[3] * box[7] - box[4] * box[6]);
+  return abs(
+    box[0] * (box[4] * box[8] - box[5] * box[7]) + box[1] * (box[5] * box[6] - box[3] * box[8]) +
+    box[2] * (box[3] * box[7] - box[4] * box[6]));
 }
 
 void Dataset::read_box(FILE* fid, int nc, Parameters& para)
@@ -377,7 +377,7 @@ void Dataset::initialize_gpu_data()
   for (int n = 0; n < Nc; ++n) {
     pe_ref[n] = structures[n].energy;
     for (int k = 0; k < 6; ++k) {
-      virial_ref[n] = structures[n].virial[k];
+      virial_ref[k * Nc + n] = structures[n].virial[k];
     }
     for (int k = 0; k < 18; ++k) {
       h[k + n * 18] = structures[n].box[k];
