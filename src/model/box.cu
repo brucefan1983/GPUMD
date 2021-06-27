@@ -19,14 +19,16 @@ The class defining the simulation box.
 
 #include "box.cuh"
 #include "utilities/error.cuh"
+#include <cmath>
 
 double Box::get_volume(void)
 {
   double volume;
   if (triclinic) {
-    volume = cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
-             cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
-             cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]);
+    volume = abs(
+      cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
+      cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
+      cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]));
   } else {
     volume = cpu_h[0] * cpu_h[1] * cpu_h[2];
   }
