@@ -46,8 +46,15 @@ void Box::get_inverse(void)
   cpu_h[15] = cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6];
   cpu_h[16] = cpu_h[1] * cpu_h[6] - cpu_h[0] * cpu_h[7];
   cpu_h[17] = cpu_h[0] * cpu_h[4] - cpu_h[1] * cpu_h[3];
-  double volume = get_volume();
+  double det;
+  if (triclinic) {
+    det = cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
+          cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
+          cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]);
+  } else {
+    det = cpu_h[0] * cpu_h[1] * cpu_h[2];
+  }
   for (int n = 9; n < 18; n++) {
-    cpu_h[n] /= volume;
+    cpu_h[n] /= det;
   }
 }
