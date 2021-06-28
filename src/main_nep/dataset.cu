@@ -79,11 +79,11 @@ static float get_area(const float* a, const float* b)
   return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
 }
 
-static float get_volume(const float* box)
+static float get_det(const float* box)
 {
-  return abs(
-    box[0] * (box[4] * box[8] - box[5] * box[7]) + box[1] * (box[5] * box[6] - box[3] * box[8]) +
-    box[2] * (box[3] * box[7] - box[4] * box[6]));
+  return box[0] * (box[4] * box[8] - box[5] * box[7]) +
+         box[1] * (box[5] * box[6] - box[3] * box[8]) +
+         box[2] * (box[3] * box[7] - box[4] * box[6]);
 }
 
 void Dataset::read_box(FILE* fid, int nc, Parameters& para)
@@ -103,7 +103,8 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
   structures[nc].box_original[5] = c[1];
   structures[nc].box_original[8] = c[2];
 
-  float volume = get_volume(structures[nc].box_original);
+  float det = get_det(structures[nc].box_original);
+  float volume = abs(det);
   structures[nc].num_cell_a = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
   structures[nc].num_cell_b = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
   structures[nc].num_cell_c = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
@@ -145,9 +146,9 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
   structures[nc].box[17] =
     structures[nc].box[0] * structures[nc].box[4] - structures[nc].box[1] * structures[nc].box[3];
 
-  volume *= structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
+  det *= structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
   for (int n = 9; n < 18; n++) {
-    structures[nc].box[n] /= volume;
+    structures[nc].box[n] /= det;
   }
 }
 
