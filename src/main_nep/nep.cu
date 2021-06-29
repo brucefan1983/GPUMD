@@ -505,41 +505,43 @@ static __global__ void find_partial_force_angular(
         float fnp;
         find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
 
-        float s[8] = {
+        float s1[3] = {
           g_sum_fxyz[(n * NUM_OF_ABC + 0) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 1) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 2) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 3) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 4) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 5) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 6) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 7) * N + n1]};
+          g_sum_fxyz[(n * NUM_OF_ABC + 2) * N + n1]};
+        float s2[5] = {
+          g_sum_fxyz[(n * NUM_OF_ABC + 3) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 4) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 5) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 6) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 7) * N + n1]};
         // l=1
         float fn1 = fn * d12inv;
         float fn1p = fnp * d12inv - fn * d12inv * d12inv;
         float Fp1 = g_Fp[n1 + ((paramb.n_max_radial + 1) + n) * N];
         float tmp =
-          Fp1 * fn1p * d12inv * (s[0] * r12[2] + 2.0f * s[1] * r12[0] + 2.0f * s[2] * r12[1]);
+          Fp1 * fn1p * d12inv * (s1[0] * r12[2] + 2.0f * s1[1] * r12[0] + 2.0f * s1[2] * r12[1]);
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
         tmp = Fp1 * fn1;
-        f12[0] += tmp * 2.0f * s[1];
-        f12[1] += tmp * 2.0f * s[2];
-        f12[2] += tmp * s[0];
+        f12[0] += tmp * 2.0f * s1[1];
+        f12[1] += tmp * 2.0f * s1[2];
+        f12[2] += tmp * s1[0];
         // l=2
         float fn2 = fn1 * d12inv;
         float fn2p = fn1p * d12inv - fn1 * d12inv * d12inv;
         float Fp2 = g_Fp[n1 + ((paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) + n) * N];
         tmp = Fp2 * fn2p * d12inv *
-              (s[3] * (3.0f * r12[2] * r12[2] - d12 * d12) + 2.0f * s[4] * r12[0] * r12[2] +
-               2.0f * s[5] * r12[1] * r12[2] + 2.0f * s[6] * (r12[0] * r12[0] - r12[1] * r12[1]) +
-               2.0f * s[7] * 2.0f * r12[0] * r12[1]);
+              (s2[0] * (3.0f * r12[2] * r12[2] - d12 * d12) + 2.0f * s2[1] * r12[0] * r12[2] +
+               2.0f * s2[2] * r12[1] * r12[2] + 2.0f * s2[3] * (r12[0] * r12[0] - r12[1] * r12[1]) +
+               2.0f * s2[4] * 2.0f * r12[0] * r12[1]);
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp * r12[d];
         }
         tmp = Fp2 * fn2;
-        f12[0] += tmp * (-2.0f * s[3] * r12[0] + 2.0f * s[4] * r12[2] + 4.0f * s[6] * r12[0] +
-                         4.0f * s[7] * r12[1]);
-        f12[1] += tmp * (-2.0f * s[3] * r12[1] + 2.0f * s[5] * r12[2] - 4.0f * s[6] * r12[1] +
-                         4.0f * s[7] * r12[0]);
-        f12[2] += tmp * (4.0f * s[3] * r12[2] + 2.0f * s[4] * r12[0] + 2.0f * s[5] * r12[1]);
+        f12[0] += tmp * (-2.0f * s2[0] * r12[0] + 2.0f * s2[1] * r12[2] + 4.0f * s2[3] * r12[0] +
+                         4.0f * s2[4] * r12[1]);
+        f12[1] += tmp * (-2.0f * s2[0] * r12[1] + 2.0f * s2[2] * r12[2] - 4.0f * s2[3] * r12[1] +
+                         4.0f * s2[4] * r12[0]);
+        f12[2] += tmp * (4.0f * s2[0] * r12[2] + 2.0f * s2[1] * r12[0] + 2.0f * s2[2] * r12[1]);
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
