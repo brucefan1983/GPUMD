@@ -25,6 +25,7 @@ struct NEP2_Data {
   GPU_Vector<float> f12z;        // partial forces
   GPU_Vector<float> descriptors; // descriptors
   GPU_Vector<float> Fp;          // gradient of descriptors
+  GPU_Vector<float> sum_fxyz;
 };
 
 class NEP2 : public Potential

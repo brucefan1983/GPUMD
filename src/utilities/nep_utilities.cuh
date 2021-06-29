@@ -39,6 +39,68 @@ find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& fcp)
   }
 }
 
+static __device__ void
+find_fn(const int n, const float rcinv, const float d12, const float fc12, float& fn)
+{
+  if (n == 0) {
+    fn = fc12;
+  } else if (n == 1) {
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+    fn = (x + 1.0f) * 0.5f * fc12;
+  } else {
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+    float t0 = 1.0f;
+    float t1 = x;
+    float t2;
+    for (int m = 2; m <= n; ++m) {
+      t2 = 2.0f * x * t1 - t0;
+      t0 = t1;
+      t1 = t2;
+    }
+    fn = (t2 + 1.0f) * 0.5f * fc12;
+  }
+}
+
+static __device__ void find_fn_and_fnp(
+  const int n,
+  const float rcinv,
+  const float d12,
+  const float fc12,
+  const float fcp12,
+  float& fn,
+  float& fnp)
+{
+  if (n == 0) {
+    fn = fc12;
+    fnp = fcp12;
+  } else if (n == 1) {
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+    fn = (x + 1.0f) * 0.5f;
+    fnp = 2.0f * (d12 * rcinv - 1.0f) * rcinv * fc12 + fn * fcp12;
+    fn *= fc12;
+  } else {
+    float x = 2.0f * (d12 * rcinv - 1.0f) * (d12 * rcinv - 1.0f) - 1.0f;
+    float t0 = 1.0f;
+    float t1 = x;
+    float t2;
+    float u0 = 1.0f;
+    float u1 = 2.0f * x;
+    float u2;
+    for (int m = 2; m <= n; ++m) {
+      t2 = 2.0f * x * t1 - t0;
+      t0 = t1;
+      t1 = t2;
+      u2 = 2.0f * x * u1 - u0;
+      u0 = u1;
+      u1 = u2;
+    }
+    fn = (t2 + 1.0f) * 0.5f;
+    fnp = n * u0 * 2.0f * (d12 * rcinv - 1.0f) * rcinv;
+    fnp = fnp * fc12 + fn * fcp12;
+    fn *= fc12;
+  }
+}
+
 static __device__ __forceinline__ void
 find_fn(const int n_max, const float rcinv, const float d12, const float fc12, float* fn)
 {
