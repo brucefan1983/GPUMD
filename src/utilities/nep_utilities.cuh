@@ -189,3 +189,47 @@ find_poly_cos_and_der(const int L_max, const float x, float* poly_cos, float* po
   poly_cos[6] = 14.935696690780054f * x6 - 20.366859123790981f * x4 + 6.788953041263660f * x2 -
                 0.323283478155412f;
 }
+
+static __device__ __forceinline__ void get_f12_1(
+  const float d12inv,
+  const float fn,
+  const float fnp,
+  const float Fp,
+  const float* s,
+  const float* r12,
+  float* f12)
+{
+  float tmp = Fp * fnp * d12inv * (s[0] * r12[2] + 2.0f * s[1] * r12[0] + 2.0f * s[2] * r12[1]);
+  for (int d = 0; d < 3; ++d) {
+    f12[d] += tmp * r12[d];
+  }
+  tmp = Fp * fn;
+  f12[0] += tmp * 2.0f * s[1];
+  f12[1] += tmp * 2.0f * s[2];
+  f12[2] += tmp * s[0];
+}
+
+static __device__ __forceinline__ void get_f12_2(
+  const float d12,
+  const float d12inv,
+  const float fn,
+  const float fnp,
+  const float Fp,
+  const float* s,
+  const float* r12,
+  float* f12)
+{
+  float tmp = Fp * fnp * d12inv *
+              (s[0] * (3.0f * r12[2] * r12[2] - d12 * d12) + 2.0f * s[1] * r12[0] * r12[2] +
+               2.0f * s[2] * r12[1] * r12[2] + 2.0f * s[3] * (r12[0] * r12[0] - r12[1] * r12[1]) +
+               2.0f * s[4] * 2.0f * r12[0] * r12[1]);
+  for (int d = 0; d < 3; ++d) {
+    f12[d] += tmp * r12[d];
+  }
+  tmp = Fp * fn;
+  f12[0] += tmp * (-2.0f * s[0] * r12[0] + 2.0f * s[1] * r12[2] + 4.0f * s[3] * r12[0] +
+                   4.0f * s[4] * r12[1]);
+  f12[1] += tmp * (-2.0f * s[0] * r12[1] + 2.0f * s[2] * r12[2] - 4.0f * s[3] * r12[1] +
+                   4.0f * s[4] * r12[0]);
+  f12[2] += tmp * (4.0f * s[0] * r12[2] + 2.0f * s[1] * r12[0] + 2.0f * s[2] * r12[1]);
+}
