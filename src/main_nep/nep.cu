@@ -26,15 +26,17 @@ Ref: Zheyong Fan et al., in preparation.
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 
-const int NUM_OF_ABC = 8; // 3 + 5 for L_max = 2
+const int NUM_OF_ABC = 15; // 3 + 5 + 7 for L_max = 3
 __constant__ float YLM[NUM_OF_ABC] = {0.238732414637843f, 0.119366207318922f, 0.119366207318922f,
                                       0.099471839432435f, 0.596831036594608f, 0.596831036594608f,
-                                      0.149207759148652f, 0.149207759148652f};
+                                      0.149207759148652f, 0.149207759148652f, 0.139260575205408f,
+                                      0.104445431404056f, 0.104445431404056f, 1.044454314040563f,
+                                      1.044454314040563f, 0.174075719006761f, 0.174075719006761f};
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18;  // (3 * 3) * 2
 const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
 const int MAX_NUM_N = 13;                 // n_max+1 = 12+1
-const int MAX_NUM_L = 2;                  // L_max=2
+const int MAX_NUM_L = 4;                  // L_max+1 = 3+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 __constant__ float c_parameters[10000]; // less than 64 KB maximum
 
@@ -130,19 +132,30 @@ static __global__ void find_descriptors_angular(
         x12 *= d12inv;
         y12 *= d12inv;
         z12 *= d12inv;
-        s[0] += z12 * fn;                       // Y10
-        s[1] += x12 * fn;                       // Y11_real
-        s[2] += y12 * fn;                       // Y11_imag
-        s[3] += (3.0f * z12 * z12 - 1.0f) * fn; // Y20
-        s[4] += x12 * z12 * fn;                 // Y21_real
-        s[5] += y12 * z12 * fn;                 // Y21_imag
-        s[6] += (x12 * x12 - y12 * y12) * fn;   // Y22_real
-        s[7] += 2.0f * x12 * y12 * fn;          // Y22_imag
+        s[0] += z12 * fn;                                   // Y10
+        s[1] += x12 * fn;                                   // Y11_real
+        s[2] += y12 * fn;                                   // Y11_imag
+        s[3] += (3.0f * z12 * z12 - 1.0f) * fn;             // Y20
+        s[4] += x12 * z12 * fn;                             // Y21_real
+        s[5] += y12 * z12 * fn;                             // Y21_imag
+        s[6] += (x12 * x12 - y12 * y12) * fn;               // Y22_real
+        s[7] += 2.0f * x12 * y12 * fn;                      // Y22_imag
+        s[8] += (5.0f * z12 * z12 - 3.0f) * z12 * fn;       // Y30
+        s[9] += (5.0f * z12 * z12 - 1.0f) * x12 * fn;       // Y31_real
+        s[10] += (5.0f * z12 * z12 - 1.0f) * y12 * fn;      // Y31_imag
+        s[11] += (x12 * x12 - y12 * y12) * z12 * fn;        // Y32_real
+        s[12] += 2.0f * x12 * y12 * z12 * fn;               // Y32_imag
+        s[13] += (x12 * x12 - 3.0f * y12 * y12) * x12 * fn; // Y33_real
+        s[14] += (3.0f * x12 * x12 - y12 * y12) * y12 * fn; // Y33_imag
       }
       q[n] = YLM[0] * s[0] * s[0] + 2.0f * (YLM[1] * s[1] * s[1] + YLM[2] * s[2] * s[2]);
       q[(paramb.n_max_angular + 1) + n] =
         YLM[3] * s[3] * s[3] + 2.0f * (YLM[4] * s[4] * s[4] + YLM[5] * s[5] * s[5] +
                                        YLM[6] * s[6] * s[6] + YLM[7] * s[7] * s[7]);
+      q[2 * (paramb.n_max_angular + 1) + n] =
+        YLM[8] * s[8] * s[8] +
+        2.0f * (YLM[9] * s[9] * s[9] + YLM[10] * s[10] * s[10] + YLM[11] * s[11] * s[11] +
+                YLM[12] * s[12] * s[12] + YLM[13] * s[13] * s[13] + YLM[14] * s[14] * s[14]);
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
       }
@@ -520,6 +533,18 @@ static __global__ void find_partial_force_angular(
         get_f12_2(
           d12, d12inv, fn, fnp,
           g_Fp[n1 + ((paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) + n) * N], s2, r12,
+          f12);
+        // l = 3
+        fnp = fnp * d12inv - fn * d12inv * d12inv;
+        fn = fn * d12inv;
+        float s3[7] = {
+          g_sum_fxyz[(n * NUM_OF_ABC + 8) * N + n1],  g_sum_fxyz[(n * NUM_OF_ABC + 9) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 10) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 11) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 12) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 13) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 14) * N + n1]};
+        get_f12_3(
+          d12, d12inv, fn, fnp,
+          g_Fp[n1 + ((paramb.n_max_radial + 1) + 2 * (paramb.n_max_angular + 1) + n) * N], s3, r12,
           f12);
       }
       g_f12x[index] = f12[0] * 2.0f;

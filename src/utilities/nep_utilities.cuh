@@ -199,7 +199,11 @@ static __device__ __forceinline__ void get_f12_1(
   const float* r12,
   float* f12)
 {
-  float tmp = Fp * fnp * d12inv * (s[0] * r12[2] + 2.0f * s[1] * r12[0] + 2.0f * s[2] * r12[1]);
+  float tmp = s[1] * r12[0];
+  tmp += s[2] * r12[1];
+  tmp *= 2.0f;
+  tmp += s[0] * r12[2];
+  tmp *= Fp * fnp * d12inv;
   for (int d = 0; d < 3; ++d) {
     f12[d] += tmp * r12[d];
   }
@@ -219,17 +223,79 @@ static __device__ __forceinline__ void get_f12_2(
   const float* r12,
   float* f12)
 {
-  float tmp = Fp * fnp * d12inv *
-              (s[0] * (3.0f * r12[2] * r12[2] - d12 * d12) + 2.0f * s[1] * r12[0] * r12[2] +
-               2.0f * s[2] * r12[1] * r12[2] + 2.0f * s[3] * (r12[0] * r12[0] - r12[1] * r12[1]) +
-               2.0f * s[4] * 2.0f * r12[0] * r12[1]);
+  float tmp = s[1] * r12[0] * r12[2];                // Re[Y21]
+  tmp += s[2] * r12[1] * r12[2];                     // Im[Y21]
+  tmp += s[3] * (r12[0] * r12[0] - r12[1] * r12[1]); // Re[Y22]
+  tmp += s[4] * 2.0f * r12[0] * r12[1];              // Im[Y22]
+  tmp *= 2.0f;
+  tmp += s[0] * (3.0f * r12[2] * r12[2] - d12 * d12); // Y20
+  tmp *= Fp * fnp * d12inv;
   for (int d = 0; d < 3; ++d) {
     f12[d] += tmp * r12[d];
   }
-  tmp = Fp * fn;
-  f12[0] += tmp * (-2.0f * s[0] * r12[0] + 2.0f * s[1] * r12[2] + 4.0f * s[3] * r12[0] +
-                   4.0f * s[4] * r12[1]);
-  f12[1] += tmp * (-2.0f * s[0] * r12[1] + 2.0f * s[2] * r12[2] - 4.0f * s[3] * r12[1] +
-                   4.0f * s[4] * r12[0]);
-  f12[2] += tmp * (4.0f * s[0] * r12[2] + 2.0f * s[1] * r12[0] + 2.0f * s[2] * r12[1]);
+  tmp = Fp * fn * 2.0f;
+  f12[0] += tmp * (-s[0] * r12[0] + s[1] * r12[2] + 2.0f * s[3] * r12[0] + 2.0f * s[4] * r12[1]);
+  f12[1] += tmp * (-s[0] * r12[1] + s[2] * r12[2] - 2.0f * s[3] * r12[1] + 2.0f * s[4] * r12[0]);
+  f12[2] += tmp * (2.0f * s[0] * r12[2] + s[1] * r12[0] + s[2] * r12[1]);
+}
+
+static __device__ __forceinline__ void get_f12_3(
+  const float d12,
+  const float d12inv,
+  const float fn,
+  const float fnp,
+  const float Fp,
+  const float* s,
+  const float* r12,
+  float* f12)
+{
+  float d12sq = d12 * d12;
+  float x2 = r12[0] * r12[0];
+  float y2 = r12[1] * r12[1];
+  float z2 = r12[2] * r12[2];
+  float xy = r12[0] * r12[1];
+  float xz = r12[0] * r12[2];
+  float yz = r12[1] * r12[2];
+
+  float tmp = s[1] * (5.0f * z2 - d12sq) * r12[0];
+  tmp += s[2] * (5.0f * z2 - d12sq) * r12[1];
+  tmp += s[3] * (x2 - y2) * r12[2];
+  tmp += s[4] * 2.0f * xy * r12[2];
+  tmp += s[5] * r12[0] * (x2 - 3.0f * y2);
+  tmp += s[6] * r12[1] * (3.0f * x2 - y2);
+  tmp *= 2.0f;
+  tmp += s[0] * (5.0f * z2 - 3.0f * d12sq) * r12[2];
+  tmp *= Fp * fnp * d12inv;
+  for (int d = 0; d < 3; ++d) {
+    f12[d] += tmp * r12[d];
+  }
+
+  // x
+  tmp = s[1] * (4.0f * z2 - 3.0f * x2 - y2);
+  tmp += s[2] * (-2.0f * xy);
+  tmp += s[3] * 2.0f * xz;
+  tmp += s[4] * (2.0f * yz);
+  tmp += s[5] * (3.0f * (x2 - y2));
+  tmp += s[6] * (6.0f * xy);
+  tmp *= 2.0f;
+  tmp += s[0] * (-6.0f * xz);
+  f12[0] += tmp * Fp * fn;
+  // y
+  tmp = s[1] * (-2.0f * xy);
+  tmp += s[2] * (4.0f * z2 - 3.0f * y2 - x2);
+  tmp += s[3] * (-2.0f * yz);
+  tmp += s[4] * (2.0f * xz);
+  tmp += s[5] * (-6.0f * xy);
+  tmp += s[6] * (3.0f * (x2 - y2));
+  tmp *= 2.0f;
+  tmp += s[0] * (-6.0f * yz);
+  f12[1] += tmp * Fp * fn;
+  // z
+  tmp = s[1] * (8.0f * xz);
+  tmp += s[2] * (8.0f * yz);
+  tmp += s[3] * (x2 - y2);
+  tmp += s[4] * (2.0f * xy);
+  tmp *= 2.0f;
+  tmp += s[0] * (9.0f * z2 - 3.0f * d12sq);
+  f12[2] += tmp * Fp * fn;
 }
