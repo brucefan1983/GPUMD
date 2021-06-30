@@ -26,17 +26,19 @@ Ref: Zheyong Fan et al., in preparation.
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 
-const int NUM_OF_ABC = 15; // 3 + 5 + 7 for L_max = 3
-__constant__ float YLM[NUM_OF_ABC] = {0.238732414637843f, 0.119366207318922f, 0.119366207318922f,
-                                      0.099471839432435f, 0.596831036594608f, 0.596831036594608f,
-                                      0.149207759148652f, 0.149207759148652f, 0.139260575205408f,
-                                      0.104445431404056f, 0.104445431404056f, 1.044454314040563f,
-                                      1.044454314040563f, 0.174075719006761f, 0.174075719006761f};
+const int NUM_OF_ABC = 24; // 3 + 5 + 7 + 9 for L_max = 4
+__constant__ float YLM[NUM_OF_ABC] = {
+  0.238732414637843f, 0.119366207318922f, 0.119366207318922f, 0.099471839432435f,
+  0.596831036594608f, 0.596831036594608f, 0.149207759148652f, 0.149207759148652f,
+  0.139260575205408f, 0.104445431404056f, 0.104445431404056f, 1.044454314040563f,
+  1.044454314040563f, 0.174075719006761f, 0.174075719006761f, 0.011190581936149f,
+  0.223811638722978f, 0.223811638722978f, 0.111905819361489f, 0.111905819361489f,
+  1.566681471060845f, 1.566681471060845f, 0.195835183882606f, 0.195835183882606f};
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18;  // (3 * 3) * 2
 const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
 const int MAX_NUM_N = 13;                 // n_max+1 = 12+1
-const int MAX_NUM_L = 4;                  // L_max+1 = 3+1
+const int MAX_NUM_L = 5;                  // L_max+1 = 4+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 __constant__ float c_parameters[10000]; // less than 64 KB maximum
 
@@ -132,21 +134,34 @@ static __global__ void find_descriptors_angular(
         x12 *= d12inv;
         y12 *= d12inv;
         z12 *= d12inv;
-        s[0] += z12 * fn;                                   // Y10
-        s[1] += x12 * fn;                                   // Y11_real
-        s[2] += y12 * fn;                                   // Y11_imag
-        s[3] += (3.0f * z12 * z12 - 1.0f) * fn;             // Y20
-        s[4] += x12 * z12 * fn;                             // Y21_real
-        s[5] += y12 * z12 * fn;                             // Y21_imag
-        s[6] += (x12 * x12 - y12 * y12) * fn;               // Y22_real
-        s[7] += 2.0f * x12 * y12 * fn;                      // Y22_imag
-        s[8] += (5.0f * z12 * z12 - 3.0f) * z12 * fn;       // Y30
-        s[9] += (5.0f * z12 * z12 - 1.0f) * x12 * fn;       // Y31_real
-        s[10] += (5.0f * z12 * z12 - 1.0f) * y12 * fn;      // Y31_imag
-        s[11] += (x12 * x12 - y12 * y12) * z12 * fn;        // Y32_real
-        s[12] += 2.0f * x12 * y12 * z12 * fn;               // Y32_imag
-        s[13] += (x12 * x12 - 3.0f * y12 * y12) * x12 * fn; // Y33_real
-        s[14] += (3.0f * x12 * x12 - y12 * y12) * y12 * fn; // Y33_imag
+        float x12sq = x12 * x12;
+        float y12sq = y12 * y12;
+        float z12sq = z12 * z12;
+        float x12sq_minus_y12sq = x12sq - y12sq;
+        s[0] += z12 * fn;                                                             // Y10
+        s[1] += x12 * fn;                                                             // Y11_real
+        s[2] += y12 * fn;                                                             // Y11_imag
+        s[3] += (3.0f * z12sq - 1.0f) * fn;                                           // Y20
+        s[4] += x12 * z12 * fn;                                                       // Y21_real
+        s[5] += y12 * z12 * fn;                                                       // Y21_imag
+        s[6] += x12sq_minus_y12sq * fn;                                               // Y22_real
+        s[7] += 2.0f * x12 * y12 * fn;                                                // Y22_imag
+        s[8] += (5.0f * z12sq - 3.0f) * z12 * fn;                                     // Y30
+        s[9] += (5.0f * z12sq - 1.0f) * x12 * fn;                                     // Y31_real
+        s[10] += (5.0f * z12sq - 1.0f) * y12 * fn;                                    // Y31_imag
+        s[11] += x12sq_minus_y12sq * z12 * fn;                                        // Y32_real
+        s[12] += 2.0f * x12 * y12 * z12 * fn;                                         // Y32_imag
+        s[13] += (x12 * x12 - 3.0f * y12 * y12) * x12 * fn;                           // Y33_real
+        s[14] += (3.0f * x12 * x12 - y12 * y12) * y12 * fn;                           // Y33_imag
+        s[15] += ((35.0f * z12sq - 30.0f) * z12sq + 3.0f) * fn;                       // Y40
+        s[16] += (7.0f * z12sq - 3.0f) * x12 * z12 * fn;                              // Y41_real
+        s[17] += (7.0f * z12sq - 3.0f) * y12 * z12 * fn;                              // Y41_iamg
+        s[18] += (7.0f * z12sq - 1.0f) * x12sq_minus_y12sq * fn;                      // Y42_real
+        s[19] += (7.0f * z12sq - 1.0f) * x12 * y12 * 2.0f * fn;                       // Y42_imag
+        s[20] += (x12sq - 3.0f * y12sq) * x12 * z12 * fn;                             // Y43_real
+        s[21] += (3.0f * x12sq - y12sq) * y12 * z12 * fn;                             // Y43_imag
+        s[22] += (x12sq_minus_y12sq * x12sq_minus_y12sq - 4.0f * x12sq * y12sq) * fn; // Y44_real
+        s[23] += (4.0f * x12 * y12 * x12sq_minus_y12sq) * fn;                         // Y44_imag
       }
       q[n] = YLM[0] * s[0] * s[0] + 2.0f * (YLM[1] * s[1] * s[1] + YLM[2] * s[2] * s[2]);
       q[(paramb.n_max_angular + 1) + n] =
@@ -156,6 +171,11 @@ static __global__ void find_descriptors_angular(
         YLM[8] * s[8] * s[8] +
         2.0f * (YLM[9] * s[9] * s[9] + YLM[10] * s[10] * s[10] + YLM[11] * s[11] * s[11] +
                 YLM[12] * s[12] * s[12] + YLM[13] * s[13] * s[13] + YLM[14] * s[14] * s[14]);
+      q[3 * (paramb.n_max_angular + 1) + n] =
+        YLM[15] * s[15] * s[15] +
+        2.0f * (YLM[16] * s[16] * s[16] + YLM[17] * s[17] * s[17] + YLM[18] * s[18] * s[18] +
+                YLM[19] * s[19] * s[19] + YLM[20] * s[20] * s[20] + YLM[21] * s[21] * s[21] +
+                YLM[22] * s[22] * s[22] + YLM[23] * s[23] * s[23]);
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
       }
@@ -546,6 +566,18 @@ static __global__ void find_partial_force_angular(
           d12, d12inv, fn, fnp,
           g_Fp[n1 + ((paramb.n_max_radial + 1) + 2 * (paramb.n_max_angular + 1) + n) * N], s3, r12,
           f12);
+        // l = 4
+        fnp = fnp * d12inv - fn * d12inv * d12inv;
+        fn = fn * d12inv;
+        float s4[9] = {
+          g_sum_fxyz[(n * NUM_OF_ABC + 15) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 16) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 17) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 18) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 19) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 20) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 21) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 22) * N + n1],
+          g_sum_fxyz[(n * NUM_OF_ABC + 23) * N + n1]};
+        get_f12_4(
+          r12[0], r12[1], r12[2], d12, d12inv, fn, fnp,
+          g_Fp[n1 + ((paramb.n_max_radial + 1) + 3 * (paramb.n_max_angular + 1) + n) * N], s4, f12);
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;

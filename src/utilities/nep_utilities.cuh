@@ -299,3 +299,76 @@ static __device__ __forceinline__ void get_f12_3(
   tmp += s[0] * (9.0f * z2 - 3.0f * d12sq);
   f12[2] += tmp * Fp * fn;
 }
+
+static __device__ __forceinline__ void get_f12_4(
+  const float x,
+  const float y,
+  const float z,
+  const float r,
+  const float rinv,
+  const float fn,
+  const float fnp,
+  const float Fp,
+  const float* s,
+  float* f12)
+{
+  const float r2 = r * r;
+  const float x2 = x * x;
+  const float y2 = y * y;
+  const float z2 = z * z;
+  const float xy = x * y;
+  const float xz = x * z;
+  const float yz = y * z;
+  const float xyz = x * yz;
+  const float x2my2 = x2 - y2;
+
+  float tmp = s[1] * (7.0f * z2 - 3.0f * r2) * xz; // Y41_real
+  tmp += s[2] * (7.0f * z2 - 3.0f * r2) * yz;      // Y41_imag
+  tmp += s[3] * (7.0f * z2 - r2) * x2my2;          // Y42_real
+  tmp += s[4] * (7.0f * z2 - r2) * 2.0f * xy;      // Y42_imag
+  tmp += s[5] * (x2 - 3.0f * y2) * xz;             // Y43_real
+  tmp += s[6] * (3.0f * x2 - y2) * yz;             // Y43_imag
+  tmp += s[7] * (x2my2 * x2my2 - 4.0f * x2 * y2);  // Y44_real
+  tmp += s[8] * (4.0f * xy * x2my2);               // Y44_imag
+  tmp *= 2.0f;
+  tmp += s[0] * ((35.0f * z2 - 30.0f * r2) * z2 + 3.0f * r2 * r2); // Y40
+  tmp *= Fp * fnp * rinv;
+  f12[0] += tmp * x;
+  f12[1] += tmp * y;
+  f12[2] += tmp * z;
+
+  // x
+  tmp = s[1] * z * (7.0f * z2 - 3.0f * r2 - 6.0f * x2);  // Y41_real
+  tmp += s[2] * (-6.0f * xyz);                           // Y41_imag
+  tmp += s[3] * 4.0f * x * (3.0f * z2 - x2);             // Y42_real
+  tmp += s[4] * 2.0f * y * (7.0f * z2 - r2 - 2.0f * x2); // Y42_imag
+  tmp += s[5] * 3.0f * z * x2my2;                        // Y43_real
+  tmp += s[6] * 6.0f * xyz;                              // Y43_imag
+  tmp += s[7] * 4.0f * x * (x2 - 3.0f * y2);             // Y44_real
+  tmp += s[8] * 4.0f * y * (3.0f * x2 - y2);             // Y44_imag
+  tmp *= 2.0f;
+  tmp += s[0] * 12.0f * x * (r2 - 5.0f * z2); // Y40
+  f12[0] += tmp * Fp * fn;
+  // y
+  tmp = s[1] * (-6.0f * xyz);                            // Y41_real
+  tmp += s[2] * z * (7.0f * z2 - 3.0f * r2 - 6.0f * y2); // Y41_imag
+  tmp += s[3] * 4.0f * y * (y2 - 3.0f * z2);             // Y42_real
+  tmp += s[4] * 2.0f * x * (7.0f * z2 - r2 - 2.0f * y2); // Y42_imag
+  tmp += s[5] * (-6.0f * xyz);                           // Y43_real
+  tmp += s[6] * 3.0f * z * x2my2;                        // Y43_imag
+  tmp += s[7] * 4.0f * y * (y2 - 3.0f * x2);             // Y44_real
+  tmp += s[8] * 4.0f * x * (x2 - 3.0f * y2);             // Y44_imag
+  tmp *= 2.0f;
+  tmp += s[0] * 12.0f * y * (r2 - 5.0f * z2); // Y40
+  f12[1] += tmp * Fp * fn;
+  // z
+  tmp = s[1] * 3.0f * x * (5.0f * z2 - r2);  // Y41_real
+  tmp += s[2] * 3.0f * y * (5.0f * z2 - r2); // Y41_imag
+  tmp += s[3] * 12.0f * z * x2my2;           // Y42_real
+  tmp += s[4] * 24.0f * xyz;                 // Y42_imag
+  tmp += s[5] * x * (x2 - 3.0f * y2);        // Y43_real
+  tmp += s[6] * y * (3.0f * x2 - y2);        // Y43_imag
+  tmp *= 2.0f;
+  tmp += s[0] * 16.0f * z * (5.0f * z2 - 3.0f * r2); // Y40
+  f12[2] += tmp * Fp * fn;
+}
