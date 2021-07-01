@@ -23,12 +23,6 @@ Ref: Zheyong Fan et al., in preparation.
 #include "utilities/nep_utilities.cuh"
 #include <vector>
 
-const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
-const int MAX_NUM_N = 13;                 // n_max+1 = 12+1
-const int MAX_NUM_L = 7;                  // L_max+1 = 6+1
-const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
-__constant__ float c_parameters[10000];
-
 static void read_atomic_number(char* input_dir, GPU_Vector<float>& atomic_number)
 {
   std::vector<float> atomic_number_cpu(atomic_number.size());
