@@ -26,7 +26,7 @@ __constant__ float YLM[NUM_OF_ABC] = {
 
 const int SIZE_BOX_AND_INVERSE_BOX = 18;  // (3 * 3) * 2
 const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
-const int MAX_NUM_N = 13;                 // n_max+1 = 12+1
+const int MAX_NUM_N = 20;                 // n_max+1 = 19+1
 const int MAX_NUM_L = 5;                  // L_max+1 = 4+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 __constant__ float c_parameters[10000]; // less than 64 KB maximum
