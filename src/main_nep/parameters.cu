@@ -49,22 +49,20 @@ Parameters::Parameters(char* input_dir)
   printf("n_max_angular = %d.\n", n_max_angular);
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
-  } else if (n_max_radial > 12) {
-    PRINT_INPUT_ERROR("n_max_radial should <= 12.");
+  } else if (n_max_radial > 19) {
+    PRINT_INPUT_ERROR("n_max_radial should <= 19.");
   }
   if (n_max_angular < 0) {
     PRINT_INPUT_ERROR("n_max_angular should >= 0.");
-  } else if (n_max_angular > 12) {
-    PRINT_INPUT_ERROR("n_max_angular should <= 12.");
+  } else if (n_max_angular > 19) {
+    PRINT_INPUT_ERROR("n_max_angular should <= 19.");
   }
 
   count = fscanf(fid, "%s%d", name, &L_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for l_max.");
   printf("l_max = %d.\n", L_max);
-  if (L_max < 0) {
-    PRINT_INPUT_ERROR("l_max should >= 0.");
-  } else if (L_max > 6) {
-    PRINT_INPUT_ERROR("l_max should <= 6.");
+  if (L_max != 4) {
+    PRINT_INPUT_ERROR("l_max should = 4.");
   }
 
   int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
