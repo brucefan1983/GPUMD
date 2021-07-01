@@ -466,7 +466,6 @@ static __global__ void find_partial_force_angular(
       float r12[3] = {g_x[n2] - x1, g_y[n2] - y1, g_z[n2] - z1};
       dev_apply_mic(h, r12[0], r12[1], r12[2]);
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
       float atomic_number_n12 = atomic_number_n1 * g_atomic_number[n2];
@@ -477,48 +476,9 @@ static __global__ void find_partial_force_angular(
         float fn;
         float fnp;
         find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
-        // l = 1
-        fnp = fnp * d12inv - fn * d12inv * d12inv;
-        fn = fn * d12inv;
-        float s1[3] = {
-          g_sum_fxyz[(n * NUM_OF_ABC + 0) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 1) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 2) * N + n1]};
-        get_f12_1(d12inv, fn, fnp, g_Fp[n1 + ((paramb.n_max_radial + 1) + n) * N], s1, r12, f12);
-        // l = 2
-        fnp = fnp * d12inv - fn * d12inv * d12inv;
-        fn = fn * d12inv;
-        float s2[5] = {
-          g_sum_fxyz[(n * NUM_OF_ABC + 3) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 4) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 5) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 6) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 7) * N + n1]};
-        get_f12_2(
-          d12, d12inv, fn, fnp,
-          g_Fp[n1 + ((paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) + n) * N], s2, r12,
-          f12);
-        // l = 3
-        fnp = fnp * d12inv - fn * d12inv * d12inv;
-        fn = fn * d12inv;
-        float s3[7] = {
-          g_sum_fxyz[(n * NUM_OF_ABC + 8) * N + n1],  g_sum_fxyz[(n * NUM_OF_ABC + 9) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 10) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 11) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 12) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 13) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 14) * N + n1]};
-        get_f12_3(
-          d12, d12inv, fn, fnp,
-          g_Fp[n1 + ((paramb.n_max_radial + 1) + 2 * (paramb.n_max_angular + 1) + n) * N], s3, r12,
-          f12);
-        // l = 4
-        fnp = fnp * d12inv - fn * d12inv * d12inv;
-        fn = fn * d12inv;
-        float s4[9] = {
-          g_sum_fxyz[(n * NUM_OF_ABC + 15) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 16) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 17) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 18) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 19) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 20) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 21) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 22) * N + n1],
-          g_sum_fxyz[(n * NUM_OF_ABC + 23) * N + n1]};
-        get_f12_4(
-          r12[0], r12[1], r12[2], d12, d12inv, fn, fnp,
-          g_Fp[n1 + ((paramb.n_max_radial + 1) + 3 * (paramb.n_max_angular + 1) + n) * N], s4, f12);
+        accumulate_f12(
+          N, n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, fn, fnp, g_Fp,
+          g_sum_fxyz, f12);
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;

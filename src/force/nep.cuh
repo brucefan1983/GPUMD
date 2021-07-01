@@ -23,6 +23,7 @@ struct NEP2_Data {
   GPU_Vector<double> f12y; // 3-body or manybody partial forces
   GPU_Vector<double> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
+  GPU_Vector<float> sum_fxyz;
   GPU_Vector<int> NN;
   GPU_Vector<int> NL;
   GPU_Vector<float> atomic_number;
