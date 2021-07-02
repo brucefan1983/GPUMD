@@ -481,14 +481,9 @@ static __global__ void find_partial_force_angular(
       fc12 *= atomic_number_n12;
       fcp12 *= atomic_number_n12;
       float f12[3] = {0.0f};
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
-        float fn;
-        float fnp;
-        find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
-        accumulate_f12(
-          N, n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp,
-          sum_fxyz, f12);
-      }
+      find_f12(
+        N, n1, paramb.n_max_radial, paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12,
+        r12, Fp, sum_fxyz, f12);
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
       g_f12z[index] = f12[2] * 2.0f;
