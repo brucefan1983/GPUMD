@@ -29,6 +29,7 @@ const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
 const int MAX_NUM_N = 20;                 // n_max+1 = 19+1
 const int MAX_NUM_L = 5;                  // L_max+1 = 4+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
+const int MAX_DIM_ANGULAR = MAX_NUM_N * (MAX_NUM_L - 1);
 __constant__ float c_parameters[10000]; // less than 64 KB maximum
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
@@ -399,8 +400,8 @@ static __device__ __forceinline__ void accumulate_f12(
   const float* r12,
   float fn,
   float fnp,
-  const float* __restrict__ g_Fp,
-  const float* __restrict__ g_sum_fxyz,
+  const float* Fp,
+  const float* sum_fxyz,
   float* f12)
 {
   const float d12inv = 1.0f / d12;
@@ -408,42 +409,32 @@ static __device__ __forceinline__ void accumulate_f12(
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s1[3] = {
-    g_sum_fxyz[(n * NUM_OF_ABC + 0) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 1) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 2) * N + n1]};
-  get_f12_1(d12inv, fn, fnp, g_Fp[n1 + (n_max_radial_plus_1 + n) * N], s1, r12, f12);
+    sum_fxyz[n * NUM_OF_ABC + 0], sum_fxyz[n * NUM_OF_ABC + 1], sum_fxyz[n * NUM_OF_ABC + 2]};
+  get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s2[5] = {
-    g_sum_fxyz[(n * NUM_OF_ABC + 3) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 4) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 5) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 6) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 7) * N + n1]};
-  get_f12_2(
-    d12, d12inv, fn, fnp, g_Fp[n1 + (n_max_radial_plus_1 + n_max_angular_plus_1 + n) * N], s2, r12,
-    f12);
+    sum_fxyz[n * NUM_OF_ABC + 3], sum_fxyz[n * NUM_OF_ABC + 4], sum_fxyz[n * NUM_OF_ABC + 5],
+    sum_fxyz[n * NUM_OF_ABC + 6], sum_fxyz[n * NUM_OF_ABC + 7]};
+  get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {
-    g_sum_fxyz[(n * NUM_OF_ABC + 8) * N + n1],  g_sum_fxyz[(n * NUM_OF_ABC + 9) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 10) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 11) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 12) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 13) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 14) * N + n1]};
-  get_f12_3(
-    d12, d12inv, fn, fnp, g_Fp[n1 + (n_max_radial_plus_1 + 2 * n_max_angular_plus_1 + n) * N], s3,
-    r12, f12);
+  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8],  sum_fxyz[n * NUM_OF_ABC + 9],
+                 sum_fxyz[n * NUM_OF_ABC + 10], sum_fxyz[n * NUM_OF_ABC + 11],
+                 sum_fxyz[n * NUM_OF_ABC + 12], sum_fxyz[n * NUM_OF_ABC + 13],
+                 sum_fxyz[n * NUM_OF_ABC + 14]};
+  get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s4[9] = {
-    g_sum_fxyz[(n * NUM_OF_ABC + 15) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 16) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 17) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 18) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 19) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 20) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 21) * N + n1], g_sum_fxyz[(n * NUM_OF_ABC + 22) * N + n1],
-    g_sum_fxyz[(n * NUM_OF_ABC + 23) * N + n1]};
+    sum_fxyz[n * NUM_OF_ABC + 15], sum_fxyz[n * NUM_OF_ABC + 16], sum_fxyz[n * NUM_OF_ABC + 17],
+    sum_fxyz[n * NUM_OF_ABC + 18], sum_fxyz[n * NUM_OF_ABC + 19], sum_fxyz[n * NUM_OF_ABC + 20],
+    sum_fxyz[n * NUM_OF_ABC + 21], sum_fxyz[n * NUM_OF_ABC + 22], sum_fxyz[n * NUM_OF_ABC + 23]};
   get_f12_4(
-    r12[0], r12[1], r12[2], d12, d12inv, fn, fnp,
-    g_Fp[n1 + (n_max_radial_plus_1 + 3 * n_max_angular_plus_1 + n) * N], s4, f12);
+    r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
 
 static __device__ __forceinline__ void

@@ -454,6 +454,15 @@ static __global__ void find_partial_force_angular(
   int N2 = N1 + Na[blockIdx.x];
   int n1 = N1 + threadIdx.x;
   if (n1 < N2) {
+    float Fp[MAX_DIM_ANGULAR] = {0.0f};
+    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
+    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
+      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+    }
+    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+      sum_fxyz[d] = g_sum_fxyz[d * N + n1];
+    }
+
     const float* __restrict__ h = g_box + SIZE_BOX_AND_INVERSE_BOX * blockIdx.x;
     int neighbor_number = g_NN[n1];
     float atomic_number_n1 = g_atomic_number[n1];
@@ -477,8 +486,8 @@ static __global__ void find_partial_force_angular(
         float fnp;
         find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
         accumulate_f12(
-          N, n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, fn, fnp, g_Fp,
-          g_sum_fxyz, f12);
+          N, n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp,
+          sum_fxyz, f12);
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
