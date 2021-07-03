@@ -44,8 +44,12 @@ public:
   GPU_Vector<int> NL_radial;       // radial neighbor list
   GPU_Vector<int> NN_angular;      // angular neighbor number
   GPU_Vector<int> NL_angular;      // angular neighbor list
-
-  std::vector<int> id_of_original_structures;
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
 
   struct Structure {
     int num_cell_a;

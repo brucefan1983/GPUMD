@@ -72,13 +72,12 @@ void Fitness::compute(
 void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
 {
   for (int nc = 0; nc < train_set.Nc; ++nc) {
-    int nc_new = train_set.id_of_original_structures[nc];
-    int offset = train_set.Na_sum[nc_new];
+    int offset = train_set.Na_sum[nc];
     float data_nc = 0.0f;
-    for (int m = 0; m < train_set.Na[nc_new]; ++m) {
+    for (int m = 0; m < train_set.Na[nc]; ++m) {
       data_nc += data[offset + m];
     }
-    fprintf(fid, "%g %g\n", data_nc / train_set.Na[nc_new], ref[nc_new]);
+    fprintf(fid, "%g %g\n", data_nc / train_set.Na[nc], ref[nc]);
   }
 }
 
@@ -143,9 +142,8 @@ void Fitness::report_error(
     strcat(file_force, "/force.out");
     FILE* fid_force = my_fopen(file_force, "w");
     for (int nc = 0; nc < train_set.Nc; ++nc) {
-      int nc_new = train_set.id_of_original_structures[nc];
-      int offset = train_set.Na_sum[nc_new];
-      for (int m = 0; m < train_set.Na[nc_new]; ++m) {
+      int offset = train_set.Na_sum[nc];
+      for (int m = 0; m < train_set.Na[nc]; ++m) {
         int n = offset + m;
         fprintf(
           fid_force, "%g %g %g %g %g %g\n", train_set.force[n], train_set.force[n + train_set.N],

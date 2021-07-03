@@ -17,8 +17,6 @@
 #include "mic.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
-#include <chrono>
-#include <random>
 
 void Dataset::read_Nc(FILE* fid)
 {
@@ -232,111 +230,6 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   }
 
   fclose(fid);
-}
-
-static void find_permuted_indices(std::vector<int>& permuted_indices)
-{
-  std::mt19937 rng;
-#ifdef DEBUG
-  rng = std::mt19937(54321);
-#else
-  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
-#endif
-  for (int i = 0; i < permuted_indices.size(); ++i) {
-    permuted_indices[i] = i;
-  }
-  std::uniform_int_distribution<int> rand_int(0, INT_MAX);
-  for (int i = 0; i < permuted_indices.size(); ++i) {
-    int j = rand_int(rng) % (permuted_indices.size() - i) + i;
-    int temp = permuted_indices[i];
-    permuted_indices[i] = permuted_indices[j];
-    permuted_indices[j] = temp;
-  }
-}
-
-static void insertion_sort(int* array, int* index, int n)
-{
-  for (int i = 1; i < n; i++) {
-    int key = array[i];
-    int j = i - 1;
-    while (j >= 0 && array[j] > key) {
-      array[j + 1] = array[j];
-      index[j + 1] = index[j];
-      --j;
-    }
-    array[j + 1] = key;
-    index[j + 1] = i;
-  }
-}
-
-void Dataset::reorder(char* input_dir)
-{
-  std::vector<int> configuration_id(Nc);
-  find_permuted_indices(configuration_id);
-  std::vector<int> configuration_id_copy(Nc);
-  for (int nc = 0; nc < Nc; ++nc) {
-    configuration_id_copy[nc] = configuration_id[nc];
-  }
-  id_of_original_structures.resize(Nc);
-  insertion_sort(configuration_id_copy.data(), id_of_original_structures.data(), Nc);
-
-  std::vector<Structure> structures_copy(Nc);
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    structures_copy[nc].num_atom = structures[nc].num_atom;
-    structures_copy[nc].has_virial = structures[nc].has_virial;
-    structures_copy[nc].energy = structures[nc].energy;
-    for (int k = 0; k < 6; ++k) {
-      structures_copy[nc].virial[k] = structures[nc].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures_copy[nc].box[k] = structures[nc].box[k];
-    }
-    structures_copy[nc].atomic_number.resize(structures[nc].num_atom);
-    structures_copy[nc].x.resize(structures[nc].num_atom);
-    structures_copy[nc].y.resize(structures[nc].num_atom);
-    structures_copy[nc].z.resize(structures[nc].num_atom);
-    structures_copy[nc].fx.resize(structures[nc].num_atom);
-    structures_copy[nc].fy.resize(structures[nc].num_atom);
-    structures_copy[nc].fz.resize(structures[nc].num_atom);
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures_copy[nc].atomic_number[na] = structures[nc].atomic_number[na];
-      structures_copy[nc].x[na] = structures[nc].x[na];
-      structures_copy[nc].y[na] = structures[nc].y[na];
-      structures_copy[nc].z[na] = structures[nc].z[na];
-      structures_copy[nc].fx[na] = structures[nc].fx[na];
-      structures_copy[nc].fy[na] = structures[nc].fy[na];
-      structures_copy[nc].fz[na] = structures[nc].fz[na];
-    }
-  }
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
-    structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
-    structures[nc].energy = structures_copy[configuration_id[nc]].energy;
-    for (int k = 0; k < 6; ++k) {
-      structures[nc].virial[k] = structures_copy[configuration_id[nc]].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures[nc].box[k] = structures_copy[configuration_id[nc]].box[k];
-    }
-    structures[nc].atomic_number.resize(structures[nc].num_atom);
-    structures[nc].x.resize(structures[nc].num_atom);
-    structures[nc].y.resize(structures[nc].num_atom);
-    structures[nc].z.resize(structures[nc].num_atom);
-    structures[nc].fx.resize(structures[nc].num_atom);
-    structures[nc].fy.resize(structures[nc].num_atom);
-    structures[nc].fz.resize(structures[nc].num_atom);
-    for (int na = 0; na < structures_copy[configuration_id[nc]].num_atom; ++na) {
-      structures[nc].atomic_number[na] = structures_copy[configuration_id[nc]].atomic_number[na];
-      structures[nc].x[na] = structures_copy[configuration_id[nc]].x[na];
-      structures[nc].y[na] = structures_copy[configuration_id[nc]].y[na];
-      structures[nc].z[na] = structures_copy[configuration_id[nc]].z[na];
-      structures[nc].fx[na] = structures_copy[configuration_id[nc]].fx[na];
-      structures[nc].fy[na] = structures_copy[configuration_id[nc]].fy[na];
-      structures[nc].fz[na] = structures_copy[configuration_id[nc]].fz[na];
-    }
-  }
 }
 
 void Dataset::find_Na()
@@ -569,7 +462,6 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(char* input_dir, Parameters& para)
 {
   read_train_in(input_dir, para);
-  reorder(input_dir);
   find_Na();
   initialize_gpu_data();
   calculate_types();
