@@ -376,7 +376,13 @@ static __global__ void gpu_find_neighbor_list(
   int* NN_radial,
   int* NL_radial,
   int* NN_angular,
-  int* NL_angular)
+  int* NL_angular,
+  float* x12_radial,
+  float* y12_radial,
+  float* z12_radial,
+  float* x12_angular,
+  float* y12_angular,
+  float* z12_angular)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -398,10 +404,18 @@ static __global__ void gpu_find_neighbor_list(
       dev_apply_mic(h, x12, y12, z12);
       float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
       if (distance_square < rc2_radial) {
-        NL_radial[count_radial++ * N + n1] = n2;
+        NL_radial[count_radial * N + n1] = n2;
+        x12_radial[count_radial * N + n1] = x12;
+        y12_radial[count_radial * N + n1] = y12;
+        z12_radial[count_radial * N + n1] = z12;
+        count_radial++;
       }
       if (distance_square < rc2_angular) {
-        NL_angular[count_angular++ * N + n1] = n2;
+        NL_angular[count_angular * N + n1] = n2;
+        x12_angular[count_angular * N + n1] = x12;
+        y12_angular[count_angular * N + n1] = y12;
+        z12_angular[count_angular * N + n1] = z12;
+        count_angular++;
       }
     }
     NN_radial[n1] = count_radial;
@@ -452,10 +466,18 @@ void Dataset::find_neighbor(Parameters& para)
 
   NL_radial.resize(N * max_NN_radial);
   NL_angular.resize(N * max_NN_angular);
+  x12_radial.resize(N * max_NN_radial);
+  y12_radial.resize(N * max_NN_radial);
+  z12_radial.resize(N * max_NN_radial);
+  x12_angular.resize(N * max_NN_angular);
+  y12_angular.resize(N * max_NN_angular);
+  z12_angular.resize(N * max_NN_angular);
 
   gpu_find_neighbor_list<<<Nc, max_Na>>>(
     N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
-    r.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data());
+    r.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data(),
+    x12_radial.data(), y12_radial.data(), z12_radial.data(), x12_angular.data(), y12_angular.data(),
+    z12_angular.data());
   CUDA_CHECK_KERNEL
 }
 
