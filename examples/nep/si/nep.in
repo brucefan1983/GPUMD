@@ -1,8 +1,7 @@
-cutoff               4 4
-n_max                12 12
+cutoff               3.5 3.5
+n_max                8 8
 l_max                4
-number_of_neurons    10
-reg                  0.05 0.05
-batch                1000
+number_of_neurons    20
+regularization       0.05 0.05
 population_size      20
-maximum_generation   2000
+maximum_generation   10000

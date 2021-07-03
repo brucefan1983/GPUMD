@@ -35,7 +35,7 @@ set(gca,'fontsize',12,'ticklength',get(gca,'ticklength')*2);
 axis tight
 
 figure;
-semilogy(loss(:,1)/100,sum(loss(:,5),2),'d-','linewidth',1); hold on;
+loglog(loss(:,1)/100,sum(loss(:,5),2),'d-','linewidth',1); hold on;
 plot(loss(:,1)/100,sum(loss(:,6),2),'s-','linewidth',1);
 plot(loss(:,1)/100,sum(loss(:,7),2),'o-','linewidth',1);
 plot(loss(:,1)/100,sum(loss(:,3),2),'<-','linewidth',1); hold on;
@@ -45,5 +45,4 @@ xlabel('generation/100','fontsize',14,'interpreter','latex');
 ylabel('Loss functions','fontsize',14,'interpreter','latex');
 set(gca,'fontsize',14,'ticklength',get(gca,'ticklength')*2);
 legend('Energy','Force','Virial','L1-Reg','L2-Reg','Total');
-ylim([0.001,0.5]);
-
+axis tight
