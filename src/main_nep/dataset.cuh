@@ -72,9 +72,9 @@ public:
   std::vector<Structure> structures;
 
   void construct(char*, Parameters& para);
-  float get_rmse_force(const int, const int);
-  float get_rmse_energy(const int, const int);
-  float get_rmse_virial(const int, const int);
+  float get_rmse_force();
+  float get_rmse_energy();
+  float get_rmse_virial();
 
 private:
   // functions called by construct:

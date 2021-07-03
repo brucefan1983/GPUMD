@@ -541,48 +541,42 @@ static __global__ void find_force_manybody(
   }
 }
 
-void NEP2::find_force(
-  Parameters& para,
-  const int configuration_start,
-  const int configuration_end,
-  const float* parameters,
-  Dataset& dataset)
+void NEP2::find_force(Parameters& para, const float* parameters, Dataset& dataset)
 {
   CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
   float* address_c_parameters;
   CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
   update_potential(address_c_parameters, annmb);
 
-  apply_ann<<<configuration_end - configuration_start, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
-    paramb, annmb, nep_data.descriptors.data(), para.q_scaler.data(), dataset.pe.data(),
-    nep_data.Fp.data());
+  apply_ann<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), paramb, annmb, nep_data.descriptors.data(),
+    para.q_scaler.data(), dataset.pe.data(), nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 
   // use radial neighbor list
-  find_force_radial<<<configuration_end - configuration_start, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
-    dataset.NN_radial.data(), dataset.NL_radial.data(), paramb, annmb, dataset.atomic_number.data(),
+  find_force_radial<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
+    dataset.NL_radial.data(), paramb, annmb, dataset.atomic_number.data(),
     dataset.x12_radial.data(), dataset.y12_radial.data(), dataset.z12_radial.data(),
     nep_data.Fp.data(), dataset.force.data(), dataset.force.data() + dataset.N,
     dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
   // use angular neighbor list
-  find_partial_force_angular<<<configuration_end - configuration_start, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
-    dataset.NN_angular.data(), dataset.NL_angular.data(), paramb, annmb,
-    dataset.atomic_number.data(), dataset.x12_angular.data(), dataset.y12_angular.data(),
-    dataset.z12_angular.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(),
-    nep_data.f12y.data(), nep_data.f12z.data());
+  find_partial_force_angular<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
+    dataset.NL_angular.data(), paramb, annmb, dataset.atomic_number.data(),
+    dataset.x12_angular.data(), dataset.y12_angular.data(), dataset.z12_angular.data(),
+    nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
+    nep_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // use angular neighbor list
-  find_force_manybody<<<configuration_end - configuration_start, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data() + configuration_start, dataset.Na_sum.data() + configuration_start,
-    dataset.NN_angular.data(), dataset.NL_angular.data(), nep_data.f12x.data(),
-    nep_data.f12y.data(), nep_data.f12z.data(), dataset.x12_angular.data(),
-    dataset.y12_angular.data(), dataset.z12_angular.data(), dataset.force.data(),
-    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
+  find_force_manybody<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
+    dataset.NL_angular.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(),
+    dataset.x12_angular.data(), dataset.y12_angular.data(), dataset.z12_angular.data(),
+    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
+    dataset.virial.data());
   CUDA_CHECK_KERNEL
 }

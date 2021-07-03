@@ -52,20 +52,12 @@ Fitness::~Fitness()
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
-  const int num_of_batches = (train_set.Nc - 1) / para.batch_size + 1;
-  const int batch_id = generation % num_of_batches;
-  const int configuration_start = batch_id * para.batch_size;
-  const int configuration_end = std::min(train_set.Nc, configuration_start + para.batch_size);
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->find_force(para, configuration_start, configuration_end, individual, train_set);
-    fitness[n + 0 * para.population_size] =
-      train_set.get_rmse_energy(configuration_start, configuration_end);
-    fitness[n + 1 * para.population_size] = train_set.get_rmse_force(
-      train_set.Na_sum[configuration_start],
-      train_set.Na_sum[configuration_end - 1] + train_set.Na[configuration_end - 1]);
-    fitness[n + 2 * para.population_size] =
-      train_set.get_rmse_virial(configuration_start, configuration_end);
+    potential->find_force(para, individual, train_set);
+    fitness[n + 0 * para.population_size] = train_set.get_rmse_energy();
+    fitness[n + 1 * para.population_size] = train_set.get_rmse_force();
+    fitness[n + 2 * para.population_size] = train_set.get_rmse_virial();
   }
 }
 
@@ -122,10 +114,10 @@ void Fitness::report_error(
     fprintf(fid_ann_out, "\n");
     fflush(fid_ann_out);
 
-    potential->find_force(para, 0, train_set.Nc, elite, train_set);
-    float rmse_energy_train = train_set.get_rmse_energy(0, train_set.Nc);
-    float rmse_force_train = train_set.get_rmse_force(0, train_set.N);
-    float rmse_virial_train = train_set.get_rmse_virial(0, train_set.Nc);
+    potential->find_force(para, elite, train_set);
+    float rmse_energy_train = train_set.get_rmse_energy();
+    float rmse_force_train = train_set.get_rmse_force();
+    float rmse_virial_train = train_set.get_rmse_virial();
 
     printf(
       "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total, loss_L1,

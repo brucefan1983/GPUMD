@@ -23,10 +23,5 @@ class Potential
 {
 public:
   virtual ~Potential() = default;
-  virtual void find_force(
-    Parameters& para,
-    const int configuration_start,
-    const int configuration_end,
-    const float* parameters,
-    Dataset& dataset) = 0;
+  virtual void find_force(Parameters& para, const float* parameters, Dataset& dataset) = 0;
 };
