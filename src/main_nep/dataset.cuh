@@ -28,6 +28,7 @@ public:
   int max_NN_radial;               // radial neighbor list size
   int max_NN_angular;              // angular neighbor list size
   GPU_Vector<int> Na;              // number of atoms in each configuration
+  std::vector<int> Na_original;    // number of atoms before possible box replication
   GPU_Vector<int> Na_sum;          // prefix sum of Na
   GPU_Vector<float> atomic_number; // atomic number (number of protons)
   GPU_Vector<float> r;             // position
@@ -44,8 +45,12 @@ public:
   GPU_Vector<int> NL_radial;       // radial neighbor list
   GPU_Vector<int> NN_angular;      // angular neighbor number
   GPU_Vector<int> NL_angular;      // angular neighbor list
-
-  std::vector<int> id_of_original_structures;
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
 
   struct Structure {
     int num_cell_a;
@@ -68,9 +73,9 @@ public:
   std::vector<Structure> structures;
 
   void construct(char*, Parameters& para);
-  float get_rmse_force(const int, const int);
-  float get_rmse_energy(const int, const int);
-  float get_rmse_virial(const int, const int);
+  float get_rmse_force();
+  float get_rmse_energy();
+  float get_rmse_virial();
 
 private:
   // functions called by construct:
