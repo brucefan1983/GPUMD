@@ -478,8 +478,8 @@ static __global__ void find_partial_force_angular(
       fcp12 *= atomic_number_n12;
       float f12[3] = {0.0f};
       find_f12(
-        N, n1, paramb.n_max_radial, paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12,
-        r12, Fp, sum_fxyz, f12);
+        n1, paramb.n_max_radial, paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12, r12,
+        Fp, sum_fxyz, f12);
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
       g_f12z[index] = f12[2] * 2.0f;
