@@ -391,7 +391,6 @@ static __device__ __forceinline__ void get_f12_4(
 }
 
 static __device__ __forceinline__ void accumulate_f12(
-  const int N,
   const int n,
   const int n1,
   const int n_max_radial_plus_1,
@@ -438,7 +437,6 @@ static __device__ __forceinline__ void accumulate_f12(
 }
 
 static __device__ __forceinline__ void find_f12(
-  const int N,
   const int n1,
   const int n_max_radial,
   const int n_max_angular,
@@ -451,45 +449,12 @@ static __device__ __forceinline__ void find_f12(
   const float* sum_fxyz,
   float* f12)
 {
-  float fn;
-  float fnp;
-  float x = 2.0f * (d12 * rcinv_angular - 1.0f) * (d12 * rcinv_angular - 1.0f) - 1.0f;
-
-  // n=0
-  fn = fc12;
-  fnp = fcp12;
-  accumulate_f12(
-    N, 0, n1, n_max_radial + 1, n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz, f12);
-
-  // n=1
-  if (n_max_angular >= 1) {
-    fn = (x + 1.0f) * 0.5f;
-    fnp = 2.0f * (d12 * rcinv_angular - 1.0f) * rcinv_angular * fc12 + fn * fcp12;
-    fn *= fc12;
+  for (int n = 0; n <= n_max_angular; ++n) {
+    float fn;
+    float fnp;
+    find_fn_and_fnp(n, rcinv_angular, d12, fc12, fcp12, fn, fnp);
     accumulate_f12(
-      N, 1, n1, n_max_radial + 1, n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz, f12);
-  }
-
-  // n>=2
-  float t0 = 1.0f;
-  float t1 = x;
-  float t2;
-  float u0 = 1.0f;
-  float u1 = 2.0f * x;
-  float u2;
-  for (int n = 2; n <= n_max_angular; ++n) {
-    t2 = 2.0f * x * t1 - t0;
-    t0 = t1;
-    t1 = t2;
-    u2 = 2.0f * x * u1 - u0;
-    u0 = u1;
-    u1 = u2;
-    fn = (t2 + 1.0f) * 0.5f;
-    fnp = n * u0 * 2.0f * (d12 * rcinv_angular - 1.0f) * rcinv_angular;
-    fnp = fnp * fc12 + fn * fcp12;
-    fn *= fc12;
-    accumulate_f12(
-      N, n, n1, n_max_radial + 1, n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz, f12);
+      n, n1, n_max_radial + 1, n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz, f12);
   }
 }
 

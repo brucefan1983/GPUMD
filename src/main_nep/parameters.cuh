@@ -20,7 +20,6 @@ class Parameters
 {
 public:
   Parameters(char* input_dir);
-  int batch_size = 0;          // number of configurations in one batch
   int population_size = 0;     // population size for SNES
   int maximum_generation = 0;  // maximum number of generations for SNES;
   int num_neurons1 = 0;        // number of nuerons in the 1st hidden layer

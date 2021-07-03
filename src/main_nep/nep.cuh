@@ -55,12 +55,7 @@ public:
   };
 
   NEP2(char* input_dir, Parameters& para, Dataset& dataset);
-  void find_force(
-    Parameters& para,
-    const int configuration_start,
-    const int configuration_end,
-    const float* parameters,
-    Dataset& dataset);
+  void find_force(Parameters& para, const float* parameters, Dataset& dataset);
 
 private:
   ParaMB paramb;

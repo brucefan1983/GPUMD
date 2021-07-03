@@ -17,8 +17,6 @@
 #include "mic.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
-#include <chrono>
-#include <random>
 
 void Dataset::read_Nc(FILE* fid)
 {
@@ -34,6 +32,7 @@ void Dataset::read_Nc(FILE* fid)
   pe_ref.resize(Nc, Memory_Type::managed);
   virial_ref.resize(Nc * 6, Memory_Type::managed);
   Na.resize(Nc, Memory_Type::managed);
+  Na_original.resize(Nc);
   Na_sum.resize(Nc, Memory_Type::managed);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
@@ -50,6 +49,7 @@ void Dataset::read_Na(FILE* fid)
     if (structures[nc].num_atom > 1024) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
     }
+    Na_original[nc] = structures[nc].num_atom;
   }
 }
 
@@ -154,7 +154,6 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
 
 void Dataset::read_force(FILE* fid, int nc)
 {
-  int num_atom_original = structures[nc].num_atom;
   structures[nc].num_atom *=
     structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
   if (structures[nc].num_atom > 1024) {
@@ -170,7 +169,7 @@ void Dataset::read_force(FILE* fid, int nc)
   structures[nc].fy.resize(structures[nc].num_atom);
   structures[nc].fz.resize(structures[nc].num_atom);
 
-  for (int na = 0; na < num_atom_original; ++na) {
+  for (int na = 0; na < Na_original[nc]; ++na) {
     int count = fscanf(
       fid, "%d%f%f%f%f%f%f", &structures[nc].atomic_number[na], &structures[nc].x[na],
       &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
@@ -185,10 +184,10 @@ void Dataset::read_force(FILE* fid, int nc)
     for (int ib = 0; ib < structures[nc].num_cell_b; ++ib) {
       for (int ic = 0; ic < structures[nc].num_cell_c; ++ic) {
         if (ia != 0 || ib != 0 || ic != 0) {
-          for (int na = 0; na < num_atom_original; ++na) {
+          for (int na = 0; na < Na_original[nc]; ++na) {
             int na_new =
               na + (ia + (ib + ic * structures[nc].num_cell_b) * structures[nc].num_cell_a) *
-                     num_atom_original;
+                     Na_original[nc];
             float delta_x = structures[nc].box_original[0] * ia +
                             structures[nc].box_original[1] * ib +
                             structures[nc].box_original[2] * ic;
@@ -232,111 +231,6 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   }
 
   fclose(fid);
-}
-
-static void find_permuted_indices(std::vector<int>& permuted_indices)
-{
-  std::mt19937 rng;
-#ifdef DEBUG
-  rng = std::mt19937(54321);
-#else
-  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
-#endif
-  for (int i = 0; i < permuted_indices.size(); ++i) {
-    permuted_indices[i] = i;
-  }
-  std::uniform_int_distribution<int> rand_int(0, INT_MAX);
-  for (int i = 0; i < permuted_indices.size(); ++i) {
-    int j = rand_int(rng) % (permuted_indices.size() - i) + i;
-    int temp = permuted_indices[i];
-    permuted_indices[i] = permuted_indices[j];
-    permuted_indices[j] = temp;
-  }
-}
-
-static void insertion_sort(int* array, int* index, int n)
-{
-  for (int i = 1; i < n; i++) {
-    int key = array[i];
-    int j = i - 1;
-    while (j >= 0 && array[j] > key) {
-      array[j + 1] = array[j];
-      index[j + 1] = index[j];
-      --j;
-    }
-    array[j + 1] = key;
-    index[j + 1] = i;
-  }
-}
-
-void Dataset::reorder(char* input_dir)
-{
-  std::vector<int> configuration_id(Nc);
-  find_permuted_indices(configuration_id);
-  std::vector<int> configuration_id_copy(Nc);
-  for (int nc = 0; nc < Nc; ++nc) {
-    configuration_id_copy[nc] = configuration_id[nc];
-  }
-  id_of_original_structures.resize(Nc);
-  insertion_sort(configuration_id_copy.data(), id_of_original_structures.data(), Nc);
-
-  std::vector<Structure> structures_copy(Nc);
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    structures_copy[nc].num_atom = structures[nc].num_atom;
-    structures_copy[nc].has_virial = structures[nc].has_virial;
-    structures_copy[nc].energy = structures[nc].energy;
-    for (int k = 0; k < 6; ++k) {
-      structures_copy[nc].virial[k] = structures[nc].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures_copy[nc].box[k] = structures[nc].box[k];
-    }
-    structures_copy[nc].atomic_number.resize(structures[nc].num_atom);
-    structures_copy[nc].x.resize(structures[nc].num_atom);
-    structures_copy[nc].y.resize(structures[nc].num_atom);
-    structures_copy[nc].z.resize(structures[nc].num_atom);
-    structures_copy[nc].fx.resize(structures[nc].num_atom);
-    structures_copy[nc].fy.resize(structures[nc].num_atom);
-    structures_copy[nc].fz.resize(structures[nc].num_atom);
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures_copy[nc].atomic_number[na] = structures[nc].atomic_number[na];
-      structures_copy[nc].x[na] = structures[nc].x[na];
-      structures_copy[nc].y[na] = structures[nc].y[na];
-      structures_copy[nc].z[na] = structures[nc].z[na];
-      structures_copy[nc].fx[na] = structures[nc].fx[na];
-      structures_copy[nc].fy[na] = structures[nc].fy[na];
-      structures_copy[nc].fz[na] = structures[nc].fz[na];
-    }
-  }
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
-    structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
-    structures[nc].energy = structures_copy[configuration_id[nc]].energy;
-    for (int k = 0; k < 6; ++k) {
-      structures[nc].virial[k] = structures_copy[configuration_id[nc]].virial[k];
-    }
-    for (int k = 0; k < 18; ++k) {
-      structures[nc].box[k] = structures_copy[configuration_id[nc]].box[k];
-    }
-    structures[nc].atomic_number.resize(structures[nc].num_atom);
-    structures[nc].x.resize(structures[nc].num_atom);
-    structures[nc].y.resize(structures[nc].num_atom);
-    structures[nc].z.resize(structures[nc].num_atom);
-    structures[nc].fx.resize(structures[nc].num_atom);
-    structures[nc].fy.resize(structures[nc].num_atom);
-    structures[nc].fz.resize(structures[nc].num_atom);
-    for (int na = 0; na < structures_copy[configuration_id[nc]].num_atom; ++na) {
-      structures[nc].atomic_number[na] = structures_copy[configuration_id[nc]].atomic_number[na];
-      structures[nc].x[na] = structures_copy[configuration_id[nc]].x[na];
-      structures[nc].y[na] = structures_copy[configuration_id[nc]].y[na];
-      structures[nc].z[na] = structures_copy[configuration_id[nc]].z[na];
-      structures[nc].fx[na] = structures_copy[configuration_id[nc]].fx[na];
-      structures[nc].fy[na] = structures_copy[configuration_id[nc]].fy[na];
-      structures[nc].fz[na] = structures_copy[configuration_id[nc]].fz[na];
-    }
-  }
 }
 
 void Dataset::find_Na()
@@ -483,7 +377,13 @@ static __global__ void gpu_find_neighbor_list(
   int* NN_radial,
   int* NL_radial,
   int* NN_angular,
-  int* NL_angular)
+  int* NL_angular,
+  float* x12_radial,
+  float* y12_radial,
+  float* z12_radial,
+  float* x12_angular,
+  float* y12_angular,
+  float* z12_angular)
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
@@ -505,10 +405,18 @@ static __global__ void gpu_find_neighbor_list(
       dev_apply_mic(h, x12, y12, z12);
       float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
       if (distance_square < rc2_radial) {
-        NL_radial[count_radial++ * N + n1] = n2;
+        NL_radial[count_radial * N + n1] = n2;
+        x12_radial[count_radial * N + n1] = x12;
+        y12_radial[count_radial * N + n1] = y12;
+        z12_radial[count_radial * N + n1] = z12;
+        count_radial++;
       }
       if (distance_square < rc2_angular) {
-        NL_angular[count_angular++ * N + n1] = n2;
+        NL_angular[count_angular * N + n1] = n2;
+        x12_angular[count_angular * N + n1] = x12;
+        y12_angular[count_angular * N + n1] = y12;
+        z12_angular[count_angular * N + n1] = z12;
+        count_angular++;
       }
     }
     NN_radial[n1] = count_radial;
@@ -559,17 +467,24 @@ void Dataset::find_neighbor(Parameters& para)
 
   NL_radial.resize(N * max_NN_radial);
   NL_angular.resize(N * max_NN_angular);
+  x12_radial.resize(N * max_NN_radial);
+  y12_radial.resize(N * max_NN_radial);
+  z12_radial.resize(N * max_NN_radial);
+  x12_angular.resize(N * max_NN_angular);
+  y12_angular.resize(N * max_NN_angular);
+  z12_angular.resize(N * max_NN_angular);
 
   gpu_find_neighbor_list<<<Nc, max_Na>>>(
     N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
-    r.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data());
+    r.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data(),
+    x12_radial.data(), y12_radial.data(), z12_radial.data(), x12_angular.data(), y12_angular.data(),
+    z12_angular.data());
   CUDA_CHECK_KERNEL
 }
 
 void Dataset::construct(char* input_dir, Parameters& para)
 {
   read_train_in(input_dir, para);
-  reorder(input_dir);
   find_Na();
   initialize_gpu_data();
   calculate_types();
@@ -621,14 +536,13 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-float Dataset::get_rmse_force(const int n1, const int n2)
+float Dataset::get_rmse_force()
 {
   gpu_sum_force_error<<<1, 512, sizeof(float) * 512>>>(
-    n2 - n1, force.data() + n1, force.data() + N + n1, force.data() + N * 2 + n1,
-    force_ref.data() + n1, force_ref.data() + N + n1, force_ref.data() + N * 2 + n1,
-    error_gpu.data());
+    N, force.data(), force.data() + N, force.data() + N * 2, force_ref.data(), force_ref.data() + N,
+    force_ref.data() + N * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), sizeof(float), cudaMemcpyDeviceToHost));
-  return sqrt(error_cpu[0] / ((n2 - n1) * 3));
+  return sqrt(error_cpu[0] / (N * 3));
 }
 
 static __global__ void
@@ -677,7 +591,7 @@ static int get_block_size(int max_num_atom)
   return block_size;
 }
 
-float Dataset::get_rmse_energy(const int nc1, const int nc2)
+float Dataset::get_rmse_energy()
 {
   int block_size = get_block_size(max_Na);
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
@@ -685,16 +599,16 @@ float Dataset::get_rmse_energy(const int nc1, const int nc2)
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_ave = 0.0;
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
-  return sqrt(error_ave / (nc2 - nc1));
+  return sqrt(error_ave / Nc);
 }
 
-float Dataset::get_rmse_virial(const int nc1, const int nc2)
+float Dataset::get_rmse_virial()
 {
   int num_virial_configurations = 0;
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       ++num_virial_configurations;
     }
@@ -710,7 +624,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data(), virial_ref.data(), error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
@@ -719,7 +633,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N, virial_ref.data() + Nc, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
@@ -728,7 +642,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref.data() + Nc * 2, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
@@ -737,7 +651,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref.data() + Nc * 3, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
@@ -746,7 +660,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref.data() + Nc * 4, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
@@ -755,7 +669,7 @@ float Dataset::get_rmse_virial(const int nc1, const int nc2)
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref.data() + Nc * 5, error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = nc1; n < nc2; ++n) {
+  for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
       error_ave += error_cpu[n];
     }
