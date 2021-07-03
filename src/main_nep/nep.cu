@@ -305,8 +305,6 @@ apply_ann(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivativ
 
 static __global__ void apply_ann(
   const int N,
-  const int* Na,
-  const int* Na_sum,
   const NEP2::ParaMB paramb,
   const NEP2::ANN annmb,
   const float* __restrict__ g_descriptors,
@@ -314,10 +312,8 @@ static __global__ void apply_ann(
   float* g_pe,
   float* g_Fp)
 {
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
     // get descriptors
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
@@ -339,8 +335,6 @@ static __global__ void apply_ann(
 
 static __global__ void find_force_radial(
   const int N,
-  const int* Na,
-  const int* Na_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP2::ParaMB paramb,
@@ -355,10 +349,8 @@ static __global__ void find_force_radial(
   float* g_fz,
   float* g_virial)
 {
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
     int neighbor_number = g_NN[n1];
     float s_fx = 0.0f;
     float s_fy = 0.0f;
@@ -416,8 +408,6 @@ static __global__ void find_force_radial(
 
 static __global__ void find_partial_force_angular(
   const int N,
-  const int* Na,
-  const int* Na_sum,
   const int* g_NN,
   const int* g_NL,
   const NEP2::ParaMB paramb,
@@ -432,10 +422,8 @@ static __global__ void find_partial_force_angular(
   float* g_f12y,
   float* g_f12z)
 {
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
@@ -469,8 +457,6 @@ static __global__ void find_partial_force_angular(
 
 static __global__ void find_force_manybody(
   const int N,
-  const int* Na,
-  const int* Na_sum,
   const int* g_neighbor_number,
   const int* g_neighbor_list,
   const float* __restrict__ g_f12x,
@@ -484,10 +470,8 @@ static __global__ void find_force_manybody(
   float* g_fz,
   float* g_virial)
 {
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
     float s_fx = 0.0f;
     float s_fy = 0.0f;
     float s_fz = 0.0f;
@@ -548,35 +532,35 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
   CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
   update_potential(address_c_parameters, annmb);
 
-  apply_ann<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), paramb, annmb, nep_data.descriptors.data(),
-    para.q_scaler.data(), dataset.pe.data(), nep_data.Fp.data());
+  const int block_size = 32;
+  const int grid_size = (dataset.N - 1) / block_size + 1;
+
+  apply_ann<<<grid_size, block_size>>>(
+    dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler.data(), dataset.pe.data(),
+    nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 
   // use radial neighbor list
-  find_force_radial<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
-    dataset.NL_radial.data(), paramb, annmb, dataset.atomic_number.data(),
-    dataset.x12_radial.data(), dataset.y12_radial.data(), dataset.z12_radial.data(),
-    nep_data.Fp.data(), dataset.force.data(), dataset.force.data() + dataset.N,
-    dataset.force.data() + dataset.N * 2, dataset.virial.data());
+  find_force_radial<<<grid_size, block_size>>>(
+    dataset.N, dataset.NN_radial.data(), dataset.NL_radial.data(), paramb, annmb,
+    dataset.atomic_number.data(), dataset.x12_radial.data(), dataset.y12_radial.data(),
+    dataset.z12_radial.data(), nep_data.Fp.data(), dataset.force.data(),
+    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
   // use angular neighbor list
-  find_partial_force_angular<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
-    dataset.NL_angular.data(), paramb, annmb, dataset.atomic_number.data(),
-    dataset.x12_angular.data(), dataset.y12_angular.data(), dataset.z12_angular.data(),
-    nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
-    nep_data.f12z.data());
+  find_partial_force_angular<<<grid_size, block_size>>>(
+    dataset.N, dataset.NN_angular.data(), dataset.NL_angular.data(), paramb, annmb,
+    dataset.atomic_number.data(), dataset.x12_angular.data(), dataset.y12_angular.data(),
+    dataset.z12_angular.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // use angular neighbor list
-  find_force_manybody<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
-    dataset.NL_angular.data(), nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data(),
-    dataset.x12_angular.data(), dataset.y12_angular.data(), dataset.z12_angular.data(),
-    dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
-    dataset.virial.data());
+  find_force_manybody<<<grid_size, block_size>>>(
+    dataset.N, dataset.NN_angular.data(), dataset.NL_angular.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data(), dataset.x12_angular.data(),
+    dataset.y12_angular.data(), dataset.z12_angular.data(), dataset.force.data(),
+    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 }
