@@ -32,6 +32,7 @@ void Dataset::read_Nc(FILE* fid)
   pe_ref.resize(Nc, Memory_Type::managed);
   virial_ref.resize(Nc * 6, Memory_Type::managed);
   Na.resize(Nc, Memory_Type::managed);
+  Na_original.resize(Nc);
   Na_sum.resize(Nc, Memory_Type::managed);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
@@ -48,6 +49,7 @@ void Dataset::read_Na(FILE* fid)
     if (structures[nc].num_atom > 1024) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
     }
+    Na_original[nc] = structures[nc].num_atom;
   }
 }
 
@@ -152,7 +154,6 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
 
 void Dataset::read_force(FILE* fid, int nc)
 {
-  int num_atom_original = structures[nc].num_atom;
   structures[nc].num_atom *=
     structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
   if (structures[nc].num_atom > 1024) {
@@ -168,7 +169,7 @@ void Dataset::read_force(FILE* fid, int nc)
   structures[nc].fy.resize(structures[nc].num_atom);
   structures[nc].fz.resize(structures[nc].num_atom);
 
-  for (int na = 0; na < num_atom_original; ++na) {
+  for (int na = 0; na < Na_original[nc]; ++na) {
     int count = fscanf(
       fid, "%d%f%f%f%f%f%f", &structures[nc].atomic_number[na], &structures[nc].x[na],
       &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
@@ -183,10 +184,10 @@ void Dataset::read_force(FILE* fid, int nc)
     for (int ib = 0; ib < structures[nc].num_cell_b; ++ib) {
       for (int ic = 0; ic < structures[nc].num_cell_c; ++ic) {
         if (ia != 0 || ib != 0 || ic != 0) {
-          for (int na = 0; na < num_atom_original; ++na) {
+          for (int na = 0; na < Na_original[nc]; ++na) {
             int na_new =
               na + (ia + (ib + ic * structures[nc].num_cell_b) * structures[nc].num_cell_a) *
-                     num_atom_original;
+                     Na_original[nc];
             float delta_x = structures[nc].box_original[0] * ia +
                             structures[nc].box_original[1] * ib +
                             structures[nc].box_original[2] * ic;

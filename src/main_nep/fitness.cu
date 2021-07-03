@@ -135,7 +135,7 @@ void Fitness::report_error(
     FILE* fid_force = my_fopen(file_force, "w");
     for (int nc = 0; nc < train_set.Nc; ++nc) {
       int offset = train_set.Na_sum[nc];
-      for (int m = 0; m < train_set.Na[nc]; ++m) {
+      for (int m = 0; m < train_set.Na_original[nc]; ++m) {
         int n = offset + m;
         fprintf(
           fid_force, "%g %g %g %g %g %g\n", train_set.force[n], train_set.force[n + train_set.N],
