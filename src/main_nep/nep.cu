@@ -213,15 +213,19 @@ NEP2::NEP2(char* input_dir, Parameters& para, Dataset& dataset)
   // output descriptors
   char file_descriptors[200];
   strcpy(file_descriptors, input_dir);
-  strcat(file_descriptors, "/descriptors.out");
+  strcat(file_descriptors, "/descriptor.out");
   FILE* fid = my_fopen(file_descriptors, "w");
   std::vector<float> descriptors(dataset.N * annmb.dim);
   nep_data.descriptors.copy_to_host(descriptors.data());
-  for (int n = 0; n < dataset.N; ++n) {
-    for (int d = 0; d < annmb.dim; ++d) {
-      fprintf(fid, "%g ", descriptors[d * dataset.N + n]);
+  for (int nc = 0; nc < dataset.Nc; ++nc) {
+    int offset = dataset.Na_sum[nc];
+    for (int m = 0; m < dataset.Na_original[nc]; ++m) {
+      int n = offset + m;
+      for (int d = 0; d < annmb.dim; ++d) {
+        fprintf(fid, "%g ", descriptors[d * dataset.N + n]);
+      }
+      fprintf(fid, "\n");
     }
-    fprintf(fid, "\n");
   }
   fclose(fid);
 
