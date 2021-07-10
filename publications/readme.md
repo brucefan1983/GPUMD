@@ -11,9 +11,8 @@
 ACS Appl. Mater. Interfaces XXX, XXX (2021).
 
 * Giuseppe Barbalinardo, Zekun Chen, Haikuan Dong, Zheyong Fan, Davide Donadio,
-[Ultrahigh yet convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling](https://arxiv.org/abs/2103.10633), 	
-arXiv:2103.10633 [cond-mat.mes-hall]
-Accepted to Phys. Rev. Lett.
+[Ultrahigh convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling](https://doi.org/10.1103/PhysRevLett.127.025902), 	
+Phys. Rev. Lett. **127**, 025902 (2021).
 
 * Zhongwei Zhang, Yangyu Guo, Marc Bescond, Jie Chen, Masahiro Nomura, Sebastian Volz,
 [Generalized decay law for particlelike and wavelike thermal phonons](https://doi.org/10.1103/PhysRevB.103.184307),
