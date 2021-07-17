@@ -8,7 +8,7 @@
 
 * Xin Wu and Qiang Han, 
 [Phonon Thermal Transport across Multilayer Graphene/Hexagonal Boron Nitride van der Waals Heterostructures](https://doi.org/10.1021/acsami.1c08275),
-ACS Appl. Mater. Interfaces XXX, XXX (2021).
+ACS Appl. Mater. Interfaces **13**, 32564 (2021).
 
 * Giuseppe Barbalinardo, Zekun Chen, Haikuan Dong, Zheyong Fan, Davide Donadio,
 [Ultrahigh convergent thermal conductivity of carbon nanotubes from comprehensive atomistic modeling](https://doi.org/10.1103/PhysRevLett.127.025902), 	
