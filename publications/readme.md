@@ -1,6 +1,6 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (1)
+## Preprints (2)
 
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
 
