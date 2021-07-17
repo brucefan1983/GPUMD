@@ -16,12 +16,13 @@
 * Works for both Linux (with GCC) and Windows (with MSVC) operating systems. 
 
 ## Compile GPUMD
-* Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `phonon`, will be generated in the `src` directory. 
+* Go to the `src` directory and type `make`. When the compilation finishes, three executables, `gpumd`, `phonon`, and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
 * Go to the directory where you can see `src`.
 * Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`.
 * Type `src/phonon < examples/input_phonon.txt` to run the examples in `examples/phonon`.
+* Type `src/nep < examples/input_nep.txt` to run the examples in `examples/nep`.
 
 ## Manual
 * We only maintain the online manual now: https://gpumd.zheyongfan.org
