@@ -78,7 +78,7 @@ Phys. Rev. B **103**, 205421 (2021).
 [5] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, Phys. Rev. B **99**, 064308 (2019). https://doi.org/10.1103/PhysRevB.99.064308
 
 
-* If you use the train or use a NEP potential, you can cite the following paper:
+* If you train or use a NEP potential, you can cite the following paper:
 
 [6] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport, submitted.
 
