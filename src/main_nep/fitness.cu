@@ -36,18 +36,9 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   strcpy(file_loss_out, input_dir);
   strcat(file_loss_out, "/loss.out");
   fid_loss_out = my_fopen(file_loss_out, "w");
-
-  char file_ann_out[200];
-  strcpy(file_ann_out, input_dir);
-  strcat(file_ann_out, "/ann.out");
-  fid_ann_out = my_fopen(file_ann_out, "w");
 }
 
-Fitness::~Fitness()
-{
-  fclose(fid_loss_out);
-  fclose(fid_ann_out);
-}
+Fitness::~Fitness() { fclose(fid_loss_out); }
 
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
@@ -107,12 +98,6 @@ void Fitness::report_error(
       fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler[d], para.q_min[d]);
     }
     fclose(fid_nep);
-
-    for (int m = 0; m < para.number_of_variables; ++m) {
-      fprintf(fid_ann_out, "%15.7e ", elite[m]);
-    }
-    fprintf(fid_ann_out, "\n");
-    fflush(fid_ann_out);
 
     potential->find_force(para, elite, train_set);
     float rmse_energy_train = train_set.get_rmse_energy();
