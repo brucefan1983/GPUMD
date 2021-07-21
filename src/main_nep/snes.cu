@@ -114,11 +114,10 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
       input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
       fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
       fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
-    update_mu_and_sigma(input_dir);
-
-    // for debug:
-    if (n == maximum_generation / 2 - 1)
-      rng = std::mt19937(12345678);
+    update_mu_and_sigma();
+    if (0 == (generation + 1) % 100) {
+      output_mu_and_sigma(input_dir);
+    }
   }
 }
 
@@ -195,7 +194,7 @@ void SNES::sort_population()
   }
 }
 
-void SNES::update_mu_and_sigma(char* input_dir)
+void SNES::update_mu_and_sigma()
 {
   for (int v = 0; v < number_of_variables; ++v) {
     float gradient_mu = 0.0f, gradient_sigma = 0.0f;
@@ -207,7 +206,10 @@ void SNES::update_mu_and_sigma(char* input_dir)
     mu[v] += sigma[v] * gradient_mu;
     sigma[v] *= std::exp(eta_sigma * gradient_sigma);
   }
+}
 
+void SNES::output_mu_and_sigma(char* input_dir)
+{
   char file_restart[200];
   strcpy(file_restart, input_dir);
   strcat(file_restart, "/nep.restart");

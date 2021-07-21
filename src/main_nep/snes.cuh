@@ -47,5 +47,6 @@ protected:
   void create_population();
   void regularize(Parameters&);
   void sort_population();
-  void update_mu_and_sigma(char*);
+  void update_mu_and_sigma();
+  void output_mu_and_sigma(char*);
 };
