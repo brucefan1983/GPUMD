@@ -48,7 +48,7 @@ SNES::SNES(char* input_dir, Parameters& para, Fitness* fitness_function)
   sigma.resize(number_of_variables);
   utility.resize(population_size);
   initialize_rng();
-  initialize_mu_and_sigma();
+  initialize_mu_and_sigma(input_dir);
   calculate_utility();
   compute(input_dir, para, fitness_function);
 }
@@ -62,12 +62,24 @@ void SNES::initialize_rng()
 #endif
 };
 
-void SNES::initialize_mu_and_sigma()
+void SNES::initialize_mu_and_sigma(char* input_dir)
 {
-  std::uniform_real_distribution<float> r1(0, 1);
-  for (int n = 0; n < number_of_variables; ++n) {
-    mu[n] = r1(rng) - 0.5f;
-    sigma[n] = 0.1f;
+  char file_restart[200];
+  strcpy(file_restart, input_dir);
+  strcat(file_restart, "/nep.restart");
+  FILE* fid_restart = fopen(file_restart, "r");
+  if (fid_restart == NULL) {
+    std::uniform_real_distribution<float> r1(0, 1);
+    for (int n = 0; n < number_of_variables; ++n) {
+      mu[n] = r1(rng) - 0.5f;
+      sigma[n] = 0.1f;
+    }
+  } else {
+    for (int n = 0; n < number_of_variables; ++n) {
+      int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
+      PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
+    }
+    fclose(fid_restart);
   }
 }
 
@@ -103,6 +115,9 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
       fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
       fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
     update_mu_and_sigma();
+    if (0 == (generation + 1) % 100) {
+      output_mu_and_sigma(input_dir);
+    }
   }
 }
 
@@ -191,4 +206,16 @@ void SNES::update_mu_and_sigma()
     mu[v] += sigma[v] * gradient_mu;
     sigma[v] *= std::exp(eta_sigma * gradient_sigma);
   }
+}
+
+void SNES::output_mu_and_sigma(char* input_dir)
+{
+  char file_restart[200];
+  strcpy(file_restart, input_dir);
+  strcat(file_restart, "/nep.restart");
+  FILE* fid_restart = my_fopen(file_restart, "w");
+  for (int n = 0; n < number_of_variables; ++n) {
+    fprintf(fid_restart, "%g %g\n", mu[n], sigma[n]);
+  }
+  fclose(fid_restart);
 }
