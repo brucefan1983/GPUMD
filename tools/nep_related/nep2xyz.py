@@ -87,7 +87,8 @@ def load_type(folder):
             data['energies'][i] = float(flines[enline].split()[0])
             if data['has_virial'][i] == 1:
                 nep_virial = np.array(list(map(float, flines[enline].split()[1:])))
-                data['virials'][i] = eV_volume2bar(nep_virial, volume)
+                data['virials'][i] = nep_virial  # the units of virial in xyz is eV.
+                #data['virials'][i] = eV_volume2bar(nep_virial, volume)  # the units of virial in xyz is bar.
             elif data['has_virial'][i] == 0:
                 data['virials'][i] = np.zeros((6))
 
