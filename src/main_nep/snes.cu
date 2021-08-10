@@ -97,26 +97,33 @@ void SNES::calculate_utility()
 
 void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
 {
-  print_line_1();
-  printf("Started training and testing.\n");
-  print_line_2();
+  if (maximum_generation == 0) {
+    print_line_1();
+    printf("Started testing.\n");
+    print_line_2();
+    fitness_function->test(input_dir, para, mu.data());
+  } else {
+    print_line_1();
+    printf("Started training.\n");
+    print_line_2();
 
-  printf(
-    "%-8s%-11s%-11s%-11s%-12s%-12s%-12s\n", "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss",
-    "RMSE-Energy", "RMSE-Force", "RMSE-Virial");
+    printf(
+      "%-8s%-11s%-11s%-11s%-12s%-12s%-12s\n", "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss",
+      "RMSE-Energy", "RMSE-Force", "RMSE-Virial");
 
-  for (int n = 0; n < maximum_generation; ++n) {
-    create_population();
-    fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
-    regularize(para);
-    sort_population();
-    fitness_function->report_error(
-      input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
-      fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
-      fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
-    update_mu_and_sigma();
-    if (0 == (n + 1) % 100) {
-      output_mu_and_sigma(input_dir);
+    for (int n = 0; n < maximum_generation; ++n) {
+      create_population();
+      fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
+      regularize(para);
+      sort_population();
+      fitness_function->report_error(
+        input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
+        fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
+        fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
+      update_mu_and_sigma();
+      if (0 == (n + 1) % 100) {
+        output_mu_and_sigma(input_dir);
+      }
     }
   }
 }
@@ -215,7 +222,7 @@ void SNES::output_mu_and_sigma(char* input_dir)
   strcat(file_restart, "/nep.restart");
   FILE* fid_restart = my_fopen(file_restart, "w");
   for (int n = 0; n < number_of_variables; ++n) {
-    fprintf(fid_restart, "%g %g\n", mu[n], sigma[n]);
+    fprintf(fid_restart, "%15.7e %15.7e\n", mu[n], sigma[n]);
   }
   fclose(fid_restart);
 }
