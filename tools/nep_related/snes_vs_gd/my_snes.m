@@ -1,4 +1,4 @@
-function [best_fitness, elite] = my_snes(number_of_variables, maximal_generation)
+function [best_fitness, elite] = my_snes(x,y,number_of_variables, maximal_generation)
 population_size = 4 + floor(3 * log(number_of_variables));
 best_fitness = ones(maximal_generation, 1);
 elite = zeros(maximal_generation, number_of_variables);
@@ -10,7 +10,7 @@ utility = utility / sum(utility) - 1/population_size; % sum of utility is zero
 for generation = 1 : maximal_generation
     s = randn(population_size, number_of_variables);
     population = repmat(mu, population_size, 1) + repmat(sigma, population_size, 1) .* s;
-    cost = ann(population, 1, 0);
+    cost = ann(x,y,population);
     [cost, index] = sort(cost);
     s = s(index, :);
     population = population(index, :);

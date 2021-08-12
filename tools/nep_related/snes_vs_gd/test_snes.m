@@ -1,9 +1,11 @@
 clear; %close all;
 
+[x0,y0]=get_training_data();
+
 % Call my_snes to evolve
 N_neurons = 10;
 dim = N_neurons*(N_neurons+4)+1;
-[best_fitness, elite] = my_snes(dim, 10000);
+[best_fitness, elite] = my_snes(x0,y0,dim, 10000);
 num_generations = length(best_fitness);
 
 % Evolution of the best fitness:
@@ -21,10 +23,9 @@ ylabel('Best Solution','fontsize',12);
 set(gca,'fontsize',12,'ticklength',get(gca,'ticklength')*2);
 
 % compare with the training set:
-x0 = 1 : 0.01 : 3;
-[y, U, U0] = ann(elite, 1, 0);
+[loss, y] = ann(x0,y0,elite);
 figure;
-plot(x0, U0, 'o'); hold on;
-plot(x0, U(end, :), '-');
+plot(x0, y0, 'o'); hold on;
+plot(x0, y(end, :), '-');
 
 
