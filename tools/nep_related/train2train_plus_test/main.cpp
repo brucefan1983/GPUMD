@@ -5,7 +5,7 @@ run:
     ./a.out < input.txt
 input files:
     input.txt (with the following format)
-	    cutoff               8 4            # same as in nep.in
+        cutoff               8 4            # same as in nep.in
         n_max                12 6           # same as in nep.in
         l_max                4              # same as in nep.in
         distance_threshold   0.07           # must be within [0, 0.1]
@@ -394,7 +394,7 @@ void find_descriptors_radial(int nc)
 {
   structures[nc].descriptor_min.resize(N_des, +1.0e5f);
   structures[nc].descriptor_max.resize(N_des, -1.0e5f);
-  for (int n1 = 0; n1 < structures[nc].num_atom; ++n1) {
+  for (int n1 = 0; n1 < structures[nc].num_atom_original; ++n1) {
     std::vector<float> q(N_des, 0.0f);
     for (int n2 = 0; n2 < structures[nc].num_atom; ++n2) {
       if (n1 == n2) {
@@ -483,7 +483,7 @@ void find_q(const int n_max_angular_plus_1, const int n, const float* s, float* 
 
 void find_descriptors_angular(int nc)
 {
-  for (int n1 = 0; n1 < structures[nc].num_atom; ++n1) {
+  for (int n1 = 0; n1 < structures[nc].num_atom_original; ++n1) {
     std::vector<float> q(N_des, 0.0f);
 
     for (int n = 0; n <= n_max_angular; ++n) {
@@ -554,6 +554,7 @@ void select_structures(
 {
   std::vector<int> selected_structure;
   structure_id_in_train.push_back(0); // start from structure 0
+  printf("structure %d goes to the training set.\n", 0);
   for (int nc = 1; nc < Nc; ++nc) {
     bool too_close = false;
     for (int s = 0; s < structure_id_in_train.size(); ++s) {
@@ -568,12 +569,14 @@ void select_structures(
       distance_square /= N_des;
       if (distance_square < distance_threshold * distance_threshold) {
         structure_id_in_test.push_back(nc); // add one structure to test set
+        printf("structure %d goes to the testing set.\n", nc);
         too_close = true;
         break;
       }
     }
     if (!too_close) {
       structure_id_in_train.push_back(nc); // add one structure to train set
+      printf("structure %d goes to the training set.\n", nc);
     }
   }
 }
@@ -636,6 +639,7 @@ int main(int argc, char* argv[])
   for (int nc = 0; nc < Nc; ++nc) {
     find_descriptors_radial(nc);
     find_descriptors_angular(nc);
+    printf("structure %d finished.\n", nc);
   }
   printf("Finished calculating the descriptors.\n");
 
