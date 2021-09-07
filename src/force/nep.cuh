@@ -47,14 +47,11 @@ public:
   struct ANN {
     int dim = 0;          // dimension of the descriptor
     int num_neurons1 = 0; // number of neurons in the 1st hidden layer
-    int num_neurons2 = 0; // number of neurons in the 2nd hidden layer
     int num_para = 0;     // number of parameters
-    const float* w0;      // weight from the input to the first hidden layer
-    const float* b0;      // bias for the first hidden layer
-    const float* w1;      // weight from the first to the second hidden layer
-    const float* b1;      // bias for the second hidden layer
-    const float* w2;      // weight from the second to the output layer
-    const float* b2;      // bias for the output layer
+    const float* w0;      // weight from the input layer to the hidden layer
+    const float* b0;      // bias for the hidden layer
+    const float* w1;      // weight from the hidden layer to the output layer
+    const float* b1;      // bias for the output layer
   };
 
   NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor);

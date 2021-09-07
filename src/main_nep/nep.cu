@@ -181,10 +181,7 @@ NEP2::NEP2(char* input_dir, Parameters& para, Dataset& dataset)
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   annmb.dim = (para.n_max_radial + 1) + (para.n_max_angular + 1) * para.L_max;
   annmb.num_neurons1 = para.num_neurons1;
-  annmb.num_neurons2 = para.num_neurons2;
-  annmb.num_para = (annmb.dim + 1) * annmb.num_neurons1;
-  annmb.num_para += (annmb.num_neurons1 + 1) * annmb.num_neurons2;
-  annmb.num_para += (annmb.num_neurons2 == 0 ? annmb.num_neurons1 : annmb.num_neurons2) + 1;
+  annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 + 1;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
@@ -244,13 +241,7 @@ void NEP2::update_potential(const float* parameters, ANN& ann)
   ann.w0 = parameters;
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
   ann.w1 = ann.b0 + ann.num_neurons1;
-  if (ann.num_neurons2 == 0) {
-    ann.b1 = ann.w1 + ann.num_neurons1;
-  } else {
-    ann.b1 = ann.w1 + ann.num_neurons1 * ann.num_neurons2;
-    ann.w2 = ann.b1 + ann.num_neurons2;
-    ann.b2 = ann.w2 + ann.num_neurons2;
-  }
+  ann.b1 = ann.w1 + ann.num_neurons1;
 }
 
 static __device__ void
@@ -271,42 +262,6 @@ apply_ann_one_layer(const NEP2::ANN& ann, float* q, float& energy, float* energy
   energy -= ann.b1[0];
 }
 
-static __device__ void
-apply_ann(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
-{
-  // energy
-  float x1[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 1st hidden layer neurons
-  float x2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f}; // states of the 2nd hidden layer neurons
-  for (int n = 0; n < ann.num_neurons1; ++n) {
-    float w0_times_q = 0.0f;
-    for (int d = 0; d < ann.dim; ++d) {
-      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
-    }
-    x1[n] = tanh(w0_times_q - ann.b0[n]);
-  }
-  for (int n = 0; n < ann.num_neurons2; ++n) {
-    for (int m = 0; m < ann.num_neurons1; ++m) {
-      x2[n] += ann.w1[n * ann.num_neurons1 + m] * x1[m];
-    }
-    x2[n] = tanh(x2[n] - ann.b1[n]);
-    energy += ann.w2[n] * x2[n];
-  }
-  energy -= ann.b2[0];
-  // energy gradient (compute it component by component)
-  for (int d = 0; d < ann.dim; ++d) {
-    float y2[MAX_NUM_NEURONS_PER_LAYER] = {0.0f};
-    for (int n1 = 0; n1 < ann.num_neurons1; ++n1) {
-      float y1 = (1.0f - x1[n1] * x1[n1]) * ann.w0[n1 * ann.dim + d];
-      for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
-        y2[n2] += ann.w1[n2 * ann.num_neurons1 + n1] * y1;
-      }
-    }
-    for (int n2 = 0; n2 < ann.num_neurons2; ++n2) {
-      energy_derivative[d] += ann.w2[n2] * (y2[n2] * (1.0f - x2[n2] * x2[n2]));
-    }
-  }
-}
-
 static __global__ void apply_ann(
   const int N,
   const NEP2::ParaMB paramb,
@@ -325,11 +280,7 @@ static __global__ void apply_ann(
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    if (annmb.num_neurons2 == 0) {
-      apply_ann_one_layer(annmb, q, F, Fp);
-    } else {
-      apply_ann(annmb, q, F, Fp);
-    }
+    apply_ann_one_layer(annmb, q, F, Fp);
     g_pe[n1] = F;
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];

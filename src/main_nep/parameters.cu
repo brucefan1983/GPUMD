@@ -74,13 +74,10 @@ Parameters::Parameters(char* input_dir)
   } else if (num_neurons1 > 100) {
     PRINT_INPUT_ERROR("num_neurons1 should <= 100.");
   }
-  num_neurons2 = 0; // use a single hidden layer currently
 
   printf("ANN = %d-%d-1.\n", dim, num_neurons1);
 
-  number_of_variables = (dim + 1) * num_neurons1;
-  number_of_variables += (num_neurons1 + 1) * num_neurons2;
-  number_of_variables += (num_neurons2 == 0 ? num_neurons1 : num_neurons2) + 1;
+  number_of_variables = (dim + 2) * num_neurons1 + 1;
   printf("number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);

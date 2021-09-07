@@ -23,7 +23,6 @@ public:
   int population_size = 0;     // population size for SNES
   int maximum_generation = 0;  // maximum number of generations for SNES;
   int num_neurons1 = 0;        // number of nuerons in the 1st hidden layer
-  int num_neurons2 = 0;        // number of nuerons in the 2nd hidden layer
   float rc_radial = 0.0f;      // radial cutoff distance
   float rc_angular = 0.0f;     // angular cutoff distance
   int n_max_radial = 0;        // maximum order of the radial Chebyshev polynomials
