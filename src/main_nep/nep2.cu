@@ -20,7 +20,7 @@ Ref: Zheyong Fan et al., in preparation.
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "nep.cuh"
+#include "nep2.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -121,7 +121,8 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
+static void __global__
+find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
