@@ -31,6 +31,7 @@ public:
   std::vector<int> Na_original;    // number of atoms before possible box replication
   GPU_Vector<int> Na_sum;          // prefix sum of Na
   GPU_Vector<float> atomic_number; // atomic number (number of protons)
+  GPU_Vector<int> type;            // atom type (0, 1, 2, 3, ...)
   GPU_Vector<float> r;             // position
   GPU_Vector<float> force;         // force
   GPU_Vector<float> pe;            // potential energy

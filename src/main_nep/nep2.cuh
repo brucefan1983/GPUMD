@@ -39,6 +39,7 @@ public:
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 1, 2, ..., L_max
+    int num_types = 0;
   };
 
   struct ANN {
@@ -49,6 +50,7 @@ public:
     const float* b0;      // bias for the hidden layer
     const float* w1;      // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
+    const float* c;
   };
 
   NEP2(char* input_dir, Parameters& para, Dataset& dataset);
