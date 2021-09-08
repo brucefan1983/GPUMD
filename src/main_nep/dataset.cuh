@@ -92,5 +92,5 @@ private:
   void read_Na(FILE*);
   void read_box(FILE* fid, int nc, Parameters& para);
   void read_energy_virial(FILE* fid, int nc);
-  void read_force(FILE* fid, int nc);
+  void read_force(FILE* fid, int nc, Parameters& para);
 };

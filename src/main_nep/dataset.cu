@@ -144,7 +144,7 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
   }
 }
 
-void Dataset::read_force(FILE* fid, int nc)
+void Dataset::read_force(FILE* fid, int nc, Parameters& para)
 {
   structures[nc].num_atom *=
     structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
@@ -167,8 +167,14 @@ void Dataset::read_force(FILE* fid, int nc)
       &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
       &structures[nc].fz[na]);
     PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
-    if (structures[nc].atomic_number[na] < 1) {
-      PRINT_INPUT_ERROR("Atomic number should > 0.\n");
+    if (para.nep_version == 1) {
+      if (structures[nc].atomic_number[na] < 1) {
+        PRINT_INPUT_ERROR("Atomic number should > 0.\n");
+      }
+    } else {
+      if (structures[nc].atomic_number[na] < 0) {
+        PRINT_INPUT_ERROR("Atom type should >= 0.\n");
+      }
     }
   }
 
@@ -219,7 +225,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   for (int n = 0; n < Nc; ++n) {
     read_energy_virial(fid, n);
     read_box(fid, n, para);
-    read_force(fid, n);
+    read_force(fid, n, para);
   }
 
   fclose(fid);
