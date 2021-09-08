@@ -31,7 +31,11 @@ Get the fitness
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
   train_set.construct(input_dir, para);
-  potential.reset(new NEP1(input_dir, para, train_set));
+  if (para.nep_version == 1) {
+    potential.reset(new NEP1(input_dir, para, train_set));
+  } else if (para.nep_version == 2) {
+    potential.reset(new NEP2(input_dir, para, train_set));
+  }
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);
