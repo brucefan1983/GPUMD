@@ -221,7 +221,7 @@ def dump (folder, data):
             outstr=outstr+str(data['energies'][i])+'\n'
         outstr=outstr+' '.join(map(str, data['cells'][i]))+'\n'
         for j in range(int(data['atom_numbs'][i])):
-            outstr=outstr+str(int(data['atom_types'][i][j]))+' '
+            outstr=outstr+str(int(data['atom_types'][i][j]+1))+' '
             outstr=outstr+' '.join(map(str, data['coords'][i][j]))+' '
             outstr=outstr+' '.join(map(str, data['forces'][i][j]))+'\n'
         fout.write(outstr)
