@@ -29,7 +29,14 @@ Parameters::Parameters(char* input_dir)
   FILE* fid = my_fopen(file, "r");
   char name[20];
 
-  int count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
+  int count = fscanf(fid, "%s%d", name, &nep_version);
+  PRINT_SCANF_ERROR(count, 2, "reading error for nep_version.");
+  printf("nep_version = %d.\n", nep_version);
+  if (nep_version > 2 || nep_version < 1) {
+    PRINT_INPUT_ERROR("nep_version can only be 1 or 2 now.");
+  }
+
+  count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for cutoff.");
   printf("radial cutoff = %g A.\n", rc_radial);
   printf("angular cutoff = %g A.\n", rc_angular);
