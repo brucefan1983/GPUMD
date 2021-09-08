@@ -95,8 +95,10 @@ void Fitness::report_error(
       fprintf(fid_nep, "%15.7e ", elite[m]);
     }
     fprintf(fid_nep, "\n");
-    for (int d = 0; d < para.q_scaler.size(); ++d) {
-      fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler[d], para.q_min[d]);
+    if (para.nep_version == 1) {
+      for (int d = 0; d < para.q_scaler.size(); ++d) {
+        fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler[d], para.q_min[d]);
+      }
     }
     fclose(fid_nep);
 
