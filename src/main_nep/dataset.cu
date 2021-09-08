@@ -252,9 +252,14 @@ void Dataset::find_Na()
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
 }
 
-void Dataset::initialize_gpu_data()
+void Dataset::initialize_gpu_data(Parameters& para)
 {
-  atomic_number.resize(N, Memory_Type::managed);
+  if (para.nep_version == 1) {
+    atomic_number.resize(N, Memory_Type::managed);
+  } else {
+    type.resize(N, Memory_Type::managed);
+  }
+
   r.resize(N * 3, Memory_Type::managed);
   force.resize(N * 3, 0.0f, Memory_Type::managed);
   force_ref.resize(N * 3, Memory_Type::managed);
@@ -280,7 +285,7 @@ void Dataset::initialize_gpu_data()
   }
 }
 
-void Dataset::calculate_types()
+void Dataset::calculate_types_v1()
 {
   int atomic_number_max = 0;
   std::vector<int> types;
@@ -309,6 +314,26 @@ void Dataset::calculate_types()
     }
   }
 
+  num_types = types.size();
+}
+
+void Dataset::calculate_types_v2()
+{
+  std::vector<int> types;
+  for (int nc = 0; nc < Nc; ++nc) {
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      type[Na_sum[nc] + na] = structures[nc].atomic_number[na];
+      bool find_a_new_type = true;
+      for (int k = 0; k < types.size(); ++k) {
+        if (types[k] == structures[nc].atomic_number[na]) {
+          find_a_new_type = false;
+        }
+      }
+      if (find_a_new_type) {
+        types.emplace_back(structures[nc].atomic_number[na]);
+      }
+    }
+  }
   num_types = types.size();
 }
 
@@ -478,8 +503,16 @@ void Dataset::construct(char* input_dir, Parameters& para)
 {
   read_train_in(input_dir, para);
   find_Na();
-  initialize_gpu_data();
-  calculate_types();
+  initialize_gpu_data(para);
+
+  if (para.nep_version == 1) {
+    calculate_types_v1();
+  } else {
+    calculate_types_v2();
+    para.number_of_variables +=
+      (para.n_max_radial + para.n_max_angular + 2) * num_types * num_types;
+  }
+
   find_neighbor(para);
 }
 

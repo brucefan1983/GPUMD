@@ -83,8 +83,9 @@ private:
   void read_train_in(char*, Parameters& para);
   void reorder(char* input_dir);
   void find_Na();
-  void initialize_gpu_data();
-  void calculate_types();
+  void initialize_gpu_data(Parameters& para);
+  void calculate_types_v1();
+  void calculate_types_v2();
   void find_neighbor(Parameters& para);
   // functions called by read_train_in:
   void read_Nc(FILE*);
