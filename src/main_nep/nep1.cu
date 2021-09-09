@@ -121,7 +121,8 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
+static void __global__
+find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
@@ -162,7 +163,7 @@ void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler, f
   }
 }
 
-void __global__ normalize_descriptors(
+static void __global__ normalize_descriptors(
   NEP1::ANN annmb, const int N, const float* g_q_scaler, const float* g_q_min, float* g_q)
 {
   int n1 = blockDim.x * blockIdx.x + threadIdx.x;
