@@ -36,6 +36,12 @@ import sys
 import glob
 import numpy as np
 
+ELEMENTS=['H', 'He', 'Li', 'Be', 'B', 'C', 'N', 'O', 'F', 'Ne', 'Na', 'Mg', 'Al', 'Si', 'P', 'S', 'Cl', 'Ar', 'K', 'Ca', 'Sc', 'Ti', 'V', 'Cr', \
+         'Mn', 'Fe', 'Co', 'Ni', 'Cu', 'Zn', 'Ga', 'Ge', 'As', 'Se', 'Br', 'Kr', 'Rb', 'Sr', 'Y', 'Zr', 'Nb', 'Mo', 'Tc', 'Ru', 'Rh', 'Pd', 'Ag',\
+         'Cd', 'In', 'Sn', 'Sb', 'Te', 'I', 'Xe', 'Cs', 'Ba', 'La', 'Ce', 'Pr', 'Nd', 'Pm', 'Sm', 'Eu', 'Gd', 'Tb', 'Dy', 'Ho', 'Er', 'Tm', 'Yb',\
+         'Lu', 'Hf', 'Ta', 'W', 'Re', 'Os', 'Ir', 'Pt', 'Au', 'Hg', 'Tl', 'Pb', 'Bi', 'Po', 'At', 'Rn', 'Fr', 'Ra', 'Ac', 'Th', 'Pa', 'U', 'Np', \
+         'Pu', 'Am', 'Cm', 'Bk', 'Cf', 'Es', 'Fm', 'Md', 'No', 'Lr']
+
 def convervirial(invirial):
 
     vxx = invirial[0,0]
@@ -157,6 +163,7 @@ def read_multi_deepmd(folder):
     data['virials'] = np.zeros((data['nframe'], 6))
     data['cells'] = np.zeros((data['nframe'], 9))
     data['volume'] = np.zeros((data['nframe']))
+    data['atom_names'] = {}
     data['atom_types'] = {}
     data['coords'] = {}
     data['forces'] = {}
@@ -165,7 +172,7 @@ def read_multi_deepmd(folder):
     ifr = -1
     for i in data_multi:
 
-        #atom_types = [data_multi[i]['atom_names'][j] for j in data_multi[i]['atom_types']]
+        atom_names = [data_multi[i]['atom_names'][j] for j in data_multi[i]['atom_types']]
 
         for j in range(data_multi[i]['frames']):
 
@@ -177,7 +184,7 @@ def read_multi_deepmd(folder):
                 data['virials'][ifr] = convervirial(data_multi[i]['virials'][j])
             data['cells'][ifr] = np.reshape(data_multi[i]['cells'][j],9)
             data['volume'][ifr] = vec2volume(data['cells'][ifr])
-            #data['atom_types'][ifr] = atom_types
+            data['atom_names'][ifr] = atom_names
             data['atom_types'][ifr] = data_multi[i]['atom_types']
             data['coords'][ifr] = data_multi[i]['coords'][j]
             data['forces'][ifr] = data_multi[i]['forces'][j]
@@ -202,7 +209,7 @@ def check_data(data):
         print('    coords', len(data['coords'][i]), end=' ')
         print('forces', len(data['forces'][i]))
 
-def dump (folder, data):
+def dump (folder, data, nep_version=2):
     os.makedirs(folder, exist_ok = True)
 
     fout = open(os.path.join(folder, 'train.in'), 'w')
@@ -221,7 +228,15 @@ def dump (folder, data):
             outstr=outstr+str(data['energies'][i])+'\n'
         outstr=outstr+' '.join(map(str, data['cells'][i]))+'\n'
         for j in range(int(data['atom_numbs'][i])):
-            outstr=outstr+str(int(data['atom_types'][i][j]+1))+' '
+            if nep_version == 1:
+                ijname=data['atom_names'][i][j]
+                ijanum=ELEMENTS.index(data['atom_names'][i][j]) + 1
+                outstr=outstr+str(int(ijanum))+' '
+            elif nep_version == 2:
+                ijtype=data['atom_types'][i][j]
+                outstr=outstr+str(int(ijtype))+' '
+            else:
+                raise "Errors with wrong <nep_version> para."
             outstr=outstr+' '.join(map(str, data['coords'][i][j]))+' '
             outstr=outstr+' '.join(map(str, data['forces'][i][j]))+'\n'
         fout.write(outstr)
@@ -233,9 +248,13 @@ def main():
 
     instr = sys.argv[1]
 
+    # Warning: nep_version=1: the 1st column in train.in respresents the number of protons.
+    #          nep_version=2: the 1st column in train.in respresents the serial number, starting from 0 to N-1.
+    nep_version = 1
+
     data = read_multi_deepmd('./'+instr)
     #check_data(data)
-    dump('./nep', data)
+    dump('./nep', data, nep_version)
 
 if __name__ == "__main__":
     main()
