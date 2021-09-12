@@ -21,6 +21,7 @@ class Parameters
 public:
   Parameters(char* input_dir);
   int nep_version = 1;         // v1 (the 2021-PRB paper), v2, v3, ...
+  int num_types = 1;           // number of atom types
   int population_size = 0;     // population size for SNES
   int maximum_generation = 0;  // maximum number of generations for SNES;
   int num_neurons1 = 0;        // number of nuerons in the 1st hidden layer
@@ -30,7 +31,7 @@ public:
   int n_max_angular = 0;       // maximum order of the angular Chebyshev polynomials
   int L_max = 0;               // maximum order of the angular Legendre polynomials
   int number_of_variables = 0; // total number of parameters
-  float L1_reg_para = 1.0e-2f; // good default
+  float L1_reg_para = 5.0e-2f; // good default
   float L2_reg_para = 5.0e-2f; // good default
   GPU_Vector<float> q_scaler;  // 1 ./ (max(q) - min(q))
   GPU_Vector<float> q_min;     // min(q)

@@ -323,7 +323,7 @@ void Dataset::calculate_types_v1()
   num_types = types.size();
 }
 
-void Dataset::calculate_types_v2()
+void Dataset::calculate_types_v2(Parameters& para)
 {
   std::vector<int> types;
   for (int nc = 0; nc < Nc; ++nc) {
@@ -341,6 +341,17 @@ void Dataset::calculate_types_v2()
     }
   }
   num_types = types.size();
+
+  if (num_types != para.num_types) {
+    PRINT_INPUT_ERROR("mismatching num_types in nep.in and train.in.");
+  }
+  for (int nc = 0; nc < Nc; ++nc) {
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      if (structures[nc].atomic_number[na] >= num_types) {
+        PRINT_INPUT_ERROR("detected atom type (in train.in) >= num_types (in nep.in).");
+      }
+    }
+  }
 }
 
 static __global__ void gpu_find_neighbor_number(
@@ -514,9 +525,7 @@ void Dataset::construct(char* input_dir, Parameters& para)
   if (para.nep_version == 1) {
     calculate_types_v1();
   } else {
-    calculate_types_v2();
-    para.number_of_variables +=
-      (para.n_max_radial + para.n_max_angular + 2) * num_types * num_types;
+    calculate_types_v2(para);
   }
 
   find_neighbor(para);

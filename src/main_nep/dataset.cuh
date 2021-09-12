@@ -85,7 +85,7 @@ private:
   void find_Na();
   void initialize_gpu_data(Parameters& para);
   void calculate_types_v1();
-  void calculate_types_v2();
+  void calculate_types_v2(Parameters& para);
   void find_neighbor(Parameters& para);
   // functions called by read_train_in:
   void read_Nc(FILE*);

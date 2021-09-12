@@ -36,6 +36,13 @@ Parameters::Parameters(char* input_dir)
     PRINT_INPUT_ERROR("nep_version can only be 1 or 2 now.");
   }
 
+  count = fscanf(fid, "%s%d", name, &num_types);
+  PRINT_SCANF_ERROR(count, 2, "reading error for num_types.");
+  printf("num_types = %d.\n", num_types);
+  if (num_types < 1 || num_types > 10) {
+    PRINT_INPUT_ERROR("num_types should >=1 and <= 10.");
+  }
+
   count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for cutoff.");
   printf("radial cutoff = %g A.\n", rc_radial);
@@ -85,7 +92,11 @@ Parameters::Parameters(char* input_dir)
   printf("ANN = %d-%d-1.\n", dim, num_neurons1);
 
   number_of_variables = (dim + 2) * num_neurons1 + 1;
-  printf("number of parameters to be optimized = %d.\n", number_of_variables);
+  printf("number of neural network parameters to be optimized = %d.\n", number_of_variables);
+  int num_para_descriptor = num_types * num_types * (n_max_radial + n_max_angular + 2);
+  printf("number of descriptor parameters to be optimized = %d.\n", num_para_descriptor);
+  number_of_variables += num_para_descriptor;
+  printf("total number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);
   PRINT_SCANF_ERROR(count, 3, "reading error for regularization.");
