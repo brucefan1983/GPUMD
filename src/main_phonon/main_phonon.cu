@@ -64,7 +64,7 @@ void print_welcome_information(void)
   printf("***************************************************************\n");
   printf("*                 Welcome to use GPUMD                        *\n");
   printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
-  printf("*                    Version 2.5.1                            *\n");
+  printf("*                     Version 2.6                             *\n");
   printf("*             This is the phonon executable                   *\n");
   printf("* Authors:                                                    *\n");
   printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");

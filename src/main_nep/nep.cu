@@ -15,7 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The neuroevolution potential (NEP)
-Ref: Zheyong Fan et al., in preparation.
+Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
+Combining high accuracy and low cost in atomistic simulations and application to
+heat transport, arXiv:2107.08119
 ------------------------------------------------------------------------------*/
 
 #include "dataset.cuh"
@@ -206,25 +208,6 @@ NEP2::NEP2(char* input_dir, Parameters& para, Dataset& dataset)
     dataset.y12_angular.data(), dataset.z12_angular.data(), nep_data.descriptors.data(),
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
-
-  // output descriptors
-  char file_descriptors[200];
-  strcpy(file_descriptors, input_dir);
-  strcat(file_descriptors, "/descriptor.out");
-  FILE* fid = my_fopen(file_descriptors, "w");
-  std::vector<float> descriptors(dataset.N * annmb.dim);
-  nep_data.descriptors.copy_to_host(descriptors.data());
-  for (int nc = 0; nc < dataset.Nc; ++nc) {
-    int offset = dataset.Na_sum[nc];
-    for (int m = 0; m < dataset.Na_original[nc]; ++m) {
-      int n = offset + m;
-      for (int d = 0; d < annmb.dim; ++d) {
-        fprintf(fid, "%g ", descriptors[d * dataset.N + n]);
-      }
-      fprintf(fid, "\n");
-    }
-  }
-  fclose(fid);
 
   para.q_scaler.resize(annmb.dim, Memory_Type::managed);
   para.q_min.resize(annmb.dim, Memory_Type::managed);
