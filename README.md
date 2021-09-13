@@ -19,11 +19,10 @@
 * Go to the `src` directory and type `make`. When the compilation finishes, three executables, `gpumd`, `phonon`, and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
-* Go to the directory where you can see `src`.
-* Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`.
-* Type `src/phonon < examples/input_phonon.txt` to run the examples in `examples/phonon`.
-* Type `src/nep < examples/input_nep_train.txt` to run the example in `examples/nep/PbTe_Fan_2021/train`. This will train a NEP potential for PbTe, which should be able to produce a NEP potential for PbTe similar to that presented in Ref. [6].
-* Type `src/gpumd < examples/input_nep_kappa.txt` to run the examples in `examples/nep/PbTe_Fan_2021/kappa`. This will calculate the thermal conductivity of PbTe from 300 K to 700 K using the NEP potential for PbTe as obtained in Ref. [6].
+* Go to the directory where you can see `src`
+* Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`
+* Type `src/phonon < examples/input_phonon.txt` to run the example in `examples/phonon`
+* Type `src/nep < examples/input_nep.txt` to run the example in `examples/nep/PbTe_Fan_2021/train`
 
 ## Manual
 * We only maintain the online manual now: https://gpumd.zheyongfan.org
