@@ -5,7 +5,7 @@
 * `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a general-purpose molecular dynamics (MD) code fully implemented on graphics processing units (GPUs). 
 
 * Force evaluation for many-body potentials has been significantly accelerated by using GPUs [1], thanks to a set of simple expressions for force, virial stress, and heat current derived in Refs. [2, 3]. 
-   
+  
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [2, 3, 4, 5].
 
 * It can train the NEP machine-learning potential [6] and run MD simulations with it. It can also run MD simulations with the machine-learning based force constant potential (FCP) [7].
@@ -22,7 +22,8 @@
 * Go to the directory where you can see `src`.
 * Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`.
 * Type `src/phonon < examples/input_phonon.txt` to run the examples in `examples/phonon`.
-* Type `src/nep < examples/input_nep.txt` to run the examples in `examples/nep`.
+* Type `src/nep < examples/input_nep_train.txt` to run the example in `examples/nep/PbTe_Fan_2021/train`. This will train a NEP potential for PbTe, which should be able to produce a NEP potential for PbTe similar to that presented in Ref. [6].
+* Type `src/gpumd < examples/input_nep_kappa.txt` to run the examples in `examples/nep/PbTe_Fan_2021/kappa`. This will calculate the thermal conductivity of PbTe from 300 K to 700 K using the NEP potential for PbTe as obtained in Ref. [6].
 
 ## Manual
 * We only maintain the online manual now: https://gpumd.zheyongfan.org
@@ -81,7 +82,7 @@ Phys. Rev. B **103**, 205421 (2021).
 
 * If you train or use a NEP potential, you can cite the following paper:
 
-[6] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport, submitted.
+[6] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport, Accepted to PRB. https://arxiv.org/abs/2107.08119
 
 * If you use the force constant potential (FCP), you can cite the following paper:
 
