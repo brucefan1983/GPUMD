@@ -167,14 +167,9 @@ void Dataset::read_force(FILE* fid, int nc, Parameters& para)
       &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
       &structures[nc].fz[na]);
     PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
-    if (para.nep_version == 1) {
-      if (structures[nc].atomic_number[na] < 1) {
-        PRINT_INPUT_ERROR("Atomic number should > 0.\n");
-      }
-    } else {
-      if (structures[nc].atomic_number[na] < 0) {
-        PRINT_INPUT_ERROR("Atom type should >= 0.\n");
-      }
+
+    if (structures[nc].atomic_number[na] < 0) {
+      PRINT_INPUT_ERROR("Atom type should >= 0.\n");
     }
   }
 
@@ -260,11 +255,7 @@ void Dataset::find_Na()
 
 void Dataset::initialize_gpu_data(Parameters& para)
 {
-  if (para.nep_version == 1) {
-    atomic_number.resize(N, Memory_Type::managed);
-  } else {
-    type.resize(N, Memory_Type::managed);
-  }
+  type.resize(N, Memory_Type::managed);
 
   r.resize(N * 3, Memory_Type::managed);
   force.resize(N * 3, 0.0f, Memory_Type::managed);
@@ -291,39 +282,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   }
 }
 
-void Dataset::calculate_types_v1()
-{
-  int atomic_number_max = 0;
-  std::vector<int> types;
-  for (int nc = 0; nc < Nc; ++nc) {
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      int atomic_number_tmp = structures[nc].atomic_number[na];
-      if (atomic_number_tmp > atomic_number_max) {
-        atomic_number_max = atomic_number_tmp;
-      }
-      bool find_a_new_type = true;
-      for (int k = 0; k < types.size(); ++k) {
-        if (types[k] == atomic_number_tmp) {
-          find_a_new_type = false;
-        }
-      }
-      if (find_a_new_type) {
-        types.emplace_back(atomic_number_tmp);
-      }
-    }
-  }
-
-  for (int nc = 0; nc < Nc; ++nc) {
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      atomic_number[Na_sum[nc] + na] =
-        sqrt(float(structures[nc].atomic_number[na]) / atomic_number_max);
-    }
-  }
-
-  num_types = types.size();
-}
-
-void Dataset::calculate_types_v2(Parameters& para)
+void Dataset::check_types(Parameters& para)
 {
   std::vector<int> types;
   for (int nc = 0; nc < Nc; ++nc) {
@@ -521,13 +480,7 @@ void Dataset::construct(char* input_dir, Parameters& para)
   read_train_in(input_dir, para);
   find_Na();
   initialize_gpu_data(para);
-
-  if (para.nep_version == 1) {
-    calculate_types_v1();
-  } else {
-    calculate_types_v2(para);
-  }
-
+  check_types(para);
   find_neighbor(para);
 }
 

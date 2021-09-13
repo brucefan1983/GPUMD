@@ -18,8 +18,7 @@ Get the fitness
 ------------------------------------------------------------------------------*/
 
 #include "fitness.cuh"
-#include "nep1.cuh"
-#include "nep2.cuh"
+#include "nep.cuh"
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -31,11 +30,7 @@ Get the fitness
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
   train_set.construct(input_dir, para);
-  if (para.nep_version == 1) {
-    potential.reset(new NEP1(input_dir, para, train_set));
-  } else if (para.nep_version == 2) {
-    potential.reset(new NEP2(input_dir, para, train_set));
-  }
+  potential.reset(new NEP2(input_dir, para, train_set));
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);
@@ -89,12 +84,7 @@ void Fitness::report_error(
     strcpy(file_nep, input_dir);
     strcat(file_nep, "/nep.txt");
     FILE* fid_nep = my_fopen(file_nep, "w");
-
-    if (para.nep_version == 1) {
-      fprintf(fid_nep, "nep1 %d\n", train_set.num_types);
-    } else if (para.nep_version == 2) {
-      fprintf(fid_nep, "nep2 %d\n", train_set.num_types);
-    }
+    fprintf(fid_nep, "nep %d\n", train_set.num_types);
     fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
     fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
     fprintf(fid_nep, "l_max %d\n", para.L_max);

@@ -29,14 +29,7 @@ Parameters::Parameters(char* input_dir)
   FILE* fid = my_fopen(file, "r");
   char name[20];
 
-  int count = fscanf(fid, "%s%d", name, &nep_version);
-  PRINT_SCANF_ERROR(count, 2, "reading error for nep_version.");
-  printf("nep_version = %d.\n", nep_version);
-  if (nep_version > 2 || nep_version < 1) {
-    PRINT_INPUT_ERROR("nep_version can only be 1 or 2 now.");
-  }
-
-  count = fscanf(fid, "%s%d", name, &num_types);
+  int count = fscanf(fid, "%s%d", name, &num_types);
   PRINT_SCANF_ERROR(count, 2, "reading error for num_types.");
   printf("num_types = %d.\n", num_types);
   if (num_types < 1 || num_types > 10) {
