@@ -15,7 +15,9 @@
 
 /*----------------------------------------------------------------------------80
 The neuroevolution potential (NEP)
-Ref: Zheyong Fan et al., in preparation.
+Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
+Combining high accuracy and low cost in atomistic simulations and application to
+heat transport, arXiv:2107.08119
 ------------------------------------------------------------------------------*/
 
 #include "nep.cuh"
