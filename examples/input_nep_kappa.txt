@@ -1,0 +1,6 @@
+5
+examples/nep/PbTe_Fan_2021/kappa/300
+examples/nep/PbTe_Fan_2021/kappa/400
+examples/nep/PbTe_Fan_2021/kappa/500
+examples/nep/PbTe_Fan_2021/kappa/600
+examples/nep/PbTe_Fan_2021/kappa/700

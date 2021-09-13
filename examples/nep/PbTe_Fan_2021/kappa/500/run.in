@@ -1,0 +1,14 @@
+potential   potentials/nep/PbTe_Fan_2021.txt 0 1
+velocity    500
+
+ensemble nvt_ber 500 500 0.1
+time_step 1
+dump_thermo 100
+run 100000
+
+ensemble nvt_nhc 500 500 100
+compute_hnemd 1000 0 0 1.0e-4
+compute_shc   10 500 2 500 30
+dump_position 2000000
+run           2000000
+

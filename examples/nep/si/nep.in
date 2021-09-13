@@ -1,4 +1,3 @@
-nep_version          1
 cutoff               3.5 3.5
 n_max                8 8
 l_max                4

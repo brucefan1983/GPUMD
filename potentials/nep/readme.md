@@ -5,6 +5,12 @@
 
 | File                  | Publication         | Applicability                                                |
 | :-------------------- | :------------------ | :----------------------------------------------------------- |
-| Si_Fan_2021.txt       | submitted. | This is a general-purpose potential for silicon, which should be applicable to most of the phases of silicon, but this is not guaranteed. Our tests show that the phonon dispersions of 2D silicene are not well described by this potential. |
-| Silicene_Fan_2021.txt | submitted. | The is a special potential for 2D silicene. The potential should be applicable to study elastic and thermal properties of 2D silicene (without defects and free edges) from 0 K to about 900 K and a biaxial strain from about -1% to about 1%. |
-| PbTe_Fan_2021.txt     | submitted. | The is a special potential for bulk PbTe. The potential should be applicable to study thermal properties of bulk PbTe (without defects and surfaces) from 0 K to about 900 K with a fixed lattice constant of about 6.57 A. |
+| Si_Fan_2021.txt       | [1] | This is a general-purpose potential for silicon, which should be applicable to most of the phases of silicon, but this is not guaranteed. Our tests show that the phonon dispersions of 2D silicene are not well described by this potential. |
+| Silicene_Fan_2021.txt | [1]         | The is a special potential for 2D silicene. The potential should be applicable to study elastic and thermal properties of 2D silicene (without defects and free edges) from 0 K to about 900 K and a biaxial strain from about -1% to about 1%. |
+| PbTe_Fan_2021.txt     | [1]         | The is a special potential for bulk PbTe. The potential should be applicable to study thermal properties of bulk PbTe (without defects and surfaces) from 0 K to about 900 K with a fixed lattice constant of about 6.57 A. |
+
+
+
+* [1] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, 
+  Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport,
+  accepted to Phys. Rev. B. https://arxiv.org/abs/2107.08119
