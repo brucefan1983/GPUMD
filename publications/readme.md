@@ -8,7 +8,7 @@
 
 * Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, 
 Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport,
-accepted to Phys. Rev. B. arXiv:2107.08119
+accepted to Phys. Rev. B. https://arxiv.org/abs/2107.08119
 
 * Xin Wu and Qiang Han, 
 [Phonon Thermal Transport across Multilayer Graphene/Hexagonal Boron Nitride van der Waals Heterostructures](https://doi.org/10.1021/acsami.1c08275),
