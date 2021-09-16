@@ -25,36 +25,12 @@ heat transport, arXiv:2107.08119
 #include "utilities/nep_utilities.cuh"
 #include <vector>
 
-static void read_atomic_number(char* input_dir, GPU_Vector<float>& atomic_number)
+NEP2::NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor)
 {
-  std::vector<float> atomic_number_cpu(atomic_number.size());
-  char file_atomic_number[200];
-  strcpy(file_atomic_number, input_dir);
-  strcat(file_atomic_number, "/atomic_number.in");
-  FILE* fid_atomic_number = my_fopen(file_atomic_number, "r");
-  for (int n = 0; n < atomic_number.size(); ++n) {
-    int count = fscanf(fid_atomic_number, "%f", &atomic_number_cpu[n]);
-    PRINT_SCANF_ERROR(count, 1, "reading error for atomic_number.in.");
-  }
-  fclose(fid_atomic_number);
-
-  float max_atomic_number = -1;
-  for (int n = 0; n < atomic_number.size(); ++n) {
-    if (max_atomic_number < atomic_number_cpu[n]) {
-      max_atomic_number = atomic_number_cpu[n];
-    }
-  }
-  for (int n = 0; n < atomic_number.size(); ++n) {
-    atomic_number_cpu[n] = sqrt(atomic_number_cpu[n] / max_atomic_number);
-  }
-
-  atomic_number.copy_from_host(atomic_number_cpu.data());
-}
-
-NEP2::NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor)
-{
-  printf("Use the NEP potential.\n");
+  printf("Use the NEP potential with %d atom types.\n", num_types);
   char name[20];
+
+  paramb.num_types = num_types;
 
   int count = fscanf(fid, "%s%f%f", name, &paramb.rc_radial, &paramb.rc_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
@@ -83,6 +59,12 @@ NEP2::NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor)
   printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
   annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 + 1;
+  printf("    number of neural network parameters = %d.\n", annmb.num_para);
+  int num_para_descriptor =
+    num_types * num_types * (paramb.n_max_radial + paramb.n_max_angular + 2);
+  printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
+  annmb.num_para += num_para_descriptor;
+  printf("    total number of parameters = %d\n", annmb.num_para);
 
   nep_data.f12x.resize(neighbor.NN.size() * neighbor.MN);
   nep_data.f12y.resize(neighbor.NN.size() * neighbor.MN);
@@ -91,10 +73,8 @@ NEP2::NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor)
   nep_data.NL.resize(neighbor.NN.size() * neighbor.MN);
   nep_data.Fp.resize(neighbor.NN.size() * annmb.dim);
   nep_data.sum_fxyz.resize(neighbor.NN.size() * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-  nep_data.atomic_number.resize(neighbor.NN.size());
 
   update_potential(fid);
-  read_atomic_number(input_dir, nep_data.atomic_number);
 }
 
 NEP2::~NEP2(void)
@@ -108,6 +88,7 @@ void NEP2::update_potential(const float* parameters, ANN& ann)
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
   ann.w1 = ann.b0 + ann.num_neurons1;
   ann.b1 = ann.w1 + ann.num_neurons1;
+  ann.c = ann.b1 + 1;
 }
 
 void NEP2::update_potential(FILE* fid)
@@ -193,7 +174,7 @@ static __global__ void find_descriptor(
   const int* g_NL,
   const int* g_NN_angular,
   const int* g_NL_angular,
-  const float* __restrict__ g_atomic_number,
+  const int* __restrict__ g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -203,7 +184,7 @@ static __global__ void find_descriptor(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
-    float atomic_number_n1 = g_atomic_number[n1];
+    int t1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -220,11 +201,12 @@ static __global__ void find_descriptor(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      fc12 *= atomic_number_n1 * g_atomic_number[n2];
+      int t2 = g_type[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        q[n] += fn12[n];
+        float c = annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
+        q[n] += fn12[n] * c;
       }
     }
 
@@ -241,9 +223,11 @@ static __global__ void find_descriptor(
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
         find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
-        fc12 *= atomic_number_n1 * g_atomic_number[n2];
+        int t2 = g_type[n2];
         float fn;
         find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
+        fn *=
+          annmb.c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
         accumulate_s(d12, x12, y12, z12, fn, s);
       }
       find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
@@ -293,7 +277,7 @@ static __global__ void find_force_radial(
   const Box box,
   const int* g_NN,
   const int* g_NL,
-  const float* __restrict__ g_atomic_number,
+  const int* __restrict__ g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -305,7 +289,7 @@ static __global__ void find_force_radial(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
-    float atomic_number_n1 = g_atomic_number[n1];
+    int t1 = g_type[n1];
     float s_fx = 0.0f;
     float s_fy = 0.0f;
     float s_fz = 0.0f;
@@ -323,7 +307,7 @@ static __global__ void find_force_radial(
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      float atomic_number_n12 = atomic_number_n1 * g_atomic_number[n2];
+      int t2 = g_type[n2];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
@@ -339,8 +323,10 @@ static __global__ void find_force_radial(
       float f12[3] = {0.0f};
       float f21[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * atomic_number_n12 * d12inv;
-        float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * atomic_number_n12 * d12inv;
+        float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * d12inv;
+        float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * d12inv;
+        tmp12 *= annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
+        tmp21 *= annmb.c[(n * paramb.num_types + t2) * paramb.num_types + t1];
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
           f21[d] -= tmp21 * r12[d];
@@ -380,13 +366,14 @@ static __global__ void find_force_radial(
 
 static __global__ void find_partial_force_angular(
   NEP2::ParaMB paramb,
+  NEP2::ANN annmb,
   const int N,
   const int N1,
   const int N2,
   const Box box,
   const int* g_NN_angular,
   const int* g_NL_angular,
-  const float* __restrict__ g_atomic_number,
+  const int* __restrict__ g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -408,7 +395,7 @@ static __global__ void find_partial_force_angular(
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
     }
 
-    float atomic_number_n1 = g_atomic_number[n1];
+    int t1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -423,13 +410,20 @@ static __global__ void find_partial_force_angular(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
-      float atomic_number_n12 = atomic_number_n1 * g_atomic_number[n2];
-      fc12 *= atomic_number_n12;
-      fcp12 *= atomic_number_n12;
+      int t2 = g_type[n2];
       float f12[3] = {0.0f};
-      find_f12(
-        n1, paramb.n_max_radial, paramb.n_max_angular, paramb.rcinv_angular, d12, fc12, fcp12, r12,
-        Fp, sum_fxyz, f12);
+      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+        float fn;
+        float fnp;
+        find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
+        const float c =
+          annmb.c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
+        fn *= c;
+        fnp *= c;
+        accumulate_f12(
+          n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz,
+          f12);
+      }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
       g_f12z[index] = f12[2] * 2.0f;
@@ -459,20 +453,20 @@ void NEP2::compute(
 
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    nep_data.NN.data(), nep_data.NL.data(), nep_data.atomic_number.data(), position_per_atom.data(),
+    nep_data.NN.data(), nep_data.NL.data(), type.data(), position_per_atom.data(),
     position_per_atom.data() + N, position_per_atom.data() + N * 2, potential_per_atom.data(),
     nep_data.Fp.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    nep_data.atomic_number.data(), position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, nep_data.Fp.data(), force_per_atom.data(),
-    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
+    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(), type.data(),
+    position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
+    nep_data.Fp.data(), force_per_atom.data(), force_per_atom.data() + N,
+    force_per_atom.data() + N * 2, virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), nep_data.atomic_number.data(),
+    paramb, annmb, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), type.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
     nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
     nep_data.f12z.data());
