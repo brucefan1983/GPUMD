@@ -84,11 +84,11 @@ Parameters::Parameters(char* input_dir)
 
   printf("ANN = %d-%d-1.\n", dim, num_neurons1);
 
-  number_of_variables = (dim + 2) * num_neurons1 + 1;
-  printf("number of neural network parameters to be optimized = %d.\n", number_of_variables);
+  number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+  printf("number of neural network parameters to be optimized = %d.\n", number_of_variables_ann);
   int num_para_descriptor = num_types * num_types * (n_max_radial + n_max_angular + 2);
   printf("number of descriptor parameters to be optimized = %d.\n", num_para_descriptor);
-  number_of_variables += num_para_descriptor;
+  number_of_variables = number_of_variables_ann + num_para_descriptor;
   printf("total number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);

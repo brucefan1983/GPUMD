@@ -44,7 +44,7 @@ protected:
   void initialize_mu_and_sigma(char*);
   void calculate_utility();
   void compute(char*, Parameters&, Fitness*);
-  void create_population();
+  void create_population(Parameters&);
   void regularize(Parameters&);
   void sort_population();
   void update_mu_and_sigma();

@@ -30,6 +30,7 @@ public:
   int n_max_angular = 0;       // maximum order of the angular Chebyshev polynomials
   int L_max = 0;               // maximum order of the angular Legendre polynomials
   int number_of_variables = 0; // total number of parameters
+  int number_of_variables_ann = 0;
   float L1_reg_para = 5.0e-2f; // good default
   float L2_reg_para = 5.0e-2f; // good default
   GPU_Vector<float> q_scaler;  // 1 ./ (max(q) - min(q))
