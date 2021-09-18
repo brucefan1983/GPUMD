@@ -1,4 +1,4 @@
-potential   examples/nep/PbTe_Fan_2021/train/nep.txt 0 1
+potential   potentials/nep/PbTe_Fan_2021.txt 0 1
 velocity    1
 
 ensemble nve

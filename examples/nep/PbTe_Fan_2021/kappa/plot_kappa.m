@@ -41,37 +41,17 @@ kappa_exp2=[
 1.259 
 1.212];
 
-
-xia_4ph=[
-300.08830957805685, 0.38360352763989636
-400.12650347056643, 0.5141101618514272
-500.164697363076, 0.642545262186585
-600.2028912555855, 0.7668372947689954
-700.2410851480952, 0.8787001240931651];
-
-xia_3ph=[
-300.08830957805685, 0.23859615629375064
-400.12650347056643, 0.292456037079462
-500.164697363076, 0.33595824848330547
-600.2028912555855, 0.37531739213440196
-700.2410851480952, 0.4084619341563782];
+kappa_nep1_ave=[   1.9979    1.6916    1.1740    1.0335    0.8790];
+kappa_nep1_err=[0.1613    0.1329    0.1331    0.1102    0.0961];
 
 figure;
-errorbar(temp_nep,kappa_ave,kappa_err,'d','linewidth',2);hold on;
-plot(300,1.85,'s','linewidth',2);
-plot(xia_3ph(:,1),1./xia_3ph(:,2),'o','linewidth',2);
-plot(xia_4ph(:,1),1./xia_4ph(:,2),'^','linewidth',2);
+errorbar(temp_nep,kappa_nep1_ave,kappa_nep1_err,'s','linewidth',2);hold on;
+errorbar(temp_nep,kappa_ave,kappa_err,'o','linewidth',2);hold on;
 plot(kappa_PbTe(:,1),kappa_PbTe(:,2),'+','linewidth',2);
 plot(temp_exp2,kappa_exp2,'x','linewidth',2);
-legend('NEP-HNEMD','Zeng-GAP-BTE (3ph+4ph)','Xia-DFT-BTE (3ph)',...
-    'Xia-DFT-BTE (3ph+4ph)','Fedorov-Experiments','El-Sharkawy-Experiments')
+legend('NEP1','NEP2','Fedorov-Experiments','El-Sharkawy-Experiments')
 xlabel('$T$ (K)','interpreter','latex');
 ylabel('$\kappa$ (W/mK)','interpreter','latex');
-ylim([0, 6]);
+ylim([0, 2.5]);
 xlim([290,710]);
 set(gca,'fontsize',15);
-
-
-
-
-

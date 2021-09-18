@@ -1,5 +1,5 @@
 num_types            2
-cutoff              8 4
+cutoff               8 4
 n_max                12 6
 l_max                4
 ANN                  40
