@@ -101,6 +101,14 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
     print_line_1();
     printf("Started testing.\n");
     print_line_2();
+    // avoid zero
+    for (int v = para.number_of_variables_ann; v < number_of_variables; ++v) {
+      if (mu[v] > 0) {
+        mu[v] += 0.1f;
+      } else {
+        mu[v] -= 0.1f;
+      }
+    }
     fitness_function->test(input_dir, para, mu.data());
   } else {
     print_line_1();
@@ -112,7 +120,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
       "RMSE-Energy", "RMSE-Force", "RMSE-Virial");
 
     for (int n = 0; n < maximum_generation; ++n) {
-      create_population();
+      create_population(para);
       fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
       regularize(para);
       sort_population();
@@ -128,7 +136,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
   }
 }
 
-void SNES::create_population()
+void SNES::create_population(Parameters& para)
 {
   std::normal_distribution<float> r1(0, 1);
   for (int p = 0; p < population_size; ++p) {
@@ -136,6 +144,14 @@ void SNES::create_population()
       int pv = p * number_of_variables + v;
       s[pv] = r1(rng);
       population[pv] = sigma[v] * s[pv] + mu[v];
+      // avoid zero
+      if (v >= para.number_of_variables_ann) {
+        if (population[pv] > 0) {
+          population[pv] += 0.1f;
+        } else {
+          population[pv] -= 0.1f;
+        }
+      }
     }
   }
 }

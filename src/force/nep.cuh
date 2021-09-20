@@ -26,7 +26,6 @@ struct NEP2_Data {
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<int> NN;
   GPU_Vector<int> NL;
-  GPU_Vector<float> atomic_number;
 };
 
 class NEP2 : public Potential
@@ -40,6 +39,7 @@ public:
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 0, 1, 2, ..., L_max
+    int num_types = 0;
     float q_scaler[100];
     float q_min[100];
   };
@@ -52,9 +52,10 @@ public:
     const float* b0;      // bias for the hidden layer
     const float* w1;      // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
+    const float* c;
   };
 
-  NEP2(FILE* fid, char* input_dir, const Neighbor& neighbor);
+  NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor);
   virtual ~NEP2(void);
   virtual void compute(
     const int type_shift,

@@ -1,7 +1,8 @@
+num_types            2
 cutoff               8 4
 n_max                12 6
 l_max                4
 ANN                  40
 reg                  0.05 0.05
 population_size      50
-maximum_generation   200000
+maximum_generation   100000

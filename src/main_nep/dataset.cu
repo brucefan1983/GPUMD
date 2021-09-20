@@ -144,7 +144,7 @@ void Dataset::read_box(FILE* fid, int nc, Parameters& para)
   }
 }
 
-void Dataset::read_force(FILE* fid, int nc)
+void Dataset::read_force(FILE* fid, int nc, Parameters& para)
 {
   structures[nc].num_atom *=
     structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
@@ -167,8 +167,9 @@ void Dataset::read_force(FILE* fid, int nc)
       &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
       &structures[nc].fz[na]);
     PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
-    if (structures[nc].atomic_number[na] < 1) {
-      PRINT_INPUT_ERROR("Atomic number should > 0.\n");
+
+    if (structures[nc].atomic_number[na] < 0) {
+      PRINT_INPUT_ERROR("Atom type should >= 0.\n");
     }
   }
 
@@ -219,7 +220,7 @@ void Dataset::read_train_in(char* input_dir, Parameters& para)
   for (int n = 0; n < Nc; ++n) {
     read_energy_virial(fid, n);
     read_box(fid, n, para);
-    read_force(fid, n);
+    read_force(fid, n, para);
   }
 
   fclose(fid);
@@ -252,9 +253,10 @@ void Dataset::find_Na()
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
 }
 
-void Dataset::initialize_gpu_data()
+void Dataset::initialize_gpu_data(Parameters& para)
 {
-  atomic_number.resize(N, Memory_Type::managed);
+  type.resize(N, Memory_Type::managed);
+
   r.resize(N * 3, Memory_Type::managed);
   force.resize(N * 3, 0.0f, Memory_Type::managed);
   force_ref.resize(N * 3, Memory_Type::managed);
@@ -280,36 +282,35 @@ void Dataset::initialize_gpu_data()
   }
 }
 
-void Dataset::calculate_types()
+void Dataset::check_types(Parameters& para)
 {
-  int atomic_number_max = 0;
   std::vector<int> types;
   for (int nc = 0; nc < Nc; ++nc) {
     for (int na = 0; na < structures[nc].num_atom; ++na) {
-      int atomic_number_tmp = structures[nc].atomic_number[na];
-      if (atomic_number_tmp > atomic_number_max) {
-        atomic_number_max = atomic_number_tmp;
-      }
+      type[Na_sum[nc] + na] = structures[nc].atomic_number[na];
       bool find_a_new_type = true;
       for (int k = 0; k < types.size(); ++k) {
-        if (types[k] == atomic_number_tmp) {
+        if (types[k] == structures[nc].atomic_number[na]) {
           find_a_new_type = false;
         }
       }
       if (find_a_new_type) {
-        types.emplace_back(atomic_number_tmp);
+        types.emplace_back(structures[nc].atomic_number[na]);
       }
     }
   }
+  num_types = types.size();
 
+  if (num_types != para.num_types) {
+    PRINT_INPUT_ERROR("mismatching num_types in nep.in and train.in.");
+  }
   for (int nc = 0; nc < Nc; ++nc) {
     for (int na = 0; na < structures[nc].num_atom; ++na) {
-      atomic_number[Na_sum[nc] + na] =
-        sqrt(float(structures[nc].atomic_number[na]) / atomic_number_max);
+      if (structures[nc].atomic_number[na] >= num_types) {
+        PRINT_INPUT_ERROR("detected atom type (in train.in) >= num_types (in nep.in).");
+      }
     }
   }
-
-  num_types = types.size();
 }
 
 static __global__ void gpu_find_neighbor_number(
@@ -478,8 +479,8 @@ void Dataset::construct(char* input_dir, Parameters& para)
 {
   read_train_in(input_dir, para);
   find_Na();
-  initialize_gpu_data();
-  calculate_types();
+  initialize_gpu_data(para);
+  check_types(para);
   find_neighbor(para);
 }
 

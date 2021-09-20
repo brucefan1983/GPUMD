@@ -29,7 +29,14 @@ Parameters::Parameters(char* input_dir)
   FILE* fid = my_fopen(file, "r");
   char name[20];
 
-  int count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
+  int count = fscanf(fid, "%s%d", name, &num_types);
+  PRINT_SCANF_ERROR(count, 2, "reading error for num_types.");
+  printf("num_types = %d.\n", num_types);
+  if (num_types < 1 || num_types > 10) {
+    PRINT_INPUT_ERROR("num_types should >=1 and <= 10.");
+  }
+
+  count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for cutoff.");
   printf("radial cutoff = %g A.\n", rc_radial);
   printf("angular cutoff = %g A.\n", rc_angular);
@@ -66,6 +73,8 @@ Parameters::Parameters(char* input_dir)
   }
 
   int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
+  q_scaler.resize(dim, Memory_Type::managed);
+  q_min.resize(dim, Memory_Type::managed);
 
   count = fscanf(fid, "%s%d", name, &num_neurons1);
   PRINT_SCANF_ERROR(count, 2, "reading error for ANN.");
@@ -77,8 +86,13 @@ Parameters::Parameters(char* input_dir)
 
   printf("ANN = %d-%d-1.\n", dim, num_neurons1);
 
-  number_of_variables = (dim + 2) * num_neurons1 + 1;
-  printf("number of parameters to be optimized = %d.\n", number_of_variables);
+  number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+  printf("number of neural network parameters to be optimized = %d.\n", number_of_variables_ann);
+  int num_para_descriptor =
+    (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
+  printf("number of descriptor parameters to be optimized = %d.\n", num_para_descriptor);
+  number_of_variables = number_of_variables_ann + num_para_descriptor;
+  printf("total number of parameters to be optimized = %d.\n", number_of_variables);
 
   count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);
   PRINT_SCANF_ERROR(count, 3, "reading error for regularization.");

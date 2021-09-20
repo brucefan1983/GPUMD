@@ -77,8 +77,13 @@ void Fitness::report_error(
   const float* elite)
 {
   if (0 == (generation + 1) % 100) {
-    // Synchronize
+
     CHECK(cudaDeviceSynchronize());
+
+    potential->find_force(para, elite, train_set);
+    float rmse_energy_train = train_set.get_rmse_energy();
+    float rmse_force_train = train_set.get_rmse_force();
+    float rmse_virial_train = train_set.get_rmse_virial();
 
     char file_nep[200];
     strcpy(file_nep, input_dir);
@@ -98,11 +103,6 @@ void Fitness::report_error(
       fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler[d], para.q_min[d]);
     }
     fclose(fid_nep);
-
-    potential->find_force(para, elite, train_set);
-    float rmse_energy_train = train_set.get_rmse_energy();
-    float rmse_force_train = train_set.get_rmse_force();
-    float rmse_virial_train = train_set.get_rmse_virial();
 
     printf(
       "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total, loss_L1,

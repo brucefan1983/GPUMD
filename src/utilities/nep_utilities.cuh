@@ -30,7 +30,7 @@ const int MAX_NUM_N = 20;                 // n_max+1 = 19+1
 const int MAX_NUM_L = 5;                  // L_max+1 = 4+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * (MAX_NUM_L - 1);
-__constant__ float c_parameters[10000]; // less than 64 KB maximum
+__constant__ float c_parameters[14201]; // (100+2)*100+1+40*100, less than 64 KB maximum
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
