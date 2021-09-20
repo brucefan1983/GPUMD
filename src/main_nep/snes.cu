@@ -101,6 +101,14 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
     print_line_1();
     printf("Started testing.\n");
     print_line_2();
+    // avoid zero
+    for (int v = para.number_of_variables_ann; v < number_of_variables; ++v) {
+      if (mu[v] > 0) {
+        mu[v] += 0.1f;
+      } else {
+        mu[v] -= 0.1f;
+      }
+    }
     fitness_function->test(input_dir, para, mu.data());
   } else {
     print_line_1();

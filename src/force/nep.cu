@@ -27,7 +27,12 @@ heat transport, arXiv:2107.08119
 
 NEP2::NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor)
 {
-  printf("Use the NEP potential with %d atom types.\n", num_types);
+  if (num_types == 1) {
+    printf("Use the NEP potential with %d atom type.\n", num_types);
+  } else {
+    printf("Use the NEP potential with %d atom types.\n", num_types);
+  }
+
   char name[20];
 
   paramb.num_types = num_types;
@@ -61,7 +66,7 @@ NEP2::NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor)
   annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 + 1;
   printf("    number of neural network parameters = %d.\n", annmb.num_para);
   int num_para_descriptor =
-    num_types * num_types * (paramb.n_max_radial + paramb.n_max_angular + 2);
+    (num_types == 1) ? 0 : num_types * num_types * (paramb.n_max_radial + paramb.n_max_angular + 2);
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para += num_para_descriptor;
   printf("    total number of parameters = %d\n", annmb.num_para);
@@ -88,7 +93,9 @@ void NEP2::update_potential(const float* parameters, ANN& ann)
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
   ann.w1 = ann.b0 + ann.num_neurons1;
   ann.b1 = ann.w1 + ann.num_neurons1;
-  ann.c = ann.b1 + 1;
+  if (paramb.num_types > 1) {
+    ann.c = ann.b1 + 1;
+  }
 }
 
 void NEP2::update_potential(FILE* fid)
@@ -205,7 +212,9 @@ static __global__ void find_descriptor(
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float c = annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
+        float c = (paramb.num_types == 1)
+                    ? 1.0f
+                    : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
         q[n] += fn12[n] * c;
       }
     }
@@ -227,7 +236,10 @@ static __global__ void find_descriptor(
         float fn;
         find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
         fn *=
-          annmb.c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
+          (paramb.num_types == 1)
+            ? 1.0f
+            : annmb
+                .c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
         accumulate_s(d12, x12, y12, z12, fn, s);
       }
       find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
@@ -325,8 +337,12 @@ static __global__ void find_force_radial(
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * d12inv;
         float tmp21 = g_Fp[n2 + n * N] * fnp12[n] * d12inv;
-        tmp12 *= annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
-        tmp21 *= annmb.c[(n * paramb.num_types + t2) * paramb.num_types + t1];
+        tmp12 *= (paramb.num_types == 1)
+                   ? 1.0f
+                   : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
+        tmp21 *= (paramb.num_types == 1)
+                   ? 1.0f
+                   : annmb.c[(n * paramb.num_types + t2) * paramb.num_types + t1];
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
           f21[d] -= tmp21 * r12[d];
@@ -417,7 +433,10 @@ static __global__ void find_partial_force_angular(
         float fnp;
         find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
         const float c =
-          annmb.c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
+          (paramb.num_types == 1)
+            ? 1.0f
+            : annmb
+                .c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
         fn *= c;
         fnp *= c;
         accumulate_f12(
