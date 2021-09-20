@@ -4,11 +4,13 @@
 
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
 
-## 2021 (10)
+## 2021 (11)
 
-* Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, 
-Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport,
-accepted to Phys. Rev. B. https://arxiv.org/abs/2107.08119
+* Yao Du, Penghua Ying, and Jin Zhang, [Prediction and optimization of the thermal transport in hybrid carbon-boron nitride honeycombs using machine learning](https://doi.org/10.1016/j.carbon.2021.08.035), Carbon **184**, 492 (2021).
+
+* Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Keke Song, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, 
+[Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport](https://doi.org/10.1103/PhysRevB.104.104309),
+Phys. Rev. B. **104**, 104309 (2021).
 
 * Xin Wu and Qiang Han, 
 [Phonon Thermal Transport across Multilayer Graphene/Hexagonal Boron Nitride van der Waals Heterostructures](https://doi.org/10.1021/acsami.1c08275),

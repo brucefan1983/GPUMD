@@ -3,12 +3,10 @@
 ## What is `GPUMD`?
 
 * `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a general-purpose molecular dynamics (MD) code fully implemented on graphics processing units (GPUs). 
-
 * Force evaluation for many-body potentials has been significantly accelerated by using GPUs [1], thanks to a set of simple expressions for force, virial stress, and heat current derived in Refs. [2, 3]. 
-  
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [2, 3, 4, 5].
-
-* It can train the NEP machine-learning potential [6] and run MD simulations with it. It can also run MD simulations with the machine-learning based force constant potential (FCP) [7].
+* It can run MD simulations with the machine-learning based force constant potential (FCP) [6].
+* It can train the NEP machine-learning potential [7, 8] and run MD simulations with it.
 
 ## Prerequisites
 
@@ -78,11 +76,12 @@ Phys. Rev. B **103**, 205421 (2021).
 
 [5] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, Phys. Rev. B **99**, 064308 (2019). https://doi.org/10.1103/PhysRevB.99.064308
 
-
-* If you train or use a NEP potential, you can cite the following paper:
-
-[6] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport, Accepted to PRB. https://arxiv.org/abs/2107.08119
-
 * If you use the force constant potential (FCP), you can cite the following paper:
 
-[7] Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
+[6] Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
+
+* If you train or use a NEP potential, you can cite the following papers:
+
+[7] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Keke Song, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, [Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport](https://doi.org/10.1103/PhysRevB.104.104309), Phys. Rev. B. **104**, 104309 (2021).
+
+[8] Zheyong Fan, Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems, To be submitted.
