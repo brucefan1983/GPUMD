@@ -104,6 +104,13 @@ Parameters::Parameters(char* input_dir)
     PRINT_INPUT_ERROR("L2 regularization >= 0.");
   }
 
+  count = fscanf(fid, "%s%d", name, &batch_size);
+  PRINT_SCANF_ERROR(count, 2, "reading error for batch_size.");
+  printf("batch_size = %d.\n", batch_size);
+  if (batch_size < 1) {
+    PRINT_INPUT_ERROR("batch_size should >= 1.");
+  }
+
   count = fscanf(fid, "%s%d", name, &population_size);
   PRINT_SCANF_ERROR(count, 2, "reading error for population_size.");
   printf("population_size = %d.\n", population_size);
