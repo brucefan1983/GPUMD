@@ -2,6 +2,8 @@
 
 ## Preprints (2)
 
+* Zheyong Fan, Improving the accuracy of the neuroevolution machine learning potential for multi-component systems, https://arxiv.org/abs/2109.10643
+
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
 
 ## 2021 (11)
