@@ -15,6 +15,4 @@
   Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport,
   Phys. Rev. B. **104**, 104309 (2021). https://doi.org/10.1103/PhysRevB.104.104309
   
-* [2] Zheyong Fan, 
-
-  Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems, https://arxiv.org/abs/2109.10643
+* [2] Zheyong Fan, Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems, https://arxiv.org/abs/2109.10643
