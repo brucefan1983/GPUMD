@@ -17,4 +17,4 @@
   
 * [2] Zheyong Fan, 
 
-  Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems, To be submitted.
+  Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems, https://arxiv.org/abs/2109.10643
