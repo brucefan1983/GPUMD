@@ -6,7 +6,9 @@
 
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
 
-## 2021 (11)
+## 2021 (12)
+
+* Shi En Kim, Fauzia Mujid, Akash Rai, Fredrik Eriksson, Joonki Suh, Preeti Poddar, Ariana Ray, Chibeom Park, Erik Fransson, Yu Zhong, David A. Muller, Paul Erhart, David G. Cahill, and Jiwoong Park, [Extremely anisotropic van der Waals thermal conductors](https://doi.org/10.1038/s41586-021-03867-8), Nature **597**, 660 (2021). 
 
 * Yao Du, Penghua Ying, and Jin Zhang, [Prediction and optimization of the thermal transport in hybrid carbon-boron nitride honeycombs using machine learning](https://doi.org/10.1016/j.carbon.2021.08.035), Carbon **184**, 492 (2021).
 
