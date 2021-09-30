@@ -43,14 +43,9 @@ Fitness::~Fitness() { fclose(fid_loss_out); }
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
-  const int num_of_batches = (train_set.Nc - 1) / para.batch_size + 1;
-  const int batch_id = generation % num_of_batches;
-  int configuration_start = batch_id * para.batch_size;
-  int configuration_end = std::min(train_set.Nc, configuration_start + para.batch_size);
-
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->find_force(para, configuration_start, configuration_end, individual, train_set);
+    potential->find_force(para, individual, train_set);
     fitness[n + 0 * para.population_size] = train_set.get_rmse_energy();
     fitness[n + 1 * para.population_size] = train_set.get_rmse_force();
     fitness[n + 2 * para.population_size] = train_set.get_rmse_virial();
@@ -85,7 +80,7 @@ void Fitness::report_error(
 
     CHECK(cudaDeviceSynchronize());
 
-    potential->find_force(para, 0, train_set.Nc, elite, train_set);
+    potential->find_force(para, elite, train_set);
     float rmse_energy_train = train_set.get_rmse_energy();
     float rmse_force_train = train_set.get_rmse_force();
     float rmse_virial_train = train_set.get_rmse_virial();
@@ -180,7 +175,7 @@ void Fitness::update_energy_force_virial(char* input_dir)
 
 void Fitness::test(char* input_dir, Parameters& para, const float* elite)
 {
-  potential->find_force(para, 0, train_set.Nc, elite, train_set);
+  potential->find_force(para, elite, train_set);
   float rmse_energy_train = train_set.get_rmse_energy();
   float rmse_force_train = train_set.get_rmse_force();
   float rmse_virial_train = train_set.get_rmse_virial();
