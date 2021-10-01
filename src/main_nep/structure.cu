@@ -197,7 +197,8 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
   }
 }
 
-void read_train_in(char* input_dir, Parameters& para, std::vector<Structure>& structures)
+void read_structures(
+  bool is_train, char* input_dir, Parameters& para, std::vector<Structure>& structures)
 {
   print_line_1();
   printf("Started reading train.in.\n");
@@ -205,7 +206,11 @@ void read_train_in(char* input_dir, Parameters& para, std::vector<Structure>& st
 
   char file_train[200];
   strcpy(file_train, input_dir);
-  strcat(file_train, "/train.in");
+  if (is_train) {
+    strcat(file_train, "/train.in");
+  } else {
+    strcat(file_train, "/test.in");
+  }
   FILE* fid = my_fopen(file_train, "r");
 
   read_Nc(fid, structures);
