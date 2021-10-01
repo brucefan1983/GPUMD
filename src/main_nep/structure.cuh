@@ -38,4 +38,4 @@ struct Structure {
   std::vector<float> fz;
 };
 
-void read_structures(char*, Parameters& para, std::vector<Structure>& structures);
+void read_train_in(char*, Parameters& para, std::vector<Structure>& structures);

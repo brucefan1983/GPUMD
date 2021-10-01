@@ -54,23 +54,15 @@ public:
 
   std::vector<Structure> structures;
 
-  void construct(char*, Parameters& para);
+  void construct(char*, Parameters& para, std::vector<Structure>& structures);
   float get_rmse_force();
   float get_rmse_energy();
   float get_rmse_virial();
 
 private:
-  // functions called by construct:
-  void read_train_in(char*, Parameters& para);
-  void reorder(char* input_dir);
+  void copy_structures(std::vector<Structure>& structures_input);
   void find_Na();
   void initialize_gpu_data(Parameters& para);
   void check_types(Parameters& para);
   void find_neighbor(Parameters& para);
-  // functions called by read_train_in:
-  void read_Nc(FILE*);
-  void read_Na(FILE*);
-  void read_box(FILE* fid, int nc, Parameters& para);
-  void read_energy_virial(FILE* fid, int nc);
-  void read_force(FILE* fid, int nc, Parameters& para);
 };

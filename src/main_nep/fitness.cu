@@ -20,6 +20,7 @@ Get the fitness
 #include "fitness.cuh"
 #include "nep.cuh"
 #include "parameters.cuh"
+#include "structure.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <algorithm>
@@ -29,7 +30,9 @@ Get the fitness
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  train_set.construct(input_dir, para);
+  std::vector<Structure> structures;
+  read_train_in(input_dir, para, structures);
+  train_set.construct(input_dir, para, structures);
   potential.reset(new NEP2(input_dir, para, train_set));
 
   char file_loss_out[200];

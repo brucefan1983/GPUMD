@@ -18,204 +18,41 @@
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
-void Dataset::read_Nc(FILE* fid)
+void Dataset::copy_structures(std::vector<Structure>& structures_input)
 {
-  int count = fscanf(fid, "%d", &Nc);
-  PRINT_SCANF_ERROR(count, 1, "reading error for number of configurations in train.in.");
-  if (Nc > 100000) {
-    PRINT_INPUT_ERROR("Number of configurations should <= 100000");
-  }
-  printf("Number of configurations = %d.\n", Nc);
-
+  Nc = structures_input.size();
   structures.resize(Nc);
-}
 
-void Dataset::read_Na(FILE* fid)
-{
-  for (int nc = 0; nc < Nc; ++nc) {
-    int count = fscanf(fid, "%d%d", &structures[nc].num_atom, &structures[nc].has_virial);
-    PRINT_SCANF_ERROR(count, 2, "reading error for number of atoms and virial flag in train.in.");
-    if (structures[nc].num_atom < 1) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 1.");
-    }
-    if (structures[nc].num_atom > 1024) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
-    }
-    structures[nc].num_atom_original = structures[nc].num_atom;
-  }
-}
-
-void Dataset::read_energy_virial(FILE* fid, int nc)
-{
-  if (structures[nc].has_virial) {
-    int count = fscanf(
-      fid, "%f%f%f%f%f%f%f", &structures[nc].energy, &structures[nc].virial[0],
-      &structures[nc].virial[1], &structures[nc].virial[2], &structures[nc].virial[3],
-      &structures[nc].virial[4], &structures[nc].virial[5]);
-    PRINT_SCANF_ERROR(count, 7, "reading error for energy and virial in train.in.");
-    for (int k = 0; k < 6; ++k) {
-      structures[nc].virial[k] /= structures[nc].num_atom;
-    }
-  } else {
-    int count = fscanf(fid, "%f", &structures[nc].energy);
-    PRINT_SCANF_ERROR(count, 1, "reading error for energy in train.in.");
-  }
-  structures[nc].energy /= structures[nc].num_atom;
-}
-
-static float get_area(const float* a, const float* b)
-{
-  float s1 = a[1] * b[2] - a[2] * b[1];
-  float s2 = a[2] * b[0] - a[0] * b[2];
-  float s3 = a[0] * b[1] - a[1] * b[0];
-  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
-}
-
-static float get_det(const float* box)
-{
-  return box[0] * (box[4] * box[8] - box[5] * box[7]) +
-         box[1] * (box[5] * box[6] - box[3] * box[8]) +
-         box[2] * (box[3] * box[7] - box[4] * box[6]);
-}
-
-void Dataset::read_box(FILE* fid, int nc, Parameters& para)
-{
-  float a[3], b[3], c[3];
-  int count = fscanf(
-    fid, "%f%f%f%f%f%f%f%f%f", &a[0], &a[1], &a[2], &b[0], &b[1], &b[2], &c[0], &c[1], &c[2]);
-  PRINT_SCANF_ERROR(count, 9, "reading error for box in train.in.");
-
-  structures[nc].box_original[0] = a[0];
-  structures[nc].box_original[3] = a[1];
-  structures[nc].box_original[6] = a[2];
-  structures[nc].box_original[1] = b[0];
-  structures[nc].box_original[4] = b[1];
-  structures[nc].box_original[7] = b[2];
-  structures[nc].box_original[2] = c[0];
-  structures[nc].box_original[5] = c[1];
-  structures[nc].box_original[8] = c[2];
-
-  float det = get_det(structures[nc].box_original);
-  float volume = abs(det);
-  structures[nc].num_cell_a = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
-  structures[nc].num_cell_b = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
-  structures[nc].num_cell_c = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
-
-  structures[nc].box[0] = structures[nc].box_original[0] * structures[nc].num_cell_a;
-  structures[nc].box[3] = structures[nc].box_original[3] * structures[nc].num_cell_a;
-  structures[nc].box[6] = structures[nc].box_original[6] * structures[nc].num_cell_a;
-  structures[nc].box[1] = structures[nc].box_original[1] * structures[nc].num_cell_b;
-  structures[nc].box[4] = structures[nc].box_original[4] * structures[nc].num_cell_b;
-  structures[nc].box[7] = structures[nc].box_original[7] * structures[nc].num_cell_b;
-  structures[nc].box[2] = structures[nc].box_original[2] * structures[nc].num_cell_c;
-  structures[nc].box[5] = structures[nc].box_original[5] * structures[nc].num_cell_c;
-  structures[nc].box[8] = structures[nc].box_original[8] * structures[nc].num_cell_c;
-
-  structures[nc].box[9] =
-    structures[nc].box[4] * structures[nc].box[8] - structures[nc].box[5] * structures[nc].box[7];
-  structures[nc].box[10] =
-    structures[nc].box[2] * structures[nc].box[7] - structures[nc].box[1] * structures[nc].box[8];
-  structures[nc].box[11] =
-    structures[nc].box[1] * structures[nc].box[5] - structures[nc].box[2] * structures[nc].box[4];
-  structures[nc].box[12] =
-    structures[nc].box[5] * structures[nc].box[6] - structures[nc].box[3] * structures[nc].box[8];
-  structures[nc].box[13] =
-    structures[nc].box[0] * structures[nc].box[8] - structures[nc].box[2] * structures[nc].box[6];
-  structures[nc].box[14] =
-    structures[nc].box[2] * structures[nc].box[3] - structures[nc].box[0] * structures[nc].box[5];
-  structures[nc].box[15] =
-    structures[nc].box[3] * structures[nc].box[7] - structures[nc].box[4] * structures[nc].box[6];
-  structures[nc].box[16] =
-    structures[nc].box[1] * structures[nc].box[6] - structures[nc].box[0] * structures[nc].box[7];
-  structures[nc].box[17] =
-    structures[nc].box[0] * structures[nc].box[4] - structures[nc].box[1] * structures[nc].box[3];
-
-  det *= structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
-  for (int n = 9; n < 18; n++) {
-    structures[nc].box[n] /= det;
-  }
-}
-
-void Dataset::read_force(FILE* fid, int nc, Parameters& para)
-{
-  structures[nc].num_atom *=
-    structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
-  if (structures[nc].num_atom > 1024) {
-    PRINT_INPUT_ERROR("Number of atoms for one configuration after replication should <=1024; "
-                      "consider using smaller cutoff.");
-  }
-
-  structures[nc].atomic_number.resize(structures[nc].num_atom);
-  structures[nc].x.resize(structures[nc].num_atom);
-  structures[nc].y.resize(structures[nc].num_atom);
-  structures[nc].z.resize(structures[nc].num_atom);
-  structures[nc].fx.resize(structures[nc].num_atom);
-  structures[nc].fy.resize(structures[nc].num_atom);
-  structures[nc].fz.resize(structures[nc].num_atom);
-
-  for (int na = 0; na < structures[nc].num_atom_original; ++na) {
-    int count = fscanf(
-      fid, "%d%f%f%f%f%f%f", &structures[nc].atomic_number[na], &structures[nc].x[na],
-      &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
-      &structures[nc].fz[na]);
-    PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
-
-    if (structures[nc].atomic_number[na] < 0) {
-      PRINT_INPUT_ERROR("Atom type should >= 0.\n");
-    }
-  }
-
-  for (int ia = 0; ia < structures[nc].num_cell_a; ++ia) {
-    for (int ib = 0; ib < structures[nc].num_cell_b; ++ib) {
-      for (int ic = 0; ic < structures[nc].num_cell_c; ++ic) {
-        if (ia != 0 || ib != 0 || ic != 0) {
-          for (int na = 0; na < structures[nc].num_atom_original; ++na) {
-            int na_new =
-              na + (ia + (ib + ic * structures[nc].num_cell_b) * structures[nc].num_cell_a) *
-                     structures[nc].num_atom_original;
-            float delta_x = structures[nc].box_original[0] * ia +
-                            structures[nc].box_original[1] * ib +
-                            structures[nc].box_original[2] * ic;
-            float delta_y = structures[nc].box_original[3] * ia +
-                            structures[nc].box_original[4] * ib +
-                            structures[nc].box_original[5] * ic;
-            float delta_z = structures[nc].box_original[6] * ia +
-                            structures[nc].box_original[7] * ib +
-                            structures[nc].box_original[8] * ic;
-            structures[nc].atomic_number[na_new] = structures[nc].atomic_number[na];
-            structures[nc].x[na_new] = structures[nc].x[na] + delta_x;
-            structures[nc].y[na_new] = structures[nc].y[na] + delta_y;
-            structures[nc].z[na_new] = structures[nc].z[na] + delta_z;
-            structures[nc].fx[na_new] = structures[nc].fx[na];
-            structures[nc].fy[na_new] = structures[nc].fy[na];
-            structures[nc].fz[na_new] = structures[nc].fz[na];
-          }
-        }
-      }
-    }
-  }
-}
-
-void Dataset::read_train_in(char* input_dir, Parameters& para)
-{
-  print_line_1();
-  printf("Started reading train.in.\n");
-  print_line_2();
-
-  char file_train[200];
-  strcpy(file_train, input_dir);
-  strcat(file_train, "/train.in");
-  FILE* fid = my_fopen(file_train, "r");
-
-  read_Nc(fid);
-  read_Na(fid);
   for (int n = 0; n < Nc; ++n) {
-    read_energy_virial(fid, n);
-    read_box(fid, n, para);
-    read_force(fid, n, para);
-  }
+    structures[n].num_atom = structures_input[n].num_atom;
+    structures[n].num_atom_original = structures_input[n].num_atom_original;
+    structures[n].has_virial = structures_input[n].has_virial;
+    structures[n].energy = structures_input[n].energy;
+    for (int k = 0; k < 6; ++k) {
+      structures[n].virial[k] = structures_input[n].virial[k];
+    }
+    for (int k = 0; k < 18; ++k) {
+      structures[n].box[k] = structures_input[n].box[k];
+    }
 
-  fclose(fid);
+    structures[n].atomic_number.resize(structures[n].num_atom);
+    structures[n].x.resize(structures[n].num_atom);
+    structures[n].y.resize(structures[n].num_atom);
+    structures[n].z.resize(structures[n].num_atom);
+    structures[n].fx.resize(structures[n].num_atom);
+    structures[n].fy.resize(structures[n].num_atom);
+    structures[n].fz.resize(structures[n].num_atom);
+
+    for (int na = 0; na < structures[n].num_atom; ++na) {
+      structures[n].atomic_number[na] = structures_input[n].atomic_number[na];
+      structures[n].x[na] = structures_input[n].x[na];
+      structures[n].y[na] = structures_input[n].y[na];
+      structures[n].z[na] = structures_input[n].z[na];
+      structures[n].fx[na] = structures_input[n].fx[na];
+      structures[n].fy[na] = structures_input[n].fy[na];
+      structures[n].fz[na] = structures_input[n].fz[na];
+    }
+  }
 }
 
 void Dataset::find_Na()
@@ -467,10 +304,9 @@ void Dataset::find_neighbor(Parameters& para)
   CUDA_CHECK_KERNEL
 }
 
-void Dataset::construct(char* input_dir, Parameters& para)
+void Dataset::construct(char* input_dir, Parameters& para, std::vector<Structure>& structures_input)
 {
-  read_train_in(input_dir, para);
-
+  copy_structures(structures_input);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);
   virial_ref.resize(Nc * 6, Memory_Type::managed);
