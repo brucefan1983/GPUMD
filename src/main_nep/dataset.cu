@@ -306,6 +306,8 @@ void Dataset::find_neighbor(Parameters& para)
 
 void Dataset::construct(char* input_dir, Parameters& para, std::vector<Structure>& structures_input)
 {
+  CHECK(cudaDeviceSynchronize()); // need this due to unified memory
+
   copy_structures(structures_input);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);

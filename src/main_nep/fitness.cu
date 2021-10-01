@@ -30,10 +30,23 @@ Get the fitness
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  std::vector<Structure> structures;
-  read_train_in(input_dir, para, structures);
-  train_set.construct(input_dir, para, structures);
-  potential.reset(new NEP2(input_dir, para, train_set));
+  // train.in
+  std::vector<Structure> structures_train;
+  read_train_in(input_dir, para, structures_train);
+  num_batches = (structures_train.size() - 1) / para.batch_size + 1;
+  printf("Number of batches = %d\n", num_batches);
+  train_set.resize(num_batches);
+  for (int n = 0; n < num_batches; ++n) {
+    train_set[n].construct(input_dir, para, structures_train); // TODO
+  }
+
+  // test.in
+  std::vector<Structure> structures_test;
+  read_train_in(input_dir, para, structures_test);
+  printf("hello before test_set.construct\n");
+  test_set.construct(input_dir, para, structures_test);
+
+  potential.reset(new NEP2(input_dir, para, train_set[0])); // TODO
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);
@@ -46,24 +59,25 @@ Fitness::~Fitness() { fclose(fid_loss_out); }
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
+  int batch_id = generation % num_batches;
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->find_force(para, individual, train_set);
-    fitness[n + 0 * para.population_size] = train_set.get_rmse_energy();
-    fitness[n + 1 * para.population_size] = train_set.get_rmse_force();
-    fitness[n + 2 * para.population_size] = train_set.get_rmse_virial();
+    potential->find_force(para, individual, train_set[batch_id]);
+    fitness[n + 0 * para.population_size] = train_set[batch_id].get_rmse_energy();
+    fitness[n + 1 * para.population_size] = train_set[batch_id].get_rmse_force();
+    fitness[n + 2 * para.population_size] = train_set[batch_id].get_rmse_virial();
   }
 }
 
 void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
 {
-  for (int nc = 0; nc < train_set.Nc; ++nc) {
-    int offset = train_set.Na_sum[nc];
+  for (int nc = 0; nc < test_set.Nc; ++nc) {
+    int offset = test_set.Na_sum[nc];
     float data_nc = 0.0f;
-    for (int m = 0; m < train_set.Na[nc]; ++m) {
+    for (int m = 0; m < test_set.Na[nc]; ++m) {
       data_nc += data[offset + m];
     }
-    fprintf(fid, "%g %g\n", data_nc / train_set.Na[nc], ref[nc]);
+    fprintf(fid, "%g %g\n", data_nc / test_set.Na[nc], ref[nc]);
   }
 }
 
@@ -83,17 +97,17 @@ void Fitness::report_error(
 
     CHECK(cudaDeviceSynchronize());
 
-    potential->find_force(para, elite, train_set);
-    float rmse_energy_train = train_set.get_rmse_energy();
-    float rmse_force_train = train_set.get_rmse_force();
-    float rmse_virial_train = train_set.get_rmse_virial();
+    potential->find_force(para, elite, test_set);
+    float rmse_energy_train = test_set.get_rmse_energy();
+    float rmse_force_train = test_set.get_rmse_force();
+    float rmse_virial_train = test_set.get_rmse_virial();
 
     char file_nep[200];
     strcpy(file_nep, input_dir);
     strcat(file_nep, "/nep.txt");
     FILE* fid_nep = my_fopen(file_nep, "w");
 
-    fprintf(fid_nep, "nep %d\n", train_set.num_types);
+    fprintf(fid_nep, "nep %d\n", para.num_types);
     fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
     fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
     fprintf(fid_nep, "l_max %d\n", para.L_max);
@@ -107,6 +121,7 @@ void Fitness::report_error(
     }
     fclose(fid_nep);
 
+    // TODO:
     printf(
       "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total, loss_L1,
       loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train);
@@ -127,14 +142,14 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcpy(file_force, input_dir);
   strcat(file_force, "/force.out");
   FILE* fid_force = my_fopen(file_force, "w");
-  for (int nc = 0; nc < train_set.Nc; ++nc) {
-    int offset = train_set.Na_sum[nc];
-    for (int m = 0; m < train_set.structures[nc].num_atom_original; ++m) {
+  for (int nc = 0; nc < test_set.Nc; ++nc) {
+    int offset = test_set.Na_sum[nc];
+    for (int m = 0; m < test_set.structures[nc].num_atom_original; ++m) {
       int n = offset + m;
       fprintf(
-        fid_force, "%g %g %g %g %g %g\n", train_set.force[n], train_set.force[n + train_set.N],
-        train_set.force[n + train_set.N * 2], train_set.force_ref[n],
-        train_set.force_ref[n + train_set.N], train_set.force_ref[n + train_set.N * 2]);
+        fid_force, "%g %g %g %g %g %g\n", test_set.force[n], test_set.force[n + test_set.N],
+        test_set.force[n + test_set.N * 2], test_set.force_ref[n],
+        test_set.force_ref[n + test_set.N], test_set.force_ref[n + test_set.N * 2]);
     }
   }
   fclose(fid_force);
@@ -144,7 +159,7 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcpy(file_energy, input_dir);
   strcat(file_energy, "/energy.out");
   FILE* fid_energy = my_fopen(file_energy, "w");
-  predict_energy_or_stress(fid_energy, train_set.pe.data(), train_set.pe_ref.data());
+  predict_energy_or_stress(fid_energy, test_set.pe.data(), test_set.pe_ref.data());
   fclose(fid_energy);
 
   // update virial.out
@@ -152,36 +167,36 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcpy(file_virial, input_dir);
   strcat(file_virial, "/virial.out");
   FILE* fid_virial = my_fopen(file_virial, "w");
-  predict_energy_or_stress(fid_virial, train_set.virial.data(), train_set.virial_ref.data());
+  predict_energy_or_stress(fid_virial, test_set.virial.data(), test_set.virial_ref.data());
 
   predict_energy_or_stress(
-    fid_virial, train_set.virial.data() + train_set.N, train_set.virial_ref.data() + train_set.Nc);
+    fid_virial, test_set.virial.data() + test_set.N, test_set.virial_ref.data() + test_set.Nc);
 
   predict_energy_or_stress(
-    fid_virial, train_set.virial.data() + train_set.N * 2,
-    train_set.virial_ref.data() + train_set.Nc * 2);
+    fid_virial, test_set.virial.data() + test_set.N * 2,
+    test_set.virial_ref.data() + test_set.Nc * 2);
 
   predict_energy_or_stress(
-    fid_virial, train_set.virial.data() + train_set.N * 3,
-    train_set.virial_ref.data() + train_set.Nc * 3);
+    fid_virial, test_set.virial.data() + test_set.N * 3,
+    test_set.virial_ref.data() + test_set.Nc * 3);
 
   predict_energy_or_stress(
-    fid_virial, train_set.virial.data() + train_set.N * 4,
-    train_set.virial_ref.data() + train_set.Nc * 4);
+    fid_virial, test_set.virial.data() + test_set.N * 4,
+    test_set.virial_ref.data() + test_set.Nc * 4);
 
   predict_energy_or_stress(
-    fid_virial, train_set.virial.data() + train_set.N * 5,
-    train_set.virial_ref.data() + train_set.Nc * 5);
+    fid_virial, test_set.virial.data() + test_set.N * 5,
+    test_set.virial_ref.data() + test_set.Nc * 5);
 
   fclose(fid_virial);
 }
 
 void Fitness::test(char* input_dir, Parameters& para, const float* elite)
 {
-  potential->find_force(para, elite, train_set);
-  float rmse_energy_train = train_set.get_rmse_energy();
-  float rmse_force_train = train_set.get_rmse_force();
-  float rmse_virial_train = train_set.get_rmse_virial();
+  potential->find_force(para, elite, test_set);
+  float rmse_energy_train = test_set.get_rmse_energy();
+  float rmse_force_train = test_set.get_rmse_force();
+  float rmse_virial_train = test_set.get_rmse_virial();
   printf("Energy RMSE = %g\n", rmse_energy_train);
   printf("Force RMSE = %g\n", rmse_force_train);
   printf("Virial RMSE = %g\n", rmse_virial_train);

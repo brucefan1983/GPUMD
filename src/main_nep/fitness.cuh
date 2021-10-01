@@ -43,9 +43,11 @@ public:
   void test(char* input_dir, Parameters& para, const float* elite);
 
 protected:
+  int num_batches = 0;
   FILE* fid_loss_out;
   std::unique_ptr<Potential> potential;
-  Dataset train_set;
+  std::vector<Dataset> train_set;
+  Dataset test_set;
   void predict_energy_or_stress(FILE* fid, float* data, float* ref);
   void update_energy_force_virial(char* input_dir);
 };
