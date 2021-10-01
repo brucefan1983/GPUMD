@@ -20,6 +20,16 @@ class Parameters;
 class Dataset;
 
 struct NEP2_Data {
+  GPU_Vector<int> NN_radial;  // radial neighbor number
+  GPU_Vector<int> NL_radial;  // radial neighbor list
+  GPU_Vector<int> NN_angular; // angular neighbor number
+  GPU_Vector<int> NL_angular; // angular neighbor list
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
   GPU_Vector<float> f12x;        // partial forces
   GPU_Vector<float> f12y;        // partial forces
   GPU_Vector<float> f12z;        // partial forces
@@ -53,7 +63,12 @@ public:
     const float* c;
   };
 
-  NEP2(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular);
+  NEP2(
+    char* input_dir,
+    Parameters& para,
+    int N,
+    int N_times_max_NN_radial,
+    int N_times_max_NN_angular);
   void find_force(Parameters& para, const float* parameters, Dataset& dataset);
 
 private:

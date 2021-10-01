@@ -28,10 +28,68 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
 
-static __global__ void find_descriptors_radial(
+static __global__ void gpu_find_neighbor_list(
   const int N,
   const int* Na,
   const int* Na_sum,
+  const float rc2_radial,
+  const float rc2_angular,
+  const float* __restrict__ box,
+  const float* x,
+  const float* y,
+  const float* z,
+  int* NN_radial,
+  int* NL_radial,
+  int* NN_angular,
+  int* NL_angular,
+  float* x12_radial,
+  float* y12_radial,
+  float* z12_radial,
+  float* x12_angular,
+  float* y12_angular,
+  float* z12_angular)
+{
+  int N1 = Na_sum[blockIdx.x];
+  int N2 = N1 + Na[blockIdx.x];
+  int n1 = N1 + threadIdx.x;
+  if (n1 < N2) {
+    const float* __restrict__ h = box + 18 * blockIdx.x;
+    float x1 = x[n1];
+    float y1 = y[n1];
+    float z1 = z[n1];
+    int count_radial = 0;
+    int count_angular = 0;
+    for (int n2 = N1; n2 < N2; ++n2) {
+      if (n2 == n1) {
+        continue;
+      }
+      float x12 = x[n2] - x1;
+      float y12 = y[n2] - y1;
+      float z12 = z[n2] - z1;
+      dev_apply_mic(h, x12, y12, z12);
+      float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
+      if (distance_square < rc2_radial) {
+        NL_radial[count_radial * N + n1] = n2;
+        x12_radial[count_radial * N + n1] = x12;
+        y12_radial[count_radial * N + n1] = y12;
+        z12_radial[count_radial * N + n1] = z12;
+        count_radial++;
+      }
+      if (distance_square < rc2_angular) {
+        NL_angular[count_angular * N + n1] = n2;
+        x12_angular[count_angular * N + n1] = x12;
+        y12_angular[count_angular * N + n1] = y12;
+        z12_angular[count_angular * N + n1] = z12;
+        count_angular++;
+      }
+    }
+    NN_radial[n1] = count_radial;
+    NN_angular[n1] = count_angular;
+  }
+}
+
+static __global__ void find_descriptors_radial(
+  const int N,
   const int* g_NN,
   const int* g_NL,
   const NEP2::ParaMB paramb,
@@ -42,10 +100,8 @@ static __global__ void find_descriptors_radial(
   const float* __restrict__ g_z12,
   float* g_descriptors)
 {
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
     int t1 = g_type[n1];
     int neighbor_number = g_NN[n1];
     float q[MAX_DIM] = {0.0f};
@@ -76,8 +132,6 @@ static __global__ void find_descriptors_radial(
 
 static __global__ void find_descriptors_angular(
   const int N,
-  const int* Na,
-  const int* Na_sum,
   const int* g_NN,
   const int* g_NL,
   NEP2::ParaMB paramb,
@@ -89,10 +143,8 @@ static __global__ void find_descriptors_angular(
   float* g_descriptors,
   float* g_sum_fxyz)
 {
-  int N1 = Na_sum[blockIdx.x];
-  int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
     int t1 = g_type[n1];
     int neighbor_number = g_NN[n1];
     float q[MAX_DIM] = {0.0f};
@@ -186,7 +238,8 @@ static void __global__ normalize_descriptors(
   }
 }
 
-NEP2::NEP2(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
+NEP2::NEP2(
+  char* input_dir, Parameters& para, int N, int N_times_max_NN_radial, int N_times_max_NN_angular)
 {
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
@@ -199,6 +252,17 @@ NEP2::NEP2(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
+
+  nep_data.NN_radial.resize(N);
+  nep_data.NN_angular.resize(N);
+  nep_data.NL_radial.resize(N_times_max_NN_radial);
+  nep_data.NL_angular.resize(N_times_max_NN_angular);
+  nep_data.x12_radial.resize(N_times_max_NN_radial);
+  nep_data.y12_radial.resize(N_times_max_NN_radial);
+  nep_data.z12_radial.resize(N_times_max_NN_radial);
+  nep_data.x12_angular.resize(N_times_max_NN_angular);
+  nep_data.y12_angular.resize(N_times_max_NN_angular);
+  nep_data.z12_angular.resize(N_times_max_NN_angular);
   nep_data.f12x.resize(N_times_max_NN_angular);
   nep_data.f12y.resize(N_times_max_NN_angular);
   nep_data.f12z.resize(N_times_max_NN_angular);
@@ -478,20 +542,31 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
   CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
   update_potential(address_c_parameters, annmb);
 
+  float rc2_radial = para.rc_radial * para.rc_radial;
+  float rc2_angular = para.rc_angular * para.rc_angular;
+
+  gpu_find_neighbor_list<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), rc2_radial, rc2_angular, dataset.h.data(),
+    dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
+    nep_data.NN_radial.data(), nep_data.NL_radial.data(), nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(), nep_data.x12_radial.data(), nep_data.y12_radial.data(),
+    nep_data.z12_radial.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
+    nep_data.z12_angular.data());
+  CUDA_CHECK_KERNEL
+
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
 
-  find_descriptors_radial<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
-    dataset.NL_radial.data(), paramb, annmb, dataset.type.data(), dataset.x12_radial.data(),
-    dataset.y12_radial.data(), dataset.z12_radial.data(), nep_data.descriptors.data());
+  find_descriptors_radial<<<grid_size, block_size>>>(
+    dataset.N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), paramb, annmb,
+    dataset.type.data(), nep_data.x12_radial.data(), nep_data.y12_radial.data(),
+    nep_data.z12_radial.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
-  find_descriptors_angular<<<dataset.Nc, dataset.max_Na>>>(
-    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
-    dataset.NL_angular.data(), paramb, annmb, dataset.type.data(), dataset.x12_angular.data(),
-    dataset.y12_angular.data(), dataset.z12_angular.data(), nep_data.descriptors.data(),
-    nep_data.sum_fxyz.data());
+  find_descriptors_angular<<<grid_size, block_size>>>(
+    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), paramb, annmb,
+    dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
+    nep_data.z12_angular.data(), nep_data.descriptors.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_max_min<<<annmb.dim, 1024>>>(
@@ -507,23 +582,23 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, block_size>>>(
-    dataset.N, dataset.NN_radial.data(), dataset.NL_radial.data(), paramb, annmb,
-    dataset.type.data(), dataset.x12_radial.data(), dataset.y12_radial.data(),
-    dataset.z12_radial.data(), nep_data.Fp.data(), dataset.force.data(),
+    dataset.N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), paramb, annmb,
+    dataset.type.data(), nep_data.x12_radial.data(), nep_data.y12_radial.data(),
+    nep_data.z12_radial.data(), nep_data.Fp.data(), dataset.force.data(),
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
   find_partial_force_angular<<<grid_size, block_size>>>(
-    dataset.N, dataset.NN_angular.data(), dataset.NL_angular.data(), paramb, annmb,
-    dataset.type.data(), dataset.x12_angular.data(), dataset.y12_angular.data(),
-    dataset.z12_angular.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(),
+    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), paramb, annmb,
+    dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
+    nep_data.z12_angular.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(),
     nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   find_force_manybody<<<grid_size, block_size>>>(
-    dataset.N, dataset.NN_angular.data(), dataset.NL_angular.data(), nep_data.f12x.data(),
-    nep_data.f12y.data(), nep_data.f12z.data(), dataset.x12_angular.data(),
-    dataset.y12_angular.data(), dataset.z12_angular.data(), dataset.force.data(),
+    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data(), nep_data.x12_angular.data(),
+    nep_data.y12_angular.data(), nep_data.z12_angular.data(), dataset.force.data(),
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 }

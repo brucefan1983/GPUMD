@@ -41,16 +41,6 @@ public:
   GPU_Vector<float> force_ref;  // reference force
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force
-  GPU_Vector<int> NN_radial;    // radial neighbor number
-  GPU_Vector<int> NL_radial;    // radial neighbor list
-  GPU_Vector<int> NN_angular;   // angular neighbor number
-  GPU_Vector<int> NL_angular;   // angular neighbor list
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
-  GPU_Vector<float> x12_angular;
-  GPU_Vector<float> y12_angular;
-  GPU_Vector<float> z12_angular;
 
   std::vector<Structure> structures;
 
