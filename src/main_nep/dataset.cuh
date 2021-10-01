@@ -22,23 +22,28 @@ class Parameters;
 class Dataset
 {
 public:
-  int Nc;                       // number of configurations
-  int N;                        // total number of atoms (sum of Na[])
-  int max_Na;                   // number of atoms in the largest configuration
-  int num_types;                // number of atom types
-  int max_NN_radial;            // radial neighbor list size
-  int max_NN_angular;           // angular neighbor list size
-  GPU_Vector<int> Na;           // number of atoms in each configuration
-  GPU_Vector<int> Na_sum;       // prefix sum of Na
-  GPU_Vector<int> type;         // atom type (0, 1, 2, 3, ...)
-  GPU_Vector<float> r;          // position
-  GPU_Vector<float> force;      // force
-  GPU_Vector<float> pe;         // potential energy
-  GPU_Vector<float> virial;     // per-atom virial tensor
-  GPU_Vector<float> h;          // box and inverse box
-  GPU_Vector<float> pe_ref;     // reference energy for the whole box
-  GPU_Vector<float> virial_ref; // reference virial for the whole box
-  GPU_Vector<float> force_ref;  // reference force
+  int Nc;                   // number of configurations
+  int N;                    // total number of atoms (sum of Na[])
+  int max_Na;               // number of atoms in the largest configuration
+  int num_types;            // number of atom types
+  int max_NN_radial;        // radial neighbor list size
+  int max_NN_angular;       // angular neighbor list size
+  GPU_Vector<int> Na;       // number of atoms in each configuration
+  GPU_Vector<int> Na_sum;   // prefix sum of Na
+  GPU_Vector<int> type;     // atom type (0, 1, 2, 3, ...)
+  GPU_Vector<float> r;      // position
+  GPU_Vector<float> force;  // force
+  GPU_Vector<float> pe;     // potential energy
+  GPU_Vector<float> virial; // per-atom virial tensor
+  GPU_Vector<float> h;      // box and inverse box
+
+  GPU_Vector<float> energy_ref_gpu;  // reference energy in GPU
+  GPU_Vector<float> virial_ref_gpu;  // reference virial in GPU
+  GPU_Vector<float> force_ref_gpu;   // reference force in GPU
+  std::vector<float> energy_ref_cpu; // reference energy in CPU
+  std::vector<float> virial_ref_cpu; // reference virial in CPU
+  std::vector<float> force_ref_cpu;  // reference force in CPU
+
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force
 

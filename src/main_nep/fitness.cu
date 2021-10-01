@@ -168,8 +168,8 @@ void Fitness::update_energy_force_virial(char* input_dir)
       int n = offset + m;
       fprintf(
         fid_force, "%g %g %g %g %g %g\n", test_set.force[n], test_set.force[n + test_set.N],
-        test_set.force[n + test_set.N * 2], test_set.force_ref[n],
-        test_set.force_ref[n + test_set.N], test_set.force_ref[n + test_set.N * 2]);
+        test_set.force[n + test_set.N * 2], test_set.force_ref_cpu[n],
+        test_set.force_ref_cpu[n + test_set.N], test_set.force_ref_cpu[n + test_set.N * 2]);
     }
   }
   fclose(fid_force);
@@ -179,7 +179,7 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcpy(file_energy, input_dir);
   strcat(file_energy, "/energy.out");
   FILE* fid_energy = my_fopen(file_energy, "w");
-  predict_energy_or_stress(fid_energy, test_set.pe.data(), test_set.pe_ref.data());
+  predict_energy_or_stress(fid_energy, test_set.pe.data(), test_set.energy_ref_cpu.data());
   fclose(fid_energy);
 
   // update virial.out
@@ -187,26 +187,26 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcpy(file_virial, input_dir);
   strcat(file_virial, "/virial.out");
   FILE* fid_virial = my_fopen(file_virial, "w");
-  predict_energy_or_stress(fid_virial, test_set.virial.data(), test_set.virial_ref.data());
+  predict_energy_or_stress(fid_virial, test_set.virial.data(), test_set.virial_ref_cpu.data());
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial.data() + test_set.N, test_set.virial_ref.data() + test_set.Nc);
+    fid_virial, test_set.virial.data() + test_set.N, test_set.virial_ref_cpu.data() + test_set.Nc);
 
   predict_energy_or_stress(
     fid_virial, test_set.virial.data() + test_set.N * 2,
-    test_set.virial_ref.data() + test_set.Nc * 2);
+    test_set.virial_ref_cpu.data() + test_set.Nc * 2);
 
   predict_energy_or_stress(
     fid_virial, test_set.virial.data() + test_set.N * 3,
-    test_set.virial_ref.data() + test_set.Nc * 3);
+    test_set.virial_ref_cpu.data() + test_set.Nc * 3);
 
   predict_energy_or_stress(
     fid_virial, test_set.virial.data() + test_set.N * 4,
-    test_set.virial_ref.data() + test_set.Nc * 4);
+    test_set.virial_ref_cpu.data() + test_set.Nc * 4);
 
   predict_energy_or_stress(
     fid_virial, test_set.virial.data() + test_set.N * 5,
-    test_set.virial_ref.data() + test_set.Nc * 5);
+    test_set.virial_ref_cpu.data() + test_set.Nc * 5);
 
   fclose(fid_virial);
 }
