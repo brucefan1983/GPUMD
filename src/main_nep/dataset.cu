@@ -18,21 +18,22 @@
 #include "parameters.cuh"
 #include "utilities/error.cuh"
 
-void Dataset::copy_structures(std::vector<Structure>& structures_input)
+void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
-  Nc = structures_input.size();
+  Nc = n2 - n1;
   structures.resize(Nc);
 
   for (int n = 0; n < Nc; ++n) {
-    structures[n].num_atom = structures_input[n].num_atom;
-    structures[n].num_atom_original = structures_input[n].num_atom_original;
-    structures[n].has_virial = structures_input[n].has_virial;
-    structures[n].energy = structures_input[n].energy;
+    int n_input = n + n1;
+    structures[n].num_atom = structures_input[n_input].num_atom;
+    structures[n].num_atom_original = structures_input[n_input].num_atom_original;
+    structures[n].has_virial = structures_input[n_input].has_virial;
+    structures[n].energy = structures_input[n_input].energy;
     for (int k = 0; k < 6; ++k) {
-      structures[n].virial[k] = structures_input[n].virial[k];
+      structures[n].virial[k] = structures_input[n_input].virial[k];
     }
     for (int k = 0; k < 18; ++k) {
-      structures[n].box[k] = structures_input[n].box[k];
+      structures[n].box[k] = structures_input[n_input].box[k];
     }
 
     structures[n].atomic_number.resize(structures[n].num_atom);
@@ -44,13 +45,13 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input)
     structures[n].fz.resize(structures[n].num_atom);
 
     for (int na = 0; na < structures[n].num_atom; ++na) {
-      structures[n].atomic_number[na] = structures_input[n].atomic_number[na];
-      structures[n].x[na] = structures_input[n].x[na];
-      structures[n].y[na] = structures_input[n].y[na];
-      structures[n].z[na] = structures_input[n].z[na];
-      structures[n].fx[na] = structures_input[n].fx[na];
-      structures[n].fy[na] = structures_input[n].fy[na];
-      structures[n].fz[na] = structures_input[n].fz[na];
+      structures[n].atomic_number[na] = structures_input[n_input].atomic_number[na];
+      structures[n].x[na] = structures_input[n_input].x[na];
+      structures[n].y[na] = structures_input[n_input].y[na];
+      structures[n].z[na] = structures_input[n_input].z[na];
+      structures[n].fx[na] = structures_input[n_input].fx[na];
+      structures[n].fy[na] = structures_input[n_input].fy[na];
+      structures[n].fz[na] = structures_input[n_input].fz[na];
     }
   }
 }
@@ -304,11 +305,12 @@ void Dataset::find_neighbor(Parameters& para)
   CUDA_CHECK_KERNEL
 }
 
-void Dataset::construct(char* input_dir, Parameters& para, std::vector<Structure>& structures_input)
+void Dataset::construct(
+  char* input_dir, Parameters& para, std::vector<Structure>& structures_input, int n1, int n2)
 {
   CHECK(cudaDeviceSynchronize()); // need this due to unified memory
 
-  copy_structures(structures_input);
+  copy_structures(structures_input, n1, n2);
   h.resize(Nc * 18, Memory_Type::managed);
   pe_ref.resize(Nc, Memory_Type::managed);
   virial_ref.resize(Nc * 6, Memory_Type::managed);

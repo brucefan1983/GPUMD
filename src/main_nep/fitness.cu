@@ -38,8 +38,10 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
   printf("Number of batches = %d\n", num_batches);
   train_set.resize(num_batches);
-  for (int n = 0; n < num_batches; ++n) {
-    train_set[n].construct(input_dir, para, structures_train); // TODO
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    int n1 = batch_id * para.batch_size;
+    int n2 = std::min(int(structures_train.size()), n1 + para.batch_size);
+    train_set[batch_id].construct(input_dir, para, structures_train, n1, n2);
   }
 
   print_line_1();
@@ -47,7 +49,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   print_line_2();
   std::vector<Structure> structures_test;
   read_structures(false, input_dir, para, structures_test);
-  test_set.construct(input_dir, para, structures_test); // TODO
+  test_set.construct(input_dir, para, structures_test, 0, structures_test.size());
 
   int N = test_set.N;
   int N_times_max_NN_angular = test_set.N * test_set.max_NN_angular;

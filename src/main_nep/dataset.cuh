@@ -54,13 +54,13 @@ public:
 
   std::vector<Structure> structures;
 
-  void construct(char*, Parameters& para, std::vector<Structure>& structures);
+  void construct(char*, Parameters& para, std::vector<Structure>& structures, int n1, int n2);
   float get_rmse_force();
   float get_rmse_energy();
   float get_rmse_virial();
 
 private:
-  void copy_structures(std::vector<Structure>& structures_input);
+  void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
   void find_Na();
   void initialize_gpu_data(Parameters& para);
   void check_types(Parameters& para);
