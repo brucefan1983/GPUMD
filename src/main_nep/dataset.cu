@@ -88,9 +88,13 @@ void Dataset::initialize_gpu_data(Parameters& para)
   type.resize(N, Memory_Type::managed);
 
   r.resize(N * 3, Memory_Type::managed);
-  force.resize(N * 3, 0.0f, Memory_Type::managed);
-  pe.resize(N, 0.0f, Memory_Type::managed);
-  virial.resize(N * 6, 0.0f, Memory_Type::managed);
+
+  energy.resize(N);
+  virial.resize(N * 6);
+  force.resize(N * 3);
+  energy_cpu.resize(N);
+  virial_cpu.resize(N * 6);
+  force_cpu.resize(N * 3);
 
   energy_ref_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
@@ -361,7 +365,7 @@ float Dataset::get_rmse_energy()
 {
   int block_size = get_block_size(max_Na);
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), pe.data(), energy_ref_gpu.data(), error_gpu.data());
+    Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_ave = 0.0;

@@ -577,8 +577,8 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
   CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, block_size>>>(
-    dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler.data(), dataset.pe.data(),
-    nep_data.Fp.data());
+    dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler.data(),
+    dataset.energy.data(), nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, block_size>>>(

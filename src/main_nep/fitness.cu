@@ -114,8 +114,6 @@ void Fitness::report_error(
 {
   if (0 == (generation + 1) % 100) {
 
-    CHECK(cudaDeviceSynchronize());
-
     potential->find_force(para, elite, test_set);
     float rmse_energy_test = test_set.get_rmse_energy();
     float rmse_force_test = test_set.get_rmse_force();
@@ -157,6 +155,10 @@ void Fitness::report_error(
 
 void Fitness::update_energy_force_virial(char* input_dir)
 {
+  test_set.energy.copy_to_host(test_set.energy_cpu.data());
+  test_set.virial.copy_to_host(test_set.virial_cpu.data());
+  test_set.force.copy_to_host(test_set.force_cpu.data());
+
   // update force.out
   char file_force[200];
   strcpy(file_force, input_dir);
@@ -167,8 +169,8 @@ void Fitness::update_energy_force_virial(char* input_dir)
     for (int m = 0; m < test_set.structures[nc].num_atom_original; ++m) {
       int n = offset + m;
       fprintf(
-        fid_force, "%g %g %g %g %g %g\n", test_set.force[n], test_set.force[n + test_set.N],
-        test_set.force[n + test_set.N * 2], test_set.force_ref_cpu[n],
+        fid_force, "%g %g %g %g %g %g\n", test_set.force_cpu[n], test_set.force_cpu[n + test_set.N],
+        test_set.force_cpu[n + test_set.N * 2], test_set.force_ref_cpu[n],
         test_set.force_ref_cpu[n + test_set.N], test_set.force_ref_cpu[n + test_set.N * 2]);
     }
   }
@@ -179,7 +181,7 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcpy(file_energy, input_dir);
   strcat(file_energy, "/energy.out");
   FILE* fid_energy = my_fopen(file_energy, "w");
-  predict_energy_or_stress(fid_energy, test_set.pe.data(), test_set.energy_ref_cpu.data());
+  predict_energy_or_stress(fid_energy, test_set.energy_cpu.data(), test_set.energy_ref_cpu.data());
   fclose(fid_energy);
 
   // update virial.out
@@ -187,25 +189,26 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcpy(file_virial, input_dir);
   strcat(file_virial, "/virial.out");
   FILE* fid_virial = my_fopen(file_virial, "w");
-  predict_energy_or_stress(fid_virial, test_set.virial.data(), test_set.virial_ref_cpu.data());
+  predict_energy_or_stress(fid_virial, test_set.virial_cpu.data(), test_set.virial_ref_cpu.data());
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial.data() + test_set.N, test_set.virial_ref_cpu.data() + test_set.Nc);
+    fid_virial, test_set.virial_cpu.data() + test_set.N,
+    test_set.virial_ref_cpu.data() + test_set.Nc);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial.data() + test_set.N * 2,
+    fid_virial, test_set.virial_cpu.data() + test_set.N * 2,
     test_set.virial_ref_cpu.data() + test_set.Nc * 2);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial.data() + test_set.N * 3,
+    fid_virial, test_set.virial_cpu.data() + test_set.N * 3,
     test_set.virial_ref_cpu.data() + test_set.Nc * 3);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial.data() + test_set.N * 4,
+    fid_virial, test_set.virial_cpu.data() + test_set.N * 4,
     test_set.virial_ref_cpu.data() + test_set.Nc * 4);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial.data() + test_set.N * 5,
+    fid_virial, test_set.virial_cpu.data() + test_set.N * 5,
     test_set.virial_ref_cpu.data() + test_set.Nc * 5);
 
   fclose(fid_virial);
