@@ -28,14 +28,7 @@ void Dataset::read_Nc(FILE* fid)
   printf("Number of configurations = %d.\n", Nc);
 
   structures.resize(Nc);
-  h.resize(Nc * 18, Memory_Type::managed);
-  pe_ref.resize(Nc, Memory_Type::managed);
-  virial_ref.resize(Nc * 6, Memory_Type::managed);
-  Na.resize(Nc, Memory_Type::managed);
   Na_original.resize(Nc);
-  Na_sum.resize(Nc, Memory_Type::managed);
-  error_cpu.resize(Nc);
-  error_gpu.resize(Nc);
 }
 
 void Dataset::read_Na(FILE* fid)
@@ -478,6 +471,16 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(char* input_dir, Parameters& para)
 {
   read_train_in(input_dir, para);
+
+  h.resize(Nc * 18, Memory_Type::managed);
+  pe_ref.resize(Nc, Memory_Type::managed);
+  virial_ref.resize(Nc * 6, Memory_Type::managed);
+  Na.resize(Nc, Memory_Type::managed);
+  Na_original.resize(Nc);
+  Na_sum.resize(Nc, Memory_Type::managed);
+  error_cpu.resize(Nc);
+  error_gpu.resize(Nc);
+
   find_Na();
   initialize_gpu_data(para);
   check_types(para);
