@@ -29,7 +29,6 @@ public:
   int max_NN_radial;            // radial neighbor list size
   int max_NN_angular;           // angular neighbor list size
   GPU_Vector<int> Na;           // number of atoms in each configuration
-  std::vector<int> Na_original; // number of atoms before possible box replication
   GPU_Vector<int> Na_sum;       // prefix sum of Na
   GPU_Vector<int> type;         // atom type (0, 1, 2, 3, ...)
   GPU_Vector<float> r;          // position
