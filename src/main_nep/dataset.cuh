@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "structure.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Parameters;
@@ -52,24 +53,6 @@ public:
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
 
-  struct Structure {
-    int num_cell_a;
-    int num_cell_b;
-    int num_cell_c;
-    int num_atom;
-    int has_virial;
-    float energy;
-    float virial[6];
-    float box_original[9];
-    float box[18];
-    std::vector<int> atomic_number;
-    std::vector<float> x;
-    std::vector<float> y;
-    std::vector<float> z;
-    std::vector<float> fx;
-    std::vector<float> fy;
-    std::vector<float> fz;
-  };
   std::vector<Structure> structures;
 
   void construct(char*, Parameters& para);
