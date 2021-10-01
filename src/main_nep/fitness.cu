@@ -30,7 +30,9 @@ Get the fitness
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
-  // train.in
+  print_line_1();
+  printf("Started reading train.in.\n");
+  print_line_2();
   std::vector<Structure> structures_train;
   read_structures(true, input_dir, para, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
@@ -40,7 +42,9 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     train_set[n].construct(input_dir, para, structures_train); // TODO
   }
 
-  // test.in
+  print_line_1();
+  printf("Started reading test.in.\n");
+  print_line_2();
   std::vector<Structure> structures_test;
   read_structures(false, input_dir, para, structures_test);
   test_set.construct(input_dir, para, structures_test); // TODO
@@ -107,9 +111,9 @@ void Fitness::report_error(
     CHECK(cudaDeviceSynchronize());
 
     potential->find_force(para, elite, test_set);
-    float rmse_energy_train = test_set.get_rmse_energy();
-    float rmse_force_train = test_set.get_rmse_force();
-    float rmse_virial_train = test_set.get_rmse_virial();
+    float rmse_energy_test = test_set.get_rmse_energy();
+    float rmse_force_test = test_set.get_rmse_force();
+    float rmse_virial_test = test_set.get_rmse_virial();
 
     char file_nep[200];
     strcpy(file_nep, input_dir);
@@ -130,14 +134,15 @@ void Fitness::report_error(
     }
     fclose(fid_nep);
 
-    // TODO:
     printf(
-      "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total, loss_L1,
-      loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train);
+      "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n", generation + 1,
+      loss_total, loss_L1, loss_L2, loss_energy, loss_force, loss_virial, rmse_energy_test,
+      rmse_force_test, rmse_virial_test);
     fflush(stdout);
     fprintf(
-      fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-12.5f%-12.5f%-12.5f\n", generation + 1, loss_total,
-      loss_L1, loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train);
+      fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+      generation + 1, loss_total, loss_L1, loss_L2, loss_energy, loss_force, loss_virial,
+      rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_loss_out);
 
     update_energy_force_virial(input_dir);
@@ -203,11 +208,11 @@ void Fitness::update_energy_force_virial(char* input_dir)
 void Fitness::test(char* input_dir, Parameters& para, const float* elite)
 {
   potential->find_force(para, elite, test_set);
-  float rmse_energy_train = test_set.get_rmse_energy();
-  float rmse_force_train = test_set.get_rmse_force();
-  float rmse_virial_train = test_set.get_rmse_virial();
-  printf("Energy RMSE = %g\n", rmse_energy_train);
-  printf("Force RMSE = %g\n", rmse_force_train);
-  printf("Virial RMSE = %g\n", rmse_virial_train);
+  float rmse_energy_test = test_set.get_rmse_energy();
+  float rmse_force_tes = test_set.get_rmse_force();
+  float rmse_virial_tes = test_set.get_rmse_virial();
+  printf("Energy RMSE = %g\n", rmse_energy_test);
+  printf("Force RMSE = %g\n", rmse_force_tes);
+  printf("Virial RMSE = %g\n", rmse_virial_tes);
   update_energy_force_virial(input_dir);
 }

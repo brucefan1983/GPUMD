@@ -200,10 +200,6 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
 void read_structures(
   bool is_train, char* input_dir, Parameters& para, std::vector<Structure>& structures)
 {
-  print_line_1();
-  printf("Started reading train.in.\n");
-  print_line_2();
-
   char file_train[200];
   strcpy(file_train, input_dir);
   if (is_train) {
