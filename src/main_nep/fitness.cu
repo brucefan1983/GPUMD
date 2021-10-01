@@ -43,10 +43,19 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   // test.in
   std::vector<Structure> structures_test;
   read_train_in(input_dir, para, structures_test);
-  printf("hello before test_set.construct\n");
   test_set.construct(input_dir, para, structures_test);
 
-  potential.reset(new NEP2(input_dir, para, train_set[0])); // TODO
+  int N = test_set.N;
+  int N_times_max_NN_angular = test_set.N * test_set.max_NN_angular;
+  for (int n = 0; n < num_batches; ++n) {
+    if (train_set[n].N > N) {
+      N = train_set[n].N;
+    };
+    if (train_set[n].N * train_set[n].max_NN_angular > N_times_max_NN_angular) {
+      N_times_max_NN_angular = train_set[n].N * train_set[n].max_NN_angular;
+    };
+  }
+  potential.reset(new NEP2(input_dir, para, N, N_times_max_NN_angular));
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);

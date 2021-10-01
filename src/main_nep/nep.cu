@@ -186,7 +186,7 @@ static void __global__ normalize_descriptors(
   }
 }
 
-NEP2::NEP2(char* input_dir, Parameters& para, Dataset& dataset)
+NEP2::NEP2(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
 {
   paramb.rc_radial = para.rc_radial;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
@@ -194,41 +194,17 @@ NEP2::NEP2(char* input_dir, Parameters& para, Dataset& dataset)
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   annmb.dim = (para.n_max_radial + 1) + (para.n_max_angular + 1) * para.L_max;
   annmb.num_neurons1 = para.num_neurons1;
-  paramb.num_types = dataset.num_types;
+  paramb.num_types = para.num_types;
   annmb.num_para = para.number_of_variables;
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
-  nep_data.f12x.resize(dataset.N * dataset.max_NN_angular);
-  nep_data.f12y.resize(dataset.N * dataset.max_NN_angular);
-  nep_data.f12z.resize(dataset.N * dataset.max_NN_angular);
-  nep_data.descriptors.resize(dataset.N * annmb.dim);
-  nep_data.Fp.resize(dataset.N * annmb.dim);
-  nep_data.sum_fxyz.resize(dataset.N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-
-  if (paramb.num_types == 1) {
-    // use radial neighbor list
-    find_descriptors_radial<<<dataset.Nc, dataset.max_Na>>>(
-      dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
-      dataset.NL_radial.data(), paramb, annmb, dataset.type.data(), dataset.x12_radial.data(),
-      dataset.y12_radial.data(), dataset.z12_radial.data(), nep_data.descriptors.data());
-    CUDA_CHECK_KERNEL
-
-    // use angular neighbor list
-    find_descriptors_angular<<<dataset.Nc, dataset.max_Na>>>(
-      dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
-      dataset.NL_angular.data(), paramb, annmb, dataset.type.data(), dataset.x12_angular.data(),
-      dataset.y12_angular.data(), dataset.z12_angular.data(), nep_data.descriptors.data(),
-      nep_data.sum_fxyz.data());
-    CUDA_CHECK_KERNEL
-
-    find_max_min<<<annmb.dim, 1024>>>(
-      dataset.N, nep_data.descriptors.data(), para.q_scaler.data(), para.q_min.data());
-    CUDA_CHECK_KERNEL
-    normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
-      annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
-    CUDA_CHECK_KERNEL
-  }
+  nep_data.f12x.resize(N_times_max_NN_angular);
+  nep_data.f12y.resize(N_times_max_NN_angular);
+  nep_data.f12z.resize(N_times_max_NN_angular);
+  nep_data.descriptors.resize(N * annmb.dim);
+  nep_data.Fp.resize(N * annmb.dim);
+  nep_data.sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
 }
 
 void NEP2::update_potential(const float* parameters, ANN& ann)
@@ -505,36 +481,31 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
 
-  if (paramb.num_types > 1) {
-    // use radial neighbor list
-    find_descriptors_radial<<<dataset.Nc, dataset.max_Na>>>(
-      dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
-      dataset.NL_radial.data(), paramb, annmb, dataset.type.data(), dataset.x12_radial.data(),
-      dataset.y12_radial.data(), dataset.z12_radial.data(), nep_data.descriptors.data());
-    CUDA_CHECK_KERNEL
+  find_descriptors_radial<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_radial.data(),
+    dataset.NL_radial.data(), paramb, annmb, dataset.type.data(), dataset.x12_radial.data(),
+    dataset.y12_radial.data(), dataset.z12_radial.data(), nep_data.descriptors.data());
+  CUDA_CHECK_KERNEL
 
-    // use angular neighbor list
-    find_descriptors_angular<<<dataset.Nc, dataset.max_Na>>>(
-      dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
-      dataset.NL_angular.data(), paramb, annmb, dataset.type.data(), dataset.x12_angular.data(),
-      dataset.y12_angular.data(), dataset.z12_angular.data(), nep_data.descriptors.data(),
-      nep_data.sum_fxyz.data());
-    CUDA_CHECK_KERNEL
+  find_descriptors_angular<<<dataset.Nc, dataset.max_Na>>>(
+    dataset.N, dataset.Na.data(), dataset.Na_sum.data(), dataset.NN_angular.data(),
+    dataset.NL_angular.data(), paramb, annmb, dataset.type.data(), dataset.x12_angular.data(),
+    dataset.y12_angular.data(), dataset.z12_angular.data(), nep_data.descriptors.data(),
+    nep_data.sum_fxyz.data());
+  CUDA_CHECK_KERNEL
 
-    find_max_min<<<annmb.dim, 1024>>>(
-      dataset.N, nep_data.descriptors.data(), para.q_scaler.data(), para.q_min.data());
-    CUDA_CHECK_KERNEL
-    normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
-      annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
-    CUDA_CHECK_KERNEL
-  }
+  find_max_min<<<annmb.dim, 1024>>>(
+    dataset.N, nep_data.descriptors.data(), para.q_scaler.data(), para.q_min.data());
+  CUDA_CHECK_KERNEL
+  normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
+    annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
+  CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, block_size>>>(
     dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler.data(), dataset.pe.data(),
     nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 
-  // use radial neighbor list
   find_force_radial<<<grid_size, block_size>>>(
     dataset.N, dataset.NN_radial.data(), dataset.NL_radial.data(), paramb, annmb,
     dataset.type.data(), dataset.x12_radial.data(), dataset.y12_radial.data(),
@@ -542,7 +513,6 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
-  // use angular neighbor list
   find_partial_force_angular<<<grid_size, block_size>>>(
     dataset.N, dataset.NN_angular.data(), dataset.NL_angular.data(), paramb, annmb,
     dataset.type.data(), dataset.x12_angular.data(), dataset.y12_angular.data(),
@@ -550,7 +520,6 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
     nep_data.f12y.data(), nep_data.f12z.data());
   CUDA_CHECK_KERNEL
 
-  // use angular neighbor list
   find_force_manybody<<<grid_size, block_size>>>(
     dataset.N, dataset.NN_angular.data(), dataset.NL_angular.data(), nep_data.f12x.data(),
     nep_data.f12y.data(), nep_data.f12z.data(), dataset.x12_angular.data(),

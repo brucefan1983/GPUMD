@@ -53,7 +53,7 @@ public:
     const float* c;
   };
 
-  NEP2(char* input_dir, Parameters& para, Dataset& dataset);
+  NEP2(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular);
   void find_force(Parameters& para, const float* parameters, Dataset& dataset);
 
 private:
