@@ -37,6 +37,11 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   read_structures(true, input_dir, para, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
   printf("Number of batches = %d\n", num_batches);
+  int batch_size_old = para.batch_size;
+  para.batch_size = (structures_train.size() - 1) / num_batches + 1;
+  if (batch_size_old != para.batch_size) {
+    printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
+  }
   train_set.resize(num_batches);
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     int n1 = batch_id * para.batch_size;
