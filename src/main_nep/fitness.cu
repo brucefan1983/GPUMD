@@ -44,8 +44,10 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   }
   train_set.resize(num_batches);
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    printf("\nBatch %d:\n", batch_id);
     int n1 = batch_id * para.batch_size;
     int n2 = std::min(int(structures_train.size()), n1 + para.batch_size);
+    printf("Number of configurations = %d.\n", n2 - n1);
     train_set[batch_id].construct(input_dir, para, structures_train, n1, n2);
   }
 
