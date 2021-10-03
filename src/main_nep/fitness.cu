@@ -98,12 +98,12 @@ void Fitness::compute(
 void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
 {
   for (int nc = 0; nc < test_set.Nc; ++nc) {
-    int offset = test_set.Na_sum[nc];
+    int offset = test_set.Na_sum_cpu[nc];
     float data_nc = 0.0f;
-    for (int m = 0; m < test_set.Na[nc]; ++m) {
+    for (int m = 0; m < test_set.Na_cpu[nc]; ++m) {
       data_nc += data[offset + m];
     }
-    fprintf(fid, "%g %g\n", data_nc / test_set.Na[nc], ref[nc]);
+    fprintf(fid, "%g %g\n", data_nc / test_set.Na_cpu[nc], ref[nc]);
   }
 }
 
@@ -174,7 +174,7 @@ void Fitness::update_energy_force_virial(char* input_dir)
   strcat(file_force, "/force.out");
   FILE* fid_force = my_fopen(file_force, "w");
   for (int nc = 0; nc < test_set.Nc; ++nc) {
-    int offset = test_set.Na_sum[nc];
+    int offset = test_set.Na_sum_cpu[nc];
     for (int m = 0; m < test_set.structures[nc].num_atom_original; ++m) {
       int n = offset + m;
       fprintf(

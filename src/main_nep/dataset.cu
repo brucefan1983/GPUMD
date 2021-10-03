@@ -58,12 +58,15 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
 
 void Dataset::find_Na()
 {
+  Na_cpu.resize(Nc);
+  Na_sum_cpu.resize(Nc);
+
   N = 0;
   max_Na = 0;
   int num_virial_configurations = 0;
   for (int nc = 0; nc < Nc; ++nc) {
-    Na[nc] = structures[nc].num_atom;
-    Na_sum[nc] = 0;
+    Na_cpu[nc] = structures[nc].num_atom;
+    Na_sum_cpu[nc] = 0;
   }
 
   for (int nc = 0; nc < Nc; ++nc) {
@@ -75,19 +78,24 @@ void Dataset::find_Na()
   }
 
   for (int nc = 1; nc < Nc; ++nc) {
-    Na_sum[nc] = Na_sum[nc - 1] + Na[nc - 1];
+    Na_sum_cpu[nc] = Na_sum_cpu[nc - 1] + Na_cpu[nc - 1];
   }
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
   printf("Number of configurations having virial = %d.\n", num_virial_configurations);
+
+  Na.resize(Nc);
+  Na_sum.resize(Nc);
+  Na.copy_from_host(Na_cpu.data());
+  Na_sum.copy_from_host(Na_sum_cpu.data());
 }
 
 void Dataset::initialize_gpu_data(Parameters& para)
 {
-  type.resize(N, Memory_Type::managed);
-
-  r.resize(N * 3, Memory_Type::managed);
+  std::vector<float> h_cpu(Nc * 18);
+  std::vector<float> r_cpu(N * 3);
+  std::vector<int> type_cpu(N);
 
   energy.resize(N);
   virial.resize(N * 6);
@@ -106,15 +114,16 @@ void Dataset::initialize_gpu_data(Parameters& para)
       virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
     }
     for (int k = 0; k < 18; ++k) {
-      h[k + n * 18] = structures[n].box[k];
+      h_cpu[k + n * 18] = structures[n].box[k];
     }
     for (int na = 0; na < structures[n].num_atom; ++na) {
-      r[Na_sum[n] + na] = structures[n].x[na];
-      r[Na_sum[n] + na + N] = structures[n].y[na];
-      r[Na_sum[n] + na + N * 2] = structures[n].z[na];
-      force_ref_cpu[Na_sum[n] + na] = structures[n].fx[na];
-      force_ref_cpu[Na_sum[n] + na + N] = structures[n].fy[na];
-      force_ref_cpu[Na_sum[n] + na + N * 2] = structures[n].fz[na];
+      type_cpu[Na_sum_cpu[n] + na] = structures[n].atomic_number[na];
+      r_cpu[Na_sum_cpu[n] + na] = structures[n].x[na];
+      r_cpu[Na_sum_cpu[n] + na + N] = structures[n].y[na];
+      r_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].z[na];
+      force_ref_cpu[Na_sum_cpu[n] + na] = structures[n].fx[na];
+      force_ref_cpu[Na_sum_cpu[n] + na + N] = structures[n].fy[na];
+      force_ref_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].fz[na];
     }
   }
 
@@ -124,6 +133,13 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
+
+  h.resize(Nc * 18);
+  r.resize(N * 3);
+  type.resize(N);
+  h.copy_from_host(h_cpu.data());
+  r.copy_from_host(r_cpu.data());
+  type.copy_from_host(type_cpu.data());
 }
 
 void Dataset::check_types(Parameters& para)
@@ -131,7 +147,6 @@ void Dataset::check_types(Parameters& para)
   std::vector<int> types;
   for (int nc = 0; nc < Nc; ++nc) {
     for (int na = 0; na < structures[nc].num_atom; ++na) {
-      type[Na_sum[nc] + na] = structures[nc].atomic_number[na];
       bool find_a_new_type = true;
       for (int k = 0; k < types.size(); ++k) {
         if (types[k] == structures[nc].atomic_number[na]) {
@@ -203,35 +218,39 @@ static __global__ void gpu_find_neighbor_number(
 
 void Dataset::find_neighbor(Parameters& para)
 {
-  GPU_Vector<int> NN_radial(N, Memory_Type::managed);
-  GPU_Vector<int> NN_angular(N, Memory_Type::managed);
+  GPU_Vector<int> NN_radial_gpu(N);
+  GPU_Vector<int> NN_angular_gpu(N);
+  std::vector<int> NN_radial_cpu(N);
+  std::vector<int> NN_angular_cpu(N);
   float rc2_radial = para.rc_radial * para.rc_radial;
   float rc2_angular = para.rc_angular * para.rc_angular;
 
   gpu_find_neighbor_number<<<Nc, max_Na>>>(
     N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
-    r.data() + N * 2, NN_radial.data(), NN_angular.data());
+    r.data() + N * 2, NN_radial_gpu.data(), NN_angular_gpu.data());
   CUDA_CHECK_KERNEL
 
-  CHECK(cudaDeviceSynchronize());
+  NN_radial_gpu.copy_to_host(NN_radial_cpu.data());
+  NN_angular_gpu.copy_to_host(NN_angular_cpu.data());
+
   int min_NN_radial = 10000;
   max_NN_radial = -1;
   for (int n = 0; n < N; ++n) {
-    if (NN_radial[n] < min_NN_radial) {
-      min_NN_radial = NN_radial[n];
+    if (NN_radial_cpu[n] < min_NN_radial) {
+      min_NN_radial = NN_radial_cpu[n];
     }
-    if (NN_radial[n] > max_NN_radial) {
-      max_NN_radial = NN_radial[n];
+    if (NN_radial_cpu[n] > max_NN_radial) {
+      max_NN_radial = NN_radial_cpu[n];
     }
   }
   int min_NN_angular = 10000;
   max_NN_angular = -1;
   for (int n = 0; n < N; ++n) {
-    if (NN_angular[n] < min_NN_angular) {
-      min_NN_angular = NN_angular[n];
+    if (NN_angular_cpu[n] < min_NN_angular) {
+      min_NN_angular = NN_angular_cpu[n];
     }
-    if (NN_angular[n] > max_NN_angular) {
-      max_NN_angular = NN_angular[n];
+    if (NN_angular_cpu[n] > max_NN_angular) {
+      max_NN_angular = NN_angular_cpu[n];
     }
   }
 
@@ -246,12 +265,7 @@ void Dataset::find_neighbor(Parameters& para)
 void Dataset::construct(
   char* input_dir, Parameters& para, std::vector<Structure>& structures_input, int n1, int n2)
 {
-  CHECK(cudaDeviceSynchronize()); // need this due to unified memory
-
   copy_structures(structures_input, n1, n2);
-  h.resize(Nc * 18, Memory_Type::managed);
-  Na.resize(Nc, Memory_Type::managed);
-  Na_sum.resize(Nc, Memory_Type::managed);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
 

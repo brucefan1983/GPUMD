@@ -22,17 +22,21 @@ class Parameters;
 class Dataset
 {
 public:
-  int Nc;                 // number of configurations
-  int N;                  // total number of atoms (sum of Na[])
-  int max_Na;             // number of atoms in the largest configuration
-  int num_types;          // number of atom types
-  int max_NN_radial;      // radial neighbor list size
-  int max_NN_angular;     // angular neighbor list size
-  GPU_Vector<int> Na;     // number of atoms in each configuration
-  GPU_Vector<int> Na_sum; // prefix sum of Na
-  GPU_Vector<int> type;   // atom type (0, 1, 2, 3, ...)
-  GPU_Vector<float> r;    // position
-  GPU_Vector<float> h;    // box and inverse box
+  int Nc;             // number of configurations
+  int N;              // total number of atoms (sum of Na[])
+  int max_Na;         // number of atoms in the largest configuration
+  int num_types;      // number of atom types
+  int max_NN_radial;  // radial neighbor list size
+  int max_NN_angular; // angular neighbor list size
+
+  GPU_Vector<int> Na;          // number of atoms in each configuration
+  GPU_Vector<int> Na_sum;      // prefix sum of Na
+  std::vector<int> Na_cpu;     // number of atoms in each configuration
+  std::vector<int> Na_sum_cpu; // prefix sum of Na_cpu
+
+  GPU_Vector<int> type; // atom type (0, 1, 2, 3, ...)
+  GPU_Vector<float> r;  // position
+  GPU_Vector<float> h;  // box and inverse box
 
   GPU_Vector<float> energy;      // calculated energy in GPU
   GPU_Vector<float> virial;      // calculated virial in GPU
