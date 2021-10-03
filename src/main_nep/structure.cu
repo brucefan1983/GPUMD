@@ -13,7 +13,6 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
 #include "parameters.cuh"
 #include "structure.cuh"
 #include <chrono>
