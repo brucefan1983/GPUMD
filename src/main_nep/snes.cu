@@ -48,7 +48,7 @@ SNES::SNES(char* input_dir, Parameters& para, Fitness* fitness_function)
   sigma.resize(number_of_variables);
   utility.resize(population_size);
   initialize_rng();
-  initialize_mu_and_sigma(input_dir);
+  initialize_mu_and_sigma(input_dir, para);
   calculate_utility();
   compute(input_dir, para, fitness_function);
 }
@@ -62,7 +62,7 @@ void SNES::initialize_rng()
 #endif
 };
 
-void SNES::initialize_mu_and_sigma(char* input_dir)
+void SNES::initialize_mu_and_sigma(char* input_dir, Parameters& para)
 {
   char file_restart[200];
   strcpy(file_restart, input_dir);
@@ -79,6 +79,12 @@ void SNES::initialize_mu_and_sigma(char* input_dir)
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
       PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
+    for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
+      int count = fscanf(fid_restart, "%f%f", &para.q_scaler_cpu[d], &para.q_min_cpu[d]);
+      PRINT_SCANF_ERROR(count, 2, "reading error for nep.restart.");
+    }
+    para.q_scaler_gpu.copy_from_host(para.q_scaler_cpu.data());
+    para.q_min_gpu.copy_from_host(para.q_min_cpu.data());
     fclose(fid_restart);
   }
 }
@@ -131,7 +137,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
         fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
       update_mu_and_sigma();
       if (0 == (n + 1) % 100) {
-        output_mu_and_sigma(input_dir);
+        output_mu_and_sigma(input_dir, para);
       }
     }
   }
@@ -232,7 +238,7 @@ void SNES::update_mu_and_sigma()
   }
 }
 
-void SNES::output_mu_and_sigma(char* input_dir)
+void SNES::output_mu_and_sigma(char* input_dir, Parameters& para)
 {
   char file_restart[200];
   strcpy(file_restart, input_dir);
@@ -240,6 +246,11 @@ void SNES::output_mu_and_sigma(char* input_dir)
   FILE* fid_restart = my_fopen(file_restart, "w");
   for (int n = 0; n < number_of_variables; ++n) {
     fprintf(fid_restart, "%15.7e %15.7e\n", mu[n], sigma[n]);
+  }
+  para.q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
+  para.q_min_gpu.copy_to_host(para.q_min_cpu.data());
+  for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
+    fprintf(fid_restart, "%15.7e %15.7e\n", para.q_scaler_cpu[d], para.q_min_cpu[d]);
   }
   fclose(fid_restart);
 }

@@ -41,12 +41,12 @@ protected:
   std::vector<float> s;
   std::vector<float> s_copy;
   void initialize_rng();
-  void initialize_mu_and_sigma(char*);
+  void initialize_mu_and_sigma(char*, Parameters& para);
   void calculate_utility();
   void compute(char*, Parameters&, Fitness*);
   void create_population(Parameters&);
   void regularize(Parameters&);
   void sort_population();
   void update_mu_and_sigma();
-  void output_mu_and_sigma(char*);
+  void output_mu_and_sigma(char*, Parameters& para);
 };

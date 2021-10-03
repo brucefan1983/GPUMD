@@ -140,8 +140,10 @@ void Fitness::report_error(
       fprintf(fid_nep, "%15.7e ", elite[m]);
     }
     fprintf(fid_nep, "\n");
-    for (int d = 0; d < para.q_scaler.size(); ++d) {
-      fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler[d], para.q_min[d]);
+    para.q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
+    para.q_min_gpu.copy_to_host(para.q_min_cpu.data());
+    for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
+      fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler_cpu[d], para.q_min_cpu[d]);
     }
     fclose(fid_nep);
 

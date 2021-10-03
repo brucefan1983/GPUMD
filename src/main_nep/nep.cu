@@ -222,8 +222,8 @@ find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
     __syncthreads();
   }
   if (tid == 0) {
-    g_q_scaler[bid] = 1.0f / (s_max[0] - s_min[0]);
-    g_q_min[bid] = s_min[0];
+    g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
+    g_q_min[bid] = min(g_q_min[bid], s_min[0]);
   }
 }
 
@@ -570,14 +570,14 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
   CUDA_CHECK_KERNEL
 
   find_max_min<<<annmb.dim, 1024>>>(
-    dataset.N, nep_data.descriptors.data(), para.q_scaler.data(), para.q_min.data());
+    dataset.N, nep_data.descriptors.data(), para.q_scaler_gpu.data(), para.q_min_gpu.data());
   CUDA_CHECK_KERNEL
   normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
-    annmb, dataset.N, para.q_scaler.data(), para.q_min.data(), nep_data.descriptors.data());
+    annmb, dataset.N, para.q_scaler_gpu.data(), para.q_min_gpu.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, block_size>>>(
-    dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler.data(),
+    dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler_gpu.data(),
     dataset.energy.data(), nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 

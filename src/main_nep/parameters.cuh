@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <vector>
 
 class Parameters
 {
@@ -32,8 +33,10 @@ public:
   int L_max = 0;               // maximum order of the angular Legendre polynomials
   int number_of_variables = 0; // total number of parameters
   int number_of_variables_ann = 0;
-  float L1_reg_para = 5.0e-2f; // good default
-  float L2_reg_para = 5.0e-2f; // good default
-  GPU_Vector<float> q_scaler;  // 1 ./ (max(q) - min(q))
-  GPU_Vector<float> q_min;     // min(q)
+  float L1_reg_para = 5.0e-2f;     // good default
+  float L2_reg_para = 5.0e-2f;     // good default
+  GPU_Vector<float> q_scaler_gpu;  // 1 ./ (max(q) - min(q))
+  GPU_Vector<float> q_min_gpu;     // min(q)
+  std::vector<float> q_scaler_cpu; // 1 ./ (max(q) - min(q))
+  std::vector<float> q_min_cpu;    // min(q)
 };
