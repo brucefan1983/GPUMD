@@ -16,6 +16,8 @@
 #pragma once
 #include "parameters.cuh"
 #include "structure.cuh"
+#include <chrono>
+#include <random>
 #include <vector>
 
 static void read_Nc(FILE* fid, std::vector<Structure>& structures)
@@ -197,6 +199,90 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
   }
 }
 
+static void find_permuted_indices(std::vector<int>& permuted_indices)
+{
+  std::mt19937 rng;
+#ifdef DEBUG
+  rng = std::mt19937(54321);
+#else
+  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
+  for (int i = 0; i < permuted_indices.size(); ++i) {
+    permuted_indices[i] = i;
+  }
+  std::uniform_int_distribution<int> rand_int(0, INT_MAX);
+  for (int i = 0; i < permuted_indices.size(); ++i) {
+    int j = rand_int(rng) % (permuted_indices.size() - i) + i;
+    int temp = permuted_indices[i];
+    permuted_indices[i] = permuted_indices[j];
+    permuted_indices[j] = temp;
+  }
+}
+
+static void reorder(std::vector<Structure>& structures)
+{
+  std::vector<int> configuration_id(structures.size());
+  find_permuted_indices(configuration_id);
+
+  std::vector<Structure> structures_copy(structures.size());
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    structures_copy[nc].num_atom = structures[nc].num_atom;
+    structures_copy[nc].has_virial = structures[nc].has_virial;
+    structures_copy[nc].energy = structures[nc].energy;
+    for (int k = 0; k < 6; ++k) {
+      structures_copy[nc].virial[k] = structures[nc].virial[k];
+    }
+    for (int k = 0; k < 18; ++k) {
+      structures_copy[nc].box[k] = structures[nc].box[k];
+    }
+    structures_copy[nc].atomic_number.resize(structures[nc].num_atom);
+    structures_copy[nc].x.resize(structures[nc].num_atom);
+    structures_copy[nc].y.resize(structures[nc].num_atom);
+    structures_copy[nc].z.resize(structures[nc].num_atom);
+    structures_copy[nc].fx.resize(structures[nc].num_atom);
+    structures_copy[nc].fy.resize(structures[nc].num_atom);
+    structures_copy[nc].fz.resize(structures[nc].num_atom);
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      structures_copy[nc].atomic_number[na] = structures[nc].atomic_number[na];
+      structures_copy[nc].x[na] = structures[nc].x[na];
+      structures_copy[nc].y[na] = structures[nc].y[na];
+      structures_copy[nc].z[na] = structures[nc].z[na];
+      structures_copy[nc].fx[na] = structures[nc].fx[na];
+      structures_copy[nc].fy[na] = structures[nc].fy[na];
+      structures_copy[nc].fz[na] = structures[nc].fz[na];
+    }
+  }
+
+  for (int nc = 0; nc < structures.size(); ++nc) {
+    structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
+    structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
+    structures[nc].energy = structures_copy[configuration_id[nc]].energy;
+    for (int k = 0; k < 6; ++k) {
+      structures[nc].virial[k] = structures_copy[configuration_id[nc]].virial[k];
+    }
+    for (int k = 0; k < 18; ++k) {
+      structures[nc].box[k] = structures_copy[configuration_id[nc]].box[k];
+    }
+    structures[nc].atomic_number.resize(structures[nc].num_atom);
+    structures[nc].x.resize(structures[nc].num_atom);
+    structures[nc].y.resize(structures[nc].num_atom);
+    structures[nc].z.resize(structures[nc].num_atom);
+    structures[nc].fx.resize(structures[nc].num_atom);
+    structures[nc].fy.resize(structures[nc].num_atom);
+    structures[nc].fz.resize(structures[nc].num_atom);
+    for (int na = 0; na < structures[nc].num_atom; ++na) {
+      structures[nc].atomic_number[na] = structures_copy[configuration_id[nc]].atomic_number[na];
+      structures[nc].x[na] = structures_copy[configuration_id[nc]].x[na];
+      structures[nc].y[na] = structures_copy[configuration_id[nc]].y[na];
+      structures[nc].z[na] = structures_copy[configuration_id[nc]].z[na];
+      structures[nc].fx[na] = structures_copy[configuration_id[nc]].fx[na];
+      structures[nc].fy[na] = structures_copy[configuration_id[nc]].fy[na];
+      structures[nc].fz[na] = structures_copy[configuration_id[nc]].fz[na];
+    }
+  }
+}
+
 void read_structures(
   bool is_train, char* input_dir, Parameters& para, std::vector<Structure>& structures)
 {
@@ -218,4 +304,8 @@ void read_structures(
   }
 
   fclose(fid);
+
+  if (is_train) {
+    reorder(structures);
+  }
 }
