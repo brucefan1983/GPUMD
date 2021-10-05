@@ -185,59 +185,6 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-static void __global__
-find_max_min(const int N, const float* g_q, float* g_q_scaler, float* g_q_min)
-{
-  const int tid = threadIdx.x;
-  const int bid = blockIdx.x;
-  __shared__ float s_max[1024];
-  __shared__ float s_min[1024];
-  s_max[tid] = -1000000.0f; // a small number
-  s_min[tid] = +1000000.0f; // a large number
-  const int stride = 1024;
-  const int number_of_rounds = (N - 1) / stride + 1;
-  for (int round = 0; round < number_of_rounds; ++round) {
-    const int n = round * stride + tid;
-    if (n < N) {
-      const int m = n + N * bid;
-      float q = g_q[m];
-      if (q > s_max[tid]) {
-        s_max[tid] = q;
-      }
-      if (q < s_min[tid]) {
-        s_min[tid] = q;
-      }
-    }
-  }
-  __syncthreads();
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      if (s_max[tid] < s_max[tid + offset]) {
-        s_max[tid] = s_max[tid + offset];
-      }
-      if (s_min[tid] > s_min[tid + offset]) {
-        s_min[tid] = s_min[tid + offset];
-      }
-    }
-    __syncthreads();
-  }
-  if (tid == 0) {
-    g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
-    g_q_min[bid] = min(g_q_min[bid], s_min[0]);
-  }
-}
-
-static void __global__ normalize_descriptors(
-  NEP2::ANN annmb, const int N, const float* g_q_scaler, const float* g_q_min, float* g_q)
-{
-  int n1 = blockDim.x * blockIdx.x + threadIdx.x;
-  if (n1 < N) {
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_q[n1 + d * N] = (g_q[n1 + d * N] - g_q_min[d]) * g_q_scaler[d];
-    }
-  }
-}
-
 NEP2::NEP2(
   char* input_dir, Parameters& para, int N, int N_times_max_NN_radial, int N_times_max_NN_angular)
 {
@@ -314,7 +261,7 @@ static __global__ void apply_ann(
     // get descriptors
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N];
+      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -567,13 +514,6 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
     dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), paramb, annmb,
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.descriptors.data(), nep_data.sum_fxyz.data());
-  CUDA_CHECK_KERNEL
-
-  find_max_min<<<annmb.dim, 1024>>>(
-    dataset.N, nep_data.descriptors.data(), para.q_scaler_gpu.data(), para.q_min_gpu.data());
-  CUDA_CHECK_KERNEL
-  normalize_descriptors<<<(dataset.N - 1) / 64 + 1, 64>>>(
-    annmb, dataset.N, para.q_scaler_gpu.data(), para.q_min_gpu.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, block_size>>>(

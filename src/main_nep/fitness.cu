@@ -137,13 +137,10 @@ void Fitness::report_error(
     fprintf(fid_nep, "l_max %d\n", para.L_max);
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
     for (int m = 0; m < para.number_of_variables; ++m) {
-      fprintf(fid_nep, "%15.7e ", elite[m]);
+      fprintf(fid_nep, "%15.7e\n", elite[m]);
     }
-    fprintf(fid_nep, "\n");
-    para.q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
-    para.q_min_gpu.copy_to_host(para.q_min_cpu.data());
     for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-      fprintf(fid_nep, "%15.7e %15.7e\n", para.q_scaler_cpu[d], para.q_min_cpu[d]);
+      fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
     }
     fclose(fid_nep);
 

@@ -41,7 +41,6 @@ public:
     int L_max = 0;              // l = 0, 1, 2, ..., L_max
     int num_types = 0;
     float q_scaler[100];
-    float q_min[100];
   };
 
   struct ANN {

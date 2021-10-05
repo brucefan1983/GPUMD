@@ -73,12 +73,16 @@ Parameters::Parameters(char* input_dir)
   }
 
   int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
-  q_scaler_cpu.resize(dim, 1.0e10f);
-  q_min_cpu.resize(dim, 1.0e10f);
+  q_scaler_cpu.resize(dim, 1.0f);
+  float factor_cutoff = rc_radial * rc_radial * rc_radial / (rc_angular * rc_angular * rc_angular);
+  for (int l = 1; l <= L_max; ++l) {
+    float factor = 4.0f * 3.1415927f / (2 * l + 1) * factor_cutoff;
+    for (int n = 0; n <= n_max_angular; ++n) {
+      q_scaler_cpu[(l - 1) * (n_max_angular + 1) + n + n_max_radial + 1] = factor;
+    }
+  }
   q_scaler_gpu.resize(dim);
-  q_min_gpu.resize(dim);
   q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
-  q_min_gpu.copy_from_host(q_min_cpu.data());
 
   count = fscanf(fid, "%s%d", name, &num_neurons1);
   PRINT_SCANF_ERROR(count, 2, "reading error for ANN.");

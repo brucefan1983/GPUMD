@@ -79,12 +79,6 @@ void SNES::initialize_mu_and_sigma(char* input_dir, Parameters& para)
       int count = fscanf(fid_restart, "%f%f", &mu[n], &sigma[n]);
       PRINT_SCANF_ERROR(count, 2, "Reading error for nep.restart.");
     }
-    for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-      int count = fscanf(fid_restart, "%f%f", &para.q_scaler_cpu[d], &para.q_min_cpu[d]);
-      PRINT_SCANF_ERROR(count, 2, "reading error for nep.restart.");
-    }
-    para.q_scaler_gpu.copy_from_host(para.q_scaler_cpu.data());
-    para.q_min_gpu.copy_from_host(para.q_min_cpu.data());
     fclose(fid_restart);
   }
 }
@@ -246,11 +240,6 @@ void SNES::output_mu_and_sigma(char* input_dir, Parameters& para)
   FILE* fid_restart = my_fopen(file_restart, "w");
   for (int n = 0; n < number_of_variables; ++n) {
     fprintf(fid_restart, "%15.7e %15.7e\n", mu[n], sigma[n]);
-  }
-  para.q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
-  para.q_min_gpu.copy_to_host(para.q_min_cpu.data());
-  for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-    fprintf(fid_restart, "%15.7e %15.7e\n", para.q_scaler_cpu[d], para.q_min_cpu[d]);
   }
   fclose(fid_restart);
 }
