@@ -40,9 +40,6 @@ static void read_Na(FILE* fid, std::vector<Structure>& structures)
     if (structures[nc].num_atom < 1) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 1.");
     }
-    if (structures[nc].num_atom > 1024) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should <=1024.");
-    }
     structures[nc].num_atom_original = structures[nc].num_atom;
   }
 }
