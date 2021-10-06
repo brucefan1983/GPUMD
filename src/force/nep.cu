@@ -111,8 +111,8 @@ void NEP2::update_potential(FILE* fid)
   update_potential(address_c_parameters, annmb);
 
   for (int d = 0; d < annmb.dim; ++d) {
-    int count = fscanf(fid, "%f%f", &paramb.q_scaler[d], &paramb.q_min[d]);
-    PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
+    int count = fscanf(fid, "%f", &paramb.q_scaler[d]);
+    PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
   }
 }
 
@@ -249,24 +249,9 @@ static __global__ void find_descriptor(
     }
 
     // nomalize descriptor
-#ifdef CHECK_DESCRIPTOR
-    float q_error = 0.0f;
-#endif
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = (q[d] - paramb.q_min[d]) * paramb.q_scaler[d];
-#ifdef CHECK_DESCRIPTOR
-      if (q[d] > 1.0f) {
-        q_error += q[d] - 1.0f;
-      } else if (q[d] < 0.0f) {
-        q_error -= q[d];
-      }
-#endif
+      q[d] = q[d] * paramb.q_scaler[d];
     }
-#ifdef CHECK_DESCRIPTOR
-    if (q_error > annmb.dim * 0.01f) {
-      printf("relative error q[%d] = %g% > 1%\n", n1, 100.0f * q_error / annmb.dim);
-    }
-#endif
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -274,8 +259,7 @@ static __global__ void find_descriptor(
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
-      Fp[d] *= paramb.q_scaler[d];
-      g_Fp[d * N + n1] = Fp[d];
+      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
     }
   }
 }

@@ -42,13 +42,20 @@ int main(int argc, char* argv[])
     clock_t time_begin = clock();
     Parameters para(input_directory);
     Fitness fitness(input_directory, para);
-    SNES snes(input_directory, para, &fitness);
     clock_t time_finish = clock();
 
     float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
-
     print_line_1();
-    printf("Time used for '%s' = %f s.\n", input_directory, time_used);
+    printf("Time used for initialization = %f s.\n", time_used);
+    print_line_2();
+
+    time_begin = clock();
+    SNES snes(input_directory, para, &fitness);
+    time_finish = clock();
+
+    time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
+    print_line_1();
+    printf("Time used for training = %f s.\n", time_used);
     print_line_2();
   }
 

@@ -73,8 +73,16 @@ Parameters::Parameters(char* input_dir)
   }
 
   int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
-  q_scaler.resize(dim, Memory_Type::managed);
-  q_min.resize(dim, Memory_Type::managed);
+  q_scaler_cpu.resize(dim, 1.0f);
+  float factor_cutoff = rc_radial * rc_radial * rc_radial / (rc_angular * rc_angular * rc_angular);
+  for (int l = 1; l <= L_max; ++l) {
+    float factor = 4.0f * 3.1415927f / (2 * l + 1) * factor_cutoff;
+    for (int n = 0; n <= n_max_angular; ++n) {
+      q_scaler_cpu[(l - 1) * (n_max_angular + 1) + n + n_max_radial + 1] = factor;
+    }
+  }
+  q_scaler_gpu.resize(dim);
+  q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
 
   count = fscanf(fid, "%s%d", name, &num_neurons1);
   PRINT_SCANF_ERROR(count, 2, "reading error for ANN.");
@@ -102,6 +110,13 @@ Parameters::Parameters(char* input_dir)
   }
   if (L2_reg_para < 0.0f) {
     PRINT_INPUT_ERROR("L2 regularization >= 0.");
+  }
+
+  count = fscanf(fid, "%s%d", name, &batch_size);
+  PRINT_SCANF_ERROR(count, 2, "reading error for batch_size.");
+  printf("batch_size = %d.\n", batch_size);
+  if (batch_size < 1) {
+    PRINT_INPUT_ERROR("batch_size should >= 1.");
   }
 
   count = fscanf(fid, "%s%d", name, &population_size);

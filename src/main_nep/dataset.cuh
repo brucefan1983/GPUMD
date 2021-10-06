@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "structure.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 class Parameters;
@@ -21,74 +22,50 @@ class Parameters;
 class Dataset
 {
 public:
-  int Nc;                       // number of configurations
-  int N;                        // total number of atoms (sum of Na[])
-  int max_Na;                   // number of atoms in the largest configuration
-  int num_types;                // number of atom types
-  int max_NN_radial;            // radial neighbor list size
-  int max_NN_angular;           // angular neighbor list size
-  GPU_Vector<int> Na;           // number of atoms in each configuration
-  std::vector<int> Na_original; // number of atoms before possible box replication
-  GPU_Vector<int> Na_sum;       // prefix sum of Na
-  GPU_Vector<int> type;         // atom type (0, 1, 2, 3, ...)
-  GPU_Vector<float> r;          // position
-  GPU_Vector<float> force;      // force
-  GPU_Vector<float> pe;         // potential energy
-  GPU_Vector<float> virial;     // per-atom virial tensor
-  GPU_Vector<float> h;          // box and inverse box
-  GPU_Vector<float> pe_ref;     // reference energy for the whole box
-  GPU_Vector<float> virial_ref; // reference virial for the whole box
-  GPU_Vector<float> force_ref;  // reference force
+  int Nc;             // number of configurations
+  int N;              // total number of atoms (sum of Na[])
+  int max_Na;         // number of atoms in the largest configuration
+  int num_types;      // number of atom types
+  int max_NN_radial;  // radial neighbor list size
+  int max_NN_angular; // angular neighbor list size
+
+  GPU_Vector<int> Na;          // number of atoms in each configuration
+  GPU_Vector<int> Na_sum;      // prefix sum of Na
+  std::vector<int> Na_cpu;     // number of atoms in each configuration
+  std::vector<int> Na_sum_cpu; // prefix sum of Na_cpu
+
+  GPU_Vector<int> type; // atom type (0, 1, 2, 3, ...)
+  GPU_Vector<float> r;  // position
+  GPU_Vector<float> h;  // box and inverse box
+
+  GPU_Vector<float> energy;      // calculated energy in GPU
+  GPU_Vector<float> virial;      // calculated virial in GPU
+  GPU_Vector<float> force;       // calculated force in GPU
+  std::vector<float> energy_cpu; // calculated energy in CPU
+  std::vector<float> virial_cpu; // calculated virial in CPU
+  std::vector<float> force_cpu;  // calculated force in CPU
+
+  GPU_Vector<float> energy_ref_gpu;  // reference energy in GPU
+  GPU_Vector<float> virial_ref_gpu;  // reference virial in GPU
+  GPU_Vector<float> force_ref_gpu;   // reference force in GPU
+  std::vector<float> energy_ref_cpu; // reference energy in CPU
+  std::vector<float> virial_ref_cpu; // reference virial in CPU
+  std::vector<float> force_ref_cpu;  // reference force in CPU
+
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force
-  GPU_Vector<int> NN_radial;    // radial neighbor number
-  GPU_Vector<int> NL_radial;    // radial neighbor list
-  GPU_Vector<int> NN_angular;   // angular neighbor number
-  GPU_Vector<int> NL_angular;   // angular neighbor list
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
-  GPU_Vector<float> x12_angular;
-  GPU_Vector<float> y12_angular;
-  GPU_Vector<float> z12_angular;
 
-  struct Structure {
-    int num_cell_a;
-    int num_cell_b;
-    int num_cell_c;
-    int num_atom;
-    int has_virial;
-    float energy;
-    float virial[6];
-    float box_original[9];
-    float box[18];
-    std::vector<int> atomic_number;
-    std::vector<float> x;
-    std::vector<float> y;
-    std::vector<float> z;
-    std::vector<float> fx;
-    std::vector<float> fy;
-    std::vector<float> fz;
-  };
   std::vector<Structure> structures;
 
-  void construct(char*, Parameters& para);
+  void construct(char*, Parameters& para, std::vector<Structure>& structures, int n1, int n2);
   float get_rmse_force();
   float get_rmse_energy();
   float get_rmse_virial();
 
 private:
-  // functions called by construct:
-  void read_train_in(char*, Parameters& para);
-  void reorder(char* input_dir);
+  void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
   void find_Na();
   void initialize_gpu_data(Parameters& para);
   void check_types(Parameters& para);
   void find_neighbor(Parameters& para);
-  // functions called by read_train_in:
-  void read_Nc(FILE*);
-  void read_Na(FILE*);
-  void read_box(FILE* fid, int nc, Parameters& para);
-  void read_energy_virial(FILE* fid, int nc);
-  void read_force(FILE* fid, int nc, Parameters& para);
 };

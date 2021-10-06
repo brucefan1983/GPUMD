@@ -15,11 +15,13 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <vector>
 
 class Parameters
 {
 public:
   Parameters(char* input_dir);
+  int batch_size = 0;          // number of configurations in one batch
   int num_types = 1;           // number of atom types
   int population_size = 0;     // population size for SNES
   int maximum_generation = 0;  // maximum number of generations for SNES;
@@ -31,8 +33,8 @@ public:
   int L_max = 0;               // maximum order of the angular Legendre polynomials
   int number_of_variables = 0; // total number of parameters
   int number_of_variables_ann = 0;
-  float L1_reg_para = 5.0e-2f; // good default
-  float L2_reg_para = 5.0e-2f; // good default
-  GPU_Vector<float> q_scaler;  // 1 ./ (max(q) - min(q))
-  GPU_Vector<float> q_min;     // min(q)
+  float L1_reg_para = 5.0e-2f;     // good default
+  float L2_reg_para = 5.0e-2f;     // good default
+  GPU_Vector<float> q_scaler_gpu;  // used to scale some descriptor components (GPU)
+  std::vector<float> q_scaler_cpu; // used to scale some descriptor components (CPU)
 };

@@ -48,7 +48,7 @@ SNES::SNES(char* input_dir, Parameters& para, Fitness* fitness_function)
   sigma.resize(number_of_variables);
   utility.resize(population_size);
   initialize_rng();
-  initialize_mu_and_sigma(input_dir);
+  initialize_mu_and_sigma(input_dir, para);
   calculate_utility();
   compute(input_dir, para, fitness_function);
 }
@@ -62,7 +62,7 @@ void SNES::initialize_rng()
 #endif
 };
 
-void SNES::initialize_mu_and_sigma(char* input_dir)
+void SNES::initialize_mu_and_sigma(char* input_dir, Parameters& para)
 {
   char file_restart[200];
   strcpy(file_restart, input_dir);
@@ -116,8 +116,9 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
     print_line_2();
 
     printf(
-      "%-8s%-11s%-11s%-11s%-12s%-12s%-12s\n", "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss",
-      "RMSE-Energy", "RMSE-Force", "RMSE-Virial");
+      "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss",
+      "L2Reg-Loss", "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test",
+      "RMSE-V-Test");
 
     for (int n = 0; n < maximum_generation; ++n) {
       create_population(para);
@@ -130,7 +131,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
         fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
       update_mu_and_sigma();
       if (0 == (n + 1) % 100) {
-        output_mu_and_sigma(input_dir);
+        output_mu_and_sigma(input_dir, para);
       }
     }
   }
@@ -231,7 +232,7 @@ void SNES::update_mu_and_sigma()
   }
 }
 
-void SNES::output_mu_and_sigma(char* input_dir)
+void SNES::output_mu_and_sigma(char* input_dir, Parameters& para)
 {
   char file_restart[200];
   strcpy(file_restart, input_dir);
