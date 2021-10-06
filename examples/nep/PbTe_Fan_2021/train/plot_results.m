@@ -19,8 +19,9 @@ axis tight;
 
 figure;
 loglog(loss(:,1),loss(:,2:6),'-','linewidth',2); hold on;
+loglog(loss(:,1),loss(:,8:9),'-','linewidth',4); hold on;
 xlabel('Generation','fontsize',15,'interpreter','latex');
 ylabel('Loss functions','fontsize',15,'interpreter','latex');
 set(gca,'fontsize',15,'ticklength',get(gca,'ticklength')*2);
-legend('Total','L1-Reg','L2-Reg','Energy','Force');
+legend('Total','L1-Reg','L2-Reg','Energy-train','Force-train','Energy-test','Force-test');
 axis tight
