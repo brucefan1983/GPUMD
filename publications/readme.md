@@ -7,7 +7,7 @@
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
 
 
-## 2022 （2）
+## 2022 (2)
 
 * Penghua Ying, Ting Liang, Yao Du, Jin Zhang, Xiaoliang Zeng, and Zheng Zhong, [Thermal transport in planar sp2-hybridized carbon allotropes: A comparative study of biphenylene network, pentaheptite and graphene](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122060), International Journal of Heat and Mass Transfer, **183**,
 122060 (2022).
