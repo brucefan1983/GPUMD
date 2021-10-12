@@ -6,10 +6,15 @@
 
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
 
-## 2021 (13)
+
+## 2022 （2）
 
 * Penghua Ying, Ting Liang, Yao Du, Jin Zhang, Xiaoliang Zeng, and Zheng Zhong, [Thermal transport in planar sp2-hybridized carbon allotropes: A comparative study of biphenylene network, pentaheptite and graphene](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122060), International Journal of Heat and Mass Transfer, **183**,
 122060 (2022).
+
+* Shuo Jin, Zhongwei Zhang, Yangyu Guo, Jie Chen, Masahiro Nomura, and Sebastian Volz, [Optimization of interfacial thermal transport in Si/Ge heterostructure driven by machine learning](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122014), International Journal of Heat and Mass Transfer, **182**, 122014 (2022).
+
+## 2021 (12)
 
 * Shi En Kim, Fauzia Mujid, Akash Rai, Fredrik Eriksson, Joonki Suh, Preeti Poddar, Ariana Ray, Chibeom Park, Erik Fransson, Yu Zhong, David A. Muller, Paul Erhart, David G. Cahill, and Jiwoong Park, [Extremely anisotropic van der Waals thermal conductors](https://doi.org/10.1038/s41586-021-03867-8), Nature **597**, 660 (2021). 
 
