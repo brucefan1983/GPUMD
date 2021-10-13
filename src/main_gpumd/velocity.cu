@@ -138,21 +138,32 @@ static void get_inertia(
 static void get_angular_velocity(const double I[3][3], const double L[3], double w[3])
 {
   double inverse[3][3]; // inverse of I
-  inverse[0][0] = I[1][1] * I[2][2] - I[1][2] * I[2][1];
-  inverse[0][1] = -(I[0][1] * I[2][2] - I[0][2] * I[2][1]);
-  inverse[0][2] = I[0][1] * I[1][2] - I[0][2] * I[1][1];
-  inverse[1][0] = -(I[1][0] * I[2][2] - I[1][2] * I[2][0]);
-  inverse[1][1] = I[0][0] * I[2][2] - I[0][2] * I[2][0];
-  inverse[1][2] = -(I[0][0] * I[1][2] - I[0][2] * I[1][0]);
-  inverse[2][0] = I[1][0] * I[2][1] - I[1][1] * I[2][0];
-  inverse[2][1] = -(I[0][0] * I[2][1] - I[0][1] * I[2][0]);
-  inverse[2][2] = I[0][0] * I[1][1] - I[0][1] * I[1][0];
   double determinant = I[0][0] * I[1][1] * I[2][2] + I[0][1] * I[1][2] * I[2][0] +
                        I[0][2] * I[1][0] * I[2][1] - I[0][0] * I[1][2] * I[2][1] -
                        I[0][1] * I[1][0] * I[2][2] - I[2][0] * I[1][1] * I[0][2];
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      inverse[i][j] /= determinant;
+  memset(inverse, 0, 9 * sizeof(double));
+  if (determinant != 0.0) {
+    inverse[0][0] = I[1][1] * I[2][2] - I[1][2] * I[2][1];
+    inverse[0][1] = -(I[0][1] * I[2][2] - I[0][2] * I[2][1]);
+    inverse[0][2] = I[0][1] * I[1][2] - I[0][2] * I[1][1];
+    inverse[1][0] = -(I[1][0] * I[2][2] - I[1][2] * I[2][0]);
+    inverse[1][1] = I[0][0] * I[2][2] - I[0][2] * I[2][0];
+    inverse[1][2] = -(I[0][0] * I[1][2] - I[0][2] * I[1][0]);
+    inverse[2][0] = I[1][0] * I[2][1] - I[1][1] * I[2][0];
+    inverse[2][1] = -(I[0][0] * I[2][1] - I[0][1] * I[2][0]);
+    inverse[2][2] = I[0][0] * I[1][1] - I[0][1] * I[1][0];
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        inverse[i][j] /= determinant;
+      }
+    }
+  } else {
+    for (int i = 0; i < 3; i++) {
+      if (I[i][i] != 0.0) {
+        inverse[i][i] = 1.0 / I[i][i];
+      } else {
+        inverse[i][i] = 0.0;
+      }
     }
   }
   // w = inv(I) * L, because L = I * w
