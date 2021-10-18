@@ -139,10 +139,6 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
 {
   structures[nc].num_atom *=
     structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
-  if (structures[nc].num_atom > 1024) {
-    PRINT_INPUT_ERROR("Number of atoms for one configuration after replication should <=1024; "
-                      "consider using smaller cutoff.");
-  }
 
   structures[nc].atomic_number.resize(structures[nc].num_atom);
   structures[nc].x.resize(structures[nc].num_atom);
