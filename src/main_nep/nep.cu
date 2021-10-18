@@ -51,8 +51,7 @@ static __global__ void gpu_find_neighbor_list(
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  for (int n1 = N1 + threadIdx.x; n1 < N2; n1 += blockDim.x) {
     const float* __restrict__ h = box + 18 * blockIdx.x;
     float x1 = x[n1];
     float y1 = y[n1];
@@ -492,7 +491,7 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
   float rc2_radial = para.rc_radial * para.rc_radial;
   float rc2_angular = para.rc_angular * para.rc_angular;
 
-  gpu_find_neighbor_list<<<dataset.Nc, dataset.max_Na>>>(
+  gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
     dataset.N, dataset.Na.data(), dataset.Na_sum.data(), rc2_radial, rc2_angular, dataset.h.data(),
     dataset.r.data(), dataset.r.data() + dataset.N, dataset.r.data() + dataset.N * 2,
     nep_data.NN_radial.data(), nep_data.NL_radial.data(), nep_data.NN_angular.data(),

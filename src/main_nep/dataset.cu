@@ -187,8 +187,7 @@ static __global__ void gpu_find_neighbor_number(
 {
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
-  int n1 = N1 + threadIdx.x;
-  if (n1 < N2) {
+  for (int n1 = N1 + threadIdx.x; n1 < N2; n1 += blockDim.x) {
     const float* __restrict__ h = box + 18 * blockIdx.x;
     float x1 = x[n1];
     float y1 = y[n1];
@@ -225,7 +224,7 @@ void Dataset::find_neighbor(Parameters& para)
   float rc2_radial = para.rc_radial * para.rc_radial;
   float rc2_angular = para.rc_angular * para.rc_angular;
 
-  gpu_find_neighbor_number<<<Nc, max_Na>>>(
+  gpu_find_neighbor_number<<<Nc, 256>>>(
     N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
     r.data() + N * 2, NN_radial_gpu.data(), NN_angular_gpu.data());
   CUDA_CHECK_KERNEL
@@ -335,11 +334,12 @@ gpu_sum_pe_error(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* 
   int tid = threadIdx.x;
   int bid = blockIdx.x;
   int Na = g_Na[bid];
-  int offset = g_Na_sum[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
   extern __shared__ float s_pe[];
   s_pe[tid] = 0.0f;
-  if (tid < Na) {
-    int n = offset + tid; // particle index
+
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
     s_pe[tid] += g_pe[n];
   }
   __syncthreads();
@@ -364,20 +364,9 @@ gpu_sum_pe_error(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* 
   }
 }
 
-static int get_block_size(int max_num_atom)
-{
-  int block_size = 64;
-  for (int n = 64; n < 1024; n <<= 1) {
-    if (max_num_atom > n) {
-      block_size = n << 1;
-    }
-  }
-  return block_size;
-}
-
 float Dataset::get_rmse_energy()
 {
-  int block_size = get_block_size(max_Na);
+  const int block_size = 256;
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
   int mem = sizeof(float) * Nc;
@@ -403,7 +392,8 @@ float Dataset::get_rmse_virial()
 
   float error_ave = 0.0;
   int mem = sizeof(float) * Nc;
-  int block_size = get_block_size(max_Na);
+
+  const int block_size = 256;
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), virial.data(), virial_ref_gpu.data(), error_gpu.data());
