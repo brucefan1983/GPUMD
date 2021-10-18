@@ -24,9 +24,6 @@ static void read_Nc(FILE* fid, std::vector<Structure>& structures)
   int Nc;
   int count = fscanf(fid, "%d", &Nc);
   PRINT_SCANF_ERROR(count, 1, "reading error for number of configurations in train.in.");
-  if (Nc > 100000) {
-    PRINT_INPUT_ERROR("Number of configurations should <= 100000");
-  }
   printf("Number of configurations = %d.\n", Nc);
 
   structures.resize(Nc);
