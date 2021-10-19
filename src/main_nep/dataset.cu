@@ -275,29 +275,29 @@ void Dataset::construct(
 }
 
 static __global__ void gpu_sum_force_error(
-  int N,
+  int* g_Na,
+  int* g_Na_sum,
   float* g_fx,
   float* g_fy,
   float* g_fz,
   float* g_fx_ref,
   float* g_fy_ref,
   float* g_fz_ref,
-  float* g_error)
+  float* error_gpu)
 {
   int tid = threadIdx.x;
-  int number_of_rounds = (N - 1) / blockDim.x + 1;
+  int bid = blockIdx.x;
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + g_Na[bid];
   extern __shared__ float s_error[];
   s_error[tid] = 0.0f;
-  for (int round = 0; round < number_of_rounds; ++round) {
-    int n = tid + round * blockDim.x;
-    if (n < N) {
-      float dx = g_fx[n] - g_fx_ref[n];
-      float dy = g_fy[n] - g_fy_ref[n];
-      float dz = g_fz[n] - g_fz_ref[n];
-      s_error[tid] += dx * dx + dy * dy + dz * dz;
-    }
-  }
 
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    float dx = g_fx[n] - g_fx_ref[n];
+    float dy = g_fy[n] - g_fy_ref[n];
+    float dz = g_fz[n] - g_fz_ref[n];
+    s_error[tid] += dx * dx + dy * dy + dz * dz;
+  }
   __syncthreads();
 
   for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
@@ -315,17 +315,26 @@ static __global__ void gpu_sum_force_error(
   }
 
   if (tid == 0) {
-    g_error[0] = s_error[0];
+    error_gpu[bid] = s_error[0];
   }
 }
 
 float Dataset::get_rmse_force()
 {
-  gpu_sum_force_error<<<1, 512, sizeof(float) * 512>>>(
-    N, force.data(), force.data() + N, force.data() + N * 2, force_ref_gpu.data(),
-    force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), sizeof(float), cudaMemcpyDeviceToHost));
-  return sqrt(error_cpu[0] / (N * 3));
+  const int block_size = 256;
+  gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+    Na.data(), Na_sum.data(), force.data(), force.data() + N, force.data() + N * 2,
+    force_ref_gpu.data(), force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
+  int mem = sizeof(float) * Nc;
+  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  float error_sum = 0.0f;
+  int num_sum = 0;
+  for (int n = 0; n < Nc; ++n) {
+    int num_cells = structures[n].num_atom / structures[n].num_atom_original;
+    error_sum += error_cpu[n] / num_cells;
+    num_sum += structures[n].num_atom_original;
+  }
+  return sqrt(error_sum / (num_sum * 3));
 }
 
 static __global__ void

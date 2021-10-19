@@ -217,6 +217,7 @@ static void reorder(std::vector<Structure>& structures)
 
   for (int nc = 0; nc < structures.size(); ++nc) {
     structures_copy[nc].num_atom = structures[nc].num_atom;
+    structures_copy[nc].num_atom_original = structures[nc].num_atom_original;
     structures_copy[nc].has_virial = structures[nc].has_virial;
     structures_copy[nc].energy = structures[nc].energy;
     for (int k = 0; k < 6; ++k) {
@@ -245,6 +246,7 @@ static void reorder(std::vector<Structure>& structures)
 
   for (int nc = 0; nc < structures.size(); ++nc) {
     structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
+    structures[nc].num_atom_original = structures_copy[configuration_id[nc]].num_atom_original;
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
     for (int k = 0; k < 6; ++k) {
