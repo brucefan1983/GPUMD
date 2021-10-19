@@ -31,8 +31,6 @@ struct Structure {
   std::vector<float> fz;
 };
 std::vector<Structure> structures;
-std::vector<float> energy_array;
-std::vector<int> index_array;
 
 // check the return value of scanf
 #define PRINT_SCANF_ERROR(count, n, text)                                                          \
