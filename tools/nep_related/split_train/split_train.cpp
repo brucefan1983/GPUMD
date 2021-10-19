@@ -223,21 +223,22 @@ void write(FILE* fid, int nc1, int nc2)
   for (int nc = nc1; nc < nc2; ++nc) {
     if (structures[nc].has_virial) {
       fprintf(
-        fid, "%g %g %g %g %g %g %g\n", structures[nc].energy, structures[nc].virial[0],
-        structures[nc].virial[1], structures[nc].virial[2], structures[nc].virial[3],
-        structures[nc].virial[4], structures[nc].virial[5]);
+        fid, "%15.6e %15.6e %15.6e %15.6e %15.6e %15.6e %15.6e\n", structures[nc].energy,
+        structures[nc].virial[0], structures[nc].virial[1], structures[nc].virial[2],
+        structures[nc].virial[3], structures[nc].virial[4], structures[nc].virial[5]);
     } else {
-      fprintf(fid, "%g\n", structures[nc].energy);
+      fprintf(fid, "%15.6e\n", structures[nc].energy);
     }
     fprintf(
-      fid, "%g %g %g %g %g %g %g %g %g\n", structures[nc].box[0], structures[nc].box[1],
-      structures[nc].box[2], structures[nc].box[3], structures[nc].box[4], structures[nc].box[5],
-      structures[nc].box[6], structures[nc].box[7], structures[nc].box[8]);
+      fid, "%15.6e %15.6e %15.6e %15.6e %15.6e %15.6e %15.6e %15.6e %15.6e\n",
+      structures[nc].box[0], structures[nc].box[1], structures[nc].box[2], structures[nc].box[3],
+      structures[nc].box[4], structures[nc].box[5], structures[nc].box[6], structures[nc].box[7],
+      structures[nc].box[8]);
     for (int n = 0; n < structures[nc].num_atom; ++n) {
       fprintf(
-        fid, "%d %g %g %g %g %g %g\n", structures[nc].atomic_number[n], structures[nc].x[n],
-        structures[nc].y[n], structures[nc].z[n], structures[nc].fx[n], structures[nc].fy[n],
-        structures[nc].fz[n]);
+        fid, "%d %15.6e %15.6e %15.6e %15.6e %15.6e %15.6e\n", structures[nc].atomic_number[n],
+        structures[nc].x[n], structures[nc].y[n], structures[nc].z[n], structures[nc].fx[n],
+        structures[nc].fy[n], structures[nc].fz[n]);
     }
   }
 }
