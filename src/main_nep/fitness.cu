@@ -95,15 +95,15 @@ void Fitness::compute(
   }
 }
 
-void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref)
+void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref, Dataset& dataset)
 {
-  for (int nc = 0; nc < test_set.Nc; ++nc) {
-    int offset = test_set.Na_sum_cpu[nc];
+  for (int nc = 0; nc < dataset.Nc; ++nc) {
+    int offset = dataset.Na_sum_cpu[nc];
     float data_nc = 0.0f;
-    for (int m = 0; m < test_set.Na_cpu[nc]; ++m) {
+    for (int m = 0; m < dataset.Na_cpu[nc]; ++m) {
       data_nc += data[offset + m];
     }
-    fprintf(fid, "%g %g\n", data_nc / test_set.Na_cpu[nc], ref[nc]);
+    fprintf(fid, "%g %g\n", data_nc / dataset.Na_cpu[nc], ref[nc]);
   }
 }
 
@@ -155,79 +155,100 @@ void Fitness::report_error(
       rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_loss_out);
 
-    update_energy_force_virial(input_dir);
+    char file_force[200];
+    strcpy(file_force, input_dir);
+    strcat(file_force, "/force.out");
+    FILE* fid_force = my_fopen(file_force, "w");
+
+    char file_energy[200];
+    strcpy(file_energy, input_dir);
+    strcat(file_energy, "/energy.out");
+    FILE* fid_energy = my_fopen(file_energy, "w");
+
+    char file_virial[200];
+    strcpy(file_virial, input_dir);
+    strcat(file_virial, "/virial.out");
+    FILE* fid_virial = my_fopen(file_virial, "w");
+
+    update_energy_force_virial(fid_energy, fid_force, fid_virial, test_set);
+
+    fclose(fid_energy);
+    fclose(fid_force);
+    fclose(fid_virial);
   }
 }
 
-void Fitness::update_energy_force_virial(char* input_dir)
+void Fitness::update_energy_force_virial(
+  FILE* fid_energy, FILE* fid_force, FILE* fid_virial, Dataset& dataset)
 {
-  test_set.energy.copy_to_host(test_set.energy_cpu.data());
-  test_set.virial.copy_to_host(test_set.virial_cpu.data());
-  test_set.force.copy_to_host(test_set.force_cpu.data());
+  dataset.energy.copy_to_host(dataset.energy_cpu.data());
+  dataset.virial.copy_to_host(dataset.virial_cpu.data());
+  dataset.force.copy_to_host(dataset.force_cpu.data());
 
   // update force.out
-  char file_force[200];
-  strcpy(file_force, input_dir);
-  strcat(file_force, "/force.out");
-  FILE* fid_force = my_fopen(file_force, "w");
-  for (int nc = 0; nc < test_set.Nc; ++nc) {
-    int offset = test_set.Na_sum_cpu[nc];
-    for (int m = 0; m < test_set.structures[nc].num_atom_original; ++m) {
+  for (int nc = 0; nc < dataset.Nc; ++nc) {
+    int offset = dataset.Na_sum_cpu[nc];
+    for (int m = 0; m < dataset.structures[nc].num_atom_original; ++m) {
       int n = offset + m;
       fprintf(
-        fid_force, "%g %g %g %g %g %g\n", test_set.force_cpu[n], test_set.force_cpu[n + test_set.N],
-        test_set.force_cpu[n + test_set.N * 2], test_set.force_ref_cpu[n],
-        test_set.force_ref_cpu[n + test_set.N], test_set.force_ref_cpu[n + test_set.N * 2]);
+        fid_force, "%g %g %g %g %g %g\n", dataset.force_cpu[n], dataset.force_cpu[n + dataset.N],
+        dataset.force_cpu[n + dataset.N * 2], dataset.force_ref_cpu[n],
+        dataset.force_ref_cpu[n + dataset.N], dataset.force_ref_cpu[n + dataset.N * 2]);
     }
   }
-  fclose(fid_force);
 
   // update energy.out
-  char file_energy[200];
-  strcpy(file_energy, input_dir);
-  strcat(file_energy, "/energy.out");
-  FILE* fid_energy = my_fopen(file_energy, "w");
-  predict_energy_or_stress(fid_energy, test_set.energy_cpu.data(), test_set.energy_ref_cpu.data());
-  fclose(fid_energy);
+  predict_energy_or_stress(
+    fid_energy, dataset.energy_cpu.data(), dataset.energy_ref_cpu.data(), dataset);
 
   // update virial.out
-  char file_virial[200];
-  strcpy(file_virial, input_dir);
-  strcat(file_virial, "/virial.out");
-  FILE* fid_virial = my_fopen(file_virial, "w");
-  predict_energy_or_stress(fid_virial, test_set.virial_cpu.data(), test_set.virial_ref_cpu.data());
+  predict_energy_or_stress(
+    fid_virial, dataset.virial_cpu.data(), dataset.virial_ref_cpu.data(), dataset);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial_cpu.data() + test_set.N,
-    test_set.virial_ref_cpu.data() + test_set.Nc);
+    fid_virial, dataset.virial_cpu.data() + dataset.N, dataset.virial_ref_cpu.data() + dataset.Nc,
+    dataset);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial_cpu.data() + test_set.N * 2,
-    test_set.virial_ref_cpu.data() + test_set.Nc * 2);
+    fid_virial, dataset.virial_cpu.data() + dataset.N * 2,
+    dataset.virial_ref_cpu.data() + dataset.Nc * 2, dataset);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial_cpu.data() + test_set.N * 3,
-    test_set.virial_ref_cpu.data() + test_set.Nc * 3);
+    fid_virial, dataset.virial_cpu.data() + dataset.N * 3,
+    dataset.virial_ref_cpu.data() + dataset.Nc * 3, dataset);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial_cpu.data() + test_set.N * 4,
-    test_set.virial_ref_cpu.data() + test_set.Nc * 4);
+    fid_virial, dataset.virial_cpu.data() + dataset.N * 4,
+    dataset.virial_ref_cpu.data() + dataset.Nc * 4, dataset);
 
   predict_energy_or_stress(
-    fid_virial, test_set.virial_cpu.data() + test_set.N * 5,
-    test_set.virial_ref_cpu.data() + test_set.Nc * 5);
-
-  fclose(fid_virial);
+    fid_virial, dataset.virial_cpu.data() + dataset.N * 5,
+    dataset.virial_ref_cpu.data() + dataset.Nc * 5, dataset);
 }
 
 void Fitness::test(char* input_dir, Parameters& para, const float* elite)
 {
-  potential->find_force(para, elite, test_set);
-  float rmse_energy_test = test_set.get_rmse_energy();
-  float rmse_force_tes = test_set.get_rmse_force();
-  float rmse_virial_tes = test_set.get_rmse_virial();
-  printf("Energy RMSE = %g\n", rmse_energy_test);
-  printf("Force RMSE = %g\n", rmse_force_tes);
-  printf("Virial RMSE = %g\n", rmse_virial_tes);
-  update_energy_force_virial(input_dir);
+  char file_force[200];
+  strcpy(file_force, input_dir);
+  strcat(file_force, "/force_train.out");
+  FILE* fid_force = my_fopen(file_force, "w");
+
+  char file_energy[200];
+  strcpy(file_energy, input_dir);
+  strcat(file_energy, "/energy_train.out");
+  FILE* fid_energy = my_fopen(file_energy, "w");
+
+  char file_virial[200];
+  strcpy(file_virial, input_dir);
+  strcat(file_virial, "/virial_train.out");
+  FILE* fid_virial = my_fopen(file_virial, "w");
+
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+    potential->find_force(para, elite, train_set[batch_id]);
+    update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id]);
+  }
+
+  fclose(fid_energy);
+  fclose(fid_force);
+  fclose(fid_virial);
 }
