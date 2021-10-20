@@ -250,7 +250,7 @@ def main():
 
     # Warning: nep_version=1: the 1st column in train.in respresents the number of protons.
     #          nep_version=2: the 1st column in train.in respresents the serial number, starting from 0 to N-1.
-    nep_version = 1
+    nep_version = 2
 
     data = read_multi_deepmd('./'+instr)
     #check_data(data)
