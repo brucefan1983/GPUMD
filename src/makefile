@@ -8,7 +8,7 @@
 #    your GPU architecture.
 # 4) For Windows systems, if you got errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
-#    You can consider removing "-Xcompiler "/wd 4819"
+#    You can consider removing -Xcompiler "/wd 4819"
 ###########################################################
 
 
@@ -112,8 +112,6 @@ main_phonon/%.obj: main_phonon/%.cu $(HEADERS)
 main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
-%.o: %.cu $(HEADERS)
-	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 minimize/%.o: minimize/%.cu $(HEADERS)
