@@ -97,42 +97,27 @@ void SNES::calculate_utility()
 
 void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
 {
-  if (maximum_generation == 0) {
-    print_line_1();
-    printf("Started testing.\n");
-    print_line_2();
-    // avoid zero
-    for (int v = para.number_of_variables_ann; v < number_of_variables; ++v) {
-      if (mu[v] > 0) {
-        mu[v] += 0.1f;
-      } else {
-        mu[v] -= 0.1f;
-      }
-    }
-    fitness_function->test(input_dir, para, mu.data());
-  } else {
-    print_line_1();
-    printf("Started training.\n");
-    print_line_2();
+  print_line_1();
+  printf("Started training.\n");
+  print_line_2();
 
-    printf(
-      "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss",
-      "L2Reg-Loss", "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test",
-      "RMSE-V-Test");
+  printf(
+    "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss",
+    "L2Reg-Loss", "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test",
+    "RMSE-V-Test");
 
-    for (int n = 0; n < maximum_generation; ++n) {
-      create_population(para);
-      fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
-      regularize(para);
-      sort_population();
-      fitness_function->report_error(
-        input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
-        fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
-        fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
-      update_mu_and_sigma();
-      if (0 == (n + 1) % 100) {
-        output_mu_and_sigma(input_dir, para);
-      }
+  for (int n = 0; n < maximum_generation; ++n) {
+    create_population(para);
+    fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
+    regularize(para);
+    sort_population();
+    fitness_function->report_error(
+      input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
+      fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
+      fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
+    update_mu_and_sigma();
+    if (0 == (n + 1) % 100) {
+      output_mu_and_sigma(input_dir, para);
     }
   }
 }

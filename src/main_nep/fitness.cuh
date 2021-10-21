@@ -40,7 +40,6 @@ public:
     const float,
     const float,
     const float* elite);
-  void test(char* input_dir, Parameters& para, const float* elite);
 
 protected:
   int num_batches = 0;
