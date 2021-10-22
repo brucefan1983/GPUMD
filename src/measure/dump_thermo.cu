@@ -71,12 +71,14 @@ void Dump_Thermo::process(
     thermo[2] * PRESSURE_UNIT_CONVERSION, thermo[3] * PRESSURE_UNIT_CONVERSION,
     thermo[4] * PRESSURE_UNIT_CONVERSION);
 
-  int number_of_box_variables = box.triclinic ? 9 : 3;
-  for (int m = 0; m < number_of_box_variables; ++m) {
-    fprintf(fid_, "%20.10e", box.cpu_h[m]);
+  if (box.triclinic == 0) {
+    fprintf(fid_, "%20.10e%20.10e%20.10e\n", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);
+  } else {
+    fprintf(
+      fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n", box.cpu_h[0],
+      box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2],
+      box.cpu_h[5], box.cpu_h[8]);
   }
-
-  fprintf(fid_, "\n");
   fflush(fid_);
 }
 
