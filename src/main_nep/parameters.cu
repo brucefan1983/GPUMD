@@ -17,6 +17,16 @@
 #include "utilities/error.cuh"
 #include <cmath>
 
+const int NUM_ELEMENTS = 103;
+const std::string ELEMENTS[NUM_ELEMENTS] = {
+  "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
+  "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
+  "Ga", "Ge", "As", "Se", "Br", "Kr", "Rb", "Sr", "Y",  "Zr", "Nb", "Mo", "Tc", "Ru", "Rh",
+  "Pd", "Ag", "Cd", "In", "Sn", "Sb", "Te", "I",  "Xe", "Cs", "Ba", "La", "Ce", "Pr", "Nd",
+  "Pm", "Sm", "Eu", "Gd", "Tb", "Dy", "Ho", "Er", "Tm", "Yb", "Lu", "Hf", "Ta", "W",  "Re",
+  "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
+  "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
+
 Parameters::Parameters(char* input_dir)
 {
   print_line_1();
@@ -34,6 +44,26 @@ Parameters::Parameters(char* input_dir)
   printf("num_types = %d.\n", num_types);
   if (num_types < 1 || num_types > 10) {
     PRINT_INPUT_ERROR("num_types should >=1 and <= 10.");
+  }
+
+  for (int n = 0; n < num_types; ++n) {
+    char atom_symbol[2];
+    count = fscanf(fid, "%s", atom_symbol);
+    PRINT_SCANF_ERROR(count, 1, "reading error for atom symbol.");
+    printf("    there is %s.\n", atom_symbol);
+    elements.emplace_back(atom_symbol);
+
+    std::string element(atom_symbol);
+    bool is_valid_element = false;
+    for (int m = 0; m < NUM_ELEMENTS; ++m) {
+      if (element == ELEMENTS[m]) {
+        is_valid_element = true;
+        break;
+      }
+    }
+    if (!is_valid_element) {
+      PRINT_INPUT_ERROR("Some element in nep.in is not in the periodic table.");
+    }
   }
 
   count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
