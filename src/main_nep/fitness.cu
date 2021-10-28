@@ -131,7 +131,11 @@ void Fitness::report_error(
     strcat(file_nep, "/nep.txt");
     FILE* fid_nep = my_fopen(file_nep, "w");
 
-    fprintf(fid_nep, "nep %d\n", para.num_types);
+    fprintf(fid_nep, "nep %d ", para.num_types);
+    for (int n = 0; n < para.num_types; ++n) {
+      fprintf(fid_nep, "%s ", para.elements[n].c_str());
+    }
+    fprintf(fid_nep, "\n");
     fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
     fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
     fprintf(fid_nep, "l_max %d\n", para.L_max);
