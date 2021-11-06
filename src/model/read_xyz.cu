@@ -306,6 +306,7 @@ void find_type_size(
   }
 }
 
+#ifdef USE_NEP
 static std::string get_filename_potential(char* input_dir)
 {
   std::string filename_run = input_dir + std::string("/run.in");
@@ -355,6 +356,7 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
   input_potential.close();
   return atom_symbols;
 }
+#endif
 
 void initialize_position(
   char* input_dir,
@@ -380,9 +382,10 @@ void initialize_position(
 
   read_xyz_in_line_2(fid_xyz, box);
 
+  std::vector<std::string> atom_symbols;
 #ifdef USE_NEP
   auto filename_potential = get_filename_potential(input_dir);
-  auto atom_symbols = get_atom_symbols(filename_potential);
+  atom_symbols = get_atom_symbols(filename_potential);
 #endif
 
   read_xyz_in_line_3(
