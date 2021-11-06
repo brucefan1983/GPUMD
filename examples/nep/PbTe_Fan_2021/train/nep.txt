@@ -1,4 +1,4 @@
-nep 2
+nep 2 Te Pb
 cutoff 8 4
 n_max 12 6
 l_max 4

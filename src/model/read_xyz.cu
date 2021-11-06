@@ -24,6 +24,10 @@ The class defining the simulation model.
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
 
 void read_xyz_in_line_1(
   FILE* fid_xyz,
@@ -49,8 +53,6 @@ void read_xyz_in_line_1(
 
   if (MN < 1) {
     PRINT_INPUT_ERROR("Maximum number of neighbors should >= 1.");
-  } else if (MN > 1024) {
-    PRINT_INPUT_ERROR("Maximum number of neighbors should <= 1024.");
   } else {
     printf("Maximum number of neighbors is %d.\n", MN);
   }
@@ -180,6 +182,7 @@ void read_xyz_in_line_3(
   const int N,
   const int has_velocity_in_xyz,
   int& number_of_types,
+  std::vector<std::string>& atom_symbols,
   std::vector<int>& cpu_type,
   std::vector<double>& cpu_mass,
   std::vector<double>& cpu_position_per_atom,
@@ -190,7 +193,11 @@ void read_xyz_in_line_3(
   cpu_mass.resize(N);
   cpu_position_per_atom.resize(N * 3);
   cpu_velocity_per_atom.resize(N * 3);
+#ifdef USE_NEP
+  number_of_types = atom_symbols.size();
+#else
   number_of_types = -1;
+#endif
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].cpu_label.resize(N);
@@ -199,12 +206,31 @@ void read_xyz_in_line_3(
 
   for (int n = 0; n < N; n++) {
     double mass, x, y, z;
+#ifdef USE_NEP
+    char atom_symbol_tmp[2];
+    int count = fscanf(fid_xyz, "%s%lf%lf%lf%lf", atom_symbol_tmp, &x, &y, &z, &mass);
+    std::string atom_symbol(atom_symbol_tmp);
+    std::cout << atom_symbol << std::endl;
+    bool is_allowed_element = false;
+    for (int t = 0; t < number_of_types; ++t) {
+      if (atom_symbol == atom_symbols[t]) {
+        cpu_type[n] = t;
+        is_allowed_element = true;
+      }
+    }
+    if (!is_allowed_element) {
+      PRINT_INPUT_ERROR("There is atom in xyz.in that is not allowed in the used NEP potential.\n");
+    }
+#else
     int count = fscanf(fid_xyz, "%d%lf%lf%lf%lf", &(cpu_type[n]), &x, &y, &z, &mass);
+#endif
     PRINT_SCANF_ERROR(count, 5, "Reading error for xyz.in.");
 
+#ifndef USE_NEP
     if (cpu_type[n] < 0 || cpu_type[n] >= N) {
       PRINT_INPUT_ERROR("Atom type should >= 0 and < N.");
     }
+#endif
 
     if (mass <= 0) {
       PRINT_INPUT_ERROR("Atom mass should > 0.");
@@ -215,9 +241,11 @@ void read_xyz_in_line_3(
     cpu_position_per_atom[n + N] = y;
     cpu_position_per_atom[n + N * 2] = z;
 
+#ifndef USE_NEP
     if (cpu_type[n] > number_of_types) {
       number_of_types = cpu_type[n];
     }
+#endif
 
     if (has_velocity_in_xyz) {
       double vx, vy, vz;
@@ -246,7 +274,9 @@ void read_xyz_in_line_3(
     group[m].number++;
   }
 
+#ifndef USE_NEP
   number_of_types++;
+#endif
 }
 
 void find_type_size(
@@ -274,6 +304,58 @@ void find_type_size(
   }
 }
 
+#ifdef USE_NEP
+static std::string get_filename_potential(char* input_dir)
+{
+  std::string filename_run = input_dir + std::string("/run.in");
+  std::ifstream input_run(filename_run);
+  if (!input_run.is_open()) {
+    std::cout << "Error: cannot open " + filename_run << std::endl;
+    exit(1);
+  }
+
+  std::string line;
+  std::string filename_potential;
+  while (std::getline(input_run, line)) {
+    std::stringstream ss(line);
+    std::string token;
+    ss >> token;
+    if (token == "potential") {
+      ss >> filename_potential;
+    }
+  }
+  input_run.close();
+
+  return filename_potential;
+}
+
+static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
+{
+  std::ifstream input_potential(filename_potential);
+  if (!input_potential.is_open()) {
+    std::cout << "Error: cannot open " + filename_potential << std::endl;
+    exit(1);
+  }
+
+  std::string potential_name;
+  input_potential >> potential_name;
+  if (potential_name != "nep") {
+    std::cout << "Error: The potential name must be 'nep' in this compiled version." << std::endl;
+    exit(1);
+  }
+
+  int number_of_types;
+  input_potential >> number_of_types;
+  std::vector<std::string> atom_symbols(number_of_types);
+  for (int n = 0; n < number_of_types; ++n) {
+    input_potential >> atom_symbols[n];
+  }
+
+  input_potential.close();
+  return atom_symbols;
+}
+#endif
+
 void initialize_position(
   char* input_dir,
   int& N,
@@ -298,8 +380,14 @@ void initialize_position(
 
   read_xyz_in_line_2(fid_xyz, box);
 
+  std::vector<std::string> atom_symbols;
+#ifdef USE_NEP
+  auto filename_potential = get_filename_potential(input_dir);
+  atom_symbols = get_atom_symbols(filename_potential);
+#endif
+
   read_xyz_in_line_3(
-    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom.cpu_type, atom.cpu_mass,
+    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom_symbols, atom.cpu_type, atom.cpu_mass,
     atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, group);
 
   fclose(fid_xyz);

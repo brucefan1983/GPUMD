@@ -34,10 +34,11 @@ fprintf(fid, '%d %d %d %g %g %g\n', 1, 1, 1, box_length);
 figure;
 hold on;
 for n =1 : N
-    fprintf(fid, '%d %g %g %g %g\n', type(n), r(n, :), mass(n));
-    if type(n)==52
+    if type(n)==0
+        fprintf(fid, 'Te %g %g %g %g\n', r(n, :), mass(n));
         plot3(r(n, 1),r(n, 2),r(n, 3),'ro');
     else
+        fprintf(fid, 'Pb %g %g %g %g\n', r(n, :), mass(n));
         plot3(r(n, 1),r(n, 2),r(n, 3),'bo');
     end
 end

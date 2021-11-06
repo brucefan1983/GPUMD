@@ -17,6 +17,7 @@
 #include "structure.cuh"
 #include <chrono>
 #include <random>
+#include <string>
 #include <vector>
 
 static void read_Nc(FILE* fid, std::vector<Structure>& structures)
@@ -146,14 +147,23 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
   structures[nc].fz.resize(structures[nc].num_atom);
 
   for (int na = 0; na < structures[nc].num_atom_original; ++na) {
+    char atom_symbol_tmp[2];
     int count = fscanf(
-      fid, "%d%f%f%f%f%f%f", &structures[nc].atomic_number[na], &structures[nc].x[na],
-      &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
+      fid, "%s%f%f%f%f%f%f", atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
+      &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
       &structures[nc].fz[na]);
     PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
+    std::string atom_symbol(atom_symbol_tmp);
 
-    if (structures[nc].atomic_number[na] < 0) {
-      PRINT_INPUT_ERROR("Atom type should >= 0.\n");
+    bool is_allowed_element = false;
+    for (int n = 0; n < para.elements.size(); ++n) {
+      if (atom_symbol == para.elements[n]) {
+        structures[nc].atomic_number[na] = n;
+        is_allowed_element = true;
+      }
+    }
+    if (!is_allowed_element) {
+      PRINT_INPUT_ERROR("There is atom in train.in or test.in that are not in nep.in.\n");
     }
   }
 
