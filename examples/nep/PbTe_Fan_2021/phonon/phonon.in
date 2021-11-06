@@ -1,0 +1,5 @@
+potential       examples/nep/PbTe_Fan_2021/train/nep.txt 0 1
+minimize  sd  -1 10000
+cutoff          30  # units of A
+delta           0.01 # displacement in units of A
+

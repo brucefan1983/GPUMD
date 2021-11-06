@@ -149,7 +149,7 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
   for (int na = 0; na < structures[nc].num_atom_original; ++na) {
     char atom_symbol_tmp[2];
     int count = fscanf(
-      fid, "%s%f%f%f%f%f%f", &atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
+      fid, "%s%f%f%f%f%f%f", atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
       &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
       &structures[nc].fz[na]);
     PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");

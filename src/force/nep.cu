@@ -35,6 +35,12 @@ NEP2::NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor)
 
   char name[20];
 
+  // need to read the num_types atom symbols, although they are not used here
+  for (int n = 0; n < num_types; ++n) {
+    int count = fscanf(fid, "%s", name);
+    PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
+  }
+
   paramb.num_types = num_types;
 
   int count = fscanf(fid, "%s%f%f", name, &paramb.rc_radial, &paramb.rc_angular);
