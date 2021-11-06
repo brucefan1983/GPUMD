@@ -53,8 +53,6 @@ void read_xyz_in_line_1(
 
   if (MN < 1) {
     PRINT_INPUT_ERROR("Maximum number of neighbors should >= 1.");
-  } else if (MN > 1024) {
-    PRINT_INPUT_ERROR("Maximum number of neighbors should <= 1024.");
   } else {
     printf("Maximum number of neighbors is %d.\n", MN);
   }
