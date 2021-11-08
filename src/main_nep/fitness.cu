@@ -77,7 +77,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);
   strcat(file_loss_out, "/loss.out");
-  fid_loss_out = my_fopen(file_loss_out, "w");
+  fid_loss_out = my_fopen(file_loss_out, "a");
 }
 
 Fitness::~Fitness() { fclose(fid_loss_out); }
