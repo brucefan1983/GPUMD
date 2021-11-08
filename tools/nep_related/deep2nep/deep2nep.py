@@ -209,7 +209,7 @@ def check_data(data):
         print('    coords', len(data['coords'][i]), end=' ')
         print('forces', len(data['forces'][i]))
 
-def dump (folder, data, nep_version=2):
+def dump (folder, data, nep_version=3):
     os.makedirs(folder, exist_ok = True)
 
     fout = open(os.path.join(folder, 'train.in'), 'w')
@@ -235,6 +235,9 @@ def dump (folder, data, nep_version=2):
             elif nep_version == 2:
                 ijtype=data['atom_types'][i][j]
                 outstr=outstr+str(int(ijtype))+' '
+            elif nep_version == 3:
+                ijname=data['atom_names'][i][j]
+                outstr=outstr+ijname+' '
             else:
                 raise "Errors with wrong <nep_version> para."
             outstr=outstr+' '.join(map(str, data['coords'][i][j]))+' '
@@ -250,7 +253,8 @@ def main():
 
     # Warning: nep_version=1: the 1st column in train.in respresents the number of protons.
     #          nep_version=2: the 1st column in train.in respresents the serial number, starting from 0 to N-1.
-    nep_version = 2
+    #          nep_version=3: the 1st column in train.in respresents the element.
+    nep_version = 3
 
     data = read_multi_deepmd('./'+instr)
     #check_data(data)
