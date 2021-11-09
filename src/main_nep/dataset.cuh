@@ -34,9 +34,11 @@ public:
   std::vector<int> Na_cpu;     // number of atoms in each configuration
   std::vector<int> Na_sum_cpu; // prefix sum of Na_cpu
 
-  GPU_Vector<int> type; // atom type (0, 1, 2, 3, ...)
-  GPU_Vector<float> r;  // position
-  GPU_Vector<float> h;  // box and inverse box
+  GPU_Vector<int> type;           // atom type (0, 1, 2, 3, ...)
+  GPU_Vector<float> r;            // position
+  GPU_Vector<float> box;          // (expanded) box and inverse box (18 components)
+  GPU_Vector<float> box_original; // (original) box (9 components)
+  GPU_Vector<int> num_cell;       // number of cells in the expanded box (3 components)
 
   GPU_Vector<float> energy;      // calculated energy in GPU
   GPU_Vector<float> virial;      // calculated virial in GPU

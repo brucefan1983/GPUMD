@@ -218,7 +218,7 @@ void Fitness::update_energy_force_virial(
   // update force.out
   for (int nc = 0; nc < dataset.Nc; ++nc) {
     int offset = dataset.Na_sum_cpu[nc];
-    for (int m = 0; m < dataset.structures[nc].num_atom_original; ++m) {
+    for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
       int n = offset + m;
       fprintf(
         fid_force, "%g %g %g %g %g %g\n", dataset.force_cpu[n], dataset.force_cpu[n + dataset.N],

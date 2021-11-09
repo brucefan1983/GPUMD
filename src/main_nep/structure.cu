@@ -38,7 +38,6 @@ static void read_Na(FILE* fid, std::vector<Structure>& structures)
     if (structures[nc].num_atom < 1) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 1.");
     }
-    structures[nc].num_atom_original = structures[nc].num_atom;
   }
 }
 
@@ -94,19 +93,19 @@ static void read_box(FILE* fid, int nc, Parameters& para, std::vector<Structure>
 
   float det = get_det(structures[nc].box_original);
   float volume = abs(det);
-  structures[nc].num_cell_a = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
-  structures[nc].num_cell_b = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
-  structures[nc].num_cell_c = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
+  structures[nc].num_cell[0] = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
+  structures[nc].num_cell[1] = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
+  structures[nc].num_cell[2] = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
 
-  structures[nc].box[0] = structures[nc].box_original[0] * structures[nc].num_cell_a;
-  structures[nc].box[3] = structures[nc].box_original[3] * structures[nc].num_cell_a;
-  structures[nc].box[6] = structures[nc].box_original[6] * structures[nc].num_cell_a;
-  structures[nc].box[1] = structures[nc].box_original[1] * structures[nc].num_cell_b;
-  structures[nc].box[4] = structures[nc].box_original[4] * structures[nc].num_cell_b;
-  structures[nc].box[7] = structures[nc].box_original[7] * structures[nc].num_cell_b;
-  structures[nc].box[2] = structures[nc].box_original[2] * structures[nc].num_cell_c;
-  structures[nc].box[5] = structures[nc].box_original[5] * structures[nc].num_cell_c;
-  structures[nc].box[8] = structures[nc].box_original[8] * structures[nc].num_cell_c;
+  structures[nc].box[0] = structures[nc].box_original[0] * structures[nc].num_cell[0];
+  structures[nc].box[3] = structures[nc].box_original[3] * structures[nc].num_cell[0];
+  structures[nc].box[6] = structures[nc].box_original[6] * structures[nc].num_cell[0];
+  structures[nc].box[1] = structures[nc].box_original[1] * structures[nc].num_cell[1];
+  structures[nc].box[4] = structures[nc].box_original[4] * structures[nc].num_cell[1];
+  structures[nc].box[7] = structures[nc].box_original[7] * structures[nc].num_cell[1];
+  structures[nc].box[2] = structures[nc].box_original[2] * structures[nc].num_cell[2];
+  structures[nc].box[5] = structures[nc].box_original[5] * structures[nc].num_cell[2];
+  structures[nc].box[8] = structures[nc].box_original[8] * structures[nc].num_cell[2];
 
   structures[nc].box[9] =
     structures[nc].box[4] * structures[nc].box[8] - structures[nc].box[5] * structures[nc].box[7];
@@ -127,7 +126,7 @@ static void read_box(FILE* fid, int nc, Parameters& para, std::vector<Structure>
   structures[nc].box[17] =
     structures[nc].box[0] * structures[nc].box[4] - structures[nc].box[1] * structures[nc].box[3];
 
-  det *= structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
+  det *= structures[nc].num_cell[0] * structures[nc].num_cell[1] * structures[nc].num_cell[2];
   for (int n = 9; n < 18; n++) {
     structures[nc].box[n] /= det;
   }
@@ -135,9 +134,6 @@ static void read_box(FILE* fid, int nc, Parameters& para, std::vector<Structure>
 
 static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structure>& structures)
 {
-  structures[nc].num_atom *=
-    structures[nc].num_cell_a * structures[nc].num_cell_b * structures[nc].num_cell_c;
-
   structures[nc].atomic_number.resize(structures[nc].num_atom);
   structures[nc].x.resize(structures[nc].num_atom);
   structures[nc].y.resize(structures[nc].num_atom);
@@ -146,7 +142,7 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
   structures[nc].fy.resize(structures[nc].num_atom);
   structures[nc].fz.resize(structures[nc].num_atom);
 
-  for (int na = 0; na < structures[nc].num_atom_original; ++na) {
+  for (int na = 0; na < structures[nc].num_atom; ++na) {
     char atom_symbol_tmp[2];
     int count = fscanf(
       fid, "%s%f%f%f%f%f%f", atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
@@ -164,36 +160,6 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
     }
     if (!is_allowed_element) {
       PRINT_INPUT_ERROR("There is atom in train.in or test.in that are not in nep.in.\n");
-    }
-  }
-
-  for (int ia = 0; ia < structures[nc].num_cell_a; ++ia) {
-    for (int ib = 0; ib < structures[nc].num_cell_b; ++ib) {
-      for (int ic = 0; ic < structures[nc].num_cell_c; ++ic) {
-        if (ia != 0 || ib != 0 || ic != 0) {
-          for (int na = 0; na < structures[nc].num_atom_original; ++na) {
-            int na_new =
-              na + (ia + (ib + ic * structures[nc].num_cell_b) * structures[nc].num_cell_a) *
-                     structures[nc].num_atom_original;
-            float delta_x = structures[nc].box_original[0] * ia +
-                            structures[nc].box_original[1] * ib +
-                            structures[nc].box_original[2] * ic;
-            float delta_y = structures[nc].box_original[3] * ia +
-                            structures[nc].box_original[4] * ib +
-                            structures[nc].box_original[5] * ic;
-            float delta_z = structures[nc].box_original[6] * ia +
-                            structures[nc].box_original[7] * ib +
-                            structures[nc].box_original[8] * ic;
-            structures[nc].atomic_number[na_new] = structures[nc].atomic_number[na];
-            structures[nc].x[na_new] = structures[nc].x[na] + delta_x;
-            structures[nc].y[na_new] = structures[nc].y[na] + delta_y;
-            structures[nc].z[na_new] = structures[nc].z[na] + delta_z;
-            structures[nc].fx[na_new] = structures[nc].fx[na];
-            structures[nc].fy[na_new] = structures[nc].fy[na];
-            structures[nc].fz[na_new] = structures[nc].fz[na];
-          }
-        }
-      }
     }
   }
 }
@@ -227,7 +193,6 @@ static void reorder(std::vector<Structure>& structures)
 
   for (int nc = 0; nc < structures.size(); ++nc) {
     structures_copy[nc].num_atom = structures[nc].num_atom;
-    structures_copy[nc].num_atom_original = structures[nc].num_atom_original;
     structures_copy[nc].has_virial = structures[nc].has_virial;
     structures_copy[nc].energy = structures[nc].energy;
     for (int k = 0; k < 6; ++k) {
@@ -235,6 +200,12 @@ static void reorder(std::vector<Structure>& structures)
     }
     for (int k = 0; k < 18; ++k) {
       structures_copy[nc].box[k] = structures[nc].box[k];
+    }
+    for (int k = 0; k < 9; ++k) {
+      structures_copy[nc].box_original[k] = structures[nc].box_original[k];
+    }
+    for (int k = 0; k < 3; ++k) {
+      structures_copy[nc].num_cell[k] = structures[nc].num_cell[k];
     }
     structures_copy[nc].atomic_number.resize(structures[nc].num_atom);
     structures_copy[nc].x.resize(structures[nc].num_atom);
@@ -256,7 +227,6 @@ static void reorder(std::vector<Structure>& structures)
 
   for (int nc = 0; nc < structures.size(); ++nc) {
     structures[nc].num_atom = structures_copy[configuration_id[nc]].num_atom;
-    structures[nc].num_atom_original = structures_copy[configuration_id[nc]].num_atom_original;
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
     for (int k = 0; k < 6; ++k) {
@@ -264,6 +234,12 @@ static void reorder(std::vector<Structure>& structures)
     }
     for (int k = 0; k < 18; ++k) {
       structures[nc].box[k] = structures_copy[configuration_id[nc]].box[k];
+    }
+    for (int k = 0; k < 9; ++k) {
+      structures[nc].box_original[k] = structures_copy[configuration_id[nc]].box_original[k];
+    }
+    for (int k = 0; k < 3; ++k) {
+      structures[nc].num_cell[k] = structures_copy[configuration_id[nc]].num_cell[k];
     }
     structures[nc].atomic_number.resize(structures[nc].num_atom);
     structures[nc].x.resize(structures[nc].num_atom);
@@ -306,7 +282,7 @@ void read_structures(
 
   fclose(fid);
 
-  if (is_train) {
+  if (is_train) { // TODO: only reorder if using mini-batch
     reorder(structures);
   }
 }
