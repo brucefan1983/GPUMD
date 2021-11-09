@@ -305,11 +305,12 @@ void find_type_size(
 
 static std::string get_filename_potential(char* input_dir)
 {
-  std::string filename_run = input_dir + std::string("/run.in");
-  std::ifstream input_run(filename_run);
+  std::ifstream input_run(input_dir + std::string("/run.in"));
   if (!input_run.is_open()) {
-    std::cout << "Error: cannot open " + filename_run << std::endl;
-    exit(1);
+    input_run.open(input_dir + std::string("/phonon.in"));
+    if (!input_run.is_open()) {
+      PRINT_INPUT_ERROR("No run.in or phonon.in.");
+    }
   }
 
   std::string line;
