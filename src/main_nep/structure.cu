@@ -282,7 +282,8 @@ void read_structures(
 
   fclose(fid);
 
-  if (is_train) { // TODO: only reorder if using mini-batch
+  // only reorder if not using full batch
+  if (is_train && (para.batch_size < structures.size())) {
     reorder(structures);
   }
 }
