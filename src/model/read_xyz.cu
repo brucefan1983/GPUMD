@@ -400,6 +400,10 @@ void initialize_position(
   if (is_nep(filename_potential)) {
     PRINT_INPUT_ERROR("You are using an NEP potential without adding -DUSE_NEP in the makefile.");
   }
+#else
+  if (!is_nep(filename_potential)) {
+    PRINT_INPUT_ERROR("You are using an empirical potential with -DUSE_NEP in the makefile.");
+  }
 #endif
 
 #ifdef USE_NEP

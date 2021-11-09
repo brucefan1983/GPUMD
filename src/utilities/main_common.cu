@@ -33,7 +33,21 @@ void print_compile_information(void)
 #endif
 
 #ifdef USE_FCP
-  printf("USE_FCP is on: Using the force constant potential only.\n");
+
+#ifdef USE_NEP
+  PRINT_INPUT_ERROR("Cannot add both -DUSE_FCP and -DUSE_NEP to the makefile.");
+#else
+  printf("This version can only be used with an FCP potential.\n");
+#endif
+
+#else
+
+#ifdef USE_NEP
+  printf("This version can only be used with an NEP potential.\n");
+#else
+  printf("This version can only be used with empirical potentials (not FCP or NEP).\n");
+#endif
+
 #endif
 }
 
