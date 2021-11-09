@@ -303,7 +303,6 @@ void find_type_size(
   }
 }
 
-#ifdef USE_NEP
 static std::string get_filename_potential(char* input_dir)
 {
   std::string filename_run = input_dir + std::string("/run.in");
@@ -328,6 +327,20 @@ static std::string get_filename_potential(char* input_dir)
   return filename_potential;
 }
 
+static bool is_nep(std::string& filename_potential)
+{
+  std::ifstream input_potential(filename_potential);
+  if (!input_potential.is_open()) {
+    std::cout << "Error: cannot open " + filename_potential << std::endl;
+    exit(1);
+  }
+
+  std::string potential_name;
+  input_potential >> potential_name;
+  return potential_name == "nep";
+}
+
+#ifdef USE_NEP
 static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
@@ -380,8 +393,15 @@ void initialize_position(
   read_xyz_in_line_2(fid_xyz, box);
 
   std::vector<std::string> atom_symbols;
-#ifdef USE_NEP
   auto filename_potential = get_filename_potential(input_dir);
+
+#ifndef USE_NEP
+  if (is_nep(filename_potential)) {
+    PRINT_INPUT_ERROR("You are using an NEP potential without adding -DUSE_NEP in the makefile.");
+  }
+#endif
+
+#ifdef USE_NEP
   atom_symbols = get_atom_symbols(filename_potential);
 #endif
 
