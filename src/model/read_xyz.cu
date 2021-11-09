@@ -210,7 +210,6 @@ void read_xyz_in_line_3(
     char atom_symbol_tmp[2];
     int count = fscanf(fid_xyz, "%s%lf%lf%lf%lf", atom_symbol_tmp, &x, &y, &z, &mass);
     std::string atom_symbol(atom_symbol_tmp);
-    std::cout << atom_symbol << std::endl;
     bool is_allowed_element = false;
     for (int t = 0; t < number_of_types; ++t) {
       if (atom_symbol == atom_symbols[t]) {
