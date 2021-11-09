@@ -19,11 +19,8 @@
 class Parameters;
 
 struct Structure {
-  int num_cell_a;
-  int num_cell_b;
-  int num_cell_c;
+  int num_cell[3];
   int num_atom;
-  int num_atom_original;
   int has_virial;
   float energy;
   float virial[6];

@@ -26,7 +26,6 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
   for (int n = 0; n < Nc; ++n) {
     int n_input = n + n1;
     structures[n].num_atom = structures_input[n_input].num_atom;
-    structures[n].num_atom_original = structures_input[n_input].num_atom_original;
     structures[n].has_virial = structures_input[n_input].has_virial;
     structures[n].energy = structures_input[n_input].energy;
     for (int k = 0; k < 6; ++k) {
@@ -34,6 +33,12 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     }
     for (int k = 0; k < 18; ++k) {
       structures[n].box[k] = structures_input[n_input].box[k];
+    }
+    for (int k = 0; k < 9; ++k) {
+      structures[n].box_original[k] = structures_input[n_input].box_original[k];
+    }
+    for (int k = 0; k < 3; ++k) {
+      structures[n].num_cell[k] = structures_input[n_input].num_cell[k];
     }
 
     structures[n].atomic_number.resize(structures[n].num_atom);
@@ -93,7 +98,9 @@ void Dataset::find_Na()
 
 void Dataset::initialize_gpu_data(Parameters& para)
 {
-  std::vector<float> h_cpu(Nc * 18);
+  std::vector<float> box_cpu(Nc * 18);
+  std::vector<float> box_original_cpu(Nc * 9);
+  std::vector<int> num_cell_cpu(Nc * 3);
   std::vector<float> r_cpu(N * 3);
   std::vector<int> type_cpu(N);
 
@@ -114,7 +121,13 @@ void Dataset::initialize_gpu_data(Parameters& para)
       virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
     }
     for (int k = 0; k < 18; ++k) {
-      h_cpu[k + n * 18] = structures[n].box[k];
+      box_cpu[k + n * 18] = structures[n].box[k];
+    }
+    for (int k = 0; k < 9; ++k) {
+      box_original_cpu[k + n * 9] = structures[n].box_original[k];
+    }
+    for (int k = 0; k < 3; ++k) {
+      num_cell_cpu[k + n * 3] = structures[n].num_cell[k];
     }
     for (int na = 0; na < structures[n].num_atom; ++na) {
       type_cpu[Na_sum_cpu[n] + na] = structures[n].atomic_number[na];
@@ -134,10 +147,14 @@ void Dataset::initialize_gpu_data(Parameters& para)
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
 
-  h.resize(Nc * 18);
+  box.resize(Nc * 18);
+  box_original.resize(Nc * 9);
+  num_cell.resize(Nc * 3);
   r.resize(N * 3);
   type.resize(N);
-  h.copy_from_host(h_cpu.data());
+  box.copy_from_host(box_cpu.data());
+  box_original.copy_from_host(box_original_cpu.data());
+  num_cell.copy_from_host(num_cell_cpu.data());
   r.copy_from_host(r_cpu.data());
   type.copy_from_host(type_cpu.data());
 }
@@ -178,7 +195,9 @@ static __global__ void gpu_find_neighbor_number(
   const int* Na_sum,
   const float rc2_radial,
   const float rc2_angular,
-  const float* __restrict__ box,
+  const float* __restrict__ g_box,
+  const float* __restrict__ g_box_original,
+  const int* __restrict__ g_num_cell,
   const float* x,
   const float* y,
   const float* z,
@@ -188,26 +207,37 @@ static __global__ void gpu_find_neighbor_number(
   int N1 = Na_sum[blockIdx.x];
   int N2 = N1 + Na[blockIdx.x];
   for (int n1 = N1 + threadIdx.x; n1 < N2; n1 += blockDim.x) {
-    const float* __restrict__ h = box + 18 * blockIdx.x;
+    const float* __restrict__ box = g_box + 18 * blockIdx.x;
+    const float* __restrict__ box_original = g_box_original + 9 * blockIdx.x;
+    const int* __restrict__ num_cell = g_num_cell + 3 * blockIdx.x;
     float x1 = x[n1];
     float y1 = y[n1];
     float z1 = z[n1];
     int count_radial = 0;
     int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
-      if (n2 == n1) {
-        continue;
-      }
-      float x12 = x[n2] - x1;
-      float y12 = y[n2] - y1;
-      float z12 = z[n2] - z1;
-      dev_apply_mic(h, x12, y12, z12);
-      float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-      if (distance_square < rc2_radial) {
-        count_radial++;
-      }
-      if (distance_square < rc2_angular) {
-        count_angular++;
+      for (int ia = 0; ia < num_cell[0]; ++ia) {
+        for (int ib = 0; ib < num_cell[1]; ++ib) {
+          for (int ic = 0; ic < num_cell[2]; ++ic) {
+            if (ia == 0 && ib == 0 && ic == 0 && n1 == n2) {
+              continue; // exclude self
+            }
+            float delta_x = box_original[0] * ia + box_original[1] * ib + box_original[2] * ic;
+            float delta_y = box_original[3] * ia + box_original[4] * ib + box_original[5] * ic;
+            float delta_z = box_original[6] * ia + box_original[7] * ib + box_original[8] * ic;
+            float x12 = x[n2] + delta_x - x1;
+            float y12 = y[n2] + delta_y - y1;
+            float z12 = z[n2] + delta_z - z1;
+            dev_apply_mic(box, x12, y12, z12);
+            float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
+            if (distance_square < rc2_radial) {
+              count_radial++;
+            }
+            if (distance_square < rc2_angular) {
+              count_angular++;
+            }
+          }
+        }
       }
     }
     NN_radial[n1] = count_radial;
@@ -225,8 +255,9 @@ void Dataset::find_neighbor(Parameters& para)
   float rc2_angular = para.rc_angular * para.rc_angular;
 
   gpu_find_neighbor_number<<<Nc, 256>>>(
-    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, h.data(), r.data(), r.data() + N,
-    r.data() + N * 2, NN_radial_gpu.data(), NN_angular_gpu.data());
+    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, box.data(), box_original.data(),
+    num_cell.data(), r.data(), r.data() + N, r.data() + N * 2, NN_radial_gpu.data(),
+    NN_angular_gpu.data());
   CUDA_CHECK_KERNEL
 
   NN_radial_gpu.copy_to_host(NN_radial_cpu.data());
@@ -328,13 +359,10 @@ float Dataset::get_rmse_force()
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_sum = 0.0f;
-  int num_sum = 0;
   for (int n = 0; n < Nc; ++n) {
-    int num_cells = structures[n].num_atom / structures[n].num_atom_original;
-    error_sum += error_cpu[n] / num_cells;
-    num_sum += structures[n].num_atom_original;
+    error_sum += error_cpu[n];
   }
-  return sqrt(error_sum / (num_sum * 3));
+  return sqrt(error_sum / (N * 3));
 }
 
 static __global__ void
