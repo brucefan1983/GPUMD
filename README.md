@@ -17,10 +17,7 @@
 * Go to the `src` directory and type `make`. When the compilation finishes, three executables, `gpumd`, `phonon`, and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
-* Go to the directory where you can see `src`
-* Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`
-* Type `src/phonon < examples/input_phonon.txt` to run the example in `examples/phonon`
-* Type `src/nep < examples/input_nep.txt` to run the example in `examples/nep/PbTe_Fan_2021/train`
+* See the `examples/readme.md` file.
 
 ## Manual
 * We only maintain the online manual now: https://gpumd.zheyongfan.org
