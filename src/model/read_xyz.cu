@@ -328,7 +328,7 @@ static std::string get_filename_potential(char* input_dir)
   return filename_potential;
 }
 
-static bool is_nep(std::string& filename_potential)
+static int get_potential_type(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
   if (!input_potential.is_open()) {
@@ -338,7 +338,15 @@ static bool is_nep(std::string& filename_potential)
 
   std::string potential_name;
   input_potential >> potential_name;
-  return potential_name == "nep";
+  input_potential.close();
+
+  if (potential_name == "fcp") {
+    return 1;
+  } else if (potential_name == "nep") {
+    return 2;
+  } else {
+    return 0; // empirical potentials
+  }
 }
 
 #ifdef USE_NEP
@@ -397,12 +405,20 @@ void initialize_position(
   auto filename_potential = get_filename_potential(input_dir);
 
 #ifndef USE_NEP
-  if (is_nep(filename_potential)) {
-    PRINT_INPUT_ERROR("You are using an NEP potential without adding -DUSE_NEP in the makefile.");
+  if (get_potential_type(filename_potential) == 2) {
+    PRINT_INPUT_ERROR("You are using NEP potential without adding -DUSE_NEP in makefile.");
   }
-#else
-  if (!is_nep(filename_potential)) {
-    PRINT_INPUT_ERROR("You are using an empirical potential with -DUSE_NEP in the makefile.");
+#endif
+
+#ifndef USE_FCP
+  if (get_potential_type(filename_potential) == 1) {
+    PRINT_INPUT_ERROR("You are using FCP potential without adding -DUSE_FCP in makefile.");
+  }
+#endif
+
+#if defined(USE_FCP) || defined(USE_NEP)
+  if (get_potential_type(filename_potential) == 0) {
+    PRINT_INPUT_ERROR("You are using empirical potential with -DUSE_FCP or -DUSE_NEP in makefile.");
   }
 #endif
 
