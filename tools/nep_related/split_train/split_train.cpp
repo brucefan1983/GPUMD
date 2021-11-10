@@ -12,6 +12,7 @@ run:
 #include <cstdlib>
 #include <cstring>
 #include <random>
+#include <string>
 #include <vector>
 
 // some global variables:
@@ -22,7 +23,7 @@ struct Structure {
   float energy;
   float virial[6];
   float box[9];
-  std::vector<int> atomic_number;
+  std::vector<std::string> atomic_number;
   std::vector<float> x;
   std::vector<float> y;
   std::vector<float> z;
@@ -115,14 +116,13 @@ void read(FILE* fid)
     structures[nc].fy.resize(structures[nc].num_atom);
     structures[nc].fz.resize(structures[nc].num_atom);
     for (int na = 0; na < structures[nc].num_atom; ++na) {
+      char atom_symbol_tmp[3];
       int count = fscanf(
-        fid, "%d%f%f%f%f%f%f", &structures[nc].atomic_number[na], &structures[nc].x[na],
-        &structures[nc].y[na], &structures[nc].z[na], &structures[nc].fx[na],
-        &structures[nc].fy[na], &structures[nc].fz[na]);
+        fid, "%s%f%f%f%f%f%f", atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
+        &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
+        &structures[nc].fz[na]);
       PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
-      if (structures[nc].atomic_number[na] < 0) {
-        PRINT_INPUT_ERROR("Atomic number should >= 0.\n");
-      }
+      structures[nc].atomic_number[na] = std::string(atom_symbol_tmp);
     }
   }
 }
@@ -236,9 +236,9 @@ void write(FILE* fid, int nc1, int nc2)
       structures[nc].box[8]);
     for (int n = 0; n < structures[nc].num_atom; ++n) {
       fprintf(
-        fid, "%d %15.6e %15.6e %15.6e %15.6e %15.6e %15.6e\n", structures[nc].atomic_number[n],
-        structures[nc].x[n], structures[nc].y[n], structures[nc].z[n], structures[nc].fx[n],
-        structures[nc].fy[n], structures[nc].fz[n]);
+        fid, "%s %15.6e %15.6e %15.6e %15.6e %15.6e %15.6e\n",
+        structures[nc].atomic_number[n].c_str(), structures[nc].x[n], structures[nc].y[n],
+        structures[nc].z[n], structures[nc].fx[n], structures[nc].fy[n], structures[nc].fz[n]);
     }
   }
 }
