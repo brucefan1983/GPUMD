@@ -1,9 +1,14 @@
 # How to run the examples?
 
-* Go to the directory where you can see `src`
-* Type `src/gpumd < examples/input_gpumd.txt` to run the examples in `examples/gpumd`
-* Type `src/phonon < examples/input_phonon.txt` to run the example in `examples/phonon`
-* Type `src/nep < examples/input_nep.txt` to run the example in `examples/nep/PbTe_Fan_2021/train`
+* First, compile the correct version you need:
+  * If you want to use empirical potentials, do not add -DUSE_FCP or -DUSE_NEP to CFLAGS in the makefile.
+  * If you want to use an FCP potential, add -DUSE_FCP to CFLAGS in the makefile.
+  * If you want to use an NEP potential, add -DUSE_NEP to CFLAGS in the makefile.
 
-  
-
+* Then, go to the directory where you can see `src` and type one of the following commands to run something:
+  * `src/gpumd < examples/empirical_potentials/input_gpumd.txt`
+  * `src/gpumd < examples/fcp_potentials/input_gpumd.txt`
+  * `src/gpumd < examples/nep_potentials/input_gpumd.txt`
+  * `src/phonon < examples/empirical_potentials/input_phonon.txt`
+  * `src/phonon < examples/nep_potentials/input_phonon.txt`
+  * `src/nep < examples/nep_potentials/input_nep.txt`
