@@ -207,7 +207,7 @@ void read_xyz_in_line_3(
   for (int n = 0; n < N; n++) {
     double mass, x, y, z;
 #ifdef USE_NEP
-    char atom_symbol_tmp[2];
+    char atom_symbol_tmp[10];
     int count = fscanf(fid_xyz, "%s%lf%lf%lf%lf", atom_symbol_tmp, &x, &y, &z, &mass);
     std::string atom_symbol(atom_symbol_tmp);
     bool is_allowed_element = false;

@@ -116,7 +116,7 @@ void read(FILE* fid)
     structures[nc].fy.resize(structures[nc].num_atom);
     structures[nc].fz.resize(structures[nc].num_atom);
     for (int na = 0; na < structures[nc].num_atom; ++na) {
-      char atom_symbol_tmp[3];
+      char atom_symbol_tmp[10];
       int count = fscanf(
         fid, "%s%f%f%f%f%f%f", atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
         &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],

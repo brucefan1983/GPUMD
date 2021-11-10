@@ -143,7 +143,7 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
   structures[nc].fz.resize(structures[nc].num_atom);
 
   for (int na = 0; na < structures[nc].num_atom; ++na) {
-    char atom_symbol_tmp[2];
+    char atom_symbol_tmp[10];
     int count = fscanf(
       fid, "%s%f%f%f%f%f%f", atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
       &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
