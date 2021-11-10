@@ -1,3 +1,0 @@
-1
-examples/phonon/phonon_dispersion
-
