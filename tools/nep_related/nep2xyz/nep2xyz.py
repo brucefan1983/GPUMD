@@ -40,7 +40,7 @@ def vec2volume(cells):
 
 # Load NEP dataset file (train.in)
 # input: the path of train.in file.
-def load_type(folder):
+def load_type(folder, nep_version=3, type_map=['C','H','O']):
 
     data = {}
     data['infile'] = os.path.join(folder, 'train.in')
@@ -99,7 +99,14 @@ def load_type(folder):
             # fifth, get the coords and forces of each atom in the frame.
             for j in range(int(data['atom_numbs'][i])):
                 tnline = anline + j
-                atom_type.append(str(flines[tnline].split()[0]))
+                if nep_version == 1:
+                    atom_type.append(ELEMENTS[int(flines[tnline].split()[0])])
+                elif nep_version == 2:
+                    atom_type.append(type_map.index(str(flines[tnline].split()[0])))
+                elif nep_version == 3:
+                    atom_type.append(str(flines[tnline].split()[0]))
+                else:
+                    raise "Errors with wrong <nep_version> para."
                 atom_coor.append(np.array(list(map(float, flines[tnline].split()[1:4]))))
                 atom_forc.append(np.array(list(map(float, flines[tnline].split()[4:]))))
             data['atom_names'][i] = atom_type
@@ -186,11 +193,11 @@ def conver2deepmd(instr):
 def main():
 
     instr = sys.argv[1]
-
-    data = load_type('./'+instr)
+    # if new_version == 2, you must add the type_map keywords.
+    data = load_type('./'+instr, nep_version=3)
     print_xyz(data, './'+instr)
 
-    conver2deepmd(instr)
+    #conver2deepmd(instr)
 
 
 if __name__ == "__main__":
