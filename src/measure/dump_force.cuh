@@ -36,4 +36,5 @@ private:
   FILE* fid_;
   char filename_[200];
   std::vector<double> cpu_force_per_atom;
+  GPU_Vector<double> gpu_force_tmp;
 };

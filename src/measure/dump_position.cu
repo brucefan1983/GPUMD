@@ -73,6 +73,26 @@ void Dump_Position::preprocess(char* input_dir)
   }
 }
 
+__global__ void copy_position(
+  const int num_atoms,
+  const int offset,
+  const int* g_group_contents,
+  const double* g_x_i,
+  const double* g_y_i,
+  const double* g_z_i,
+  double* g_x_o,
+  double* g_y_o,
+  double* g_z_o)
+{
+  const int n = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n < num_atoms) {
+    const int m = g_group_contents[offset + n];
+    g_x_o[n] = g_x_i[m];
+    g_y_o[n] = g_y_i[m];
+    g_z_o[n] = g_z_i[m];
+  }
+}
+
 void Dump_Position::process(
   const int step,
   const std::vector<Group>& groups,
@@ -99,20 +119,24 @@ void Dump_Position::process(
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
     const int group_size_sum = groups[grouping_method_].cpu_size_sum[group_id_];
-
+    GPU_Vector<double> gpu_position_tmp(group_size * 3);
+    copy_position<<<(group_size - 1) / 128 + 1, 128>>>(
+      group_size, group_size_sum, groups[grouping_method_].contents.data(),
+      position_per_atom.data(), position_per_atom.data() + num_atoms_total,
+      position_per_atom.data() + 2 * num_atoms_total, gpu_position_tmp.data(),
+      gpu_position_tmp.data() + group_size, gpu_position_tmp.data() + group_size * 2);
     for (int d = 0; d < 3; ++d) {
-      double* cpu_v = cpu_position_per_atom.data() + num_atoms_total * d + group_size_sum;
-      double* gpu_v = position_per_atom.data() + num_atoms_total * d + group_size_sum;
-      CHECK(cudaMemcpy(cpu_v, gpu_v, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
+      double* cpu_data = cpu_position_per_atom.data() + num_atoms_total * d;
+      double* gpu_data = gpu_position_tmp.data() + group_size * d;
+      CHECK(cudaMemcpy(cpu_data, gpu_data, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
     }
-
     fprintf(fid_, "%d\n", group_size);
     fprintf(fid_, "%d\n", (step + 1) / dump_interval_ - 1);
     for (int n = 0; n < group_size; n++) {
       fprintf(
-        fid_, precision_str_, cpu_type[n], cpu_position_per_atom[n + group_size_sum],
-        cpu_position_per_atom[n + num_atoms_total + group_size_sum],
-        cpu_position_per_atom[n + 2 * num_atoms_total + group_size_sum]);
+        fid_, precision_str_, cpu_type[groups[grouping_method_].cpu_contents[group_size_sum + n]],
+        cpu_position_per_atom[n], cpu_position_per_atom[n + num_atoms_total],
+        cpu_position_per_atom[n + 2 * num_atoms_total]);
     }
   }
 
