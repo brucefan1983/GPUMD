@@ -238,6 +238,46 @@ void NEP2::update_potential(const float* parameters, ANN& ann)
   }
 }
 
+static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
+{
+  const int tid = threadIdx.x;
+  const int bid = blockIdx.x;
+  __shared__ float s_max[1024];
+  __shared__ float s_min[1024];
+  s_max[tid] = -1000000.0f; // a small number
+  s_min[tid] = +1000000.0f; // a large number
+  const int stride = 1024;
+  const int number_of_rounds = (N - 1) / stride + 1;
+  for (int round = 0; round < number_of_rounds; ++round) {
+    const int n = round * stride + tid;
+    if (n < N) {
+      const int m = n + N * bid;
+      float q = g_q[m];
+      if (q > s_max[tid]) {
+        s_max[tid] = q;
+      }
+      if (q < s_min[tid]) {
+        s_min[tid] = q;
+      }
+    }
+  }
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      if (s_max[tid] < s_max[tid + offset]) {
+        s_max[tid] = s_max[tid + offset];
+      }
+      if (s_min[tid] > s_min[tid + offset]) {
+        s_min[tid] = s_min[tid + offset];
+      }
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
+  }
+}
+
 static __device__ void
 apply_ann_one_layer(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
 {
@@ -451,7 +491,8 @@ static __global__ void find_force_angular(
   }
 }
 
-void NEP2::find_force(Parameters& para, const float* parameters, Dataset& dataset)
+void NEP2::find_force(
+  Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
 {
   CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
   float* address_c_parameters;
@@ -484,6 +525,12 @@ void NEP2::find_force(Parameters& para, const float* parameters, Dataset& datase
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.descriptors.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
+
+  if (calculate_q_scaler) {
+    find_max_min<<<annmb.dim, 1024>>>(
+      dataset.N, nep_data.descriptors.data(), para.q_scaler_gpu.data());
+    CUDA_CHECK_KERNEL
+  }
 
   apply_ann<<<grid_size, block_size>>>(
     dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler_gpu.data(),
