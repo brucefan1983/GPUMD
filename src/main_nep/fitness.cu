@@ -85,10 +85,18 @@ Fitness::~Fitness() { fclose(fid_loss_out); }
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
+  if (generation == 0) {
+    std::vector<float> dummy_solution(para.number_of_variables, 1.0f);
+    for (int n = 0; n < num_batches; ++n) {
+      potential->find_force(para, dummy_solution.data(), train_set[n], true);
+    }
+    potential->find_force(para, dummy_solution.data(), test_set, true);
+  }
+
   int batch_id = generation % num_batches;
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
-    potential->find_force(para, individual, train_set[batch_id]);
+    potential->find_force(para, individual, train_set[batch_id], false);
     fitness[n + 0 * para.population_size] = train_set[batch_id].get_rmse_energy();
     fitness[n + 1 * para.population_size] = train_set[batch_id].get_rmse_force();
     fitness[n + 2 * para.population_size] = train_set[batch_id].get_rmse_virial();
@@ -121,7 +129,7 @@ void Fitness::report_error(
 {
   if (0 == (generation + 1) % 100) {
 
-    potential->find_force(para, elite, test_set);
+    potential->find_force(para, elite, test_set, false);
     float rmse_energy_test = test_set.get_rmse_energy();
     float rmse_force_test = test_set.get_rmse_force();
     float rmse_virial_test = test_set.get_rmse_virial();
@@ -143,6 +151,7 @@ void Fitness::report_error(
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_nep, "%15.7e\n", elite[m]);
     }
+    para.q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
     for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
       fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
     }
@@ -197,7 +206,7 @@ void Fitness::report_error(
       FILE* fid_virial = my_fopen(file_virial, "w");
 
       for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-        potential->find_force(para, elite, train_set[batch_id]);
+        potential->find_force(para, elite, train_set[batch_id], false);
         update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id]);
       }
 

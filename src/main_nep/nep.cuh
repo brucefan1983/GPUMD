@@ -66,7 +66,8 @@ public:
     int N,
     int N_times_max_NN_radial,
     int N_times_max_NN_angular);
-  void find_force(Parameters& para, const float* parameters, Dataset& dataset);
+  void
+  find_force(Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler);
 
 private:
   ParaMB paramb;
