@@ -28,6 +28,7 @@ class Measure;
 #include "model/neighbor.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "velocity.cuh"
 #include <vector>
 
 class Run
@@ -56,6 +57,7 @@ private:
   Atom atom;
   GPU_Vector<double> thermo; // some thermodynamic quantities
   Neighbor neighbor;
+  Velocity velocity;
   Box box;
   std::vector<Group> group;
 

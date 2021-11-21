@@ -29,7 +29,12 @@ public:
     std::vector<double>& cpu_velocity_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 
+  void finalize();
+
 private:
+  bool do_velocity_correction;
+  int velocity_correction_interval;
+
   void correct_velocity(
     const double initial_temperature,
     const std::vector<double>& cpu_mass,

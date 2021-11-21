@@ -244,3 +244,5 @@ void Velocity::initialize(
 
   printf("Initialized velocities with T = %g K.\n", initial_temperature);
 }
+
+void Velocity::finalize() { do_velocity_correction = false; }

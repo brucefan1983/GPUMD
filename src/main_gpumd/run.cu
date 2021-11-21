@@ -149,6 +149,8 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "neighbor") == 0) {
     parse_neighbor(param, num_param);
+  } else if (strcmp(param[0], "correct_velocity") == 0) {
+    // TODO
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     measure.dump_thermo.parse(param, num_param);
   } else if (strcmp(param[0], "dump_position") == 0) {
@@ -207,8 +209,6 @@ void Run::parse_velocity(char** param, int num_param)
   if (initial_temperature <= 0.0) {
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
   }
-
-  Velocity velocity;
   velocity.initialize(
     has_velocity_in_xyz, initial_temperature, atom.cpu_mass, atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom, atom.velocity_per_atom);
