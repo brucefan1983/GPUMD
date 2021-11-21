@@ -1,10 +1,8 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (2)
+## Preprints (1)
 
 * Zheyong Fan, Improving the accuracy of the neuroevolution machine learning potential for multi-component systems, https://arxiv.org/abs/2109.10643
-
-* Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
 
 
 ## 2022 (2)
@@ -14,7 +12,9 @@
 
 * Shuo Jin, Zhongwei Zhang, Yangyu Guo, Jie Chen, Masahiro Nomura, and Sebastian Volz, [Optimization of interfacial thermal transport in Si/Ge heterostructure driven by machine learning](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122014), International Journal of Heat and Mass Transfer, **182**, 122014 (2022).
 
-## 2021 (12)
+## 2021 (13)
+
+* Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, Advanced Theory and Simulations, **4**, 2100217 (2021). (I don't know why there is not valid doi yet. A slow journal.)
 
 * Shi En Kim, Fauzia Mujid, Akash Rai, Fredrik Eriksson, Joonki Suh, Preeti Poddar, Ariana Ray, Chibeom Park, Erik Fransson, Yu Zhong, David A. Muller, Paul Erhart, David G. Cahill, and Jiwoong Park, [Extremely anisotropic van der Waals thermal conductors](https://doi.org/10.1038/s41586-021-03867-8), Nature **597**, 660 (2021). 
 
