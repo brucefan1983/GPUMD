@@ -5,12 +5,14 @@
 * Zheyong Fan, Improving the accuracy of the neuroevolution machine learning potential for multi-component systems, https://arxiv.org/abs/2109.10643
 
 
-## 2022 (2)
+## 2022 (3)
 
 * Penghua Ying, Ting Liang, Yao Du, Jin Zhang, Xiaoliang Zeng, and Zheng Zhong, [Thermal transport in planar sp2-hybridized carbon allotropes: A comparative study of biphenylene network, pentaheptite and graphene](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122060), International Journal of Heat and Mass Transfer, **183**,
 122060 (2022).
 
 * Shuo Jin, Zhongwei Zhang, Yangyu Guo, Jie Chen, Masahiro Nomura, and Sebastian Volz, [Optimization of interfacial thermal transport in Si/Ge heterostructure driven by machine learning](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122014), International Journal of Heat and Mass Transfer, **182**, 122014 (2022).
+
+* Keqiang Li, Yajuan Cheng, Hongying Wang, Yangyu Guo, Zhongwei Zhang, Marc Bescond, Massahiro Nomura, Sebastian Volz, Xiaohong Zhang, and Shiyun Xiong, [Phonon resonant effect in silicon membranes with different crystallographic orientations](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122144), International Journal of Heat and Mass Transfer, **Volume** 122144 (2022).
 
 ## 2021 (13)
 
