@@ -34,9 +34,8 @@ public:
 
   void correct_velocity(
     const int step,
-    const double temperature,
     const std::vector<double>& cpu_mass,
-    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& position_per_atom,
     std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom,
     GPU_Vector<double>& velocity_per_atom);
@@ -45,7 +44,6 @@ public:
 
 private:
   void correct_velocity(
-    const double initial_temperature,
     const std::vector<double>& cpu_mass,
     const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom);

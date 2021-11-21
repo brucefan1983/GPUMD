@@ -104,8 +104,8 @@ void Run::perform_a_run(char* input_dir)
       integrate.ensemble->energy_transferred, box, neighbor, group, thermo, atom);
 
     velocity.correct_velocity(
-      step, integrate.temperature, atom.cpu_mass, atom.position_per_atom,
-      atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, atom.velocity_per_atom);
+      step, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
+      atom.cpu_velocity_per_atom, atom.velocity_per_atom);
 
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
