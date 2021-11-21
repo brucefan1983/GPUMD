@@ -103,6 +103,10 @@ void Run::perform_a_run(char* input_dir)
       input_dir, number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
       integrate.ensemble->energy_transferred, box, neighbor, group, thermo, atom);
 
+    velocity.correct_velocity(
+      step, integrate.temperature, atom.cpu_mass, atom.position_per_atom,
+      atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, atom.velocity_per_atom);
+
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
       printf("    %d steps completed.\n", step + 1);
@@ -150,7 +154,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "neighbor") == 0) {
     parse_neighbor(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
-    // TODO
+    parse_correct_velocity(param, num_param);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
     measure.dump_thermo.parse(param, num_param);
   } else if (strcmp(param[0], "dump_position") == 0) {
@@ -212,6 +216,20 @@ void Run::parse_velocity(char** param, int num_param)
   velocity.initialize(
     has_velocity_in_xyz, initial_temperature, atom.cpu_mass, atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom, atom.velocity_per_atom);
+}
+
+void Run::parse_correct_velocity(char** param, int num_param)
+{
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("correct_velocity should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &velocity.velocity_correction_interval)) {
+    PRINT_INPUT_ERROR("velocity correction interval should be an integer.\n");
+  }
+  if (velocity.velocity_correction_interval <= 0) {
+    PRINT_INPUT_ERROR("velocity correction interval should be positive.\n");
+  }
+  velocity.do_velocity_correction = true;
 }
 
 void Run::parse_time_step(char** param, int num_param)
