@@ -183,17 +183,13 @@ static void zero_angular_momentum(
   }
 }
 
-void Velocity::initialize_cpu(
+void Velocity::correct_velocity(
   const double initial_temperature,
   const std::vector<double>& cpu_mass,
   const std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom)
 {
   const int N = cpu_mass.size();
-
-  get_random_velocities(
-    N, cpu_velocity_per_atom.data(), cpu_velocity_per_atom.data() + N,
-    cpu_velocity_per_atom.data() + N * 2);
 
   zero_linear_momentum(
     N, cpu_mass.data(), cpu_velocity_per_atom.data(), cpu_velocity_per_atom.data() + N,
@@ -237,7 +233,11 @@ void Velocity::initialize(
   GPU_Vector<double>& velocity_per_atom)
 {
   if (!has_velocity_in_xyz) {
-    initialize_cpu(initial_temperature, cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
+    const int N = cpu_mass.size();
+    get_random_velocities(
+      N, cpu_velocity_per_atom.data(), cpu_velocity_per_atom.data() + N,
+      cpu_velocity_per_atom.data() + N * 2);
+    correct_velocity(initial_temperature, cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
   }
 
   velocity_per_atom.copy_from_host(cpu_velocity_per_atom.data());

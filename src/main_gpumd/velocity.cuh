@@ -30,7 +30,7 @@ public:
     GPU_Vector<double>& velocity_per_atom);
 
 private:
-  void initialize_cpu(
+  void correct_velocity(
     const double initial_temperature,
     const std::vector<double>& cpu_mass,
     const std::vector<double>& cpu_position_per_atom,
