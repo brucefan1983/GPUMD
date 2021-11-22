@@ -28,6 +28,7 @@ class Measure;
 #include "model/neighbor.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include "velocity.cuh"
 #include <vector>
 
 class Run
@@ -43,6 +44,7 @@ private:
   // keyword parsing functions
   void parse_neighbor(char** param, int num_param);
   void parse_velocity(char** param, int num_param);
+  void parse_correct_velocity(char** param, int num_param);
   void parse_time_step(char** param, int num_param);
   void parse_run(char** param, int num_param, char* input_dir);
 
@@ -56,6 +58,7 @@ private:
   Atom atom;
   GPU_Vector<double> thermo; // some thermodynamic quantities
   Neighbor neighbor;
+  Velocity velocity;
   Box box;
   std::vector<Group> group;
 
