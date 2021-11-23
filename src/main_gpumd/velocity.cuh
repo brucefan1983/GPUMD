@@ -21,6 +21,9 @@
 class Velocity
 {
 public:
+  bool do_velocity_correction;
+  int velocity_correction_interval;
+
   void initialize(
     const bool has_velocity_in_xyz,
     const double initial_temperature,
@@ -29,9 +32,18 @@ public:
     std::vector<double>& cpu_velocity_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 
+  void correct_velocity(
+    const int step,
+    const std::vector<double>& cpu_mass,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom,
+    std::vector<double>& cpu_velocity_per_atom,
+    GPU_Vector<double>& velocity_per_atom);
+
+  void finalize();
+
 private:
-  void initialize_cpu(
-    const double initial_temperature,
+  void correct_velocity(
     const std::vector<double>& cpu_mass,
     const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom);
