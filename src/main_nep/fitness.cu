@@ -90,7 +90,6 @@ void Fitness::compute(
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(para, dummy_solution.data(), train_set[n], true);
     }
-    potential->find_force(para, dummy_solution.data(), test_set, true);
   }
 
   int batch_id = generation % num_batches;
