@@ -25,7 +25,6 @@ public:
   int Nc;             // number of configurations
   int N;              // total number of atoms (sum of Na[])
   int max_Na;         // number of atoms in the largest configuration
-  int num_types;      // number of atom types
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
 
@@ -68,6 +67,5 @@ private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
   void find_Na();
   void initialize_gpu_data(Parameters& para);
-  void check_types(Parameters& para);
   void find_neighbor(Parameters& para);
 };

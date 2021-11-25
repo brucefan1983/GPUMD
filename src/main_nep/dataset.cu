@@ -159,36 +159,6 @@ void Dataset::initialize_gpu_data(Parameters& para)
   type.copy_from_host(type_cpu.data());
 }
 
-void Dataset::check_types(Parameters& para)
-{
-  std::vector<int> types;
-  for (int nc = 0; nc < Nc; ++nc) {
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      bool find_a_new_type = true;
-      for (int k = 0; k < types.size(); ++k) {
-        if (types[k] == structures[nc].atomic_number[na]) {
-          find_a_new_type = false;
-        }
-      }
-      if (find_a_new_type) {
-        types.emplace_back(structures[nc].atomic_number[na]);
-      }
-    }
-  }
-  num_types = types.size();
-
-  if (num_types != para.num_types) {
-    PRINT_INPUT_ERROR("mismatching num_types in nep.in and train.in.");
-  }
-  for (int nc = 0; nc < Nc; ++nc) {
-    for (int na = 0; na < structures[nc].num_atom; ++na) {
-      if (structures[nc].atomic_number[na] >= num_types) {
-        PRINT_INPUT_ERROR("detected atom type (in train.in) >= num_types (in nep.in).");
-      }
-    }
-  }
-}
-
 static __global__ void gpu_find_neighbor_number(
   const int N,
   const int* Na,
@@ -301,7 +271,6 @@ void Dataset::construct(
 
   find_Na();
   initialize_gpu_data(para);
-  check_types(para);
   find_neighbor(para);
 }
 

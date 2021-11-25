@@ -47,7 +47,7 @@ Parameters::Parameters(char* input_dir)
   }
 
   for (int n = 0; n < num_types; ++n) {
-    char atom_symbol[2];
+    char atom_symbol[10];
     count = fscanf(fid, "%s", atom_symbol);
     PRINT_SCANF_ERROR(count, 1, "reading error for atom symbol.");
     printf("    there is %s.\n", atom_symbol);
