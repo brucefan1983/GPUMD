@@ -26,6 +26,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/box.cuh"
 #include "model/neighbor.cuh"
 #include "model/read_xyz.cuh"
+#include "phonon/hessian.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -145,6 +146,12 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     minimize.parse_minimize(
       param, num_param, force, box, atom.position_per_atom, atom.type, group, neighbor,
       atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+  } else if (strcmp(param[0], "compute_phonon") == 0) {
+    Hessian hessian;
+    hessian.parse(param, num_param);
+    hessian.compute(
+      input_dir, force, box, atom.cpu_position_per_atom, atom.position_per_atom, atom.type, group,
+      neighbor, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
