@@ -1,0 +1,2 @@
+potential       examples/nep_potentials/PbTe/train/nep.txt 0 1
+compute_phonon  16 0.01 # units of A

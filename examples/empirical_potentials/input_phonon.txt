@@ -1,3 +1,0 @@
-1
-examples/empirical_potentials/phonon/phonon_dispersion
-
