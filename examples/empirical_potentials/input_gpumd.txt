@@ -1,9 +1,9 @@
 6
-examples/empirical_potentials/phonon/phonon_dispersion
-examples/empirical_potentials/gpumd/thermal_expansion
-examples/empirical_potentials/gpumd/density_of_states
-examples/empirical_potentials/gpumd/thermal_transport_emd
-examples/empirical_potentials/gpumd/thermal_transport_nemd_and_hnemd/ballistic
-examples/empirical_potentials/gpumd/thermal_transport_nemd_and_hnemd/diffusive
+examples/empirical_potentials/phonon_dispersion
+examples/empirical_potentials/thermal_expansion
+examples/empirical_potentials/density_of_states
+examples/empirical_potentials/thermal_transport_emd
+examples/empirical_potentials/thermal_transport_nemd_and_hnemd/ballistic
+examples/empirical_potentials/thermal_transport_nemd_and_hnemd/diffusive
 
 
