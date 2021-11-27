@@ -6,5 +6,4 @@ src/.vscode/*
 src/*/*.obj
 src/*/*.o
 src/gpumd*
-src/phonon*
 src/nep*

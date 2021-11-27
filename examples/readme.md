@@ -10,6 +10,4 @@
   * `src/gpumd < examples/empirical_potentials/input_gpumd.txt`
   * `src/gpumd < examples/fcp_potentials/input_gpumd.txt`
   * `src/gpumd < examples/nep_potentials/input_gpumd.txt`
-  * `src/phonon < examples/empirical_potentials/input_phonon.txt`
-  * `src/phonon < examples/nep_potentials/input_phonon.txt`
   * `src/nep < examples/nep_potentials/input_nep.txt`

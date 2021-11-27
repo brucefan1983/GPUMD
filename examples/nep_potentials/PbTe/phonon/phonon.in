@@ -1,4 +1,0 @@
-potential       examples/nep_potentials/PbTe/train/nep.txt 0 1
-cutoff          16  # units of A
-delta           0.01 # displacement in units of A
-

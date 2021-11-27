@@ -1,8 +1,0 @@
-5
-examples/gpumd/thermal_expansion
-examples/gpumd/density_of_states
-examples/gpumd/thermal_transport_emd
-examples/gpumd/thermal_transport_nemd_and_hnemd/ballistic
-examples/gpumd/thermal_transport_nemd_and_hnemd/diffusive
-
-

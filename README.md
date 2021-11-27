@@ -14,7 +14,7 @@
 * Works for both Linux (with GCC) and Windows (with MSVC) operating systems. 
 
 ## Compile GPUMD
-* Go to the `src` directory and type `make`. When the compilation finishes, three executables, `gpumd`, `phonon`, and `nep`, will be generated in the `src` directory. 
+* Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
 * See the `examples/readme.md` file.

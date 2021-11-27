@@ -15,10 +15,10 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
-#include <stdio.h>
-#include <vector>
 #include <fstream>
 #include <iostream>
+#include <stdio.h>
+#include <vector>
 
 class Box;
 class Neighbor;
@@ -44,8 +44,7 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
-  void parse_cutoff(char**, size_t);
-  void parse_delta(char**, size_t);
+  void parse(char**, size_t);
 
 protected:
   size_t num_basis;

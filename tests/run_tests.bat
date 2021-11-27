@@ -36,8 +36,8 @@ fc thermo.out thermo.out1
 del thermo.out 
 cd ..\..
 
-cd phonon\silicon_dispersion
-..\..\..\src\phonon < input.txt
+cd gpumd\silicon_dispersion
+..\..\..\src\gpumd < input.txt
 fc D.out D.out1
 fc omega2.out omega2.out1
 del D.out omega2.out
