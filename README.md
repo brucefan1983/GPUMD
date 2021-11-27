@@ -75,7 +75,7 @@ Phys. Rev. B **103**, 205421 (2021).
 
 * If you use the force constant potential (FCP), you can cite the following paper:
 
-[6] Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, submitted.
+[6] Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, [Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy, Advanced Theory and Simulations]( https://doi.org/10.1002/adts.202100217), **4**, 2100217 (2021). 
 
 * If you train or use a NEP potential, you can cite the following papers:
 
