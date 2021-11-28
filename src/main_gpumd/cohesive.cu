@@ -31,7 +31,7 @@ void Cohesive::parse(char** param, int num_param)
 {
   printf("Compute cohesive energy.\n");
   if (num_param != 4) {
-    PRINT_INPUT_ERROR("compute_cohesive should have 4 parameters.\n");
+    PRINT_INPUT_ERROR("compute_cohesive should have 3 parameters.\n");
   }
 
   if (!is_valid_real(param[1], &start_factor)) {
