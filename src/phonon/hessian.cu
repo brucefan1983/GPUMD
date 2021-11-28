@@ -349,7 +349,7 @@ void Hessian::find_eigenvectors(char* input_dir)
 void Hessian::parse(char** param, size_t num_param)
 {
   if (num_param != 3) {
-    PRINT_INPUT_ERROR("compute_phonon should have 2 parameter2.\n");
+    PRINT_INPUT_ERROR("compute_phonon should have 2 parameters.\n");
   }
   // cutoff
   if (!is_valid_real(param[1], &cutoff)) {

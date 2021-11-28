@@ -1,0 +1,4 @@
+potential   potentials/tersoff/Si_Fan_2019.txt 0
+
+compute_cohesive 0.9 1.2 31
+

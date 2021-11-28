@@ -17,6 +17,7 @@
 Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
+#include "cohesive.cuh"
 #include "force/force.cuh"
 #include "force/validate.cuh"
 #include "integrate/ensemble.cuh"
@@ -152,6 +153,12 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     hessian.compute(
       input_dir, force, box, atom.cpu_position_per_atom, atom.position_per_atom, atom.type, group,
       neighbor, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+  } else if (strcmp(param[0], "compute_cohesive") == 0) {
+    Cohesive cohesive;
+    cohesive.parse(param, num_param);
+    cohesive.compute(
+      input_dir, box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom, force);
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
