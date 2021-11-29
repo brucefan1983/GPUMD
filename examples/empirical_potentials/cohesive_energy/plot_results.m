@@ -1,6 +1,6 @@
 clear; close all; font_size = 15;
-% some parameters used in run.in:
-a=5.43;
+% some parameters of the model:
+a=5.4334;
 N=8000;
 % load the data
 load cohesive.out;

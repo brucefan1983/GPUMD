@@ -60,6 +60,8 @@ void Minimizer_SD::compute(
   int number_of_force_evaluations = 1;
   double position_step = 0.1;
 
+  printf("\nEnergy minimization started.\n");
+
   for (int step = 0; step < number_of_steps_; ++step) {
     calculate_force_square_max(force_per_atom);
     const double force_max = sqrt(cpu_force_square_max_[0]);
@@ -101,5 +103,5 @@ void Minimizer_SD::compute(
     }
   }
 
-  printf("Energy minimization finished.\n\n");
+  printf("Energy minimization finished.\n");
 }
