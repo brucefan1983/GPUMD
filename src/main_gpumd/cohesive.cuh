@@ -22,13 +22,17 @@ class Group;
 class Neighbor;
 class Force;
 
+struct D {
+  double data[9];
+};
+
 class Cohesive
 {
 public:
-  void parse(char** param, int num_param);
+  void parse(char** param, int num_param, int type);
   void compute(
     char* iput_dir,
-    const Box& box,
+    Box& box,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
     std::vector<Group>& group,
@@ -39,8 +43,22 @@ public:
     Force& force);
 
 private:
+  void parse_cohesive(char** param, int num_param);
+  void parse_elastic(char** param, int num_param);
+  void allocate_memory(const int num_atoms);
+  void compute_D();
+  void output(char* input_dir, Box& box);
+  void deform_box(
+    const int N, const D& cpu_d, Box& old_box, Box& new_box, GPU_Vector<double>& position_per_atom);
+  std::vector<double> cpu_potential_total;
+  std::vector<double> cpu_potential_per_atom;
+  std::vector<D> cpu_D;
+  GPU_Vector<double> new_position_per_atom;
+  double strain;
   double start_factor;
   double end_factor;
   double delta_factor;
   int num_points;
+  int deformation_type; // 0-7 = cohesive, cubic, hexagonal, trigonal, tetragonal, orthorhombic,
+                        // monoclinic, triclinic
 };

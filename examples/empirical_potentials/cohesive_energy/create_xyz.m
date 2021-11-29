@@ -5,8 +5,8 @@ r0 = [0.0, 0.0, 0.5, 0.5, 0.25, 0.25, 0.75, 0.75; ...
 n0 = size(r0, 1);
 nxyz = 10 * [1, 1, 1];
 N = nxyz(1) * nxyz(2) * nxyz(3) * n0;
-a = 5.43 * [1, 1, 1];
-box_length = a .* nxyz;
+a = 5.4334 * [1, 1, 1];
+box_length = diag(a .* nxyz);
 
 r = zeros(N, 3);
 n = 0;
@@ -22,8 +22,8 @@ for nx = 0 : nxyz(1) - 1
 end
 
 fid = fopen('xyz.in', 'w');
-fprintf(fid, '%d %d %g 0 0 0\n', N, 4, 3.0);
-fprintf(fid, '%d %d %d %g %g %g\n', 1, 1, 1, box_length);
+fprintf(fid, '%d %d %g 1 0 0\n', N, 4, 3.0);
+fprintf(fid, '%d %d %d %g %g %g %g %g %g %g %g %g\n', 1, 1, 1, box_length);
 for n =1 : N
     fprintf(fid, '%d %g %g %g %g\n', 0, r(n, :), 28);
 end

@@ -155,7 +155,13 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
       neighbor, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
   } else if (strcmp(param[0], "compute_cohesive") == 0) {
     Cohesive cohesive;
-    cohesive.parse(param, num_param);
+    cohesive.parse(param, num_param, 0);
+    cohesive.compute(
+      input_dir, box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
+      atom.force_per_atom, atom.virial_per_atom, force);
+  } else if (strcmp(param[0], "compute_elastic") == 0) {
+    Cohesive cohesive;
+    cohesive.parse(param, num_param, 1);
     cohesive.compute(
       input_dir, box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
       atom.force_per_atom, atom.virial_per_atom, force);
