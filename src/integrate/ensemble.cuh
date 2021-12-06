@@ -60,6 +60,7 @@ public:
   double pressure_x; // target pressure at a specific time
   double pressure_y;
   double pressure_z;
+  bool is_isotropic_pressure;
   double temperature_coupling;
   double pressure_coupling;
   int deform_x = 0;

@@ -36,6 +36,7 @@ Ensemble_BER::Ensemble_BER(
   double px,
   double py,
   double pz,
+  bool is_iso,
   double pc,
   int dx,
   int dy,
@@ -49,6 +50,7 @@ Ensemble_BER::Ensemble_BER(
   pressure_x = px;
   pressure_y = py;
   pressure_z = pz;
+  is_isotropic_pressure = is_iso;
   pressure_coupling = pc;
   deform_x = dx;
   deform_y = dy;
@@ -124,6 +126,25 @@ static __global__ void gpu_berendsen_pressure(
   }
 }
 
+static __global__ void gpu_berendsen_pressure_isotropic(
+  int number_of_particles,
+  double p0x,
+  double p_coupling,
+  double* g_prop,
+  double* g_x,
+  double* g_y,
+  double* g_z)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    double scale_factor =
+      1.0 - p_coupling * (p0x - (g_prop[2] + g_prop[3] + g_prop[4]) * 0.3333333333333333);
+    g_x[i] *= scale_factor;
+    g_y[i] *= scale_factor;
+    g_z[i] *= scale_factor;
+  }
+}
+
 static void cpu_berendsen_pressure(
   int deform_x,
   int deform_y,
@@ -133,43 +154,61 @@ static void cpu_berendsen_pressure(
   double p0x,
   double p0y,
   double p0z,
+  bool is_isotropic_pressure,
   double p_coupling,
   double* thermo)
 {
   double p[3];
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
 
-  if (deform_x) {
-    double scale_factor = box.cpu_h[0];
-    scale_factor = (scale_factor + deform_rate) / scale_factor;
+  if (is_isotropic_pressure) {
+    if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+      PRINT_INPUT_ERROR(
+        "Cannot use isotropic pressure with non-periodic boundary in any direction.");
+    }
+    if (deform_x != 0 || deform_y != 0 || deform_z != 0) {
+      PRINT_INPUT_ERROR("Cannot use isotropic pressure and also deform the box.");
+    }
+    double scale_factor = 1.0 - p_coupling * (p0x - (p[0] + p[1] + p[2]) * 0.3333333333333333);
     box.cpu_h[0] *= scale_factor;
-    box.cpu_h[3] = box.cpu_h[0] * 0.5;
-  } else if (box.pbc_x == 1) {
-    double scale_factor = 1.0 - p_coupling * (p0x - p[0]);
-    box.cpu_h[0] *= scale_factor;
-    box.cpu_h[3] = box.cpu_h[0] * 0.5;
-  }
-
-  if (deform_y) {
-    double scale_factor = box.cpu_h[1];
-    scale_factor = (scale_factor + deform_rate) / scale_factor;
     box.cpu_h[1] *= scale_factor;
+    box.cpu_h[2] *= scale_factor;
+    box.cpu_h[3] = box.cpu_h[0] * 0.5;
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
-  } else if (box.pbc_y == 1) {
-    double scale_factor = 1.0 - p_coupling * (p0y - p[1]);
-    box.cpu_h[1] *= scale_factor;
-    box.cpu_h[4] = box.cpu_h[1] * 0.5;
-  }
+    box.cpu_h[5] = box.cpu_h[2] * 0.5;
+  } else {
+    if (deform_x) {
+      double scale_factor = box.cpu_h[0];
+      scale_factor = (scale_factor + deform_rate) / scale_factor;
+      box.cpu_h[0] *= scale_factor;
+      box.cpu_h[3] = box.cpu_h[0] * 0.5;
+    } else if (box.pbc_x == 1) {
+      double scale_factor = 1.0 - p_coupling * (p0x - p[0]);
+      box.cpu_h[0] *= scale_factor;
+      box.cpu_h[3] = box.cpu_h[0] * 0.5;
+    }
 
-  if (deform_z) {
-    double scale_factor = box.cpu_h[2];
-    scale_factor = (scale_factor + deform_rate) / scale_factor;
-    box.cpu_h[2] *= scale_factor;
-    box.cpu_h[5] = box.cpu_h[2] * 0.5;
-  } else if (box.pbc_z == 1) {
-    double scale_factor = 1.0 - p_coupling * (p0z - p[2]);
-    box.cpu_h[2] *= scale_factor;
-    box.cpu_h[5] = box.cpu_h[2] * 0.5;
+    if (deform_y) {
+      double scale_factor = box.cpu_h[1];
+      scale_factor = (scale_factor + deform_rate) / scale_factor;
+      box.cpu_h[1] *= scale_factor;
+      box.cpu_h[4] = box.cpu_h[1] * 0.5;
+    } else if (box.pbc_y == 1) {
+      double scale_factor = 1.0 - p_coupling * (p0y - p[1]);
+      box.cpu_h[1] *= scale_factor;
+      box.cpu_h[4] = box.cpu_h[1] * 0.5;
+    }
+
+    if (deform_z) {
+      double scale_factor = box.cpu_h[2];
+      scale_factor = (scale_factor + deform_rate) / scale_factor;
+      box.cpu_h[2] *= scale_factor;
+      box.cpu_h[5] = box.cpu_h[2] * 0.5;
+    } else if (box.pbc_z == 1) {
+      double scale_factor = 1.0 - p_coupling * (p0z - p[2]);
+      box.cpu_h[2] *= scale_factor;
+      box.cpu_h[5] = box.cpu_h[2] * 0.5;
+    }
   }
 }
 
@@ -213,13 +252,19 @@ void Ensemble_BER::compute2(
     velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
   if (type == 11) {
-    gpu_berendsen_pressure<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      deform_x, deform_y, deform_z, deform_rate, number_of_atoms, box, pressure_x, pressure_y,
-      pressure_z, pressure_coupling, thermo.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2);
-    CUDA_CHECK_KERNEL
     cpu_berendsen_pressure(
       deform_x, deform_y, deform_z, deform_rate, box, pressure_x, pressure_y, pressure_z,
-      pressure_coupling, thermo.data());
+      is_isotropic_pressure, pressure_coupling, thermo.data());
+    if (is_isotropic_pressure) {
+      gpu_berendsen_pressure_isotropic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms, pressure_x, pressure_coupling, thermo.data(), position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2);
+    } else {
+      gpu_berendsen_pressure<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        deform_x, deform_y, deform_z, deform_rate, number_of_atoms, box, pressure_x, pressure_y,
+        pressure_z, pressure_coupling, thermo.data(), position_per_atom.data(),
+        position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2);
+      CUDA_CHECK_KERNEL
+    }
   }
 }

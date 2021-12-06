@@ -52,7 +52,7 @@ void Integrate::initialize(
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
         type, fixed_group, temperature, temperature_coupling, pressure_x, pressure_y, pressure_z,
-        pressure_coupling, deform_x, deform_y, deform_z, deform_rate));
+        is_isotropic_pressure, pressure_coupling, deform_x, deform_y, deform_z, deform_rate));
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -154,8 +154,8 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
     }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
-    if (num_param != 9) {
-      PRINT_INPUT_ERROR("ensemble npt_ber should have 7 parameters.");
+    if (num_param != 9 && num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble npt_ber should have 7 or 5 parameters.");
     }
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
@@ -221,18 +221,29 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
   double pressure[3];
   if (type >= 11 && type <= 20) {
     // pressures:
-    for (int i = 0; i < 3; i++) {
-      if (!is_valid_real(param[5 + i], &pressure[i])) {
+    if (num_param == 9) {
+      for (int i = 0; i < 3; i++) {
+        if (!is_valid_real(param[5 + i], &pressure[i])) {
+          PRINT_INPUT_ERROR("Pressure should be a number.");
+        }
+      }
+      is_isotropic_pressure = false;
+    } else { // isotropic
+      if (!is_valid_real(param[5 + 0], &pressure[0])) {
         PRINT_INPUT_ERROR("Pressure should be a number.");
       }
+      is_isotropic_pressure = true;
+      pressure[1] = pressure[2] = pressure[0];
     }
+
     // Change the units of pressure form GPa to that used in the code
     pressure_x = pressure[0] / PRESSURE_UNIT_CONVERSION;
     pressure_y = pressure[1] / PRESSURE_UNIT_CONVERSION;
     pressure_z = pressure[2] / PRESSURE_UNIT_CONVERSION;
 
     // pressure_coupling:
-    if (!is_valid_real(param[8], &pressure_coupling)) {
+    int index_pressure_coupling = is_isotropic_pressure ? 6 : 8;
+    if (!is_valid_real(param[index_pressure_coupling], &pressure_coupling)) {
       PRINT_INPUT_ERROR("Pressure coupling should be a number.");
     }
     if (pressure_coupling <= 0.0) {
@@ -334,9 +345,13 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
       printf("    T_coupling is %g.\n", temperature_coupling);
-      printf("    pressure_x is %g GPa.\n", pressure[0]);
-      printf("    pressure_y is %g GPa.\n", pressure[1]);
-      printf("    pressure_z is %g GPa.\n", pressure[2]);
+      if (num_param == 9) {
+        printf("    pressure_x is %g GPa.\n", pressure[0]);
+        printf("    pressure_y is %g GPa.\n", pressure[1]);
+        printf("    pressure_z is %g GPa.\n", pressure[2]);
+      } else { // isotropic
+        printf("    pressure_xyz is %g GPa.\n", pressure[0]);
+      }
       printf("    p_coupling is %g.\n", pressure_coupling);
       break;
     case 21:
