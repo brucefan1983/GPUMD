@@ -229,6 +229,8 @@ void Cohesive::output(char* input_dir, Box& box)
     fprintf(fid, "C12 = %g GPa\n", C12);
     fprintf(fid, "C44 = %g GPa\n", C44);
   }
+
+  fclose(fid);
 }
 
 void Cohesive::compute(
@@ -251,16 +253,10 @@ void Cohesive::compute(
     Box new_box;
     deform_box(num_atoms, cpu_D[n], box, new_box, position_per_atom);
 
-    if (deformation_type == 0) {
-      force.compute(
-        new_box, new_position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-        virial_per_atom);
-    } else {
-      Minimizer_SD minimizer(num_atoms, 1000, 1.0e-5);
-      minimizer.compute(
-        force, new_box, new_position_per_atom, type, group, neighbor, potential_per_atom,
-        force_per_atom, virial_per_atom);
-    }
+    Minimizer_SD minimizer(num_atoms, 1000, 1.0e-5);
+    minimizer.compute(
+      force, new_box, new_position_per_atom, type, group, neighbor, potential_per_atom,
+      force_per_atom, virial_per_atom);
 
     potential_per_atom.copy_to_host(cpu_potential_per_atom.data());
     cpu_potential_total[n] = 0.0;
