@@ -245,6 +245,9 @@ void Cohesive::compute(
   GPU_Vector<double>& virial_per_atom,
   Force& force)
 {
+  if (deformation_type == 1 && box.triclinic == 0) {
+    PRINT_INPUT_ERROR("Please use triclinic box in xyz.in to compute elastic constants.");
+  }
   const int num_atoms = potential_per_atom.size();
   allocate_memory(num_atoms);
   compute_D();
