@@ -5,7 +5,9 @@
 * Zheyong Fan, Improving the accuracy of the neuroevolution machine learning potential for multi-component systems, https://arxiv.org/abs/2109.10643
 
 
-## 2022 (3)
+## 2022 (4)
+
+* Xin Wu and Qiang Han, [Transition from incoherent to coherent phonon thermal transport across graphene/h-BN van der Waals superlattices](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122390), International Journal of Heat and Mass Transfer, **184**, 122390 (2022).
 
 * Penghua Ying, Ting Liang, Yao Du, Jin Zhang, Xiaoliang Zeng, and Zheng Zhong, [Thermal transport in planar sp2-hybridized carbon allotropes: A comparative study of biphenylene network, pentaheptite and graphene](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122060), International Journal of Heat and Mass Transfer, **183**,
 122060 (2022).
