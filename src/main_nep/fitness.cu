@@ -28,7 +28,9 @@ Get the fitness
 #include <random>
 #include <vector>
 
+// You can change these values and re-compile:
 #define VIRIAL_LOSS_WEIGHT 0.1f
+#define ENERGY_LOSS_WEIGHT 1.0f
 
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
@@ -98,7 +100,8 @@ void Fitness::compute(
   for (int n = 0; n < para.population_size; ++n) {
     const float* individual = population + n * para.number_of_variables;
     potential->find_force(para, individual, train_set[batch_id], false);
-    fitness[n + 0 * para.population_size] = train_set[batch_id].get_rmse_energy();
+    fitness[n + 0 * para.population_size] =
+      ENERGY_LOSS_WEIGHT * train_set[batch_id].get_rmse_energy();
     fitness[n + 1 * para.population_size] = train_set[batch_id].get_rmse_force();
     fitness[n + 2 * para.population_size] =
       VIRIAL_LOSS_WEIGHT * train_set[batch_id].get_rmse_virial();
@@ -161,12 +164,12 @@ void Fitness::report_error(
 
     printf(
       "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n", generation + 1,
-      loss_total, loss_L1, loss_L2, loss_energy, loss_force, loss_virial / VIRIAL_LOSS_WEIGHT,
-      rmse_energy_test, rmse_force_test, rmse_virial_test);
+      loss_total, loss_L1, loss_L2, loss_energy / ENERGY_LOSS_WEIGHT, loss_force,
+      loss_virial / VIRIAL_LOSS_WEIGHT, rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(stdout);
     fprintf(
       fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-      generation + 1, loss_total, loss_L1, loss_L2, loss_energy, loss_force,
+      generation + 1, loss_total, loss_L1, loss_L2, loss_energy / ENERGY_LOSS_WEIGHT, loss_force,
       loss_virial / VIRIAL_LOSS_WEIGHT, rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_loss_out);
 
