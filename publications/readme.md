@@ -5,7 +5,9 @@
 * Zheyong Fan, Improving the accuracy of the neuroevolution machine learning potential for multi-component systems, https://arxiv.org/abs/2109.10643
 
 
-## 2022 (3)
+## 2022 (4)
+
+* Xin Wu and Qiang Han, [Transition from incoherent to coherent phonon thermal transport across graphene/h-BN van der Waals superlattices](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122390), International Journal of Heat and Mass Transfer, **184**, 122390 (2022).
 
 * Penghua Ying, Ting Liang, Yao Du, Jin Zhang, Xiaoliang Zeng, and Zheng Zhong, [Thermal transport in planar sp2-hybridized carbon allotropes: A comparative study of biphenylene network, pentaheptite and graphene](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122060), International Journal of Heat and Mass Transfer, **183**,
 122060 (2022).
@@ -14,7 +16,11 @@
 
 * Keqiang Li, Yajuan Cheng, Hongying Wang, Yangyu Guo, Zhongwei Zhang, Marc Bescond, Massahiro Nomura, Sebastian Volz, Xiaohong Zhang, and Shiyun Xiong, [Phonon resonant effect in silicon membranes with different crystallographic orientations](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122144), International Journal of Heat and Mass Transfer, **Volume** 122144 (2022).
 
-## 2021 (13)
+## 2021 (14)
+
+* Haikuan Dong,  Petri Hirvonen,  Zheyong Fan, Ping Qian, Yanjing Su, and  Tapio Ala-Nissila,
+[Heat transport across graphene/hexagonal-BN tilted grain boundaries from phase-field crystal model and molecular dynamics simulations](https://doi.org/10.1063/5.0069134), Journal of Applied Physics **130**, 235102 (2021).
+ 
 
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, [Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy]( https://doi.org/10.1002/adts.202100217), Advanced Theory and Simulations **4**, 2100217 (2021). 
 
