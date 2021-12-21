@@ -6,4 +6,4 @@ num_neurons          40
 regularization       0.05 0.05
 batch_size           25
 population_size      50
-maximum_generation   100000
+maximum_generation   10000

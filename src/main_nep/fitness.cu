@@ -94,17 +94,19 @@ void Fitness::compute(
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(para, dummy_solution.data(), train_set[n], true);
     }
-  }
-
-  int batch_id = generation % num_batches;
-  for (int n = 0; n < para.population_size; ++n) {
-    const float* individual = population + n * para.number_of_variables;
-    potential->find_force(para, individual, train_set[batch_id], false);
-    fitness[n + 0 * para.population_size] =
-      ENERGY_LOSS_WEIGHT * train_set[batch_id].get_rmse_energy();
-    fitness[n + 1 * para.population_size] = train_set[batch_id].get_rmse_force();
-    fitness[n + 2 * para.population_size] =
-      VIRIAL_LOSS_WEIGHT * train_set[batch_id].get_rmse_virial();
+  } else {
+    int batch_id = generation % num_batches;
+    for (int n = 0; n < para.population_size; ++n) {
+      const float* individual = population + n * para.number_of_variables;
+      potential->find_force(para, individual, train_set[batch_id], false);
+      float energy_shift_per_structure_not_used;
+      fitness[n + 0 * para.population_size] =
+        ENERGY_LOSS_WEIGHT *
+        train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used);
+      fitness[n + 1 * para.population_size] = train_set[batch_id].get_rmse_force();
+      fitness[n + 2 * para.population_size] =
+        VIRIAL_LOSS_WEIGHT * train_set[batch_id].get_rmse_virial();
+    }
   }
 }
 
@@ -130,14 +132,21 @@ void Fitness::report_error(
   const float loss_energy,
   const float loss_force,
   const float loss_virial,
-  const float* elite)
+  float* elite)
 {
   if (0 == (generation + 1) % 100) {
 
     potential->find_force(para, elite, test_set, false);
-    float rmse_energy_test = test_set.get_rmse_energy();
+    float energy_shift_per_structure;
+    float rmse_energy_test = test_set.get_rmse_energy(energy_shift_per_structure);
     float rmse_force_test = test_set.get_rmse_force();
     float rmse_virial_test = test_set.get_rmse_virial();
+
+    // correct the last bias parameter in the NN
+    elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
+
+    // re-calculate the test set
+    potential->find_force(para, elite, test_set, false);
 
     char file_nep[200];
     strcpy(file_nep, input_dir);

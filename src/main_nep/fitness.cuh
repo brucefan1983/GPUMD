@@ -39,7 +39,7 @@ public:
     const float,
     const float,
     const float,
-    const float* elite);
+    float* elite);
 
 protected:
   int num_batches = 0;

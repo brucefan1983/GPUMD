@@ -335,7 +335,7 @@ float Dataset::get_rmse_force()
 }
 
 static __global__ void
-gpu_sum_pe_error(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
+gpu_get_energy_shift(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* g_energy_shift)
 {
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -366,18 +366,65 @@ gpu_sum_pe_error(int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* 
 
   if (tid == 0) {
     float diff = s_pe[0] / Na - g_pe_ref[bid];
+    g_energy_shift[bid] = diff;
+  }
+}
+
+static __global__ void gpu_sum_pe_error(
+  float energy_shift, int* g_Na, int* g_Na_sum, float* g_pe, float* g_pe_ref, float* error_gpu)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  extern __shared__ float s_pe[];
+  s_pe[tid] = 0.0f;
+
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    s_pe[tid] += g_pe[n];
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_pe[tid] += s_pe[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_pe[tid] += s_pe[tid + offset];
+    }
+    __syncwarp();
+  }
+
+  if (tid == 0) {
+    float diff = s_pe[0] / Na - g_pe_ref[bid] - energy_shift;
     error_gpu[bid] = diff * diff;
   }
 }
 
-float Dataset::get_rmse_energy()
+float Dataset::get_rmse_energy(float& energy_shift_per_structure)
 {
   const int block_size = 256;
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+
+  gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
     Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  float error_ave = 0.0;
+  energy_shift_per_structure = 0.0f;
+  for (int n = 0; n < Nc; ++n) {
+    energy_shift_per_structure += error_cpu[n];
+  }
+  energy_shift_per_structure /= Nc;
+
+  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+    energy_shift_per_structure, Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(),
+    error_gpu.data());
+  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  float error_ave = 0.0f;
   for (int n = 0; n < Nc; ++n) {
     error_ave += error_cpu[n];
   }
@@ -402,7 +449,7 @@ float Dataset::get_rmse_virial()
   const int block_size = 256;
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data(), virial_ref_gpu.data(), error_gpu.data());
+    0.0f, Na.data(), Na_sum.data(), virial.data(), virial_ref_gpu.data(), error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
@@ -411,16 +458,7 @@ float Dataset::get_rmse_virial()
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N, virial_ref_gpu.data() + Nc, error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (structures[n].has_virial) {
-      error_ave += error_cpu[n];
-    }
-  }
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref_gpu.data() + Nc * 2,
+    0.0f, Na.data(), Na_sum.data(), virial.data() + N, virial_ref_gpu.data() + Nc,
     error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
@@ -430,7 +468,7 @@ float Dataset::get_rmse_virial()
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref_gpu.data() + Nc * 3,
+    0.0f, Na.data(), Na_sum.data(), virial.data() + N * 2, virial_ref_gpu.data() + Nc * 2,
     error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
@@ -440,7 +478,7 @@ float Dataset::get_rmse_virial()
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref_gpu.data() + Nc * 4,
+    0.0f, Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref_gpu.data() + Nc * 3,
     error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
@@ -450,7 +488,17 @@ float Dataset::get_rmse_virial()
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref_gpu.data() + Nc * 5,
+    0.0f, Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref_gpu.data() + Nc * 4,
+    error_gpu.data());
+  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+  for (int n = 0; n < Nc; ++n) {
+    if (structures[n].has_virial) {
+      error_ave += error_cpu[n];
+    }
+  }
+
+  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+    0.0f, Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref_gpu.data() + Nc * 5,
     error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
