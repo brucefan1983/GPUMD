@@ -91,6 +91,11 @@ void Integrate::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
+  if (type >= 11 && type <= 20) {
+    if (box.triclinic == 1) {
+      PRINT_INPUT_ERROR("NPT for triclinic box has not been implemented.");
+    }
+  }
   if (type >= 1 && type <= 20) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
