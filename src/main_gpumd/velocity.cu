@@ -245,6 +245,7 @@ void Velocity::initialize(
   std::vector<double>& cpu_velocity_per_atom,
   GPU_Vector<double>& velocity_per_atom)
 {
+  do_velocity_correction = false;
   if (!has_velocity_in_xyz) {
     const int N = cpu_mass.size();
     get_random_velocities(

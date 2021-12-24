@@ -18,12 +18,12 @@ Dump position data to movie.xyz.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_position.cuh"
+#include "model/box.cuh"
 #include "model/group.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 
 void Dump_Position::parse(char** param, int num_param, const std::vector<Group>& groups)
 {
@@ -63,13 +63,21 @@ void Dump_Position::preprocess(char* input_dir)
     strcpy(filename_, input_dir);
     strcat(filename_, "/movie.xyz");
     fid_ = my_fopen(filename_, "a");
-
+#ifdef USE_NEP
+    if (precision_ == 0)
+      strcpy(precision_str_, "%s %g %g %g\n");
+    else if (precision_ == 1) // single precision
+      strcpy(precision_str_, "%s %0.9g %0.9g %0.9g\n");
+    else if (precision_ == 2) // double precision
+      strcpy(precision_str_, "%s %.17f %.17f %.17f\n");
+#else
     if (precision_ == 0)
       strcpy(precision_str_, "%d %g %g %g\n");
     else if (precision_ == 1) // single precision
       strcpy(precision_str_, "%d %0.9g %0.9g %0.9g\n");
     else if (precision_ == 2) // double precision
       strcpy(precision_str_, "%d %.17f %.17f %.17f\n");
+#endif
   }
 }
 
@@ -93,9 +101,46 @@ __global__ void copy_position(
   }
 }
 
+void Dump_Position::output_line2(const Box& box)
+{
+#ifdef USE_NEP
+  if (box.triclinic == 0) {
+    fprintf(
+      fid_,
+      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+      "Properties=species:S:1:pos:R:3\n",
+      box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
+  } else {
+    fprintf(
+      fid_,
+      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+      "Properties=species:S:1:pos:R:3\n",
+      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  }
+#else
+  if (box.triclinic == 0) {
+    fprintf(
+      fid_,
+      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+      "Properties=species:I:1:pos:R:3\n",
+      box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
+  } else {
+    fprintf(
+      fid_,
+      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+      "Properties=species:I:1:pos:R:3\n",
+      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  }
+#endif
+}
+
 void Dump_Position::process(
   const int step,
+  const Box& box,
   const std::vector<Group>& groups,
+  const std::vector<std::string>& cpu_atom_symbol,
   const std::vector<int>& cpu_type,
   GPU_Vector<double>& position_per_atom,
   std::vector<double>& cpu_position_per_atom)
@@ -110,11 +155,17 @@ void Dump_Position::process(
   if (grouping_method_ < 0) {
     position_per_atom.copy_to_host(cpu_position_per_atom.data());
     fprintf(fid_, "%d\n", num_atoms_total);
-    fprintf(fid_, "%d\n", (step + 1) / dump_interval_ - 1);
+    output_line2(box);
     for (int n = 0; n < num_atoms_total; n++) {
+#ifdef USE_NEP
+      fprintf(
+        fid_, precision_str_, cpu_atom_symbol[n].c_str(), cpu_position_per_atom[n],
+        cpu_position_per_atom[n + num_atoms_total], cpu_position_per_atom[n + 2 * num_atoms_total]);
+#else
       fprintf(
         fid_, precision_str_, cpu_type[n], cpu_position_per_atom[n],
         cpu_position_per_atom[n + num_atoms_total], cpu_position_per_atom[n + 2 * num_atoms_total]);
+#endif
     }
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
@@ -131,12 +182,20 @@ void Dump_Position::process(
       CHECK(cudaMemcpy(cpu_data, gpu_data, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
     }
     fprintf(fid_, "%d\n", group_size);
-    fprintf(fid_, "%d\n", (step + 1) / dump_interval_ - 1);
+    output_line2(box);
     for (int n = 0; n < group_size; n++) {
+#ifdef USE_NEP
+      fprintf(
+        fid_, precision_str_,
+        cpu_atom_symbol[groups[grouping_method_].cpu_contents[group_size_sum + n]].c_str(),
+        cpu_position_per_atom[n], cpu_position_per_atom[n + num_atoms_total],
+        cpu_position_per_atom[n + 2 * num_atoms_total]);
+#else
       fprintf(
         fid_, precision_str_, cpu_type[groups[grouping_method_].cpu_contents[group_size_sum + n]],
         cpu_position_per_atom[n], cpu_position_per_atom[n + num_atoms_total],
         cpu_position_per_atom[n + 2 * num_atoms_total]);
+#endif
     }
   }
 

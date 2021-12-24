@@ -183,12 +183,14 @@ void read_xyz_in_line_3(
   const int has_velocity_in_xyz,
   int& number_of_types,
   std::vector<std::string>& atom_symbols,
+  std::vector<std::string>& cpu_atom_symbol,
   std::vector<int>& cpu_type,
   std::vector<double>& cpu_mass,
   std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
   std::vector<Group>& group)
 {
+  cpu_atom_symbol.resize(N);
   cpu_type.resize(N);
   cpu_mass.resize(N);
   cpu_position_per_atom.resize(N * 3);
@@ -209,10 +211,10 @@ void read_xyz_in_line_3(
 #ifdef USE_NEP
     char atom_symbol_tmp[10];
     int count = fscanf(fid_xyz, "%s%lf%lf%lf%lf", atom_symbol_tmp, &x, &y, &z, &mass);
-    std::string atom_symbol(atom_symbol_tmp);
+    cpu_atom_symbol[n] = atom_symbol_tmp;
     bool is_allowed_element = false;
     for (int t = 0; t < number_of_types; ++t) {
-      if (atom_symbol == atom_symbols[t]) {
+      if (cpu_atom_symbol[n] == atom_symbols[t]) {
         cpu_type[n] = t;
         is_allowed_element = true;
       }
@@ -427,8 +429,8 @@ void initialize_position(
 #endif
 
   read_xyz_in_line_3(
-    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom_symbols, atom.cpu_type, atom.cpu_mass,
-    atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, group);
+    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom_symbols, atom.cpu_atom_symbol,
+    atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, group);
 
   fclose(fid_xyz);
 

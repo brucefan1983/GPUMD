@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 
 class Atom
@@ -25,6 +26,7 @@ public:
   std::vector<double> cpu_mass;
   std::vector<double> cpu_position_per_atom;
   std::vector<double> cpu_velocity_per_atom;
+  std::vector<std::string> cpu_atom_symbol;
   GPU_Vector<int> type;                  // per-atom type (1 component)
   GPU_Vector<double> mass;               // per-atom mass (1 component)
   GPU_Vector<double> position_per_atom;  // per-atom position (3 components)

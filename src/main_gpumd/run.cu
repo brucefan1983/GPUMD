@@ -135,6 +135,7 @@ void Run::perform_a_run(char* input_dir)
 
   integrate.finalize();
   neighbor.finalize();
+  velocity.finalize();
 }
 
 void Run::parse_one_keyword(char** param, int num_param, char* input_dir)

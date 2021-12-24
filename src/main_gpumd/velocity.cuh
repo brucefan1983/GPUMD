@@ -21,8 +21,8 @@
 class Velocity
 {
 public:
-  bool do_velocity_correction;
-  int velocity_correction_interval;
+  bool do_velocity_correction = false;
+  int velocity_correction_interval = 1000;
 
   void initialize(
     const bool has_velocity_in_xyz,

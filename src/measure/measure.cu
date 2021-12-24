@@ -103,7 +103,8 @@ void Measure::process(
   dump_thermo.process(
     step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group], box, thermo);
   dump_position.process(
-    step, group, atom.cpu_type, atom.position_per_atom, atom.cpu_position_per_atom);
+    step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+    atom.cpu_position_per_atom);
   dump_velocity.process(step, group, atom.velocity_per_atom, atom.cpu_velocity_per_atom);
   dump_restart.process(
     step, neighbor, box, group, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,

@@ -16,8 +16,10 @@
 #pragma once
 
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 class Group;
+class Box;
 
 class Dump_Position
 {
@@ -26,7 +28,9 @@ public:
   void preprocess(char* input_dir);
   void process(
     const int step,
+    const Box& box,
     const std::vector<Group>& groups,
+    const std::vector<std::string>& cpu_atom_symbol,
     const std::vector<int>& cpu_type,
     GPU_Vector<double>& position_per_atom,
     std::vector<double>& cpu_position_per_atom);
@@ -41,4 +45,5 @@ private:
   FILE* fid_;
   char filename_[200];
   char precision_str_[25];
+  void output_line2(const Box& box);
 };
