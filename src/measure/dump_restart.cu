@@ -54,6 +54,7 @@ void Dump_Restart::process(
   const Neighbor& neighbor,
   const Box& box,
   const std::vector<Group>& group,
+  const std::vector<std::string>& cpu_atom_symbol,
   const std::vector<int>& cpu_type,
   const std::vector<double>& cpu_mass,
   GPU_Vector<double>& position_per_atom,
@@ -89,11 +90,19 @@ void Dump_Restart::process(
   }
 
   for (int n = 0; n < number_of_atoms; n++) {
+#ifdef USE_NEP
+    fprintf(
+      fid, "%s %g %g %g %g %g %g %g ", cpu_atom_symbol[n].c_str(), cpu_position_per_atom[n],
+      cpu_position_per_atom[n + number_of_atoms], cpu_position_per_atom[n + 2 * number_of_atoms],
+      cpu_mass[n], cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
+      cpu_velocity_per_atom[n + 2 * number_of_atoms]);
+#else
     fprintf(
       fid, "%d %g %g %g %g %g %g %g ", cpu_type[n], cpu_position_per_atom[n],
       cpu_position_per_atom[n + number_of_atoms], cpu_position_per_atom[n + 2 * number_of_atoms],
       cpu_mass[n], cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
       cpu_velocity_per_atom[n + 2 * number_of_atoms]);
+#endif
 
     for (int m = 0; m < group.size(); ++m) {
       fprintf(fid, "%d ", group[m].cpu_label[n]);

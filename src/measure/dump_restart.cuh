@@ -16,6 +16,7 @@
 #pragma once
 
 #include "utilities/gpu_vector.cuh"
+#include <string>
 #include <vector>
 class Box;
 class Group;
@@ -31,6 +32,7 @@ public:
     const Neighbor& neighbor,
     const Box& box,
     const std::vector<Group>& group,
+    const std::vector<std::string>& cpu_atom_symbol,
     const std::vector<int>& cpu_type,
     const std::vector<double>& cpu_mass,
     GPU_Vector<double>& position_per_atom,

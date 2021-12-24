@@ -107,8 +107,9 @@ void Measure::process(
     atom.cpu_position_per_atom);
   dump_velocity.process(step, group, atom.velocity_per_atom, atom.cpu_velocity_per_atom);
   dump_restart.process(
-    step, neighbor, box, group, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,
-    atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+    step, neighbor, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass,
+    atom.position_per_atom, atom.velocity_per_atom, atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
   compute.process(
     step, energy_transferred, group, atom.mass, atom.potential_per_atom, atom.force_per_atom,
