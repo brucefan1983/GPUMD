@@ -4,7 +4,7 @@
 
 ## 2022 (5)
 
-Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter (2022).
+* Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter (2022).
 
 * Xin Wu and Qiang Han, [Transition from incoherent to coherent phonon thermal transport across graphene/h-BN van der Waals superlattices](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122390), International Journal of Heat and Mass Transfer, **184**, 122390 (2022).
 
