@@ -142,13 +142,16 @@ gpu_update_xyz0(int N, double* x, double* y, double* z, double* x0, double* y0, 
 }
 
 // check the bound of the neighbor list
-void Neighbor::check_bound(void)
+void Neighbor::check_bound(const bool is_first)
 {
   const int N = NN.size();
-  std::vector<int> cpu_NN(N);
   NN.copy_to_host(cpu_NN.data());
   int flag = 0;
+  max_NN = 0;
   for (int n = 0; n < N; ++n) {
+    if (cpu_NN[n] > max_NN) {
+      max_NN = cpu_NN[n];
+    }
     if (cpu_NN[n] > MN) {
       printf("Error: NN[%d] = %d > %d\n", n, cpu_NN[n], MN);
       flag = 1;
@@ -156,6 +159,9 @@ void Neighbor::check_bound(void)
   }
   if (flag == 1) {
     exit(1);
+  } else if (is_first) {
+    printf("Build the initial neighbor list with cutoff %g A and size %d.\n", rc, MN);
+    printf("    calculated maximum number of neighbors for one atom in the system = %d\n", max_NN);
   }
 }
 
@@ -261,7 +267,7 @@ void Neighbor::find_neighbor(
 
   if (is_first) {
     find_neighbor(box, x, y, z);
-    check_bound();
+    check_bound(is_first);
 
     gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
     CUDA_CHECK_KERNEL
@@ -272,7 +278,7 @@ void Neighbor::find_neighbor(
       number_of_updates++;
 
       find_neighbor(box, x, y, z);
-      check_bound();
+      check_bound(is_first);
 
       gpu_apply_pbc<<<grid_size, block_size>>>(N, box, x, y, z);
       CUDA_CHECK_KERNEL
@@ -287,4 +293,5 @@ void Neighbor::finalize()
 {
   update = 0;
   number_of_updates = 0;
+  max_NN = 0;
 }

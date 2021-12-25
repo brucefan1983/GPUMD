@@ -389,10 +389,6 @@ void initialize_position(
   std::vector<Group>& group,
   Atom& atom)
 {
-  print_line_1();
-  printf("Started initializing positions and related parameters.\n");
-  print_line_2();
-
   char file_xyz[200];
   strcpy(file_xyz, input_dir);
   strcat(file_xyz, "/xyz.in");
@@ -440,10 +436,6 @@ void initialize_position(
   }
 
   find_type_size(N, number_of_types, atom.cpu_type, atom.cpu_type_size);
-
-  print_line_1();
-  printf("Finished initializing positions and related parameters.\n");
-  print_line_2();
 }
 
 void allocate_memory_gpu(
@@ -461,6 +453,7 @@ void allocate_memory_gpu(
   neighbor.cell_count.resize(N);
   neighbor.cell_count_sum.resize(N);
   neighbor.cell_contents.resize(N);
+  neighbor.cpu_NN.resize(N);
 
   atom.type.resize(N);
   atom.type.copy_from_host(atom.cpu_type.data());

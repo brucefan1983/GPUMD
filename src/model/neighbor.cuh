@@ -16,6 +16,7 @@
 #pragma once
 #include "box.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <vector>
 
 class Neighbor
 {
@@ -23,6 +24,7 @@ public:
   int MN;                    // upper bound of # neighbors for one particle
   int update = 0;            // 1 means you want to update the neighbor list
   int number_of_updates = 0; // number of updates during a run
+  int max_NN = 0;            // maximum number of neighbors during a run
   double skin;               // skin distance
   double rc;                 // cutoff used when building the neighbor list
 
@@ -33,6 +35,9 @@ public:
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
+
+  // CPU copy
+  std::vector<int> cpu_NN;
 
   // used to determine when to update neighbor list
   GPU_Vector<double> x0, y0, z0;
@@ -45,6 +50,6 @@ private:
   void find_neighbor_ON2(const Box&, double*, double*, double*);
   void find_neighbor_ON1(int, int, int, const Box&, double*, double*, double*);
   void find_neighbor(const Box&, double*, double*, double*);
-  void check_bound(void);
+  void check_bound(const bool is_first);
   int check_atom_distance(double* x, double* y, double* z);
 };
