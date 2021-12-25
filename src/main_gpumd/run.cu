@@ -35,6 +35,10 @@ Run simulation according to the inputs in the run.in file.
 
 Run::Run(char* input_dir)
 {
+  print_line_1();
+  printf("Started initializing positions and related parameters.\n");
+  print_line_2();
+
   initialize_position(
     input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, atom);
 
@@ -43,6 +47,10 @@ Run::Run(char* input_dir)
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
   neighbor.find_neighbor(/*is_first=*/true, box, atom.position_per_atom);
 #endif
+
+  print_line_1();
+  printf("Finished initializing positions and related parameters.\n");
+  print_line_2();
 
   execute_run_in(input_dir);
 }
@@ -125,8 +133,13 @@ void Run::perform_a_run(char* input_dir)
   print_line_1();
   clock_t time_finish = clock();
   double time_used = (time_finish - time_begin) / (double)CLOCKS_PER_SEC;
-  printf("Number of neighbor list updates = %d.\n", neighbor.number_of_updates);
-  printf("Time used for this run = %g s.\n", time_used);
+  printf("Number of neighbor list updates for this run = %d.\n", neighbor.number_of_updates);
+  if (neighbor.number_of_updates > 0) {
+    printf("    Calculated maximum number of neighbors for this run = %d.\n", neighbor.max_NN);
+    printf("    The 'MN' parameter you set in xyz.in = %d.\n", neighbor.MN);
+    printf("    You can consider increasing/decreasing 'MN' based on the information above.\n");
+  }
+  printf("Time used for this run = %g second.\n", time_used);
   double run_speed = N * (number_of_steps / time_used);
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
