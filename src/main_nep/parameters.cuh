@@ -36,6 +36,8 @@ public:
   int number_of_variables_ann = 0;
   float L1_reg_para = 5.0e-2f;       // good default
   float L2_reg_para = 5.0e-2f;       // good default
+  float virial_loss_weight = 0.1f;   // good default
+  float energy_loss_weight = 1.0f;   // good default
   GPU_Vector<float> q_scaler_gpu;    // used to scale some descriptor components (GPU)
   std::vector<float> q_scaler_cpu;   // used to scale some descriptor components (CPU)
   std::vector<std::string> elements; // atom symbols

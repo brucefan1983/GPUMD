@@ -1,5 +1,6 @@
 \.cproject
 \.project
+\.history
 core
 
 src/.vscode/*

@@ -160,5 +160,19 @@ Parameters::Parameters(char* input_dir)
     PRINT_INPUT_ERROR("maximum_generation should <= 10000000.");
   }
 
+  count = fscanf(fid, "%s%f", name, &energy_loss_weight);
+  PRINT_SCANF_ERROR(count, 2, "reading error for energy_loss_weight.");
+  printf("energy_loss_weight = %f.\n", energy_loss_weight);
+  if (energy_loss_weight < 0) {
+    PRINT_INPUT_ERROR("energy_loss_weight should >= 0.");
+  }
+
+  count = fscanf(fid, "%s%f", name, &virial_loss_weight);
+  PRINT_SCANF_ERROR(count, 2, "reading error for virial_loss_weight.");
+  printf("virial_loss_weight = %f.\n", virial_loss_weight);
+  if (virial_loss_weight < 0) {
+    PRINT_INPUT_ERROR("virial_loss_weight should >= 0.");
+  } 
+
   fclose(fid);
 }
