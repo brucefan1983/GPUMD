@@ -151,8 +151,8 @@ void SNES::regularize(Parameters& para)
       cost_L1 += std::abs(population[pv]);
       cost_L2 += population[pv] * population[pv];
     }
-    cost_L1 *= para.L1_reg_para / number_of_variables;
-    cost_L2 = para.L2_reg_para * sqrt(cost_L2 / number_of_variables);
+    cost_L1 *= para.lambda_1 / number_of_variables;
+    cost_L2 = para.lambda_2 * sqrt(cost_L2 / number_of_variables);
     fitness[p] = cost_L1 + cost_L2 + fitness[p + 3 * population_size] +
                  fitness[p + 4 * population_size] + fitness[p + 5 * population_size];
     fitness[p + 1 * population_size] = cost_L1;

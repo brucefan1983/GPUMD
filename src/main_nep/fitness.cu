@@ -28,10 +28,6 @@ Get the fitness
 #include <random>
 #include <vector>
 
-// You can change these values and re-compile:
-#define VIRIAL_LOSS_WEIGHT 0.1f
-#define ENERGY_LOSS_WEIGHT 1.0f
-
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
   print_line_1();
@@ -101,11 +97,9 @@ void Fitness::compute(
       potential->find_force(para, individual, train_set[batch_id], false);
       float energy_shift_per_structure_not_used;
       fitness[n + 0 * para.population_size] =
-        ENERGY_LOSS_WEIGHT *
-        train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used);
-      fitness[n + 1 * para.population_size] = train_set[batch_id].get_rmse_force();
-      fitness[n + 2 * para.population_size] =
-        VIRIAL_LOSS_WEIGHT * train_set[batch_id].get_rmse_virial();
+        para.lambda_e * train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used);
+      fitness[n + 1 * para.population_size] = para.lambda_f * train_set[batch_id].get_rmse_force();
+      fitness[n + 2 * para.population_size] = para.lambda_v * train_set[batch_id].get_rmse_virial();
     }
   }
 }
@@ -171,15 +165,19 @@ void Fitness::report_error(
     }
     fclose(fid_nep);
 
+    float loss_energy_train = (para.lambda_e > 0) ? loss_energy / para.lambda_e : 0.0f;
+    float loss_force_train = (para.lambda_f > 0) ? loss_force / para.lambda_f : 0.0f;
+    float loss_virial_train = (para.lambda_v > 0) ? loss_virial / para.lambda_v : 0.0f;
+
     printf(
       "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n", generation + 1,
-      loss_total, loss_L1, loss_L2, loss_energy / ENERGY_LOSS_WEIGHT, loss_force,
-      loss_virial / VIRIAL_LOSS_WEIGHT, rmse_energy_test, rmse_force_test, rmse_virial_test);
+      loss_total, loss_L1, loss_L2, loss_energy_train, loss_force_train, loss_virial_train,
+      rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(stdout);
     fprintf(
       fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-      generation + 1, loss_total, loss_L1, loss_L2, loss_energy / ENERGY_LOSS_WEIGHT, loss_force,
-      loss_virial / VIRIAL_LOSS_WEIGHT, rmse_energy_test, rmse_force_test, rmse_virial_test);
+      generation + 1, loss_total, loss_L1, loss_L2, loss_energy_train, loss_force_train,
+      loss_virial_train, rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_loss_out);
 
     char file_force[200];
