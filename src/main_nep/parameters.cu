@@ -15,6 +15,7 @@
 
 #include "parameters.cuh"
 #include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
 #include <cmath>
 
 const int NUM_ELEMENTS = 103;
@@ -33,30 +34,236 @@ Parameters::Parameters(char* input_dir)
   printf("Started reading nep.in.\n");
   print_line_2();
 
-  char file[200];
-  strcpy(file, input_dir);
-  strcat(file, "/nep.in");
-  FILE* fid = my_fopen(file, "r");
-  char name[20];
+  set_default_parameters();
+  read_nep_in(input_dir);
+  calculate_parameters();
+  report_inputs();
 
-  int count = fscanf(fid, "%s%d", name, &num_types);
-  PRINT_SCANF_ERROR(count, 2, "reading error for num_types.");
-  printf("num_types = %d.\n", num_types);
-  if (num_types < 1 || num_types > 10) {
-    PRINT_INPUT_ERROR("num_types should >=1 and <= 10.");
+  print_line_1();
+  printf("Finished reading nep.in.\n");
+  print_line_2();
+}
+
+void Parameters::set_default_parameters()
+{
+  is_type_set = false;
+  is_cutoff_set = false;
+  is_n_max_set = false;
+  is_l_max_set = false;
+  is_neuron_set = false;
+  is_lambda_1_set = false;
+  is_lambda_2_set = false;
+  is_lambda_e_set = false;
+  is_lambda_f_set = false;
+  is_lambda_v_set = false;
+  is_batch_set = false;
+  is_population_set = false;
+  is_generation_set = false;
+
+  rc_radial = 8.0f;              // large enough for vdw/coulomb
+  rc_angular = 5.0f;             // large enough in most cases
+  n_max_radial = 15;             // large enough in most cases
+  n_max_angular = 10;            // large enough in most cases
+  L_max = 4;                     // the only supported value
+  num_neurons1 = 50;             // large enough in most cases
+  lambda_1 = lambda_2 = 5.0e-2f; // good default based on our tests
+  lambda_e = lambda_f = 1.0f;    // energy and force are more important
+  lambda_v = 0.1f;               // virial is less important
+  batch_size = 1000000;          // a very large number means full-batch
+  population_size = 50;          // almost optimal
+  maximum_generation = 100000;   // a good starting point
+}
+
+void Parameters::read_nep_in(char* input_dir)
+{
+  char file_para[200];
+  strcpy(file_para, input_dir);
+  strcat(file_para, "/nep.in");
+  char* input = get_file_contents(file_para);
+  char* input_ptr = input;      // Keep the pointer in order to free later
+  const int max_num_param = 20; // never use more than 19 parameters
+  int num_param;
+  char* param[max_num_param];
+
+  while (input_ptr) {
+    input_ptr = row_find_param(input_ptr, param, &num_param);
+    if (num_param == 0) {
+      continue;
+    }
+    parse_one_keyword(param, num_param);
+  }
+  free(input); // Free the input file contents
+}
+
+void Parameters::calculate_parameters()
+{
+  dim_radial = (n_max_radial + 1);
+  dim_angular = (n_max_angular + 1) * L_max;
+  dim = dim_radial + dim_angular;
+  q_scaler_cpu.resize(dim, 1.0e10f);
+  q_scaler_gpu.resize(dim);
+  q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
+  number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+  number_of_variables_descriptor =
+    (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
+  number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
+}
+
+void Parameters::report_inputs()
+{
+  if (!is_type_set) {
+    PRINT_INPUT_ERROR("type in nep.in has not been set.");
   }
 
+  printf("Input or default parameters:\n");
+  printf("    (input)   number of atom types = %d.\n", num_types);
   for (int n = 0; n < num_types; ++n) {
-    char atom_symbol[10];
-    count = fscanf(fid, "%s", atom_symbol);
-    PRINT_SCANF_ERROR(count, 1, "reading error for atom symbol.");
-    printf("    there is %s.\n", atom_symbol);
-    elements.emplace_back(atom_symbol);
+    printf("        type %d is %s.\n", n, elements[n].c_str());
+  }
 
-    std::string element(atom_symbol);
+  if (is_cutoff_set) {
+    printf("    (input)   radial cutoff = %g A.\n", rc_radial);
+    printf("    (input)   angular cutoff = %g A.\n", rc_angular);
+  } else {
+    printf("    (default) radial cutoff = %g A.\n", rc_radial);
+    printf("    (default) angular cutoff = %g A.\n", rc_angular);
+  }
+
+  if (is_n_max_set) {
+    printf("    (input)   n_max_radial = %d.\n", n_max_radial);
+    printf("    (input)   n_max_angular = %d.\n", n_max_angular);
+  } else {
+    printf("    (default) n_max_radial = %d.\n", n_max_radial);
+    printf("    (default) n_max_angular = %d.\n", n_max_angular);
+  }
+
+  if (is_l_max_set) {
+    printf("    (input)   l_max = %d.\n", L_max);
+  } else {
+    printf("    (default) l_max = %d.\n", L_max);
+  }
+
+  if (is_neuron_set) {
+    printf("    (input)   number of neurons = %d.\n", num_neurons1);
+  } else {
+    printf("    (default) number of neurons = %d.\n", num_neurons1);
+  }
+
+  if (is_lambda_1_set) {
+    printf("    (input)   lambda_1 = %g.\n", lambda_1);
+  } else {
+    printf("    (default) lambda_1 = %g.\n", lambda_1);
+  }
+
+  if (is_lambda_2_set) {
+    printf("    (input)   lambda_2 = %g.\n", lambda_2);
+  } else {
+    printf("    (default) lambda_2 = %g.\n", lambda_2);
+  }
+
+  if (is_lambda_e_set) {
+    printf("    (input)   lambda_e = %g.\n", lambda_e);
+  } else {
+    printf("    (default) lambda_e = %g.\n", lambda_e);
+  }
+
+  if (is_lambda_f_set) {
+    printf("    (input)   lambda_f = %g.\n", lambda_f);
+  } else {
+    printf("    (default) lambda_f = %g.\n", lambda_f);
+  }
+
+  if (is_lambda_v_set) {
+    printf("    (input)   lambda_v = %g.\n", lambda_v);
+  } else {
+    printf("    (default) lambda_v = %g.\n", lambda_v);
+  }
+
+  if (is_batch_set) {
+    printf("    (input)   batch size = %d.\n", batch_size);
+  } else {
+    printf("    (default) batch size = %d.\n", batch_size);
+  }
+
+  if (is_population_set) {
+    printf("    (input)   population size = %d.\n", population_size);
+  } else {
+    printf("    (default) population size = %d.\n", population_size);
+  }
+
+  if (is_generation_set) {
+    printf("    (input)   maximum number of generation = %d.\n", maximum_generation);
+  } else {
+    printf("    (default) maximum number of generation = %d.\n", maximum_generation);
+  }
+
+  // some calcuated parameters:
+  printf("Some calculated parameters:\n");
+  printf("    number of radial descriptor components = %d.\n", dim_radial);
+  printf("    number of angualr descriptor components = %d.\n", dim_angular);
+  printf("    total number of  descriptor components = %d.\n", dim);
+  printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
+  printf("    number of NN parameters to be optimized = %d.\n", number_of_variables_ann);
+  printf(
+    "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
+  printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
+}
+
+void Parameters::parse_one_keyword(char** param, int num_param)
+{
+  if (strcmp(param[0], "type") == 0) {
+    parse_type(param, num_param);
+  } else if (strcmp(param[0], "cutoff") == 0) {
+    parse_cutoff(param, num_param);
+  } else if (strcmp(param[0], "n_max") == 0) {
+    parse_n_max(param, num_param);
+  } else if (strcmp(param[0], "l_max") == 0) {
+    parse_l_max(param, num_param);
+  } else if (strcmp(param[0], "neuron") == 0) {
+    parse_neuron(param, num_param);
+  } else if (strcmp(param[0], "batch") == 0) {
+    parse_batch(param, num_param);
+  } else if (strcmp(param[0], "population") == 0) {
+    parse_population(param, num_param);
+  } else if (strcmp(param[0], "generation") == 0) {
+    parse_generation(param, num_param);
+  } else if (strcmp(param[0], "lambda_1") == 0) {
+    parse_lambda_1(param, num_param);
+  } else if (strcmp(param[0], "lambda_2") == 0) {
+    parse_lambda_2(param, num_param);
+  } else if (strcmp(param[0], "lambda_e") == 0) {
+    parse_lambda_e(param, num_param);
+  } else if (strcmp(param[0], "lambda_f") == 0) {
+    parse_lambda_f(param, num_param);
+  } else if (strcmp(param[0], "lambda_v") == 0) {
+    parse_lambda_v(param, num_param);
+  } else {
+    PRINT_KEYWORD_ERROR(param[0]);
+  }
+}
+
+void Parameters::parse_type(char** param, int num_param)
+{
+  is_type_set = true;
+
+  if (num_param < 3) {
+    PRINT_INPUT_ERROR("type should have at least 2 parameters.\n");
+  }
+  if (!is_valid_int(param[1], &num_types)) {
+    PRINT_INPUT_ERROR("number of types should be integer.\n");
+  }
+
+  if (num_types < 1 || num_types > 10) {
+    PRINT_INPUT_ERROR("number of types should >=1 and <= 10.");
+  }
+  if (num_param != 2 + num_types) {
+    PRINT_INPUT_ERROR("number of types and the number of listed elements do not match.\n");
+  }
+  for (int n = 0; n < num_types; ++n) {
+    elements.emplace_back(param[2 + n]);
     bool is_valid_element = false;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (element == ELEMENTS[m]) {
+      if (elements.back() == ELEMENTS[m]) {
         is_valid_element = true;
         break;
       }
@@ -65,11 +272,28 @@ Parameters::Parameters(char* input_dir)
       PRINT_INPUT_ERROR("Some element in nep.in is not in the periodic table.");
     }
   }
+}
 
-  count = fscanf(fid, "%s%f%f", name, &rc_radial, &rc_angular);
-  PRINT_SCANF_ERROR(count, 3, "reading error for cutoff.");
-  printf("radial cutoff = %g A.\n", rc_radial);
-  printf("angular cutoff = %g A.\n", rc_angular);
+void Parameters::parse_cutoff(char** param, int num_param)
+{
+  is_cutoff_set = true;
+
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("cutoff should have 2 parameters.\n");
+  }
+
+  double rc_radial_tmp = 0.0;
+  if (!is_valid_real(param[1], &rc_radial_tmp)) {
+    PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
+  }
+  rc_radial = rc_radial_tmp;
+
+  double rc_angular_tmp = 0.0;
+  if (!is_valid_real(param[2], &rc_angular_tmp)) {
+    PRINT_INPUT_ERROR("angular cutoff should be a number.\n");
+  }
+  rc_angular = rc_angular_tmp;
+
   if (rc_angular > rc_radial) {
     PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
   }
@@ -79,11 +303,21 @@ Parameters::Parameters(char* input_dir)
   if (rc_radial > 10.0f) {
     PRINT_INPUT_ERROR("radial cutoff should <= 10 A.");
   }
+}
 
-  count = fscanf(fid, "%s%d%d", name, &n_max_radial, &n_max_angular);
-  PRINT_SCANF_ERROR(count, 3, "reading error for n_max.");
-  printf("n_max_radial = %d.\n", n_max_radial);
-  printf("n_max_angular = %d.\n", n_max_angular);
+void Parameters::parse_n_max(char** param, int num_param)
+{
+  is_n_max_set = true;
+
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("n_max should have 2 parameters.\n");
+  }
+  if (!is_valid_int(param[1], &n_max_radial)) {
+    PRINT_INPUT_ERROR("n_max_radial should be an integer.\n");
+  }
+  if (!is_valid_int(param[2], &n_max_angular)) {
+    PRINT_INPUT_ERROR("n_max_angular should be an integer.\n");
+  }
   if (n_max_radial < 0) {
     PRINT_INPUT_ERROR("n_max_radial should >= 0.");
   } else if (n_max_radial > 19) {
@@ -94,71 +328,180 @@ Parameters::Parameters(char* input_dir)
   } else if (n_max_angular > 19) {
     PRINT_INPUT_ERROR("n_max_angular should <= 19.");
   }
+}
 
-  count = fscanf(fid, "%s%d", name, &L_max);
-  PRINT_SCANF_ERROR(count, 2, "reading error for l_max.");
-  printf("l_max = %d.\n", L_max);
+void Parameters::parse_l_max(char** param, int num_param)
+{
+  is_l_max_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("l_max should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &L_max)) {
+    PRINT_INPUT_ERROR("l_max should be an integer.\n");
+  }
   if (L_max != 4) {
     PRINT_INPUT_ERROR("l_max should = 4.");
   }
+}
 
-  int dim = (n_max_radial + 1) + (n_max_angular + 1) * L_max;
-  q_scaler_cpu.resize(dim, 1.0e10f);
-  q_scaler_gpu.resize(dim);
-  q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
+void Parameters::parse_neuron(char** param, int num_param)
+{
+  is_neuron_set = true;
 
-  count = fscanf(fid, "%s%d", name, &num_neurons1);
-  PRINT_SCANF_ERROR(count, 2, "reading error for ANN.");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("neuron should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &num_neurons1)) {
+    PRINT_INPUT_ERROR("number of neurons should be an integer.\n");
+  }
   if (num_neurons1 < 1) {
-    PRINT_INPUT_ERROR("num_neurons1 should >= 1.");
+    PRINT_INPUT_ERROR("number of neurons should >= 1.");
   } else if (num_neurons1 > 100) {
-    PRINT_INPUT_ERROR("num_neurons1 should <= 100.");
+    PRINT_INPUT_ERROR("number of neurons should <= 100.");
+  }
+}
+
+void Parameters::parse_lambda_1(char** param, int num_param)
+{
+  is_lambda_1_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_1 should have 1 parameter.\n");
   }
 
-  printf("ANN = %d-%d-1.\n", dim, num_neurons1);
-
-  number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-  printf("number of neural network parameters to be optimized = %d.\n", number_of_variables_ann);
-  int num_para_descriptor =
-    (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
-  printf("number of descriptor parameters to be optimized = %d.\n", num_para_descriptor);
-  number_of_variables = number_of_variables_ann + num_para_descriptor;
-  printf("total number of parameters to be optimized = %d.\n", number_of_variables);
-
-  count = fscanf(fid, "%s%f%f", name, &L1_reg_para, &L2_reg_para);
-  PRINT_SCANF_ERROR(count, 3, "reading error for regularization.");
-  printf("regularization = %g, %g.\n", L1_reg_para, L2_reg_para);
-  if (L1_reg_para < 0.0f) {
-    PRINT_INPUT_ERROR("L1 regularization >= 0.");
+  double lambda_1_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_1_tmp)) {
+    PRINT_INPUT_ERROR("L1 regularization loss weight should be a number.\n");
   }
-  if (L2_reg_para < 0.0f) {
-    PRINT_INPUT_ERROR("L2 regularization >= 0.");
+  lambda_1 = lambda_1_tmp;
+
+  if (lambda_1 < 0.0f) {
+    PRINT_INPUT_ERROR("L1 regularization loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_2(char** param, int num_param)
+{
+  is_lambda_2_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_2 should have 1 parameter.\n");
   }
 
-  count = fscanf(fid, "%s%d", name, &batch_size);
-  PRINT_SCANF_ERROR(count, 2, "reading error for batch_size.");
-  printf("batch_size = %d.\n", batch_size);
+  double lambda_2_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_2_tmp)) {
+    PRINT_INPUT_ERROR("L2 regularization loss weight should be a number.\n");
+  }
+  lambda_2 = lambda_2_tmp;
+
+  if (lambda_2 < 0.0f) {
+    PRINT_INPUT_ERROR("L2 regularization loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_e(char** param, int num_param)
+{
+  is_lambda_e_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_e should have 1 parameter.\n");
+  }
+
+  double lambda_e_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_e_tmp)) {
+    PRINT_INPUT_ERROR("Energy loss weight should be a number.\n");
+  }
+  lambda_e = lambda_e_tmp;
+
+  if (lambda_e < 0.0f) {
+    PRINT_INPUT_ERROR("Energy loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_f(char** param, int num_param)
+{
+  is_lambda_f_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_f should have 1 parameter.\n");
+  }
+
+  double lambda_f_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_f_tmp)) {
+    PRINT_INPUT_ERROR("Force loss weight should be a number.\n");
+  }
+  lambda_f = lambda_f_tmp;
+
+  if (lambda_f < 0.0f) {
+    PRINT_INPUT_ERROR("Force loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_v(char** param, int num_param)
+{
+  is_lambda_v_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_v should have 1 parameter.\n");
+  }
+
+  double lambda_v_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_v_tmp)) {
+    PRINT_INPUT_ERROR("Virial loss weight should be a number.\n");
+  }
+  lambda_v = lambda_v_tmp;
+
+  if (lambda_v < 0.0f) {
+    PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_batch(char** param, int num_param)
+{
+  is_batch_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("batch should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &batch_size)) {
+    PRINT_INPUT_ERROR("batch size should be an integer.\n");
+  }
   if (batch_size < 1) {
-    PRINT_INPUT_ERROR("batch_size should >= 1.");
+    PRINT_INPUT_ERROR("batch size should >= 1.");
   }
+}
 
-  count = fscanf(fid, "%s%d", name, &population_size);
-  PRINT_SCANF_ERROR(count, 2, "reading error for population_size.");
-  printf("population_size = %d.\n", population_size);
+void Parameters::parse_population(char** param, int num_param)
+{
+  is_population_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("population should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &population_size)) {
+    PRINT_INPUT_ERROR("population size should be an integer.\n");
+  }
   if (population_size < 10) {
-    PRINT_INPUT_ERROR("population_size should >= 10.");
+    PRINT_INPUT_ERROR("population size should >= 10.");
   } else if (population_size > 100) {
-    PRINT_INPUT_ERROR("population_size should <= 100.");
+    PRINT_INPUT_ERROR("population size should <= 100.");
   }
+}
 
-  count = fscanf(fid, "%s%d", name, &maximum_generation);
-  PRINT_SCANF_ERROR(count, 2, "reading error for maximum_generation.");
-  printf("maximum_generation = %d.\n", maximum_generation);
+void Parameters::parse_generation(char** param, int num_param)
+{
+  is_generation_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("generation should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &maximum_generation)) {
+    PRINT_INPUT_ERROR("maximum number of generations should be an integer.\n");
+  }
   if (maximum_generation < 0) {
-    PRINT_INPUT_ERROR("maximum_generation should >= 0.");
+    PRINT_INPUT_ERROR("maximum number of generations should >= 0.");
   } else if (maximum_generation > 10000000) {
-    PRINT_INPUT_ERROR("maximum_generation should <= 10000000.");
+    PRINT_INPUT_ERROR("maximum number of generations should <= 10000000.");
   }
-
-  fclose(fid);
 }
