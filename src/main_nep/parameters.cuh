@@ -18,6 +18,8 @@
 #include <string>
 #include <vector>
 
+#define MAX_NUM_TYPES 10
+
 class Parameters
 {
 public:
@@ -54,6 +56,7 @@ public:
   bool is_batch_set;
   bool is_population_set;
   bool is_generation_set;
+  bool is_type_weight_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -64,9 +67,11 @@ public:
   int number_of_variables_descriptor; // number of parameters in the descriptor only
 
   // some arrays
-  GPU_Vector<float> q_scaler_gpu;    // used to scale some descriptor components (GPU)
-  std::vector<float> q_scaler_cpu;   // used to scale some descriptor components (CPU)
-  std::vector<std::string> elements; // atom symbols
+  GPU_Vector<float> type_weight_gpu;  // relative force weight for different atom types (GPU)
+  std::vector<float> type_weight_cpu; // relative force weight for different atom types (CPU)
+  GPU_Vector<float> q_scaler_gpu;     // used to scale some descriptor components (GPU)
+  std::vector<float> q_scaler_cpu;    // used to scale some descriptor components (CPU)
+  std::vector<std::string> elements;  // atom symbols
 
 private:
   void set_default_parameters();
@@ -76,6 +81,7 @@ private:
 
   void parse_one_keyword(char** param, int num_param);
   void parse_type(char** param, int num_param);
+  void parse_type_weight(char** param, int num_param);
   void parse_cutoff(char** param, int num_param);
   void parse_n_max(char** param, int num_param);
   void parse_l_max(char** param, int num_param);

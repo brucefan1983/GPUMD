@@ -59,7 +59,7 @@ public:
   std::vector<Structure> structures;
 
   void construct(char*, Parameters& para, std::vector<Structure>& structures, int n1, int n2);
-  float get_rmse_force();
+  float get_rmse_force(Parameters& para, bool is_weighted);
   float get_rmse_energy(float& energy_shift_per_structure);
   float get_rmse_virial();
 

@@ -113,8 +113,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
     sort_population();
     fitness_function->report_error(
       input_dir, para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
-      fitness[0 + 2 * population_size], fitness[0 + 3 * population_size],
-      fitness[0 + 4 * population_size], fitness[0 + 5 * population_size], population.data());
+      fitness[0 + 2 * population_size], population.data());
     update_mu_and_sigma();
     if (0 == (n + 1) % 100) {
       output_mu_and_sigma(input_dir, para);

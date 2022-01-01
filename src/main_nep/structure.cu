@@ -134,7 +134,7 @@ static void read_box(FILE* fid, int nc, Parameters& para, std::vector<Structure>
 
 static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structure>& structures)
 {
-  structures[nc].atomic_number.resize(structures[nc].num_atom);
+  structures[nc].type.resize(structures[nc].num_atom);
   structures[nc].x.resize(structures[nc].num_atom);
   structures[nc].y.resize(structures[nc].num_atom);
   structures[nc].z.resize(structures[nc].num_atom);
@@ -154,7 +154,7 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
     bool is_allowed_element = false;
     for (int n = 0; n < para.elements.size(); ++n) {
       if (atom_symbol == para.elements[n]) {
-        structures[nc].atomic_number[na] = n;
+        structures[nc].type[na] = n;
         is_allowed_element = true;
       }
     }
@@ -207,7 +207,7 @@ static void reorder(std::vector<Structure>& structures)
     for (int k = 0; k < 3; ++k) {
       structures_copy[nc].num_cell[k] = structures[nc].num_cell[k];
     }
-    structures_copy[nc].atomic_number.resize(structures[nc].num_atom);
+    structures_copy[nc].type.resize(structures[nc].num_atom);
     structures_copy[nc].x.resize(structures[nc].num_atom);
     structures_copy[nc].y.resize(structures[nc].num_atom);
     structures_copy[nc].z.resize(structures[nc].num_atom);
@@ -215,7 +215,7 @@ static void reorder(std::vector<Structure>& structures)
     structures_copy[nc].fy.resize(structures[nc].num_atom);
     structures_copy[nc].fz.resize(structures[nc].num_atom);
     for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures_copy[nc].atomic_number[na] = structures[nc].atomic_number[na];
+      structures_copy[nc].type[na] = structures[nc].type[na];
       structures_copy[nc].x[na] = structures[nc].x[na];
       structures_copy[nc].y[na] = structures[nc].y[na];
       structures_copy[nc].z[na] = structures[nc].z[na];
@@ -241,7 +241,7 @@ static void reorder(std::vector<Structure>& structures)
     for (int k = 0; k < 3; ++k) {
       structures[nc].num_cell[k] = structures_copy[configuration_id[nc]].num_cell[k];
     }
-    structures[nc].atomic_number.resize(structures[nc].num_atom);
+    structures[nc].type.resize(structures[nc].num_atom);
     structures[nc].x.resize(structures[nc].num_atom);
     structures[nc].y.resize(structures[nc].num_atom);
     structures[nc].z.resize(structures[nc].num_atom);
@@ -249,7 +249,7 @@ static void reorder(std::vector<Structure>& structures)
     structures[nc].fy.resize(structures[nc].num_atom);
     structures[nc].fz.resize(structures[nc].num_atom);
     for (int na = 0; na < structures[nc].num_atom; ++na) {
-      structures[nc].atomic_number[na] = structures_copy[configuration_id[nc]].atomic_number[na];
+      structures[nc].type[na] = structures_copy[configuration_id[nc]].type[na];
       structures[nc].x[na] = structures_copy[configuration_id[nc]].x[na];
       structures[nc].y[na] = structures_copy[configuration_id[nc]].y[na];
       structures[nc].z[na] = structures_copy[configuration_id[nc]].z[na];

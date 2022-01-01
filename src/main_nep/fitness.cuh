@@ -36,9 +36,6 @@ public:
     const float loss_total,
     const float loss_L1,
     const float loss_L2,
-    const float,
-    const float,
-    const float,
     float* elite);
 
 protected:
