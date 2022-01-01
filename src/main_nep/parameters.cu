@@ -59,6 +59,7 @@ void Parameters::set_default_parameters()
   is_batch_set = false;
   is_population_set = false;
   is_generation_set = false;
+  is_type_weight_set = false;
 
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
@@ -72,6 +73,10 @@ void Parameters::set_default_parameters()
   batch_size = 1000000;          // a very large number means full-batch
   population_size = 50;          // almost optimal
   maximum_generation = 100000;   // a good starting point
+  type_weight_cpu.resize(MAX_NUM_TYPES);
+  for (int n = 0; n < MAX_NUM_TYPES; ++n) {
+    type_weight_cpu[n] = {1.0f}; // uniform weight by default
+  }
 }
 
 void Parameters::read_nep_in(char* input_dir)
@@ -107,6 +112,8 @@ void Parameters::calculate_parameters()
   number_of_variables_descriptor =
     (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
+  type_weight_gpu.resize(MAX_NUM_TYPES);
+  type_weight_gpu.copy_from_host(type_weight_cpu.data());
 }
 
 void Parameters::report_inputs()
@@ -117,8 +124,18 @@ void Parameters::report_inputs()
 
   printf("Input or default parameters:\n");
   printf("    (input)   number of atom types = %d.\n", num_types);
-  for (int n = 0; n < num_types; ++n) {
-    printf("        type %d is %s.\n", n, elements[n].c_str());
+  if (is_type_weight_set) {
+    for (int n = 0; n < num_types; ++n) {
+      printf(
+        "        (input)   type %d (%s) has force weight of %g.\n", n, elements[n].c_str(),
+        type_weight_cpu[n]);
+    }
+  } else {
+    for (int n = 0; n < num_types; ++n) {
+      printf(
+        "        (default) type %d (%s) has force weight of %g.\n", n, elements[n].c_str(),
+        type_weight_cpu[n]);
+    }
   }
 
   if (is_cutoff_set) {
@@ -237,6 +254,8 @@ void Parameters::parse_one_keyword(char** param, int num_param)
     parse_lambda_f(param, num_param);
   } else if (strcmp(param[0], "lambda_v") == 0) {
     parse_lambda_v(param, num_param);
+  } else if (strcmp(param[0], "type_weight") == 0) {
+    parse_type_weight(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -253,8 +272,8 @@ void Parameters::parse_type(char** param, int num_param)
     PRINT_INPUT_ERROR("number of types should be integer.\n");
   }
 
-  if (num_types < 1 || num_types > 10) {
-    PRINT_INPUT_ERROR("number of types should >=1 and <= 10.");
+  if (num_types < 1 || num_types > MAX_NUM_TYPES) {
+    PRINT_INPUT_ERROR("number of types should >=1 and <= MAX_NUM_TYPES.");
   }
   if (num_param != 2 + num_types) {
     PRINT_INPUT_ERROR("number of types and the number of listed elements do not match.\n");
@@ -271,6 +290,27 @@ void Parameters::parse_type(char** param, int num_param)
     if (!is_valid_element) {
       PRINT_INPUT_ERROR("Some element in nep.in is not in the periodic table.");
     }
+  }
+}
+
+void Parameters::parse_type_weight(char** param, int num_param)
+{
+  is_type_weight_set = true;
+
+  if (!is_type_set) {
+    PRINT_INPUT_ERROR("Please set type before setting type weight.\n");
+  }
+
+  if (num_param != 1 + num_types) {
+    PRINT_INPUT_ERROR("type_weight should have num_types parameters.\n");
+  }
+
+  for (int n = 0; n < num_types; ++n) {
+    double weight_tmp = 0.0;
+    if (!is_valid_real(param[1 + n], &weight_tmp)) {
+      PRINT_INPUT_ERROR("type weight should be a number.\n");
+    }
+    type_weight_cpu[n] = weight_tmp;
   }
 }
 

@@ -41,7 +41,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
       structures[n].num_cell[k] = structures_input[n_input].num_cell[k];
     }
 
-    structures[n].atomic_number.resize(structures[n].num_atom);
+    structures[n].type.resize(structures[n].num_atom);
     structures[n].x.resize(structures[n].num_atom);
     structures[n].y.resize(structures[n].num_atom);
     structures[n].z.resize(structures[n].num_atom);
@@ -50,7 +50,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].fz.resize(structures[n].num_atom);
 
     for (int na = 0; na < structures[n].num_atom; ++na) {
-      structures[n].atomic_number[na] = structures_input[n_input].atomic_number[na];
+      structures[n].type[na] = structures_input[n_input].type[na];
       structures[n].x[na] = structures_input[n_input].x[na];
       structures[n].y[na] = structures_input[n_input].y[na];
       structures[n].z[na] = structures_input[n_input].z[na];
@@ -130,7 +130,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
       num_cell_cpu[k + n * 3] = structures[n].num_cell[k];
     }
     for (int na = 0; na < structures[n].num_atom; ++na) {
-      type_cpu[Na_sum_cpu[n] + na] = structures[n].atomic_number[na];
+      type_cpu[Na_sum_cpu[n] + na] = structures[n].type[na];
       r_cpu[Na_sum_cpu[n] + na] = structures[n].x[na];
       r_cpu[Na_sum_cpu[n] + na + N] = structures[n].y[na];
       r_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].z[na];
@@ -275,8 +275,11 @@ void Dataset::construct(
 }
 
 static __global__ void gpu_sum_force_error(
+  bool is_weighted,
   int* g_Na,
   int* g_Na_sum,
+  int* g_type,
+  float* g_type_weight,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -296,7 +299,12 @@ static __global__ void gpu_sum_force_error(
     float dx = g_fx[n] - g_fx_ref[n];
     float dy = g_fy[n] - g_fy_ref[n];
     float dz = g_fz[n] - g_fz_ref[n];
-    s_error[tid] += dx * dx + dy * dy + dz * dz;
+    if (is_weighted) {
+      float type_weight = g_type_weight[g_type[n]];
+      s_error[tid] += (dx * dx + dy * dy + dz * dz) * type_weight * type_weight;
+    } else {
+      s_error[tid] += dx * dx + dy * dy + dz * dz;
+    }
   }
   __syncthreads();
 
@@ -319,12 +327,13 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-float Dataset::get_rmse_force()
+float Dataset::get_rmse_force(Parameters& para, bool is_weighted)
 {
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), force.data(), force.data() + N, force.data() + N * 2,
-    force_ref_gpu.data(), force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
+    is_weighted, Na.data(), Na_sum.data(), type.data(), para.type_weight_gpu.data(), force.data(),
+    force.data() + N, force.data() + N * 2, force_ref_gpu.data(), force_ref_gpu.data() + N,
+    force_ref_gpu.data() + N * 2, error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_sum = 0.0f;

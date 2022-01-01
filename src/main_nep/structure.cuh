@@ -26,7 +26,7 @@ struct Structure {
   float virial[6];
   float box_original[9];
   float box[18];
-  std::vector<int> atomic_number;
+  std::vector<int> type;
   std::vector<float> x;
   std::vector<float> y;
   std::vector<float> z;
