@@ -1,6 +1,8 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (0)
+## Preprints (1)
+* Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
+[Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://arxiv.org/abs/2112.13757), arXiv:2112.13757 [physics.comp-ph]
 
 ## 2022 (5)
 
@@ -15,11 +17,12 @@
 
 * Keqiang Li, Yajuan Cheng, Hongying Wang, Yangyu Guo, Zhongwei Zhang, Marc Bescond, Massahiro Nomura, Sebastian Volz, Xiaohong Zhang, and Shiyun Xiong, [Phonon resonant effect in silicon membranes with different crystallographic orientations](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122144), International Journal of Heat and Mass Transfer, **Volume** 122144 (2022).
 
-## 2021 (14)
+## 2021 (15)
+
+* Sang-Hyuk Park,  Hun Lee, Sehyuk Lee,  Austin J. Minnich,  Woo-Lim Jeong,  Dong-Seon Lee,  Soon-Sung So,  Joo-Hyoung Lee,  Young Min Song, and  Young-Dahl Jho, [Annealing-based manipulation of thermal phonon transport from light-emitting diodes to graphene](https://doi.org/10.1063/5.0069466), Journal of Applied Physics **130**, 244303 (2021).
 
 * Haikuan Dong,  Petri Hirvonen,  Zheyong Fan, Ping Qian, Yanjing Su, and  Tapio Ala-Nissila,
 [Heat transport across graphene/hexagonal-BN tilted grain boundaries from phase-field crystal model and molecular dynamics simulations](https://doi.org/10.1063/5.0069134), Journal of Applied Physics **130**, 235102 (2021).
- 
 
 * Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, [Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy]( https://doi.org/10.1002/adts.202100217), Advanced Theory and Simulations **4**, 2100217 (2021). 
 
