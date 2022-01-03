@@ -4,7 +4,7 @@
 * Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
 [Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://arxiv.org/abs/2112.13757), arXiv:2112.13757 [physics.comp-ph]
 
-## 2022 (5)
+## 2022 (6)
 
 * Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter (2022).
 
@@ -15,7 +15,9 @@
 
 * Shuo Jin, Zhongwei Zhang, Yangyu Guo, Jie Chen, Masahiro Nomura, and Sebastian Volz, [Optimization of interfacial thermal transport in Si/Ge heterostructure driven by machine learning](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122014), International Journal of Heat and Mass Transfer, **182**, 122014 (2022).
 
-* Keqiang Li, Yajuan Cheng, Hongying Wang, Yangyu Guo, Zhongwei Zhang, Marc Bescond, Massahiro Nomura, Sebastian Volz, Xiaohong Zhang, and Shiyun Xiong, [Phonon resonant effect in silicon membranes with different crystallographic orientations](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122144), International Journal of Heat and Mass Transfer, **Volume** 122144 (2022).
+* Keqiang Li, Yajuan Cheng, Maofeng Dou, Wang Zeng, Sebastian Volz, and Shiyun Xiong, [Tuning the Anisotropic Thermal Transport in {110}-Silicon Membranes with Surface Resonances](https://doi.org/10.3390/nano12010123), Nanomaterials **12**, 123 (2022).
+
+* Keqiang Li, Yajuan Cheng, Hongying Wang, Yangyu Guo, Zhongwei Zhang, Marc Bescond, Massahiro Nomura, Sebastian Volz, Xiaohong Zhang, and Shiyun Xiong, [Phonon resonant effect in silicon membranes with different crystallographic orientations](https://doi.org/10.1016/j.ijheatmasstransfer.2021.122144), International Journal of Heat and Mass Transfer, **183** 122144 (2022).
 
 ## 2021 (15)
 
