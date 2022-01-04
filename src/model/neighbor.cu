@@ -22,8 +22,6 @@ Construct the neighbor list, choosing the O(N) or O(N^2) method automatically
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
-const int NUM_OF_CELLS = 50; // use the O(N^2) method when #cells < this number
-
 // determining whether a new neighbor list should be built
 static __global__ void gpu_check_atom_distance(
   int N,
@@ -197,55 +195,17 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
 void Neighbor::find_neighbor(const Box& box, double* x, double* y, double* z)
 {
   const int N = NN.size();
-  bool use_ON2 = false;
-  int cell_n_x = 0;
-  int cell_n_y = 0;
-  int cell_n_z = 0;
+  int num_bins[3];
+  bool use_ON2 = box.get_num_bins(rc, num_bins);
 
-  if (box.triclinic) {
-    use_ON2 = true;
-  } else {
-    if (box.pbc_x) {
-      cell_n_x = floor(box.cpu_h[0] / rc);
-      if (cell_n_x < 3) {
-        use_ON2 = true;
-      }
-    } else {
-      cell_n_x = 1;
-    }
-
-    if (box.pbc_y) {
-      cell_n_y = floor(box.cpu_h[1] / rc);
-      if (cell_n_y < 3) {
-        use_ON2 = true;
-      }
-    } else {
-      cell_n_y = 1;
-    }
-
-    if (box.pbc_z) {
-      cell_n_z = floor(box.cpu_h[2] / rc);
-      if (cell_n_z < 3) {
-        use_ON2 = true;
-      }
-    } else {
-      cell_n_z = 1;
-    }
-
-    if (cell_n_x * cell_n_y * cell_n_z < NUM_OF_CELLS) {
-      use_ON2 = true;
-    }
-  }
-
-  int num_bins = cell_n_x * cell_n_y * cell_n_z;
-  if (num_bins > N) {
+  if (num_bins[0] * num_bins[1] * num_bins[2] > N) {
     PRINT_INPUT_ERROR("Number of bins is larger than number of atoms.\n");
   }
 
   if (use_ON2) {
     find_neighbor_ON2(box, x, y, z);
   } else {
-    find_neighbor_ON1(cell_n_x, cell_n_y, cell_n_z, box, x, y, z);
+    find_neighbor_ON1(num_bins[0], num_bins[1], num_bins[2], box, x, y, z);
 #ifdef DEBUG
     const int smem = MN * sizeof(int);
     gpu_sort_neighbor_list<<<N, MN, smem>>>(N, NN.data(), NL.data());

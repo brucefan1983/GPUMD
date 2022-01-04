@@ -58,3 +58,32 @@ void Box::get_inverse(void)
     cpu_h[n] /= det;
   }
 }
+
+void static get_num_bins_one_direction(
+  const int pbc, const double rc, const double box_length, int& num_bins, bool& use_ON2)
+{
+  if (pbc) {
+    num_bins = floor(box_length / rc);
+    if (num_bins < 3) {
+      use_ON2 = true;
+    }
+  } else {
+    num_bins = 1;
+  }
+}
+
+bool Box::get_num_bins(const double rc, int num_bins[]) const
+{
+  bool use_ON2 = false;
+  if (triclinic) {
+    use_ON2 = true;
+  } else {
+    get_num_bins_one_direction(pbc_x, rc, cpu_h[0], num_bins[0], use_ON2);
+    get_num_bins_one_direction(pbc_y, rc, cpu_h[1], num_bins[1], use_ON2);
+    get_num_bins_one_direction(pbc_z, rc, cpu_h[2], num_bins[2], use_ON2);
+  }
+  if (num_bins[0] * num_bins[1] * num_bins[2] < 50) {
+    use_ON2 = true;
+  }
+  return use_ON2;
+}

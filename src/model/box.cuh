@@ -25,6 +25,8 @@ public:
   double cpu_h[18];
   double get_volume(void); // get the volume of the box
   void get_inverse(void);  // get the inverse box matrix
+  bool
+  get_num_bins(const double rc, int num_bins[]) const; // get the number of bins in each direction
 };
 
 inline __host__ __device__ void apply_mic(Box box, double& x12, double& y12, double& z12)
