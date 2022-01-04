@@ -18,13 +18,18 @@
 class Box
 {
 public:
-  int pbc_x = 1;     // pbc_x = 1 means periodic in the x-direction
-  int pbc_y = 1;     // pbc_y = 1 means periodic in the y-direction
-  int pbc_z = 1;     // pbc_z = 1 means periodic in the z-direction
-  int triclinic = 0; // triclinic = 1 means the box is non-orthogonal
-  double cpu_h[18];
-  double get_volume(void); // get the volume of the box
-  void get_inverse(void);  // get the inverse box matrix
+  int pbc_x = 1;                // pbc_x = 1 means periodic in the x-direction
+  int pbc_y = 1;                // pbc_y = 1 means periodic in the y-direction
+  int pbc_z = 1;                // pbc_z = 1 means periodic in the z-direction
+  int triclinic = 0;            // triclinic = 1 means the box is non-orthogonal
+  double cpu_h[18];             // the box data
+  double thickness_x = 0.0;     // thickness perpendicular to (b x c)
+  double thickness_y = 0.0;     // thickness perpendicular to (c x a)
+  double thickness_z = 0.0;     // thickness perpendicular to (a x b)
+  double get_area(const int d); // get the area of one face
+  double get_volume(void);      // get the volume of the box
+  void get_inverse(void);       // get the inverse box matrix
+  bool get_num_bins(const double rc, int num_bins[]); // get the number of bins in each direction
 };
 
 inline __host__ __device__ void apply_mic(Box box, double& x12, double& y12, double& z12)

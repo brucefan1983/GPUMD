@@ -42,14 +42,14 @@ public:
   // used to determine when to update neighbor list
   GPU_Vector<double> x0, y0, z0;
 
-  void find_neighbor(const bool is_first, const Box& box, GPU_Vector<double>& position_per_atom);
+  void find_neighbor(const bool is_first, Box& box, GPU_Vector<double>& position_per_atom);
 
   void finalize();
 
 private:
   void find_neighbor_ON2(const Box&, double*, double*, double*);
   void find_neighbor_ON1(int, int, int, const Box&, double*, double*, double*);
-  void find_neighbor(const Box&, double*, double*, double*);
+  void find_neighbor(Box&, double*, double*, double*);
   void check_bound(const bool is_first);
   int check_atom_distance(double* x, double* y, double* z);
 };
