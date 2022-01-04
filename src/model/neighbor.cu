@@ -192,7 +192,7 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
 }
 #endif
 
-void Neighbor::find_neighbor(const Box& box, double* x, double* y, double* z)
+void Neighbor::find_neighbor(Box& box, double* x, double* y, double* z)
 {
   const int N = NN.size();
   int num_bins[3];
@@ -214,8 +214,7 @@ void Neighbor::find_neighbor(const Box& box, double* x, double* y, double* z)
 }
 
 // the driver function to be called outside this file
-void Neighbor::find_neighbor(
-  const bool is_first, const Box& box, GPU_Vector<double>& position_per_atom)
+void Neighbor::find_neighbor(const bool is_first, Box& box, GPU_Vector<double>& position_per_atom)
 {
   const int N = NN.size();
   const int block_size = 256;

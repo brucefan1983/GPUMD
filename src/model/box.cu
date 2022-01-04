@@ -21,6 +21,40 @@ The class defining the simulation box.
 #include "utilities/error.cuh"
 #include <cmath>
 
+static float get_area_one_direction(const double* a, const double* b)
+{
+  double s1 = a[1] * b[2] - a[2] * b[1];
+  double s2 = a[2] * b[0] - a[0] * b[2];
+  double s3 = a[0] * b[1] - a[1] * b[0];
+  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
+}
+
+double Box::get_area(const int d)
+{
+  double area;
+  if (triclinic) {
+    double a[3] = {cpu_h[0], cpu_h[3], cpu_h[6]};
+    double b[3] = {cpu_h[1], cpu_h[4], cpu_h[7]};
+    double c[3] = {cpu_h[2], cpu_h[5], cpu_h[8]};
+    if (d == 0) {
+      area = get_area_one_direction(b, c);
+    } else if (d == 1) {
+      area = get_area_one_direction(c, a);
+    } else {
+      area = get_area_one_direction(a, b);
+    }
+  } else {
+    if (d == 0) {
+      area = cpu_h[1] * cpu_h[2];
+    } else if (d == 1) {
+      area = cpu_h[2] * cpu_h[0];
+    } else {
+      area = cpu_h[0] * cpu_h[1];
+    }
+  }
+  return area;
+}
+
 double Box::get_volume(void)
 {
   double volume;
@@ -72,16 +106,15 @@ void static get_num_bins_one_direction(
   }
 }
 
-bool Box::get_num_bins(const double rc, int num_bins[]) const
+bool Box::get_num_bins(const double rc, int num_bins[])
 {
   bool use_ON2 = false;
-  if (triclinic) {
-    use_ON2 = true;
-  } else {
-    get_num_bins_one_direction(pbc_x, rc, cpu_h[0], num_bins[0], use_ON2);
-    get_num_bins_one_direction(pbc_y, rc, cpu_h[1], num_bins[1], use_ON2);
-    get_num_bins_one_direction(pbc_z, rc, cpu_h[2], num_bins[2], use_ON2);
-  }
+
+  double volume = get_volume();
+  get_num_bins_one_direction(pbc_x, rc, volume / get_area(0), num_bins[0], use_ON2);
+  get_num_bins_one_direction(pbc_y, rc, volume / get_area(1), num_bins[1], use_ON2);
+  get_num_bins_one_direction(pbc_z, rc, volume / get_area(2), num_bins[2], use_ON2);
+
   if (num_bins[0] * num_bins[1] * num_bins[2] < 50) {
     use_ON2 = true;
   }
