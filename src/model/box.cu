@@ -111,9 +111,12 @@ bool Box::get_num_bins(const double rc, int num_bins[])
   bool use_ON2 = false;
 
   double volume = get_volume();
-  get_num_bins_one_direction(pbc_x, rc, volume / get_area(0), num_bins[0], use_ON2);
-  get_num_bins_one_direction(pbc_y, rc, volume / get_area(1), num_bins[1], use_ON2);
-  get_num_bins_one_direction(pbc_z, rc, volume / get_area(2), num_bins[2], use_ON2);
+  thickness_x = volume / get_area(0);
+  thickness_y = volume / get_area(1);
+  thickness_z = volume / get_area(2);
+  get_num_bins_one_direction(pbc_x, rc, thickness_x, num_bins[0], use_ON2);
+  get_num_bins_one_direction(pbc_y, rc, thickness_y, num_bins[1], use_ON2);
+  get_num_bins_one_direction(pbc_z, rc, thickness_z, num_bins[2], use_ON2);
 
   if (num_bins[0] * num_bins[1] * num_bins[2] < 50) {
     use_ON2 = true;
