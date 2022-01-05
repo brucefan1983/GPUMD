@@ -479,5 +479,5 @@ void allocate_memory_gpu(
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);
   atom.heat_per_atom.resize(N * 5);
-  thermo.resize(6);
+  thermo.resize(12);
 }
