@@ -259,11 +259,6 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       }
     }
 
-    // Change the units of pressure form GPa to that used in the code
-    for (int i = 0; i < 6; i++) {
-      target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
-    }
-
     // pressure_coupling:
     int index_pressure_coupling = num_target_pressure_components + 5;
     if (!is_valid_real(param[index_pressure_coupling], &pressure_coupling)) {
@@ -368,21 +363,25 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
       printf("    T_coupling is %g.\n", temperature_coupling);
-      if (num_target_pressure_components == 3) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0] * PRESSURE_UNIT_CONVERSION);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1] * PRESSURE_UNIT_CONVERSION);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2] * PRESSURE_UNIT_CONVERSION);
-      } else if (num_target_pressure_components == 1) {
-        printf("    pressure is %g GPa.\n", target_pressure[0] * PRESSURE_UNIT_CONVERSION);
+      if (num_target_pressure_components == 1) {
+        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+      } else if (num_target_pressure_components == 3) {
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
       } else if (num_target_pressure_components == 6) {
-        printf("    pressure_xx is %g GPa.\n", target_pressure[0] * PRESSURE_UNIT_CONVERSION);
-        printf("    pressure_yy is %g GPa.\n", target_pressure[1] * PRESSURE_UNIT_CONVERSION);
-        printf("    pressure_zz is %g GPa.\n", target_pressure[2] * PRESSURE_UNIT_CONVERSION);
-        printf("    pressure_xy is %g GPa.\n", target_pressure[3] * PRESSURE_UNIT_CONVERSION);
-        printf("    pressure_xz is %g GPa.\n", target_pressure[4] * PRESSURE_UNIT_CONVERSION);
-        printf("    pressure_yz is %g GPa.\n", target_pressure[5] * PRESSURE_UNIT_CONVERSION);
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+        printf("    pressure_xy is %g GPa.\n", target_pressure[3]);
+        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
+        printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
       }
       printf("    p_coupling is %g.\n", pressure_coupling);
+      // Change the units of pressure form GPa to that used in the code
+      for (int i = 0; i < 6; i++) {
+        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+      }
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
