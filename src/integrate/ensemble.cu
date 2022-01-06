@@ -150,147 +150,10 @@ void Ensemble::velocity_verlet(
 }
 
 // Find some thermodynamic properties:
-// g_thermo[0-4] = T, U, p_x, p_y, p_z
-static __global__ void gpu_find_thermo(
-  const int N,
-  const int N_fixed,
-  const int fixed_group,
-  const int* group_id,
-  const double T,
-  const double volume,
-  const double* g_mass,
-  const double* g_potential,
-  const double* g_vx,
-  const double* g_vy,
-  const double* g_vz,
-  const double* g_sx,
-  const double* g_sy,
-  const double* g_sz,
-  double* g_thermo)
-{
-  //<<<5, MAX_THREAD>>>
-  int tid = threadIdx.x;
-  int bid = blockIdx.x;
-  int patch, n;
-  int number_of_patches = (N - 1) / 1024 + 1;
-  double mass, vx, vy, vz;
-
-  switch (bid) {
-    case 0:
-      __shared__ double s_ke[1024];
-      s_ke[tid] = 0.0;
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N && group_id[n] != fixed_group) {
-          mass = g_mass[n];
-          vx = g_vx[n];
-          vy = g_vy[n];
-          vz = g_vz[n];
-          s_ke[tid] += (vx * vx + vy * vy + vz * vz) * mass;
-        }
-      }
-      __syncthreads();
-#pragma unroll
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_ke[tid] += s_ke[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[0] = s_ke[0] / (DIM * (N - N_fixed) * K_B);
-      }
-      break;
-    case 1:
-      __shared__ double s_pe[1024];
-      s_pe[tid] = 0.0;
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N && group_id[n] != fixed_group) {
-          s_pe[tid] += g_potential[n];
-        }
-      }
-      __syncthreads();
-#pragma unroll
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_pe[tid] += s_pe[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0)
-        g_thermo[1] = s_pe[0];
-      break;
-    case 2:
-      __shared__ double s_sx[1024];
-      s_sx[tid] = 0.0;
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N && group_id[n] != fixed_group) {
-          s_sx[tid] += g_sx[n];
-        }
-      }
-      __syncthreads();
-#pragma unroll
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_sx[tid] += s_sx[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[2] = (s_sx[0] + N * K_B * T) / volume;
-      }
-      break;
-    case 3:
-      __shared__ double s_sy[1024];
-      s_sy[tid] = 0.0;
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N && group_id[n] != fixed_group) {
-          s_sy[tid] += g_sy[n];
-        }
-      }
-      __syncthreads();
-#pragma unroll
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_sy[tid] += s_sy[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[3] = (s_sy[0] + N * K_B * T) / volume;
-      }
-      break;
-    case 4:
-      __shared__ double s_sz[1024];
-      s_sz[tid] = 0.0;
-      for (patch = 0; patch < number_of_patches; ++patch) {
-        n = tid + patch * 1024;
-        if (n < N && group_id[n] != fixed_group) {
-          s_sz[tid] += g_sz[n];
-        }
-      }
-      __syncthreads();
-#pragma unroll
-      for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-        if (tid < offset) {
-          s_sz[tid] += s_sz[tid + offset];
-        }
-        __syncthreads();
-      }
-      if (tid == 0) {
-        g_thermo[4] = (s_sz[0] + N * K_B * T) / volume;
-      }
-      break;
-  }
-}
-
-// Find some thermodynamic properties:
 // g_thermo[0-7] = T, U, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
 static __global__ void gpu_find_thermo(
   const int N,
+  const int N_temperature,
   const double T,
   const double volume,
   const double* g_mass,
@@ -313,11 +176,11 @@ static __global__ void gpu_find_thermo(
   int number_of_patches = (N - 1) / 1024 + 1;
   double mass, vx, vy, vz;
   __shared__ double s_data[1024];
+  s_data[tid] = 0.0;
 
   switch (bid) {
-    // kinetic energy
+    // temperature
     case 0:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -336,12 +199,11 @@ static __global__ void gpu_find_thermo(
         __syncthreads();
       }
       if (tid == 0) {
-        g_thermo[0] = s_data[0] / (DIM * N * K_B);
+        g_thermo[0] = s_data[0] / (DIM * N_temperature * K_B);
       }
       break;
       // potential energy
     case 1:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -360,7 +222,6 @@ static __global__ void gpu_find_thermo(
       break;
       // sxx
     case 2:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -378,9 +239,8 @@ static __global__ void gpu_find_thermo(
         g_thermo[2] = (s_data[0] + N * K_B * T) / volume;
       }
       break;
-      // s_yy
+      // syy
     case 3:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -398,9 +258,8 @@ static __global__ void gpu_find_thermo(
         g_thermo[3] = (s_data[0] + N * K_B * T) / volume;
       }
       break;
-      // s_zz
+      // szz
     case 4:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -418,9 +277,8 @@ static __global__ void gpu_find_thermo(
         g_thermo[4] = (s_data[0] + N * K_B * T) / volume;
       }
       break;
-      // s_xy
+      // sxy
     case 5:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -438,9 +296,8 @@ static __global__ void gpu_find_thermo(
         g_thermo[5] = s_data[0] / volume;
       }
       break;
-      // s_xz
+      // sxz
     case 6:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -458,9 +315,8 @@ static __global__ void gpu_find_thermo(
         g_thermo[6] = s_data[0] / volume;
       }
       break;
-      // s_yz
+      // syz
     case 7:
-      s_data[tid] = 0.0;
       for (patch = 0; patch < number_of_patches; ++patch) {
         n = tid + patch * 1024;
         if (n < N) {
@@ -492,24 +348,19 @@ void Ensemble::find_thermo(
   GPU_Vector<double>& thermo)
 {
   const int number_of_atoms = mass.size();
-
-  if (fixed_group == -1) {
-    gpu_find_thermo<<<8, 1024>>>(
-      number_of_atoms, temperature, volume, mass.data(), potential_per_atom.data(),
-      velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
-      virial_per_atom.data() + number_of_atoms, virial_per_atom.data() + number_of_atoms * 2,
-      virial_per_atom.data() + number_of_atoms * 3, virial_per_atom.data() + number_of_atoms * 4,
-      virial_per_atom.data() + number_of_atoms * 5, thermo.data());
-  } else {
-    int N_fixed = group[0].cpu_size[fixed_group];
-    gpu_find_thermo<<<5, 1024>>>(
-      number_of_atoms, N_fixed, fixed_group, group[0].label.data(), temperature, volume,
-      mass.data(), potential_per_atom.data(), velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-      virial_per_atom.data(), virial_per_atom.data() + number_of_atoms,
-      virial_per_atom.data() + number_of_atoms * 2, thermo.data());
+  int num_atoms_for_temperature = number_of_atoms;
+  if (fixed_group >= 0) {
+    num_atoms_for_temperature -= group[0].cpu_size[fixed_group];
   }
+
+  gpu_find_thermo<<<8, 1024>>>(
+    number_of_atoms, num_atoms_for_temperature, temperature, volume, mass.data(),
+    potential_per_atom.data(), velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
+    virial_per_atom.data() + number_of_atoms, virial_per_atom.data() + number_of_atoms * 2,
+    virial_per_atom.data() + number_of_atoms * 3, virial_per_atom.data() + number_of_atoms * 4,
+    virial_per_atom.data() + number_of_atoms * 5, thermo.data());
+
   CUDA_CHECK_KERNEL
 }
 
