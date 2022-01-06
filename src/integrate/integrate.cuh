@@ -50,7 +50,7 @@ public:
     GPU_Vector<double>& thermo);
 
   // get inputs from run.in
-  void parse_ensemble(char** param, int num_param, std::vector<Group>& group);
+  void parse_ensemble(Box& box, char** param, int num_param, std::vector<Group>& group);
   void parse_deform(char**, int);
   void parse_fix(char**, int, std::vector<Group>& group);
 
@@ -63,10 +63,8 @@ public:
   double temperature1;  // target initial temperature for a run
   double temperature2;  // target final temperature for a run
   double delta_temperature;
-  double pressure_x; // target pressure at a specific time
-  double pressure_y;
-  double pressure_z;
-  bool is_isotropic_pressure;
+  double target_pressure[6];
+  int num_target_pressure_components;
   double temperature_coupling;
   double pressure_coupling;
   int deform_x = 0;

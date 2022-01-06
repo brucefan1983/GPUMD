@@ -57,10 +57,8 @@ public:
   int fixed_group;    // ID of the group in which the atoms will be fixed
   double temperature; // target temperature at a specific time
   double delta_temperature;
-  double pressure_x; // target pressure at a specific time
-  double pressure_y;
-  double pressure_z;
-  bool is_isotropic_pressure;
+  double target_pressure[6];
+  int num_target_pressure_components;
   double temperature_coupling;
   double pressure_coupling;
   int deform_x = 0;
