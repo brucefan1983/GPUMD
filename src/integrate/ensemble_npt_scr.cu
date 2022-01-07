@@ -21,6 +21,7 @@ J. Chem. Phys. 153, 114107 (2020).
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_npt_scr.cuh"
+#include "svr_utilities.cuh"
 #include "utilities/common.cuh"
 
 Ensemble_NPT_SCR::Ensemble_NPT_SCR(
