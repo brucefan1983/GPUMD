@@ -21,6 +21,7 @@ The driver class for the various integrators.
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
 #include "ensemble_nhc.cuh"
+#include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
@@ -51,6 +52,12 @@ void Integrate::initialize(
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
+        type, fixed_group, temperature, temperature_coupling, target_pressure,
+        num_target_pressure_components, pressure_coupling, deform_x, deform_y, deform_z,
+        deform_rate));
+      break;
+    case 12: // NPT-SCR
+      ensemble.reset(new Ensemble_NPT_SCR(
         type, fixed_group, temperature, temperature_coupling, target_pressure,
         num_target_pressure_components, pressure_coupling, deform_x, deform_y, deform_z,
         deform_rate));
@@ -157,6 +164,11 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     type = 11;
     if (num_param != 12 && num_param != 9 && num_param != 7) {
       PRINT_INPUT_ERROR("ensemble npt_ber should have 5, 7, or 10 parameters.");
+    }
+  } else if (strcmp(param[1], "npt_scr") == 0) {
+    type = 12;
+    if (num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble npt_scr should have 5 parameters.");
     }
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
@@ -267,8 +279,14 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     if (pressure_coupling <= 0.0) {
       PRINT_INPUT_ERROR("Pressure coupling should > 0.");
     }
-    if (pressure_coupling > 1) {
-      PRINT_INPUT_ERROR("Pressure coupling should <= 1.");
+    if (type == 11) { // Berendsen (To be changed)
+      if (pressure_coupling > 1) {
+        PRINT_INPUT_ERROR("Pressure coupling should <= 1.");
+      }
+    } else { // SCR
+      if (pressure_coupling < 1) {
+        PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
+      }
     }
   }
 
@@ -378,6 +396,32 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
       }
       printf("    p_coupling is %g.\n", pressure_coupling);
+      // Change the units of pressure form GPa to that used in the code
+      for (int i = 0; i < 6; i++) {
+        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+      }
+      break;
+    case 12:
+      printf("Use NPT ensemble for this run.\n");
+      printf("    choose the SCR method.\n");
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      if (num_target_pressure_components == 1) {
+        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+      } else if (num_target_pressure_components == 3) {
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+      } else if (num_target_pressure_components == 6) {
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+        printf("    pressure_xy is %g GPa.\n", target_pressure[3]);
+        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
+        printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
+      }
+      printf("    tau_p is %g time_step.\n", pressure_coupling);
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
