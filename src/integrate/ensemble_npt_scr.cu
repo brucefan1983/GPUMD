@@ -137,7 +137,7 @@ static void cpu_pressure_orthogonal(
   } else if (box.pbc_x == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[0] - p[0]);
     const double scale_factor_stochastic =
-      sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+      sqrt(2.0 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
     scale_factor[0] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
@@ -153,7 +153,7 @@ static void cpu_pressure_orthogonal(
   } else if (box.pbc_y == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[1] - p[1]);
     const double scale_factor_stochastic =
-      sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+      sqrt(2.0 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
     scale_factor[1] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
@@ -169,7 +169,7 @@ static void cpu_pressure_orthogonal(
   } else if (box.pbc_z == 1) {
     const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[2] - p[2]);
     const double scale_factor_stochastic =
-      sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+      sqrt(2.0 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
     scale_factor[2] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
@@ -190,6 +190,7 @@ static void cpu_pressure_isotropic(
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
   const double pressure_instant = (p[0] + p[1] + p[2]) * 0.3333333333333333;
   const double scale_factor_Berendsen = 1.0 - p_coupling * (target_pressure[0] - pressure_instant);
+  // The factor 0.666666666666667 is 2/3, where 3 means the number of directions that are coupled
   const double scale_factor_stochastic =
     sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
   scale_factor = scale_factor_Berendsen + scale_factor_stochastic;
@@ -215,8 +216,7 @@ static void cpu_pressure_triclinic(
   const double volume = box.get_volume();
   for (int r = 0; r < 3; ++r) {
     for (int c = 0; c < 3; ++c) {
-      mu[r * 3 + c] +=
-        sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / volume) * gasdev();
+      mu[r * 3 + c] += sqrt(2.0 * p_coupling * K_B * target_temperature / volume) * gasdev();
     }
   }
   double h_old[9];
