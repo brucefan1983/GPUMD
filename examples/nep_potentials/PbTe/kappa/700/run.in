@@ -1,7 +1,7 @@
 potential   examples/nep_potentials/PbTe/train/nep.txt 0 1
 velocity    700
 
-ensemble nvt_ber 700 700 0.1
+ensemble nvt_ber 700 700 10
 time_step 1
 dump_thermo 100
 run 100000

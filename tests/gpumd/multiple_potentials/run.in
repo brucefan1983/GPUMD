@@ -5,7 +5,7 @@ potential lj6.txt 0
 
 velocity    10
 
-ensemble    nvt_ber 10 10 0.1
+ensemble    nvt_ber 10 10 10
 time_step   0.1
 dump_thermo 10
 run         100

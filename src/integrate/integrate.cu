@@ -214,17 +214,12 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     if (!is_valid_real(param[4], &temperature_coupling)) {
       PRINT_INPUT_ERROR("Temperature coupling should be a number.");
     }
-    if (temperature_coupling <= 0.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should > 0.");
-    }
-    if (1 == type || 11 == type) // ber
-    {
-      if (temperature_coupling > 1.0) {
-        PRINT_INPUT_ERROR("Temperature coupling should <= 1.");
-      }
-    } else // nhc, lan, bdp
-    {
-      if (temperature_coupling < 1.0) {
+    if (temperature_coupling < 1.0) {
+      if (type == 1 || type == 11) {
+        PRINT_INPUT_ERROR(
+          "Temperature coupling should >= 1. \n(We have changed the convention for this "
+          "input starting from GPUMD-V3.0; See the manual for details.)");
+      } else {
         PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
       }
     }
@@ -276,15 +271,12 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     if (!is_valid_real(param[index_pressure_coupling], &pressure_coupling)) {
       PRINT_INPUT_ERROR("Pressure coupling should be a number.");
     }
-    if (pressure_coupling <= 0.0) {
-      PRINT_INPUT_ERROR("Pressure coupling should > 0.");
-    }
-    if (type == 11) { // Berendsen (To be changed)
-      if (pressure_coupling > 1) {
-        PRINT_INPUT_ERROR("Pressure coupling should <= 1.");
-      }
-    } else { // SCR
-      if (pressure_coupling < 1) {
+    if (pressure_coupling < 1) {
+      if (type == 11) {
+        PRINT_INPUT_ERROR(
+          "Pressure coupling should >= 1. \n(We have changed the convention for this "
+          "input starting from GPUMD-V3.0; See the manual for details.)");
+      } else {
         PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
       }
     }
@@ -352,35 +344,35 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("    choose the Berendsen method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 2:
       printf("Use NVT ensemble for this run.\n");
       printf("    choose the Nose-Hoover chain method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 3:
       printf("Use NVT ensemble for this run.\n");
       printf("    choose the Langevin method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 4:
       printf("Use NVT ensemble for this run.\n");
       printf("    choose the Bussi-Donadio-Parrinello method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 11:
       printf("Use NPT ensemble for this run.\n");
       printf("    choose the Berendsen method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step\n", temperature_coupling);
       if (num_target_pressure_components == 1) {
         printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
       } else if (num_target_pressure_components == 3) {
@@ -395,7 +387,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
         printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
       }
-      printf("    p_coupling is %g.\n", pressure_coupling);
+      printf("    tau_p is %g time_step.\n", pressure_coupling);
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
@@ -431,7 +423,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Nose-Hoover chain method.\n");
       printf("    average temperature is %g K.\n", temperature);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
@@ -442,7 +434,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Langevin method.\n");
       printf("    average temperature is %g K.\n", temperature);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
@@ -453,7 +445,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Bussi-Donadio-Parrinello method.\n");
       printf("    average temperature is %g K.\n", temperature);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);

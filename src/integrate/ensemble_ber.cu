@@ -25,7 +25,7 @@ Ensemble_BER::Ensemble_BER(int t, int fg, double T, double Tc)
   type = t;
   fixed_group = fg;
   temperature = T;
-  temperature_coupling = Tc;
+  temperature_coupling = 1.0 / Tc;
 }
 
 Ensemble_BER::Ensemble_BER(
@@ -44,12 +44,12 @@ Ensemble_BER::Ensemble_BER(
   type = t;
   fixed_group = fg;
   temperature = T;
-  temperature_coupling = Tc;
+  temperature_coupling = 1.0 / Tc;
   for (int i = 0; i < 6; i++) {
     target_pressure[i] = target_p[i];
   }
   num_target_pressure_components = num_target_p;
-  pressure_coupling = pc;
+  pressure_coupling = 1.0 / pc;
   deform_x = dx;
   deform_y = dy;
   deform_z = dz;
