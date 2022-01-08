@@ -37,7 +37,7 @@ static __global__ void gpu_check_atom_distance(
   int tid = threadIdx.x;
   int bid = blockIdx.x;
   int n = bid * blockDim.x + tid;
-  __shared__ int s_sum[1024];
+  __shared__ int s_sum[128];
   s_sum[tid] = 0;
   if (n < N) {
     double dx = x_new[n] - x_old[n];
@@ -49,7 +49,6 @@ static __global__ void gpu_check_atom_distance(
   }
   __syncthreads();
 
-#pragma unroll
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       s_sum[tid] += s_sum[tid + offset];
@@ -62,18 +61,21 @@ static __global__ void gpu_check_atom_distance(
   }
 }
 
+__device__ int static_s2[1];
+
 // If the returned value > 0, the neighbor list will be updated.
 int Neighbor::check_atom_distance(double* x, double* y, double* z)
 {
   const int N = NN.size();
-  int M = (N - 1) / 1024 + 1;
   double d2 = skin * skin * 0.25;
-  GPU_Vector<int> s2(1);
+  int* gpu_s2;
+  CHECK(cudaGetSymbolAddress((void**)&gpu_s2, static_s2));
   int cpu_s2[1] = {0};
-  s2.copy_from_host(cpu_s2);
-  gpu_check_atom_distance<<<M, 1024>>>(N, d2, x0.data(), y0.data(), z0.data(), x, y, z, s2.data());
+  CHECK(cudaMemcpy(gpu_s2, cpu_s2, sizeof(int), cudaMemcpyHostToDevice));
+  gpu_check_atom_distance<<<(N - 1) / 128 + 1, 128>>>(
+    N, d2, x0.data(), y0.data(), z0.data(), x, y, z, gpu_s2);
   CUDA_CHECK_KERNEL
-  s2.copy_to_host(cpu_s2);
+  CHECK(cudaMemcpy(cpu_s2, gpu_s2, sizeof(int), cudaMemcpyDeviceToHost));
   return cpu_s2[0];
 }
 
