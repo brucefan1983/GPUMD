@@ -18,8 +18,6 @@ The stochastic cell rescaling barostat (combined with the BDP thermostat):
 [1] Mattia Bernetti and Giovanni Bussi,
 Pressure control using stochastic cell rescaling,
 J. Chem. Phys. 153, 114107 (2020).
-
-My notation: p_coupling = beta*dt/3/tau
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_npt_scr.cuh"
@@ -47,7 +45,10 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
     target_pressure[i] = target_pressure_input[i];
   }
   num_target_pressure_components = num_target_pressure_components_input;
-  pressure_coupling = pressure_coupling_input;
+  // input: pressure_coupling_input = tau/dt
+  // assumption: beta=3 (our natural unit)
+  // then pressure_coupling = (beta/3)*dt/tau = 1 / pressure_coupling_input
+  pressure_coupling = 1.0 / pressure_coupling_input;
   deform_x = deform_x_input;
   deform_y = deform_y_input;
   deform_z = deform_z_input;
