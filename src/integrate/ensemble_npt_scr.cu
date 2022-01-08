@@ -18,6 +18,8 @@ The stochastic cell rescaling barostat (combined with the BDP thermostat):
 [1] Mattia Bernetti and Giovanni Bussi,
 Pressure control using stochastic cell rescaling,
 J. Chem. Phys. 153, 114107 (2020).
+
+My notation: p_coupling = beta*dt/3/tau
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_npt_scr.cuh"
@@ -166,11 +168,20 @@ static void cpu_pressure_orthogonal(
 }
 
 static void cpu_pressure_isotropic(
-  Box& box, double* p0, double p_coupling, double* thermo, double& scale_factor)
+  Box& box,
+  double target_temperature,
+  double* target_pressure,
+  double p_coupling,
+  double* thermo,
+  double& scale_factor)
 {
   double p[3];
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
-  scale_factor = 1.0 - p_coupling * (p0[0] - (p[0] + p[1] + p[2]) * 0.3333333333333333);
+  const double pressure_instant = (p[0] + p[1] + p[2]) * 0.3333333333333333;
+  const double scale_factor_Berendsen = 1.0 - p_coupling * (target_pressure[0] - pressure_instant);
+  const double scale_factor_stochastic =
+    sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+  scale_factor = scale_factor_Berendsen + scale_factor_stochastic;
   box.cpu_h[0] *= scale_factor;
   box.cpu_h[1] *= scale_factor;
   box.cpu_h[2] *= scale_factor;
@@ -254,7 +265,8 @@ void Ensemble_NPT_SCR::compute2(
 
   if (num_target_pressure_components == 1) {
     double scale_factor;
-    cpu_pressure_isotropic(box, target_pressure, pressure_coupling, thermo.data(), scale_factor);
+    cpu_pressure_isotropic(
+      box, temperature, target_pressure, pressure_coupling, thermo.data(), scale_factor);
     gpu_pressure_isotropic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, scale_factor, position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2);
