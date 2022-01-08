@@ -120,6 +120,7 @@ static void cpu_pressure_orthogonal(
   int deform_z,
   double deform_rate,
   Box& box,
+  double target_temperature,
   double* p0,
   double p_coupling,
   double* thermo,
@@ -134,7 +135,10 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else if (box.pbc_x == 1) {
-    scale_factor[0] = 1.0 - p_coupling * (p0[0] - p[0]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[0] - p[0]);
+    const double scale_factor_stochastic =
+      sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+    scale_factor[0] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else {
@@ -147,7 +151,10 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
   } else if (box.pbc_y == 1) {
-    scale_factor[1] = 1.0 - p_coupling * (p0[1] - p[1]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[1] - p[1]);
+    const double scale_factor_stochastic =
+      sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+    scale_factor[1] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
   } else {
@@ -160,7 +167,10 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else if (box.pbc_z == 1) {
-    scale_factor[2] = 1.0 - p_coupling * (p0[2] - p[2]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[2] - p[2]);
+    const double scale_factor_stochastic =
+      sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+    scale_factor[2] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else {
@@ -191,8 +201,8 @@ static void cpu_pressure_isotropic(
   box.cpu_h[5] = box.cpu_h[2] * 0.5;
 }
 
-static void
-cpu_pressure_triclinic(Box& box, double* p0, double p_coupling, double* thermo, double* mu)
+static void cpu_pressure_triclinic(
+  Box& box, double target_temperature, double* p0, double p_coupling, double* thermo, double* mu)
 {
   double p[6];
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
@@ -202,6 +212,13 @@ cpu_pressure_triclinic(Box& box, double* p0, double p_coupling, double* thermo, 
   mu[3] = mu[1] = -p_coupling * (p0[3] - p[3]);
   mu[6] = mu[2] = -p_coupling * (p0[4] - p[4]);
   mu[7] = mu[5] = -p_coupling * (p0[5] - p[5]);
+  const double volume = box.get_volume();
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      mu[r * 3 + c] +=
+        sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / volume) * gasdev();
+    }
+  }
   double h_old[9];
   for (int i = 0; i < 9; ++i) {
     h_old[i] = box.cpu_h[i];
@@ -274,15 +291,15 @@ void Ensemble_NPT_SCR::compute2(
   } else if (num_target_pressure_components == 3) {
     double scale_factor[3];
     cpu_pressure_orthogonal(
-      deform_x, deform_y, deform_z, deform_rate, box, target_pressure, pressure_coupling,
-      thermo.data(), scale_factor);
+      deform_x, deform_y, deform_z, deform_rate, box, temperature, target_pressure,
+      pressure_coupling, thermo.data(), scale_factor);
     gpu_pressure_orthogonal<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, scale_factor[0], scale_factor[1], scale_factor[2], position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2);
     CUDA_CHECK_KERNEL
   } else {
     double mu[9];
-    cpu_pressure_triclinic(box, target_pressure, pressure_coupling, thermo.data(), mu);
+    cpu_pressure_triclinic(box, temperature, target_pressure, pressure_coupling, thermo.data(), mu);
     gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, mu[0], mu[1], mu[2], mu[3], mu[4], mu[5], mu[6], mu[7], mu[8],
       position_per_atom.data(), position_per_atom.data() + number_of_atoms,

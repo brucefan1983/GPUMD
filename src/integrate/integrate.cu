@@ -167,8 +167,8 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     }
   } else if (strcmp(param[1], "npt_scr") == 0) {
     type = 12;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble npt_scr should have 5 parameters.");
+    if (num_param != 12 && num_param != 9 && num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble npt_scr should have 5, 7, or 10 parameters.");
     }
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
