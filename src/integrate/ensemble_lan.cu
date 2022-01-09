@@ -112,7 +112,77 @@ static __global__ void gpu_langevin(
   }
 }
 
-// wrapper of the above kernel
+__device__ double device_momentum[3];
+
+// get the total momentum in each direction
+static __global__ void gpu_find_momentum(
+  const int N, const double* g_mass, const double* g_vx, const double* g_vy, const double* g_vz)
+{
+  //<<<3, 1024>>>
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int number_of_rounds = (N - 1) / 1024 + 1;
+  __shared__ double s_momentum[1024];
+  double momentum = 0.0;
+
+  switch (bid) {
+    case 0:
+      for (int round = 0; round < number_of_rounds; ++round) {
+        int n = tid + round * 1024;
+        if (n < N)
+          momentum += g_mass[n] * g_vx[n];
+      }
+      break;
+    case 1:
+      for (int round = 0; round < number_of_rounds; ++round) {
+        int n = tid + round * 1024;
+        if (n < N)
+          momentum += g_mass[n] * g_vy[n];
+      }
+      break;
+    case 2:
+      for (int round = 0; round < number_of_rounds; ++round) {
+        int n = tid + round * 1024;
+        if (n < N)
+          momentum += g_mass[n] * g_vz[n];
+      }
+      break;
+  }
+  s_momentum[tid] = momentum;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_momentum[tid] += s_momentum[tid + offset];
+    }
+    __syncthreads();
+  }
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_momentum[tid] += s_momentum[tid + offset];
+    }
+    __syncwarp();
+  }
+
+  if (tid == 0) {
+    device_momentum[bid] = s_momentum[0];
+  }
+}
+
+// correct the momentum
+static __global__ void
+gpu_correct_momentum(const int N, const double* g_mass, double* g_vx, double* g_vy, double* g_vz)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    double inverse_mass_over_N = 1.0 / (g_mass[i] * N);
+    g_vx[i] -= device_momentum[0] * inverse_mass_over_N;
+    g_vy[i] -= device_momentum[1] * inverse_mass_over_N;
+    g_vz[i] -= device_momentum[2] * inverse_mass_over_N;
+  }
+}
+
+// wrapper of the above kernels
 void Ensemble_LAN::integrate_nvt_lan_half(
   const GPU_Vector<double>& mass, GPU_Vector<double>& velocity_per_atom)
 {
@@ -120,6 +190,16 @@ void Ensemble_LAN::integrate_nvt_lan_half(
 
   gpu_langevin<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     curand_states.data(), number_of_atoms, c1, c2, mass.data(), velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
+  CUDA_CHECK_KERNEL
+
+  gpu_find_momentum<<<3, 1024>>>(
+    number_of_atoms, mass.data(), velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
+  CUDA_CHECK_KERNEL
+
+  gpu_correct_momentum<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms, mass.data(), velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 }
