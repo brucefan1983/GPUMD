@@ -200,15 +200,14 @@ void Neighbor::find_neighbor(Box& box, double* x, double* y, double* z)
   int num_bins[3];
   bool use_ON2 = box.get_num_bins(rc, num_bins);
 
-  if (num_bins[0] * num_bins[1] * num_bins[2] > N) {
-    PRINT_INPUT_ERROR("Number of bins is larger than number of atoms.\n");
-  }
-
   if (use_ON2) {
     find_neighbor_ON2(box, x, y, z);
   } else {
     find_neighbor_ON1(num_bins[0], num_bins[1], num_bins[2], box, x, y, z);
 #ifdef DEBUG
+    if (MN > 1024) {
+      PRINT_INPUT_ERROR("MN > 1024\n");
+    }
     const int smem = MN * sizeof(int);
     gpu_sort_neighbor_list<<<N, MN, smem>>>(N, NN.data(), NL.data());
 #endif

@@ -215,6 +215,12 @@ void Neighbor::find_neighbor_ON1(
   double rc2 = rc * rc;
   int N_cells = nx * ny * nz;
 
+  // number of cells is allowed to be larger than the number of atoms
+  if (N_cells > cell_count.size()) {
+    cell_count.resize(N_cells);
+    cell_count_sum.resize(N_cells);
+  }
+
   CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
   CHECK(cudaMemset(cell_count_sum.data(), 0, sizeof(int) * N_cells));
   CHECK(cudaMemset(cell_contents.data(), 0, sizeof(int) * N));
