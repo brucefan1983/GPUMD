@@ -1,8 +1,5 @@
 # `GPUMD`
-![logo](./logo/logo-Jan-10-2022.png width=30%)
-<div align="right">
-<img ./logo/logo-Jan-10-2022.png width=30% />
-</div>
+![logo](./logo/logo-Jan-10-2022.png =100x100)
 
 ## What is `GPUMD`?
 
