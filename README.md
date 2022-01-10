@@ -1,5 +1,5 @@
 <div align="left">
-<img src="./logo/logo-main.png" width = "16%" />
+<img src="./logo/logo-main.png" width = "12%" />
 </div>
 
 # `GPUMD`
