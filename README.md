@@ -1,6 +1,6 @@
 # `GPUMD`
 ![logo](./logo/logo-Jan-10-2022.png =100x100)
-![](./logo/logo-Jan-10-2022.png =100x100)
+![](./logo/logo-Jan-10-2022.png)
 ## What is `GPUMD`?
 
 * `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a general-purpose molecular dynamics (MD) code fully implemented on graphics processing units (GPUs). 
