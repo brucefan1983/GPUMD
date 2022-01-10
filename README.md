@@ -1,3 +1,7 @@
+<div align="left">
+<img src="./logo/logo-main.png" width = "12%" />
+</div>
+
 # `GPUMD`
 
 ## What is `GPUMD`?
