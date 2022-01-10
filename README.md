@@ -1,5 +1,4 @@
-<img src="./logo/logo.png" width = "6%" />
-
+<img src="./logo/logo.png" width = "30%" />
 # `GPUMD`
 
 ## What is `GPUMD`?
