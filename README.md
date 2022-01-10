@@ -1,5 +1,5 @@
 # ![logo](./logo/logo.png) `GPUMD`
-<img src="./logo/logo.png" width = "80%" />
+<img src="./logo/logo.png" width = "10%" />
 ## What is `GPUMD`?
 
 * `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a general-purpose molecular dynamics (MD) code fully implemented on graphics processing units (GPUs). 
