@@ -1,4 +1,4 @@
-# `GPUMD` ![logo](./logo/logo.png)
+# ![logo](./logo/logo.png) `GPUMD`
 
 ## What is `GPUMD`?
 
