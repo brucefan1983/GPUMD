@@ -23,50 +23,61 @@ The EAM potential. Currently two analytical versions:
 #include "utilities/error.cuh"
 #define BLOCK_SIZE_FORCE 64
 
-EAM::EAM(FILE* fid, char* name, const int number_of_atoms)
+EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
 {
   if (strcmp(name, "eam_zhou_2004") == 0)
-    initialize_eam2004zhou(fid);
-  if (strcmp(name, "eam_dai_2006") == 0)
+    initialize_eam2004zhou(fid, num_types);
+  if (strcmp(name, "eam_dai_2006") == 0) {
     initialize_eam2006dai(fid);
+    if (num_types > 1) {
+      PRINT_INPUT_ERROR(
+        "eam_dai_2006 has not been implemented for systems with two or more atom types.");
+    }
+  }
+
   eam_data.Fp.resize(number_of_atoms);
 }
 
-void EAM::initialize_eam2004zhou(FILE* fid)
+void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
 {
   printf("Use the EAM-type potential in the following reference:\n");
   printf("    X. W. Zhou et al., PRB 69, 144113 (2004).\n");
   potential_model = 0;
 
-  double x[21];
-  for (int n = 0; n < 21; n++) {
-    int count = fscanf(fid, "%lf", &x[n]);
-    PRINT_SCANF_ERROR(count, 1, "Reading error for EAM potential.");
+  rc = 0.0;
+  for (int type = 0; type < num_types; ++type) {
+    double x[21];
+    for (int n = 0; n < 21; n++) {
+      int count = fscanf(fid, "%lf", &x[n]);
+      PRINT_SCANF_ERROR(count, 1, "Reading error for EAM potential.");
+    }
+    eam2004zhou.re[type] = x[0];
+    eam2004zhou.fe[type] = x[1];
+    eam2004zhou.rho_e[type] = x[2];
+    eam2004zhou.rho_s[type] = x[3];
+    eam2004zhou.alpha[type] = x[4];
+    eam2004zhou.beta[type] = x[5];
+    eam2004zhou.A[type] = x[6];
+    eam2004zhou.B[type] = x[7];
+    eam2004zhou.kappa[type] = x[8];
+    eam2004zhou.lambda[type] = x[9];
+    eam2004zhou.Fn0[type] = x[10];
+    eam2004zhou.Fn1[type] = x[11];
+    eam2004zhou.Fn2[type] = x[12];
+    eam2004zhou.Fn3[type] = x[13];
+    eam2004zhou.F0[type] = x[14];
+    eam2004zhou.F1[type] = x[15];
+    eam2004zhou.F2[type] = x[16];
+    eam2004zhou.F3[type] = x[17];
+    eam2004zhou.eta[type] = x[18];
+    eam2004zhou.Fe[type] = x[19];
+    eam2004zhou.rc[type] = x[20];
+    eam2004zhou.rho_n[type] = eam2004zhou.rho_e[type] * 0.85;
+    eam2004zhou.rho_0[type] = eam2004zhou.rho_e[type] * 1.15;
+    if (rc < eam2004zhou.rc[type]) {
+      rc = eam2004zhou.rc[type];
+    }
   }
-  eam2004zhou.re = x[0];
-  eam2004zhou.fe = x[1];
-  eam2004zhou.rho_e = x[2];
-  eam2004zhou.rho_s = x[3];
-  eam2004zhou.alpha = x[4];
-  eam2004zhou.beta = x[5];
-  eam2004zhou.A = x[6];
-  eam2004zhou.B = x[7];
-  eam2004zhou.kappa = x[8];
-  eam2004zhou.lambda = x[9];
-  eam2004zhou.Fn0 = x[10];
-  eam2004zhou.Fn1 = x[11];
-  eam2004zhou.Fn2 = x[12];
-  eam2004zhou.Fn3 = x[13];
-  eam2004zhou.F0 = x[14];
-  eam2004zhou.F1 = x[15];
-  eam2004zhou.F2 = x[16];
-  eam2004zhou.F3 = x[17];
-  eam2004zhou.eta = x[18];
-  eam2004zhou.Fe = x[19];
-  eam2004zhou.rc = x[20];
-  eam2004zhou.rho_n = eam2004zhou.rho_e * 0.85;
-  eam2004zhou.rho_0 = eam2004zhou.rho_e * 1.15;
-  rc = eam2004zhou.rc;
 }
 
 void EAM::initialize_eam2006dai(FILE* fid)
@@ -99,64 +110,110 @@ EAM::~EAM(void)
 }
 
 // pair function (phi and phip have been intentionally halved here)
-static __device__ void find_phi(EAM2004Zhou eam, double d12, double& phi, double& phip)
+static __device__ void
+find_phi(const EAM2004Zhou& eam, const int type, const double d12, double& phi, double& phip)
 {
-  double r_ratio = d12 / eam.re;
-  double tmp1 = (r_ratio - eam.kappa) * (r_ratio - eam.kappa);   // 2
-  tmp1 *= tmp1;                                                  // 4
-  tmp1 *= tmp1 * tmp1 * tmp1 * tmp1;                             // 20
-  double tmp2 = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
-  tmp2 *= tmp2;                                                  // 4
-  tmp2 *= tmp2 * tmp2 * tmp2 * tmp2;                             // 20
-  double phi1 = 0.5 * eam.A * exp(-eam.alpha * (r_ratio - 1.0)) / (1.0 + tmp1);
-  double phi2 = 0.5 * eam.B * exp(-eam.beta * (r_ratio - 1.0)) / (1.0 + tmp2);
+  double r_ratio = d12 / eam.re[type];
+  double tmp1 = (r_ratio - eam.kappa[type]) * (r_ratio - eam.kappa[type]);   // 2
+  tmp1 *= tmp1;                                                              // 4
+  tmp1 *= tmp1 * tmp1 * tmp1 * tmp1;                                         // 20
+  double tmp2 = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp2 *= tmp2;                                                              // 4
+  tmp2 *= tmp2 * tmp2 * tmp2 * tmp2;                                         // 20
+  double phi1 = 0.5 * eam.A[type] * exp(-eam.alpha[type] * (r_ratio - 1.0)) / (1.0 + tmp1);
+  double phi2 = 0.5 * eam.B[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp2);
   phi = phi1 - phi2;
-  phip = (phi2 / eam.re) * (eam.beta + 20.0 * tmp2 / (r_ratio - eam.lambda) / (1.0 + tmp2)) -
-         (phi1 / eam.re) * (eam.alpha + 20.0 * tmp1 / (r_ratio - eam.kappa) / (1.0 + tmp1));
+  phip = (phi2 / eam.re[type]) *
+           (eam.beta[type] + 20.0 * tmp2 / (r_ratio - eam.lambda[type]) / (1.0 + tmp2)) -
+         (phi1 / eam.re[type]) *
+           (eam.alpha[type] + 20.0 * tmp1 / (r_ratio - eam.kappa[type]) / (1.0 + tmp1));
 }
 
 // density function f(r)
-static __device__ void find_f(EAM2004Zhou eam, double d12, double& f)
+static __device__ void find_f(const EAM2004Zhou& eam, const int type, const double d12, double& f)
 {
-  double r_ratio = d12 / eam.re;
-  double tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
-  tmp *= tmp;                                                   // 4
-  tmp *= tmp * tmp * tmp * tmp;                                 // 20
-  f = eam.fe * exp(-eam.beta * (r_ratio - 1.0)) / (1.0 + tmp);
+  double r_ratio = d12 / eam.re[type];
+  double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp *= tmp;                                                               // 4
+  tmp *= tmp * tmp * tmp * tmp;                                             // 20
+  f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
 }
 
 // derivative of the density function f'(r)
-static __device__ void find_fp(EAM2004Zhou eam, double d12, double& fp)
+static __device__ void find_fp(const EAM2004Zhou& eam, const int type, const double d12, double& fp)
 {
-  double r_ratio = d12 / eam.re;
-  double tmp = (r_ratio - eam.lambda) * (r_ratio - eam.lambda); // 2
-  tmp *= tmp;                                                   // 4
-  tmp *= tmp * tmp * tmp * tmp;                                 // 20
-  double f = eam.fe * exp(-eam.beta * (r_ratio - 1.0)) / (1.0 + tmp);
-  fp = -(f / eam.re) * (eam.beta + 20.0 * tmp / (r_ratio - eam.lambda) / (1.0 + tmp));
+  double r_ratio = d12 / eam.re[type];
+  double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp *= tmp;                                                               // 4
+  tmp *= tmp * tmp * tmp * tmp;                                             // 20
+  double f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
+  fp = -(f / eam.re[type]) *
+       (eam.beta[type] + 20.0 * tmp / (r_ratio - eam.lambda[type]) / (1.0 + tmp));
+}
+
+static __device__ void
+find_f_and_fp(const EAM2004Zhou& eam, const int type, const double d12, double& f, double& fp)
+{
+  double r_ratio = d12 / eam.re[type];
+  double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp *= tmp;                                                               // 4
+  tmp *= tmp * tmp * tmp * tmp;                                             // 20
+  f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
+  fp = -(f / eam.re[type]) *
+       (eam.beta[type] + 20.0 * tmp / (r_ratio - eam.lambda[type]) / (1.0 + tmp));
+}
+
+// pair function for EAM2004Zhou
+static __device__ void find_phi(
+  const EAM2004Zhou& eam,
+  const int type1,
+  const int type2,
+  const double d12,
+  double& phi,
+  double& phip)
+{
+  if (type1 == type2) {
+    find_phi(eam, type1, d12, phi, phip);
+  } else {
+    double phi1, phip1;
+    find_phi(eam, type1, d12, phi1, phip1);
+    double phi2, phip2;
+    find_phi(eam, type2, d12, phi2, phip2);
+    double f1, fp1;
+    find_f_and_fp(eam, type1, d12, f1, fp1);
+    double f2, fp2;
+    find_f_and_fp(eam, type2, d12, f2, fp2);
+    double f1inv = 1.0 / f1;
+    double f2inv = 1.0 / f2;
+    phi = 0.25 * (phi1 * f2 * f1inv + phi2 * f1 * f2inv);
+    phip = (phip1 * f2 + phi1 * fp2) * f1inv - phi1 * f2 * fp1 * f1inv * f1inv;
+    phip += (phip2 * f1 + phi2 * fp1) * f2inv - phi2 * f1 * fp2 * f2inv * f2inv;
+    phip *= 0.5;
+  }
 }
 
 // embedding function
-static __device__ void find_F(EAM2004Zhou eam, double rho, double& F, double& Fp)
+static __device__ void
+find_F(const EAM2004Zhou& eam, const int type, const double rho, double& F, double& Fp)
 {
-  if (rho < eam.rho_n) {
-    double x = rho / eam.rho_n - 1.0;
-    F = ((eam.Fn3 * x + eam.Fn2) * x + eam.Fn1) * x + eam.Fn0;
-    Fp = ((3.0 * eam.Fn3 * x + 2.0 * eam.Fn2) * x + eam.Fn1) / eam.rho_n;
-  } else if (rho < eam.rho_0) {
-    double x = rho / eam.rho_e - 1.0;
-    F = ((eam.F3 * x + eam.F2) * x + eam.F1) * x + eam.F0;
-    Fp = ((3.0 * eam.F3 * x + 2.0 * eam.F2) * x + eam.F1) / eam.rho_e;
+  if (rho < eam.rho_n[type]) {
+    double x = rho / eam.rho_n[type] - 1.0;
+    F = ((eam.Fn3[type] * x + eam.Fn2[type]) * x + eam.Fn1[type]) * x + eam.Fn0[type];
+    Fp = ((3.0 * eam.Fn3[type] * x + 2.0 * eam.Fn2[type]) * x + eam.Fn1[type]) / eam.rho_n[type];
+  } else if (rho < eam.rho_0[type]) {
+    double x = rho / eam.rho_e[type] - 1.0;
+    F = ((eam.F3[type] * x + eam.F2[type]) * x + eam.F1[type]) * x + eam.F0[type];
+    Fp = ((3.0 * eam.F3[type] * x + 2.0 * eam.F2[type]) * x + eam.F1[type]) / eam.rho_e[type];
   } else {
-    double x = rho / eam.rho_s;
-    double x_eta = pow(x, eam.eta);
-    F = eam.Fe * (1.0 - eam.eta * log(x)) * x_eta;
-    Fp = (eam.eta / rho) * (F - eam.Fe * x_eta);
+    double x = rho / eam.rho_s[type];
+    double x_eta = pow(x, eam.eta[type]);
+    F = eam.Fe[type] * (1.0 - eam.eta[type] * log(x)) * x_eta;
+    Fp = (eam.eta[type] / rho) * (F - eam.Fe[type] * x_eta);
   }
 }
 
 // pair function (phi and phip have been intentionally halved here)
-static __device__ void find_phi(EAM2006Dai fs, double d12, double& phi, double& phip)
+static __device__ void find_phi(const EAM2006Dai& fs, const double d12, double& phi, double& phip)
 {
   if (d12 > fs.c) {
     phi = 0.0;
@@ -174,7 +231,7 @@ static __device__ void find_phi(EAM2006Dai fs, double d12, double& phi, double& 
 }
 
 // density function f(r)
-static __device__ void find_f(EAM2006Dai fs, double d12, double& f)
+static __device__ void find_f(const EAM2006Dai& fs, const double d12, double& f)
 {
   if (d12 > fs.d) {
     f = 0.0;
@@ -185,7 +242,7 @@ static __device__ void find_f(EAM2006Dai fs, double d12, double& f)
 }
 
 // derivative of the density function f'(r)
-static __device__ void find_fp(EAM2006Dai fs, double d12, double& fp)
+static __device__ void find_fp(const EAM2006Dai& fs, const double d12, double& fp)
 {
   if (d12 > fs.d) {
     fp = 0.0;
@@ -196,7 +253,7 @@ static __device__ void find_fp(EAM2006Dai fs, double d12, double& fp)
 }
 
 // embedding function
-static __device__ void find_F(EAM2006Dai fs, double rho, double& F, double& Fp)
+static __device__ void find_F(const EAM2006Dai& fs, const double rho, double& F, double& Fp)
 {
   double sqrt_rho = sqrt(rho);
   F = -fs.A * sqrt_rho;
@@ -214,6 +271,7 @@ static __global__ void find_force_eam_step1(
   const Box box,
   const int* g_NN,
   const int* g_NL,
+  const int* g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -222,7 +280,7 @@ static __global__ void find_force_eam_step1(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
     int NN = g_NN[n1];
 
     double x1 = g_x[n1];
@@ -240,7 +298,7 @@ static __global__ void find_force_eam_step1(
       double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       double rho12 = 0.0;
       if (potential_model == 0) {
-        find_f(eam2004zhou, d12, rho12);
+        find_f(eam2004zhou, g_type[n2], d12, rho12); // density is contributed by n2
       }
       if (potential_model == 1) {
         find_f(eam2006dai, d12, rho12);
@@ -251,7 +309,7 @@ static __global__ void find_force_eam_step1(
     // Calculate the embedding energy F and its derivative Fp
     double F, Fp;
     if (potential_model == 0)
-      find_F(eam2004zhou, rho, F, Fp);
+      find_F(eam2004zhou, g_type[n1], rho, F, Fp); // embedding energy is for n1
     if (potential_model == 1)
       find_F(eam2006dai, rho, F, Fp);
 
@@ -271,6 +329,7 @@ static __global__ void find_force_eam_step2(
   const Box box,
   const int* g_NN,
   const int* g_NL,
+  const int* g_type,
   const double* __restrict__ g_Fp,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -296,7 +355,8 @@ static __global__ void find_force_eam_step2(
   double s_szy = 0.0; // virial_stress_zy
   double s_szz = 0.0; // virial_stress_zz
 
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
+    int type1 = g_type[n1];
     int NN = g_NN[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -305,6 +365,7 @@ static __global__ void find_force_eam_step2(
 
     for (int i1 = 0; i1 < NN; ++i1) {
       int n2 = g_NL[n1 + N * i1];
+      int type2 = g_type[n2];
       double Fp2 = g_Fp[n2];
       double x12 = g_x[n2] - x1;
       double y12 = g_y[n2] - y1;
@@ -312,23 +373,32 @@ static __global__ void find_force_eam_step2(
       apply_mic(box, x12, y12, z12);
       double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
-      double phi, phip, fp;
+      double phi, phip, fp1, fp2;
       if (potential_model == 0) {
-        find_phi(eam2004zhou, d12, phi, phip);
-        find_fp(eam2004zhou, d12, fp);
+        find_phi(eam2004zhou, type1, type2, d12, phi, phip);
+        if (type1 == type2) {
+          find_fp(eam2004zhou, type1, d12, fp1);
+          fp2 = fp1;
+        } else {
+          find_fp(eam2004zhou, type1, d12, fp1);
+          find_fp(eam2004zhou, type2, d12, fp2);
+        }
       }
       if (potential_model == 1) {
         find_phi(eam2006dai, d12, phi, phip);
-        find_fp(eam2006dai, d12, fp);
+        find_fp(eam2006dai, d12, fp1);
+        fp2 = fp1;
       }
+      // TODO: use d12inv
       phip /= d12;
-      fp /= d12;
-      double f12x = x12 * (phip + Fp1 * fp);
-      double f12y = y12 * (phip + Fp1 * fp);
-      double f12z = z12 * (phip + Fp1 * fp);
-      double f21x = -x12 * (phip + Fp2 * fp);
-      double f21y = -y12 * (phip + Fp2 * fp);
-      double f21z = -z12 * (phip + Fp2 * fp);
+      fp1 /= d12;
+      fp2 /= d12;
+      double f12x = x12 * (phip + Fp1 * fp2);
+      double f12y = y12 * (phip + Fp1 * fp2);
+      double f12z = z12 * (phip + Fp1 * fp2);
+      double f21x = -x12 * (phip + Fp2 * fp1);
+      double f21y = -y12 * (phip + Fp2 * fp1);
+      double f21z = -z12 * (phip + Fp2 * fp1);
 
       // two-body potential energy
       s_pe += phi;
@@ -391,14 +461,14 @@ void EAM::compute(
   if (potential_model == 0) {
     find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), position_per_atom.data(),
+      neighbor.NL_local.data(), type.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       eam_data.Fp.data(), potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), eam_data.Fp.data(), position_per_atom.data(),
+      neighbor.NL_local.data(), type.data(), eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
@@ -409,14 +479,14 @@ void EAM::compute(
   if (potential_model == 1) {
     find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), position_per_atom.data(),
+      neighbor.NL_local.data(), type.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       eam_data.Fp.data(), potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), eam_data.Fp.data(), position_per_atom.data(),
+      neighbor.NL_local.data(), type.data(), eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
