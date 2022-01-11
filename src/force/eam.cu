@@ -389,10 +389,11 @@ static __global__ void find_force_eam_step2(
         find_fp(eam2006dai, d12, fp1);
         fp2 = fp1;
       }
-      // TODO: use d12inv
-      phip /= d12;
-      fp1 /= d12;
-      fp2 /= d12;
+
+      double d12inv = 1.0 / d12;
+      phip *= d12inv;
+      fp1 *= d12inv;
+      fp2 *= d12inv;
       double f12x = x12 * (phip + Fp1 * fp2);
       double f12y = y12 * (phip + Fp1 * fp2);
       double f12z = z12 * (phip + Fp1 * fp2);
