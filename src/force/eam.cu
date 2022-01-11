@@ -51,10 +51,10 @@ void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
       int count = fscanf(fid, "%lf", &x[n]);
       PRINT_SCANF_ERROR(count, 1, "Reading error for EAM potential.");
     }
-    eam2004zhou.re[type] = x[0];
+    eam2004zhou.re_inv[type] = 1.0 / x[0];
     eam2004zhou.fe[type] = x[1];
-    eam2004zhou.rho_e[type] = x[2];
-    eam2004zhou.rho_s[type] = x[3];
+    eam2004zhou.rho_e_inv[type] = 1.0 / x[2];
+    eam2004zhou.rho_s_inv[type] = 1.0 / x[3];
     eam2004zhou.alpha[type] = x[4];
     eam2004zhou.beta[type] = x[5];
     eam2004zhou.A[type] = x[6];
@@ -72,8 +72,9 @@ void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
     eam2004zhou.eta[type] = x[18];
     eam2004zhou.Fe[type] = x[19];
     eam2004zhou.rc[type] = x[20];
-    eam2004zhou.rho_n[type] = eam2004zhou.rho_e[type] * 0.85;
-    eam2004zhou.rho_0[type] = eam2004zhou.rho_e[type] * 1.15;
+    eam2004zhou.rho_n[type] = x[2] * 0.85;
+    eam2004zhou.rho_0[type] = x[2] * 1.15;
+    eam2004zhou.rho_n_inv[type] = 1.0 / eam2004zhou.rho_n[type];
     if (rc < eam2004zhou.rc[type]) {
       rc = eam2004zhou.rc[type];
     }
@@ -113,7 +114,7 @@ EAM::~EAM(void)
 static __device__ void
 find_phi(const EAM2004Zhou& eam, const int type, const double d12, double& phi, double& phip)
 {
-  double r_ratio = d12 / eam.re[type];
+  double r_ratio = d12 * eam.re_inv[type];
   double tmp1 = (r_ratio - eam.kappa[type]) * (r_ratio - eam.kappa[type]);   // 2
   tmp1 *= tmp1;                                                              // 4
   tmp1 *= tmp1 * tmp1 * tmp1 * tmp1;                                         // 20
@@ -123,16 +124,16 @@ find_phi(const EAM2004Zhou& eam, const int type, const double d12, double& phi, 
   double phi1 = 0.5 * eam.A[type] * exp(-eam.alpha[type] * (r_ratio - 1.0)) / (1.0 + tmp1);
   double phi2 = 0.5 * eam.B[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp2);
   phi = phi1 - phi2;
-  phip = (phi2 / eam.re[type]) *
+  phip = (phi2 * eam.re_inv[type]) *
            (eam.beta[type] + 20.0 * tmp2 / (r_ratio - eam.lambda[type]) / (1.0 + tmp2)) -
-         (phi1 / eam.re[type]) *
+         (phi1 * eam.re_inv[type]) *
            (eam.alpha[type] + 20.0 * tmp1 / (r_ratio - eam.kappa[type]) / (1.0 + tmp1));
 }
 
 // density function f(r)
 static __device__ void find_f(const EAM2004Zhou& eam, const int type, const double d12, double& f)
 {
-  double r_ratio = d12 / eam.re[type];
+  double r_ratio = d12 * eam.re_inv[type];
   double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
   tmp *= tmp;                                                               // 4
   tmp *= tmp * tmp * tmp * tmp;                                             // 20
@@ -142,24 +143,24 @@ static __device__ void find_f(const EAM2004Zhou& eam, const int type, const doub
 // derivative of the density function f'(r)
 static __device__ void find_fp(const EAM2004Zhou& eam, const int type, const double d12, double& fp)
 {
-  double r_ratio = d12 / eam.re[type];
+  double r_ratio = d12 * eam.re_inv[type];
   double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
   tmp *= tmp;                                                               // 4
   tmp *= tmp * tmp * tmp * tmp;                                             // 20
   double f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
-  fp = -(f / eam.re[type]) *
+  fp = -(f * eam.re_inv[type]) *
        (eam.beta[type] + 20.0 * tmp / (r_ratio - eam.lambda[type]) / (1.0 + tmp));
 }
 
 static __device__ void
 find_f_and_fp(const EAM2004Zhou& eam, const int type, const double d12, double& f, double& fp)
 {
-  double r_ratio = d12 / eam.re[type];
+  double r_ratio = d12 * eam.re_inv[type];
   double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
   tmp *= tmp;                                                               // 4
   tmp *= tmp * tmp * tmp * tmp;                                             // 20
   f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
-  fp = -(f / eam.re[type]) *
+  fp = -(f * eam.re_inv[type]) *
        (eam.beta[type] + 20.0 * tmp / (r_ratio - eam.lambda[type]) / (1.0 + tmp));
 }
 
@@ -197,15 +198,15 @@ static __device__ void
 find_F(const EAM2004Zhou& eam, const int type, const double rho, double& F, double& Fp)
 {
   if (rho < eam.rho_n[type]) {
-    double x = rho / eam.rho_n[type] - 1.0;
+    double x = rho * eam.rho_n_inv[type] - 1.0;
     F = ((eam.Fn3[type] * x + eam.Fn2[type]) * x + eam.Fn1[type]) * x + eam.Fn0[type];
     Fp = ((3.0 * eam.Fn3[type] * x + 2.0 * eam.Fn2[type]) * x + eam.Fn1[type]) / eam.rho_n[type];
   } else if (rho < eam.rho_0[type]) {
-    double x = rho / eam.rho_e[type] - 1.0;
+    double x = rho * eam.rho_e_inv[type] - 1.0;
     F = ((eam.F3[type] * x + eam.F2[type]) * x + eam.F1[type]) * x + eam.F0[type];
-    Fp = ((3.0 * eam.F3[type] * x + 2.0 * eam.F2[type]) * x + eam.F1[type]) / eam.rho_e[type];
+    Fp = ((3.0 * eam.F3[type] * x + 2.0 * eam.F2[type]) * x + eam.F1[type]) * eam.rho_e_inv[type];
   } else {
-    double x = rho / eam.rho_s[type];
+    double x = rho * eam.rho_s_inv[type];
     double x_eta = pow(x, eam.eta[type]);
     F = eam.Fe[type] * (1.0 - eam.eta[type] * log(x)) * x_eta;
     Fp = (eam.eta[type] / rho) * (F - eam.Fe[type] * x_eta);

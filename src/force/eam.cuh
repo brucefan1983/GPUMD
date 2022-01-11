@@ -21,11 +21,12 @@
 #define MAX_NUM_ELEMENTS_EAM 10
 
 struct EAM2004Zhou {
-  double re[MAX_NUM_ELEMENTS_EAM];
+  double re_inv[MAX_NUM_ELEMENTS_EAM];
   double fe[MAX_NUM_ELEMENTS_EAM];
-  double rho_e[MAX_NUM_ELEMENTS_EAM];
-  double rho_s[MAX_NUM_ELEMENTS_EAM];
+  double rho_e_inv[MAX_NUM_ELEMENTS_EAM];
+  double rho_s_inv[MAX_NUM_ELEMENTS_EAM];
   double rho_n[MAX_NUM_ELEMENTS_EAM];
+  double rho_n_inv[MAX_NUM_ELEMENTS_EAM];
   double rho_0[MAX_NUM_ELEMENTS_EAM];
   double alpha[MAX_NUM_ELEMENTS_EAM];
   double beta[MAX_NUM_ELEMENTS_EAM];
