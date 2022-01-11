@@ -141,9 +141,9 @@ void Force::initialize_potential(
   } else if (strcmp(potential_name, "rebo_mos2") == 0) {
     potential[m].reset(new REBO_MOS(neighbor));
   } else if (strcmp(potential_name, "eam_zhou_2004") == 0) {
-    potential[m].reset(new EAM(fid_potential, potential_name, number_of_atoms));
+    potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
-    potential[m].reset(new EAM(fid_potential, potential_name, number_of_atoms));
+    potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "vashishta") == 0) {
     potential[m].reset(new Vashishta(fid_potential, neighbor));
   } else if (strcmp(potential_name, "fcp") == 0) {
