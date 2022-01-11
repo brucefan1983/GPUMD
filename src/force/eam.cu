@@ -25,9 +25,9 @@ The EAM potential. Currently two analytical versions:
 
 EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
 {
-  if (strcmp(name, "eam_zhou_2004") == 0)
+  if (strcmp(name, "eam_zhou_2004") == 0) {
     initialize_eam2004zhou(fid, num_types);
-  if (strcmp(name, "eam_dai_2006") == 0) {
+  } else if (strcmp(name, "eam_dai_2006") == 0) {
     initialize_eam2006dai(fid);
     if (num_types > 1) {
       PRINT_INPUT_ERROR(
@@ -185,9 +185,9 @@ static __device__ void find_phi(
     find_f_and_fp(eam, type2, d12, f2, fp2);
     double f1inv = 1.0 / f1;
     double f2inv = 1.0 / f2;
-    phi = 0.25 * (phi1 * f2 * f1inv + phi2 * f1 * f2inv);
-    phip = (phip1 * f2 + phi1 * fp2) * f1inv - phi1 * f2 * fp1 * f1inv * f1inv;
-    phip += (phip2 * f1 + phi2 * fp1) * f2inv - phi2 * f1 * fp2 * f2inv * f2inv;
+    phi = 0.5 * (phi1 * f2 * f1inv + phi2 * f1 * f2inv);
+    phip = (phip1 * f2 + phi1 * (fp2 - f2 * fp1 * f1inv)) * f1inv;
+    phip += (phip2 * f1 + phi2 * (fp1 - f1 * fp2 * f2inv)) * f2inv;
     phip *= 0.5;
   }
 }
