@@ -276,6 +276,8 @@ void Dataset::construct(
 
 static __global__ void gpu_sum_force_error(
   bool is_weighted,
+  bool has_delta,
+  float force_delta,
   int* g_Na,
   int* g_Na_sum,
   int* g_type,
@@ -296,15 +298,22 @@ static __global__ void gpu_sum_force_error(
   s_error[tid] = 0.0f;
 
   for (int n = N1 + tid; n < N2; n += blockDim.x) {
-    float dx = g_fx[n] - g_fx_ref[n];
-    float dy = g_fy[n] - g_fy_ref[n];
-    float dz = g_fz[n] - g_fz_ref[n];
+    float fx_ref = g_fx_ref[n];
+    float fy_ref = g_fy_ref[n];
+    float fz_ref = g_fz_ref[n];
+    float dx = g_fx[n] - fx_ref;
+    float dy = g_fy[n] - fy_ref;
+    float dz = g_fz[n] - fz_ref;
+    float diff_square = dx * dx + dy * dy + dz * dz;
     if (is_weighted) {
       float type_weight = g_type_weight[g_type[n]];
-      s_error[tid] += (dx * dx + dy * dy + dz * dz) * type_weight * type_weight;
-    } else {
-      s_error[tid] += dx * dx + dy * dy + dz * dz;
+      diff_square *= type_weight * type_weight;
     }
+    if (has_delta && force_delta > 0.0f) {
+      float force_magnitude = sqrt(fx_ref * fx_ref + fy_ref * fy_ref + fz_ref * fz_ref);
+      diff_square *= force_delta / (force_delta + force_magnitude);
+    }
+    s_error[tid] += diff_square;
   }
   __syncthreads();
 
@@ -327,13 +336,13 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-float Dataset::get_rmse_force(Parameters& para, bool is_weighted)
+float Dataset::get_rmse_force(Parameters& para, bool is_weighted, bool has_delta)
 {
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    is_weighted, Na.data(), Na_sum.data(), type.data(), para.type_weight_gpu.data(), force.data(),
-    force.data() + N, force.data() + N * 2, force_ref_gpu.data(), force_ref_gpu.data() + N,
-    force_ref_gpu.data() + N * 2, error_gpu.data());
+    is_weighted, has_delta, para.force_delta, Na.data(), Na_sum.data(), type.data(),
+    para.type_weight_gpu.data(), force.data(), force.data() + N, force.data() + N * 2,
+    force_ref_gpu.data(), force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_sum = 0.0f;

@@ -70,6 +70,7 @@ void Parameters::set_default_parameters()
   lambda_1 = lambda_2 = 5.0e-2f; // good default based on our tests
   lambda_e = lambda_f = 1.0f;    // energy and force are more important
   lambda_v = 0.1f;               // virial is less important
+  force_delta = 0.0f;            // no modification of force loss
   batch_size = 1000000;          // a very large number means full-batch
   population_size = 50;          // almost optimal
   maximum_generation = 100000;   // a good starting point
@@ -196,6 +197,12 @@ void Parameters::report_inputs()
     printf("    (default) lambda_v = %g.\n", lambda_v);
   }
 
+  if (is_force_delta_set) {
+    printf("    (input)   force_delta = %g.\n", force_delta);
+  } else {
+    printf("    (default) force_delta = %g.\n", force_delta);
+  }
+
   if (is_batch_set) {
     printf("    (input)   batch size = %d.\n", batch_size);
   } else {
@@ -256,6 +263,8 @@ void Parameters::parse_one_keyword(char** param, int num_param)
     parse_lambda_v(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
     parse_type_weight(param, num_param);
+  } else if (strcmp(param[0], "force_delta") == 0) {
+    parse_force_delta(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -312,6 +321,21 @@ void Parameters::parse_type_weight(char** param, int num_param)
     }
     type_weight_cpu[n] = weight_tmp;
   }
+}
+
+void Parameters::parse_force_delta(char** param, int num_param)
+{
+  is_force_delta_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("force_delta should have 1 parameter.\n");
+  }
+
+  double force_delta_tmp = 0.0;
+  if (!is_valid_real(param[1], &force_delta_tmp)) {
+    PRINT_INPUT_ERROR("force_delta should be a number.\n");
+  }
+  force_delta = force_delta_tmp;
 }
 
 void Parameters::parse_cutoff(char** param, int num_param)
