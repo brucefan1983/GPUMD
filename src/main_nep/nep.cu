@@ -491,6 +491,99 @@ static __global__ void find_force_angular(
   }
 }
 
+static __device__ void find_phi_and_phip(float a, float b, float x, float& phi, float& phip)
+{
+    phi = a * exp(-b * x);
+    phip = -b * phi;
+}
+
+static __device__ void find_f_and_fp(float d12, float& f, float& fp)
+{	
+  float d12inv = 1 / d12;
+  float d12inv_p = -1 / (d12 * d12);
+		float Zbl_para[6] = {0.32825, 2.54931, 0.09219, 0.29182, 0.58110, 0.59231};
+  float Z = 74;
+  float e = 1.6023 * 1e-19;
+  float ep = 8.8542 * 1e-12;
+  double a = 0.46848 / (2 * powf(Z, 0.23f));
+  float x = d12 / a;
+  float A = (1 / (4 * 3.1415927f * ep) * Z * Z * e * e) * 1e10;
+  float phi[3], phip[3];
+  find_phi_and_phip(Zbl_para[0], Zbl_para[1], x, phi[0], phip[0]);
+  find_phi_and_phip(Zbl_para[2], Zbl_para[3], x, phi[1], phip[1]);
+  find_phi_and_phip(Zbl_para[4], Zbl_para[5], x, phi[2], phip[2]);
+  float PHI = phi[0] + phi[1] + phi[2];
+  float PHIP = (phip[0] + phip[1] + phip[2]) / a;
+  if (d12 < 1.0f){
+    f = A * PHI * d12inv;
+    fp = A * (PHIP * d12inv + PHI * d12inv_p);
+  }
+  else{
+    float fc, fcp;
+    float r = d12 - 1.0f;
+    find_fc_and_fcp(1.0, 1.0, r, fc, fcp);
+    f = fc * A * PHI * d12inv;
+    fp = A * (fcp * PHI * d12inv + fc * PHIP * d12inv + fc * PHI * d12inv_p);
+  }
+}
+
+static __global__ void find_force_ZBL(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_virial,
+  float* g_pe)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    float s_pe = 0.0f;
+    float s_virial_xx = 0.0f;
+    float s_virial_yy = 0.0f;
+    float s_virial_zz = 0.0f;
+    float s_virial_xy = 0.0f;
+    float s_virial_yz = 0.0f;
+    float s_virial_zx = 0.0f;
+    int neighbor_number = g_NN[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float f, fp;
+      find_f_and_fp(d12, f, fp);
+      float f2 = fp * d12inv * 0.5f;
+      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+      atomicAdd(&g_fx[n1], f12[0]);
+      atomicAdd(&g_fy[n1], f12[1]);
+      atomicAdd(&g_fz[n1], f12[2]);
+      atomicAdd(&g_fx[n2], -f12[0]);
+      atomicAdd(&g_fy[n2], -f12[1]);
+      atomicAdd(&g_fz[n2], -f12[2]);
+      s_virial_xx -= r12[0] * f12[0];
+      s_virial_yy -= r12[1] * f12[1];
+      s_virial_zz -= r12[2] * f12[2];
+      s_virial_xy -= r12[0] * f12[1];
+      s_virial_yz -= r12[1] * f12[2];
+      s_virial_zx -= r12[2] * f12[0];
+      s_pe += f * 0.5f;
+    }
+    g_virial[n1 + N * 0] += s_virial_xx;
+    g_virial[n1 + N * 1] += s_virial_yy;
+    g_virial[n1 + N * 2] += s_virial_zz;
+    g_virial[n1 + N * 3] += s_virial_xy;
+    g_virial[n1 + N * 4] += s_virial_yz;
+    g_virial[n1 + N * 5] += s_virial_zx;
+    g_pe[n1] += s_pe;
+  }
+}
+
 void NEP2::find_force(
   Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
 {
@@ -554,5 +647,12 @@ void NEP2::find_force(
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data(), dataset.force.data(),
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
+  CUDA_CHECK_KERNEL
+
+  find_force_ZBL<<<grid_size, block_size>>>(
+    dataset.N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), nep_data.x12_radial.data(),
+    nep_data.y12_radial.data(), nep_data.z12_radial.data(), dataset.force.data(),
+    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data(),
+    dataset.energy.data());
   CUDA_CHECK_KERNEL
 }
