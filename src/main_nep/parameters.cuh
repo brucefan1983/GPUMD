@@ -41,6 +41,7 @@ public:
   float lambda_e;         // weight parameter for energy RMSE loss
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
+  float force_delta;      // a parameters used to modify the force loss
 
   // check if a parameter has been set:
   bool is_type_set;
@@ -57,6 +58,7 @@ public:
   bool is_population_set;
   bool is_generation_set;
   bool is_type_weight_set;
+  bool is_force_delta_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -91,6 +93,7 @@ private:
   void parse_lambda_e(char** param, int num_param);
   void parse_lambda_f(char** param, int num_param);
   void parse_lambda_v(char** param, int num_param);
+  void parse_force_delta(char** param, int num_param);
   void parse_batch(char** param, int num_param);
   void parse_population(char** param, int num_param);
   void parse_generation(char** param, int num_param);

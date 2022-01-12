@@ -99,7 +99,8 @@ void Fitness::compute(
       fitness[n + 0 * para.population_size] =
         para.lambda_e * train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used);
       fitness[n + 1 * para.population_size] =
-        para.lambda_f * train_set[batch_id].get_rmse_force(para, true /*is_weighted*/);
+        para.lambda_f *
+        train_set[batch_id].get_rmse_force(para, true /*is_weighted*/, true /*has_delta*/);
       fitness[n + 2 * para.population_size] = para.lambda_v * train_set[batch_id].get_rmse_virial();
     }
   }
@@ -132,12 +133,14 @@ void Fitness::report_error(
     potential->find_force(para, elite, train_set[batch_id], false);
     float energy_shift_per_structure;
     float rmse_energy_train = train_set[batch_id].get_rmse_energy(energy_shift_per_structure);
-    float rmse_force_train = train_set[batch_id].get_rmse_force(para, false /*is_weighted*/);
+    float rmse_force_train =
+      train_set[batch_id].get_rmse_force(para, false /*is_weighted*/, false /*has_delta*/);
     float rmse_virial_train = train_set[batch_id].get_rmse_virial();
 
     potential->find_force(para, elite, test_set, false);
     float rmse_energy_test = test_set.get_rmse_energy(energy_shift_per_structure);
-    float rmse_force_test = test_set.get_rmse_force(para, false /*is_weighted*/);
+    float rmse_force_test =
+      test_set.get_rmse_force(para, false /*is_weighted*/, false /*has_delta*/);
     float rmse_virial_test = test_set.get_rmse_virial();
 
     // correct the last bias parameter in the NN
