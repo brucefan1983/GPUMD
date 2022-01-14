@@ -450,30 +450,26 @@ static __device__ void find_f_and_fp(float d12, float& f, float& fp)
 {	
   float d12inv = 1 / d12;
   float d12inv_p = -1 / (d12 * d12);
-		float Zbl_para[6] = {0.32825, 2.54931, 0.09219, 0.29182, 0.58110, 0.59231};
-  float Z = 74;
+  float Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
+  float Z = 26;
   float e = 1.6023 * 1e-19;
   float ep = 8.8542 * 1e-12;
   double a = 0.46848 / (2 * powf(Z, 0.23f));
   float x = d12 / a;
   float A = (1 / (4 * 3.1415927f * ep) * Z * Z * e * e) * 1e10;
-  float phi[3], phip[3];
+  float phi[4], phip[4];
   find_phi_and_phip(Zbl_para[0], Zbl_para[1], x, phi[0], phip[0]);
   find_phi_and_phip(Zbl_para[2], Zbl_para[3], x, phi[1], phip[1]);
   find_phi_and_phip(Zbl_para[4], Zbl_para[5], x, phi[2], phip[2]);
-  float PHI = phi[0] + phi[1] + phi[2];
-  float PHIP = (phip[0] + phip[1] + phip[2]) / a;
-  if (d12 < 1.0f){
-    f = A * PHI * d12inv;
-    fp = A * (PHIP * d12inv + PHI * d12inv_p);
-  }
-  else{
-    float fc, fcp;
-    float r = d12 - 1.0f;
-    find_fc_and_fcp(1.0, 1.0, r, fc, fcp);
-    f = fc * A * PHI * d12inv;
-    fp = A * (fcp * PHI * d12inv + fc * PHIP * d12inv + fc * PHI * d12inv_p);
-  }
+  find_phi_and_phip(Zbl_para[6], Zbl_para[7], x, phi[3], phip[3]);
+  float PHI = phi[0] + phi[1] + phi[2] + phi[3];
+  float PHIP = (phip[0] + phip[1] + phip[2] + phip[3]) / a;
+  float fc, fcp;
+  float r1 = 1.0;
+  float r2 = 2.2;
+  find_fc_and_fcp_zbl(r1, r2, d12, fc, fcp);
+  f = fc * A * PHI * d12inv;
+  fp = A * (fcp * PHI * d12inv + fc * PHIP * d12inv + fc * PHI * d12inv_p);
 }
 
 static __global__ void find_force_ZBL(
@@ -598,11 +594,13 @@ void NEP2::compute(
     box, nep_data.NN.data(), nep_data.NL.data(), nep_data.f12x.data(), nep_data.f12y.data(),
     nep_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
   CUDA_CHECK_KERNEL
-		
+  
+#ifdef USE_ZBL  
   find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
-    N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(), 
+    N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2, 
     force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2, 
     virial_per_atom.data(), potential_per_atom.data());
   CUDA_CHECK_KERNEL
+#endif
 }
