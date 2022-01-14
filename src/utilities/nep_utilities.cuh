@@ -56,6 +56,26 @@ find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& fcp)
   }
 }
 
+#ifdef USE_ZBL  
+static __device__ __forceinline__ void
+find_fc_and_fcp_zbl(float r1, float r2, float d12, float& fc, float& fcp)
+{
+  float chi = (d12 - r1) / (r2 - r1);
+  float chip = 1 / (r2 - r1);
+  float chi2 = chi * chi;
+  if (d12 < r1) {
+    fc = 1;
+    fcp = 0;
+  } else if (d12 < r2) {
+    fc = 1 - chi * chi2 * (6 * chi2 -15 * chi + 10);
+    fcp = -chip * (3 * chi2 * (6 * chi2 -15 * chi + 10) + chi * chi2 * (12 * chi - 15));
+  } else {
+    fc = 0;
+    fcp = 0;	  
+  }
+}
+#endif
+
 static __device__ __forceinline__ void
 find_fn(const int n, const float rcinv, const float d12, const float fc12, float& fn)
 {
