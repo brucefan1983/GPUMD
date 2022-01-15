@@ -27,6 +27,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
+#define K_C 14.399645
 
 static __global__ void gpu_find_neighbor_list(
   const int N,
@@ -504,11 +505,9 @@ static __device__ void find_f_and_fp(float d12, float& f, float& fp)
   float d12inv_p = -1 / (d12 * d12);
   float Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
   float Z = 26;
-  float e = 1.6023 * 1e-19;
-  float ep = 8.8542 * 1e-12;
   double a = 0.46848 / (2 * powf(Z, 0.23f));
   float x = d12 / a;
-  float A = (1 / (4 * 3.1415927f * ep) * Z * Z * e * e) * 1e10;
+  float A = K_C * Z * Z;
   float phi[4], phip[4];
   find_phi_and_phip(Zbl_para[0], Zbl_para[1], x, phi[0], phip[0]);
   find_phi_and_phip(Zbl_para[2], Zbl_para[3], x, phi[1], phip[1]);
