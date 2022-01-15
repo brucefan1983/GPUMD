@@ -1,7 +1,7 @@
 potential    ../../../potentials/tersoff/Graphene_Lindsay_2010_modified.txt 0
 velocity     300
 
-ensemble     nvt_ber 300 300 0.01
+ensemble     nvt_ber 300 300 100
 fix          0
 time_step    1 
 dump_thermo  100       
