@@ -21,6 +21,7 @@ The driver class for the various integrators.
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
 #include "ensemble_nhc.cuh"
+#include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
@@ -51,8 +52,15 @@ void Integrate::initialize(
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
-        type, fixed_group, temperature, temperature_coupling, pressure_x, pressure_y, pressure_z,
-        is_isotropic_pressure, pressure_coupling, deform_x, deform_y, deform_z, deform_rate));
+        type, fixed_group, temperature, temperature_coupling, target_pressure,
+        num_target_pressure_components, pressure_coupling, deform_x, deform_y, deform_z,
+        deform_rate));
+      break;
+    case 12: // NPT-SCR
+      ensemble.reset(new Ensemble_NPT_SCR(
+        type, fixed_group, temperature, temperature_coupling, target_pressure,
+        num_target_pressure_components, pressure_coupling, deform_x, deform_y, deform_z,
+        deform_rate));
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -91,11 +99,6 @@ void Integrate::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type >= 11 && type <= 20) {
-    if (box.triclinic == 1) {
-      PRINT_INPUT_ERROR("NPT for triclinic box has not been implemented.");
-    }
-  }
   if (type >= 1 && type <= 20) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
@@ -129,7 +132,7 @@ void Integrate::compute2(
 // 1-10:  NVT
 // 11-20: NPT
 // 21-30: heat (NEMD method for heat conductivity)
-void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& group)
+void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vector<Group>& group)
 {
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
@@ -159,8 +162,13 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
     }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
-    if (num_param != 9 && num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble npt_ber should have 7 or 5 parameters.");
+    if (num_param != 12 && num_param != 9 && num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble npt_ber should have 5, 7, or 10 parameters.");
+    }
+  } else if (strcmp(param[1], "npt_scr") == 0) {
+    type = 12;
+    if (num_param != 12 && num_param != 9 && num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble npt_scr should have 5, 7, or 10 parameters.");
     }
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
@@ -206,56 +214,71 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
     if (!is_valid_real(param[4], &temperature_coupling)) {
       PRINT_INPUT_ERROR("Temperature coupling should be a number.");
     }
-    if (temperature_coupling <= 0.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should > 0.");
-    }
-    if (1 == type || 11 == type) // ber
-    {
-      if (temperature_coupling > 1.0) {
-        PRINT_INPUT_ERROR("Temperature coupling should <= 1.");
-      }
-    } else // nhc, lan, bdp
-    {
-      if (temperature_coupling < 1.0) {
+    if (temperature_coupling < 1.0) {
+      if (type == 1 || type == 11) {
+        PRINT_INPUT_ERROR(
+          "Temperature coupling should >= 1. \n(We have changed the convention for this "
+          "input starting from GPUMD-V3.0; See the manual for details.)");
+      } else {
         PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
       }
     }
   }
 
   // 3. Pressures and pressure_coupling (NPT)
-  double pressure[3];
   if (type >= 11 && type <= 20) {
     // pressures:
     if (num_param == 9) {
       for (int i = 0; i < 3; i++) {
-        if (!is_valid_real(param[5 + i], &pressure[i])) {
+        if (!is_valid_real(param[5 + i], &target_pressure[i])) {
           PRINT_INPUT_ERROR("Pressure should be a number.");
         }
       }
-      is_isotropic_pressure = false;
-    } else { // isotropic
-      if (!is_valid_real(param[5 + 0], &pressure[0])) {
+      num_target_pressure_components = 3;
+      if (box.triclinic == 1) {
+        PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
+      }
+    } else if (num_param == 7) { // isotropic
+      if (!is_valid_real(param[5 + 0], &target_pressure[0])) {
         PRINT_INPUT_ERROR("Pressure should be a number.");
       }
-      is_isotropic_pressure = true;
-      pressure[1] = pressure[2] = pressure[0];
+      num_target_pressure_components = 1;
+      if (box.triclinic == 1) {
+        PRINT_INPUT_ERROR("Cannot use triclinic box with only 1 target pressure component.");
+      }
+      if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+        PRINT_INPUT_ERROR(
+          "Cannot use isotropic pressure with non-periodic boundary in any direction.");
+      }
+    } else { // then must be triclinic box
+      for (int i = 0; i < 6; i++) {
+        if (!is_valid_real(param[5 + i], &target_pressure[i])) {
+          PRINT_INPUT_ERROR("Pressure should be a number.");
+        }
+      }
+      num_target_pressure_components = 6;
+      if (box.triclinic == 0) {
+        PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
+      }
+      if (box.pbc_x == 0 || box.pbc_y == 0 || box.pbc_z == 0) {
+        PRINT_INPUT_ERROR(
+          "Cannot use 6 pressure components with non-periodic boundary in any direction.");
+      }
     }
 
-    // Change the units of pressure form GPa to that used in the code
-    pressure_x = pressure[0] / PRESSURE_UNIT_CONVERSION;
-    pressure_y = pressure[1] / PRESSURE_UNIT_CONVERSION;
-    pressure_z = pressure[2] / PRESSURE_UNIT_CONVERSION;
-
     // pressure_coupling:
-    int index_pressure_coupling = is_isotropic_pressure ? 6 : 8;
+    int index_pressure_coupling = num_target_pressure_components + 5;
     if (!is_valid_real(param[index_pressure_coupling], &pressure_coupling)) {
       PRINT_INPUT_ERROR("Pressure coupling should be a number.");
     }
-    if (pressure_coupling <= 0.0) {
-      PRINT_INPUT_ERROR("Pressure coupling should > 0.");
-    }
-    if (pressure_coupling > 1) {
-      PRINT_INPUT_ERROR("Pressure coupling should <= 1.");
+    if (pressure_coupling < 1) {
+      if (type == 11) {
+        PRINT_INPUT_ERROR(
+          "Pressure coupling should >= 1. \n(We have changed the convention for this "
+          "input starting from GPUMD-V3.0; See the manual for details.)");
+      } else {
+        PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
+      }
     }
   }
 
@@ -321,49 +344,86 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
       printf("    choose the Berendsen method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 2:
       printf("Use NVT ensemble for this run.\n");
       printf("    choose the Nose-Hoover chain method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 3:
       printf("Use NVT ensemble for this run.\n");
       printf("    choose the Langevin method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 4:
       printf("Use NVT ensemble for this run.\n");
       printf("    choose the Bussi-Donadio-Parrinello method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 11:
       printf("Use NPT ensemble for this run.\n");
       printf("    choose the Berendsen method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
-      printf("    T_coupling is %g.\n", temperature_coupling);
-      if (num_param == 9) {
-        printf("    pressure_x is %g GPa.\n", pressure[0]);
-        printf("    pressure_y is %g GPa.\n", pressure[1]);
-        printf("    pressure_z is %g GPa.\n", pressure[2]);
-      } else { // isotropic
-        printf("    pressure_xyz is %g GPa.\n", pressure[0]);
+      printf("    tau_T is %g time_step\n", temperature_coupling);
+      if (num_target_pressure_components == 1) {
+        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+      } else if (num_target_pressure_components == 3) {
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+      } else if (num_target_pressure_components == 6) {
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+        printf("    pressure_xy is %g GPa.\n", target_pressure[3]);
+        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
+        printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
       }
-      printf("    p_coupling is %g.\n", pressure_coupling);
+      printf("    tau_p is %g time_step.\n", pressure_coupling);
+      // Change the units of pressure form GPa to that used in the code
+      for (int i = 0; i < 6; i++) {
+        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+      }
+      break;
+    case 12:
+      printf("Use NPT ensemble for this run.\n");
+      printf("    choose the SCR method.\n");
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      if (num_target_pressure_components == 1) {
+        printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+      } else if (num_target_pressure_components == 3) {
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+      } else if (num_target_pressure_components == 6) {
+        printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
+        printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
+        printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+        printf("    pressure_xy is %g GPa.\n", target_pressure[3]);
+        printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
+        printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
+      }
+      printf("    tau_p is %g time_step.\n", pressure_coupling);
+      // Change the units of pressure form GPa to that used in the code
+      for (int i = 0; i < 6; i++) {
+        target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+      }
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Nose-Hoover chain method.\n");
       printf("    average temperature is %g K.\n", temperature);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
@@ -374,7 +434,7 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Langevin method.\n");
       printf("    average temperature is %g K.\n", temperature);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
@@ -385,7 +445,7 @@ void Integrate::parse_ensemble(char** param, int num_param, std::vector<Group>& 
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Bussi-Donadio-Parrinello method.\n");
       printf("    average temperature is %g K.\n", temperature);
-      printf("    T_coupling is %g.\n", temperature_coupling);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
       printf("    T_hot is %g K.\n", temperature + delta_temperature);
       printf("    T_cold is %g K.\n", temperature - delta_temperature);

@@ -18,10 +18,33 @@
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
 
+#define MAX_NUM_ELEMENTS_EAM 10
+
 struct EAM2004Zhou {
-  double re, fe, rho_e, rho_s, rho_n, rho_0, alpha, beta, A, B, kappa, lambda;
-  double Fn0, Fn1, Fn2, Fn3, F0, F1, F2, F3, eta, Fe;
-  double rc; // chosen by the user?
+  double re_inv[MAX_NUM_ELEMENTS_EAM];
+  double fe[MAX_NUM_ELEMENTS_EAM];
+  double rho_e_inv[MAX_NUM_ELEMENTS_EAM];
+  double rho_s_inv[MAX_NUM_ELEMENTS_EAM];
+  double rho_n[MAX_NUM_ELEMENTS_EAM];
+  double rho_n_inv[MAX_NUM_ELEMENTS_EAM];
+  double rho_0[MAX_NUM_ELEMENTS_EAM];
+  double alpha[MAX_NUM_ELEMENTS_EAM];
+  double beta[MAX_NUM_ELEMENTS_EAM];
+  double A[MAX_NUM_ELEMENTS_EAM];
+  double B[MAX_NUM_ELEMENTS_EAM];
+  double kappa[MAX_NUM_ELEMENTS_EAM];
+  double lambda[MAX_NUM_ELEMENTS_EAM];
+  double Fn0[MAX_NUM_ELEMENTS_EAM];
+  double Fn1[MAX_NUM_ELEMENTS_EAM];
+  double Fn2[MAX_NUM_ELEMENTS_EAM];
+  double Fn3[MAX_NUM_ELEMENTS_EAM];
+  double F0[MAX_NUM_ELEMENTS_EAM];
+  double F1[MAX_NUM_ELEMENTS_EAM];
+  double F2[MAX_NUM_ELEMENTS_EAM];
+  double F3[MAX_NUM_ELEMENTS_EAM];
+  double eta[MAX_NUM_ELEMENTS_EAM];
+  double Fe[MAX_NUM_ELEMENTS_EAM];
+  double rc[MAX_NUM_ELEMENTS_EAM];
 };
 
 struct EAM2006Dai {
@@ -35,7 +58,7 @@ struct EAM_Data {
 class EAM : public Potential
 {
 public:
-  EAM(FILE*, char*, const int number_of_atoms);
+  EAM(FILE*, char*, int num_types, const int number_of_atoms);
   virtual ~EAM(void);
   virtual void compute(
     const int type_shift,
@@ -46,7 +69,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
-  void initialize_eam2004zhou(FILE*);
+  void initialize_eam2004zhou(FILE*, int num_types);
   void initialize_eam2006dai(FILE*);
 
 protected:

@@ -440,14 +440,15 @@ static __global__ void find_partial_force_angular(
   }
 }
 
+#ifdef USE_ZBL
 static __device__ void find_phi_and_phip(float a, float b, float x, float& phi, float& phip)
 {
-    phi = a * exp(-b * x);
-    phip = -b * phi;
+  phi = a * exp(-b * x);
+  phip = -b * phi;
 }
 
 static __device__ void find_f_and_fp(float d12, float& f, float& fp)
-{	
+{
   float d12inv = 1 / d12;
   float d12inv_p = -1 / (d12 * d12);
   float Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
@@ -473,82 +474,84 @@ static __device__ void find_f_and_fp(float d12, float& f, float& fp)
 }
 
 static __global__ void find_force_ZBL(
-    const int N,
-    const int N1,
-    const int N2,
-    const Box box,
-    const int* g_NN,
-    const int* g_NL,
-    const double* __restrict__ g_x,
-    const double* __restrict__ g_y,
-    const double* __restrict__ g_z,
-    double* g_fx,
-    double* g_fy,
-    double* g_fz,
-    double* g_virial,
-    double* g_pe)
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
+  double* g_virial,
+  double* g_pe)
 {
-    int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-    if (n1 < N2) {
-        float s_pe = 0.0f;
-        float s_fx = 0.0f;
-        float s_fy = 0.0f;
-        float s_fz = 0.0f;
-        float s_sxx = 0.0f;
-        float s_sxy = 0.0f;
-        float s_sxz = 0.0f;
-        float s_syx = 0.0f;
-        float s_syy = 0.0f;
-        float s_syz = 0.0f;
-        float s_szx = 0.0f;
-        float s_szy = 0.0f;
-        float s_szz = 0.0f;
-        double x1 = g_x[n1];
-        double y1 = g_y[n1];
-        double z1 = g_z[n1];
-        for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-            int n2 = g_NL[n1 + N * i1];
-            double x12double = g_x[n2] - x1;
-            double y12double = g_y[n2] - y1;
-            double z12double = g_z[n2] - z1;
-            apply_mic(box, x12double, y12double, z12double);
-            float r12[3] = {float(x12double), float(y12double), float(z12double)};
-            float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-            float d12inv = 1.0f / d12;
-            float f, fp;
-            find_f_and_fp(d12, f, fp);
-            float f2 = fp * d12inv * 0.5f;
-            float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-            float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
-            s_fx += f12[0] - f21[0];
-            s_fy += f12[1] - f21[1];
-            s_fz += f12[2] - f21[2];
-            s_sxx -= r12[0] * f12[0];
-            s_sxy -= r12[0] * f12[1];
-            s_sxz -= r12[0] * f12[2];
-            s_syx -= r12[1] * f12[0];
-            s_syy -= r12[1] * f12[1];
-            s_syz -= r12[1] * f12[2];
-            s_szx -= r12[2] * f12[0];
-            s_szy -= r12[2] * f12[1];
-            s_szz -= r12[2] * f12[2];
-            s_pe += f * 0.5f;
-        }
-        g_fx[n1] += s_fx;
-        g_fy[n1] += s_fy;
-        g_fz[n1] += s_fz;
-        g_virial[n1 + 0 * N] += s_sxx;
-        g_virial[n1 + 1 * N] += s_syy;
-        g_virial[n1 + 2 * N] += s_szz;
-        g_virial[n1 + 3 * N] += s_sxy;
-        g_virial[n1 + 4 * N] += s_sxz;
-        g_virial[n1 + 5 * N] += s_syz;
-        g_virial[n1 + 6 * N] += s_syx;
-        g_virial[n1 + 7 * N] += s_szx;
-        g_virial[n1 + 8 * N] += s_szy;
-        g_pe[n1] += s_pe;
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    float s_pe = 0.0f;
+    float s_fx = 0.0f;
+    float s_fy = 0.0f;
+    float s_fz = 0.0f;
+    float s_sxx = 0.0f;
+    float s_sxy = 0.0f;
+    float s_sxz = 0.0f;
+    float s_syx = 0.0f;
+    float s_syy = 0.0f;
+    float s_syz = 0.0f;
+    float s_szx = 0.0f;
+    float s_szy = 0.0f;
+    float s_szz = 0.0f;
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int n2 = g_NL[n1 + N * i1];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float r12[3] = {float(x12double), float(y12double), float(z12double)};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float f, fp;
+      find_f_and_fp(d12, f, fp);
+      float f2 = fp * d12inv * 0.5f;
+      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+      float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
+      s_fx += f12[0] - f21[0];
+      s_fy += f12[1] - f21[1];
+      s_fz += f12[2] - f21[2];
+      s_sxx -= r12[0] * f12[0];
+      s_sxy -= r12[0] * f12[1];
+      s_sxz -= r12[0] * f12[2];
+      s_syx -= r12[1] * f12[0];
+      s_syy -= r12[1] * f12[1];
+      s_syz -= r12[1] * f12[2];
+      s_szx -= r12[2] * f12[0];
+      s_szy -= r12[2] * f12[1];
+      s_szz -= r12[2] * f12[2];
+      s_pe += f * 0.5f;
     }
+    g_fx[n1] += s_fx;
+    g_fy[n1] += s_fy;
+    g_fz[n1] += s_fz;
+    g_virial[n1 + 0 * N] += s_sxx;
+    g_virial[n1 + 1 * N] += s_syy;
+    g_virial[n1 + 2 * N] += s_szz;
+    g_virial[n1 + 3 * N] += s_sxy;
+    g_virial[n1 + 4 * N] += s_sxz;
+    g_virial[n1 + 5 * N] += s_syz;
+    g_virial[n1 + 6 * N] += s_syx;
+    g_virial[n1 + 7 * N] += s_szx;
+    g_virial[n1 + 8 * N] += s_szy;
+    g_pe[n1] += s_pe;
+  }
 }
+
+#endif
 
 void NEP2::compute(
   const int type_shift,
@@ -594,13 +597,13 @@ void NEP2::compute(
     box, nep_data.NN.data(), nep_data.NL.data(), nep_data.f12x.data(), nep_data.f12y.data(),
     nep_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
   CUDA_CHECK_KERNEL
-  
-#ifdef USE_ZBL  
+
+#ifdef USE_ZBL
   find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
-    N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(),
-    position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2, 
-    force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2, 
-    virial_per_atom.data(), potential_per_atom.data());
+    N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(),
+    position_per_atom.data() + N, position_per_atom.data() + N * 2, force_per_atom.data(),
+    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data(),
+    potential_per_atom.data());
   CUDA_CHECK_KERNEL
 #endif
 }

@@ -16,12 +16,11 @@
 #pragma once
 #include "ensemble.cuh"
 
-class Ensemble_BER : public Ensemble
+class Ensemble_NPT_SCR : public Ensemble
 {
 public:
-  Ensemble_BER(int, int, double, double);
-  Ensemble_BER(int, int, double, double, double*, int, double, int, int, int, double);
-  virtual ~Ensemble_BER(void);
+  Ensemble_NPT_SCR(int, int, double, double, double*, int, double, int, int, int, double);
+  virtual ~Ensemble_NPT_SCR(void);
 
   virtual void compute1(
     const double time_step,

@@ -133,7 +133,13 @@ void Run::perform_a_run(char* input_dir)
   print_line_1();
   clock_t time_finish = clock();
   double time_used = (time_finish - time_begin) / (double)CLOCKS_PER_SEC;
-  printf("Number of neighbor list updates for this run = %d.\n", neighbor.number_of_updates);
+  if (neighbor.update) {
+    printf("Number of neighbor list updates for this run = %d.\n", neighbor.number_of_updates);
+  } else {
+    printf("!!! WARNING: You have not asked to update the neighbor list for this run. Please make "
+           "sure this is what you intended.\n");
+  }
+
   if (neighbor.number_of_updates > 0) {
     printf("    Calculated maximum number of neighbors for this run = %d.\n", neighbor.max_NN);
     printf("    The 'MN' parameter you set in xyz.in = %d.\n", neighbor.MN);
@@ -182,7 +188,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
-    integrate.parse_ensemble(param, num_param, group);
+    integrate.parse_ensemble(box, param, num_param, group);
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "neighbor") == 0) {

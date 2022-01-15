@@ -491,14 +491,15 @@ static __global__ void find_force_angular(
   }
 }
 
+#ifdef USE_ZBL
 static __device__ void find_phi_and_phip(float a, float b, float x, float& phi, float& phip)
 {
-    phi = a * exp(-b * x);
-    phip = -b * phi;
+  phi = a * exp(-b * x);
+  phip = -b * phi;
 }
 
 static __device__ void find_f_and_fp(float d12, float& f, float& fp)
-{	
+{
   float d12inv = 1 / d12;
   float d12inv_p = -1 / (d12 * d12);
   float Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
@@ -579,6 +580,7 @@ static __global__ void find_force_ZBL(
     g_pe[n1] += s_pe;
   }
 }
+#endif
 
 void NEP2::find_force(
   Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
@@ -645,7 +647,7 @@ void NEP2::find_force(
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
-#ifdef USE_ZBL  
+#ifdef USE_ZBL
   find_force_ZBL<<<grid_size, block_size>>>(
     dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_data.x12_angular.data(),
     nep_data.y12_angular.data(), nep_data.z12_angular.data(), dataset.force.data(),
