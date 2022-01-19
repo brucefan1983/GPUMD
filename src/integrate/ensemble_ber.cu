@@ -36,7 +36,7 @@ Ensemble_BER::Ensemble_BER(
   double Tc,
   double target_p[6],
   int num_target_p,
-  double pc,
+  double pc[6],
   int dx,
   int dy,
   int dz,
@@ -48,9 +48,9 @@ Ensemble_BER::Ensemble_BER(
   temperature_coupling = 1.0 / Tc;
   for (int i = 0; i < 6; i++) {
     target_pressure[i] = target_p[i];
+    pressure_coupling[i] = pc[i];
   }
   num_target_pressure_components = num_target_p;
-  pressure_coupling = 1.0 / pc;
   deform_x = dx;
   deform_y = dy;
   deform_z = dz;
@@ -87,7 +87,7 @@ static void cpu_pressure_orthogonal(
   double deform_rate,
   Box& box,
   double* p0,
-  double p_coupling,
+  double* p_coupling,
   double* thermo,
   double* scale_factor)
 {
@@ -100,7 +100,7 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else if (box.pbc_x == 1) {
-    scale_factor[0] = 1.0 - p_coupling * (p0[0] - p[0]);
+    scale_factor[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else {
@@ -113,7 +113,7 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
   } else if (box.pbc_y == 1) {
-    scale_factor[1] = 1.0 - p_coupling * (p0[1] - p[1]);
+    scale_factor[1] = 1.0 - p_coupling[1] * (p0[1] - p[1]);
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
   } else {
@@ -126,7 +126,7 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else if (box.pbc_z == 1) {
-    scale_factor[2] = 1.0 - p_coupling * (p0[2] - p[2]);
+    scale_factor[2] = 1.0 - p_coupling[2] * (p0[2] - p[2]);
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else {
@@ -135,11 +135,11 @@ static void cpu_pressure_orthogonal(
 }
 
 static void cpu_pressure_isotropic(
-  Box& box, double* p0, double p_coupling, double* thermo, double& scale_factor)
+  Box& box, double* p0, double* p_coupling, double* thermo, double& scale_factor)
 {
   double p[3];
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
-  scale_factor = 1.0 - p_coupling * (p0[0] - (p[0] + p[1] + p[2]) * 0.3333333333333333);
+  scale_factor = 1.0 - p_coupling[0] * (p0[0] - (p[0] + p[1] + p[2]) * 0.3333333333333333);
   box.cpu_h[0] *= scale_factor;
   box.cpu_h[1] *= scale_factor;
   box.cpu_h[2] *= scale_factor;
@@ -149,16 +149,16 @@ static void cpu_pressure_isotropic(
 }
 
 static void
-cpu_pressure_triclinic(Box& box, double* p0, double p_coupling, double* thermo, double* mu)
+cpu_pressure_triclinic(Box& box, double* p0, double* p_coupling, double* thermo, double* mu)
 {
   double p[6];
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
-  mu[0] = 1.0 - p_coupling * (p0[0] - p[0]);
-  mu[4] = 1.0 - p_coupling * (p0[1] - p[1]);
-  mu[8] = 1.0 - p_coupling * (p0[2] - p[2]);
-  mu[3] = mu[1] = -p_coupling * (p0[3] - p[3]);
-  mu[6] = mu[2] = -p_coupling * (p0[4] - p[4]);
-  mu[7] = mu[5] = -p_coupling * (p0[5] - p[5]);
+  mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);
+  mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);
+  mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);
+  mu[3] = mu[1] = -p_coupling[3] * (p0[3] - p[3]);
+  mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]);
+  mu[7] = mu[5] = -p_coupling[5] * (p0[5] - p[5]);
   double h_old[9];
   for (int i = 0; i < 9; ++i) {
     h_old[i] = box.cpu_h[i];

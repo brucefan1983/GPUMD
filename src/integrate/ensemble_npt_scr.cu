@@ -32,7 +32,7 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   double temperature_coupling_input,
   double target_pressure_input[6],
   int num_target_pressure_components_input,
-  double pressure_coupling_input,
+  double pressure_coupling_input[6],
   int deform_x_input,
   int deform_y_input,
   int deform_z_input,
@@ -44,12 +44,10 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   temperature_coupling = temperature_coupling_input;
   for (int i = 0; i < 6; i++) {
     target_pressure[i] = target_pressure_input[i];
+    pressure_coupling[i] = pressure_coupling_input[i];
   }
   num_target_pressure_components = num_target_pressure_components_input;
-  // input: pressure_coupling_input = tau/dt
-  // assumption: beta=3 (our natural unit)
-  // then pressure_coupling = (beta/3)*dt/tau = 1 / pressure_coupling_input
-  pressure_coupling = 1.0 / pressure_coupling_input;
+
   deform_x = deform_x_input;
   deform_y = deform_y_input;
   deform_z = deform_z_input;
@@ -69,7 +67,7 @@ static void cpu_pressure_orthogonal(
   Box& box,
   double target_temperature,
   double* p0,
-  double p_coupling,
+  double* p_coupling,
   double* thermo,
   double* scale_factor)
 {
@@ -82,9 +80,9 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else if (box.pbc_x == 1) {
-    const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[0] - p[0]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
     const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+      sqrt(2.0 * p_coupling[0] * K_B * target_temperature / box.get_volume()) * gasdev();
     scale_factor[0] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
@@ -98,9 +96,9 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
   } else if (box.pbc_y == 1) {
-    const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[1] - p[1]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling[1] * (p0[1] - p[1]);
     const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+      sqrt(2.0 * p_coupling[1] * K_B * target_temperature / box.get_volume()) * gasdev();
     scale_factor[1] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
@@ -114,9 +112,9 @@ static void cpu_pressure_orthogonal(
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else if (box.pbc_z == 1) {
-    const double scale_factor_Berendsen = 1.0 - p_coupling * (p0[2] - p[2]);
+    const double scale_factor_Berendsen = 1.0 - p_coupling[2] * (p0[2] - p[2]);
     const double scale_factor_stochastic =
-      sqrt(2.0 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+      sqrt(2.0 * p_coupling[2] * K_B * target_temperature / box.get_volume()) * gasdev();
     scale_factor[2] = scale_factor_Berendsen + scale_factor_stochastic;
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
@@ -129,17 +127,19 @@ static void cpu_pressure_isotropic(
   Box& box,
   double target_temperature,
   double* target_pressure,
-  double p_coupling,
+  double* p_coupling,
   double* thermo,
   double& scale_factor)
 {
   double p[3];
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
   const double pressure_instant = (p[0] + p[1] + p[2]) * 0.3333333333333333;
-  const double scale_factor_Berendsen = 1.0 - p_coupling * (target_pressure[0] - pressure_instant);
+  const double scale_factor_Berendsen =
+    1.0 - p_coupling[0] * (target_pressure[0] - pressure_instant);
   // The factor 0.666666666666667 is 2/3, where 3 means the number of directions that are coupled
   const double scale_factor_stochastic =
-    sqrt(0.666666666666667 * p_coupling * K_B * target_temperature / box.get_volume()) * gasdev();
+    sqrt(0.666666666666667 * p_coupling[0] * K_B * target_temperature / box.get_volume()) *
+    gasdev();
   scale_factor = scale_factor_Berendsen + scale_factor_stochastic;
   box.cpu_h[0] *= scale_factor;
   box.cpu_h[1] *= scale_factor;
@@ -150,20 +150,25 @@ static void cpu_pressure_isotropic(
 }
 
 static void cpu_pressure_triclinic(
-  Box& box, double target_temperature, double* p0, double p_coupling, double* thermo, double* mu)
+  Box& box, double target_temperature, double* p0, double* p_coupling, double* thermo, double* mu)
 {
   double p[6];
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
-  mu[0] = 1.0 - p_coupling * (p0[0] - p[0]);
-  mu[4] = 1.0 - p_coupling * (p0[1] - p[1]);
-  mu[8] = 1.0 - p_coupling * (p0[2] - p[2]);
-  mu[3] = mu[1] = -p_coupling * (p0[3] - p[3]);
-  mu[6] = mu[2] = -p_coupling * (p0[4] - p[4]);
-  mu[7] = mu[5] = -p_coupling * (p0[5] - p[5]);
+  mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);
+  mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);
+  mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);
+  mu[3] = mu[1] = -p_coupling[3] * (p0[3] - p[3]);
+  mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]);
+  mu[7] = mu[5] = -p_coupling[5] * (p0[5] - p[5]);
+  double p_coupling_3by3[3][3] = {
+    {p_coupling[0], p_coupling[3], p_coupling[4]},
+    {p_coupling[3], p_coupling[1], p_coupling[5]},
+    {p_coupling[4], p_coupling[5], p_coupling[2]}};
   const double volume = box.get_volume();
   for (int r = 0; r < 3; ++r) {
     for (int c = 0; c < 3; ++c) {
-      mu[r * 3 + c] += sqrt(2.0 * p_coupling * K_B * target_temperature / volume) * gasdev();
+      mu[r * 3 + c] +=
+        sqrt(2.0 * p_coupling_3by3[r][c] * K_B * target_temperature / volume) * gasdev();
     }
   }
   double h_old[9];

@@ -268,10 +268,10 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
 
     // pressure_coupling:
     int index_pressure_coupling = num_target_pressure_components + 5;
-    if (!is_valid_real(param[index_pressure_coupling], &pressure_coupling)) {
+    if (!is_valid_real(param[index_pressure_coupling], &tau_p)) {
       PRINT_INPUT_ERROR("Pressure coupling should be a number.");
     }
-    if (pressure_coupling < 1) {
+    if (tau_p < 1) {
       if (type == 11) {
         PRINT_INPUT_ERROR(
           "Pressure coupling should >= 1. \n(We have changed the convention for this "
@@ -279,6 +279,9 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       } else {
         PRINT_INPUT_ERROR("Pressure coupling should >= 1.");
       }
+    }
+    for (int i = 0; i < 6; i++) {
+      pressure_coupling[i] = 1.0 / tau_p;
     }
   }
 
@@ -387,7 +390,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
         printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
       }
-      printf("    tau_p is %g time_step.\n", pressure_coupling);
+      printf("    tau_p is %g time_step.\n", tau_p);
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
@@ -413,7 +416,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
         printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
       }
-      printf("    tau_p is %g time_step.\n", pressure_coupling);
+      printf("    tau_p is %g time_step.\n", tau_p);
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
