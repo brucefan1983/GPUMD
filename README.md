@@ -40,8 +40,8 @@ https://www.freelists.org/list/gpumd
   
 ## Authors:
 
-* Beforce the first release, GPUMD was developed by Zheyong Fan, with help from Ville Vierimaa (Previously Aalto University) and Mikko Ervasti (Previously Aalto University) and supervision from Ari Harju (Previously Aalto University).
-* Below is the full list of contributiors starting from the first release.
+* Before the first release, GPUMD was developed by Zheyong Fan, with help from Ville Vierimaa (Previously Aalto University) and Mikko Ervasti (Previously Aalto University) and supervision from Ari Harju (Previously Aalto University).
+* Below is the full list of contributors starting from the first release.
 
 | Name                         | contact                             |
 | ---------------------------- | ----------------------------------  |
