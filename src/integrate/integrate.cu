@@ -162,13 +162,13 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
-    if (num_param != 12 && num_param != 9 && num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble npt_ber should have 5, 7, or 10 parameters.");
+    if (num_param != 18 && num_param != 12 && num_param != 8) {
+      PRINT_INPUT_ERROR("ensemble npt_ber should have 6, 10, or 16 parameters.");
     }
   } else if (strcmp(param[1], "npt_scr") == 0) {
     type = 12;
-    if (num_param != 12 && num_param != 9 && num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble npt_scr should have 5, 7, or 10 parameters.");
+    if (num_param != 18 && num_param != 12 && num_param != 8) {
+      PRINT_INPUT_ERROR("ensemble npt_ber should have 6, 10, or 16 parameters.");
     }
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
@@ -228,19 +228,33 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
   // 3. Pressures and pressure_coupling (NPT)
   if (type >= 11 && type <= 20) {
     // pressures:
-    if (num_param == 9) {
+    if (num_param == 12) {
       for (int i = 0; i < 3; i++) {
         if (!is_valid_real(param[5 + i], &target_pressure[i])) {
           PRINT_INPUT_ERROR("Pressure should be a number.");
+        }
+      }
+      for (int i = 0; i < 3; i++) {
+        if (!is_valid_real(param[8 + i], &elastic_modulus[i])) {
+          PRINT_INPUT_ERROR("elastic modulus should be a number.");
+        }
+        if (elastic_modulus[i] < 0) {
+          PRINT_INPUT_ERROR("elastic modulus should >0.");
         }
       }
       num_target_pressure_components = 3;
       if (box.triclinic == 1) {
         PRINT_INPUT_ERROR("Cannot use triclinic box with only 3 target pressure components.");
       }
-    } else if (num_param == 7) { // isotropic
-      if (!is_valid_real(param[5 + 0], &target_pressure[0])) {
+    } else if (num_param == 8) { // isotropic
+      if (!is_valid_real(param[5], &target_pressure[0])) {
         PRINT_INPUT_ERROR("Pressure should be a number.");
+      }
+      if (!is_valid_real(param[6], &elastic_modulus[0])) {
+        PRINT_INPUT_ERROR("elastic modulus should be a number.");
+      }
+      if (elastic_modulus[0] < 0) {
+        PRINT_INPUT_ERROR("elastic modulus should >0.");
       }
       num_target_pressure_components = 1;
       if (box.triclinic == 1) {
@@ -256,6 +270,14 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
           PRINT_INPUT_ERROR("Pressure should be a number.");
         }
       }
+      for (int i = 0; i < 6; i++) {
+        if (!is_valid_real(param[11 + i], &elastic_modulus[i])) {
+          PRINT_INPUT_ERROR("elastic modulus should be a number.");
+        }
+        if (elastic_modulus[i] < 0) {
+          PRINT_INPUT_ERROR("elastic modulus should >0.");
+        }
+      }
       num_target_pressure_components = 6;
       if (box.triclinic == 0) {
         PRINT_INPUT_ERROR("Must use triclinic box with 6 target pressure components.");
@@ -267,7 +289,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     }
 
     // pressure_coupling:
-    int index_pressure_coupling = num_target_pressure_components + 5;
+    int index_pressure_coupling = num_target_pressure_components * 2 + 5;
     if (!is_valid_real(param[index_pressure_coupling], &tau_p)) {
       PRINT_INPUT_ERROR("Pressure coupling should be a number.");
     }
@@ -281,7 +303,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       }
     }
     for (int i = 0; i < 6; i++) {
-      pressure_coupling[i] = 1.0 / tau_p;
+      pressure_coupling[i] = 1.0 / (tau_p * 3.0 * elastic_modulus[i]);
     }
   }
 
@@ -378,10 +400,14 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("    tau_T is %g time_step\n", temperature_coupling);
       if (num_target_pressure_components == 1) {
         printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+        printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
       } else if (num_target_pressure_components == 3) {
         printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
         printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
         printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
       } else if (num_target_pressure_components == 6) {
         printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
         printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
@@ -389,11 +415,18 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         printf("    pressure_xy is %g GPa.\n", target_pressure[3]);
         printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
         printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
+        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
+        printf("    modulus_xy is %g GPa.\n", elastic_modulus[3]);
+        printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
+        printf("    modulus_yz is %g GPa.\n", elastic_modulus[5]);
       }
       printf("    tau_p is %g time_step.\n", tau_p);
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+        pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
       }
       break;
     case 12:
@@ -404,10 +437,14 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       if (num_target_pressure_components == 1) {
         printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
+        printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
       } else if (num_target_pressure_components == 3) {
         printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
         printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
         printf("    pressure_zz is %g GPa.\n", target_pressure[2]);
+        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
       } else if (num_target_pressure_components == 6) {
         printf("    pressure_xx is %g GPa.\n", target_pressure[0]);
         printf("    pressure_yy is %g GPa.\n", target_pressure[1]);
@@ -415,11 +452,18 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         printf("    pressure_xy is %g GPa.\n", target_pressure[3]);
         printf("    pressure_xz is %g GPa.\n", target_pressure[4]);
         printf("    pressure_yz is %g GPa.\n", target_pressure[5]);
+        printf("    modulus_xx is %g GPa.\n", elastic_modulus[0]);
+        printf("    modulus_yy is %g GPa.\n", elastic_modulus[1]);
+        printf("    modulus_zz is %g GPa.\n", elastic_modulus[2]);
+        printf("    modulus_xy is %g GPa.\n", elastic_modulus[3]);
+        printf("    modulus_xz is %g GPa.\n", elastic_modulus[4]);
+        printf("    modulus_yz is %g GPa.\n", elastic_modulus[5]);
       }
       printf("    tau_p is %g time_step.\n", tau_p);
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
+        pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
       }
       break;
     case 21:

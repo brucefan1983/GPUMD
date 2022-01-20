@@ -67,6 +67,7 @@ public:
   int num_target_pressure_components;
   double temperature_coupling;
   double tau_p;
+  double elastic_modulus[6];
   double pressure_coupling[6];
   int deform_x = 0;
   int deform_y = 0;
