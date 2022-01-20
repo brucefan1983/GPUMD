@@ -7,7 +7,6 @@
 | create_xyz  | small programs to create some `xyz.in` files                 |
 | vim         | used to highlight `GPUMD` related files in `vim`             |
 | nep_related | tools related to the `nep` executable in `GPUMD`             |
-| eam         | used to create the potential files for the EAM potential     |
 
 # References
 * [1] Zheyong Fan, Luiz Felipe C Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, Ari Harju,
