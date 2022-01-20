@@ -40,13 +40,20 @@ https://www.freelists.org/list/gpumd
   
 ## Authors:
 
-* Zheyong Fan (Bohai University and Aalto University; Active developer)
-  * brucenju(at)gmail.com
-* Alexander J. Gabourie (Stanford University; Active developer)
-  * gabourie(at)stanford.edu
-* Ville Vierimaa (Aalto University; Not an active developer any more)
-* Mikko Ervasti (Aalto University; Not an active developer any more)
-* Ari Harju (Aalto University; Not an active developer any more)
+* Beforce the first release, GPUMD was developed by Zheyong Fan, with help from Ville Vierimaa (Previously Aalto University) and Mikko Ervasti (Previously Aalto University) and supervision from Ari Harju (Previously Aalto University).
+* Below is the full list of contributiors starting from the first release.
+
+| Name                         | contact                             |
+| ---------------------------- | ----------------------------------  |
+| Zheyong Fan                  | https://github.com/brucefan1983     |
+| Alexander J. Gabourie        | https://github.com/AlexGabourie     |
+| Ke Xu                        | https://github.com/Kick-H           |
+| Ting Liang                   | https://github.com/Tingliangstu     |
+| Jiahui Liu                   | https://github.com/Jonsnow-willow   |
+| Penghua Ying                 | https://github.com/hityingph        |
+| Real Name ?                  | https://github.com/Lazemare         |
+
+
 
 ## Citations
 
