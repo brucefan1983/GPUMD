@@ -52,6 +52,7 @@ https://www.freelists.org/list/gpumd
 | Jiahui Liu                   | https://github.com/Jonsnow-willow   |
 | Penghua Ying                 | https://github.com/hityingph        |
 | Real Name ?                  | https://github.com/Lazemare         |
+| Yanzhou Wang                 | https://github.com/Yanzhou-Wang     |
 
 
 
