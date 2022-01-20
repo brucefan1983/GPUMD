@@ -43,16 +43,17 @@ https://www.freelists.org/list/gpumd
 * Before the first release, GPUMD was developed by Zheyong Fan, with help from Ville Vierimaa (Previously Aalto University) and Mikko Ervasti (Previously Aalto University) and supervision from Ari Harju (Previously Aalto University).
 * Below is the full list of contributors starting from the first release.
 
-| Name                         | contact                             |
-| ---------------------------- | ----------------------------------  |
-| Zheyong Fan                  | https://github.com/brucefan1983     |
-| Alexander J. Gabourie        | https://github.com/AlexGabourie     |
-| Ke Xu                        | https://github.com/Kick-H           |
-| Ting Liang                   | https://github.com/Tingliangstu     |
-| Jiahui Liu                   | https://github.com/Jonsnow-willow   |
-| Penghua Ying                 | https://github.com/hityingph        |
-| Real Name ?                  | https://github.com/Lazemare         |
-| Yanzhou Wang                 | https://github.com/Yanzhou-Wang     |
+| Name                  | contact                           |
+| --------------------- | --------------------------------- |
+| Zheyong Fan           | https://github.com/brucefan1983   |
+| Alexander J. Gabourie | https://github.com/AlexGabourie   |
+| Ke Xu                 | https://github.com/Kick-H         |
+| Ting Liang            | https://github.com/Tingliangstu   |
+| Jiahui Liu            | https://github.com/Jonsnow-willow |
+| Penghua Ying          | https://github.com/hityingph      |
+| Real Name ?           | https://github.com/Lazemare       |
+| Yanzhou Wang          | https://github.com/Yanzhou-Wang   |
+| Rui Zhao              | https://github.com/grtheaory      |
 
 
 
