@@ -398,8 +398,8 @@ void Parameters::parse_cutoff(char** param, int num_param)
   if (rc_angular > rc_radial) {
     PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
   }
-  if (rc_angular < 2.5f) {
-    PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
+  if (rc_angular < 3.0f) {
+    PRINT_INPUT_ERROR("angular cutoff should >= 3.0 A.");
   }
   if (rc_radial > 10.0f) {
     PRINT_INPUT_ERROR("radial cutoff should <= 10 A.");
