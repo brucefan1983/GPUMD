@@ -226,9 +226,9 @@ void Parameters::report_inputs()
   }
 
   if (is_generation_set) {
-    printf("    (input)   maximum number of generation = %d.\n", maximum_generation);
+    printf("    (input)   maximum number of generations = %d.\n", maximum_generation);
   } else {
-    printf("    (default) maximum number of generation = %d.\n", maximum_generation);
+    printf("    (default) maximum number of generations = %d.\n", maximum_generation);
   }
 
   // some calcuated parameters:
@@ -398,8 +398,8 @@ void Parameters::parse_cutoff(char** param, int num_param)
   if (rc_angular > rc_radial) {
     PRINT_INPUT_ERROR("angular cutoff should <= radial cutoff.");
   }
-  if (rc_angular < 1.0f) {
-    PRINT_INPUT_ERROR("angular cutoff should >= 1 A.");
+  if (rc_angular < 2.5f) {
+    PRINT_INPUT_ERROR("angular cutoff should >= 2.5 A.");
   }
   if (rc_radial > 10.0f) {
     PRINT_INPUT_ERROR("radial cutoff should <= 10 A.");
