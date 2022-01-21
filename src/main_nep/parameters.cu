@@ -60,6 +60,7 @@ void Parameters::set_default_parameters()
   is_population_set = false;
   is_generation_set = false;
   is_type_weight_set = false;
+  is_zbl_set = false;
 
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
@@ -78,6 +79,7 @@ void Parameters::set_default_parameters()
   for (int n = 0; n < MAX_NUM_TYPES; ++n) {
     type_weight_cpu[n] = {1.0f}; // uniform weight by default
   }
+  enable_zbl = false; // default is not to include ZBL
 }
 
 void Parameters::read_nep_in(char* input_dir)
@@ -137,6 +139,14 @@ void Parameters::report_inputs()
         "        (default) type %d (%s with Z = %d) has force weight of %g.\n", n,
         elements[n].c_str(), atomic_numbers[n], type_weight_cpu[n]);
     }
+  }
+
+  if (is_zbl_set) {
+    printf(
+      "    (input)   will add the ZBL potential with outer cutoff %g A and inner cutoff %g A.\n",
+      zbl_rc_outer, zbl_rc_inner);
+  } else {
+    printf("    (default) will not add the ZBL potential.\n");
   }
 
   if (is_cutoff_set) {
@@ -265,6 +275,8 @@ void Parameters::parse_one_keyword(char** param, int num_param)
     parse_type_weight(param, num_param);
   } else if (strcmp(param[0], "force_delta") == 0) {
     parse_force_delta(param, num_param);
+  } else if (strcmp(param[0], "zbl") == 0) {
+    parse_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -323,6 +335,28 @@ void Parameters::parse_type_weight(char** param, int num_param)
       PRINT_INPUT_ERROR("type weight should be a number.\n");
     }
     type_weight_cpu[n] = weight_tmp;
+  }
+}
+
+void Parameters::parse_zbl(char** param, int num_param)
+{
+  is_zbl_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("zbl should have 1 parameter.\n");
+  }
+
+  double zbl_rc_outer_tmp = 0.0;
+  if (!is_valid_real(param[1], &zbl_rc_outer_tmp)) {
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should be a number.\n");
+  }
+  zbl_rc_outer = zbl_rc_outer_tmp;
+  zbl_rc_inner = zbl_rc_outer * 0.5f;
+
+  if (zbl_rc_outer < 1.0f) {
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
+  } else if (zbl_rc_outer > 2.5f) {
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 2.5 A.");
   }
 }
 

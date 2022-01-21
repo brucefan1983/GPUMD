@@ -42,6 +42,9 @@ public:
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
   float force_delta;      // a parameters used to modify the force loss
+  bool enable_zbl;        // true for inlcuding the universal ZBL potential
+  float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
+  float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
 
   // check if a parameter has been set:
   bool is_type_set;
@@ -59,6 +62,7 @@ public:
   bool is_generation_set;
   bool is_type_weight_set;
   bool is_force_delta_set;
+  bool is_zbl_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -85,6 +89,7 @@ private:
   void parse_one_keyword(char** param, int num_param);
   void parse_type(char** param, int num_param);
   void parse_type_weight(char** param, int num_param);
+  void parse_zbl(char** param, int num_param);
   void parse_cutoff(char** param, int num_param);
   void parse_n_max(char** param, int num_param);
   void parse_l_max(char** param, int num_param);
