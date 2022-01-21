@@ -440,39 +440,6 @@ static __global__ void find_partial_force_angular(
   }
 }
 
-#ifdef USE_ZBL
-static __device__ void find_phi_and_phip(float a, float b, float x, float& phi, float& phip)
-{
-  phi = a * exp(-b * x);
-  phip = -b * phi;
-}
-
-static __device__ void find_f_and_fp(float d12, float& f, float& fp)
-{
-  float d12inv = 1 / d12;
-  float d12inv_p = -1 / (d12 * d12);
-  float Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
-  float Z = 26;
-  float e = 1.6023 * 1e-19;
-  float ep = 8.8542 * 1e-12;
-  double a = 0.46848 / (2 * powf(Z, 0.23f));
-  float x = d12 / a;
-  float A = (1 / (4 * 3.1415927f * ep) * Z * Z * e * e) * 1e10;
-  float phi[4], phip[4];
-  find_phi_and_phip(Zbl_para[0], Zbl_para[1], x, phi[0], phip[0]);
-  find_phi_and_phip(Zbl_para[2], Zbl_para[3], x, phi[1], phip[1]);
-  find_phi_and_phip(Zbl_para[4], Zbl_para[5], x, phi[2], phip[2]);
-  find_phi_and_phip(Zbl_para[6], Zbl_para[7], x, phi[3], phip[3]);
-  float PHI = phi[0] + phi[1] + phi[2] + phi[3];
-  float PHIP = (phip[0] + phip[1] + phip[2] + phip[3]) / a;
-  float fc, fcp;
-  float r1 = 1.0;
-  float r2 = 2.2;
-  find_fc_and_fcp_zbl(r1, r2, d12, fc, fcp);
-  f = fc * A * PHI * d12inv;
-  fp = A * (fcp * PHI * d12inv + fc * PHIP * d12inv + fc * PHI * d12inv_p);
-}
-
 static __global__ void find_force_ZBL(
   const int N,
   const int N1,
@@ -517,7 +484,7 @@ static __global__ void find_force_ZBL(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
-      find_f_and_fp(d12, f, fp);
+      find_f_and_fp_zbl(d12, f, fp);
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
@@ -550,8 +517,6 @@ static __global__ void find_force_ZBL(
     g_pe[n1] += s_pe;
   }
 }
-
-#endif
 
 void NEP2::compute(
   const int type_shift,
@@ -598,12 +563,12 @@ void NEP2::compute(
     nep_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
   CUDA_CHECK_KERNEL
 
-#ifdef USE_ZBL
-  find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
-    N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(),
-    position_per_atom.data() + N, position_per_atom.data() + N * 2, force_per_atom.data(),
-    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data(),
-    potential_per_atom.data());
-  CUDA_CHECK_KERNEL
-#endif
+  if (zbl.enabled) {
+    find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
+      N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(),
+      position_per_atom.data() + N, position_per_atom.data() + N * 2, force_per_atom.data(),
+      force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data(),
+      potential_per_atom.data());
+    CUDA_CHECK_KERNEL
+  }
 }

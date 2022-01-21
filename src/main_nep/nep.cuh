@@ -60,6 +60,12 @@ public:
     const float* c;
   };
 
+  struct ZBL {
+    bool enabled = false;
+    float inner_cutoff[10];
+    float outter_cutoff[10];
+  };
+
   NEP2(
     char* input_dir,
     Parameters& para,
@@ -73,5 +79,6 @@ private:
   ParaMB paramb;
   ANN annmb;
   NEP2_Data nep_data;
+  ZBL zbl;
   void update_potential(const float* parameters, ANN& ann);
 };

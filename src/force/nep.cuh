@@ -54,6 +54,12 @@ public:
     const float* c;
   };
 
+  struct ZBL {
+    bool enabled = false;
+    float inner_cutoff[10];
+    float outter_cutoff[10];
+  };
+
   NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor);
   virtual ~NEP2(void);
   virtual void compute(
@@ -69,6 +75,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb;
+  ZBL zbl;
   NEP2_Data nep_data;
   void update_potential(FILE* fid);
   void update_potential(const float* parameters, ANN& ann);
