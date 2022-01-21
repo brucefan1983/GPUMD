@@ -57,31 +57,66 @@ find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& fcp)
 }
 
 static __device__ __forceinline__ void
-find_fc_and_fcp_zbl(float r1, float r2, float d12, float& fc, float& fcp)
+find_fc_nep_with_zbl(float r1, float r2, float r3, float d12, float& fc)
 {
-  float chi = (d12 - r1) / (r2 - r1);
-  float chip = 1 / (r2 - r1);
-  float chi2 = chi * chi;
   if (d12 < r1) {
-    fc = 1;
-    fcp = 0;
+    fc = 0.0f;
   } else if (d12 < r2) {
-    fc = 1 - chi * chi2 * (6 * chi2 - 15 * chi + 10);
-    fcp = -chip * (3 * chi2 * (6 * chi2 - 15 * chi + 10) + chi * chi2 * (12 * chi - 15));
+    float pi_factor = 3.1415927f / (r2 - r1);
+    fc = 0.5f - cos(pi_factor * (d12 - r1)) * 0.5f;
+  } else if (d12 < r3) {
+    float pi_factor = 3.1415927f / (r3 - r2);
+    fc = cos(pi_factor * (d12 - r2)) * 0.5f + 0.5f;
   } else {
-    fc = 0;
-    fcp = 0;
+    fc = 0.0f;
   }
 }
 
-static __device__ void find_phi_and_phip_zbl(float a, float b, float x, float& phi, float& phip)
+static __device__ __forceinline__ void
+find_fc_and_fcp_nep_with_zbl(float r1, float r2, float r3, float d12, float& fc, float& fcp)
+{
+  if (d12 < r1) {
+    fc = 0.0f;
+    fcp = 0.0f;
+  } else if (d12 < r2) {
+    float pi_factor = 3.1415927f / (r2 - r1);
+    fc = 0.5f - cos(pi_factor * (d12 - r1)) * 0.5f;
+    fcp = sin(pi_factor * (d12 - r1)) * pi_factor * 0.5f;
+  } else if (d12 < r3) {
+    float pi_factor = 3.1415927f / (r3 - r2);
+    fc = cos(pi_factor * (d12 - r2)) * 0.5f + 0.5f;
+    fcp = -sin(pi_factor * (d12 - r2)) * pi_factor * 0.5f;
+  } else {
+    fc = 0.0f;
+    fcp = 0.0f;
+  }
+}
+
+static __device__ __forceinline__ void
+find_fc_and_fcp_zbl(float r1, float r2, float d12, float& fc, float& fcp)
+{
+  if (d12 < r1) {
+    fc = 1.0f;
+    fcp = 0.0f;
+  } else if (d12 < r2) {
+    float pi_factor = 3.1415927f / (r2 - r1);
+    fc = cos(pi_factor * (d12 - r1)) * 0.5f + 0.5f;
+    fcp = -sin(pi_factor * (d12 - r1)) * pi_factor * 0.5f;
+  } else {
+    fc = 0.0f;
+    fcp = 0.0f;
+  }
+}
+
+static __device__ __forceinline__ void
+find_phi_and_phip_zbl(float a, float b, float x, float& phi, float& phip)
 {
   float tmp = a * exp(-b * x);
   phi += tmp;
   phip -= b * tmp;
 }
 
-static __device__ void find_f_and_fp_zbl(
+static __device__ __forceinline__ void find_f_and_fp_zbl(
   float zizj,
   float a_inv,
   float rc_inner,

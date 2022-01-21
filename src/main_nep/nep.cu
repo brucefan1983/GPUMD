@@ -107,6 +107,7 @@ static __global__ void find_descriptors_radial(
   const int* g_NL,
   const NEP2::ParaMB paramb,
   const NEP2::ANN annmb,
+  const NEP2::ZBL zbl,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -126,7 +127,11 @@ static __global__ void find_descriptors_radial(
       float z12 = g_z12[index];
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
-      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
+      if (zbl.enabled) {
+        find_fc_nep_with_zbl(zbl.rc_inner, zbl.rc_outer, paramb.rc_radial, d12, fc12);
+      } else {
+        find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
+      }
       int t2 = g_type[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
@@ -147,8 +152,9 @@ static __global__ void find_descriptors_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  NEP2::ParaMB paramb,
+  const NEP2::ParaMB paramb,
   const NEP2::ANN annmb,
+  const NEP2::ZBL zbl,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -172,7 +178,11 @@ static __global__ void find_descriptors_angular(
         float z12 = g_z12[index];
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
-        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+        if (zbl.enabled) {
+          find_fc_nep_with_zbl(zbl.rc_inner, zbl.rc_outer, paramb.rc_angular, d12, fc12);
+        } else {
+          find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+        }
         int t2 = g_type[n2];
         float fn;
         find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
@@ -213,9 +223,9 @@ NEP2::NEP2(
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
 
-  zbl.enabled = false; // TODO
-  zbl.rc_inner = 1.0f; // TODO
-  zbl.rc_outer = 2.0f; // TODO
+  zbl.enabled = para.enable_zbl;
+  zbl.rc_inner = para.zbl_rc_inner;
+  zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
     zbl.atomic_numbers[n] = para.atomic_numbers[n];
   }
@@ -346,6 +356,7 @@ static __global__ void find_force_radial(
   const int* g_NL,
   const NEP2::ParaMB paramb,
   const NEP2::ANN annmb,
+  const NEP2::ZBL zbl,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -374,7 +385,12 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
+      if (zbl.enabled) {
+        find_fc_and_fcp_nep_with_zbl(
+          zbl.rc_inner, zbl.rc_outer, paramb.rc_radial, d12, fc12, fcp12);
+      } else {
+        find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
+      }
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
@@ -417,6 +433,7 @@ static __global__ void find_force_angular(
   const int* g_NL,
   const NEP2::ParaMB paramb,
   const NEP2::ANN annmb,
+  const NEP2::ZBL zbl,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -454,7 +471,12 @@ static __global__ void find_force_angular(
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
+      if (zbl.enabled) {
+        find_fc_and_fcp_nep_with_zbl(
+          zbl.rc_inner, zbl.rc_outer, paramb.rc_angular, d12, fc12, fcp12);
+      } else {
+        find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
+      }
       int t2 = g_type[n2];
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_angular; ++n) {
@@ -587,13 +609,13 @@ void NEP2::find_force(
   const int grid_size = (dataset.N - 1) / block_size + 1;
 
   find_descriptors_radial<<<grid_size, block_size>>>(
-    dataset.N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), paramb, annmb,
+    dataset.N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), paramb, annmb, zbl,
     dataset.type.data(), nep_data.x12_radial.data(), nep_data.y12_radial.data(),
     nep_data.z12_radial.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
   find_descriptors_angular<<<grid_size, block_size>>>(
-    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), paramb, annmb,
+    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), paramb, annmb, zbl,
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.descriptors.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
@@ -615,14 +637,14 @@ void NEP2::find_force(
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, block_size>>>(
-    dataset.N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), paramb, annmb,
+    dataset.N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), paramb, annmb, zbl,
     dataset.type.data(), nep_data.x12_radial.data(), nep_data.y12_radial.data(),
     nep_data.z12_radial.data(), nep_data.Fp.data(), dataset.force.data(),
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
   find_force_angular<<<grid_size, block_size>>>(
-    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), paramb, annmb,
+    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), paramb, annmb, zbl,
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data(), dataset.force.data(),
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());

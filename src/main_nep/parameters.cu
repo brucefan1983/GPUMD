@@ -341,6 +341,7 @@ void Parameters::parse_type_weight(char** param, int num_param)
 void Parameters::parse_zbl(char** param, int num_param)
 {
   is_zbl_set = true;
+  enable_zbl = true;
 
   if (num_param != 2) {
     PRINT_INPUT_ERROR("zbl should have 1 parameter.\n");
