@@ -74,6 +74,7 @@ public:
   GPU_Vector<float> q_scaler_gpu;     // used to scale some descriptor components (GPU)
   std::vector<float> q_scaler_cpu;    // used to scale some descriptor components (CPU)
   std::vector<std::string> elements;  // atom symbols
+  std::vector<int> atomic_numbers;    // atomic numbers
 
 private:
   void set_default_parameters();

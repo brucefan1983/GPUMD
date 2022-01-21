@@ -24,8 +24,8 @@ struct NEP2_Data {
   GPU_Vector<double> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<int> NN;
-  GPU_Vector<int> NL;
+  GPU_Vector<int> NN; // angular neighbor list
+  GPU_Vector<int> NL; // angular neighbor list
 };
 
 class NEP2 : public Potential
@@ -56,8 +56,9 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    float inner_cutoff[10];
-    float outter_cutoff[10];
+    float rc_inner = 1.0f;
+    float rc_outer = 2.0f;
+    float atomic_numbers[10];
   };
 
   NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor);

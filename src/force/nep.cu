@@ -21,6 +21,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
 #include "nep.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <vector>
@@ -442,11 +443,13 @@ static __global__ void find_partial_force_angular(
 
 static __global__ void find_force_ZBL(
   const int N,
+  const NEP2::ZBL zbl,
   const int N1,
   const int N2,
   const Box box,
   const int* g_NN,
   const int* g_NL,
+  const int* __restrict__ g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -474,6 +477,8 @@ static __global__ void find_force_ZBL(
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
+    float zi = zbl.atomic_numbers[g_type[n1]];
+    float pow_zi = pow(zi, 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       double x12double = g_x[n2] - x1;
@@ -484,7 +489,10 @@ static __global__ void find_force_ZBL(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
-      find_f_and_fp_zbl(d12, f, fp);
+      float zj = zbl.atomic_numbers[g_type[n2]];
+      float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
+      float zizj = K_C_SP * zi * zj;
+      find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
@@ -565,10 +573,10 @@ void NEP2::compute(
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
-      N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), position_per_atom.data(),
-      position_per_atom.data() + N, position_per_atom.data() + N * 2, force_per_atom.data(),
-      force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data(),
-      potential_per_atom.data());
+      N, zbl, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), type.data(),
+      position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
+      force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
+      virial_per_atom.data(), potential_per_atom.data());
     CUDA_CHECK_KERNEL
   }
 }

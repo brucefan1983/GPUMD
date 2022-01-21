@@ -24,6 +24,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "mic.cuh"
 #include "nep.cuh"
 #include "parameters.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/nep_utilities.cuh"
@@ -211,6 +212,13 @@ NEP2::NEP2(
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
+
+  zbl.enabled = false; // TODO
+  zbl.rc_inner = 1.0f; // TODO
+  zbl.rc_outer = 2.0f; // TODO
+  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
+    zbl.atomic_numbers[n] = para.atomic_numbers[n];
+  }
 
   nep_data.NN_radial.resize(N);
   nep_data.NN_angular.resize(N);
@@ -493,8 +501,10 @@ static __global__ void find_force_angular(
 
 static __global__ void find_force_ZBL(
   const int N,
+  const NEP2::ZBL zbl,
   const int* g_NN,
   const int* g_NL,
+  const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
@@ -513,6 +523,8 @@ static __global__ void find_force_ZBL(
     float s_virial_xy = 0.0f;
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
+    float zi = zbl.atomic_numbers[g_type[n1]];
+    float pow_zi = pow(zi, 0.23f);
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
@@ -521,7 +533,10 @@ static __global__ void find_force_ZBL(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
-      find_f_and_fp_zbl(d12, f, fp);
+      float zj = zbl.atomic_numbers[g_type[n2]];
+      float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
+      float zizj = K_C_SP * zi * zj;
+      find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       atomicAdd(&g_fx[n1], f12[0]);
@@ -615,7 +630,7 @@ void NEP2::find_force(
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, block_size>>>(
-      dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(),
+      dataset.N, zbl, nep_data.NN_angular.data(), nep_data.NL_angular.data(), dataset.type.data(),
       nep_data.x12_angular.data(), nep_data.y12_angular.data(), nep_data.z12_angular.data(),
       dataset.force.data(), dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2,
       dataset.virial.data(), dataset.energy.data());

@@ -76,34 +76,35 @@ find_fc_and_fcp_zbl(float r1, float r2, float d12, float& fc, float& fcp)
 
 static __device__ void find_phi_and_phip_zbl(float a, float b, float x, float& phi, float& phip)
 {
-  phi = a * exp(-b * x);
-  phip = -b * phi;
+  float tmp = a * exp(-b * x);
+  phi += tmp;
+  phip -= b * tmp;
 }
 
-static __device__ void find_f_and_fp_zbl(float d12, float& f, float& fp)
+static __device__ void find_f_and_fp_zbl(
+  float zizj,
+  float a_inv,
+  float rc_inner,
+  float rc_outer,
+  float d12,
+  float d12inv,
+  float& f,
+  float& fp)
 {
-  float d12inv = 1 / d12;
-  float d12inv_p = -1 / (d12 * d12);
-  float Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
-  float Z = 26;
-  float e = 1.6023 * 1e-19;
-  float ep = 8.8542 * 1e-12;
-  double a = 0.46848 / (2 * powf(Z, 0.23f));
-  float x = d12 / a;
-  float A = (1 / (4 * 3.1415927f * ep) * Z * Z * e * e) * 1e10;
-  float phi[4], phip[4];
-  find_phi_and_phip_zbl(Zbl_para[0], Zbl_para[1], x, phi[0], phip[0]);
-  find_phi_and_phip_zbl(Zbl_para[2], Zbl_para[3], x, phi[1], phip[1]);
-  find_phi_and_phip_zbl(Zbl_para[4], Zbl_para[5], x, phi[2], phip[2]);
-  find_phi_and_phip_zbl(Zbl_para[6], Zbl_para[7], x, phi[3], phip[3]);
-  float PHI = phi[0] + phi[1] + phi[2] + phi[3];
-  float PHIP = (phip[0] + phip[1] + phip[2] + phip[3]) / a;
+  float x = d12 * a_inv;
+  f = fp = 0.0f;
+  find_phi_and_phip_zbl(0.18175f, 3.1998f, x, f, fp);
+  find_phi_and_phip_zbl(0.50986f, 0.94229f, x, f, fp);
+  find_phi_and_phip_zbl(0.28022f, 0.4029f, x, f, fp);
+  find_phi_and_phip_zbl(0.02817f, 0.20162f, x, f, fp);
+  f *= zizj;
+  fp *= zizj * a_inv;
+  fp = fp * d12inv - f * d12inv * d12inv;
+  f *= d12inv;
   float fc, fcp;
-  float r1 = 1.0;
-  float r2 = 2.2;
-  find_fc_and_fcp_zbl(r1, r2, d12, fc, fcp);
-  f = fc * A * PHI * d12inv;
-  fp = A * (fcp * PHI * d12inv + fc * PHIP * d12inv + fc * PHI * d12inv_p);
+  find_fc_and_fcp_zbl(rc_inner, rc_outer, d12, fc, fcp);
+  fp = fp * fc + f * fcp;
+  f *= fc;
 }
 
 static __device__ __forceinline__ void

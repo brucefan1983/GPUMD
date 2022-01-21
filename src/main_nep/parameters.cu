@@ -128,14 +128,14 @@ void Parameters::report_inputs()
   if (is_type_weight_set) {
     for (int n = 0; n < num_types; ++n) {
       printf(
-        "        (input)   type %d (%s) has force weight of %g.\n", n, elements[n].c_str(),
-        type_weight_cpu[n]);
+        "        (input)   type %d (%s with Z = %d) has force weight of %g.\n", n,
+        elements[n].c_str(), atomic_numbers[n], type_weight_cpu[n]);
     }
   } else {
     for (int n = 0; n < num_types; ++n) {
       printf(
-        "        (default) type %d (%s) has force weight of %g.\n", n, elements[n].c_str(),
-        type_weight_cpu[n]);
+        "        (default) type %d (%s with Z = %d) has force weight of %g.\n", n,
+        elements[n].c_str(), atomic_numbers[n], type_weight_cpu[n]);
     }
   }
 
@@ -290,12 +290,15 @@ void Parameters::parse_type(char** param, int num_param)
   for (int n = 0; n < num_types; ++n) {
     elements.emplace_back(param[2 + n]);
     bool is_valid_element = false;
+    int atomic_number = 0;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
       if (elements.back() == ELEMENTS[m]) {
         is_valid_element = true;
+        atomic_number = m + 1;
         break;
       }
     }
+    atomic_numbers.emplace_back(atomic_number);
     if (!is_valid_element) {
       PRINT_INPUT_ERROR("Some element in nep.in is not in the periodic table.");
     }

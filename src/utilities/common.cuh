@@ -18,6 +18,7 @@
 #define PI 3.14159265358979
 #define K_B 8.617343e-5                              // Boltzmann's constant
 #define K_C 14.399645                                // 1/(4*PI*epsilon_0)
+#define K_C_SP 14.399645f                            // 1/(4*PI*epsilon_0)
 const double PRESSURE_UNIT_CONVERSION = 1.602177e+2; // from natural to GPa
 const double TIME_UNIT_CONVERSION = 1.018051e+1;     // from natural to fs
 const double KAPPA_UNIT_CONVERSION = 1.573769e+5;    // from natural to W/mK

@@ -62,8 +62,9 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    float inner_cutoff[10];
-    float outter_cutoff[10];
+    float rc_inner = 1.0f;
+    float rc_outer = 2.0f;
+    float atomic_numbers[10];
   };
 
   NEP2(
