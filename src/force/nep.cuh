@@ -61,7 +61,7 @@ public:
     float atomic_numbers[10];
   };
 
-  NEP2(FILE* fid, char* input_dir, int num_types, const Neighbor& neighbor);
+  NEP2(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Neighbor& neighbor);
   virtual ~NEP2(void);
   virtual void compute(
     const int type_shift,

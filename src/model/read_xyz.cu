@@ -344,7 +344,7 @@ static int get_potential_type(std::string& filename_potential)
 
   if (potential_name == "fcp") {
     return 1;
-  } else if (potential_name == "nep") {
+  } else if (potential_name == "nep" || potential_name == "nep_zbl") {
     return 2;
   } else {
     return 0; // empirical potentials
@@ -362,8 +362,9 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
 
   std::string potential_name;
   input_potential >> potential_name;
-  if (potential_name != "nep") {
-    std::cout << "Error: The potential name must be 'nep' in this compiled version." << std::endl;
+  if (potential_name != "nep" && potential_name != "nep_zbl") {
+    PRINT_INPUT_ERROR(
+      "Error: The potential name must be 'nep' or 'nep_zbl' in this compiled version.");
     exit(1);
   }
 
