@@ -89,6 +89,9 @@ static void read_Na(std::ifstream& input, std::vector<Structure>& structures)
       structures[nc].has_virial = get_int_from_token(tokens[1], __FILE__, __LINE__);
       if (tokens.size() == 3) {
         structures[nc].weight = get_float_from_token(tokens[2], __FILE__, __LINE__);
+        if (structures[nc].weight <= 0.0f || structures[nc].weight > 100.0f) {
+          PRINT_INPUT_ERROR("Configuration weight should > 0 and <= 100.");
+        }
       } else {
         structures[nc].weight = 1.0f; // default weight is 1
       }
