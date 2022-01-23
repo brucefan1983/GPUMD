@@ -16,46 +16,109 @@
 #include "parameters.cuh"
 #include "structure.cuh"
 #include <chrono>
+#include <fstream>
+#include <iostream>
+#include <iterator>
 #include <random>
+#include <sstream>
 #include <string>
 #include <vector>
 
-static void read_Nc(FILE* fid, std::vector<Structure>& structures)
+static std::vector<std::string> get_tokens(std::ifstream& input)
 {
-  int Nc;
-  int count = fscanf(fid, "%d", &Nc);
-  PRINT_SCANF_ERROR(count, 1, "reading error for number of configurations in train.in.");
-  printf("Number of configurations = %d.\n", Nc);
+  std::string line;
+  std::getline(input, line);
+  std::istringstream iss(line);
+  std::vector<std::string> tokens{
+    std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
+  return tokens;
+}
 
+static int get_int_from_token(std::string& token, const char* filename, const int line)
+{
+  int value = 0;
+  try {
+    value = std::stoi(token);
+  } catch (const std::exception& e) {
+    std::cout << "Standard exception:\n";
+    std::cout << "    File:          " << filename << std::endl;
+    std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Error message: " << e.what() << std::endl;
+    exit(1);
+  }
+  return value;
+}
+
+static float get_float_from_token(std::string& token, const char* filename, const int line)
+{
+  float value = 0;
+  try {
+    value = std::stof(token);
+  } catch (const std::exception& e) {
+    std::cout << "Standard exception:\n";
+    std::cout << "    File:          " << filename << std::endl;
+    std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Error message: " << e.what() << std::endl;
+    exit(1);
+  }
+  return value;
+}
+
+static void read_Nc(std::ifstream& input, std::vector<Structure>& structures)
+{
+  std::vector<std::string> tokens = get_tokens(input);
+  if (tokens.size() != 1) {
+    PRINT_INPUT_ERROR("The first line in trian.in/test.in should have one value.");
+  }
+  int Nc = get_int_from_token(tokens[0], __FILE__, __LINE__);
+  if (Nc < 1) {
+    PRINT_INPUT_ERROR("Number of configurations should >= 1.");
+  }
+  printf("Number of configurations = %d.\n", Nc);
   structures.resize(Nc);
 }
 
-static void read_Na(FILE* fid, std::vector<Structure>& structures)
+static void read_Na(std::ifstream& input, std::vector<Structure>& structures)
 {
   for (int nc = 0; nc < structures.size(); ++nc) {
-    int count = fscanf(fid, "%d%d", &structures[nc].num_atom, &structures[nc].has_virial);
-    PRINT_SCANF_ERROR(count, 2, "reading error for number of atoms and virial flag in train.in.");
+    std::vector<std::string> tokens = get_tokens(input);
+    if (tokens.size() < 2 || tokens.size() > 3) {
+      PRINT_INPUT_ERROR("Number of items here must be 2 or 3.");
+    } else {
+      structures[nc].num_atom = get_int_from_token(tokens[0], __FILE__, __LINE__);
+      structures[nc].has_virial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+      if (tokens.size() == 3) {
+        structures[nc].weight = get_float_from_token(tokens[2], __FILE__, __LINE__);
+      } else {
+        structures[nc].weight = 1.0f; // default weight is 1
+      }
+    }
     if (structures[nc].num_atom < 1) {
       PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 1.");
     }
   }
 }
 
-static void read_energy_virial(FILE* fid, int nc, std::vector<Structure>& structures)
+static void read_energy_virial(std::ifstream& input, int nc, std::vector<Structure>& structures)
 {
+  std::vector<std::string> tokens = get_tokens(input);
   if (structures[nc].has_virial) {
-    int count = fscanf(
-      fid, "%f%f%f%f%f%f%f", &structures[nc].energy, &structures[nc].virial[0],
-      &structures[nc].virial[1], &structures[nc].virial[2], &structures[nc].virial[3],
-      &structures[nc].virial[4], &structures[nc].virial[5]);
-    PRINT_SCANF_ERROR(count, 7, "reading error for energy and virial in train.in.");
+    if (tokens.size() != 7) {
+      PRINT_INPUT_ERROR("Number of items here must be 7.");
+    }
+    structures[nc].energy = get_float_from_token(tokens[0], __FILE__, __LINE__);
     for (int k = 0; k < 6; ++k) {
+      structures[nc].virial[k] = get_float_from_token(tokens[k + 1], __FILE__, __LINE__);
       structures[nc].virial[k] /= structures[nc].num_atom;
     }
   } else {
-    int count = fscanf(fid, "%f", &structures[nc].energy);
-    PRINT_SCANF_ERROR(count, 1, "reading error for energy in train.in.");
+
+    if (tokens.size() != 1) {
+      PRINT_INPUT_ERROR("Number of items here must be 1.");
+    }
+    structures[nc].energy = get_float_from_token(tokens[0], __FILE__, __LINE__);
   }
+
   structures[nc].energy /= structures[nc].num_atom;
 }
 
@@ -74,12 +137,24 @@ static float get_det(const float* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]);
 }
 
-static void read_box(FILE* fid, int nc, Parameters& para, std::vector<Structure>& structures)
+static void
+read_box(std::ifstream& input, int nc, Parameters& para, std::vector<Structure>& structures)
 {
+  std::vector<std::string> tokens = get_tokens(input);
+  if (tokens.size() != 9) {
+    PRINT_INPUT_ERROR("Number of items for box line must be 9.");
+  }
+
   float a[3], b[3], c[3];
-  int count = fscanf(
-    fid, "%f%f%f%f%f%f%f%f%f", &a[0], &a[1], &a[2], &b[0], &b[1], &b[2], &c[0], &c[1], &c[2]);
-  PRINT_SCANF_ERROR(count, 9, "reading error for box in train.in.");
+  a[0] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+  a[1] = get_float_from_token(tokens[1], __FILE__, __LINE__);
+  a[2] = get_float_from_token(tokens[2], __FILE__, __LINE__);
+  b[0] = get_float_from_token(tokens[3], __FILE__, __LINE__);
+  b[1] = get_float_from_token(tokens[4], __FILE__, __LINE__);
+  b[2] = get_float_from_token(tokens[5], __FILE__, __LINE__);
+  c[0] = get_float_from_token(tokens[6], __FILE__, __LINE__);
+  c[1] = get_float_from_token(tokens[7], __FILE__, __LINE__);
+  c[2] = get_float_from_token(tokens[8], __FILE__, __LINE__);
 
   structures[nc].box_original[0] = a[0];
   structures[nc].box_original[3] = a[1];
@@ -132,7 +207,8 @@ static void read_box(FILE* fid, int nc, Parameters& para, std::vector<Structure>
   }
 }
 
-static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structure>& structures)
+static void
+read_force(std::ifstream& input, int nc, Parameters& para, std::vector<Structure>& structures)
 {
   structures[nc].type.resize(structures[nc].num_atom);
   structures[nc].x.resize(structures[nc].num_atom);
@@ -143,13 +219,17 @@ static void read_force(FILE* fid, int nc, Parameters& para, std::vector<Structur
   structures[nc].fz.resize(structures[nc].num_atom);
 
   for (int na = 0; na < structures[nc].num_atom; ++na) {
-    char atom_symbol_tmp[10];
-    int count = fscanf(
-      fid, "%s%f%f%f%f%f%f", atom_symbol_tmp, &structures[nc].x[na], &structures[nc].y[na],
-      &structures[nc].z[na], &structures[nc].fx[na], &structures[nc].fy[na],
-      &structures[nc].fz[na]);
-    PRINT_SCANF_ERROR(count, 7, "reading error for force in train.in.");
-    std::string atom_symbol(atom_symbol_tmp);
+    std::vector<std::string> tokens = get_tokens(input);
+    if (tokens.size() != 7) {
+      PRINT_INPUT_ERROR("Number of items for atom line must be 7.");
+    }
+    std::string atom_symbol(tokens[0]);
+    structures[nc].x[na] = get_float_from_token(tokens[1], __FILE__, __LINE__);
+    structures[nc].y[na] = get_float_from_token(tokens[2], __FILE__, __LINE__);
+    structures[nc].z[na] = get_float_from_token(tokens[3], __FILE__, __LINE__);
+    structures[nc].fx[na] = get_float_from_token(tokens[4], __FILE__, __LINE__);
+    structures[nc].fy[na] = get_float_from_token(tokens[5], __FILE__, __LINE__);
+    structures[nc].fz[na] = get_float_from_token(tokens[6], __FILE__, __LINE__);
 
     bool is_allowed_element = false;
     for (int n = 0; n < para.elements.size(); ++n) {
@@ -263,24 +343,27 @@ static void reorder(std::vector<Structure>& structures)
 void read_structures(
   bool is_train, char* input_dir, Parameters& para, std::vector<Structure>& structures)
 {
-  char file_train[200];
-  strcpy(file_train, input_dir);
+  std::string file_train(input_dir);
   if (is_train) {
-    strcat(file_train, "/train.in");
+    file_train += "/train.in";
   } else {
-    strcat(file_train, "/test.in");
+    file_train += "/test.in";
   }
-  FILE* fid = my_fopen(file_train, "r");
+  std::ifstream input(file_train);
 
-  read_Nc(fid, structures);
-  read_Na(fid, structures);
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR("Failed to open train.in or test.in.");
+  }
+
+  read_Nc(input, structures);
+  read_Na(input, structures);
   for (int n = 0; n < structures.size(); ++n) {
-    read_energy_virial(fid, n, structures);
-    read_box(fid, n, para, structures);
-    read_force(fid, n, para, structures);
+    read_energy_virial(input, n, structures);
+    read_box(input, n, para, structures);
+    read_force(input, n, para, structures);
   }
 
-  fclose(fid);
+  input.close();
 
   // only reorder if not using full batch
   if (is_train && (para.batch_size < structures.size())) {
