@@ -97,11 +97,12 @@ void Fitness::compute(
       potential->find_force(para, individual, train_set[batch_id], false);
       float energy_shift_per_structure_not_used;
       fitness[n + 0 * para.population_size] =
-        para.lambda_e * train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used);
+        para.lambda_e *
+        train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used, true);
       fitness[n + 1 * para.population_size] =
-        para.lambda_f *
-        train_set[batch_id].get_rmse_force(para, true /*is_weighted*/, true /*has_delta*/);
-      fitness[n + 2 * para.population_size] = para.lambda_v * train_set[batch_id].get_rmse_virial();
+        para.lambda_f * train_set[batch_id].get_rmse_force(para, true);
+      fitness[n + 2 * para.population_size] =
+        para.lambda_v * train_set[batch_id].get_rmse_virial(true);
     }
   }
 }
@@ -132,16 +133,15 @@ void Fitness::report_error(
 
     potential->find_force(para, elite, train_set[batch_id], false);
     float energy_shift_per_structure;
-    float rmse_energy_train = train_set[batch_id].get_rmse_energy(energy_shift_per_structure);
-    float rmse_force_train =
-      train_set[batch_id].get_rmse_force(para, false /*is_weighted*/, false /*has_delta*/);
-    float rmse_virial_train = train_set[batch_id].get_rmse_virial();
+    float rmse_energy_train =
+      train_set[batch_id].get_rmse_energy(energy_shift_per_structure, false);
+    float rmse_force_train = train_set[batch_id].get_rmse_force(para, false);
+    float rmse_virial_train = train_set[batch_id].get_rmse_virial(false);
 
     potential->find_force(para, elite, test_set, false);
-    float rmse_energy_test = test_set.get_rmse_energy(energy_shift_per_structure);
-    float rmse_force_test =
-      test_set.get_rmse_force(para, false /*is_weighted*/, false /*has_delta*/);
-    float rmse_virial_test = test_set.get_rmse_virial();
+    float rmse_energy_test = test_set.get_rmse_energy(energy_shift_per_structure, false);
+    float rmse_force_test = test_set.get_rmse_force(para, false);
+    float rmse_virial_test = test_set.get_rmse_virial(false);
 
     // correct the last bias parameter in the NN
     elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;

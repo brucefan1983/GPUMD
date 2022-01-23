@@ -26,6 +26,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
   for (int n = 0; n < Nc; ++n) {
     int n_input = n + n1;
     structures[n].num_atom = structures_input[n_input].num_atom;
+    structures[n].weight = structures_input[n_input].weight;
     structures[n].has_virial = structures_input[n_input].has_virial;
     structures[n].energy = structures_input[n_input].energy;
     for (int k = 0; k < 6; ++k) {
@@ -111,11 +112,13 @@ void Dataset::initialize_gpu_data(Parameters& para)
   virial_cpu.resize(N * 6);
   force_cpu.resize(N * 3);
 
+  weight_cpu.resize(Nc);
   energy_ref_cpu.resize(Nc);
   virial_ref_cpu.resize(Nc * 6);
   force_ref_cpu.resize(N * 3);
 
   for (int n = 0; n < Nc; ++n) {
+    weight_cpu[n] = structures[n].weight;
     energy_ref_cpu[n] = structures[n].energy;
     for (int k = 0; k < 6; ++k) {
       virial_ref_cpu[k * Nc + n] = structures[n].virial[k];
@@ -275,8 +278,7 @@ void Dataset::construct(
 }
 
 static __global__ void gpu_sum_force_error(
-  bool is_weighted,
-  bool has_delta,
+  bool use_weight,
   float force_delta,
   int* g_Na,
   int* g_Na_sum,
@@ -305,11 +307,11 @@ static __global__ void gpu_sum_force_error(
     float dy = g_fy[n] - fy_ref;
     float dz = g_fz[n] - fz_ref;
     float diff_square = dx * dx + dy * dy + dz * dz;
-    if (is_weighted) {
+    if (use_weight) {
       float type_weight = g_type_weight[g_type[n]];
       diff_square *= type_weight * type_weight;
     }
-    if (has_delta && force_delta > 0.0f) {
+    if (use_weight && force_delta > 0.0f) {
       float force_magnitude = sqrt(fx_ref * fx_ref + fy_ref * fy_ref + fz_ref * fz_ref);
       diff_square *= force_delta / (force_delta + force_magnitude);
     }
@@ -336,18 +338,22 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-float Dataset::get_rmse_force(Parameters& para, bool is_weighted, bool has_delta)
+float Dataset::get_rmse_force(Parameters& para, const bool use_weight)
 {
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    is_weighted, has_delta, para.force_delta, Na.data(), Na_sum.data(), type.data(),
+    use_weight, para.force_delta, Na.data(), Na_sum.data(), type.data(),
     para.type_weight_gpu.data(), force.data(), force.data() + N, force.data() + N * 2,
     force_ref_gpu.data(), force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_sum = 0.0f;
   for (int n = 0; n < Nc; ++n) {
-    error_sum += error_cpu[n];
+    if (use_weight) {
+      error_sum += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+    } else {
+      error_sum += error_cpu[n];
+    }
   }
   return sqrt(error_sum / (N * 3));
 }
@@ -424,7 +430,7 @@ static __global__ void gpu_sum_pe_error(
   }
 }
 
-float Dataset::get_rmse_energy(float& energy_shift_per_structure)
+float Dataset::get_rmse_energy(float& energy_shift_per_structure, const bool use_weight)
 {
   const int block_size = 256;
 
@@ -444,12 +450,16 @@ float Dataset::get_rmse_energy(float& energy_shift_per_structure)
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_ave = 0.0f;
   for (int n = 0; n < Nc; ++n) {
-    error_ave += error_cpu[n];
+    if (use_weight) {
+      error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+    } else {
+      error_ave += error_cpu[n];
+    }
   }
   return sqrt(error_ave / Nc);
 }
 
-float Dataset::get_rmse_virial()
+float Dataset::get_rmse_virial(const bool use_weight)
 {
   int num_virial_configurations = 0;
   for (int n = 0; n < Nc; ++n) {
@@ -471,7 +481,11 @@ float Dataset::get_rmse_virial()
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      error_ave += error_cpu[n];
+      if (use_weight) {
+        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+      } else {
+        error_ave += error_cpu[n];
+      }
     }
   }
 
@@ -481,7 +495,11 @@ float Dataset::get_rmse_virial()
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      error_ave += error_cpu[n];
+      if (use_weight) {
+        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+      } else {
+        error_ave += error_cpu[n];
+      }
     }
   }
 
@@ -491,7 +509,11 @@ float Dataset::get_rmse_virial()
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      error_ave += error_cpu[n];
+      if (use_weight) {
+        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+      } else {
+        error_ave += error_cpu[n];
+      }
     }
   }
 
@@ -501,7 +523,11 @@ float Dataset::get_rmse_virial()
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      error_ave += error_cpu[n];
+      if (use_weight) {
+        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+      } else {
+        error_ave += error_cpu[n];
+      }
     }
   }
 
@@ -511,7 +537,11 @@ float Dataset::get_rmse_virial()
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      error_ave += error_cpu[n];
+      if (use_weight) {
+        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+      } else {
+        error_ave += error_cpu[n];
+      }
     }
   }
 
@@ -521,7 +551,11 @@ float Dataset::get_rmse_virial()
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      error_ave += error_cpu[n];
+      if (use_weight) {
+        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
+      } else {
+        error_ave += error_cpu[n];
+      }
     }
   }
 
