@@ -99,7 +99,9 @@ void Integrate::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type <= 20) {
+  if (type == 0) {
+    ensemble->temperature = temperature2;
+  } else if (type <= 20) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -117,7 +119,9 @@ void Integrate::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type <= 20) {
+  if (type == 0) {
+    ensemble->temperature = temperature2;
+  } else if (type <= 20) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
