@@ -62,5 +62,6 @@ void Ensemble_NVE::compute2(
     false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
   find_thermo(
-    box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
+    false, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
+    thermo);
 }

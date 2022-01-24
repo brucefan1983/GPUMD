@@ -222,7 +222,8 @@ void Ensemble_NPT_SCR::compute2(
 
   int N_fixed = (fixed_group == -1) ? 0 : group[0].cpu_size[fixed_group];
   find_thermo(
-    box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
+    true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
+    thermo);
 
   double ek[1];
   thermo.copy_to_host(ek, 1);

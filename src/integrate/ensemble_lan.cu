@@ -363,7 +363,7 @@ void Ensemble_LAN::compute2(
     integrate_nvt_lan_half(mass, velocity_per_atom);
 
     find_thermo(
-      box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
+      true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
       thermo);
   } else {
     velocity_verlet(

@@ -179,7 +179,8 @@ void Ensemble_NHC::integrate_nvt_nhc_1(
   double dt2 = time_step * 0.5;
 
   const int M = NOSE_HOOVER_CHAIN_LENGTH;
-  find_thermo(volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
+  find_thermo(
+    true, volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
 
   double ek2[1];
   thermo.copy_to_host(ek2, 1);
@@ -214,7 +215,8 @@ void Ensemble_NHC::integrate_nvt_nhc_2(
   velocity_verlet(
     false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
-  find_thermo(volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
+  find_thermo(
+    true, volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
 
   thermo.copy_to_host(ek2, 1);
   ek2[0] *= DIM * number_of_atoms * K_B;

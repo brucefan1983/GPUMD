@@ -209,7 +209,8 @@ void Ensemble_BER::compute2(
     false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
   find_thermo(
-    box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
+    true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
+    thermo);
   gpu_berendsen_temperature<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, temperature, temperature_coupling, thermo.data(), velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
