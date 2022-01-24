@@ -227,9 +227,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
-          vy = g_vy[n];
-          vz = g_vz[n];
-          s_data[tid] += g_sxx[n] + (vx * vx + vy * vy + vz * vz) * mass / 3.0;
+          s_data[tid] += g_sxx[n] + vx * vx  * mass;
         }
       }
       __syncthreads();
@@ -249,10 +247,8 @@ static __global__ void gpu_find_thermo_instant_temperature(
         n = tid + patch * 1024;
         if (n < N) {
           mass = g_mass[n];
-          vx = g_vx[n];
           vy = g_vy[n];
-          vz = g_vz[n];
-          s_data[tid] += g_syy[n] + (vx * vx + vy * vy + vz * vz) * mass / 3.0;
+          s_data[tid] += g_syy[n] + vy * vy * mass;
         }
       }
       __syncthreads();
@@ -272,10 +268,8 @@ static __global__ void gpu_find_thermo_instant_temperature(
         n = tid + patch * 1024;
         if (n < N) {
           mass = g_mass[n];
-          vx = g_vx[n];
-          vy = g_vy[n];
           vz = g_vz[n];
-          s_data[tid] += g_szz[n] + (vx * vx + vy * vy + vz * vz) * mass / 3.0;
+          s_data[tid] += g_szz[n] + vz * vz * mass;
         }
       }
       __syncthreads();
