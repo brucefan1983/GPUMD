@@ -192,7 +192,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "neighbor") == 0) {
-    parse_neighbor(param, num_param);
+    parse_neighbor(param, num_param, box);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
     parse_correct_velocity(param, num_param);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
@@ -302,7 +302,7 @@ void Run::parse_run(char** param, int num_param, char* input_dir)
   perform_a_run(input_dir);
 }
 
-void Run::parse_neighbor(char** param, int num_param)
+void Run::parse_neighbor(char** param, int num_param, Box& box)
 {
   neighbor.update = 1;
 
@@ -316,4 +316,6 @@ void Run::parse_neighbor(char** param, int num_param)
 
   // change the cutoff
   neighbor.rc = force.rc_max + neighbor.skin;
+
+  box.get_num_cells(force.rc_max);
 }
