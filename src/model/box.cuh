@@ -34,7 +34,7 @@ public:
   void get_num_cells(const double rc);                // get the number of repeating cells
 };
 
-inline __host__ __device__ void apply_mic(Box box, double& x12, double& y12, double& z12)
+inline __host__ __device__ void apply_mic(const Box& box, double& x12, double& y12, double& z12)
 {
   if (box.triclinic == 0) // orthogonal box
   {
