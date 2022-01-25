@@ -656,10 +656,10 @@ void NEP2::compute_small_box(
   CUDA_CHECK_KERNEL
 
   find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, zbl, N, N1, N2, nep_data.NN.data(), nep_data.NL.data(), type.data(), r12.data(),
-    r12.data() + size_x12, r12.data() + size_x12 * 2, nep_data.Fp.data(), nep_data.sum_fxyz.data(),
-    force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
-    virial_per_atom.data());
+    paramb, annmb, zbl, N, N1, N2, nep_data.NN.data(), nep_data.NL.data(), type.data(),
+    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
+    nep_data.Fp.data(), nep_data.sum_fxyz.data(), force_per_atom.data(), force_per_atom.data() + N,
+    force_per_atom.data() + N * 2, virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   if (zbl.enabled) {
