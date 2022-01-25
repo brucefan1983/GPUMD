@@ -61,6 +61,11 @@ public:
     float atomic_numbers[10];
   };
 
+  struct ExpandedBox {
+    int num_cells[3];
+    float h[18];
+  };
+
   NEP2(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Neighbor& neighbor);
   virtual ~NEP2(void);
   virtual void compute(
@@ -78,6 +83,7 @@ private:
   ANN annmb;
   ZBL zbl;
   NEP2_Data nep_data;
+  ExpandedBox ebox;
   void update_potential(FILE* fid);
   void update_potential(const float* parameters, ANN& ann);
 

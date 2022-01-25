@@ -152,24 +152,6 @@ void NEP2::update_potential(FILE* fid)
   }
 }
 
-static __device__ void
-apply_ann_one_layer(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
-{
-  for (int n = 0; n < ann.num_neurons1; ++n) {
-    float w0_times_q = 0.0f;
-    for (int d = 0; d < ann.dim; ++d) {
-      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
-    }
-    float x1 = tanh(w0_times_q - ann.b0[n]);
-    energy += ann.w1[n] * x1;
-    for (int d = 0; d < ann.dim; ++d) {
-      float y1 = (1.0f - x1 * x1) * ann.w0[n * ann.dim + d];
-      energy_derivative[d] += ann.w1[n] * y1;
-    }
-  }
-  energy -= ann.b1[0];
-}
-
 static __global__ void find_neighbor_angular(
   NEP2::ParaMB paramb,
   const int N,
@@ -300,7 +282,8 @@ static __global__ void find_descriptor(
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    apply_ann_one_layer(annmb, q, F, Fp);
+    apply_ann_one_layer(
+      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
     g_pe[n1] += F;
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -688,6 +671,53 @@ void NEP2::compute_small_box(
   }
 }
 
+static void get_num_cells(const double rc, const Box& box, NEP2::ExpandedBox& ebox)
+{
+  double volume = box.get_volume();
+  double thickness_x = volume / box.get_area(0);
+  double thickness_y = volume / box.get_area(1);
+  double thickness_z = volume / box.get_area(2);
+  ebox.num_cells[0] = int(ceil(2.0 * rc / thickness_x));
+  ebox.num_cells[1] = int(ceil(2.0 * rc / thickness_y));
+  ebox.num_cells[2] = int(ceil(2.0 * rc / thickness_z));
+  if (ebox.num_cells[0] * ebox.num_cells[1] * ebox.num_cells[2] > 1) {
+    if (box.triclinic) {
+      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+      ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
+      ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
+      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+      ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
+      ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
+      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+      ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
+      ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
+
+      ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
+      ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
+      ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
+      ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
+      ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
+      ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
+      ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
+      ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
+      ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
+      double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
+                   ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                   ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+      for (int n = 9; n < 18; n++) {
+        ebox.h[n] /= det;
+      }
+    } else {
+      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+      ebox.h[3] = ebox.h[0] * 0.5;
+      ebox.h[4] = ebox.h[1] * 0.5;
+      ebox.h[5] = ebox.h[2] * 0.5;
+    }
+  }
+}
+
 void NEP2::compute(
   const int type_shift,
   const Box& box,
@@ -698,7 +728,9 @@ void NEP2::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  if (box.num_cells[0] * box.num_cells[1] * box.num_cells[2] > 1) {
+  get_num_cells(paramb.rc_radial, box, ebox);
+
+  if (ebox.num_cells[0] * ebox.num_cells[1] * ebox.num_cells[2] > 1) {
     compute_small_box(
       type_shift, box, neighbor, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);

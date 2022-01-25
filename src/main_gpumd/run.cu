@@ -316,6 +316,4 @@ void Run::parse_neighbor(char** param, int num_param, Box& box)
 
   // change the cutoff
   neighbor.rc = force.rc_max + neighbor.skin;
-
-  box.get_num_cells(force.rc_max);
 }

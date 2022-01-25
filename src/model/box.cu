@@ -29,7 +29,7 @@ static float get_area_one_direction(const double* a, const double* b)
   return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
 }
 
-double Box::get_area(const int d)
+double Box::get_area(const int d) const
 {
   double area;
   if (triclinic) {
@@ -55,7 +55,7 @@ double Box::get_area(const int d)
   return area;
 }
 
-double Box::get_volume(void)
+double Box::get_volume(void) const
 {
   double volume;
   if (triclinic) {
@@ -122,21 +122,4 @@ bool Box::get_num_bins(const double rc, int num_bins[])
     use_ON2 = true;
   }
   return use_ON2;
-}
-
-void Box::get_num_cells(const double rc)
-{
-  double volume = get_volume();
-  thickness_x = volume / get_area(0);
-  thickness_y = volume / get_area(1);
-  thickness_z = volume / get_area(2);
-  num_cells[0] = int(ceil(2.0 * rc / thickness_x));
-  num_cells[1] = int(ceil(2.0 * rc / thickness_y));
-  num_cells[2] = int(ceil(2.0 * rc / thickness_z));
-#ifndef USE_NEP // non-NEP potential
-  if (num_cells[0] * num_cells[1] * num_cells[2] > 1) {
-    PRINT_INPUT_ERROR(
-      "Box thickness must be larger than trwice of the force cutoff for non-NEP potentials.");
-  }
-#endif
 }
