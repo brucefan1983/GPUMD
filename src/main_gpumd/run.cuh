@@ -42,7 +42,7 @@ private:
   void parse_one_keyword(char** param, int num_param, char* input_dir);
 
   // keyword parsing functions
-  void parse_neighbor(char** param, int num_param, Box& box);
+  void parse_neighbor(char** param, int num_param);
   void parse_velocity(char** param, int num_param);
   void parse_correct_velocity(char** param, int num_param);
   void parse_time_step(char** param, int num_param);
