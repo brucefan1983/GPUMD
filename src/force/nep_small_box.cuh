@@ -18,11 +18,25 @@
 #include "utilities/common.cuh"
 #include "utilities/nep_utilities.cuh"
 
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+static __device__ __inline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long* address_as_ull = (unsigned long long*)address;
+  unsigned long long old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old =
+      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif
+
 static __device__ void apply_mic_small_box(
   const Box& box, const NEP2::ExpandedBox& ebox, double& x12, double& y12, double& z12)
 {
-  if (box.triclinic == 0) // orthogonal box
-  {
+  if (box.triclinic == 0) {
     if (box.pbc_x == 1 && x12 < -ebox.h[3]) {
       x12 += ebox.h[0];
     } else if (box.pbc_x == 1 && x12 > +ebox.h[3]) {
@@ -38,8 +52,7 @@ static __device__ void apply_mic_small_box(
     } else if (box.pbc_z == 1 && z12 > +ebox.h[5]) {
       z12 -= ebox.h[2];
     }
-  } else // triclinic box
-  {
+  } else {
     double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
     double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
     double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
@@ -108,7 +121,7 @@ static __global__ void find_neighbor_list_small_box(
 
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
-            float distance_square = x12 * x12 + y12 * y12 + z12 * z12;
+            float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
             if (distance_square < paramb.rc_radial * paramb.rc_radial) {
               g_NL_radial[count_radial * N + n1] = n2;
               g_x12_radial[count_radial * N + n1] = float(x12);
@@ -118,9 +131,9 @@ static __global__ void find_neighbor_list_small_box(
             }
             if (distance_square < paramb.rc_angular * paramb.rc_angular) {
               g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = x12;
-              g_y12_angular[count_angular * N + n1] = y12;
-              g_z12_angular[count_angular * N + n1] = z12;
+              g_x12_angular[count_angular * N + n1] = float(x12);
+              g_y12_angular[count_angular * N + n1] = float(y12);
+              g_z12_angular[count_angular * N + n1] = float(z12);
               count_angular++;
             }
           }
