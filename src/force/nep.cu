@@ -208,7 +208,6 @@ static __global__ void find_neighbor_angular(
 static __global__ void find_descriptor(
   NEP2::ParaMB paramb,
   NEP2::ANN annmb,
-  NEP2::ZBL zbl,
   const int N,
   const int N1,
   const int N2,
@@ -243,11 +242,7 @@ static __global__ void find_descriptor(
       float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
-      if (zbl.enabled) {
-        find_fc_nep_with_zbl(zbl.rc_inner, zbl.rc_outer, paramb.rc_radial, d12, fc12);
-      } else {
-        find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      }
+      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_type[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
@@ -271,11 +266,7 @@ static __global__ void find_descriptor(
         float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
         float fc12;
-        if (zbl.enabled) {
-          find_fc_nep_with_zbl(zbl.rc_inner, zbl.rc_outer, paramb.rc_angular, d12, fc12);
-        } else {
-          find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
-        }
+        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_type[n2];
         float fn;
         find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
@@ -311,7 +302,6 @@ static __global__ void find_descriptor(
 static __global__ void find_force_radial(
   NEP2::ParaMB paramb,
   NEP2::ANN annmb,
-  NEP2::ZBL zbl,
   const int N,
   const int N1,
   const int N2,
@@ -357,12 +347,7 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      if (zbl.enabled) {
-        find_fc_and_fcp_nep_with_zbl(
-          zbl.rc_inner, zbl.rc_outer, paramb.rc_radial, d12, fc12, fcp12);
-      } else {
-        find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      }
+      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
@@ -417,7 +402,6 @@ static __global__ void find_force_radial(
 static __global__ void find_partial_force_angular(
   NEP2::ParaMB paramb,
   NEP2::ANN annmb,
-  NEP2::ZBL zbl,
   const int N,
   const int N1,
   const int N2,
@@ -460,12 +444,7 @@ static __global__ void find_partial_force_angular(
       float r12[3] = {float(x12double), float(y12double), float(z12double)};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
-      if (zbl.enabled) {
-        find_fc_and_fcp_nep_with_zbl(
-          zbl.rc_inner, zbl.rc_outer, paramb.rc_angular, d12, fc12, fcp12);
-      } else {
-        find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
-      }
+      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
       int t2 = g_type[n2];
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_angular; ++n) {
@@ -596,21 +575,21 @@ void NEP2::compute(
   CUDA_CHECK_KERNEL
 
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, zbl, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
+    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
     nep_data.NN.data(), nep_data.NL.data(), type.data(), position_per_atom.data(),
     position_per_atom.data() + N, position_per_atom.data() + N * 2, potential_per_atom.data(),
     nep_data.Fp.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, zbl, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    type.data(), position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, nep_data.Fp.data(), force_per_atom.data(),
-    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
+    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(), type.data(),
+    position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
+    nep_data.Fp.data(), force_per_atom.data(), force_per_atom.data() + N,
+    force_per_atom.data() + N * 2, virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, zbl, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), type.data(),
+    paramb, annmb, N, N1, N2, box, nep_data.NN.data(), nep_data.NL.data(), type.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
     nep_data.Fp.data(), nep_data.sum_fxyz.data(), nep_data.f12x.data(), nep_data.f12y.data(),
     nep_data.f12z.data());

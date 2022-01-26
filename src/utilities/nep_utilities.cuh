@@ -128,10 +128,15 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
 {
   float x = d12 * a_inv;
   f = fp = 0.0f;
-  find_phi_and_phip_zbl(0.18175f, 3.1998f, x, f, fp);
-  find_phi_and_phip_zbl(0.50986f, 0.94229f, x, f, fp);
-  find_phi_and_phip_zbl(0.28022f, 0.4029f, x, f, fp);
-  find_phi_and_phip_zbl(0.02817f, 0.20162f, x, f, fp);
+  // just for W
+  // float Zbl_para[8] = {0.32825f, 2.54931f, 0.09219f, 0.29182f, 0.58110f, 0.59231f, 0.0f, 0.0f};
+  // Universal ZBL:
+  float Zbl_para[8] = {0.18175f, 3.1998f, 0.50986f, 0.94229f,
+                       0.28022f, 0.4029f, 0.02817f, 0.20162f};
+  find_phi_and_phip_zbl(Zbl_para[0], Zbl_para[1], x, f, fp);
+  find_phi_and_phip_zbl(Zbl_para[2], Zbl_para[3], x, f, fp);
+  find_phi_and_phip_zbl(Zbl_para[4], Zbl_para[5], x, f, fp);
+  find_phi_and_phip_zbl(Zbl_para[6], Zbl_para[7], x, f, fp);
   f *= zizj;
   fp *= zizj * a_inv;
   fp = fp * d12inv - f * d12inv * d12inv;
