@@ -32,6 +32,32 @@ const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * (MAX_NUM_L - 1);
 __constant__ float c_parameters[14201]; // (100+2)*100+1+40*100, less than 64 KB maximum
 
+static __device__ void apply_ann_one_layer(
+  const int dim,
+  const int num_neurons1,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  float* q,
+  float& energy,
+  float* energy_derivative)
+{
+  for (int n = 0; n < num_neurons1; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < dim; ++d) {
+      w0_times_q += w0[n * dim + d] * q[d];
+    }
+    float x1 = tanh(w0_times_q - b0[n]);
+    energy += w1[n] * x1;
+    for (int d = 0; d < dim; ++d) {
+      float y1 = (1.0f - x1 * x1) * w0[n * dim + d];
+      energy_derivative[d] += w1[n] * y1;
+    }
+  }
+  energy -= b1[0];
+}
+
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {

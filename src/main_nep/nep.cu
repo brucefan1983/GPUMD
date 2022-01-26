@@ -286,24 +286,6 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
   }
 }
 
-static __device__ void
-apply_ann_one_layer(const NEP2::ANN& ann, float* q, float& energy, float* energy_derivative)
-{
-  for (int n = 0; n < ann.num_neurons1; ++n) {
-    float w0_times_q = 0.0f;
-    for (int d = 0; d < ann.dim; ++d) {
-      w0_times_q += ann.w0[n * ann.dim + d] * q[d];
-    }
-    float x1 = tanh(w0_times_q - ann.b0[n]);
-    energy += ann.w1[n] * x1;
-    for (int d = 0; d < ann.dim; ++d) {
-      float y1 = (1.0f - x1 * x1) * ann.w0[n * ann.dim + d];
-      energy_derivative[d] += ann.w1[n] * y1;
-    }
-  }
-  energy -= ann.b1[0];
-}
-
 static __global__ void apply_ann(
   const int N,
   const NEP2::ParaMB paramb,
@@ -322,7 +304,8 @@ static __global__ void apply_ann(
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-    apply_ann_one_layer(annmb, q, F, Fp);
+    apply_ann_one_layer(
+      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
     g_pe[n1] = F;
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];

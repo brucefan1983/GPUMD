@@ -29,7 +29,7 @@ static float get_area_one_direction(const double* a, const double* b)
   return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
 }
 
-double Box::get_area(const int d)
+double Box::get_area(const int d) const
 {
   double area;
   if (triclinic) {
@@ -55,7 +55,7 @@ double Box::get_area(const int d)
   return area;
 }
 
-double Box::get_volume(void)
+double Box::get_volume(void) const
 {
   double volume;
   if (triclinic) {
