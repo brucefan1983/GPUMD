@@ -116,12 +116,27 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
       double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
       double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
       double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-      if (box.pbc_x == 1)
-        sx -= nearbyint(sx);
-      if (box.pbc_y == 1)
-        sy -= nearbyint(sy);
-      if (box.pbc_z == 1)
-        sz -= nearbyint(sz);
+      if (box.pbc_x == 1) {
+        if (sx < 0.0) {
+          sx += 1.0;
+        } else if (sx > 1.0) {
+          sx -= 1.0;
+        }
+      }
+      if (box.pbc_y == 1) {
+        if (sy < 0.0) {
+          sy += 1.0;
+        } else if (sy > 1.0) {
+          sy -= 1.0;
+        }
+      }
+      if (box.pbc_z == 1) {
+        if (sz < 0.0) {
+          sz += 1.0;
+        } else if (sz > 1.0) {
+          sz -= 1.0;
+        }
+      }
       g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
       g_y[n] = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
       g_z[n] = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
