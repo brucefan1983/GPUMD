@@ -143,7 +143,7 @@ void Dump_EXYZ::output_line2(
 #endif
 
   if (has_velocity_) {
-    fprintf(fid_, ":velo:R:3");
+    fprintf(fid_, ":vel:R:3");
   }
   if (has_force_) {
     fprintf(fid_, ":forces:R:3");
