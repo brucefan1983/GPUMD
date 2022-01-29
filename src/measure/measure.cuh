@@ -17,6 +17,7 @@
 #include "compute.cuh"
 #include "cvac.cuh"
 #include "dos.cuh"
+#include "dump_exyz.cuh"
 #include "dump_force.cuh"
 #include "dump_position.cuh"
 #include "dump_restart.cuh"
@@ -86,6 +87,7 @@ public:
   Dump_Thermo dump_thermo;
   Dump_Restart dump_restart;
   Dump_Force dump_force;
+  Dump_EXYZ dump_exyz;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;
 #endif

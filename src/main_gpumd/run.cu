@@ -211,6 +211,8 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     measure.dump_velocity.parse(param, num_param, group);
   } else if (strcmp(param[0], "dump_force") == 0) {
     measure.dump_force.parse(param, num_param, group);
+  } else if (strcmp(param[0], "dump_exyz") == 0) {
+    measure.dump_exyz.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
     measure.dos.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_sdc") == 0) {
