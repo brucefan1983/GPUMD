@@ -242,8 +242,8 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         if (!is_valid_real(param[8 + i], &elastic_modulus[i])) {
           PRINT_INPUT_ERROR("elastic modulus should be a number.");
         }
-        if (elastic_modulus[i] < 0) {
-          PRINT_INPUT_ERROR("elastic modulus should >0.");
+        if (elastic_modulus[i] <= 0) {
+          PRINT_INPUT_ERROR("elastic modulus should > 0.");
         }
       }
       num_target_pressure_components = 3;
@@ -257,8 +257,8 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       if (!is_valid_real(param[6], &elastic_modulus[0])) {
         PRINT_INPUT_ERROR("elastic modulus should be a number.");
       }
-      if (elastic_modulus[0] < 0) {
-        PRINT_INPUT_ERROR("elastic modulus should >0.");
+      if (elastic_modulus[0] <= 0) {
+        PRINT_INPUT_ERROR("elastic modulus should > 0.");
       }
       num_target_pressure_components = 1;
       if (box.triclinic == 1) {
@@ -278,8 +278,8 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         if (!is_valid_real(param[11 + i], &elastic_modulus[i])) {
           PRINT_INPUT_ERROR("elastic modulus should be a number.");
         }
-        if (elastic_modulus[i] < 0) {
-          PRINT_INPUT_ERROR("elastic modulus should >0.");
+        if (elastic_modulus[i] <= 0) {
+          PRINT_INPUT_ERROR("elastic modulus should > 0.");
         }
       }
       num_target_pressure_components = 6;
