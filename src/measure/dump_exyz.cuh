@@ -35,8 +35,8 @@ public:
     GPU_Vector<double>& velocity_per_atom,
     std::vector<double>& cpu_velocity_per_atom,
     GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& gpu_thermo);
   void postprocess();
 
 private:
@@ -50,9 +50,9 @@ private:
   void output_line2(
     const double time,
     const Box& box,
-    GPU_Vector<double>& potential_per_atom,
-    GPU_Vector<double>& virial_per_atom);
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& gpu_thermo);
   std::vector<double> cpu_force_per_atom_;
-  GPU_Vector<double> gpu_energy_virial_;
-  std::vector<double> cpu_energy_virial_;
+  GPU_Vector<double> gpu_total_virial_;
+  std::vector<double> cpu_total_virial_;
 };

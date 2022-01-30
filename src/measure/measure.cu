@@ -116,7 +116,7 @@ void Measure::process(
   dump_exyz.process(
     step, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
     atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
-    atom.force_per_atom, atom.potential_per_atom, atom.virial_per_atom);
+    atom.force_per_atom, atom.virial_per_atom, thermo);
 
   compute.process(
     step, energy_transferred, group, atom.mass, atom.potential_per_atom, atom.force_per_atom,

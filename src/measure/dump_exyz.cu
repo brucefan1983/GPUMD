@@ -90,8 +90,8 @@ void Dump_EXYZ::preprocess(char* input_dir, const int number_of_atoms, const dou
     strcpy(filename_, input_dir);
     strcat(filename_, "/dump.xyz");
     fid_ = my_fopen(filename_, "a");
-    gpu_energy_virial_.resize(10); // 1 + 9
-    cpu_energy_virial_.resize(10); // 1 + 9
+    gpu_total_virial_.resize(6);
+    cpu_total_virial_.resize(6);
     if (has_force_) {
       cpu_force_per_atom_.resize(number_of_atoms * 3);
     }
@@ -102,8 +102,8 @@ void Dump_EXYZ::preprocess(char* input_dir, const int number_of_atoms, const dou
 void Dump_EXYZ::output_line2(
   const double time,
   const Box& box,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& gpu_thermo)
 {
   // time
   fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
@@ -124,16 +124,25 @@ void Dump_EXYZ::output_line2(
       box.cpu_h[8]);
   }
 
-  // energy and virial
-  const int N = potential_per_atom.size();
-  gpu_sum<<<1, 1024>>>(N, potential_per_atom.data(), gpu_energy_virial_.data());  // energy
-  gpu_sum<<<9, 1024>>>(N, virial_per_atom.data(), gpu_energy_virial_.data() + 1); // virial
-  gpu_energy_virial_.copy_to_host(cpu_energy_virial_.data());
-  fprintf(fid_, " energy=%.8f", cpu_energy_virial_[0]);
+  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in GPa
+  double cpu_thermo[8];
+  gpu_thermo.copy_to_host(cpu_thermo, 8);
+  const int N = virial_per_atom.size() / 9;
+  gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
+  gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
+
+  fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
   fprintf(
-    fid_, " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", cpu_energy_virial_[1],
-    cpu_energy_virial_[4], cpu_energy_virial_[5], cpu_energy_virial_[7], cpu_energy_virial_[2],
-    cpu_energy_virial_[6], cpu_energy_virial_[8], cpu_energy_virial_[9], cpu_energy_virial_[3]);
+    fid_, " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", cpu_total_virial_[0],
+    cpu_total_virial_[3], cpu_total_virial_[4], cpu_total_virial_[3], cpu_total_virial_[1],
+    cpu_total_virial_[5], cpu_total_virial_[4], cpu_total_virial_[5], cpu_total_virial_[2]);
+  fprintf(
+    fid_, " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    cpu_thermo[2] * PRESSURE_UNIT_CONVERSION, cpu_thermo[5] * PRESSURE_UNIT_CONVERSION,
+    cpu_thermo[6] * PRESSURE_UNIT_CONVERSION, cpu_thermo[5] * PRESSURE_UNIT_CONVERSION,
+    cpu_thermo[3] * PRESSURE_UNIT_CONVERSION, cpu_thermo[7] * PRESSURE_UNIT_CONVERSION,
+    cpu_thermo[6] * PRESSURE_UNIT_CONVERSION, cpu_thermo[7] * PRESSURE_UNIT_CONVERSION,
+    cpu_thermo[4] * PRESSURE_UNIT_CONVERSION);
 
   // Properties
 #ifdef USE_NEP
@@ -163,8 +172,8 @@ void Dump_EXYZ::process(
   GPU_Vector<double>& velocity_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
   GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  GPU_Vector<double>& virial_per_atom,
+  GPU_Vector<double>& gpu_thermo)
 {
   if (!dump_)
     return;
@@ -184,7 +193,7 @@ void Dump_EXYZ::process(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2((step + 1) * time_step_, box, potential_per_atom, virial_per_atom);
+  output_line2((step + 1) * time_step_, box, virial_per_atom, gpu_thermo);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
