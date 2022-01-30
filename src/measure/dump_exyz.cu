@@ -124,7 +124,7 @@ void Dump_EXYZ::output_line2(
       box.cpu_h[8]);
   }
 
-  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in GPa
+  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
   double cpu_thermo[8];
   gpu_thermo.copy_to_host(cpu_thermo, 8);
   const int N = virial_per_atom.size() / 9;
@@ -137,12 +137,9 @@ void Dump_EXYZ::output_line2(
     cpu_total_virial_[3], cpu_total_virial_[4], cpu_total_virial_[3], cpu_total_virial_[1],
     cpu_total_virial_[5], cpu_total_virial_[4], cpu_total_virial_[5], cpu_total_virial_[2]);
   fprintf(
-    fid_, " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_thermo[2] * PRESSURE_UNIT_CONVERSION, cpu_thermo[5] * PRESSURE_UNIT_CONVERSION,
-    cpu_thermo[6] * PRESSURE_UNIT_CONVERSION, cpu_thermo[5] * PRESSURE_UNIT_CONVERSION,
-    cpu_thermo[3] * PRESSURE_UNIT_CONVERSION, cpu_thermo[7] * PRESSURE_UNIT_CONVERSION,
-    cpu_thermo[6] * PRESSURE_UNIT_CONVERSION, cpu_thermo[7] * PRESSURE_UNIT_CONVERSION,
-    cpu_thermo[4] * PRESSURE_UNIT_CONVERSION);
+    fid_, " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", cpu_thermo[2], cpu_thermo[5],
+    cpu_thermo[6], cpu_thermo[5], cpu_thermo[3], cpu_thermo[7], cpu_thermo[6], cpu_thermo[7],
+    cpu_thermo[4]);
 
   // Properties
 #ifdef USE_NEP
