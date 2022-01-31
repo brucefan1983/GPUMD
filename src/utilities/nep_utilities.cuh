@@ -24,10 +24,9 @@ __constant__ float YLM[NUM_OF_ABC] = {
   0.223811638722978f, 0.223811638722978f, 0.111905819361489f, 0.111905819361489f,
   1.566681471060845f, 1.566681471060845f, 0.195835183882606f, 0.195835183882606f};
 
-const int SIZE_BOX_AND_INVERSE_BOX = 18;  // (3 * 3) * 2
-const int MAX_NUM_NEURONS_PER_LAYER = 50; // largest ANN: input-50-50-output
-const int MAX_NUM_N = 20;                 // n_max+1 = 19+1
-const int MAX_NUM_L = 5;                  // L_max+1 = 4+1
+const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
+const int MAX_NUM_N = 20;                // n_max+1 = 19+1
+const int MAX_NUM_L = 5;                 // L_max+1 = 4+1
 const int MAX_DIM = MAX_NUM_N * MAX_NUM_L;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * (MAX_NUM_L - 1);
 __constant__ float c_parameters[14201]; // (100+2)*100+1+40*100, less than 64 KB maximum
