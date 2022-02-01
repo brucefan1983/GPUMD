@@ -22,7 +22,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 #include "dataset.cuh"
 #include "mic.cuh"
-#include "nep.cuh"
+#include "nep3.cuh"
 #include "parameters.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -105,8 +105,8 @@ static __global__ void find_descriptors_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP2::ParaMB paramb,
-  const NEP2::ANN annmb,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -147,8 +147,8 @@ static __global__ void find_descriptors_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP2::ParaMB paramb,
-  const NEP2::ANN annmb,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -198,7 +198,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-NEP2::NEP2(
+NEP3::NEP3(
   char* input_dir, Parameters& para, int N, int N_times_max_NN_radial, int N_times_max_NN_angular)
 {
   paramb.rc_radial = para.rc_radial;
@@ -236,7 +236,7 @@ NEP2::NEP2(
   nep_data.parameters.resize(annmb.num_para);
 }
 
-void NEP2::update_potential(const float* parameters, ANN& ann)
+void NEP3::update_potential(const float* parameters, ANN& ann)
 {
   ann.w0 = parameters;
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
@@ -289,8 +289,8 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
 
 static __global__ void apply_ann(
   const int N,
-  const NEP2::ParaMB paramb,
-  const NEP2::ANN annmb,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
   float* g_pe,
@@ -328,8 +328,8 @@ static __global__ void find_force_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP2::ParaMB paramb,
-  const NEP2::ANN annmb,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -399,8 +399,8 @@ static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP2::ParaMB paramb,
-  const NEP2::ANN annmb,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
@@ -485,7 +485,7 @@ static __global__ void find_force_angular(
 
 static __global__ void find_force_ZBL(
   const int N,
-  const NEP2::ZBL zbl,
+  const NEP3::ZBL zbl,
   const int* g_NN,
   const int* g_NL,
   const int* __restrict__ g_type,
@@ -547,7 +547,7 @@ static __global__ void find_force_ZBL(
   }
 }
 
-void NEP2::find_force(
+void NEP3::find_force(
   Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
 {
   nep_data.parameters.copy_from_host(parameters);

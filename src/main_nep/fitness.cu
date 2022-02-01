@@ -19,6 +19,7 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "nep.cuh"
+#include "nep3.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -72,7 +73,12 @@ Fitness::Fitness(char* input_dir, Parameters& para)
       N_times_max_NN_angular = train_set[n].N * train_set[n].max_NN_angular;
     };
   }
-  potential.reset(new NEP2(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
+
+  if (para.version == 2) {
+    potential.reset(new NEP2(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
+  } else if (para.version == 3) {
+    potential.reset(new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
+  }
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);

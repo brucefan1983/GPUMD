@@ -62,6 +62,12 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
 
+#ifdef USE_NEP3
+  version = 3;
+#else
+  version = 2;
+#endif
+
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
   n_max_radial = 15;             // large enough in most cases

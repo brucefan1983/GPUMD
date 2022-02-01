@@ -26,6 +26,7 @@ public:
   Parameters(char* input_dir);
 
   // parameters to be read in
+  int version;            // nep version, can be 2 or 3
   int batch_size;         // number of configurations in one batch
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
