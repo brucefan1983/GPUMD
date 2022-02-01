@@ -70,6 +70,7 @@ void Parameters::set_default_parameters()
 
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
+  basis_size_radial = 12;        // default value for nep3
   n_max_radial = 15;             // large enough in most cases
   n_max_angular = 10;            // large enough in most cases
   L_max = 4;                     // the only supported value
@@ -119,7 +120,8 @@ void Parameters::calculate_parameters()
   q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
   number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
   number_of_variables_descriptor =
-    (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
+    num_types * num_types *
+    ((n_max_radial + 1) * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_radial + 1));
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   type_weight_gpu.resize(MAX_NUM_TYPES);
   type_weight_gpu.copy_from_host(type_weight_cpu.data());

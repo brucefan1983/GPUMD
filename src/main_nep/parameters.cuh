@@ -32,6 +32,7 @@ public:
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
+  int basis_size_radial;  // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
   int L_max;              // maximum order of the angular Legendre polynomials

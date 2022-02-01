@@ -44,10 +44,13 @@ public:
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    int basis_size_radial = 0;  // for nep3
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 1, 2, ..., L_max
     int num_types = 0;
+    int num_types_sq = 0; // for nep3
+    int num_c_radial = 0; // for nep3
   };
 
   struct ANN {
