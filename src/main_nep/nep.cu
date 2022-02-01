@@ -233,6 +233,7 @@ NEP2::NEP2(
   nep_data.descriptors.resize(N * annmb.dim);
   nep_data.Fp.resize(N * annmb.dim);
   nep_data.sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  nep_data.parameters.resize(annmb.num_para);
 }
 
 void NEP2::update_potential(const float* parameters, ANN& ann)
@@ -549,10 +550,11 @@ static __global__ void find_force_ZBL(
 void NEP2::find_force(
   Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
 {
-  CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
-  float* address_c_parameters;
-  CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
-  update_potential(address_c_parameters, annmb);
+  nep_data.parameters.copy_from_host(parameters);
+  // CHECK(cudaMemcpyToSymbol(c_parameters, parameters, sizeof(float) * annmb.num_para));
+  // float* address_c_parameters;
+  // CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
+  update_potential(nep_data.parameters.data(), annmb);
 
   float rc2_radial = para.rc_radial * para.rc_radial;
   float rc2_angular = para.rc_angular * para.rc_angular;

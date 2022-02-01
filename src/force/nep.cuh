@@ -24,8 +24,9 @@ struct NEP2_Data {
   GPU_Vector<double> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<int> NN; // angular neighbor list
-  GPU_Vector<int> NL; // angular neighbor list
+  GPU_Vector<int> NN;           // angular neighbor list
+  GPU_Vector<int> NL;           // angular neighbor list
+  GPU_Vector<float> parameters; // parameters to be optimized
 };
 
 class NEP2 : public Potential

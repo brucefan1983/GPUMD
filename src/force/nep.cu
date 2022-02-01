@@ -114,6 +114,7 @@ NEP2::NEP2(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   nep_data.NL.resize(neighbor.NN.size() * neighbor.MN);
   nep_data.Fp.resize(neighbor.NN.size() * annmb.dim);
   nep_data.sum_fxyz.resize(neighbor.NN.size() * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  nep_data.parameters.resize(annmb.num_para);
 
   update_potential(fid);
 }
@@ -141,10 +142,8 @@ void NEP2::update_potential(FILE* fid)
     int count = fscanf(fid, "%f", &parameters[n]);
     PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
   }
-  CHECK(cudaMemcpyToSymbol(c_parameters, parameters.data(), sizeof(float) * annmb.num_para));
-  float* address_c_parameters;
-  CHECK(cudaGetSymbolAddress((void**)&address_c_parameters, c_parameters));
-  update_potential(address_c_parameters, annmb);
+  nep_data.parameters.copy_from_host(parameters.data());
+  update_potential(nep_data.parameters.data(), annmb);
 
   for (int d = 0; d < annmb.dim; ++d) {
     int count = fscanf(fid, "%f", &paramb.q_scaler[d]);
