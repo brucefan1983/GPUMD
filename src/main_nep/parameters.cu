@@ -61,6 +61,7 @@ void Parameters::set_default_parameters()
   is_generation_set = false;
   is_type_weight_set = false;
   is_zbl_set = false;
+  is_force_delta_set = false;
 
 #ifdef USE_NEP3
   version = 3;
