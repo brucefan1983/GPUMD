@@ -186,12 +186,15 @@ static __global__ void find_descriptor_small_box(
       }
       int t2 = g_type[n2];
       float fn12[MAX_NUM_N];
-      find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
+      find_fn(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fn12);
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float c = (paramb.num_types == 1)
-                    ? 1.0f
-                    : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
-        q[n] += fn12[n] * c;
+        float gn12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size; ++k) {
+          int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gn12 += fn12[k] * annmb.c[c_index];
+        }
+        q[n] += gn12;
       }
     }
 
@@ -210,14 +213,15 @@ static __global__ void find_descriptor_small_box(
           find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         }
         int t2 = g_type[n2];
-        float fn;
-        find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
-        fn *=
-          (paramb.num_types == 1)
-            ? 1.0f
-            : annmb
-                .c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
-        accumulate_s(d12, r12[0], r12[1], r12[2], fn, s);
+        float fn12[MAX_NUM_N];
+        find_fn(paramb.basis_size, paramb.rcinv_angular, d12, fc12, fn12);
+        float gn12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size; ++k) {
+          int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          gn12 += fn12[k] * annmb.c[c_index];
+        }
+        accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
       }
       find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
@@ -289,13 +293,16 @@ static __global__ void find_force_radial_small_box(
       }
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+      find_fn_and_fnp(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * d12inv;
-        tmp12 *= (paramb.num_types == 1)
-                   ? 1.0f
-                   : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size; ++k) {
+          int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2;
+          gnp12 += fnp12[k] * annmb.c[c_index];
+        }
+        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
         }
@@ -389,20 +396,23 @@ static __global__ void find_force_angular_small_box(
       }
       int t2 = g_type[n2];
       float f12[3] = {0.0f};
+
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      find_fn_and_fnp(paramb.basis_size, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+
       for (int n = 0; n <= paramb.n_max_angular; ++n) {
-        float fn;
-        float fnp;
-        find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
-        const float c =
-          (paramb.num_types == 1)
-            ? 1.0f
-            : annmb
-                .c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
-        fn *= c;
-        fnp *= c;
+        float gn12 = 0.0f;
+        float gnp12 = 0.0f;
+        for (int k = 0; k <= paramb.basis_size; ++k) {
+          int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          gn12 += fn12[k] * annmb.c[c_index];
+          gnp12 += fnp12[k] * annmb.c[c_index];
+        }
         accumulate_f12(
-          n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz,
-          f12);
+          n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp,
+          sum_fxyz, f12);
       }
       f12[0] *= 2.0f;
       f12[1] *= 2.0f;
