@@ -148,7 +148,6 @@ static __global__ void find_neighbor_list_small_box(
 static __global__ void find_descriptor_small_box(
   NEP3::ParaMB paramb,
   NEP3::ANN annmb,
-  NEP3::ZBL zbl,
   const int N,
   const int N1,
   const int N2,
@@ -179,11 +178,7 @@ static __global__ void find_descriptor_small_box(
       float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
-      if (zbl.enabled) {
-        find_fc_nep_with_zbl(zbl.rc_inner, zbl.rc_outer, paramb.rc_radial, d12, fc12);
-      } else {
-        find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      }
+      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_type[n2];
       float fn12[MAX_NUM_N];
       find_fn(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fn12);
@@ -207,11 +202,7 @@ static __global__ void find_descriptor_small_box(
         float r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
-        if (zbl.enabled) {
-          find_fc_nep_with_zbl(zbl.rc_inner, zbl.rc_outer, paramb.rc_angular, d12, fc12);
-        } else {
-          find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
-        }
+        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_type[n2];
         float fn12[MAX_NUM_N];
         find_fn(paramb.basis_size, paramb.rcinv_angular, d12, fc12, fn12);
@@ -249,7 +240,6 @@ static __global__ void find_descriptor_small_box(
 static __global__ void find_force_radial_small_box(
   NEP3::ParaMB paramb,
   NEP3::ANN annmb,
-  NEP3::ZBL zbl,
   const int N,
   const int N1,
   const int N2,
@@ -285,12 +275,7 @@ static __global__ void find_force_radial_small_box(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      if (zbl.enabled) {
-        find_fc_and_fcp_nep_with_zbl(
-          zbl.rc_inner, zbl.rc_outer, paramb.rc_radial, d12, fc12, fcp12);
-      } else {
-        find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      }
+      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
       find_fn_and_fnp(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
@@ -342,7 +327,6 @@ static __global__ void find_force_radial_small_box(
 static __global__ void find_force_angular_small_box(
   NEP3::ParaMB paramb,
   NEP3::ANN annmb,
-  NEP3::ZBL zbl,
   const int N,
   const int N1,
   const int N2,
@@ -388,12 +372,7 @@ static __global__ void find_force_angular_small_box(
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
-      if (zbl.enabled) {
-        find_fc_and_fcp_nep_with_zbl(
-          zbl.rc_inner, zbl.rc_outer, paramb.rc_angular, d12, fc12, fcp12);
-      } else {
-        find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
-      }
+      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
       int t2 = g_type[n2];
       float f12[3] = {0.0f};
 
