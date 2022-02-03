@@ -107,11 +107,13 @@ NEP2::NEP2(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   annmb.num_para += num_para_descriptor;
   printf("    total number of parameters = %d\n", annmb.num_para);
 
-  nep_data.f12x.resize(neighbor.NN.size() * neighbor.MN);
-  nep_data.f12y.resize(neighbor.NN.size() * neighbor.MN);
-  nep_data.f12z.resize(neighbor.NN.size() * neighbor.MN);
+  float rc_factor = paramb.rc_angular / paramb.rc_radial;
+  int angular_neighbor_size = int(ceil((neighbor.MN * rc_factor * rc_factor));
+  nep_data.f12x.resize(neighbor.NN.size() * angular_neighbor_size);
+  nep_data.f12y.resize(neighbor.NN.size() * angular_neighbor_size);
+  nep_data.f12z.resize(neighbor.NN.size() * angular_neighbor_size);
   nep_data.NN.resize(neighbor.NN.size());
-  nep_data.NL.resize(neighbor.NN.size() * neighbor.MN);
+  nep_data.NL.resize(neighbor.NN.size() * angular_neighbor_size);
   nep_data.Fp.resize(neighbor.NN.size() * annmb.dim);
   nep_data.sum_fxyz.resize(neighbor.NN.size() * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   nep_data.parameters.resize(annmb.num_para);
