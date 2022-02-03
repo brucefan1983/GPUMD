@@ -46,6 +46,7 @@ Parameters::Parameters(char* input_dir)
 
 void Parameters::set_default_parameters()
 {
+  is_version_set = false;
   is_type_set = false;
   is_cutoff_set = false;
   is_n_max_set = false;
@@ -63,12 +64,7 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
 
-#ifdef USE_NEP3
-  version = 3;
-#else
-  version = 2;
-#endif
-
+  version = 2;                   // default version is NEP2
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
   basis_size_radial = 12;        // default value for nep3
@@ -120,9 +116,16 @@ void Parameters::calculate_parameters()
   q_scaler_gpu.resize(dim);
   q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
   number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-  number_of_variables_descriptor =
-    num_types * num_types *
-    ((n_max_radial + 1) * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_radial + 1));
+
+  if (version == 2) {
+    number_of_variables_descriptor =
+      (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
+  } else {
+    number_of_variables_descriptor = num_types * num_types *
+                                     ((n_max_radial + 1) * (basis_size_radial + 1) +
+                                      (n_max_angular + 1) * (basis_size_radial + 1));
+  }
+
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   type_weight_gpu.resize(MAX_NUM_TYPES);
   type_weight_gpu.copy_from_host(type_weight_cpu.data());
@@ -135,6 +138,11 @@ void Parameters::report_inputs()
   }
 
   printf("Input or default parameters:\n");
+  if (is_version_set) {
+    printf("    (input)   use NEP version %d.\n", version);
+  } else {
+    printf("    (default) use NEP version %d.\n", version);
+  }
   printf("    (input)   number of atom types = %d.\n", num_types);
   if (is_type_weight_set) {
     for (int n = 0; n < num_types; ++n) {
@@ -254,7 +262,9 @@ void Parameters::report_inputs()
 
 void Parameters::parse_one_keyword(char** param, int num_param)
 {
-  if (strcmp(param[0], "type") == 0) {
+  if (strcmp(param[0], "version") == 0) {
+    parse_version(param, num_param);
+  } else if (strcmp(param[0], "type") == 0) {
     parse_type(param, num_param);
   } else if (strcmp(param[0], "cutoff") == 0) {
     parse_cutoff(param, num_param);
@@ -288,6 +298,21 @@ void Parameters::parse_one_keyword(char** param, int num_param)
     parse_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
+  }
+}
+
+void Parameters::parse_version(char** param, int num_param)
+{
+  is_version_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("version should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &version)) {
+    PRINT_INPUT_ERROR("version should be an integer.\n");
+  }
+  if (version != 2 && version != 3) {
+    PRINT_INPUT_ERROR("version should = 2 or 3.");
   }
 }
 

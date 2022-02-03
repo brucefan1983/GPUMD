@@ -160,10 +160,18 @@ void Fitness::report_error(
     strcat(file_nep, "/nep.txt");
     FILE* fid_nep = my_fopen(file_nep, "w");
 
-    if (para.enable_zbl) {
-      fprintf(fid_nep, "nep_zbl %d ", para.num_types);
-    } else {
-      fprintf(fid_nep, "nep %d ", para.num_types);
+    if (para.version == 2) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep %d ", para.num_types);
+      }
+    } else if (para.version == 3) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep3 %d ", para.num_types);
+      }
     }
     for (int n = 0; n < para.num_types; ++n) {
       fprintf(fid_nep, "%s ", para.elements[n].c_str());

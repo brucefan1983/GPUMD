@@ -49,6 +49,7 @@ public:
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
 
   // check if a parameter has been set:
+  bool is_version_set;
   bool is_type_set;
   bool is_cutoff_set;
   bool is_n_max_set;
@@ -89,6 +90,7 @@ private:
   void report_inputs();
 
   void parse_one_keyword(char** param, int num_param);
+  void parse_version(char** param, int num_param);
   void parse_type(char** param, int num_param);
   void parse_type_weight(char** param, int num_param);
   void parse_zbl(char** param, int num_param);
