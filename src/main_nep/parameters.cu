@@ -311,8 +311,8 @@ void Parameters::parse_version(char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version != 2 && version != 3) {
-    PRINT_INPUT_ERROR("version should = 2 or 3.");
+  if (version < 2 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
   }
 }
 

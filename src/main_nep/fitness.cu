@@ -20,6 +20,7 @@ Get the fitness
 #include "fitness.cuh"
 #include "nep.cuh"
 #include "nep3.cuh"
+#include "nep4.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -78,6 +79,8 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     potential.reset(new NEP2(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
   } else if (para.version == 3) {
     potential.reset(new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
+  } else if (para.version == 4) {
+    potential.reset(new NEP4(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
   }
 
   char file_loss_out[200];
@@ -172,7 +175,14 @@ void Fitness::report_error(
       } else {
         fprintf(fid_nep, "nep3 %d ", para.num_types);
       }
+    } else if (para.version == 4) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4 %d ", para.num_types);
+      }
     }
+
     for (int n = 0; n < para.num_types; ++n) {
       fprintf(fid_nep, "%s ", para.elements[n].c_str());
     }
