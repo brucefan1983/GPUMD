@@ -115,7 +115,7 @@ NEP3::NEP3(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   paramb.num_c_radial = paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size + 1);
 
   float rc_factor = paramb.rc_angular / paramb.rc_radial;
-  int angular_neighbor_size = int(ceil((neighbor.MN * rc_factor * rc_factor));
+  int angular_neighbor_size = int(ceil(neighbor.MN * rc_factor * rc_factor));
   nep_data.f12x.resize(neighbor.NN.size() * angular_neighbor_size);
   nep_data.f12y.resize(neighbor.NN.size() * angular_neighbor_size);
   nep_data.f12z.resize(neighbor.NN.size() * angular_neighbor_size);
