@@ -87,6 +87,8 @@ NEP2::NEP2(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
   printf("    l_max = %d.\n", paramb.L_max);
 
+  paramb.num_Alm_products = (paramb.L_max + 1) * (paramb.L_max + 1) - 1; // 0,3,8,15,24
+
   int num_neurons2;
   count = fscanf(fid, "%s%d%d", name, &annmb.num_neurons1, &num_neurons2);
   PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
@@ -115,7 +117,8 @@ NEP2::NEP2(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   nep_data.NN.resize(neighbor.NN.size());
   nep_data.NL.resize(neighbor.NN.size() * angular_neighbor_size);
   nep_data.Fp.resize(neighbor.NN.size() * annmb.dim);
-  nep_data.sum_fxyz.resize(neighbor.NN.size() * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  nep_data.sum_fxyz.resize(
+    neighbor.NN.size() * (paramb.n_max_angular + 1) * paramb.num_Alm_products);
   nep_data.parameters.resize(annmb.num_para);
 
   update_potential(fid);
@@ -259,11 +262,11 @@ static __global__ void find_descriptor(
             ? 1.0f
             : annmb
                 .c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
-        accumulate_s(d12, x12, y12, z12, fn, s);
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, fn, s);
       }
-      find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
+      find_q(paramb.L_max, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      for (int abc = 0; abc < paramb.num_Alm_products; ++abc) {
+        g_sum_fxyz[(n * paramb.num_Alm_products + abc) * N + n1] = s[abc] * YLM[abc];
       }
     }
 
@@ -411,7 +414,7 @@ static __global__ void find_partial_force_angular(
     for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.num_Alm_products; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
     }
 
@@ -444,8 +447,7 @@ static __global__ void find_partial_force_angular(
         fn *= c;
         fnp *= c;
         accumulate_f12(
-          n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz,
-          f12);
+          n, paramb.L_max, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz, f12);
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;

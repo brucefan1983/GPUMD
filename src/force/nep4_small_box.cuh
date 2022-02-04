@@ -212,9 +212,9 @@ static __global__ void find_descriptor_small_box(
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
           gn12 += fn12[k] * annmb.c[c_index];
         }
-        accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
+        accumulate_s(paramb.L_max, d12, r12[0], r12[1], r12[2], gn12, s);
       }
-      find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(paramb.L_max, paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
       }
@@ -390,8 +390,7 @@ static __global__ void find_force_angular_small_box(
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         accumulate_f12(
-          n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp,
-          sum_fxyz, f12);
+          n, paramb.L_max, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       f12[0] *= 2.0f;
       f12[1] *= 2.0f;

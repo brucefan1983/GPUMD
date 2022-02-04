@@ -185,11 +185,11 @@ static __global__ void find_descriptors_angular(
           c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
           gn12 += fn12[k] * annmb.c[c_index];
         }
-        accumulate_s(d12, x12, y12, z12, gn12, s);
+        accumulate_s(paramb.L_max, d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.n_max_angular + 1, n, s, q);
-      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
+      find_q(paramb.L_max, paramb.n_max_angular + 1, n, s, q);
+      for (int abc = 0; abc < paramb.num_Alm_products; ++abc) {
+        g_sum_fxyz[(n * paramb.num_Alm_products + abc) * N + n1] = s[abc] * YLM[abc];
       }
     }
 
@@ -216,6 +216,7 @@ NEP4::NEP4(
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
+  paramb.num_Alm_products = (paramb.L_max + 1) * (paramb.L_max + 1) - 1; // 0,3,8,15,24
 
   paramb.basis_size_radial = para.basis_size_radial;
   paramb.num_types_sq = para.num_types * para.num_types;
@@ -241,7 +242,7 @@ NEP4::NEP4(
   nep_data.z12_angular.resize(N_times_max_NN_angular);
   nep_data.descriptors.resize(N * annmb.dim);
   nep_data.Fp.resize(N * annmb.dim);
-  nep_data.sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  nep_data.sum_fxyz.resize(N * (paramb.n_max_angular + 1) * paramb.num_Alm_products);
   nep_data.parameters.resize(annmb.num_para);
 }
 
@@ -437,7 +438,7 @@ static __global__ void find_force_angular(
     for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.num_Alm_products; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
     }
     int neighbor_number = g_NN[n1];
@@ -465,8 +466,7 @@ static __global__ void find_force_angular(
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
         accumulate_f12(
-          n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp,
-          sum_fxyz, f12);
+          n, paramb.L_max, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       f12[0] *= 2.0f;
       f12[1] *= 2.0f;

@@ -47,6 +47,7 @@ public:
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 1, 2, ..., L_max
+    int num_Alm_products;
     int num_types = 0;
   };
 
