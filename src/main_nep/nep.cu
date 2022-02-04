@@ -117,7 +117,7 @@ static __global__ void find_descriptors_radial(
   if (n1 < N) {
     int t1 = g_type[n1];
     int neighbor_number = g_NN[n1];
-    float q[MAX_DIM] = {0.0f};
+    float q[MAX_NUM_N] = {0.0f};
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + N * i1;
       int n2 = g_NL[index];
@@ -160,7 +160,7 @@ static __global__ void find_descriptors_angular(
   if (n1 < N) {
     int t1 = g_type[n1];
     int neighbor_number = g_NN[n1];
-    float q[MAX_DIM] = {0.0f};
+    float q[MAX_DIM_ANGULAR] = {0.0f};
 
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
