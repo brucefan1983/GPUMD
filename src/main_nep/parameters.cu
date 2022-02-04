@@ -476,8 +476,10 @@ void Parameters::parse_l_max(char** param, int num_param)
   if (!is_valid_int(param[1], &L_max)) {
     PRINT_INPUT_ERROR("l_max should be an integer.\n");
   }
-  if (L_max != 4) {
-    PRINT_INPUT_ERROR("l_max should = 4.");
+  if (L_max < 0) {
+    PRINT_INPUT_ERROR("l_max should >= 0.");
+  } else if (L_max > 4) {
+    PRINT_INPUT_ERROR("l_max should <= 4.");
   }
 }
 
