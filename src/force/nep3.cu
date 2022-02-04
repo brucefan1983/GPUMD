@@ -424,7 +424,7 @@ static __global__ void find_partial_force_angular(
     for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.num_Alm_products; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
     }
 
