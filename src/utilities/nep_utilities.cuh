@@ -508,7 +508,7 @@ static __device__ __forceinline__ void accumulate_s(
     s[13] += (x12 * x12 - 3.0f * y12 * y12) * x12 * fn; // Y33_real
     s[14] += (3.0f * x12 * x12 - y12 * y12) * y12 * fn; // Y33_imag
   }
-  if (L_max > 2) {                                                                // L=4
+  if (L_max > 3) {                                                                // L=4
     s[15] += ((35.0f * z12sq - 30.0f) * z12sq + 3.0f) * fn;                       // Y40
     s[16] += (7.0f * z12sq - 3.0f) * x12 * z12 * fn;                              // Y41_real
     s[17] += (7.0f * z12sq - 3.0f) * y12 * z12 * fn;                              // Y41_iamg
