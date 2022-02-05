@@ -67,7 +67,7 @@ void Parameters::set_default_parameters()
   version = 2;                   // default version is NEP2
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
-  basis_size_radial = 12;        // default value for nep3
+  basis_size_radial = 8;         // default value for nep3
   n_max_radial = 15;             // large enough in most cases
   n_max_angular = 10;            // large enough in most cases
   L_max = 4;                     // the only supported value
