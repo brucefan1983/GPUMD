@@ -209,7 +209,7 @@ NEP4::NEP4(
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rc_angular = para.rc_angular;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
-  annmb.dim = (para.n_max_radial + 1) + (para.n_max_angular + 1) * para.L_max;
+  annmb.dim = para.dim;
   annmb.num_neurons1 = para.num_neurons1;
   paramb.num_types = para.num_types;
   annmb.num_para = para.number_of_variables;
