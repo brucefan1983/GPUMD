@@ -47,6 +47,7 @@ public:
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
+  bool has4body;          // true for including 4-body descriptors (only for nep3)
 
   // check if a parameter has been set:
   bool is_version_set;
@@ -66,6 +67,7 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
+  bool is_has4body_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
