@@ -216,7 +216,7 @@ NEP3::NEP3(
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
-  paramb.num_L = paramb.has4body ? paramb.L_max + 1 : paramb.L_max;
+  paramb.num_L = paramb.L_max + 1;
   paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
 
   // new parameters for nep3

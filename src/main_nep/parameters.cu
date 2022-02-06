@@ -63,7 +63,6 @@ void Parameters::set_default_parameters()
   is_type_weight_set = false;
   is_zbl_set = false;
   is_force_delta_set = false;
-  is_has4body_set = false;
 
   version = 2;                   // default version is NEP2
   rc_radial = 8.0f;              // large enough for vdw/coulomb
@@ -85,7 +84,6 @@ void Parameters::set_default_parameters()
     type_weight_cpu[n] = {1.0f}; // uniform weight by default
   }
   enable_zbl = false; // default is not to include ZBL
-  has4body = false;   // default is not to inlude 4-body descriptors
 }
 
 void Parameters::read_nep_in(char* input_dir)
@@ -112,7 +110,7 @@ void Parameters::read_nep_in(char* input_dir)
 void Parameters::calculate_parameters()
 {
   dim_radial = (n_max_radial + 1);
-  if (has4body) {
+  if (version == 3) {
     dim_angular = (n_max_angular + 1) * (L_max + 1);
   } else {
     dim_angular = (n_max_angular + 1) * L_max;

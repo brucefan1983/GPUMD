@@ -87,7 +87,7 @@ NEP3::NEP3(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
   printf("    l_max = %d.\n", paramb.L_max);
 
-  paramb.num_L = paramb.has4body ? paramb.L_max + 1 : paramb.L_max;
+  paramb.num_L = paramb.L_max + 1;
   paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
 
   int num_neurons2;
@@ -98,7 +98,7 @@ NEP3::NEP3(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
 
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
-  annmb.dim = (paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) * paramb.L_max;
+  annmb.dim = (paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) * paramb.num_L;
 
   printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
