@@ -263,7 +263,7 @@ static __global__ void find_descriptor(
       }
       find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
+        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
     }
 
