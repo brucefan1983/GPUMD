@@ -214,7 +214,7 @@ static __global__ void find_descriptor_small_box(
         }
         accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
       }
-      find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q_nep3(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
       }
@@ -348,7 +348,7 @@ static __global__ void find_force_angular_small_box(
 
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
+    for (int d = 0; d < paramb.dim_angular; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
@@ -389,7 +389,7 @@ static __global__ void find_force_angular_small_box(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12_nep3(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       f12[0] *= 2.0f;
       f12[1] *= 2.0f;

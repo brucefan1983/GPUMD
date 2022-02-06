@@ -40,9 +40,12 @@ public:
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 0, 1, 2, ..., L_max
-    int basis_size = 8;         // for nep3
-    int num_types_sq = 0;       // for nep3
-    int num_c_radial = 0;       // for nep3
+    bool has4body = false;
+    int dim_angular;
+    int num_L;
+    int basis_size = 8;   // for nep3
+    int num_types_sq = 0; // for nep3
+    int num_c_radial = 0; // for nep3
     int num_types = 0;
     float q_scaler[100];
   };

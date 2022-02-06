@@ -78,8 +78,6 @@ NEP4::NEP4(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
-  paramb.basis_size = 12; // TODO
-
   count = fscanf(fid, "%s%d%d", name, &paramb.n_max_radial, &paramb.n_max_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
   printf("    n_max_radial = %d.\n", paramb.n_max_radial);

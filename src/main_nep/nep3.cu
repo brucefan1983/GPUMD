@@ -187,14 +187,14 @@ static __global__ void find_descriptors_angular(
         }
         accumulate_s(d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.n_max_angular + 1, n, s, q);
+      find_q_nep3(paramb.n_max_angular + 1, n, s, q);
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
       }
     }
 
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
-      for (int l = 0; l < paramb.L_max; ++l) {
+      for (int l = 0; l < paramb.num_L; ++l) {
         int ln = l * (paramb.n_max_angular + 1) + n;
         g_descriptors[n1 + ((paramb.n_max_radial + 1) + ln) * N] = q[ln];
       }
@@ -216,6 +216,8 @@ NEP3::NEP3(
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
+  paramb.num_L = paramb.has4body ? paramb.L_max + 1 : paramb.L_max;
+  paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
 
   // new parameters for nep3
   paramb.basis_size_radial = para.basis_size_radial;
@@ -435,7 +437,7 @@ static __global__ void find_force_angular(
 
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
+    for (int d = 0; d < paramb.dim_angular; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
@@ -465,7 +467,7 @@ static __global__ void find_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12_nep3(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       f12[0] *= 2.0f;
       f12[1] *= 2.0f;

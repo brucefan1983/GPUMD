@@ -78,8 +78,6 @@ NEP3::NEP3(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
-  paramb.basis_size = 12; // TODO
-
   count = fscanf(fid, "%s%d%d", name, &paramb.n_max_radial, &paramb.n_max_angular);
   PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
   printf("    n_max_radial = %d.\n", paramb.n_max_radial);
@@ -88,6 +86,9 @@ NEP3::NEP3(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   count = fscanf(fid, "%s%d", name, &paramb.L_max);
   PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
   printf("    l_max = %d.\n", paramb.L_max);
+
+  paramb.num_L = paramb.has4body ? paramb.L_max + 1 : paramb.L_max;
+  paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
 
   int num_neurons2;
   count = fscanf(fid, "%s%d%d", name, &annmb.num_neurons1, &num_neurons2);
@@ -270,7 +271,7 @@ static __global__ void find_descriptor(
         }
         accumulate_s(d12, x12, y12, z12, gn12, s);
       }
-      find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q_nep3(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc] * YLM[abc];
       }
@@ -418,7 +419,7 @@ static __global__ void find_partial_force_angular(
 
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
+    for (int d = 0; d < paramb.dim_angular; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
@@ -456,7 +457,7 @@ static __global__ void find_partial_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12_nep3(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       g_f12x[index] = f12[0] * 2.0f;
       g_f12y[index] = f12[1] * 2.0f;
