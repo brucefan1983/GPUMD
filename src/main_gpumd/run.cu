@@ -124,7 +124,7 @@ void Run::perform_a_run(char* input_dir)
   }
 
 // only for my test
-#if 0
+#ifdef VALIDATE_FORCE
   validate_force(
     box, atom.position_per_atom, group, atom.type, atom.potential_per_atom, atom.force_per_atom,
     atom.virial_per_atom, neighbor, &force);
