@@ -428,8 +428,6 @@ static __device__ __forceinline__ void get_f12_4(
 
 static __device__ __forceinline__ void accumulate_f12(
   const int n,
-  const int n1,
-  const int n_max_radial_plus_1,
   const int n_max_angular_plus_1,
   const float d12,
   const float* r12,

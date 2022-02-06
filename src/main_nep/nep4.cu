@@ -464,9 +464,7 @@ static __global__ void find_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12(
-          n, n1, paramb.n_max_radial + 1, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp,
-          sum_fxyz, f12);
+        accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
       f12[0] *= 2.0f;
       f12[1] *= 2.0f;
