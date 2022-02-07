@@ -564,7 +564,7 @@ static __device__ __forceinline__ void accumulate_f12(
   float s2[5] = {
     sum_fxyz[n * NUM_OF_ABC + 3] * YLM[3], sum_fxyz[n * NUM_OF_ABC + 4] * YLM[4],
     sum_fxyz[n * NUM_OF_ABC + 5] * YLM[5], sum_fxyz[n * NUM_OF_ABC + 6] * YLM[6],
-    sum_fxyz[n * NUM_OF_ABC + 7] * YLM[6]};
+    sum_fxyz[n * NUM_OF_ABC + 7] * YLM[7]};
   get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
