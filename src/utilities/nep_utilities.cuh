@@ -314,7 +314,7 @@ static __device__ __forceinline__ void get_f12_4body(
   float tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
   f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[0];
+  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
 
   // C4B[1] * s[0] * (s[1] * s[1] + s[2] * s[2])
   tmp0 = C4B[1] * 0.5f * (s[1] * s[1] + s[2] * s[2]);
@@ -322,7 +322,7 @@ static __device__ __forceinline__ void get_f12_4body(
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
   f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[0];
+  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
 
   tmp0 = C4B[1] * s[0] * s[1];
   tmp1 = tmp0 * r12[0] * r12[2] * fnp_factor;
@@ -344,7 +344,7 @@ static __device__ __forceinline__ void get_f12_4body(
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
   f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[0];
+  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
 
   tmp0 = C4B[2] * s[0] * s[3];
   tmp1 = tmp0 * (r12[0] * r12[0] - r12[1] * r12[1]) * fnp_factor;
