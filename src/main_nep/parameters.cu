@@ -110,11 +110,10 @@ void Parameters::read_nep_in(char* input_dir)
 
 void Parameters::calculate_parameters()
 {
-  dim_radial = (n_max_radial + 1);
-  if (version == 3) {
-    dim_angular = (n_max_angular + 1) * (L_max + 1);
-  } else {
-    dim_angular = (n_max_angular + 1) * L_max;
+  dim_radial = (n_max_radial + 1);           // 2-body descriptors q^i_n
+  dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
+  if (version == 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
+    dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
   q_scaler_cpu.resize(dim, 1.0e10f);
