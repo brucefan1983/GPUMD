@@ -308,96 +308,41 @@ static __device__ __forceinline__ void get_f12_4body(
   float fnp_factor = Fp * fnp * d12inv;
   float y20 = (3.0f * r12[2] * r12[2] - d12 * d12);
 
-  // C4B[0] * s[0] * s[0] * s[0]
-  float tmp0 = C4B[0] * 1.5 * s[0] * s[0];
+  // derivative wrt s[0]
+  float tmp0 = C4B[0] * 1.5 * s[0] * s[0] + C4B[1] * 0.5f * (s[1] * s[1] + s[2] * s[2]) +
+               C4B[2] * 0.5f * (s[3] * s[3] + s[4] * s[4]);
   float tmp1 = tmp0 * y20 * fnp_factor;
   float tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
   f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
   f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
 
-  // C4B[1] * s[0] * (s[1] * s[1] + s[2] * s[2])
-  tmp0 = C4B[1] * 0.5f * (s[1] * s[1] + s[2] * s[2]);
-  tmp1 = tmp0 * y20 * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
-  f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
-
-  tmp0 = C4B[1] * s[0] * s[1];
+  // derivative wrt s[1]
+  tmp0 = C4B[1] * s[0] * s[1] - C4B[3] * s[3] * s[1] + C4B[4] * 0.5f * s[2] * s[4];
   tmp1 = tmp0 * r12[0] * r12[2] * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] + tmp2 * r12[2];
   f12[1] += tmp1 * r12[1];
   f12[2] += tmp1 * r12[2] + tmp2 * r12[0];
 
-  tmp0 = C4B[1] * s[0] * s[2];
+  // derivative wrt s[2]
+  tmp0 = C4B[1] * s[0] * s[2] + C4B[3] * s[3] * s[2] + C4B[4] * 0.5f * s[1] * s[4];
   tmp1 = tmp0 * r12[1] * r12[2] * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0];
   f12[1] += tmp1 * r12[1] + tmp2 * r12[2];
   f12[2] += tmp1 * r12[2] + tmp2 * r12[1];
 
-  // C4B[2] * s[0] * (s[3] * s[3] + s[4] * s[4])
-  tmp0 = C4B[2] * 0.5f * (s[3] * s[3] + s[4] * s[4]);
-  tmp1 = tmp0 * y20 * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
-  f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
-
-  tmp0 = C4B[2] * s[0] * s[3];
+  // derivative wrt s[3]
+  tmp0 = C4B[2] * s[0] * s[3] + C4B[3] * 0.5f * (s[2] * s[2] - s[1] * s[1]);
   tmp1 = tmp0 * (r12[0] * r12[0] - r12[1] * r12[1]) * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[0];
   f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
   f12[2] += tmp1 * r12[2];
 
-  tmp0 = C4B[2] * s[0] * s[4];
-  tmp1 = tmp0 * (2.0f * r12[0] * r12[1]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[1];
-  f12[1] += tmp1 * r12[1] + tmp2 * 2.0f * r12[0];
-  f12[2] += tmp1 * r12[2];
-
-  // C4B[3] * s[3] * (s[2] * s[2] - s[1] * s[1])
-  tmp0 = C4B[3] * 0.5f * (s[2] * s[2] - s[1] * s[1]);
-  tmp1 = tmp0 * (r12[0] * r12[0] - r12[1] * r12[1]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[0];
-  f12[1] += tmp1 * r12[1] - tmp2 * 2.0f * r12[1];
-  f12[2] += tmp1 * r12[2];
-
-  tmp0 = C4B[3] * s[3] * s[2];
-  tmp1 = tmp0 * (r12[1] * r12[2]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0];
-  f12[1] += tmp1 * r12[1] + tmp2 * r12[2];
-  f12[2] += tmp1 * r12[2] + tmp2 * r12[1];
-
-  tmp0 = -C4B[3] * s[3] * s[1];
-  tmp1 = tmp0 * (r12[0] * r12[2]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2 * r12[2];
-  f12[1] += tmp1 * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * r12[0];
-
-  // C4B[4] * s[1] * s[2] * s[4];
-  tmp0 = C4B[4] * 0.5f * s[2] * s[4];
-  tmp1 = tmp0 * (r12[0] * r12[2]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0] + tmp2 * r12[2];
-  f12[1] += tmp1 * r12[1];
-  f12[2] += tmp1 * r12[2] + tmp2 * r12[0];
-
-  tmp0 = C4B[4] * 0.5f * s[1] * s[4];
-  tmp1 = tmp0 * (r12[1] * r12[2]) * fnp_factor;
-  tmp2 = tmp0 * fn_factor;
-  f12[0] += tmp1 * r12[0];
-  f12[1] += tmp1 * r12[1] + tmp2 * r12[2];
-  f12[2] += tmp1 * r12[2] + tmp2 * r12[1];
-
-  tmp0 = C4B[4] * 0.5f * s[1] * s[2];
+  // derivative wrt s[4]
+  tmp0 = C4B[2] * s[0] * s[4] + C4B[4] * 0.5f * s[1] * s[2];
   tmp1 = tmp0 * (2.0f * r12[0] * r12[1]) * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[1];
