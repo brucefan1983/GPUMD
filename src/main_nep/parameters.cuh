@@ -35,7 +35,8 @@ public:
   int basis_size_radial;  // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
-  int L_max;              // maximum order of the angular Legendre polynomials
+  int L_max;              // maximum order of the 3body spherical harmonics
+  int L_max_4body;        // maximum order of the 4body spherical harmonics
   float rc_radial;        // radial cutoff distance
   float rc_angular;       // angular cutoff distance
   float lambda_1;         // weight parameter for L1 regularization loss

@@ -187,7 +187,11 @@ static __global__ void find_descriptors_angular(
         }
         accumulate_s(d12, x12, y12, z12, gn12, s);
       }
-      find_q_nep3(paramb.n_max_angular + 1, n, s, q);
+      if (paramb.num_L > paramb.L_max) {
+        find_q_with_4body(paramb.n_max_angular + 1, n, s, q);
+      } else {
+        find_q(paramb.n_max_angular + 1, n, s, q);
+      }
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -216,7 +220,7 @@ NEP3::NEP3(
   paramb.n_max_radial = para.n_max_radial;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
-  paramb.num_L = paramb.L_max + 1;
+  paramb.num_L = (para.L_max_4body == 2) ? paramb.L_max + 1 : paramb.L_max;
   paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
 
   // new parameters for nep3
@@ -467,7 +471,12 @@ static __global__ void find_force_angular(
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
-        accumulate_f12_nep3(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        if (paramb.num_L > paramb.L_max) {
+          accumulate_f12_with_4body(
+            n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        } else {
+          accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        }
       }
       f12[0] *= 2.0f;
       f12[1] *= 2.0f;

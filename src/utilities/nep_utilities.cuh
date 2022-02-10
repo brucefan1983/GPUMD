@@ -531,7 +531,7 @@ static __device__ __forceinline__ void accumulate_f12(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
 
-static __device__ __forceinline__ void accumulate_f12_nep3(
+static __device__ __forceinline__ void accumulate_f12_with_4body(
   const int n,
   const int n_max_angular_plus_1,
   const float d12,
@@ -639,7 +639,7 @@ find_q(const int n_max_angular_plus_1, const int n, const float* s, float* q)
 }
 
 static __device__ __forceinline__ void
-find_q_nep3(const int n_max_angular_plus_1, const int n, const float* s, float* q)
+find_q_with_4body(const int n_max_angular_plus_1, const int n, const float* s, float* q)
 {
   // 3-body
   find_q(n_max_angular_plus_1, n, s, q);
