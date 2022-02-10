@@ -475,14 +475,23 @@ void Parameters::parse_l_max(char** param, int num_param)
 {
   is_l_max_set = true;
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("l_max should have 1 parameter.\n");
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("l_max should have 1 or 2 parameters.\n");
   }
   if (!is_valid_int(param[1], &L_max)) {
-    PRINT_INPUT_ERROR("l_max should be an integer.\n");
+    PRINT_INPUT_ERROR("l_max for 3-body descriptors should be an integer.\n");
   }
   if (L_max != 4) {
-    PRINT_INPUT_ERROR("l_max should = 4.");
+    PRINT_INPUT_ERROR("l_max for 3-body descriptors should = 4.");
+  }
+
+  if (num_param == 3) {
+    if (!is_valid_int(param[2], &L_max_4body)) {
+      PRINT_INPUT_ERROR("l_max for 4-body descriptors should be an integer.\n");
+    }
+    if (L_max_4body != 0 && L_max_4body != 2) {
+      PRINT_INPUT_ERROR("l_max for 4-body descriptors should = 0 or 2.");
+    }
   }
 }
 
