@@ -80,7 +80,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   } else if (para.version == 3) {
     potential.reset(new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
   } else if (para.version == 4) {
-    potential.reset(new NEP4(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular));
+    potential.reset(new NEP4(input_dir, para, N, N_times_max_NN_angular));
   }
 
   char file_loss_out[200];
@@ -190,9 +190,21 @@ void Fitness::report_error(
     if (para.enable_zbl) {
       fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
-    fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
-    fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-    fprintf(fid_nep, "l_max %d %d\n", para.L_max, para.L_max_4body);
+    if (para.version == 4) {
+      fprintf(fid_nep, "cutoff %g\n", para.rc_angular);
+    } else {
+      fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
+    }
+    if (para.version == 4) {
+      fprintf(fid_nep, "n_max %d\n", para.n_max_angular);
+    } else {
+      fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
+    }
+    if (para.version == 3) {
+      fprintf(fid_nep, "l_max %d %d\n", para.L_max, para.L_max_4body);
+    } else {
+      fprintf(fid_nep, "l_max %d\n", para.L_max);
+    }
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_nep, "%15.7e\n", elite[m]);

@@ -110,9 +110,9 @@ void Parameters::read_nep_in(char* input_dir)
 
 void Parameters::calculate_parameters()
 {
-  dim_radial = (n_max_radial + 1);           // 2-body descriptors q^i_n
-  dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (version == 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
+  dim_radial = (version == 4) ? 0 : (n_max_radial + 1); // 2-body descriptors q^i_n
+  dim_angular = (n_max_angular + 1) * L_max;            // 3-body descriptors q^i_nl
+  if (version == 3 && L_max_4body == 2) {               // 4-body descriptors q^i_n222
     dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
@@ -125,9 +125,8 @@ void Parameters::calculate_parameters()
     number_of_variables_descriptor =
       (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
   } else {
-    number_of_variables_descriptor = num_types * num_types *
-                                     ((n_max_radial + 1) * (basis_size_radial + 1) +
-                                      (n_max_angular + 1) * (basis_size_radial + 1));
+    number_of_variables_descriptor =
+      num_types * num_types * (dim_radial + n_max_angular + 1) * (basis_size_radial + 1);
   }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
