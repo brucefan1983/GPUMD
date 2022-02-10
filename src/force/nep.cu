@@ -445,9 +445,9 @@ static __global__ void find_partial_force_angular(
         fnp *= c;
         accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz, f12);
       }
-      g_f12x[index] = f12[0] * 2.0f;
-      g_f12y[index] = f12[1] * 2.0f;
-      g_f12z[index] = f12[2] * 2.0f;
+      g_f12x[index] = f12[0];
+      g_f12y[index] = f12[1];
+      g_f12z[index] = f12[2];
     }
   }
 }
