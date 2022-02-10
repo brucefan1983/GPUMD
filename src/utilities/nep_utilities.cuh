@@ -16,7 +16,7 @@
 #pragma once
 
 const int NUM_OF_ABC = 24; // 3 + 5 + 7 + 9 for L_max = 4
-__constant__ float YLM[NUM_OF_ABC] = {
+__constant__ float C3B[NUM_OF_ABC] = {
   0.238732414637843f, 0.119366207318922f, 0.119366207318922f, 0.099471839432435f,
   0.596831036594608f, 0.596831036594608f, 0.149207759148652f, 0.149207759148652f,
   0.139260575205408f, 0.104445431404056f, 0.104445431404056f, 1.044454314040563f,
@@ -258,11 +258,11 @@ static __device__ __forceinline__ void get_f12_1(
   tmp += s[2] * r12[1];
   tmp *= 2.0f;
   tmp += s[0] * r12[2];
-  tmp *= Fp * fnp * d12inv;
+  tmp *= Fp * fnp * d12inv * 2.0f;
   for (int d = 0; d < 3; ++d) {
     f12[d] += tmp * r12[d];
   }
-  tmp = Fp * fn;
+  tmp = Fp * fn * 2.0f;
   f12[0] += tmp * 2.0f * s[1];
   f12[1] += tmp * 2.0f * s[2];
   f12[2] += tmp * s[0];
@@ -284,11 +284,11 @@ static __device__ __forceinline__ void get_f12_2(
   tmp += s[4] * 2.0f * r12[0] * r12[1];              // Im[Y22]
   tmp *= 2.0f;
   tmp += s[0] * (3.0f * r12[2] * r12[2] - d12 * d12); // Y20
-  tmp *= Fp * fnp * d12inv;
+  tmp *= Fp * fnp * d12inv * 2.0f;
   for (int d = 0; d < 3; ++d) {
     f12[d] += tmp * r12[d];
   }
-  tmp = Fp * fn * 2.0f;
+  tmp = Fp * fn * 4.0f;
   f12[0] += tmp * (-s[0] * r12[0] + s[1] * r12[2] + 2.0f * s[3] * r12[0] + 2.0f * s[4] * r12[1]);
   f12[1] += tmp * (-s[0] * r12[1] + s[2] * r12[2] - 2.0f * s[3] * r12[1] + 2.0f * s[4] * r12[0]);
   f12[2] += tmp * (2.0f * s[0] * r12[2] + s[1] * r12[0] + s[2] * r12[1]);
@@ -309,8 +309,8 @@ static __device__ __forceinline__ void get_f12_4body(
   float y20 = (3.0f * r12[2] * r12[2] - d12 * d12);
 
   // derivative wrt s[0]
-  float tmp0 = C4B[0] * 1.5 * s[0] * s[0] + C4B[1] * 0.5f * (s[1] * s[1] + s[2] * s[2]) +
-               C4B[2] * 0.5f * (s[3] * s[3] + s[4] * s[4]);
+  float tmp0 = C4B[0] * 3.0 * s[0] * s[0] + C4B[1] * (s[1] * s[1] + s[2] * s[2]) +
+               C4B[2] * (s[3] * s[3] + s[4] * s[4]);
   float tmp1 = tmp0 * y20 * fnp_factor;
   float tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] - tmp2 * 2.0f * r12[0];
@@ -318,7 +318,7 @@ static __device__ __forceinline__ void get_f12_4body(
   f12[2] += tmp1 * r12[2] + tmp2 * 4.0f * r12[2];
 
   // derivative wrt s[1]
-  tmp0 = C4B[1] * s[0] * s[1] - C4B[3] * s[3] * s[1] + C4B[4] * 0.5f * s[2] * s[4];
+  tmp0 = C4B[1] * s[0] * s[1] * 2.0f - C4B[3] * s[3] * s[1] * 2.0f + C4B[4] * s[2] * s[4];
   tmp1 = tmp0 * r12[0] * r12[2] * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] + tmp2 * r12[2];
@@ -326,7 +326,7 @@ static __device__ __forceinline__ void get_f12_4body(
   f12[2] += tmp1 * r12[2] + tmp2 * r12[0];
 
   // derivative wrt s[2]
-  tmp0 = C4B[1] * s[0] * s[2] + C4B[3] * s[3] * s[2] + C4B[4] * 0.5f * s[1] * s[4];
+  tmp0 = C4B[1] * s[0] * s[2] * 2.0f + C4B[3] * s[3] * s[2] * 2.0f + C4B[4] * s[1] * s[4];
   tmp1 = tmp0 * r12[1] * r12[2] * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0];
@@ -334,7 +334,7 @@ static __device__ __forceinline__ void get_f12_4body(
   f12[2] += tmp1 * r12[2] + tmp2 * r12[1];
 
   // derivative wrt s[3]
-  tmp0 = C4B[2] * s[0] * s[3] + C4B[3] * 0.5f * (s[2] * s[2] - s[1] * s[1]);
+  tmp0 = C4B[2] * s[0] * s[3] * 2.0f + C4B[3] * (s[2] * s[2] - s[1] * s[1]);
   tmp1 = tmp0 * (r12[0] * r12[0] - r12[1] * r12[1]) * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[0];
@@ -342,7 +342,7 @@ static __device__ __forceinline__ void get_f12_4body(
   f12[2] += tmp1 * r12[2];
 
   // derivative wrt s[4]
-  tmp0 = C4B[2] * s[0] * s[4] + C4B[4] * 0.5f * s[1] * s[2];
+  tmp0 = C4B[2] * s[0] * s[4] * 2.0f + C4B[4] * s[1] * s[2];
   tmp1 = tmp0 * (2.0f * r12[0] * r12[1]) * fnp_factor;
   tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] + tmp2 * 2.0f * r12[1];
@@ -376,7 +376,7 @@ static __device__ __forceinline__ void get_f12_3(
   tmp += s[6] * r12[1] * (3.0f * x2 - y2);
   tmp *= 2.0f;
   tmp += s[0] * (5.0f * z2 - 3.0f * d12sq) * r12[2];
-  tmp *= Fp * fnp * d12inv;
+  tmp *= Fp * fnp * d12inv * 2.0f;
   for (int d = 0; d < 3; ++d) {
     f12[d] += tmp * r12[d];
   }
@@ -390,7 +390,7 @@ static __device__ __forceinline__ void get_f12_3(
   tmp += s[6] * (6.0f * xy);
   tmp *= 2.0f;
   tmp += s[0] * (-6.0f * xz);
-  f12[0] += tmp * Fp * fn;
+  f12[0] += tmp * Fp * fn * 2.0f;
   // y
   tmp = s[1] * (-2.0f * xy);
   tmp += s[2] * (4.0f * z2 - 3.0f * y2 - x2);
@@ -400,7 +400,7 @@ static __device__ __forceinline__ void get_f12_3(
   tmp += s[6] * (3.0f * (x2 - y2));
   tmp *= 2.0f;
   tmp += s[0] * (-6.0f * yz);
-  f12[1] += tmp * Fp * fn;
+  f12[1] += tmp * Fp * fn * 2.0f;
   // z
   tmp = s[1] * (8.0f * xz);
   tmp += s[2] * (8.0f * yz);
@@ -408,7 +408,7 @@ static __device__ __forceinline__ void get_f12_3(
   tmp += s[4] * (2.0f * xy);
   tmp *= 2.0f;
   tmp += s[0] * (9.0f * z2 - 3.0f * d12sq);
-  f12[2] += tmp * Fp * fn;
+  f12[2] += tmp * Fp * fn * 2.0f;
 }
 
 static __device__ __forceinline__ void get_f12_4(
@@ -443,7 +443,7 @@ static __device__ __forceinline__ void get_f12_4(
   tmp += s[8] * (4.0f * xy * x2my2);               // Y44_imag
   tmp *= 2.0f;
   tmp += s[0] * ((35.0f * z2 - 30.0f * r2) * z2 + 3.0f * r2 * r2); // Y40
-  tmp *= Fp * fnp * rinv;
+  tmp *= Fp * fnp * rinv * 2.0f;
   f12[0] += tmp * x;
   f12[1] += tmp * y;
   f12[2] += tmp * z;
@@ -459,7 +459,7 @@ static __device__ __forceinline__ void get_f12_4(
   tmp += s[8] * 4.0f * y * (3.0f * x2 - y2);             // Y44_imag
   tmp *= 2.0f;
   tmp += s[0] * 12.0f * x * (r2 - 5.0f * z2); // Y40
-  f12[0] += tmp * Fp * fn;
+  f12[0] += tmp * Fp * fn * 2.0f;
   // y
   tmp = s[1] * (-6.0f * xyz);                            // Y41_real
   tmp += s[2] * z * (7.0f * z2 - 3.0f * r2 - 6.0f * y2); // Y41_imag
@@ -471,7 +471,7 @@ static __device__ __forceinline__ void get_f12_4(
   tmp += s[8] * 4.0f * x * (x2 - 3.0f * y2);             // Y44_imag
   tmp *= 2.0f;
   tmp += s[0] * 12.0f * y * (r2 - 5.0f * z2); // Y40
-  f12[1] += tmp * Fp * fn;
+  f12[1] += tmp * Fp * fn * 2.0f;
   // z
   tmp = s[1] * 3.0f * x * (5.0f * z2 - r2);  // Y41_real
   tmp += s[2] * 3.0f * y * (5.0f * z2 - r2); // Y41_imag
@@ -481,7 +481,7 @@ static __device__ __forceinline__ void get_f12_4(
   tmp += s[6] * y * (3.0f * x2 - y2);        // Y43_imag
   tmp *= 2.0f;
   tmp += s[0] * 16.0f * z * (5.0f * z2 - 3.0f * r2); // Y40
-  f12[2] += tmp * Fp * fn;
+  f12[2] += tmp * Fp * fn * 2.0f;
 }
 
 static __device__ __forceinline__ void accumulate_f12(
@@ -500,33 +500,33 @@ static __device__ __forceinline__ void accumulate_f12(
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s1[3] = {
-    sum_fxyz[n * NUM_OF_ABC + 0] * YLM[0], sum_fxyz[n * NUM_OF_ABC + 1] * YLM[1],
-    sum_fxyz[n * NUM_OF_ABC + 2] * YLM[2]};
+    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0], sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
+    sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
   get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s2[5] = {
-    sum_fxyz[n * NUM_OF_ABC + 3] * YLM[3], sum_fxyz[n * NUM_OF_ABC + 4] * YLM[4],
-    sum_fxyz[n * NUM_OF_ABC + 5] * YLM[5], sum_fxyz[n * NUM_OF_ABC + 6] * YLM[6],
-    sum_fxyz[n * NUM_OF_ABC + 7] * YLM[7]};
+    sum_fxyz[n * NUM_OF_ABC + 3] * C3B[3], sum_fxyz[n * NUM_OF_ABC + 4] * C3B[4],
+    sum_fxyz[n * NUM_OF_ABC + 5] * C3B[5], sum_fxyz[n * NUM_OF_ABC + 6] * C3B[6],
+    sum_fxyz[n * NUM_OF_ABC + 7] * C3B[7]};
   get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * YLM[8],   sum_fxyz[n * NUM_OF_ABC + 9] * YLM[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * YLM[10], sum_fxyz[n * NUM_OF_ABC + 11] * YLM[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * YLM[12], sum_fxyz[n * NUM_OF_ABC + 13] * YLM[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * YLM[14]};
+  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * YLM[15], sum_fxyz[n * NUM_OF_ABC + 16] * YLM[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * YLM[17], sum_fxyz[n * NUM_OF_ABC + 18] * YLM[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * YLM[19], sum_fxyz[n * NUM_OF_ABC + 20] * YLM[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * YLM[21], sum_fxyz[n * NUM_OF_ABC + 22] * YLM[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * YLM[23]};
+  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
@@ -547,8 +547,8 @@ static __device__ __forceinline__ void accumulate_f12_with_4body(
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s1[3] = {
-    sum_fxyz[n * NUM_OF_ABC + 0] * YLM[0], sum_fxyz[n * NUM_OF_ABC + 1] * YLM[1],
-    sum_fxyz[n * NUM_OF_ABC + 2] * YLM[2]};
+    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0], sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
+    sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
   get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
@@ -557,28 +557,28 @@ static __device__ __forceinline__ void accumulate_f12_with_4body(
     sum_fxyz[n * NUM_OF_ABC + 3], sum_fxyz[n * NUM_OF_ABC + 4], sum_fxyz[n * NUM_OF_ABC + 5],
     sum_fxyz[n * NUM_OF_ABC + 6], sum_fxyz[n * NUM_OF_ABC + 7]};
   get_f12_4body(d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s2, r12, f12);
-  s2[0] *= YLM[3];
-  s2[1] *= YLM[4];
-  s2[2] *= YLM[5];
-  s2[3] *= YLM[6];
-  s2[4] *= YLM[7];
+  s2[0] *= C3B[3];
+  s2[1] *= C3B[4];
+  s2[2] *= C3B[5];
+  s2[3] *= C3B[6];
+  s2[4] *= C3B[7];
   get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * YLM[8],   sum_fxyz[n * NUM_OF_ABC + 9] * YLM[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * YLM[10], sum_fxyz[n * NUM_OF_ABC + 11] * YLM[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * YLM[12], sum_fxyz[n * NUM_OF_ABC + 13] * YLM[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * YLM[14]};
+  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * YLM[15], sum_fxyz[n * NUM_OF_ABC + 16] * YLM[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * YLM[17], sum_fxyz[n * NUM_OF_ABC + 18] * YLM[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * YLM[19], sum_fxyz[n * NUM_OF_ABC + 20] * YLM[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * YLM[21], sum_fxyz[n * NUM_OF_ABC + 22] * YLM[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * YLM[23]};
+  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
@@ -623,19 +623,19 @@ accumulate_s(const float d12, float x12, float y12, float z12, const float fn, f
 static __device__ __forceinline__ void
 find_q(const int n_max_angular_plus_1, const int n, const float* s, float* q)
 {
-  q[n] = YLM[0] * s[0] * s[0] + 2.0f * (YLM[1] * s[1] * s[1] + YLM[2] * s[2] * s[2]);
+  q[n] = C3B[0] * s[0] * s[0] + 2.0f * (C3B[1] * s[1] * s[1] + C3B[2] * s[2] * s[2]);
   q[n_max_angular_plus_1 + n] =
-    YLM[3] * s[3] * s[3] + 2.0f * (YLM[4] * s[4] * s[4] + YLM[5] * s[5] * s[5] +
-                                   YLM[6] * s[6] * s[6] + YLM[7] * s[7] * s[7]);
+    C3B[3] * s[3] * s[3] + 2.0f * (C3B[4] * s[4] * s[4] + C3B[5] * s[5] * s[5] +
+                                   C3B[6] * s[6] * s[6] + C3B[7] * s[7] * s[7]);
   q[2 * n_max_angular_plus_1 + n] =
-    YLM[8] * s[8] * s[8] +
-    2.0f * (YLM[9] * s[9] * s[9] + YLM[10] * s[10] * s[10] + YLM[11] * s[11] * s[11] +
-            YLM[12] * s[12] * s[12] + YLM[13] * s[13] * s[13] + YLM[14] * s[14] * s[14]);
+    C3B[8] * s[8] * s[8] +
+    2.0f * (C3B[9] * s[9] * s[9] + C3B[10] * s[10] * s[10] + C3B[11] * s[11] * s[11] +
+            C3B[12] * s[12] * s[12] + C3B[13] * s[13] * s[13] + C3B[14] * s[14] * s[14]);
   q[3 * n_max_angular_plus_1 + n] =
-    YLM[15] * s[15] * s[15] +
-    2.0f * (YLM[16] * s[16] * s[16] + YLM[17] * s[17] * s[17] + YLM[18] * s[18] * s[18] +
-            YLM[19] * s[19] * s[19] + YLM[20] * s[20] * s[20] + YLM[21] * s[21] * s[21] +
-            YLM[22] * s[22] * s[22] + YLM[23] * s[23] * s[23]);
+    C3B[15] * s[15] * s[15] +
+    2.0f * (C3B[16] * s[16] * s[16] + C3B[17] * s[17] * s[17] + C3B[18] * s[18] * s[18] +
+            C3B[19] * s[19] * s[19] + C3B[20] * s[20] * s[20] + C3B[21] * s[21] * s[21] +
+            C3B[22] * s[22] * s[22] + C3B[23] * s[23] * s[23]);
 }
 
 static __device__ __forceinline__ void

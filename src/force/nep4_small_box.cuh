@@ -391,9 +391,6 @@ static __global__ void find_force_angular_small_box(
         }
         accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
-      f12[0] *= 2.0f;
-      f12[1] *= 2.0f;
-      f12[2] *= 2.0f;
       atomicAdd(&g_fx[n1], double(f12[0]));
       atomicAdd(&g_fy[n1], double(f12[1]));
       atomicAdd(&g_fz[n1], double(f12[2]));
