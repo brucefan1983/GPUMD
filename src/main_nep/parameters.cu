@@ -187,9 +187,9 @@ void Parameters::report_inputs()
   }
 
   if (is_l_max_set) {
-    printf("    (input)   l_max = %d.\n", L_max);
+    printf("    (input)   l_max_3body = %d, l_max_4body = %d.\n", L_max, L_max_4body);
   } else {
-    printf("    (default) l_max = %d.\n", L_max);
+    printf("    (default) l_max_3body = %d, l_max_4body = %d.\n", L_max, L_max_4body);
   }
 
   if (is_neuron_set) {

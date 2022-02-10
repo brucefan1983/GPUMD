@@ -192,7 +192,7 @@ void Fitness::report_error(
     }
     fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
     fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-    fprintf(fid_nep, "l_max %d\n", para.L_max, para.L_max_4body);
+    fprintf(fid_nep, "l_max %d %d\n", para.L_max, para.L_max_4body);
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_nep, "%15.7e\n", elite[m]);
