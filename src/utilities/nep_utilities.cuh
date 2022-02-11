@@ -58,6 +58,17 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
+static __device__ void apply_gnn_one_layer(
+  const int dim,
+  int num_neighbors,
+  const float* theta,
+  float* q)
+{
+  // TODO also add weights f_c(r_ij)
+  // TODO implement forward pass
+  printf("I'm a GNN");
+}
+
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {

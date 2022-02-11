@@ -223,6 +223,33 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
   }
 }
 
+static __global__ void apply_gnn(
+  const int N,
+  const NEP4::ParaMB paramb,
+  const NEP4::ANN annmb,
+  const NEP4::GNN gnnmb,
+  const float* __restrict__ g_descriptors,
+  const float* __restrict__ g_q_scaler,
+  const float*  gnn_descriptors,
+  const int* g_NN,
+  const int* g_NL)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    const int nn = 1; // number of neighbors to atom n1
+    // TODO
+    // get descriptors for atom i and neighbors
+    float q[nn*MAX_DIM] = {0.0f};
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
+    }
+    // apply gnn to propagate and update descriptors
+    apply_gnn_one_layer(
+      annmb.dim, nn, gnnmb.theta, q);
+  }
+}
+
+
 static __global__ void apply_ann(
   const int N,
   const NEP4::ParaMB paramb,
@@ -440,8 +467,13 @@ void NEP4::find_force(
     CUDA_CHECK_KERNEL
   }
 
+  /* Need a vector of new descriptors */
+  apply_gnn<<<grid_size, block_size>>>(
+    dataset.N, paramb, annmb, gnnmb, nep_data.descriptors.data(), nep_data.gnn_descriptors.data(), para.q_scaler_gpu.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  CUDA_CHECK_KERNEL
+
   apply_ann<<<grid_size, block_size>>>(
-    dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler_gpu.data(),
+    dataset.N, paramb, annmb, nep_data.gnn_descriptors.data(), para.q_scaler_gpu.data(),
     dataset.energy.data(), nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 

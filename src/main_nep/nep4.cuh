@@ -26,6 +26,7 @@ struct NEP4_Data {
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
   GPU_Vector<float> descriptors; // descriptors
+  GPU_Vector<float> gnn_descriptors; // temporary descriptors for use in GNN
   GPU_Vector<float> Fp;          // gradient of descriptors
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> parameters; // parameters to be optimized
@@ -55,6 +56,10 @@ public:
     const float* c;
   };
 
+  struct GNN {
+    const float* theta;   // weights of size N_descriptor x N_descriptor
+  };
+
   struct ZBL {
     bool enabled = false;
     float rc_inner = 1.0f;
@@ -69,6 +74,7 @@ public:
 private:
   ParaMB paramb;
   ANN annmb;
+  GNN gnnmb;
   NEP4_Data nep_data;
   ZBL zbl;
   void update_potential(const float* parameters, ANN& ann);
