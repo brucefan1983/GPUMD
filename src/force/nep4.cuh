@@ -24,8 +24,6 @@ struct NEP4_Data {
   GPU_Vector<double> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<int> NN;           // angular neighbor list
-  GPU_Vector<int> NL;           // angular neighbor list
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
@@ -33,16 +31,12 @@ class NEP4 : public Potential
 {
 public:
   struct ParaMB {
-    float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
-    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 0, 1, 2, ..., L_max
     int basis_size = 8;
     int num_types_sq = 0;
-    int num_c_radial = 0;
     int num_types = 0;
     float q_scaler[100];
   };

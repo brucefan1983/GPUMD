@@ -20,13 +20,8 @@ class Parameters;
 class Dataset;
 
 struct NEP4_Data {
-  GPU_Vector<int> NN_radial;  // radial neighbor number
-  GPU_Vector<int> NL_radial;  // radial neighbor list
   GPU_Vector<int> NN_angular; // angular neighbor number
   GPU_Vector<int> NL_angular; // angular neighbor list
-  GPU_Vector<float> x12_radial;
-  GPU_Vector<float> y12_radial;
-  GPU_Vector<float> z12_radial;
   GPU_Vector<float> x12_angular;
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
@@ -40,17 +35,13 @@ class NEP4 : public Potential
 {
 public:
   struct ParaMB {
-    float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int basis_size_radial = 0;
-    int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;         // l = 1, 2, ..., L_max
     int num_types = 0;
     int num_types_sq = 0;
-    int num_c_radial = 0;
   };
 
   struct ANN {
@@ -71,12 +62,7 @@ public:
     float atomic_numbers[10];
   };
 
-  NEP4(
-    char* input_dir,
-    Parameters& para,
-    int N,
-    int N_times_max_NN_radial,
-    int N_times_max_NN_angular);
+  NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular);
   void
   find_force(Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler);
 

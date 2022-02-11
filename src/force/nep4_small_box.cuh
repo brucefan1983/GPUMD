@@ -78,13 +78,8 @@ static __global__ void find_neighbor_list_small_box(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  int* g_NN_radial,
-  int* g_NL_radial,
   int* g_NN_angular,
   int* g_NL_angular,
-  float* g_x12_radial,
-  float* g_y12_radial,
-  float* g_z12_radial,
   float* g_x12_angular,
   float* g_y12_angular,
   float* g_z12_angular)
@@ -122,13 +117,6 @@ static __global__ void find_neighbor_list_small_box(
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
             float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
-            if (distance_square < paramb.rc_radial * paramb.rc_radial) {
-              g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = float(x12);
-              g_y12_radial[count_radial * N + n1] = float(y12);
-              g_z12_radial[count_radial * N + n1] = float(z12);
-              count_radial++;
-            }
             if (distance_square < paramb.rc_angular * paramb.rc_angular) {
               g_NL_angular[count_angular * N + n1] = n2;
               g_x12_angular[count_angular * N + n1] = float(x12);
@@ -140,7 +128,6 @@ static __global__ void find_neighbor_list_small_box(
         }
       }
     }
-    g_NN_radial[n1] = count_radial;
     g_NN_angular[n1] = count_angular;
   }
 }
@@ -151,14 +138,9 @@ static __global__ void find_descriptor_small_box(
   const int N,
   const int N1,
   const int N2,
-  const int* g_NN_radial,
-  const int* g_NL_radial,
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* __restrict__ g_type,
-  const float* __restrict__ g_x12_radial,
-  const float* __restrict__ g_y12_radial,
-  const float* __restrict__ g_z12_radial,
   const float* __restrict__ g_x12_angular,
   const float* __restrict__ g_y12_angular,
   const float* __restrict__ g_z12_angular,
@@ -170,28 +152,6 @@ static __global__ void find_descriptor_small_box(
   if (n1 < N2) {
     int t1 = g_type[n1];
     float q[MAX_DIM] = {0.0f};
-
-    // get radial descriptors
-    for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL_radial[index];
-      float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float fc12;
-      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      int t2 = g_type[n2];
-      float fn12[MAX_NUM_N];
-      find_fn(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fn12);
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size; ++k) {
-          int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
-          gn12 += fn12[k] * annmb.c[c_index];
-        }
-        q[n] += gn12;
-      }
-    }
 
     // get angular descriptors
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
@@ -209,12 +169,12 @@ static __global__ void find_descriptor_small_box(
         float gn12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size; ++k) {
           int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          c_index += t1 * paramb.num_types + t2;
           gn12 += fn12[k] * annmb.c[c_index];
         }
         accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
       }
-      find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      find_q(paramb.n_max_angular + 1, n, s, q);
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
       }
@@ -234,93 +194,6 @@ static __global__ void find_descriptor_small_box(
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
     }
-  }
-}
-
-static __global__ void find_force_radial_small_box(
-  NEP4::ParaMB paramb,
-  NEP4::ANN annmb,
-  const int N,
-  const int N1,
-  const int N2,
-  const int* g_NN,
-  const int* g_NL,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  const float* __restrict__ g_Fp,
-  double* g_fx,
-  double* g_fy,
-  double* g_fz,
-  double* g_virial)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    int t1 = g_type[n1];
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
-    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL[index];
-      int t2 = g_type[n2];
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0f / d12;
-      float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
-      float f12[3] = {0.0f};
-      for (int n = 0; n <= paramb.n_max_radial; ++n) {
-        float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size; ++k) {
-          int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
-          gnp12 += fnp12[k] * annmb.c[c_index];
-        }
-        float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
-        for (int d = 0; d < 3; ++d) {
-          f12[d] += tmp12 * r12[d];
-        }
-      }
-      atomicAdd(&g_fx[n1], double(f12[0]));
-      atomicAdd(&g_fy[n1], double(f12[1]));
-      atomicAdd(&g_fz[n1], double(f12[2]));
-      atomicAdd(&g_fx[n2], double(-f12[0]));
-      atomicAdd(&g_fy[n2], double(-f12[1]));
-      atomicAdd(&g_fz[n2], double(-f12[2]));
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
-    }
-    // save virial
-    // xx xy xz    0 3 4
-    // yx yy yz    6 1 5
-    // zx zy zz    7 8 2
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
   }
 }
 
@@ -349,7 +222,7 @@ static __global__ void find_force_angular_small_box(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+      Fp[d] = g_Fp[d * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
@@ -385,7 +258,7 @@ static __global__ void find_force_angular_small_box(
         float gnp12 = 0.0f;
         for (int k = 0; k <= paramb.basis_size; ++k) {
           int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+          c_index += t1 * paramb.num_types + t2;
           gn12 += fn12[k] * annmb.c[c_index];
           gnp12 += fnp12[k] * annmb.c[c_index];
         }
