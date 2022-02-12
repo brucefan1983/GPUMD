@@ -73,7 +73,7 @@ void Parameters::set_default_parameters()
   L_max = 4;                     // the only supported value
   L_max_4body = 0;               // default is not to include 4body
   num_neurons1 = 50;             // large enough in most cases
-  lambda_1 = lambda_2 = 5.0e-2f; // good default based on our tests
+  lambda_1 = lambda_2 = 2.0e-2f; // good default based on our tests
   lambda_e = lambda_f = 1.0f;    // energy and force are more important
   lambda_v = 0.1f;               // virial is less important
   force_delta = 0.0f;            // no modification of force loss
