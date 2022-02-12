@@ -68,8 +68,8 @@ void Parameters::set_default_parameters()
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
   basis_size_radial = 8;         // default value for nep3
-  n_max_radial = 15;             // large enough in most cases
-  n_max_angular = 10;            // large enough in most cases
+  n_max_radial = 8;              // large enough in most cases
+  n_max_angular = 6;             // large enough in most cases
   L_max = 4;                     // the only supported value
   L_max_4body = 0;               // default is not to include 4body
   num_neurons1 = 50;             // large enough in most cases
