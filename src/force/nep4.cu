@@ -471,9 +471,9 @@ static void get_expanded_box(const double rc, const Box& box, NEP4::ExpandedBox&
   double thickness_x = volume / box.get_area(0);
   double thickness_y = volume / box.get_area(1);
   double thickness_z = volume / box.get_area(2);
-  ebox.num_cells[0] = int(ceil(2.0 * rc / thickness_x));
-  ebox.num_cells[1] = int(ceil(2.0 * rc / thickness_y));
-  ebox.num_cells[2] = int(ceil(2.0 * rc / thickness_z));
+  ebox.num_cells[0] = box.pbc_x ? int(ceil(2.0 * rc / thickness_x)) : 1;
+  ebox.num_cells[1] = box.pbc_y ? int(ceil(2.0 * rc / thickness_y)) : 1;
+  ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
   if (ebox.num_cells[0] * ebox.num_cells[1] * ebox.num_cells[2] > 1) {
     if (box.triclinic) {
       ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
