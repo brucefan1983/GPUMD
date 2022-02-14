@@ -416,6 +416,19 @@ static __global__ void find_force_angular_small_box(
       s_szy -= r12[2] * f12[1];
       s_szz -= r12[2] * f12[2];
     }
+    // save virial
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    g_virial[n1 + 0 * N] += s_sxx;
+    g_virial[n1 + 1 * N] += s_syy;
+    g_virial[n1 + 2 * N] += s_szz;
+    g_virial[n1 + 3 * N] += s_sxy;
+    g_virial[n1 + 4 * N] += s_sxz;
+    g_virial[n1 + 5 * N] += s_syz;
+    g_virial[n1 + 6 * N] += s_syx;
+    g_virial[n1 + 7 * N] += s_szx;
+    g_virial[n1 + 8 * N] += s_szy;
   }
 }
 
