@@ -73,7 +73,8 @@ public:
   int dim_radial;                     // number of radial descriptor components
   int dim_angular;                    // number of angular descriptor components
   int number_of_variables;            // total number of parameters (NN and descriptor)
-  int number_of_variables_ann;        // number of parameters in the NN only
+  int number_of_variables_ann;        // number of parameters in the ANN only
+  int number_of_variables_gnn;        // number of parameters in the GNN only
   int number_of_variables_descriptor; // number of parameters in the descriptor only
 
   // some arrays

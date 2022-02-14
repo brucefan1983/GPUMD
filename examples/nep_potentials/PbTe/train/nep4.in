@@ -1,10 +1,9 @@
-version      3
+version	     4
 type         2 Te Pb
-version      3
 cutoff       8 4
-n_max        4 4
-l_max        4 2
-neuron       30
+n_max        12 6
+neuron       40
 batch        25
 generation   1
 lambda_f     0
+

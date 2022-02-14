@@ -21,7 +21,7 @@ CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++11 -O3 -arch=sm_35 
+CFLAGS = -std=c++11 -O3 -arch=sm_35 -DUSE_NEP -Wno-deprecated-gpu-targets
 endif
 INC = -I./
 LDFLAGS = 
