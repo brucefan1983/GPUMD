@@ -31,7 +31,6 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 Parameters::Parameters(char* input_dir)
 {
   print_line_1();
-  printf("Started reading nep.in.\n");
   print_line_2();
 
   set_default_parameters();
@@ -39,6 +38,7 @@ Parameters::Parameters(char* input_dir)
   calculate_parameters();
   report_inputs();
 
+  printf("Final version: %d\n", version);
   print_line_1();
   printf("Finished reading nep.in.\n");
   print_line_2();

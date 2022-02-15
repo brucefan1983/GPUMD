@@ -96,12 +96,19 @@ void Fitness::compute(
     std::vector<float> dummy_solution(para.number_of_variables, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(para, dummy_solution.data(), train_set[n], true);
+      printf("generation=0\n");
     }
   } else {
     int batch_id = generation % num_batches;
     for (int n = 0; n < para.population_size; ++n) {
+      printf("generation=%d, batch_id=%d, n=%d\n", generation, batch_id, n);
       const float* individual = population + n * para.number_of_variables;
+      // printf("Parameters: \n");
+      // for (int i = 0; i < para.number_of_variables; i++){
+      //   printf("Param i=%d: %f\n", i, individual[i]);
+      // }
       potential->find_force(para, individual, train_set[batch_id], false);
+      printf("Got force for individual\n");
       float energy_shift_per_structure_not_used;
       fitness[n + 0 * para.population_size] =
         para.lambda_e *

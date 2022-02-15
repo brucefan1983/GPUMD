@@ -62,7 +62,6 @@ static __device__ void apply_ann_one_layer(
 static __device__ void apply_gnn_one_layer(
   const int dim, int num_neighbors, const float* theta, float* q_i, float* q_j, float* q_out)
 {
-  printf("I'm a GNN");
   // TODO also add weights f_c(r_ij)
   int F = dim; // dimension of q_out, for now dim_out = dim_in
   for (int nu = 0; nu < dim; nu++) {

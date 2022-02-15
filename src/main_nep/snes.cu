@@ -34,6 +34,7 @@ SNES::SNES(char* input_dir, Parameters& para, Fitness* fitness_function)
 {
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
+  printf("SNES no. parameters: %d dim=%d", number_of_variables, para.population_size);
   population_size = para.population_size;
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
