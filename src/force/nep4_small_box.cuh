@@ -89,7 +89,6 @@ static __global__ void find_neighbor_list_small_box(
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
-    int count_radial = 0;
     int count_angular = 0;
     for (int n2 = N1; n2 < N2; ++n2) {
       for (int ia = 0; ia < ebox.num_cells[0]; ++ia) {
