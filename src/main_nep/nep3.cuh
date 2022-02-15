@@ -53,6 +53,7 @@ public:
     int num_types = 0;
     int num_types_sq = 0; // for nep3
     int num_c_radial = 0; // for nep3
+    int version = 2;      // 2 for NEP2 and 3 for NEP3
   };
 
   struct ANN {
@@ -78,7 +79,8 @@ public:
     Parameters& para,
     int N,
     int N_times_max_NN_radial,
-    int N_times_max_NN_angular);
+    int N_times_max_NN_angular,
+    int version);
   void
   find_force(Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler);
 

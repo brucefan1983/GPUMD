@@ -33,6 +33,7 @@ class NEP3 : public Potential
 {
 public:
   struct ParaMB {
+    int version = 2;            // NEP version, 2 for NEP2 and 3 for NEP3
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
@@ -72,7 +73,13 @@ public:
     float h[18];
   };
 
-  NEP3(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Neighbor& neighbor);
+  NEP3(
+    FILE* fid,
+    char* input_dir,
+    int num_types,
+    int version,
+    bool enable_zbl,
+    const Neighbor& neighbor);
   virtual ~NEP3(void);
   virtual void compute(
     const int type_shift,

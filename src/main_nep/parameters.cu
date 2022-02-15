@@ -64,7 +64,7 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
 
-  version = 3;                   // default version is NEP3
+  version = 2;                   // default version is NEP2
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
   basis_size_radial = 8;         // default value for nep3
@@ -121,8 +121,13 @@ void Parameters::calculate_parameters()
   q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
   number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
 
-  number_of_variables_descriptor =
-    num_types * num_types * (dim_radial + n_max_angular + 1) * (basis_size_radial + 1);
+  if (version == 2) {
+    number_of_variables_descriptor =
+      (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
+  } else {
+    number_of_variables_descriptor =
+      num_types * num_types * (dim_radial + n_max_angular + 1) * (basis_size_radial + 1);
+  }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   type_weight_gpu.resize(MAX_NUM_TYPES);
@@ -309,8 +314,8 @@ void Parameters::parse_version(char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 3 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 3 or 4.");
+  if (version < 2 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
   }
 }
 
