@@ -50,7 +50,7 @@ void Measure::initialize(
   dump_restart.preprocess(input_dir);
   dump_thermo.preprocess(input_dir);
   dump_force.preprocess(input_dir, number_of_atoms, group);
-  dump_exyz.preprocess(input_dir, number_of_atoms, time_step);
+  dump_exyz.preprocess(input_dir, number_of_atoms);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(input_dir, number_of_atoms);
 #endif
@@ -114,7 +114,7 @@ void Measure::process(
     atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
   dump_exyz.process(
-    step, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+    step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
     atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
     atom.force_per_atom, atom.virial_per_atom, thermo);
 

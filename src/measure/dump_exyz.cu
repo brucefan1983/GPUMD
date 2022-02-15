@@ -84,7 +84,7 @@ void Dump_EXYZ::parse(char** param, int num_param)
   }
 }
 
-void Dump_EXYZ::preprocess(char* input_dir, const int number_of_atoms, const double time_step)
+void Dump_EXYZ::preprocess(char* input_dir, const int number_of_atoms)
 {
   if (dump_) {
     strcpy(filename_, input_dir);
@@ -95,7 +95,6 @@ void Dump_EXYZ::preprocess(char* input_dir, const int number_of_atoms, const dou
     if (has_force_) {
       cpu_force_per_atom_.resize(number_of_atoms * 3);
     }
-    time_step_ = time_step;
   }
 }
 
@@ -161,6 +160,7 @@ void Dump_EXYZ::output_line2(
 
 void Dump_EXYZ::process(
   const int step,
+  const double global_time,
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
   const std::vector<int>& cpu_type,
@@ -190,7 +190,7 @@ void Dump_EXYZ::process(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2((step + 1) * time_step_, box, virial_per_atom, gpu_thermo);
+  output_line2(global_time, box, virial_per_atom, gpu_thermo);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
