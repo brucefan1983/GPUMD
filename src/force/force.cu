@@ -149,10 +149,14 @@ void Force::initialize_potential(
     potential[m].reset(new Vashishta(fid_potential, neighbor));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
+  } else if (strcmp(potential_name, "nep") == 0) {
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, false, neighbor));
+  } else if (strcmp(potential_name, "nep_zbl") == 0) {
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, true, neighbor));
   } else if (strcmp(potential_name, "nep3") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, false, neighbor));
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, false, neighbor));
   } else if (strcmp(potential_name, "nep3_zbl") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, true, neighbor));
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, true, neighbor));
   } else if (strcmp(potential_name, "nep4") == 0) {
     potential[m].reset(new NEP4(fid_potential, input_dir, num_types, false, neighbor));
   } else if (strcmp(potential_name, "nep4_zbl") == 0) {
