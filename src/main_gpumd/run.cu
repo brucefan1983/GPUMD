@@ -33,6 +33,68 @@ Run simulation according to the inputs in the run.in file.
 #include "utilities/read_file.cuh"
 #include "velocity.cuh"
 
+static __global__ void gpu_find_largest_v2(
+  int N, int number_of_rounds, double* g_vx, double* g_vy, double* g_vz, double* g_v2_max)
+{
+  int tid = threadIdx.x;
+  __shared__ double s_data[1024];
+  s_data[tid] = 0.0;
+  for (int round = 0; round < number_of_rounds; ++round) {
+    int n = round * 1024 + tid;
+    if (n < N) {
+      double vx = g_vx[n];
+      double vy = g_vy[n];
+      double vz = g_vz[n];
+      double v2 = vx * vx + vy * vy + vz * vz;
+      if (s_data[tid] < v2) {
+        s_data[tid] = v2;
+      }
+    }
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      if (s_data[tid] < s_data[tid + offset]) {
+        s_data[tid] = s_data[tid + offset];
+      }
+    }
+    __syncthreads();
+  }
+
+  if (tid == 0) {
+    g_v2_max[0] = s_data[0];
+  }
+}
+
+__device__ double device_v2_max[1];
+
+static void calculate_time_step(
+  double max_distance_per_step, GPU_Vector<double>& velocity_per_atom, double& time_step)
+{
+  if (max_distance_per_step <= 0.0) {
+    return;
+  }
+  const int N = velocity_per_atom.size() / 3;
+  double* gpu_v2_max;
+  CHECK(cudaGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
+  gpu_find_largest_v2<<<1, 1024>>>(
+    N, (N - 1) / 1024 + 1, velocity_per_atom.data(), velocity_per_atom.data() + N,
+    velocity_per_atom.data() + N * 2, gpu_v2_max);
+  CUDA_CHECK_KERNEL
+  double cpu_v2_max[1] = {0.0};
+  CHECK(cudaMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), cudaMemcpyDeviceToHost));
+  double cpu_v_max = sqrt(cpu_v2_max[0]);
+  double time_step_min = max_distance_per_step / cpu_v_max;
+
+  if (time_step_min < time_step) {
+    time_step = time_step_min;
+  }
+  printf(
+    "cpu_v_max=%f, time_step_min=%f, time_step=%f\n", cpu_v_max, time_step_min * 1.018051e+1,
+    time_step * 1.018051e+1);
+}
+
 Run::Run(char* input_dir)
 {
   print_line_1();
@@ -93,6 +155,8 @@ void Run::perform_a_run(char* input_dir)
   clock_t time_begin = clock();
 
   for (int step = 0; step < number_of_steps; ++step) {
+
+    calculate_time_step(max_distance_per_step, atom.velocity_per_atom, time_step);
     global_time += time_step;
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
@@ -155,6 +219,7 @@ void Run::perform_a_run(char* input_dir)
   integrate.finalize();
   neighbor.finalize();
   velocity.finalize();
+  max_distance_per_step = 0.0;
 }
 
 void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
@@ -276,14 +341,23 @@ void Run::parse_correct_velocity(char** param, int num_param)
 
 void Run::parse_time_step(char** param, int num_param)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("time_step should have 1 parameter.\n");
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("time_step should have 1 or 2 parameters.\n");
   }
   if (!is_valid_real(param[1], &time_step)) {
     PRINT_INPUT_ERROR("time_step should be a real number.\n");
   }
   printf("Time step for this run is %g fs.\n", time_step);
   time_step /= TIME_UNIT_CONVERSION;
+  if (num_param == 3) {
+    if (!is_valid_real(param[2], &max_distance_per_step)) {
+      PRINT_INPUT_ERROR("max distance per step should be a real number.\n");
+    }
+    if (max_distance_per_step <= 0.0) {
+      PRINT_INPUT_ERROR("max distance per step should > 0.\n");
+    }
+    printf("    max distance per step = %g A.\n", max_distance_per_step);
+  }
 }
 
 void Run::parse_run(char** param, int num_param, char* input_dir)
