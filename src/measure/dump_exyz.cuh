@@ -24,9 +24,10 @@ class Dump_EXYZ
 {
 public:
   void parse(char** param, int num_param);
-  void preprocess(char* input_dir, const int number_of_atoms, const double time_step);
+  void preprocess(char* input_dir, const int number_of_atoms);
   void process(
     const int step,
+    const double global_time,
     const Box& box,
     const std::vector<std::string>& cpu_atom_symbol,
     const std::vector<int>& cpu_type,
@@ -44,7 +45,6 @@ private:
   int dump_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
-  double time_step_;
   FILE* fid_;
   char filename_[200];
   void output_line2(
