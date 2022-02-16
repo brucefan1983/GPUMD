@@ -90,9 +90,6 @@ static void calculate_time_step(
   if (time_step_min < time_step) {
     time_step = time_step_min;
   }
-  printf(
-    "cpu_v_max=%f, time_step_min=%f, time_step=%f\n", cpu_v_max, time_step_min * 1.018051e+1,
-    time_step * 1.018051e+1);
 }
 
 Run::Run(char* input_dir)
