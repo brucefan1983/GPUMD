@@ -72,7 +72,7 @@ static __device__ void apply_gnn_one_layer(
     // neighbor atoms j
     for (int j = 0; j < num_neighbors; j++) {
       for (int gamma = 0; gamma < dim; gamma++) {
-        q_out[nu] = q_j[gamma] * theta[gamma + F * nu];
+        q_out[nu] += q_j[gamma] * theta[gamma + F * nu];
       }
     }
     // activation function
