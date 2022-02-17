@@ -99,10 +99,6 @@ void Fitness::compute(
     }
   } else {
     int batch_id = generation % num_batches;
-    // printf("Generation: %d\n", generation);
-    // for (int i = 0; i<10; ++i){
-    //   printf("theta_0%d = %f\n", i, *(population + para.number_of_variables_gnn+i));
-    // }
     for (int n = 0; n < para.population_size; ++n) {
       const float* individual = population + n * para.number_of_variables;
       potential->find_force(para, individual, train_set[batch_id], false);
@@ -207,17 +203,13 @@ void Fitness::report_error(
     }
 
     fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
-    for (int m = 0; m < para.number_of_variables_ann; ++m) {
+    for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_nep, "%15.7e\n", elite[m]);
     }
     para.q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
     for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
       fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
     }
-    // fprintf(fid_nep, "GNN %d %d\n", para.number_of_variables_gnn);
-    // for (int m = 0; m < para.number_of_variables_gnn; ++m) {
-    //   fprintf(fid_nep, "%15.7e\n", elite[m]);
-    // }
     fclose(fid_nep);
 
     printf(

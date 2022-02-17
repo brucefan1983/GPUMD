@@ -63,16 +63,18 @@ static __device__ void apply_gnn_one_layer(
   const int dim, int num_neighbors, const float* theta, float* q_i, float* q_j, float* q_out)
 {
   // TODO also add weights f_c(r_ij)
-  int F = dim; // dimension of q_out, for now dim_out = dim_in
-  for (int nu = 0; nu < dim; nu++) {
+  // Note that Theta is F x dim matrix to be stored similarly
+  // as other matrices in the code.
+  int F = dim; // dimension of q_out, for now dim_out = dim_in.
+  for (int nu = 0; nu < F; nu++) {
     // Atom i
     for (int gamma = 0; gamma < dim; gamma++) {
-      q_out[nu] += q_i[gamma] * theta[gamma + F * nu];
+      q_out[nu] += q_i[gamma] * theta[gamma + dim * nu];
     }
     // neighbor atoms j
     for (int j = 0; j < num_neighbors; j++) {
       for (int gamma = 0; gamma < dim; gamma++) {
-        q_out[nu] += q_j[gamma] * theta[gamma + F * nu];
+        q_out[nu] += q_j[j + gamma * num_neighbors] * theta[gamma + dim * nu];
       }
     }
     // activation function
