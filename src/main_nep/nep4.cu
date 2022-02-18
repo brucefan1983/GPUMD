@@ -149,7 +149,8 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   annmb.dim = para.dim;
   annmb.num_neurons1 = para.num_neurons1;
   paramb.num_types = para.num_types;
-  annmb.num_para = para.number_of_variables;
+  annmb.num_para = para.number_of_variables_ann + para.number_of_variables_descriptor;
+  gnnmb.num_para = para.number_of_variables_gnn;
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
 
@@ -169,18 +170,22 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   nep_data.y12_angular.resize(N_times_max_NN_angular);
   nep_data.z12_angular.resize(N_times_max_NN_angular);
   nep_data.descriptors.resize(N * annmb.dim);
+  nep_data.gnn_descriptors.resize(N * annmb.dim);
   nep_data.Fp.resize(N * annmb.dim);
   nep_data.sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-  nep_data.parameters.resize(annmb.num_para);
+  nep_data.parameters.resize(annmb.num_para + gnnmb.num_para);
 }
 
-void NEP4::update_potential(const float* parameters, ANN& ann)
+void NEP4::update_potential(const float* parameters, ANN& ann, GNN& gnn)
 {
+  // ann
   ann.w0 = parameters;
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
   ann.w1 = ann.b0 + ann.num_neurons1;
   ann.b1 = ann.w1 + ann.num_neurons1;
   ann.c = ann.b1 + 1;
+  // gnn
+  gnn.theta = parameters + ann.num_para;
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
@@ -223,12 +228,62 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
   }
 }
 
+static __global__ void apply_q_scaler(
+  const int N,
+  const NEP4::ANN annmb,
+  const float* __restrict__ g_q_scaler,
+  float* __restrict__ g_descriptors)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    // Scale descriptors in place
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_descriptors[n1 + d * N] *= g_q_scaler[d];
+    }
+  }
+}
+
+static __global__ void apply_gnn(
+  const int N,
+  const NEP4::ParaMB paramb,
+  const NEP4::ANN annmb,
+  const NEP4::GNN gnnmb,
+  const float* __restrict__ g_descriptors,
+  const int* g_NN,
+  const int* g_NL,
+  float* __restrict__ gnn_descriptors)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1]; // Number of neighbors to atom i
+    // get descriptors for atom i and neighbors
+    float q_i[MAX_DIM] = {0.0f};
+    float q_j[MAX_NEIGHBORS * MAX_DIM] = {0.0f}; // maximum size when all atoms are neighbors
+    for (int d = 0; d < annmb.dim; ++d) {
+      q_i[d] = g_descriptors[n1 + d * N];
+    }
+    for (int j = 0; j < neighbor_number; ++j) {
+      int n2 = g_NL[n1 + N * j];
+      for (int d = 0; d < annmb.dim; ++d) {
+        q_j[j + d * neighbor_number] = g_descriptors[n2 + d * N];
+      }
+    }
+    // apply gnn to propagate and update descriptors
+    float q_out[MAX_DIM] = {0.0f};
+    apply_gnn_one_layer(annmb.dim, neighbor_number, gnnmb.theta, q_i, q_j, q_out);
+    // write propagated descriptor to gnn_descriptors
+    for (int d = 0; d < annmb.dim; ++d) {
+      // printf("n1=%d, q_out[%d]=%f\n", n1, d, q_out[d]);
+      gnn_descriptors[n1 + d * N] = q_out[d];
+    }
+  }
+}
+
 static __global__ void apply_ann(
   const int N,
   const NEP4::ParaMB paramb,
   const NEP4::ANN annmb,
   const float* __restrict__ g_descriptors,
-  const float* __restrict__ g_q_scaler,
   float* g_pe,
   float* g_Fp)
 {
@@ -237,7 +292,7 @@ static __global__ void apply_ann(
     // get descriptors
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
+      q[d] = g_descriptors[n1 + d * N];
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
@@ -245,7 +300,7 @@ static __global__ void apply_ann(
       annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
     g_pe[n1] = F;
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
+      g_Fp[n1 + d * N] = Fp[d];
     }
   }
 }
@@ -413,8 +468,7 @@ void NEP4::find_force(
   Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
 {
   nep_data.parameters.copy_from_host(parameters);
-  update_potential(nep_data.parameters.data(), annmb);
-
+  update_potential(nep_data.parameters.data(), annmb, gnnmb);
   float rc2_angular = para.rc_angular * para.rc_angular;
 
   gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
@@ -424,7 +478,6 @@ void NEP4::find_force(
     nep_data.NL_angular.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data());
   CUDA_CHECK_KERNEL
-
   const int block_size = 32;
   const int grid_size = (dataset.N - 1) / block_size + 1;
 
@@ -433,16 +486,24 @@ void NEP4::find_force(
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.descriptors.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
-
   if (calculate_q_scaler) {
     find_max_min<<<annmb.dim, 1024>>>(
       dataset.N, nep_data.descriptors.data(), para.q_scaler_gpu.data());
     CUDA_CHECK_KERNEL
   }
+  apply_q_scaler<<<grid_size, block_size>>>(
+    dataset.N, annmb, para.q_scaler_gpu.data(), nep_data.descriptors.data());
+  CUDA_CHECK_KERNEL
+
+  /* Need a vector of new descriptors */
+  apply_gnn<<<grid_size, block_size>>>(
+    dataset.N, paramb, annmb, gnnmb, nep_data.descriptors.data(), nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
+  CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, block_size>>>(
-    dataset.N, paramb, annmb, nep_data.descriptors.data(), para.q_scaler_gpu.data(),
-    dataset.energy.data(), nep_data.Fp.data());
+    dataset.N, paramb, annmb, nep_data.gnn_descriptors.data(), dataset.energy.data(),
+    nep_data.Fp.data());
   CUDA_CHECK_KERNEL
 
   zero_force<<<grid_size, block_size>>>(

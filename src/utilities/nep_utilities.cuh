@@ -30,6 +30,7 @@ __constant__ float C4B[5] = {
 const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
 const int MAX_DIM = MAX_NUM_N * 6;
+const int MAX_NEIGHBORS = 100; // TODO set a proper maximum value
 const int MAX_DIM_ANGULAR = MAX_NUM_N * 5;
 
 static __device__ void apply_ann_one_layer(
@@ -56,6 +57,29 @@ static __device__ void apply_ann_one_layer(
     }
   }
   energy -= b1[0];
+}
+
+static __device__ void apply_gnn_one_layer(
+  const int dim, int num_neighbors, const float* theta, float* q_i, float* q_j, float* q_out)
+{
+  // TODO also add weights f_c(r_ij)
+  // Note that Theta is F x dim matrix to be stored similarly
+  // as other matrices in the code.
+  int F = dim; // dimension of q_out, for now dim_out = dim_in.
+  for (int nu = 0; nu < F; nu++) {
+    // Atom i
+    for (int gamma = 0; gamma < dim; gamma++) {
+      q_out[nu] += q_i[gamma] * theta[gamma + dim * nu];
+    }
+    // neighbor atoms j
+    for (int j = 0; j < num_neighbors; j++) {
+      for (int gamma = 0; gamma < dim; gamma++) {
+        q_out[nu] += q_j[j + gamma * num_neighbors] * theta[gamma + dim * nu];
+      }
+    }
+    // activation function
+    q_out[nu] = tanh(q_out[nu]);
+  }
 }
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
