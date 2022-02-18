@@ -249,7 +249,6 @@ static __global__ void apply_gnn(
   const NEP4::ANN annmb,
   const NEP4::GNN gnnmb,
   const float* __restrict__ g_descriptors,
-  const float* __restrict__ g_q_scaler,
   const int* g_NN,
   const int* g_NL,
   float* __restrict__ gnn_descriptors)
@@ -498,8 +497,8 @@ void NEP4::find_force(
 
   /* Need a vector of new descriptors */
   apply_gnn<<<grid_size, block_size>>>(
-    dataset.N, paramb, annmb, gnnmb, nep_data.descriptors.data(), para.q_scaler_gpu.data(),
-    nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
+    dataset.N, paramb, annmb, gnnmb, nep_data.descriptors.data(), nep_data.NN_angular.data(),
+    nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
   CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, block_size>>>(

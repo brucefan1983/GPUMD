@@ -1,2 +1,2 @@
 1
-examples/nep_potentials/PbTe/train
+/home/elindgren/repos/GPUMD/examples/nep_potentials/PbTe/nep4
