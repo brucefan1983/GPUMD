@@ -130,8 +130,13 @@ void Parameters::calculate_parameters()
       num_types * num_types * (dim_radial + n_max_angular + 1) * (basis_size_radial + 1);
   }
 
-  number_of_variables =
-    number_of_variables_ann + number_of_variables_gnn + number_of_variables_descriptor;
+  if (version == 4) {
+    number_of_variables =
+      number_of_variables_ann + number_of_variables_descriptor + number_of_variables_gnn;
+  } else {
+    number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
+  }
+
   type_weight_gpu.resize(MAX_NUM_TYPES);
   type_weight_gpu.copy_from_host(type_weight_cpu.data());
 }
