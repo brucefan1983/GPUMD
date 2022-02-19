@@ -67,7 +67,7 @@ https://www.freelists.org/list/gpumd
 
 ### Optional citation to the code repository:
 * If you want to cite a link to the GPUMD code you can cite the current Github page: https://github.com/brucefan1983/GPUMD. 
-* However, if the journal does not accept this citation, you can check the Zenodo page of GPUMD (https://zenodo.org/record/4037256#.X2jkqWj7SUk) and cite the version you used. Each version has a unique DOI, which is very suitable for citation. **You can change the author list to GPUMD developers.**
+* However, if the journal does not accept this citation, you can check the Zenodo page of GPUMD (https://zenodo.org/record/4037256#.X2jkqWj7SUk) and cite the version you used. Each version has a unique DOI, which is very suitable for citation. You can write the authors of this reference to **"GPUMD developers"**.
 
 ### Other possible citations
 
