@@ -54,6 +54,7 @@ https://www.freelists.org/list/gpumd
 | Real Name ?           | https://github.com/Lazemare       |
 | Yanzhou Wang          | https://github.com/Yanzhou-Wang   |
 | Rui Zhao              | https://github.com/grtheaory      |
+| Eric Lindgren         | https://github.com/elindgren      |
 
 
 
