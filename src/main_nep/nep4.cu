@@ -272,7 +272,7 @@ static __global__ void apply_gnn_message_passing(
     }
     // apply gnn to propagate and update descriptors
     float q_out[MAX_DIM] = {0.0f};
-    apply_gnn_A_q_theta(annmb.dim, neighbor_number, gnnmb.theta, q_theta_i, q_theta_j, q_out);
+    apply_gnn_A_q_theta(annmb.dim, neighbor_number, q_theta_i, q_theta_j, q_out);
     // write propagated descriptor to gnn_descriptors
     for (int d = 0; d < annmb.dim; ++d) {
       // printf("n1=%d, q_out[%d]=%f\n", n1, d, q_out[d]);
