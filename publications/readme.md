@@ -4,7 +4,9 @@
 * Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
 [Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://arxiv.org/abs/2112.13757), arXiv:2112.13757 [physics.comp-ph]
 
-## 2022 (6)
+## 2022 (7)
+
+* Wenhao Sha and Fenglin Guo, [Thermal transport in two-dimensional carbon nitrides: A comparative molecular dynamics study](https://doi.org/10.1016/j.cartre.2022.100161), Carbon Trends, **7**, 100161 (2022).
 
 * Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter **34** 125902 (2022).
 
