@@ -60,19 +60,19 @@ static __device__ void apply_ann_one_layer(
 }
 
 static __device__ void apply_gnn_A_q_theta(
-  const int dim, int num_neighbors, float* q_theta_i, float* q_theta_j, float* q_out)
+  const int dim, int num_neighbors, float* fc_ij, float* q_theta_i, float* q_theta_j, float* q_out)
 {
   // Note that Theta is F x dim matrix to be stored similarly
   // as other matrices in the code.
   int F = dim; // dimension of q_out, for now dim_out = dim_in.
   for (int nu = 0; nu < F; nu++) {
-    // Atom i - f_c(rii) === 1
+    // Atom i - fc(rii) == 1
     q_out[nu] += q_theta_i[nu];
 
     // neighbor atoms j
-    // TODO also add weights f_c(r_ij)
+    // TODO perhaps normalize weights? Compare Kipf, Welling et al. (2016) 
     for (int j = 0; j < num_neighbors; j++) {
-      q_out[nu] += q_theta_j[j + nu * num_neighbors];
+      q_out[nu] += fc_ij[j] * q_theta_j[j + nu * num_neighbors];
     }
     // activation function
     q_out[nu] = tanh(q_out[nu]);
