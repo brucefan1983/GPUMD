@@ -264,24 +264,24 @@ static __global__ void apply_gnn_message_passing(
     // get messages for atom i and neighbors
     float q_theta_i[MAX_DIM] = {0.0f};
     float q_theta_j[MAX_NEIGHBORS * MAX_DIM] = {0.0f}; // maximum size when all atoms are neighbors
-    float fc_ij[MAX_DIM] = {0.0f};
+    float fc_ij[MAX_NEIGHBORS] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
       q_theta_i[d] = g_messages[n1 + d * N];
     }
     for (int j = 0; j < neighbor_number; ++j) {
-      int index = n1 + N*j;
+      int index = n1 + N * j;
       int n2 = g_NL[index];
       for (int d = 0; d < annmb.dim; ++d) {
         q_theta_j[j + d * neighbor_number] = g_messages[n2 + d * N];
-        // Compute weight fc_ij
-        float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-        // Can these be saved beforehand? Or is it too memory intensive?
-        float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-        float fc12;
-        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
-        fc_ij[j] = fc12;
       }
+      // Compute weight fc_ij
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float fc12;
+      find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+      fc_ij[j] = fc12;
     }
+
     // apply gnn to propagate and update descriptors
     float q_out[MAX_DIM] = {0.0f};
     apply_gnn_A_q_theta(annmb.dim, neighbor_number, fc_ij, q_theta_i, q_theta_j, q_out);
@@ -543,7 +543,6 @@ void NEP4::find_force(
     dataset.N, paramb, annmb, gnnmb, nep_data.descriptors.data(), nep_data.NN_angular.data(),
     nep_data.NL_angular.data(), nep_data.gnn_messages.data());
   CUDA_CHECK_KERNEL
-
 
   apply_gnn_message_passing<<<grid_size, block_size>>>(
     dataset.N, paramb, annmb, gnnmb, nep_data.x12_angular.data(), nep_data.y12_angular.data(),
