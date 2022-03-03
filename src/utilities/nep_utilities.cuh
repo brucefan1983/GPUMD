@@ -59,17 +59,6 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
-static __device__ void
-apply_gnn_q_theta(const int dim, int num_neighbors, const float* theta, float* q_i, float* q_theta)
-{
-  int F = dim; // dimension of q_out, for now dim_out = dim_in.
-  for (int nu = 0; nu < F; nu++) {
-    for (int gamma = 0; gamma < dim; gamma++) {
-      q_theta[nu] += q_i[gamma] * theta[gamma + dim * nu];
-    }
-  }
-}
-
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {

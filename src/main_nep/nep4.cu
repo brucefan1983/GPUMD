@@ -249,7 +249,6 @@ static __global__ void apply_gnn_message_passing(
   const int N,
   const NEP4::ParaMB para,
   const NEP4::ANN ann,
-  const NEP4::GNN gnn,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
@@ -263,7 +262,7 @@ static __global__ void apply_gnn_message_passing(
     int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
-      float q_out_tmp = g_messages[n1 + nu * N]; // fc(r_ii) = 1
+      float q_out_nu = g_messages[n1 + nu * N]; // fc(r_ii) = 1
       // TODO perhaps normalize weights? Compare Kipf, Welling et al. (2016)
       for (int j = 0; j < num_neighbors_of_n1; ++j) {
         int index = n1 + N * j;
@@ -272,39 +271,32 @@ static __global__ void apply_gnn_message_passing(
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
         find_fc(para.rc_angular, para.rcinv_angular, d12, fc12);
-        q_out_tmp += fc12 * g_messages[n2 + nu * N];
+        q_out_nu += fc12 * g_messages[n2 + nu * N];
       }
-      gnn_descriptors[n1 + nu * N] = tanh(q_out_tmp);
+      gnn_descriptors[n1 + nu * N] = tanh(q_out_nu);
     }
   }
 }
 
+// Precompute messages q*theta for all descriptors
 static __global__ void apply_gnn_compute_messages(
   const int N,
-  const NEP4::ParaMB paramb,
-  const NEP4::ANN annmb,
-  const NEP4::GNN gnnmb,
+  const NEP4::ANN ann,
+  const NEP4::GNN gnn,
   const float* __restrict__ g_descriptors,
   const int* g_NN,
   const int* g_NL,
-  float* __restrict__ gnn_messages)
+  float* gnn_messages)
 {
-  /* Precompute messages q*theta for all descriptors */
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
-    int neighbor_number = g_NN[n1]; // Number of neighbors to atom i
-    // get descriptors for atom i and neighbors
-    float q[MAX_DIM] = {0.0f};
-    for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N];
-    }
-    // apply gnn to propagate and update descriptors
-    float q_theta[MAX_DIM] = {0.0f};
-    apply_gnn_q_theta(annmb.dim, neighbor_number, gnnmb.theta, q, q_theta);
-    // write propagated descriptor to gnn_descriptors
-    for (int d = 0; d < annmb.dim; ++d) {
-      // printf("n1=%d, q_out[%d]=%f\n", n1, d, q_out[d]);
-      gnn_messages[n1 + d * N] = q_theta[d];
+    const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
+    for (int nu = 0; nu < F; nu++) {
+      float q_theta_nu = 0.0f;
+      for (int gamma = 0; gamma < ann.dim; gamma++) {
+        q_theta_nu += g_descriptors[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
+      }
+      gnn_messages[n1 + nu * N] = q_theta_nu;
     }
   }
 }
@@ -525,13 +517,13 @@ void NEP4::find_force(
     dataset.N, annmb, para.q_scaler_gpu.data(), nep_data.descriptors.data());
   CUDA_CHECK_KERNEL
 
-  apply_gnn_compute_messages<<<grid_size, block_size>>>(
-    dataset.N, paramb, annmb, gnnmb, nep_data.descriptors.data(), nep_data.NN_angular.data(),
+  apply_gnn_compute_messages<<<(dataset.N - 1) / 64 + 1, 64>>>(
+    dataset.N, annmb, gnnmb, nep_data.descriptors.data(), nep_data.NN_angular.data(),
     nep_data.NL_angular.data(), nep_data.gnn_messages.data());
   CUDA_CHECK_KERNEL
 
-  apply_gnn_message_passing<<<grid_size, block_size>>>(
-    dataset.N, paramb, annmb, gnnmb, nep_data.x12_angular.data(), nep_data.y12_angular.data(),
+  apply_gnn_message_passing<<<(dataset.N - 1) / 64 + 1, 64>>>(
+    dataset.N, paramb, annmb, nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.gnn_messages.data(), nep_data.NN_angular.data(),
     nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
   CUDA_CHECK_KERNEL
