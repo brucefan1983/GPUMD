@@ -25,11 +25,15 @@ struct NEP4_Data {
   GPU_Vector<float> x12_angular;
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
+  GPU_Vector<float> dq_dx;
+  GPU_Vector<float> dq_dy;
+  GPU_Vector<float> dq_dz;
   GPU_Vector<float> descriptors;     // descriptors
   GPU_Vector<float> gnn_descriptors; // temporary descriptors for use in GNN
-  GPU_Vector<float> gnn_messages;    // Computed messages q * theta for all atoms, same shape as gnn_descriptors
-  GPU_Vector<float> Fp;              // gradient of descriptors
-  GPU_Vector<float> sum_fxyz;
+  GPU_Vector<float>
+    gnn_messages;       // Computed messages q * theta for all atoms, same shape as gnn_descriptors
+  GPU_Vector<float> Fp; // derivative of ANN output (energy) wrt ANN input (descriptor)
+  GPU_Vector<float> s;  // s in the NEP3 manuscript
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
