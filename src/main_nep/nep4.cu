@@ -192,7 +192,7 @@ void NEP4::update_potential(const float* parameters, ANN& ann, GNN& gnn)
   gnn.theta = parameters + ann.num_para;
 }
 
-static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
+static void __global__ find_q_scaler(const int N, const float* g_q, float* g_q_scaler)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
@@ -384,7 +384,7 @@ static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
-  const NEP4::Para paramb,
+  const NEP4::Para para,
   const NEP4::ANN ann,
   const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
@@ -409,10 +409,10 @@ static __global__ void find_force_angular(
 
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < (paramb.n_max_angular + 1) * paramb.L_max; ++d) {
+    for (int d = 0; d < (para.n_max_angular + 1) * para.L_max; ++d) {
       Fp[d] = g_Fp[d * N + n1];
     }
-    for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
+    for (int d = 0; d < (para.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       sum_fxyz[d] = g_s[d * N + n1];
     }
     int neighbor_number = g_NN[n1];
@@ -423,23 +423,22 @@ static __global__ void find_force_angular(
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
-      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
+      find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fc12, fcp12);
       int t2 = g_type[n2];
       float f12[3] = {0.0f};
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(
-        paramb.basis_size_radial, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      find_fn_and_fnp(para.basis_size_radial, para.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n <= para.n_max_angular; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2;
+        for (int k = 0; k <= para.basis_size_radial; ++k) {
+          int c_index = (n * (para.basis_size_radial + 1) + k) * para.num_types_sq;
+          c_index += t1 * para.num_types + t2;
           gn12 += fn12[k] * ann.c[c_index];
           gnp12 += fnp12[k] * ann.c[c_index];
         }
-        accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(n, para.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -560,7 +559,7 @@ void NEP4::find_force(
   CUDA_CHECK_KERNEL
 
   if (calculate_q_scaler) {
-    find_max_min<<<ann.dim, 1024>>>(dataset.N, nep_data.q.data(), para.q_scaler_gpu.data());
+    find_q_scaler<<<ann.dim, 1024>>>(dataset.N, nep_data.q.data(), para.q_scaler_gpu.data());
     CUDA_CHECK_KERNEL
   }
 
