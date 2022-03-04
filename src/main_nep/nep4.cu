@@ -390,7 +390,7 @@ static __global__ void find_force_angular(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
-  const float* __restrict__ g_Fp,
+  const float* __restrict__ g_dU_dq,
   const float* __restrict__ g_s,
   float* g_fx,
   float* g_fy,
@@ -407,13 +407,13 @@ static __global__ void find_force_angular(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
 
-    float Fp[MAX_DIM_ANGULAR] = {0.0f};
-    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
+    float dU_dq[MAX_DIM_ANGULAR] = {0.0f};
+    float s[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < (para.n_max_angular + 1) * para.L_max; ++d) {
-      Fp[d] = g_Fp[d * N + n1];
+      dU_dq[d] = g_dU_dq[d * N + n1];
     }
     for (int d = 0; d < (para.n_max_angular + 1) * NUM_OF_ABC; ++d) {
-      sum_fxyz[d] = g_s[d * N + n1];
+      s[d] = g_s[d * N + n1];
     }
     int neighbor_number = g_NN[n1];
     int t1 = g_type[n1];
@@ -438,7 +438,7 @@ static __global__ void find_force_angular(
           gn12 += fn12[k] * ann.c[c_index];
           gnp12 += fnp12[k] * ann.c[c_index];
         }
-        accumulate_f12(n, para.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        accumulate_f12(n, para.n_max_angular + 1, d12, r12, gn12, gnp12, dU_dq, s, f12);
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
