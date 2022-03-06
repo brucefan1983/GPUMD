@@ -510,7 +510,7 @@ static __device__ __forceinline__ void find_dq_dr(
   int index = index_start;
   dq_dx[index] = dq_dr_1[0];
   dq_dy[index] = dq_dr_1[1];
-  dq_dy[index] = dq_dr_1[2];
+  dq_dz[index] = dq_dr_1[2];
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
@@ -522,7 +522,7 @@ static __device__ __forceinline__ void find_dq_dr(
   index += index_step;
   dq_dx[index] = dq_dr_2[0];
   dq_dy[index] = dq_dr_2[1];
-  dq_dy[index] = dq_dr_2[2];
+  dq_dz[index] = dq_dr_2[2];
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
@@ -535,7 +535,7 @@ static __device__ __forceinline__ void find_dq_dr(
   index += index_step;
   dq_dx[index] = dq_dr_3[0];
   dq_dy[index] = dq_dr_3[1];
-  dq_dy[index] = dq_dr_3[2];
+  dq_dz[index] = dq_dr_3[2];
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
@@ -549,7 +549,7 @@ static __device__ __forceinline__ void find_dq_dr(
   index += index_step;
   dq_dx[index] = dq_dr_4[0];
   dq_dy[index] = dq_dr_4[1];
-  dq_dy[index] = dq_dr_4[2];
+  dq_dz[index] = dq_dr_4[2];
 }
 
 static __device__ __forceinline__ void accumulate_f12(
