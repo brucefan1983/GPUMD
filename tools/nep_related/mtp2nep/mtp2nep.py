@@ -97,6 +97,6 @@ def dump_nep(frames):
                 
 
 if __name__ == "__main__":
-    type_to_symbol = {i + 1: s for i, s in enumerate(sys.argv[2:])}
+    type_to_symbol = {i: s for i, s in enumerate(sys.argv[2:])}
     frames = load_cfg(sys.argv[1], type_to_symbol)
     dump_nep(frames)
