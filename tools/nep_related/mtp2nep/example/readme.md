@@ -1,0 +1,1 @@
+python ../mtp2nep.py train.cfg Pd Ag

@@ -1,7 +1,7 @@
 """
 Usage: python mtp2nep.py train.cfg Symbol1 Symbol2 Symbol3 ...
 """
-import os, sys
+import sys
 import numpy as np
 from ase.atoms import Atoms
 from collections import defaultdict
@@ -75,28 +75,25 @@ def load_cfg(filename, type_to_symbol):
 def dump_nep(frames):
     with open('train.in', 'w') as f:
         n_frames = len(frames)
-        f.write(str(n_frames) + os.linesep)
+        f.write(str(n_frames) + '\n')
         for atoms in frames:
             has_virial = int('virial' in atoms.info)
-            f.write('{} {} {}'.format(len(atoms), has_virial, os.linesep))
+            f.write('{} {} \n'.format(len(atoms), has_virial))
         for atoms in frames:
             ret = str(atoms.info['energy'])
             if 'virial' in atoms.info:
                 for v in atoms.info['virial']:
                     ret += ' ' + str(v)
-            ret += os.linesep
-            ret += '{:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e}'.format(*atoms.get_cell().reshape(-1))
-            ret += os.linesep
+            ret += '\n{:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e} {:.8e}\n'.format(*atoms.get_cell().reshape(-1))
             s = atoms.get_chemical_symbols()
             p = atoms.get_positions()
             forces = atoms.info['forces']
             for i in range(len(atoms)):
-                ret += '{:2} {:>15.8e} {:>15.8e} {:>15.8e} {:>15.8e} {:>15.8e} {:>15.8e}'.format(s[i], *p[i], *forces[i])
-                ret += os.linesep
+                ret += '{:2} {:>15.8e} {:>15.8e} {:>15.8e} {:>15.8e} {:>15.8e} {:>15.8e}\n'.format(s[i], *p[i], *forces[i])
             f.write(ret)
-                
+
 
 if __name__ == "__main__":
-    type_to_symbol = {i + 1: s for i, s in enumerate(sys.argv[2:])}
+    type_to_symbol = {i: s for i, s in enumerate(sys.argv[2:])}
     frames = load_cfg(sys.argv[1], type_to_symbol)
     dump_nep(frames)
