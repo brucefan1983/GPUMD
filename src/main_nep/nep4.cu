@@ -254,7 +254,10 @@ static __global__ void apply_gnn_message_passing(
   const float* __restrict__ g_messages,
   const int* g_NN,
   const int* g_NL,
-  float* gnn_descriptors)
+  float* gnn_descriptors,
+  float* gnn_f_x,
+  float* gnn_f_y,
+  float* gnn_f_z)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
@@ -268,11 +271,30 @@ static __global__ void apply_gnn_message_passing(
         int n2 = g_NL[index];
         float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-        float fc12;
-        find_fc(para.rc_angular, para.rcinv_angular, d12, fc12);
-        q_out_nu += fc12 * g_messages[n2 + nu * N];
+        float fcij, fcpij;
+        find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fcij, fcpij);
+        q_out_nu += fcij * g_messages[n2 + nu * N];
+
+        // add fc'(rij)*g_messages[j]*\vec{r}_ij/r_ij to gnn_f
+        // gnn_f_x is here the forces for atom i
+        gnn_f_x[j * nu * MAX_NEIGHBORS] += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
+        gnn_f_y[j * nu * MAX_NEIGHBORS] += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
+        gnn_f_z[j * nu * MAX_NEIGHBORS] += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
+
+        // TODO add contributions not from i or j
+        float gnn_f_k_x = 0;
+        for (int k = 0; k < num_neighbors_of_n1; ++k) {
+          if (k != j) {
+            // dq_dr[k]*fc(r_ij)
+            // gnn_f_k_x +=
+          }
+        }
+        gnn_f_k_x *= fcij;
       }
       gnn_descriptors[n1 + nu * N] = tanh(q_out_nu);
+      for (int j = 0; j < num_neighbors_of_n1; j++) {
+        gnn_f_x[j + nu * MAX_NEIGHBORS] *= 1 - q_out_nu * q_out_nu;
+      }
     }
   }
 }
@@ -285,7 +307,10 @@ static __global__ void apply_gnn_compute_messages(
   const float* __restrict__ g_q,
   const int* g_NN,
   const int* g_NL,
-  float* gnn_messages)
+  float* gnn_messages,
+  float* gnn_f_x,
+  float* gnn_f_y,
+  float* gnn_f_z)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
@@ -294,6 +319,7 @@ static __global__ void apply_gnn_compute_messages(
       float q_theta_nu = 0.0f;
       for (int gamma = 0; gamma < ann.dim; gamma++) {
         q_theta_nu += g_q[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
+        // Forces a)
       }
       gnn_messages[n1 + nu * N] = q_theta_nu;
     }
