@@ -7,3 +7,6 @@ src/*/*.obj
 src/*/*.o
 src/gpumd*
 src/nep*
+
+.history
+.vscode

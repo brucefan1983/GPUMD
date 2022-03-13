@@ -59,37 +59,6 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
-static __device__ void apply_gnn_A_q_theta(
-  const int dim, int num_neighbors, float* fc_ij, float* q_theta_i, float* q_theta_j, float* q_out)
-{
-  // Note that Theta is F x dim matrix to be stored similarly
-  // as other matrices in the code.
-  int F = dim; // dimension of q_out, for now dim_out = dim_in.
-  for (int nu = 0; nu < F; nu++) {
-    // Atom i - fc(rii) == 1
-    q_out[nu] += q_theta_i[nu];
-
-    // neighbor atoms j
-    // TODO perhaps normalize weights? Compare Kipf, Welling et al. (2016) 
-    for (int j = 0; j < num_neighbors; j++) {
-      q_out[nu] += fc_ij[j] * q_theta_j[j + nu * num_neighbors];
-    }
-    // activation function
-    q_out[nu] = tanh(q_out[nu]);
-  }
-}
-
-static __device__ void apply_gnn_q_theta(
-  const int dim, int num_neighbors, const float* theta, float* q_i, float* q_theta)
-{
-  int F = dim; // dimension of q_out, for now dim_out = dim_in.
-  for (int nu = 0; nu < F; nu++) {
-    for (int gamma = 0; gamma < dim; gamma++) {
-      q_theta[nu] += q_i[gamma] * theta[gamma + dim * nu];
-    }
-  }
-}
-
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {
@@ -514,6 +483,73 @@ static __device__ __forceinline__ void get_f12_4(
   tmp *= 2.0f;
   tmp += s[0] * 16.0f * z * (5.0f * z2 - 3.0f * r2); // Y40
   f12[2] += tmp * Fp * fn * 2.0f;
+}
+
+static __device__ __forceinline__ void find_dq_dr(
+  const int index_start,
+  const int index_step,
+  const int n,
+  const int n_max_angular_plus_1,
+  const float d12,
+  const float* r12,
+  float fn,
+  float fnp,
+  const float* s,
+  float* dq_dx,
+  float* dq_dy,
+  float* dq_dz)
+{
+  const float d12inv = 1.0f / d12;
+  // l = 1
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s1[3] = {
+    s[n * NUM_OF_ABC + 0] * C3B[0], s[n * NUM_OF_ABC + 1] * C3B[1], s[n * NUM_OF_ABC + 2] * C3B[2]};
+  float dq_dr_1[3] = {0.0f};
+  get_f12_1(d12inv, fn, fnp, 1.0f, s1, r12, dq_dr_1);
+  int index = index_start;
+  dq_dx[index] = dq_dr_1[0];
+  dq_dy[index] = dq_dr_1[1];
+  dq_dz[index] = dq_dr_1[2];
+  // l = 2
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s2[5] = {
+    s[n * NUM_OF_ABC + 3] * C3B[3], s[n * NUM_OF_ABC + 4] * C3B[4], s[n * NUM_OF_ABC + 5] * C3B[5],
+    s[n * NUM_OF_ABC + 6] * C3B[6], s[n * NUM_OF_ABC + 7] * C3B[7]};
+  float dq_dr_2[3] = {0.0f};
+  get_f12_2(d12, d12inv, fn, fnp, 1.0f, s2, r12, dq_dr_2);
+  index += index_step;
+  dq_dx[index] = dq_dr_2[0];
+  dq_dy[index] = dq_dr_2[1];
+  dq_dz[index] = dq_dr_2[2];
+  // l = 3
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s3[7] = {s[n * NUM_OF_ABC + 8] * C3B[8],   s[n * NUM_OF_ABC + 9] * C3B[9],
+                 s[n * NUM_OF_ABC + 10] * C3B[10], s[n * NUM_OF_ABC + 11] * C3B[11],
+                 s[n * NUM_OF_ABC + 12] * C3B[12], s[n * NUM_OF_ABC + 13] * C3B[13],
+                 s[n * NUM_OF_ABC + 14] * C3B[14]};
+  float dq_dr_3[3] = {0.0f};
+  get_f12_3(d12, d12inv, fn, fnp, 1.0f, s3, r12, dq_dr_3);
+  index += index_step;
+  dq_dx[index] = dq_dr_3[0];
+  dq_dy[index] = dq_dr_3[1];
+  dq_dz[index] = dq_dr_3[2];
+  // l = 4
+  fnp = fnp * d12inv - fn * d12inv * d12inv;
+  fn = fn * d12inv;
+  float s4[9] = {s[n * NUM_OF_ABC + 15] * C3B[15], s[n * NUM_OF_ABC + 16] * C3B[16],
+                 s[n * NUM_OF_ABC + 17] * C3B[17], s[n * NUM_OF_ABC + 18] * C3B[18],
+                 s[n * NUM_OF_ABC + 19] * C3B[19], s[n * NUM_OF_ABC + 20] * C3B[20],
+                 s[n * NUM_OF_ABC + 21] * C3B[21], s[n * NUM_OF_ABC + 22] * C3B[22],
+                 s[n * NUM_OF_ABC + 23] * C3B[23]};
+  float dq_dr_4[3] = {0.0f};
+  get_f12_4(r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, 1.0f, s4, dq_dr_4);
+  index += index_step;
+  dq_dx[index] = dq_dr_4[0];
+  dq_dy[index] = dq_dr_4[1];
+  dq_dz[index] = dq_dr_4[2];
 }
 
 static __device__ __forceinline__ void accumulate_f12(

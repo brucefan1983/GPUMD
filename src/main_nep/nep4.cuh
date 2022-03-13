@@ -25,18 +25,21 @@ struct NEP4_Data {
   GPU_Vector<float> x12_angular;
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
-  GPU_Vector<float> descriptors;     // descriptors
+  GPU_Vector<float> dq_dx;
+  GPU_Vector<float> dq_dy;
+  GPU_Vector<float> dq_dz;
+  GPU_Vector<float> q;               // descriptors (angular only)
   GPU_Vector<float> gnn_descriptors; // temporary descriptors for use in GNN
-  GPU_Vector<float> gnn_messages;    // Computed messages q * theta for all atoms, same shape as gnn_descriptors
-  GPU_Vector<float> Fp;              // gradient of descriptors
-  GPU_Vector<float> sum_fxyz;
+  GPU_Vector<float> gnn_messages; // messages q * theta for all atoms, same shape as gnn_descriptors
+  GPU_Vector<float> dU_dq;
+  GPU_Vector<float> s;          // s in the NEP3 manuscript
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
 class NEP4 : public Potential
 {
 public:
-  struct ParaMB {
+  struct Para {
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
     int basis_size_radial = 0;
@@ -75,9 +78,9 @@ public:
   find_force(Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler);
 
 private:
-  ParaMB paramb;
-  ANN annmb;
-  GNN gnnmb;
+  Para nep_para;
+  ANN ann;
+  GNN gnn;
   NEP4_Data nep_data;
   ZBL zbl;
   void update_potential(const float* parameters, ANN& ann, GNN& gnn);
