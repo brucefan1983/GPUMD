@@ -311,7 +311,7 @@ static __device__ __forceinline__ void get_f12_4body(
   float y20 = (3.0f * r12[2] * r12[2] - d12 * d12);
 
   // derivative wrt s[0]
-  float tmp0 = C4B[0] * 3.0 * s[0] * s[0] + C4B[1] * (s[1] * s[1] + s[2] * s[2]) +
+  float tmp0 = C4B[0] * 3.0f * s[0] * s[0] + C4B[1] * (s[1] * s[1] + s[2] * s[2]) +
                C4B[2] * (s[3] * s[3] + s[4] * s[4]);
   float tmp1 = tmp0 * y20 * fnp_factor;
   float tmp2 = tmp0 * fn_factor;
