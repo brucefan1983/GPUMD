@@ -94,18 +94,28 @@ NEP3::NEP3(
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
   int L_max_4body = 0;
+  int L_max_5body = 0;
   if (paramb.version == 2) {
     count = fscanf(fid, "%s%d", name, &paramb.L_max);
     PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
     printf("    l_max_3body = %d.\n", paramb.L_max);
   } else {
-    count = fscanf(fid, "%s%d%d", name, &paramb.L_max, &L_max_4body);
-    PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+    count = fscanf(fid, "%s%d%d%d", name, &paramb.L_max, &L_max_4body, &L_max_5body);
+    PRINT_SCANF_ERROR(count, 4, "reading error for NEP potential.");
     printf("    l_max_3body = %d.\n", paramb.L_max);
     printf("    l_max_4body = %d.\n", L_max_4body);
+    printf("    l_max_5body = %d.\n", L_max_5body);
   }
 
-  paramb.num_L = L_max_4body == 2 ? paramb.L_max + 1 : paramb.L_max;
+  paramb.num_L = paramb.L_max;
+  if (paramb.version == 3) {
+    if (L_max_4body == 2) {
+      paramb.num_L += 1;
+    }
+    if (L_max_5body == 1) {
+      paramb.num_L += 1;
+    }
+  }
   paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
 
   int num_neurons2;
@@ -135,7 +145,6 @@ NEP3::NEP3(
   annmb.num_para += num_para_descriptor;
   printf("    total number of parameters = %d\n", annmb.num_para);
 
-  // new parameters for nep3
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
   paramb.num_c_radial = paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size + 1);
 
@@ -316,10 +325,12 @@ static __global__ void find_descriptor(
           accumulate_s(d12, x12, y12, z12, gn12, s);
         }
       }
-      if (paramb.num_L > paramb.L_max) {
+      if (paramb.num_L == paramb.L_max) {
+        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      } else if (paramb.num_L == paramb.L_max + 1) {
         find_q_with_4body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       } else {
-        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        find_q_with_5body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       }
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
@@ -539,11 +550,14 @@ static __global__ void find_partial_force_angular(
             gn12 += fn12[k] * annmb.c[c_index];
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
-          if (paramb.num_L > paramb.L_max) {
+          if (paramb.num_L == paramb.L_max) {
+            accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+          } else if (paramb.num_L == paramb.L_max + 1) {
             accumulate_f12_with_4body(
               n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
           } else {
-            accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+            accumulate_f12_with_5body(
+              n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
           }
         }
       }

@@ -195,7 +195,7 @@ void Fitness::report_error(
     } else if (para.version == 3) {
       fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
       fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-      fprintf(fid_nep, "l_max %d %d\n", para.L_max, para.L_max_4body);
+      fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
     } else {
       fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
       fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
