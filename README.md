@@ -55,6 +55,8 @@ https://www.freelists.org/list/gpumd
 | Yanzhou Wang          | https://github.com/Yanzhou-Wang   |
 | Rui Zhao              | https://github.com/grtheaory      |
 | Eric Lindgren         | https://github.com/elindgren      |
+| Junjie Wang           | https://github.com/bigd4          |
+
 
 
 
