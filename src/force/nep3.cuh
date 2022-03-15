@@ -48,7 +48,7 @@ public:
     int num_types_sq = 0;       // for nep3
     int num_c_radial = 0;       // for nep3
     int num_types = 0;
-    float q_scaler[100];
+    float q_scaler[140];
   };
 
   struct ANN {
