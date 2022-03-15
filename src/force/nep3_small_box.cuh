@@ -190,11 +190,11 @@ static __global__ void find_descriptor_small_box(
           q[n] += fn12[n] * c;
         }
       } else {
-        find_fn(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fn12);
+        find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2;
             gn12 += fn12[k] * annmb.c[c_index];
           }
@@ -225,10 +225,10 @@ static __global__ void find_descriptor_small_box(
           accumulate_s(d12, r12[0], r12[1], r12[2], fn, s);
         } else {
           float fn12[MAX_NUM_N];
-          find_fn(paramb.basis_size, paramb.rcinv_angular, d12, fc12, fn12);
+          find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
           float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
             gn12 += fn12[k] * annmb.c[c_index];
           }
@@ -317,11 +317,12 @@ static __global__ void find_force_radial_small_box(
           }
         }
       } else {
-        find_fn_and_fnp(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+        find_fn_and_fnp(
+          paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float gnp12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2;
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
@@ -433,12 +434,13 @@ static __global__ void find_force_angular_small_box(
       } else {
         float fn12[MAX_NUM_N];
         float fnp12[MAX_NUM_N];
-        find_fn_and_fnp(paramb.basis_size, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+        find_fn_and_fnp(
+          paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
           float gn12 = 0.0f;
           float gnp12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
             gn12 += fn12[k] * annmb.c[c_index];
             gnp12 += fnp12[k] * annmb.c[c_index];

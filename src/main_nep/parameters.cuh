@@ -33,6 +33,7 @@ public:
   int maximum_generation; // maximum number of generations for SNES;
   int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
   int basis_size_radial;  // for nep3
+  int basis_size_angular; // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
   int n_max_angular;      // maximum order of the angular Chebyshev polynomials
   int L_max;              // maximum order of the 3body spherical harmonics
@@ -55,6 +56,7 @@ public:
   bool is_type_set;
   bool is_cutoff_set;
   bool is_n_max_set;
+  bool is_basis_size_set;
   bool is_l_max_set;
   bool is_neuron_set;
   bool is_lambda_1_set;
@@ -99,6 +101,7 @@ private:
   void parse_zbl(char** param, int num_param);
   void parse_cutoff(char** param, int num_param);
   void parse_n_max(char** param, int num_param);
+  void parse_basis_size(char** param, int num_param);
   void parse_l_max(char** param, int num_param);
   void parse_neuron(char** param, int num_param);
   void parse_lambda_1(char** param, int num_param);

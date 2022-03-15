@@ -93,6 +93,11 @@ NEP3::NEP3(
   printf("    n_max_radial = %d.\n", paramb.n_max_radial);
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
+  count = fscanf(fid, "%s%d%d", name, &paramb.basis_size_radial, &paramb.basis_size_angular);
+  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+  printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
+  printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
+
   int L_max_4body = 0;
   int L_max_5body = 0;
   if (paramb.version == 2) {
@@ -133,8 +138,8 @@ NEP3::NEP3(
   annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 + 1;
   printf("    number of neural network parameters = %d.\n", annmb.num_para);
   int num_para_descriptor = paramb.num_types * paramb.num_types *
-                            ((paramb.n_max_radial + 1) * (paramb.basis_size + 1) +
-                             (paramb.n_max_angular + 1) * (paramb.basis_size + 1));
+                            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
+                             (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
   if (paramb.version == 2) {
     num_para_descriptor =
       (paramb.num_types == 1)
@@ -146,7 +151,8 @@ NEP3::NEP3(
   printf("    total number of parameters = %d\n", annmb.num_para);
 
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
-  paramb.num_c_radial = paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size + 1);
+  paramb.num_c_radial =
+    paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
   float rc_factor = paramb.rc_angular / paramb.rc_radial;
   int angular_neighbor_size = int(ceil(neighbor.MN * rc_factor * rc_factor));
@@ -277,11 +283,11 @@ static __global__ void find_descriptor(
           q[n] += fn12[n] * c;
         }
       } else {
-        find_fn(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fn12);
+        find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2;
             gn12 += fn12[k] * annmb.c[c_index];
           }
@@ -315,10 +321,10 @@ static __global__ void find_descriptor(
           accumulate_s(d12, x12, y12, z12, fn, s);
         } else {
           float fn12[MAX_NUM_N];
-          find_fn(paramb.basis_size, paramb.rcinv_angular, d12, fc12, fn12);
+          find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
           float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
             gn12 += fn12[k] * annmb.c[c_index];
           }
@@ -425,12 +431,13 @@ static __global__ void find_force_radial(
           }
         }
       } else {
-        find_fn_and_fnp(paramb.basis_size, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+        find_fn_and_fnp(
+          paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
           float gnp12 = 0.0f;
           float gnp21 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             gnp12 += fnp12[k] * annmb.c[c_index + t1 * paramb.num_types + t2];
             gnp21 += fnp12[k] * annmb.c[c_index + t2 * paramb.num_types + t1];
           }
@@ -540,12 +547,13 @@ static __global__ void find_partial_force_angular(
       } else {
         float fn12[MAX_NUM_N];
         float fnp12[MAX_NUM_N];
-        find_fn_and_fnp(paramb.basis_size, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+        find_fn_and_fnp(
+          paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
           float gn12 = 0.0f;
           float gnp12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size; ++k) {
-            int c_index = (n * (paramb.basis_size + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
             gn12 += fn12[k] * annmb.c[c_index];
             gnp12 += fnp12[k] * annmb.c[c_index];

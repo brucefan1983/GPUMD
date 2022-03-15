@@ -198,10 +198,10 @@ static __global__ void find_descriptors_angular(
           accumulate_s(d12, x12, y12, z12, fn, s);
         } else {
           float fn12[MAX_NUM_N];
-          find_fn(paramb.basis_size_radial, paramb.rcinv_angular, d12, fc12, fn12);
+          find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
           float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
             gn12 += fn12[k] * annmb.c[c_index];
           }
@@ -261,6 +261,7 @@ NEP3::NEP3(
   paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
 
   paramb.basis_size_radial = para.basis_size_radial;
+  paramb.basis_size_angular = para.basis_size_angular;
   paramb.num_types_sq = para.num_types * para.num_types;
   paramb.num_c_radial =
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
@@ -529,12 +530,12 @@ static __global__ void find_force_angular(
         float fn12[MAX_NUM_N];
         float fnp12[MAX_NUM_N];
         find_fn_and_fnp(
-          paramb.basis_size_radial, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+          paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
           float gn12 = 0.0f;
           float gnp12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
             gn12 += fn12[k] * annmb.c[c_index];
             gnp12 += fnp12[k] * annmb.c[c_index];
