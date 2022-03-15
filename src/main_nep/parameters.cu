@@ -50,6 +50,7 @@ void Parameters::set_default_parameters()
   is_type_set = false;
   is_cutoff_set = false;
   is_n_max_set = false;
+  is_basis_size_set = false;
   is_l_max_set = false;
   is_neuron_set = false;
   is_lambda_1_set = false;
@@ -68,6 +69,7 @@ void Parameters::set_default_parameters()
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
   basis_size_radial = 8;         // default value for nep3
+  basis_size_angular = 8;        // default value for nep3
   n_max_radial = 8;              // large enough in most cases
   n_max_angular = 6;             // large enough in most cases
   L_max = 4;                     // the only supported value
@@ -131,7 +133,8 @@ void Parameters::calculate_parameters()
       (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
   } else {
     number_of_variables_descriptor =
-      num_types * num_types * (dim_radial + n_max_angular + 1) * (basis_size_radial + 1);
+      num_types * num_types *
+      (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
   }
 
   if (version == 4) {
@@ -196,14 +199,22 @@ void Parameters::report_inputs()
     printf("    (default) n_max_angular = %d.\n", n_max_angular);
   }
 
-  if (is_l_max_set) {
-    printf(
-      "    (input)   l_max_3body = %d, l_max_4body = %d, l_max_5body = %d.\n", L_max, L_max_4body,
-      L_max_5body);
+  if (is_basis_size_set) {
+    printf("    (input)   basis_size_radial = %d.\n", basis_size_radial);
+    printf("    (input)   basis_size_angular = %d.\n", basis_size_angular);
   } else {
-    printf(
-      "    (default) l_max_3body = %d, l_max_4body = %d, l_max_5body = %d.\n", L_max, L_max_4body,
-      L_max_5body);
+    printf("    (default) basis_size_radial = %d.\n", basis_size_radial);
+    printf("    (default) basis_size_angular = %d.\n", basis_size_angular);
+  }
+
+  if (is_l_max_set) {
+    printf("    (input)   l_max_3body = %d.\n", L_max);
+    printf("    (input)   l_max_4body = %d.\n", L_max_4body);
+    printf("    (input)   l_max_5body = %d.\n", L_max_5body);
+  } else {
+    printf("    (default) l_max_3body = %d.\n", L_max);
+    printf("    (default) l_max_4body = %d.\n", L_max_4body);
+    printf("    (default) l_max_5body = %d.\n", L_max_5body);
   }
 
   if (is_neuron_set) {
@@ -288,6 +299,8 @@ void Parameters::parse_one_keyword(char** param, int num_param)
     parse_cutoff(param, num_param);
   } else if (strcmp(param[0], "n_max") == 0) {
     parse_n_max(param, num_param);
+  } else if (strcmp(param[0], "basis_size") == 0) {
+    parse_basis_size(param, num_param);
   } else if (strcmp(param[0], "l_max") == 0) {
     parse_l_max(param, num_param);
   } else if (strcmp(param[0], "neuron") == 0) {
@@ -481,6 +494,31 @@ void Parameters::parse_n_max(char** param, int num_param)
     PRINT_INPUT_ERROR("n_max_angular should >= 0.");
   } else if (n_max_angular > 19) {
     PRINT_INPUT_ERROR("n_max_angular should <= 19.");
+  }
+}
+
+void Parameters::parse_basis_size(char** param, int num_param)
+{
+  is_basis_size_set = true;
+
+  if (num_param != 3) {
+    PRINT_INPUT_ERROR("basis_size should have 2 parameters.\n");
+  }
+  if (!is_valid_int(param[1], &basis_size_radial)) {
+    PRINT_INPUT_ERROR("basis_size_radial should be an integer.\n");
+  }
+  if (!is_valid_int(param[2], &basis_size_angular)) {
+    PRINT_INPUT_ERROR("basis_size_angular should be an integer.\n");
+  }
+  if (basis_size_radial < 0) {
+    PRINT_INPUT_ERROR("basis_size_radial should >= 0.");
+  } else if (basis_size_radial > 19) {
+    PRINT_INPUT_ERROR("basis_size_radial should <= 19.");
+  }
+  if (basis_size_angular < 0) {
+    PRINT_INPUT_ERROR("basis_size_angular should >= 0.");
+  } else if (basis_size_angular > 19) {
+    PRINT_INPUT_ERROR("basis_size_angular should <= 19.");
   }
 }
 
