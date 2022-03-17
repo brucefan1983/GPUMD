@@ -235,10 +235,12 @@ static __global__ void find_descriptor_small_box(
           accumulate_s(d12, r12[0], r12[1], r12[2], gn12, s);
         }
       }
-      if (paramb.num_L > paramb.L_max) {
+      if (paramb.num_L == paramb.L_max) {
+        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      } else if (paramb.num_L == paramb.L_max + 1) {
         find_q_with_4body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       } else {
-        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+        find_q_with_5body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
       }
       for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
         g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
@@ -445,11 +447,14 @@ static __global__ void find_force_angular_small_box(
             gn12 += fn12[k] * annmb.c[c_index];
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
-          if (paramb.num_L > paramb.L_max) {
+          if (paramb.num_L == paramb.L_max) {
+            accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+          } else if (paramb.num_L == paramb.L_max + 1) {
             accumulate_f12_with_4body(
               n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
           } else {
-            accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+            accumulate_f12_with_5body(
+              n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
           }
         }
       }
