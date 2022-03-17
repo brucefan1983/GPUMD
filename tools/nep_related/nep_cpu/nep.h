@@ -17,16 +17,11 @@
 #include <vector>
 
 struct NEP3_Data {
-  std::vector<double> f12x; // 3-body or manybody partial forces
-  std::vector<double> f12y; // 3-body or manybody partial forces
-  std::vector<double> f12z; // 3-body or manybody partial forces
-  std::vector<float> Fp;
-  std::vector<float> sum_fxyz;
-  std::vector<int> NN_radial;    // angular neighbor list
-  std::vector<int> NL_radial;    // angular neighbor list
-  std::vector<int> NN_angular;   // angular neighbor list
-  std::vector<int> NL_angular;   // angular neighbor list
-  std::vector<float> parameters; // parameters to be optimized
+
+  std::vector<int> NN_radial;  // angular neighbor list
+  std::vector<int> NL_radial;  // angular neighbor list
+  std::vector<int> NN_angular; // angular neighbor list
+  std::vector<int> NL_angular; // angular neighbor list
 };
 
 class Box
@@ -111,4 +106,8 @@ private:
     std::vector<double>& potential,
     std::vector<double>& force,
     std::vector<double>& virial);
+
+  std::vector<float> Fp;
+  std::vector<float> sum_fxyz;
+  std::vector<float> parameters; // parameters to be optimized
 };

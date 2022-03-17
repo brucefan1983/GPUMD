@@ -246,21 +246,18 @@ NEP3::NEP3(int N, int MN)
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
-  nep_data.f12x.resize(N * MN);
-  nep_data.f12y.resize(N * MN);
-  nep_data.f12z.resize(N * MN);
   nep_data.NN_radial.resize(N);
   nep_data.NL_radial.resize(N * MN);
   nep_data.NN_angular.resize(N);
   nep_data.NL_angular.resize(N * MN);
-  nep_data.Fp.resize(N * annmb.dim);
-  nep_data.sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-  nep_data.parameters.resize(annmb.num_para);
+  Fp.resize(N * annmb.dim);
+  sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  parameters.resize(annmb.num_para);
 
   for (int n = 0; n < annmb.num_para; ++n) {
-    input_file >> nep_data.parameters[n];
+    input_file >> parameters[n];
   }
-  update_potential(nep_data.parameters.data(), annmb);
+  update_potential(parameters.data(), annmb);
 
   for (int d = 0; d < annmb.dim; ++d) {
     input_file >> paramb.q_scaler[d];
@@ -1501,18 +1498,18 @@ void NEP3::compute_small_box(
     paramb, annmb, N, nep_data.NN_radial.data(), nep_data.NL_radial.data(),
     nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(), r12.data(),
     r12.data() + size_x12, r12.data() + size_x12 * 2, r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, potential_per_atom.data(),
-    nep_data.Fp.data(), nep_data.sum_fxyz.data());
+    r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, potential_per_atom.data(), Fp.data(),
+    sum_fxyz.data());
 
   find_force_radial_small_box(
     paramb, annmb, N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), type.data(), r12.data(),
-    r12.data() + size_x12, r12.data() + size_x12 * 2, nep_data.Fp.data(), force_per_atom.data(),
+    r12.data() + size_x12, r12.data() + size_x12 * 2, Fp.data(), force_per_atom.data(),
     force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
 
   find_force_angular_small_box(
     paramb, annmb, N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(),
-    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
-    nep_data.Fp.data(), nep_data.sum_fxyz.data(), force_per_atom.data(), force_per_atom.data() + N,
+    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(),
+    sum_fxyz.data(), force_per_atom.data(), force_per_atom.data() + N,
     force_per_atom.data() + N * 2, virial_per_atom.data());
 
   if (zbl.enabled) {
