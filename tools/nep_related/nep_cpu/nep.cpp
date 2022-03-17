@@ -75,59 +75,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
     exit(1);                                                                                       \
   } while (0)
 
-static float get_area_one_direction(const double* a, const double* b)
-{
-  double s1 = a[1] * b[2] - a[2] * b[1];
-  double s2 = a[2] * b[0] - a[0] * b[2];
-  double s3 = a[0] * b[1] - a[1] * b[0];
-  return sqrt(s1 * s1 + s2 * s2 + s3 * s3);
-}
-
-double Box::get_area(const int d) const
-{
-  double area;
-  double a[3] = {cpu_h[0], cpu_h[3], cpu_h[6]};
-  double b[3] = {cpu_h[1], cpu_h[4], cpu_h[7]};
-  double c[3] = {cpu_h[2], cpu_h[5], cpu_h[8]};
-  if (d == 0) {
-    area = get_area_one_direction(b, c);
-  } else if (d == 1) {
-    area = get_area_one_direction(c, a);
-  } else {
-    area = get_area_one_direction(a, b);
-  }
-  return area;
-}
-
-double Box::get_volume(void) const
-{
-  double volume = abs(
-    cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
-    cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
-    cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]));
-  return volume;
-}
-
-void Box::get_inverse(void)
-{
-  cpu_h[9] = cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7];
-  cpu_h[10] = cpu_h[2] * cpu_h[7] - cpu_h[1] * cpu_h[8];
-  cpu_h[11] = cpu_h[1] * cpu_h[5] - cpu_h[2] * cpu_h[4];
-  cpu_h[12] = cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8];
-  cpu_h[13] = cpu_h[0] * cpu_h[8] - cpu_h[2] * cpu_h[6];
-  cpu_h[14] = cpu_h[2] * cpu_h[3] - cpu_h[0] * cpu_h[5];
-  cpu_h[15] = cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6];
-  cpu_h[16] = cpu_h[1] * cpu_h[6] - cpu_h[0] * cpu_h[7];
-  cpu_h[17] = cpu_h[0] * cpu_h[4] - cpu_h[1] * cpu_h[3];
-  double det = cpu_h[0] * (cpu_h[4] * cpu_h[8] - cpu_h[5] * cpu_h[7]) +
-               cpu_h[1] * (cpu_h[5] * cpu_h[6] - cpu_h[3] * cpu_h[8]) +
-               cpu_h[2] * (cpu_h[3] * cpu_h[7] - cpu_h[4] * cpu_h[6]);
-  for (int n = 9; n < 18; n++) {
-    cpu_h[n] /= det;
-  }
-}
-
-NEP3::NEP3(int N, int MN)
+NEP3::NEP3(int N)
 {
   std::ifstream input_file("nep.txt");
 
@@ -246,10 +194,6 @@ NEP3::NEP3(int N, int MN)
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
-  nep_data.NN_radial.resize(N);
-  nep_data.NL_radial.resize(N * MN);
-  nep_data.NN_angular.resize(N);
-  nep_data.NL_angular.resize(N * MN);
   Fp.resize(N * annmb.dim);
   sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   parameters.resize(annmb.num_para);
@@ -984,88 +928,6 @@ static void find_q_with_5body(const int n_max_angular_plus_1, const int n, const
                                     C5B[2] * s1_sq_plus_s2_sq * s1_sq_plus_s2_sq;
 }
 
-static void apply_mic_small_box(
-  const Box& box, const NEP3::ExpandedBox& ebox, double& x12, double& y12, double& z12)
-{
-  double sx12 = ebox.h[9] * x12 + ebox.h[10] * y12 + ebox.h[11] * z12;
-  double sy12 = ebox.h[12] * x12 + ebox.h[13] * y12 + ebox.h[14] * z12;
-  double sz12 = ebox.h[15] * x12 + ebox.h[16] * y12 + ebox.h[17] * z12;
-  sx12 -= nearbyint(sx12);
-  sy12 -= nearbyint(sy12);
-  sz12 -= nearbyint(sz12);
-  x12 = ebox.h[0] * sx12 + ebox.h[1] * sy12 + ebox.h[2] * sz12;
-  y12 = ebox.h[3] * sx12 + ebox.h[4] * sy12 + ebox.h[5] * sz12;
-  z12 = ebox.h[6] * sx12 + ebox.h[7] * sy12 + ebox.h[8] * sz12;
-}
-
-static void find_neighbor_list_small_box(
-  NEP3::ParaMB paramb,
-  const int N,
-  const Box box,
-  const NEP3::ExpandedBox ebox,
-  const double* g_x,
-  const double* g_y,
-  const double* g_z,
-  int* g_NN_radial,
-  int* g_NL_radial,
-  int* g_NN_angular,
-  int* g_NL_angular,
-  float* g_x12_radial,
-  float* g_y12_radial,
-  float* g_z12_radial,
-  float* g_x12_angular,
-  float* g_y12_angular,
-  float* g_z12_angular)
-{
-  for (int n1 = 0; n1 < N; ++n1) {
-    double x1 = g_x[n1];
-    double y1 = g_y[n1];
-    double z1 = g_z[n1];
-    int count_radial = 0;
-    int count_angular = 0;
-    for (int n2 = 0; n2 < N; ++n2) {
-      for (int ia = 0; ia < ebox.num_cells[0]; ++ia) {
-        for (int ib = 0; ib < ebox.num_cells[1]; ++ib) {
-          for (int ic = 0; ic < ebox.num_cells[2]; ++ic) {
-            if (ia == 0 && ib == 0 && ic == 0 && n1 == n2) {
-              continue; // exclude self
-            }
-
-            double delta[3];
-            delta[0] = box.cpu_h[0] * ia + box.cpu_h[1] * ib + box.cpu_h[2] * ic;
-            delta[1] = box.cpu_h[3] * ia + box.cpu_h[4] * ib + box.cpu_h[5] * ic;
-            delta[2] = box.cpu_h[6] * ia + box.cpu_h[7] * ib + box.cpu_h[8] * ic;
-
-            double x12 = g_x[n2] + delta[0] - x1;
-            double y12 = g_y[n2] + delta[1] - y1;
-            double z12 = g_z[n2] + delta[2] - z1;
-
-            apply_mic_small_box(box, ebox, x12, y12, z12);
-
-            float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
-            if (distance_square < paramb.rc_radial * paramb.rc_radial) {
-              g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = float(x12);
-              g_y12_radial[count_radial * N + n1] = float(y12);
-              g_z12_radial[count_radial * N + n1] = float(z12);
-              count_radial++;
-            }
-            if (distance_square < paramb.rc_angular * paramb.rc_angular) {
-              g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = float(x12);
-              g_y12_angular[count_angular * N + n1] = float(y12);
-              g_z12_angular[count_angular * N + n1] = float(z12);
-              count_angular++;
-            }
-          }
-        }
-      }
-    }
-    g_NN_radial[n1] = count_radial;
-    g_NN_angular[n1] = count_angular;
-  }
-}
-
 static void find_descriptor_small_box(
   NEP3::ParaMB paramb,
   NEP3::ANN annmb,
@@ -1473,99 +1335,20 @@ static void find_force_ZBL_small_box(
   }
 }
 
-#include <time.h>
-void NEP3::compute_small_box(
-  const Box& box,
-  const std::vector<int>& type,
-  const std::vector<double>& position_per_atom,
-  std::vector<double>& potential_per_atom,
-  std::vector<double>& force_per_atom,
-  std::vector<double>& virial_per_atom)
-{
-
-  const int N = type.size();
-  const int size_x12 = nep_data.NL_radial.size();
-  std::vector<float> r12(size_x12 * 6);
-
-  find_neighbor_list_small_box(
-    paramb, N, box, ebox, position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, nep_data.NN_radial.data(), nep_data.NL_radial.data(),
-    nep_data.NN_angular.data(), nep_data.NL_angular.data(), r12.data(), r12.data() + size_x12,
-    r12.data() + size_x12 * 2, r12.data() + size_x12 * 3, r12.data() + size_x12 * 4,
-    r12.data() + size_x12 * 5);
-
-  find_descriptor_small_box(
-    paramb, annmb, N, nep_data.NN_radial.data(), nep_data.NL_radial.data(),
-    nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(), r12.data(),
-    r12.data() + size_x12, r12.data() + size_x12 * 2, r12.data() + size_x12 * 3,
-    r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, potential_per_atom.data(), Fp.data(),
-    sum_fxyz.data());
-
-  find_force_radial_small_box(
-    paramb, annmb, N, nep_data.NN_radial.data(), nep_data.NL_radial.data(), type.data(), r12.data(),
-    r12.data() + size_x12, r12.data() + size_x12 * 2, Fp.data(), force_per_atom.data(),
-    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
-
-  find_force_angular_small_box(
-    paramb, annmb, N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(),
-    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(),
-    sum_fxyz.data(), force_per_atom.data(), force_per_atom.data() + N,
-    force_per_atom.data() + N * 2, virial_per_atom.data());
-
-  if (zbl.enabled) {
-    find_force_ZBL_small_box(
-      N, zbl, nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(), r12.data(),
-      r12.data() + size_x12, r12.data() + size_x12 * 2, force_per_atom.data(),
-      force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data(),
-      potential_per_atom.data());
-  }
-}
-
-static void get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox& ebox)
-{
-  double volume = box.get_volume();
-  double thickness_x = volume / box.get_area(0);
-  double thickness_y = volume / box.get_area(1);
-  double thickness_z = volume / box.get_area(2);
-  ebox.num_cells[0] = int(ceil(2.0 * rc / thickness_x));
-  ebox.num_cells[1] = int(ceil(2.0 * rc / thickness_y));
-  ebox.num_cells[2] = int(ceil(2.0 * rc / thickness_z));
-
-  ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-  ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
-  ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
-  ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-  ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
-  ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
-  ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-  ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
-  ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
-
-  ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
-  ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
-  ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
-  ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
-  ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
-  ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
-  ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
-  ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
-  ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
-  double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-               ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-               ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
-  for (int n = 9; n < 18; n++) {
-    ebox.h[n] /= det;
-  }
-}
-
 void NEP3::compute(
-  const Box& box,
+  const std::vector<int>& NN_radial,
+  const std::vector<int>& NL_radial,
+  const std::vector<int>& NN_angular,
+  const std::vector<int>& NL_angular,
   const std::vector<int>& type,
-  const std::vector<double>& position_per_atom,
+  const std::vector<float>& r12,
   std::vector<double>& potential_per_atom,
   std::vector<double>& force_per_atom,
   std::vector<double>& virial_per_atom)
 {
+  const int N = NN_radial.size();
+  const int size_x12 = NL_radial.size();
+
   for (int n = 0; n < potential_per_atom.size(); ++n) {
     potential_per_atom[n] = 0.0;
   }
@@ -1576,7 +1359,27 @@ void NEP3::compute(
     virial_per_atom[n] = 0.0;
   }
 
-  get_expanded_box(paramb.rc_radial, box, ebox);
-  compute_small_box(
-    box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  find_descriptor_small_box(
+    paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data(),
+    type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
+    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
+    potential_per_atom.data(), Fp.data(), sum_fxyz.data());
+
+  find_force_radial_small_box(
+    paramb, annmb, N, NN_radial.data(), NL_radial.data(), type.data(), r12.data(),
+    r12.data() + size_x12, r12.data() + size_x12 * 2, Fp.data(), force_per_atom.data(),
+    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
+
+  find_force_angular_small_box(
+    paramb, annmb, N, NN_angular.data(), NL_angular.data(), type.data(), r12.data() + size_x12 * 3,
+    r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(), sum_fxyz.data(),
+    force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
+    virial_per_atom.data());
+
+  if (zbl.enabled) {
+    find_force_ZBL_small_box(
+      N, zbl, NN_angular.data(), NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12,
+      r12.data() + size_x12 * 2, force_per_atom.data(), force_per_atom.data() + N,
+      force_per_atom.data() + N * 2, virial_per_atom.data(), potential_per_atom.data());
+  }
 }

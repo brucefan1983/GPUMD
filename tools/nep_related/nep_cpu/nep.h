@@ -16,27 +16,6 @@
 #pragma once
 #include <vector>
 
-struct NEP3_Data {
-
-  std::vector<int> NN_radial;  // angular neighbor list
-  std::vector<int> NL_radial;  // angular neighbor list
-  std::vector<int> NN_angular; // angular neighbor list
-  std::vector<int> NL_angular; // angular neighbor list
-};
-
-class Box
-{
-public:
-  double cpu_h[18];                                   // the box data
-  double thickness_x = 0.0;                           // thickness perpendicular to (b x c)
-  double thickness_y = 0.0;                           // thickness perpendicular to (c x a)
-  double thickness_z = 0.0;                           // thickness perpendicular to (a x b)
-  double get_area(const int d) const;                 // get the area of one face
-  double get_volume(void) const;                      // get the volume of the box
-  void get_inverse(void);                             // get the inverse box matrix
-  bool get_num_bins(const double rc, int num_bins[]); // get the number of bins in each direction
-};
-
 class NEP3
 {
 public:
@@ -51,10 +30,10 @@ public:
     int L_max = 0;              // l = 0, 1, 2, ..., L_max
     int dim_angular;
     int num_L;
-    int basis_size_radial = 8;  // for nep3
-    int basis_size_angular = 8; // for nep3
-    int num_types_sq = 0;       // for nep3
-    int num_c_radial = 0;       // for nep3
+    int basis_size_radial = 8;
+    int basis_size_angular = 8;
+    int num_types_sq = 0;
+    int num_c_radial = 0;
     int num_types = 0;
     float q_scaler[140];
   };
@@ -77,37 +56,23 @@ public:
     float atomic_numbers[10];
   };
 
-  struct ExpandedBox {
-    int num_cells[3];
-    float h[18];
-  };
-
-  NEP3(int N, int MN);
+  NEP3(int N);
   void compute(
-    const Box& box,
+    const std::vector<int>& NN_radial,
+    const std::vector<int>& NL_radial,
+    const std::vector<int>& NN_angular,
+    const std::vector<int>& NL_angular,
     const std::vector<int>& type,
-    const std::vector<double>& position,
-    std::vector<double>& potential,
-    std::vector<double>& force,
-    std::vector<double>& virial);
+    const std::vector<float>& r12,
+    std::vector<double>& potential_per_atom,
+    std::vector<double>& force_per_atom,
+    std::vector<double>& virial_per_atom);
 
-private:
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
-  NEP3_Data nep_data;
-  ExpandedBox ebox;
-  void update_potential(const float* parameters, ANN& ann);
-
-  void compute_small_box(
-    const Box& box,
-    const std::vector<int>& type,
-    const std::vector<double>& position,
-    std::vector<double>& potential,
-    std::vector<double>& force,
-    std::vector<double>& virial);
-
   std::vector<float> Fp;
   std::vector<float> sum_fxyz;
-  std::vector<float> parameters; // parameters to be optimized
+  std::vector<float> parameters;
+  void update_potential(const float* parameters, ANN& ann);
 };
