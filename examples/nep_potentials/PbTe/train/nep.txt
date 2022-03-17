@@ -1,7 +1,8 @@
 nep3 2 Te Pb 
 cutoff 8 4
 n_max 4 4
-l_max 4 2
+basis_size 8 8
+l_max 4 2 0
 ANN 30 0
   6.2799901e-02
   2.5350956e-02
