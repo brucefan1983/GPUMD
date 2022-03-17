@@ -175,6 +175,9 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   nep_data.q.resize(N * ann.dim);
   nep_data.gnn_descriptors.resize(N * ann.dim);
   nep_data.gnn_messages.resize(N * ann.dim);
+  nep_data.gnn_messages_p_x.resize(N * ann.dim);
+  nep_data.gnn_messages_p_y.resize(N * ann.dim);
+  nep_data.gnn_messages_p_z.resize(N * ann.dim);
   nep_data.dU_dq.resize(N * ann.dim);
   nep_data.s.resize(N * (nep_para.n_max_angular + 1) * NUM_OF_ABC);
   nep_data.parameters.resize(ann.num_para + gnn.num_para);
@@ -243,6 +246,45 @@ apply_q_scaler(const int N, const NEP4::ANN ann, const float* __restrict__ g_q_s
   }
 }
 
+// Precompute messages q*theta for all descriptors
+static __global__ void apply_gnn_compute_messages(
+  const int N,
+  const NEP4::ANN ann,
+  const NEP4::GNN gnn,
+  const float* __restrict__ g_q,
+  const float* __restrict__ dq_dx,
+  const float* __restrict__ dq_dy,
+  const float* __restrict__ dq_dz,
+  const int* g_NN,
+  const int* g_NL,
+  float* gnn_messages,
+  float* gnn_messages_p_x,
+  float* gnn_messages_p_y,
+  float* gnn_messages_p_z)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
+    for (int nu = 0; nu < F; nu++) {
+      float q_theta_nu = 0.0f;
+      float dq_dr_theta_nu_x = 0.0f;
+      float dq_dr_theta_nu_y = 0.0f;
+      float dq_dr_theta_nu_z = 0.0f;
+      for (int gamma = 0; gamma < ann.dim; gamma++) {
+        q_theta_nu += g_q[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
+        dq_dr_theta_nu_x += dq_dx[n1 + gamma * N] *
+                            gnn.theta[gamma + ann.dim * nu]; // is this accessing dq_dx correctly?
+        dq_dr_theta_nu_y += dq_dy[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
+        dq_dr_theta_nu_z += dq_dz[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
+      }
+      gnn_messages[n1 + nu * N] = q_theta_nu;
+      gnn_messages_p_x[n1 + nu * N] = dq_dr_theta_nu_x;
+      gnn_messages_p_y[n1 + nu * N] = dq_dr_theta_nu_y;
+      gnn_messages_p_z[n1 + nu * N] = dq_dr_theta_nu_z;
+    }
+  }
+}
+
 // Apply the message passing aggregation between neighbors, A*q_theta
 static __global__ void apply_gnn_message_passing(
   const int N,
@@ -255,73 +297,120 @@ static __global__ void apply_gnn_message_passing(
   const int* g_NN,
   const int* g_NL,
   float* gnn_descriptors,
-  float* gnn_f_x,
-  float* gnn_f_y,
-  float* gnn_f_z)
+  float* g_dU_dq)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
     int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
-      float q_out_nu = g_messages[n1 + nu * N]; // fc(r_ii) = 1
+      float q_i_nu = g_messages[n1 + nu * N]; // fc(r_ii) = 1
+
       // TODO perhaps normalize weights? Compare Kipf, Welling et al. (2016)
       for (int j = 0; j < num_neighbors_of_n1; ++j) {
-        int index = n1 + N * j;
-        int n2 = g_NL[index];
-        float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+        int index_j = n1 + N * j;
+        int n2 = g_NL[index_j];
+        float r12[3] = {g_x12[index_j], g_y12[index_j], g_z12[index_j]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fcij, fcpij;
         find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fcij, fcpij);
-        q_out_nu += fcij * g_messages[n2 + nu * N];
-
-        // add fc'(rij)*g_messages[j]*\vec{r}_ij/r_ij to gnn_f
-        // gnn_f_x is here the forces for atom i
-        gnn_f_x[j * nu * MAX_NEIGHBORS] += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
-        gnn_f_y[j * nu * MAX_NEIGHBORS] += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
-        gnn_f_z[j * nu * MAX_NEIGHBORS] += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
-
-        // TODO add contributions not from i or j
-        float gnn_f_k_x = 0;
-        for (int k = 0; k < num_neighbors_of_n1; ++k) {
-          if (k != j) {
-            // dq_dr[k]*fc(r_ij)
-            // gnn_f_k_x +=
-          }
-        }
-        gnn_f_k_x *= fcij;
+        q_i_nu += fcij * g_messages[n2 + nu * N];
       }
-      gnn_descriptors[n1 + nu * N] = tanh(q_out_nu);
-      for (int j = 0; j < num_neighbors_of_n1; j++) {
-        gnn_f_x[j + nu * MAX_NEIGHBORS] *= 1 - q_out_nu * q_out_nu;
-      }
+      gnn_descriptors[n1 + nu * N] = tanh(q_i_nu);
+      g_dU_dq[n1 + nu * N] =
+        1 - q_i_nu * q_i_nu; // save sigma'(zi) for when computing message passing forces later
     }
   }
 }
 
-// Precompute messages q*theta for all descriptors
-static __global__ void apply_gnn_compute_messages(
+static __global__ void find_force_gnn(
   const int N,
+  const NEP4::Para para,
   const NEP4::ANN ann,
-  const NEP4::GNN gnn,
-  const float* __restrict__ g_q,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  const float* __restrict__ g_messages,
+  const float* __restrict__ g_messages_p_x,
+  const float* __restrict__ g_messages_p_y,
+  const float* __restrict__ g_messages_p_z,
+  const float* __restrict__ g_dU_dq,
   const int* g_NN,
   const int* g_NL,
-  float* gnn_messages,
-  float* gnn_f_x,
-  float* gnn_f_y,
-  float* gnn_f_z)
+  float* g_fx,
+  float* g_fy,
+  float* g_fz)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
+    int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
-      float q_theta_nu = 0.0f;
-      for (int gamma = 0; gamma < ann.dim; gamma++) {
-        q_theta_nu += g_q[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
-        // Forces a)
+      float f_i_x = 0.0f;
+      float f_i_y = 0.0f;
+      float f_i_z = 0.0f;
+
+      float f_j_x = 0.0f;
+      float f_j_y = 0.0f;
+      float f_j_z = 0.0f;
+
+      float f_k_x = 0.0f;
+      float f_k_y = 0.0f;
+      float f_k_z = 0.0f;
+
+      for (int j = 0; j < num_neighbors_of_n1; ++j) {
+        int index_j = n1 + N * j;
+        int n2 = g_NL[index_j];
+        float r12[3] = {g_x12[index_j], g_y12[index_j], g_z12[index_j]};
+        float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+        float fcij, fcpij;
+        find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fcij, fcpij);
+
+        f_i_x += g_messages_p_x[N * (n2 + nu * MAX_NEIGHBORS) + n1];
+        f_i_y += g_messages_p_y[N * (n2 + nu * MAX_NEIGHBORS) + n1];
+        f_i_z += g_messages_p_z[N * (n2 + nu * MAX_NEIGHBORS) + n1];
+        f_i_x += fcij * g_messages_p_x[N * (n1 + nu * MAX_NEIGHBORS) + n2];
+        f_i_y += fcij * g_messages_p_y[N * (n1 + nu * MAX_NEIGHBORS) + n2];
+        f_i_z += fcij * g_messages_p_z[N * (n1 + nu * MAX_NEIGHBORS) + n2];
+        f_i_x += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
+        f_i_y += fcpij * g_messages[n2 + nu * N] * r12[1] / d12;
+        f_i_z += fcpij * g_messages[n2 + nu * N] * r12[2] / d12;
+
+        f_j_x += g_messages_p_x[N * (n1 + nu * MAX_NEIGHBORS) + n2];
+        f_j_y += g_messages_p_y[N * (n1 + nu * MAX_NEIGHBORS) + n2];
+        f_j_z += g_messages_p_z[N * (n1 + nu * MAX_NEIGHBORS) + n2];
+        f_j_x += fcij * g_messages_p_x[N * (n2 + nu * MAX_NEIGHBORS) + n1]; // fcij = fcji
+        f_j_y += fcij * g_messages_p_y[N * (n2 + nu * MAX_NEIGHBORS) + n1];
+        f_j_z += fcij * g_messages_p_z[N * (n2 + nu * MAX_NEIGHBORS) + n1];
+        f_j_x -= fcpij * g_messages[n2 + nu * N] * r12[0] / d12; // \vec{r}_ij = -\vec{r}_ji
+        f_j_y -= fcpij * g_messages[n2 + nu * N] * r12[1] / d12;
+        f_j_z -= fcpij * g_messages[n2 + nu * N] * r12[2] / d12;
+
+        for (int k = 0; k < num_neighbors_of_n1; ++k) {
+          if (k != j) {
+            int index_k = n1 + N * k;
+            int n3 = g_NL[index_k];
+            // get rjk
+            float r23[3] = {g_x12[index_k], g_y12[index_k], g_z12[index_k]};
+            float d23 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+            float fcjk;
+            find_fc(para.rc_angular, para.rcinv_angular, d23, fcjk);
+            f_k_x += fcjk * g_messages_p_x[N * (n1 + nu * MAX_NEIGHBORS) + n3] -
+                     fcij * g_messages_p_x[N * (n3 + nu * MAX_NEIGHBORS) + n1];
+            f_k_y += fcjk * g_messages_p_y[N * (n1 + nu * MAX_NEIGHBORS) + n3] -
+                     fcij * g_messages_p_y[N * (n3 + nu * MAX_NEIGHBORS) + n1];
+            f_k_z += fcjk * g_messages_p_z[N * (n1 + nu * MAX_NEIGHBORS) + n3] -
+                     fcij * g_messages_p_z[N * (n3 + nu * MAX_NEIGHBORS) + n1];
+          }
+        }
+        g_fx[n1] -= g_dU_dq[n2 + nu * N] * (f_j_x + f_k_x);
+        g_fy[n1] -= g_dU_dq[n2 + nu * N] * (f_j_y + f_k_y);
+        g_fz[n1] -= g_dU_dq[n2 + nu * N] * (f_j_z + f_k_z);
       }
-      gnn_messages[n1 + nu * N] = q_theta_nu;
+      // sum forces over nu
+      g_fx[n1] += g_dU_dq[n1 + nu * N] * f_i_x;
+      g_fy[n1] += g_dU_dq[n1 + nu * N] * f_i_y;
+      g_fz[n1] += g_dU_dq[n1 + nu * N] * f_i_z;
     }
   }
 }
@@ -339,7 +428,7 @@ static __global__ void apply_ann(
     apply_ann_one_layer(ann.dim, ann.num_neurons1, ann.w0, ann.b0, ann.w1, ann.b1, q, U, dU_dq);
     g_pe[n1] = U;
     for (int d = 0; d < ann.dim; ++d) {
-      g_dU_dq[n1 + d * N] = dU_dq[d];
+      g_dU_dq[n1 + d * N] *= dU_dq[d];
     }
   }
 }
@@ -594,14 +683,16 @@ void NEP4::find_force(
   CUDA_CHECK_KERNEL
 
   apply_gnn_compute_messages<<<(dataset.N - 1) / 64 + 1, 64>>>(
-    dataset.N, ann, gnn, nep_data.q.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data(),
-    nep_data.gnn_messages.data());
+    dataset.N, ann, gnn, nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
+    nep_data.dq_dz.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data(),
+    nep_data.gnn_messages.data(), nep_data.gnn_messages_p_x.data(),
+    nep_data.gnn_messages_p_y.data(), nep_data.gnn_messages_p_z.data());
   CUDA_CHECK_KERNEL
 
   apply_gnn_message_passing<<<(dataset.N - 1) / 64 + 1, 64>>>(
     dataset.N, nep_para, ann, nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.gnn_messages.data(), nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
+    nep_data.NL_angular.data(), nep_data.gnn_descriptors.data(), nep_data.dU_dq.data());
   CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, block_size>>>(
@@ -611,6 +702,14 @@ void NEP4::find_force(
   zero_force<<<grid_size, block_size>>>(
     dataset.N, dataset.force.data(), dataset.force.data() + dataset.N,
     dataset.force.data() + dataset.N * 2);
+  CUDA_CHECK_KERNEL
+
+  find_force_gnn<<<(dataset.N - 1) / 64 + 1, 64>>>(
+    dataset.N, nep_para, ann, nep_data.x12_angular.data(), nep_data.y12_angular.data(),
+    nep_data.z12_angular.data(), nep_data.gnn_messages.data(), nep_data.gnn_messages_p_x.data(),
+    nep_data.gnn_messages_p_y.data(), nep_data.gnn_messages_p_z.data(), nep_data.dU_dq.data(),
+    nep_data.NN_angular.data(), nep_data.NL_angular.data(), dataset.force.data(),
+    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2);
   CUDA_CHECK_KERNEL
 
   // TODO: change this function to complete NEP4

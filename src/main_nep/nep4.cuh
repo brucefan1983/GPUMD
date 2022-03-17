@@ -31,6 +31,9 @@ struct NEP4_Data {
   GPU_Vector<float> q;               // descriptors (angular only)
   GPU_Vector<float> gnn_descriptors; // temporary descriptors for use in GNN
   GPU_Vector<float> gnn_messages; // messages q * theta for all atoms, same shape as gnn_descriptors
+  GPU_Vector<float> gnn_messages_p_x; // derivatives of messages, theta * dq_dr
+  GPU_Vector<float> gnn_messages_p_y;
+  GPU_Vector<float> gnn_messages_p_z;
   GPU_Vector<float> dU_dq;
   GPU_Vector<float> s;          // s in the NEP3 manuscript
   GPU_Vector<float> parameters; // parameters to be optimized
