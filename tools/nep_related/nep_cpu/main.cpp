@@ -1,3 +1,26 @@
+/*
+    Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
+    This file is part of GPUMD.
+    GPUMD is free software: you can redistribute it and/or modify
+    it under the terms of the GNU General Public License as published by
+    the Free Software Foundation, either version 3 of the License, or
+    (at your option) any later version.
+    GPUMD is distributed in the hope that it will be useful,
+    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+    GNU General Public License for more details.
+    You should have received a copy of the GNU General Public License
+    along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+*/
+
+/*----------------------------------------------------------------------------80
+Usage:
+    Compile:
+        g++ -O3 main.cpp nep.cpp
+    run:
+        ./a.out
+------------------------------------------------------------------------------*/
+
 #include "nep.h"
 #include <cmath>
 #include <fstream>
@@ -5,6 +28,7 @@
 #include <time.h>
 
 const int MN = 1000;
+const int num_repeats = 1000;
 
 struct ExpandedBox {
   int num_cells[3];
@@ -321,7 +345,7 @@ int main(int argc, char* argv[])
 
   clock_t time_begin = clock();
 
-  for (int n = 0; n < 100; ++n) {
+  for (int n = 0; n < num_repeats; ++n) {
     nep3.compute(
       atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
       atom.potential, atom.force, atom.virial);
@@ -331,10 +355,10 @@ int main(int argc, char* argv[])
   float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
   std::cout << "Time used for NEP calculations = " << time_used << " s.\n";
 
-  float speed = atom.N * 100 / time_used;
+  float speed = atom.N * num_repeats / time_used;
   float cost = 1000 / speed;
   std::cout << "Computational speed = " << speed << " atom-step/second.\n";
-  std::cout << "Computational cost = " << cost << " microsecond/atom-step.\n";
+  std::cout << "Computational cost = " << cost << " mini-second/atom-step.\n";
 
   std::ofstream output_file("force_cpu.out");
 

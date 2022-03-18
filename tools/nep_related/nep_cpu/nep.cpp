@@ -55,26 +55,6 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-#define PRINT_SCANF_ERROR(count, n, text)                                                          \
-  do {                                                                                             \
-    if (count != n) {                                                                              \
-      fprintf(stderr, "Input Error:\n");                                                           \
-      fprintf(stderr, "    File:       %s\n", __FILE__);                                           \
-      fprintf(stderr, "    Line:       %d\n", __LINE__);                                           \
-      fprintf(stderr, "    Error text: %s\n", text);                                               \
-      exit(1);                                                                                     \
-    }                                                                                              \
-  } while (0)
-
-#define PRINT_INPUT_ERROR(text)                                                                    \
-  do {                                                                                             \
-    fprintf(stderr, "Input Error:\n");                                                             \
-    fprintf(stderr, "    File:       %s\n", __FILE__);                                             \
-    fprintf(stderr, "    Line:       %d\n", __LINE__);                                             \
-    fprintf(stderr, "    Error text: %s\n", text);                                                 \
-    exit(1);                                                                                       \
-  } while (0)
-
 NEP3::NEP3(int N)
 {
   std::ifstream input_file("nep.txt");
@@ -951,7 +931,6 @@ static void find_descriptor_small_box(
     int t1 = g_type[n1];
     float q[MAX_DIM] = {0.0f};
 
-    // get radial descriptors
     for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_radial[index];
@@ -983,7 +962,6 @@ static void find_descriptor_small_box(
       }
     }
 
-    // get angular descriptors
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
@@ -1027,12 +1005,10 @@ static void find_descriptor_small_box(
       }
     }
 
-    // nomalize descriptor
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = q[d] * paramb.q_scaler[d];
     }
 
-    // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
@@ -1062,15 +1038,6 @@ static void find_force_radial_small_box(
 {
   for (int n1 = 0; n1 < N; ++n1) {
     int t1 = g_type[n1];
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
@@ -1118,29 +1085,16 @@ static void find_force_radial_small_box(
       g_fx[n2] -= f12[0];
       g_fy[n2] -= f12[1];
       g_fz[n2] -= f12[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
+      g_virial[n1 + 0 * N] -= r12[0] * f12[0];
+      g_virial[n1 + 1 * N] -= r12[0] * f12[1];
+      g_virial[n1 + 2 * N] -= r12[0] * f12[2];
+      g_virial[n1 + 3 * N] -= r12[1] * f12[0];
+      g_virial[n1 + 4 * N] -= r12[1] * f12[1];
+      g_virial[n1 + 5 * N] -= r12[1] * f12[2];
+      g_virial[n1 + 6 * N] -= r12[2] * f12[0];
+      g_virial[n1 + 7 * N] -= r12[2] * f12[1];
+      g_virial[n1 + 8 * N] -= r12[2] * f12[2];
     }
-    // save virial
-    // xx xy xz    0 3 4
-    // yx yy yz    6 1 5
-    // zx zy zz    7 8 2
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
   }
 }
 
@@ -1173,15 +1127,6 @@ static void find_force_angular_small_box(
     }
 
     int t1 = g_type[n1];
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
 
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int index = i1 * N + n1;
@@ -1238,29 +1183,16 @@ static void find_force_angular_small_box(
       g_fx[n2] -= f12[0];
       g_fy[n2] -= f12[1];
       g_fz[n2] -= f12[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
+      g_virial[n1 + 0 * N] -= r12[0] * f12[0];
+      g_virial[n1 + 1 * N] -= r12[0] * f12[1];
+      g_virial[n1 + 2 * N] -= r12[0] * f12[2];
+      g_virial[n1 + 3 * N] -= r12[1] * f12[0];
+      g_virial[n1 + 4 * N] -= r12[1] * f12[1];
+      g_virial[n1 + 5 * N] -= r12[1] * f12[2];
+      g_virial[n1 + 6 * N] -= r12[2] * f12[0];
+      g_virial[n1 + 7 * N] -= r12[2] * f12[1];
+      g_virial[n1 + 8 * N] -= r12[2] * f12[2];
     }
-    // save virial
-    // xx xy xz    0 3 4
-    // yx yy yz    6 1 5
-    // zx zy zz    7 8 2
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
   }
 }
 
@@ -1280,16 +1212,6 @@ static void find_force_ZBL_small_box(
   double* g_pe)
 {
   for (int n1 = 0; n1 < N; ++n1) {
-    float s_pe = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
     float zi = zbl.atomic_numbers[g_type[n1]];
     float pow_zi = pow(zi, 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
@@ -1311,27 +1233,17 @@ static void find_force_ZBL_small_box(
       g_fx[n2] -= f12[0];
       g_fy[n2] -= f12[1];
       g_fz[n2] -= f12[2];
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
-      s_pe += f * 0.5f;
+      g_virial[n1 + 0 * N] -= r12[0] * f12[0];
+      g_virial[n1 + 1 * N] -= r12[0] * f12[1];
+      g_virial[n1 + 2 * N] -= r12[0] * f12[2];
+      g_virial[n1 + 3 * N] -= r12[1] * f12[0];
+      g_virial[n1 + 4 * N] -= r12[1] * f12[1];
+      g_virial[n1 + 5 * N] -= r12[1] * f12[2];
+      g_virial[n1 + 6 * N] -= r12[2] * f12[0];
+      g_virial[n1 + 7 * N] -= r12[2] * f12[1];
+      g_virial[n1 + 8 * N] -= r12[2] * f12[2];
+      g_pe[n1] += f * 0.5f;
     }
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
-    g_pe[n1] += s_pe;
   }
 }
 
