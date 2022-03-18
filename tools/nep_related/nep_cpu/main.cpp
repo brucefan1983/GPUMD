@@ -38,14 +38,10 @@ struct ExpandedBox {
 class Box
 {
 public:
-  double cpu_h[18];                                   // the box data
-  double thickness_x = 0.0;                           // thickness perpendicular to (b x c)
-  double thickness_y = 0.0;                           // thickness perpendicular to (c x a)
-  double thickness_z = 0.0;                           // thickness perpendicular to (a x b)
-  double get_area(const int d) const;                 // get the area of one face
-  double get_volume(void) const;                      // get the volume of the box
-  void get_inverse(void);                             // get the inverse box matrix
-  bool get_num_bins(const double rc, int num_bins[]); // get the number of bins in each direction
+  double cpu_h[18];                   // the box data
+  double get_area(const int d) const; // get the area of one face
+  double get_volume(void) const;      // get the volume of the box
+  void get_inverse(void);             // get the inverse box matrix
 };
 
 static double get_area_one_direction(const double* a, const double* b)
