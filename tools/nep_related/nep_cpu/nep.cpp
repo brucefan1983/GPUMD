@@ -1104,12 +1104,12 @@ void find_force_ZBL_small_box(
 
 } // namespace
 
-NEP3::NEP3(int N)
+NEP3::NEP3(const int N, const std::string& potential_filename)
 {
-  std::ifstream input_file("nep.txt");
+  std::ifstream input_file(potential_filename);
 
-  if (!input_file) {
-    std::cout << "Cannot open nep.txt\n";
+  if (!input_file.is_open()) {
+    std::cout << "Cannot open " << potential_filename << "\n";
     exit(1);
   }
 

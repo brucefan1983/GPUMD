@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include <string>
 #include <vector>
 
 class NEP3
@@ -56,7 +57,7 @@ public:
     double atomic_numbers[10];
   };
 
-  NEP3(int N);
+  NEP3(const int N, const std::string& potential_filename);
   void compute(
     const std::vector<int>& NN_radial,
     const std::vector<int>& NL_radial,

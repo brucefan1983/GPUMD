@@ -111,24 +111,28 @@ void find_neighbor_list_small_box(
   const double rc_radial,
   const double rc_angular,
   const int N,
-  const double* box,
-  const double* g_x,
-  const double* g_y,
-  const double* g_z,
-  int* num_cells,
-  double* ebox,
-  int* g_NN_radial,
-  int* g_NL_radial,
-  int* g_NN_angular,
-  int* g_NL_angular,
-  double* g_x12_radial,
-  double* g_y12_radial,
-  double* g_z12_radial,
-  double* g_x12_angular,
-  double* g_y12_angular,
-  double* g_z12_angular)
+  const std::vector<double>& box,
+  const std::vector<double>& position,
+  std::vector<int>& num_cells,
+  std::vector<double>& ebox,
+  std::vector<int>& g_NN_radial,
+  std::vector<int>& g_NL_radial,
+  std::vector<int>& g_NN_angular,
+  std::vector<int>& g_NL_angular,
+  std::vector<double>& r12)
 {
-  get_expanded_box(rc_radial, box, num_cells, ebox);
+  get_expanded_box(rc_radial, box.data(), num_cells.data(), ebox.data());
+
+  const int size_x12 = g_NL_radial.size();
+  const double* g_x = position.data();
+  const double* g_y = position.data() + N;
+  const double* g_z = position.data() + N * 2;
+  double* g_x12_radial = r12.data();
+  double* g_y12_radial = r12.data() + size_x12;
+  double* g_z12_radial = r12.data() + size_x12 * 2;
+  double* g_x12_angular = r12.data() + size_x12 * 3;
+  double* g_y12_angular = r12.data() + size_x12 * 4;
+  double* g_z12_angular = r12.data() + size_x12 * 5;
 
   for (int n1 = 0; n1 < N; ++n1) {
     double x1 = g_x[n1];
@@ -153,7 +157,7 @@ void find_neighbor_list_small_box(
             double y12 = g_y[n2] + delta[1] - y1;
             double z12 = g_z[n2] + delta[2] - z1;
 
-            apply_mic_small_box(ebox, x12, y12, z12);
+            apply_mic_small_box(ebox.data(), x12, y12, z12);
 
             double distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < rc_radial * rc_radial) {
