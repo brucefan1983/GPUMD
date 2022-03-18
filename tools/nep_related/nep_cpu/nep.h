@@ -21,10 +21,10 @@ class NEP3
 public:
   struct ParaMB {
     int version = 2;            // NEP version, 2 for NEP2 and 3 for NEP3
-    float rc_radial = 0.0f;     // radial cutoff
-    float rc_angular = 0.0f;    // angular cutoff
-    float rcinv_radial = 0.0f;  // inverse of the radial cutoff
-    float rcinv_angular = 0.0f; // inverse of the angular cutoff
+    double rc_radial = 0.0;     // radial cutoff
+    double rc_angular = 0.0;    // angular cutoff
+    double rcinv_radial = 0.0;  // inverse of the radial cutoff
+    double rcinv_angular = 0.0; // inverse of the angular cutoff
     int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 0, 1, 2, ..., L_max
@@ -35,25 +35,25 @@ public:
     int num_types_sq = 0;
     int num_c_radial = 0;
     int num_types = 0;
-    float q_scaler[140];
+    double q_scaler[140];
   };
 
   struct ANN {
     int dim = 0;          // dimension of the descriptor
     int num_neurons1 = 0; // number of neurons in the 1st hidden layer
     int num_para = 0;     // number of parameters
-    const float* w0;      // weight from the input layer to the hidden layer
-    const float* b0;      // bias for the hidden layer
-    const float* w1;      // weight from the hidden layer to the output layer
-    const float* b1;      // bias for the output layer
-    const float* c;
+    const double* w0;     // weight from the input layer to the hidden layer
+    const double* b0;     // bias for the hidden layer
+    const double* w1;     // weight from the hidden layer to the output layer
+    const double* b1;     // bias for the output layer
+    const double* c;
   };
 
   struct ZBL {
     bool enabled = false;
-    float rc_inner = 1.0f;
-    float rc_outer = 2.0f;
-    float atomic_numbers[10];
+    double rc_inner = 1.0;
+    double rc_outer = 2.0;
+    double atomic_numbers[10];
   };
 
   NEP3(int N);
@@ -63,7 +63,7 @@ public:
     const std::vector<int>& NN_angular,
     const std::vector<int>& NL_angular,
     const std::vector<int>& type,
-    const std::vector<float>& r12,
+    const std::vector<double>& r12,
     std::vector<double>& potential_per_atom,
     std::vector<double>& force_per_atom,
     std::vector<double>& virial_per_atom);
@@ -71,8 +71,8 @@ public:
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
-  std::vector<float> Fp;
-  std::vector<float> sum_fxyz;
-  std::vector<float> parameters;
-  void update_potential(const float* parameters, ANN& ann);
+  std::vector<double> Fp;
+  std::vector<double> sum_fxyz;
+  std::vector<double> parameters;
+  void update_potential(const double* parameters, ANN& ann);
 };

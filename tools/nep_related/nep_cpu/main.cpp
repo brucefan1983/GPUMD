@@ -32,7 +32,7 @@ const int num_repeats = 1000;
 
 struct ExpandedBox {
   int num_cells[3];
-  float h[18];
+  double h[18];
 };
 
 class Box
@@ -48,7 +48,7 @@ public:
   bool get_num_bins(const double rc, int num_bins[]); // get the number of bins in each direction
 };
 
-static float get_area_one_direction(const double* a, const double* b)
+static double get_area_one_direction(const double* a, const double* b)
 {
   double s1 = a[1] * b[2] - a[2] * b[1];
   double s2 = a[2] * b[0] - a[0] * b[2];
@@ -147,7 +147,7 @@ struct Atom {
   std::vector<int> NL_radial;
   std::vector<int> NN_angular;
   std::vector<int> NL_angular;
-  std::vector<float> r12;
+  std::vector<double> r12;
 };
 
 static std::vector<std::string> get_atom_symbols()
@@ -258,8 +258,8 @@ apply_mic_small_box(const Box& box, const ExpandedBox& ebox, double& x12, double
 }
 
 static void find_neighbor_list_small_box(
-  const float rc_radial,
-  const float rc_angular,
+  const double rc_radial,
+  const double rc_angular,
   const int N,
   const Box box,
   const ExpandedBox ebox,
@@ -270,12 +270,12 @@ static void find_neighbor_list_small_box(
   int* g_NL_radial,
   int* g_NN_angular,
   int* g_NL_angular,
-  float* g_x12_radial,
-  float* g_y12_radial,
-  float* g_z12_radial,
-  float* g_x12_angular,
-  float* g_y12_angular,
-  float* g_z12_angular)
+  double* g_x12_radial,
+  double* g_y12_radial,
+  double* g_z12_radial,
+  double* g_x12_angular,
+  double* g_y12_angular,
+  double* g_z12_angular)
 {
   for (int n1 = 0; n1 < N; ++n1) {
     double x1 = g_x[n1];
@@ -302,19 +302,19 @@ static void find_neighbor_list_small_box(
 
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
-            float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
+            double distance_square = double(x12 * x12 + y12 * y12 + z12 * z12);
             if (distance_square < rc_radial * rc_radial) {
               g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = float(x12);
-              g_y12_radial[count_radial * N + n1] = float(y12);
-              g_z12_radial[count_radial * N + n1] = float(z12);
+              g_x12_radial[count_radial * N + n1] = double(x12);
+              g_y12_radial[count_radial * N + n1] = double(y12);
+              g_z12_radial[count_radial * N + n1] = double(z12);
               count_radial++;
             }
             if (distance_square < rc_angular * rc_angular) {
               g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = float(x12);
-              g_y12_angular[count_angular * N + n1] = float(y12);
-              g_z12_angular[count_angular * N + n1] = float(z12);
+              g_x12_angular[count_angular * N + n1] = double(x12);
+              g_y12_angular[count_angular * N + n1] = double(y12);
+              g_z12_angular[count_angular * N + n1] = double(z12);
               count_angular++;
             }
           }
@@ -352,11 +352,11 @@ int main(int argc, char* argv[])
   }
 
   clock_t time_finish = clock();
-  float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
+  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
   std::cout << "Time used for NEP calculations = " << time_used << " s.\n";
 
-  float speed = atom.N * num_repeats / time_used;
-  float cost = 1000 / speed;
+  double speed = atom.N * num_repeats / time_used;
+  double cost = 1000 / speed;
   std::cout << "Computational speed = " << speed << " atom-step/second.\n";
   std::cout << "Computational cost = " << cost << " mini-second/atom-step.\n";
 

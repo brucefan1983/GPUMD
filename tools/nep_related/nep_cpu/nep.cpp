@@ -28,15 +28,15 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <vector>
 
 const int NUM_OF_ABC = 24; // 3 + 5 + 7 + 9 for L_max = 4
-float C3B[NUM_OF_ABC] = {
+double C3B[NUM_OF_ABC] = {
   0.238732414637843, 0.119366207318922, 0.119366207318922, 0.099471839432435, 0.596831036594608,
   0.596831036594608, 0.149207759148652, 0.149207759148652, 0.139260575205408, 0.104445431404056,
   0.104445431404056, 1.044454314040563, 1.044454314040563, 0.174075719006761, 0.174075719006761,
   0.011190581936149, 0.223811638722978, 0.223811638722978, 0.111905819361489, 0.111905819361489,
   1.566681471060845, 1.566681471060845, 0.195835183882606, 0.195835183882606};
-float C4B[5] = {
+double C4B[5] = {
   -0.007499480826664, -0.134990654879954, 0.067495327439977, 0.404971964639861, -0.809943929279723};
-float C5B[3] = {0.026596810706114, 0.053193621412227, 0.026596810706114};
+double C5B[3] = {0.026596810706114, 0.053193621412227, 0.026596810706114};
 #define K_C_SP 14.399645 // 1/(4*PI*epsilon_0)
 
 const int MAX_NUM_N = 20; // n_max+1 = 19+1
@@ -188,7 +188,7 @@ NEP3::NEP3(int N)
   input_file.close();
 }
 
-void NEP3::update_potential(const float* parameters, ANN& ann)
+void NEP3::update_potential(const double* parameters, ANN& ann)
 {
   ann.w0 = parameters;
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
@@ -200,43 +200,43 @@ void NEP3::update_potential(const float* parameters, ANN& ann)
 static void apply_ann_one_layer(
   const int dim,
   const int num_neurons1,
-  const float* w0,
-  const float* b0,
-  const float* w1,
-  const float* b1,
-  float* q,
-  float& energy,
-  float* energy_derivative)
+  const double* w0,
+  const double* b0,
+  const double* w1,
+  const double* b1,
+  double* q,
+  double& energy,
+  double* energy_derivative)
 {
   for (int n = 0; n < num_neurons1; ++n) {
-    float w0_times_q = 0.0;
+    double w0_times_q = 0.0;
     for (int d = 0; d < dim; ++d) {
       w0_times_q += w0[n * dim + d] * q[d];
     }
-    float x1 = tanh(w0_times_q - b0[n]);
+    double x1 = tanh(w0_times_q - b0[n]);
     energy += w1[n] * x1;
     for (int d = 0; d < dim; ++d) {
-      float y1 = (1.0 - x1 * x1) * w0[n * dim + d];
+      double y1 = (1.0 - x1 * x1) * w0[n * dim + d];
       energy_derivative[d] += w1[n] * y1;
     }
   }
   energy -= b1[0];
 }
 
-static void find_fc(float rc, float rcinv, float d12, float& fc)
+static void find_fc(double rc, double rcinv, double d12, double& fc)
 {
   if (d12 < rc) {
-    float x = d12 * rcinv;
+    double x = d12 * rcinv;
     fc = 0.5 * cos(3.1415927 * x) + 0.5;
   } else {
     fc = 0.0;
   }
 }
 
-static void find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& fcp)
+static void find_fc_and_fcp(double rc, double rcinv, double d12, double& fc, double& fcp)
 {
   if (d12 < rc) {
-    float x = d12 * rcinv;
+    double x = d12 * rcinv;
     fc = 0.5 * cos(3.1415927 * x) + 0.5;
     fcp = -1.5707963 * sin(3.1415927 * x);
     fcp *= rcinv;
@@ -246,13 +246,13 @@ static void find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& 
   }
 }
 
-static void find_fc_and_fcp_zbl(float r1, float r2, float d12, float& fc, float& fcp)
+static void find_fc_and_fcp_zbl(double r1, double r2, double d12, double& fc, double& fcp)
 {
   if (d12 < r1) {
     fc = 1.0;
     fcp = 0.0;
   } else if (d12 < r2) {
-    float pi_factor = 3.1415927 / (r2 - r1);
+    double pi_factor = 3.1415927 / (r2 - r1);
     fc = cos(pi_factor * (d12 - r1)) * 0.5 + 0.5;
     fcp = -sin(pi_factor * (d12 - r1)) * pi_factor * 0.5;
   } else {
@@ -261,26 +261,26 @@ static void find_fc_and_fcp_zbl(float r1, float r2, float d12, float& fc, float&
   }
 }
 
-static void find_phi_and_phip_zbl(float a, float b, float x, float& phi, float& phip)
+static void find_phi_and_phip_zbl(double a, double b, double x, double& phi, double& phip)
 {
-  float tmp = a * exp(-b * x);
+  double tmp = a * exp(-b * x);
   phi += tmp;
   phip -= b * tmp;
 }
 
 static void find_f_and_fp_zbl(
-  float zizj,
-  float a_inv,
-  float rc_inner,
-  float rc_outer,
-  float d12,
-  float d12inv,
-  float& f,
-  float& fp)
+  double zizj,
+  double a_inv,
+  double rc_inner,
+  double rc_outer,
+  double d12,
+  double d12inv,
+  double& f,
+  double& fp)
 {
-  float x = d12 * a_inv;
+  double x = d12 * a_inv;
   f = fp = 0.0;
-  float Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
+  double Zbl_para[8] = {0.18175, 3.1998, 0.50986, 0.94229, 0.28022, 0.4029, 0.02817, 0.20162};
   find_phi_and_phip_zbl(Zbl_para[0], Zbl_para[1], x, f, fp);
   find_phi_and_phip_zbl(Zbl_para[2], Zbl_para[3], x, f, fp);
   find_phi_and_phip_zbl(Zbl_para[4], Zbl_para[5], x, f, fp);
@@ -289,24 +289,25 @@ static void find_f_and_fp_zbl(
   fp *= zizj * a_inv;
   fp = fp * d12inv - f * d12inv * d12inv;
   f *= d12inv;
-  float fc, fcp;
+  double fc, fcp;
   find_fc_and_fcp_zbl(rc_inner, rc_outer, d12, fc, fcp);
   fp = fp * fc + f * fcp;
   f *= fc;
 }
 
-static void find_fn(const int n, const float rcinv, const float d12, const float fc12, float& fn)
+static void
+find_fn(const int n, const double rcinv, const double d12, const double fc12, double& fn)
 {
   if (n == 0) {
     fn = fc12;
   } else if (n == 1) {
-    float x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
+    double x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
     fn = (x + 1.0) * 0.5 * fc12;
   } else {
-    float x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
-    float t0 = 1.0;
-    float t1 = x;
-    float t2;
+    double x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
+    double t0 = 1.0;
+    double t1 = x;
+    double t2;
     for (int m = 2; m <= n; ++m) {
       t2 = 2.0 * x * t1 - t0;
       t0 = t1;
@@ -318,29 +319,29 @@ static void find_fn(const int n, const float rcinv, const float d12, const float
 
 static void find_fn_and_fnp(
   const int n,
-  const float rcinv,
-  const float d12,
-  const float fc12,
-  const float fcp12,
-  float& fn,
-  float& fnp)
+  const double rcinv,
+  const double d12,
+  const double fc12,
+  const double fcp12,
+  double& fn,
+  double& fnp)
 {
   if (n == 0) {
     fn = fc12;
     fnp = fcp12;
   } else if (n == 1) {
-    float x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
+    double x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
     fn = (x + 1.0) * 0.5;
     fnp = 2.0 * (d12 * rcinv - 1.0) * rcinv * fc12 + fn * fcp12;
     fn *= fc12;
   } else {
-    float x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
-    float t0 = 1.0;
-    float t1 = x;
-    float t2;
-    float u0 = 1.0;
-    float u1 = 2.0 * x;
-    float u2;
+    double x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
+    double t0 = 1.0;
+    double t1 = x;
+    double t2;
+    double u0 = 1.0;
+    double u1 = 2.0 * x;
+    double u2;
     for (int m = 2; m <= n; ++m) {
       t2 = 2.0 * x * t1 - t0;
       t0 = t1;
@@ -357,9 +358,9 @@ static void find_fn_and_fnp(
 }
 
 static void
-find_fn(const int n_max, const float rcinv, const float d12, const float fc12, float* fn)
+find_fn(const int n_max, const double rcinv, const double d12, const double fc12, double* fn)
 {
-  float x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
+  double x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
   fn[0] = 1.0;
   fn[1] = x;
   for (int m = 2; m <= n_max; ++m) {
@@ -372,21 +373,21 @@ find_fn(const int n_max, const float rcinv, const float d12, const float fc12, f
 
 static void find_fn_and_fnp(
   const int n_max,
-  const float rcinv,
-  const float d12,
-  const float fc12,
-  const float fcp12,
-  float* fn,
-  float* fnp)
+  const double rcinv,
+  const double d12,
+  const double fc12,
+  const double fcp12,
+  double* fn,
+  double* fnp)
 {
-  float x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
+  double x = 2.0 * (d12 * rcinv - 1.0) * (d12 * rcinv - 1.0) - 1.0;
   fn[0] = 1.0;
   fnp[0] = 0.0;
   fn[1] = x;
   fnp[1] = 1.0;
-  float u0 = 1.0;
-  float u1 = 2.0 * x;
-  float u2;
+  double u0 = 1.0;
+  double u1 = 2.0 * x;
+  double u2;
   for (int m = 2; m <= n_max; ++m) {
     fn[m] = 2.0 * x * fn[m - 1] - fn[m - 2];
     fnp[m] = m * u1;
@@ -403,15 +404,15 @@ static void find_fn_and_fnp(
 }
 
 static void get_f12_1(
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float Fp,
-  const float* s,
-  const float* r12,
-  float* f12)
+  const double d12inv,
+  const double fn,
+  const double fnp,
+  const double Fp,
+  const double* s,
+  const double* r12,
+  double* f12)
 {
-  float tmp = s[1] * r12[0];
+  double tmp = s[1] * r12[0];
   tmp += s[2] * r12[1];
   tmp *= 2.0;
   tmp += s[0] * r12[2];
@@ -426,16 +427,16 @@ static void get_f12_1(
 }
 
 static void get_f12_2(
-  const float d12,
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float Fp,
-  const float* s,
-  const float* r12,
-  float* f12)
+  const double d12,
+  const double d12inv,
+  const double fn,
+  const double fnp,
+  const double Fp,
+  const double* s,
+  const double* r12,
+  double* f12)
 {
-  float tmp = s[1] * r12[0] * r12[2];                // Re[Y21]
+  double tmp = s[1] * r12[0] * r12[2];               // Re[Y21]
   tmp += s[2] * r12[1] * r12[2];                     // Im[Y21]
   tmp += s[3] * (r12[0] * r12[0] - r12[1] * r12[1]); // Re[Y22]
   tmp += s[4] * 2.0 * r12[0] * r12[1];               // Im[Y22]
@@ -452,24 +453,24 @@ static void get_f12_2(
 }
 
 static void get_f12_4body(
-  const float d12,
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float Fp,
-  const float* s,
-  const float* r12,
-  float* f12)
+  const double d12,
+  const double d12inv,
+  const double fn,
+  const double fnp,
+  const double Fp,
+  const double* s,
+  const double* r12,
+  double* f12)
 {
-  float fn_factor = Fp * fn;
-  float fnp_factor = Fp * fnp * d12inv;
-  float y20 = (3.0 * r12[2] * r12[2] - d12 * d12);
+  double fn_factor = Fp * fn;
+  double fnp_factor = Fp * fnp * d12inv;
+  double y20 = (3.0 * r12[2] * r12[2] - d12 * d12);
 
   // derivative wrt s[0]
-  float tmp0 = C4B[0] * 3.0 * s[0] * s[0] + C4B[1] * (s[1] * s[1] + s[2] * s[2]) +
-               C4B[2] * (s[3] * s[3] + s[4] * s[4]);
-  float tmp1 = tmp0 * y20 * fnp_factor;
-  float tmp2 = tmp0 * fn_factor;
+  double tmp0 = C4B[0] * 3.0 * s[0] * s[0] + C4B[1] * (s[1] * s[1] + s[2] * s[2]) +
+                C4B[2] * (s[3] * s[3] + s[4] * s[4]);
+  double tmp1 = tmp0 * y20 * fnp_factor;
+  double tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0] - tmp2 * 2.0 * r12[0];
   f12[1] += tmp1 * r12[1] - tmp2 * 2.0 * r12[1];
   f12[2] += tmp1 * r12[2] + tmp2 * 4.0 * r12[2];
@@ -508,23 +509,23 @@ static void get_f12_4body(
 }
 
 static void get_f12_5body(
-  const float d12,
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float Fp,
-  const float* s,
-  const float* r12,
-  float* f12)
+  const double d12,
+  const double d12inv,
+  const double fn,
+  const double fnp,
+  const double Fp,
+  const double* s,
+  const double* r12,
+  double* f12)
 {
-  float fn_factor = Fp * fn;
-  float fnp_factor = Fp * fnp * d12inv;
-  float s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
+  double fn_factor = Fp * fn;
+  double fnp_factor = Fp * fnp * d12inv;
+  double s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
 
   // derivative wrt s[0]
-  float tmp0 = C5B[0] * 4.0 * s[0] * s[0] * s[0] + C5B[1] * s1_sq_plus_s2_sq * 2.0 * s[0];
-  float tmp1 = tmp0 * r12[2] * fnp_factor;
-  float tmp2 = tmp0 * fn_factor;
+  double tmp0 = C5B[0] * 4.0 * s[0] * s[0] * s[0] + C5B[1] * s1_sq_plus_s2_sq * 2.0 * s[0];
+  double tmp1 = tmp0 * r12[2] * fnp_factor;
+  double tmp2 = tmp0 * fn_factor;
   f12[0] += tmp1 * r12[0];
   f12[1] += tmp1 * r12[1];
   f12[2] += tmp1 * r12[2] + tmp2;
@@ -547,24 +548,24 @@ static void get_f12_5body(
 }
 
 static void get_f12_3(
-  const float d12,
-  const float d12inv,
-  const float fn,
-  const float fnp,
-  const float Fp,
-  const float* s,
-  const float* r12,
-  float* f12)
+  const double d12,
+  const double d12inv,
+  const double fn,
+  const double fnp,
+  const double Fp,
+  const double* s,
+  const double* r12,
+  double* f12)
 {
-  float d12sq = d12 * d12;
-  float x2 = r12[0] * r12[0];
-  float y2 = r12[1] * r12[1];
-  float z2 = r12[2] * r12[2];
-  float xy = r12[0] * r12[1];
-  float xz = r12[0] * r12[2];
-  float yz = r12[1] * r12[2];
+  double d12sq = d12 * d12;
+  double x2 = r12[0] * r12[0];
+  double y2 = r12[1] * r12[1];
+  double z2 = r12[2] * r12[2];
+  double xy = r12[0] * r12[1];
+  double xz = r12[0] * r12[2];
+  double yz = r12[1] * r12[2];
 
-  float tmp = s[1] * (5.0 * z2 - d12sq) * r12[0];
+  double tmp = s[1] * (5.0 * z2 - d12sq) * r12[0];
   tmp += s[2] * (5.0 * z2 - d12sq) * r12[1];
   tmp += s[3] * (x2 - y2) * r12[2];
   tmp += s[4] * 2.0 * xy * r12[2];
@@ -608,35 +609,35 @@ static void get_f12_3(
 }
 
 static void get_f12_4(
-  const float x,
-  const float y,
-  const float z,
-  const float r,
-  const float rinv,
-  const float fn,
-  const float fnp,
-  const float Fp,
-  const float* s,
-  float* f12)
+  const double x,
+  const double y,
+  const double z,
+  const double r,
+  const double rinv,
+  const double fn,
+  const double fnp,
+  const double Fp,
+  const double* s,
+  double* f12)
 {
-  const float r2 = r * r;
-  const float x2 = x * x;
-  const float y2 = y * y;
-  const float z2 = z * z;
-  const float xy = x * y;
-  const float xz = x * z;
-  const float yz = y * z;
-  const float xyz = x * yz;
-  const float x2my2 = x2 - y2;
+  const double r2 = r * r;
+  const double x2 = x * x;
+  const double y2 = y * y;
+  const double z2 = z * z;
+  const double xy = x * y;
+  const double xz = x * z;
+  const double yz = y * z;
+  const double xyz = x * yz;
+  const double x2my2 = x2 - y2;
 
-  float tmp = s[1] * (7.0 * z2 - 3.0 * r2) * xz; // Y41_real
-  tmp += s[2] * (7.0 * z2 - 3.0 * r2) * yz;      // Y41_imag
-  tmp += s[3] * (7.0 * z2 - r2) * x2my2;         // Y42_real
-  tmp += s[4] * (7.0 * z2 - r2) * 2.0 * xy;      // Y42_imag
-  tmp += s[5] * (x2 - 3.0 * y2) * xz;            // Y43_real
-  tmp += s[6] * (3.0 * x2 - y2) * yz;            // Y43_imag
-  tmp += s[7] * (x2my2 * x2my2 - 4.0 * x2 * y2); // Y44_real
-  tmp += s[8] * (4.0 * xy * x2my2);              // Y44_imag
+  double tmp = s[1] * (7.0 * z2 - 3.0 * r2) * xz; // Y41_real
+  tmp += s[2] * (7.0 * z2 - 3.0 * r2) * yz;       // Y41_imag
+  tmp += s[3] * (7.0 * z2 - r2) * x2my2;          // Y42_real
+  tmp += s[4] * (7.0 * z2 - r2) * 2.0 * xy;       // Y42_imag
+  tmp += s[5] * (x2 - 3.0 * y2) * xz;             // Y43_real
+  tmp += s[6] * (3.0 * x2 - y2) * yz;             // Y43_imag
+  tmp += s[7] * (x2my2 * x2my2 - 4.0 * x2 * y2);  // Y44_real
+  tmp += s[8] * (4.0 * xy * x2my2);               // Y44_imag
   tmp *= 2.0;
   tmp += s[0] * ((35.0 * z2 - 30.0 * r2) * z2 + 3.0 * r2 * r2); // Y40
   tmp *= Fp * fnp * rinv * 2.0;
@@ -683,26 +684,26 @@ static void get_f12_4(
 static void accumulate_f12(
   const int n,
   const int n_max_angular_plus_1,
-  const float d12,
-  const float* r12,
-  float fn,
-  float fnp,
-  const float* Fp,
-  const float* sum_fxyz,
-  float* f12)
+  const double d12,
+  const double* r12,
+  double fn,
+  double fnp,
+  const double* Fp,
+  const double* sum_fxyz,
+  double* f12)
 {
-  const float d12inv = 1.0 / d12;
+  const double d12inv = 1.0 / d12;
   // l = 1
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s1[3] = {
+  double s1[3] = {
     sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0], sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
     sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
   get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s2[5] = {
+  double s2[5] = {
     sum_fxyz[n * NUM_OF_ABC + 3] * C3B[3], sum_fxyz[n * NUM_OF_ABC + 4] * C3B[4],
     sum_fxyz[n * NUM_OF_ABC + 5] * C3B[5], sum_fxyz[n * NUM_OF_ABC + 6] * C3B[6],
     sum_fxyz[n * NUM_OF_ABC + 7] * C3B[7]};
@@ -710,19 +711,19 @@ static void accumulate_f12(
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
+  double s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+                  sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+                  sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+                  sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
+  double s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+                  sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+                  sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+                  sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+                  sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
@@ -730,26 +731,26 @@ static void accumulate_f12(
 static void accumulate_f12_with_4body(
   const int n,
   const int n_max_angular_plus_1,
-  const float d12,
-  const float* r12,
-  float fn,
-  float fnp,
-  const float* Fp,
-  const float* sum_fxyz,
-  float* f12)
+  const double d12,
+  const double* r12,
+  double fn,
+  double fnp,
+  const double* Fp,
+  const double* sum_fxyz,
+  double* f12)
 {
-  const float d12inv = 1.0 / d12;
+  const double d12inv = 1.0 / d12;
   // l = 1
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s1[3] = {
+  double s1[3] = {
     sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0], sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
     sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
   get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s2[5] = {
+  double s2[5] = {
     sum_fxyz[n * NUM_OF_ABC + 3], sum_fxyz[n * NUM_OF_ABC + 4], sum_fxyz[n * NUM_OF_ABC + 5],
     sum_fxyz[n * NUM_OF_ABC + 6], sum_fxyz[n * NUM_OF_ABC + 7]};
   get_f12_4body(d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s2, r12, f12);
@@ -762,19 +763,19 @@ static void accumulate_f12_with_4body(
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
+  double s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+                  sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+                  sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+                  sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
+  double s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+                  sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+                  sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+                  sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+                  sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
@@ -782,19 +783,19 @@ static void accumulate_f12_with_4body(
 static void accumulate_f12_with_5body(
   const int n,
   const int n_max_angular_plus_1,
-  const float d12,
-  const float* r12,
-  float fn,
-  float fnp,
-  const float* Fp,
-  const float* sum_fxyz,
-  float* f12)
+  const double d12,
+  const double* r12,
+  double fn,
+  double fnp,
+  const double* Fp,
+  const double* sum_fxyz,
+  double* f12)
 {
-  const float d12inv = 1.0 / d12;
+  const double d12inv = 1.0 / d12;
   // l = 1
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s1[3] = {
+  double s1[3] = {
     sum_fxyz[n * NUM_OF_ABC + 0], sum_fxyz[n * NUM_OF_ABC + 1], sum_fxyz[n * NUM_OF_ABC + 2]};
   get_f12_5body(d12, d12inv, fn, fnp, Fp[5 * n_max_angular_plus_1 + n], s1, r12, f12);
   s1[0] *= C3B[0];
@@ -804,7 +805,7 @@ static void accumulate_f12_with_5body(
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s2[5] = {
+  double s2[5] = {
     sum_fxyz[n * NUM_OF_ABC + 3], sum_fxyz[n * NUM_OF_ABC + 4], sum_fxyz[n * NUM_OF_ABC + 5],
     sum_fxyz[n * NUM_OF_ABC + 6], sum_fxyz[n * NUM_OF_ABC + 7]};
   get_f12_4body(d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s2, r12, f12);
@@ -817,33 +818,34 @@ static void accumulate_f12_with_5body(
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
+  double s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+                  sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+                  sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+                  sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
+  double s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+                  sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+                  sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+                  sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+                  sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
 
-static void accumulate_s(const float d12, float x12, float y12, float z12, const float fn, float* s)
+static void
+accumulate_s(const double d12, double x12, double y12, double z12, const double fn, double* s)
 {
-  float d12inv = 1.0 / d12;
+  double d12inv = 1.0 / d12;
   x12 *= d12inv;
   y12 *= d12inv;
   z12 *= d12inv;
-  float x12sq = x12 * x12;
-  float y12sq = y12 * y12;
-  float z12sq = z12 * z12;
-  float x12sq_minus_y12sq = x12sq - y12sq;
+  double x12sq = x12 * x12;
+  double y12sq = y12 * y12;
+  double z12sq = z12 * z12;
+  double x12sq_minus_y12sq = x12sq - y12sq;
   s[0] += z12 * fn;                                                            // Y10
   s[1] += x12 * fn;                                                            // Y11_real
   s[2] += y12 * fn;                                                            // Y11_imag
@@ -870,7 +872,7 @@ static void accumulate_s(const float d12, float x12, float y12, float z12, const
   s[23] += (4.0 * x12 * y12 * x12sq_minus_y12sq) * fn;                         // Y44_imag
 }
 
-static void find_q(const int n_max_angular_plus_1, const int n, const float* s, float* q)
+static void find_q(const int n_max_angular_plus_1, const int n, const double* s, double* q)
 {
   q[n] = C3B[0] * s[0] * s[0] + 2.0 * (C3B[1] * s[1] * s[1] + C3B[2] * s[2] * s[2]);
   q[n_max_angular_plus_1 + n] =
@@ -887,7 +889,8 @@ static void find_q(const int n_max_angular_plus_1, const int n, const float* s, 
            C3B[22] * s[22] * s[22] + C3B[23] * s[23] * s[23]);
 }
 
-static void find_q_with_4body(const int n_max_angular_plus_1, const int n, const float* s, float* q)
+static void
+find_q_with_4body(const int n_max_angular_plus_1, const int n, const double* s, double* q)
 {
   find_q(n_max_angular_plus_1, n, s, q);
   q[4 * n_max_angular_plus_1 + n] =
@@ -896,11 +899,12 @@ static void find_q_with_4body(const int n_max_angular_plus_1, const int n, const
     C4B[4] * s[4] * s[5] * s[7];
 }
 
-static void find_q_with_5body(const int n_max_angular_plus_1, const int n, const float* s, float* q)
+static void
+find_q_with_5body(const int n_max_angular_plus_1, const int n, const double* s, double* q)
 {
   find_q_with_4body(n_max_angular_plus_1, n, s, q);
-  float s0_sq = s[0] * s[0];
-  float s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
+  double s0_sq = s[0] * s[0];
+  double s1_sq_plus_s2_sq = s[1] * s[1] + s[2] * s[2];
   q[5 * n_max_angular_plus_1 + n] = C5B[0] * s0_sq * s0_sq + C5B[1] * s0_sq * s1_sq_plus_s2_sq +
                                     C5B[2] * s1_sq_plus_s2_sq * s1_sq_plus_s2_sq;
 }
@@ -914,41 +918,41 @@ static void find_descriptor_small_box(
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* g_type,
-  const float* g_x12_radial,
-  const float* g_y12_radial,
-  const float* g_z12_radial,
-  const float* g_x12_angular,
-  const float* g_y12_angular,
-  const float* g_z12_angular,
+  const double* g_x12_radial,
+  const double* g_y12_radial,
+  const double* g_z12_radial,
+  const double* g_x12_angular,
+  const double* g_y12_angular,
+  const double* g_z12_angular,
   double* g_pe,
-  float* g_Fp,
-  float* g_sum_fxyz)
+  double* g_Fp,
+  double* g_sum_fxyz)
 {
   for (int n1 = 0; n1 < N; ++n1) {
     int t1 = g_type[n1];
-    float q[MAX_DIM] = {0.0};
+    double q[MAX_DIM] = {0.0};
 
     for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_radial[index];
-      float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float fc12;
+      double r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
+      double d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      double fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_type[n2];
-      float fn12[MAX_NUM_N];
+      double fn12[MAX_NUM_N];
       if (paramb.version == 2) {
         find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float c = (paramb.num_types == 1)
-                      ? 1.0
-                      : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
+          double c = (paramb.num_types == 1)
+                       ? 1.0
+                       : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
           q[n] += fn12[n] * c;
         }
       } else {
         find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float gn12 = 0.0;
+          double gn12 = 0.0;
           for (int k = 0; k <= paramb.basis_size_radial; ++k) {
             int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2;
@@ -960,17 +964,17 @@ static void find_descriptor_small_box(
     }
 
     for (int n = 0; n <= paramb.n_max_angular; ++n) {
-      float s[NUM_OF_ABC] = {0.0};
+      double s[NUM_OF_ABC] = {0.0};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
         int index = i1 * N + n1;
         int n2 = g_NL_angular[index];
-        float r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
-        float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-        float fc12;
+        double r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
+        double d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+        double fc12;
         find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
         int t2 = g_type[n2];
         if (paramb.version == 2) {
-          float fn;
+          double fn;
           find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
           fn *=
             (paramb.num_types == 1)
@@ -979,9 +983,9 @@ static void find_descriptor_small_box(
                   [((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
           accumulate_s(d12, r12[0], r12[1], r12[2], fn, s);
         } else {
-          float fn12[MAX_NUM_N];
+          double fn12[MAX_NUM_N];
           find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
-          float gn12 = 0.0;
+          double gn12 = 0.0;
           for (int k = 0; k <= paramb.basis_size_angular; ++k) {
             int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
@@ -1006,7 +1010,7 @@ static void find_descriptor_small_box(
       q[d] = q[d] * paramb.q_scaler[d];
     }
 
-    float F = 0.0, Fp[MAX_DIM] = {0.0};
+    double F = 0.0, Fp[MAX_DIM] = {0.0};
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
     g_pe[n1] += F;
@@ -1024,10 +1028,10 @@ static void find_force_radial_small_box(
   const int* g_NN,
   const int* g_NL,
   const int* g_type,
-  const float* g_x12,
-  const float* g_y12,
-  const float* g_z12,
-  const float* g_Fp,
+  const double* g_x12,
+  const double* g_y12,
+  const double* g_z12,
+  const double* g_Fp,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1039,19 +1043,19 @@ static void find_force_radial_small_box(
       int index = i1 * N + n1;
       int n2 = g_NL[index];
       int t2 = g_type[n2];
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0 / d12;
-      float fc12, fcp12;
+      double r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      double d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      double d12inv = 1.0 / d12;
+      double fc12, fcp12;
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
+      double fn12[MAX_NUM_N];
+      double fnp12[MAX_NUM_N];
 
-      float f12[3] = {0.0};
+      double f12[3] = {0.0};
       if (paramb.version == 2) {
         find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * d12inv;
+          double tmp12 = g_Fp[n1 + n * N] * fnp12[n] * d12inv;
           tmp12 *= (paramb.num_types == 1)
                      ? 1.0
                      : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
@@ -1063,13 +1067,13 @@ static void find_force_radial_small_box(
         find_fn_and_fnp(
           paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float gnp12 = 0.0;
+          double gnp12 = 0.0;
           for (int k = 0; k <= paramb.basis_size_radial; ++k) {
             int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2;
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
-          float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
+          double tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
           for (int d = 0; d < 3; ++d) {
             f12[d] += tmp12 * r12[d];
           }
@@ -1102,11 +1106,11 @@ static void find_force_angular_small_box(
   const int* g_NN_angular,
   const int* g_NL_angular,
   const int* g_type,
-  const float* g_x12,
-  const float* g_y12,
-  const float* g_z12,
-  const float* g_Fp,
-  const float* g_sum_fxyz,
+  const double* g_x12,
+  const double* g_y12,
+  const double* g_z12,
+  const double* g_Fp,
+  const double* g_sum_fxyz,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1114,8 +1118,8 @@ static void find_force_angular_small_box(
 {
   for (int n1 = 0; n1 < N; ++n1) {
 
-    float Fp[MAX_DIM_ANGULAR] = {0.0};
-    float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
+    double Fp[MAX_DIM_ANGULAR] = {0.0};
+    double sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
       Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
     }
@@ -1128,19 +1132,19 @@ static void find_force_angular_small_box(
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_angular[n1 + N * i1];
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float fc12, fcp12;
+      double r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      double d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      double fc12, fcp12;
       find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
       int t2 = g_type[n2];
-      float f12[3] = {0.0};
+      double f12[3] = {0.0};
 
       if (paramb.version == 2) {
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
-          float fn;
-          float fnp;
+          double fn;
+          double fnp;
           find_fn_and_fnp(n, paramb.rcinv_angular, d12, fc12, fcp12, fn, fnp);
-          const float c =
+          const double c =
             (paramb.num_types == 1)
               ? 1.0
               : annmb.c
@@ -1150,13 +1154,13 @@ static void find_force_angular_small_box(
           accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, fn, fnp, Fp, sum_fxyz, f12);
         }
       } else {
-        float fn12[MAX_NUM_N];
-        float fnp12[MAX_NUM_N];
+        double fn12[MAX_NUM_N];
+        double fnp12[MAX_NUM_N];
         find_fn_and_fnp(
           paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
-          float gn12 = 0.0;
-          float gnp12 = 0.0;
+          double gn12 = 0.0;
+          double gnp12 = 0.0;
           for (int k = 0; k <= paramb.basis_size_angular; ++k) {
             int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
             c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
@@ -1199,9 +1203,9 @@ static void find_force_ZBL_small_box(
   const int* g_NN,
   const int* g_NL,
   const int* g_type,
-  const float* g_x12,
-  const float* g_y12,
-  const float* g_z12,
+  const double* g_x12,
+  const double* g_y12,
+  const double* g_z12,
   double* g_fx,
   double* g_fy,
   double* g_fz,
@@ -1209,21 +1213,21 @@ static void find_force_ZBL_small_box(
   double* g_pe)
 {
   for (int n1 = 0; n1 < N; ++n1) {
-    float zi = zbl.atomic_numbers[g_type[n1]];
-    float pow_zi = pow(zi, 0.23);
+    double zi = zbl.atomic_numbers[g_type[n1]];
+    double pow_zi = pow(zi, 0.23);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float d12inv = 1.0 / d12;
-      float f, fp;
-      float zj = zbl.atomic_numbers[g_type[n2]];
-      float a_inv = (pow_zi + pow(zj, 0.23)) * 2.134563;
-      float zizj = K_C_SP * zi * zj;
+      double r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      double d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      double d12inv = 1.0 / d12;
+      double f, fp;
+      double zj = zbl.atomic_numbers[g_type[n2]];
+      double a_inv = (pow_zi + pow(zj, 0.23)) * 2.134563;
+      double zizj = K_C_SP * zi * zj;
       find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
-      float f2 = fp * d12inv * 0.5;
-      float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
+      double f2 = fp * d12inv * 0.5;
+      double f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       g_fx[n1] += f12[0];
       g_fy[n1] += f12[1];
       g_fz[n1] += f12[2];
@@ -1250,7 +1254,7 @@ void NEP3::compute(
   const std::vector<int>& NN_angular,
   const std::vector<int>& NL_angular,
   const std::vector<int>& type,
-  const std::vector<float>& r12,
+  const std::vector<double>& r12,
   std::vector<double>& potential_per_atom,
   std::vector<double>& force_per_atom,
   std::vector<double>& virial_per_atom)
