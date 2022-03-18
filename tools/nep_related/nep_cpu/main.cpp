@@ -33,16 +33,8 @@ const int num_repeats = 1000;
 
 struct Atom {
   int N;
-  std::vector<int> num_cells;
-  std::vector<double> box;
-  std::vector<double> ebox;
-  std::vector<int> type;
-  std::vector<double> position, potential, force, virial;
-  std::vector<int> NN_radial;
-  std::vector<int> NL_radial;
-  std::vector<int> NN_angular;
-  std::vector<int> NL_angular;
-  std::vector<double> r12;
+  std::vector<int> num_cells, type, NN_radial, NL_radial, NN_angular, NL_angular;
+  std::vector<double> box, ebox, position, r12, potential, force, virial;
 };
 void readXYZ(Atom& atom);
 
