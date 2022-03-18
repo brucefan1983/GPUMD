@@ -302,19 +302,19 @@ static void find_neighbor_list_small_box(
 
             apply_mic_small_box(box, ebox, x12, y12, z12);
 
-            double distance_square = double(x12 * x12 + y12 * y12 + z12 * z12);
+            double distance_square = x12 * x12 + y12 * y12 + z12 * z12;
             if (distance_square < rc_radial * rc_radial) {
               g_NL_radial[count_radial * N + n1] = n2;
-              g_x12_radial[count_radial * N + n1] = double(x12);
-              g_y12_radial[count_radial * N + n1] = double(y12);
-              g_z12_radial[count_radial * N + n1] = double(z12);
+              g_x12_radial[count_radial * N + n1] = x12;
+              g_y12_radial[count_radial * N + n1] = y12;
+              g_z12_radial[count_radial * N + n1] = z12;
               count_radial++;
             }
             if (distance_square < rc_angular * rc_angular) {
               g_NL_angular[count_angular * N + n1] = n2;
-              g_x12_angular[count_angular * N + n1] = double(x12);
-              g_y12_angular[count_angular * N + n1] = double(y12);
-              g_z12_angular[count_angular * N + n1] = double(z12);
+              g_x12_angular[count_angular * N + n1] = x12;
+              g_y12_angular[count_angular * N + n1] = y12;
+              g_z12_angular[count_angular * N + n1] = z12;
               count_angular++;
             }
           }
