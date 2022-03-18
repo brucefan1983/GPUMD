@@ -7,11 +7,13 @@ load force_finite_difference.out; % CPU finite difference
 figure;
 plot(force_gpu-force_analytical);
 xlabel('force components');
-ylabel('force difference (eV/A)');
+ylabel('GPU (float) - CPU (double) (eV/A)');
+set(gca,'fontsize',15);
 
 figure;
 plot(force_finite_difference-force_analytical);
 xlabel('force components');
-ylabel('force difference (eV/A)');
+ylabel('finite-difference - analytical (eV/A)');
+set(gca,'fontsize',15);
 
 

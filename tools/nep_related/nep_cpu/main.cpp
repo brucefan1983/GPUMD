@@ -38,8 +38,9 @@ struct Atom {
   std::vector<double> box, ebox, position, r12, potential, force, virial;
 };
 void readXYZ(Atom& atom);
-void find_speed(Atom& atom, NEP3& nep3);
+void timing(Atom& atom, NEP3& nep3);
 void compare_analytical_and_finite_difference(Atom& atom, NEP3& nep3);
+void get_descriptor(Atom& atom, NEP3& nep3);
 
 int main(int argc, char* argv[])
 {
@@ -47,8 +48,9 @@ int main(int argc, char* argv[])
   readXYZ(atom);
   NEP3 nep3(atom.N, "nep.txt");
 
-  find_speed(atom, nep3);
+  timing(atom, nep3);
   compare_analytical_and_finite_difference(atom, nep3);
+  get_descriptor(atom, nep3);
 
   return 0;
 }
@@ -128,7 +130,7 @@ void readXYZ(Atom& atom)
   }
 }
 
-void find_speed(Atom& atom, NEP3& nep3)
+void timing(Atom& atom, NEP3& nep3)
 {
   std::cout << "Started timing.\n";
 
@@ -225,8 +227,9 @@ void compare_analytical_and_finite_difference(Atom& atom, NEP3& nep3)
     std::cout << "Cannot open force_analytical.out\n";
     exit(1);
   }
+  output_file << std::setprecision(15);
   for (int n = 0; n < atom.N; ++n) {
-    output_file << std::setprecision(15) << atom.force[n] << " " << atom.force[n + atom.N] << " "
+    output_file << atom.force[n] << " " << atom.force[n + atom.N] << " "
                 << atom.force[n + atom.N * 2] << "\n";
   }
   output_file.close();
@@ -238,11 +241,45 @@ void compare_analytical_and_finite_difference(Atom& atom, NEP3& nep3)
     std::cout << "Cannot open force_finite_difference.out\n";
     exit(1);
   }
+  output_finite_difference << std::setprecision(15);
   for (int n = 0; n < atom.N; ++n) {
-    output_finite_difference << std::setprecision(15) << force_finite_difference[n] << " "
+    output_finite_difference << force_finite_difference[n] << " "
                              << force_finite_difference[n + atom.N] << " "
                              << force_finite_difference[n + atom.N * 2] << "\n";
   }
   output_finite_difference.close();
   std::cout << "    finite-difference forces are written into force_finite_difference.out.\n";
+}
+
+void get_descriptor(Atom& atom, NEP3& nep3)
+{
+  std::cout << "Getting descriptor.\n";
+
+  std::vector<double> descriptor(nep3.Fp.size());
+
+  find_neighbor_list_small_box(
+    nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box, atom.position, atom.num_cells,
+    atom.ebox, atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.r12);
+
+  nep3.find_descriptor(
+    atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
+    descriptor);
+
+  std::ofstream output_file("descriptor.out");
+
+  if (!output_file.is_open()) {
+    std::cout << "Cannot open descriptor.out\n";
+    exit(1);
+  }
+
+  output_file << std::setprecision(15);
+
+  for (int n = 0; n < atom.N; ++n) {
+    for (int d = 0; d < nep3.annmb.dim; ++d) {
+      output_file << descriptor[d * atom.N + n] << " ";
+    }
+    output_file << "\n";
+  }
+  output_file.close();
+  std::cout << "    descriptors are written into descriptor.out.\n";
 }

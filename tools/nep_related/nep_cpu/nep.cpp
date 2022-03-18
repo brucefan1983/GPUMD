@@ -764,6 +764,7 @@ void find_q_with_5body(const int n_max_angular_plus_1, const int n, const double
 }
 
 void find_descriptor_small_box(
+  const bool is_calculating_descriptor,
   NEP3::ParaMB paramb,
   NEP3::ANN annmb,
   const int N,
@@ -778,9 +779,9 @@ void find_descriptor_small_box(
   const double* g_x12_angular,
   const double* g_y12_angular,
   const double* g_z12_angular,
-  double* g_pe,
   double* g_Fp,
-  double* g_sum_fxyz)
+  double* g_sum_fxyz,
+  double* g_potential_or_descriptor)
 {
   for (int n1 = 0; n1 < N; ++n1) {
     int t1 = g_type[n1];
@@ -860,17 +861,23 @@ void find_descriptor_small_box(
       }
     }
 
-    for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = q[d] * paramb.q_scaler[d];
-    }
+    if (is_calculating_descriptor) {
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_potential_or_descriptor[d * N + n1] = q[d] * paramb.q_scaler[d];
+      }
+    } else {
+      for (int d = 0; d < annmb.dim; ++d) {
+        q[d] = q[d] * paramb.q_scaler[d];
+      }
 
-    double F = 0.0, Fp[MAX_DIM] = {0.0};
-    apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
-    g_pe[n1] += F;
+      double F = 0.0, Fp[MAX_DIM] = {0.0};
+      apply_ann_one_layer(
+        annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
+      g_potential_or_descriptor[n1] += F;
 
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+      }
     }
   }
 }
@@ -1273,10 +1280,10 @@ void NEP3::compute(
   }
 
   find_descriptor_small_box(
-    paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(), NL_angular.data(),
-    type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
-    potential_per_atom.data(), Fp.data(), sum_fxyz.data());
+    false, paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(),
+    NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
+    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(),
+    sum_fxyz.data(), potential_per_atom.data());
 
   find_force_radial_small_box(
     paramb, annmb, N, NN_radial.data(), NL_radial.data(), type.data(), r12.data(),
@@ -1295,4 +1302,23 @@ void NEP3::compute(
       r12.data() + size_x12 * 2, force_per_atom.data(), force_per_atom.data() + N,
       force_per_atom.data() + N * 2, virial_per_atom.data(), potential_per_atom.data());
   }
+}
+
+void NEP3::find_descriptor(
+  const std::vector<int>& NN_radial,
+  const std::vector<int>& NL_radial,
+  const std::vector<int>& NN_angular,
+  const std::vector<int>& NL_angular,
+  const std::vector<int>& type,
+  const std::vector<double>& r12,
+  std::vector<double>& descriptor)
+{
+  const int N = NN_radial.size();
+  const int size_x12 = NL_radial.size();
+
+  find_descriptor_small_box(
+    true, paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(),
+    NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
+    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(),
+    sum_fxyz.data(), descriptor.data());
 }

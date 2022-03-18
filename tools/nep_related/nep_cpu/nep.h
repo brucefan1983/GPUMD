@@ -68,6 +68,14 @@ public:
     std::vector<double>& potential_per_atom,
     std::vector<double>& force_per_atom,
     std::vector<double>& virial_per_atom);
+  void find_descriptor(
+    const std::vector<int>& NN_radial,
+    const std::vector<int>& NL_radial,
+    const std::vector<int>& NN_angular,
+    const std::vector<int>& NL_angular,
+    const std::vector<int>& type,
+    const std::vector<double>& r12,
+    std::vector<double>& descriptor);
 
   ParaMB paramb;
   ANN annmb;
