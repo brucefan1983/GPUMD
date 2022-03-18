@@ -25,6 +25,7 @@ Usage:
 #include "utility.h"
 #include <cmath>
 #include <fstream>
+#include <iomanip>
 #include <iostream>
 #include <time.h>
 
@@ -37,51 +38,14 @@ struct Atom {
   std::vector<double> box, ebox, position, r12, potential, force, virial;
 };
 void readXYZ(Atom& atom);
+void find_speed();
+void compare_analytical_and_finite_difference();
 
 int main(int argc, char* argv[])
 {
-  Atom atom;
-  readXYZ(atom);
-  NEP3 nep3(atom.N);
 
-  const int size_x12 = atom.NL_radial.size();
-
-  find_neighbor_list_small_box(
-    nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box.data(), atom.position.data(),
-    atom.position.data() + atom.N, atom.position.data() + atom.N * 2, atom.num_cells.data(),
-    atom.ebox.data(), atom.NN_radial.data(), atom.NL_radial.data(), atom.NN_angular.data(),
-    atom.NL_angular.data(), atom.r12.data(), atom.r12.data() + size_x12,
-    atom.r12.data() + size_x12 * 2, atom.r12.data() + size_x12 * 3, atom.r12.data() + size_x12 * 4,
-    atom.r12.data() + size_x12 * 5);
-
-  clock_t time_begin = clock();
-
-  for (int n = 0; n < num_repeats; ++n) {
-    nep3.compute(
-      atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
-      atom.potential, atom.force, atom.virial);
-  }
-
-  clock_t time_finish = clock();
-  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
-  std::cout << "Time used for NEP calculations = " << time_used << " s.\n";
-
-  double speed = atom.N * num_repeats / time_used;
-  double cost = 1000 / speed;
-  std::cout << "Computational speed = " << speed << " atom-step/second.\n";
-  std::cout << "Computational cost = " << cost << " mini-second/atom-step.\n";
-
-  std::ofstream output_file("force_cpu.out");
-
-  if (!output_file.is_open()) {
-    std::cout << "Cannot open force_cpu.out\n";
-    exit(1);
-  }
-  for (int n = 0; n < atom.N; ++n) {
-    output_file << atom.force[n] << " " << atom.force[n + atom.N] << " "
-                << atom.force[n + atom.N * 2] << "\n";
-  }
-  output_file.close();
+  find_speed();
+  compare_analytical_and_finite_difference();
 
   return 0;
 }
@@ -159,4 +123,139 @@ void readXYZ(Atom& atom)
       exit(1);
     }
   }
+}
+
+void find_speed()
+{
+  Atom atom;
+  readXYZ(atom);
+  NEP3 nep3(atom.N);
+
+  const int size_x12 = atom.NL_radial.size();
+
+  find_neighbor_list_small_box(
+    nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box.data(), atom.position.data(),
+    atom.position.data() + atom.N, atom.position.data() + atom.N * 2, atom.num_cells.data(),
+    atom.ebox.data(), atom.NN_radial.data(), atom.NL_radial.data(), atom.NN_angular.data(),
+    atom.NL_angular.data(), atom.r12.data(), atom.r12.data() + size_x12,
+    atom.r12.data() + size_x12 * 2, atom.r12.data() + size_x12 * 3, atom.r12.data() + size_x12 * 4,
+    atom.r12.data() + size_x12 * 5);
+
+  clock_t time_begin = clock();
+
+  for (int n = 0; n < num_repeats; ++n) {
+    nep3.compute(
+      atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
+      atom.potential, atom.force, atom.virial);
+  }
+
+  clock_t time_finish = clock();
+  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
+  std::cout << "Time used for NEP calculations = " << time_used << " s.\n";
+
+  double speed = atom.N * num_repeats / time_used;
+  double cost = 1000 / speed;
+  std::cout << "Computational speed = " << speed << " atom-step/second.\n";
+  std::cout << "Computational cost = " << cost << " mini-second/atom-step.\n";
+}
+
+void compare_analytical_and_finite_difference()
+{
+  Atom atom;
+  readXYZ(atom);
+
+  std::vector<double> force_finite_difference(atom.force.size());
+  std::vector<double> position_copy(atom.position.size());
+  for (int n = 0; n < atom.position.size(); ++n) {
+    position_copy[n] = atom.position[n];
+  }
+
+  NEP3 nep3(atom.N);
+
+  const double delta = 1.0e-7;
+
+  for (int n = 0; n < atom.N; ++n) {
+    for (int d = 0; d < 3; ++d) {
+      atom.position[n + d * atom.N] = position_copy[n + d * atom.N] - delta; // negative shift
+      const int size_x12 = atom.NL_radial.size();
+
+      find_neighbor_list_small_box(
+        nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box.data(),
+        atom.position.data(), atom.position.data() + atom.N, atom.position.data() + atom.N * 2,
+        atom.num_cells.data(), atom.ebox.data(), atom.NN_radial.data(), atom.NL_radial.data(),
+        atom.NN_angular.data(), atom.NL_angular.data(), atom.r12.data(), atom.r12.data() + size_x12,
+        atom.r12.data() + size_x12 * 2, atom.r12.data() + size_x12 * 3,
+        atom.r12.data() + size_x12 * 4, atom.r12.data() + size_x12 * 5);
+
+      nep3.compute(
+        atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
+        atom.potential, atom.force, atom.virial);
+
+      double energy_negative_shift = 0.0;
+      for (int n = 0; n < atom.N; ++n) {
+        energy_negative_shift += atom.potential[n];
+      }
+
+      atom.position[n + d * atom.N] = position_copy[n + d * atom.N] + delta; // positive shift
+
+      find_neighbor_list_small_box(
+        nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box.data(),
+        atom.position.data(), atom.position.data() + atom.N, atom.position.data() + atom.N * 2,
+        atom.num_cells.data(), atom.ebox.data(), atom.NN_radial.data(), atom.NL_radial.data(),
+        atom.NN_angular.data(), atom.NL_angular.data(), atom.r12.data(), atom.r12.data() + size_x12,
+        atom.r12.data() + size_x12 * 2, atom.r12.data() + size_x12 * 3,
+        atom.r12.data() + size_x12 * 4, atom.r12.data() + size_x12 * 5);
+
+      nep3.compute(
+        atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
+        atom.potential, atom.force, atom.virial);
+
+      double energy_positive_shift = 0.0;
+      for (int n = 0; n < atom.N; ++n) {
+        energy_positive_shift += atom.potential[n];
+      }
+
+      force_finite_difference[n + d * atom.N] =
+        (energy_negative_shift - energy_positive_shift) / (2.0 * delta);
+    }
+  }
+
+  const int size_x12 = atom.NL_radial.size();
+
+  find_neighbor_list_small_box(
+    nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box.data(), position_copy.data(),
+    position_copy.data() + atom.N, position_copy.data() + atom.N * 2, atom.num_cells.data(),
+    atom.ebox.data(), atom.NN_radial.data(), atom.NL_radial.data(), atom.NN_angular.data(),
+    atom.NL_angular.data(), atom.r12.data(), atom.r12.data() + size_x12,
+    atom.r12.data() + size_x12 * 2, atom.r12.data() + size_x12 * 3, atom.r12.data() + size_x12 * 4,
+    atom.r12.data() + size_x12 * 5);
+
+  nep3.compute(
+    atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
+    atom.potential, atom.force, atom.virial);
+
+  std::ofstream output_file("force_analytical.out");
+
+  if (!output_file.is_open()) {
+    std::cout << "Cannot open force_analytical.out\n";
+    exit(1);
+  }
+  for (int n = 0; n < atom.N; ++n) {
+    output_file << std::setprecision(15) << atom.force[n] << " " << atom.force[n + atom.N] << " "
+                << atom.force[n + atom.N * 2] << "\n";
+  }
+  output_file.close();
+
+  std::ofstream output_finite_difference("force_finite_difference.out");
+
+  if (!output_finite_difference.is_open()) {
+    std::cout << "Cannot open force_finite_difference.out\n";
+    exit(1);
+  }
+  for (int n = 0; n < atom.N; ++n) {
+    output_finite_difference << std::setprecision(15) << force_finite_difference[n] << " "
+                             << force_finite_difference[n + atom.N] << " "
+                             << force_finite_difference[n + atom.N * 2] << "\n";
+  }
+  output_finite_difference.close();
 }

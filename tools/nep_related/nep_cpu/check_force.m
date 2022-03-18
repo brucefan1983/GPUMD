@@ -1,9 +1,17 @@
 clear; close all;
-load force_gpu.out; load force_cpu.out;
+load force_gpu.out; % GPU (GPUMD) analytical
+load force_analytical.out; % CPU analytical
+load force_finite_difference.out; % CPU finite difference
 
 % The difference should be of the order of 1.0e-5 (used float32 in GPU)
 figure;
-plot(force_gpu-force_cpu);
+plot(force_gpu-force_analytical);
 xlabel('force components');
 ylabel('force difference (eV/A)');
+
+figure;
+plot(force_finite_difference-force_analytical);
+xlabel('force components');
+ylabel('force difference (eV/A)');
+
 
