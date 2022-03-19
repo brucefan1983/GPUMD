@@ -168,7 +168,7 @@ void compare_analytical_and_finite_difference(Atom& atom, NEP3& nep3)
     position_copy[n] = atom.position[n];
   }
 
-  const double delta = 1.0e-7;
+  const double delta = 2.0e-5;
 
   for (int n = 0; n < atom.N; ++n) {
     for (int d = 0; d < 3; ++d) {
@@ -206,11 +206,9 @@ void compare_analytical_and_finite_difference(Atom& atom, NEP3& nep3)
 
       force_finite_difference[n + d * atom.N] =
         (energy_negative_shift - energy_positive_shift) / (2.0 * delta);
-    }
-  }
 
-  for (int n = 0; n < atom.position.size(); ++n) {
-    atom.position[n] = position_copy[n];
+      atom.position[n + d * atom.N] = position_copy[n + d * atom.N]; // back to original position
+    }
   }
 
   find_neighbor_list_small_box(
