@@ -21,14 +21,14 @@ class NEP3
 {
 public:
   struct ParaMB {
-    int version = 2;            // NEP version, 2 for NEP2 and 3 for NEP3
-    double rc_radial = 0.0;     // radial cutoff
-    double rc_angular = 0.0;    // angular cutoff
-    double rcinv_radial = 0.0;  // inverse of the radial cutoff
-    double rcinv_angular = 0.0; // inverse of the angular cutoff
-    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
-    int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
-    int L_max = 0;              // l = 0, 1, 2, ..., L_max
+    int version = 2;
+    double rc_radial = 0.0;
+    double rc_angular = 0.0;
+    double rcinv_radial = 0.0;
+    double rcinv_angular = 0.0;
+    int n_max_radial = 0;
+    int n_max_angular = 0;
+    int L_max = 0;
     int dim_angular;
     int num_L;
     int basis_size_radial = 8;
@@ -40,13 +40,13 @@ public:
   };
 
   struct ANN {
-    int dim = 0;          // dimension of the descriptor
-    int num_neurons1 = 0; // number of neurons in the 1st hidden layer
-    int num_para = 0;     // number of parameters
-    const double* w0;     // weight from the input layer to the hidden layer
-    const double* b0;     // bias for the hidden layer
-    const double* w1;     // weight from the hidden layer to the output layer
-    const double* b1;     // bias for the output layer
+    int dim = 0;
+    int num_neurons1 = 0;
+    int num_para = 0;
+    const double* w0;
+    const double* b0;
+    const double* w1;
+    const double* b1;
     const double* c;
   };
 
