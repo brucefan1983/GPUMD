@@ -134,13 +134,14 @@ void timing(Atom& atom, NEP3& nep3)
 {
   std::cout << "Started timing.\n";
 
-  find_neighbor_list_small_box(
-    nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box, atom.position, atom.num_cells,
-    atom.ebox, atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.r12);
-
   clock_t time_begin = clock();
 
   for (int n = 0; n < num_repeats; ++n) {
+    find_neighbor_list_small_box(
+      nep3.paramb.rc_radial, nep3.paramb.rc_angular, atom.N, atom.box, atom.position,
+      atom.num_cells, atom.ebox, atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular,
+      atom.r12);
+
     nep3.compute(
       atom.NN_radial, atom.NL_radial, atom.NN_angular, atom.NL_angular, atom.type, atom.r12,
       atom.potential, atom.force, atom.virial);
