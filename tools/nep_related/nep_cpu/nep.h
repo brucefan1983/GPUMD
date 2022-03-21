@@ -57,31 +57,43 @@ public:
     double atomic_numbers[10];
   };
 
-  NEP3(const int N, const std::string& potential_filename);
+  NEP3(const std::string& potential_filename);
+
+  // type[num_atoms] should be integers 0, 1, ..., maping to the atom types in nep.txt in order
+  // box[9] is ordered as ax, bx, cx, ay, by, cy, az, bz, cz
+  // position[num_atoms * 3] is ordered as x[num_atoms], y[num_atoms], z[num_atoms]
+  // potential[num_atoms]
+  // force[num_atoms * 3] is ordered as fx[num_atoms], fy[num_atoms], fz[num_atoms]
+  // virial[num_atoms * 9] is ordered as v_xx[num_atoms], v_xy[num_atoms], v_xz[num_atoms],
+  // v_yx[num_atoms], v_yy[num_atoms], v_yz[num_atoms], v_zx[num_atoms], v_zy[num_atoms],
+  // v_zz[num_atoms]
+  // descriptor[num_atoms * dim] is ordered as d0[num_atoms], d1[num_atoms], ...
+
   void compute(
-    const std::vector<int>& NN_radial,
-    const std::vector<int>& NL_radial,
-    const std::vector<int>& NN_angular,
-    const std::vector<int>& NL_angular,
     const std::vector<int>& type,
-    const std::vector<double>& r12,
-    std::vector<double>& potential_per_atom,
-    std::vector<double>& force_per_atom,
-    std::vector<double>& virial_per_atom);
+    const std::vector<double>& box,
+    const std::vector<double>& position,
+    std::vector<double>& potential,
+    std::vector<double>& force,
+    std::vector<double>& virial);
+
   void find_descriptor(
-    const std::vector<int>& NN_radial,
-    const std::vector<int>& NL_radial,
-    const std::vector<int>& NN_angular,
-    const std::vector<int>& NL_angular,
     const std::vector<int>& type,
-    const std::vector<double>& r12,
+    const std::vector<double>& box,
+    const std::vector<double>& position,
     std::vector<double>& descriptor);
 
+  int num_atoms = 0;
+  int num_cells[3];
+  double ebox[18];
   ParaMB paramb;
   ANN annmb;
   ZBL zbl;
+  std::vector<int> NN_radial, NL_radial, NN_angular, NL_angular;
+  std::vector<double> r12;
   std::vector<double> Fp;
   std::vector<double> sum_fxyz;
   std::vector<double> parameters;
   void update_potential(const double* parameters, ANN& ann);
+  void allocate_memory(const int N);
 };
