@@ -59,7 +59,7 @@ public:
 
   NEP3(const std::string& potential_filename);
 
-  // type[num_atoms] should be integers 0, 1, ..., maping to the atom types in nep.txt in order
+  // type[num_atoms] should be integers 0, 1, ..., mapping to the atom types in nep.txt in order
   // box[9] is ordered as ax, bx, cx, ay, by, cy, az, bz, cz
   // position[num_atoms * 3] is ordered as x[num_atoms], y[num_atoms], z[num_atoms]
   // potential[num_atoms]
