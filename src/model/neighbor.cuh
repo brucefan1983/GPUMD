@@ -22,10 +22,10 @@ class Neighbor
 {
 public:
   int MN;                    // upper bound of # neighbors for one particle
-  int update = 0;            // 1 means you want to update the neighbor list
+  int update = 1;            // 1 means you want to update the neighbor list
   int number_of_updates = 0; // number of updates during a run
   int max_NN = 0;            // maximum number of neighbors during a run
-  double skin;               // skin distance
+  double skin = 1.0;         // fix the skin distance to 1 A
   double rc;                 // cutoff used when building the neighbor list
 
   GPU_Vector<int> NN, NL;             // global neighbor list
@@ -42,7 +42,11 @@ public:
   // used to determine when to update neighbor list
   GPU_Vector<double> x0, y0, z0;
 
-  void find_neighbor(const bool is_first, Box& box, GPU_Vector<double>& position_per_atom);
+  void find_neighbor(
+    const bool is_first,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    const double force_rc_max = 0.0);
 
   void finalize();
 

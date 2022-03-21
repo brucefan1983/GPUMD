@@ -6,6 +6,7 @@ potential lj6.txt 0
 velocity    10
 
 ensemble    nvt_ber 10 10 10
+neighbor    off
 time_step   0.1
 dump_thermo 10
 run         100

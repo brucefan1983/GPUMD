@@ -230,7 +230,8 @@ void Neighbor::find_neighbor(Box& box, double* x, double* y, double* z)
 }
 
 // the driver function to be called outside this file
-void Neighbor::find_neighbor(const bool is_first, Box& box, GPU_Vector<double>& position_per_atom)
+void Neighbor::find_neighbor(
+  const bool is_first, Box& box, GPU_Vector<double>& position_per_atom, const double force_rc_max)
 {
   const int N = NN.size();
   const int block_size = 256;
@@ -241,12 +242,15 @@ void Neighbor::find_neighbor(const bool is_first, Box& box, GPU_Vector<double>& 
   double* z = position_per_atom.data() + N * 2;
 
   if (is_first) {
+
     find_neighbor(box, x, y, z);
     check_bound(is_first);
 
     gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
     CUDA_CHECK_KERNEL
   } else {
+    rc = force_rc_max + skin; // update rc when we know the largest force cutoff
+
     int update = check_atom_distance(x, y, z);
 
     if (update) {
@@ -266,7 +270,7 @@ void Neighbor::find_neighbor(const bool is_first, Box& box, GPU_Vector<double>& 
 
 void Neighbor::finalize()
 {
-  update = 0;
+  update = 1;
   number_of_updates = 0;
   max_NN = 0;
 }

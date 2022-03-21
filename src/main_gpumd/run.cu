@@ -158,7 +158,7 @@ void Run::perform_a_run(char* input_dir)
 
 #ifndef USE_FCP // the FCP does not use a neighbor list at all
     if (neighbor.update) {
-      neighbor.find_neighbor(/*is_first=*/false, box, atom.position_per_atom);
+      neighbor.find_neighbor(/*is_first=*/false, box, atom.position_per_atom, force.rc_max);
     }
 #endif
 
@@ -377,16 +377,18 @@ void Run::parse_run(char** param, int num_param, char* input_dir)
 
 void Run::parse_neighbor(char** param, int num_param)
 {
-  neighbor.update = 1;
-
+  neighbor.update = 0;
   if (num_param != 2) {
     PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
   }
-  if (!is_valid_real(param[1], &neighbor.skin)) {
-    PRINT_INPUT_ERROR("neighbor list skin should be a number.\n");
+  if (strcmp(param[1], "off") == 0) {
+    printf("Neighbor list will NOT be updated.\n");
+  } else {
+    PRINT_INPUT_ERROR(
+      "Starting from GPUMD-v3.3, the grammar of the 'neighbor' keyword has been\n"
+      "changed: The neighbor list will be updated with a skin distance of 1 A by\n"
+      "default for each run and one can use 'neighbor off' to turn if off. When\n"
+      "one knows there is no atom diffusion, it is better to turn off the neighbor\n"
+      "list update to achieve the best computational speed.\n");
   }
-  printf("Build neighbor list with a skin of %g A.\n", neighbor.skin);
-
-  // change the cutoff
-  neighbor.rc = force.rc_max + neighbor.skin;
 }
