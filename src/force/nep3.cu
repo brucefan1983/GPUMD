@@ -93,10 +93,12 @@ NEP3::NEP3(
   printf("    n_max_radial = %d.\n", paramb.n_max_radial);
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
-  count = fscanf(fid, "%s%d%d", name, &paramb.basis_size_radial, &paramb.basis_size_angular);
-  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
-  printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
-  printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
+  if (paramb.version == 3) {
+    count = fscanf(fid, "%s%d%d", name, &paramb.basis_size_radial, &paramb.basis_size_angular);
+    PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+    printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
+    printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
+  }
 
   int L_max_4body = 0;
   int L_max_5body = 0;

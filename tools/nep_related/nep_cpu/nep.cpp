@@ -1175,9 +1175,11 @@ NEP3::NEP3(const int N, const std::string& potential_filename)
   std::cout << "    n_max_radial = " << paramb.n_max_radial << ".\n";
   std::cout << "    n_max_angular = " << paramb.n_max_angular << ".\n";
 
-  input_file >> name >> paramb.basis_size_radial >> paramb.basis_size_angular;
-  std::cout << "    basis_size_radial = " << paramb.basis_size_radial << ".\n";
-  std::cout << "    basis_size_angular = " << paramb.basis_size_angular << ".\n";
+  if (paramb.version == 3) {
+    input_file >> name >> paramb.basis_size_radial >> paramb.basis_size_angular;
+    std::cout << "    basis_size_radial = " << paramb.basis_size_radial << ".\n";
+    std::cout << "    basis_size_angular = " << paramb.basis_size_angular << ".\n";
+  }
 
   int L_max_4body = 0;
   int L_max_5body = 0;
