@@ -33,7 +33,7 @@ subplot(1,2,2);
 plot(nu, Gc, 'b-','linewidth',1.5);
 set(gca,'fontsize',font_size);
 xlabel('\omega/2\pi (THz)','fontsize',font_size);
-ylabel('\kappa(\omega) (GW/m^2/K/THz)','fontsize',font_size);
+ylabel('G(\omega) (GW/m^2/K/THz)','fontsize',font_size);
 xlim([0,53]);
 set(gca,'ticklength',get(gca,'ticklength')*3,'xtick',0:10:50);
 title('(b)');
