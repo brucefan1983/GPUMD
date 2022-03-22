@@ -195,57 +195,6 @@ void NEP4::update_potential(const float* parameters, ANN& ann, GNN& gnn)
   gnn.theta = parameters + ann.num_para;
 }
 
-static void __global__ find_q_scaler(const int N, const float* g_q, float* g_q_scaler)
-{
-  const int tid = threadIdx.x;
-  const int bid = blockIdx.x;
-  __shared__ float s_max[1024];
-  __shared__ float s_min[1024];
-  s_max[tid] = -1000000.0f; // a small number
-  s_min[tid] = +1000000.0f; // a large number
-  const int stride = 1024;
-  const int number_of_rounds = (N - 1) / stride + 1;
-  for (int round = 0; round < number_of_rounds; ++round) {
-    const int n = round * stride + tid;
-    if (n < N) {
-      const int m = n + N * bid;
-      float q = g_q[m];
-      if (q > s_max[tid]) {
-        s_max[tid] = q;
-      }
-      if (q < s_min[tid]) {
-        s_min[tid] = q;
-      }
-    }
-  }
-  __syncthreads();
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (tid < offset) {
-      if (s_max[tid] < s_max[tid + offset]) {
-        s_max[tid] = s_max[tid + offset];
-      }
-      if (s_min[tid] > s_min[tid + offset]) {
-        s_min[tid] = s_min[tid + offset];
-      }
-    }
-    __syncthreads();
-  }
-  if (tid == 0) {
-    g_q_scaler[bid] = min(g_q_scaler[bid], 1.0f / (s_max[0] - s_min[0]));
-  }
-}
-
-static __global__ void
-apply_q_scaler(const int N, const NEP4::ANN ann, const float* __restrict__ g_q_scaler, float* g_q)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    for (int d = 0; d < ann.dim; ++d) {
-      g_q[n1 + d * N] *= g_q_scaler[d];
-    }
-  }
-}
-
 // Precompute messages q*theta for all descriptors
 static __global__ void apply_gnn_compute_messages(
   const int N,
@@ -673,15 +622,6 @@ void NEP4::find_force(
     nep_data.dq_dz.data());
   CUDA_CHECK_KERNEL
 
-  if (calculate_q_scaler) {
-    find_q_scaler<<<ann.dim, 1024>>>(dataset.N, nep_data.q.data(), para.q_scaler_gpu.data());
-    CUDA_CHECK_KERNEL
-  }
-
-  apply_q_scaler<<<grid_size, block_size>>>(
-    dataset.N, ann, para.q_scaler_gpu.data(), nep_data.q.data());
-  CUDA_CHECK_KERNEL
-
   apply_gnn_compute_messages<<<(dataset.N - 1) / 64 + 1, 64>>>(
     dataset.N, ann, gnn, nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
     nep_data.dq_dz.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data(),
@@ -710,14 +650,6 @@ void NEP4::find_force(
     nep_data.gnn_messages_p_y.data(), nep_data.gnn_messages_p_z.data(), nep_data.dU_dq.data(),
     nep_data.NN_angular.data(), nep_data.NL_angular.data(), dataset.force.data(),
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2);
-  CUDA_CHECK_KERNEL
-
-  // TODO: change this function to complete NEP4
-  find_force_angular<<<grid_size, block_size>>>(
-    dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_para, ann,
-    dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
-    nep_data.z12_angular.data(), nep_data.dU_dq.data(), nep_data.s.data(), dataset.force.data(),
-    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
   if (zbl.enabled) {
