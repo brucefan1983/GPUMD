@@ -175,9 +175,9 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   nep_data.q.resize(N * ann.dim);
   nep_data.gnn_descriptors.resize(N * ann.dim);
   nep_data.gnn_messages.resize(N * ann.dim);
-  nep_data.gnn_messages_p_x.resize(N * ann.dim);
-  nep_data.gnn_messages_p_y.resize(N * ann.dim);
-  nep_data.gnn_messages_p_z.resize(N * ann.dim);
+  nep_data.gnn_messages_p_x.resize(N * ann.dim * MAX_NEIGHBORS);
+  nep_data.gnn_messages_p_y.resize(N * ann.dim * MAX_NEIGHBORS);
+  nep_data.gnn_messages_p_z.resize(N * ann.dim * MAX_NEIGHBORS);
   nep_data.dU_dq.resize(N * ann.dim);
   nep_data.s.resize(N * (nep_para.n_max_angular + 1) * NUM_OF_ABC);
   nep_data.parameters.resize(ann.num_para + gnn.num_para);
@@ -213,23 +213,29 @@ static __global__ void apply_gnn_compute_messages(
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
+    int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
       float q_theta_nu = 0.0f;
-      float dq_dr_theta_nu_x = 0.0f;
-      float dq_dr_theta_nu_y = 0.0f;
-      float dq_dr_theta_nu_z = 0.0f;
       for (int gamma = 0; gamma < ann.dim; gamma++) {
         q_theta_nu += g_q[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
-        dq_dr_theta_nu_x += dq_dx[n1 + gamma * N] *
-                            gnn.theta[gamma + ann.dim * nu]; // is this accessing dq_dx correctly?
-        dq_dr_theta_nu_y += dq_dy[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
-        dq_dr_theta_nu_z += dq_dz[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
+      }
+      for (int j = 0; j < num_neighbors_of_n1; ++j) {
+        // int index_j = n1 + N * j;
+        // int n2 = g_NL[index_j];
+        float dq_drij_x = 0.0f;
+        float dq_drij_y = 0.0f;
+        float dq_drij_z = 0.0f;
+        for (int gamma = 0; gamma < ann.dim; gamma++) {
+          dq_drij_x += dq_dx[N * (j * ann.dim + gamma) + n1] * gnn.theta[gamma + ann.dim * nu];
+          dq_drij_y += dq_dy[N * (j * ann.dim + gamma) + n1] * gnn.theta[gamma + ann.dim * nu];
+          dq_drij_z += dq_dz[N * (j * ann.dim + gamma) + n1] * gnn.theta[gamma + ann.dim * nu];
+        }
+        gnn_messages_p_x[N * (nu * MAX_NEIGHBORS + j) + n1] = dq_drij_x;
+        gnn_messages_p_y[N * (nu * MAX_NEIGHBORS + j) + n1] = dq_drij_y;
+        gnn_messages_p_z[N * (nu * MAX_NEIGHBORS + j) + n1] = dq_drij_z;
       }
       gnn_messages[n1 + nu * N] = q_theta_nu;
-      gnn_messages_p_x[n1 + nu * N] = dq_dr_theta_nu_x;
-      gnn_messages_p_y[n1 + nu * N] = dq_dr_theta_nu_y;
-      gnn_messages_p_z[n1 + nu * N] = dq_dr_theta_nu_z;
     }
   }
 }
@@ -310,27 +316,38 @@ static __global__ void find_force_gnn(
       for (int j = 0; j < num_neighbors_of_n1; ++j) {
         int index_j = n1 + N * j;
         int n2 = g_NL[index_j];
+
+        // Fetch index i for atom n1 as a neighbor of n2
+        int num_neighbors_of_n2 = g_NN[n2];
+        int n2_i = -1;
+        for (int n2_j = 0; n2_j < num_neighbors_of_n2; n2_j++) {
+          int n2_neighbor = g_NL[n2 + N * n2_j];
+          if (n2_neighbor == n1) {
+            n2_i = n2_j;
+            break;
+          }
+        }
+
         float r12[3] = {g_x12[index_j], g_y12[index_j], g_z12[index_j]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fcij, fcpij;
         find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fcij, fcpij);
-
-        f_i_x += g_messages_p_x[N * (n2 + nu * MAX_NEIGHBORS) + n1];
-        f_i_y += g_messages_p_y[N * (n2 + nu * MAX_NEIGHBORS) + n1];
-        f_i_z += g_messages_p_z[N * (n2 + nu * MAX_NEIGHBORS) + n1];
-        f_i_x += fcij * g_messages_p_x[N * (n1 + nu * MAX_NEIGHBORS) + n2];
-        f_i_y += fcij * g_messages_p_y[N * (n1 + nu * MAX_NEIGHBORS) + n2];
-        f_i_z += fcij * g_messages_p_z[N * (n1 + nu * MAX_NEIGHBORS) + n2];
+        f_i_x += g_messages_p_x[N * (j + nu * MAX_NEIGHBORS) + n1];
+        f_i_y += g_messages_p_y[N * (j + nu * MAX_NEIGHBORS) + n1];
+        f_i_z += g_messages_p_z[N * (j + nu * MAX_NEIGHBORS) + n1];
+        f_i_x += fcij * g_messages_p_x[N * (n2_i + nu * MAX_NEIGHBORS) + n2];
+        f_i_y += fcij * g_messages_p_y[N * (n2_i + nu * MAX_NEIGHBORS) + n2];
+        f_i_z += fcij * g_messages_p_z[N * (n2_i + nu * MAX_NEIGHBORS) + n2];
         f_i_x += fcpij * g_messages[n2 + nu * N] * r12[0] / d12;
         f_i_y += fcpij * g_messages[n2 + nu * N] * r12[1] / d12;
         f_i_z += fcpij * g_messages[n2 + nu * N] * r12[2] / d12;
 
-        f_j_x += g_messages_p_x[N * (n1 + nu * MAX_NEIGHBORS) + n2];
-        f_j_y += g_messages_p_y[N * (n1 + nu * MAX_NEIGHBORS) + n2];
-        f_j_z += g_messages_p_z[N * (n1 + nu * MAX_NEIGHBORS) + n2];
-        f_j_x += fcij * g_messages_p_x[N * (n2 + nu * MAX_NEIGHBORS) + n1]; // fcij = fcji
-        f_j_y += fcij * g_messages_p_y[N * (n2 + nu * MAX_NEIGHBORS) + n1];
-        f_j_z += fcij * g_messages_p_z[N * (n2 + nu * MAX_NEIGHBORS) + n1];
+        f_j_x += g_messages_p_x[N * (n2_i + nu * MAX_NEIGHBORS) + n2];
+        f_j_y += g_messages_p_y[N * (n2_i + nu * MAX_NEIGHBORS) + n2];
+        f_j_z += g_messages_p_z[N * (n2_i + nu * MAX_NEIGHBORS) + n2];
+        f_j_x += fcij * g_messages_p_x[N * (j + nu * MAX_NEIGHBORS) + n1]; // fcij = fcji
+        f_j_y += fcij * g_messages_p_y[N * (j + nu * MAX_NEIGHBORS) + n1];
+        f_j_z += fcij * g_messages_p_z[N * (j + nu * MAX_NEIGHBORS) + n1];
         f_j_x -= fcpij * g_messages[n2 + nu * N] * r12[0] / d12; // \vec{r}_ij = -\vec{r}_ji
         f_j_y -= fcpij * g_messages[n2 + nu * N] * r12[1] / d12;
         f_j_z -= fcpij * g_messages[n2 + nu * N] * r12[2] / d12;
@@ -344,12 +361,22 @@ static __global__ void find_force_gnn(
             float d23 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
             float fcjk;
             find_fc(para.rc_angular, para.rcinv_angular, d23, fcjk);
-            f_k_x += fcjk * g_messages_p_x[N * (n1 + nu * MAX_NEIGHBORS) + n3] -
-                     fcij * g_messages_p_x[N * (n3 + nu * MAX_NEIGHBORS) + n1];
-            f_k_y += fcjk * g_messages_p_y[N * (n1 + nu * MAX_NEIGHBORS) + n3] -
-                     fcij * g_messages_p_y[N * (n3 + nu * MAX_NEIGHBORS) + n1];
-            f_k_z += fcjk * g_messages_p_z[N * (n1 + nu * MAX_NEIGHBORS) + n3] -
-                     fcij * g_messages_p_z[N * (n3 + nu * MAX_NEIGHBORS) + n1];
+            // Fetch index i for atom n1 as a neighbor of n3
+            int num_neighbors_of_n3 = g_NN[n3];
+            int n3_i = -1;
+            for (int n3_j = 0; n3_j < num_neighbors_of_n3; n3_j++) {
+              int n3_neighbor = g_NL[n3 + N * n3_j];
+              if (n3_neighbor == n1) {
+                n3_i = n3_j;
+                break;
+              }
+            }
+            f_k_x += fcjk * g_messages_p_x[N * (n3_i + nu * MAX_NEIGHBORS) + n3] -
+                     fcij * g_messages_p_x[N * (k + nu * MAX_NEIGHBORS) + n1];
+            f_k_y += fcjk * g_messages_p_y[N * (n3_i + nu * MAX_NEIGHBORS) + n3] -
+                     fcij * g_messages_p_y[N * (k + nu * MAX_NEIGHBORS) + n1];
+            f_k_z += fcjk * g_messages_p_z[N * (n3_i + nu * MAX_NEIGHBORS) + n3] -
+                     fcij * g_messages_p_z[N * (k + nu * MAX_NEIGHBORS) + n1];
           }
         }
         g_fx[n1] -= g_dU_dq[n2 + nu * N] * (f_j_x + f_k_x);
@@ -440,91 +467,6 @@ static __global__ void find_dq_dr(
           r12, gn12, gnp12, s, g_dq_dx, g_dq_dy, g_dq_dz);
       }
     }
-  }
-}
-
-// TODO: change this function to complete NEP4
-static __global__ void find_force_angular(
-  const int N,
-  const int* g_NN,
-  const int* g_NL,
-  const NEP4::Para para,
-  const NEP4::ANN ann,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_x12,
-  const float* __restrict__ g_y12,
-  const float* __restrict__ g_z12,
-  const float* __restrict__ g_dU_dq,
-  const float* __restrict__ g_s,
-  float* g_fx,
-  float* g_fy,
-  float* g_fz,
-  float* g_virial)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-
-    float s_virial_xx = 0.0f;
-    float s_virial_yy = 0.0f;
-    float s_virial_zz = 0.0f;
-    float s_virial_xy = 0.0f;
-    float s_virial_yz = 0.0f;
-    float s_virial_zx = 0.0f;
-
-    float dU_dq[MAX_DIM_ANGULAR] = {0.0f};
-    float s[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < (para.n_max_angular + 1) * para.L_max; ++d) {
-      dU_dq[d] = g_dU_dq[d * N + n1];
-    }
-    for (int d = 0; d < (para.n_max_angular + 1) * NUM_OF_ABC; ++d) {
-      s[d] = g_s[d * N + n1];
-    }
-    int neighbor_number = g_NN[n1];
-    int t1 = g_type[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int index = i1 * N + n1;
-      int n2 = g_NL[index];
-      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
-      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
-      float fc12, fcp12;
-      find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fc12, fcp12);
-      int t2 = g_type[n2];
-      float f12[3] = {0.0f};
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(para.basis_size_radial, para.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= para.n_max_angular; ++n) {
-        float gn12 = 0.0f;
-        float gnp12 = 0.0f;
-        for (int k = 0; k <= para.basis_size_radial; ++k) {
-          int c_index = (n * (para.basis_size_radial + 1) + k) * para.num_types_sq;
-          c_index += t1 * para.num_types + t2;
-          gn12 += fn12[k] * ann.c[c_index];
-          gnp12 += fnp12[k] * ann.c[c_index];
-        }
-        accumulate_f12(n, para.n_max_angular + 1, d12, r12, gn12, gnp12, dU_dq, s, f12);
-      }
-
-      atomicAdd(&g_fx[n1], f12[0]);
-      atomicAdd(&g_fy[n1], f12[1]);
-      atomicAdd(&g_fz[n1], f12[2]);
-      atomicAdd(&g_fx[n2], -f12[0]);
-      atomicAdd(&g_fy[n2], -f12[1]);
-      atomicAdd(&g_fz[n2], -f12[2]);
-
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
-      s_virial_xy -= r12[0] * f12[1];
-      s_virial_yz -= r12[1] * f12[2];
-      s_virial_zx -= r12[2] * f12[0];
-    }
-    g_virial[n1] += s_virial_xx;
-    g_virial[n1 + N] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
   }
 }
 
