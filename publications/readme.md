@@ -4,7 +4,9 @@
 * Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
 [Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://arxiv.org/abs/2112.13757), arXiv:2112.13757 [physics.comp-ph]
 
-## 2022 (7)
+## 2022 (8)
+
+* Hao Feng, Kai Zhang, Xin Wang, Guiqing Zhang and Xiaoyong Guo, [Thermal transport of bilayer graphene: a homogeneous nonequilibrium molecular dynamics study](https://doi.org/10.1088/1402-4896/ac5af0), Physica Scripta, **97**, 045704 (2022).
 
 * Wenhao Sha and Fenglin Guo, [Thermal transport in two-dimensional carbon nitrides: A comparative molecular dynamics study](https://doi.org/10.1016/j.cartre.2022.100161), Carbon Trends, **7**, 100161 (2022).
 
