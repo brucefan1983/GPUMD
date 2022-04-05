@@ -17,6 +17,7 @@
 The driver class for the various integrators.
 ------------------------------------------------------------------------------*/
 
+#include "ensemble_bao.cuh"
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
@@ -50,6 +51,10 @@ void Integrate::initialize(
     case 4: // NVT-BDP
       ensemble.reset(new Ensemble_BDP(type, fixed_group, temperature, temperature_coupling));
       break;
+    case 5: // NVT-BAOAB_Langevin
+      ensemble.reset(
+        new Ensemble_BAO(type, fixed_group, number_of_atoms, temperature, temperature_coupling));
+      break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
         type, fixed_group, temperature, temperature_coupling, target_pressure,
@@ -76,6 +81,12 @@ void Integrate::initialize(
     case 23: // heat-BDP
       ensemble.reset(new Ensemble_BDP(
         type, fixed_group, source, sink, temperature, temperature_coupling, delta_temperature));
+      break;
+    case 24: //
+      ensemble.reset(new Ensemble_BAO(
+        type, fixed_group, source, sink, group[0].cpu_size[source], group[0].cpu_size[sink],
+        group[0].cpu_size_sum[source], group[0].cpu_size_sum[sink], temperature,
+        temperature_coupling, delta_temperature));
       break;
     default:
       printf("Illegal integrator!\n");
@@ -164,6 +175,11 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_bdp should have 3 parameters.");
     }
+  } else if (strcmp(param[1], "nvt_bao") == 0) {
+    type = 5;
+    if (num_param != 5) {
+      PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
+    }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
     if (num_param != 18 && num_param != 12 && num_param != 8) {
@@ -188,6 +204,11 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     type = 23;
     if (num_param != 7) {
       PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
+    }
+  } else if (strcmp(param[1], "heat_bao") == 0) {
+    type = 24;
+    if (num_param != 7) {
+      PRINT_INPUT_ERROR("ensemble heat_bao should have 5 parameters.");
     }
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
@@ -396,6 +417,13 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       printf("    final temperature is %g K.\n", temperature2);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
+    case 5:
+      printf("Use NVT ensemble for this run.\n");
+      printf("    choose the BAOAB Langevin method.\n");
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      break;
     case 11:
       printf("Use NPT ensemble for this run.\n");
       printf("    choose the Berendsen method.\n");
@@ -495,6 +523,17 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     case 23:
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Bussi-Donadio-Parrinello method.\n");
+      printf("    average temperature is %g K.\n", temperature);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      printf("    delta_T is %g K.\n", delta_temperature);
+      printf("    T_hot is %g K.\n", temperature + delta_temperature);
+      printf("    T_cold is %g K.\n", temperature - delta_temperature);
+      printf("    heat source is group %d in grouping method 0.\n", source);
+      printf("    heat sink is group %d in grouping method 0.\n", sink);
+      break;
+    case 24:
+      printf("Integrate with heating and cooling for this run.\n");
+      printf("    choose the BAOAB Langevin method.\n");
       printf("    average temperature is %g K.\n", temperature);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
