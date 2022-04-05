@@ -44,6 +44,7 @@ private:
   // keyword parsing functions
   void parse_neighbor(char** param, int num_param);
   void parse_velocity(char** param, int num_param);
+  void parse_change_box(char** param, int num_param);
   void parse_correct_velocity(char** param, int num_param);
   void parse_time_step(char** param, int num_param);
   void parse_run(char** param, int num_param, char* input_dir);
