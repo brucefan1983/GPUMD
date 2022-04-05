@@ -533,7 +533,7 @@ static __global__ void find_force_ZBL_small_box(
       float zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-#ifdef USE_JESPER__HEA
+#ifdef USE_JESPER_HEA
       find_f_and_fp_zbl(type1, type2, zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
 #else
       find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);

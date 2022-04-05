@@ -141,7 +141,7 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
   f *= fc;
 }
 
-#ifdef USE_JESPER__HEA
+#ifdef USE_JESPER_HEA
 // Parameters from Jesper, in the order of 23-23,23-41,23-42,23-73,23-74,41-23,41-41,41-42,...
 __constant__ float ZBL_PARA_JESPER[25][6] = {
   {0.23582493f, 2.09349355f, 0.15563716f, 1.56091300f, 0.60926898f, 0.51701385f},
@@ -184,10 +184,10 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
   float& f,
   float& fp)
 {
-  float x = d12 * a_inv;
+  const float x = d12 * a_inv;
   f = fp = 0.0f;
 
-  int index = type1 * 5 + type2;
+  const int index = type1 * 5 + type2;
   find_phi_and_phip_zbl(ZBL_PARA_JESPER[index][0], ZBL_PARA_JESPER[index][1], x, f, fp);
   find_phi_and_phip_zbl(ZBL_PARA_JESPER[index][2], ZBL_PARA_JESPER[index][3], x, f, fp);
   find_phi_and_phip_zbl(ZBL_PARA_JESPER[index][4], ZBL_PARA_JESPER[index][5], x, f, fp);
