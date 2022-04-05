@@ -59,16 +59,21 @@ static void get_random_velocities(const int N, double* vx, double* vy, double* v
 
 static void zero_linear_momentum(const int N, const double* m, double* vx, double* vy, double* vz)
 {
-  double p[3] = {0.0, 0.0, 0.0}; // linear momentum
+  double center_of_mass_velocity[3] = {0.0, 0.0, 0.0};
+  double total_mass = 0.0;
   for (int n = 0; n < N; ++n) {
-    p[0] += m[n] * vx[n] / N;
-    p[1] += m[n] * vy[n] / N;
-    p[2] += m[n] * vz[n] / N;
+    total_mass += m[n];
+    center_of_mass_velocity[0] += m[n] * vx[n];
+    center_of_mass_velocity[1] += m[n] * vy[n];
+    center_of_mass_velocity[2] += m[n] * vz[n];
   }
+  center_of_mass_velocity[0] /= total_mass;
+  center_of_mass_velocity[1] /= total_mass;
+  center_of_mass_velocity[2] /= total_mass;
   for (int n = 0; n < N; ++n) {
-    vx[n] -= p[0] / m[n];
-    vy[n] -= p[1] / m[n];
-    vz[n] -= p[2] / m[n];
+    vx[n] -= center_of_mass_velocity[0];
+    vy[n] -= center_of_mass_velocity[1];
+    vz[n] -= center_of_mass_velocity[2];
   }
 }
 
