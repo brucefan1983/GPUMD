@@ -178,9 +178,10 @@ static __global__ void gpu_correct_momentum(const int N, double* g_vx, double* g
 {
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    g_vx[i] -= device_momentum[0] / device_momentum[3];
-    g_vy[i] -= device_momentum[1] / device_momentum[3];
-    g_vz[i] -= device_momentum[2] / device_momentum[3];
+    double inverse_of_total_mass = 1.0 / device_momentum[3];
+    g_vx[i] -= device_momentum[0] * inverse_of_total_mass;
+    g_vy[i] -= device_momentum[1] * inverse_of_total_mass;
+    g_vz[i] -= device_momentum[2] * inverse_of_total_mass;
   }
 }
 
