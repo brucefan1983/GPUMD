@@ -1,0 +1,39 @@
+fitting ../dimer_data/dmol_23-41.dat for 23-41 repulsion
+[0.5026924  1.22895263 0.13951036 7.50424076 0.41849001 0.42091243]
+fitted data in  screened_coulomb_23-41.dat
+
+fitting ../dimer_data/dmol_23-42.dat for 23-42 repulsion
+[0.18396472 8.70291804 0.49897344 1.25387083 0.42609115 0.4247833 ]
+fitted data in  screened_coulomb_23-42.dat
+
+fitting ../dimer_data/dmol_23-73.dat for 23-73 repulsion
+[0.47408861 0.92079566 0.19860103 3.19599153 0.32249351 0.40575131]
+fitted data in  screened_coulomb_23-73.dat
+
+fitting ../dimer_data/dmol_23-74.dat for 23-74 repulsion
+[0.47543791 0.94241702 0.19384435 3.38236532 0.33063109 0.40745887]
+fitted data in  screened_coulomb_23-74.dat
+
+fitting ../dimer_data/dmol_41-42.dat for 41-42 repulsion
+[0.19020878 2.65056725 0.32076908 0.36142452 0.47789479 0.98036749]
+fitted data in  screened_coulomb_41-42.dat
+
+fitting ../dimer_data/dmol_41-73.dat for 41-73 repulsion
+[0.50494081 0.91672469 0.29923796 0.3728018  0.1826209  3.21613753]
+fitted data in  screened_coulomb_41-73.dat
+
+fitting ../dimer_data/dmol_41-74.dat for 41-74 repulsion
+[0.5085639  0.91518537 0.29670954 0.37129392 0.18666422 3.28455076]
+fitted data in  screened_coulomb_41-74.dat
+
+fitting ../dimer_data/dmol_42-73.dat for 42-73 repulsion
+[0.51344146 0.98119957 0.16477545 3.69293833 0.31816071 0.37914886]
+fitted data in  screened_coulomb_42-73.dat
+
+fitting ../dimer_data/dmol_42-74.dat for 42-74 repulsion
+[0.51684534 0.96288639 0.30904771 0.37485806 0.16779276 3.59037981]
+fitted data in  screened_coulomb_42-74.dat
+
+fitting ../dimer_data/dmol_73-74.dat for 73-74 repulsion
+[0.07833469 0.27911064 0.3294006  2.4745664  0.58841741 0.58199911]
+fitted data in  screened_coulomb_73-74.dat

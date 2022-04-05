@@ -614,7 +614,8 @@ static __global__ void find_force_ZBL(
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
-    float zi = zbl.atomic_numbers[g_type[n1]];
+    int type1 = g_type[n1];
+    float zi = zbl.atomic_numbers[type1];
     float pow_zi = pow(zi, 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int n2 = g_NL[n1 + N * i1];
@@ -626,10 +627,15 @@ static __global__ void find_force_ZBL(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
-      float zj = zbl.atomic_numbers[g_type[n2]];
+      int type2 = g_type[n2];
+      float zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
+#ifdef USE_JESPER_HEA
+      find_f_and_fp_zbl(type1, type2, zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
+#else
       find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
+#endif
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};
