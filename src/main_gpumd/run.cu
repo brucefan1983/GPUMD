@@ -247,6 +247,8 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     cohesive.compute(
       input_dir, box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
       atom.force_per_atom, atom.virial_per_atom, force);
+  } else if (strcmp(param[0], "change_box") == 0) {
+    parse_change_box(param, num_param);
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
@@ -391,4 +393,163 @@ void Run::parse_neighbor(char** param, int num_param)
       "one knows there is no atom diffusion, it is better to turn off the neighbor\n"
       "list update to achieve the best computational speed.\n");
   }
+}
+
+static __global__ void gpu_pressure_triclinic(
+  int N,
+  double mu0,
+  double mu1,
+  double mu2,
+  double mu3,
+  double mu4,
+  double mu5,
+  double mu6,
+  double mu7,
+  double mu8,
+  double* g_x,
+  double* g_y,
+  double* g_z)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < N) {
+    double x_old = g_x[i];
+    double y_old = g_y[i];
+    double z_old = g_z[i];
+    g_x[i] = mu0 * x_old + mu1 * y_old + mu2 * z_old;
+    g_y[i] = mu3 * x_old + mu4 * y_old + mu5 * z_old;
+    g_z[i] = mu6 * x_old + mu7 * y_old + mu8 * z_old;
+  }
+}
+
+void Run::parse_change_box(char** param, int num_param)
+{
+  if (num_param != 2 && num_param != 4 && num_param != 7) {
+    PRINT_INPUT_ERROR("change_box can only have 1 or 3 or 6 parameters\n.");
+  }
+
+  double deformation_matrix[3][3] = {0.0};
+
+  if (!is_valid_real(param[1], &deformation_matrix[0][0])) {
+    PRINT_INPUT_ERROR("box change parameter in xx should be a number.");
+  }
+  deformation_matrix[1][1] = deformation_matrix[2][2] = deformation_matrix[0][0];
+
+  if (num_param >= 4) {
+    if (!is_valid_real(param[2], &deformation_matrix[1][1])) {
+      PRINT_INPUT_ERROR("box change parameter in yy should be a number.");
+    }
+    if (!is_valid_real(param[3], &deformation_matrix[2][2])) {
+      PRINT_INPUT_ERROR("box change parameter in zz should be a number.");
+    }
+  }
+
+  if (num_param == 7) {
+    if (box.triclinic == 0) {
+      PRINT_INPUT_ERROR("Cannot use orthogonal box with shear deformation.");
+    }
+    if (!is_valid_real(param[4], &deformation_matrix[0][1])) {
+      PRINT_INPUT_ERROR("box change parameter in xy should be a number.");
+    }
+    if (!is_valid_real(param[5], &deformation_matrix[0][2])) {
+      PRINT_INPUT_ERROR("box change parameter in xz should be a number.");
+    }
+    if (!is_valid_real(param[6], &deformation_matrix[1][2])) {
+      PRINT_INPUT_ERROR("box change parameter in yz should be a number.");
+    }
+    deformation_matrix[1][0] = deformation_matrix[0][1];
+    deformation_matrix[2][0] = deformation_matrix[0][2];
+    deformation_matrix[2][1] = deformation_matrix[1][2];
+  }
+
+  printf("Change box:\n");
+  printf("    in xx by %g A.\n", deformation_matrix[0][0]);
+  printf("    in yy by %g A.\n", deformation_matrix[1][1]);
+  printf("    in zz by %g A.\n", deformation_matrix[2][2]);
+  printf("    in xy and yx by strain %g.\n", deformation_matrix[0][1]);
+  printf("    in xz and zx by strain %g.\n", deformation_matrix[0][2]);
+  printf("    in yz and zy by strain %g.\n", deformation_matrix[1][2]);
+
+  for (int d = 0; d < 3; ++d) {
+    if (box.triclinic == 0) {
+      deformation_matrix[d][d] = (box.cpu_h[d] + deformation_matrix[d][d]) / box.cpu_h[d];
+    } else {
+      deformation_matrix[d][d] =
+        (box.cpu_h[d * 3 + d] + deformation_matrix[d][d]) / box.cpu_h[d * 3 + d];
+    }
+  }
+
+  printf("    Deformation matrix =\n");
+  for (int d1 = 0; d1 < 3; ++d1) {
+    printf("        ");
+    for (int d2 = 0; d2 < 3; ++d2) {
+      printf("%g ", deformation_matrix[d1][d2]);
+    }
+    printf("\n");
+  }
+
+  if (box.triclinic == 0) {
+    printf("    Original box lengths are\n");
+    printf("        Lx = %g A\n", box.cpu_h[0]);
+    printf("        Ly = %g A\n", box.cpu_h[1]);
+    printf("        Lz = %g A\n", box.cpu_h[2]);
+  } else {
+    printf("    Original box h = [a, b, c] is\n");
+    for (int d1 = 0; d1 < 3; ++d1) {
+      printf("        ");
+      for (int d2 = 0; d2 < 3; ++d2) {
+        printf("%g ", box.cpu_h[d1 * 3 + d2]);
+      }
+      printf("\n");
+    }
+  }
+
+  if (box.triclinic == 0) {
+    for (int d = 0; d < 3; ++d) {
+      box.cpu_h[d] *= deformation_matrix[d][d];
+      box.cpu_h[d + 3] = box.cpu_h[d] * 0.5;
+    }
+  } else {
+    double h_old[9];
+    for (int i = 0; i < 9; ++i) {
+      h_old[i] = box.cpu_h[i];
+    }
+
+    for (int r = 0; r < 3; ++r) {
+      for (int c = 0; c < 3; ++c) {
+        double tmp = 0.0;
+        for (int k = 0; k < 3; ++k) {
+          tmp += deformation_matrix[r][k] * h_old[k * 3 + c];
+        }
+        box.cpu_h[r * 3 + c] = tmp;
+      }
+    }
+    box.get_inverse();
+  }
+
+  const int number_of_atoms = atom.position_per_atom.size() / 3;
+  gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms, deformation_matrix[0][0], deformation_matrix[0][1], deformation_matrix[0][2],
+    deformation_matrix[1][0], deformation_matrix[1][1], deformation_matrix[1][2],
+    deformation_matrix[2][0], deformation_matrix[2][1], deformation_matrix[2][2],
+    atom.position_per_atom.data(), atom.position_per_atom.data() + number_of_atoms,
+    atom.position_per_atom.data() + number_of_atoms * 2);
+  CUDA_CHECK_KERNEL
+
+  if (box.triclinic == 0) {
+    printf("    Changed box lengths are\n");
+    printf("        Lx = %g A\n", box.cpu_h[0]);
+    printf("        Ly = %g A\n", box.cpu_h[1]);
+    printf("        Lz = %g A\n", box.cpu_h[2]);
+  } else {
+    printf("    Changed box h = [a, b, c] is\n");
+    for (int d1 = 0; d1 < 3; ++d1) {
+      printf("        ");
+      for (int d2 = 0; d2 < 3; ++d2) {
+        printf("%g ", box.cpu_h[d1 * 3 + d2]);
+      }
+      printf("\n");
+    }
+  }
+
+  exit(1);
 }
