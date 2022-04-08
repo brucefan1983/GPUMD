@@ -153,6 +153,40 @@ void Ensemble_BAO::integrate_heat_lan(
 // the A operator.
 static __global__ void gpu_operator_A(
   const int number_of_particles,
+  const int fixed_group,
+  const int* group_id,
+  const double g_time_step,
+  const double* g_mass,
+  double* g_x,
+  double* g_y,
+  double* g_z,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz,
+  const double* g_fx,
+  const double* g_fy,
+  const double* g_fz)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    const double time_step = g_time_step;
+    const double time_step_half = time_step * 0.5;
+    double vx = g_vx[i];
+    double vy = g_vy[i];
+    double vz = g_vz[i];
+    if (group_id[i] == fixed_group) {
+      vx = 0.0;
+      vy = 0.0;
+      vz = 0.0;
+    }
+    g_x[i] += vx * time_step_half;
+    g_y[i] += vy * time_step_half;
+    g_z[i] += vz * time_step_half;
+  }
+}
+
+static __global__ void gpu_operator_A(
+  const int number_of_particles,
   const double g_time_step,
   const double* g_mass,
   double* g_x,
@@ -178,7 +212,7 @@ static __global__ void gpu_operator_A(
   }
 }
 
-// wrapper of the above kernel
+// wrapper of the above kernels
 void Ensemble_BAO::operator_A(
   const double time_step,
   const std::vector<Group>& group,
@@ -189,13 +223,24 @@ void Ensemble_BAO::operator_A(
 {
   const int number_of_atoms = mass.size();
 
-  gpu_operator_A<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, time_step, mass.data(), position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-    velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
-    force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+  if (fixed_group == -1) {
+    gpu_operator_A<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms, time_step, mass.data(), position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+    CUDA_CHECK_KERNEL
+  } else {
+    gpu_operator_A<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms, fixed_group, group[0].label.data(), time_step, mass.data(),
+      position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2, velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(), force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
+    CUDA_CHECK_KERNEL
+  }
 }
 
 // the B operator.
