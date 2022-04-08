@@ -82,12 +82,6 @@ void Integrate::initialize(
       ensemble.reset(new Ensemble_BDP(
         type, fixed_group, source, sink, temperature, temperature_coupling, delta_temperature));
       break;
-    case 24: //
-      ensemble.reset(new Ensemble_BAO(
-        type, fixed_group, source, sink, group[0].cpu_size[source], group[0].cpu_size[sink],
-        group[0].cpu_size_sum[source], group[0].cpu_size_sum[sink], temperature,
-        temperature_coupling, delta_temperature));
-      break;
     default:
       printf("Illegal integrator!\n");
       break;
@@ -204,11 +198,6 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     type = 23;
     if (num_param != 7) {
       PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
-    }
-  } else if (strcmp(param[1], "heat_bao") == 0) {
-    type = 24;
-    if (num_param != 7) {
-      PRINT_INPUT_ERROR("ensemble heat_bao should have 5 parameters.");
     }
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
@@ -523,17 +512,6 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     case 23:
       printf("Integrate with heating and cooling for this run.\n");
       printf("    choose the Bussi-Donadio-Parrinello method.\n");
-      printf("    average temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    delta_T is %g K.\n", delta_temperature);
-      printf("    T_hot is %g K.\n", temperature + delta_temperature);
-      printf("    T_cold is %g K.\n", temperature - delta_temperature);
-      printf("    heat source is group %d in grouping method 0.\n", source);
-      printf("    heat sink is group %d in grouping method 0.\n", sink);
-      break;
-    case 24:
-      printf("Integrate with heating and cooling for this run.\n");
-      printf("    choose the BAOAB Langevin method.\n");
       printf("    average temperature is %g K.\n", temperature);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       printf("    delta_T is %g K.\n", delta_temperature);
