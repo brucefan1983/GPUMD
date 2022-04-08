@@ -17,6 +17,7 @@
 The driver class for the various integrators.
 ------------------------------------------------------------------------------*/
 
+#include "ensemble_bao.cuh"
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
@@ -49,6 +50,10 @@ void Integrate::initialize(
       break;
     case 4: // NVT-BDP
       ensemble.reset(new Ensemble_BDP(type, fixed_group, temperature, temperature_coupling));
+      break;
+    case 5: // NVT-BAOAB_Langevin
+      ensemble.reset(
+        new Ensemble_BAO(type, fixed_group, number_of_atoms, temperature, temperature_coupling));
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
@@ -163,6 +168,11 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     type = 4;
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_bdp should have 3 parameters.");
+    }
+  } else if (strcmp(param[1], "nvt_bao") == 0) {
+    type = 5;
+    if (num_param != 5) {
+      PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
     }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
@@ -392,6 +402,13 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
     case 4:
       printf("Use NVT ensemble for this run.\n");
       printf("    choose the Bussi-Donadio-Parrinello method.\n");
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      break;
+    case 5:
+      printf("Use NVT ensemble for this run.\n");
+      printf("    choose the BAOAB Langevin method.\n");
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
