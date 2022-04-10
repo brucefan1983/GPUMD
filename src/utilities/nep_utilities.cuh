@@ -35,8 +35,8 @@ const int MAX_NEIGHBORS = 100; // TODO set a proper maximum value
 const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
 
 static __device__ void apply_ann_one_layer(
-  const int dim,
-  const int num_neurons1,
+  const int N_des,
+  const int N_neu,
   const float* w0,
   const float* b0,
   const float* w1,
@@ -45,15 +45,16 @@ static __device__ void apply_ann_one_layer(
   float& energy,
   float* energy_derivative)
 {
-  for (int n = 0; n < num_neurons1; ++n) {
+  for (int n = 0; n < N_neu; ++n) {
     float w0_times_q = 0.0f;
-    for (int d = 0; d < dim; ++d) {
-      w0_times_q += w0[n * dim + d] * q[d];
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
     }
     float x1 = tanh(w0_times_q - b0[n]);
+    float tanh_der = 1.0f - x1 * x1;
     energy += w1[n] * x1;
-    for (int d = 0; d < dim; ++d) {
-      float y1 = (1.0f - x1 * x1) * w0[n * dim + d];
+    for (int d = 0; d < N_des; ++d) {
+      float y1 = tanh_der * w0[n * N_des + d];
       energy_derivative[d] += w1[n] * y1;
     }
   }
