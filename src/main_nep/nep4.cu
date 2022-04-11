@@ -118,10 +118,10 @@ static __global__ void find_descriptors_angular(
         find_fc(para.rc_angular, para.rcinv_angular, d12, fc12);
         int t2 = g_type[n2];
         float fn12[MAX_NUM_N];
-        find_fn(para.basis_size_radial, para.rcinv_angular, d12, fc12, fn12);
+        find_fn(para.basis_size, para.rcinv_angular, d12, fc12, fn12);
         float gn12 = 0.0f;
-        for (int k = 0; k <= para.basis_size_radial; ++k) {
-          int c_index = (n * (para.basis_size_radial + 1) + k) * para.num_types_sq;
+        for (int k = 0; k <= para.basis_size; ++k) {
+          int c_index = (n * (para.basis_size + 1) + k) * para.num_types_sq;
           c_index += t1 * para.num_types + t2;
           gn12 += fn12[k] * ann.c[c_index];
         }
@@ -154,7 +154,7 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   nep_para.n_max_angular = para.n_max_angular;
   nep_para.L_max = para.L_max;
 
-  nep_para.basis_size_radial = para.basis_size_radial;
+  nep_para.basis_size = para.basis_size_radial;
   nep_para.num_types_sq = para.num_types * para.num_types;
 
   zbl.enabled = para.enable_zbl;
@@ -358,7 +358,7 @@ static __global__ void find_force_gnn(
             int n3 = g_NL[index_k];
             // get rjk
             float r23[3] = {g_x12[index_k], g_y12[index_k], g_z12[index_k]};
-            float d23 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+            float d23 = sqrt(r23[0] * r23[0] + r23[1] * r23[1] + r23[2] * r23[2]);
             float fcjk;
             find_fc(para.rc_angular, para.rcinv_angular, d23, fcjk);
             // Fetch index i for atom n1 as a neighbor of n3
@@ -452,17 +452,17 @@ static __global__ void find_dq_dr(
       int t2 = g_type[n2];
       float fn12[MAX_NUM_N];
       float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(para.basis_size_radial, para.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+      find_fn_and_fnp(para.basis_size, para.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
       for (int n = 0; n <= para.n_max_angular; ++n) {
         float gn12 = 0.0f;
         float gnp12 = 0.0f;
-        for (int k = 0; k <= para.basis_size_radial; ++k) {
-          int c_index = (n * (para.basis_size_radial + 1) + k) * para.num_types_sq;
+        for (int k = 0; k <= para.basis_size; ++k) {
+          int c_index = (n * (para.basis_size + 1) + k) * para.num_types_sq;
           c_index += t1 * para.num_types + t2;
           gn12 += fn12[k] * ann.c[c_index];
           gnp12 += fnp12[k] * ann.c[c_index];
         }
-        find_dq_dr(
+        dq_dr(
           N * (i1 * ann.dim + n) + n1, N * (para.n_max_angular + 1), n, para.n_max_angular + 1, d12,
           r12, gn12, gnp12, s, g_dq_dx, g_dq_dy, g_dq_dz);
       }

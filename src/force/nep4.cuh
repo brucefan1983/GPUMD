@@ -22,8 +22,18 @@ struct NEP4_Data {
   GPU_Vector<double> f12x; // 3-body or manybody partial forces
   GPU_Vector<double> f12y; // 3-body or manybody partial forces
   GPU_Vector<double> f12z; // 3-body or manybody partial forces
-  GPU_Vector<float> Fp;
-  GPU_Vector<float> sum_fxyz;
+  GPU_Vector<double> dq_dx;
+  GPU_Vector<double> dq_dy;
+  GPU_Vector<double> dq_dz;
+  GPU_Vector<double> q;               // descriptors (angular only)
+  GPU_Vector<double> gnn_descriptors; // temporary descriptors for use in GNN
+  GPU_Vector<double>
+    gnn_messages; // messages q * theta for all atoms, same shape as gnn_descriptors
+  GPU_Vector<double> gnn_messages_p_x; // derivatives of messages, theta * dq_dr
+  GPU_Vector<double> gnn_messages_p_y;
+  GPU_Vector<double> gnn_messages_p_z;
+  GPU_Vector<double> dU_dq;
+  GPU_Vector<double> s;         // s in the NEP3 manuscript
   GPU_Vector<float> parameters; // parameters to be optimized
 };
 
@@ -36,9 +46,8 @@ public:
     int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
     int L_max = 0;              // l = 0, 1, 2, ..., L_max
     int basis_size = 8;
-    int num_types_sq = 0;
     int num_types = 0;
-    float q_scaler[100];
+    int num_types_sq = 0;
   };
 
   struct ANN {
@@ -50,6 +59,12 @@ public:
     const float* w1;      // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
     const float* c;
+  };
+
+  struct GNN {
+    int num_para = 0;
+    const float* theta; // weights of size N_descriptor x F, where F = N_descriptor atm (size of
+                        // output descriptor)
   };
 
   struct ZBL {
@@ -78,12 +93,13 @@ public:
 
 private:
   ParaMB paramb;
-  ANN annmb;
+  ANN ann;
+  GNN gnn;
   ZBL zbl;
   NEP4_Data nep_data;
   ExpandedBox ebox;
   void update_potential(FILE* fid);
-  void update_potential(const float* parameters, ANN& ann);
+  void update_potential(const float* parameters, ANN& ann, GNN& gnn);
 
   void compute_small_box(
     const int type_shift,
