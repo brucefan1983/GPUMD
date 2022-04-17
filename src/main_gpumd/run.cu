@@ -389,7 +389,7 @@ void Run::parse_neighbor(char** param, int num_param)
     PRINT_INPUT_ERROR(
       "Starting from GPUMD-v3.3, the grammar of the 'neighbor' keyword has been\n"
       "changed: The neighbor list will be updated with a skin distance of 1 A by\n"
-      "default for each run and one can use 'neighbor off' to turn if off. When\n"
+      "default for each run and one can use 'neighbor off' to turn it off. When\n"
       "one knows there is no atom diffusion, it is better to turn off the neighbor\n"
       "list update to achieve the best computational speed.\n");
   }
