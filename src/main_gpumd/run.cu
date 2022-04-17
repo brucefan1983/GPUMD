@@ -550,6 +550,4 @@ void Run::parse_change_box(char** param, int num_param)
       printf("\n");
     }
   }
-
-  exit(1);
 }
