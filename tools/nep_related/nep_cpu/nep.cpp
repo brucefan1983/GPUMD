@@ -1493,9 +1493,9 @@ void NEP3::compute(
 
   if (zbl.enabled) {
     find_force_ZBL_small_box(
-      N, zbl, NN_angular.data(), NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12,
-      r12.data() + size_x12 * 2, force.data(), force.data() + N, force.data() + N * 2,
-      virial.data(), potential.data());
+      N, zbl, NN_angular.data(), NL_angular.data(), type.data(), r12.data() + size_x12 * 3,
+      r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, force.data(), force.data() + N,
+      force.data() + N * 2, virial.data(), potential.data());
   }
 }
 
