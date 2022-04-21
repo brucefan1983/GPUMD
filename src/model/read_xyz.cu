@@ -476,6 +476,7 @@ void allocate_memory_gpu(
   atom.position_per_atom.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);
+  atom.velocity_per_atom.copy_from_host(atom.cpu_velocity_per_atom.data());
   atom.force_per_atom.resize(N * 3);
   atom.virial_per_atom.resize(N * 9);
   atom.potential_per_atom.resize(N);
