@@ -188,6 +188,8 @@ static __global__ void find_descriptor_small_box(
 
 static __global__ void find_dq_dr_small_box(
   const int N,
+  const int N1,
+  const int N2,
   const int* g_NN,
   const int* g_NL,
   const NEP4::ParaMB para,
@@ -201,8 +203,8 @@ static __global__ void find_dq_dr_small_box(
   double* g_dq_dy,
   double* g_dq_dz)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     float s[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < (para.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       s[d] = g_s[d * N + n1];
@@ -240,6 +242,8 @@ static __global__ void find_dq_dr_small_box(
 // Precompute messages q*theta for all descriptors
 static __global__ void apply_gnn_compute_messages_small_box(
   const int N,
+  const int N1,
+  const int N2,
   const NEP4::ANN ann,
   const NEP4::GNN gnn,
   const double* __restrict__ g_q,
@@ -253,8 +257,8 @@ static __global__ void apply_gnn_compute_messages_small_box(
   double* gnn_messages_p_y,
   double* gnn_messages_p_z)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
@@ -284,6 +288,8 @@ static __global__ void apply_gnn_compute_messages_small_box(
 
 static __global__ void apply_gnn_message_passing_small_box(
   const int N,
+  const int N1,
+  const int N2,
   const NEP4::ParaMB para,
   const NEP4::ANN ann,
   const double* __restrict__ g_x12,
@@ -295,8 +301,8 @@ static __global__ void apply_gnn_message_passing_small_box(
   double* gnn_descriptors,
   double* g_dU_dq)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
@@ -320,10 +326,16 @@ static __global__ void apply_gnn_message_passing_small_box(
 }
 
 static __global__ void apply_ann_small_box(
-  const int N, const NEP4::ANN ann, const double* __restrict__ g_q, double* g_pe, double* g_dU_dq)
+  const int N,
+  const int N1,
+  const int N2,
+  const NEP4::ANN ann,
+  const double* __restrict__ g_q,
+  double* g_pe,
+  double* g_dU_dq)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < ann.dim; ++d) {
       q[d] = g_q[n1 + d * N];
@@ -337,10 +349,11 @@ static __global__ void apply_ann_small_box(
   }
 }
 
-static __global__ void zero_force_small_box(const int N, double* g_fx, double* g_fy, double* g_fz)
+static __global__ void zero_force_small_box(
+  const int N, const int N1, const int N2, double* g_fx, double* g_fy, double* g_fz)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     g_fx[n1] = 0.0;
     g_fy[n1] = 0.0;
     g_fz[n1] = 0.0;
@@ -349,6 +362,8 @@ static __global__ void zero_force_small_box(const int N, double* g_fx, double* g
 
 static __global__ void find_force_gnn_small_box(
   const int N,
+  const int N1,
+  const int N2,
   const NEP4::ParaMB para,
   const NEP4::ANN ann,
   const Box box,
@@ -367,8 +382,8 @@ static __global__ void find_force_gnn_small_box(
   double* g_fy,
   double* g_fz)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {

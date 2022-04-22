@@ -122,7 +122,7 @@ NEP4::NEP4(FILE* fid, char* input_dir, int num_types, bool enable_zbl, const Nei
   nep_data.gnn_messages_p_y.resize(N2 * ann.dim * neighbor.MN);
   nep_data.gnn_messages_p_z.resize(N2 * ann.dim * neighbor.MN);
   nep_data.dU_dq.resize(N2 * ann.dim);
-  nep_data.s.resize(N2 * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  nep_data.s.resize(neighbor.NN.size() * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   nep_data.parameters.resize(ann.num_para + gnn.num_para);
   update_potential(fid);
 }
@@ -390,6 +390,8 @@ static __global__ void find_force_ZBL(
 
 static __global__ void find_dq_dr(
   const int N,
+  const int N1,
+  const int N2,
   const int* g_NN,
   const int* g_NL,
   const NEP4::ParaMB para,
@@ -403,8 +405,8 @@ static __global__ void find_dq_dr(
   double* g_dq_dy,
   double* g_dq_dz)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     float s[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < (para.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       s[d] = g_s[d * N + n1];
@@ -442,6 +444,8 @@ static __global__ void find_dq_dr(
 // Precompute messages q*theta for all descriptors
 static __global__ void apply_gnn_compute_messages(
   const int N,
+  const int N1,
+  const int N2,
   const NEP4::ANN ann,
   const NEP4::GNN gnn,
   const double* __restrict__ g_q,
@@ -455,9 +459,10 @@ static __global__ void apply_gnn_compute_messages(
   double* gnn_messages_p_y,
   double* gnn_messages_p_z)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     int num_neighbors_of_n1 = g_NN[n1];
+    return;
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
       float q_theta_nu = 0.0f;
@@ -486,6 +491,8 @@ static __global__ void apply_gnn_compute_messages(
 
 static __global__ void apply_gnn_message_passing(
   const int N,
+  const int N1,
+  const int N2,
   const NEP4::ParaMB para,
   const NEP4::ANN ann,
   const float* __restrict__ g_x12,
@@ -497,8 +504,8 @@ static __global__ void apply_gnn_message_passing(
   double* gnn_descriptors,
   double* g_dU_dq)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
@@ -522,10 +529,16 @@ static __global__ void apply_gnn_message_passing(
 }
 
 static __global__ void apply_ann(
-  const int N, const NEP4::ANN ann, const double* __restrict__ g_q, double* g_pe, double* g_dU_dq)
+  const int N,
+  const int N1,
+  const int N2,
+  const NEP4::ANN ann,
+  const double* __restrict__ g_q,
+  double* g_pe,
+  double* g_dU_dq)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < ann.dim; ++d) {
       q[d] = g_q[n1 + d * N];
@@ -539,10 +552,11 @@ static __global__ void apply_ann(
   }
 }
 
-static __global__ void zero_force(const int N, double* g_fx, double* g_fy, double* g_fz)
+static __global__ void
+zero_force(const int N, const int N1, const int N2, double* g_fx, double* g_fy, double* g_fz)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     g_fx[n1] = 0.0;
     g_fy[n1] = 0.0;
     g_fz[n1] = 0.0;
@@ -551,6 +565,8 @@ static __global__ void zero_force(const int N, double* g_fx, double* g_fy, doubl
 
 static __global__ void find_force_gnn(
   const int N,
+  const int N1,
+  const int N2,
   const NEP4::ParaMB para,
   const NEP4::ANN ann,
   const float* __restrict__ g_x12,
@@ -567,8 +583,8 @@ static __global__ void find_force_gnn(
   double* g_fy,
   double* g_fz)
 {
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x + N1;
+  if (n1 < N2) {
     int num_neighbors_of_n1 = g_NN[n1];
     const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
     for (int nu = 0; nu < F; nu++) {
@@ -687,34 +703,35 @@ void NEP4::compute_large_box(
   CUDA_CHECK_KERNEL
 
   find_dq_dr<<<grid_size, BLOCK_SIZE>>>(
-    N, neighbor.NN_local.data(), neighbor.NL_local.data(), paramb, ann, type.data(),
+    N, N1, N2, neighbor.NN_local.data(), neighbor.NL_local.data(), paramb, ann, type.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
     nep_data.s.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(), nep_data.dq_dz.data());
   CUDA_CHECK_KERNEL
 
-  apply_gnn_compute_messages<<<(N - 1) / 64 + 1, 64>>>(
-    N, ann, gnn, nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
+  apply_gnn_compute_messages<<<grid_size, BLOCK_SIZE>>>(
+    N, N1, N2, ann, gnn, nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
     nep_data.dq_dz.data(), neighbor.NN_local.data(), neighbor.NL_local.data(),
     nep_data.gnn_messages.data(), nep_data.gnn_messages_p_x.data(),
     nep_data.gnn_messages_p_y.data(), nep_data.gnn_messages_p_z.data());
   CUDA_CHECK_KERNEL
 
-  apply_gnn_message_passing<<<(N - 1) / 64 + 1, 64>>>(
-    N, paramb, ann, r12.data(), r12.data() + size_NL, r12.data() + size_NL * 2,
+  apply_gnn_message_passing<<<grid_size, BLOCK_SIZE>>>(
+    N, N1, N2, paramb, ann, r12.data(), r12.data() + size_NL, r12.data() + size_NL * 2,
     nep_data.gnn_messages.data(), neighbor.NN_local.data(), neighbor.NL_local.data(),
     nep_data.gnn_descriptors.data(), nep_data.dU_dq.data());
   CUDA_CHECK_KERNEL
 
   apply_ann<<<grid_size, BLOCK_SIZE>>>(
-    N, ann, nep_data.gnn_descriptors.data(), potential_per_atom.data(), nep_data.dU_dq.data());
+    N, N1, N2, ann, nep_data.gnn_descriptors.data(), potential_per_atom.data(),
+    nep_data.dU_dq.data());
   CUDA_CHECK_KERNEL
 
   zero_force<<<grid_size, BLOCK_SIZE>>>(
-    N, force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + (N * 2));
+    N, N1, N2, force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + (N * 2));
   CUDA_CHECK_KERNEL
 
-  find_force_gnn<<<(N - 1) / 64 + 1, 64>>>(
-    N, paramb, ann, r12.data(), r12.data() + size_NL, r12.data() + size_NL * 2,
+  find_force_gnn<<<grid_size, BLOCK_SIZE>>>(
+    N, N1, N2, paramb, ann, r12.data(), r12.data() + size_NL, r12.data() + size_NL * 2,
     nep_data.gnn_messages.data(), nep_data.gnn_messages_p_x.data(),
     nep_data.gnn_messages_p_y.data(), nep_data.gnn_messages_p_z.data(), nep_data.dU_dq.data(),
     neighbor.NN.data(), neighbor.NL.data(), force_per_atom.data(), force_per_atom.data() + N,
@@ -768,34 +785,35 @@ void NEP4::compute_small_box(
   CUDA_CHECK_KERNEL
 
   find_dq_dr_small_box<<<grid_size, BLOCK_SIZE>>>(
-    N, neighbor.NN_local.data(), neighbor.NL_local.data(), paramb, ann, type.data(),
+    N, N1, N2, neighbor.NN_local.data(), neighbor.NL_local.data(), paramb, ann, type.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
     nep_data.s.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(), nep_data.dq_dz.data());
   CUDA_CHECK_KERNEL
 
   apply_gnn_compute_messages_small_box<<<(N - 1) / 64 + 1, 64>>>(
-    N, ann, gnn, nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
+    N, N1, N2, ann, gnn, nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
     nep_data.dq_dz.data(), neighbor.NN_local.data(), neighbor.NL_local.data(),
     nep_data.gnn_messages.data(), nep_data.gnn_messages_p_x.data(),
     nep_data.gnn_messages_p_y.data(), nep_data.gnn_messages_p_z.data());
   CUDA_CHECK_KERNEL
 
   apply_gnn_message_passing_small_box<<<(N - 1) / 64 + 1, 64>>>(
-    N, paramb, ann, position_per_atom.data(), position_per_atom.data() + N,
+    N, N1, N2, paramb, ann, position_per_atom.data(), position_per_atom.data() + N,
     position_per_atom.data() + N * 2, nep_data.gnn_messages.data(), neighbor.NN_local.data(),
     neighbor.NL_local.data(), nep_data.gnn_descriptors.data(), nep_data.dU_dq.data());
   CUDA_CHECK_KERNEL
 
   apply_ann_small_box<<<grid_size, BLOCK_SIZE>>>(
-    N, ann, nep_data.gnn_descriptors.data(), potential_per_atom.data(), nep_data.dU_dq.data());
+    N, N1, N2, ann, nep_data.gnn_descriptors.data(), potential_per_atom.data(),
+    nep_data.dU_dq.data());
   CUDA_CHECK_KERNEL
 
   zero_force_small_box<<<grid_size, BLOCK_SIZE>>>(
-    N, force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + (N * 2));
+    N, N1, N2, force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + (N * 2));
   CUDA_CHECK_KERNEL
 
   find_force_gnn_small_box<<<(N - 1) / 64 + 1, 64>>>(
-    N, paramb, ann, box, ebox, r12.data(), r12.data() + size_NL, r12.data() + size_NL * 2,
+    N, N1, N2, paramb, ann, box, ebox, r12.data(), r12.data() + size_NL, r12.data() + size_NL * 2,
     nep_data.gnn_messages.data(), nep_data.gnn_messages_p_x.data(),
     nep_data.gnn_messages_p_y.data(), nep_data.gnn_messages_p_z.data(), nep_data.dU_dq.data(),
     neighbor.NN.data(), neighbor.NL.data(), force_per_atom.data(), force_per_atom.data() + N,
