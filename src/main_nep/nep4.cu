@@ -150,7 +150,6 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   ann.num_neurons1 = para.num_neurons1;
   nep_para.num_types = para.num_types;
   ann.num_para = para.number_of_variables_ann + para.number_of_variables_descriptor;
-  gnn.num_para = para.number_of_variables_gnn;
   nep_para.n_max_angular = para.n_max_angular;
   nep_para.L_max = para.L_max;
 
@@ -174,22 +173,18 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   nep_data.dq_dz.resize(N_times_max_NN_angular * ann.dim);
   nep_data.q.resize(N * ann.dim);
   nep_data.gnn_descriptors.resize(N * ann.dim);
-  nep_data.gnn_messages.resize(N * ann.dim);
   nep_data.dU_dq.resize(N * ann.dim);
   nep_data.s.resize(N * (nep_para.n_max_angular + 1) * NUM_OF_ABC);
-  nep_data.parameters.resize(ann.num_para + gnn.num_para);
+  nep_data.parameters.resize(ann.num_para);
 }
 
-void NEP4::update_potential(const float* parameters, ANN& ann, GNN& gnn)
+void NEP4::update_potential(const float* parameters, ANN& ann)
 {
-  // ann
   ann.w0 = parameters;
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
   ann.w1 = ann.b0 + ann.num_neurons1;
   ann.b1 = ann.w1 + ann.num_neurons1;
   ann.c = ann.b1 + 1;
-  // gnn
-  gnn.theta = parameters + ann.num_para;
 }
 
 static void __global__ find_q_scaler(const int N, const float* g_q, float* g_q_scaler)
@@ -273,29 +268,6 @@ static __global__ void apply_gnn_message_passing(
         q_out_nu += fc12 * g_messages[n2 + nu * N];
       }
       gnn_descriptors[n1 + nu * N] = tanh(q_out_nu);
-    }
-  }
-}
-
-// Precompute messages q*theta for all descriptors
-static __global__ void apply_gnn_compute_messages(
-  const int N,
-  const NEP4::ANN ann,
-  const NEP4::GNN gnn,
-  const float* __restrict__ g_q,
-  const int* g_NN,
-  const int* g_NL,
-  float* gnn_messages)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
-    for (int nu = 0; nu < F; nu++) {
-      float q_theta_nu = 0.0f;
-      for (int gamma = 0; gamma < ann.dim; gamma++) {
-        q_theta_nu += g_q[n1 + gamma * N] * gnn.theta[gamma + ann.dim * nu];
-      }
-      gnn_messages[n1 + nu * N] = q_theta_nu;
     }
   }
 }
@@ -532,7 +504,7 @@ void NEP4::find_force(
   Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
 {
   nep_data.parameters.copy_from_host(parameters);
-  update_potential(nep_data.parameters.data(), ann, gnn);
+  update_potential(nep_data.parameters.data(), ann);
   float rc2_angular = para.rc_angular * para.rc_angular;
 
   gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
@@ -551,12 +523,12 @@ void NEP4::find_force(
     nep_data.z12_angular.data(), nep_data.q.data(), nep_data.s.data());
   CUDA_CHECK_KERNEL
 
-  find_dq_dr<<<grid_size, block_size>>>(
+  /*find_dq_dr<<<grid_size, block_size>>>(
     dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_para, ann,
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.s.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
     nep_data.dq_dz.data());
-  CUDA_CHECK_KERNEL
+  CUDA_CHECK_KERNEL*/
 
   if (calculate_q_scaler) {
     find_q_scaler<<<ann.dim, 1024>>>(dataset.N, nep_data.q.data(), para.q_scaler_gpu.data());
@@ -567,14 +539,9 @@ void NEP4::find_force(
     dataset.N, ann, para.q_scaler_gpu.data(), nep_data.q.data());
   CUDA_CHECK_KERNEL
 
-  apply_gnn_compute_messages<<<(dataset.N - 1) / 64 + 1, 64>>>(
-    dataset.N, ann, gnn, nep_data.q.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data(),
-    nep_data.gnn_messages.data());
-  CUDA_CHECK_KERNEL
-
   apply_gnn_message_passing<<<(dataset.N - 1) / 64 + 1, 64>>>(
     dataset.N, nep_para, ann, nep_data.x12_angular.data(), nep_data.y12_angular.data(),
-    nep_data.z12_angular.data(), nep_data.gnn_messages.data(), nep_data.NN_angular.data(),
+    nep_data.z12_angular.data(), nep_data.q.data(), nep_data.NN_angular.data(),
     nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
   CUDA_CHECK_KERNEL
 
@@ -582,7 +549,7 @@ void NEP4::find_force(
     dataset.N, ann, nep_data.gnn_descriptors.data(), dataset.energy.data(), nep_data.dU_dq.data());
   CUDA_CHECK_KERNEL
 
-  zero_force<<<grid_size, block_size>>>(
+  /*zero_force<<<grid_size, block_size>>>(
     dataset.N, dataset.force.data(), dataset.force.data() + dataset.N,
     dataset.force.data() + dataset.N * 2);
   CUDA_CHECK_KERNEL
@@ -593,7 +560,7 @@ void NEP4::find_force(
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.dU_dq.data(), nep_data.s.data(), dataset.force.data(),
     dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
-  CUDA_CHECK_KERNEL
+  CUDA_CHECK_KERNEL*/
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, block_size>>>(

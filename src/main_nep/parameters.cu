@@ -126,7 +126,6 @@ void Parameters::calculate_parameters()
   q_scaler_gpu.resize(dim);
   q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
   number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
-  number_of_variables_gnn = dim * dim;
 
   if (version == 2) {
     number_of_variables_descriptor =
@@ -137,12 +136,7 @@ void Parameters::calculate_parameters()
       (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
   }
 
-  if (version == 4) {
-    number_of_variables =
-      number_of_variables_ann + number_of_variables_descriptor + number_of_variables_gnn;
-  } else {
-    number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  }
+  number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
 
   type_weight_gpu.resize(MAX_NUM_TYPES);
   type_weight_gpu.copy_from_host(type_weight_cpu.data());

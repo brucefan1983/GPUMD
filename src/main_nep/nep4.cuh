@@ -30,7 +30,6 @@ struct NEP4_Data {
   GPU_Vector<float> dq_dz;
   GPU_Vector<float> q;               // descriptors (angular only)
   GPU_Vector<float> gnn_descriptors; // temporary descriptors for use in GNN
-  GPU_Vector<float> gnn_messages; // messages q * theta for all atoms, same shape as gnn_descriptors
   GPU_Vector<float> dU_dq;
   GPU_Vector<float> s;          // s in the NEP3 manuscript
   GPU_Vector<float> parameters; // parameters to be optimized
@@ -60,12 +59,6 @@ public:
     const float* c;
   };
 
-  struct GNN {
-    int num_para = 0;
-    const float* theta; // weights of size N_descriptor x F, where F = N_descriptor atm (size of
-                        // output descriptor)
-  };
-
   struct ZBL {
     bool enabled = false;
     float rc_inner = 1.0f;
@@ -80,8 +73,7 @@ public:
 private:
   Para nep_para;
   ANN ann;
-  GNN gnn;
   NEP4_Data nep_data;
   ZBL zbl;
-  void update_potential(const float* parameters, ANN& ann, GNN& gnn);
+  void update_potential(const float* parameters, ANN& ann);
 };
