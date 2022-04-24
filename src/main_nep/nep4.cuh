@@ -57,6 +57,7 @@ public:
     const float* w1;      // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
     const float* c;
+    const float* d;
   };
 
   struct ZBL {
@@ -75,5 +76,5 @@ private:
   ANN ann;
   NEP4_Data nep_data;
   ZBL zbl;
-  void update_potential(const float* parameters, ANN& ann);
+  void update_potential(const float* parameters, ANN& ann, Para& nep_para);
 };

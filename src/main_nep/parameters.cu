@@ -130,10 +130,15 @@ void Parameters::calculate_parameters()
   if (version == 2) {
     number_of_variables_descriptor =
       (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
-  } else {
+  } else if (version == 3) {
     number_of_variables_descriptor =
       num_types * num_types *
       (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
+  } else {
+    number_of_variables_descriptor =
+      num_types * num_types *
+        (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1)) +
+      num_types * num_types;
   }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;

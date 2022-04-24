@@ -178,13 +178,15 @@ NEP4::NEP4(char* input_dir, Parameters& para, int N, int N_times_max_NN_angular)
   nep_data.parameters.resize(ann.num_para);
 }
 
-void NEP4::update_potential(const float* parameters, ANN& ann)
+void NEP4::update_potential(const float* parameters, ANN& ann, Para& nep_para)
 {
   ann.w0 = parameters;
   ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
   ann.w1 = ann.b0 + ann.num_neurons1;
   ann.b1 = ann.w1 + ann.num_neurons1;
   ann.c = ann.b1 + 1;
+  ann.d =
+    ann.c + nep_para.num_types_sq * (nep_para.n_max_angular + 1) * (nep_para.basis_size_radial + 1);
 }
 
 static void __global__ find_q_scaler(const int N, const float* g_q, float* g_q_scaler)
@@ -231,6 +233,7 @@ static __global__ void apply_gnn_message_passing(
   const int N,
   const NEP4::Para para,
   const NEP4::ANN ann,
+  const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
@@ -241,16 +244,19 @@ static __global__ void apply_gnn_message_passing(
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
+    int t1 = g_type[n1];
     int num_neighbors_of_n1 = g_NN[n1];
     for (int nu = 0; nu < ann.dim; nu++) {
       float q_out_nu = g_messages[n1 + nu * N];
       for (int j = 0; j < num_neighbors_of_n1; ++j) {
         int index = n1 + N * j;
         int n2 = g_NL[index];
+        int t2 = g_type[n2];
         float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
         find_fc(para.rc_angular, para.rcinv_angular, d12, fc12);
+        fc12 *= ann.d[t1 * para.num_types + t2];
         q_out_nu += fc12 * g_messages[n2 + nu * N];
       }
       gnn_descriptors[n1 + nu * N] = q_out_nu;
@@ -348,6 +354,7 @@ static __global__ void find_force_angular(
   const int* g_NL,
   const NEP4::Para para,
   const NEP4::ANN ann,
+  const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
@@ -371,15 +378,20 @@ static __global__ void find_force_angular(
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
     int neighbor_number = g_NN[n1];
+    int t1 = g_type[n1];
 
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
+      int t2 = g_type[n2];
       int neighbor_number_2 = g_NN[n2];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fc12, fcp12);
+      float d_scaler = ann.d[t1 * para.num_types + t2];
+      fc12 *= d_scaler;
+      fcp12 *= d_scaler;
       fcp12 /= d12;
 
       float f12[3] = {0.0f};
@@ -415,10 +427,12 @@ static __global__ void find_force_angular(
         if (n3 == n2) {
           continue;
         }
+        int t3 = g_type[n3];
         float r13[3] = {g_x12[index2], g_y12[index2], g_z12[index2]};
         float d13 = sqrt(r13[0] * r13[0] + r13[1] * r13[1] + r13[2] * r13[2]);
         float fc13;
         find_fc(para.rc_angular, para.rcinv_angular, d13, fc13);
+        fc13 *= ann.d[t1 * para.num_types + t3];
 
         for (int nu = 0; nu < ann.dim; ++nu) {
           int index_dqi_drij = N * (i1 * ann.dim + nu) + n1;
@@ -523,7 +537,7 @@ void NEP4::find_force(
   Parameters& para, const float* parameters, Dataset& dataset, bool calculate_q_scaler)
 {
   nep_data.parameters.copy_from_host(parameters);
-  update_potential(nep_data.parameters.data(), ann);
+  update_potential(nep_data.parameters.data(), ann, nep_para);
   float rc2_angular = para.rc_angular * para.rc_angular;
 
   gpu_find_neighbor_list<<<dataset.Nc, 256>>>(
@@ -550,9 +564,9 @@ void NEP4::find_force(
   CUDA_CHECK_KERNEL
 
   apply_gnn_message_passing<<<(dataset.N - 1) / 64 + 1, 64>>>(
-    dataset.N, nep_para, ann, nep_data.x12_angular.data(), nep_data.y12_angular.data(),
-    nep_data.z12_angular.data(), nep_data.q.data(), nep_data.NN_angular.data(),
-    nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
+    dataset.N, nep_para, ann, dataset.type.data(), nep_data.x12_angular.data(),
+    nep_data.y12_angular.data(), nep_data.z12_angular.data(), nep_data.q.data(),
+    nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
   CUDA_CHECK_KERNEL
 
   if (calculate_q_scaler) {
@@ -573,10 +587,10 @@ void NEP4::find_force(
 
   find_force_angular<<<grid_size, block_size>>>(
     dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_para, ann,
-    nep_data.x12_angular.data(), nep_data.y12_angular.data(), nep_data.z12_angular.data(),
-    nep_data.dU_dq.data(), nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
-    nep_data.dq_dz.data(), dataset.force.data(), dataset.force.data() + dataset.N,
-    dataset.force.data() + dataset.N * 2, dataset.virial.data());
+    dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
+    nep_data.z12_angular.data(), nep_data.dU_dq.data(), nep_data.q.data(), nep_data.dq_dx.data(),
+    nep_data.dq_dy.data(), nep_data.dq_dz.data(), dataset.force.data(),
+    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
   CUDA_CHECK_KERNEL
 
   if (zbl.enabled) {
