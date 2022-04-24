@@ -407,16 +407,24 @@ static __global__ void find_force_angular(
         f12[0] += dU_dq * (dqi_dxij - fc12 * dqj_dxji + fcp12 * qj * r12[0]);
         f12[1] += dU_dq * (dqi_dyij - fc12 * dqj_dyji + fcp12 * qj * r12[1]);
         f12[2] += dU_dq * (dqi_dzij - fc12 * dqj_dzji + fcp12 * qj * r12[2]);
-        for (int i2 = 0; i2 < neighbor_number; ++i2) {
-          int index2 = i2 * N + n1;
-          int n3 = g_NL[index2];
-          if (n3 == n2) {
-            continue;
-          }
-          float r13[3] = {g_x12[index2], g_y12[index2], g_z12[index2]};
-          float d13 = sqrt(r13[0] * r13[0] + r13[1] * r13[1] + r13[2] * r13[2]);
-          float fc13;
-          find_fc(para.rc_angular, para.rcinv_angular, d13, fc13);
+      }
+
+      for (int i2 = 0; i2 < neighbor_number; ++i2) {
+        int index2 = i2 * N + n1;
+        int n3 = g_NL[index2];
+        if (n3 == n2) {
+          continue;
+        }
+        float r13[3] = {g_x12[index2], g_y12[index2], g_z12[index2]};
+        float d13 = sqrt(r13[0] * r13[0] + r13[1] * r13[1] + r13[2] * r13[2]);
+        float fc13;
+        find_fc(para.rc_angular, para.rcinv_angular, d13, fc13);
+
+        for (int nu = 0; nu < ann.dim; ++nu) {
+          int index_dqi_drij = N * (i1 * ann.dim + nu) + n1;
+          float dqi_dxij = g_dq_dx[index_dqi_drij];
+          float dqi_dyij = g_dq_dy[index_dqi_drij];
+          float dqi_dzij = g_dq_dz[index_dqi_drij];
           float dUk_dq = g_dU_dq[nu * N + n3];
           f12[0] += dUk_dq * fc13 * dqi_dxij;
           f12[1] += dUk_dq * fc13 * dqi_dyij;
