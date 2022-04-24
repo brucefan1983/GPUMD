@@ -193,8 +193,8 @@ static void __global__ find_q_scaler(const int N, const float* g_q, float* g_q_s
   const int bid = blockIdx.x;
   __shared__ float s_max[1024];
   __shared__ float s_min[1024];
-  s_max[tid] = -1000000.0f; // a small number
-  s_min[tid] = +1000000.0f; // a large number
+  s_max[tid] = -1000000.0f;
+  s_min[tid] = +1000000.0f;
   const int stride = 1024;
   const int number_of_rounds = (N - 1) / stride + 1;
   for (int round = 0; round < number_of_rounds; ++round) {
@@ -227,18 +227,6 @@ static void __global__ find_q_scaler(const int N, const float* g_q, float* g_q_s
   }
 }
 
-static __global__ void
-apply_q_scaler(const int N, const NEP4::ANN ann, const float* __restrict__ g_q_scaler, float* g_q)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  if (n1 < N) {
-    for (int d = 0; d < ann.dim; ++d) {
-      g_q[n1 + d * N] *= g_q_scaler[d];
-    }
-  }
-}
-
-// Apply the message passing aggregation between neighbors, A*q_theta
 static __global__ void apply_gnn_message_passing(
   const int N,
   const NEP4::Para para,
@@ -254,10 +242,8 @@ static __global__ void apply_gnn_message_passing(
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
     int num_neighbors_of_n1 = g_NN[n1];
-    const int F = ann.dim; // dimension of q_out, for now dim_out = dim_in.
-    for (int nu = 0; nu < F; nu++) {
-      float q_out_nu = g_messages[n1 + nu * N]; // fc(r_ii) = 1
-      // TODO perhaps normalize weights? Compare Kipf, Welling et al. (2016)
+    for (int nu = 0; nu < ann.dim; nu++) {
+      float q_out_nu = g_messages[n1 + nu * N];
       for (int j = 0; j < num_neighbors_of_n1; ++j) {
         int index = n1 + N * j;
         int n2 = g_NL[index];
@@ -267,25 +253,30 @@ static __global__ void apply_gnn_message_passing(
         find_fc(para.rc_angular, para.rcinv_angular, d12, fc12);
         q_out_nu += fc12 * g_messages[n2 + nu * N];
       }
-      gnn_descriptors[n1 + nu * N] = tanh(q_out_nu);
+      gnn_descriptors[n1 + nu * N] = q_out_nu;
     }
   }
 }
 
 static __global__ void apply_ann(
-  const int N, const NEP4::ANN ann, const float* __restrict__ g_q, float* g_pe, float* g_dU_dq)
+  const int N,
+  const NEP4::ANN ann,
+  const float* __restrict__ g_q,
+  const float* __restrict__ g_q_scaler,
+  float* g_pe,
+  float* g_dU_dq)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
     float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < ann.dim; ++d) {
-      q[d] = g_q[n1 + d * N];
+      q[d] = g_q[n1 + d * N] * g_q_scaler[d];
     }
     float U = 0.0f, dU_dq[MAX_DIM] = {0.0f};
     apply_ann_one_layer(ann.dim, ann.num_neurons1, ann.w0, ann.b0, ann.w1, ann.b1, q, U, dU_dq);
     g_pe[n1] = U;
     for (int d = 0; d < ann.dim; ++d) {
-      g_dU_dq[n1 + d * N] = dU_dq[d];
+      g_dU_dq[n1 + d * N] = dU_dq[d] * g_q_scaler[d];
     }
   }
 }
@@ -351,19 +342,20 @@ static __global__ void find_dq_dr(
   }
 }
 
-// TODO: change this function to complete NEP4
 static __global__ void find_force_angular(
   const int N,
   const int* g_NN,
   const int* g_NL,
   const NEP4::Para para,
   const NEP4::ANN ann,
-  const int* __restrict__ g_type,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
   const float* __restrict__ g_dU_dq,
-  const float* __restrict__ g_s,
+  const float* __restrict__ g_q,
+  const float* __restrict__ g_dq_dx,
+  const float* __restrict__ g_dq_dy,
+  const float* __restrict__ g_dq_dz,
   float* g_fx,
   float* g_fy,
   float* g_fz,
@@ -378,39 +370,58 @@ static __global__ void find_force_angular(
     float s_virial_xy = 0.0f;
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
-
-    float dU_dq[MAX_DIM_ANGULAR] = {0.0f};
-    float s[NUM_OF_ABC * MAX_NUM_N];
-    for (int d = 0; d < (para.n_max_angular + 1) * para.L_max; ++d) {
-      dU_dq[d] = g_dU_dq[d * N + n1];
-    }
-    for (int d = 0; d < (para.n_max_angular + 1) * NUM_OF_ABC; ++d) {
-      s[d] = g_s[d * N + n1];
-    }
     int neighbor_number = g_NN[n1];
-    int t1 = g_type[n1];
+
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
+      int neighbor_number_2 = g_NN[n2];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12, fcp12;
       find_fc_and_fcp(para.rc_angular, para.rcinv_angular, d12, fc12, fcp12);
-      int t2 = g_type[n2];
+      fcp12 /= d12;
+
       float f12[3] = {0.0f};
-      float fn12[MAX_NUM_N];
-      float fnp12[MAX_NUM_N];
-      find_fn_and_fnp(para.basis_size_radial, para.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n <= para.n_max_angular; ++n) {
-        float gn12 = 0.0f;
-        float gnp12 = 0.0f;
-        for (int k = 0; k <= para.basis_size_radial; ++k) {
-          int c_index = (n * (para.basis_size_radial + 1) + k) * para.num_types_sq;
-          c_index += t1 * para.num_types + t2;
-          gn12 += fn12[k] * ann.c[c_index];
-          gnp12 += fnp12[k] * ann.c[c_index];
+
+      for (int nu = 0; nu < ann.dim; ++nu) {
+        float dU_dq = g_dU_dq[nu * N + n1];
+        int index_dqi_drij = N * (i1 * ann.dim + nu) + n1;
+        float dqi_dxij = g_dq_dx[index_dqi_drij];
+        float dqi_dyij = g_dq_dy[index_dqi_drij];
+        float dqi_dzij = g_dq_dz[index_dqi_drij];
+        float qj = g_q[nu * N + n2];
+
+        int offset = 0;
+        for (int k = 0; k < neighbor_number_2; ++k) {
+          if (n1 == g_NL[n2 + N * k]) {
+            offset = k;
+            break;
+          }
         }
-        accumulate_f12(n, para.n_max_angular + 1, d12, r12, gn12, gnp12, dU_dq, s, f12);
+        int index_dqj_drji = N * (offset * ann.dim + nu) + n2;
+        float dqj_dxji = g_dq_dx[index_dqj_drji];
+        float dqj_dyji = g_dq_dy[index_dqj_drji];
+        float dqj_dzji = g_dq_dz[index_dqj_drji];
+
+        f12[0] += dU_dq * (dqi_dxij - fc12 * dqj_dxji + fcp12 * qj * r12[0]);
+        f12[1] += dU_dq * (dqi_dyij - fc12 * dqj_dyji + fcp12 * qj * r12[1]);
+        f12[2] += dU_dq * (dqi_dzij - fc12 * dqj_dzji + fcp12 * qj * r12[2]);
+        for (int i2 = 0; i2 < neighbor_number; ++i2) {
+          int index2 = i2 * N + n1;
+          int n3 = g_NL[index2];
+          if (n3 == n2) {
+            continue;
+          }
+          float r13[3] = {g_x12[index2], g_y12[index2], g_z12[index2]};
+          float d13 = sqrt(r13[0] * r13[0] + r13[1] * r13[1] + r13[2] * r13[2]);
+          float fc13;
+          find_fc(para.rc_angular, para.rcinv_angular, d13, fc13);
+          float dUk_dq = g_dU_dq[nu * N + n3];
+          f12[0] += dUk_dq * fc13 * dqi_dxij;
+          f12[1] += dUk_dq * fc13 * dqi_dyij;
+          f12[2] += dUk_dq * fc13 * dqi_dzij;
+        }
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -523,20 +534,11 @@ void NEP4::find_force(
     nep_data.z12_angular.data(), nep_data.q.data(), nep_data.s.data());
   CUDA_CHECK_KERNEL
 
-  /*find_dq_dr<<<grid_size, block_size>>>(
+  find_dq_dr<<<grid_size, block_size>>>(
     dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_para, ann,
     dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
     nep_data.z12_angular.data(), nep_data.s.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
     nep_data.dq_dz.data());
-  CUDA_CHECK_KERNEL*/
-
-  if (calculate_q_scaler) {
-    find_q_scaler<<<ann.dim, 1024>>>(dataset.N, nep_data.q.data(), para.q_scaler_gpu.data());
-    CUDA_CHECK_KERNEL
-  }
-
-  apply_q_scaler<<<grid_size, block_size>>>(
-    dataset.N, ann, para.q_scaler_gpu.data(), nep_data.q.data());
   CUDA_CHECK_KERNEL
 
   apply_gnn_message_passing<<<(dataset.N - 1) / 64 + 1, 64>>>(
@@ -545,22 +547,29 @@ void NEP4::find_force(
     nep_data.NL_angular.data(), nep_data.gnn_descriptors.data());
   CUDA_CHECK_KERNEL
 
+  if (calculate_q_scaler) {
+    find_q_scaler<<<ann.dim, 1024>>>(
+      dataset.N, nep_data.gnn_descriptors.data(), para.q_scaler_gpu.data());
+    CUDA_CHECK_KERNEL
+  }
+
   apply_ann<<<grid_size, block_size>>>(
-    dataset.N, ann, nep_data.gnn_descriptors.data(), dataset.energy.data(), nep_data.dU_dq.data());
+    dataset.N, ann, nep_data.gnn_descriptors.data(), para.q_scaler_gpu.data(),
+    dataset.energy.data(), nep_data.dU_dq.data());
   CUDA_CHECK_KERNEL
 
-  /*zero_force<<<grid_size, block_size>>>(
+  zero_force<<<grid_size, block_size>>>(
     dataset.N, dataset.force.data(), dataset.force.data() + dataset.N,
     dataset.force.data() + dataset.N * 2);
   CUDA_CHECK_KERNEL
 
-  // TODO: change this function to complete NEP4
   find_force_angular<<<grid_size, block_size>>>(
     dataset.N, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_para, ann,
-    dataset.type.data(), nep_data.x12_angular.data(), nep_data.y12_angular.data(),
-    nep_data.z12_angular.data(), nep_data.dU_dq.data(), nep_data.s.data(), dataset.force.data(),
-    dataset.force.data() + dataset.N, dataset.force.data() + dataset.N * 2, dataset.virial.data());
-  CUDA_CHECK_KERNEL*/
+    nep_data.x12_angular.data(), nep_data.y12_angular.data(), nep_data.z12_angular.data(),
+    nep_data.dU_dq.data(), nep_data.q.data(), nep_data.dq_dx.data(), nep_data.dq_dy.data(),
+    nep_data.dq_dz.data(), dataset.force.data(), dataset.force.data() + dataset.N,
+    dataset.force.data() + dataset.N * 2, dataset.virial.data());
+  CUDA_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, block_size>>>(
