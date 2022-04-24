@@ -1,0 +1,15 @@
+type       	3 C H N
+version     3
+cutoff     	3 3
+n_max      	8 8
+basis_size  8 8
+l_max      	4 
+neuron     	50	
+lambda_1   	0.02
+lambda_2	0.02
+lambda_e	1.0
+lambda_f	1.0
+lambda_v	0.0
+batch       100
+population	40
+generation	10000
