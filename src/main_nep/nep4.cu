@@ -460,12 +460,12 @@ static __global__ void find_force_angular(
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
     }
-    g_virial[n1] += s_virial_xx;
-    g_virial[n1 + N] += s_virial_yy;
-    g_virial[n1 + N * 2] += s_virial_zz;
-    g_virial[n1 + N * 3] += s_virial_xy;
-    g_virial[n1 + N * 4] += s_virial_yz;
-    g_virial[n1 + N * 5] += s_virial_zx;
+    g_virial[n1] = s_virial_xx;
+    g_virial[n1 + N] = s_virial_yy;
+    g_virial[n1 + N * 2] = s_virial_zz;
+    g_virial[n1 + N * 3] = s_virial_xy;
+    g_virial[n1 + N * 4] = s_virial_yz;
+    g_virial[n1 + N * 5] = s_virial_zx;
   }
 }
 
