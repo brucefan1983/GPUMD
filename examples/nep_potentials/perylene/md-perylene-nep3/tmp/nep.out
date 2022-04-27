@@ -1,3 +1,118 @@
+This job can be monitored from: https://scruffy.c3se.chalmers.se/d/alvis-job/alvis-job?var-jobid=261635&from=1651041845000
+
+***************************************************************
+*                 Welcome to use GPUMD                        *
+*    (Graphics Processing Units Molecular Dynamics)           *
+*                     Version 3.3                             *
+*              This is the nep executable                     *
+* Author:                                                     *
+*     Zheyong Fan <brucenju@gmail.com>                        *
+***************************************************************
+
+
+---------------------------------------------------------------
+GPU information:
+---------------------------------------------------------------
+
+Device id:               0
+Device name:             NVIDIA A100-SXM4-40GB
+Compute capability:      8.0
+Amount of global memory: 39.4086 GB
+Number of SMs:           108
+
+---------------------------------------------------------------
+Run simulation for '.'.
+---------------------------------------------------------------
+
+
+---------------------------------------------------------------
+Started reading nep.in.
+---------------------------------------------------------------
+
+Input or default parameters:
+    (input)   use NEP version 3.
+    (input)   number of atom types = 2.
+        (default) type 0 (C with Z = 6) has force weight of 1.
+        (default) type 1 (H with Z = 1) has force weight of 1.
+    (default) will not add the ZBL potential.
+    (input)   radial cutoff = 4 A.
+    (input)   angular cutoff = 4 A.
+    (input)   n_max_radial = 6.
+    (input)   n_max_angular = 6.
+    (default) basis_size_radial = 8.
+    (default) basis_size_angular = 8.
+    (input)   l_max_3body = 4.
+    (input)   l_max_4body = 0.
+    (input)   l_max_5body = 0.
+    (input)   number of neurons = 50.
+    (input)   lambda_1 = 0.02.
+    (input)   lambda_2 = 0.02.
+    (input)   lambda_e = 1.
+    (input)   lambda_f = 1.
+    (default) lambda_v = 0.1.
+    (default) force_delta = 0.
+    (input)   batch size = 100000000.
+    (input)   population size = 50.
+    (input)   maximum number of generations = 21500.
+Some calculated parameters:
+    number of radial descriptor components = 7.
+    number of angualr descriptor components = 28.
+    total number of  descriptor components = 35.
+    NN architecture = 35-50-1.
+    number of NN parameters to be optimized = 1851.
+    number of descriptor parameters to be optimized = 504.
+    total number of parameters to be optimized = 2355.
+
+---------------------------------------------------------------
+Finished reading nep.in.
+---------------------------------------------------------------
+
+
+---------------------------------------------------------------
+Started reading train.in.
+---------------------------------------------------------------
+
+Number of configurations = 818.
+Number of batches = 1
+Hello, I changed the batch_size from 100000000 to 818.
+
+Batch 0:
+Number of configurations = 818.
+Total number of atoms = 47040.
+Number of atoms in the largest configuration = 76.
+Number of configurations having virial = 0.
+Radial descriptor with a cutoff of 4 A:
+    Minimum number of neighbors for one atom = 7.
+    Maximum number of neighbors for one atom = 35.
+Angular descriptor with a cutoff of 4 A:
+    Minimum number of neighbors for one atom = 7.
+    Maximum number of neighbors for one atom = 35.
+
+---------------------------------------------------------------
+Started reading test.in.
+---------------------------------------------------------------
+
+Number of configurations = 351.
+Total number of atoms = 20226.
+Number of atoms in the largest configuration = 76.
+Number of configurations having virial = 0.
+Radial descriptor with a cutoff of 4 A:
+    Minimum number of neighbors for one atom = 7.
+    Maximum number of neighbors for one atom = 33.
+Angular descriptor with a cutoff of 4 A:
+    Minimum number of neighbors for one atom = 7.
+    Maximum number of neighbors for one atom = 33.
+
+---------------------------------------------------------------
+Time used for initialization = 0.486992 s.
+---------------------------------------------------------------
+
+
+---------------------------------------------------------------
+Started training.
+---------------------------------------------------------------
+
+Step    Total-Loss L1Reg-Loss L2Reg-Loss RMSE-E-Train RMSE-F-Train RMSE-V-Train RMSE-E-Test  RMSE-F-Test  RMSE-V-Test  
 100     0.51418    0.00688    0.00830    0.02089      0.47810      0.00000      0.01911      0.46635      0.00000      
 200     0.44027    0.00779    0.00953    0.02241      0.40054      0.00000      0.01866      0.39039      0.00000      
 300     0.40275    0.00864    0.01071    0.01612      0.36728      0.00000      0.01516      0.35616      0.00000      
@@ -213,3 +328,13 @@
 21300   0.15818    0.02511    0.03352    0.00286      0.09670      0.00000      0.00252      0.09286      0.00000      
 21400   0.15758    0.02497    0.03337    0.00283      0.09640      0.00000      0.00267      0.09261      0.00000      
 21500   0.15721    0.02490    0.03325    0.00285      0.09621      0.00000      0.00261      0.09240      0.00000      
+
+---------------------------------------------------------------
+Time used for training = 2323.289551 s.
+---------------------------------------------------------------
+
+
+---------------------------------------------------------------
+Finished running nep.
+---------------------------------------------------------------
+

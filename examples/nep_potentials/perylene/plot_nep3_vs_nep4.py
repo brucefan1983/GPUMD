@@ -6,9 +6,13 @@ import site
 site.addsitedir('/home/elindgren/repos/calorine')
 from calorine.io import read_loss  # nopep8
 
-title = 'MD@300K monomers and dimers'
-nep3_folder = 'md-perylene-nep3'
-nep4_folder = 'md-perylene-nep4'
+#title = 'MD@300K monomers and dimers'
+#nep3_folder = 'md-perylene-nep3'
+#nep4_folder = 'md-perylene-nep4'
+
+title = 'Rattled Monomers'
+nep3_folder = 'rattled_perylene_nep3'
+nep4_folder = 'rattled_perylene_nep4'
 
 
 # Load NEP3 and NEP4 rattled monomers

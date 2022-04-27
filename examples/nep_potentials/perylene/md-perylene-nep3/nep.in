@@ -1,7 +1,7 @@
 version  3
 type  2 C H
-cutoff  8 4
-n_max  8 6
+cutoff  4 4
+n_max  6 6
 l_max  4
 neuron  50
 lambda_1  0.02
