@@ -228,5 +228,7 @@ void PLUMED::process(
 
 PLUMED::~PLUMED(void)
 {
-  plumed_finalize(plumed_main);
+  if (use_plumed == 1) {
+    plumed_finalize(plumed_main);
+  }
 }
