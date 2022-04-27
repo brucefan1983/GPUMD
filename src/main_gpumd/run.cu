@@ -149,6 +149,12 @@ void Run::perform_a_run(char* input_dir)
   integrate.initialize(N, time_step, group);
   measure.initialize(input_dir, number_of_steps, time_step, box, neighbor, group, force, atom);
 
+#ifdef USE_PLUMED
+  if (measure.plmd.use_plumed == 1) {
+    measure.plmd.init(time_step, integrate.temperature);
+  }
+#endif
+
   clock_t time_begin = clock();
 
   for (int step = 0; step < number_of_steps; ++step) {
@@ -167,6 +173,13 @@ void Run::perform_a_run(char* input_dir)
     force.compute(
       box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
       atom.force_per_atom, atom.virial_per_atom);
+
+#ifdef USE_PLUMED
+    if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
+      measure.plmd.process(
+        box, thermo, atom.position_per_atom, atom.force_per_atom, atom.virial_per_atom);
+    }
+#endif
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
@@ -268,6 +281,12 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     measure.dump_netcdf.parse(param, num_param);
 #else
     PRINT_INPUT_ERROR("dump_netcdf is available only when USE_NETCDF flag is set.\n");
+#endif
+  } else if (strcmp(param[0], "plumed") == 0) {
+#ifdef USE_PLUMED
+    measure.plmd.parse(param, num_param);
+#else
+    PRINT_INPUT_ERROR("plumed is available only when USE_PLUMED flag is set.\n");
 #endif
   } else if (strcmp(param[0], "dump_restart") == 0) {
     measure.dump_restart.parse(param, num_param);
