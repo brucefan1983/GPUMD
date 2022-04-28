@@ -11,6 +11,8 @@
 # 4) For Windows systems, if you got errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
 #    You can consider removing -Xcompiler "/wd 4819"
+# 5) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
+#    and remove it otherwise.
 ###########################################################
 
 

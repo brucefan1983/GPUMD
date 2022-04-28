@@ -54,6 +54,9 @@ void Measure::initialize(
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(input_dir, number_of_atoms);
 #endif
+#ifdef USE_PLUMED
+  plmd.preprocess(atom.cpu_mass);
+#endif
 }
 
 void Measure::finalize(

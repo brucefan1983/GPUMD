@@ -36,6 +36,9 @@
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
+#ifdef USE_PLUMED
+#include "plumed.cuh"
+#endif
 
 class Atom;
 
@@ -90,6 +93,9 @@ public:
   Dump_EXYZ dump_exyz;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;
+#endif
+#ifdef USE_PLUMED
+  PLUMED plmd;
 #endif
 
   // functions to get inputs from run.in
