@@ -17,11 +17,19 @@
 Interface to the PLUMED plugin: https://www.plumed.org
 ------------------------------------------------------------------------------*/
 
+#ifdef USE_PLUMED
+
 #include "plumed.cuh"
 #include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include "utilities/gpu_vector.cuh"
+
+
+#define E_C 1.602176634E-19 // Elementary charge
+#define N_A 6.0221367E23    // Avogadro constant
+
+const double ENERGY_UNIT_CONVERSION = N_A * E_C / 1000; // from eV to kJ/mol
 
 static __global__ void gpu_sum(
   const int N,
@@ -157,39 +165,39 @@ void PLUMED::process(
   position.copy_to_host(cpu_q_vector.data());
 
   if (box.triclinic == 0) {
-    cpu_b_vector.data()[0] = box.cpu_h[0];
-    cpu_b_vector.data()[1] = 0.0;
-    cpu_b_vector.data()[2] = 0.0;
-    cpu_b_vector.data()[3] = 0.0;
-    cpu_b_vector.data()[4] = box.cpu_h[1];
-    cpu_b_vector.data()[5] = 0.0;
-    cpu_b_vector.data()[6] = 0.0;
-    cpu_b_vector.data()[7] = 0.0;
-    cpu_b_vector.data()[8] = box.cpu_h[2];
+    cpu_b_vector[0] = box.cpu_h[0];
+    cpu_b_vector[1] = 0.0;
+    cpu_b_vector[2] = 0.0;
+    cpu_b_vector[3] = 0.0;
+    cpu_b_vector[4] = box.cpu_h[1];
+    cpu_b_vector[5] = 0.0;
+    cpu_b_vector[6] = 0.0;
+    cpu_b_vector[7] = 0.0;
+    cpu_b_vector[8] = box.cpu_h[2];
   } else {
-    cpu_b_vector.data()[0] = box.cpu_h[0];
-    cpu_b_vector.data()[1] = box.cpu_h[3];
-    cpu_b_vector.data()[2] = box.cpu_h[6];
-    cpu_b_vector.data()[3] = box.cpu_h[1];
-    cpu_b_vector.data()[4] = box.cpu_h[4];
-    cpu_b_vector.data()[5] = box.cpu_h[7];
-    cpu_b_vector.data()[6] = box.cpu_h[2];
-    cpu_b_vector.data()[7] = box.cpu_h[5];
-    cpu_b_vector.data()[8] = box.cpu_h[8];
+    cpu_b_vector[0] = box.cpu_h[0];
+    cpu_b_vector[1] = box.cpu_h[3];
+    cpu_b_vector[2] = box.cpu_h[6];
+    cpu_b_vector[3] = box.cpu_h[1];
+    cpu_b_vector[4] = box.cpu_h[4];
+    cpu_b_vector[5] = box.cpu_h[7];
+    cpu_b_vector[6] = box.cpu_h[2];
+    cpu_b_vector[7] = box.cpu_h[5];
+    cpu_b_vector[8] = box.cpu_h[8];
   }
 
   gpu_sum<<<6, 1024>>>(n_atom, virial.data(), gpu_v_vector.data());
   CUDA_CHECK_KERNEL
   gpu_v_vector.copy_to_host(tmp.data());
-  cpu_v_vector.data()[0] = tmp.data()[0];
-  cpu_v_vector.data()[1] = tmp.data()[3];
-  cpu_v_vector.data()[2] = tmp.data()[4];
-  cpu_v_vector.data()[3] = tmp.data()[3];
-  cpu_v_vector.data()[4] = tmp.data()[1];
-  cpu_v_vector.data()[5] = tmp.data()[5];
-  cpu_v_vector.data()[6] = tmp.data()[4];
-  cpu_v_vector.data()[7] = tmp.data()[5];
-  cpu_v_vector.data()[8] = tmp.data()[2];
+  cpu_v_vector[0] = tmp[0];
+  cpu_v_vector[1] = tmp[3];
+  cpu_v_vector[2] = tmp[4];
+  cpu_v_vector[3] = tmp[3];
+  cpu_v_vector[4] = tmp[1];
+  cpu_v_vector[5] = tmp[5];
+  cpu_v_vector[6] = tmp[4];
+  cpu_v_vector[7] = tmp[5];
+  cpu_v_vector[8] = tmp[2];
 
   plumed_cmd(plumed_main, "setStep",       &step);
   plumed_cmd(plumed_main, "setMasses",     cpu_m_vector.data());
@@ -208,15 +216,15 @@ void PLUMED::process(
 
   force.copy_from_host(cpu_f_vector.data());
 
-  cpu_v_factor.data()[0] = cpu_v_vector.data()[0] / tmp.data()[0];
-  cpu_v_factor.data()[1] = cpu_v_vector.data()[1] / tmp.data()[3];
-  cpu_v_factor.data()[2] = cpu_v_vector.data()[2] / tmp.data()[4];
-  cpu_v_factor.data()[3] = cpu_v_vector.data()[3] / tmp.data()[3];
-  cpu_v_factor.data()[4] = cpu_v_vector.data()[4] / tmp.data()[1];
-  cpu_v_factor.data()[5] = cpu_v_vector.data()[5] / tmp.data()[5];
-  cpu_v_factor.data()[6] = cpu_v_vector.data()[6] / tmp.data()[4];
-  cpu_v_factor.data()[7] = cpu_v_vector.data()[7] / tmp.data()[5];
-  cpu_v_factor.data()[8] = cpu_v_vector.data()[8] / tmp.data()[2];
+  cpu_v_factor[0] = cpu_v_vector[0] / tmp[0];
+  cpu_v_factor[1] = cpu_v_vector[1] / tmp[3];
+  cpu_v_factor[2] = cpu_v_vector[2] / tmp[4];
+  cpu_v_factor[3] = cpu_v_vector[3] / tmp[3];
+  cpu_v_factor[4] = cpu_v_vector[4] / tmp[1];
+  cpu_v_factor[5] = cpu_v_vector[5] / tmp[5];
+  cpu_v_factor[6] = cpu_v_vector[6] / tmp[4];
+  cpu_v_factor[7] = cpu_v_vector[7] / tmp[5];
+  cpu_v_factor[8] = cpu_v_vector[8] / tmp[2];
   gpu_v_factor.copy_from_host(cpu_v_factor.data());
   gpu_scale_virial<<<(n_atom - 1) / 128 + 1, n_atom>>>(
     n_atom, gpu_v_factor.data(),
@@ -232,3 +240,5 @@ PLUMED::~PLUMED(void)
     plumed_finalize(plumed_main);
   }
 }
+
+#endif

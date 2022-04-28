@@ -13,16 +13,13 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#ifdef USE_PLUMED
+
 #pragma once
 #include <plumed/wrapper/Plumed.h>
 #include "force/potential.cuh"
 #include <stdio.h>
 #include <vector>
-
-#define E_C 1.602176634E-19 // Elementary charge
-#define N_A 6.0221367E23    // Avogadro constant
-
-const double ENERGY_UNIT_CONVERSION = N_A * E_C / 1000; // from eV to kJ/mol
 
 class PLUMED
 {
@@ -59,3 +56,5 @@ protected:
   std::vector<double> cpu_v_factor; // Scaling factor of the virial (CPU)
   plumed plumed_main;
 };
+
+#endif
