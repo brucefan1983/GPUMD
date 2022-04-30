@@ -1,0 +1,2 @@
+potential  potentials/nep/C_2022_NEP3.txt 0
+compute_elastic  0.01 cubic
