@@ -1,8 +1,8 @@
-potential       ../potentials/nep.txt 0
+potential       potentials/nep/C_2022_NEP3.txt 0
 
 time_step       1.0
 
-velocity    	300
+velocity    	  300
 ensemble        nvt_nhc 300 300 100 
 run             100000
 
