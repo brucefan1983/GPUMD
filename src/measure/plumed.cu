@@ -234,9 +234,10 @@ void PLUMED::process(
   CUDA_CHECK_KERNEL
 }
 
-PLUMED::~PLUMED(void)
+void PLUMED::postprocess(void)
 {
   if (use_plumed == 1) {
+    use_plumed = 0;
     plumed_finalize(plumed_main);
   }
 }

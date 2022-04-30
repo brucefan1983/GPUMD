@@ -27,7 +27,6 @@ public:
   int step = 0;
   int interval = 1;
   int use_plumed = 0;
-  virtual ~PLUMED(void);
   void parse(char **param, int num_param);
   void preprocess(const std::vector<double>& cpu_mass);
   void init(const double ts, const double T);
@@ -37,6 +36,7 @@ public:
     GPU_Vector<double>& position,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+  void postprocess(void);
 protected:
   int n_atom;
   int restart;

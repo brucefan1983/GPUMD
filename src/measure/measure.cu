@@ -84,6 +84,9 @@ void Measure::finalize(
 #ifdef USE_NETCDF
   dump_netcdf.postprocess();
 #endif
+#ifdef USE_PLUMED
+  plmd.postprocess();
+#endif
 
   // TODO: move to the relevant class
   modal_analysis.compute = 0;
