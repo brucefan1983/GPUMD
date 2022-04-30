@@ -1,0 +1,22 @@
+potential       potentials/nep/C_2022_NEP3.txt 0
+
+time_step       1.0
+
+velocity    	300
+ensemble        npt_ber 300 300 100 0 0 0 1000 1000 1000 1000
+run             100000
+
+ensemble        npt_scr 300 300 100 0 0 0 1000 1000 1000 1000
+deform          1.42e-5 0 0 1
+dump_thermo     100
+dump_position   10000
+run             5000000
+
+
+
+
+
+
+
+
+

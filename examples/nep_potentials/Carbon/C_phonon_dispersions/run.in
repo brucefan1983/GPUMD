@@ -1,0 +1,2 @@
+potential       potentials/nep/C_2022_NEP3.txt 0
+compute_phonon  8.4 0.01
