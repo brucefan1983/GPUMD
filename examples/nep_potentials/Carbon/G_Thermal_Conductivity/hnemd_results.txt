@@ -1,5 +1,4 @@
-#The following results were obtained by HNEMD simulations with NEP3 potential.  
-#time  kappa_ave(W/mK) errorbar(W/mK) kappa1(W/mK) kappa2(W/mK) kappa3(W/mK) kappa4(W/mK) kappa5(W/mK)
+#Simulation_time(ns) kappa_ave(W/m/K) kappa_error(W/m/K) kappa1(W/m/K) kappa2(W/m/K) kappa3(W/m/K) kappa4(W/m/K) kappa5(W/m/K)
 0.001000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000    0.000000
 0.002000    2.951739    1.670593    3.850573    3.599621    -0.018403    9.081457    -1.754552
 0.003000    5.246379    1.557124    5.082630    7.046310    4.075905    10.298923    -0.271872

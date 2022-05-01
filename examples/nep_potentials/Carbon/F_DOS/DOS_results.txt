@@ -1,4 +1,4 @@
-#Frequency(THz)  PDOS(1/THz)
+#Frequency(THz) VDOS
 0.318310    2.688034
 0.636620    8.023230
 0.954930    20.919810

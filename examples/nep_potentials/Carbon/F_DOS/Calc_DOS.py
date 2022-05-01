@@ -1,10 +1,3 @@
-# -*- coding: utf-8 -*-
-"""
-Created on Tue Apr 26 16:13:18 2022
-
-@author: benward
-"""
-
 from pylab import *
 from thermo.gpumd.data import load_dos, load_vac
 
@@ -41,8 +34,8 @@ xlim([0, 60])
 gca().set_xticks(range(0,61,20))
 ylim([0, 6000])
 gca().set_yticks(np.arange(0,6001,2000))
-ylabel('PDOS (1/THz)')
-xlabel(r'$\nu$ (THz)')
+ylabel('VDOS (1/THz)')
+xlabel(r'$\omega$/2$\pi$ (THz)')
 title('(a)')
 
 Temp = np.arange(10,5001,100)  # [K]
@@ -67,7 +60,7 @@ xlabel('Temperature (K)')
 title('(b)')
 tight_layout()
 show()    
-savefig("DOS.pdf", bbox_inches='tight')
+savefig("DOS.eps", bbox_inches='tight')
 
 output1 = np.c_[dos['nu'], dos['DOSxyz']]
 output2 = np.c_[Temp, Cxyz]

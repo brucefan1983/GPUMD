@@ -1,4 +1,4 @@
-#Temperature(K)  Heat capacity(kb/atom)
+#Temperature(THz) Heat_Capacity(kB/atom)
 10.000000    0.000078
 110.000000    0.130186
 210.000000    0.557350
