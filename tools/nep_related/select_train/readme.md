@@ -1,17 +1,13 @@
-train.in is the existing-train.in file consisting of amorphous carbon data in ref.1
+Function:
+Select strutures from the existing-train.in file and merge them to a new output-train.in file
 
-train-20-30.in consists of the 20-th to 30-th structures in the train.in. It can be generated using:
+Usage: 
+1. Select i-th to j-th strutures of the existing train.in file:
+python select_train.py existing-train.in i:j output-train.in
 
-python select_train.py train.in 20:30 train-20-30.in
+2. Select i-th to j-th, m-th to n-th strutures (can select multiple groups) of the existing train.in file:
+python select_train.py existing-train.in i:j m:n output-train.in
 
-train-20-30_100-140.in consists of multiple groups (the 20-th to 30-th, 100th to 140-th structures) in the train.in. It can be generated using:
-
-python select_train.py train.in 20:30 100:140 train-20-30_100-140.in
-
-train-ran-150.in consists of random 150 structures in the train.in. Thr ran_sample.txt saves corresponding indexs of these strutures. It can be generated using:
-
-python select_train.py train.in random 150 train-ran-150.in
-
-P.S: Replacing train.in with test.in to process test.in
-
-[1]"Machine learning based interatomic potential for amorphous carbon", Phys. Rev. B 95, 094203
+3. Randomly select k structures from the existing train.in file. The ran_sample.txt after running saves 
+the random sampled index of the existing train.in file:
+python select_train.py existing-train.in random k output-train.in
