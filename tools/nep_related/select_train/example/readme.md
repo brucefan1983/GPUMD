@@ -1,4 +1,4 @@
-train.in is the existing-train.in file consisting of amorphous carbon data in ref.1
+train.in is the existing-train.in file consisting of amorphous carbon data in the ref.1
 
 train-20-30.in consists of the 20-th to 30-th structures in the train.in. It can be generated using:  
 python select_train.py train.in 20:30 train-20-30.in
