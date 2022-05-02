@@ -104,7 +104,7 @@ if __name__ == "__main__":
     else:
         new_structures = []
         for v in sys.argv[2:-1]:
-            b = int(v.split(':')[0]); e = int(v.split(':')[1])
+            b = int(v.split(':')[0]) - 1; e = int(v.split(':')[1]) - 1
             new_structures = new_structures + structures[b:e]
         tonep(new_structures, output = sys.argv[-1])
         
