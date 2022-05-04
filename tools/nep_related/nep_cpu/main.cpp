@@ -230,7 +230,7 @@ void get_descriptor(Atom& atom, NEP3& nep3)
 {
   std::cout << "Getting descriptor.\n";
 
-  std::vector<double> descriptor(nep3.Fp.size());
+  std::vector<double> descriptor(atom.N * nep3.annmb.dim);
 
   nep3.find_descriptor(atom.type, atom.box, atom.position, descriptor);
 
