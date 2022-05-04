@@ -1211,7 +1211,7 @@ void find_neighbor_list_small_box(
 {
   get_expanded_box(rc_radial, box.data(), num_cells, ebox);
 
-  const int size_x12 = g_NL_radial.size();
+  const int size_x12 = N * MN;
   const double* g_x = position.data();
   const double* g_y = position.data() + N;
   const double* g_z = position.data() + N * 2;
