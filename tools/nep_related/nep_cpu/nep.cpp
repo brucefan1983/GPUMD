@@ -65,7 +65,8 @@ void apply_ann_one_layer(
   const double* b1,
   double* q,
   double& energy,
-  double* energy_derivative)
+  double* energy_derivative,
+  double* latent_space)
 {
   for (int n = 0; n < num_neurons1; ++n) {
     double w0_times_q = 0.0;
@@ -73,6 +74,7 @@ void apply_ann_one_layer(
       w0_times_q += w0[n * dim + d] * q[d];
     }
     double x1 = tanh(w0_times_q - b0[n]);
+    latent_space[n] = w1[n] * x1; // also try x1
     energy += w1[n] * x1;
     for (int d = 0; d < dim; ++d) {
       double y1 = (1.0 - x1 * x1) * w0[n * dim + d];
@@ -764,7 +766,9 @@ void find_q_with_5body(const int n_max_angular_plus_1, const int n, const double
 }
 
 void find_descriptor_small_box(
-  const bool is_calculating_descriptor,
+  const bool calculating_potential,
+  const bool calculating_descriptor,
+  const bool calculating_latent_space,
   NEP3::ParaMB paramb,
   NEP3::ANN annmb,
   const int N,
@@ -781,7 +785,9 @@ void find_descriptor_small_box(
   const double* g_z12_angular,
   double* g_Fp,
   double* g_sum_fxyz,
-  double* g_potential_or_descriptor)
+  double* g_potential,
+  double* g_descriptor,
+  double* g_latent_space)
 {
   for (int n1 = 0; n1 < N; ++n1) {
     int t1 = g_type[n1];
@@ -861,19 +867,31 @@ void find_descriptor_small_box(
       }
     }
 
-    if (is_calculating_descriptor) {
+    if (calculating_descriptor) {
       for (int d = 0; d < annmb.dim; ++d) {
-        g_potential_or_descriptor[d * N + n1] = q[d] * paramb.q_scaler[d];
+        g_descriptor[d * N + n1] = q[d] * paramb.q_scaler[d];
       }
-    } else {
+    }
+
+    if (calculating_potential || calculating_latent_space) {
       for (int d = 0; d < annmb.dim; ++d) {
         q[d] = q[d] * paramb.q_scaler[d];
       }
 
-      double F = 0.0, Fp[MAX_DIM] = {0.0};
+      double F = 0.0, Fp[MAX_DIM] = {0.0}, latent_space[100] = {0.0};
       apply_ann_one_layer(
-        annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
-      g_potential_or_descriptor[n1] += F;
+        annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp,
+        latent_space);
+
+      if (calculating_latent_space) {
+        for (int n = 0; n < annmb.num_neurons1; ++n) {
+          g_latent_space[n * N + n1] = latent_space[n];
+        }
+      }
+
+      if (calculating_potential) {
+        g_potential[n1] += F;
+      }
 
       for (int d = 0; d < annmb.dim; ++d) {
         g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
@@ -1476,10 +1494,10 @@ void NEP3::compute(
     NN_angular, NL_angular, r12);
 
   find_descriptor_small_box(
-    false, paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(),
+    true, false, false, paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(),
     NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
     r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(),
-    sum_fxyz.data(), potential.data());
+    sum_fxyz.data(), potential.data(), nullptr, nullptr);
 
   find_force_radial_small_box(
     paramb, annmb, N, NN_radial.data(), NL_radial.data(), type.data(), r12.data(),
@@ -1524,8 +1542,39 @@ void NEP3::find_descriptor(
     NN_angular, NL_angular, r12);
 
   find_descriptor_small_box(
-    true, paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(),
+    false, true, false, paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(),
     NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
     r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(),
-    sum_fxyz.data(), descriptor.data());
+    sum_fxyz.data(), nullptr, descriptor.data(), nullptr);
+}
+
+void NEP3::find_latent_space(
+  const std::vector<int>& type,
+  const std::vector<double>& box,
+  const std::vector<double>& position,
+  std::vector<double>& latent_space)
+{
+  const int N = type.size();
+  const int size_x12 = N * MN;
+
+  if (N * 3 != position.size()) {
+    std::cout << "Type and position sizes are inconsistent.\n";
+    exit(1);
+  }
+  if (N * annmb.num_neurons1 != latent_space.size()) {
+    std::cout << "Type and latent_space sizes are inconsistent.\n";
+    exit(1);
+  }
+
+  allocate_memory(N);
+
+  find_neighbor_list_small_box(
+    paramb.rc_radial, paramb.rc_angular, N, box, position, num_cells, ebox, NN_radial, NL_radial,
+    NN_angular, NL_angular, r12);
+
+  find_descriptor_small_box(
+    false, false, true, paramb, annmb, N, NN_radial.data(), NL_radial.data(), NN_angular.data(),
+    NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
+    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, Fp.data(),
+    sum_fxyz.data(), nullptr, nullptr, latent_space.data());
 }
