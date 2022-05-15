@@ -1,10 +1,12 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (1)
-* Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
-[Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://arxiv.org/abs/2112.13757), arXiv:2112.13757 [physics.comp-ph]
+## Preprints (0)
 
-## 2022 (9)
+## 2022 (10)
+
+* Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
+[Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://doi.org/10.1016/j.mtphys.2022.100705), Materials Today Physics
+100705 (2022).
 
 * Hao Feng, Kai Zhang, Xin Wang, Guiqing Zhang and Xiaoyong Guo, [Thermal transport of bilayer graphene: a homogeneous nonequilibrium molecular dynamics study](https://doi.org/10.1088/1402-4896/ac5af0), Physica Scripta, **97**, 045704 (2022).
 
