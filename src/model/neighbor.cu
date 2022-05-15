@@ -242,7 +242,10 @@ void Neighbor::find_neighbor(
   double* z = position_per_atom.data() + N * 2;
 
   if (is_first) {
+    // apply the PBC before constructing the neighbor list (this has been a bug)
+    gpu_apply_pbc<<<grid_size, block_size>>>(N, box, x, y, z);
 
+    CUDA_CHECK_KERNEL
     find_neighbor(box, x, y, z);
     check_bound(is_first);
 
@@ -256,11 +259,12 @@ void Neighbor::find_neighbor(
     if (update) {
       number_of_updates++;
 
-      find_neighbor(box, x, y, z);
-      check_bound(is_first);
-
+      // apply the PBC before constructing the neighbor list (this has been a bug)
       gpu_apply_pbc<<<grid_size, block_size>>>(N, box, x, y, z);
       CUDA_CHECK_KERNEL
+
+      find_neighbor(box, x, y, z);
+      check_bound(is_first);
 
       gpu_update_xyz0<<<grid_size, block_size>>>(N, x, y, z, x0.data(), y0.data(), z0.data());
       CUDA_CHECK_KERNEL
