@@ -21,8 +21,9 @@ The Langevin thermostat with the BAOAB splitting:
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_bao.cuh"
-#include "utilities/common.cuh"
 #include "langevin_utilities.cuh"
+#include "utilities/common.cuh"
+#include <cstdlib>
 
 Ensemble_BAO::Ensemble_BAO(int t, int fg, int N, double T, double Tc)
 {
@@ -34,7 +35,7 @@ Ensemble_BAO::Ensemble_BAO(int t, int fg, int N, double T, double Tc)
   c2 = sqrt((1 - c1 * c1) * K_B * T);
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N);
+  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
   CUDA_CHECK_KERNEL
 }
 
@@ -69,9 +70,10 @@ Ensemble_BAO::Ensemble_BAO(
   curand_states_sink.resize(N_sink);
   int grid_size_source = (N_source - 1) / 128 + 1;
   int grid_size_sink = (N_sink - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size_source, 128>>>(curand_states_source.data(), N_source);
+  initialize_curand_states<<<grid_size_source, 128>>>(
+    curand_states_source.data(), N_source, rand());
   CUDA_CHECK_KERNEL
-  initialize_curand_states<<<grid_size_sink, 128>>>(curand_states_sink.data(), N_sink);
+  initialize_curand_states<<<grid_size_sink, 128>>>(curand_states_sink.data(), N_sink, rand());
   CUDA_CHECK_KERNEL
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
@@ -363,27 +365,21 @@ void Ensemble_BAO::compute1(
   GPU_Vector<double>& thermo)
 {
   if (type == 5) {
-    operator_B(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
-    operator_A(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
     integrate_nvt_lan(mass, velocity_per_atom);
 
-    operator_A(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
   } else {
-    operator_B(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
-    operator_A(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
     integrate_heat_lan(group, mass, velocity_per_atom);
 
-    operator_A(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
   }
 }
 
@@ -400,14 +396,12 @@ void Ensemble_BAO::compute2(
   GPU_Vector<double>& thermo)
 {
   if (type == 5) {
-    operator_B(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
 
     find_thermo(
       true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
       thermo);
   } else {
-    operator_B(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
   }
 }
