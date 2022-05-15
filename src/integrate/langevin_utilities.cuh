@@ -20,12 +20,11 @@ Some CUDA kernels for Langevin thermostats.
 #define CURAND_NORMAL(a) curand_normal_double(a)
 
 // initialize curand states
-static __global__ void initialize_curand_states(curandState* state, int N)
+static __global__ void initialize_curand_states(curandState* state, int N, int seed)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
-  // We can use a fixed seed here.
   if (n < N) {
-    curand_init(123456, n, 0, &state[n]);
+    curand_init(seed, n, 0, &state[n]);
   }
 }
 

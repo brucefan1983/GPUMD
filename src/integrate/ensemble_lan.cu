@@ -19,8 +19,9 @@ The Bussi-Parrinello integrator of the Langevin thermostat:
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_lan.cuh"
-#include "utilities/common.cuh"
 #include "langevin_utilities.cuh"
+#include "utilities/common.cuh"
+#include <cstdlib>
 
 Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, double T, double Tc)
 {
@@ -32,7 +33,7 @@ Ensemble_LAN::Ensemble_LAN(int t, int fg, int N, double T, double Tc)
   c2 = sqrt((1 - c1 * c1) * K_B * T);
   curand_states.resize(N);
   int grid_size = (N - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N);
+  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
   CUDA_CHECK_KERNEL
 }
 
@@ -67,9 +68,10 @@ Ensemble_LAN::Ensemble_LAN(
   curand_states_sink.resize(N_sink);
   int grid_size_source = (N_source - 1) / 128 + 1;
   int grid_size_sink = (N_sink - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size_source, 128>>>(curand_states_source.data(), N_source);
+  initialize_curand_states<<<grid_size_source, 128>>>(
+    curand_states_source.data(), N_source, rand());
   CUDA_CHECK_KERNEL
-  initialize_curand_states<<<grid_size_sink, 128>>>(curand_states_sink.data(), N_sink);
+  initialize_curand_states<<<grid_size_sink, 128>>>(curand_states_sink.data(), N_sink, rand());
   CUDA_CHECK_KERNEL
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
