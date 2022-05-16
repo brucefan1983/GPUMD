@@ -56,9 +56,7 @@ https://www.freelists.org/list/gpumd
 | Rui Zhao              | https://github.com/grtheaory      |
 | Eric Lindgren         | https://github.com/elindgren      |
 | Junjie Wang           | https://github.com/bigd4          |
-
-
-
+| Yong Wang             | https://github.com/AmbroseWong    |
 
 ## Citations
 
