@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <random>
 
 class Ensemble_NPT_SCR : public Ensemble
 {
@@ -45,4 +46,8 @@ public:
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom,
     GPU_Vector<double>& thermo);
+
+protected:
+  std::mt19937 rng;
+  void initialize_rng();
 };
