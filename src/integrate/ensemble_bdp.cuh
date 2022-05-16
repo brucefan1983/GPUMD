@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include <random>
 
 class Ensemble_BDP : public Ensemble
 {
@@ -48,6 +49,9 @@ public:
     GPU_Vector<double>& thermo);
 
 protected:
+  std::mt19937 rng;
+  void initialize_rng();
+
   void integrate_nvt_bdp_2(
     const double time_step,
     const double volume,

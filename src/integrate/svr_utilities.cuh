@@ -16,61 +16,24 @@
 /*----------------------------------------------------------------------------80
 // The following functions are from Bussi's website
 // https://sites.google.com/site/giovannibussi/Research/algorithms
-// I have only added "static" in front of the functions,
-// without any other changes
+// I have only added "static" in front of the functions, and changed ran1()
+// to C++ calls
 // Reference:
 [1] G. Bussi et al. J. Chem. Phys. 126, 014101 (2007).
 ------------------------------------------------------------------------------*/
 
-static double ran1()
+static double gasdev(std::mt19937& rng)
 {
-  const int IA = 16807, IM = 2147483647, IQ = 127773, IR = 2836, NTAB = 32;
-  const int NDIV = (1 + (IM - 1) / NTAB);
-  const double EPS = 3.0e-16, AM = 1.0 / IM, RNMX = (1.0 - EPS);
-  static int iy = 0;
-  static int iv[NTAB];
-  int j, k;
-  double temp;
-  static int idum = 0; /* ATTENTION: THE SEED IS HARDCODED */
+  std::uniform_real_distribution<double> rand1(0, 1);
 
-  if (idum <= 0 || !iy) {
-    if (-idum < 1)
-      idum = 1;
-    else
-      idum = -idum;
-    for (j = NTAB + 7; j >= 0; j--) {
-      k = idum / IQ;
-      idum = IA * (idum - k * IQ) - IR * k;
-      if (idum < 0)
-        idum += IM;
-      if (j < NTAB)
-        iv[j] = idum;
-    }
-    iy = iv[0];
-  }
-  k = idum / IQ;
-  idum = IA * (idum - k * IQ) - IR * k;
-  if (idum < 0)
-    idum += IM;
-  j = iy / NDIV;
-  iy = iv[j];
-  iv[j] = idum;
-  if ((temp = AM * iy) > RNMX)
-    return RNMX;
-  else
-    return temp;
-}
-
-static double gasdev()
-{
   static int iset = 0;
   static double gset;
   double fac, rsq, v1, v2;
 
   if (iset == 0) {
     do {
-      v1 = 2.0 * ran1() - 1.0;
-      v2 = 2.0 * ran1() - 1.0;
+      v1 = 2.0 * rand1(rng) - 1.0;
+      v2 = 2.0 * rand1(rng) - 1.0;
       rsq = v1 * v1 + v2 * v2;
     } while (rsq >= 1.0 || rsq == 0.0);
     fac = sqrt(-2.0 * log(rsq) / rsq);
@@ -83,8 +46,10 @@ static double gasdev()
   }
 }
 
-static double gamdev(const int ia)
+static double gamdev(const int ia, std::mt19937& rng)
 {
+  std::uniform_real_distribution<double> rand1(0, 1);
+
   int j;
   double am, e, s, v1, v2, x, y;
 
@@ -93,14 +58,14 @@ static double gamdev(const int ia)
   if (ia < 6) {
     x = 1.0;
     for (j = 1; j <= ia; j++)
-      x *= ran1();
+      x *= rand1(rng);
     x = -log(x);
   } else {
     do {
       do {
         do {
-          v1 = ran1();
-          v2 = 2.0 * ran1() - 1.0;
+          v1 = rand1(rng);
+          v2 = 2.0 * rand1(rng) - 1.0;
         } while (v1 * v1 + v2 * v2 > 1.0);
         y = v2 / v1;
         am = ia - 1;
@@ -108,12 +73,12 @@ static double gamdev(const int ia)
         x = s * y + am;
       } while (x <= 0.0);
       e = (1.0 + y * y) * exp(am * log(x / am) - s * y);
-    } while (ran1() > e);
+    } while (rand1(rng) > e);
   }
   return x;
 }
 
-static double resamplekin_sumnoises(int nn)
+static double resamplekin_sumnoises(int nn, std::mt19937& rng)
 {
   /*
     returns the sum of n independent gaussian noises squared
@@ -123,17 +88,17 @@ static double resamplekin_sumnoises(int nn)
   if (nn == 0) {
     return 0.0;
   } else if (nn == 1) {
-    rr = gasdev();
+    rr = gasdev(rng);
     return rr * rr;
   } else if (nn % 2 == 0) {
-    return 2.0 * gamdev(nn / 2);
+    return 2.0 * gamdev(nn / 2, rng);
   } else {
-    rr = gasdev();
-    return 2.0 * gamdev((nn - 1) / 2) + rr * rr;
+    rr = gasdev(rng);
+    return 2.0 * gamdev((nn - 1) / 2, rng) + rr * rr;
   }
 }
 
-static double resamplekin(double kk, double sigma, int ndeg, double taut)
+static double resamplekin(double kk, double sigma, int ndeg, double taut, std::mt19937& rng)
 {
   /*
     kk:    present value of the kinetic energy of the atoms to be thermalized (in arbitrary units)
@@ -147,7 +112,8 @@ static double resamplekin(double kk, double sigma, int ndeg, double taut)
   } else {
     factor = 0.0;
   }
-  rr = gasdev();
-  return kk + (1.0 - factor) * (sigma * (resamplekin_sumnoises(ndeg - 1) + rr * rr) / ndeg - kk) +
+  rr = gasdev(rng);
+  return kk +
+         (1.0 - factor) * (sigma * (resamplekin_sumnoises(ndeg - 1, rng) + rr * rr) / ndeg - kk) +
          2.0 * rr * sqrt(kk * sigma / ndeg * (1.0 - factor) * factor);
 }

@@ -21,7 +21,17 @@ The Bussi-Donadio-Parrinello thermostat:
 #include "ensemble_bdp.cuh"
 #include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include <chrono>
 #define DIM 3
+
+void Ensemble_BDP::initialize_rng()
+{
+#ifdef DEBUG
+  rng = std::mt19937(12345678);
+#else
+  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
+};
 
 Ensemble_BDP::Ensemble_BDP(int t, int fg, double T, double Tc)
 {
@@ -29,6 +39,7 @@ Ensemble_BDP::Ensemble_BDP(int t, int fg, double T, double Tc)
   fixed_group = fg;
   temperature = T;
   temperature_coupling = Tc;
+  initialize_rng();
 }
 
 Ensemble_BDP::Ensemble_BDP(
@@ -44,6 +55,7 @@ Ensemble_BDP::Ensemble_BDP(
   // initialize the energies transferred from the system to the baths
   energy_transferred[0] = 0.0;
   energy_transferred[1] = 0.0;
+  initialize_rng();
 }
 
 Ensemble_BDP::~Ensemble_BDP(void)
@@ -79,7 +91,7 @@ void Ensemble_BDP::integrate_nvt_bdp_2(
   int ndeg = 3 * (number_of_atoms - N_fixed);
   ek[0] *= ndeg * K_B * 0.5; // from temperature to kinetic energy
   double sigma = ndeg * K_B * temperature * 0.5;
-  double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling);
+  double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling, rng);
   factor = sqrt(factor / ek[0]);
   scale_velocity_global(factor, velocity_per_atom);
 }
@@ -119,8 +131,8 @@ void Ensemble_BDP::integrate_heat_bdp_2(
   ek[label_2] *= 0.5;
 
   // get the re-scaling factors
-  double factor_1 = resamplekin(ek[label_1], sigma_1, dN1, temperature_coupling);
-  double factor_2 = resamplekin(ek[label_2], sigma_2, dN2, temperature_coupling);
+  double factor_1 = resamplekin(ek[label_1], sigma_1, dN1, temperature_coupling, rng);
+  double factor_2 = resamplekin(ek[label_2], sigma_2, dN2, temperature_coupling, rng);
   factor_1 = sqrt(factor_1 / ek[label_1]);
   factor_2 = sqrt(factor_2 / ek[label_2]);
 
