@@ -70,12 +70,6 @@ void print_welcome_information(void)
   printf("*     (Graphics Processing Units Molecular Dynamics)          *\n");
   printf("*                     Version 3.3                             *\n");
   printf("*              This is the gpumd executable                   *\n");
-  printf("* Authors:                                                    *\n");
-  printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
-  printf("*     Alexander J. Gabourie <gabourie@stanford.edu>           *\n");
-  printf("*     Ville Vierimaa                                          *\n");
-  printf("*     Mikko Ervasti                                           *\n");
-  printf("*     Ari Harju                                               *\n");
   printf("***************************************************************\n");
   printf("\n");
 }

@@ -74,8 +74,6 @@ void print_welcome_information(void)
   printf("*    (Graphics Processing Units Molecular Dynamics)           *\n");
   printf("*                     Version 3.3                             *\n");
   printf("*              This is the nep executable                     *\n");
-  printf("* Author:                                                     *\n");
-  printf("*     Zheyong Fan <brucenju@gmail.com>                        *\n");
   printf("***************************************************************\n");
   printf("\n");
 }
