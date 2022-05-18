@@ -140,7 +140,7 @@ static void get_inertia(
   I[2][0] = I[0][2];
 }
 
-static void get_angular_velocity(const double I[3][3], const double L[3], double w[3])
+static double get_angular_velocity(const double I[3][3], const double L[3], double w[3])
 {
   double inverse[3][3]; // inverse of I
   inverse[0][0] = I[1][1] * I[2][2] - I[1][2] * I[2][1];
@@ -164,6 +164,8 @@ static void get_angular_velocity(const double I[3][3], const double L[3], double
   w[0] = inverse[0][0] * L[0] + inverse[0][1] * L[1] + inverse[0][2] * L[2];
   w[1] = inverse[1][0] * L[0] + inverse[1][1] * L[1] + inverse[1][2] * L[2];
   w[2] = inverse[2][0] * L[0] + inverse[2][1] * L[1] + inverse[2][2] * L[2];
+
+  return determinant;
 }
 
 // v_i = v_i - w x dr_i
@@ -216,7 +218,10 @@ void Velocity::correct_velocity(
     cpu_position_per_atom.data() + N * 2);
 
   double w[3]; // angular velocity
-  get_angular_velocity(I, L, w);
+  double determinant = get_angular_velocity(I, L, w);
+  if (determinant > -1.0e-10 && determinant < 1.0e-10) {
+    return; // do not correct the angular velocity to avoid NaN
+  }
 
   zero_angular_momentum(
     N, w, r0, cpu_position_per_atom.data(), cpu_position_per_atom.data() + N,
