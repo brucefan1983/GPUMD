@@ -466,14 +466,14 @@ void Run::parse_change_box(char** param, int num_param)
     if (box.triclinic == 0) {
       PRINT_INPUT_ERROR("Cannot use orthogonal box with shear deformation.");
     }
-    if (!is_valid_real(param[4], &deformation_matrix[0][1])) {
-      PRINT_INPUT_ERROR("box change parameter in xy should be a number.");
+    if (!is_valid_real(param[4], &deformation_matrix[1][2])) {
+      PRINT_INPUT_ERROR("box change parameter in yz should be a number.");
     }
     if (!is_valid_real(param[5], &deformation_matrix[0][2])) {
       PRINT_INPUT_ERROR("box change parameter in xz should be a number.");
     }
-    if (!is_valid_real(param[6], &deformation_matrix[1][2])) {
-      PRINT_INPUT_ERROR("box change parameter in yz should be a number.");
+    if (!is_valid_real(param[6], &deformation_matrix[0][1])) {
+      PRINT_INPUT_ERROR("box change parameter in xy should be a number.");
     }
     deformation_matrix[1][0] = deformation_matrix[0][1];
     deformation_matrix[2][0] = deformation_matrix[0][2];
@@ -484,9 +484,9 @@ void Run::parse_change_box(char** param, int num_param)
   printf("    in xx by %g A.\n", deformation_matrix[0][0]);
   printf("    in yy by %g A.\n", deformation_matrix[1][1]);
   printf("    in zz by %g A.\n", deformation_matrix[2][2]);
-  printf("    in xy and yx by strain %g.\n", deformation_matrix[0][1]);
-  printf("    in xz and zx by strain %g.\n", deformation_matrix[0][2]);
   printf("    in yz and zy by strain %g.\n", deformation_matrix[1][2]);
+  printf("    in xz and zx by strain %g.\n", deformation_matrix[0][2]);
+  printf("    in xy and yz by strain %g.\n", deformation_matrix[0][1]);
 
   for (int d = 0; d < 3; ++d) {
     if (box.triclinic == 0) {
