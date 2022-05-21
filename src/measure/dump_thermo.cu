@@ -37,6 +37,11 @@ void Dump_Thermo::parse(char** param, int num_param)
   }
   dump_ = true;
   printf("Dump thermo every %d steps.\n", dump_interval_);
+
+  print_line_1();
+  printf("Warning: Starting from GPUMD-v3.3.1, off-diagonal pressure\n");
+  printf("         components are added to thermo.out.\n");
+  print_line_2();
 }
 
 void Dump_Thermo::preprocess(char* input_dir)
@@ -60,16 +65,18 @@ void Dump_Thermo::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  double thermo[5];
-  gpu_thermo.copy_to_host(thermo, 5);
+  double thermo[8];
+  gpu_thermo.copy_to_host(thermo, 8);
 
   const int number_of_atoms_moving = number_of_atoms - number_of_atoms_fixed;
   double energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
 
+  // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(
-    fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0], energy_kin, thermo[1],
-    thermo[2] * PRESSURE_UNIT_CONVERSION, thermo[3] * PRESSURE_UNIT_CONVERSION,
-    thermo[4] * PRESSURE_UNIT_CONVERSION);
+    fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0], energy_kin,
+    thermo[1], thermo[2] * PRESSURE_UNIT_CONVERSION, thermo[3] * PRESSURE_UNIT_CONVERSION,
+    thermo[4] * PRESSURE_UNIT_CONVERSION, thermo[7] * PRESSURE_UNIT_CONVERSION,
+    thermo[6] * PRESSURE_UNIT_CONVERSION, thermo[5] * PRESSURE_UNIT_CONVERSION);
 
   if (box.triclinic == 0) {
     fprintf(fid_, "%20.10e%20.10e%20.10e\n", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);

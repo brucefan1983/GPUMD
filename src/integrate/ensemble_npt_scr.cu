@@ -172,14 +172,15 @@ static void cpu_pressure_triclinic(
   double* thermo,
   double* mu)
 {
-  double p[6];
+  // p_coupling and p0 are in Voigt notation: xx, yy, zz, yz, xz, xy
+  double p[6]; // but thermo is this order: xx, yy, zz, xy, xz, yz
   CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
-  mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);
-  mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);
-  mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);
-  mu[3] = mu[1] = -p_coupling[3] * (p0[3] - p[3]);
-  mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]);
-  mu[7] = mu[5] = -p_coupling[5] * (p0[5] - p[5]);
+  mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);    // xx
+  mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);    // yy
+  mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);    // zz
+  mu[3] = mu[1] = -p_coupling[5] * (p0[5] - p[3]); // xy
+  mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]); // xz
+  mu[7] = mu[5] = -p_coupling[3] * (p0[3] - p[5]); // yz
   double p_coupling_3by3[3][3] = {
     {p_coupling[0], p_coupling[3], p_coupling[4]},
     {p_coupling[3], p_coupling[1], p_coupling[5]},
