@@ -30,7 +30,7 @@ set(gca,'fontsize',font_size,'linewidth',1,'ticklength',get(gca,'ticklength')*2)
 title('(b)')
 
 
-a=mean(thermo(:,7:9),2)/NC;
+a=mean(thermo(:,10:12),2)/NC;
 % lattice constant vs time
 subplot(2,2,3);
 plot(time, a, 'linewidth',2);
