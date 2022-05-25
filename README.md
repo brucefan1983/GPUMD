@@ -34,9 +34,10 @@ https://www.freelists.org/list/gpumd
 
 * Here is the archive (public): https://www.freelists.org/archive/gpumd/
 
-## Python interface:
+## Python interfaces:
 
-* One of the developers, Alexander J. Gabourie, has written a Python package for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo
+* One of the developers, Alexander J. Gabourie, has written a Python package `thermo` for pre-processing and post-processing data related to `GPUMD`. Here is the link: https://github.com/AlexGabourie/thermo (This will be changed to a new package `gpyumd`)
+* One of the developers, Junjie Wang, has written a Python package `PyNEP`that can be used compute various quantities related to the NEP model. It used a C++ NEP implementation as the backend. Here is the link: https://github.com/bigd4/PyNEP
   
 ## Authors:
 
