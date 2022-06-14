@@ -144,7 +144,7 @@ void Dump_EXYZ::output_line2(
 #ifdef USE_NEP
   fprintf(fid_, " Properties=species:S:1:pos:R:3");
 #else
-  fprintf(fid_, " Properties=species:I:1:pos:R:3");
+  fprintf(fid_, " Properties=numbers:I:1:pos:R:3");
 #endif
 
   if (has_velocity_) {
