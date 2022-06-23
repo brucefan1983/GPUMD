@@ -105,7 +105,7 @@ void Fitness::compute(
       float energy_shift_per_structure_not_used;
       fitness[n + 0 * para.population_size] =
         para.lambda_e *
-        train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used, true);
+        train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used, true, true);
       fitness[n + 1 * para.population_size] =
         para.lambda_f * train_set[batch_id].get_rmse_force(para, true);
       fitness[n + 2 * para.population_size] =
@@ -141,20 +141,19 @@ void Fitness::report_error(
     potential->find_force(para, elite, train_set[batch_id], false);
     float energy_shift_per_structure;
     float rmse_energy_train =
-      train_set[batch_id].get_rmse_energy(energy_shift_per_structure, false);
+      train_set[batch_id].get_rmse_energy(energy_shift_per_structure, false, true);
     float rmse_force_train = train_set[batch_id].get_rmse_force(para, false);
     float rmse_virial_train = train_set[batch_id].get_rmse_virial(false);
-
-    potential->find_force(para, elite, test_set, false);
-    float rmse_energy_test = test_set.get_rmse_energy(energy_shift_per_structure, false);
-    float rmse_force_test = test_set.get_rmse_force(para, false);
-    float rmse_virial_test = test_set.get_rmse_virial(false);
 
     // correct the last bias parameter in the NN
     elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
 
-    // re-calculate the test set
     potential->find_force(para, elite, test_set, false);
+    float energy_shift_per_structure_not_used;
+    float rmse_energy_test =
+      test_set.get_rmse_energy(energy_shift_per_structure_not_used, false, false);
+    float rmse_force_test = test_set.get_rmse_force(para, false);
+    float rmse_virial_test = test_set.get_rmse_virial(false);
 
     char file_nep[200];
     strcpy(file_nep, input_dir);

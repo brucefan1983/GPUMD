@@ -61,7 +61,8 @@ public:
 
   void construct(char*, Parameters& para, std::vector<Structure>& structures, int n1, int n2);
   float get_rmse_force(Parameters& para, const bool use_weight);
-  float get_rmse_energy(float& energy_shift_per_structure, const bool use_weight);
+  float
+  get_rmse_energy(float& energy_shift_per_structure, const bool use_weight, const bool do_shift);
   float get_rmse_virial(const bool use_weight);
 
 private:
