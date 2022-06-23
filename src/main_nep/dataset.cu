@@ -430,19 +430,23 @@ static __global__ void gpu_sum_pe_error(
   }
 }
 
-float Dataset::get_rmse_energy(float& energy_shift_per_structure, const bool use_weight)
+float Dataset::get_rmse_energy(
+  float& energy_shift_per_structure, const bool use_weight, const bool do_shift)
 {
-  const int block_size = 256;
-
-  gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
-    Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
-  int mem = sizeof(float) * Nc;
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   energy_shift_per_structure = 0.0f;
-  for (int n = 0; n < Nc; ++n) {
-    energy_shift_per_structure += error_cpu[n];
+
+  const int block_size = 256;
+  int mem = sizeof(float) * Nc;
+
+  if (do_shift) {
+    gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
+      Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
+    CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+    for (int n = 0; n < Nc; ++n) {
+      energy_shift_per_structure += error_cpu[n];
+    }
+    energy_shift_per_structure /= Nc;
   }
-  energy_shift_per_structure /= Nc;
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     energy_shift_per_structure, Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(),
