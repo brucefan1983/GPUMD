@@ -29,7 +29,7 @@ do
 	ener=$(grep "free  energy   TOTEN" $i | tail -1 | awk '{printf "%.6f\n", $5 - '$conf_size' * '$isol_ener'}')
 	if [[ $viri_logi -eq 1 ]]
 	then
-        	viri=$(grep -A 14 "FORCE on cell =-STRESS" $i |tail -n 1 | awk '{print $3,$4,$5,$6,$7,$8}')
+        	viri=$(grep -A 13 "FORCE on cell =-STRESS" $i |tail -n 1 | awk '{print $2,$3,$4,$5,$6,$7}')
         	echo "$ener     $viri" >> $writ_dire/$writ_file_body
 	else
 		echo "$ener" >> $writ_dire/$writ_file_body
