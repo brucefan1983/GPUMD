@@ -12,7 +12,9 @@
 * Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
 [GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://arxiv.org/abs/2205.10046), arXiv:2205.10046 [physics.comp-ph].
 
-## 2022 (10)
+## 2022 (11)
+
+* Haikuan Dong, Zheyong Fan, Ping Qian, Yanjing Su, Exactly equivalent thermal conductivity in finite systems from equilibrium and nonequilibrium molecular dynamics simulations, Accepted to Physica E.
 
 * Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
 [Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://doi.org/10.1016/j.mtphys.2022.100705), Materials Today Physics
