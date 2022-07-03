@@ -284,8 +284,8 @@ void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
   if (sample_interval < 1) {
     PRINT_INPUT_ERROR("Sampling interval for SHC should >= 1.");
   }
-  if (sample_interval > 10) {
-    PRINT_INPUT_ERROR("Sampling interval for SHC should <= 10 (trust me).");
+  if (sample_interval > 50) {
+    PRINT_INPUT_ERROR("Sampling interval for SHC should <= 50 (trust me).");
   }
   printf("    sampling interval for SHC is %d.\n", sample_interval);
 
