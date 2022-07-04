@@ -64,18 +64,18 @@ https://www.freelists.org/list/gpumd
 
 ## Citations
 
-### Mandatory citation for any work used GPUMD:
-* If you use `GPUMD` in your published work, we kindly ask you to cite the following paper which describes the central algorithms used in `GPUMD`:
+| Reference             | cite for what?                    |
+| --------------------- | --------------------------------- |
+| [1]                   | for any work that used `GPUMD`   |
+| [2-3]                 | virial and heat current formulation   |
+| [4]                   | in-out decomposition and related spectral decomposition  |
+| [5]                   | HNEMD and related spectral decomposition   |
+| [6]                   | force constant potential (FCP) |
+| [7-9]                   | neuroevolution potential (NEP) |
+
+## References
 
 [1] Zheyong Fan, Wei Chen, Ville Vierimaa, and Ari Harju. Efficient molecular dynamics simulations with many-body potentials on graphics processing units. Computer Physics Communications **218**, 10 (2017). https://doi.org/10.1016/j.cpc.2017.05.003
-
-### Optional citation to the code repository:
-* If you want to cite a link to the GPUMD code you can cite the current Github page: https://github.com/brucefan1983/GPUMD. 
-* However, if the journal does not accept this citation, you can check the Zenodo page of GPUMD (https://zenodo.org/record/4037256#.X2jkqWj7SUk) and cite the version you used. Each version has a unique DOI, which is very suitable for citation. You can write the authors of this reference to **"GPUMD developers"**.
-
-### Other possible citations
-
-* If your work involves using heat current and virial stress formulas as implemented in `GPUMD`, the following two papers can be cited:
 
 [2] Zheyong Fan, Luiz Felipe C. Pereira, Hui-Qiong Wang, Jin-Cheng Zheng, Davide Donadio, and Ari Harju. Force and heat current formulas for many-body potentials in molecular dynamics simulations with applications to thermal conductivity calculations. Phys. Rev. B **92**, 094301, (2015). https://doi.org/10.1103/PhysRevB.92.094301
 
@@ -83,20 +83,15 @@ https://www.freelists.org/list/gpumd
 [Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations](https://doi.org/10.1103/PhysRevB.103.205421),
 Phys. Rev. B **103**, 205421 (2021).
 
-* You can cite the following paper if you use `GPUMD` to study heat transport using the in-out decomposition for 2D materials and/or the spectral decomposition method as described in it:
-
 [4] Zheyong Fan, Luiz Felipe C. Pereira, Petri Hirvonen, Mikko M. Ervasti, Ken R. Elder, Davide Donadio, Tapio Ala-Nissila, and Ari Harju. Thermal conductivity decomposition in two-dimensional materials: Application to graphene. Phys. Rev. B **95**, 144309, (2017). https://doi.org/10.1103/PhysRevB.95.144309 
-
-* You can cite the following paper if you use `GPUMD` to study heat transport using the HNEMD method and the associated spectral decomposition method:
 
 [5] Z. Fan, H. Dong, A. Harju, T. Ala-Nissila, Homogeneous nonequilibrium molecular dynamics method for heat transport and spectral decomposition with many-body potentials, Phys. Rev. B **99**, 064308 (2019). https://doi.org/10.1103/PhysRevB.99.064308
 
-* If you use the force constant potential (FCP), you can cite the following paper:
-
 [6] Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart, [Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy]( https://doi.org/10.1002/adts.202100217), Advanced Theory and Simulations **4**, 2100217 (2021). 
-
-* If you train or use a NEP potential, you can cite the following papers:
 
 [7] Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Keke Song, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila, [Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport](https://doi.org/10.1103/PhysRevB.104.104309), Phys. Rev. B. **104**, 104309 (2021).
 
 [8] Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter **34** 125902 (2022).
+
+[9] Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
+[GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://arxiv.org/abs/2205.10046), arXiv:2205.10046 [physics.comp-ph].
