@@ -293,20 +293,20 @@ void SW2::compute(
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_SW + 1;
 
   gpu_set_f12_to_zero<<<grid_size, BLOCK_SIZE_SW>>>(
-    number_of_atoms, N1, N2, neighbor.NN_local.data(), sw2_data.f12x.data(), sw2_data.f12y.data(),
+    number_of_atoms, N1, N2, neighbor.NN.data(), sw2_data.f12x.data(), sw2_data.f12y.data(),
     sw2_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // step 1: calculate the partial forces
   gpu_find_force_sw3_partial<<<grid_size, BLOCK_SIZE_SW>>>(
-    number_of_atoms, N1, N2, box, sw2_para, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+    number_of_atoms, N1, N2, box, sw2_para, neighbor.NN.data(), neighbor.NL.data(), type.data(),
+    type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), sw2_data.f12x.data(),
     sw2_data.f12y.data(), sw2_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // step 2: calculate force and related quantities
   find_properties_many_body(
-    box, neighbor.NN_local.data(), neighbor.NL_local.data(), sw2_data.f12x.data(),
-    sw2_data.f12y.data(), sw2_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
+    box, neighbor.NN.data(), neighbor.NL.data(), sw2_data.f12x.data(), sw2_data.f12y.data(),
+    sw2_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
 }

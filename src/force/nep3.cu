@@ -685,20 +685,20 @@ void NEP3::compute_large_box(
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
   find_neighbor_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
-    nep_data.NN.data(), nep_data.NL.data());
+    paramb, N, N1, N2, box, neighbor.NN.data(), neighbor.NL.data(), position_per_atom.data(),
+    position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN.data(),
+    nep_data.NL.data());
   CUDA_CHECK_KERNEL
 
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    nep_data.NN.data(), nep_data.NL.data(), type.data(), position_per_atom.data(),
-    position_per_atom.data() + N, position_per_atom.data() + N * 2, potential_per_atom.data(),
-    nep_data.Fp.data(), nep_data.sum_fxyz.data());
+    paramb, annmb, N, N1, N2, box, neighbor.NN.data(), neighbor.NL.data(), nep_data.NN.data(),
+    nep_data.NL.data(), type.data(), position_per_atom.data(), position_per_atom.data() + N,
+    position_per_atom.data() + N * 2, potential_per_atom.data(), nep_data.Fp.data(),
+    nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(), type.data(),
+    paramb, annmb, N, N1, N2, box, neighbor.NN.data(), neighbor.NL.data(), type.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
     nep_data.Fp.data(), force_per_atom.data(), force_per_atom.data() + N,
     force_per_atom.data() + N * 2, virial_per_atom.data());
@@ -740,8 +740,8 @@ void NEP3::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int size_x12 = neighbor.NL_local.size();
-  GPU_Vector<int> NN_radial(neighbor.NN_local.size());
+  const int size_x12 = neighbor.NL.size();
+  GPU_Vector<int> NN_radial(neighbor.NN.size());
   GPU_Vector<int> NL_radial(size_x12);
   GPU_Vector<float> r12(size_x12 * 6);
 

@@ -448,8 +448,6 @@ void allocate_memory_gpu(
 {
   neighbor.NN.resize(N);
   neighbor.NL.resize(N * neighbor.MN);
-  neighbor.NN_local.resize(N);
-  neighbor.NL_local.resize(N * neighbor.MN);
 
   neighbor.cell_count.resize(N);
   neighbor.cell_count_sum.resize(N);

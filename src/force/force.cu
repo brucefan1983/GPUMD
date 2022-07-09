@@ -195,90 +195,6 @@ void Force::add_potential(
   type_shift_[m] = atom_begin[m];
 }
 
-// Construct the local neighbor list from the global one (Kernel)
-static __global__ void gpu_find_neighbor_local(
-  const bool use_group,
-  int* group_label,
-  Box box,
-  int type_begin,
-  int type_end,
-  int* type,
-  int N,
-  int N1,
-  int N2,
-  double cutoff_square,
-  int* NN,
-  int* NL,
-  int* NN_local,
-  int* NL_local,
-  const double* __restrict__ x,
-  const double* __restrict__ y,
-  const double* __restrict__ z)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  int count = 0;
-  int layer_n1;
-
-  if (n1 >= N1 && n1 < N2) {
-    int neighbor_number = NN[n1];
-    if (use_group)
-      layer_n1 = group_label[n1];
-    double x1 = x[n1];
-    double y1 = y[n1];
-    double z1 = z[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int n2 = NL[n1 + N * i1];
-
-      if (use_group) {
-        if (layer_n1 == group_label[n2])
-          continue;
-      }
-
-      // only include neighbors with the correct types
-      int type_n2 = type[n2];
-      if (type_n2 < type_begin || type_n2 > type_end)
-        continue;
-
-      double x12 = x[n2] - x1;
-      double y12 = y[n2] - y1;
-      double z12 = z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      double distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-      if (distance_square < cutoff_square) {
-        NL_local[count * N + n1] = n2;
-        ++count;
-      }
-    }
-    NN_local[n1] = count;
-  }
-}
-
-// Construct the local neighbor list from the global one (Wrapper)
-void Force::find_neighbor_local(
-  const int m,
-  std::vector<Group>& group,
-  GPU_Vector<int>& atom_type,
-  const GPU_Vector<double>& position_per_atom,
-  const Box& box,
-  Neighbor& neighbor)
-{
-  const int number_of_atoms = neighbor.NN.size();
-  int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / 128 + 1;
-
-  const bool use_group = is_lj[m] && (group_method > -1);
-  int* group_label = nullptr;
-  if (use_group)
-    group_label = group[group_method].label.data();
-
-  gpu_find_neighbor_local<<<grid_size, 128>>>(
-    use_group, group_label, box, atom_begin[m], atom_end[m], atom_type.data(), number_of_atoms,
-    potential[m]->N1, potential[m]->N2, potential[m]->rc * potential[m]->rc, neighbor.NN.data(),
-    neighbor.NL.data(), neighbor.NN_local.data(), neighbor.NL_local.data(),
-    position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2);
-  CUDA_CHECK_KERNEL
-}
-
 static __global__ void gpu_add_driving_force(
   int N,
   double fe_x,
@@ -425,11 +341,6 @@ void Force::compute(
   CUDA_CHECK_KERNEL
 
   for (int m = 0; m < num_of_potentials; m++) {
-    // first build a local neighbor list
-#ifndef USE_FCP // the FCP does not use a neighbor list at all
-    find_neighbor_local(m, group, type, position_per_atom, box, neighbor);
-#endif
-    // and then calculate the forces and related quantities
     potential[m]->compute(
       type_shift_[m], box, neighbor, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);

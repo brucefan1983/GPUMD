@@ -28,8 +28,7 @@ public:
   double skin = 1.0;         // fix the skin distance to 1 A
   double rc;                 // cutoff used when building the neighbor list
 
-  GPU_Vector<int> NN, NL;             // global neighbor list
-  GPU_Vector<int> NN_local, NL_local; // local neighbor list
+  GPU_Vector<int> NN, NL; // global neighbor list
 
   // some data for the ON1 method
   GPU_Vector<int> cell_count;
