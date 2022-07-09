@@ -22,7 +22,6 @@ The driver class calculating force and related quantities.
 #include "force.cuh"
 #include "lj.cuh"
 #include "nep3.cuh"
-#include "nep4.cuh"
 #include "potential.cuh"
 #include "sw.cuh"
 #include "tersoff1988.cuh"
@@ -150,10 +149,6 @@ void Force::initialize_potential(
     potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, false, neighbor));
   } else if (strcmp(potential_name, "nep3_zbl") == 0) {
     potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, true, neighbor));
-  } else if (strcmp(potential_name, "nep4") == 0) {
-    potential[m].reset(new NEP4(fid_potential, input_dir, num_types, false, neighbor));
-  } else if (strcmp(potential_name, "nep4_zbl") == 0) {
-    potential[m].reset(new NEP4(fid_potential, input_dir, num_types, true, neighbor));
   } else if (strcmp(potential_name, "lj") == 0) {
     potential[m].reset(new LJ(fid_potential, num_types));
   } else {
