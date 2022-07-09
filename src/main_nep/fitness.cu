@@ -19,7 +19,6 @@ Get the fitness
 
 #include "fitness.cuh"
 #include "nep3.cuh"
-#include "nep4.cuh"
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
@@ -74,12 +73,8 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     };
   }
 
-  if (para.version == 2 || para.version == 3) {
-    potential.reset(
-      new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version));
-  } else if (para.version == 4) {
-    potential.reset(new NEP4(input_dir, para, N, N_times_max_NN_angular));
-  }
+  potential.reset(
+    new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version));
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);
@@ -172,12 +167,6 @@ void Fitness::report_error(
       } else {
         fprintf(fid_nep, "nep3 %d ", para.num_types);
       }
-    } else if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4 %d ", para.num_types);
-      }
     }
 
     for (int n = 0; n < para.num_types; ++n) {
@@ -187,11 +176,7 @@ void Fitness::report_error(
     if (para.enable_zbl) {
       fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
-    if (para.version == 4) {
-      fprintf(fid_nep, "cutoff %g\n", para.rc_angular);
-      fprintf(fid_nep, "n_max %d\n", para.n_max_angular);
-      fprintf(fid_nep, "l_max %d\n", para.L_max);
-    } else if (para.version == 3) {
+    if (para.version == 3) {
       fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
       fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
       fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
