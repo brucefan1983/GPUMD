@@ -114,6 +114,11 @@ Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const Neighbor& neighbor)
   tersoff_data.f12x.resize(num_of_neighbors);
   tersoff_data.f12y.resize(num_of_neighbors);
   tersoff_data.f12z.resize(num_of_neighbors);
+  tersoff_data.NN.resize(neighbor.NN.size());
+  tersoff_data.NL.resize(num_of_neighbors);
+  cell_count.resize(neighbor.NN.size());
+  cell_count_sum.resize(neighbor.NN.size());
+  cell_contents.resize(neighbor.NN.size());
 }
 
 Tersoff1989::~Tersoff1989(void)
@@ -476,7 +481,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
 // Wrapper of force evaluation for the Tersoff potential
 void Tersoff1989::compute(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -487,17 +492,20 @@ void Tersoff1989::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
+  find_neighbor(box, position_per_atom, tersoff_data.NN, tersoff_data.NL);
+
   // pre-compute the bond order functions and their derivatives
   find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, ters0, ters1, ters2, neighbor.NN.data(), neighbor.NL.data(),
-    type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2, tersoff_data.b.data(), tersoff_data.bp.data());
+    number_of_atoms, N1, N2, box, ters0, ters1, ters2, tersoff_data.NN.data(),
+    tersoff_data.NL.data(), type.data(), type_shift, position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
+    tersoff_data.b.data(), tersoff_data.bp.data());
   CUDA_CHECK_KERNEL
 
   // pre-compute the partial forces
   find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, ters0, ters1, ters2, neighbor.NN.data(), neighbor.NL.data(),
-    type.data(), type_shift, tersoff_data.b.data(), tersoff_data.bp.data(),
+    number_of_atoms, N1, N2, box, ters0, ters1, ters2, tersoff_data.NN.data(),
+    tersoff_data.NL.data(), type.data(), type_shift, tersoff_data.b.data(), tersoff_data.bp.data(),
     position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(),
     tersoff_data.f12x.data(), tersoff_data.f12y.data(), tersoff_data.f12z.data());
@@ -505,6 +513,7 @@ void Tersoff1989::compute(
 
   // the final step: calculate force and related quantities
   find_properties_many_body(
-    box, neighbor.NN.data(), neighbor.NL.data(), tersoff_data.f12x.data(), tersoff_data.f12y.data(),
-    tersoff_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
+    box, tersoff_data.NN.data(), tersoff_data.NL.data(), tersoff_data.f12x.data(),
+    tersoff_data.f12y.data(), tersoff_data.f12z.data(), position_per_atom, force_per_atom,
+    virial_per_atom);
 }

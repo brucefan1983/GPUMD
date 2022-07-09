@@ -449,7 +449,7 @@ static __global__ void find_force_eam_step2(
 // Force evaluation wrapper
 void EAM::compute(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,

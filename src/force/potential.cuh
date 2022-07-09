@@ -29,7 +29,7 @@ public:
 
   virtual void compute(
     const int type_shift,
-    const Box& box,
+    Box& box,
     const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -38,8 +38,12 @@ public:
     GPU_Vector<double>& virial) = 0;
 
 protected:
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+
   void find_properties_many_body(
-    const Box& box,
+    Box& box,
     const int* NN,
     const int* NL,
     const double* f12x,
@@ -48,4 +52,10 @@ protected:
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
+
+  void find_neighbor(
+    Box& box,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& NN,
+    GPU_Vector<int>& NL);
 };

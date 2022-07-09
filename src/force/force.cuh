@@ -47,7 +47,7 @@ public:
     const std::vector<int>& cpu_type_size);
 
   void compute(
-    const Box& box,
+    Box& box,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
     std::vector<Group>& group,

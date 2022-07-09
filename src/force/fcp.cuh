@@ -36,7 +36,7 @@ public:
   virtual ~FCP(void);
   virtual void compute(
     const int type_shift,
-    const Box& box,
+    Box& box,
     const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

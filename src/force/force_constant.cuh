@@ -26,7 +26,7 @@ void find_H12(
   const double displacement,
   const size_t n1,
   const size_t n2,
-  const Box& box,
+  Box& box,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,

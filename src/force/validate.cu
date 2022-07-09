@@ -109,7 +109,7 @@ static __global__ void find_force_from_potential(
 }
 
 void validate_force(
-  const Box& box,
+  Box& box,
   GPU_Vector<double>& position_per_atom,
   std::vector<Group>& group,
   GPU_Vector<int>& type,

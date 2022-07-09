@@ -23,7 +23,7 @@ class Group;
 class Neighbor;
 
 void validate_force(
-  const Box& box,
+  Box& box,
   GPU_Vector<double>& position_per_atom,
   std::vector<Group>& group,
   GPU_Vector<int>& type,

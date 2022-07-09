@@ -469,7 +469,7 @@ static __global__ void find_force_tersoff_step2(
 // Wrapper of force evaluation for the Tersoff potential
 void Tersoff1988::compute(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,

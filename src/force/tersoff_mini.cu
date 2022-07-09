@@ -316,7 +316,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
 // Wrapper of force evaluation for the SBOP potential
 void Tersoff_mini::compute(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,

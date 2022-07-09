@@ -672,7 +672,7 @@ static __global__ void find_force_ZBL(
 // large box fo MD applications
 void NEP3::compute_large_box(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -728,7 +728,7 @@ void NEP3::compute_large_box(
 // small box possibly used for active learning:
 void NEP3::compute_small_box(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -831,7 +831,7 @@ static void get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
 
 void NEP3::compute(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,

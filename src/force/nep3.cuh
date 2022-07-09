@@ -84,7 +84,7 @@ public:
   virtual ~NEP3(void);
   virtual void compute(
     const int type_shift,
-    const Box& box,
+    Box& box,
     const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -103,7 +103,7 @@ private:
 
   void compute_small_box(
     const int type_shift,
-    const Box& box,
+    Box& box,
     const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -113,7 +113,7 @@ private:
 
   void compute_large_box(
     const int type_shift,
-    const Box& box,
+    Box& box,
     const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

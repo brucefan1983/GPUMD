@@ -20,6 +20,8 @@ The abstract base class (ABC) for the potential classes.
 #include "potential.cuh"
 #include "utilities/error.cuh"
 #define BLOCK_SIZE_FORCE 64
+#include <thrust/execution_policy.h>
+#include <thrust/scan.h>
 
 Potential::Potential(void) { rc = 0.0; }
 
@@ -129,10 +131,8 @@ static __global__ void gpu_find_force_many_body(
   }
 }
 
-// Wrapper of the above kernel
-// used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body(
-  const Box& box,
+  Box& box,
   const int* NN,
   const int* NL,
   const double* f12x,
@@ -151,4 +151,290 @@ void Potential::find_properties_many_body(
     force_per_atom.data(), force_per_atom.data() + number_of_atoms,
     force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data());
   CUDA_CHECK_KERNEL
+}
+
+static __global__ void gpu_find_neighbor_ON2(
+  const Box box,
+  const int N,
+  const int N1,
+  const int N2,
+  const double rc2,
+  const double* x,
+  const double* y,
+  const double* z,
+  int* NN,
+  int* NL)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+
+  if (n1 < N2) {
+    const double x1 = x[n1];
+    const double y1 = y[n1];
+    const double z1 = z[n1];
+    int count = 0;
+
+    for (int n2 = N1; n2 < N2; ++n2) {
+      double x12 = x[n2] - x1;
+      double y12 = y[n2] - y1;
+      double z12 = z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+
+      if (n1 != n2 && d2 < rc2) {
+        NL[count++ * N + n1] = n2;
+      }
+    }
+    NN[n1] = count;
+  }
+}
+
+static __device__ void find_cell_id(
+  const Box& box,
+  const double x,
+  const double y,
+  const double z,
+  const double rc_inv,
+  const int nx,
+  const int ny,
+  const int nz,
+  int& cell_id_x,
+  int& cell_id_y,
+  int& cell_id_z,
+  int& cell_id)
+{
+  if (box.triclinic == 0) {
+    cell_id_x = floor(x * rc_inv);
+    cell_id_y = floor(y * rc_inv);
+    cell_id_z = floor(z * rc_inv);
+  } else {
+    const double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+    const double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+    const double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+    cell_id_x = floor(sx * box.thickness_x * rc_inv);
+    cell_id_y = floor(sy * box.thickness_y * rc_inv);
+    cell_id_z = floor(sz * box.thickness_z * rc_inv);
+  }
+  while (cell_id_x < 0)
+    cell_id_x += nx;
+  while (cell_id_x >= nx)
+    cell_id_x -= nx;
+  while (cell_id_y < 0)
+    cell_id_y += ny;
+  while (cell_id_y >= ny)
+    cell_id_y -= ny;
+  while (cell_id_z < 0)
+    cell_id_z += nz;
+  while (cell_id_z >= nz)
+    cell_id_z -= nz;
+  cell_id = cell_id_x + nx * cell_id_y + nx * ny * cell_id_z;
+}
+
+static __device__ void find_cell_id(
+  const Box& box,
+  const double x,
+  const double y,
+  const double z,
+  const double rc_inv,
+  const int nx,
+  const int ny,
+  const int nz,
+  int& cell_id)
+{
+  int cell_id_x, cell_id_y, cell_id_z;
+  find_cell_id(box, x, y, z, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
+}
+
+static __global__ void find_cell_counts(
+  const Box box,
+  const int N,
+  int* cell_count,
+  const double* x,
+  const double* y,
+  const double* z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int cell_id;
+    find_cell_id(box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    atomicAdd(&cell_count[cell_id], 1);
+  }
+}
+
+static __global__ void find_cell_contents(
+  const Box box,
+  const int N,
+  int* cell_count,
+  const int* cell_count_sum,
+  int* cell_contents,
+  const double* x,
+  const double* y,
+  const double* z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int cell_id;
+    find_cell_id(box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    const int ind = atomicAdd(&cell_count[cell_id], 1);
+    cell_contents[cell_count_sum[cell_id] + ind] = n1;
+  }
+}
+
+static __global__ void gpu_find_neighbor_ON1(
+  const Box box,
+  const int N,
+  const int* __restrict__ cell_counts,
+  const int* __restrict__ cell_count_sum,
+  const int* __restrict__ cell_contents,
+  int* NN,
+  int* NL,
+  const double* __restrict__ x,
+  const double* __restrict__ y,
+  const double* __restrict__ z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv,
+  const double cutoff_square)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  int count = 0;
+  if (n1 < N) {
+    const double x1 = x[n1];
+    const double y1 = y[n1];
+    const double z1 = z[n1];
+    int cell_id;
+    int cell_id_x;
+    int cell_id_y;
+    int cell_id_z;
+    find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
+    const int klim = box.pbc_z ? 1 : 0;
+    const int jlim = box.pbc_y ? 1 : 0;
+    const int ilim = box.pbc_x ? 1 : 0;
+
+    for (int k = -klim; k < klim + 1; ++k) {
+      for (int j = -jlim; j < jlim + 1; ++j) {
+        for (int i = -ilim; i < ilim + 1; ++i) {
+          int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
+          if (cell_id_x + i < 0)
+            neighbor_cell += nx;
+          if (cell_id_x + i >= nx)
+            neighbor_cell -= nx;
+          if (cell_id_y + j < 0)
+            neighbor_cell += ny * nx;
+          if (cell_id_y + j >= ny)
+            neighbor_cell -= ny * nx;
+          if (cell_id_z + k < 0)
+            neighbor_cell += nz * ny * nx;
+          if (cell_id_z + k >= nz)
+            neighbor_cell -= nz * ny * nx;
+
+          const int num_atoms_neighbor_cell = cell_counts[neighbor_cell];
+          const int num_atoms_previous_cells = cell_count_sum[neighbor_cell];
+
+          for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
+            const int n2 = cell_contents[num_atoms_previous_cells + m];
+            double x12 = x[n2] - x1;
+            double y12 = y[n2] - y1;
+            double z12 = z[n2] - z1;
+            apply_mic(box, x12, y12, z12);
+            const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
+
+            if (n1 != n2 && d2 < cutoff_square) {
+              NL[count * N + n1] = n2;
+              count++;
+            }
+          }
+        }
+      }
+    }
+    NN[n1] = count;
+  }
+}
+
+#ifdef DEBUG
+static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* NL)
+{
+  int bid = blockIdx.x;
+  int tid = threadIdx.x;
+  int neighbor_number = NN[bid];
+  int atom_index;
+  extern __shared__ int atom_index_copy[];
+
+  if (tid < neighbor_number) {
+    atom_index = NL[bid + tid * N];
+    atom_index_copy[tid] = atom_index;
+  }
+  int count = 0;
+  __syncthreads();
+
+  for (int j = 0; j < neighbor_number; ++j) {
+    if (atom_index > atom_index_copy[j]) {
+      count++;
+    }
+  }
+
+  if (tid < neighbor_number) {
+    NL[bid + count * N] = atom_index;
+  }
+}
+#endif
+
+void Potential::find_neighbor(
+  Box& box, const GPU_Vector<double>& position_per_atom, GPU_Vector<int>& NN, GPU_Vector<int>& NL)
+{
+  const int N = NN.size();
+  const int block_size = 256;
+  const int grid_size = (N2 - N1 - 1) / block_size + 1;
+  const double rc2 = rc * rc;
+  const double* x = position_per_atom.data();
+  const double* y = position_per_atom.data() + N;
+  const double* z = position_per_atom.data() + N * 2;
+
+  int num_bins[3];
+  const bool use_ON2 = box.get_num_bins(rc, num_bins);
+
+  if (use_ON2) {
+    gpu_find_neighbor_ON2<<<grid_size, block_size>>>(
+      box, N, N1, N2, rc2, x, y, z, NN.data(), NL.data());
+    CUDA_CHECK_KERNEL
+  } else {
+    const double rc_inv = 1.0 / rc;
+    const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
+
+    CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
+    CHECK(cudaMemset(cell_count_sum.data(), 0, sizeof(int) * N_cells));
+    CHECK(cudaMemset(cell_contents.data(), 0, sizeof(int) * N));
+
+    find_cell_counts<<<grid_size, block_size>>>(
+      box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
+    CUDA_CHECK_KERNEL
+
+    thrust::exclusive_scan(
+      thrust::device, cell_count.data(), cell_count.data() + N_cells, cell_count_sum.data());
+
+    CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
+
+    find_cell_contents<<<grid_size, block_size>>>(
+      box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
+      num_bins[1], num_bins[2], rc_inv);
+    CUDA_CHECK_KERNEL
+
+    gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
+      box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), NN.data(), NL.data(),
+      x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv, rc2);
+    CUDA_CHECK_KERNEL
+#ifdef DEBUG
+    const int MN = NL.size() / NN.size();
+    const int smem = MN * sizeof(int);
+    gpu_sort_neighbor_list<<<N, MN, smem>>>(N, NN.data(), NL.data());
+#endif
+  }
 }

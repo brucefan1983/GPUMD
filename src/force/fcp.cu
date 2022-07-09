@@ -1013,7 +1013,7 @@ static __global__ void gpu_save_pfv(
 // Wrapper of the above kernels
 void FCP::compute(
   const int type_shift,
-  const Box& box,
+  Box& box,
   const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,

@@ -30,6 +30,7 @@ struct Tersoff1989_Data {
   GPU_Vector<double> f12x; // partial forces
   GPU_Vector<double> f12y;
   GPU_Vector<double> f12z;
+  GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
 };
 
 class Tersoff1989 : public Potential
@@ -39,7 +40,7 @@ public:
   virtual ~Tersoff1989(void);
   virtual void compute(
     const int type_shift,
-    const Box& box,
+    Box& box,
     const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
