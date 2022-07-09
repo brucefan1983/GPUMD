@@ -31,7 +31,6 @@ The driver class calculating force and related quantities.
 #include "tersoff_mini.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#include "vashishta.cuh"
 #include <vector>
 
 #define BLOCK_SIZE 128
@@ -144,8 +143,6 @@ void Force::initialize_potential(
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
-  } else if (strcmp(potential_name, "vashishta") == 0) {
-    potential[m].reset(new Vashishta(fid_potential, neighbor));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
   } else if (strcmp(potential_name, "nep") == 0) {
