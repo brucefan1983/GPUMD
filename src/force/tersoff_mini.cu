@@ -80,6 +80,11 @@ Tersoff_mini::Tersoff_mini(FILE* fid, int num_of_types, const Neighbor& neighbor
   tersoff_mini_data.f12x.resize(num_of_neighbors);
   tersoff_mini_data.f12y.resize(num_of_neighbors);
   tersoff_mini_data.f12z.resize(num_of_neighbors);
+  tersoff_mini_data.NN.resize(neighbor.NN.size());
+  tersoff_mini_data.NL.resize(num_of_neighbors);
+  cell_count.resize(neighbor.NN.size());
+  cell_count_sum.resize(neighbor.NN.size());
+  cell_contents.resize(neighbor.NN.size());
 }
 
 Tersoff_mini::~Tersoff_mini(void)
@@ -326,6 +331,8 @@ void Tersoff_mini::compute(
 {
   const int number_of_atoms = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+
+  find_neighbor(box, position_per_atom, tersoff_mini_data.NN, tersoff_mini_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

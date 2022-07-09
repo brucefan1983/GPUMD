@@ -24,6 +24,7 @@ struct Tersoff1988_Data {
   GPU_Vector<double> f12x; // partial forces
   GPU_Vector<double> f12y;
   GPU_Vector<double> f12z;
+  GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
 };
 
 class Tersoff1988 : public Potential

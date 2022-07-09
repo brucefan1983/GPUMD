@@ -160,6 +160,11 @@ Tersoff1988::Tersoff1988(FILE* fid, int num_of_types, const Neighbor& neighbor)
   tersoff_data.f12x.resize(num_of_neighbors);
   tersoff_data.f12y.resize(num_of_neighbors);
   tersoff_data.f12z.resize(num_of_neighbors);
+  tersoff_data.NN.resize(neighbor.NN.size());
+  tersoff_data.NL.resize(num_of_neighbors);
+  cell_count.resize(neighbor.NN.size());
+  cell_count_sum.resize(neighbor.NN.size());
+  cell_contents.resize(neighbor.NN.size());
   ters.resize(n_entries * NUM_PARAMS);
   ters.copy_from_host(cpu_ters.data());
 }
@@ -479,6 +484,8 @@ void Tersoff1988::compute(
 {
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+
+  find_neighbor(box, position_per_atom, tersoff_data.NN, tersoff_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
