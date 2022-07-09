@@ -23,7 +23,6 @@ The driver class calculating force and related quantities.
 #include "lj.cuh"
 #include "nep3.cuh"
 #include "potential.cuh"
-#include "sw.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
@@ -133,8 +132,6 @@ void Force::initialize_potential(
     potential[m].reset(new Tersoff1988(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "tersoff_mini") == 0) {
     potential[m].reset(new Tersoff_mini(fid_potential, num_types, neighbor));
-  } else if (strcmp(potential_name, "sw_1985") == 0) {
-    potential[m].reset(new SW2(fid_potential, num_types, neighbor));
   } else if (strcmp(potential_name, "eam_zhou_2004") == 0) {
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
