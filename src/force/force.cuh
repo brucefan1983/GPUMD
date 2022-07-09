@@ -48,7 +48,7 @@ public:
 
   void compute(
     Box& box,
-    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
     std::vector<Group>& group,
     Neighbor& neighbor,
