@@ -21,7 +21,7 @@ for nx=0:nxyz(1)-1
 end
 
 fid=fopen('xyz.in','w');
-fprintf(fid,'%d %g %g 0 0 0\n',N,3,2.1);
+fprintf(fid,'%d 0 0 0\n',N);
 fprintf(fid,'%d %d %d %g %g %g\n',1,1,0,a.*nxyz);
 for n=1:N
     fprintf(fid,'%d %g %g %g %g\n',0,r(n,:),12);

@@ -392,9 +392,9 @@ void Force::compute(
 {
   const int number_of_atoms = type.size();
 
-  // gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-  // number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-  // position_per_atom.data() + number_of_atoms * 2);
+  gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2);
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,

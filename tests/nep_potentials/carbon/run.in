@@ -1,0 +1,15 @@
+potential       ../../../potentials/nep/C_2022_NEP3.txt 0
+velocity        300
+
+time_step       1.0
+
+ensemble        nve
+dump_thermo     10
+run             1000
+
+
+
+
+
+
+
