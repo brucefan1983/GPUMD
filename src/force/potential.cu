@@ -329,6 +329,12 @@ void Potential::find_cell_list(
   const double* z = position_per_atom.data() + N * 2;
   const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
 
+  // number of cells is allowed to be larger than the number of atoms
+  if (N_cells > cell_count.size()) {
+    cell_count.resize(N_cells);
+    cell_count_sum.resize(N_cells);
+  }
+
   CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
   CHECK(cudaMemset(cell_count_sum.data(), 0, sizeof(int) * N_cells));
   CHECK(cudaMemset(cell_contents.data(), 0, sizeof(int) * N));
