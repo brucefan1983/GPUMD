@@ -5,7 +5,7 @@ time_step       1.0
 
 ensemble        nve
 dump_thermo     10
-run             1000
+run             100
 
 
 
