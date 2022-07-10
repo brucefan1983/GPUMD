@@ -32,12 +32,9 @@ void read_xyz_in_line_1(
   FILE* fid_xyz, int& N, int& triclinic, int& has_velocity_in_xyz, std::vector<Group>& group)
 {
   int num_of_grouping_methods = 0;
-  int MN;
-  double rc;
-  int count = fscanf(
-    fid_xyz, "%d%d%lf%d%d%d\n", &N, &MN, &rc, &triclinic, &has_velocity_in_xyz,
-    &num_of_grouping_methods);
-  PRINT_SCANF_ERROR(count, 6, "Reading error for line 1 of xyz.in.");
+  int count =
+    fscanf(fid_xyz, "%d%d%d%d\n", &N, &triclinic, &has_velocity_in_xyz, &num_of_grouping_methods);
+  PRINT_SCANF_ERROR(count, 4, "Reading error for line 1 of xyz.in.");
   group.resize(num_of_grouping_methods);
 
   if (N < 2) {
