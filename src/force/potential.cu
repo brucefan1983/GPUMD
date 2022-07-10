@@ -162,47 +162,6 @@ static __device__ void find_cell_id(
   const int nx,
   const int ny,
   const int nz,
-  int& cell_id_x,
-  int& cell_id_y,
-  int& cell_id_z,
-  int& cell_id)
-{
-  if (box.triclinic == 0) {
-    cell_id_x = floor(x * rc_inv);
-    cell_id_y = floor(y * rc_inv);
-    cell_id_z = floor(z * rc_inv);
-  } else {
-    const double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
-    const double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
-    const double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
-    cell_id_x = floor(sx * box.thickness_x * rc_inv);
-    cell_id_y = floor(sy * box.thickness_y * rc_inv);
-    cell_id_z = floor(sz * box.thickness_z * rc_inv);
-  }
-  while (cell_id_x < 0)
-    cell_id_x += nx;
-  while (cell_id_x >= nx)
-    cell_id_x -= nx;
-  while (cell_id_y < 0)
-    cell_id_y += ny;
-  while (cell_id_y >= ny)
-    cell_id_y -= ny;
-  while (cell_id_z < 0)
-    cell_id_z += nz;
-  while (cell_id_z >= nz)
-    cell_id_z -= nz;
-  cell_id = cell_id_x + nx * cell_id_y + nx * ny * cell_id_z;
-}
-
-static __device__ void find_cell_id(
-  const Box& box,
-  const double x,
-  const double y,
-  const double z,
-  const double rc_inv,
-  const int nx,
-  const int ny,
-  const int nz,
   int& cell_id)
 {
   int cell_id_x, cell_id_y, cell_id_z;
