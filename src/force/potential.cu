@@ -153,41 +153,6 @@ void Potential::find_properties_many_body(
   CUDA_CHECK_KERNEL
 }
 
-static __global__ void gpu_find_neighbor_ON2(
-  const Box box,
-  const int N,
-  const int N1,
-  const int N2,
-  const double rc2,
-  const double* x,
-  const double* y,
-  const double* z,
-  int* NN,
-  int* NL)
-{
-  const int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-
-  if (n1 < N2) {
-    const double x1 = x[n1];
-    const double y1 = y[n1];
-    const double z1 = z[n1];
-    int count = 0;
-
-    for (int n2 = N1; n2 < N2; ++n2) {
-      double x12 = x[n2] - x1;
-      double y12 = y[n2] - y1;
-      double z12 = z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
-
-      if (n1 != n2 && d2 < rc2) {
-        NL[count++ * N + n1] = n2;
-      }
-    }
-    NN[n1] = count;
-  }
-}
-
 static __device__ void find_cell_id(
   const Box& box,
   const double x,
@@ -317,13 +282,16 @@ static __global__ void gpu_find_neighbor_ON1(
     int cell_id_y;
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
-    const int klim = box.pbc_z ? 1 : 0;
-    const int jlim = box.pbc_y ? 1 : 0;
-    const int ilim = box.pbc_x ? 1 : 0;
+    const int k_low = box.pbc_z ? -1 : 0;
+    const int j_low = box.pbc_y ? -1 : 0;
+    const int i_low = box.pbc_x ? -1 : 0;
+    const int k_hi = (box.pbc_z && nz > 2) ? 1 : 0;
+    const int j_hi = (box.pbc_y && ny > 2) ? 1 : 0;
+    const int i_hi = (box.pbc_x && nx > 2) ? 1 : 0;
 
-    for (int k = -klim; k < klim + 1; ++k) {
-      for (int j = -jlim; j < jlim + 1; ++j) {
-        for (int i = -ilim; i < ilim + 1; ++i) {
+    for (int k = k_low; k <= k_hi; ++k) {
+      for (int j = j_low; j <= j_hi; ++j) {
+        for (int i = i_low; i <= i_hi; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -434,22 +402,16 @@ void Potential::find_neighbor(
   const double* z = position_per_atom.data() + N * 2;
 
   int num_bins[3];
-  const bool use_ON2 = box.get_num_bins(rc, num_bins);
+  box.get_num_bins(rc, num_bins);
 
-  if (use_ON2) {
-    gpu_find_neighbor_ON2<<<grid_size, block_size>>>(
-      box, N, N1, N2, rc2, x, y, z, NN.data(), NL.data());
-    CUDA_CHECK_KERNEL
-  } else {
-    find_cell_list(num_bins, box, position_per_atom);
-    gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
-      box, N, N1, N2, cell_count.data(), cell_count_sum.data(), cell_contents.data(), NN.data(),
-      NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv, rc2);
-    CUDA_CHECK_KERNEL
+  find_cell_list(num_bins, box, position_per_atom);
+  gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
+    box, N, N1, N2, cell_count.data(), cell_count_sum.data(), cell_contents.data(), NN.data(),
+    NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv, rc2);
+  CUDA_CHECK_KERNEL
 #ifdef DEBUG
-    const int MN = NL.size() / NN.size();
-    const int smem = MN * sizeof(int);
-    gpu_sort_neighbor_list<<<N, MN, smem>>>(N, NN.data(), NL.data());
+  const int MN = NL.size() / NN.size();
+  const int smem = MN * sizeof(int);
+  gpu_sort_neighbor_list<<<N, MN, smem>>>(N, NN.data(), NL.data());
 #endif
-  }
 }
