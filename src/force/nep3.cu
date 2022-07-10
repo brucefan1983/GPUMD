@@ -861,7 +861,7 @@ void NEP3::compute_small_box(
   }
 }
 
-static void get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox& ebox)
+static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox& ebox)
 {
   double volume = box.get_volume();
   double thickness_x = volume / box.get_area(0);
@@ -870,6 +870,18 @@ static void get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
   ebox.num_cells[0] = box.pbc_x ? int(ceil(2.0 * rc / thickness_x)) : 1;
   ebox.num_cells[1] = box.pbc_y ? int(ceil(2.0 * rc / thickness_y)) : 1;
   ebox.num_cells[2] = box.pbc_z ? int(ceil(2.0 * rc / thickness_z)) : 1;
+
+  bool is_small_box = false;
+  if (box.pbc_x && thickness_x <= 2.5 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_y && thickness_y <= 2.5 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_z && thickness_z <= 2.5 * rc) {
+    is_small_box = true;
+  }
+
   if (ebox.num_cells[0] * ebox.num_cells[1] * ebox.num_cells[2] > 1) {
     if (box.triclinic) {
       ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
@@ -906,6 +918,8 @@ static void get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
       ebox.h[5] = ebox.h[2] * 0.5;
     }
   }
+
+  return is_small_box;
 }
 
 void NEP3::compute(
@@ -917,9 +931,9 @@ void NEP3::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  get_expanded_box(paramb.rc_radial, box, ebox);
+  const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
 
-  if (ebox.num_cells[0] * ebox.num_cells[1] * ebox.num_cells[2] > 1) {
+  if (is_small_box) {
     compute_small_box(
       type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);
