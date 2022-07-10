@@ -44,12 +44,11 @@ struct Tersoff_mini_Para {
 class Tersoff_mini : public Potential
 {
 public:
-  Tersoff_mini(FILE*, int, const Neighbor& neighbor);
+  Tersoff_mini(FILE*, int, const int num_atoms);
   virtual ~Tersoff_mini(void);
   virtual void compute(
     const int type_shift,
     Box& box,
-    const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

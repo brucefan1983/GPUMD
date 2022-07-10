@@ -23,7 +23,6 @@ Compute the cohesive energy curve with different deformations.
 #include "minimize/minimizer_sd.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "model/neighbor.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -239,7 +238,6 @@ void Cohesive::compute(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
@@ -258,8 +256,8 @@ void Cohesive::compute(
 
     Minimizer_SD minimizer(num_atoms, 1000, 1.0e-5);
     minimizer.compute(
-      force, new_box, new_position_per_atom, type, group, neighbor, potential_per_atom,
-      force_per_atom, virial_per_atom);
+      force, new_box, new_position_per_atom, type, group, potential_per_atom, force_per_atom,
+      virial_per_atom);
 
     potential_per_atom.copy_to_host(cpu_potential_per_atom.data());
     cpu_potential_total[n] = 0.0;

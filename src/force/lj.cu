@@ -173,7 +173,6 @@ static __global__ void gpu_find_force(
 void LJ::compute(
   const int type_shift,
   Box& box,
-  const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -184,7 +183,7 @@ void LJ::compute(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    lj_para, number_of_atoms, N1, N2, box, neighbor.NN.data(), neighbor.NL.data(), type.data(),
+    lj_para, number_of_atoms, N1, N2, box, cell_count.data(), cell_count_sum.data(), type.data(),
     type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, force_per_atom.data(),
     force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,

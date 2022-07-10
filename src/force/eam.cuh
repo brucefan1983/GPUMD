@@ -63,7 +63,6 @@ public:
   virtual void compute(
     const int type_shift,
     Box& box,
-    const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

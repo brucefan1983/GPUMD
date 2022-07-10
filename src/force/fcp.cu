@@ -1014,7 +1014,6 @@ static __global__ void gpu_save_pfv(
 void FCP::compute(
   const int type_shift,
   Box& box,
-  const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,

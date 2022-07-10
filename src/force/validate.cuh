@@ -20,7 +20,6 @@
 class Force;
 class Box;
 class Group;
-class Neighbor;
 
 void validate_force(
   Box& box,
@@ -30,5 +29,4 @@ void validate_force(
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
-  Neighbor& neighbor,
   Force* force);

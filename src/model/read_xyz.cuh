@@ -28,13 +28,8 @@ void initialize_position(
   int& has_velocity_in_xyz,
   int& number_of_types,
   Box& box,
-  Neighbor& neighbor,
   std::vector<Group>& group,
   Atom& atom);
 
 void allocate_memory_gpu(
-  const int N,
-  Neighbor& neighbor,
-  std::vector<Group>& group,
-  Atom& atom,
-  GPU_Vector<double>& thermo);
+  const int N, std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);

@@ -44,7 +44,6 @@ void Force::parse_potential(
   int num_param,
   char* input_dir,
   const Box& box,
-  const Neighbor& neighbor,
   const std::vector<int>& cpu_type,
   const std::vector<int>& cpu_type_size)
 {
@@ -97,7 +96,7 @@ void Force::parse_potential(
 
   num_of_potentials++;
 
-  add_potential(input_dir, box, neighbor, cpu_type, cpu_type_size);
+  add_potential(input_dir, box, cpu_type, cpu_type_size);
 }
 
 int Force::get_number_of_types(FILE* fid_potential)
@@ -111,11 +110,10 @@ int Force::get_number_of_types(FILE* fid_potential)
 void Force::initialize_potential(
   char* input_dir,
   const Box& box,
-  const Neighbor& neighbor,
+  const int number_of_atoms,
   const std::vector<int>& cpu_type_size,
   const int m)
 {
-  const int number_of_atoms = neighbor.NN.size();
   FILE* fid_potential = my_fopen(file_potential[m], "r");
   char potential_name[20];
   int count = fscanf(fid_potential, "%s", potential_name);
@@ -127,11 +125,11 @@ void Force::initialize_potential(
 
   // determine the potential
   if (strcmp(potential_name, "tersoff_1989") == 0) {
-    potential[m].reset(new Tersoff1989(fid_potential, num_types, neighbor));
+    potential[m].reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_1988") == 0) {
-    potential[m].reset(new Tersoff1988(fid_potential, num_types, neighbor));
+    potential[m].reset(new Tersoff1988(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_mini") == 0) {
-    potential[m].reset(new Tersoff_mini(fid_potential, num_types, neighbor));
+    potential[m].reset(new Tersoff_mini(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_zhou_2004") == 0) {
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
@@ -139,13 +137,13 @@ void Force::initialize_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
   } else if (strcmp(potential_name, "nep") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, false, neighbor));
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, false, number_of_atoms));
   } else if (strcmp(potential_name, "nep_zbl") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, true, neighbor));
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, true, number_of_atoms));
   } else if (strcmp(potential_name, "nep3") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, false, neighbor));
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, false, number_of_atoms));
   } else if (strcmp(potential_name, "nep3_zbl") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, true, neighbor));
+    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, true, number_of_atoms));
   } else if (strcmp(potential_name, "lj") == 0) {
     potential[m].reset(new LJ(fid_potential, num_types));
   } else {
@@ -172,12 +170,11 @@ void Force::initialize_potential(
 void Force::add_potential(
   char* input_dir,
   const Box& box,
-  const Neighbor& neighbor,
   const std::vector<int>& cpu_type,
   const std::vector<int>& cpu_type_size)
 {
   int m = num_of_potentials - 1; // current potential ID
-  initialize_potential(input_dir, box, neighbor, cpu_type_size, m);
+  initialize_potential(input_dir, box, cpu_type.size(), cpu_type_size, m);
 
   if (rc_max < potential[m]->rc)
     rc_max = potential[m]->rc;
@@ -389,16 +386,15 @@ void Force::compute(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
 
-  gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2);
+  // gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  // number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+  // position_per_atom.data() + number_of_atoms * 2);
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
@@ -407,7 +403,7 @@ void Force::compute(
 
   for (int m = 0; m < num_of_potentials; m++) {
     potential[m]->compute(
-      type_shift_[m], box, neighbor, type, position_per_atom, potential_per_atom, force_per_atom,
+      type_shift_[m], box, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);
   }
 

@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#include "model/neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
@@ -36,12 +35,11 @@ struct Tersoff1989_Data {
 class Tersoff1989 : public Potential
 {
 public:
-  Tersoff1989(FILE*, int sum_of_types, const Neighbor& neighbor);
+  Tersoff1989(FILE*, int sum_of_types, const int num_atoms);
   virtual ~Tersoff1989(void);
   virtual void compute(
     const int type_shift,
     Box& box,
-    const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

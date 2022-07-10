@@ -16,7 +16,6 @@
 #pragma once
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-class Neighbor;
 
 struct NEP3_Data {
   GPU_Vector<double> f12x; // 3-body or manybody partial forces
@@ -75,17 +74,11 @@ public:
   };
 
   NEP3(
-    FILE* fid,
-    char* input_dir,
-    int num_types,
-    int version,
-    bool enable_zbl,
-    const Neighbor& neighbor);
+    FILE* fid, char* input_dir, int num_types, int version, bool enable_zbl, const int num_atoms);
   virtual ~NEP3(void);
   virtual void compute(
     const int type_shift,
     Box& box,
-    const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
@@ -104,7 +97,6 @@ private:
   void compute_small_box(
     const int type_shift,
     Box& box,
-    const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
@@ -114,7 +106,6 @@ private:
   void compute_large_box(
     const int type_shift,
     Box& box,
-    const Neighbor& neighbor,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

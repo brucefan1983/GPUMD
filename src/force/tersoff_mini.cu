@@ -28,7 +28,7 @@ J. Phys.: Condens. Matter 32, 135901 (2020).
 
 #define BLOCK_SIZE_FORCE 64
 
-Tersoff_mini::Tersoff_mini(FILE* fid, int num_of_types, const Neighbor& neighbor)
+Tersoff_mini::Tersoff_mini(FILE* fid, int num_of_types, const int num_atoms)
 {
   num_types = num_of_types;
   printf("Use Tersoff-mini (%d-element) potential.\n", num_types);
@@ -74,17 +74,17 @@ Tersoff_mini::Tersoff_mini(FILE* fid, int num_of_types, const Neighbor& neighbor
     rc = r2 > rc ? r2 : rc;
   }
 
-  const int num_of_neighbors = min(neighbor.MN, 50) * neighbor.NN.size();
+  const int num_of_neighbors = 50 * num_atoms;
   tersoff_mini_data.b.resize(num_of_neighbors);
   tersoff_mini_data.bp.resize(num_of_neighbors);
   tersoff_mini_data.f12x.resize(num_of_neighbors);
   tersoff_mini_data.f12y.resize(num_of_neighbors);
   tersoff_mini_data.f12z.resize(num_of_neighbors);
-  tersoff_mini_data.NN.resize(neighbor.NN.size());
+  tersoff_mini_data.NN.resize(num_atoms);
   tersoff_mini_data.NL.resize(num_of_neighbors);
-  cell_count.resize(neighbor.NN.size());
-  cell_count_sum.resize(neighbor.NN.size());
-  cell_contents.resize(neighbor.NN.size());
+  cell_count.resize(num_atoms);
+  cell_count_sum.resize(num_atoms);
+  cell_contents.resize(num_atoms);
 }
 
 Tersoff_mini::~Tersoff_mini(void)
@@ -322,7 +322,6 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
 void Tersoff_mini::compute(
   const int type_shift,
   Box& box,
-  const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -336,24 +335,25 @@ void Tersoff_mini::compute(
 
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, num_types, neighbor.NN.data(), neighbor.NL.data(), type.data(),
-    type_shift, para, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2, tersoff_mini_data.b.data(),
-    tersoff_mini_data.bp.data());
+    number_of_atoms, N1, N2, box, num_types, tersoff_mini_data.NN.data(),
+    tersoff_mini_data.NL.data(), type.data(), type_shift, para, position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
+    tersoff_mini_data.b.data(), tersoff_mini_data.bp.data());
   CUDA_CHECK_KERNEL
 
   // pre-compute the partial forces
   find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, num_types, neighbor.NN.data(), neighbor.NL.data(), type.data(),
-    type_shift, para, tersoff_mini_data.b.data(), tersoff_mini_data.bp.data(),
-    position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(),
-    tersoff_mini_data.f12x.data(), tersoff_mini_data.f12y.data(), tersoff_mini_data.f12z.data());
+    number_of_atoms, N1, N2, box, num_types, tersoff_mini_data.NN.data(),
+    tersoff_mini_data.NL.data(), type.data(), type_shift, para, tersoff_mini_data.b.data(),
+    tersoff_mini_data.bp.data(), position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(), tersoff_mini_data.f12x.data(), tersoff_mini_data.f12y.data(),
+    tersoff_mini_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // the final step: calculate force and related quantities
   find_properties_many_body(
-    box, neighbor.NN.data(), neighbor.NL.data(), tersoff_mini_data.f12x.data(),
+    box, tersoff_mini_data.NN.data(), tersoff_mini_data.NL.data(), tersoff_mini_data.f12x.data(),
     tersoff_mini_data.f12y.data(), tersoff_mini_data.f12z.data(), position_per_atom, force_per_atom,
     virial_per_atom);
 }

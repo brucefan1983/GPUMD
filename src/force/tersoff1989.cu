@@ -25,7 +25,7 @@ The double-element version of the Tersoff potential as described in
 
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
-Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const Neighbor& neighbor)
+Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const int num_atoms)
 {
   if (num_of_types == 1)
     printf("Use Tersoff-1989 (single-element) potential.\n");
@@ -108,17 +108,17 @@ Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const Neighbor& neighbor)
     rc = (ters0.r2 > ters1.r2) ? ters0.r2 : ters1.r2;
   }
 
-  const int num_of_neighbors = min(neighbor.MN, 50) * neighbor.NN.size();
+  const int num_of_neighbors = 50 * num_atoms;
   tersoff_data.b.resize(num_of_neighbors);
   tersoff_data.bp.resize(num_of_neighbors);
   tersoff_data.f12x.resize(num_of_neighbors);
   tersoff_data.f12y.resize(num_of_neighbors);
   tersoff_data.f12z.resize(num_of_neighbors);
-  tersoff_data.NN.resize(neighbor.NN.size());
+  tersoff_data.NN.resize(num_atoms);
   tersoff_data.NL.resize(num_of_neighbors);
-  cell_count.resize(neighbor.NN.size());
-  cell_count_sum.resize(neighbor.NN.size());
-  cell_contents.resize(neighbor.NN.size());
+  cell_count.resize(num_atoms);
+  cell_count_sum.resize(num_atoms);
+  cell_contents.resize(num_atoms);
 }
 
 Tersoff1989::~Tersoff1989(void)
@@ -482,7 +482,6 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
 void Tersoff1989::compute(
   const int type_shift,
   Box& box,
-  const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,

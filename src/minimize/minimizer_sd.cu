@@ -48,14 +48,12 @@ void Minimizer_SD::compute(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
   force.compute(
-    box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-    virial_per_atom);
+    box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
   int number_of_force_evaluations = 1;
   double position_step = 0.1;
@@ -77,8 +75,8 @@ void Minimizer_SD::compute(
       position_per_atom_temp_.data());
 
     force.compute(
-      box, position_per_atom_temp_, type, group, neighbor, potential_per_atom_temp_,
-      force_per_atom_temp_, virial_per_atom);
+      box, position_per_atom_temp_, type, group, potential_per_atom_temp_, force_per_atom_temp_,
+      virial_per_atom);
 
     ++number_of_force_evaluations;
 

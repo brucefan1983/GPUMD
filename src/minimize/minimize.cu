@@ -32,7 +32,6 @@ void Minimize::parse_minimize(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
@@ -76,7 +75,7 @@ void Minimize::parse_minimize(
       minimizer.reset(new Minimizer_SD(number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
-        force, box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
+        force, box, position_per_atom, type, group, potential_per_atom, force_per_atom,
         virial_per_atom);
 
       break;

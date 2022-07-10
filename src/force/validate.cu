@@ -116,7 +116,6 @@ void validate_force(
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
-  Neighbor& neighbor,
   Force* force)
 {
   const int number_of_atoms = type.size();
@@ -125,8 +124,7 @@ void validate_force(
 
   // first calculate the forces directly:
   force->compute(
-    box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-    virial_per_atom);
+    box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
   // make a copy of the positions
   GPU_Vector<double> r0(number_of_atoms * 3);
@@ -147,8 +145,7 @@ void validate_force(
 
       // get the potential energy
       force->compute(
-        box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-        virial_per_atom);
+        box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
       // sum up the potential energy
       sum_potential<<<1, 1024>>>(number_of_atoms, m, potential_per_atom.data(), p1.data());
@@ -163,8 +160,7 @@ void validate_force(
 
       // get the potential energy
       force->compute(
-        box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-        virial_per_atom);
+        box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
       // sum up the potential energy
       sum_potential<<<1, 1024>>>(number_of_atoms, m, potential_per_atom.data(), p2.data());

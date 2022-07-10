@@ -39,7 +39,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
 NEP3::NEP3(
-  FILE* fid, char* input_dir, int num_types, int version, bool enable_zbl, const Neighbor& neighbor)
+  FILE* fid, char* input_dir, int num_types, int version, bool enable_zbl, const int num_atoms)
 {
   paramb.version = version;
   if (paramb.version == 2) {
@@ -156,15 +156,14 @@ NEP3::NEP3(
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
-  float rc_factor = paramb.rc_angular / paramb.rc_radial;
-  int angular_neighbor_size = int(ceil(neighbor.MN * rc_factor * rc_factor));
-  nep_data.f12x.resize(neighbor.NN.size() * angular_neighbor_size);
-  nep_data.f12y.resize(neighbor.NN.size() * angular_neighbor_size);
-  nep_data.f12z.resize(neighbor.NN.size() * angular_neighbor_size);
-  nep_data.NN.resize(neighbor.NN.size());
-  nep_data.NL.resize(neighbor.NN.size() * angular_neighbor_size);
-  nep_data.Fp.resize(neighbor.NN.size() * annmb.dim);
-  nep_data.sum_fxyz.resize(neighbor.NN.size() * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  int angular_neighbor_size = 100;
+  nep_data.f12x.resize(num_atoms * angular_neighbor_size);
+  nep_data.f12y.resize(num_atoms * angular_neighbor_size);
+  nep_data.f12z.resize(num_atoms * angular_neighbor_size);
+  nep_data.NN.resize(num_atoms);
+  nep_data.NL.resize(num_atoms * angular_neighbor_size);
+  nep_data.Fp.resize(num_atoms * annmb.dim);
+  nep_data.sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   nep_data.parameters.resize(annmb.num_para);
 
   update_potential(fid);
@@ -673,7 +672,6 @@ static __global__ void find_force_ZBL(
 void NEP3::compute_large_box(
   const int type_shift,
   Box& box,
-  const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -685,20 +683,20 @@ void NEP3::compute_large_box(
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
   find_neighbor_angular<<<grid_size, BLOCK_SIZE>>>(
-    paramb, N, N1, N2, box, neighbor.NN.data(), neighbor.NL.data(), position_per_atom.data(),
+    paramb, N, N1, N2, box, cell_count.data(), cell_count_sum.data(), position_per_atom.data(),
     position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN.data(),
     nep_data.NL.data());
   CUDA_CHECK_KERNEL
 
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, box, neighbor.NN.data(), neighbor.NL.data(), nep_data.NN.data(),
+    paramb, annmb, N, N1, N2, box, cell_count.data(), cell_count_sum.data(), nep_data.NN.data(),
     nep_data.NL.data(), type.data(), position_per_atom.data(), position_per_atom.data() + N,
     position_per_atom.data() + N * 2, potential_per_atom.data(), nep_data.Fp.data(),
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, box, neighbor.NN.data(), neighbor.NL.data(), type.data(),
+    paramb, annmb, N, N1, N2, box, cell_count.data(), cell_count_sum.data(), type.data(),
     position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
     nep_data.Fp.data(), force_per_atom.data(), force_per_atom.data() + N,
     force_per_atom.data() + N * 2, virial_per_atom.data());
@@ -729,7 +727,6 @@ void NEP3::compute_large_box(
 void NEP3::compute_small_box(
   const int type_shift,
   Box& box,
-  const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -740,21 +737,24 @@ void NEP3::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int size_x12 = neighbor.NL.size();
-  GPU_Vector<int> NN_radial(neighbor.NN.size());
+  const int big_neighbor_size = 2000;
+  const int size_x12 = type.size() * big_neighbor_size;
+  GPU_Vector<int> NN_radial(type.size());
   GPU_Vector<int> NL_radial(size_x12);
+  GPU_Vector<int> NN_angular(type.size());
+  GPU_Vector<int> NL_angular(size_x12);
   GPU_Vector<float> r12(size_x12 * 6);
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb, N, N1, N2, box, ebox, position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, NN_radial.data(), NL_radial.data(), nep_data.NN.data(),
-    nep_data.NL.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
+    position_per_atom.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(),
+    NL_angular.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
     r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5);
   CUDA_CHECK_KERNEL
 
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, NN_radial.data(), NL_radial.data(), nep_data.NN.data(),
-    nep_data.NL.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
+    paramb, annmb, N, N1, N2, NN_radial.data(), NL_radial.data(), NN_angular.data(),
+    NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
     r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
     potential_per_atom.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
@@ -766,7 +766,7 @@ void NEP3::compute_small_box(
   CUDA_CHECK_KERNEL
 
   find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, nep_data.NN.data(), nep_data.NL.data(), type.data(),
+    paramb, annmb, N, N1, N2, NN_angular.data(), NL_angular.data(), type.data(),
     r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
     nep_data.Fp.data(), nep_data.sum_fxyz.data(), force_per_atom.data(), force_per_atom.data() + N,
     force_per_atom.data() + N * 2, virial_per_atom.data());
@@ -774,10 +774,10 @@ void NEP3::compute_small_box(
 
   if (zbl.enabled) {
     find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
-      N, zbl, N1, N2, nep_data.NN.data(), nep_data.NL.data(), type.data(),
-      r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
-      force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
-      virial_per_atom.data(), potential_per_atom.data());
+      N, zbl, N1, N2, NN_angular.data(), NL_angular.data(), type.data(), r12.data() + size_x12 * 3,
+      r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, force_per_atom.data(),
+      force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data(),
+      potential_per_atom.data());
     CUDA_CHECK_KERNEL
   }
 }
@@ -832,7 +832,6 @@ static void get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
 void NEP3::compute(
   const int type_shift,
   Box& box,
-  const Neighbor& neighbor,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -843,11 +842,11 @@ void NEP3::compute(
 
   if (ebox.num_cells[0] * ebox.num_cells[1] * ebox.num_cells[2] > 1) {
     compute_small_box(
-      type_shift, box, neighbor, type, position_per_atom, potential_per_atom, force_per_atom,
+      type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);
   } else {
     compute_large_box(
-      type_shift, box, neighbor, type, position_per_atom, potential_per_atom, force_per_atom,
+      type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);
   }
 }

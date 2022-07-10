@@ -22,7 +22,6 @@ Use finite difference to calculate the seconod order force constants：
 #include "force_constant.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "model/neighbor.cuh"
 #include "utilities/error.cuh"
 #include <vector>
 
@@ -54,7 +53,6 @@ static void get_f(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
@@ -66,8 +64,7 @@ static void get_f(
   shift_atom(dx, n2, beta, position_per_atom);
 
   force.compute(
-    box, position_per_atom, type, group, neighbor, potential_per_atom, force_per_atom,
-    virial_per_atom);
+    box, position_per_atom, type, group, potential_per_atom, force_per_atom, virial_per_atom);
 
   size_t M = sizeof(double);
   CHECK(cudaMemcpy(f + 0, force_per_atom.data() + n1, M, cudaMemcpyDeviceToHost));
@@ -86,7 +83,6 @@ void find_H12(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
@@ -98,11 +94,11 @@ void find_H12(
   double f_negative[3];
   for (size_t beta = 0; beta < 3; ++beta) {
     get_f(
-      -displacement, n1, n2, beta, box, position_per_atom, type, group, neighbor,
-      potential_per_atom, force_per_atom, virial_per_atom, force, f_negative);
+      -displacement, n1, n2, beta, box, position_per_atom, type, group, potential_per_atom,
+      force_per_atom, virial_per_atom, force, f_negative);
 
     get_f(
-      displacement, n1, n2, beta, box, position_per_atom, type, group, neighbor, potential_per_atom,
+      displacement, n1, n2, beta, box, position_per_atom, type, group, potential_per_atom,
       force_per_atom, virial_per_atom, force, f_positive);
 
     for (size_t alpha = 0; alpha < 3; ++alpha) {
