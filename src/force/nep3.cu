@@ -205,9 +205,8 @@ void NEP3::update_potential(FILE* fid)
   }
 }
 
-static __global__ void find_descriptor(
+static __global__ void find_neighbor_list_large_box(
   NEP3::ParaMB paramb,
-  NEP3::ANN annmb,
   const int N,
   const int N1,
   const int N2,
@@ -218,30 +217,24 @@ static __global__ void find_descriptor(
   const int* __restrict__ g_cell_count,
   const int* __restrict__ g_cell_count_sum,
   const int* __restrict__ g_cell_contents,
-  const int* __restrict__ g_type,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   int* g_NN_radial,
   int* g_NL_radial,
   int* g_NN_angular,
-  int* g_NL_angular,
-  double* g_pe,
-  float* g_Fp,
-  float* g_sum_fxyz)
+  int* g_NL_angular)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 >= N2) {
     return;
   }
 
-  int t1 = g_type[n1];
   double x1 = g_x[n1];
   double y1 = g_y[n1];
   double z1 = g_z[n1];
   int count_radial = 0;
   int count_angular = 0;
-  float q[MAX_DIM] = {0.0f};
 
   int cell_id;
   int cell_id_x;
@@ -255,7 +248,6 @@ static __global__ void find_descriptor(
   const int y_lim = box.pbc_y ? 2 : 0;
   const int x_lim = box.pbc_x ? 2 : 0;
 
-  // get radial descriptors
   for (int zz = -z_lim; zz <= z_lim; ++zz) {
     for (int yy = -y_lim; yy <= y_lim; ++yy) {
       for (int xx = -x_lim; xx <= x_lim; ++xx) {
@@ -288,41 +280,16 @@ static __global__ void find_descriptor(
           double z12double = g_z[n2] - z1;
           apply_mic(box, x12double, y12double, z12double);
           float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
-          float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+          float d12_square = x12 * x12 + y12 * y12 + z12 * z12;
 
-          if (d12 >= paramb.rc_radial) {
+          if (d12_square >= paramb.rc_radial * paramb.rc_radial) {
             continue;
           }
 
           g_NL_radial[count_radial++ * N + n1] = n2;
 
-          if (d12 < paramb.rc_angular) {
+          if (d12_square < paramb.rc_angular * paramb.rc_angular) {
             g_NL_angular[count_angular++ * N + n1] = n2;
-          }
-
-          float fc12;
-          find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-          int t2 = g_type[n2];
-          float fn12[MAX_NUM_N];
-          if (paramb.version == 2) {
-            find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
-            for (int n = 0; n <= paramb.n_max_radial; ++n) {
-              float c = (paramb.num_types == 1)
-                          ? 1.0f
-                          : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
-              q[n] += fn12[n] * c;
-            }
-          } else {
-            find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
-            for (int n = 0; n <= paramb.n_max_radial; ++n) {
-              float gn12 = 0.0f;
-              for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-                int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
-                c_index += t1 * paramb.num_types + t2;
-                gn12 += fn12[k] * annmb.c[c_index];
-              }
-              q[n] += gn12;
-            }
           }
         }
       }
@@ -331,12 +298,38 @@ static __global__ void find_descriptor(
 
   g_NN_radial[n1] = count_radial;
   g_NN_angular[n1] = count_angular;
+}
 
-  // get angular descriptors
-  for (int n = 0; n <= paramb.n_max_angular; ++n) {
-    float s[NUM_OF_ABC] = {0.0f};
-    for (int i1 = 0; i1 < count_angular; ++i1) {
-      int n2 = g_NL_angular[n1 + N * i1];
+static __global__ void find_descriptor(
+  NEP3::ParaMB paramb,
+  NEP3::ANN annmb,
+  const int N,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int* g_NN,
+  const int* g_NL,
+  const int* g_NN_angular,
+  const int* g_NL_angular,
+  const int* __restrict__ g_type,
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  double* g_pe,
+  float* g_Fp,
+  float* g_sum_fxyz)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    int t1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+    float q[MAX_DIM] = {0.0f};
+
+    // get radial descriptors
+    for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
+      int n2 = g_NL[n1 + N * i1];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
@@ -344,54 +337,92 @@ static __global__ void find_descriptor(
       float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
-      find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       int t2 = g_type[n2];
+      float fn12[MAX_NUM_N];
       if (paramb.version == 2) {
-        float fn;
-        find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
-        fn *=
-          (paramb.num_types == 1)
-            ? 1.0f
-            : annmb
-                .c[((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
-        accumulate_s(d12, x12, y12, z12, fn, s);
-      } else {
-        float fn12[MAX_NUM_N];
-        find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
-        float gn12 = 0.0f;
-        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-          int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-          c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-          gn12 += fn12[k] * annmb.c[c_index];
+        find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
+        for (int n = 0; n <= paramb.n_max_radial; ++n) {
+          float c = (paramb.num_types == 1)
+                      ? 1.0f
+                      : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
+          q[n] += fn12[n] * c;
         }
-        accumulate_s(d12, x12, y12, z12, gn12, s);
+      } else {
+        find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
+        for (int n = 0; n <= paramb.n_max_radial; ++n) {
+          float gn12 = 0.0f;
+          for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+            int c_index = (n * (paramb.basis_size_radial + 1) + k) * paramb.num_types_sq;
+            c_index += t1 * paramb.num_types + t2;
+            gn12 += fn12[k] * annmb.c[c_index];
+          }
+          q[n] += gn12;
+        }
       }
     }
-    if (paramb.num_L == paramb.L_max) {
-      find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-    } else if (paramb.num_L == paramb.L_max + 1) {
-      find_q_with_4body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
-    } else {
-      find_q_with_5body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+
+    // get angular descriptors
+    for (int n = 0; n <= paramb.n_max_angular; ++n) {
+      float s[NUM_OF_ABC] = {0.0f};
+      for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
+        int n2 = g_NL_angular[n1 + N * i1];
+        double x12double = g_x[n2] - x1;
+        double y12double = g_y[n2] - y1;
+        double z12double = g_z[n2] - z1;
+        apply_mic(box, x12double, y12double, z12double);
+        float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+        float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+        float fc12;
+        find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+        int t2 = g_type[n2];
+        if (paramb.version == 2) {
+          float fn;
+          find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
+          fn *=
+            (paramb.num_types == 1)
+              ? 1.0f
+              : annmb.c
+                  [((paramb.n_max_radial + 1 + n) * paramb.num_types + t1) * paramb.num_types + t2];
+          accumulate_s(d12, x12, y12, z12, fn, s);
+        } else {
+          float fn12[MAX_NUM_N];
+          find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
+          float gn12 = 0.0f;
+          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+            c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+            gn12 += fn12[k] * annmb.c[c_index];
+          }
+          accumulate_s(d12, x12, y12, z12, gn12, s);
+        }
+      }
+      if (paramb.num_L == paramb.L_max) {
+        find_q(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      } else if (paramb.num_L == paramb.L_max + 1) {
+        find_q_with_4body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      } else {
+        find_q_with_5body(paramb.n_max_angular + 1, n, s, q + (paramb.n_max_radial + 1));
+      }
+      for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
+        g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
+      }
     }
-    for (int abc = 0; abc < NUM_OF_ABC; ++abc) {
-      g_sum_fxyz[(n * NUM_OF_ABC + abc) * N + n1] = s[abc];
+
+    // nomalize descriptor
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = q[d] * paramb.q_scaler[d];
     }
-  }
 
-  // nomalize descriptor
-  for (int d = 0; d < annmb.dim; ++d) {
-    q[d] = q[d] * paramb.q_scaler[d];
-  }
+    // get energy and energy gradient
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    apply_ann_one_layer(
+      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
+    g_pe[n1] += F;
 
-  // get energy and energy gradient
-  float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-  apply_ann_one_layer(
-    annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
-  g_pe[n1] += F;
-
-  for (int d = 0; d < annmb.dim; ++d) {
-    g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+    }
   }
 }
 
@@ -723,12 +754,18 @@ void NEP3::compute_large_box(
 
   find_cell_list(rc_cell_list, num_bins, box, position_per_atom);
 
-  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box, cell_count.data(),
-    cell_count_sum.data(), cell_contents.data(), type.data(), position_per_atom.data(),
+  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+    paramb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box, cell_count.data(),
+    cell_count_sum.data(), cell_contents.data(), position_per_atom.data(),
     position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN_radial.data(),
-    nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data(),
-    potential_per_atom.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
+    nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  CUDA_CHECK_KERNEL
+
+  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+    paramb, annmb, N, N1, N2, box, nep_data.NN_radial.data(), nep_data.NL_radial.data(),
+    nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(), position_per_atom.data(),
+    position_per_atom.data() + N, position_per_atom.data() + N * 2, potential_per_atom.data(),
+    nep_data.Fp.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
