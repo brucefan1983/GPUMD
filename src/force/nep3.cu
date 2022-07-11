@@ -242,18 +242,17 @@ static __global__ void find_descriptor(
   int cell_id_y;
   int cell_id_z;
   find_cell_id(
-    box, x1, y1, z1, paramb.rcinv_radial, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
-  const int z_low = box.pbc_z ? -1 : 0;
-  const int y_low = box.pbc_y ? -1 : 0;
-  const int x_low = box.pbc_x ? -1 : 0;
-  const int z_hi = (box.pbc_z && nz > 2) ? 1 : 0;
-  const int y_hi = (box.pbc_y && ny > 2) ? 1 : 0;
-  const int x_hi = (box.pbc_x && nx > 2) ? 1 : 0;
+    box, x1, y1, z1, 2.0f * paramb.rcinv_radial, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z,
+    cell_id);
+
+  const int z_lim = box.pbc_z ? 2 : 0;
+  const int y_lim = box.pbc_y ? 2 : 0;
+  const int x_lim = box.pbc_x ? 2 : 0;
 
   // get radial descriptors
-  for (int zz = z_low; zz <= z_hi; ++zz) {
-    for (int yy = y_low; yy <= y_hi; ++yy) {
-      for (int xx = x_low; xx <= x_hi; ++xx) {
+  for (int zz = -z_lim; zz <= z_lim; ++zz) {
+    for (int yy = -y_lim; yy <= y_lim; ++yy) {
+      for (int xx = -x_lim; xx <= x_lim; ++xx) {
         int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
         if (cell_id_x + xx < 0)
           neighbor_cell += nx;
@@ -437,17 +436,16 @@ static __global__ void find_force_radial(
   int cell_id_y;
   int cell_id_z;
   find_cell_id(
-    box, x1, y1, z1, paramb.rcinv_radial, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
-  const int z_low = box.pbc_z ? -1 : 0;
-  const int y_low = box.pbc_y ? -1 : 0;
-  const int x_low = box.pbc_x ? -1 : 0;
-  const int z_hi = (box.pbc_z && nz > 2) ? 1 : 0;
-  const int y_hi = (box.pbc_y && ny > 2) ? 1 : 0;
-  const int x_hi = (box.pbc_x && nx > 2) ? 1 : 0;
+    box, x1, y1, z1, 2.0f * paramb.rcinv_radial, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z,
+    cell_id);
 
-  for (int zz = z_low; zz <= z_hi; ++zz) {
-    for (int yy = y_low; yy <= y_hi; ++yy) {
-      for (int xx = x_low; xx <= x_hi; ++xx) {
+  const int z_lim = box.pbc_z ? 2 : 0;
+  const int y_lim = box.pbc_y ? 2 : 0;
+  const int x_lim = box.pbc_x ? 2 : 0;
+
+  for (int zz = -z_lim; zz <= z_lim; ++zz) {
+    for (int yy = -y_lim; yy <= y_lim; ++yy) {
+      for (int xx = -x_lim; xx <= x_lim; ++xx) {
         int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
         if (cell_id_x + xx < 0)
           neighbor_cell += nx;
@@ -480,8 +478,9 @@ static __global__ void find_force_radial(
           float r12[3] = {float(x12double), float(y12double), float(z12double)};
           float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
 
-          if (d12 >= paramb.rc_radial)
+          if (d12 >= paramb.rc_radial) {
             continue;
+          }
 
           float d12inv = 1.0f / d12;
           float fc12, fcp12;
@@ -761,10 +760,12 @@ void NEP3::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  int num_bins[3];
-  box.get_num_bins(rc, num_bins);
+  const double rc_cell_list = 0.5 * rc;
 
-  find_cell_list(num_bins, box, position_per_atom);
+  int num_bins[3];
+  box.get_num_bins(rc_cell_list, num_bins);
+
+  find_cell_list(rc_cell_list, num_bins, box, position_per_atom);
 
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box, cell_count.data(),

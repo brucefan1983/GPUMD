@@ -51,7 +51,8 @@ protected:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
-  void find_cell_list(const int* num_bins, Box& box, const GPU_Vector<double>& position);
+  void find_cell_list(
+    const double rc, const int* num_bins, Box& box, const GPU_Vector<double>& position);
 
   void find_neighbor(
     Box& box,

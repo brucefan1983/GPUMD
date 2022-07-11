@@ -241,16 +241,15 @@ static __global__ void gpu_find_neighbor_ON1(
     int cell_id_y;
     int cell_id_z;
     find_cell_id(box, x1, y1, z1, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
-    const int k_low = box.pbc_z ? -1 : 0;
-    const int j_low = box.pbc_y ? -1 : 0;
-    const int i_low = box.pbc_x ? -1 : 0;
-    const int k_hi = (box.pbc_z && nz > 2) ? 1 : 0;
-    const int j_hi = (box.pbc_y && ny > 2) ? 1 : 0;
-    const int i_hi = (box.pbc_x && nx > 2) ? 1 : 0;
 
-    for (int k = k_low; k <= k_hi; ++k) {
-      for (int j = j_low; j <= j_hi; ++j) {
-        for (int i = i_low; i <= i_hi; ++i) {
+    const int z_lim = box.pbc_z ? 2 : 0;
+    const int y_lim = box.pbc_y ? 2 : 0;
+    const int x_lim = box.pbc_x ? 2 : 0;
+
+    // get radial descriptors
+    for (int k = -z_lim; k <= z_lim; ++k) {
+      for (int j = -y_lim; j <= y_lim; ++j) {
+        for (int i = -x_lim; i <= x_lim; ++i) {
           int neighbor_cell = cell_id + k * nx * ny + j * nx + i;
           if (cell_id_x + i < 0)
             neighbor_cell += nx;
@@ -318,7 +317,7 @@ static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* N
 #endif
 
 void Potential::find_cell_list(
-  const int* num_bins, Box& box, const GPU_Vector<double>& position_per_atom)
+  const double rc, const int* num_bins, Box& box, const GPU_Vector<double>& position_per_atom)
 {
   const int N = position_per_atom.size() / 3;
   const int block_size = 256;
@@ -360,19 +359,19 @@ void Potential::find_neighbor(
   const int N = NN.size();
   const int block_size = 256;
   const int grid_size = (N2 - N1 - 1) / block_size + 1;
-  const double rc2 = rc * rc;
-  const double rc_inv = 1.0 / rc;
   const double* x = position_per_atom.data();
   const double* y = position_per_atom.data() + N;
   const double* z = position_per_atom.data() + N * 2;
+  const double rc_cell_list = 0.5 * rc;
+  const double rc_inv_cell_list = 2.0 / rc;
 
   int num_bins[3];
-  box.get_num_bins(rc, num_bins);
+  box.get_num_bins(rc_cell_list, num_bins);
 
-  find_cell_list(num_bins, box, position_per_atom);
+  find_cell_list(rc_cell_list, num_bins, box, position_per_atom);
   gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
     box, N, N1, N2, cell_count.data(), cell_count_sum.data(), cell_contents.data(), NN.data(),
-    NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv, rc2);
+    NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list, rc * rc);
   CUDA_CHECK_KERNEL
 #ifdef DEBUG
   const int MN = NL.size() / NN.size();
