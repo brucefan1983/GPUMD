@@ -14,8 +14,10 @@
 */
 
 #pragma once
+#include <fstream>
 #include <stdio.h>
-//#define STRONG_DEBUG // never use it for production run; too slow
+#include <string>
+#include <vector>
 
 #define CHECK(call)                                                                                \
   do {                                                                                             \
@@ -75,3 +77,6 @@
 void print_line_1(void);
 void print_line_2(void);
 FILE* my_fopen(const char* filename, const char* mode);
+std::vector<std::string> get_tokens(std::ifstream& input);
+int get_int_from_token(std::string& token, const char* filename, const int line);
+float get_float_from_token(std::string& token, const char* filename, const int line);

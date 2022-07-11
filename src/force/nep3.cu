@@ -25,6 +25,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <iostream>
 #include <string>
 #include <vector>
 
@@ -38,84 +39,139 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-NEP3::NEP3(
-  FILE* fid, char* input_dir, int num_types, int version, bool enable_zbl, const int num_atoms)
+NEP3::NEP3(char* file_potential, const int num_atoms)
 {
-  paramb.version = version;
+
+  std::ifstream input(file_potential);
+  if (!input.is_open()) {
+    std::cout << "Failed to open " << file_potential << std::endl;
+    exit(1);
+  }
+
+  // nep3 1 C
+  std::vector<std::string> tokens = get_tokens(input);
+  if (tokens.size() < 3) {
+    std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
+    exit(1);
+  }
+  if (tokens[0] == "nep") {
+    paramb.version = 2;
+    zbl.enabled = false;
+  } else if (tokens[0] == "nep3") {
+    paramb.version = 3;
+    zbl.enabled = false;
+  } else if (tokens[0] == "nep_zbl") {
+    paramb.version = 2;
+    zbl.enabled = true;
+  } else if (tokens[0] == "nep3_zbl") {
+    paramb.version = 3;
+    zbl.enabled = true;
+  }
+  paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  if (tokens.size() != 2 + paramb.num_types) {
+    std::cout << "The first line of nep.txt should have " << paramb.num_types << " atom symbols."
+              << std::endl;
+    exit(1);
+  }
+
   if (paramb.version == 2) {
-    if (num_types == 1) {
-      printf("Use the NEP2 potential with %d atom type.\n", num_types);
+    if (paramb.num_types == 1) {
+      printf("Use the NEP2 potential with %d atom type.\n", paramb.num_types);
     } else {
-      printf("Use the NEP2 potential with %d atom types.\n", num_types);
+      printf("Use the NEP2 potential with %d atom types.\n", paramb.num_types);
     }
   } else {
-    if (num_types == 1) {
-      printf("Use the NEP3 potential with %d atom type.\n", num_types);
+    if (paramb.num_types == 1) {
+      printf("Use the NEP3 potential with %d atom type.\n", paramb.num_types);
     } else {
-      printf("Use the NEP3 potential with %d atom types.\n", num_types);
+      printf("Use the NEP3 potential with %d atom types.\n", paramb.num_types);
     }
   }
 
-  char name[20];
-
-  for (int n = 0; n < num_types; ++n) {
-    int count = fscanf(fid, "%s", name);
-    PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
-    std::string element(name);
+  for (int n = 0; n < paramb.num_types; ++n) {
     int atomic_number = 0;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
-      if (element == ELEMENTS[m]) {
+      if (tokens[2 + n] == ELEMENTS[m]) {
         atomic_number = m + 1;
         break;
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("    type %d (%s with Z = %g).\n", n, name, zbl.atomic_numbers[n]);
+    printf("    type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
-  paramb.num_types = num_types;
-
-  if (enable_zbl) {
-    int count = fscanf(fid, "%s%f%f", name, &zbl.rc_inner, &zbl.rc_outer);
-    PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
-    zbl.enabled = true;
+  // zbl 0.7 1.4
+  if (zbl.enabled) {
+    tokens = get_tokens(input);
+    if (tokens.size() != 3) {
+      std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
+      exit(1);
+    }
+    zbl.rc_inner = get_float_from_token(tokens[1], __FILE__, __LINE__);
+    zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
     printf(
       "    has ZBL with inner cutoff %g A and outer cutoff %g A.\n", zbl.rc_inner, zbl.rc_outer);
   }
 
-  int count = fscanf(fid, "%s%f%f", name, &paramb.rc_radial, &paramb.rc_angular);
-  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+  // cutoff 4.2 3.7
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    std::cout << "This line should be cutoff rc_radial rc_angular." << std::endl;
+    exit(1);
+  }
+  paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
+  paramb.rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
-  count = fscanf(fid, "%s%d%d", name, &paramb.n_max_radial, &paramb.n_max_angular);
-  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+  // n_max 10 8
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
+    exit(1);
+  }
+  paramb.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  paramb.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
   printf("    n_max_radial = %d.\n", paramb.n_max_radial);
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
+  // basis_size 10 8
   if (paramb.version == 3) {
-    count = fscanf(fid, "%s%d%d", name, &paramb.basis_size_radial, &paramb.basis_size_angular);
-    PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+    tokens = get_tokens(input);
+    if (tokens.size() != 3) {
+      std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
+                << std::endl;
+      exit(1);
+    }
+    paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
+    paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
     printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
     printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
   }
 
-  int L_max_4body = 0;
-  int L_max_5body = 0;
+  // l_max
+  tokens = get_tokens(input);
   if (paramb.version == 2) {
-    count = fscanf(fid, "%s%d", name, &paramb.L_max);
-    PRINT_SCANF_ERROR(count, 2, "reading error for NEP potential.");
-    printf("    l_max_3body = %d.\n", paramb.L_max);
-  } else {
-    count = fscanf(fid, "%s%d%d%d", name, &paramb.L_max, &L_max_4body, &L_max_5body);
-    PRINT_SCANF_ERROR(count, 4, "reading error for NEP potential.");
-    printf("    l_max_3body = %d.\n", paramb.L_max);
-    printf("    l_max_4body = %d.\n", L_max_4body);
-    printf("    l_max_5body = %d.\n", L_max_5body);
+    if (tokens.size() != 2) {
+      std::cout << "This line should be l_max l_max_3body." << std::endl;
+      exit(1);
+    }
+  } else if (paramb.version == 3) {
+    if (tokens.size() != 4) {
+      std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
+      exit(1);
+    }
   }
 
+  paramb.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  printf("    l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
+
   if (paramb.version == 3) {
+    int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
+    int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
+    printf("    l_max_4body = %d.\n", L_max_4body);
+    printf("    l_max_5body = %d.\n", L_max_5body);
     if (L_max_4body == 2) {
       paramb.num_L += 1;
     }
@@ -123,38 +179,56 @@ NEP3::NEP3(
       paramb.num_L += 1;
     }
   }
+
   paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
 
-  int num_neurons2;
-  count = fscanf(fid, "%s%d%d", name, &annmb.num_neurons1, &num_neurons2);
-  PRINT_SCANF_ERROR(count, 3, "reading error for NEP potential.");
+  // ANN
+  tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    std::cout << "This line should be ANN num_neurons 0." << std::endl;
+    exit(1);
+  }
+  annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
+  printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
+  // calculated parameters:
   rc = paramb.rc_radial; // largest cutoff
-
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
-  annmb.dim = (paramb.n_max_radial + 1) + (paramb.n_max_angular + 1) * paramb.num_L;
-
-  printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
+  paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 + 1;
   printf("    number of neural network parameters = %d.\n", annmb.num_para);
-  int num_para_descriptor = paramb.num_types * paramb.num_types *
-                            ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
-                             (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
+  int num_para_descriptor =
+    paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
+                           (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
   if (paramb.version == 2) {
     num_para_descriptor =
       (paramb.num_types == 1)
         ? 0
-        : paramb.num_types * paramb.num_types * (paramb.n_max_radial + paramb.n_max_angular + 2);
+        : paramb.num_types_sq * (paramb.n_max_radial + paramb.n_max_angular + 2);
   }
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para += num_para_descriptor;
   printf("    total number of parameters = %d\n", annmb.num_para);
 
-  paramb.num_types_sq = paramb.num_types * paramb.num_types;
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
+
+  // NN and descriptor parameters
+  std::vector<float> parameters(annmb.num_para);
+  for (int n = 0; n < annmb.num_para; ++n) {
+    tokens = get_tokens(input);
+    parameters[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+  }
+  nep_data.parameters.resize(annmb.num_para);
+  nep_data.parameters.copy_from_host(parameters.data());
+  update_potential(nep_data.parameters.data(), annmb);
+  for (int d = 0; d < annmb.dim; ++d) {
+    tokens = get_tokens(input);
+    paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+  }
 
   nep_data.f12x.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
   nep_data.f12y.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
@@ -165,12 +239,9 @@ NEP3::NEP3(
   nep_data.NL_angular.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
   nep_data.Fp.resize(num_atoms * annmb.dim);
   nep_data.sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-  nep_data.parameters.resize(annmb.num_para);
   cell_count.resize(num_atoms);
   cell_count_sum.resize(num_atoms);
   cell_contents.resize(num_atoms);
-
-  update_potential(fid);
 }
 
 NEP3::~NEP3(void)
@@ -185,22 +256,6 @@ void NEP3::update_potential(const float* parameters, ANN& ann)
   ann.w1 = ann.b0 + ann.num_neurons1;
   ann.b1 = ann.w1 + ann.num_neurons1;
   ann.c = ann.b1 + 1;
-}
-
-void NEP3::update_potential(FILE* fid)
-{
-  std::vector<float> parameters(annmb.num_para);
-  for (int n = 0; n < annmb.num_para; ++n) {
-    int count = fscanf(fid, "%f", &parameters[n]);
-    PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
-  }
-  nep_data.parameters.copy_from_host(parameters.data());
-  update_potential(nep_data.parameters.data(), annmb);
-
-  for (int d = 0; d < annmb.dim; ++d) {
-    int count = fscanf(fid, "%f", &paramb.q_scaler[d]);
-    PRINT_SCANF_ERROR(count, 1, "reading error for NEP potential.");
-  }
 }
 
 static __global__ void find_neighbor_list_large_box(

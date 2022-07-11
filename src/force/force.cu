@@ -137,13 +137,13 @@ void Force::initialize_potential(
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
   } else if (strcmp(potential_name, "nep") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, false, number_of_atoms));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "nep_zbl") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, true, number_of_atoms));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "nep3") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, false, number_of_atoms));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "nep3_zbl") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, true, number_of_atoms));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "lj") == 0) {
     potential[m].reset(new LJ(fid_potential, num_types));
   } else {

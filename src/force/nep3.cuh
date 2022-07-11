@@ -75,8 +75,7 @@ public:
     float h[18];
   };
 
-  NEP3(
-    FILE* fid, char* input_dir, int num_types, int version, bool enable_zbl, const int num_atoms);
+  NEP3(char* file_potential, const int num_atoms);
   virtual ~NEP3(void);
   virtual void compute(
     const int type_shift,
@@ -93,7 +92,7 @@ private:
   ZBL zbl;
   NEP3_Data nep_data;
   ExpandedBox ebox;
-  void update_potential(FILE* fid);
+
   void update_potential(const float* parameters, ANN& ann);
 
   void compute_small_box(
