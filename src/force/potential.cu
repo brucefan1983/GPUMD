@@ -288,34 +288,6 @@ static __global__ void gpu_find_neighbor_ON1(
   }
 }
 
-#ifdef DEBUG
-static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* NL)
-{
-  int bid = blockIdx.x;
-  int tid = threadIdx.x;
-  int neighbor_number = NN[bid];
-  int atom_index;
-  extern __shared__ int atom_index_copy[];
-
-  if (tid < neighbor_number) {
-    atom_index = NL[bid + tid * N];
-    atom_index_copy[tid] = atom_index;
-  }
-  int count = 0;
-  __syncthreads();
-
-  for (int j = 0; j < neighbor_number; ++j) {
-    if (atom_index > atom_index_copy[j]) {
-      count++;
-    }
-  }
-
-  if (tid < neighbor_number) {
-    NL[bid + count * N] = atom_index;
-  }
-}
-#endif
-
 void Potential::find_cell_list(
   const double rc, const int* num_bins, Box& box, const GPU_Vector<double>& position_per_atom)
 {
@@ -373,9 +345,8 @@ void Potential::find_neighbor(
     box, N, N1, N2, cell_count.data(), cell_count_sum.data(), cell_contents.data(), NN.data(),
     NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list, rc * rc);
   CUDA_CHECK_KERNEL
-#ifdef DEBUG
+
   const int MN = NL.size() / NN.size();
-  const int smem = MN * sizeof(int);
-  gpu_sort_neighbor_list<<<N, MN, smem>>>(N, NN.data(), NL.data());
-#endif
+  gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  CUDA_CHECK_KERNEL
 }

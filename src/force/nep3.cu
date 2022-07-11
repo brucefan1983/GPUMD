@@ -156,15 +156,13 @@ NEP3::NEP3(
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
 
-  int radial_neighbor_size = 200; // TODO: check this in NEP training
-  int angular_neighbor_size = 50; // TODO: check this in NEP training
-  nep_data.f12x.resize(num_atoms * angular_neighbor_size);
-  nep_data.f12y.resize(num_atoms * angular_neighbor_size);
-  nep_data.f12z.resize(num_atoms * angular_neighbor_size);
+  nep_data.f12x.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
+  nep_data.f12y.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
+  nep_data.f12z.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
   nep_data.NN_radial.resize(num_atoms);
-  nep_data.NL_radial.resize(num_atoms * radial_neighbor_size);
+  nep_data.NL_radial.resize(num_atoms * MAX_NEIGHBORS_NEP_RADIAL);
   nep_data.NN_angular.resize(num_atoms);
-  nep_data.NL_angular.resize(num_atoms * angular_neighbor_size);
+  nep_data.NL_angular.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
   nep_data.Fp.resize(num_atoms * annmb.dim);
   nep_data.sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   nep_data.parameters.resize(annmb.num_para);
@@ -759,6 +757,14 @@ void NEP3::compute_large_box(
     cell_count_sum.data(), cell_contents.data(), position_per_atom.data(),
     position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN_radial.data(),
     nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_sort_neighbor_list<<<N, MAX_NEIGHBORS_NEP_RADIAL, MAX_NEIGHBORS_NEP_RADIAL * sizeof(int)>>>(
+    N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_sort_neighbor_list<<<N, MAX_NEIGHBORS_NEP_ANGULAR, MAX_NEIGHBORS_NEP_ANGULAR * sizeof(int)>>>(
+    N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
 
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
