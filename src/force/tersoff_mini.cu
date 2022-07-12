@@ -321,6 +321,10 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
 
 // Wrapper of force evaluation for the SBOP potential
 void Tersoff_mini::compute(
+  const int group_method,
+  std::vector<Group>& group,
+  const int type_begin,
+  const int type_end,
   const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
@@ -333,9 +337,9 @@ void Tersoff_mini::compute(
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   find_neighbor(
-    N1, N2, rc, box, position_per_atom, tersoff_mini_data.cell_count,
-    tersoff_mini_data.cell_count_sum, tersoff_mini_data.cell_contents, tersoff_mini_data.NN,
-    tersoff_mini_data.NL);
+    N1, N2, group_method, group, type_begin, type_end, rc, box, position_per_atom,
+    tersoff_mini_data.cell_count, tersoff_mini_data.cell_count_sum, tersoff_mini_data.cell_contents,
+    tersoff_mini_data.NN, tersoff_mini_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

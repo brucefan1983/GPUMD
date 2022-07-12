@@ -40,6 +40,10 @@ public:
   LJ(FILE*, int, int);
   virtual ~LJ(void);
   virtual void compute(
+    const int group_method,
+    std::vector<Group>& group,
+    const int type_begin,
+    const int type_end,
     const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,

@@ -85,6 +85,10 @@ static __global__ void gpu_find_neighbor_ON1(
   const int N,
   const int N1,
   const int N2,
+  const bool use_group,
+  const int* group_label,
+  const int type_begin,
+  const int type_end,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
   const int* __restrict__ cell_contents,
@@ -139,6 +143,13 @@ static __global__ void gpu_find_neighbor_ON1(
           for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
             const int n2 = cell_contents[num_atoms_previous_cells + m];
             if (n2 >= N1 && n2 < N2 && n1 != n2) {
+
+              if (use_group) {
+                if (group_label[n1] == group_label[n2]) {
+                  continue;
+                }
+              }
+
               double x12 = x[n2] - x1;
               double y12 = y[n2] - y1;
               double z12 = z[n2] - z1;
@@ -203,6 +214,10 @@ void find_cell_list(
 void find_neighbor(
   const int N1,
   const int N2,
+  const int group_method,
+  std::vector<Group>& group,
+  const int type_begin,
+  const int type_end,
   double rc,
   Box& box,
   const GPU_Vector<double>& position_per_atom,
@@ -226,9 +241,16 @@ void find_neighbor(
 
   find_cell_list(
     rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
+
+  const bool use_group = group_method > -1;
+  int* group_label = nullptr;
+  if (use_group)
+    group_label = group[group_method].label.data();
+
   gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
-    box, N, N1, N2, cell_count.data(), cell_count_sum.data(), cell_contents.data(), NN.data(),
-    NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list, rc * rc);
+    box, N, N1, N2, use_group, group_label, type_begin, type_end, cell_count.data(),
+    cell_count_sum.data(), cell_contents.data(), NN.data(), NL.data(), x, y, z, num_bins[0],
+    num_bins[1], num_bins[2], rc_inv_cell_list, rc * rc);
   CUDA_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();

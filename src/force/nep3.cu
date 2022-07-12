@@ -991,6 +991,10 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
 }
 
 void NEP3::compute(
+  const int group_method,
+  std::vector<Group>& group,
+  const int type_begin,
+  const int type_end,
   const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,

@@ -403,8 +403,8 @@ void Force::compute(
 
   for (int m = 0; m < num_of_potentials; m++) {
     potential[m]->compute(
-      type_shift_[m], box, type, position_per_atom, potential_per_atom, force_per_atom,
-      virial_per_atom);
+      group_method, group, atom_begin[m], atom_end[m], type_shift_[m], box, type, position_per_atom,
+      potential_per_atom, force_per_atom, virial_per_atom);
   }
 
   if (compute_hnemd_) {
