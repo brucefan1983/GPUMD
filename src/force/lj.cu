@@ -103,7 +103,7 @@ static __global__ void gpu_find_force(
   double s_szy = 0.0;                                  // virial_stress_zy
   double s_szz = 0.0;                                  // virial_stress_zz
 
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1] - shift;
     double x1 = g_x[n1];

@@ -167,10 +167,8 @@ static __global__ void find_force_step1(
   double* g_b,
   double* g_bp)
 {
-  // start from the N1-th atom
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  // to the (N2-1)-th atom
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1] - shift;
     double x1 = g_x[n1];
@@ -240,10 +238,8 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
   double* g_f12y,
   double* g_f12z)
 {
-  // start from the N1-th atom
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  // to the (N2-1)-th atom
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1] - shift;
     double x1 = g_x[n1];
