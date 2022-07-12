@@ -194,7 +194,7 @@ void LJ::compute(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   find_neighbor(
-    N1, N2, group_method, group, type_begin, type_end, rc, box, position_per_atom,
+    N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
     lj_data.cell_count, lj_data.cell_count_sum, lj_data.cell_contents, lj_data.NN,
     lj_data.NL); // TODO: generalize
 

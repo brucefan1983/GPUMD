@@ -35,6 +35,7 @@ void find_neighbor(
   const int type_end,
   double rc,
   Box& box,
+  const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,

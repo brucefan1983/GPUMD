@@ -470,7 +470,7 @@ void EAM::compute(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   find_neighbor(
-    N1, N2, group_method, group, type_begin, type_end, rc, box, position_per_atom,
+    N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
     eam_data.cell_count, eam_data.cell_count_sum, eam_data.cell_contents, eam_data.NN, eam_data.NL);
 
   if (potential_model == 0) {
