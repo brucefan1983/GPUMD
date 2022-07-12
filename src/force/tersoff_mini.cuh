@@ -25,6 +25,9 @@ struct Tersoff_mini_Data {
   GPU_Vector<double> f12y;
   GPU_Vector<double> f12z;
   GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 struct Tersoff_mini_Para {

@@ -20,6 +20,7 @@ Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 ------------------------------------------------------------------------------*/
 
+#include "neighbor.cuh"
 #include "nep3.cuh"
 #include "nep3_small_box.cuh"
 #include "utilities/common.cuh"
@@ -249,9 +250,9 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
   nep_data.Fp.resize(num_atoms * annmb.dim);
   nep_data.sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-  cell_count.resize(num_atoms);
-  cell_count_sum.resize(num_atoms);
-  cell_contents.resize(num_atoms);
+  nep_data.cell_count.resize(num_atoms);
+  nep_data.cell_count_sum.resize(num_atoms);
+  nep_data.cell_contents.resize(num_atoms);
 }
 
 NEP3::~NEP3(void)
@@ -815,11 +816,13 @@ void NEP3::compute_large_box(
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
 
-  find_cell_list(rc_cell_list, num_bins, box, position_per_atom);
+  find_cell_list(
+    rc_cell_list, num_bins, box, position_per_atom, nep_data.cell_count, nep_data.cell_count_sum,
+    nep_data.cell_contents);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box, cell_count.data(),
-    cell_count_sum.data(), cell_contents.data(), position_per_atom.data(),
+    paramb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box, nep_data.cell_count.data(),
+    nep_data.cell_count_sum.data(), nep_data.cell_contents.data(), position_per_atom.data(),
     position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN_radial.data(),
     nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL

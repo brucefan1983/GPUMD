@@ -18,6 +18,7 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 ------------------------------------------------------------------------------*/
 
 #include "lj.cuh"
+#include "neighbor.cuh"
 #include "utilities/error.cuh"
 
 // best block size here: 128
@@ -47,9 +48,9 @@ LJ::LJ(FILE* fid, int num_types, int num_atoms)
 
   lj_data.NN.resize(num_atoms);
   lj_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
-  cell_count.resize(num_atoms);
-  cell_count_sum.resize(num_atoms);
-  cell_contents.resize(num_atoms);
+  lj_data.cell_count.resize(num_atoms);
+  lj_data.cell_count_sum.resize(num_atoms);
+  lj_data.cell_contents.resize(num_atoms);
 }
 
 LJ::~LJ(void)
@@ -188,7 +189,9 @@ void LJ::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  find_neighbor(box, position_per_atom, lj_data.NN, lj_data.NL); // TODO: generalize
+  find_neighbor(
+    N1, N2, rc, box, position_per_atom, lj_data.cell_count, lj_data.cell_count_sum,
+    lj_data.cell_contents, lj_data.NN, lj_data.NL); // TODO: generalize
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     lj_para, number_of_atoms, N1, N2, box, lj_data.NN.data(), lj_data.NL.data(), type.data(),

@@ -54,6 +54,9 @@ struct EAM2006Dai {
 struct EAM_Data {
   GPU_Vector<double> Fp; // derivative of the density functional
   GPU_Vector<int> NN, NL;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 class EAM : public Potential

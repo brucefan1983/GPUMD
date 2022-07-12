@@ -29,6 +29,9 @@ struct LJ_Para {
 
 struct LJ_Data {
   GPU_Vector<int> NN, NL;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 class LJ : public Potential

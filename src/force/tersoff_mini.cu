@@ -22,6 +22,7 @@ descriptions of elastic and phonon transport properties,
 J. Phys.: Condens. Matter 32, 135901 (2020).
 ------------------------------------------------------------------------------*/
 
+#include "neighbor.cuh"
 #include "tersoff_mini.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -82,9 +83,9 @@ Tersoff_mini::Tersoff_mini(FILE* fid, int num_of_types, const int num_atoms)
   tersoff_mini_data.f12z.resize(num_of_neighbors);
   tersoff_mini_data.NN.resize(num_atoms);
   tersoff_mini_data.NL.resize(num_of_neighbors);
-  cell_count.resize(num_atoms);
-  cell_count_sum.resize(num_atoms);
-  cell_contents.resize(num_atoms);
+  tersoff_mini_data.cell_count.resize(num_atoms);
+  tersoff_mini_data.cell_count_sum.resize(num_atoms);
+  tersoff_mini_data.cell_contents.resize(num_atoms);
 }
 
 Tersoff_mini::~Tersoff_mini(void)
@@ -331,7 +332,10 @@ void Tersoff_mini::compute(
   const int number_of_atoms = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  find_neighbor(box, position_per_atom, tersoff_mini_data.NN, tersoff_mini_data.NL);
+  find_neighbor(
+    N1, N2, rc, box, position_per_atom, tersoff_mini_data.cell_count,
+    tersoff_mini_data.cell_count_sum, tersoff_mini_data.cell_contents, tersoff_mini_data.NN,
+    tersoff_mini_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

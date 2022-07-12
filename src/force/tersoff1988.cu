@@ -19,6 +19,7 @@ The version of the Tersoff potential as described in
     of covalent systems, PRB 37, 6991 (1988).
 ------------------------------------------------------------------------------*/
 
+#include "neighbor.cuh"
 #include "tersoff1988.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -162,9 +163,9 @@ Tersoff1988::Tersoff1988(FILE* fid, int num_of_types, const int num_atoms)
   tersoff_data.f12z.resize(num_of_neighbors);
   tersoff_data.NN.resize(num_atoms);
   tersoff_data.NL.resize(num_of_neighbors);
-  cell_count.resize(num_atoms);
-  cell_count_sum.resize(num_atoms);
-  cell_contents.resize(num_atoms);
+  tersoff_data.cell_count.resize(num_atoms);
+  tersoff_data.cell_count_sum.resize(num_atoms);
+  tersoff_data.cell_contents.resize(num_atoms);
   ters.resize(n_entries * NUM_PARAMS);
   ters.copy_from_host(cpu_ters.data());
 }
@@ -484,7 +485,9 @@ void Tersoff1988::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
-  find_neighbor(box, position_per_atom, tersoff_data.NN, tersoff_data.NL);
+  find_neighbor(
+    N1, N2, rc, box, position_per_atom, tersoff_data.cell_count, tersoff_data.cell_count_sum,
+    tersoff_data.cell_contents, tersoff_data.NN, tersoff_data.NL);
 
   // pre-compute the bond order functions and their derivatives
   find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(

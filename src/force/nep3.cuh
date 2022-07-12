@@ -28,6 +28,9 @@ struct NEP3_Data {
   GPU_Vector<int> NN_angular;   // angular neighbor list
   GPU_Vector<int> NL_angular;   // angular neighbor list
   GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 class NEP3 : public Potential
