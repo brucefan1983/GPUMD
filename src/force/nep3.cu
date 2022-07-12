@@ -113,16 +113,28 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
       "    has ZBL with inner cutoff %g A and outer cutoff %g A.\n", zbl.rc_inner, zbl.rc_outer);
   }
 
-  // cutoff 4.2 3.7
+  // cutoff 4.2 3.7 80 47
   tokens = get_tokens(input);
-  if (tokens.size() != 3) {
-    std::cout << "This line should be cutoff rc_radial rc_angular." << std::endl;
+  if (tokens.size() != 3 && tokens.size() != 5) {
+    std::cout << "This line should be cutoff rc_radial rc_angular [MN_radial] [MN_angular]."
+              << std::endl;
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
   paramb.rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
+
+  if (tokens.size() == 5) {
+    int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+    int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
+    printf("    MN_radial = %d.\n", MN_radial);
+    printf("    MN_angular = %d.\n", MN_angular);
+    paramb.MN_radial = int(ceil(MN_radial * 1.25));
+    paramb.MN_angular = int(ceil(MN_angular * 1.25));
+    printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
+    printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
+  }
 
   // n_max 10 8
   tokens = get_tokens(input);
@@ -230,13 +242,13 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
     paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
   }
 
-  nep_data.f12x.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
-  nep_data.f12y.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
-  nep_data.f12z.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
+  nep_data.f12x.resize(num_atoms * paramb.MN_angular);
+  nep_data.f12y.resize(num_atoms * paramb.MN_angular);
+  nep_data.f12z.resize(num_atoms * paramb.MN_angular);
   nep_data.NN_radial.resize(num_atoms);
-  nep_data.NL_radial.resize(num_atoms * MAX_NEIGHBORS_NEP_RADIAL);
+  nep_data.NL_radial.resize(num_atoms * paramb.MN_radial);
   nep_data.NN_angular.resize(num_atoms);
-  nep_data.NL_angular.resize(num_atoms * MAX_NEIGHBORS_NEP_ANGULAR);
+  nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
   nep_data.Fp.resize(num_atoms * annmb.dim);
   nep_data.sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   cell_count.resize(num_atoms);
@@ -814,11 +826,11 @@ void NEP3::compute_large_box(
     nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
 
-  gpu_sort_neighbor_list<<<N, MAX_NEIGHBORS_NEP_RADIAL, MAX_NEIGHBORS_NEP_RADIAL * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
     N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
   CUDA_CHECK_KERNEL
 
-  gpu_sort_neighbor_list<<<N, MAX_NEIGHBORS_NEP_ANGULAR, MAX_NEIGHBORS_NEP_ANGULAR * sizeof(int)>>>(
+  gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
 

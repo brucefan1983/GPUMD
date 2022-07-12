@@ -22,6 +22,3 @@
 const double PRESSURE_UNIT_CONVERSION = 1.602177e+2; // from natural to GPa
 const double TIME_UNIT_CONVERSION = 1.018051e+1;     // from natural to fs
 const double KAPPA_UNIT_CONVERSION = 1.573769e+5;    // from natural to W/mK
-
-const int MAX_NEIGHBORS_NEP_ANGULAR = 50; // TODO: check this in NEP training
-const int MAX_NEIGHBORS_NEP_RADIAL = 200; // TODO: check this in NEP training

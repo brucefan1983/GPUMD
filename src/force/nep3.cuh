@@ -39,9 +39,11 @@ public:
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
-    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
-    int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
-    int L_max = 0;              // l = 0, 1, 2, ..., L_max
+    int MN_radial = 200;
+    int MN_angular = 100;
+    int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
+    int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
+    int L_max = 0;         // l = 0, 1, 2, ..., L_max
     int dim_angular;
     int num_L;
     int basis_size_radial = 8;  // for nep3
