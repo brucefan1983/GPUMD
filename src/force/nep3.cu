@@ -115,9 +115,9 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
 
   // cutoff 4.2 3.7 80 47
   tokens = get_tokens(input);
-  if (tokens.size() != 3 && tokens.size() != 5) {
-    std::cout << "This line should be cutoff rc_radial rc_angular [MN_radial] [MN_angular]."
-              << std::endl;
+  if (tokens.size() != 5) {
+    std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular.\n"
+              << "You might have used a NEP model trained by GPUMD-v3.3.1 or older." << std::endl;
     exit(1);
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
@@ -125,16 +125,14 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   printf("    radial cutoff = %g A.\n", paramb.rc_radial);
   printf("    angular cutoff = %g A.\n", paramb.rc_angular);
 
-  if (tokens.size() == 5) {
-    int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-    printf("    MN_radial = %d.\n", MN_radial);
-    printf("    MN_angular = %d.\n", MN_angular);
-    paramb.MN_radial = int(ceil(MN_radial * 1.25));
-    paramb.MN_angular = int(ceil(MN_angular * 1.25));
-    printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
-    printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
-  }
+  int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
+  int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
+  printf("    MN_radial = %d.\n", MN_radial);
+  printf("    MN_angular = %d.\n", MN_angular);
+  paramb.MN_radial = int(ceil(MN_radial * 1.25));
+  paramb.MN_angular = int(ceil(MN_angular * 1.25));
+  printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
+  printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   // n_max 10 8
   tokens = get_tokens(input);
