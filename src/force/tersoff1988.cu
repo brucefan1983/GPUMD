@@ -360,9 +360,9 @@ static __global__ void find_force_tersoff_step2(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_potential,
-  double* g_f12x,
-  double* g_f12y,
-  double* g_f12z)
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   int num_types2 = num_types * num_types;

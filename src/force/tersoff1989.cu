@@ -130,9 +130,9 @@ Tersoff1989::~Tersoff1989(void)
 static __device__ void find_fr_and_frp(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fr,
   double& frp)
@@ -152,9 +152,9 @@ static __device__ void find_fr_and_frp(
 static __device__ void find_fa_and_fap(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fa,
   double& fap)
@@ -174,9 +174,9 @@ static __device__ void find_fa_and_fap(
 static __device__ void find_fa(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fa)
 {
@@ -192,9 +192,9 @@ static __device__ void find_fa(
 static __device__ void find_fc_and_fcp(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fc,
   double& fcp)
@@ -238,9 +238,9 @@ static __device__ void find_fc_and_fcp(
 static __device__ void find_fc(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fc)
 {
@@ -273,8 +273,8 @@ static __device__ void find_fc(
 
 static __device__ void find_g_and_gp(
   int type1,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
   double cos,
   double& g,
   double& gp)
@@ -290,8 +290,12 @@ static __device__ void find_g_and_gp(
   }
 }
 
-static __device__ void
-find_g(int type1, Tersoff1989_Parameters ters0, Tersoff1989_Parameters ters1, double cos, double& g)
+static __device__ void find_g(
+  int type1,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  double cos,
+  double& g)
 {
   if (type1 == 0) {
     double temp = ters0.d2 + (cos - ters0.h) * (cos - ters0.h);
@@ -393,9 +397,9 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_potential,
-  double* g_f12x,
-  double* g_f12y,
-  double* g_f12z)
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {

@@ -626,9 +626,9 @@ static __global__ void find_partial_force_angular(
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
-  double* g_f12x,
-  double* g_f12y,
-  double* g_f12z)
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {

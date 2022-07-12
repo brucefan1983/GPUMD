@@ -19,11 +19,11 @@
 #include <stdio.h>
 
 struct Tersoff_mini_Data {
-  GPU_Vector<double> b;    // bond orders
-  GPU_Vector<double> bp;   // derivative of bond orders
-  GPU_Vector<double> f12x; // partial forces
-  GPU_Vector<double> f12y;
-  GPU_Vector<double> f12z;
+  GPU_Vector<double> b;   // bond orders
+  GPU_Vector<double> bp;  // derivative of bond orders
+  GPU_Vector<float> f12x; // partial forces
+  GPU_Vector<float> f12y;
+  GPU_Vector<float> f12z;
   GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;

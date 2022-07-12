@@ -234,9 +234,9 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_potential,
-  double* g_f12x,
-  double* g_f12y,
-  double* g_f12z)
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
