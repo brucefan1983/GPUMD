@@ -23,7 +23,7 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 // best block size here: 128
 #define BLOCK_SIZE_FORCE 128
 
-LJ::LJ(FILE* fid, int num_types)
+LJ::LJ(FILE* fid, int num_types, int num_atoms)
 {
   printf("Use %d-element LJ potential.\n", num_types);
   if (!(num_types >= 1 && num_types <= MAX_TYPE)) {
@@ -44,6 +44,12 @@ LJ::LJ(FILE* fid, int num_types)
         rc = cutoff;
     }
   }
+
+  lj_data.NN.resize(num_atoms);
+  lj_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
+  cell_count.resize(num_atoms);
+  cell_count_sum.resize(num_atoms);
+  cell_contents.resize(num_atoms);
 }
 
 LJ::~LJ(void)
@@ -182,8 +188,10 @@ void LJ::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
+  find_neighbor(box, position_per_atom, lj_data.NN, lj_data.NL); // TODO: generalize
+
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    lj_para, number_of_atoms, N1, N2, box, cell_count.data(), cell_count_sum.data(), type.data(),
+    lj_para, number_of_atoms, N1, N2, box, lj_data.NN.data(), lj_data.NL.data(), type.data(),
     type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, force_per_atom.data(),
     force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,

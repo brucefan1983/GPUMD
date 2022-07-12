@@ -145,7 +145,7 @@ void Force::initialize_potential(
   } else if (strcmp(potential_name, "nep3_zbl") == 0) {
     potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "lj") == 0) {
-    potential[m].reset(new LJ(fid_potential, num_types));
+    potential[m].reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }

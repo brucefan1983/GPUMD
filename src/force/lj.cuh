@@ -27,10 +27,14 @@ struct LJ_Para {
   double cutoff_square[MAX_TYPE][MAX_TYPE];
 };
 
+struct LJ_Data {
+  GPU_Vector<int> NN, NL;
+};
+
 class LJ : public Potential
 {
 public:
-  LJ(FILE*, int);
+  LJ(FILE*, int, int);
   virtual ~LJ(void);
   virtual void compute(
     const int type_shift,
@@ -44,4 +48,5 @@ public:
 
 protected:
   LJ_Para lj_para;
+  LJ_Data lj_data;
 };

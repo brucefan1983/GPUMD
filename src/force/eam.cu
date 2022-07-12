@@ -36,6 +36,11 @@ EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
   }
 
   eam_data.Fp.resize(number_of_atoms);
+  eam_data.NN.resize(number_of_atoms);
+  eam_data.NL.resize(number_of_atoms * 400); // very safe for EAM
+  cell_count.resize(number_of_atoms);
+  cell_count_sum.resize(number_of_atoms);
+  cell_contents.resize(number_of_atoms);
 }
 
 void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
@@ -459,17 +464,19 @@ void EAM::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
+  find_neighbor(box, position_per_atom, eam_data.NN, eam_data.NL);
+
   if (potential_model == 0) {
     find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, cell_count.data(),
-      cell_count_sum.data(), type.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      eam_data.Fp.data(), potential_per_atom.data());
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2, eam_data.Fp.data(),
+      potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, cell_count.data(),
-      cell_count_sum.data(), type.data(), eam_data.Fp.data(), position_per_atom.data(),
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
@@ -479,15 +486,15 @@ void EAM::compute(
 
   if (potential_model == 1) {
     find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, cell_count.data(),
-      cell_count_sum.data(), type.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      eam_data.Fp.data(), potential_per_atom.data());
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2, eam_data.Fp.data(),
+      potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, cell_count.data(),
-      cell_count_sum.data(), type.data(), eam_data.Fp.data(), position_per_atom.data(),
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
