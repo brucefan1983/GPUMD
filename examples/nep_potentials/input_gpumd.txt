@@ -1,8 +1,2 @@
-7
-examples/nep_potentials/PbTe/phonon
+1
 examples/nep_potentials/PbTe/check_force
-examples/nep_potentials/PbTe/kappa/300
-examples/nep_potentials/PbTe/kappa/400
-examples/nep_potentials/PbTe/kappa/500
-examples/nep_potentials/PbTe/kappa/600
-examples/nep_potentials/PbTe/kappa/700
