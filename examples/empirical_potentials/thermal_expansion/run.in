@@ -23,7 +23,6 @@ dump_thermo 10
 run         20000
 
 ensemble    npt_ber 600 600 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 

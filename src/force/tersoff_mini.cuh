@@ -19,8 +19,8 @@
 #include <stdio.h>
 
 struct Tersoff_mini_Data {
-  GPU_Vector<double> b;   // bond orders
-  GPU_Vector<double> bp;  // derivative of bond orders
+  GPU_Vector<float> b;    // bond orders
+  GPU_Vector<float> bp;   // derivative of bond orders
   GPU_Vector<float> f12x; // partial forces
   GPU_Vector<float> f12y;
   GPU_Vector<float> f12z;
@@ -31,17 +31,17 @@ struct Tersoff_mini_Data {
 };
 
 struct Tersoff_mini_Para {
-  double a[3];
-  double b[3];
-  double lambda[3];
-  double mu[3];
-  double beta[3];
-  double n[3];
-  double h[3];
-  double r1[3];
-  double r2[3];
-  double pi_factor[3];
-  double minus_half_over_n[3];
+  float a[3];
+  float b[3];
+  float lambda[3];
+  float mu[3];
+  float beta[3];
+  float n[3];
+  float h[3];
+  float r1[3];
+  float r2[3];
+  float pi_factor[3];
+  float minus_half_over_n[3];
 };
 
 class Tersoff_mini : public Potential
