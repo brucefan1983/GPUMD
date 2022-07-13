@@ -22,7 +22,7 @@ for nx = 0 : nxyz(1) - 1
 end
 
 fid = fopen('xyz.in', 'w');
-fprintf(fid, '%d %d %g 1 0 0\n', N, 4, 3.0);
+fprintf(fid, '%d 1 0 0\n', N);
 fprintf(fid, '%d %d %d %g %g %g %g %g %g %g %g %g\n', 1, 1, 1, box_length);
 for n =1 : N
     fprintf(fid, '%d %g %g %g %g\n', 0, r(n, :), 28);
