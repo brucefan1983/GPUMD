@@ -14,7 +14,7 @@
 
 ## 2022 (11)
 
-* Haikuan Dong, Zheyong Fan, Ping Qian, Yanjing Su, Exactly equivalent thermal conductivity in finite systems from equilibrium and nonequilibrium molecular dynamics simulations, Accepted to Physica E.
+* Haikuan Dong, Zheyong Fan, Ping Qian, Yanjing Su, [Exactly equivalent thermal conductivity in finite systems from equilibrium and nonequilibrium molecular dynamics simulations](https://doi.org/10.1016/j.physe.2022.115410), Physica E **144**, 115410 (2022).
 
 * Ting Liang, Ke Xu, Meng Han, Yimin Yao, Zhisen Zhang, Xiaoliang Zeng, Jianbin Xu, Jianyang Wu,
 [Abnormally High Thermal Conductivity in Fivefold Twinned Diamond Nanowires](https://doi.org/10.1016/j.mtphys.2022.100705), Materials Today Physics
