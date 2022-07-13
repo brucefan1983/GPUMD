@@ -20,7 +20,6 @@ The class defining the simulation model.
 #include "atom.cuh"
 #include "box.cuh"
 #include "group.cuh"
-#include "neighbor.cuh"
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -30,37 +29,18 @@ The class defining the simulation model.
 #include <string>
 
 void read_xyz_in_line_1(
-  FILE* fid_xyz,
-  int& N,
-  int& MN,
-  double& rc,
-  int& triclinic,
-  int& has_velocity_in_xyz,
-  std::vector<Group>& group)
+  FILE* fid_xyz, int& N, int& triclinic, int& has_velocity_in_xyz, std::vector<Group>& group)
 {
   int num_of_grouping_methods = 0;
-  int count = fscanf(
-    fid_xyz, "%d%d%lf%d%d%d\n", &N, &MN, &rc, &triclinic, &has_velocity_in_xyz,
-    &num_of_grouping_methods);
-  PRINT_SCANF_ERROR(count, 6, "Reading error for line 1 of xyz.in.");
+  int count =
+    fscanf(fid_xyz, "%d%d%d%d\n", &N, &triclinic, &has_velocity_in_xyz, &num_of_grouping_methods);
+  PRINT_SCANF_ERROR(count, 4, "Reading error for line 1 of xyz.in.");
   group.resize(num_of_grouping_methods);
 
   if (N < 2) {
     PRINT_INPUT_ERROR("Number of atoms should >= 2.");
   } else {
     printf("Number of atoms is %d.\n", N);
-  }
-
-  if (MN < 1) {
-    PRINT_INPUT_ERROR("Maximum number of neighbors should >= 1.");
-  } else {
-    printf("Maximum number of neighbors is %d.\n", MN);
-  }
-
-  if (rc <= 0) {
-    PRINT_INPUT_ERROR("Initial cutoff for neighbor list should > 0.");
-  } else {
-    printf("Initial cutoff for neighbor list is %g A.\n", rc);
   }
 
   if (triclinic == 0) {
@@ -386,7 +366,6 @@ void initialize_position(
   int& has_velocity_in_xyz,
   int& number_of_types,
   Box& box,
-  Neighbor& neighbor,
   std::vector<Group>& group,
   Atom& atom)
 {
@@ -395,8 +374,7 @@ void initialize_position(
   strcat(file_xyz, "/xyz.in");
   FILE* fid_xyz = my_fopen(file_xyz, "r");
 
-  read_xyz_in_line_1(
-    fid_xyz, N, neighbor.MN, neighbor.rc, box.triclinic, has_velocity_in_xyz, group);
+  read_xyz_in_line_1(fid_xyz, N, box.triclinic, has_velocity_in_xyz, group);
 
   read_xyz_in_line_2(fid_xyz, box);
 
@@ -440,22 +418,8 @@ void initialize_position(
 }
 
 void allocate_memory_gpu(
-  const int N,
-  Neighbor& neighbor,
-  std::vector<Group>& group,
-  Atom& atom,
-  GPU_Vector<double>& thermo)
+  const int N, std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
 {
-  neighbor.NN.resize(N);
-  neighbor.NL.resize(N * neighbor.MN);
-  neighbor.NN_local.resize(N);
-  neighbor.NL_local.resize(N * neighbor.MN);
-
-  neighbor.cell_count.resize(N);
-  neighbor.cell_count_sum.resize(N);
-  neighbor.cell_contents.resize(N);
-  neighbor.cpu_NN.resize(N);
-
   atom.type.resize(N);
   atom.type.copy_from_host(atom.cpu_type.data());
   for (int m = 0; m < group.size(); ++m) {
@@ -470,9 +434,6 @@ void allocate_memory_gpu(
   }
   atom.mass.resize(N);
   atom.mass.copy_from_host(atom.cpu_mass.data());
-  neighbor.x0.resize(N);
-  neighbor.y0.resize(N);
-  neighbor.z0.resize(N);
   atom.position_per_atom.resize(N * 3);
   atom.position_per_atom.copy_from_host(atom.cpu_position_per_atom.data());
   atom.velocity_per_atom.resize(N * 3);

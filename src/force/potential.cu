@@ -20,6 +20,8 @@ The abstract base class (ABC) for the potential classes.
 #include "potential.cuh"
 #include "utilities/error.cuh"
 #define BLOCK_SIZE_FORCE 64
+#include <thrust/execution_policy.h>
+#include <thrust/scan.h>
 
 Potential::Potential(void) { rc = 0.0; }
 
@@ -35,9 +37,9 @@ static __global__ void gpu_find_force_many_body(
   const Box box,
   const int* g_neighbor_number,
   const int* g_neighbor_list,
-  const double* __restrict__ g_f12x,
-  const double* __restrict__ g_f12y,
-  const double* __restrict__ g_f12z,
+  const float* __restrict__ g_f12x,
+  const float* __restrict__ g_f12y,
+  const float* __restrict__ g_f12z,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -129,15 +131,13 @@ static __global__ void gpu_find_force_many_body(
   }
 }
 
-// Wrapper of the above kernel
-// used in tersoff.cu, sw.cu, rebo_mos2.cu and vashishta.cu
 void Potential::find_properties_many_body(
-  const Box& box,
+  Box& box,
   const int* NN,
   const int* NL,
-  const double* f12x,
-  const double* f12y,
-  const double* f12z,
+  const float* f12x,
+  const float* f12y,
+  const float* f12z,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)

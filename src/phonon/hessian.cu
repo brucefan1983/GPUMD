@@ -36,14 +36,13 @@ void Hessian::compute(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
   initialize(input_dir, type.size());
   find_H(
-    force, box, cpu_position_per_atom, position_per_atom, type, group, neighbor, potential_per_atom,
+    force, box, cpu_position_per_atom, position_per_atom, type, group, potential_per_atom,
     force_per_atom, virial_per_atom);
 
   if (num_kpoints == 1) // currently for Alex's GKMA calculations
@@ -135,7 +134,6 @@ void Hessian::find_H(
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
@@ -150,7 +148,7 @@ void Hessian::find_H(
       }
       size_t offset = (nb * number_of_atoms + n2) * 9;
       find_H12(
-        displacement, n1, n2, box, position_per_atom, type, group, neighbor, potential_per_atom,
+        displacement, n1, n2, box, position_per_atom, type, group, potential_per_atom,
         force_per_atom, virial_per_atom, force, H.data() + offset);
     }
   }

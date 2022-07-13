@@ -28,10 +28,8 @@
 #include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "model/neighbor.cuh"
 #include "sdc.cuh"
 #include "shc.cuh"
-#include "shc_harmonic.cuh"
 #include "utilities/gpu_vector.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
@@ -41,6 +39,7 @@
 #endif
 
 class Atom;
+class Force;
 
 class Measure
 {
@@ -50,7 +49,6 @@ public:
     const int number_of_steps,
     const double time_step,
     Box& box,
-    Neighbor& neighbor,
     std::vector<Group>& group,
     Force& force,
     Atom& atom);
@@ -71,7 +69,6 @@ public:
     const double temperature,
     const double energy_transferred[],
     Box& box,
-    const Neighbor& neighbor,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
     Atom& atom);
@@ -81,7 +78,6 @@ public:
   CVAC cvac;
   HAC hac;
   SHC shc;
-  SHC_harmonic shc_harmonic;
   HNEMD hnemd;
   Compute compute;
   MODAL_ANALYSIS modal_analysis;

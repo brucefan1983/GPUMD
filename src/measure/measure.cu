@@ -28,7 +28,6 @@ void Measure::initialize(
   const int number_of_steps,
   const double time_step,
   Box& box,
-  Neighbor& neighbor,
   std::vector<Group>& group,
   Force& force,
   Atom& atom)
@@ -39,9 +38,6 @@ void Measure::initialize(
   cvac.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
-  shc_harmonic.preprocess(
-    input_dir, number_of_atoms, box, neighbor, group, force, atom.type, atom.potential_per_atom,
-    atom.force_per_atom, atom.virial_per_atom);
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
   modal_analysis.preprocess(input_dir, atom.cpu_type_size, atom.mass);
@@ -77,7 +73,6 @@ void Measure::finalize(
   cvac.postprocess(input_dir);
   hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
   shc.postprocess(input_dir, time_step);
-  shc_harmonic.postprocess(input_dir);
   compute.postprocess();
   hnemd.postprocess();
   modal_analysis.postprocess();
@@ -102,7 +97,6 @@ void Measure::process(
   const double temperature,
   const double energy_transferred[],
   Box& box,
-  const Neighbor& neighbor,
   std::vector<Group>& group,
   GPU_Vector<double>& thermo,
   Atom& atom)
@@ -115,9 +109,8 @@ void Measure::process(
     atom.cpu_position_per_atom);
   dump_velocity.process(step, group, atom.velocity_per_atom, atom.cpu_velocity_per_atom);
   dump_restart.process(
-    step, neighbor, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass,
-    atom.position_per_atom, atom.velocity_per_atom, atom.cpu_position_per_atom,
-    atom.cpu_velocity_per_atom);
+    step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,
+    atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
   dump_exyz.process(
     step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
@@ -134,8 +127,6 @@ void Measure::process(
     number_of_steps, step, input_dir, atom.velocity_per_atom, atom.virial_per_atom,
     atom.heat_per_atom);
   shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
-  shc_harmonic.process(
-    step, group, atom.position_per_atom, atom.velocity_per_atom, atom.virial_per_atom);
   hnemd.process(
     step, input_dir, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
     atom.heat_per_atom);

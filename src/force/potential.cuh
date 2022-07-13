@@ -15,7 +15,7 @@
 
 #pragma once
 #include "model/box.cuh"
-#include "model/neighbor.cuh"
+#include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 
 class Potential
@@ -28,9 +28,12 @@ public:
   virtual ~Potential(void);
 
   virtual void compute(
+    const int group_method,
+    std::vector<Group>& group,
+    const int type_begin,
+    const int type_end,
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
@@ -39,12 +42,12 @@ public:
 
 protected:
   void find_properties_many_body(
-    const Box& box,
+    Box& box,
     const int* NN,
     const int* NL,
-    const double* f12x,
-    const double* f12y,
-    const double* f12z,
+    const float* f12x,
+    const float* f12y,
+    const float* f12z,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);

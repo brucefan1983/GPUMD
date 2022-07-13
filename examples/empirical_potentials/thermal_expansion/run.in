@@ -2,28 +2,23 @@ potential   potentials/tersoff/Si_Fan_2019.txt 0
 velocity    100
 
 ensemble    npt_ber 100 100 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 time_step   1
 dump_thermo 10
 run         20000
 
 ensemble    npt_ber 200 200 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 
 ensemble    npt_ber 300 300 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 
 ensemble    npt_ber 400 400 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 
 ensemble    npt_ber 500 500 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 
@@ -33,21 +28,17 @@ dump_thermo 10
 run         20000
 
 ensemble    npt_ber 700 700 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 
 ensemble    npt_ber 800 800 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 
 ensemble    npt_ber 900 900 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000
 
 ensemble    npt_ber 1000 1000 100 0 0 0 53.4059 53.4059 53.4059 2000
-neighbor    off
 dump_thermo 10
 run         20000

@@ -20,7 +20,6 @@ Dump a restart file
 #include "dump_restart.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "model/neighbor.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
@@ -51,7 +50,6 @@ void Dump_Restart::preprocess(char* input_dir)
 
 void Dump_Restart::process(
   const int step,
-  const Neighbor& neighbor,
   const Box& box,
   const std::vector<Group>& group,
   const std::vector<std::string>& cpu_atom_symbol,
@@ -74,9 +72,7 @@ void Dump_Restart::process(
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
   velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
 
-  fprintf(
-    fid, "%d %d %g %d %d %d\n", number_of_atoms, neighbor.MN, neighbor.rc, box.triclinic, 1,
-    int(group.size()));
+  fprintf(fid, "%d %d %d %d\n", number_of_atoms, box.triclinic, 1, int(group.size()));
 
   if (box.triclinic == 0) {
     fprintf(

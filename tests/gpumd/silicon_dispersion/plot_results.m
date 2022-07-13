@@ -1,6 +1,5 @@
 clear; %close all;
-load omega21.out; % output from GPUMD
-omega2=omega21;
+load omega2.out; % output from GPUMD
 
 % parameters used for GPUMD:
 a0=5.431; % lattice constant

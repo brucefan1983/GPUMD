@@ -20,6 +20,7 @@ The EAM potential. Currently two analytical versions:
 ------------------------------------------------------------------------------*/
 
 #include "eam.cuh"
+#include "neighbor.cuh"
 #include "utilities/error.cuh"
 #define BLOCK_SIZE_FORCE 64
 
@@ -36,6 +37,11 @@ EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
   }
 
   eam_data.Fp.resize(number_of_atoms);
+  eam_data.NN.resize(number_of_atoms);
+  eam_data.NL.resize(number_of_atoms * 400); // very safe for EAM
+  eam_data.cell_count.resize(number_of_atoms);
+  eam_data.cell_count_sum.resize(number_of_atoms);
+  eam_data.cell_contents.resize(number_of_atoms);
 }
 
 void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
@@ -273,6 +279,7 @@ static __global__ void find_force_eam_step1(
   const int* g_NN,
   const int* g_NL,
   const int* g_type,
+  const int type_shift,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -299,7 +306,7 @@ static __global__ void find_force_eam_step1(
       double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       double rho12 = 0.0;
       if (potential_model == 0) {
-        find_f(eam2004zhou, g_type[n2], d12, rho12); // density is contributed by n2
+        find_f(eam2004zhou, g_type[n2] - type_shift, d12, rho12); // density is contributed by n2
       }
       if (potential_model == 1) {
         find_f(eam2006dai, d12, rho12);
@@ -310,7 +317,7 @@ static __global__ void find_force_eam_step1(
     // Calculate the embedding energy F and its derivative Fp
     double F, Fp;
     if (potential_model == 0)
-      find_F(eam2004zhou, g_type[n1], rho, F, Fp); // embedding energy is for n1
+      find_F(eam2004zhou, g_type[n1] - type_shift, rho, F, Fp); // embedding energy is for n1
     if (potential_model == 1)
       find_F(eam2006dai, rho, F, Fp);
 
@@ -331,6 +338,7 @@ static __global__ void find_force_eam_step2(
   const int* g_NN,
   const int* g_NL,
   const int* g_type,
+  const int type_shift,
   const double* __restrict__ g_Fp,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -357,7 +365,7 @@ static __global__ void find_force_eam_step2(
   double s_szz = 0.0; // virial_stress_zz
 
   if (n1 < N2) {
-    int type1 = g_type[n1];
+    int type1 = g_type[n1] - type_shift;
     int NN = g_NN[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -366,7 +374,7 @@ static __global__ void find_force_eam_step2(
 
     for (int i1 = 0; i1 < NN; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      int type2 = g_type[n2];
+      int type2 = g_type[n2] - type_shift;
       double Fp2 = g_Fp[n2];
       double x12 = g_x[n2] - x1;
       double y12 = g_y[n2] - y1;
@@ -448,9 +456,12 @@ static __global__ void find_force_eam_step2(
 
 // Force evaluation wrapper
 void EAM::compute(
+  const int group_method,
+  std::vector<Group>& group,
+  const int type_begin,
+  const int type_end,
   const int type_shift,
-  const Box& box,
-  const Neighbor& neighbor,
+  Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -460,17 +471,21 @@ void EAM::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
+  find_neighbor(
+    N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
+    eam_data.cell_count, eam_data.cell_count_sum, eam_data.cell_contents, eam_data.NN, eam_data.NL);
+
   if (potential_model == 0) {
     find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), type.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      eam_data.Fp.data(), potential_per_atom.data());
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2, eam_data.Fp.data(),
+      potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), type.data(), eam_data.Fp.data(), position_per_atom.data(),
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), type_shift, eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
@@ -480,15 +495,15 @@ void EAM::compute(
 
   if (potential_model == 1) {
     find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), type.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      eam_data.Fp.data(), potential_per_atom.data());
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2, eam_data.Fp.data(),
+      potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
-      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, neighbor.NN_local.data(),
-      neighbor.NL_local.data(), type.data(), eam_data.Fp.data(), position_per_atom.data(),
+      eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
+      type.data(), type_shift, eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),

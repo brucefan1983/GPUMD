@@ -16,17 +16,21 @@
 #pragma once
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
-class Neighbor;
 
 struct NEP3_Data {
-  GPU_Vector<double> f12x; // 3-body or manybody partial forces
-  GPU_Vector<double> f12y; // 3-body or manybody partial forces
-  GPU_Vector<double> f12z; // 3-body or manybody partial forces
+  GPU_Vector<float> f12x; // 3-body or manybody partial forces
+  GPU_Vector<float> f12y; // 3-body or manybody partial forces
+  GPU_Vector<float> f12z; // 3-body or manybody partial forces
   GPU_Vector<float> Fp;
   GPU_Vector<float> sum_fxyz;
-  GPU_Vector<int> NN;           // angular neighbor list
-  GPU_Vector<int> NL;           // angular neighbor list
+  GPU_Vector<int> NN_radial;    // radial neighbor list
+  GPU_Vector<int> NL_radial;    // radial neighbor list
+  GPU_Vector<int> NN_angular;   // angular neighbor list
+  GPU_Vector<int> NL_angular;   // angular neighbor list
   GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 class NEP3 : public Potential
@@ -38,9 +42,11 @@ public:
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
     float rcinv_angular = 0.0f; // inverse of the angular cutoff
-    int n_max_radial = 0;       // n_radial = 0, 1, 2, ..., n_max_radial
-    int n_max_angular = 0;      // n_angular = 0, 1, 2, ..., n_max_angular
-    int L_max = 0;              // l = 0, 1, 2, ..., L_max
+    int MN_radial = 200;
+    int MN_angular = 100;
+    int n_max_radial = 0;  // n_radial = 0, 1, 2, ..., n_max_radial
+    int n_max_angular = 0; // n_angular = 0, 1, 2, ..., n_max_angular
+    int L_max = 0;         // l = 0, 1, 2, ..., L_max
     int dim_angular;
     int num_L;
     int basis_size_radial = 8;  // for nep3
@@ -74,18 +80,15 @@ public:
     float h[18];
   };
 
-  NEP3(
-    FILE* fid,
-    char* input_dir,
-    int num_types,
-    int version,
-    bool enable_zbl,
-    const Neighbor& neighbor);
+  NEP3(char* file_potential, const int num_atoms);
   virtual ~NEP3(void);
   virtual void compute(
+    const int group_method,
+    std::vector<Group>& group,
+    const int type_begin,
+    const int type_end,
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
@@ -98,13 +101,12 @@ private:
   ZBL zbl;
   NEP3_Data nep_data;
   ExpandedBox ebox;
-  void update_potential(FILE* fid);
+
   void update_potential(const float* parameters, ANN& ann);
 
   void compute_small_box(
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
@@ -113,8 +115,7 @@ private:
 
   void compute_large_box(
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

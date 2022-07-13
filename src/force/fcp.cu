@@ -1012,9 +1012,12 @@ static __global__ void gpu_save_pfv(
 
 // Wrapper of the above kernels
 void FCP::compute(
+  const int group_method,
+  std::vector<Group>& group,
+  const int type_begin,
+  const int type_end,
   const int type_shift,
-  const Box& box,
-  const Neighbor& neighbor,
+  Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,

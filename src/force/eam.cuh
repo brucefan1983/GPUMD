@@ -53,6 +53,10 @@ struct EAM2006Dai {
 
 struct EAM_Data {
   GPU_Vector<double> Fp; // derivative of the density functional
+  GPU_Vector<int> NN, NL;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 class EAM : public Potential
@@ -61,9 +65,12 @@ public:
   EAM(FILE*, char*, int num_types, const int number_of_atoms);
   virtual ~EAM(void);
   virtual void compute(
+    const int group_method,
+    std::vector<Group>& group,
+    const int type_begin,
+    const int type_end,
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

@@ -17,7 +17,6 @@
 
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "model/neighbor.cuh"
 #include "potential.cuh"
 #include <memory>
 #include <stdio.h>
@@ -35,23 +34,20 @@ public:
     int num_param,
     char* input_dir,
     const Box& box,
-    const Neighbor& neighbor,
     const std::vector<int>& cpu_type,
     const std::vector<int>& cpu_type_size);
 
   void add_potential(
     char* input_dir,
     const Box& box,
-    const Neighbor& neighbor,
     const std::vector<int>& cpu_type,
     const std::vector<int>& cpu_type_size);
 
   void compute(
-    const Box& box,
-    const GPU_Vector<double>& position_per_atom,
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
     std::vector<Group>& group,
-    Neighbor& neighbor,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
@@ -75,17 +71,9 @@ private:
   void initialize_potential(
     char* input_dir,
     const Box& box,
-    const Neighbor& neighbor,
+    const int num_atoms,
     const std::vector<int>& cpu_type_size,
     const int m);
-
-  void find_neighbor_local(
-    const int m,
-    std::vector<Group>& group,
-    GPU_Vector<int>& atom_type,
-    const GPU_Vector<double>& position_per_atom,
-    const Box& box,
-    Neighbor& neighbor);
 
   std::unique_ptr<Potential> potential[MAX_NUM_OF_POTENTIALS];
 };

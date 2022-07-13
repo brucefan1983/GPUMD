@@ -19,11 +19,15 @@
 #include <stdio.h>
 
 struct Tersoff_mini_Data {
-  GPU_Vector<double> b;    // bond orders
-  GPU_Vector<double> bp;   // derivative of bond orders
-  GPU_Vector<double> f12x; // partial forces
-  GPU_Vector<double> f12y;
-  GPU_Vector<double> f12z;
+  GPU_Vector<double> b;   // bond orders
+  GPU_Vector<double> bp;  // derivative of bond orders
+  GPU_Vector<float> f12x; // partial forces
+  GPU_Vector<float> f12y;
+  GPU_Vector<float> f12z;
+  GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 struct Tersoff_mini_Para {
@@ -43,12 +47,15 @@ struct Tersoff_mini_Para {
 class Tersoff_mini : public Potential
 {
 public:
-  Tersoff_mini(FILE*, int, const Neighbor& neighbor);
+  Tersoff_mini(FILE*, int, const int num_atoms);
   virtual ~Tersoff_mini(void);
   virtual void compute(
+    const int group_method,
+    std::vector<Group>& group,
+    const int type_begin,
+    const int type_end,
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

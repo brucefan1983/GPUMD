@@ -2,14 +2,12 @@ potential    ../../../potentials/tersoff/Graphene_Lindsay_2010_modified.txt 0
 velocity     300
 
 ensemble     nvt_ber 300 300 100
-neighbor     off
 fix          0
 time_step    1 
 dump_thermo  100       
 run          1000
 
 ensemble     heat_lan 300 100 10 1 8 
-neighbor     off
 fix          0
 compute      0 10 100 temperature
 compute_shc  2 250 1 1000 400.0 group 0 4

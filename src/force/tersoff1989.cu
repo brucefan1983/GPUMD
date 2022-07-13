@@ -19,13 +19,14 @@ The double-element version of the Tersoff potential as described in
         for multicomponent systems, PRB 39, 5566 (1989).
 ------------------------------------------------------------------------------*/
 
+#include "neighbor.cuh"
 #include "tersoff1989.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 
 #define BLOCK_SIZE_FORCE 64 // 128 is also good
 
-Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const Neighbor& neighbor)
+Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const int num_atoms)
 {
   if (num_of_types == 1)
     printf("Use Tersoff-1989 (single-element) potential.\n");
@@ -108,12 +109,17 @@ Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const Neighbor& neighbor)
     rc = (ters0.r2 > ters1.r2) ? ters0.r2 : ters1.r2;
   }
 
-  const int num_of_neighbors = min(neighbor.MN, 50) * neighbor.NN.size();
+  const int num_of_neighbors = 50 * num_atoms;
   tersoff_data.b.resize(num_of_neighbors);
   tersoff_data.bp.resize(num_of_neighbors);
   tersoff_data.f12x.resize(num_of_neighbors);
   tersoff_data.f12y.resize(num_of_neighbors);
   tersoff_data.f12z.resize(num_of_neighbors);
+  tersoff_data.NN.resize(num_atoms);
+  tersoff_data.NL.resize(num_of_neighbors);
+  tersoff_data.cell_count.resize(num_atoms);
+  tersoff_data.cell_count_sum.resize(num_atoms);
+  tersoff_data.cell_contents.resize(num_atoms);
 }
 
 Tersoff1989::~Tersoff1989(void)
@@ -124,9 +130,9 @@ Tersoff1989::~Tersoff1989(void)
 static __device__ void find_fr_and_frp(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fr,
   double& frp)
@@ -146,9 +152,9 @@ static __device__ void find_fr_and_frp(
 static __device__ void find_fa_and_fap(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fa,
   double& fap)
@@ -168,9 +174,9 @@ static __device__ void find_fa_and_fap(
 static __device__ void find_fa(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fa)
 {
@@ -186,9 +192,9 @@ static __device__ void find_fa(
 static __device__ void find_fc_and_fcp(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fc,
   double& fcp)
@@ -232,9 +238,9 @@ static __device__ void find_fc_and_fcp(
 static __device__ void find_fc(
   int type1,
   int type2,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
-  Tersoff1989_Parameters ters2,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  const Tersoff1989_Parameters& ters2,
   double d12,
   double& fc)
 {
@@ -267,8 +273,8 @@ static __device__ void find_fc(
 
 static __device__ void find_g_and_gp(
   int type1,
-  Tersoff1989_Parameters ters0,
-  Tersoff1989_Parameters ters1,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
   double cos,
   double& g,
   double& gp)
@@ -284,8 +290,12 @@ static __device__ void find_g_and_gp(
   }
 }
 
-static __device__ void
-find_g(int type1, Tersoff1989_Parameters ters0, Tersoff1989_Parameters ters1, double cos, double& g)
+static __device__ void find_g(
+  int type1,
+  const Tersoff1989_Parameters& ters0,
+  const Tersoff1989_Parameters& ters1,
+  double cos,
+  double& g)
 {
   if (type1 == 0) {
     double temp = ters0.d2 + (cos - ters0.h) * (cos - ters0.h);
@@ -315,10 +325,8 @@ static __global__ void find_force_tersoff_step1(
   double* g_b,
   double* g_bp)
 {
-  // start from the N1-th atom
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  // to the (N2-1)-th atom
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1] - shift;
     double x1 = g_x[n1];
@@ -389,14 +397,12 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_potential,
-  double* g_f12x,
-  double* g_f12y,
-  double* g_f12z)
+  float* g_f12x,
+  float* g_f12y,
+  float* g_f12z)
 {
-  // start from the N1-th atom
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  // to the (N2-1)-th atom
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1] - shift;
     double x1 = g_x[n1];
@@ -475,9 +481,12 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
 
 // Wrapper of force evaluation for the Tersoff potential
 void Tersoff1989::compute(
+  const int group_method,
+  std::vector<Group>& group,
+  const int type_begin,
+  const int type_end,
   const int type_shift,
-  const Box& box,
-  const Neighbor& neighbor,
+  Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -487,26 +496,31 @@ void Tersoff1989::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
+  find_neighbor(
+    N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
+    tersoff_data.cell_count, tersoff_data.cell_count_sum, tersoff_data.cell_contents,
+    tersoff_data.NN, tersoff_data.NL);
+
   // pre-compute the bond order functions and their derivatives
   find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, ters0, ters1, ters2, neighbor.NN_local.data(),
-    neighbor.NL_local.data(), type.data(), type_shift, position_per_atom.data(),
+    number_of_atoms, N1, N2, box, ters0, ters1, ters2, tersoff_data.NN.data(),
+    tersoff_data.NL.data(), type.data(), type_shift, position_per_atom.data(),
     position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
     tersoff_data.b.data(), tersoff_data.bp.data());
   CUDA_CHECK_KERNEL
 
   // pre-compute the partial forces
   find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, ters0, ters1, ters2, neighbor.NN_local.data(),
-    neighbor.NL_local.data(), type.data(), type_shift, tersoff_data.b.data(),
-    tersoff_data.bp.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+    number_of_atoms, N1, N2, box, ters0, ters1, ters2, tersoff_data.NN.data(),
+    tersoff_data.NL.data(), type.data(), type_shift, tersoff_data.b.data(), tersoff_data.bp.data(),
+    position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(),
     tersoff_data.f12x.data(), tersoff_data.f12y.data(), tersoff_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // the final step: calculate force and related quantities
   find_properties_many_body(
-    box, neighbor.NN_local.data(), neighbor.NL_local.data(), tersoff_data.f12x.data(),
+    box, tersoff_data.NN.data(), tersoff_data.NL.data(), tersoff_data.f12x.data(),
     tersoff_data.f12y.data(), tersoff_data.f12z.data(), position_per_atom, force_per_atom,
     virial_per_atom);
 }

@@ -20,7 +20,6 @@
 #include <vector>
 class Box;
 class Group;
-class Neighbor;
 
 class Dump_Restart
 {
@@ -29,7 +28,6 @@ public:
   void preprocess(char* input_dir);
   void process(
     const int step,
-    const Neighbor& neighbor,
     const Box& box,
     const std::vector<Group>& group,
     const std::vector<std::string>& cpu_atom_symbol,

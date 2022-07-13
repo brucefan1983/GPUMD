@@ -25,7 +25,6 @@ Run simulation according to the inputs in the run.in file.
 #include "measure/measure.cuh"
 #include "minimize/minimize.cuh"
 #include "model/box.cuh"
-#include "model/neighbor.cuh"
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
 #include "run.cuh"
@@ -98,14 +97,9 @@ Run::Run(char* input_dir)
   printf("Started initializing positions and related parameters.\n");
   print_line_2();
 
-  initialize_position(
-    input_dir, N, has_velocity_in_xyz, number_of_types, box, neighbor, group, atom);
+  initialize_position(input_dir, N, has_velocity_in_xyz, number_of_types, box, group, atom);
 
-  allocate_memory_gpu(N, neighbor, group, atom, thermo);
-
-#ifndef USE_FCP // the FCP does not use a neighbor list at all
-  neighbor.find_neighbor(/*is_first=*/true, box, atom.position_per_atom);
-#endif
+  allocate_memory_gpu(N, group, atom, thermo);
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
@@ -147,7 +141,7 @@ void Run::execute_run_in(char* input_dir)
 void Run::perform_a_run(char* input_dir)
 {
   integrate.initialize(N, time_step, group);
-  measure.initialize(input_dir, number_of_steps, time_step, box, neighbor, group, force, atom);
+  measure.initialize(input_dir, number_of_steps, time_step, box, group, force, atom);
 
 #ifdef USE_PLUMED
   if (measure.plmd.use_plumed == 1) {
@@ -162,17 +156,11 @@ void Run::perform_a_run(char* input_dir)
     calculate_time_step(max_distance_per_step, atom.velocity_per_atom, time_step);
     global_time += time_step;
 
-#ifndef USE_FCP // the FCP does not use a neighbor list at all
-    if (neighbor.update) {
-      neighbor.find_neighbor(/*is_first=*/false, box, atom.position_per_atom, force.rc_max);
-    }
-#endif
-
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     force.compute(
-      box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom);
+      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
+      atom.virial_per_atom);
 
 #ifdef USE_PLUMED
     if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
@@ -185,7 +173,7 @@ void Run::perform_a_run(char* input_dir)
 
     measure.process(
       input_dir, number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
-      integrate.ensemble->energy_transferred, box, neighbor, group, thermo, atom);
+      integrate.ensemble->energy_transferred, box, group, thermo, atom);
 
     velocity.correct_velocity(
       step, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
@@ -201,24 +189,13 @@ void Run::perform_a_run(char* input_dir)
 #ifdef VALIDATE_FORCE
   validate_force(
     box, atom.position_per_atom, group, atom.type, atom.potential_per_atom, atom.force_per_atom,
-    atom.virial_per_atom, neighbor, &force);
+    atom.virial_per_atom, &force);
 #endif
 
   print_line_1();
   clock_t time_finish = clock();
   double time_used = (time_finish - time_begin) / (double)CLOCKS_PER_SEC;
-  if (neighbor.update) {
-    printf("Number of neighbor list updates for this run = %d.\n", neighbor.number_of_updates);
-  } else {
-    printf("!!! WARNING: You have not asked to update the neighbor list for this run. Please make "
-           "sure this is what you intended.\n");
-  }
 
-  if (neighbor.number_of_updates > 0) {
-    printf("    Calculated maximum number of neighbors for this run = %d.\n", neighbor.max_NN);
-    printf("    The 'MN' parameter you set in xyz.in = %d.\n", neighbor.MN);
-    printf("    You can consider increasing/decreasing 'MN' based on the information above.\n");
-  }
   printf("Time used for this run = %g second.\n", time_used);
   double run_speed = N * (number_of_steps / time_used);
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
@@ -227,7 +204,6 @@ void Run::perform_a_run(char* input_dir)
   measure.finalize(input_dir, number_of_steps, time_step, integrate.temperature2, box.get_volume());
 
   integrate.finalize();
-  neighbor.finalize();
   velocity.finalize();
   max_distance_per_step = 0.0;
 }
@@ -235,30 +211,29 @@ void Run::perform_a_run(char* input_dir)
 void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
 {
   if (strcmp(param[0], "potential") == 0) {
-    force.parse_potential(
-      param, num_param, input_dir, box, neighbor, atom.cpu_type, atom.cpu_type_size);
+    force.parse_potential(param, num_param, input_dir, box, atom.cpu_type, atom.cpu_type_size);
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
-      param, num_param, force, box, atom.position_per_atom, atom.type, group, neighbor,
+      param, num_param, force, box, atom.position_per_atom, atom.type, group,
       atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
   } else if (strcmp(param[0], "compute_phonon") == 0) {
     Hessian hessian;
     hessian.parse(param, num_param);
     hessian.compute(
       input_dir, force, box, atom.cpu_position_per_atom, atom.position_per_atom, atom.type, group,
-      neighbor, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
   } else if (strcmp(param[0], "compute_cohesive") == 0) {
     Cohesive cohesive;
     cohesive.parse(param, num_param, 0);
     cohesive.compute(
-      input_dir, box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
+      input_dir, box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
       atom.force_per_atom, atom.virial_per_atom, force);
   } else if (strcmp(param[0], "compute_elastic") == 0) {
     Cohesive cohesive;
     cohesive.parse(param, num_param, 1);
     cohesive.compute(
-      input_dir, box, atom.position_per_atom, atom.type, group, neighbor, atom.potential_per_atom,
+      input_dir, box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
       atom.force_per_atom, atom.virial_per_atom, force);
   } else if (strcmp(param[0], "change_box") == 0) {
     parse_change_box(param, num_param);
@@ -268,8 +243,6 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     integrate.parse_ensemble(box, param, num_param, group);
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
-  } else if (strcmp(param[0], "neighbor") == 0) {
-    parse_neighbor(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {
     parse_correct_velocity(param, num_param);
   } else if (strcmp(param[0], "dump_thermo") == 0) {
@@ -308,8 +281,6 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     measure.hnemd.parse(param, num_param);
   } else if (strcmp(param[0], "compute_shc") == 0) {
     measure.shc.parse(param, num_param, group);
-  } else if (strcmp(param[0], "compute_shc_harmonic") == 0) {
-    measure.shc_harmonic.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_gkma") == 0) {
     measure.parse_compute_gkma(param, num_param, number_of_types);
   } else if (strcmp(param[0], "compute_hnema") == 0) {
@@ -394,24 +365,6 @@ void Run::parse_run(char** param, int num_param, char* input_dir)
     compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y, measure.hnemd.fe_z);
 
   perform_a_run(input_dir);
-}
-
-void Run::parse_neighbor(char** param, int num_param)
-{
-  neighbor.update = 0;
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("neighbor should have 1 parameter.\n");
-  }
-  if (strcmp(param[1], "off") == 0) {
-    printf("Neighbor list will NOT be updated.\n");
-  } else {
-    PRINT_INPUT_ERROR(
-      "Starting from GPUMD-v3.3, the grammar of the 'neighbor' keyword has been\n"
-      "changed: The neighbor list will be updated with a skin distance of 1 A by\n"
-      "default for each run and one can use 'neighbor off' to turn it off. When\n"
-      "one knows there is no atom diffusion, it is better to turn off the neighbor\n"
-      "list update to achieve the best computational speed.\n");
-  }
 }
 
 static __global__ void gpu_pressure_triclinic(

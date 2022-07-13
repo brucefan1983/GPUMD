@@ -22,17 +22,12 @@ The driver class calculating force and related quantities.
 #include "force.cuh"
 #include "lj.cuh"
 #include "nep3.cuh"
-#include "nep4.cuh"
 #include "potential.cuh"
-#include "rebo_mos2.cuh"
-#include "ri.cuh"
-#include "sw.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
 #include "tersoff_mini.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
-#include "vashishta.cuh"
 #include <vector>
 
 #define BLOCK_SIZE 128
@@ -49,7 +44,6 @@ void Force::parse_potential(
   int num_param,
   char* input_dir,
   const Box& box,
-  const Neighbor& neighbor,
   const std::vector<int>& cpu_type,
   const std::vector<int>& cpu_type_size)
 {
@@ -102,7 +96,7 @@ void Force::parse_potential(
 
   num_of_potentials++;
 
-  add_potential(input_dir, box, neighbor, cpu_type, cpu_type_size);
+  add_potential(input_dir, box, cpu_type, cpu_type_size);
 }
 
 int Force::get_number_of_types(FILE* fid_potential)
@@ -116,11 +110,10 @@ int Force::get_number_of_types(FILE* fid_potential)
 void Force::initialize_potential(
   char* input_dir,
   const Box& box,
-  const Neighbor& neighbor,
+  const int number_of_atoms,
   const std::vector<int>& cpu_type_size,
   const int m)
 {
-  const int number_of_atoms = neighbor.NN.size();
   FILE* fid_potential = my_fopen(file_potential[m], "r");
   char potential_name[20];
   int count = fscanf(fid_potential, "%s", potential_name);
@@ -132,39 +125,27 @@ void Force::initialize_potential(
 
   // determine the potential
   if (strcmp(potential_name, "tersoff_1989") == 0) {
-    potential[m].reset(new Tersoff1989(fid_potential, num_types, neighbor));
+    potential[m].reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_1988") == 0) {
-    potential[m].reset(new Tersoff1988(fid_potential, num_types, neighbor));
+    potential[m].reset(new Tersoff1988(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_mini") == 0) {
-    potential[m].reset(new Tersoff_mini(fid_potential, num_types, neighbor));
-  } else if (strcmp(potential_name, "sw_1985") == 0) {
-    potential[m].reset(new SW2(fid_potential, num_types, neighbor));
-  } else if (strcmp(potential_name, "rebo_mos2") == 0) {
-    potential[m].reset(new REBO_MOS(neighbor));
+    potential[m].reset(new Tersoff_mini(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_zhou_2004") == 0) {
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
-  } else if (strcmp(potential_name, "vashishta") == 0) {
-    potential[m].reset(new Vashishta(fid_potential, neighbor));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
   } else if (strcmp(potential_name, "nep") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, false, neighbor));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "nep_zbl") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 2, true, neighbor));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "nep3") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, false, neighbor));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "nep3_zbl") == 0) {
-    potential[m].reset(new NEP3(fid_potential, input_dir, num_types, 3, true, neighbor));
-  } else if (strcmp(potential_name, "nep4") == 0) {
-    potential[m].reset(new NEP4(fid_potential, input_dir, num_types, false, neighbor));
-  } else if (strcmp(potential_name, "nep4_zbl") == 0) {
-    potential[m].reset(new NEP4(fid_potential, input_dir, num_types, true, neighbor));
+    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
   } else if (strcmp(potential_name, "lj") == 0) {
-    potential[m].reset(new LJ(fid_potential, num_types));
-  } else if (strcmp(potential_name, "ri") == 0) {
-    potential[m].reset(new RI(fid_potential));
+    potential[m].reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
@@ -189,12 +170,11 @@ void Force::initialize_potential(
 void Force::add_potential(
   char* input_dir,
   const Box& box,
-  const Neighbor& neighbor,
   const std::vector<int>& cpu_type,
   const std::vector<int>& cpu_type_size)
 {
   int m = num_of_potentials - 1; // current potential ID
-  initialize_potential(input_dir, box, neighbor, cpu_type_size, m);
+  initialize_potential(input_dir, box, cpu_type.size(), cpu_type_size, m);
 
   if (rc_max < potential[m]->rc)
     rc_max = potential[m]->rc;
@@ -207,90 +187,6 @@ void Force::add_potential(
     }
   }
   type_shift_[m] = atom_begin[m];
-}
-
-// Construct the local neighbor list from the global one (Kernel)
-static __global__ void gpu_find_neighbor_local(
-  const bool use_group,
-  int* group_label,
-  Box box,
-  int type_begin,
-  int type_end,
-  int* type,
-  int N,
-  int N1,
-  int N2,
-  double cutoff_square,
-  int* NN,
-  int* NL,
-  int* NN_local,
-  int* NL_local,
-  const double* __restrict__ x,
-  const double* __restrict__ y,
-  const double* __restrict__ z)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  int count = 0;
-  int layer_n1;
-
-  if (n1 >= N1 && n1 < N2) {
-    int neighbor_number = NN[n1];
-    if (use_group)
-      layer_n1 = group_label[n1];
-    double x1 = x[n1];
-    double y1 = y[n1];
-    double z1 = z[n1];
-    for (int i1 = 0; i1 < neighbor_number; ++i1) {
-      int n2 = NL[n1 + N * i1];
-
-      if (use_group) {
-        if (layer_n1 == group_label[n2])
-          continue;
-      }
-
-      // only include neighbors with the correct types
-      int type_n2 = type[n2];
-      if (type_n2 < type_begin || type_n2 > type_end)
-        continue;
-
-      double x12 = x[n2] - x1;
-      double y12 = y[n2] - y1;
-      double z12 = z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      double distance_square = x12 * x12 + y12 * y12 + z12 * z12;
-      if (distance_square < cutoff_square) {
-        NL_local[count * N + n1] = n2;
-        ++count;
-      }
-    }
-    NN_local[n1] = count;
-  }
-}
-
-// Construct the local neighbor list from the global one (Wrapper)
-void Force::find_neighbor_local(
-  const int m,
-  std::vector<Group>& group,
-  GPU_Vector<int>& atom_type,
-  const GPU_Vector<double>& position_per_atom,
-  const Box& box,
-  Neighbor& neighbor)
-{
-  const int number_of_atoms = neighbor.NN.size();
-  int grid_size = (potential[m]->N2 - potential[m]->N1 - 1) / 128 + 1;
-
-  const bool use_group = is_lj[m] && (group_method > -1);
-  int* group_label = nullptr;
-  if (use_group)
-    group_label = group[group_method].label.data();
-
-  gpu_find_neighbor_local<<<grid_size, 128>>>(
-    use_group, group_label, box, atom_begin[m], atom_end[m], atom_type.data(), number_of_atoms,
-    potential[m]->N1, potential[m]->N2, potential[m]->rc * potential[m]->rc, neighbor.NN.data(),
-    neighbor.NL.data(), neighbor.NN_local.data(), neighbor.NL_local.data(),
-    position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2);
-  CUDA_CHECK_KERNEL
 }
 
 static __global__ void gpu_add_driving_force(
@@ -421,17 +317,87 @@ void Force::set_hnemd_parameters(
   }
 }
 
+#ifndef USE_FCP
+static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, double* g_z)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    if (box.triclinic == 0) {
+      double lx = box.cpu_h[0];
+      double ly = box.cpu_h[1];
+      double lz = box.cpu_h[2];
+      if (box.pbc_x == 1) {
+        if (g_x[n] < 0) {
+          g_x[n] += lx;
+        } else if (g_x[n] > lx) {
+          g_x[n] -= lx;
+        }
+      }
+      if (box.pbc_y == 1) {
+        if (g_y[n] < 0) {
+          g_y[n] += ly;
+        } else if (g_y[n] > ly) {
+          g_y[n] -= ly;
+        }
+      }
+      if (box.pbc_z == 1) {
+        if (g_z[n] < 0) {
+          g_z[n] += lz;
+        } else if (g_z[n] > lz) {
+          g_z[n] -= lz;
+        }
+      }
+    } else {
+      double x = g_x[n];
+      double y = g_y[n];
+      double z = g_z[n];
+      double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+      double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+      double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+      if (box.pbc_x == 1) {
+        if (sx < 0.0) {
+          sx += 1.0;
+        } else if (sx > 1.0) {
+          sx -= 1.0;
+        }
+      }
+      if (box.pbc_y == 1) {
+        if (sy < 0.0) {
+          sy += 1.0;
+        } else if (sy > 1.0) {
+          sy -= 1.0;
+        }
+      }
+      if (box.pbc_z == 1) {
+        if (sz < 0.0) {
+          sz += 1.0;
+        } else if (sz > 1.0) {
+          sz -= 1.0;
+        }
+      }
+      g_x[n] = box.cpu_h[0] * sx + box.cpu_h[1] * sy + box.cpu_h[2] * sz;
+      g_y[n] = box.cpu_h[3] * sx + box.cpu_h[4] * sy + box.cpu_h[5] * sz;
+      g_z[n] = box.cpu_h[6] * sx + box.cpu_h[7] * sy + box.cpu_h[8] * sz;
+    }
+  }
+}
+#endif
+
 void Force::compute(
-  const Box& box,
-  const GPU_Vector<double>& position_per_atom,
+  Box& box,
+  GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
   std::vector<Group>& group,
-  Neighbor& neighbor,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
+#ifndef USE_FCP
+  gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2);
+#endif
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
@@ -439,14 +405,9 @@ void Force::compute(
   CUDA_CHECK_KERNEL
 
   for (int m = 0; m < num_of_potentials; m++) {
-    // first build a local neighbor list
-#ifndef USE_FCP // the FCP does not use a neighbor list at all
-    find_neighbor_local(m, group, type, position_per_atom, box, neighbor);
-#endif
-    // and then calculate the forces and related quantities
     potential[m]->compute(
-      type_shift_[m], box, neighbor, type, position_per_atom, potential_per_atom, force_per_atom,
-      virial_per_atom);
+      group_method, group, atom_begin[m], atom_end[m], type_shift_[m], box, type, position_per_atom,
+      potential_per_atom, force_per_atom, virial_per_atom);
   }
 
   if (compute_hnemd_) {

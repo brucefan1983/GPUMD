@@ -40,6 +40,8 @@ public:
 
 protected:
   int num_batches = 0;
+  int max_NN_radial;  // radial neighbor list size
+  int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out;
   std::unique_ptr<Potential> potential;
   std::vector<Dataset> train_set;

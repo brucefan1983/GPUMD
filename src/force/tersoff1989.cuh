@@ -14,7 +14,6 @@
 */
 
 #pragma once
-#include "model/neighbor.cuh"
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <stdio.h>
@@ -25,22 +24,29 @@ struct Tersoff1989_Parameters {
 };
 
 struct Tersoff1989_Data {
-  GPU_Vector<double> b;    // bond orders
-  GPU_Vector<double> bp;   // derivative of bond orders
-  GPU_Vector<double> f12x; // partial forces
-  GPU_Vector<double> f12y;
-  GPU_Vector<double> f12z;
+  GPU_Vector<double> b;   // bond orders
+  GPU_Vector<double> bp;  // derivative of bond orders
+  GPU_Vector<float> f12x; // partial forces
+  GPU_Vector<float> f12y;
+  GPU_Vector<float> f12z;
+  GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
 };
 
 class Tersoff1989 : public Potential
 {
 public:
-  Tersoff1989(FILE*, int sum_of_types, const Neighbor& neighbor);
+  Tersoff1989(FILE*, int sum_of_types, const int num_atoms);
   virtual ~Tersoff1989(void);
   virtual void compute(
+    const int group_method,
+    std::vector<Group>& group,
+    const int type_begin,
+    const int type_end,
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,

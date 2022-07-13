@@ -25,7 +25,6 @@ class Measure;
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
-#include "model/neighbor.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "velocity.cuh"
@@ -59,7 +58,6 @@ private:
   double max_distance_per_step = -1.0;
   Atom atom;
   GPU_Vector<double> thermo; // some thermodynamic quantities
-  Neighbor neighbor;
   Velocity velocity;
   Box box;
   std::vector<Group> group;

@@ -30,7 +30,6 @@ public:
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
     std::vector<Group>& group,
-    Neighbor& neighbor,
     GPU_Vector<double>& potential_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);

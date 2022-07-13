@@ -20,15 +20,13 @@
 class Force;
 class Box;
 class Group;
-class Neighbor;
 
 void validate_force(
-  const Box& box,
+  Box& box,
   GPU_Vector<double>& position_per_atom,
   std::vector<Group>& group,
   GPU_Vector<int>& type,
   GPU_Vector<double>& potential_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
-  Neighbor& neighbor,
   Force* force);

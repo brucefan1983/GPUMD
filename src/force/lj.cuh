@@ -27,15 +27,25 @@ struct LJ_Para {
   double cutoff_square[MAX_TYPE][MAX_TYPE];
 };
 
+struct LJ_Data {
+  GPU_Vector<int> NN, NL;
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
+};
+
 class LJ : public Potential
 {
 public:
-  LJ(FILE*, int);
+  LJ(FILE*, int, int);
   virtual ~LJ(void);
   virtual void compute(
+    const int group_method,
+    std::vector<Group>& group,
+    const int type_begin,
+    const int type_end,
     const int type_shift,
-    const Box& box,
-    const Neighbor& neighbor,
+    Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
     GPU_Vector<double>& potential,
@@ -45,4 +55,5 @@ public:
 
 protected:
   LJ_Para lj_para;
+  LJ_Data lj_data;
 };

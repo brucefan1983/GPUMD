@@ -18,12 +18,13 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 ------------------------------------------------------------------------------*/
 
 #include "lj.cuh"
+#include "neighbor.cuh"
 #include "utilities/error.cuh"
 
 // best block size here: 128
 #define BLOCK_SIZE_FORCE 128
 
-LJ::LJ(FILE* fid, int num_types)
+LJ::LJ(FILE* fid, int num_types, int num_atoms)
 {
   printf("Use %d-element LJ potential.\n", num_types);
   if (!(num_types >= 1 && num_types <= MAX_TYPE)) {
@@ -44,6 +45,12 @@ LJ::LJ(FILE* fid, int num_types)
         rc = cutoff;
     }
   }
+
+  lj_data.NN.resize(num_atoms);
+  lj_data.NL.resize(num_atoms * 1024); // the largest supported by CUDA
+  lj_data.cell_count.resize(num_atoms);
+  lj_data.cell_count_sum.resize(num_atoms);
+  lj_data.cell_contents.resize(num_atoms);
 }
 
 LJ::~LJ(void)
@@ -96,7 +103,7 @@ static __global__ void gpu_find_force(
   double s_szy = 0.0;                                  // virial_stress_zy
   double s_szz = 0.0;                                  // virial_stress_zz
 
-  if (n1 >= N1 && n1 < N2) {
+  if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1] - shift;
     double x1 = g_x[n1];
@@ -171,9 +178,12 @@ static __global__ void gpu_find_force(
 
 // Find force and related quantities for pair potentials (A wrapper)
 void LJ::compute(
+  const int group_method,
+  std::vector<Group>& group,
+  const int type_begin,
+  const int type_end,
   const int type_shift,
-  const Box& box,
-  const Neighbor& neighbor,
+  Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& potential_per_atom,
@@ -183,9 +193,14 @@ void LJ::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
+  find_neighbor(
+    N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
+    lj_data.cell_count, lj_data.cell_count_sum, lj_data.cell_contents, lj_data.NN,
+    lj_data.NL); // TODO: generalize
+
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    lj_para, number_of_atoms, N1, N2, box, neighbor.NN_local.data(), neighbor.NL_local.data(),
-    type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+    lj_para, number_of_atoms, N1, N2, box, lj_data.NN.data(), lj_data.NL.data(), type.data(),
+    type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, force_per_atom.data(),
     force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
     virial_per_atom.data(), potential_per_atom.data());
