@@ -19,13 +19,13 @@
 #include <stdio.h>
 
 struct Tersoff1989_Parameters {
-  double a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
-  double pi_factor, one_plus_c2overd2, minus_half_over_n;
+  float a, b, lambda, mu, beta, n, c, d, c2, d2, h, r1, r2;
+  float pi_factor, one_plus_c2overd2, minus_half_over_n;
 };
 
 struct Tersoff1989_Data {
-  GPU_Vector<double> b;   // bond orders
-  GPU_Vector<double> bp;  // derivative of bond orders
+  GPU_Vector<float> b;    // bond orders
+  GPU_Vector<float> bp;   // derivative of bond orders
   GPU_Vector<float> f12x; // partial forces
   GPU_Vector<float> f12y;
   GPU_Vector<float> f12z;
