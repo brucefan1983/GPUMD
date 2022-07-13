@@ -118,56 +118,56 @@ EAM::~EAM(void)
 
 // pair function (phi and phip have been intentionally halved here)
 static __device__ void
-find_phi(const EAM2004Zhou& eam, const int type, const double d12, double& phi, double& phip)
+find_phi(const EAM2004Zhou& eam, const int type, const float d12, float& phi, float& phip)
 {
-  double r_ratio = d12 * eam.re_inv[type];
-  double tmp1 = (r_ratio - eam.kappa[type]) * (r_ratio - eam.kappa[type]);   // 2
-  tmp1 *= tmp1;                                                              // 4
-  tmp1 *= tmp1 * tmp1 * tmp1 * tmp1;                                         // 20
-  double tmp2 = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp2 *= tmp2;                                                              // 4
-  tmp2 *= tmp2 * tmp2 * tmp2 * tmp2;                                         // 20
-  double phi1 = 0.5 * eam.A[type] * exp(-eam.alpha[type] * (r_ratio - 1.0)) / (1.0 + tmp1);
-  double phi2 = 0.5 * eam.B[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp2);
+  float r_ratio = d12 * eam.re_inv[type];
+  float tmp1 = (r_ratio - eam.kappa[type]) * (r_ratio - eam.kappa[type]);   // 2
+  tmp1 *= tmp1;                                                             // 4
+  tmp1 *= tmp1 * tmp1 * tmp1 * tmp1;                                        // 20
+  float tmp2 = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp2 *= tmp2;                                                             // 4
+  tmp2 *= tmp2 * tmp2 * tmp2 * tmp2;                                        // 20
+  float phi1 = 0.5f * eam.A[type] * exp(-eam.alpha[type] * (r_ratio - 1.0f)) / (1.0f + tmp1);
+  float phi2 = 0.5f * eam.B[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp2);
   phi = phi1 - phi2;
   phip = (phi2 * eam.re_inv[type]) *
-           (eam.beta[type] + 20.0 * tmp2 / (r_ratio - eam.lambda[type]) / (1.0 + tmp2)) -
+           (eam.beta[type] + 20.0f * tmp2 / (r_ratio - eam.lambda[type]) / (1.0f + tmp2)) -
          (phi1 * eam.re_inv[type]) *
-           (eam.alpha[type] + 20.0 * tmp1 / (r_ratio - eam.kappa[type]) / (1.0 + tmp1));
+           (eam.alpha[type] + 20.0f * tmp1 / (r_ratio - eam.kappa[type]) / (1.0f + tmp1));
 }
 
 // density function f(r)
-static __device__ void find_f(const EAM2004Zhou& eam, const int type, const double d12, double& f)
+static __device__ void find_f(const EAM2004Zhou& eam, const int type, const float d12, float& f)
 {
-  double r_ratio = d12 * eam.re_inv[type];
-  double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp *= tmp;                                                               // 4
-  tmp *= tmp * tmp * tmp * tmp;                                             // 20
-  f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
+  float r_ratio = d12 * eam.re_inv[type];
+  float tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp *= tmp;                                                              // 4
+  tmp *= tmp * tmp * tmp * tmp;                                            // 20
+  f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp);
 }
 
 // derivative of the density function f'(r)
-static __device__ void find_fp(const EAM2004Zhou& eam, const int type, const double d12, double& fp)
+static __device__ void find_fp(const EAM2004Zhou& eam, const int type, const float d12, float& fp)
 {
-  double r_ratio = d12 * eam.re_inv[type];
-  double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp *= tmp;                                                               // 4
-  tmp *= tmp * tmp * tmp * tmp;                                             // 20
-  double f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
+  float r_ratio = d12 * eam.re_inv[type];
+  float tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp *= tmp;                                                              // 4
+  tmp *= tmp * tmp * tmp * tmp;                                            // 20
+  float f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp);
   fp = -(f * eam.re_inv[type]) *
-       (eam.beta[type] + 20.0 * tmp / (r_ratio - eam.lambda[type]) / (1.0 + tmp));
+       (eam.beta[type] + 20.0f * tmp / (r_ratio - eam.lambda[type]) / (1.0f + tmp));
 }
 
 static __device__ void
-find_f_and_fp(const EAM2004Zhou& eam, const int type, const double d12, double& f, double& fp)
+find_f_and_fp(const EAM2004Zhou& eam, const int type, const float d12, float& f, float& fp)
 {
-  double r_ratio = d12 * eam.re_inv[type];
-  double tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
-  tmp *= tmp;                                                               // 4
-  tmp *= tmp * tmp * tmp * tmp;                                             // 20
-  f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0)) / (1.0 + tmp);
+  float r_ratio = d12 * eam.re_inv[type];
+  float tmp = (r_ratio - eam.lambda[type]) * (r_ratio - eam.lambda[type]); // 2
+  tmp *= tmp;                                                              // 4
+  tmp *= tmp * tmp * tmp * tmp;                                            // 20
+  f = eam.fe[type] * exp(-eam.beta[type] * (r_ratio - 1.0f)) / (1.0f + tmp);
   fp = -(f * eam.re_inv[type]) *
-       (eam.beta[type] + 20.0 * tmp / (r_ratio - eam.lambda[type]) / (1.0 + tmp));
+       (eam.beta[type] + 20.0f * tmp / (r_ratio - eam.lambda[type]) / (1.0f + tmp));
 }
 
 // pair function for EAM2004Zhou
@@ -175,96 +175,96 @@ static __device__ void find_phi(
   const EAM2004Zhou& eam,
   const int type1,
   const int type2,
-  const double d12,
-  double& phi,
-  double& phip)
+  const float d12,
+  float& phi,
+  float& phip)
 {
   if (type1 == type2) {
     find_phi(eam, type1, d12, phi, phip);
   } else {
-    double phi1, phip1;
+    float phi1, phip1;
     find_phi(eam, type1, d12, phi1, phip1);
-    double phi2, phip2;
+    float phi2, phip2;
     find_phi(eam, type2, d12, phi2, phip2);
-    double f1, fp1;
+    float f1, fp1;
     find_f_and_fp(eam, type1, d12, f1, fp1);
-    double f2, fp2;
+    float f2, fp2;
     find_f_and_fp(eam, type2, d12, f2, fp2);
-    double f1inv = 1.0 / f1;
-    double f2inv = 1.0 / f2;
-    phi = 0.5 * (phi1 * f2 * f1inv + phi2 * f1 * f2inv);
+    float f1inv = 1.0f / f1;
+    float f2inv = 1.0f / f2;
+    phi = 0.5f * (phi1 * f2 * f1inv + phi2 * f1 * f2inv);
     phip = (phip1 * f2 + phi1 * (fp2 - f2 * fp1 * f1inv)) * f1inv;
     phip += (phip2 * f1 + phi2 * (fp1 - f1 * fp2 * f2inv)) * f2inv;
-    phip *= 0.5;
+    phip *= 0.5f;
   }
 }
 
 // embedding function
 static __device__ void
-find_F(const EAM2004Zhou& eam, const int type, const double rho, double& F, double& Fp)
+find_F(const EAM2004Zhou& eam, const int type, const float rho, float& F, float& Fp)
 {
   if (rho < eam.rho_n[type]) {
-    double x = rho * eam.rho_n_inv[type] - 1.0;
+    float x = rho * eam.rho_n_inv[type] - 1.0f;
     F = ((eam.Fn3[type] * x + eam.Fn2[type]) * x + eam.Fn1[type]) * x + eam.Fn0[type];
-    Fp = ((3.0 * eam.Fn3[type] * x + 2.0 * eam.Fn2[type]) * x + eam.Fn1[type]) / eam.rho_n[type];
+    Fp = ((3.0f * eam.Fn3[type] * x + 2.0f * eam.Fn2[type]) * x + eam.Fn1[type]) / eam.rho_n[type];
   } else if (rho < eam.rho_0[type]) {
-    double x = rho * eam.rho_e_inv[type] - 1.0;
+    float x = rho * eam.rho_e_inv[type] - 1.0f;
     F = ((eam.F3[type] * x + eam.F2[type]) * x + eam.F1[type]) * x + eam.F0[type];
-    Fp = ((3.0 * eam.F3[type] * x + 2.0 * eam.F2[type]) * x + eam.F1[type]) * eam.rho_e_inv[type];
+    Fp = ((3.0f * eam.F3[type] * x + 2.0f * eam.F2[type]) * x + eam.F1[type]) * eam.rho_e_inv[type];
   } else {
-    double x = rho * eam.rho_s_inv[type];
-    double x_eta = pow(x, eam.eta[type]);
-    F = eam.Fe[type] * (1.0 - eam.eta[type] * log(x)) * x_eta;
+    float x = rho * eam.rho_s_inv[type];
+    float x_eta = pow(x, eam.eta[type]);
+    F = eam.Fe[type] * (1.0f - eam.eta[type] * log(x)) * x_eta;
     Fp = (eam.eta[type] / rho) * (F - eam.Fe[type] * x_eta);
   }
 }
 
 // pair function (phi and phip have been intentionally halved here)
-static __device__ void find_phi(const EAM2006Dai& fs, const double d12, double& phi, double& phip)
+static __device__ void find_phi(const EAM2006Dai& fs, const float d12, float& phi, float& phip)
 {
   if (d12 > fs.c) {
-    phi = 0.0;
-    phip = 0.0;
+    phi = 0.0f;
+    phip = 0.0f;
   } else {
-    double tmp = ((((fs.c4 * d12 + fs.c3) * d12 + fs.c2) * d12 + fs.c1) * d12 + fs.c0);
+    float tmp = ((((fs.c4 * d12 + fs.c3) * d12 + fs.c2) * d12 + fs.c1) * d12 + fs.c0);
 
-    phi = 0.5 * (d12 - fs.c) * (d12 - fs.c) * tmp;
+    phi = 0.5f * (d12 - fs.c) * (d12 - fs.c) * tmp;
 
-    phip = 2.0 * (d12 - fs.c) * tmp;
-    phip += (((4.0 * fs.c4 * d12 + 3.0 * fs.c3) * d12 + 2.0 * fs.c2) * d12 + fs.c1) * (d12 - fs.c) *
-            (d12 - fs.c);
-    phip *= 0.5;
+    phip = 2.0f * (d12 - fs.c) * tmp;
+    phip += (((4.0f * fs.c4 * d12 + 3.0f * fs.c3) * d12 + 2.0f * fs.c2) * d12 + fs.c1) *
+            (d12 - fs.c) * (d12 - fs.c);
+    phip *= 0.5f;
   }
 }
 
 // density function f(r)
-static __device__ void find_f(const EAM2006Dai& fs, const double d12, double& f)
+static __device__ void find_f(const EAM2006Dai& fs, const float d12, float& f)
 {
   if (d12 > fs.d) {
-    f = 0.0;
+    f = 0.0f;
   } else {
-    double tmp = (d12 - fs.d) * (d12 - fs.d);
+    float tmp = (d12 - fs.d) * (d12 - fs.d);
     f = tmp + fs.B * fs.B * tmp * tmp;
   }
 }
 
 // derivative of the density function f'(r)
-static __device__ void find_fp(const EAM2006Dai& fs, const double d12, double& fp)
+static __device__ void find_fp(const EAM2006Dai& fs, const float d12, float& fp)
 {
   if (d12 > fs.d) {
-    fp = 0.0;
+    fp = 0.0f;
   } else {
-    double tmp = 2.0 * (d12 - fs.d);
-    fp = tmp * (1.0 + fs.B * fs.B * tmp * (d12 - fs.d));
+    float tmp = 2.0f * (d12 - fs.d);
+    fp = tmp * (1.0f + fs.B * fs.B * tmp * (d12 - fs.d));
   }
 }
 
 // embedding function
-static __device__ void find_F(const EAM2006Dai& fs, const double rho, double& F, double& Fp)
+static __device__ void find_F(const EAM2006Dai& fs, const float rho, float& F, float& Fp)
 {
-  double sqrt_rho = sqrt(rho);
+  float sqrt_rho = sqrt(rho);
   F = -fs.A * sqrt_rho;
-  Fp = -fs.A * 0.5 / sqrt_rho;
+  Fp = -fs.A * 0.5f / sqrt_rho;
 }
 
 // Calculate the embedding energy and its derivative
@@ -283,7 +283,7 @@ static __global__ void find_force_eam_step1(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  double* g_Fp,
+  float* g_Fp,
   double* g_pe)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
@@ -296,15 +296,16 @@ static __global__ void find_force_eam_step1(
     double z1 = g_z[n1];
 
     // Calculate the density
-    double rho = 0.0;
+    float rho = 0.0f;
     for (int i1 = 0; i1 < NN; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      double x12 = g_x[n2] - x1;
-      double y12 = g_y[n2] - y1;
-      double z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      double rho12 = 0.0;
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float rho12 = 0.0f;
       if (potential_model == 0) {
         find_f(eam2004zhou, g_type[n2] - type_shift, d12, rho12); // density is contributed by n2
       }
@@ -315,7 +316,7 @@ static __global__ void find_force_eam_step1(
     }
 
     // Calculate the embedding energy F and its derivative Fp
-    double F, Fp;
+    float F, Fp;
     if (potential_model == 0)
       find_F(eam2004zhou, g_type[n1] - type_shift, rho, F, Fp); // embedding energy is for n1
     if (potential_model == 1)
@@ -339,7 +340,7 @@ static __global__ void find_force_eam_step2(
   const int* g_NL,
   const int* g_type,
   const int type_shift,
-  const double* __restrict__ g_Fp,
+  const float* __restrict__ g_Fp,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -350,19 +351,19 @@ static __global__ void find_force_eam_step2(
   double* g_pe)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  double s_fx = 0.0;  // force_x
-  double s_fy = 0.0;  // force_y
-  double s_fz = 0.0;  // force_z
-  double s_pe = 0.0;  // potential energy
-  double s_sxx = 0.0; // virial_stress_xx
-  double s_sxy = 0.0; // virial_stress_xy
-  double s_sxz = 0.0; // virial_stress_xz
-  double s_syx = 0.0; // virial_stress_yx
-  double s_syy = 0.0; // virial_stress_yy
-  double s_syz = 0.0; // virial_stress_yz
-  double s_szx = 0.0; // virial_stress_zx
-  double s_szy = 0.0; // virial_stress_zy
-  double s_szz = 0.0; // virial_stress_zz
+  float s_fx = 0.0f;  // force_x
+  float s_fy = 0.0f;  // force_y
+  float s_fz = 0.0f;  // force_z
+  float s_pe = 0.0f;  // potential energy
+  float s_sxx = 0.0f; // virial_stress_xx
+  float s_sxy = 0.0f; // virial_stress_xy
+  float s_sxz = 0.0f; // virial_stress_xz
+  float s_syx = 0.0f; // virial_stress_yx
+  float s_syy = 0.0f; // virial_stress_yy
+  float s_syz = 0.0f; // virial_stress_yz
+  float s_szx = 0.0f; // virial_stress_zx
+  float s_szy = 0.0f; // virial_stress_zy
+  float s_szz = 0.0f; // virial_stress_zz
 
   if (n1 < N2) {
     int type1 = g_type[n1] - type_shift;
@@ -370,19 +371,20 @@ static __global__ void find_force_eam_step2(
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
-    double Fp1 = g_Fp[n1];
+    float Fp1 = g_Fp[n1];
 
     for (int i1 = 0; i1 < NN; ++i1) {
       int n2 = g_NL[n1 + N * i1];
       int type2 = g_type[n2] - type_shift;
-      double Fp2 = g_Fp[n2];
-      double x12 = g_x[n2] - x1;
-      double y12 = g_y[n2] - y1;
-      double z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
-      double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float Fp2 = g_Fp[n2];
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
 
-      double phi, phip, fp1, fp2;
+      float phi, phip, fp1, fp2;
       if (potential_model == 0) {
         find_phi(eam2004zhou, type1, type2, d12, phi, phip);
         if (type1 == type2) {
@@ -399,16 +401,16 @@ static __global__ void find_force_eam_step2(
         fp2 = fp1;
       }
 
-      double d12inv = 1.0 / d12;
+      float d12inv = 1.0f / d12;
       phip *= d12inv;
       fp1 *= d12inv;
       fp2 *= d12inv;
-      double f12x = x12 * (phip + Fp1 * fp2);
-      double f12y = y12 * (phip + Fp1 * fp2);
-      double f12z = z12 * (phip + Fp1 * fp2);
-      double f21x = -x12 * (phip + Fp2 * fp1);
-      double f21y = -y12 * (phip + Fp2 * fp1);
-      double f21z = -z12 * (phip + Fp2 * fp1);
+      float f12x = x12 * (phip + Fp1 * fp2);
+      float f12y = y12 * (phip + Fp1 * fp2);
+      float f12z = z12 * (phip + Fp1 * fp2);
+      float f21x = -x12 * (phip + Fp2 * fp1);
+      float f21y = -y12 * (phip + Fp2 * fp1);
+      float f21z = -z12 * (phip + Fp2 * fp1);
 
       // two-body potential energy
       s_pe += phi;
