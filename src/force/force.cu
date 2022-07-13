@@ -317,6 +317,7 @@ void Force::set_hnemd_parameters(
   }
 }
 
+#ifndef USE_FCP
 static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, double* g_z)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -380,6 +381,7 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
     }
   }
 }
+#endif
 
 void Force::compute(
   Box& box,
@@ -391,10 +393,11 @@ void Force::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
-
+#ifndef USE_FCP
   gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2);
+#endif
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
