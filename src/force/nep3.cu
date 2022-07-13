@@ -950,7 +950,7 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
     is_small_box = true;
   }
 
-  if (ebox.num_cells[0] * ebox.num_cells[1] * ebox.num_cells[2] > 1) {
+  if (is_small_box) {
     if (box.triclinic) {
       ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
       ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
