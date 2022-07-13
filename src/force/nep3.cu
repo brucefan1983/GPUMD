@@ -40,6 +40,13 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
+void NEP3::check_gpus()
+{
+  int num_gpus;
+  CHECK(cudaGetDeviceCount(&num_gpus));
+  printf("    using %d GPU(s).\n", num_gpus);
+}
+
 NEP3::NEP3(char* file_potential, const int num_atoms)
 {
 
@@ -88,6 +95,8 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
       printf("Use the NEP3 potential with %d atom types.\n", paramb.num_types);
     }
   }
+
+  check_gpus();
 
   for (int n = 0; n < paramb.num_types; ++n) {
     int atomic_number = 0;

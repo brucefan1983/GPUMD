@@ -101,6 +101,9 @@ private:
   ZBL zbl;
   NEP3_Data nep_data;
   ExpandedBox ebox;
+  int num_gpus;
+
+  void check_gpus();
 
   void update_potential(const float* parameters, ANN& ann);
 
