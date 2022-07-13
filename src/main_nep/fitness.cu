@@ -61,6 +61,8 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   int N = test_set.N;
   int N_times_max_NN_radial = test_set.N * test_set.max_NN_radial;
   int N_times_max_NN_angular = test_set.N * test_set.max_NN_angular;
+  max_NN_radial = test_set.max_NN_radial;
+  max_NN_angular = test_set.max_NN_angular;
   for (int n = 0; n < num_batches; ++n) {
     if (train_set[n].N > N) {
       N = train_set[n].N;
@@ -71,6 +73,13 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     if (train_set[n].N * train_set[n].max_NN_angular > N_times_max_NN_angular) {
       N_times_max_NN_angular = train_set[n].N * train_set[n].max_NN_angular;
     };
+
+    if (train_set[n].max_NN_radial > max_NN_radial) {
+      max_NN_radial = test_set.max_NN_radial;
+    }
+    if (train_set[n].max_NN_angular > max_NN_angular) {
+      max_NN_angular = test_set.max_NN_angular;
+    }
   }
 
   potential.reset(
@@ -177,7 +186,9 @@ void Fitness::report_error(
       fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
     if (para.version == 3) {
-      fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
+      fprintf(
+        fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
+        max_NN_angular);
       fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
       fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
       fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
