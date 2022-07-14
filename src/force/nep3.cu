@@ -40,14 +40,26 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-void NEP3::check_gpus()
+void NEP3::check_gpus(const int* num_bins)
 {
   int num_gpus;
   CHECK(cudaGetDeviceCount(&num_gpus));
-  if (num_gpus == 1) {
-    printf("There is only one CUDA-capable GPU.\n");
-  } else {
-    printf("There are %d CUDA-capable GPUs.\n", num_gpus);
+  if (num_gpus > 1) {
+    int num_domains[3] = {num_bins[0] / 100 + 1, num_bins[1] / 100 + 1, num_bins[2] / 100 + 1};
+    domain_decomposition_direction = 0;
+    if (num_domains[1] > num_domains[0]) {
+      domain_decomposition_direction = 1;
+      if (num_domains[2] > num_domains[1]) {
+        domain_decomposition_direction = 2;
+      }
+    } else {
+      if (num_domains[2] > num_domains[0]) {
+        domain_decomposition_direction = 2;
+      }
+    }
+    if (num_domains[domain_decomposition_direction] < num_gpus) {
+      num_gpus = num_domains[domain_decomposition_direction];
+    }
   }
 }
 
@@ -145,6 +157,7 @@ void NEP3::read_cutoff(std::ifstream& input)
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
   rc = paramb.rc_radial; // largest cutoff
+  rc_cell_list = rc * 0.5;
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
 }
@@ -255,6 +268,50 @@ void NEP3::read_ann(std::ifstream& input)
   }
 }
 
+void NEP3::allocate_memory(const int num_atoms)
+{
+  if (nep_data.f12x.size() == 0) {
+    nep_data.f12x.resize(num_atoms * paramb.MN_angular);
+  }
+  if (nep_data.f12y.size() == 0) {
+    nep_data.f12y.resize(num_atoms * paramb.MN_angular);
+  }
+  if (nep_data.f12z.size() == 0) {
+    nep_data.f12z.resize(num_atoms * paramb.MN_angular);
+  }
+
+  if (nep_data.NN_radial.size() == 0) {
+    nep_data.NN_radial.resize(num_atoms);
+  }
+  if (nep_data.NL_radial.size() == 0) {
+    nep_data.NL_radial.resize(num_atoms * paramb.MN_radial);
+  }
+
+  if (nep_data.NN_angular.size() == 0) {
+    nep_data.NN_angular.resize(num_atoms);
+  }
+  if (nep_data.NL_angular.size() == 0) {
+    nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
+  }
+
+  if (nep_data.Fp.size() == 0) {
+    nep_data.Fp.resize(num_atoms * annmb.dim);
+  }
+  if (nep_data.sum_fxyz.size() == 0) {
+    nep_data.sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+  }
+
+  if (nep_data.cell_count.size() == 0) {
+    nep_data.cell_count.resize(num_atoms);
+  }
+  if (nep_data.cell_count_sum.size() == 0) {
+    nep_data.cell_count_sum.resize(num_atoms);
+  }
+  if (nep_data.cell_contents.size() == 0) {
+    nep_data.cell_contents.resize(num_atoms);
+  }
+}
+
 NEP3::NEP3(char* file_potential, const int num_atoms)
 {
 
@@ -271,21 +328,6 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   read_basis_size(input);
   read_l_max(input);
   read_ann(input);
-
-  check_gpus();
-
-  nep_data.f12x.resize(num_atoms * paramb.MN_angular);
-  nep_data.f12y.resize(num_atoms * paramb.MN_angular);
-  nep_data.f12z.resize(num_atoms * paramb.MN_angular);
-  nep_data.NN_radial.resize(num_atoms);
-  nep_data.NL_radial.resize(num_atoms * paramb.MN_radial);
-  nep_data.NN_angular.resize(num_atoms);
-  nep_data.NL_angular.resize(num_atoms * paramb.MN_angular);
-  nep_data.Fp.resize(num_atoms * annmb.dim);
-  nep_data.sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-  nep_data.cell_count.resize(num_atoms);
-  nep_data.cell_count_sum.resize(num_atoms);
-  nep_data.cell_contents.resize(num_atoms);
 }
 
 NEP3::~NEP3(void)
@@ -830,8 +872,8 @@ static __global__ void find_force_ZBL(
   }
 }
 
-// large box fo MD applications
-void NEP3::compute_large_box(
+void NEP3::compute_large_box_single_gpu(
+  const int* num_bins,
   const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
@@ -844,10 +886,7 @@ void NEP3::compute_large_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const double rc_cell_list = 0.5 * rc;
-
-  int num_bins[3];
-  box.get_num_bins(rc_cell_list, num_bins);
+  allocate_memory(N);
 
   find_cell_list(
     rc_cell_list, num_bins, box, position_per_atom, nep_data.cell_count, nep_data.cell_count_sum,
@@ -1043,8 +1082,17 @@ void NEP3::compute(
       type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);
   } else {
-    compute_large_box(
-      type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
-      virial_per_atom);
+    int num_bins[3];
+    box.get_num_bins(rc_cell_list, num_bins);
+    check_gpus(num_bins);
+    if (num_gpus > 1) {
+      // compute_large_box_multi_gpu(
+      //   num_bins, type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
+      //   virial_per_atom);
+    } else {
+      compute_large_box_single_gpu(
+        num_bins, type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
+        virial_per_atom);
+    }
   }
 }

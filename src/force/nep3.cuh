@@ -101,9 +101,11 @@ private:
   ZBL zbl;
   NEP3_Data nep_data;
   ExpandedBox ebox;
-  int num_gpus;
+  int num_gpus = 1;
+  int domain_decomposition_direction = 0;
+  double rc_cell_list = 0;
 
-  void check_gpus();
+  void check_gpus(const int* num_bins);
   void read_nep(std::ifstream& input);
   void read_zbl(std::ifstream& input);
   void read_cutoff(std::ifstream& input);
@@ -111,6 +113,7 @@ private:
   void read_basis_size(std::ifstream& input);
   void read_l_max(std::ifstream& input);
   void read_ann(std::ifstream& input);
+  void allocate_memory(const int num_atoms);
 
   void update_potential(const float* parameters, ANN& ann);
 
@@ -123,7 +126,8 @@ private:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
-  void compute_large_box(
+  void compute_large_box_single_gpu(
+    const int* num_bins,
     const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
