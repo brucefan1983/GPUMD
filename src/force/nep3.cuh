@@ -17,6 +17,8 @@
 #include "potential.cuh"
 #include "utilities/gpu_vector.cuh"
 
+const int MAX_NUM_GPU = 16;
+
 struct NEP3_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
@@ -97,9 +99,9 @@ public:
 
 private:
   ParaMB paramb;
-  ANN annmb;
+  ANN annmb[MAX_NUM_GPU];
   ZBL zbl;
-  NEP3_Data nep_data;
+  NEP3_Data nep_data[MAX_NUM_GPU];
   ExpandedBox ebox;
   int num_gpus = 1;
   int domain_decomposition_direction = 0;
