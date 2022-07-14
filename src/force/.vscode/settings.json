@@ -4,6 +4,7 @@
         "*.cuh": "cpp",
         "vector": "cpp",
         "xutility": "cpp",
-        "memory": "cpp"
+        "memory": "cpp",
+        "xstring": "cpp"
     }
 }

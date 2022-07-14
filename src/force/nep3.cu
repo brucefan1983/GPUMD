@@ -44,19 +44,15 @@ void NEP3::check_gpus()
 {
   int num_gpus;
   CHECK(cudaGetDeviceCount(&num_gpus));
-  printf("    using %d GPU(s).\n", num_gpus);
+  if (num_gpus == 1) {
+    printf("There is only one CUDA-capable GPU.\n");
+  } else {
+    printf("There are %d CUDA-capable GPUs.\n", num_gpus);
+  }
 }
 
-NEP3::NEP3(char* file_potential, const int num_atoms)
+void NEP3::read_nep(std::ifstream& input)
 {
-
-  std::ifstream input(file_potential);
-  if (!input.is_open()) {
-    std::cout << "Failed to open " << file_potential << std::endl;
-    exit(1);
-  }
-
-  // nep3 1 C
   std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() < 3) {
     std::cout << "The first line of nep.txt should have at least 3 items." << std::endl;
@@ -96,8 +92,6 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
     }
   }
 
-  check_gpus();
-
   for (int n = 0; n < paramb.num_types; ++n) {
     int atomic_number = 0;
     for (int m = 0; m < NUM_ELEMENTS; ++m) {
@@ -110,9 +104,13 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
     printf("    type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
-  // zbl 0.7 1.4
+  paramb.num_types_sq = paramb.num_types * paramb.num_types;
+}
+
+void NEP3::read_zbl(std::ifstream& input)
+{
   if (zbl.enabled) {
-    tokens = get_tokens(input);
+    std::vector<std::string> tokens = get_tokens(input);
     if (tokens.size() != 3) {
       std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
       exit(1);
@@ -122,9 +120,11 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
     printf(
       "    has ZBL with inner cutoff %g A and outer cutoff %g A.\n", zbl.rc_inner, zbl.rc_outer);
   }
+}
 
-  // cutoff 4.2 3.7 80 47
-  tokens = get_tokens(input);
+void NEP3::read_cutoff(std::ifstream& input)
+{
+  std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() != 5) {
     std::cout << "This line should be cutoff rc_radial rc_angular MN_radial MN_angular.\n"
               << "You might have used a NEP model trained by GPUMD-v3.3.1 or older." << std::endl;
@@ -144,8 +144,14 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
   printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
 
-  // n_max 10 8
-  tokens = get_tokens(input);
+  rc = paramb.rc_radial; // largest cutoff
+  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
+  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
+}
+
+void NEP3::read_n_max(std::ifstream& input)
+{
+  std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() != 3) {
     std::cout << "This line should be n_max n_max_radial n_max_angular." << std::endl;
     exit(1);
@@ -154,10 +160,12 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   paramb.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
   printf("    n_max_radial = %d.\n", paramb.n_max_radial);
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
+}
 
-  // basis_size 10 8
+void NEP3::read_basis_size(std::ifstream& input)
+{
   if (paramb.version == 3) {
-    tokens = get_tokens(input);
+    std::vector<std::string> tokens = get_tokens(input);
     if (tokens.size() != 3) {
       std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
                 << std::endl;
@@ -167,10 +175,15 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
     paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
     printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
     printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
-  }
 
-  // l_max
-  tokens = get_tokens(input);
+    paramb.num_c_radial =
+      paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
+  }
+}
+
+void NEP3::read_l_max(std::ifstream& input)
+{
+  std::vector<std::string> tokens = get_tokens(input);
   if (paramb.version == 2) {
     if (tokens.size() != 2) {
       std::cout << "This line should be l_max l_max_3body." << std::endl;
@@ -199,11 +212,12 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
       paramb.num_L += 1;
     }
   }
-
   paramb.dim_angular = (paramb.n_max_angular + 1) * paramb.num_L;
+}
 
-  // ANN
-  tokens = get_tokens(input);
+void NEP3::read_ann(std::ifstream& input)
+{
+  std::vector<std::string> tokens = get_tokens(input);
   if (tokens.size() != 3) {
     std::cout << "This line should be ANN num_neurons 0." << std::endl;
     exit(1);
@@ -211,12 +225,6 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
   annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
   printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
-
-  // calculated parameters:
-  rc = paramb.rc_radial; // largest cutoff
-  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
-  paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
   annmb.num_para = (annmb.dim + 2) * annmb.num_neurons1 + 1;
   printf("    number of neural network parameters = %d.\n", annmb.num_para);
@@ -233,10 +241,6 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   annmb.num_para += num_para_descriptor;
   printf("    total number of parameters = %d\n", annmb.num_para);
 
-  paramb.num_c_radial =
-    paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
-
-  // NN and descriptor parameters
   std::vector<float> parameters(annmb.num_para);
   for (int n = 0; n < annmb.num_para; ++n) {
     tokens = get_tokens(input);
@@ -249,6 +253,26 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
     tokens = get_tokens(input);
     paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
   }
+}
+
+NEP3::NEP3(char* file_potential, const int num_atoms)
+{
+
+  std::ifstream input(file_potential);
+  if (!input.is_open()) {
+    std::cout << "Failed to open " << file_potential << std::endl;
+    exit(1);
+  }
+
+  read_nep(input);
+  read_zbl(input);
+  read_cutoff(input);
+  read_n_max(input);
+  read_basis_size(input);
+  read_l_max(input);
+  read_ann(input);
+
+  check_gpus();
 
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);

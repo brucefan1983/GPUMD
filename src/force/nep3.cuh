@@ -104,6 +104,13 @@ private:
   int num_gpus;
 
   void check_gpus();
+  void read_nep(std::ifstream& input);
+  void read_zbl(std::ifstream& input);
+  void read_cutoff(std::ifstream& input);
+  void read_n_max(std::ifstream& input);
+  void read_basis_size(std::ifstream& input);
+  void read_l_max(std::ifstream& input);
+  void read_ann(std::ifstream& input);
 
   void update_potential(const float* parameters, ANN& ann);
 
