@@ -135,4 +135,14 @@ private:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+
+  void compute_large_box_multi_gpu(
+    const int* num_bins,
+    const int type_shift,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
 };

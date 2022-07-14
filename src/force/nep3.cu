@@ -942,6 +942,76 @@ void NEP3::compute_large_box_single_gpu(
   }
 }
 
+void NEP3::compute_large_box_multi_gpu(
+  const int* num_bins,
+  const int type_shift,
+  Box& box,
+  const GPU_Vector<int>& type,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<double>& potential_per_atom,
+  GPU_Vector<double>& force_per_atom,
+  GPU_Vector<double>& virial_per_atom)
+{
+  const int BLOCK_SIZE = 64;
+  const int N = type.size();
+  const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
+
+  allocate_memory(N);
+
+  find_cell_list(
+    rc_cell_list, num_bins, box, position_per_atom, nep_data.cell_count, nep_data.cell_count_sum,
+    nep_data.cell_contents);
+
+  find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+    paramb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box, nep_data.cell_count.data(),
+    nep_data.cell_count_sum.data(), nep_data.cell_contents.data(), position_per_atom.data(),
+    position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN_radial.data(),
+    nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
+    N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
+    N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
+  CUDA_CHECK_KERNEL
+
+  find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+    paramb, annmb, N, N1, N2, box, nep_data.NN_radial.data(), nep_data.NL_radial.data(),
+    nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(), position_per_atom.data(),
+    position_per_atom.data() + N, position_per_atom.data() + N * 2, potential_per_atom.data(),
+    nep_data.Fp.data(), nep_data.sum_fxyz.data());
+  CUDA_CHECK_KERNEL
+
+  find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+    paramb, annmb, N, N1, N2, box, nep_data.NN_radial.data(), nep_data.NL_radial.data(),
+    type.data(), position_per_atom.data(), position_per_atom.data() + N,
+    position_per_atom.data() + N * 2, nep_data.Fp.data(), force_per_atom.data(),
+    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
+  CUDA_CHECK_KERNEL
+
+  find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+    paramb, annmb, N, N1, N2, box, nep_data.NN_angular.data(), nep_data.NL_angular.data(),
+    type.data(), position_per_atom.data(), position_per_atom.data() + N,
+    position_per_atom.data() + N * 2, nep_data.Fp.data(), nep_data.sum_fxyz.data(),
+    nep_data.f12x.data(), nep_data.f12y.data(), nep_data.f12z.data());
+  CUDA_CHECK_KERNEL
+  find_properties_many_body(
+    box, nep_data.NN_angular.data(), nep_data.NL_angular.data(), nep_data.f12x.data(),
+    nep_data.f12y.data(), nep_data.f12z.data(), position_per_atom, force_per_atom, virial_per_atom);
+  CUDA_CHECK_KERNEL
+
+  if (zbl.enabled) {
+    find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
+      N, zbl, N1, N2, box, nep_data.NN_angular.data(), nep_data.NL_angular.data(), type.data(),
+      position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
+      force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
+      virial_per_atom.data(), potential_per_atom.data());
+    CUDA_CHECK_KERNEL
+  }
+}
+
 // small box possibly used for active learning:
 void NEP3::compute_small_box(
   const int type_shift,
@@ -1086,9 +1156,9 @@ void NEP3::compute(
     box.get_num_bins(rc_cell_list, num_bins);
     check_gpus(num_bins);
     if (num_gpus > 1) {
-      // compute_large_box_multi_gpu(
-      //   num_bins, type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
-      //   virial_per_atom);
+      compute_large_box_multi_gpu(
+        num_bins, type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
+        virial_per_atom);
     } else {
       compute_large_box_single_gpu(
         num_bins, type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
