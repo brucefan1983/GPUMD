@@ -15,6 +15,7 @@
 
 #include "parameters.cuh"
 #include "structure.cuh"
+#include "utilities/error.cuh"
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -23,46 +24,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-
-static std::vector<std::string> get_tokens(std::ifstream& input)
-{
-  std::string line;
-  std::getline(input, line);
-  std::istringstream iss(line);
-  std::vector<std::string> tokens{
-    std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
-  return tokens;
-}
-
-static int get_int_from_token(std::string& token, const char* filename, const int line)
-{
-  int value = 0;
-  try {
-    value = std::stoi(token);
-  } catch (const std::exception& e) {
-    std::cout << "Standard exception:\n";
-    std::cout << "    File:          " << filename << std::endl;
-    std::cout << "    Line:          " << line << std::endl;
-    std::cout << "    Error message: " << e.what() << std::endl;
-    exit(1);
-  }
-  return value;
-}
-
-static float get_float_from_token(std::string& token, const char* filename, const int line)
-{
-  float value = 0;
-  try {
-    value = std::stof(token);
-  } catch (const std::exception& e) {
-    std::cout << "Standard exception:\n";
-    std::cout << "    File:          " << filename << std::endl;
-    std::cout << "    Line:          " << line << std::endl;
-    std::cout << "    Error message: " << e.what() << std::endl;
-    exit(1);
-  }
-  return value;
-}
 
 static void read_Nc(std::ifstream& input, std::vector<Structure>& structures)
 {
