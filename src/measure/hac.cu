@@ -181,18 +181,19 @@ void HAC::postprocess(
 
   // major data
   std::vector<double> rtc(Nc * NUM_OF_HEAT_COMPONENTS, 0.0);
-  GPU_Vector<double> hac(Nc * NUM_OF_HEAT_COMPONENTS, Memory_Type::managed);
+  GPU_Vector<double> hac_gpu(Nc * NUM_OF_HEAT_COMPONENTS);
+  std::vector<double> hac_cpu(Nc * NUM_OF_HEAT_COMPONENTS);
 
   // Here, the block size is fixed to 128, which is a good choice
-  gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all.data(), hac.data());
+  gpu_find_hac<<<Nc, 128>>>(Nc, Nd, heat_all.data(), hac_gpu.data());
   CUDA_CHECK_KERNEL
 
-  CHECK(cudaDeviceSynchronize()); // Needed for Windows
+  hac_gpu.copy_to_host(hac_cpu.data());
 
   double factor = dt * 0.5 / (K_B * temperature * temperature * volume);
   factor *= KAPPA_UNIT_CONVERSION;
 
-  find_rtc(Nc, factor, hac.data(), rtc.data());
+  find_rtc(Nc, factor, hac_cpu.data(), rtc.data());
 
   char file_hac[FILE_NAME_LENGTH];
   strcpy(file_hac, input_dir);
@@ -206,7 +207,7 @@ void HAC::postprocess(
     for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++) {
       for (int m = 0; m < output_interval; m++) {
         const int count = Nc * k + nc + m;
-        hac_ave[k] += hac[count];
+        hac_ave[k] += hac_cpu[count];
         rtc_ave[k] += rtc[count];
       }
     }
