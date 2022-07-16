@@ -95,6 +95,7 @@ Run::Run(char* input_dir)
 {
   print_line_1();
   printf("Started initializing positions and related parameters.\n");
+  fflush(stdout);
   print_line_2();
 
   initialize_position(input_dir, N, has_velocity_in_xyz, number_of_types, box, group, atom);
@@ -103,6 +104,7 @@ Run::Run(char* input_dir)
 
   print_line_1();
   printf("Finished initializing positions and related parameters.\n");
+  fflush(stdout);
   print_line_2();
 
   execute_run_in(input_dir);
@@ -121,6 +123,7 @@ void Run::execute_run_in(char* input_dir)
 
   print_line_1();
   printf("Started executing the commands in run.in.\n");
+  fflush(stdout);
   print_line_2();
 
   while (input_ptr) {
@@ -133,6 +136,7 @@ void Run::execute_run_in(char* input_dir)
 
   print_line_1();
   printf("Finished executing the commands in run.in.\n");
+  fflush(stdout);
   print_line_2();
 
   free(input); // Free the input file contents
@@ -182,6 +186,7 @@ void Run::perform_a_run(char* input_dir)
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
       printf("    %d steps completed.\n", step + 1);
+      fflush(stdout);
     }
   }
 
