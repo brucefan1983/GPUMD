@@ -271,6 +271,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     nep_data[gpu].potential.resize(num_atoms_per_gpu);
     nep_data[gpu].force.resize(num_atoms_per_gpu * 3);
     nep_data[gpu].virial.resize(num_atoms_per_gpu * 9);
+
+    CHECK(cudaStreamCreate(&nep_data[gpu].stream));
   }
 
   nep_temp_data.position.resize(num_atoms_per_gpu * 3);
@@ -281,7 +283,9 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
 
 NEP3_MULTIGPU::~NEP3_MULTIGPU(void)
 {
-  // nothing
+  for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
+    CHECK(cudaStreamDestroy(nep_data[gpu].stream));
+  }
 }
 
 void NEP3_MULTIGPU::update_potential(const float* parameters, ANN& ann)
@@ -875,7 +879,7 @@ void NEP3_MULTIGPU::compute(
       rc_cell_list, num_bins, box, nep_data[gpu].position, nep_data[gpu].cell_count,
       nep_data[gpu].cell_count_sum, nep_data[gpu].cell_contents);
 
-    find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
+    find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
       paramb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box,
       nep_data[gpu].cell_count.data(), nep_data[gpu].cell_count_sum.data(),
       nep_data[gpu].cell_contents.data(), nep_data[gpu].position.data(),
@@ -884,21 +888,23 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
 
-    gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
+    gpu_sort_neighbor_list<<<
+      N, paramb.MN_radial, paramb.MN_radial * sizeof(int), nep_data[gpu].stream>>>(
       N, nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data());
     CUDA_CHECK_KERNEL
 
-    gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
+    gpu_sort_neighbor_list<<<
+      N, paramb.MN_angular, paramb.MN_angular * sizeof(int), nep_data[gpu].stream>>>(
       N, nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
 
-    initialize_properties<<<grid_size, BLOCK_SIZE>>>(
+    initialize_properties<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
       N, nep_data[gpu].force.data(), nep_data[gpu].force.data() + N,
       nep_data[gpu].force.data() + N * 2, nep_data[gpu].potential.data(),
       nep_data[gpu].virial.data());
     CUDA_CHECK_KERNEL
 
-    find_descriptor<<<grid_size, BLOCK_SIZE>>>(
+    find_descriptor<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
       paramb, annmb[0], N, N1, N2, box, nep_data[gpu].NN_radial.data(),
       nep_data[gpu].NL_radial.data(), nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data(), type.data(), nep_data[gpu].position.data(),
@@ -906,7 +912,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].potential.data(), nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
-    find_force_radial<<<grid_size, BLOCK_SIZE>>>(
+    find_force_radial<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
       paramb, annmb[0], N, N1, N2, box, nep_data[gpu].NN_radial.data(),
       nep_data[gpu].NL_radial.data(), type.data(), nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
@@ -914,7 +920,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].force.data() + N * 2, nep_data[gpu].virial.data());
     CUDA_CHECK_KERNEL
 
-    find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
+    find_partial_force_angular<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
       paramb, annmb[0], N, N1, N2, box, nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data(), type.data(), nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
@@ -922,6 +928,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].f12y.data(), nep_data[gpu].f12z.data());
     CUDA_CHECK_KERNEL
 
+    // TODO: use stream
     find_properties_many_body(
       box, nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(),
       nep_data[gpu].f12x.data(), nep_data[gpu].f12y.data(), nep_data[gpu].f12z.data(),
@@ -929,7 +936,7 @@ void NEP3_MULTIGPU::compute(
     CUDA_CHECK_KERNEL
 
     if (zbl.enabled) {
-      find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
+      find_force_ZBL<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
         N, zbl, N1, N2, box, nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(),
         type.data(), nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
         nep_data[gpu].position.data() + N * 2, nep_data[gpu].force.data(),

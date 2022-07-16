@@ -36,6 +36,8 @@ struct NEP3_MULTIGPU_Data {
   GPU_Vector<double> force;
   GPU_Vector<double> potential;
   GPU_Vector<double> virial;
+
+  cudaStream_t stream;
 };
 
 struct NEP3_TEMP_Data {
