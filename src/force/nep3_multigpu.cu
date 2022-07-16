@@ -882,10 +882,10 @@ void NEP3_MULTIGPU::compute(
   const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& potential_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom)
+  const GPU_Vector<double>& position,
+  GPU_Vector<double>& potential,
+  GPU_Vector<double>& force,
+  GPU_Vector<double>& virial)
 {
   const int BLOCK_SIZE = 64;
   const int N = type.size();
@@ -897,7 +897,7 @@ void NEP3_MULTIGPU::compute(
   box.get_num_bins(rc_cell_list, num_bins);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    nep_temp_data.position.copy_from_device(position_per_atom.data());
+    nep_temp_data.position.copy_from_device(position.data());
     nep_temp_data.position.copy_to_device(nep_data[gpu].position.data());
   }
 
@@ -981,7 +981,7 @@ void NEP3_MULTIGPU::compute(
 
     collect_properties<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
       N, nep_temp_data.force.data(), nep_temp_data.potential.data(), nep_temp_data.virial.data(),
-      force_per_atom.data(), potential_per_atom.data(), virial_per_atom.data());
+      force.data(), potential.data(), virial.data());
     CUDA_CHECK_KERNEL
   }
 }
