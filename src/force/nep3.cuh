@@ -105,10 +105,9 @@ private:
   NEP3_Data nep_data[MAX_NUM_GPU];
   ExpandedBox ebox;
   int num_gpus = 1;
-  int domain_decomposition_direction = 0;
   double rc_cell_list = 0;
 
-  void check_gpus(const int* num_bins);
+  void check_gpus(const int num_domains);
   void read_nep(std::ifstream& input);
   void read_zbl(std::ifstream& input);
   void read_cutoff(std::ifstream& input);

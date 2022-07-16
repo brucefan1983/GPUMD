@@ -40,26 +40,10 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-void NEP3::check_gpus(const int* num_bins)
+void NEP3::check_gpus(const int num_domains)
 {
   CHECK(cudaGetDeviceCount(&num_gpus));
-  if (num_gpus > 1) {
-    int num_domains[3] = {num_bins[0] / 100 + 1, num_bins[1] / 100 + 1, num_bins[2] / 100 + 1};
-    domain_decomposition_direction = 0;
-    if (num_domains[1] > num_domains[0]) {
-      domain_decomposition_direction = 1;
-      if (num_domains[2] > num_domains[1]) {
-        domain_decomposition_direction = 2;
-      }
-    } else {
-      if (num_domains[2] > num_domains[0]) {
-        domain_decomposition_direction = 2;
-      }
-    }
-    if (num_domains[domain_decomposition_direction] < num_gpus) {
-      num_gpus = num_domains[domain_decomposition_direction];
-    }
-  }
+  num_gpus = (num_domains < num_gpus) ? num_domains : num_gpus;
 }
 
 void NEP3::read_nep(std::ifstream& input)
@@ -1200,7 +1184,7 @@ void NEP3::compute(
   } else {
     int num_bins[3];
     box.get_num_bins(rc_cell_list, num_bins);
-    check_gpus(num_bins);
+    check_gpus(num_bins[2] / 100 + 1);
     if (num_gpus > 1) {
       compute_large_box_multi_gpu(
         num_bins, type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
