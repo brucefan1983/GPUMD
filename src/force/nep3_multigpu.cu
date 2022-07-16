@@ -846,6 +846,18 @@ static __global__ void initialize_properties(
   }
 }
 
+static __global__ void
+distribute_position(const int N, const double* g_position_in, double* g_position_out)
+{
+  int n_out = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n_out < N) {
+    int n_in = n_out; // TODO: generalize
+    g_position_out[n_out] = g_position_in[n_in + 0 * N];
+    g_position_out[n_out + 1 * N] = g_position_in[n_in + 1 * N];
+    g_position_out[n_out + 2 * N] = g_position_in[n_in + 2 * N];
+  }
+}
+
 static __global__ void collect_properties(
   const int N,
   const double* g_force_in,
@@ -897,7 +909,10 @@ void NEP3_MULTIGPU::compute(
   box.get_num_bins(rc_cell_list, num_bins);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    nep_temp_data.position.copy_from_device(position.data());
+    distribute_position<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
+      N, position.data(), nep_temp_data.position.data());
+    CUDA_CHECK_KERNEL
+
     nep_temp_data.position.copy_to_device(nep_data[gpu].position.data());
   }
 
