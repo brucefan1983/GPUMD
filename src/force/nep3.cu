@@ -282,45 +282,76 @@ void NEP3::read_ann(std::ifstream& input)
 
 void NEP3::allocate_memory(const int num_atoms)
 {
-  if (nep_data[0].f12x.size() == 0) {
+  if (nep_data[0].f12x.size() < num_atoms * paramb.MN_angular) {
     nep_data[0].f12x.resize(num_atoms * paramb.MN_angular);
   }
-  if (nep_data[0].f12y.size() == 0) {
+  if (nep_data[0].f12y.size() < num_atoms * paramb.MN_angular) {
     nep_data[0].f12y.resize(num_atoms * paramb.MN_angular);
   }
-  if (nep_data[0].f12z.size() == 0) {
+  if (nep_data[0].f12z.size() < num_atoms * paramb.MN_angular) {
     nep_data[0].f12z.resize(num_atoms * paramb.MN_angular);
   }
 
-  if (nep_data[0].NN_radial.size() == 0) {
+  if (nep_data[0].NN_radial.size() < num_atoms) {
     nep_data[0].NN_radial.resize(num_atoms);
   }
-  if (nep_data[0].NL_radial.size() == 0) {
+  if (nep_data[0].NL_radial.size() < num_atoms * paramb.MN_angular) {
     nep_data[0].NL_radial.resize(num_atoms * paramb.MN_radial);
   }
 
-  if (nep_data[0].NN_angular.size() == 0) {
+  if (nep_data[0].NN_angular.size() < num_atoms) {
     nep_data[0].NN_angular.resize(num_atoms);
   }
-  if (nep_data[0].NL_angular.size() == 0) {
+  if (nep_data[0].NL_angular.size() < num_atoms * paramb.MN_angular) {
     nep_data[0].NL_angular.resize(num_atoms * paramb.MN_angular);
   }
 
-  if (nep_data[0].Fp.size() == 0) {
+  if (nep_data[0].Fp.size() < num_atoms * annmb[0].dim) {
     nep_data[0].Fp.resize(num_atoms * annmb[0].dim);
   }
-  if (nep_data[0].sum_fxyz.size() == 0) {
+  if (nep_data[0].sum_fxyz.size() < num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC) {
     nep_data[0].sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   }
 
-  if (nep_data[0].cell_count.size() == 0) {
+  if (nep_data[0].cell_count.size() < num_atoms) {
     nep_data[0].cell_count.resize(num_atoms);
   }
-  if (nep_data[0].cell_count_sum.size() == 0) {
+  if (nep_data[0].cell_count_sum.size() < num_atoms) {
     nep_data[0].cell_count_sum.resize(num_atoms);
   }
-  if (nep_data[0].cell_contents.size() == 0) {
+  if (nep_data[0].cell_contents.size() < num_atoms) {
     nep_data[0].cell_contents.resize(num_atoms);
+  }
+}
+
+void NEP3::allocate_memory_small_box(const int num_atoms)
+{
+  const int big_neighbor_size = num_atoms * 2000;
+
+  if (nep_data[0].r12.size() < big_neighbor_size * 6) {
+    nep_data[0].r12.resize(big_neighbor_size * 6);
+  }
+
+  if (nep_data[0].NN_radial.size() < num_atoms) {
+    nep_data[0].NN_radial.resize(num_atoms);
+  }
+  if (nep_data[0].NL_radial.size() < big_neighbor_size) {
+    nep_data[0].NL_radial.resize(big_neighbor_size);
+  }
+
+  if (nep_data[0].NN_angular.size() < num_atoms) {
+    nep_data[0].NN_angular.resize(num_atoms);
+  }
+  if (nep_data[0].NL_angular.size() < big_neighbor_size) {
+    nep_data[0].NL_angular.resize(big_neighbor_size);
+  }
+
+  if (nep_data[0].Fp.size() < num_atoms * annmb[0].dim) {
+    nep_data[0].Fp.resize(num_atoms * annmb[0].dim);
+  }
+
+  if (nep_data[0].sum_fxyz.size() < num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC) {
+    nep_data[0].sum_fxyz.resize(num_atoms * (paramb.n_max_angular + 1) * NUM_OF_ABC);
   }
 }
 
@@ -1040,52 +1071,53 @@ void NEP3::compute_small_box(
   const int N = type.size();
   const int grid_size = (N2 - N1 - 1) / BLOCK_SIZE + 1;
 
-  const int big_neighbor_size = 2000;
-  const int size_x12 = type.size() * big_neighbor_size;
-  GPU_Vector<int> NN_radial(type.size());
-  GPU_Vector<int> NL_radial(size_x12);
-  GPU_Vector<int> NN_angular(type.size());
-  GPU_Vector<int> NL_angular(size_x12);
-  GPU_Vector<float> r12(size_x12 * 6);
+  allocate_memory_small_box(N);
+  const int size_x12 = nep_data[0].NL_radial.size();
 
   find_neighbor_list_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb, N, N1, N2, box, ebox, position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, NN_radial.data(), NL_radial.data(), NN_angular.data(),
-    NL_angular.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5);
+    position_per_atom.data() + N * 2, nep_data[0].NN_radial.data(), nep_data[0].NL_radial.data(),
+    nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(), nep_data[0].r12.data(),
+    nep_data[0].r12.data() + size_x12, nep_data[0].r12.data() + size_x12 * 2,
+    nep_data[0].r12.data() + size_x12 * 3, nep_data[0].r12.data() + size_x12 * 4,
+    nep_data[0].r12.data() + size_x12 * 5);
   CUDA_CHECK_KERNEL
 
   find_descriptor_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb[0], N, N1, N2, NN_radial.data(), NL_radial.data(), NN_angular.data(),
-    NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
-    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
+    paramb, annmb[0], N, N1, N2, nep_data[0].NN_radial.data(), nep_data[0].NL_radial.data(),
+    nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(), type.data(),
+    nep_data[0].r12.data(), nep_data[0].r12.data() + size_x12,
+    nep_data[0].r12.data() + size_x12 * 2, nep_data[0].r12.data() + size_x12 * 3,
+    nep_data[0].r12.data() + size_x12 * 4, nep_data[0].r12.data() + size_x12 * 5,
     potential_per_atom.data(), nep_data[0].Fp.data(), nep_data[0].sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb[0], N, N1, N2, NN_radial.data(), NL_radial.data(), type.data(), r12.data(),
-    r12.data() + size_x12, r12.data() + size_x12 * 2, nep_data[0].Fp.data(), force_per_atom.data(),
+    paramb, annmb[0], N, N1, N2, nep_data[0].NN_radial.data(), nep_data[0].NL_radial.data(),
+    type.data(), nep_data[0].r12.data(), nep_data[0].r12.data() + size_x12,
+    nep_data[0].r12.data() + size_x12 * 2, nep_data[0].Fp.data(), force_per_atom.data(),
     force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
-    paramb, annmb[0], N, N1, N2, NN_angular.data(), NL_angular.data(), type.data(),
-    r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
-    nep_data[0].Fp.data(), nep_data[0].sum_fxyz.data(), force_per_atom.data(),
-    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
+    paramb, annmb[0], N, N1, N2, nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(),
+    type.data(), nep_data[0].r12.data() + size_x12 * 3, nep_data[0].r12.data() + size_x12 * 4,
+    nep_data[0].r12.data() + size_x12 * 5, nep_data[0].Fp.data(), nep_data[0].sum_fxyz.data(),
+    force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
+    virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL_small_box<<<grid_size, BLOCK_SIZE>>>(
-      N, zbl, N1, N2, NN_angular.data(), NL_angular.data(), type.data(), r12.data() + size_x12 * 3,
-      r12.data() + size_x12 * 4, r12.data() + size_x12 * 5, force_per_atom.data(),
-      force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data(),
-      potential_per_atom.data());
+      N, zbl, N1, N2, nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(), type.data(),
+      nep_data[0].r12.data() + size_x12 * 3, nep_data[0].r12.data() + size_x12 * 4,
+      nep_data[0].r12.data() + size_x12 * 5, force_per_atom.data(), force_per_atom.data() + N,
+      force_per_atom.data() + N * 2, virial_per_atom.data(), potential_per_atom.data());
     CUDA_CHECK_KERNEL
   }
 }
 
-static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox& ebox)
+static bool check_box_size(const double rc, const Box& box, NEP3::ExpandedBox& ebox)
 {
   double volume = box.get_volume();
   double thickness_x = volume / box.get_area(0);
@@ -1106,44 +1138,45 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
     is_small_box = true;
   }
 
-  if (is_small_box) {
-    if (box.triclinic) {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
-      ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
-      ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
-      ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
-
-      ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
-      ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
-      ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
-      ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
-      ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
-      ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
-      ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
-      ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
-      ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
-      double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
-                   ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
-                   ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
-      for (int n = 9; n < 18; n++) {
-        ebox.h[n] /= det;
-      }
-    } else {
-      ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
-      ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
-      ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
-      ebox.h[3] = ebox.h[0] * 0.5;
-      ebox.h[4] = ebox.h[1] * 0.5;
-      ebox.h[5] = ebox.h[2] * 0.5;
-    }
-  }
-
   return is_small_box;
+}
+
+static void get_expanded_box(const Box& box, NEP3::ExpandedBox& ebox)
+{
+  if (box.triclinic) {
+    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+    ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
+    ebox.h[6] = box.cpu_h[6] * ebox.num_cells[0];
+    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+    ebox.h[4] = box.cpu_h[4] * ebox.num_cells[1];
+    ebox.h[7] = box.cpu_h[7] * ebox.num_cells[1];
+    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+    ebox.h[5] = box.cpu_h[5] * ebox.num_cells[2];
+    ebox.h[8] = box.cpu_h[8] * ebox.num_cells[2];
+
+    ebox.h[9] = ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7];
+    ebox.h[10] = ebox.h[2] * ebox.h[7] - ebox.h[1] * ebox.h[8];
+    ebox.h[11] = ebox.h[1] * ebox.h[5] - ebox.h[2] * ebox.h[4];
+    ebox.h[12] = ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8];
+    ebox.h[13] = ebox.h[0] * ebox.h[8] - ebox.h[2] * ebox.h[6];
+    ebox.h[14] = ebox.h[2] * ebox.h[3] - ebox.h[0] * ebox.h[5];
+    ebox.h[15] = ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6];
+    ebox.h[16] = ebox.h[1] * ebox.h[6] - ebox.h[0] * ebox.h[7];
+    ebox.h[17] = ebox.h[0] * ebox.h[4] - ebox.h[1] * ebox.h[3];
+    double det = ebox.h[0] * (ebox.h[4] * ebox.h[8] - ebox.h[5] * ebox.h[7]) +
+                 ebox.h[1] * (ebox.h[5] * ebox.h[6] - ebox.h[3] * ebox.h[8]) +
+                 ebox.h[2] * (ebox.h[3] * ebox.h[7] - ebox.h[4] * ebox.h[6]);
+    for (int n = 9; n < 18; n++) {
+      ebox.h[n] /= det;
+    }
+  } else {
+    ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
+    ebox.h[1] = box.cpu_h[1] * ebox.num_cells[1];
+    ebox.h[2] = box.cpu_h[2] * ebox.num_cells[2];
+    ebox.h[3] = ebox.h[0] * 0.5;
+    ebox.h[4] = ebox.h[1] * 0.5;
+    ebox.h[5] = ebox.h[2] * 0.5;
+  }
 }
 
 void NEP3::compute(
@@ -1159,9 +1192,8 @@ void NEP3::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
-
-  if (is_small_box) {
+  if (check_box_size(paramb.rc_radial, box, ebox)) {
+    get_expanded_box(box, ebox);
     compute_small_box(
       type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
       virial_per_atom);

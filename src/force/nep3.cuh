@@ -33,6 +33,7 @@ struct NEP3_Data {
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
+  GPU_Vector<float> r12;
 };
 
 class NEP3 : public Potential
@@ -116,6 +117,7 @@ private:
   void read_l_max(std::ifstream& input);
   void read_ann(std::ifstream& input);
   void allocate_memory(const int num_atoms);
+  void allocate_memory_small_box(const int num_atoms);
 
   void update_potential(const float* parameters, ANN& ann);
 
