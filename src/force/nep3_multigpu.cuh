@@ -37,6 +37,7 @@ class NEP3_MULTIGPU : public Potential
 {
 public:
   struct ParaMB {
+    int num_gpus = 1;
     int version = 2;            // NEP version, 2 for NEP2 and 3 for NEP3
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
@@ -75,7 +76,7 @@ public:
     float atomic_numbers[10];
   };
 
-  NEP3_MULTIGPU(char* file_potential, const int num_atoms);
+  NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int num_atoms);
   virtual ~NEP3_MULTIGPU(void);
   virtual void compute(
     const int group_method,
@@ -92,9 +93,9 @@ public:
 
 private:
   ParaMB paramb;
-  ANN annmb;
+  ANN annmb[16];
   ZBL zbl;
-  NEP3_MULTIGPU_Data nep_data;
+  NEP3_MULTIGPU_Data nep_data[16];
 
   void update_potential(const float* parameters, ANN& ann);
 };
