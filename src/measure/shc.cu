@@ -48,10 +48,10 @@ void SHC::preprocess(const int N, const std::vector<Group>& group)
   sx.resize(group_size * Nc);
   sy.resize(group_size * Nc);
   sz.resize(group_size * Nc);
-  ki_negative.resize(Nc, 0.0, Memory_Type::managed);
-  ko_negative.resize(Nc, 0.0, Memory_Type::managed);
-  ki_positive.resize(Nc, 0.0, Memory_Type::managed);
-  ko_positive.resize(Nc, 0.0, Memory_Type::managed);
+  ki_negative.resize(Nc, 0.0);
+  ko_negative.resize(Nc, 0.0);
+  ki_positive.resize(Nc, 0.0);
+  ko_positive.resize(Nc, 0.0);
   ki.resize(Nc * 2 - 1);
   ko.resize(Nc * 2 - 1);
   ki.assign(Nc * 2 - 1, 0.0);
@@ -201,15 +201,24 @@ void SHC::process(
 
 void SHC::average_k()
 {
+  std::vector<double> ki_negative_cpu(Nc);
+  std::vector<double> ko_negative_cpu(Nc);
+  std::vector<double> ki_positive_cpu(Nc);
+  std::vector<double> ko_positive_cpu(Nc);
+  ki_negative.copy_to_host(ki_negative_cpu.data());
+  ko_negative.copy_to_host(ko_negative_cpu.data());
+  ki_positive.copy_to_host(ki_positive_cpu.data());
+  ko_positive.copy_to_host(ko_positive_cpu.data());
+
   const double scalar = 1000.0 / TIME_UNIT_CONVERSION / num_time_origins;
   for (int nc = 0; nc < Nc - 1; ++nc) {
-    ki[nc] = ki_negative[Nc - nc - 1] * scalar;
-    ko[nc] = ko_negative[Nc - nc - 1] * scalar;
+    ki[nc] = ki_negative_cpu[Nc - nc - 1] * scalar;
+    ko[nc] = ko_negative_cpu[Nc - nc - 1] * scalar;
   }
 
   for (int nc = 0; nc < Nc; ++nc) {
-    ki[nc + Nc - 1] = ki_positive[nc] * scalar;
-    ko[nc + Nc - 1] = ko_positive[nc] * scalar;
+    ki[nc + Nc - 1] = ki_positive_cpu[nc] * scalar;
+    ko[nc + Nc - 1] = ko_positive_cpu[nc] * scalar;
   }
 }
 
@@ -239,8 +248,6 @@ void SHC::postprocess(const char* input_dir, const double time_step)
   if (!compute) {
     return;
   }
-
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
   const double dt_in_ps = time_step * sample_interval * TIME_UNIT_CONVERSION / 1000.0;
   const double d_omega = max_omega / num_omega;
