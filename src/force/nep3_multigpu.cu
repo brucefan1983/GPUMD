@@ -846,6 +846,34 @@ static __global__ void initialize_properties(
   }
 }
 
+static __global__ void collect_properties(
+  const int N,
+  const double* g_force_in,
+  const double* g_potential_in,
+  const double* g_virial_in,
+  double* g_force_out,
+  double* g_potential_out,
+  double* g_virial_out)
+{
+  int n_in = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n_in < N) {
+    int n_out = n_in; // TODO: generalize
+    g_force_out[n_out] = g_force_in[n_in + 0 * N];
+    g_force_out[n_out + 1 * N] = g_force_in[n_in + 1 * N];
+    g_force_out[n_out + 2 * N] = g_force_in[n_in + 2 * N];
+    g_potential_out[n_out] = g_potential_in[n_in];
+    g_virial_out[n_out + 0 * N] = g_virial_in[n_in + 0 * N];
+    g_virial_out[n_out + 1 * N] = g_virial_in[n_in + 1 * N];
+    g_virial_out[n_out + 2 * N] = g_virial_in[n_in + 2 * N];
+    g_virial_out[n_out + 3 * N] = g_virial_in[n_in + 3 * N];
+    g_virial_out[n_out + 4 * N] = g_virial_in[n_in + 4 * N];
+    g_virial_out[n_out + 5 * N] = g_virial_in[n_in + 5 * N];
+    g_virial_out[n_out + 6 * N] = g_virial_in[n_in + 6 * N];
+    g_virial_out[n_out + 7 * N] = g_virial_in[n_in + 7 * N];
+    g_virial_out[n_out + 8 * N] = g_virial_in[n_in + 8 * N];
+  }
+}
+
 void NEP3_MULTIGPU::compute(
   const int group_method,
   std::vector<Group>& group,
@@ -948,10 +976,12 @@ void NEP3_MULTIGPU::compute(
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     nep_temp_data.potential.copy_from_device(nep_data[gpu].potential.data());
-    potential_per_atom.copy_from_device(nep_temp_data.potential.data());
-    nep_temp_data.virial.copy_from_device(nep_data[gpu].virial.data());
-    virial_per_atom.copy_from_device(nep_temp_data.virial.data());
     nep_temp_data.force.copy_from_device(nep_data[gpu].force.data());
-    force_per_atom.copy_from_device(nep_temp_data.force.data());
+    nep_temp_data.virial.copy_from_device(nep_data[gpu].virial.data());
+
+    collect_properties<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
+      N, nep_temp_data.force.data(), nep_temp_data.potential.data(), nep_temp_data.virial.data(),
+      force_per_atom.data(), potential_per_atom.data(), virial_per_atom.data());
+    CUDA_CHECK_KERNEL
   }
 }
