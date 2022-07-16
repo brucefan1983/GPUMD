@@ -238,13 +238,12 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   }
 
   paramb.num_gpus = num_gpus;
+  int num_atoms_per_gpu = num_atoms;
+  if (num_gpus > 1) {
+    num_atoms_per_gpu = double(num_atoms) * 1.25 / num_gpus;
+  }
+
   for (int gpu = 0; gpu < num_gpus; ++gpu) {
-
-    int num_atoms_per_gpu = num_atoms;
-    if (num_gpus > 1) {
-      num_atoms_per_gpu = double(num_atoms) * 1.25 / num_gpus;
-    }
-
     annmb[gpu].num_para = annmb[0].num_para;
     annmb[gpu].dim = annmb[0].dim;
     annmb[gpu].num_neurons1 = annmb[0].num_neurons1;
@@ -262,12 +261,22 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     nep_data[gpu].NL_radial.resize(num_atoms_per_gpu * paramb.MN_radial);
     nep_data[gpu].NN_angular.resize(num_atoms_per_gpu);
     nep_data[gpu].NL_angular.resize(num_atoms_per_gpu * paramb.MN_angular);
-    nep_data[gpu].Fp.resize(num_atoms_per_gpu * annmb[0].dim);
+    nep_data[gpu].Fp.resize(num_atoms_per_gpu * annmb[gpu].dim);
     nep_data[gpu].sum_fxyz.resize(num_atoms_per_gpu * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[gpu].cell_count.resize(num_atoms_per_gpu);
     nep_data[gpu].cell_count_sum.resize(num_atoms_per_gpu);
     nep_data[gpu].cell_contents.resize(num_atoms_per_gpu);
+
+    nep_data[gpu].position.resize(num_atoms_per_gpu * 3);
+    nep_data[gpu].potential.resize(num_atoms_per_gpu);
+    nep_data[gpu].force.resize(num_atoms_per_gpu * 3);
+    nep_data[gpu].virial.resize(num_atoms_per_gpu * 9);
   }
+
+  nep_temp_data.position.resize(num_atoms_per_gpu * 3);
+  nep_temp_data.potential.resize(num_atoms_per_gpu);
+  nep_temp_data.force.resize(num_atoms_per_gpu * 3);
+  nep_temp_data.virial.resize(num_atoms_per_gpu * 9);
 }
 
 NEP3_MULTIGPU::~NEP3_MULTIGPU(void)
@@ -834,15 +843,19 @@ void NEP3_MULTIGPU::compute(
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
 
+  nep_temp_data.position.copy_from_device(position_per_atom.data());
+  nep_temp_data.position.copy_to_device(nep_data[0].position.data());
+
   find_cell_list(
-    rc_cell_list, num_bins, box, position_per_atom, nep_data[0].cell_count,
+    rc_cell_list, num_bins, box, nep_data[0].position, nep_data[0].cell_count,
     nep_data[0].cell_count_sum, nep_data[0].cell_contents);
 
   find_neighbor_list_large_box<<<grid_size, BLOCK_SIZE>>>(
     paramb, N, N1, N2, num_bins[0], num_bins[1], num_bins[2], box, nep_data[0].cell_count.data(),
-    nep_data[0].cell_count_sum.data(), nep_data[0].cell_contents.data(), position_per_atom.data(),
-    position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data[0].NN_radial.data(),
-    nep_data[0].NL_radial.data(), nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data());
+    nep_data[0].cell_count_sum.data(), nep_data[0].cell_contents.data(),
+    nep_data[0].position.data(), nep_data[0].position.data() + N,
+    nep_data[0].position.data() + N * 2, nep_data[0].NN_radial.data(), nep_data[0].NL_radial.data(),
+    nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data());
   CUDA_CHECK_KERNEL
 
   gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
@@ -856,34 +869,35 @@ void NEP3_MULTIGPU::compute(
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb[0], N, N1, N2, box, nep_data[0].NN_radial.data(), nep_data[0].NL_radial.data(),
     nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(), type.data(),
-    position_per_atom.data(), position_per_atom.data() + N, position_per_atom.data() + N * 2,
-    potential_per_atom.data(), nep_data[0].Fp.data(), nep_data[0].sum_fxyz.data());
+    nep_data[0].position.data(), nep_data[0].position.data() + N,
+    nep_data[0].position.data() + N * 2, potential_per_atom.data(), nep_data[0].Fp.data(),
+    nep_data[0].sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb[0], N, N1, N2, box, nep_data[0].NN_radial.data(), nep_data[0].NL_radial.data(),
-    type.data(), position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, nep_data[0].Fp.data(), force_per_atom.data(),
+    type.data(), nep_data[0].position.data(), nep_data[0].position.data() + N,
+    nep_data[0].position.data() + N * 2, nep_data[0].Fp.data(), force_per_atom.data(),
     force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   find_partial_force_angular<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb[0], N, N1, N2, box, nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(),
-    type.data(), position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, nep_data[0].Fp.data(), nep_data[0].sum_fxyz.data(),
+    type.data(), nep_data[0].position.data(), nep_data[0].position.data() + N,
+    nep_data[0].position.data() + N * 2, nep_data[0].Fp.data(), nep_data[0].sum_fxyz.data(),
     nep_data[0].f12x.data(), nep_data[0].f12y.data(), nep_data[0].f12z.data());
   CUDA_CHECK_KERNEL
   find_properties_many_body(
     box, nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(), nep_data[0].f12x.data(),
-    nep_data[0].f12y.data(), nep_data[0].f12z.data(), position_per_atom, force_per_atom,
+    nep_data[0].f12y.data(), nep_data[0].f12z.data(), nep_data[0].position, force_per_atom,
     virial_per_atom);
   CUDA_CHECK_KERNEL
 
   if (zbl.enabled) {
     find_force_ZBL<<<grid_size, BLOCK_SIZE>>>(
       N, zbl, N1, N2, box, nep_data[0].NN_angular.data(), nep_data[0].NL_angular.data(),
-      type.data(), position_per_atom.data(), position_per_atom.data() + N,
-      position_per_atom.data() + N * 2, force_per_atom.data(), force_per_atom.data() + N,
+      type.data(), nep_data[0].position.data(), nep_data[0].position.data() + N,
+      nep_data[0].position.data() + N * 2, force_per_atom.data(), force_per_atom.data() + N,
       force_per_atom.data() + N * 2, virial_per_atom.data(), potential_per_atom.data());
     CUDA_CHECK_KERNEL
   }

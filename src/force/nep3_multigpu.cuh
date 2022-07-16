@@ -31,6 +31,18 @@ struct NEP3_MULTIGPU_Data {
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
+
+  GPU_Vector<double> position;
+  GPU_Vector<double> force;
+  GPU_Vector<double> potential;
+  GPU_Vector<double> virial;
+};
+
+struct NEP3_TEMP_Data {
+  GPU_Vector<double> position;
+  GPU_Vector<double> force;
+  GPU_Vector<double> potential;
+  GPU_Vector<double> virial;
 };
 
 class NEP3_MULTIGPU : public Potential
@@ -96,6 +108,8 @@ private:
   ANN annmb[16];
   ZBL zbl;
   NEP3_MULTIGPU_Data nep_data[16];
+  NEP3_TEMP_Data nep_temp_data;
 
   void update_potential(const float* parameters, ANN& ann);
+  void copy_position(GPU_Vector<double>& potential_per_atom);
 };
