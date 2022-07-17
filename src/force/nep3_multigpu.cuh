@@ -37,11 +37,14 @@ struct NEP3_MULTIGPU_Data {
   GPU_Vector<double> potential;
   GPU_Vector<double> virial;
 
+  int N1, N2, N3; // ending indices in local system
+  int M0, M1, M2; // starting indices in global system
   cudaStream_t stream;
 };
 
 struct NEP3_TEMP_Data {
   int num_atoms_per_gpu;
+  std::vector<int> cell_count_sum_cpu;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
@@ -117,5 +120,4 @@ private:
   NEP3_TEMP_Data nep_temp_data;
 
   void update_potential(const float* parameters, ANN& ann);
-  void copy_position(GPU_Vector<double>& potential_per_atom);
 };

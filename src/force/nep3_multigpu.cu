@@ -869,8 +869,11 @@ static __global__ void distribute_position(
     if (n_local < N1) { // left
       n_global = cell_contents[n_local + M0];
     } else if (n_local < N2) { // middle
+#ifdef DEBUG
+      n_global = n_local - N1 + M1;
+#else
       n_global = cell_contents[n_local - N1 + M1];
-      // n_global = n_local - N1 + M1;
+#endif
     } else { // right
       n_global = cell_contents[n_local - N2 + M2];
     }
@@ -904,8 +907,11 @@ static __global__ void collect_properties(
     if (n_local < N1) { // left
       n_global = cell_contents[n_local + M0];
     } else if (n_local < N2) { // middle
+#ifdef DEBUG
+      n_global = n_local - N1 + M1;
+#else
       n_global = cell_contents[n_local - N1 + M1];
-      // n_global = n_local - N1 + M1;
+#endif
     } else { // right
       n_global = cell_contents[n_local - N2 + M2];
     }
@@ -946,15 +952,17 @@ void NEP3_MULTIGPU::compute(
     nep_temp_data.cell_contents);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    const int num_atoms_local = N; // TODO
-    const int N1 = 0;              // TODO
-    const int N2 = N;              // TODO
-    const int M0 = 0;              // TODO
-    const int M1 = 0;              // TODO
-    const int M2 = N;              // TODO
+    nep_data[gpu].N1 = 0;
+    nep_data[gpu].N2 = N;
+    nep_data[gpu].N3 = N;
+    nep_data[gpu].M0 = 0;
+    nep_data[gpu].M1 = 0;
+    nep_data[gpu].M2 = N;
+
     distribute_position<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
-      N, nep_temp_data.num_atoms_per_gpu, num_atoms_local, N1, N2, M0, M1, M2,
-      nep_temp_data.cell_contents.data(), position.data(), nep_temp_data.position.data());
+      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N3, nep_data[gpu].N1, nep_data[gpu].N2,
+      nep_data[gpu].M0, nep_data[gpu].M1, nep_data[gpu].M2, nep_temp_data.cell_contents.data(),
+      position.data(), nep_temp_data.position.data());
     CUDA_CHECK_KERNEL
 
     nep_temp_data.position.copy_to_device(nep_data[gpu].position.data());
@@ -1039,17 +1047,11 @@ void NEP3_MULTIGPU::compute(
     nep_temp_data.force.copy_from_device(nep_data[gpu].force.data());
     nep_temp_data.virial.copy_from_device(nep_data[gpu].virial.data());
 
-    const int num_atoms_local = N; // TODO
-    const int N1 = 0;              // TODO
-    const int N2 = N;              // TODO
-    const int M0 = 0;              // TODO
-    const int M1 = 0;              // TODO
-    const int M2 = N;              // TODO
     collect_properties<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
-      N, nep_temp_data.num_atoms_per_gpu, num_atoms_local, N1, N2, M0, M1, M2,
-      nep_temp_data.cell_contents.data(), nep_temp_data.force.data(),
-      nep_temp_data.potential.data(), nep_temp_data.virial.data(), force.data(), potential.data(),
-      virial.data());
+      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N3, nep_data[gpu].N1, nep_data[gpu].N2,
+      nep_data[gpu].M0, nep_data[gpu].M1, nep_data[gpu].M2, nep_temp_data.cell_contents.data(),
+      nep_temp_data.force.data(), nep_temp_data.potential.data(), nep_temp_data.virial.data(),
+      force.data(), potential.data(), virial.data());
     CUDA_CHECK_KERNEL
   }
 }
