@@ -863,24 +863,34 @@ static __global__ void distribute_position(
   const double* g_position_in,
   double* g_position_out)
 {
-  int n_out = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n_out < num_atoms_local) {
-    int n_in;
-    if (n_out < N1) { // left
-      n_in = cell_contents[n_out + M0];
-    } else if (n_out < N2) { // middle
-      n_in = n_out - N1 + M1;
+  int n_local = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n_local < num_atoms_local) {
+    int n_global;
+    if (n_local < N1) { // left
+      n_global = cell_contents[n_local + M0];
+    } else if (n_local < N2) { // middle
+      n_global = cell_contents[n_local - N1 + M1];
+      // n_global = n_local - N1 + M1;
     } else { // right
-      n_in = n_out - N2 + M2;
+      n_global = cell_contents[n_local - N2 + M2];
     }
     for (int d = 0; d < 3; ++d) {
-      g_position_out[n_out + d * num_atoms_per_gpu] = g_position_in[n_in + d * num_atoms_total];
+      g_position_out[n_local + d * num_atoms_per_gpu] =
+        g_position_in[n_global + d * num_atoms_total];
     }
   }
 }
 
 static __global__ void collect_properties(
-  const int N,
+  const int num_atoms_total,
+  const int num_atoms_per_gpu,
+  const int num_atoms_local,
+  const int N1,
+  const int N2,
+  const int M0,
+  const int M1,
+  const int M2,
+  const int* cell_contents,
   const double* g_force_in,
   const double* g_potential_in,
   const double* g_virial_in,
@@ -888,22 +898,24 @@ static __global__ void collect_properties(
   double* g_potential_out,
   double* g_virial_out)
 {
-  int n_in = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n_in < N) {
-    int n_out = n_in; // TODO: generalize
-    g_force_out[n_out] = g_force_in[n_in + 0 * N];
-    g_force_out[n_out + 1 * N] = g_force_in[n_in + 1 * N];
-    g_force_out[n_out + 2 * N] = g_force_in[n_in + 2 * N];
-    g_potential_out[n_out] = g_potential_in[n_in];
-    g_virial_out[n_out + 0 * N] = g_virial_in[n_in + 0 * N];
-    g_virial_out[n_out + 1 * N] = g_virial_in[n_in + 1 * N];
-    g_virial_out[n_out + 2 * N] = g_virial_in[n_in + 2 * N];
-    g_virial_out[n_out + 3 * N] = g_virial_in[n_in + 3 * N];
-    g_virial_out[n_out + 4 * N] = g_virial_in[n_in + 4 * N];
-    g_virial_out[n_out + 5 * N] = g_virial_in[n_in + 5 * N];
-    g_virial_out[n_out + 6 * N] = g_virial_in[n_in + 6 * N];
-    g_virial_out[n_out + 7 * N] = g_virial_in[n_in + 7 * N];
-    g_virial_out[n_out + 8 * N] = g_virial_in[n_in + 8 * N];
+  int n_local = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n_local < num_atoms_local) {
+    int n_global;
+    if (n_local < N1) { // left
+      n_global = cell_contents[n_local + M0];
+    } else if (n_local < N2) { // middle
+      n_global = cell_contents[n_local - N1 + M1];
+      // n_global = n_local - N1 + M1;
+    } else { // right
+      n_global = cell_contents[n_local - N2 + M2];
+    }
+    for (int d = 0; d < 3; ++d) {
+      g_force_out[n_global + d * num_atoms_total] = g_force_in[n_local + d * num_atoms_per_gpu];
+    }
+    g_potential_out[n_global] = g_potential_in[n_local];
+    for (int d = 0; d < 9; ++d) {
+      g_virial_out[n_global + d * num_atoms_total] = g_virial_in[n_local + d * num_atoms_per_gpu];
+    }
   }
 }
 
@@ -950,6 +962,7 @@ void NEP3_MULTIGPU::compute(
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
+    // TODO: use stream
     find_cell_list(
       rc_cell_list, num_bins, box, nep_data[gpu].position, nep_data[gpu].cell_count,
       nep_data[gpu].cell_count_sum, nep_data[gpu].cell_contents);
@@ -1026,9 +1039,17 @@ void NEP3_MULTIGPU::compute(
     nep_temp_data.force.copy_from_device(nep_data[gpu].force.data());
     nep_temp_data.virial.copy_from_device(nep_data[gpu].virial.data());
 
+    const int num_atoms_local = N; // TODO
+    const int N1 = 0;              // TODO
+    const int N2 = N;              // TODO
+    const int M0 = 0;              // TODO
+    const int M1 = 0;              // TODO
+    const int M2 = N;              // TODO
     collect_properties<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
-      N, nep_temp_data.force.data(), nep_temp_data.potential.data(), nep_temp_data.virial.data(),
-      force.data(), potential.data(), virial.data());
+      N, nep_temp_data.num_atoms_per_gpu, num_atoms_local, N1, N2, M0, M1, M2,
+      nep_temp_data.cell_contents.data(), nep_temp_data.force.data(),
+      nep_temp_data.potential.data(), nep_temp_data.virial.data(), force.data(), potential.data(),
+      virial.data());
     CUDA_CHECK_KERNEL
   }
 }
