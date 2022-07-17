@@ -275,6 +275,9 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     CHECK(cudaStreamCreate(&nep_data[gpu].stream));
   }
 
+  nep_temp_data.cell_count.resize(num_atoms_per_gpu);
+  nep_temp_data.cell_count_sum.resize(num_atoms_per_gpu);
+  nep_temp_data.cell_contents.resize(num_atoms_per_gpu);
   nep_temp_data.position.resize(num_atoms_per_gpu * 3);
   nep_temp_data.potential.resize(num_atoms_per_gpu);
   nep_temp_data.force.resize(num_atoms_per_gpu * 3);
@@ -907,6 +910,10 @@ void NEP3_MULTIGPU::compute(
 
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
+
+  find_cell_list(
+    rc_cell_list, num_bins, box, position, nep_temp_data.cell_count, nep_temp_data.cell_count_sum,
+    nep_temp_data.cell_contents);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     distribute_position<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
