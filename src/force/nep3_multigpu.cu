@@ -276,9 +276,10 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     CHECK(cudaStreamCreate(&nep_data[gpu].stream));
   }
 
-  nep_temp_data.cell_count.resize(nep_temp_data.num_atoms_per_gpu);
-  nep_temp_data.cell_count_sum.resize(nep_temp_data.num_atoms_per_gpu);
-  nep_temp_data.cell_contents.resize(nep_temp_data.num_atoms_per_gpu);
+  nep_temp_data.cell_count_sum_cpu.resize(num_atoms);
+  nep_temp_data.cell_count.resize(num_atoms);
+  nep_temp_data.cell_count_sum.resize(num_atoms);
+  nep_temp_data.cell_contents.resize(num_atoms);
   nep_temp_data.position.resize(nep_temp_data.num_atoms_per_gpu * 3);
   nep_temp_data.potential.resize(nep_temp_data.num_atoms_per_gpu);
   nep_temp_data.force.resize(nep_temp_data.num_atoms_per_gpu * 3);
@@ -952,13 +953,47 @@ void NEP3_MULTIGPU::compute(
     nep_temp_data.cell_contents);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    nep_data[gpu].N1 = 0;
-    nep_data[gpu].N2 = N;
-    nep_data[gpu].N3 = N;
-    nep_data[gpu].M0 = 0;
-    nep_data[gpu].M1 = 0;
-    nep_data[gpu].M2 = N;
+    const int num_bins_total = num_bins[0] * num_bins[1] * num_bins[2];
+    nep_temp_data.cell_count_sum.copy_to_host(
+      nep_temp_data.cell_count_sum_cpu.data(), num_bins_total);
+    const int num_bins_z = num_bins[2] / paramb.num_gpus;
+    const int num_bins_xy = num_bins[0] * num_bins[1];
+    if (paramb.num_gpus == 1) {
+      nep_data[gpu].N1 = 0;
+      nep_data[gpu].N2 = N;
+      nep_data[gpu].N3 = N;
+      nep_data[gpu].M0 = 0;
+      nep_data[gpu].M1 = 0;
+      nep_data[gpu].M2 = N;
+    } else {
+      if (gpu == 0) {
+        nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 4) * num_bins_xy];
+        nep_data[gpu].M1 = 0;
+        nep_data[gpu].M2 = nep_temp_data.cell_count_sum_cpu[num_bins_z * num_bins_xy];
+        nep_data[gpu].N1 = N - nep_data[gpu].M0;
+        nep_data[gpu].N2 = N1 + nep_data[gpu].M2;
+        nep_data[gpu].N3 = N1 + nep_temp_data.cell_count_sum_cpu[(num_bins_z + 4) * num_bins_xy];
+      } else if (gpu == paramb.num_gpus - 1) {
+        nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 4) * num_bins_xy];
+        nep_data[gpu].M1 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z) * num_bins_xy];
+        nep_data[gpu].M2 = 0;
+        nep_data[gpu].N1 = nep_data[gpu].M1 - nep_data[gpu].M0;
+        nep_data[gpu].N2 = N - nep_data[gpu].M0;
+        nep_data[gpu].N3 = nep_data[gpu].N2 + nep_temp_data.cell_count_sum_cpu[4 * num_bins_xy];
+      } else {
+        nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 4) * num_bins_xy];
+        nep_data[gpu].M1 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z) * num_bins_xy];
+        nep_data[gpu].M2 = nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z) * num_bins_xy];
+        nep_data[gpu].N1 = nep_data[gpu].M1 - nep_data[gpu].M0;
+        nep_data[gpu].N2 = nep_data[gpu].M2 - nep_data[gpu].M0;
+        nep_data[gpu].N3 =
+          nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z + 4) * num_bins_xy] -
+          nep_data[gpu].M0;
+      }
+    }
+  }
 
+  for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     distribute_position<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
       N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N3, nep_data[gpu].N1, nep_data[gpu].N2,
       nep_data[gpu].M0, nep_data[gpu].M1, nep_data[gpu].M2, nep_temp_data.cell_contents.data(),
