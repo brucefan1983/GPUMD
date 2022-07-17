@@ -41,6 +41,7 @@ struct NEP3_MULTIGPU_Data {
 };
 
 struct NEP3_TEMP_Data {
+  int num_atoms_per_gpu;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;

@@ -238,9 +238,9 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   }
 
   paramb.num_gpus = num_gpus;
-  int num_atoms_per_gpu = num_atoms;
+  nep_temp_data.num_atoms_per_gpu = num_atoms;
   if (num_gpus > 1) {
-    num_atoms_per_gpu = double(num_atoms) * 1.25 / num_gpus;
+    nep_temp_data.num_atoms_per_gpu = double(num_atoms) * 1.25 / num_gpus;
   }
 
   for (int gpu = 0; gpu < num_gpus; ++gpu) {
@@ -254,34 +254,35 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     nep_data[gpu].parameters.copy_from_host(parameters.data());
     update_potential(nep_data[gpu].parameters.data(), annmb[gpu]);
 
-    nep_data[gpu].f12x.resize(num_atoms_per_gpu * paramb.MN_angular);
-    nep_data[gpu].f12y.resize(num_atoms_per_gpu * paramb.MN_angular);
-    nep_data[gpu].f12z.resize(num_atoms_per_gpu * paramb.MN_angular);
-    nep_data[gpu].NN_radial.resize(num_atoms_per_gpu);
-    nep_data[gpu].NL_radial.resize(num_atoms_per_gpu * paramb.MN_radial);
-    nep_data[gpu].NN_angular.resize(num_atoms_per_gpu);
-    nep_data[gpu].NL_angular.resize(num_atoms_per_gpu * paramb.MN_angular);
-    nep_data[gpu].Fp.resize(num_atoms_per_gpu * annmb[gpu].dim);
-    nep_data[gpu].sum_fxyz.resize(num_atoms_per_gpu * (paramb.n_max_angular + 1) * NUM_OF_ABC);
-    nep_data[gpu].cell_count.resize(num_atoms_per_gpu);
-    nep_data[gpu].cell_count_sum.resize(num_atoms_per_gpu);
-    nep_data[gpu].cell_contents.resize(num_atoms_per_gpu);
+    nep_data[gpu].f12x.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
+    nep_data[gpu].f12y.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
+    nep_data[gpu].f12z.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
+    nep_data[gpu].NN_radial.resize(nep_temp_data.num_atoms_per_gpu);
+    nep_data[gpu].NL_radial.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_radial);
+    nep_data[gpu].NN_angular.resize(nep_temp_data.num_atoms_per_gpu);
+    nep_data[gpu].NL_angular.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
+    nep_data[gpu].Fp.resize(nep_temp_data.num_atoms_per_gpu * annmb[gpu].dim);
+    nep_data[gpu].sum_fxyz.resize(
+      nep_temp_data.num_atoms_per_gpu * (paramb.n_max_angular + 1) * NUM_OF_ABC);
+    nep_data[gpu].cell_count.resize(nep_temp_data.num_atoms_per_gpu);
+    nep_data[gpu].cell_count_sum.resize(nep_temp_data.num_atoms_per_gpu);
+    nep_data[gpu].cell_contents.resize(nep_temp_data.num_atoms_per_gpu);
 
-    nep_data[gpu].position.resize(num_atoms_per_gpu * 3);
-    nep_data[gpu].potential.resize(num_atoms_per_gpu);
-    nep_data[gpu].force.resize(num_atoms_per_gpu * 3);
-    nep_data[gpu].virial.resize(num_atoms_per_gpu * 9);
+    nep_data[gpu].position.resize(nep_temp_data.num_atoms_per_gpu * 3);
+    nep_data[gpu].potential.resize(nep_temp_data.num_atoms_per_gpu);
+    nep_data[gpu].force.resize(nep_temp_data.num_atoms_per_gpu * 3);
+    nep_data[gpu].virial.resize(nep_temp_data.num_atoms_per_gpu * 9);
 
     CHECK(cudaStreamCreate(&nep_data[gpu].stream));
   }
 
-  nep_temp_data.cell_count.resize(num_atoms_per_gpu);
-  nep_temp_data.cell_count_sum.resize(num_atoms_per_gpu);
-  nep_temp_data.cell_contents.resize(num_atoms_per_gpu);
-  nep_temp_data.position.resize(num_atoms_per_gpu * 3);
-  nep_temp_data.potential.resize(num_atoms_per_gpu);
-  nep_temp_data.force.resize(num_atoms_per_gpu * 3);
-  nep_temp_data.virial.resize(num_atoms_per_gpu * 9);
+  nep_temp_data.cell_count.resize(nep_temp_data.num_atoms_per_gpu);
+  nep_temp_data.cell_count_sum.resize(nep_temp_data.num_atoms_per_gpu);
+  nep_temp_data.cell_contents.resize(nep_temp_data.num_atoms_per_gpu);
+  nep_temp_data.position.resize(nep_temp_data.num_atoms_per_gpu * 3);
+  nep_temp_data.potential.resize(nep_temp_data.num_atoms_per_gpu);
+  nep_temp_data.force.resize(nep_temp_data.num_atoms_per_gpu * 3);
+  nep_temp_data.virial.resize(nep_temp_data.num_atoms_per_gpu * 9);
 }
 
 NEP3_MULTIGPU::~NEP3_MULTIGPU(void)
@@ -849,15 +850,32 @@ static __global__ void initialize_properties(
   }
 }
 
-static __global__ void
-distribute_position(const int N, const double* g_position_in, double* g_position_out)
+static __global__ void distribute_position(
+  const int num_atoms_total,
+  const int num_atoms_per_gpu,
+  const int num_atoms_local,
+  const int N1,
+  const int N2,
+  const int M0,
+  const int M1,
+  const int M2,
+  const int* cell_contents,
+  const double* g_position_in,
+  double* g_position_out)
 {
   int n_out = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n_out < N) {
-    int n_in = n_out; // TODO: generalize
-    g_position_out[n_out] = g_position_in[n_in + 0 * N];
-    g_position_out[n_out + 1 * N] = g_position_in[n_in + 1 * N];
-    g_position_out[n_out + 2 * N] = g_position_in[n_in + 2 * N];
+  if (n_out < num_atoms_local) {
+    int n_in;
+    if (n_out < N1) { // left
+      n_in = cell_contents[n_out + M0];
+    } else if (n_out < N2) { // middle
+      n_in = n_out - N1 + M1;
+    } else { // right
+      n_in = n_out - N2 + M2;
+    }
+    for (int d = 0; d < 3; ++d) {
+      g_position_out[n_out + d * num_atoms_per_gpu] = g_position_in[n_in + d * num_atoms_total];
+    }
   }
 }
 
@@ -916,8 +934,15 @@ void NEP3_MULTIGPU::compute(
     nep_temp_data.cell_contents);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
+    const int num_atoms_local = N; // TODO
+    const int N1 = 0;              // TODO
+    const int N2 = N;              // TODO
+    const int M0 = 0;              // TODO
+    const int M1 = 0;              // TODO
+    const int M2 = N;              // TODO
     distribute_position<<<grid_size, BLOCK_SIZE, 0, nep_data[gpu].stream>>>(
-      N, position.data(), nep_temp_data.position.data());
+      N, nep_temp_data.num_atoms_per_gpu, num_atoms_local, N1, N2, M0, M1, M2,
+      nep_temp_data.cell_contents.data(), position.data(), nep_temp_data.position.data());
     CUDA_CHECK_KERNEL
 
     nep_temp_data.position.copy_to_device(nep_data[gpu].position.data());
