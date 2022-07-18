@@ -1096,8 +1096,8 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].cell_count, nep_data[gpu].cell_count_sum, nep_data[gpu].cell_contents);
 
     find_neighbor_list_large_box<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, nep_data[gpu].N3, 0, nep_data[gpu].N3, num_bins[0], num_bins[1], num_bins[2], box,
-      nep_data[gpu].cell_count.data(), nep_data[gpu].cell_count_sum.data(),
+      paramb, nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, num_bins[0], num_bins[1],
+      num_bins[2], box, nep_data[gpu].cell_count.data(), nep_data[gpu].cell_count_sum.data(),
       nep_data[gpu].cell_contents.data(), nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(),
@@ -1106,40 +1106,44 @@ void NEP3_MULTIGPU::compute(
 
     gpu_sort_neighbor_list<<<
       nep_data[gpu].N3, paramb.MN_radial, paramb.MN_radial * sizeof(int), nep_data[gpu].stream>>>(
-      nep_data[gpu].N3, nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data());
+      nep_temp_data.num_atoms_per_gpu, nep_data[gpu].NN_radial.data(),
+      nep_data[gpu].NL_radial.data());
     CUDA_CHECK_KERNEL
 
     gpu_sort_neighbor_list<<<
       nep_data[gpu].N3, paramb.MN_angular, paramb.MN_angular * sizeof(int), nep_data[gpu].stream>>>(
-      nep_data[gpu].N3, nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data());
+      nep_temp_data.num_atoms_per_gpu, nep_data[gpu].NN_angular.data(),
+      nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
 
     find_descriptor<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, annmb[0], nep_data[gpu].N3, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_radial.data(),
-      nep_data[gpu].NL_radial.data(), nep_data[gpu].NN_angular.data(),
-      nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
-      nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
-      nep_data[gpu].potential.data(), nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data());
+      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
+      nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(),
+      nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
+      nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
+      nep_data[gpu].position.data() + N * 2, nep_data[gpu].potential.data(),
+      nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
     find_force_radial<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, annmb[0], nep_data[gpu].N3, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_radial.data(),
-      nep_data[gpu].NL_radial.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
-      nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
-      nep_data[gpu].Fp.data(), nep_data[gpu].force.data(), nep_data[gpu].force.data() + N,
-      nep_data[gpu].force.data() + N * 2, nep_data[gpu].virial.data());
+      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
+      nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(), nep_data[gpu].type.data(),
+      nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
+      nep_data[gpu].position.data() + N * 2, nep_data[gpu].Fp.data(), nep_data[gpu].force.data(),
+      nep_data[gpu].force.data() + N, nep_data[gpu].force.data() + N * 2,
+      nep_data[gpu].virial.data());
     CUDA_CHECK_KERNEL
 
     find_partial_force_angular<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, annmb[0], nep_data[gpu].N3, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
-      nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
-      nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
-      nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data(), nep_data[gpu].f12x.data(),
-      nep_data[gpu].f12y.data(), nep_data[gpu].f12z.data());
+      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
+      nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
+      nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
+      nep_data[gpu].position.data() + N * 2, nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data(),
+      nep_data[gpu].f12x.data(), nep_data[gpu].f12y.data(), nep_data[gpu].f12z.data());
     CUDA_CHECK_KERNEL
 
     gpu_find_force_many_body<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      nep_data[gpu].N3, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
+      nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data(), nep_data[gpu].f12x.data(), nep_data[gpu].f12y.data(),
       nep_data[gpu].f12z.data(), nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
       nep_data[gpu].position.data() + N * 2, nep_data[gpu].force.data(),
@@ -1149,12 +1153,12 @@ void NEP3_MULTIGPU::compute(
 
     if (zbl.enabled) {
       find_force_ZBL<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-        nep_data[gpu].N3, zbl, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
-        nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
-        nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
-        nep_data[gpu].force.data(), nep_data[gpu].force.data() + N,
-        nep_data[gpu].force.data() + N * 2, nep_data[gpu].virial.data(),
-        nep_data[gpu].potential.data());
+        nep_temp_data.num_atoms_per_gpu, zbl, 0, nep_data[gpu].N3, box,
+        nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
+        nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
+        nep_data[gpu].position.data() + N * 2, nep_data[gpu].force.data(),
+        nep_data[gpu].force.data() + N, nep_data[gpu].force.data() + N * 2,
+        nep_data[gpu].virial.data(), nep_data[gpu].potential.data());
       CUDA_CHECK_KERNEL
     }
   }
