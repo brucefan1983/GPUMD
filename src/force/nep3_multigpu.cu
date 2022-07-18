@@ -873,24 +873,24 @@ static __global__ void distribute_position(
 }
 
 static __global__ void collect_properties(
-  const int num_atoms_total,
-  const int num_atoms_per_gpu,
+  const int num_atoms_global,
   const int num_atoms_local,
   const int N1,
   const int N2,
+  const int N3,
   const int M0,
   const int M1,
   const int M2,
   const int* cell_contents,
-  const double* g_force_in,
-  const double* g_potential_in,
-  const double* g_virial_in,
-  double* g_force_out,
-  double* g_potential_out,
-  double* g_virial_out)
+  const double* g_force_local,
+  const double* g_potential_local,
+  const double* g_virial_local,
+  double* g_force_global,
+  double* g_potential_global,
+  double* g_virial_global)
 {
   int n_local = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n_local < num_atoms_local) {
+  if (n_local < N3) {
     int n_global;
     if (n_local < N1) { // left
       n_global = cell_contents[n_local + M0];
@@ -904,11 +904,13 @@ static __global__ void collect_properties(
       n_global = cell_contents[n_local - N2 + M2];
     }
     for (int d = 0; d < 3; ++d) {
-      g_force_out[n_global + d * num_atoms_total] = g_force_in[n_local + d * num_atoms_per_gpu];
+      g_force_global[n_global + d * num_atoms_global] =
+        g_force_local[n_local + d * num_atoms_local];
     }
-    g_potential_out[n_global] = g_potential_in[n_local];
+    g_potential_global[n_global] = g_potential_local[n_local];
     for (int d = 0; d < 9; ++d) {
-      g_virial_out[n_global + d * num_atoms_total] = g_virial_in[n_local + d * num_atoms_per_gpu];
+      g_virial_global[n_global + d * num_atoms_global] =
+        g_virial_local[n_local + d * num_atoms_local];
     }
   }
 }
@@ -1170,7 +1172,7 @@ void NEP3_MULTIGPU::compute(
     nep_temp_data.virial.copy_from_device(nep_data[gpu].virial.data());
 
     collect_properties<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64>>>(
-      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N3, nep_data[gpu].N1, nep_data[gpu].N2,
+      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N1, nep_data[gpu].N2, nep_data[gpu].N3,
       nep_data[gpu].M0, nep_data[gpu].M1, nep_data[gpu].M2, nep_temp_data.cell_contents.data(),
       nep_temp_data.force.data(), nep_temp_data.potential.data(), nep_temp_data.virial.data(),
       force.data(), potential.data(), virial.data());
