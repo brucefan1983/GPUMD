@@ -517,7 +517,7 @@ static __global__ void find_descriptor(
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
-    g_pe[n1] += F;
+    g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
@@ -627,22 +627,22 @@ static __global__ void find_force_radial(
       s_szy += r12[2] * f21[1];
       s_szz += r12[2] * f21[2];
     }
-    g_fx[n1] += s_fx;
-    g_fy[n1] += s_fy;
-    g_fz[n1] += s_fz;
+    g_fx[n1] = s_fx;
+    g_fy[n1] = s_fy;
+    g_fz[n1] = s_fz;
     // save virial
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
+    g_virial[n1 + 0 * N] = s_sxx;
+    g_virial[n1 + 1 * N] = s_syy;
+    g_virial[n1 + 2 * N] = s_szz;
+    g_virial[n1 + 3 * N] = s_sxy;
+    g_virial[n1 + 4 * N] = s_sxz;
+    g_virial[n1 + 5 * N] = s_syz;
+    g_virial[n1 + 6 * N] = s_syx;
+    g_virial[n1 + 7 * N] = s_szx;
+    g_virial[n1 + 8 * N] = s_szy;
   }
 }
 
@@ -829,27 +829,6 @@ static __global__ void find_force_ZBL(
     g_virial[n1 + 7 * N] += s_szx;
     g_virial[n1 + 8 * N] += s_szy;
     g_pe[n1] += s_pe;
-  }
-}
-
-static __global__ void initialize_properties(
-  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < N) {
-    g_fx[n1] = 0.0;
-    g_fy[n1] = 0.0;
-    g_fz[n1] = 0.0;
-    g_pe[n1] = 0.0;
-    g_virial[n1 + 0 * N] = 0.0;
-    g_virial[n1 + 1 * N] = 0.0;
-    g_virial[n1 + 2 * N] = 0.0;
-    g_virial[n1 + 3 * N] = 0.0;
-    g_virial[n1 + 4 * N] = 0.0;
-    g_virial[n1 + 5 * N] = 0.0;
-    g_virial[n1 + 6 * N] = 0.0;
-    g_virial[n1 + 7 * N] = 0.0;
-    g_virial[n1 + 8 * N] = 0.0;
   }
 }
 
@@ -1125,13 +1104,6 @@ void NEP3_MULTIGPU::compute(
     gpu_sort_neighbor_list<<<
       nep_data[gpu].N3, paramb.MN_angular, paramb.MN_angular * sizeof(int), nep_data[gpu].stream>>>(
       nep_data[gpu].N3, nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data());
-    CUDA_CHECK_KERNEL
-
-    initialize_properties<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      nep_data[gpu].N3, nep_data[gpu].force.data(),
-      nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
-      nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
-      nep_data[gpu].potential.data(), nep_data[gpu].virial.data());
     CUDA_CHECK_KERNEL
 
     find_descriptor<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
