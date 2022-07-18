@@ -251,10 +251,11 @@ void find_cell_list(
     cell_count_sum.resize(N_cells);
   }
 
-  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(cell_count.size(), cell_count.data());
-  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(
+  set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_count.size(), cell_count.data());
+  set_to_zero<<<(cell_count_sum.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count_sum.size(), cell_count_sum.data());
-  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(
+  set_to_zero<<<(cell_contents.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_contents.size(), cell_contents.data());
 
   find_cell_counts<<<grid_size, block_size, 0, stream>>>(
@@ -265,7 +266,8 @@ void find_cell_list(
     thrust::cuda::par.on(stream), cell_count.data(), cell_count.data() + N_cells,
     cell_count_sum.data());
 
-  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(cell_count.size(), cell_count.data());
+  set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_count.size(), cell_count.data());
 
   find_cell_contents<<<grid_size, block_size, 0, stream>>>(
     box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
