@@ -269,6 +269,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     nep_data[gpu].cell_count_sum.resize(num_atoms);
     nep_data[gpu].cell_contents.resize(num_atoms);
 
+    nep_data[gpu].type.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].position.resize(nep_temp_data.num_atoms_per_gpu * 3);
     nep_data[gpu].potential.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].force.resize(nep_temp_data.num_atoms_per_gpu * 3);
@@ -282,6 +283,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   nep_temp_data.cell_count_sum.resize(num_atoms);
   nep_temp_data.cell_contents.resize(num_atoms);
 
+  nep_temp_data.type.resize(nep_temp_data.num_atoms_per_gpu);
   nep_temp_data.position.resize(nep_temp_data.num_atoms_per_gpu * 3);
   nep_temp_data.potential.resize(nep_temp_data.num_atoms_per_gpu);
   nep_temp_data.force.resize(nep_temp_data.num_atoms_per_gpu * 3);
@@ -833,20 +835,22 @@ static __global__ void find_force_ZBL(
 }
 
 static __global__ void distribute_position(
-  const int num_atoms_total,
-  const int num_atoms_per_gpu,
+  const int num_atoms_gobal,
   const int num_atoms_local,
   const int N1,
   const int N2,
+  const int N3,
   const int M0,
   const int M1,
   const int M2,
   const int* cell_contents,
-  const double* g_position_in,
-  double* g_position_out)
+  const int* g_type_global,
+  const double* g_position_global,
+  int* g_type_local,
+  double* g_position_local)
 {
   int n_local = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n_local < num_atoms_local) {
+  if (n_local < N3) {
     int n_global;
     if (n_local < N1) { // left
       n_global = cell_contents[n_local + M0];
@@ -859,9 +863,11 @@ static __global__ void distribute_position(
     } else { // right
       n_global = cell_contents[n_local - N2 + M2];
     }
+
+    g_type_local[n_local] = g_type_global[n_global];
     for (int d = 0; d < 3; ++d) {
-      g_position_out[n_local + d * num_atoms_per_gpu] =
-        g_position_in[n_global + d * num_atoms_total];
+      g_position_local[n_local + d * num_atoms_local] =
+        g_position_global[n_global + d * num_atoms_gobal];
     }
   }
 }
@@ -1074,11 +1080,12 @@ void NEP3_MULTIGPU::compute(
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
     distribute_position<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64>>>(
-      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N3, nep_data[gpu].N1, nep_data[gpu].N2,
+      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N1, nep_data[gpu].N2, nep_data[gpu].N3,
       nep_data[gpu].M0, nep_data[gpu].M1, nep_data[gpu].M2, nep_temp_data.cell_contents.data(),
-      position.data(), nep_temp_data.position.data());
+      type.data(), position.data(), nep_temp_data.type.data(), nep_temp_data.position.data());
     CUDA_CHECK_KERNEL
 
+    nep_temp_data.type.copy_to_device(nep_data[gpu].type.data());
     nep_temp_data.position.copy_to_device(nep_data[gpu].position.data());
   }
 
@@ -1110,14 +1117,14 @@ void NEP3_MULTIGPU::compute(
     find_descriptor<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
       paramb, annmb[0], nep_data[gpu].N3, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_radial.data(),
       nep_data[gpu].NL_radial.data(), nep_data[gpu].NN_angular.data(),
-      nep_data[gpu].NL_angular.data(), type.data(), nep_data[gpu].position.data(),
+      nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
       nep_data[gpu].potential.data(), nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
     find_force_radial<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
       paramb, annmb[0], nep_data[gpu].N3, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_radial.data(),
-      nep_data[gpu].NL_radial.data(), type.data(), nep_data[gpu].position.data(),
+      nep_data[gpu].NL_radial.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
       nep_data[gpu].Fp.data(), nep_data[gpu].force.data(), nep_data[gpu].force.data() + N,
       nep_data[gpu].force.data() + N * 2, nep_data[gpu].virial.data());
@@ -1125,7 +1132,7 @@ void NEP3_MULTIGPU::compute(
 
     find_partial_force_angular<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
       paramb, annmb[0], nep_data[gpu].N3, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
-      nep_data[gpu].NL_angular.data(), type.data(), nep_data[gpu].position.data(),
+      nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
       nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data(), nep_data[gpu].f12x.data(),
       nep_data[gpu].f12y.data(), nep_data[gpu].f12z.data());
@@ -1143,7 +1150,7 @@ void NEP3_MULTIGPU::compute(
     if (zbl.enabled) {
       find_force_ZBL<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
         nep_data[gpu].N3, zbl, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
-        nep_data[gpu].NL_angular.data(), type.data(), nep_data[gpu].position.data(),
+        nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(), nep_data[gpu].position.data(),
         nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
         nep_data[gpu].force.data(), nep_data[gpu].force.data() + N,
         nep_data[gpu].force.data() + N * 2, nep_data[gpu].virial.data(),
