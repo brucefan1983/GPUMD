@@ -218,6 +218,61 @@ void find_cell_list(
   CUDA_CHECK_KERNEL
 }
 
+static void __global__ set_to_zero(int size, int* data)
+{
+  int n = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n < size) {
+    data[n] = 0;
+  }
+}
+
+void find_cell_list(
+  cudaStream_t& stream,
+  const double rc,
+  const int* num_bins,
+  Box& box,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& cell_count,
+  GPU_Vector<int>& cell_count_sum,
+  GPU_Vector<int>& cell_contents)
+{
+  const int N = position_per_atom.size() / 3;
+  const int block_size = 256;
+  const int grid_size = (N - 1) / block_size + 1;
+  const double rc_inv = 1.0 / rc;
+  const double* x = position_per_atom.data();
+  const double* y = position_per_atom.data() + N;
+  const double* z = position_per_atom.data() + N * 2;
+  const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
+
+  // number of cells is allowed to be larger than the number of atoms
+  if (N_cells > cell_count.size()) {
+    cell_count.resize(N_cells);
+    cell_count_sum.resize(N_cells);
+  }
+
+  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(cell_count.size(), cell_count.data());
+  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_count_sum.size(), cell_count_sum.data());
+  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_contents.size(), cell_contents.data());
+
+  find_cell_counts<<<grid_size, block_size, 0, stream>>>(
+    box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
+  CUDA_CHECK_KERNEL
+
+  thrust::exclusive_scan(
+    thrust::cuda::par.on(stream), cell_count.data(), cell_count.data() + N_cells,
+    cell_count_sum.data());
+
+  set_to_zero<<<(N_cells - 1) / 64 + 1, 64, 0, stream>>>(cell_count.size(), cell_count.data());
+
+  find_cell_contents<<<grid_size, block_size, 0, stream>>>(
+    box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
+    num_bins[1], num_bins[2], rc_inv);
+  CUDA_CHECK_KERNEL
+}
+
 void find_neighbor(
   const int N1,
   const int N2,
