@@ -1029,10 +1029,10 @@ void NEP3_MULTIGPU::compute(
   find_cell_list(
     rc_cell_list, num_bins, box, position, nep_temp_data.cell_count, nep_temp_data.cell_count_sum,
     nep_temp_data.cell_contents);
+  nep_temp_data.cell_count_sum.copy_to_host(
+    nep_temp_data.cell_count_sum_cpu.data(), num_bins[0] * num_bins[1] * num_bins[2]);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    nep_temp_data.cell_count_sum.copy_to_host(
-      nep_temp_data.cell_count_sum_cpu.data(), num_bins[0] * num_bins[1] * num_bins[2]);
     const int num_bins_z = num_bins[2] / paramb.num_gpus;
     const int num_bins_xy = num_bins[0] * num_bins[1];
     if (paramb.num_gpus == 1) {
@@ -1048,8 +1048,9 @@ void NEP3_MULTIGPU::compute(
         nep_data[gpu].M1 = 0;
         nep_data[gpu].M2 = nep_temp_data.cell_count_sum_cpu[num_bins_z * num_bins_xy];
         nep_data[gpu].N1 = N - nep_data[gpu].M0;
-        nep_data[gpu].N2 = N1 + nep_data[gpu].M2;
-        nep_data[gpu].N3 = N1 + nep_temp_data.cell_count_sum_cpu[(num_bins_z + 4) * num_bins_xy];
+        nep_data[gpu].N2 = nep_data[gpu].N1 + nep_data[gpu].M2;
+        nep_data[gpu].N3 =
+          nep_data[gpu].N1 + nep_temp_data.cell_count_sum_cpu[(num_bins_z + 4) * num_bins_xy];
       } else if (gpu == paramb.num_gpus - 1) {
         nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 4) * num_bins_xy];
         nep_data[gpu].M1 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z) * num_bins_xy];
