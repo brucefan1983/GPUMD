@@ -278,6 +278,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     CHECK(cudaStreamCreate(&nep_data[gpu].stream));
   }
 
+  CHECK(cudaSetDevice(0));
+
   nep_temp_data.cell_count_sum_cpu.resize(num_atoms);
   nep_temp_data.cell_count.resize(num_atoms);
   nep_temp_data.cell_count_sum.resize(num_atoms);
@@ -1093,6 +1095,9 @@ void NEP3_MULTIGPU::compute(
 
   // parallel
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
+
+    CHECK(cudaSetDevice(gpu));
+
     find_cell_list(
       nep_data[gpu].stream, rc_cell_list, num_bins, box, nep_data[gpu].position,
       nep_data[gpu].cell_count, nep_data[gpu].cell_count_sum, nep_data[gpu].cell_contents);
@@ -1101,7 +1106,8 @@ void NEP3_MULTIGPU::compute(
       paramb, nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, num_bins[0], num_bins[1],
       num_bins[2], box, nep_data[gpu].cell_count.data(), nep_data[gpu].cell_count_sum.data(),
       nep_data[gpu].cell_contents.data(), nep_data[gpu].position.data(),
-      nep_data[gpu].position.data() + N, nep_data[gpu].position.data() + N * 2,
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
@@ -1122,34 +1128,41 @@ void NEP3_MULTIGPU::compute(
       paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
-      nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
-      nep_data[gpu].position.data() + N * 2, nep_data[gpu].potential.data(),
-      nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data());
+      nep_data[gpu].position.data(),
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
+      nep_data[gpu].potential.data(), nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
     find_force_radial<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
       paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(), nep_data[gpu].type.data(),
-      nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
-      nep_data[gpu].position.data() + N * 2, nep_data[gpu].Fp.data(), nep_data[gpu].force.data(),
-      nep_data[gpu].force.data() + N, nep_data[gpu].force.data() + N * 2,
+      nep_data[gpu].position.data(),
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2, nep_data[gpu].Fp.data(),
+      nep_data[gpu].force.data(), nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
+      nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
     CUDA_CHECK_KERNEL
 
     find_partial_force_angular<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
       paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
       nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
-      nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
-      nep_data[gpu].position.data() + N * 2, nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data(),
-      nep_data[gpu].f12x.data(), nep_data[gpu].f12y.data(), nep_data[gpu].f12z.data());
+      nep_data[gpu].position.data(),
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2, nep_data[gpu].Fp.data(),
+      nep_data[gpu].sum_fxyz.data(), nep_data[gpu].f12x.data(), nep_data[gpu].f12y.data(),
+      nep_data[gpu].f12z.data());
     CUDA_CHECK_KERNEL
 
     gpu_find_force_many_body<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
       nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
       nep_data[gpu].NL_angular.data(), nep_data[gpu].f12x.data(), nep_data[gpu].f12y.data(),
-      nep_data[gpu].f12z.data(), nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
-      nep_data[gpu].position.data() + N * 2, nep_data[gpu].force.data(),
-      nep_data[gpu].force.data() + N, nep_data[gpu].force.data() + N * 2,
+      nep_data[gpu].f12z.data(), nep_data[gpu].position.data(),
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
+      nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
+      nep_data[gpu].force.data(), nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
+      nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].virial.data());
     CUDA_CHECK_KERNEL
 
@@ -1157,13 +1170,17 @@ void NEP3_MULTIGPU::compute(
       find_force_ZBL<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
         nep_temp_data.num_atoms_per_gpu, zbl, 0, nep_data[gpu].N3, box,
         nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
-        nep_data[gpu].position.data(), nep_data[gpu].position.data() + N,
-        nep_data[gpu].position.data() + N * 2, nep_data[gpu].force.data(),
-        nep_data[gpu].force.data() + N, nep_data[gpu].force.data() + N * 2,
+        nep_data[gpu].position.data(),
+        nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
+        nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
+        nep_data[gpu].force.data(), nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
+        nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu * 2,
         nep_data[gpu].virial.data(), nep_data[gpu].potential.data());
       CUDA_CHECK_KERNEL
     }
   }
+
+  CHECK(cudaSetDevice(0));
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
