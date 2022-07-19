@@ -240,7 +240,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   paramb.num_gpus = num_gpus;
   nep_temp_data.num_atoms_per_gpu = num_atoms;
   if (num_gpus > 1) {
-    nep_temp_data.num_atoms_per_gpu = double(num_atoms) * 1.25 / num_gpus;
+    nep_temp_data.num_atoms_per_gpu = double(num_atoms) * 2.0 / num_gpus;
   }
 
   for (int gpu = 0; gpu < num_gpus; ++gpu) {
@@ -857,11 +857,7 @@ static __global__ void distribute_position(
     if (n_local < N1) { // left
       n_global = cell_contents[n_local + M0];
     } else if (n_local < N2) { // middle
-#ifdef DEBUG
-      n_global = n_local - N1 + M1;
-#else
       n_global = cell_contents[n_local - N1 + M1];
-#endif
     } else { // right
       n_global = cell_contents[n_local - N2 + M2];
     }
@@ -892,19 +888,8 @@ static __global__ void collect_properties(
   double* g_virial_global)
 {
   int n_local = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n_local < N3) {
-    int n_global;
-    if (n_local < N1) { // left
-      n_global = cell_contents[n_local + M0];
-    } else if (n_local < N2) { // middle
-#ifdef DEBUG
-      n_global = n_local - N1 + M1;
-#else
-      n_global = cell_contents[n_local - N1 + M1];
-#endif
-    } else { // right
-      n_global = cell_contents[n_local - N2 + M2];
-    }
+  if (n_local >= N1 && n_local < N2) {
+    int n_global = cell_contents[n_local - N1 + M1];
     for (int d = 0; d < 3; ++d) {
       g_force_global[n_global + d * num_atoms_global] =
         g_force_local[n_local + d * num_atoms_local];
@@ -1099,7 +1084,7 @@ void NEP3_MULTIGPU::compute(
     CHECK(cudaSetDevice(gpu));
 
     find_cell_list(
-      nep_data[gpu].stream, rc_cell_list, num_bins, box, nep_data[gpu].position,
+      nep_data[gpu].stream, rc_cell_list, num_bins, box, nep_data[gpu].N3, nep_data[gpu].position,
       nep_data[gpu].cell_count, nep_data[gpu].cell_count_sum, nep_data[gpu].cell_contents);
 
     find_neighbor_list_large_box<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(

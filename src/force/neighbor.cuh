@@ -32,6 +32,7 @@ void find_cell_list(
   const double rc,
   const int* num_bins,
   Box& box,
+  const int N,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,

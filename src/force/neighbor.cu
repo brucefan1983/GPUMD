@@ -231,18 +231,19 @@ void find_cell_list(
   const double rc,
   const int* num_bins,
   Box& box,
+  const int N,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& cell_count,
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents)
 {
-  const int N = position_per_atom.size() / 3;
+  const int offset = position_per_atom.size() / 3;
   const int block_size = 256;
   const int grid_size = (N - 1) / block_size + 1;
   const double rc_inv = 1.0 / rc;
   const double* x = position_per_atom.data();
-  const double* y = position_per_atom.data() + N;
-  const double* z = position_per_atom.data() + N * 2;
+  const double* y = position_per_atom.data() + offset;
+  const double* z = position_per_atom.data() + offset * 2;
   const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
 
   // number of cells is allowed to be larger than the number of atoms
@@ -253,10 +254,15 @@ void find_cell_list(
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
+  CUDA_CHECK_KERNEL
+
   set_to_zero<<<(cell_count_sum.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count_sum.size(), cell_count_sum.data());
+  CUDA_CHECK_KERNEL
+
   set_to_zero<<<(cell_contents.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_contents.size(), cell_contents.data());
+  CUDA_CHECK_KERNEL
 
   find_cell_counts<<<grid_size, block_size, 0, stream>>>(
     box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
@@ -268,6 +274,7 @@ void find_cell_list(
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
     cell_count.size(), cell_count.data());
+  CUDA_CHECK_KERNEL
 
   find_cell_contents<<<grid_size, block_size, 0, stream>>>(
     box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
