@@ -57,15 +57,38 @@ void print_gpu_information(void)
   printf("GPU information:\n");
   print_line_2();
 
-  int device_id = 0;
-  cudaDeviceProp prop;
-  CHECK(cudaGetDeviceProperties(&prop, device_id));
+  int num_gpus;
+  CHECK(cudaGetDeviceCount(&num_gpus));
+  printf("number of GPUs = %d\n", num_gpus);
 
-  printf("Device id:               %d\n", device_id);
-  printf("Device name:             %s\n", prop.name);
-  printf("Compute capability:      %d.%d\n", prop.major, prop.minor);
-  printf("Amount of global memory: %g GB\n", prop.totalGlobalMem / (1024.0 * 1024 * 1024));
-  printf("Number of SMs:           %d\n", prop.multiProcessorCount);
+  for (int device_id = 0; device_id < num_gpus; ++device_id) {
+    cudaDeviceProp prop;
+    CHECK(cudaGetDeviceProperties(&prop, device_id));
+
+    printf("Device id:                   %d\n", device_id);
+    printf("    Device name:             %s\n", prop.name);
+    printf("    Compute capability:      %d.%d\n", prop.major, prop.minor);
+    printf("    Amount of global memory: %g GB\n", prop.totalGlobalMem / (1024.0 * 1024 * 1024));
+    printf("    Number of SMs:           %d\n", prop.multiProcessorCount);
+  }
+
+  for (int i = 0; i < num_gpus; i++) {
+    cudaSetDevice(i);
+    for (int j = 0; j < num_gpus; j++) {
+      int can_access;
+      if (i != j) {
+        CHECK(cudaDeviceCanAccessPeer(&can_access, i, j));
+        if (can_access) {
+          CHECK(cudaDeviceEnablePeerAccess(j, 0));
+          printf("GPU-%d can access GPU-%d.\n", i, j);
+        } else {
+          printf("GPU-%d cannot access GPU-%d.\n", i, j);
+        }
+      }
+    }
+  }
+
+  cudaSetDevice(0); // normally use GPU-0
 }
 
 int get_number_of_input_directories(void)
