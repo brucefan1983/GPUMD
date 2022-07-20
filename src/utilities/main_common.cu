@@ -49,6 +49,12 @@ void print_compile_information(void)
 #endif
 
 #endif
+
+#ifdef USE_MULTI_GPU
+#ifdef USE_NEP
+  printf("This version can use multi GPUs for the NEP potential.\n");
+#endif
+#endif
 }
 
 void print_gpu_information(void)
