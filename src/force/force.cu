@@ -22,6 +22,7 @@ The driver class calculating force and related quantities.
 #include "force.cuh"
 #include "lj.cuh"
 #include "nep3.cuh"
+#include "nep3_multigpu.cuh"
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
@@ -136,14 +137,20 @@ void Force::initialize_potential(
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
-  } else if (strcmp(potential_name, "nep") == 0) {
+  } else if (
+    strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
+    strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0) {
+#ifdef USE_MULTI_GPU
+    int num_gpus;
+    CHECK(cudaGetDeviceCount(&num_gpus));
+    if (num_gpus == 1) {
+      potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
+    } else {
+      potential[m].reset(new NEP3_MULTIGPU(num_gpus, file_potential[m], number_of_atoms));
+    }
+#else
     potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
-  } else if (strcmp(potential_name, "nep_zbl") == 0) {
-    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
-  } else if (strcmp(potential_name, "nep3") == 0) {
-    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
-  } else if (strcmp(potential_name, "nep3_zbl") == 0) {
-    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
+#endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential[m].reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
