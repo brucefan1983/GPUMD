@@ -18,6 +18,12 @@ The neuroevolution potential (NEP)
 Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
+
+This is the multi-GPU (single-node) version.
+TODO:
+    1) determine the slicing direction automatically
+    2) copy less data from device to host and from device to device
+    3) remove some unnecessary calculations across the boundaries
 ------------------------------------------------------------------------------*/
 
 #include "neighbor.cuh"
@@ -240,7 +246,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   paramb.num_gpus = num_gpus;
   nep_temp_data.num_atoms_per_gpu = num_atoms;
   if (num_gpus > 1) {
-    nep_temp_data.num_atoms_per_gpu = double(num_atoms) * 2.0 / num_gpus;
+    nep_temp_data.num_atoms_per_gpu = (num_atoms * 1.25) / num_gpus;
   }
 
   for (int gpu = 0; gpu < num_gpus; ++gpu) {
@@ -1063,6 +1069,13 @@ void NEP3_MULTIGPU::compute(
           nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z + 4) * num_bins_xy] -
           nep_data[gpu].M0;
       }
+    }
+    if (nep_data[gpu].N3 > nep_temp_data.num_atoms_per_gpu) {
+      printf(
+        "Number of atoms in GPU-%d is %d, which is larger than (num_atoms * 1.25) / num_gpus %d.\n",
+        gpu, nep_data[gpu].N3, nep_temp_data.num_atoms_per_gpu);
+      printf("Please reduce the number of GPUs available to the current node.\n");
+      exit(1);
     }
   }
 
