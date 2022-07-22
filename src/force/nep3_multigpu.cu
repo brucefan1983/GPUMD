@@ -881,10 +881,7 @@ static __global__ void collect_properties(
   const int num_atoms_local,
   const int N1,
   const int N2,
-  const int N3,
-  const int M0,
   const int M1,
-  const int M2,
   const int* cell_contents,
   const double* g_force_local,
   const double* g_potential_local,
@@ -893,8 +890,8 @@ static __global__ void collect_properties(
   double* g_potential_global,
   double* g_virial_global)
 {
-  int n_local = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n_local >= N1 && n_local < N2) {
+  int n_local = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n_local < N2) {
     int n_global = cell_contents[n_local - N1 + M1];
     for (int d = 0; d < 3; ++d) {
       g_force_global[n_global + d * num_atoms_global] =
@@ -1104,8 +1101,15 @@ void NEP3_MULTIGPU::compute(
       type.data(), position.data(), nep_temp_data.type.data(), nep_temp_data.position.data());
     CUDA_CHECK_KERNEL
 
-    nep_temp_data.type.copy_to_device(nep_data[gpu].type.data());
-    nep_temp_data.position.copy_to_device(nep_data[gpu].position.data());
+    CHECK(cudaMemcpy(
+      nep_data[gpu].type.data(), nep_temp_data.type.data(), sizeof(int) * nep_data[gpu].N3,
+      cudaMemcpyDeviceToDevice));
+    for (int d = 0; d < 3; ++d) {
+      CHECK(cudaMemcpy(
+        nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * d,
+        nep_temp_data.position.data() + nep_temp_data.num_atoms_per_gpu * d,
+        sizeof(double) * nep_data[gpu].N3, cudaMemcpyDeviceToDevice));
+    }
   }
 
   // parallel
@@ -1206,15 +1210,30 @@ void NEP3_MULTIGPU::compute(
 
   // serial
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    nep_temp_data.potential.copy_from_device(nep_data[gpu].potential.data());
-    nep_temp_data.force.copy_from_device(nep_data[gpu].force.data());
-    nep_temp_data.virial.copy_from_device(nep_data[gpu].virial.data());
+    CHECK(cudaMemcpy(
+      nep_temp_data.potential.data() + nep_data[gpu].N1,
+      nep_data[gpu].potential.data() + nep_data[gpu].N1,
+      sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1), cudaMemcpyDeviceToDevice));
 
-    collect_properties<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64>>>(
-      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N1, nep_data[gpu].N2, nep_data[gpu].N3,
-      nep_data[gpu].M0, nep_data[gpu].M1, nep_data[gpu].M2, nep_temp_data.cell_contents.data(),
-      nep_temp_data.force.data(), nep_temp_data.potential.data(), nep_temp_data.virial.data(),
-      force.data(), potential.data(), virial.data());
+    for (int d = 0; d < 3; ++d) {
+      CHECK(cudaMemcpy(
+        nep_temp_data.force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
+        nep_data[gpu].force.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
+        sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1), cudaMemcpyDeviceToDevice));
+    }
+
+    for (int d = 0; d < 9; ++d) {
+      CHECK(cudaMemcpy(
+        nep_temp_data.virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
+        nep_data[gpu].virial.data() + nep_data[gpu].N1 + nep_temp_data.num_atoms_per_gpu * d,
+        sizeof(double) * (nep_data[gpu].N2 - nep_data[gpu].N1), cudaMemcpyDeviceToDevice));
+    }
+
+    collect_properties<<<(nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64>>>(
+      N, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N1, nep_data[gpu].N2, nep_data[gpu].M1,
+      nep_temp_data.cell_contents.data(), nep_temp_data.force.data(),
+      nep_temp_data.potential.data(), nep_temp_data.virial.data(), force.data(), potential.data(),
+      virial.data());
     CUDA_CHECK_KERNEL
   }
 }
