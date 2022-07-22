@@ -380,7 +380,7 @@ static __global__ void find_neighbor_list_large_box(
         for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
           const int n2 = g_cell_contents[num_atoms_previous_cells + m];
 
-          if (n2 < N1 || n2 >= N2 || n1 == n2) {
+          if (n1 == n2) {
             continue;
           }
 
@@ -927,18 +927,18 @@ static __global__ void gpu_find_force_many_body(
   double* g_virial)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  double s_fx = 0.0;  // force_x
-  double s_fy = 0.0;  // force_y
-  double s_fz = 0.0;  // force_z
-  double s_sxx = 0.0; // virial_stress_xx
-  double s_sxy = 0.0; // virial_stress_xy
-  double s_sxz = 0.0; // virial_stress_xz
-  double s_syx = 0.0; // virial_stress_yx
-  double s_syy = 0.0; // virial_stress_yy
-  double s_syz = 0.0; // virial_stress_yz
-  double s_szx = 0.0; // virial_stress_zx
-  double s_szy = 0.0; // virial_stress_zy
-  double s_szz = 0.0; // virial_stress_zz
+  float s_fx = 0.0f;  // force_x
+  float s_fy = 0.0f;  // force_y
+  float s_fz = 0.0f;  // force_z
+  float s_sxx = 0.0f; // virial_stress_xx
+  float s_sxy = 0.0f; // virial_stress_xy
+  float s_sxz = 0.0f; // virial_stress_xz
+  float s_syx = 0.0f; // virial_stress_yx
+  float s_syy = 0.0f; // virial_stress_yy
+  float s_syz = 0.0f; // virial_stress_yz
+  float s_szx = 0.0f; // virial_stress_zx
+  float s_szy = 0.0f; // virial_stress_zy
+  float s_szz = 0.0f; // virial_stress_zz
 
   if (n1 >= N1 && n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
@@ -951,14 +951,17 @@ static __global__ void gpu_find_force_many_body(
       int n2 = g_neighbor_list[index];
       int neighbor_number_2 = g_neighbor_number[n2];
 
-      double x12 = g_x[n2] - x1;
-      double y12 = g_y[n2] - y1;
-      double z12 = g_z[n2] - z1;
-      apply_mic(box, x12, y12, z12);
+      double x12double = g_x[n2] - x1;
+      double y12double = g_y[n2] - y1;
+      double z12double = g_z[n2] - z1;
+      apply_mic(box, x12double, y12double, z12double);
+      float x12 = float(x12double);
+      float y12 = float(y12double);
+      float z12 = float(z12double);
 
-      double f12x = g_f12x[index];
-      double f12y = g_f12y[index];
-      double f12z = g_f12z[index];
+      float f12x = g_f12x[index];
+      float f12y = g_f12y[index];
+      float f12z = g_f12z[index];
       int offset = 0;
       for (int k = 0; k < neighbor_number_2; ++k) {
         if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
@@ -967,9 +970,9 @@ static __global__ void gpu_find_force_many_body(
         }
       }
       index = offset * number_of_particles + n2;
-      double f21x = g_f12x[index];
-      double f21y = g_f12y[index];
-      double f21z = g_f12z[index];
+      float f21x = g_f12x[index];
+      float f21y = g_f12y[index];
+      float f21z = g_f12z[index];
 
       // per atom force
       s_fx += f12x - f21x;
@@ -1038,7 +1041,9 @@ void NEP3_MULTIGPU::compute(
     const int num_bins_xy = num_bins[0] * num_bins[1];
     if (paramb.num_gpus == 1) {
       nep_data[gpu].N1 = 0;
+      nep_data[gpu].N4 = 0;
       nep_data[gpu].N2 = N;
+      nep_data[gpu].N5 = N;
       nep_data[gpu].N3 = N;
       nep_data[gpu].M0 = 0;
       nep_data[gpu].M1 = 0;
@@ -1049,7 +1054,11 @@ void NEP3_MULTIGPU::compute(
         nep_data[gpu].M1 = 0;
         nep_data[gpu].M2 = nep_temp_data.cell_count_sum_cpu[num_bins_z * num_bins_xy];
         nep_data[gpu].N1 = N - nep_data[gpu].M0;
+        nep_data[gpu].N4 =
+          nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 2) * num_bins_xy] - nep_data[gpu].M0;
         nep_data[gpu].N2 = nep_data[gpu].N1 + nep_data[gpu].M2;
+        nep_data[gpu].N5 =
+          nep_data[gpu].N1 + nep_temp_data.cell_count_sum_cpu[(num_bins_z + 2) * num_bins_xy];
         nep_data[gpu].N3 =
           nep_data[gpu].N1 + nep_temp_data.cell_count_sum_cpu[(num_bins_z + 4) * num_bins_xy];
       } else if (gpu == paramb.num_gpus - 1) {
@@ -1057,14 +1066,22 @@ void NEP3_MULTIGPU::compute(
         nep_data[gpu].M1 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z) * num_bins_xy];
         nep_data[gpu].M2 = 0;
         nep_data[gpu].N1 = nep_data[gpu].M1 - nep_data[gpu].M0;
+        nep_data[gpu].N4 =
+          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 2) * num_bins_xy] - nep_data[gpu].M0;
         nep_data[gpu].N2 = N - nep_data[gpu].M0;
+        nep_data[gpu].N5 = nep_data[gpu].N2 + nep_temp_data.cell_count_sum_cpu[2 * num_bins_xy];
         nep_data[gpu].N3 = nep_data[gpu].N2 + nep_temp_data.cell_count_sum_cpu[4 * num_bins_xy];
       } else {
         nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 4) * num_bins_xy];
         nep_data[gpu].M1 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z) * num_bins_xy];
         nep_data[gpu].M2 = nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z) * num_bins_xy];
         nep_data[gpu].N1 = nep_data[gpu].M1 - nep_data[gpu].M0;
+        nep_data[gpu].N4 =
+          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 2) * num_bins_xy] - nep_data[gpu].M0;
         nep_data[gpu].N2 = nep_data[gpu].M2 - nep_data[gpu].M0;
+        nep_data[gpu].N5 =
+          nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z + 2) * num_bins_xy] -
+          nep_data[gpu].M0;
         nep_data[gpu].N3 =
           nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z + 4) * num_bins_xy] -
           nep_data[gpu].M0;
@@ -1072,7 +1089,7 @@ void NEP3_MULTIGPU::compute(
     }
     if (nep_data[gpu].N3 > nep_temp_data.num_atoms_per_gpu) {
       printf(
-        "Number of atoms in GPU-%d is %d, which is larger than (num_atoms * 1.25) / num_gpus %d.\n",
+        "Number of atoms in GPU-%d is %d, which is larger than (num_atoms*1.25)/num_gpus = %d.\n",
         gpu, nep_data[gpu].N3, nep_temp_data.num_atoms_per_gpu);
       printf("Please reduce the number of GPUs available to the current node.\n");
       exit(1);
@@ -1100,10 +1117,12 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].stream, rc_cell_list, num_bins, box, nep_data[gpu].N3, nep_data[gpu].position,
       nep_data[gpu].cell_count, nep_data[gpu].cell_count_sum, nep_data[gpu].cell_contents);
 
-    find_neighbor_list_large_box<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, num_bins[0], num_bins[1],
-      num_bins[2], box, nep_data[gpu].cell_count.data(), nep_data[gpu].cell_count_sum.data(),
-      nep_data[gpu].cell_contents.data(), nep_data[gpu].position.data(),
+    find_neighbor_list_large_box<<<
+      (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
+      paramb, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N4, nep_data[gpu].N5, num_bins[0],
+      num_bins[1], num_bins[2], box, nep_data[gpu].cell_count.data(),
+      nep_data[gpu].cell_count_sum.data(), nep_data[gpu].cell_contents.data(),
+      nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(),
@@ -1122,8 +1141,9 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
 
-    find_descriptor<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
+    find_descriptor<<<
+      (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
+      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N4, nep_data[gpu].N5, box,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
       nep_data[gpu].position.data(),
@@ -1132,8 +1152,9 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].potential.data(), nep_data[gpu].Fp.data(), nep_data[gpu].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
-    find_force_radial<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
+    find_force_radial<<<
+      (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
+      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N1, nep_data[gpu].N2, box,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(), nep_data[gpu].type.data(),
       nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
@@ -1143,8 +1164,9 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].virial.data());
     CUDA_CHECK_KERNEL
 
-    find_partial_force_angular<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box,
+    find_partial_force_angular<<<
+      (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
+      paramb, annmb[gpu], nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N4, nep_data[gpu].N5, box,
       nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
       nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
@@ -1153,10 +1175,11 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].f12z.data());
     CUDA_CHECK_KERNEL
 
-    gpu_find_force_many_body<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      nep_temp_data.num_atoms_per_gpu, 0, nep_data[gpu].N3, box, nep_data[gpu].NN_angular.data(),
-      nep_data[gpu].NL_angular.data(), nep_data[gpu].f12x.data(), nep_data[gpu].f12y.data(),
-      nep_data[gpu].f12z.data(), nep_data[gpu].position.data(),
+    gpu_find_force_many_body<<<
+      (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
+      nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N1, nep_data[gpu].N2, box,
+      nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].f12x.data(),
+      nep_data[gpu].f12y.data(), nep_data[gpu].f12z.data(), nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].force.data(), nep_data[gpu].force.data() + nep_temp_data.num_atoms_per_gpu,
@@ -1165,8 +1188,9 @@ void NEP3_MULTIGPU::compute(
     CUDA_CHECK_KERNEL
 
     if (zbl.enabled) {
-      find_force_ZBL<<<(nep_data[gpu].N3 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-        nep_temp_data.num_atoms_per_gpu, zbl, 0, nep_data[gpu].N3, box,
+      find_force_ZBL<<<
+        (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
+        nep_temp_data.num_atoms_per_gpu, zbl, nep_data[gpu].N1, nep_data[gpu].N2, box,
         nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data(), nep_data[gpu].type.data(),
         nep_data[gpu].position.data(),
         nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,

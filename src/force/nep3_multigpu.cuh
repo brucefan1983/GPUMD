@@ -38,8 +38,18 @@ struct NEP3_MULTIGPU_Data {
   GPU_Vector<double> potential;
   GPU_Vector<double> virial;
 
-  int N1, N2, N3; // ending indices in local system
-  int M0, M1, M2; // starting indices in global system
+  /*
+  M0   M1                   M2
+  |----|--------------------|----|
+  0    N1                   N2   N3
+    N4                         N5
+  using coordinate for [0, N3)
+  compute neighbor list, descriptor, and partial force for [N4, N5)
+  compute force for [N1 N2)
+  */
+
+  int N1, N2, N3, N4, N5; // for local system
+  int M0, M1, M2;         // for global system
   cudaStream_t stream;
 };
 
