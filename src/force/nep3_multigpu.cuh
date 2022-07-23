@@ -131,5 +131,6 @@ private:
   NEP3_MULTIGPU_Data nep_data[16];
   NEP3_TEMP_Data nep_temp_data;
 
+  void allocate_memory();
   void update_potential(const float* parameters, ANN& ann);
 };

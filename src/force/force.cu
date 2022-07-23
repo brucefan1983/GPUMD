@@ -140,7 +140,6 @@ void Force::initialize_potential(
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0) {
-#ifdef USE_MULTI_GPU
     int num_gpus;
     CHECK(cudaGetDeviceCount(&num_gpus));
     if (num_gpus == 1) {
@@ -148,9 +147,6 @@ void Force::initialize_potential(
     } else {
       potential[m].reset(new NEP3_MULTIGPU(num_gpus, file_potential[m], number_of_atoms));
     }
-#else
-    potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
-#endif
   } else if (strcmp(potential_name, "lj") == 0) {
     potential[m].reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {

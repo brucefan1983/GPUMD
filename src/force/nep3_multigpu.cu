@@ -259,7 +259,31 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
 
     nep_data[gpu].parameters.resize(annmb[gpu].num_para);
     nep_data[gpu].parameters.copy_from_host(parameters.data());
+
     update_potential(nep_data[gpu].parameters.data(), annmb[gpu]);
+
+    nep_data[gpu].cell_count.resize(num_atoms);
+    nep_data[gpu].cell_count_sum.resize(num_atoms);
+    nep_data[gpu].cell_contents.resize(num_atoms);
+
+    CHECK(cudaStreamCreate(&nep_data[gpu].stream));
+  }
+
+  CHECK(cudaSetDevice(0));
+
+  nep_temp_data.cell_count_sum_cpu.resize(num_atoms);
+  nep_temp_data.cell_count.resize(num_atoms);
+  nep_temp_data.cell_count_sum.resize(num_atoms);
+  nep_temp_data.cell_contents.resize(num_atoms);
+
+  allocate_memory();
+}
+
+void NEP3_MULTIGPU::allocate_memory()
+{
+  for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
+
+    CHECK(cudaSetDevice(gpu));
 
     nep_data[gpu].f12x.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
     nep_data[gpu].f12y.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
@@ -272,25 +296,14 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     nep_data[gpu].sum_fxyz.resize(
       nep_temp_data.num_atoms_per_gpu * (paramb.n_max_angular + 1) * NUM_OF_ABC);
 
-    nep_data[gpu].cell_count.resize(num_atoms);
-    nep_data[gpu].cell_count_sum.resize(num_atoms);
-    nep_data[gpu].cell_contents.resize(num_atoms);
-
     nep_data[gpu].type.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].position.resize(nep_temp_data.num_atoms_per_gpu * 3);
     nep_data[gpu].potential.resize(nep_temp_data.num_atoms_per_gpu);
     nep_data[gpu].force.resize(nep_temp_data.num_atoms_per_gpu * 3);
     nep_data[gpu].virial.resize(nep_temp_data.num_atoms_per_gpu * 9);
-
-    CHECK(cudaStreamCreate(&nep_data[gpu].stream));
   }
 
   CHECK(cudaSetDevice(0));
-
-  nep_temp_data.cell_count_sum_cpu.resize(num_atoms);
-  nep_temp_data.cell_count.resize(num_atoms);
-  nep_temp_data.cell_count_sum.resize(num_atoms);
-  nep_temp_data.cell_contents.resize(num_atoms);
 
   nep_temp_data.type.resize(nep_temp_data.num_atoms_per_gpu);
   nep_temp_data.position.resize(nep_temp_data.num_atoms_per_gpu * 3);
@@ -1275,11 +1288,8 @@ void NEP3_MULTIGPU::compute(
       }
     }
     if (nep_data[gpu].N3 > nep_temp_data.num_atoms_per_gpu) {
-      printf(
-        "Number of atoms in GPU-%d is %d, which is larger than (num_atoms*1.25)/num_gpus = %d.\n",
-        gpu, nep_data[gpu].N3, nep_temp_data.num_atoms_per_gpu);
-      printf("Please reduce the number of GPUs available to the current node.\n");
-      exit(1);
+      nep_temp_data.num_atoms_per_gpu = nep_data[gpu].N3 * 1.1;
+      allocate_memory();
     }
   }
 
