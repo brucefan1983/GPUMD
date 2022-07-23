@@ -13,6 +13,11 @@
 #    You can consider removing -Xcompiler "/wd 4819"
 # 5) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
+# 6) Add -DUSE_MULTI_GPU to CFLAGS if you want to use the
+#    multi-GPU version for MD simulation with NEP.
+# 7) Add -DUSE_FIXED_NEIGHBOR to CFLAGSS if you want to
+#    use a fixed neighbor list for empirical potentials
+#    (This can be make the MD simulation much faster.)
 ###########################################################
 
 
@@ -23,7 +28,7 @@ CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++11 -O3 -arch=sm_35 
+CFLAGS = -std=c++11 -O3 -arch=sm_75
 endif
 INC = -I./
 LDFLAGS = 
