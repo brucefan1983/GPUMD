@@ -17,7 +17,7 @@
 #    multi-GPU version for MD simulation with NEP.
 # 7) Add -DUSE_FIXED_NEIGHBOR to CFLAGSS if you want to
 #    use a fixed neighbor list for empirical potentials
-#    (This can be make the MD simulation much faster.)
+#    (This can make the MD simulation much faster.)
 ###########################################################
 
 
