@@ -26,13 +26,14 @@ TODO:
     3) remove some unnecessary calculations across the boundaries
 ------------------------------------------------------------------------------*/
 
-#include "neighbor.cuh"
 #include "nep3_multigpu.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
 #include <iostream>
 #include <string>
+#include <thrust/execution_policy.h>
+#include <thrust/scan.h>
 #include <vector>
 
 const int NUM_ELEMENTS = 103;
@@ -314,6 +315,169 @@ void NEP3_MULTIGPU::update_potential(const float* parameters, ANN& ann)
   ann.c = ann.b1 + 1;
 }
 
+static __device__ void find_cell_id(
+  const Box& box,
+  const double x,
+  const double y,
+  const double z,
+  const double rc_inv,
+  const int nx,
+  const int ny,
+  const int nz,
+  int& cell_id_x,
+  int& cell_id_y,
+  int& cell_id_z,
+  int& cell_id)
+{
+  if (box.triclinic == 0) {
+    cell_id_x = floor(x * rc_inv);
+    cell_id_y = floor(y * rc_inv);
+    cell_id_z = floor(z * rc_inv);
+  } else {
+    const double sx = box.cpu_h[9] * x + box.cpu_h[10] * y + box.cpu_h[11] * z;
+    const double sy = box.cpu_h[12] * x + box.cpu_h[13] * y + box.cpu_h[14] * z;
+    const double sz = box.cpu_h[15] * x + box.cpu_h[16] * y + box.cpu_h[17] * z;
+    cell_id_x = floor(sx * box.thickness_x * rc_inv);
+    cell_id_y = floor(sy * box.thickness_y * rc_inv);
+    cell_id_z = floor(sz * box.thickness_z * rc_inv);
+  }
+  while (cell_id_x < 0)
+    cell_id_x += nx;
+  while (cell_id_x >= nx)
+    cell_id_x -= nx;
+  while (cell_id_y < 0)
+    cell_id_y += ny;
+  while (cell_id_y >= ny)
+    cell_id_y -= ny;
+  while (cell_id_z < 0)
+    cell_id_z += nz;
+  while (cell_id_z >= nz)
+    cell_id_z -= nz;
+  cell_id = cell_id_x + nx * cell_id_y + nx * ny * cell_id_z;
+}
+
+static __device__ void find_cell_id(
+  const Box& box,
+  const double x,
+  const double y,
+  const double z,
+  const double rc_inv,
+  const int nx,
+  const int ny,
+  const int nz,
+  int& cell_id)
+{
+  int cell_id_x, cell_id_y, cell_id_z;
+  find_cell_id(box, x, y, z, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
+}
+
+static __global__ void find_cell_counts(
+  const Box box,
+  const int N,
+  int* cell_count,
+  const double* x,
+  const double* y,
+  const double* z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int cell_id;
+    find_cell_id(box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    atomicAdd(&cell_count[cell_id], 1);
+  }
+}
+
+static __global__ void find_cell_contents(
+  const Box box,
+  const int N,
+  int* cell_count,
+  const int* cell_count_sum,
+  int* cell_contents,
+  const double* x,
+  const double* y,
+  const double* z,
+  const int nx,
+  const int ny,
+  const int nz,
+  const double rc_inv)
+{
+  const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int cell_id;
+    find_cell_id(box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    const int ind = atomicAdd(&cell_count[cell_id], 1);
+    cell_contents[cell_count_sum[cell_id] + ind] = n1;
+  }
+}
+
+static void __global__ set_to_zero(int size, int* data)
+{
+  int n = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n < size) {
+    data[n] = 0;
+  }
+}
+
+static void find_cell_list(
+  cudaStream_t& stream,
+  const double rc,
+  const int* num_bins,
+  Box& box,
+  const int N,
+  const GPU_Vector<double>& position_per_atom,
+  GPU_Vector<int>& cell_count,
+  GPU_Vector<int>& cell_count_sum,
+  GPU_Vector<int>& cell_contents)
+{
+  const int offset = position_per_atom.size() / 3;
+  const int block_size = 256;
+  const int grid_size = (N - 1) / block_size + 1;
+  const double rc_inv = 1.0 / rc;
+  const double* x = position_per_atom.data();
+  const double* y = position_per_atom.data() + offset;
+  const double* z = position_per_atom.data() + offset * 2;
+  const int N_cells = num_bins[0] * num_bins[1] * num_bins[2];
+
+  // number of cells is allowed to be larger than the number of atoms
+  if (N_cells > cell_count.size()) {
+    cell_count.resize(N_cells);
+    cell_count_sum.resize(N_cells);
+  }
+
+  set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_count.size(), cell_count.data());
+  CUDA_CHECK_KERNEL
+
+  set_to_zero<<<(cell_count_sum.size() - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_count_sum.size(), cell_count_sum.data());
+  CUDA_CHECK_KERNEL
+
+  set_to_zero<<<(cell_contents.size() - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_contents.size(), cell_contents.data());
+  CUDA_CHECK_KERNEL
+
+  find_cell_counts<<<grid_size, block_size, 0, stream>>>(
+    box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
+  CUDA_CHECK_KERNEL
+
+  thrust::exclusive_scan(
+    thrust::cuda::par.on(stream), cell_count.data(), cell_count.data() + N_cells,
+    cell_count_sum.data());
+
+  set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
+    cell_count.size(), cell_count.data());
+  CUDA_CHECK_KERNEL
+
+  find_cell_contents<<<grid_size, block_size, 0, stream>>>(
+    box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
+    num_bins[1], num_bins[2], rc_inv);
+  CUDA_CHECK_KERNEL
+}
+
 static __global__ void find_neighbor_list_large_box(
   NEP3_MULTIGPU::ParaMB paramb,
   const int N,
@@ -407,6 +571,32 @@ static __global__ void find_neighbor_list_large_box(
 
   g_NN_radial[n1] = count_radial;
   g_NN_angular[n1] = count_angular;
+}
+
+static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* NL)
+{
+  int bid = blockIdx.x;
+  int tid = threadIdx.x;
+  int neighbor_number = NN[bid];
+  int atom_index;
+  extern __shared__ int atom_index_copy[];
+
+  if (tid < neighbor_number) {
+    atom_index = NL[bid + tid * N];
+    atom_index_copy[tid] = atom_index;
+  }
+  int count = 0;
+  __syncthreads();
+
+  for (int j = 0; j < neighbor_number; ++j) {
+    if (atom_index > atom_index_copy[j]) {
+      count++;
+    }
+  }
+
+  if (tid < neighbor_number) {
+    NL[bid + count * N] = atom_index;
+  }
 }
 
 static __global__ void find_descriptor(
@@ -1028,8 +1218,8 @@ void NEP3_MULTIGPU::compute(
   box.get_num_bins(rc_cell_list, num_bins);
 
   find_cell_list(
-    rc_cell_list, num_bins, box, position, nep_temp_data.cell_count, nep_temp_data.cell_count_sum,
-    nep_temp_data.cell_contents);
+    nep_data[0].stream, rc_cell_list, num_bins, box, N, position, nep_temp_data.cell_count,
+    nep_temp_data.cell_count_sum, nep_temp_data.cell_contents);
   nep_temp_data.cell_count_sum.copy_to_host(
     nep_temp_data.cell_count_sum_cpu.data(), num_bins[0] * num_bins[1] * num_bins[2]);
 

@@ -27,17 +27,6 @@ void find_cell_list(
   GPU_Vector<int>& cell_count_sum,
   GPU_Vector<int>& cell_contents);
 
-void find_cell_list(
-  cudaStream_t& stream,
-  const double rc,
-  const int* num_bins,
-  Box& box,
-  const int N,
-  const GPU_Vector<double>& position_per_atom,
-  GPU_Vector<int>& cell_count,
-  GPU_Vector<int>& cell_count_sum,
-  GPU_Vector<int>& cell_contents);
-
 void find_neighbor(
   const int N1,
   const int N2,
