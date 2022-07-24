@@ -20,10 +20,7 @@ Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 
 This is the multi-GPU (single-node) version.
-TODO:
-    1) determine the slicing direction automatically
-    2) copy less data from device to host and from device to device
-    3) remove some unnecessary calculations across the boundaries
+TODO: determine the slicing direction automatically
 ------------------------------------------------------------------------------*/
 
 #include "nep3_multigpu.cuh"
