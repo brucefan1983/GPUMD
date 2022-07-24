@@ -142,6 +142,9 @@ void Force::initialize_potential(
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0) {
     int num_gpus;
     CHECK(cudaGetDeviceCount(&num_gpus));
+#ifdef ZHEYONG
+    num_gpus = 3;
+#endif
     if (num_gpus == 1) {
       potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
     } else {

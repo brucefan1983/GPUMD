@@ -46,6 +46,8 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
 NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int num_atoms)
 {
 
+  printf("Try to use %d GPUs for the NEP part.\n", num_gpus);
+
   std::ifstream input(file_potential);
   if (!input.is_open()) {
     std::cout << "Failed to open " << file_potential << std::endl;
@@ -251,8 +253,9 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     annmb[gpu].num_para = annmb[0].num_para;
     annmb[gpu].dim = annmb[0].dim;
     annmb[gpu].num_neurons1 = annmb[0].num_neurons1;
-
+#ifndef ZHEYONG
     CHECK(cudaSetDevice(gpu));
+#endif
 
     nep_data[gpu].parameters.resize(annmb[gpu].num_para);
     nep_data[gpu].parameters.copy_from_host(parameters.data());
@@ -280,7 +283,9 @@ void NEP3_MULTIGPU::allocate_memory()
 {
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
+#ifndef ZHEYONG
     CHECK(cudaSetDevice(gpu));
+#endif
 
     nep_data[gpu].f12x.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
     nep_data[gpu].f12y.resize(nep_temp_data.num_atoms_per_gpu * paramb.MN_angular);
@@ -1312,7 +1317,9 @@ void NEP3_MULTIGPU::compute(
   // parallel
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
 
+#ifndef ZHEYONG
     CHECK(cudaSetDevice(gpu));
+#endif
 
     find_cell_list(
       nep_data[gpu].stream, rc_cell_list, num_bins, box, nep_data[gpu].N3, nep_data[gpu].position,
