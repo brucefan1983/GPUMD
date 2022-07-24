@@ -1,7 +1,8 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (3)
+## Preprints (4)
 
+* Penghua Ying, Zheng Zhong, and Jin Zhang, [Anisotropic mechanical properties of monolayer fullerene network: An interplay between two types of interfullerene bonds](https://chemrxiv.org/engage/chemrxiv/article-details/62c855dafb63815200d268c2), ChemRxiv. Cambridge: Cambridge Open Engage; 2022; This content is a preprint and has not been peer-reviewed.
 
 * Penghua Ying, Ting Liang, Ke Xu, Jin Zhang, Jianbin Xu, Jianyang Wu, Zheyong Fan, Tapio Ala-Nissila, Zheng Zhong,
 [Variable thermal transport in black, blue, and violet phosphorene from extensive atomistic simulations with a neuroevolution potential](https://arxiv.org/abs/2206.07874), arXiv:2206.07874 [physics.comp-ph].
@@ -12,7 +13,9 @@
 * Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
 [GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://arxiv.org/abs/2205.10046), arXiv:2205.10046 [physics.comp-ph].
 
-## 2022 (11)
+## 2022 (12)
+
+* Alexander J. Gabourie,  Çağıl Köroğlu, and  Eric Pop, [Substrate-dependence of monolayer MoS2 thermal conductivity and thermal boundary conductance](https://doi.org/10.1063/5.0089247), Journal of Applied Physics **131**, 195103 (2022).
 
 * Haikuan Dong, Zheyong Fan, Ping Qian, Yanjing Su, [Exactly equivalent thermal conductivity in finite systems from equilibrium and nonequilibrium molecular dynamics simulations](https://doi.org/10.1016/j.physe.2022.115410), Physica E **144**, 115410 (2022).
 
