@@ -19,8 +19,8 @@ Ref: Zheyong Fan et al., Neuroevolution machine learning potentials:
 Combining high accuracy and low cost in atomistic simulations and application to
 heat transport, Phys. Rev. B. 104, 104309 (2021).
 
-This is the multi-GPU (single-node) version.
-TODO: determine the slicing direction automatically
+This is the multi-GPU (single-node) version. It has good parallel efficiency
+when there is NVlink, but is also not very bad when there is only PCI-E.
 ------------------------------------------------------------------------------*/
 
 #include "nep3_multigpu.cuh"
@@ -331,6 +331,7 @@ void NEP3_MULTIGPU::update_potential(const float* parameters, ANN& ann)
 }
 
 static __device__ void find_cell_id(
+  const int partition_direction,
   const Box& box,
   const double x,
   const double y,
@@ -356,22 +357,29 @@ static __device__ void find_cell_id(
     cell_id_y = floor(sy * box.thickness_y * rc_inv);
     cell_id_z = floor(sz * box.thickness_z * rc_inv);
   }
-  while (cell_id_x < 0)
+  if (cell_id_x < 0)
     cell_id_x += nx;
-  while (cell_id_x >= nx)
+  if (cell_id_x >= nx)
     cell_id_x -= nx;
-  while (cell_id_y < 0)
+  if (cell_id_y < 0)
     cell_id_y += ny;
-  while (cell_id_y >= ny)
+  if (cell_id_y >= ny)
     cell_id_y -= ny;
-  while (cell_id_z < 0)
+  if (cell_id_z < 0)
     cell_id_z += nz;
-  while (cell_id_z >= nz)
+  if (cell_id_z >= nz)
     cell_id_z -= nz;
-  cell_id = cell_id_x + nx * cell_id_y + nx * ny * cell_id_z;
+  if (partition_direction == 0) {
+    cell_id = cell_id_y + ny * (cell_id_z + nz * cell_id_x);
+  } else if (partition_direction == 1) {
+    cell_id = cell_id_x + nx * (cell_id_z + nz * cell_id_y);
+  } else {
+    cell_id = cell_id_x + nx * (cell_id_y + ny * cell_id_z);
+  }
 }
 
 static __device__ void find_cell_id(
+  const int partition_direction,
   const Box& box,
   const double x,
   const double y,
@@ -383,10 +391,13 @@ static __device__ void find_cell_id(
   int& cell_id)
 {
   int cell_id_x, cell_id_y, cell_id_z;
-  find_cell_id(box, x, y, z, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
+  find_cell_id(
+    partition_direction, box, x, y, z, rc_inv, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z,
+    cell_id);
 }
 
 static __global__ void find_cell_counts(
+  const int partition_direction,
   const Box box,
   const int N,
   int* cell_count,
@@ -401,12 +412,13 @@ static __global__ void find_cell_counts(
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
     int cell_id;
-    find_cell_id(box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    find_cell_id(partition_direction, box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
     atomicAdd(&cell_count[cell_id], 1);
   }
 }
 
 static __global__ void find_cell_contents(
+  const int partition_direction,
   const Box box,
   const int N,
   int* cell_count,
@@ -423,7 +435,7 @@ static __global__ void find_cell_contents(
   const int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
     int cell_id;
-    find_cell_id(box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
+    find_cell_id(partition_direction, box, x[n1], y[n1], z[n1], rc_inv, nx, ny, nz, cell_id);
     const int ind = atomicAdd(&cell_count[cell_id], 1);
     cell_contents[cell_count_sum[cell_id] + ind] = n1;
   }
@@ -439,6 +451,7 @@ static void __global__ set_to_zero(int size, int* data)
 
 static void find_cell_list(
   cudaStream_t& stream,
+  const int partition_direction,
   const double rc,
   const int* num_bins,
   Box& box,
@@ -476,7 +489,8 @@ static void find_cell_list(
   CUDA_CHECK_KERNEL
 
   find_cell_counts<<<grid_size, block_size, 0, stream>>>(
-    box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
+    partition_direction, box, N, cell_count.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2],
+    rc_inv);
   CUDA_CHECK_KERNEL
 
   thrust::exclusive_scan(
@@ -488,13 +502,14 @@ static void find_cell_list(
   CUDA_CHECK_KERNEL
 
   find_cell_contents<<<grid_size, block_size, 0, stream>>>(
-    box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
-    num_bins[1], num_bins[2], rc_inv);
+    partition_direction, box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x,
+    y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv);
   CUDA_CHECK_KERNEL
 }
 
 static __global__ void find_neighbor_list_large_box(
   NEP3_MULTIGPU::ParaMB paramb,
+  const int partition_direction,
   const int N,
   const int N1,
   const int N2,
@@ -529,8 +544,8 @@ static __global__ void find_neighbor_list_large_box(
   int cell_id_y;
   int cell_id_z;
   find_cell_id(
-    box, x1, y1, z1, 2.0f * paramb.rcinv_radial, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z,
-    cell_id);
+    partition_direction, box, x1, y1, z1, 2.0f * paramb.rcinv_radial, nx, ny, nz, cell_id_x,
+    cell_id_y, cell_id_z, cell_id);
 
   const int z_lim = box.pbc_z ? 2 : 0;
   const int y_lim = box.pbc_y ? 2 : 0;
@@ -539,19 +554,30 @@ static __global__ void find_neighbor_list_large_box(
   for (int zz = -z_lim; zz <= z_lim; ++zz) {
     for (int yy = -y_lim; yy <= y_lim; ++yy) {
       for (int xx = -x_lim; xx <= x_lim; ++xx) {
-        int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
+        int xxx = xx;
+        int yyy = yy;
+        int zzz = zz;
         if (cell_id_x + xx < 0)
-          neighbor_cell += nx;
+          xxx += nx;
         if (cell_id_x + xx >= nx)
-          neighbor_cell -= nx;
+          xxx -= nx;
         if (cell_id_y + yy < 0)
-          neighbor_cell += ny * nx;
+          yyy += ny;
         if (cell_id_y + yy >= ny)
-          neighbor_cell -= ny * nx;
+          yyy -= ny;
         if (cell_id_z + zz < 0)
-          neighbor_cell += nz * ny * nx;
+          zzz += nz;
         if (cell_id_z + zz >= nz)
-          neighbor_cell -= nz * ny * nx;
+          zzz -= nz;
+
+        int neighbor_cell = cell_id;
+        if (partition_direction == 0) {
+          neighbor_cell += (xxx * nz + zzz) * ny + yyy;
+        } else if (partition_direction == 1) {
+          neighbor_cell += (yyy * nz + zzz) * nx + xxx;
+        } else {
+          neighbor_cell += (zzz * ny + yyy) * nx + xxx;
+        }
 
         const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
         const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
@@ -1206,15 +1232,33 @@ void NEP3_MULTIGPU::compute(
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
 
+  int partition_direction = 2;
+  int num_bins_longitudinal = num_bins[2] / paramb.num_gpus;
+  int num_bins_transverse = num_bins[0] * num_bins[1];
+  if (num_bins[0] > num_bins[1] && num_bins[0] > num_bins[2]) {
+    partition_direction = 0;
+    num_bins_longitudinal = num_bins[0] / paramb.num_gpus;
+    num_bins_transverse = num_bins[1] * num_bins[2];
+  }
+  if (num_bins[1] > num_bins[0] && num_bins[1] > num_bins[2]) {
+    partition_direction = 1;
+    num_bins_longitudinal = num_bins[1] / paramb.num_gpus;
+    num_bins_transverse = num_bins[0] * num_bins[2];
+  }
+
+  if (num_bins_longitudinal < 10) {
+    printf("The longest direction has less than 5 times of the NEP cutoff per GPU.\n");
+    printf("Please reduce the number of GPUs or increase the simulation cell size.\n");
+    exit(1);
+  }
+
   find_cell_list(
-    nep_data[0].stream, rc_cell_list, num_bins, box, N, position, nep_temp_data.cell_count,
-    nep_temp_data.cell_count_sum, nep_temp_data.cell_contents);
+    nep_data[0].stream, partition_direction, rc_cell_list, num_bins, box, N, position,
+    nep_temp_data.cell_count, nep_temp_data.cell_count_sum, nep_temp_data.cell_contents);
   nep_temp_data.cell_count_sum.copy_to_host(
     nep_temp_data.cell_count_sum_cpu.data(), num_bins[0] * num_bins[1] * num_bins[2]);
 
   for (int gpu = 0; gpu < paramb.num_gpus; ++gpu) {
-    const int num_bins_z = num_bins[2] / paramb.num_gpus;
-    const int num_bins_xy = num_bins[0] * num_bins[1];
     if (paramb.num_gpus == 1) {
       nep_data[gpu].N1 = 0;
       nep_data[gpu].N4 = 0;
@@ -1226,40 +1270,59 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].M2 = N;
     } else {
       if (gpu == 0) {
-        nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 4) * num_bins_xy];
+        nep_data[gpu].M0 =
+          nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 4) * num_bins_transverse];
         nep_data[gpu].M1 = 0;
-        nep_data[gpu].M2 = nep_temp_data.cell_count_sum_cpu[num_bins_z * num_bins_xy];
+        nep_data[gpu].M2 =
+          nep_temp_data.cell_count_sum_cpu[num_bins_longitudinal * num_bins_transverse];
         nep_data[gpu].N1 = N - nep_data[gpu].M0;
         nep_data[gpu].N4 =
-          nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 2) * num_bins_xy] - nep_data[gpu].M0;
+          nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 2) * num_bins_transverse] -
+          nep_data[gpu].M0;
         nep_data[gpu].N2 = nep_data[gpu].N1 + nep_data[gpu].M2;
         nep_data[gpu].N5 =
-          nep_data[gpu].N1 + nep_temp_data.cell_count_sum_cpu[(num_bins_z + 2) * num_bins_xy];
+          nep_data[gpu].N1 +
+          nep_temp_data.cell_count_sum_cpu[(num_bins_longitudinal + 2) * num_bins_transverse];
         nep_data[gpu].N3 =
-          nep_data[gpu].N1 + nep_temp_data.cell_count_sum_cpu[(num_bins_z + 4) * num_bins_xy];
+          nep_data[gpu].N1 +
+          nep_temp_data.cell_count_sum_cpu[(num_bins_longitudinal + 4) * num_bins_transverse];
       } else if (gpu == paramb.num_gpus - 1) {
-        nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 4) * num_bins_xy];
-        nep_data[gpu].M1 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z) * num_bins_xy];
+        nep_data[gpu].M0 =
+          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_longitudinal - 4) * num_bins_transverse];
+        nep_data[gpu].M1 =
+          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_longitudinal) * num_bins_transverse];
         nep_data[gpu].M2 = 0;
         nep_data[gpu].N1 = nep_data[gpu].M1 - nep_data[gpu].M0;
         nep_data[gpu].N4 =
-          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 2) * num_bins_xy] - nep_data[gpu].M0;
+          nep_temp_data
+            .cell_count_sum_cpu[(gpu * num_bins_longitudinal - 2) * num_bins_transverse] -
+          nep_data[gpu].M0;
         nep_data[gpu].N2 = N - nep_data[gpu].M0;
-        nep_data[gpu].N5 = nep_data[gpu].N2 + nep_temp_data.cell_count_sum_cpu[2 * num_bins_xy];
-        nep_data[gpu].N3 = nep_data[gpu].N2 + nep_temp_data.cell_count_sum_cpu[4 * num_bins_xy];
+        nep_data[gpu].N5 =
+          nep_data[gpu].N2 + nep_temp_data.cell_count_sum_cpu[2 * num_bins_transverse];
+        nep_data[gpu].N3 =
+          nep_data[gpu].N2 + nep_temp_data.cell_count_sum_cpu[4 * num_bins_transverse];
       } else {
-        nep_data[gpu].M0 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 4) * num_bins_xy];
-        nep_data[gpu].M1 = nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z) * num_bins_xy];
-        nep_data[gpu].M2 = nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z) * num_bins_xy];
+        nep_data[gpu].M0 =
+          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_longitudinal - 4) * num_bins_transverse];
+        nep_data[gpu].M1 =
+          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_longitudinal) * num_bins_transverse];
+        nep_data[gpu].M2 =
+          nep_temp_data
+            .cell_count_sum_cpu[((gpu + 1) * num_bins_longitudinal) * num_bins_transverse];
         nep_data[gpu].N1 = nep_data[gpu].M1 - nep_data[gpu].M0;
         nep_data[gpu].N4 =
-          nep_temp_data.cell_count_sum_cpu[(gpu * num_bins_z - 2) * num_bins_xy] - nep_data[gpu].M0;
+          nep_temp_data
+            .cell_count_sum_cpu[(gpu * num_bins_longitudinal - 2) * num_bins_transverse] -
+          nep_data[gpu].M0;
         nep_data[gpu].N2 = nep_data[gpu].M2 - nep_data[gpu].M0;
         nep_data[gpu].N5 =
-          nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z + 2) * num_bins_xy] -
+          nep_temp_data
+            .cell_count_sum_cpu[((gpu + 1) * num_bins_longitudinal + 2) * num_bins_transverse] -
           nep_data[gpu].M0;
         nep_data[gpu].N3 =
-          nep_temp_data.cell_count_sum_cpu[((gpu + 1) * num_bins_z + 4) * num_bins_xy] -
+          nep_temp_data
+            .cell_count_sum_cpu[((gpu + 1) * num_bins_longitudinal + 4) * num_bins_transverse] -
           nep_data[gpu].M0;
       }
     }
@@ -1296,13 +1359,14 @@ void NEP3_MULTIGPU::compute(
 #endif
 
     find_cell_list(
-      nep_data[gpu].stream, rc_cell_list, num_bins, box, nep_data[gpu].N3, nep_data[gpu].position,
-      nep_data[gpu].cell_count, nep_data[gpu].cell_count_sum, nep_data[gpu].cell_contents);
+      nep_data[gpu].stream, partition_direction, rc_cell_list, num_bins, box, nep_data[gpu].N3,
+      nep_data[gpu].position, nep_data[gpu].cell_count, nep_data[gpu].cell_count_sum,
+      nep_data[gpu].cell_contents);
 
     find_neighbor_list_large_box<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1, 64, 0, nep_data[gpu].stream>>>(
-      paramb, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N4, nep_data[gpu].N5, num_bins[0],
-      num_bins[1], num_bins[2], box, nep_data[gpu].cell_count.data(),
+      paramb, partition_direction, nep_temp_data.num_atoms_per_gpu, nep_data[gpu].N4,
+      nep_data[gpu].N5, num_bins[0], num_bins[1], num_bins[2], box, nep_data[gpu].cell_count.data(),
       nep_data[gpu].cell_count_sum.data(), nep_data[gpu].cell_contents.data(),
       nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
