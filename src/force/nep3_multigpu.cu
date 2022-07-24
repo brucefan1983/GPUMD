@@ -588,32 +588,6 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_angular[n1] = count_angular;
 }
 
-static __global__ void gpu_sort_neighbor_list(const int N, const int* NN, int* NL)
-{
-  int bid = blockIdx.x;
-  int tid = threadIdx.x;
-  int neighbor_number = NN[bid];
-  int atom_index;
-  extern __shared__ int atom_index_copy[];
-
-  if (tid < neighbor_number) {
-    atom_index = NL[bid + tid * N];
-    atom_index_copy[tid] = atom_index;
-  }
-  int count = 0;
-  __syncthreads();
-
-  for (int j = 0; j < neighbor_number; ++j) {
-    if (atom_index > atom_index_copy[j]) {
-      count++;
-    }
-  }
-
-  if (tid < neighbor_number) {
-    NL[bid + count * N] = atom_index;
-  }
-}
-
 static __global__ void find_descriptor(
   NEP3_MULTIGPU::ParaMB paramb,
   NEP3_MULTIGPU::ANN annmb,
@@ -1335,18 +1309,6 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].NN_radial.data(), nep_data[gpu].NL_radial.data(),
       nep_data[gpu].NN_angular.data(), nep_data[gpu].NL_angular.data());
-    CUDA_CHECK_KERNEL
-
-    gpu_sort_neighbor_list<<<
-      nep_data[gpu].N3, paramb.MN_radial, paramb.MN_radial * sizeof(int), nep_data[gpu].stream>>>(
-      nep_temp_data.num_atoms_per_gpu, nep_data[gpu].NN_radial.data(),
-      nep_data[gpu].NL_radial.data());
-    CUDA_CHECK_KERNEL
-
-    gpu_sort_neighbor_list<<<
-      nep_data[gpu].N3, paramb.MN_angular, paramb.MN_angular * sizeof(int), nep_data[gpu].stream>>>(
-      nep_temp_data.num_atoms_per_gpu, nep_data[gpu].NN_angular.data(),
-      nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
 
     find_descriptor<<<
