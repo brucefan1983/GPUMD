@@ -143,12 +143,16 @@ void Dataset::initialize_gpu_data(Parameters& para)
     }
   }
 
+  type_weight_gpu.resize(MAX_NUM_TYPES);
   energy_ref_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
+  q_scaler_gpu.resize(para.dim);
+  type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
+  q_scaler_gpu.copy_from_host(para.q_scaler_cpu.data());
 
   box.resize(Nc * 18);
   box_original.resize(Nc * 9);
@@ -266,8 +270,9 @@ void Dataset::find_neighbor(Parameters& para)
 }
 
 void Dataset::construct(
-  char* input_dir, Parameters& para, std::vector<Structure>& structures_input, int n1, int n2)
-{
+  char* input_dir, Parameters& para, std::vector<Structure>& structures_input, int n1, int n2, int device_id)
+{ 
+  CHECK(cudaSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
@@ -338,12 +343,13 @@ static __global__ void gpu_sum_force_error(
   }
 }
 
-float Dataset::get_rmse_force(Parameters& para, const bool use_weight)
+float Dataset::get_rmse_force(Parameters& para, const bool use_weight, int device_id)
 {
+  CHECK(cudaSetDevice(device_id));
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
     use_weight, para.force_delta, Na.data(), Na_sum.data(), type.data(),
-    para.type_weight_gpu.data(), force.data(), force.data() + N, force.data() + N * 2,
+    type_weight_gpu.data(), force.data(), force.data() + N, force.data() + N * 2,
     force_ref_gpu.data(), force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
@@ -431,8 +437,9 @@ static __global__ void gpu_sum_pe_error(
 }
 
 float Dataset::get_rmse_energy(
-  float& energy_shift_per_structure, const bool use_weight, const bool do_shift)
+  float& energy_shift_per_structure, const bool use_weight, const bool do_shift,  int device_id)
 {
+  CHECK(cudaSetDevice(device_id));
   energy_shift_per_structure = 0.0f;
 
   const int block_size = 256;
@@ -463,8 +470,9 @@ float Dataset::get_rmse_energy(
   return sqrt(error_ave / Nc);
 }
 
-float Dataset::get_rmse_virial(const bool use_weight)
+float Dataset::get_rmse_virial(const bool use_weight,  int device_id)
 {
+  CHECK(cudaSetDevice(device_id));
   int num_virial_configurations = 0;
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {

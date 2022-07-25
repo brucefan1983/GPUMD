@@ -37,7 +37,7 @@ SNES::SNES(char* input_dir, Parameters& para, Fitness* fitness_function)
   population_size = para.population_size;
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
-  fitness.resize(population_size * 6);
+  fitness.resize(population_size * 6); 
   fitness_copy.resize(population_size * 6);
   index.resize(population_size);
   population.resize(population_size * number_of_variables);
@@ -97,6 +97,18 @@ void SNES::calculate_utility()
 
 void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
 {
+  int deviceCount;
+  CHECK(cudaGetDeviceCount(&deviceCount));
+  int min_population_iter = (para.population_size - 1)/deviceCount + 1;
+  int population_in_device[deviceCount]; int device_in_max = para.population_size % deviceCount;
+  for (int device_id = 0; device_id < deviceCount; ++device_id){
+    if (device_id < device_in_max){
+      printf("Population in device %d is %d\n", device_id, min_population_iter);
+    }else{
+      printf("Population in device %d is %d\n", device_id, min_population_iter - 1);
+    }
+  }
+
   print_line_1();
   printf("Started training.\n");
   print_line_2();
@@ -105,6 +117,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
     "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss",
     "L2Reg-Loss", "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test",
     "RMSE-V-Test");
+  
 
   for (int n = 0; n < maximum_generation; ++n) {
     create_population(para);

@@ -123,8 +123,6 @@ void Parameters::calculate_parameters()
   }
   dim = dim_radial + dim_angular;
   q_scaler_cpu.resize(dim, 1.0e10f);
-  q_scaler_gpu.resize(dim);
-  q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
   number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
 
   if (version == 2) {
@@ -138,8 +136,6 @@ void Parameters::calculate_parameters()
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
 
-  type_weight_gpu.resize(MAX_NUM_TYPES);
-  type_weight_gpu.copy_from_host(type_weight_cpu.data());
 }
 
 void Parameters::report_inputs()
@@ -564,7 +560,7 @@ void Parameters::parse_neuron(char** param, int num_param)
   }
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 100) {
+  } else if (num_neurons1 > 200) {
     PRINT_INPUT_ERROR("number of neurons should <= 100.");
   }
 }

@@ -80,9 +80,8 @@ public:
   int number_of_variables_descriptor; // number of parameters in the descriptor only
 
   // some arrays
-  GPU_Vector<float> type_weight_gpu;  // relative force weight for different atom types (GPU)
+
   std::vector<float> type_weight_cpu; // relative force weight for different atom types (CPU)
-  GPU_Vector<float> q_scaler_gpu;     // used to scale some descriptor components (GPU)
   std::vector<float> q_scaler_cpu;    // used to scale some descriptor components (CPU)
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
