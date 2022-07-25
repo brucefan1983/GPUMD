@@ -100,7 +100,7 @@ void SNES::compute(char* input_dir, Parameters& para, Fitness* fitness_function)
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
   int min_population_iter = (para.population_size - 1)/deviceCount + 1;
-  int population_in_device[deviceCount]; int device_in_max = para.population_size % deviceCount;
+  int device_in_max = para.population_size % deviceCount;
   for (int device_id = 0; device_id < deviceCount; ++device_id){
     if (device_id < device_in_max){
       printf("Population in device %d is %d\n", device_id, min_population_iter);
