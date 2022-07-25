@@ -561,7 +561,7 @@ void Parameters::parse_neuron(char** param, int num_param)
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
   } else if (num_neurons1 > 200) {
-    PRINT_INPUT_ERROR("number of neurons should <= 100.");
+    PRINT_INPUT_ERROR("number of neurons should <= 200.");
   }
 }
 
@@ -687,8 +687,8 @@ void Parameters::parse_population(char** param, int num_param)
   }
   if (population_size < 10) {
     PRINT_INPUT_ERROR("population size should >= 10.");
-  } else if (population_size > 100) {
-    PRINT_INPUT_ERROR("population size should <= 100.");
+  } else if (population_size > 200) {
+    PRINT_INPUT_ERROR("population size should <= 200.");
   }
 }
 
