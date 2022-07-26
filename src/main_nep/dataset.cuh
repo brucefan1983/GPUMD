@@ -53,8 +53,8 @@ public:
   std::vector<float> virial_ref_cpu; // reference virial in CPU
   std::vector<float> force_ref_cpu;  // reference force in CPU
   std::vector<float> weight_cpu;     // configuration weight in CPU
+  
   GPU_Vector<float> type_weight_gpu;  // relative force weight for different atom types (GPU)
-  GPU_Vector<float> q_scaler_gpu;     // used to scale some descriptor components (GPU)
 
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force

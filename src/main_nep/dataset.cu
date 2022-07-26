@@ -147,12 +147,10 @@ void Dataset::initialize_gpu_data(Parameters& para)
   energy_ref_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);
-  q_scaler_gpu.resize(para.dim);
   type_weight_gpu.copy_from_host(para.type_weight_cpu.data());
   energy_ref_gpu.copy_from_host(energy_ref_cpu.data());
   virial_ref_gpu.copy_from_host(virial_ref_cpu.data());
   force_ref_gpu.copy_from_host(force_ref_cpu.data());
-  q_scaler_gpu.copy_from_host(para.q_scaler_cpu.data());
 
   box.resize(Nc * 18);
   box_original.resize(Nc * 9);

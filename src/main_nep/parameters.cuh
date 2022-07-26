@@ -86,6 +86,8 @@ public:
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
 
+  GPU_Vector<float> q_scaler_gpu[16];     // used to scale some descriptor components (GPU)
+
 private:
   void set_default_parameters();
   void read_nep_in(char* input_dir);

@@ -699,12 +699,12 @@ void NEP3::find_force(
 
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024, 0, stream[device_id]>>>(
-          dataset[device_id].N, nep_data[device_id].descriptors.data(), dataset[device_id].q_scaler_gpu.data());
+          dataset[device_id].N, nep_data[device_id].descriptors.data(), para.q_scaler_gpu[device_id].data());
       CUDA_CHECK_KERNEL
     }
 
     apply_ann<<<grid_size, block_size, 0, stream[device_id]>>>(
-      dataset[device_id].N, paramb, annmb[device_id], nep_data[device_id].descriptors.data(), dataset[device_id].q_scaler_gpu.data(),
+      dataset[device_id].N, paramb, annmb[device_id], nep_data[device_id].descriptors.data(), para.q_scaler_gpu[device_id].data(),
       dataset[device_id].energy.data(), nep_data[device_id].Fp.data());
     CUDA_CHECK_KERNEL
 

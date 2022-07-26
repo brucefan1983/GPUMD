@@ -125,7 +125,6 @@ void Fitness::compute(
     std::vector<float> dummy_solution(para.number_of_variables, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(para, dummy_solution.data(), train_set[n], true, deviceCount);
-    potential->find_force(para, dummy_solution.data(), test_set, true, 1);
     }
   
   } else {
@@ -234,7 +233,8 @@ void Fitness::report_error(
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_nep, "%15.7e\n", elite[m]);
     }
-    train_set[0][0].q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
+    CHECK(cudaSetDevice(0));
+    para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
     for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
       fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
     }
