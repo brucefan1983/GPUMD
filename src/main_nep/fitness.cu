@@ -131,9 +131,8 @@ void Fitness::compute(
     int batch_id = generation % num_batches;
     for (int n = 0; n <  population_iter; ++n) {
       const float* individual = population + deviceCount * n * para.number_of_variables;
-      int device_in_this_iter = std::min(deviceCount, para.population_size - deviceCount * n);
-      potential->find_force(para, individual, train_set[batch_id], false, device_in_this_iter);
-      for (int m = 0; m <  device_in_this_iter; ++m) {
+      potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
+      for (int m = 0; m < deviceCount; ++m) {
         float energy_shift_per_structure_not_used;
         fitness[deviceCount * n + m + 0 * para.population_size] =
           para.lambda_e *

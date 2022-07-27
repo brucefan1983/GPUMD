@@ -661,8 +661,6 @@ void NEP3::find_force(
     CHECK(cudaSetDevice(device_id));
     nep_data[device_id].parameters.copy_from_host(parameters + device_id * para.number_of_variables);
     update_potential(nep_data[device_id].parameters.data(), annmb[device_id]);
-
-
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
     gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(

@@ -701,13 +701,18 @@ void Parameters::parse_population(char** param, int num_param)
   }
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
-  int min_population_iter = (population_size - 1)/deviceCount + 1;
-  int population_should_increase = deviceCount - (population_size % deviceCount);
-  population_size = population_size + population_should_increase;
+  int fully_used_device =  population_size % deviceCount;
+  int population_should_increase;
+  if (fully_used_device != 0){
+    population_should_increase = deviceCount - fully_used_device;
+    population_size  += population_should_increase;
+  }else{
+    population_should_increase = 0;
+  }
   if (population_should_increase != 0){
       printf("Hello! I found your input (default) populaiton size is not divisible by total GPU numbers.\n");
-      printf("This causes some GPU resources wasted\n");
-      printf("I increased population size to %d. I hope you understand.\n", population_size);
+      printf("This causes some GPU resources wasted.\n");
+      printf("So I increased population size to %d. I hope you understand.\n", population_size);
     }
   
 }
