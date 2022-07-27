@@ -119,17 +119,17 @@ void Fitness::compute(
 {
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
-  int min_population_iter = (para.population_size - 1)/deviceCount + 1;
+  int population_iter = (para.population_size - 1)/deviceCount + 1;
 
   if (generation == 0) {
-    std::vector<float> dummy_solution(para.number_of_variables, 1.0f);
+    std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(para, dummy_solution.data(), train_set[n], true, deviceCount);
     }
   
   } else {
     int batch_id = generation % num_batches;
-    for (int n = 0; n <  min_population_iter; ++n) {
+    for (int n = 0; n <  population_iter; ++n) {
       const float* individual = population + deviceCount * n * para.number_of_variables;
       int device_in_this_iter = std::min(deviceCount, para.population_size - deviceCount * n);
       potential->find_force(para, individual, train_set[batch_id], false, device_in_this_iter);

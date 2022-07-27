@@ -656,22 +656,13 @@ void NEP3::find_force(
   float rc2_radial = para.rc_radial * para.rc_radial;
   float rc2_angular = para.rc_angular * para.rc_angular;
 
-  if (calculate_q_scaler) {  
-    for (int device_id = 0; device_id < device_in_this_iter; ++device_id){
-      CHECK(cudaSetDevice(device_id));
-      nep_data[device_id].parameters.copy_from_host(parameters);
-      update_potential(nep_data[device_id].parameters.data(), annmb[device_id]);
-    }
-  }else{
-    for (int device_id = 0; device_id < device_in_this_iter; ++device_id){
-    CHECK(cudaSetDevice(device_id));
-    nep_data[device_id].parameters.copy_from_host(parameters + device_id * para.number_of_variables);
-    update_potential(nep_data[device_id].parameters.data(), annmb[device_id]);
-    }
-  }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id){
     CHECK(cudaSetDevice(device_id));
+    nep_data[device_id].parameters.copy_from_host(parameters + device_id * para.number_of_variables);
+    update_potential(nep_data[device_id].parameters.data(), annmb[device_id]);
+
+
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
     gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(
