@@ -238,43 +238,44 @@ NEP3::NEP3(
   int version,
   int deviceCount)
 {
+  paramb.version = version;
+  paramb.rc_radial = para.rc_radial;
+  paramb.rcinv_radial = 1.0f / paramb.rc_radial;
+  paramb.rc_angular = para.rc_angular;
+  paramb.rcinv_angular = 1.0f / paramb.rc_angular;
+  paramb.num_types = para.num_types;
+  paramb.n_max_radial = para.n_max_radial;
+  paramb.n_max_angular = para.n_max_angular;
+  paramb.L_max = para.L_max;
+  paramb.num_L = paramb.L_max;
+  if (version == 3) {
+    if (para.L_max_4body == 2) {
+      paramb.num_L += 1;
+    }
+    if (para.L_max_5body == 1) {
+      paramb.num_L += 1;
+    }
+  }
+  paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
+
+  paramb.basis_size_radial = para.basis_size_radial;
+  paramb.basis_size_angular = para.basis_size_angular;
+  paramb.num_types_sq = para.num_types * para.num_types;
+  paramb.num_c_radial =
+    paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
+
+  zbl.enabled = para.enable_zbl;
+  zbl.rc_inner = para.zbl_rc_inner;
+  zbl.rc_outer = para.zbl_rc_outer;
+  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
+    zbl.atomic_numbers[n] = para.atomic_numbers[n];
+  }
+
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     cudaSetDevice(device_id);
-    paramb.version = version;
-    paramb.rc_radial = para.rc_radial;
-    paramb.rcinv_radial = 1.0f / paramb.rc_radial;
-    paramb.rc_angular = para.rc_angular;
-    paramb.rcinv_angular = 1.0f / paramb.rc_angular;
     annmb[device_id].dim = para.dim;
     annmb[device_id].num_neurons1 = para.num_neurons1;
-    paramb.num_types = para.num_types;
     annmb[device_id].num_para = para.number_of_variables;
-    paramb.n_max_radial = para.n_max_radial;
-    paramb.n_max_angular = para.n_max_angular;
-    paramb.L_max = para.L_max;
-    paramb.num_L = paramb.L_max;
-    if (version == 3) {
-      if (para.L_max_4body == 2) {
-        paramb.num_L += 1;
-      }
-      if (para.L_max_5body == 1) {
-        paramb.num_L += 1;
-      }
-    }
-    paramb.dim_angular = (para.n_max_angular + 1) * paramb.num_L;
-
-    paramb.basis_size_radial = para.basis_size_radial;
-    paramb.basis_size_angular = para.basis_size_angular;
-    paramb.num_types_sq = para.num_types * para.num_types;
-    paramb.num_c_radial =
-      paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
-
-    zbl.enabled = para.enable_zbl;
-    zbl.rc_inner = para.zbl_rc_inner;
-    zbl.rc_outer = para.zbl_rc_outer;
-    for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-      zbl.atomic_numbers[n] = para.atomic_numbers[n];
-    }
 
     nep_data[device_id].NN_radial.resize(N);
     nep_data[device_id].NN_angular.resize(N);

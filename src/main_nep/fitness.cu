@@ -290,7 +290,7 @@ void Fitness::report_error(
 
       for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
         potential->find_force(para, elite, train_set[batch_id], false, 1);
-        update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[0][batch_id]);
+        update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id][0]);
       }
 
       fclose(fid_energy);
