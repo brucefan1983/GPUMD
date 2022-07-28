@@ -699,6 +699,7 @@ void Parameters::parse_population(char** param, int num_param)
   } else if (population_size > 200) {
     PRINT_INPUT_ERROR("population size should <= 200.");
   }
+  
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
   int fully_used_device =  population_size % deviceCount;
