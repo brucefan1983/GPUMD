@@ -139,12 +139,11 @@ void Parameters::calculate_parameters()
 
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
-  for(int device_id = 0; device_id < deviceCount; device_id++){
+  for (int device_id = 0; device_id < deviceCount; device_id++) {
     CHECK(cudaSetDevice(device_id));
     q_scaler_gpu[device_id].resize(dim);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
   }
-
 }
 
 void Parameters::report_inputs()
@@ -699,23 +698,23 @@ void Parameters::parse_population(char** param, int num_param)
   } else if (population_size > 200) {
     PRINT_INPUT_ERROR("population size should <= 200.");
   }
-  
+
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
-  int fully_used_device =  population_size % deviceCount;
+  int fully_used_device = population_size % deviceCount;
   int population_should_increase;
-  if (fully_used_device != 0){
+  if (fully_used_device != 0) {
     population_should_increase = deviceCount - fully_used_device;
-    population_size  += population_should_increase;
-  }else{
+    population_size += population_should_increase;
+  } else {
     population_should_increase = 0;
   }
-  if (population_should_increase != 0){
-      printf("Hello! I found your input (default) populaiton size is not divisible by total GPU numbers.\n");
-      printf("This causes some GPU resources wasted.\n");
-      printf("So I increased population size to %d. I hope you understand.\n", population_size);
-    }
-  
+  if (population_should_increase != 0) {
+    printf("Hello! I found your input (default) populaiton size is not divisible by total GPU "
+           "numbers.\n");
+    printf("This causes some GPU resources wasted.\n");
+    printf("So I increased population size to %d. I hope you understand.\n", population_size);
+  }
 }
 
 void Parameters::parse_generation(char** param, int num_param)

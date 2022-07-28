@@ -24,5 +24,9 @@ class Potential
 public:
   virtual ~Potential() = default;
   virtual void find_force(
-    Parameters& para, const float* parameters, std::vector<Dataset>& dataset, bool calculate_q_scaler, int DeviceCount) = 0;
+    Parameters& para,
+    const float* parameters,
+    std::vector<Dataset>& dataset,
+    bool calculate_q_scaler,
+    int DeviceCount) = 0;
 };

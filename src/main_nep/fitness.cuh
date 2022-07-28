@@ -44,7 +44,7 @@ protected:
   int max_NN_angular; // angular neighbor list size
   FILE* fid_loss_out;
   std::unique_ptr<Potential> potential;
-  std::vector< std::vector<Dataset> > train_set;
+  std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
   void predict_energy_or_stress(FILE* fid, float* data, float* ref, Dataset& dataset);
   void

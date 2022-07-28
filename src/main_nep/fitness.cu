@@ -49,7 +49,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   }
 
   train_set.resize(num_batches);
-  for (int batch_id = 0; batch_id < num_batches; ++batch_id){
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     train_set[batch_id].resize(deviceCount);
   }
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
@@ -57,11 +57,12 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     int n2 = std::min(int(structures_train.size()), n1 + para.batch_size);
     printf("\nBatch %d:\n", batch_id);
     printf("Number of configurations = %d.\n", n2 - n1);
-    for (int device_id = 0; device_id < deviceCount; ++device_id){
+    for (int device_id = 0; device_id < deviceCount; ++device_id) {
       print_line_1();
       printf("Constructing train_set in device  %d.\n", device_id);
-      CHECK(cudaSetDevice(device_id));     
-      train_set[batch_id][device_id].construct(input_dir, para, structures_train, n1, n2, device_id);
+      CHECK(cudaSetDevice(device_id));
+      train_set[batch_id][device_id].construct(
+        input_dir, para, structures_train, n1, n2, device_id);
       print_line_2();
     }
   }
@@ -71,11 +72,12 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   std::vector<Structure> structures_test;
   read_structures(false, input_dir, para, structures_test);
   test_set.resize(deviceCount);
-  for (int device_id = 0; device_id < deviceCount; ++device_id){
+  for (int device_id = 0; device_id < deviceCount; ++device_id) {
     print_line_1();
     printf("Constructing test_set in device  %d.\n", device_id);
     CHECK(cudaSetDevice(device_id));
-    test_set[device_id].construct(input_dir, para, structures_test, 0, structures_test.size(), device_id);
+    test_set[device_id].construct(
+      input_dir, para, structures_test, 0, structures_test.size(), device_id);
     print_line_2();
   }
 
@@ -103,8 +105,8 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     }
   }
 
-  potential.reset(
-    new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  potential.reset(new NEP3(
+    input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);
@@ -119,29 +121,28 @@ void Fitness::compute(
 {
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
-  int population_iter = (para.population_size - 1)/deviceCount + 1;
+  int population_iter = (para.population_size - 1) / deviceCount + 1;
 
   if (generation == 0) {
     std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
       potential->find_force(para, dummy_solution.data(), train_set[n], true, deviceCount);
     }
-  
+
   } else {
     int batch_id = generation % num_batches;
-    for (int n = 0; n <  population_iter; ++n) {
+    for (int n = 0; n < population_iter; ++n) {
       const float* individual = population + deviceCount * n * para.number_of_variables;
       potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
         float energy_shift_per_structure_not_used;
         fitness[deviceCount * n + m + 0 * para.population_size] =
-          para.lambda_e *
-          train_set[batch_id][m].get_rmse_energy(energy_shift_per_structure_not_used, true, true, m);
+          para.lambda_e * train_set[batch_id][m].get_rmse_energy(
+                            energy_shift_per_structure_not_used, true, true, m);
         fitness[deviceCount * n + m + 1 * para.population_size] =
           para.lambda_f * train_set[batch_id][m].get_rmse_force(para, true, m);
         fitness[deviceCount * n + m + 2 * para.population_size] =
           para.lambda_v * train_set[batch_id][m].get_rmse_virial(true, m);
-        
       }
     }
   }
@@ -170,7 +171,6 @@ void Fitness::report_error(
 {
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
-    //printf("%f %f",elite[para.number_of_variables_ann - 2], elite[para.number_of_variables_ann - 1]);
     potential->find_force(para, elite, train_set[batch_id], false, 1);
     float energy_shift_per_structure;
     float rmse_energy_train =
@@ -181,7 +181,6 @@ void Fitness::report_error(
     // correct the last bias parameter in the NN
     elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
 
-    //printf("%f %f",elite[para.number_of_variables_ann - 2], elite[para.number_of_variables_ann - 1]);
     potential->find_force(para, elite, test_set, false, 1);
     float energy_shift_per_structure_not_used;
     float rmse_energy_test =

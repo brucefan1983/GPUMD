@@ -34,7 +34,6 @@ struct NEP3_Data {
   GPU_Vector<float> Fp;          // gradient of descriptors
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> parameters; // parameters to be optimized
-
 };
 
 class NEP3 : public Potential
@@ -84,9 +83,12 @@ public:
     int N_times_max_NN_angular,
     int version,
     int deviceCount);
-  void
-  find_force(Parameters& para, const float* parameters, std::vector<Dataset>& dataset, bool calculate_q_scaler, int deviceCount);
-
+  void find_force(
+    Parameters& para,
+    const float* parameters,
+    std::vector<Dataset>& dataset,
+    bool calculate_q_scaler,
+    int deviceCount);
 
 private:
   ParaMB paramb;

@@ -268,8 +268,13 @@ void Dataset::find_neighbor(Parameters& para)
 }
 
 void Dataset::construct(
-  char* input_dir, Parameters& para, std::vector<Structure>& structures_input, int n1, int n2, int device_id)
-{ 
+  char* input_dir,
+  Parameters& para,
+  std::vector<Structure>& structures_input,
+  int n1,
+  int n2,
+  int device_id)
+{
   CHECK(cudaSetDevice(device_id));
   copy_structures(structures_input, n1, n2);
   error_cpu.resize(Nc);
@@ -346,9 +351,9 @@ float Dataset::get_rmse_force(Parameters& para, const bool use_weight, int devic
   CHECK(cudaSetDevice(device_id));
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    use_weight, para.force_delta, Na.data(), Na_sum.data(), type.data(),
-    type_weight_gpu.data(), force.data(), force.data() + N, force.data() + N * 2,
-    force_ref_gpu.data(), force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
+    use_weight, para.force_delta, Na.data(), Na_sum.data(), type.data(), type_weight_gpu.data(),
+    force.data(), force.data() + N, force.data() + N * 2, force_ref_gpu.data(),
+    force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_sum = 0.0f;
@@ -435,7 +440,7 @@ static __global__ void gpu_sum_pe_error(
 }
 
 float Dataset::get_rmse_energy(
-  float& energy_shift_per_structure, const bool use_weight, const bool do_shift,  int device_id)
+  float& energy_shift_per_structure, const bool use_weight, const bool do_shift, int device_id)
 {
   CHECK(cudaSetDevice(device_id));
   energy_shift_per_structure = 0.0f;
@@ -468,7 +473,7 @@ float Dataset::get_rmse_energy(
   return sqrt(error_ave / Nc);
 }
 
-float Dataset::get_rmse_virial(const bool use_weight,  int device_id)
+float Dataset::get_rmse_virial(const bool use_weight, int device_id)
 {
   CHECK(cudaSetDevice(device_id));
   int num_virial_configurations = 0;
