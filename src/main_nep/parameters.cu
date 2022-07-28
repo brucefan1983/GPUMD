@@ -123,8 +123,7 @@ void Parameters::calculate_parameters()
   }
   dim = dim_radial + dim_angular;
   q_scaler_cpu.resize(dim, 1.0e10f);
-  q_scaler_gpu.resize(dim);
-  q_scaler_gpu.copy_from_host(q_scaler_cpu.data());
+
   number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
 
   if (version == 2) {
@@ -138,8 +137,14 @@ void Parameters::calculate_parameters()
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
 
-  type_weight_gpu.resize(MAX_NUM_TYPES);
-  type_weight_gpu.copy_from_host(type_weight_cpu.data());
+  int deviceCount;
+  CHECK(cudaGetDeviceCount(&deviceCount));
+  for(int device_id = 0; device_id < deviceCount; device_id++){
+    CHECK(cudaSetDevice(device_id));
+    q_scaler_gpu[device_id].resize(dim);
+    q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
+  }
+
 }
 
 void Parameters::report_inputs()
@@ -564,8 +569,8 @@ void Parameters::parse_neuron(char** param, int num_param)
   }
   if (num_neurons1 < 1) {
     PRINT_INPUT_ERROR("number of neurons should >= 1.");
-  } else if (num_neurons1 > 100) {
-    PRINT_INPUT_ERROR("number of neurons should <= 100.");
+  } else if (num_neurons1 > 200) {
+    PRINT_INPUT_ERROR("number of neurons should <= 200.");
   }
 }
 
@@ -691,9 +696,26 @@ void Parameters::parse_population(char** param, int num_param)
   }
   if (population_size < 10) {
     PRINT_INPUT_ERROR("population size should >= 10.");
-  } else if (population_size > 100) {
-    PRINT_INPUT_ERROR("population size should <= 100.");
+  } else if (population_size > 200) {
+    PRINT_INPUT_ERROR("population size should <= 200.");
   }
+  
+  int deviceCount;
+  CHECK(cudaGetDeviceCount(&deviceCount));
+  int fully_used_device =  population_size % deviceCount;
+  int population_should_increase;
+  if (fully_used_device != 0){
+    population_should_increase = deviceCount - fully_used_device;
+    population_size  += population_should_increase;
+  }else{
+    population_should_increase = 0;
+  }
+  if (population_should_increase != 0){
+      printf("Hello! I found your input (default) populaiton size is not divisible by total GPU numbers.\n");
+      printf("This causes some GPU resources wasted.\n");
+      printf("So I increased population size to %d. I hope you understand.\n", population_size);
+    }
+  
 }
 
 void Parameters::parse_generation(char** param, int num_param)

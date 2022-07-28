@@ -33,57 +33,78 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   print_line_1();
   printf("Started reading train.in.\n");
   print_line_2();
+
+  int deviceCount;
+  CHECK(cudaGetDeviceCount(&deviceCount));
+
   std::vector<Structure> structures_train;
   read_structures(true, input_dir, para, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
+  printf("Number of devices = %d\n", deviceCount);
   printf("Number of batches = %d\n", num_batches);
   int batch_size_old = para.batch_size;
   para.batch_size = (structures_train.size() - 1) / num_batches + 1;
   if (batch_size_old != para.batch_size) {
     printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
   }
+
   train_set.resize(num_batches);
+  for (int batch_id = 0; batch_id < num_batches; ++batch_id){
+    train_set[batch_id].resize(deviceCount);
+  }
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    printf("\nBatch %d:\n", batch_id);
     int n1 = batch_id * para.batch_size;
     int n2 = std::min(int(structures_train.size()), n1 + para.batch_size);
+    printf("\nBatch %d:\n", batch_id);
     printf("Number of configurations = %d.\n", n2 - n1);
-    train_set[batch_id].construct(input_dir, para, structures_train, n1, n2);
+    for (int device_id = 0; device_id < deviceCount; ++device_id){
+      print_line_1();
+      printf("Constructing train_set in device  %d.\n", device_id);
+      CHECK(cudaSetDevice(device_id));     
+      train_set[batch_id][device_id].construct(input_dir, para, structures_train, n1, n2, device_id);
+      print_line_2();
+    }
   }
-
   print_line_1();
   printf("Started reading test.in.\n");
   print_line_2();
   std::vector<Structure> structures_test;
   read_structures(false, input_dir, para, structures_test);
-  test_set.construct(input_dir, para, structures_test, 0, structures_test.size());
+  test_set.resize(deviceCount);
+  for (int device_id = 0; device_id < deviceCount; ++device_id){
+    print_line_1();
+    printf("Constructing test_set in device  %d.\n", device_id);
+    CHECK(cudaSetDevice(device_id));
+    test_set[device_id].construct(input_dir, para, structures_test, 0, structures_test.size(), device_id);
+    print_line_2();
+  }
 
-  int N = test_set.N;
-  int N_times_max_NN_radial = test_set.N * test_set.max_NN_radial;
-  int N_times_max_NN_angular = test_set.N * test_set.max_NN_angular;
-  max_NN_radial = test_set.max_NN_radial;
-  max_NN_angular = test_set.max_NN_angular;
+  int N = test_set[0].N;
+  int N_times_max_NN_radial = test_set[0].N * test_set[0].max_NN_radial;
+  int N_times_max_NN_angular = test_set[0].N * test_set[0].max_NN_angular;
+  max_NN_radial = test_set[0].max_NN_radial;
+  max_NN_angular = test_set[0].max_NN_angular;
   for (int n = 0; n < num_batches; ++n) {
-    if (train_set[n].N > N) {
-      N = train_set[n].N;
+    if (train_set[n][0].N > N) {
+      N = train_set[n][0].N;
     };
-    if (train_set[n].N * train_set[n].max_NN_radial > N_times_max_NN_radial) {
-      N_times_max_NN_radial = train_set[n].N * train_set[n].max_NN_radial;
+    if (train_set[n][0].N * train_set[n][0].max_NN_radial > N_times_max_NN_radial) {
+      N_times_max_NN_radial = train_set[n][0].N * train_set[n][0].max_NN_radial;
     };
-    if (train_set[n].N * train_set[n].max_NN_angular > N_times_max_NN_angular) {
-      N_times_max_NN_angular = train_set[n].N * train_set[n].max_NN_angular;
+    if (train_set[n][0].N * train_set[n][0].max_NN_angular > N_times_max_NN_angular) {
+      N_times_max_NN_angular = train_set[n][0].N * train_set[n][0].max_NN_angular;
     };
 
-    if (train_set[n].max_NN_radial > max_NN_radial) {
-      max_NN_radial = test_set.max_NN_radial;
+    if (train_set[n][0].max_NN_radial > max_NN_radial) {
+      max_NN_radial = train_set[n][0].max_NN_radial;
     }
-    if (train_set[n].max_NN_angular > max_NN_angular) {
-      max_NN_angular = test_set.max_NN_angular;
+    if (train_set[n][0].max_NN_angular > max_NN_angular) {
+      max_NN_angular = train_set[n][0].max_NN_angular;
     }
   }
 
   potential.reset(
-    new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version));
+    new NEP3(input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
 
   char file_loss_out[200];
   strcpy(file_loss_out, input_dir);
@@ -96,24 +117,32 @@ Fitness::~Fitness() { fclose(fid_loss_out); }
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
 {
+  int deviceCount;
+  CHECK(cudaGetDeviceCount(&deviceCount));
+  int population_iter = (para.population_size - 1)/deviceCount + 1;
+
   if (generation == 0) {
-    std::vector<float> dummy_solution(para.number_of_variables, 1.0f);
+    std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
-      potential->find_force(para, dummy_solution.data(), train_set[n], true);
+      potential->find_force(para, dummy_solution.data(), train_set[n], true, deviceCount);
     }
+  
   } else {
     int batch_id = generation % num_batches;
-    for (int n = 0; n < para.population_size; ++n) {
-      const float* individual = population + n * para.number_of_variables;
-      potential->find_force(para, individual, train_set[batch_id], false);
-      float energy_shift_per_structure_not_used;
-      fitness[n + 0 * para.population_size] =
-        para.lambda_e *
-        train_set[batch_id].get_rmse_energy(energy_shift_per_structure_not_used, true, true);
-      fitness[n + 1 * para.population_size] =
-        para.lambda_f * train_set[batch_id].get_rmse_force(para, true);
-      fitness[n + 2 * para.population_size] =
-        para.lambda_v * train_set[batch_id].get_rmse_virial(true);
+    for (int n = 0; n <  population_iter; ++n) {
+      const float* individual = population + deviceCount * n * para.number_of_variables;
+      potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
+      for (int m = 0; m < deviceCount; ++m) {
+        float energy_shift_per_structure_not_used;
+        fitness[deviceCount * n + m + 0 * para.population_size] =
+          para.lambda_e *
+          train_set[batch_id][m].get_rmse_energy(energy_shift_per_structure_not_used, true, true, m);
+        fitness[deviceCount * n + m + 1 * para.population_size] =
+          para.lambda_f * train_set[batch_id][m].get_rmse_force(para, true, m);
+        fitness[deviceCount * n + m + 2 * para.population_size] =
+          para.lambda_v * train_set[batch_id][m].get_rmse_virial(true, m);
+        
+      }
     }
   }
 }
@@ -141,23 +170,24 @@ void Fitness::report_error(
 {
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
-
-    potential->find_force(para, elite, train_set[batch_id], false);
+    //printf("%f %f",elite[para.number_of_variables_ann - 2], elite[para.number_of_variables_ann - 1]);
+    potential->find_force(para, elite, train_set[batch_id], false, 1);
     float energy_shift_per_structure;
     float rmse_energy_train =
-      train_set[batch_id].get_rmse_energy(energy_shift_per_structure, false, true);
-    float rmse_force_train = train_set[batch_id].get_rmse_force(para, false);
-    float rmse_virial_train = train_set[batch_id].get_rmse_virial(false);
+      train_set[batch_id][0].get_rmse_energy(energy_shift_per_structure, false, true, 0);
+    float rmse_force_train = train_set[batch_id][0].get_rmse_force(para, false, 0);
+    float rmse_virial_train = train_set[batch_id][0].get_rmse_virial(false, 0);
 
     // correct the last bias parameter in the NN
     elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
 
-    potential->find_force(para, elite, test_set, false);
+    //printf("%f %f",elite[para.number_of_variables_ann - 2], elite[para.number_of_variables_ann - 1]);
+    potential->find_force(para, elite, test_set, false, 1);
     float energy_shift_per_structure_not_used;
     float rmse_energy_test =
-      test_set.get_rmse_energy(energy_shift_per_structure_not_used, false, false);
-    float rmse_force_test = test_set.get_rmse_force(para, false);
-    float rmse_virial_test = test_set.get_rmse_virial(false);
+      test_set[0].get_rmse_energy(energy_shift_per_structure_not_used, false, false, 0);
+    float rmse_force_test = test_set[0].get_rmse_force(para, false, 0);
+    float rmse_virial_test = test_set[0].get_rmse_virial(false, 0);
 
     char file_nep[200];
     strcpy(file_nep, input_dir);
@@ -202,7 +232,8 @@ void Fitness::report_error(
     for (int m = 0; m < para.number_of_variables; ++m) {
       fprintf(fid_nep, "%15.7e\n", elite[m]);
     }
-    para.q_scaler_gpu.copy_to_host(para.q_scaler_cpu.data());
+    CHECK(cudaSetDevice(0));
+    para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
     for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
       fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
     }
@@ -234,7 +265,7 @@ void Fitness::report_error(
     strcat(file_virial, "/virial_test.out");
     FILE* fid_virial = my_fopen(file_virial, "w");
 
-    update_energy_force_virial(fid_energy, fid_force, fid_virial, test_set);
+    update_energy_force_virial(fid_energy, fid_force, fid_virial, test_set[0]);
 
     fclose(fid_energy);
     fclose(fid_force);
@@ -257,8 +288,8 @@ void Fitness::report_error(
       FILE* fid_virial = my_fopen(file_virial, "w");
 
       for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-        potential->find_force(para, elite, train_set[batch_id], false);
-        update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id]);
+        potential->find_force(para, elite, train_set[batch_id], false, 1);
+        update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id][0]);
       }
 
       fclose(fid_energy);
