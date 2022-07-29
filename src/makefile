@@ -13,7 +13,7 @@
 #    You can consider removing -Xcompiler "/wd 4819"
 # 5) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
-# 6) Add -DUSE_FIXED_NEIGHBOR to CFLAGSS if you want to
+# 6) Add -DUSE_FIXED_NEIGHBOR to CFLAGS if you want to
 #    use a fixed neighbor list for empirical potentials
 #    (This can make the MD simulation much faster.)
 ###########################################################
