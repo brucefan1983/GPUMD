@@ -96,11 +96,3 @@ void print_gpu_information(void)
 
   cudaSetDevice(0); // normally use GPU-0
 }
-
-int get_number_of_input_directories(void)
-{
-  int number_of_inputs;
-  int count = scanf("%d", &number_of_inputs);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for number of inputs.");
-  return number_of_inputs;
-}

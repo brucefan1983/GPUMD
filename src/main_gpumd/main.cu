@@ -29,31 +29,24 @@ int main(int argc, char* argv[])
   print_compile_information();
   print_gpu_information();
 
-  int number_of_inputs = get_number_of_input_directories();
+  char input_directory[200] = ".";
 
-  for (int n = 0; n < number_of_inputs; ++n) {
-    char input_directory[200];
+  print_line_1();
+  printf("Started running GPUMD.\n");
+  print_line_2();
 
-    int count = scanf("%s", input_directory);
-    PRINT_SCANF_ERROR(count, 1, "Reading error for input directory.");
+  CHECK(cudaDeviceSynchronize());
+  clock_t time_begin = clock();
 
-    print_line_1();
-    printf("Run simulation for '%s'.\n", input_directory);
-    print_line_2();
+  Run run(input_directory);
 
-    CHECK(cudaDeviceSynchronize());
-    clock_t time_begin = clock();
+  CHECK(cudaDeviceSynchronize());
+  clock_t time_finish = clock();
+  double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
 
-    Run run(input_directory);
-
-    CHECK(cudaDeviceSynchronize());
-    clock_t time_finish = clock();
-    double time_used = (time_finish - time_begin) / double(CLOCKS_PER_SEC);
-
-    print_line_1();
-    printf("Time used for '%s' = %f s.\n", input_directory, time_used);
-    print_line_2();
-  }
+  print_line_1();
+  printf("Time used = %f s.\n", time_used);
+  print_line_2();
 
   print_line_1();
   printf("Finished running GPUMD.\n");

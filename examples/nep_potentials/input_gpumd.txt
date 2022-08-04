@@ -1,2 +1,0 @@
-1
-examples/nep_potentials/PbTe/check_force

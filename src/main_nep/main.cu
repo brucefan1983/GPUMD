@@ -28,36 +28,31 @@ int main(int argc, char* argv[])
 {
   print_welcome_information();
   print_gpu_information();
-  int number_of_inputs = get_number_of_input_directories();
 
-  for (int n = 0; n < number_of_inputs; ++n) {
-    char input_directory[200];
-    int count = scanf("%s", input_directory);
-    PRINT_SCANF_ERROR(count, 1, "reading error for input directory.");
+  char input_directory[200] = ".";
 
-    print_line_1();
-    printf("Run simulation for '%s'.\n", input_directory);
-    print_line_2();
+  print_line_1();
+  printf("Started running nep.\n");
+  print_line_2();
 
-    clock_t time_begin = clock();
-    Parameters para(input_directory);
-    Fitness fitness(input_directory, para);
-    clock_t time_finish = clock();
+  clock_t time_begin = clock();
+  Parameters para(input_directory);
+  Fitness fitness(input_directory, para);
+  clock_t time_finish = clock();
 
-    float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
-    print_line_1();
-    printf("Time used for initialization = %f s.\n", time_used);
-    print_line_2();
+  float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
+  print_line_1();
+  printf("Time used for initialization = %f s.\n", time_used);
+  print_line_2();
 
-    time_begin = clock();
-    SNES snes(input_directory, para, &fitness);
-    time_finish = clock();
+  time_begin = clock();
+  SNES snes(input_directory, para, &fitness);
+  time_finish = clock();
 
-    time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
-    print_line_1();
-    printf("Time used for training = %f s.\n", time_used);
-    print_line_2();
-  }
+  time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
+  print_line_1();
+  printf("Time used for training = %f s.\n", time_used);
+  print_line_2();
 
   print_line_1();
   printf("Finished running nep.\n");
