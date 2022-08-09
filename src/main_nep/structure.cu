@@ -25,67 +25,6 @@
 #include <string>
 #include <vector>
 
-static void read_Nc(std::ifstream& input, std::vector<Structure>& structures)
-{
-  std::vector<std::string> tokens = get_tokens(input);
-  if (tokens.size() != 1) {
-    PRINT_INPUT_ERROR("The first line in trian.in/test.in should have one value.");
-  }
-  int Nc = get_int_from_token(tokens[0], __FILE__, __LINE__);
-  if (Nc < 1) {
-    PRINT_INPUT_ERROR("Number of configurations should >= 1.");
-  }
-  printf("Number of configurations = %d.\n", Nc);
-  structures.resize(Nc);
-}
-
-static void read_Na(std::ifstream& input, std::vector<Structure>& structures)
-{
-  for (int nc = 0; nc < structures.size(); ++nc) {
-    std::vector<std::string> tokens = get_tokens(input);
-    if (tokens.size() < 2 || tokens.size() > 3) {
-      PRINT_INPUT_ERROR("Number of items here must be 2 or 3.");
-    } else {
-      structures[nc].num_atom = get_int_from_token(tokens[0], __FILE__, __LINE__);
-      structures[nc].has_virial = get_int_from_token(tokens[1], __FILE__, __LINE__);
-      if (tokens.size() == 3) {
-        structures[nc].weight = get_float_from_token(tokens[2], __FILE__, __LINE__);
-        if (structures[nc].weight <= 0.0f || structures[nc].weight > 100.0f) {
-          PRINT_INPUT_ERROR("Configuration weight should > 0 and <= 100.");
-        }
-      } else {
-        structures[nc].weight = 1.0f; // default weight is 1
-      }
-    }
-    if (structures[nc].num_atom < 1) {
-      PRINT_INPUT_ERROR("Number of atoms for one configuration should >= 1.");
-    }
-  }
-}
-
-static void read_energy_virial(std::ifstream& input, int nc, std::vector<Structure>& structures)
-{
-  std::vector<std::string> tokens = get_tokens(input);
-  if (structures[nc].has_virial) {
-    if (tokens.size() != 7) {
-      PRINT_INPUT_ERROR("Number of items here must be 7.");
-    }
-    structures[nc].energy = get_float_from_token(tokens[0], __FILE__, __LINE__);
-    for (int k = 0; k < 6; ++k) {
-      structures[nc].virial[k] = get_float_from_token(tokens[k + 1], __FILE__, __LINE__);
-      structures[nc].virial[k] /= structures[nc].num_atom;
-    }
-  } else {
-
-    if (tokens.size() != 1) {
-      PRINT_INPUT_ERROR("Number of items here must be 1.");
-    }
-    structures[nc].energy = get_float_from_token(tokens[0], __FILE__, __LINE__);
-  }
-
-  structures[nc].energy /= structures[nc].num_atom;
-}
-
 static float get_area(const float* a, const float* b)
 {
   float s1 = a[1] * b[2] - a[2] * b[1];
@@ -101,111 +40,257 @@ static float get_det(const float* box)
          box[2] * (box[3] * box[7] - box[4] * box[6]);
 }
 
-static void
-read_box(std::ifstream& input, int nc, Parameters& para, std::vector<Structure>& structures)
+static void change_box(const Parameters& para, Structure& structure)
 {
-  std::vector<std::string> tokens = get_tokens(input);
-  if (tokens.size() != 9) {
-    PRINT_INPUT_ERROR("Number of items for box line must be 9.");
-  }
-
-  float a[3], b[3], c[3];
-  a[0] = get_float_from_token(tokens[0], __FILE__, __LINE__);
-  a[1] = get_float_from_token(tokens[1], __FILE__, __LINE__);
-  a[2] = get_float_from_token(tokens[2], __FILE__, __LINE__);
-  b[0] = get_float_from_token(tokens[3], __FILE__, __LINE__);
-  b[1] = get_float_from_token(tokens[4], __FILE__, __LINE__);
-  b[2] = get_float_from_token(tokens[5], __FILE__, __LINE__);
-  c[0] = get_float_from_token(tokens[6], __FILE__, __LINE__);
-  c[1] = get_float_from_token(tokens[7], __FILE__, __LINE__);
-  c[2] = get_float_from_token(tokens[8], __FILE__, __LINE__);
-
-  structures[nc].box_original[0] = a[0];
-  structures[nc].box_original[3] = a[1];
-  structures[nc].box_original[6] = a[2];
-  structures[nc].box_original[1] = b[0];
-  structures[nc].box_original[4] = b[1];
-  structures[nc].box_original[7] = b[2];
-  structures[nc].box_original[2] = c[0];
-  structures[nc].box_original[5] = c[1];
-  structures[nc].box_original[8] = c[2];
-
-  float det = get_det(structures[nc].box_original);
+  float a[3] = {structure.box_original[0], structure.box_original[3], structure.box_original[6]};
+  float b[3] = {structure.box_original[1], structure.box_original[4], structure.box_original[7]};
+  float c[3] = {structure.box_original[2], structure.box_original[5], structure.box_original[8]};
+  float det = get_det(structure.box_original);
   float volume = abs(det);
-  structures[nc].num_cell[0] = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
-  structures[nc].num_cell[1] = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
-  structures[nc].num_cell[2] = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
+  structure.num_cell[0] = int(ceil(2.0f * para.rc_radial / (volume / get_area(b, c))));
+  structure.num_cell[1] = int(ceil(2.0f * para.rc_radial / (volume / get_area(c, a))));
+  structure.num_cell[2] = int(ceil(2.0f * para.rc_radial / (volume / get_area(a, b))));
 
-  structures[nc].box[0] = structures[nc].box_original[0] * structures[nc].num_cell[0];
-  structures[nc].box[3] = structures[nc].box_original[3] * structures[nc].num_cell[0];
-  structures[nc].box[6] = structures[nc].box_original[6] * structures[nc].num_cell[0];
-  structures[nc].box[1] = structures[nc].box_original[1] * structures[nc].num_cell[1];
-  structures[nc].box[4] = structures[nc].box_original[4] * structures[nc].num_cell[1];
-  structures[nc].box[7] = structures[nc].box_original[7] * structures[nc].num_cell[1];
-  structures[nc].box[2] = structures[nc].box_original[2] * structures[nc].num_cell[2];
-  structures[nc].box[5] = structures[nc].box_original[5] * structures[nc].num_cell[2];
-  structures[nc].box[8] = structures[nc].box_original[8] * structures[nc].num_cell[2];
+  structure.box[0] = structure.box_original[0] * structure.num_cell[0];
+  structure.box[3] = structure.box_original[3] * structure.num_cell[0];
+  structure.box[6] = structure.box_original[6] * structure.num_cell[0];
+  structure.box[1] = structure.box_original[1] * structure.num_cell[1];
+  structure.box[4] = structure.box_original[4] * structure.num_cell[1];
+  structure.box[7] = structure.box_original[7] * structure.num_cell[1];
+  structure.box[2] = structure.box_original[2] * structure.num_cell[2];
+  structure.box[5] = structure.box_original[5] * structure.num_cell[2];
+  structure.box[8] = structure.box_original[8] * structure.num_cell[2];
 
-  structures[nc].box[9] =
-    structures[nc].box[4] * structures[nc].box[8] - structures[nc].box[5] * structures[nc].box[7];
-  structures[nc].box[10] =
-    structures[nc].box[2] * structures[nc].box[7] - structures[nc].box[1] * structures[nc].box[8];
-  structures[nc].box[11] =
-    structures[nc].box[1] * structures[nc].box[5] - structures[nc].box[2] * structures[nc].box[4];
-  structures[nc].box[12] =
-    structures[nc].box[5] * structures[nc].box[6] - structures[nc].box[3] * structures[nc].box[8];
-  structures[nc].box[13] =
-    structures[nc].box[0] * structures[nc].box[8] - structures[nc].box[2] * structures[nc].box[6];
-  structures[nc].box[14] =
-    structures[nc].box[2] * structures[nc].box[3] - structures[nc].box[0] * structures[nc].box[5];
-  structures[nc].box[15] =
-    structures[nc].box[3] * structures[nc].box[7] - structures[nc].box[4] * structures[nc].box[6];
-  structures[nc].box[16] =
-    structures[nc].box[1] * structures[nc].box[6] - structures[nc].box[0] * structures[nc].box[7];
-  structures[nc].box[17] =
-    structures[nc].box[0] * structures[nc].box[4] - structures[nc].box[1] * structures[nc].box[3];
+  structure.box[9] = structure.box[4] * structure.box[8] - structure.box[5] * structure.box[7];
+  structure.box[10] = structure.box[2] * structure.box[7] - structure.box[1] * structure.box[8];
+  structure.box[11] = structure.box[1] * structure.box[5] - structure.box[2] * structure.box[4];
+  structure.box[12] = structure.box[5] * structure.box[6] - structure.box[3] * structure.box[8];
+  structure.box[13] = structure.box[0] * structure.box[8] - structure.box[2] * structure.box[6];
+  structure.box[14] = structure.box[2] * structure.box[3] - structure.box[0] * structure.box[5];
+  structure.box[15] = structure.box[3] * structure.box[7] - structure.box[4] * structure.box[6];
+  structure.box[16] = structure.box[1] * structure.box[6] - structure.box[0] * structure.box[7];
+  structure.box[17] = structure.box[0] * structure.box[4] - structure.box[1] * structure.box[3];
 
-  det *= structures[nc].num_cell[0] * structures[nc].num_cell[1] * structures[nc].num_cell[2];
+  det *= structure.num_cell[0] * structure.num_cell[1] * structure.num_cell[2];
   for (int n = 9; n < 18; n++) {
-    structures[nc].box[n] /= det;
+    structure.box[n] /= det;
   }
 }
 
-static void
-read_force(std::ifstream& input, int nc, Parameters& para, std::vector<Structure>& structures)
+static void read_force(
+  const int num_columns,
+  const int species_offset,
+  const int pos_offset,
+  const int force_offset,
+  std::ifstream& input,
+  const Parameters& para,
+  Structure& structure)
 {
-  structures[nc].type.resize(structures[nc].num_atom);
-  structures[nc].x.resize(structures[nc].num_atom);
-  structures[nc].y.resize(structures[nc].num_atom);
-  structures[nc].z.resize(structures[nc].num_atom);
-  structures[nc].fx.resize(structures[nc].num_atom);
-  structures[nc].fy.resize(structures[nc].num_atom);
-  structures[nc].fz.resize(structures[nc].num_atom);
+  structure.type.resize(structure.num_atom);
+  structure.x.resize(structure.num_atom);
+  structure.y.resize(structure.num_atom);
+  structure.z.resize(structure.num_atom);
+  structure.fx.resize(structure.num_atom);
+  structure.fy.resize(structure.num_atom);
+  structure.fz.resize(structure.num_atom);
 
-  for (int na = 0; na < structures[nc].num_atom; ++na) {
+  for (int na = 0; na < structure.num_atom; ++na) {
     std::vector<std::string> tokens = get_tokens(input);
-    if (tokens.size() != 7) {
-      PRINT_INPUT_ERROR("Number of items for atom line must be 7.");
+    if (tokens.size() != num_columns) {
+      PRINT_INPUT_ERROR("Number of items for an atom line mismatches properties.");
     }
-    std::string atom_symbol(tokens[0]);
-    structures[nc].x[na] = get_float_from_token(tokens[1], __FILE__, __LINE__);
-    structures[nc].y[na] = get_float_from_token(tokens[2], __FILE__, __LINE__);
-    structures[nc].z[na] = get_float_from_token(tokens[3], __FILE__, __LINE__);
-    structures[nc].fx[na] = get_float_from_token(tokens[4], __FILE__, __LINE__);
-    structures[nc].fy[na] = get_float_from_token(tokens[5], __FILE__, __LINE__);
-    structures[nc].fz[na] = get_float_from_token(tokens[6], __FILE__, __LINE__);
+    std::string atom_symbol(tokens[0 + species_offset]);
+    structure.x[na] = get_float_from_token(tokens[0 + pos_offset], __FILE__, __LINE__);
+    structure.y[na] = get_float_from_token(tokens[1 + pos_offset], __FILE__, __LINE__);
+    structure.z[na] = get_float_from_token(tokens[2 + pos_offset], __FILE__, __LINE__);
+    structure.fx[na] = get_float_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
+    structure.fy[na] = get_float_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
+    structure.fz[na] = get_float_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
 
     bool is_allowed_element = false;
     for (int n = 0; n < para.elements.size(); ++n) {
       if (atom_symbol == para.elements[n]) {
-        structures[nc].type[na] = n;
+        structure.type[na] = n;
         is_allowed_element = true;
       }
     }
     if (!is_allowed_element) {
-      PRINT_INPUT_ERROR("There is atom in train.in or test.in that are not in nep.in.\n");
+      PRINT_INPUT_ERROR("There is atom in train.xyz or test.xyz that are not in nep.in.\n");
     }
   }
+}
+
+static void read_one_structure(const Parameters& para, std::ifstream& input, Structure& structure)
+{
+  std::vector<std::string> tokens = get_tokens(input);
+  for (auto& token : tokens) {
+    std::transform(
+      token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
+  }
+
+  if (tokens.size() == 0) {
+    PRINT_INPUT_ERROR("The second line for each frame should not be empty.");
+  }
+
+  bool has_energy_in_exyz = false;
+  for (const auto& token : tokens) {
+    const std::string energy_string = "energy=";
+    if (token.substr(0, energy_string.length()) == energy_string) {
+      has_energy_in_exyz = true;
+      structure.energy = get_float_from_token(
+        token.substr(energy_string.length(), token.length()), __FILE__, __LINE__);
+      structure.energy /= structure.num_atom;
+    }
+  }
+  if (!has_energy_in_exyz) {
+    PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
+  }
+
+  structure.weight = 1.0f;
+  for (const auto& token : tokens) {
+    const std::string weight_string = "weight=";
+    if (token.substr(0, weight_string.length()) == weight_string) {
+      structure.weight = get_float_from_token(
+        token.substr(weight_string.length(), token.length()), __FILE__, __LINE__);
+      if (structure.weight <= 0.0f || structure.weight > 100.0f) {
+        PRINT_INPUT_ERROR("Configuration weight should > 0 and <= 100.");
+      }
+    }
+  }
+
+  bool has_lattice_in_exyz = false;
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string lattice_string = "lattice=";
+    if (tokens[n].substr(0, lattice_string.length()) == lattice_string) {
+      has_lattice_in_exyz = true;
+      const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
+      for (int m = 0; m < 9; ++m) {
+        structure.box_original[transpose_index[m]] = get_float_from_token(
+          tokens[n + m].substr(
+            (m == 0) ? (lattice_string.length() + 1) : 0,
+            (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+          __FILE__, __LINE__);
+      }
+      change_box(para, structure);
+    }
+  }
+  if (!has_lattice_in_exyz) {
+    PRINT_INPUT_ERROR("'lattice' is missing in the second line of a frame.");
+  }
+
+  structure.has_virial = false;
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string virial_string = "virial=";
+    if (tokens[n].substr(0, virial_string.length()) == virial_string) {
+      structure.has_virial = true;
+      const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
+      for (int m = 0; m < 9; ++m) {
+        structure.virial[reduced_index[m]] = get_float_from_token(
+          tokens[n + m].substr(
+            (m == 0) ? (virial_string.length() + 1) : 0,
+            (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+          __FILE__, __LINE__);
+        structure.virial[reduced_index[m]] /= structure.num_atom;
+      }
+    }
+  }
+
+  int species_offset = 0;
+  int pos_offset = 0;
+  int force_offset = 0;
+  int num_columns = 0;
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string properties_string = "properties=";
+    if (tokens[n].substr(0, properties_string.length()) == properties_string) {
+      std::string line = tokens[n].substr(properties_string.length(), tokens[n].length());
+      for (auto& letter : line) {
+        if (letter == ':') {
+          letter = ' ';
+        }
+      }
+      std::vector<std::string> sub_tokens = get_tokens(line);
+      int species_position = -1;
+      int pos_position = -1;
+      int force_position = -1;
+      for (int k = 0; k < sub_tokens.size() / 3; ++k) {
+        if (sub_tokens[k * 3] == "species") {
+          species_position = k;
+        }
+        if (sub_tokens[k * 3] == "pos") {
+          pos_position = k;
+        }
+        if (sub_tokens[k * 3] == "force" || sub_tokens[k * 3] == "forces") {
+          force_position = k;
+        }
+      }
+      if (species_position < 0) {
+        PRINT_INPUT_ERROR("'species' is missing in properties.");
+      }
+      if (pos_position < 0) {
+        PRINT_INPUT_ERROR("'pos' is missing in properties.");
+      }
+      if (force_position < 0) {
+        PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
+      }
+      for (int k = 0; k < sub_tokens.size() / 3; ++k) {
+        if (k < species_position) {
+          species_offset += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        }
+        if (k < pos_position) {
+          pos_offset += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        }
+        if (k < force_position) {
+          force_offset += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        }
+        num_columns += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+      }
+    }
+  }
+
+  read_force(num_columns, species_offset, pos_offset, force_offset, input, para, structure);
+
+  /*std::cout << "box =" << std::endl;
+  for (int d = 0; d < 9; ++d) {
+    printf("%f ", structure.box[d]);
+  }
+  printf("\n");
+
+  std::cout << "has_virial=" << structure.has_virial << std::endl;
+  for (int d = 0; d < 6; ++d) {
+    std::cout << structure.virial[d] << " ";
+  }
+  printf("\n");
+  std::cout << "energy =" << structure.energy << std::endl;
+  std::cout << "weight =" << structure.weight << std::endl;
+
+  for (int na = 0; na < structure.num_atom; ++na) {
+    std::cout << structure.x[na] << " " << structure.y[na] << " " << structure.z[na] << " "
+              << structure.fx[na] << " " << structure.fy[na] << " " << structure.fz[na]
+              << std::endl;
+  }*/
+}
+
+static void
+read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& structures)
+{
+  int Nc = 0;
+  while (true) {
+    std::vector<std::string> tokens = get_tokens(input);
+    if (tokens.size() == 0) {
+      break;
+    } else if (tokens.size() > 1) {
+      PRINT_INPUT_ERROR("The first line for each frame should have one value.");
+    }
+    Structure structure;
+    structure.num_atom = get_int_from_token(tokens[0], __FILE__, __LINE__);
+    if (structure.num_atom < 1) {
+      PRINT_INPUT_ERROR("Number of atoms for each frame should >= 1.");
+    }
+    read_one_structure(para, input, structure);
+    structures.emplace_back(structure);
+    ++Nc;
+  }
+  printf("Number of configurations = %d.\n", Nc);
 }
 
 static void find_permuted_indices(std::vector<int>& permuted_indices)
@@ -309,25 +394,15 @@ static void reorder(std::vector<Structure>& structures)
 void read_structures(
   bool is_train, char* input_dir, Parameters& para, std::vector<Structure>& structures)
 {
-  std::string file_train(input_dir);
-  if (is_train) {
-    file_train += "/train.in";
-  } else {
-    file_train += "/test.in";
-  }
-  std::ifstream input(file_train);
+  std::string filename(input_dir);
+  filename += is_train ? "/train.xyz" : "/test.xyz";
+  std::ifstream input(filename);
 
   if (!input.is_open()) {
-    PRINT_INPUT_ERROR("Failed to open train.in or test.in.");
+    PRINT_INPUT_ERROR("Failed to open train.xyz or test.xyz.");
   }
 
-  read_Nc(input, structures);
-  read_Na(input, structures);
-  for (int n = 0; n < structures.size(); ++n) {
-    read_energy_virial(input, n, structures);
-    read_box(input, n, para, structures);
-    read_force(input, n, para, structures);
-  }
+  read_exyz(para, input, structures);
 
   input.close();
 

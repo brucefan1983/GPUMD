@@ -77,6 +77,7 @@
 void print_line_1(void);
 void print_line_2(void);
 FILE* my_fopen(const char* filename, const char* mode);
+std::vector<std::string> get_tokens(const std::string& line);
 std::vector<std::string> get_tokens(std::ifstream& input);
-int get_int_from_token(std::string& token, const char* filename, const int line);
-float get_float_from_token(std::string& token, const char* filename, const int line);
+int get_int_from_token(const std::string& token, const char* filename, const int line);
+float get_float_from_token(const std::string& token, const char* filename, const int line);
