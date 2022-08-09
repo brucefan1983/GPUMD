@@ -248,26 +248,6 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
   }
 
   read_force(num_columns, species_offset, pos_offset, force_offset, input, para, structure);
-
-  /*std::cout << "box =" << std::endl;
-  for (int d = 0; d < 9; ++d) {
-    printf("%f ", structure.box[d]);
-  }
-  printf("\n");
-
-  std::cout << "has_virial=" << structure.has_virial << std::endl;
-  for (int d = 0; d < 6; ++d) {
-    std::cout << structure.virial[d] << " ";
-  }
-  printf("\n");
-  std::cout << "energy =" << structure.energy << std::endl;
-  std::cout << "weight =" << structure.weight << std::endl;
-
-  for (int na = 0; na < structure.num_atom; ++na) {
-    std::cout << structure.x[na] << " " << structure.y[na] << " " << structure.z[na] << " "
-              << structure.fx[na] << " " << structure.fy[na] << " " << structure.fz[na]
-              << std::endl;
-  }*/
 }
 
 static void
