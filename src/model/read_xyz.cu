@@ -23,144 +23,220 @@ The class defining the simulation model.
 #include "read_xyz.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include <algorithm>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
 
-void read_xyz_in_line_1(
-  FILE* fid_xyz, int& N, int& triclinic, int& has_velocity_in_xyz, std::vector<Group>& group)
+static void read_xyz_line_1(std::ifstream& input, int& N)
 {
-  int num_of_grouping_methods = 0;
-  int count =
-    fscanf(fid_xyz, "%d%d%d%d\n", &N, &triclinic, &has_velocity_in_xyz, &num_of_grouping_methods);
-  PRINT_SCANF_ERROR(count, 4, "Reading error for line 1 of xyz.in.");
-  group.resize(num_of_grouping_methods);
-
+  std::vector<std::string> tokens = get_tokens(input);
+  if (tokens.size() != 1) {
+    PRINT_INPUT_ERROR("The first line for the xyz file should have one value.");
+  }
+  N = get_int_from_token(tokens[0], __FILE__, __LINE__);
   if (N < 2) {
     PRINT_INPUT_ERROR("Number of atoms should >= 2.");
   } else {
     printf("Number of atoms is %d.\n", N);
   }
-
-  if (triclinic == 0) {
-    printf("Use orthogonal box.\n");
-  } else if (triclinic == 1) {
-    printf("Use triclinic box.\n");
-  } else {
-    PRINT_INPUT_ERROR("Invalid box type.");
-  }
-
-  if (has_velocity_in_xyz == 0) {
-    printf("Do not specify initial velocities here.\n");
-  } else if (has_velocity_in_xyz == 1) {
-    printf("Specify initial velocities here.\n");
-  } else {
-    PRINT_INPUT_ERROR("Invalid has_velocity flag.");
-  }
-
-  if (num_of_grouping_methods == 0) {
-    printf("Have no grouping method.\n");
-  } else if (num_of_grouping_methods > 0 && num_of_grouping_methods <= 10) {
-    printf("Have %d grouping method(s).\n", num_of_grouping_methods);
-  } else {
-    PRINT_INPUT_ERROR("Number of grouping methods should be 1 to 10.");
-  }
 }
 
-void read_xyz_in_line_2(FILE* fid_xyz, Box& box)
+static void read_xyz_line_2(
+  std::ifstream& input,
+  Box& box,
+  int& has_velocity_in_xyz,
+  int& num_columns,
+  int* property_offset,
+  std::vector<Group>& group)
 {
-  if (box.triclinic == 1) {
-    double ax, ay, az, bx, by, bz, cx, cy, cz;
-    int count = fscanf(
-      fid_xyz, "%d%d%d%lf%lf%lf%lf%lf%lf%lf%lf%lf", &box.pbc_x, &box.pbc_y, &box.pbc_z, &ax, &ay,
-      &az, &bx, &by, &bz, &cx, &cy, &cz);
-    PRINT_SCANF_ERROR(count, 12, "Reading error for line 2 of xyz.in.");
+  std::vector<std::string> tokens = get_tokens(input);
+  for (auto& token : tokens) {
+    std::transform(
+      token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
+  }
 
-    box.cpu_h[0] = ax;
-    box.cpu_h[3] = ay;
-    box.cpu_h[6] = az;
-    box.cpu_h[1] = bx;
-    box.cpu_h[4] = by;
-    box.cpu_h[7] = bz;
-    box.cpu_h[2] = cx;
-    box.cpu_h[5] = cy;
-    box.cpu_h[8] = cz;
-    box.get_inverse();
-
-    printf("Box matrix h = [a, b, c] is\n");
-    for (int d1 = 0; d1 < 3; ++d1) {
-      for (int d2 = 0; d2 < 3; ++d2) {
-        printf("%20.10e", box.cpu_h[d1 * 3 + d2]);
+  box.triclinic = 1; // default is triclinic
+  for (const auto& token : tokens) {
+    const std::string tmp_string = "triclinic=";
+    if (token.substr(0, tmp_string.length()) == tmp_string) {
+      if (token.back() == 't') {
+        box.triclinic = 1;
+      } else if (token.back() == 'f') {
+        box.triclinic = 0;
+      } else {
+        PRINT_INPUT_ERROR("tricinic should be T or F.");
       }
-      printf("\n");
     }
+  }
+  (box.triclinic == 0) ? printf("Use orthogonal box.\n") : printf("Use triclinic box.\n");
 
-    printf("Inverse box matrix g = inv(h) is\n");
-    for (int d1 = 0; d1 < 3; ++d1) {
-      for (int d2 = 0; d2 < 3; ++d2) {
-        printf("%20.10e", box.cpu_h[9 + d1 * 3 + d2]);
+  box.pbc_x = box.pbc_y = box.pbc_z = 1; // default is periodic
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string tmp_string = "pbc=";
+    if (tokens[n].substr(0, tmp_string.length()) == tmp_string) {
+      if (tokens[n].back() == 't') {
+        box.pbc_x = 1;
+      } else if (tokens[n].back() == 'f') {
+        box.pbc_x = 0;
+      } else {
+        PRINT_INPUT_ERROR("periodic boundary in x direction should be T or F.");
       }
-      printf("\n");
+      if (tokens[n + 1] == "t") {
+        box.pbc_y = 1;
+      } else if (tokens[n + 1] == "f") {
+        box.pbc_y = 0;
+      } else {
+        PRINT_INPUT_ERROR("periodic boundary in y direction should be T or F.");
+      }
+      if (tokens[n + 2].front() == 't') {
+        box.pbc_z = 1;
+      } else if (tokens[n + 2].front() == 'f') {
+        box.pbc_z = 0;
+      } else {
+        PRINT_INPUT_ERROR("periodic boundary in z direction should be T or F.");
+      }
     }
+  }
+  printf("Use %s boundary conditions along x.\n", (box.pbc_x == 1) ? "periodic" : "free");
+  printf("Use %s boundary conditions along y.\n", (box.pbc_y == 1) ? "periodic" : "free");
+  printf("Use %s boundary conditions along z.\n", (box.pbc_z == 1) ? "periodic" : "free");
+
+  // box matrix
+  bool has_lattice_in_exyz = false;
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string lattice_string = "lattice=";
+    if (tokens[n].substr(0, lattice_string.length()) == lattice_string) {
+      has_lattice_in_exyz = true;
+      const int transpose_index[9] = {0, 3, 6, 1, 4, 7, 2, 5, 8};
+      for (int m = 0; m < 9; ++m) {
+        box.cpu_h[transpose_index[m]] = get_double_from_token(
+          tokens[n + m].substr(
+            (m == 0) ? (lattice_string.length() + 1) : 0,
+            (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+          __FILE__, __LINE__);
+      }
+      box.get_inverse();
+      if (!box.triclinic) {
+        box.cpu_h[1] = box.cpu_h[4];
+        box.cpu_h[2] = box.cpu_h[8];
+        box.cpu_h[3] = box.cpu_h[0] * 0.5;
+        box.cpu_h[4] = box.cpu_h[1] * 0.5;
+        box.cpu_h[5] = box.cpu_h[2] * 0.5;
+      }
+    }
+  }
+  if (!has_lattice_in_exyz) {
+    PRINT_INPUT_ERROR("'lattice' is missing in the second line of the model file.");
   } else {
-    double lx, ly, lz;
-    int count =
-      fscanf(fid_xyz, "%d%d%d%lf%lf%lf", &box.pbc_x, &box.pbc_y, &box.pbc_z, &lx, &ly, &lz);
-    PRINT_SCANF_ERROR(count, 6, "Reading error for line 2 of xyz.in.");
+    if (box.triclinic == 1) {
+      printf("Box matrix h = [a, b, c] is\n");
+      for (int d1 = 0; d1 < 3; ++d1) {
+        for (int d2 = 0; d2 < 3; ++d2) {
+          printf("%20.10e", box.cpu_h[d1 * 3 + d2]);
+        }
+        printf("\n");
+      }
 
-    if (lx < 0) {
-      PRINT_INPUT_ERROR("Box length in x direction < 0.");
+      printf("Inverse box matrix g = inv(h) is\n");
+      for (int d1 = 0; d1 < 3; ++d1) {
+        for (int d2 = 0; d2 < 3; ++d2) {
+          printf("%20.10e", box.cpu_h[9 + d1 * 3 + d2]);
+        }
+        printf("\n");
+      }
+    } else {
+      if (box.cpu_h[0] <= 0) {
+        PRINT_INPUT_ERROR("Box length in x direction <= 0.");
+      }
+      if (box.cpu_h[1] <= 0) {
+        PRINT_INPUT_ERROR("Box length in y direction <= 0.");
+      }
+      if (box.cpu_h[2] <= 0) {
+        PRINT_INPUT_ERROR("Box length in z direction <= 0.");
+      }
+      printf("Box lengths are\n");
+      printf("    Lx = %20.10e A\n", box.cpu_h[0]);
+      printf("    Ly = %20.10e A\n", box.cpu_h[1]);
+      printf("    Lz = %20.10e A\n", box.cpu_h[2]);
     }
-    if (ly < 0) {
-      PRINT_INPUT_ERROR("Box length in y direction < 0.");
-    }
-    if (lz < 0) {
-      PRINT_INPUT_ERROR("Box length in z direction < 0.");
-    }
-
-    box.cpu_h[0] = lx;
-    box.cpu_h[1] = ly;
-    box.cpu_h[2] = lz;
-    box.cpu_h[3] = lx * 0.5;
-    box.cpu_h[4] = ly * 0.5;
-    box.cpu_h[5] = lz * 0.5;
-
-    printf("Box lengths are\n");
-    printf("    Lx = %20.10e A\n", lx);
-    printf("    Ly = %20.10e A\n", ly);
-    printf("    Lz = %20.10e A\n", lz);
   }
 
-  if (box.pbc_x == 1) {
-    printf("Use periodic boundary conditions along x.\n");
-  } else if (box.pbc_x == 0) {
-    printf("Use     free boundary conditions along x.\n");
-  } else {
-    PRINT_INPUT_ERROR("Invalid boundary conditions along x.");
+  // properties
+  std::string property_name[5] = {"species", "pos", "mass", "vel", "group"};
+  int property_position[5] = {-1, -1, -1, -1, -1}; // species,pos,mass,vel,group
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string properties_string = "properties=";
+    if (tokens[n].substr(0, properties_string.length()) == properties_string) {
+      std::string line = tokens[n].substr(properties_string.length(), tokens[n].length());
+      for (auto& letter : line) {
+        if (letter == ':') {
+          letter = ' ';
+        }
+      }
+      std::vector<std::string> sub_tokens = get_tokens(line);
+      for (int k = 0; k < sub_tokens.size() / 3; ++k) {
+        for (int prop = 0; prop < 5; ++prop) {
+          if (prop == 0) {
+            if (sub_tokens[k * 3] == property_name[prop] || sub_tokens[k * 3] == "numbers") {
+              property_position[prop] = k;
+            }
+          } else {
+            if (sub_tokens[k * 3] == property_name[prop]) {
+              property_position[prop] = k;
+            }
+          }
+        }
+      }
+
+      if (property_position[3] < 0) {
+        has_velocity_in_xyz = 0;
+        printf("Do not specify initial velocities here.\n");
+      } else {
+        has_velocity_in_xyz = 1;
+        printf("Specify initial velocities here.\n");
+      }
+
+      if (property_position[4] < 0) {
+        group.resize(0);
+        printf("Have no grouping method.\n");
+      } else {
+        int num_of_grouping_methods =
+          get_int_from_token(sub_tokens[property_position[4] * 3 + 2], __FILE__, __LINE__);
+        group.resize(num_of_grouping_methods);
+        printf("Have %d grouping method(s).\n", num_of_grouping_methods);
+      }
+
+      for (int k = 0; k < sub_tokens.size() / 3; ++k) {
+        const int tmp_length = get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        for (int prop = 0; prop < 5; ++prop) {
+          if (k < property_position[prop]) {
+            property_offset[prop] += tmp_length;
+          }
+        }
+        num_columns += tmp_length;
+      }
+    }
   }
 
-  if (box.pbc_y == 1) {
-    printf("Use periodic boundary conditions along y.\n");
-  } else if (box.pbc_y == 0) {
-    printf("Use     free boundary conditions along y.\n");
-  } else {
-    PRINT_INPUT_ERROR("Invalid boundary conditions along y.");
+  if (property_position[0] < 0) {
+    PRINT_INPUT_ERROR("'species' or 'properties' is missing in the model file.");
   }
-
-  if (box.pbc_z == 1) {
-    printf("Use periodic boundary conditions along z.\n");
-  } else if (box.pbc_z == 0) {
-    printf("Use     free boundary conditions along z.\n");
-  } else {
-    PRINT_INPUT_ERROR("Invalid boundary conditions along z.");
+  if (property_position[1] < 0) {
+    PRINT_INPUT_ERROR("'pos' or 'properties' is missing in the model file.");
+  }
+  if (property_position[2] < 0) {
+    PRINT_INPUT_ERROR("'mass' or 'properties' is missing in the model file.");
   }
 }
 
 void read_xyz_in_line_3(
-  FILE* fid_xyz,
+  std::ifstream& input,
   const int N,
   const int has_velocity_in_xyz,
+  const int num_columns,
+  const int* property_offset,
   int& number_of_types,
   std::vector<std::string>& atom_symbols,
   std::vector<std::string>& cpu_atom_symbol,
@@ -178,20 +254,22 @@ void read_xyz_in_line_3(
 #ifdef USE_NEP
   number_of_types = atom_symbols.size();
 #else
-  number_of_types = -1;
+  number_of_types = 0;
 #endif
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].cpu_label.resize(N);
-    group[m].number = -1;
+    group[m].number = 0;
   }
 
   for (int n = 0; n < N; n++) {
-    double mass, x, y, z;
+    std::vector<std::string> tokens = get_tokens(input);
+    if (tokens.size() != num_columns) {
+      PRINT_INPUT_ERROR("number of columns does not match properties.\n");
+    }
+
 #ifdef USE_NEP
-    char atom_symbol_tmp[10];
-    int count = fscanf(fid_xyz, "%s%lf%lf%lf%lf", atom_symbol_tmp, &x, &y, &z, &mass);
-    cpu_atom_symbol[n] = atom_symbol_tmp;
+    cpu_atom_symbol[n] = tokens[property_offset[0]];
     bool is_allowed_element = false;
     for (int t = 0; t < number_of_types; ++t) {
       if (cpu_atom_symbol[n] == atom_symbols[t]) {
@@ -203,61 +281,46 @@ void read_xyz_in_line_3(
       PRINT_INPUT_ERROR("There is atom in xyz.in that is not allowed in the used NEP potential.\n");
     }
 #else
-    int count = fscanf(fid_xyz, "%d%lf%lf%lf%lf", &(cpu_type[n]), &x, &y, &z, &mass);
+    cpu_type[n] = get_int_from_token(tokens[property_offset[0]], __FILE__, __LINE__);
 #endif
-    PRINT_SCANF_ERROR(count, 5, "Reading error for xyz.in.");
 
 #ifndef USE_NEP
     if (cpu_type[n] < 0 || cpu_type[n] >= N) {
       PRINT_INPUT_ERROR("Atom type should >= 0 and < N.");
     }
+    if ((cpu_type[n] + 1) > number_of_types) {
+      number_of_types = cpu_type[n] + 1;
+    }
 #endif
 
-    if (mass <= 0) {
+    for (int d = 0; d < 3; ++d) {
+      cpu_position_per_atom[n + N * d] =
+        get_double_from_token(tokens[property_offset[1] + d], __FILE__, __LINE__);
+    }
+
+    cpu_mass[n] = get_double_from_token(tokens[property_offset[2]], __FILE__, __LINE__);
+    if (cpu_mass[n] <= 0) {
       PRINT_INPUT_ERROR("Atom mass should > 0.");
     }
 
-    cpu_mass[n] = mass;
-    cpu_position_per_atom[n] = x;
-    cpu_position_per_atom[n + N] = y;
-    cpu_position_per_atom[n + N * 2] = z;
-
-#ifndef USE_NEP
-    if (cpu_type[n] > number_of_types) {
-      number_of_types = cpu_type[n];
-    }
-#endif
-
     if (has_velocity_in_xyz) {
-      double vx, vy, vz;
-      count = fscanf(fid_xyz, "%lf%lf%lf", &vx, &vy, &vz);
-      PRINT_SCANF_ERROR(count, 3, "Reading error for xyz.in.");
-      cpu_velocity_per_atom[n] = vx;
-      cpu_velocity_per_atom[n + N] = vy;
-      cpu_velocity_per_atom[n + N * 2] = vz;
+      for (int d = 0; d < 3; ++d) {
+        cpu_velocity_per_atom[n + N * d] =
+          get_double_from_token(tokens[property_offset[3] + d], __FILE__, __LINE__);
+      }
     }
 
     for (int m = 0; m < group.size(); ++m) {
-      count = fscanf(fid_xyz, "%d", &group[m].cpu_label[n]);
-      PRINT_SCANF_ERROR(count, 1, "Reading error for xyz.in.");
-
+      group[m].cpu_label[n] =
+        get_int_from_token(tokens[property_offset[4] + m], __FILE__, __LINE__);
       if (group[m].cpu_label[n] < 0 || group[m].cpu_label[n] >= N) {
         PRINT_INPUT_ERROR("Group label should >= 0 and < N.");
       }
-
-      if (group[m].cpu_label[n] > group[m].number) {
-        group[m].number = group[m].cpu_label[n];
+      if ((group[m].cpu_label[n] + 1) > group[m].number) {
+        group[m].number = group[m].cpu_label[n] + 1;
       }
     }
   }
-
-  for (int m = 0; m < group.size(); ++m) {
-    group[m].number++;
-  }
-
-#ifndef USE_NEP
-  number_of_types++;
-#endif
 }
 
 void find_type_size(
@@ -369,14 +432,17 @@ void initialize_position(
   std::vector<Group>& group,
   Atom& atom)
 {
-  char file_xyz[200];
-  strcpy(file_xyz, input_dir);
-  strcat(file_xyz, "/xyz.in");
-  FILE* fid_xyz = my_fopen(file_xyz, "r");
+  std::string filename(input_dir + std::string("/model.xyz"));
+  std::ifstream input(filename);
 
-  read_xyz_in_line_1(fid_xyz, N, box.triclinic, has_velocity_in_xyz, group);
+  if (!input.is_open()) {
+    PRINT_INPUT_ERROR("Failed to open model.xyz.");
+  }
 
-  read_xyz_in_line_2(fid_xyz, box);
+  read_xyz_line_1(input, N);
+  int property_offset[5] = {0, 0, 0, 0, 0}; // species,pos,mass,vel,group
+  int num_columns = 0;
+  read_xyz_line_2(input, box, has_velocity_in_xyz, num_columns, property_offset, group);
 
   std::vector<std::string> atom_symbols;
   auto filename_potential = get_filename_potential(input_dir);
@@ -404,10 +470,11 @@ void initialize_position(
 #endif
 
   read_xyz_in_line_3(
-    fid_xyz, N, has_velocity_in_xyz, number_of_types, atom_symbols, atom.cpu_atom_symbol,
-    atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom, group);
+    input, N, has_velocity_in_xyz, num_columns, property_offset, number_of_types, atom_symbols,
+    atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom, group);
 
-  fclose(fid_xyz);
+  input.close();
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].find_size(N, m);
