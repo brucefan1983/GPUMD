@@ -66,6 +66,7 @@ public:
   double hnemd_fe_[3];
 
 private:
+  bool is_fcp = false;
   int type_shift_[MAX_NUM_OF_POTENTIALS]; // shift to correct type in force eval
 
   void initialize_potential(

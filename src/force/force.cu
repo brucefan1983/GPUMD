@@ -38,6 +38,7 @@ Force::Force(void)
   num_of_potentials = 0;
   rc_max = 0.0;
   group_method = -1;
+  is_fcp = false;
 }
 
 void Force::parse_potential(
@@ -137,6 +138,7 @@ void Force::initialize_potential(
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
+    is_fcp = true;
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0) {
@@ -323,7 +325,6 @@ void Force::set_hnemd_parameters(
   }
 }
 
-#ifndef USE_FCP
 static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, double* g_z)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
@@ -387,7 +388,6 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
     }
   }
 }
-#endif
 
 void Force::compute(
   Box& box,
@@ -399,11 +399,11 @@ void Force::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
-#ifndef USE_FCP
-  gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2);
-#endif
+  if (!is_fcp) {
+    gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2);
+  }
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
@@ -442,5 +442,22 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
     CUDA_CHECK_KERNEL
+  }
+
+  // always correct the force when using the FCP potential
+  if (is_fcp) {
+    if (!compute_hnemd_) {
+      GPU_Vector<double> ftot(3); // total force vector of the system
+      gpu_sum_force<<<3, 1024>>>(
+        number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms, ftot.data());
+      CUDA_CHECK_KERNEL
+
+      gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms, 1.0 / number_of_atoms, force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
+        ftot.data());
+      CUDA_CHECK_KERNEL
+    }
   }
 }
