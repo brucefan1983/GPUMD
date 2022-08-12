@@ -1,4 +1,4 @@
-potential   examples/nep_potentials/PbTe/train/nep.txt 0 1
+potential   ../../../../examples/nep_potentials/PbTe/train/nep.txt 0 1
 velocity    1
 
 ensemble nve
