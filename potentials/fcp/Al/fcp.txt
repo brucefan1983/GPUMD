@@ -1,3 +1,3 @@
 fcp 1
 6 2
-potentials/fcp/Al
+../../../potentials/fcp/Al
