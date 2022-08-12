@@ -214,16 +214,14 @@ void Fitness::report_error(
     if (para.enable_zbl) {
       fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
     }
+    fprintf(
+      fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
+      max_NN_angular);
+    fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
     if (para.version == 3) {
-      fprintf(
-        fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
-        max_NN_angular);
-      fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
       fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
       fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
     } else {
-      fprintf(fid_nep, "cutoff %g %g\n", para.rc_radial, para.rc_angular);
-      fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
       fprintf(fid_nep, "l_max %d\n", para.L_max);
     }
 

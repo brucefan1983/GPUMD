@@ -25,9 +25,9 @@ for nx = 0 : nxyz(1) - 1
 end
 
 % create xyz.in
-fid = fopen('xyz.in', 'w');
-fprintf(fid, '%d 0 0 0\n', N);
-fprintf(fid, '%d %d %d %g %g %g\n', 1, 1, 1, box_length);
+fid=fopen('model.xyz','w');
+fprintf(fid,'%d\n',N);
+fprintf(fid,'triclinic=f pbc=\"T T T\" Lattice=\"%g 0 0 0 %g 0 0 0 %g\" Properties=numbers:I:1:pos:R:3:mass:R:1\n',box_length);
 for n =1 : N
     fprintf(fid, '%d %g %g %g %g\n', 0, r(n, :), 28);
 end

@@ -46,6 +46,14 @@ FILE* my_fopen(const char* filename, const char* mode)
   return fid;
 }
 
+std::vector<std::string> get_tokens(const std::string& line)
+{
+  std::istringstream iss(line);
+  std::vector<std::string> tokens{
+    std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
+  return tokens;
+}
+
 std::vector<std::string> get_tokens(std::ifstream& input)
 {
   std::string line;
@@ -56,7 +64,7 @@ std::vector<std::string> get_tokens(std::ifstream& input)
   return tokens;
 }
 
-int get_int_from_token(std::string& token, const char* filename, const int line)
+int get_int_from_token(const std::string& token, const char* filename, const int line)
 {
   int value = 0;
   try {
@@ -71,11 +79,26 @@ int get_int_from_token(std::string& token, const char* filename, const int line)
   return value;
 }
 
-float get_float_from_token(std::string& token, const char* filename, const int line)
+float get_float_from_token(const std::string& token, const char* filename, const int line)
 {
   float value = 0;
   try {
     value = std::stof(token);
+  } catch (const std::exception& e) {
+    std::cout << "Standard exception:\n";
+    std::cout << "    File:          " << filename << std::endl;
+    std::cout << "    Line:          " << line << std::endl;
+    std::cout << "    Error message: " << e.what() << std::endl;
+    exit(1);
+  }
+  return value;
+}
+
+double get_double_from_token(const std::string& token, const char* filename, const int line)
+{
+  double value = 0;
+  try {
+    value = std::stod(token);
   } catch (const std::exception& e) {
     std::cout << "Standard exception:\n";
     std::cout << "    File:          " << filename << std::endl;
