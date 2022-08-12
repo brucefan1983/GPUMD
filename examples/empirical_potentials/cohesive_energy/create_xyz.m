@@ -21,9 +21,9 @@ for nx = 0 : nxyz(1) - 1
     end
 end
 
-fid = fopen('xyz.in', 'w');
-fprintf(fid, '%d 1 0 0\n', N);
-fprintf(fid, '%d %d %d %g %g %g %g %g %g %g %g %g\n', 1, 1, 1, box_length);
+fid=fopen('model.xyz','w');
+fprintf(fid,'%d\n',N);
+fprintf(fid,'triclinic=T pbc=\"T T T\" Lattice=\"%g %g %g %g %g %g %g %g %g\" Properties=numbers:I:1:pos:R:3:mass:R:1\n',box_length);
 for n =1 : N
     fprintf(fid, '%d %g %g %g %g\n', 0, r(n, :), 28);
 end
