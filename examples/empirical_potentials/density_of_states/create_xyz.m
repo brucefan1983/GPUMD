@@ -20,9 +20,10 @@ for nx=0:nxyz(1)-1
     end
 end
 
-fid=fopen('xyz.in','w');
-fprintf(fid,'%d 0 0 0\n',N);
-fprintf(fid,'%d %d %d %g %g %g\n',1,1,0,a.*nxyz);
+fid=fopen('model.xyz','w');
+fprintf(fid,'%d\n',N);
+fprintf(fid,'triclinic=F pbc=\"T T F\" Lattice=\"%g 0 0 0 %g 0 0 0 %g\" Properties=numbers:I:1:pos:R:3:mass:R:1\n',a.*nxyz);
+
 for n=1:N
     fprintf(fid,'%d %g %g %g %g\n',0,r(n,:),12);
 end
