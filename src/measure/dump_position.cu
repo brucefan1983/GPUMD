@@ -63,21 +63,12 @@ void Dump_Position::preprocess(char* input_dir)
     strcpy(filename_, input_dir);
     strcat(filename_, "/movie.xyz");
     fid_ = my_fopen(filename_, "a");
-#ifdef USE_NEP
     if (precision_ == 0)
       strcpy(precision_str_, "%s %g %g %g\n");
     else if (precision_ == 1) // single precision
       strcpy(precision_str_, "%s %0.9g %0.9g %0.9g\n");
     else if (precision_ == 2) // double precision
       strcpy(precision_str_, "%s %.17f %.17f %.17f\n");
-#else
-    if (precision_ == 0)
-      strcpy(precision_str_, "%d %g %g %g\n");
-    else if (precision_ == 1) // single precision
-      strcpy(precision_str_, "%d %0.9g %0.9g %0.9g\n");
-    else if (precision_ == 2) // double precision
-      strcpy(precision_str_, "%d %.17f %.17f %.17f\n");
-#endif
   }
 }
 
