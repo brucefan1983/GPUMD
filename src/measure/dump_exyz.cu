@@ -101,6 +101,7 @@ void Dump_EXYZ::preprocess(char* input_dir, const int number_of_atoms)
 void Dump_EXYZ::output_line2(
   const double time,
   const Box& box,
+  const std::vector<std::string>& cpu_atom_symbol,
   GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& gpu_thermo)
 {
@@ -141,11 +142,11 @@ void Dump_EXYZ::output_line2(
     cpu_thermo[4]);
 
   // Properties
-#ifdef USE_NEP
-  fprintf(fid_, " Properties=species:S:1:pos:R:3");
-#else
-  fprintf(fid_, " Properties=numbers:I:1:pos:R:3");
-#endif
+  if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
+    fprintf(fid_, " Properties=numbers:I:1:pos:R:3");
+  } else {
+    fprintf(fid_, " Properties=species:S:1:pos:R:3");
+  }
 
   if (has_velocity_) {
     fprintf(fid_, ":vel:R:3");
@@ -190,15 +191,11 @@ void Dump_EXYZ::process(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, virial_per_atom, gpu_thermo);
+  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
-#ifdef USE_NEP
     fprintf(fid_, "%s", cpu_atom_symbol[n].c_str());
-#else
-    fprintf(fid_, "%d", cpu_type[n]);
-#endif
     for (int d = 0; d < 3; ++d) {
       fprintf(fid_, " %.8f", cpu_position_per_atom[n + num_atoms_total * d]);
     }

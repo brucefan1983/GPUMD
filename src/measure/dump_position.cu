@@ -101,39 +101,39 @@ __global__ void copy_position(
   }
 }
 
-void Dump_Position::output_line2(const Box& box)
+void Dump_Position::output_line2(const Box& box, const std::vector<std::string>& cpu_atom_symbol)
 {
-#ifdef USE_NEP
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:S:1:pos:R:3\n",
-      box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
+  if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
+    if (box.triclinic == 0) {
+      fprintf(
+        fid_,
+        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+        "Properties=numbers:I:1:pos:R:3\n",
+        box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
+    } else {
+      fprintf(
+        fid_,
+        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+        "Properties=numbers:I:1:pos:R:3\n",
+        box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+        box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+    }
   } else {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:S:1:pos:R:3\n",
-      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+    if (box.triclinic == 0) {
+      fprintf(
+        fid_,
+        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+        "Properties=species:S:1:pos:R:3\n",
+        box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
+    } else {
+      fprintf(
+        fid_,
+        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+        "Properties=species:S:1:pos:R:3\n",
+        box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+        box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+    }
   }
-#else
-  if (box.triclinic == 0) {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:I:1:pos:R:3\n",
-      box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
-  } else {
-    fprintf(
-      fid_,
-      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-      "Properties=species:I:1:pos:R:3\n",
-      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
-  }
-#endif
 }
 
 void Dump_Position::process(
@@ -155,17 +155,11 @@ void Dump_Position::process(
   if (grouping_method_ < 0) {
     position_per_atom.copy_to_host(cpu_position_per_atom.data());
     fprintf(fid_, "%d\n", num_atoms_total);
-    output_line2(box);
+    output_line2(box, cpu_atom_symbol);
     for (int n = 0; n < num_atoms_total; n++) {
-#ifdef USE_NEP
       fprintf(
         fid_, precision_str_, cpu_atom_symbol[n].c_str(), cpu_position_per_atom[n],
         cpu_position_per_atom[n + num_atoms_total], cpu_position_per_atom[n + 2 * num_atoms_total]);
-#else
-      fprintf(
-        fid_, precision_str_, cpu_type[n], cpu_position_per_atom[n],
-        cpu_position_per_atom[n + num_atoms_total], cpu_position_per_atom[n + 2 * num_atoms_total]);
-#endif
     }
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
@@ -182,20 +176,13 @@ void Dump_Position::process(
       CHECK(cudaMemcpy(cpu_data, gpu_data, sizeof(double) * group_size, cudaMemcpyDeviceToHost));
     }
     fprintf(fid_, "%d\n", group_size);
-    output_line2(box);
+    output_line2(box, cpu_atom_symbol);
     for (int n = 0; n < group_size; n++) {
-#ifdef USE_NEP
       fprintf(
         fid_, precision_str_,
         cpu_atom_symbol[groups[grouping_method_].cpu_contents[group_size_sum + n]].c_str(),
         cpu_position_per_atom[n], cpu_position_per_atom[n + num_atoms_total],
         cpu_position_per_atom[n + 2 * num_atoms_total]);
-#else
-      fprintf(
-        fid_, precision_str_, cpu_type[groups[grouping_method_].cpu_contents[group_size_sum + n]],
-        cpu_position_per_atom[n], cpu_position_per_atom[n + num_atoms_total],
-        cpu_position_per_atom[n + 2 * num_atoms_total]);
-#endif
     }
   }
 

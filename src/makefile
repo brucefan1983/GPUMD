@@ -1,7 +1,5 @@
 ###########################################################
 # Note: 
-# 0) Add -DUSE_NEP to CFLAGS when use the NEP potential 
-#    and remove it otherwise.
 # 1) Add -DUSE_FCP to CFLAGS when use the FCP potential 
 #    and remove it otherwise.
 # 2) Add -DDEBUG to CFLAGS if you want to have the same
