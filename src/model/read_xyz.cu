@@ -268,8 +268,9 @@ void read_xyz_in_line_3(
       PRINT_INPUT_ERROR("number of columns does not match properties.\n");
     }
 
-#ifdef USE_NEP
     cpu_atom_symbol[n] = tokens[property_offset[0]];
+
+#ifdef USE_NEP
     bool is_allowed_element = false;
     for (int t = 0; t < number_of_types; ++t) {
       if (cpu_atom_symbol[n] == atom_symbols[t]) {
