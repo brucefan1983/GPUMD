@@ -44,7 +44,7 @@ void Dump_Restart::preprocess(char* input_dir)
 {
   if (dump_) {
     strcpy(filename_, input_dir);
-    strcat(filename_, "/restart.out");
+    strcat(filename_, "/restart.xyz");
   }
 }
 
@@ -72,33 +72,42 @@ void Dump_Restart::process(
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
   velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
 
-  fprintf(fid, "%d %d %d %d\n", number_of_atoms, box.triclinic, 1, int(group.size()));
+  fprintf(fid, "%d\n", number_of_atoms);
+
+  fprintf(fid, "triclinic=%c ", box.triclinic ? 'T' : 'F');
+  fprintf(
+    fid, "pbc=\"%c %c %c\" ", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   if (box.triclinic == 0) {
-    fprintf(
-      fid, "%d %d %d %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z, box.cpu_h[0], box.cpu_h[1],
-      box.cpu_h[2]);
+    fprintf(fid, "Lattice=\"%g 0 0 0 %g 0 0 0 %g\" ", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);
   } else {
     fprintf(
-      fid, "%d %d %d %g %g %g %g %g %g %g %g %g\n", box.pbc_x, box.pbc_y, box.pbc_z, box.cpu_h[0],
-      box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2],
-      box.cpu_h[5], box.cpu_h[8]);
+      fid, "Lattice=\"%g %g %g %g %g %g %g %g %g\" ", box.cpu_h[0], box.cpu_h[3], box.cpu_h[6],
+      box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
+  }
+
+  if (group.size() == 0) {
+    if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
+      fprintf(fid, "Properties=numbers:I:1:pos:R:3:mass:R:1:vel:R:3\n");
+    } else {
+      fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3\n");
+    }
+  } else {
+    if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
+      fprintf(
+        fid, "Properties=numbers:I:1:pos:R:3:mass:R:1:vel:R:3:group:I:%d\n", int(group.size()));
+    } else {
+      fprintf(
+        fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3:group:I:%d\n", int(group.size()));
+    }
   }
 
   for (int n = 0; n < number_of_atoms; n++) {
-#ifdef USE_NEP
     fprintf(
       fid, "%s %g %g %g %g %g %g %g ", cpu_atom_symbol[n].c_str(), cpu_position_per_atom[n],
       cpu_position_per_atom[n + number_of_atoms], cpu_position_per_atom[n + 2 * number_of_atoms],
       cpu_mass[n], cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
       cpu_velocity_per_atom[n + 2 * number_of_atoms]);
-#else
-    fprintf(
-      fid, "%d %g %g %g %g %g %g %g ", cpu_type[n], cpu_position_per_atom[n],
-      cpu_position_per_atom[n + number_of_atoms], cpu_position_per_atom[n + 2 * number_of_atoms],
-      cpu_mass[n], cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
-      cpu_velocity_per_atom[n + 2 * number_of_atoms]);
-#endif
 
     for (int m = 0; m < group.size(); ++m) {
       fprintf(fid, "%d ", group[m].cpu_label[n]);

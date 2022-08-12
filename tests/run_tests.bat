@@ -37,3 +37,9 @@ fc omega2.out omega21.out
 del D.out omega2.out
 cd ..\..
 
+cd gpumd\carbon
+..\..\..\src\gpumd
+fc thermo.out thermo1.out
+del thermo.out
+cd ..\..
+

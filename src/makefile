@@ -1,19 +1,15 @@
 ###########################################################
 # Note: 
-# 0) Add -DUSE_NEP to CFLAGS when use the NEP potential 
-#    and remove it otherwise.
-# 1) Add -DUSE_FCP to CFLAGS when use the FCP potential 
-#    and remove it otherwise.
-# 2) Add -DDEBUG to CFLAGS if you want to have the same
+# 1) Add -DDEBUG to CFLAGS if you want to have the same
 #    outputs for the same inputs and remove it otherwise.
-# 3) You can modify -arch=sm_35 according to 
+# 2) You can modify -arch=sm_35 according to 
 #    your GPU architecture.
-# 4) For Windows systems, if you got errors like 
+# 3) For Windows systems, if you got errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
 #    You can consider removing -Xcompiler "/wd 4819"
-# 5) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
+# 4) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
-# 6) Add -DUSE_FIXED_NEIGHBOR to CFLAGS if you want to
+# 5) Add -DUSE_FIXED_NEIGHBOR to CFLAGS if you want to
 #    use a fixed neighbor list for empirical potentials
 #    (This can make the MD simulation much faster.)
 ###########################################################

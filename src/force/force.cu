@@ -443,21 +443,4 @@ void Force::compute(
       ftot.data());
     CUDA_CHECK_KERNEL
   }
-
-  // always correct the force when using the FCP potential
-#ifdef USE_FCP
-  if (!compute_hnemd_) {
-    GPU_Vector<double> ftot(3); // total force vector of the system
-    gpu_sum_force<<<3, 1024>>>(
-      number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms, ftot.data());
-    CUDA_CHECK_KERNEL
-
-    gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, 1.0 / number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
-      ftot.data());
-    CUDA_CHECK_KERNEL
-  }
-#endif
 }

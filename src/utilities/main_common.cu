@@ -31,30 +31,6 @@ void print_compile_information(void)
   srand(std::chrono::system_clock::now().time_since_epoch().count());
   printf("DEBUG is off: Use different PRNG seeds for different runs.\n");
 #endif
-
-#ifdef USE_FCP
-
-#ifdef USE_NEP
-  PRINT_INPUT_ERROR("Cannot add both -DUSE_FCP and -DUSE_NEP to the makefile.");
-#else
-  printf("This version can only be used with an FCP potential.\n");
-#endif
-
-#else
-
-#ifdef USE_NEP
-  printf("This version can only be used with an NEP potential.\n");
-#else
-  printf("This version can only be used with empirical potentials (not FCP or NEP).\n");
-#endif
-
-#endif
-
-#ifdef USE_MULTI_GPU
-#ifdef USE_NEP
-  printf("This version can use multi GPUs for the NEP potential.\n");
-#endif
-#endif
 }
 
 void print_gpu_information(void)

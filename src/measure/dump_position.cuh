@@ -45,5 +45,5 @@ private:
   FILE* fid_;
   char filename_[200];
   char precision_str_[25];
-  void output_line2(const Box& box);
+  void output_line2(const Box& box, const std::vector<std::string>& cpu_atom_symbol);
 };

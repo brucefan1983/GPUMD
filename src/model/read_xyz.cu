@@ -233,6 +233,7 @@ static void read_xyz_line_2(
 
 void read_xyz_in_line_3(
   std::ifstream& input,
+  const bool is_nep,
   const int N,
   const int has_velocity_in_xyz,
   const int num_columns,
@@ -251,11 +252,7 @@ void read_xyz_in_line_3(
   cpu_mass.resize(N);
   cpu_position_per_atom.resize(N * 3);
   cpu_velocity_per_atom.resize(N * 3);
-#ifdef USE_NEP
-  number_of_types = atom_symbols.size();
-#else
-  number_of_types = 0;
-#endif
+  number_of_types = is_nep ? atom_symbols.size() : 0;
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].cpu_label.resize(N);
@@ -268,30 +265,29 @@ void read_xyz_in_line_3(
       PRINT_INPUT_ERROR("number of columns does not match properties.\n");
     }
 
-#ifdef USE_NEP
     cpu_atom_symbol[n] = tokens[property_offset[0]];
-    bool is_allowed_element = false;
-    for (int t = 0; t < number_of_types; ++t) {
-      if (cpu_atom_symbol[n] == atom_symbols[t]) {
-        cpu_type[n] = t;
-        is_allowed_element = true;
+
+    if (is_nep) {
+      bool is_allowed_element = false;
+      for (int t = 0; t < number_of_types; ++t) {
+        if (cpu_atom_symbol[n] == atom_symbols[t]) {
+          cpu_type[n] = t;
+          is_allowed_element = true;
+        }
+      }
+      if (!is_allowed_element) {
+        PRINT_INPUT_ERROR(
+          "There is atom in xyz.in that is not allowed in the used NEP potential.\n");
+      }
+    } else {
+      cpu_type[n] = get_int_from_token(tokens[property_offset[0]], __FILE__, __LINE__);
+      if (cpu_type[n] < 0 || cpu_type[n] >= N) {
+        PRINT_INPUT_ERROR("Atom type should >= 0 and < N.");
+      }
+      if ((cpu_type[n] + 1) > number_of_types) {
+        number_of_types = cpu_type[n] + 1;
       }
     }
-    if (!is_allowed_element) {
-      PRINT_INPUT_ERROR("There is atom in xyz.in that is not allowed in the used NEP potential.\n");
-    }
-#else
-    cpu_type[n] = get_int_from_token(tokens[property_offset[0]], __FILE__, __LINE__);
-#endif
-
-#ifndef USE_NEP
-    if (cpu_type[n] < 0 || cpu_type[n] >= N) {
-      PRINT_INPUT_ERROR("Atom type should >= 0 and < N.");
-    }
-    if ((cpu_type[n] + 1) > number_of_types) {
-      number_of_types = cpu_type[n] + 1;
-    }
-#endif
 
     for (int d = 0; d < 3; ++d) {
       cpu_position_per_atom[n + N * d] =
@@ -373,7 +369,7 @@ static std::string get_filename_potential(char* input_dir)
   return filename_potential;
 }
 
-static int get_potential_type(std::string& filename_potential)
+static bool check_is_nep(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
   if (!input_potential.is_open()) {
@@ -385,16 +381,13 @@ static int get_potential_type(std::string& filename_potential)
   input_potential >> potential_name;
   input_potential.close();
 
-  if (potential_name == "fcp") {
-    return 1;
-  } else if (potential_name.substr(0, 3) == "nep") {
-    return 2;
+  if (potential_name.substr(0, 2) == "ne") {
+    return true;
   } else {
-    return 0; // empirical potentials
+    return false;
   }
 }
 
-#ifdef USE_NEP
 static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
@@ -421,7 +414,6 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
   input_potential.close();
   return atom_symbols;
 }
-#endif
 
 void initialize_position(
   char* input_dir,
@@ -447,31 +439,15 @@ void initialize_position(
   std::vector<std::string> atom_symbols;
   auto filename_potential = get_filename_potential(input_dir);
 
-#ifndef USE_NEP
-  if (get_potential_type(filename_potential) == 2) {
-    PRINT_INPUT_ERROR("You are using NEP potential without adding -DUSE_NEP in makefile.");
-  }
-#endif
+  bool is_nep = check_is_nep(filename_potential);
 
-#ifndef USE_FCP
-  if (get_potential_type(filename_potential) == 1) {
-    PRINT_INPUT_ERROR("You are using FCP potential without adding -DUSE_FCP in makefile.");
+  if (is_nep) {
+    atom_symbols = get_atom_symbols(filename_potential);
   }
-#endif
-
-#if defined(USE_FCP) || defined(USE_NEP)
-  if (get_potential_type(filename_potential) == 0) {
-    PRINT_INPUT_ERROR("You are using empirical potential with -DUSE_FCP or -DUSE_NEP in makefile.");
-  }
-#endif
-
-#ifdef USE_NEP
-  atom_symbols = get_atom_symbols(filename_potential);
-#endif
 
   read_xyz_in_line_3(
-    input, N, has_velocity_in_xyz, num_columns, property_offset, number_of_types, atom_symbols,
-    atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom,
+    input, is_nep, N, has_velocity_in_xyz, num_columns, property_offset, number_of_types,
+    atom_symbols, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom, group);
 
   input.close();
