@@ -1,5 +1,5 @@
-8000 0 0 0
-1 1 1 54.3 54.3 54.3
+8000
+triclinic=F pbc="T T T" Lattice="54.3 0 0 0 54.3 0 0 0 54.3" Properties=numbers:I:1:pos:R:3:mass:R:1
 0 0 0 0 28
 0 0 2.715 2.715 28
 0 2.715 0 2.715 28
