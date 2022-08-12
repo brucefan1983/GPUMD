@@ -234,15 +234,15 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         if (k < species_position) {
-          species_offset += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+          species_offset += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
         }
         if (k < pos_position) {
-          pos_offset += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+          pos_offset += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
         }
         if (k < force_position) {
-          force_offset += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+          force_offset += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
         }
-        num_columns += get_float_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
+        num_columns += get_int_from_token(sub_tokens[k * 3 + 2], __FILE__, __LINE__);
       }
     }
   }
