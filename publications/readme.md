@@ -1,6 +1,8 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (4)
+## Preprints (5)
+
+* Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://arxiv.org/abs/2208.03982), arXiv:2208.03982 [physics.comp-ph].
 
 * Penghua Ying, Zheng Zhong, and Jin Zhang, [Anisotropic mechanical properties of monolayer fullerene network: An interplay between two types of interfullerene bonds](https://chemrxiv.org/engage/chemrxiv/article-details/62c855dafb63815200d268c2), ChemRxiv. Cambridge: Cambridge Open Engage; 2022; This content is a preprint and has not been peer-reviewed.
 
