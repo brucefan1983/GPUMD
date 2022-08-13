@@ -16,6 +16,7 @@
 #include "parameters.cuh"
 #include "structure.cuh"
 #include "utilities/error.cuh"
+#include <algorithm>
 #include <chrono>
 #include <fstream>
 #include <iostream>
