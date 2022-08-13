@@ -1,4 +1,4 @@
-potential   ../../../potentials/tersoff/Si_Fan_2019.txt 0
+potential   ../../../potentials/tersoff/Si_Fan_2019.txt
 velocity    100
 
 ensemble    npt_ber 100 100 100 0 0 0 53.4059 53.4059 53.4059 2000

@@ -1,4 +1,4 @@
-potential        ../../../potentials/tersoff/Si_Fan_2019.txt 0
+potential        ../../../potentials/tersoff/Si_Fan_2019.txt
 
 compute_cohesive 0.9 1.2 301
 compute_elastic  0.01 cubic

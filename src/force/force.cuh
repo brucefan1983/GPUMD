@@ -57,6 +57,7 @@ public:
 
   int num_of_potentials;
   double rc_max;
+  int num_types[MAX_NUM_OF_POTENTIALS];
   int atom_begin[MAX_NUM_OF_POTENTIALS];
   int atom_end[MAX_NUM_OF_POTENTIALS];
   bool is_lj[MAX_NUM_OF_POTENTIALS];
