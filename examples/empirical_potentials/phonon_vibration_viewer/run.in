@@ -1,4 +1,4 @@
-potential       ../../../potentials/tersoff/C_Tersoff_1989.txt    0 
+potential       ../../../potentials/tersoff/C_Tersoff_1989.txt
 
 minimize        sd        1.0e-10        1000000
 compute_phonon    16.0      0.005 				# in units of A

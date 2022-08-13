@@ -1,4 +1,4 @@
-potential    ../../../../potentials/tersoff/Graphene_Lindsay_2010_modified.txt 0
+potential    ../../../../potentials/tersoff/Graphene_Lindsay_2010_modified.txt
 velocity     300
 
 ensemble     nvt_ber 300 300 100

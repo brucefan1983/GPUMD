@@ -59,8 +59,8 @@ void Force::parse_potential(
   char potential_name[20];
   FILE* fid_potential = my_fopen(file_potential[num_of_potentials], "r");
   int count = fscanf(fid_potential, "%s", potential_name);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
-  int num_types = get_number_of_types(fid_potential);
+  PRINT_SCANF_ERROR(count, 1, "Reading error for potential name.");
+  num_types[num_of_potentials] = get_number_of_types(fid_potential);
   fclose(fid_potential);
 
   if (strcmp(potential_name, "lj") == 0) {
@@ -70,30 +70,17 @@ void Force::parse_potential(
         PRINT_INPUT_ERROR("Group method for LJ potential should be an integer.\n");
       }
     }
-    atom_begin[num_of_potentials] = 0;
-    atom_end[num_of_potentials] = num_types - 1;
   } else {
     is_lj[num_of_potentials] = false;
-    if (num_param != num_types + 2) {
-      PRINT_INPUT_ERROR("potential has incorrect number of types defined.\n");
-    }
+  }
 
-    std::vector<int> atom_type(num_types);
-
-    for (int i = 0; i < num_types; i++) {
-      if (!is_valid_int(param[i + 2], &atom_type[i])) {
-        PRINT_INPUT_ERROR("type should be an integer.\n");
-      }
-      if (i != 0 && atom_type[i] < atom_type[i - 1]) {
-        PRINT_INPUT_ERROR("potential types must be in ascending order.\n");
-      }
-    }
-    atom_begin[num_of_potentials] = atom_type[0];
-    atom_end[num_of_potentials] = atom_type[num_types - 1];
-
-    if (atom_type[num_types - 1] - atom_type[0] + 1 > num_types) {
-      PRINT_INPUT_ERROR("Error: types for one potential must be contiguous.\n");
-    }
+  if (num_of_potentials == 0) {
+    atom_begin[num_of_potentials] = 0;
+    atom_end[num_of_potentials] = num_types[num_of_potentials] - 1;
+  } else {
+    atom_begin[num_of_potentials] = num_types[num_of_potentials - 1];
+    atom_end[num_of_potentials] =
+      num_types[num_of_potentials - 1] + num_types[num_of_potentials] - 1;
   }
 
   num_of_potentials++;

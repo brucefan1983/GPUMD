@@ -1,7 +1,7 @@
 # This run.in file is used to get the initial forces in a system
 # described by the FCP potential
 
-potential ../../../potentials/fcp/Al/fcp.txt 0
+potential ../../../potentials/fcp/Al/fcp.txt
 velocity 1
 
 ensemble nve
