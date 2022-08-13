@@ -21,7 +21,9 @@
 * Go to the `src` directory and type `make`. When the compilation finishes, two executables, `gpumd` and `nep`, will be generated in the `src` directory. 
 
 ## Run GPUMD
-* See the `examples/readme.md` file.
+* Go to the directory of an example and type one of the following commands:
+  * `path/to/gpumd`
+  * `path/to/nep`
 
 ## Manual
 * We only maintain the online manual now: https://gpumd.zheyongfan.org
