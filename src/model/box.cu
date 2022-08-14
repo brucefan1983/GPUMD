@@ -123,3 +123,14 @@ bool Box::get_num_bins(const double rc, int num_bins[])
   }
   return use_ON2;
 }
+
+void Box::update_triclinic()
+{
+  if (
+    (cpu_h[1] == 0.0) && (cpu_h[2] == 0.0) && (cpu_h[3] == 0.0) && (cpu_h[5] == 0.0) &&
+    (cpu_h[6] == 0.0) && (cpu_h[7] == 0.0)) {
+    triclinic = 0;
+  } else {
+    triclinic = 1;
+  }
+}

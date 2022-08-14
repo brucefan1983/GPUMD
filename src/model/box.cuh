@@ -26,6 +26,7 @@ public:
   double thickness_x = 0.0;           // thickness perpendicular to (b x c)
   double thickness_y = 0.0;           // thickness perpendicular to (c x a)
   double thickness_z = 0.0;           // thickness perpendicular to (a x b)
+  void update_triclinic();            // update the triclinic member
   double get_area(const int d) const; // get the area of one face
   double get_volume(void) const;      // get the volume of the box
   void get_inverse(void);             // get the inverse box matrix
