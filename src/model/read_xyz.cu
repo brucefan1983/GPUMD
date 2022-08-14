@@ -379,16 +379,19 @@ static std::string get_filename_potential(char* input_dir)
   std::string line;
   std::string filename_potential;
   while (std::getline(input_run, line)) {
-    std::stringstream ss(line);
-    std::string token;
-    ss >> token;
-    if (token == "potential") {
-      ss >> filename_potential;
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() >= 2) {
+      if (tokens[0] == "potential") {
+        filename_potential = tokens[1];
+      }
     }
   }
   input_run.close();
-
-  return filename_potential;
+  if (filename_potential.size() == 0) {
+    PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
+  } else {
+    return filename_potential;
+  }
 }
 
 static bool check_is_nep(std::string& filename_potential)
