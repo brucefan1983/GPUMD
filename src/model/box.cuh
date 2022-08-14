@@ -22,7 +22,8 @@ public:
   int pbc_y = 1;                      // pbc_y = 1 means periodic in the y-direction
   int pbc_z = 1;                      // pbc_z = 1 means periodic in the z-direction
   int triclinic = 0;                  // triclinic = 1 means the box is non-orthogonal
-  double cpu_h[18];                   // the box data
+  double cpu_h[18];                   // data for triclinic box
+  double box_length[6];               // data for orthogonal box
   double thickness_x = 0.0;           // thickness perpendicular to (b x c)
   double thickness_y = 0.0;           // thickness perpendicular to (c x a)
   double thickness_z = 0.0;           // thickness perpendicular to (a x b)

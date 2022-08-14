@@ -57,21 +57,6 @@ static void read_xyz_line_2(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
   }
 
-  box.triclinic = 1; // default is triclinic
-  for (const auto& token : tokens) {
-    const std::string tmp_string = "triclinic=";
-    if (token.substr(0, tmp_string.length()) == tmp_string) {
-      if (token.back() == 't') {
-        box.triclinic = 1;
-      } else if (token.back() == 'f') {
-        box.triclinic = 0;
-      } else {
-        PRINT_INPUT_ERROR("tricinic should be T or F.");
-      }
-    }
-  }
-  (box.triclinic == 0) ? printf("Use orthogonal box.\n") : printf("Use triclinic box.\n");
-
   box.pbc_x = box.pbc_y = box.pbc_z = 1; // default is periodic
   for (int n = 0; n < tokens.size(); ++n) {
     const std::string tmp_string = "pbc=";
@@ -117,20 +102,16 @@ static void read_xyz_line_2(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           __FILE__, __LINE__);
       }
-      box.get_inverse();
-      if (!box.triclinic) {
-        box.cpu_h[1] = box.cpu_h[4];
-        box.cpu_h[2] = box.cpu_h[8];
-        box.cpu_h[3] = box.cpu_h[0] * 0.5;
-        box.cpu_h[4] = box.cpu_h[1] * 0.5;
-        box.cpu_h[5] = box.cpu_h[2] * 0.5;
-      }
     }
   }
   if (!has_lattice_in_exyz) {
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of the model file.");
   } else {
+    box.update_triclinic();
+
     if (box.triclinic == 1) {
+      printf("Initial box is triclinic.\n");
+
       printf("Box matrix h = [a, b, c] is\n");
       for (int d1 = 0; d1 < 3; ++d1) {
         for (int d2 = 0; d2 < 3; ++d2) {
@@ -138,6 +119,8 @@ static void read_xyz_line_2(
         }
         printf("\n");
       }
+
+      box.get_inverse();
 
       printf("Inverse box matrix g = inv(h) is\n");
       for (int d1 = 0; d1 < 3; ++d1) {
@@ -147,19 +130,34 @@ static void read_xyz_line_2(
         printf("\n");
       }
     } else {
-      if (box.cpu_h[0] <= 0) {
+      box.box_length[0] = box.cpu_h[0];
+      box.box_length[1] = box.cpu_h[4];
+      box.box_length[2] = box.cpu_h[8];
+      box.box_length[3] = box.box_length[0] * 0.5;
+      box.box_length[4] = box.box_length[1] * 0.5;
+      box.box_length[5] = box.box_length[2] * 0.5;
+
+      // to be deleted later
+      box.cpu_h[1] = box.cpu_h[4];
+      box.cpu_h[2] = box.cpu_h[8];
+      box.cpu_h[3] = box.cpu_h[0] * 0.5;
+      box.cpu_h[4] = box.cpu_h[1] * 0.5;
+      box.cpu_h[5] = box.cpu_h[2] * 0.5;
+
+      if (box.box_length[0] <= 0) {
         PRINT_INPUT_ERROR("Box length in x direction <= 0.");
       }
-      if (box.cpu_h[1] <= 0) {
+      if (box.box_length[1] <= 0) {
         PRINT_INPUT_ERROR("Box length in y direction <= 0.");
       }
-      if (box.cpu_h[2] <= 0) {
+      if (box.box_length[2] <= 0) {
         PRINT_INPUT_ERROR("Box length in z direction <= 0.");
       }
+      printf("Initial box is orthogonal.\n");
       printf("Box lengths are\n");
-      printf("    Lx = %20.10e A\n", box.cpu_h[0]);
-      printf("    Ly = %20.10e A\n", box.cpu_h[1]);
-      printf("    Lz = %20.10e A\n", box.cpu_h[2]);
+      printf("    Lx = %20.10e A\n", box.box_length[0]);
+      printf("    Ly = %20.10e A\n", box.box_length[1]);
+      printf("    Lz = %20.10e A\n", box.box_length[2]);
     }
   }
 
