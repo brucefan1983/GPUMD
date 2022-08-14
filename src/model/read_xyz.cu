@@ -29,6 +29,33 @@ The class defining the simulation model.
 #include <sstream>
 #include <string>
 
+static bool need_triclinic()
+{
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
+  bool triclinic = false;
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "compute_elastic") {
+        triclinic = true;
+      }
+      if (tokens[0] == "change_box" && tokens.size() == 7) {
+        triclinic = true;
+      }
+      if (tokens[0] == "ensemble" && tokens.size() == 18) {
+        triclinic = true;
+      }
+    }
+  }
+
+  input_run.close();
+  return triclinic;
+}
+
 static void read_xyz_line_1(std::ifstream& input, int& N)
 {
   std::vector<std::string> tokens = get_tokens(input);
@@ -56,21 +83,6 @@ static void read_xyz_line_2(
     std::transform(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
   }
-
-  box.triclinic = 1; // default is triclinic
-  for (const auto& token : tokens) {
-    const std::string tmp_string = "triclinic=";
-    if (token.substr(0, tmp_string.length()) == tmp_string) {
-      if (token.back() == 't') {
-        box.triclinic = 1;
-      } else if (token.back() == 'f') {
-        box.triclinic = 0;
-      } else {
-        PRINT_INPUT_ERROR("tricinic should be T or F.");
-      }
-    }
-  }
-  (box.triclinic == 0) ? printf("Use orthogonal box.\n") : printf("Use triclinic box.\n");
 
   box.pbc_x = box.pbc_y = box.pbc_z = 1; // default is periodic
   for (int n = 0; n < tokens.size(); ++n) {
@@ -117,19 +129,22 @@ static void read_xyz_line_2(
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           __FILE__, __LINE__);
       }
-      box.get_inverse();
-      if (!box.triclinic) {
-        box.cpu_h[1] = box.cpu_h[4];
-        box.cpu_h[2] = box.cpu_h[8];
-        box.cpu_h[3] = box.cpu_h[0] * 0.5;
-        box.cpu_h[4] = box.cpu_h[1] * 0.5;
-        box.cpu_h[5] = box.cpu_h[2] * 0.5;
-      }
     }
   }
   if (!has_lattice_in_exyz) {
     PRINT_INPUT_ERROR("'lattice' is missing in the second line of the model file.");
   } else {
+
+    if (
+      !need_triclinic() && box.cpu_h[1] == 0 && box.cpu_h[2] == 0 && box.cpu_h[3] == 0 &&
+      box.cpu_h[5] == 0 && box.cpu_h[6] == 0 && box.cpu_h[7] == 0) {
+      box.triclinic = 0;
+    } else {
+      box.triclinic = 1;
+    }
+
+    (box.triclinic == 0) ? printf("Use orthogonal box.\n") : printf("Use triclinic box.\n");
+
     if (box.triclinic == 1) {
       printf("Box matrix h = [a, b, c] is\n");
       for (int d1 = 0; d1 < 3; ++d1) {
@@ -139,6 +154,8 @@ static void read_xyz_line_2(
         printf("\n");
       }
 
+      box.get_inverse();
+
       printf("Inverse box matrix g = inv(h) is\n");
       for (int d1 = 0; d1 < 3; ++d1) {
         for (int d2 = 0; d2 < 3; ++d2) {
@@ -147,6 +164,11 @@ static void read_xyz_line_2(
         printf("\n");
       }
     } else {
+      box.cpu_h[1] = box.cpu_h[4];
+      box.cpu_h[2] = box.cpu_h[8];
+      box.cpu_h[3] = box.cpu_h[0] * 0.5;
+      box.cpu_h[4] = box.cpu_h[1] * 0.5;
+      box.cpu_h[5] = box.cpu_h[2] * 0.5;
       if (box.cpu_h[0] <= 0) {
         PRINT_INPUT_ERROR("Box length in x direction <= 0.");
       }
@@ -357,16 +379,19 @@ static std::string get_filename_potential(char* input_dir)
   std::string line;
   std::string filename_potential;
   while (std::getline(input_run, line)) {
-    std::stringstream ss(line);
-    std::string token;
-    ss >> token;
-    if (token == "potential") {
-      ss >> filename_potential;
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() >= 2) {
+      if (tokens[0] == "potential") {
+        filename_potential = tokens[1];
+      }
     }
   }
   input_run.close();
-
-  return filename_potential;
+  if (filename_potential.size() == 0) {
+    PRINT_INPUT_ERROR("There is no 'potential' keyword in run.in.");
+  } else {
+    return filename_potential;
+  }
 }
 
 static bool check_is_nep(std::string& filename_potential)

@@ -1,5 +1,5 @@
 40400
-triclinic=F pbc="T T F" Lattice="245.951 0 0 0 430.26 0 0 0 3.35" Properties=numbers:I:1:pos:R:3:mass:R:1:group:I:1
+pbc="T T F" Lattice="245.951 0 0 0 430.26 0 0 0 3.35" Properties=numbers:I:1:pos:R:3:mass:R:1:group:I:1
 0 1.22976 0 0 12 0
 0 0 0.71 0 12 0
 0 0 2.13 0 12 0
