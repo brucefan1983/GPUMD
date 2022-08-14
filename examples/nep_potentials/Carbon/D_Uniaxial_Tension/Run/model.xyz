@@ -1,5 +1,5 @@
 8000
-triclinic=F pbc="T T T" Lattice="17.83395 0 0 0 17.83395 0 0 0 142.6716" Properties=species:S:1:pos:R:3:mass:R:1
+pbc="T T T" Lattice="17.83395 0 0 0 17.83395 0 0 0 142.6716" Properties=species:S:1:pos:R:3:mass:R:1
 C 0.0 0.0 0.0 12.011
 C 0.0 1.783395 1.783395 12.011
 C 0.8916975 0.8916975 0.8916975 12.011

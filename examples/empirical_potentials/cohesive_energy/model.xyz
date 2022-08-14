@@ -1,5 +1,5 @@
 8000
-triclinic=T pbc="T T T" Lattice="54.334 0 0 0 54.334 0 0 0 54.334" Properties=numbers:I:1:pos:R:3:mass:R:1
+pbc="T T T" Lattice="54.334 0 0 0 54.334 0 0 0 54.334" Properties=numbers:I:1:pos:R:3:mass:R:1
 0 0 0 0 28
 0 0 2.7167 2.7167 28
 0 2.7167 0 2.7167 28
