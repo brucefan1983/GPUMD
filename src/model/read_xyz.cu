@@ -28,6 +28,7 @@ The class defining the simulation model.
 #include <iostream>
 #include <sstream>
 #include <string>
+#include <cctype>
 
 static bool need_triclinic()
 {
