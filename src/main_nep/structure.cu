@@ -25,6 +25,7 @@
 #include <sstream>
 #include <string>
 #include <vector>
+#include <cctype>
 
 static float get_area(const float* a, const float* b)
 {
