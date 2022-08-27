@@ -50,6 +50,14 @@ void Dump_Velocity::parse(char** param, int num_param, const std::vector<Group>&
       PRINT_INPUT_ERROR("Unrecognized argument in dump_velocity.\n");
     }
   }
+
+  print_line_1();
+  printf("Warning: Starting from GPUMD-v3.4, the velocity data in velocity.out will be in units of "
+         "Angstrom/fs\n");
+  printf("         Previously they are in units of Angstrom/ps.\n");
+  printf("         The reason for this change is to make it consistent with the extendend XYZ "
+         "format.\n");
+  print_line_2();
 }
 
 void Dump_Velocity::preprocess(char* input_dir)
@@ -93,15 +101,15 @@ void Dump_Velocity::process(
     return;
 
   const int num_atoms_total = velocity_per_atom.size() / 3;
-  const double natural_to_A_per_ps = 1000.0 / TIME_UNIT_CONVERSION;
+  const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
 
   if (grouping_method_ < 0) {
     velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
     for (int n = 0; n < num_atoms_total; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_velocity_per_atom[n] * natural_to_A_per_ps,
-        cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_ps,
-        cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_ps);
+        fid_, "%g %g %g\n", cpu_velocity_per_atom[n] * natural_to_A_per_fs,
+        cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_fs,
+        cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_fs);
     }
   } else {
     const int group_size = groups[grouping_method_].cpu_size[group_id_];
@@ -119,9 +127,9 @@ void Dump_Velocity::process(
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_velocity_per_atom[n] * natural_to_A_per_ps,
-        cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_ps,
-        cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_ps);
+        fid_, "%g %g %g\n", cpu_velocity_per_atom[n] * natural_to_A_per_fs,
+        cpu_velocity_per_atom[n + num_atoms_total] * natural_to_A_per_fs,
+        cpu_velocity_per_atom[n + 2 * num_atoms_total] * natural_to_A_per_fs);
     }
   }
 
