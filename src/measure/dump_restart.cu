@@ -38,6 +38,12 @@ void Dump_Restart::parse(char** param, int num_param)
   }
   dump_ = true;
   printf("Dump restart every %d steps.\n", dump_interval_);
+
+  print_line_1();
+  printf("Warning: Starting from GPUMD-v3.4, the velocity data in restart.xyz will be in units of "
+         "Angstrom/fs\n");
+  printf("         Previously they are in units of 1/1.018051e+1 Angstrom/fs.\n");
+  print_line_2();
 }
 
 void Dump_Restart::preprocess(char* input_dir)
@@ -103,11 +109,13 @@ void Dump_Restart::process(
   }
 
   for (int n = 0; n < number_of_atoms; n++) {
+    const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
     fprintf(
       fid, "%s %g %g %g %g %g %g %g ", cpu_atom_symbol[n].c_str(), cpu_position_per_atom[n],
       cpu_position_per_atom[n + number_of_atoms], cpu_position_per_atom[n + 2 * number_of_atoms],
-      cpu_mass[n], cpu_velocity_per_atom[n], cpu_velocity_per_atom[n + number_of_atoms],
-      cpu_velocity_per_atom[n + 2 * number_of_atoms]);
+      cpu_mass[n], cpu_velocity_per_atom[n] * natural_to_A_per_fs,
+      cpu_velocity_per_atom[n + number_of_atoms] * natural_to_A_per_fs,
+      cpu_velocity_per_atom[n + 2 * number_of_atoms] * natural_to_A_per_fs);
 
     for (int m = 0; m < group.size(); ++m) {
       fprintf(fid, "%d ", group[m].cpu_label[n]);
