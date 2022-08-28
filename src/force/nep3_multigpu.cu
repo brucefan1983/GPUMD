@@ -1275,13 +1275,15 @@ void NEP3_MULTIGPU::compute(
     } else {
       if (gpu == 0) {
         nep_data[gpu].M0 =
-          nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 4) * num_bins_transverse];
+          nep_temp_data
+            .cell_count_sum_cpu[(num_bins[partition_direction] - 4) * num_bins_transverse];
         nep_data[gpu].M1 = 0;
         nep_data[gpu].M2 =
           nep_temp_data.cell_count_sum_cpu[num_bins_longitudinal * num_bins_transverse];
         nep_data[gpu].N1 = N - nep_data[gpu].M0;
         nep_data[gpu].N4 =
-          nep_temp_data.cell_count_sum_cpu[(num_bins[2] - 2) * num_bins_transverse] -
+          nep_temp_data
+            .cell_count_sum_cpu[(num_bins[partition_direction] - 2) * num_bins_transverse] -
           nep_data[gpu].M0;
         nep_data[gpu].N2 = nep_data[gpu].N1 + nep_data[gpu].M2;
         nep_data[gpu].N5 =
