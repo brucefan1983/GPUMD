@@ -361,17 +361,17 @@ static __device__ void find_cell_id(
     cell_id_y = floor(sy * box.thickness_y * rc_inv);
     cell_id_z = floor(sz * box.thickness_z * rc_inv);
   }
-  if (cell_id_x < 0)
+  while (cell_id_x < 0)
     cell_id_x += nx;
-  if (cell_id_x >= nx)
+  while (cell_id_x >= nx)
     cell_id_x -= nx;
-  if (cell_id_y < 0)
+  while (cell_id_y < 0)
     cell_id_y += ny;
-  if (cell_id_y >= ny)
+  while (cell_id_y >= ny)
     cell_id_y -= ny;
-  if (cell_id_z < 0)
+  while (cell_id_z < 0)
     cell_id_z += nz;
-  if (cell_id_z >= nz)
+  while (cell_id_z >= nz)
     cell_id_z -= nz;
   if (partition_direction == 0) {
     cell_id = cell_id_y + ny * (cell_id_z + nz * cell_id_x);
@@ -1259,6 +1259,11 @@ void NEP3_MULTIGPU::compute(
   find_cell_list(
     nep_data[0].stream, partition_direction, rc_cell_list, num_bins, box, N, position,
     nep_temp_data.cell_count, nep_temp_data.cell_count_sum, nep_temp_data.cell_contents);
+
+  if (num_bins[0] * num_bins[1] * num_bins[2] > nep_temp_data.cell_count_sum_cpu.size()) {
+    nep_temp_data.cell_count_sum_cpu.resize(num_bins[0] * num_bins[1] * num_bins[2]);
+  }
+
   nep_temp_data.cell_count_sum.copy_to_host(
     nep_temp_data.cell_count_sum_cpu.data(), num_bins[0] * num_bins[1] * num_bins[2]);
 
