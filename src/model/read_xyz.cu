@@ -24,11 +24,11 @@ The class defining the simulation model.
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
+#include <cctype>
 #include <fstream>
 #include <iostream>
 #include <sstream>
 #include <string>
-#include <cctype>
 
 static bool need_triclinic()
 {
@@ -323,9 +323,11 @@ void read_xyz_in_line_3(
     }
 
     if (has_velocity_in_xyz) {
+      const double A_per_fs_to_natural = TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
         cpu_velocity_per_atom[n + N * d] =
-          get_double_from_token(tokens[property_offset[3] + d], __FILE__, __LINE__);
+          get_double_from_token(tokens[property_offset[3] + d], __FILE__, __LINE__) *
+          A_per_fs_to_natural;
       }
     }
 
