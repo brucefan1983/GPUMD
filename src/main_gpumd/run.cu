@@ -164,7 +164,7 @@ void Run::perform_a_run(char* input_dir)
 
     force.compute(
       box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
-      atom.virial_per_atom);
+      atom.virial_per_atom, atom.velocity_per_atom, atom.mass);
 
 #ifdef USE_PLUMED
     if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
@@ -284,6 +284,8 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
     measure.hnemd.parse(param, num_param);
+  } else if (strcmp(param[0], "compute_hnemdec") == 0) {
+    measure.hnemdec.parse(param, num_param);
   } else if (strcmp(param[0], "compute_shc") == 0) {
     measure.shc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_gkma") == 0) {
@@ -368,6 +370,15 @@ void Run::parse_run(char** param, int num_param, char* input_dir)
                                                  measure.modal_analysis.method == HNEMA_METHOD);
   force.set_hnemd_parameters(
     compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y, measure.hnemd.fe_z);
+
+  if (!compute_hnemd && (measure.hnemdec.compute != 0)) {
+    if (number_of_types!=2){
+      PRINT_INPUT_ERROR("There should be 2 atom types.\n");
+    }
+    force.set_hnemdec_parameters(
+      measure.hnemdec.compute, measure.hnemdec.fe_x, measure.hnemdec.fe_y, measure.hnemdec.fe_z,
+      atom.cpu_mass, atom.cpu_type, atom.cpu_type_size, integrate.temperature2);
+  }
 
   perform_a_run(input_dir);
 }
