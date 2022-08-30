@@ -40,6 +40,7 @@ void Measure::initialize(
   shc.preprocess(number_of_atoms, group);
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
+  hnemdec.preprocess(atom.cpu_mass,atom.cpu_type,atom.cpu_type_size);
   modal_analysis.preprocess(input_dir, atom.cpu_type_size, atom.mass);
   dump_position.preprocess(input_dir);
   dump_velocity.preprocess(input_dir);
@@ -75,6 +76,7 @@ void Measure::finalize(
   shc.postprocess(input_dir, time_step);
   compute.postprocess();
   hnemd.postprocess();
+  hnemdec.postprocess();
   modal_analysis.postprocess();
 #ifdef USE_NETCDF
   dump_netcdf.postprocess();
@@ -130,6 +132,9 @@ void Measure::process(
   hnemd.process(
     step, input_dir, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
     atom.heat_per_atom);
+  hnemdec.process(
+    step, input_dir, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
+    atom.type, atom.mass, atom.potential_per_atom, atom.heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 #ifdef USE_NETCDF
