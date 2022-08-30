@@ -52,8 +52,28 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
+  void compute(
+    Box& box,
+    GPU_Vector<double>& position_per_atom,
+    GPU_Vector<int>& type,
+    std::vector<Group>& group,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    GPU_Vector<double>& mass_per_atom);
+
   int get_number_of_types(FILE* fid_potential);
   void set_hnemd_parameters(const bool, const double, const double, const double);
+  void set_hnemdec_parameters(
+    const int compute_hnemdec,
+    const double hnemd_fe_x,
+    const double hnemd_fe_y,
+    const double hnemd_fe_z,
+    const std::vector<double>& mass,
+    const std::vector<int>& type,
+    const std::vector<int>& type_size,
+    const double T);
 
   int num_of_potentials;
   double rc_max;
@@ -64,7 +84,10 @@ public:
   char file_potential[MAX_NUM_OF_POTENTIALS][200];
   int group_method;
   bool compute_hnemd_ = false;
+  int compute_hnemdec_ = 0;
   double hnemd_fe_[3];
+  double temperature;
+  GPU_Vector<double> coefficient;
 
 private:
   bool is_fcp = false;
