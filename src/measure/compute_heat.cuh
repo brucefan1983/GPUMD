@@ -20,3 +20,10 @@ void compute_heat(
   const GPU_Vector<double>& virial_per_atom,
   const GPU_Vector<double>& velocity_per_atom,
   GPU_Vector<double>& heat_per_atom);
+
+void compute_heat(
+  const GPU_Vector<double>& mass,
+  const GPU_Vector<double>& potential,
+  const GPU_Vector<double>& virial_per_atom,
+  const GPU_Vector<double>& velocity_per_atom,
+  GPU_Vector<double>& heat_per_atom);
