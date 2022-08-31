@@ -74,9 +74,6 @@ void HNEMDEC::preprocess(
   fraction.copy_from_host(cpu_fraction.data());
 
   scale = 1.0 / (cpu_fraction[0] / cpu_mass_type[0] - cpu_fraction[1] / cpu_mass_type[1]);
-  //if (compute == 2) {
-  //  scale = scale * scale;
-  //}
 }
 
 static __global__ void gpu_sum_heat_and_diffusive(
@@ -185,14 +182,6 @@ void HNEMDEC::process(
       }
     }
 
-    /* double factor1 = KAPPA_UNIT_CONVERSION / output_interval;
-    factor1 /= (volume * temperature * fe);
-    double factor2 = 9822.690611766993; // 1 gpumd_length/gpumd_time = 9822.690611766993 m/s
-    factor2 *= scale / (output_interval * volume * temperature * fe);
-    if (compute == 2) {
-      factor1 *= scale;
-      factor2 *= scale;
-    }*/
     double factor1, factor2;
     if (compute == 1) {
       factor1 = KAPPA_UNIT_CONVERSION / output_interval;
