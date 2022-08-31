@@ -27,8 +27,114 @@ The class defining the simulation model.
 #include <cctype>
 #include <fstream>
 #include <iostream>
+#include <map>
 #include <sstream>
 #include <string>
+
+const std::map<std::string, double> MASS_TABLE{
+  {"H", 1.0080000000},
+  {"He", 4.0026020000},
+  {"Li", 6.9400000000},
+  {"Be", 9.0121831000},
+  {"B", 10.8100000000},
+  {"C", 12.0110000000},
+  {"N", 14.0070000000},
+  {"O", 15.9990000000},
+  {"F", 18.9984031630},
+  {"Ne", 20.1797000000},
+  {"Na", 22.9897692800},
+  {"Mg", 24.3050000000},
+  {"Al", 26.9815385000},
+  {"Si", 28.0850000000},
+  {"P", 30.9737619980},
+  {"S", 32.0600000000},
+  {"Cl", 35.4500000000},
+  {"Ar", 39.9480000000},
+  {"K", 39.0983000000},
+  {"Ca", 40.0780000000},
+  {"Sc", 44.9559080000},
+  {"Ti", 47.8670000000},
+  {"V", 50.9415000000},
+  {"Cr", 51.9961000000},
+  {"Mn", 54.9380440000},
+  {"Fe", 55.8450000000},
+  {"Co", 58.9331940000},
+  {"Ni", 58.6934000000},
+  {"Cu", 63.5460000000},
+  {"Zn", 65.3800000000},
+  {"Ga", 69.7230000000},
+  {"Ge", 72.6300000000},
+  {"As", 74.9215950000},
+  {"Se", 78.9710000000},
+  {"Br", 79.9040000000},
+  {"Kr", 83.7980000000},
+  {"Rb", 85.4678000000},
+  {"Sr", 87.6200000000},
+  {"Y", 88.9058400000},
+  {"Zr", 91.2240000000},
+  {"Nb", 92.9063700000},
+  {"Mo", 95.9500000000},
+  {"Tc", 98},
+  {"Ru", 101.0700000000},
+  {"Rh", 102.9055000000},
+  {"Pd", 106.4200000000},
+  {"Ag", 107.8682000000},
+  {"Cd", 112.4140000000},
+  {"In", 114.8180000000},
+  {"Sn", 118.7100000000},
+  {"Sb", 121.7600000000},
+  {"Te", 127.6000000000},
+  {"I", 126.9044700000},
+  {"Xe", 131.2930000000},
+  {"Cs", 132.9054519600},
+  {"Ba", 137.3270000000},
+  {"La", 138.9054700000},
+  {"Ce", 140.1160000000},
+  {"Pr", 140.9076600000},
+  {"Nd", 144.2420000000},
+  {"Pm", 145},
+  {"Sm", 150.3600000000},
+  {"Eu", 151.9640000000},
+  {"Gd", 157.2500000000},
+  {"Tb", 158.9253500000},
+  {"Dy", 162.5000000000},
+  {"Ho", 164.9303300000},
+  {"Er", 167.2590000000},
+  {"Tm", 168.9342200000},
+  {"Yb", 173.0450000000},
+  {"Lu", 174.9668000000},
+  {"Hf", 178.4900000000},
+  {"Ta", 180.9478800000},
+  {"W", 183.8400000000},
+  {"Re", 186.2070000000},
+  {"Os", 190.2300000000},
+  {"Ir", 192.2170000000},
+  {"Pt", 195.0840000000},
+  {"Au", 196.9665690000},
+  {"Hg", 200.5920000000},
+  {"Tl", 204.3800000000},
+  {"Pb", 207.2000000000},
+  {"Bi", 208.9804000000},
+  {"Po", 210},
+  {"At", 210},
+  {"Rn", 222},
+  {"Fr", 223},
+  {"Ra", 226},
+  {"Ac", 227},
+  {"Th", 232.0377000000},
+  {"Pa", 231.0358800000},
+  {"U", 238.0289100000},
+  {"Np", 237},
+  {"Pu", 244},
+  {"Am", 243},
+  {"Cm", 247},
+  {"Bk", 247},
+  {"Cf", 251},
+  {"Es", 252},
+  {"Fm", 257},
+  {"Md", 258},
+  {"No", 259},
+  {"Lr", 262}};
 
 static bool need_triclinic()
 {
@@ -73,8 +179,10 @@ static void read_xyz_line_1(std::ifstream& input, int& N)
 
 static void read_xyz_line_2(
   std::ifstream& input,
+  const bool is_nep,
   Box& box,
   int& has_velocity_in_xyz,
+  bool& has_mass,
   int& num_columns,
   int* property_offset,
   std::vector<Group>& group)
@@ -250,7 +358,13 @@ static void read_xyz_line_2(
     PRINT_INPUT_ERROR("'pos' or 'properties' is missing in the model file.");
   }
   if (property_position[2] < 0) {
-    PRINT_INPUT_ERROR("'mass' or 'properties' is missing in the model file.");
+    if (is_nep) {
+      has_mass = false;
+    } else {
+      PRINT_INPUT_ERROR("'mass' or 'properties' is missing in the model file.");
+    }
+  } else {
+    has_mass = true;
   }
 }
 
@@ -259,6 +373,7 @@ void read_xyz_in_line_3(
   const bool is_nep,
   const int N,
   const int has_velocity_in_xyz,
+  const bool has_mass,
   const int num_columns,
   const int* property_offset,
   int& number_of_types,
@@ -317,9 +432,13 @@ void read_xyz_in_line_3(
         get_double_from_token(tokens[property_offset[1] + d], __FILE__, __LINE__);
     }
 
-    cpu_mass[n] = get_double_from_token(tokens[property_offset[2]], __FILE__, __LINE__);
-    if (cpu_mass[n] <= 0) {
-      PRINT_INPUT_ERROR("Atom mass should > 0.");
+    if (has_mass) {
+      cpu_mass[n] = get_double_from_token(tokens[property_offset[2]], __FILE__, __LINE__);
+      if (cpu_mass[n] <= 0) {
+        PRINT_INPUT_ERROR("Atom mass should > 0.");
+      }
+    } else {
+      cpu_mass[n] = MASS_TABLE.at(cpu_atom_symbol[n]);
     }
 
     if (has_velocity_in_xyz) {
@@ -459,11 +578,6 @@ void initialize_position(
     PRINT_INPUT_ERROR("Failed to open model.xyz.");
   }
 
-  read_xyz_line_1(input, N);
-  int property_offset[5] = {0, 0, 0, 0, 0}; // species,pos,mass,vel,group
-  int num_columns = 0;
-  read_xyz_line_2(input, box, has_velocity_in_xyz, num_columns, property_offset, group);
-
   std::vector<std::string> atom_symbols;
   auto filename_potential = get_filename_potential(input_dir);
 
@@ -473,8 +587,15 @@ void initialize_position(
     atom_symbols = get_atom_symbols(filename_potential);
   }
 
+  read_xyz_line_1(input, N);
+  int property_offset[5] = {0, 0, 0, 0, 0}; // species,pos,mass,vel,group
+  int num_columns = 0;
+  bool has_mass = true;
+  read_xyz_line_2(
+    input, is_nep, box, has_velocity_in_xyz, has_mass, num_columns, property_offset, group);
+
   read_xyz_in_line_3(
-    input, is_nep, N, has_velocity_in_xyz, num_columns, property_offset, number_of_types,
+    input, is_nep, N, has_velocity_in_xyz, has_mass, num_columns, property_offset, number_of_types,
     atom_symbols, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom, group);
 
