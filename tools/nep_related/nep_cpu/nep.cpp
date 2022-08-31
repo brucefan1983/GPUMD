@@ -26,6 +26,8 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include <iostream>
 #include <iterator>
 #include <sstream>
+#include <stdio.h>
+#include <stdlib.h>
 #include <string>
 #include <vector>
 
