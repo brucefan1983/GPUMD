@@ -25,6 +25,7 @@
 #include "dump_velocity.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
+#include "hnemdec_kappa.cuh"
 #include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
@@ -79,6 +80,7 @@ public:
   HAC hac;
   SHC shc;
   HNEMD hnemd;
+  HNEMDEC hnemdec;
   Compute compute;
   MODAL_ANALYSIS modal_analysis;
   Dump_Position dump_position;
