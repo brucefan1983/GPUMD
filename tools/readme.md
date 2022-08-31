@@ -2,9 +2,7 @@
 
 | folder      | description                                                  |
 | ----------- | ------------------------------------------------------------ |
-| rebo_mos2   | used for implementing the `rebo_mos2.cu` file in `src/force/` |
 | md_tersoff  | a standalone MD code (written in C++) implementing the thermal conductivity calculations in Ref. [1] |
-| create_xyz  | small programs to create some `xyz.in` files                 |
 | vim         | used to highlight `GPUMD` related files in `vim`             |
 | nep_related | tools related to the `nep` executable in `GPUMD`             |
 
