@@ -94,19 +94,9 @@ void Dump_Restart::process(
   }
 
   if (group.size() == 0) {
-    if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
-      fprintf(fid, "Properties=numbers:I:1:pos:R:3:mass:R:1:vel:R:3\n");
-    } else {
-      fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3\n");
-    }
+    fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3\n");
   } else {
-    if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
-      fprintf(
-        fid, "Properties=numbers:I:1:pos:R:3:mass:R:1:vel:R:3:group:I:%d\n", int(group.size()));
-    } else {
-      fprintf(
-        fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3:group:I:%d\n", int(group.size()));
-    }
+    fprintf(fid, "Properties=species:S:1:pos:R:3:mass:R:1:vel:R:3:group:I:%d\n", int(group.size()));
   }
 
   for (int n = 0; n < number_of_atoms; n++) {
