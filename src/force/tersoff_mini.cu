@@ -32,7 +32,15 @@ J. Phys.: Condens. Matter 32, 135901 (2020).
 Tersoff_mini::Tersoff_mini(FILE* fid, int num_of_types, const int num_atoms)
 {
   num_types = num_of_types;
-  printf("Use Tersoff-mini (%d-element) potential.\n", num_types);
+  printf("Use Tersoff-mini (%d-element) potential with element(s):\n", num_types);
+  for (int n = 0; n < num_types; ++n) {
+    char atom_symbol[10];
+    int count = fscanf(fid, "%s", atom_symbol);
+    PRINT_SCANF_ERROR(count, 1, "Reading error for Tersoff-mini potential.");
+    printf(" %s", atom_symbol);
+  }
+  printf("\n");
+
   int n_entries = 2 * num_types - 1; // 1 or 3 entries
 
   const char err[] = "Reading error for Tersoff-mini potential.\n";

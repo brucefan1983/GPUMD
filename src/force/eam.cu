@@ -46,8 +46,15 @@ EAM::EAM(FILE* fid, char* name, int num_types, const int number_of_atoms)
 
 void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
 {
-  printf("Use the EAM-type potential in the following reference:\n");
-  printf("    X. W. Zhou et al., PRB 69, 144113 (2004).\n");
+  printf("Use %d-element EAM potential with element(s):", num_types);
+  for (int n = 0; n < num_types; ++n) {
+    char atom_symbol[10];
+    int count = fscanf(fid, "%s", atom_symbol);
+    PRINT_SCANF_ERROR(count, 1, "Reading error for EAM potential.");
+    printf(" %s", atom_symbol);
+  }
+  printf("\n");
+
   potential_model = 0;
 
   rc = 0.0;
@@ -89,8 +96,12 @@ void EAM::initialize_eam2004zhou(FILE* fid, int num_types)
 
 void EAM::initialize_eam2006dai(FILE* fid)
 {
-  printf("Use the EAM-type potential in the following reference:\n");
-  printf("    X. D. Dai et al., JPCM 18, 4527 (2006).\n");
+  printf("Use 1-element EAM potential with element(s):");
+  char atom_symbol[10];
+  int count = fscanf(fid, "%s", atom_symbol);
+  PRINT_SCANF_ERROR(count, 1, "Reading error for EAM potential.");
+  printf(" %s\n", atom_symbol);
+
   potential_model = 1;
 
   double x[9];

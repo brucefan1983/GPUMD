@@ -21,13 +21,21 @@ The force constant potential (FCP)
 #include "utilities/error.cuh"
 #include <vector>
 
-FCP::FCP(FILE* fid, char* input_dir, const int N, const Box& box)
+FCP::FCP(FILE* fid, char* input_dir, const int num_types, const int N, const Box& box)
 {
+  printf("Use the %d-element force constant potential with element(s):", num_types);
+  for (int n = 0; n < num_types; ++n) {
+    char atom_symbol[10];
+    int count = fscanf(fid, "%s", atom_symbol);
+    PRINT_SCANF_ERROR(count, 1, "Reading error for FCP potential.");
+    printf(" %s", atom_symbol);
+  }
+  printf("\n");
+
   // get the highest order of the force constants
   int count = fscanf(fid, "%d%d", &order, &heat_order);
   PRINT_SCANF_ERROR(count, 2, "Reading error for force constant potential.");
 
-  printf("Use the force constant potential.\n");
   printf("    up to order-%d.\n", order);
   printf("    and compute heat current up to order-%d.\n", heat_order);
   if (heat_order != 2 && heat_order != 3) {

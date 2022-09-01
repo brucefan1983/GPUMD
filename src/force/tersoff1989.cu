@@ -28,17 +28,15 @@ The double-element version of the Tersoff potential as described in
 
 Tersoff1989::Tersoff1989(FILE* fid, int num_of_types, const int num_atoms)
 {
-  if (num_of_types == 1)
-    printf("Use Tersoff-1989 (single-element) potential with element:\n");
-  if (num_of_types == 2)
-    printf("Use Tersoff-1989 (double-element) potentialwith elemetns:\n");
+  printf("Use Tersoff-1989 (%d-element) potential with element(s):", num_of_types);
 
   for (int n = 0; n < num_of_types; ++n) {
     char atom_symbol[10];
     int count = fscanf(fid, "%s", atom_symbol);
     PRINT_SCANF_ERROR(count, 1, "Reading error for Tersoff-1989 potential.");
-    printf("    %s\n", atom_symbol);
+    printf(" %s", atom_symbol);
   }
+  printf("\n");
 
   // first line
   int count;

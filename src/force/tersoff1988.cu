@@ -55,7 +55,15 @@ The version of the Tersoff potential as described in
 Tersoff1988::Tersoff1988(FILE* fid, int num_of_types, const int num_atoms)
 {
   num_types = num_of_types;
-  printf("Use Tersoff-1988 (%d-element) potential.\n", num_types);
+  printf("Use Tersoff-1988 (%d-element) potential with element(s):", num_types);
+  for (int n = 0; n < num_types; ++n) {
+    char atom_symbol[10];
+    int count = fscanf(fid, "%s", atom_symbol);
+    PRINT_SCANF_ERROR(count, 1, "Reading error for Tersoff-1988 potential.");
+    printf(" %s", atom_symbol);
+  }
+  printf("\n");
+
   int n_entries = num_types * num_types * num_types;
   // 14 parameters per entry of tersoff1988 + 5 pre-calculated values
   std::vector<float> cpu_ters(n_entries * NUM_PARAMS);
