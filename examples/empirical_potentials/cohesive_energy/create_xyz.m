@@ -23,8 +23,8 @@ end
 
 fid=fopen('model.xyz','w');
 fprintf(fid,'%d\n',N);
-fprintf(fid,'pbc=\"T T T\" Lattice=\"%g %g %g %g %g %g %g %g %g\" Properties=numbers:I:1:pos:R:3:mass:R:1\n',box_length);
+fprintf(fid,'pbc=\"T T T\" Lattice=\"%g %g %g %g %g %g %g %g %g\" Properties=species:S:1:pos:R:3\n',box_length);
 for n =1 : N
-    fprintf(fid, '%d %g %g %g %g\n', 0, r(n, :), 28);
+    fprintf(fid, 'Si %g %g %g\n', r(n, :));
 end
 fclose(fid);
