@@ -94,36 +94,19 @@ __global__ void copy_position(
 
 void Dump_Position::output_line2(const Box& box, const std::vector<std::string>& cpu_atom_symbol)
 {
-  if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
-    if (box.triclinic == 0) {
-      fprintf(
-        fid_,
-        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-        "Properties=numbers:I:1:pos:R:3\n",
-        box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
-    } else {
-      fprintf(
-        fid_,
-        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-        "Properties=numbers:I:1:pos:R:3\n",
-        box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-        box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
-    }
+  if (box.triclinic == 0) {
+    fprintf(
+      fid_,
+      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+      "Properties=species:S:1:pos:R:3\n",
+      box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
   } else {
-    if (box.triclinic == 0) {
-      fprintf(
-        fid_,
-        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-        "Properties=species:S:1:pos:R:3\n",
-        box.cpu_h[0], 0.0, 0.0, 0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
-    } else {
-      fprintf(
-        fid_,
-        "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
-        "Properties=species:S:1:pos:R:3\n",
-        box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
-        box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
-    }
+    fprintf(
+      fid_,
+      "Lattice=\"%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e%15.7e\" "
+      "Properties=species:S:1:pos:R:3\n",
+      box.cpu_h[0], box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7],
+      box.cpu_h[2], box.cpu_h[5], box.cpu_h[8]);
   }
 }
 

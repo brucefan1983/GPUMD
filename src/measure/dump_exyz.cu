@@ -142,11 +142,7 @@ void Dump_EXYZ::output_line2(
     cpu_thermo[4]);
 
   // Properties
-  if (cpu_atom_symbol[0][0] >= 48 && cpu_atom_symbol[0][0] <= 57) {
-    fprintf(fid_, " Properties=numbers:I:1:pos:R:3");
-  } else {
-    fprintf(fid_, " Properties=species:S:1:pos:R:3");
-  }
+  fprintf(fid_, " Properties=species:S:1:pos:R:3");
 
   if (has_velocity_) {
     fprintf(fid_, ":vel:R:3");

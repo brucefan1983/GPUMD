@@ -26,10 +26,17 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 
 LJ::LJ(FILE* fid, int num_types, int num_atoms)
 {
-  printf("Use %d-element LJ potential.\n", num_types);
+  printf("Use %d-element LJ potential with elements:\n", num_types);
   if (!(num_types >= 1 && num_types <= MAX_TYPE)) {
     PRINT_INPUT_ERROR("Incorrect number of LJ parameters.\n");
   }
+  for (int n = 0; n < num_types; ++n) {
+    char atom_symbol[10];
+    int count = fscanf(fid, "%s", atom_symbol);
+    PRINT_SCANF_ERROR(count, 1, "Reading error for LJ potential.");
+    printf(" %s", atom_symbol);
+  }
+  printf("\n");
 
   double epsilon, sigma, cutoff;
   rc = 0.0;

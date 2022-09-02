@@ -125,7 +125,7 @@ void Force::initialize_potential(
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
-    potential[m].reset(new FCP(fid_potential, input_dir, number_of_atoms, box));
+    potential[m].reset(new FCP(fid_potential, input_dir, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
@@ -326,10 +326,10 @@ void Force::set_hnemdec_parameters(
   int N = mass.size();
   int N1 = type_size[0];
   int N2 = type_size[1];
-  int number_of_types = type_size.size(); 
+  int number_of_types = type_size.size();
   compute_hnemdec_ = compute_hnemdec;
   temperature = T;
-  std::vector<double> cpu_coefficient;  
+  std::vector<double> cpu_coefficient;
 
   // find 2 atom types' mass or fraction
   if (compute_hnemdec_ == 1) {

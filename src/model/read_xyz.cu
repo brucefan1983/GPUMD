@@ -179,7 +179,6 @@ static void read_xyz_line_1(std::ifstream& input, int& N)
 
 static void read_xyz_line_2(
   std::ifstream& input,
-  const bool is_nep,
   Box& box,
   int& has_velocity_in_xyz,
   bool& has_mass,
@@ -309,14 +308,8 @@ static void read_xyz_line_2(
       std::vector<std::string> sub_tokens = get_tokens(line);
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
         for (int prop = 0; prop < 5; ++prop) {
-          if (prop == 0) {
-            if (sub_tokens[k * 3] == property_name[prop] || sub_tokens[k * 3] == "numbers") {
-              property_position[prop] = k;
-            }
-          } else {
-            if (sub_tokens[k * 3] == property_name[prop]) {
-              property_position[prop] = k;
-            }
+          if (sub_tokens[k * 3] == property_name[prop]) {
+            property_position[prop] = k;
           }
         }
       }
@@ -358,11 +351,7 @@ static void read_xyz_line_2(
     PRINT_INPUT_ERROR("'pos' or 'properties' is missing in the model file.");
   }
   if (property_position[2] < 0) {
-    if (is_nep) {
-      has_mass = false;
-    } else {
-      PRINT_INPUT_ERROR("'mass' or 'properties' is missing in the model file.");
-    }
+    has_mass = false;
   } else {
     has_mass = true;
   }
@@ -370,7 +359,6 @@ static void read_xyz_line_2(
 
 void read_xyz_in_line_3(
   std::ifstream& input,
-  const bool is_nep,
   const int N,
   const int has_velocity_in_xyz,
   const bool has_mass,
@@ -390,7 +378,7 @@ void read_xyz_in_line_3(
   cpu_mass.resize(N);
   cpu_position_per_atom.resize(N * 3);
   cpu_velocity_per_atom.resize(N * 3);
-  number_of_types = is_nep ? atom_symbols.size() : 0;
+  number_of_types = atom_symbols.size();
 
   for (int m = 0; m < group.size(); ++m) {
     group[m].cpu_label.resize(N);
@@ -405,26 +393,15 @@ void read_xyz_in_line_3(
 
     cpu_atom_symbol[n] = tokens[property_offset[0]];
 
-    if (is_nep) {
-      bool is_allowed_element = false;
-      for (int t = 0; t < number_of_types; ++t) {
-        if (cpu_atom_symbol[n] == atom_symbols[t]) {
-          cpu_type[n] = t;
-          is_allowed_element = true;
-        }
+    bool is_allowed_element = false;
+    for (int t = 0; t < number_of_types; ++t) {
+      if (cpu_atom_symbol[n] == atom_symbols[t]) {
+        cpu_type[n] = t;
+        is_allowed_element = true;
       }
-      if (!is_allowed_element) {
-        PRINT_INPUT_ERROR(
-          "There is atom in xyz.in that is not allowed in the used NEP potential.\n");
-      }
-    } else {
-      cpu_type[n] = get_int_from_token(tokens[property_offset[0]], __FILE__, __LINE__);
-      if (cpu_type[n] < 0 || cpu_type[n] >= N) {
-        PRINT_INPUT_ERROR("Atom type should >= 0 and < N.");
-      }
-      if ((cpu_type[n] + 1) > number_of_types) {
-        number_of_types = cpu_type[n] + 1;
-      }
+    }
+    if (!is_allowed_element) {
+      PRINT_INPUT_ERROR("There is atom in xyz.in that is not allowed in the used potential.\n");
     }
 
     for (int d = 0; d < 3; ++d) {
@@ -516,25 +493,6 @@ static std::string get_filename_potential(char* input_dir)
   }
 }
 
-static bool check_is_nep(std::string& filename_potential)
-{
-  std::ifstream input_potential(filename_potential);
-  if (!input_potential.is_open()) {
-    std::cout << "Error: cannot open " + filename_potential << std::endl;
-    exit(1);
-  }
-
-  std::string potential_name;
-  input_potential >> potential_name;
-  input_potential.close();
-
-  if (potential_name.substr(0, 2) == "ne") {
-    return true;
-  } else {
-    return false;
-  }
-}
-
 static std::vector<std::string> get_atom_symbols(std::string& filename_potential)
 {
   std::ifstream input_potential(filename_potential);
@@ -543,19 +501,22 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
     exit(1);
   }
 
-  std::string potential_name;
-  input_potential >> potential_name;
-  if (potential_name.substr(0, 3) != "nep") {
-    PRINT_INPUT_ERROR(
-      "Error: The potential name must be started with 'nep' in this compiled version.");
+  std::vector<std::string> tokens = get_tokens(input_potential);
+  if (tokens.size() < 3) {
+    std::cout << "The first line of the potential file should have at least 3 items." << std::endl;
     exit(1);
   }
 
-  int number_of_types;
-  input_potential >> number_of_types;
+  int number_of_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  if (tokens.size() != 2 + number_of_types) {
+    std::cout << "The first line of the potential file should have " << number_of_types
+              << " atom symbols." << std::endl;
+    exit(1);
+  }
+
   std::vector<std::string> atom_symbols(number_of_types);
   for (int n = 0; n < number_of_types; ++n) {
-    input_potential >> atom_symbols[n];
+    atom_symbols[n] = tokens[2 + n];
   }
 
   input_potential.close();
@@ -580,22 +541,16 @@ void initialize_position(
 
   std::vector<std::string> atom_symbols;
   auto filename_potential = get_filename_potential(input_dir);
-
-  bool is_nep = check_is_nep(filename_potential);
-
-  if (is_nep) {
-    atom_symbols = get_atom_symbols(filename_potential);
-  }
+  atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, N);
   int property_offset[5] = {0, 0, 0, 0, 0}; // species,pos,mass,vel,group
   int num_columns = 0;
   bool has_mass = true;
-  read_xyz_line_2(
-    input, is_nep, box, has_velocity_in_xyz, has_mass, num_columns, property_offset, group);
+  read_xyz_line_2(input, box, has_velocity_in_xyz, has_mass, num_columns, property_offset, group);
 
   read_xyz_in_line_3(
-    input, is_nep, N, has_velocity_in_xyz, has_mass, num_columns, property_offset, number_of_types,
+    input, N, has_velocity_in_xyz, has_mass, num_columns, property_offset, number_of_types,
     atom_symbols, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom, group);
 
