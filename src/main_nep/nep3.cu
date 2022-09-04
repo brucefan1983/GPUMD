@@ -297,9 +297,13 @@ NEP3::NEP3(
 void NEP3::update_potential(const float* parameters, ANN& ann)
 {
   ann.w0 = parameters;
-  ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
-  ann.w1 = ann.b0 + ann.num_neurons1;
-  ann.b1 = ann.w1 + ann.num_neurons1;
+  ann.b0[0] = ann.w0 + ann.num_neurons1 * ann.dim;
+  ann.w1[0] = ann.b0[0] + ann.num_neurons1;
+  for (int t = 1; t < paramb.num_types; ++t) {
+    ann.b0[t] = ann.w1[t - 1] + ann.num_neurons1;
+    ann.w1[t] = ann.b0[t] + ann.num_neurons1;
+  }
+  ann.b1 = ann.w1[paramb.num_types - 1] + ann.num_neurons1;
   ann.c = ann.b1 + 1;
 }
 
@@ -347,12 +351,14 @@ static __global__ void apply_ann(
   const int N,
   const NEP3::ParaMB paramb,
   const NEP3::ANN annmb,
+  const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
   float* g_pe,
   float* g_Fp)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  int type = g_type[n1];
   if (n1 < N) {
     // get descriptors
     float q[MAX_DIM] = {0.0f};
@@ -362,7 +368,7 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
+      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0[type], annmb.w1[type], annmb.b1, q, F, Fp);
     g_pe[n1] = F;
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
@@ -708,9 +714,9 @@ void NEP3::find_force(
     }
 
     apply_ann<<<grid_size, block_size>>>(
-      dataset[device_id].N, paramb, annmb[device_id], nep_data[device_id].descriptors.data(),
-      para.q_scaler_gpu[device_id].data(), dataset[device_id].energy.data(),
-      nep_data[device_id].Fp.data());
+      dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
+      nep_data[device_id].descriptors.data(), para.q_scaler_gpu[device_id].data(),
+      dataset[device_id].energy.data(), nep_data[device_id].Fp.data());
     CUDA_CHECK_KERNEL
 
     zero_force<<<grid_size, block_size>>>(

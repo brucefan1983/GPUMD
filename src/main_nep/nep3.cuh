@@ -62,8 +62,8 @@ public:
     int num_neurons1 = 0; // number of neurons in the hidden layer
     int num_para = 0;     // number of parameters
     const float* w0;      // weight from the input layer to the hidden layer
-    const float* b0;      // bias for the hidden layer
-    const float* w1;      // weight from the hidden layer to the output layer
+    const float* b0[10];  // bias for the hidden layer
+    const float* w1[10];  // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
     const float* c;
   };
