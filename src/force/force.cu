@@ -51,8 +51,8 @@ void Force::parse_potential(
   const std::vector<int>& cpu_type_size)
 {
   // check for at least the file path
-  if (num_param < 2) {
-    PRINT_INPUT_ERROR("potential should have at least 1 parameter.\n");
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("potential should have 1 parameter.\n");
   }
   strcpy(file_potential[num_of_potentials], param[1]);
 
@@ -63,17 +63,6 @@ void Force::parse_potential(
   PRINT_SCANF_ERROR(count, 1, "Reading error for potential name.");
   num_types[num_of_potentials] = get_number_of_types(fid_potential);
   fclose(fid_potential);
-
-  if (strcmp(potential_name, "lj") == 0) {
-    is_lj[num_of_potentials] = true;
-    if (num_param == 3) {
-      if (!is_valid_int(param[2], &group_method)) {
-        PRINT_INPUT_ERROR("Group method for LJ potential should be an integer.\n");
-      }
-    }
-  } else {
-    is_lj[num_of_potentials] = false;
-  }
 
   if (num_of_potentials == 0) {
     atom_begin[num_of_potentials] = 0;

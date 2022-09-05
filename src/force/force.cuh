@@ -80,7 +80,6 @@ public:
   int num_types[MAX_NUM_OF_POTENTIALS];
   int atom_begin[MAX_NUM_OF_POTENTIALS];
   int atom_end[MAX_NUM_OF_POTENTIALS];
-  bool is_lj[MAX_NUM_OF_POTENTIALS];
   char file_potential[MAX_NUM_OF_POTENTIALS][200];
   int group_method;
   bool compute_hnemd_ = false;
