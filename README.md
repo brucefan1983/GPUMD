@@ -63,6 +63,7 @@ https://www.freelists.org/list/gpumd
 | Eric Lindgren         | https://github.com/elindgren      |
 | Junjie Wang           | https://github.com/bigd4          |
 | Yong Wang             | https://github.com/AmbroseWong    |
+| Zhixin Liang          | https://github.com/liangzhixin-202169    |
 
 ## Citations
 
