@@ -290,7 +290,6 @@ static __global__ void find_force_eam_step1(
   const int* g_NN,
   const int* g_NL,
   const int* g_type,
-  const int type_shift,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -318,7 +317,7 @@ static __global__ void find_force_eam_step1(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float rho12 = 0.0f;
       if (potential_model == 0) {
-        find_f(eam2004zhou, g_type[n2] - type_shift, d12, rho12); // density is contributed by n2
+        find_f(eam2004zhou, g_type[n2], d12, rho12); // density is contributed by n2
       }
       if (potential_model == 1) {
         find_f(eam2006dai, d12, rho12);
@@ -329,7 +328,7 @@ static __global__ void find_force_eam_step1(
     // Calculate the embedding energy F and its derivative Fp
     float F, Fp;
     if (potential_model == 0)
-      find_F(eam2004zhou, g_type[n1] - type_shift, rho, F, Fp); // embedding energy is for n1
+      find_F(eam2004zhou, g_type[n1], rho, F, Fp); // embedding energy is for n1
     if (potential_model == 1)
       find_F(eam2006dai, rho, F, Fp);
 
@@ -350,7 +349,6 @@ static __global__ void find_force_eam_step2(
   const int* g_NN,
   const int* g_NL,
   const int* g_type,
-  const int type_shift,
   const float* __restrict__ g_Fp,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -377,7 +375,7 @@ static __global__ void find_force_eam_step2(
   float s_szz = 0.0f; // virial_stress_zz
 
   if (n1 < N2) {
-    int type1 = g_type[n1] - type_shift;
+    int type1 = g_type[n1];
     int NN = g_NN[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -386,7 +384,7 @@ static __global__ void find_force_eam_step2(
 
     for (int i1 = 0; i1 < NN; ++i1) {
       int n2 = g_NL[n1 + N * i1];
-      int type2 = g_type[n2] - type_shift;
+      int type2 = g_type[n2];
       float Fp2 = g_Fp[n2];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
@@ -469,11 +467,6 @@ static __global__ void find_force_eam_step2(
 
 // Force evaluation wrapper
 void EAM::compute(
-  const int group_method,
-  std::vector<Group>& group,
-  const int type_begin,
-  const int type_end,
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -491,9 +484,8 @@ void EAM::compute(
   if (num_calls++ == 0) {
 #endif
     find_neighbor(
-      N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
-      eam_data.cell_count, eam_data.cell_count_sum, eam_data.cell_contents, eam_data.NN,
-      eam_data.NL);
+      N1, N2, rc, box, type, position_per_atom, eam_data.cell_count, eam_data.cell_count_sum,
+      eam_data.cell_contents, eam_data.NN, eam_data.NL);
 #ifdef USE_FIXED_NEIGHBOR
   }
 #endif
@@ -501,14 +493,14 @@ void EAM::compute(
   if (potential_model == 0) {
     find_force_eam_step1<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
-      type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2, eam_data.Fp.data(),
       potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<0><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
-      type.data(), type_shift, eam_data.Fp.data(), position_per_atom.data(),
+      type.data(), eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),
@@ -519,14 +511,14 @@ void EAM::compute(
   if (potential_model == 1) {
     find_force_eam_step1<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
-      type.data(), type_shift, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      type.data(), position_per_atom.data(), position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2, eam_data.Fp.data(),
       potential_per_atom.data());
     CUDA_CHECK_KERNEL
 
     find_force_eam_step2<1><<<grid_size, BLOCK_SIZE_FORCE>>>(
       eam2004zhou, eam2006dai, number_of_atoms, N1, N2, box, eam_data.NN.data(), eam_data.NL.data(),
-      type.data(), type_shift, eam_data.Fp.data(), position_per_atom.data(),
+      type.data(), eam_data.Fp.data(), position_per_atom.data(),
       position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data(),

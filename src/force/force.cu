@@ -64,15 +64,6 @@ void Force::parse_potential(
   num_types[num_of_potentials] = get_number_of_types(fid_potential);
   fclose(fid_potential);
 
-  if (num_of_potentials == 0) {
-    atom_begin[num_of_potentials] = 0;
-    atom_end[num_of_potentials] = num_types[num_of_potentials] - 1;
-  } else {
-    atom_begin[num_of_potentials] = num_types[num_of_potentials - 1];
-    atom_end[num_of_potentials] =
-      num_types[num_of_potentials - 1] + num_types[num_of_potentials] - 1;
-  }
-
   num_of_potentials++;
 
   add_potential(input_dir, box, cpu_type, cpu_type_size);
@@ -136,18 +127,7 @@ void Force::initialize_potential(
   }
 
   potential[m]->N1 = 0;
-  potential[m]->N2 = 0;
-
-  for (int n = 0; n < atom_begin[m]; ++n) {
-    potential[m]->N1 += cpu_type_size[n];
-  }
-  for (int n = 0; n <= atom_end[m]; ++n) {
-    potential[m]->N2 += cpu_type_size[n];
-  }
-
-  printf(
-    "    applies to atoms [%d, %d) from type %d to type %d.\n", potential[m]->N1, potential[m]->N2,
-    atom_begin[m], atom_end[m]);
+  potential[m]->N2 = number_of_atoms;
 
   fclose(fid_potential);
 }
@@ -163,15 +143,6 @@ void Force::add_potential(
 
   if (rc_max < potential[m]->rc)
     rc_max = potential[m]->rc;
-
-  // check the atom types in xyz.in
-  for (int n = potential[m]->N1; n < potential[m]->N2; ++n) {
-    if (cpu_type[n] < atom_begin[m] || cpu_type[n] > atom_end[m]) {
-      printf("ERROR: type for potential # %d not from %d to %d.", m, atom_begin[m], atom_end[m]);
-      exit(1);
-    }
-  }
-  type_shift_[m] = atom_begin[m];
 }
 
 static __global__ void gpu_add_driving_force(
@@ -459,8 +430,7 @@ void Force::compute(
 
   for (int m = 0; m < num_of_potentials; m++) {
     potential[m]->compute(
-      group_method, group, atom_begin[m], atom_end[m], type_shift_[m], box, type, position_per_atom,
-      potential_per_atom, force_per_atom, virial_per_atom);
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 
   if (compute_hnemd_) {
@@ -683,8 +653,7 @@ void Force::compute(
 
   for (int m = 0; m < num_of_potentials; m++) {
     potential[m]->compute(
-      group_method, group, atom_begin[m], atom_end[m], type_shift_[m], box, type, position_per_atom,
-      potential_per_atom, force_per_atom, virial_per_atom);
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 
   if (compute_hnemd_) {

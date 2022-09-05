@@ -78,8 +78,6 @@ public:
   int num_of_potentials;
   double rc_max;
   int num_types[MAX_NUM_OF_POTENTIALS];
-  int atom_begin[MAX_NUM_OF_POTENTIALS];
-  int atom_end[MAX_NUM_OF_POTENTIALS];
   char file_potential[MAX_NUM_OF_POTENTIALS][200];
   int group_method;
   bool compute_hnemd_ = false;
@@ -90,7 +88,6 @@ public:
 
 private:
   bool is_fcp = false;
-  int type_shift_[MAX_NUM_OF_POTENTIALS]; // shift to correct type in force eval
 
   void initialize_potential(
     char* input_dir,
