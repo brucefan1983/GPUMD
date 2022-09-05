@@ -22,26 +22,13 @@
 #include <stdio.h>
 #include <vector>
 
-#define MAX_NUM_OF_POTENTIALS 10
-
 class Force
 {
 public:
   Force(void);
 
   void parse_potential(
-    char** param,
-    int num_param,
-    char* input_dir,
-    const Box& box,
-    const std::vector<int>& cpu_type,
-    const std::vector<int>& cpu_type_size);
-
-  void add_potential(
-    char* input_dir,
-    const Box& box,
-    const std::vector<int>& cpu_type,
-    const std::vector<int>& cpu_type_size);
+    char** param, int num_param, char* input_dir, const Box& box, const int number_of_atoms);
 
   void compute(
     Box& box,
@@ -75,11 +62,6 @@ public:
     const std::vector<int>& type_size,
     const double T);
 
-  int num_of_potentials;
-  double rc_max;
-  int num_types[MAX_NUM_OF_POTENTIALS];
-  char file_potential[MAX_NUM_OF_POTENTIALS][200];
-  int group_method;
   bool compute_hnemd_ = false;
   int compute_hnemdec_ = 0;
   double hnemd_fe_[3];
@@ -88,13 +70,5 @@ public:
 
 private:
   bool is_fcp = false;
-
-  void initialize_potential(
-    char* input_dir,
-    const Box& box,
-    const int num_atoms,
-    const std::vector<int>& cpu_type_size,
-    const int m);
-
-  std::unique_ptr<Potential> potential[MAX_NUM_OF_POTENTIALS];
+  std::unique_ptr<Potential> potential;
 };
