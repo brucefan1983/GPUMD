@@ -294,16 +294,18 @@ NEP3::NEP3(
   }
 }
 
-void NEP3::update_potential(const float* parameters, ANN& ann)
+void NEP3::update_potential(float* parameters, ANN& ann)
 {
-  ann.w0 = parameters;
-  ann.b0[0] = ann.w0 + ann.num_neurons1 * ann.dim;
-  ann.w1[0] = ann.b0[0] + ann.num_neurons1;
-  for (int t = 1; t < paramb.num_types; ++t) {
-    ann.b0[t] = ann.w1[t - 1] + ann.num_neurons1;
-    ann.w1[t] = ann.b0[t] + ann.num_neurons1;
+  float* pointer = parameters;
+  for (int t = 0; t < paramb.num_types; ++t) {
+    ann.w0[t] = pointer;
+    pointer += ann.num_neurons1 * ann.dim;
+    ann.b0[t] = pointer;
+    pointer += ann.num_neurons1;
+    ann.w1[t] = pointer;
+    pointer += ann.num_neurons1;
   }
-  ann.b1 = ann.w1[paramb.num_types - 1] + ann.num_neurons1;
+  ann.b1 = pointer;
   ann.c = ann.b1 + 1;
 }
 
@@ -368,7 +370,8 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0[type], annmb.w1[type], annmb.b1, q, F, Fp);
+      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
+      Fp);
     g_pe[n1] = F;
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];

@@ -124,7 +124,7 @@ void Parameters::calculate_parameters()
   dim = dim_radial + dim_angular;
   q_scaler_cpu.resize(dim, 1.0e10f);
 
-  number_of_variables_ann = (dim + 2 * num_types) * num_neurons1 + 1;
+  number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
 
   if (version == 2) {
     number_of_variables_descriptor =
