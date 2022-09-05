@@ -32,7 +32,6 @@ cd ..\..
 
 cd gpumd\silicon_dispersion
 ..\..\..\src\gpumd
-fc D.out D1.out
 fc omega2.out omega21.out
 del D.out omega2.out
 cd ..\..

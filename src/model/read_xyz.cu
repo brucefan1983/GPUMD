@@ -469,10 +469,7 @@ static std::string get_filename_potential(char* input_dir)
 {
   std::ifstream input_run(input_dir + std::string("/run.in"));
   if (!input_run.is_open()) {
-    input_run.open(input_dir + std::string("/phonon.in"));
-    if (!input_run.is_open()) {
-      PRINT_INPUT_ERROR("No run.in or phonon.in.");
-    }
+    PRINT_INPUT_ERROR("No run.in.");
   }
 
   std::string line;
