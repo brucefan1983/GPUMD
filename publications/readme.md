@@ -4,7 +4,7 @@
 
 * Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://arxiv.org/abs/2208.03982), arXiv:2208.03982 [physics.comp-ph].
 
-* Penghua Ying, Zheng Zhong, and Jin Zhang, [Anisotropic mechanical properties of monolayer fullerene network: An interplay between two types of interfullerene bonds](https://chemrxiv.org/engage/chemrxiv/article-details/62c855dafb63815200d268c2), ChemRxiv. Cambridge: Cambridge Open Engage; 2022; This content is a preprint and has not been peer-reviewed.
+* Penghua Ying, Haikuan Dong, Ting Liang, Zheyong Fan, Zheng Zhong, and Jin Zhang, [Atomistic insights into the mechanical anisotropy and fragility of monolayer fullerene networks using quantum mechanical calculations and machine-learning molecular dynamics simulations](https://chemrxiv.org/engage/chemrxiv/article-details/6317025003e27d90a4cac858), ChemRxiv. Cambridge: Cambridge Open Engage; 2022; This content is a preprint and has not been peer-reviewed.
 
 * Penghua Ying, Ting Liang, Ke Xu, Jin Zhang, Jianbin Xu, Jianyang Wu, Zheyong Fan, Tapio Ala-Nissila, Zheng Zhong,
 [Variable thermal transport in black, blue, and violet phosphorene from extensive atomistic simulations with a neuroevolution potential](https://arxiv.org/abs/2206.07874), arXiv:2206.07874 [physics.comp-ph].
