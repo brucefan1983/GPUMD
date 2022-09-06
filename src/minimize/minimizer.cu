@@ -22,37 +22,44 @@ The abstract base class (ABC) for the minimizer classes.
 namespace
 {
 
-__global__ void gpu_calculate_potential_difference(
+__global__ void gpu_calculate_total_potential(
   const int size,
   const int number_of_rounds,
   const double* potential_per_atom,
   const double* potential_per_atom_temp,
-  double* potential_difference)
+  double* total_potential)
 {
-  __shared__ double s_diff[1024];
-  s_diff[threadIdx.x] = 0.0;
+  __shared__ double s_potential[1024];
+  __shared__ double s_potential_temp[1024];
+  s_potential[threadIdx.x] = 0.0;
+  s_potential_temp[threadIdx.x] = 0.0;
 
-  double diff = 0.0f;
+  double potential = 0.0;
+  double potential_temp = 0.0;
 
   for (int round = 0; round < number_of_rounds; ++round) {
     const int n = threadIdx.x + round * 1024;
     if (n < size) {
-      diff += potential_per_atom_temp[n] - potential_per_atom[n];
+      potential += potential_per_atom[n];
+      potential_temp += potential_per_atom_temp[n];
     }
   }
 
-  s_diff[threadIdx.x] = diff;
+  s_potential[threadIdx.x] = potential;
+  s_potential_temp[threadIdx.x] = potential_temp;
   __syncthreads();
 
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (threadIdx.x < offset) {
-      s_diff[threadIdx.x] += s_diff[threadIdx.x + offset];
+      s_potential[threadIdx.x] += s_potential[threadIdx.x + offset];
+      s_potential_temp[threadIdx.x] += s_potential_temp[threadIdx.x + offset];
     }
     __syncthreads();
   }
 
   if (threadIdx.x == 0) {
-    potential_difference[0] = s_diff[0];
+    total_potential[0] = s_potential[0];
+    total_potential[1] = s_potential_temp[0];
   }
 }
 
@@ -97,15 +104,15 @@ __global__ void gpu_calculate_force_square_max(
 
 } // namespace
 
-void Minimizer::calculate_potential_difference(const GPU_Vector<double>& potential_per_atom)
+void Minimizer::calculate_total_potential(const GPU_Vector<double>& potential_per_atom)
 {
   const int size = potential_per_atom.size();
   const int number_of_rounds = (size - 1) / 1024 + 1;
-  gpu_calculate_potential_difference<<<1, 1024>>>(
+  gpu_calculate_total_potential<<<1, 1024>>>(
     size, number_of_rounds, potential_per_atom.data(), potential_per_atom_temp_.data(),
-    potential_difference_.data());
+    total_potential_.data());
 
-  potential_difference_.copy_to_host(cpu_potential_difference_.data());
+  total_potential_.copy_to_host(cpu_total_potential_.data());
 }
 
 void Minimizer::calculate_force_square_max(const GPU_Vector<double>& force_per_atom)
