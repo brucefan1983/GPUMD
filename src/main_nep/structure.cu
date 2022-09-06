@@ -17,6 +17,7 @@
 #include "structure.cuh"
 #include "utilities/error.cuh"
 #include <algorithm>
+#include <cctype>
 #include <chrono>
 #include <fstream>
 #include <iostream>
@@ -25,7 +26,6 @@
 #include <sstream>
 #include <string>
 #include <vector>
-#include <cctype>
 
 static float get_area(const float* a, const float* b)
 {
@@ -124,7 +124,7 @@ static void read_force(
 
 static void read_one_structure(const Parameters& para, std::ifstream& input, Structure& structure)
 {
-  std::vector<std::string> tokens = get_tokens(input);
+  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
   for (auto& token : tokens) {
     std::transform(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
