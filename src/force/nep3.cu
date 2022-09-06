@@ -257,6 +257,10 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   nep_data.cell_count.resize(num_atoms);
   nep_data.cell_count_sum.resize(num_atoms);
   nep_data.cell_contents.resize(num_atoms);
+#ifdef JIAHUI
+  nep_data.cpu_NN_radial.resize(num_atoms);
+  nep_data.cpu_NN_angular.resize(num_atoms);
+#endif
 }
 
 NEP3::~NEP3(void)
@@ -829,6 +833,27 @@ void NEP3::compute_large_box(
     position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN_radial.data(),
     nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
+
+#ifdef JIAHUI
+  static int num_calls = 0;
+  if (num_calls++ % 1000 == 0) {
+    nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
+    nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < nep_data.cpu_NN_radial[n]) {
+        radial_actual = nep_data.cpu_NN_radial[n];
+      }
+      if (angular_actual < nep_data.cpu_NN_angular[n]) {
+        angular_actual = nep_data.cpu_NN_angular[n];
+      }
+    }
+    printf(
+      "Neighbor info: radial (max=%d, actual=%d), angular (max=%d, actual=%d).\n", paramb.MN_radial,
+      radial_actual, paramb.MN_angular, angular_actual);
+  }
+#endif
 
   gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
     N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
