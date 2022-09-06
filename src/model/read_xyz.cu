@@ -186,7 +186,7 @@ static void read_xyz_line_2(
   int* property_offset,
   std::vector<Group>& group)
 {
-  std::vector<std::string> tokens = get_tokens(input);
+  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
   for (auto& token : tokens) {
     std::transform(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
