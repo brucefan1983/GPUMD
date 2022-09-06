@@ -323,7 +323,6 @@ static __global__ void find_force_tersoff_step1(
   const int* g_neighbor_number,
   const int* g_neighbor_list,
   const int* g_type,
-  const int shift,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -333,7 +332,7 @@ static __global__ void find_force_tersoff_step1(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
-    int type1 = g_type[n1] - shift;
+    int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -352,7 +351,7 @@ static __global__ void find_force_tersoff_step1(
         if (n3 == n2) {
           continue;
         } // ensure that n3 != n2
-        int type3 = g_type[n3] - shift;
+        int type3 = g_type[n3];
         double x13double = g_x[n3] - x1;
         double y13double = g_y[n3] - y1;
         double z13double = g_z[n3] - z1;
@@ -397,7 +396,6 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
   const int* g_neighbor_number,
   const int* g_neighbor_list,
   const int* g_type,
-  const int shift,
   const float* __restrict__ g_b,
   const float* __restrict__ g_bp,
   const double* __restrict__ g_x,
@@ -411,7 +409,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
-    int type1 = g_type[n1] - shift;
+    int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -420,7 +418,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * number_of_particles + n1;
       int n2 = g_neighbor_list[index];
-      int type2 = g_type[n2] - shift;
+      int type2 = g_type[n2];
 
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
@@ -452,7 +450,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
         if (n3 == n2) {
           continue;
         }
-        int type3 = g_type[n3] - shift;
+        int type3 = g_type[n3];
         double x13double = g_x[n3] - x1;
         double y13double = g_y[n3] - y1;
         double z13double = g_z[n3] - z1;
@@ -490,11 +488,6 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_tersof
 
 // Wrapper of force evaluation for the Tersoff potential
 void Tersoff1989::compute(
-  const int group_method,
-  std::vector<Group>& group,
-  const int type_begin,
-  const int type_end,
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -513,9 +506,8 @@ void Tersoff1989::compute(
   if (num_calls++ == 0) {
 #endif
     find_neighbor(
-      N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
-      tersoff_data.cell_count, tersoff_data.cell_count_sum, tersoff_data.cell_contents,
-      tersoff_data.NN, tersoff_data.NL);
+      N1, N2, rc, box, type, position_per_atom, tersoff_data.cell_count,
+      tersoff_data.cell_count_sum, tersoff_data.cell_contents, tersoff_data.NN, tersoff_data.NL);
 #ifdef USE_FIXED_NEIGHBOR
   }
 #endif
@@ -523,7 +515,7 @@ void Tersoff1989::compute(
   // pre-compute the bond order functions and their derivatives
   find_force_tersoff_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, ters0, ters1, ters2, tersoff_data.NN.data(),
-    tersoff_data.NL.data(), type.data(), type_shift, position_per_atom.data(),
+    tersoff_data.NL.data(), type.data(), position_per_atom.data(),
     position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
     tersoff_data.b.data(), tersoff_data.bp.data());
   CUDA_CHECK_KERNEL
@@ -531,7 +523,7 @@ void Tersoff1989::compute(
   // pre-compute the partial forces
   find_force_tersoff_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, ters0, ters1, ters2, tersoff_data.NN.data(),
-    tersoff_data.NL.data(), type.data(), type_shift, tersoff_data.b.data(), tersoff_data.bp.data(),
+    tersoff_data.NL.data(), type.data(), tersoff_data.b.data(), tersoff_data.bp.data(),
     position_per_atom.data(), position_per_atom.data() + number_of_atoms,
     position_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(),
     tersoff_data.f12x.data(), tersoff_data.f12y.data(), tersoff_data.f12z.data());

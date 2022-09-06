@@ -35,11 +35,6 @@ public:
   FCP(FILE* fid, char* input_dir, const int num_types, const int N, const Box& box);
   virtual ~FCP(void);
   virtual void compute(
-    const int group_method,
-    std::vector<Group>& group,
-    const int type_begin,
-    const int type_end,
-    const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

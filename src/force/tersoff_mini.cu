@@ -164,7 +164,6 @@ static __global__ void find_force_step1(
   const int* g_neighbor_number,
   const int* g_neighbor_list,
   const int* g_type,
-  const int shift,
   const Tersoff_mini_Para para,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
@@ -175,13 +174,13 @@ static __global__ void find_force_step1(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
-    int type1 = g_type[n1] - shift;
+    int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_neighbor_list[n1 + number_of_particles * i1];
-      int type12 = type1 + g_type[n2] - shift;
+      int type12 = type1 + g_type[n2];
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
       double z12double = g_z[n2] - z1;
@@ -191,7 +190,7 @@ static __global__ void find_force_step1(
       float zeta = 0.0f;
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int n3 = g_neighbor_list[n1 + number_of_particles * i2];
-        int type13 = type1 + g_type[n3] - shift;
+        int type13 = type1 + g_type[n3];
         if (n3 == n2) {
           continue;
         } // ensure that n3 != n2
@@ -233,7 +232,6 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
   const int* g_neighbor_number,
   const int* g_neighbor_list,
   const int* g_type,
-  const int shift,
   const Tersoff_mini_Para para,
   const float* __restrict__ g_b,
   const float* __restrict__ g_bp,
@@ -248,7 +246,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int neighbor_number = g_neighbor_number[n1];
-    int type1 = g_type[n1] - shift;
+    int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
@@ -256,7 +254,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * number_of_particles + n1;
       int n2 = g_neighbor_list[index];
-      int type12 = type1 + g_type[n2] - shift;
+      int type12 = type1 + g_type[n2];
 
       double x12double = g_x[n2] - x1;
       double y12double = g_y[n2] - y1;
@@ -288,7 +286,7 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
         if (n3 == n2) {
           continue;
         }
-        int type13 = type1 + g_type[n3] - shift;
+        int type13 = type1 + g_type[n3];
         double x13double = g_x[n3] - x1;
         double y13double = g_y[n3] - y1;
         double z13double = g_z[n3] - z1;
@@ -326,11 +324,6 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
 
 // Wrapper of force evaluation for the SBOP potential
 void Tersoff_mini::compute(
-  const int group_method,
-  std::vector<Group>& group,
-  const int type_begin,
-  const int type_end,
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -348,9 +341,9 @@ void Tersoff_mini::compute(
   if (num_calls++ == 0) {
 #endif
     find_neighbor(
-      N1, N2, group_method, group, type_begin, type_end, rc, box, type, position_per_atom,
-      tersoff_mini_data.cell_count, tersoff_mini_data.cell_count_sum,
-      tersoff_mini_data.cell_contents, tersoff_mini_data.NN, tersoff_mini_data.NL);
+      N1, N2, rc, box, type, position_per_atom, tersoff_mini_data.cell_count,
+      tersoff_mini_data.cell_count_sum, tersoff_mini_data.cell_contents, tersoff_mini_data.NN,
+      tersoff_mini_data.NL);
 #ifdef USE_FIXED_NEIGHBOR
   }
 #endif
@@ -358,7 +351,7 @@ void Tersoff_mini::compute(
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, num_types, tersoff_mini_data.NN.data(),
-    tersoff_mini_data.NL.data(), type.data(), type_shift, para, position_per_atom.data(),
+    tersoff_mini_data.NL.data(), type.data(), para, position_per_atom.data(),
     position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
     tersoff_mini_data.b.data(), tersoff_mini_data.bp.data());
   CUDA_CHECK_KERNEL
@@ -366,7 +359,7 @@ void Tersoff_mini::compute(
   // pre-compute the partial forces
   find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, num_types, tersoff_mini_data.NN.data(),
-    tersoff_mini_data.NL.data(), type.data(), type_shift, para, tersoff_mini_data.b.data(),
+    tersoff_mini_data.NL.data(), type.data(), para, tersoff_mini_data.b.data(),
     tersoff_mini_data.bp.data(), position_per_atom.data(),
     position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
     potential_per_atom.data(), tersoff_mini_data.f12x.data(), tersoff_mini_data.f12y.data(),

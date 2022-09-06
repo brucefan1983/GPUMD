@@ -803,7 +803,6 @@ static __global__ void find_force_ZBL(
 
 // large box fo MD applications
 void NEP3::compute_large_box(
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -876,7 +875,6 @@ void NEP3::compute_large_box(
 
 // small box possibly used for active learning:
 void NEP3::compute_small_box(
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -995,11 +993,6 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
 }
 
 void NEP3::compute(
-  const int group_method,
-  std::vector<Group>& group,
-  const int type_begin,
-  const int type_end,
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -1011,11 +1004,9 @@ void NEP3::compute(
 
   if (is_small_box) {
     compute_small_box(
-      type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
-      virial_per_atom);
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   } else {
     compute_large_box(
-      type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
-      virial_per_atom);
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 }

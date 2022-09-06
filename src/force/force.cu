@@ -34,98 +34,41 @@ The driver class calculating force and related quantities.
 
 #define BLOCK_SIZE 128
 
-Force::Force(void)
-{
-  num_of_potentials = 0;
-  rc_max = 0.0;
-  group_method = -1;
-  is_fcp = false;
-}
+Force::Force(void) { is_fcp = false; }
 
 void Force::parse_potential(
-  char** param,
-  int num_param,
-  char* input_dir,
-  const Box& box,
-  const std::vector<int>& cpu_type,
-  const std::vector<int>& cpu_type_size)
+  char** param, int num_param, char* input_dir, const Box& box, const int number_of_atoms)
 {
-  // check for at least the file path
-  if (num_param < 2) {
-    PRINT_INPUT_ERROR("potential should have at least 1 parameter.\n");
-  }
-  strcpy(file_potential[num_of_potentials], param[1]);
-
-  // open file to check number of types used in potential
-  char potential_name[20];
-  FILE* fid_potential = my_fopen(file_potential[num_of_potentials], "r");
-  int count = fscanf(fid_potential, "%s", potential_name);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for potential name.");
-  num_types[num_of_potentials] = get_number_of_types(fid_potential);
-  fclose(fid_potential);
-
-  if (strcmp(potential_name, "lj") == 0) {
-    is_lj[num_of_potentials] = true;
-    if (num_param == 3) {
-      if (!is_valid_int(param[2], &group_method)) {
-        PRINT_INPUT_ERROR("Group method for LJ potential should be an integer.\n");
-      }
-    }
-  } else {
-    is_lj[num_of_potentials] = false;
+  static int num_calls = 0;
+  if (num_calls++ != 0) {
+    PRINT_INPUT_ERROR("potential keyword can only be used once.\n");
   }
 
-  if (num_of_potentials == 0) {
-    atom_begin[num_of_potentials] = 0;
-    atom_end[num_of_potentials] = num_types[num_of_potentials] - 1;
-  } else {
-    atom_begin[num_of_potentials] = num_types[num_of_potentials - 1];
-    atom_end[num_of_potentials] =
-      num_types[num_of_potentials - 1] + num_types[num_of_potentials] - 1;
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("potential should have 1 parameter.\n");
   }
 
-  num_of_potentials++;
-
-  add_potential(input_dir, box, cpu_type, cpu_type_size);
-}
-
-int Force::get_number_of_types(FILE* fid_potential)
-{
-  int num_of_types;
-  int count = fscanf(fid_potential, "%d", &num_of_types);
-  PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
-  return num_of_types;
-}
-
-void Force::initialize_potential(
-  char* input_dir,
-  const Box& box,
-  const int number_of_atoms,
-  const std::vector<int>& cpu_type_size,
-  const int m)
-{
-  FILE* fid_potential = my_fopen(file_potential[m], "r");
+  FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[20];
   int count = fscanf(fid_potential, "%s", potential_name);
   if (count != 1) {
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
-
   int num_types = get_number_of_types(fid_potential);
 
   // determine the potential
   if (strcmp(potential_name, "tersoff_1989") == 0) {
-    potential[m].reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
+    potential.reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_1988") == 0) {
-    potential[m].reset(new Tersoff1988(fid_potential, num_types, number_of_atoms));
+    potential.reset(new Tersoff1988(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "tersoff_mini") == 0) {
-    potential[m].reset(new Tersoff_mini(fid_potential, num_types, number_of_atoms));
+    potential.reset(new Tersoff_mini(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_zhou_2004") == 0) {
-    potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
+    potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
-    potential[m].reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
+    potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
-    potential[m].reset(new FCP(fid_potential, input_dir, num_types, number_of_atoms, box));
+    potential.reset(new FCP(fid_potential, input_dir, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
@@ -136,53 +79,28 @@ void Force::initialize_potential(
     num_gpus = 3;
 #endif
     if (num_gpus == 1) {
-      potential[m].reset(new NEP3(file_potential[m], number_of_atoms));
+      potential.reset(new NEP3(param[1], number_of_atoms));
     } else {
-      potential[m].reset(new NEP3_MULTIGPU(num_gpus, file_potential[m], number_of_atoms));
+      potential.reset(new NEP3_MULTIGPU(num_gpus, param[1], number_of_atoms));
     }
   } else if (strcmp(potential_name, "lj") == 0) {
-    potential[m].reset(new LJ(fid_potential, num_types, number_of_atoms));
+    potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
 
-  potential[m]->N1 = 0;
-  potential[m]->N2 = 0;
-
-  for (int n = 0; n < atom_begin[m]; ++n) {
-    potential[m]->N1 += cpu_type_size[n];
-  }
-  for (int n = 0; n <= atom_end[m]; ++n) {
-    potential[m]->N2 += cpu_type_size[n];
-  }
-
-  printf(
-    "    applies to atoms [%d, %d) from type %d to type %d.\n", potential[m]->N1, potential[m]->N2,
-    atom_begin[m], atom_end[m]);
-
   fclose(fid_potential);
+
+  potential->N1 = 0;
+  potential->N2 = number_of_atoms;
 }
 
-void Force::add_potential(
-  char* input_dir,
-  const Box& box,
-  const std::vector<int>& cpu_type,
-  const std::vector<int>& cpu_type_size)
+int Force::get_number_of_types(FILE* fid_potential)
 {
-  int m = num_of_potentials - 1; // current potential ID
-  initialize_potential(input_dir, box, cpu_type.size(), cpu_type_size, m);
-
-  if (rc_max < potential[m]->rc)
-    rc_max = potential[m]->rc;
-
-  // check the atom types in xyz.in
-  for (int n = potential[m]->N1; n < potential[m]->N2; ++n) {
-    if (cpu_type[n] < atom_begin[m] || cpu_type[n] > atom_end[m]) {
-      printf("ERROR: type for potential # %d not from %d to %d.", m, atom_begin[m], atom_end[m]);
-      exit(1);
-    }
-  }
-  type_shift_[m] = atom_begin[m];
+  int num_of_types;
+  int count = fscanf(fid_potential, "%d", &num_of_types);
+  PRINT_SCANF_ERROR(count, 1, "Reading error for number of types.");
+  return num_of_types;
 }
 
 static __global__ void gpu_add_driving_force(
@@ -468,11 +386,8 @@ void Force::compute(
     force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
-  for (int m = 0; m < num_of_potentials; m++) {
-    potential[m]->compute(
-      group_method, group, atom_begin[m], atom_end[m], type_shift_[m], box, type, position_per_atom,
-      potential_per_atom, force_per_atom, virial_per_atom);
-  }
+  potential->compute(
+    box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   if (compute_hnemd_) {
     // the virial tensor:
@@ -692,11 +607,8 @@ void Force::compute(
     force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
-  for (int m = 0; m < num_of_potentials; m++) {
-    potential[m]->compute(
-      group_method, group, atom_begin[m], atom_end[m], type_shift_[m], box, type, position_per_atom,
-      potential_per_atom, force_per_atom, virial_per_atom);
-  }
+  potential->compute(
+    box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   if (compute_hnemd_) {
     // the virial tensor:

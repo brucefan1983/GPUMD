@@ -216,7 +216,7 @@ void Run::perform_a_run(char* input_dir)
 void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
 {
   if (strcmp(param[0], "potential") == 0) {
-    force.parse_potential(param, num_param, input_dir, box, atom.cpu_type, atom.cpu_type_size);
+    force.parse_potential(param, num_param, input_dir, box, atom.type.size());
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
@@ -372,7 +372,7 @@ void Run::parse_run(char** param, int num_param, char* input_dir)
     compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y, measure.hnemd.fe_z);
 
   if (!compute_hnemd && (measure.hnemdec.compute != 0)) {
-    if (number_of_types!=2){
+    if (number_of_types != 2) {
       PRINT_INPUT_ERROR("There should be 2 atom types.\n");
     }
     force.set_hnemdec_parameters(
