@@ -37,11 +37,6 @@ void Dump_Thermo::parse(char** param, int num_param)
   }
   dump_ = true;
   printf("Dump thermo every %d steps.\n", dump_interval_);
-
-  print_line_1();
-  printf("Warning: Starting from GPUMD-v3.3.1, off-diagonal pressure\n");
-  printf("         components are added to thermo.out.\n");
-  print_line_2();
 }
 
 void Dump_Thermo::preprocess(char* input_dir)
