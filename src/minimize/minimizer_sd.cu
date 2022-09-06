@@ -80,9 +80,9 @@ void Minimizer_SD::compute(
 
     ++number_of_force_evaluations;
 
-    calculate_potential_difference(potential_per_atom);
+    calculate_total_potential(potential_per_atom);
 
-    if (cpu_potential_difference_[0] > 0.0) {
+    if (cpu_total_potential_[1] > cpu_total_potential_[0]) {
       position_step *= decreasing_factor;
     } else {
       position_per_atom_temp_.copy_to_device(position_per_atom.data());
@@ -93,11 +93,19 @@ void Minimizer_SD::compute(
 
     int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
 
+    double total_potential_smaller = (cpu_total_potential_[1] > cpu_total_potential_[0])
+                                       ? cpu_total_potential_[0]
+                                       : cpu_total_potential_[1];
+
     if (step == 0) {
-      printf("    step 0: f_max = %g eV/A.\n", force_max);
+      printf(
+        "    step 0: total_potential = %.10f eV, f_max = %.10f eV/A.\n", total_potential_smaller,
+        force_max);
     }
     if ((step + 1) % base == 0) {
-      printf("    step %d: f_max = %g eV/A.\n", step + 1, force_max);
+      printf(
+        "    step %d: total_potential = %.10f eV, f_max = %.10f eV/A.\n", step + 1,
+        total_potential_smaller, force_max);
     }
   }
 
