@@ -211,7 +211,7 @@ static __global__ void find_force_step1(
       double bzn, b12;
       bzn = pow(para.beta[type12] * zeta, para.n[type12]);
       b12 = pow(1.0 + bzn, para.minus_half_over_n[type12]);
-      if (zeta < 1.0e-16f) // avoid division by 0
+      if (zeta < 1.0e-16) // avoid division by 0
       {
         g_b[i1 * number_of_particles + n1] = 1.0;
         g_bp[i1 * number_of_particles + n1] = 0.0;

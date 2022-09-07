@@ -370,7 +370,7 @@ static __global__ void find_force_tersoff_step1(
         bzn = pow(ters1.beta * zeta, ters1.n);
         b12 = pow(1.0 + bzn, ters1.minus_half_over_n);
       }
-      if (zeta < 1.0e-16f) // avoid division by 0
+      if (zeta < 1.0e-16) // avoid division by 0
       {
         g_b[i1 * number_of_particles + n1] = 1.0;
         g_bp[i1 * number_of_particles + n1] = 0.0;
