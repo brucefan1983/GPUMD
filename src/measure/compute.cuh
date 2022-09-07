@@ -28,6 +28,7 @@ public:
   int compute_virial = 0;
   int compute_jp = 0;
   int compute_jk = 0;
+  int compute_momentum = 0;
 
   int sample_interval = 1;
   int output_interval = 1;
