@@ -40,6 +40,17 @@ protected:
     Box& box,
     const int* NN,
     const int* NL,
+    const double* f12x,
+    const double* f12y,
+    const double* f12z,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+
+  void find_properties_many_body(
+    Box& box,
+    const int* NN,
+    const int* NL,
     const float* f12x,
     const float* f12y,
     const float* f12z,
