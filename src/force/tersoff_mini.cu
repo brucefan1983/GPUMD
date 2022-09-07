@@ -101,56 +101,59 @@ Tersoff_mini::~Tersoff_mini(void)
   // nothing
 }
 
-static __device__ void find_fr_and_frp(float a, float lambda, float d12, float& fr, float& frp)
+static __device__ void find_fr_and_frp(double a, double lambda, double d12, double& fr, double& frp)
 {
   fr = a * exp(-lambda * d12);
   frp = -lambda * fr;
 }
 
-static __device__ void find_fa_and_fap(float b, float mu, float d12, float& fa, float& fap)
+static __device__ void find_fa_and_fap(double b, double mu, double d12, double& fa, double& fap)
 {
   fa = b * exp(-mu * d12);
   fap = -mu * fa;
 }
 
-static __device__ void find_fa(float b, float mu, float d12, float& fa) { fa = b * exp(-mu * d12); }
+static __device__ void find_fa(double b, double mu, double d12, double& fa)
+{
+  fa = b * exp(-mu * d12);
+}
 
 static __device__ void
-find_fc_and_fcp(float r1, float r2, float pi_factor, float d12, float& fc, float& fcp)
+find_fc_and_fcp(double r1, double r2, double pi_factor, double d12, double& fc, double& fcp)
 {
   if (d12 < r1) {
-    fc = 1.0f;
-    fcp = 0.0f;
+    fc = 1.0;
+    fcp = 0.0;
   } else if (d12 < r2) {
-    fc = 0.5f * cos(pi_factor * (d12 - r1)) + 0.5f;
-    fcp = -sin(pi_factor * (d12 - r1)) * pi_factor * 0.5f;
+    fc = 0.5 * cos(pi_factor * (d12 - r1)) + 0.5;
+    fcp = -sin(pi_factor * (d12 - r1)) * pi_factor * 0.5;
   } else {
-    fc = 0.0f;
-    fcp = 0.0f;
+    fc = 0.0;
+    fcp = 0.0;
   }
 }
 
-static __device__ void find_fc(float r1, float r2, float pi_factor, float d12, float& fc)
+static __device__ void find_fc(double r1, double r2, double pi_factor, double d12, double& fc)
 {
   if (d12 < r1) {
-    fc = 1.0f;
+    fc = 1.0;
   } else if (d12 < r2) {
-    fc = 0.5f * cos(pi_factor * (d12 - r1)) + 0.5f;
+    fc = 0.5 * cos(pi_factor * (d12 - r1)) + 0.5;
   } else {
-    fc = 0.0f;
+    fc = 0.0;
   }
 }
 
-static __device__ void find_g_and_gp(float h, float cos, float& g, float& gp)
+static __device__ void find_g_and_gp(double h, double cos, double& g, double& gp)
 {
-  float tmp = cos - h;
+  double tmp = cos - h;
   g = tmp * tmp;
-  gp = 2.0f * tmp;
+  gp = 2.0 * tmp;
 }
 
-static __device__ void find_g(float h, float cos, float& g)
+static __device__ void find_g(double h, double cos, double& g)
 {
-  float tmp = cos - h;
+  double tmp = cos - h;
   g = tmp * tmp;
 }
 
@@ -168,8 +171,8 @@ static __global__ void find_force_step1(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  float* g_b,
-  float* g_bp)
+  double* g_b,
+  double* g_bp)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -181,42 +184,40 @@ static __global__ void find_force_step1(
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_neighbor_list[n1 + number_of_particles * i1];
       int type12 = type1 + g_type[n2];
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
-      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float zeta = 0.0f;
+      double x12 = g_x[n2] - x1;
+      double y12 = g_y[n2] - y1;
+      double z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      double zeta = 0.0;
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int n3 = g_neighbor_list[n1 + number_of_particles * i2];
         int type13 = type1 + g_type[n3];
         if (n3 == n2) {
           continue;
         } // ensure that n3 != n2
-        double x13double = g_x[n3] - x1;
-        double y13double = g_y[n3] - y1;
-        double z13double = g_z[n3] - z1;
-        apply_mic(box, x13double, y13double, z13double);
-        float x13 = float(x13double), y13 = float(y13double), z13 = float(z13double);
-        float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
-        float cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
-        float fc13, g123;
+        double x13 = g_x[n3] - x1;
+        double y13 = g_y[n3] - y1;
+        double z13 = g_z[n3] - z1;
+        apply_mic(box, x13, y13, z13);
+        double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+        double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) / (d12 * d13);
+        double fc13, g123;
         find_fc(para.r1[type13], para.r2[type13], para.pi_factor[type13], d13, fc13);
         find_g(para.h[type12], cos123, g123);
         zeta += fc13 * g123;
       }
 
-      float bzn, b12;
+      double bzn, b12;
       bzn = pow(para.beta[type12] * zeta, para.n[type12]);
-      b12 = pow(1.0f + bzn, para.minus_half_over_n[type12]);
+      b12 = pow(1.0 + bzn, para.minus_half_over_n[type12]);
       if (zeta < 1.0e-16f) // avoid division by 0
       {
-        g_b[i1 * number_of_particles + n1] = 1.0f;
-        g_bp[i1 * number_of_particles + n1] = 0.0f;
+        g_b[i1 * number_of_particles + n1] = 1.0;
+        g_bp[i1 * number_of_particles + n1] = 0.0;
       } else {
         g_b[i1 * number_of_particles + n1] = b12;
-        g_bp[i1 * number_of_particles + n1] = -b12 * bzn * 0.5f / ((1.0f + bzn) * zeta);
+        g_bp[i1 * number_of_particles + n1] = -b12 * bzn * 0.5 / ((1.0 + bzn) * zeta);
       }
     }
   }
@@ -233,15 +234,15 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
   const int* g_neighbor_list,
   const int* g_type,
   const Tersoff_mini_Para para,
-  const float* __restrict__ g_b,
-  const float* __restrict__ g_bp,
+  const double* __restrict__ g_b,
+  const double* __restrict__ g_bp,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   double* g_potential,
-  float* g_f12x,
-  float* g_f12y,
-  float* g_f12z)
+  double* g_f12x,
+  double* g_f12y,
+  double* g_f12z)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -250,36 +251,35 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
-    float pot_energy = 0.0f;
+    double pot_energy = 0.0;
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * number_of_particles + n1;
       int n2 = g_neighbor_list[index];
       int type12 = type1 + g_type[n2];
 
-      double x12double = g_x[n2] - x1;
-      double y12double = g_y[n2] - y1;
-      double z12double = g_z[n2] - z1;
-      apply_mic(box, x12double, y12double, z12double);
-      float x12 = float(x12double), y12 = float(y12double), z12 = float(z12double);
-      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float d12inv = 1.0f / d12;
-      float fc12, fcp12, fa12, fap12, fr12, frp12;
+      double x12 = g_x[n2] - x1;
+      double y12 = g_y[n2] - y1;
+      double z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      double d12inv = 1.0 / d12;
+      double fc12, fcp12, fa12, fap12, fr12, frp12;
       find_fc_and_fcp(para.r1[type12], para.r2[type12], para.pi_factor[type12], d12, fc12, fcp12);
       find_fa_and_fap(para.b[type12], para.mu[type12], d12, fa12, fap12);
       find_fr_and_frp(para.a[type12], para.lambda[type12], d12, fr12, frp12);
 
       // (i,j) part
-      float b12 = g_b[index];
-      float factor3 = (fcp12 * (fr12 - b12 * fa12) + fc12 * (frp12 - b12 * fap12)) * d12inv;
-      float f12x = x12 * factor3 * 0.5f;
-      float f12y = y12 * factor3 * 0.5f;
-      float f12z = z12 * factor3 * 0.5f;
+      double b12 = g_b[index];
+      double factor3 = (fcp12 * (fr12 - b12 * fa12) + fc12 * (frp12 - b12 * fap12)) * d12inv;
+      double f12x = x12 * factor3 * 0.5;
+      double f12y = y12 * factor3 * 0.5;
+      double f12z = z12 * factor3 * 0.5;
 
       // accumulate potential energy
-      pot_energy += fc12 * (fr12 - b12 * fa12) * 0.5f;
+      pot_energy += fc12 * (fr12 - b12 * fa12) * 0.5;
 
       // (i,j,k) part
-      float bp12 = g_bp[index];
+      double bp12 = g_bp[index];
       for (int i2 = 0; i2 < neighbor_number; ++i2) {
         int index_2 = n1 + number_of_particles * i2;
         int n3 = g_neighbor_list[index_2];
@@ -287,31 +287,30 @@ static __global__ void __launch_bounds__(BLOCK_SIZE_FORCE, 10) find_force_step2(
           continue;
         }
         int type13 = type1 + g_type[n3];
-        double x13double = g_x[n3] - x1;
-        double y13double = g_y[n3] - y1;
-        double z13double = g_z[n3] - z1;
-        apply_mic(box, x13double, y13double, z13double);
-        float x13 = float(x13double), y13 = float(y13double), z13 = float(z13double);
-        float d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
-        float fc13, fa13;
+        double x13 = g_x[n3] - x1;
+        double y13 = g_y[n3] - y1;
+        double z13 = g_z[n3] - z1;
+        apply_mic(box, x13, y13, z13);
+        double d13 = sqrt(x13 * x13 + y13 * y13 + z13 * z13);
+        double fc13, fa13;
         find_fc(para.r1[type13], para.r2[type13], para.pi_factor[type13], d13, fc13);
         find_fa(para.b[type13], para.mu[type13], d13, fa13);
-        float bp13 = g_bp[index_2];
-        float one_over_d12d13 = 1.0f / (d12 * d13);
-        float cos123 = (x12 * x13 + y12 * y13 + z12 * z13) * one_over_d12d13;
-        float cos123_over_d12d12 = cos123 * d12inv * d12inv;
-        float g123, gp123;
+        double bp13 = g_bp[index_2];
+        double one_over_d12d13 = 1.0 / (d12 * d13);
+        double cos123 = (x12 * x13 + y12 * y13 + z12 * z13) * one_over_d12d13;
+        double cos123_over_d12d12 = cos123 * d12inv * d12inv;
+        double g123, gp123;
         find_g_and_gp(para.h[type12], cos123, g123, gp123);
         // derivatives with cosine
-        float dc = -fc12 * bp12 * fa12 * fc13 * gp123 - fc12 * bp13 * fa13 * fc13 * gp123;
+        double dc = -fc12 * bp12 * fa12 * fc13 * gp123 - fc12 * bp13 * fa13 * fc13 * gp123;
         // derivatives with rij
-        float dr = -fcp12 * bp13 * fa13 * g123 * fc13 * d12inv;
-        float cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
-        f12x += (x12 * dr + dc * cos_d) * 0.5f;
+        double dr = -fcp12 * bp13 * fa13 * g123 * fc13 * d12inv;
+        double cos_d = x13 * one_over_d12d13 - x12 * cos123_over_d12d12;
+        f12x += (x12 * dr + dc * cos_d) * 0.5;
         cos_d = y13 * one_over_d12d13 - y12 * cos123_over_d12d12;
-        f12y += (y12 * dr + dc * cos_d) * 0.5f;
+        f12y += (y12 * dr + dc * cos_d) * 0.5;
         cos_d = z13 * one_over_d12d13 - z12 * cos123_over_d12d12;
-        f12z += (z12 * dr + dc * cos_d) * 0.5f;
+        f12z += (z12 * dr + dc * cos_d) * 0.5;
       }
       g_f12x[index] = f12x;
       g_f12y[index] = f12y;
