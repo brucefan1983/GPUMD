@@ -1234,12 +1234,12 @@ void NEP3_MULTIGPU::compute(
   int partition_direction = 2;
   int num_bins_longitudinal = num_bins[2] / paramb.num_gpus;
   int num_bins_transverse = num_bins[0] * num_bins[1];
-  if (num_bins[0] > num_bins[1] && num_bins[0] > num_bins[2]) {
+  if (num_bins[0] >= num_bins[1] && num_bins[0] >= num_bins[2]) {
     partition_direction = 0;
     num_bins_longitudinal = num_bins[0] / paramb.num_gpus;
     num_bins_transverse = num_bins[1] * num_bins[2];
   }
-  if (num_bins[1] > num_bins[0] && num_bins[1] > num_bins[2]) {
+  if (num_bins[1] >= num_bins[0] && num_bins[1] >= num_bins[2]) {
     partition_direction = 1;
     num_bins_longitudinal = num_bins[1] / paramb.num_gpus;
     num_bins_transverse = num_bins[0] * num_bins[2];
