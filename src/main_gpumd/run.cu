@@ -69,7 +69,7 @@ static __global__ void gpu_find_largest_v2(
 __device__ double device_v2_max[1];
 
 static void calculate_time_step(
-  double max_distance_per_step, GPU_Vector<double>& velocity_per_atom, double& time_step)
+  double max_distance_per_step, GPU_Vector<double>& velocity_per_atom, double initial_time_step, double& time_step)
 {
   if (max_distance_per_step <= 0.0) {
     return;
@@ -86,8 +86,10 @@ static void calculate_time_step(
   double cpu_v_max = sqrt(cpu_v2_max[0]);
   double time_step_min = max_distance_per_step / cpu_v_max;
 
-  if (time_step_min < time_step) {
+  if (time_step_min < initial_time_step) {
     time_step = time_step_min;
+  } else{
+    time_step = initial_time_step;
   }
 }
 
@@ -154,10 +156,11 @@ void Run::perform_a_run(char* input_dir)
 #endif
 
   clock_t time_begin = clock();
+  double initial_time_step = time_step;
 
   for (int step = 0; step < number_of_steps; ++step) {
 
-    calculate_time_step(max_distance_per_step, atom.velocity_per_atom, time_step);
+    calculate_time_step(max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
 
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
