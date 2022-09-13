@@ -16,7 +16,7 @@ fi
 writ_dire="NEPdataset"; writ_file="NEP-dataset.xyz";
 rm -rf $writ_dire; mkdir $writ_dire
 
-for i in `find $read_dire -name "OUTCAR"`
+for i in `find -L $read_dire -name "OUTCAR"`
 do
 	syst_numb_atom=$(grep "number of ions" $i |awk '{print $12}')
 	echo $syst_numb_atom >> $writ_dire/$writ_file
@@ -24,7 +24,7 @@ do
 	ener=$(grep "free  energy   TOTEN" $i | tail -1 | awk '{printf "%.6f\n", $5 - '$syst_numb_atom' * '$isol_ener'}')
 	if [[ $viri_logi -eq 1 ]]
 	then
-        	viri=$(grep -A 13 "FORCE on cell =-STRESS" $i |tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
+        	viri=$(grep -A 20 "FORCE on cell =-STRESS" $i | grep "Total" | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
 		echo "Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
 	else
 		echo "Lattice=\"$latt\" Energy=$ener Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
