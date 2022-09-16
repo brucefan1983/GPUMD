@@ -285,15 +285,6 @@ static __global__ void find_force_radial_small_box(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     int t1 = g_type[n1];
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
@@ -341,29 +332,20 @@ static __global__ void find_force_radial_small_box(
       atomicAdd(&g_fx[n2], double(-f12[0]));
       atomicAdd(&g_fy[n2], double(-f12[1]));
       atomicAdd(&g_fz[n2], double(-f12[2]));
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
+      // save virial
+      // xx xy xz    0 3 4
+      // yx yy yz    6 1 5
+      // zx zy zz    7 8 2
+      atomicAdd(&g_virial[n2 + 0 * N], double(-r12[0] * f12[0]));
+      atomicAdd(&g_virial[n2 + 1 * N], double(-r12[1] * f12[1]));
+      atomicAdd(&g_virial[n2 + 2 * N], double(-r12[2] * f12[2]));
+      atomicAdd(&g_virial[n2 + 3 * N], double(-r12[0] * f12[1]));
+      atomicAdd(&g_virial[n2 + 4 * N], double(-r12[0] * f12[2]));
+      atomicAdd(&g_virial[n2 + 5 * N], double(-r12[1] * f12[2]));
+      atomicAdd(&g_virial[n2 + 6 * N], double(-r12[1] * f12[0]));
+      atomicAdd(&g_virial[n2 + 7 * N], double(-r12[2] * f12[0]));
+      atomicAdd(&g_virial[n2 + 8 * N], double(-r12[2] * f12[1]));
     }
-    // save virial
-    // xx xy xz    0 3 4
-    // yx yy yz    6 1 5
-    // zx zy zz    7 8 2
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
   }
 }
 
@@ -399,15 +381,6 @@ static __global__ void find_force_angular_small_box(
     }
 
     int t1 = g_type[n1];
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
 
     for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
       int index = i1 * N + n1;
@@ -464,29 +437,20 @@ static __global__ void find_force_angular_small_box(
       atomicAdd(&g_fx[n2], double(-f12[0]));
       atomicAdd(&g_fy[n2], double(-f12[1]));
       atomicAdd(&g_fz[n2], double(-f12[2]));
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
+      // save virial
+      // xx xy xz    0 3 4
+      // yx yy yz    6 1 5
+      // zx zy zz    7 8 2
+      atomicAdd(&g_virial[n2 + 0 * N], double(-r12[0] * f12[0]));
+      atomicAdd(&g_virial[n2 + 1 * N], double(-r12[1] * f12[1]));
+      atomicAdd(&g_virial[n2 + 2 * N], double(-r12[2] * f12[2]));
+      atomicAdd(&g_virial[n2 + 3 * N], double(-r12[0] * f12[1]));
+      atomicAdd(&g_virial[n2 + 4 * N], double(-r12[0] * f12[2]));
+      atomicAdd(&g_virial[n2 + 5 * N], double(-r12[1] * f12[2]));
+      atomicAdd(&g_virial[n2 + 6 * N], double(-r12[1] * f12[0]));
+      atomicAdd(&g_virial[n2 + 7 * N], double(-r12[2] * f12[0]));
+      atomicAdd(&g_virial[n2 + 8 * N], double(-r12[2] * f12[1]));
     }
-    // save virial
-    // xx xy xz    0 3 4
-    // yx yy yz    6 1 5
-    // zx zy zz    7 8 2
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
   }
 }
 
@@ -510,15 +474,6 @@ static __global__ void find_force_ZBL_small_box(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
     float s_pe = 0.0f;
-    float s_sxx = 0.0f;
-    float s_sxy = 0.0f;
-    float s_sxz = 0.0f;
-    float s_syx = 0.0f;
-    float s_syy = 0.0f;
-    float s_syz = 0.0f;
-    float s_szx = 0.0f;
-    float s_szy = 0.0f;
-    float s_szz = 0.0f;
     int type1 = g_type[n1];
     float zi = zbl.atomic_numbers[type1];
     float pow_zi = pow(zi, 0.23f);
@@ -546,26 +501,17 @@ static __global__ void find_force_ZBL_small_box(
       atomicAdd(&g_fx[n2], double(-f12[0]));
       atomicAdd(&g_fy[n2], double(-f12[1]));
       atomicAdd(&g_fz[n2], double(-f12[2]));
-      s_sxx -= r12[0] * f12[0];
-      s_sxy -= r12[0] * f12[1];
-      s_sxz -= r12[0] * f12[2];
-      s_syx -= r12[1] * f12[0];
-      s_syy -= r12[1] * f12[1];
-      s_syz -= r12[1] * f12[2];
-      s_szx -= r12[2] * f12[0];
-      s_szy -= r12[2] * f12[1];
-      s_szz -= r12[2] * f12[2];
+      atomicAdd(&g_virial[n2 + 0 * N], double(-r12[0] * f12[0]));
+      atomicAdd(&g_virial[n2 + 1 * N], double(-r12[1] * f12[1]));
+      atomicAdd(&g_virial[n2 + 2 * N], double(-r12[2] * f12[2]));
+      atomicAdd(&g_virial[n2 + 3 * N], double(-r12[0] * f12[1]));
+      atomicAdd(&g_virial[n2 + 4 * N], double(-r12[0] * f12[2]));
+      atomicAdd(&g_virial[n2 + 5 * N], double(-r12[1] * f12[2]));
+      atomicAdd(&g_virial[n2 + 6 * N], double(-r12[1] * f12[0]));
+      atomicAdd(&g_virial[n2 + 7 * N], double(-r12[2] * f12[0]));
+      atomicAdd(&g_virial[n2 + 8 * N], double(-r12[2] * f12[1]));
       s_pe += f * 0.5f;
     }
-    g_virial[n1 + 0 * N] += s_sxx;
-    g_virial[n1 + 1 * N] += s_syy;
-    g_virial[n1 + 2 * N] += s_szz;
-    g_virial[n1 + 3 * N] += s_sxy;
-    g_virial[n1 + 4 * N] += s_sxz;
-    g_virial[n1 + 5 * N] += s_syz;
-    g_virial[n1 + 6 * N] += s_syx;
-    g_virial[n1 + 7 * N] += s_szx;
-    g_virial[n1 + 8 * N] += s_szy;
     g_pe[n1] += s_pe;
   }
 }
