@@ -12,7 +12,7 @@
 * Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A. Caro, Tapio Ala-Nissila, 
  [Quantum-corrected thickness-dependent thermal conductivity in amorphous silicon predicted by machine-learning molecular dynamics simulations](https://doi.org/10.48550/arXiv.2206.07605), arXiv:2206.07605 [cond-mat.mtrl-sci].
 
-## 2022 (13)
+## 2022 (14)
 
 * Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
 [GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics. (2022) In press.
@@ -26,6 +26,10 @@
 **25**, 100705 (2022).
 
 * Hao Feng, Kai Zhang, Xin Wang, Guiqing Zhang and Xiaoyong Guo, [Thermal transport of bilayer graphene: a homogeneous nonequilibrium molecular dynamics study](https://doi.org/10.1088/1402-4896/ac5af0), Physica Scripta, **97**, 045704 (2022).
+
+* Wenhao Sha, Xuan Dai, Siyu Chen and Fenglin Guo,
+[Phonon thermal transport in graphene/h-BN superlattice monolayers](https://doi.org/10.1016/j.diamond.2022.109341)
+Diamond and Related Materials, **129**, 109341 (2022).
 
 * Wenhao Sha and Fenglin Guo, [Thermal transport in two-dimensional carbon nitrides: A comparative molecular dynamics study](https://doi.org/10.1016/j.cartre.2022.100161), Carbon Trends, **7**, 100161 (2022).
 
