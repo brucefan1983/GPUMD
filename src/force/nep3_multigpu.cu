@@ -1231,6 +1231,15 @@ void NEP3_MULTIGPU::compute(
   int num_bins[3];
   box.get_num_bins(rc_cell_list, num_bins);
 
+  if (
+    (box.pbc_x && num_bins[0] < 3) || (box.pbc_y && num_bins[1] < 3) ||
+    (box.pbc_z && num_bins[2] < 3)) {
+    std::cout << "A periodic direction has less than three times of the NEP cutoff.\n";
+    std::cout << "This is not allowed for the multi-GPU version of NEP.\n";
+    std::cout << "Please increase the periodic direction(s).\n";
+    exit(1);
+  }
+
   int partition_direction = 2;
   int num_bins_longitudinal = num_bins[2] / paramb.num_gpus;
   int num_bins_transverse = num_bins[0] * num_bins[1];
