@@ -978,6 +978,15 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
   }
 
   if (is_small_box) {
+    if (thickness_x > 5 * rc || thickness_y > 5 * rc || thickness_z > 5 * rc) {
+      std::cout << "Error:\n"
+                << "    The box has\n"
+                << "        a thickness < 2.5 radial cutoffs in a periodic direction.\n"
+                << "        and a thickness > 5 radial cutoffs in another direction.\n"
+                << "    Please increase the periodic direction(s).\n";
+      exit(1);
+    }
+
     if (box.triclinic) {
       ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
       ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
