@@ -248,7 +248,7 @@ NEP3::NEP3(
   paramb.n_max_angular = para.n_max_angular;
   paramb.L_max = para.L_max;
   paramb.num_L = paramb.L_max;
-  if (version == 3) {
+  if (version >= 3) {
     if (para.L_max_4body == 2) {
       paramb.num_L += 1;
     }
@@ -298,6 +298,9 @@ void NEP3::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
+    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+      pointer -= (ann.dim + 2) * ann.num_neurons1;
+    }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim;
     ann.b0[t] = pointer;

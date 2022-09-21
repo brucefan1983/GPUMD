@@ -205,6 +205,12 @@ void Fitness::report_error(
       } else {
         fprintf(fid_nep, "nep3 %d ", para.num_types);
       }
+    } else if (para.version == 4) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4 %d ", para.num_types);
+      }
     }
 
     for (int n = 0; n < para.num_types; ++n) {

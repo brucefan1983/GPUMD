@@ -115,16 +115,16 @@ void Parameters::calculate_parameters()
 {
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
-  if (version == 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
+  if (version >= 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
     dim_angular += n_max_angular + 1;
   }
-  if (version == 3 && L_max_5body == 1) { // 5-body descriptors q^i_n1111
+  if (version >= 3 && L_max_5body == 1) { // 5-body descriptors q^i_n1111
     dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
   q_scaler_cpu.resize(dim, 1.0e10f);
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
 
   if (version == 2) {
     number_of_variables_descriptor =
@@ -340,8 +340,8 @@ void Parameters::parse_version(char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 3) {
-    PRINT_INPUT_ERROR("version should = 2 or 3.");
+  if (version < 2 || version > 4) {
+    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
   }
 }
 
