@@ -31,6 +31,10 @@ struct NEP3_Data {
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
+#ifdef JIAHUI
+  std::vector<int> cpu_NN_radial;
+  std::vector<int> cpu_NN_angular;
+#endif
 };
 
 class NEP3 : public Potential
@@ -83,11 +87,6 @@ public:
   NEP3(char* file_potential, const int num_atoms);
   virtual ~NEP3(void);
   virtual void compute(
-    const int group_method,
-    std::vector<Group>& group,
-    const int type_begin,
-    const int type_end,
-    const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -105,7 +104,6 @@ private:
   void update_potential(const float* parameters, ANN& ann);
 
   void compute_small_box(
-    const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -114,7 +112,6 @@ private:
     GPU_Vector<double>& virial);
 
   void compute_large_box(
-    const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

@@ -194,7 +194,7 @@ void SDC::postprocess(const char* input_dir)
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
   // normalize by the number of atoms and number of time origins
-  const double vac_scaler = 1.0 / (num_atoms_ * num_time_origins_);
+  const double vac_scaler = 1.0 / ((double)num_atoms_ * (double)num_time_origins_);
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     vacx_[nc] *= vac_scaler;
     vacy_[nc] *= vac_scaler;

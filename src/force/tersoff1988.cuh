@@ -19,11 +19,11 @@
 #include <stdio.h>
 
 struct Tersoff1988_Data {
-  GPU_Vector<float> b;    // bond orders
-  GPU_Vector<float> bp;   // derivative of bond orders
-  GPU_Vector<float> f12x; // partial forces
-  GPU_Vector<float> f12y;
-  GPU_Vector<float> f12z;
+  GPU_Vector<double> b;    // bond orders
+  GPU_Vector<double> bp;   // derivative of bond orders
+  GPU_Vector<double> f12x; // partial forces
+  GPU_Vector<double> f12y;
+  GPU_Vector<double> f12z;
   GPU_Vector<int> NN, NL; // neighbor list for angular-dependent potentials
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
@@ -36,11 +36,6 @@ public:
   Tersoff1988(FILE*, int sum_of_types, const int num_atoms);
   virtual ~Tersoff1988(void);
   virtual void compute(
-    const int group_method,
-    std::vector<Group>& group,
-    const int type_begin,
-    const int type_end,
-    const int type_shift,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,
@@ -50,6 +45,6 @@ public:
 
 protected:
   int num_types;
-  GPU_Vector<float> ters;
+  GPU_Vector<double> ters;
   Tersoff1988_Data tersoff_data;
 };

@@ -30,10 +30,6 @@ void find_cell_list(
 void find_neighbor(
   const int N1,
   const int N2,
-  const int group_method,
-  std::vector<Group>& group,
-  const int type_begin,
-  const int type_end,
   double rc,
   Box& box,
   const GPU_Vector<int>& type,

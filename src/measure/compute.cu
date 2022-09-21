@@ -40,6 +40,8 @@ void Compute::preprocess(const int N, const char* input_dir, const std::vector<G
     number_of_scalars += 3;
   if (compute_jk)
     number_of_scalars += 3;
+  if (compute_momentum)
+    number_of_scalars += 3;
   if (number_of_scalars == 0)
     return;
 
@@ -70,6 +72,7 @@ void Compute::postprocess()
   compute_virial = 0;
   compute_jp = 0;
   compute_jk = 0;
+  compute_momentum = 0;
 }
 
 static __global__ void find_per_atom_temperature(
@@ -138,6 +141,28 @@ static __global__ void find_per_atom_jk(
     g_jx[n] = vx * energy;
     g_jy[n] = vy * energy;
     g_jz[n] = vz * energy;
+  }
+}
+
+static __global__ void find_per_atom_momentum(
+  const int N,
+  const double* g_mass,
+  const double* g_vx,
+  const double* g_vy,
+  const double* g_vz,
+  double* g_momentumx,
+  double* g_momentumy,
+  double* g_momentumz)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    double mass = g_mass[n];
+    double vx = g_vx[n];
+    double vy = g_vy[n];
+    double vz = g_vz[n];
+    g_momentumx[n] = vx * mass;
+    g_momentumy[n] = vy * mass;
+    g_momentumz[n] = vz * mass;
   }
 }
 
@@ -320,6 +345,20 @@ void Compute::process(
     CUDA_CHECK_KERNEL
     offset += Ng * 3;
   }
+  if (compute_momentum) {
+    find_per_atom_momentum<<<(N - 1) / 256 + 1, 256>>>(
+      N, mass.data(), velocity_per_atom.data(), velocity_per_atom.data() + N,
+      velocity_per_atom.data() + 2 * N, gpu_per_atom_x.data(), gpu_per_atom_y.data(),
+      gpu_per_atom_z.data());
+    CUDA_CHECK_KERNEL
+
+    find_group_sum_3<<<Ng, 256>>>(
+      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(), gpu_per_atom_x.data(), gpu_per_atom_y.data(),
+      gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
+    CUDA_CHECK_KERNEL
+    offset += Ng * 3;
+  }
 
   gpu_group_sum.copy_to_host(cpu_group_sum.data());
 
@@ -410,6 +449,9 @@ void Compute::parse(char** param, int num_param, const std::vector<Group>& group
     } else if (strcmp(param[k + 4], "jk") == 0) {
       compute_jk = 1;
       printf("    kinetic part of heat current\n");
+    } else if (strcmp(param[k + 4], "momentum") == 0) {
+      compute_momentum = 1;
+      printf("    momentum\n");
     } else {
       PRINT_INPUT_ERROR("Invalid property for compute.");
     }

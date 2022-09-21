@@ -257,6 +257,10 @@ NEP3::NEP3(char* file_potential, const int num_atoms)
   nep_data.cell_count.resize(num_atoms);
   nep_data.cell_count_sum.resize(num_atoms);
   nep_data.cell_contents.resize(num_atoms);
+#ifdef JIAHUI
+  nep_data.cpu_NN_radial.resize(num_atoms);
+  nep_data.cpu_NN_angular.resize(num_atoms);
+#endif
 }
 
 NEP3::~NEP3(void)
@@ -803,7 +807,6 @@ static __global__ void find_force_ZBL(
 
 // large box fo MD applications
 void NEP3::compute_large_box(
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -830,6 +833,27 @@ void NEP3::compute_large_box(
     position_per_atom.data() + N, position_per_atom.data() + N * 2, nep_data.NN_radial.data(),
     nep_data.NL_radial.data(), nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
+
+#ifdef JIAHUI
+  static int num_calls = 0;
+  if (num_calls++ % 1000 == 0) {
+    nep_data.NN_radial.copy_to_host(nep_data.cpu_NN_radial.data());
+    nep_data.NN_angular.copy_to_host(nep_data.cpu_NN_angular.data());
+    int radial_actual = 0;
+    int angular_actual = 0;
+    for (int n = 0; n < N; ++n) {
+      if (radial_actual < nep_data.cpu_NN_radial[n]) {
+        radial_actual = nep_data.cpu_NN_radial[n];
+      }
+      if (angular_actual < nep_data.cpu_NN_angular[n]) {
+        angular_actual = nep_data.cpu_NN_angular[n];
+      }
+    }
+    printf(
+      "Neighbor info: radial (max=%d, actual=%d), angular (max=%d, actual=%d).\n", paramb.MN_radial,
+      radial_actual, paramb.MN_angular, angular_actual);
+  }
+#endif
 
   gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
     N, nep_data.NN_radial.data(), nep_data.NL_radial.data());
@@ -876,7 +900,6 @@ void NEP3::compute_large_box(
 
 // small box possibly used for active learning:
 void NEP3::compute_small_box(
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -955,6 +978,15 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
   }
 
   if (is_small_box) {
+    if (thickness_x > 5 * rc || thickness_y > 5 * rc || thickness_z > 5 * rc) {
+      std::cout << "Error:\n"
+                << "    The box has\n"
+                << "        a thickness < 2.5 radial cutoffs in a periodic direction.\n"
+                << "        and a thickness > 5 radial cutoffs in another direction.\n"
+                << "    Please increase the periodic direction(s).\n";
+      exit(1);
+    }
+
     if (box.triclinic) {
       ebox.h[0] = box.cpu_h[0] * ebox.num_cells[0];
       ebox.h[3] = box.cpu_h[3] * ebox.num_cells[0];
@@ -995,11 +1027,6 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
 }
 
 void NEP3::compute(
-  const int group_method,
-  std::vector<Group>& group,
-  const int type_begin,
-  const int type_end,
-  const int type_shift,
   Box& box,
   const GPU_Vector<int>& type,
   const GPU_Vector<double>& position_per_atom,
@@ -1011,11 +1038,9 @@ void NEP3::compute(
 
   if (is_small_box) {
     compute_small_box(
-      type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
-      virial_per_atom);
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   } else {
     compute_large_box(
-      type_shift, box, type, position_per_atom, potential_per_atom, force_per_atom,
-      virial_per_atom);
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 }

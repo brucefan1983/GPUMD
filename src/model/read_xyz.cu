@@ -186,7 +186,7 @@ static void read_xyz_line_2(
   int* property_offset,
   std::vector<Group>& group)
 {
-  std::vector<std::string> tokens = get_tokens(input);
+  std::vector<std::string> tokens = get_tokens_without_unwanted_spaces(input);
   for (auto& token : tokens) {
     std::transform(
       token.begin(), token.end(), token.begin(), [](unsigned char c) { return std::tolower(c); });
@@ -469,10 +469,7 @@ static std::string get_filename_potential(char* input_dir)
 {
   std::ifstream input_run(input_dir + std::string("/run.in"));
   if (!input_run.is_open()) {
-    input_run.open(input_dir + std::string("/phonon.in"));
-    if (!input_run.is_open()) {
-      PRINT_INPUT_ERROR("No run.in or phonon.in.");
-    }
+    PRINT_INPUT_ERROR("No run.in.");
   }
 
   std::string line;

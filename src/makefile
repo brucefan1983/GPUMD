@@ -1,17 +1,12 @@
 ###########################################################
 # Note: 
-# 1) Add -DDEBUG to CFLAGS if you want to have the same
-#    outputs for the same inputs and remove it otherwise.
-# 2) You can modify -arch=sm_35 according to 
+# 1) You can modify -arch=sm_35 according to 
 #    your GPU architecture.
-# 3) For Windows systems, if you got errors like 
+# 2) For Windows systems, if you get errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
 #    You can consider removing -Xcompiler "/wd 4819"
-# 4) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
+# 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
-# 5) Add -DUSE_FIXED_NEIGHBOR to CFLAGS if you want to
-#    use a fixed neighbor list for empirical potentials
-#    (This can make the MD simulation much faster.)
 ###########################################################
 
 

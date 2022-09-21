@@ -33,10 +33,10 @@ public:
     force_per_atom_temp_.resize(number_of_atoms * 3);
 
     force_square_max_.resize(1);
-    potential_difference_.resize(1);
+    total_potential_.resize(2);
 
     cpu_force_square_max_.resize(1);
-    cpu_potential_difference_.resize(1);
+    cpu_total_potential_.resize(2);
   }
 
   virtual ~Minimizer() = default;
@@ -52,7 +52,7 @@ public:
     GPU_Vector<double>& virial_per_atom) = 0;
 
 protected:
-  void calculate_potential_difference(const GPU_Vector<double>& potential_per_atom);
+  void calculate_total_potential(const GPU_Vector<double>& potential_per_atom);
 
   void calculate_force_square_max(const GPU_Vector<double>& force_per_atom);
 
@@ -64,7 +64,7 @@ protected:
   GPU_Vector<double> potential_per_atom_temp_;
   GPU_Vector<double> force_per_atom_temp_;
   GPU_Vector<double> force_square_max_;
-  GPU_Vector<double> potential_difference_;
+  GPU_Vector<double> total_potential_;
   std::vector<double> cpu_force_square_max_;
-  std::vector<double> cpu_potential_difference_;
+  std::vector<double> cpu_total_potential_;
 };

@@ -46,9 +46,93 @@ FILE* my_fopen(const char* filename, const char* mode)
   return fid;
 }
 
+static std::string remove_spaces_step1(const std::string& line)
+{
+  std::vector<int> indices_for_spaces(line.size(), 0);
+  for (int n = 0; n < line.size(); ++n) {
+    if (line[n] == '=') {
+      for (int k = 1; n - k >= 0; ++k) {
+        if (line[n - k] == ' ' || line[n - k] == '\t') {
+          indices_for_spaces[n - k] = 1;
+        } else {
+          break;
+        }
+      }
+      for (int k = 1; n + k < line.size(); ++k) {
+        if (line[n + k] == ' ' || line[n + k] == '\t') {
+          indices_for_spaces[n + k] = 1;
+        } else {
+          break;
+        }
+      }
+    }
+  }
+
+  std::string new_line;
+  for (int n = 0; n < line.size(); ++n) {
+    if (!indices_for_spaces[n]) {
+      new_line += line[n];
+    }
+  }
+
+  return new_line;
+}
+
+static std::string remove_spaces(const std::string& line_input)
+{
+  auto line = remove_spaces_step1(line_input);
+
+  std::vector<int> indices_for_spaces(line.size(), 0);
+  for (int n = 0; n < line.size(); ++n) {
+    if (line[n] == '\"') {
+      if (n == 0) {
+        PRINT_INPUT_ERROR("The second line of the .xyz file should not begin with \".\n");
+      } else {
+        if (line[n - 1] == '=') {
+          for (int k = 1; n + k < line.size(); ++k) {
+            if (line[n + k] == ' ' || line[n + k] == '\t') {
+              indices_for_spaces[n + k] = 1;
+            } else {
+              break;
+            }
+          }
+        } else {
+          for (int k = 1; n - k >= 0; ++k) {
+            if (line[n - k] == ' ' || line[n - k] == '\t') {
+              indices_for_spaces[n - k] = 1;
+            } else {
+              break;
+            }
+          }
+        }
+      }
+    }
+  }
+
+  std::string new_line;
+  for (int n = 0; n < line.size(); ++n) {
+    if (!indices_for_spaces[n]) {
+      new_line += line[n];
+    }
+  }
+
+  return new_line;
+}
+
 std::vector<std::string> get_tokens(const std::string& line)
 {
   std::istringstream iss(line);
+  std::vector<std::string> tokens{
+    std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
+  return tokens;
+}
+
+std::vector<std::string> get_tokens_without_unwanted_spaces(std::ifstream& input)
+{
+  std::string line;
+  std::getline(input, line);
+  auto line_without_unwanted_spaces = remove_spaces(line);
+  std::istringstream iss(line_without_unwanted_spaces);
   std::vector<std::string> tokens{
     std::istream_iterator<std::string>{iss}, std::istream_iterator<std::string>{}};
   return tokens;

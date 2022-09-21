@@ -445,13 +445,6 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
       }
       printf("    tau_p is %g time_step.\n", tau_p);
 
-      print_line_1();
-      printf("Warning: Starting from GPUMD-v3.3.1, we change to use the Voigt\n");
-      printf("         nonation for pressure and modulus components.\n");
-      printf("         Previously they are ordered as: xx yy zz xy xz yz\n");
-      printf("         Now they are ordered as: xx yy zz yz xz xy\n");
-      print_line_2();
-
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
@@ -489,13 +482,6 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
         printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
       }
       printf("    tau_p is %g time_step.\n", tau_p);
-
-      print_line_1();
-      printf("Warning: Starting from GPUMD-v3.3.1, we change to use the Voigt\n");
-      printf("         nonation for pressure and modulus components.\n");
-      printf("         Previously they are ordered as: xx yy zz xy xz yz\n");
-      printf("         Now they are ordered as: xx yy zz yz xz xy\n");
-      print_line_2();
 
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
