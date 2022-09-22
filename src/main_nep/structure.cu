@@ -211,7 +211,7 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
             (m == 0) ? (stress_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           __FILE__, __LINE__);
-        virials_from_stress[reduced_index[m]] *= volume / structure.num_atom;
+        virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
       }
     }
   }
@@ -222,7 +222,6 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
         PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
       }
-      structure.virial[m] = virials_from_stress[m];
     }
     std::cout << "Structure has both defined virials and stresses. Will use virial information.\n";
   } else if (!structure.has_virial && has_stress) {
