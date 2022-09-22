@@ -65,9 +65,9 @@ public:
     int dim = 0;          // dimension of the descriptor
     int num_neurons1 = 0; // number of neurons in the 1st hidden layer
     int num_para = 0;     // number of parameters
-    const float* w0;      // weight from the input layer to the hidden layer
-    const float* b0;      // bias for the hidden layer
-    const float* w1;      // weight from the hidden layer to the output layer
+    const float* w0[100]; // weight from the input layer to the hidden layer
+    const float* b0[100]; // bias for the hidden layer
+    const float* w1[100]; // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
     const float* c;
   };
@@ -101,7 +101,7 @@ private:
   NEP3_Data nep_data;
   ExpandedBox ebox;
 
-  void update_potential(const float* parameters, ANN& ann);
+  void update_potential(float* parameters, ANN& ann);
 
   void compute_small_box(
     Box& box,

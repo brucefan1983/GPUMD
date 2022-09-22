@@ -31,7 +31,7 @@ Get the fitness
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
   print_line_1();
-  printf("Started reading train.in.\n");
+  printf("Started reading train.xyz.\n");
   print_line_2();
 
   int deviceCount;
@@ -67,7 +67,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     }
   }
   print_line_1();
-  printf("Started reading test.in.\n");
+  printf("Started reading test.xyz.\n");
   print_line_2();
   std::vector<Structure> structures_test;
   read_structures(false, input_dir, para, structures_test);
@@ -205,6 +205,12 @@ void Fitness::report_error(
       } else {
         fprintf(fid_nep, "nep3 %d ", para.num_types);
       }
+    } else if (para.version == 4) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4 %d ", para.num_types);
+      }
     }
 
     for (int n = 0; n < para.num_types; ++n) {
@@ -218,7 +224,7 @@ void Fitness::report_error(
       fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
       max_NN_angular);
     fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-    if (para.version == 3) {
+    if (para.version >= 3) {
       fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
       fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
     } else {
