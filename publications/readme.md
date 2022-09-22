@@ -15,7 +15,7 @@
 ## 2022 (15)
 
 * Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
-[GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics. (2022) In press.
+[GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics **157**, 114801 (2022).
 
 * Alexander J. Gabourie,  Çağıl Köroğlu, and  Eric Pop, [Substrate-dependence of monolayer MoS2 thermal conductivity and thermal boundary conductance](https://doi.org/10.1063/5.0089247), Journal of Applied Physics **131**, 195103 (2022).
 
