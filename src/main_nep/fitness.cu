@@ -31,7 +31,7 @@ Get the fitness
 Fitness::Fitness(char* input_dir, Parameters& para)
 {
   print_line_1();
-  printf("Started reading train.in.\n");
+  printf("Started reading train.xyz.\n");
   print_line_2();
 
   int deviceCount;
@@ -67,7 +67,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     }
   }
   print_line_1();
-  printf("Started reading test.in.\n");
+  printf("Started reading test.xyz.\n");
   print_line_2();
   std::vector<Structure> structures_test;
   read_structures(false, input_dir, para, structures_test);
