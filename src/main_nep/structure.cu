@@ -211,7 +211,7 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
             (m == 0) ? (stress_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
           __FILE__, __LINE__);
-        virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
+        virials_from_stress[reduced_index[m]] *= volume / structure.num_atom;
       }
     }
   }
