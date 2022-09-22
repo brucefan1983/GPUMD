@@ -72,7 +72,8 @@ void Force::parse_potential(
     is_fcp = true;
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
-    strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0) {
+    strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
+    strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0) {
     int num_gpus;
     CHECK(cudaGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG

@@ -216,7 +216,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   paramb.rcinv_angular = 1.0f / paramb.rc_angular;
   paramb.num_types_sq = paramb.num_types * paramb.num_types;
 
-  annmb[0].num_para = (annmb[0].dim + 2) * annmb[0].num_neurons1 + 1;
+  annmb[0].num_para =
+    (annmb[0].dim + 2) * annmb[0].num_neurons1 * (paramb.version == 4 ? paramb.num_types : 1) + 1;
   printf("    number of neural network parameters = %d.\n", annmb[0].num_para);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
