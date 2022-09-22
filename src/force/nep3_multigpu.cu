@@ -72,6 +72,12 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   } else if (tokens[0] == "nep3_zbl") {
     paramb.version = 3;
     zbl.enabled = true;
+  } else if (tokens[0] == "nep4") {
+    paramb.version = 4;
+    zbl.enabled = false;
+  } else if (tokens[0] == "nep4_zbl") {
+    paramb.version = 4;
+    zbl.enabled = true;
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   if (tokens.size() != 2 + paramb.num_types) {
@@ -80,18 +86,10 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
     exit(1);
   }
 
-  if (paramb.version == 2) {
-    if (paramb.num_types == 1) {
-      printf("Use the NEP2 potential with %d atom type.\n", paramb.num_types);
-    } else {
-      printf("Use the NEP2 potential with %d atom types.\n", paramb.num_types);
-    }
+  if (paramb.num_types == 1) {
+    printf("Use the NEP%d potential with %d atom type.\n", paramb.version, paramb.num_types);
   } else {
-    if (paramb.num_types == 1) {
-      printf("Use the NEP3 potential with %d atom type.\n", paramb.num_types);
-    } else {
-      printf("Use the NEP3 potential with %d atom types.\n", paramb.num_types);
-    }
+    printf("Use the NEP%d potential with %d atom types.\n", paramb.version, paramb.num_types);
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -156,7 +154,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   printf("    n_max_angular = %d.\n", paramb.n_max_angular);
 
   // basis_size 10 8
-  if (paramb.version == 3) {
+  if (paramb.version >= 3) {
     tokens = get_tokens(input);
     if (tokens.size() != 3) {
       std::cout << "This line should be basis_size basis_size_radial basis_size_angular."
@@ -176,7 +174,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
       std::cout << "This line should be l_max l_max_3body." << std::endl;
       exit(1);
     }
-  } else if (paramb.version == 3) {
+  } else {
     if (tokens.size() != 4) {
       std::cout << "This line should be l_max l_max_3body l_max_4body l_max_5body." << std::endl;
       exit(1);
@@ -187,7 +185,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int
   printf("    l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
 
-  if (paramb.version == 3) {
+  if (paramb.version >= 3) {
     int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
     int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
     printf("    l_max_4body = %d.\n", L_max_4body);
@@ -325,12 +323,21 @@ NEP3_MULTIGPU::~NEP3_MULTIGPU(void)
   }
 }
 
-void NEP3_MULTIGPU::update_potential(const float* parameters, ANN& ann)
+void NEP3_MULTIGPU::update_potential(float* parameters, ANN& ann)
 {
-  ann.w0 = parameters;
-  ann.b0 = ann.w0 + ann.num_neurons1 * ann.dim;
-  ann.w1 = ann.b0 + ann.num_neurons1;
-  ann.b1 = ann.w1 + ann.num_neurons1;
+  float* pointer = parameters;
+  for (int t = 0; t < paramb.num_types; ++t) {
+    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+      pointer -= (ann.dim + 2) * ann.num_neurons1;
+    }
+    ann.w0[t] = pointer;
+    pointer += ann.num_neurons1 * ann.dim;
+    ann.b0[t] = pointer;
+    pointer += ann.num_neurons1;
+    ann.w1[t] = pointer;
+    pointer += ann.num_neurons1;
+  }
+  ann.b1 = pointer;
   ann.c = ann.b1 + 1;
 }
 
@@ -735,7 +742,7 @@ static __global__ void find_descriptor(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0, annmb.b0, annmb.w1, annmb.b1, q, F, Fp);
+      annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
