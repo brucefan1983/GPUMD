@@ -196,6 +196,41 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       }
     }
   }
+  // if stresses are available, read them and convert them to per atom virials
+  bool has_stress = false;
+  std::vector<float> virials_from_stress(6);
+  for (int n = 0; n < tokens.size(); ++n) {
+    const std::string stress_string = "stress=";
+    if (tokens[n].substr(0, stress_string.length()) == stress_string) {
+      has_stress = true;
+      float volume = abs(get_det(structure.box_original));
+      const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
+      for (int m = 0; m < 9; ++m) {
+        virials_from_stress[reduced_index[m]] = get_float_from_token(
+          tokens[n + m].substr(
+            (m == 0) ? (stress_string.length() + 1) : 0,
+            (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+          __FILE__, __LINE__);
+        virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
+      }
+    }
+  }
+  if (structure.has_virial && has_stress) {
+    // assert stresses and virials are consistent
+    const float tol = 1e-3;
+    for (int m = 0; m < 6; ++m) {
+      if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
+        PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
+      }
+    }
+    std::cout << "Structure has both defined virials and stresses. Will use virial information.\n";
+  } else if (!structure.has_virial && has_stress) {
+    // save virials from stress to structure virials
+    for (int m = 0; m < 6; ++m) {
+      structure.virial[m] = virials_from_stress[m];
+    }
+    structure.has_virial = true;
+  }
 
   int species_offset = 0;
   int pos_offset = 0;
