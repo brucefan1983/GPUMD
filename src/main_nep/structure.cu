@@ -217,7 +217,7 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
   }
   if (structure.has_virial && has_stress) {
     // assert stresses and virials are consistent
-    const float tol = 1e-6;
+    const float tol = 1e-3;
     for (int m = 0; m < 6; ++m) {
       if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
         PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
