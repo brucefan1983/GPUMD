@@ -3,7 +3,7 @@
 | deep2nep    | Ke XU        | Python   | Convert DeePMD-kit (https://github.com/deepmodeling/deepmd-kit) training data to NEP format | 
 | mtp2nep     | Junjie WANG  | Python   | Convert MTP training data to NEP format |
 | nep2xyz     | Ke XU        | Python   | Convert NEP training data to XYZ file format |
-| vasp2xyz    | Yanzhou WANG | Shell    | Create NEP training data in the extended XYZ format from the ugly formatted VASP output |
+| vasp2xyz    | Yanzhou WANG, Yuwen ZHANG | Shell    | Create NEP training data in the extended XYZ format from the ugly formatted VASP output. 'singleFrame-outcars2nep-exyz.sh' script is for the single-point calculations that one frame usually is included in each OUTCAR file; 'multipleFrames-outcars2nep-exyz.sh' script is for the calculations like AIMD or structue relaxiation runs that multiple frames exist in single OUTCAR files. |
 | split_train | Zheyong FAN  | C++      | Split one NEP training data set into one training set and one testing set |
 | merge_nep   | Ke XU        | Shell    | merge two or more NEP training data sets into one |
 | for_coding  | Zheyong FAN  | Matlab   | Used for developing GPUMD (the users can ignore this) |
