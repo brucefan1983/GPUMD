@@ -179,7 +179,9 @@ void Fitness::report_error(
     float rmse_virial_train = train_set[batch_id][0].get_rmse_virial(false, 0);
 
     // correct the last bias parameter in the NN
-    elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
+    if (para.train_mode == 0) {
+      elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
+    }
 
     potential->find_force(para, elite, test_set, false, 1);
     float energy_shift_per_structure_not_used;

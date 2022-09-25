@@ -65,6 +65,12 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
 
+#ifdef POLAR
+  train_mode = 2;
+#else
+  train_mode = 0;
+#endif
+
   version = 2;                   // default version is NEP2
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 5.0f;             // large enough in most cases
