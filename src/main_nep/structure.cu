@@ -231,6 +231,11 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     }
     structure.has_virial = true;
   }
+  if (!structure.has_virial) { 
+      for (int m = 0; m < 6; ++m) { 
+          structure.virial[m] = -1e6; 
+        } 
+  } 
 
   int species_offset = 0;
   int pos_offset = 0;
