@@ -374,9 +374,9 @@ void Run::parse_run(char** param, int num_param, char* input_dir)
   force.set_hnemd_parameters(
     compute_hnemd, measure.hnemd.fe_x, measure.hnemd.fe_y, measure.hnemd.fe_z);
 
-  if (!compute_hnemd && (measure.hnemdec.compute != 0)) {
-    if (number_of_types != 2) {
-      PRINT_INPUT_ERROR("There should be 2 atom types.\n");
+  if (!compute_hnemd && (measure.hnemdec.compute != -1)) {
+    if ((measure.hnemdec.compute > number_of_types) || (measure.hnemdec.compute < 0)) {
+      PRINT_INPUT_ERROR("compute for HNEMDEC should be an integer number between 0 and number_of_types.\n");
     }
     force.set_hnemdec_parameters(
       measure.hnemdec.compute, measure.hnemdec.fe_x, measure.hnemdec.fe_y, measure.hnemdec.fe_z,

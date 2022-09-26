@@ -63,7 +63,7 @@ public:
     const double T);
 
   bool compute_hnemd_ = false;
-  int compute_hnemdec_ = 0;
+  int compute_hnemdec_ = -1;
   double hnemd_fe_[3];
   double temperature;
   GPU_Vector<double> coefficient;
