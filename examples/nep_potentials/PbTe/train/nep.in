@@ -1,8 +1,3 @@
 type         2 Te Pb
-version      3
-cutoff       8 4
-n_max        4 4
-l_max        4 2
-neuron       30
 batch        25
 generation   10000
