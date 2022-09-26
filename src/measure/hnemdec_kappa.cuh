@@ -19,23 +19,23 @@
 class HNEMDEC
 {
 public:
-  int compute = 0;     //1 for heat flow algorithm, 2 for color conductivity algorithm
+  int compute = -1; //0 for heat flow algorithm, i(0<i<number_of_types+1) means producing (i-1)th element's mass flow as dissipation flux in color conductivity algorithm
   int output_interval; // average the data every so many time steps
 
-  // the driving "force" vector (in units of 1/A)
+  // the driving force vector
   double fe_x = 0.0;
   double fe_y = 0.0;
   double fe_z = 0.0;
-  double fe = 0.0; // magnitude of the driving "force" vector
+  double fe = 0.0; // magnitude of the driving force vector
 
-  std::vector<double> cpu_mass_type; // 2 atom types' mass
+  int number_of_types;
+  int NUM_OF_DIFFUSION_COMPONENTS;
+  std::vector<double> cpu_mass_type; // atom types' mass
   GPU_Vector<double> mass_type;
-  std::vector<double>cpu_fraction; // 2 atom types' factor, cpu_fraction[0]=N2/N, cpu_fraction[1]=-N1/N
-  GPU_Vector<double> fraction;
-  double scale; // (x2/m1+x1/m2)^-1 for compute=1, (x2/m1+x1/m2)^-2 for compute=2
+  double FACTOR; 
 
   GPU_Vector<double> heat_all;
-  GPU_Vector<double> diffusive_all;
+  GPU_Vector<double> diffusion_all;
 
   void preprocess(
     const std::vector<double>& mass,

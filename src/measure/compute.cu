@@ -157,12 +157,9 @@ static __global__ void find_per_atom_momentum(
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
     double mass = g_mass[n];
-    double vx = g_vx[n];
-    double vy = g_vy[n];
-    double vz = g_vz[n];
-    g_momentumx[n] = vx * mass;
-    g_momentumy[n] = vy * mass;
-    g_momentumz[n] = vz * mass;
+    g_momentumx[n] = g_vx[n] * mass;
+    g_momentumy[n] = g_vy[n] * mass;
+    g_momentumz[n] = g_vz[n] * mass;
   }
 }
 

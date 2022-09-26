@@ -243,57 +243,54 @@ void Force::set_hnemdec_parameters(
   const double T)
 {
   int N = mass.size();
-  int N1 = type_size[0];
-  int N2 = type_size[1];
   int number_of_types = type_size.size();
   compute_hnemdec_ = compute_hnemdec;
   temperature = T;
-  std::vector<double> cpu_coefficient;
 
-  // find 2 atom types' mass or fraction
-  if (compute_hnemdec_ == 1) {
-    std::vector<double> mass_type;
-    mass_type.resize(number_of_types);
-    int find_mass_type = 0;
-    for (int i = 0; i < mass_type.size(); i++) {
-      mass_type[i] = 0;
-    }
-    for (int i = 0; i < N; i++) {
+  double total_mass = 0;
+  std::vector<double> cpu_coefficient;
+  std::vector<double> mass_type;
+  mass_type.resize(number_of_types); 
+  int find_mass_type = 0;
+  for (int i = 0; i < N; i++) {
       if (mass_type[type[i]] != mass[i]) {
         mass_type[type[i]] = mass[i];
         find_mass_type += 1;
       }
-      if (find_mass_type == 2) {
-        break;
-      }
+      total_mass += mass[i];
+    }
+  if (find_mass_type != number_of_types) {
+      PRINT_INPUT_ERROR("mass type and element type do not match.\n");
+  }
+  
+  // find atom types' fraction
+  if (compute_hnemdec_ == 0) {
+    cpu_coefficient.resize(number_of_types * 2);
+    coefficient.resize(number_of_types * 2);
+
+    for (int i = 0; i < number_of_types; i++) {
+      double c_hv = (total_mass - N * mass_type[i]) / total_mass;
+      cpu_coefficient[i * 2] = (c_hv - 1) / N;
+      cpu_coefficient[i * 2 + 1] = K_B * temperature * c_hv;
     }
 
-    int COEFF_NUM = 4;
-    cpu_coefficient.resize(COEFF_NUM);
-    coefficient.resize(COEFF_NUM);
-
-    double m1 = mass_type[0];
-    double m2 = mass_type[1];
-    double miu = 1 / m1 - 1 / m2;
-    double tmp = m1 * m2 / (m1 * N1 + m2 * N2);
-    double c1 = miu * N2 * tmp;
-    double c2 = -1 * miu * N1 * tmp;
-    double c11 = (c1 - 1) / N;
-    double c12 = c1 * K_B * temperature;
-    double c21 = (c2 - 1) / N;
-    double c22 = c2 * K_B * temperature;
-
-    cpu_coefficient[0] = c11;
-    cpu_coefficient[1] = c21;
-    cpu_coefficient[2] = c12;
-    cpu_coefficient[3] = c22;
     coefficient.copy_from_host(cpu_coefficient.data());
-  } else if (compute_hnemdec_ == 2) {
-    int COEFF_NUM = 2;
-    cpu_coefficient.resize(COEFF_NUM);
-    cpu_coefficient[0] = N2 / double(N);
-    cpu_coefficient[1] = -1 * N1 / double(N);
-    coefficient.resize(COEFF_NUM);
+  } else if ((compute_hnemdec_ > 0) && (compute_hnemdec_ <= number_of_types)) {
+    int element_index = compute_hnemdec_ - 1;
+    cpu_coefficient.resize(number_of_types);
+    cpu_coefficient[element_index] = double(N) / type_size[element_index];
+    double patial_mass = 0;
+    for (int i = 0; i < number_of_types; i++) {
+      if (i != element_index) {
+        patial_mass += mass_type[i] * type_size[i];
+      }
+    }
+    for (int i = 0; i < number_of_types; i++) {
+      if (i != element_index) {
+        cpu_coefficient[i] = -1 * N * mass_type[i] / patial_mass;
+      }
+    }
+    coefficient.resize(number_of_types);
     coefficient.copy_from_host(cpu_coefficient.data());
   }
 
@@ -516,7 +513,7 @@ static __global__ void gpu_sum_tensor(int N, double* g_tensor, double* g_sum_ten
 
 static __global__ void gpu_add_driving_force(
   int N,
-  const double* coefficient,
+  const double* g_coefficient,
   const int* g_type,
   double fe_x,
   double fe_y,
@@ -536,13 +533,11 @@ static __global__ void gpu_add_driving_force(
   double* g_fz)
 {
   // heat flow algorithm
-  // coefficient: c11,c21,c12,c22
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    int type = g_type[i];
-    double coefficient1 = coefficient[type];
-    double coefficient2 = coefficient[type + 2];
-
+    int type2 = g_type[i] * 2;
+    double coefficient1 = g_coefficient[type2];
+    double coefficient2 = g_coefficient[type2 + 1];
     // the tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
@@ -573,12 +568,9 @@ static __global__ void gpu_add_driving_force(
   double* g_fz)
 {
   // color conductivity algorithm
-  // coefficient: c1,c2
   int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    int type = g_type[i];
-    double coefficient = g_coefficient[type];
-
+    double coefficient = g_coefficient[g_type[i]];
     g_fx[i] += fe_x * coefficient;
     g_fy[i] += fe_y * coefficient;
     g_fz[i] += fe_z * coefficient;
@@ -637,7 +629,7 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
     CUDA_CHECK_KERNEL
-  } else if (compute_hnemdec_ == 1) {
+  } else if (compute_hnemdec_ == 0) {
     // the tensor:
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
@@ -668,7 +660,7 @@ void Force::compute(
       force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
     CUDA_CHECK_KERNEL
 
-  } else if (compute_hnemdec_ == 2) {
+  } else if (compute_hnemdec_ != -1) {
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, coefficient.data(), type.data(), hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
       force_per_atom.data(), force_per_atom.data() + number_of_atoms,
