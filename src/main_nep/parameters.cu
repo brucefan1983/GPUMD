@@ -65,27 +65,27 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
 
-  version = 2;                   // default version is NEP2
+  version = 4;                   // NEP4 is the best
   rc_radial = 8.0f;              // large enough for vdw/coulomb
-  rc_angular = 5.0f;             // large enough in most cases
-  basis_size_radial = 8;         // default value for nep3
-  basis_size_angular = 8;        // default value for nep3
-  n_max_radial = 8;              // large enough in most cases
-  n_max_angular = 6;             // large enough in most cases
+  rc_angular = 4.0f;             // large enough in most cases
+  basis_size_radial = 8;         // large enough in most cases
+  basis_size_angular = 8;        // large enough in most cases
+  n_max_radial = 4;              // a relatively small value to achieve high speed
+  n_max_angular = 4;             // a relatively small value to achieve high speed
   L_max = 4;                     // the only supported value
-  L_max_4body = 0;               // default is not to include 4body
+  L_max_4body = 2;               // default is to include 4body
   L_max_5body = 0;               // default is not to include 5body
-  num_neurons1 = 50;             // large enough in most cases
+  num_neurons1 = 30;             // a relatively small value to achieve high speed
   lambda_1 = lambda_2 = 5.0e-2f; // good default based on our tests
   lambda_e = lambda_f = 1.0f;    // energy and force are more important
   lambda_v = 0.1f;               // virial is less important
   force_delta = 0.0f;            // no modification of force loss
-  batch_size = 1000000;          // a very large number means full-batch
+  batch_size = 1000;             // large enough in most cases
   population_size = 50;          // almost optimal
   maximum_generation = 100000;   // a good starting point
   type_weight_cpu.resize(MAX_NUM_TYPES);
   for (int n = 0; n < MAX_NUM_TYPES; ++n) {
-    type_weight_cpu[n] = {1.0f}; // uniform weight by default
+    type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
   enable_zbl = false; // default is not to include ZBL
 }
