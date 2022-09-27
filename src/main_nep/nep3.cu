@@ -731,6 +731,14 @@ void NEP3::find_force(
       CUDA_CHECK_KERNEL
     }
 
+    zero_force<<<grid_size, block_size>>>(
+      dataset[device_id].N, dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2, dataset[device_id].virial.data(),
+      dataset[device_id].virial.data() + dataset[device_id].N,
+      dataset[device_id].virial.data() + dataset[device_id].N * 2);
+    CUDA_CHECK_KERNEL
+
     if (para.train_mode == 2) {
       apply_ann<<<grid_size, block_size>>>(
         true, dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
@@ -746,14 +754,6 @@ void NEP3::find_force(
         nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     }
-
-    zero_force<<<grid_size, block_size>>>(
-      dataset[device_id].N, dataset[device_id].force.data(),
-      dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2, dataset[device_id].virial.data(),
-      dataset[device_id].virial.data() + dataset[device_id].N,
-      dataset[device_id].virial.data() + dataset[device_id].N * 2);
-    CUDA_CHECK_KERNEL
 
     find_force_radial<<<grid_size, block_size>>>(
       dataset[device_id].N, nep_data[device_id].NN_radial.data(),
