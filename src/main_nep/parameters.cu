@@ -115,6 +115,13 @@ void Parameters::read_nep_in(char* input_dir)
 
 void Parameters::calculate_parameters()
 {
+  if (train_mode == 2) {
+    lambda_e = lambda_f = 0.0f;
+    enable_zbl = false;
+    if (!is_lambda_v_set) {
+      lambda_v = 1.0f;
+    }
+  }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
   if (version >= 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
