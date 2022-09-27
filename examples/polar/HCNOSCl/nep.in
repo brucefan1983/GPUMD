@@ -1,7 +1,4 @@
 type       	6 H C N O S Cl	
-mode        2	
-lambda_e	0
-lambda_f	0
-lambda_v	1
+mode        2
 neuron      5
 batch       10000
