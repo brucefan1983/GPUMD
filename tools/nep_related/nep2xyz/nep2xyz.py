@@ -135,46 +135,22 @@ def print_xyz(data, folder):
     Out_string = ""
     for i in range(data['nframe']):
 
-        if data['has_virial'][i] == 1: continue
-        Out_string += str(int(data['atom_numbs'][i])) + "\n"
-        Out_string += "energy=" + str(data['energies'][i]) + " "
-        Out_string += "config_type=nep2xyz "
-        Out_string += "pbc=\"T T T\" "
-        Out_string += "Lattice=\"" + " ".join(list(map(str, data['cells'][i]))) + "\" "
-        Out_string += "Properties=species:S:1:pos:R:3:force:R:3\n"
-
-        for j in range(int(data['atom_numbs'][i])):
-
-            Out_string += data['atom_names'][i][j] + " "
-            Out_string += " ".join(list(map(str, data['coords'][i][j]))) + " "
-            Out_string += " ".join(list(map(str, data['forces'][i][j]))) + "\n"
-
-    fo = open(os.path.join(folder, 'novirial.xyz'), 'w')
-    fo.write(Out_string)
-    fo.close()
-
-    if sum(data['has_virial']) == 0: return 1
-
-    Out_string = ""
-    for i in range(data['nframe']):
-
-        if data['has_virial'][i] == 0: continue
         Out_string += str(int(data['atom_numbs'][i])) + "\n"
         myvirial = convervirial(data['virials'][i])   
         Out_string += "energy=" + str(data['energies'][i]) + " "
         Out_string += "config_type=nep2xyz "
         Out_string += "pbc=\"T T T\" "
-        Out_string += "virial=\"" + " ".join(list(map(str, myvirial))) + "\" "
+        if data['has_virial'][i] == 1:
+            Out_string += "virial=\"" + " ".join(list(map(str, myvirial))) + "\" "
         Out_string += "Lattice=\"" + " ".join(list(map(str, data['cells'][i]))) + "\" "
         Out_string += "Properties=species:S:1:pos:R:3:force:R:3\n"
 
         for j in range(int(data['atom_numbs'][i])):
-
             Out_string += data['atom_names'][i][j] + " "
             Out_string += " ".join(list(map(str, data['coords'][i][j]))) + " "
             Out_string += " ".join(list(map(str, data['forces'][i][j]))) + "\n"
 
-    fo = open(os.path.join(folder, 'hasvirial.xyz'), 'w')
+    fo = open(os.path.join(folder, 'trans-train.xyz'), 'w')
     fo.write(Out_string)
     fo.close()
 
