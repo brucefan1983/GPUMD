@@ -50,8 +50,10 @@ public:
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
+  int train_mode;         // 0=potential, 1=dipole, 2=polarizability
 
   // check if a parameter has been set:
+  bool is_train_mode_set;
   bool is_version_set;
   bool is_type_set;
   bool is_cutoff_set;
@@ -94,6 +96,7 @@ private:
   void calculate_parameters();
   void report_inputs();
 
+  void parse_mode(char** param, int num_param);
   void parse_one_keyword(char** param, int num_param);
   void parse_version(char** param, int num_param);
   void parse_type(char** param, int num_param);

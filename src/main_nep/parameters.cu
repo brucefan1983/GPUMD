@@ -46,6 +46,7 @@ Parameters::Parameters(char* input_dir)
 
 void Parameters::set_default_parameters()
 {
+  is_train_mode_set = false;
   is_version_set = false;
   is_type_set = false;
   is_cutoff_set = false;
@@ -65,6 +66,7 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
 
+  train_mode = 0;                // potential
   version = 4;                   // NEP4 is the best
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 4.0f;             // large enough in most cases
@@ -113,6 +115,13 @@ void Parameters::read_nep_in(char* input_dir)
 
 void Parameters::calculate_parameters()
 {
+  if (train_mode == 2) {
+    lambda_e = lambda_f = 0.0f;
+    enable_zbl = false;
+    if (!is_lambda_v_set) {
+      lambda_v = 1.0f;
+    }
+  }
   dim_radial = n_max_radial + 1;             // 2-body descriptors q^i_n
   dim_angular = (n_max_angular + 1) * L_max; // 3-body descriptors q^i_nl
   if (version >= 3 && L_max_4body == 2) {    // 4-body descriptors q^i_n222
@@ -153,6 +162,11 @@ void Parameters::report_inputs()
   }
 
   printf("Input or default parameters:\n");
+  if (is_train_mode_set) {
+    printf("    (input)   train_mode = %s.\n", train_mode == 0 ? "potential" : "polarizability");
+  } else {
+    printf("    (default) train_mode = %s.\n", train_mode == 0 ? "potential" : "polarizability");
+  }
   if (is_version_set) {
     printf("    (input)   use NEP version %d.\n", version);
   } else {
@@ -289,7 +303,9 @@ void Parameters::report_inputs()
 
 void Parameters::parse_one_keyword(char** param, int num_param)
 {
-  if (strcmp(param[0], "version") == 0) {
+  if (strcmp(param[0], "mode") == 0) {
+    parse_mode(param, num_param);
+  } else if (strcmp(param[0], "version") == 0) {
     parse_version(param, num_param);
   } else if (strcmp(param[0], "type") == 0) {
     parse_type(param, num_param);
@@ -327,6 +343,21 @@ void Parameters::parse_one_keyword(char** param, int num_param)
     parse_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
+  }
+}
+
+void Parameters::parse_mode(char** param, int num_param)
+{
+  is_train_mode_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("mode should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &train_mode)) {
+    PRINT_INPUT_ERROR("mode should be an integer.\n");
+  }
+  if (train_mode != 0 && train_mode != 2) {
+    PRINT_INPUT_ERROR("mode should = 0 or 2.");
   }
 }
 
