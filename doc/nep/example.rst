@@ -1,0 +1,6 @@
+.. index::
+   single: Example
+
+Example
+=======
+

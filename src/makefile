@@ -15,9 +15,9 @@
 ###########################################################
 CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
+CFLAGS = -O3 -arch=sm_72 -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++11 -O3 -arch=sm_35
+CFLAGS = -std=c++14 -O3 -arch=sm_72 -DUSE_NEP
 endif
 INC = -I./
 LDFLAGS = 
@@ -76,7 +76,7 @@ gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-	
+
 
 ###########################################################
 # rules for building object files

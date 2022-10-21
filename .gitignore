@@ -10,3 +10,7 @@ src/nep*
 
 .history
 .vscode
+*~
+local
+public*
+\#*
