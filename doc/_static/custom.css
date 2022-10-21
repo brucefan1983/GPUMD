@@ -1,0 +1,54 @@
+@import url("css/theme.css");
+
+.toggle .header {
+    display: block;
+    clear: both;
+    padding-top: -10px;
+    padding-bottom: 20px;
+}
+
+.toggle .header:after {
+    content: " ▼";
+}
+
+.toggle .header.open:after {
+    content: " ▲";
+}
+
+/* Custom colors */
+
+.wy-side-nav-search, .wy-nav-top { /* above navigation, behind logo */
+    background: #a7c7e9;
+}
+
+.icon.icon-home { /* link above logo */
+    color: #5e81ac;
+}
+
+.version { /* version spec under logo */
+    color: #5e81ac !important;
+}
+
+.highlight { /* code blocks */
+    background: #d5e1cb;
+} 
+
+.admonition-title { /* notes, title */
+    background: #5e81ac !important; 
+}
+
+.admonition { /* notes */
+    background: #d5e1cb !important;
+}
+
+.rst-content dl:not(.docutils) dt { /* class definitions */
+    background: #e4f3f2;
+    color: #005248;
+    border-top: solid 3px #005248;
+}
+
+.rst-content dl:not(.docutils) dl dt{ /* functions */
+    border-left:solid 3px #005248;
+    background: #e4f3f2;
+    color: #005248;
+}

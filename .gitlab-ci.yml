@@ -1,0 +1,82 @@
+image: $CI_REGISTRY/materials-theory/$CI_PROJECT_NAME/cicd
+
+variables:
+  INSTDIR: "local_installation"
+
+before_script:
+  - export PATH=$PWD/$INSTDIR:${PATH}
+
+
+#------------------- build stage -------------------
+
+.build:
+  stage: build
+  artifacts:
+    expire_in: 2 days
+    paths:
+      - local_installation/
+  script:
+  - mkdir $INSTDIR
+  - cd src
+  - make CFLAGS="-std=c++14 -O3 -arch=sm_72 -DDEBUG" -j4
+  - mv gpumd nep ../$INSTDIR/
+build:linux:
+  extends: .build
+  tags:
+    - linux
+
+#------------------- test stage -------------------
+
+test_documentation:
+  stage: test
+  tags:
+    - linux
+  needs:
+    - build:linux
+  except:
+   - master
+  artifacts:
+    expire_in: 1 days
+    paths:
+      - public
+  script:
+    - mkdir public
+    - sphinx-build -W doc/ public/
+
+
+#------------------- deploy stage -------------------
+
+pages:
+  stage: deploy
+  tags:
+    - linux
+  only:
+    - master
+    - tags
+  except:
+   - schedules
+  artifacts:
+    expire_in: 14 days
+    paths:
+      - public
+  script:
+    # prepare homepage
+    - mkdir -p public/dev
+    # --------------------------
+    # DEVELOPMENT VERSION
+    - git checkout master
+    - tag=$(git describe --tags | tail -1)
+    - echo "tag= $tag"
+    - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
+    - sphinx-build -W doc/ public/dev/
+    - git checkout -- doc/source/conf.py
+    # --------------------------
+    # STABLE VERSION
+    - tag=$(git tag --tags | tail -1)
+    - echo "tag= $tag"
+    - git checkout $tag
+    - sphinx-build -W doc/ public/
+    # --------------------------
+    # clean up
+    - ls -l public/
+    - chmod go-rwX -R public/
