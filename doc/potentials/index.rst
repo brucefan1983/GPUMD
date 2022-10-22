@@ -1,4 +1,4 @@
-.. _models:
+.. _potentials:
 .. index::
    single: Interaction models
    single: Interatomic potentials
