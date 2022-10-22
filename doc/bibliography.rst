@@ -11,7 +11,7 @@ Bibliography
    | DOI: `10.1063/1.448118 <https://doi.org/10.1063/1.448118>`_
 
 .. [Brorsson2021]
-   | Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, Paul Erhart
+   | Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, and Paul Erhart
    | *Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy*
    | Advanced Theory and Simulations **4**, 2100217 (2021)
    | DOI: `10.1002/adts.202100217 <https://doi.org/10.1002/adts.202100217>`_
@@ -33,6 +33,12 @@ Bibliography
    | *Extended Finnis–Sinclair potential for bcc and fcc metals and alloys*
    | J. Phys.: Condens. Matter **18**, 4527 (2006)
    | DOI: `10.1088/0953-8984/18/19/008 <https://doi.org/10.1088/0953-8984/18/19/008>`_
+
+.. [Drautz2019]
+   | Ralf Drautz
+   | *Atomic cluster expansion for accurate and transferable interatomic potentials*
+   | Phys. Rev. B **99**, 014104 (2019)
+   | DOI: `10.1103/PhysRevB.99.014104 <https://doi.org/10.1103/PhysRevB.99.014104>`_
 
 .. [Eriksson2019]
    | Fredrik Eriksson, Erik Fransson, and Paul Erhart
@@ -64,6 +70,24 @@ Bibliography
    | J. Phys.: Condens. Matter **32**, 135901 (2020)
    | DOI: `10.1088/1361-648X/ab5c5f <https://doi.org/10.1088/1361-648X/ab5c5f>`_
 
+.. [Fan2021]
+   | Zheyong Fan, Zezhu Zeng, Cunzhi Zhang, Yanzhou Wang, Keke Song, Haikuan Dong, Yue Chen, and Tapio Ala-Nissila
+   | *Neuroevolution machine learning potentials: Combining high accuracy and low cost in atomistic simulations and application to heat transport*
+   | Phys. Rev. B. **104**, 104309 (2021)
+   | DOI: `10.1103/PhysRevB.104.104309 <https://doi.org/10.1103/PhysRevB.104.104309>`_
+
+.. [Fan2022a]
+   | Zheyong Fan
+   | *Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems*
+   | Journal of Physics: Condensed Matter **34**, 125902 (2022)
+   | DOI: `10.1088/1361-648X/ac462b <https://doi.org/10.1088/1361-648X/ac462b>`_
+
+.. [Fan2022b]
+   | Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, and Tapio Ala-Nissila
+   | *GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations*
+   | Journal of Chemical Physics **157**, 114801 (2022)
+   | DOI: `10.1063/5.0106617  <https://doi.org/ 10.1063/5.0106617>`_
+
 .. [Gabourie2021]
    | Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, and Eric Pop
    | *Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations*
@@ -88,6 +112,13 @@ Bibliography
    | New J. Phys. **18**, 013028 (2016)
    | DOI: `10.1088/1367-2630/18/1/013028 <https://doi.org/10.1088/1367-2630/18/1/013028>`_
 
+.. [Schaul2011]
+   | T. Schaul, T. Glasmachers, and J. Schmidhuber
+   | *High dimensions and heavy tails for natural evolution strategies*
+   | In: Proceedings of the 13th Annual Conference on Genetic and Evolutionary Computation
+   | GECCO '11 (Association for Computing Machinery), New York, USA (2011), pp. 845–852
+   | DOI: `10.1145/2001576.2001692 <https://doi.org/10.1145/2001576.2001692>`_
+
 .. [Tersoff1988]
    | Jerry Tersoff
    | *New empirical approach for the structure and energy of covalent systems*
@@ -110,3 +141,8 @@ Bibliography
    | *Misfit-energy-increasing dislocations in vapor-deposited CoFe/NiFe multilayers*
    | Phys. Rev. B **69**, 144113 (2004)
    | DOI: `10.1103/PhysRevB.69.144113 <https://doi.org/10.1103/PhysRevB.69.144113>`_
+
+.. [Ziegler1985]
+   | J. F. Ziegler, J. P. Biersack, and U. Littmark
+   | In *The Stopping and Range of Ions in Matter*, volume 1
+   | New York, 1985. Pergamon. ISBN 0-08-022053-3

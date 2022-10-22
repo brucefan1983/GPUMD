@@ -61,4 +61,4 @@ This is similar to the above example, but the external driving force is applied 
 Related tutorial
 ----------------
 
-The use of the :attr:`compute_hnemd` keyword is illustrated in :ref:`this tutorial <tutorial_thermal_transport_from_nemd_and_hnemd>`.
+The use of the :attr:`compute_hnemd` keyword is illustrated in :ref:`the tutorial on calculating the thermal conductivity via HNEMD simulations <tutorials>`.

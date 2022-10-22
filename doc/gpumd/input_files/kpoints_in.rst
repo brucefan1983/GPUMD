@@ -2,7 +2,7 @@
 .. index::
    single: kpoints.in
 
-:math:`\boldsymbol{k}`-points (``kpoints.in``)
-==============================================
+k-points (``kpoints.in``)
+=========================
 
 TBC

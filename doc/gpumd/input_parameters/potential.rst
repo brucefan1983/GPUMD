@@ -16,7 +16,7 @@ Available potential models
 * :ref:`Embedded atom method (EAM) potential <eam>`
 * :ref:`Force constant potential (FCP) <fcp>`
 * :ref:`Lennard-Jones (LJ) potential <lennard_jones_potential>`
-* :ref:`Neuroevolution potential (NEP) <nep>`
+* :ref:`Neuroevolution potential (NEP) <nep_formalism>`
 
 Syntax
 ------

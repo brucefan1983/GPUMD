@@ -1,4 +1,4 @@
-.. _nep:
+.. _nep_executable:
 .. index::
    single: nep executable
 
@@ -9,4 +9,6 @@ nep executable
    :maxdepth: 2
    :caption: Contents
 
-   example
+   input_files/index
+   input_parameters/index
+   output_files/index

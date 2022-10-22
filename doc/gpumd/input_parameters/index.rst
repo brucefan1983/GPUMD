@@ -1,4 +1,4 @@
-.. _input_parameters:
+.. _gpumd_input_parameters:
 .. index::
    single: gpumd input parameters
 

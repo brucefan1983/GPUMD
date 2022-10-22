@@ -84,4 +84,4 @@ If you want to use the in-out decomposition for 2D materials, you need to make t
 Related tutorial
 ----------------
 
-The use of this keyword is illustrated in the tutorial on :ref:`thermal transport from NEMD and HNEMD simulations <tutorial_thermal_transport_from_nemd_and_hnemd>`.
+The use of this keyword is illustrated in the tutorial on the :ref:`thermal transport from NEMD and HNEMD simulations <tutorials>`.

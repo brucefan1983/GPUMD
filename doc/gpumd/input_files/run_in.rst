@@ -4,7 +4,7 @@
    single: run.in
 
 Simulation protocol (``run.in``)
---------------------------------
+********************************
 
 The ``run.in`` file is used to define the simulation protocol.
 The code will execute the commands in this file one by one.
@@ -33,11 +33,11 @@ The overall structure of a ``run.in`` file is as follows:
   * The last two steps can be repeated.
 
 The following tables provide an overview of the different keywords.
-A complete list can also be found :ref:`here <input_parameters>`.
+A complete list can also be found :ref:`here <gpumd_input_parameters>`.
 The last two columns indicate whether the command is executed immediately (*Exec.*) and whether it is propagted from one ``run`` commandto the next (*Prop.*).
 
 Simulation setup
-^^^^^^^^^^^^^^^^
+================
 
 .. list-table::
    :header-rows: 1
