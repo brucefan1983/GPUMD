@@ -53,4 +53,4 @@ The :term:`HAC`/:term:`RTC` data will be averaged for every 10 data before outpu
 Related tutorial
 ----------------
 
-The use of the :attr:`compute_hac` keyword is illustrated in the tutorial on :ref:`thermal transport from EMD simulations <tutorial_thermal_transport_from_emd>`.
+The use of the :attr:`compute_hac` keyword is illustrated in the tutorial on :ref:`thermal transport from EMD simulations <tutorials>`.

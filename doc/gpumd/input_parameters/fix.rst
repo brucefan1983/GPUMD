@@ -18,7 +18,7 @@ Here, the :attr:`group_label` refers to the grouping method 0 defined in the :re
 
 Example
 -------
-The use of this keyword is illustrated in the :ref:`tutorial on thermal transport from NEMD and HNEMD simulations <tutorial_thermal_transport_from_nemd_and_hnemd>`.
+The use of this keyword is illustrated in the :ref:`tutorial on thermal transport from NEMD and HNEMD simulations <tutorials>`.
 
 Caveats
 -------

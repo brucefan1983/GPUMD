@@ -5,6 +5,9 @@ Glossary
 
 .. glossary::
 
+   ACE
+        atomic cluster expansion [Drautz2019]_
+
    BDP
         :ref:`Bussi-Donadio-Parrinello thermostat <bdp_thermostat>` [Bussi2007b]_
 
@@ -48,13 +51,19 @@ Glossary
         :ref:`non-equilibrium molecular dynamics <nemd>`
 
    NEP
-        :ref:`neuroevolution potential <nep>`
+        :ref:`neuroevolution potential <nep_formalism>`
 
    NHC
         :ref:`Nose-Hoover chain thermostat <nose_hoover_chain_thermostat>` [Tuckerman2010]_
 
+   NN
+        neural network
+
    PDOS
         phonon density of states
+
+   RMSE
+        `root-mean-square error <https://en.wikipedia.org/wiki/Root-mean-square_deviation>`_
 
    RTC
         :ref:`running thermal conductivity <running_thermal_conductivity>`
@@ -68,8 +77,14 @@ Glossary
    SHC
         spectral heat current
 
+   SNES
+        separable natural evolution strategy [Schaul2011]_
+
    SVR
         :ref:`stochastic velocity rescaling thermostat <svr_thermostat>` [Bussi2007b]_
 
    VAC
         velocity auto-correlation
+
+   ZBL
+        universal potential by Ziegler, Biersack, and Littmark [Ziegler1985]_

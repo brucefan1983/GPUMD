@@ -60,4 +60,4 @@ This keyword cannot be used in the same run as the :ref:`compute_sdc keyword <kw
 
 Related tutorial
 ----------------
-The use of this keyword is illustrated in :ref:`this tutorial <tutorial_density_of_states>`.
+The use of this keyword is illustrated in the :ref:`tutorial on the density of states <tutorials>`.

@@ -1,4 +1,4 @@
-.. _gpumd:
+.. _gpumd_executable:
 .. index::
    single: gpumd executable
 

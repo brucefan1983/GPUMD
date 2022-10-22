@@ -35,7 +35,7 @@ The symbol :math:`\langle \rangle` means that the quantity inside will be averag
 
 * Related keyword in the :ref:`run.in file <run_in>`: :ref:`compute_hac <kw_compute_hac>`
 * Related output file: :ref:`hac.out <hac_out>`
-* Related tutorial: :ref:`Thermal transport from EMD <tutorial_thermal_transport_from_emd>`
+* Related tutorial: :ref:`Thermal transport from EMD <tutorials>`
 
 We only used the potential part of the heat current.
 If you are studying fluids, you need to output the heat currents (potential and kinetic part) using the :ref:`compute <kw_compute>` keyword and calculated the :term:`HAC` by yourself.
@@ -79,7 +79,7 @@ Therefore, the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of
 
 * The :ref:`compute <kw_compute>` keyword should be used to compute the temperature profile and the heat transfer rate :math:`Q`.
 * Related output file: :ref:`compute.out <compute_out>`
-* Related tutorial: :ref:`Thermal transport from NEMD and HNEMD <tutorial_thermal_transport_from_nemd_and_hnemd>`
+* Related tutorial: :ref:`Thermal transport from NEMD and HNEMD <tutorials>`
 
 
 .. _hnemd:
@@ -128,7 +128,7 @@ So one should use the :ref:`ensemble <kw_ensemble>` keyword with the first param
 
 * The :ref:`compute_hnemd <kw_compute_hnemd>` keyword should be used to add the driving force and calculate the thermal conductivity.
 * The computed results are saved to the :ref:`kappa.out <kappa_out>` file.
-* Related tutorial: :ref:`Thermal transport from NEMD and HNEMD <tutorial_thermal_transport_from_nemd_and_hnemd>`
+* Related tutorial: :ref:`Thermal transport from NEMD and HNEMD <tutorials>`
 
 
 .. index::
@@ -199,7 +199,7 @@ where :math:`F_{\rm e}` is the magnitude of the driving force parameter in the :
 
 This calculation is invoked by the :ref:`compute_shc <kw_compute_shc>` keyword and the results are saved to the :ref:`shc.out <shc_out>` file.
 
-* Related tutorial: :ref:`Thermal transport from NEMD and HNEMD <tutorial_thermal_transport_from_nemd_and_hnemd>`
+* Related tutorial: :ref:`Thermal transport from NEMD and HNEMD <tutorials>`
 
 
 .. index::
