@@ -65,7 +65,7 @@ pages:
     # --------------------------
     # DEVELOPMENT VERSION
     - git checkout master
-    - tag=$(git describe | tail -1)
+    - tag=$(git describe --tags | tail -1)
     - echo "tag= $tag"
     - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
     - sphinx-build -W doc/ public/dev/
