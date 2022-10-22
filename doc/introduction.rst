@@ -3,10 +3,11 @@ Introduction
 
 :program:`GPUMD` stands for *Graphics Processing Units Molecular Dynamics*.
 It is a general-purpose molecular dynamics (:term:`MD`) package fully implemented on graphics processing units (:term:`GPU`).
-It is written in CUDA C++ and requires a CUDA-enabled Nvidia GPU of compute capability no less than 3.5.
+In addition to :ref:`several empirical interatomic potentials <potentials>`, it supports :ref:`neuroevolution potential <nep_formalism>` (:term:`NEP`) models.
+:program:`GPUMD` also allows one to construct the latter type of models using the :ref:`nep executable <nep_executable>`.
 
-It has native support for neuroevolution potential (:term:`NEP`) machine learning potentials, including both their construction and use in :term:`MD` simulations.
-It is also highly efficient for conducting :term:`MD` simulations with many-body potentials such as the Tersoff potential and is particularly good for heat transport applications.
+:program:`GPUMD` is also highly efficient for conducting :term:`MD` simulations with many-body potentials such as the Tersoff potential and is particularly good for heat transport applications.
+It is written in CUDA C++ and requires a CUDA-enabled Nvidia GPU of compute capability no less than 3.5.
 
 Python interfaces
 -----------------
