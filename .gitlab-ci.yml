@@ -20,6 +20,7 @@ before_script:
   - cd src
   - make CFLAGS="-std=c++14 -O3 -arch=sm_72 -DDEBUG" -j4
   - mv gpumd nep ../$INSTDIR/
+
 build:linux:
   extends: .build
   tags:
@@ -27,56 +28,37 @@ build:linux:
 
 #------------------- test stage -------------------
 
-test_documentation:
-  stage: test
+.documentation:
   tags:
     - linux
   needs:
     - build:linux
-  except:
-   - master
   artifacts:
-    expire_in: 1 days
+    expire_in: 2 days
     paths:
       - public
   script:
-    - mkdir public
+    - tag=$(git describe --tags | tail -1)
+    - echo "tag= $tag"
+    - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
     - sphinx-build -W doc/ public/
+    - ls -l public/
+    - chmod go-rwX -R public/
+
+documentation:test:
+  extends: .documentation
+  stage: test
+  except:
+   - master
 
 
 #------------------- deploy stage -------------------
 
 pages:
+  extends: .documentation
   stage: deploy
-  tags:
-    - linux
   only:
     - master
     - tags
   except:
    - schedules
-  artifacts:
-    expire_in: 14 days
-    paths:
-      - public
-  script:
-    # prepare homepage
-    - mkdir -p public/dev
-    # --------------------------
-    # DEVELOPMENT VERSION
-    - git checkout master
-    - tag=$(git describe | tail -1)
-    - echo "tag= $tag"
-    - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
-    - sphinx-build -W doc/ public/dev/
-    - git checkout -- doc/conf.py
-    # --------------------------
-    # STABLE VERSION
-    - tag=$(git tag | tail -1)
-    - echo "tag= $tag"
-    - git checkout $tag
-    - sphinx-build -W doc/ public/
-    # --------------------------
-    # clean up
-    - ls -l public/
-    - chmod go-rwX -R public/
