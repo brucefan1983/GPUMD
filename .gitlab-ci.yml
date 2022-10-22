@@ -65,14 +65,14 @@ pages:
     # --------------------------
     # DEVELOPMENT VERSION
     - git checkout master
-    - tag=$(git describe --tags | tail -1)
+    - tag=$(git describe | tail -1)
     - echo "tag= $tag"
     - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
     - sphinx-build -W doc/ public/dev/
     - git checkout -- doc/conf.py
     # --------------------------
     # STABLE VERSION
-    - tag=$(git tag --tags | tail -1)
+    - tag=$(git tag | tail -1)
     - echo "tag= $tag"
     - git checkout $tag
     - sphinx-build -W doc/ public/
