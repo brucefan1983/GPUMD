@@ -14,8 +14,8 @@ This file reads:
 
 .. math::
 
-   \begin{array}
-   .\kappa^{x,in}_{1,1}
+   \begin{array}{ccccc}
+   \kappa^{x,in}_{1,1}
    & \kappa^{x,out}_{1,1}
    & \kappa^{y,in}_{1,1}
    & \kappa^{y,out}_{1,1}
