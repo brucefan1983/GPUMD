@@ -27,7 +27,7 @@
 
 ## Manual
 * The new mamual that will be used starting from GPUMD-v3.6: https://gpumd.org/
-* The old manual for up to GPUMD-3.5: https://gpumd.zheyongfan.org
+* The old manual for up to GPUMD-v3.5: https://gpumd.zheyongfan.org
 
 ## Mailing list:
 * You can use the following link to subscribe and unsubscribe the mailing list:
@@ -65,6 +65,7 @@ https://www.freelists.org/list/gpumd
 | Junjie Wang           | https://github.com/bigd4          |
 | Yong Wang             | https://github.com/AmbroseWong    |
 | Zhixin Liang          | https://github.com/liangzhixin-202169    |
+| Paul Erhart           |https://materialsmodeling.org/ |
 
 ## Citations
 
