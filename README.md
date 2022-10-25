@@ -26,7 +26,8 @@
   * `path/to/nep`
 
 ## Manual
-* We only maintain the online manual now: https://gpumd.zheyongfan.org
+* The new mamual that will be used starting from GPUMD-v3.6: https://gpumd.org/
+* The old manual for up to GPUMD-3.5: https://gpumd.zheyongfan.org
 
 ## Mailing list:
 * You can use the following link to subscribe and unsubscribe the mailing list:
