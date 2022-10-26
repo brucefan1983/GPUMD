@@ -64,7 +64,7 @@ _PREAMBLE = r"""
 \usepackage{amsmath,amssymb}
 \renewcommand{\vec}[1]{\boldsymbol{#1}}
 \DeclareMathOperator*{\argmin}{\arg\!\min}
-\DeclareMathOperator{\argmin}{\arg\!\min}
+%\DeclareMathOperator{\argmin}{\arg\!\min}
 """
 
 latex_elements = {

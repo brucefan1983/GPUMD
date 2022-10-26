@@ -16,12 +16,12 @@ When :math:`\delta = 0` eV/A, the :ref:`loss term associated with the forces <ne
 
 .. math::
    
-   \sqrt{\frac{1}{3N}\sum_{i=1}^{N}\left(\vec{F}_i^\mathrm{NEP} - \vec{F}_i^\mathrm{tar}\right)^2}
+   \sqrt{\frac{1}{3N}\sum_{i=1}^{N}\left(\boldsymbol{F}_i^\mathrm{NEP} - \boldsymbol{F}_i^\mathrm{tar}\right)^2}
 
 When :math:`\delta > 0` eV/Å, this expression is modified to read:
 
 .. math::
    
-   \sqrt{\frac{1}{3N}\sum_{i=1}^{N}\left(\vec{F}_i^\mathrm{NEP} - \vec{F}_i^\mathrm{tar}\right)^2 \frac{1}{1+\|\vec{F}_i^\mathrm{tar}\| / \delta} }
+   \sqrt{\frac{1}{3N}\sum_{i=1}^{N}\left(\boldsymbol{F}_i^\mathrm{NEP} - \boldsymbol{F}_i^\mathrm{tar}\right)^2 \frac{1}{1+\|\boldsymbol{F}_i^\mathrm{tar}\| / \delta} }
 
 In this case, a smaller :math:`\delta` implies a larger weight on smaller forces.
