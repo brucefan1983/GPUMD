@@ -223,7 +223,7 @@ The barostat scales the box and positions as follows:
    \end{array}
    \right)
 
-where
+and
 
 .. math::
 
