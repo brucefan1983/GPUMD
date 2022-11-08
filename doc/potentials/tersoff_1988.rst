@@ -7,7 +7,7 @@ Tersoff potential (1988)
 
 The implementation of the Tersoff (1988) potential in :program:`GPUMD` mimics the one in `lammps <https://lammps.sandia.gov/doc/pair_tersoff.html>`_ [Tersoff1988]_.
 The Tersoff-1988 potential has a more general form than the :ref:`Tersoff (1989) potential <tersoff_1989>`.
-When possible, it is, however, recommended to use the Tersoff (1989) potential as it faster.
+When possible, it is, however, recommended to use the Tersoff (1989) potential as it is faster.
 
 Potential form
 --------------
