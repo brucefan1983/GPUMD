@@ -986,11 +986,11 @@ static bool get_expanded_box(const double rc, const Box& box, NEP3::ExpandedBox&
   }
 
   if (is_small_box) {
-    if (thickness_x > 5 * rc || thickness_y > 5 * rc || thickness_z > 5 * rc) {
+    if (thickness_x > 10 * rc || thickness_y > 10 * rc || thickness_z > 10 * rc) {
       std::cout << "Error:\n"
                 << "    The box has\n"
                 << "        a thickness < 2.5 radial cutoffs in a periodic direction.\n"
-                << "        and a thickness > 5 radial cutoffs in another direction.\n"
+                << "        and a thickness > 10 radial cutoffs in another direction.\n"
                 << "    Please increase the periodic direction(s).\n";
       exit(1);
     }
