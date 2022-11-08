@@ -16,7 +16,7 @@ The pair potential between particles :math:`i` and :math:`j` is
    \frac{\sigma_{ij}^{6} }{ r_{ij}^{6} }
    \right).
 
-For the implementation in :program:`GPUMD` the potential has not been neither shifted or damped.
+For the implementation in :program:`GPUMD` the potential has neither been shifted nor damped.
 This is important to keep in mind when using this model as it implies that both energy and force change discontinuously at the cutoff.
 
 The implementation in :program:`GPUMD` supports up to 10 atom types.
@@ -55,4 +55,4 @@ If there are three atom types, the potential file reads::
   epsilon_21 sigma_21 cutoff_21
   epsilon_22 sigma_22 cutoff_22
 
-The extension to more than three atom types should be apparent from the examples below.
+The extension to more than three atom types should be apparent from the examples above.
