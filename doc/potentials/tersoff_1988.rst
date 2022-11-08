@@ -88,12 +88,14 @@ We have adopted a file format that similar but not identical to that used by `la
 
 The potential file for a single-element system reads::
   
-  tersoff_1988 1
+  tersoff_1988 1 element
   A_000 B_000 lambda_000 mu_000 beta_000 n_000 c_000 d_000 h_000 R_000 S_000 m_000 alpha_000 gamma_000
+  
+Here, :attr:`element` is the chemical symbol of the element.
 
 The potential file for a double-element system reads::
   
-  tersoff_1988 2
+  tersoff_1988 2 <list of the 2 elements>
   A_000 B_000 lambda_000 mu_000 beta_000 n_000 c_000 d_000 h_000 R_000 S_000 m_000 alpha_000 gamma_000
   A_001 B_001 lambda_001 mu_001 beta_001 n_001 c_001 d_001 h_001 R_001 S_001 m_001 alpha_001 gamma_001
   A_010 B_010 lambda_010 mu_010 beta_010 n_010 c_010 d_010 h_010 R_010 S_010 m_010 alpha_010 gamma_010

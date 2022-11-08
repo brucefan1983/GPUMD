@@ -29,14 +29,14 @@ File format
 
 If there is only one atom type, the potential file for this potential model reads::
 
-  lj 1
+  lj 1 element
   epsilon sigma cutoff
 
-Here, :attr:`cutoff` is the cutoff distance.
+Here, :attr:`cutoff` is the cutoff distance and :attr:`element` is the chemical symbol of the element.
 
 If there are two atom types, the potential file reads::
 
-  lj 2
+  lj 2 <list of the 2 elements>
   epsilon_00 sigma_00 cutoff_00
   epsilon_01 sigma_01 cutoff_01
   epsilon_10 sigma_10 cutoff_10
@@ -44,7 +44,7 @@ If there are two atom types, the potential file reads::
 
 If there are three atom types, the potential file reads::
   
-  lj 3
+  lj 3 <list of the 3 elements>
   epsilon_00 sigma_00 cutoff_00
   epsilon_01 sigma_01 cutoff_01
   epsilon_02 sigma_02 cutoff_02
