@@ -105,7 +105,7 @@ with three different options for specifying :attr:`<pressure_control_parameters>
 ^^^^^^^^^^^^^^^
 If the first parameter is :attr:`npt_scr`, it is similar to the case of :attr:`npt_ber`, but using the :ref:`stochastic cell rescaling method <stochastic_cell_rescaling>`.
 
-:attr:`npt_nhc`
+:attr:`heat_nhc`
 ^^^^^^^^^^^^^^^
 If the first parameter is :attr:`heat_nhc`, it means heating a source region and simultaneously cooling a sink region using local :ref:`Nose-Hoover chain thermostats <nose_hoover_chain_thermostat>`.
 The full command is::
@@ -115,6 +115,7 @@ The full command is::
 The target temperatures in the source region with label :attr:`label_source` and the sink region with label :attr:`label_sink` are :attr:`T+delta_T` and :attr:`T-delta_T`, respectively.
 Therefore, the temperature difference between the two regions is two times :attr:`delta_T`.
 In the command above, the parameter :attr:`T_coup` has the same meaning as in the case of :attr:`nvt_nhc`.
+Both :attr:`label_source` and :attr:`label_sink` refer to the 0-th grouping method.
 
 :attr:`heat_bdp`
 ^^^^^^^^^^^^^^^^

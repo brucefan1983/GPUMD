@@ -21,7 +21,7 @@ The overall structure of a ``run.in`` file is as follows:
 
 * First, set up the potential model using the :ref:`potential <kw_potential>` keyword.
 * Then, if needed, use the :ref:`minimize <kw_minimize>` keyword to minimize the energy of the whole system.
-* Then one can use the following keywords to do carry out static calculations:
+* Then one can use the following keywords to carry out static calculations:
 
   * Use the :ref:`compute_cohesive <kw_compute_cohesive>` keyword to compute the cohesive energy curve.
   * Use the :ref:`compute_elastic <kw_compute_elastic>` keyword to compute the elastic constants.
@@ -34,7 +34,7 @@ The overall structure of a ``run.in`` file is as follows:
 
 The following tables provide an overview of the different keywords.
 A complete list can also be found :ref:`here <gpumd_input_parameters>`.
-The last two columns indicate whether the command is executed immediately (*Exec.*) and whether it is propagted from one ``run`` commandto the next (*Prop.*).
+The last two columns indicate whether the command is executed immediately (*Exec.*) and whether it is propagted from one ``run`` command to the next (*Prop.*).
 
 Simulation setup
 ================
