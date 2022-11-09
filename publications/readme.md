@@ -12,7 +12,15 @@
 * Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A. Caro, Tapio Ala-Nissila, 
  [Quantum-corrected thickness-dependent thermal conductivity in amorphous silicon predicted by machine-learning molecular dynamics simulations](https://doi.org/10.48550/arXiv.2206.07605), arXiv:2206.07605 [cond-mat.mtrl-sci].
 
-## 2022 (15)
+## 2022 (16)
+
+* Ke Xu, Ting Liang, Yuequn Fu, Zhen Wang, Zheyong Fan, Ning Wei, Jianbin Xu, Zhisen Zhang, and Jianyang Wu,
+[Gradient nano-grained graphene as 2D thermal rectifier: A molecular dynamics based machine learning study](https://doi.org/10.1063/5.0108746),
+Appl. Phys. Lett. **121**, 133501 (2022)
+
+* Xiaomeng Wang, Yong Wang, Junjie Wang, Shuing Pan, Qing Lu, Hui-Tian Wang, Dingyu Xing, and Jian Sun,
+[Pressure stabilized lithium-aluminum compounds with both superconducting and superionic behaviors](https://journals.aps.org/prl/accepted/7b073Yc1Ha215d8c36bd1223f2053a3de19cf261b)
+Accepted to Phys. Rev. Lett.
 
 * Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
 [GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics **157**, 114801 (2022).
