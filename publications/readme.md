@@ -12,7 +12,7 @@
 * Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A. Caro, Tapio Ala-Nissila, 
  [Quantum-corrected thickness-dependent thermal conductivity in amorphous silicon predicted by machine-learning molecular dynamics simulations](https://doi.org/10.48550/arXiv.2206.07605), arXiv:2206.07605 [cond-mat.mtrl-sci].
 
-## 2022 (16)
+## 2022 (17)
 
 * Ke Xu, Ting Liang, Yuequn Fu, Zhen Wang, Zheyong Fan, Ning Wei, Jianbin Xu, Zhisen Zhang, and Jianyang Wu,
 [Gradient nano-grained graphene as 2D thermal rectifier: A molecular dynamics based machine learning study](https://doi.org/10.1063/5.0108746),
