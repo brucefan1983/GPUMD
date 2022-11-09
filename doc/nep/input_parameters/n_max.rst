@@ -5,7 +5,7 @@
 :attr:`n_max`
 =============
 
-This keyword sets the number of radial (:math:`n_\mathrm{max}^\mathrm{R}`) and angular (:math:`n_\mathrm{max}^\mathrm{A}`) descriptor components as introduce in Sect. II.B and Eq. (2) of [Fan2022b]_.
+This keyword sets the number of radial (:math:`n_\mathrm{max}^\mathrm{R}`) and angular (:math:`n_\mathrm{max}^\mathrm{A}`) descriptor components as introduced in Sect. II.B and Eq. (2) of [Fan2022b]_.
 The syntax is::
 
   n_max <n_max_R> <n_max_A>

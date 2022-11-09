@@ -5,7 +5,7 @@
 :attr:`type`
 ============
 
-This is a *mandatory* keyword that species the chemical species, for which a model is to be constructed.
+This is a *mandatory* keyword that specifies the chemical species, for which a model is to be constructed.
 
 The syntax is::
 

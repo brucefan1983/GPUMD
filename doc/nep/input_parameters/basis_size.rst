@@ -5,7 +5,7 @@
 :attr:`basis_size`
 ==================
 
-This keyword is only relevant for NEP3 and NEP4 (see :ref:`version keyword <kw_version>`.
+This keyword is only relevant for NEP3 and NEP4 (see :ref:`version keyword <kw_version>`).
 It sets the number of basis functions that are used to build the radial and angular descriptor functions, see Sects. II.B and II.C as well as Eq. (3) in [Fan2022b]_.
 The syntax is::
 

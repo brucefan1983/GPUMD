@@ -10,4 +10,4 @@ The ``energy_train.out`` and ``energy_test.out`` files contain the predicted and
 Each file contains 2 columns.
 The first column gives the energy in units of eV/atom calculated using the :term:`NEP` model.
 The second column gives the corresponding target energies.
-Each row corresponds to the configuration at the same position in the :ref:`train.xyz and test.xyz files <train_test_xyz>`, respectively.
+Each row corresponds to the configuration at the same position in the :ref:`train.xyz (if using the full-batch) and test.xyz files <train_test_xyz>`, respectively.
