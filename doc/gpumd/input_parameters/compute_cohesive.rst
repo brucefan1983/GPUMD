@@ -17,9 +17,9 @@ This keyword is used as follows::
   compute_cohesive e1 e2 num_points
 
 Here,
-:attr:`e1` is the smaller box-scaling factor
-:attr:`e2` is the larger box-scaling factor
-:attr:`num_points` is number of points sampled uniformly from :attr:`e1` to :attr:`e2`.
+:attr:`e1` is the smaller box-scaling factor,
+:attr:`e2` is the larger box-scaling factor, and
+:attr:`num_points` is the number of points sampled uniformly from :attr:`e1` to :attr:`e2`.
 
 
 Examples

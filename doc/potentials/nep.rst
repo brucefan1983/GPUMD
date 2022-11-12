@@ -127,7 +127,7 @@ Model dimensions
    * -
      - :math:`N_\mathrm{nn} = (N_\mathrm{des} +2) N_\mathrm{neu} N_\mathrm{typ}+1` (NEP4)
 
-The total number of trainable parameters is the sum of the number of trainable descriptor parameters :math:`N_\mathrm{des}` and :term:`NN` parameters :math:`N_\mathrm{nn}`.
+The total number of trainable parameters is the sum of the number of trainable descriptor parameters and the number of :term:`NN` parameters :math:`N_\mathrm{nn}`.
 
 
 .. _nep_loss_function:

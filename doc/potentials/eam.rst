@@ -23,7 +23,7 @@ The site potential energy is
 Here, the part with :math:`\phi(r_{ij})` is a pairwise potential and :math:`F (\rho_i)` is the embedding potential, which depends on the electron density :math:`\rho_i` at site :math:`i`.
 The many-body part of the EAM potential comes from the embedding potential.  
 
-The density :math:`F (\rho_i)` is contributed by the neighbors of :math:`i`:
+The density :math:`\rho_i` is contributed by the neighbors of :math:`i`:
 
 .. math::
    
@@ -103,11 +103,11 @@ File format
 
 The potential file for the version from [Zhou2004]_ reads::
 
-  eam_zhou_2004 num_types
+  eam_zhou_2004 num_types <list of elements>
   r_e f_e rho_e rho_s alpha beta A B kappa lambda F_n0 F_n1 F_n2 F_n3 F_0 F_1 F_2 F_3 eta F_e cutoff
   
 There are :attr:`num_types` rows of parameters but here we have only written a single row above.
-The order of the rows should be consistent with the atoms types you defined in the :ref:`simulation model file <model_xyz>` and specified by the :attr:`potential` keyword in the :ref:`run.in file <run_in>`.
+The order of the rows should be consistent with the :attr:`<list of elements>` in the first line.
 
 The last parameter :attr:`cutoff` is the cutoff distance, which is not intrinsic to the model.
 The order of the parameters is the same as in Table III of [Zhou2004]_.
@@ -115,5 +115,7 @@ For multi-component systems, :program:`GPUMD` will use the largest cutoff for ev
 
 The potential file for the version from [Dai2006]_ reads::
 
-  eam_dai_2006 1
+  eam_dai_2006 1 Element
   A d c c_0 c_1 c_2 c_3 c_4 B
+
+Here, :attr:`Element` is the chemical symbol of the element.

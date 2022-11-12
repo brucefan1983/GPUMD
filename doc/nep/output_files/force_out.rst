@@ -6,7 +6,7 @@
 ``force_*.out``
 ===============
 
-The ``force_train.out`` and ``force_test.out`` files contain the predicted and target force components of the configurations provideed in the :ref:`train.xyz and test.xyz input files <train_test_xyz>`.
+The ``force_train.out`` and ``force_test.out`` files contain the predicted and target force components of the configurations provided in the :ref:`train.xyz and test.xyz input files <train_test_xyz>`.
 
 There are 6 columns.
 The first three columns are the :math:`x`, :math:`y`, and :math:`z` force components in units of eV/Å computed using the :term:`NEP` model.

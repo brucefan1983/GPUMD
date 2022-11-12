@@ -4,12 +4,12 @@
 Output files
 ============
 
-The ``nep`` executable produces several outout files.
+The ``nep`` executable produces several output files.
 The :ref:`loss.out file <loss_out>` is written in "append mode", while all other files are continuously overwritten.
 
-The content of the :ref:`energy_train.out/energy_test.out <energy_out>`, :ref:`force_train.out/force_test.out <force_out>`, and :ref:`virial_train.out/virial_test.out <virial_out>` files are updated every 1000 steps, while the content of the other output files ar updated every 100 steps.
+The content of the :ref:`energy_train.out <energy_out>`, :ref:`force_train.out <force_out>`, and :ref:`virial_train.out <virial_out>` files are updated every 1000 steps, while the content of the other output files are updated every 100 steps.
 
-With the exception of the `nep.txt file <nep_txt>`, the output files contain only numbers (no text) in matrix form.
+With the exception of the :ref:`nep.txt file <nep_txt>`, the output files contain only numbers (no text) in matrix form.
 All the files are plain text files.
 
 .. list-table::

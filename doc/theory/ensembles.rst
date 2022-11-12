@@ -139,7 +139,7 @@ Here,
 :math:`\boldsymbol{F}_i` is the total force on atom :math:`i` resulted from the potential model used.
 :math:`\boldsymbol{f}_i` is a random force with a variation determined by the fluctuation-dissipation relation to recover the canonical ensemble distribution with the target temperature.
 :math:`\tau_T` is a time parameter, and we suggest a value of :math:`\tau_T/\Delta t \approx 100`, where :math:`\Delta t` is the time step.
-We implemented the integrator proposed in [Bussi2007a]_.
+We implemented the integrators proposed in [Bussi2007a]_ and [Leimkuhler2013]_.
 
 
 .. _bdp_thermostat:
@@ -223,7 +223,7 @@ The barostat scales the box and positions as follows:
    \end{array}
    \right)
 
-where
+and
 
 .. math::
 

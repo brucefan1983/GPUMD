@@ -27,7 +27,7 @@ Glossary
         :ref:`Green-Kubo <green_kubo_method>`
 
    GPU
-        graphical processing unit
+        graphics processing unit
 
    GKMA
         :ref:`Green-Kubo modal analysis <green_kubo_modal_analysis>` [Lv2016]_

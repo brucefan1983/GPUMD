@@ -89,8 +89,10 @@ Single-element systems
 
 In this case, :math:`\chi_{IJ}` is irrelevant. The potential file reads::
   
-  tersoff_1989 1
+  tersoff_1989 1 <element>
   A B lambda mu beta n c d h R S
+  
+Here, :attr:`element` is the chemical symbol of the element.
 
 Two-element systems
 ^^^^^^^^^^^^^^^^^^^
@@ -112,7 +114,7 @@ Here, the parameter :math:`\chi_{01}=\chi_{10}` needs to be provided.
 
 The potential file reads::
   
-  tersoff_1989 2
+  tersoff_1989 2 <list of the 2 elements>
   A_0 B_0 lambda_0 mu_0 beta_0 n_0 c_0 d_0 h_0 R_0 S_0
   A_1 B_1 lambda_1 mu_1 beta_1 n_1 c_1 d_1 h_1 R_1 S_1
   chi_01

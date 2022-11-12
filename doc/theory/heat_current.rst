@@ -29,7 +29,7 @@ The potential part of the per-atom heat current can also be written in the follo
    \boldsymbol{J}^{\text{pot}}_i = -\sum_{j \neq i} \boldsymbol{r}_{ij}
    \left(\frac{\partial U_i}{\partial \boldsymbol{r}_{ij}} \cdot \boldsymbol{v}_j\right);
 
-where
+and
 
 .. math::
 
@@ -42,7 +42,7 @@ Therefore, the per-atom heat current can also be expressed in terms of the per-a
 
    \boldsymbol{J}^{\text{pot}}_i = \mathbf{W}_i  \cdot \boldsymbol{v}_i.
 
-where the per-atom virial tensor cannot be assumed to be symmetric and the fully tensor with 9 components should be used [Gabourie2021]_.
+where the per-atom virial tensor cannot be assumed to be symmetric and the full tensor with 9 components should be used [Gabourie2021]_.
 This result has actually been clear from the derivations in [Fan2015]_ but it was wrongly stated there that the potential part of the heat current *cannot* be expressed in terms of the per-atom virial.
 
 One can also derive the following expression for the heat current from a subsystem :math:`A` to a subsystem :math:`B` [Fan2017]_:

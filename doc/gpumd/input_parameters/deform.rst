@@ -16,7 +16,7 @@ The :attr:`deform` keyord requires 4 parameters::
 
 Here, :attr:`A_per_step` specifies the speed of the increase of the box length, which is in units of Ångstrom/step.
 For example, suppose the box length (in a given direction) in the beginning of a run is 100 Ångstrom and this parameter is :math:`10^{-5}` Ångstrom/step, then a run with :math:`10^{6}` steps will change the box length by 10%.
-This gives a strain rate of :math:`10^{8}` s:math:`^{-1}` if the time step is 1 fs.
+This gives a strain rate of :math:`10^{8}` s :math:`^{-1}` if the time step is 1 fs.
 The second parameter :attr:`deform_x` can be 0 or 1, where 0 means do not deform the :math:`x` direction and 1 means deform the :math:`x` direction.
 The last two parameters have similar meanings for the :math:`y` and :math:`z` directions.
 
