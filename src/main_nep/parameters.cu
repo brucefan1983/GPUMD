@@ -17,6 +17,7 @@
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
+#include <iostream>
 
 const int NUM_ELEMENTS = 103;
 const std::string ELEMENTS[NUM_ELEMENTS] = {
@@ -35,7 +36,7 @@ Parameters::Parameters(char* input_dir)
   print_line_2();
 
   set_default_parameters();
-  read_nep_in(input_dir);
+  read_nep_in();
   calculate_parameters();
   report_inputs();
 
@@ -92,25 +93,30 @@ void Parameters::set_default_parameters()
   enable_zbl = false; // default is not to include ZBL
 }
 
-void Parameters::read_nep_in(char* input_dir)
+void Parameters::read_nep_in()
 {
-  char file_para[200];
-  strcpy(file_para, input_dir);
-  strcat(file_para, "/nep.in");
-  char* input = get_file_contents(file_para);
-  char* input_ptr = input;      // Keep the pointer in order to free later
-  const int max_num_param = 20; // never use more than 19 parameters
-  int num_param;
-  char* param[max_num_param];
-
-  while (input_ptr) {
-    input_ptr = row_find_param(input_ptr, param, &num_param);
-    if (num_param == 0) {
-      continue;
-    }
-    parse_one_keyword(param, num_param);
+  std::ifstream input("nep.in");
+  if (!input.is_open()) {
+    std::cout << "Failed to open nep.in." << std::endl;
+    exit(1);
   }
-  free(input); // Free the input file contents
+
+  while (input.peek() != EOF) {
+    std::vector<std::string> tokens = get_tokens(input);
+    std::vector<std::string> tokens_without_comments;
+    for (const auto& t : tokens) {
+      if (t[0] != '#') {
+        tokens_without_comments.emplace_back(t);
+      } else {
+        break;
+      }
+    }
+    if (tokens_without_comments.size() > 0) {
+      parse_one_keyword(tokens_without_comments);
+    }
+  }
+
+  input.close();
 }
 
 void Parameters::calculate_parameters()
@@ -301,8 +307,13 @@ void Parameters::report_inputs()
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
 }
 
-void Parameters::parse_one_keyword(char** param, int num_param)
+void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
 {
+  int num_param = tokens.size();
+  const char* param[20]; // never use more than 19 parameters
+  for (int n = 0; n < num_param; ++n) {
+    param[n] = tokens[n].c_str();
+  }
   if (strcmp(param[0], "mode") == 0) {
     parse_mode(param, num_param);
   } else if (strcmp(param[0], "version") == 0) {
@@ -346,7 +357,7 @@ void Parameters::parse_one_keyword(char** param, int num_param)
   }
 }
 
-void Parameters::parse_mode(char** param, int num_param)
+void Parameters::parse_mode(const char** param, int num_param)
 {
   is_train_mode_set = true;
 
@@ -361,7 +372,7 @@ void Parameters::parse_mode(char** param, int num_param)
   }
 }
 
-void Parameters::parse_version(char** param, int num_param)
+void Parameters::parse_version(const char** param, int num_param)
 {
   is_version_set = true;
 
@@ -376,7 +387,7 @@ void Parameters::parse_version(char** param, int num_param)
   }
 }
 
-void Parameters::parse_type(char** param, int num_param)
+void Parameters::parse_type(const char** param, int num_param)
 {
   is_type_set = true;
 
@@ -411,7 +422,7 @@ void Parameters::parse_type(char** param, int num_param)
   }
 }
 
-void Parameters::parse_type_weight(char** param, int num_param)
+void Parameters::parse_type_weight(const char** param, int num_param)
 {
   is_type_weight_set = true;
 
@@ -432,7 +443,7 @@ void Parameters::parse_type_weight(char** param, int num_param)
   }
 }
 
-void Parameters::parse_zbl(char** param, int num_param)
+void Parameters::parse_zbl(const char** param, int num_param)
 {
   is_zbl_set = true;
   enable_zbl = true;
@@ -455,7 +466,7 @@ void Parameters::parse_zbl(char** param, int num_param)
   }
 }
 
-void Parameters::parse_force_delta(char** param, int num_param)
+void Parameters::parse_force_delta(const char** param, int num_param)
 {
   is_force_delta_set = true;
 
@@ -470,7 +481,7 @@ void Parameters::parse_force_delta(char** param, int num_param)
   force_delta = force_delta_tmp;
 }
 
-void Parameters::parse_cutoff(char** param, int num_param)
+void Parameters::parse_cutoff(const char** param, int num_param)
 {
   is_cutoff_set = true;
 
@@ -501,7 +512,7 @@ void Parameters::parse_cutoff(char** param, int num_param)
   }
 }
 
-void Parameters::parse_n_max(char** param, int num_param)
+void Parameters::parse_n_max(const char** param, int num_param)
 {
   is_n_max_set = true;
 
@@ -526,7 +537,7 @@ void Parameters::parse_n_max(char** param, int num_param)
   }
 }
 
-void Parameters::parse_basis_size(char** param, int num_param)
+void Parameters::parse_basis_size(const char** param, int num_param)
 {
   is_basis_size_set = true;
 
@@ -551,7 +562,7 @@ void Parameters::parse_basis_size(char** param, int num_param)
   }
 }
 
-void Parameters::parse_l_max(char** param, int num_param)
+void Parameters::parse_l_max(const char** param, int num_param)
 {
   is_l_max_set = true;
 
@@ -587,7 +598,7 @@ void Parameters::parse_l_max(char** param, int num_param)
   }
 }
 
-void Parameters::parse_neuron(char** param, int num_param)
+void Parameters::parse_neuron(const char** param, int num_param)
 {
   is_neuron_set = true;
 
@@ -604,7 +615,7 @@ void Parameters::parse_neuron(char** param, int num_param)
   }
 }
 
-void Parameters::parse_lambda_1(char** param, int num_param)
+void Parameters::parse_lambda_1(const char** param, int num_param)
 {
   is_lambda_1_set = true;
 
@@ -623,7 +634,7 @@ void Parameters::parse_lambda_1(char** param, int num_param)
   }
 }
 
-void Parameters::parse_lambda_2(char** param, int num_param)
+void Parameters::parse_lambda_2(const char** param, int num_param)
 {
   is_lambda_2_set = true;
 
@@ -642,7 +653,7 @@ void Parameters::parse_lambda_2(char** param, int num_param)
   }
 }
 
-void Parameters::parse_lambda_e(char** param, int num_param)
+void Parameters::parse_lambda_e(const char** param, int num_param)
 {
   is_lambda_e_set = true;
 
@@ -661,7 +672,7 @@ void Parameters::parse_lambda_e(char** param, int num_param)
   }
 }
 
-void Parameters::parse_lambda_f(char** param, int num_param)
+void Parameters::parse_lambda_f(const char** param, int num_param)
 {
   is_lambda_f_set = true;
 
@@ -680,7 +691,7 @@ void Parameters::parse_lambda_f(char** param, int num_param)
   }
 }
 
-void Parameters::parse_lambda_v(char** param, int num_param)
+void Parameters::parse_lambda_v(const char** param, int num_param)
 {
   is_lambda_v_set = true;
 
@@ -699,7 +710,7 @@ void Parameters::parse_lambda_v(char** param, int num_param)
   }
 }
 
-void Parameters::parse_batch(char** param, int num_param)
+void Parameters::parse_batch(const char** param, int num_param)
 {
   is_batch_set = true;
 
@@ -714,7 +725,7 @@ void Parameters::parse_batch(char** param, int num_param)
   }
 }
 
-void Parameters::parse_population(char** param, int num_param)
+void Parameters::parse_population(const char** param, int num_param)
 {
   is_population_set = true;
 
@@ -748,7 +759,7 @@ void Parameters::parse_population(char** param, int num_param)
   }
 }
 
-void Parameters::parse_generation(char** param, int num_param)
+void Parameters::parse_generation(const char** param, int num_param)
 {
   is_generation_set = true;
 

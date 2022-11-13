@@ -92,28 +92,29 @@ public:
 
 private:
   void set_default_parameters();
-  void read_nep_in(char* input_dir);
+  void read_nep_in();
   void calculate_parameters();
   void report_inputs();
 
-  void parse_mode(char** param, int num_param);
-  void parse_one_keyword(char** param, int num_param);
-  void parse_version(char** param, int num_param);
-  void parse_type(char** param, int num_param);
-  void parse_type_weight(char** param, int num_param);
-  void parse_zbl(char** param, int num_param);
-  void parse_cutoff(char** param, int num_param);
-  void parse_n_max(char** param, int num_param);
-  void parse_basis_size(char** param, int num_param);
-  void parse_l_max(char** param, int num_param);
-  void parse_neuron(char** param, int num_param);
-  void parse_lambda_1(char** param, int num_param);
-  void parse_lambda_2(char** param, int num_param);
-  void parse_lambda_e(char** param, int num_param);
-  void parse_lambda_f(char** param, int num_param);
-  void parse_lambda_v(char** param, int num_param);
-  void parse_force_delta(char** param, int num_param);
-  void parse_batch(char** param, int num_param);
-  void parse_population(char** param, int num_param);
-  void parse_generation(char** param, int num_param);
+  void parse_one_keyword(std::vector<std::string>& tokens);
+
+  void parse_mode(const char** param, int num_param);
+  void parse_version(const char** param, int num_param);
+  void parse_type(const char** param, int num_param);
+  void parse_type_weight(const char** param, int num_param);
+  void parse_zbl(const char** param, int num_param);
+  void parse_cutoff(const char** param, int num_param);
+  void parse_n_max(const char** param, int num_param);
+  void parse_basis_size(const char** param, int num_param);
+  void parse_l_max(const char** param, int num_param);
+  void parse_neuron(const char** param, int num_param);
+  void parse_lambda_1(const char** param, int num_param);
+  void parse_lambda_2(const char** param, int num_param);
+  void parse_lambda_e(const char** param, int num_param);
+  void parse_lambda_f(const char** param, int num_param);
+  void parse_lambda_v(const char** param, int num_param);
+  void parse_force_delta(const char** param, int num_param);
+  void parse_batch(const char** param, int num_param);
+  void parse_population(const char** param, int num_param);
+  void parse_generation(const char** param, int num_param);
 };
