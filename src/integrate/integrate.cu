@@ -141,7 +141,8 @@ void Integrate::compute2(
 // 1-10:  NVT
 // 11-20: NPT
 // 21-30: heat (NEMD method for heat conductivity)
-void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vector<Group>& group)
+void Integrate::parse_ensemble(
+  Box& box, const char** param, int num_param, std::vector<Group>& group)
 {
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
@@ -528,7 +529,7 @@ void Integrate::parse_ensemble(Box& box, char** param, int num_param, std::vecto
   }
 }
 
-void Integrate::parse_fix(char** param, int num_param, std::vector<Group>& group)
+void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>& group)
 {
   if (num_param != 2) {
     PRINT_INPUT_ERROR("Keyword 'fix' should have 1 parameter.");
@@ -553,7 +554,7 @@ void Integrate::parse_fix(char** param, int num_param, std::vector<Group>& group
   printf("Group %d in grouping method 0 will be fixed.\n", fixed_group);
 }
 
-void Integrate::parse_deform(char** param, int num_param)
+void Integrate::parse_deform(const char** param, int num_param)
 {
   printf("Deform the box.\n");
 

@@ -233,7 +233,7 @@ void HAC::postprocess(
   compute = 0;
 }
 
-void HAC::parse(char** param, int num_param)
+void HAC::parse(const char** param, int num_param)
 {
   compute = 1;
 

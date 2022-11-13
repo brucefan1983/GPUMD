@@ -25,7 +25,7 @@ The driver class for minimizers.
 #include <memory>
 
 void Minimize::parse_minimize(
-  char** param,
+  const char** param,
   int num_param,
   Force& force,
   Box& box,

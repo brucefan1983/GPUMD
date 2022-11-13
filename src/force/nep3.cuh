@@ -84,7 +84,7 @@ public:
     float h[18];
   };
 
-  NEP3(char* file_potential, const int num_atoms);
+  NEP3(const char* file_potential, const int num_atoms);
   virtual ~NEP3(void);
   virtual void compute(
     Box& box,

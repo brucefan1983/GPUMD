@@ -22,7 +22,7 @@ A function parsing the "group" option in some keywords
 #include "utilities/read_file.cuh"
 
 void parse_group(
-  char** param,
+  const char** param,
   const int num_param,
   const bool allow_all_groups,
   const std::vector<Group>& groups,
@@ -59,7 +59,7 @@ void parse_group(
   k += 2; // update index for next command
 }
 
-void parse_precision(char** param, const int num_param, int& k, int& precision)
+void parse_precision(const char** param, const int num_param, int& k, int& precision)
 {
   if (k + 2 > num_param) {
     PRINT_INPUT_ERROR("Not enough arguments for option 'precision'.\n");

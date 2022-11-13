@@ -40,7 +40,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-NEP3::NEP3(char* file_potential, const int num_atoms)
+NEP3::NEP3(const char* file_potential, const int num_atoms)
 {
 
   std::ifstream input(file_potential);

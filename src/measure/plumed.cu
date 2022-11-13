@@ -20,21 +20,17 @@ Interface to the PLUMED plugin: https://www.plumed.org
 #ifdef USE_PLUMED
 
 #include "plumed.cuh"
-#include "utilities/error.cuh"
 #include "utilities/common.cuh"
-#include "utilities/read_file.cuh"
+#include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
-
+#include "utilities/read_file.cuh"
 
 #define E_C 1.602176634E-19 // Elementary charge
 #define N_A 6.0221367E23    // Avogadro constant
 
 const double ENERGY_UNIT_CONVERSION = N_A * E_C / 1000; // from eV to kJ/mol
 
-static __global__ void gpu_sum(
-  const int N,
-  const double* g_data,
-  double* g_data_sum)
+static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
   int number_of_rounds = (N - 1) / 1024 + 1;
   __shared__ double s_data[1024];
@@ -59,7 +55,7 @@ static __global__ void gpu_sum(
 
 static void __global__ gpu_scale_virial(
   const int N,
-  const double *factors,
+  const double* factors,
   double* g_sxx,
   double* g_syy,
   double* g_szz,
@@ -92,7 +88,7 @@ void PLUMED::preprocess(const std::vector<double>& cpu_mass)
   memcpy(cpu_m_vector.data(), cpu_mass.data(), n_atom * sizeof(double));
 }
 
-void PLUMED::parse(char **param, int num_param)
+void PLUMED::parse(const char** param, int num_param)
 {
   use_plumed = 1;
   memset(input_file, 0, 80);
@@ -136,19 +132,19 @@ void PLUMED::init(const double ts, const double T)
   const double charge_unit = 1.0;                       // e -> e
 
   plumed_main = plumed_create();
-  plumed_cmd(plumed_main, "setKbT",           &KbT);
-  plumed_cmd(plumed_main, "setMDEngine",      engine_name);
-  plumed_cmd(plumed_main, "setMDTimeUnits",   &time_unit);
-  plumed_cmd(plumed_main, "setMDMassUnits",   &mass_unit);
+  plumed_cmd(plumed_main, "setKbT", &KbT);
+  plumed_cmd(plumed_main, "setMDEngine", engine_name);
+  plumed_cmd(plumed_main, "setMDTimeUnits", &time_unit);
+  plumed_cmd(plumed_main, "setMDMassUnits", &mass_unit);
   plumed_cmd(plumed_main, "setMDEnergyUnits", &energy_unit);
   plumed_cmd(plumed_main, "setMDLengthUnits", &length_unit);
   plumed_cmd(plumed_main, "setMDChargeUnits", &charge_unit);
-  plumed_cmd(plumed_main, "setPlumedDat",     input_file);
-  plumed_cmd(plumed_main, "setLogFile",       output_file);
-  plumed_cmd(plumed_main, "setTimestep",      &time_step);
-  plumed_cmd(plumed_main, "setRestart",       &restart);
-  plumed_cmd(plumed_main, "setNatoms",        &n_atom);
-  plumed_cmd(plumed_main, "init",             NULL);
+  plumed_cmd(plumed_main, "setPlumedDat", input_file);
+  plumed_cmd(plumed_main, "setLogFile", output_file);
+  plumed_cmd(plumed_main, "setTimestep", &time_step);
+  plumed_cmd(plumed_main, "setRestart", &restart);
+  plumed_cmd(plumed_main, "setNatoms", &n_atom);
+  plumed_cmd(plumed_main, "init", NULL);
 }
 
 void PLUMED::process(
@@ -199,20 +195,20 @@ void PLUMED::process(
   cpu_v_vector[7] = tmp[5];
   cpu_v_vector[8] = tmp[2];
 
-  plumed_cmd(plumed_main, "setStep",       &step);
-  plumed_cmd(plumed_main, "setMasses",     cpu_m_vector.data());
-  plumed_cmd(plumed_main, "setBox",        cpu_b_vector.data());
-  plumed_cmd(plumed_main, "setVirial",     cpu_v_vector.data());
-  plumed_cmd(plumed_main, "setForcesX",    &(cpu_f_vector.data()[0 * n_atom]));
-  plumed_cmd(plumed_main, "setForcesY",    &(cpu_f_vector.data()[1 * n_atom]));
-  plumed_cmd(plumed_main, "setForcesZ",    &(cpu_f_vector.data()[2 * n_atom]));
+  plumed_cmd(plumed_main, "setStep", &step);
+  plumed_cmd(plumed_main, "setMasses", cpu_m_vector.data());
+  plumed_cmd(plumed_main, "setBox", cpu_b_vector.data());
+  plumed_cmd(plumed_main, "setVirial", cpu_v_vector.data());
+  plumed_cmd(plumed_main, "setForcesX", &(cpu_f_vector.data()[0 * n_atom]));
+  plumed_cmd(plumed_main, "setForcesY", &(cpu_f_vector.data()[1 * n_atom]));
+  plumed_cmd(plumed_main, "setForcesZ", &(cpu_f_vector.data()[2 * n_atom]));
   plumed_cmd(plumed_main, "setPositionsX", &(cpu_q_vector.data()[0 * n_atom]));
   plumed_cmd(plumed_main, "setPositionsY", &(cpu_q_vector.data()[1 * n_atom]));
   plumed_cmd(plumed_main, "setPositionsZ", &(cpu_q_vector.data()[2 * n_atom]));
-  plumed_cmd(plumed_main, "prepareCalc",   NULL);
-  plumed_cmd(plumed_main, "performCalc",   NULL);
-  plumed_cmd(plumed_main, "getBias",       &bias_energy);
-  plumed_cmd(plumed_main, "setStopFlag",   &stop_flag);
+  plumed_cmd(plumed_main, "prepareCalc", NULL);
+  plumed_cmd(plumed_main, "performCalc", NULL);
+  plumed_cmd(plumed_main, "getBias", &bias_energy);
+  plumed_cmd(plumed_main, "setStopFlag", &stop_flag);
 
   force.copy_from_host(cpu_f_vector.data());
 
@@ -227,10 +223,9 @@ void PLUMED::process(
   cpu_v_factor[8] = cpu_v_vector[8] / tmp[2];
   gpu_v_factor.copy_from_host(cpu_v_factor.data());
   gpu_scale_virial<<<(n_atom - 1) / 128 + 1, n_atom>>>(
-    n_atom, gpu_v_factor.data(),
-    virial.data() + n_atom * 0, virial.data() + n_atom * 1,
-    virial.data() + n_atom * 2, virial.data() + n_atom * 3,
-    virial.data() + n_atom * 4, virial.data() + n_atom * 5);
+    n_atom, gpu_v_factor.data(), virial.data() + n_atom * 0, virial.data() + n_atom * 1,
+    virial.data() + n_atom * 2, virial.data() + n_atom * 3, virial.data() + n_atom * 4,
+    virial.data() + n_atom * 5);
   CUDA_CHECK_KERNEL
 }
 

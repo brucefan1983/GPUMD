@@ -69,7 +69,10 @@ static __global__ void gpu_find_largest_v2(
 __device__ double device_v2_max[1];
 
 static void calculate_time_step(
-  double max_distance_per_step, GPU_Vector<double>& velocity_per_atom, double initial_time_step, double& time_step)
+  double max_distance_per_step,
+  GPU_Vector<double>& velocity_per_atom,
+  double initial_time_step,
+  double& time_step)
 {
   if (max_distance_per_step <= 0.0) {
     return;
@@ -88,7 +91,7 @@ static void calculate_time_step(
 
   if (time_step_min < initial_time_step) {
     time_step = time_step_min;
-  } else{
+  } else {
     time_step = initial_time_step;
   }
 }
@@ -114,26 +117,30 @@ Run::Run(char* input_dir)
 
 void Run::execute_run_in(char* input_dir)
 {
-  char file_run[200];
-  strcpy(file_run, input_dir);
-  strcat(file_run, "/run.in");
-  char* input = get_file_contents(file_run);
-  char* input_ptr = input;      // Keep the pointer in order to free later
-  const int max_num_param = 20; // never use more than 19 parameters
-  int num_param;
-  char* param[max_num_param];
-
   print_line_1();
   printf("Started executing the commands in run.in.\n");
   fflush(stdout);
   print_line_2();
 
-  while (input_ptr) {
-    input_ptr = row_find_param(input_ptr, param, &num_param);
-    if (num_param == 0) {
-      continue;
+  std::ifstream input("run.in");
+  if (!input.is_open()) {
+    std::cout << "Failed to open run.in." << std::endl;
+    exit(1);
+  }
+
+  while (input.peek() != EOF) {
+    std::vector<std::string> tokens = get_tokens(input);
+    std::vector<std::string> tokens_without_comments;
+    for (const auto& t : tokens) {
+      if (t[0] != '#') {
+        tokens_without_comments.emplace_back(t);
+      } else {
+        break;
+      }
     }
-    parse_one_keyword(param, num_param, input_dir);
+    if (tokens_without_comments.size() > 0) {
+      parse_one_keyword(tokens_without_comments, input_dir);
+    }
   }
 
   print_line_1();
@@ -141,7 +148,7 @@ void Run::execute_run_in(char* input_dir)
   fflush(stdout);
   print_line_2();
 
-  free(input); // Free the input file contents
+  input.close();
 }
 
 void Run::perform_a_run(char* input_dir)
@@ -160,7 +167,8 @@ void Run::perform_a_run(char* input_dir)
 
   for (int step = 0; step < number_of_steps; ++step) {
 
-    calculate_time_step(max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
+    calculate_time_step(
+      max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
 
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
@@ -216,8 +224,14 @@ void Run::perform_a_run(char* input_dir)
   max_distance_per_step = 0.0;
 }
 
-void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
+void Run::parse_one_keyword(std::vector<std::string>& tokens, char* input_dir)
 {
+  int num_param = tokens.size();
+  const char* param[20]; // never use more than 19 parameters
+  for (int n = 0; n < num_param; ++n) {
+    param[n] = tokens[n].c_str();
+  }
+
   if (strcmp(param[0], "potential") == 0) {
     force.parse_potential(param, num_param, input_dir, box, atom.type.size());
   } else if (strcmp(param[0], "minimize") == 0) {
@@ -308,7 +322,7 @@ void Run::parse_one_keyword(char** param, int num_param, char* input_dir)
   }
 }
 
-void Run::parse_velocity(char** param, int num_param)
+void Run::parse_velocity(const char** param, int num_param)
 {
   if (num_param != 2) {
     PRINT_INPUT_ERROR("velocity should have 1 parameter.\n");
@@ -324,7 +338,7 @@ void Run::parse_velocity(char** param, int num_param)
     atom.cpu_velocity_per_atom, atom.velocity_per_atom);
 }
 
-void Run::parse_correct_velocity(char** param, int num_param)
+void Run::parse_correct_velocity(const char** param, int num_param)
 {
   if (num_param != 2) {
     PRINT_INPUT_ERROR("correct_velocity should have 1 parameter.\n");
@@ -338,7 +352,7 @@ void Run::parse_correct_velocity(char** param, int num_param)
   velocity.do_velocity_correction = true;
 }
 
-void Run::parse_time_step(char** param, int num_param)
+void Run::parse_time_step(const char** param, int num_param)
 {
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("time_step should have 1 or 2 parameters.\n");
@@ -359,7 +373,7 @@ void Run::parse_time_step(char** param, int num_param)
   }
 }
 
-void Run::parse_run(char** param, int num_param, char* input_dir)
+void Run::parse_run(const char** param, int num_param, char* input_dir)
 {
   if (num_param != 2) {
     PRINT_INPUT_ERROR("run should have 1 parameter.\n");
@@ -376,7 +390,8 @@ void Run::parse_run(char** param, int num_param, char* input_dir)
 
   if (!compute_hnemd && (measure.hnemdec.compute != -1)) {
     if ((measure.hnemdec.compute > number_of_types) || (measure.hnemdec.compute < 0)) {
-      PRINT_INPUT_ERROR("compute for HNEMDEC should be an integer number between 0 and number_of_types.\n");
+      PRINT_INPUT_ERROR(
+        "compute for HNEMDEC should be an integer number between 0 and number_of_types.\n");
     }
     force.set_hnemdec_parameters(
       measure.hnemdec.compute, measure.hnemdec.fe_x, measure.hnemdec.fe_y, measure.hnemdec.fe_z,
@@ -412,7 +427,7 @@ static __global__ void gpu_pressure_triclinic(
   }
 }
 
-void Run::parse_change_box(char** param, int num_param)
+void Run::parse_change_box(const char** param, int num_param)
 {
   if (num_param != 2 && num_param != 4 && num_param != 7) {
     PRINT_INPUT_ERROR("change_box can only have 1 or 3 or 6 parameters\n.");

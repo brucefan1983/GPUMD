@@ -344,7 +344,7 @@ void Hessian::find_eigenvectors(char* input_dir)
   eigfile.close();
 }
 
-void Hessian::parse(char** param, size_t num_param)
+void Hessian::parse(const char** param, size_t num_param)
 {
   if (num_param != 3) {
     PRINT_INPUT_ERROR("compute_phonon should have 2 parameters.\n");

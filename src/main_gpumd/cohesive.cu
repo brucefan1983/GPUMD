@@ -79,7 +79,7 @@ void Cohesive::deform_box(
     new_position_per_atom.data() + N, new_position_per_atom.data() + N * 2);
 }
 
-void Cohesive::parse(char** param, int num_param, int type)
+void Cohesive::parse(const char** param, int num_param, int type)
 {
   if (type == 0) {
     parse_cohesive(param, num_param);
@@ -88,7 +88,7 @@ void Cohesive::parse(char** param, int num_param, int type)
   }
 }
 
-void Cohesive::parse_cohesive(char** param, int num_param)
+void Cohesive::parse_cohesive(const char** param, int num_param)
 {
   printf("Compute cohesive energy.\n");
   if (num_param != 4) {
@@ -123,7 +123,7 @@ void Cohesive::parse_cohesive(char** param, int num_param)
   deformation_type = 0; // deformation for cohesive
 }
 
-void Cohesive::parse_elastic(char** param, int num_param)
+void Cohesive::parse_elastic(const char** param, int num_param)
 {
   printf("Compute elastic constants.\n");
   if (num_param != 3) {

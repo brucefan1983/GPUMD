@@ -232,7 +232,7 @@ void SDC::postprocess(const char* input_dir)
   grouping_method_ = -1;
 }
 
-void SDC::parse(char** param, const int num_param, const std::vector<Group>& groups)
+void SDC::parse(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute self diffusion coefficient (SDC).\n");
   compute_ = true;

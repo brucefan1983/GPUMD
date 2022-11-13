@@ -18,7 +18,7 @@
 class Group;
 
 void parse_group(
-  char** param,
+  const char** param,
   const int num_param,
   const bool allow_all_groups,
   const std::vector<Group>& groups,
@@ -26,4 +26,4 @@ void parse_group(
   int& grouping_method,
   int& group_id);
 
-void parse_precision(char** param, const int num_param, int& k, int& precision);
+void parse_precision(const char** param, const int num_param, int& k, int& precision);

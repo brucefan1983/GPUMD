@@ -47,7 +47,7 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-void Dump_EXYZ::parse(char** param, int num_param)
+void Dump_EXYZ::parse(const char** param, int num_param)
 {
   dump_ = true;
   printf("Dump extended XYZ.\n");

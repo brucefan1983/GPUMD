@@ -26,7 +26,7 @@ Dump a restart file
 #include "utilities/read_file.cuh"
 #include <vector>
 
-void Dump_Restart::parse(char** param, int num_param)
+void Dump_Restart::parse(const char** param, int num_param)
 {
   if (num_param != 2) {
     PRINT_INPUT_ERROR("dump_restart should have 1 parameter.");

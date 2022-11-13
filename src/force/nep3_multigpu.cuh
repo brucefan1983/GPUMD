@@ -109,7 +109,7 @@ public:
     float atomic_numbers[10];
   };
 
-  NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int num_atoms);
+  NEP3_MULTIGPU(const int num_gpus, const char* file_potential, const int num_atoms);
   virtual ~NEP3_MULTIGPU(void);
   virtual void compute(
     Box& box,

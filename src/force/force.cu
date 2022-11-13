@@ -37,7 +37,7 @@ The driver class calculating force and related quantities.
 Force::Force(void) { is_fcp = false; }
 
 void Force::parse_potential(
-  char** param, int num_param, char* input_dir, const Box& box, const int number_of_atoms)
+  const char** param, int num_param, char* input_dir, const Box& box, const int number_of_atoms)
 {
   static int num_calls = 0;
   if (num_calls++ != 0) {
@@ -250,19 +250,19 @@ void Force::set_hnemdec_parameters(
   double total_mass = 0;
   std::vector<double> cpu_coefficient;
   std::vector<double> mass_type;
-  mass_type.resize(number_of_types); 
+  mass_type.resize(number_of_types);
   int find_mass_type = 0;
   for (int i = 0; i < N; i++) {
-      if (mass_type[type[i]] != mass[i]) {
-        mass_type[type[i]] = mass[i];
-        find_mass_type += 1;
-      }
-      total_mass += mass[i];
+    if (mass_type[type[i]] != mass[i]) {
+      mass_type[type[i]] = mass[i];
+      find_mass_type += 1;
     }
-  if (find_mass_type != number_of_types) {
-      PRINT_INPUT_ERROR("mass type and element type do not match.\n");
+    total_mass += mass[i];
   }
-  
+  if (find_mass_type != number_of_types) {
+    PRINT_INPUT_ERROR("mass type and element type do not match.\n");
+  }
+
   // find atom types' fraction
   if (compute_hnemdec_ == 0) {
     cpu_coefficient.resize(number_of_types * 2);

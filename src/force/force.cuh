@@ -28,7 +28,7 @@ public:
   Force(void);
 
   void parse_potential(
-    char** param, int num_param, char* input_dir, const Box& box, const int number_of_atoms);
+    const char** param, int num_param, char* input_dir, const Box& box, const int number_of_atoms);
 
   void compute(
     Box& box,

@@ -21,7 +21,7 @@ class Box;
 class Dump_Thermo
 {
 public:
-  void parse(char** param, int num_param);
+  void parse(const char** param, int num_param);
   void preprocess(char* input_dir);
   void process(
     const int step,

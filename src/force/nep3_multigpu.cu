@@ -43,7 +43,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, char* file_potential, const int num_atoms)
+NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, const char* file_potential, const int num_atoms)
 {
 
   printf("Try to use %d GPUs for the NEP part.\n", num_gpus);
