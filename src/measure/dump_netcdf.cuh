@@ -24,7 +24,7 @@ class Box;
 class DUMP_NETCDF
 {
 public:
-  void parse(char** param, int num_param);
+  void parse(const char** param, int num_param);
   void preprocess(char* input_dir, const int N);
   void process(
     const int step,

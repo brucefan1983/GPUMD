@@ -32,9 +32,7 @@ with many-body potentials, Phys. Rev. B 99, 064308 (2019).
 #define FILE_NAME_LENGTH 200
 
 void HNEMDEC::preprocess(
-  const std::vector<double>& mass, 
-  const std::vector<int>& type, 
-  const std::vector<int>& type_size)
+  const std::vector<double>& mass, const std::vector<int>& type, const std::vector<int>& type_size)
 {
   if (compute == -1)
     return;
@@ -133,7 +131,8 @@ static __global__ void gpu_sum_heat_and_diffusion(
     }
 
     if (tid == 0) {
-      g_diffusion[step * (gridDim.x - NUM_OF_HEAT_COMPONENTS) + bid - NUM_OF_HEAT_COMPONENTS] = g_mass_type[element_index] * s_data[0];
+      g_diffusion[step * (gridDim.x - NUM_OF_HEAT_COMPONENTS) + bid - NUM_OF_HEAT_COMPONENTS] =
+        g_mass_type[element_index] * s_data[0];
     }
   }
 }
@@ -220,7 +219,7 @@ void HNEMDEC::process(
 
 void HNEMDEC::postprocess() { compute = -1; }
 
-void HNEMDEC::parse(char** param, int num_param)
+void HNEMDEC::parse(const char** param, int num_param)
 {
   printf("Compute thermal conductivity using the HNEMD Evans-Cummings method.\n");
 
@@ -236,18 +235,18 @@ void HNEMDEC::parse(char** param, int num_param)
   if (!is_valid_int(param[2], &output_interval)) {
     PRINT_INPUT_ERROR("output_interval for HNEMDEC should be an integer number.\n");
   }
-  
+
   if (output_interval < 1) {
     PRINT_INPUT_ERROR("output_interval for HNEMDEC should be larger than 0.\n");
   }
   if (!is_valid_real(param[3], &fe_x)) {
     PRINT_INPUT_ERROR("fe_x for HNEMDEC should be a real number.\n");
   }
-  
+
   if (!is_valid_real(param[4], &fe_y)) {
     PRINT_INPUT_ERROR("fe_y for HNEMDEC should be a real number.\n");
   }
-  
+
   if (!is_valid_real(param[5], &fe_z)) {
     PRINT_INPUT_ERROR("fe_z for HNEMDEC should be a real number.\n");
   }
@@ -258,7 +257,7 @@ void HNEMDEC::parse(char** param, int num_param)
     printf("    fe_x = %g /A\n", fe_x);
     printf("    fe_y = %g /A\n", fe_y);
     printf("    fe_z = %g /A\n", fe_z);
-  } else if (compute > 0 ) {
+  } else if (compute > 0) {
     printf("Using the HNEMD EC color conductivity method.\n");
     printf("    output_interval = %d\n", output_interval);
     printf("    fe_x = %g /(eV/A)\n", fe_x);

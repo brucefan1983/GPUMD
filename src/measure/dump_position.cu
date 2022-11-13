@@ -25,7 +25,7 @@ Dump position data to movie.xyz.
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 
-void Dump_Position::parse(char** param, int num_param, const std::vector<Group>& groups)
+void Dump_Position::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
   printf("Dump position.\n");

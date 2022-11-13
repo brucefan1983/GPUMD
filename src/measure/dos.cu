@@ -142,7 +142,7 @@ __global__ void gpu_find_vac(
 
 } // namespace
 
-void DOS::parse(char** param, const int num_param, const std::vector<Group>& groups)
+void DOS::parse(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute phonon DOS.\n");
   compute_ = true;
@@ -237,7 +237,7 @@ void DOS::postprocess(const char* input_dir)
   num_dos_points_ = -1;
 }
 
-void DOS::parse_num_dos_points(char** param, int& k)
+void DOS::parse_num_dos_points(const char** param, int& k)
 {
   if (!is_valid_int(param[k + 1], &num_dos_points_)) {
     PRINT_INPUT_ERROR("number of DOS points should be an integer.\n");

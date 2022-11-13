@@ -42,7 +42,7 @@ public:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);
 
-  void parse(char**, size_t);
+  void parse(const char**, size_t);
 
 protected:
   size_t num_basis;

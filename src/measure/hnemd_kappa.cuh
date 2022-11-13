@@ -43,5 +43,5 @@ public:
 
   void postprocess();
 
-  void parse(char** param, int num_param);
+  void parse(const char** param, int num_param);
 };

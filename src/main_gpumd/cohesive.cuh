@@ -28,7 +28,7 @@ struct D {
 class Cohesive
 {
 public:
-  void parse(char** param, int num_param, int type);
+  void parse(const char** param, int num_param, int type);
   void compute(
     char* iput_dir,
     Box& box,
@@ -41,8 +41,8 @@ public:
     Force& force);
 
 private:
-  void parse_cohesive(char** param, int num_param);
-  void parse_elastic(char** param, int num_param);
+  void parse_cohesive(const char** param, int num_param);
+  void parse_elastic(const char** param, int num_param);
   void allocate_memory(const int num_atoms);
   void compute_D();
   void output(char* input_dir, Box& box);

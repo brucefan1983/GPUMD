@@ -25,7 +25,7 @@ Dump force data to a file at a given interval.
 #include "utilities/read_file.cuh"
 #include <vector>
 
-void Dump_Force::parse(char** param, int num_param, const std::vector<Group>& groups)
+void Dump_Force::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
   dump_ = true;
   printf("Dump force.\n");

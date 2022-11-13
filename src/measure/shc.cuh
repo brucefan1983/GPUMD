@@ -35,7 +35,7 @@ public:
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom);
   void postprocess(const char*, const double time_step);
-  void parse(char**, int, const std::vector<Group>& group);
+  void parse(const char**, int, const std::vector<Group>& group);
   void find_shc(const double dt_in_ps, const double d_omega);
   void average_k();
 

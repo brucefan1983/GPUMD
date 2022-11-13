@@ -31,7 +31,7 @@ public:
   void process(
     const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom);
   void postprocess(const char*);
-  void parse(char** param, const int num_param, const std::vector<Group>& groups);
+  void parse(const char** param, const int num_param, const std::vector<Group>& groups);
 
 private:
   int num_atoms_;

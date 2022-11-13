@@ -50,9 +50,9 @@ public:
     GPU_Vector<double>& thermo);
 
   // get inputs from run.in
-  void parse_ensemble(Box& box, char** param, int num_param, std::vector<Group>& group);
-  void parse_deform(char**, int);
-  void parse_fix(char**, int, std::vector<Group>& group);
+  void parse_ensemble(Box& box, const char** param, int num_param, std::vector<Group>& group);
+  void parse_deform(const char**, int);
+  void parse_fix(const char**, int, std::vector<Group>& group);
 
   // these data will be used to initialize ensemble
   int type; // ensemble type in a specific run

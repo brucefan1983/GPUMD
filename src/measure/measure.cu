@@ -40,7 +40,7 @@ void Measure::initialize(
   shc.preprocess(number_of_atoms, group);
   compute.preprocess(number_of_atoms, input_dir, group);
   hnemd.preprocess();
-  hnemdec.preprocess(atom.cpu_mass,atom.cpu_type,atom.cpu_type_size);
+  hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
   modal_analysis.preprocess(input_dir, atom.cpu_type_size, atom.mass);
   dump_position.preprocess(input_dir);
   dump_velocity.preprocess(input_dir);
@@ -144,7 +144,7 @@ void Measure::process(
 }
 
 // TODO: move to the relevant class
-void Measure::parse_compute_gkma(char** param, int num_param, const int number_of_types)
+void Measure::parse_compute_gkma(const char** param, int num_param, const int number_of_types)
 {
   modal_analysis.compute = 1;
   if (modal_analysis.method == GKMA_METHOD) { // TODO add warning macro
@@ -255,7 +255,7 @@ void Measure::parse_compute_gkma(char** param, int num_param, const int number_o
 }
 
 // TODO: move to the relevant class
-void Measure::parse_compute_hnema(char** param, int num_param, const int number_of_types)
+void Measure::parse_compute_hnema(const char** param, int num_param, const int number_of_types)
 {
   modal_analysis.compute = 1;
   if (modal_analysis.method == HNEMA_METHOD) {

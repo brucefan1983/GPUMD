@@ -29,7 +29,7 @@ public:
   int group_id_ = -1;
   int num_dos_points_ = -1;
 
-  void parse(char** param, const int num_param, const std::vector<Group>& groups);
+  void parse(const char** param, const int num_param, const std::vector<Group>& groups);
   void preprocess(
     const double time_step, const std::vector<Group>& group, const GPU_Vector<double>& mass);
   void process(
@@ -51,7 +51,7 @@ private:
   std::vector<double> dosy_;
   std::vector<double> dosz_;
 
-  void parse_num_dos_points(char** param, int& k);
+  void parse_num_dos_points(const char** param, int& k);
   void initialize_parameters(
     const double time_step, const std::vector<Group>& groups, const GPU_Vector<double>& mass);
   void allocate_memory();

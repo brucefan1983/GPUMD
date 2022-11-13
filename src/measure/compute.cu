@@ -392,7 +392,7 @@ void Compute::output_results(const double energy_transferred[], const std::vecto
   fflush(fid);
 }
 
-void Compute::parse(char** param, int num_param, const std::vector<Group>& group)
+void Compute::parse(const char** param, int num_param, const std::vector<Group>& group)
 {
   printf("Compute space and/or time average of:\n");
   if (num_param < 5) {

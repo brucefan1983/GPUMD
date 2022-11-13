@@ -276,7 +276,7 @@ void SHC::postprocess(const char* input_dir, const double time_step)
   group_method = -1;
 }
 
-void SHC::parse(char** param, int num_param, const std::vector<Group>& groups)
+void SHC::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
   printf("Compute SHC.\n");
   compute = 1;

@@ -16,8 +16,8 @@
 #ifdef USE_PLUMED
 
 #pragma once
-#include <plumed/wrapper/Plumed.h>
 #include "force/potential.cuh"
+#include <plumed/wrapper/Plumed.h>
 #include <stdio.h>
 #include <vector>
 
@@ -27,7 +27,7 @@ public:
   int step = 0;
   int interval = 1;
   int use_plumed = 0;
-  void parse(char **param, int num_param);
+  void parse(const char** param, int num_param);
   void preprocess(const std::vector<double>& cpu_mass);
   void init(const double ts, const double T);
   void process(
@@ -37,6 +37,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
   void postprocess(void);
+
 protected:
   int n_atom;
   int restart;
@@ -46,8 +47,8 @@ protected:
   double total_energy;
   char input_file[1024];
   char output_file[1024];
-  GPU_Vector<double>  gpu_v_vector; // Total Virial (GPU)
-  GPU_Vector<double>  gpu_v_factor; // Scaling factor of the virial (GPU)
+  GPU_Vector<double> gpu_v_vector;  // Total Virial (GPU)
+  GPU_Vector<double> gpu_v_factor;  // Scaling factor of the virial (GPU)
   std::vector<double> cpu_m_vector; // Mass
   std::vector<double> cpu_b_vector; // Box
   std::vector<double> cpu_f_vector; // Forces

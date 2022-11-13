@@ -69,7 +69,7 @@ const char CELL_ANGLES_STR[] = "cell_angles";
 const char UNITS_STR[] = "units";
 bool DUMP_NETCDF::append = false;
 
-void DUMP_NETCDF::parse(char** param, int num_param)
+void DUMP_NETCDF::parse(const char** param, int num_param)
 {
   dump_ = true;
   printf("Dump positions in netCDF format.\n");

@@ -24,7 +24,7 @@ Dump thermo data to a file at a given interval.
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 
-void Dump_Thermo::parse(char** param, int num_param)
+void Dump_Thermo::parse(const char** param, int num_param)
 {
   if (num_param != 2) {
     PRINT_INPUT_ERROR("dump_thermo should have 1 parameter.");

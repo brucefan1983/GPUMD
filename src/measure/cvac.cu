@@ -174,7 +174,7 @@ void CVAC::postprocess(const char* input_dir)
   grouping_method_ = -1;
 }
 
-void CVAC::parse(char** param, const int num_param, const std::vector<Group>& groups)
+void CVAC::parse(const char** param, const int num_param, const std::vector<Group>& groups)
 {
   printf("Compute cross velocity auto-correlation (CVAC).\n");
   compute_ = true;

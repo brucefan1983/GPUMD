@@ -120,7 +120,7 @@ void HNEMD::process(
 
 void HNEMD::postprocess() { compute = 0; }
 
-void HNEMD::parse(char** param, int num_param)
+void HNEMD::parse(const char** param, int num_param)
 {
   compute = 1;
 

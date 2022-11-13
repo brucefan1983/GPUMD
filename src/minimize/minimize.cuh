@@ -24,7 +24,7 @@ class Minimize
 {
 public:
   void parse_minimize(
-    char** param,
+    const char** param,
     int num_param,
     Force& force,
     Box& box,
