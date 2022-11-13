@@ -31,10 +31,8 @@ struct NEP3_Data {
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
-#ifdef JIAHUI
   std::vector<int> cpu_NN_radial;
   std::vector<int> cpu_NN_angular;
-#endif
 };
 
 class NEP3 : public Potential
