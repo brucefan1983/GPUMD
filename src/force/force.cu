@@ -44,8 +44,8 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("potential keyword can only be used once.\n");
   }
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("potential should have 1 parameter.\n");
+  if (num_param != 2 && num_param != 3) {
+    PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
 
   FILE* fid_potential = my_fopen(param[1], "r");
@@ -82,7 +82,19 @@ void Force::parse_potential(
     if (num_gpus == 1) {
       potential.reset(new NEP3(param[1], number_of_atoms));
     } else {
-      potential.reset(new NEP3_MULTIGPU(num_gpus, param[1], number_of_atoms));
+      int partition_direction = -1;
+      if (num_param == 3) {
+        if (strcmp(param[2], "x") == 0) {
+          partition_direction = 0;
+        } else if (strcmp(param[2], "y") == 0) {
+          partition_direction = 1;
+        } else if (strcmp(param[2], "z") == 0) {
+          partition_direction = 2;
+        } else {
+          PRINT_INPUT_ERROR("partition direction for multi-GPU NEP can only be x or y or z.\n");
+        }
+      }
+      potential.reset(new NEP3_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
     }
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));

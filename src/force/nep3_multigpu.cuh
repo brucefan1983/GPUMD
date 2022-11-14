@@ -109,7 +109,11 @@ public:
     float atomic_numbers[10];
   };
 
-  NEP3_MULTIGPU(const int num_gpus, const char* file_potential, const int num_atoms);
+  NEP3_MULTIGPU(
+    const int num_gpus,
+    const char* file_potential,
+    const int num_atoms,
+    const int partition_direction);
   virtual ~NEP3_MULTIGPU(void);
   virtual void compute(
     Box& box,
@@ -125,6 +129,8 @@ private:
   ZBL zbl;
   NEP3_MULTIGPU_Data nep_data[16];
   NEP3_TEMP_Data nep_temp_data;
+
+  int partition_direction = -1;
 
   void allocate_memory();
   void update_potential(float* parameters, ANN& ann);

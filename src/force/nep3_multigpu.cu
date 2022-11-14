@@ -43,10 +43,16 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-NEP3_MULTIGPU::NEP3_MULTIGPU(const int num_gpus, const char* file_potential, const int num_atoms)
+NEP3_MULTIGPU::NEP3_MULTIGPU(
+  const int num_gpus,
+  const char* file_potential,
+  const int num_atoms,
+  const int partition_direction_input)
 {
 
   printf("Try to use %d GPUs for the NEP part.\n", num_gpus);
+
+  partition_direction = partition_direction_input;
 
   std::ifstream input(file_potential);
   if (!input.is_open()) {
@@ -1248,19 +1254,18 @@ void NEP3_MULTIGPU::compute(
     exit(1);
   }
 
-  int partition_direction = 2;
-  int num_bins_longitudinal = num_bins[2] / paramb.num_gpus;
-  int num_bins_transverse = num_bins[0] * num_bins[1];
-  if (num_bins[0] >= num_bins[1] && num_bins[0] >= num_bins[2]) {
-    partition_direction = 0;
-    num_bins_longitudinal = num_bins[0] / paramb.num_gpus;
-    num_bins_transverse = num_bins[1] * num_bins[2];
+  if (partition_direction < 0) {
+    partition_direction = 2;
+    if (num_bins[0] >= num_bins[1] && num_bins[0] >= num_bins[2]) {
+      partition_direction = 0;
+    }
+    if (num_bins[1] >= num_bins[0] && num_bins[1] >= num_bins[2]) {
+      partition_direction = 1;
+    }
   }
-  if (num_bins[1] >= num_bins[0] && num_bins[1] >= num_bins[2]) {
-    partition_direction = 1;
-    num_bins_longitudinal = num_bins[1] / paramb.num_gpus;
-    num_bins_transverse = num_bins[0] * num_bins[2];
-  }
+  int num_bins_longitudinal = num_bins[partition_direction] / paramb.num_gpus;
+  int num_bins_transverse =
+    (num_bins[0] * num_bins[1] * num_bins[2]) / num_bins[partition_direction];
 
   if (num_bins_longitudinal < 10) {
     printf("The longest direction has less than 5 times of the NEP cutoff per GPU.\n");
