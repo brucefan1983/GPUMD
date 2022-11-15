@@ -1,6 +1,6 @@
 ###########################################################
 # Note: 
-# 1) You can modify -arch=sm_35 according to 
+# 1) You can modify -arch=sm_50 according to 
 #    your GPU architecture.
 # 2) For Windows systems, if you get errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
@@ -15,9 +15,9 @@
 ###########################################################
 CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_35 -Xcompiler "/wd 4819"
+CFLAGS = -O3 -arch=sm_50 -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++11 -O3 -arch=sm_35
+CFLAGS = -std=c++14 -O3 -arch=sm_50
 endif
 INC = -I./
 LDFLAGS = 
@@ -76,7 +76,7 @@ gpumd: $(OBJ_GPUMD)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
 nep: $(OBJ_NEP)
 	$(CC) $(LDFLAGS) $^ -o $@ $(LIBS)
-	
+
 
 ###########################################################
 # rules for building object files
@@ -129,6 +129,6 @@ clean:
 ifdef OS
 	del /s *.obj *.exp *.lib *.exe
 else
-	rm */*.o gpumd nep
+	rm -f */*.o gpumd nep
 endif
 
