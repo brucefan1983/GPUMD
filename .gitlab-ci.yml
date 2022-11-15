@@ -60,5 +60,4 @@ pages:
   only:
     - master
     - tags
-  except:
-   - schedules
+    - schedules
