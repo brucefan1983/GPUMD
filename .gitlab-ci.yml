@@ -60,4 +60,3 @@ pages:
   only:
     - master
     - tags
-    - schedules
