@@ -1,6 +1,6 @@
 ###########################################################
 # Note: 
-# 1) You can modify -arch=sm_50 according to 
+# 1) You can modify -arch=sm_60 according to 
 #    your GPU architecture.
 # 2) For Windows systems, if you get errors like 
 #    c1xx : fatal error C1083: Cannot open source file: ...
@@ -15,9 +15,9 @@
 ###########################################################
 CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
-CFLAGS = -O3 -arch=sm_50 -Xcompiler "/wd 4819"
+CFLAGS = -O3 -arch=sm_60 -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++14 -O3 -arch=sm_50
+CFLAGS = -std=c++14 -O3 -arch=sm_60
 endif
 INC = -I./
 LDFLAGS = 
