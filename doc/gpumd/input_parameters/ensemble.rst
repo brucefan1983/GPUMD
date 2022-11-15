@@ -106,7 +106,7 @@ with three different options for specifying :attr:`<pressure_control_parameters>
 If the first parameter is :attr:`npt_scr`, it is similar to the case of :attr:`npt_ber`, but using the :ref:`stochastic cell rescaling method <stochastic_cell_rescaling>`.
 
 :attr:`heat_nhc`
-^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^
 If the first parameter is :attr:`heat_nhc`, it means heating a source region and simultaneously cooling a sink region using local :ref:`Nose-Hoover chain thermostats <nose_hoover_chain_thermostat>`.
 The full command is::
 
