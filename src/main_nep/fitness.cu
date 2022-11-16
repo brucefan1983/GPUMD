@@ -25,7 +25,11 @@ Get the fitness
 #include "utilities/gpu_vector.cuh"
 #include <algorithm>
 #include <chrono>
+#include <ctime>
+#include <iomanip>
+#include <iostream>
 #include <random>
+#include <sstream>
 #include <vector>
 
 Fitness::Fitness(char* input_dir, Parameters& para)
@@ -160,6 +164,57 @@ void Fitness::predict_energy_or_stress(FILE* fid, float* data, float* ref, Datas
   }
 }
 
+void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
+{
+  if (para.version == 2) {
+    if (para.enable_zbl) {
+      fprintf(fid_nep, "nep_zbl %d ", para.num_types);
+    } else {
+      fprintf(fid_nep, "nep %d ", para.num_types);
+    }
+  } else if (para.version == 3) {
+    if (para.enable_zbl) {
+      fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
+    } else {
+      fprintf(fid_nep, "nep3 %d ", para.num_types);
+    }
+  } else if (para.version == 4) {
+    if (para.enable_zbl) {
+      fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+    } else {
+      fprintf(fid_nep, "nep4 %d ", para.num_types);
+    }
+  }
+
+  for (int n = 0; n < para.num_types; ++n) {
+    fprintf(fid_nep, "%s ", para.elements[n].c_str());
+  }
+  fprintf(fid_nep, "\n");
+  if (para.enable_zbl) {
+    fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
+  }
+  fprintf(
+    fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
+    max_NN_angular);
+  fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
+  if (para.version >= 3) {
+    fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
+    fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
+  } else {
+    fprintf(fid_nep, "l_max %d\n", para.L_max);
+  }
+
+  fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
+  for (int m = 0; m < para.number_of_variables; ++m) {
+    fprintf(fid_nep, "%15.7e\n", elite[m]);
+  }
+  CHECK(cudaSetDevice(0));
+  para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
+  for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
+    fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
+  }
+}
+
 void Fitness::report_error(
   char* input_dir,
   Parameters& para,
@@ -190,59 +245,23 @@ void Fitness::report_error(
     float rmse_force_test = test_set[0].get_rmse_force(para, false, 0);
     float rmse_virial_test = test_set[0].get_rmse_virial(false, 0);
 
-    char file_nep[200];
-    strcpy(file_nep, input_dir);
-    strcat(file_nep, "/nep.txt");
-    FILE* fid_nep = my_fopen(file_nep, "w");
-
-    if (para.version == 2) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep %d ", para.num_types);
-      }
-    } else if (para.version == 3) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep3 %d ", para.num_types);
-      }
-    } else if (para.version == 4) {
-      if (para.enable_zbl) {
-        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-      } else {
-        fprintf(fid_nep, "nep4 %d ", para.num_types);
-      }
-    }
-
-    for (int n = 0; n < para.num_types; ++n) {
-      fprintf(fid_nep, "%s ", para.elements[n].c_str());
-    }
-    fprintf(fid_nep, "\n");
-    if (para.enable_zbl) {
-      fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
-    }
-    fprintf(
-      fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
-      max_NN_angular);
-    fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
-    if (para.version >= 3) {
-      fprintf(fid_nep, "basis_size %d %d\n", para.basis_size_radial, para.basis_size_angular);
-      fprintf(fid_nep, "l_max %d %d %d\n", para.L_max, para.L_max_4body, para.L_max_5body);
-    } else {
-      fprintf(fid_nep, "l_max %d\n", para.L_max);
-    }
-
-    fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
-    for (int m = 0; m < para.number_of_variables; ++m) {
-      fprintf(fid_nep, "%15.7e\n", elite[m]);
-    }
-    CHECK(cudaSetDevice(0));
-    para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
-    for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
-      fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
-    }
+    FILE* fid_nep = my_fopen("nep.txt", "w");
+    write_nep_txt(fid_nep, para, elite);
     fclose(fid_nep);
+
+    if (0 == (generation + 1) % 100000) {
+      auto t = std::time(nullptr);
+      auto tm = *std::localtime(&t);
+
+      std::ostringstream oss;
+      oss << std::put_time(&tm, "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation");
+      auto filename = oss.str();
+      filename = filename + std::to_string(generation + 1) + ".txt";
+
+      FILE* fid_nep = my_fopen(filename.c_str(), "w");
+      write_nep_txt(fid_nep, para, elite);
+      fclose(fid_nep);
+    }
 
     printf(
       "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n", generation + 1,
