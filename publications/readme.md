@@ -12,7 +12,7 @@
 * Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A. Caro, Tapio Ala-Nissila, 
  [Quantum-corrected thickness-dependent thermal conductivity in amorphous silicon predicted by machine-learning molecular dynamics simulations](https://doi.org/10.48550/arXiv.2206.07605), arXiv:2206.07605 [cond-mat.mtrl-sci].
 
-## 2022 (17)
+## 2022 (18)
 
 * Ke Xu, Ting Liang, Yuequn Fu, Zhen Wang, Zheyong Fan, Ning Wei, Jianbin Xu, Zhisen Zhang, and Jianyang Wu,
 [Gradient nano-grained graphene as 2D thermal rectifier: A molecular dynamics based machine learning study](https://doi.org/10.1063/5.0108746),
@@ -42,6 +42,9 @@ Diamond and Related Materials, **129**, 109341 (2022).
 * Wenhao Sha and Fenglin Guo, [Thermal transport in two-dimensional carbon nitrides: A comparative molecular dynamics study](https://doi.org/10.1016/j.cartre.2022.100161), Carbon Trends, **7**, 100161 (2022).
 
 * Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter **34** 125902 (2022).
+
+* Xin Wu, Penghua Ying, Chunlei Li, and Qiang Han, [Dual effects of hetero-interfaces on phonon thermal transport across graphene/C3N lateral superlattices](https://doi.org/10.1016/j.ijheatmasstransfer.2022.123643),
+International Journal of Heat and Mass Transfer, **201**, 123643 (2023).
 
 * Xin Wu and Qiang Han, [Tunable anisotropic in-plane thermal transport of multilayer graphene induced by 2D empty space: Insights from interfaces](https://doi.org/10.1016/j.surfin.2022.102296), Surfaces and Interfaces, **33**, 102296 (2022).
 
