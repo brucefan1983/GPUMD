@@ -1,0 +1,507 @@
+ Job started on host 2013-20140710BT
+ at Sun Nov 13 23:14:36 2022
+
+ +-------------------------------------------------+
+ |                                                 |
+ |      CCC   AA    SSS  TTTTT  EEEEE  PPPP        |
+ |     C     A  A  S       T    E      P   P       |
+ |     C     AAAA   SS     T    EEE    PPPP        |
+ |     C     A  A     S    T    E      P           |
+ |      CCC  A  A  SSS     T    EEEEE  P           |
+ |                                                 |
+ +-------------------------------------------------+
+ |                                                 |
+ | Materials Studio CASTEP version 2017            |
+ | Ab Initio Total Energy Program                  |
+ |                                                 |
+ | Authors:                                        |
+ | M. Segall, M. Probert, C. Pickard, P. Hasnip,   |
+ | S. Clark, K. Refson, J. R. Yates, M. Payne      |
+ |                                                 |
+ | Contributors:                                   |
+ | P. Lindan, P. Haynes, J. White, V. Milman,      |
+ | N. Govind, M. Gibson, P. Tulip, V. Cocula,      |
+ | B. Montanari, D. Quigley, M. Glover,            |
+ | L. Bernasconi, A. Perlov, M. Plummer,           |
+ | E. McNellis, J. Meyer, J. Gale, D. Jochym       |
+ | J. Aarons, B. Walker, R. Gillen, D. Jones       |
+ | T. Green, I. J. Bush, C. J. Armstrong,          |
+ | E. J. Higgins, E. L. Brown, M. S. McFly         |
+ |                                                 |
+ | Copyright (c) 2000 - 2016                       |
+ |                                                 |
+ | Please cite                                     |
+ |                                                 |
+ |     "First principles methods using CASTEP"     |
+ |                                                 |
+ |         Zeitschrift fuer Kristallographie       |
+ |           220(5-6) pp. 567-570 (2005)           |
+ |                                                 |
+ | S. J. Clark, M. D. Segall, C. J. Pickard,       |
+ | P. J. Hasnip, M. J. Probert, K. Refson,         |
+ | M. C. Payne                                     |
+ |                                                 |
+ |       in all publications arising from          |
+ |              your use of CASTEP                 |
+ |                                                 |
+ +-------------------------------------------------+
+ 
+ 
+ This version was compiled for i686-windows-msvc2008 on May 05 2016
+ Intel(R) Math Kernel Library Version 11.1.2 
+ Fundamental constants values: CODATA 2010
+ 
+License checkout of MS_castep successful
+ 
+ 
+ Pseudo atomic calculation performed for C 2s2 2p2
+ 
+ Converged in 17 iterations to a total energy of -145.7151 eV
+ 
+ 
+ Pseudo atomic calculation performed for N 2s2 2p3
+ 
+ Converged in 21 iterations to a total energy of -261.3593 eV
+ 
+ Calculation parallelised over 4 processes.
+ Data is distributed by G-vector(2-way) and k-point(2-way)
+
+ ************************************ Title ************************************
+ CASTEP calculation from Materials Studio
+
+ ***************************** General Parameters ******************************
+  
+ output verbosity                               : normal  (1)
+ write checkpoint data to                       : NHG.check
+ type of calculation                            : single point energy
+ stress calculation                             : off
+ density difference calculation                 : off
+ electron localisation func (ELF) calculation   : off
+ Hirshfeld analysis                             : on
+ unlimited duration calculation
+ timing information                             : on
+ memory usage estimate                          : on
+ write final potential to formatted file        : off
+ write final density to formatted file          : off
+ write BibTeX reference list                    : on
+ write OTFG pseudopotential files               : on
+ checkpoint writing                             : both castep_bin and check files
+  
+ output         length unit                     : A
+ output           mass unit                     : amu
+ output           time unit                     : ps
+ output         charge unit                     : e
+ output           spin unit                     : hbar/2
+ output         energy unit                     : eV
+ output          force unit                     : eV/A
+ output       velocity unit                     : A/ps
+ output       pressure unit                     : GPa
+ output     inv_length unit                     : 1/A
+ output      frequency unit                     : cm-1
+ output force constant unit                     : eV/A**2
+ output         volume unit                     : A**3
+ output   IR intensity unit                     : (D/A)**2/amu
+ output         dipole unit                     : D
+ output         efield unit                     : eV/A/e
+ output        entropy unit                     : J/mol/K
+  
+ wavefunctions paging                           : none
+ random number generator seed                   : randomised (231442282)
+ data distribution                              : optimal for this architecture
+ optimization strategy                          : balance speed and memory
+
+ *********************** Exchange-Correlation Parameters ***********************
+  
+ using functional                               : Perdew Burke Ernzerhof
+ relativistic treatment                         : Koelling-Harmon
+ DFT+D: Semi-empirical dispersion correction    : off
+
+ ************************* Pseudopotential Parameters **************************
+  
+ pseudopotential representation                 : reciprocal space
+ <beta|phi> representation                      : reciprocal space
+ spin-orbit coupling                            : off
+
+ **************************** Basis Set Parameters *****************************
+  
+ plane wave basis set cut-off                   :   700.0000   eV
+ size of standard grid                          :     1.5000
+ size of   fine   gmax                          :    20.3319   1/A
+ largest prime factor in FFT                    :          5
+ finite basis set correction                    : none
+
+ **************************** Electronic Parameters ****************************
+  
+ number of  electrons                           :  78.00    
+ net charge of system                           :  0.000    
+ treating system as non-spin-polarized
+ number of bands                                :         39
+
+ ********************* Electronic Minimization Parameters **********************
+  
+ Method: Treating system as non-metallic,
+         and number of  SD  steps               :          1
+         and number of  CG  steps               :          4
+  
+ total energy / atom convergence tol.           : 0.2000E-05   eV
+ eigen-energy convergence tolerance             : 0.9231E-06   eV
+ max force / atom convergence tol.              : ignored
+ convergence tolerance window                   :          3   cycles
+ max. number of SCF cycles                      :        100
+ periodic dipole correction                     : NONE
+
+ ************************** Density Mixing Parameters **************************
+  
+ density-mixing scheme                          : Pulay
+ max. length of mixing history                  :         20
+ charge density mixing amplitude                : 0.5000    
+ cut-off energy for mixing                      :  700.0       eV
+ charge density mixing g-vector                 :  1.500       1/A
+
+ *********************** Population Analysis Parameters ************************
+  
+ Population analysis with cutoff                :  3.000       A
+
+ *******************************************************************************
+  
+ 
+                           -------------------------------
+                                      Unit Cell
+                           -------------------------------
+        Real Lattice(A)                      Reciprocal Lattice(1/A)
+   7.2238773  -4.1707075   0.0000000        0.8697802   0.0000000   0.0000000
+   0.0000000   8.3414150   0.0000000        0.4348901   0.7532517   0.0000000
+   0.0000000   0.0000000  10.0019049       -0.0000000  -0.0000000   0.6281989
+ 
+                       Lattice parameters(A)       Cell Angles
+                    a =    8.341415          alpha =   90.000000
+                    b =    8.341415          beta  =   90.000000
+                    c =   10.001905          gamma =  120.000000
+ 
+                       Current cell volume =  602.688366       A**3
+ 
+                           -------------------------------
+                                     Cell Contents
+                           -------------------------------
+                         Total number of ions in cell =   18
+                      Total number of species in cell =    2
+                        Max number of any one species =   12
+ 
+            xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+            x  Element    Atom        Fractional coordinates of atoms  x
+            x            Number           u          v          w      x
+            x----------------------------------------------------------x
+            x  C            1         2.493740   2.334916  -0.500000   x 
+            x  C            2        -2.334916   0.158824  -0.500000   x 
+            x  C            3        -0.158824  -2.493740  -0.500000   x 
+            x  C            4        -2.493740  -2.334916  -0.500000   x 
+            x  C            5         2.334916  -0.158824  -0.500000   x 
+            x  C            6         0.158824   2.493740  -0.500000   x 
+            x  C            7         2.334916   2.493740   0.500000   x 
+            x  C            8         0.158824  -2.334916   0.500000   x 
+            x  C            9        -2.493740  -0.158824   0.500000   x 
+            x  C           10        -2.334916  -2.493740   0.500000   x 
+            x  C           11        -0.158824   2.334916   0.500000   x 
+            x  C           12         2.493740   0.158824   0.500000   x 
+            x  N            1         2.330318   2.330318  -0.500000   x 
+            x  N            2        -2.330318  -0.000000  -0.500000   x 
+            x  N            3         0.000000  -2.330318  -0.500000   x 
+            x  N            4        -2.330318  -2.330318  -0.500000   x 
+            x  N            5         2.330318   0.000000  -0.500000   x 
+            x  N            6        -0.000000   2.330318  -0.500000   x 
+            xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+ 
+ 
+                         No user defined ionic velocities
+ 
+                           -------------------------------
+                                   Details of Species
+                           -------------------------------
+ 
+                               Mass of species in AMU
+                                    C   12.0109997
+                                    N   14.0070000
+ 
+                          Electric Quadrupole Moment (Barn)
+                                    C    0.0332700 Isotope 11
+                                    N    0.0204400 Isotope 14
+ 
+                          Files used for pseudopotentials:
+                                    C C_00PBE_OP.recpot
+                                    N N_00PBE_OP.recpot
+ 
+                           -------------------------------
+                              k-Points For BZ Sampling
+                           -------------------------------
+                       MP grid size for SCF calculation is  2  2  2
+                            with an offset of   0.250  0.250  0.000
+                       Number of kpoints used =             2
+ 
+                           -------------------------------
+                               Symmetry and Constraints
+                           -------------------------------
+ 
+                      Maximum deviation from symmetry = 0.111130E-13     ANG
+ 
+                      Number of symmetry operations   =          24
+         There are no ionic constraints specified or generated for this cell
+                      Point group of crystal =    27: D6h, 6/mmm, 6/m 2/m 2/m
+                      Space group of crystal =   191: P6/mmm, -P 6 2
+ 
+             Set iprint > 1 for details on symmetry rotations/translations
+ 
+                         Centre of mass is NOT constrained
+ 
+                         Number of cell constraints= 4
+                         Cell constraints are:  1 1 3 0 0 0
+ 
+                         External pressure/stress (GPa)
+                          0.00000   0.00000   0.00000
+                                    0.00000   0.00000
+                                              0.00000
+  
++---------------- MEMORY AND SCRATCH DISK ESTIMATES PER PROCESS --------------+
+|                                                     Memory          Disk    |
+| Baseline code, static data and system overhead        0.0 MB         0.0 MB |
+| BLAS internal memory storage                          0.0 MB         0.0 MB |
+| Model and support data                               52.8 MB         0.0 MB |
+| Electronic energy minimisation requirements          39.9 MB         0.0 MB |
+| Force calculation requirements                       12.3 MB         0.0 MB |
+|                                               ----------------------------- |
+| Approx. total storage required per process           92.7 MB         0.0 MB |
+|                                                                             |
+| Requirements will fluctuate during execution and may exceed these estimates |
++-----------------------------------------------------------------------------+
+------------------------------------------------------------------------ <-- SCF
+SCF loop      Energy                           Energy gain       Timer   <-- SCF
+                                               per atom          (sec)   <-- SCF
+------------------------------------------------------------------------ <-- SCF
+Initial  -1.85353784E+003                                          1.05  <-- SCF
+      1  -3.05999005E+003                    6.70251229E+001       6.61  <-- SCF
+      2  -3.44421110E+003                    2.13456136E+001      10.67  <-- SCF
+      3  -3.47865296E+003                    1.91343680E+000      15.68  <-- SCF
+      4  -3.47253161E+003                   -3.40074749E-001      20.73  <-- SCF
+      5  -3.47086334E+003                   -9.26818864E-002      26.08  <-- SCF
+      6  -3.47061172E+003                   -1.39790031E-002      31.90  <-- SCF
+      7  -3.47049921E+003                   -6.25055177E-003      37.74  <-- SCF
+      8  -3.47047437E+003                   -1.37997363E-003      43.43  <-- SCF
+      9  -3.47045758E+003                   -9.32836586E-004      48.77  <-- SCF
+     10  -3.47045644E+003                   -6.29138969E-005      54.80  <-- SCF
+     11  -3.47049205E+003                    1.97794514E-003      59.80  <-- SCF
+     12  -3.47051351E+003                    1.19231342E-003      64.44  <-- SCF
+     13  -3.47051619E+003                    1.49124591E-004      68.41  <-- SCF
+     14  -3.47051779E+003                    8.86902617E-005      72.28  <-- SCF
+     15  -3.47051800E+003                    1.16754071E-005      75.71  <-- SCF
+     16  -3.47051817E+003                    9.58520760E-006      79.14  <-- SCF
+     17  -3.47051822E+003                    2.62432071E-006      82.52  <-- SCF
+     18  -3.47051823E+003                    6.03539296E-007      85.93  <-- SCF
+     19  -3.47051823E+003                    1.14175653E-007      89.28  <-- SCF
+------------------------------------------------------------------------ <-- SCF
+ 
+Final energy =  -3470.518231854     eV
+(energy not corrected for finite basis set)
+ 
+
+Writing analysis data to NHG.castep_bin
+
+Writing model to NHG.check
+ 
+ ***************** Symmetrised Forces *****************
+ *                                                    *
+ *            Cartesian components (eV/A)             *
+ * -------------------------------------------------- *
+ *                   x            y            z      *
+ *                                                    *
+ * C         1      0.11871      0.20013      0.00000 *
+ * C         2     -0.23267      0.00274      0.00000 *
+ * C         3      0.11396     -0.20287      0.00000 *
+ * C         4     -0.11871     -0.20013      0.00000 *
+ * C         5      0.23267     -0.00274     -0.00000 *
+ * C         6     -0.11396      0.20287     -0.00000 *
+ * C         7      0.23267      0.00274      0.00000 *
+ * C         8     -0.11396     -0.20287      0.00000 *
+ * C         9     -0.11871      0.20013     -0.00000 *
+ * C        10     -0.23267     -0.00274      0.00000 *
+ * C        11      0.11396      0.20287     -0.00000 *
+ * C        12      0.11871     -0.20013      0.00000 *
+ * N         1      0.01146      0.00662     -0.00000 *
+ * N         2     -0.01146      0.00662      0.00000 *
+ * N         3      0.00000     -0.01324      0.00000 *
+ * N         4     -0.01146     -0.00662      0.00000 *
+ * N         5      0.01146     -0.00662     -0.00000 *
+ * N         6      0.00000      0.01324     -0.00000 *
+ *                                                    *
+ ******************************************************
+ 
+ Pseudo atomic calculation performed for C 2s2 2p2
+ 
+ Converged in 17 iterations to a total energy of -145.7151 eV
+ 
+ 
+ Pseudo atomic calculation performed for N 2s2 2p3
+ 
+ Converged in 21 iterations to a total energy of -261.3593 eV
+ 
+Charge spilling parameter for spin component 1 = 1.36%
+ 
+     Atomic Populations (Mulliken)
+     -----------------------------
+Species   Ion     s      p      d      f     Total  Charge (e)
+==============================================================
+  C        1     0.99   2.84   0.00   0.00   3.83     0.17
+  C        2     0.99   2.84   0.00   0.00   3.83     0.17
+  C        3     0.99   2.84   0.00   0.00   3.83     0.17
+  C        4     0.99   2.84   0.00   0.00   3.83     0.17
+  C        5     0.99   2.84   0.00   0.00   3.83     0.17
+  C        6     0.99   2.84   0.00   0.00   3.83     0.17
+  C        7     0.99   2.84   0.00   0.00   3.83     0.17
+  C        8     0.99   2.84   0.00   0.00   3.83     0.17
+  C        9     0.99   2.84   0.00   0.00   3.83     0.17
+  C       10     0.99   2.84   0.00   0.00   3.83     0.17
+  C       11     0.99   2.84   0.00   0.00   3.83     0.17
+  C       12     0.99   2.84   0.00   0.00   3.83     0.17
+  N        1     1.56   3.78   0.00   0.00   5.33    -0.33
+  N        2     1.56   3.78   0.00   0.00   5.33    -0.33
+  N        3     1.56   3.78   0.00   0.00   5.33    -0.33
+  N        4     1.56   3.78   0.00   0.00   5.33    -0.33
+  N        5     1.56   3.78   0.00   0.00   5.33    -0.33
+  N        6     1.56   3.78   0.00   0.00   5.33    -0.33
+==============================================================
+ 
+            Bond              Population      Length (A)
+============================================================
+         C 11 -- N 6               1.01        1.34440
+         C 8  -- N 3               1.01        1.34440
+         C 10 -- N 4               1.01        1.34440
+         C 7  -- N 1               1.01        1.34440
+         C 9  -- N 2               1.01        1.34440
+         C 12 -- N 5               1.01        1.34440
+         C 6  -- N 6               1.01        1.34440
+         C 3  -- N 3               1.01        1.34440
+         C 5  -- N 5               1.01        1.34440
+         C 2  -- N 2               1.01        1.34440
+         C 1  -- N 1               1.01        1.34440
+         C 4  -- N 4               1.01        1.34440
+         C 5  -- C 9               1.07        1.42925
+         C 1  -- C 10              1.07        1.42925
+         C 2  -- C 12              1.07        1.42925
+         C 4  -- C 7               1.07        1.42925
+         C 6  -- C 8               1.07        1.42925
+         C 3  -- C 11              1.07        1.42925
+         C 6  -- C 7               0.85        1.46885
+         C 4  -- C 9               0.85        1.46885
+         C 3  -- C 10              0.85        1.46885
+         C 5  -- C 8               0.85        1.46885
+         C 2  -- C 11              0.85        1.46885
+         C 1  -- C 12              0.85        1.46885
+         C 2  -- C 9              -0.27        2.29465
+         C 1  -- C 7              -0.27        2.29465
+         C 6  -- C 11             -0.27        2.29465
+         C 5  -- C 12             -0.27        2.29465
+         C 3  -- C 8              -0.27        2.29465
+         C 4  -- C 10             -0.27        2.29465
+         C 1  -- N 4              -0.15        2.41936
+         C 9  -- N 5              -0.15        2.41936
+         C 12 -- N 2              -0.15        2.41936
+         C 10 -- N 1              -0.15        2.41936
+         C 7  -- N 4              -0.15        2.41936
+         C 5  -- N 2              -0.15        2.41936
+         C 4  -- N 1              -0.15        2.41936
+         C 2  -- N 5              -0.15        2.41936
+         C 11 -- N 3              -0.15        2.41936
+         C 8  -- N 6              -0.15        2.41936
+         C 6  -- N 3              -0.15        2.41936
+         C 3  -- N 6              -0.15        2.41936
+         C 3  -- N 4              -0.19        2.41963
+         C 6  -- N 1              -0.19        2.41963
+         C 4  -- N 2              -0.19        2.41963
+         C 11 -- N 2              -0.19        2.41963
+         C 8  -- N 5              -0.19        2.41963
+         C 5  -- N 3              -0.19        2.41963
+         C 2  -- N 6              -0.19        2.41963
+         C 1  -- N 5              -0.19        2.41963
+         C 10 -- N 3              -0.19        2.41963
+         C 7  -- N 6              -0.19        2.41963
+         C 12 -- N 1              -0.19        2.41963
+         C 9  -- N 4              -0.19        2.41963
+         C 4  -- C 5              -0.20        2.50991
+         C 1  -- C 2              -0.20        2.50991
+         C 11 -- C 12             -0.20        2.50991
+         C 8  -- C 9              -0.20        2.50991
+         C 4  -- C 6              -0.20        2.50991
+         C 1  -- C 3              -0.20        2.50991
+         C 10 -- C 12             -0.20        2.50991
+         C 7  -- C 9              -0.20        2.50991
+         C 5  -- C 6              -0.20        2.50991
+         C 2  -- C 3              -0.20        2.50991
+         C 10 -- C 11             -0.20        2.50991
+         C 7  -- C 8              -0.20        2.50991
+         C 7  -- C 10             -0.16        2.70337
+         C 2  -- C 5              -0.16        2.70337
+         C 1  -- C 4              -0.16        2.70337
+         C 9  -- C 12             -0.16        2.70337
+         C 3  -- C 6              -0.16        2.70337
+         C 8  -- C 11             -0.16        2.70337
+          N 3 -- N 4              -0.04        2.75532
+          N 1 -- N 6              -0.04        2.75532
+          N 3 -- N 5              -0.04        2.75532
+          N 2 -- N 6              -0.04        2.75532
+          N 1 -- N 5              -0.04        2.75532
+          N 2 -- N 4              -0.04        2.75532
+          N 1 -- N 4              -0.05        2.83077
+          N 2 -- N 5              -0.05        2.83077
+          N 3 -- N 6              -0.05        2.83077
+         C 5  -- C 7              -0.05        2.89810
+         C 2  -- C 10             -0.05        2.89810
+         C 4  -- C 8              -0.05        2.89810
+         C 1  -- C 11             -0.05        2.89810
+         C 6  -- C 9              -0.05        2.89810
+         C 3  -- C 12             -0.05        2.89810
+============================================================
+ 
+ 
+     Hirshfeld Analysis
+     ------------------
+Species   Ion     Hirshfeld Charge (e)  Spin (hbar/2)
+===================================================
+  C        1                 0.05        0.00
+  C        2                 0.05        0.00
+  C        3                 0.05        0.00
+  C        4                 0.05        0.00
+  C        5                 0.05        0.00
+  C        6                 0.05        0.00
+  C        7                 0.05        0.00
+  C        8                 0.05        0.00
+  C        9                 0.05        0.00
+  C       10                 0.05        0.00
+  C       11                 0.05        0.00
+  C       12                 0.05        0.00
+  N        1                -0.11        0.00
+  N        2                -0.11        0.00
+  N        3                -0.11        0.00
+  N        4                -0.11        0.00
+  N        5                -0.11        0.00
+  N        6                -0.11        0.00
+===================================================
+ 
+
+Writing analysis data to NHG.castep_bin
+
+Writing model to NHG.check
+ 
+ A BibTeX formatted list of references used in this run has been written to 
+ NHG.bib
+ 
+Initialisation time =      0.51 s
+Calculation time    =     90.96 s
+Finalisation time   =      1.09 s
+Total time          =     92.57 s
+  
+Overall parallel efficiency rating: Good (70%)                                  
+  
+Data was distributed by:-
+G-vector (2-way); efficiency rating: Good (70%)                                 
+k-point (2-way); efficiency rating: Ideal (100%)                                
+  
+Parallel notes:
+1) Calculation only took 91.6 s, so efficiency estimates may be inaccurate.     
