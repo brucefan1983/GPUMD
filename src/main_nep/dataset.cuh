@@ -53,19 +53,20 @@ public:
   std::vector<float> virial_ref_cpu; // reference virial in CPU
   std::vector<float> force_ref_cpu;  // reference force in CPU
   std::vector<float> weight_cpu;     // configuration weight in CPU
-  
-  GPU_Vector<float> type_weight_gpu;  // relative force weight for different atom types (GPU)
+
+  GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
 
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force
 
   std::vector<Structure> structures;
 
-  void construct(char*, Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
+  void construct(
+    char*, Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
   float get_rmse_force(Parameters& para, const bool use_weight, int device_id);
-  float
-  get_rmse_energy(float& energy_shift_per_structure, const bool use_weight, const bool do_shift,  int device_id);
-  float get_rmse_virial(const bool use_weight,  int device_id);
+  float get_rmse_energy(
+    float& energy_shift_per_structure, const bool use_weight, const bool do_shift, int device_id);
+  float get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
