@@ -60,6 +60,7 @@ void Parameters::set_default_parameters()
   is_lambda_e_set = false;
   is_lambda_f_set = false;
   is_lambda_v_set = false;
+  is_lambda_shear_set = false;
   is_batch_set = false;
   is_population_set = false;
   is_generation_set = false;
@@ -82,6 +83,7 @@ void Parameters::set_default_parameters()
   lambda_1 = lambda_2 = 5.0e-2f; // good default based on our tests
   lambda_e = lambda_f = 1.0f;    // energy and force are more important
   lambda_v = 0.1f;               // virial is less important
+  lambda_shear = 1.0f;           // do not weight shear virial more by default
   force_delta = 0.0f;            // no modification of force loss
   batch_size = 1000;             // large enough in most cases
   population_size = 50;          // almost optimal
@@ -271,6 +273,12 @@ void Parameters::report_inputs()
     printf("    (default) lambda_v = %g.\n", lambda_v);
   }
 
+  if (is_lambda_shear_set) {
+    printf("    (input)   lambda_shear = %g.\n", lambda_shear);
+  } else {
+    printf("    (default) lambda_shear = %g.\n", lambda_shear);
+  }
+
   if (is_force_delta_set) {
     printf("    (input)   force_delta = %g.\n", force_delta);
   } else {
@@ -346,6 +354,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_lambda_f(param, num_param);
   } else if (strcmp(param[0], "lambda_v") == 0) {
     parse_lambda_v(param, num_param);
+  } else if (strcmp(param[0], "lambda_shear") == 0) {
+    parse_lambda_shear(param, num_param);
   } else if (strcmp(param[0], "type_weight") == 0) {
     parse_type_weight(param, num_param);
   } else if (strcmp(param[0], "force_delta") == 0) {
@@ -707,6 +717,25 @@ void Parameters::parse_lambda_v(const char** param, int num_param)
 
   if (lambda_v < 0.0f) {
     PRINT_INPUT_ERROR("Virial loss weight should >= 0.");
+  }
+}
+
+void Parameters::parse_lambda_shear(const char** param, int num_param)
+{
+  is_lambda_shear_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("lambda_shear should have 1 parameter.\n");
+  }
+
+  double lambda_shear_tmp = 0.0;
+  if (!is_valid_real(param[1], &lambda_shear_tmp)) {
+    PRINT_INPUT_ERROR("Shear virial weight should be a number.\n");
+  }
+  lambda_shear = lambda_shear_tmp;
+
+  if (lambda_shear < 0.0f) {
+    PRINT_INPUT_ERROR("Shear virial weight should >= 0.");
   }
 }
 

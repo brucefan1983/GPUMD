@@ -46,6 +46,7 @@ public:
   float lambda_e;         // weight parameter for energy RMSE loss
   float lambda_f;         // weight parameter for force RMSE loss
   float lambda_v;         // weight parameter for virial RMSE loss
+  float lambda_shear;     // extra weight parameter for shear virial
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
@@ -66,6 +67,7 @@ public:
   bool is_lambda_e_set;
   bool is_lambda_f_set;
   bool is_lambda_v_set;
+  bool is_lambda_shear_set;
   bool is_batch_set;
   bool is_population_set;
   bool is_generation_set;
@@ -113,6 +115,7 @@ private:
   void parse_lambda_e(const char** param, int num_param);
   void parse_lambda_f(const char** param, int num_param);
   void parse_lambda_v(const char** param, int num_param);
+  void parse_lambda_shear(const char** param, int num_param);
   void parse_force_delta(const char** param, int num_param);
   void parse_batch(const char** param, int num_param);
   void parse_population(const char** param, int num_param);

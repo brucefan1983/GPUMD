@@ -141,7 +141,7 @@ void Fitness::compute(
         fitness[deviceCount * n + m + 1 * para.population_size] =
           para.lambda_f * train_set[batch_id][m].get_rmse_force(para, true, m);
         fitness[deviceCount * n + m + 2 * para.population_size] =
-          para.lambda_v * train_set[batch_id][m].get_rmse_virial(true, m);
+          para.lambda_v * train_set[batch_id][m].get_rmse_virial(para, true, m);
       }
     }
   }
@@ -225,7 +225,7 @@ void Fitness::report_error(
     float rmse_energy_train =
       train_set[batch_id][0].get_rmse_energy(energy_shift_per_structure, false, true, 0);
     float rmse_force_train = train_set[batch_id][0].get_rmse_force(para, false, 0);
-    float rmse_virial_train = train_set[batch_id][0].get_rmse_virial(false, 0);
+    float rmse_virial_train = train_set[batch_id][0].get_rmse_virial(para, false, 0);
 
     // correct the last bias parameter in the NN
     if (para.train_mode == 0) {
@@ -237,7 +237,7 @@ void Fitness::report_error(
     float rmse_energy_test =
       test_set[0].get_rmse_energy(energy_shift_per_structure_not_used, false, false, 0);
     float rmse_force_test = test_set[0].get_rmse_force(para, false, 0);
-    float rmse_virial_test = test_set[0].get_rmse_virial(false, 0);
+    float rmse_virial_test = test_set[0].get_rmse_virial(para, false, 0);
 
     FILE* fid_nep = my_fopen("nep.txt", "w");
     write_nep_txt(fid_nep, para, elite);

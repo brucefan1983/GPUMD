@@ -468,7 +468,7 @@ float Dataset::get_rmse_energy(
   return sqrt(error_ave / Nc);
 }
 
-float Dataset::get_rmse_virial(const bool use_weight, int device_id)
+float Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int device_id)
 {
   CHECK(cudaSetDevice(device_id));
   int num_virial_configurations = 0;
@@ -491,11 +491,8 @@ float Dataset::get_rmse_virial(const bool use_weight, int device_id)
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      if (use_weight) {
-        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
-      } else {
-        error_ave += error_cpu[n];
-      }
+      float total_weight = use_weight ? weight_cpu[n] * weight_cpu[n] : 1.0f;
+      error_ave += total_weight * error_cpu[n];
     }
   }
 
@@ -505,11 +502,8 @@ float Dataset::get_rmse_virial(const bool use_weight, int device_id)
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      if (use_weight) {
-        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
-      } else {
-        error_ave += error_cpu[n];
-      }
+      float total_weight = use_weight ? weight_cpu[n] * weight_cpu[n] : 1.0f;
+      error_ave += total_weight * error_cpu[n];
     }
   }
 
@@ -519,11 +513,8 @@ float Dataset::get_rmse_virial(const bool use_weight, int device_id)
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      if (use_weight) {
-        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
-      } else {
-        error_ave += error_cpu[n];
-      }
+      float total_weight = use_weight ? weight_cpu[n] * weight_cpu[n] : 1.0f;
+      error_ave += total_weight * error_cpu[n];
     }
   }
 
@@ -533,11 +524,9 @@ float Dataset::get_rmse_virial(const bool use_weight, int device_id)
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      if (use_weight) {
-        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
-      } else {
-        error_ave += error_cpu[n];
-      }
+      float total_weight =
+        use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
+      error_ave += total_weight * error_cpu[n];
     }
   }
 
@@ -547,11 +536,9 @@ float Dataset::get_rmse_virial(const bool use_weight, int device_id)
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      if (use_weight) {
-        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
-      } else {
-        error_ave += error_cpu[n];
-      }
+      float total_weight =
+        use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
+      error_ave += total_weight * error_cpu[n];
     }
   }
 
@@ -561,11 +548,9 @@ float Dataset::get_rmse_virial(const bool use_weight, int device_id)
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {
     if (structures[n].has_virial) {
-      if (use_weight) {
-        error_ave += weight_cpu[n] * weight_cpu[n] * error_cpu[n];
-      } else {
-        error_ave += error_cpu[n];
-      }
+      float total_weight =
+        use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
+      error_ave += total_weight * error_cpu[n];
     }
   }
 
