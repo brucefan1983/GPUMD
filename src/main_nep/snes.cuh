@@ -22,7 +22,7 @@ class Fitness;
 class SNES
 {
 public:
-  SNES(char*, Parameters&, Fitness*);
+  SNES(Parameters&, Fitness*);
 
 protected:
   std::mt19937 rng;
@@ -41,12 +41,12 @@ protected:
   std::vector<float> s;
   std::vector<float> s_copy;
   void initialize_rng();
-  void initialize_mu_and_sigma(char*, Parameters& para);
+  void initialize_mu_and_sigma(Parameters& para);
   void calculate_utility();
-  void compute(char*, Parameters&, Fitness*);
+  void compute(Parameters&, Fitness*);
   void create_population(Parameters&);
   void regularize(Parameters&);
   void sort_population();
   void update_mu_and_sigma();
-  void output_mu_and_sigma(char*, Parameters& para);
+  void output_mu_and_sigma(Parameters& para);
 };

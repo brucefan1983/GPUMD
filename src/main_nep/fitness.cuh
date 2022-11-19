@@ -26,11 +26,10 @@ class Parameters;
 class Fitness
 {
 public:
-  Fitness(char*, Parameters& para);
+  Fitness(Parameters& para);
   ~Fitness();
   void compute(const int generation, Parameters& para, const float*, float*);
   void report_error(
-    char* input_dir,
     Parameters& para,
     const int generation,
     const float loss_total,

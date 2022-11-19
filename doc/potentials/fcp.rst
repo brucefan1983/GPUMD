@@ -7,9 +7,6 @@ Force constant potential
 
 The force constant potential (:term:`FCP`) is obtained through a systematic expansion of the energy in displacements as described [Brorsson2021]_.
 
-When using this potential, you need to add the flag :attr:`-DUSE_FCP` in the makefile.
-In this case, you cannot use any other potential.
-
 Potential form
 --------------
 

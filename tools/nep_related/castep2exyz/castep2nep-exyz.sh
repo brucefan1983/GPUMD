@@ -59,7 +59,7 @@ do
 		paste $writ_dire/posi_cart_x.tem $writ_dire/posi_cart_y.tem $writ_dire/posi_cart_z.tem > $writ_dire/posi_cart.tem
 	
 		N_after_force=$(($syst_numb_atom + 5))
-		grep -A $N_after_force "^[* ][* ]*Forces" $i | tail -n $syst_numb_atom |awk '{print $4,$5,$6}' > $writ_dire/forc.tem
+		grep -A $N_after_force "^[* ][* ]*.*Forces" $i | tail -n $syst_numb_atom |awk '{print $4,$5,$6}' > $writ_dire/forc.tem
 		paste $writ_dire/symb.tem $writ_dire/posi_cart.tem $writ_dire/forc.tem >> $writ_dire/$writ_file
 		rm -f $writ_dire/*.tem
 		echo -n "$N_count/$N_case "

@@ -29,7 +29,7 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-Parameters::Parameters(char* input_dir)
+Parameters::Parameters()
 {
   print_line_1();
   printf("Started reading nep.in.\n");
