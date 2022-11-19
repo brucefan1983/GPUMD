@@ -268,12 +268,7 @@ void Dataset::find_neighbor(Parameters& para)
 }
 
 void Dataset::construct(
-  char* input_dir,
-  Parameters& para,
-  std::vector<Structure>& structures_input,
-  int n1,
-  int n2,
-  int device_id)
+  Parameters& para, std::vector<Structure>& structures_input, int n1, int n2, int device_id)
 {
   CHECK(cudaSetDevice(device_id));
   copy_structures(structures_input, n1, n2);

@@ -32,7 +32,7 @@ Get the fitness
 #include <sstream>
 #include <vector>
 
-Fitness::Fitness(char* input_dir, Parameters& para)
+Fitness::Fitness(Parameters& para)
 {
   print_line_1();
   printf("Started reading train.xyz.\n");
@@ -42,7 +42,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   CHECK(cudaGetDeviceCount(&deviceCount));
 
   std::vector<Structure> structures_train;
-  read_structures(true, input_dir, para, structures_train);
+  read_structures(true, para, structures_train);
   num_batches = (structures_train.size() - 1) / para.batch_size + 1;
   printf("Number of devices = %d\n", deviceCount);
   printf("Number of batches = %d\n", num_batches);
@@ -65,8 +65,7 @@ Fitness::Fitness(char* input_dir, Parameters& para)
       print_line_1();
       printf("Constructing train_set in device  %d.\n", device_id);
       CHECK(cudaSetDevice(device_id));
-      train_set[batch_id][device_id].construct(
-        input_dir, para, structures_train, n1, n2, device_id);
+      train_set[batch_id][device_id].construct(para, structures_train, n1, n2, device_id);
       print_line_2();
     }
   }
@@ -74,14 +73,13 @@ Fitness::Fitness(char* input_dir, Parameters& para)
   printf("Started reading test.xyz.\n");
   print_line_2();
   std::vector<Structure> structures_test;
-  read_structures(false, input_dir, para, structures_test);
+  read_structures(false, para, structures_test);
   test_set.resize(deviceCount);
   for (int device_id = 0; device_id < deviceCount; ++device_id) {
     print_line_1();
     printf("Constructing test_set in device  %d.\n", device_id);
     CHECK(cudaSetDevice(device_id));
-    test_set[device_id].construct(
-      input_dir, para, structures_test, 0, structures_test.size(), device_id);
+    test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id);
     print_line_2();
   }
 
@@ -109,13 +107,10 @@ Fitness::Fitness(char* input_dir, Parameters& para)
     }
   }
 
-  potential.reset(new NEP3(
-    input_dir, para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
+  potential.reset(
+    new NEP3(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
 
-  char file_loss_out[200];
-  strcpy(file_loss_out, input_dir);
-  strcat(file_loss_out, "/loss.out");
-  fid_loss_out = my_fopen(file_loss_out, "a");
+  fid_loss_out = my_fopen("loss.out", "a");
 }
 
 Fitness::~Fitness() { fclose(fid_loss_out); }
@@ -216,7 +211,6 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 }
 
 void Fitness::report_error(
-  char* input_dir,
   Parameters& para,
   const int generation,
   const float loss_total,
@@ -274,20 +268,9 @@ void Fitness::report_error(
       rmse_virial_train, rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_loss_out);
 
-    char file_force[200];
-    strcpy(file_force, input_dir);
-    strcat(file_force, "/force_test.out");
-    FILE* fid_force = my_fopen(file_force, "w");
-
-    char file_energy[200];
-    strcpy(file_energy, input_dir);
-    strcat(file_energy, "/energy_test.out");
-    FILE* fid_energy = my_fopen(file_energy, "w");
-
-    char file_virial[200];
-    strcpy(file_virial, input_dir);
-    strcat(file_virial, "/virial_test.out");
-    FILE* fid_virial = my_fopen(file_virial, "w");
+    FILE* fid_force = my_fopen("force_test.out", "w");
+    FILE* fid_energy = my_fopen("energy_test.out", "w");
+    FILE* fid_virial = my_fopen("virial_test.out", "w");
 
     update_energy_force_virial(fid_energy, fid_force, fid_virial, test_set[0]);
 
@@ -296,20 +279,9 @@ void Fitness::report_error(
     fclose(fid_virial);
 
     if (0 == (generation + 1) % 1000) {
-      char file_force[200];
-      strcpy(file_force, input_dir);
-      strcat(file_force, "/force_train.out");
-      FILE* fid_force = my_fopen(file_force, "w");
-
-      char file_energy[200];
-      strcpy(file_energy, input_dir);
-      strcat(file_energy, "/energy_train.out");
-      FILE* fid_energy = my_fopen(file_energy, "w");
-
-      char file_virial[200];
-      strcpy(file_virial, input_dir);
-      strcat(file_virial, "/virial_train.out");
-      FILE* fid_virial = my_fopen(file_virial, "w");
+      FILE* fid_force = my_fopen("force_train.out", "w");
+      FILE* fid_energy = my_fopen("energy_train.out", "w");
+      FILE* fid_virial = my_fopen("virial_train.out", "w");
 
       for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
         potential->find_force(para, elite, train_set[batch_id], false, 1);

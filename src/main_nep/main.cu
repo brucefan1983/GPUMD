@@ -29,15 +29,13 @@ int main(int argc, char* argv[])
   print_welcome_information();
   print_gpu_information();
 
-  char input_directory[200] = ".";
-
   print_line_1();
   printf("Started running nep.\n");
   print_line_2();
 
   clock_t time_begin = clock();
-  Parameters para(input_directory);
-  Fitness fitness(input_directory, para);
+  Parameters para;
+  Fitness fitness(para);
   clock_t time_finish = clock();
 
   float time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
@@ -46,7 +44,7 @@ int main(int argc, char* argv[])
   print_line_2();
 
   time_begin = clock();
-  SNES snes(input_directory, para, &fitness);
+  SNES snes(para, &fitness);
   time_finish = clock();
 
   time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);

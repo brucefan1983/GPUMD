@@ -231,11 +231,11 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     }
     structure.has_virial = true;
   }
-  if (!structure.has_virial) { 
-      for (int m = 0; m < 6; ++m) { 
-          structure.virial[m] = -1e6; 
-        } 
-  } 
+  if (!structure.has_virial) {
+    for (int m = 0; m < 6; ++m) {
+      structure.virial[m] = -1e6;
+    }
+  }
 
   int species_offset = 0;
   int pos_offset = 0;
@@ -413,12 +413,10 @@ static void reorder(std::vector<Structure>& structures)
   }
 }
 
-void read_structures(
-  bool is_train, char* input_dir, Parameters& para, std::vector<Structure>& structures)
+void read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)
 {
-  std::string filename(input_dir);
-  filename += is_train ? "/train.xyz" : "/test.xyz";
-  std::ifstream input(filename);
+  // std::string filename = is_train ? "/train.xyz" : "/test.xyz";
+  std::ifstream input(is_train ? "train.xyz" : "test.xyz");
 
   if (!input.is_open()) {
     PRINT_INPUT_ERROR("Failed to open train.xyz or test.xyz.");

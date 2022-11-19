@@ -23,7 +23,7 @@
 class Parameters
 {
 public:
-  Parameters(char* input_dir);
+  Parameters();
 
   // parameters to be read in
   int version;            // nep version, can be 2 or 3

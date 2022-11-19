@@ -230,7 +230,6 @@ static __global__ void find_descriptors_angular(
 }
 
 NEP3::NEP3(
-  char* input_dir,
   Parameters& para,
   int N,
   int N_times_max_NN_radial,
