@@ -25,6 +25,7 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    lambda_e
    lambda_f
    lambda_v
+   lambda_shear
    force_delta
    batch
    population
