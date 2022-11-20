@@ -1,16 +1,21 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (4)
+## Preprints (2)
 
 * Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://arxiv.org/abs/2208.03982), arXiv:2208.03982 [physics.comp-ph].
 
-* Penghua Ying, Haikuan Dong, Ting Liang, Zheyong Fan, Zheng Zhong, and Jin Zhang, [Atomistic insights into the mechanical anisotropy and fragility of monolayer fullerene networks using quantum mechanical calculations and machine-learning molecular dynamics simulations](https://chemrxiv.org/engage/chemrxiv/article-details/6317025003e27d90a4cac858), ChemRxiv. Cambridge: Cambridge Open Engage; 2022; This content is a preprint and has not been peer-reviewed.
-
-* Penghua Ying, Ting Liang, Ke Xu, Jin Zhang, Jianbin Xu, Jianyang Wu, Zheyong Fan, Tapio Ala-Nissila, Zheng Zhong,
-[Variable thermal transport in black, blue, and violet phosphorene from extensive atomistic simulations with a neuroevolution potential](https://arxiv.org/abs/2206.07874), arXiv:2206.07874 [physics.comp-ph].
-
 * Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A. Caro, Tapio Ala-Nissila, 
  [Quantum-corrected thickness-dependent thermal conductivity in amorphous silicon predicted by machine-learning molecular dynamics simulations](https://doi.org/10.48550/arXiv.2206.07605), arXiv:2206.07605 [cond-mat.mtrl-sci].
+ 
+## 2023 (3)
+
+* Penghua Ying, Haikuan Dong, Ting Liang, Zheyong Fan, Zheng Zhong, and Jin Zhang, [Atomistic insights into the mechanical anisotropy and fragility of monolayer fullerene networks using quantum mechanical calculations and machine-learning molecular dynamics simulations](https://chemrxiv.org/engage/chemrxiv/article-details/6317025003e27d90a4cac858), Accepted to EML.
+
+* Penghua Ying, Ting Liang, Ke Xu, Jin Zhang, Jianbin Xu, Jianyang Wu, Zheyong Fan, Tapio Ala-Nissila, Zheng Zhong,
+[Variable thermal transport in black, blue, and violet phosphorene from extensive atomistic simulations with a neuroevolution potential](https://arxiv.org/abs/2206.07874), arXiv:2206.07874 [physics.comp-ph]. Accepted to IJHMT.
+
+* Xin Wu, Penghua Ying, Chunlei Li, and Qiang Han, [Dual effects of hetero-interfaces on phonon thermal transport across graphene/C3N lateral superlattices](https://doi.org/10.1016/j.ijheatmasstransfer.2022.123643),
+International Journal of Heat and Mass Transfer, **201**, 123643 (2023).
 
 ## 2022 (18)
 
@@ -42,9 +47,6 @@ Diamond and Related Materials, **129**, 109341 (2022).
 * Wenhao Sha and Fenglin Guo, [Thermal transport in two-dimensional carbon nitrides: A comparative molecular dynamics study](https://doi.org/10.1016/j.cartre.2022.100161), Carbon Trends, **7**, 100161 (2022).
 
 * Zheyong Fan, [Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems](https://iopscience.iop.org/article/10.1088/1361-648X/ac462b), Journal of Physics: Condensed Matter **34** 125902 (2022).
-
-* Xin Wu, Penghua Ying, Chunlei Li, and Qiang Han, [Dual effects of hetero-interfaces on phonon thermal transport across graphene/C3N lateral superlattices](https://doi.org/10.1016/j.ijheatmasstransfer.2022.123643),
-International Journal of Heat and Mass Transfer, **201**, 123643 (2023).
 
 * Xin Wu and Qiang Han, [Tunable anisotropic in-plane thermal transport of multilayer graphene induced by 2D empty space: Insights from interfaces](https://doi.org/10.1016/j.surfin.2022.102296), Surfaces and Interfaces, **33**, 102296 (2022).
 
