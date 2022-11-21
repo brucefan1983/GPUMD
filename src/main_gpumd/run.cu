@@ -96,14 +96,14 @@ static void calculate_time_step(
   }
 }
 
-Run::Run(char* input_dir)
+Run::Run()
 {
   print_line_1();
   printf("Started initializing positions and related parameters.\n");
   fflush(stdout);
   print_line_2();
 
-  initialize_position(input_dir, N, has_velocity_in_xyz, number_of_types, box, group, atom);
+  initialize_position(N, has_velocity_in_xyz, number_of_types, box, group, atom);
 
   allocate_memory_gpu(N, group, atom, thermo);
 
@@ -112,10 +112,10 @@ Run::Run(char* input_dir)
   fflush(stdout);
   print_line_2();
 
-  execute_run_in(input_dir);
+  execute_run_in();
 }
 
-void Run::execute_run_in(char* input_dir)
+void Run::execute_run_in()
 {
   print_line_1();
   printf("Started executing the commands in run.in.\n");
@@ -139,7 +139,7 @@ void Run::execute_run_in(char* input_dir)
       }
     }
     if (tokens_without_comments.size() > 0) {
-      parse_one_keyword(tokens_without_comments, input_dir);
+      parse_one_keyword(tokens_without_comments);
     }
   }
 
@@ -151,10 +151,10 @@ void Run::execute_run_in(char* input_dir)
   input.close();
 }
 
-void Run::perform_a_run(char* input_dir)
+void Run::perform_a_run()
 {
   integrate.initialize(N, time_step, group);
-  measure.initialize(input_dir, number_of_steps, time_step, box, group, force, atom);
+  measure.initialize(number_of_steps, time_step, box, group, force, atom);
 
 #ifdef USE_PLUMED
   if (measure.plmd.use_plumed == 1) {
@@ -187,7 +187,7 @@ void Run::perform_a_run(char* input_dir)
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     measure.process(
-      input_dir, number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
+      number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
       integrate.ensemble->energy_transferred, box, group, thermo, atom);
 
     velocity.correct_velocity(
@@ -217,14 +217,14 @@ void Run::perform_a_run(char* input_dir)
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(input_dir, number_of_steps, time_step, integrate.temperature2, box.get_volume());
+  measure.finalize(number_of_steps, time_step, integrate.temperature2, box.get_volume());
 
   integrate.finalize();
   velocity.finalize();
   max_distance_per_step = 0.0;
 }
 
-void Run::parse_one_keyword(std::vector<std::string>& tokens, char* input_dir)
+void Run::parse_one_keyword(std::vector<std::string>& tokens)
 {
   int num_param = tokens.size();
   const char* param[20]; // never use more than 19 parameters
@@ -233,7 +233,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens, char* input_dir)
   }
 
   if (strcmp(param[0], "potential") == 0) {
-    force.parse_potential(param, num_param, input_dir, box, atom.type.size());
+    force.parse_potential(param, num_param, box, atom.type.size());
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
@@ -243,20 +243,20 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens, char* input_dir)
     Hessian hessian;
     hessian.parse(param, num_param);
     hessian.compute(
-      input_dir, force, box, atom.cpu_position_per_atom, atom.position_per_atom, atom.type, group,
+      force, box, atom.cpu_position_per_atom, atom.position_per_atom, atom.type, group,
       atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
   } else if (strcmp(param[0], "compute_cohesive") == 0) {
     Cohesive cohesive;
     cohesive.parse(param, num_param, 0);
     cohesive.compute(
-      input_dir, box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom, force);
+      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
+      atom.virial_per_atom, force);
   } else if (strcmp(param[0], "compute_elastic") == 0) {
     Cohesive cohesive;
     cohesive.parse(param, num_param, 1);
     cohesive.compute(
-      input_dir, box, atom.position_per_atom, atom.type, group, atom.potential_per_atom,
-      atom.force_per_atom, atom.virial_per_atom, force);
+      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
+      atom.virial_per_atom, force);
   } else if (strcmp(param[0], "change_box") == 0) {
     parse_change_box(param, num_param);
   } else if (strcmp(param[0], "velocity") == 0) {
@@ -314,7 +314,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens, char* input_dir)
   } else if (strcmp(param[0], "fix") == 0) {
     integrate.parse_fix(param, num_param, group);
   } else if (strcmp(param[0], "run") == 0) {
-    parse_run(param, num_param, input_dir);
+    parse_run(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -371,7 +371,7 @@ void Run::parse_time_step(const char** param, int num_param)
   }
 }
 
-void Run::parse_run(const char** param, int num_param, char* input_dir)
+void Run::parse_run(const char** param, int num_param)
 {
   if (num_param != 2) {
     PRINT_INPUT_ERROR("run should have 1 parameter.\n");
@@ -396,7 +396,7 @@ void Run::parse_run(const char** param, int num_param, char* input_dir)
       atom.cpu_mass, atom.cpu_type, atom.cpu_type_size, integrate.temperature2);
   }
 
-  perform_a_run(input_dir);
+  perform_a_run();
 }
 
 static __global__ void gpu_pressure_triclinic(

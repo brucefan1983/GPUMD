@@ -192,16 +192,9 @@ void Cohesive::compute_D()
   }
 }
 
-void Cohesive::output(char* input_dir, Box& box)
+void Cohesive::output(Box& box)
 {
-  char file[200];
-  strcpy(file, input_dir);
-  if (deformation_type == 0) {
-    strcat(file, "/cohesive.out");
-  } else {
-    strcat(file, "/elastic.out");
-  }
-  FILE* fid = my_fopen(file, "w");
+  FILE* fid = my_fopen(deformation_type == 0 ? "cohesive.out" : "elastic.out", "w");
 
   if (deformation_type == 0) {
     for (int n = 0; n < num_points; ++n) {
@@ -233,7 +226,6 @@ void Cohesive::output(char* input_dir, Box& box)
 }
 
 void Cohesive::compute(
-  char* input_dir,
   Box& box,
   GPU_Vector<double>& position_per_atom,
   GPU_Vector<int>& type,
@@ -266,5 +258,5 @@ void Cohesive::compute(
     }
   }
 
-  output(input_dir, box);
+  output(box);
 }

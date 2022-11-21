@@ -31,7 +31,6 @@ public:
   double cutoff = 4.0;
 
   void compute(
-    char* input_dir,
     Force& force,
     Box& box,
     std::vector<double>& cpu_position_per_atom,
@@ -56,9 +55,9 @@ protected:
   std::vector<double> DR;
   std::vector<double> DI;
 
-  void read_basis(char*, size_t N);
-  void read_kpoints(char*);
-  void initialize(char*, size_t);
+  void read_basis(size_t N);
+  void read_kpoints();
+  void initialize(size_t);
   void finalize(void);
 
   void find_H(
@@ -78,13 +77,12 @@ protected:
     const size_t n1,
     const size_t n2);
 
-  void find_dispersion(
-    char* input_dir, const Box& box, const std::vector<double>& cpu_position_per_atom);
+  void find_dispersion(const Box& box, const std::vector<double>& cpu_position_per_atom);
 
   void find_D(const Box& box, std::vector<double>& cpu_position_per_atom);
 
-  void find_eigenvectors(char*);
-  void output_D(char*);
+  void find_eigenvectors();
+  void output_D();
   void find_omega(FILE*, size_t);
   void find_omega_batch(FILE*);
 };

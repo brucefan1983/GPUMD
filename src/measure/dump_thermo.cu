@@ -39,12 +39,10 @@ void Dump_Thermo::parse(const char** param, int num_param)
   printf("Dump thermo every %d steps.\n", dump_interval_);
 }
 
-void Dump_Thermo::preprocess(char* input_dir)
+void Dump_Thermo::preprocess()
 {
   if (dump_) {
-    strcpy(filename_, input_dir);
-    strcat(filename_, "/thermo.out");
-    fid_ = my_fopen(filename_, "a");
+    fid_ = my_fopen("thermo.out", "a");
   }
 }
 

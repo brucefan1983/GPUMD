@@ -29,8 +29,6 @@ int main(int argc, char* argv[])
   print_compile_information();
   print_gpu_information();
 
-  char input_directory[200] = ".";
-
   print_line_1();
   printf("Started running GPUMD.\n");
   print_line_2();
@@ -38,7 +36,7 @@ int main(int argc, char* argv[])
   CHECK(cudaDeviceSynchronize());
   clock_t time_begin = clock();
 
-  Run run(input_directory);
+  Run run;
 
   CHECK(cudaDeviceSynchronize());
   clock_t time_finish = clock();

@@ -34,7 +34,7 @@ public:
   int output_interval = 1;
   int grouping_method = 0;
 
-  void preprocess(const int N, const char* input_dir, const std::vector<Group>& group);
+  void preprocess(const int N, const std::vector<Group>& group);
 
   void postprocess();
   void process(

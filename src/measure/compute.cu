@@ -25,7 +25,7 @@ Compute block (space) averages of various per-atom quantities.
 
 #define DIM 3
 
-void Compute::preprocess(const int N, const char* input_dir, const std::vector<Group>& group)
+void Compute::preprocess(const int N, const std::vector<Group>& group)
 {
   number_of_scalars = 0;
   if (compute_temperature)
@@ -54,10 +54,7 @@ void Compute::preprocess(const int N, const char* input_dir, const std::vector<G
   gpu_per_atom_y.resize(N);
   gpu_per_atom_z.resize(N);
 
-  char filename[200];
-  strcpy(filename, input_dir);
-  strcat(filename, "/compute.out");
-  fid = my_fopen(filename, "a");
+  fid = my_fopen("compute.out", "a");
 }
 
 void Compute::postprocess()

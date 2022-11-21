@@ -34,7 +34,6 @@ public:
 
   void process(
     int step,
-    const char* input_dir,
     const double temperature,
     const double volume,
     const GPU_Vector<double>& velocity_per_atom,

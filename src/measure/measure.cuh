@@ -45,7 +45,6 @@ class Measure
 {
 public:
   void initialize(
-    char* input_dir,
     const int number_of_steps,
     const double time_step,
     Box& box,
@@ -54,14 +53,12 @@ public:
     Atom& atom);
 
   void finalize(
-    char* input_dir,
     const int number_of_steps,
     const double time_step,
     const double temperature,
     const double volume);
 
   void process(
-    char* input_dir,
     const int number_of_steps,
     int step,
     const int fixed_group,

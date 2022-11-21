@@ -30,7 +30,6 @@ class Cohesive
 public:
   void parse(const char** param, int num_param, int type);
   void compute(
-    char* iput_dir,
     Box& box,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<int>& type,
@@ -45,7 +44,7 @@ private:
   void parse_elastic(const char** param, int num_param);
   void allocate_memory(const int num_atoms);
   void compute_D();
-  void output(char* input_dir, Box& box);
+  void output(Box& box);
   void deform_box(
     const int N, const D& cpu_d, Box& old_box, Box& new_box, GPU_Vector<double>& position_per_atom);
   std::vector<double> cpu_potential_total;

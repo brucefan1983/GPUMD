@@ -29,7 +29,6 @@ Then calculate the dynamical matrices with different k points.
 #include <vector>
 
 void Hessian::compute(
-  char* input_dir,
   Force& force,
   Box& box,
   std::vector<double>& cpu_position_per_atom,
@@ -40,7 +39,7 @@ void Hessian::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-  initialize(input_dir, type.size());
+  initialize(type.size());
   find_H(
     force, box, cpu_position_per_atom, position_per_atom, type, group, potential_per_atom,
     force_per_atom, virial_per_atom);
@@ -48,18 +47,15 @@ void Hessian::compute(
   if (num_kpoints == 1) // currently for Alex's GKMA calculations
   {
     find_D(box, cpu_position_per_atom);
-    find_eigenvectors(input_dir);
+    find_eigenvectors();
   } else {
-    find_dispersion(input_dir, box, cpu_position_per_atom);
+    find_dispersion(box, cpu_position_per_atom);
   }
 }
 
-void Hessian::read_basis(char* input_dir, size_t N)
+void Hessian::read_basis(size_t N)
 {
-  char file[200];
-  strcpy(file, input_dir);
-  strcat(file, "/basis.in");
-  FILE* fid = fopen(file, "r");
+  FILE* fid = fopen("basis.in", "r");
   size_t count;
   count = fscanf(fid, "%zu", &num_basis);
   PRINT_SCANF_ERROR(count, 1, "Reading error for basis.in.");
@@ -78,12 +74,9 @@ void Hessian::read_basis(char* input_dir, size_t N)
   fclose(fid);
 }
 
-void Hessian::read_kpoints(char* input_dir)
+void Hessian::read_kpoints()
 {
-  char file[200];
-  strcpy(file, input_dir);
-  strcat(file, "/kpoints.in");
-  FILE* fid = fopen(file, "r");
+  FILE* fid = fopen("kpoints.in", "r");
   size_t count;
   count = fscanf(fid, "%zu", &num_kpoints);
   PRINT_SCANF_ERROR(count, 1, "Reading error for kpoints.in.");
@@ -96,10 +89,10 @@ void Hessian::read_kpoints(char* input_dir)
   fclose(fid);
 }
 
-void Hessian::initialize(char* input_dir, size_t N)
+void Hessian::initialize(size_t N)
 {
-  read_basis(input_dir, N);
-  read_kpoints(input_dir);
+  read_basis(N);
+  read_kpoints();
   size_t num_H = num_basis * N * 9;
   size_t num_D = num_basis * num_basis * 9 * num_kpoints;
   H.resize(num_H, 0.0);
@@ -175,12 +168,9 @@ static void find_exp_ikr(
   sin_kr = sin(kr);
 }
 
-void Hessian::output_D(char* input_dir)
+void Hessian::output_D()
 {
-  char file[200];
-  strcpy(file, input_dir);
-  strcat(file, "/D.out");
-  FILE* fid = fopen(file, "w");
+  FILE* fid = fopen("D.out", "w");
   for (size_t nk = 0; nk < num_kpoints; ++nk) {
     size_t offset = nk * num_basis * num_basis * 9;
     for (size_t n1 = 0; n1 < num_basis * 3; ++n1) {
@@ -227,15 +217,11 @@ void Hessian::find_omega_batch(FILE* fid)
   }
 }
 
-void Hessian::find_dispersion(
-  char* input_dir, const Box& box, const std::vector<double>& cpu_position_per_atom)
+void Hessian::find_dispersion(const Box& box, const std::vector<double>& cpu_position_per_atom)
 {
   const int number_of_atoms = cpu_position_per_atom.size() / 3;
 
-  char file_omega2[200];
-  strcpy(file_omega2, input_dir);
-  strcat(file_omega2, "/omega2.out");
-  FILE* fid_omega2 = fopen(file_omega2, "w");
+  FILE* fid_omega2 = fopen("omega2.out", "w");
   for (size_t nk = 0; nk < num_kpoints; ++nk) {
     size_t offset = nk * num_basis * num_basis * 9;
     for (size_t nb = 0; nb < num_basis; ++nb) {
@@ -269,7 +255,7 @@ void Hessian::find_dispersion(
       find_omega(fid_omega2, offset);
     } // > 32x32
   }
-  output_D(input_dir);
+  output_D();
   if (num_basis <= 10) {
     find_omega_batch(fid_omega2);
   } // <= 32x32
@@ -307,13 +293,10 @@ void Hessian::find_D(const Box& box, std::vector<double>& cpu_position_per_atom)
   }
 }
 
-void Hessian::find_eigenvectors(char* input_dir)
+void Hessian::find_eigenvectors()
 {
-  char file_eigenvectors[200];
-  strcpy(file_eigenvectors, input_dir);
-  strcat(file_eigenvectors, "/eigenvector.out");
   std::ofstream eigfile;
-  eigfile.open(file_eigenvectors, std::ios::out | std::ios::binary);
+  eigfile.open("eigenvector.out", std::ios::out | std::ios::binary);
 
   size_t dim = num_basis * 3;
   std::vector<double> W(dim);

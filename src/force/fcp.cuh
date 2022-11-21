@@ -32,7 +32,7 @@ struct FCP_Data {
 class FCP : public Potential
 {
 public:
-  FCP(FILE* fid, char* input_dir, const int num_types, const int N, const Box& box);
+  FCP(FILE* fid, const int num_types, const int N, const Box& box);
   virtual ~FCP(void);
   virtual void compute(
     Box& box,

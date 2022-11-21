@@ -186,7 +186,7 @@ void SDC::process(
   }
 }
 
-void SDC::postprocess(const char* input_dir)
+void SDC::postprocess()
 {
   if (!compute_)
     return;
@@ -214,10 +214,7 @@ void SDC::postprocess(const char* input_dir)
   const double sdc_unit_conversion = 1.0e3 / TIME_UNIT_CONVERSION;
   const double vac_unit_conversion = sdc_unit_conversion * sdc_unit_conversion;
 
-  char file_sdc[200];
-  strcpy(file_sdc, input_dir);
-  strcat(file_sdc, "/sdc.out");
-  FILE* fid = fopen(file_sdc, "a");
+  FILE* fid = fopen("sdc.out", "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(
       fid, "%g %g %g %g %g %g %g\n", nc * dt_in_ps_, vacx_[nc] * vac_unit_conversion,

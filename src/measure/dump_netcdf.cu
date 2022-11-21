@@ -103,13 +103,12 @@ void DUMP_NETCDF::parse(const char** param, int num_param)
   }
 }
 
-void DUMP_NETCDF::preprocess(char* input_dir, const int N)
+void DUMP_NETCDF::preprocess(const int N)
 {
   if (!dump_)
     return;
 
-  strcpy(file_position, input_dir);
-  strcat(file_position, "/movie.nc");
+  strcpy(file_position, "movie.nc");
 
   // find appropriate file name
   // Append if same simulation, new file otherwise
@@ -119,10 +118,9 @@ void DUMP_NETCDF::preprocess(char* input_dir, const int N)
   while (!done) {
 
     if (access(file_position, F_OK) != -1) {
-      strcpy(file_position, input_dir);
       filenum++;
-      sprintf(filename, "/movie_%d.nc", filenum);
-      strcat(file_position, filename);
+      sprintf(filename, "movie_%d.nc", filenum);
+      strcpy(file_position, filename);
     } else {
       done = true;
     }
@@ -130,12 +128,10 @@ void DUMP_NETCDF::preprocess(char* input_dir, const int N)
 
   if (append) {
     if (filenum == 2) {
-      strcpy(file_position, input_dir);
-      strcat(file_position, "/movie.nc");
+      strcpy(file_position, "movie.nc");
     } else {
-      strcpy(file_position, input_dir);
-      sprintf(filename, "/movie_%d.nc", filenum - 1);
-      strcat(file_position, filename);
+      sprintf(filename, "movie_%d.nc", filenum - 1);
+      strcpy(file_position, filename);
     }
     return; // creation of file & other info not needed
   }

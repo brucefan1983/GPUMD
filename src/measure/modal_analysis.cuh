@@ -77,8 +77,7 @@ public:
   char eig_file_position[200];
   char output_file_position[200];
 
-  void preprocess(
-    char* input_dir, const std::vector<int>& cpu_type_size, const GPU_Vector<double>& mass);
+  void preprocess(const std::vector<int>& cpu_type_size, const GPU_Vector<double>& mass);
 
   void process(
     const int step,

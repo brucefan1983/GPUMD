@@ -51,13 +51,10 @@ void Dump_Force::parse(const char** param, int num_param, const std::vector<Grou
   }
 }
 
-void Dump_Force::preprocess(
-  char* input_dir, const int number_of_atoms, const std::vector<Group>& groups)
+void Dump_Force::preprocess(const int number_of_atoms, const std::vector<Group>& groups)
 {
   if (dump_) {
-    strcpy(filename_, input_dir);
-    strcat(filename_, "/force.out");
-    fid_ = my_fopen(filename_, "a");
+    fid_ = my_fopen("force.out", "a");
 
     if (grouping_method_ < 0) {
       cpu_force_per_atom.resize(number_of_atoms * 3);
