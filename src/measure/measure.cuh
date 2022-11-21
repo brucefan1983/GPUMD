@@ -28,6 +28,7 @@
 #include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "msd.cuh"
 #include "sdc.cuh"
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -72,6 +73,7 @@ public:
 
   DOS dos;
   SDC sdc;
+  MSD msd;
   HAC hac;
   SHC shc;
   HNEMD hnemd;

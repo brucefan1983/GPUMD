@@ -18,7 +18,7 @@
 #include <vector>
 class Group;
 
-class SDC
+class MSD
 {
 public:
   bool compute_ = false;
@@ -38,6 +38,6 @@ private:
   int num_time_origins_;
   double dt_in_natural_units_;
   double dt_in_ps_;
-  GPU_Vector<double> vx_, vy_, vz_;
-  GPU_Vector<double> vacx_, vacy_, vacz_;
+  GPU_Vector<double> x_, y_, z_;
+  GPU_Vector<double> msdx_, msdy_, msdz_;
 };

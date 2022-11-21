@@ -34,6 +34,7 @@ void Measure::initialize(
   const int number_of_atoms = atom.mass.size();
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
+  msd.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
   compute.preprocess(number_of_atoms, group);
@@ -65,6 +66,7 @@ void Measure::finalize(
   dump_exyz.postprocess();
   dos.postprocess();
   sdc.postprocess();
+  msd.postprocess();
   hac.postprocess(number_of_steps, temperature, time_step, volume);
   shc.postprocess(time_step);
   compute.postprocess();
@@ -116,6 +118,7 @@ void Measure::process(
     atom.velocity_per_atom, atom.virial_per_atom);
   dos.process(step, group, atom.velocity_per_atom);
   sdc.process(step, group, atom.velocity_per_atom);
+  msd.process(step, group, atom.position_per_atom);
   hac.process(
     number_of_steps, step, atom.velocity_per_atom, atom.virial_per_atom, atom.heat_per_atom);
   shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
