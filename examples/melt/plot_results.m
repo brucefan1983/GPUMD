@@ -15,6 +15,7 @@ subplot(1,2,2);
 plot(time,thermo(:,4:6))
 xlabel('Time (ps)');
 ylabel('Pressure (GPa)');
+legend('x','y','z');
 set(gca,'fontsize',15);
 
 
