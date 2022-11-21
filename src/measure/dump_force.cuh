@@ -23,7 +23,7 @@ class Dump_Force
 {
 public:
   void parse(const char** param, int num_param, const std::vector<Group>& groups);
-  void preprocess(char* input_dir, const int number_of_atoms, const std::vector<Group>& groups);
+  void preprocess(const int number_of_atoms, const std::vector<Group>& groups);
   void
   process(const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom);
   void postprocess();

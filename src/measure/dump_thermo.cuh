@@ -22,7 +22,7 @@ class Dump_Thermo
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(char* input_dir);
+  void preprocess();
   void process(
     const int step,
     const int number_of_atoms,

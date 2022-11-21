@@ -324,7 +324,7 @@ void MODAL_ANALYSIS::setN(const std::vector<int>& cpu_type_size)
 void MODAL_ANALYSIS::set_eigmode(int mode, std::ifstream& eigfile, GPU_Vector<float>& eig)
 {
   std::vector<float> floatval(num_participating);
-  eigfile.read((char *)(&floatval[0]), num_participating * sizeof(float));
+  eigfile.read((char*)(&floatval[0]), num_participating * sizeof(float));
   for (int i = 0; i < num_participating; i++) {
     // column major ordering for cuBLAS
     eig[mode + i * num_modes] = floatval[i];
@@ -332,7 +332,7 @@ void MODAL_ANALYSIS::set_eigmode(int mode, std::ifstream& eigfile, GPU_Vector<fl
 }
 
 void MODAL_ANALYSIS::preprocess(
-  char* input_dir, const std::vector<int>& cpu_type_size, const GPU_Vector<double>& mass)
+  const std::vector<int>& cpu_type_size, const GPU_Vector<double>& mass)
 {
   if (!compute)
     return;
@@ -340,11 +340,10 @@ void MODAL_ANALYSIS::preprocess(
   samples_per_output = output_interval / sample_interval;
   setN(cpu_type_size);
 
-  strcpy(output_file_position, input_dir);
   if (method == GKMA_METHOD) {
-    strcat(output_file_position, "/heatmode.out");
+    strcpy(output_file_position, "heatmode.out");
   } else if (method == HNEMA_METHOD) {
-    strcat(output_file_position, "/kappamode.out");
+    strcpy(output_file_position, "kappamode.out");
   }
 
   size_t eig_size = num_participating * num_modes;
@@ -353,8 +352,7 @@ void MODAL_ANALYSIS::preprocess(
   eigz.resize(eig_size, Memory_Type::managed);
 
   // initialize eigenvector data structures
-  strcpy(eig_file_position, input_dir);
-  strcat(eig_file_position, "/eigenvector.in");
+  strcpy(eig_file_position, "eigenvector.in");
   std::ifstream eigfile;
   eigfile.open(eig_file_position, std::ios::in | std::ios::binary);
   if (!eigfile) {
@@ -367,9 +365,8 @@ void MODAL_ANALYSIS::preprocess(
     eigfile.seekg((first_mode - 1) * sizeof(float));
     float om2;
     for (int i = 0; i < num_modes; i++) {
-      eigfile.read((char *)(&om2), sizeof(float));
+      eigfile.read((char*)(&om2), sizeof(float));
       f[i] = copysign(sqrt(abs(om2)) / (2.0 * PI), om2);
-
     }
     double fmax, fmin; // freq are in ascending order in file
     int shift;

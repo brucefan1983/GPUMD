@@ -70,7 +70,6 @@ gpu_sum_heat(const int N, const int step, const double* g_heat, double* g_heat_s
 
 void HNEMD::process(
   int step,
-  const char* input_dir,
   const double temperature,
   const double volume,
   const GPU_Vector<double>& velocity_per_atom,
@@ -105,10 +104,7 @@ void HNEMD::process(
     double factor = KAPPA_UNIT_CONVERSION / output_interval;
     factor /= (volume * temperature * fe);
 
-    char file_kappa[FILE_NAME_LENGTH];
-    strcpy(file_kappa, input_dir);
-    strcat(file_kappa, "/kappa.out");
-    FILE* fid = fopen(file_kappa, "a");
+    FILE* fid = fopen("kappa.out", "a");
     for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) {
       fprintf(fid, "%25.15f", kappa[n] * factor);
     }

@@ -23,7 +23,7 @@ class Dump_Velocity
 {
 public:
   void parse(const char** param, int num_param, const std::vector<Group>& groups);
-  void preprocess(char* input_dir);
+  void preprocess();
   void process(
     const int step,
     const std::vector<Group>& groups,

@@ -25,7 +25,7 @@ class Dump_Restart
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(char* input_dir);
+  void preprocess();
   void process(
     const int step,
     const Box& box,
@@ -42,5 +42,4 @@ public:
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
-  char filename_[200];
 };

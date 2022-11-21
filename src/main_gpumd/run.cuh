@@ -33,12 +33,12 @@ class Measure;
 class Run
 {
 public:
-  Run(char*);
+  Run();
 
 private:
-  void execute_run_in(char* input_dir);
-  void perform_a_run(char* input_dir);
-  void parse_one_keyword(std::vector<std::string>& tokens, char* input_dir);
+  void execute_run_in();
+  void perform_a_run();
+  void parse_one_keyword(std::vector<std::string>& tokens);
 
   // keyword parsing functions
   void parse_neighbor(const char** param, int num_param);
@@ -46,7 +46,7 @@ private:
   void parse_change_box(const char** param, int num_param);
   void parse_correct_velocity(const char** param, int num_param);
   void parse_time_step(const char** param, int num_param);
-  void parse_run(const char** param, int num_param, char* input_dir);
+  void parse_run(const char** param, int num_param);
 
   int N;               // number of atoms
   int number_of_types; // number of atom types

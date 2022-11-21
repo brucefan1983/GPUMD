@@ -84,12 +84,10 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   }
 }
 
-void Dump_EXYZ::preprocess(char* input_dir, const int number_of_atoms)
+void Dump_EXYZ::preprocess(const int number_of_atoms)
 {
   if (dump_) {
-    strcpy(filename_, input_dir);
-    strcat(filename_, "/dump.xyz");
-    fid_ = my_fopen(filename_, "a");
+    fid_ = my_fopen("dump.xyz", "a");
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
     if (has_force_) {

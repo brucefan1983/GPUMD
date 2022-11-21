@@ -220,7 +220,7 @@ void DOS::process(
   }
 }
 
-void DOS::postprocess(const char* input_dir)
+void DOS::postprocess()
 {
   if (!compute_)
     return;
@@ -228,9 +228,9 @@ void DOS::postprocess(const char* input_dir)
   CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
   normalize_vac();
-  output_vac(input_dir);
+  output_vac();
   find_dos();
-  output_dos(input_dir);
+  output_dos();
 
   compute_ = false;
   grouping_method_ = -1;
@@ -387,12 +387,9 @@ void DOS::normalize_vac()
   }
 }
 
-void DOS::output_vac(const char* input_dir)
+void DOS::output_vac()
 {
-  char file_vac[200];
-  strcpy(file_vac, input_dir);
-  strcat(file_vac, "/mvac.out");
-  FILE* fid = fopen(file_vac, "a");
+  FILE* fid = fopen("mvac.out", "a");
 
   for (int n = 0; n < num_groups_; ++n) {
     const int offset = num_correlation_steps_ * n;
@@ -440,12 +437,9 @@ void DOS::find_dos()
   }
 }
 
-void DOS::output_dos(const char* input_dir)
+void DOS::output_dos()
 {
-  char file_dos[200];
-  strcpy(file_dos, input_dir);
-  strcat(file_dos, "/dos.out");
-  FILE* fid_dos = fopen(file_dos, "a");
+  FILE* fid_dos = fopen("dos.out", "a");
 
   const double d_omega = omega_max_ / num_dos_points_;
   for (int ng = 0; ng < num_groups_; ++ng) {

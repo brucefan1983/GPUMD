@@ -71,7 +71,6 @@ gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, doub
 void HAC::process(
   const int number_of_steps,
   const int step,
-  const char* input_dir,
   const GPU_Vector<double>& velocity_per_atom,
   const GPU_Vector<double>& virial_per_atom,
   GPU_Vector<double>& heat_per_atom)
@@ -164,11 +163,7 @@ static void find_rtc(const int Nc, const double factor, const double* hac, doubl
 // Calculate HAC (heat currant auto-correlation function)
 // and RTC (running thermal conductivity)
 void HAC::postprocess(
-  const int number_of_steps,
-  const char* input_dir,
-  const double temperature,
-  const double time_step,
-  const double volume)
+  const int number_of_steps, const double temperature, const double time_step, const double volume)
 {
   if (!compute)
     return;
@@ -195,10 +190,7 @@ void HAC::postprocess(
 
   find_rtc(Nc, factor, hac_cpu.data(), rtc.data());
 
-  char file_hac[FILE_NAME_LENGTH];
-  strcpy(file_hac, input_dir);
-  strcat(file_hac, "/hac.out");
-  FILE* fid = fopen(file_hac, "a");
+  FILE* fid = fopen("hac.out", "a");
   const int number_of_output_data = Nc / output_interval;
   for (int nd = 0; nd < number_of_output_data; nd++) {
     const int nc = nd * output_interval;

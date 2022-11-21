@@ -57,12 +57,10 @@ void Dump_Position::parse(const char** param, int num_param, const std::vector<G
   }
 }
 
-void Dump_Position::preprocess(char* input_dir)
+void Dump_Position::preprocess()
 {
   if (dump_) {
-    strcpy(filename_, input_dir);
-    strcat(filename_, "/movie.xyz");
-    fid_ = my_fopen(filename_, "a");
+    fid_ = my_fopen("movie.xyz", "a");
     if (precision_ == 0)
       strcpy(precision_str_, "%s %g %g %g\n");
     else if (precision_ == 1) // single precision
