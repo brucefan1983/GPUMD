@@ -34,7 +34,7 @@ public:
     const double time_step, const std::vector<Group>& group, const GPU_Vector<double>& mass);
   void process(
     const int step, const std::vector<Group>& groups, const GPU_Vector<double>& velocity_per_atom);
-  void postprocess(const char*);
+  void postprocess();
 
 private:
   int num_atoms_;
@@ -59,7 +59,7 @@ private:
   void copy_velocity(const int correlation_step, const GPU_Vector<double>& velocity_per_atom);
   void find_vac(const int correlation_step);
   void normalize_vac();
-  void output_vac(const char* input_dir);
+  void output_vac();
   void find_dos();
-  void output_dos(const char* input_dir);
+  void output_dos();
 };

@@ -465,9 +465,9 @@ void find_type_size(
   }
 }
 
-static std::string get_filename_potential(char* input_dir)
+static std::string get_filename_potential()
 {
-  std::ifstream input_run(input_dir + std::string("/run.in"));
+  std::ifstream input_run("run.in");
   if (!input_run.is_open()) {
     PRINT_INPUT_ERROR("No run.in.");
   }
@@ -521,7 +521,6 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
 }
 
 void initialize_position(
-  char* input_dir,
   int& N,
   int& has_velocity_in_xyz,
   int& number_of_types,
@@ -529,7 +528,7 @@ void initialize_position(
   std::vector<Group>& group,
   Atom& atom)
 {
-  std::string filename(input_dir + std::string("/model.xyz"));
+  std::string filename("model.xyz");
   std::ifstream input(filename);
 
   if (!input.is_open()) {
@@ -537,7 +536,7 @@ void initialize_position(
   }
 
   std::vector<std::string> atom_symbols;
-  auto filename_potential = get_filename_potential(input_dir);
+  auto filename_potential = get_filename_potential();
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, N);

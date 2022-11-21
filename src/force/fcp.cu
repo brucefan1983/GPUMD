@@ -21,7 +21,7 @@ The force constant potential (FCP)
 #include "utilities/error.cuh"
 #include <vector>
 
-FCP::FCP(FILE* fid, char* input_dir, const int num_types, const int N, const Box& box)
+FCP::FCP(FILE* fid, const int num_types, const int N, const Box& box)
 {
   printf("Use the %d-element force constant potential with element(s):", num_types);
   for (int n = 0; n < num_types; ++n) {

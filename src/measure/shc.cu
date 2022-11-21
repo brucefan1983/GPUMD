@@ -243,7 +243,7 @@ void SHC::find_shc(const double dt_in_ps, const double d_omega)
   }
 }
 
-void SHC::postprocess(const char* input_dir, const double time_step)
+void SHC::postprocess(const double time_step)
 {
   if (!compute) {
     return;
@@ -252,10 +252,7 @@ void SHC::postprocess(const char* input_dir, const double time_step)
   const double dt_in_ps = time_step * sample_interval * TIME_UNIT_CONVERSION / 1000.0;
   const double d_omega = max_omega / num_omega;
 
-  char file_shc[200];
-  strcpy(file_shc, input_dir);
-  strcat(file_shc, "/shc.out");
-  FILE* fid = my_fopen(file_shc, "a");
+  FILE* fid = my_fopen("shc.out", "a");
 
   // ki and ko are in units of A*eV/ps
   average_k();

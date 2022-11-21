@@ -37,7 +37,7 @@ The driver class calculating force and related quantities.
 Force::Force(void) { is_fcp = false; }
 
 void Force::parse_potential(
-  const char** param, int num_param, char* input_dir, const Box& box, const int number_of_atoms)
+  const char** param, int num_param, const Box& box, const int number_of_atoms)
 {
   static int num_calls = 0;
   if (num_calls++ != 0) {
@@ -68,7 +68,7 @@ void Force::parse_potential(
   } else if (strcmp(potential_name, "eam_dai_2006") == 0) {
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
-    potential.reset(new FCP(fid_potential, input_dir, num_types, number_of_atoms, box));
+    potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
     is_fcp = true;
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||

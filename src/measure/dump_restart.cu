@@ -47,11 +47,10 @@ void Dump_Restart::parse(const char** param, int num_param)
   print_line_2();
 }
 
-void Dump_Restart::preprocess(char* input_dir)
+void Dump_Restart::preprocess()
 {
   if (dump_) {
-    strcpy(filename_, input_dir);
-    strcat(filename_, "/restart.xyz");
+    // nothing
   }
 }
 
@@ -72,7 +71,7 @@ void Dump_Restart::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  FILE* fid = my_fopen(filename_, "w");
+  FILE* fid = my_fopen("restart.xyz", "w");
 
   const int number_of_atoms = cpu_mass.size();
 

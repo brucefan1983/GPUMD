@@ -25,7 +25,7 @@ class Dump_Position
 {
 public:
   void parse(const char** param, int num_param, const std::vector<Group>& groups);
-  void preprocess(char* input_dir);
+  void preprocess();
   void process(
     const int step,
     const Box& box,

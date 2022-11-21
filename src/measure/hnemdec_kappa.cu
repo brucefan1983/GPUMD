@@ -139,7 +139,6 @@ static __global__ void gpu_sum_heat_and_diffusion(
 
 void HNEMDEC::process(
   int step,
-  const char* input_dir,
   const double temperature,
   const double volume,
   const GPU_Vector<double>& velocity_per_atom,
@@ -199,10 +198,7 @@ void HNEMDEC::process(
       factor2 *= FACTOR / (output_interval * volume * temperature * fe);
     }
 
-    char file_onsager[FILE_NAME_LENGTH];
-    strcpy(file_onsager, input_dir);
-    strcat(file_onsager, "/onsager.out");
-    FILE* fid = fopen(file_onsager, "a");
+    FILE* fid = fopen("onsager.out", "a");
     for (int n = 0; n < NUM_OF_HEAT_COMPONENTS; n++) {
       // [Lqq/T^2](W/mK) for compute==1,  [Lq1/T^2](kg/smK) for compute==2
       fprintf(fid, "%25.15f", onsager1[n] * factor1);

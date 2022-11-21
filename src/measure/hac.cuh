@@ -29,14 +29,12 @@ public:
   void process(
     const int number_of_steps,
     const int step,
-    const char* input_dir,
     const GPU_Vector<double>& velocity_per_atom,
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& heat_per_atom);
 
   void postprocess(
     const int number_of_steps,
-    const char* input_dir,
     const double temperature,
     const double time_step,
     const double volume);

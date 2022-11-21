@@ -23,7 +23,6 @@ class Atom;
 #include <vector>
 
 void initialize_position(
-  char* input_dir,
   int& N,
   int& has_velocity_in_xyz,
   int& number_of_types,

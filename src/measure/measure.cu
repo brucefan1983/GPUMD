@@ -24,7 +24,6 @@ The driver class dealing with measurement.
 #define NUM_OF_HEAT_COMPONENTS 5
 
 void Measure::initialize(
-  char* input_dir,
   const int number_of_steps,
   const double time_step,
   Box& box,
@@ -37,18 +36,18 @@ void Measure::initialize(
   sdc.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
-  compute.preprocess(number_of_atoms, input_dir, group);
+  compute.preprocess(number_of_atoms, group);
   hnemd.preprocess();
   hnemdec.preprocess(atom.cpu_mass, atom.cpu_type, atom.cpu_type_size);
-  modal_analysis.preprocess(input_dir, atom.cpu_type_size, atom.mass);
-  dump_position.preprocess(input_dir);
-  dump_velocity.preprocess(input_dir);
-  dump_restart.preprocess(input_dir);
-  dump_thermo.preprocess(input_dir);
-  dump_force.preprocess(input_dir, number_of_atoms, group);
-  dump_exyz.preprocess(input_dir, number_of_atoms);
+  modal_analysis.preprocess(atom.cpu_type_size, atom.mass);
+  dump_position.preprocess();
+  dump_velocity.preprocess();
+  dump_restart.preprocess();
+  dump_thermo.preprocess();
+  dump_force.preprocess(number_of_atoms, group);
+  dump_exyz.preprocess(number_of_atoms);
 #ifdef USE_NETCDF
-  dump_netcdf.preprocess(input_dir, number_of_atoms);
+  dump_netcdf.preprocess(number_of_atoms);
 #endif
 #ifdef USE_PLUMED
   plmd.preprocess(atom.cpu_mass);
@@ -56,11 +55,7 @@ void Measure::initialize(
 }
 
 void Measure::finalize(
-  char* input_dir,
-  const int number_of_steps,
-  const double time_step,
-  const double temperature,
-  const double volume)
+  const int number_of_steps, const double time_step, const double temperature, const double volume)
 {
   dump_position.postprocess();
   dump_velocity.postprocess();
@@ -68,10 +63,10 @@ void Measure::finalize(
   dump_thermo.postprocess();
   dump_force.postprocess();
   dump_exyz.postprocess();
-  dos.postprocess(input_dir);
-  sdc.postprocess(input_dir);
-  hac.postprocess(number_of_steps, input_dir, temperature, time_step, volume);
-  shc.postprocess(input_dir, time_step);
+  dos.postprocess();
+  sdc.postprocess();
+  hac.postprocess(number_of_steps, temperature, time_step, volume);
+  shc.postprocess(time_step);
   compute.postprocess();
   hnemd.postprocess();
   hnemdec.postprocess();
@@ -89,7 +84,6 @@ void Measure::finalize(
 }
 
 void Measure::process(
-  char* input_dir,
   const int number_of_steps,
   int step,
   const int fixed_group,
@@ -123,15 +117,14 @@ void Measure::process(
   dos.process(step, group, atom.velocity_per_atom);
   sdc.process(step, group, atom.velocity_per_atom);
   hac.process(
-    number_of_steps, step, input_dir, atom.velocity_per_atom, atom.virial_per_atom,
-    atom.heat_per_atom);
+    number_of_steps, step, atom.velocity_per_atom, atom.virial_per_atom, atom.heat_per_atom);
   shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
   hnemd.process(
-    step, input_dir, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
+    step, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
     atom.heat_per_atom);
   hnemdec.process(
-    step, input_dir, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
-    atom.type, atom.mass, atom.potential_per_atom, atom.heat_per_atom);
+    step, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom, atom.type,
+    atom.mass, atom.potential_per_atom, atom.heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 #ifdef USE_NETCDF

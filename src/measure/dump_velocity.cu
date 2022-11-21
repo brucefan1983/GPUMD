@@ -60,12 +60,10 @@ void Dump_Velocity::parse(const char** param, int num_param, const std::vector<G
   print_line_2();
 }
 
-void Dump_Velocity::preprocess(char* input_dir)
+void Dump_Velocity::preprocess()
 {
   if (dump_) {
-    strcpy(filename_, input_dir);
-    strcat(filename_, "/velocity.out");
-    fid_ = my_fopen(filename_, "a");
+    fid_ = my_fopen("velocity.out", "a");
   }
 }
 
