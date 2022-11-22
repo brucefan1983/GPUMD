@@ -295,6 +295,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.dos.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_sdc") == 0) {
     measure.sdc.parse(param, num_param, group);
+  } else if (strcmp(param[0], "compute_msd") == 0) {
+    measure.msd.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
