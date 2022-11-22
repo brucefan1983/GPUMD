@@ -16,6 +16,6 @@ run         10000
 ensemble    nve
 dump_thermo 100
 dump_exyz   100000 0 0
-compute_sdc 1 1000
-compute_msd 1 1000
-run         100000
+compute_sdc 1 2000
+compute_msd 1 2000
+run         20000
