@@ -135,6 +135,10 @@ Actions
      - Compute the self-diffusion coefficient (:term:`SDC`)
      - No
      - No
+   * - :ref:`compute_msd <kw_compute_msd>`
+     - Compute the mean-square displacement (:term:`MSD`)
+     - No
+     - No
    * - :ref:`compute_shc <kw_compute_shc>`
      - Compute the spectral heat current (:term:`SHC`)
      - No

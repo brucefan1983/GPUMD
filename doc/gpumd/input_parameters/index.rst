@@ -35,6 +35,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_hnemd
    compute_phonon
    compute_sdc
+   compute_msd
    compute_shc
 
 .. toctree::
