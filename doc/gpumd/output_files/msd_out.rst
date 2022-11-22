@@ -5,7 +5,7 @@
 ``msd.out``
 ===========
 
-This file contains the mean-square displacement (:term:`VAC`) and self diffusion coefficient (:term:`SDC`).
+This file contains the mean-square displacement (:term:`MSD`) and self diffusion coefficient (:term:`SDC`).
 It is generated when invoking the :ref:`compute_msd keyword <kw_compute_msd>`.
 
 File format

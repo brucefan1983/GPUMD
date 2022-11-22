@@ -5,9 +5,9 @@
 :attr:`compute_msd`
 ===================
 
-This keyword computes the self-diffusion coefficient (:term:`SDC`) from the mean-square displacement (:term:`VAC`) function.
+This keyword computes the self-diffusion coefficient (:term:`SDC`) from the mean-square displacement (:term:`MSD`) function.
 If this keyword appears in a run, the :term:`MSD` function will be computed and the :term:`SDC` is also calculated as a time derivative of it.
-The results will be written to :ref:`sdc.out output file <sdc_out>`.
+The results will be written to :ref:`msd.out output file <msd_out>`.
 
 Syntax
 ------
