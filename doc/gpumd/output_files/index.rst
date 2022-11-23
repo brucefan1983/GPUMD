@@ -65,6 +65,10 @@ Output files
      - :ref:`compute_sdc <kw_compute_sdc>`
      - Self-diffusion coefficient (:term:`SDC`) data
      - Append
+   * - :ref:`msd.out <msd_out>`
+     - :ref:`compute_msd <kw_compute_msd>`
+     - Mean-square displacement (:term:`MSD`) data
+     - Append
    * - :ref:`cohesive.out <cohesive_out>`
      - :ref:`compute_cohesive <kw_compute_cohesive>`
      - Cohesive energy curve
@@ -96,6 +100,7 @@ Output files
    omega2_out
    restart_xyz
    sdc_out
+   msd_out
    shc_out
    thermo_out
    velocity_out
