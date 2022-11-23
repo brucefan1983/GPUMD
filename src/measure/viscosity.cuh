@@ -20,18 +20,17 @@ class Viscosity
 {
 public:
   int compute = 0;
-  int sample_interval; // sample interval for heat current
+  int sample_interval; // sample interval for stress
   int Nc;              // number of correlation points
-  int output_interval; // only output Nc/output_interval data
 
   void preprocess(const int number_of_steps);
 
   void process(
     const int number_of_steps,
     const int step,
-    const GPU_Vector<double>& velocity_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& heat_per_atom);
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& velocity,
+    const GPU_Vector<double>& virial);
 
   void postprocess(
     const int number_of_steps,
@@ -42,5 +41,5 @@ public:
   void parse(const char**, int);
 
 private:
-  GPU_Vector<double> heat_all;
+  GPU_Vector<double> stress_all;
 };
