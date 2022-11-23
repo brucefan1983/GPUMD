@@ -19,6 +19,9 @@ International Journal of Heat and Mass Transfer, **201**, 123643 (2023).
 
 ## 2022 (18)
 
+* Zhi-Hui Li, Chenchen Lu, Aiqiang Shi, Sihan Zhao, Bingxian Ou, and Ning Wei,
+[A Multi-Scale Study on Deformation and Failure Process of Metallic Structures in Extreme Environment](https://doi.org/10.3390/ijms232214437), Int. J. Mol. Sci. **23**, 14437 (2022).
+
 * Ke Xu, Ting Liang, Yuequn Fu, Zhen Wang, Zheyong Fan, Ning Wei, Jianbin Xu, Zhisen Zhang, and Jianyang Wu,
 [Gradient nano-grained graphene as 2D thermal rectifier: A molecular dynamics based machine learning study](https://doi.org/10.1063/5.0108746),
 Appl. Phys. Lett. **121**, 133501 (2022)

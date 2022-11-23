@@ -30,6 +30,8 @@ public:
   GPU_Vector<int> type;                  // per-atom type (1 component)
   GPU_Vector<double> mass;               // per-atom mass (1 component)
   GPU_Vector<double> position_per_atom;  // per-atom position (3 components)
+  GPU_Vector<double> position_temp;      // used to calculated unwrapped_position
+  GPU_Vector<double> unwrapped_position; // unwrapped per-atom position (3 components)
   GPU_Vector<double> velocity_per_atom;  // per-atom velocity (3 components)
   GPU_Vector<double> force_per_atom;     // per-atom force (3 components)
   GPU_Vector<double> heat_per_atom;      // per-atom heat current (5 components)
