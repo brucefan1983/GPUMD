@@ -124,7 +124,9 @@ gpu_find_correlation(const int Nc, const int Nd, const double* g_stress, double*
   int number_of_rounds = (Nd - 1) / 128 + 1;
   int number_of_data = Nd - bid;
 
-  s_correlation[tid] = 0.0;
+  for (int k = 0; k < NUM_OF_COMPONENTS; ++k) {
+    s_correlation[tid + k * 128] = 0.0;
+  }
 
   for (int round = 0; round < number_of_rounds; ++round) {
     int index = tid + round * 128;
