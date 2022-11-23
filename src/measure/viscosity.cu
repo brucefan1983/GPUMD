@@ -14,21 +14,20 @@
 */
 
 /*----------------------------------------------------------------------------80
-Calculate the heat current autocorrelation (HAC) function.
+Calculate the heat stress autocorrelation (SAC) function and viscosity.
 ------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"
-#include "hac.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
+#include "viscosity.cuh"
 #include <vector>
 
 #define NUM_OF_HEAT_COMPONENTS 5
 #define FILE_NAME_LENGTH 200
 #define DIM 3
 
-// Allocate memory for recording heat current data
-void HAC::preprocess(const int number_of_steps)
+void Viscosity::preprocess(const int number_of_steps)
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
@@ -36,7 +35,6 @@ void HAC::preprocess(const int number_of_steps)
   }
 }
 
-// sum up the per-atom heat current to get the total heat current
 static __global__ void
 gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, double* g_heat_all)
 {
@@ -67,8 +65,7 @@ gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, doub
   }
 }
 
-// sample heat current data for HAC calculations.
-void HAC::process(
+void Viscosity::process(
   const int number_of_steps,
   const int step,
   const GPU_Vector<double>& velocity_per_atom,
@@ -90,8 +87,7 @@ void HAC::process(
   CUDA_CHECK_KERNEL
 }
 
-// Calculate the Heat current Auto-Correlation function (HAC)
-__global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_heat, double* g_hac)
+static __global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_heat, double* g_hac)
 {
   //<<<Nc, 128>>>
 
@@ -149,7 +145,6 @@ __global__ void gpu_find_hac(const int Nc, const int Nd, const double* g_heat, d
   }
 }
 
-// Calculate the Running Thermal Conductivity (RTC) from the HAC
 static void find_rtc(const int Nc, const double factor, const double* hac, double* rtc)
 {
   for (int k = 0; k < NUM_OF_HEAT_COMPONENTS; k++) {
@@ -160,9 +155,7 @@ static void find_rtc(const int Nc, const double factor, const double* hac, doubl
   }
 }
 
-// Calculate HAC (heat currant auto-correlation function)
-// and RTC (running thermal conductivity)
-void HAC::postprocess(
+void Viscosity::postprocess(
   const int number_of_steps, const double temperature, const double time_step, const double volume)
 {
   if (!compute)
@@ -225,7 +218,7 @@ void HAC::postprocess(
   compute = 0;
 }
 
-void HAC::parse(const char** param, int num_param)
+void Viscosity::parse(const char** param, int num_param)
 {
   compute = 1;
 

@@ -16,7 +16,7 @@
 #pragma once
 #include "utilities/gpu_vector.cuh"
 
-class HAC
+class Viscosity
 {
 public:
   int compute = 0;
