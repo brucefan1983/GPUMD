@@ -29,7 +29,6 @@ void Viscosity::preprocess(const int number_of_steps)
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
     stress_all.resize(NUM_OF_COMPONENTS * number_of_frames);
-    stress_ave.resize(NUM_OF_COMPONENTS);
   }
 }
 
@@ -96,8 +95,7 @@ void Viscosity::process(
   CUDA_CHECK_KERNEL
 }
 
-static __global__ void
-gpu_get_stress_ave(const int Nd, const double* g_stress_all, double* g_stress_ave)
+static __global__ void gpu_correct_stress(const int Nd, double* g_stress_all)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
@@ -109,7 +107,7 @@ gpu_get_stress_ave(const int Nd, const double* g_stress_all, double* g_stress_av
   for (int round = 0; round < number_of_rounds; ++round) {
     const int n = tid + round * 1024;
     if (n < Nd) {
-      s_data[tid] += g_stress_all[n + blockIdx.x * Nd];
+      s_data[tid] += g_stress_all[n + bid * Nd];
     }
   }
 
@@ -120,22 +118,11 @@ gpu_get_stress_ave(const int Nd, const double* g_stress_all, double* g_stress_av
     }
     __syncthreads();
   }
-  if (tid == 0) {
-    g_stress_ave[blockIdx.x] = s_data[0];
-  }
-}
-
-static __global__ void
-gpu_correct_stress(const int Nd, const double* g_stress_ave, double* g_stress_all)
-{
-  const int tid = threadIdx.x;
-  const int bid = blockIdx.x;
-  const int number_of_rounds = (Nd - 1) / 1024 + 1;
 
   for (int round = 0; round < number_of_rounds; ++round) {
     const int n = tid + round * 1024;
     if (n < Nd) {
-      g_stress_all[n + bid * Nd] -= g_stress_ave[bid] / Nd;
+      g_stress_all[n + bid * Nd] -= s_data[0] / Nd;
     }
   }
 }
@@ -208,9 +195,7 @@ void Viscosity::postprocess(
   GPU_Vector<double> correlation_gpu(Nc * NUM_OF_COMPONENTS);
   std::vector<double> correlation_cpu(Nc * NUM_OF_COMPONENTS);
 
-  gpu_get_stress_ave<<<NUM_OF_COMPONENTS, 1024>>>(Nd, stress_all.data(), stress_ave.data());
-  CUDA_CHECK_KERNEL
-  gpu_correct_stress<<<NUM_OF_COMPONENTS, 1024>>>(Nd, stress_ave.data(), stress_all.data());
+  gpu_correct_stress<<<NUM_OF_COMPONENTS, 1024>>>(Nd, stress_all.data());
   CUDA_CHECK_KERNEL
   gpu_find_correlation<<<Nc, 128>>>(Nc, Nd, stress_all.data(), correlation_gpu.data());
   CUDA_CHECK_KERNEL
