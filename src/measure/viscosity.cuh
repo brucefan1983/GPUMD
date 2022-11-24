@@ -42,4 +42,5 @@ public:
 
 private:
   GPU_Vector<double> stress_all;
+  GPU_Vector<double> stress_ave;
 };

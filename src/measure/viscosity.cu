@@ -22,13 +22,14 @@ Calculate the stress autocorrelation function and viscosity.
 #include "viscosity.cuh"
 #include <vector>
 
-#define NUM_OF_COMPONENTS 6
+#define NUM_OF_COMPONENTS 9
 
 void Viscosity::preprocess(const int number_of_steps)
 {
   if (compute) {
     int number_of_frames = number_of_steps / sample_interval;
     stress_all.resize(NUM_OF_COMPONENTS * number_of_frames);
+    stress_ave.resize(NUM_OF_COMPONENTS);
   }
 }
 
@@ -37,13 +38,12 @@ static __global__ void gpu_sum_stress(
   const int Nd,
   const int nd,
   const double* g_mass,
-  const double* g_vx,
-  const double* g_vy,
-  const double* g_vz,
+  const double* g_velocity,
   const double* g_virial,
   double* g_stress_all)
 {
   const int tid = threadIdx.x;
+  const int bid = blockIdx.x;
   const int number_of_rounds = (N - 1) / 1024 + 1;
 
   __shared__ double s_data[1024];
@@ -56,27 +56,10 @@ static __global__ void gpu_sum_stress(
       // xx xy xz    0 3 4
       // yx yy yz    6 1 5
       // zx zy zz    7 8 2
-      s_data[tid] += g_virial[n + N * (blockIdx.x + 3)];
-      switch (blockIdx.x) {
-        case 0:
-          s_data[tid] += g_mass[n] * g_vx[n] * g_vy[n];
-          break;
-        case 1:
-          s_data[tid] += g_mass[n] * g_vx[n] * g_vz[n];
-          break;
-        case 2:
-          s_data[tid] += g_mass[n] * g_vy[n] * g_vz[n];
-          break;
-        case 3:
-          s_data[tid] += g_mass[n] * g_vy[n] * g_vx[n];
-          break;
-        case 4:
-          s_data[tid] += g_mass[n] * g_vz[n] * g_vx[n];
-          break;
-        case 5:
-          s_data[tid] += g_mass[n] * g_vz[n] * g_vy[n];
-          break;
-      }
+      int a[NUM_OF_COMPONENTS] = {0, 1, 2, 0, 0, 1, 1, 2, 2};
+      int b[NUM_OF_COMPONENTS] = {0, 1, 2, 1, 2, 2, 0, 0, 1};
+      s_data[tid] += g_mass[n] * g_velocity[n + N * a[bid]] * g_velocity[n + N * b[bid]] +
+                     g_virial[n + N * blockIdx.x];
     }
   }
 
@@ -109,15 +92,58 @@ void Viscosity::process(
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
   gpu_sum_stress<<<NUM_OF_COMPONENTS, 1024>>>(
-    N, Nd, nd, mass.data(), velocity.data(), velocity.data() + N, velocity.data() + N * 2,
-    virial.data(), stress_all.data());
+    N, Nd, nd, mass.data(), velocity.data(), virial.data(), stress_all.data());
   CUDA_CHECK_KERNEL
+}
+
+static __global__ void
+gpu_get_stress_ave(const int Nd, const double* g_stress_all, double* g_stress_ave)
+{
+  const int tid = threadIdx.x;
+  const int bid = blockIdx.x;
+  const int number_of_rounds = (Nd - 1) / 1024 + 1;
+
+  __shared__ double s_data[1024];
+  s_data[tid] = 0.0;
+
+  for (int round = 0; round < number_of_rounds; ++round) {
+    const int n = tid + round * 1024;
+    if (n < Nd) {
+      s_data[tid] += g_stress_all[n + blockIdx.x * Nd];
+    }
+  }
+
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_data[tid] += s_data[tid + offset];
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    g_stress_ave[blockIdx.x] = s_data[0];
+  }
+}
+
+static __global__ void
+gpu_correct_stress(const int Nd, const double* g_stress_ave, double* g_stress_all)
+{
+  const int tid = threadIdx.x;
+  const int bid = blockIdx.x;
+  const int number_of_rounds = (Nd - 1) / 1024 + 1;
+
+  for (int round = 0; round < number_of_rounds; ++round) {
+    const int n = tid + round * 1024;
+    if (n < Nd) {
+      g_stress_all[n + bid * Nd] -= g_stress_ave[bid] / Nd;
+    }
+  }
 }
 
 static __global__ void
 gpu_find_correlation(const int Nc, const int Nd, const double* g_stress, double* g_correlation)
 {
-  __shared__ double s_correlation[768];
+  __shared__ double s_correlation[NUM_OF_COMPONENTS][128];
 
   int tid = threadIdx.x;
   int bid = blockIdx.x;
@@ -125,14 +151,14 @@ gpu_find_correlation(const int Nc, const int Nd, const double* g_stress, double*
   int number_of_data = Nd - bid;
 
   for (int k = 0; k < NUM_OF_COMPONENTS; ++k) {
-    s_correlation[tid + k * 128] = 0.0;
+    s_correlation[k][tid] = 0.0;
   }
 
   for (int round = 0; round < number_of_rounds; ++round) {
     int index = tid + round * 128;
     if (index + bid < Nd) {
       for (int k = 0; k < NUM_OF_COMPONENTS; ++k) {
-        s_correlation[tid + k * 128] += g_stress[index + Nd * k] * g_stress[index + bid + Nd * k];
+        s_correlation[k][tid] += g_stress[index + Nd * k] * g_stress[index + bid + Nd * k];
       }
     }
   }
@@ -141,7 +167,7 @@ gpu_find_correlation(const int Nc, const int Nd, const double* g_stress, double*
   for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
     if (tid < offset) {
       for (int k = 0; k < NUM_OF_COMPONENTS; ++k) {
-        s_correlation[tid + k * 128] += s_correlation[tid + offset + k * 128];
+        s_correlation[k][tid] += s_correlation[k][tid + offset];
       }
     }
     __syncthreads();
@@ -149,7 +175,7 @@ gpu_find_correlation(const int Nc, const int Nd, const double* g_stress, double*
 
   if (tid == 0) {
     for (int k = 0; k < NUM_OF_COMPONENTS; ++k) {
-      g_correlation[bid + Nc * k] = s_correlation[0 + k * 128] / number_of_data;
+      g_correlation[bid + Nc * k] = s_correlation[k][0] / number_of_data;
     }
   }
 }
@@ -182,6 +208,10 @@ void Viscosity::postprocess(
   GPU_Vector<double> correlation_gpu(Nc * NUM_OF_COMPONENTS);
   std::vector<double> correlation_cpu(Nc * NUM_OF_COMPONENTS);
 
+  gpu_get_stress_ave<<<NUM_OF_COMPONENTS, 1024>>>(Nd, stress_all.data(), stress_ave.data());
+  CUDA_CHECK_KERNEL
+  gpu_correct_stress<<<NUM_OF_COMPONENTS, 1024>>>(Nd, stress_ave.data(), stress_all.data());
+  CUDA_CHECK_KERNEL
   gpu_find_correlation<<<Nc, 128>>>(Nc, Nd, stress_all.data(), correlation_gpu.data());
   CUDA_CHECK_KERNEL
 
