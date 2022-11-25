@@ -36,6 +36,7 @@ void Measure::initialize(
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
   hac.preprocess(number_of_steps);
+  viscosity.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
   compute.preprocess(number_of_atoms, group);
   hnemd.preprocess();
@@ -68,6 +69,7 @@ void Measure::finalize(
   sdc.postprocess();
   msd.postprocess();
   hac.postprocess(number_of_steps, temperature, time_step, volume);
+  viscosity.postprocess(number_of_steps, temperature, time_step, volume);
   shc.postprocess(time_step);
   compute.postprocess();
   hnemd.postprocess();
@@ -121,6 +123,7 @@ void Measure::process(
   msd.process(step, group, atom.unwrapped_position);
   hac.process(
     number_of_steps, step, atom.velocity_per_atom, atom.virial_per_atom, atom.heat_per_atom);
+  viscosity.process(number_of_steps, step, atom.mass, atom.velocity_per_atom, atom.virial_per_atom);
   shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
   hnemd.process(
     step, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,

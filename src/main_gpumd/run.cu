@@ -299,6 +299,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.msd.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
+  } else if (strcmp(param[0], "compute_viscosity") == 0) {
+    measure.viscosity.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemd") == 0) {
     measure.hnemd.parse(param, num_param);
   } else if (strcmp(param[0], "compute_hnemdec") == 0) {
