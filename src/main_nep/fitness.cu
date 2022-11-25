@@ -26,7 +26,6 @@ Get the fitness
 #include <algorithm>
 #include <chrono>
 #include <ctime>
-#include <iomanip>
 #include <iostream>
 #include <random>
 #include <sstream>
@@ -244,13 +243,12 @@ void Fitness::report_error(
     fclose(fid_nep);
 
     if (0 == (generation + 1) % 100000) {
-      auto t = std::time(nullptr);
-      auto tm = *std::localtime(&t);
-
-      std::ostringstream oss;
-      oss << std::put_time(&tm, "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation");
-      auto filename = oss.str();
-      filename = filename + std::to_string(generation + 1) + ".txt";
+      time_t rawtime;
+      time(&rawtime);
+      struct tm* timeinfo = localtime(&rawtime);
+      char buffer[200];
+      strftime(buffer, sizeof(buffer), "nep_y%Y_m%m_d%d_h%H_m%M_s%S_generation", timeinfo);
+      std::string filename(buffer + std::to_string(generation + 1) + ".txt");
 
       FILE* fid_nep = my_fopen(filename.c_str(), "w");
       write_nep_txt(fid_nep, para, elite);

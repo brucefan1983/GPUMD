@@ -47,6 +47,9 @@ Glossary
    MD
         molecular dynamics
 
+   MSD
+        mean square displacement
+
    NEMD
         :ref:`non-equilibrium molecular dynamics <nemd>`
 
