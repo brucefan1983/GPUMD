@@ -84,7 +84,7 @@ Output files
    * - :ref:`viscosity_out <viscosity_out>`
      - :ref:`compute_viscosity <kw_compute_viscosity>`
      - Viscosity and stress auto-correlation function
-     - Overwrite
+     - Append
 
 .. toctree::
    :maxdepth: 0
