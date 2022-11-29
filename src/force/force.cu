@@ -34,7 +34,7 @@ The driver class calculating force and related quantities.
 
 #define BLOCK_SIZE 128
 
-Force::Force(void) { is_fcp = false; }
+Force::Force(void) { is_fcp = {false}; }
 
 void Force::parse_potential(
   const char** param, int num_param, const Box& box, const int number_of_atoms)
@@ -47,7 +47,8 @@ void Force::parse_potential(
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
-
+  
+  std::unique_ptr<Potential> potential; 
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[20];
   int count = fscanf(fid_potential, "%s", potential_name);
@@ -69,7 +70,7 @@ void Force::parse_potential(
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
-    is_fcp = true;
+    is_fcp = {true};
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
@@ -106,6 +107,9 @@ void Force::parse_potential(
 
   potential->N1 = 0;
   potential->N2 = number_of_atoms;
+
+  // Move the pointer into the list of potentials
+  potentials.push_back(std::move(potential));
 }
 
 int Force::get_number_of_types(FILE* fid_potential)
@@ -385,7 +389,7 @@ void Force::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
-  if (!is_fcp) {
+  if (!is_fcp[0]) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
@@ -395,8 +399,8 @@ void Force::compute(
     number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
     force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
   CUDA_CHECK_KERNEL
-
-  potential->compute(
+  
+  potentials[0]->compute(
     box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   if (compute_hnemd_) {
@@ -428,7 +432,7 @@ void Force::compute(
   }
 
   // always correct the force when using the FCP potential
-  if (is_fcp) {
+  if (is_fcp[0]) {
     if (!compute_hnemd_) {
       GPU_Vector<double> ftot(3); // total force vector of the system
       gpu_sum_force<<<3, 1024>>>(
@@ -601,7 +605,7 @@ void Force::compute(
   GPU_Vector<double>& mass_per_atom)
 {
   const int number_of_atoms = type.size();
-  if (!is_fcp) {
+  if (!is_fcp[0]) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
@@ -612,7 +616,7 @@ void Force::compute(
     force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
-  potential->compute(
+  potentials[0]->compute(
     box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
 
   if (compute_hnemd_) {
@@ -680,7 +684,7 @@ void Force::compute(
   }
 
   // always correct the force when using the FCP potential
-  if (is_fcp) {
+  if (is_fcp[0]) {
     if (!compute_hnemd_) {
       GPU_Vector<double> ftot(3); // total force vector of the system
       gpu_sum_force<<<3, 1024>>>(

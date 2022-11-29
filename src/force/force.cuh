@@ -69,6 +69,6 @@ public:
   GPU_Vector<double> coefficient;
 
 private:
-  bool is_fcp = false;
-  std::unique_ptr<Potential> potential;
+  std::vector<bool> is_fcp = {false};
+  std::vector<std::unique_ptr<Potential>> potentials;
 };
