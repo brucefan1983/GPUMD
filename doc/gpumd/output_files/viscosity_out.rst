@@ -36,6 +36,6 @@ Note:
 
 * The shear viscosity can be calculated as :math:`\eta_{\rm S} = \frac{1}{3} \left( \eta_{xy} + \eta_{xz} + \eta_{yz} \right)`.
 * The longitudinal viscosity can be calculated as :math:`\eta_{\rm L} = \frac{1}{3} \left( \eta_{xx} + \eta_{yy} + \eta_{zz} \right)`.
-* The bulk viscosity :math:`\eta_{\rm B}` can be calculated from :math:`\eta_{\rm B} + \frac{4}{3} \eta_{\rm S} = \eta_{\rm L} \right)`.
-* We have the following symmetric property, :math:`\eta_{\alpha\beta} = \eta_{\beta\alpha} \right)`, which should be confirmed by the output data.
+* The bulk viscosity :math:`\eta_{\rm B}` can be calculated from :math:`\eta_{\rm B} + \frac{4}{3} \eta_{\rm S} = \eta_{\rm L}`.
+* We have the following symmetric property, :math:`\eta_{\alpha\beta} = \eta_{\beta\alpha}`, which should be confirmed by the output data.
 
