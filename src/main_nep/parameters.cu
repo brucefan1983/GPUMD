@@ -14,12 +14,12 @@
 */
 
 #include "parameters.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <cmath>
 #include <iostream>
 
-const int NUM_ELEMENTS = 103;
 const std::string ELEMENTS[NUM_ELEMENTS] = {
   "H",  "He", "Li", "Be", "B",  "C",  "N",  "O",  "F",  "Ne", "Na", "Mg", "Al", "Si", "P",
   "S",  "Cl", "Ar", "K",  "Ca", "Sc", "Ti", "V",  "Cr", "Mn", "Fe", "Co", "Ni", "Cu", "Zn",
@@ -88,8 +88,8 @@ void Parameters::set_default_parameters()
   batch_size = 1000;             // large enough in most cases
   population_size = 50;          // almost optimal
   maximum_generation = 100000;   // a good starting point
-  type_weight_cpu.resize(MAX_NUM_TYPES);
-  for (int n = 0; n < MAX_NUM_TYPES; ++n) {
+  type_weight_cpu.resize(NUM_ELEMENTS);
+  for (int n = 0; n < NUM_ELEMENTS; ++n) {
     type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
   enable_zbl = false; // default is not to include ZBL
@@ -408,8 +408,8 @@ void Parameters::parse_type(const char** param, int num_param)
     PRINT_INPUT_ERROR("number of types should be integer.\n");
   }
 
-  if (num_types < 1 || num_types > MAX_NUM_TYPES) {
-    PRINT_INPUT_ERROR("number of types should >=1 and <= MAX_NUM_TYPES.");
+  if (num_types < 1 || num_types > NUM_ELEMENTS) {
+    PRINT_INPUT_ERROR("number of types should >=1 and <= NUM_ELEMENTS.");
   }
   if (num_param != 2 + num_types) {
     PRINT_INPUT_ERROR("number of types and the number of listed elements do not match.\n");
