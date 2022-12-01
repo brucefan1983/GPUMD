@@ -16,6 +16,7 @@
 #include "dataset.cuh"
 #include "mic.cuh"
 #include "parameters.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 
 void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
@@ -143,7 +144,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
     }
   }
 
-  type_weight_gpu.resize(MAX_NUM_TYPES);
+  type_weight_gpu.resize(NUM_ELEMENTS);
   energy_ref_gpu.resize(Nc);
   virial_ref_gpu.resize(Nc * 6);
   force_ref_gpu.resize(N * 3);

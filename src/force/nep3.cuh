@@ -15,6 +15,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
 struct NEP3_Data {
@@ -74,7 +75,7 @@ public:
     bool enabled = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
-    float atomic_numbers[10];
+    float atomic_numbers[NUM_ELEMENTS];
   };
 
   struct ExpandedBox {
