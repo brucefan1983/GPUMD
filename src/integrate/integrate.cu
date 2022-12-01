@@ -610,24 +610,41 @@ void Integrate::parse_deform(const char** param, int num_param)
 {
   printf("Deform the box.\n");
 
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("Keyword 'deform' should have 4 parameters.");
+  if (num_param != 5 && num_param != 7) {
+    PRINT_INPUT_ERROR("Keyword 'deform' should have 4 or 6 parameters.");
   }
 
   // strain rate
-  if (!is_valid_real(param[1], &deform_rate)) {
+  if (!is_valid_real(param[1], &deform_rate[0])) {
     PRINT_INPUT_ERROR("Defrom rate should be a number.");
   }
-  printf("    strain rate is %g A / step.\n", deform_rate);
+
+  int offset = 0;
+  if (num_param == 5) {
+    deform_rate[1] = deform_rate[0];
+    deform_rate[2] = deform_rate[0];
+    printf("    strain rate is %g A / step.\n", deform_rate[0]);
+  } else {
+    offset = 2;
+    if (!is_valid_real(param[2], &deform_rate[1])) {
+      PRINT_INPUT_ERROR("Defrom rate should be a number.");
+    }
+    if (!is_valid_real(param[3], &deform_rate[2])) {
+      PRINT_INPUT_ERROR("Defrom rate should be a number.");
+    }
+    printf(
+      "    strain rates are (%g, %g, %g) A / step.\n", deform_rate[0], deform_rate[1],
+      deform_rate[2]);
+  }
 
   // direction
-  if (!is_valid_int(param[2], &deform_x)) {
+  if (!is_valid_int(param[2 + offset], &deform_x)) {
     PRINT_INPUT_ERROR("deform_x should be integer.\n");
   }
-  if (!is_valid_int(param[3], &deform_y)) {
+  if (!is_valid_int(param[3 + offset], &deform_y)) {
     PRINT_INPUT_ERROR("deform_y should be integer.\n");
   }
-  if (!is_valid_int(param[4], &deform_z)) {
+  if (!is_valid_int(param[4 + offset], &deform_z)) {
     PRINT_INPUT_ERROR("deform_z should be integer.\n");
   }
 
