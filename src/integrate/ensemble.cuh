@@ -64,7 +64,7 @@ public:
   int deform_x = 0;
   int deform_y = 0;
   int deform_z = 0;
-  double deform_rate;
+  double deform_rate[3];
 
   double energy_transferred[2]; // energy transferred from system to heat baths
 

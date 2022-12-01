@@ -40,7 +40,7 @@ Ensemble_BER::Ensemble_BER(
   int dx,
   int dy,
   int dz,
-  double rate)
+  double rate[3])
 {
   type = t;
   fixed_group = fg;
@@ -54,7 +54,9 @@ Ensemble_BER::Ensemble_BER(
   deform_x = dx;
   deform_y = dy;
   deform_z = dz;
-  deform_rate = rate;
+  deform_rate[0] = rate[0];
+  deform_rate[1] = rate[1];
+  deform_rate[2] = rate[2];
 }
 
 Ensemble_BER::~Ensemble_BER(void)
@@ -84,7 +86,7 @@ static void cpu_pressure_orthogonal(
   int deform_x,
   int deform_y,
   int deform_z,
-  double deform_rate,
+  double deform_rate[3],
   Box& box,
   double* p0,
   double* p_coupling,
@@ -96,7 +98,7 @@ static void cpu_pressure_orthogonal(
 
   if (deform_x) {
     scale_factor[0] = box.cpu_h[0];
-    scale_factor[0] = (scale_factor[0] + deform_rate) / scale_factor[0];
+    scale_factor[0] = (scale_factor[0] + deform_rate[0]) / scale_factor[0];
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else if (box.pbc_x == 1) {
@@ -109,7 +111,7 @@ static void cpu_pressure_orthogonal(
 
   if (deform_y) {
     scale_factor[1] = box.cpu_h[1];
-    scale_factor[1] = (scale_factor[1] + deform_rate) / scale_factor[1];
+    scale_factor[1] = (scale_factor[1] + deform_rate[1]) / scale_factor[1];
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
   } else if (box.pbc_y == 1) {
@@ -122,7 +124,7 @@ static void cpu_pressure_orthogonal(
 
   if (deform_z) {
     scale_factor[2] = box.cpu_h[2];
-    scale_factor[2] = (scale_factor[2] + deform_rate) / scale_factor[2];
+    scale_factor[2] = (scale_factor[2] + deform_rate[2]) / scale_factor[2];
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else if (box.pbc_z == 1) {

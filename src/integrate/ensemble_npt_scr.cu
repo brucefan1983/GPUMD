@@ -46,7 +46,7 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   int deform_x_input,
   int deform_y_input,
   int deform_z_input,
-  double deform_rate_input)
+  double deform_rate_input[3])
 {
   type = type_input;
   fixed_group = fixed_group_input;
@@ -61,7 +61,9 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   deform_x = deform_x_input;
   deform_y = deform_y_input;
   deform_z = deform_z_input;
-  deform_rate = deform_rate_input;
+  deform_rate[0] = deform_rate_input[0];
+  deform_rate[1] = deform_rate_input[1];
+  deform_rate[2] = deform_rate_input[2];
 
   initialize_rng();
 }
@@ -76,7 +78,7 @@ static void cpu_pressure_orthogonal(
   int deform_x,
   int deform_y,
   int deform_z,
-  double deform_rate,
+  double deform_rate[3],
   Box& box,
   double target_temperature,
   double* p0,
@@ -89,7 +91,7 @@ static void cpu_pressure_orthogonal(
 
   if (deform_x) {
     scale_factor[0] = box.cpu_h[0];
-    scale_factor[0] = (scale_factor[0] + deform_rate) / scale_factor[0];
+    scale_factor[0] = (scale_factor[0] + deform_rate[0]) / scale_factor[0];
     box.cpu_h[0] *= scale_factor[0];
     box.cpu_h[3] = box.cpu_h[0] * 0.5;
   } else if (box.pbc_x == 1) {
@@ -105,7 +107,7 @@ static void cpu_pressure_orthogonal(
 
   if (deform_y) {
     scale_factor[1] = box.cpu_h[1];
-    scale_factor[1] = (scale_factor[1] + deform_rate) / scale_factor[1];
+    scale_factor[1] = (scale_factor[1] + deform_rate[1]) / scale_factor[1];
     box.cpu_h[1] *= scale_factor[1];
     box.cpu_h[4] = box.cpu_h[1] * 0.5;
   } else if (box.pbc_y == 1) {
@@ -121,7 +123,7 @@ static void cpu_pressure_orthogonal(
 
   if (deform_z) {
     scale_factor[2] = box.cpu_h[2];
-    scale_factor[2] = (scale_factor[2] + deform_rate) / scale_factor[2];
+    scale_factor[2] = (scale_factor[2] + deform_rate[2]) / scale_factor[2];
     box.cpu_h[2] *= scale_factor[2];
     box.cpu_h[5] = box.cpu_h[2] * 0.5;
   } else if (box.pbc_z == 1) {
