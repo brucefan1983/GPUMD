@@ -11,7 +11,7 @@ Different weights for different species can be useful if the number of atoms per
 
 The syntax is as follows::
 
-  type_weigth [<weight>]
+  type_weight [<weight>]
 
 Here, :attr:`[<weight>]` must be a list of :math:`N_\mathrm{typ}` non-negative real numbers representing the relative force weights for the different atomic species.
 By default all species carry the same weight (``1.0``).
