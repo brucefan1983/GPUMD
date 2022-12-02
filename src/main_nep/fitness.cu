@@ -133,10 +133,9 @@ void Fitness::compute(
       const float* individual = population + deviceCount * n * para.number_of_variables;
       potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
-        float energy_shift_per_structure_not_used;
+        std::vector<float> energy_shift(para.num_types);
         fitness[deviceCount * n + m + 0 * para.population_size] =
-          para.lambda_e * train_set[batch_id][m].get_rmse_energy(
-                            energy_shift_per_structure_not_used, true, true, m);
+          para.lambda_e * train_set[batch_id][m].get_rmse_energy(energy_shift, true, true, m);
         fitness[deviceCount * n + m + 1 * para.population_size] =
           para.lambda_f * train_set[batch_id][m].get_rmse_force(para, true, m);
         fitness[deviceCount * n + m + 2 * para.population_size] =
@@ -220,21 +219,18 @@ void Fitness::report_error(
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
     potential->find_force(para, elite, train_set[batch_id], false, 1);
-    float energy_shift_per_structure;
-    float rmse_energy_train =
-      train_set[batch_id][0].get_rmse_energy(energy_shift_per_structure, false, true, 0);
+    std::vector<float> energy_shift(para.num_types);
+    float rmse_energy_train = train_set[batch_id][0].get_rmse_energy(energy_shift, false, true, 0);
     float rmse_force_train = train_set[batch_id][0].get_rmse_force(para, false, 0);
     float rmse_virial_train = train_set[batch_id][0].get_rmse_virial(para, false, 0);
 
     // correct the last bias parameter in the NN
     if (para.train_mode == 0) {
-      elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
+      elite[para.number_of_variables_ann - 1] += energy_shift[0];
     }
 
     potential->find_force(para, elite, test_set, false, 1);
-    float energy_shift_per_structure_not_used;
-    float rmse_energy_test =
-      test_set[0].get_rmse_energy(energy_shift_per_structure_not_used, false, false, 0);
+    float rmse_energy_test = test_set[0].get_rmse_energy(energy_shift, false, false, 0);
     float rmse_force_test = test_set[0].get_rmse_force(para, false, 0);
     float rmse_virial_test = test_set[0].get_rmse_virial(para, false, 0);
 
