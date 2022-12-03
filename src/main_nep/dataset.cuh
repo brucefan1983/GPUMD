@@ -33,6 +33,8 @@ public:
   std::vector<int> Na_cpu;     // number of atoms in each configuration
   std::vector<int> Na_sum_cpu; // prefix sum of Na_cpu
 
+  std::vector<int> type_of_structures; // 0 for pure 0, 1 for pure 1, num_types for compounds
+
   GPU_Vector<int> type;           // atom type (0, 1, 2, 3, ...)
   GPU_Vector<float> r;            // position
   GPU_Vector<float> box;          // (expanded) box and inverse box (18 components)

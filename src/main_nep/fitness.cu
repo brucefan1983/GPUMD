@@ -133,7 +133,7 @@ void Fitness::compute(
       const float* individual = population + deviceCount * n * para.number_of_variables;
       potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
-        std::vector<float> energy_shift(para.num_types);
+        std::vector<float> energy_shift(para.num_types + 1);
         fitness[deviceCount * n + m + 0 * para.population_size] =
           para.lambda_e * train_set[batch_id][m].get_rmse_energy(energy_shift, true, true, m);
         fitness[deviceCount * n + m + 1 * para.population_size] =
@@ -219,7 +219,7 @@ void Fitness::report_error(
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
     potential->find_force(para, elite, train_set[batch_id], false, 1);
-    std::vector<float> energy_shift(para.num_types);
+    std::vector<float> energy_shift(para.num_types + 1);
     float rmse_energy_train = train_set[batch_id][0].get_rmse_energy(energy_shift, false, true, 0);
     float rmse_force_train = train_set[batch_id][0].get_rmse_force(para, false, 0);
     float rmse_virial_train = train_set[batch_id][0].get_rmse_virial(para, false, 0);

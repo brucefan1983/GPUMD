@@ -105,6 +105,7 @@ void Dataset::initialize_gpu_data(Parameters& para)
   std::vector<int> num_cell_cpu(Nc * 3);
   std::vector<float> r_cpu(N * 3);
   std::vector<int> type_cpu(N);
+  type_of_structures.resize(Nc, para.num_types);
 
   energy.resize(N);
   virial.resize(N * 6);
@@ -133,6 +134,9 @@ void Dataset::initialize_gpu_data(Parameters& para)
     for (int k = 0; k < 3; ++k) {
       num_cell_cpu[k + n * 3] = structures[n].num_cell[k];
     }
+
+    std::vector<bool> is_pure_type(para.num_types, true);
+
     for (int na = 0; na < structures[n].num_atom; ++na) {
       type_cpu[Na_sum_cpu[n] + na] = structures[n].type[na];
       r_cpu[Na_sum_cpu[n] + na] = structures[n].x[na];
@@ -141,6 +145,18 @@ void Dataset::initialize_gpu_data(Parameters& para)
       force_ref_cpu[Na_sum_cpu[n] + na] = structures[n].fx[na];
       force_ref_cpu[Na_sum_cpu[n] + na + N] = structures[n].fy[na];
       force_ref_cpu[Na_sum_cpu[n] + na + N * 2] = structures[n].fz[na];
+
+      for (int t = 0; t < para.num_types; ++t) {
+        if (structures[n].type[na] != t) {
+          is_pure_type[t] = false;
+        }
+      }
+    }
+
+    for (int t = 0; t < para.num_types; ++t) {
+      if (is_pure_type[t]) {
+        type_of_structures[n] = t;
+      }
     }
   }
 
@@ -450,17 +466,16 @@ float Dataset::get_rmse_energy(
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
       Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
     CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-    // int count[NUM_ELEMENTS + 1] = {0};
-    for (int n = 0; n < Nc; ++n) {
-      //++count[type_of_structure[n]];
-      energy_shift[0] += error_cpu[n];
+    std::vector<int> count_of_type(energy_shift.size(), 0);
+    for (int nc = 0; nc < Nc; ++nc) {
+      ++count_of_type[type_of_structure[nc]];
+      energy_shift[type_of_structure[nc]] += error_cpu[nc];
     }
-    energy_shift[0] /= Nc;
-    // for (int n = 0; n <= NUM_ELEMENTS; ++n) {
-    // if (count[n] != 0) {
-    // energy_shift_per_structure[n] /= count[n];
-    //}
-    //}
+    for (int n = 0; n < energy_shift.size(); ++n) {
+      if (count_of_type[n] != 0) {
+        energy_shift[n] /= count_of_type[n];
+      }
+    }
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
