@@ -141,7 +141,18 @@ void Parameters::calculate_parameters()
   dim = dim_radial + dim_angular;
   q_scaler_cpu.resize(dim, 1.0e10f);
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
+  // a single NN for NEP2 and NEP3:
+  number_of_variables_ann = (dim + 2) * num_neurons1 + 1;
+
+  // one NN for one element but all elements share the same output bias in NEP4:
+  if (version == 4) {
+    number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + 1;
+  }
+
+  // one NN for one element and each element has its own output bias in NEP5:
+  if (version == 5) {
+    number_of_variables_ann = (dim + 2) * num_neurons1 * num_types + num_types;
+  }
 
   if (version == 2) {
     number_of_variables_descriptor =
@@ -392,8 +403,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  if (version < 2 || version > 5) {
+    PRINT_INPUT_ERROR("version should = 2 or 3 or 4 or 5.");
   }
 }
 

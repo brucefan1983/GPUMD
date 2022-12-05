@@ -105,7 +105,9 @@ void Dataset::initialize_gpu_data(Parameters& para)
   std::vector<int> num_cell_cpu(Nc * 3);
   std::vector<float> r_cpu(N * 3);
   std::vector<int> type_cpu(N);
-  type_of_structures.resize(Nc, para.num_types);
+  type_of_structure.resize(Nc, para.num_types);
+  count_of_type.resize(para.num_types, 0);
+  energy_shift_gpu.resize(para.num_types);
 
   energy.resize(N);
   virial.resize(N * 6);
@@ -155,7 +157,8 @@ void Dataset::initialize_gpu_data(Parameters& para)
 
     for (int t = 0; t < para.num_types; ++t) {
       if (is_pure_type[t]) {
-        type_of_structures[n] = t;
+        ++count_of_type[t];
+        type_of_structure[n] = t;
       }
     }
   }
@@ -451,8 +454,54 @@ static __global__ void gpu_sum_pe_error(
   }
 }
 
+static __global__ void gpu_sum_pe_error(
+  float* energy_shift,
+  int* type,
+  int* g_Na,
+  int* g_Na_sum,
+  float* g_pe,
+  float* g_pe_ref,
+  float* error_gpu)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int Na = g_Na[bid];
+  int N1 = g_Na_sum[bid];
+  int N2 = N1 + Na;
+  extern __shared__ float s_pe[];
+  s_pe[tid] = 0.0f;
+
+  for (int n = N1 + tid; n < N2; n += blockDim.x) {
+    s_pe[tid] += g_pe[n] - energy_shift[type[n]];
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_pe[tid] += s_pe[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_pe[tid] += s_pe[tid + offset];
+    }
+    __syncwarp();
+  }
+
+  if (tid == 0) {
+    float diff = s_pe[0] / Na - g_pe_ref[bid];
+    error_gpu[bid] = diff * diff;
+  }
+}
+
 float Dataset::get_rmse_energy(
-  std::vector<float>& energy_shift, const bool use_weight, const bool do_shift, int device_id)
+  Parameters& para,
+  std::vector<float>& energy_shift,
+  const bool use_weight,
+  const bool do_shift,
+  int device_id)
 {
   CHECK(cudaSetDevice(device_id));
   for (int n = 0; n < energy_shift.size(); ++n) {
@@ -466,21 +515,37 @@ float Dataset::get_rmse_energy(
     gpu_get_energy_shift<<<Nc, block_size, sizeof(float) * block_size>>>(
       Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(), error_gpu.data());
     CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-    std::vector<int> count_of_type(energy_shift.size(), 0);
-    for (int nc = 0; nc < Nc; ++nc) {
-      ++count_of_type[type_of_structure[nc]];
-      energy_shift[type_of_structure[nc]] += error_cpu[nc];
-    }
-    for (int n = 0; n < energy_shift.size(); ++n) {
-      if (count_of_type[n] != 0) {
-        energy_shift[n] /= count_of_type[n];
+
+    if (para.version < 5) {
+      for (int nc = 0; nc < Nc; ++nc) {
+        energy_shift[0] += error_cpu[nc];
+      }
+      energy_shift[0] /= Nc;
+    } else {
+      for (int nc = 0; nc < Nc; ++nc) {
+        if (type_of_structure[nc] < energy_shift.size()) {
+          energy_shift[type_of_structure[nc]] += error_cpu[nc];
+        }
+      }
+      for (int n = 0; n < energy_shift.size(); ++n) {
+        if (count_of_type[n] != 0) {
+          energy_shift[n] /= count_of_type[n];
+        }
       }
     }
   }
 
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    energy_shift[0], Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(),
-    error_gpu.data());
+  if (para.version < 5) {
+    gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      energy_shift[0], Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(),
+      error_gpu.data());
+  } else {
+    energy_shift_gpu.copy_from_host(energy_shift.data());
+    gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      energy_shift_gpu.data(), type.data(), Na.data(), Na_sum.data(), energy.data(),
+      energy_ref_gpu.data(), error_gpu.data());
+  }
+
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   float error_ave = 0.0f;
   for (int n = 0; n < Nc; ++n) {

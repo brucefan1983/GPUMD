@@ -133,9 +133,9 @@ void Fitness::compute(
       const float* individual = population + deviceCount * n * para.number_of_variables;
       potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
-        std::vector<float> energy_shift(para.num_types + 1);
+        std::vector<float> energy_shift(para.num_types);
         fitness[deviceCount * n + m + 0 * para.population_size] =
-          para.lambda_e * train_set[batch_id][m].get_rmse_energy(energy_shift, true, true, m);
+          para.lambda_e * train_set[batch_id][m].get_rmse_energy(para, energy_shift, true, true, m);
         fitness[deviceCount * n + m + 1 * para.population_size] =
           para.lambda_f * train_set[batch_id][m].get_rmse_force(para, true, m);
         fitness[deviceCount * n + m + 2 * para.population_size] =
@@ -176,6 +176,12 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
     } else {
       fprintf(fid_nep, "nep4 %d ", para.num_types);
+    }
+  } else if (para.version == 5) {
+    if (para.enable_zbl) {
+      fprintf(fid_nep, "nep5_zbl %d ", para.num_types);
+    } else {
+      fprintf(fid_nep, "nep5 %d ", para.num_types);
     }
   }
 
@@ -219,18 +225,25 @@ void Fitness::report_error(
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
     potential->find_force(para, elite, train_set[batch_id], false, 1);
-    std::vector<float> energy_shift(para.num_types + 1);
-    float rmse_energy_train = train_set[batch_id][0].get_rmse_energy(energy_shift, false, true, 0);
+    std::vector<float> energy_shift(para.num_types);
+    float rmse_energy_train =
+      train_set[batch_id][0].get_rmse_energy(para, energy_shift, false, true, 0);
     float rmse_force_train = train_set[batch_id][0].get_rmse_force(para, false, 0);
     float rmse_virial_train = train_set[batch_id][0].get_rmse_virial(para, false, 0);
 
-    // correct the last bias parameter in the NN
     if (para.train_mode == 0) {
-      elite[para.number_of_variables_ann - 1] += energy_shift[0];
+      if (para.version < 5) { // correct the last common bias parameter in the NN, for NEP2 to NEP4:
+        elite[para.number_of_variables_ann - 1] += energy_shift[0];
+      } else { // correct the bias for each element, for NEP5:
+        const int num_para_per_element = para.number_of_variables_ann / para.num_types;
+        for (int t = 0; t < para.num_types; ++t) {
+          elite[num_para_per_element * (t + 1) - 1] += energy_shift[t];
+        }
+      }
     }
 
     potential->find_force(para, elite, test_set, false, 1);
-    float rmse_energy_test = test_set[0].get_rmse_energy(energy_shift, false, false, 0);
+    float rmse_energy_test = test_set[0].get_rmse_energy(para, energy_shift, false, false, 0);
     float rmse_force_test = test_set[0].get_rmse_force(para, false, 0);
     float rmse_virial_test = test_set[0].get_rmse_virial(para, false, 0);
 

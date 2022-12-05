@@ -33,7 +33,9 @@ public:
   std::vector<int> Na_cpu;     // number of atoms in each configuration
   std::vector<int> Na_sum_cpu; // prefix sum of Na_cpu
 
-  std::vector<int> type_of_structures; // 0 for pure 0, 1 for pure 1, num_types for compounds
+  std::vector<int> type_of_structure; // 0 for pure 0, 1 for pure 1, num_types for compounds
+  std::vector<int> count_of_type;
+  GPU_Vector<float> energy_shift_gpu;
 
   GPU_Vector<int> type;           // atom type (0, 1, 2, 3, ...)
   GPU_Vector<float> r;            // position
@@ -67,7 +69,11 @@ public:
   construct(Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
   float get_rmse_force(Parameters& para, const bool use_weight, int device_id);
   float get_rmse_energy(
-    std::vector<float>& energy_shift, const bool use_weight, const bool do_shift, int device_id);
+    Parameters& para,
+    std::vector<float>& energy_shift,
+    const bool use_weight,
+    const bool do_shift,
+    int device_id);
   float get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
 
 private:

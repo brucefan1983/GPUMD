@@ -296,19 +296,49 @@ NEP3::NEP3(
 void NEP3::update_potential(float* parameters, ANN& ann)
 {
   float* pointer = parameters;
-  for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
+  if (paramb.version < 4) {
+    for (int t = 0; t < paramb.num_types; ++t) {
+      if (t > 0) { // Use the same set of NN parameters for NEP2 and NEP3
+        pointer -= (ann.dim + 2) * ann.num_neurons1 + 1;
+      }
+      ann.w0[t] = pointer;
+      pointer += ann.num_neurons1 * ann.dim;
+      ann.b0[t] = pointer;
+      pointer += ann.num_neurons1;
+      ann.w1[t] = pointer;
+      pointer += ann.num_neurons1;
+      ann.b1[t] = pointer;
+      pointer += 1;
     }
-    ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim;
-    ann.b0[t] = pointer;
-    pointer += ann.num_neurons1;
-    ann.w1[t] = pointer;
-    pointer += ann.num_neurons1;
+  } else if (paramb.version < 5) {
+    for (int t = 0; t < paramb.num_types; ++t) {
+      ann.w0[t] = pointer;
+      pointer += ann.num_neurons1 * ann.dim;
+      ann.b0[t] = pointer;
+      pointer += ann.num_neurons1;
+      ann.w1[t] = pointer;
+      pointer += ann.num_neurons1;
+    }
+    for (int t = 0; t < paramb.num_types; ++t) {
+      if (t > 0) {
+        pointer -= 1;
+      }
+      ann.b1[t] = pointer;
+      pointer += 1;
+    }
+  } else {
+    for (int t = 0; t < paramb.num_types; ++t) {
+      ann.w0[t] = pointer;
+      pointer += ann.num_neurons1 * ann.dim;
+      ann.b0[t] = pointer;
+      pointer += ann.num_neurons1;
+      ann.w1[t] = pointer;
+      pointer += ann.num_neurons1;
+      ann.b1[t] = pointer;
+      pointer += 1;
+    }
   }
-  ann.b1 = pointer;
-  ann.c = ann.b1 + 1;
+  ann.c = pointer;
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
@@ -374,8 +404,8 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
-      Fp);
+      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1[type],
+      q, F, Fp);
     g_pe[n1] = F;
     if (is_polarizability) {
       g_virial[n1] = F;
