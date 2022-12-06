@@ -72,7 +72,7 @@ Glossary
         :ref:`running thermal conductivity <running_thermal_conductivity>`
 
    SCR
-        :ref:`stochastic cell rescaling barostat <stochastic_cell_rescaling>` [Bussi2007b]_
+        :ref:`stochastic cell rescaling barostat <stochastic_cell_rescaling>` [Bernetti2020]_
 
    SDC
         self-diffusion coefficient
