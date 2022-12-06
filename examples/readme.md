@@ -27,7 +27,7 @@ The parallel efficiency of the 	`gpumd` executable depends on the number of atom
 By default, the system is partitioned along the thickest direction, but one can overwrite this by specifying a partition direction in the following way:
 ```
 potential YOUR_NEP_MODEL.txt   # use the default partition
-potential YOUR_NEP_MODEL.txt x # force to partition along the x direction (the `a` direction for triclinic box)
-potential YOUR_NEP_MODEL.txt y # force to partition along the y direction (the `b` direction for triclinic box)
-potential YOUR_NEP_MODEL.txt z # force to partition along the z direction (the `c` direction for triclinic box)
+potential YOUR_NEP_MODEL.txt x # force to partition along the x direction (the a direction for triclinic box)
+potential YOUR_NEP_MODEL.txt y # force to partition along the y direction (the b direction for triclinic box)
+potential YOUR_NEP_MODEL.txt z # force to partition along the z direction (the c direction for triclinic box)
 ```
