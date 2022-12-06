@@ -30,6 +30,8 @@ protected:
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
+  float lambda_e_final = 1.0f;
+  float lambda_v_final = 0.1f;
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> fitness_copy;
