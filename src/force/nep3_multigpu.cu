@@ -110,19 +110,6 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     printf("    type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
-  // zbl 0.7 1.4
-  if (zbl.enabled) {
-    tokens = get_tokens(input);
-    if (tokens.size() != 3) {
-      std::cout << "This line should be zbl rc_inner rc_outer." << std::endl;
-      exit(1);
-    }
-    zbl.rc_inner = get_float_from_token(tokens[1], __FILE__, __LINE__);
-    zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
-    printf(
-      "    has ZBL with inner cutoff %g A and outer cutoff %g A.\n", zbl.rc_inner, zbl.rc_outer);
-  }
-
   // cutoff 4.2 3.7 80 47
   tokens = get_tokens(input);
   if (tokens.size() != 3 && tokens.size() != 5) {
@@ -250,6 +237,23 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   for (int d = 0; d < annmb[0].dim; ++d) {
     tokens = get_tokens(input);
     paramb.q_scaler[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+  }
+
+  if (zbl.enabled) {
+    int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
+    for (int d = 0; d < num_type_zbl; ++d) {
+      tokens = get_tokens(input);
+      zbl.rc_inner[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    for (int d = 0; d < num_type_zbl; ++d) {
+      tokens = get_tokens(input);
+      zbl.rc_outer[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    for (int d = 0; d < 8 * num_type_zbl; ++d) {
+      tokens = get_tokens(input);
+      zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    zbl.num_types = paramb.num_types;
   }
 
   paramb.num_gpus = num_gpus;
@@ -1027,11 +1031,22 @@ static __global__ void find_force_ZBL(
       float zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-#ifdef USE_JESPER_HEA
-      find_f_and_fp_zbl(type1, type2, zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
-#else
-      find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
-#endif
+      int t1, t2;
+      if (type1 < type2) {
+        t1 = type1;
+        t2 = type2;
+      } else {
+        t1 = type2;
+        t2 = type1;
+      }
+      int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
+      float rc_inner = zbl.rc_inner[zbl_index];
+      float rc_outer = zbl.rc_outer[zbl_index];
+      float ZBL_para[8];
+      for (int i = 0; i < 8; ++i) {
+        ZBL_para[i] = zbl.para[8 * zbl_index + i];
+      }
+      find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       float f21[3] = {-r12[0] * f2, -r12[1] * f2, -r12[2] * f2};

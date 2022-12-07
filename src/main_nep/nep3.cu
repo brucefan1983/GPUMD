@@ -264,12 +264,21 @@ NEP3::NEP3(
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 
   zbl.enabled = para.enable_zbl;
-  zbl.rc_inner = para.zbl_rc_inner;
-  zbl.rc_outer = para.zbl_rc_outer;
-  for (int n = 0; n < para.atomic_numbers.size(); ++n) {
-    zbl.atomic_numbers[n] = para.atomic_numbers[n];
+  if (zbl.enabled) {
+    zbl.num_types = para.num_types;
+    for (int n = 0; n < para.num_types; ++n) {
+      zbl.atomic_numbers[n] = para.atomic_numbers[n];
+    }
+    int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
+    for (int n = 0; n < num_type_zbl; ++n) {
+      zbl.rc_inner[n] = para.zbl_para[n];
+      zbl.rc_outer[n] = para.zbl_para[n + num_type_zbl];
+    }
+    for (int n = 0; n < num_type_zbl * 8; ++n) {
+      zbl.para[n] = para.zbl_para[n + 2 * num_type_zbl];
+    }
   }
-
+  
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     cudaSetDevice(device_id);
     annmb[device_id].dim = para.dim;
@@ -642,11 +651,22 @@ static __global__ void find_force_ZBL(
       float zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-#ifdef USE_JESPER_HEA
-      find_f_and_fp_zbl(type1, type2, zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
-#else
-      find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
-#endif
+      int t1, t2;
+      if (type1 < type2) {
+        t1 = type1;
+        t2 = type2;
+      } else {
+        t1 = type2;
+        t2 = type1;
+      }
+      int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
+      float rc_inner = zbl.rc_inner[zbl_index];
+      float rc_outer = zbl.rc_outer[zbl_index];
+      float ZBL_para[8];
+      for (int i = 0; i < 8; ++i) {
+        ZBL_para[i] = zbl.para[8 * zbl_index + i];
+      }
+      find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
       atomicAdd(&g_fx[n1], f12[0]);

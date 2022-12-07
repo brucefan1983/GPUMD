@@ -72,9 +72,11 @@ public:
 
   struct ZBL {
     bool enabled = false;
-    float rc_inner = 1.0f;
-    float rc_outer = 2.0f;
+    float rc_inner[55];
+    float rc_outer[55];
+    float para[440];
     float atomic_numbers[10];
+    int num_types;
   };
 
   struct ExpandedBox {

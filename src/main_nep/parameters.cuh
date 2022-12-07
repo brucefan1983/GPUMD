@@ -49,8 +49,6 @@ public:
   float lambda_shear;     // extra weight parameter for shear virial
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
-  float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode;         // 0=potential, 1=dipole, 2=polarizability
 
   // check if a parameter has been set:
@@ -89,12 +87,14 @@ public:
   std::vector<float> q_scaler_cpu;    // used to scale some descriptor components (CPU)
   std::vector<std::string> elements;  // atom symbols
   std::vector<int> atomic_numbers;    // atomic numbers
+  std::vector<float> zbl_para;        // zbl parameters
 
   GPU_Vector<float> q_scaler_gpu[16]; // used to scale some descriptor components (GPU)
 
 private:
   void set_default_parameters();
   void read_nep_in();
+  void read_zbl_in();
   void calculate_parameters();
   void report_inputs();
 

@@ -37,6 +37,9 @@ Parameters::Parameters()
 
   set_default_parameters();
   read_nep_in();
+  if (is_zbl_set) {
+    read_zbl_in();
+  }
   calculate_parameters();
   report_inputs();
 
@@ -89,6 +92,7 @@ void Parameters::set_default_parameters()
   population_size = 50;          // almost optimal
   maximum_generation = 100000;   // a good starting point
   type_weight_cpu.resize(MAX_NUM_TYPES);
+  zbl_para.resize(600);          
   for (int n = 0; n < MAX_NUM_TYPES; ++n) {
     type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
@@ -117,8 +121,22 @@ void Parameters::read_nep_in()
       parse_one_keyword(tokens_without_comments);
     }
   }
-
   input.close();
+}
+
+void Parameters::read_zbl_in()
+{
+  FILE* fid_zbl = fopen("zbl.in", "r");
+  if (fid_zbl == NULL) {
+    std::cout << "Failed to open zbl.in." << std::endl;
+    exit(1);
+  } else {
+    for (int n = 0; n < (num_types * (num_types + 1) / 2) * 10; ++n) {
+      int count = fscanf(fid_zbl, "%f", &zbl_para[n]);
+      PRINT_SCANF_ERROR(count, 1, "Reading error for nep.restart.");
+    }
+    fclose(fid_zbl);
+  }
 }
 
 void Parameters::calculate_parameters()
@@ -197,8 +215,7 @@ void Parameters::report_inputs()
 
   if (is_zbl_set) {
     printf(
-      "    (input)   will add the ZBL potential with outer cutoff %g A and inner cutoff %g A.\n",
-      zbl_rc_outer, zbl_rc_inner);
+      "    (input)   will add the ZBL potential.\n");
   } else {
     printf("    (default) will not add the ZBL potential.\n");
   }
@@ -360,8 +377,6 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
     parse_type_weight(param, num_param);
   } else if (strcmp(param[0], "force_delta") == 0) {
     parse_force_delta(param, num_param);
-  } else if (strcmp(param[0], "zbl") == 0) {
-    parse_zbl(param, num_param);
   } else {
     PRINT_KEYWORD_ERROR(param[0]);
   }
@@ -386,14 +401,22 @@ void Parameters::parse_version(const char** param, int num_param)
 {
   is_version_set = true;
 
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("version should have 1 parameter.\n");
+  if (num_param < 2) {
+    PRINT_INPUT_ERROR("version should have at least 1 parameter.\n");
   }
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
   if (version < 2 || version > 4) {
     PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  }
+  if (num_param == 3) {
+    if (strcmp(param[2], "zbl") == 0) {
+    is_zbl_set = true;
+    enable_zbl = true;
+  } else {
+    PRINT_INPUT_ERROR("repulsive force should be zbl.");
+  }
   }
 }
 
@@ -450,29 +473,6 @@ void Parameters::parse_type_weight(const char** param, int num_param)
       PRINT_INPUT_ERROR("type weight should be a number.\n");
     }
     type_weight_cpu[n] = weight_tmp;
-  }
-}
-
-void Parameters::parse_zbl(const char** param, int num_param)
-{
-  is_zbl_set = true;
-  enable_zbl = true;
-
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("zbl should have 1 parameter.\n");
-  }
-
-  double zbl_rc_outer_tmp = 0.0;
-  if (!is_valid_real(param[1], &zbl_rc_outer_tmp)) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should be a number.\n");
-  }
-  zbl_rc_outer = zbl_rc_outer_tmp;
-  zbl_rc_inner = zbl_rc_outer * 0.5f;
-
-  if (zbl_rc_outer < 1.0f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
-  } else if (zbl_rc_outer > 2.5f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 2.5 A.");
   }
 }
 
