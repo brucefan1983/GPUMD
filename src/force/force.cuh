@@ -67,8 +67,8 @@ public:
   double hnemd_fe_[3];
   double temperature;
   GPU_Vector<double> coefficient;
+  std::vector<std::unique_ptr<Potential>> potentials;
 
 private:
   std::vector<bool> is_fcp = {false};
-  std::vector<std::unique_ptr<Potential>> potentials;
 };

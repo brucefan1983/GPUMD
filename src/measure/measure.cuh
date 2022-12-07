@@ -33,6 +33,7 @@
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "viscosity.cuh"
+#include "force/force.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
@@ -51,7 +52,6 @@ public:
     const double time_step,
     Box& box,
     std::vector<Group>& group,
-    Force& force,
     Atom& atom);
 
   void finalize(
@@ -70,8 +70,15 @@ public:
     Box& box,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
-    Atom& atom);
-
+    Atom& atom,
+    Force& force);
+  
+  void dump_properties_for_all_potentials(
+    int step,
+    std::vector<Group>& group,
+    Atom& atom,
+    Force& force);
+     
   DOS dos;
   SDC sdc;
   MSD msd;

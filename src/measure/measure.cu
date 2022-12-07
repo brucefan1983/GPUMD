@@ -28,7 +28,6 @@ void Measure::initialize(
   const double time_step,
   Box& box,
   std::vector<Group>& group,
-  Force& force,
   Atom& atom)
 {
   const int number_of_atoms = atom.mass.size();
@@ -87,6 +86,17 @@ void Measure::finalize(
   modal_analysis.method = NO_METHOD;
 }
 
+void Measure::dump_properties_for_all_potentials(
+    int step,
+    std::vector<Group>& group,
+    Atom& atom,
+    Force& force)
+{
+  const int number_of_potentials = sizeof(force.potentials);
+  std::cout << "#### No pot: " << number_of_potentials;
+  dump_force.process(step, group, atom.force_per_atom);
+}
+
 void Measure::process(
   const int number_of_steps,
   int step,
@@ -97,7 +107,8 @@ void Measure::process(
   Box& box,
   std::vector<Group>& group,
   GPU_Vector<double>& thermo,
-  Atom& atom)
+  Atom& atom,
+  Force& force)
 {
   const int number_of_atoms = atom.cpu_type.size();
   dump_thermo.process(
@@ -110,6 +121,7 @@ void Measure::process(
     step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,
     atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
+  dump_properties_for_all_potentials(step, group, atom, force);
   dump_exyz.process(
     step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
     atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
