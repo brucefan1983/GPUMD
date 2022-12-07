@@ -4,6 +4,12 @@
 Bibliography
 ************
 
+.. [Bernetti2020]
+   | Mattia Bernetti and Giovanni Bussi
+   | *Pressure control using stochastic cell rescaling*
+   | J. Chem. Phys. **153**, 114107 (2020)
+   | DOI: `10.1063/5.0020514 <https://doi.org/10.1063/5.0020514>`_
+
 .. [Berendsen1984]
    | H. J. C. Berendsen, J. P. M. Postma, W. F. van Gunsteren, A. DiNola, and J. R. Haak
    | *Molecular dynamics with coupling to an external bath*

@@ -195,7 +195,7 @@ The NPT ensemble is also called the isothermal-isobaric ensemble.
 Berendsen barostat
 ^^^^^^^^^^^^^^^^^^
 
-The Berendsen barostat is used with the Berendsen thermostat discussed above.
+The Berendsen barostat [Berendsen1984]_ is used with the Berendsen thermostat discussed above.
 The barostat scales the box and positions as follows:
 
 .. math::
@@ -294,7 +294,7 @@ Stochastic cell rescaling barostat
 ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 The Berendsen method does not generate a true NPT ensemble.
-As an extension of the Berendsen method, the stochastic cell rescaling (:term:`SCR`) barostat, combined with the :term:`BDP` thermostat, incorporates a proper randomness into the box and position rescaling factor and generates a true NPT ensemble.
+As an extension of the Berendsen method, the stochastic cell rescaling (:term:`SCR`) barostat [Bernetti2020]_, combined with the :term:`BDP` thermostat, incorporates a proper randomness into the box and position rescaling factor and generates a true NPT ensemble.
 
 In the :term:`SCR` barostat, the scaling matrix is a sum of the scaling matrix as in the Berendsen barostat and a stochastic one.
 The stochastic scaling matrix components are
