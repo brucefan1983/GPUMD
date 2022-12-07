@@ -39,10 +39,6 @@ Force::Force(void) { is_fcp = {false}; }
 void Force::parse_potential(
   const char** param, int num_param, const Box& box, const int number_of_atoms)
 {
-  static int num_calls = 0;
-  if (num_calls++ != 0) {
-    PRINT_INPUT_ERROR("potential keyword can only be used once.\n");
-  }
 
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
