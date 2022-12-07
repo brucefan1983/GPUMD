@@ -15,6 +15,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 class Parameters;
 class Dataset;
@@ -75,6 +76,7 @@ public:
     float para[440];
     float atomic_numbers[10];
     int num_types;
+
   };
 
   NEP3(

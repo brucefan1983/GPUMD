@@ -18,8 +18,6 @@
 #include <string>
 #include <vector>
 
-#define MAX_NUM_TYPES 10
-
 class Parameters
 {
 public:

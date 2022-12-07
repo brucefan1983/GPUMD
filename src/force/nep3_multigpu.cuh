@@ -15,6 +15,7 @@
 
 #pragma once
 #include "potential.cuh"
+#include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 
 struct NEP3_MULTIGPU_Data {

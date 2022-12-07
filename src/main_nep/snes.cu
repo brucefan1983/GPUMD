@@ -32,6 +32,8 @@ https://doi.org/10.1145/2001576.2001692
 
 SNES::SNES(Parameters& para, Fitness* fitness_function)
 {
+  lambda_e_final = para.lambda_e;
+  lambda_v_final = para.lambda_v;
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
   population_size = para.population_size;
@@ -69,7 +71,7 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     std::uniform_real_distribution<float> r1(0, 1);
     for (int n = 0; n < number_of_variables; ++n) {
       mu[n] = r1(rng) - 0.5f;
-      sigma[n] = 0.1f;
+      sigma[n] = eta_sigma * 2.0f;
     }
   } else {
     for (int n = 0; n < number_of_variables; ++n) {
@@ -105,6 +107,8 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     "RMSE-V-Test");
 
   for (int n = 0; n < maximum_generation; ++n) {
+    para.lambda_e = (lambda_e_final * n) / maximum_generation;
+    para.lambda_v = (lambda_v_final * n) / maximum_generation;
     create_population(para);
     fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
     regularize(para);
