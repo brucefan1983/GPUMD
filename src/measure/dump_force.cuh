@@ -23,9 +23,9 @@ class Dump_Force
 {
 public:
   void parse(const char** param, int num_param, const std::vector<Group>& groups);
-  void preprocess(const int number_of_atoms, const std::vector<Group>& groups);
+  void preprocess(const int number_of_atoms, const std::vector<Group>& groups, const int number_of_files);
   void
-  process(const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom);
+  process(const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom, const int file_index);
   void postprocess();
 
 private:
@@ -33,7 +33,7 @@ private:
   int dump_interval_ = 1;
   int grouping_method_ = -1;
   int group_id_ = -1;
-  FILE* fid_;
+  std::vector<FILE*> files;
   char filename_[200];
   std::vector<double> cpu_force_per_atom;
   GPU_Vector<double> gpu_force_tmp;

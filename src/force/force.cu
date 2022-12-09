@@ -31,6 +31,7 @@ The driver class calculating force and related quantities.
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <iostream>
 
 #define BLOCK_SIZE 128
 

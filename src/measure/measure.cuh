@@ -52,7 +52,8 @@ public:
     const double time_step,
     Box& box,
     std::vector<Group>& group,
-    Atom& atom);
+    Atom& atom,
+    const int number_of_potentials);
 
   void finalize(
     const int number_of_steps,
@@ -76,6 +77,7 @@ public:
   void dump_properties_for_all_potentials(
     int step,
     std::vector<Group>& group,
+    Box& box,
     Atom& atom,
     Force& force);
      

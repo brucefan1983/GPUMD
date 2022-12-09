@@ -28,7 +28,8 @@ void Measure::initialize(
   const double time_step,
   Box& box,
   std::vector<Group>& group,
-  Atom& atom)
+  Atom& atom,
+  const int number_of_potentials)
 {
   const int number_of_atoms = atom.mass.size();
   dos.preprocess(time_step, group, atom.mass);
@@ -45,7 +46,7 @@ void Measure::initialize(
   dump_velocity.preprocess();
   dump_restart.preprocess();
   dump_thermo.preprocess();
-  dump_force.preprocess(number_of_atoms, group);
+  dump_force.preprocess(number_of_atoms, group, number_of_potentials);
   dump_exyz.preprocess(number_of_atoms);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
@@ -89,12 +90,19 @@ void Measure::finalize(
 void Measure::dump_properties_for_all_potentials(
     int step,
     std::vector<Group>& group,
+    Box& box,
     Atom& atom,
     Force& force)
 {
-  const int number_of_potentials = sizeof(force.potentials);
-  std::cout << "#### No pot: " << number_of_potentials;
-  dump_force.process(step, group, atom.force_per_atom);
+  const int number_of_potentials = force.potentials.size();
+
+  for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
+    std::cout << "#### Potential "<< potential_index+1 << "/" << number_of_potentials << "\n";
+    force.potentials[potential_index]->compute(box, atom.type, atom.position_per_atom, 
+        atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+    dump_force.process(step, group, atom.force_per_atom, potential_index);
+  }
+
 }
 
 void Measure::process(
@@ -120,8 +128,8 @@ void Measure::process(
   dump_restart.process(
     step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,
     atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
-  dump_force.process(step, group, atom.force_per_atom);
-  dump_properties_for_all_potentials(step, group, atom, force);
+  //dump_force.process(step, group, atom.force_per_atom);
+  dump_properties_for_all_potentials(step, group, box, atom, force);
   dump_exyz.process(
     step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
     atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
