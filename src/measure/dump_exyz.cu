@@ -23,6 +23,7 @@ Dump some data to dump.xyz in the extended XYZ format
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
+#include <string>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -84,10 +85,14 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   }
 }
 
-void Dump_EXYZ::preprocess(const int number_of_atoms)
+void Dump_EXYZ::preprocess(const int number_of_atoms, const int number_of_files)
 {
   if (dump_) {
-    fid_ = my_fopen("dump.xyz", "a");
+    for (int i = 0; i < number_of_files; i++){
+      const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i); 
+      std::string filename = "dump" + file_number + ".xyz";
+      files.push_back(my_fopen(filename.c_str(), "a"));
+    }
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
     if (has_force_) {
@@ -101,7 +106,8 @@ void Dump_EXYZ::output_line2(
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
   GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo)
+  GPU_Vector<double>& gpu_thermo,
+  FILE* fid_)
 {
   // time
   fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
@@ -165,7 +171,8 @@ void Dump_EXYZ::process(
   std::vector<double>& cpu_velocity_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo)
+  GPU_Vector<double>& gpu_thermo,
+  const int file_index)
 {
   if (!dump_)
     return;
@@ -173,6 +180,7 @@ void Dump_EXYZ::process(
     return;
 
   const int num_atoms_total = position_per_atom.size() / 3;
+  FILE* fid_ = files[file_index];
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
   if (has_velocity_) {
     velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
@@ -185,7 +193,7 @@ void Dump_EXYZ::process(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo);
+  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo, fid_);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
@@ -214,7 +222,9 @@ void Dump_EXYZ::process(
 void Dump_EXYZ::postprocess()
 {
   if (dump_) {
-    fclose(fid_);
+    for (int i = 0; i < files.size(); i++){
+      fclose(files[i]);
+    }
     dump_ = false;
   }
 }

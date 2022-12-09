@@ -47,7 +47,7 @@ void Measure::initialize(
   dump_restart.preprocess();
   dump_thermo.preprocess();
   dump_force.preprocess(number_of_atoms, group, number_of_potentials);
-  dump_exyz.preprocess(number_of_atoms);
+  dump_exyz.preprocess(number_of_atoms, number_of_potentials);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
 #endif
@@ -89,10 +89,12 @@ void Measure::finalize(
 
 void Measure::dump_properties_for_all_potentials(
     int step,
+    const double global_time,
     std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    Force& force)
+    Force& force,
+    GPU_Vector<double>& thermo)
 {
   const int number_of_potentials = force.potentials.size();
 
@@ -101,6 +103,10 @@ void Measure::dump_properties_for_all_potentials(
     force.potentials[potential_index]->compute(box, atom.type, atom.position_per_atom, 
         atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
     dump_force.process(step, group, atom.force_per_atom, potential_index);
+    dump_exyz.process(
+      step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+      atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
+      atom.force_per_atom, atom.virial_per_atom, thermo, potential_index);
   }
 
 }
@@ -129,11 +135,11 @@ void Measure::process(
     step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,
     atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
   //dump_force.process(step, group, atom.force_per_atom);
-  dump_properties_for_all_potentials(step, group, box, atom, force);
-  dump_exyz.process(
-    step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
-    atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
-    atom.force_per_atom, atom.virial_per_atom, thermo);
+  dump_properties_for_all_potentials(step, global_time, group, box, atom, force, thermo);
+  // dump_exyz.process(
+  //   step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+  //   atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
+  //   atom.force_per_atom, atom.virial_per_atom, thermo);
 
   compute.process(
     step, energy_transferred, group, atom.mass, atom.potential_per_atom, atom.force_per_atom,

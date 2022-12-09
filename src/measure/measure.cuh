@@ -76,10 +76,12 @@ public:
   
   void dump_properties_for_all_potentials(
     int step,
+    const double global_time,
     std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    Force& force);
+    Force& force,
+    GPU_Vector<double>& thermo);
      
   DOS dos;
   SDC sdc;
