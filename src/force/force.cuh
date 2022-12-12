@@ -70,5 +70,6 @@ public:
   std::vector<std::unique_ptr<Potential>> potentials;
 
 private:
-  std::vector<bool> is_fcp = {false};
+  bool is_fcp = false;
+  bool has_non_nep = false;
 };

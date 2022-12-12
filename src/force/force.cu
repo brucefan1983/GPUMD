@@ -35,12 +35,11 @@ The driver class calculating force and related quantities.
 
 #define BLOCK_SIZE 128
 
-Force::Force(void) { is_fcp = {false}; }
+Force::Force(void) { is_fcp = false; has_non_nep = false; }
 
 void Force::parse_potential(
   const char** param, int num_param, const Box& box, const int number_of_atoms)
 {
-
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
@@ -53,7 +52,8 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-
+  
+  bool is_nep = false;
   // determine the potential
   if (strcmp(potential_name, "tersoff_1989") == 0) {
     potential.reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
@@ -67,7 +67,7 @@ void Force::parse_potential(
     potential.reset(new EAM(fid_potential, potential_name, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "fcp") == 0) {
     potential.reset(new FCP(fid_potential, num_types, number_of_atoms, box));
-    is_fcp = {true};
+    is_fcp = true;
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
@@ -94,20 +94,29 @@ void Force::parse_potential(
       }
       potential.reset(new NEP3_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
     }
+    is_nep = true;
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
-
   fclose(fid_potential);
+  
 
   potential->N1 = 0;
   potential->N2 = number_of_atoms;
 
   // Move the pointer into the list of potentials
   potentials.push_back(std::move(potential));
+  // verify_potentials(); // TODO
+  // Check if a non-NEP potential has previously been defined
+  has_non_nep = has_non_nep || !is_nep;
+  if(potentials.size() > 1 && has_non_nep) {
+    PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
+  }
 }
+
+
 
 int Force::get_number_of_types(FILE* fid_potential)
 {
@@ -386,7 +395,7 @@ void Force::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const int number_of_atoms = type.size();
-  if (!is_fcp[0]) {
+  if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
@@ -429,7 +438,7 @@ void Force::compute(
   }
 
   // always correct the force when using the FCP potential
-  if (is_fcp[0]) {
+  if (is_fcp) {
     if (!compute_hnemd_) {
       GPU_Vector<double> ftot(3); // total force vector of the system
       gpu_sum_force<<<3, 1024>>>(
@@ -602,7 +611,7 @@ void Force::compute(
   GPU_Vector<double>& mass_per_atom)
 {
   const int number_of_atoms = type.size();
-  if (!is_fcp[0]) {
+  if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
@@ -681,7 +690,7 @@ void Force::compute(
   }
 
   // always correct the force when using the FCP potential
-  if (is_fcp[0]) {
+  if (is_fcp) {
     if (!compute_hnemd_) {
       GPU_Vector<double> ftot(3); // total force vector of the system
       gpu_sum_force<<<3, 1024>>>(
