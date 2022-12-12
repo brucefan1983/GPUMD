@@ -108,7 +108,6 @@ void Force::parse_potential(
 
   // Move the pointer into the list of potentials
   potentials.push_back(std::move(potential));
-  // verify_potentials(); // TODO
   // Check if a non-NEP potential has previously been defined
   has_non_nep = has_non_nep || !is_nep;
   if(potentials.size() > 1 && has_non_nep) {
