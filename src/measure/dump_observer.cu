@@ -45,8 +45,12 @@ void Dump_Observer::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("observer dump interval should > 0.");
   }
   
-
-  printf("    every %d steps.\n", dump_interval_);
+  if (strcmp(mode_, "observe") == 0) {
+    printf("    evaluate all potentials every %d steps.\n", dump_interval_);
+  }
+  else if (strcmp(mode_, "average") == 0){
+    printf("    use the average potential in the molecular dynamics run, and dump every %d steps.\n", dump_interval_);
+  }
 }
 
 void Dump_Observer::preprocess(const int number_of_atoms, const int number_of_potentials, Force& force)
