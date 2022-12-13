@@ -61,6 +61,7 @@ public:
     const std::vector<int>& type,
     const std::vector<int>& type_size,
     const double T);
+  void set_multiple_potentials_mode(const char* mode);
 
   bool compute_hnemd_ = false;
   int compute_hnemdec_ = -1;
@@ -70,6 +71,11 @@ public:
   std::vector<std::unique_ptr<Potential>> potentials;
 
 private:
+  int number_of_atoms_ = -1;
   bool is_fcp = false;
   bool has_non_nep = false;
+  const char* multiple_potentials_mode_ = "observe"; // "observe" or "average"
+  GPU_Vector<double> average_potential_per_atom_;
+  GPU_Vector<double> average_force_per_atom_;
+  GPU_Vector<double> average_virial_per_atom_;
 };

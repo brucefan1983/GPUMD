@@ -28,7 +28,10 @@ class Dump_Observer
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms, const int number_of_files);
+  void preprocess(
+      const int number_of_atoms, 
+      const int number_of_files, 
+      Force& force);
   void process(
     int step,
     const double global_time,
@@ -38,10 +41,9 @@ public:
     GPU_Vector<double>& thermo);
   void postprocess();
 
-
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
-  std::string mode_ = "observe"; // observe or average
+  const char* mode_ = "observe"; // observe or average
   Dump_EXYZ dump_exyz_; // Local member of dump_exyz to dump at a possibly different interval
 };

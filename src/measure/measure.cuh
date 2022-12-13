@@ -54,7 +54,7 @@ public:
     Box& box,
     std::vector<Group>& group,
     Atom& atom,
-    const int number_of_potentials);
+    Force& force);
 
   void finalize(
     const int number_of_steps,

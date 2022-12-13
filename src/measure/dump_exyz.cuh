@@ -40,7 +40,7 @@ public:
     GPU_Vector<double>& gpu_thermo,
     const int file_index);
   void postprocess();
-  void setupObserverDump(
+  void setup_observer_dump(
     bool dump, 
     int dump_interval, 
     std::string file_label, 

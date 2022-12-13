@@ -29,9 +29,10 @@ void Measure::initialize(
   Box& box,
   std::vector<Group>& group,
   Atom& atom,
-  const int number_of_potentials)
+  Force& force)
 {
   const int number_of_atoms = atom.mass.size();
+  const int number_of_potentials = force.potentials.size();
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
@@ -48,7 +49,7 @@ void Measure::initialize(
   dump_thermo.preprocess();
   dump_force.preprocess(number_of_atoms, group);
   dump_exyz.preprocess(number_of_atoms, 1);
-  dump_observer.preprocess(number_of_atoms, number_of_potentials);
+  dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
 #endif

@@ -219,7 +219,7 @@ void Dump_EXYZ::process(
   fflush(fid_);
 }
 
-void Dump_EXYZ::setupObserverDump(
+void Dump_EXYZ::setup_observer_dump(
     bool dump, 
     int dump_interval, 
     std::string file_label, 
