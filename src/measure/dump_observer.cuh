@@ -16,25 +16,32 @@
 #pragma once
 
 #include "utilities/gpu_vector.cuh"
+#include "force/force.cuh"
+#include "model/atom.cuh"
+#include "dump_exyz.cuh"
 #include <vector>
-class Group;
+class Box;
+class Atom;
+class Force;
 
-class Dump_Force
+class Dump_Observer
 {
 public:
-  void parse(const char** param, int num_param, const std::vector<Group>& groups);
-  void preprocess(const int number_of_atoms, const std::vector<Group>& groups);
-  void
-  process(const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom);
+  void parse(const char** param, int num_param);
+  void preprocess(const int number_of_atoms, const int number_of_files);
+  void process(
+    int step,
+    const double global_time,
+    Box& box,
+    Atom& atom,
+    Force& force,
+    GPU_Vector<double>& thermo);
   void postprocess();
+
 
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
-  int grouping_method_ = -1;
-  int group_id_ = -1;
-  FILE* fid_;
-  char filename_[200];
-  std::vector<double> cpu_force_per_atom;
-  GPU_Vector<double> gpu_force_tmp;
+  std::string mode_ = "observe"; // observe or average
+  Dump_EXYZ dump_exyz_; // Local member of dump_exyz to dump at a possibly different interval
 };

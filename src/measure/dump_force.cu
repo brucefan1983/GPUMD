@@ -24,7 +24,6 @@ Dump force data to a file at a given interval.
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
-#include <string>
 
 void Dump_Force::parse(const char** param, int num_param, const std::vector<Group>& groups)
 {
@@ -52,14 +51,10 @@ void Dump_Force::parse(const char** param, int num_param, const std::vector<Grou
   }
 }
 
-void Dump_Force::preprocess(const int number_of_atoms, const std::vector<Group>& groups, const int number_of_files)
+void Dump_Force::preprocess(const int number_of_atoms, const std::vector<Group>& groups)
 {
   if (dump_) {
-    for (int i = 0; i < number_of_files; i++){
-      const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i); 
-      std::string filename = "force" + file_number + ".out";
-      files.push_back(my_fopen(filename.c_str(), "a"));
-    }
+    fid_ = my_fopen("force.out", "a");
 
     if (grouping_method_ < 0) {
       cpu_force_per_atom.resize(number_of_atoms * 3);
@@ -92,7 +87,7 @@ __global__ void copy_force(
 }
 
 void Dump_Force::process(
-  const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom, const int file_index)
+  const int step, const std::vector<Group>& groups, GPU_Vector<double>& force_per_atom)
 {
   if (!dump_)
     return;
@@ -100,7 +95,7 @@ void Dump_Force::process(
     return;
 
   const int number_of_atoms = force_per_atom.size() / 3;
-  FILE* fid_ = files[file_index];
+
   if (grouping_method_ < 0) {
     force_per_atom.copy_to_host(cpu_force_per_atom.data());
     for (int n = 0; n < number_of_atoms; n++) {
@@ -135,9 +130,7 @@ void Dump_Force::process(
 void Dump_Force::postprocess()
 {
   if (dump_) {
-    for (int i = 0; i < files.size(); i++){
-      fclose(files[i]);
-    }
+    fclose(fid_);
     dump_ = false;
     grouping_method_ = -1;
   }

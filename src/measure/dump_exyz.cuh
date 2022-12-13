@@ -40,14 +40,20 @@ public:
     GPU_Vector<double>& gpu_thermo,
     const int file_index);
   void postprocess();
+  void setupObserverDump(
+    bool dump, 
+    int dump_interval, 
+    std::string file_label, 
+    int has_velocity, 
+    int has_force);
 
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
-  std::vector<FILE*> files;
-  char filename_[200];
+  std::string file_label_ = "dump";
+  std::vector<FILE*> files_;
   void output_line2(
     const double time,
     const Box& box,

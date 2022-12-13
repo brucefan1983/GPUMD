@@ -22,6 +22,7 @@
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
 #include "dump_velocity.cuh"
+#include "dump_observer.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
 #include "hnemdec_kappa.cuh"
@@ -74,14 +75,6 @@ public:
     Atom& atom,
     Force& force);
   
-  void dump_properties_for_all_potentials(
-    int step,
-    const double global_time,
-    std::vector<Group>& group,
-    Box& box,
-    Atom& atom,
-    Force& force,
-    GPU_Vector<double>& thermo);
      
   DOS dos;
   SDC sdc;
@@ -99,6 +92,7 @@ public:
   Dump_Restart dump_restart;
   Dump_Force dump_force;
   Dump_EXYZ dump_exyz;
+  Dump_Observer dump_observer;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;
 #endif

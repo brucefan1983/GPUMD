@@ -90,8 +90,8 @@ void Dump_EXYZ::preprocess(const int number_of_atoms, const int number_of_files)
   if (dump_) {
     for (int i = 0; i < number_of_files; i++){
       const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i); 
-      std::string filename = "dump" + file_number + ".xyz";
-      files.push_back(my_fopen(filename.c_str(), "a"));
+      std::string filename = file_label_ + file_number + ".xyz";
+      files_.push_back(my_fopen(filename.c_str(), "a"));
     }
     gpu_total_virial_.resize(6);
     cpu_total_virial_.resize(6);
@@ -178,9 +178,9 @@ void Dump_EXYZ::process(
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
-
+ 
   const int num_atoms_total = position_per_atom.size() / 3;
-  FILE* fid_ = files[file_index];
+  FILE* fid_ = files_[file_index];
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
   if (has_velocity_) {
     velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
@@ -219,11 +219,25 @@ void Dump_EXYZ::process(
   fflush(fid_);
 }
 
+void Dump_EXYZ::setupObserverDump(
+    bool dump, 
+    int dump_interval, 
+    std::string file_label, 
+    int has_velocity, 
+    int has_force)
+{
+  dump_ = dump;
+  dump_interval_ = dump_interval;
+  file_label_ = file_label;
+  has_velocity_ = has_velocity;
+  has_force_ = has_force;
+}
+
 void Dump_EXYZ::postprocess()
 {
   if (dump_) {
-    for (int i = 0; i < files.size(); i++){
-      fclose(files[i]);
+    for (int i = 0; i < files_.size(); i++){
+      fclose(files_[i]);
     }
     dump_ = false;
   }
