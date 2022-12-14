@@ -104,6 +104,7 @@ void Dump_Observer::process(
 void Dump_Observer::postprocess()
 {
   dump_ = false;  
+  dump_exyz_.postprocess();
 }
 
 

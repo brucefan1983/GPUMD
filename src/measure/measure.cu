@@ -67,6 +67,7 @@ void Measure::finalize(
   dump_thermo.postprocess();
   dump_force.postprocess();
   dump_exyz.postprocess();
+  dump_observer.postprocess();
   dos.postprocess();
   sdc.postprocess();
   msd.postprocess();
