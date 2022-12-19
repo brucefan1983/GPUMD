@@ -24,7 +24,7 @@ class Dump_EXYZ
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms, const int number_of_files);
+  void preprocess(const int number_of_atoms);
   void process(
     const int step,
     const double global_time,
@@ -37,30 +37,22 @@ public:
     std::vector<double>& cpu_velocity_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo,
-    const int file_index);
+    GPU_Vector<double>& gpu_thermo);
   void postprocess();
-  void setup_observer_dump(
-    bool dump, 
-    int dump_interval, 
-    std::string file_label, 
-    int has_velocity, 
-    int has_force);
 
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
-  std::string file_label_ = "dump";
-  std::vector<FILE*> files_;
+  FILE* fid_;
+  char filename_[200];
   void output_line2(
     const double time,
     const Box& box,
     const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo,
-    FILE* fid_);
+    GPU_Vector<double>& gpu_thermo);
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;

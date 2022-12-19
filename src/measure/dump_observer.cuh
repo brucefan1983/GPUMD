@@ -20,6 +20,7 @@
 #include "model/atom.cuh"
 #include "dump_exyz.cuh"
 #include <vector>
+#include <string>
 class Box;
 class Atom;
 class Force;
@@ -39,11 +40,37 @@ public:
     Atom& atom,
     Force& force,
     GPU_Vector<double>& thermo);
+  void write(
+    const int step,
+    const double global_time,
+    const Box& box,
+    const std::vector<std::string>& cpu_atom_symbol,
+    const std::vector<int>& cpu_type,
+    GPU_Vector<double>& position_per_atom,
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    std::vector<double>& cpu_velocity_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& gpu_thermo,
+    const int file_index);
   void postprocess();
 
 private:
   bool dump_ = false;
   int dump_interval_ = 1;
+  int has_velocity_ = 0;
+  int has_force_ = 0;
+  std::vector<FILE*> files_;
+  void output_line2(
+    const double time,
+    const Box& box,
+    const std::vector<std::string>& cpu_atom_symbol,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& gpu_thermo,
+    FILE* fid_);
+  std::vector<double> cpu_force_per_atom_;
+  GPU_Vector<double> gpu_total_virial_;
+  std::vector<double> cpu_total_virial_;
   const char* mode_ = "observe"; // observe or average
-  Dump_EXYZ dump_exyz_; // Local member of dump_exyz to dump at a possibly different interval
 };

@@ -48,7 +48,7 @@ void Measure::initialize(
   dump_restart.preprocess();
   dump_thermo.preprocess();
   dump_force.preprocess(number_of_atoms, group);
-  dump_exyz.preprocess(number_of_atoms, 1);
+  dump_exyz.preprocess(number_of_atoms);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
@@ -86,7 +86,7 @@ void Measure::finalize(
 #endif
 
   // TODO: move to the relevant class
-  modal_analysis.compute = 1;
+  modal_analysis.compute = 0;
   modal_analysis.method = NO_METHOD;
 }
 
@@ -118,7 +118,7 @@ void Measure::process(
   dump_exyz.process(
      step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
      atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom, 
-     atom.force_per_atom, atom.virial_per_atom, thermo, 0);
+     atom.force_per_atom, atom.virial_per_atom, thermo);
   dump_observer.process(step, global_time, box, atom, force, thermo);
 
   compute.process(
