@@ -72,5 +72,5 @@ private:
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
-  const char* mode_ = "observe"; // observe or average
+  std::string mode_ = "observe"; // observe or average
 };

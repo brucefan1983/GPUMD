@@ -19,6 +19,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 
 #include "dump_observer.cuh"
 #include "model/box.cuh"
+#include "utilities/error.cuh"
 #include "utilities/common.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/error.cuh"
@@ -52,6 +53,28 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
 }
 
 
+static __global__ void initialize_properties(
+  int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    g_fx[n1] = 0.0;
+    g_fy[n1] = 0.0;
+    g_fz[n1] = 0.0;
+    g_pe[n1] = 0.0;
+    g_virial[n1 + 0 * N] = 0.0;
+    g_virial[n1 + 1 * N] = 0.0;
+    g_virial[n1 + 2 * N] = 0.0;
+    g_virial[n1 + 3 * N] = 0.0;
+    g_virial[n1 + 4 * N] = 0.0;
+    g_virial[n1 + 5 * N] = 0.0;
+    g_virial[n1 + 6 * N] = 0.0;
+    g_virial[n1 + 7 * N] = 0.0;
+    g_virial[n1 + 8 * N] = 0.0;
+  }
+}
+
+
 void Dump_Observer::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -61,7 +84,7 @@ void Dump_Observer::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("dump_observer should have 2 parameters.");
   }
   mode_ = param[1];
-  if (strcmp(mode_, "observe") != 0 && strcmp(mode_, "average") != 0) {
+  if (mode_.compare("observe") != 0 && mode_.compare("average") != 0) {
     PRINT_INPUT_ERROR("observer mode should be 'observe' or 'average'");
   }
   if (!is_valid_int(param[2], &dump_interval_)) {
@@ -71,10 +94,10 @@ void Dump_Observer::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("observer dump interval should > 0.");
   }
   
-  if (strcmp(mode_, "observe") == 0) {
+  if (mode_.compare("observe") == 0) {
     printf("    evaluate all potentials every %d steps.\n", dump_interval_);
   }
-  else if (strcmp(mode_, "average") == 0){
+  else if (mode_.compare("average") == 0){
     printf("    use the average potential in the molecular dynamics run, and dump every %d steps.\n", dump_interval_);
   }
 }
@@ -84,8 +107,9 @@ void Dump_Observer::preprocess(const int number_of_atoms, const int number_of_po
   // Setup a dump_exyz with the dump_interval for dump_observer.
   force.set_multiple_potentials_mode(mode_);
   if (dump_) {
-    for (int i = 0; i < number_of_potentials; i++){
-      const std::string file_number = (number_of_potentials == 1) ? "" : std::to_string(i); 
+    const int number_of_files = (mode_.compare("observe") == 0) ? number_of_potentials : 1;
+    for (int i = 0; i < number_of_files; i++){
+      const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i); 
       std::string filename = "observer" + file_number + ".xyz";
       files_.push_back(my_fopen(filename.c_str(), "a"));
     }
@@ -110,19 +134,28 @@ void Dump_Observer::process(
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
-  if(strcmp(mode_, "observe") == 0)
+  if(mode_.compare("observe") == 0)
   {
     // If observing, calculate properties with all potentials.
     const int number_of_potentials = force.potentials.size();
-    for (int potential_index = 0; potential_index < number_of_potentials; potential_index++) {
+    const int number_of_atoms = atom.type.size();
+    // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
+    for (int potential_index = number_of_potentials-1; potential_index >= 0; potential_index--) {
+      // Set potential/force/virials to zero
+      initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms, atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
+        atom.force_per_atom.data() + number_of_atoms * 2, atom.potential_per_atom.data(), atom.virial_per_atom.data());
+      CUDA_CHECK_KERNEL
+      // Compute new potential properties
       force.potentials[potential_index]->compute(box, atom.type, atom.position_per_atom, 
           atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      // Write properties
       write(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
         atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
         atom.force_per_atom, atom.virial_per_atom, thermo, potential_index);
     }
   }
-  else if(strcmp(mode_, "average") == 0)
+  else if(mode_.compare("average") == 0)
   {
     // If average, dump already computed properties to file.
     write(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
