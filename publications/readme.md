@@ -9,10 +9,10 @@
  
 ## 2023 (3)
 
-* Penghua Ying, Haikuan Dong, Ting Liang, Zheyong Fan, Zheng Zhong, and Jin Zhang, [Atomistic insights into the mechanical anisotropy and fragility of monolayer fullerene networks using quantum mechanical calculations and machine-learning molecular dynamics simulations](https://chemrxiv.org/engage/chemrxiv/article-details/6317025003e27d90a4cac858), Accepted to EML.
+* Penghua Ying, Haikuan Dong, Ting Liang, Zheyong Fan, Zheng Zhong, and Jin Zhang, [Atomistic insights into the mechanical anisotropy and fragility of monolayer fullerene networks using quantum mechanical calculations and machine-learning molecular dynamics simulations](https://doi.org/10.1016/j.eml.2022.101929), Extreme Mechanics Letters, **58**, 101929 (2023).
 
 * Penghua Ying, Ting Liang, Ke Xu, Jin Zhang, Jianbin Xu, Jianyang Wu, Zheyong Fan, Tapio Ala-Nissila, Zheng Zhong,
-[Variable thermal transport in black, blue, and violet phosphorene from extensive atomistic simulations with a neuroevolution potential](https://arxiv.org/abs/2206.07874), arXiv:2206.07874 [physics.comp-ph]. Accepted to IJHMT.
+[Variable thermal transport in black, blue, and violet phosphorene from extensive atomistic simulations with a neuroevolution potential](https://doi.org/10.1016/j.ijheatmasstransfer.2022.123681), International Journal of Heat and Mass Transfer, **202**, 123681 (2023).
 
 * Xin Wu, Penghua Ying, Chunlei Li, and Qiang Han, [Dual effects of hetero-interfaces on phonon thermal transport across graphene/C3N lateral superlattices](https://doi.org/10.1016/j.ijheatmasstransfer.2022.123643),
 International Journal of Heat and Mass Transfer, **201**, 123643 (2023).
@@ -27,8 +27,8 @@ International Journal of Heat and Mass Transfer, **201**, 123643 (2023).
 Appl. Phys. Lett. **121**, 133501 (2022)
 
 * Xiaomeng Wang, Yong Wang, Junjie Wang, Shuing Pan, Qing Lu, Hui-Tian Wang, Dingyu Xing, and Jian Sun,
-[Pressure stabilized lithium-aluminum compounds with both superconducting and superionic behaviors](https://journals.aps.org/prl/accepted/7b073Yc1Ha215d8c36bd1223f2053a3de19cf261b)
-Accepted to Phys. Rev. Lett.
+[Pressure stabilized lithium-aluminum compounds with both superconducting and superionic behaviors](https://doi.org/10.1103/PhysRevLett.129.246403)
+Phys. Rev. Lett. **129**, 246403 (2022).
 
 * Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
 [GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics **157**, 114801 (2022).
