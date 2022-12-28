@@ -30,10 +30,6 @@ protected:
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
-  float lambda_e_final = 1.0f;
-  float lambda_v_final = 0.1f;
-  int lambda_e_step = 1; // number of steps within which lamda_e increases to lambda_e_final
-  int lambda_v_step = 1; // number of steps within which lamda_v increases to lambda_v_final
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> fitness_copy;
