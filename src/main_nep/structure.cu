@@ -105,9 +105,11 @@ static void read_force(
     structure.x[na] = get_float_from_token(tokens[0 + pos_offset], __FILE__, __LINE__);
     structure.y[na] = get_float_from_token(tokens[1 + pos_offset], __FILE__, __LINE__);
     structure.z[na] = get_float_from_token(tokens[2 + pos_offset], __FILE__, __LINE__);
-    structure.fx[na] = get_float_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
-    structure.fy[na] = get_float_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
-    structure.fz[na] = get_float_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
+    if (num_columns > 4) {
+      structure.fx[na] = get_float_from_token(tokens[0 + force_offset], __FILE__, __LINE__);
+      structure.fy[na] = get_float_from_token(tokens[1 + force_offset], __FILE__, __LINE__);
+      structure.fz[na] = get_float_from_token(tokens[2 + force_offset], __FILE__, __LINE__);
+    }
 
     bool is_allowed_element = false;
     for (int n = 0; n < para.elements.size(); ++n) {
@@ -144,7 +146,7 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       structure.energy /= structure.num_atom;
     }
   }
-  if (!has_energy_in_exyz) {
+  if (para.train_mode == 0 && !has_energy_in_exyz) {
     PRINT_INPUT_ERROR("'energy' is missing in the second line of a frame.");
   }
 
@@ -237,6 +239,31 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     }
   }
 
+  // use the virial viriable to keep the dipole data
+  if (para.train_mode == 1) {
+    structure.has_virial = false;
+    for (int n = 0; n < tokens.size(); ++n) {
+      const std::string dipole_string = "dipole=";
+      if (tokens[n].substr(0, dipole_string.length()) == dipole_string) {
+        structure.has_virial = true;
+        for (int m = 0; m < 6; ++m) {
+          structure.virial[m] = 0.0f;
+        }
+        for (int m = 0; m < 3; ++m) {
+          structure.virial[m] = get_float_from_token(
+            tokens[n + m].substr(
+              (m == 0) ? (dipole_string.length() + 1) : 0,
+              (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+            __FILE__, __LINE__);
+          structure.virial[m] /= structure.num_atom;
+        }
+      }
+    }
+    if (!structure.has_virial) {
+      PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
+    }
+  }
+
   int species_offset = 0;
   int pos_offset = 0;
   int force_offset = 0;
@@ -271,7 +298,7 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       if (pos_position < 0) {
         PRINT_INPUT_ERROR("'pos' is missing in properties.");
       }
-      if (force_position < 0) {
+      if (force_position < 0 && para.train_mode == 0) {
         PRINT_INPUT_ERROR("'force' or 'forces' is missing in properties.");
       }
       for (int k = 0; k < sub_tokens.size() / 3; ++k) {
@@ -415,7 +442,6 @@ static void reorder(std::vector<Structure>& structures)
 
 void read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)
 {
-  // std::string filename = is_train ? "/train.xyz" : "/test.xyz";
   std::ifstream input(is_train ? "train.xyz" : "test.xyz");
 
   if (!input.is_open()) {
