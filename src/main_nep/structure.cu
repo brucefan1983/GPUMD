@@ -264,6 +264,29 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     }
   }
 
+  // use the virial viriable to keep the polarizability data
+  if (para.train_mode == 2) {
+    structure.has_virial = false;
+    for (int n = 0; n < tokens.size(); ++n) {
+      const std::string pol_string = "pol=";
+      if (tokens[n].substr(0, pol_string.length()) == pol_string) {
+        structure.has_virial = true;
+        const int reduced_index[9] = {0, 3, 5, 3, 1, 4, 5, 4, 2};
+        for (int m = 0; m < 9; ++m) {
+          structure.virial[reduced_index[m]] = get_float_from_token(
+            tokens[n + m].substr(
+              (m == 0) ? (pol_string.length() + 1) : 0,
+              (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
+            __FILE__, __LINE__);
+          structure.virial[reduced_index[m]] /= structure.num_atom;
+        }
+      }
+    }
+    if (!structure.has_virial) {
+      PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
+    }
+  }
+
   int species_offset = 0;
   int pos_offset = 0;
   int force_offset = 0;
