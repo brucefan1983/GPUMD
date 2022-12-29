@@ -255,15 +255,24 @@ void Fitness::report_error(
       fclose(fid_nep);
     }
 
-    printf(
-      "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n", generation + 1,
-      loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train,
-      rmse_energy_test, rmse_force_test, rmse_virial_test);
+    if (para.train_mode == 0) {
+      printf(
+        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n", generation + 1,
+        loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train,
+        rmse_energy_test, rmse_force_test, rmse_virial_test);
+      fprintf(
+        fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+        generation + 1, loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train,
+        rmse_virial_train, rmse_energy_test, rmse_force_test, rmse_virial_test);
+    } else {
+      printf(
+        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n", generation + 1, loss_total, loss_L1, loss_L2,
+        rmse_virial_train, rmse_virial_test);
+      fprintf(
+        fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n", generation + 1, loss_total,
+        loss_L1, loss_L2, rmse_virial_train, rmse_virial_test);
+    }
     fflush(stdout);
-    fprintf(
-      fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-      generation + 1, loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train,
-      rmse_virial_train, rmse_energy_test, rmse_force_test, rmse_virial_test);
     fflush(fid_loss_out);
 
     if (para.train_mode == 0) {
