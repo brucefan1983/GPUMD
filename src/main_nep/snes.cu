@@ -29,6 +29,7 @@ https://doi.org/10.1145/2001576.2001692
 #include "utilities/error.cuh"
 #include <chrono>
 #include <cmath>
+#include <iostream>
 
 SNES::SNES(Parameters& para, Fitness* fitness_function)
 {
@@ -110,18 +111,39 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       "RMSE-P-Train", "RMSE-P-Test");
   }
 
-  for (int n = 0; n < maximum_generation; ++n) {
-    create_population(para);
-    fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
-    regularize(para);
-    sort_population();
-    fitness_function->report_error(
-      para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
-      fitness[0 + 2 * population_size], population.data());
-    update_mu_and_sigma();
-    if (0 == (n + 1) % 100) {
-      output_mu_and_sigma(para);
+  if (para.prediction == 0) {
+    for (int n = 0; n < maximum_generation; ++n) {
+      create_population(para);
+      fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
+      regularize(para);
+      sort_population();
+      fitness_function->report_error(
+        para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
+        fitness[0 + 2 * population_size], population.data());
+      update_mu_and_sigma();
+      if (0 == (n + 1) % 100) {
+        output_mu_and_sigma(para);
+      }
     }
+  } else {
+    std::ifstream input("nep.txt");
+    if (!input.is_open()) {
+      PRINT_INPUT_ERROR("Failed to open nep.txt.");
+    }
+    std::vector<std::string> tokens;
+    for (int n = 0; n < 6; ++n) {
+      tokens = get_tokens(input);
+    }
+    for (int n = 0; n < number_of_variables; ++n) {
+      tokens = get_tokens(input);
+      population[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    for (int d = 0; d < para.dim; ++d) {
+      tokens = get_tokens(input);
+      para.q_scaler_cpu[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
+    para.q_scaler_gpu[0].copy_from_host(para.q_scaler_cpu.data());
+    fitness_function->predict(para, population.data());
   }
 }
 

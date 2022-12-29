@@ -36,8 +36,10 @@ public:
     const float loss_L1,
     const float loss_L2,
     float* elite);
+  void predict(Parameters& para, float* elite);
 
 protected:
+  bool has_test_set = false;
   int num_batches = 0;
   int max_NN_radial;  // radial neighbor list size
   int max_NN_angular; // angular neighbor list size
