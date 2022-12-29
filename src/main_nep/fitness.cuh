@@ -48,5 +48,7 @@ protected:
   void predict_energy_or_stress(FILE* fid, float* data, float* ref, Dataset& dataset);
   void
   update_energy_force_virial(FILE* fid_energy, FILE* fid_force, FILE* fid_virial, Dataset& dataset);
+  void update_dipole(FILE* fid_dipole, Dataset& dataset);
+  void update_polarizability(FILE* fid_polarizability, Dataset& dataset);
   void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
 };
