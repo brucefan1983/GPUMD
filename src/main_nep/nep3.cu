@@ -404,6 +404,7 @@ static __global__ void zero_force(
 }
 
 static __global__ void find_force_radial(
+  const bool is_dipole,
   const int N,
   const int* g_NN,
   const int* g_NL,
@@ -477,9 +478,16 @@ static __global__ void find_force_radial(
       atomicAdd(&g_fy[n2], -f12[1]);
       atomicAdd(&g_fz[n2], -f12[2]);
 
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
+      if (is_dipole) {
+        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        s_virial_xx -= r12_square * f12[0];
+        s_virial_yy -= r12_square * f12[1];
+        s_virial_zz -= r12_square * f12[2];
+      } else {
+        s_virial_xx -= r12[0] * f12[0];
+        s_virial_yy -= r12[1] * f12[1];
+        s_virial_zz -= r12[2] * f12[2];
+      }
       s_virial_xy -= r12[0] * f12[1];
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
@@ -494,6 +502,7 @@ static __global__ void find_force_radial(
 }
 
 static __global__ void find_force_angular(
+  const bool is_dipole,
   const int N,
   const int* g_NN,
   const int* g_NL,
@@ -587,9 +596,16 @@ static __global__ void find_force_angular(
       atomicAdd(&g_fy[n2], -f12[1]);
       atomicAdd(&g_fz[n2], -f12[2]);
 
-      s_virial_xx -= r12[0] * f12[0];
-      s_virial_yy -= r12[1] * f12[1];
-      s_virial_zz -= r12[2] * f12[2];
+      if (is_dipole) {
+        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        s_virial_xx -= r12_square * f12[0];
+        s_virial_yy -= r12_square * f12[1];
+        s_virial_zz -= r12_square * f12[2];
+      } else {
+        s_virial_xx -= r12[0] * f12[0];
+        s_virial_yy -= r12[1] * f12[1];
+        s_virial_zz -= r12[2] * f12[2];
+      }
       s_virial_xy -= r12[0] * f12[1];
       s_virial_yz -= r12[1] * f12[2];
       s_virial_zx -= r12[2] * f12[0];
@@ -754,8 +770,9 @@ void NEP3::find_force(
       CUDA_CHECK_KERNEL
     }
 
+    bool is_dipole = para.train_mode == 1;
     find_force_radial<<<grid_size, block_size>>>(
-      dataset[device_id].N, nep_data[device_id].NN_radial.data(),
+      is_dipole, dataset[device_id].N, nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(), paramb, annmb[device_id],
       dataset[device_id].type.data(), nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(), nep_data[device_id].z12_radial.data(),
@@ -765,7 +782,7 @@ void NEP3::find_force(
     CUDA_CHECK_KERNEL
 
     find_force_angular<<<grid_size, block_size>>>(
-      dataset[device_id].N, nep_data[device_id].NN_angular.data(),
+      is_dipole, dataset[device_id].N, nep_data[device_id].NN_angular.data(),
       nep_data[device_id].NL_angular.data(), paramb, annmb[device_id],
       dataset[device_id].type.data(), nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(), nep_data[device_id].z12_angular.data(),

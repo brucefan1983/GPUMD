@@ -519,41 +519,45 @@ float Dataset::get_rmse_virial(Parameters& para, const bool use_weight, int devi
     }
   }
 
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    0.0f, Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref_gpu.data() + Nc * 3,
-    error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (structures[n].has_virial) {
-      float total_weight =
-        use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
-      error_ave += total_weight * error_cpu[n];
+  if (para.train_mode != 1) {
+
+    gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      0.0f, Na.data(), Na_sum.data(), virial.data() + N * 3, virial_ref_gpu.data() + Nc * 3,
+      error_gpu.data());
+    CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+    for (int n = 0; n < Nc; ++n) {
+      if (structures[n].has_virial) {
+        float total_weight =
+          use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
+        error_ave += total_weight * error_cpu[n];
+      }
+    }
+
+    gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      0.0f, Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref_gpu.data() + Nc * 4,
+      error_gpu.data());
+    CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+    for (int n = 0; n < Nc; ++n) {
+      if (structures[n].has_virial) {
+        float total_weight =
+          use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
+        error_ave += total_weight * error_cpu[n];
+      }
+    }
+
+    gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
+      0.0f, Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref_gpu.data() + Nc * 5,
+      error_gpu.data());
+    CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
+    for (int n = 0; n < Nc; ++n) {
+      if (structures[n].has_virial) {
+        float total_weight =
+          use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
+        error_ave += total_weight * error_cpu[n];
+      }
     }
   }
 
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    0.0f, Na.data(), Na_sum.data(), virial.data() + N * 4, virial_ref_gpu.data() + Nc * 4,
-    error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (structures[n].has_virial) {
-      float total_weight =
-        use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
-      error_ave += total_weight * error_cpu[n];
-    }
-  }
-
-  gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    0.0f, Na.data(), Na_sum.data(), virial.data() + N * 5, virial_ref_gpu.data() + Nc * 5,
-    error_gpu.data());
-  CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
-  for (int n = 0; n < Nc; ++n) {
-    if (structures[n].has_virial) {
-      float total_weight =
-        use_weight ? weight_cpu[n] * weight_cpu[n] * para.lambda_shear * para.lambda_shear : 1.0f;
-      error_ave += total_weight * error_cpu[n];
-    }
-  }
-
-  return sqrt(error_ave / (num_virial_configurations * 6));
+  int num_components = (para.train_mode == 1) ? 3 : 6;
+  return sqrt(error_ave / (num_virial_configurations * num_components));
 }

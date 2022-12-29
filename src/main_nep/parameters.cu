@@ -123,7 +123,9 @@ void Parameters::read_nep_in()
 
 void Parameters::calculate_parameters()
 {
-  if (train_mode == 2) {
+
+  if (train_mode != 0) {
+    // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
     if (!is_lambda_v_set) {
@@ -170,10 +172,17 @@ void Parameters::report_inputs()
   }
 
   printf("Input or default parameters:\n");
+
+  std::string train_mode_name = "potential";
+  if (train_mode == 1) {
+    train_mode_name = "dipole";
+  } else if (train_mode == 2) {
+    train_mode_name = "polarizability";
+  }
   if (is_train_mode_set) {
-    printf("    (input)   train_mode = %s.\n", train_mode == 0 ? "potential" : "polarizability");
+    printf("    (input)   train_mode = %s.\n", train_mode_name.c_str());
   } else {
-    printf("    (default) train_mode = %s.\n", train_mode == 0 ? "potential" : "polarizability");
+    printf("    (default) train_mode = %s.\n", train_mode_name.c_str());
   }
   if (is_version_set) {
     printf("    (input)   use NEP version %d.\n", version);
@@ -377,8 +386,8 @@ void Parameters::parse_mode(const char** param, int num_param)
   if (!is_valid_int(param[1], &train_mode)) {
     PRINT_INPUT_ERROR("mode should be an integer.\n");
   }
-  if (train_mode != 0 && train_mode != 2) {
-    PRINT_INPUT_ERROR("mode should = 0 or 2.");
+  if (train_mode != 0 && train_mode != 1 && train_mode != 2) {
+    PRINT_INPUT_ERROR("mode should = 0 or 1 or 2.");
   }
 }
 
