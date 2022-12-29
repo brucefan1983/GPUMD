@@ -49,7 +49,12 @@ int main(int argc, char* argv[])
 
   time_used = (time_finish - time_begin) / float(CLOCKS_PER_SEC);
   print_line_1();
-  printf("Time used for training = %f s.\n", time_used);
+  if (para.prediction == 0) {
+    printf("Time used for training = %f s.\n", time_used);
+  } else {
+    printf("Time used for predicting = %f s.\n", time_used);
+  }
+
   print_line_2();
 
   print_line_1();

@@ -97,18 +97,26 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 {
 
   print_line_1();
-  printf("Started training.\n");
+  if (para.prediction == 0) {
+    printf("Started training.\n");
+  } else {
+    printf("Started predcting.\n");
+  }
+
   print_line_2();
 
-  if (para.train_mode == 0) {
-    printf(
-      "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss",
-      "L2Reg-Loss", "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test",
-      "RMSE-V-Test");
-  } else {
-    printf(
-      "%-8s%-11s%-11s%-11s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss",
-      "RMSE-P-Train", "RMSE-P-Test");
+  if (para.prediction == 0) {
+
+    if (para.train_mode == 0) {
+      printf(
+        "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss",
+        "L2Reg-Loss", "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test",
+        "RMSE-V-Test");
+    } else {
+      printf(
+        "%-8s%-11s%-11s%-11s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss",
+        "RMSE-P-Train", "RMSE-P-Test");
+    }
   }
 
   if (para.prediction == 0) {
