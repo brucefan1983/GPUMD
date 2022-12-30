@@ -63,7 +63,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
   }
 }
 
-void Dataset::find_Na()
+void Dataset::find_Na(Parameters& para)
 {
   Na_cpu.resize(Nc);
   Na_sum_cpu.resize(Nc);
@@ -90,7 +90,9 @@ void Dataset::find_Na()
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  printf("Number of configurations having virial = %d.\n", num_virial_configurations);
+  if (para.train_mode == 0) {
+    printf("Number of configurations having virial = %d.\n", num_virial_configurations);
+  }
 
   Na.resize(Nc);
   Na_sum.resize(Nc);
@@ -276,7 +278,7 @@ void Dataset::construct(
   error_cpu.resize(Nc);
   error_gpu.resize(Nc);
 
-  find_Na();
+  find_Na(para);
   initialize_gpu_data(para);
   find_neighbor(para);
 }
