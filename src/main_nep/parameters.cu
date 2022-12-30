@@ -48,6 +48,7 @@ Parameters::Parameters()
 void Parameters::set_default_parameters()
 {
   is_train_mode_set = false;
+  is_prediction_set = false;
   is_version_set = false;
   is_type_set = false;
   is_cutoff_set = false;
@@ -69,6 +70,7 @@ void Parameters::set_default_parameters()
   is_force_delta_set = false;
 
   train_mode = 0;                // potential
+  prediction = 0;                // not predction mode
   version = 4;                   // NEP4 is the best
   rc_radial = 8.0f;              // large enough for vdw/coulomb
   rc_angular = 4.0f;             // large enough in most cases
@@ -184,6 +186,17 @@ void Parameters::report_inputs()
   } else {
     printf("    (default) train_mode = %s.\n", train_mode_name.c_str());
   }
+
+  std::string calculation_mode_name = "train";
+  if (prediction == 1) {
+    calculation_mode_name = "predict";
+  }
+  if (is_prediction_set) {
+    printf("    (input)   calculation mode = %s.\n", calculation_mode_name.c_str());
+  } else {
+    printf("    (default) calculation mode = %s.\n", calculation_mode_name.c_str());
+  }
+
   if (is_version_set) {
     printf("    (input)   use NEP version %d.\n", version);
   } else {
@@ -333,6 +346,8 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   }
   if (strcmp(param[0], "mode") == 0) {
     parse_mode(param, num_param);
+  } else if (strcmp(param[0], "prediction") == 0) {
+    parse_prediction(param, num_param);
   } else if (strcmp(param[0], "version") == 0) {
     parse_version(param, num_param);
   } else if (strcmp(param[0], "type") == 0) {
@@ -388,6 +403,21 @@ void Parameters::parse_mode(const char** param, int num_param)
   }
   if (train_mode != 0 && train_mode != 1 && train_mode != 2) {
     PRINT_INPUT_ERROR("mode should = 0 or 1 or 2.");
+  }
+}
+
+void Parameters::parse_prediction(const char** param, int num_param)
+{
+  is_prediction_set = true;
+
+  if (num_param != 2) {
+    PRINT_INPUT_ERROR("prediction should have 1 parameter.\n");
+  }
+  if (!is_valid_int(param[1], &prediction)) {
+    PRINT_INPUT_ERROR("prediction should be an integer.\n");
+  }
+  if (prediction != 0 && prediction != 1) {
+    PRINT_INPUT_ERROR("prediction should = 0 or 1.");
   }
 }
 

@@ -36,4 +36,4 @@ struct Structure {
   std::vector<float> fz;
 };
 
-void read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);
+bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);

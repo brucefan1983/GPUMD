@@ -463,20 +463,25 @@ static void reorder(std::vector<Structure>& structures)
   }
 }
 
-void read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)
+bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures)
 {
   std::ifstream input(is_train ? "train.xyz" : "test.xyz");
-
+  bool has_test_set = true;
   if (!input.is_open()) {
-    PRINT_INPUT_ERROR("Failed to open train.xyz or test.xyz.");
+    if (is_train) {
+      PRINT_INPUT_ERROR("Failed to open train.xyz.");
+    } else {
+      has_test_set = false;
+    }
   }
 
   read_exyz(para, input, structures);
 
   input.close();
 
-  // only reorder if not using full batch
-  if (is_train && (para.batch_size < structures.size())) {
+  if ((para.prediction == 0) && is_train && (para.batch_size < structures.size())) {
     reorder(structures);
   }
+
+  return has_test_set;
 }

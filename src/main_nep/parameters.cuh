@@ -50,9 +50,11 @@ public:
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode;         // 0=potential, 1=dipole, 2=polarizability
+  int prediction;         // 0=no, 1=yes
 
   // check if a parameter has been set:
   bool is_train_mode_set;
+  bool is_prediction_set;
   bool is_version_set;
   bool is_type_set;
   bool is_cutoff_set;
@@ -99,6 +101,7 @@ private:
   void parse_one_keyword(std::vector<std::string>& tokens);
 
   void parse_mode(const char** param, int num_param);
+  void parse_prediction(const char** param, int num_param);
   void parse_version(const char** param, int num_param);
   void parse_type(const char** param, int num_param);
   void parse_type_weight(const char** param, int num_param);

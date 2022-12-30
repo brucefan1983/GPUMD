@@ -68,25 +68,36 @@ Fitness::Fitness(Parameters& para)
       print_line_2();
     }
   }
-  print_line_1();
-  printf("Started reading test.xyz.\n");
-  print_line_2();
+
   std::vector<Structure> structures_test;
-  read_structures(false, para, structures_test);
-  test_set.resize(deviceCount);
-  for (int device_id = 0; device_id < deviceCount; ++device_id) {
+  has_test_set = read_structures(false, para, structures_test);
+  if (has_test_set) {
     print_line_1();
-    printf("Constructing test_set in device  %d.\n", device_id);
-    CHECK(cudaSetDevice(device_id));
-    test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id);
+    printf("Started reading test.xyz.\n");
     print_line_2();
+
+    test_set.resize(deviceCount);
+    for (int device_id = 0; device_id < deviceCount; ++device_id) {
+      print_line_1();
+      printf("Constructing test_set in device  %d.\n", device_id);
+      CHECK(cudaSetDevice(device_id));
+      test_set[device_id].construct(para, structures_test, 0, structures_test.size(), device_id);
+      print_line_2();
+    }
   }
 
-  int N = test_set[0].N;
-  int N_times_max_NN_radial = test_set[0].N * test_set[0].max_NN_radial;
-  int N_times_max_NN_angular = test_set[0].N * test_set[0].max_NN_angular;
-  max_NN_radial = test_set[0].max_NN_radial;
-  max_NN_angular = test_set[0].max_NN_angular;
+  int N = -1;
+  int N_times_max_NN_radial = -1;
+  int N_times_max_NN_angular = -1;
+  max_NN_radial = -1;
+  max_NN_angular = -1;
+  if (has_test_set) {
+    N = test_set[0].N;
+    N_times_max_NN_radial = test_set[0].N * test_set[0].max_NN_radial;
+    N_times_max_NN_angular = test_set[0].N * test_set[0].max_NN_angular;
+    max_NN_radial = test_set[0].max_NN_radial;
+    max_NN_angular = test_set[0].max_NN_angular;
+  }
   for (int n = 0; n < num_batches; ++n) {
     if (train_set[n][0].N > N) {
       N = train_set[n][0].N;
@@ -109,10 +120,17 @@ Fitness::Fitness(Parameters& para)
   potential.reset(
     new NEP3(para, N, N_times_max_NN_radial, N_times_max_NN_angular, para.version, deviceCount));
 
-  fid_loss_out = my_fopen("loss.out", "a");
+  if (para.prediction == 0) {
+    fid_loss_out = my_fopen("loss.out", "a");
+  }
 }
 
-Fitness::~Fitness() { fclose(fid_loss_out); }
+Fitness::~Fitness()
+{
+  if (fid_loss_out != NULL) {
+    fclose(fid_loss_out);
+  }
+}
 
 void Fitness::compute(
   const int generation, Parameters& para, const float* population, float* fitness)
@@ -231,12 +249,17 @@ void Fitness::report_error(
       elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
     }
 
-    potential->find_force(para, elite, test_set, false, 1);
-    float energy_shift_per_structure_not_used;
-    float rmse_energy_test =
-      test_set[0].get_rmse_energy(energy_shift_per_structure_not_used, false, false, 0);
-    float rmse_force_test = test_set[0].get_rmse_force(para, false, 0);
-    float rmse_virial_test = test_set[0].get_rmse_virial(para, false, 0);
+    float rmse_energy_test = 0.0f;
+    float rmse_force_test = 0.0f;
+    float rmse_virial_test = 0.0f;
+    if (has_test_set) {
+      potential->find_force(para, elite, test_set, false, 1);
+      float energy_shift_per_structure_not_used;
+      rmse_energy_test =
+        test_set[0].get_rmse_energy(energy_shift_per_structure_not_used, false, false, 0);
+      rmse_force_test = test_set[0].get_rmse_force(para, false, 0);
+      rmse_virial_test = test_set[0].get_rmse_virial(para, false, 0);
+    }
 
     FILE* fid_nep = my_fopen("nep.txt", "w");
     write_nep_txt(fid_nep, para, elite);
@@ -275,51 +298,28 @@ void Fitness::report_error(
     fflush(stdout);
     fflush(fid_loss_out);
 
-    if (para.train_mode == 0) {
-      FILE* fid_force = my_fopen("force_test.out", "w");
-      FILE* fid_energy = my_fopen("energy_test.out", "w");
-      FILE* fid_virial = my_fopen("virial_test.out", "w");
-      update_energy_force_virial(fid_energy, fid_force, fid_virial, test_set[0]);
-      fclose(fid_energy);
-      fclose(fid_force);
-      fclose(fid_virial);
-    } else if (para.train_mode == 1) {
-      FILE* fid_dipole = my_fopen("dipole_test.out", "w");
-      update_dipole(fid_dipole, test_set[0]);
-      fclose(fid_dipole);
-    } else if (para.train_mode == 2) {
-      FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
-      update_polarizability(fid_polarizability, test_set[0]);
-      fclose(fid_polarizability);
-    }
-
-    if (0 == (generation + 1) % 1000) {
+    if (has_test_set) {
       if (para.train_mode == 0) {
-        FILE* fid_force = my_fopen("force_train.out", "w");
-        FILE* fid_energy = my_fopen("energy_train.out", "w");
-        FILE* fid_virial = my_fopen("virial_train.out", "w");
-        for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-          potential->find_force(para, elite, train_set[batch_id], false, 1);
-          update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id][0]);
-        }
+        FILE* fid_force = my_fopen("force_test.out", "w");
+        FILE* fid_energy = my_fopen("energy_test.out", "w");
+        FILE* fid_virial = my_fopen("virial_test.out", "w");
+        update_energy_force_virial(fid_energy, fid_force, fid_virial, test_set[0]);
         fclose(fid_energy);
         fclose(fid_force);
         fclose(fid_virial);
       } else if (para.train_mode == 1) {
-        FILE* fid_dipole = my_fopen("dipole_train.out", "w");
-        for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-          potential->find_force(para, elite, train_set[batch_id], false, 1);
-          update_dipole(fid_dipole, train_set[batch_id][0]);
-        }
+        FILE* fid_dipole = my_fopen("dipole_test.out", "w");
+        update_dipole(fid_dipole, test_set[0]);
         fclose(fid_dipole);
       } else if (para.train_mode == 2) {
-        FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
-        for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-          potential->find_force(para, elite, train_set[batch_id], false, 1);
-          update_polarizability(fid_polarizability, train_set[batch_id][0]);
-        }
+        FILE* fid_polarizability = my_fopen("polarizability_test.out", "w");
+        update_polarizability(fid_polarizability, test_set[0]);
         fclose(fid_polarizability);
       }
+    }
+
+    if (0 == (generation + 1) % 1000) {
+      predict(para, elite);
     }
   }
 }
@@ -372,5 +372,35 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
     predict_energy_or_stress(
       fid_polarizability, dataset.virial_cpu.data() + dataset.N * k,
       dataset.virial_ref_cpu.data() + dataset.Nc * k, dataset);
+  }
+}
+
+void Fitness::predict(Parameters& para, float* elite)
+{
+  if (para.train_mode == 0) {
+    FILE* fid_force = my_fopen("force_train.out", "w");
+    FILE* fid_energy = my_fopen("energy_train.out", "w");
+    FILE* fid_virial = my_fopen("virial_train.out", "w");
+    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+      potential->find_force(para, elite, train_set[batch_id], false, 1);
+      update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id][0]);
+    }
+    fclose(fid_energy);
+    fclose(fid_force);
+    fclose(fid_virial);
+  } else if (para.train_mode == 1) {
+    FILE* fid_dipole = my_fopen("dipole_train.out", "w");
+    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+      potential->find_force(para, elite, train_set[batch_id], false, 1);
+      update_dipole(fid_dipole, train_set[batch_id][0]);
+    }
+    fclose(fid_dipole);
+  } else if (para.train_mode == 2) {
+    FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
+    for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
+      potential->find_force(para, elite, train_set[batch_id], false, 1);
+      update_polarizability(fid_polarizability, train_set[batch_id][0]);
+    }
+    fclose(fid_polarizability);
   }
 }
