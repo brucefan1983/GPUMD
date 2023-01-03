@@ -80,18 +80,38 @@ void Dump_Observer::parse(const char** param, int num_param)
   dump_ = true;
   printf("Dump observer.\n");
 
-  if (num_param != 3) {
-    PRINT_INPUT_ERROR("dump_observer should have 2 parameters.");
+  if (num_param != 5) {
+    PRINT_INPUT_ERROR("dump_observer should have 4 parameters.");
   }
   mode_ = param[1];
   if (mode_.compare("observe") != 0 && mode_.compare("average") != 0) {
     PRINT_INPUT_ERROR("observer mode should be 'observe' or 'average'");
   }
   if (!is_valid_int(param[2], &dump_interval_)) {
-    PRINT_INPUT_ERROR("observer dump interval should be an integer.");
+    PRINT_INPUT_ERROR("dump interval should be an integer.");
   }
   if (dump_interval_ <= 0) {
-    PRINT_INPUT_ERROR("observer dump interval should > 0.");
+    PRINT_INPUT_ERROR("dump interval should > 0.");
+  }
+
+  printf("    every %d steps.\n", dump_interval_);
+
+  if (!is_valid_int(param[3], &has_velocity_)) {
+    PRINT_INPUT_ERROR("has_velocity should be an integer.");
+  }
+  if (has_velocity_ == 0) {
+    printf("    without velocity data.\n");
+  } else {
+    printf("    with velocity data.\n");
+  }
+
+  if (!is_valid_int(param[4], &has_force_)) {
+    PRINT_INPUT_ERROR("has_force should be an integer.");
+  }
+  if (has_force_ == 0) {
+    printf("    without force data.\n");
+  } else {
+    printf("    with force data.\n");
   }
   
   if (mode_.compare("observe") == 0) {

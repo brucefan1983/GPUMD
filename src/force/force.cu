@@ -384,12 +384,23 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
 
 
 
-static __global__ void gpu_divide_vector(int length, double* vector, double denominator)
+static __global__ void gpu_average_properties(int N, double* g_potential, double* g_force, double* g_virial, double denominator)
 {
-  // Divide source vector by denominator, and copy into target
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < length) {
-    vector[n] /= denominator;
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    g_potential[n1] /= denominator;
+    g_force[n1 + 0 * N] /= denominator;
+    g_force[n1 + 1 * N] /= denominator;
+    g_force[n1 + 2 * N] /= denominator;
+    g_virial[n1 + 0 * N] /= denominator;
+    g_virial[n1 + 1 * N] /= denominator;
+    g_virial[n1 + 2 * N] /= denominator;
+    g_virial[n1 + 3 * N] /= denominator;
+    g_virial[n1 + 4 * N] /= denominator;
+    g_virial[n1 + 5 * N] /= denominator;
+    g_virial[n1 + 6 * N] /= denominator;
+    g_virial[n1 + 7 * N] /= denominator;
+    g_virial[n1 + 8 * N] /= denominator;
   }
 }
 
@@ -431,18 +442,12 @@ void Force::compute(
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++){
       // potential->compute automatically adds the properties
-      potentials[i]->compute(
+    	potentials[i]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
     }
     // Compute average and copy properties back into original vectors.
-    gpu_divide_vector<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms, potential_per_atom.data(), potentials.size());
-    CUDA_CHECK_KERNEL
-    gpu_divide_vector<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        3*number_of_atoms, force_per_atom.data(), potentials.size());
-    CUDA_CHECK_KERNEL
-    gpu_divide_vector<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        9*number_of_atoms, virial_per_atom.data(), potentials.size());
+    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms, potential_per_atom.data(), force_per_atom.data(), virial_per_atom.data(), (double)potentials.size());
     CUDA_CHECK_KERNEL
   }
   else {
@@ -677,14 +682,8 @@ void Force::compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
     }
     // Compute average and copy properties back into original vectors.
-    gpu_divide_vector<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms, potential_per_atom.data(), potentials.size());
-    CUDA_CHECK_KERNEL
-    gpu_divide_vector<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        3*number_of_atoms, force_per_atom.data(), potentials.size());
-    CUDA_CHECK_KERNEL
-    gpu_divide_vector<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        9*number_of_atoms, virial_per_atom.data(), potentials.size());
+    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms, potential_per_atom.data(), force_per_atom.data(), virial_per_atom.data(), (double)potentials.size());
     CUDA_CHECK_KERNEL
   }
   else {
