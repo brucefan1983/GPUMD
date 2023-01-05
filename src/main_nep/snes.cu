@@ -163,14 +163,6 @@ void SNES::create_population(Parameters& para)
       int pv = p * number_of_variables + v;
       s[pv] = r1(rng);
       population[pv] = sigma[v] * s[pv] + mu[v];
-      // avoid zero
-      if (v >= para.number_of_variables_ann) {
-        if (population[pv] > 0) {
-          population[pv] += 0.1f;
-        } else {
-          population[pv] -= 0.1f;
-        }
-      }
     }
   }
 }
