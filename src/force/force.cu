@@ -4,9 +4,7 @@
     GPUMD is free software: you can redistribute it and/or modify
     it under the terms of the GNU General Public License as published by
     the Free Software Foundation, either version 3 of the License, or
-    (at your option) any later version.
-    GPUMD is distributed in the hope that it will be useful,
-    but WITHOUT ANY WARRANTY; without even the implied warranty of
+    (at your option) any later version. GPUMD is distributed in the hope that it will be useful, but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
     GNU General Public License for more details.
     You should have received a copy of the GNU General Public License
@@ -31,23 +29,20 @@ The driver class calculating force and related quantities.
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
+#include <iostream>
 
 #define BLOCK_SIZE 128
 
-Force::Force(void) { is_fcp = false; }
+Force::Force(void) { is_fcp = false; has_non_nep = false; }
 
 void Force::parse_potential(
   const char** param, int num_param, const Box& box, const int number_of_atoms)
 {
-  static int num_calls = 0;
-  if (num_calls++ != 0) {
-    PRINT_INPUT_ERROR("potential keyword can only be used once.\n");
-  }
-
   if (num_param != 2 && num_param != 3) {
     PRINT_INPUT_ERROR("potential should have 1 or 2 parameters.\n");
   }
-
+  
+  std::unique_ptr<Potential> potential; 
   FILE* fid_potential = my_fopen(param[1], "r");
   char potential_name[20];
   int count = fscanf(fid_potential, "%s", potential_name);
@@ -55,7 +50,8 @@ void Force::parse_potential(
     PRINT_INPUT_ERROR("reading error for potential file.");
   }
   int num_types = get_number_of_types(fid_potential);
-
+  number_of_atoms_ = number_of_atoms;
+  bool is_nep = false;
   // determine the potential
   if (strcmp(potential_name, "tersoff_1989") == 0) {
     potential.reset(new Tersoff1989(fid_potential, num_types, number_of_atoms));
@@ -96,17 +92,28 @@ void Force::parse_potential(
       }
       potential.reset(new NEP3_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
     }
+    is_nep = true;
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
-
   fclose(fid_potential);
+  
 
   potential->N1 = 0;
   potential->N2 = number_of_atoms;
+
+  // Move the pointer into the list of potentials
+  potentials.push_back(std::move(potential));
+  // Check if a non-NEP potential has previously been defined
+  has_non_nep = has_non_nep || !is_nep;
+  if(potentials.size() > 1 && has_non_nep) {
+    PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
+  }
 }
+
+
 
 int Force::get_number_of_types(FILE* fid_potential)
 {
@@ -375,6 +382,34 @@ static __global__ void gpu_apply_pbc(int N, Box box, double* g_x, double* g_y, d
   }
 }
 
+
+
+static __global__ void gpu_average_properties(int N, double* g_potential, double* g_force, double* g_virial, double denominator)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    g_potential[n1] /= denominator;
+    g_force[n1 + 0 * N] /= denominator;
+    g_force[n1 + 1 * N] /= denominator;
+    g_force[n1 + 2 * N] /= denominator;
+    g_virial[n1 + 0 * N] /= denominator;
+    g_virial[n1 + 1 * N] /= denominator;
+    g_virial[n1 + 2 * N] /= denominator;
+    g_virial[n1 + 3 * N] /= denominator;
+    g_virial[n1 + 4 * N] /= denominator;
+    g_virial[n1 + 5 * N] /= denominator;
+    g_virial[n1 + 6 * N] /= denominator;
+    g_virial[n1 + 7 * N] /= denominator;
+    g_virial[n1 + 8 * N] /= denominator;
+  }
+}
+
+
+void Force::set_multiple_potentials_mode(std::string mode)
+{
+  multiple_potentials_mode_ = mode;
+}
+
 void Force::compute(
   Box& box,
   GPU_Vector<double>& position_per_atom,
@@ -395,10 +430,30 @@ void Force::compute(
     number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
     force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
   CUDA_CHECK_KERNEL
-
-  potential->compute(
-    box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-
+ 
+  if(multiple_potentials_mode_.compare("observe") == 0)
+  {
+    // If observing, calculate using main potential only
+    potentials[0]->compute(
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  }
+  else if(multiple_potentials_mode_.compare("average") == 0)
+  {
+    // Calculate average potential, force and virial per atom.
+    for (int i = 0; i < potentials.size(); i++){
+      // potential->compute automatically adds the properties
+    	potentials[i]->compute(
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    }
+    // Compute average and copy properties back into original vectors.
+    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms, potential_per_atom.data(), force_per_atom.data(), virial_per_atom.data(), (double)potentials.size());
+    CUDA_CHECK_KERNEL
+  }
+  else {
+    PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
+  }
+  
   if (compute_hnemd_) {
     // the virial tensor:
     // xx xy xz    0 3 4
@@ -612,8 +667,28 @@ void Force::compute(
     force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
-  potential->compute(
-    box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  if(multiple_potentials_mode_.compare("observe") == 0)
+  {
+    // If observing, calculate using main potential only
+    potentials[0]->compute(
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  }
+  else if(multiple_potentials_mode_.compare("average") == 0)
+  {
+    // Calculate average potential, force and virial per atom.
+    for (int i = 0; i < potentials.size(); i++){
+      // potential->compute automatically adds the properties
+      potentials[i]->compute(
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    }
+    // Compute average and copy properties back into original vectors.
+    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+        number_of_atoms, potential_per_atom.data(), force_per_atom.data(), virial_per_atom.data(), (double)potentials.size());
+    CUDA_CHECK_KERNEL
+  }
+  else {
+    PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
+  }
 
   if (compute_hnemd_) {
     // the virial tensor:

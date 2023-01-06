@@ -28,10 +28,11 @@ void Measure::initialize(
   const double time_step,
   Box& box,
   std::vector<Group>& group,
-  Force& force,
-  Atom& atom)
+  Atom& atom,
+  Force& force)
 {
   const int number_of_atoms = atom.mass.size();
+  const int number_of_potentials = force.potentials.size();
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
@@ -48,6 +49,7 @@ void Measure::initialize(
   dump_thermo.preprocess();
   dump_force.preprocess(number_of_atoms, group);
   dump_exyz.preprocess(number_of_atoms);
+  dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
 #endif
@@ -65,6 +67,7 @@ void Measure::finalize(
   dump_thermo.postprocess();
   dump_force.postprocess();
   dump_exyz.postprocess();
+  dump_observer.postprocess();
   dos.postprocess();
   sdc.postprocess();
   msd.postprocess();
@@ -87,6 +90,7 @@ void Measure::finalize(
   modal_analysis.method = NO_METHOD;
 }
 
+
 void Measure::process(
   const int number_of_steps,
   int step,
@@ -97,7 +101,8 @@ void Measure::process(
   Box& box,
   std::vector<Group>& group,
   GPU_Vector<double>& thermo,
-  Atom& atom)
+  Atom& atom,
+  Force& force)
 {
   const int number_of_atoms = atom.cpu_type.size();
   dump_thermo.process(
@@ -111,9 +116,10 @@ void Measure::process(
     atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
   dump_exyz.process(
-    step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
-    atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
-    atom.force_per_atom, atom.virial_per_atom, thermo);
+     step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+     atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom, 
+     atom.force_per_atom, atom.virial_per_atom, thermo);
+  dump_observer.process(step, global_time, box, atom, force, thermo);
 
   compute.process(
     step, energy_transferred, group, atom.mass, atom.potential_per_atom, atom.force_per_atom,

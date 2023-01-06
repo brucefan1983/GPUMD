@@ -154,7 +154,7 @@ void Run::execute_run_in()
 void Run::perform_a_run()
 {
   integrate.initialize(N, time_step, group);
-  measure.initialize(number_of_steps, time_step, box, group, force, atom);
+  measure.initialize(number_of_steps, time_step, box, group, atom, force);
 
 #ifdef USE_PLUMED
   if (measure.plmd.use_plumed == 1) {
@@ -188,7 +188,7 @@ void Run::perform_a_run()
 
     measure.process(
       number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
-      integrate.ensemble->energy_transferred, box, group, thermo, atom);
+      integrate.ensemble->energy_transferred, box, group, thermo, atom, force);
 
     velocity.correct_velocity(
       step, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
@@ -291,6 +291,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.dump_force.parse(param, num_param, group);
   } else if (strcmp(param[0], "dump_exyz") == 0) {
     measure.dump_exyz.parse(param, num_param);
+  } else if (strcmp(param[0], "dump_observer") == 0) {
+    measure.dump_observer.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
     measure.dos.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_sdc") == 0) {

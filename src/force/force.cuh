@@ -61,14 +61,18 @@ public:
     const std::vector<int>& type,
     const std::vector<int>& type_size,
     const double T);
+  void set_multiple_potentials_mode(std::string mode);
 
   bool compute_hnemd_ = false;
   int compute_hnemdec_ = -1;
   double hnemd_fe_[3];
   double temperature;
   GPU_Vector<double> coefficient;
+  std::vector<std::unique_ptr<Potential>> potentials;
 
 private:
+  int number_of_atoms_ = -1;
   bool is_fcp = false;
-  std::unique_ptr<Potential> potential;
+  bool has_non_nep = false;
+  std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"
 };

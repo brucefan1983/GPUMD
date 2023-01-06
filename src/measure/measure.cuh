@@ -22,6 +22,7 @@
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
 #include "dump_velocity.cuh"
+#include "dump_observer.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
 #include "hnemdec_kappa.cuh"
@@ -33,6 +34,7 @@
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "viscosity.cuh"
+#include "force/force.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
@@ -51,8 +53,8 @@ public:
     const double time_step,
     Box& box,
     std::vector<Group>& group,
-    Force& force,
-    Atom& atom);
+    Atom& atom,
+    Force& force);
 
   void finalize(
     const int number_of_steps,
@@ -70,8 +72,10 @@ public:
     Box& box,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
-    Atom& atom);
-
+    Atom& atom,
+    Force& force);
+  
+     
   DOS dos;
   SDC sdc;
   MSD msd;
@@ -88,6 +92,7 @@ public:
   Dump_Restart dump_restart;
   Dump_Force dump_force;
   Dump_EXYZ dump_exyz;
+  Dump_Observer dump_observer;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;
 #endif
