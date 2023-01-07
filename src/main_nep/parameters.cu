@@ -69,27 +69,27 @@ void Parameters::set_default_parameters()
   is_zbl_set = false;
   is_force_delta_set = false;
 
-  train_mode = 0;                // potential
-  prediction = 0;                // not predction mode
-  version = 4;                   // NEP4 is the best
-  rc_radial = 8.0f;              // large enough for vdw/coulomb
-  rc_angular = 4.0f;             // large enough in most cases
-  basis_size_radial = 8;         // large enough in most cases
-  basis_size_angular = 8;        // large enough in most cases
-  n_max_radial = 4;              // a relatively small value to achieve high speed
-  n_max_angular = 4;             // a relatively small value to achieve high speed
-  L_max = 4;                     // the only supported value
-  L_max_4body = 2;               // default is to include 4body
-  L_max_5body = 0;               // default is not to include 5body
-  num_neurons1 = 30;             // a relatively small value to achieve high speed
-  lambda_1 = lambda_2 = 5.0e-2f; // good default based on our tests
-  lambda_e = lambda_f = 1.0f;    // energy and force are more important
-  lambda_v = 0.1f;               // virial is less important
-  lambda_shear = 1.0f;           // do not weight shear virial more by default
-  force_delta = 0.0f;            // no modification of force loss
-  batch_size = 1000;             // large enough in most cases
-  population_size = 50;          // almost optimal
-  maximum_generation = 100000;   // a good starting point
+  train_mode = 0;              // potential
+  prediction = 0;              // not predction mode
+  version = 4;                 // NEP4 is the best
+  rc_radial = 8.0f;            // large enough for vdw/coulomb
+  rc_angular = 4.0f;           // large enough in most cases
+  basis_size_radial = 8;       // large enough in most cases
+  basis_size_angular = 8;      // large enough in most cases
+  n_max_radial = 4;            // a relatively small value to achieve high speed
+  n_max_angular = 4;           // a relatively small value to achieve high speed
+  L_max = 4;                   // the only supported value
+  L_max_4body = 2;             // default is to include 4body
+  L_max_5body = 0;             // default is not to include 5body
+  num_neurons1 = 30;           // a relatively small value to achieve high speed
+  lambda_1 = lambda_2 = -1.0f; // automatic regularization
+  lambda_e = lambda_f = 1.0f;  // energy and force are more important
+  lambda_v = 0.1f;             // virial is less important
+  lambda_shear = 1.0f;         // do not weight shear virial more by default
+  force_delta = 0.0f;          // no modification of force loss
+  batch_size = 1000;           // large enough in most cases
+  population_size = 50;        // almost optimal
+  maximum_generation = 100000; // a good starting point
   type_weight_cpu.resize(NUM_ELEMENTS);
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
     type_weight_cpu[n] = 1.0f; // uniform weight by default
@@ -157,6 +157,9 @@ void Parameters::calculate_parameters()
   }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
+  if (train_mode == 2) {
+    number_of_variables += number_of_variables_ann;
+  }
 
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
@@ -331,7 +334,9 @@ void Parameters::report_inputs()
   printf("    number of angualr descriptor components = %d.\n", dim_angular);
   printf("    total number of  descriptor components = %d.\n", dim);
   printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
-  printf("    number of NN parameters to be optimized = %d.\n", number_of_variables_ann);
+  printf(
+    "    number of NN parameters to be optimized = %d.\n",
+    number_of_variables_ann * (train_mode == 2 ? 2 : 1));
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
