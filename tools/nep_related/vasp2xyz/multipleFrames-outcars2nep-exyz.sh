@@ -4,6 +4,7 @@
 ###	NOTE: 1).'dire_name' is the directory containing OUTCARs
 ### Email: yanzhowang@gmail.com if any questions
 ### Modified by Yuwen Zhang
+### Modified by Shunda Chen
 ################################################################################################
 #--- DEFAULT ASSIGNMENTSts ---------------------------------------------------------------------
 isol_ener=0     # Shifted energy, specify the value?
@@ -23,7 +24,7 @@ N_case=$(find -L $read_dire -name "OUTCAR" | wc -l)
 N_count=1
 
 for file in `find $read_dire -name "OUTCAR"`;do
-	N_lattice_vector=$(grep -A 7 "VOLUME and BASIS-vectors are now" $file |tail -n 3 |xargs | wc -w)
+	N_lattice_vector=$(grep -A 7 "VOLUME and BASIS-vectors are now" $file |tail -n 3 |  sed 's/-/ -/g'  |xargs | wc -w)
         if [[ $N_lattice_vector -eq 18 ]]
         then
 		start_lines=(`sed -n  '/aborting loop because EDIFF is reached/=' $file`)
@@ -43,7 +44,7 @@ for file in `find $read_dire -name "OUTCAR"`;do
 			end_line=${end_lines[j]}
 			sed -n "${start_line},${end_line}p" ${file}  > temp.file
 			echo $syst_numb_atom >> $writ_dire/$writ_file
-			latt=$(grep -A 7 "VOLUME and BASIS-vectors are now" temp.file |tail -n 3 |awk '{print $1,$2,$3}' |xargs)
+			latt=$(grep -A 7 "VOLUME and BASIS-vectors are now" temp.file |tail -n 3 | sed 's/-/ -/g' |awk '{print $1,$2,$3}' |xargs)
 
 			ener=$(grep "free  energy   TOTEN" temp.file | tail -1 | awk '{printf "%.10f\n", $5 - '$syst_numb_atom' * '$isol_ener'}')
 			if [[ $viri_logi -eq 1 ]]
