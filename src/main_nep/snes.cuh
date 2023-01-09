@@ -32,9 +32,7 @@ protected:
   float eta_sigma = 0.1f;
   std::vector<int> index;
   std::vector<float> fitness;
-  std::vector<float> fitness_copy;
   std::vector<float> population;
-  std::vector<float> population_copy;
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;

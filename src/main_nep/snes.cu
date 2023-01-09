@@ -39,10 +39,8 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
   fitness.resize(population_size * 6);
-  fitness_copy.resize(population_size * 6);
   index.resize(population_size);
   population.resize(population_size * number_of_variables);
-  population_copy.resize(population_size * number_of_variables);
   s.resize(population_size * number_of_variables);
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
@@ -125,8 +123,9 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       regularize(para);
       sort_population();
       fitness_function->report_error(
-        para, n, fitness[0 + 0 * population_size], fitness[0 + 1 * population_size],
-        fitness[0 + 2 * population_size], population.data());
+        para, n, fitness[0 + 0 * population_size], fitness[index[0] + 1 * population_size],
+        fitness[index[0] + 2 * population_size],
+        population.data() + number_of_variables * index[0]);
       update_mu_and_sigma();
       if (0 == (n + 1) % 100) {
         output_mu_and_sigma(para);
@@ -225,25 +224,6 @@ void SNES::sort_population()
   }
 
   insertion_sort(fitness.data(), index.data(), population_size);
-
-  for (int n = 0; n < population_size * number_of_variables; ++n) {
-    population_copy[n] = population[n];
-  }
-  for (int n = 0; n < population_size; ++n) {
-    for (int k = 1; k < 6; ++k) {
-      fitness_copy[n + k * population_size] = fitness[n + k * population_size];
-    }
-  }
-  for (int n = 0; n < population_size; ++n) {
-    int n1 = n * number_of_variables;
-    int n2 = index[n] * number_of_variables;
-    for (int m = 0; m < number_of_variables; ++m) {
-      population[n1 + m] = population_copy[n2 + m];
-    }
-    for (int k = 1; k < 6; ++k) {
-      fitness[n + k * population_size] = fitness_copy[index[n] + k * population_size];
-    }
-  }
 }
 
 void SNES::update_mu_and_sigma()
