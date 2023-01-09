@@ -473,11 +473,10 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
     } else {
       has_test_set = false;
     }
+  } else {
+    read_exyz(para, input, structures);
+    input.close();
   }
-
-  read_exyz(para, input, structures);
-
-  input.close();
 
   if ((para.prediction == 0) && is_train && (para.batch_size < structures.size())) {
     reorder(structures);
