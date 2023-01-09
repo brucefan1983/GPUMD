@@ -66,7 +66,7 @@ public:
     const float* b0[100]; // bias for the hidden layer
     const float* w1[100]; // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
-    // for the scaler part of polarizability
+    // for the scalar part of polarizability
     const float* w0_pol[10]; // weight from the input layer to the hidden layer
     const float* b0_pol[10]; // bias for the hidden layer
     const float* w1_pol[10]; // weight from the hidden layer to the output layer
