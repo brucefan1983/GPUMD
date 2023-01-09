@@ -293,7 +293,7 @@ NEP3::NEP3(
   }
 }
 
-void NEP3::update_potential(float* parameters, ANN& ann)
+void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -308,7 +308,25 @@ void NEP3::update_potential(float* parameters, ANN& ann)
     pointer += ann.num_neurons1;
   }
   ann.b1 = pointer;
-  ann.c = ann.b1 + 1;
+  pointer += 1;
+
+  if (para.train_mode == 2) {
+    for (int t = 0; t < paramb.num_types; ++t) {
+      if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+        pointer -= (ann.dim + 2) * ann.num_neurons1;
+      }
+      ann.w0_pol[t] = pointer;
+      pointer += ann.num_neurons1 * ann.dim;
+      ann.b0_pol[t] = pointer;
+      pointer += ann.num_neurons1;
+      ann.w1_pol[t] = pointer;
+      pointer += ann.num_neurons1;
+    }
+    ann.b1_pol = pointer;
+    pointer += 1;
+  }
+
+  ann.c = pointer;
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
@@ -352,7 +370,6 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
 }
 
 static __global__ void apply_ann(
-  const bool is_polarizability,
   const int N,
   const NEP3::ParaMB paramb,
   const NEP3::ANN annmb,
@@ -360,7 +377,6 @@ static __global__ void apply_ann(
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
   float* g_pe,
-  float* g_virial,
   float* g_Fp)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -377,11 +393,49 @@ static __global__ void apply_ann(
       annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
       Fp);
     g_pe[n1] = F;
-    if (is_polarizability) {
-      g_virial[n1] = F;
-      g_virial[n1 + N] = F;
-      g_virial[n1 + N * 2] = F;
+
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
     }
+  }
+}
+
+static __global__ void apply_ann_pol(
+  const int N,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const int* __restrict__ g_type,
+  const float* __restrict__ g_descriptors,
+  const float* __restrict__ g_q_scaler,
+  float* g_virial,
+  float* g_Fp)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  int type = g_type[n1];
+  if (n1 < N) {
+    // get descriptors
+    float q[MAX_DIM] = {0.0f};
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
+    }
+    // get energy and energy gradient
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+
+    // scalar part
+    apply_ann_one_layer(
+      annmb.dim, annmb.num_neurons1, annmb.w0_pol[type], annmb.b0_pol[type], annmb.w1_pol[type],
+      annmb.b1_pol, q, F, Fp);
+    g_virial[n1] = F;
+    g_virial[n1 + N] = F;
+    g_virial[n1 + N * 2] = F;
+
+    // tensor part
+    for (int d = 0; d < annmb.dim; ++d) {
+      Fp[d] = 0.0f;
+    }
+    apply_ann_one_layer(
+      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
+      Fp);
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
@@ -703,7 +757,7 @@ void NEP3::find_force(
     CHECK(cudaSetDevice(device_id));
     nep_data[device_id].parameters.copy_from_host(
       parameters + device_id * para.number_of_variables);
-    update_potential(nep_data[device_id].parameters.data(), annmb[device_id]);
+    update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id]);
   }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
@@ -755,18 +809,16 @@ void NEP3::find_force(
     CUDA_CHECK_KERNEL
 
     if (para.train_mode == 2) {
-      apply_ann<<<grid_size, block_size>>>(
-        true, dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
+      apply_ann_pol<<<grid_size, block_size>>>(
+        dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(), para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].energy.data(), dataset[device_id].virial.data(),
-        nep_data[device_id].Fp.data());
+        dataset[device_id].virial.data(), nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     } else {
       apply_ann<<<grid_size, block_size>>>(
-        false, dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
+        dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(), para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].energy.data(), dataset[device_id].virial.data(),
-        nep_data[device_id].Fp.data());
+        dataset[device_id].energy.data(), nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     }
 

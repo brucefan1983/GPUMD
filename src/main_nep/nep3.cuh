@@ -66,6 +66,12 @@ public:
     const float* b0[100]; // bias for the hidden layer
     const float* w1[100]; // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
+    // for the scalar part of polarizability
+    const float* w0_pol[10]; // weight from the input layer to the hidden layer
+    const float* b0_pol[10]; // bias for the hidden layer
+    const float* w1_pol[10]; // weight from the hidden layer to the output layer
+    const float* b1_pol;     // bias for the output layer
+    // for elements in descriptor
     const float* c;
   };
 
@@ -95,5 +101,5 @@ private:
   ANN annmb[16];
   NEP3_Data nep_data[16];
   ZBL zbl;
-  void update_potential(float* parameters, ANN& ann);
+  void update_potential(Parameters& para, float* parameters, ANN& ann);
 };
