@@ -39,7 +39,6 @@ protected:
   std::vector<float> sigma;
   std::vector<float> utility;
   std::vector<float> s;
-  std::vector<float> s_copy;
   void initialize_rng();
   void initialize_mu_and_sigma(Parameters& para);
   void calculate_utility();

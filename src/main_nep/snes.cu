@@ -44,7 +44,6 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   population.resize(population_size * number_of_variables);
   population_copy.resize(population_size * number_of_variables);
   s.resize(population_size * number_of_variables);
-  s_copy.resize(population_size * number_of_variables);
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   utility.resize(population_size);
@@ -224,9 +223,10 @@ void SNES::sort_population()
   for (int n = 0; n < population_size; ++n) {
     index[n] = n;
   }
+
   insertion_sort(fitness.data(), index.data(), population_size);
+
   for (int n = 0; n < population_size * number_of_variables; ++n) {
-    s_copy[n] = s[n];
     population_copy[n] = population[n];
   }
   for (int n = 0; n < population_size; ++n) {
@@ -238,7 +238,6 @@ void SNES::sort_population()
     int n1 = n * number_of_variables;
     int n2 = index[n] * number_of_variables;
     for (int m = 0; m < number_of_variables; ++m) {
-      s[n1 + m] = s_copy[n2 + m];
       population[n1 + m] = population_copy[n2 + m];
     }
     for (int k = 1; k < 6; ++k) {
@@ -252,7 +251,7 @@ void SNES::update_mu_and_sigma()
   for (int v = 0; v < number_of_variables; ++v) {
     float gradient_mu = 0.0f, gradient_sigma = 0.0f;
     for (int p = 0; p < population_size; ++p) {
-      int pv = p * number_of_variables + v;
+      int pv = index[p] * number_of_variables + v;
       gradient_mu += s[pv] * utility[p];
       gradient_sigma += (s[pv] * s[pv] - 1.0f) * utility[p];
     }
