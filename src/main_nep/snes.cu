@@ -159,21 +159,9 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
     for (int n = 0; n < maximum_generation; ++n) {
       create_population(para);
-      fitness_function->compute(
-        n, para, population.data(), fitness.data() + (6 * para.num_types + 3) * population_size);
+      fitness_function->compute(n, para, population.data(), fitness.data());
 
       regularize(para);
-
-      // to be generalized:
-      for (int t = 0; t < para.num_types; ++t) {
-        for (int k = 0; k < 6; ++k) {
-          for (int p = 0; p < population_size; ++p) {
-            fitness[p + (6 * t + k) * population_size] =
-              fitness[p + (6 * para.num_types + k) * population_size];
-          }
-        }
-      }
-
       sort_population(para);
 
       int best_index = index[para.num_types * population_size];
@@ -261,6 +249,15 @@ void SNES::regularize(Parameters& para)
       fitness[p + (6 * para.num_types + 5) * population_size];
     fitness[p + (6 * para.num_types + 1) * population_size] = cost_L1;
     fitness[p + (6 * para.num_types + 2) * population_size] = cost_L2;
+  }
+
+  for (int t = 0; t < para.num_types; ++t) {
+    for (int k = 0; k < 3; ++k) {
+      for (int p = 0; p < population_size; ++p) {
+        fitness[p + (6 * t + k) * population_size] =
+          fitness[p + (6 * para.num_types + k) * population_size];
+      }
+    }
   }
 }
 
