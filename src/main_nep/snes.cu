@@ -243,20 +243,13 @@ void SNES::regularize(Parameters& para)
 
     cost_L1 *= lambda_1 / number_of_variables;
     cost_L2 = lambda_2 * sqrt(cost_L2 / number_of_variables);
-    fitness[p + (6 * para.num_types + 0) * population_size] =
-      cost_L1 + cost_L2 + fitness[p + (6 * para.num_types + 3) * population_size] +
-      fitness[p + (6 * para.num_types + 4) * population_size] +
-      fitness[p + (6 * para.num_types + 5) * population_size];
-    fitness[p + (6 * para.num_types + 1) * population_size] = cost_L1;
-    fitness[p + (6 * para.num_types + 2) * population_size] = cost_L2;
-  }
 
-  for (int t = 0; t < para.num_types; ++t) {
-    for (int k = 0; k < 3; ++k) {
-      for (int p = 0; p < population_size; ++p) {
-        fitness[p + (6 * t + k) * population_size] =
-          fitness[p + (6 * para.num_types + k) * population_size];
-      }
+    for (int t = 0; t <= para.num_types; ++t) {
+      fitness[p + (6 * t + 0) * population_size] =
+        cost_L1 + cost_L2 + fitness[p + (6 * t + 3) * population_size] +
+        fitness[p + (6 * t + 4) * population_size] + fitness[p + (6 * t + 5) * population_size];
+      fitness[p + (6 * t + 1) * population_size] = cost_L1;
+      fitness[p + (6 * t + 2) * population_size] = cost_L2;
     }
   }
 }
