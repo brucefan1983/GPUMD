@@ -620,10 +620,9 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
     }
   }
 
-  int num_components = (para.train_mode == 1) ? 3 : 6;
   for (int t = 0; t <= para.num_types; ++t) {
     if (count_array[t] > 0) {
-      rmse_array[t] = sqrt(rmse_array[t] / (count_array[t] * num_components));
+      rmse_array[t] = sqrt(rmse_array[t] / count_array[t]);
     }
   }
   return rmse_array;
