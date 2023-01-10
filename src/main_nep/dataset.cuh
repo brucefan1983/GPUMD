@@ -59,24 +59,17 @@ public:
   std::vector<float> error_cpu; // error in energy, virial, or force
   GPU_Vector<float> error_gpu;  // error in energy, virial, or force
 
-  std::vector<bool> has_type;
-
   std::vector<Structure> structures;
 
   void
   construct(Parameters& para, std::vector<Structure>& structures, int n1, int n2, int device_id);
-  std::vector<float> get_rmse_force(Parameters& para, const bool use_weight, int device_id);
-  std::vector<float> get_rmse_energy(
-    Parameters& para,
-    float& energy_shift_per_structure,
-    const bool use_weight,
-    const bool do_shift,
-    int device_id);
-  std::vector<float> get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
+  float get_rmse_force(Parameters& para, const bool use_weight, int device_id);
+  float get_rmse_energy(
+    float& energy_shift_per_structure, const bool use_weight, const bool do_shift, int device_id);
+  float get_rmse_virial(Parameters& para, const bool use_weight, int device_id);
 
 private:
   void copy_structures(std::vector<Structure>& structures_input, int n1, int n2);
-  void find_has_type(Parameters& para);
   void find_Na(Parameters& para);
   void initialize_gpu_data(Parameters& para);
   void find_neighbor(Parameters& para);

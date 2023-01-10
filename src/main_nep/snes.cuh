@@ -37,15 +37,13 @@ protected:
   std::vector<float> sigma;
   std::vector<float> utility;
   std::vector<float> s;
-  std::vector<int> variable_to_type;
   void initialize_rng();
   void initialize_mu_and_sigma(Parameters& para);
   void calculate_utility();
-  void find_type_of_variables(Parameters& para);
   void compute(Parameters&, Fitness*);
   void create_population(Parameters&);
   void regularize(Parameters&);
-  void sort_population(Parameters& para);
+  void sort_population();
   void update_mu_and_sigma();
   void output_mu_and_sigma(Parameters& para);
 };

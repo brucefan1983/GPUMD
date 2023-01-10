@@ -38,14 +38,13 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   population_size = para.population_size;
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
-  fitness.resize(population_size * 6 * (para.num_types + 1));
-  index.resize(population_size * (para.num_types + 1));
+  fitness.resize(population_size * 6);
+  index.resize(population_size);
   population.resize(population_size * number_of_variables);
   s.resize(population_size * number_of_variables);
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   utility.resize(population_size);
-  variable_to_type.resize(number_of_variables, para.num_types);
   initialize_rng();
   initialize_mu_and_sigma(para);
   calculate_utility();
@@ -91,44 +90,6 @@ void SNES::calculate_utility()
   }
 }
 
-void SNES::find_type_of_variables(Parameters& para)
-{
-  if (para.train_mode == 0 && para.version == 4) {
-    int offset = 0;
-    for (int t = 0; t < para.num_types; ++t) {
-      for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
-        variable_to_type[n + offset] = t;
-      }
-      offset += (para.dim + 2) * para.num_neurons1;
-    }
-    ++offset; // the bias
-    for (int n = 0; n <= para.n_max_radial; ++n) {
-      for (int k = 0; k <= para.basis_size_radial; ++k) {
-        int nk = n * (para.basis_size_radial + 1) + k;
-        for (int t1 = 0; t1 < para.num_types; ++t1) {
-          for (int t2 = 0; t2 < para.num_types; ++t2) {
-            int t12 = t1 * para.num_types + t2;
-            variable_to_type[nk * para.num_types * para.num_types + t12 + offset] = t1;
-          }
-        }
-      }
-    }
-    offset +=
-      (para.n_max_radial + 1) * (para.basis_size_radial + 1) * para.num_types * para.num_types;
-    for (int n = 0; n <= para.n_max_angular; ++n) {
-      for (int k = 0; k <= para.basis_size_angular; ++k) {
-        int nk = n * (para.basis_size_angular + 1) + k;
-        for (int t1 = 0; t1 < para.num_types; ++t1) {
-          for (int t2 = 0; t2 < para.num_types; ++t2) {
-            int t12 = t1 * para.num_types + t2;
-            variable_to_type[nk * para.num_types * para.num_types + t12 + offset] = t1;
-          }
-        }
-      }
-    }
-  }
-}
-
 void SNES::compute(Parameters& para, Fitness* fitness_function)
 {
 
@@ -158,16 +119,13 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
     for (int n = 0; n < maximum_generation; ++n) {
       create_population(para);
-      fitness_function->compute(n, para, population.data(), fitness.data());
+      fitness_function->compute(n, para, population.data(), fitness.data() + 3 * population_size);
       regularize(para);
-      sort_population(para);
-      float fitness_total = fitness[0 + (6 * para.num_types + 0) * para.population_size];
-      float fitness_L1 = fitness[index[0] + (6 * para.num_types + 1) * para.population_size];
-      float fitness_L2 = fitness[index[0] + (6 * para.num_types + 2) * para.population_size];
+      sort_population();
       fitness_function->report_error(
-        para, n, fitness_total, fitness_L1, fitness_L2,
+        para, n, fitness[0 + 0 * population_size], fitness[index[0] + 1 * population_size],
+        fitness[index[0] + 2 * population_size],
         population.data() + number_of_variables * index[0]);
-
       update_mu_and_sigma();
       if (0 == (n + 1) % 100) {
         output_mu_and_sigma(para);
@@ -214,9 +172,8 @@ void SNES::regularize(Parameters& para)
   if (para.lambda_1 < 0.0f || para.lambda_2 < 0.0f) {
     float auto_reg = 1.0e30f;
     for (int p = 0; p < population_size; ++p) {
-      float temp = fitness[p + (6 * para.num_types + 3) * para.population_size] +
-                   fitness[p + (6 * para.num_types + 4) * para.population_size] +
-                   fitness[p + (6 * para.num_types + 5) * para.population_size];
+      float temp = fitness[p + 3 * population_size] + fitness[p + 4 * population_size] +
+                   fitness[p + 5 * population_size];
       if (auto_reg > temp) {
         auto_reg = temp;
       }
@@ -238,12 +195,10 @@ void SNES::regularize(Parameters& para)
     }
     cost_L1 *= lambda_1 / number_of_variables;
     cost_L2 = lambda_2 * sqrt(cost_L2 / number_of_variables);
-    fitness[p + (6 * para.num_types + 0) * para.population_size] =
-      cost_L1 + cost_L2 + fitness[p + (6 * para.num_types + 3) * para.population_size] +
-      fitness[p + (6 * para.num_types + 4) * para.population_size] +
-      fitness[p + (6 * para.num_types + 5) * para.population_size];
-    fitness[p + (6 * para.num_types + 1) * para.population_size] = cost_L1;
-    fitness[p + (6 * para.num_types + 2) * para.population_size] = cost_L2;
+    fitness[p] = cost_L1 + cost_L2 + fitness[p + 3 * population_size] +
+                 fitness[p + 4 * population_size] + fitness[p + 5 * population_size];
+    fitness[p + 1 * population_size] = cost_L1;
+    fitness[p + 2 * population_size] = cost_L2;
   }
 }
 
@@ -262,26 +217,21 @@ static void insertion_sort(float array[], int index[], int n)
   }
 }
 
-void SNES::sort_population(Parameters& para)
+void SNES::sort_population()
 {
-  for (int t = 0; t < para.num_types + 1; ++t) {
-    for (int n = 0; n < population_size; ++n) {
-      index[t * population_size + n] = n;
-    }
-
-    insertion_sort(
-      fitness.data() + t * population_size * 6, index.data() + t * population_size,
-      population_size);
+  for (int n = 0; n < population_size; ++n) {
+    index[n] = n;
   }
+
+  insertion_sort(fitness.data(), index.data(), population_size);
 }
 
 void SNES::update_mu_and_sigma()
 {
   for (int v = 0; v < number_of_variables; ++v) {
-    int type = variable_to_type[v];
     float gradient_mu = 0.0f, gradient_sigma = 0.0f;
     for (int p = 0; p < population_size; ++p) {
-      int pv = index[type * population_size + p] * number_of_variables + v;
+      int pv = index[p] * number_of_variables + v;
       gradient_mu += s[pv] * utility[p];
       gradient_sigma += (s[pv] * s[pv] - 1.0f) * utility[p];
     }
