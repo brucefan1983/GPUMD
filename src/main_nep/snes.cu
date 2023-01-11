@@ -94,8 +94,10 @@ void SNES::calculate_utility()
 
 void SNES::find_type_of_variable(Parameters& para)
 {
+  int offset = 0;
+
+  // NN part
   if (para.version == 4) {
-    int offset = 0;
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
@@ -106,6 +108,32 @@ void SNES::find_type_of_variable(Parameters& para)
       }
       ++offset; // the bias
     }
+  } else {
+    offset += (para.dim + 2) * para.num_neurons1 + 1;
+  }
+
+  // descriptor part
+  if (para.version == 2) {
+    if (para.num_types > 1) {
+      for (int n = 0; n <= para.n_max_radial; ++n) {
+        for (int t1 = 0; t1 < para.num_types; ++t1) {
+          for (int t2 = 0; t2 < para.num_types; ++t2) {
+            int t12 = t1 * para.num_types + t2;
+            type_of_variable[n * para.num_types * para.num_types + t12 + offset] = t1;
+          }
+        }
+      }
+      offset += (para.n_max_radial + 1) * para.num_types * para.num_types;
+      for (int n = 0; n <= para.n_max_angular; ++n) {
+        for (int t1 = 0; t1 < para.num_types; ++t1) {
+          for (int t2 = 0; t2 < para.num_types; ++t2) {
+            int t12 = t1 * para.num_types + t2;
+            type_of_variable[n * para.num_types * para.num_types + t12 + offset] = t1;
+          }
+        }
+      }
+    }
+  } else {
     for (int n = 0; n <= para.n_max_radial; ++n) {
       for (int k = 0; k <= para.basis_size_radial; ++k) {
         int nk = n * (para.basis_size_radial + 1) + k;
