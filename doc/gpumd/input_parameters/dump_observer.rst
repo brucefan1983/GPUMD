@@ -3,9 +3,9 @@
    single: dump_observer (keyword in run.in)
 
 :attr:`dump_observer`
-=================
+=====================
 
-Write atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials in the  `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Takes the same arguments as :ref:`dump_exyz`, and additionally a keyword `mode`. `mode` can either be set to `observe` or `average`.
+Writes atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials in the  `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Takes the same arguments as :ref:`dump_exyz keyword <kw_dump_exyz>`, and additionally a keyword `mode`. `mode` can either be set to `observe` or `average`.
 
 If set to `observe`, the first of the supplied NEP potentials will be used to propagate the molecular dynamics run, and the remaining potentials will be evaluated every `interval` time steps. The results will be written to separate extended XYZ-files, following the naming convention: `observer0.xyz`, `observer1.xyz`, ..., `observer(N-1).xyz` for `N` supplied potentials. The index of these `observer(index).xyz` files correspond to the index of each potential in the `run.in` file. Thus, `observer0.xyz` corresponds to the first potential, `observer1.xyz` to the second and so on. In this mode, `observer0.xyz` corresponds to the main potential.
 
@@ -36,7 +36,7 @@ To use one NEP potential to propagate the MD (`nep0`), and another to observe ev
   ...
   dump_observer observe 1000 1 1
 
-before the :ref:`run keyword <kw_run>`. This will generate two output files, `observer0.xyz` and `observer1.xyz`, containing ppositions, forces and virials as calculated with  `nep0` and `nep1` respectively.
+before the :ref:`run keyword <kw_run>`. This will generate two output files, `observer0.xyz` and `observer1.xyz`, containing positions, velocities and forces as calculated with  `nep0` and `nep1` respectively.
 
 
 Example 2

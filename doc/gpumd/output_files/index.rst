@@ -112,6 +112,7 @@ Output files
    omega2_out
    restart_xyz
    dump_xyz
+   observer_xyz
    sdc_out
    msd_out
    shc_out
