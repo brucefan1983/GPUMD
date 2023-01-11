@@ -20,6 +20,7 @@ All other lines should be of the form:
 The overall structure of a ``run.in`` file is as follows:
 
 * First, set up the potential model using the :ref:`potential <kw_potential>` keyword.
+  * Multiple NEP potentials may be used using the :ref:`dump_observer <kw_dump_observer>` keyword. These NEP potentials may either be used to evaluate energy, forces and virials along the trajectory, or averaged together to run the MD on an average PES. 
 * Then, if needed, use the :ref:`minimize <kw_minimize>` keyword to minimize the energy of the whole system.
 * Then one can use the following keywords to carry out static calculations:
 
@@ -156,6 +157,10 @@ Output
      - Prop.
    * - :ref:`dump_exyz <kw_dump_exyz>`
      - Write positions and other quantities in `extended XYZ format <https://github.com/libAtoms/extxyz>`_
+     - No
+     - No
+   * - :ref:`dump_observer <kw_dump_observer>`
+     - Write positions and other quantities for each of the observing NEP potentials, or the average of them, in the extended XYZ format.
      - No
      - No
    * - :ref:`dump_force <kw_dump_force>`

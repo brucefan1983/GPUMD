@@ -25,6 +25,14 @@ Output files
      - :ref:`dump_restart <kw_dump_restart>`
      - The restart file
      - Overwrite
+   * - :ref:`dump.xyz <dump_xyz>`
+     - :ref:`dump_exyz <kw_dump_exyz>`
+     - Atomistic positions, velocities and forces.
+     - Append
+   * - :ref:`observer.xyz <observer_xyz>`
+     - :ref:`dump_observer <kw_dump_observer>`
+     - Atomistic positions, velocities and forces as evaluated with observing potentials.
+     - Append
    * - :ref:`velocity.out <velocity_out>`
      - :ref:`dump_velocity <kw_dump_velocity>`
      - Contains the atomic velocities
@@ -103,6 +111,8 @@ Output files
    movie_xyz
    omega2_out
    restart_xyz
+   dump_xyz
+   observer_xyz
    sdc_out
    msd_out
    shc_out

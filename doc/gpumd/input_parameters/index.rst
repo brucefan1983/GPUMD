@@ -44,6 +44,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    :caption: Output
 
    dump_exyz
+   dump_observer
    dump_force
    dump_netcdf
    dump_position
