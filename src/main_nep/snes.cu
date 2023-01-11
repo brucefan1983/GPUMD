@@ -94,15 +94,18 @@ void SNES::calculate_utility()
 
 void SNES::find_type_of_variable(Parameters& para)
 {
-  if (para.train_mode == 0 && para.version == 4) {
+  if (para.version == 4) {
     int offset = 0;
-    for (int t = 0; t < para.num_types; ++t) {
-      for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
-        type_of_variable[n + offset] = t;
+    int num_ann = (para.train_mode == 2) ? 2 : 1;
+    for (int ann = 0; ann < num_ann; ++ann) {
+      for (int t = 0; t < para.num_types; ++t) {
+        for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
+          type_of_variable[n + offset] = t;
+        }
+        offset += (para.dim + 2) * para.num_neurons1;
       }
-      offset += (para.dim + 2) * para.num_neurons1;
+      ++offset; // the bias
     }
-    ++offset; // the bias
     for (int n = 0; n <= para.n_max_radial; ++n) {
       for (int k = 0; k <= para.basis_size_radial; ++k) {
         int nk = n * (para.basis_size_radial + 1) + k;
