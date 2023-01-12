@@ -256,6 +256,7 @@ void SNES::regularize(Parameters& para)
         auto_reg = temp;
       }
     }
+    auto_reg *= 0.4f;
     if (para.lambda_1 < 0.0f) {
       lambda_1 = auto_reg;
     }
