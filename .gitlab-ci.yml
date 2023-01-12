@@ -2,6 +2,7 @@ image: $CI_REGISTRY/materials-theory/$CI_PROJECT_NAME/cicd
 
 variables:
   INSTDIR: "local_installation"
+  GIT_DEPTH: 300
 
 before_script:
   - export PATH=$PWD/$INSTDIR:${PATH}
