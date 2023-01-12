@@ -570,7 +570,8 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   int mem = sizeof(float) * Nc;
   const int block_size = 256;
 
-  float shear_weight = (para.train_mode != 1) ? para.lambda_shear * para.lambda_shear : 0.0f;
+  float shear_weight =
+    (para.train_mode != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
   gpu_sum_virial_error<<<Nc, block_size, sizeof(float) * block_size * 6>>>(
     N, shear_weight, Na.data(), Na_sum.data(), virial.data(), virial_ref_gpu.data(),
     error_gpu.data());
