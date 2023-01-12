@@ -1,13 +1,19 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (2)
+## Preprints (4)
 
 * Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://arxiv.org/abs/2208.03982), arXiv:2208.03982 [physics.comp-ph].
 
-* Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A. Caro, Tapio Ala-Nissila, 
- [Quantum-corrected thickness-dependent thermal conductivity in amorphous silicon predicted by machine-learning molecular dynamics simulations](https://doi.org/10.48550/arXiv.2206.07605), arXiv:2206.07605 [cond-mat.mtrl-sci].
+* Yajuan Cheng, Zheyong Fan, Tao Zhang, Masahiro Nomura, Sebastian Volz, Guimei Zhu, Baowen Li, Shiyun Xiong, [Magic angle in thermal conductivity of twisted bilayer graphene](https://arxiv.org/abs/2301.00323), 	arXiv:2301.00323 [cond-mat.mes-hall]
+
+* Erik Fransson, Julia Wiktor, Paul Erhart, [Phase transitions in inorganic halide perovskites from machine learning potentials](https://arxiv.org/abs/2301.03497), 	arXiv:2301.03497 [cond-mat.mtrl-sci]
+
+* Erik Fransson, Petter Rosander, Fredrik Eriksson, J. Magnus Rahm, Terumasa Tadano, Paul Erhart, [Probing the limits of the phonon quasi-particle picture: The transition from underdamped to overdamped dynamics in CsPbBr3](https://arxiv.org/abs/2211.08197), 	arXiv:2211.08197 [cond-mat.mtrl-sci]
  
-## 2023 (3)
+## 2023 (4)
+
+* Yanzhou Wang, Zheyong Fan, Ping Qian, Miguel A. Caro, Tapio Ala-Nissila, 
+ [Quantum-corrected thickness-dependent thermal conductivity in amorphous silicon predicted by machine-learning molecular dynamics simulations](https://doi.org/10.48550/arXiv.2206.07605), arXiv:2206.07605 [cond-mat.mtrl-sci]. Accepted to PRB.
 
 * Penghua Ying, Haikuan Dong, Ting Liang, Zheyong Fan, Zheng Zhong, and Jin Zhang, [Atomistic insights into the mechanical anisotropy and fragility of monolayer fullerene networks using quantum mechanical calculations and machine-learning molecular dynamics simulations](https://doi.org/10.1016/j.eml.2022.101929), Extreme Mechanics Letters, **58**, 101929 (2023).
 
