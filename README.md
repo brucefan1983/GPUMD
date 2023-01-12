@@ -10,7 +10,7 @@
 * Force evaluation for many-body potentials has been significantly accelerated by using GPUs [1], thanks to a set of simple expressions for force, virial stress, and heat current derived in Refs. [2, 3]. 
 * Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [2, 3, 4, 5].
 * It can run MD simulations with the machine-learning based force constant potential (FCP) [6].
-* It can train the NEP machine-learning potential [7, 8, 9] and run MD simulations with it. See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for all the published NEP potentials and the related training/testing data.
+* It can train the NEP machine-learning potential [7, 8, 9] and run MD simulations with it. See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
 
 ## Prerequisites
 
@@ -65,7 +65,9 @@ https://www.freelists.org/list/gpumd
 | Junjie Wang           | https://github.com/bigd4          |
 | Yong Wang             | https://github.com/AmbroseWong    |
 | Zhixin Liang          | https://github.com/liangzhixin-202169    |
-| Paul Erhart           |https://materialsmodeling.org/ |
+| Paul Erhart           | https://materialsmodeling.org/ |
+| Nan Xu                | https://github.com/tamaswells | 
+| Shunda Chen           | https://github.com/shdchen |
 
 ## Citations
 
