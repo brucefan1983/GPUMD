@@ -21,9 +21,7 @@ N_case=$(find -L $read_dire -name "OUTCAR" | wc -l)
 N_count=1
 for i in `find -L $read_dire -name "OUTCAR"`
 do
-       N_lattice_vector=$(grep -A 7 "VOLUME and BASIS-vectors are now" $i |tail -n 3 | sed 's/-/ -/g' |xargs | wc -w)
-       if [[ $N_lattice_vector -eq 18 ]]
-       then
+	     configuration=$(echo "$i" |sed 's/\/OUTCAR//g' | awk -F'/' '{print $NF}')
              syst_numb_atom=$(grep "number of ions" $i |awk '{print $12}')
              echo $syst_numb_atom >> $writ_dire/$writ_file
              latt=$(grep -A 7 "VOLUME and BASIS-vectors are now" $i |tail -n 3 |sed 's/-/ -/g'  |awk '{print $1,$2,$3}' |xargs)
@@ -31,9 +29,9 @@ do
              if [[ $viri_logi -eq 1 ]]
              then
                    viri=$(grep -A 20 "FORCE on cell =-STRESS" $i | grep "Total" | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
-                   echo "Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
+                   echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
              else
-                   echo "Lattice=\"$latt\" Energy=$ener Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
+                   echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
              fi
              ion_numb_arra=($(grep "ions per type"  $i | tail -n 1 | awk -F"=" '{print $2}'))
              ion_symb_arra=($(grep "VRHFIN" $i | awk -F"=" '{print $2}' |awk -F":" '{print $1}'))
@@ -46,14 +44,7 @@ do
              rm -f $writ_dire/*.tem
              echo -n "$N_count/$N_case "
              N_count=$((N_count + 1))
-       else
-             echo ""
-             echo "!!!!!!!!!!!!!!!!!!!!! WARNING WARNING WARNING !!!!!!!!!!!!!!!!!!"
-             echo "!!! Something wrong happened casue the number of direct or reciprocal lattice vector components is not 9 in $i !!!"
-             echo "!!! So the script is skipping this situation and continue ... !!!"
-             echo "!!! It is caused by the ugly formated OUTCAR, user please check it in person.!!!"
-             echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       fi
 done
+dos2unix $writ_dire/$writ_file
 echo "All done, bye."
 

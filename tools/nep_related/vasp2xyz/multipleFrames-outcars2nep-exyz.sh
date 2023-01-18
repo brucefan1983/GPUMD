@@ -24,9 +24,7 @@ N_case=$(find -L $read_dire -name "OUTCAR" | wc -l)
 N_count=1
 
 for file in `find $read_dire -name "OUTCAR"`;do
-	N_lattice_vector=$(grep -A 7 "VOLUME and BASIS-vectors are now" $file |tail -n 3 |  sed 's/-/ -/g'  |xargs | wc -w)
-        if [[ $N_lattice_vector -eq 18 ]]
-        then
+	        configuration=$(echo "$file" |sed 's/\/OUTCAR//g' | awk -F'/' '{print $NF}')
 		start_lines=(`sed -n  '/aborting loop because EDIFF is reached/=' $file`)
 		end_lines=(`sed -n  '/[^ML] energy  without entropy/=' $file`)
 		ion_numb_arra=($(grep "ions per type"  $file | tail -n 1 | awk -F"=" '{print $2}'))
@@ -50,9 +48,9 @@ for file in `find $read_dire -name "OUTCAR"`;do
 			if [[ $viri_logi -eq 1 ]]
 			then
 				viri=$(grep -A 20 "FORCE on cell =-STRESS" temp.file | grep "Total" | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
-				echo "Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" pbc=\"T T T\" Properties=species:S:1:pos:R:3:forces:R:3" >> $writ_dire/$writ_file
+				echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" pbc=\"T T T\" Properties=species:S:1:pos:R:3:forces:R:3" >> $writ_dire/$writ_file
 			else
-				echo "Lattice=\"$latt\" Properties=species:S:1:pos:R:3:forces:R:3 Energy=$ener pbc=\"T T T\"" >> $writ_dire/$writ_file
+				echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Properties=species:S:1:pos:R:3:forces:R:3 Energy=$ener pbc=\"T T T\"" >> $writ_dire/$writ_file
 			fi
 
 			for((j=0;j<${#ion_numb_arra[*]};j++));do
@@ -61,17 +59,10 @@ for file in `find $read_dire -name "OUTCAR"`;do
 			grep -A $(($syst_numb_atom + 1)) "TOTAL-FORCE (eV/Angst)" temp.file | tail -n $syst_numb_atom > $writ_dire/posi_forc.tem
 			paste $writ_dire/symb.tem $writ_dire/posi_forc.tem >> $writ_dire/$writ_file
 			rm -f $writ_dire/*.tem
-		#echo "-------- case: $file | frame=$i done, next ... -------------------"		
 		done
 		rm -f temp.file
 	        echo -n "$N_count/$N_case "
              	N_count=$((N_count + 1))
-       else
-             	echo ""
-             	echo "!!!!!!!!!!!!!!!!!!!!! WARNING WARNING WARNING !!!!!!!!!!!!!!!!!!"
-             	echo "!!! Something wrong happened casue the number of direct or reciprocal lattice vector components is not 9 in $file !!!"
-             	echo "!!! So the script is skipping this situation and continue ... !!!"
-             	echo "!!! It is caused by the ugly formated OUTCAR, user please check it in person.!!!"
-             	echo "!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!"
-       fi
 done
+dos2unix $writ_dire/$writ_file
+echo "All done."
