@@ -2,10 +2,11 @@
     Purpose:
         Convert the nep training file (train.in) to xyz format (*.xyz).
         And be further converted into other format through the "dpdata" tool.
+        Both absolute and relative paths can now be considered.
     Ref:
         dpdata: https://github.com/deepmodeling/dpdata
     Run:
-        python nep2xyz.py indoc
+        python nep2xyz.py ${nepfile} ${xyzfile}
     Author:
         Ke Xu <twtdq(at)qq.com>
 """
@@ -40,10 +41,10 @@ def vec2volume(cells):
 
 # Load NEP dataset file (train.in)
 # input: the path of train.in file.
-def load_type(folder, nep_version=3, type_map=['C','H','O']):
+def load_type(nepfile, nep_version=3, type_map=['C','H','O']):
 
     data = {}
-    data['infile'] = os.path.join(folder, 'train.in')
+    data['infile'] = nepfile
 
     with open(data['infile'], 'r') as fraw:
 
@@ -130,7 +131,7 @@ def convervirial(invirial):
 
 
 # output
-def print_xyz(data, folder):
+def print_xyz(data, xyzfile):
 
     Out_string = ""
     for i in range(data['nframe']):
@@ -150,7 +151,7 @@ def print_xyz(data, folder):
             Out_string += " ".join(list(map(str, data['coords'][i][j]))) + " "
             Out_string += " ".join(list(map(str, data['forces'][i][j]))) + "\n"
 
-    fo = open(os.path.join(folder, 'trans-train.xyz'), 'w')
+    fo = open(xyzfile, 'w')
     fo.write(Out_string)
     fo.close()
 
@@ -168,11 +169,11 @@ def conver2deepmd(instr):
 
 def main():
 
-    instr = sys.argv[1]
+    nepfile = sys.argv[1]
+    xyzfile = sys.argv[2]
     # if new_version == 2, you must add the type_map keywords.
-    data = load_type('./'+instr, nep_version=3)
-    print_xyz(data, './'+instr)
-
+    data = load_type(nepfile, nep_version=3)
+    print_xyz(data, xyzfile)
     #conver2deepmd(instr)
 
 
