@@ -52,7 +52,6 @@ html_context = {
 htmlhelp_basename = 'GPUMDdoc'
 intersphinx_mapping = \
     {'numpy':   ('https://numpy.org/doc/stable/', None),
-     'h5py':    ('http://docs.h5py.org/en/latest/', None),
      'scipy':   ('https://scipy.github.io/devdocs/', None),
      'sklearn': ('https://scikit-learn.org/stable', None)}
 
