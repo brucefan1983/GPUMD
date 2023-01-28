@@ -214,7 +214,12 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       PRINT_INPUT_ERROR("Failed to open nep.txt.");
     }
     std::vector<std::string> tokens;
-    for (int n = 0; n < 6; ++n) {
+    tokens = get_tokens(input);
+    int num_lines_to_be_skipped = 5;
+    if (tokens[0] == "nep_zbl" || tokens[0] == "nep3_zbl" || tokens[0] == "nep4_zbl") {
+      num_lines_to_be_skipped = 6;
+    }
+    for (int n = 0; n < num_lines_to_be_skipped; ++n) {
       tokens = get_tokens(input);
     }
     for (int n = 0; n < number_of_variables; ++n) {
