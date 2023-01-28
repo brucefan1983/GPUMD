@@ -35,6 +35,8 @@ struct NEP3_Data {
   GPU_Vector<float> Fp;          // gradient of descriptors
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> parameters; // parameters to be optimized
+  GPU_Vector<float> table_gn;   // table for g_n(r_ij)
+  GPU_Vector<float> table_gnp;  // table for g_n(r_ij)
 };
 
 class NEP3 : public Potential
