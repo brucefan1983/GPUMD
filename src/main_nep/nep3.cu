@@ -141,27 +141,30 @@ static __device__ void find_table_gn_one_point(
   }
 }
 
-static __global__ void
-find_table_gn(const NEP3::ParaMB paramb, const NEP3::ANN annmb, float* g_gn, float* g_gnp)
+static __global__ void find_table_gn(
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  float* g_gn_radial,
+  float* g_gnp_radial,
+  float* g_gn_angular,
+  float* g_gnp_angular)
 {
   int m = threadIdx.x + blockIdx.x * blockDim.x;
-  if (m < paramb.num_types_sq * 1000) {
-    int gn_offset = m * (paramb.n_max_radial + paramb.n_max_angular + 2);
+  if (m < paramb.num_types_sq * 1001) {
 
     find_table_gn_one_point(
       m, paramb.version, paramb.num_types, paramb.num_types_sq, paramb.n_max_radial,
-      paramb.basis_size_radial, paramb.rc_radial, paramb.rcinv_radial, annmb.c, g_gn + gn_offset,
-      g_gnp + gn_offset);
+      paramb.basis_size_radial, paramb.rc_radial, paramb.rcinv_radial, annmb.c,
+      g_gn_radial + m * (paramb.n_max_radial + 1), g_gnp_radial + m * (paramb.n_max_radial + 1));
 
     int c_offset =
-      (paramb.version == 2) ? (paramb.n_max_radial + 1) * paramb.num_types : paramb.num_c_radial;
-
-    gn_offset = m * (paramb.n_max_radial + paramb.n_max_angular + 2) + paramb.n_max_radial + 1;
+      (paramb.version == 2) ? (paramb.n_max_radial + 1) * paramb.num_types_sq : paramb.num_c_radial;
 
     find_table_gn_one_point(
       m, paramb.version, paramb.num_types, paramb.num_types_sq, paramb.n_max_angular,
       paramb.basis_size_angular, paramb.rc_angular, paramb.rcinv_angular, annmb.c + c_offset,
-      g_gn + gn_offset, g_gnp + gn_offset);
+      g_gn_angular + m * (paramb.n_max_angular + 1),
+      g_gnp_angular + m * (paramb.n_max_angular + 1));
   }
 }
 
@@ -175,7 +178,7 @@ static __global__ void find_descriptors_radial(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
-  const float* __restrict__ g_table_gn,
+  const float* __restrict__ g_gn_radial,
   float* g_descriptors)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
@@ -190,17 +193,18 @@ static __global__ void find_descriptors_radial(
       float y12 = g_y12[index];
       float z12 = g_z12[index];
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-      float d12_999 = d12 / paramb.rcinv_radial * 998.999f;
+      float d12_999 = d12 / paramb.rcinv_radial * 999.999f;
       int index_left = int(d12_999);
       int index_right = index_left + 1;
       float weight_right = d12_999 - index_left;
       float weight_left = 1.0f - weight_right;
       int t12 = t1 * paramb.num_types + g_type[n2];
-      int n_max_total = paramb.n_max_radial + paramb.n_max_angular + 2;
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         q[n] +=
-          g_table_gn[(index_left * paramb.num_types_sq + t12) * n_max_total + n] * weight_left +
-          g_table_gn[(index_right * paramb.num_types_sq + t12) * n_max_total + n] * weight_right;
+          g_gn_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+            weight_left +
+          g_gn_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+            weight_right;
       }
     }
     for (int n = 0; n <= paramb.n_max_radial; ++n) {
@@ -219,7 +223,7 @@ static __global__ void find_descriptors_angular(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
-  const float* __restrict__ g_table_gn,
+  const float* __restrict__ g_gn_angular,
   float* g_descriptors,
   float* g_sum_fxyz)
 {
@@ -238,17 +242,17 @@ static __global__ void find_descriptors_angular(
         float y12 = g_y12[index];
         float z12 = g_z12[index];
         float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
-        float d12_999 = d12 / paramb.rcinv_angular * 998.999f;
+        float d12_999 = d12 / paramb.rcinv_angular * 999.999f;
         int index_left = int(d12_999);
         int index_right = index_left + 1;
         float weight_right = d12_999 - index_left;
         float weight_left = 1.0f - weight_right;
         int t12 = t1 * paramb.num_types + g_type[n2];
-        int n_max_total = paramb.n_max_radial + paramb.n_max_angular + 2;
-        int m = n + paramb.n_max_radial + 1;
         float gn12 =
-          g_table_gn[(index_left * paramb.num_types_sq + t12) * n_max_total + m] * weight_left +
-          g_table_gn[(index_right * paramb.num_types_sq + t12) * n_max_total + m] * weight_right;
+          g_gn_angular[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
+            weight_left +
+          g_gn_angular[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n] *
+            weight_right;
         accumulate_s(d12, x12, y12, z12, gn12, s);
       }
       if (paramb.num_L == paramb.L_max) {
@@ -333,10 +337,14 @@ NEP3::NEP3(
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
-    nep_data[device_id].table_gn.resize(
-      paramb.num_types_sq * (paramb.n_max_radial + paramb.n_max_angular + 2) * 1000);
-    nep_data[device_id].table_gnp.resize(
-      paramb.num_types_sq * (paramb.n_max_radial + paramb.n_max_angular + 2) * 1000);
+    nep_data[device_id].table_gn_radial.resize(
+      paramb.num_types_sq * (paramb.n_max_radial + 1) * 1001);
+    nep_data[device_id].table_gnp_radial.resize(
+      paramb.num_types_sq * (paramb.n_max_radial + 1) * 1001);
+    nep_data[device_id].table_gn_angular.resize(
+      paramb.num_types_sq * (paramb.n_max_angular + 1) * 1001);
+    nep_data[device_id].table_gnp_angular.resize(
+      paramb.num_types_sq * (paramb.n_max_angular + 1) * 1001);
   }
 }
 
@@ -515,7 +523,7 @@ static __global__ void find_force_radial(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
-  const float* __restrict__ g_table_gnp,
+  const float* __restrict__ g_gnp_radial,
   const float* __restrict__ g_Fp,
   float* g_fx,
   float* g_fy,
@@ -539,18 +547,19 @@ static __global__ void find_force_radial(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
 
-      float d12_999 = d12 / paramb.rcinv_radial * 998.999f;
+      float d12_999 = d12 / paramb.rcinv_radial * 999.999f;
       int index_left = int(d12_999);
       int index_right = index_left + 1;
       float weight_right = d12_999 - index_left;
       float weight_left = 1.0f - weight_right;
       int t12 = t1 * paramb.num_types + g_type[n2];
-      int n_max_total = paramb.n_max_radial + paramb.n_max_angular + 2;
       float f12[3] = {0.0f};
       for (int n = 0; n <= paramb.n_max_radial; ++n) {
         float gnp12 =
-          g_table_gnp[(index_left * paramb.num_types_sq + t12) * n_max_total + n] * weight_left +
-          g_table_gnp[(index_right * paramb.num_types_sq + t12) * n_max_total + n] * weight_right;
+          g_gnp_radial[(index_left * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+            weight_left +
+          g_gnp_radial[(index_right * paramb.num_types_sq + t12) * (paramb.n_max_radial + 1) + n] *
+            weight_right;
         float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
         for (int d = 0; d < 3; ++d) {
           f12[d] += tmp12 * r12[d];
@@ -598,8 +607,8 @@ static __global__ void find_force_angular(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
-  const float* __restrict__ g_table_gn,
-  const float* __restrict__ g_table_gnp,
+  const float* __restrict__ g_gn_angular,
+  const float* __restrict__ g_gnp_angular,
   const float* __restrict__ g_Fp,
   const float* __restrict__ g_sum_fxyz,
   float* g_fx,
@@ -633,45 +642,32 @@ static __global__ void find_force_angular(
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
 
-      float d12_999 = d12 / paramb.rcinv_angular * 998.999f;
+      float d12_999 = d12 / paramb.rcinv_angular * 999.999f;
       int index_left = int(d12_999);
       int index_right = index_left + 1;
       float weight_right = d12_999 - index_left;
       float weight_left = 1.0f - weight_right;
       int t12 = t1 * paramb.num_types + g_type[n2];
-      int n_max_total = paramb.n_max_radial + paramb.n_max_angular + 2;
 
       float f12[3] = {0.0f};
 
-      if (paramb.version == 2) {
-        for (int n = 0; n <= paramb.n_max_angular; ++n) {
-          int m = n + paramb.n_max_radial + 1;
-          int index_left_all = (index_left * paramb.num_types_sq + t12) * n_max_total + m;
-          int index_right_all = (index_right * paramb.num_types_sq + t12) * n_max_total + m;
-          float gn12 =
-            g_table_gn[index_left_all] * weight_left + g_table_gn[index_right_all] * weight_right;
-          float gnp12 =
-            g_table_gnp[index_left_all] * weight_left + g_table_gnp[index_right_all] * weight_right;
+      for (int n = 0; n <= paramb.n_max_angular; ++n) {
+        int index_left_all =
+          (index_left * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
+        int index_right_all =
+          (index_right * paramb.num_types_sq + t12) * (paramb.n_max_angular + 1) + n;
+        float gn12 =
+          g_gn_angular[index_left_all] * weight_left + g_gn_angular[index_right_all] * weight_right;
+        float gnp12 = g_gnp_angular[index_left_all] * weight_left +
+                      g_gnp_angular[index_right_all] * weight_right;
+        if (paramb.num_L == paramb.L_max) {
           accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-        }
-      } else {
-        for (int n = 0; n <= paramb.n_max_angular; ++n) {
-          int m = n + paramb.n_max_radial + 1;
-          int index_left_all = (index_left * paramb.num_types_sq + t12) * n_max_total + m;
-          int index_right_all = (index_right * paramb.num_types_sq + t12) * n_max_total + m;
-          float gn12 =
-            g_table_gn[index_left_all] * weight_left + g_table_gn[index_right_all] * weight_right;
-          float gnp12 =
-            g_table_gnp[index_left_all] * weight_left + g_table_gnp[index_right_all] * weight_right;
-          if (paramb.num_L == paramb.L_max) {
-            accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-          } else if (paramb.num_L == paramb.L_max + 1) {
-            accumulate_f12_with_4body(
-              n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-          } else {
-            accumulate_f12_with_5body(
-              n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
-          }
+        } else if (paramb.num_L == paramb.L_max + 1) {
+          accumulate_f12_with_4body(
+            n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
+        } else {
+          accumulate_f12_with_5body(
+            n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);
         }
       }
 
@@ -809,9 +805,10 @@ void NEP3::find_force(
       nep_data[device_id].z12_angular.data());
     CUDA_CHECK_KERNEL
 
-    find_table_gn<<<(paramb.num_types_sq * 1000 - 1) / 64 + 1, 64>>>(
-      paramb, annmb[device_id], nep_data[device_id].table_gn.data(),
-      nep_data[device_id].table_gnp.data());
+    find_table_gn<<<(paramb.num_types_sq * 1001 - 1) / 64 + 1, 64>>>(
+      paramb, annmb[device_id], nep_data[device_id].table_gn_radial.data(),
+      nep_data[device_id].table_gnp_radial.data(), nep_data[device_id].table_gn_angular.data(),
+      nep_data[device_id].table_gnp_angular.data());
     CUDA_CHECK_KERNEL
 
     find_descriptors_radial<<<grid_size, block_size>>>(
@@ -819,7 +816,7 @@ void NEP3::find_force(
       nep_data[device_id].NL_radial.data(), paramb, annmb[device_id],
       dataset[device_id].type.data(), nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(), nep_data[device_id].z12_radial.data(),
-      nep_data[device_id].table_gn.data(), nep_data[device_id].descriptors.data());
+      nep_data[device_id].table_gn_radial.data(), nep_data[device_id].descriptors.data());
     CUDA_CHECK_KERNEL
 
     find_descriptors_angular<<<grid_size, block_size>>>(
@@ -827,7 +824,7 @@ void NEP3::find_force(
       nep_data[device_id].NL_angular.data(), paramb, annmb[device_id],
       dataset[device_id].type.data(), nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(), nep_data[device_id].z12_angular.data(),
-      nep_data[device_id].table_gn.data(), nep_data[device_id].descriptors.data(),
+      nep_data[device_id].table_gn_angular.data(), nep_data[device_id].descriptors.data(),
       nep_data[device_id].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
@@ -866,7 +863,7 @@ void NEP3::find_force(
       nep_data[device_id].NL_radial.data(), paramb, annmb[device_id],
       dataset[device_id].type.data(), nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(), nep_data[device_id].z12_radial.data(),
-      nep_data[device_id].table_gnp.data(), nep_data[device_id].Fp.data(),
+      nep_data[device_id].table_gnp_radial.data(), nep_data[device_id].Fp.data(),
       dataset[device_id].force.data(), dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2, dataset[device_id].virial.data());
     CUDA_CHECK_KERNEL
@@ -876,7 +873,7 @@ void NEP3::find_force(
       nep_data[device_id].NL_angular.data(), paramb, annmb[device_id],
       dataset[device_id].type.data(), nep_data[device_id].x12_angular.data(),
       nep_data[device_id].y12_angular.data(), nep_data[device_id].z12_angular.data(),
-      nep_data[device_id].table_gn.data(), nep_data[device_id].table_gnp.data(),
+      nep_data[device_id].table_gn_angular.data(), nep_data[device_id].table_gnp_angular.data(),
       nep_data[device_id].Fp.data(), nep_data[device_id].sum_fxyz.data(),
       dataset[device_id].force.data(), dataset[device_id].force.data() + dataset[device_id].N,
       dataset[device_id].force.data() + dataset[device_id].N * 2, dataset[device_id].virial.data());
