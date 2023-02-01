@@ -12,6 +12,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    :caption: Setup
 
    velocity
+   correct_velocity
    potential
    change_box
    deform
