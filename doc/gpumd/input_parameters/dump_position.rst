@@ -12,15 +12,15 @@ Syntax
 
 .. code::
 
-   dump_position interval <options>
+   dump_position <interval> [{optional_args}]
 
 The :attr:`interval` parameter is the output interval (number of steps) of the atom positions.
 
-The :attr:`<options>` can be :attr:`group` or :attr:`precision`, which can be in any order.
+The optional arguments (:attr:`<optional_args>`) can be :attr:`group` or :attr:`precision`, which can be in any order.
 
 The option :attr:`group` shoud have two parameters::
 
-  group grouping_method group_id
+  group <grouping_method> <group_id>
 
 which means only dumping positions of atoms in group :attr:`group_id` within the grouping method :attr:`grouping_method`.
 If this option is not used, positions will be dumped for all the atoms.

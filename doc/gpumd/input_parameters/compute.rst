@@ -12,7 +12,7 @@ The results are written to the :ref:`compute.out output file <compute_out>`.
 Syntax
 ------
 It is used in the following way::
-  compute grouping_method sample_interval output_interval quantity_1 quantity_2 ...
+  compute <grouping_method> <sample_interval> <output_interval> {<quantity>}
 
 The first parameter :attr:`grouping_method` refers to the grouping method defined in the :ref:`simulation model file <model_xyz>`.
 This parameter should be an integer and a number :math:`m` means the :math:`m`-th grouping method (we count from 0) in the :ref:`simulation model file <model_xyz>`.

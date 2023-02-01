@@ -15,7 +15,7 @@ Syntax
 ------
 For this keyword, the command looks like::
 
-  compute_dos sample_interval Nc omega_max <optional_args>
+  compute_dos <sample_interval> <Nc> <omega_max> [{<optional_arg>}]
 
 with parameters defined as:
 
@@ -23,17 +23,17 @@ with parameters defined as:
 * :attr:`Nc`: Maximum number of correlation steps
 * :attr:`omega_max`: Maximum angular frequency :math:`\omega_{max}=2\pi\nu_{max}` used in the :term:`PDOS` calculation
 
-The :attr:`optional_args` provide additional functionality by allowing special keywords.
+The optional arguments (:attr:`optional_arg`) provide additional functionality by allowing special keywords.
 The keywords for this function are :attr:`group` and :attr:`num_dos_points`.
 These keywords can be used in any order but the parameters associated with each must follow directly.
 The parameters are:
 
-* :attr:`group group_method group`
+* :attr:`group <group_method> <group>`
 
  * :attr:`group_method`: The grouping method to use for computation
  * :attr:`group`: The group in the grouping method to use
 
-* :attr:`num_dos_points points`
+* :attr:`num_dos_points <points>`
 
  * :attr:`points`: Number of frequency points to be used in the DOS calculation (:attr:`Nc` if option not selected)
 

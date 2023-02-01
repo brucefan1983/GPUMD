@@ -12,13 +12,13 @@ Syntax
 
 .. code::
 
-   dump_force interval <options>
+   dump_force <interval> {<optional_args>}
 
 The :attr:`interval` parameter is the output interval (number of steps) of the atom forces.
-At the moment, :attr:`<options>` can only assume the value :attr:`group`.
+At the moment, the optional arguments (:attr:`optional_args`) can only assume the value :attr:`group`.
 The option :attr:`group` shoud have two parameters::
 
-  group grouping_method group_id
+  group <grouping_method> <group_id>
 
 which means only dumping forces of atoms in group :attr:`group_id` within the grouping method :attr:`grouping_method`.
 If this option is not used, the forces will be written for all the atoms.

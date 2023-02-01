@@ -64,7 +64,7 @@ This keyword accepts 1 or 3 or 6 parameters.
 
 In the case of 1 parameter :math:`\delta` (in units of Ångstrom)::
 
- change_box delta
+ change_box <delta>
 
 we have
 
@@ -87,7 +87,7 @@ we have
 
 In the case of 3 parameters, :math:`\delta_{xx}` (in units of Ångstrom), :math:`\delta_{yy}` (in units of Ångstrom), and :math:`\delta_{zz}` (in units of Ångstrom)::
   
-   change_box delta_xx delta_yy delta_zz
+   change_box <delta_xx> <delta_yy> <delta_zz>
 
 we have
 
@@ -111,7 +111,7 @@ we have
 
 In the case of 6 parameters (the box type must be triclinic), :math:`\delta_{xx}` (in units of Ångstrom), :math:`\delta_{yy}` (in units of Ångstrom), :math:`\delta_{zz}` (in units of Ångstrom), :math:`\epsilon_{yz}` (dimensionless strain), :math:`\epsilon_{xz}` (dimensionless strain), and :math:`\epsilon_{xy}` (dimensionless strain)::
 
-  change_box delta_xx delta_yy delta_zz epsilon_yz epsilon_xz epsilon_xy
+  change_box <delta_xx> <delta_yy> <delta_zz> <epsilon_yz> <epsilon_xz> <epsilon_xy>
 
 we have
 

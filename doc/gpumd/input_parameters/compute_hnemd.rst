@@ -13,7 +13,7 @@ Syntax
 
 .. code::
 
-   compute_hnemd output_interval Fe_x Fe_y Fe_z
+   compute_hnemd <output_interval> <Fe_x> <Fe_y> <Fe_z>
 
 The first parameter is the output interval.
 

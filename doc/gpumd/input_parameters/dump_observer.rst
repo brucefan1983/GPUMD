@@ -16,8 +16,7 @@ Syntax
 
 .. code::
 
-   dump_observer mode interval has_velocity has_force
-
+   dump_observer <mode> <interval> <has_velocity> <has_force>
 
 :attr:`mode` corresponds to the two cases described above, and can be either `observe` or `average`.
 :attr:`interval` parameter is the output interval (number of steps) of the data.

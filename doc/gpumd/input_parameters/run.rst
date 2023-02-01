@@ -11,7 +11,7 @@ Syntax
 ------
 This keyword only requires a single parameter, which is the number of steps to be run::
 
-  run number_of_steps
+  run <number_of_steps>
 
 Example
 -------

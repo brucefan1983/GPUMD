@@ -12,13 +12,13 @@ Syntax
 
 .. code::
 
-   dump_velocity interval <options>
+   dump_velocity <interval> [{optional_args}]
 
 Here, the :attr:`interval` parameter is the output interval (number of steps) of the atomic velocities.
-At the moment, the only permissible value for :attr:`<options>` is :attr:`group`.
+At the moment, the only optional argument (:attr:`optional_args`) is :attr:`group`.
 The option :attr:`group` shoud have two parameters::
 
-  group grouping_method group_id
+  group <grouping_method> <group_id>
 
 which means only dumping velocities of atoms in group :attr:`group_id` within the grouping method :attr:`grouping_method`.
 If this option is not used, velocities will be dumped for all the atoms.

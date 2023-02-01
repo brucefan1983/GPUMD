@@ -13,7 +13,7 @@ Syntax
 
 This keyword is used as follows::
 
-  compute_elastic strain_value symmetry_type
+  compute_elastic <strain_value> <symmetry_type>
 
 :attr:`strain_value` is the amount of strain to be applied in the calculations.
 

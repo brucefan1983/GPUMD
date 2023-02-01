@@ -11,7 +11,7 @@ Syntax
 ------
 * This keyword only has one parameter, which is the initial temperature of the system::
   
-    velocity initial_temperature
+    velocity <initial_temperature>
 
 * The temperature is in units of kelvin (K).
 

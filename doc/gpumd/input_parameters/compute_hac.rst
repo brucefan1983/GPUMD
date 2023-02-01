@@ -12,7 +12,7 @@ Syntax
 ------
 This keyword has 3 parameters::
 
-  compute_hac sampling_interval correlation_steps output_interval
+  compute_hac <sampling_interval> <correlation_steps> <output_interval>
 
 The first parameter is the sampling interval for the heat current data. 
 The second parameter is the maximum correlations steps. 

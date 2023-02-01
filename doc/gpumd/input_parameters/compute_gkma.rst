@@ -14,7 +14,7 @@ Syntax
 
 .. code::
 
-   compute_gkma sample_interval first_mode last_mode bin_option size
+   compute_gkma <sample_interval> <first_mode> <last_mode> <bin_option> <size>
 
 :attr:`sample_interval` is the sampling interval (in number of steps) used to compute the heat modal heat current.
 

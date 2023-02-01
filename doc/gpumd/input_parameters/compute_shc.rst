@@ -14,7 +14,7 @@ Syntax
 
 .. code::
 
-   compute_shc sample_interval Nc transport_direction num_omega max_omega <options>
+   compute_shc <sample_interval> <Nc> <transport_direction> <num_omega> <max_omega> [{<optional_arg>}]
 
 :attr:`sample_interval` is the sampling interval (number of steps) between two correlation steps.
 This parameter must be an integer that is :math:`\geq 1` and :math:`\leq 10`. 
@@ -30,9 +30,9 @@ It can only be 0, 1, and 2, corresponding to the :math:`x`, :math:`y`, and :math
 :attr:`max_omega` is the maximum angular frequency (in units of THz) one wants to consider.
 The angular frequency data will be :attr:`max_omega/num_omega, 2*max_omega/num_omega, ..., max_omega`.
 
-:attr:`<options>` can only be :attr:`group`, which requires two parameters::
+:attr:`<optional_arg>` can only be :attr:`group`, which requires two parameters::
 
-   group grouping_method group_id
+   group <grouping_method> <group_id>
 
 This meas that :math:`K(t)` will be calculated for atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
 Here :attr:`group_id` should be :math:`\geq 0` and smaller than the number of groups in grouping method :attr:`grouping_method`.
