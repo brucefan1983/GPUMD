@@ -331,8 +331,8 @@ void Parameters::report_inputs()
   // some calcuated parameters:
   printf("Some calculated parameters:\n");
   printf("    number of radial descriptor components = %d.\n", dim_radial);
-  printf("    number of angualr descriptor components = %d.\n", dim_angular);
-  printf("    total number of  descriptor components = %d.\n", dim);
+  printf("    number of angular descriptor components = %d.\n", dim_angular);
+  printf("    total number of descriptor components = %d.\n", dim);
   printf("    NN architecture = %d-%d-1.\n", dim, num_neurons1);
   printf(
     "    number of NN parameters to be optimized = %d.\n",
@@ -803,7 +803,7 @@ void Parameters::parse_population(const char** param, int num_param)
   is_population_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("population should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("The population keyword must be followed by a parameter.\n");
   }
   if (!is_valid_int(param[1], &population_size)) {
     PRINT_INPUT_ERROR("population size should be an integer.\n");
@@ -825,10 +825,9 @@ void Parameters::parse_population(const char** param, int num_param)
     population_should_increase = 0;
   }
   if (population_should_increase != 0) {
-    printf("Hello! I found your input (default) populaiton size is not divisible by total GPU "
-           "numbers.\n");
-    printf("This causes some GPU resources wasted.\n");
-    printf("So I increased population size to %d. I hope you understand.\n", population_size);
+    printf("The input population size is not divisible by the number of GPUs.\n");
+    printf("This causes an inefficient use of resources.\n");
+    printf("The population size has therefore been increase to %d.\n", population_size);
   }
 }
 
