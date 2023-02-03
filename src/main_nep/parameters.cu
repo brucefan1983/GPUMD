@@ -827,7 +827,7 @@ void Parameters::parse_population(const char** param, int num_param)
   if (population_should_increase != 0) {
     printf("The input population size is not divisible by the number of GPUs.\n");
     printf("This causes an inefficient use of resources.\n");
-    printf("The population size has therefore been increase to %d.\n", population_size);
+    printf("The population size has therefore been increased to %d.\n", population_size);
   }
 }
 
