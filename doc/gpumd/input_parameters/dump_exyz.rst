@@ -12,7 +12,7 @@ Syntax
 
 .. code::
 
-   dump_exyz interval has_velocity has_force
+   dump_exyz <interval> <has_velocity> <has_force>
 
 Here, the :attr:`interval` parameter is the output interval (number of steps) of the data.
 :attr:`has_velocity` can be 1 or 0, which means the velocities will or will not be included in the output.
@@ -21,8 +21,6 @@ Here, the :attr:`interval` parameter is the output interval (number of steps) of
 Examples
 --------
 
-Example 1
-^^^^^^^^^
 To dump the positions, velocities, and forces every 1000 steps for a run, one can add::
 
   dump_exyz 1000 1 1

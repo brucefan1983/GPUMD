@@ -27,7 +27,7 @@ Syntax
 
 This keyword is used as follows::
 
-  compute_phonon cutoff displacement
+  compute_phonon <cutoff> <displacement>
 
 :attr:`cutoff` is the cutoff distance (in units of Å) for calculating the force constants.
 

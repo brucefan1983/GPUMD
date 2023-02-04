@@ -12,7 +12,7 @@ Syntax
 This keyword requires a single parameter which is the label of the group in which the atoms are to be fixed (velocities and forces are always set to zero such that the atoms in the group do not move).
 The full command reads::
 
-  fix group_label
+  fix <group_label>
 
 Here, the :attr:`group_label` refers to the grouping method 0 defined in the :ref:`simulation model file <model_xyz>`.
 

@@ -12,6 +12,8 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
    :caption: Keywords
 
    version
+   prediction
+   train_mode
    type
    type_weight
    zbl

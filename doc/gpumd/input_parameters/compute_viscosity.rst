@@ -12,7 +12,7 @@ Syntax
 ------
 This keyword has 2 parameters::
 
-  compute_viscosity sampling_interval correlation_steps
+  compute_viscosity <sampling_interval> <correlation_steps>
 
 The first parameter is the sampling interval for the stress data. 
 The second parameter is the total number of correlations steps. 

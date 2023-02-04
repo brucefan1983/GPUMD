@@ -65,15 +65,15 @@ If the first parameter is :attr:`npt_ber`, it means that the ensemble for the cu
 In this case, apart from the same parameters as in the case of :attr:`nvt_ber`, one needs to further specify some target pressure(s), the same number of estimated elastic moduli, and a pressure coupling constant :attr:`p_coup`.
 The general format is::
 
-  ensemble npt_ber T_1 T_2 T_coup <pressure_control_parameters>
+  ensemble npt_ber <T_1> <T_2> <T_coup> {<pressure_control_parameters>}
 
-with three different options for specifying :attr:`<pressure_control_parameters>`:
+with three different options for specifying :attr:`pressure_control_parameters`:
 
 * *Condition 1*: Cell shape updates are isotropic
 
   .. code::
 
-     p_hydro C_hydro p_coup
+     <p_hydro> <C_hydro> <p_coup>
     
   This means you regard your system as isotropic and want to control the three box lengths uniformly according to the hydrostatic pressure :attr:`p_hydro = (p_xx + p_yy + p_zz)/3`.
   All directions should have periodic boundary conditions.
@@ -83,7 +83,7 @@ with three different options for specifying :attr:`<pressure_control_parameters>
 
   .. code::
 
-     p_xx p_yy p_zz C_xx C_yy C_zz p_coup
+     <p_xx> <p_yy> <p_zz> <C_xx> <C_yy> <C_zz> <p_coup>
 
   In this case, the simulation box must be orthogonal.
   The three box lengths will be controlled independently according to their respective target pressures.
@@ -93,7 +93,7 @@ with three different options for specifying :attr:`<pressure_control_parameters>
 
   .. code::
 
-     p_xx p_yy p_zz p_yz p_xz p_xy C_xx C_yy C_zz C_yz C_xz C_xy p_coup
+     <p_xx> <p_yy> <p_zz> <p_yz> <p_xz> <p_xy> <C_xx> <C_yy> <C_zz> <C_yz> <C_xz> <C_xy> <p_coup>
 
   The simulation box must be triclinic and all the directions must be periodic.
   All cell components will be controlled independently according to the 6 target pressure components.
@@ -110,7 +110,7 @@ If the first parameter is :attr:`npt_scr`, it is similar to the case of :attr:`n
 If the first parameter is :attr:`heat_nhc`, it means heating a source region and simultaneously cooling a sink region using local :ref:`Nose-Hoover chain thermostats <nose_hoover_chain_thermostat>`.
 The full command is::
 
-  ensemble heat_nhc T T_coup delta_T label_source label_sink
+  ensemble heat_nhc <T> <T_coup> <delta_T> <label_source> <label_sink>
 
 The target temperatures in the source region with label :attr:`label_source` and the sink region with label :attr:`label_sink` are :attr:`T+delta_T` and :attr:`T-delta_T`, respectively.
 Therefore, the temperature difference between the two regions is two times :attr:`delta_T`.

@@ -12,7 +12,7 @@ Syntax
 
 This keyword only requires a single parameter, which is the output interval (number of steps) of updating the restart file::
 
-  dump_restart interval
+  dump_restart <interval>
 
 Example
 -------

@@ -13,7 +13,7 @@ Syntax
 
 .. code::
 
-   compute_hnema sample_interval output_interval Fe_x Fe_y Fe_z first_mode last_mode bin_option size
+   compute_hnema <sample_interval> <output_interval> <Fe_x> <Fe_y> <Fe_z> <first_mode> <last_mode> <bin_option> <size>
 
 :attr:`sample_interval` is the sampling interval (in number of steps) used to compute the heat modal heat current.
 Must be a divisor of :attr:`output_interval`.

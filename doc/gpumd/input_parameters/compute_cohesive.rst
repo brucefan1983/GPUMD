@@ -14,7 +14,7 @@ Syntax
 
 This keyword is used as follows::
 
-  compute_cohesive e1 e2 num_points
+  compute_cohesive <e1> <e2> <num_points>
 
 Here,
 :attr:`e1` is the smaller box-scaling factor,

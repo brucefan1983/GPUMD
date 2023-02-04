@@ -12,7 +12,7 @@ Syntax
 
 This keyword only requires a single parameter, which is the output interval (number of steps) of the global thermodynamic quantities::
 
-  dump_thermo interval
+  dump_thermo <interval>
 
 Example
 -------

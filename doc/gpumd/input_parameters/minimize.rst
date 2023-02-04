@@ -14,7 +14,7 @@ Syntax
 
 This keyword is used as follows::
 
-  minimize sd force_tolerance maximal_number_of_steps
+  minimize sd <force_tolerance> <maximal_number_of_steps>
 
 Here,
 :attr:`sd` means using the steepest descent method.

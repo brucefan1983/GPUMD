@@ -13,16 +13,16 @@ Syntax
 
 This keyword has the following format::
 
-  dump_netcdf interval <optional_args>
+  dump_netcdf <interval> [{optional_args}]
 
 The :attr:`interval` parameter is the output interval (number of steps) of the atom positions.
-The :attr:`optional_args` provide additional functionality.
+The optinal arguments (:attr:`optional_args`) provide additional functionality.
 Currently, the following optional argument is accepted:
 
-* :attr:`precision`
+* :attr:`precision <value>`
   
-  * If :attr:`precision` is ``single``, the output data are 32-bit floating point numbers.
-  * If :attr:`precision` is ``double``, the output data are 64-bit floating point numbers.
+  * If :attr:`value` is ``single``, the output data are 32-bit floating point numbers.
+  * If :attr:`value` is ``double``, the output data are 64-bit floating point numbers.
 
   The default value is ``double``.
 

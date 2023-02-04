@@ -13,18 +13,18 @@ Syntax
 ------
 For this keyword, the command looks like::
   
-  compute_msd sample_interval Nc <optional_arg>
+  compute_msd <sample_interval> <Nc> [<optional_arg>]
 
 with parameters defined as
 
 * :attr:`sample_interval`: Sampling interval of the position data
 * :attr:`Nc`: Maximum number of correlation steps
 
-The :attr:`optional_arg` allows an additional special keyword.
+The optional argument :attr:`optional_arg` allows an additional special keyword.
 The keyword for this function is :attr:`group`.
 The parameters are:
 
-* :attr:`group group_method group`, where :attr:`group_method` is the grouping method to use for computation and :attr:`group` is the group in the grouping method to use
+* :attr:`group <group_method> <group>`, where :attr:`group_method` is the grouping method to use for computation and :attr:`group` is the group in the grouping method to use
 
 Examples
 --------

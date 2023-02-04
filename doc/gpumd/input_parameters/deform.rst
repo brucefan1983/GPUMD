@@ -12,7 +12,7 @@ Syntax
 
 The :attr:`deform` keyord requires 4 parameters::
 
-  deform A_per_step deform_x deform_y deform_z
+  deform <A_per_step> <deform_x> <deform_y> <deform_z>
 
 Here, :attr:`A_per_step` specifies the speed of the increase of the box length, which is in units of Ångstrom/step.
 For example, suppose the box length (in a given direction) in the beginning of a run is 100 Ångstrom and this parameter is :math:`10^{-5}` Ångstrom/step, then a run with :math:`10^{6}` steps will change the box length by 10%.
