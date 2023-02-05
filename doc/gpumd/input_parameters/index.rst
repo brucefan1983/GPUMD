@@ -41,7 +41,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_viscosity
 
 .. toctree::
-   :maxdepth: 0
+   :maxdepth: 1
    :caption: Output
 
    dump_exyz
