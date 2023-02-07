@@ -144,9 +144,11 @@ void Dump_Observer::preprocess(const int number_of_atoms, const int number_of_po
 void Dump_Observer::process(
     int step,
     const double global_time,
+    std::vector<Group>& group,
     Box& box,
     Atom& atom,
     Force& force,
+    Integrate& integrate,
     GPU_Vector<double>& thermo)
 {
   // Only run if should dump, since forces have to be recomputed with each potential.
@@ -169,6 +171,10 @@ void Dump_Observer::process(
       // Compute new potential properties
       force.potentials[potential_index]->compute(box, atom.type, atom.position_per_atom, 
           atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      //TODO recompute thermo
+      integrate.ensemble->find_thermo(
+          false, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom, atom.virial_per_atom,
+          thermo);
       // Write properties
       write(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
         atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,

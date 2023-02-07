@@ -18,12 +18,14 @@
 #include "utilities/gpu_vector.cuh"
 #include "force/force.cuh"
 #include "model/atom.cuh"
-#include "dump_exyz.cuh"
+#include "integrate/integrate.cuh"
+#include "model/group.cuh"
 #include <vector>
 #include <string>
 class Box;
 class Atom;
 class Force;
+class Integrate;
 
 class Dump_Observer
 {
@@ -36,9 +38,11 @@ public:
   void process(
     int step,
     const double global_time,
+    std::vector<Group>& group,
     Box& box,
     Atom& atom,
     Force& force,
+    Integrate& integrate,
     GPU_Vector<double>& thermo);
   void write(
     const int step,
