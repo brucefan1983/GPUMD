@@ -49,7 +49,8 @@ public:
 
 private:
   bool dump_ = false;
-  int dump_interval_ = 1;
+  int dump_interval_thermo_ = 1;
+  int dump_interval_exyz_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
   std::vector<FILE*> exyz_files_;

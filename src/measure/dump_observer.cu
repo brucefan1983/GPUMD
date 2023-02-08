@@ -78,23 +78,30 @@ void Dump_Observer::parse(const char** param, int num_param)
   dump_ = true;
   printf("Dump observer.\n");
 
-  if (num_param != 5) {
-    PRINT_INPUT_ERROR("dump_observer should have 4 parameters.");
+  if (num_param != 6) {
+    PRINT_INPUT_ERROR("dump_observer should have 5 parameters.");
   }
   mode_ = param[1];
   if (mode_.compare("observe") != 0 && mode_.compare("average") != 0) {
     PRINT_INPUT_ERROR("observer mode should be 'observe' or 'average'");
   }
-  if (!is_valid_int(param[2], &dump_interval_)) {
-    PRINT_INPUT_ERROR("dump interval should be an integer.");
+  if (!is_valid_int(param[2], &dump_interval_thermo_)) {
+    PRINT_INPUT_ERROR("dump interval thermo should be an integer.");
   }
-  if (dump_interval_ <= 0) {
-    PRINT_INPUT_ERROR("dump interval should > 0.");
+  if (dump_interval_thermo_ <= 0) {
+    PRINT_INPUT_ERROR("dump interval thermo should > 0.");
+  }
+  if (!is_valid_int(param[3], &dump_interval_exyz_)) {
+    PRINT_INPUT_ERROR("dump interval exyz should be an integer.");
+  }
+  if (dump_interval_exyz_ <= 0) {
+    PRINT_INPUT_ERROR("dump interval exyz should > 0.");
   }
 
-  printf("    every %d steps.\n", dump_interval_);
+  printf("    .out every %d steps.\n", dump_interval_thermo_);
+  printf("    .exyz every %d steps.\n", dump_interval_exyz_);
 
-  if (!is_valid_int(param[3], &has_velocity_)) {
+  if (!is_valid_int(param[4], &has_velocity_)) {
     PRINT_INPUT_ERROR("has_velocity should be an integer.");
   }
   if (has_velocity_ == 0) {
@@ -103,7 +110,7 @@ void Dump_Observer::parse(const char** param, int num_param)
     printf("    with velocity data.\n");
   }
 
-  if (!is_valid_int(param[4], &has_force_)) {
+  if (!is_valid_int(param[5], &has_force_)) {
     PRINT_INPUT_ERROR("has_force should be an integer.");
   }
   if (has_force_ == 0) {
@@ -113,10 +120,10 @@ void Dump_Observer::parse(const char** param, int num_param)
   }
   
   if (mode_.compare("observe") == 0) {
-    printf("    evaluate all potentials every %d steps.\n", dump_interval_);
+    printf("    evaluate all potentials, dumping .out every %d and .exyz every %d steps.\n", dump_interval_thermo_, dump_interval_exyz_);
   }
   else if (mode_.compare("average") == 0){
-    printf("    use the average potential in the molecular dynamics run, and dump every %d steps.\n", dump_interval_);
+    printf("    use the average potential in the molecular dynamics run, and dump .out every %d and .exyz every %d steps.\n", dump_interval_thermo_, dump_interval_exyz_);
   }
 }
 
@@ -155,7 +162,7 @@ void Dump_Observer::process(
   // Only run if should dump, since forces have to be recomputed with each potential.
   if (!dump_)
     return;
-  if ((step + 1) % dump_interval_ != 0)
+  if (((step + 1) % dump_interval_thermo_ != 0) & ((step + 1) % dump_interval_exyz_ != 0))
     return;
   if(mode_.compare("observe") == 0)
   {
@@ -272,7 +279,7 @@ void Dump_Observer::write_exyz(
 {
   if (!dump_)
     return;
-  if ((step + 1) % dump_interval_ != 0)
+  if ((step + 1) % dump_interval_exyz_ != 0)
     return;
  
   const int num_atoms_total = position_per_atom.size() / 3;
@@ -325,7 +332,7 @@ void Dump_Observer::write_thermo(
 {
   if (!dump_)
     return;
-  if ((step + 1) % dump_interval_ != 0)
+  if ((step + 1) % dump_interval_thermo_ != 0)
     return;
 
   FILE* fid_ = thermo_files_[file_index];
