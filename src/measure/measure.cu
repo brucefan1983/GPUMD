@@ -105,8 +105,9 @@ void Measure::process(
   Force& force)
 {
   const int number_of_atoms = atom.cpu_type.size();
+  const int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   dump_thermo.process(
-    step, number_of_atoms, (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group], box, thermo);
+    step, number_of_atoms, number_of_atoms_fixed, box, thermo);
   dump_position.process(
     step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
     atom.cpu_position_per_atom);
@@ -119,7 +120,7 @@ void Measure::process(
      step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
      atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom, 
      atom.force_per_atom, atom.virial_per_atom, thermo);
-  dump_observer.process(step, global_time, group, box, atom, force, integrate, thermo);
+  dump_observer.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
 
   compute.process(
     step, integrate.ensemble->energy_transferred, group, atom.mass, atom.potential_per_atom, atom.force_per_atom,
