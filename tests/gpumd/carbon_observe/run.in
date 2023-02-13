@@ -1,4 +1,4 @@
-potential       ../../../potentials/nep/C_2022_NEP3.txt
+potential       C_2022_NEP3.txt
 potential       C_2022_NEP3_MODIFIED.txt
 velocity        300
 
