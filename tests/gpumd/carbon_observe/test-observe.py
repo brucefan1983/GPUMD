@@ -112,8 +112,3 @@ def test_observe_single_species(tmp_path):
     )), 'Forces should match reference; did you compile with DDEBUG'
 
 
-def test_observe_change_order(tmp_path: str):
-    """Using the same potential but changing the order of species
-    should yield different energies and forces.
-    """
-    pass

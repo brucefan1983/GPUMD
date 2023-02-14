@@ -48,18 +48,9 @@ diff -q thermo.out thermo1.out
 rm thermo.out
 cd ../..
 
-cd gpumd/carbon_average
-echo "#### carbon_average"
-../../../src/gpumd > /dev/null
-python3 compare_results.py
-rm observer.xyz
-cd ../..
-
-cd gpumd/carbon_observe
 echo "#### carbon_observe"
-../../../src/gpumd > /dev/null
-diff -q observer0.xyz reference_observer.xyz
-diff -q observer1.xyz reference_observer.xyz
-rm observer0.xyz observer1.xyz
-cd ../..
+pytest gpumd/carbon_average/test-average.py
+
+echo "#### carbon_observe"
+pytest gpumd/carbon_observe/test-observe.py
 
