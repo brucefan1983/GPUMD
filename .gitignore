@@ -17,3 +17,6 @@ public*
 
 /nep
 /gpumd
+
+__pycache__/
+*/__pycache__/

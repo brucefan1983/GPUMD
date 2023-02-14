@@ -84,47 +84,32 @@ def test_observe_single_species(tmp_path):
         atol=atol,
         rtol=rtol
     )), 'Energies should be consistent between exyz and thermo'
-    assert np.all(np.isclose(
-        a=df['energy0_exyz'][0],
-        b=ref_df['energy'],
-        atol=atol,
-        rtol=rtol
-    )), 'Energies should match reference'
 
     forces0 = np.concatenate(df['forces0_exyz'])
     forces1 = np.concatenate(df['forces1_exyz'])
 
-    indices = np.argwhere(np.isclose(
-        a=forces0,
-        b=forces1,
-        atol=atol,
-        rtol=rtol
-    ))
-    print(forces0[indices])
-    print(forces1[indices])
     assert not np.any(np.isclose(
         a=forces0,
         b=forces1,
         atol=atol,
         rtol=rtol
     )), 'Forces should be different'
-    print(df['forces0_exyz'][0])
-    print(ref_df['forces'][0])
-    indices = np.argwhere(np.invert(np.isclose(
-        a=df['forces0_exyz'][0],
-        b=ref_df['forces'][0],
+
+    # Compare to reference
+    atol = 1e-4  # should be close to reference
+    rtol = 1e-3
+    assert np.all(np.isclose(
+        a=df['energy0_exyz'][0],
+        b=ref_df['energy'],
         atol=atol,
         rtol=rtol
-    )))
-    print(indices)
-    print(df['forces0_exyz'][0][indices])
-    print(ref_df['forces'][0][indices])
+    )), 'Energies should match reference; did you compile with DDEBUG?'
     assert np.all(np.isclose(
         a=df['forces0_exyz'][0],
         b=ref_df['forces'][0],
         atol=atol,
         rtol=rtol
-    )), 'Forces should match reference'
+    )), 'Forces should match reference; did you compile with DDEBUG'
 
 
 def test_observe_change_order(tmp_path: str):
