@@ -41,9 +41,9 @@ def _load_observer_files(path: str):
     energy_ref = ref.get_potential_energy()
     forces_ref = ref.get_forces()
     ref_df = pd.DataFrame.from_dict([{
-            'energy': energy_ref,
-            'forces': forces_ref.flatten()
-        }]) 
+        'energy': energy_ref,
+        'forces': forces_ref.flatten()
+    }])
     return df, ref_df
 
 
@@ -110,5 +110,3 @@ def test_observe_single_species(tmp_path):
         atol=atol,
         rtol=rtol
     )), 'Forces should match reference; did you compile with DDEBUG'
-
-

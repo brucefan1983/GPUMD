@@ -20,7 +20,7 @@ def _copy_files(files: List[str], tmp_path: str):
 def _load_observer_files(path: str):
     data = []
     for k, (frame, row) in enumerate(zip(read(f'{path}/observer.xyz', ':'),
-                                             np.loadtxt(f'{path}/observer.out'),
+                                         np.loadtxt(f'{path}/observer.out'),
                                          )):
         energy = frame.get_potential_energy()
         forces = frame.get_forces()
@@ -30,7 +30,7 @@ def _load_observer_files(path: str):
                          forces_exyz=forces.flatten(),
                          ))
     df = pd.DataFrame.from_dict(data)
- 
+
     ref0 = read(f'{path}/ref-observer0.xyz', ':')[0]
     ref1 = read(f'{path}/ref-observer1.xyz', ':')[0]
     energy_ref0 = ref0.get_potential_energy()
@@ -41,9 +41,9 @@ def _load_observer_files(path: str):
     energy = np.vstack([energy_ref0, energy_ref1])
     forces = np.vstack([forces_ref0, forces_ref1])
     ref_df = pd.DataFrame.from_dict([{
-            'energy': energy.mean(axis=0)[0],
-            'forces': forces.mean(axis=0)
-        }]) 
+        'energy': energy.mean(axis=0)[0],
+        'forces': forces.mean(axis=0)
+    }])
     return df, ref_df
 
 
@@ -85,5 +85,3 @@ def test_average_single_species(tmp_path):
         atol=atol,
         rtol=rtol
     )), 'Forces should match reference; did you compile with DDEBUG?'
-
-
