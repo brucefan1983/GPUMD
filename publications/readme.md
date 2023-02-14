@@ -10,7 +10,7 @@
  
 ## 2023 (7)
 
-Ziyue Zhou, Ke Xu, Zixuan Song, Zhen Wang, Yanwen Lin, Qiao Shi, Yongchao Hao, Yuequn Fu, Zhisen Zhang, and Jianyang Wu,
+* Ziyue Zhou, Ke Xu, Zixuan Song, Zhen Wang, Yanwen Lin, Qiao Shi, Yongchao Hao, Yuequn Fu, Zhisen Zhang, and Jianyang Wu,
 [Isotope doping-induced crossover shift in the thermal conductivity of thin silicon nanowires](https://dx.doi.org/10.1088/1361-648X/acab4a),
 J. Phys.: Condens. Matter **35** 085702 (2023).
 
