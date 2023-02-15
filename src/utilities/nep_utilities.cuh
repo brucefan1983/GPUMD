@@ -108,7 +108,6 @@ find_phi_and_phip_zbl(float a, float b, float x, float& phi, float& phip)
   phip -= b * tmp;
 }
 
-// Universal ZBL
 static __device__ __forceinline__ void find_f_and_fp_zbl(
   const float zizj,
   const float a_inv,
@@ -121,10 +120,6 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
 {
   const float x = d12 * a_inv;
   f = fp = 0.0f;
-
-  // just for W
-  // float Zbl_para[8] = {0.32825f, 2.54931f, 0.09219f, 0.29182f, 0.58110f, 0.59231f, 0.0f, 0.0f};
-  // Universal ZBL:
   const float Zbl_para[8] = {0.18175f, 3.1998f, 0.50986f, 0.94229f,
                              0.28022f, 0.4029f, 0.02817f, 0.20162f};
   find_phi_and_phip_zbl(Zbl_para[0], Zbl_para[1], x, f, fp);
@@ -141,40 +136,8 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
   f *= fc;
 }
 
-#ifdef USE_JESPER_HEA
-// Parameters from Jesper, in the order of 23-23,23-41,23-42,23-73,23-74,41-23,41-41,41-42,...
-__constant__ float ZBL_PARA_JESPER[25][6] = {
-  {0.23582493f, 2.09349355f, 0.15563716f, 1.56091300f, 0.60926898f, 0.51701385f},
-  {0.50269240f, 1.22895263f, 0.13951036f, 7.50424076f, 0.41849001f, 0.42091243f},
-  {0.18396472f, 8.70291804f, 0.49897344f, 1.25387083f, 0.42609115f, 0.42478330f},
-  {0.47408861f, 0.92079566f, 0.19860103f, 3.19599153f, 0.32249351f, 0.40575131f},
-  {0.47543791f, 0.94241702f, 0.19384435f, 3.38236532f, 0.33063109f, 0.40745887f},
-  {0.50269240f, 1.22895263f, 0.13951036f, 7.50424076f, 0.41849001f, 0.42091243f},
-  {0.18049477f, 2.92908224f, 0.49502099f, 0.99695761f, 0.32271050f, 0.36116294f},
-  {0.19020878f, 2.65056725f, 0.32076908f, 0.36142452f, 0.47789479f, 0.98036749f},
-  {0.50494081f, 0.91672469f, 0.29923796f, 0.37280180f, 0.18262090f, 3.21613753f},
-  {0.50856390f, 0.91518537f, 0.29670954f, 0.37129392f, 0.18666422f, 3.28455076f},
-  {0.18396472f, 8.70291804f, 0.49897344f, 1.25387083f, 0.42609115f, 0.42478330f},
-  {0.19020878f, 2.65056725f, 0.32076908f, 0.36142452f, 0.47789479f, 0.98036749f},
-  {0.48796853f, 0.98194874f, 0.31579653f, 0.35741207f, 0.18798549f, 2.71874806f},
-  {0.51344146f, 0.98119957f, 0.16477545f, 3.69293833f, 0.31816071f, 0.37914886f},
-  {0.51684534f, 0.96288639f, 0.30904771f, 0.37485806f, 0.16779276f, 3.59037981f},
-  {0.47408861f, 0.92079566f, 0.19860103f, 3.19599153f, 0.32249351f, 0.40575131f},
-  {0.50494081f, 0.91672469f, 0.29923796f, 0.37280180f, 0.18262090f, 3.21613753f},
-  {0.51344146f, 0.98119957f, 0.16477545f, 3.69293833f, 0.31816071f, 0.37914886f},
-  {0.57289615f, 0.57639080f, 0.32394661f, 2.46358374f, 0.07395230f, 0.27722376f},
-  {0.07833469f, 0.27911064f, 0.32940060f, 2.47456640f, 0.58841741f, 0.58199911f},
-  {0.47543791f, 0.94241702f, 0.19384435f, 3.38236532f, 0.33063109f, 0.40745887f},
-  {0.50856390f, 0.91518537f, 0.29670954f, 0.37129392f, 0.18666422f, 3.28455076f},
-  {0.51684534f, 0.96288639f, 0.30904771f, 0.37485806f, 0.16779276f, 3.59037981f},
-  {0.07833469f, 0.27911064f, 0.32940060f, 2.47456640f, 0.58841741f, 0.58199911f},
-  {0.32825000f, 2.54931000f, 0.09219000f, 0.29182000f, 0.58110000f, 0.59231000f},
-};
-
-// Special ZBL by Jesper
 static __device__ __forceinline__ void find_f_and_fp_zbl(
-  const int type1,
-  const int type2,
+  const float* zbl_para,
   const float zizj,
   const float a_inv,
   const float rc_inner,
@@ -186,12 +149,9 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
 {
   const float x = d12 * a_inv;
   f = fp = 0.0f;
-
-  const int index = type1 * 5 + type2;
-  find_phi_and_phip_zbl(ZBL_PARA_JESPER[index][0], ZBL_PARA_JESPER[index][1], x, f, fp);
-  find_phi_and_phip_zbl(ZBL_PARA_JESPER[index][2], ZBL_PARA_JESPER[index][3], x, f, fp);
-  find_phi_and_phip_zbl(ZBL_PARA_JESPER[index][4], ZBL_PARA_JESPER[index][5], x, f, fp);
-
+  find_phi_and_phip_zbl(zbl_para[0], zbl_para[1], x, f, fp);
+  find_phi_and_phip_zbl(zbl_para[2], zbl_para[3], x, f, fp);
+  find_phi_and_phip_zbl(zbl_para[4], zbl_para[5], x, f, fp);
   f *= zizj;
   fp *= zizj * a_inv;
   fp = fp * d12inv - f * d12inv * d12inv;
@@ -201,7 +161,6 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
   fp = fp * fc + f * fcp;
   f *= fc;
 }
-#endif
 
 static __device__ __forceinline__ void
 find_fn(const int n, const float rcinv, const float d12, const float fc12, float& fn)

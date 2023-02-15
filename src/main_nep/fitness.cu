@@ -209,7 +209,11 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   }
   fprintf(fid_nep, "\n");
   if (para.enable_zbl) {
-    fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
+    if (para.flexible_zbl) {
+      fprintf(fid_nep, "zbl 0 0\n");
+    } else {
+      fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
+    }
   }
   fprintf(
     fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
@@ -230,6 +234,11 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   para.q_scaler_gpu[0].copy_to_host(para.q_scaler_cpu.data());
   for (int d = 0; d < para.q_scaler_cpu.size(); ++d) {
     fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
+  }
+  if (para.flexible_zbl) {
+    for (int d = 0; d < 8 * (para.num_types * (para.num_types + 1) / 2); ++d) {
+      fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
+    }
   }
 }
 
