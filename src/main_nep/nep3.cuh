@@ -87,6 +87,15 @@ public:
     float atomic_numbers[NUM_ELEMENTS];
   };
 
+  struct LJ {
+    bool enabled = false;
+    const float* sigma;
+    const float* r0;
+    const float* epsilon;
+    float rc;
+    int num_types;
+  };
+
   NEP3(
     Parameters& para,
     int N,

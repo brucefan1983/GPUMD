@@ -162,6 +162,50 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
   f *= fc;
 }
 
+static __device__ __forceinline__ void find_fc_and_fcp_lj(
+  const float sigma, const float r0, const float rc, float d12, float& fc, float& fcp)
+{
+  if (d12 < sigma) {
+    fc = 0.0f;
+    fcp = 0.0f;
+  } else if (d12 < r0) {
+    float pi_factor = 3.1415927f / (r0 - sigma);
+    fc = 0.5f - 0.5f * cos(pi_factor * (d12 - sigma));
+    fcp = sin(pi_factor * (d12 - sigma)) * pi_factor * 0.5f;
+  } else if (d12 < rc) {
+    float pi_factor = 3.1415927f / (rc - r0);
+    fc = 0.5f + 0.5f * cos(pi_factor * (d12 - r0));
+    fcp = -sin(pi_factor * (d12 - r0)) * pi_factor * 0.5f;
+  } else {
+    fc = 0.0f;
+    fcp = 0.0f;
+  }
+}
+
+static __device__ __forceinline__ void find_f_and_fp_lj(
+  const float epsilon,
+  const float sigma,
+  const float r0,
+  const float rc,
+  const float d12,
+  const float d12inv,
+  float& f,
+  float& fp)
+{
+  float s2 = sigma * sigma;
+  float s6 = s2 * s2 * s2;
+  float s6e4 = s6 * epsilon * 4.0f;
+  float s12e4 = s6 * s6e4;
+  float d12inv2 = d12inv * d12inv;
+  float d12inv6 = d12inv2 * d12inv2 * d12inv2;
+  fp = 6.0f * (s6e4 * d12inv6 - s12e4 * 2.0f * d12inv6 * d12inv6) * d12inv2;
+  f = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;
+  float fc, fcp;
+  find_fc_and_fcp_lj(sigma, r0, rc, d12, fc, fcp);
+  fp = fp * fc + f * fcp;
+  f *= fc;
+}
+
 static __device__ __forceinline__ void
 find_fn(const int n, const float rcinv, const float d12, const float fc12, float& fn)
 {
