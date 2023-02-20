@@ -77,8 +77,13 @@ public:
 
   struct ZBL {
     bool enabled = false;
+    bool flexibled = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
+    int num_types;
+    float rc_flexible_inner[55];
+    float rc_flexible_outer[55];
+    float para[330];
     float atomic_numbers[NUM_ELEMENTS];
   };
 
