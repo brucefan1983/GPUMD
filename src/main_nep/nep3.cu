@@ -343,12 +343,6 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann, LJ& l
   }
 
   ann.c = pointer;
-  pointer += para.number_of_variables_descriptor;
-  if (lj.enabled) {
-    lj.epsilon = pointer;
-    pointer += para.number_of_variables_lj / 2;
-    lj.sigma = pointer;
-  }
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
@@ -805,7 +799,7 @@ static __global__ void find_force_LJ(
     float s_virial_xy = 0.0f;
     float s_virial_yz = 0.0f;
     float s_virial_zx = 0.0f;
-    int type1 = g_type[n1];
+    // int type1 = g_type[n1];
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
@@ -814,19 +808,10 @@ static __global__ void find_force_LJ(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
-      int type2 = g_type[n2];
+      // int type2 = g_type[n2];
 
-      int t1, t2;
-      if (type1 < type2) {
-        t1 = type1;
-        t2 = type2;
-      } else {
-        t1 = type2;
-        t2 = type1;
-      }
-      int lj_index = t1 * lj.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-      float epsilon = lj.epsilon[lj_index];
-      float sigma = lj.sigma[lj_index];
+      float epsilon = 0.003f;
+      float sigma = 3.4f;
       float r0 = sigma * 1.12246204831f;
 
       find_f_and_fp_lj(epsilon, sigma, r0, lj.rc, d12, d12inv, f, fp);

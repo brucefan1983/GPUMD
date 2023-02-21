@@ -85,7 +85,6 @@ public:
   int number_of_variables;            // total number of parameters (NN and descriptor)
   int number_of_variables_ann;        // number of parameters in the ANN only
   int number_of_variables_descriptor; // number of parameters in the descriptor only
-  int number_of_variables_lj;         // number of parameters in the LJ part
 
   // some arrays
 

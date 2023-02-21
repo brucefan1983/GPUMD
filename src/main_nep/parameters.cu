@@ -178,17 +178,7 @@ void Parameters::calculate_parameters()
       (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
   }
 
-  number_of_variables_lj = 0;
-  if (enable_lj && train_mode == 0) {
-    // epsilon and sigma for every pair of elements
-    number_of_variables_lj = (num_types * (num_types + 1)) / 2 * 2;
-    if (rc_radial < 6.0f) { // will require 1 A < sigma <= 5 A
-      PRINT_INPUT_ERROR("Radial cutoff should >= 6 A when LJ is enabled.");
-    }
-  }
-
-  number_of_variables =
-    number_of_variables_ann + number_of_variables_descriptor + number_of_variables_lj;
+  number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
   if (train_mode == 2) {
     number_of_variables += number_of_variables_ann;
   }
@@ -382,9 +372,6 @@ void Parameters::report_inputs()
     number_of_variables_ann * (train_mode == 2 ? 2 : 1));
   printf(
     "    number of descriptor parameters to be optimized = %d.\n", number_of_variables_descriptor);
-  if (enable_lj) {
-    printf("    number of LJ parameters to be optimized = %d.\n", number_of_variables_lj);
-  }
   printf("    total number of parameters to be optimized = %d.\n", number_of_variables);
 }
 
