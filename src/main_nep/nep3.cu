@@ -288,6 +288,10 @@ NEP3::NEP3(
     annmb[device_id].num_neurons1 = para.num_neurons1;
     annmb[device_id].num_para = para.number_of_variables;
 
+    lj[device_id].enabled = para.enable_lj;
+    lj[device_id].num_types = para.num_types;
+    lj[device_id].rc = para.rc_radial;
+
     nep_data[device_id].NN_radial.resize(N);
     nep_data[device_id].NN_angular.resize(N);
     nep_data[device_id].NL_radial.resize(N_times_max_NN_radial);
@@ -305,7 +309,7 @@ NEP3::NEP3(
   }
 }
 
-void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
+void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann, LJ& lj)
 {
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
@@ -339,6 +343,12 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
   }
 
   ann.c = pointer;
+  pointer += para.number_of_variables_descriptor;
+  if (lj.enabled) {
+    lj.epsilon = pointer;
+    pointer += para.number_of_variables_lj / 2;
+    lj.sigma = pointer;
+  }
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
@@ -817,7 +827,7 @@ static __global__ void find_force_LJ(
       int lj_index = t1 * lj.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
       float epsilon = lj.epsilon[lj_index];
       float sigma = lj.sigma[lj_index];
-      float r0 = lj.r0[lj_index];
+      float r0 = sigma * 1.12246204831f;
 
       find_f_and_fp_lj(epsilon, sigma, r0, lj.rc, d12, d12inv, f, fp);
 
@@ -862,7 +872,7 @@ void NEP3::find_force(
     CHECK(cudaSetDevice(device_id));
     nep_data[device_id].parameters.copy_from_host(
       parameters + device_id * para.number_of_variables);
-    update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id]);
+    update_potential(para, nep_data[device_id].parameters.data(), annmb[device_id], lj[device_id]);
   }
 
   for (int device_id = 0; device_id < device_in_this_iter; ++device_id) {
@@ -958,6 +968,17 @@ void NEP3::find_force(
         dataset[device_id].force.data() + dataset[device_id].N * 2,
         dataset[device_id].virial.data(), dataset[device_id].energy.data());
       CUDA_CHECK_KERNEL
+    }
+
+    if (lj[device_id].enabled) {
+      find_force_LJ<<<grid_size, block_size>>>(
+        dataset[device_id].N, lj[device_id], nep_data[device_id].NN_radial.data(),
+        nep_data[device_id].NL_radial.data(), dataset[device_id].type.data(),
+        nep_data[device_id].x12_radial.data(), nep_data[device_id].y12_radial.data(),
+        nep_data[device_id].z12_radial.data(), dataset[device_id].force.data(),
+        dataset[device_id].force.data() + dataset[device_id].N,
+        dataset[device_id].force.data() + dataset[device_id].N * 2,
+        dataset[device_id].virial.data(), dataset[device_id].energy.data());
     }
   }
 }

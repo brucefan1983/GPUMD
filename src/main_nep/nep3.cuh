@@ -90,7 +90,6 @@ public:
   struct LJ {
     bool enabled = false;
     const float* sigma;
-    const float* r0;
     const float* epsilon;
     float rc;
     int num_types;
@@ -115,5 +114,6 @@ private:
   ANN annmb[16];
   NEP3_Data nep_data[16];
   ZBL zbl;
-  void update_potential(Parameters& para, float* parameters, ANN& ann);
+  LJ lj[16];
+  void update_potential(Parameters& para, float* parameters, ANN& ann, LJ& lj);
 };
