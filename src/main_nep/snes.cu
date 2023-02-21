@@ -237,12 +237,20 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
 void SNES::create_population(Parameters& para)
 {
+  int num1 = para.number_of_variables_ann + para.number_of_variables_descriptor;
+  int num2 = num1 + para.number_of_variables_lj / 2;
+
   std::normal_distribution<float> r1(0, 1);
   for (int p = 0; p < population_size; ++p) {
     for (int v = 0; v < number_of_variables; ++v) {
       int pv = p * number_of_variables + v;
       s[pv] = r1(rng);
       population[pv] = sigma[v] * s[pv] + mu[v];
+      if (v >= num1 && v < num2) { // 0 eV <= epsilon <= 0.01 eV
+        population[pv] = std::min(0.01f, std::max(0.0f, population[pv]));
+      } else if (v >= num2) { // 1 A <= sigma <= 5 A
+        population[pv] = std::min(5.0f, std::max(1.0f, population[pv]));
+      }
     }
   }
 }

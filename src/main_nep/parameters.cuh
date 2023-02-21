@@ -47,9 +47,10 @@ public:
   float lambda_shear;     // extra weight parameter for shear virial
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential 
+  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
+  bool enable_lj;         // true for including an LJ potential with cutoff rc_radial
   int train_mode;         // 0=potential, 1=dipole, 2=polarizability
   int prediction;         // 0=no, 1=yes
 
@@ -75,6 +76,7 @@ public:
   bool is_type_weight_set;
   bool is_force_delta_set;
   bool is_zbl_set;
+  bool is_lj_set;
 
   // other parameters
   int dim;                            // dimension of the descriptor vector
@@ -83,6 +85,7 @@ public:
   int number_of_variables;            // total number of parameters (NN and descriptor)
   int number_of_variables_ann;        // number of parameters in the ANN only
   int number_of_variables_descriptor; // number of parameters in the descriptor only
+  int number_of_variables_lj;         // number of parameters in the LJ part
 
   // some arrays
 
@@ -109,6 +112,7 @@ private:
   void parse_type(const char** param, int num_param);
   void parse_type_weight(const char** param, int num_param);
   void parse_zbl(const char** param, int num_param);
+  void parse_lj(const char** param, int num_param);
   void parse_cutoff(const char** param, int num_param);
   void parse_n_max(const char** param, int num_param);
   void parse_basis_size(const char** param, int num_param);
