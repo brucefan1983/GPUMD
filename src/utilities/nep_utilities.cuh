@@ -198,7 +198,7 @@ static __device__ __forceinline__ void find_f_and_fp_lj(
   float s12e4 = s6 * s6e4;
   float d12inv2 = d12inv * d12inv;
   float d12inv6 = d12inv2 * d12inv2 * d12inv2;
-  fp = 6.0f * (s6e4 * d12inv6 - s12e4 * 2.0f * d12inv6 * d12inv6) * d12inv2;
+  fp = 6.0f * (s6e4 * d12inv6 - s12e4 * 2.0f * d12inv6 * d12inv6) * d12inv;
   f = s12e4 * d12inv6 * d12inv6 - s6e4 * d12inv6;
   float fc, fcp;
   find_fc_and_fcp_lj(sigma, r0, rc, d12, fc, fcp);
