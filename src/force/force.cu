@@ -35,6 +35,26 @@ The driver class calculating force and related quantities.
 
 Force::Force(void) { is_fcp = false; has_non_nep = false; }
 
+
+void Force::check_types(const char* file_potential)
+{
+  std::ifstream input(file_potential);
+  std::vector<std::string> tokens = get_tokens(input);
+  int num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  for (int n = 0; n < num_types; ++n) {
+    std::string token = tokens[2+n];
+    if(potentials.size() == 0){
+      atom_types[n] = token;
+    } else {
+      if(token != atom_types[n]){
+        PRINT_INPUT_ERROR("The atomic species and/or the order of the species are not consistent between the multiple potentials.\n");
+      }
+    }
+    
+  }
+}
+
+
 void Force::parse_potential(
   const char** param, int num_param, const Box& box, const int number_of_atoms)
 {
@@ -93,6 +113,8 @@ void Force::parse_potential(
       potential.reset(new NEP3_MULTIGPU(num_gpus, param[1], number_of_atoms, partition_direction));
     }
     is_nep = true;
+    // Check if the types for this potential are compatible with the possibly other potentials
+    check_types(param[1]);
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else {
@@ -102,7 +124,7 @@ void Force::parse_potential(
   
 
   potential->N1 = 0;
-  potential->N2 = number_of_atoms;
+  potential->N2 = number_of_atoms; 
 
   // Move the pointer into the list of potentials
   potentials.push_back(std::move(potential));

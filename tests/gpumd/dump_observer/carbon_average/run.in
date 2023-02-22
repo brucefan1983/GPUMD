@@ -1,12 +1,12 @@
-potential       ../../../potentials/nep/C_2022_NEP3.txt
+potential       C_2022_NEP3.txt
 potential       C_2022_NEP3_MODIFIED.txt
 velocity       	300
 
 time_step       1.0
 
 ensemble        nve
-dump_observer 	average 1 1 1
-run             1
+dump_observer 	average 1 1 1 1
+run             2
 
 
 

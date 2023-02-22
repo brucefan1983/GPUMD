@@ -18,12 +18,14 @@
 #include "utilities/gpu_vector.cuh"
 #include "force/force.cuh"
 #include "model/atom.cuh"
-#include "dump_exyz.cuh"
+#include "integrate/integrate.cuh"
+#include "model/group.cuh"
 #include <vector>
 #include <string>
 class Box;
 class Atom;
 class Force;
+class Integrate;
 
 class Dump_Observer
 {
@@ -36,11 +38,35 @@ public:
   void process(
     int step,
     const double global_time,
+    const int number_of_atoms_fixed,
+    std::vector<Group>& group,
     Box& box,
     Atom& atom,
     Force& force,
+    Integrate& integrate,
     GPU_Vector<double>& thermo);
-  void write(
+  void postprocess();
+
+private:
+  bool dump_ = false;
+  int dump_interval_thermo_ = 1;
+  int dump_interval_exyz_ = 1;
+  int has_velocity_ = 0;
+  int has_force_ = 0;
+  std::vector<FILE*> exyz_files_;
+  std::vector<FILE*> thermo_files_;
+  std::vector<double> cpu_force_per_atom_;
+  GPU_Vector<double> gpu_total_virial_;
+  std::vector<double> cpu_total_virial_;
+  std::string mode_ = "observe"; // observe or average
+  void output_line2(
+    const double time,
+    const Box& box,
+    const std::vector<std::string>& cpu_atom_symbol,
+    GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& gpu_thermo,
+    FILE* fid_);
+  void write_exyz(
     const int step,
     const double global_time,
     const Box& box,
@@ -54,23 +80,11 @@ public:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
     const int file_index);
-  void postprocess();
-
-private:
-  bool dump_ = false;
-  int dump_interval_ = 1;
-  int has_velocity_ = 0;
-  int has_force_ = 0;
-  std::vector<FILE*> files_;
-  void output_line2(
-    const double time,
+  void write_thermo(
+    const int step,
+    const int number_of_atoms,
+    const int number_of_atoms_fixed,
     const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
-    FILE* fid_);
-  std::vector<double> cpu_force_per_atom_;
-  GPU_Vector<double> gpu_total_virial_;
-  std::vector<double> cpu_total_virial_;
-  std::string mode_ = "observe"; // observe or average
+    const int file_index);
 };

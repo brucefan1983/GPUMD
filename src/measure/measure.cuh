@@ -35,6 +35,7 @@
 #include "utilities/gpu_vector.cuh"
 #include "viscosity.cuh"
 #include "force/force.cuh"
+#include "integrate/integrate.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
@@ -44,7 +45,7 @@
 
 class Atom;
 class Force;
-
+class Ensemble;
 class Measure
 {
 public:
@@ -68,7 +69,7 @@ public:
     const int fixed_group,
     const double global_time,
     const double temperature,
-    const double energy_transferred[],
+    Integrate& integrate,
     Box& box,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,

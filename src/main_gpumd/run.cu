@@ -188,7 +188,7 @@ void Run::perform_a_run()
 
     measure.process(
       number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
-      integrate.ensemble->energy_transferred, box, group, thermo, atom, force);
+      integrate, box, group, thermo, atom, force);
 
     velocity.correct_velocity(
       step, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,

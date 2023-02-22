@@ -51,6 +51,16 @@ public:
     GPU_Vector<double>& velocity_per_atom,
     GPU_Vector<double>& thermo) = 0;
 
+  void find_thermo(
+    const bool use_target_temperature,
+    const double volume,
+    const std::vector<Group>& group,
+    const GPU_Vector<double>& mass,
+    const GPU_Vector<double>& potential_per_atom,
+    const GPU_Vector<double>& velocity_per_atom,
+    const GPU_Vector<double>& virial_per_atom,
+    GPU_Vector<double>& thermo);
+
   int type; // ensemble type in a specific run
   int source;
   int sink;
@@ -85,15 +95,6 @@ protected:
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 
-  void find_thermo(
-    const bool use_target_temperature,
-    const double volume,
-    const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& velocity_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& thermo);
 
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 

@@ -18,6 +18,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "potential.cuh"
+#include "utilities/common.cuh"
 #include <memory>
 #include <stdio.h>
 #include <vector>
@@ -75,4 +76,7 @@ private:
   bool is_fcp = false;
   bool has_non_nep = false;
   std::string multiple_potentials_mode_ = "observe"; // "observe" or "average"
+  std::string atom_types[NUM_ELEMENTS];
+
+  void check_types(const char* file_potential);
 };
