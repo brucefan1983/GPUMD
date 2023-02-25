@@ -364,22 +364,18 @@ read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& 
   }
   printf("Number of configurations = %d.\n", Nc);
 
-  bool has_too_small_energy = false;
   for (const auto& s : structures) {
     if (s.energy < -100.0f) {
-      has_too_small_energy = true;
+      std::cout << "Warning: \n";
+      std::cout << "    There is energy < -100 eV/atom in the data set.\n";
+      std::cout << "    Because we use single precision in NEP training\n";
+      std::cout << "    it means that the reference and calculated energies\n";
+      std::cout << "    might only be accurate up to 1 meV/atom\n";
+      std::cout << "    which can effectively introduce noises.\n";
+      std::cout << "    We suggest you preprocess (using double precision)\n";
+      std::cout << "    your data to make the energies closer to 0." << std::endl;
       break;
     }
-  }
-  if (has_too_small_energy) {
-    std::cout << "Warning: \n";
-    std::cout << "    There is energy < -100 eV/atom in the data set.\n";
-    std::cout << "    Because we use single precision in NEP training\n";
-    std::cout << "    it means that the reference and calculated energies\n";
-    std::cout << "    might only be accurate up to 1 meV/atom\n";
-    std::cout << "    which can effectively introduce noises.\n";
-    std::cout << "    We suggest you preprocess (using double precision)\n";
-    std::cout << "    your data to make the energies closer to 0." << std::endl;
   }
 }
 
