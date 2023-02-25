@@ -19,7 +19,6 @@ Run simulation according to the inputs in the run.in file.
 
 #include "cohesive.cuh"
 #include "force/force.cuh"
-#include "force/validate.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
@@ -187,8 +186,8 @@ void Run::perform_a_run()
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     measure.process(
-      number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2,
-      integrate, box, group, thermo, atom, force);
+      number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2, integrate,
+      box, group, thermo, atom, force);
 
     velocity.correct_velocity(
       step, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
@@ -200,13 +199,6 @@ void Run::perform_a_run()
       fflush(stdout);
     }
   }
-
-// only for my test
-#ifdef VALIDATE_FORCE
-  validate_force(
-    box, atom.position_per_atom, group, atom.type, atom.potential_per_atom, atom.force_per_atom,
-    atom.virial_per_atom, &force);
-#endif
 
   print_line_1();
   clock_t time_finish = clock();
