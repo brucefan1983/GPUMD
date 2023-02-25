@@ -363,6 +363,20 @@ read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& 
     ++Nc;
   }
   printf("Number of configurations = %d.\n", Nc);
+
+  for (const auto& s : structures) {
+    if (s.energy < -100.0f) {
+      std::cout << "Warning: \n";
+      std::cout << "    There is energy < -100 eV/atom in the data set.\n";
+      std::cout << "    Because we use single precision in NEP training\n";
+      std::cout << "    it means that the reference and calculated energies\n";
+      std::cout << "    might only be accurate up to 1 meV/atom\n";
+      std::cout << "    which can effectively introduce noises.\n";
+      std::cout << "    We suggest you preprocess (using double precision)\n";
+      std::cout << "    your data to make the energies closer to 0." << std::endl;
+      break;
+    }
+  }
 }
 
 static void find_permuted_indices(std::vector<int>& permuted_indices)
@@ -474,6 +488,9 @@ bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& st
       has_test_set = false;
     }
   } else {
+    print_line_1();
+    is_train ? printf("Started reading train.xyz.\n") : printf("Started reading test.xyz.\n");
+    print_line_2();
     read_exyz(para, input, structures);
     input.close();
   }
