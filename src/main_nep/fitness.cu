@@ -33,10 +33,6 @@ Get the fitness
 
 Fitness::Fitness(Parameters& para)
 {
-  print_line_1();
-  printf("Started reading train.xyz.\n");
-  print_line_2();
-
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
 
@@ -72,10 +68,6 @@ Fitness::Fitness(Parameters& para)
   std::vector<Structure> structures_test;
   has_test_set = read_structures(false, para, structures_test);
   if (has_test_set) {
-    print_line_1();
-    printf("Started reading test.xyz.\n");
-    print_line_2();
-
     test_set.resize(deviceCount);
     for (int device_id = 0; device_id < deviceCount; ++device_id) {
       print_line_1();

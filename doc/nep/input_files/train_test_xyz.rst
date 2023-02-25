@@ -66,5 +66,6 @@ Tips
 * The minimal number of atoms in a configuration is 1.
   The user is responsible for choosing a sensible reference energy when preparing the energy data.
   But this is not crucial as the absolute energies are not relevant in the present context.
+  However, because NEP training uses single precision, accuracy will be lost if any reference energy is smaller than -100 eV/atom. The code will give a warning message in this case.
 * The energy and virial data refer to the total energy and virial for the system.
   They are not per-atom but per-cell quantities.
