@@ -32,24 +32,40 @@ The driver class for the various integrators.
 void Integrate::initialize(
   const int number_of_atoms, const double time_step, const std::vector<Group>& group)
 {
+  if (move_group >= 0) {
+    if (fixed_group < 0) {
+      PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
+    }
+    if (move_group == fixed_group) {
+      PRINT_INPUT_ERROR("The fixed and moving groups cannot be the same.");
+    }
+    if (type != 1 || type != 2 || type != 4) {
+      PRINT_INPUT_ERROR(
+        "It is only allowed to use nvt_ber, nvt_nhc, or nvt_bdp with a moving group.");
+    }
+  }
+
   // determine the integrator
   switch (type) {
     case 0: // NVE
       ensemble.reset(new Ensemble_NVE(type, fixed_group));
       break;
     case 1: // NVT-Berendsen
-      ensemble.reset(new Ensemble_BER(type, fixed_group, temperature, temperature_coupling));
+      ensemble.reset(new Ensemble_BER(
+        type, fixed_group, move_group, move_velocity, temperature, temperature_coupling));
       break;
     case 2: // NVT-NHC
       ensemble.reset(new Ensemble_NHC(
-        type, fixed_group, number_of_atoms, temperature, temperature_coupling, time_step));
+        type, fixed_group, move_group, move_velocity, number_of_atoms, temperature,
+        temperature_coupling, time_step));
       break;
     case 3: // NVT-Langevin
       ensemble.reset(
         new Ensemble_LAN(type, fixed_group, number_of_atoms, temperature, temperature_coupling));
       break;
     case 4: // NVT-BDP
-      ensemble.reset(new Ensemble_BDP(type, fixed_group, temperature, temperature_coupling));
+      ensemble.reset(new Ensemble_BDP(
+        type, fixed_group, move_group, move_velocity, temperature, temperature_coupling));
       break;
     case 5: // NVT-BAOAB_Langevin
       ensemble.reset(
@@ -91,6 +107,7 @@ void Integrate::initialize(
 void Integrate::finalize()
 {
   fixed_group = -1; // no group has an index of -1
+  move_group = -1;
   deform_x = 0;
   deform_y = 0;
   deform_z = 0;
@@ -604,6 +621,47 @@ void Integrate::parse_fix(const char** param, int num_param, std::vector<Group>&
   }
 
   printf("Group %d in grouping method 0 will be fixed.\n", fixed_group);
+}
+
+void Integrate::parse_move(const char** param, int num_param, std::vector<Group>& group)
+{
+  if (num_param != 5) {
+    PRINT_INPUT_ERROR("Keyword 'move' should have 4 parameters.");
+  }
+
+  if (!is_valid_int(param[1], &move_group)) {
+    PRINT_INPUT_ERROR("Moving group ID should be an integer.");
+  }
+
+  if (group.size() < 1) {
+    PRINT_INPUT_ERROR("Cannot use 'move' without grouping method.");
+  }
+
+  if (move_group < 0) {
+    PRINT_INPUT_ERROR("Moving group ID should >= 0.");
+  }
+
+  if (move_group >= group[0].number) {
+    PRINT_INPUT_ERROR("Moving group ID should < number of groups.");
+  }
+
+  if (!is_valid_real(param[2], &move_velocity[0])) {
+    PRINT_INPUT_ERROR("Moving velocity in x direction should be a number.");
+  }
+  if (!is_valid_real(param[3], &move_velocity[1])) {
+    PRINT_INPUT_ERROR("Moving velocity in y direction should be a number.");
+  }
+  if (!is_valid_real(param[4], &move_velocity[2])) {
+    PRINT_INPUT_ERROR("Moving velocity in z direction should be a number.");
+  }
+
+  printf(
+    "Group %d in grouping method 0 will move with velocity vector (%g, %g, %g) A/fs.\n", move_group,
+    move_velocity[0], move_velocity[1], move_velocity[2]);
+
+  for (int d = 0; d < 3; ++d) {
+    move_velocity[d] *= TIME_UNIT_CONVERSION; // natural to A/fs
+  }
 }
 
 void Integrate::parse_deform(const char** param, int num_param)

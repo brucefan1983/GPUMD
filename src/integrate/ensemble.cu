@@ -35,6 +35,10 @@ static __global__ void gpu_velocity_verlet(
   const bool is_step1,
   const int number_of_particles,
   const int fixed_group,
+  const int move_group,
+  const double move_velocity_x,
+  const double move_velocity_y,
+  const double move_velocity_z,
   const int* group_id,
   const double g_time_step,
   const double* g_mass,
@@ -63,14 +67,25 @@ static __global__ void gpu_velocity_verlet(
       vx = 0.0;
       vy = 0.0;
       vz = 0.0;
+      g_vx[i] = 0.0;
+      g_vy[i] = 0.0;
+      g_vz[i] = 0.0;
+    } else if (group_id[i] == move_group) {
+      vx = move_velocity_x;
+      vy = move_velocity_y;
+      vz = move_velocity_z;
+      g_vx[i] = 0.0;
+      g_vy[i] = 0.0;
+      g_vz[i] = 0.0;
     } else {
       vx += ax * time_step_half;
       vy += ay * time_step_half;
       vz += az * time_step_half;
+      g_vx[i] = vx;
+      g_vy[i] = vy;
+      g_vz[i] = vz;
     }
-    g_vx[i] = vx;
-    g_vy[i] = vy;
-    g_vz[i] = vz;
+
     if (is_step1) {
       g_x[i] += vx * time_step;
       g_y[i] += vy * time_step;
@@ -139,12 +154,12 @@ void Ensemble::velocity_verlet(
       force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
   } else {
     gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      is_step1, number_of_atoms, fixed_group, group[0].label.data(), time_step, mass.data(),
-      position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2, velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-      force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms);
+      is_step1, number_of_atoms, fixed_group, move_group, move_velocity[0], move_velocity[1],
+      move_velocity[2], group[0].label.data(), time_step, mass.data(), position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
   }
   CUDA_CHECK_KERNEL
 }
@@ -227,7 +242,7 @@ static __global__ void gpu_find_thermo_instant_temperature(
         if (n < N) {
           mass = g_mass[n];
           vx = g_vx[n];
-          s_data[tid] += g_sxx[n] + vx * vx  * mass;
+          s_data[tid] += g_sxx[n] + vx * vx * mass;
         }
       }
       __syncthreads();
@@ -546,6 +561,9 @@ void Ensemble::find_thermo(
   int num_atoms_for_temperature = number_of_atoms;
   if (fixed_group >= 0) {
     num_atoms_for_temperature -= group[0].cpu_size[fixed_group];
+  }
+  if (move_group >= 0) {
+    num_atoms_for_temperature -= group[0].cpu_size[move_group];
   }
 
   if (use_target_temperature) {

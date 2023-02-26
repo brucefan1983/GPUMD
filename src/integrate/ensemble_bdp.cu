@@ -33,10 +33,14 @@ void Ensemble_BDP::initialize_rng()
 #endif
 };
 
-Ensemble_BDP::Ensemble_BDP(int t, int fg, double T, double Tc)
+Ensemble_BDP::Ensemble_BDP(int t, int fg, int mg, double* mv, double T, double Tc)
 {
   type = t;
   fixed_group = fg;
+  move_group = mg;
+  move_velocity[0] = mv[0];
+  move_velocity[1] = mv[1];
+  move_velocity[2] = mv[2];
   temperature = T;
   temperature_coupling = Tc;
   initialize_rng();
@@ -82,6 +86,7 @@ void Ensemble_BDP::integrate_nvt_bdp_2(
 
   // get thermo
   int N_fixed = (fixed_group == -1) ? 0 : group[0].cpu_size[fixed_group];
+  N_fixed += (move_group == -1) ? 0 : group[0].cpu_size[move_group];
   find_thermo(
     true, volume, group, mass, potential_per_atom, velocity_per_atom, virial_per_atom, thermo);
 

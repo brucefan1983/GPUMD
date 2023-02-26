@@ -53,15 +53,19 @@ public:
   void parse_ensemble(Box& box, const char** param, int num_param, std::vector<Group>& group);
   void parse_deform(const char**, int);
   void parse_fix(const char**, int, std::vector<Group>& group);
+  void parse_move(const char**, int, std::vector<Group>& group);
 
   // these data will be used to initialize ensemble
   int type; // ensemble type in a specific run
   int source;
   int sink;
   int fixed_group = -1; // ID of the group in which the atoms will be fixed
-  double temperature;   // target temperature at a specific time
-  double temperature1;  // target initial temperature for a run
-  double temperature2;  // target final temperature for a run
+  int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
+  double move_velocity[3];
+
+  double temperature;  // target temperature at a specific time
+  double temperature1; // target initial temperature for a run
+  double temperature2; // target final temperature for a run
   double delta_temperature;
   double target_pressure[6];
   int num_target_pressure_components;

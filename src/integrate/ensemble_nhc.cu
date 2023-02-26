@@ -23,10 +23,14 @@ Oxford University Press, 2010.
 #include "utilities/common.cuh"
 #define DIM 3
 
-Ensemble_NHC::Ensemble_NHC(int t, int fg, int N, double T, double Tc, double dt)
+Ensemble_NHC::Ensemble_NHC(int t, int fg, int mg, double* mv, int N, double T, double Tc, double dt)
 {
   type = t;
   fixed_group = fg;
+  move_group = mg;
+  move_velocity[0] = mv[0];
+  move_velocity[1] = mv[1];
+  move_velocity[2] = mv[2];
   temperature = T;
   temperature_coupling = Tc;
   // position and momentum variables for one NHC
