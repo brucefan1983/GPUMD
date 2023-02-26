@@ -20,7 +20,7 @@
 class Ensemble_BDP : public Ensemble
 {
 public:
-  Ensemble_BDP(int, int, double, double);
+  Ensemble_BDP(int, int, int, double*, double, double);
   Ensemble_BDP(int, int, int, int, double, double, double);
   virtual ~Ensemble_BDP(void);
 

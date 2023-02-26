@@ -64,7 +64,9 @@ public:
   int type; // ensemble type in a specific run
   int source;
   int sink;
-  int fixed_group;    // ID of the group in which the atoms will be fixed
+  int fixed_group = -1; // ID of the group in which the atoms will be fixed
+  int move_group = -1;  // ID of the group in which the atoms will move with a constant velocity
+  double move_velocity[3];
   double temperature; // target temperature at a specific time
   double delta_temperature;
   double target_pressure[6];
@@ -94,7 +96,6 @@ protected:
     const GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
-
 
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 

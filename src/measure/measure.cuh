@@ -18,14 +18,16 @@
 #include "dos.cuh"
 #include "dump_exyz.cuh"
 #include "dump_force.cuh"
+#include "dump_observer.cuh"
 #include "dump_position.cuh"
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
 #include "dump_velocity.cuh"
-#include "dump_observer.cuh"
+#include "force/force.cuh"
 #include "hac.cuh"
 #include "hnemd_kappa.cuh"
 #include "hnemdec_kappa.cuh"
+#include "integrate/integrate.cuh"
 #include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
@@ -34,8 +36,6 @@
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "viscosity.cuh"
-#include "force/force.cuh"
-#include "integrate/integrate.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
@@ -67,6 +67,7 @@ public:
     const int number_of_steps,
     int step,
     const int fixed_group,
+    const int move_group,
     const double global_time,
     const double temperature,
     Integrate& integrate,
@@ -75,8 +76,7 @@ public:
     GPU_Vector<double>& thermo,
     Atom& atom,
     Force& force);
-  
-     
+
   DOS dos;
   SDC sdc;
   MSD msd;

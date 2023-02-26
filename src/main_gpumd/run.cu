@@ -186,8 +186,8 @@ void Run::perform_a_run()
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     measure.process(
-      number_of_steps, step, integrate.fixed_group, global_time, integrate.temperature2, integrate,
-      box, group, thermo, atom, force);
+      number_of_steps, step, integrate.fixed_group, integrate.move_group, global_time,
+      integrate.temperature2, integrate, box, group, thermo, atom, force);
 
     velocity.correct_velocity(
       step, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
@@ -311,6 +311,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.compute.parse(param, num_param, group);
   } else if (strcmp(param[0], "fix") == 0) {
     integrate.parse_fix(param, num_param, group);
+  } else if (strcmp(param[0], "move") == 0) {
+    integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {

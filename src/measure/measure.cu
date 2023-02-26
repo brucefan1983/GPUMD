@@ -90,11 +90,11 @@ void Measure::finalize(
   modal_analysis.method = NO_METHOD;
 }
 
-
 void Measure::process(
   const int number_of_steps,
   int step,
   const int fixed_group,
+  const int move_group,
   const double global_time,
   const double temperature,
   Integrate& integrate,
@@ -105,9 +105,9 @@ void Measure::process(
   Force& force)
 {
   const int number_of_atoms = atom.cpu_type.size();
-  const int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
-  dump_thermo.process(
-    step, number_of_atoms, number_of_atoms_fixed, box, thermo);
+  int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
+  number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
+  dump_thermo.process(step, number_of_atoms, number_of_atoms_fixed, box, thermo);
   dump_position.process(
     step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
     atom.cpu_position_per_atom);
@@ -117,14 +117,15 @@ void Measure::process(
     atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
   dump_exyz.process(
-     step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
-     atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom, 
-     atom.force_per_atom, atom.virial_per_atom, thermo);
-  dump_observer.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
+    step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+    atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
+    atom.force_per_atom, atom.virial_per_atom, thermo);
+  dump_observer.process(
+    step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
 
   compute.process(
-    step, integrate.ensemble->energy_transferred, group, atom.mass, atom.potential_per_atom, atom.force_per_atom,
-    atom.velocity_per_atom, atom.virial_per_atom);
+    step, integrate.ensemble->energy_transferred, group, atom.mass, atom.potential_per_atom,
+    atom.force_per_atom, atom.velocity_per_atom, atom.virial_per_atom);
   dos.process(step, group, atom.velocity_per_atom);
   sdc.process(step, group, atom.velocity_per_atom);
   msd.process(step, group, atom.unwrapped_position);
