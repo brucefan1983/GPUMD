@@ -1,6 +1,8 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (3)
+## Preprints (4)
+
+* Ke Xu, Yongchao Hao, Ting Liang, Penghua Ying, Jianbin Xu, Jianyang Wu, Zheyong Fan, [Accurate prediction of heat conductivity of water by a neuroevolution potential](https://arxiv.org/abs/2302.12328), 	arXiv:2302.12328 [physics.comp-ph]
 
 * Yajuan Cheng, Zheyong Fan, Tao Zhang, Masahiro Nomura, Sebastian Volz, Guimei Zhu, Baowen Li, Shiyun Xiong, [Magic angle in thermal conductivity of twisted bilayer graphene](https://arxiv.org/abs/2301.00323), 	arXiv:2301.00323 [cond-mat.mes-hall]
 
@@ -14,7 +16,7 @@
 [Isotope doping-induced crossover shift in the thermal conductivity of thin silicon nanowires](https://dx.doi.org/10.1088/1361-648X/acab4a),
 J. Phys.: Condens. Matter **35** 085702 (2023).
 
-* Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://arxiv.org/abs/2208.03982), arXiv:2208.03982 [physics.comp-ph]. Accepted to International Journal of Heat and Mass Transfer.
+* Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://arxiv.org/abs/2208.03982), arXiv:2208.03982 [physics.comp-ph]. International Journal of Heat and Mass Transfer **206**, 123943 (2023).
 
 * Han Wei, Yue Hu, Hua Bao,
 [Influence of point defects and multiscale pores on the different phonon transport regimes](https://doi.org/10.1038/s43246-023-00330-1),
