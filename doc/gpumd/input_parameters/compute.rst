@@ -12,6 +12,7 @@ The results are written to the :ref:`compute.out output file <compute_out>`.
 Syntax
 ------
 It is used in the following way::
+
   compute <grouping_method> <sample_interval> <output_interval> {<quantity>}
 
 The first parameter :attr:`grouping_method` refers to the grouping method defined in the :ref:`simulation model file <model_xyz>`.
