@@ -9,7 +9,7 @@ import sphinx_rtd_theme
 project = 'GPUMD'
 author = 'The GPUMD developer team'
 version = ''
-copyright = '2022'
+copyright = '2023'
 site_url = 'https://gpumd.org'
 
 extensions = [
