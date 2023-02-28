@@ -39,12 +39,29 @@ build:linux:
     paths:
       - public
   script:
+    # prepare homepage
+    - mkdir -p public/dev
+    # --------------------------
+    # DEVELOPMENT VERSION
+    - git checkout master
     - tag=$(git describe --tags | tail -1)
     - echo "tag= $tag"
+    # build user guide
     - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
+    - sphinx-build -W doc/ public/dev/
+    - git checkout -- doc/source/conf.py
+    # --------------------------
+    # STABLE VERSION
+    - tag=$(git tag | tail -1)
+    - echo "tag= $tag"
+    - git checkout $tag
+    # build user guide
     - sphinx-build -W doc/ public/
+    # --------------------------
+    # clean up
     - ls -l public/
     - chmod go-rwX -R public/
+
 
 documentation:test:
   extends: .documentation
