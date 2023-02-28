@@ -19,7 +19,7 @@
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 
-void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
+/*void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, int n2)
 {
   Nc = n2 - n1;
   structures.resize(Nc);
@@ -59,6 +59,89 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
       structures[n].fx[na] = structures_input[n_input].fx[na];
       structures[n].fy[na] = structures_input[n_input].fy[na];
       structures[n].fz[na] = structures_input[n_input].fz[na];
+    }
+  }
+}*/
+
+void Dataset::copy_structures(std::vector<Structure>& structures_input, int t1, int t2)
+{
+  Nc = 0;
+  for (int n_input = 0; n_input < structures_input.size(); ++n_input) {
+    bool has_others = false;
+    bool has_t1 = false;
+    bool has_t2 = false;
+    for (int na = 0; na < structures_input[n_input].num_atom; ++na) {
+      int t = structures_input[n_input].type[na];
+      if (t != t1 && t != t2) {
+        has_others = true;
+      }
+      if (t == t1) {
+        has_t1 = true;
+      }
+      if (t == t2) {
+        has_t2 = true;
+      }
+    }
+    if (!has_others && has_t1 && has_t2) {
+      Nc++;
+    }
+  }
+  printf("Number of structures = %d\n", Nc);
+  structures.resize(Nc);
+
+  int n = 0;
+  for (int n_input = 0; n_input < structures_input.size(); ++n_input) {
+    bool has_others = false;
+    bool has_t1 = false;
+    bool has_t2 = false;
+    for (int na = 0; na < structures_input[n_input].num_atom; ++na) {
+      int t = structures_input[n_input].type[na];
+      if (t != t1 && t != t2) {
+        has_others = true;
+      }
+      if (t == t1) {
+        has_t1 = true;
+      }
+      if (t == t2) {
+        has_t2 = true;
+      }
+    }
+    if (!has_others && has_t1 && has_t2) {
+      structures[n].num_atom = structures_input[n_input].num_atom;
+      structures[n].weight = structures_input[n_input].weight;
+      structures[n].has_virial = structures_input[n_input].has_virial;
+      structures[n].energy = structures_input[n_input].energy;
+      for (int k = 0; k < 6; ++k) {
+        structures[n].virial[k] = structures_input[n_input].virial[k];
+      }
+      for (int k = 0; k < 18; ++k) {
+        structures[n].box[k] = structures_input[n_input].box[k];
+      }
+      for (int k = 0; k < 9; ++k) {
+        structures[n].box_original[k] = structures_input[n_input].box_original[k];
+      }
+      for (int k = 0; k < 3; ++k) {
+        structures[n].num_cell[k] = structures_input[n_input].num_cell[k];
+      }
+
+      structures[n].type.resize(structures[n].num_atom);
+      structures[n].x.resize(structures[n].num_atom);
+      structures[n].y.resize(structures[n].num_atom);
+      structures[n].z.resize(structures[n].num_atom);
+      structures[n].fx.resize(structures[n].num_atom);
+      structures[n].fy.resize(structures[n].num_atom);
+      structures[n].fz.resize(structures[n].num_atom);
+
+      for (int na = 0; na < structures[n].num_atom; ++na) {
+        structures[n].type[na] = structures_input[n_input].type[na];
+        structures[n].x[na] = structures_input[n_input].x[na];
+        structures[n].y[na] = structures_input[n_input].y[na];
+        structures[n].z[na] = structures_input[n_input].z[na];
+        structures[n].fx[na] = structures_input[n_input].fx[na];
+        structures[n].fy[na] = structures_input[n_input].fy[na];
+        structures[n].fz[na] = structures_input[n_input].fz[na];
+      }
+      ++n;
     }
   }
 }

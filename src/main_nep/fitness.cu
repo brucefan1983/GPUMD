@@ -38,30 +38,26 @@ Fitness::Fitness(Parameters& para)
 
   std::vector<Structure> structures_train;
   read_structures(true, para, structures_train);
-  num_batches = (structures_train.size() - 1) / para.batch_size + 1;
+  num_batches = ((para.num_types + 1) * para.num_types) / 2;
   printf("Number of devices = %d\n", deviceCount);
   printf("Number of batches = %d\n", num_batches);
-  int batch_size_old = para.batch_size;
-  para.batch_size = (structures_train.size() - 1) / num_batches + 1;
-  if (batch_size_old != para.batch_size) {
-    printf("Hello, I changed the batch_size from %d to %d.\n", batch_size_old, para.batch_size);
-  }
 
   train_set.resize(num_batches);
   for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
     train_set[batch_id].resize(deviceCount);
   }
-  for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-    int n1 = batch_id * para.batch_size;
-    int n2 = std::min(int(structures_train.size()), n1 + para.batch_size);
-    printf("\nBatch %d:\n", batch_id);
-    printf("Number of configurations = %d.\n", n2 - n1);
-    for (int device_id = 0; device_id < deviceCount; ++device_id) {
-      print_line_1();
-      printf("Constructing train_set in device  %d.\n", device_id);
-      CHECK(cudaSetDevice(device_id));
-      train_set[batch_id][device_id].construct(para, structures_train, n1, n2, device_id);
-      print_line_2();
+  int batch_id = 0;
+  for (int n1 = 0; n1 < para.num_types; ++n1) {
+    for (int n2 = n1; n2 < para.num_types; ++n2) {
+      printf("\nBatch %d:\n", batch_id);
+      for (int device_id = 0; device_id < deviceCount; ++device_id) {
+        print_line_1();
+        printf("Constructing train_set in device  %d.\n", device_id);
+        CHECK(cudaSetDevice(device_id));
+        train_set[batch_id][device_id].construct(para, structures_train, n1, n2, device_id);
+        print_line_2();
+      }
+      batch_id++;
     }
   }
 
