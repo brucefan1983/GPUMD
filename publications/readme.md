@@ -10,13 +10,15 @@
 
 * Erik Fransson, Petter Rosander, Fredrik Eriksson, J. Magnus Rahm, Terumasa Tadano, Paul Erhart, [Probing the limits of the phonon quasi-particle picture: The transition from underdamped to overdamped dynamics in CsPbBr3](https://arxiv.org/abs/2211.08197), 	arXiv:2211.08197 [cond-mat.mtrl-sci]
  
-## 2023 (7)
+## 2023 (8)
+
+* Shuning Pan, Tianheng Huang, Allona Vazan, Zhixin Liang, Cong Liu, Junjie Wang, Chris J. Pickard, Hui-Tian Wang, Dingyu Xing, Jian Sun, [Magnesium oxide-water compounds at megabar pressure and implications on planetary interiors](https://doi.org/10.1038/s41467-023-36802-8), Nature Communications **14**, 1165 (2023).
 
 * Ziyue Zhou, Ke Xu, Zixuan Song, Zhen Wang, Yanwen Lin, Qiao Shi, Yongchao Hao, Yuequn Fu, Zhisen Zhang, and Jianyang Wu,
 [Isotope doping-induced crossover shift in the thermal conductivity of thin silicon nanowires](https://dx.doi.org/10.1088/1361-648X/acab4a),
 J. Phys.: Condens. Matter **35** 085702 (2023).
 
-* Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://arxiv.org/abs/2208.03982), arXiv:2208.03982 [physics.comp-ph]. International Journal of Heat and Mass Transfer **206**, 123943 (2023).
+* Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://doi.org/10.1016/j.ijheatmasstransfer.2023.123943), International Journal of Heat and Mass Transfer **206**, 123943 (2023).
 
 * Han Wei, Yue Hu, Hua Bao,
 [Influence of point defects and multiscale pores on the different phonon transport regimes](https://doi.org/10.1038/s43246-023-00330-1),
