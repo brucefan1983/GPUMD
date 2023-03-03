@@ -49,7 +49,7 @@ build:linux:
     # build user guide
     - sed -i "s/version = ''/version = '$tag'/" doc/conf.py
     - sphinx-build -W doc/ public/dev/
-    - git checkout -- doc/source/conf.py
+    - git checkout -- doc/conf.py
     # --------------------------
     # STABLE VERSION
     - tag=$(git tag | tail -1)
