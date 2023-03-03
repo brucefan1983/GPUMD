@@ -743,10 +743,10 @@ static __global__ void find_force_ZBL(
         find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       } else {
         find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
-      } 
+      }
       float f2 = fp * d12inv * 0.5f;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      
+
       atomicAdd(&g_fx[n1], f12[0]);
       atomicAdd(&g_fy[n1], f12[1]);
       atomicAdd(&g_fz[n1], f12[2]);
@@ -776,6 +776,7 @@ void NEP3::find_force(
   const float* parameters,
   std::vector<Dataset>& dataset,
   bool calculate_q_scaler,
+  bool calculate_neighbor,
   int device_in_this_iter)
 {
   float rc2_radial = para.rc_radial * para.rc_radial;
@@ -792,18 +793,21 @@ void NEP3::find_force(
     CHECK(cudaSetDevice(device_id));
     const int block_size = 32;
     const int grid_size = (dataset[device_id].N - 1) / block_size + 1;
-    gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(
-      dataset[device_id].N, dataset[device_id].Na.data(), dataset[device_id].Na_sum.data(),
-      rc2_radial, rc2_angular, dataset[device_id].box.data(),
-      dataset[device_id].box_original.data(), dataset[device_id].num_cell.data(),
-      dataset[device_id].r.data(), dataset[device_id].r.data() + dataset[device_id].N,
-      dataset[device_id].r.data() + dataset[device_id].N * 2, nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(), nep_data[device_id].NN_angular.data(),
-      nep_data[device_id].NL_angular.data(), nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(), nep_data[device_id].z12_radial.data(),
-      nep_data[device_id].x12_angular.data(), nep_data[device_id].y12_angular.data(),
-      nep_data[device_id].z12_angular.data());
-    CUDA_CHECK_KERNEL
+
+    if (calculate_neighbor) {
+      gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(
+        dataset[device_id].N, dataset[device_id].Na.data(), dataset[device_id].Na_sum.data(),
+        rc2_radial, rc2_angular, dataset[device_id].box.data(),
+        dataset[device_id].box_original.data(), dataset[device_id].num_cell.data(),
+        dataset[device_id].r.data(), dataset[device_id].r.data() + dataset[device_id].N,
+        dataset[device_id].r.data() + dataset[device_id].N * 2,
+        nep_data[device_id].NN_radial.data(), nep_data[device_id].NL_radial.data(),
+        nep_data[device_id].NN_angular.data(), nep_data[device_id].NL_angular.data(),
+        nep_data[device_id].x12_radial.data(), nep_data[device_id].y12_radial.data(),
+        nep_data[device_id].z12_radial.data(), nep_data[device_id].x12_angular.data(),
+        nep_data[device_id].y12_angular.data(), nep_data[device_id].z12_angular.data());
+      CUDA_CHECK_KERNEL
+    }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
       dataset[device_id].N, nep_data[device_id].NN_radial.data(),

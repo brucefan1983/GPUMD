@@ -132,16 +132,19 @@ void Fitness::compute(
   int population_iter = (para.population_size - 1) / deviceCount + 1;
 
   if (generation == 0) {
+
     std::vector<float> dummy_solution(para.number_of_variables * deviceCount, 1.0f);
     for (int n = 0; n < num_batches; ++n) {
-      potential->find_force(para, dummy_solution.data(), train_set[n], true, deviceCount);
+      potential->find_force(para, dummy_solution.data(), train_set[n], true, true, deviceCount);
     }
 
   } else {
     int batch_id = generation % num_batches;
+    bool calculate_neighbor = (num_batches > 1) || (generation % 100 == 0);
     for (int n = 0; n < population_iter; ++n) {
       const float* individual = population + deviceCount * n * para.number_of_variables;
-      potential->find_force(para, individual, train_set[batch_id], false, deviceCount);
+      potential->find_force(
+        para, individual, train_set[batch_id], false, calculate_neighbor, deviceCount);
       for (int m = 0; m < deviceCount; ++m) {
         float energy_shift_per_structure_not_used;
         auto rmse_energy_array = train_set[batch_id][m].get_rmse_energy(
@@ -244,7 +247,7 @@ void Fitness::report_error(
 {
   if (0 == (generation + 1) % 100) {
     int batch_id = generation % num_batches;
-    potential->find_force(para, elite, train_set[batch_id], false, 1);
+    potential->find_force(para, elite, train_set[batch_id], false, true, 1);
     float energy_shift_per_structure;
     auto rmse_energy_train_array =
       train_set[batch_id][0].get_rmse_energy(para, energy_shift_per_structure, false, true, 0);
@@ -264,7 +267,7 @@ void Fitness::report_error(
     float rmse_force_test = 0.0f;
     float rmse_virial_test = 0.0f;
     if (has_test_set) {
-      potential->find_force(para, elite, test_set, false, 1);
+      potential->find_force(para, elite, test_set, false, true, 1);
       float energy_shift_per_structure_not_used;
       auto rmse_energy_test_array =
         test_set[0].get_rmse_energy(para, energy_shift_per_structure_not_used, false, false, 0);
@@ -396,7 +399,7 @@ void Fitness::predict(Parameters& para, float* elite)
     FILE* fid_energy = my_fopen("energy_train.out", "w");
     FILE* fid_virial = my_fopen("virial_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, 1);
+      potential->find_force(para, elite, train_set[batch_id], false, true, 1);
       update_energy_force_virial(fid_energy, fid_force, fid_virial, train_set[batch_id][0]);
     }
     fclose(fid_energy);
@@ -405,14 +408,14 @@ void Fitness::predict(Parameters& para, float* elite)
   } else if (para.train_mode == 1) {
     FILE* fid_dipole = my_fopen("dipole_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, 1);
+      potential->find_force(para, elite, train_set[batch_id], false, true, 1);
       update_dipole(fid_dipole, train_set[batch_id][0]);
     }
     fclose(fid_dipole);
   } else if (para.train_mode == 2) {
     FILE* fid_polarizability = my_fopen("polarizability_train.out", "w");
     for (int batch_id = 0; batch_id < num_batches; ++batch_id) {
-      potential->find_force(para, elite, train_set[batch_id], false, 1);
+      potential->find_force(para, elite, train_set[batch_id], false, true, 1);
       update_polarizability(fid_polarizability, train_set[batch_id][0]);
     }
     fclose(fid_polarizability);
