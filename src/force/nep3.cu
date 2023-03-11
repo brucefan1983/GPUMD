@@ -39,6 +39,15 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
+#ifdef USE_TABLE
+namespace
+{
+const int table_length = 4001;
+const int table_segments = table_length - 1;
+const float table_resolution = 0.00025f;
+} // namespace
+#endif
+
 NEP3::NEP3(const char* file_potential, const int num_atoms)
 {
 
@@ -327,8 +336,8 @@ static void construct_table_radial_or_angular(
   float* gn,
   float* gnp)
 {
-  for (int table_index = 0; table_index < 1001; ++table_index) {
-    float d12 = table_index * 0.001f * rc;
+  for (int table_index = 0; table_index < table_length; ++table_index) {
+    float d12 = table_index * table_resolution * rc;
     float fc12, fcp12;
     find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
     for (int t1 = 0; t1 < num_types; ++t1) {
@@ -364,14 +373,14 @@ static void construct_table_radial_or_angular(
 
 void NEP3::construct_table(float* parameters)
 {
-  nep_data.gn_radial.resize(1001 * paramb.num_types_sq * (paramb.n_max_radial + 1));
-  nep_data.gnp_radial.resize(1001 * paramb.num_types_sq * (paramb.n_max_radial + 1));
-  nep_data.gn_angular.resize(1001 * paramb.num_types_sq * (paramb.n_max_angular + 1));
-  nep_data.gnp_angular.resize(1001 * paramb.num_types_sq * (paramb.n_max_angular + 1));
-  std::vector<float> gn_radial(1001 * paramb.num_types_sq * (paramb.n_max_radial + 1));
-  std::vector<float> gnp_radial(1001 * paramb.num_types_sq * (paramb.n_max_radial + 1));
-  std::vector<float> gn_angular(1001 * paramb.num_types_sq * (paramb.n_max_angular + 1));
-  std::vector<float> gnp_angular(1001 * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  nep_data.gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  nep_data.gnp_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  nep_data.gn_angular.resize(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  nep_data.gnp_angular.resize(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  std::vector<float> gn_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  std::vector<float> gnp_radial(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
+  std::vector<float> gn_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
+  std::vector<float> gnp_angular(table_length * paramb.num_types_sq * (paramb.n_max_angular + 1));
   float* c_pointer =
     parameters +
     (annmb.dim + 2) * annmb.num_neurons1 * (paramb.version == 4 ? paramb.num_types : 1) + 1;
@@ -492,13 +501,13 @@ __device__ void find_index_and_weight(
   float& weight_left,
   float& weight_right)
 {
-  float d12_1000 = d12_reduced * 1000.0f;
-  index_left = int(d12_1000);
-  if (index_left > 999) {
-    index_left = 999;
+  float d12_index = d12_reduced * table_segments;
+  index_left = int(d12_index);
+  if (index_left == table_segments) {
+    --index_left;
   }
   index_right = index_left + 1;
-  weight_right = d12_1000 - index_left;
+  weight_right = d12_index - index_left;
   weight_left = 1.0f - weight_right;
 }
 
