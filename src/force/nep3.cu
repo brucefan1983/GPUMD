@@ -494,6 +494,7 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_angular[n1] = count_angular;
 }
 
+#ifdef USE_TABLE
 __device__ void find_index_and_weight(
   const float d12_reduced,
   int& index_left,
@@ -510,6 +511,7 @@ __device__ void find_index_and_weight(
   weight_right = d12_index - index_left;
   weight_left = 1.0f - weight_right;
 }
+#endif
 
 static __global__ void find_descriptor(
   NEP3::ParaMB paramb,
