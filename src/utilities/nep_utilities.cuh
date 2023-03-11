@@ -70,7 +70,7 @@ static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12,
   }
 }
 
-static __device__ __forceinline__ void
+static __device__ __host__ __forceinline__ void
 find_fc_and_fcp(float rc, float rcinv, float d12, float& fc, float& fcp)
 {
   if (d12 < rc) {
@@ -238,7 +238,7 @@ find_fn(const int n_max, const float rcinv, const float d12, const float fc12, f
   }
 }
 
-static __device__ __forceinline__ void find_fn_and_fnp(
+static __device__ __host__ __forceinline__ void find_fn_and_fnp(
   const int n_max,
   const float rcinv,
   const float d12,
