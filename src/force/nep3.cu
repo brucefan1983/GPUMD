@@ -39,15 +39,6 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
-#ifdef USE_TABLE
-namespace
-{
-const int table_length = 4001;
-const int table_segments = table_length - 1;
-const float table_resolution = 0.00025f;
-} // namespace
-#endif
-
 NEP3::NEP3(const char* file_potential, const int num_atoms)
 {
 
@@ -493,25 +484,6 @@ static __global__ void find_neighbor_list_large_box(
   g_NN_radial[n1] = count_radial;
   g_NN_angular[n1] = count_angular;
 }
-
-#ifdef USE_TABLE
-__device__ void find_index_and_weight(
-  const float d12_reduced,
-  int& index_left,
-  int& index_right,
-  float& weight_left,
-  float& weight_right)
-{
-  float d12_index = d12_reduced * table_segments;
-  index_left = int(d12_index);
-  if (index_left == table_segments) {
-    --index_left;
-  }
-  index_right = index_left + 1;
-  weight_right = d12_index - index_left;
-  weight_left = 1.0f - weight_right;
-}
-#endif
 
 static __global__ void find_descriptor(
   NEP3::ParaMB paramb,
@@ -1190,20 +1162,31 @@ void NEP3::compute_small_box(
     paramb, annmb, N, N1, N2, NN_radial.data(), NL_radial.data(), NN_angular.data(),
     NL_angular.data(), type.data(), r12.data(), r12.data() + size_x12, r12.data() + size_x12 * 2,
     r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
+#ifdef USE_TABLE
+    nep_data.gn_radial.data(), nep_data.gn_angular.data(),
+#endif
     potential_per_atom.data(), nep_data.Fp.data(), nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb, N, N1, N2, NN_radial.data(), NL_radial.data(), type.data(), r12.data(),
-    r12.data() + size_x12, r12.data() + size_x12 * 2, nep_data.Fp.data(), force_per_atom.data(),
-    force_per_atom.data() + N, force_per_atom.data() + N * 2, virial_per_atom.data());
+    r12.data() + size_x12, r12.data() + size_x12 * 2, nep_data.Fp.data(),
+#ifdef USE_TABLE
+    nep_data.gnp_radial.data(),
+#endif
+    force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
+    virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   find_force_angular_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb, annmb, N, N1, N2, NN_angular.data(), NL_angular.data(), type.data(),
     r12.data() + size_x12 * 3, r12.data() + size_x12 * 4, r12.data() + size_x12 * 5,
-    nep_data.Fp.data(), nep_data.sum_fxyz.data(), force_per_atom.data(), force_per_atom.data() + N,
-    force_per_atom.data() + N * 2, virial_per_atom.data());
+    nep_data.Fp.data(), nep_data.sum_fxyz.data(),
+#ifdef USE_TABLE
+    nep_data.gn_angular.data(), nep_data.gnp_angular.data(),
+#endif
+    force_per_atom.data(), force_per_atom.data() + N, force_per_atom.data() + N * 2,
+    virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   if (zbl.enabled) {

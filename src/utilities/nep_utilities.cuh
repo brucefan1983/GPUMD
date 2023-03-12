@@ -60,6 +60,32 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
+#ifdef USE_TABLE
+namespace
+{
+const int table_length = 2001;
+const int table_segments = table_length - 1;
+const float table_resolution = 0.0005f;
+
+__device__ void find_index_and_weight(
+  const float d12_reduced,
+  int& index_left,
+  int& index_right,
+  float& weight_left,
+  float& weight_right)
+{
+  float d12_index = d12_reduced * table_segments;
+  index_left = int(d12_index);
+  if (index_left == table_segments) {
+    --index_left;
+  }
+  index_right = index_left + 1;
+  weight_right = d12_index - index_left;
+  weight_left = 1.0f - weight_right;
+}
+} // namespace
+#endif
+
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {
