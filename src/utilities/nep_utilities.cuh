@@ -60,32 +60,6 @@ static __device__ void apply_ann_one_layer(
   energy -= b1[0];
 }
 
-#ifdef USE_TABLE
-namespace
-{
-const int table_length = 2001;
-const int table_segments = table_length - 1;
-const float table_resolution = 0.0005f;
-
-__device__ void find_index_and_weight(
-  const float d12_reduced,
-  int& index_left,
-  int& index_right,
-  float& weight_left,
-  float& weight_right)
-{
-  float d12_index = d12_reduced * table_segments;
-  index_left = int(d12_index);
-  if (index_left == table_segments) {
-    --index_left;
-  }
-  index_right = index_left + 1;
-  weight_right = d12_index - index_left;
-  weight_left = 1.0f - weight_right;
-}
-} // namespace
-#endif
-
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
 {
   if (d12 < rc) {
@@ -802,3 +776,76 @@ find_q_with_5body(const int n_max_angular_plus_1, const int n, const float* s, f
   q[5 * n_max_angular_plus_1 + n] = C5B[0] * s0_sq * s0_sq + C5B[1] * s0_sq * s1_sq_plus_s2_sq +
                                     C5B[2] * s1_sq_plus_s2_sq * s1_sq_plus_s2_sq;
 }
+
+#ifdef USE_TABLE
+namespace
+{
+const int table_length = 2001;
+const int table_segments = table_length - 1;
+const float table_resolution = 0.0005f;
+
+__device__ void find_index_and_weight(
+  const float d12_reduced,
+  int& index_left,
+  int& index_right,
+  float& weight_left,
+  float& weight_right)
+{
+  float d12_index = d12_reduced * table_segments;
+  index_left = int(d12_index);
+  if (index_left == table_segments) {
+    --index_left;
+  }
+  index_right = index_left + 1;
+  weight_right = d12_index - index_left;
+  weight_left = 1.0f - weight_right;
+}
+
+static void construct_table_radial_or_angular(
+  const int version,
+  const int num_types,
+  const int num_types_sq,
+  const int n_max,
+  const int basis_size,
+  const float rc,
+  const float rcinv,
+  const float* c,
+  float* gn,
+  float* gnp)
+{
+  for (int table_index = 0; table_index < table_length; ++table_index) {
+    float d12 = table_index * table_resolution * rc;
+    float fc12, fcp12;
+    find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
+    for (int t1 = 0; t1 < num_types; ++t1) {
+      for (int t2 = 0; t2 < num_types; ++t2) {
+        int t12 = t1 * num_types + t2;
+        float fn12[MAX_NUM_N];
+        float fnp12[MAX_NUM_N];
+        if (version == 2) {
+          find_fn_and_fnp(n_max, rcinv, d12, fc12, fcp12, fn12, fnp12);
+          for (int n = 0; n <= n_max; ++n) {
+            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
+            gn[index_all] = fn12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
+            gnp[index_all] = fnp12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
+          }
+        } else {
+          find_fn_and_fnp(basis_size, rcinv, d12, fc12, fcp12, fn12, fnp12);
+          for (int n = 0; n <= n_max; ++n) {
+            float gn12 = 0.0f;
+            float gnp12 = 0.0f;
+            for (int k = 0; k <= basis_size; ++k) {
+              gn12 += fn12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
+              gnp12 += fnp12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
+            }
+            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
+            gn[index_all] = gn12;
+            gnp[index_all] = gnp12;
+          }
+        }
+      }
+    }
+  }
+}
+} // namespace
+#endif

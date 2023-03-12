@@ -316,53 +316,6 @@ void NEP3::update_potential(float* parameters, ANN& ann)
 }
 
 #ifdef USE_TABLE
-static void construct_table_radial_or_angular(
-  const int version,
-  const int num_types,
-  const int num_types_sq,
-  const int n_max,
-  const int basis_size,
-  const float rc,
-  const float rcinv,
-  const float* c,
-  float* gn,
-  float* gnp)
-{
-  for (int table_index = 0; table_index < table_length; ++table_index) {
-    float d12 = table_index * table_resolution * rc;
-    float fc12, fcp12;
-    find_fc_and_fcp(rc, rcinv, d12, fc12, fcp12);
-    for (int t1 = 0; t1 < num_types; ++t1) {
-      for (int t2 = 0; t2 < num_types; ++t2) {
-        int t12 = t1 * num_types + t2;
-        float fn12[MAX_NUM_N];
-        float fnp12[MAX_NUM_N];
-        if (version == 2) {
-          find_fn_and_fnp(n_max, rcinv, d12, fc12, fcp12, fn12, fnp12);
-          for (int n = 0; n <= n_max; ++n) {
-            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
-            gn[index_all] = fn12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
-            gnp[index_all] = fnp12[n] * ((num_types == 1) ? 1.0f : c[n * num_types_sq + t12]);
-          }
-        } else {
-          find_fn_and_fnp(basis_size, rcinv, d12, fc12, fcp12, fn12, fnp12);
-          for (int n = 0; n <= n_max; ++n) {
-            float gn12 = 0.0f;
-            float gnp12 = 0.0f;
-            for (int k = 0; k <= basis_size; ++k) {
-              gn12 += fn12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
-              gnp12 += fnp12[k] * c[(n * (basis_size + 1) + k) * num_types_sq + t12];
-            }
-            int index_all = (table_index * num_types_sq + t12) * (n_max + 1) + n;
-            gn[index_all] = gn12;
-            gnp[index_all] = gnp12;
-          }
-        }
-      }
-    }
-  }
-}
-
 void NEP3::construct_table(float* parameters)
 {
   nep_data.gn_radial.resize(table_length * paramb.num_types_sq * (paramb.n_max_radial + 1));
