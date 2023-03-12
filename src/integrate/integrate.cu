@@ -450,6 +450,16 @@ void Integrate::parse_ensemble(
     }
   }
 
+  // 5. number of beads in PIMD
+  if (type == 6) {
+    if (!is_valid_int(param[5], &number_of_beads)) {
+      PRINT_INPUT_ERROR("number of beads should be an integer.");
+    }
+    if (number_of_beads < 2 || number_of_beads > 128) {
+      PRINT_INPUT_ERROR("number of beads should be >= 2 and <= 128.");
+    }
+  }
+
   switch (type) {
     case 0:
       printf("Use NVE ensemble for this run.\n");
@@ -488,6 +498,13 @@ void Integrate::parse_ensemble(
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
+      break;
+    case 6:
+      printf("Use NVT-PIMD ensemble for this run.\n");
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      printf("    number of beads is %d.\n", number_of_beads);
       break;
     case 11:
       printf("Use NPT ensemble for this run.\n");

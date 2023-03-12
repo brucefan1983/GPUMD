@@ -77,4 +77,7 @@ public:
   int deform_y = 0;
   int deform_z = 0;
   double deform_rate[3];
+
+  // PIMD
+  int number_of_beads;
 };
