@@ -24,6 +24,7 @@ The driver class for the various integrators.
 #include "ensemble_nhc.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
+#include "ensemble_pimd.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
@@ -243,6 +244,11 @@ void Integrate::parse_ensemble(
     type = 5;
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
+    }
+  } else if (strcmp(param[1], "nvt_pimd") == 0) {
+    type = 6;
+    if (num_param != 6) {
+      PRINT_INPUT_ERROR("ensemble nvt_pimd should have 4 parameters.");
     }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
