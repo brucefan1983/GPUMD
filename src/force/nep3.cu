@@ -26,6 +26,7 @@ heat transport, Phys. Rev. B. 104, 104309 (2021).
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/nep_utilities.cuh"
+#include <fstream>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -1071,9 +1072,12 @@ void NEP3::compute_large_box(
         angular_actual = nep_data.cpu_NN_angular[n];
       }
     }
-    printf(
-      "Neighbor info: radial (max=%d, actual=%d), angular (max=%d, actual=%d).\n", paramb.MN_radial,
-      radial_actual, paramb.MN_angular, angular_actual);
+    std::ofstream output_file("neighbor.out", std::ios_base::app);
+    output_file << "Neighbor info at step " << num_calls - 1 << ": "
+                << "radial(max=" << paramb.MN_radial << ",actual=" << radial_actual
+                << "), angular(max=" << paramb.MN_angular << ",actual=" << angular_actual << ")."
+                << std::endl;
+    output_file.close();
   }
 
   gpu_sort_neighbor_list<<<N, paramb.MN_radial, paramb.MN_radial * sizeof(int)>>>(
