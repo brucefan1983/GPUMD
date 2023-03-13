@@ -37,6 +37,43 @@ Ensemble_PIMD::Ensemble_PIMD(
   temperature_coupling_beads = temperature_coupling_beads_input;
   c1 = exp(-0.5 / temperature_coupling_beads);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
+
+  position.resize(number_of_beads);
+  velocity.resize(number_of_beads);
+  force.resize(number_of_beads);
+  for (int b = 0; b < number_of_beads; ++b) {
+    position[b].resize(number_of_atoms * 3);
+    velocity[b].resize(number_of_atoms * 3);
+    force[b].resize(number_of_atoms * 3);
+    beads.position[b] = position[b].data();
+    beads.velocity[b] = velocity[b].data();
+    beads.force[b] = force[b].data();
+  }
+
+  // TODO: initializing position and velocity data for the beads
+
+  transformation_matrix.resize(number_of_beads * number_of_beads);
+  std::vector<double> transformation_matrix_cpu(number_of_beads * number_of_beads);
+  double sqrt_factor_1 = sqrt(1.0 / number_of_beads);
+  double sqrt_factor_2 = sqrt(2.0 / number_of_beads);
+  for (int j = 1; j <= number_of_beads; ++j) {
+    float sign_factor = (j % 2 == 0) ? 1.0f : -1.0f;
+    for (int k = 0; k < number_of_beads; ++k) {
+      int jk = (j - 1) * number_of_beads + k;
+      double pi_factor = 2.0 * PI * j * k / number_of_beads;
+      if (k == 0) {
+        transformation_matrix_cpu[jk] = sqrt_factor_1;
+      } else if (k < number_of_beads / 2) { // TODO: check n is even
+        transformation_matrix_cpu[jk] = sqrt_factor_2 * cos(pi_factor);
+      } else if (k == number_of_beads / 2) {
+        transformation_matrix_cpu[jk] = sqrt_factor_1 * sign_factor;
+      } else {
+        transformation_matrix_cpu[jk] = sqrt_factor_2 * sin(pi_factor);
+      }
+    }
+  }
+  transformation_matrix.copy_from_host(transformation_matrix_cpu.data());
+
   curand_states.resize(number_of_atoms);
   int grid_size = (number_of_atoms - 1) / 128 + 1;
   initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
