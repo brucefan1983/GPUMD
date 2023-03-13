@@ -23,17 +23,23 @@ The global path-integral Langevin equation (PILE) thermostat:
 #include "utilities/common.cuh"
 #include <cstdlib>
 
-Ensemble_PIMD::Ensemble_PIMD(int t, int fg, int N, double T, double Tc)
+Ensemble_PIMD::Ensemble_PIMD(
+  int number_of_atoms_input,
+  int number_of_beads_input,
+  double temperature_input,
+  double temperature_coupling_input,
+  double temperature_coupling_beads_input)
 {
-  type = t;
-  fixed_group = fg;
-  temperature = T;
-  temperature_coupling = Tc;
-  c1 = exp(-0.5 / temperature_coupling);
-  c2 = sqrt((1 - c1 * c1) * K_B * T);
-  curand_states.resize(N);
-  int grid_size = (N - 1) / 128 + 1;
-  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
+  number_of_atoms = number_of_atoms_input;
+  number_of_beads = number_of_beads_input;
+  temperature = temperature_input;
+  temperature_coupling = temperature_coupling_input;
+  temperature_coupling_beads = temperature_coupling_beads_input;
+  c1 = exp(-0.5 / temperature_coupling_beads);
+  c2 = sqrt((1 - c1 * c1) * K_B * temperature);
+  curand_states.resize(number_of_atoms);
+  int grid_size = (number_of_atoms - 1) / 128 + 1;
+  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), number_of_atoms, rand());
   CUDA_CHECK_KERNEL
 }
 

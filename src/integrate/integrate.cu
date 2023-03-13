@@ -99,6 +99,11 @@ void Integrate::initialize(
       ensemble.reset(new Ensemble_BDP(
         type, fixed_group, source, sink, temperature, temperature_coupling, delta_temperature));
       break;
+    case 31: // NVT-PIMD
+      ensemble.reset(new Ensemble_PIMD(
+        number_of_atoms, number_of_beads, temperature, temperature_coupling,
+        temperature_coupling_beads));
+      break;
     default:
       printf("Illegal integrator!\n");
       break;
@@ -245,11 +250,6 @@ void Integrate::parse_ensemble(
     if (num_param != 5) {
       PRINT_INPUT_ERROR("ensemble nvt_bao should have 3 parameters.");
     }
-  } else if (strcmp(param[1], "nvt_pimd") == 0) {
-    type = 6;
-    if (num_param != 6) {
-      PRINT_INPUT_ERROR("ensemble nvt_pimd should have 4 parameters.");
-    }
   } else if (strcmp(param[1], "npt_ber") == 0) {
     type = 11;
     if (num_param != 18 && num_param != 12 && num_param != 8) {
@@ -274,6 +274,11 @@ void Integrate::parse_ensemble(
     type = 23;
     if (num_param != 7) {
       PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
+    }
+  } else if (strcmp(param[1], "nvt_pimd") == 0) {
+    type = 31;
+    if (num_param != 6) {
+      PRINT_INPUT_ERROR("ensemble nvt_pimd should have 4 parameters.");
     }
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
@@ -450,8 +455,33 @@ void Integrate::parse_ensemble(
     }
   }
 
-  // 5. number of beads in PIMD
-  if (type == 6) {
+  // 5. NVT-PIMD
+  if (type == 31) {
+    // temperature
+    if (!is_valid_real(param[2], &temperature)) {
+      PRINT_INPUT_ERROR("temperature should be a number.");
+    }
+    if (temperature <= 0.0) {
+      PRINT_INPUT_ERROR("temperature should > 0.");
+    }
+
+    // temperature_coupling for the physical particles
+    if (!is_valid_real(param[3], &temperature_coupling)) {
+      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    }
+    if (temperature_coupling < 1.0) {
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    }
+
+    // temperature_coupling for the beads
+    if (!is_valid_real(param[4], &temperature_coupling_beads)) {
+      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    }
+    if (temperature_coupling_beads < 1.0) {
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    }
+
+    // number of beads
     if (!is_valid_int(param[5], &number_of_beads)) {
       PRINT_INPUT_ERROR("number of beads should be an integer.");
     }
@@ -498,13 +528,6 @@ void Integrate::parse_ensemble(
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
-      break;
-    case 6:
-      printf("Use NVT-PIMD ensemble for this run.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    number of beads is %d.\n", number_of_beads);
       break;
     case 11:
       printf("Use NPT ensemble for this run.\n");
@@ -614,6 +637,13 @@ void Integrate::parse_ensemble(
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
       printf("    heat source is group %d in grouping method 0.\n", source);
       printf("    heat sink is group %d in grouping method 0.\n", sink);
+      break;
+    case 31:
+      printf("Use NVT-PIMD ensemble for this run.\n");
+      printf("    temperature is %g K.\n", temperature);
+      printf("    physical coupling is %g time_step.\n", temperature_coupling);
+      printf("    internal coupling is %g time_step.\n", temperature_coupling_beads);
+      printf("    number of beads is %d.\n", number_of_beads);
       break;
     default:
       PRINT_INPUT_ERROR("Invalid ensemble type.");

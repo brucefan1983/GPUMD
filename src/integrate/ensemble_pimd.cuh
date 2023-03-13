@@ -20,7 +20,13 @@
 class Ensemble_PIMD : public Ensemble
 {
 public:
-  Ensemble_PIMD(int, int, int, double, double);
+  Ensemble_PIMD(
+    int number_of_atoms_input,
+    int number_of_beads_input,
+    double temperature_input,
+    double temperature_coupling_input,
+    double temperature_coupling_beads_input);
+
   virtual ~Ensemble_PIMD(void);
 
   virtual void compute1(
@@ -48,6 +54,9 @@ public:
     GPU_Vector<double>& thermo);
 
 protected:
+  int number_of_atoms = 0;
+  int number_of_beads = 0;
+  double temperature_coupling_beads;
   double c1, c2;
   GPU_Vector<curandState> curand_states;
 

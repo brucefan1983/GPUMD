@@ -80,4 +80,5 @@ public:
 
   // PIMD
   int number_of_beads;
+  double temperature_coupling_beads;
 };
