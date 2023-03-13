@@ -63,7 +63,7 @@ Ensemble_PIMD::Ensemble_PIMD(
       double pi_factor = 2.0 * PI * j * k / number_of_beads;
       if (k == 0) {
         transformation_matrix_cpu[jk] = sqrt_factor_1;
-      } else if (k < number_of_beads / 2) { // TODO: check n is even
+      } else if (k < number_of_beads / 2) {
         transformation_matrix_cpu[jk] = sqrt_factor_2 * cos(pi_factor);
       } else if (k == number_of_beads / 2) {
         transformation_matrix_cpu[jk] = sqrt_factor_1 * sign_factor;

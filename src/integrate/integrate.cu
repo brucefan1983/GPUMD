@@ -488,6 +488,9 @@ void Integrate::parse_ensemble(
     if (number_of_beads < 2 || number_of_beads > 128) {
       PRINT_INPUT_ERROR("number of beads should be >= 2 and <= 128.");
     }
+    if (number_of_beads % 2 != 0) {
+      PRINT_INPUT_ERROR("number of beads should be an even number.");
+    }
   }
 
   switch (type) {
