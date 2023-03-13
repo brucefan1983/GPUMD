@@ -55,14 +55,15 @@ public:
     GPU_Vector<double>& thermo);
 
   struct Beads {
-    const double* velocity[128]; // at most 128 beads
-    const double* position[128]; // at most 128 beads
-    const double* force[128];    // at most 128 beads
+    double* velocity[128]; // at most 128 beads
+    double* position[128]; // at most 128 beads
+    double* force[128];    // at most 128 beads
   };
 
 protected:
   int number_of_atoms = 0;
   int number_of_beads = 0;
+  double omega_n;
   double temperature_coupling_beads;
   double c1, c2;
   GPU_Vector<curandState> curand_states;

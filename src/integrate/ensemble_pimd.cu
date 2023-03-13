@@ -35,6 +35,7 @@ Ensemble_PIMD::Ensemble_PIMD(
   temperature = temperature_input;
   temperature_coupling = temperature_coupling_input;
   temperature_coupling_beads = temperature_coupling_beads_input;
+  omega_n = number_of_beads * K_B * temperature / HBAR;
   c1 = exp(-0.5 / temperature_coupling_beads);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 
@@ -85,6 +86,79 @@ Ensemble_PIMD::~Ensemble_PIMD(void)
   // nothing
 }
 
+static __global__ void gpu_nve_1(
+  const int number_of_atoms,
+  const int number_of_beads,
+  Ensemble_PIMD::Beads beads,
+  const double omega_n,
+  const double time_step,
+  const double* transformation_matrix,
+  const double* g_mass)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    const double half_time_step = time_step * 0.5;
+    double factor = half_time_step / g_mass[n];
+    for (int k = 0; k < number_of_beads; ++k) {
+      beads.velocity[k][n] += factor * beads.force[k][n];
+    }
+
+    double velocity_normal[128];
+    double position_normal[128];
+    for (int k = 0; k < number_of_beads; ++k) {
+      double temp_velocity = 0.0;
+      double temp_position = 0.0;
+      for (int j = 0; j < number_of_beads; ++j) {
+        temp_velocity += beads.velocity[j][n] * transformation_matrix[j * number_of_beads + k];
+        temp_position += beads.position[j][n] * transformation_matrix[j * number_of_beads + k];
+      }
+      velocity_normal[k] = temp_velocity;
+      position_normal[k] = temp_position;
+    }
+
+    position_normal[0] += velocity_normal[0] * time_step; // special case of k=0
+    for (int k = 1; k < number_of_beads; ++k) {
+      double omega_k = 2.0 * omega_n * sin(k * PI / number_of_beads);
+      double cos_factor = cos(omega_k * time_step);
+      double sin_factor = sin(omega_k * time_step);
+      double sin_factor_times_omega = sin_factor * omega_k;
+      double sin_factor_over_omega = sin_factor / omega_k;
+      double vel = velocity_normal[k];
+      double pos = position_normal[k];
+      velocity_normal[k] = cos_factor * vel - sin_factor_times_omega * pos;
+      position_normal[k] = sin_factor_over_omega * vel + cos_factor * pos;
+    }
+
+    for (int j = 0; j < number_of_beads; ++j) {
+      double temp_velocity = 0.0;
+      double temp_position = 0.0;
+      for (int k = 0; k < number_of_beads; ++k) {
+        temp_velocity += velocity_normal[k] * transformation_matrix[j * number_of_beads + k];
+        temp_position += position_normal[k] * transformation_matrix[j * number_of_beads + k];
+      }
+      beads.velocity[j][n] = temp_velocity;
+      beads.position[j][n] = temp_position;
+    }
+  }
+}
+
+static __global__ void gpu_nve_2(
+  const int number_of_atoms,
+  const int number_of_beads,
+  Ensemble_PIMD::Beads beads,
+  const double time_step,
+  const double* g_mass)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    const double half_time_step = time_step * 0.5;
+    double factor = half_time_step / g_mass[n];
+    for (int k = 0; k < number_of_beads; ++k) {
+      beads.velocity[k][n] += factor * beads.force[k][n];
+    }
+  }
+}
+
 // wrapper of the global Langevin thermostatting kernels
 void Ensemble_PIMD::integrate_nvt_lan_half(
   const GPU_Vector<double>& mass, GPU_Vector<double>& velocity_per_atom)
@@ -119,9 +193,9 @@ void Ensemble_PIMD::compute1(
   GPU_Vector<double>& velocity_per_atom,
   GPU_Vector<double>& thermo)
 {
-  integrate_nvt_lan_half(mass, velocity_per_atom);
-  velocity_verlet(
-    true, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+  gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    number_of_atoms, number_of_beads, beads, omega_n, time_step, transformation_matrix.data(),
+    mass.data());
 }
 
 void Ensemble_PIMD::compute2(
@@ -136,9 +210,8 @@ void Ensemble_PIMD::compute2(
   GPU_Vector<double>& velocity_per_atom,
   GPU_Vector<double>& thermo)
 {
-  velocity_verlet(
-    false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
-  integrate_nvt_lan_half(mass, velocity_per_atom);
+  gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    number_of_atoms, number_of_beads, beads, time_step, mass.data());
   find_thermo(
     true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
     thermo);
