@@ -14,8 +14,9 @@
 */
 
 /*----------------------------------------------------------------------------80
-The global path-integral Langevin equation (PILE) thermostat:
+References for implementation:
 [1] Ceriotti et al., J. Chem. Phys. 133, 124104 (2010).
+[2] Mariana Rossi et al., J. Chem. Phys. 140, 234116 (2014).
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_pimd.cuh"
@@ -34,10 +35,7 @@ Ensemble_PIMD::Ensemble_PIMD(
   number_of_beads = number_of_beads_input;
   temperature = temperature_input;
   temperature_coupling = temperature_coupling_input;
-  temperature_coupling_beads = temperature_coupling_beads_input;
   omega_n = number_of_beads * K_B * temperature / HBAR;
-  c1 = exp(-0.5 / temperature_coupling_beads);
-  c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 
   position.resize(number_of_beads);
   velocity.resize(number_of_beads);
@@ -118,7 +116,7 @@ static __global__ void gpu_nve_1(
 
     position_normal[0] += velocity_normal[0] * time_step; // special case of k=0
     for (int k = 1; k < number_of_beads; ++k) {
-      double omega_k = 2.0 * omega_n * sin(k * PI / number_of_beads);
+      double omega_k = omega_n * sin(k * PI / number_of_beads);
       double cos_factor = cos(omega_k * time_step);
       double sin_factor = sin(omega_k * time_step);
       double sin_factor_times_omega = sin_factor * omega_k;
@@ -159,26 +157,53 @@ static __global__ void gpu_nve_2(
   }
 }
 
-// wrapper of the global Langevin thermostatting kernels
-void Ensemble_PIMD::integrate_nvt_lan_half(
-  const GPU_Vector<double>& mass, GPU_Vector<double>& velocity_per_atom)
+static __global__ void gpu_langevin(
+  const int number_of_atoms,
+  const int number_of_beads,
+  Ensemble_PIMD::Beads beads,
+  curandState* g_state,
+  const double temperature,
+  const double temperature_coupling,
+  const double omega_n,
+  const double time_step,
+  const double* transformation_matrix,
+  const double* g_mass)
 {
-  const int number_of_atoms = mass.size();
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    double velocity_normal[128];
+    for (int k = 0; k < number_of_beads; ++k) {
+      double temp_velocity = 0.0;
+      for (int j = 0; j < number_of_beads; ++j) {
+        temp_velocity += beads.velocity[j][n] * transformation_matrix[j * number_of_beads + k];
+      }
+      velocity_normal[k] = temp_velocity;
+    }
 
-  gpu_langevin<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    curand_states.data(), number_of_atoms, c1, c2, mass.data(), velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+    curandState state = g_state[n];
+    for (int k = 0; k < number_of_beads; ++k) {
+      double gamma_k = omega_n * sin(k * PI / number_of_beads);
+      double exp_factor = -0.5 * time_step * gamma_k;
+      if (k == 0 && temperature_coupling <= 100000.0f) {
+        exp_factor = -0.5 / temperature_coupling;
+      }
+      double c1 = exp(exp_factor);
+      double c2 = sqrt((1 - c1 * c1) * K_B * temperature * number_of_beads / g_mass[n]);
+      for (int d = 0; d < 3; ++d) {
+        beads.velocity[k][n + number_of_atoms * d] =
+          c1 * beads.velocity[k][n + number_of_atoms * d] + c2 * CURAND_NORMAL(&state);
+      }
+    }
+    g_state[n] = state;
 
-  gpu_find_momentum<<<4, 1024>>>(
-    number_of_atoms, mass.data(), velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
-
-  gpu_correct_momentum<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL
+    for (int j = 0; j < number_of_beads; ++j) {
+      double temp_velocity = 0.0;
+      for (int k = 0; k < number_of_beads; ++k) {
+        temp_velocity += velocity_normal[k] * transformation_matrix[j * number_of_beads + k];
+      }
+      beads.velocity[j][n] = temp_velocity;
+    }
+  }
 }
 
 void Ensemble_PIMD::compute1(
@@ -193,9 +218,15 @@ void Ensemble_PIMD::compute1(
   GPU_Vector<double>& velocity_per_atom,
   GPU_Vector<double>& thermo)
 {
+  gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    number_of_atoms, number_of_beads, beads, curand_states.data(), temperature,
+    temperature_coupling, omega_n, time_step, transformation_matrix.data(), mass.data());
+  CUDA_CHECK_KERNEL
+
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, beads, omega_n, time_step, transformation_matrix.data(),
     mass.data());
+  CUDA_CHECK_KERNEL
 }
 
 void Ensemble_PIMD::compute2(
@@ -212,6 +243,13 @@ void Ensemble_PIMD::compute2(
 {
   gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, beads, time_step, mass.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    number_of_atoms, number_of_beads, beads, curand_states.data(), temperature,
+    temperature_coupling, omega_n, time_step, transformation_matrix.data(), mass.data());
+  CUDA_CHECK_KERNEL
+
   find_thermo(
     true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
     thermo);
