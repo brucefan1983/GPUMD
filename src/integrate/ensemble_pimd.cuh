@@ -26,7 +26,7 @@ public:
     int number_of_beads_input,
     double temperature_input,
     double temperature_coupling_input,
-    double temperature_coupling_beads_input);
+    Atom& atom);
 
   virtual ~Ensemble_PIMD(void);
 
@@ -45,9 +45,11 @@ public:
     GPU_Vector<double>& thermo);
 
   struct Beads {
-    double* velocity[128]; // at most 128 beads
-    double* position[128]; // at most 128 beads
-    double* force[128];    // at most 128 beads
+    double* velocity;
+    double* position;
+    double* force;
+    double* potential;
+    double* virial;
   };
 
 protected:
@@ -55,9 +57,6 @@ protected:
   int number_of_beads = 0;
   double omega_n;
   GPU_Vector<curandState> curand_states;
-  std::vector<GPU_Vector<double>> position;
-  std::vector<GPU_Vector<double>> velocity;
-  std::vector<GPU_Vector<double>> force;
   GPU_Vector<double> transformation_matrix;
   Beads beads;
 };

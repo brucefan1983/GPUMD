@@ -31,7 +31,7 @@ The driver class for the various integrators.
 #include "utilities/read_file.cuh"
 
 void Integrate::initialize(
-  const int number_of_atoms, const double time_step, const std::vector<Group>& group)
+  const int number_of_atoms, const double time_step, const std::vector<Group>& group, Atom& atom)
 {
   if (move_group >= 0) {
     if (fixed_group < 0) {
@@ -101,8 +101,7 @@ void Integrate::initialize(
       break;
     case 31: // NVT-PIMD
       ensemble.reset(new Ensemble_PIMD(
-        number_of_atoms, number_of_beads, temperature, temperature_coupling,
-        temperature_coupling_beads));
+        number_of_atoms, number_of_beads, temperature, temperature_coupling, atom));
       break;
     default:
       printf("Illegal integrator!\n");

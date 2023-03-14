@@ -28,8 +28,8 @@ class Integrate
 public:
   std::unique_ptr<Ensemble> ensemble;
 
-  void
-  initialize(const int number_of_atoms, const double time_step, const std::vector<Group>& group);
+  void initialize(
+    const int number_of_atoms, const double time_step, const std::vector<Group>& group, Atom& atom);
 
   void finalize();
 

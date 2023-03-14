@@ -37,4 +37,10 @@ public:
   GPU_Vector<double> heat_per_atom;      // per-atom heat current (5 components)
   GPU_Vector<double> virial_per_atom;    // per-atom virial (9 components)
   GPU_Vector<double> potential_per_atom; // per-atom potential energy (1 component)
+  // for beads in PIMD
+  GPU_Vector<double> position_beads;
+  GPU_Vector<double> velocity_beads;
+  GPU_Vector<double> force_beads;
+  GPU_Vector<double> potential_beads;
+  GPU_Vector<double> virial_beads;
 };

@@ -29,7 +29,7 @@ Ensemble_PIMD::Ensemble_PIMD(
   int number_of_beads_input,
   double temperature_input,
   double temperature_coupling_input,
-  double temperature_coupling_beads_input)
+  Atom& atom)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
@@ -37,19 +37,11 @@ Ensemble_PIMD::Ensemble_PIMD(
   temperature_coupling = temperature_coupling_input;
   omega_n = number_of_beads * K_B * temperature / HBAR;
 
-  position.resize(number_of_beads);
-  velocity.resize(number_of_beads);
-  force.resize(number_of_beads);
-  for (int b = 0; b < number_of_beads; ++b) {
-    position[b].resize(number_of_atoms * 3);
-    velocity[b].resize(number_of_atoms * 3);
-    force[b].resize(number_of_atoms * 3);
-    beads.position[b] = position[b].data();
-    beads.velocity[b] = velocity[b].data();
-    beads.force[b] = force[b].data();
-  }
-
-  // TODO: initializing position and velocity data for the beads
+  beads.position = atom.position_beads.data();
+  beads.velocity = atom.velocity_beads.data();
+  beads.force = atom.force_beads.data();
+  beads.potential = atom.potential_beads.data();
+  beads.virial = atom.virial_beads.data();
 
   transformation_matrix.resize(number_of_beads * number_of_beads);
   std::vector<double> transformation_matrix_cpu(number_of_beads * number_of_beads);
@@ -98,20 +90,28 @@ static __global__ void gpu_nve_1(
     const double half_time_step = time_step * 0.5;
     double factor = half_time_step / g_mass[n];
     for (int k = 0; k < number_of_beads; ++k) {
-      beads.velocity[k][n] += factor * beads.force[k][n];
+      for (int d = 0; d < 3; ++d) {
+        int index_kdn = (k * 3 + d) * number_of_atoms + n;
+        beads.velocity[index_kdn] += factor * beads.force[index_kdn];
+      }
     }
 
-    double velocity_normal[128];
-    double position_normal[128];
+    double velocity_normal[384];
+    double position_normal[384];
     for (int k = 0; k < number_of_beads; ++k) {
-      double temp_velocity = 0.0;
-      double temp_position = 0.0;
-      for (int j = 0; j < number_of_beads; ++j) {
-        temp_velocity += beads.velocity[j][n] * transformation_matrix[j * number_of_beads + k];
-        temp_position += beads.position[j][n] * transformation_matrix[j * number_of_beads + k];
+      for (int d = 0; d < 3; ++d) {
+        double temp_velocity = 0.0;
+        double temp_position = 0.0;
+        for (int j = 0; j < number_of_beads; ++j) {
+          int index_jdn = (j * 3 + d) * number_of_atoms + n;
+          int index_jk = j * number_of_beads + k;
+          temp_velocity += beads.velocity[index_jdn] * transformation_matrix[index_jk];
+          temp_position += beads.position[index_jdn] * transformation_matrix[index_jk];
+        }
+        int index_kd = k * 3 + d;
+        velocity_normal[index_kd] = temp_velocity;
+        position_normal[index_kd] = temp_position;
       }
-      velocity_normal[k] = temp_velocity;
-      position_normal[k] = temp_position;
     }
 
     position_normal[0] += velocity_normal[0] * time_step; // special case of k=0
@@ -128,14 +128,18 @@ static __global__ void gpu_nve_1(
     }
 
     for (int j = 0; j < number_of_beads; ++j) {
-      double temp_velocity = 0.0;
-      double temp_position = 0.0;
-      for (int k = 0; k < number_of_beads; ++k) {
-        temp_velocity += velocity_normal[k] * transformation_matrix[j * number_of_beads + k];
-        temp_position += position_normal[k] * transformation_matrix[j * number_of_beads + k];
+      for (int d = 0; d < 3; ++d) {
+        double temp_velocity = 0.0;
+        double temp_position = 0.0;
+        for (int k = 0; k < number_of_beads; ++k) {
+          int index_jk = j * number_of_beads + k;
+          temp_velocity += velocity_normal[k] * transformation_matrix[index_jk];
+          temp_position += position_normal[k] * transformation_matrix[index_jk];
+        }
+        int index_jdn = (j * 3 + d) * number_of_atoms + n;
+        beads.velocity[index_jdn] = temp_velocity;
+        beads.position[index_jdn] = temp_position;
       }
-      beads.velocity[j][n] = temp_velocity;
-      beads.position[j][n] = temp_position;
     }
   }
 }
@@ -152,7 +156,10 @@ static __global__ void gpu_nve_2(
     const double half_time_step = time_step * 0.5;
     double factor = half_time_step / g_mass[n];
     for (int k = 0; k < number_of_beads; ++k) {
-      beads.velocity[k][n] += factor * beads.force[k][n];
+      for (int d = 0; d < 3; ++d) {
+        int index_kdn = (k * 3 + d) * number_of_atoms + n;
+        beads.velocity[index_kdn] += factor * beads.force[index_kdn];
+      }
     }
   }
 }
@@ -171,13 +178,19 @@ static __global__ void gpu_langevin(
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
-    double velocity_normal[128];
+
+    double velocity_normal[384];
+
     for (int k = 0; k < number_of_beads; ++k) {
-      double temp_velocity = 0.0;
-      for (int j = 0; j < number_of_beads; ++j) {
-        temp_velocity += beads.velocity[j][n] * transformation_matrix[j * number_of_beads + k];
+      for (int d = 0; d < 3; ++d) {
+        double temp_velocity = 0.0;
+        for (int j = 0; j < number_of_beads; ++j) {
+          int index_jdn = (j * 3 + d) * number_of_atoms + n;
+          int index_jk = j * number_of_beads + k;
+          temp_velocity += beads.velocity[index_jdn] * transformation_matrix[index_jk];
+        }
+        velocity_normal[k * number_of_beads + d] = temp_velocity;
       }
-      velocity_normal[k] = temp_velocity;
     }
 
     curandState state = g_state[n];
@@ -190,18 +203,22 @@ static __global__ void gpu_langevin(
       double c1 = exp(exp_factor);
       double c2 = sqrt((1 - c1 * c1) * K_B * temperature * number_of_beads / g_mass[n]);
       for (int d = 0; d < 3; ++d) {
-        beads.velocity[k][n + number_of_atoms * d] =
-          c1 * beads.velocity[k][n + number_of_atoms * d] + c2 * CURAND_NORMAL(&state);
+        int index_kdn = (k * 3 + d) * number_of_atoms + n;
+        beads.velocity[index_kdn] = c1 * beads.velocity[index_kdn] + c2 * CURAND_NORMAL(&state);
       }
     }
     g_state[n] = state;
 
     for (int j = 0; j < number_of_beads; ++j) {
-      double temp_velocity = 0.0;
-      for (int k = 0; k < number_of_beads; ++k) {
-        temp_velocity += velocity_normal[k] * transformation_matrix[j * number_of_beads + k];
+      for (int d = 0; d < 3; ++d) {
+        double temp_velocity = 0.0;
+        for (int k = 0; k < number_of_beads; ++k) {
+          int index_jk = j * number_of_beads + k;
+          temp_velocity += velocity_normal[k] * transformation_matrix[index_jk];
+        }
+        int index_jdn = (j * 3 + d) * number_of_atoms + n;
+        beads.velocity[index_jdn] = temp_velocity;
       }
-      beads.velocity[j][n] = temp_velocity;
     }
   }
 }
