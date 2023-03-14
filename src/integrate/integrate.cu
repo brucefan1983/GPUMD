@@ -178,9 +178,7 @@ void Integrate::compute1(
     atom.position_temp.data() + num_atoms, atom.position_temp.data() + num_atoms * 2);
   CUDA_CHECK_KERNEL
 
-  ensemble->compute1(
-    time_step, group, atom.mass, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom,
-    box, atom.position_per_atom, atom.velocity_per_atom, thermo);
+  ensemble->compute1(time_step, group, box, atom, thermo);
 
   gpu_update_unwrapped_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
     num_atoms, atom.position_per_atom.data(), atom.position_per_atom.data() + num_atoms,
@@ -206,9 +204,7 @@ void Integrate::compute2(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  ensemble->compute2(
-    time_step, group, atom.mass, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom,
-    box, atom.position_per_atom, atom.velocity_per_atom, thermo);
+  ensemble->compute2(time_step, group, box, atom, thermo);
 }
 
 // coding conventions:

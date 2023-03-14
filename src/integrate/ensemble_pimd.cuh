@@ -33,25 +33,15 @@ public:
   virtual void compute1(
     const double time_step,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo);
 
   virtual void compute2(
     const double time_step,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo);
 
   struct Beads {

@@ -209,48 +209,42 @@ static __global__ void gpu_langevin(
 void Ensemble_PIMD::compute1(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, beads, curand_states.data(), temperature,
-    temperature_coupling, omega_n, time_step, transformation_matrix.data(), mass.data());
+    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data());
   CUDA_CHECK_KERNEL
 
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, beads, omega_n, time_step, transformation_matrix.data(),
-    mass.data());
+    atom.mass.data());
   CUDA_CHECK_KERNEL
 }
 
 void Ensemble_PIMD::compute2(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, beads, time_step, mass.data());
+    number_of_atoms, number_of_beads, beads, time_step, atom.mass.data());
   CUDA_CHECK_KERNEL
 
   gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, beads, curand_states.data(), temperature,
-    temperature_coupling, omega_n, time_step, transformation_matrix.data(), mass.data());
+    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data());
   CUDA_CHECK_KERNEL
 
+  // TODO: correct momentum
+
+  // get averaged quantities
+
   find_thermo(
-    true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
-    thermo);
+    true, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
+    atom.virial_per_atom, thermo);
 }

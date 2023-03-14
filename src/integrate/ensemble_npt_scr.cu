@@ -213,40 +213,32 @@ static void cpu_pressure_triclinic(
 void Ensemble_NPT_SCR::compute1(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   velocity_verlet(
-    true, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+    atom.velocity_per_atom);
 }
 
 void Ensemble_NPT_SCR::compute2(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  const int number_of_atoms = mass.size();
+  const int number_of_atoms = atom.mass.size();
 
   velocity_verlet(
-    false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    false, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+    atom.velocity_per_atom);
 
   int N_fixed = (fixed_group == -1) ? 0 : group[0].cpu_size[fixed_group];
   find_thermo(
-    true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
-    thermo);
+    true, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
+    atom.virial_per_atom, thermo);
 
   double ek[1];
   thermo.copy_to_host(ek, 1);
@@ -255,23 +247,25 @@ void Ensemble_NPT_SCR::compute2(
   double sigma = ndeg * K_B * temperature * 0.5;
   double factor = resamplekin(ek[0], sigma, ndeg, temperature_coupling, rng);
   factor = sqrt(factor / ek[0]);
-  scale_velocity_global(factor, velocity_per_atom);
+  scale_velocity_global(factor, atom.velocity_per_atom);
 
   if (num_target_pressure_components == 1) {
     double scale_factor;
     cpu_pressure_isotropic(
       rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), scale_factor);
     gpu_pressure_isotropic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, scale_factor, position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2);
+      number_of_atoms, scale_factor, atom.position_per_atom.data(),
+      atom.position_per_atom.data() + number_of_atoms,
+      atom.position_per_atom.data() + number_of_atoms * 2);
   } else if (num_target_pressure_components == 3) {
     double scale_factor[3];
     cpu_pressure_orthogonal(
       rng, deform_x, deform_y, deform_z, deform_rate, box, temperature, target_pressure,
       pressure_coupling, thermo.data(), scale_factor);
     gpu_pressure_orthogonal<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, scale_factor[0], scale_factor[1], scale_factor[2], position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2);
+      number_of_atoms, scale_factor[0], scale_factor[1], scale_factor[2],
+      atom.position_per_atom.data(), atom.position_per_atom.data() + number_of_atoms,
+      atom.position_per_atom.data() + number_of_atoms * 2);
     CUDA_CHECK_KERNEL
   } else {
     double mu[9];
@@ -279,7 +273,7 @@ void Ensemble_NPT_SCR::compute2(
       rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), mu);
     gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, mu[0], mu[1], mu[2], mu[3], mu[4], mu[5], mu[6], mu[7], mu[8],
-      position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2);
+      atom.position_per_atom.data(), atom.position_per_atom.data() + number_of_atoms,
+      atom.position_per_atom.data() + number_of_atoms * 2);
   }
 }
