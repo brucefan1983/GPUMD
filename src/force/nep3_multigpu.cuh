@@ -19,6 +19,12 @@
 #include "utilities/gpu_vector.cuh"
 
 struct NEP3_MULTIGPU_Data {
+#ifdef USE_TABLE
+  GPU_Vector<float> gn_radial;   // tabulated gn_radial functions
+  GPU_Vector<float> gnp_radial;  // tabulated gnp_radial functions
+  GPU_Vector<float> gn_angular;  // tabulated gn_angular functions
+  GPU_Vector<float> gnp_angular; // tabulated gnp_angular functions
+#endif
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
   GPU_Vector<float> f12y; // 3-body or manybody partial forces
   GPU_Vector<float> f12z; // 3-body or manybody partial forces
