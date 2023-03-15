@@ -37,11 +37,46 @@ Ensemble_PIMD::Ensemble_PIMD(
   temperature_coupling = temperature_coupling_input;
   omega_n = number_of_beads * K_B * temperature / HBAR;
 
-  beads.position = atom.position_beads.data();
-  beads.velocity = atom.velocity_beads.data();
-  beads.force = atom.force_beads.data();
-  beads.potential = atom.potential_beads.data();
-  beads.virial = atom.virial_beads.data();
+  position_beads.resize(number_of_beads);
+  velocity_beads.resize(number_of_beads);
+  potential_beads.resize(number_of_beads);
+  force_beads.resize(number_of_beads);
+  virial_beads.resize(number_of_beads);
+
+  std::vector<double*> position_beads_cpu(number_of_beads);
+  std::vector<double*> velocity_beads_cpu(number_of_beads);
+  std::vector<double*> potential_beads_cpu(number_of_beads);
+  std::vector<double*> force_beads_cpu(number_of_beads);
+  std::vector<double*> virial_beads_cpu(number_of_beads);
+
+  atom.position_beads.resize(number_of_beads);
+  atom.velocity_beads.resize(number_of_beads);
+  atom.potential_beads.resize(number_of_beads);
+  atom.force_beads.resize(number_of_beads);
+  atom.virial_beads.resize(number_of_beads);
+
+  for (int k = 0; k < number_of_beads; ++k) {
+    atom.position_beads[k].resize(number_of_atoms * 3);
+    atom.velocity_beads[k].resize(number_of_atoms * 3);
+    atom.potential_beads[k].resize(number_of_atoms);
+    atom.force_beads[k].resize(number_of_atoms * 3);
+    atom.virial_beads[k].resize(number_of_atoms * 9);
+
+    atom.position_beads[k].copy_from_device(atom.position_per_atom.data());
+    atom.velocity_beads[k].copy_from_device(atom.velocity_per_atom.data());
+
+    position_beads_cpu[k] = atom.position_beads[k].data();
+    velocity_beads_cpu[k] = atom.velocity_beads[k].data();
+    potential_beads_cpu[k] = atom.potential_beads[k].data();
+    force_beads_cpu[k] = atom.force_beads[k].data();
+    virial_beads_cpu[k] = atom.virial_beads[k].data();
+  }
+
+  position_beads.copy_from_host(position_beads_cpu.data());
+  velocity_beads.copy_from_host(velocity_beads_cpu.data());
+  potential_beads.copy_from_host(potential_beads_cpu.data());
+  force_beads.copy_from_host(force_beads_cpu.data());
+  virial_beads.copy_from_host(virial_beads_cpu.data());
 
   transformation_matrix.resize(number_of_beads * number_of_beads);
   std::vector<double> transformation_matrix_cpu(number_of_beads * number_of_beads);
@@ -79,11 +114,13 @@ Ensemble_PIMD::~Ensemble_PIMD(void)
 static __global__ void gpu_nve_1(
   const int number_of_atoms,
   const int number_of_beads,
-  Ensemble_PIMD::Beads beads,
   const double omega_n,
   const double time_step,
   const double* transformation_matrix,
-  const double* g_mass)
+  const double* g_mass,
+  double** force,
+  double** position,
+  double** velocity)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
@@ -91,8 +128,8 @@ static __global__ void gpu_nve_1(
     double factor = half_time_step / g_mass[n];
     for (int k = 0; k < number_of_beads; ++k) {
       for (int d = 0; d < 3; ++d) {
-        int index_kdn = (k * 3 + d) * number_of_atoms + n;
-        beads.velocity[index_kdn] += factor * beads.force[index_kdn];
+        int index_dn = d * number_of_atoms + n;
+        velocity[k][index_dn] += factor * force[k][index_dn];
       }
     }
 
@@ -103,10 +140,10 @@ static __global__ void gpu_nve_1(
         double temp_velocity = 0.0;
         double temp_position = 0.0;
         for (int j = 0; j < number_of_beads; ++j) {
-          int index_jdn = (j * 3 + d) * number_of_atoms + n;
+          int index_dn = d * number_of_atoms + n;
           int index_jk = j * number_of_beads + k;
-          temp_velocity += beads.velocity[index_jdn] * transformation_matrix[index_jk];
-          temp_position += beads.position[index_jdn] * transformation_matrix[index_jk];
+          temp_velocity += velocity[j][index_dn] * transformation_matrix[index_jk];
+          temp_position += position[j][index_dn] * transformation_matrix[index_jk];
         }
         int index_kd = k * 3 + d;
         velocity_normal[index_kd] = temp_velocity;
@@ -136,9 +173,9 @@ static __global__ void gpu_nve_1(
           temp_velocity += velocity_normal[k] * transformation_matrix[index_jk];
           temp_position += position_normal[k] * transformation_matrix[index_jk];
         }
-        int index_jdn = (j * 3 + d) * number_of_atoms + n;
-        beads.velocity[index_jdn] = temp_velocity;
-        beads.position[index_jdn] = temp_position;
+        int index_dn = d * number_of_atoms + n;
+        velocity[j][index_dn] = temp_velocity;
+        position[j][index_dn] = temp_position;
       }
     }
   }
@@ -147,9 +184,10 @@ static __global__ void gpu_nve_1(
 static __global__ void gpu_nve_2(
   const int number_of_atoms,
   const int number_of_beads,
-  Ensemble_PIMD::Beads beads,
   const double time_step,
-  const double* g_mass)
+  const double* g_mass,
+  double** force,
+  double** velocity)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
@@ -157,8 +195,8 @@ static __global__ void gpu_nve_2(
     double factor = half_time_step / g_mass[n];
     for (int k = 0; k < number_of_beads; ++k) {
       for (int d = 0; d < 3; ++d) {
-        int index_kdn = (k * 3 + d) * number_of_atoms + n;
-        beads.velocity[index_kdn] += factor * beads.force[index_kdn];
+        int index_dn = d * number_of_atoms + n;
+        velocity[k][index_dn] += factor * force[k][index_dn];
       }
     }
   }
@@ -167,14 +205,14 @@ static __global__ void gpu_nve_2(
 static __global__ void gpu_langevin(
   const int number_of_atoms,
   const int number_of_beads,
-  Ensemble_PIMD::Beads beads,
   curandState* g_state,
   const double temperature,
   const double temperature_coupling,
   const double omega_n,
   const double time_step,
   const double* transformation_matrix,
-  const double* g_mass)
+  const double* g_mass,
+  double** velocity)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
@@ -185,9 +223,9 @@ static __global__ void gpu_langevin(
       for (int d = 0; d < 3; ++d) {
         double temp_velocity = 0.0;
         for (int j = 0; j < number_of_beads; ++j) {
-          int index_jdn = (j * 3 + d) * number_of_atoms + n;
+          int index_dn = d * number_of_atoms + n;
           int index_jk = j * number_of_beads + k;
-          temp_velocity += beads.velocity[index_jdn] * transformation_matrix[index_jk];
+          temp_velocity += velocity[j][index_dn] * transformation_matrix[index_jk];
         }
         velocity_normal[k * number_of_beads + d] = temp_velocity;
       }
@@ -203,8 +241,8 @@ static __global__ void gpu_langevin(
       double c1 = exp(exp_factor);
       double c2 = sqrt((1 - c1 * c1) * K_B * temperature * number_of_beads / g_mass[n]);
       for (int d = 0; d < 3; ++d) {
-        int index_kdn = (k * 3 + d) * number_of_atoms + n;
-        beads.velocity[index_kdn] = c1 * beads.velocity[index_kdn] + c2 * CURAND_NORMAL(&state);
+        int index_dn = d * number_of_atoms + n;
+        velocity[k][index_dn] = c1 * velocity[k][index_dn] + c2 * CURAND_NORMAL(&state);
       }
     }
     g_state[n] = state;
@@ -216,8 +254,8 @@ static __global__ void gpu_langevin(
           int index_jk = j * number_of_beads + k;
           temp_velocity += velocity_normal[k] * transformation_matrix[index_jk];
         }
-        int index_jdn = (j * 3 + d) * number_of_atoms + n;
-        beads.velocity[index_jdn] = temp_velocity;
+        int index_dn = d * number_of_atoms + n;
+        velocity[j][index_dn] = temp_velocity;
       }
     }
   }
@@ -231,13 +269,13 @@ void Ensemble_PIMD::compute1(
   GPU_Vector<double>& thermo)
 {
   gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, beads, curand_states.data(), temperature,
-    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data());
+    number_of_atoms, number_of_beads, curand_states.data(), temperature, temperature_coupling,
+    omega_n, time_step, transformation_matrix.data(), atom.mass.data(), velocity_beads.data());
   CUDA_CHECK_KERNEL
 
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, beads, omega_n, time_step, transformation_matrix.data(),
-    atom.mass.data());
+    number_of_atoms, number_of_beads, omega_n, time_step, transformation_matrix.data(),
+    atom.mass.data(), force_beads.data(), position_beads.data(), velocity_beads.data());
   CUDA_CHECK_KERNEL
 }
 
@@ -249,19 +287,16 @@ void Ensemble_PIMD::compute2(
   GPU_Vector<double>& thermo)
 {
   gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, beads, time_step, atom.mass.data());
+    number_of_atoms, number_of_beads, time_step, atom.mass.data(), force_beads.data(),
+    velocity_beads.data());
   CUDA_CHECK_KERNEL
 
   gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, beads, curand_states.data(), temperature,
-    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data());
+    number_of_atoms, number_of_beads, curand_states.data(), temperature, temperature_coupling,
+    omega_n, time_step, transformation_matrix.data(), atom.mass.data(), velocity_beads.data());
   CUDA_CHECK_KERNEL
 
   // TODO: correct momentum
 
   // get averaged quantities
-
-  find_thermo(
-    true, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
-    atom.virial_per_atom, thermo);
 }

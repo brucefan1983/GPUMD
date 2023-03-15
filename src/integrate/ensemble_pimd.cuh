@@ -44,19 +44,15 @@ public:
     Atom& atom,
     GPU_Vector<double>& thermo);
 
-  struct Beads {
-    double* velocity;
-    double* position;
-    double* force;
-    double* potential;
-    double* virial;
-  };
-
 protected:
   int number_of_atoms = 0;
   int number_of_beads = 0;
   double omega_n;
   GPU_Vector<curandState> curand_states;
+  GPU_Vector<double*> position_beads;
+  GPU_Vector<double*> velocity_beads;
+  GPU_Vector<double*> potential_beads;
+  GPU_Vector<double*> force_beads;
+  GPU_Vector<double*> virial_beads;
   GPU_Vector<double> transformation_matrix;
-  Beads beads;
 };

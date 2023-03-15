@@ -172,9 +172,17 @@ void Run::perform_a_run()
 
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
-    force.compute(
-      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
-      atom.virial_per_atom, atom.velocity_per_atom, atom.mass);
+    if (integrate.type == 31) { // PIMD
+      for (int k = 0; k < integrate.number_of_beads; ++k) {
+        force.compute(
+          box, atom.position_beads[k], atom.type, group, atom.potential_beads[k],
+          atom.force_beads[k], atom.virial_beads[k], atom.velocity_beads[k], atom.mass);
+      }
+    } else {
+      force.compute(
+        box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
+        atom.virial_per_atom, atom.velocity_per_atom, atom.mass);
+    }
 
 #ifdef USE_PLUMED
     if (measure.plmd.use_plumed == 1 && (step % measure.plmd.interval) == 0) {
