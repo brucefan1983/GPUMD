@@ -66,6 +66,7 @@ Ensemble_PIMD::Ensemble_PIMD(
 
     atom.position_beads[k].copy_from_device(atom.position_per_atom.data());
     atom.velocity_beads[k].copy_from_device(atom.velocity_per_atom.data());
+    atom.force_beads[k].copy_from_device(atom.force_per_atom.data());
 
     position_beads_cpu[k] = atom.position_beads[k].data();
     velocity_beads_cpu[k] = atom.velocity_beads[k].data();
@@ -85,7 +86,7 @@ Ensemble_PIMD::Ensemble_PIMD(
   double sqrt_factor_1 = sqrt(1.0 / number_of_beads);
   double sqrt_factor_2 = sqrt(2.0 / number_of_beads);
   for (int j = 1; j <= number_of_beads; ++j) {
-    float sign_factor = (j % 2 == 0) ? 1.0f : -1.0f;
+    double sign_factor = (j % 2 == 0) ? 1.0 : -1.0;
     for (int k = 0; k < number_of_beads; ++k) {
       int jk = (j - 1) * number_of_beads + k;
       double pi_factor = 2.0 * PI * j * k / number_of_beads;
@@ -153,9 +154,12 @@ static __global__ void gpu_nve_1(
       }
     }
 
-    position_normal[0] += velocity_normal[0] * time_step; // special case of k=0
+    for (int d = 0; d < 3; ++d) {
+      position_normal[d] += velocity_normal[d] * time_step; // special case of k=0
+    }
+
     for (int k = 1; k < number_of_beads; ++k) {
-      double omega_k = omega_n * sin(k * PI / number_of_beads);
+      double omega_k = 2.0 * omega_n * sin(k * PI / number_of_beads);
       double cos_factor = cos(omega_k * time_step);
       double sin_factor = sin(omega_k * time_step);
       double sin_factor_times_omega = sin_factor * omega_k;
@@ -209,6 +213,7 @@ static __global__ void gpu_nve_2(
 }
 
 static __global__ void gpu_langevin(
+  const bool use_rpmd,
   const int number_of_atoms,
   const int number_of_beads,
   curandState* g_state,
@@ -233,18 +238,18 @@ static __global__ void gpu_langevin(
           int index_jk = j * number_of_beads + k;
           temp_velocity += velocity[j][index_dn] * transformation_matrix[index_jk];
         }
-        velocity_normal[k * number_of_beads + d] = temp_velocity;
+        int index_kd = k * 3 + d;
+        velocity_normal[index_kd] = temp_velocity;
       }
     }
 
     curandState state = g_state[n];
     for (int k = 0; k < number_of_beads; ++k) {
-      double gamma_k = omega_n * sin(k * PI / number_of_beads);
-      double exp_factor = -0.5 * time_step * gamma_k;
-      if (k == 0 && temperature_coupling <= 100000.0f) {
-        exp_factor = -0.5 / temperature_coupling;
+      if (k == 0 && use_rpmd) {
+        continue;
       }
-      double c1 = exp(exp_factor);
+      double c1 = (k == 0) ? exp(-0.5 / temperature_coupling)
+                           : exp(-time_step * omega_n * sin(k * PI / number_of_beads));
       double c2 = sqrt((1 - c1 * c1) * K_B * temperature * number_of_beads / g_mass[n]);
       for (int d = 0; d < 3; ++d) {
         int index_dn = d * number_of_atoms + n;
@@ -275,10 +280,16 @@ void Ensemble_PIMD::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
+  static int num_calls = 0;
+  bool use_rpmd = num_calls >= number_of_steps_pimd;
+
   gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, curand_states.data(), temperature, temperature_coupling,
-    omega_n, time_step, transformation_matrix.data(), atom.mass.data(), velocity_beads.data());
+    use_rpmd, number_of_atoms, number_of_beads, curand_states.data(), temperature,
+    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
+    velocity_beads.data());
   CUDA_CHECK_KERNEL
+
+  ++num_calls;
 
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, omega_n, time_step, transformation_matrix.data(),
@@ -298,10 +309,16 @@ void Ensemble_PIMD::compute2(
     velocity_beads.data());
   CUDA_CHECK_KERNEL
 
+  static int num_calls = 0;
+  bool use_rpmd = num_calls >= number_of_steps_pimd;
+
   gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, curand_states.data(), temperature, temperature_coupling,
-    omega_n, time_step, transformation_matrix.data(), atom.mass.data(), velocity_beads.data());
+    use_rpmd, number_of_atoms, number_of_beads, curand_states.data(), temperature,
+    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
+    velocity_beads.data());
   CUDA_CHECK_KERNEL
+
+  ++num_calls;
 
   // TODO: correct momentum
 
