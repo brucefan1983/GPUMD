@@ -160,10 +160,13 @@ static __global__ void gpu_nve_1(
       double sin_factor = sin(omega_k * time_step);
       double sin_factor_times_omega = sin_factor * omega_k;
       double sin_factor_over_omega = sin_factor / omega_k;
-      double vel = velocity_normal[k];
-      double pos = position_normal[k];
-      velocity_normal[k] = cos_factor * vel - sin_factor_times_omega * pos;
-      position_normal[k] = sin_factor_over_omega * vel + cos_factor * pos;
+      for (int d = 0; d < 3; ++d) {
+        int index_kd = k * 3 + d;
+        double vel = velocity_normal[index_kd];
+        double pos = position_normal[index_kd];
+        velocity_normal[index_kd] = cos_factor * vel - sin_factor_times_omega * pos;
+        position_normal[index_kd] = sin_factor_over_omega * vel + cos_factor * pos;
+      }
     }
 
     for (int j = 0; j < number_of_beads; ++j) {
@@ -172,8 +175,9 @@ static __global__ void gpu_nve_1(
         double temp_position = 0.0;
         for (int k = 0; k < number_of_beads; ++k) {
           int index_jk = j * number_of_beads + k;
-          temp_velocity += velocity_normal[k] * transformation_matrix[index_jk];
-          temp_position += position_normal[k] * transformation_matrix[index_jk];
+          int index_kd = k * 3 + d;
+          temp_velocity += velocity_normal[index_kd] * transformation_matrix[index_jk];
+          temp_position += position_normal[index_kd] * transformation_matrix[index_jk];
         }
         int index_dn = d * number_of_atoms + n;
         velocity[j][index_dn] = temp_velocity;
@@ -254,7 +258,8 @@ static __global__ void gpu_langevin(
         double temp_velocity = 0.0;
         for (int k = 0; k < number_of_beads; ++k) {
           int index_jk = j * number_of_beads + k;
-          temp_velocity += velocity_normal[k] * transformation_matrix[index_jk];
+          int index_kd = k * 3 + d;
+          temp_velocity += velocity_normal[index_kd] * transformation_matrix[index_jk];
         }
         int index_dn = d * number_of_atoms + n;
         velocity[j][index_dn] = temp_velocity;
