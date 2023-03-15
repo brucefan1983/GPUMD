@@ -644,7 +644,7 @@ void Integrate::parse_ensemble(
       printf("Use NVT-PIMD ensemble for this run.\n");
       printf("    temperature is %g K.\n", temperature);
       printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    number of steps within PIMD is %d time_step.\n", number_of_steps_pimd);
+      printf("    number of steps within PIMD is %d.\n", number_of_steps_pimd);
       printf("    number of beads is %d.\n", number_of_beads);
       break;
     default:
