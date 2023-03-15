@@ -27,12 +27,14 @@ References for implementation:
 Ensemble_PIMD::Ensemble_PIMD(
   int number_of_atoms_input,
   int number_of_beads_input,
+  int number_of_steps_pimd_input,
   double temperature_input,
   double temperature_coupling_input,
   Atom& atom)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
+  number_of_steps_pimd = number_of_steps_pimd_input;
   temperature = temperature_input;
   temperature_coupling = temperature_coupling_input;
   omega_n = number_of_beads * K_B * temperature / HBAR;
@@ -133,8 +135,8 @@ static __global__ void gpu_nve_1(
       }
     }
 
-    double velocity_normal[384];
-    double position_normal[384];
+    double velocity_normal[MAX_NUM_BEADS * 3];
+    double position_normal[MAX_NUM_BEADS * 3];
     for (int k = 0; k < number_of_beads; ++k) {
       for (int d = 0; d < 3; ++d) {
         double temp_velocity = 0.0;
@@ -217,7 +219,7 @@ static __global__ void gpu_langevin(
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
 
-    double velocity_normal[384];
+    double velocity_normal[MAX_NUM_BEADS * 3];
 
     for (int k = 0; k < number_of_beads; ++k) {
       for (int d = 0; d < 3; ++d) {

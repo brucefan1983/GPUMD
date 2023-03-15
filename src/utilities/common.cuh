@@ -15,6 +15,7 @@
 
 #pragma once
 
+const int MAX_NUM_BEADS = 128;
 const int NUM_ELEMENTS = 103;
 #define PI 3.14159265358979
 #define HBAR 6.465412e-2                             // Planck's constant

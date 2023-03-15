@@ -101,7 +101,8 @@ void Integrate::initialize(
       break;
     case 31: // NVT-PIMD
       ensemble.reset(new Ensemble_PIMD(
-        number_of_atoms, number_of_beads, temperature, temperature_coupling, atom));
+        number_of_atoms, number_of_beads, number_of_steps_pimd, temperature, temperature_coupling,
+        atom));
       break;
     default:
       printf("Illegal integrator!\n");
@@ -468,20 +469,23 @@ void Integrate::parse_ensemble(
       PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
     }
 
-    // temperature_coupling for the beads
-    if (!is_valid_real(param[4], &temperature_coupling_beads)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    // number of steps to be with PIMD, after which using TRPMD
+    if (!is_valid_int(param[4], &number_of_steps_pimd)) {
+      PRINT_INPUT_ERROR("Number of steps within the PIMD stage should be an integer.");
     }
-    if (temperature_coupling_beads < 1.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    if (number_of_steps_pimd < 1) {
+      PRINT_INPUT_ERROR("Number of steps within the PIMD stage should >= 1.");
     }
 
     // number of beads
     if (!is_valid_int(param[5], &number_of_beads)) {
       PRINT_INPUT_ERROR("number of beads should be an integer.");
     }
-    if (number_of_beads < 2 || number_of_beads > 128) {
-      PRINT_INPUT_ERROR("number of beads should be >= 2 and <= 128.");
+    if (number_of_beads < 2) {
+      PRINT_INPUT_ERROR("number of beads should >= 2.");
+    }
+    if (number_of_beads > MAX_NUM_BEADS) {
+      PRINT_INPUT_ERROR("number of beads should <= 128.");
     }
     if (number_of_beads % 2 != 0) {
       PRINT_INPUT_ERROR("number of beads should be an even number.");
@@ -639,8 +643,8 @@ void Integrate::parse_ensemble(
     case 31:
       printf("Use NVT-PIMD ensemble for this run.\n");
       printf("    temperature is %g K.\n", temperature);
-      printf("    physical coupling is %g time_step.\n", temperature_coupling);
-      printf("    internal coupling is %g time_step.\n", temperature_coupling_beads);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      printf("    number of steps within PIMD is %d time_step.\n", number_of_steps_pimd);
       printf("    number of beads is %d.\n", number_of_beads);
       break;
     default:

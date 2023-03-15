@@ -24,6 +24,7 @@ public:
   Ensemble_PIMD(
     int number_of_atoms_input,
     int number_of_beads_input,
+    int number_of_steps_pimd_input,
     double temperature_input,
     double temperature_coupling_input,
     Atom& atom);
@@ -47,6 +48,7 @@ public:
 protected:
   int number_of_atoms = 0;
   int number_of_beads = 0;
+  int number_of_steps_pimd;
   double omega_n;
   GPU_Vector<curandState> curand_states;
   GPU_Vector<double*> position_beads;
