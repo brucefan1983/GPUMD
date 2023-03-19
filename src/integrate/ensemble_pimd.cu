@@ -252,8 +252,8 @@ static __global__ void gpu_langevin(
                            : exp(-time_step * omega_n * sin(k * PI / number_of_beads));
       double c2 = sqrt((1 - c1 * c1) * K_B * temperature * number_of_beads / g_mass[n]);
       for (int d = 0; d < 3; ++d) {
-        int index_dn = d * number_of_atoms + n;
-        velocity[k][index_dn] = c1 * velocity[k][index_dn] + c2 * CURAND_NORMAL(&state);
+        int index_kd = k * 3 + d;
+        velocity_normal[index_kd] = c1 * velocity_normal[index_kd] + c2 * CURAND_NORMAL(&state);
       }
     }
     g_state[n] = state;
