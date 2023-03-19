@@ -273,6 +273,48 @@ static __global__ void gpu_langevin(
   }
 }
 
+static __global__ void gpu_average(
+  const int number_of_atoms,
+  const int number_of_beads,
+  double** position,
+  double** velocity,
+  double** potential,
+  double** force,
+  double** virial,
+  double* position_averaged,
+  double* velocity_averaged,
+  double* potential_averaged,
+  double* force_averaged,
+  double* virial_averaged)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    double pos_ave[3] = {0.0}, vel_ave[3] = {0.0}, pot_ave = 0.0, for_ave[3] = {0.0},
+           vir_ave[3] = {0.0};
+    for (int k = 0; k < number_of_beads; ++k) {
+      for (int d = 0; d < 3; ++d) {
+        pos_ave[d] += position[k][d * number_of_atoms + n];
+        vel_ave[d] += velocity[k][d * number_of_atoms + n];
+        for_ave[d] += force[k][d * number_of_atoms + n];
+      }
+      pot_ave += potential[k][n];
+      for (int d = 0; d < 9; ++d) {
+        vir_ave[d] += virial[k][d * number_of_atoms + n];
+      }
+    }
+    double number_of_beads_inverse = 1.0 / number_of_beads;
+    for (int d = 0; d < 3; ++d) {
+      position_averaged[d * number_of_atoms + n] = pos_ave[d] * number_of_beads_inverse;
+      velocity_averaged[d * number_of_atoms + n] = vel_ave[d] * number_of_beads_inverse;
+      force_averaged[d * number_of_atoms + n] = for_ave[d] * number_of_beads_inverse;
+    }
+    potential_averaged[n] = pot_ave * number_of_beads_inverse;
+    for (int d = 0; d < 9; ++d) {
+      virial_averaged[d * number_of_atoms + n] = vir_ave[d] * number_of_beads_inverse;
+    }
+  }
+}
+
 void Ensemble_PIMD::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -322,5 +364,10 @@ void Ensemble_PIMD::compute2(
 
   // TODO: correct momentum
 
-  // get averaged quantities
+  gpu_average<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    number_of_atoms, number_of_beads, position_beads.data(), velocity_beads.data(),
+    potential_beads.data(), force_beads.data(), virial_beads.data(), atom.position_per_atom.data(),
+    atom.velocity_per_atom.data(), atom.potential_per_atom.data(), atom.force_per_atom.data(),
+    atom.virial_per_atom.data());
+  CUDA_CHECK_KERNEL
 }
