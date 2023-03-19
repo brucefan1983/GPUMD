@@ -273,6 +273,33 @@ static __global__ void gpu_langevin(
   }
 }
 
+static __global__ void gpu_apply_pbc(
+  const Box box, const int number_of_atoms, const int number_of_beads, double** position)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    float pos_temp[3][MAX_NUM_BEADS] = {0.0};
+    for (int k = 0; k < number_of_beads; ++k) {
+      for (int d = 0; d < 3; ++d) {
+        pos_temp[d][k] = position[k][d * number_of_atoms + n];
+      }
+      if (k > 0) {
+        double pos_diff[3] = {0.0};
+        for (int d = 0; d < 3; ++d) {
+          pos_diff[d] = pos_temp[d][k] - pos_temp[d][0];
+        }
+        apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
+        for (int d = 0; d < 3; ++d) {
+          pos_temp[d][k] = pos_temp[d][0] + pos_diff[d];
+        }
+      }
+      for (int d = 0; d < 3; ++d) {
+        position[k][d * number_of_atoms + n] = pos_temp[d][k];
+      }
+    }
+  }
+}
+
 static __global__ void gpu_average(
   const int number_of_atoms,
   const int number_of_beads,
@@ -335,6 +362,9 @@ void Ensemble_PIMD::compute1(
 
   ++num_calls;
 
+  gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    box, number_of_atoms, number_of_beads, position_beads.data());
+
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, omega_n, time_step, transformation_matrix.data(),
     atom.mass.data(), force_beads.data(), position_beads.data(), velocity_beads.data());
@@ -365,6 +395,9 @@ void Ensemble_PIMD::compute2(
   ++num_calls;
 
   // TODO: correct momentum
+
+  gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    box, number_of_atoms, number_of_beads, position_beads.data());
 
   gpu_average<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, position_beads.data(), velocity_beads.data(),
