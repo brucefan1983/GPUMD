@@ -290,12 +290,13 @@ static __global__ void gpu_average(
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
     double pos_ave[3] = {0.0}, vel_ave[3] = {0.0}, pot_ave = 0.0, for_ave[3] = {0.0},
-           vir_ave[3] = {0.0};
+           vir_ave[9] = {0.0};
     for (int k = 0; k < number_of_beads; ++k) {
       for (int d = 0; d < 3; ++d) {
-        pos_ave[d] += position[k][d * number_of_atoms + n];
-        vel_ave[d] += velocity[k][d * number_of_atoms + n];
-        for_ave[d] += force[k][d * number_of_atoms + n];
+        int index_dn = d * number_of_atoms + n;
+        pos_ave[d] += position[k][index_dn];
+        vel_ave[d] += velocity[k][index_dn];
+        for_ave[d] += force[k][index_dn];
       }
       pot_ave += potential[k][n];
       for (int d = 0; d < 9; ++d) {
@@ -304,9 +305,10 @@ static __global__ void gpu_average(
     }
     double number_of_beads_inverse = 1.0 / number_of_beads;
     for (int d = 0; d < 3; ++d) {
-      position_averaged[d * number_of_atoms + n] = pos_ave[d] * number_of_beads_inverse;
-      velocity_averaged[d * number_of_atoms + n] = vel_ave[d] * number_of_beads_inverse;
-      force_averaged[d * number_of_atoms + n] = for_ave[d] * number_of_beads_inverse;
+      int index_dn = d * number_of_atoms + n;
+      position_averaged[index_dn] = pos_ave[d] * number_of_beads_inverse;
+      velocity_averaged[index_dn] = vel_ave[d] * number_of_beads_inverse;
+      force_averaged[index_dn] = for_ave[d] * number_of_beads_inverse;
     }
     potential_averaged[n] = pot_ave * number_of_beads_inverse;
     for (int d = 0; d < 9; ++d) {
