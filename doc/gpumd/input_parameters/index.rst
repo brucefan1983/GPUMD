@@ -19,7 +19,8 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble
    fix
    time_step
-   
+   plumed
+
 .. toctree::
    :maxdepth: 1
    :caption: Actions
