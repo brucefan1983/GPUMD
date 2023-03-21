@@ -84,6 +84,32 @@ static __global__ void initialize_mean_vectors(
 }
 
 
+static __global__ void compute_mean(
+  int N, int M, double* g_m, double* g_m_sq, double* g_fx, double* g_fy, double* g_fz)
+{
+  int n1 = blockidx.x * blockdim.x + threadidx.x;
+  if (n1 < N) {
+    // Average over number of potentials, M
+    g_m[n1 + 0 * N] += g_fx[n1]/M;
+    g_m[n1 + 1 * N] += g_fy[n1]/M;
+    g_m[n1 + 2 * N] += g_fz[n1]/M;
+    g_m_sq[n1 + 0 * N] += g_fx[n1]*g_fx[n1]/M;
+    g_m_sq[n1 + 1 * N] += g_fy[n1]*g_fy[n1]/M;
+    g_m_sq[n1 + 2 * N] += g_fz[n1]*g_fz[n1]/M;
+  }
+}
+
+
+static __global__ void compute_uncertainty(
+  int N, double* g_m, double* g_m_sq, double* g_u)
+{
+  int n1 = blockidx.x * blockdim.x + threadidx.x;
+  if (n1 < 3*N) {
+    g_u[0] += (g_m_sq[n1] - g_m[n1]*g_m[n1]) / (3*N);
+  }
+}
+
+
 void Active::parse(const char** param, int num_param)
 {
   check_ = true;
@@ -141,6 +167,7 @@ void Active::preprocess(const int number_of_atoms, const int number_of_potential
     }
     mean_force_.resize(number_of_atoms * 3);
     mean_force_sq_.resize(number_of_atoms * 3);
+    g_uncertainty_.resize(1);
   }
 }
 
@@ -162,7 +189,6 @@ void Active::process(
 
   const int number_of_potentials = force.potentials.size();
   const int number_of_atoms = atom.type.size();
-  double uncertainty = 0.0;
   // Reset mean vectors to zero
   initialize_mean_vectors<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_, mean_force_sq);
@@ -180,11 +206,15 @@ void Active::process(
         atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
     // Write properties to GPU vector 
     compute_mean<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, mean_force_, mean_force_sq, atom.force_per_atom);
+      number_of_atoms, number_of_porentials, mean_force_, mean_force_sq, atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
+      atom.force_per_atom.data() + number_of_atoms * 2);
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
   compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, mean_force_, mean_force_sq);
+    number_of_atoms, mean_force_, mean_force_sq, g_uncertainty);
+  double unc[1];
+  g_uncertainty.copy_to_host(unc, 1);
+  uncertainty = unc[0];
   if (uncertainty > threshold_){
     write_exyz(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
       atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,

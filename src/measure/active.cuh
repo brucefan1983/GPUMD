@@ -59,6 +59,7 @@ private:
   std::vector<double> cpu_total_virial_;
   GPU_Vector<double> mean_force_;
   GPU_Vector<double> mean_force_sq_;
+  GPU_Vector<double> g_uncertainty_;
   void output_line2(
     const double time,
     const Box& box,
