@@ -185,7 +185,7 @@ void PLUMED::process(
   gpu_sum<<<6, 1024>>>(n_atom, virial.data(), gpu_v_vector.data());
   CUDA_CHECK_KERNEL
   gpu_v_vector.copy_to_host(tmp.data());
-  fill(cpu_v_vector.begin(), cpu_v_vector.end(), 1.0);
+  fill(cpu_v_vector.begin(), cpu_v_vector.end(), 0.0);
 
   plumed_cmd(plumed_main, "setStep", &step);
   plumed_cmd(plumed_main, "setMasses", cpu_m_vector.data());
