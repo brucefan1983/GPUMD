@@ -185,15 +185,7 @@ void PLUMED::process(
   gpu_sum<<<6, 1024>>>(n_atom, virial.data(), gpu_v_vector.data());
   CUDA_CHECK_KERNEL
   gpu_v_vector.copy_to_host(tmp.data());
-  cpu_v_vector[0] = tmp[0];
-  cpu_v_vector[1] = tmp[3];
-  cpu_v_vector[2] = tmp[4];
-  cpu_v_vector[3] = tmp[3];
-  cpu_v_vector[4] = tmp[1];
-  cpu_v_vector[5] = tmp[5];
-  cpu_v_vector[6] = tmp[4];
-  cpu_v_vector[7] = tmp[5];
-  cpu_v_vector[8] = tmp[2];
+  fill(cpu_v_vector.begin(), cpu_v_vector.end(), 1.0);
 
   plumed_cmd(plumed_main, "setStep", &step);
   plumed_cmd(plumed_main, "setMasses", cpu_m_vector.data());
@@ -212,15 +204,15 @@ void PLUMED::process(
 
   force.copy_from_host(cpu_f_vector.data());
 
-  cpu_v_factor[0] = cpu_v_vector[0] / tmp[0];
-  cpu_v_factor[1] = cpu_v_vector[1] / tmp[3];
-  cpu_v_factor[2] = cpu_v_vector[2] / tmp[4];
-  cpu_v_factor[3] = cpu_v_vector[3] / tmp[3];
-  cpu_v_factor[4] = cpu_v_vector[4] / tmp[1];
-  cpu_v_factor[5] = cpu_v_vector[5] / tmp[5];
-  cpu_v_factor[6] = cpu_v_vector[6] / tmp[4];
-  cpu_v_factor[7] = cpu_v_vector[7] / tmp[5];
-  cpu_v_factor[8] = cpu_v_vector[8] / tmp[2];
+  cpu_v_factor[0] = (tmp[0] - cpu_v_vector[0]) / tmp[0];
+  cpu_v_factor[1] = (tmp[3] - cpu_v_vector[1]) / tmp[3];
+  cpu_v_factor[2] = (tmp[4] - cpu_v_vector[2]) / tmp[4];
+  cpu_v_factor[3] = (tmp[3] - cpu_v_vector[3]) / tmp[3];
+  cpu_v_factor[4] = (tmp[1] - cpu_v_vector[4]) / tmp[1];
+  cpu_v_factor[5] = (tmp[5] - cpu_v_vector[5]) / tmp[5];
+  cpu_v_factor[6] = (tmp[4] - cpu_v_vector[6]) / tmp[4];
+  cpu_v_factor[7] = (tmp[5] - cpu_v_vector[7]) / tmp[5];
+  cpu_v_factor[8] = (tmp[2] - cpu_v_vector[8]) / tmp[2];
   gpu_v_factor.copy_from_host(cpu_v_factor.data());
   gpu_scale_virial<<<(n_atom - 1) / 128 + 1, 128>>>(
     n_atom, gpu_v_factor.data(), virial.data() + n_atom * 0, virial.data() + n_atom * 1,
