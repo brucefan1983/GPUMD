@@ -1,0 +1,14 @@
+potential model/nepmodel_full/nep.txt 
+potential model/nepmodel_split1/nep.txt 
+potential model/nepmodel_split2/nep.txt 
+potential model/nepmodel_split3/nep.txt 
+potential model/nepmodel_split4/nep.txt 
+potential model/nepmodel_split5/nep.txt 
+time_step 1.0
+velocity 100.0
+ensemble nvt_ber 100 100 100
+dump_thermo 100
+dump_position 50000
+active 1 1 1 0.0
+dump_observer observe 1 1 1 1
+run 100
