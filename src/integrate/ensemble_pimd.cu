@@ -43,6 +43,8 @@ Ensemble_PIMD::Ensemble_PIMD(
   temperature_coupling = temperature_coupling_input;
   omega_n = number_of_beads * K_B * temperature / HBAR;
 
+  kinetic_energy_virial_part.resize(number_of_atoms);
+
   position_beads.resize(number_of_beads);
   velocity_beads.resize(number_of_beads);
   potential_beads.resize(number_of_beads);
@@ -353,6 +355,35 @@ static __global__ void gpu_average(
   }
 }
 
+static __global__ void gpu_find_kinetic_energy_virial_part(
+  const Box box,
+  const int number_of_atoms,
+  const int number_of_beads,
+  double** position,
+  double** force,
+  double* position_averaged,
+  double* kinetic_energy_virial_part)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < number_of_atoms) {
+    double factor = 0.5 / number_of_beads;
+    double temp_sum = 0.0;
+    for (int k = 0; k < number_of_beads; ++k) {
+      double pos_diff[3] = {0.0};
+      for (int d = 0; d < 3; ++d) {
+        int index_dn = d * number_of_atoms + n;
+        pos_diff[d] = position[k][index_dn] - position_averaged[index_dn];
+      }
+      apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
+      for (int d = 0; d < 3; ++d) {
+        int index_dn = d * number_of_atoms + n;
+        temp_sum -= pos_diff[d] * force[k][index_dn];
+      }
+    }
+    kinetic_energy_virial_part[n] = temp_sum * factor;
+  }
+}
+
 void Ensemble_PIMD::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -414,4 +445,8 @@ void Ensemble_PIMD::compute2(
     atom.velocity_per_atom.data(), atom.potential_per_atom.data(), atom.force_per_atom.data(),
     atom.virial_per_atom.data());
   CUDA_CHECK_KERNEL
+
+  gpu_find_kinetic_energy_virial_part<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    box, number_of_atoms, number_of_beads, position_beads.data(), force_beads.data(),
+    atom.position_per_atom.data(), kinetic_energy_virial_part.data());
 }
