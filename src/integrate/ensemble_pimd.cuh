@@ -58,4 +58,6 @@ protected:
   GPU_Vector<double*> virial_beads;
   GPU_Vector<double> transformation_matrix;
   GPU_Vector<double> kinetic_energy_virial_part;
+
+  GPU_Vector<double> sum_1024; // for intermidiate summation
 };
