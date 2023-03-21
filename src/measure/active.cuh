@@ -18,14 +18,12 @@
 #include "utilities/gpu_vector.cuh"
 #include "force/force.cuh"
 #include "model/atom.cuh"
-#include "integrate/integrate.cuh"
 #include "model/group.cuh"
 #include <vector>
 #include <string>
 class Box;
 class Atom;
 class Force;
-class Integrate;
 
 class Active
 {
@@ -51,21 +49,23 @@ private:
   int check_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
-  float threshold_ = 0.0;
+  double threshold_ = 0.0;
   FILE* exyz_file_;
   FILE* out_file_;
   std::vector<double> cpu_force_per_atom_;
-  GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
+  std::vector<double> cpu_uncertainty_;
+  GPU_Vector<double> gpu_total_virial_;
   GPU_Vector<double> mean_force_;
   GPU_Vector<double> mean_force_sq_;
-  GPU_Vector<double> g_uncertainty_;
+  GPU_Vector<double> gpu_uncertainty_;
   void output_line2(
     const double time,
     const Box& box,
     const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
+    double uncertainty,
     FILE* fid_);
   void write_exyz(
     const int step,
@@ -80,5 +80,9 @@ private:
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo,
-    const int file_index);
+    double uncertainty);
+  void write_uncertainty(
+    const int step,
+    const double global_time,
+    double uncertainty);
 };

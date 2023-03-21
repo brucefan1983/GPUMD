@@ -77,7 +77,7 @@ static __global__ void initialize_mean_vectors(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   // 3*N since 3 cartesian directions
-  if (n1 < N*3) {
+  if (n1 < 3*N) {
     g_m[n1] = 0.0;
     g_m_sq[n1] = 0.0;
   }
@@ -87,7 +87,7 @@ static __global__ void initialize_mean_vectors(
 static __global__ void compute_mean(
   int N, int M, double* g_m, double* g_m_sq, double* g_fx, double* g_fy, double* g_fz)
 {
-  int n1 = blockidx.x * blockdim.x + threadidx.x;
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
     // Average over number of potentials, M
     g_m[n1 + 0 * N] += g_fx[n1]/M;
@@ -103,9 +103,9 @@ static __global__ void compute_mean(
 static __global__ void compute_uncertainty(
   int N, double* g_m, double* g_m_sq, double* g_u)
 {
-  int n1 = blockidx.x * blockdim.x + threadidx.x;
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < 3*N) {
-    g_u[0] += (g_m_sq[n1] - g_m[n1]*g_m[n1]) / (3*N);
+    g_u[n1] = g_m_sq[n1] - g_m[n1]*g_m[n1];
   }
 }
 
@@ -136,7 +136,7 @@ void Active::parse(const char** param, int num_param)
   }
 
   if (!is_valid_int(param[3], &has_force_)) {
-    print_input_error("has_force should be an integer.");
+    PRINT_INPUT_ERROR("has_force should be an integer.");
   }
   if (has_force_ == 0) {
     printf("    without force data.\n");
@@ -167,7 +167,8 @@ void Active::preprocess(const int number_of_atoms, const int number_of_potential
     }
     mean_force_.resize(number_of_atoms * 3);
     mean_force_sq_.resize(number_of_atoms * 3);
-    g_uncertainty_.resize(1);
+    gpu_uncertainty_.resize(number_of_atoms * 3);
+    cpu_uncertainty_.resize(number_of_atoms * 3);
   }
 }
 
@@ -191,7 +192,7 @@ void Active::process(
   const int number_of_atoms = atom.type.size();
   // Reset mean vectors to zero
   initialize_mean_vectors<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, mean_force_, mean_force_sq);
+    number_of_atoms, mean_force_.data(), mean_force_sq_.data());
   CUDA_CHECK_KERNEL
 
   // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
@@ -206,26 +207,34 @@ void Active::process(
         atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
     // Write properties to GPU vector 
     compute_mean<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, number_of_porentials, mean_force_, mean_force_sq, atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
+      number_of_atoms, number_of_potentials, mean_force_.data(), mean_force_sq_.data(), atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
       atom.force_per_atom.data() + number_of_atoms * 2);
+    CUDA_CHECK_KERNEL
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
   compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, mean_force_, mean_force_sq, g_uncertainty);
-  double unc[1];
-  g_uncertainty.copy_to_host(unc, 1);
-  uncertainty = unc[0];
+    number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
+  CUDA_CHECK_KERNEL
+  // for (int i = 0; i<number_of_atoms*3; i++){
+  //   cpu_uncertainty_[i] = 0.0;
+  // }
+  gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
+  double uncertainty = 0.0;
+  for (int i = 0; i<number_of_atoms*3; i++){
+    uncertainty += sqrt(cpu_uncertainty_[i]) / (3*number_of_atoms); // slow!
+  }
+  write_uncertainty(step, global_time, uncertainty);
   if (uncertainty > threshold_){
     write_exyz(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
       atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
       atom.force_per_atom, atom.virial_per_atom, thermo, uncertainty);
-  write_out()
+  }
 }
 
 
-void Active::write_out(
+void Active::write_uncertainty(
   const int step,
-  GPU_Vector<double>& gpu_thermo,
+  const double time,
   double uncertainty)
 {
   if (!check_)
@@ -234,11 +243,9 @@ void Active::write_out(
     return;
 
   FILE* fid_ = out_file_;
-  double thermo[8];
-  gpu_thermo.copy_to_host(thermo, 8);
 
   // Write time, uncertainty to file
-  fprintf(fid_, "%20.10e%20.10e\n", thermo[0], uncertainty);
+  fprintf(fid_, "%20.10e%20.10e\n", time * TIME_UNIT_CONVERSION, uncertainty);
   fflush(fid_);
 }
 
@@ -260,8 +267,7 @@ void Active::output_line2(
     fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   // Uncertainty
-  fprintf(
-    fid_, " uncertainty=%.8f", uncertainty);
+  fprintf(fid_, " uncertainty=%.8f", uncertainty);
 
   // box
   if (box.triclinic == 0) {
@@ -370,7 +376,7 @@ void Active::postprocess()
 {
   fclose(exyz_file_);
   fclose(out_file_);
-  dump_ = false;
+  check_ = false;
 }
 
 
