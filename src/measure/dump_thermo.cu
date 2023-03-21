@@ -47,6 +47,8 @@ void Dump_Thermo::preprocess()
 }
 
 void Dump_Thermo::process(
+  const bool is_pimd,
+  const double temperature_target,
   const int step,
   const int number_of_atoms,
   const int number_of_atoms_fixed,
@@ -60,16 +62,23 @@ void Dump_Thermo::process(
 
   double thermo[8];
   gpu_thermo.copy_to_host(thermo, 8);
-
-  const int number_of_atoms_moving = number_of_atoms - number_of_atoms_fixed;
-  double energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
+  double energy_kin, temperature;
+  if (is_pimd) {
+    energy_kin = thermo[0];
+    temperature = temperature_target;
+  } else {
+    const int number_of_atoms_moving = number_of_atoms - number_of_atoms_fixed;
+    energy_kin = 1.5 * number_of_atoms_moving * K_B * thermo[0];
+    temperature = thermo[0];
+  }
 
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(
-    fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0], energy_kin,
-    thermo[1], thermo[2] * PRESSURE_UNIT_CONVERSION, thermo[3] * PRESSURE_UNIT_CONVERSION,
-    thermo[4] * PRESSURE_UNIT_CONVERSION, thermo[7] * PRESSURE_UNIT_CONVERSION,
-    thermo[6] * PRESSURE_UNIT_CONVERSION, thermo[5] * PRESSURE_UNIT_CONVERSION);
+    fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", temperature,
+    energy_kin, thermo[1], thermo[2] * PRESSURE_UNIT_CONVERSION,
+    thermo[3] * PRESSURE_UNIT_CONVERSION, thermo[4] * PRESSURE_UNIT_CONVERSION,
+    thermo[7] * PRESSURE_UNIT_CONVERSION, thermo[6] * PRESSURE_UNIT_CONVERSION,
+    thermo[5] * PRESSURE_UNIT_CONVERSION);
 
   if (box.triclinic == 0) {
     fprintf(fid_, "%20.10e%20.10e%20.10e\n", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);

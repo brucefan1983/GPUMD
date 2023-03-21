@@ -387,23 +387,23 @@ static __global__ void gpu_find_kinetic_energy_virial_part(
 
 static __global__ void gpu_find_sum_1024(
   const int number_of_atoms,
-  const double* g_virial,
-  const double* g_potential,
   const double* g_kinetic_energy_virial_part,
+  const double* g_potential,
+  const double* g_virial,
   double* g_sum_1024)
 {
   const int tid = threadIdx.x;
   const int bid = blockIdx.x;
-  extern __shared__ double s_sum[8][128];
+  __shared__ double s_sum[8][128];
 
   double sum[8] = {0.0};
   const int stride = blockDim.x * gridDim.x;
   for (int n = bid * blockDim.x + tid; n < number_of_atoms; n += stride) {
+    sum[0] += g_kinetic_energy_virial_part[n];
+    sum[1] += g_potential[n];
     for (int d = 0; d < 6; ++d) {
-      sum[d] += g_virial[d * number_of_atoms + n];
+      sum[d + 2] += g_virial[d * number_of_atoms + n];
     }
-    sum[6] += g_potential[n];
-    sum[7] += g_kinetic_energy_virial_part[n];
   }
   for (int d = 0; d < 8; ++d) {
     s_sum[d][tid] = sum[d];
@@ -422,6 +422,30 @@ static __global__ void gpu_find_sum_1024(
   if (tid == 0) {
     for (int d = 0; d < 8; ++d) {
       g_sum_1024[d * 1024 + bid] = s_sum[d][0];
+    }
+  }
+}
+
+// g_thermo[0-7] = K, U, s_xx, s_yy, s_zz, s_xy, s_xz, s_yz
+static __global__ void
+gpu_find_thermo(const double volume, const double NkBT, const double* g_sum_1024, double* g_thermo)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  __shared__ double s_data[1024];
+  s_data[tid] = g_sum_1024[bid * 1024 + tid];
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_data[tid] += s_data[tid + offset];
+    }
+    __syncthreads();
+  }
+  if (tid == 0) {
+    if (bid == 0) {
+      g_thermo[bid] = 1.5 * NkBT + s_data[0];
+    } else if (bid > 1) {
+      g_thermo[bid] = (NkBT + s_data[0]) / volume;
     }
   }
 }
@@ -496,7 +520,11 @@ void Ensemble_PIMD::compute2(
   CUDA_CHECK_KERNEL
 
   gpu_find_sum_1024<<<1024, 128>>>(
-    number_of_atoms, atom.virial_per_atom.data(), atom.position_per_atom.data(),
-    kinetic_energy_virial_part.data(), sum_1024.data());
+    number_of_atoms, kinetic_energy_virial_part.data(), atom.position_per_atom.data(),
+    atom.virial_per_atom.data(), sum_1024.data());
+  CUDA_CHECK_KERNEL
+
+  gpu_find_thermo<<<8, 1024>>>(
+    box.get_volume(), number_of_atoms * K_B * temperature, sum_1024.data(), thermo.data());
   CUDA_CHECK_KERNEL
 }
