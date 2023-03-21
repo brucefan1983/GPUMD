@@ -444,7 +444,9 @@ gpu_find_thermo(const double volume, const double NkBT, const double* g_sum_1024
   if (tid == 0) {
     if (bid == 0) {
       g_thermo[bid] = 1.5 * NkBT + s_data[0];
-    } else if (bid > 1) {
+    } else if (bid == 1) {
+      g_thermo[bid] = s_data[0];
+    } else {
       g_thermo[bid] = (NkBT + s_data[0]) / volume;
     }
   }
@@ -520,7 +522,7 @@ void Ensemble_PIMD::compute2(
   CUDA_CHECK_KERNEL
 
   gpu_find_sum_1024<<<1024, 128>>>(
-    number_of_atoms, kinetic_energy_virial_part.data(), atom.position_per_atom.data(),
+    number_of_atoms, kinetic_energy_virial_part.data(), atom.potential_per_atom.data(),
     atom.virial_per_atom.data(), sum_1024.data());
   CUDA_CHECK_KERNEL
 
