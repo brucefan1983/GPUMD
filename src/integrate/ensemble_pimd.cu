@@ -15,8 +15,12 @@
 
 /*----------------------------------------------------------------------------80
 References for implementation:
-[1] Ceriotti et al., J. Chem. Phys. 133, 124104 (2010).
-[2] Mariana Rossi et al., J. Chem. Phys. 140, 234116 (2014).
+[1] The overall integration scheme:
+    Ceriotti et al., J. Chem. Phys. 133, 124104 (2010).
+[2] The concept of thermostatted RPMD:
+    Mariana Rossi et al., J. Chem. Phys. 140, 234116 (2014).
+[3] More stable free-polymer integration based on Cayley modification:
+    Roman Korol et al., J. Chem Phys. 151, 124103 (2019).
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_pimd.cuh"
@@ -160,8 +164,13 @@ static __global__ void gpu_nve_1(
 
     for (int k = 1; k < number_of_beads; ++k) {
       double omega_k = 2.0 * omega_n * sin(k * PI / number_of_beads);
-      double cos_factor = cos(omega_k * time_step);
-      double sin_factor = sin(omega_k * time_step);
+      // The exact solution is actaully not very stable:
+      // double cos_factor = cos(omega_k * time_step);
+      // double sin_factor = sin(omega_k * time_step);
+      // The approximate solution based on Cayley is more stable:
+      double cayley = 1.0 / (1 + (omega_k * half_time_step) * (omega_k * half_time_step));
+      double cos_factor = cayley * (1 - (omega_k * half_time_step) * (omega_k * half_time_step));
+      double sin_factor = cayley * omega_k * time_step;
       double sin_factor_times_omega = sin_factor * omega_k;
       double sin_factor_over_omega = sin_factor / omega_k;
       for (int d = 0; d < 3; ++d) {
