@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -30,25 +31,15 @@ public:
   virtual void compute1(
     const double time_step,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo) = 0;
 
   virtual void compute2(
     const double time_step,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo) = 0;
 
   void find_thermo(

@@ -355,53 +355,59 @@ void Ensemble_BAO::operator_B(
 void Ensemble_BAO::compute1(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   if (type == 5) {
-    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
 
-    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
 
-    integrate_nvt_lan(mass, velocity_per_atom);
+    integrate_nvt_lan(atom.mass, atom.velocity_per_atom);
 
-    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
   } else {
-    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
 
-    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
 
-    integrate_heat_lan(group, mass, velocity_per_atom);
+    integrate_heat_lan(group, atom.mass, atom.velocity_per_atom);
 
-    operator_A(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_A(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
   }
 }
 
 void Ensemble_BAO::compute2(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   if (type == 5) {
-    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
 
     find_thermo(
-      true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
-      thermo);
+      true, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
+      atom.virial_per_atom, thermo);
   } else {
-    operator_B(time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    operator_B(
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
   }
 }

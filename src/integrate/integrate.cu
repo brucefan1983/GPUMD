@@ -24,13 +24,14 @@ The driver class for the various integrators.
 #include "ensemble_nhc.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
+#include "ensemble_pimd.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 
 void Integrate::initialize(
-  const int number_of_atoms, const double time_step, const std::vector<Group>& group)
+  const int number_of_atoms, const double time_step, const std::vector<Group>& group, Atom& atom)
 {
   if (move_group >= 0) {
     if (fixed_group < 0) {
@@ -97,6 +98,11 @@ void Integrate::initialize(
     case 23: // heat-BDP
       ensemble.reset(new Ensemble_BDP(
         type, fixed_group, source, sink, temperature, temperature_coupling, delta_temperature));
+      break;
+    case 31: // NVT-PIMD
+      ensemble.reset(new Ensemble_PIMD(
+        number_of_atoms, number_of_beads, number_of_steps_pimd, temperature, temperature_coupling,
+        atom));
       break;
     default:
       printf("Illegal integrator!\n");
@@ -172,9 +178,7 @@ void Integrate::compute1(
     atom.position_temp.data() + num_atoms, atom.position_temp.data() + num_atoms * 2);
   CUDA_CHECK_KERNEL
 
-  ensemble->compute1(
-    time_step, group, atom.mass, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom,
-    box, atom.position_per_atom, atom.velocity_per_atom, thermo);
+  ensemble->compute1(time_step, group, box, atom, thermo);
 
   gpu_update_unwrapped_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
     num_atoms, atom.position_per_atom.data(), atom.position_per_atom.data() + num_atoms,
@@ -200,9 +204,7 @@ void Integrate::compute2(
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
 
-  ensemble->compute2(
-    time_step, group, atom.mass, atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom,
-    box, atom.position_per_atom, atom.velocity_per_atom, thermo);
+  ensemble->compute2(time_step, group, box, atom, thermo);
 }
 
 // coding conventions:
@@ -268,6 +270,11 @@ void Integrate::parse_ensemble(
     type = 23;
     if (num_param != 7) {
       PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
+    }
+  } else if (strcmp(param[1], "nvt_pimd") == 0) {
+    type = 31;
+    if (num_param != 6) {
+      PRINT_INPUT_ERROR("ensemble nvt_pimd should have 4 parameters.");
     }
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
@@ -444,6 +451,47 @@ void Integrate::parse_ensemble(
     }
   }
 
+  // 5. NVT-PIMD
+  if (type == 31) {
+    // temperature
+    if (!is_valid_real(param[2], &temperature)) {
+      PRINT_INPUT_ERROR("temperature should be a number.");
+    }
+    if (temperature <= 0.0) {
+      PRINT_INPUT_ERROR("temperature should > 0.");
+    }
+
+    // temperature_coupling for the physical particles
+    if (!is_valid_real(param[3], &temperature_coupling)) {
+      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+    }
+    if (temperature_coupling < 1.0) {
+      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+    }
+
+    // number of steps to be with PIMD, after which using TRPMD
+    if (!is_valid_int(param[4], &number_of_steps_pimd)) {
+      PRINT_INPUT_ERROR("Number of steps within the PIMD stage should be an integer.");
+    }
+    if (number_of_steps_pimd < 1) {
+      PRINT_INPUT_ERROR("Number of steps within the PIMD stage should >= 1.");
+    }
+
+    // number of beads
+    if (!is_valid_int(param[5], &number_of_beads)) {
+      PRINT_INPUT_ERROR("number of beads should be an integer.");
+    }
+    if (number_of_beads < 2) {
+      PRINT_INPUT_ERROR("number of beads should >= 2.");
+    }
+    if (number_of_beads > MAX_NUM_BEADS) {
+      PRINT_INPUT_ERROR("number of beads should <= 128.");
+    }
+    if (number_of_beads % 2 != 0) {
+      PRINT_INPUT_ERROR("number of beads should be an even number.");
+    }
+  }
+
   switch (type) {
     case 0:
       printf("Use NVE ensemble for this run.\n");
@@ -591,6 +639,13 @@ void Integrate::parse_ensemble(
       printf("    T_cold is %g K.\n", temperature - delta_temperature);
       printf("    heat source is group %d in grouping method 0.\n", source);
       printf("    heat sink is group %d in grouping method 0.\n", sink);
+      break;
+    case 31:
+      printf("Use NVT-PIMD ensemble for this run.\n");
+      printf("    temperature is %g K.\n", temperature);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
+      printf("    number of steps within PIMD is %d.\n", number_of_steps_pimd);
+      printf("    number of beads is %d.\n", number_of_beads);
       break;
     default:
       PRINT_INPUT_ERROR("Invalid ensemble type.");

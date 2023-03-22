@@ -153,53 +153,47 @@ void Ensemble_LAN::integrate_heat_lan_half(
 void Ensemble_LAN::compute1(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   if (type == 3) {
-    integrate_nvt_lan_half(mass, velocity_per_atom);
+    integrate_nvt_lan_half(atom.mass, atom.velocity_per_atom);
 
     velocity_verlet(
-      true, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+      true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
   } else {
-    integrate_heat_lan_half(group, mass, velocity_per_atom);
+    integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
 
     velocity_verlet(
-      true, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+      true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
   }
 }
 
 void Ensemble_LAN::compute2(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   if (type == 3) {
     velocity_verlet(
-      false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+      false, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
 
-    integrate_nvt_lan_half(mass, velocity_per_atom);
+    integrate_nvt_lan_half(atom.mass, atom.velocity_per_atom);
 
     find_thermo(
-      true, box.get_volume(), group, mass, potential_per_atom, velocity_per_atom, virial_per_atom,
-      thermo);
+      true, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
+      atom.virial_per_atom, thermo);
   } else {
     velocity_verlet(
-      false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+      false, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
 
-    integrate_heat_lan_half(group, mass, velocity_per_atom);
+    integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
   }
 }

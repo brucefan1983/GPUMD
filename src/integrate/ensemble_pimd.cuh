@@ -15,13 +15,21 @@
 
 #pragma once
 #include "ensemble.cuh"
-#include <random>
+#include <curand_kernel.h>
+#include <vector>
 
-class Ensemble_NPT_SCR : public Ensemble
+class Ensemble_PIMD : public Ensemble
 {
 public:
-  Ensemble_NPT_SCR(int, int, double, double, double*, int, double*, int, int, int, double*);
-  virtual ~Ensemble_NPT_SCR(void);
+  Ensemble_PIMD(
+    int number_of_atoms_input,
+    int number_of_beads_input,
+    int number_of_steps_pimd_input,
+    double temperature_input,
+    double temperature_coupling_input,
+    Atom& atom);
+
+  virtual ~Ensemble_PIMD(void);
 
   virtual void compute1(
     const double time_step,
@@ -38,6 +46,18 @@ public:
     GPU_Vector<double>& thermo);
 
 protected:
-  std::mt19937 rng;
-  void initialize_rng();
+  int number_of_atoms = 0;
+  int number_of_beads = 0;
+  int number_of_steps_pimd;
+  double omega_n;
+  GPU_Vector<curandState> curand_states;
+  GPU_Vector<double*> position_beads;
+  GPU_Vector<double*> velocity_beads;
+  GPU_Vector<double*> potential_beads;
+  GPU_Vector<double*> force_beads;
+  GPU_Vector<double*> virial_beads;
+  GPU_Vector<double> transformation_matrix;
+  GPU_Vector<double> kinetic_energy_virial_part;
+
+  GPU_Vector<double> sum_1024; // for intermidiate summation
 };

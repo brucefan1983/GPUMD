@@ -28,8 +28,8 @@ class Integrate
 public:
   std::unique_ptr<Ensemble> ensemble;
 
-  void
-  initialize(const int number_of_atoms, const double time_step, const std::vector<Group>& group);
+  void initialize(
+    const int number_of_atoms, const double time_step, const std::vector<Group>& group, Atom& atom);
 
   void finalize();
 
@@ -77,4 +77,8 @@ public:
   int deform_y = 0;
   int deform_z = 0;
   double deform_rate[3];
+
+  // PIMD
+  int number_of_beads;
+  int number_of_steps_pimd; // after this number of steps, switch to RPMD
 };

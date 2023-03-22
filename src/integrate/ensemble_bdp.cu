@@ -152,37 +152,29 @@ void Ensemble_BDP::integrate_heat_bdp_2(
 void Ensemble_BDP::compute1(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   velocity_verlet(
-    true, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+    true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+    atom.velocity_per_atom);
 }
 
 void Ensemble_BDP::compute2(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
   if (type == 4) {
     integrate_nvt_bdp_2(
-      time_step, box.get_volume(), group, mass, potential_per_atom, force_per_atom, virial_per_atom,
-      position_per_atom, velocity_per_atom, thermo);
+      time_step, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.force_per_atom,
+      atom.virial_per_atom, atom.position_per_atom, atom.velocity_per_atom, thermo);
   } else {
     integrate_heat_bdp_2(
-      time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
+      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      atom.velocity_per_atom);
   }
 }

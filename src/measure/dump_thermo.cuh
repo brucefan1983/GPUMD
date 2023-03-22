@@ -24,6 +24,8 @@ public:
   void parse(const char** param, int num_param);
   void preprocess();
   void process(
+    const bool is_pimd,
+    const double temperature_target,
     const int step,
     const int number_of_atoms,
     const int number_of_atoms_fixed,
