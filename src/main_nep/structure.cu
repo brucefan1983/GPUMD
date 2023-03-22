@@ -222,10 +222,18 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     const float tol = 1e-3;
     for (int m = 0; m < 6; ++m) {
       if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
-        PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
+          if ((para.prediction != 0) && ((para.train_mode == 1) || para.train_mode == 2)) {
+            }  
+          else{
+            PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
+          }
       }
     }
-    std::cout << "Structure has both defined virials and stresses. Will use virial information.\n";
+      if ((para.prediction != 0) && ((para.train_mode == 1) || para.train_mode == 2)) {
+        }  
+      else{
+        std::cout << "Structure has both defined virials and stresses. Will use virial information.\n";
+      }    
   } else if (!structure.has_virial && has_stress) {
     // save virials from stress to structure virials
     for (int m = 0; m < 6; ++m) {
@@ -260,7 +268,14 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       }
     }
     if (!structure.has_virial) {
-      PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
+      if (para.prediction == 0) {
+        PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
+      } else {
+        //printf("Warning! No dipole reference in train.xyz.\n");
+        for (int m = 0; m < 6; ++m) {
+          structure.virial[m] = 1e9;
+        }
+      }
     }
   }
 
@@ -283,7 +298,14 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       }
     }
     if (!structure.has_virial) {
-      PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
+      if (para.prediction == 0) {
+        PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
+      } else {
+        //printf("Warning! No polarizability reference in train.xyz.\n");
+        for (int m = 0; m < 6; ++m) {
+          structure.virial[m] = 1e9;
+        }
+      }
     }
   }
 
@@ -346,6 +368,7 @@ static void
 read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& structures)
 {
   int Nc = 0;
+  bool warning_supressed = false;
   while (true) {
     std::vector<std::string> tokens = get_tokens(input);
     if (tokens.size() == 0) {
@@ -359,6 +382,10 @@ read_exyz(const Parameters& para, std::ifstream& input, std::vector<Structure>& 
       PRINT_INPUT_ERROR("Number of atoms for each frame should >= 1.");
     }
     read_one_structure(para, input, structure);
+    if ((!structure.has_virial) and (!warning_supressed)) {
+      printf("Warning! No polarizability or dipole data in train.xyz.\n");
+      warning_supressed=true;
+    }      
     structures.emplace_back(structure);
     ++Nc;
   }

@@ -47,10 +47,10 @@ protected:
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
-  void predict_energy_or_stress(FILE* fid, float* data, float* ref, Dataset& dataset);
+  void predict_energy_or_stress(FILE* fid, float* data, float* ref, Dataset& dataset,std::vector<double>*calc_ret,std::vector<double>*ref_ret);
   void
-  update_energy_force_virial(FILE* fid_energy, FILE* fid_force, FILE* fid_virial, Dataset& dataset);
-  void update_dipole(FILE* fid_dipole, Dataset& dataset);
-  void update_polarizability(FILE* fid_polarizability, Dataset& dataset);
+  update_energy_force_virial(FILE* fid_energy, FILE* fid_force, FILE* fid_virial, Dataset& dataset,std::vector<std::vector<double> > &calc_stored,std::vector<std::vector<double> > &ref_stored);
+  void update_dipole(FILE* fid_dipole, Dataset& dataset,std::vector<std::vector<double> > &calc_stored,std::vector<std::vector<double> > &ref_stored);
+  void update_polarizability(FILE* fid_polarizability, Dataset& dataset,std::vector<std::vector<double> > &calc_stored,std::vector<std::vector<double> > &ref_stored);
   void write_nep_txt(FILE* fid_nep, Parameters& para, float* elite);
 };

@@ -168,7 +168,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   if (para.prediction == 0) {
     printf("Started training.\n");
   } else {
-    printf("Started predcting.\n");
+    printf("Started predicting.\n");
   }
 
   print_line_2();
