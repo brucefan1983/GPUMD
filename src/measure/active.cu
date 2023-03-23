@@ -8,7 +8,8 @@
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details. You should have received a copy of the GNU General Public License along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU General Public License for more details. You should have received a copy of the GNU General
+   Public License along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -17,15 +18,13 @@ Run active learning on-the-fly during MD
 
 #include "active.cuh"
 #include "model/box.cuh"
-#include "utilities/error.cuh"
-#include "utilities/common.cuh"
 #include "parse_utilities.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 #include <iostream>
-
+#include <vector>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -50,7 +49,6 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-
 static __global__ void initialize_properties(
   int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
 {
@@ -72,43 +70,38 @@ static __global__ void initialize_properties(
   }
 }
 
-static __global__ void initialize_mean_vectors(
-  int N, double* g_m, double* g_m_sq)
+static __global__ void initialize_mean_vectors(int N, double* g_m, double* g_m_sq)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   // 3*N since 3 cartesian directions
-  if (n1 < 3*N) {
+  if (n1 < 3 * N) {
     g_m[n1] = 0.0;
     g_m_sq[n1] = 0.0;
   }
 }
 
-
-static __global__ void compute_mean(
-  int N, int M, double* g_m, double* g_m_sq, double* g_fx, double* g_fy, double* g_fz)
+static __global__ void
+compute_mean(int N, int M, double* g_m, double* g_m_sq, double* g_fx, double* g_fy, double* g_fz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
     // Average over number of potentials, M
-    g_m[n1 + 0 * N] += g_fx[n1]/M;
-    g_m[n1 + 1 * N] += g_fy[n1]/M;
-    g_m[n1 + 2 * N] += g_fz[n1]/M;
-    g_m_sq[n1 + 0 * N] += g_fx[n1]*g_fx[n1]/M;
-    g_m_sq[n1 + 1 * N] += g_fy[n1]*g_fy[n1]/M;
-    g_m_sq[n1 + 2 * N] += g_fz[n1]*g_fz[n1]/M;
+    g_m[n1 + 0 * N] += g_fx[n1] / M;
+    g_m[n1 + 1 * N] += g_fy[n1] / M;
+    g_m[n1 + 2 * N] += g_fz[n1] / M;
+    g_m_sq[n1 + 0 * N] += g_fx[n1] * g_fx[n1] / M;
+    g_m_sq[n1 + 1 * N] += g_fy[n1] * g_fy[n1] / M;
+    g_m_sq[n1 + 2 * N] += g_fz[n1] * g_fz[n1] / M;
   }
 }
 
-
-static __global__ void compute_uncertainty(
-  int N, double* g_m, double* g_m_sq, double* g_u)
+static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, double* g_u)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < 3*N) {
-    g_u[n1] = sqrt(g_m_sq[n1] - g_m[n1]*g_m[n1]);
+  if (n1 < 3 * N) {
+    g_u[n1] = sqrt(g_m_sq[n1] - g_m[n1] * g_m[n1]);
   }
 }
-
 
 void Active::parse(const char** param, int num_param)
 {
@@ -146,16 +139,18 @@ void Active::parse(const char** param, int num_param)
   if (!is_valid_real(param[4], &threshold_)) {
     PRINT_INPUT_ERROR("threshold should be a real number.\n");
   }
-  
-  printf("    will check if uncertainties exceed %f every %d iterations.\n", threshold_, check_interval_);
+
+  printf(
+    "    will check if uncertainties exceed %f every %d iterations.\n", threshold_,
+    check_interval_);
 }
 
 void Active::preprocess(const int number_of_atoms, const int number_of_potentials, Force& force)
 {
   // Always use mode "observe" with all other potentials for active learning.
   // Only propagate MD with the main potential.
-  force.set_multiple_potentials_mode("observe");
   if (check_) {
+    force.set_multiple_potentials_mode("observe");
     std::string exyz_filename = "active.xyz";
     std::string out_filename = "active.out";
     exyz_file_ = my_fopen(exyz_filename.c_str(), "a");
@@ -173,14 +168,14 @@ void Active::preprocess(const int number_of_atoms, const int number_of_potential
 }
 
 void Active::process(
-    int step,
-    const double global_time,
-    const int number_of_atoms_fixed,
-    std::vector<Group>& group,
-    Box& box,
-    Atom& atom,
-    Force& force,
-    GPU_Vector<double>& thermo)
+  int step,
+  const double global_time,
+  const int number_of_atoms_fixed,
+  std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  Force& force,
+  GPU_Vector<double>& thermo)
 {
   // Only run if should check, since forces have to be recomputed with each potential.
   if (!check_)
@@ -191,50 +186,50 @@ void Active::process(
   const int number_of_potentials = force.potentials.size();
   const int number_of_atoms = atom.type.size();
   // Reset mean vectors to zero
-  initialize_mean_vectors<<<(3*number_of_atoms - 1) / 128 + 1, 128>>>(
+  initialize_mean_vectors<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data());
   CUDA_CHECK_KERNEL
 
   // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
-  for (int potential_index = number_of_potentials-1; potential_index >= 0; potential_index--) {
+  for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
     // Set potential/force/virials to zero
     initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
-      atom.force_per_atom.data() + number_of_atoms * 2, atom.potential_per_atom.data(), atom.virial_per_atom.data());
+      atom.force_per_atom.data() + number_of_atoms * 2, atom.potential_per_atom.data(),
+      atom.virial_per_atom.data());
     CUDA_CHECK_KERNEL
     // Compute new potential properties
-    force.potentials[potential_index]->compute(box, atom.type, atom.position_per_atom, 
-        atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
-    // Write properties to GPU vector 
-    compute_mean<<<(3*number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, number_of_potentials, mean_force_.data(), mean_force_sq_.data(), atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
+    force.potentials[potential_index]->compute(
+      box, atom.type, atom.position_per_atom, atom.potential_per_atom, atom.force_per_atom,
+      atom.virial_per_atom);
+    // Write properties to GPU vector
+    compute_mean<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms, number_of_potentials, mean_force_.data(), mean_force_sq_.data(),
+      atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
       atom.force_per_atom.data() + number_of_atoms * 2);
     CUDA_CHECK_KERNEL
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
-  compute_uncertainty<<<(3*number_of_atoms - 1) / 128 + 1, 128>>>(
+  compute_uncertainty<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
   CUDA_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
   double uncertainty = -1.0;
-  for (int i = 0; i<number_of_atoms*3; i++){
-    if (uncertainty < cpu_uncertainty_[i]){
+  for (int i = 0; i < number_of_atoms * 3; i++) {
+    if (uncertainty < cpu_uncertainty_[i]) {
       uncertainty = cpu_uncertainty_[i];
     }
   }
   write_uncertainty(step, global_time, uncertainty);
-  if (uncertainty > threshold_){
-    write_exyz(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+  if (uncertainty > threshold_) {
+    write_exyz(
+      step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
       atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
       atom.force_per_atom, atom.virial_per_atom, thermo, uncertainty);
   }
 }
 
-
-void Active::write_uncertainty(
-  const int step,
-  const double time,
-  double uncertainty)
+void Active::write_uncertainty(const int step, const double time, double uncertainty)
 {
   if (!check_)
     return;
@@ -247,7 +242,6 @@ void Active::write_uncertainty(
   fprintf(fid_, "%20.10e%20.10e\n", time * TIME_UNIT_CONVERSION, uncertainty);
   fflush(fid_);
 }
-
 
 void Active::output_line2(
   const double time,
@@ -330,7 +324,7 @@ void Active::write_exyz(
     return;
   if ((step + 1) % check_interval_ != 0)
     return;
- 
+
   const int num_atoms_total = position_per_atom.size() / 3;
   FILE* fid_ = exyz_file_;
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
@@ -373,9 +367,9 @@ void Active::write_exyz(
 
 void Active::postprocess()
 {
-  fclose(exyz_file_);
-  fclose(out_file_);
-  check_ = false;
+  if (check_) {
+    fclose(exyz_file_);
+    fclose(out_file_);
+    check_ = false;
+  }
 }
-
-
