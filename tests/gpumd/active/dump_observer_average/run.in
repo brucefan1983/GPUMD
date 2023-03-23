@@ -1,0 +1,15 @@
+potential nep_full.txt 
+potential nep_split1.txt 
+potential nep_split2.txt 
+potential nep_split3.txt 
+potential nep_split4.txt 
+potential nep_split5.txt 
+
+time_step 1.0
+velocity 100.0
+ensemble nvt_ber 100 100 100
+dump_thermo 100
+dump_position 50000
+active 1 1 1 0.0
+dump_observer average 1 1 1 1
+run 100

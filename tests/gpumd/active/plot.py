@@ -25,10 +25,12 @@ def uncertainty(forces):
 
     E = np.zeros((L, N*3))
     for i in range(3*N):
-        E[:,i] = m_sq[:,i] - m[:,i]*m[:,i]
+        E[:,i] = np.sqrt(m_sq[:,i] - m[:,i]*m[:,i])
     u = np.zeros(L)
-    for i in range(3*N):
-        u += np.sqrt(E[:,i]) / (3*N)
+    for l in range(L):
+        for i in range(3*N):
+            if E[l,i] > u[l]:
+                u[l] = E[l,i]
     return u
 
 for xyz in Path.cwd().glob('observer*.xyz'):
@@ -49,7 +51,7 @@ F = F.reshape((M, L, 3*N))
 F_std = np.std(F, axis=0)
 print(F_std.shape)
 
-U = np.mean(F_std, axis=1)
+U = np.max(F_std, axis=1)
 print(U.shape)
 calculated = np.loadtxt('active.out')
 
@@ -59,12 +61,12 @@ print(U / calculated[:,1])
 
 import matplotlib.pyplot as plt
 fig, ax = plt.subplots(figsize=(8,6))
-ax.plot(calculated[:,0], calculated[:,1], linewidth=2, label='Active')
+ax.plot(calculated[:,0], calculated[:,1], linewidth=4, label='Active')
 ax.plot(calculated[:,0], U, linewidth=2, label='Observer')
 ax.plot(calculated[:,0], u_alg, linestyle='--', linewidth=2, label='Python')
 ax.legend(loc='best')
 ax.set_xlabel('Time (fs)')
-ax.set_ylabel(r'Uncertainty $\sigma_f$ (eV/Å/atom)')
+ax.set_ylabel(r'Uncertainty $\sigma_f$ (eV/Å)')
 plt.show()
 
 
