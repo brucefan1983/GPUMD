@@ -115,7 +115,7 @@ void Active::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("check interval should be an integer.");
   }
   if (check_interval_ <= 0) {
-    PRINT_INPUT_ERROR("dump interval should > 0.");
+    PRINT_INPUT_ERROR("check interval should > 0.");
   }
   printf("    check uncertainty every %d steps.\n", check_interval_);
 
