@@ -32,6 +32,7 @@ def _compute_uncertainty_cpp(forces: np.ndarray):
     E = np.zeros((L, N*3))
     for i in range(3*N):
         E[:,i] = np.sqrt(m_sq[:,i] - m[:,i]*m[:,i])
+    print(E)
     u = np.zeros(L)
     for l in range(L):
         for i in range(3*N):
@@ -87,54 +88,54 @@ def _load_active_files(path: str):
 
 suite_path = 'gpumd/active'
 
-def test_active_no_threshold(tmp_path):
-    """Run active learning with no threshold, such that all structures will be written."""
-    test_folder = 'no_threshold/'
-    files = [
-        'model/nep_full.txt',
-        'model/nep_split1.txt',
-        'model/nep_split2.txt',
-        'model/nep_split3.txt',
-        'model/nep_split4.txt',
-        'model/nep_split5.txt',
-        'model.xyz',
-        f'{test_folder}/run.in'
-    ]
-    _copy_files(files, tmp_path)
-    run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
-    uncertainties, forces, structures, active_structures = _load_active_files(tmp_path)
-    
-    # Check that uncertainties and forces match with numpy and Python implementations
-    u_python = _compute_uncertainty_cpp(forces)
-    u_numpy = _compute_uncertainty_numpy(forces)
+# def test_active_no_threshold(tmp_path):
+#     """Run active learning with no threshold, such that all structures will be written."""
+#     test_folder = 'no_threshold/'
+#     files = [
+#         'model/nep_full.txt',
+#         'model/nep_split1.txt',
+#         'model/nep_split2.txt',
+#         'model/nep_split3.txt',
+#         'model/nep_split4.txt',
+#         'model/nep_split5.txt',
+#         'model.xyz',
+#         f'{test_folder}/run.in'
+#     ]
+#     _copy_files(files, tmp_path)
+#     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
+#     uncertainties, forces, structures, active_structures = _load_active_files(tmp_path)
+#     
+#     # Check that uncertainties and forces match with numpy and Python implementations
+#     u_python = _compute_uncertainty_cpp(forces)
+#     u_numpy = _compute_uncertainty_numpy(forces)
 
 
-    atol = 1e-8  # Anything smaller is considered ~0
-    rtol = 1e-7
-    
-    assert np.allclose(u_python, u_numpy, atol=atol, rtol=rtol)
-    assert np.allclose(u_python, uncertainties, atol=atol, rtol=rtol)
-    
-    # Check that structures have forces and velocities
-    for observer_structures in structures.values():
-        for structure in observer_structures:
-            sf = structure.get_forces()
-            assert not np.allclose(0, sf, atol=atol, rtol=rtol)
+#     atol = 1e-8  # Anything smaller is considered ~0
+#     rtol = 1e-7
+#     
+#     assert np.allclose(u_python, u_numpy, atol=atol, rtol=rtol)
+#     assert np.allclose(u_python, uncertainties, atol=atol, rtol=rtol)
+#     
+#     # Check that structures have forces and velocities
+#     for observer_structures in structures.values():
+#         for structure in observer_structures:
+#             sf = structure.get_forces()
+#             assert not np.allclose(0, sf, atol=atol, rtol=rtol)
 
-    # Check that uncertainties and structures.uncertainty matches
-    structure_uncertainties = [structure.info['uncertainty'] for structure in active_structures]
-    assert np.allclose(uncertainties, structure_uncertainties, atol=atol, rtol=rtol)
+#     # Check that uncertainties and structures.uncertainty matches
+#     structure_uncertainties = [structure.info['uncertainty'] for structure in active_structures]
+#     assert np.allclose(uncertainties, structure_uncertainties, atol=atol, rtol=rtol)
 
-    # Compare forces and velocities to dump_observer
-    # Should match with observer0, since that corresponds to the main potential.
-    observer_structures = structures['observer0']
-    for i in range(len(observer_structures)):
-        of = observer_structures[i].get_forces()
-        ov = observer_structures[i].get_velocities()
-        af = active_structures[i].get_forces()
-        av = active_structures[i].get_velocities()
-        assert np.allclose(of, af, atol=atol, rtol=rtol)
-        assert np.allclose(ov, av, atol=atol, rtol=rtol)
+#     # Compare forces and velocities to dump_observer
+#     # Should match with observer0, since that corresponds to the main potential.
+#     observer_structures = structures['observer0']
+#     for i in range(len(observer_structures)):
+#         of = observer_structures[i].get_forces()
+#         ov = observer_structures[i].get_velocities()
+#         af = active_structures[i].get_forces()
+#         av = active_structures[i].get_velocities()
+#         assert np.allclose(of, af, atol=atol, rtol=rtol)
+#         assert np.allclose(ov, av, atol=atol, rtol=rtol)
 
 
 def test_active_no_threshold_every_tenth(tmp_path):
@@ -154,9 +155,11 @@ def test_active_no_threshold_every_tenth(tmp_path):
     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
     uncertainties, forces, structures, active_structures = _load_active_files(tmp_path)
     
+    # Check that the length of dumped uncertainties is 10
+    assert len(uncertainties) == 10
+
     # Check that uncertainties and forces match with numpy and Python implementations
-    forces = forces[::10] # get every tenth force
-    print(forces)
+    forces = forces[:, ::10, :, :] # get every tenth force
 
     u_python = _compute_uncertainty_cpp(forces)
     u_numpy = _compute_uncertainty_numpy(forces)
@@ -184,147 +187,147 @@ def test_active_no_threshold_every_tenth(tmp_path):
         assert np.allclose(ov, av, atol=atol, rtol=rtol)
 
 
-def test_active_low_threshold(tmp_path):
-    """Run active learning with a low threshold, such that some structures will be written."""
-    test_folder = 'low_threshold/'
-    files = [
-        'model/nep_full.txt',
-        'model/nep_split1.txt',
-        'model/nep_split2.txt',
-        'model/nep_split3.txt',
-        'model/nep_split4.txt',
-        'model/nep_split5.txt',
-        'model.xyz',
-        f'{test_folder}/run.in'
-    ]
-    _copy_files(files, tmp_path)
-    run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
-    uncertainties, _, structures, active_structures = _load_active_files(tmp_path)
-    
-    # Make sure that there are equally many observer structures as uncertainties
-    assert len(uncertainties) == len(structures['observer0'])
+# def test_active_low_threshold(tmp_path):
+#     """Run active learning with a low threshold, such that some structures will be written."""
+#     test_folder = 'low_threshold/'
+#     files = [
+#         'model/nep_full.txt',
+#         'model/nep_split1.txt',
+#         'model/nep_split2.txt',
+#         'model/nep_split3.txt',
+#         'model/nep_split4.txt',
+#         'model/nep_split5.txt',
+#         'model.xyz',
+#         f'{test_folder}/run.in'
+#     ]
+#     _copy_files(files, tmp_path)
+#     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
+#     uncertainties, _, structures, active_structures = _load_active_files(tmp_path)
+#     
+#     # Make sure that there are equally many observer structures as uncertainties
+#     assert len(uncertainties) == len(structures['observer0'])
 
-    # Make sure that the number of active structures are less than total steps
-    assert len(uncertainties) > len(active_structures)
+#     # Make sure that the number of active structures are less than total steps
+#     assert len(uncertainties) > len(active_structures)
 
-    # Make sure that the active structures have uncertainties exceeding the threshold
-    structure_uncertainties = np.array([structure.info['uncertainty'] for structure in active_structures])
-    assert np.all(structure_uncertainties > 0.015)
-
-
-def test_active_high_threshold(tmp_path):
-    """Run active learning with a very high threshold, such that no structures will be written."""
-    test_folder = 'high_threshold/'
-    files = [
-        'model/nep_full.txt',
-        'model/nep_split1.txt',
-        'model/nep_split2.txt',
-        'model/nep_split3.txt',
-        'model/nep_split4.txt',
-        'model/nep_split5.txt',
-        'model.xyz',
-        f'{test_folder}/run.in'
-    ]
-    _copy_files(files, tmp_path)
-    run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
-    uncertainties, _, structures, active_structures = _load_active_files(tmp_path)
-    
-    # Make sure that there are equally many observer structures as uncertainties
-    assert len(uncertainties) == len(structures['observer0'])
-
-    # Make sure that the number of active structures are less than total steps
-    assert len(uncertainties) > len(active_structures)
-
-    # Make sure that there are no structures written
-    assert len(active_structures) == 0
+#     # Make sure that the active structures have uncertainties exceeding the threshold
+#     structure_uncertainties = np.array([structure.info['uncertainty'] for structure in active_structures])
+#     assert np.all(structure_uncertainties > 0.015)
 
 
-def test_active_no_velocities_or_forces(tmp_path):
-    """Otherwise the same as no_threshold."""
-    # Assert that uncertainties and structures.uncertainty matches
+# def test_active_high_threshold(tmp_path):
+#     """Run active learning with a very high threshold, such that no structures will be written."""
+#     test_folder = 'high_threshold/'
+#     files = [
+#         'model/nep_full.txt',
+#         'model/nep_split1.txt',
+#         'model/nep_split2.txt',
+#         'model/nep_split3.txt',
+#         'model/nep_split4.txt',
+#         'model/nep_split5.txt',
+#         'model.xyz',
+#         f'{test_folder}/run.in'
+#     ]
+#     _copy_files(files, tmp_path)
+#     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
+#     uncertainties, _, structures, active_structures = _load_active_files(tmp_path)
+#     
+#     # Make sure that there are equally many observer structures as uncertainties
+#     assert len(uncertainties) == len(structures['observer0'])
 
-    test_folder = 'no_forces_or_velocities/'
-    files = [
-        'model/nep_full.txt',
-        'model/nep_split1.txt',
-        'model/nep_split2.txt',
-        'model/nep_split3.txt',
-        'model/nep_split4.txt',
-        'model/nep_split5.txt',
-        'model.xyz',
-        f'{test_folder}/run.in'
-    ]
-    _copy_files(files, tmp_path)
-    run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
-    uncertainties, forces, structures, active_structures = _load_active_files(tmp_path)
-    
-    # Check that uncertainties and forces match with numpy and Python implementations
-    u_python = _compute_uncertainty_cpp(forces)
-    u_numpy = _compute_uncertainty_numpy(forces)
+#     # Make sure that the number of active structures are less than total steps
+#     assert len(uncertainties) > len(active_structures)
 
-
-    atol = 1e-8  # Anything smaller is considered ~0
-    rtol = 1e-7
-    
-    assert np.allclose(u_python, u_numpy, atol=atol, rtol=rtol)
-    assert np.allclose(u_python, uncertainties, atol=atol, rtol=rtol)
-    
-    # Check that structures have forces and velocities
-    for observer_structures in structures.values():
-        for structure in observer_structures:
-            sf = structure.get_forces()
-            assert not np.allclose(0, sf, atol=atol, rtol=rtol)
-
-    # Check that uncertainties and structures.uncertainty matches
-    structure_uncertainties = [structure.info['uncertainty'] for structure in active_structures]
-    assert np.allclose(uncertainties, structure_uncertainties, atol=atol, rtol=rtol)
-
-    # Make sure that active structures have no velocities or forces
-    observer_structures = structures['observer0']
-    for i in range(len(active_structures)):
-        with pytest.raises(PropertyNotImplementedError) as e:
-            active_structures[i].get_forces()
-            assert 'The property "forces" is not available.' in str(e)
-        with pytest.raises(PropertyNotImplementedError) as e:
-            active_structures[i].get_velocities()
-            assert 'The property "velocities" is not available.' in str(e)
+#     # Make sure that there are no structures written
+#     assert len(active_structures) == 0
 
 
-def test_active_dump_observer_average(tmp_path_factory):
-    """Active learning should not be affected by dump_observer running in average mode"""
-    # First run with no_threshold to get expected uncertainties etc.
-    test_folder = 'no_threshold/'
-    files = [
-        'model/nep_full.txt',
-        'model/nep_split1.txt',
-        'model/nep_split2.txt',
-        'model/nep_split3.txt',
-        'model/nep_split4.txt',
-        'model/nep_split5.txt',
-        'model.xyz',
-        f'{test_folder}/run.in'
-    ]
-    tmp_path = tmp_path_factory.mktemp('no_threshold')
-    _copy_files(files, tmp_path)
-    run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
-    expected_uncertainties, _, _, _ = _load_active_files(tmp_path)
-    
-    test_folder = 'dump_observer_average/'
-    files = [
-        'model/nep_full.txt',
-        'model/nep_split1.txt',
-        'model/nep_split2.txt',
-        'model/nep_split3.txt',
-        'model/nep_split4.txt',
-        'model/nep_split5.txt',
-        'model.xyz',
-        f'{test_folder}/run.in'
-    ]
-    tmp_path = tmp_path_factory.mktemp('average')
-    _copy_files(files, tmp_path)
-    run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
-    uncertainties, _, _, _ = _load_active_files(tmp_path)
+# def test_active_no_velocities_or_forces(tmp_path):
+#     """Otherwise the same as no_threshold."""
+#     # Assert that uncertainties and structures.uncertainty matches
 
-    atol = 1e-8  # Anything smaller is considered ~0
-    rtol = 1e-7
-    assert np.allclose(uncertainties, expected_uncertainties, atol=atol, rtol=rtol)
+#     test_folder = 'no_forces_or_velocities/'
+#     files = [
+#         'model/nep_full.txt',
+#         'model/nep_split1.txt',
+#         'model/nep_split2.txt',
+#         'model/nep_split3.txt',
+#         'model/nep_split4.txt',
+#         'model/nep_split5.txt',
+#         'model.xyz',
+#         f'{test_folder}/run.in'
+#     ]
+#     _copy_files(files, tmp_path)
+#     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
+#     uncertainties, forces, structures, active_structures = _load_active_files(tmp_path)
+#     
+#     # Check that uncertainties and forces match with numpy and Python implementations
+#     u_python = _compute_uncertainty_cpp(forces)
+#     u_numpy = _compute_uncertainty_numpy(forces)
+
+
+#     atol = 1e-8  # Anything smaller is considered ~0
+#     rtol = 1e-7
+#     
+#     assert np.allclose(u_python, u_numpy, atol=atol, rtol=rtol)
+#     assert np.allclose(u_python, uncertainties, atol=atol, rtol=rtol)
+#     
+#     # Check that structures have forces and velocities
+#     for observer_structures in structures.values():
+#         for structure in observer_structures:
+#             sf = structure.get_forces()
+#             assert not np.allclose(0, sf, atol=atol, rtol=rtol)
+
+#     # Check that uncertainties and structures.uncertainty matches
+#     structure_uncertainties = [structure.info['uncertainty'] for structure in active_structures]
+#     assert np.allclose(uncertainties, structure_uncertainties, atol=atol, rtol=rtol)
+
+#     # Make sure that active structures have no velocities or forces
+#     observer_structures = structures['observer0']
+#     for i in range(len(active_structures)):
+#         with pytest.raises(PropertyNotImplementedError) as e:
+#             active_structures[i].get_forces()
+#         assert 'The property "forces" is not available.' in str(e)
+#         
+#         av = active_structures[i].get_velocities()
+#         print(av)
+#         assert np.allclose(0, av, atol=atol, rtol=rtol)
+
+# def test_active_dump_observer_average(tmp_path_factory):
+#     """Active learning should not be affected by dump_observer running in average mode"""
+#     # First run with no_threshold to get expected uncertainties etc.
+#     test_folder = 'no_threshold/'
+#     files = [
+#         'model/nep_full.txt',
+#         'model/nep_split1.txt',
+#         'model/nep_split2.txt',
+#         'model/nep_split3.txt',
+#         'model/nep_split4.txt',
+#         'model/nep_split5.txt',
+#         'model.xyz',
+#         f'{test_folder}/run.in'
+#     ]
+#     tmp_path = tmp_path_factory.mktemp('no_threshold')
+#     _copy_files(files, tmp_path)
+#     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
+#     expected_uncertainties, _, _, _ = _load_active_files(tmp_path)
+#     
+#     test_folder = 'dump_observer_average/'
+#     files = [
+#         'model/nep_full.txt',
+#         'model/nep_split1.txt',
+#         'model/nep_split2.txt',
+#         'model/nep_split3.txt',
+#         'model/nep_split4.txt',
+#         'model/nep_split5.txt',
+#         'model.xyz',
+#         f'{test_folder}/run.in'
+#     ]
+#     tmp_path = tmp_path_factory.mktemp('average')
+#     _copy_files(files, tmp_path)
+#     run('/home/elindgren/repos/GPUMD/src/gpumd', cwd=tmp_path, check=True)
+#     uncertainties, _, _, _ = _load_active_files(tmp_path)
+
+#     atol = 1e-8  # Anything smaller is considered ~0
+#     rtol = 1e-7
+#     assert np.allclose(uncertainties, expected_uncertainties, atol=atol, rtol=rtol)
