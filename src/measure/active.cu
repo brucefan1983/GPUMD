@@ -12,7 +12,7 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Dump energy/force/virial with all loaded potentials at a given interval.
+Run active learning on-the-fly during MD
 --------------------------------------------------------------------------------------------------*/
 
 #include "active.cuh"
@@ -105,7 +105,7 @@ static __global__ void compute_uncertainty(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < 3*N) {
-    g_u[n1] = g_m_sq[n1] - g_m[n1]*g_m[n1];
+    g_u[n1] = sqrt(g_m_sq[n1] - g_m[n1]*g_m[n1]);
   }
 }
 
@@ -191,7 +191,7 @@ void Active::process(
   const int number_of_potentials = force.potentials.size();
   const int number_of_atoms = atom.type.size();
   // Reset mean vectors to zero
-  initialize_mean_vectors<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  initialize_mean_vectors<<<(3*number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data());
   CUDA_CHECK_KERNEL
 
@@ -206,22 +206,21 @@ void Active::process(
     force.potentials[potential_index]->compute(box, atom.type, atom.position_per_atom, 
         atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
     // Write properties to GPU vector 
-    compute_mean<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    compute_mean<<<(3*number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms, number_of_potentials, mean_force_.data(), mean_force_sq_.data(), atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
       atom.force_per_atom.data() + number_of_atoms * 2);
     CUDA_CHECK_KERNEL
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
-  compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+  compute_uncertainty<<<(3*number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
   CUDA_CHECK_KERNEL
-  // for (int i = 0; i<number_of_atoms*3; i++){
-  //   cpu_uncertainty_[i] = 0.0;
-  // }
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
-  double uncertainty = 0.0;
+  double uncertainty = -1.0;
   for (int i = 0; i<number_of_atoms*3; i++){
-    uncertainty += sqrt(cpu_uncertainty_[i]) / (3*number_of_atoms); // slow!
+    if (uncertainty < cpu_uncertainty_[i]){
+      uncertainty = cpu_uncertainty_[i];
+    }
   }
   write_uncertainty(step, global_time, uncertainty);
   if (uncertainty > threshold_){

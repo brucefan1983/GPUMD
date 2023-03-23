@@ -1,4 +1,4 @@
-  /*
+/*
     Copyright 2017 Zheyong Fan, Ville Vierimaa, Mikko Ervasti, and Ari Harju
     This file is part of GPUMD.
     GPUMD is free software: you can redistribute it and/or modify
