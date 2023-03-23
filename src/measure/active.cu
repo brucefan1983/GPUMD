@@ -98,8 +98,11 @@ compute_mean(int N, int M, double* g_m, double* g_m_sq, double* g_fx, double* g_
 static __global__ void compute_uncertainty(int N, double* g_m, double* g_m_sq, double* g_u)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n1 < 3 * N) {
-    g_u[n1] = sqrt(g_m_sq[n1] - g_m[n1] * g_m[n1]);
+  if (n1 < N) {
+    double var_x = g_m_sq[n1 + 0 * N] - g_m[n1 + 0 * N] * g_m[n1 + 0 * N];
+    double var_y = g_m_sq[n1 + 1 * N] - g_m[n1 + 1 * N] * g_m[n1 + 1 * N];
+    double var_z = g_m_sq[n1 + 2 * N] - g_m[n1 + 2 * N] * g_m[n1 + 2 * N];
+    g_u[n1] = sqrt(var_x + var_y + var_z);
   }
 }
 
@@ -162,8 +165,8 @@ void Active::preprocess(const int number_of_atoms, const int number_of_potential
     }
     mean_force_.resize(number_of_atoms * 3);
     mean_force_sq_.resize(number_of_atoms * 3);
-    gpu_uncertainty_.resize(number_of_atoms * 3);
-    cpu_uncertainty_.resize(number_of_atoms * 3);
+    gpu_uncertainty_.resize(number_of_atoms);
+    cpu_uncertainty_.resize(number_of_atoms);
   }
 }
 
@@ -210,12 +213,12 @@ void Active::process(
     CUDA_CHECK_KERNEL
   }
   // Sum mean and mean_sq on GPU, move sum to CPU
-  compute_uncertainty<<<(3 * number_of_atoms - 1) / 128 + 1, 128>>>(
+  compute_uncertainty<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     number_of_atoms, mean_force_.data(), mean_force_sq_.data(), gpu_uncertainty_.data());
   CUDA_CHECK_KERNEL
   gpu_uncertainty_.copy_to_host(cpu_uncertainty_.data());
   double uncertainty = -1.0;
-  for (int i = 0; i < number_of_atoms * 3; i++) {
+  for (int i = 0; i < number_of_atoms; i++) {
     if (uncertainty < cpu_uncertainty_[i]) {
       uncertainty = cpu_uncertainty_[i];
     }

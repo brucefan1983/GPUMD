@@ -29,12 +29,15 @@ def _compute_uncertainty_cpp(forces: np.ndarray):
             m_sq[:, i + 1 * N] += fy*fy/M
             m_sq[:, i + 2 * N] += fz*fz/M
 
-    E = np.zeros((L, N*3))
-    for i in range(3*N):
-        E[:,i] = np.sqrt(m_sq[:,i] - m[:,i]*m[:,i])
+    E = np.zeros((L, N))
+    for i in range(N):
+        var_x = m_sq[:, i + 0 * N] - m[:, i + 0 * N]*m[:, i + 0 * N]
+        var_y = m_sq[:, i + 1 * N] - m[:, i + 1 * N]*m[:, i + 1 * N]
+        var_z = m_sq[:, i + 2 * N] - m[:, i + 2 * N]*m[:, i + 2 * N]
+        E[:,i] = np.sqrt(var_x + var_y + var_z)
     u = np.zeros(L)
     for l in range(L):
-        for i in range(3*N):
+        for i in range(N):
             if E[l,i] > u[l]:
                 u[l] = E[l,i]
     return u
@@ -43,13 +46,10 @@ def _compute_uncertainty_numpy(forces: np.ndarray):
     """Numpy implementation of what the C++ algorithm is supposed to do,
     i.e, compute maximum force uncertainty."""
     F = forces
-    M = F.shape[0]
-    L = F.shape[1]
-    N = F.shape[2]
-    F = F.reshape((M, L, 3*N))
-    F_std = np.std(F, axis=0)
+    S_fik = np.var(F, axis=0)
+    S_fi = np.sum(S_fik, axis=-1)
 
-    U = np.max(F_std, axis=1)
+    U = np.max(np.sqrt(S_fi), axis=1)
     return U
 
 
