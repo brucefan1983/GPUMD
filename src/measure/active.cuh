@@ -16,13 +16,11 @@
 #pragma once
 
 #include "utilities/gpu_vector.cuh"
-#include "force/force.cuh"
-#include "model/atom.cuh"
-#include "model/group.cuh"
 #include <vector>
 #include <string>
 class Box;
 class Atom;
+class Group;
 class Force;
 
 class Active

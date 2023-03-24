@@ -18,10 +18,11 @@ Run active learning on-the-fly during MD
 
 #include "active.cuh"
 #include "model/box.cuh"
+#include "model/atom.cuh"
+#include "force/force.cuh"
 #include "parse_utilities.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <iostream>
 #include <vector>
