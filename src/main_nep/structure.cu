@@ -270,7 +270,6 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       if (para.prediction == 0) {
         PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
       } else {
-        // printf("Warning! No dipole reference in train.xyz.\n");
         for (int m = 0; m < 6; ++m) {
           structure.virial[m] = 1e9;
         }
@@ -300,7 +299,6 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
       if (para.prediction == 0) {
         PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
       } else {
-        // printf("Warning! No polarizability reference in train.xyz.\n");
         for (int m = 0; m < 6; ++m) {
           structure.virial[m] = 1e9;
         }
