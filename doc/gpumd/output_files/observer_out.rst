@@ -3,7 +3,7 @@
    single: observer.out (output file)
 
 ``observer.out``
-==============
+================
 
 This file contains the global thermodynamic quantities sampled at a given frequency, for each of the specified potentials.
 This file is generated when the :ref:`dump_observer keyword <kw_dump_observer>` is invoked, which also controls the frequency of the output.

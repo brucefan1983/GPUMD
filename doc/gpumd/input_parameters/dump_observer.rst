@@ -5,7 +5,7 @@
 :attr:`dump_observer`
 =====================
 
-Writes atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials in the  `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Takes the same arguments as :ref:`dump_exyz keyword <kw_dump_exyz>`, and additionally a keyword `mode`. `mode` can either be set to `observe` or `average`.
+Writes atomistic properties such as positions, velocities and forces for each of the supplied NEP potentials in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Takes the same arguments as :ref:`dump_exyz keyword <kw_dump_exyz>`, and additionally a keyword `mode`. `mode` can either be set to `observe` or `average`.
 
 If set to `observe`, the first of the supplied NEP potentials will be used to propagate the molecular dynamics run, and the remaining potentials will be evaluated every `interval_thermo` and `interval_exyz` time steps. Every `interval_thermo` timesteps files in the style of :ref:`thermo.out <thermo_out>` will be written, and every `interval_exyz` timesteps extended XYZ-files will be written. The files are named according to the following convention:
 

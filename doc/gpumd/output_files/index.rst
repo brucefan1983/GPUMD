@@ -33,6 +33,18 @@ Output files
      - :ref:`dump_observer <kw_dump_observer>`
      - Atomistic positions, velocities and forces as evaluated with observing potentials.
      - Append
+   * - :ref:`observer.out <observer_out>`
+     - :ref:`dump_observer <kw_dump_observer>`
+     - Thermodynamic quantities evaluated with observing potentials.
+     - Append
+   * - :ref:`active.xyz <active_xyz>`
+     - :ref:`active <kw_active>`
+     - Structures selected through active learning.
+     - Append
+   * - :ref:`active.out <active_out>`
+     - :ref:`active <kw_active>`
+     - Simulation time and uncertainty during active learning.
+     - Append
    * - :ref:`velocity.out <velocity_out>`
      - :ref:`dump_velocity <kw_dump_velocity>`
      - Contains the atomic velocities
@@ -113,6 +125,9 @@ Output files
    restart_xyz
    dump_xyz
    observer_xyz
+   observer_out
+   active_xyz
+   active_out
    sdc_out
    msd_out
    shc_out

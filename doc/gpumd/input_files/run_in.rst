@@ -155,16 +155,16 @@ Output
      - Brief description
      - Exec.
      - Prop.
+   * - :ref:`active <kw_active>`
+     - Run on-the-fly active learning, saving structures that exceeds a set threshold maximum force uncertainty over all specified NEP potentials.
+     - No
+     - No
    * - :ref:`dump_exyz <kw_dump_exyz>`
      - Write positions and other quantities in `extended XYZ format <https://github.com/libAtoms/extxyz>`_
      - No
      - No
    * - :ref:`dump_observer <kw_dump_observer>`
      - Write positions and other quantities for each of the observing NEP potentials, or the average of them, in the extended XYZ format.
-     - No
-     - No
-   * - :ref:`active <kw_active>`
-     - Run on-the-fly active learning, saving structures that exceeds a set threshold maximum force uncertainty over all specified NEP potentials.
      - No
      - No
    * - :ref:`dump_force <kw_dump_force>`

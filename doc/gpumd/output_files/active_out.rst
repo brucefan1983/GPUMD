@@ -17,7 +17,7 @@ File format
 There are two columns in this file::
 
   column   1 2
-  quantity t :math:`\sigma_f`
+  quantity t s
 
 where the first column is the time in fs, and the second is the observed uncertainty in eV/Å.
 
