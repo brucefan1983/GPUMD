@@ -50,6 +50,7 @@ void Measure::initialize(
   dump_force.preprocess(number_of_atoms, group);
   dump_exyz.preprocess(number_of_atoms);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
+  active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
 #endif
@@ -68,6 +69,7 @@ void Measure::finalize(
   dump_force.postprocess();
   dump_exyz.postprocess();
   dump_observer.postprocess();
+  active.postprocess();
   dos.postprocess();
   sdc.postprocess();
   msd.postprocess();
@@ -124,6 +126,7 @@ void Measure::process(
     atom.force_per_atom, atom.virial_per_atom, thermo);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
+  active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
 
   compute.process(
     step, integrate.ensemble->energy_transferred, group, atom.mass, atom.potential_per_atom,

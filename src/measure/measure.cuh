@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "active.cuh"
 #include "compute.cuh"
 #include "dos.cuh"
 #include "dump_exyz.cuh"
@@ -94,6 +95,7 @@ public:
   Dump_Force dump_force;
   Dump_EXYZ dump_exyz;
   Dump_Observer dump_observer;
+  Active active;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;
 #endif

@@ -293,6 +293,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.dump_exyz.parse(param, num_param);
   } else if (strcmp(param[0], "dump_observer") == 0) {
     measure.dump_observer.parse(param, num_param);
+  } else if (strcmp(param[0], "active") == 0) {
+    measure.active.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
     measure.dos.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_sdc") == 0) {
