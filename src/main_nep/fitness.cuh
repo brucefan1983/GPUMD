@@ -47,7 +47,7 @@ protected:
   std::unique_ptr<Potential> potential;
   std::vector<std::vector<Dataset>> train_set;
   std::vector<Dataset> test_set;
-  void predict_energy_or_stress(FILE* fid, float* data, float* ref, Dataset& dataset);
+  void output(int num_components, FILE* fid, float* prediction, float* reference, Dataset& dataset);
   void
   update_energy_force_virial(FILE* fid_energy, FILE* fid_force, FILE* fid_virial, Dataset& dataset);
   void update_dipole(FILE* fid_dipole, Dataset& dataset);
