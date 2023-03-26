@@ -222,10 +222,17 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     const float tol = 1e-3;
     for (int m = 0; m < 6; ++m) {
       if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
-        PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
+        if ((para.prediction != 0) && ((para.train_mode == 1) || para.train_mode == 2)) {
+        } else {
+          PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
+        }
       }
     }
-    std::cout << "Structure has both defined virials and stresses. Will use virial information.\n";
+    if ((para.prediction != 0) && ((para.train_mode == 1) || para.train_mode == 2)) {
+    } else {
+      std::cout
+        << "Structure has both defined virials and stresses. Will use virial information.\n";
+    }
   } else if (!structure.has_virial && has_stress) {
     // save virials from stress to structure virials
     for (int m = 0; m < 6; ++m) {
@@ -264,7 +271,7 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
         PRINT_INPUT_ERROR("'dipole' is missing in the second line of a frame.");
       } else {
         for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
+          structure.virial[m] = 1e9;
         }
       }
     }
@@ -293,7 +300,7 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
         PRINT_INPUT_ERROR("'pol' is missing in the second line of a frame.");
       } else {
         for (int m = 0; m < 6; ++m) {
-          structure.virial[m] = -1e6;
+          structure.virial[m] = 1e9;
         }
       }
     }
