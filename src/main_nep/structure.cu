@@ -222,14 +222,12 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     const float tol = 1e-3;
     for (int m = 0; m < 6; ++m) {
       if (abs(structure.virial[m] - virials_from_stress[m]) > tol) {
-        if ((para.prediction != 0) && ((para.train_mode == 1) || para.train_mode == 2)) {
-        } else {
+        if (para.prediction == 0) {
           PRINT_INPUT_ERROR("Virials and stresses for structure are inconsistent!");
         }
       }
     }
-    if ((para.prediction != 0) && ((para.train_mode == 1) || para.train_mode == 2)) {
-    } else {
+    if (para.prediction == 0) {
       std::cout
         << "Structure has both defined virials and stresses. Will use virial information.\n";
     }
