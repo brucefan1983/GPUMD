@@ -26,7 +26,7 @@
   * `path/to/nep`
 
 ## Manual
-* The new mamual that will be used starting from GPUMD-v3.6: https://gpumd.org/
+* The new manual that will be used starting from GPUMD-v3.6: https://gpumd.org/
 * The old manual for up to GPUMD-v3.5: https://gpumd.zheyongfan.org
 
 ## Mailing list:
@@ -41,9 +41,11 @@ https://www.freelists.org/list/gpumd
 
 | Package               | link                           |
 | --------------------- | --------------------------------- |
+| `calorine`            | https://gitlab.com/materials-modeling/calorine  |
 | `gpyumd`              |https://github.com/AlexGabourie/gpyumd   |
 | `pynep`               | https://github.com/bigd4/PyNEP   |
-| `calorine`            | https://gitlab.com/materials-modeling/calorine  |
+| `somd`                | https://github.com/initqp/somd  |
+
   
 ## Authors:
 
