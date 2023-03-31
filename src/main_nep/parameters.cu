@@ -77,8 +77,8 @@ void Parameters::set_default_parameters()
   version = 4;                 // NEP4 is the best
   rc_radial = 8.0f;            // large enough for vdw/coulomb
   rc_angular = 4.0f;           // large enough in most cases
-  basis_size_radial = 8;       // large enough in most cases
-  basis_size_angular = 8;      // large enough in most cases
+  basis_size_radial = 12;      // large enough in most cases
+  basis_size_angular = 12;     // large enough in most cases
   n_max_radial = 4;            // a relatively small value to achieve high speed
   n_max_angular = 4;           // a relatively small value to achieve high speed
   L_max = 4;                   // the only supported value
@@ -94,11 +94,11 @@ void Parameters::set_default_parameters()
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
   type_weight_cpu.resize(NUM_ELEMENTS);
-  zbl_para.resize(440);        // Maximum number of zbl parameters
+  zbl_para.resize(440); // Maximum number of zbl parameters
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
     type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
-  enable_zbl = false; // default is not to include ZBL
+  enable_zbl = false;   // default is not to include ZBL
   flexible_zbl = false; // default Universal ZBL
 }
 
@@ -245,7 +245,8 @@ void Parameters::report_inputs()
       printf("    (input)   will add the flexible ZBL potential\n");
     } else {
       printf(
-        "    (input)   will add the universal ZBL potential with outer cutoff %g A and inner cutoff %g A.\n",
+        "    (input)   will add the universal ZBL potential with outer cutoff %g A and inner "
+        "cutoff %g A.\n",
         zbl_rc_outer, zbl_rc_inner);
     }
   } else {

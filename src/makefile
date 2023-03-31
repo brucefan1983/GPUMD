@@ -7,6 +7,8 @@
 #    You can consider removing -Xcompiler "/wd 4819"
 # 3) Add -DUSE_PLUMED to CFLAGS when use the PLUMED plugin
 #    and remove it otherwise.
+# 4) Add -DUSE_TABLE to speed up MD simulations with NEP
+#    using pre-computed radial functions in the descriptors
 ###########################################################
 
 
