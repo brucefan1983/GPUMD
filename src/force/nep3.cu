@@ -289,6 +289,7 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
 
 #if USE_TABLE
   construct_table(parameters.data());
+  printf("The tabulated radial functions have been used to speed up NEP.\n");
 #endif
 }
 
