@@ -370,15 +370,9 @@ static __global__ void gpu_find_kinetic_energy_virial_part(
     double factor = 0.5 / number_of_beads;
     double temp_sum = 0.0;
     for (int k = 0; k < number_of_beads; ++k) {
-      double pos_diff[3] = {0.0};
       for (int d = 0; d < 3; ++d) {
         int index_dn = d * number_of_atoms + n;
-        pos_diff[d] = position[k][index_dn] - position_averaged[index_dn];
-      }
-      apply_mic(box, pos_diff[0], pos_diff[1], pos_diff[2]);
-      for (int d = 0; d < 3; ++d) {
-        int index_dn = d * number_of_atoms + n;
-        temp_sum -= pos_diff[d] * force[k][index_dn];
+        temp_sum -= (position[k][index_dn] - position_averaged[index_dn]) * force[k][index_dn];
       }
     }
     kinetic_energy_virial_part[n] = temp_sum * factor;
