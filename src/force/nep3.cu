@@ -231,7 +231,7 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   }
   printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para += num_para_descriptor;
-  printf("    total number of parameters = %d\n", annmb.num_para);
+  printf("    total number of parameters = %d.\n", annmb.num_para);
 
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
@@ -287,8 +287,9 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   nep_data.cpu_NN_radial.resize(num_atoms);
   nep_data.cpu_NN_angular.resize(num_atoms);
 
-#if USE_TABLE
+#ifdef USE_TABLE
   construct_table(parameters.data());
+  printf("    use tabulated radial functions to speed up.\n");
 #endif
 }
 
