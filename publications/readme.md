@@ -1,6 +1,8 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (4)
+## Preprints (5)
+
+* Petter Rosander, Erik Fransson, Cosme Milesi-Brault, Constance Toulouse, Frederic Bourdarot, Andrea Piovano, Alexei Bossak, Mael Guennou, and Goran Wahnstrom, [Anharmonicity of the antiferrodistortive soft mode in barium zirconate BaZrO3](https://arxiv.org/abs/2303.12548), arXiv:2303.12548 [cond-mat.mtrl-sci]
 
 * Ke Xu, Yongchao Hao, Ting Liang, Penghua Ying, Jianbin Xu, Jianyang Wu, Zheyong Fan, [Accurate prediction of heat conductivity of water by a neuroevolution potential](https://arxiv.org/abs/2302.12328), 	arXiv:2302.12328 [physics.comp-ph]
 
