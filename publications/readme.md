@@ -10,13 +10,18 @@
 
 * Erik Fransson, Petter Rosander, Fredrik Eriksson, J. Magnus Rahm, Terumasa Tadano, Paul Erhart, [Probing the limits of the phonon quasi-particle picture: The transition from underdamped to overdamped dynamics in CsPbBr3](https://arxiv.org/abs/2211.08197), 	arXiv:2211.08197 [cond-mat.mtrl-sci]
  
-## 2023 (8)
+## 2023 (10)
+
+* Insa F. de Vries, Helena Osthues, Nikos L. Doltsinis, [Thermal conductivity across transition metal dichalcogenide bilayers](https://doi.org/10.1016/j.isci.2023.106447), iScience **26**, 106447 (2023).
+
+* Wenhao Sha, Xuan Dai, Siyu Chen, Binglun Yin, Fenglin Guo, [Phonon thermal transport in two-dimensional PbTe monolayers via extensive molecular dynamics simulations with a neuroevolution potential](https://doi.org/10.1016/j.mtphys.2023.101066), Materials Today Physics,
+101066 (2023).
 
 * Shuning Pan, Tianheng Huang, Allona Vazan, Zhixin Liang, Cong Liu, Junjie Wang, Chris J. Pickard, Hui-Tian Wang, Dingyu Xing, Jian Sun, [Magnesium oxide-water compounds at megabar pressure and implications on planetary interiors](https://doi.org/10.1038/s41467-023-36802-8), Nature Communications **14**, 1165 (2023).
 
 * Ziyue Zhou, Ke Xu, Zixuan Song, Zhen Wang, Yanwen Lin, Qiao Shi, Yongchao Hao, Yuequn Fu, Zhisen Zhang, and Jianyang Wu,
 [Isotope doping-induced crossover shift in the thermal conductivity of thin silicon nanowires](https://dx.doi.org/10.1088/1361-648X/acab4a),
-J. Phys.: Condens. Matter **35** 085702 (2023).
+J. Phys.: Condens. Matter **35**, 085702 (2023).
 
 * Haikuan Dong, Chenyang Cao, Penghua Ying, Zheyong Fan, Ping Qian, Yanjing Su, [Anisotropic and high thermal conductivity in monolayer quasi-hexagonal fullerene: A comparative study against bulk phase fullerene](https://doi.org/10.1016/j.ijheatmasstransfer.2023.123943), International Journal of Heat and Mass Transfer **206**, 123943 (2023).
 
