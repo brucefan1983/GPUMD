@@ -88,6 +88,8 @@ void Ensemble_LAN::integrate_nvt_lan_half(
 {
   const int number_of_atoms = mass.size();
 
+  c2 = sqrt((1 - c1 * c1) * K_B * temperature); // target temperature might change linearly
+
   gpu_langevin<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
     curand_states.data(), number_of_atoms, c1, c2, mass.data(), velocity_per_atom.data(),
     velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
