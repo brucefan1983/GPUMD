@@ -172,7 +172,7 @@ void Run::perform_a_run()
 
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
-    if (integrate.type == 31) { // PIMD
+    if (integrate.type >= 31) { // PIMD
       for (int k = 0; k < integrate.number_of_beads; ++k) {
         force.compute(
           box, atom.position_beads[k], atom.type, group, atom.potential_beads[k],

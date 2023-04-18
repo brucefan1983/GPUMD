@@ -29,20 +29,31 @@ References for implementation:
 #include <cstdlib>
 
 Ensemble_PIMD::Ensemble_PIMD(
+  int number_of_atoms_input, int number_of_beads_input, bool thermostat_internal_input, Atom& atom)
+{
+  number_of_atoms = number_of_atoms_input;
+  number_of_beads = number_of_beads_input;
+  thermostat_internal = thermostat_internal_input;
+  thermostat_centroid = false;
+  initialize(atom);
+}
+
+Ensemble_PIMD::Ensemble_PIMD(
   int number_of_atoms_input,
   int number_of_beads_input,
-  int number_of_steps_pimd_input,
-  double temperature_input,
   double temperature_coupling_input,
   Atom& atom)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
-  number_of_steps_pimd = number_of_steps_pimd_input;
-  temperature = temperature_input;
   temperature_coupling = temperature_coupling_input;
-  omega_n = number_of_beads * K_B * temperature / HBAR;
+  thermostat_internal = true;
+  thermostat_centroid = true;
+  initialize(atom);
+}
 
+void Ensemble_PIMD::initialize(Atom& atom)
+{
   kinetic_energy_virial_part.resize(number_of_atoms);
   sum_1024.resize(8 * 1024); // potential, kinetic, and 6 virial components, each with 1024 data
 
@@ -225,7 +236,7 @@ static __global__ void gpu_nve_2(
 }
 
 static __global__ void gpu_langevin(
-  const bool use_rpmd,
+  const bool thermostat_centroid,
   const int number_of_atoms,
   const int number_of_beads,
   curandState* g_state,
@@ -257,7 +268,7 @@ static __global__ void gpu_langevin(
 
     curandState state = g_state[n];
     for (int k = 0; k < number_of_beads; ++k) {
-      if (k == 0 && use_rpmd) {
+      if (k == 0 && !thermostat_centroid) {
         continue;
       }
       double c1 = (k == 0) ? exp(-0.5 / temperature_coupling)
@@ -453,16 +464,15 @@ void Ensemble_PIMD::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  static int num_calls = 0;
-  bool use_rpmd = num_calls >= number_of_steps_pimd;
+  omega_n = number_of_beads * K_B * temperature / HBAR;
 
-  gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    use_rpmd, number_of_atoms, number_of_beads, curand_states.data(), temperature,
-    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
-    velocity_beads.data());
-  CUDA_CHECK_KERNEL
-
-  ++num_calls;
+  if (thermostat_internal) {
+    gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+      thermostat_centroid, number_of_atoms, number_of_beads, curand_states.data(), temperature,
+      temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
+      velocity_beads.data());
+    CUDA_CHECK_KERNEL
+  }
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
@@ -481,21 +491,20 @@ void Ensemble_PIMD::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
+  omega_n = number_of_beads * K_B * temperature / HBAR;
+
   gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     number_of_atoms, number_of_beads, time_step, atom.mass.data(), force_beads.data(),
     velocity_beads.data());
   CUDA_CHECK_KERNEL
 
-  static int num_calls = 0;
-  bool use_rpmd = num_calls >= number_of_steps_pimd;
-
-  gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    use_rpmd, number_of_atoms, number_of_beads, curand_states.data(), temperature,
-    temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
-    velocity_beads.data());
-  CUDA_CHECK_KERNEL
-
-  ++num_calls;
+  if (thermostat_internal) {
+    gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+      thermostat_centroid, number_of_atoms, number_of_beads, curand_states.data(), temperature,
+      temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
+      velocity_beads.data());
+    CUDA_CHECK_KERNEL
+  }
 
   // TODO: correct momentum
 

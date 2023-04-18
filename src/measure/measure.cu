@@ -110,7 +110,7 @@ void Measure::process(
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
   dump_thermo.process(
-    integrate.type == 31, integrate.temperature, step, number_of_atoms, number_of_atoms_fixed, box,
+    integrate.type >= 31, integrate.temperature, step, number_of_atoms, number_of_atoms_fixed, box,
     thermo);
   dump_position.process(
     step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
