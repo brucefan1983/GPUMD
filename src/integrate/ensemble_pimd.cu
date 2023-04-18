@@ -69,22 +69,33 @@ void Ensemble_PIMD::initialize(Atom& atom)
   std::vector<double*> force_beads_cpu(number_of_beads);
   std::vector<double*> virial_beads_cpu(number_of_beads);
 
-  atom.position_beads.resize(number_of_beads);
-  atom.velocity_beads.resize(number_of_beads);
-  atom.potential_beads.resize(number_of_beads);
-  atom.force_beads.resize(number_of_beads);
-  atom.virial_beads.resize(number_of_beads);
+  if (atom.number_of_beads == 0) {
+    if (!thermostat_centroid) {
+      PRINT_INPUT_ERROR("Cannot use RPMD or TRPMD before PIMD\n.");
+    }
+    atom.position_beads.resize(number_of_beads);
+    atom.velocity_beads.resize(number_of_beads);
+    atom.potential_beads.resize(number_of_beads);
+    atom.force_beads.resize(number_of_beads);
+    atom.virial_beads.resize(number_of_beads);
+  } else {
+    if (atom.number_of_beads != number_of_beads) {
+      PRINT_INPUT_ERROR("Cannot change the number of beads for PIMD runs\n.");
+    }
+  }
 
   for (int k = 0; k < number_of_beads; ++k) {
-    atom.position_beads[k].resize(number_of_atoms * 3);
-    atom.velocity_beads[k].resize(number_of_atoms * 3);
-    atom.potential_beads[k].resize(number_of_atoms);
-    atom.force_beads[k].resize(number_of_atoms * 3);
-    atom.virial_beads[k].resize(number_of_atoms * 9);
+    if (atom.number_of_beads == 0) {
+      atom.position_beads[k].resize(number_of_atoms * 3);
+      atom.velocity_beads[k].resize(number_of_atoms * 3);
+      atom.potential_beads[k].resize(number_of_atoms);
+      atom.force_beads[k].resize(number_of_atoms * 3);
+      atom.virial_beads[k].resize(number_of_atoms * 9);
 
-    atom.position_beads[k].copy_from_device(atom.position_per_atom.data());
-    atom.velocity_beads[k].copy_from_device(atom.velocity_per_atom.data());
-    atom.force_beads[k].copy_from_device(atom.force_per_atom.data());
+      atom.position_beads[k].copy_from_device(atom.position_per_atom.data());
+      atom.velocity_beads[k].copy_from_device(atom.velocity_per_atom.data());
+      atom.force_beads[k].copy_from_device(atom.force_per_atom.data());
+    }
 
     position_beads_cpu[k] = atom.position_beads[k].data();
     velocity_beads_cpu[k] = atom.velocity_beads[k].data();
@@ -92,6 +103,8 @@ void Ensemble_PIMD::initialize(Atom& atom)
     force_beads_cpu[k] = atom.force_beads[k].data();
     virial_beads_cpu[k] = atom.virial_beads[k].data();
   }
+
+  atom.number_of_beads = number_of_beads;
 
   position_beads.copy_from_host(position_beads_cpu.data());
   velocity_beads.copy_from_host(velocity_beads_cpu.data());
