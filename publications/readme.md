@@ -1,6 +1,8 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (5)
+## Preprints (6)
+
+* Fredrik Eriksson, Erik Fransson, Christopher Linderälv, Zheyong Fan, Paul Erhart, [Tuning the lattice thermal conductivity in van-der-Waals structures through rotational (dis)ordering](https://doi.org/10.48550/arXiv.2304.06978), arXiv:2304.06978 [cond-mat.mtrl-sci]
 
 * Petter Rosander, Erik Fransson, Cosme Milesi-Brault, Constance Toulouse, Frederic Bourdarot, Andrea Piovano, Alexei Bossak, Mael Guennou, and Goran Wahnstrom, [Anharmonicity of the antiferrodistortive soft mode in barium zirconate BaZrO3](https://arxiv.org/abs/2303.12548), arXiv:2303.12548 [cond-mat.mtrl-sci]
 
