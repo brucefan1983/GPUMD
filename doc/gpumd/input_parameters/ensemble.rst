@@ -98,6 +98,11 @@ with three different options for specifying :attr:`pressure_control_parameters`:
   The simulation box must be triclinic and all the directions must be periodic.
   All cell components will be controlled independently according to the 6 target pressure components.
 
+  Elastic constants in literature may use a different nomenclature. The correspondence is as follows:
+
+  | :attr:`C_xx=C_xxxx=C_11`, :attr:`C_yy=C_yyyy=C_22`, :attr:`C_zz=C_zzzz=C_33`,
+  | :attr:`C_yz=C_yzyz=C_44`, :attr:`C_zx=C_zxzx=C_55`, :attr:`C_xy=C_xyxy=C_66`
+  
   It is sufficient for the elastic constant tensor :attr:`C_ab` to be a (very rough) estimate as long as it is of the right magnitude.
   It is used to convert the coupling constant (or relaxation time, see :ref:`here <choice_of_parameters>`) of the barostat into suitable internal units.
 
