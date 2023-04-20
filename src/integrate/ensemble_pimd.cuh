@@ -61,4 +61,5 @@ protected:
   GPU_Vector<double> sum_1024; // for intermidiate summation
 
   void initialize(Atom& atom);
+  void langevin(const double time_step, Atom& atom);
 };

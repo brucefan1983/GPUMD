@@ -535,15 +535,8 @@ gpu_find_thermo(const double volume, const double NkBT, const double* g_sum_1024
   }
 }
 
-void Ensemble_PIMD::compute1(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atom,
-  GPU_Vector<double>& thermo)
+void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
 {
-  omega_n = number_of_beads * K_B * temperature / HBAR;
-
   if (thermostat_internal) {
     gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
       thermostat_centroid, number_of_atoms, number_of_beads, curand_states.data(), temperature,
@@ -559,6 +552,18 @@ void Ensemble_PIMD::compute1(
       number_of_atoms, number_of_beads, velocity_beads.data());
     CUDA_CHECK_KERNEL
   }
+}
+
+void Ensemble_PIMD::compute1(
+  const double time_step,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo)
+{
+  omega_n = number_of_beads * K_B * temperature / HBAR;
+
+  langevin(time_step, atom);
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
@@ -584,21 +589,7 @@ void Ensemble_PIMD::compute2(
     velocity_beads.data());
   CUDA_CHECK_KERNEL
 
-  if (thermostat_internal) {
-    gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-      thermostat_centroid, number_of_atoms, number_of_beads, curand_states.data(), temperature,
-      temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
-      velocity_beads.data());
-    CUDA_CHECK_KERNEL
-
-    gpu_find_momentum_beads<<<number_of_beads, 1024>>>(
-      number_of_atoms, atom.mass.data(), velocity_beads.data());
-    CUDA_CHECK_KERNEL
-
-    gpu_correct_momentum_beads<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-      number_of_atoms, number_of_beads, velocity_beads.data());
-    CUDA_CHECK_KERNEL
-  }
+  langevin(time_step, atom);
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
