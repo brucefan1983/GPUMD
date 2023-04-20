@@ -309,6 +309,71 @@ static __global__ void gpu_langevin(
   }
 }
 
+__device__ double device_momentum_beads[MAX_NUM_BEADS][4];
+
+static __global__ void
+gpu_find_momentum_beads(const int number_of_atoms, const double* g_mass, double** g_velocity)
+{
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int number_of_rounds = (number_of_atoms - 1) / 1024 + 1;
+  __shared__ double s_momentum[4][1024];
+  double momentum[4] = {0.0};
+
+  for (int round = 0; round < number_of_rounds; ++round) {
+    int n = tid + round * 1024;
+    if (n < number_of_atoms) {
+      for (int d = 0; d < 3; ++d) {
+        momentum[d] += g_mass[n] * g_velocity[bid][n + d * number_of_atoms];
+      }
+      momentum[3] += g_mass[n];
+    }
+  }
+
+  for (int d = 0; d < 4; ++d) {
+    s_momentum[d][tid] = momentum[d];
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      for (int d = 0; d < 4; ++d) {
+        s_momentum[d][tid] += s_momentum[d][tid + offset];
+      }
+    }
+    __syncthreads();
+  }
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      for (int d = 0; d < 4; ++d) {
+        s_momentum[d][tid] += s_momentum[d][tid + offset];
+      }
+    }
+    __syncwarp();
+  }
+
+  if (tid == 0) {
+    for (int d = 0; d < 4; ++d) {
+      device_momentum_beads[bid][d] = s_momentum[d][0];
+    }
+  }
+}
+
+static __global__ void gpu_correct_momentum_beads(
+  const int number_of_atoms, const int number_of_beads, double** g_velocity)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_atoms) {
+    double inverse_of_total_mass = 1.0 / device_momentum_beads[0][3];
+    for (int k = 0; k < number_of_beads; ++k) {
+      for (int d = 0; d < 3; ++d) {
+        g_velocity[k][i + d * number_of_atoms] -=
+          device_momentum_beads[k][d] * inverse_of_total_mass;
+      }
+    }
+  }
+}
+
 static __global__ void gpu_apply_pbc(
   const Box box, const int number_of_atoms, const int number_of_beads, double** position)
 {
@@ -485,6 +550,14 @@ void Ensemble_PIMD::compute1(
       temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
       velocity_beads.data());
     CUDA_CHECK_KERNEL
+
+    gpu_find_momentum_beads<<<number_of_beads, 1024>>>(
+      number_of_atoms, atom.mass.data(), velocity_beads.data());
+    CUDA_CHECK_KERNEL
+
+    gpu_correct_momentum_beads<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+      number_of_atoms, number_of_beads, velocity_beads.data());
+    CUDA_CHECK_KERNEL
   }
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
@@ -517,9 +590,15 @@ void Ensemble_PIMD::compute2(
       temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
       velocity_beads.data());
     CUDA_CHECK_KERNEL
-  }
 
-  // TODO: correct momentum
+    gpu_find_momentum_beads<<<number_of_beads, 1024>>>(
+      number_of_atoms, atom.mass.data(), velocity_beads.data());
+    CUDA_CHECK_KERNEL
+
+    gpu_correct_momentum_beads<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+      number_of_atoms, number_of_beads, velocity_beads.data());
+    CUDA_CHECK_KERNEL
+  }
 
   gpu_apply_pbc<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data());
