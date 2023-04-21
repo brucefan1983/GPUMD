@@ -539,8 +539,10 @@ gpu_find_thermo(const double volume, const double NkBT, const double* g_sum_1024
       g_thermo[bid] = 1.5 * NkBT + s_data[0];
     } else if (bid == 1) {
       g_thermo[bid] = s_data[0];
-    } else {
+    } else if (bid <= 4) {
       g_thermo[bid] = (NkBT + s_data[0]) / volume;
+    } else {
+      g_thermo[bid] = s_data[0] / volume;
     }
   }
 }
