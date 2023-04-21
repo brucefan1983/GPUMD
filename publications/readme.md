@@ -2,19 +2,21 @@
 
 ## Preprints (6)
 
+* Julia Wiktor, Erik Fransson, Dominik Kubicki, Paul Erhart, [Quantifying Dynamic Tilting in Halide Perovskites: Chemical Trends and Local Correlations](https://arxiv.org/abs/2304.07402), arXiv:2304.07402 [cond-mat.mtrl-sci]
+
 * Fredrik Eriksson, Erik Fransson, Christopher Linderälv, Zheyong Fan, Paul Erhart, [Tuning the lattice thermal conductivity in van-der-Waals structures through rotational (dis)ordering](https://doi.org/10.48550/arXiv.2304.06978), arXiv:2304.06978 [cond-mat.mtrl-sci]
 
 * Petter Rosander, Erik Fransson, Cosme Milesi-Brault, Constance Toulouse, Frederic Bourdarot, Andrea Piovano, Alexei Bossak, Mael Guennou, and Goran Wahnstrom, [Anharmonicity of the antiferrodistortive soft mode in barium zirconate BaZrO3](https://arxiv.org/abs/2303.12548), arXiv:2303.12548 [cond-mat.mtrl-sci]
 
 * Ke Xu, Yongchao Hao, Ting Liang, Penghua Ying, Jianbin Xu, Jianyang Wu, Zheyong Fan, [Accurate prediction of heat conductivity of water by a neuroevolution potential](https://arxiv.org/abs/2302.12328), 	arXiv:2302.12328 [physics.comp-ph]
 
-* Yajuan Cheng, Zheyong Fan, Tao Zhang, Masahiro Nomura, Sebastian Volz, Guimei Zhu, Baowen Li, Shiyun Xiong, [Magic angle in thermal conductivity of twisted bilayer graphene](https://arxiv.org/abs/2301.00323), 	arXiv:2301.00323 [cond-mat.mes-hall]
-
 * Erik Fransson, Julia Wiktor, Paul Erhart, [Phase transitions in inorganic halide perovskites from machine learning potentials](https://arxiv.org/abs/2301.03497), 	arXiv:2301.03497 [cond-mat.mtrl-sci]
 
 * Erik Fransson, Petter Rosander, Fredrik Eriksson, J. Magnus Rahm, Terumasa Tadano, Paul Erhart, [Probing the limits of the phonon quasi-particle picture: The transition from underdamped to overdamped dynamics in CsPbBr3](https://arxiv.org/abs/2211.08197), 	arXiv:2211.08197 [cond-mat.mtrl-sci]
  
-## 2023 (10)
+## 2023 (11)
+
+* Yajuan Cheng, Zheyong Fan, Tao Zhang, Masahiro Nomura, Sebastian Volz, Guimei Zhu, Baowen Li, Shiyun Xiong, [Magic angle in thermal conductivity of twisted bilayer graphene](https://arxiv.org/abs/2301.00323), Accepted to Materials Today Physics (2023).
 
 * Insa F. de Vries, Helena Osthues, Nikos L. Doltsinis, [Thermal conductivity across transition metal dichalcogenide bilayers](https://doi.org/10.1016/j.isci.2023.106447), iScience **26**, 106447 (2023).
 
