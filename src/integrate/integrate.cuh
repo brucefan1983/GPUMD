@@ -80,5 +80,4 @@ public:
 
   // PIMD
   int number_of_beads;
-  int number_of_steps_pimd; // after this number of steps, switch to RPMD
 };

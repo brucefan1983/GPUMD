@@ -99,10 +99,15 @@ void Integrate::initialize(
       ensemble.reset(new Ensemble_BDP(
         type, fixed_group, source, sink, temperature, temperature_coupling, delta_temperature));
       break;
-    case 31: // NVT-PIMD
-      ensemble.reset(new Ensemble_PIMD(
-        number_of_atoms, number_of_beads, number_of_steps_pimd, temperature, temperature_coupling,
-        atom));
+    case 31: // RPMD
+      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, false, atom));
+      break;
+    case 32: // TRPMD
+      ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, true, atom));
+      break;
+    case 33: // PIMD
+      ensemble.reset(
+        new Ensemble_PIMD(number_of_atoms, number_of_beads, temperature_coupling, atom));
       break;
     default:
       printf("Illegal integrator!\n");
@@ -164,9 +169,9 @@ void Integrate::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 0) {
+  if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
-  } else if (type <= 20) {
+  } else if (type <= 20 || type == 33) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -197,9 +202,9 @@ void Integrate::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  if (type == 0) {
+  if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
-  } else if (type <= 20) {
+  } else if (type <= 20 || type == 33) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -271,10 +276,20 @@ void Integrate::parse_ensemble(
     if (num_param != 7) {
       PRINT_INPUT_ERROR("ensemble heat_bdp should have 5 parameters.");
     }
-  } else if (strcmp(param[1], "nvt_pimd") == 0) {
+  } else if (strcmp(param[1], "rpmd") == 0) {
     type = 31;
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("ensemble rpmd should have 1 parameter.");
+    }
+  } else if (strcmp(param[1], "trpmd") == 0) {
+    type = 32;
+    if (num_param != 3) {
+      PRINT_INPUT_ERROR("ensemble trpmd should have 1 parameter.");
+    }
+  } else if (strcmp(param[1], "pimd") == 0) {
+    type = 33;
     if (num_param != 6) {
-      PRINT_INPUT_ERROR("ensemble nvt_pimd should have 4 parameters.");
+      PRINT_INPUT_ERROR("ensemble pimd should have 4 parameters.");
     }
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
@@ -451,34 +466,11 @@ void Integrate::parse_ensemble(
     }
   }
 
-  // 5. NVT-PIMD
-  if (type == 31) {
-    // temperature
-    if (!is_valid_real(param[2], &temperature)) {
-      PRINT_INPUT_ERROR("temperature should be a number.");
-    }
-    if (temperature <= 0.0) {
-      PRINT_INPUT_ERROR("temperature should > 0.");
-    }
-
-    // temperature_coupling for the physical particles
-    if (!is_valid_real(param[3], &temperature_coupling)) {
-      PRINT_INPUT_ERROR("Temperature coupling should be a number.");
-    }
-    if (temperature_coupling < 1.0) {
-      PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
-    }
-
-    // number of steps to be with PIMD, after which using TRPMD
-    if (!is_valid_int(param[4], &number_of_steps_pimd)) {
-      PRINT_INPUT_ERROR("Number of steps within the PIMD stage should be an integer.");
-    }
-    if (number_of_steps_pimd < 1) {
-      PRINT_INPUT_ERROR("Number of steps within the PIMD stage should >= 1.");
-    }
+  // 5. PIMD related
+  if (type >= 31 && type <= 40) {
 
     // number of beads
-    if (!is_valid_int(param[5], &number_of_beads)) {
+    if (!is_valid_int(param[2], &number_of_beads)) {
       PRINT_INPUT_ERROR("number of beads should be an integer.");
     }
     if (number_of_beads < 2) {
@@ -489,6 +481,33 @@ void Integrate::parse_ensemble(
     }
     if (number_of_beads % 2 != 0) {
       PRINT_INPUT_ERROR("number of beads should be an even number.");
+    }
+
+    if (type > 32) {
+      // initial temperature
+      if (!is_valid_real(param[3], &temperature1)) {
+        PRINT_INPUT_ERROR("Initial temperature should be a number.");
+      }
+      if (temperature1 <= 0.0) {
+        PRINT_INPUT_ERROR("Initial temperature should > 0.");
+      }
+      temperature = temperature1;
+
+      // final temperature
+      if (!is_valid_real(param[4], &temperature2)) {
+        PRINT_INPUT_ERROR("Final temperature should be a number.");
+      }
+      if (temperature2 <= 0.0) {
+        PRINT_INPUT_ERROR("Final temperature should > 0.");
+      }
+
+      // temperature_coupling
+      if (!is_valid_real(param[5], &temperature_coupling)) {
+        PRINT_INPUT_ERROR("Temperature coupling should be a number.");
+      }
+      if (temperature_coupling < 1.0) {
+        PRINT_INPUT_ERROR("Temperature coupling should >= 1.");
+      }
     }
   }
 
@@ -641,11 +660,19 @@ void Integrate::parse_ensemble(
       printf("    heat sink is group %d in grouping method 0.\n", sink);
       break;
     case 31:
-      printf("Use NVT-PIMD ensemble for this run.\n");
-      printf("    temperature is %g K.\n", temperature);
-      printf("    tau_T is %g time_step.\n", temperature_coupling);
-      printf("    number of steps within PIMD is %d.\n", number_of_steps_pimd);
+      printf("Use ring-polymer MD (RPMD) for this run.\n");
       printf("    number of beads is %d.\n", number_of_beads);
+      break;
+    case 32:
+      printf("Use thermostatted ring-polyer MD (TRPMD) for this run.\n");
+      printf("    number of beads is %d.\n", number_of_beads);
+      break;
+    case 33:
+      printf("Use NVT-PIMD for this run.\n");
+      printf("    number of beads is %d.\n", number_of_beads);
+      printf("    initial temperature is %g K.\n", temperature1);
+      printf("    final temperature is %g K.\n", temperature2);
+      printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     default:
       PRINT_INPUT_ERROR("Invalid ensemble type.");

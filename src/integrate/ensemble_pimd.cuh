@@ -22,12 +22,10 @@ class Ensemble_PIMD : public Ensemble
 {
 public:
   Ensemble_PIMD(
-    int number_of_atoms_input,
-    int number_of_beads_input,
-    int number_of_steps_pimd_input,
-    double temperature_input,
-    double temperature_coupling_input,
-    Atom& atom);
+    int number_of_atoms_input, int number_of_beads_input, bool thermostat_internal, Atom& atom);
+
+  Ensemble_PIMD(
+    int number_of_atoms_input, int number_of_beads_input, double temperature_coupling, Atom& atom);
 
   virtual ~Ensemble_PIMD(void);
 
@@ -48,7 +46,8 @@ public:
 protected:
   int number_of_atoms = 0;
   int number_of_beads = 0;
-  int number_of_steps_pimd;
+  bool thermostat_internal = false;
+  bool thermostat_centroid = false;
   double omega_n;
   GPU_Vector<curandState> curand_states;
   GPU_Vector<double*> position_beads;
@@ -60,4 +59,7 @@ protected:
   GPU_Vector<double> kinetic_energy_virial_part;
 
   GPU_Vector<double> sum_1024; // for intermidiate summation
+
+  void initialize(Atom& atom);
+  void langevin(const double time_step, Atom& atom);
 };
