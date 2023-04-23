@@ -285,8 +285,13 @@ NEP3::NEP3(
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     cudaSetDevice(device_id);
     annmb[device_id].dim = para.dim;
-    annmb[device_id].num_neurons1 = para.num_neurons1;
+    annmb[device_id].num_neurons[0] = para.num_neurons[0];
+    annmb[device_id].num_neurons[1] = para.num_neurons[1];
+    annmb[device_id].offset_b0 = para.dim * para.num_neurons[0];
+    annmb[device_id].offset_w1 = annmb[device_id].offset_b0 + para.num_neurons[0];
     annmb[device_id].num_para = para.number_of_variables;
+    annmb[device_id].number_of_variables_one_ann_without_bias =
+      para.number_of_variables_one_ann_without_bias;
 
     nep_data[device_id].NN_radial.resize(N);
     nep_data[device_id].NN_angular.resize(N);
@@ -310,14 +315,10 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
   float* pointer = parameters;
   for (int t = 0; t < paramb.num_types; ++t) {
     if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
+      pointer -= ann.number_of_variables_one_ann_without_bias;
     }
     ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim;
-    ann.b0[t] = pointer;
-    pointer += ann.num_neurons1;
-    ann.w1[t] = pointer;
-    pointer += ann.num_neurons1;
+    pointer += ann.number_of_variables_one_ann_without_bias;
   }
   ann.b1 = pointer;
   pointer += 1;
@@ -325,14 +326,10 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
   if (para.train_mode == 2) {
     for (int t = 0; t < paramb.num_types; ++t) {
       if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
-        pointer -= (ann.dim + 2) * ann.num_neurons1;
+        pointer -= ann.number_of_variables_one_ann_without_bias;
       }
       ann.w0_pol[t] = pointer;
-      pointer += ann.num_neurons1 * ann.dim;
-      ann.b0_pol[t] = pointer;
-      pointer += ann.num_neurons1;
-      ann.w1_pol[t] = pointer;
-      pointer += ann.num_neurons1;
+      pointer += ann.number_of_variables_one_ann_without_bias;
     }
     ann.b1_pol = pointer;
     pointer += 1;
@@ -402,8 +399,8 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
-      Fp);
+      annmb.dim, annmb.num_neurons[0], annmb.w0[type], annmb.w0[type] + annmb.offset_b0,
+      annmb.w0[type] + annmb.offset_w1, annmb.b1, q, F, Fp);
     g_pe[n1] = F;
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -435,8 +432,8 @@ static __global__ void apply_ann_pol(
 
     // scalar part
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0_pol[type], annmb.b0_pol[type], annmb.w1_pol[type],
-      annmb.b1_pol, q, F, Fp);
+      annmb.dim, annmb.num_neurons[0], annmb.w0_pol[type], annmb.w0_pol[type] + annmb.offset_b0,
+      annmb.w0_pol[type] + annmb.offset_w1, annmb.b1_pol, q, F, Fp);
     g_virial[n1] = F;
     g_virial[n1 + N] = F;
     g_virial[n1 + N * 2] = F;
@@ -446,8 +443,8 @@ static __global__ void apply_ann_pol(
       Fp[d] = 0.0f;
     }
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
-      Fp);
+      annmb.dim, annmb.num_neurons[0], annmb.w0[type], annmb.w0[type] + annmb.offset_b0,
+      annmb.w0[type] + annmb.offset_w1, annmb.b1, q, F, Fp);
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];

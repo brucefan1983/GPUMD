@@ -59,18 +59,17 @@ public:
   };
 
   struct ANN {
-    int dim = 0;          // dimension of the descriptor
-    int num_neurons1 = 0; // number of neurons in the hidden layer
-    int num_para = 0;     // number of parameters
+    int dim = 0;        // dimension of the descriptor
+    int num_neurons[2]; // number of neurons in the hidden layers
+    int num_para = 0;   // number of parameters
+    int number_of_variables_one_ann_without_bias;
+    int offset_b0;
+    int offset_w1;
     const float* w0[100]; // weight from the input layer to the hidden layer
-    const float* b0[100]; // bias for the hidden layer
-    const float* w1[100]; // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
     // for the scalar part of polarizability
-    const float* w0_pol[10]; // weight from the input layer to the hidden layer
-    const float* b0_pol[10]; // bias for the hidden layer
-    const float* w1_pol[10]; // weight from the hidden layer to the output layer
-    const float* b1_pol;     // bias for the output layer
+    const float* w0_pol[100]; // weight from the input layer to the hidden layer
+    const float* b1_pol;      // bias for the output layer
     // for elements in descriptor
     const float* c;
   };

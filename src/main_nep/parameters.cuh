@@ -29,7 +29,7 @@ public:
   int num_types;          // number of atom types
   int population_size;    // population size for SNES
   int maximum_generation; // maximum number of generations for SNES;
-  int num_neurons1;       // number of nuerons in the 1st hidden layer (only one hidden layer)
+  int num_neurons[2];     // number of nuerons in two hidden layers
   int basis_size_radial;  // for nep3
   int basis_size_angular; // for nep3
   int n_max_radial;       // maximum order of the radial Chebyshev polynomials
@@ -47,7 +47,7 @@ public:
   float lambda_shear;     // extra weight parameter for shear virial
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential 
+  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
   int train_mode;         // 0=potential, 1=dipole, 2=polarizability
@@ -83,6 +83,7 @@ public:
   int number_of_variables;            // total number of parameters (NN and descriptor)
   int number_of_variables_ann;        // number of parameters in the ANN only
   int number_of_variables_descriptor; // number of parameters in the descriptor only
+  int number_of_variables_one_ann_without_bias;
 
   // some arrays
 

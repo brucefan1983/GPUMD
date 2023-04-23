@@ -231,7 +231,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     fprintf(fid_nep, "l_max %d\n", para.L_max);
   }
 
-  fprintf(fid_nep, "ANN %d %d\n", para.num_neurons1, 0);
+  fprintf(fid_nep, "ANN %d %d\n", para.num_neurons[0], para.num_neurons[1]);
   for (int m = 0; m < para.number_of_variables; ++m) {
     fprintf(fid_nep, "%15.7e\n", elite[m]);
   }
