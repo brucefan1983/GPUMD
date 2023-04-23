@@ -134,8 +134,7 @@ void Measure::process(
   dos.process(step, group, atom.velocity_per_atom);
   sdc.process(step, group, atom.velocity_per_atom);
   msd.process(step, group, atom.unwrapped_position);
-  hac.process(
-    number_of_steps, step, atom.velocity_per_atom, atom.virial_per_atom, atom.heat_per_atom);
+  hac.process(number_of_steps, step, box, group, atom, force);
   viscosity.process(number_of_steps, step, atom.mass, atom.velocity_per_atom, atom.virial_per_atom);
   shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
   hnemd.process(

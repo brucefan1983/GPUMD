@@ -29,6 +29,38 @@ https://doi.org/10.1103/PhysRevB.92.094301
 
 namespace
 {
+static __global__ void gpu_set_to_zero(
+  const int N, double* jx_in, double* jx_out, double* jy_in, double* jy_out, double* jz)
+{
+  const int n = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n < N) {
+    jx_in[n] = 0.0;
+    jx_out[n] = 0.0;
+    jy_in[n] = 0.0;
+    jy_out[n] = 0.0;
+    jz[n] = 0.0;
+  }
+}
+
+static __global__ void gpu_average_over_beads(
+  const int N,
+  const double number_of_beads_inverse,
+  double* jx_in,
+  double* jx_out,
+  double* jy_in,
+  double* jy_out,
+  double* jz)
+{
+  const int n = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n < N) {
+    jx_in[n] *= number_of_beads_inverse;
+    jx_out[n] *= number_of_beads_inverse;
+    jy_in[n] *= number_of_beads_inverse;
+    jy_out[n] *= number_of_beads_inverse;
+    jz[n] *= number_of_beads_inverse;
+  }
+}
+
 static __global__ void gpu_compute_heat(
   const int N,
   const double* sxx,
@@ -51,11 +83,11 @@ static __global__ void gpu_compute_heat(
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < N) {
-    jx_in[n] = sxx[n] * vx[n] + sxy[n] * vy[n];
-    jx_out[n] = sxz[n] * vz[n];
-    jy_in[n] = syx[n] * vx[n] + syy[n] * vy[n];
-    jy_out[n] = syz[n] * vz[n];
-    jz[n] = szx[n] * vx[n] + szy[n] * vy[n] + szz[n] * vz[n];
+    jx_in[n] += sxx[n] * vx[n] + sxy[n] * vy[n];
+    jx_out[n] += sxz[n] * vz[n];
+    jy_in[n] += syx[n] * vx[n] + syy[n] * vy[n];
+    jy_out[n] += syz[n] * vz[n];
+    jz[n] += szx[n] * vx[n] + szy[n] * vy[n] + szz[n] * vz[n];
   }
 }
 } // namespace
@@ -66,6 +98,11 @@ void compute_heat(
   GPU_Vector<double>& heat_per_atom)
 {
   const int N = velocity_per_atom.size() / 3;
+
+  gpu_set_to_zero<<<(N - 1) / 128 + 1, 128>>>(
+    N, heat_per_atom.data(), heat_per_atom.data() + N, heat_per_atom.data() + N * 2,
+    heat_per_atom.data() + N * 3, heat_per_atom.data() + N * 4);
+  CUDA_CHECK_KERNEL
 
   // the virial tensor:
   // xx xy xz    0 3 4
@@ -78,6 +115,41 @@ void compute_heat(
     velocity_per_atom.data(), velocity_per_atom.data() + N, velocity_per_atom.data() + 2 * N,
     heat_per_atom.data(), heat_per_atom.data() + N, heat_per_atom.data() + N * 2,
     heat_per_atom.data() + N * 3, heat_per_atom.data() + N * 4);
+  CUDA_CHECK_KERNEL
+}
+
+void compute_heat(
+  std::vector<GPU_Vector<double>>& virial_beads,
+  std::vector<GPU_Vector<double>>& velocity_beads,
+  GPU_Vector<double>& heat_per_atom)
+{
+  const int number_of_beads = virial_beads.size();
+  const int N = velocity_beads[0].size() / 3;
+
+  gpu_set_to_zero<<<(N - 1) / 128 + 1, 128>>>(
+    N, heat_per_atom.data(), heat_per_atom.data() + N, heat_per_atom.data() + N * 2,
+    heat_per_atom.data() + N * 3, heat_per_atom.data() + N * 4);
+  CUDA_CHECK_KERNEL
+
+  for (int k = 0; k < number_of_beads; ++k) {
+    // the virial tensor:
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    gpu_compute_heat<<<(N - 1) / 128 + 1, 128>>>(
+      N, virial_beads[k].data(), virial_beads[k].data() + N * 3, virial_beads[k].data() + N * 4,
+      virial_beads[k].data() + N * 6, virial_beads[k].data() + N * 1,
+      virial_beads[k].data() + N * 5, virial_beads[k].data() + N * 7,
+      virial_beads[k].data() + N * 8, virial_beads[k].data() + N * 2, velocity_beads[k].data(),
+      velocity_beads[k].data() + N, velocity_beads[k].data() + 2 * N, heat_per_atom.data(),
+      heat_per_atom.data() + N, heat_per_atom.data() + N * 2, heat_per_atom.data() + N * 3,
+      heat_per_atom.data() + N * 4);
+    CUDA_CHECK_KERNEL
+  }
+
+  gpu_average_over_beads<<<(N - 1) / 128 + 1, 128>>>(
+    N, 1.0 / number_of_beads, heat_per_atom.data(), heat_per_atom.data() + N,
+    heat_per_atom.data() + N * 2, heat_per_atom.data() + N * 3, heat_per_atom.data() + N * 4);
   CUDA_CHECK_KERNEL
 }
 
@@ -134,7 +206,7 @@ void compute_heat(
     virial_per_atom.data() + N * 4, virial_per_atom.data() + N * 6, virial_per_atom.data() + N * 1,
     virial_per_atom.data() + N * 5, virial_per_atom.data() + N * 7, virial_per_atom.data() + N * 8,
     virial_per_atom.data() + N * 2, velocity_per_atom.data(), velocity_per_atom.data() + N,
-    velocity_per_atom.data() + 2 * N, heat_per_atom.data(),
-    heat_per_atom.data() + N, heat_per_atom.data() + N * 2);
+    velocity_per_atom.data() + 2 * N, heat_per_atom.data(), heat_per_atom.data() + N,
+    heat_per_atom.data() + N * 2);
   CUDA_CHECK_KERNEL
 }

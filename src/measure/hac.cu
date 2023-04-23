@@ -18,7 +18,11 @@ Calculate the heat current autocorrelation (HAC) function.
 ------------------------------------------------------------------------------*/
 
 #include "compute_heat.cuh"
+#include "force/force.cuh"
 #include "hac.cuh"
+#include "model/atom.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <vector>
@@ -71,22 +75,31 @@ gpu_sum_heat(const int N, const int Nd, const int nd, const double* g_heat, doub
 void HAC::process(
   const int number_of_steps,
   const int step,
-  const GPU_Vector<double>& velocity_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& heat_per_atom)
+  Box& box,
+  std::vector<Group>& group,
+  Atom& atom,
+  Force& force)
 {
   if (!compute)
     return;
   if ((step + 1) % sample_interval != 0)
     return;
 
-  const int N = velocity_per_atom.size() / 3;
+  const int N = atom.velocity_per_atom.size() / 3;
 
-  compute_heat(virial_per_atom, velocity_per_atom, heat_per_atom);
+  if (atom.number_of_beads != 0) {
+    // compute_heat(atom.virial_beads, atom.velocity_beads, atom.heat_per_atom);
+    force.compute(
+      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
+      atom.virial_per_atom, atom.velocity_per_atom, atom.mass);
+  }
+
+  compute_heat(atom.virial_per_atom, atom.velocity_per_atom, atom.heat_per_atom);
 
   int nd = (step + 1) / sample_interval - 1;
   int Nd = number_of_steps / sample_interval;
-  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(N, Nd, nd, heat_per_atom.data(), heat_all.data());
+  gpu_sum_heat<<<NUM_OF_HEAT_COMPONENTS, 1024>>>(
+    N, Nd, nd, atom.heat_per_atom.data(), heat_all.data());
   CUDA_CHECK_KERNEL
 }
 

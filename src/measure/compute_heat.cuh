@@ -15,6 +15,7 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <vector>
 
 void compute_heat(
   const GPU_Vector<double>& virial_per_atom,
@@ -26,4 +27,9 @@ void compute_heat(
   const GPU_Vector<double>& potential,
   const GPU_Vector<double>& virial_per_atom,
   const GPU_Vector<double>& velocity_per_atom,
+  GPU_Vector<double>& heat_per_atom);
+
+void compute_heat(
+  std::vector<GPU_Vector<double>>& virial_beads,
+  std::vector<GPU_Vector<double>>& velocity_beads,
   GPU_Vector<double>& heat_per_atom);

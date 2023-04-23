@@ -15,6 +15,11 @@
 
 #pragma once
 #include "utilities/gpu_vector.cuh"
+#include <vector>
+class Atom;
+class Box;
+class Group;
+class Force;
 
 class HAC
 {
@@ -29,9 +34,10 @@ public:
   void process(
     const int number_of_steps,
     const int step,
-    const GPU_Vector<double>& velocity_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& heat_per_atom);
+    Box& box,
+    std::vector<Group>& group,
+    Atom& atom,
+    Force& force);
 
   void postprocess(
     const int number_of_steps,
