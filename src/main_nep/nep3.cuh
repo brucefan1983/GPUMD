@@ -65,6 +65,8 @@ public:
     int number_of_variables_one_ann_without_bias;
     int offset_b0;
     int offset_w1;
+    int offset_b1;
+    int offset_w2;
     const float* w0[100]; // weight from the input layer to the hidden layer
     const float* b1;      // bias for the output layer
     // for the scalar part of polarizability

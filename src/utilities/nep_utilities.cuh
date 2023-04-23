@@ -32,6 +32,7 @@ const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
 const int MAX_DIM = MAX_NUM_N * 7;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
+const int MAX_NUM_NEURONS = 100;
 
 static __device__ void apply_ann_one_layer(
   const int N_des,
@@ -58,6 +59,60 @@ static __device__ void apply_ann_one_layer(
     }
   }
   energy -= b1[0];
+}
+
+static __device__ void apply_ann_two_layers(
+  const int N_des,
+  const int N_neu_0,
+  const int N_neu_1,
+  const float* w0,
+  const float* b0,
+  const float* w1,
+  const float* b1,
+  const float* w2,
+  const float* b2,
+  float* q,
+  float& energy,
+  float* energy_derivative)
+{
+  // energy
+  float x1[MAX_NUM_NEURONS] = {0.0f}; // states of the 1st hidden layer neurons
+  float x2[MAX_NUM_NEURONS] = {0.0f}; // states of the 2nd hidden layer neurons
+  for (int n0 = 0; n0 < N_neu_0; ++n0) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n0 * N_des + d] * q[d];
+    }
+    x1[n0] = tanh(w0_times_q - b0[n0]);
+  }
+  for (int n1 = 0; n1 < N_neu_1; ++n1) {
+    float w1_times_x1 = 0.0f;
+    for (int n0 = 0; n0 < N_neu_0; ++n0) {
+      w1_times_x1 += w1[n1 * N_neu_0 + n0] * x1[n0];
+    }
+    x2[n1] = tanh(w1_times_x1 - b1[n1]);
+    energy += w2[n1] * x2[n1];
+  }
+  energy -= b2[0];
+
+  // dU/dx1
+  float dUdx1[MAX_NUM_NEURONS] = {0.0f};
+  for (int n0 = 0; n0 < N_neu_0; ++n0) {
+    float temp_sum = 0.0f;
+    for (int n1 = 0; n1 < N_neu_1; ++n1) {
+      temp_sum += w2[n1] * (1.0f - x2[n1] * x2[n1]) * w1[n1 * N_neu_0 + n0];
+    }
+    dUdx1[n0] = temp_sum;
+  }
+
+  // dU/dq
+  for (int d = 0; d < N_des; ++d) {
+    float temp_sum = 0.0f;
+    for (int n0 = 0; n0 < N_neu_0; ++n0) {
+      temp_sum += dUdx1[n0] * (1.0f - x1[n0] * x1[n0]) * w0[n0 * N_des + d];
+    }
+    energy_derivative[d] = temp_sum;
+  }
 }
 
 static __device__ __forceinline__ void find_fc(float rc, float rcinv, float d12, float& fc)
