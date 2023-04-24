@@ -32,7 +32,7 @@ const int SIZE_BOX_AND_INVERSE_BOX = 18; // (3 * 3) * 2
 const int MAX_NUM_N = 20;                // n_max+1 = 19+1
 const int MAX_DIM = MAX_NUM_N * 7;
 const int MAX_DIM_ANGULAR = MAX_NUM_N * 6;
-const int MAX_NUM_NEURONS = 100;
+const int MAX_NUM_NEURONS = 200;
 
 static __device__ void apply_ann_one_layer(
   const int N_des,
