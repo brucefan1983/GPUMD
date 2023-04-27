@@ -54,7 +54,7 @@ Ensemble_PIMD::Ensemble_PIMD(
 
 void Ensemble_PIMD::initialize(Atom& atom)
 {
-  kinetic_energy_virial_part.resize(number_of_atoms * 6);
+  kinetic_energy_virial_part.resize(number_of_atoms);
   sum_1024.resize(8 * 1024); // potential, kinetic, and 6 virial components, each with 1024 data
 
   position_beads.resize(number_of_beads);
@@ -452,26 +452,36 @@ static __global__ void gpu_find_kinetic_energy_virial_part(
   double** position,
   double** force,
   double* position_averaged,
-  double* kinetic_energy_virial_part)
+  double* kinetic_energy_virial_part,
+  double* virial_averaged)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < number_of_atoms) {
-    double temp_sum[6] = {0.0};
+    double temp_sum[9] = {0.0};
     for (int k = 0; k < number_of_beads; ++k) {
       int index_x = 0 * number_of_atoms + n;
       int index_y = 1 * number_of_atoms + n;
       int index_z = 2 * number_of_atoms + n;
+      // the virial tensor:
+      // xx xy xz    0 3 4
+      // yx yy yz    6 1 5
+      // zx zy zz    7 8 2
       temp_sum[0] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_x];
       temp_sum[1] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_y];
       temp_sum[2] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_z];
       temp_sum[3] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_y];
       temp_sum[4] -= (position[k][index_x] - position_averaged[index_x]) * force[k][index_z];
       temp_sum[5] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_z];
+      temp_sum[6] -= (position[k][index_y] - position_averaged[index_y]) * force[k][index_x];
+      temp_sum[7] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_x];
+      temp_sum[8] -= (position[k][index_z] - position_averaged[index_z]) * force[k][index_y];
     }
     double number_of_beads_inverse = 1.0 / number_of_beads;
-    for (int d = 0; d < 6; ++d) {
-      kinetic_energy_virial_part[n + d * number_of_atoms] = temp_sum[d] * number_of_beads_inverse;
+    for (int d = 0; d < 9; ++d) {
+      virial_averaged[d * number_of_atoms + n] += temp_sum[d] * number_of_beads_inverse;
     }
+    kinetic_energy_virial_part[n] =
+      0.5f * (temp_sum[0] + temp_sum[1] + temp_sum[2]) * number_of_beads_inverse;
   }
 }
 
@@ -489,13 +499,10 @@ static __global__ void gpu_find_sum_1024(
   double sum[8] = {0.0};
   const int stride = blockDim.x * gridDim.x;
   for (int n = bid * blockDim.x + tid; n < number_of_atoms; n += stride) {
-    sum[0] +=
-      0.5 * (g_kinetic_energy_virial_part[n] + g_kinetic_energy_virial_part[n + number_of_atoms] +
-             g_kinetic_energy_virial_part[n + number_of_atoms * 2]);
+    sum[0] += g_kinetic_energy_virial_part[n];
     sum[1] += g_potential[n];
     for (int d = 0; d < 6; ++d) {
-      sum[d + 2] +=
-        g_virial[d * number_of_atoms + n] + g_kinetic_energy_virial_part[n + number_of_atoms * d];
+      sum[d + 2] += g_virial[d * number_of_atoms + n];
     }
   }
   for (int d = 0; d < 8; ++d) {
@@ -616,7 +623,7 @@ void Ensemble_PIMD::compute2(
 
   gpu_find_kinetic_energy_virial_part<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box, number_of_atoms, number_of_beads, position_beads.data(), force_beads.data(),
-    atom.position_per_atom.data(), kinetic_energy_virial_part.data());
+    atom.position_per_atom.data(), kinetic_energy_virial_part.data(), atom.virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   gpu_find_sum_1024<<<1024, 128>>>(

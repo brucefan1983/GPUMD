@@ -87,12 +87,12 @@ void HAC::process(
 
   const int N = atom.velocity_per_atom.size() / 3;
 
-  if (atom.number_of_beads != 0) {
-    // compute_heat(atom.virial_beads, atom.velocity_beads, atom.heat_per_atom);
-    force.compute(
-      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
-      atom.virial_per_atom, atom.velocity_per_atom, atom.mass);
-  }
+  // if (atom.number_of_beads != 0) {
+  //  compute_heat(atom.virial_beads, atom.velocity_beads, atom.heat_per_atom);
+  // force.compute(
+  // box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
+  // atom.virial_per_atom, atom.velocity_per_atom, atom.mass);
+  //}
 
   compute_heat(atom.virial_per_atom, atom.velocity_per_atom, atom.heat_per_atom);
 
