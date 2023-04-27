@@ -1,0 +1,13 @@
+potential     nep.txt
+velocity      300
+
+time_step     0.5
+
+ensemble      pimd 32 300 300 200
+dump_thermo   10
+run           2000
+
+ensemble      trpmd 32
+dump_thermo   10
+compute_hac   1 2000 1
+run           5000
