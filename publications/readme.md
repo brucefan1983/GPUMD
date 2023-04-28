@@ -14,7 +14,10 @@
 
 * Erik Fransson, Petter Rosander, Fredrik Eriksson, J. Magnus Rahm, Terumasa Tadano, Paul Erhart, [Probing the limits of the phonon quasi-particle picture: The transition from underdamped to overdamped dynamics in CsPbBr3](https://arxiv.org/abs/2211.08197), 	arXiv:2211.08197 [cond-mat.mtrl-sci]
  
-## 2023 (11)
+## 2023 (12)
+
+* Peng-Hu Du, Cunzhi Zhang, Tingwei Li, and Qiang Sun, [Low lattice thermal conductivity with two-channel thermal transport
+in the superatomic crystal PH4AlBr](https://doi.org/10.1103/PhysRevB.107.155204), Phys. Rev. B **107**, 155204 (2023).
 
 * Yajuan Cheng, Zheyong Fan, Tao Zhang, Masahiro Nomura, Sebastian Volz, Guimei Zhu, Baowen Li, Shiyun Xiong, [Magic angle in thermal conductivity of twisted bilayer graphene](https://arxiv.org/abs/2301.00323), Accepted to Materials Today Physics (2023).
 
