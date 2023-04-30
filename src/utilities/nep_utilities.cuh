@@ -24,7 +24,10 @@ __constant__ float C3B[NUM_OF_ABC] = {
   0.223811638722978f, 0.223811638722978f, 0.111905819361489f, 0.111905819361489f,
   1.566681471060845f, 1.566681471060845f, 0.195835183882606f, 0.195835183882606f};
 __constant__ float C4B[5] = {
-  -0.007499480826664f, -0.134990654879954f, 0.067495327439977f, 0.404971964639861f,
+  -0.007499480826664f,
+  -0.134990654879954f,
+  0.067495327439977f,
+  0.404971964639861f,
   -0.809943929279723f};
 __constant__ float C5B[3] = {0.026596810706114f, 0.053193621412227f, 0.026596810706114f};
 
@@ -120,8 +123,8 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
 {
   const float x = d12 * a_inv;
   f = fp = 0.0f;
-  const float Zbl_para[8] = {0.18175f, 3.1998f, 0.50986f, 0.94229f,
-                             0.28022f, 0.4029f, 0.02817f, 0.20162f};
+  const float Zbl_para[8] = {
+    0.18175f, 3.1998f, 0.50986f, 0.94229f, 0.28022f, 0.4029f, 0.02817f, 0.20162f};
   find_phi_and_phip_zbl(Zbl_para[0], Zbl_para[1], x, f, fp);
   find_phi_and_phip_zbl(Zbl_para[2], Zbl_para[3], x, f, fp);
   find_phi_and_phip_zbl(Zbl_para[4], Zbl_para[5], x, f, fp);
@@ -564,33 +567,45 @@ static __device__ __forceinline__ void accumulate_f12(
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s1[3] = {
-    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0], sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
+    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0],
+    sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
     sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
   get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s2[5] = {
-    sum_fxyz[n * NUM_OF_ABC + 3] * C3B[3], sum_fxyz[n * NUM_OF_ABC + 4] * C3B[4],
-    sum_fxyz[n * NUM_OF_ABC + 5] * C3B[5], sum_fxyz[n * NUM_OF_ABC + 6] * C3B[6],
+    sum_fxyz[n * NUM_OF_ABC + 3] * C3B[3],
+    sum_fxyz[n * NUM_OF_ABC + 4] * C3B[4],
+    sum_fxyz[n * NUM_OF_ABC + 5] * C3B[5],
+    sum_fxyz[n * NUM_OF_ABC + 6] * C3B[6],
     sum_fxyz[n * NUM_OF_ABC + 7] * C3B[7]};
   get_f12_2(d12, d12inv, fn, fnp, Fp[n_max_angular_plus_1 + n], s2, r12, f12);
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
+  float s3[7] = {
+    sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],
+    sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+    sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10],
+    sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+    sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12],
+    sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+    sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
+  float s4[9] = {
+    sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15],
+    sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+    sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17],
+    sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+    sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19],
+    sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+    sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21],
+    sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+    sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
@@ -611,15 +626,19 @@ static __device__ __forceinline__ void accumulate_f12_with_4body(
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s1[3] = {
-    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0], sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
+    sum_fxyz[n * NUM_OF_ABC + 0] * C3B[0],
+    sum_fxyz[n * NUM_OF_ABC + 1] * C3B[1],
     sum_fxyz[n * NUM_OF_ABC + 2] * C3B[2]};
   get_f12_1(d12inv, fn, fnp, Fp[n], s1, r12, f12);
   // l = 2
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s2[5] = {
-    sum_fxyz[n * NUM_OF_ABC + 3], sum_fxyz[n * NUM_OF_ABC + 4], sum_fxyz[n * NUM_OF_ABC + 5],
-    sum_fxyz[n * NUM_OF_ABC + 6], sum_fxyz[n * NUM_OF_ABC + 7]};
+    sum_fxyz[n * NUM_OF_ABC + 3],
+    sum_fxyz[n * NUM_OF_ABC + 4],
+    sum_fxyz[n * NUM_OF_ABC + 5],
+    sum_fxyz[n * NUM_OF_ABC + 6],
+    sum_fxyz[n * NUM_OF_ABC + 7]};
   get_f12_4body(d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s2, r12, f12);
   s2[0] *= C3B[3];
   s2[1] *= C3B[4];
@@ -630,19 +649,28 @@ static __device__ __forceinline__ void accumulate_f12_with_4body(
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
+  float s3[7] = {
+    sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],
+    sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+    sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10],
+    sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+    sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12],
+    sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+    sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
+  float s4[9] = {
+    sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15],
+    sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+    sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17],
+    sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+    sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19],
+    sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+    sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21],
+    sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+    sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }
@@ -673,8 +701,11 @@ static __device__ __forceinline__ void accumulate_f12_with_5body(
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
   float s2[5] = {
-    sum_fxyz[n * NUM_OF_ABC + 3], sum_fxyz[n * NUM_OF_ABC + 4], sum_fxyz[n * NUM_OF_ABC + 5],
-    sum_fxyz[n * NUM_OF_ABC + 6], sum_fxyz[n * NUM_OF_ABC + 7]};
+    sum_fxyz[n * NUM_OF_ABC + 3],
+    sum_fxyz[n * NUM_OF_ABC + 4],
+    sum_fxyz[n * NUM_OF_ABC + 5],
+    sum_fxyz[n * NUM_OF_ABC + 6],
+    sum_fxyz[n * NUM_OF_ABC + 7]};
   get_f12_4body(d12, d12inv, fn, fnp, Fp[4 * n_max_angular_plus_1 + n], s2, r12, f12);
   s2[0] *= C3B[3];
   s2[1] *= C3B[4];
@@ -685,19 +716,28 @@ static __device__ __forceinline__ void accumulate_f12_with_5body(
   // l = 3
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s3[7] = {sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],   sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
-                 sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10], sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
-                 sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12], sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
-                 sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
+  float s3[7] = {
+    sum_fxyz[n * NUM_OF_ABC + 8] * C3B[8],
+    sum_fxyz[n * NUM_OF_ABC + 9] * C3B[9],
+    sum_fxyz[n * NUM_OF_ABC + 10] * C3B[10],
+    sum_fxyz[n * NUM_OF_ABC + 11] * C3B[11],
+    sum_fxyz[n * NUM_OF_ABC + 12] * C3B[12],
+    sum_fxyz[n * NUM_OF_ABC + 13] * C3B[13],
+    sum_fxyz[n * NUM_OF_ABC + 14] * C3B[14]};
   get_f12_3(d12, d12inv, fn, fnp, Fp[2 * n_max_angular_plus_1 + n], s3, r12, f12);
   // l = 4
   fnp = fnp * d12inv - fn * d12inv * d12inv;
   fn = fn * d12inv;
-  float s4[9] = {sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15], sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
-                 sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17], sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
-                 sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19], sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
-                 sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21], sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
-                 sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
+  float s4[9] = {
+    sum_fxyz[n * NUM_OF_ABC + 15] * C3B[15],
+    sum_fxyz[n * NUM_OF_ABC + 16] * C3B[16],
+    sum_fxyz[n * NUM_OF_ABC + 17] * C3B[17],
+    sum_fxyz[n * NUM_OF_ABC + 18] * C3B[18],
+    sum_fxyz[n * NUM_OF_ABC + 19] * C3B[19],
+    sum_fxyz[n * NUM_OF_ABC + 20] * C3B[20],
+    sum_fxyz[n * NUM_OF_ABC + 21] * C3B[21],
+    sum_fxyz[n * NUM_OF_ABC + 22] * C3B[22],
+    sum_fxyz[n * NUM_OF_ABC + 23] * C3B[23]};
   get_f12_4(
     r12[0], r12[1], r12[2], d12, d12inv, fn, fnp, Fp[3 * n_max_angular_plus_1 + n], s4, f12);
 }

@@ -109,7 +109,10 @@ void Minimizer::calculate_total_potential(const GPU_Vector<double>& potential_pe
   const int size = potential_per_atom.size();
   const int number_of_rounds = (size - 1) / 1024 + 1;
   gpu_calculate_total_potential<<<1, 1024>>>(
-    size, number_of_rounds, potential_per_atom.data(), potential_per_atom_temp_.data(),
+    size,
+    number_of_rounds,
+    potential_per_atom.data(),
+    potential_per_atom_temp_.data(),
     total_potential_.data());
 
   total_potential_.copy_to_host(cpu_total_potential_.data());

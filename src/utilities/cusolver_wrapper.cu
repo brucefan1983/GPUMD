@@ -171,7 +171,17 @@ void eig_hermitian_Jacobi_batch(size_t N, size_t batch_size, double* AR, double*
   // get W
   GPU_Vector<int> info(batch_size);
   cusolverDnZheevjBatched(
-    handle, jobz, uplo, N, A.data(), N, W.data(), work.data(), lwork, info.data(), para,
+    handle,
+    jobz,
+    uplo,
+    N,
+    A.data(),
+    N,
+    W.data(),
+    work.data(),
+    lwork,
+    info.data(),
+    para,
     batch_size);
   W.copy_to_host(W_cpu);
 

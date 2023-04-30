@@ -94,12 +94,34 @@ void find_H12(
   double f_negative[3];
   for (size_t beta = 0; beta < 3; ++beta) {
     get_f(
-      -displacement, n1, n2, beta, box, position_per_atom, type, group, potential_per_atom,
-      force_per_atom, virial_per_atom, force, f_negative);
+      -displacement,
+      n1,
+      n2,
+      beta,
+      box,
+      position_per_atom,
+      type,
+      group,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      force,
+      f_negative);
 
     get_f(
-      displacement, n1, n2, beta, box, position_per_atom, type, group, potential_per_atom,
-      force_per_atom, virial_per_atom, force, f_positive);
+      displacement,
+      n1,
+      n2,
+      beta,
+      box,
+      position_per_atom,
+      type,
+      group,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom,
+      force,
+      f_positive);
 
     for (size_t alpha = 0; alpha < 3; ++alpha) {
       size_t index = alpha * 3 + beta;

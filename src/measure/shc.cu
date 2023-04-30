@@ -178,9 +178,21 @@ void SHC::process(
     CHECK(cudaMemcpy(vz.data() + offset, vz_tmp, sizeof(double) * N, cudaMemcpyDeviceToDevice));
   } else {
     gpu_copy_data<<<(group_size - 1) / BLOCK_SIZE_SHC + 1, BLOCK_SIZE_SHC>>>(
-      group_size, group[group_method].cpu_size_sum[group_id], group[group_method].contents.data(),
-      sx.data() + offset, sy.data() + offset, sz.data() + offset, vx.data() + offset,
-      vy.data() + offset, vz.data() + offset, sx_tmp, sy_tmp, sz_tmp, vx_tmp, vy_tmp, vz_tmp);
+      group_size,
+      group[group_method].cpu_size_sum[group_id],
+      group[group_method].contents.data(),
+      sx.data() + offset,
+      sy.data() + offset,
+      sz.data() + offset,
+      vx.data() + offset,
+      vy.data() + offset,
+      vz.data() + offset,
+      sx_tmp,
+      sy_tmp,
+      sz_tmp,
+      vx_tmp,
+      vy_tmp,
+      vz_tmp);
     CUDA_CHECK_KERNEL
   }
 
@@ -188,13 +200,29 @@ void SHC::process(
     ++num_time_origins;
 
     gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
-      group_size, correlation_step, sx.data() + offset, sy.data() + offset, sz.data() + offset,
-      vx.data(), vy.data(), vz.data(), ki_negative.data(), ko_negative.data());
+      group_size,
+      correlation_step,
+      sx.data() + offset,
+      sy.data() + offset,
+      sz.data() + offset,
+      vx.data(),
+      vy.data(),
+      vz.data(),
+      ki_negative.data(),
+      ko_negative.data());
     CUDA_CHECK_KERNEL
 
     gpu_find_k<<<Nc, BLOCK_SIZE_SHC>>>(
-      group_size, correlation_step, vx.data() + offset, vy.data() + offset, vz.data() + offset,
-      sx.data(), sy.data(), sz.data(), ki_positive.data(), ko_positive.data());
+      group_size,
+      correlation_step,
+      vx.data() + offset,
+      vy.data() + offset,
+      vz.data() + offset,
+      sx.data(),
+      sy.data(),
+      sz.data(),
+      ki_positive.data(),
+      ko_positive.data());
     CUDA_CHECK_KERNEL
   }
 }

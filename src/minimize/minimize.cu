@@ -75,7 +75,13 @@ void Minimize::parse_minimize(
       minimizer.reset(new Minimizer_SD(number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
-        force, box, position_per_atom, type, group, potential_per_atom, force_per_atom,
+        force,
+        box,
+        position_per_atom,
+        type,
+        group,
+        potential_per_atom,
+        force_per_atom,
         virial_per_atom);
 
       break;

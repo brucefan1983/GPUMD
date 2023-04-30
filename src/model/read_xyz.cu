@@ -235,7 +235,8 @@ static void read_xyz_line_2(
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__, __LINE__);
+          __FILE__,
+          __LINE__);
       }
     }
   }
@@ -546,9 +547,20 @@ void initialize_position(
   read_xyz_line_2(input, box, has_velocity_in_xyz, has_mass, num_columns, property_offset, group);
 
   read_xyz_in_line_3(
-    input, N, has_velocity_in_xyz, has_mass, num_columns, property_offset, number_of_types,
-    atom_symbols, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.cpu_position_per_atom,
-    atom.cpu_velocity_per_atom, group);
+    input,
+    N,
+    has_velocity_in_xyz,
+    has_mass,
+    num_columns,
+    property_offset,
+    number_of_types,
+    atom_symbols,
+    atom.cpu_atom_symbol,
+    atom.cpu_type,
+    atom.cpu_mass,
+    atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom,
+    group);
 
   input.close();
 

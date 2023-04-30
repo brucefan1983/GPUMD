@@ -402,7 +402,14 @@ static __global__ void apply_ann(
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[type],
+      annmb.b0[type],
+      annmb.w1[type],
+      annmb.b1,
+      q,
+      F,
       Fp);
     g_pe[n1] = F;
 
@@ -435,8 +442,15 @@ static __global__ void apply_ann_pol(
 
     // scalar part
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0_pol[type], annmb.b0_pol[type], annmb.w1_pol[type],
-      annmb.b1_pol, q, F, Fp);
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0_pol[type],
+      annmb.b0_pol[type],
+      annmb.w1_pol[type],
+      annmb.b1_pol,
+      q,
+      F,
+      Fp);
     g_virial[n1] = F;
     g_virial[n1 + N] = F;
     g_virial[n1 + N * 2] = F;
@@ -446,7 +460,14 @@ static __global__ void apply_ann_pol(
       Fp[d] = 0.0f;
     }
     apply_ann_one_layer(
-      annmb.dim, annmb.num_neurons1, annmb.w0[type], annmb.b0[type], annmb.w1[type], annmb.b1, q, F,
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.w0[type],
+      annmb.b0[type],
+      annmb.w1[type],
+      annmb.b1,
+      q,
+      F,
       Fp);
 
     for (int d = 0; d < annmb.dim; ++d) {
@@ -796,94 +817,152 @@ void NEP3::find_force(
 
     if (calculate_neighbor) {
       gpu_find_neighbor_list<<<dataset[device_id].Nc, 256>>>(
-        dataset[device_id].N, dataset[device_id].Na.data(), dataset[device_id].Na_sum.data(),
-        rc2_radial, rc2_angular, dataset[device_id].box.data(),
-        dataset[device_id].box_original.data(), dataset[device_id].num_cell.data(),
-        dataset[device_id].r.data(), dataset[device_id].r.data() + dataset[device_id].N,
+        dataset[device_id].N,
+        dataset[device_id].Na.data(),
+        dataset[device_id].Na_sum.data(),
+        rc2_radial,
+        rc2_angular,
+        dataset[device_id].box.data(),
+        dataset[device_id].box_original.data(),
+        dataset[device_id].num_cell.data(),
+        dataset[device_id].r.data(),
+        dataset[device_id].r.data() + dataset[device_id].N,
         dataset[device_id].r.data() + dataset[device_id].N * 2,
-        nep_data[device_id].NN_radial.data(), nep_data[device_id].NL_radial.data(),
-        nep_data[device_id].NN_angular.data(), nep_data[device_id].NL_angular.data(),
-        nep_data[device_id].x12_radial.data(), nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(), nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(), nep_data[device_id].z12_angular.data());
+        nep_data[device_id].NN_radial.data(),
+        nep_data[device_id].NL_radial.data(),
+        nep_data[device_id].NN_angular.data(),
+        nep_data[device_id].NL_angular.data(),
+        nep_data[device_id].x12_radial.data(),
+        nep_data[device_id].y12_radial.data(),
+        nep_data[device_id].z12_radial.data(),
+        nep_data[device_id].x12_angular.data(),
+        nep_data[device_id].y12_angular.data(),
+        nep_data[device_id].z12_angular.data());
       CUDA_CHECK_KERNEL
     }
 
     find_descriptors_radial<<<grid_size, block_size>>>(
-      dataset[device_id].N, nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(), paramb, annmb[device_id],
-      dataset[device_id].type.data(), nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(), nep_data[device_id].z12_radial.data(),
+      dataset[device_id].N,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
       nep_data[device_id].descriptors.data());
     CUDA_CHECK_KERNEL
 
     find_descriptors_angular<<<grid_size, block_size>>>(
-      dataset[device_id].N, nep_data[device_id].NN_angular.data(),
-      nep_data[device_id].NL_angular.data(), paramb, annmb[device_id],
-      dataset[device_id].type.data(), nep_data[device_id].x12_angular.data(),
-      nep_data[device_id].y12_angular.data(), nep_data[device_id].z12_angular.data(),
-      nep_data[device_id].descriptors.data(), nep_data[device_id].sum_fxyz.data());
+      dataset[device_id].N,
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
+      nep_data[device_id].descriptors.data(),
+      nep_data[device_id].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
     if (calculate_q_scaler) {
       find_max_min<<<annmb[device_id].dim, 1024>>>(
-        dataset[device_id].N, nep_data[device_id].descriptors.data(),
+        dataset[device_id].N,
+        nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data());
       CUDA_CHECK_KERNEL
     }
 
     zero_force<<<grid_size, block_size>>>(
-      dataset[device_id].N, dataset[device_id].force.data(),
+      dataset[device_id].N,
+      dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2, dataset[device_id].virial.data(),
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data(),
       dataset[device_id].virial.data() + dataset[device_id].N,
       dataset[device_id].virial.data() + dataset[device_id].N * 2);
     CUDA_CHECK_KERNEL
 
     if (para.train_mode == 2) {
       apply_ann_pol<<<grid_size, block_size>>>(
-        dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
-        nep_data[device_id].descriptors.data(), para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].virial.data(), nep_data[device_id].Fp.data());
+        dataset[device_id].N,
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        nep_data[device_id].descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        dataset[device_id].virial.data(),
+        nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     } else {
       apply_ann<<<grid_size, block_size>>>(
-        dataset[device_id].N, paramb, annmb[device_id], dataset[device_id].type.data(),
-        nep_data[device_id].descriptors.data(), para.q_scaler_gpu[device_id].data(),
-        dataset[device_id].energy.data(), nep_data[device_id].Fp.data());
+        dataset[device_id].N,
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        nep_data[device_id].descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        dataset[device_id].energy.data(),
+        nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     }
 
     bool is_dipole = para.train_mode == 1;
     find_force_radial<<<grid_size, block_size>>>(
-      is_dipole, dataset[device_id].N, nep_data[device_id].NN_radial.data(),
-      nep_data[device_id].NL_radial.data(), paramb, annmb[device_id],
-      dataset[device_id].type.data(), nep_data[device_id].x12_radial.data(),
-      nep_data[device_id].y12_radial.data(), nep_data[device_id].z12_radial.data(),
-      nep_data[device_id].Fp.data(), dataset[device_id].force.data(),
+      is_dipole,
+      dataset[device_id].N,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].Fp.data(),
+      dataset[device_id].force.data(),
       dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2, dataset[device_id].virial.data());
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data());
     CUDA_CHECK_KERNEL
 
     find_force_angular<<<grid_size, block_size>>>(
-      is_dipole, dataset[device_id].N, nep_data[device_id].NN_angular.data(),
-      nep_data[device_id].NL_angular.data(), paramb, annmb[device_id],
-      dataset[device_id].type.data(), nep_data[device_id].x12_angular.data(),
-      nep_data[device_id].y12_angular.data(), nep_data[device_id].z12_angular.data(),
-      nep_data[device_id].Fp.data(), nep_data[device_id].sum_fxyz.data(),
-      dataset[device_id].force.data(), dataset[device_id].force.data() + dataset[device_id].N,
-      dataset[device_id].force.data() + dataset[device_id].N * 2, dataset[device_id].virial.data());
+      is_dipole,
+      dataset[device_id].N,
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
+      paramb,
+      annmb[device_id],
+      dataset[device_id].type.data(),
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
+      nep_data[device_id].Fp.data(),
+      nep_data[device_id].sum_fxyz.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data());
     CUDA_CHECK_KERNEL
 
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
-        dataset[device_id].N, zbl, nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(), dataset[device_id].type.data(),
-        nep_data[device_id].x12_angular.data(), nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(), dataset[device_id].force.data(),
+        dataset[device_id].N,
+        zbl,
+        nep_data[device_id].NN_angular.data(),
+        nep_data[device_id].NL_angular.data(),
+        dataset[device_id].type.data(),
+        nep_data[device_id].x12_angular.data(),
+        nep_data[device_id].y12_angular.data(),
+        nep_data[device_id].z12_angular.data(),
+        dataset[device_id].force.data(),
         dataset[device_id].force.data() + dataset[device_id].N,
         dataset[device_id].force.data() + dataset[device_id].N * 2,
-        dataset[device_id].virial.data(), dataset[device_id].energy.data());
+        dataset[device_id].virial.data(),
+        dataset[device_id].energy.data());
       CUDA_CHECK_KERNEL
     }
   }

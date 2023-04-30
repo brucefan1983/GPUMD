@@ -8,7 +8,8 @@
     GPUMD is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details. You should have received a copy of the GNU General Public License along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
+    GNU General Public License for more details. You should have received a copy of the GNU General
+   Public License along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
 /*-----------------------------------------------------------------------------------------------100
@@ -17,15 +18,13 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 
 #include "dump_observer.cuh"
 #include "model/box.cuh"
-#include "utilities/error.cuh"
-#include "utilities/common.cuh"
 #include "parse_utilities.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
-#include <vector>
 #include <iostream>
-
+#include <vector>
 
 static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
 {
@@ -50,7 +49,6 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-
 static __global__ void initialize_properties(
   int N, double* g_fx, double* g_fy, double* g_fz, double* g_pe, double* g_virial)
 {
@@ -71,7 +69,6 @@ static __global__ void initialize_properties(
     g_virial[n1 + 8 * N] = 0.0;
   }
 }
-
 
 void Dump_Observer::parse(const char** param, int num_param)
 {
@@ -118,23 +115,30 @@ void Dump_Observer::parse(const char** param, int num_param)
   } else {
     printf("    with force data.\n");
   }
-  
+
   if (mode_.compare("observe") == 0) {
-    printf("    evaluate all potentials, dumping .out every %d and .exyz every %d steps.\n", dump_interval_thermo_, dump_interval_exyz_);
-  }
-  else if (mode_.compare("average") == 0){
-    printf("    use the average potential in the molecular dynamics run, and dump .out every %d and .exyz every %d steps.\n", dump_interval_thermo_, dump_interval_exyz_);
+    printf(
+      "    evaluate all potentials, dumping .out every %d and .exyz every %d steps.\n",
+      dump_interval_thermo_,
+      dump_interval_exyz_);
+  } else if (mode_.compare("average") == 0) {
+    printf(
+      "    use the average potential in the molecular dynamics run, and dump .out every %d and "
+      ".exyz every %d steps.\n",
+      dump_interval_thermo_,
+      dump_interval_exyz_);
   }
 }
 
-void Dump_Observer::preprocess(const int number_of_atoms, const int number_of_potentials, Force& force)
+void Dump_Observer::preprocess(
+  const int number_of_atoms, const int number_of_potentials, Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   force.set_multiple_potentials_mode(mode_);
   if (dump_) {
     const int number_of_files = (mode_.compare("observe") == 0) ? number_of_potentials : 1;
-    for (int i = 0; i < number_of_files; i++){
-      const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i); 
+    for (int i = 0; i < number_of_files; i++) {
+      const std::string file_number = (number_of_files == 1) ? "" : std::to_string(i);
       std::string exyz_filename = "observer" + file_number + ".xyz";
       exyz_files_.push_back(my_fopen(exyz_filename.c_str(), "a"));
       std::string thermo_filename = "observer" + file_number + ".out";
@@ -149,60 +153,92 @@ void Dump_Observer::preprocess(const int number_of_atoms, const int number_of_po
 }
 
 void Dump_Observer::process(
-    int step,
-    const double global_time,
-    const int number_of_atoms_fixed,
-    std::vector<Group>& group,
-    Box& box,
-    Atom& atom,
-    Force& force,
-    Integrate& integrate,
-    GPU_Vector<double>& thermo)
+  int step,
+  const double global_time,
+  const int number_of_atoms_fixed,
+  std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  Force& force,
+  Integrate& integrate,
+  GPU_Vector<double>& thermo)
 {
   // Only run if should dump, since forces have to be recomputed with each potential.
   if (!dump_)
     return;
   if (((step + 1) % dump_interval_thermo_ != 0) & ((step + 1) % dump_interval_exyz_ != 0))
     return;
-  if(mode_.compare("observe") == 0)
-  {
+  if (mode_.compare("observe") == 0) {
     // If observing, calculate properties with all potentials.
     const int number_of_potentials = force.potentials.size();
     const int number_of_atoms = atom.type.size();
     // Loop backwards over files to evaluate the main potential last, keeping it's properties intact
-    for (int potential_index = number_of_potentials-1; potential_index >= 0; potential_index--) {
+    for (int potential_index = number_of_potentials - 1; potential_index >= 0; potential_index--) {
       // Set potential/force/virials to zero
       initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms, atom.force_per_atom.data(), atom.force_per_atom.data() + number_of_atoms,
-        atom.force_per_atom.data() + number_of_atoms * 2, atom.potential_per_atom.data(), atom.virial_per_atom.data());
+        number_of_atoms,
+        atom.force_per_atom.data(),
+        atom.force_per_atom.data() + number_of_atoms,
+        atom.force_per_atom.data() + number_of_atoms * 2,
+        atom.potential_per_atom.data(),
+        atom.virial_per_atom.data());
       CUDA_CHECK_KERNEL
       // Compute new potential properties
-      force.potentials[potential_index]->compute(box, atom.type, atom.position_per_atom, 
-          atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      force.potentials[potential_index]->compute(
+        box,
+        atom.type,
+        atom.position_per_atom,
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom);
       integrate.ensemble->find_thermo(
-          false, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom, atom.virial_per_atom,
-          thermo);
+        false,
+        box.get_volume(),
+        group,
+        atom.mass,
+        atom.potential_per_atom,
+        atom.velocity_per_atom,
+        atom.virial_per_atom,
+        thermo);
       // Write properties
-      write_exyz(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
-        atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
-        atom.force_per_atom, atom.virial_per_atom, thermo, potential_index);
+      write_exyz(
+        step,
+        global_time,
+        box,
+        atom.cpu_atom_symbol,
+        atom.cpu_type,
+        atom.position_per_atom,
+        atom.cpu_position_per_atom,
+        atom.velocity_per_atom,
+        atom.cpu_velocity_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom,
+        thermo,
+        potential_index);
       write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, potential_index);
     }
-  }
-  else if(mode_.compare("average") == 0)
-  {
+  } else if (mode_.compare("average") == 0) {
     // If average, dump already computed properties to file.
     const int number_of_atoms = atom.type.size();
-    write_exyz(step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
-      atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
-      atom.force_per_atom, atom.virial_per_atom, thermo, 0);
+    write_exyz(
+      step,
+      global_time,
+      box,
+      atom.cpu_atom_symbol,
+      atom.cpu_type,
+      atom.position_per_atom,
+      atom.cpu_position_per_atom,
+      atom.velocity_per_atom,
+      atom.cpu_velocity_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      thermo,
+      0);
     write_thermo(step, number_of_atoms, number_of_atoms_fixed, box, thermo, 0);
-  }
-  else {
+  } else {
     PRINT_INPUT_ERROR("Invalid observer mode.\n");
   }
 }
-
 
 void Dump_Observer::output_line2(
   const double time,
@@ -222,12 +258,29 @@ void Dump_Observer::output_line2(
   // box
   if (box.triclinic == 0) {
     fprintf(
-      fid_, " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", box.cpu_h[0], 0.0, 0.0,
-      0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
+      fid_,
+      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+      box.cpu_h[0],
+      0.0,
+      0.0,
+      0.0,
+      box.cpu_h[1],
+      0.0,
+      0.0,
+      0.0,
+      box.cpu_h[2]);
   } else {
     fprintf(
-      fid_, " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", box.cpu_h[0], box.cpu_h[3],
-      box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2], box.cpu_h[5],
+      fid_,
+      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+      box.cpu_h[0],
+      box.cpu_h[3],
+      box.cpu_h[6],
+      box.cpu_h[1],
+      box.cpu_h[4],
+      box.cpu_h[7],
+      box.cpu_h[2],
+      box.cpu_h[5],
       box.cpu_h[8]);
   }
 
@@ -240,12 +293,28 @@ void Dump_Observer::output_line2(
 
   fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
   fprintf(
-    fid_, " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", cpu_total_virial_[0],
-    cpu_total_virial_[3], cpu_total_virial_[4], cpu_total_virial_[3], cpu_total_virial_[1],
-    cpu_total_virial_[5], cpu_total_virial_[4], cpu_total_virial_[5], cpu_total_virial_[2]);
+    fid_,
+    " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    cpu_total_virial_[0],
+    cpu_total_virial_[3],
+    cpu_total_virial_[4],
+    cpu_total_virial_[3],
+    cpu_total_virial_[1],
+    cpu_total_virial_[5],
+    cpu_total_virial_[4],
+    cpu_total_virial_[5],
+    cpu_total_virial_[2]);
   fprintf(
-    fid_, " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", cpu_thermo[2], cpu_thermo[5],
-    cpu_thermo[6], cpu_thermo[5], cpu_thermo[3], cpu_thermo[7], cpu_thermo[6], cpu_thermo[7],
+    fid_,
+    " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    cpu_thermo[2],
+    cpu_thermo[5],
+    cpu_thermo[6],
+    cpu_thermo[5],
+    cpu_thermo[3],
+    cpu_thermo[7],
+    cpu_thermo[6],
+    cpu_thermo[7],
     cpu_thermo[4]);
 
   // Properties
@@ -281,7 +350,7 @@ void Dump_Observer::write_exyz(
     return;
   if ((step + 1) % dump_interval_exyz_ != 0)
     return;
- 
+
   const int num_atoms_total = position_per_atom.size() / 3;
   FILE* fid_ = exyz_files_[file_index];
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
@@ -344,32 +413,44 @@ void Dump_Observer::write_thermo(
 
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(
-    fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", thermo[0], energy_kin,
-    thermo[1], thermo[2] * PRESSURE_UNIT_CONVERSION, thermo[3] * PRESSURE_UNIT_CONVERSION,
-    thermo[4] * PRESSURE_UNIT_CONVERSION, thermo[7] * PRESSURE_UNIT_CONVERSION,
-    thermo[6] * PRESSURE_UNIT_CONVERSION, thermo[5] * PRESSURE_UNIT_CONVERSION);
+    fid_,
+    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
+    thermo[0],
+    energy_kin,
+    thermo[1],
+    thermo[2] * PRESSURE_UNIT_CONVERSION,
+    thermo[3] * PRESSURE_UNIT_CONVERSION,
+    thermo[4] * PRESSURE_UNIT_CONVERSION,
+    thermo[7] * PRESSURE_UNIT_CONVERSION,
+    thermo[6] * PRESSURE_UNIT_CONVERSION,
+    thermo[5] * PRESSURE_UNIT_CONVERSION);
 
   if (box.triclinic == 0) {
     fprintf(fid_, "%20.10e%20.10e%20.10e\n", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);
   } else {
     fprintf(
-      fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n", box.cpu_h[0],
-      box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2],
-      box.cpu_h[5], box.cpu_h[8]);
+      fid_,
+      "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
+      box.cpu_h[0],
+      box.cpu_h[3],
+      box.cpu_h[6],
+      box.cpu_h[1],
+      box.cpu_h[4],
+      box.cpu_h[7],
+      box.cpu_h[2],
+      box.cpu_h[5],
+      box.cpu_h[8]);
   }
   fflush(fid_);
 }
 
-
 void Dump_Observer::postprocess()
 {
-  for (int i = 0; i < exyz_files_.size(); i++){
+  for (int i = 0; i < exyz_files_.size(); i++) {
     fclose(exyz_files_[i]);
   }
-  for (int i = 0; i < thermo_files_.size(); i++){
+  for (int i = 0; i < thermo_files_.size(); i++) {
     fclose(thermo_files_[i]);
   }
   dump_ = false;
 }
-
-

@@ -91,17 +91,28 @@ void Ensemble_LAN::integrate_nvt_lan_half(
   c2 = sqrt((1 - c1 * c1) * K_B * temperature); // target temperature might change linearly
 
   gpu_langevin<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    curand_states.data(), number_of_atoms, c1, c2, mass.data(), velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
+    curand_states.data(),
+    number_of_atoms,
+    c1,
+    c2,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   gpu_find_momentum<<<4, 1024>>>(
-    number_of_atoms, mass.data(), velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
+    number_of_atoms,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   gpu_correct_momentum<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    number_of_atoms,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 }
@@ -120,9 +131,14 @@ void Ensemble_LAN::integrate_heat_lan_half(
   GPU_Vector<double> ke(Ng);
 
   find_ke<<<Ng, 512>>>(
-    group[0].size.data(), group[0].size_sum.data(), group[0].contents.data(), mass.data(),
-    velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms, ke.data());
+    group[0].size.data(),
+    group[0].size_sum.data(),
+    group[0].contents.data(),
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    ke.data());
   CUDA_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
@@ -130,21 +146,40 @@ void Ensemble_LAN::integrate_heat_lan_half(
   energy_transferred[1] += ek2[sink] * 0.5;
 
   gpu_langevin<<<(N_source - 1) / 128 + 1, 128>>>(
-    curand_states_source.data(), N_source, offset_source, group[0].contents.data(), c1, c2_source,
-    mass.data(), velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    curand_states_source.data(),
+    N_source,
+    offset_source,
+    group[0].contents.data(),
+    c1,
+    c2_source,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   gpu_langevin<<<(N_sink - 1) / 128 + 1, 128>>>(
-    curand_states_sink.data(), N_sink, offset_sink, group[0].contents.data(), c1, c2_sink,
-    mass.data(), velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    curand_states_sink.data(),
+    N_sink,
+    offset_sink,
+    group[0].contents.data(),
+    c1,
+    c2_sink,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   find_ke<<<Ng, 512>>>(
-    group[0].size.data(), group[0].size_sum.data(), group[0].contents.data(), mass.data(),
-    velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms, ke.data());
+    group[0].size.data(),
+    group[0].size_sum.data(),
+    group[0].contents.data(),
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    ke.data());
   CUDA_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
@@ -163,13 +198,23 @@ void Ensemble_LAN::compute1(
     integrate_nvt_lan_half(atom.mass, atom.velocity_per_atom);
 
     velocity_verlet(
-      true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      true,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
   } else {
     integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);
 
     velocity_verlet(
-      true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      true,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
   }
 }
@@ -183,17 +228,33 @@ void Ensemble_LAN::compute2(
 {
   if (type == 3) {
     velocity_verlet(
-      false, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      false,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
 
     integrate_nvt_lan_half(atom.mass, atom.velocity_per_atom);
 
     find_thermo(
-      true, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
-      atom.virial_per_atom, thermo);
+      true,
+      box.get_volume(),
+      group,
+      atom.mass,
+      atom.potential_per_atom,
+      atom.velocity_per_atom,
+      atom.virial_per_atom,
+      thermo);
   } else {
     velocity_verlet(
-      false, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      false,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
 
     integrate_heat_lan_half(group, atom.mass, atom.velocity_per_atom);

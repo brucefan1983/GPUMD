@@ -74,19 +74,33 @@ void Dump_Thermo::process(
 
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
   fprintf(
-    fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e", temperature,
-    energy_kin, thermo[1], thermo[2] * PRESSURE_UNIT_CONVERSION,
-    thermo[3] * PRESSURE_UNIT_CONVERSION, thermo[4] * PRESSURE_UNIT_CONVERSION,
-    thermo[7] * PRESSURE_UNIT_CONVERSION, thermo[6] * PRESSURE_UNIT_CONVERSION,
+    fid_,
+    "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e",
+    temperature,
+    energy_kin,
+    thermo[1],
+    thermo[2] * PRESSURE_UNIT_CONVERSION,
+    thermo[3] * PRESSURE_UNIT_CONVERSION,
+    thermo[4] * PRESSURE_UNIT_CONVERSION,
+    thermo[7] * PRESSURE_UNIT_CONVERSION,
+    thermo[6] * PRESSURE_UNIT_CONVERSION,
     thermo[5] * PRESSURE_UNIT_CONVERSION);
 
   if (box.triclinic == 0) {
     fprintf(fid_, "%20.10e%20.10e%20.10e\n", box.cpu_h[0], box.cpu_h[1], box.cpu_h[2]);
   } else {
     fprintf(
-      fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n", box.cpu_h[0],
-      box.cpu_h[3], box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2],
-      box.cpu_h[5], box.cpu_h[8]);
+      fid_,
+      "%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e%20.10e\n",
+      box.cpu_h[0],
+      box.cpu_h[3],
+      box.cpu_h[6],
+      box.cpu_h[1],
+      box.cpu_h[4],
+      box.cpu_h[7],
+      box.cpu_h[2],
+      box.cpu_h[5],
+      box.cpu_h[8]);
   }
   fflush(fid_);
 }

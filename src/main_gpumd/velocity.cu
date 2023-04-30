@@ -198,23 +198,42 @@ void Velocity::correct_velocity(
   const int N = cpu_mass.size();
 
   zero_linear_momentum(
-    N, cpu_mass.data(), cpu_velocity_per_atom.data(), cpu_velocity_per_atom.data() + N,
+    N,
+    cpu_mass.data(),
+    cpu_velocity_per_atom.data(),
+    cpu_velocity_per_atom.data() + N,
     cpu_velocity_per_atom.data() + N * 2);
 
   double r0[3] = {0, 0, 0}; // center of mass position
   get_center(
-    N, r0, cpu_mass.data(), cpu_position_per_atom.data(), cpu_position_per_atom.data() + N,
+    N,
+    r0,
+    cpu_mass.data(),
+    cpu_position_per_atom.data(),
+    cpu_position_per_atom.data() + N,
     cpu_position_per_atom.data() + N * 2);
 
   double L[3] = {0, 0, 0}; // angular momentum
   get_angular_momentum(
-    N, L, r0, cpu_mass.data(), cpu_position_per_atom.data(), cpu_position_per_atom.data() + N,
-    cpu_position_per_atom.data() + N * 2, cpu_velocity_per_atom.data(),
-    cpu_velocity_per_atom.data() + N, cpu_velocity_per_atom.data() + N * 2);
+    N,
+    L,
+    r0,
+    cpu_mass.data(),
+    cpu_position_per_atom.data(),
+    cpu_position_per_atom.data() + N,
+    cpu_position_per_atom.data() + N * 2,
+    cpu_velocity_per_atom.data(),
+    cpu_velocity_per_atom.data() + N,
+    cpu_velocity_per_atom.data() + N * 2);
 
   double I[3][3] = {{0, 0, 0}, {0, 0, 0}, {0, 0, 0}}; // moment of inertia
   get_inertia(
-    N, I, r0, cpu_mass.data(), cpu_position_per_atom.data(), cpu_position_per_atom.data() + N,
+    N,
+    I,
+    r0,
+    cpu_mass.data(),
+    cpu_position_per_atom.data(),
+    cpu_position_per_atom.data() + N,
     cpu_position_per_atom.data() + N * 2);
 
   double w[3]; // angular velocity
@@ -224,9 +243,15 @@ void Velocity::correct_velocity(
   }
 
   zero_angular_momentum(
-    N, w, r0, cpu_position_per_atom.data(), cpu_position_per_atom.data() + N,
-    cpu_position_per_atom.data() + N * 2, cpu_velocity_per_atom.data(),
-    cpu_velocity_per_atom.data() + N, cpu_velocity_per_atom.data() + N * 2);
+    N,
+    w,
+    r0,
+    cpu_position_per_atom.data(),
+    cpu_position_per_atom.data() + N,
+    cpu_position_per_atom.data() + N * 2,
+    cpu_velocity_per_atom.data(),
+    cpu_velocity_per_atom.data() + N,
+    cpu_velocity_per_atom.data() + N * 2);
 }
 
 void Velocity::correct_velocity(
@@ -259,11 +284,16 @@ void Velocity::initialize(
   if (!has_velocity_in_xyz) {
     const int N = cpu_mass.size();
     get_random_velocities(
-      N, cpu_velocity_per_atom.data(), cpu_velocity_per_atom.data() + N,
+      N,
+      cpu_velocity_per_atom.data(),
+      cpu_velocity_per_atom.data() + N,
       cpu_velocity_per_atom.data() + N * 2);
     correct_velocity(cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
     scale(
-      initial_temperature, cpu_mass, cpu_velocity_per_atom.data(), cpu_velocity_per_atom.data() + N,
+      initial_temperature,
+      cpu_mass,
+      cpu_velocity_per_atom.data(),
+      cpu_velocity_per_atom.data() + N,
       cpu_velocity_per_atom.data() + N * 2);
   }
 

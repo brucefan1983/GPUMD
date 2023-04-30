@@ -72,12 +72,24 @@ void compute_heat(
   // yx yy yz    6 1 5
   // zx zy zz    7 8 2
   gpu_compute_heat<<<(N - 1) / 128 + 1, 128>>>(
-    N, virial_per_atom.data(), virial_per_atom.data() + N * 3, virial_per_atom.data() + N * 4,
-    virial_per_atom.data() + N * 6, virial_per_atom.data() + N * 1, virial_per_atom.data() + N * 5,
-    virial_per_atom.data() + N * 7, virial_per_atom.data() + N * 8, virial_per_atom.data() + N * 2,
-    velocity_per_atom.data(), velocity_per_atom.data() + N, velocity_per_atom.data() + 2 * N,
-    heat_per_atom.data(), heat_per_atom.data() + N, heat_per_atom.data() + N * 2,
-    heat_per_atom.data() + N * 3, heat_per_atom.data() + N * 4);
+    N,
+    virial_per_atom.data(),
+    virial_per_atom.data() + N * 3,
+    virial_per_atom.data() + N * 4,
+    virial_per_atom.data() + N * 6,
+    virial_per_atom.data() + N * 1,
+    virial_per_atom.data() + N * 5,
+    virial_per_atom.data() + N * 7,
+    virial_per_atom.data() + N * 8,
+    virial_per_atom.data() + N * 2,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + N,
+    velocity_per_atom.data() + 2 * N,
+    heat_per_atom.data(),
+    heat_per_atom.data() + N,
+    heat_per_atom.data() + N * 2,
+    heat_per_atom.data() + N * 3,
+    heat_per_atom.data() + N * 4);
   CUDA_CHECK_KERNEL
 }
 
@@ -130,11 +142,23 @@ void compute_heat(
   // yx yy yz    6 1 5
   // zx zy zz    7 8 2
   gpu_compute_heat<<<(N - 1) / 128 + 1, 128>>>(
-    N, mass.data(), potential.data(), virial_per_atom.data(), virial_per_atom.data() + N * 3,
-    virial_per_atom.data() + N * 4, virial_per_atom.data() + N * 6, virial_per_atom.data() + N * 1,
-    virial_per_atom.data() + N * 5, virial_per_atom.data() + N * 7, virial_per_atom.data() + N * 8,
-    virial_per_atom.data() + N * 2, velocity_per_atom.data(), velocity_per_atom.data() + N,
-    velocity_per_atom.data() + 2 * N, heat_per_atom.data(),
-    heat_per_atom.data() + N, heat_per_atom.data() + N * 2);
+    N,
+    mass.data(),
+    potential.data(),
+    virial_per_atom.data(),
+    virial_per_atom.data() + N * 3,
+    virial_per_atom.data() + N * 4,
+    virial_per_atom.data() + N * 6,
+    virial_per_atom.data() + N * 1,
+    virial_per_atom.data() + N * 5,
+    virial_per_atom.data() + N * 7,
+    virial_per_atom.data() + N * 8,
+    virial_per_atom.data() + N * 2,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + N,
+    velocity_per_atom.data() + 2 * N,
+    heat_per_atom.data(),
+    heat_per_atom.data() + N,
+    heat_per_atom.data() + N * 2);
   CUDA_CHECK_KERNEL
 }

@@ -438,13 +438,20 @@ void Force::compute(
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      number_of_atoms,
+      box,
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
   }
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
+    number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(),
+    virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
@@ -460,7 +467,10 @@ void Force::compute(
     }
     // Compute average and copy properties back into original vectors.
     gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, potential_per_atom.data(), force_per_atom.data(), virial_per_atom.data(),
+      number_of_atoms,
+      potential_per_atom.data(),
+      force_per_atom.data(),
+      virial_per_atom.data(),
       (double)potentials.size());
     CUDA_CHECK_KERNEL
   } else {
@@ -473,24 +483,39 @@ void Force::compute(
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
-      virial_per_atom.data() + 0 * number_of_atoms, virial_per_atom.data() + 3 * number_of_atoms,
-      virial_per_atom.data() + 4 * number_of_atoms, virial_per_atom.data() + 6 * number_of_atoms,
-      virial_per_atom.data() + 1 * number_of_atoms, virial_per_atom.data() + 5 * number_of_atoms,
-      virial_per_atom.data() + 7 * number_of_atoms, virial_per_atom.data() + 8 * number_of_atoms,
-      virial_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+      number_of_atoms,
+      hnemd_fe_[0],
+      hnemd_fe_[1],
+      hnemd_fe_[2],
+      virial_per_atom.data() + 0 * number_of_atoms,
+      virial_per_atom.data() + 3 * number_of_atoms,
+      virial_per_atom.data() + 4 * number_of_atoms,
+      virial_per_atom.data() + 6 * number_of_atoms,
+      virial_per_atom.data() + 1 * number_of_atoms,
+      virial_per_atom.data() + 5 * number_of_atoms,
+      virial_per_atom.data() + 7 * number_of_atoms,
+      virial_per_atom.data() + 8 * number_of_atoms,
+      virial_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
 
     GPU_Vector<double> ftot(3); // total force vector of the system
 
     gpu_sum_force<<<3, 1024>>>(
-      number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms, ftot.data());
+      number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms,
+      ftot.data());
     CUDA_CHECK_KERNEL
 
     gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, 1.0 / number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
+      number_of_atoms,
+      1.0 / number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
     CUDA_CHECK_KERNEL
   }
@@ -500,13 +525,19 @@ void Force::compute(
     if (!compute_hnemd_) {
       GPU_Vector<double> ftot(3); // total force vector of the system
       gpu_sum_force<<<3, 1024>>>(
-        number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-        force_per_atom.data() + 2 * number_of_atoms, ftot.data());
+        number_of_atoms,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
+        ftot.data());
       CUDA_CHECK_KERNEL
 
       gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms, 1.0 / number_of_atoms, force_per_atom.data(),
-        force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
+        number_of_atoms,
+        1.0 / number_of_atoms,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
         ftot.data());
       CUDA_CHECK_KERNEL
     }
@@ -671,13 +702,20 @@ void Force::compute(
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, box, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
+      number_of_atoms,
+      box,
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
       position_per_atom.data() + number_of_atoms * 2);
   }
 
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + number_of_atoms * 2, potential_per_atom.data(), virial_per_atom.data());
+    number_of_atoms,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(),
+    virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
@@ -693,7 +731,10 @@ void Force::compute(
     }
     // Compute average and copy properties back into original vectors.
     gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, potential_per_atom.data(), force_per_atom.data(), virial_per_atom.data(),
+      number_of_atoms,
+      potential_per_atom.data(),
+      force_per_atom.data(),
+      virial_per_atom.data(),
       (double)potentials.size());
     CUDA_CHECK_KERNEL
   } else {
@@ -706,24 +747,39 @@ void Force::compute(
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
-      virial_per_atom.data() + 0 * number_of_atoms, virial_per_atom.data() + 3 * number_of_atoms,
-      virial_per_atom.data() + 4 * number_of_atoms, virial_per_atom.data() + 6 * number_of_atoms,
-      virial_per_atom.data() + 1 * number_of_atoms, virial_per_atom.data() + 5 * number_of_atoms,
-      virial_per_atom.data() + 7 * number_of_atoms, virial_per_atom.data() + 8 * number_of_atoms,
-      virial_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+      number_of_atoms,
+      hnemd_fe_[0],
+      hnemd_fe_[1],
+      hnemd_fe_[2],
+      virial_per_atom.data() + 0 * number_of_atoms,
+      virial_per_atom.data() + 3 * number_of_atoms,
+      virial_per_atom.data() + 4 * number_of_atoms,
+      virial_per_atom.data() + 6 * number_of_atoms,
+      virial_per_atom.data() + 1 * number_of_atoms,
+      virial_per_atom.data() + 5 * number_of_atoms,
+      virial_per_atom.data() + 7 * number_of_atoms,
+      virial_per_atom.data() + 8 * number_of_atoms,
+      virial_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
 
     GPU_Vector<double> ftot(3); // total force vector of the system
 
     gpu_sum_force<<<3, 1024>>>(
-      number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-      force_per_atom.data() + 2 * number_of_atoms, ftot.data());
+      number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms,
+      ftot.data());
     CUDA_CHECK_KERNEL
 
     gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, 1.0 / number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
+      number_of_atoms,
+      1.0 / number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms,
       ftot.data());
     CUDA_CHECK_KERNEL
   } else if (compute_hnemdec_ == 0) {
@@ -735,32 +791,59 @@ void Force::compute(
     GPU_Vector<double> tensor_tot(9);
 
     gpu_find_per_atom_tensor<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, mass_per_atom.data(), potential_per_atom.data(), velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-      virial_per_atom.data() + 0 * number_of_atoms, virial_per_atom.data() + 3 * number_of_atoms,
-      virial_per_atom.data() + 4 * number_of_atoms, virial_per_atom.data() + 6 * number_of_atoms,
-      virial_per_atom.data() + 1 * number_of_atoms, virial_per_atom.data() + 5 * number_of_atoms,
-      virial_per_atom.data() + 7 * number_of_atoms, virial_per_atom.data() + 8 * number_of_atoms,
-      virial_per_atom.data() + 2 * number_of_atoms, tensor_per_atom.data());
+      number_of_atoms,
+      mass_per_atom.data(),
+      potential_per_atom.data(),
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      virial_per_atom.data() + 0 * number_of_atoms,
+      virial_per_atom.data() + 3 * number_of_atoms,
+      virial_per_atom.data() + 4 * number_of_atoms,
+      virial_per_atom.data() + 6 * number_of_atoms,
+      virial_per_atom.data() + 1 * number_of_atoms,
+      virial_per_atom.data() + 5 * number_of_atoms,
+      virial_per_atom.data() + 7 * number_of_atoms,
+      virial_per_atom.data() + 8 * number_of_atoms,
+      virial_per_atom.data() + 2 * number_of_atoms,
+      tensor_per_atom.data());
     CUDA_CHECK_KERNEL
 
     gpu_sum_tensor<<<9, 1024>>>(number_of_atoms, tensor_per_atom.data(), tensor_tot.data());
     CUDA_CHECK_KERNEL
 
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, coefficient.data(), type.data(), hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
-      tensor_per_atom.data() + 0 * number_of_atoms, tensor_per_atom.data() + 3 * number_of_atoms,
-      tensor_per_atom.data() + 4 * number_of_atoms, tensor_per_atom.data() + 6 * number_of_atoms,
-      tensor_per_atom.data() + 1 * number_of_atoms, tensor_per_atom.data() + 5 * number_of_atoms,
-      tensor_per_atom.data() + 7 * number_of_atoms, tensor_per_atom.data() + 8 * number_of_atoms,
-      tensor_per_atom.data() + 2 * number_of_atoms, tensor_tot.data(), force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+      number_of_atoms,
+      coefficient.data(),
+      type.data(),
+      hnemd_fe_[0],
+      hnemd_fe_[1],
+      hnemd_fe_[2],
+      tensor_per_atom.data() + 0 * number_of_atoms,
+      tensor_per_atom.data() + 3 * number_of_atoms,
+      tensor_per_atom.data() + 4 * number_of_atoms,
+      tensor_per_atom.data() + 6 * number_of_atoms,
+      tensor_per_atom.data() + 1 * number_of_atoms,
+      tensor_per_atom.data() + 5 * number_of_atoms,
+      tensor_per_atom.data() + 7 * number_of_atoms,
+      tensor_per_atom.data() + 8 * number_of_atoms,
+      tensor_per_atom.data() + 2 * number_of_atoms,
+      tensor_tot.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
     CUDA_CHECK_KERNEL
 
   } else if (compute_hnemdec_ != -1) {
     gpu_add_driving_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, coefficient.data(), type.data(), hnemd_fe_[0], hnemd_fe_[1], hnemd_fe_[2],
-      force_per_atom.data(), force_per_atom.data() + number_of_atoms,
+      number_of_atoms,
+      coefficient.data(),
+      type.data(),
+      hnemd_fe_[0],
+      hnemd_fe_[1],
+      hnemd_fe_[2],
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
   }
 
@@ -769,13 +852,19 @@ void Force::compute(
     if (!compute_hnemd_) {
       GPU_Vector<double> ftot(3); // total force vector of the system
       gpu_sum_force<<<3, 1024>>>(
-        number_of_atoms, force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-        force_per_atom.data() + 2 * number_of_atoms, ftot.data());
+        number_of_atoms,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
+        ftot.data());
       CUDA_CHECK_KERNEL
 
       gpu_correct_force<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-        number_of_atoms, 1.0 / number_of_atoms, force_per_atom.data(),
-        force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
+        number_of_atoms,
+        1.0 / number_of_atoms,
+        force_per_atom.data(),
+        force_per_atom.data() + number_of_atoms,
+        force_per_atom.data() + 2 * number_of_atoms,
         ftot.data());
       CUDA_CHECK_KERNEL
     }

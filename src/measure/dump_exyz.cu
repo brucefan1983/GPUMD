@@ -113,12 +113,29 @@ void Dump_EXYZ::output_line2(
   // box
   if (box.triclinic == 0) {
     fprintf(
-      fid_, " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", box.cpu_h[0], 0.0, 0.0,
-      0.0, box.cpu_h[1], 0.0, 0.0, 0.0, box.cpu_h[2]);
+      fid_,
+      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+      box.cpu_h[0],
+      0.0,
+      0.0,
+      0.0,
+      box.cpu_h[1],
+      0.0,
+      0.0,
+      0.0,
+      box.cpu_h[2]);
   } else {
     fprintf(
-      fid_, " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", box.cpu_h[0], box.cpu_h[3],
-      box.cpu_h[6], box.cpu_h[1], box.cpu_h[4], box.cpu_h[7], box.cpu_h[2], box.cpu_h[5],
+      fid_,
+      " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+      box.cpu_h[0],
+      box.cpu_h[3],
+      box.cpu_h[6],
+      box.cpu_h[1],
+      box.cpu_h[4],
+      box.cpu_h[7],
+      box.cpu_h[2],
+      box.cpu_h[5],
       box.cpu_h[8]);
   }
 
@@ -131,12 +148,28 @@ void Dump_EXYZ::output_line2(
 
   fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
   fprintf(
-    fid_, " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", cpu_total_virial_[0],
-    cpu_total_virial_[3], cpu_total_virial_[4], cpu_total_virial_[3], cpu_total_virial_[1],
-    cpu_total_virial_[5], cpu_total_virial_[4], cpu_total_virial_[5], cpu_total_virial_[2]);
+    fid_,
+    " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    cpu_total_virial_[0],
+    cpu_total_virial_[3],
+    cpu_total_virial_[4],
+    cpu_total_virial_[3],
+    cpu_total_virial_[1],
+    cpu_total_virial_[5],
+    cpu_total_virial_[4],
+    cpu_total_virial_[5],
+    cpu_total_virial_[2]);
   fprintf(
-    fid_, " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"", cpu_thermo[2], cpu_thermo[5],
-    cpu_thermo[6], cpu_thermo[5], cpu_thermo[3], cpu_thermo[7], cpu_thermo[6], cpu_thermo[7],
+    fid_,
+    " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
+    cpu_thermo[2],
+    cpu_thermo[5],
+    cpu_thermo[6],
+    cpu_thermo[5],
+    cpu_thermo[3],
+    cpu_thermo[7],
+    cpu_thermo[6],
+    cpu_thermo[7],
     cpu_thermo[4]);
 
   // Properties

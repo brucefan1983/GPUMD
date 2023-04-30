@@ -366,8 +366,18 @@ void DOS::find_vac(const int correlation_step)
     const double* vy = vy_.data() + step_offset;
     const double* vz = vz_.data() + step_offset;
     gpu_find_vac<<<num_correlation_steps_, 128>>>(
-      num_atoms_, correlation_step, mass_.data(), vx, vy, vz, vx_.data(), vy_.data(), vz_.data(),
-      vacx_.data(), vacy_.data(), vacz_.data());
+      num_atoms_,
+      correlation_step,
+      mass_.data(),
+      vx,
+      vy,
+      vz,
+      vx_.data(),
+      vy_.data(),
+      vz_.data(),
+      vacx_.data(),
+      vacy_.data(),
+      vacz_.data());
   }
   CUDA_CHECK_KERNEL
 }
@@ -395,7 +405,11 @@ void DOS::output_vac()
     const int offset = num_correlation_steps_ * n;
     for (int nc = 0; nc < num_correlation_steps_; nc++) {
       fprintf(
-        fid, "%g %g %g %g\n", nc * dt_in_ps_, vacx_[nc + offset], vacy_[nc + offset],
+        fid,
+        "%g %g %g %g\n",
+        nc * dt_in_ps_,
+        vacx_[nc + offset],
+        vacy_[nc + offset],
         vacz_[nc + offset]);
     }
   }
@@ -446,7 +460,11 @@ void DOS::output_dos()
     const int offset = num_dos_points_ * ng;
     for (int nw = 0; nw < num_dos_points_; nw++) {
       fprintf(
-        fid_dos, "%g %g %g %g\n", d_omega + d_omega * nw, dosx_[nw + offset], dosy_[nw + offset],
+        fid_dos,
+        "%g %g %g %g\n",
+        d_omega + d_omega * nw,
+        dosx_[nw + offset],
+        dosy_[nw + offset],
         dosz_[nw + offset]);
     }
   }

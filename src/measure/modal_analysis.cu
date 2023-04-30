@@ -242,18 +242,33 @@ void MODAL_ANALYSIS::compute_heat(
   int grid_size = (num_participating - 1) / BLOCK_SIZE + 1;
   // precalculate velocity*sqrt(mass)
   elemwise_mass_scale<<<grid_size, BLOCK_SIZE>>>(
-    num_participating, N1, sqrtmass.data(), velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-    mvx.data(), mvy.data(), mvz.data());
+    num_participating,
+    N1,
+    sqrtmass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    mvx.data(),
+    mvy.data(),
+    mvz.data());
   CUDA_CHECK_KERNEL
 
   // Scale stress tensor by inv(sqrt(mass))
   prepare_sm<<<grid_size, BLOCK_SIZE>>>(
-    num_participating, N1, virial_per_atom.data(), virial_per_atom.data() + number_of_atoms * 3,
-    virial_per_atom.data() + number_of_atoms * 4, virial_per_atom.data() + number_of_atoms * 6,
-    virial_per_atom.data() + number_of_atoms * 1, virial_per_atom.data() + number_of_atoms * 5,
-    virial_per_atom.data() + number_of_atoms * 7, virial_per_atom.data() + number_of_atoms * 8,
-    virial_per_atom.data() + number_of_atoms * 2, rsqrtmass.data(), smx.data(), smy.data(),
+    num_participating,
+    N1,
+    virial_per_atom.data(),
+    virial_per_atom.data() + number_of_atoms * 3,
+    virial_per_atom.data() + number_of_atoms * 4,
+    virial_per_atom.data() + number_of_atoms * 6,
+    virial_per_atom.data() + number_of_atoms * 1,
+    virial_per_atom.data() + number_of_atoms * 5,
+    virial_per_atom.data() + number_of_atoms * 7,
+    virial_per_atom.data() + number_of_atoms * 8,
+    virial_per_atom.data() + number_of_atoms * 2,
+    rsqrtmass.data(),
+    smx.data(),
+    smy.data(),
     smz.data());
   CUDA_CHECK_KERNEL
 
@@ -263,37 +278,127 @@ void MODAL_ANALYSIS::compute_heat(
 
   // Calculate modal velocities
   cublasSgemv(
-    ma_handle, CUBLAS_OP_N, num_modes, num_participating, &alpha, eigx.data(), num_modes,
-    mvx.data(), stride, &beta, xdotx.data(), stride);
+    ma_handle,
+    CUBLAS_OP_N,
+    num_modes,
+    num_participating,
+    &alpha,
+    eigx.data(),
+    num_modes,
+    mvx.data(),
+    stride,
+    &beta,
+    xdotx.data(),
+    stride);
   cublasSgemv(
-    ma_handle, CUBLAS_OP_N, num_modes, num_participating, &alpha, eigy.data(), num_modes,
-    mvy.data(), stride, &beta, xdoty.data(), stride);
+    ma_handle,
+    CUBLAS_OP_N,
+    num_modes,
+    num_participating,
+    &alpha,
+    eigy.data(),
+    num_modes,
+    mvy.data(),
+    stride,
+    &beta,
+    xdoty.data(),
+    stride);
   cublasSgemv(
-    ma_handle, CUBLAS_OP_N, num_modes, num_participating, &alpha, eigz.data(), num_modes,
-    mvz.data(), stride, &beta, xdotz.data(), stride);
+    ma_handle,
+    CUBLAS_OP_N,
+    num_modes,
+    num_participating,
+    &alpha,
+    eigz.data(),
+    num_modes,
+    mvz.data(),
+    stride,
+    &beta,
+    xdotz.data(),
+    stride);
 
   // Calculate intermediate value
   // (i.e. heat current without modal velocities)
   cublasSgemm(
-    ma_handle, CUBLAS_OP_N, CUBLAS_OP_N, num_modes, 3, num_participating, &alpha, eigx.data(),
-    num_modes, smx.data(), num_participating, &beta, jmx.data(), num_modes);
+    ma_handle,
+    CUBLAS_OP_N,
+    CUBLAS_OP_N,
+    num_modes,
+    3,
+    num_participating,
+    &alpha,
+    eigx.data(),
+    num_modes,
+    smx.data(),
+    num_participating,
+    &beta,
+    jmx.data(),
+    num_modes);
   cublasSgemm(
-    ma_handle, CUBLAS_OP_N, CUBLAS_OP_N, num_modes, 3, num_participating, &alpha, eigy.data(),
-    num_modes, smy.data(), num_participating, &beta, jmy.data(), num_modes);
+    ma_handle,
+    CUBLAS_OP_N,
+    CUBLAS_OP_N,
+    num_modes,
+    3,
+    num_participating,
+    &alpha,
+    eigy.data(),
+    num_modes,
+    smy.data(),
+    num_participating,
+    &beta,
+    jmy.data(),
+    num_modes);
   cublasSgemm(
-    ma_handle, CUBLAS_OP_N, CUBLAS_OP_N, num_modes, 3, num_participating, &alpha, eigz.data(),
-    num_modes, smz.data(), num_participating, &beta, jmz.data(), num_modes);
+    ma_handle,
+    CUBLAS_OP_N,
+    CUBLAS_OP_N,
+    num_modes,
+    3,
+    num_participating,
+    &alpha,
+    eigz.data(),
+    num_modes,
+    smz.data(),
+    num_participating,
+    &beta,
+    jmz.data(),
+    num_modes);
 
   // calculate modal heat current
   cublasSdgmm(
-    ma_handle, CUBLAS_SIDE_LEFT, num_modes, 3, jmx.data(), num_modes, xdotx.data(), stride,
-    jmx.data(), num_modes);
+    ma_handle,
+    CUBLAS_SIDE_LEFT,
+    num_modes,
+    3,
+    jmx.data(),
+    num_modes,
+    xdotx.data(),
+    stride,
+    jmx.data(),
+    num_modes);
   cublasSdgmm(
-    ma_handle, CUBLAS_SIDE_LEFT, num_modes, 3, jmy.data(), num_modes, xdoty.data(), stride,
-    jmy.data(), num_modes);
+    ma_handle,
+    CUBLAS_SIDE_LEFT,
+    num_modes,
+    3,
+    jmy.data(),
+    num_modes,
+    xdoty.data(),
+    stride,
+    jmy.data(),
+    num_modes);
   cublasSdgmm(
-    ma_handle, CUBLAS_SIDE_LEFT, num_modes, 3, jmz.data(), num_modes, xdotz.data(), stride,
-    jmz.data(), num_modes);
+    ma_handle,
+    CUBLAS_SIDE_LEFT,
+    num_modes,
+    3,
+    jmz.data(),
+    num_modes,
+    xdotz.data(),
+    stride,
+    jmz.data(),
+    num_modes);
 
   // Prepare modal heat current for jxi, jxo, jyi, jyo, jz format
   grid_size = (num_modes - 1) / BLOCK_SIZE + 1;
@@ -477,8 +582,13 @@ void MODAL_ANALYSIS::process(
   FILE* fid = fopen(output_file_position, "a");
   for (int i = 0; i < num_bins; i++) {
     fprintf(
-      fid, "%g %g %g %g %g\n", bin_out[i], bin_out[i + num_bins], bin_out[i + 2 * num_bins],
-      bin_out[i + 3 * num_bins], bin_out[i + 4 * num_bins]);
+      fid,
+      "%g %g %g %g %g\n",
+      bin_out[i],
+      bin_out[i + num_bins],
+      bin_out[i + 2 * num_bins],
+      bin_out[i + 3 * num_bins],
+      bin_out[i + 4 * num_bins]);
   }
   fflush(fid);
   fclose(fid);

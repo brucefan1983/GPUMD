@@ -173,7 +173,8 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
           tokens[n + m].substr(
             (m == 0) ? (lattice_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__, __LINE__);
+          __FILE__,
+          __LINE__);
       }
       change_box(para, structure);
     }
@@ -193,7 +194,8 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
           tokens[n + m].substr(
             (m == 0) ? (virial_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__, __LINE__);
+          __FILE__,
+          __LINE__);
         structure.virial[reduced_index[m]] /= structure.num_atom;
       }
     }
@@ -212,7 +214,8 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
           tokens[n + m].substr(
             (m == 0) ? (stress_string.length() + 1) : 0,
             (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-          __FILE__, __LINE__);
+          __FILE__,
+          __LINE__);
         virials_from_stress[reduced_index[m]] *= -volume / structure.num_atom;
       }
     }
@@ -259,7 +262,8 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
             tokens[n + m].substr(
               (m == 0) ? (dipole_string.length() + 1) : 0,
               (m == 2) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            __FILE__, __LINE__);
+            __FILE__,
+            __LINE__);
           structure.virial[m] /= structure.num_atom;
         }
       }
@@ -288,7 +292,8 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
             tokens[n + m].substr(
               (m == 0) ? (pol_string.length() + 1) : 0,
               (m == 8) ? (tokens[n + m].length() - 1) : tokens[n + m].length()),
-            __FILE__, __LINE__);
+            __FILE__,
+            __LINE__);
           structure.virial[reduced_index[m]] /= structure.num_atom;
         }
       }

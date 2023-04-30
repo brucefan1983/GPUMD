@@ -38,7 +38,12 @@ void Ensemble_NVE::compute1(
   GPU_Vector<double>& thermo)
 {
   velocity_verlet(
-    true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+    true,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
     atom.velocity_per_atom);
 }
 
@@ -50,10 +55,21 @@ void Ensemble_NVE::compute2(
   GPU_Vector<double>& thermo)
 {
   velocity_verlet(
-    false, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+    false,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
     atom.velocity_per_atom);
 
   find_thermo(
-    false, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
-    atom.virial_per_atom, thermo);
+    false,
+    box.get_volume(),
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    thermo);
 }

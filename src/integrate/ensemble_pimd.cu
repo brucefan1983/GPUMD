@@ -558,8 +558,16 @@ void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
 {
   if (thermostat_internal) {
     gpu_langevin<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-      thermostat_centroid, number_of_atoms, number_of_beads, curand_states.data(), temperature,
-      temperature_coupling, omega_n, time_step, transformation_matrix.data(), atom.mass.data(),
+      thermostat_centroid,
+      number_of_atoms,
+      number_of_beads,
+      curand_states.data(),
+      temperature,
+      temperature_coupling,
+      omega_n,
+      time_step,
+      transformation_matrix.data(),
+      atom.mass.data(),
       velocity_beads.data());
     CUDA_CHECK_KERNEL
 
@@ -589,8 +597,15 @@ void Ensemble_PIMD::compute1(
   CUDA_CHECK_KERNEL
 
   gpu_nve_1<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, omega_n, time_step, transformation_matrix.data(),
-    atom.mass.data(), force_beads.data(), position_beads.data(), velocity_beads.data());
+    number_of_atoms,
+    number_of_beads,
+    omega_n,
+    time_step,
+    transformation_matrix.data(),
+    atom.mass.data(),
+    force_beads.data(),
+    position_beads.data(),
+    velocity_beads.data());
   CUDA_CHECK_KERNEL
 }
 
@@ -604,7 +619,11 @@ void Ensemble_PIMD::compute2(
   omega_n = number_of_beads * K_B * temperature / HBAR;
 
   gpu_nve_2<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, time_step, atom.mass.data(), force_beads.data(),
+    number_of_atoms,
+    number_of_beads,
+    time_step,
+    atom.mass.data(),
+    force_beads.data(),
     velocity_beads.data());
   CUDA_CHECK_KERNEL
 
@@ -615,20 +634,37 @@ void Ensemble_PIMD::compute2(
   CUDA_CHECK_KERNEL
 
   gpu_average<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms, number_of_beads, position_beads.data(), velocity_beads.data(),
-    potential_beads.data(), force_beads.data(), virial_beads.data(), atom.position_per_atom.data(),
-    atom.velocity_per_atom.data(), atom.potential_per_atom.data(), atom.force_per_atom.data(),
+    number_of_atoms,
+    number_of_beads,
+    position_beads.data(),
+    velocity_beads.data(),
+    potential_beads.data(),
+    force_beads.data(),
+    virial_beads.data(),
+    atom.position_per_atom.data(),
+    atom.velocity_per_atom.data(),
+    atom.potential_per_atom.data(),
+    atom.force_per_atom.data(),
     atom.virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   gpu_find_kinetic_energy_virial_part<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    box, number_of_atoms, number_of_beads, position_beads.data(), force_beads.data(),
-    atom.position_per_atom.data(), kinetic_energy_virial_part.data(), atom.virial_per_atom.data());
+    box,
+    number_of_atoms,
+    number_of_beads,
+    position_beads.data(),
+    force_beads.data(),
+    atom.position_per_atom.data(),
+    kinetic_energy_virial_part.data(),
+    atom.virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
   gpu_find_sum_1024<<<1024, 128>>>(
-    number_of_atoms, kinetic_energy_virial_part.data(), atom.potential_per_atom.data(),
-    atom.virial_per_atom.data(), sum_1024.data());
+    number_of_atoms,
+    kinetic_energy_virial_part.data(),
+    atom.potential_per_atom.data(),
+    atom.virial_per_atom.data(),
+    sum_1024.data());
   CUDA_CHECK_KERNEL
 
   gpu_find_thermo<<<8, 1024>>>(

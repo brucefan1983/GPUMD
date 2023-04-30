@@ -244,8 +244,18 @@ void Dataset::find_neighbor(Parameters& para)
   float rc2_angular = para.rc_angular * para.rc_angular;
 
   gpu_find_neighbor_number<<<Nc, 256>>>(
-    N, Na.data(), Na_sum.data(), rc2_radial, rc2_angular, box.data(), box_original.data(),
-    num_cell.data(), r.data(), r.data() + N, r.data() + N * 2, NN_radial_gpu.data(),
+    N,
+    Na.data(),
+    Na_sum.data(),
+    rc2_radial,
+    rc2_angular,
+    box.data(),
+    box_original.data(),
+    num_cell.data(),
+    r.data(),
+    r.data() + N,
+    r.data() + N * 2,
+    NN_radial_gpu.data(),
     NN_angular_gpu.data());
   CUDA_CHECK_KERNEL
 
@@ -361,9 +371,19 @@ std::vector<float> Dataset::get_rmse_force(Parameters& para, const bool use_weig
   CHECK(cudaSetDevice(device_id));
   const int block_size = 256;
   gpu_sum_force_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    use_weight, para.force_delta, Na.data(), Na_sum.data(), type.data(), type_weight_gpu.data(),
-    force.data(), force.data() + N, force.data() + N * 2, force_ref_gpu.data(),
-    force_ref_gpu.data() + N, force_ref_gpu.data() + N * 2, error_gpu.data());
+    use_weight,
+    para.force_delta,
+    Na.data(),
+    Na_sum.data(),
+    type.data(),
+    type_weight_gpu.data(),
+    force.data(),
+    force.data() + N,
+    force.data() + N * 2,
+    force_ref_gpu.data(),
+    force_ref_gpu.data() + N,
+    force_ref_gpu.data() + N * 2,
+    error_gpu.data());
   int mem = sizeof(float) * Nc;
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
 
@@ -483,7 +503,11 @@ std::vector<float> Dataset::get_rmse_energy(
   }
 
   gpu_sum_pe_error<<<Nc, block_size, sizeof(float) * block_size>>>(
-    energy_shift_per_structure, Na.data(), Na_sum.data(), energy.data(), energy_ref_gpu.data(),
+    energy_shift_per_structure,
+    Na.data(),
+    Na_sum.data(),
+    energy.data(),
+    energy_ref_gpu.data(),
     error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
 
@@ -573,7 +597,12 @@ std::vector<float> Dataset::get_rmse_virial(Parameters& para, const bool use_wei
   float shear_weight =
     (para.train_mode != 1) ? (use_weight ? para.lambda_shear * para.lambda_shear : 1.0f) : 0.0f;
   gpu_sum_virial_error<<<Nc, block_size, sizeof(float) * block_size * 6>>>(
-    N, shear_weight, Na.data(), Na_sum.data(), virial.data(), virial_ref_gpu.data(),
+    N,
+    shear_weight,
+    Na.data(),
+    Na_sum.data(),
+    virial.data(),
+    virial_ref_gpu.data(),
     error_gpu.data());
   CHECK(cudaMemcpy(error_cpu.data(), error_gpu.data(), mem, cudaMemcpyDeviceToHost));
   for (int n = 0; n < Nc; ++n) {

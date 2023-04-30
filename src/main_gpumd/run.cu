@@ -80,8 +80,12 @@ static void calculate_time_step(
   double* gpu_v2_max;
   CHECK(cudaGetSymbolAddress((void**)&gpu_v2_max, device_v2_max));
   gpu_find_largest_v2<<<1, 1024>>>(
-    N, (N - 1) / 1024 + 1, velocity_per_atom.data(), velocity_per_atom.data() + N,
-    velocity_per_atom.data() + N * 2, gpu_v2_max);
+    N,
+    (N - 1) / 1024 + 1,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + N,
+    velocity_per_atom.data() + N * 2,
+    gpu_v2_max);
   CUDA_CHECK_KERNEL
   double cpu_v2_max[1] = {0.0};
   CHECK(cudaMemcpy(cpu_v2_max, gpu_v2_max, sizeof(double), cudaMemcpyDeviceToHost));
@@ -175,13 +179,27 @@ void Run::perform_a_run()
     if (integrate.type >= 31) { // PIMD
       for (int k = 0; k < integrate.number_of_beads; ++k) {
         force.compute(
-          box, atom.position_beads[k], atom.type, group, atom.potential_beads[k],
-          atom.force_beads[k], atom.virial_beads[k], atom.velocity_beads[k], atom.mass);
+          box,
+          atom.position_beads[k],
+          atom.type,
+          group,
+          atom.potential_beads[k],
+          atom.force_beads[k],
+          atom.virial_beads[k],
+          atom.velocity_beads[k],
+          atom.mass);
       }
     } else {
       force.compute(
-        box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
-        atom.virial_per_atom, atom.velocity_per_atom, atom.mass);
+        box,
+        atom.position_per_atom,
+        atom.type,
+        group,
+        atom.potential_per_atom,
+        atom.force_per_atom,
+        atom.virial_per_atom,
+        atom.velocity_per_atom,
+        atom.mass);
     }
 
 #ifdef USE_PLUMED
@@ -194,12 +212,26 @@ void Run::perform_a_run()
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     measure.process(
-      number_of_steps, step, integrate.fixed_group, integrate.move_group, global_time,
-      integrate.temperature2, integrate, box, group, thermo, atom, force);
+      number_of_steps,
+      step,
+      integrate.fixed_group,
+      integrate.move_group,
+      global_time,
+      integrate.temperature2,
+      integrate,
+      box,
+      group,
+      thermo,
+      atom,
+      force);
 
     velocity.correct_velocity(
-      step, atom.cpu_mass, atom.position_per_atom, atom.cpu_position_per_atom,
-      atom.cpu_velocity_per_atom, atom.velocity_per_atom);
+      step,
+      atom.cpu_mass,
+      atom.position_per_atom,
+      atom.cpu_position_per_atom,
+      atom.cpu_velocity_per_atom,
+      atom.velocity_per_atom);
 
     int base = (10 <= number_of_steps) ? (number_of_steps / 10) : 1;
     if (0 == (step + 1) % base) {
@@ -237,26 +269,53 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(
-      param, num_param, force, box, atom.position_per_atom, atom.type, group,
-      atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      param,
+      num_param,
+      force,
+      box,
+      atom.position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom);
   } else if (strcmp(param[0], "compute_phonon") == 0) {
     Hessian hessian;
     hessian.parse(param, num_param);
     hessian.compute(
-      force, box, atom.cpu_position_per_atom, atom.position_per_atom, atom.type, group,
-      atom.potential_per_atom, atom.force_per_atom, atom.virial_per_atom);
+      force,
+      box,
+      atom.cpu_position_per_atom,
+      atom.position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom);
   } else if (strcmp(param[0], "compute_cohesive") == 0) {
     Cohesive cohesive;
     cohesive.parse(param, num_param, 0);
     cohesive.compute(
-      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
-      atom.virial_per_atom, force);
+      box,
+      atom.position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      force);
   } else if (strcmp(param[0], "compute_elastic") == 0) {
     Cohesive cohesive;
     cohesive.parse(param, num_param, 1);
     cohesive.compute(
-      box, atom.position_per_atom, atom.type, group, atom.potential_per_atom, atom.force_per_atom,
-      atom.virial_per_atom, force);
+      box,
+      atom.position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      force);
   } else if (strcmp(param[0], "change_box") == 0) {
     parse_change_box(param, num_param);
   } else if (strcmp(param[0], "velocity") == 0) {
@@ -342,8 +401,12 @@ void Run::parse_velocity(const char** param, int num_param)
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
   }
   velocity.initialize(
-    has_velocity_in_xyz, initial_temperature, atom.cpu_mass, atom.cpu_position_per_atom,
-    atom.cpu_velocity_per_atom, atom.velocity_per_atom);
+    has_velocity_in_xyz,
+    initial_temperature,
+    atom.cpu_mass,
+    atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom,
+    atom.velocity_per_atom);
 }
 
 void Run::parse_correct_velocity(const char** param, int num_param)
@@ -402,8 +465,14 @@ void Run::parse_run(const char** param, int num_param)
         "compute for HNEMDEC should be an integer number between 0 and number_of_types.\n");
     }
     force.set_hnemdec_parameters(
-      measure.hnemdec.compute, measure.hnemdec.fe_x, measure.hnemdec.fe_y, measure.hnemdec.fe_z,
-      atom.cpu_mass, atom.cpu_type, atom.cpu_type_size, integrate.temperature2);
+      measure.hnemdec.compute,
+      measure.hnemdec.fe_x,
+      measure.hnemdec.fe_y,
+      measure.hnemdec.fe_z,
+      atom.cpu_mass,
+      atom.cpu_type,
+      atom.cpu_type_size,
+      integrate.temperature2);
   }
 
   perform_a_run();
@@ -542,10 +611,18 @@ void Run::parse_change_box(const char** param, int num_param)
 
   const int number_of_atoms = atom.position_per_atom.size() / 3;
   gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, deformation_matrix[0][0], deformation_matrix[0][1], deformation_matrix[0][2],
-    deformation_matrix[1][0], deformation_matrix[1][1], deformation_matrix[1][2],
-    deformation_matrix[2][0], deformation_matrix[2][1], deformation_matrix[2][2],
-    atom.position_per_atom.data(), atom.position_per_atom.data() + number_of_atoms,
+    number_of_atoms,
+    deformation_matrix[0][0],
+    deformation_matrix[0][1],
+    deformation_matrix[0][2],
+    deformation_matrix[1][0],
+    deformation_matrix[1][1],
+    deformation_matrix[1][2],
+    deformation_matrix[2][0],
+    deformation_matrix[2][1],
+    deformation_matrix[2][2],
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + number_of_atoms,
     atom.position_per_atom.data() + number_of_atoms * 2);
   CUDA_CHECK_KERNEL
 

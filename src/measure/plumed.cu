@@ -215,8 +215,13 @@ void PLUMED::process(
   cpu_v_factor[8] = (tmp[2] - cpu_v_vector[8]) / tmp[2];
   gpu_v_factor.copy_from_host(cpu_v_factor.data());
   gpu_scale_virial<<<(n_atom - 1) / 128 + 1, 128>>>(
-    n_atom, gpu_v_factor.data(), virial.data() + n_atom * 0, virial.data() + n_atom * 1,
-    virial.data() + n_atom * 2, virial.data() + n_atom * 3, virial.data() + n_atom * 4,
+    n_atom,
+    gpu_v_factor.data(),
+    virial.data() + n_atom * 0,
+    virial.data() + n_atom * 1,
+    virial.data() + n_atom * 2,
+    virial.data() + n_atom * 3,
+    virial.data() + n_atom * 4,
     virial.data() + n_atom * 5);
   CUDA_CHECK_KERNEL
 }

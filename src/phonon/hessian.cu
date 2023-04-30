@@ -41,8 +41,15 @@ void Hessian::compute(
 {
   initialize(type.size());
   find_H(
-    force, box, cpu_position_per_atom, position_per_atom, type, group, potential_per_atom,
-    force_per_atom, virial_per_atom);
+    force,
+    box,
+    cpu_position_per_atom,
+    position_per_atom,
+    type,
+    group,
+    potential_per_atom,
+    force_per_atom,
+    virial_per_atom);
 
   if (num_kpoints == 1) // currently for Alex's GKMA calculations
   {
@@ -141,8 +148,18 @@ void Hessian::find_H(
       }
       size_t offset = (nb * number_of_atoms + n2) * 9;
       find_H12(
-        displacement, n1, n2, box, position_per_atom, type, group, potential_per_atom,
-        force_per_atom, virial_per_atom, force, H.data() + offset);
+        displacement,
+        n1,
+        n2,
+        box,
+        position_per_atom,
+        type,
+        group,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom,
+        force,
+        H.data() + offset);
     }
   }
 }

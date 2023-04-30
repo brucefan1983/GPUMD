@@ -74,9 +74,14 @@ void Cohesive::deform_box(
   }
 
   deform_position<<<(N - 1) / 128 + 1, 128>>>(
-    N, cpu_d, position_per_atom.data(), position_per_atom.data() + N,
-    position_per_atom.data() + N * 2, new_position_per_atom.data(),
-    new_position_per_atom.data() + N, new_position_per_atom.data() + N * 2);
+    N,
+    cpu_d,
+    position_per_atom.data(),
+    position_per_atom.data() + N,
+    position_per_atom.data() + N * 2,
+    new_position_per_atom.data(),
+    new_position_per_atom.data() + N,
+    new_position_per_atom.data() + N * 2);
 }
 
 void Cohesive::parse(const char** param, int num_param, int type)
@@ -248,7 +253,13 @@ void Cohesive::compute(
 
     Minimizer_SD minimizer(num_atoms, 1000, 1.0e-5);
     minimizer.compute(
-      force, new_box, new_position_per_atom, type, group, potential_per_atom, force_per_atom,
+      force,
+      new_box,
+      new_position_per_atom,
+      type,
+      group,
+      potential_per_atom,
+      force_per_atom,
       virial_per_atom);
 
     potential_per_atom.copy_to_host(cpu_potential_per_atom.data());

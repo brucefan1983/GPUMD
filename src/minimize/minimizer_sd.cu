@@ -71,11 +71,19 @@ void Minimizer_SD::compute(
 
     const int size = number_of_atoms_ * 3;
     update_positions<<<(size - 1) / 128 + 1, 128>>>(
-      size, position_step / force_max, force_per_atom.data(), position_per_atom.data(),
+      size,
+      position_step / force_max,
+      force_per_atom.data(),
+      position_per_atom.data(),
       position_per_atom_temp_.data());
 
     force.compute(
-      box, position_per_atom_temp_, type, group, potential_per_atom_temp_, force_per_atom_temp_,
+      box,
+      position_per_atom_temp_,
+      type,
+      group,
+      potential_per_atom_temp_,
+      force_per_atom_temp_,
       virial_per_atom);
 
     ++number_of_force_evaluations;
@@ -99,13 +107,16 @@ void Minimizer_SD::compute(
 
     if (step == 0) {
       printf(
-        "    step 0: total_potential = %.10f eV, f_max = %.10f eV/A.\n", total_potential_smaller,
+        "    step 0: total_potential = %.10f eV, f_max = %.10f eV/A.\n",
+        total_potential_smaller,
         force_max);
     }
     if ((step + 1) % base == 0) {
       printf(
-        "    step %d: total_potential = %.10f eV, f_max = %.10f eV/A.\n", step + 1,
-        total_potential_smaller, force_max);
+        "    step %d: total_potential = %.10f eV, f_max = %.10f eV/A.\n",
+        step + 1,
+        total_potential_smaller,
+        force_max);
     }
   }
 
