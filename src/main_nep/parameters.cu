@@ -229,14 +229,20 @@ void Parameters::report_inputs()
   if (is_type_weight_set) {
     for (int n = 0; n < num_types; ++n) {
       printf(
-        "        (input)   type %d (%s with Z = %d) has force weight of %g.\n", n,
-        elements[n].c_str(), atomic_numbers[n], type_weight_cpu[n]);
+        "        (input)   type %d (%s with Z = %d) has force weight of %g.\n",
+        n,
+        elements[n].c_str(),
+        atomic_numbers[n],
+        type_weight_cpu[n]);
     }
   } else {
     for (int n = 0; n < num_types; ++n) {
       printf(
-        "        (default) type %d (%s with Z = %d) has force weight of %g.\n", n,
-        elements[n].c_str(), atomic_numbers[n], type_weight_cpu[n]);
+        "        (default) type %d (%s with Z = %d) has force weight of %g.\n",
+        n,
+        elements[n].c_str(),
+        atomic_numbers[n],
+        type_weight_cpu[n]);
     }
   }
 
@@ -247,7 +253,8 @@ void Parameters::report_inputs()
       printf(
         "    (input)   will add the universal ZBL potential with outer cutoff %g A and inner "
         "cutoff %g A.\n",
-        zbl_rc_outer, zbl_rc_inner);
+        zbl_rc_outer,
+        zbl_rc_inner);
     }
   } else {
     printf("    (default) will not add the ZBL potential.\n");

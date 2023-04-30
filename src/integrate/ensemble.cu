@@ -147,19 +147,40 @@ void Ensemble::velocity_verlet(
 
   if (fixed_group == -1) {
     gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      is_step1, number_of_atoms, time_step, mass.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+      is_step1,
+      number_of_atoms,
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
   } else {
     gpu_velocity_verlet<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      is_step1, number_of_atoms, fixed_group, move_group, move_velocity[0], move_velocity[1],
-      move_velocity[2], group[0].label.data(), time_step, mass.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+      is_step1,
+      number_of_atoms,
+      fixed_group,
+      move_group,
+      move_velocity[0],
+      move_velocity[1],
+      move_velocity[2],
+      group[0].label.data(),
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
   }
   CUDA_CHECK_KERNEL
 }
@@ -568,21 +589,39 @@ void Ensemble::find_thermo(
 
   if (use_target_temperature) {
     gpu_find_thermo_target_temperature<<<8, 1024>>>(
-      number_of_atoms, num_atoms_for_temperature, temperature, volume, mass.data(),
-      potential_per_atom.data(), velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-      virial_per_atom.data(), virial_per_atom.data() + number_of_atoms,
-      virial_per_atom.data() + number_of_atoms * 2, virial_per_atom.data() + number_of_atoms * 3,
-      virial_per_atom.data() + number_of_atoms * 4, virial_per_atom.data() + number_of_atoms * 5,
+      number_of_atoms,
+      num_atoms_for_temperature,
+      temperature,
+      volume,
+      mass.data(),
+      potential_per_atom.data(),
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      virial_per_atom.data(),
+      virial_per_atom.data() + number_of_atoms,
+      virial_per_atom.data() + number_of_atoms * 2,
+      virial_per_atom.data() + number_of_atoms * 3,
+      virial_per_atom.data() + number_of_atoms * 4,
+      virial_per_atom.data() + number_of_atoms * 5,
       thermo.data());
   } else {
     gpu_find_thermo_instant_temperature<<<8, 1024>>>(
-      number_of_atoms, num_atoms_for_temperature, temperature, volume, mass.data(),
-      potential_per_atom.data(), velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-      virial_per_atom.data(), virial_per_atom.data() + number_of_atoms,
-      virial_per_atom.data() + number_of_atoms * 2, virial_per_atom.data() + number_of_atoms * 3,
-      virial_per_atom.data() + number_of_atoms * 4, virial_per_atom.data() + number_of_atoms * 5,
+      number_of_atoms,
+      num_atoms_for_temperature,
+      temperature,
+      volume,
+      mass.data(),
+      potential_per_atom.data(),
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      virial_per_atom.data(),
+      virial_per_atom.data() + number_of_atoms,
+      virial_per_atom.data() + number_of_atoms * 2,
+      virial_per_atom.data() + number_of_atoms * 3,
+      virial_per_atom.data() + number_of_atoms * 4,
+      virial_per_atom.data() + number_of_atoms * 5,
       thermo.data());
   }
 
@@ -606,7 +645,10 @@ void Ensemble::scale_velocity_global(const double factor, GPU_Vector<double>& ve
 {
   const int number_of_atoms = velocity_per_atom.size() / 3;
   gpu_scale_velocity<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, factor, velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    number_of_atoms,
+    factor,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 }
@@ -702,9 +744,17 @@ void Ensemble::find_vc_and_ke(
   const int number_of_atoms = mass.size();
 
   gpu_find_vc_and_ke<<<group[0].number, 512>>>(
-    group[0].size.data(), group[0].size_sum.data(), group[0].contents.data(), mass.data(),
-    velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms, vcx, vcy, vcz, ke);
+    group[0].size.data(),
+    group[0].size_sum.data(),
+    group[0].contents.data(),
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    vcx,
+    vcy,
+    vcz,
+    ke);
   CUDA_CHECK_KERNEL
 }
 
@@ -768,8 +818,18 @@ void Ensemble::scale_velocity_local(
   const int number_of_atoms = velocity_per_atom.size() / 3;
 
   gpu_scale_velocity<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, source, sink, group[0].label.data(), factor_1, factor_2, vcx, vcy, vcz, ke,
-    velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    number_of_atoms,
+    source,
+    sink,
+    group[0].label.data(),
+    factor_1,
+    factor_2,
+    vcx,
+    vcy,
+    vcz,
+    ke,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 }

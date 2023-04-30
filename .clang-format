@@ -2,6 +2,7 @@ BasedOnStyle: LLVM
 AlignAfterOpenBracket: AlwaysBreak
 AlwaysBreakTemplateDeclarations: Yes
 BinPackParameters: false
+BinPackArguments: false
 BreakBeforeBraces: Linux
 ColumnLimit: 100
 ConstructorInitializerAllOnOneLineOrOnePerLine: true

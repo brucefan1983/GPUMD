@@ -110,27 +110,60 @@ void Measure::process(
   int number_of_atoms_fixed = (fixed_group < 0) ? 0 : group[0].cpu_size[fixed_group];
   number_of_atoms_fixed += (move_group < 0) ? 0 : group[0].cpu_size[move_group];
   dump_thermo.process(
-    integrate.type >= 31, integrate.ensemble->temperature, step, number_of_atoms,
-    number_of_atoms_fixed, box, thermo);
+    integrate.type >= 31,
+    integrate.ensemble->temperature,
+    step,
+    number_of_atoms,
+    number_of_atoms_fixed,
+    box,
+    thermo);
   dump_position.process(
-    step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
+    step,
+    box,
+    group,
+    atom.cpu_atom_symbol,
+    atom.cpu_type,
+    atom.position_per_atom,
     atom.cpu_position_per_atom);
   dump_velocity.process(step, group, atom.velocity_per_atom, atom.cpu_velocity_per_atom);
   dump_restart.process(
-    step, box, group, atom.cpu_atom_symbol, atom.cpu_type, atom.cpu_mass, atom.position_per_atom,
-    atom.velocity_per_atom, atom.cpu_position_per_atom, atom.cpu_velocity_per_atom);
+    step,
+    box,
+    group,
+    atom.cpu_atom_symbol,
+    atom.cpu_type,
+    atom.cpu_mass,
+    atom.position_per_atom,
+    atom.velocity_per_atom,
+    atom.cpu_position_per_atom,
+    atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
   dump_exyz.process(
-    step, global_time, box, atom.cpu_atom_symbol, atom.cpu_type, atom.position_per_atom,
-    atom.cpu_position_per_atom, atom.velocity_per_atom, atom.cpu_velocity_per_atom,
-    atom.force_per_atom, atom.virial_per_atom, thermo);
+    step,
+    global_time,
+    box,
+    atom.cpu_atom_symbol,
+    atom.cpu_type,
+    atom.position_per_atom,
+    atom.cpu_position_per_atom,
+    atom.velocity_per_atom,
+    atom.cpu_velocity_per_atom,
+    atom.force_per_atom,
+    atom.virial_per_atom,
+    thermo);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
 
   compute.process(
-    step, integrate.ensemble->energy_transferred, group, atom.mass, atom.potential_per_atom,
-    atom.force_per_atom, atom.velocity_per_atom, atom.virial_per_atom);
+    step,
+    integrate.ensemble->energy_transferred,
+    group,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.force_per_atom,
+    atom.velocity_per_atom,
+    atom.virial_per_atom);
   dos.process(step, group, atom.velocity_per_atom);
   sdc.process(step, group, atom.velocity_per_atom);
   msd.process(step, group, atom.unwrapped_position);
@@ -139,11 +172,22 @@ void Measure::process(
   viscosity.process(number_of_steps, step, atom.mass, atom.velocity_per_atom, atom.virial_per_atom);
   shc.process(step, group, atom.velocity_per_atom, atom.virial_per_atom);
   hnemd.process(
-    step, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom,
+    step,
+    temperature,
+    box.get_volume(),
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
     atom.heat_per_atom);
   hnemdec.process(
-    step, temperature, box.get_volume(), atom.velocity_per_atom, atom.virial_per_atom, atom.type,
-    atom.mass, atom.potential_per_atom, atom.heat_per_atom);
+    step,
+    temperature,
+    box.get_volume(),
+    atom.velocity_per_atom,
+    atom.virial_per_atom,
+    atom.type,
+    atom.mass,
+    atom.potential_per_atom,
+    atom.heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 #ifdef USE_NETCDF
@@ -212,7 +256,9 @@ void Measure::parse_compute_gkma(const char** param, int num_param, const int nu
     "    sample_interval is %d.\n"
     "    first_mode is %d.\n"
     "    last_mode is %d.\n",
-    g->sample_interval, g->first_mode, g->last_mode);
+    g->sample_interval,
+    g->first_mode,
+    g->last_mode);
 
   if (g->f_flag) {
     if (g->f_bin_size <= 0.0) {
@@ -255,7 +301,8 @@ void Measure::parse_compute_gkma(const char** param, int num_param, const int nu
     printf(
       "    Use select atom range.\n"
       "    Atom types %d to %d.\n",
-      modal_analysis.atom_begin, modal_analysis.atom_end);
+      modal_analysis.atom_begin,
+      modal_analysis.atom_end);
   } else // default behavior
   {
     modal_analysis.atom_begin = 0;
@@ -347,7 +394,10 @@ void Measure::parse_compute_hnema(const char** param, int num_param, const int n
     "    output_interval is %d.\n"
     "    first_mode is %d.\n"
     "    last_mode is %d.\n",
-    h->sample_interval, h->output_interval, h->first_mode, h->last_mode);
+    h->sample_interval,
+    h->output_interval,
+    h->first_mode,
+    h->last_mode);
 
   if (h->f_flag) {
     if (h->f_bin_size <= 0.0) {
@@ -390,7 +440,8 @@ void Measure::parse_compute_hnema(const char** param, int num_param, const int n
     printf(
       "    Use select atom range.\n"
       "    Atom types %d to %d.\n",
-      modal_analysis.atom_begin, modal_analysis.atom_end);
+      modal_analysis.atom_begin,
+      modal_analysis.atom_end);
   } else // default behavior
   {
     modal_analysis.atom_begin = 0;

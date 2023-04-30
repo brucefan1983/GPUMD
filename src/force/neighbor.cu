@@ -197,8 +197,18 @@ void find_cell_list(
   CHECK(cudaMemset(cell_count.data(), 0, sizeof(int) * N_cells));
 
   find_cell_contents<<<grid_size, block_size>>>(
-    box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
-    num_bins[1], num_bins[2], rc_inv);
+    box,
+    N,
+    cell_count.data(),
+    cell_count_sum.data(),
+    cell_contents.data(),
+    x,
+    y,
+    z,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv);
   CUDA_CHECK_KERNEL
 }
 
@@ -253,7 +263,9 @@ void find_cell_list(
   CUDA_CHECK_KERNEL
 
   thrust::exclusive_scan(
-    thrust::cuda::par.on(stream), cell_count.data(), cell_count.data() + N_cells,
+    thrust::cuda::par.on(stream),
+    cell_count.data(),
+    cell_count.data() + N_cells,
     cell_count_sum.data());
 
   set_to_zero<<<(cell_count.size() - 1) / 64 + 1, 64, 0, stream>>>(
@@ -261,8 +273,18 @@ void find_cell_list(
   CUDA_CHECK_KERNEL
 
   find_cell_contents<<<grid_size, block_size, 0, stream>>>(
-    box, N, cell_count.data(), cell_count_sum.data(), cell_contents.data(), x, y, z, num_bins[0],
-    num_bins[1], num_bins[2], rc_inv);
+    box,
+    N,
+    cell_count.data(),
+    cell_count_sum.data(),
+    cell_contents.data(),
+    x,
+    y,
+    z,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv);
   CUDA_CHECK_KERNEL
 }
 
@@ -295,8 +317,23 @@ void find_neighbor(
     rc_cell_list, num_bins, box, position_per_atom, cell_count, cell_count_sum, cell_contents);
 
   gpu_find_neighbor_ON1<<<grid_size, block_size>>>(
-    box, N, N1, N2, type.data(), cell_count.data(), cell_count_sum.data(), cell_contents.data(),
-    NN.data(), NL.data(), x, y, z, num_bins[0], num_bins[1], num_bins[2], rc_inv_cell_list,
+    box,
+    N,
+    N1,
+    N2,
+    type.data(),
+    cell_count.data(),
+    cell_count_sum.data(),
+    cell_contents.data(),
+    NN.data(),
+    NL.data(),
+    x,
+    y,
+    z,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    rc_inv_cell_list,
     rc * rc);
   CUDA_CHECK_KERNEL
 

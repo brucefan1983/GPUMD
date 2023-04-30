@@ -177,13 +177,26 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
     if (para.train_mode == 0) {
       printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss",
-        "L2Reg-Loss", "RMSE-E-Train", "RMSE-F-Train", "RMSE-V-Train", "RMSE-E-Test", "RMSE-F-Test",
+        "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
+        "Step",
+        "Total-Loss",
+        "L1Reg-Loss",
+        "L2Reg-Loss",
+        "RMSE-E-Train",
+        "RMSE-F-Train",
+        "RMSE-V-Train",
+        "RMSE-E-Test",
+        "RMSE-F-Test",
         "RMSE-V-Test");
     } else {
       printf(
-        "%-8s%-11s%-11s%-11s%-13s%-13s\n", "Step", "Total-Loss", "L1Reg-Loss", "L2Reg-Loss",
-        "RMSE-P-Train", "RMSE-P-Test");
+        "%-8s%-11s%-11s%-11s%-13s%-13s\n",
+        "Step",
+        "Total-Loss",
+        "L1Reg-Loss",
+        "L2Reg-Loss",
+        "RMSE-P-Train",
+        "RMSE-P-Test");
     }
   }
 
@@ -200,7 +213,11 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       float fitness_L1 = fitness[best_index + (6 * para.num_types + 1) * population_size];
       float fitness_L2 = fitness[best_index + (6 * para.num_types + 2) * population_size];
       fitness_function->report_error(
-        para, n, fitness_total, fitness_L1, fitness_L2,
+        para,
+        n,
+        fitness_total,
+        fitness_L1,
+        fitness_L2,
         population.data() + number_of_variables * best_index);
 
       update_mu_and_sigma();
@@ -316,7 +333,8 @@ void SNES::sort_population(Parameters& para)
     }
 
     insertion_sort(
-      fitness.data() + t * population_size * 6, index.data() + t * population_size,
+      fitness.data() + t * population_size * 6,
+      index.data() + t * population_size,
       population_size);
   }
 }

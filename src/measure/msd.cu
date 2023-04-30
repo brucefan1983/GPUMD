@@ -163,15 +163,25 @@ void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Ve
   // copy the position data at the current step to appropriate place
   if (grouping_method_ < 0) {
     gpu_copy_position<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
-      num_atoms_, xyz.data(), xyz.data() + number_of_atoms_total,
-      xyz.data() + 2 * number_of_atoms_total, x_.data() + step_offset, y_.data() + step_offset,
+      num_atoms_,
+      xyz.data(),
+      xyz.data() + number_of_atoms_total,
+      xyz.data() + 2 * number_of_atoms_total,
+      x_.data() + step_offset,
+      y_.data() + step_offset,
       z_.data() + step_offset);
   } else {
     const int group_offset = groups[grouping_method_].cpu_size_sum[group_id_];
     gpu_copy_position<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
-      num_atoms_, group_offset, groups[grouping_method_].contents.data(), xyz.data(),
-      xyz.data() + number_of_atoms_total, xyz.data() + 2 * number_of_atoms_total,
-      x_.data() + step_offset, y_.data() + step_offset, z_.data() + step_offset);
+      num_atoms_,
+      group_offset,
+      groups[grouping_method_].contents.data(),
+      xyz.data(),
+      xyz.data() + number_of_atoms_total,
+      xyz.data() + 2 * number_of_atoms_total,
+      x_.data() + step_offset,
+      y_.data() + step_offset,
+      z_.data() + step_offset);
   }
   CUDA_CHECK_KERNEL
 
@@ -180,8 +190,16 @@ void MSD::process(const int step, const std::vector<Group>& groups, const GPU_Ve
     ++num_time_origins_;
 
     gpu_find_msd<<<num_correlation_steps_, 128>>>(
-      num_atoms_, correlation_step, x_.data() + step_offset, y_.data() + step_offset,
-      z_.data() + step_offset, x_.data(), y_.data(), z_.data(), msdx_.data(), msdy_.data(),
+      num_atoms_,
+      correlation_step,
+      x_.data() + step_offset,
+      y_.data() + step_offset,
+      z_.data() + step_offset,
+      x_.data(),
+      y_.data(),
+      z_.data(),
+      msdx_.data(),
+      msdy_.data(),
       msdz_.data());
     CUDA_CHECK_KERNEL
   }
@@ -217,8 +235,14 @@ void MSD::postprocess()
   FILE* fid = fopen("msd.out", "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(
-      fid, "%g %g %g %g %g %g %g\n", nc * dt_in_ps_, msdx_[nc], msdy_[nc], msdz_[nc],
-      sdc_x[nc] * sdc_unit_conversion, sdc_y[nc] * sdc_unit_conversion,
+      fid,
+      "%g %g %g %g %g %g %g\n",
+      nc * dt_in_ps_,
+      msdx_[nc],
+      msdy_[nc],
+      msdz_[nc],
+      sdc_x[nc] * sdc_unit_conversion,
+      sdc_y[nc] * sdc_unit_conversion,
       sdc_z[nc] * sdc_unit_conversion);
   }
   fflush(fid);

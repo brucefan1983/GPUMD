@@ -146,10 +146,22 @@ void Potential::find_properties_many_body(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, NN, NL, f12x, f12y, f12z, position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-    force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data());
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    NN,
+    NL,
+    f12x,
+    f12y,
+    f12z,
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms,
+    virial_per_atom.data());
   CUDA_CHECK_KERNEL
 }
 
@@ -272,9 +284,21 @@ void Potential::find_properties_many_body(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, NN, NL, f12x, f12y, f12z, position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-    force_per_atom.data(), force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + 2 * number_of_atoms, virial_per_atom.data());
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    NN,
+    NL,
+    f12x,
+    f12y,
+    f12z,
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms,
+    virial_per_atom.data());
   CUDA_CHECK_KERNEL
 }

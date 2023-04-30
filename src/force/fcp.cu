@@ -1031,44 +1031,97 @@ void FCP::compute(
   const int block_size = 1024;
 
   gpu_get_u<<<(number_of_atoms - 1) / block_size + 1, block_size>>>(
-    number_of_atoms, position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2, fcp_data.r0.data(), fcp_data.u.data());
+    number_of_atoms,
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    fcp_data.r0.data(),
+    fcp_data.u.data());
   CUDA_CHECK_KERNEL
 
   fcp_data.pfv.fill(0.0f);
 
   gpu_find_force_fcp2<<<(number2 - 1) / block_size + 1, block_size>>>(
-    number_of_atoms, number2, fcp_data.i2.data(), fcp_data.j2.data(), fcp_data.index2.data(),
-    fcp_data.phi2.data(), fcp_data.u.data(), fcp_data.xij2.data(), fcp_data.yij2.data(),
-    fcp_data.zij2.data(), fcp_data.pfv.data());
+    number_of_atoms,
+    number2,
+    fcp_data.i2.data(),
+    fcp_data.j2.data(),
+    fcp_data.index2.data(),
+    fcp_data.phi2.data(),
+    fcp_data.u.data(),
+    fcp_data.xij2.data(),
+    fcp_data.yij2.data(),
+    fcp_data.zij2.data(),
+    fcp_data.pfv.data());
 
   if (order >= 3)
     gpu_find_force_fcp3<<<(number3 - 1) / block_size + 1, block_size>>>(
-      heat_order, number_of_atoms, number3, fcp_data.i3.data(), fcp_data.j3.data(),
-      fcp_data.k3.data(), fcp_data.index3.data(), fcp_data.phi3.data(), fcp_data.u.data(),
-      fcp_data.xij3.data(), fcp_data.yij3.data(), fcp_data.zij3.data(), fcp_data.pfv.data());
+      heat_order,
+      number_of_atoms,
+      number3,
+      fcp_data.i3.data(),
+      fcp_data.j3.data(),
+      fcp_data.k3.data(),
+      fcp_data.index3.data(),
+      fcp_data.phi3.data(),
+      fcp_data.u.data(),
+      fcp_data.xij3.data(),
+      fcp_data.yij3.data(),
+      fcp_data.zij3.data(),
+      fcp_data.pfv.data());
 
   if (order >= 4)
     gpu_find_force_fcp4<<<(number4 - 1) / block_size + 1, block_size>>>(
-      number_of_atoms, number4, fcp_data.i4.data(), fcp_data.j4.data(), fcp_data.k4.data(),
-      fcp_data.l4.data(), fcp_data.index4.data(), fcp_data.weight4.data(), fcp_data.phi4.data(),
-      fcp_data.u.data(), fcp_data.pfv.data());
+      number_of_atoms,
+      number4,
+      fcp_data.i4.data(),
+      fcp_data.j4.data(),
+      fcp_data.k4.data(),
+      fcp_data.l4.data(),
+      fcp_data.index4.data(),
+      fcp_data.weight4.data(),
+      fcp_data.phi4.data(),
+      fcp_data.u.data(),
+      fcp_data.pfv.data());
 
   if (order >= 5)
     gpu_find_force_fcp5<<<(number5 - 1) / block_size + 1, block_size>>>(
-      number_of_atoms, number5, fcp_data.i5.data(), fcp_data.j5.data(), fcp_data.k5.data(),
-      fcp_data.l5.data(), fcp_data.m5.data(), fcp_data.index5.data(), fcp_data.weight5.data(),
-      fcp_data.phi5.data(), fcp_data.u.data(), fcp_data.pfv.data());
+      number_of_atoms,
+      number5,
+      fcp_data.i5.data(),
+      fcp_data.j5.data(),
+      fcp_data.k5.data(),
+      fcp_data.l5.data(),
+      fcp_data.m5.data(),
+      fcp_data.index5.data(),
+      fcp_data.weight5.data(),
+      fcp_data.phi5.data(),
+      fcp_data.u.data(),
+      fcp_data.pfv.data());
 
   if (order >= 6)
     gpu_find_force_fcp6<<<(number6 - 1) / block_size + 1, block_size>>>(
-      number_of_atoms, number6, fcp_data.i6.data(), fcp_data.j6.data(), fcp_data.k6.data(),
-      fcp_data.l6.data(), fcp_data.m6.data(), fcp_data.n6.data(), fcp_data.index6.data(),
-      fcp_data.weight6.data(), fcp_data.phi6.data(), fcp_data.u.data(), fcp_data.pfv.data());
+      number_of_atoms,
+      number6,
+      fcp_data.i6.data(),
+      fcp_data.j6.data(),
+      fcp_data.k6.data(),
+      fcp_data.l6.data(),
+      fcp_data.m6.data(),
+      fcp_data.n6.data(),
+      fcp_data.index6.data(),
+      fcp_data.weight6.data(),
+      fcp_data.phi6.data(),
+      fcp_data.u.data(),
+      fcp_data.pfv.data());
 
   gpu_save_pfv<<<(number_of_atoms - 1) / block_size + 1, block_size>>>(
-    number_of_atoms, fcp_data.pfv.data(), potential_per_atom.data(), force_per_atom.data(),
-    force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
+    number_of_atoms,
+    fcp_data.pfv.data(),
+    potential_per_atom.data(),
+    force_per_atom.data(),
+    force_per_atom.data() + number_of_atoms,
+    force_per_atom.data() + 2 * number_of_atoms,
     virial_per_atom.data());
 
   CUDA_CHECK_KERNEL

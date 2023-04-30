@@ -271,36 +271,53 @@ void Compute::process(
   int offset = 0;
   if (compute_temperature) {
     find_per_atom_temperature<<<(N - 1) / 256 + 1, 256>>>(
-      N, mass.data(), velocity_per_atom.data(), velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N, gpu_per_atom_x.data());
+      N,
+      mass.data(),
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + N,
+      velocity_per_atom.data() + 2 * N,
+      gpu_per_atom_x.data());
     CUDA_CHECK_KERNEL
     find_group_sum_1<<<Ng, 256>>>(
-      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
-      group[grouping_method].contents.data(), gpu_per_atom_x.data(), gpu_group_sum.data() + offset);
+      group[grouping_method].size.data(),
+      group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(),
+      gpu_per_atom_x.data(),
+      gpu_group_sum.data() + offset);
     CUDA_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_potential) {
     find_group_sum_1<<<Ng, 256>>>(
-      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
-      group[grouping_method].contents.data(), potential_per_atom.data(),
+      group[grouping_method].size.data(),
+      group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(),
+      potential_per_atom.data(),
       gpu_group_sum.data() + offset);
     CUDA_CHECK_KERNEL
     offset += Ng;
   }
   if (compute_force) {
     find_group_sum_3<<<Ng, 256>>>(
-      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
-      group[grouping_method].contents.data(), force_per_atom.data(), force_per_atom.data() + N,
-      force_per_atom.data() + 2 * N, gpu_group_sum.data() + offset);
+      group[grouping_method].size.data(),
+      group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + N,
+      force_per_atom.data() + 2 * N,
+      gpu_group_sum.data() + offset);
     CUDA_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_virial) {
     find_group_sum_3<<<Ng, 256>>>(
-      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
-      group[grouping_method].contents.data(), virial_per_atom.data(), virial_per_atom.data() + N,
-      virial_per_atom.data() + N * 2, gpu_group_sum.data() + offset);
+      group[grouping_method].size.data(),
+      group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(),
+      virial_per_atom.data(),
+      virial_per_atom.data() + N,
+      virial_per_atom.data() + N * 2,
+      gpu_group_sum.data() + offset);
     CUDA_CHECK_KERNEL
     offset += Ng * 3;
   }
@@ -310,46 +327,79 @@ void Compute::process(
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
     find_per_atom_jp<<<(N - 1) / 128 + 1, 128>>>(
-      N, virial_per_atom.data(), virial_per_atom.data() + N * 3, virial_per_atom.data() + N * 4,
-      virial_per_atom.data() + N * 6, virial_per_atom.data() + N * 1,
-      virial_per_atom.data() + N * 5, virial_per_atom.data() + N * 7,
-      virial_per_atom.data() + N * 8, virial_per_atom.data() + N * 2, velocity_per_atom.data(),
-      velocity_per_atom.data() + N, velocity_per_atom.data() + 2 * N, gpu_per_atom_x.data(),
-      gpu_per_atom_y.data(), gpu_per_atom_z.data());
+      N,
+      virial_per_atom.data(),
+      virial_per_atom.data() + N * 3,
+      virial_per_atom.data() + N * 4,
+      virial_per_atom.data() + N * 6,
+      virial_per_atom.data() + N * 1,
+      virial_per_atom.data() + N * 5,
+      virial_per_atom.data() + N * 7,
+      virial_per_atom.data() + N * 8,
+      virial_per_atom.data() + N * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + N,
+      velocity_per_atom.data() + 2 * N,
+      gpu_per_atom_x.data(),
+      gpu_per_atom_y.data(),
+      gpu_per_atom_z.data());
     CUDA_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
-      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
-      group[grouping_method].contents.data(), gpu_per_atom_x.data(), gpu_per_atom_y.data(),
-      gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
+      group[grouping_method].size.data(),
+      group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(),
+      gpu_per_atom_x.data(),
+      gpu_per_atom_y.data(),
+      gpu_per_atom_z.data(),
+      gpu_group_sum.data() + offset);
     CUDA_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_jk) {
     find_per_atom_jk<<<(N - 1) / 256 + 1, 256>>>(
-      N, potential_per_atom.data(), mass.data(), velocity_per_atom.data(),
-      velocity_per_atom.data() + N, velocity_per_atom.data() + 2 * N, gpu_per_atom_x.data(),
-      gpu_per_atom_y.data(), gpu_per_atom_z.data());
+      N,
+      potential_per_atom.data(),
+      mass.data(),
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + N,
+      velocity_per_atom.data() + 2 * N,
+      gpu_per_atom_x.data(),
+      gpu_per_atom_y.data(),
+      gpu_per_atom_z.data());
     CUDA_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
-      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
-      group[grouping_method].contents.data(), gpu_per_atom_x.data(), gpu_per_atom_y.data(),
-      gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
+      group[grouping_method].size.data(),
+      group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(),
+      gpu_per_atom_x.data(),
+      gpu_per_atom_y.data(),
+      gpu_per_atom_z.data(),
+      gpu_group_sum.data() + offset);
     CUDA_CHECK_KERNEL
     offset += Ng * 3;
   }
   if (compute_momentum) {
     find_per_atom_momentum<<<(N - 1) / 256 + 1, 256>>>(
-      N, mass.data(), velocity_per_atom.data(), velocity_per_atom.data() + N,
-      velocity_per_atom.data() + 2 * N, gpu_per_atom_x.data(), gpu_per_atom_y.data(),
+      N,
+      mass.data(),
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + N,
+      velocity_per_atom.data() + 2 * N,
+      gpu_per_atom_x.data(),
+      gpu_per_atom_y.data(),
       gpu_per_atom_z.data());
     CUDA_CHECK_KERNEL
 
     find_group_sum_3<<<Ng, 256>>>(
-      group[grouping_method].size.data(), group[grouping_method].size_sum.data(),
-      group[grouping_method].contents.data(), gpu_per_atom_x.data(), gpu_per_atom_y.data(),
-      gpu_per_atom_z.data(), gpu_group_sum.data() + offset);
+      group[grouping_method].size.data(),
+      group[grouping_method].size_sum.data(),
+      group[grouping_method].contents.data(),
+      gpu_per_atom_x.data(),
+      gpu_per_atom_y.data(),
+      gpu_per_atom_z.data(),
+      gpu_group_sum.data() + offset);
     CUDA_CHECK_KERNEL
     offset += Ng * 3;
   }

@@ -91,17 +91,28 @@ void Ensemble_BAO::integrate_nvt_lan(
   const int number_of_atoms = mass.size();
 
   gpu_langevin<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    curand_states.data(), number_of_atoms, c1, c2, mass.data(), velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
+    curand_states.data(),
+    number_of_atoms,
+    c1,
+    c2,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   gpu_find_momentum<<<4, 1024>>>(
-    number_of_atoms, mass.data(), velocity_per_atom.data(),
-    velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms);
+    number_of_atoms,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   gpu_correct_momentum<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    number_of_atoms,
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 }
@@ -120,9 +131,14 @@ void Ensemble_BAO::integrate_heat_lan(
   GPU_Vector<double> ke(Ng);
 
   find_ke<<<Ng, 512>>>(
-    group[0].size.data(), group[0].size_sum.data(), group[0].contents.data(), mass.data(),
-    velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms, ke.data());
+    group[0].size.data(),
+    group[0].size_sum.data(),
+    group[0].contents.data(),
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    ke.data());
   CUDA_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
@@ -130,21 +146,40 @@ void Ensemble_BAO::integrate_heat_lan(
   energy_transferred[1] += ek2[sink] * 0.5;
 
   gpu_langevin<<<(N_source - 1) / 128 + 1, 128>>>(
-    curand_states_source.data(), N_source, offset_source, group[0].contents.data(), c1, c2_source,
-    mass.data(), velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    curand_states_source.data(),
+    N_source,
+    offset_source,
+    group[0].contents.data(),
+    c1,
+    c2_source,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   gpu_langevin<<<(N_sink - 1) / 128 + 1, 128>>>(
-    curand_states_sink.data(), N_sink, offset_sink, group[0].contents.data(), c1, c2_sink,
-    mass.data(), velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
+    curand_states_sink.data(),
+    N_sink,
+    offset_sink,
+    group[0].contents.data(),
+    c1,
+    c2_sink,
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
     velocity_per_atom.data() + 2 * number_of_atoms);
   CUDA_CHECK_KERNEL
 
   find_ke<<<Ng, 512>>>(
-    group[0].size.data(), group[0].size_sum.data(), group[0].contents.data(), mass.data(),
-    velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms, ke.data());
+    group[0].size.data(),
+    group[0].size_sum.data(),
+    group[0].contents.data(),
+    mass.data(),
+    velocity_per_atom.data(),
+    velocity_per_atom.data() + number_of_atoms,
+    velocity_per_atom.data() + 2 * number_of_atoms,
+    ke.data());
   CUDA_CHECK_KERNEL
 
   ke.copy_to_host(ek2.data());
@@ -227,19 +262,34 @@ void Ensemble_BAO::operator_A(
 
   if (fixed_group == -1) {
     gpu_operator_A<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, time_step, mass.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+      number_of_atoms,
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
     CUDA_CHECK_KERNEL
   } else {
     gpu_operator_A<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, fixed_group, group[0].label.data(), time_step, mass.data(),
-      position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2, velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-      force_per_atom.data(), force_per_atom.data() + number_of_atoms,
+      number_of_atoms,
+      fixed_group,
+      group[0].label.data(),
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
     CUDA_CHECK_KERNEL
   }
@@ -335,18 +385,33 @@ void Ensemble_BAO::operator_B(
 
   if (fixed_group == -1) {
     gpu_operator_B<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, time_step, mass.data(), position_per_atom.data(),
-      position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-      velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-      velocity_per_atom.data() + 2 * number_of_atoms, force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms);
+      number_of_atoms,
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms);
   } else {
     gpu_operator_B<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms, fixed_group, group[0].label.data(), time_step, mass.data(),
-      position_per_atom.data(), position_per_atom.data() + number_of_atoms,
-      position_per_atom.data() + number_of_atoms * 2, velocity_per_atom.data(),
-      velocity_per_atom.data() + number_of_atoms, velocity_per_atom.data() + 2 * number_of_atoms,
-      force_per_atom.data(), force_per_atom.data() + number_of_atoms,
+      number_of_atoms,
+      fixed_group,
+      group[0].label.data(),
+      time_step,
+      mass.data(),
+      position_per_atom.data(),
+      position_per_atom.data() + number_of_atoms,
+      position_per_atom.data() + number_of_atoms * 2,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms,
+      velocity_per_atom.data() + 2 * number_of_atoms,
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
       force_per_atom.data() + 2 * number_of_atoms);
   }
   CUDA_CHECK_KERNEL
@@ -361,31 +426,55 @@ void Ensemble_BAO::compute1(
 {
   if (type == 5) {
     operator_B(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
 
     operator_A(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
 
     integrate_nvt_lan(atom.mass, atom.velocity_per_atom);
 
     operator_A(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
   } else {
     operator_B(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
 
     operator_A(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
 
     integrate_heat_lan(group, atom.mass, atom.velocity_per_atom);
 
     operator_A(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
   }
 }
@@ -399,15 +488,29 @@ void Ensemble_BAO::compute2(
 {
   if (type == 5) {
     operator_B(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
 
     find_thermo(
-      true, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.velocity_per_atom,
-      atom.virial_per_atom, thermo);
+      true,
+      box.get_volume(),
+      group,
+      atom.mass,
+      atom.potential_per_atom,
+      atom.velocity_per_atom,
+      atom.virial_per_atom,
+      thermo);
   } else {
     operator_B(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
   }
 }

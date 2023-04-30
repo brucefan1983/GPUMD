@@ -158,8 +158,14 @@ void HNEMDEC::process(
   compute_heat(mass, potential, virial_per_atom, velocity_per_atom, heat_per_atom);
 
   gpu_sum_heat_and_diffusion<<<NUM_OF_HEAT_COMPONENTS + NUM_OF_DIFFUSION_COMPONENTS, 1024>>>(
-    N, step, type.data(), mass_type.data(), velocity_per_atom.data(), heat_per_atom.data(),
-    heat_all.data(), diffusion_all.data());
+    N,
+    step,
+    type.data(),
+    mass_type.data(),
+    velocity_per_atom.data(),
+    heat_per_atom.data(),
+    heat_all.data(),
+    diffusion_all.data());
   CUDA_CHECK_KERNEL
 
   if (output_flag) {

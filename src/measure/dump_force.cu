@@ -100,7 +100,10 @@ void Dump_Force::process(
     force_per_atom.copy_to_host(cpu_force_per_atom.data());
     for (int n = 0; n < number_of_atoms; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_force_per_atom[n], cpu_force_per_atom[n + number_of_atoms],
+        fid_,
+        "%g %g %g\n",
+        cpu_force_per_atom[n],
+        cpu_force_per_atom[n + number_of_atoms],
         cpu_force_per_atom[n + 2 * number_of_atoms]);
     }
   } else {
@@ -108,9 +111,14 @@ void Dump_Force::process(
     const int group_size_sum = groups[grouping_method_].cpu_size_sum[group_id_];
 
     copy_force<<<(group_size - 1) / 128 + 1, 128>>>(
-      group_size, group_size_sum, groups[grouping_method_].contents.data(), force_per_atom.data(),
-      force_per_atom.data() + number_of_atoms, force_per_atom.data() + 2 * number_of_atoms,
-      gpu_force_tmp.data(), gpu_force_tmp.data() + group_size,
+      group_size,
+      group_size_sum,
+      groups[grouping_method_].contents.data(),
+      force_per_atom.data(),
+      force_per_atom.data() + number_of_atoms,
+      force_per_atom.data() + 2 * number_of_atoms,
+      gpu_force_tmp.data(),
+      gpu_force_tmp.data() + group_size,
       gpu_force_tmp.data() + group_size * 2);
     for (int d = 0; d < 3; ++d) {
       double* cpu_f = cpu_force_per_atom.data() + group_size * d;
@@ -119,7 +127,10 @@ void Dump_Force::process(
     }
     for (int n = 0; n < group_size; n++) {
       fprintf(
-        fid_, "%g %g %g\n", cpu_force_per_atom[n], cpu_force_per_atom[n + group_size],
+        fid_,
+        "%g %g %g\n",
+        cpu_force_per_atom[n],
+        cpu_force_per_atom[n + group_size],
         cpu_force_per_atom[n + 2 * group_size]);
     }
   }

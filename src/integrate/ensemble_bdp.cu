@@ -157,7 +157,12 @@ void Ensemble_BDP::compute1(
   GPU_Vector<double>& thermo)
 {
   velocity_verlet(
-    true, time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+    true,
+    time_step,
+    group,
+    atom.mass,
+    atom.force_per_atom,
+    atom.position_per_atom,
     atom.velocity_per_atom);
 }
 
@@ -170,11 +175,23 @@ void Ensemble_BDP::compute2(
 {
   if (type == 4) {
     integrate_nvt_bdp_2(
-      time_step, box.get_volume(), group, atom.mass, atom.potential_per_atom, atom.force_per_atom,
-      atom.virial_per_atom, atom.position_per_atom, atom.velocity_per_atom, thermo);
+      time_step,
+      box.get_volume(),
+      group,
+      atom.mass,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      atom.position_per_atom,
+      atom.velocity_per_atom,
+      thermo);
   } else {
     integrate_heat_bdp_2(
-      time_step, group, atom.mass, atom.force_per_atom, atom.position_per_atom,
+      time_step,
+      group,
+      atom.mass,
+      atom.force_per_atom,
+      atom.position_per_atom,
       atom.velocity_per_atom);
   }
 }

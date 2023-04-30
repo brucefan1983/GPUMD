@@ -340,8 +340,16 @@ void Tersoff_mini::compute(
   if (num_calls++ == 0) {
 #endif
     find_neighbor(
-      N1, N2, rc, box, type, position_per_atom, tersoff_mini_data.cell_count,
-      tersoff_mini_data.cell_count_sum, tersoff_mini_data.cell_contents, tersoff_mini_data.NN,
+      N1,
+      N2,
+      rc,
+      box,
+      type,
+      position_per_atom,
+      tersoff_mini_data.cell_count,
+      tersoff_mini_data.cell_count_sum,
+      tersoff_mini_data.cell_contents,
+      tersoff_mini_data.NN,
       tersoff_mini_data.NL);
 #ifdef USE_FIXED_NEIGHBOR
   }
@@ -349,25 +357,53 @@ void Tersoff_mini::compute(
 
   // pre-compute the bond order functions and their derivatives
   find_force_step1<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, num_types, tersoff_mini_data.NN.data(),
-    tersoff_mini_data.NL.data(), type.data(), para, position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-    tersoff_mini_data.b.data(), tersoff_mini_data.bp.data());
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    num_types,
+    tersoff_mini_data.NN.data(),
+    tersoff_mini_data.NL.data(),
+    type.data(),
+    para,
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    tersoff_mini_data.b.data(),
+    tersoff_mini_data.bp.data());
   CUDA_CHECK_KERNEL
 
   // pre-compute the partial forces
   find_force_step2<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, num_types, tersoff_mini_data.NN.data(),
-    tersoff_mini_data.NL.data(), type.data(), para, tersoff_mini_data.b.data(),
-    tersoff_mini_data.bp.data(), position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms, position_per_atom.data() + number_of_atoms * 2,
-    potential_per_atom.data(), tersoff_mini_data.f12x.data(), tersoff_mini_data.f12y.data(),
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    num_types,
+    tersoff_mini_data.NN.data(),
+    tersoff_mini_data.NL.data(),
+    type.data(),
+    para,
+    tersoff_mini_data.b.data(),
+    tersoff_mini_data.bp.data(),
+    position_per_atom.data(),
+    position_per_atom.data() + number_of_atoms,
+    position_per_atom.data() + number_of_atoms * 2,
+    potential_per_atom.data(),
+    tersoff_mini_data.f12x.data(),
+    tersoff_mini_data.f12y.data(),
     tersoff_mini_data.f12z.data());
   CUDA_CHECK_KERNEL
 
   // the final step: calculate force and related quantities
   find_properties_many_body(
-    box, tersoff_mini_data.NN.data(), tersoff_mini_data.NL.data(), tersoff_mini_data.f12x.data(),
-    tersoff_mini_data.f12y.data(), tersoff_mini_data.f12z.data(), position_per_atom, force_per_atom,
+    box,
+    tersoff_mini_data.NN.data(),
+    tersoff_mini_data.NL.data(),
+    tersoff_mini_data.f12x.data(),
+    tersoff_mini_data.f12y.data(),
+    tersoff_mini_data.f12z.data(),
+    position_per_atom,
+    force_per_atom,
     virial_per_atom);
 }

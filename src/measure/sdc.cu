@@ -161,16 +161,25 @@ void SDC::process(
   // copy the velocity data at the current step to appropriate place
   if (grouping_method_ < 0) {
     gpu_copy_velocity<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
-      num_atoms_, velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms_total,
-      velocity_per_atom.data() + 2 * number_of_atoms_total, vx_.data() + step_offset,
-      vy_.data() + step_offset, vz_.data() + step_offset);
+      num_atoms_,
+      velocity_per_atom.data(),
+      velocity_per_atom.data() + number_of_atoms_total,
+      velocity_per_atom.data() + 2 * number_of_atoms_total,
+      vx_.data() + step_offset,
+      vy_.data() + step_offset,
+      vz_.data() + step_offset);
   } else {
     const int group_offset = groups[grouping_method_].cpu_size_sum[group_id_];
     gpu_copy_velocity<<<(num_atoms_ - 1) / 128 + 1, 128>>>(
-      num_atoms_, group_offset, groups[grouping_method_].contents.data(), velocity_per_atom.data(),
+      num_atoms_,
+      group_offset,
+      groups[grouping_method_].contents.data(),
+      velocity_per_atom.data(),
       velocity_per_atom.data() + number_of_atoms_total,
-      velocity_per_atom.data() + 2 * number_of_atoms_total, vx_.data() + step_offset,
-      vy_.data() + step_offset, vz_.data() + step_offset);
+      velocity_per_atom.data() + 2 * number_of_atoms_total,
+      vx_.data() + step_offset,
+      vy_.data() + step_offset,
+      vz_.data() + step_offset);
   }
   CUDA_CHECK_KERNEL
 
@@ -179,8 +188,16 @@ void SDC::process(
     ++num_time_origins_;
 
     gpu_find_vac<<<num_correlation_steps_, 128>>>(
-      num_atoms_, correlation_step, vx_.data() + step_offset, vy_.data() + step_offset,
-      vz_.data() + step_offset, vx_.data(), vy_.data(), vz_.data(), vacx_.data(), vacy_.data(),
+      num_atoms_,
+      correlation_step,
+      vx_.data() + step_offset,
+      vy_.data() + step_offset,
+      vz_.data() + step_offset,
+      vx_.data(),
+      vy_.data(),
+      vz_.data(),
+      vacx_.data(),
+      vacy_.data(),
       vacz_.data());
     CUDA_CHECK_KERNEL
   }
@@ -217,9 +234,14 @@ void SDC::postprocess()
   FILE* fid = fopen("sdc.out", "a");
   for (int nc = 0; nc < num_correlation_steps_; nc++) {
     fprintf(
-      fid, "%g %g %g %g %g %g %g\n", nc * dt_in_ps_, vacx_[nc] * vac_unit_conversion,
-      vacy_[nc] * vac_unit_conversion, vacz_[nc] * vac_unit_conversion,
-      sdc_x[nc] * sdc_unit_conversion, sdc_y[nc] * sdc_unit_conversion,
+      fid,
+      "%g %g %g %g %g %g %g\n",
+      nc * dt_in_ps_,
+      vacx_[nc] * vac_unit_conversion,
+      vacy_[nc] * vac_unit_conversion,
+      vacz_[nc] * vac_unit_conversion,
+      sdc_x[nc] * sdc_unit_conversion,
+      sdc_y[nc] * sdc_unit_conversion,
       sdc_z[nc] * sdc_unit_conversion);
   }
   fflush(fid);

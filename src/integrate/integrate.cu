@@ -57,8 +57,14 @@ void Integrate::initialize(
       break;
     case 2: // NVT-NHC
       ensemble.reset(new Ensemble_NHC(
-        type, fixed_group, move_group, move_velocity, number_of_atoms, temperature,
-        temperature_coupling, time_step));
+        type,
+        fixed_group,
+        move_group,
+        move_velocity,
+        number_of_atoms,
+        temperature,
+        temperature_coupling,
+        time_step));
       break;
     case 3: // NVT-Langevin
       ensemble.reset(
@@ -74,26 +80,58 @@ void Integrate::initialize(
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
-        type, fixed_group, temperature, temperature_coupling, target_pressure,
-        num_target_pressure_components, pressure_coupling, deform_x, deform_y, deform_z,
+        type,
+        fixed_group,
+        temperature,
+        temperature_coupling,
+        target_pressure,
+        num_target_pressure_components,
+        pressure_coupling,
+        deform_x,
+        deform_y,
+        deform_z,
         deform_rate));
       break;
     case 12: // NPT-SCR
       ensemble.reset(new Ensemble_NPT_SCR(
-        type, fixed_group, temperature, temperature_coupling, target_pressure,
-        num_target_pressure_components, pressure_coupling, deform_x, deform_y, deform_z,
+        type,
+        fixed_group,
+        temperature,
+        temperature_coupling,
+        target_pressure,
+        num_target_pressure_components,
+        pressure_coupling,
+        deform_x,
+        deform_y,
+        deform_z,
         deform_rate));
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
-        type, fixed_group, source, sink, group[0].cpu_size[source], group[0].cpu_size[sink],
-        temperature, temperature_coupling, delta_temperature, time_step));
+        type,
+        fixed_group,
+        source,
+        sink,
+        group[0].cpu_size[source],
+        group[0].cpu_size[sink],
+        temperature,
+        temperature_coupling,
+        delta_temperature,
+        time_step));
       break;
     case 22: // heat-Langevin
       ensemble.reset(new Ensemble_LAN(
-        type, fixed_group, source, sink, group[0].cpu_size[source], group[0].cpu_size[sink],
-        group[0].cpu_size_sum[source], group[0].cpu_size_sum[sink], temperature,
-        temperature_coupling, delta_temperature));
+        type,
+        fixed_group,
+        source,
+        sink,
+        group[0].cpu_size[source],
+        group[0].cpu_size[sink],
+        group[0].cpu_size_sum[source],
+        group[0].cpu_size_sum[sink],
+        temperature,
+        temperature_coupling,
+        delta_temperature));
       break;
     case 23: // heat-BDP
       ensemble.reset(new Ensemble_BDP(
@@ -178,18 +216,27 @@ void Integrate::compute1(
 
   const int num_atoms = atom.position_per_atom.size() / 3;
   gpu_copy_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
-    num_atoms, atom.position_per_atom.data(), atom.position_per_atom.data() + num_atoms,
-    atom.position_per_atom.data() + num_atoms * 2, atom.position_temp.data(),
-    atom.position_temp.data() + num_atoms, atom.position_temp.data() + num_atoms * 2);
+    num_atoms,
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + num_atoms,
+    atom.position_per_atom.data() + num_atoms * 2,
+    atom.position_temp.data(),
+    atom.position_temp.data() + num_atoms,
+    atom.position_temp.data() + num_atoms * 2);
   CUDA_CHECK_KERNEL
 
   ensemble->compute1(time_step, group, box, atom, thermo);
 
   gpu_update_unwrapped_position<<<(num_atoms - 1) / 128 + 1, 128>>>(
-    num_atoms, atom.position_per_atom.data(), atom.position_per_atom.data() + num_atoms,
-    atom.position_per_atom.data() + num_atoms * 2, atom.position_temp.data(),
-    atom.position_temp.data() + num_atoms, atom.position_temp.data() + num_atoms * 2,
-    atom.unwrapped_position.data(), atom.unwrapped_position.data() + num_atoms,
+    num_atoms,
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + num_atoms,
+    atom.position_per_atom.data() + num_atoms * 2,
+    atom.position_temp.data(),
+    atom.position_temp.data() + num_atoms,
+    atom.position_temp.data() + num_atoms * 2,
+    atom.unwrapped_position.data(),
+    atom.unwrapped_position.data() + num_atoms,
     atom.unwrapped_position.data() + num_atoms * 2);
   CUDA_CHECK_KERNEL
 }
@@ -738,8 +785,11 @@ void Integrate::parse_move(const char** param, int num_param, std::vector<Group>
   }
 
   printf(
-    "Group %d in grouping method 0 will move with velocity vector (%g, %g, %g) A/fs.\n", move_group,
-    move_velocity[0], move_velocity[1], move_velocity[2]);
+    "Group %d in grouping method 0 will move with velocity vector (%g, %g, %g) A/fs.\n",
+    move_group,
+    move_velocity[0],
+    move_velocity[1],
+    move_velocity[2]);
 
   for (int d = 0; d < 3; ++d) {
     move_velocity[d] *= TIME_UNIT_CONVERSION; // natural to A/fs
@@ -773,7 +823,9 @@ void Integrate::parse_deform(const char** param, int num_param)
       PRINT_INPUT_ERROR("Defrom rate should be a number.");
     }
     printf(
-      "    strain rates are (%g, %g, %g) A / step.\n", deform_rate[0], deform_rate[1],
+      "    strain rates are (%g, %g, %g) A / step.\n",
+      deform_rate[0],
+      deform_rate[1],
       deform_rate[2]);
   }
 

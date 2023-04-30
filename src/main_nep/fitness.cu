@@ -221,7 +221,11 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     }
   }
   fprintf(
-    fid_nep, "cutoff %g %g %d %d\n", para.rc_radial, para.rc_angular, max_NN_radial,
+    fid_nep,
+    "cutoff %g %g %d %d\n",
+    para.rc_radial,
+    para.rc_angular,
+    max_NN_radial,
     max_NN_angular);
   fprintf(fid_nep, "n_max %d %d\n", para.n_max_radial, para.n_max_angular);
   if (para.version >= 3) {
@@ -307,20 +311,48 @@ void Fitness::report_error(
 
     if (para.train_mode == 0) {
       printf(
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n", generation + 1,
-        loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train, rmse_virial_train,
-        rmse_energy_test, rmse_force_test, rmse_virial_test);
+        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+        generation + 1,
+        loss_total,
+        loss_L1,
+        loss_L2,
+        rmse_energy_train,
+        rmse_force_train,
+        rmse_virial_train,
+        rmse_energy_test,
+        rmse_force_test,
+        rmse_virial_test);
       fprintf(
-        fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
-        generation + 1, loss_total, loss_L1, loss_L2, rmse_energy_train, rmse_force_train,
-        rmse_virial_train, rmse_energy_test, rmse_force_test, rmse_virial_test);
+        fid_loss_out,
+        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
+        generation + 1,
+        loss_total,
+        loss_L1,
+        loss_L2,
+        rmse_energy_train,
+        rmse_force_train,
+        rmse_virial_train,
+        rmse_energy_test,
+        rmse_force_test,
+        rmse_virial_test);
     } else {
       printf(
-        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n", generation + 1, loss_total, loss_L1, loss_L2,
-        rmse_virial_train, rmse_virial_test);
+        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n",
+        generation + 1,
+        loss_total,
+        loss_L1,
+        loss_L2,
+        rmse_virial_train,
+        rmse_virial_test);
       fprintf(
-        fid_loss_out, "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n", generation + 1, loss_total,
-        loss_L1, loss_L2, rmse_virial_train, rmse_virial_test);
+        fid_loss_out,
+        "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f\n",
+        generation + 1,
+        loss_total,
+        loss_L1,
+        loss_L2,
+        rmse_virial_train,
+        rmse_virial_test);
     }
     fflush(stdout);
     fflush(fid_loss_out);
@@ -363,9 +395,14 @@ void Fitness::update_energy_force_virial(
     for (int m = 0; m < dataset.structures[nc].num_atom; ++m) {
       int n = offset + m;
       fprintf(
-        fid_force, "%g %g %g %g %g %g\n", dataset.force_cpu[n], dataset.force_cpu[n + dataset.N],
-        dataset.force_cpu[n + dataset.N * 2], dataset.force_ref_cpu[n],
-        dataset.force_ref_cpu[n + dataset.N], dataset.force_ref_cpu[n + dataset.N * 2]);
+        fid_force,
+        "%g %g %g %g %g %g\n",
+        dataset.force_cpu[n],
+        dataset.force_cpu[n + dataset.N],
+        dataset.force_cpu[n + dataset.N * 2],
+        dataset.force_ref_cpu[n],
+        dataset.force_ref_cpu[n + dataset.N],
+        dataset.force_ref_cpu[n + dataset.N * 2]);
     }
   }
 
