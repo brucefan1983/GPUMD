@@ -29,8 +29,7 @@
 * We provide a [Colab Tutorial](https://colab.research.google.com/drive/1QnXAveZgzwut4Mvldsw-r2I0EWIsj1KA?usp=sharing) to show the workflow of the construction of a NEP model and its application in large-scale atomistic simulations for PbTe system. This will run entirely on Google's cloud virtual machine. You can also check other offline tutorials in the examples.
 
 ## Manual
-* The new manual that will be used starting from GPUMD-v3.6: https://gpumd.org/
-* The old manual for up to GPUMD-v3.5: https://gpumd.zheyongfan.org
+* https://gpumd.org/
 
 ## Mailing list:
 * You can use the following link to subscribe and unsubscribe the mailing list:
