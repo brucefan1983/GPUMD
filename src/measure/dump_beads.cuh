@@ -19,25 +19,14 @@
 #include <string>
 #include <vector>
 class Box;
+class Atom;
 
 class Dump_Beads
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms);
-  void process(
-    const int step,
-    const double global_time,
-    const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    const std::vector<int>& cpu_type,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo);
+  void preprocess(const int number_of_atoms, const int number_of_beads);
+  void process(const int step, const double global_time, const Box& box, Atom& atom);
   void postprocess();
 
 private:
@@ -45,15 +34,10 @@ private:
   int dump_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
-  FILE* fid_;
-  char filename_[200];
-  void output_line2(
-    const double time,
-    const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo);
-  std::vector<double> cpu_force_per_atom_;
-  GPU_Vector<double> gpu_total_virial_;
-  std::vector<double> cpu_total_virial_;
+  int number_of_beads_ = 0;
+  std::vector<FILE*> fid_;
+  void output_line2(FILE* fid, const double time, const Box& box);
+  std::vector<double> cpu_position_;
+  std::vector<double> cpu_velocity_;
+  std::vector<double> cpu_force_;
 };

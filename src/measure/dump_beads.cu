@@ -14,10 +14,11 @@
 */
 
 /*-----------------------------------------------------------------------------------------------100
-Dump some data to dump.xyz in the extended XYZ format
+Dump bead data in PIMD-related run
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_beads.cuh"
+#include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -27,7 +28,7 @@ Dump some data to dump.xyz in the extended XYZ format
 void Dump_Beads::parse(const char** param, int num_param)
 {
   dump_ = true;
-  printf("Dump extended XYZ.\n");
+  printf("Dump data for beads in PIMD-related runs.\n");
 
   if (num_param != 4) {
     PRINT_INPUT_ERROR("dump_beads should have 3 parameters.\n");
@@ -61,36 +62,41 @@ void Dump_Beads::parse(const char** param, int num_param)
   }
 }
 
-void Dump_Beads::preprocess(const int number_of_atoms)
+void Dump_Beads::preprocess(const int number_of_atoms, const int number_of_beads)
 {
   if (dump_) {
-    fid_ = my_fopen("dump.xyz", "a");
-    gpu_total_virial_.resize(6);
-    cpu_total_virial_.resize(6);
+    if (number_of_beads == 0) {
+      PRINT_INPUT_ERROR("Cannot use dump_beads for non-PIMD-related runs.");
+    }
+    number_of_beads_ = number_of_beads;
+    fid_.resize(number_of_beads_);
+    for (int k = 0; k < number_of_beads_; ++k) {
+      std::string filename = "beads/dump_" + std::to_string(k) + ".xyz";
+      fid_[k] = my_fopen(filename.c_str(), "a");
+    }
+    cpu_position_.resize(number_of_atoms * 3);
+    if (has_velocity_) {
+      cpu_velocity_.resize(number_of_atoms * 3);
+    }
     if (has_force_) {
-      cpu_force_per_atom_.resize(number_of_atoms * 3);
+      cpu_force_.resize(number_of_atoms * 3);
     }
   }
 }
 
-void Dump_Beads::output_line2(
-  const double time,
-  const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo)
+void Dump_Beads::output_line2(FILE* fid, const double time, const Box& box)
 {
   // time
-  fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
+  fprintf(fid, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
 
   // PBC
   fprintf(
-    fid_, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
+    fid, " pbc=\"%c %c %c\"", box.pbc_x ? 'T' : 'F', box.pbc_y ? 'T' : 'F', box.pbc_z ? 'T' : 'F');
 
   // box
   if (box.triclinic == 0) {
     fprintf(
-      fid_,
+      fid,
       " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
       box.cpu_h[0],
       0.0,
@@ -103,7 +109,7 @@ void Dump_Beads::output_line2(
       box.cpu_h[2]);
   } else {
     fprintf(
-      fid_,
+      fid,
       " Lattice=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
       box.cpu_h[0],
       box.cpu_h[3],
@@ -117,81 +123,74 @@ void Dump_Beads::output_line2(
   }
 
   // Properties
-  fprintf(fid_, " Properties=species:S:1:pos:R:3");
+  fprintf(fid, " Properties=species:S:1:pos:R:3");
 
   if (has_velocity_) {
-    fprintf(fid_, ":vel:R:3");
+    fprintf(fid, ":vel:R:3");
   }
   if (has_force_) {
-    fprintf(fid_, ":forces:R:3");
+    fprintf(fid, ":forces:R:3");
   }
 
   // Over
-  fprintf(fid_, "\n");
+  fprintf(fid, "\n");
 }
 
-void Dump_Beads::process(
-  const int step,
-  const double global_time,
-  const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
-  const std::vector<int>& cpu_type,
-  GPU_Vector<double>& position_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo)
+void Dump_Beads::process(const int step, const double global_time, const Box& box, Atom& atom)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int num_atoms_total = position_per_atom.size() / 3;
-  position_per_atom.copy_to_host(cpu_position_per_atom.data());
-  if (has_velocity_) {
-    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
-  }
-  if (has_force_) {
-    force_per_atom.copy_to_host(cpu_force_per_atom_.data());
-  }
+  const int num_atoms_total = atom.position_per_atom.size() / 3;
 
-  // line 1
-  fprintf(fid_, "%d\n", num_atoms_total);
+  for (int k = 0; k < atom.number_of_beads; ++k) {
 
-  // line 2
-  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo);
-
-  // other lines
-  for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", cpu_atom_symbol[n].c_str());
-    for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", cpu_position_per_atom[n + num_atoms_total * d]);
-    }
+    atom.position_beads[k].copy_to_host(cpu_position_.data());
     if (has_velocity_) {
-      const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
-      for (int d = 0; d < 3; ++d) {
-        fprintf(
-          fid_, " %.8f", cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
-      }
+      atom.velocity_beads[k].copy_to_host(cpu_velocity_.data());
     }
     if (has_force_) {
-      for (int d = 0; d < 3; ++d) {
-        fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
-      }
+      atom.force_beads[k].copy_to_host(cpu_force_.data());
     }
-    fprintf(fid_, "\n");
-  }
 
-  fflush(fid_);
+    // line 1
+    fprintf(fid_[k], "%d\n", num_atoms_total);
+
+    // line 2
+    output_line2(fid_[k], global_time, box);
+
+    // other lines
+    for (int n = 0; n < num_atoms_total; n++) {
+      fprintf(fid_[k], "%s", atom.cpu_atom_symbol[n].c_str());
+      for (int d = 0; d < 3; ++d) {
+        fprintf(fid_[k], " %.8f", cpu_position_[n + num_atoms_total * d]);
+      }
+      if (has_velocity_) {
+        const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
+        for (int d = 0; d < 3; ++d) {
+          fprintf(fid_[k], " %.8f", cpu_velocity_[n + num_atoms_total * d] * natural_to_A_per_fs);
+        }
+      }
+      if (has_force_) {
+        for (int d = 0; d < 3; ++d) {
+          fprintf(fid_[k], " %.8f", cpu_force_[n + num_atoms_total * d]);
+        }
+      }
+      fprintf(fid_[k], "\n");
+    }
+
+    fflush(fid_[k]);
+  }
 }
 
 void Dump_Beads::postprocess()
 {
   if (dump_) {
-    fclose(fid_);
+    for (int k = 0; k < number_of_beads_; ++k) {
+      fclose(fid_[k]);
+    }
     dump_ = false;
   }
 }
