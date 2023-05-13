@@ -24,29 +24,6 @@ Dump some data to dump.xyz in the extended XYZ format
 #include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 
-static __global__ void gpu_sum(const int N, const double* g_data, double* g_data_sum)
-{
-  int number_of_rounds = (N - 1) / 1024 + 1;
-  __shared__ double s_data[1024];
-  s_data[threadIdx.x] = 0.0;
-  for (int round = 0; round < number_of_rounds; ++round) {
-    int n = threadIdx.x + round * 1024;
-    if (n < N) {
-      s_data[threadIdx.x] += g_data[n + blockIdx.x * N];
-    }
-  }
-  __syncthreads();
-  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
-    if (threadIdx.x < offset) {
-      s_data[threadIdx.x] += s_data[threadIdx.x + offset];
-    }
-    __syncthreads();
-  }
-  if (threadIdx.x == 0) {
-    g_data_sum[blockIdx.x] = s_data[0];
-  }
-}
-
 void Dump_Beads::parse(const char** param, int num_param)
 {
   dump_ = true;
@@ -138,39 +115,6 @@ void Dump_Beads::output_line2(
       box.cpu_h[5],
       box.cpu_h[8]);
   }
-
-  // energy and virial (symmetric tensor) in eV, and stress (symmetric tensor) in eV/A^3
-  double cpu_thermo[8];
-  gpu_thermo.copy_to_host(cpu_thermo, 8);
-  const int N = virial_per_atom.size() / 9;
-  gpu_sum<<<6, 1024>>>(N, virial_per_atom.data(), gpu_total_virial_.data());
-  gpu_total_virial_.copy_to_host(cpu_total_virial_.data());
-
-  fprintf(fid_, " energy=%.8f", cpu_thermo[1]);
-  fprintf(
-    fid_,
-    " virial=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_total_virial_[0],
-    cpu_total_virial_[3],
-    cpu_total_virial_[4],
-    cpu_total_virial_[3],
-    cpu_total_virial_[1],
-    cpu_total_virial_[5],
-    cpu_total_virial_[4],
-    cpu_total_virial_[5],
-    cpu_total_virial_[2]);
-  fprintf(
-    fid_,
-    " stress=\"%.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f %.8f\"",
-    cpu_thermo[2],
-    cpu_thermo[5],
-    cpu_thermo[6],
-    cpu_thermo[5],
-    cpu_thermo[3],
-    cpu_thermo[7],
-    cpu_thermo[6],
-    cpu_thermo[7],
-    cpu_thermo[4]);
 
   // Properties
   fprintf(fid_, " Properties=species:S:1:pos:R:3");
