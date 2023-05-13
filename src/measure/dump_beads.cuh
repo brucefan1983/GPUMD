@@ -20,7 +20,7 @@
 #include <vector>
 class Box;
 
-class Dump_EXYZ
+class Dump_Beads
 {
 public:
   void parse(const char** param, int num_param);

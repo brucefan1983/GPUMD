@@ -17,7 +17,7 @@
 Dump some data to dump.xyz in the extended XYZ format
 --------------------------------------------------------------------------------------------------*/
 
-#include "dump_exyz.cuh"
+#include "dump_beads.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -47,13 +47,13 @@ static __global__ void gpu_sum(const int N, const double* g_data, double* g_data
   }
 }
 
-void Dump_EXYZ::parse(const char** param, int num_param)
+void Dump_Beads::parse(const char** param, int num_param)
 {
   dump_ = true;
   printf("Dump extended XYZ.\n");
 
   if (num_param != 4) {
-    PRINT_INPUT_ERROR("dump_exyz should have 3 parameters.\n");
+    PRINT_INPUT_ERROR("dump_beads should have 3 parameters.\n");
   }
 
   if (!is_valid_int(param[1], &dump_interval_)) {
@@ -84,7 +84,7 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   }
 }
 
-void Dump_EXYZ::preprocess(const int number_of_atoms)
+void Dump_Beads::preprocess(const int number_of_atoms)
 {
   if (dump_) {
     fid_ = my_fopen("dump.xyz", "a");
@@ -96,7 +96,7 @@ void Dump_EXYZ::preprocess(const int number_of_atoms)
   }
 }
 
-void Dump_EXYZ::output_line2(
+void Dump_Beads::output_line2(
   const double time,
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
@@ -186,7 +186,7 @@ void Dump_EXYZ::output_line2(
   fprintf(fid_, "\n");
 }
 
-void Dump_EXYZ::process(
+void Dump_Beads::process(
   const int step,
   const double global_time,
   const Box& box,
@@ -244,7 +244,7 @@ void Dump_EXYZ::process(
   fflush(fid_);
 }
 
-void Dump_EXYZ::postprocess()
+void Dump_Beads::postprocess()
 {
   if (dump_) {
     fclose(fid_);
