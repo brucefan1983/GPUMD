@@ -2,7 +2,7 @@
 
 ## FUNCTION
 
-Select frames from an existed EXYZ file.
+Select frames from an existing EXYZ file.
 
 ## OPTIONS
 
