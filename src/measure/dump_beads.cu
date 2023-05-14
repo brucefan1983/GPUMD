@@ -71,7 +71,7 @@ void Dump_Beads::preprocess(const int number_of_atoms, const int number_of_beads
     number_of_beads_ = number_of_beads;
     fid_.resize(number_of_beads_);
     for (int k = 0; k < number_of_beads_; ++k) {
-      std::string filename = "beads/dump_" + std::to_string(k) + ".xyz";
+      std::string filename = "beads_dump_" + std::to_string(k) + ".xyz";
       fid_[k] = my_fopen(filename.c_str(), "a");
     }
     cpu_position_.resize(number_of_atoms * 3);
