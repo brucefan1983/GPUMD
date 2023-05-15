@@ -350,6 +350,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.dump_force.parse(param, num_param, group);
   } else if (strcmp(param[0], "dump_exyz") == 0) {
     measure.dump_exyz.parse(param, num_param);
+  } else if (strcmp(param[0], "dump_beads") == 0) {
+    measure.dump_beads.parse(param, num_param);
   } else if (strcmp(param[0], "dump_observer") == 0) {
     measure.dump_observer.parse(param, num_param);
   } else if (strcmp(param[0], "active") == 0) {
