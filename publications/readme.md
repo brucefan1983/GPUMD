@@ -1,6 +1,6 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (5)
+## Preprints (9)
 
 * Julia Wiktor, Erik Fransson, Dominik Kubicki, Paul Erhart, [Quantifying Dynamic Tilting in Halide Perovskites: Chemical Trends and Local Correlations](https://arxiv.org/abs/2304.07402), arXiv:2304.07402 [cond-mat.mtrl-sci]
 
@@ -11,7 +11,15 @@
 * Erik Fransson, Julia Wiktor, Paul Erhart, [Phase transitions in inorganic halide perovskites from machine learning potentials](https://arxiv.org/abs/2301.03497), 	arXiv:2301.03497 [cond-mat.mtrl-sci]
 
 * Erik Fransson, Petter Rosander, Fredrik Eriksson, J. Magnus Rahm, Terumasa Tadano, Paul Erhart, [Probing the limits of the phonon quasi-particle picture: The transition from underdamped to overdamped dynamics in CsPbBr3](https://arxiv.org/abs/2211.08197), 	arXiv:2211.08197 [cond-mat.mtrl-sci]
- 
+
+* Rui Zhao, Kuan Fu, Zhuangzhuang Kong, Yunlei Xu, Ping Peng, [Development of a Neuroevolution Machine Learning Potential of Pd-Cu-Ni-P Alloys](http://dx.doi.org/10.2139/ssrn.4400885)
+
+* Chenchen Lu, Zhihui Li, Shanchen Li, Zhen Li, Yingyan Zhang, Junhua Zhao, Ning Wei, [Insights into the Enhanced Interfacial Thermal Transport Properties at Carbon/Carbon Composite Interfaces Connected by Covalent Bonds: A Molecular Dynamics Study](http://dx.doi.org/10.2139/ssrn.4446200)
+
+* Yong-Bo Shi, Hao Wang, Haikuan Dong, Shuo Cao, Ke-Ke Song, Li-Bin Shi, Ping Qian, [Origin of Low Lattice Thermal Conductivity and Mobility of Lead-Free Halide Double Perovskites](http://dx.doi.org/10.2139/ssrn.4191191)
+
+* Chao Yang, Jian Wang, Dezhi Ma, Zhiqiang Li, Zhiyuan He, Linhua Liu, Zhiwei Fu, Jia-Yue Yang, [Phonon Transport Across Gan-Diamond Interface: The Nontrivial Role of Pre-Interface Vacancy-Phonon Scattering](http://dx.doi.org/10.2139/ssrn.4435960)
+
 ## 2023 (13)
 
 * Ke Xu, Yongchao Hao, Ting Liang, Penghua Ying, Jianbin Xu, Jianyang Wu, Zheyong Fan, [Accurate prediction of heat conductivity of water by a neuroevolution potential](https://arxiv.org/abs/2302.12328), 	arXiv:2302.12328 [physics.comp-ph], Accepted to J. Chem. Phys. (2023).
@@ -19,7 +27,7 @@
 * Peng-Hu Du, Cunzhi Zhang, Tingwei Li, and Qiang Sun, [Low lattice thermal conductivity with two-channel thermal transport
 in the superatomic crystal PH4AlBr](https://doi.org/10.1103/PhysRevB.107.155204), Phys. Rev. B **107**, 155204 (2023).
 
-* Yajuan Cheng, Zheyong Fan, Tao Zhang, Masahiro Nomura, Sebastian Volz, Guimei Zhu, Baowen Li, Shiyun Xiong, [Magic angle in thermal conductivity of twisted bilayer graphene](https://doi.org/10.1016/j.mtphys.2023.101093), Accepted to Materials Today Physics (2023).
+* Yajuan Cheng, Zheyong Fan, Tao Zhang, Masahiro Nomura, Sebastian Volz, Guimei Zhu, Baowen Li, Shiyun Xiong, [Magic angle in thermal conductivity of twisted bilayer graphene](https://doi.org/10.1016/j.mtphys.2023.101093), Materials Today Physics **35**, 101093 (2023).
 
 * Insa F. de Vries, Helena Osthues, Nikos L. Doltsinis, [Thermal conductivity across transition metal dichalcogenide bilayers](https://doi.org/10.1016/j.isci.2023.106447), iScience **26**, 106447 (2023).
 
