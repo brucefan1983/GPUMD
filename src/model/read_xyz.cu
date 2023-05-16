@@ -153,7 +153,7 @@ static bool need_triclinic()
       if (tokens[0] == "change_box" && tokens.size() == 7) {
         triclinic = true;
       }
-      if (tokens[0] == "ensemble" && tokens.size() == 18) {
+      if (tokens[0] == "ensemble" && tokens.size() >= 18) {
         triclinic = true;
       }
     }
