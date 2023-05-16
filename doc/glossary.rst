@@ -62,11 +62,17 @@ Glossary
    NN
         neural network
 
+   PIMD
+        path-integral molecular dynamics
+
    PDOS
         phonon density of states
 
    RMSE
         `root-mean-square error <https://en.wikipedia.org/wiki/Root-mean-square_deviation>`_
+
+   RPMD
+        ring-polymer molecular dynamics
 
    RTC
         :ref:`running thermal conductivity <running_thermal_conductivity>`
@@ -85,6 +91,9 @@ Glossary
 
    SVR
         :ref:`stochastic velocity rescaling thermostat <svr_thermostat>` [Bussi2007b]_
+
+   TRPMD
+        thermostatted ring-polymer molecular dynamics
 
    VAC
         velocity auto-correlation
