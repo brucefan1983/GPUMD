@@ -1,6 +1,9 @@
 # Publications developed or used `GPUMD`
 
-## Preprints (9)
+## Preprints (10)
+
+* Jiahui Liu, Jesper Byggmastar, Zheyong Fan, Ping Qian, Yanjing Su, [Large-scale machine-learning molecular dynamics simulation of primary radiation damage in tungsten](
+https://doi.org/10.48550/arXiv.2305.08140)
 
 * Julia Wiktor, Erik Fransson, Dominik Kubicki, Paul Erhart, [Quantifying Dynamic Tilting in Halide Perovskites: Chemical Trends and Local Correlations](https://arxiv.org/abs/2304.07402), arXiv:2304.07402 [cond-mat.mtrl-sci]
 
@@ -18,9 +21,11 @@
 
 * Yong-Bo Shi, Hao Wang, Haikuan Dong, Shuo Cao, Ke-Ke Song, Li-Bin Shi, Ping Qian, [Origin of Low Lattice Thermal Conductivity and Mobility of Lead-Free Halide Double Perovskites](http://dx.doi.org/10.2139/ssrn.4191191)
 
-* Chao Yang, Jian Wang, Dezhi Ma, Zhiqiang Li, Zhiyuan He, Linhua Liu, Zhiwei Fu, Jia-Yue Yang, [Phonon Transport Across Gan-Diamond Interface: The Nontrivial Role of Pre-Interface Vacancy-Phonon Scattering](http://dx.doi.org/10.2139/ssrn.4435960)
+* Chao Yang, Jian Wang, Dezhi Ma, Zhiqiang Li, Zhiyuan He, Linhua Liu, Zhiwei Fu, Jia-Yue Yang, [Phonon Transport Across Gan-Diamond Interface: The Nontrivial Role of Pre-Interface Vacancy-Phonon Scattering](http://dx.doi.org/10.2139/ssrn.4435960) 
 
-## 2023 (13)
+## 2023 (14)
+
+* Yong-Bo Shi, Yuan-Yuan Chen, Hao Wang, Shuo Cao, Yuan-Xu Zhu, Meng-Fan Chu, Zhu-Feng Shao, Hai-Kuan Dong, Ping Qian, [Investigation of the mechanical and transport properties of InGeX3 (X = S, Se and Te) monolayers using density functional theory and machine learning](https://doi.org/10.1039/D3CP01441J), Phys. Chem. Chem. Phys. (2023).
 
 * Ke Xu, Yongchao Hao, Ting Liang, Penghua Ying, Jianbin Xu, Jianyang Wu, Zheyong Fan, [Accurate prediction of heat conductivity of water by a neuroevolution potential](https://arxiv.org/abs/2302.12328), 	arXiv:2302.12328 [physics.comp-ph], Accepted to J. Chem. Phys. (2023).
 
