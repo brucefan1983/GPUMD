@@ -25,14 +25,26 @@ References for implementation:
 
 #include "ensemble_pimd.cuh"
 #include "langevin_utilities.cuh"
+#include "svr_utilities.cuh"
 #include "utilities/common.cuh"
+#include <chrono>
 #include <cstdlib>
+
+void Ensemble_PIMD::initialize_rng()
+{
+#ifdef DEBUG
+  rng = std::mt19937(12345678);
+#else
+  rng = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
+};
 
 Ensemble_PIMD::Ensemble_PIMD(
   int number_of_atoms_input, int number_of_beads_input, bool thermostat_internal_input, Atom& atom)
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
+  num_target_pressure_components = 0;
   thermostat_internal = thermostat_internal_input;
   thermostat_centroid = false;
   initialize(atom);
@@ -46,10 +58,34 @@ Ensemble_PIMD::Ensemble_PIMD(
 {
   number_of_atoms = number_of_atoms_input;
   number_of_beads = number_of_beads_input;
+  num_target_pressure_components = 0;
   temperature_coupling = temperature_coupling_input;
   thermostat_internal = true;
   thermostat_centroid = true;
   initialize(atom);
+}
+
+Ensemble_PIMD::Ensemble_PIMD(
+  int number_of_atoms_input,
+  int number_of_beads_input,
+  double temperature_coupling_input,
+  int num_target_pressure_components_input,
+  double target_pressure_input[6],
+  double pressure_coupling_input[6],
+  Atom& atom)
+{
+  number_of_atoms = number_of_atoms_input;
+  number_of_beads = number_of_beads_input;
+  temperature_coupling = temperature_coupling_input;
+  num_target_pressure_components = num_target_pressure_components_input;
+  for (int i = 0; i < 6; i++) {
+    target_pressure[i] = target_pressure_input[i];
+    pressure_coupling[i] = pressure_coupling_input[i];
+  }
+  thermostat_internal = true;
+  thermostat_centroid = true;
+  initialize(atom);
+  initialize_rng();
 }
 
 void Ensemble_PIMD::initialize(Atom& atom)
@@ -554,6 +590,201 @@ gpu_find_thermo(const double volume, const double NkBT, const double* g_sum_1024
   }
 }
 
+static void cpu_pressure_orthogonal(
+  std::mt19937 rng,
+  Box& box,
+  double target_temperature,
+  double* p0,
+  double* p_coupling,
+  double* thermo,
+  double* scale_factor)
+{
+  double p[3];
+  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+
+  if (box.pbc_x == 1) {
+    const double scale_factor_Berendsen = 1.0 - p_coupling[0] * (p0[0] - p[0]);
+    const double scale_factor_stochastic =
+      sqrt(2.0 * p_coupling[0] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+    scale_factor[0] = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
+    box.cpu_h[0] *= scale_factor[0];
+    box.cpu_h[3] = box.cpu_h[0] * 0.5;
+  } else {
+    scale_factor[0] = 1.0;
+  }
+
+  if (box.pbc_y == 1) {
+    const double scale_factor_Berendsen = 1.0 - p_coupling[1] * (p0[1] - p[1]);
+    const double scale_factor_stochastic =
+      sqrt(2.0 * p_coupling[1] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+    scale_factor[1] = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
+    box.cpu_h[1] *= scale_factor[1];
+    box.cpu_h[4] = box.cpu_h[1] * 0.5;
+  } else {
+    scale_factor[1] = 1.0;
+  }
+
+  if (box.pbc_z == 1) {
+    const double scale_factor_Berendsen = 1.0 - p_coupling[2] * (p0[2] - p[2]);
+    const double scale_factor_stochastic =
+      sqrt(2.0 * p_coupling[2] * K_B * target_temperature / box.get_volume()) * gasdev(rng);
+    scale_factor[2] = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
+    box.cpu_h[2] *= scale_factor[2];
+    box.cpu_h[5] = box.cpu_h[2] * 0.5;
+  } else {
+    scale_factor[2] = 1.0;
+  }
+}
+
+static void cpu_pressure_isotropic(
+  std::mt19937 rng,
+  Box& box,
+  double target_temperature,
+  double* target_pressure,
+  double* p_coupling,
+  double* thermo,
+  double& scale_factor)
+{
+  double p[3];
+  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 3, cudaMemcpyDeviceToHost));
+  const double pressure_instant = (p[0] + p[1] + p[2]) * 0.3333333333333333;
+  const double scale_factor_Berendsen =
+    1.0 - p_coupling[0] * (target_pressure[0] - pressure_instant);
+  // The factor 0.666666666666667 is 2/3, where 3 means the number of directions that are coupled
+  const double scale_factor_stochastic =
+    sqrt(0.666666666666667 * p_coupling[0] * K_B * target_temperature / box.get_volume()) *
+    gasdev(rng);
+  scale_factor = scale_factor_Berendsen + 0.0 * scale_factor_stochastic;
+  box.cpu_h[0] *= scale_factor;
+  box.cpu_h[1] *= scale_factor;
+  box.cpu_h[2] *= scale_factor;
+  box.cpu_h[3] = box.cpu_h[0] * 0.5;
+  box.cpu_h[4] = box.cpu_h[1] * 0.5;
+  box.cpu_h[5] = box.cpu_h[2] * 0.5;
+}
+
+static void cpu_pressure_triclinic(
+  std::mt19937 rng,
+  Box& box,
+  double target_temperature,
+  double* p0,
+  double* p_coupling,
+  double* thermo,
+  double* mu)
+{
+  // p_coupling and p0 are in Voigt notation: xx, yy, zz, yz, xz, xy
+  double p[6]; // but thermo is this order: xx, yy, zz, xy, xz, yz
+  CHECK(cudaMemcpy(p, thermo + 2, sizeof(double) * 6, cudaMemcpyDeviceToHost));
+  mu[0] = 1.0 - p_coupling[0] * (p0[0] - p[0]);    // xx
+  mu[4] = 1.0 - p_coupling[1] * (p0[1] - p[1]);    // yy
+  mu[8] = 1.0 - p_coupling[2] * (p0[2] - p[2]);    // zz
+  mu[3] = mu[1] = -p_coupling[5] * (p0[5] - p[3]); // xy
+  mu[6] = mu[2] = -p_coupling[4] * (p0[4] - p[4]); // xz
+  mu[7] = mu[5] = -p_coupling[3] * (p0[3] - p[5]); // yz
+  /*
+  double p_coupling_3by3[3][3] = {
+    {p_coupling[0], p_coupling[3], p_coupling[4]},
+    {p_coupling[3], p_coupling[1], p_coupling[5]},
+    {p_coupling[4], p_coupling[5], p_coupling[2]}};
+  const double volume = box.get_volume();
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      mu[r * 3 + c] +=
+        sqrt(2.0 * p_coupling_3by3[r][c] * K_B * target_temperature / volume) * gasdev(rng);
+    }
+  }
+  */
+  double h_old[9];
+  for (int i = 0; i < 9; ++i) {
+    h_old[i] = box.cpu_h[i];
+  }
+  for (int r = 0; r < 3; ++r) {
+    for (int c = 0; c < 3; ++c) {
+      double tmp = 0.0;
+      for (int k = 0; k < 3; ++k) {
+        tmp += mu[r * 3 + k] * h_old[k * 3 + c];
+      }
+      box.cpu_h[r * 3 + c] = tmp;
+    }
+  }
+  box.get_inverse();
+}
+
+static __global__ void gpu_pressure_orthogonal(
+  const int number_of_particles,
+  int number_of_beads,
+  const double scale_factor_x,
+  const double scale_factor_y,
+  const double scale_factor_z,
+  double** g_beads_position,
+  double* g_average_position)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    double scale_factor[3] = {scale_factor_x, scale_factor_y, scale_factor_z};
+    for (int d = 0; d < 3; ++d) {
+      const int index = i + d * number_of_particles;
+      g_average_position[index] *= scale_factor[d];
+      for (int k = 0; k < number_of_beads; ++k) {
+        g_beads_position[k][index] *= scale_factor[d];
+      }
+    }
+  }
+}
+
+static __global__ void gpu_pressure_isotropic(
+  int number_of_particles,
+  int number_of_beads,
+  double scale_factor,
+  double** g_beads_position,
+  double* g_average_position)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    for (int d = 0; d < 3; ++d) {
+      const int index = i + d * number_of_particles;
+      g_average_position[index] *= scale_factor;
+      for (int k = 0; k < number_of_beads; ++k) {
+        g_beads_position[k][index] *= scale_factor;
+      }
+    }
+  }
+}
+
+static __global__ void gpu_pressure_triclinic(
+  int number_of_particles,
+  int number_of_beads,
+  double mu0,
+  double mu1,
+  double mu2,
+  double mu3,
+  double mu4,
+  double mu5,
+  double mu6,
+  double mu7,
+  double mu8,
+  double** g_beads_position,
+  double* g_average_position)
+{
+  int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    double x_old = g_average_position[i];
+    double y_old = g_average_position[i + number_of_particles];
+    double z_old = g_average_position[i + number_of_particles * 2];
+    g_average_position[i] = mu0 * x_old + mu1 * y_old + mu2 * z_old;
+    g_average_position[i + number_of_particles] = mu3 * x_old + mu4 * y_old + mu5 * z_old;
+    g_average_position[i + number_of_particles * 2] = mu6 * x_old + mu7 * y_old + mu8 * z_old;
+    for (int k = 0; k < number_of_beads; ++k) {
+      double x_old = g_beads_position[k][i];
+      double y_old = g_beads_position[k][i + number_of_particles];
+      double z_old = g_beads_position[k][i + number_of_particles * 2];
+      g_beads_position[k][i] = mu0 * x_old + mu1 * y_old + mu2 * z_old;
+      g_beads_position[k][i + number_of_particles] = mu3 * x_old + mu4 * y_old + mu5 * z_old;
+      g_beads_position[k][i + number_of_particles * 2] = mu6 * x_old + mu7 * y_old + mu8 * z_old;
+    }
+  }
+}
+
 void Ensemble_PIMD::langevin(const double time_step, Atom& atom)
 {
   if (thermostat_internal) {
@@ -670,4 +901,47 @@ void Ensemble_PIMD::compute2(
   gpu_find_thermo<<<8, 1024>>>(
     box.get_volume(), number_of_atoms * K_B * temperature, sum_1024.data(), thermo.data());
   CUDA_CHECK_KERNEL
+
+  if (num_target_pressure_components == 1) {
+    double scale_factor;
+    cpu_pressure_isotropic(
+      rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), scale_factor);
+    gpu_pressure_isotropic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms,
+      number_of_beads,
+      scale_factor,
+      position_beads.data(),
+      atom.position_per_atom.data());
+  } else if (num_target_pressure_components == 3) {
+    double scale_factor[3];
+    cpu_pressure_orthogonal(
+      rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), scale_factor);
+    gpu_pressure_orthogonal<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms,
+      number_of_beads,
+      scale_factor[0],
+      scale_factor[1],
+      scale_factor[2],
+      position_beads.data(),
+      atom.position_per_atom.data());
+    CUDA_CHECK_KERNEL
+  } else if (num_target_pressure_components == 6) {
+    double mu[9];
+    cpu_pressure_triclinic(
+      rng, box, temperature, target_pressure, pressure_coupling, thermo.data(), mu);
+    gpu_pressure_triclinic<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+      number_of_atoms,
+      number_of_beads,
+      mu[0],
+      mu[1],
+      mu[2],
+      mu[3],
+      mu[4],
+      mu[5],
+      mu[6],
+      mu[7],
+      mu[8],
+      position_beads.data(),
+      atom.position_per_atom.data());
+  }
 }

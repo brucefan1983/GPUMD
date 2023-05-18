@@ -34,6 +34,18 @@ Bibliography
    | J. Chem. Phys. **126**, 014101 (2007)
    | DOI: `10.1063/1.2408420 <https://doi.org/10.1063/1.2408420>`_
 
+.. [Ceriotti2010]
+   | Michele Ceriotti, Michele Parrinello, Thomas E. Markland, and David E. Manolopoulos
+   | *Efficient stochastic thermostatting of path integral molecular dynamics*
+   | J. Chem. Phys. **133**, 124104 (2010)
+   | DOI: `10.1063/1.3489925 <https://doi.org/10.1063/1.3489925>`_
+
+.. [Craig2004]
+   | Ian R. Craig and David E. Manolopoulos
+   | *Quantum statistics and classical mechanics: Real time correlation functions from ring polymer molecular dynamics*
+   | J. Chem. Phys. **121**, 3368 (2004)
+   | DOI: `10.1063/1.1777575 <https://doi.org/10.1063/1.1777575>`_
+
 .. [Dai2006]
    | X. D. Dai, Y. Kong, J. H. Li, and B. X. Liu
    | *Extended Finnis–Sinclair potential for bcc and fcc metals and alloys*
@@ -117,6 +129,12 @@ Bibliography
    | *Direct calculation of modal contributions to thermal conductivity via Green-Kubo modal analysis*
    | New J. Phys. **18**, 013028 (2016)
    | DOI: `10.1088/1367-2630/18/1/013028 <https://doi.org/10.1088/1367-2630/18/1/013028>`_
+   
+.. [Rossi2014]
+   | Mariana Rossi, Michele Ceriotti, and David E. Manolopoulos
+   | *How to remove the spurious resonances from ring polymer molecular dynamics*
+   | J. Chem. Phys. **140**, 234116 (2014)
+   | DOI: `10.1063/1.4883861 <https://doi.org/10.1063/1.4883861>`_
 
 .. [Schaul2011]
    | T. Schaul, T. Glasmachers, and J. Schmidhuber

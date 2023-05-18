@@ -16,6 +16,7 @@
 #pragma once
 #include "ensemble.cuh"
 #include <curand_kernel.h>
+#include <random>
 #include <vector>
 
 class Ensemble_PIMD : public Ensemble
@@ -26,6 +27,15 @@ public:
 
   Ensemble_PIMD(
     int number_of_atoms_input, int number_of_beads_input, double temperature_coupling, Atom& atom);
+
+  Ensemble_PIMD(
+    int number_of_atoms_input,
+    int number_of_beads_input,
+    double temperature_coupling,
+    int num_target_pressure_components,
+    double target_pressure[6],
+    double pressure_coupling[6],
+    Atom& atom);
 
   virtual ~Ensemble_PIMD(void);
 
@@ -62,4 +72,6 @@ protected:
 
   void initialize(Atom& atom);
   void langevin(const double time_step, Atom& atom);
+  std::mt19937 rng;
+  void initialize_rng();
 };
