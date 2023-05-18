@@ -62,11 +62,11 @@ Glossary
    NN
         neural network
 
-   PIMD
-        path-integral molecular dynamics
-
    PDOS
         phonon density of states
+
+   PIMD
+        path-integral molecular dynamics
 
    RMSE
         `root-mean-square error <https://en.wikipedia.org/wiki/Root-mean-square_deviation>`_
