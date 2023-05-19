@@ -39,6 +39,7 @@ cd ..\..
 cd gpumd\carbon
 ..\..\..\src\gpumd
 fc thermo.out thermo1.out
-del thermo.out
+fc neighbor.out neighbor1.out
+del thermo.out neighbor.out
 cd ..\..
 

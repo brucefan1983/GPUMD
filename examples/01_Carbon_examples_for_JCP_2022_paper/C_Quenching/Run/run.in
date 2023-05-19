@@ -1,0 +1,34 @@
+potential       ../../../../potentials/nep/C_2022_NEP3.txt
+
+time_step       1.0
+
+velocity        9000    
+ensemble        nvt_lan 9000 9000 100
+dump_thermo     10
+dump_position   1000
+run             30000  
+
+ensemble        nvt_lan 5000 5000 100
+dump_thermo     10
+dump_position   1000
+run             30000 
+
+ensemble        nvt_lan 5000 1000 100
+dump_thermo     10
+dump_position   100
+run             500
+
+ensemble        nvt_lan 1000 1000 100
+dump_thermo     10
+dump_position   1000
+run             30000 
+
+ensemble        nvt_lan 300 300 100
+dump_thermo     10
+dump_position   1000
+run             30000
+
+
+
+
+
