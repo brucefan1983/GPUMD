@@ -17,7 +17,8 @@
 Dump atom positions using AMBER conventions for NetCDF files. Additional
 readers, such as VMD, OVITO, and ASE, can read/visualize the outputs.
 
-Contributing author: Alexander Gabourie (Stanford University); Liang Ting (The Chinese University of Hong Kong)
+Contributing author: Alexander Gabourie (Stanford University)
+                     Liang Ting (The Chinese University of Hong Kong)
 
 Code was written for NetCDF version 4.6.3 and the style was influenced by
 LAMMPS' implementation by Lars Pastewka (University of Freiburg). The netCDF
@@ -77,7 +78,7 @@ void DUMP_NETCDF::parse(const char** param, int num_param)
   printf("Dump data (position or velocity) in NetCDF format.\n");
 
   if (num_param < 3) {
-    PRINT_INPUT_ERROR("dump_netcdf should have 2 parameter at least.");
+    PRINT_INPUT_ERROR("dump_netcdf should have 2 parameters at least.");
   }
   if (num_param > 5) {
     PRINT_INPUT_ERROR("dump_netcdf has too many parameters.");
