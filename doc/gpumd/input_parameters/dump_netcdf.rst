@@ -61,8 +61,8 @@ before the :ref:`run command <kw_run>`.
 Caveats
 -------
 
-* Follow the `AMBER 1.0 conventions <http://ambermd.org/netcdf/nctraj.pdf>`_, the unit of length is :attr:`angstrom`
-  and the unit of velocities is :attr:`angstrom/picosecond`.
+* Following the `AMBER 1.0 conventions <http://ambermd.org/netcdf/nctraj.pdf>`_, length is in units of Ångström
+  and velocity is in units of Ångström/picosecond.
 * This keyword is not propagating.
   That means, its effect will not be passed from one run to the next.
 * The output appends to the same file for different runs in the same simulation.
