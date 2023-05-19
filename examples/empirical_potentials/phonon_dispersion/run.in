@@ -1,2 +1,0 @@
-potential       ../../../potentials/tersoff/Si_Fan_2019.txt
-compute_phonon  5 0.005 # in units of A
