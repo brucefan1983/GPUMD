@@ -25,23 +25,26 @@ class DUMP_NETCDF
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(const int N);
+  void preprocess(const int number_of_atoms);
   void process(
     const int step,
     const double global_time,
     const Box& box,
     const std::vector<int>& cpu_type,
     GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom);
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    std::vector<double>& cpu_velocity_per_atom);
   void postprocess();
 
 private:
   bool dump_ = false;
-  int interval = 1; // output interval
+  int interval = 1;          // output interval
+  int has_velocity_ = 0;     // 0 wthout velocities, 1 with velocities
   char file_position[200];
-  int precision = 2; // 1 = single precision, 2 = double
+  int precision = 2;         // 1 = single precision, 2 = double
 
-  int ncid; // NetCDF ID
+  int ncid;                  // NetCDF ID
   static bool append;
 
   // dimensions
@@ -62,6 +65,7 @@ private:
   int cell_lengths_var;
   int cell_angles_var;
   int coordinates_var;
+  int velocities_var;
   int type_var;
 
   size_t lenp; // frame number
@@ -72,7 +76,9 @@ private:
     const Box& box,
     const std::vector<int>& cpu_type,
     GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom);
+    std::vector<double>& cpu_position_per_atom,
+    GPU_Vector<double>& velocity_per_atom,
+    std::vector<double>& cpu_velocity_per_atom);
 };
 
 #endif

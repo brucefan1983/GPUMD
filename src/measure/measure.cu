@@ -193,9 +193,17 @@ void Measure::process(
     atom.heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
+    
 #ifdef USE_NETCDF
   dump_netcdf.process(
-    step, global_time, box, atom.cpu_type, atom.position_per_atom, atom.cpu_position_per_atom);
+    step,
+    global_time,
+    box,
+    atom.cpu_type,
+    atom.position_per_atom,
+    atom.cpu_position_per_atom,
+    atom.velocity_per_atom,
+    atom.cpu_velocity_per_atom);
 #endif
 }
 

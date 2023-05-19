@@ -5,7 +5,7 @@
 :attr:`dump_netcdf`
 ===================
 
-Write the atomic positions (coordinates) in NetCDF format to a `movie.nc file <http://ambermd.org/netcdf/nctraj.pdf>`_.
+Write the atomic positions (coordinates) and (optionally) velocities in NetCDF format to a `movie.nc file <http://ambermd.org/netcdf/nctraj.pdf>`_.
 
 
 Syntax
@@ -13,9 +13,9 @@ Syntax
 
 This keyword has the following format::
 
-  dump_netcdf <interval> [{optional_args}]
+  dump_netcdf <interval> <has_velocity> [{optional_args}]
 
-The :attr:`interval` parameter is the output interval (number of steps) of the atom positions.
+The :attr:`interval` parameter is the output interval (number of steps) of the atom positions. `has_velocity` can be 1 or 0, which means the velocities will or will not be included in the output.
 The optinal arguments (:attr:`optional_args`) provide additional functionality.
 Currently, the following optional argument is accepted:
 
@@ -39,21 +39,21 @@ Requirements and specifications
 Examples
 --------
 
-Single precision example
-^^^^^^^^^^^^^^^^^^^^^^^^
+Single precision without veolocities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To dump the positions every 1000 steps to a NetCDF file with 32-bit floating point values, one can add::
 
-  dump_netcdf 1000 precision single
+  dump_netcdf 1000 0 precision single
 
 before the :ref:`run command <kw_run>`.
 
-Double precision example
-^^^^^^^^^^^^^^^^^^^^^^^^
+Double precision with velocities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
-To dump the positions every 1000 steps to a NetCDF file with 64-bit floating point values, one can add::
+To dump the positions and velocities every 1000 steps to a NetCDF file with 64-bit floating point values, one can add::
 
-  dump_netcdf 1000
+  dump_netcdf 1000 1
 
 before the :ref:`run command <kw_run>`.
 
@@ -61,8 +61,12 @@ before the :ref:`run command <kw_run>`.
 Caveats
 -------
 
+* Following the `AMBER 1.0 conventions <http://ambermd.org/netcdf/nctraj.pdf>`_, length is in units of Ångström
+  and velocity is in units of Ångström/picosecond.
 * This keyword is not propagating.
   That means, its effect will not be passed from one run to the next.
 * The output appends to the same file for different runs in the same simulation.
   Re-running the simulation will create a new output file.
+* If the file "movie.nc" already exists in the current directory, it will not be overwritten.
+  Instead, files will be generated with names "movie_2.nc", "movie_3.nc", ..., "movie_n.nc".
 * If the :attr:`precision` changes between different runs, the first defined precision will still be used (i.e., changes in precision are ignored during a simulation). 
