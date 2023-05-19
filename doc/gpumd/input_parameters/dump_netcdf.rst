@@ -5,7 +5,7 @@
 :attr:`dump_netcdf`
 ===================
 
-Write the atomic positions (coordinates) or velocities in NetCDF format to a `movie.nc file <http://ambermd.org/netcdf/nctraj.pdf>`_.
+Write the atomic positions (coordinates) and (optionally) velocities in NetCDF format to a `movie.nc file <http://ambermd.org/netcdf/nctraj.pdf>`_.
 
 
 Syntax
@@ -40,7 +40,7 @@ Examples
 --------
 
 Single precision without veolocities
-^^^^^^^^^^^^^^^^^^^^^^^^
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To dump the positions every 1000 steps to a NetCDF file with 32-bit floating point values, one can add::
 
@@ -48,8 +48,8 @@ To dump the positions every 1000 steps to a NetCDF file with 32-bit floating poi
 
 before the :ref:`run command <kw_run>`.
 
-Double precision example
-^^^^^^^^^^^^^^^^^^^^^^^^
+Double precision with velocities
+^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
 
 To dump the positions and velocities every 1000 steps to a NetCDF file with 64-bit floating point values, one can add::
 
@@ -61,6 +61,8 @@ before the :ref:`run command <kw_run>`.
 Caveats
 -------
 
+* Follow the `AMBER 1.0 conventions <http://ambermd.org/netcdf/nctraj.pdf>`_, the unit of length is :attr:`angstrom`
+  and the unit of velocities is :attr:`angstrom/picosecond`.
 * This keyword is not propagating.
   That means, its effect will not be passed from one run to the next.
 * The output appends to the same file for different runs in the same simulation.
