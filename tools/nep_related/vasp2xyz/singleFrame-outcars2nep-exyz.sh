@@ -42,9 +42,11 @@ do
              grep -A $(($syst_numb_atom + 1)) "TOTAL-FORCE (eV/Angst)" $i | tail -n $syst_numb_atom > $writ_dire/posi_forc.tem
              paste $writ_dire/symb.tem $writ_dire/posi_forc.tem >> $writ_dire/$writ_file
              rm -f $writ_dire/*.tem
+	     echo -n -e "\033[0G"
              echo -n "$N_count/$N_case "
              N_count=$((N_count + 1))
 done
+echo
 dos2unix $writ_dire/$writ_file
 echo "All done, bye."
 
