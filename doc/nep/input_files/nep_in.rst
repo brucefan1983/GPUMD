@@ -40,6 +40,10 @@ Keywords
      - number of atom types and list of chemical species
    * - :ref:`type_weight <kw_type_weight>`
      - force weights for different atom types
+   * - :ref:`mode <kw_mode>`
+     - select to train potential, dipole, or polarizability
+   * - :ref:`prediction <kw_prediction>`
+     - select between training and prediction (inference)
    * - :ref:`zbl <kw_zbl>`
      - outer cutoff for the universal :term:`ZBL` potential [Ziegler1985]_
    * - :ref:`cutoff <kw_cutoff>`
