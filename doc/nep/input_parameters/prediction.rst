@@ -1,4 +1,4 @@
-.. _kw_type:
+.. _kw_prediction:
 .. index::
    single: prediction (keyword in nep.in)
 
