@@ -4,7 +4,7 @@
    single: polarizability_test.out (output file)
 
 ``polarizability_*.out``
-================
+========================
 
 The ``polarizability_train.out`` and ``polarizability_test.out`` files contain the predicted and target polarizability values.
 
