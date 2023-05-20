@@ -9,11 +9,11 @@ import subprocess
 
 project = 'GPUMD'
 author = 'The GPUMD developer team'
-process = subprocess.Popen(['git', 'tag'], stdout=subprocess.PIPE)
-stdout, _ = process.communicate()
 copyright = '2023'
 site_url = 'https://gpumd.org'
 
+process = subprocess.Popen(['git', 'tag'], stdout=subprocess.PIPE)
+stdout, _ = process.communicate()
 versions = [s for s in stdout.decode().split('\n') if len(s)]
 if len(versions) > 0:
     version = versions[-1].replace('v', '')
