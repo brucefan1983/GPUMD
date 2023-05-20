@@ -29,5 +29,6 @@ In addition to :ref:`several empirical interatomic potentials <potentials>`, it 
 
    credits
    bibliography
+   publications
    glossary
    genindex

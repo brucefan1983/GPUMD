@@ -12,7 +12,7 @@ src/nep*
 .vscode
 *~
 local
-public*
+public
 \#*
 
 /nep
