@@ -55,7 +55,7 @@ html_theme_options = {'display_version': True}
 html_context = {
     'current_version': version,
     'versions':
-        [('latest stable release',
+        [('latest release',
           '{}'.format(site_url)),
          ('development version',
           '{}/dev'.format(site_url))]}
