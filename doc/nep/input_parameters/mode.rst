@@ -1,4 +1,4 @@
-.. _kw_type:
+.. _kw_mode:
 .. index::
    single: mode (keyword in nep.in)
 
