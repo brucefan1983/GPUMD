@@ -13,21 +13,23 @@ copyright = '2023'
 site_url = 'https://gpumd.org'
 
 extensions = [
+    'sphinx_sitemap',
     'sphinx.ext.autodoc',
-    'sphinx.ext.doctest',
-    'sphinx.ext.todo',
+    'sphinx.ext.autosummary',
     'sphinx.ext.coverage',
-    'sphinx.ext.mathjax',
+    'sphinx.ext.doctest',
+    'sphinx.ext.graphviz',
     'sphinx.ext.ifconfig',
     'sphinx.ext.intersphinx',
-    'sphinx.ext.viewcode',
-    'sphinx.ext.autosummary',
+    'sphinx.ext.mathjax',
     'sphinx.ext.napoleon',
-    'sphinx.ext.graphviz',
+    'sphinx.ext.todo',
+    'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
-    'sphinx_sitemap',
+    'sphinxcontrib.bibtex',
     'cloud_sptheme.ext.table_styling',    
     'nbsphinx']
+bibtex_bibfiles = ['publications.bib']
 
 graphviz_output_format = 'svg'
 templates_path = ['_templates']
