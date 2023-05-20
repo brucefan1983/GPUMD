@@ -5,12 +5,20 @@ import os
 import sys
 import re
 import sphinx_rtd_theme
+import subprocess
 
 project = 'GPUMD'
 author = 'The GPUMD developer team'
-version = ''
 copyright = '2023'
 site_url = 'https://gpumd.org'
+
+process = subprocess.Popen(['git', 'tag'], stdout=subprocess.PIPE)
+stdout, _ = process.communicate()
+versions = [s for s in stdout.decode().split('\n') if len(s)]
+if len(versions) > 0:
+    version = versions[-1]
+else:
+    version = ''
 
 extensions = [
     'sphinx_sitemap',
@@ -47,7 +55,7 @@ html_theme_options = {'display_version': True}
 html_context = {
     'current_version': version,
     'versions':
-        [('latest stable release',
+        [('latest release',
           '{}'.format(site_url)),
          ('development version',
           '{}/dev'.format(site_url))]}
