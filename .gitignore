@@ -13,10 +13,11 @@ src/nep*
 *~
 local
 public
+public.*
 \#*
 
 /nep
-/gpumd
+/gpumd*
 
 __pycache__/
 */__pycache__/
