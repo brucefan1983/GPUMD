@@ -47,6 +47,10 @@ Essentially any keyword is allowd, but we only read the following ones:
   * :attr:`pos:R:3` position vector
   * :attr:`force:R:3` or :attr:`forces:R:3` target force vector
 
+* If a dipole model is to be trained, energy, virial, stress, and force will be ignored and one should additionally provide :attr:`dipole="dx dy dz"`, which is the dipole vector of the structure. 
+
+* If a polarizability model is to be trained, energy, virial, stress, force, and dipole will be ignored and one should additionally provide :attr:`pol="pxx pxy pxz pyx pyy pyz pzx pzy pzz"`, which is the polarizability tensor of the structure.
+
 Starting from line 3
 ^^^^^^^^^^^^^^^^^^^^
 
@@ -58,6 +62,7 @@ Units
 * The energy is expected  in units of eV.
 * Forces are exepected is in units of eV/Å.
 * Virials are expected in units of eV (such that th virial divided by the volume yields the stress).
+* Dipole and polarizalibity can be in arbitrary units (such as the Hartree atomic units) as liked (and remembered) by the user.
 
 Tips
 ----
