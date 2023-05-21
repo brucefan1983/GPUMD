@@ -16,8 +16,8 @@
 | 09_Silicon_diffusion                       | Zheyong Fan   | NEP       | Diffusion coefficient of liquid silicon from VAC and MSD. |
 | 10_Silicon_viscosity                       | Zheyong Fan   | NEP       | Viscosity of liquid silicon from Green-Kubo. |
 | 11_NEP_potential_PbTe                      | Zheyong Fan   | NEP       | Train a NEP potential model for PbTe. |
-| 12_NEP_dipole_QM7                          | Zheyong Fan   | NEP       | Train a NEP dipole model for QM7 database. |
-| 13_NEP_polarizability_QM7                  | Zheyong Fan   | NEP       | Train a NEP polarizability model for QM7 database. |
+| 12_NEP_dipole_QM7B                         | Nan Xu        | NEP       | Train a NEP dipole model for QM7 database. |
+| 13_NEP_polarizability_QM7B                 | Nan Xu        | NEP       | Train a NEP polarizability model for QM7 database. |
 
 
 ## How to run the examples?
