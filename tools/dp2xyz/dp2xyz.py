@@ -152,8 +152,6 @@ def read_multi_deepmd(folder):
             data['energies'][ifr] = data_multi[i]['energies'][j]
             if data['has_virial'][ifr]:
                 data['virials'][ifr] = data_multi[i]['virials'][j]
-            else:
-                data['virials'][ifr] = np.array([[1e-8,1e-8,1e-8]]*3)
             data['cells'][ifr] = np.reshape(data_multi[i]['cells'][j],9)
             data['volume'][ifr] = vec2volume(data['cells'][ifr])
             data['atom_names'][ifr] = atom_names
@@ -231,7 +229,8 @@ def dump_xyz(folder, data):
         Out_string += "energy=" + str(data['energies'][i]) + " "
         Out_string += "config_type=nep2xyz "
         Out_string += "pbc=\"T T T\" "
-        Out_string += "virial=\"" + " ".join(list(map(str, myvirial))) + "\" "
+        if data['has_virial'][i]:
+            Out_string += "virial=\"" + " ".join(list(map(str, myvirial))) + "\" "
         Out_string += "Lattice=\"" + " ".join(list(map(str, data['cells'][i]))) + "\" "
         Out_string += f"volume={data['volume'][i]} "
         Out_string += "Properties=species:S:1:pos:R:3:force:R:3\n"
