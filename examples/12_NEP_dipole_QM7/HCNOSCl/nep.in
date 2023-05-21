@@ -1,8 +1,0 @@
-mode        1
-type       	6 H C N O S Cl	
-cutoff      4 4
-lambda_1    0.002
-lambda_2    0.002
-neuron      10
-batch       10000
-generation  1000
