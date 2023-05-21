@@ -2,7 +2,7 @@
 
 | folder      | author(s)                 | language | description                                               |
 | ---------   | --------------------------| -------- | --------------------------------------------------------- |
-| mtp2nep     | Junjie WANG               | Python   | Convert `MTP` training data to (old) `NEP` format |
+| mtp2xyz     | Junjie WANG               | Python   | Convert `MTP` training data to (old) `NEP` format |
 | vim         | Ke Xu                     | vim      | highlight `GPUMD` related files in `vim`          |
 | deep2nep    | Ke XU                     | Python   | Convert `DeePMD` training data to (old) `NEP` format | 
 | nep2xyz     | Ke XU                     | Python   | Convert (old) `NEP` training data to extended XYZ file format |
