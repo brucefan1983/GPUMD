@@ -1,10 +1,11 @@
-"""
-    Purpose:
-        Merge the box information, atomic coordinates,
-        and atomic forces outputted by CP2K into the xyz file
-    Run:
-        python cp2k2xyz.py ${cp2k}  # cp2k is a folder path.
-"""
+#
+# Purpose:
+#     Merge the box information, atomic coordinates,
+#     and atomic forces outputted by CP2K into the xyz file
+# Run:
+#     python cp2k2xyz.py ${cp2k}  # cp2k is a folder path.
+#
+
 import sys
 import os
 
@@ -64,10 +65,10 @@ def CP2K2XYZ(folder, fnames=None, output_file=None):
 
             num_atoms = int(pos_header.strip().split()[0])
             of.write(f"{num_atoms}\n")
-            pos_info_line = pf.readline()
-            ff.readline()  # Skip the corresponding line in the frc_file
+            frc_info_line = ff.readline()
+            pf.readline()  # Skip the corresponding line in the pos_file
 
-            energy = float(pos_info_line.strip().split("E =")[-1]) / 27.211386245988
+            energy = float(frc_info_line.strip().split("E =")[-1]) / 27.211386245988
 
             # Read and process the cell information
             cell_line = cf.readline().strip().split()
