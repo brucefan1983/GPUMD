@@ -21,7 +21,9 @@ Tutorials
    :maxdepth: 1
    :caption: nep tutorials
 
-   nep_tutorial
+   nep_potential_tutorial
+   nep_dipole_tutorial
+   nep_polarizability_tutorial
 
 Other tutorials
 ===============
