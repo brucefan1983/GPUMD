@@ -333,14 +333,39 @@ Similar to the former case,
    =\langle A(0) \rangle 
    + (\frac{N}{M'}+\frac{N}{N_{\gamma}m_{\gamma}})(\int_{0}^{t}dt'\frac{\langle \boldsymbol{A}(t') \otimes \boldsymbol{J}_{\gamma}(0) \rangle}{k_BT})\cdot \boldsymbol{F}_{\rm e}
 
-Then we can obtain any matrix element :math:`\Lambda_{ij}^{ml}` of onsager matrix by:
+Then we can obtain any matrix element :math:`\Lambda_{ij}` of onsager matrix by:
 
 .. math::
 
-   \Lambda_{ij}^{ml}
+   \Lambda_{ij}
    =\frac{1}{k_BV}\int_{0}^{t}dt'\langle \boldsymbol{J}_{i}(t') \otimes \boldsymbol{J}_{j}(0) \rangle
 
 
+The onsager matrix is arranged as: 
+
+.. math::
+
+   \begin{array}{cccc}
+   \Lambda_{qq}
+   & \Lambda_{q1}
+   & \cdots
+   & \Lambda_{q(M-1)}
+   \\
+   \Lambda_{1q}
+   & \Lambda_{11}
+   & \cdots
+   & \Lambda_{1(M-1)}
+   \\
+   \vdots
+   & \vdots
+   & \ddots
+   & \vdots
+   \\
+   \Lambda_{(M-1)q}
+   & \Lambda_{(M-1)1}
+   & \cdots
+   & \Lambda_{(M-1)(M-1)}
+   \end{array}
 The thermal conductivity could be derived from onsager matrix: 
 
 .. math::
@@ -349,3 +374,4 @@ The thermal conductivity could be derived from onsager matrix:
 
 * The :ref:`compute_hnemdec <kw_compute_hnemdec>` keyword should be used to add the driving force and calculate the thermal conductivity.
 * The computed results are saved to the :ref:`onsager.out <onsager_out>` file.
+
