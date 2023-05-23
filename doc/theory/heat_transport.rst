@@ -306,8 +306,7 @@ In the case of heat flux :math:`\boldsymbol{J}_{q}` as dissipative flux, for the
 .. math::
 
    \boldsymbol{F}_{i}^{\alpha,\rm ext}
-   = E_i^{\alpha} \boldsymbol{F}_{\rm e} 
-   +( \mathbf{S}_{i}^{\alpha}
+   =( \mathbf{S}_{i}^{\alpha}
    -\frac{m_{\alpha}}{M}\mathbf{S}
    +k_BT\frac{M_{tot}-Nm_{\alpha}}{M_{tot}N}\mathbf{I})\cdot \boldsymbol{F}_{\rm e} 
 
