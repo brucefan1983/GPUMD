@@ -288,3 +288,64 @@ The mode-specific non-equilibrium heat current is :math:`\langle J_n^{\mu}(t)\ra
 For the :term:`HNEMA` method, we only used the potential part of the heat current.
 A global thermostat should be applied to control the temperature of the system.
 For this, we recommend using the Nose-Hoover chain thermostat. So one should use the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of :attr:`nvt_nhc`.
+
+
+.. index::
+   single: HNEMDEC
+   single: Homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm
+
+HNEMDEC method
+----------------------
+
+A system with :math:`M` components has :math:`M` independent fluxes: the heat flux and any :math:`M-1` momentum fluxes of the :math:`M` component.
+The central idea of Evans-Cummings algorithm is designing such a driving force that produce a dissipative flux that is equivalent to heat flux or momentum flux.
+By measuring the heat current and momentum current, we obtain onsager coefficents that can be used to derive the thermal conductivity. 
+
+In the case of heat flux :math:`\boldsymbol{J}_{q}` as dissipative flux, for the :math:`i` atom belonging to :math:`\alpha` component:
+
+.. math::
+
+   \boldsymbol{F}_{i}^{\alpha,\rm ext}
+   = E_i^{\alpha} \boldsymbol{F}_{\rm e} 
+   +( \mathbf{S}_{i}^{\alpha}
+   -\frac{m_{\alpha}}{M}\mathbf{S}
+   +k_BT\frac{M_{tot}-Nm_{\alpha}}{M_{tot}N}\mathbf{I})\cdot \boldsymbol{F}_{\rm e} 
+
+where :math:`\mathbf{S}_{i}^{\alpha}=E_{i}^{\alpha}\mathbf{I}+\mathbf{W}_{i}^{\alpha}`, :math:`\mathbf{S}=\sum_{\beta=1}^{M}\sum_{i=1}^{N_{\beta}}\mathbf{S}_{i}^{\beta}`, :math:`M_{tot}` is the total mass of the system, :math:`N` is the atom number of the system. Any physical quantity :math:`A(t)` is related to driving force by correlation funtion:
+
+.. math::
+
+   \langle \boldsymbol{A}(t) \rangle
+   =\langle A(0) \rangle + (\int_{0}^{t}dt'\frac{\langle \boldsymbol{A}(t') \otimes \boldsymbol{J}_{q}(0) \rangle}{k_BT})\cdot \boldsymbol{F}_{\rm e}
+
+In the case of momentum flux :math:`\boldsymbol{J}_{\gamma}` of :math:`\gamma` component as dissipative flux:
+
+.. math::
+
+   \boldsymbol{F}_{i}^{\alpha,\rm ext}=c_{\alpha}\boldsymbol{F}_{\rm e}
+
+where :math:`c_{\gamma}=\frac{N}{N_{\gamma}}`, and :math:`c_{\beta}=-\frac{Nm_{\beta}}{M'}`, :math:`M'=\sum_{\epsilon=1,\epsilon\neq\gamma}^{M}N_{\epsilon}m_{\epsilon}`.
+Similar to the former case,
+
+.. math::
+
+   \langle \boldsymbol{A}(t) \rangle
+   =\langle A(0) \rangle 
+   + (\frac{N}{M'}+\frac{N}{N_{\gamma}m_{\gamma}})(\int_{0}^{t}dt'\frac{\langle \boldsymbol{A}(t') \otimes \boldsymbol{J}_{\gamma}(0) \rangle}{k_BT})\cdot \boldsymbol{F}_{\rm e}
+
+Then we can obtain any matrix element :math:`\Lambda_{ij}^{ml}` of onsager matrix by:
+
+.. math::
+
+   \Lambda_{ij}^{ml}
+   =\frac{1}{k_BV}\int_{0}^{t}dt'\langle \boldsymbol{J}_{i}(t') \otimes \boldsymbol{J}_{j}(0) \rangle
+
+
+The thermal conductivity could be derived from onsager matrix: 
+
+.. math::
+
+   \kappa=\frac{1}{T^{2}(\Lambda^{-1})_{00}}
+
+* The :ref:`compute_hnemdec <kw_compute_hnemdec>` keyword should be used to add the driving force and calculate the thermal conductivity.
+* The computed results are saved to the :ref:`onsager.out <onsager_out>` file.
