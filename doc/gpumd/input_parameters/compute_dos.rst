@@ -33,6 +33,7 @@ The option :attr:`group` has two parameters::
   group <group_method> <group>
 
 where :attr:`group_method` is the grouping method to use for computation and :attr:`group` is the index of the group to use.
+If :attr:`group` is -1, it means to calculate the DOS for every group in the :attr:`group_method`. If each atom is in one group, one can get the per-atom DOS and then calculate the phonon participation ratio.
 
 The option :attr:`num_dos_points` has one parameter::
 
@@ -47,7 +48,7 @@ Example
 
 An example for the use of this keyword is::
   
-  compute_dos 5 200 400.0 group 1 1 num_dos_points 300
+  compute_dos 5 200 400.0 group 1 2 num_dos_points 300
 
 This means that you
 
@@ -55,8 +56,8 @@ This means that you
 * the velocity data will be recorded every 5 steps
 * the maximum number of correlation steps is 200
 * the maximum angular frequency you want to consider is :math:`\omega_{max} = 2\pi\nu_{max} =` 400 THz
-* you would like to compute only over group 1 in group method 1
-* you would like the maximum angular frequency to be cut in to 300 points for output.
+* you would like to compute only over group 2 in group method 1
+* you would like the maximum angular frequency to be evenly divided into 300 points for output.
 
 
 Caveats
