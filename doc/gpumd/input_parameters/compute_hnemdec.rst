@@ -55,6 +55,6 @@ Example 2
 
 .. code::
 
-   compute_hnemd 2 1000 0 0.00001 0
+   compute_hnemdec 2 1000 0 0.00001 0
 
 The external driving force is diffusive driving force that will produced a momentum flux of the second element as dissipative flux and has a magnitude of :math:`10^{-5}` eV/Å. The force is applied along the :math:`y` direction.
