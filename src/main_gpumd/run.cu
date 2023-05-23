@@ -18,6 +18,7 @@ Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
 #include "cohesive.cuh"
+#include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
@@ -384,6 +385,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_fix(param, num_param, group);
   } else if (strcmp(param[0], "move") == 0) {
     integrate.parse_move(param, num_param, group);
+  } else if (strcmp(param[0], "electron_stop") == 0) {
+    electron_stop.parse(param, num_param, number_of_types);
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {
