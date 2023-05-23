@@ -41,6 +41,9 @@ Glossary
    HNEMD
         :ref:`The homogeneous non-equilibrium molecular dynamics <hnemd>`
 
+   HNEMDEC
+        :ref:`homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm <hnemdec>`
+
    LJ
         :ref:`Lennard-Jones <lennard_jones_potential>` potential
 
