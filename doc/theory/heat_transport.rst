@@ -4,7 +4,6 @@
 Heat transport
 ==============
 
-
 .. _green_kubo_method:
 .. _heat_current_autocorrelation:
 .. _running_thermal_conductivity:
@@ -290,6 +289,7 @@ A global thermostat should be applied to control the temperature of the system.
 For this, we recommend using the Nose-Hoover chain thermostat. So one should use the :ref:`ensemble <kw_ensemble>` keyword with the first parameter of :attr:`nvt_nhc`.
 
 
+.. _hnemdec:
 .. index::
    single: HNEMDEC
    single: Homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm
@@ -365,6 +365,7 @@ The onsager matrix is arranged as:
    & \cdots
    & \Lambda_{(M-1)(M-1)}
    \end{array}
+
 The thermal conductivity could be derived from onsager matrix: 
 
 .. math::
