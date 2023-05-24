@@ -5,7 +5,7 @@
 ``onsager.out``
 ===============
 
-This file contains some components of the running onsager coefficients (:term:`RTC`) tensor from the homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm (:term:`HNEMDEC`) method.
+This file contains some components of the running onsager coefficients tensor from the homogeneous non-equilibrium molecular dynamics Evans-Cummings algorithm (:term:`HNEMDEC`) method.
 It is generated when invoking the :ref:`compute_hnemdec keyword <kw_compute_hnemdec>`.
 
 File format
