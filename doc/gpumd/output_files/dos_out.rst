@@ -17,4 +17,4 @@ The file is organized as follows:
 * column 3: :term:`DOS` (in units of 1/THz) in the :math:`y` direction
 * column 4: :term:`DOS` (in units of 1/THz) in the :math:`z` direction
 
-Note that only the group selected in the :ref:`compute_dos keyword <kw_compute_dos>` is included in this output.
+If there are multiple groups to be calculated as specified in the :ref:`compute_dos keyword <kw_compute_dos>`, data will be output group by group, each occupying the same number of rows (the number of frequency points).
