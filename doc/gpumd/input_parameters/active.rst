@@ -10,7 +10,7 @@ Run on-the-fly active learning, based on committee uncertainty estimates over a 
 The uncertainty :math:`\sigma_f` is estimated as the maximum force sample standard deviation on any atom :math:`i`,
 
 .. math::
-        \sigma_f = \textrm{max}_i \sqrt{ \sigma_{i,x}^2 + \sigma_{i, y}^2 + \sigma{i, z}^2  },
+        \sigma_f = \textrm{max}_i \sqrt{ \sigma_{i,x}^2 + \sigma_{i, y}^2 + \sigma_{i, z}^2  },
 
 where :math:`\sigma_{i,k}^2`, :math:`k\in{x,y,z}`, are the sample variances in the :math:`k` Cartesian direction calculated over the :math:`M` models. If the uncertainty exceeds the specified threshold, :math:`\sigma_f>\delta`, for a structure in a step of an molecular dynamics simulation, then that structure is appended to the file `active.xyz` in the `extended XYZ format <https://github.com/libAtoms/extxyz>`_. Additionally, the simulation time :math:`t` and :math:`\sigma_f` are written to the file `active.out` regardless of if :math:`\sigma_f>\delta`.
 
