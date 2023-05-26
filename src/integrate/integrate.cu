@@ -688,11 +688,19 @@ void Integrate::parse_ensemble(
       printf("    tau_T is %g time_step.\n", temperature_coupling);
       break;
     case 11:
-      printf("Use NPT ensemble for this run.\n");
-      printf("    choose the Berendsen method.\n");
-      printf("    initial temperature is %g K.\n", temperature1);
-      printf("    final temperature is %g K.\n", temperature2);
-      printf("    tau_T is %g time_step\n", temperature_coupling);
+      if (temperature_coupling <= 100000) {
+        printf("Use NPT ensemble for this run.\n");
+        printf("    choose the Berendsen method.\n");
+        printf("    initial temperature is %g K.\n", temperature1);
+        printf("    final temperature is %g K.\n", temperature2);
+        printf("    tau_T is %g time_step\n", temperature_coupling);
+      } else {
+        printf("Use NPH ensemble for this run.\n");
+        printf("    choose the Berendsen method.\n");
+        printf("    initial temperature is %g K but will not be used.\n", temperature1);
+        printf("    final temperature is %g K but will not be used.\n", temperature2);
+        printf("    tau_T is %g time_step but will not be used.\n", temperature_coupling);
+      }
       if (num_target_pressure_components == 1) {
         printf("    isotropic pressure is %g GPa.\n", target_pressure[0]);
         printf("    bulk modulus is %g GPa.\n", elastic_modulus[0]);
