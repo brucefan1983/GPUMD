@@ -1,5 +1,5 @@
 type       	6 H C N O S Cl	
-mode        2
+model_type  2
 cutoff      6 4
 n_max       6 6
 basis_size  10 10
