@@ -34,14 +34,14 @@ http://ambermd.org/netcdf/nctraj.xhtml
 #include "model/box.cuh"
 #include "netcdf.h"
 #include "parse_utilities.cuh"
-#include "utilities/gpu_vector.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
+#include "utilities/gpu_vector.cuh"
 #include "utilities/read_file.cuh"
 #include <unistd.h>
 
 const int FILE_NAME_LENGTH = 200;
-#define GPUMD_VERSION "3.7"
+#define GPUMD_VERSION "3.8"
 
 /* Handle errors by printing an error message and exiting with a
  * non-zero status. */
@@ -65,7 +65,7 @@ const char CELL_ANGULAR_STR[] = "cell_angular";
 const char LABEL_STR[] = "label";
 const char TIME_STR[] = "time";
 const char COORDINATES_STR[] = "coordinates";
-const char VELOCITIES_STR[] = "velocities";     // maybe not use
+const char VELOCITIES_STR[] = "velocities"; // maybe not use
 const char TYPE_STR[] = "type";
 const char CELL_LENGTHS_STR[] = "cell_lengths";
 const char CELL_ANGLES_STR[] = "cell_angles";
@@ -91,7 +91,7 @@ void DUMP_NETCDF::parse(const char** param, int num_param)
     PRINT_INPUT_ERROR("dump interval should > 0.");
   }
   printf("    every %d steps.\n", interval);
-  
+
   if (!is_valid_int(param[2], &has_velocity_)) {
     PRINT_INPUT_ERROR("has_velocity should be an integer.");
   }
@@ -100,11 +100,11 @@ void DUMP_NETCDF::parse(const char** param, int num_param)
   } else {
     printf("    with velocity data.\n");
   }
-  
+
   for (int k = 3; k < num_param; k++) {
     if (strcmp(param[k], "precision") == 0) {
       parse_precision(param, num_param, k, precision);
-      
+
     } else {
       PRINT_INPUT_ERROR("Unrecognized argument in dump_netcdf.\n");
     }
@@ -114,7 +114,7 @@ void DUMP_NETCDF::parse(const char** param, int num_param)
     printf("Note: Single precision NetCDF output does not follow AMBER conventions.\n"
            "      However, it will still work for many readers.\n");
   } else {
-  	printf("    using double precision for NetCDF output.\n");
+    printf("    using double precision for NetCDF output.\n");
   }
 }
 
@@ -162,12 +162,13 @@ void DUMP_NETCDF::preprocess(const int number_of_atoms)
   NC_CHECK(nc_put_att_text(ncid, NC_GLOBAL, "ConventionVersion", 3, "1.0"));
 
   // dimensions
-  NC_CHECK(nc_def_dim(ncid, FRAME_STR, NC_UNLIMITED, &frame_dim));     // unlimited number of steps (can append)
-  NC_CHECK(nc_def_dim(ncid, SPATIAL_STR, 3, &spatial_dim));            // number of spatial dimensions
-  NC_CHECK(nc_def_dim(ncid, ATOM_STR, number_of_atoms, &atom_dim));    // number of atoms in system
-  NC_CHECK(nc_def_dim(ncid, CELL_SPATIAL_STR, 3, &cell_spatial_dim));  // unitcell lengths
-  NC_CHECK(nc_def_dim(ncid, CELL_ANGULAR_STR, 3, &cell_angular_dim));  // unitcell angles
-  NC_CHECK(nc_def_dim(ncid, LABEL_STR, 10, &label_dim));               // needed for cell_angular
+  NC_CHECK(nc_def_dim(
+    ncid, FRAME_STR, NC_UNLIMITED, &frame_dim)); // unlimited number of steps (can append)
+  NC_CHECK(nc_def_dim(ncid, SPATIAL_STR, 3, &spatial_dim));         // number of spatial dimensions
+  NC_CHECK(nc_def_dim(ncid, ATOM_STR, number_of_atoms, &atom_dim)); // number of atoms in system
+  NC_CHECK(nc_def_dim(ncid, CELL_SPATIAL_STR, 3, &cell_spatial_dim)); // unitcell lengths
+  NC_CHECK(nc_def_dim(ncid, CELL_ANGULAR_STR, 3, &cell_angular_dim)); // unitcell angles
+  NC_CHECK(nc_def_dim(ncid, LABEL_STR, 10, &label_dim));              // needed for cell_angular
 
   // Label variables
   int dimids[3];
@@ -195,12 +196,12 @@ void DUMP_NETCDF::preprocess(const int number_of_atoms)
   if (precision == 1) // single precision
   {
     NC_CHECK(nc_def_var(ncid, COORDINATES_STR, NC_FLOAT, 3, dimids, &coordinates_var));
-    if (has_velocity_){
+    if (has_velocity_) {
       NC_CHECK(nc_def_var(ncid, VELOCITIES_STR, NC_FLOAT, 3, dimids, &velocities_var));
     }
   } else {
     NC_CHECK(nc_def_var(ncid, COORDINATES_STR, NC_DOUBLE, 3, dimids, &coordinates_var));
-    if (has_velocity_){
+    if (has_velocity_) {
       NC_CHECK(nc_def_var(ncid, VELOCITIES_STR, NC_DOUBLE, 3, dimids, &velocities_var));
     }
   }
@@ -211,9 +212,10 @@ void DUMP_NETCDF::preprocess(const int number_of_atoms)
   NC_CHECK(nc_put_att_text(ncid, cell_lengths_var, UNITS_STR, 8, "angstrom"));
   NC_CHECK(nc_put_att_text(ncid, coordinates_var, UNITS_STR, 8, "angstrom"));
   NC_CHECK(nc_put_att_text(ncid, cell_angles_var, UNITS_STR, 6, "degree"));
-  
-  if (has_velocity_){
-    NC_CHECK(nc_put_att_text(ncid, velocities_var, UNITS_STR, 19, "angstrom/picosecond"));  // AMBER conventions
+
+  if (has_velocity_) {
+    NC_CHECK(nc_put_att_text(
+      ncid, velocities_var, UNITS_STR, 19, "angstrom/picosecond")); // AMBER conventions
   }
   // Definitions are complete -> leave define mode
   NC_CHECK(nc_enddef(ncid));
@@ -270,8 +272,8 @@ void DUMP_NETCDF::open_file(int frame_in_run)
     NC_CHECK(nc_inq_varid(ncid, CELL_ANGLES_STR, &cell_angles_var));
 
     NC_CHECK(nc_inq_varid(ncid, COORDINATES_STR, &coordinates_var));
-    if (has_velocity_){
-    	NC_CHECK(nc_inq_varid(ncid, VELOCITIES_STR, &velocities_var));
+    if (has_velocity_) {
+      NC_CHECK(nc_inq_varid(ncid, VELOCITIES_STR, &velocities_var));
     }
     NC_CHECK(nc_inq_varid(ncid, TYPE_STR, &type_var));
 
@@ -352,8 +354,9 @@ void DUMP_NETCDF::write(
 
   //// Write Per-Atom Data ////
   position_per_atom.copy_to_host(cpu_position_per_atom.data());
- 
-  const double natural_to_A_per_ps = 1.0 / TIME_UNIT_CONVERSION * 1000.0;  // * 1000 from A/fs to A/ps
+
+  const double natural_to_A_per_ps =
+    1.0 / TIME_UNIT_CONVERSION * 1000.0; // * 1000 from A/fs to A/ps
   if (has_velocity_) {
     velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
   }
@@ -372,9 +375,11 @@ void DUMP_NETCDF::write(
       cpu_y[i] = static_cast<float>(cpu_position_per_atom[i + number_of_atoms]);
       cpu_z[i] = static_cast<float>(cpu_position_per_atom[i + number_of_atoms * 2]);
       if (has_velocity_) {
-      	cpu_velocity_x[i] = static_cast<float>(cpu_velocity_per_atom[i] * natural_to_A_per_ps);
-        cpu_velocity_y[i] = static_cast<float>(cpu_velocity_per_atom[i + number_of_atoms] * natural_to_A_per_ps);
-        cpu_velocity_z[i] = static_cast<float>(cpu_velocity_per_atom[i + number_of_atoms * 2] * natural_to_A_per_ps);
+        cpu_velocity_x[i] = static_cast<float>(cpu_velocity_per_atom[i] * natural_to_A_per_ps);
+        cpu_velocity_y[i] =
+          static_cast<float>(cpu_velocity_per_atom[i + number_of_atoms] * natural_to_A_per_ps);
+        cpu_velocity_z[i] =
+          static_cast<float>(cpu_velocity_per_atom[i + number_of_atoms * 2] * natural_to_A_per_ps);
       }
     }
 
@@ -384,39 +389,46 @@ void DUMP_NETCDF::write(
     NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, cpu_type.data()));
     NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_x.data()));
     if (has_velocity_) {
-    	NC_CHECK(nc_put_vara_float(ncid, velocities_var, startp, countp, cpu_velocity_x.data()));
+      NC_CHECK(nc_put_vara_float(ncid, velocities_var, startp, countp, cpu_velocity_x.data()));
     }
     startp[2] = 1;
     NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_y.data()));
     if (has_velocity_) {
-    	NC_CHECK(nc_put_vara_float(ncid, velocities_var, startp, countp, cpu_velocity_y.data()));
+      NC_CHECK(nc_put_vara_float(ncid, velocities_var, startp, countp, cpu_velocity_y.data()));
     }
     startp[2] = 2;
     NC_CHECK(nc_put_vara_float(ncid, coordinates_var, startp, countp, cpu_z.data()));
     if (has_velocity_) {
-    	NC_CHECK(nc_put_vara_float(ncid, velocities_var, startp, countp, cpu_velocity_z.data()));
-    }   
+      NC_CHECK(nc_put_vara_float(ncid, velocities_var, startp, countp, cpu_velocity_z.data()));
+    }
   } else {
     countp[0] = 1;
     countp[1] = number_of_atoms;
     countp[2] = 1;
     NC_CHECK(nc_put_vara_int(ncid, type_var, startp, countp, cpu_type.data()));
-    
+
     for (int dim = 0; dim < 3; ++dim) {
       startp[2] = dim;
-      NC_CHECK(nc_put_vara_double(ncid, coordinates_var, startp, countp, cpu_position_per_atom.data() + number_of_atoms * dim));
+      NC_CHECK(nc_put_vara_double(
+        ncid,
+        coordinates_var,
+        startp,
+        countp,
+        cpu_position_per_atom.data() + number_of_atoms * dim));
     }
-    
+
     if (has_velocity_) {
-    	
+
       std::vector<double> scaled_velocity(number_of_atoms * 3);
-      
+
       for (int dim = 0; dim < 3; ++dim) {
         startp[2] = dim;
         for (int i = 0; i < number_of_atoms; ++i) {
-          scaled_velocity[i + number_of_atoms * dim] = cpu_velocity_per_atom[i + number_of_atoms * dim] * natural_to_A_per_ps;
+          scaled_velocity[i + number_of_atoms * dim] =
+            cpu_velocity_per_atom[i + number_of_atoms * dim] * natural_to_A_per_ps;
         }
-        NC_CHECK(nc_put_vara_double(ncid, velocities_var, startp, countp, scaled_velocity.data() + number_of_atoms * dim));
+        NC_CHECK(nc_put_vara_double(
+          ncid, velocities_var, startp, countp, scaled_velocity.data() + number_of_atoms * dim));
       }
     }
   }
@@ -447,7 +459,14 @@ void DUMP_NETCDF::process(
 
   int frame_in_run = (step + 1) / interval;
   open_file(frame_in_run);
-  write(global_time, box, cpu_type, position_per_atom, cpu_position_per_atom, velocity_per_atom, cpu_velocity_per_atom);
+  write(
+    global_time,
+    box,
+    cpu_type,
+    position_per_atom,
+    cpu_position_per_atom,
+    velocity_per_atom,
+    cpu_velocity_per_atom);
   NC_CHECK(nc_close(ncid));
 }
 
