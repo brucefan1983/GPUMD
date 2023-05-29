@@ -18,13 +18,15 @@ Apply electron stopping.
 ------------------------------------------------------------------------------*/
 
 #include "electron_stop.cuh"
+#include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <iostream>
 #include <vector>
 
-void __global__ find_stopping_force(
+static void __global__ find_stopping_force(
   const int num_atoms,
+  const int num_points,
   const double energy_min,
   const double energy_max,
   const double energy_interval_inverse,
@@ -61,120 +63,84 @@ void __global__ find_stopping_force(
 
     double factor = stopping_power / sqrt(v2);
 
-    g_force[0 * num_atoms + i] -= vx * factor;
-    g_force[1 * num_atoms + i] -= vx * factor;
-    g_force[2 * num_atoms + i] -= vx * factor;
+    g_force[0 * num_atoms + i] = -vx * factor;
+    g_force[1 * num_atoms + i] = -vy * factor;
+    g_force[2 * num_atoms + i] = -vz * factor;
   }
 }
 
-void __global__ apply_electron_stopping(
-  const int num_atoms,
-  const double time_step,
-  const double energy_min,
-  const double energy_max,
-  const double energy_interval_inverse,
-  const double* g_stopping_power,
-  const int* g_type,
-  const double* g_mass,
-  const double* g_velocity,
-  double* g_force)
+__device__ float device_force_average[3];
+
+static __global__ void find_force_average(int num_atoms, double* g_force)
+{
+  //<<<3, 1024>>>
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  int number_of_batches = (num_atoms - 1) / 1024 + 1;
+  __shared__ double s_f[1024];
+  double f = 0.0;
+
+  for (int batch = 0; batch < number_of_batches; ++batch) {
+    int n = tid + batch * 1024;
+    if (n < num_atoms) {
+      f += g_force[n + bid * num_atoms];
+    }
+  }
+
+  s_f[tid] = f;
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_f[tid] += s_f[tid + offset];
+    }
+    __syncthreads();
+  }
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_f[tid] += s_f[tid + offset];
+    }
+    __syncwarp();
+  }
+
+  if (tid == 0) {
+    device_force_average[bid] = s_f[0] / num_atoms;
+  }
+}
+
+static void __global__
+apply_electron_stopping(const int num_atoms, const double* g_stopping_force, double* g_force)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < num_atoms) {
-
-    int type = g_type[i];
-    double mass = g_mass[i];
-    double vx = g_velocity[0 * num_atoms + i];
-    double vy = g_velocity[1 * num_atoms + i];
-    double vz = g_velocity[2 * num_atoms + i];
-    double v2 = vx * vx + vy * vy + vz * vz;
-    double energy = 0.5 * mass * v2;
-
-    if (energy < energy_min + 1.0e-6) {
-      return;
+    for (int d = 0; d < 3; ++d) {
+      g_force[d * num_atoms + i] += g_stopping_force[d * num_atoms + i] - device_force_average[d];
     }
-    if (energy > energy_max - 1.0e-6) {
-      return;
-    }
-
-    double fractional_energy = (energy - energy_min) * energy_interval_inverse;
-    int index_left = static_cast<int>(fractional_energy);
-    int index_right = index_left + 1;
-    double weight_right = fractional_energy - index_left;
-    double weight_left = 1.0 - weight_right;
-    double stopping_power = g_stopping_power[type * num_points + index_left] * weight_left +
-                            g_stopping_power[type * num_points + index_right] * weight_right;
-
-    double factor = stopping_power / sqrt(v2);
-
-    g_force[0 * num_atoms + i] -= vx * factor;
-    g_force[1 * num_atoms + i] -= vx * factor;
-    g_force[2 * num_atoms + i] -= vx * factor;
   }
 }
 
-void __global__ apply_electron_stopping(
-  const int num_atoms,
-  const double time_step,
-  const double energy_min,
-  const double energy_max,
-  const double energy_interval_inverse,
-  const double* g_stopping_power,
-  const int* g_type,
-  const double* g_mass,
-  const double* g_velocity,
-  double* g_force)
-{
-  const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < num_atoms) {
-
-    int type = g_type[i];
-    double mass = g_mass[i];
-    double vx = g_velocity[0 * num_atoms + i];
-    double vy = g_velocity[1 * num_atoms + i];
-    double vz = g_velocity[2 * num_atoms + i];
-    double v2 = vx * vx + vy * vy + vz * vz;
-    double energy = 0.5 * mass * v2;
-
-    if (energy < energy_min + 1.0e-6) {
-      return;
-    }
-    if (energy > energy_max - 1.0e-6) {
-      return;
-    }
-
-    double fractional_energy = (energy - energy_min) * energy_interval_inverse;
-    int index_left = static_cast<int>(fractional_energy);
-    int index_right = index_left + 1;
-    double weight_right = fractional_energy - index_left;
-    double weight_left = 1.0 - weight_right;
-    double stopping_power = g_stopping_power[type * num_points + index_left] * weight_left +
-                            g_stopping_power[type * num_points + index_right] * weight_right;
-
-    double factor = stopping_power / sqrt(v2);
-
-    g_force[0 * num_atoms + i] -= vx * factor;
-    g_force[1 * num_atoms + i] -= vx * factor;
-    g_force[2 * num_atoms + i] -= vx * factor;
-  }
-}
-
-void Electron_Stop::compute(const int num_atoms, const double time_step, Atom& atom)
+void Electron_Stop::compute(const double time_step, Atom& atom)
 {
   if (!do_electron_stop) {
     return;
   }
 
-  apply_electron_stopping<<<(num_atoms - 1) / 128 + 1, 128>>>(
-    num_atoms,
-    time_step,
+  find_stopping_force<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+    atom.number_of_atoms,
+    num_points,
     energy_min,
     energy_max,
-    1.0 / energy_interval_inverse,
+    1.0 / energy_interval,
     stopping_power_gpu.data(),
     atom.type.data(),
     atom.mass.data(),
-    atom.velocity_per_atom.data());
+    atom.velocity_per_atom.data(),
+    stopping_force.data());
+
+  find_force_average<<<3, 1024>>>(atom.number_of_atoms, stopping_force.data());
+
+  apply_electron_stopping<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+    atom.number_of_atoms, stopping_force.data(), atom.force_per_atom.data());
 }
 
 void Electron_Stop::parse(const char** param, int num_param, const int num_types)

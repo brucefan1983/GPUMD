@@ -18,18 +18,22 @@
 #include "utilities/gpu_vector.cuh"
 #include <vector>
 
+class Atom;
+
 class Electron_Stop
 {
 public:
   bool do_electron_stop = false;
   void parse(const char** param, int num_param, const int num_types);
+  void compute(const double time_step, Atom& atom);
   void finalize();
 
 private:
   int num_points = 0;
   double energy_min;
   double energy_max;
-  douoble energy_interval;
+  double energy_interval;
   std::vector<double> stopping_power_cpu;
   GPU_Vector<double> stopping_power_gpu;
+  GPU_Vector<double> stopping_force;
 };
