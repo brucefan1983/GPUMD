@@ -205,9 +205,9 @@ void Parameters::report_inputs()
     train_mode_name = "polarizability";
   }
   if (is_train_mode_set) {
-    printf("    (input)   train_mode = %s.\n", train_mode_name.c_str());
+    printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
   } else {
-    printf("    (default) train_mode = %s.\n", train_mode_name.c_str());
+    printf("    (default) model_type = %s.\n", train_mode_name.c_str());
   }
 
   std::string calculation_mode_name = "train";
@@ -381,7 +381,7 @@ void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
-  if (strcmp(param[0], "mode") == 0) {
+  if (strcmp(param[0], "model_type") == 0 || strcmp(param[0], "mode") == 0) {
     parse_mode(param, num_param);
   } else if (strcmp(param[0], "prediction") == 0) {
     parse_prediction(param, num_param);
@@ -433,13 +433,13 @@ void Parameters::parse_mode(const char** param, int num_param)
   is_train_mode_set = true;
 
   if (num_param != 2) {
-    PRINT_INPUT_ERROR("mode should have 1 parameter.\n");
+    PRINT_INPUT_ERROR("model_type should have 1 parameter.\n");
   }
   if (!is_valid_int(param[1], &train_mode)) {
     PRINT_INPUT_ERROR("mode should be an integer.\n");
   }
   if (train_mode != 0 && train_mode != 1 && train_mode != 2) {
-    PRINT_INPUT_ERROR("mode should = 0 or 1 or 2.");
+    PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2.");
   }
 }
 

@@ -128,6 +128,10 @@ Actions
      - Compute the thermal conductivity using the :term:`HNEMD` method
      - No
      - No
+   * - :ref:`compute_hnemdec <kw_compute_hnemdec>`
+     - Compute the multicomponent system thermal conductivity using the :term:`HNEMDEC` method
+     - No
+     - No
    * - :ref:`compute_phonon <kw_compute_phonon>`
      - Compute the phonon dispersion
      - Yes

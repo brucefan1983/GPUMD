@@ -105,6 +105,10 @@ Output files
      - :ref:`compute_viscosity <kw_compute_viscosity>`
      - Viscosity and stress auto-correlation function
      - Append
+   * - :ref:`onsager.out <onsager_out>`
+     - :ref:`compute_hnemdec <kw_compute_hnemdec>`
+     - onsager coefficients
+     - Append
 
 .. toctree::
    :maxdepth: 0
@@ -134,3 +138,4 @@ Output files
    thermo_out
    velocity_out
    viscosity_out
+   onsager_out

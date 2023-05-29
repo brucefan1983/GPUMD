@@ -3,7 +3,7 @@ velocity    600
 
 time_step   2
 
-ensemble    npt_scr 600 600 100 0 0 0 100 100 100 1000
+ensemble    npt_ber 600 600 100 0 0 0 100 100 100 1000
 dump_exyz   10000 0 0
 run         10000
 
@@ -13,7 +13,7 @@ dump_exyz   10000 0 0
 run         10000
 
 # use a large tau_T to mimic NPH
-ensemble    npt_scr 1600 1600 1e20 0 0 0 50 50 50 1000
+ensemble    npt_ber 1600 1600 1e20 0 0 0 50 50 50 1000
 dump_thermo 100
 dump_exyz   10000 0 0
 run         100000

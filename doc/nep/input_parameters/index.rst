@@ -13,7 +13,7 @@ Below you can find a listing of keywords for the ``nep.in`` input file.
 
    version
    prediction
-   mode
+   model_type
    type
    type_weight
    zbl

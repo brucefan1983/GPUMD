@@ -1,16 +1,16 @@
-.. _kw_mode:
+.. _kw_model_type:
 .. index::
-   single: mode (keyword in nep.in)
+   single: model_type (keyword in nep.in)
 
-:attr:`mode`
-============
+:attr:`model_type`
+==================
 
 This keyword allows one to specify the type of model that is being trained.
 The syntax is::
 
-  mode <mode_value>
+  model_type <type_value>
 
-where :attr:`<mode_value>` must be an integer that can assume one of the following values.
+where :attr:`<type_value>` must be an integer that can assume one of the following values.
 
 =====  ===================
 Value  Type of model
