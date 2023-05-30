@@ -46,10 +46,10 @@ static void __global__ find_stopping_force(
     double v2 = vx * vx + vy * vy + vz * vz;
     double energy = 0.5 * mass * v2;
 
-    if (energy < energy_min + 1.0e-6) {
-      return;
-    }
-    if (energy > energy_max - 1.0e-6) {
+    if (energy < energy_min + 1.0e-6 || energy > energy_max - 1.0e-6) {
+      g_force[0 * num_atoms + i] = 0.0;
+      g_force[1 * num_atoms + i] = 0.0;
+      g_force[2 * num_atoms + i] = 0.0;
       return;
     }
 
@@ -61,11 +61,11 @@ static void __global__ find_stopping_force(
     double stopping_power = g_stopping_power[type * num_points + index_left] * weight_left +
                             g_stopping_power[type * num_points + index_right] * weight_right;
 
-    double factor = stopping_power / sqrt(v2);
+    double factor = -stopping_power / sqrt(v2);
 
-    g_force[0 * num_atoms + i] = -vx * factor;
-    g_force[1 * num_atoms + i] = -vy * factor;
-    g_force[2 * num_atoms + i] = -vz * factor;
+    g_force[0 * num_atoms + i] = vx * factor;
+    g_force[1 * num_atoms + i] = vy * factor;
+    g_force[2 * num_atoms + i] = vz * factor;
   }
 }
 
