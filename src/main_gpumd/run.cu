@@ -210,7 +210,7 @@ void Run::perform_a_run()
     }
 #endif
 
-    electron_stop.compute(time_step, atom);
+    electron_stop.compute(atom);
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
@@ -254,6 +254,7 @@ void Run::perform_a_run()
 
   measure.finalize(number_of_steps, time_step, integrate.temperature2, box.get_volume());
 
+  electron_stop.finalize();
   integrate.finalize();
   velocity.finalize();
   max_distance_per_step = 0.0;

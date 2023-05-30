@@ -119,7 +119,7 @@ apply_electron_stopping(const int num_atoms, const double* g_stopping_force, dou
   }
 }
 
-void Electron_Stop::compute(const double time_step, Atom& atom)
+void Electron_Stop::compute(Atom& atom)
 {
   if (!do_electron_stop) {
     return;
@@ -136,11 +136,14 @@ void Electron_Stop::compute(const double time_step, Atom& atom)
     atom.mass.data(),
     atom.velocity_per_atom.data(),
     stopping_force.data());
+  CUDA_CHECK_KERNEL
 
   find_force_average<<<3, 1024>>>(atom.number_of_atoms, stopping_force.data());
+  CUDA_CHECK_KERNEL
 
   apply_electron_stopping<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
     atom.number_of_atoms, stopping_force.data(), atom.force_per_atom.data());
+  CUDA_CHECK_KERNEL
 }
 
 void Electron_Stop::parse(
@@ -150,11 +153,12 @@ void Electron_Stop::parse(
   if (num_param != 2) {
     PRINT_INPUT_ERROR("electron_stop should have 1 parameter.\n");
   }
-  printf("     using the stopping power data in %s.\n", param[1]);
+  printf("    using the stopping power data in %s.\n", param[1]);
 
   std::ifstream input(param[1]);
   if (!input.is_open()) {
     printf("Failed to open %s.\n", param[1]);
+    exit(1);
   }
 
   std::vector<std::string> tokens = get_tokens(input);
@@ -163,21 +167,21 @@ void Electron_Stop::parse(
   }
   num_points = get_int_from_token(tokens[0], __FILE__, __LINE__);
   if (num_points < 2) {
-    printf("Number of energy values should >= 2.\n");
+    PRINT_INPUT_ERROR("Number of energy values should >= 2.\n");
   } else {
     printf("    number of energy values = %d.\n", num_points);
   }
 
   energy_min = get_double_from_token(tokens[1], __FILE__, __LINE__);
   if (energy_min <= 0) {
-    printf("energy_min should > 0.\n");
+    PRINT_INPUT_ERROR("energy_min should > 0.\n");
   } else {
     printf("    energy_min = %g eV.\n", energy_min);
   }
 
   energy_max = get_double_from_token(tokens[2], __FILE__, __LINE__);
   if (energy_max <= energy_min) {
-    printf("energy_max should > energy_min.\n");
+    PRINT_INPUT_ERROR("energy_max should > energy_min.\n");
   } else {
     printf("    energy_max = %g eV.\n", energy_max);
   }
@@ -200,16 +204,6 @@ void Electron_Stop::parse(
   stopping_power_gpu.copy_from_host(stopping_power_cpu.data());
   stopping_force.resize(num_atoms * 3);
   do_electron_stop = true;
-
-  // test
-  for (int n = 0; n < num_points; ++n) {
-    std::cout << stopping_power_cpu[0 * num_points + n] << " ";
-    for (int t = 0; t < num_types; ++t) {
-      std::cout << stopping_power_cpu[(t + 1) * num_points + n] << " ";
-    }
-    std::cout << std::endl;
-  }
-  std::cout << std::endl;
 }
 
 void Electron_Stop::finalize() { do_electron_stop = false; }

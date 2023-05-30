@@ -25,7 +25,7 @@ class Electron_Stop
 public:
   bool do_electron_stop = false;
   void parse(const char** param, int num_param, const int num_atoms, const int num_types);
-  void compute(const double time_step, Atom& atom);
+  void compute(Atom& atom);
   void finalize();
 
 private:
