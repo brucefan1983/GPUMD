@@ -143,7 +143,8 @@ void Electron_Stop::compute(const double time_step, Atom& atom)
     atom.number_of_atoms, stopping_force.data(), atom.force_per_atom.data());
 }
 
-void Electron_Stop::parse(const char** param, int num_param, const int num_types)
+void Electron_Stop::parse(
+  const char** param, int num_param, const int num_atoms, const int num_types)
 {
   printf("Apply electron stopping.\n");
   if (num_param != 2) {
@@ -156,30 +157,48 @@ void Electron_Stop::parse(const char** param, int num_param, const int num_types
     printf("Failed to open %s.\n", param[1]);
   }
 
-  input >> num_points;
-  if (num_points < 2) {
-    printf("Number of stopping power values should >= 2.\n");
-  } else {
-    printf("    number of energy points = %d.\n", num_points);
+  std::vector<std::string> tokens = get_tokens(input);
+  if (tokens.size() != 3) {
+    PRINT_INPUT_ERROR("The first line of the stopping power file should have 3 values.");
   }
+  num_points = get_int_from_token(tokens[0], __FILE__, __LINE__);
+  if (num_points < 2) {
+    printf("Number of energy values should >= 2.\n");
+  } else {
+    printf("    number of energy values = %d.\n", num_points);
+  }
+
+  energy_min = get_double_from_token(tokens[1], __FILE__, __LINE__);
+  if (energy_min <= 0) {
+    printf("energy_min should > 0.\n");
+  } else {
+    printf("    energy_min = %g eV.\n", energy_min);
+  }
+
+  energy_max = get_double_from_token(tokens[2], __FILE__, __LINE__);
+  if (energy_max <= energy_min) {
+    printf("energy_max should > energy_min.\n");
+  } else {
+    printf("    energy_max = %g eV.\n", energy_max);
+  }
+
+  energy_interval = (energy_max - energy_min) / (num_points - 1);
+  printf("    energy interval = %g eV.\n", energy_interval);
 
   stopping_power_cpu.resize(num_points * num_types);
   for (int n = 0; n < num_points; ++n) {
-    input >> stopping_power_cpu[0 * num_points + n];
+    std::vector<std::string> tokens = get_tokens(input);
+    if (tokens.size() != num_types) {
+      PRINT_INPUT_ERROR("Number of values does not match with the number of elements.");
+    }
     for (int t = 0; t < num_types; ++t) {
-      input >> stopping_power_cpu[(t + 1) * num_points + n];
+      stopping_power_cpu[t * num_points + n] = get_double_from_token(tokens[t], __FILE__, __LINE__);
     }
   }
 
-  energy_min = stopping_power_cpu[0];
-  energy_max = stopping_power_cpu[num_points - 1];
-  energy_interval = (energy_max - energy_min) / (num_points - 1);
-  printf("    minimal energy = %g eV.\n", energy_min);
-  printf("    maximal energy = %g eV.\n", energy_max);
-  printf("    energy interval = %g eV.\n", energy_interval);
-
   stopping_power_gpu.resize(num_points * num_types);
   stopping_power_gpu.copy_from_host(stopping_power_cpu.data());
+  stopping_force.resize(num_atoms * 3);
   do_electron_stop = true;
 
   // test
