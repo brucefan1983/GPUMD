@@ -157,7 +157,7 @@ void Run::execute_run_in()
 void Run::perform_a_run()
 {
   integrate.initialize(N, time_step, group, atom);
-  measure.initialize(number_of_steps, time_step, box, group, atom, force);
+  measure.initialize(number_of_steps, time_step, box, integrate, group, atom, force);
 
 #ifdef USE_PLUMED
   if (measure.plmd.use_plumed == 1) {
@@ -249,7 +249,7 @@ void Run::perform_a_run()
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(number_of_steps, time_step, integrate.temperature2, box.get_volume());
+  measure.finalize(integrate, number_of_steps, time_step, integrate.temperature2, box.get_volume(),atom.number_of_beads);
 
   integrate.finalize();
   velocity.finalize();
@@ -362,6 +362,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.sdc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_msd") == 0) {
     measure.msd.parse(param, num_param, group);
+  }  else if (strcmp(param[0], "compute_rdf") == 0) {
+    measure.rdf.parse(param, num_param, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_viscosity") == 0) {

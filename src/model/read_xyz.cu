@@ -402,7 +402,7 @@ void read_xyz_in_line_3(
       }
     }
     if (!is_allowed_element) {
-      PRINT_INPUT_ERROR("There is atom in xyz.in that is not allowed in the used potential.\n");
+      PRINT_INPUT_ERROR("There is atom in model.xyz that is not allowed in the used potential.\n");
     }
 
     for (int d = 0; d < 3; ++d) {

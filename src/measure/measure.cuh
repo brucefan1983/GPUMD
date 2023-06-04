@@ -38,6 +38,7 @@
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "viscosity.cuh"
+#include "rdf.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
@@ -55,15 +56,18 @@ public:
     const int number_of_steps,
     const double time_step,
     Box& box,
+    Integrate& integrate,
     std::vector<Group>& group,
     Atom& atom,
     Force& force);
 
   void finalize(
+    Integrate& integrate,
     const int number_of_steps,
     const double time_step,
     const double temperature,
-    const double volume);
+    const double volume,
+    const double number_of_beads);
 
   void process(
     const int number_of_steps,
@@ -83,6 +87,7 @@ public:
   SDC sdc;
   MSD msd;
   HAC hac;
+  RDF rdf;
   Viscosity viscosity;
   SHC shc;
   HNEMD hnemd;
