@@ -354,12 +354,12 @@ void RDF::preprocess(
   if (!compute_)
     return;
   r_step_ = r_cut_ / rdf_bins_;
-  double radial[rdf_bins_];
+  std::vector<double> radial_cpu(rdf_bins_);
   for (int i = 0; i < rdf_bins_; i++) {
-    radial[i] = i * r_step_ + r_step_ / 2;
+    radial_cpu[i] = i * r_step_ + r_step_ / 2;
   }
   radial_.resize(rdf_bins_);
-  radial_.copy_from_host(radial);
+  radial_.copy_from_host(radial_cpu.data());
   rdf_N_ = num_atoms;
   num_atoms_ = num_atoms * rdf_atom_count;
   density1.resize(rdf_atom_count);
@@ -505,7 +505,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       cudaMemcpyDeviceToHost));
     CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
-    double rdf_average[number_of_beads * rdf_atom_count * rdf_bins_] = {0.0};
+    std::vector<double> rdf_average(number_of_beads * rdf_atom_count * rdf_bins_, 0.0);
     for (int k = 0; k < number_of_beads; k++) {
       for (int a = 0; a < rdf_atom_count; a++) {
         for (int m = 0; m < rdf_N_; m++) {
@@ -518,7 +518,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       }
     }
 
-    double rdf_centroid[rdf_atom_count * rdf_bins_] = {0.0};
+    std::vector<double> rdf_centroid(rdf_atom_count * rdf_bins_, 0.0);
     for (int k = 0; k < number_of_beads; k++) {
       for (int a = 0; a < rdf_atom_count; a++) {
         for (int x = 0; x < rdf_bins_; x++) {
@@ -562,7 +562,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       rdf_.data(), rdf_g_.data(), sizeof(double) * num_atoms_ * rdf_bins_, cudaMemcpyDeviceToHost));
     CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
 
-    double rdf_average[rdf_atom_count * rdf_bins_] = {0.0};
+    std::vector<double> rdf_average(rdf_atom_count * rdf_bins_, 0.0);
     for (int a = 0; a < rdf_atom_count; a++) {
       for (int m = 0; m < rdf_N_; m++) {
         for (int x = 0; x < rdf_bins_; x++) {
