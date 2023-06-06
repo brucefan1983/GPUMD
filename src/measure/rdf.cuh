@@ -29,20 +29,23 @@ public:
   int rdf_bins_ = 100;
   double r_step_;
   int num_interval_ = 100;
-  int atom_id1_[6] = {-1,-1,-1,-1,-1,-1};
-  int atom_id2_[6] = {-1,-1,-1,-1,-1,-1};
+  int atom_id1_[6] = {-1, -1, -1, -1, -1, -1};
+  int atom_id2_[6] = {-1, -1, -1, -1, -1, -1};
 
-
-  void preprocess(const bool is_pimd, const int number_of_beads, const int num_atoms, std::vector<int>& cpu_type_size); 
-  void process(
+  void preprocess(
     const bool is_pimd,
-    const int number_of_steps, 
-    const int step, 
-    Box& box,
-    Atom& atom);
+    const int number_of_beads,
+    const int num_atoms,
+    std::vector<int>& cpu_type_size);
+  void process(const bool is_pimd, const int number_of_steps, const int step, Box& box, Atom& atom);
   void postprocess(const bool is_pimd, const int number_of_beads);
-  void parse(const char** param, const int num_param, Box& box, const int number_of_types,  const int number_of_steps);
-  
+  void parse(
+    const char** param,
+    const int num_param,
+    Box& box,
+    const int number_of_types,
+    const int number_of_steps);
+
 private:
   int num_atoms_;
   int rdf_atom_count = 1;
@@ -82,7 +85,7 @@ private:
     int num_bins_2,
     const double rc_inv_cell_list,
     GPU_Vector<double>& radial_,
-    GPU_Vector<double>& rdf_g_, 
+    GPU_Vector<double>& rdf_g_,
     const int rdf_bins_,
     const double r_step_);
 };
