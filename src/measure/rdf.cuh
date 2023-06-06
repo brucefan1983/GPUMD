@@ -28,9 +28,7 @@ public:
   double r_cut_ = 8.0;
   int rdf_bins_ = 100;
   double r_step_;
-  int num_last_steps_ = 5000;
-  int num_every_ = 100;
-  int num_repeat_ = 50;
+  int num_interval_ = 100;
   int atom_id1_[6] = {-1,-1,-1,-1,-1,-1};
   int atom_id2_[6] = {-1,-1,-1,-1,-1,-1};
 
@@ -43,12 +41,13 @@ public:
     Box& box,
     Atom& atom);
   void postprocess(const bool is_pimd, const int number_of_beads);
-  void parse(const char** param, const int num_param, const int number_of_types,  const int number_of_steps);
+  void parse(const char** param, const int num_param, Box& box, const int number_of_types,  const int number_of_steps);
   
 private:
   int num_atoms_;
   int rdf_atom_count = 1;
   int rdf_N_;
+  int num_repeat_ = 0;
   std::vector<int> atom_id1_typesize;
   std::vector<int> atom_id2_typesize;
   std::vector<double> density1;

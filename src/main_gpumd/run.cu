@@ -363,7 +363,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "compute_msd") == 0) {
     measure.msd.parse(param, num_param, group);
   }  else if (strcmp(param[0], "compute_rdf") == 0) {
-    measure.rdf.parse(param, num_param, number_of_types, number_of_steps);
+    measure.rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_viscosity") == 0) {

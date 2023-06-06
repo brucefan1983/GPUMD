@@ -19,7 +19,7 @@ CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 -arch=sm_60 -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++14 -O3 -arch=sm_70
+CFLAGS = -std=c++14 -O3 -arch=sm_60
 endif
 INC = -I./
 LDFLAGS = 

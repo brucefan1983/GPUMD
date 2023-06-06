@@ -358,19 +358,16 @@ void RDF::process(
 {
   if (!compute_)
     return;
-  if ((step + 1) < (number_of_steps + 1 - num_last_steps_ )){
+  if ((step + 1)  % num_interval_ != 0){
     return;
   }
-  if ((step + 1)  % num_every_ != 0){
-    return;
+  num_repeat_++;
+  density1[0] = rdf_N_/box.get_volume() ;
+  density2[0] = rdf_N_/box.get_volume();
+  for (int a=0; a< rdf_atom_count - 1;a++){
+    density1[a+1] = atom_id1_typesize[a]/box.get_volume();
+    density2[a+1] = atom_id2_typesize[a]/box.get_volume();
   }
-
-    density1[0] = rdf_N_/box.get_volume() ;
-    density2[0] = rdf_N_/box.get_volume();
-    for (int a=0; a< rdf_atom_count - 1;a++){
-      density1[a+1] = atom_id1_typesize[a]/box.get_volume();
-      density2[a+1] = atom_id2_typesize[a]/box.get_volume();
-    }
 
   if (is_pimd){
 
@@ -436,49 +433,30 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       }
     }
 
+    FILE* fid = fopen("rdf_centroid.out", "w");
+    fprintf(fid, "#radius");
     for (int a = 0; a< rdf_atom_count; a++){
       if(a == 0){
-        FILE* fid = fopen("rdf_centroid_total.out", "w");
-        for (int nc = 0; nc < rdf_bins_; nc++){
-          fprintf(
-          fid,
-          "%.10f %.10f\n",
-          nc * r_step_ + r_step_ / 2,
-          rdf_centroid[nc]);
-        }
-        fflush(fid);
-        fclose(fid);
+        fprintf(fid, " total");
       }else{
-        char filename[30];
-        sprintf(filename, "rdf_centroid_type_%d_%d.out",atom_id1_[a-1],atom_id2_[a-1]);
-        FILE* fid = fopen(filename, "w");
-        if (atom_id1_[a-1] == atom_id2_[a-1]){
-          for (int nc = 0; nc < rdf_bins_; nc++){
-            fprintf(
-            fid,
-            "%.5f %.5f\n",
-            nc * r_step_ + r_step_ / 2,
-            rdf_centroid[a* rdf_bins_ + nc]);
-          }
-        }else{
-          for (int nc = 0; nc < rdf_bins_; nc++){
-            fprintf(
-            fid,
-            "%.5f %.5f\n",
-            nc * r_step_ + r_step_ / 2,
-            rdf_centroid[a* rdf_bins_ + nc]/2);
-          }
-        }
-        fflush(fid);
-        fclose(fid);
+        fprintf(fid, " type_%d_%d",atom_id1_[a-1],atom_id2_[a-1]);
       }
     }
-    compute_ = false;
-    for (int s = 0; s<6;s++){
-      atom_id1_[s] = -1;
-      atom_id2_[s] = -1;
+    fprintf(fid, "\n");
+    for (int nc = 0; nc < rdf_bins_; nc++){
+      fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
+      for (int a = 0; a< rdf_atom_count; a++){
+        if(a==0){
+          fprintf(fid, " %.5f", rdf_centroid[nc]);
+        }else{
+          fprintf(fid, " %.5f", (atom_id1_[a-1] == atom_id2_[a-1]) ? rdf_centroid[a * rdf_bins_ + nc] : rdf_centroid[a * rdf_bins_ + nc]/2);
+        }
+      }
+      fprintf(fid, "\n");
     }
-    rdf_atom_count = 1;
+    fflush(fid);
+    fclose(fid);
+
   }else{
 
     CHECK(cudaMemcpy(rdf_.data(),rdf_g_.data(),
@@ -494,53 +472,41 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
         }
       }
     }
+    
+    FILE* fid = fopen("rdf.out", "w");
+    fprintf(fid, "#radius");
     for (int a = 0; a< rdf_atom_count; a++){
       if(a == 0){
-        FILE* fid = fopen("rdf_total.out", "w");
-        for (int nc = 0; nc < rdf_bins_; nc++){
-          fprintf(
-          fid,
-          "%.5f %.5f\n",
-          nc * r_step_ + r_step_ / 2,
-          rdf_average[nc]);
-        }
-        fflush(fid);
-        fclose(fid);
+        fprintf(fid, " total");
       }else{
-        char filename[25];
-        sprintf(filename, "rdf_type_%d_%d.out",atom_id1_[a-1],atom_id2_[a-1]);
-        FILE* fid = fopen(filename, "w");
-        if (atom_id1_[a-1] == atom_id2_[a-1]){
-          for (int nc = 0; nc < rdf_bins_; nc++){
-            fprintf(
-            fid,
-            "%.5f %.5f\n",
-            nc * r_step_ + r_step_ / 2,
-            rdf_average[a* rdf_bins_ + nc]);
-          }
-        }else{
-            for (int nc = 0; nc < rdf_bins_; nc++){
-            fprintf(
-            fid,
-            "%.5f %.5f\n",
-            nc * r_step_ + r_step_ / 2,
-            rdf_average[a* rdf_bins_ + nc] / 2);}
-          }
-        fflush(fid);
-        fclose(fid);
+        fprintf(fid, " type_%d_%d",atom_id1_[a-1],atom_id2_[a-1]);
       }
-      }
-
-    compute_ = false;
-    for (int s = 0; s<6;s++){
-      atom_id1_[s] = -1;
-      atom_id2_[s] = -1;
     }
-    rdf_atom_count = 1;
+    fprintf(fid, "\n");
+    for (int nc = 0; nc < rdf_bins_; nc++){
+      fprintf(fid, "%.5f", nc * r_step_ + r_step_ / 2);
+      for (int a = 0; a< rdf_atom_count; a++){
+        if(a==0){
+          fprintf(fid, " %.5f", rdf_average[nc]);
+        }else{
+          fprintf(fid, " %.5f", (atom_id1_[a-1] == atom_id2_[a-1]) ? rdf_average[a * rdf_bins_ + nc] : rdf_average[a * rdf_bins_ + nc]/2);
+        }
+      }
+      fprintf(fid, "\n");
+    }
+    fflush(fid);
+    fclose(fid);
   }
+
+  compute_ = false;
+  for (int s = 0; s<6;s++){
+    atom_id1_[s] = -1;
+    atom_id2_[s] = -1;
+  }
+  rdf_atom_count = 1;
 }
 
-void RDF::parse(const char** param, const int num_param,  const int number_of_types, const int number_of_steps)
+void RDF::parse(const char** param, const int num_param, Box& box, const int number_of_types, const int number_of_steps)
 {
   printf("Compute radial distribution function (RDF).\n");
   compute_ = true;
@@ -557,7 +523,10 @@ void RDF::parse(const char** param, const int num_param,  const int number_of_ty
     PRINT_INPUT_ERROR("radial cutoff should be a number.\n");
   }
   if (r_cut_ <= 0) {
-    PRINT_INPUT_ERROR("radial cutoff  should be positive.\n");
+    PRINT_INPUT_ERROR("radial cutoff should be positive.\n");
+  }
+  if (r_cut_ > box.cpu_h[0]/2 || r_cut_ > box.cpu_h[1]/2 || r_cut_ > box.cpu_h[2]/2   ){
+    PRINT_INPUT_ERROR("radial cutoff is too large for this small box.\n");
   }
   printf("    radial cutoff %g.\n", r_cut_);
 
@@ -575,42 +544,19 @@ void RDF::parse(const char** param, const int num_param,  const int number_of_ty
 
   printf("    radial cutoff will be divided into %d bins.\n", rdf_bins_);
 
-  // total sample last steps
-  if (!is_valid_int(param[3], &num_last_steps_)) {
-    PRINT_INPUT_ERROR("number of total sample steps should be an integer.\n");
-  }
-  if (num_last_steps_ <= 0) {
-    PRINT_INPUT_ERROR("number of total sample steps should be positive.\n");
-  }
-
-  printf("    number of total sample steps %d.\n", num_last_steps_);
-
   // sample interval
-  if (!is_valid_int(param[4], &num_every_)) {
+  if (!is_valid_int(param[3], &num_interval_)) {
     PRINT_INPUT_ERROR("interval step per sample should be an integer.\n");
   }
-  if (num_every_ <= 0) {
+  if (num_interval_ <= 0) {
     PRINT_INPUT_ERROR("interval step per sample should be positive.\n");
   }
-  printf("    interval step per sample %d.\n", num_every_);
-
-  // number of total samples  
-  if (!is_valid_int(param[5], &num_repeat_)) {
-    PRINT_INPUT_ERROR("number of total samples should be an integer.\n");
-  }
-  if (num_repeat_ <= 0) {
-    PRINT_INPUT_ERROR("number of total samples should be positive.\n");
-  }
-  printf("    number of total samples %d.\n", num_repeat_);
-
-  if (num_repeat_ * num_every_ != num_last_steps_){
-    PRINT_INPUT_ERROR("number of total samples should be equal to interval step per sample times number of total samples.\n");
-  }
+  printf("    RDF sample interval is %d step.\n", num_interval_);
 
   // Process optional arguments
-  for (int k = 6; k < num_param; k+=3) {
+  for (int k = 4; k < num_param; k+=3) {
     if (strcmp(param[k], "atom") == 0) {
-        int k_a = (k / 3) - 2;
+        int k_a = ((k + 2) / 3) - 2;
         rdf_atom_count++;
         if (!is_valid_int(param[k+1], &atom_id1_[k_a])) {
             PRINT_INPUT_ERROR("atom type index1 should be an integer.\n");
