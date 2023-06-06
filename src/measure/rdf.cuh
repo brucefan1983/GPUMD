@@ -35,7 +35,7 @@ public:
   int atom_id2_[6] = {-1,-1,-1,-1,-1,-1};
 
 
-  void preprocess(const bool is_pimd, const int number_of_beads, const int num_atoms, std::vector<int>& cpu_type_size, const double box); 
+  void preprocess(const bool is_pimd, const int number_of_beads, const int num_atoms, std::vector<int>& cpu_type_size); 
   void process(
     const bool is_pimd,
     const int number_of_steps, 
@@ -54,7 +54,6 @@ private:
   std::vector<double> density1;
   std::vector<double> density2;
   std::vector<double> rdf_;
-  std::vector<double> rdf_average_;
 
   GPU_Vector<double> rdf_g_;
   GPU_Vector<double> radial_;

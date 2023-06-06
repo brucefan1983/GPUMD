@@ -55,7 +55,6 @@ public:
   void initialize(
     const int number_of_steps,
     const double time_step,
-    Box& box,
     Integrate& integrate,
     std::vector<Group>& group,
     Atom& atom,

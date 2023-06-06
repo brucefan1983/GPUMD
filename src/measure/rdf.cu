@@ -35,7 +35,7 @@ namespace
 static __global__ void gpu_find_rdf_ON1(
   const int N,
   const double density,
-  const Box& box,
+  const Box box,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
   const int* __restrict__ cell_contents,
@@ -99,9 +99,11 @@ static __global__ void gpu_find_rdf_ON1(
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
 
               for (int w=0; w < rdf_bins_; w++){
-                if (d2 > radial_[w] - r_step_/2 && d2 <= radial_[w] + r_step_/2) {
-                  double r_mid_sqaure = radial_[w] * radial_[w];
-                  rdf_[n1 * rdf_bins_ + w] += 1/(N * density)/(r_mid_sqaure * 4 * rdf_PI * r_step_);
+                double r_low = (radial_[w] - r_step_/2) * (radial_[w] - r_step_/2);
+                double r_up = (radial_[w] + r_step_/2) * (radial_[w] + r_step_/2);
+                double r_mid_sqaure = radial_[w] * radial_[w];
+                if (d2 > r_low && d2 <= r_up) {
+                  rdf_[n1 * rdf_bins_ + w] += 1/(N * density * r_mid_sqaure * 4 * rdf_PI * r_step_);
                   }
                 }
               }
@@ -121,7 +123,7 @@ static __global__ void gpu_find_rdf_ON1(
   const double num_atom2_,
   const double atom_id1_,
   const double atom_id2_,
-  const Box& box,
+  const Box box,
   const int* __restrict__ cell_counts,
   const int* __restrict__ cell_count_sum,
   const int* __restrict__ cell_contents,
@@ -184,9 +186,11 @@ static __global__ void gpu_find_rdf_ON1(
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
               for (int w=0; w < rdf_bins_; w++){
-                if (d2 > radial_[w] - r_step_/2 && d2 <= radial_[w] + r_step_/2) {
-                  double r_mid_sqaure = radial_[w] * radial_[w];
-                  rdf_[n1 * rdf_bins_ + w] += 1/(num_atom1_*density2)/(r_mid_sqaure * 4 * rdf_PI * r_step_);
+                double r_low = (radial_[w] - r_step_/2) * (radial_[w] - r_step_/2);
+                double r_up = (radial_[w] + r_step_/2) * (radial_[w] + r_step_/2);
+                double r_mid_sqaure = radial_[w] * radial_[w];
+                if (d2 > r_low && d2 <= r_up) {
+                  rdf_[n1 * rdf_bins_ + w] += 1/(num_atom1_*density2 * r_mid_sqaure * 4 * rdf_PI * r_step_);
                 }
               }
             }
@@ -238,9 +242,11 @@ static __global__ void gpu_find_rdf_ON1(
               apply_mic(box, x12, y12, z12);
               const double d2 = x12 * x12 + y12 * y12 + z12 * z12;
               for (int w=0; w < rdf_bins_; w++){
-                if (d2 > radial_[w] - r_step_/2 && d2 <= radial_[w] + r_step_/2) {
-                  double r_mid_sqaure = radial_[w] * radial_[w];
-                  rdf_[n1 * rdf_bins_ + w] += 1/(num_atom2_*density1)/(r_mid_sqaure * 4 * rdf_PI * r_step_);
+                double r_low = (radial_[w] - r_step_/2) * (radial_[w] - r_step_/2);
+                double r_up = (radial_[w] + r_step_/2) * (radial_[w] + r_step_/2);
+                double r_mid_sqaure = radial_[w] * radial_[w];
+                if (d2 > r_low && d2 <= r_up) {
+                  rdf_[n1 * rdf_bins_ + w] += 1/(num_atom2_*density1 * r_mid_sqaure * 4 * rdf_PI * r_step_);
                 }
               }
             }
@@ -296,7 +302,7 @@ void RDF::find_rdf(
 
   }else{
     gpu_find_rdf_ON1<<<grid_size, block_size>>>(
-    N, density1[rdf_atom_], density2[rdf_atom_],atom_id1_typesize[rdf_atom_-1],atom_id1_typesize[rdf_atom_-1], atom_id1_[rdf_atom_-1], atom_id2_[rdf_atom_-1], box, cell_count.data(),
+    N, density1[rdf_atom_], density2[rdf_atom_],atom_id1_typesize[rdf_atom_-1],atom_id2_typesize[rdf_atom_-1], atom_id1_[rdf_atom_-1], atom_id2_[rdf_atom_-1], box, cell_count.data(),
     cell_count_sum.data(),cell_contents.data(),num_bins_0,num_bins_1,num_bins_2,rc_inv_cell_list, x, y, z, type.data(), radial_.data(), rdf_g_ind, rdf_bins_, r_step_);
     CUDA_CHECK_KERNEL
   }
@@ -304,7 +310,7 @@ void RDF::find_rdf(
 
 
 
-void RDF::preprocess(const bool is_pimd, const int number_of_beads, const int num_atoms, std::vector<int>& cpu_type_size, const double volume)
+void RDF::preprocess(const bool is_pimd, const int number_of_beads, const int num_atoms, std::vector<int>& cpu_type_size)
 {
   if (!compute_)
     return;
@@ -319,29 +325,23 @@ void RDF::preprocess(const bool is_pimd, const int number_of_beads, const int nu
   rdf_N_ = num_atoms;
   num_atoms_ = num_atoms * rdf_atom_count;
   density1.resize(rdf_atom_count);
-  density1[0] = num_atoms / volume;
   density2.resize(rdf_atom_count);
-  density2[0] = num_atoms / volume;
   atom_id1_typesize.resize(rdf_atom_count-1);
   atom_id2_typesize.resize(rdf_atom_count-1);
   for (int a=0; a< rdf_atom_count - 1;a++){
     atom_id1_typesize[a] = cpu_type_size[atom_id1_[a]];
     atom_id2_typesize[a] = cpu_type_size[atom_id2_[a]];
-    density1[a+1] = cpu_type_size[atom_id1_[a]]/volume;
-    density2[a+1] = cpu_type_size[atom_id2_[a]]/volume;
   }
 
   if (is_pimd){
     rdf_g_.resize(number_of_beads * num_atoms_ * rdf_bins_, 0);
     rdf_.resize(number_of_beads * num_atoms_ * rdf_bins_, 0);
-    rdf_average_.resize(number_of_beads * rdf_atom_count * rdf_bins_, 0);
     cell_count.resize(num_atoms);
     cell_count_sum.resize(num_atoms);
     cell_contents.resize(num_atoms);
   }else{
     rdf_g_.resize(num_atoms_ * rdf_bins_, 0);
     rdf_.resize(num_atoms_ * rdf_bins_, 0);
-    rdf_average_.resize(rdf_atom_count * rdf_bins_, 0);
     cell_count.resize(num_atoms);
     cell_count_sum.resize(num_atoms);
     cell_contents.resize(num_atoms);
@@ -358,13 +358,19 @@ void RDF::process(
 {
   if (!compute_)
     return;
-  if ((step + 1) < (number_of_steps - num_last_steps_)){
+  if ((step + 1) < (number_of_steps + 1 - num_last_steps_ )){
     return;
   }
   if ((step + 1)  % num_every_ != 0){
     return;
   }
 
+    density1[0] = rdf_N_/box.get_volume() ;
+    density2[0] = rdf_N_/box.get_volume();
+    for (int a=0; a< rdf_atom_count - 1;a++){
+      density1[a+1] = atom_id1_typesize[a]/box.get_volume();
+      density2[a+1] = atom_id2_typesize[a]/box.get_volume();
+    }
 
   if (is_pimd){
 
@@ -395,7 +401,6 @@ void RDF::process(
       atom.type,atom.position_per_atom,cell_count,cell_count_sum,cell_contents, num_bins[0],num_bins[1],num_bins[2],rc_inv_cell_list, radial_,rdf_g_,rdf_bins_,r_step_);
     }
     }
-  printf("rdf step %d done!\n",step+1);
 }
 
 
@@ -404,12 +409,13 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
   if (!compute_)
     return;
 
-  CHECK(cudaMemcpy(rdf_.data(),rdf_g_.data(),
-    sizeof(double)* num_atoms_ * rdf_bins_,cudaMemcpyDeviceToHost));
-  CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
-
   if (is_pimd){
-    double rdf_average[number_of_beads*rdf_atom_count*rdf_bins_];
+    
+    CHECK(cudaMemcpy(rdf_.data(),rdf_g_.data(),
+    sizeof(double)* number_of_beads * num_atoms_ * rdf_bins_,cudaMemcpyDeviceToHost));
+    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+
+    double rdf_average[number_of_beads*rdf_atom_count*rdf_bins_] = {0.0};
     for (int k = 0; k < number_of_beads; k++){
       for (int a = 0; a< rdf_atom_count; a++){
         for (int m = 0; m < rdf_N_; m++){
@@ -420,22 +426,23 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
         }
       }
     }
-    double rdf_centroid[rdf_atom_count*rdf_bins_];
+
+    double rdf_centroid[rdf_atom_count*rdf_bins_] = {0.0};
     for (int k = 0; k < number_of_beads; k++){
       for (int a = 0; a< rdf_atom_count; a++){
         for (int x = 0; x < rdf_bins_; x++){
-          rdf_centroid[rdf_atom_count*rdf_bins_ + x] +=  rdf_average[k*rdf_atom_count*rdf_bins_ + a*rdf_bins_ + x]/number_of_beads;
+          rdf_centroid[a*rdf_bins_ + x] +=  rdf_average[k*rdf_atom_count*rdf_bins_ + a*rdf_bins_ + x] /number_of_beads;
         }
       }
     }
 
     for (int a = 0; a< rdf_atom_count; a++){
       if(a == 0){
-        FILE* fid = fopen("rdf_centroid_total.out", "a");
+        FILE* fid = fopen("rdf_centroid_total.out", "w");
         for (int nc = 0; nc < rdf_bins_; nc++){
           fprintf(
           fid,
-          "%g %g\n",
+          "%.10f %.10f\n",
           nc * r_step_ + r_step_ / 2,
           rdf_centroid[nc]);
         }
@@ -444,13 +451,23 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       }else{
         char filename[30];
         sprintf(filename, "rdf_centroid_type_%d_%d.out",atom_id1_[a-1],atom_id2_[a-1]);
-        FILE* fid = fopen(filename, "a");
-        for (int nc = 0; nc < rdf_bins_; nc++){
-          fprintf(
-          fid,
-          "%g %g\n",
-          nc * r_step_ + r_step_ / 2,
-          rdf_centroid[a* rdf_bins_ + nc]);
+        FILE* fid = fopen(filename, "w");
+        if (atom_id1_[a-1] == atom_id2_[a-1]){
+          for (int nc = 0; nc < rdf_bins_; nc++){
+            fprintf(
+            fid,
+            "%.5f %.5f\n",
+            nc * r_step_ + r_step_ / 2,
+            rdf_centroid[a* rdf_bins_ + nc]);
+          }
+        }else{
+          for (int nc = 0; nc < rdf_bins_; nc++){
+            fprintf(
+            fid,
+            "%.5f %.5f\n",
+            nc * r_step_ + r_step_ / 2,
+            rdf_centroid[a* rdf_bins_ + nc]/2);
+          }
         }
         fflush(fid);
         fclose(fid);
@@ -463,22 +480,27 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
     }
     rdf_atom_count = 1;
   }else{
-    double rdf_average[rdf_atom_count*rdf_bins_];
+
+    CHECK(cudaMemcpy(rdf_.data(),rdf_g_.data(),
+    sizeof(double)* num_atoms_ * rdf_bins_,cudaMemcpyDeviceToHost));
+    CHECK(cudaDeviceSynchronize()); // needed for pre-Pascal GPU
+
+    double rdf_average[rdf_atom_count*rdf_bins_] = {0.0};
     for (int a = 0; a< rdf_atom_count; a++){
       for (int m = 0; m < rdf_N_; m++){
         for (int x = 0; x < rdf_bins_; x++){
-          rdf_average[a*rdf_bins_ + x] += 
-          rdf_[a*rdf_N_*rdf_bins_ + m*rdf_bins_ + x] / num_repeat_;
+          rdf_average[a * rdf_bins_ + x] += 
+          rdf_[a * rdf_N_* rdf_bins_ + m * rdf_bins_ + x] / num_repeat_;
         }
       }
     }
     for (int a = 0; a< rdf_atom_count; a++){
       if(a == 0){
-        FILE* fid = fopen("rdf_total.out", "a");
+        FILE* fid = fopen("rdf_total.out", "w");
         for (int nc = 0; nc < rdf_bins_; nc++){
           fprintf(
           fid,
-          "%g %g\n",
+          "%.5f %.5f\n",
           nc * r_step_ + r_step_ / 2,
           rdf_average[nc]);
         }
@@ -487,18 +509,28 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       }else{
         char filename[25];
         sprintf(filename, "rdf_type_%d_%d.out",atom_id1_[a-1],atom_id2_[a-1]);
-        FILE* fid = fopen(filename, "a");
-        for (int nc = 0; nc < rdf_bins_; nc++){
-          fprintf(
-          fid,
-          "%g %g\n",
-          nc * r_step_ + r_step_ / 2,
-          rdf_average[a* rdf_bins_ + nc]);
-        }
+        FILE* fid = fopen(filename, "w");
+        if (atom_id1_[a-1] == atom_id2_[a-1]){
+          for (int nc = 0; nc < rdf_bins_; nc++){
+            fprintf(
+            fid,
+            "%.5f %.5f\n",
+            nc * r_step_ + r_step_ / 2,
+            rdf_average[a* rdf_bins_ + nc]);
+          }
+        }else{
+            for (int nc = 0; nc < rdf_bins_; nc++){
+            fprintf(
+            fid,
+            "%.5f %.5f\n",
+            nc * r_step_ + r_step_ / 2,
+            rdf_average[a* rdf_bins_ + nc] / 2);}
+          }
         fflush(fid);
         fclose(fid);
       }
-    }
+      }
+
     compute_ = false;
     for (int s = 0; s<6;s++){
       atom_id1_[s] = -1;

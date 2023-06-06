@@ -26,7 +26,6 @@ The driver class dealing with measurement.
 void Measure::initialize(
   const int number_of_steps,
   const double time_step,
-  Box& box,
   Integrate& integrate,
   std::vector<Group>& group,
   Atom& atom,
@@ -37,7 +36,7 @@ void Measure::initialize(
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
-  rdf.preprocess(integrate.type >= 31, atom.number_of_beads,number_of_atoms, atom.cpu_type_size, box.get_volume());
+  rdf.preprocess(integrate.type >= 31, atom.number_of_beads,number_of_atoms, atom.cpu_type_size);
   hac.preprocess(number_of_steps);
   viscosity.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);

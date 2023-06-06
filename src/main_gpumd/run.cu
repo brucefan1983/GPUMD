@@ -157,7 +157,7 @@ void Run::execute_run_in()
 void Run::perform_a_run()
 {
   integrate.initialize(N, time_step, group, atom);
-  measure.initialize(number_of_steps, time_step, box, integrate, group, atom, force);
+  measure.initialize(number_of_steps, time_step, integrate, group, atom, force);
 
 #ifdef USE_PLUMED
   if (measure.plmd.use_plumed == 1) {
