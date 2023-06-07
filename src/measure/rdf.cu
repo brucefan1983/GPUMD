@@ -619,10 +619,10 @@ void RDF::parse(
   printf("Compute radial distribution function (RDF).\n");
   compute_ = true;
 
-  if (num_param < 6) {
-    PRINT_INPUT_ERROR("compute_rdf should have at least 5 parameters.\n");
+  if (num_param < 4) {
+    PRINT_INPUT_ERROR("compute_rdf should have at least 3 parameters.\n");
   }
-  if (num_param > 24) {
+  if (num_param > 22) {
     PRINT_INPUT_ERROR("compute_rdf has too many parameters.\n");
   }
 
