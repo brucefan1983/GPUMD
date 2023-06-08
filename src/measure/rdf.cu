@@ -528,7 +528,7 @@ void RDF::postprocess(const bool is_pimd, const int number_of_beads)
       }
     }
 
-    FILE* fid = fopen("rdf_centroid.out", "w");
+    FILE* fid = fopen("rdf_pimd.out", "w");
     fprintf(fid, "#radius");
     for (int a = 0; a < rdf_atom_count; a++) {
       if (a == 0) {
@@ -633,7 +633,8 @@ void RDF::parse(
   if (r_cut_ <= 0) {
     PRINT_INPUT_ERROR("radial cutoff should be positive.\n");
   }
-  if (r_cut_ > box.cpu_h[0] / 2 || r_cut_ > box.cpu_h[1] / 2 || r_cut_ > box.cpu_h[2] / 2) {
+  double thickness_half[3] = {box.get_volume()/box.get_area(0)/ 2,box.get_volume()/box.get_area(1)/ 2,box.get_volume()/box.get_area(2)/ 2};
+  if (r_cut_ > thickness_half[0] || r_cut_ > thickness_half[1] || r_cut_ > thickness_half[2]) {
     PRINT_INPUT_ERROR("radial cutoff is too large for this small box.\n");
   }
   printf("    radial cutoff %g.\n", r_cut_);
