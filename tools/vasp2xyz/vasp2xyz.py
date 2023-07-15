@@ -20,14 +20,13 @@ from tqdm import tqdm
 
 def Convert_atoms(atom):
     # 1 eV/Å^3 = 160.21766 GPa
-    xx,yy,zz,yz,xz,xy = -atom.calc.results['stress']*atom.get_volume()*160.21766 
+    xx,yy,zz,yz,xz,xy = -atom.calc.results['stress']*atom.get_volume() # *160.21766 
     atom.info['virial'] = np.array([(xx, xy, xz), (xy, yy, yz), (xz, yz, zz)])
     atom.calc.results['energy'] = atom.calc.results['free_energy']
     del atom.calc.results['stress']
     del atom.calc.results['free_energy']
 
 
-# Traverse all vasprun.xml in the directory. @Yuwen Zhang
 def find_vasprun(start_path='.'):
     result = []
     for root, dirs, files in os.walk(start_path):
@@ -54,7 +53,6 @@ for dir_name in tqdm(file_list):
 write('train.xyz', atoms_list, format='extxyz')
 print('The total number of configurations is: {} \n'.format(cnum))
 
-# Output some directories that did not terminate gracefully. @Yuwen Zhang
 if err_list:
     print("The list of failed calculation files is as follows.")
     for err_dirname in err_list:
