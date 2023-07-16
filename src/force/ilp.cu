@@ -71,3 +71,73 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   ilp_data.cell_count_sum.resize(num_atoms);
   ilp_data.cell_contents.resize(num_atoms);
 }
+
+ILP::~ILP(void)
+{
+  // TODO
+}
+
+// calculate the normals and its derivatives
+static __device__ void calc_normal(void)
+{
+  // TODO
+}
+
+// calculate the van der Waals force and energy
+static __device__ void calc_vdW(void)
+{
+  // TODO
+}
+
+// calculate the repulsive force and energy
+static __device__ void calc_rep(void)
+{
+  // TODO
+}
+
+// force evaluation kernel
+static __global__ void gpu_find_force(
+  ILP_Para ilp)
+{
+  // TODO
+}
+
+// find force and related quantities
+void ILP::compute(
+  Box &box,
+  const GPU_Vector<int> &type,
+  const GPU_Vector<double> &position_per_atom,
+  GPU_Vector<double> &potential_per_atom,
+  GPU_Vector<double> &force_per_atom,
+  GPU_Vector<double> &virial_per_atom)
+{
+  const int number_of_atoms = type.size();
+  int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
+
+// what's this??
+#ifdef USE_FIXED_NEIGHBOR
+  static int num_calls = 0;
+#endif
+#ifdef USE_FIXED_NEIGHBOR
+  if (num_calls++ == 0) {
+#endif
+    find_neighbor(
+      N1,
+      N2,
+      rc,
+      box,
+      type,
+      position_per_atom,
+      ilp_data.cell_count,
+      ilp_data.cell_count_sum,
+      ilp_data.cell_contents,
+      ilp_data.NN,
+      ilp_data.NL);
+#ifdef USE_FIXED_NEIGHBOR
+  }
+#endif
+
+  gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(ilp_para);
+  // TODO
+  CUDA_CHECK_KERNEL
+}
