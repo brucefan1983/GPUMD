@@ -39,5 +39,35 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   }
   printf("\n");
 
-  
+  // read parameters
+  double beta, alpha, delta, epsilon, C, d, sR, reff, C6, S, rcut;
+  rc = 0.0;
+  for (int n = 0; n < num_types; ++n) {
+    for (int m = 0; m < num_types; ++m) {
+      int count = fscanf(fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf", \
+      &beta, &alpha, &delta, &epsilon, &C, &d, &sR, &reff, &C6, &S, &rcut);
+      PRINT_SCANF_ERROR(count, 10, "Reading error for ILP potential.");
+
+      ilp_para.C[n][m] = C;
+      ilp_para.C_6[n][m] = C6;
+      ilp_para.d[n][m] = d;
+      ilp_para.d_Seff[n][m] = d / sR / reff;
+      ilp_para.epsilon[n][m] = epsilon;
+      ilp_para.z0[n][m] = beta;
+      ilp_para.lambda[n][m] = alpha / beta;
+      ilp_para.delta2inv[n][m] = 1.0 / (delta * delta); //TODO: how faster?
+      ilp_para.S[n][m] = S;
+      ilp_para.r_cut[n][m] = rcut;
+
+      // TODO: ILP has taper function, check if necessary
+      if (rc < rcut)
+        rc = rcut;
+    }
+  }
+
+  ilp_data.NN.resize(num_atoms);
+  ilp_data.NL.resize(num_atoms * CUDA_MAX_NL);
+  ilp_data.cell_count.resize(num_atoms);
+  ilp_data.cell_count_sum.resize(num_atoms);
+  ilp_data.cell_contents.resize(num_atoms);
 }

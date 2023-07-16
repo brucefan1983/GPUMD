@@ -20,18 +20,19 @@
 
 // TODO
 #define MAX_TYPE_ILP 10
+#define CUDA_MAX_NL 1024
 
 struct ILP_Para {
   double r_cut[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double d_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double S_R_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double r_eff_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double C_6_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double a_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double b_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double e_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double C_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double g_ij[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  double d[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  double d_Seff[MAX_TYPE_ILP][MAX_TYPE_ILP];      // d / S_R / r_eff
+  double C_6[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  double z0[MAX_TYPE_ILP][MAX_TYPE_ILP];          // beta
+  double lambda[MAX_TYPE_ILP][MAX_TYPE_ILP];      // alpha / beta
+  double epsilon[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  double C[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  double delta2inv[MAX_TYPE_ILP][MAX_TYPE_ILP];   // 1 / delta ^ 2
+  double S[MAX_TYPE_ILP][MAX_TYPE_ILP];           // scale
 };
 
 struct ILP_Data {
