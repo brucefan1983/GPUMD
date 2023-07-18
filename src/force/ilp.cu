@@ -70,11 +70,56 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   ilp_data.cell_count.resize(num_atoms);
   ilp_data.cell_count_sum.resize(num_atoms);
   ilp_data.cell_contents.resize(num_atoms);
+
+  // init constant cutoff coeff
+  double h_tap_coeff[8] = \
+    {1.0, 0.0, 0.0, 0.0, -35.0, 84.0, 70.0, 20.0};
+  cudaMemcpyToSymbol(Tap_coeff, h_tap_coeff, 8 * sizeof(double));
+  CUDA_CHECK_KERNEL
 }
 
 ILP::~ILP(void)
 {
   // TODO
+}
+
+// TODO: set inline???
+// calculate the long-range cutoff term
+static __device__ double calc_Tap(const double r_ij, const double Rcut)
+{
+  double Tap, r;
+
+  r = r_ij / Rcut;
+  if (r >= 1.0) {
+    Tap = 0.0;
+  } else {
+    Tap = Tap_coeff[7];
+    for (int i = 6; i >= 0; --i) {
+      Tap = Tap * r + Tap_coeff[i];
+    }
+  }
+
+  return Tap;
+}
+
+// TODO: set inline???
+// calculate the derivatives of long-range cutoff term
+static __device__ double calc_dTap(const double r_ij, const double Rcut)
+{
+  double dTap, r;
+  
+  r = r_ij / Rcut;
+  if (r >= Rcut) {
+    dTap = 0.0;
+  } else {
+    dTap = 7.0 * Tap_coeff[7];
+    for (int i = 6; i > 0; --i) {
+      dTap = dTap * r + i * Tap_coeff[i];
+    }
+    dTap /= Rcut;
+  }
+
+  return dTap;
 }
 
 // calculate the normals and its derivatives
@@ -86,6 +131,7 @@ static __device__ void calc_normal(void)
 // calculate the van der Waals force and energy
 static __device__ void calc_vdW(void)
 {
+  
   // TODO
 }
 
@@ -97,7 +143,7 @@ static __device__ void calc_rep(void)
 
 // force evaluation kernel
 static __global__ void gpu_find_force(
-  ILP_Para ilp,
+  ILP_Para ilp_para,
   const int number_of_particles,
   const int N1,
   const int N2,
@@ -129,6 +175,11 @@ static __global__ void gpu_find_force(
   double s_szy = 0.0;                                  // virial_stress_zy
   double s_szz = 0.0;                                  // virial_stress_zz
 
+  double r = 0.0;
+  double rsq = 0.0;
+  double Rcut = 0.0;
+  double r2inv, r6inv, r8inv;
+
   if (n1 < N2) {
     int neighor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
@@ -144,6 +195,18 @@ static __global__ void gpu_find_force(
       double y12 = g_y[n2] - y1;
       double z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
+
+      // calculate distance between atoms
+      rsq = x12 * x12 + y12 * y12 + z12 * z12;
+      r = sqrt(rsq);
+      r2inv = 1.0 / rsq;
+      r6inv = r2inv * r2inv * r2inv;
+      r8inv = r6inv * r2inv;
+      Rcut = ilp_para.r_cut[type1][type2];
+
+      double Tap, dTap;
+      Tap = calc_Tap(r, Rcut);
+      dTap = calc_dTap(r, Rcut);
 
       calc_normal();
       calc_vdW();

@@ -60,3 +60,5 @@ protected:
   ILP_Para ilp_para;
   ILP_Data ilp_data;
 };
+
+static __constant__ double Tap_coeff[8];
