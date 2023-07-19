@@ -129,10 +129,37 @@ static __device__ void calc_normal(void)
 }
 
 // calculate the van der Waals force and energy
-static __device__ void calc_vdW(void)
+static __device__ void calc_vdW(
+  double r,
+  double d,
+  double d_Seff,
+  double C_6,
+  double Tap,
+  double dTap,
+  double &p2_vdW,
+  double &f2_vdW)
 {
+  double rsq, r2inv, r6inv, r8inv;
+  double TSvdw, TSvdw2inv, Vilp;
+  double fpair, fsum;
+
+  rsq = r * r;
+  r2inv = 1.0 / rsq;
+  r6inv = r2inv * r2inv * r2inv;
+  r8inv = r2inv * r6inv;
+
+  TSvdw = 1.0 + exp(-d_Seff * r + d);
+  TSvdw2inv = pow(TSvdw, -2.0);
+  Vilp = -C_6 * r6inv / TSvdw;
+
+  // derivatives
+  fpair = -6.0 * C_6 * r8inv / TSvdw + \
+    C_6 * d_Seff * (TSvdw - 1) * TSvdw2inv * r8inv * r;
+  fsum = fpair * Tap - Vilp * dTap / r;
+
+  p2_vdW = Tap * Vilp;
+  f2_vdW = fsum;
   
-  // TODO
 }
 
 // calculate the repulsive force and energy
@@ -199,17 +226,50 @@ static __global__ void gpu_find_force(
       // calculate distance between atoms
       rsq = x12 * x12 + y12 * y12 + z12 * z12;
       r = sqrt(rsq);
-      r2inv = 1.0 / rsq;
-      r6inv = r2inv * r2inv * r2inv;
-      r8inv = r6inv * r2inv;
       Rcut = ilp_para.r_cut[type1][type2];
+      if (r >= Rcut) {
+        continue;
+      }
 
       double Tap, dTap;
       Tap = calc_Tap(r, Rcut);
       dTap = calc_dTap(r, Rcut);
 
       calc_normal();
-      calc_vdW();
+
+      double p2_vdW, f2_vdW;
+      calc_vdW(
+        r,
+        ilp_para.d[type1][type2],
+        ilp_para.d_Seff[type1][type2],
+        ilp_para.C_6[type1][type2],
+        Tap,
+        dTap,
+        p2_vdW,
+        f2_vdW);
+      
+      double f12x = f2_vdW * x12 * 0.5;
+      double f12y = f2_vdW * y12 * 0.5;
+      double f12z = f2_vdW * z12 * 0.5;
+      double f21x = -f12x;
+      double f21y = -f12y;
+      double f21z = -f21z;
+
+      s_fx += f12x - f21x;
+      s_fy += f12y - f21y;
+      s_fz += f12z - f21z;
+
+      s_pe += p2_vdW * 0.5;
+      s_sxx += x12 * f21x;
+      s_sxy += x12 * f21y;
+      s_sxz += x12 * f21z;
+      s_syx += y12 * f21x;
+      s_syy += y12 * f21y;
+      s_syz += y12 * f21z;
+      s_szx += z12 * f21x;
+      s_szy += z12 * f21y;
+      s_szz += z12 * f21z;
+
       calc_rep();
     }
 
