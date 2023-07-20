@@ -59,6 +59,13 @@ public:
 protected:
   ILP_Para ilp_para;
   ILP_Data ilp_data;
+
+  // TODO
+  int **ILP_firstnegh;
+  int *ILP_numneigh;
+  double **normal;
+  double ***dnormaldri;
+  double ****dnormal;
 };
 
 static __constant__ double Tap_coeff[8];

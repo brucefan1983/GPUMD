@@ -44,7 +44,7 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   rc = 0.0;
   for (int n = 0; n < num_types; ++n) {
     for (int m = 0; m < num_types; ++m) {
-      int count = fscanf(fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf", \
+      int count = fscanf(fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf", \
       &beta, &alpha, &delta, &epsilon, &C, &d, &sR, &reff, &C6, &S, &rcut);
       PRINT_SCANF_ERROR(count, 10, "Reading error for ILP potential.");
 
@@ -122,9 +122,280 @@ static __device__ double calc_dTap(const double r_ij, const double Rcut)
   return dTap;
 }
 
-// calculate the normals and its derivatives
-static __device__ void calc_normal(void)
+// create ILP neighbor list from main neighbor list to calculate normals
+static __device__ void ILP_neighbor(void)
 {
+  // TODO
+}
+
+// calculate the normals and its derivatives
+static __device__ void calc_normal(
+  double (&vet)[3][3],
+  int cont,
+  double *normal,
+  double **dnormdri,
+  double ***dnormal)
+{
+  int id, ip, m;
+  double nn2, nn;
+  double pv12[3], pv31[3], pv23[3], n1[3], dni[3];
+  double dnn[3][3], dpvdri[3][3];
+  double dn1[3][3][3], dpv12[3][3][3], dpv23[3][3][3], dpv31[3][3][3];
+
+  // initialize the arrays
+  for (id = 0; id < 3; id++) {
+    pv12[id] = 0.0;
+    pv31[id] = 0.0;
+    pv23[id] = 0.0;
+    n1[id] = 0.0;
+    dni[id] = 0.0;
+    for (ip = 0; ip < 3; ip++) {
+      dnn[ip][id] = 0.0;
+      dpvdri[ip][id] = 0.0;
+      for (m = 0; m < 3; m++) {
+        dpv12[ip][id][m] = 0.0;
+        dpv31[ip][id][m] = 0.0;
+        dpv23[ip][id][m] = 0.0;
+        dn1[ip][id][m] = 0.0;
+      }
+    }
+  }
+
+  if (cont <= 1) {
+    for (id = 0; id < 3; ++id) {
+      normal[id] = 0.0;
+      for (ip = 0; ip < 3; ++ip) {
+        dnormdri[id][ip] = 0.0;
+        for (m = 0; m < 3; ++m) {
+          dnormal[id][ip][m] = 0.0;
+        }
+      }
+    }
+  } else if (cont == 2) {
+    pv12[0] = vet[0][1] * vet[1][2] - vet[1][1] * vet[0][2];
+    pv12[1] = vet[0][2] * vet[1][0] - vet[1][2] * vet[0][0];
+    pv12[2] = vet[0][0] * vet[1][1] - vet[1][0] * vet[0][1];
+    // derivatives of pv12[0] to ri
+    dpvdri[0][0] = 0.0;
+    dpvdri[0][1] = vet[0][2] - vet[1][2];
+    dpvdri[0][2] = vet[1][1] - vet[0][1];
+    // derivatives of pv12[1] to ri
+    dpvdri[1][0] = vet[1][2] - vet[0][2];
+    dpvdri[1][1] = 0.0;
+    dpvdri[1][2] = vet[0][0] - vet[1][0];
+    // derivatives of pv12[2] to ri
+    dpvdri[2][0] = vet[0][1] - vet[1][1];
+    dpvdri[2][1] = vet[1][0] - vet[0][0];
+    dpvdri[2][2] = 0.0;
+
+    dpv12[0][0][0] = 0.0;
+    dpv12[0][1][0] = vet[1][2];
+    dpv12[0][2][0] = -vet[1][1];
+    dpv12[1][0][0] = -vet[1][2];
+    dpv12[1][1][0] = 0.0;
+    dpv12[1][2][0] = vet[1][0];
+    dpv12[2][0][0] = vet[1][1];
+    dpv12[2][1][0] = -vet[1][0];
+    dpv12[2][2][0] = 0.0;
+
+    // derivatives respect to the second neighbor, atom l
+    dpv12[0][0][1] = 0.0;
+    dpv12[0][1][1] = -vet[0][2];
+    dpv12[0][2][1] = vet[0][1];
+    dpv12[1][0][1] = vet[0][2];
+    dpv12[1][1][1] = 0.0;
+    dpv12[1][2][1] = -vet[0][0];
+    dpv12[2][0][1] = -vet[0][1];
+    dpv12[2][1][1] = vet[0][0];
+    dpv12[2][2][1] = 0.0;
+
+    // derivatives respect to the third neighbor, atom n
+    // derivatives of pv12 to rn is zero
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) { dpv12[id][ip][2] = 0.0; }
+    }
+
+    n1[0] = pv12[0];
+    n1[1] = pv12[1];
+    n1[2] = pv12[2];
+    // the magnitude of the normal vector
+    nn2 = n1[0] * n1[0] + n1[1] * n1[1] + n1[2] * n1[2];
+    nn = sqrt(nn2);
+    
+    // TODO
+    // if (nn == 0) error->one(FLERR, "The magnitude of the normal vector is zero");
+    // the unit normal vector
+    normal[0] = n1[0] / nn;
+    normal[1] = n1[1] / nn;
+    normal[2] = n1[2] / nn;
+    // derivatives of nn, dnn:3x1 vector
+    dni[0] = (n1[0] * dpvdri[0][0] + n1[1] * dpvdri[1][0] + n1[2] * dpvdri[2][0]) / nn;
+    dni[1] = (n1[0] * dpvdri[0][1] + n1[1] * dpvdri[1][1] + n1[2] * dpvdri[2][1]) / nn;
+    dni[2] = (n1[0] * dpvdri[0][2] + n1[1] * dpvdri[1][2] + n1[2] * dpvdri[2][2]) / nn;
+    // derivatives of unit vector ni respect to ri, the result is 3x3 matrix
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) {
+        dnormdri[id][ip] = dpvdri[id][ip] / nn - n1[id] * dni[ip] / nn2;
+      }
+    }
+    // derivatives of non-normalized normal vector, dn1:3x3x3 array
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) {
+        for (m = 0; m < 3; m++) { dn1[id][ip][m] = dpv12[id][ip][m]; }
+      }
+    }
+    // derivatives of nn, dnn:3x3 vector
+    // dnn[id][m]: the derivative of nn respect to r[id][m], id,m=0,1,2
+    // r[id][m]: the id's component of atom m
+    for (m = 0; m < 3; m++) {
+      for (id = 0; id < 3; id++) {
+        dnn[id][m] = (n1[0] * dn1[0][id][m] + n1[1] * dn1[1][id][m] + n1[2] * dn1[2][id][m]) / nn;
+      }
+    }
+    // dnormal[id][ip][m][i]: the derivative of normal[id] respect to r[ip][m], id,ip=0,1,2
+    // for atom m, which is a neighbor atom of atom i, m=0,jnum-1
+    for (m = 0; m < 3; m++) {
+      for (id = 0; id < 3; id++) {
+        for (ip = 0; ip < 3; ip++) {
+          dnormal[id][ip][m] = dn1[id][ip][m] / nn - n1[id] * dnn[ip][m] / nn2;
+        }
+      }
+    }
+    // TODO
+  } else if (cont == 3) {
+    pv12[0] = vet[0][1] * vet[1][2] - vet[1][1] * vet[0][2];
+    pv12[1] = vet[0][2] * vet[1][0] - vet[1][2] * vet[0][0];
+    pv12[2] = vet[0][0] * vet[1][1] - vet[1][0] * vet[0][1];
+    // derivatives respect to the first neighbor, atom k
+    dpv12[0][0][0] = 0.0;
+    dpv12[0][1][0] = vet[1][2];
+    dpv12[0][2][0] = -vet[1][1];
+    dpv12[1][0][0] = -vet[1][2];
+    dpv12[1][1][0] = 0.0;
+    dpv12[1][2][0] = vet[1][0];
+    dpv12[2][0][0] = vet[1][1];
+    dpv12[2][1][0] = -vet[1][0];
+    dpv12[2][2][0] = 0.0;
+    // derivatives respect to the second neighbor, atom l
+    dpv12[0][0][1] = 0.0;
+    dpv12[0][1][1] = -vet[0][2];
+    dpv12[0][2][1] = vet[0][1];
+    dpv12[1][0][1] = vet[0][2];
+    dpv12[1][1][1] = 0.0;
+    dpv12[1][2][1] = -vet[0][0];
+    dpv12[2][0][1] = -vet[0][1];
+    dpv12[2][1][1] = vet[0][0];
+    dpv12[2][2][1] = 0.0;
+
+    // derivatives respect to the third neighbor, atom n
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) { dpv12[id][ip][2] = 0.0; }
+    }
+
+    pv31[0] = vet[2][1] * vet[0][2] - vet[0][1] * vet[2][2];
+    pv31[1] = vet[2][2] * vet[0][0] - vet[0][2] * vet[2][0];
+    pv31[2] = vet[2][0] * vet[0][1] - vet[0][0] * vet[2][1];
+    // derivatives respect to the first neighbor, atom k
+    dpv31[0][0][0] = 0.0;
+    dpv31[0][1][0] = -vet[2][2];
+    dpv31[0][2][0] = vet[2][1];
+    dpv31[1][0][0] = vet[2][2];
+    dpv31[1][1][0] = 0.0;
+    dpv31[1][2][0] = -vet[2][0];
+    dpv31[2][0][0] = -vet[2][1];
+    dpv31[2][1][0] = vet[2][0];
+    dpv31[2][2][0] = 0.0;
+    // derivatives respect to the third neighbor, atom n
+    dpv31[0][0][2] = 0.0;
+    dpv31[0][1][2] = vet[0][2];
+    dpv31[0][2][2] = -vet[0][1];
+    dpv31[1][0][2] = -vet[0][2];
+    dpv31[1][1][2] = 0.0;
+    dpv31[1][2][2] = vet[0][0];
+    dpv31[2][0][2] = vet[0][1];
+    dpv31[2][1][2] = -vet[0][0];
+    dpv31[2][2][2] = 0.0;
+    // derivatives respect to the second neighbor, atom l
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) { dpv31[id][ip][1] = 0.0; }
+    }
+
+    pv23[0] = vet[1][1] * vet[2][2] - vet[2][1] * vet[1][2];
+    pv23[1] = vet[1][2] * vet[2][0] - vet[2][2] * vet[1][0];
+    pv23[2] = vet[1][0] * vet[2][1] - vet[2][0] * vet[1][1];
+    // derivatives respect to the second neighbor, atom k
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) { dpv23[id][ip][0] = 0.0; }
+    }
+    // derivatives respect to the second neighbor, atom l
+    dpv23[0][0][1] = 0.0;
+    dpv23[0][1][1] = vet[2][2];
+    dpv23[0][2][1] = -vet[2][1];
+    dpv23[1][0][1] = -vet[2][2];
+    dpv23[1][1][1] = 0.0;
+    dpv23[1][2][1] = vet[2][0];
+    dpv23[2][0][1] = vet[2][1];
+    dpv23[2][1][1] = -vet[2][0];
+    dpv23[2][2][1] = 0.0;
+    // derivatives respect to the third neighbor, atom n
+    dpv23[0][0][2] = 0.0;
+    dpv23[0][1][2] = -vet[1][2];
+    dpv23[0][2][2] = vet[1][1];
+    dpv23[1][0][2] = vet[1][2];
+    dpv23[1][1][2] = 0.0;
+    dpv23[1][2][2] = -vet[1][0];
+    dpv23[2][0][2] = -vet[1][1];
+    dpv23[2][1][2] = vet[1][0];
+    dpv23[2][2][2] = 0.0;
+
+    //############################################################################################
+    // average the normal vectors by using the 3 neighboring planes
+    n1[0] = (pv12[0] + pv31[0] + pv23[0]) / cont;
+    n1[1] = (pv12[1] + pv31[1] + pv23[1]) / cont;
+    n1[2] = (pv12[2] + pv31[2] + pv23[2]) / cont;
+    // the magnitude of the normal vector
+    nn2 = n1[0] * n1[0] + n1[1] * n1[1] + n1[2] * n1[2];
+    nn = sqrt(nn2);
+    // TODO
+    // if (nn == 0) error->one(FLERR, "The magnitude of the normal vector is zero");
+    // the unit normal vector
+    normal[0] = n1[0] / nn;
+    normal[1] = n1[1] / nn;
+    normal[2] = n1[2] / nn;
+
+    // for the central atoms, dnormdri is always zero
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) { dnormdri[id][ip] = 0.0; }
+    }
+
+    // derivatives of non-normalized normal vector, dn1:3x3x3 array
+    for (id = 0; id < 3; id++) {
+      for (ip = 0; ip < 3; ip++) {
+        for (m = 0; m < 3; m++) {
+          dn1[id][ip][m] = (dpv12[id][ip][m] + dpv23[id][ip][m] + dpv31[id][ip][m]) / cont;
+        }
+      }
+    }
+    // derivatives of nn, dnn:3x3 vector
+    // dnn[id][m]: the derivative of nn respect to r[id][m], id,m=0,1,2
+    // r[id][m]: the id's component of atom m
+    for (m = 0; m < 3; m++) {
+      for (id = 0; id < 3; id++) {
+        dnn[id][m] = (n1[0] * dn1[0][id][m] + n1[1] * dn1[1][id][m] + n1[2] * dn1[2][id][m]) / nn;
+      }
+    }
+    // dnormal[id][ip][m][i]: the derivative of normal[id] respect to r[ip][m], id,ip=0,1,2
+    // for atom m, which is a neighbor atom of atom i, m=0,jnum-1
+    for (m = 0; m < 3; m++) {
+      for (id = 0; id < 3; id++) {
+        for (ip = 0; ip < 3; ip++) {
+          dnormal[id][ip][m] = dn1[id][ip][m] / nn - n1[id] * dnn[ip][m] / nn2;
+        }
+      }
+    }// TODO
+  } else {
+    // TODO: too many neighbors for calculating normals
+  }
   // TODO
 }
 
@@ -170,7 +441,7 @@ static __device__ void calc_rep(void)
 
 // force evaluation kernel
 static __global__ void gpu_find_force(
-  ILP_Para ilp_para,
+  ILP_Para *ilp_para,
   const int number_of_particles,
   const int N1,
   const int N2,
@@ -205,7 +476,7 @@ static __global__ void gpu_find_force(
   double r = 0.0;
   double rsq = 0.0;
   double Rcut = 0.0;
-  double r2inv, r6inv, r8inv;
+  // double r2inv, r6inv, r8inv;
 
   if (n1 < N2) {
     int neighor_number = g_neighbor_number[n1];
@@ -226,7 +497,7 @@ static __global__ void gpu_find_force(
       // calculate distance between atoms
       rsq = x12 * x12 + y12 * y12 + z12 * z12;
       r = sqrt(rsq);
-      Rcut = ilp_para.r_cut[type1][type2];
+      Rcut = ilp_para->r_cut[type1][type2];
       if (r >= Rcut) {
         continue;
       }
@@ -235,14 +506,28 @@ static __global__ void gpu_find_force(
       Tap = calc_Tap(r, Rcut);
       dTap = calc_dTap(r, Rcut);
 
-      calc_normal();
+      double vet[3][3];
+      int id, ip;
+      for (id = 0; id < 3; ++id) {
+        for (ip = 0; ip < 3; ++ip) {
+          vet[id][ip] = 0.0;
+        }
+      }
+      // TODO: loop the ILP_neigh to create the vet and cont
+      int cont = 3;
+      // TODO: how to initialize normals
+      double *normal;
+      double **dnormdri;
+      double ***dnormal;
+
+      calc_normal(vet, cont, normal, dnormdri, dnormal);
 
       double p2_vdW, f2_vdW;
       calc_vdW(
         r,
-        ilp_para.d[type1][type2],
-        ilp_para.d_Seff[type1][type2],
-        ilp_para.C_6[type1][type2],
+        ilp_para->d[type1][type2],
+        ilp_para->d_Seff[type1][type2],
+        ilp_para->C_6[type1][type2],
         Tap,
         dTap,
         p2_vdW,
@@ -253,7 +538,7 @@ static __global__ void gpu_find_force(
       double f12z = f2_vdW * z12 * 0.5;
       double f21x = -f12x;
       double f21y = -f12y;
-      double f21z = -f21z;
+      double f21z = -f12z;
 
       s_fx += f12x - f21x;
       s_fy += f12y - f21y;
@@ -336,7 +621,7 @@ void ILP::compute(
 #endif
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    ilp_para,
+    &ilp_para,
     number_of_atoms,
     N1,
     N2,
