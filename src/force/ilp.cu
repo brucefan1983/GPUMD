@@ -434,8 +434,39 @@ static __device__ void calc_vdW(
 }
 
 // calculate the repulsive force and energy
-static __device__ void calc_rep(void)
+static __device__ void calc_rep(
+  double (&delxyz)[3],
+  double r,
+  double C,
+  double lambda_,
+  double delta2inv,
+  double epsilon,
+  double z0,
+  double *normal,
+  double **dnormdri,
+  double ***dnormal)
 {
+  double prodnorm1, rsq, rhosq1, rdsq1, exp0, exp1, frho1, Erep, Vilp;
+  double dprodnorm1[3] = {0.0, 0.0, 0.0};
+  double fp1[3] = {0.0, 0.0, 0.0};
+  double fprod1[3] = {0.0, 0.0, 0.0};
+  double delki[3] = {0.0, 0.0, 0.0};
+  double fk[3] = {0.0, 0.0, 0.0};
+
+  rsq = r * r;
+  // calculate the transverse distance
+  prodnorm1 = normal[0] * delxyz[0] + normal[1] * delxyz[1] + \
+    normal[2] * delxyz[2];
+  rhosq1 = rsq - prodnorm1 * prodnorm1;
+  rdsq1 = rhosq1 * delta2inv;
+
+  // store exponents
+  exp0 = exp(-lambda_ * (r - z0));
+  exp1 = exp(-rdsq1);
+
+  frho1 = exp1 * C;
+  Erep = 0.5 * epsilon + frho1;
+  Vilp = exp0 * Erep;
   // TODO
 }
 
@@ -498,6 +529,7 @@ static __global__ void gpu_find_force(
       rsq = x12 * x12 + y12 * y12 + z12 * z12;
       r = sqrt(rsq);
       Rcut = ilp_para->r_cut[type1][type2];
+      // TODO: not in the same layer
       if (r >= Rcut) {
         continue;
       }
