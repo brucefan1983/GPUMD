@@ -37,6 +37,7 @@ struct ILP_Para {
 
 struct ILP_Data {
   GPU_Vector<int> NN, NL;
+  GPU_Vector<int> ilp_NN, ilp_NL;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
@@ -54,6 +55,15 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+  
+  virtual void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    std::vector<Group> &group);
   void initialize_ilp(FILE* fid, int, const std::vector<int>, int);
 
 protected:

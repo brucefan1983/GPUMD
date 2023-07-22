@@ -58,6 +58,7 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
       ilp_para.delta2inv[n][m] = 1.0 / (delta * delta); //TODO: how faster?
       ilp_para.S[n][m] = S;
       ilp_para.r_cut[n][m] = rcut;
+      // TODO: meV???
 
       // TODO: ILP has taper function, check if necessary
       if (rc < rcut)
@@ -123,7 +124,20 @@ static __device__ double calc_dTap(const double r_ij, const double Rcut)
 }
 
 // create ILP neighbor list from main neighbor list to calculate normals
-static __device__ void ILP_neighbor(void)
+static __device__ void ILP_neighbor(
+  const int N1,
+  const int N2,
+  const Box &box,
+  const int *g_neighbor_number,
+  const int *g_neighbor_list,
+  const double (&r_cut)[MAX_TYPE_ILP][MAX_TYPE_ILP],
+  const double* __restrict__ g_x,
+  const double* __restrict__ g_y,
+  const double* __restrict__ g_z,
+  GPU_Vector<int> ilp_neighbor_number,
+  GPU_Vector<int> ilp_neighbor_list,
+  std::vector<Group> &group
+)
 {
   // TODO
 }
@@ -624,7 +638,8 @@ void ILP::compute(
   const GPU_Vector<double> &position_per_atom,
   GPU_Vector<double> &potential_per_atom,
   GPU_Vector<double> &force_per_atom,
-  GPU_Vector<double> &virial_per_atom)
+  GPU_Vector<double> &virial_per_atom,
+  std::vector<Group> &group)
 {
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
@@ -652,6 +667,13 @@ void ILP::compute(
   }
 #endif
 
+  const double* x = position_per_atom.data();
+  const double* y = position_per_atom.data() + number_of_atoms;
+  const double* z = position_per_atom.data() + number_of_atoms * 2;
+  // find ILP neighbor list
+  // TODO: __global__ ???
+  ILP_neighbor(N1, N2, box, ilp_data.NN.data(), ilp_data.NL.data(), \
+    ilp_para.r_cut, x, y, z, ilp_data.ilp_NN, ilp_data.ilp_NL, group);
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     &ilp_para,
     number_of_atoms,
@@ -661,9 +683,9 @@ void ILP::compute(
     ilp_data.NN.data(),
     ilp_data.NL.data(),
     type.data(),
-    position_per_atom.data(),
-    position_per_atom.data() + number_of_atoms,
-    position_per_atom.data() + number_of_atoms * 2,
+    x,
+    y,
+    z,
     force_per_atom.data(),
     force_per_atom.data() + number_of_atoms,
     force_per_atom.data() + number_of_atoms * 2,

@@ -34,6 +34,17 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial) = 0;
+  
+  // TODO: bhk add group
+  virtual void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial,
+    std::vector<Group>& group);
+
 
 protected:
   void find_properties_many_body(
