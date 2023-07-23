@@ -72,6 +72,10 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   ilp_data.cell_count_sum.resize(num_atoms);
   ilp_data.cell_contents.resize(num_atoms);
 
+  // init ilp neighbor list
+  ilp_data.ilp_NN.resize(num_atoms);
+  ilp_data.ilp_NL.resize(num_atoms * CUDA_MAX_NL);
+
   // init constant cutoff coeff
   double h_tap_coeff[8] = \
     {1.0, 0.0, 0.0, 0.0, -35.0, 84.0, 70.0, 20.0};
@@ -124,22 +128,53 @@ static __device__ double calc_dTap(const double r_ij, const double Rcut)
 }
 
 // create ILP neighbor list from main neighbor list to calculate normals
-static __device__ void ILP_neighbor(
+static __global__ void ILP_neighbor(
+  const int number_of_particles,
   const int N1,
   const int N2,
-  const Box &box,
+  const Box box,
   const int *g_neighbor_number,
   const int *g_neighbor_list,
+  const int *g_type,
   const double (&r_cut)[MAX_TYPE_ILP][MAX_TYPE_ILP],
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  GPU_Vector<int> ilp_neighbor_number,
-  GPU_Vector<int> ilp_neighbor_list,
-  std::vector<Group> &group
+  int *ilp_neighbor_number,
+  int *ilp_neighbor_list,
+  const int *group_label
 )
 {
-  // TODO
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+
+  if (n1 < N2) {
+    int count = 0;
+    int neighbor_number = g_neighbor_number[n1];
+    int type1 = g_type[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int n2 = g_neighbor_list[n1 + number_of_particles * i1];
+      int type2 = g_type[n2];
+
+      double x12 = g_x[n2] - x1;
+      double y12 = g_y[n2] - y1;
+      double z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
+
+      // TODO: store cutILPsq to calc fast
+      double cutILPsq = r_cut[type1][type2] * r_cut[type1][type2];
+
+      if (group_label[n1] == group_label[n2] && d12sq < cutILPsq && d12sq != 0) {
+        ilp_neighbor_list[count++ * number_of_particles + n1] = n2;
+      }
+    }
+    ilp_neighbor_number[n1] = count;
+  }
+  // TODO: check group id before calc potential(calc in defferent layers)
 }
 
 // calculate the normals and its derivatives
@@ -672,8 +707,10 @@ void ILP::compute(
   const double* z = position_per_atom.data() + number_of_atoms * 2;
   // find ILP neighbor list
   // TODO: __global__ ???
-  ILP_neighbor(N1, N2, box, ilp_data.NN.data(), ilp_data.NL.data(), \
-    ilp_para.r_cut, x, y, z, ilp_data.ilp_NN, ilp_data.ilp_NL, group);
+  // TODO: assume the first group column is for ILP
+  ILP_neighbor(number_of_atoms, N1, N2, box, ilp_data.NN.data(), ilp_data.NL.data(), \
+    type.data(), ilp_para.r_cut, x, y, z, ilp_data.ilp_NN.data(), \
+    ilp_data.ilp_NL.data(), group[0].label.data());
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     &ilp_para,
     number_of_atoms,
