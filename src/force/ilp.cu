@@ -142,8 +142,7 @@ static __global__ void ILP_neighbor(
   const double* __restrict__ g_z,
   int *ilp_neighbor_number,
   int *ilp_neighbor_list,
-  const int *group_label
-)
+  const int *group_label)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
@@ -173,6 +172,11 @@ static __global__ void ILP_neighbor(
       }
     }
     ilp_neighbor_number[n1] = count;
+
+    if (count > 3) {
+      // TODO: error, there are too many neighbors for some atoms, 
+      // please check your configuration
+    }
   }
   // TODO: check group id before calc potential(calc in defferent layers)
 }
@@ -181,9 +185,9 @@ static __global__ void ILP_neighbor(
 static __device__ void calc_normal(
   double (&vet)[3][3],
   int cont,
-  double *normal,
-  double **dnormdri,
-  double ***dnormal)
+  double (&normal)[3],
+  double (&dnormdri)[3][3],
+  double (&dnormal)[3][3][3])
 {
   int id, ip, m;
   double nn2, nn;
@@ -491,9 +495,9 @@ static __device__ void calc_rep(
   double delta2inv,
   double epsilon,
   double z0,
-  double *normal,
-  double **dnormdri,
-  double ***dnormal)
+  double (&normal)[3],
+  double (&dnormdri)[3][3],
+  double (&dnormal)[3][3][3])
 {
   double prodnorm1, rsq, rhosq1, rdsq1, exp0, exp1, frho1, Erep, Vilp;
   double dprodnorm1[3] = {0.0, 0.0, 0.0};
@@ -528,6 +532,9 @@ static __global__ void gpu_find_force(
   const Box box,
   const int *g_neighbor_number,
   const int *g_neighbor_list,
+  int *g_ilp_neighbor_number,
+  int *g_ilp_neighbor_list,
+  const int *group_label,
   const int *g_type,
   const double *__restrict__ g_x,
   const double *__restrict__ g_y,
@@ -559,19 +566,56 @@ static __global__ void gpu_find_force(
   // double r2inv, r6inv, r8inv;
 
   if (n1 < N2) {
+    double x12, y12, z12;
     int neighor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
     double z1 = g_z[n1];
 
+    // calculate the normal
+    // TODO: loop the ILP_neigh to create the vet and cont
+    int cont = 0;
+    // TODO: how to initialize normals
+    double normal[3];
+    double dnormdri[3][3];
+    double dnormal[3][3][3];
+
+    double vet[3][3];
+    int id, ip, m;
+    for (id = 0; id < 3; ++id) {
+      normal[id] = 0.0;
+      for (ip = 0; ip < 3; ++ip) {
+        vet[id][ip] = 0.0;
+        dnormdri[id][ip] = 0.0;
+        for (m = 0; m < 3; ++m) {
+          dnormal[id][ip][m] = 0.0;
+        }
+      }
+    }
+
+    int ilp_neighbor_number = g_ilp_neighbor_number[n1];
+    for (int i1 = 0; i1 < ilp_neighbor_number; ++i1) {
+      int n2_ilp = g_ilp_neighbor_list[n1 + number_of_particles * i1];
+      x12 = g_x[n2_ilp] - x1;
+      y12 = g_y[n2_ilp] - y1;
+      z12 = g_z[n2_ilp] - z1;
+      vet[cont][0] = x12;
+      vet[cont][1] = y12;
+      vet[cont][2] = z12;
+      ++cont;
+    }
+
+    calc_normal(vet, cont, normal, dnormdri, dnormal);
+
+    // calculate energy and force
     for (int i1 = 0; i1 < neighor_number; ++i1) {
       int n2 = g_neighbor_list[n1 + number_of_particles * i1];
       int type2 = g_type[n2];
 
-      double x12 = g_x[n2] - x1;
-      double y12 = g_y[n2] - y1;
-      double z12 = g_z[n2] - z1;
+      x12 = g_x[n2] - x1;
+      y12 = g_y[n2] - y1;
+      z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
 
       // calculate distance between atoms
@@ -579,29 +623,13 @@ static __global__ void gpu_find_force(
       r = sqrt(rsq);
       Rcut = ilp_para->r_cut[type1][type2];
       // TODO: not in the same layer
-      if (r >= Rcut) {
+      if (r >= Rcut || group_label[n1] == group_label[n2]) {
         continue;
       }
 
       double Tap, dTap;
       Tap = calc_Tap(r, Rcut);
       dTap = calc_dTap(r, Rcut);
-
-      double vet[3][3];
-      int id, ip;
-      for (id = 0; id < 3; ++id) {
-        for (ip = 0; ip < 3; ++ip) {
-          vet[id][ip] = 0.0;
-        }
-      }
-      // TODO: loop the ILP_neigh to create the vet and cont
-      int cont = 3;
-      // TODO: how to initialize normals
-      double *normal;
-      double **dnormdri;
-      double ***dnormal;
-
-      calc_normal(vet, cont, normal, dnormdri, dnormal);
 
       double p2_vdW, f2_vdW;
       calc_vdW(
@@ -636,7 +664,19 @@ static __global__ void gpu_find_force(
       s_szy += z12 * f21y;
       s_szz += z12 * f21z;
 
-      calc_rep();
+      
+      double delxyz[3] = {x12, y12, z12};
+      calc_rep(
+        delxyz,
+        r,
+        ilp_para->C[type1][type2],
+        ilp_para->lambda[type1][type2],
+        ilp_para->delta2inv[type1][type2],
+        ilp_para->epsilon[type1][type2],
+        ilp_para->z0[type1][type2],
+        normal,
+        dnormdri,
+        dnormal);
     }
 
     // TODO
@@ -705,20 +745,31 @@ void ILP::compute(
   const double* x = position_per_atom.data();
   const double* y = position_per_atom.data() + number_of_atoms;
   const double* z = position_per_atom.data() + number_of_atoms * 2;
+  const int *NN = ilp_data.NN.data();
+  const int *NL = ilp_data.NL.data();
+  int *ilp_NL = ilp_data.ilp_NL.data();
+  int *ilp_NN = ilp_data.ilp_NN.data();
+
   // find ILP neighbor list
   // TODO: __global__ ???
   // TODO: assume the first group column is for ILP
-  ILP_neighbor(number_of_atoms, N1, N2, box, ilp_data.NN.data(), ilp_data.NL.data(), \
-    type.data(), ilp_para.r_cut, x, y, z, ilp_data.ilp_NN.data(), \
-    ilp_data.ilp_NL.data(), group[0].label.data());
+  const int *group_label = group[0].label.data();
+  ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    number_of_atoms, N1, N2, box, NN, NL, \
+    type.data(), ilp_para.r_cut, x, y, z, ilp_NN, \
+    ilp_NL, group_label);
+
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     &ilp_para,
     number_of_atoms,
     N1,
     N2,
     box,
-    ilp_data.NN.data(),
-    ilp_data.NL.data(),
+    NN,
+    NL,
+    ilp_NN,
+    ilp_NL,
+    group_label,
     type.data(),
     x,
     y,
