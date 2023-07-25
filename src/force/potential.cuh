@@ -18,6 +18,9 @@
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
 
+// include ILP.cuh to check if the potential is ILP
+// class ILP;
+
 class Potential
 {
 public:
@@ -35,7 +38,7 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial) = 0;
   
-  // TODO: bhk add group
+  // bhk add group
   virtual void compute(
     Box& box,
     const GPU_Vector<int>& type,
@@ -43,7 +46,7 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
-    std::vector<Group>& group);
+    std::vector<Group>& group){};
 
 
 protected:

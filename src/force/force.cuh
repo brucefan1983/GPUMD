@@ -23,6 +23,9 @@
 #include <stdio.h>
 #include <vector>
 
+// TODO: include ILP
+#include "ilp.cuh"
+
 class Force
 {
 public:

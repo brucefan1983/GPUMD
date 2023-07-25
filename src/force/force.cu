@@ -455,21 +455,29 @@ void Force::compute(
   CUDA_CHECK_KERNEL
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
-    // If observing, calculate using main potential only
-    // potentials[0]->compute(
-    //  box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-    // TODO: bhk add group
-    potentials[0]->compute(
+    ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
+    if (ilp_flag) {
+      potentials[0]->compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
+    } else {
+    // If observing, calculate using main potential only
+      potentials[0]->compute(
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    }
+    // TODO: bhk add group
   } else if (multiple_potentials_mode_.compare("average") == 0) {
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
+      ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
+      if (ilp_flag) {
+        potentials[i]->compute(
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
+      } else {
       // potential->compute automatically adds the properties
-      //potentials[i]->compute(
-      //  box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+        potentials[i]->compute(
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       // TODO: bhk add group
-      potentials[i]->compute(
-        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
+      }
     }
     // Compute average and copy properties back into original vectors.
     gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
