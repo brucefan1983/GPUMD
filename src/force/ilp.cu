@@ -695,17 +695,109 @@ static __global__ void gpu_find_force(
 
       
       double delxyz[3] = {x12, y12, z12};
-      calc_rep(
-        delxyz,
-        r,
-        ilp_para->C[type1][type2],
-        ilp_para->lambda[type1][type2],
-        ilp_para->delta2inv[type1][type2],
-        ilp_para->epsilon[type1][type2],
-        ilp_para->z0[type1][type2],
-        normal,
-        dnormdri,
-        dnormal);
+      // calc_rep(
+      //   delxyz,
+      //   r,
+      //   ilp_para->C[type1][type2],
+      //   ilp_para->lambda[type1][type2],
+      //   ilp_para->delta2inv[type1][type2],
+      //   ilp_para->epsilon[type1][type2],
+      //   ilp_para->z0[type1][type2],
+      //   normal,
+      //   dnormdri,
+      //   dnormal);
+
+      double C = ilp_para->C[type1][type2];
+      double lambda_ = ilp_para->lambda[type1][type2];
+      double delta2inv = ilp_para->delta2inv[type1][type2];
+      double epsilon = ilp_para->epsilon[type1][type2];
+      double z0 = ilp_para->z0[type1][type2];
+      // calc_rep
+      double prodnorm1, rhosq1, rdsq1, exp0, exp1, frho1, Erep, Vilp;
+      double fpair, fpair1, fsum, delx, dely, delz, fkcx, fkcy, fkcz;
+      double dprodnorm1[3] = {0.0, 0.0, 0.0};
+      double fp1[3] = {0.0, 0.0, 0.0};
+      double fprod1[3] = {0.0, 0.0, 0.0};
+      double delki[3] = {0.0, 0.0, 0.0};
+      double fk[3] = {0.0, 0.0, 0.0};
+
+      delx = delxyz[0];
+      dely = delxyz[1];
+      delz = delxyz[2];
+
+      // rsq = r * r;
+      // calculate the transverse distance
+      prodnorm1 = normal[0] * delx + normal[1] * dely + normal[2] * delz;
+      rhosq1 = rsq - prodnorm1 * prodnorm1;
+      rdsq1 = rhosq1 * delta2inv;
+
+      // store exponents
+      exp0 = exp(-lambda_ * (r - z0));
+      exp1 = exp(-rdsq1);
+
+      frho1 = exp1 * C;
+      Erep = 0.5 * epsilon + frho1;
+      Vilp = exp0 * Erep;
+      // TODO
+
+      // derivatives
+      fpair = lambda_ * exp0 / r * Erep;
+      fpair1 = 2.0 * exp0 * frho1 * delta2inv;
+      fsum = fpair + fpair1;
+
+      // derivatives of the product of rij and ni, the resutl is a vector
+      dprodnorm1[0] = 
+        dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
+      dprodnorm1[1] = 
+        dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
+      dprodnorm1[2] = 
+        dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
+      fp1[0] = prodnorm1 * normal[0] * fpair1;
+      fp1[1] = prodnorm1 * normal[1] * fpair1;
+      fp1[2] = prodnorm1 * normal[2] * fpair1;
+      fprod1[0] = prodnorm1 * dprodnorm1[0] * fpair1;
+      fprod1[1] = prodnorm1 * dprodnorm1[1] * fpair1;
+      fprod1[2] = prodnorm1 * dprodnorm1[2] * fpair1;
+
+      fkcx = (delx * fsum - fp1[0]) * Tap - Vilp * dTap * delx / r;
+      fkcy = (dely * fsum - fp1[1]) * Tap - Vilp * dTap * dely / r;
+      fkcz = (delz * fsum - fp1[2]) * Tap - Vilp * dTap * delz / r;
+
+      s_fx += fkcx - fprod1[0] * Tap;
+      s_fy += fkcy - fprod1[1] * Tap;
+      s_fz += fkcz - fprod1[2] * Tap;
+
+      // TODO: write data of other atoms, need atomic operation???
+      g_fx[n2] -= fkcx;
+      g_fy[n2] -= fkcy;
+      g_fz[n2] -= fkcz;
+
+      for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
+        int n2_ilp = g_ilp_neighbor_list[n1 + number_of_particles * kk];
+        if (n2_ilp == n1) continue;
+        // derivatives of the product of rij and ni respect to rk, k=0,1,2, where atom k is the neighbors of atom i
+        dprodnorm1[0] = dnormal[0][0][kk] * delx + dnormal[1][0][kk] * dely +
+            dnormal[2][0][kk] * delz;
+        dprodnorm1[1] = dnormal[0][1][kk] * delx + dnormal[1][1][kk] * dely +
+            dnormal[2][1][kk] * delz;
+        dprodnorm1[2] = dnormal[0][2][kk] * delx + dnormal[1][2][kk] * dely +
+            dnormal[2][2][kk] * delz;
+        fk[0] = (-prodnorm1 * dprodnorm1[0] * fpair1) * Tap;
+        fk[1] = (-prodnorm1 * dprodnorm1[1] * fpair1) * Tap;
+        fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
+
+        // TODO: write data of other atoms, need atomic operation???
+        g_fx[n2_ilp] += fk[0];
+        g_fy[n2_ilp] += fk[1];
+        g_fz[n2_ilp] += fk[2];
+
+        delki[0] = g_x[n2_ilp] - x1;
+        delki[1] = g_y[n2_ilp] - y1;
+        delki[2] = g_z[n2_ilp] - z1;
+
+      }
+      s_pe += Tap * Vilp;
+
     }
 
     // TODO
@@ -797,6 +889,7 @@ void ILP::compute(
     number_of_atoms, N1, N2, box, NN, NL, \
     type.data(), ilp_para.r_cut, x, y, z, ilp_NN, \
     ilp_NL, group_label);
+  CUDA_CHECK_KERNEL
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     &ilp_para,
