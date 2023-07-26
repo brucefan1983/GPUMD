@@ -41,6 +41,9 @@ struct ILP_Data {
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
+  GPU_Vector<double> f12x;
+  GPU_Vector<double> f12y;
+  GPU_Vector<double> f12z;
 };
 
 class ILP : public Potential
