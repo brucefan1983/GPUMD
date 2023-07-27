@@ -59,6 +59,10 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
       ilp_para.S[n][m] = S;
       ilp_para.r_cut[n][m] = rcut;
       // TODO: meV???
+      double meV = 1e-3 * S;
+      ilp_para.C[n][m] *= meV;
+      ilp_para.C_6[n][m] *= meV;
+      ilp_para.epsilon[n][m] *= meV;
 
       // TODO: ILP has taper function, check if necessary
       if (rc < rcut)
