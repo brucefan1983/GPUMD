@@ -21,6 +21,7 @@ The driver class calculating force and related quantities.
 #include "lj.cuh"
 #include "nep3.cuh"
 #include "nep3_multigpu.cuh"
+#include "ilp.cuh"
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
@@ -119,6 +120,8 @@ void Force::parse_potential(
     check_types(param[1]);
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "ilp") == 0) {
+    potential.reset(new ILP(fid_potential, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
@@ -435,6 +438,7 @@ void Force::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
+  printf("********** force compute **********");
   const int number_of_atoms = type.size();
   if (!is_fcp) {
     gpu_apply_pbc<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -733,15 +737,29 @@ void Force::compute(
   CUDA_CHECK_KERNEL
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
+    // TODO: bhk add group
+    ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
+    if (ilp_flag) {
+      potentials[0]->compute(
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
+    } else {
     // If observing, calculate using main potential only
     potentials[0]->compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    }
   } else if (multiple_potentials_mode_.compare("average") == 0) {
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
-      // potential->compute automatically adds the properties
-      potentials[i]->compute(
-        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      // TODO: bhk add group
+      ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
+      if (ilp_flag) {
+        potentials[i]->compute(
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
+      } else {
+        // potential->compute automatically adds the properties
+        potentials[i]->compute(
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      }
     }
     // Compute average and copy properties back into original vectors.
     gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(

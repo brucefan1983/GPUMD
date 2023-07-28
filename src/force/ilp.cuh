@@ -18,8 +18,8 @@
 #include <stdio.h>
 #include <vector>
 
-// TODO
-#define MAX_TYPE_ILP 10
+// TODO: how to pass arguments?
+#define MAX_TYPE_ILP 3
 #define CUDA_MAX_NL 1024
 
 struct ILP_Para {

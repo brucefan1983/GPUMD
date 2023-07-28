@@ -46,7 +46,7 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
     for (int m = 0; m < num_types; ++m) {
       int count = fscanf(fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf", \
       &beta, &alpha, &delta, &epsilon, &C, &d, &sR, &reff, &C6, &S, &rcut);
-      PRINT_SCANF_ERROR(count, 10, "Reading error for ILP potential.");
+      PRINT_SCANF_ERROR(count, 11, "Reading error for ILP potential.");
 
       ilp_para.C[n][m] = C;
       ilp_para.C_6[n][m] = C6;
@@ -79,6 +79,10 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   // init ilp neighbor list
   ilp_data.ilp_NN.resize(num_atoms);
   ilp_data.ilp_NL.resize(num_atoms * CUDA_MAX_NL);
+
+  ilp_data.f12x.resize(num_atoms);
+  ilp_data.f12y.resize(num_atoms);
+  ilp_data.f12z.resize(num_atoms);
 
   // init constant cutoff coeff
   double h_tap_coeff[8] = \
@@ -140,7 +144,7 @@ static __global__ void ILP_neighbor(
   const int *g_neighbor_number,
   const int *g_neighbor_list,
   const int *g_type,
-  const double (&r_cut)[MAX_TYPE_ILP][MAX_TYPE_ILP],
+  ILP_Para ilp_para,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
@@ -151,6 +155,7 @@ static __global__ void ILP_neighbor(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
   if (n1 < N2) {
+    printf("***** ilp neighbor GPU *****\n");
     int count = 0;
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
@@ -158,23 +163,38 @@ static __global__ void ILP_neighbor(
     double y1 = g_y[n1];
     double z1 = g_z[n1];
 
+    printf("***** n1: %d, neigh: %d *****\n", n1, neighbor_number);
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_neighbor_list[n1 + number_of_particles * i1];
       int type2 = g_type[n2];
+      printf("***** n1: %d, n2: %d *****\n", n1, n2);
+      printf("***** group lable[0]: %d, [1]: %d *****\n", group_label[0], group_label[1]);
+      printf("***** %f *****\n", ilp_para.r_cut[0][0]);
 
       double x12 = g_x[n2] - x1;
       double y12 = g_y[n2] - y1;
       double z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
       double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
+      double r_cut = ilp_para.r_cut[type1][type2];
 
+      printf("***** type1: %d, type2: %d *****\n", type1, type2);
+      printf("***** size of r_cut: %d*****\n", sizeof(r_cut));
+//      printf("***** size of r_cut[0]: %d*****\n", sizeof(*r_cut[0]));
+//      printf("***** r_cut: %p *****\n", r_cut);
+//      printf("***** r_cut[1]: %p *****\n", r_cut[1]);
+//      printf("***** *r_cut: %p *****\n", *r_cut);
+//      printf("***** **r_cut: %p *****\n", **r_cut);
+//
       // TODO: store cutILPsq to calc fast
-      double cutILPsq = r_cut[type1][type2] * r_cut[type1][type2];
+      double cutILPsq = r_cut * r_cut;
 
       if (group_label[n1] == group_label[n2] && d12sq < cutILPsq && d12sq != 0) {
+        printf("----- count: %d -----\n", count);
         ilp_neighbor_list[count++ * number_of_particles + n1] = n2;
       }
     }
+    printf("===== get here =====\n");
     ilp_neighbor_number[n1] = count;
 
     if (count > 3) {
@@ -558,7 +578,7 @@ static __device__ void calc_rep(
 
 // force evaluation kernel
 static __global__ void gpu_find_force(
-  ILP_Para *ilp_para,
+  ILP_Para ilp_para,
   const int number_of_particles,
   const int N1,
   const int N2,
@@ -599,6 +619,7 @@ static __global__ void gpu_find_force(
   // double r2inv, r6inv, r8inv;
 
   if (n1 < N2) {
+    printf("********* ILP find force GPU **********\n");
     double x12, y12, z12;
     int neighor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
@@ -639,6 +660,7 @@ static __global__ void gpu_find_force(
       ++cont;
     }
 
+    printf("********* ILP calc normal **********\n");
     calc_normal(vet, cont, normal, dnormdri, dnormal);
 
     // calculate energy and force
@@ -654,22 +676,24 @@ static __global__ void gpu_find_force(
       // calculate distance between atoms
       rsq = x12 * x12 + y12 * y12 + z12 * z12;
       r = sqrt(rsq);
-      Rcut = ilp_para->r_cut[type1][type2];
+      Rcut = ilp_para.r_cut[type1][type2];
       // TODO: not in the same layer
       if (r >= Rcut || group_label[n1] == group_label[n2]) {
         continue;
       }
 
+      printf("********* ILP calc Tap **********\n");
       double Tap, dTap;
       Tap = calc_Tap(r, Rcut);
       dTap = calc_dTap(r, Rcut);
 
+      printf("********* ILP calc vdW **********\n");
       double p2_vdW, f2_vdW;
       calc_vdW(
         r,
-        ilp_para->d[type1][type2],
-        ilp_para->d_Seff[type1][type2],
-        ilp_para->C_6[type1][type2],
+        ilp_para.d[type1][type2],
+        ilp_para.d_Seff[type1][type2],
+        ilp_para.C_6[type1][type2],
         Tap,
         dTap,
         p2_vdW,
@@ -698,6 +722,7 @@ static __global__ void gpu_find_force(
       s_szz += z12 * f21z;
 
       
+      printf("********* ILP calc rep **********\n");
       double delxyz[3] = {x12, y12, z12};
       // calc_rep(
       //   delxyz,
@@ -711,11 +736,11 @@ static __global__ void gpu_find_force(
       //   dnormdri,
       //   dnormal);
 
-      double C = ilp_para->C[type1][type2];
-      double lambda_ = ilp_para->lambda[type1][type2];
-      double delta2inv = ilp_para->delta2inv[type1][type2];
-      double epsilon = ilp_para->epsilon[type1][type2];
-      double z0 = ilp_para->z0[type1][type2];
+      double C = ilp_para.C[type1][type2];
+      double lambda_ = ilp_para.lambda[type1][type2];
+      double delta2inv = ilp_para.delta2inv[type1][type2];
+      double epsilon = ilp_para.epsilon[type1][type2];
+      double z0 = ilp_para.z0[type1][type2];
       // calc_rep
       double prodnorm1, rhosq1, rdsq1, exp0, exp1, frho1, Erep, Vilp;
       double fpair, fpair1, fsum, delx, dely, delz, fkcx, fkcy, fkcz;
@@ -851,6 +876,7 @@ void ILP::compute(
   GPU_Vector<double> &virial_per_atom,
   std::vector<Group> &group)
 {
+  printf("********* ILP compute **********\n");
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
@@ -888,15 +914,17 @@ void ILP::compute(
   // find ILP neighbor list
   // TODO: __global__ ???
   // TODO: assume the first group column is for ILP
+  printf("********* ILP neigh **********\n");
   const int *group_label = group[0].label.data();
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, NN, NL, \
-    type.data(), ilp_para.r_cut, x, y, z, ilp_NN, \
+    type.data(), ilp_para, x, y, z, ilp_NN, \
     ilp_NL, group_label);
   CUDA_CHECK_KERNEL
 
+  printf("********* ILP find force **********\n");
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    &ilp_para,
+    ilp_para,
     number_of_atoms,
     N1,
     N2,

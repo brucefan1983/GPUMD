@@ -1,0 +1,8 @@
+potential ../../potentials/ilp/gra_hbn_ilp.txt
+velocity 1
+
+ensemble nve
+time_step 1 # do not move the system
+#dump_force 100 # only one frame of forces
+dump_thermo 1
+run 1
