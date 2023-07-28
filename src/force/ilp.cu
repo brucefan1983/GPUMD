@@ -239,8 +239,10 @@ static __device__ void calc_normal(
   }
 
   if (cont <= 1) {
+    normal[0] = 0.0;
+    normal[1] = 0.0;
+    normal[2] = 1.0;
     for (id = 0; id < 3; ++id) {
-      normal[id] = 0.0;
       for (ip = 0; ip < 3; ++ip) {
         dnormdri[id][ip] = 0.0;
         for (m = 0; m < 3; ++m) {
