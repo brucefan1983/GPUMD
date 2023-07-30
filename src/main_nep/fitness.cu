@@ -189,23 +189,41 @@ void Fitness::output(
 
 void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
 {
-  if (para.version == 2) {
-    if (para.enable_zbl) {
-      fprintf(fid_nep, "nep_zbl %d ", para.num_types);
-    } else {
-      fprintf(fid_nep, "nep %d ", para.num_types);
+  if (para.train_mode == 0) { // potential model
+    if (para.version == 2) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep %d ", para.num_types);
+      }
+    } else if (para.version == 3) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep3 %d ", para.num_types);
+      }
+    } else if (para.version == 4) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4 %d ", para.num_types);
+      }
     }
-  } else if (para.version == 3) {
-    if (para.enable_zbl) {
-      fprintf(fid_nep, "nep3_zbl %d ", para.num_types);
-    } else {
-      fprintf(fid_nep, "nep3 %d ", para.num_types);
+  } else if (para.train_mode == 1) { // dipole model
+    if (para.version == 2) {
+      fprintf(fid_nep, "nep_dipole %d ", para.num_types);
+    } else if (para.version == 3) {
+      fprintf(fid_nep, "nep3_dipole %d ", para.num_types);
+    } else if (para.version == 4) {
+      fprintf(fid_nep, "nep4_dipole %d ", para.num_types);
     }
-  } else if (para.version == 4) {
-    if (para.enable_zbl) {
-      fprintf(fid_nep, "nep4_zbl %d ", para.num_types);
-    } else {
-      fprintf(fid_nep, "nep4 %d ", para.num_types);
+  } else if (para.train_mode == 2) { // polarizability model
+    if (para.version == 2) {
+      fprintf(fid_nep, "nep_polarizability %d ", para.num_types);
+    } else if (para.version == 3) {
+      fprintf(fid_nep, "nep3_polarizability %d ", para.num_types);
+    } else if (para.version == 4) {
+      fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
     }
   }
 
