@@ -23,7 +23,7 @@
 #define CUDA_MAX_NL 1024
 
 struct ILP_Para {
-  double r_cut[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  double rcutsq_ilp[MAX_TYPE_ILP][MAX_TYPE_ILP];
   double d[MAX_TYPE_ILP][MAX_TYPE_ILP];
   double d_Seff[MAX_TYPE_ILP][MAX_TYPE_ILP];      // d / S_R / r_eff
   double C_6[MAX_TYPE_ILP][MAX_TYPE_ILP];
@@ -33,6 +33,7 @@ struct ILP_Para {
   double C[MAX_TYPE_ILP][MAX_TYPE_ILP];
   double delta2inv[MAX_TYPE_ILP][MAX_TYPE_ILP];   // 1 / delta ^ 2
   double S[MAX_TYPE_ILP][MAX_TYPE_ILP];           // scale
+  double rcut_global[MAX_TYPE_ILP][MAX_TYPE_ILP];           // scale
 };
 
 struct ILP_Data {

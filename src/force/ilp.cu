@@ -40,13 +40,15 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   printf("\n");
 
   // read parameters
-  double beta, alpha, delta, epsilon, C, d, sR, reff, C6, S, rcut;
+  double beta, alpha, delta, epsilon, C, d, sR;
+  double reff, C6, S, rcut_ilp, rcut_global;
   rc = 0.0;
   for (int n = 0; n < num_types; ++n) {
     for (int m = 0; m < num_types; ++m) {
-      int count = fscanf(fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf", \
-      &beta, &alpha, &delta, &epsilon, &C, &d, &sR, &reff, &C6, &S, &rcut);
-      PRINT_SCANF_ERROR(count, 11, "Reading error for ILP potential.");
+      int count = fscanf(fid, "%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf%lf", \
+      &beta, &alpha, &delta, &epsilon, &C, &d, &sR, &reff, &C6, &S, \
+      &rcut_ilp, &rcut_global);
+      PRINT_SCANF_ERROR(count, 12, "Reading error for ILP potential.");
 
       ilp_para.C[n][m] = C;
       ilp_para.C_6[n][m] = C6;
@@ -57,7 +59,8 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
       ilp_para.lambda[n][m] = alpha / beta;
       ilp_para.delta2inv[n][m] = 1.0 / (delta * delta); //TODO: how faster?
       ilp_para.S[n][m] = S;
-      ilp_para.r_cut[n][m] = rcut;
+      ilp_para.rcutsq_ilp[n][m] = rcut_ilp * rcut_ilp;
+      ilp_para.rcut_global[n][m] = rcut_global;
       // TODO: meV???
       double meV = 1e-3 * S;
       ilp_para.C[n][m] *= meV;
@@ -65,8 +68,8 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
       ilp_para.epsilon[n][m] *= meV;
 
       // TODO: ILP has taper function, check if necessary
-      if (rc < rcut)
-        rc = rcut;
+      if (rc < rcut_global)
+        rc = rcut_global;
     }
   }
 
@@ -86,7 +89,7 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
 
   // init constant cutoff coeff
   double h_tap_coeff[8] = \
-    {1.0, 0.0, 0.0, 0.0, -35.0, 84.0, 70.0, 20.0};
+    {1.0, 0.0, 0.0, 0.0, -35.0, 84.0, -70.0, 20.0};
   cudaMemcpyToSymbol(Tap_coeff, h_tap_coeff, 8 * sizeof(double));
   CUDA_CHECK_KERNEL
 }
@@ -111,6 +114,7 @@ static __device__ double calc_Tap(const double r_ij, const double Rcut)
       Tap = Tap * r + Tap_coeff[i];
     }
   }
+  printf("***** r_ij: %f, Rcut: %f, Tap: %.6f *****", r_ij, Rcut, Tap);
 
   return Tap;
 }
@@ -169,27 +173,17 @@ static __global__ void ILP_neighbor(
       int type2 = g_type[n2];
       printf("***** n1: %d, n2: %d *****\n", n1, n2);
       printf("***** group lable[0]: %d, [1]: %d *****\n", group_label[0], group_label[1]);
-      printf("***** %f *****\n", ilp_para.r_cut[0][0]);
 
       double x12 = g_x[n2] - x1;
       double y12 = g_y[n2] - y1;
       double z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
       double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
-      double r_cut = ilp_para.r_cut[type1][type2];
+      double rcutsq = ilp_para.rcutsq_ilp[type1][type2];
 
       printf("***** type1: %d, type2: %d *****\n", type1, type2);
-      printf("***** size of r_cut: %d*****\n", sizeof(r_cut));
-//      printf("***** size of r_cut[0]: %d*****\n", sizeof(*r_cut[0]));
-//      printf("***** r_cut: %p *****\n", r_cut);
-//      printf("***** r_cut[1]: %p *****\n", r_cut[1]);
-//      printf("***** *r_cut: %p *****\n", *r_cut);
-//      printf("***** **r_cut: %p *****\n", **r_cut);
-//
-      // TODO: store cutILPsq to calc fast
-      double cutILPsq = r_cut * r_cut;
 
-      if (group_label[n1] == group_label[n2] && d12sq < cutILPsq && d12sq != 0) {
+      if (group_label[n1] == group_label[n2] && d12sq < rcutsq && d12sq != 0) {
         printf("----- count: %d -----\n", count);
         ilp_neighbor_list[count++ * number_of_particles + n1] = n2;
       }
@@ -678,7 +672,7 @@ static __global__ void gpu_find_force(
       // calculate distance between atoms
       rsq = x12 * x12 + y12 * y12 + z12 * z12;
       r = sqrt(rsq);
-      Rcut = ilp_para.r_cut[type1][type2];
+      Rcut = ilp_para.rcut_global[type1][type2];
       // TODO: not in the same layer
       if (r >= Rcut || group_label[n1] == group_label[n2]) {
         continue;
@@ -688,6 +682,9 @@ static __global__ void gpu_find_force(
       double Tap, dTap;
       Tap = calc_Tap(r, Rcut);
       dTap = calc_dTap(r, Rcut);
+      // TODO: set tap to 1 to test
+      // Tap = 1;
+      // dTap = 0;
 
       printf("********* ILP calc vdW **********\n");
       double p2_vdW, f2_vdW;
@@ -713,6 +710,7 @@ static __global__ void gpu_find_force(
       s_fz += f12z - f21z;
 
       s_pe += p2_vdW * 0.5;
+      printf("***** atom: %d, Vatt: %.16f *****\n", n1, p2_vdW * 0.5);
       s_sxx += x12 * f21x;
       s_sxy += x12 * f21y;
       s_sxz += x12 * f21z;
@@ -769,6 +767,7 @@ static __global__ void gpu_find_force(
       frho1 = exp1 * C;
       Erep = 0.5 * epsilon + frho1;
       Vilp = exp0 * Erep;
+      printf("***** atom: %d, Vrep: %.16f *****\n", n1, Vilp * Tap);
       // TODO
 
       // derivatives
