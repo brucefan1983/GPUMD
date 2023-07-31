@@ -20,7 +20,8 @@
 
 // TODO: how to pass arguments?
 #define MAX_TYPE_ILP 3
-#define CUDA_MAX_NL 1024
+#define CUDA_MAX_NL 500
+#define MAX_ILP_NEIGHBOR 3
 
 struct ILP_Para {
   double rcutsq_ilp[MAX_TYPE_ILP][MAX_TYPE_ILP];
@@ -45,6 +46,9 @@ struct ILP_Data {
   GPU_Vector<double> f12x;
   GPU_Vector<double> f12y;
   GPU_Vector<double> f12z;
+  GPU_Vector<double> f12x_ilp_neigh;
+  GPU_Vector<double> f12y_ilp_neigh;
+  GPU_Vector<double> f12z_ilp_neigh;
 };
 
 class ILP : public Potential

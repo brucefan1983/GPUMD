@@ -81,11 +81,15 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
 
   // init ilp neighbor list
   ilp_data.ilp_NN.resize(num_atoms);
-  ilp_data.ilp_NL.resize(num_atoms * CUDA_MAX_NL);
+  ilp_data.ilp_NL.resize(num_atoms * MAX_ILP_NEIGHBOR);
 
-  ilp_data.f12x.resize(num_atoms);
-  ilp_data.f12y.resize(num_atoms);
-  ilp_data.f12z.resize(num_atoms);
+  ilp_data.f12x.resize(num_atoms * CUDA_MAX_NL);
+  ilp_data.f12y.resize(num_atoms * CUDA_MAX_NL);
+  ilp_data.f12z.resize(num_atoms * CUDA_MAX_NL);
+
+  ilp_data.f12x_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR);
+  ilp_data.f12y_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR);
+  ilp_data.f12z_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR);
 
   // init constant cutoff coeff
   double h_tap_coeff[8] = \
@@ -114,7 +118,6 @@ static __device__ double calc_Tap(const double r_ij, const double Rcut)
       Tap = Tap * r + Tap_coeff[i];
     }
   }
-  printf("***** r_ij: %f, Rcut: %f, Tap: %.6f *****", r_ij, Rcut, Tap);
 
   return Tap;
 }
@@ -159,7 +162,6 @@ static __global__ void ILP_neighbor(
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
 
   if (n1 < N2) {
-    printf("***** ilp neighbor GPU *****\n");
     int count = 0;
     int neighbor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
@@ -171,8 +173,6 @@ static __global__ void ILP_neighbor(
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_neighbor_list[n1 + number_of_particles * i1];
       int type2 = g_type[n2];
-      printf("***** n1: %d, n2: %d *****\n", n1, n2);
-      printf("***** group lable[0]: %d, [1]: %d *****\n", group_label[0], group_label[1]);
 
       double x12 = g_x[n2] - x1;
       double y12 = g_y[n2] - y1;
@@ -188,10 +188,9 @@ static __global__ void ILP_neighbor(
         ilp_neighbor_list[count++ * number_of_particles + n1] = n2;
       }
     }
-    printf("===== get here =====\n");
     ilp_neighbor_number[n1] = count;
 
-    if (count > 3) {
+    if (count > MAX_ILP_NEIGHBOR) {
       // TODO: error, there are too many neighbors for some atoms, 
       // please check your configuration
     }
@@ -592,7 +591,13 @@ static __global__ void gpu_find_force(
   double *g_fy,
   double *g_fz,
   double *g_virial,
-  double *g_potential)
+  double *g_potential,
+  double *g_f12x,
+  double *g_f12y,
+  double *g_f12z,
+  double *g_f12x_ilp_neigh,
+  double *g_f12y_ilp_neigh,
+  double *g_f12z_ilp_neigh)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
   double s_fx = 0.0;                                   // force_x
@@ -615,7 +620,6 @@ static __global__ void gpu_find_force(
   // double r2inv, r6inv, r8inv;
 
   if (n1 < N2) {
-    printf("********* ILP find force GPU **********\n");
     double x12, y12, z12;
     int neighor_number = g_neighbor_number[n1];
     int type1 = g_type[n1];
@@ -661,7 +665,8 @@ static __global__ void gpu_find_force(
 
     // calculate energy and force
     for (int i1 = 0; i1 < neighor_number; ++i1) {
-      int n2 = g_neighbor_list[n1 + number_of_particles * i1];
+      int index = n1 + number_of_particles * i1;
+      int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
 
       x12 = g_x[n2] - x1;
@@ -698,9 +703,10 @@ static __global__ void gpu_find_force(
         p2_vdW,
         f2_vdW);
       
-      double f12x = f2_vdW * x12 * 0.5;
-      double f12y = f2_vdW * y12 * 0.5;
-      double f12z = f2_vdW * z12 * 0.5;
+      // TODO: in GPUMD: x12=x2-x1, in LAMMPS: delx=x1-x2
+      double f12x = -f2_vdW * x12 * 0.5;
+      double f12y = -f2_vdW * y12 * 0.5;
+      double f12z = -f2_vdW * z12 * 0.5;
       double f21x = -f12x;
       double f21y = -f12y;
       double f21z = -f12z;
@@ -711,19 +717,19 @@ static __global__ void gpu_find_force(
 
       s_pe += p2_vdW * 0.5;
       printf("***** atom: %d, Vatt: %.16f *****\n", n1, p2_vdW * 0.5);
-      s_sxx += x12 * f21x;
-      s_sxy += x12 * f21y;
-      s_sxz += x12 * f21z;
-      s_syx += y12 * f21x;
-      s_syy += y12 * f21y;
-      s_syz += y12 * f21z;
-      s_szx += z12 * f21x;
-      s_szy += z12 * f21y;
-      s_szz += z12 * f21z;
+      s_sxx += -x12 * f21x;
+      s_sxy += -x12 * f21y;
+      s_sxz += -x12 * f21z;
+      s_syx += -y12 * f21x;
+      s_syy += -y12 * f21y;
+      s_syz += -y12 * f21z;
+      s_szx += -z12 * f21x;
+      s_szy += -z12 * f21y;
+      s_szz += -z12 * f21z;
 
       
       printf("********* ILP calc rep **********\n");
-      double delxyz[3] = {x12, y12, z12};
+      double delxyz[3] = {-x12, -y12, -z12};
       // calc_rep(
       //   delxyz,
       //   r,
@@ -798,12 +804,16 @@ static __global__ void gpu_find_force(
       s_fz += fkcz - fprod1[2] * Tap;
 
       // TODO: write data of other atoms, need atomic operation???
-      g_fx[n2] -= fkcx;
-      g_fy[n2] -= fkcy;
-      g_fz[n2] -= fkcz;
+      // g_fx[n2] -= fkcx;
+      // g_fy[n2] -= fkcy;
+      // g_fz[n2] -= fkcz;
+      g_f12x[index] = -fkcx;
+      g_f12y[index] = -fkcy;
+      g_f12z[index] = -fkcz;
 
       for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
-        int n2_ilp = g_ilp_neighbor_list[n1 + number_of_particles * kk];
+        int index_ilp = n1 + neighor_number * kk;
+        int n2_ilp = g_ilp_neighbor_list[index_ilp];
         if (n2_ilp == n1) continue;
         // derivatives of the product of rij and ni respect to rk, k=0,1,2, where atom k is the neighbors of atom i
         dprodnorm1[0] = dnormal[0][0][kk] * delx + dnormal[1][0][kk] * dely +
@@ -817,16 +827,29 @@ static __global__ void gpu_find_force(
         fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
 
         // TODO: write data of other atoms, need atomic operation???
-        g_fx[n2_ilp] += fk[0];
-        g_fy[n2_ilp] += fk[1];
-        g_fz[n2_ilp] += fk[2];
+        // g_fx[n2_ilp] += fk[0];
+        // g_fy[n2_ilp] += fk[1];
+        // g_fz[n2_ilp] += fk[2];
+        g_f12x_ilp_neigh[index_ilp] = fk[0];
+        g_f12y_ilp_neigh[index_ilp] = fk[1];
+        g_f12z_ilp_neigh[index_ilp] = fk[2];
 
-        delki[0] = g_x[n2_ilp] - x1;
-        delki[1] = g_y[n2_ilp] - y1;
-        delki[2] = g_z[n2_ilp] - z1;
+        // delki[0] = g_x[n2_ilp] - x1;
+        // delki[1] = g_y[n2_ilp] - y1;
+        // delki[2] = g_z[n2_ilp] - z1;
 
       }
       s_pe += Tap * Vilp;
+      s_sxx += delx * fkcx;
+      s_sxy += delx * fkcy;
+      s_sxz += delx * fkcz;
+      s_syx += dely * fkcx;
+      s_syy += dely * fkcy;
+      s_syz += dely * fkcz;
+      s_szx += delz * fkcx;
+      s_szy += delz * fkcy;
+      s_szz += delz * fkcz;
+
 
     }
 
@@ -857,6 +880,154 @@ static __global__ void gpu_find_force(
   }
 }
 
+__global__ void reduce_force_many_body(
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const Box box,
+  const int *g_neighbor_number,
+  const int *g_neighbor_list,
+  int *g_ilp_neighbor_number,
+  int *g_ilp_neighbor_list,
+  const double *__restrict__ g_x,
+  const double *__restrict__ g_y,
+  const double *__restrict__ g_z,
+  double *g_fx,
+  double *g_fy,
+  double *g_fz,
+  double *g_virial,
+  double *g_f12x,
+  double *g_f12y,
+  double *g_f12z,
+  double *g_f12x_ilp_neigh,
+  double *g_f12y_ilp_neigh,
+  double *g_f12z_ilp_neigh)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1; // particle index
+  double s_fx = 0.0;                                   // force_x
+  double s_fy = 0.0;                                   // force_y
+  double s_fz = 0.0;                                   // force_z
+  double s_sxx = 0.0;                                  // virial_stress_xx
+  double s_sxy = 0.0;                                  // virial_stress_xy
+  double s_sxz = 0.0;                                  // virial_stress_xz
+  double s_syx = 0.0;                                  // virial_stress_yx
+  double s_syy = 0.0;                                  // virial_stress_yy
+  double s_syz = 0.0;                                  // virial_stress_yz
+  double s_szx = 0.0;                                  // virial_stress_zx
+  double s_szy = 0.0;                                  // virial_stress_zy
+  double s_szz = 0.0;                                  // virial_stress_zz
+
+
+  if (n1 < N2) {
+    double x12, y12, z12;
+    int neighbor_number_1 = g_neighbor_number[n1];
+    double x1 = g_x[n1];
+    double y1 = g_y[n1];
+    double z1 = g_z[n1];
+
+    // calculate energy and force
+    for (int i1 = 0; i1 < neighbor_number_1; ++i1) {
+      int index = n1 + number_of_particles * i1;
+      int n2 = g_neighbor_list[index];
+      int neighor_number_2 = g_neighbor_number[n2];
+
+      x12 = g_x[n2] - x1;
+      y12 = g_y[n2] - y1;
+      z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+
+      int offset = 0;
+      for (int k = 0; k < neighor_number_2; ++k) {
+        if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
+          offset = k;
+          break;
+        }
+      }
+      index = n2 + number_of_particles * offset;
+      double f21x = g_f12x[index];
+      double f21y = g_f12y[index];
+      double f21z = g_f12z[index];
+
+      s_fx -= f21x;
+      s_fy -= f21y;
+      s_fz -= f21z;
+
+      // per-atom virial
+      s_sxx += x12 * f21x;
+      s_sxy += x12 * f21y;
+      s_sxz += x12 * f21z;
+      s_syx += y12 * f21x;
+      s_syy += y12 * f21y;
+      s_syz += y12 * f21z;
+      s_szx += z12 * f21x;
+      s_szy += z12 * f21y;
+      s_szz += z12 * f21z;
+    }
+
+    int ilp_neighbor_number_1 = g_ilp_neighbor_number[n1];
+
+    for (int i1 = 0; i1 < ilp_neighbor_number_1; ++i1) {
+      int index = n1 + number_of_particles * i1;
+      int n2 = g_ilp_neighbor_list[index];
+      int ilp_neighor_number_2 = g_neighbor_number[n2];
+
+      x12 = g_x[n2] - x1;
+      y12 = g_y[n2] - y1;
+      z12 = g_z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+
+      int offset = 0;
+      for (int k = 0; k < ilp_neighor_number_2; ++k) {
+        if (n1 == g_ilp_neighbor_list[n2 + number_of_particles * k]) {
+          offset = k;
+          break;
+        }
+      }
+      index = n2 + number_of_particles * offset;
+      double f21x = g_f12x_ilp_neigh[index];
+      double f21y = g_f12y_ilp_neigh[index];
+      double f21z = g_f12z_ilp_neigh[index];
+
+      s_fx += f21x;
+      s_fy += f21y;
+      s_fz += f21z;
+
+      // per-atom virial
+      s_sxx += x12 * f21x;
+      s_sxy += x12 * f21y;
+      s_sxz += x12 * f21z;
+      s_syx += y12 * f21x;
+      s_syy += y12 * f21y;
+      s_syz += y12 * f21z;
+      s_szx += z12 * f21x;
+      s_szy += z12 * f21y;
+      s_szz += z12 * f21z;
+    }
+
+    // save force
+    g_fx[n1] += s_fx;
+    g_fy[n1] += s_fy;
+    g_fz[n1] += s_fz;
+
+    // save virial
+    // xx xy xz    0 3 4
+    // yx yy yz    6 1 5
+    // zx zy zz    7 8 2
+    g_virial[n1 + 0 * number_of_particles] += s_sxx;
+    g_virial[n1 + 1 * number_of_particles] += s_syy;
+    g_virial[n1 + 2 * number_of_particles] += s_szz;
+    g_virial[n1 + 3 * number_of_particles] += s_sxy;
+    g_virial[n1 + 4 * number_of_particles] += s_sxz;
+    g_virial[n1 + 5 * number_of_particles] += s_syz;
+    g_virial[n1 + 6 * number_of_particles] += s_syx;
+    g_virial[n1 + 7 * number_of_particles] += s_szx;
+    g_virial[n1 + 8 * number_of_particles] += s_szy;
+
+  }
+  
+}
+
+
 void ILP::compute(
   Box &box,
   const GPU_Vector<int> &type,
@@ -867,6 +1038,8 @@ void ILP::compute(
 {
   // TODO
 }
+
+
 // find force and related quantities
 void ILP::compute(
   Box &box,
@@ -923,6 +1096,17 @@ void ILP::compute(
     ilp_NL, group_label);
   CUDA_CHECK_KERNEL
 
+  double *g_fx = force_per_atom.data();
+  double *g_fy = force_per_atom.data() + number_of_atoms;
+  double *g_fz = force_per_atom.data() + number_of_atoms * 2;
+  double *g_virial = virial_per_atom.data();
+  double *g_potential = potential_per_atom.data();
+  double *g_f12x = ilp_data.f12x.data();
+  double *g_f12y = ilp_data.f12y.data();
+  double *g_f12z = ilp_data.f12z.data();
+  double *g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
+  double *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
+  double *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
   printf("********* ILP find force **********\n");
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     ilp_para,
@@ -939,11 +1123,41 @@ void ILP::compute(
     x,
     y,
     z,
-    force_per_atom.data(),
-    force_per_atom.data() + number_of_atoms,
-    force_per_atom.data() + number_of_atoms * 2,
-    virial_per_atom.data(),
-    potential_per_atom.data());
+    g_fx,
+    g_fy,
+    g_fz,
+    g_virial,
+    g_potential,
+    g_f12x,
+    g_f12y,
+    g_f12z,
+    g_f12x_ilp_neigh,
+    g_f12y_ilp_neigh,
+    g_f12z_ilp_neigh);
   // TODO
   CUDA_CHECK_KERNEL
+
+  printf("********** ILP force reduce **********\n");
+  reduce_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    number_of_atoms,
+    N1,
+    N2,
+    box,
+    NN,
+    NL,
+    ilp_NN,
+    ilp_NL,
+    x,
+    y,
+    z,
+    g_fx,
+    g_fy,
+    g_fz,
+    g_virial,
+    g_f12x,
+    g_f12y,
+    g_f12z,
+    g_f12x_ilp_neigh,
+    g_f12y_ilp_neigh,
+    g_f12z_ilp_neigh);
 }
