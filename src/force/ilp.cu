@@ -169,7 +169,6 @@ static __global__ void ILP_neighbor(
     double y1 = g_y[n1];
     double z1 = g_z[n1];
 
-    printf("***** n1: %d, neigh: %d *****\n", n1, neighbor_number);
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int n2 = g_neighbor_list[n1 + number_of_particles * i1];
       int type2 = g_type[n2];
@@ -181,10 +180,8 @@ static __global__ void ILP_neighbor(
       double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
       double rcutsq = ilp_para.rcutsq_ilp[type1][type2];
 
-      printf("***** type1: %d, type2: %d *****\n", type1, type2);
 
       if (group_label[n1] == group_label[n2] && d12sq < rcutsq && d12sq != 0) {
-        printf("----- count: %d -----\n", count);
         ilp_neighbor_list[count++ * number_of_particles + n1] = n2;
       }
     }
@@ -499,7 +496,6 @@ static __device__ void calc_vdW(
   fpair = -6.0 * C_6 * r8inv / TSvdw + \
     C_6 * d_Seff * (TSvdw - 1.0) * TSvdw2inv * r8inv * r;
   fsum = fpair * Tap - Vilp * dTap / r;
-  printf("***** fpair: %.16f, Tap: %f, Vilp: %f, dTap: %.16f *****\n", fpair, Tap, Vilp, dTap);
 
   p2_vdW = Tap * Vilp;
   f2_vdW = fsum;
@@ -623,7 +619,6 @@ static __global__ void gpu_find_force(
   if (n1 < N2) {
     double x12, y12, z12;
     int neighor_number = g_neighbor_number[n1];
-    printf("***** n1[%d] num of neigh[%d] *****\n", n1, neighor_number);
     int type1 = g_type[n1];
     double x1 = g_x[n1];
     double y1 = g_y[n1];
@@ -662,7 +657,6 @@ static __global__ void gpu_find_force(
       ++cont;
     }
 
-    printf("********* ILP calc normal **********\n");
     calc_normal(vet, cont, normal, dnormdri, dnormal);
 
     // calculate energy and force
@@ -670,13 +664,11 @@ static __global__ void gpu_find_force(
       int index = n1 + number_of_particles * i1;
       int n2 = g_neighbor_list[index];
       int type2 = g_type[n2];
-      printf("@@@@@ n1[%d] neigh_num[%d] idx[%d] x[%f] y[%f] z[%f] @@@@@\n", n1, neighor_number, i1, g_x[n2], g_y[n2], g_z[n2]);
 
       x12 = g_x[n2] - x1;
       y12 = g_y[n2] - y1;
       z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
-      printf("@@@@@ x12[%f] y12[%f] z12[%f] @@@@@\n", x12, y12, z12);
 
       // calculate distance between atoms
       rsq = x12 * x12 + y12 * y12 + z12 * z12;
@@ -687,16 +679,13 @@ static __global__ void gpu_find_force(
         continue;
       }
 
-      printf("********* ILP calc Tap **********\n");
       double Tap, dTap;
-      printf("@@@@@ x[%f] y [%f] z[%f] r[%f] Rcut[%f] @@@@@\n", x12, y12, z12, r, Rcut);
       Tap = calc_Tap(r, Rcut);
       dTap = calc_dTap(r, Rcut);
       // TODO: set tap to 1 to test
       // Tap = 1;
       // dTap = 0;
 
-      printf("********* ILP calc vdW **********\n");
       double p2_vdW, f2_vdW;
       calc_vdW(
         r,
@@ -721,9 +710,6 @@ static __global__ void gpu_find_force(
       s_fz += f12z - f21z;
 
       s_pe += p2_vdW * 0.5;
-      printf("***** atom: %d, Vatt: %.16f *****\n", n1, p2_vdW * 0.5);
-      printf("***** atom: %d, f2_vdW: %.16f *****\n", n1, f2_vdW);
-      printf("***** n1[%d] sxx[%.16f] *****\n", n1, x12 * f21x);
       s_sxx += x12 * f21x;
       s_sxy += x12 * f21y;
       s_sxz += x12 * f21z;
@@ -733,10 +719,8 @@ static __global__ void gpu_find_force(
       s_szx += z12 * f21x;
       s_szy += z12 * f21y;
       s_szz += z12 * f21z;
-      printf("!!!!! atom[%d]: sxx add fatt[%.16f], now sxx[%.16f] !!!!!\n", n1, x12 * f21x, s_sxx);
 
       
-      printf("********* ILP calc rep **********\n");
       double delxyz[3] = {-x12, -y12, -z12};
       // calc_rep(
       //   delxyz,
@@ -781,7 +765,6 @@ static __global__ void gpu_find_force(
       frho1 = exp1 * C;
       Erep = 0.5 * epsilon + frho1;
       Vilp = exp0 * Erep;
-      printf("***** atom: %d, Vrep: %.16f *****\n", n1, Vilp * Tap);
       // TODO
 
       // derivatives
@@ -854,22 +837,7 @@ static __global__ void gpu_find_force(
         s_szx += delki[2] * fk[0] * 0.5;
         s_szy += delki[2] * fk[1] * 0.5;
         s_szz += delki[2] * fk[2] * 0.5;
-        if (n1 == 2 && n2 == 3 && n2_ilp == 1)
-        {
-          printf("##### n1[%d] n2[%d] n3[%d] delkix[%f] fkx[%f] #####\n", n1, n2, n2_ilp, delki[0], fk[0]);
-        }
-        if (n1 == 0 && n2 == 3 && n2_ilp == 1)
-        {
-          printf("##### n1[%d] n2[%d] n3[%d] delkix[%f] fkx[%f] #####\n", n1, n2, n2_ilp, delki[0], fk[0]);
-        }
-        if (n1 == 1 && n2 == 4 && n2_ilp == 0)
-        {
-          printf("##### n1[%d] n2[%d] n3[%d] delkix[%f] fkx[%f] #####\n", n1, n2, n2_ilp, delki[0], fk[0]);
-        }
-        printf("!!!!! atom[%d]: sxx add frep_ilp[%.16f], now sxx[%.16f] !!!!!\n", n1, delki[0] * fk[0] * 0.5, s_sxx);
-
       }
-      printf("***** fkcx * delx[%.16f] *****\n", fkcx * delx);
       s_pe += Tap * Vilp;
       s_sxx += delx * fkcx * 0.5;
       s_sxy += delx * fkcy * 0.5;
@@ -881,7 +849,6 @@ static __global__ void gpu_find_force(
       s_szy += delz * fkcy * 0.5;
       s_szz += delz * fkcz * 0.5;
 
-      printf("!!!!! atom[%d]: sxx add frep[%.16f], now sxx[%.16f] !!!!!\n", n1, delx * fkcx * 0.5, s_sxx);
 
     }
 
@@ -896,7 +863,6 @@ static __global__ void gpu_find_force(
     // xx xy xz    0 3 4
     // yx yy yz    6 1 5
     // zx zy zz    7 8 2
-    printf("***** pxx[%d]: %f *****\n", n1, g_virial[n1]);
     g_virial[n1 + 0 * number_of_particles] += s_sxx;
     g_virial[n1 + 1 * number_of_particles] += s_syy;
     g_virial[n1 + 2 * number_of_particles] += s_szz;
@@ -906,7 +872,6 @@ static __global__ void gpu_find_force(
     g_virial[n1 + 6 * number_of_particles] += s_syx;
     g_virial[n1 + 7 * number_of_particles] += s_szx;
     g_virial[n1 + 8 * number_of_particles] += s_szy;
-    printf("!!!!! atom[%d]: vir add sxx[%.16f], now vir[%.16f] !!!!!\n", n1, s_sxx, g_virial[n1 + 0 * number_of_particles]);
 
     // save potential
     g_potential[n1] += s_pe;
@@ -968,9 +933,7 @@ __global__ void reduce_force_many_body(
       x12 = g_x[n2] - x1;
       y12 = g_y[n2] - y1;
       z12 = g_z[n2] - z1;
-      printf("----- b n1[%d] neigh_num[%d] neigh_idx[%d] n2[%d] x12[%f] y12[%f] z12[%f] -----\n", n1, neighbor_number_1, i1, n2, x12, y12, z12);
       apply_mic(box, x12, y12, z12);
-      printf("----- n1[%d] neigh_num[%d] neigh_idx[%d] n2[%d] x12[%f] y12[%f] z12[%f] -----\n", n1, neighbor_number_1, i1, n2, x12, y12, z12);
 
       int offset = 0;
       for (int k = 0; k < neighor_number_2; ++k) {
@@ -998,7 +961,6 @@ __global__ void reduce_force_many_body(
       s_szx += z12 * f21x * 0.5;
       s_szy += z12 * f21y * 0.5;
       s_szz += z12 * f21z * 0.5;
-      printf("!!!!! atom[%d]: sxx add frep_reduce[%.16f], now sxx[%.16f] !!!!!\n", n1, x12 * f21x * 0.5, s_sxx);
     }
 
     int ilp_neighbor_number_1 = g_ilp_neighbor_number[n1];
@@ -1039,7 +1001,6 @@ __global__ void reduce_force_many_body(
       s_szx += -z12 * f21x * 0.5;
       s_szy += -z12 * f21y * 0.5;
       s_szz += -z12 * f21z * 0.5;
-      printf("!!!!! atom[%d]: sxx add frep_ilp_reduce[%.16f], now sxx[%.16f] !!!!!\n", n1, x12 * f21x * 0.5, s_sxx);
     }
 
     // save force
@@ -1060,15 +1021,6 @@ __global__ void reduce_force_many_body(
     g_virial[n1 + 6 * number_of_particles] += s_syx;
     g_virial[n1 + 7 * number_of_particles] += s_szx;
     g_virial[n1 + 8 * number_of_particles] += s_szy;
-    printf("***** n1[%d] sxx[%f] *****\n", n1, s_sxx);
-    printf("!!!!! atom[%d]: reduce vir add sxx[%.16f], now vir[%.16f] !!!!!\n", n1, s_sxx, g_virial[n1 + 0 * number_of_particles]);
-
-    printf("----- pxx[%d]: %.16f -----\n", n1, g_virial[n1]);
-    printf("----- pyy[%d]: %.16f -----\n", n1, g_virial[n1 + number_of_particles]);
-    printf("----- pzz[%d]: %.16f -----\n", n1, g_virial[n1 + 2 * number_of_particles]);
-    printf("----- fx[%d]: %.16f -----\n", n1, g_fx[n1]);
-    printf("----- fy[%d]: %.16f -----\n", n1, g_fy[n1]);
-    printf("----- fz[%d]: %.16f -----\n", n1, g_fz[n1]);
   }
   
 }
@@ -1096,7 +1048,6 @@ void ILP::compute(
   GPU_Vector<double> &virial_per_atom,
   std::vector<Group> &group)
 {
-  printf("********* ILP compute **********\n");
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
@@ -1134,7 +1085,6 @@ void ILP::compute(
   // find ILP neighbor list
   // TODO: __global__ ???
   // TODO: assume the first group column is for ILP
-  printf("********* ILP neigh **********\n");
   const int *group_label = group[0].label.data();
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms, N1, N2, box, NN, NL, \
@@ -1153,7 +1103,6 @@ void ILP::compute(
   double *g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
   double *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
   double *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
-  printf("********* ILP find force **********\n");
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     ilp_para,
     number_of_atoms,
@@ -1183,7 +1132,6 @@ void ILP::compute(
   // TODO
   CUDA_CHECK_KERNEL
 
-  printf("********** ILP force reduce **********\n");
   reduce_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
     number_of_atoms,
     N1,
