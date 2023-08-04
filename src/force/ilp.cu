@@ -73,8 +73,9 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
     }
   }
 
+  int max_neighbor_number = min(num_atoms, CUDA_MAX_NL);
   ilp_data.NN.resize(num_atoms);
-  ilp_data.NL.resize(num_atoms * CUDA_MAX_NL);
+  ilp_data.NL.resize(num_atoms * max_neighbor_number);
   ilp_data.cell_count.resize(num_atoms);
   ilp_data.cell_count_sum.resize(num_atoms);
   ilp_data.cell_contents.resize(num_atoms);
@@ -83,9 +84,9 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   ilp_data.ilp_NN.resize(num_atoms);
   ilp_data.ilp_NL.resize(num_atoms * MAX_ILP_NEIGHBOR);
 
-  ilp_data.f12x.resize(num_atoms * CUDA_MAX_NL);
-  ilp_data.f12y.resize(num_atoms * CUDA_MAX_NL);
-  ilp_data.f12z.resize(num_atoms * CUDA_MAX_NL);
+  ilp_data.f12x.resize(num_atoms * max_neighbor_number);
+  ilp_data.f12y.resize(num_atoms * max_neighbor_number);
+  ilp_data.f12z.resize(num_atoms * max_neighbor_number);
 
   ilp_data.f12x_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR);
   ilp_data.f12y_ilp_neigh.resize(num_atoms * MAX_ILP_NEIGHBOR);
@@ -189,6 +190,14 @@ static __global__ void ILP_neighbor(
 
     if (count > MAX_ILP_NEIGHBOR) {
       // TODO: error, there are too many neighbors for some atoms, 
+      printf("\n===== ILP neighbor number[%d] is greater than 3 =====\n", count);
+      
+      int nei1 = ilp_neighbor_list[0 * number_of_particles + n1];
+      int nei2 = ilp_neighbor_list[1 * number_of_particles + n1];
+      int nei3 = ilp_neighbor_list[2 * number_of_particles + n1];
+      int nei4 = ilp_neighbor_list[3 * number_of_particles + n1];
+      printf("===== n1[%d] nei1[%d] nei2 [%d] nei3[%d] nei4[%d] =====\n", n1, nei1, nei2, nei3, nei4);
+      return;
       // please check your configuration
     }
   }
