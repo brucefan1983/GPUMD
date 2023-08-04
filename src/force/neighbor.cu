@@ -338,6 +338,6 @@ void find_neighbor(
   CUDA_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();
-  gpu_sort_neighbor_list<<<N, MN, MN * sizeof(int)>>>(N, NN.data(), NL.data());
+  gpu_sort_neighbor_list<<<N, min(1024, MN), MN * sizeof(int)>>>(N, NN.data(), NL.data());
   CUDA_CHECK_KERNEL
 }
