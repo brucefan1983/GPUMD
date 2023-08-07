@@ -158,6 +158,7 @@ void Run::execute_run_in()
 void Run::perform_a_run()
 {
   integrate.initialize(N, time_step, group, atom);
+  mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, force);
 
 #ifdef USE_PLUMED
@@ -214,6 +215,8 @@ void Run::perform_a_run()
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
+    mc.compute();
+
     measure.process(
       number_of_steps,
       step,
@@ -252,10 +255,17 @@ void Run::perform_a_run()
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(integrate, number_of_steps, time_step, integrate.temperature2, box.get_volume(),atom.number_of_beads);
+  measure.finalize(
+    integrate,
+    number_of_steps,
+    time_step,
+    integrate.temperature2,
+    box.get_volume(),
+    atom.number_of_beads);
 
   electron_stop.finalize();
   integrate.finalize();
+  mc.finalize();
   velocity.finalize();
   max_distance_per_step = 0.0;
 }
@@ -366,7 +376,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.sdc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_msd") == 0) {
     measure.msd.parse(param, num_param, group);
-  }  else if (strcmp(param[0], "compute_rdf") == 0) {
+  } else if (strcmp(param[0], "compute_rdf") == 0) {
     measure.rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
@@ -392,6 +402,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
+  } else if (strcmp(param[0], "mc") == 0) {
+    mc.parse(param, num_param);
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {
