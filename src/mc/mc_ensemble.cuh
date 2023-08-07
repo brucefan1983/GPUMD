@@ -26,7 +26,9 @@ public:
   MC_Ensemble(void);
   virtual ~MC_Ensemble(void);
 
-  virtual void compute(void) = 0;
+  virtual void compute(Atom& atom) = 0;
 
 protected:
+  int num_steps_mc = 0;
+  double temperature = 0.0;
 };

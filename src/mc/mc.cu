@@ -30,25 +30,48 @@ void MC::initialize(void)
 
 void MC::finalize(void) { do_mcmd = false; }
 
-void MC::compute(void)
+void MC::compute(int step, Atom& atom)
 {
   if (do_mcmd) {
-    printf("    Do MCMD.\n");
+    if ((step + 1) % num_steps_md == 0) {
+      printf("Now do MC after %d MD steps:\n", step + 1);
+      mc_ensemble->compute(atom);
+    }
   }
 }
 
-void MC::parse(const char** param, int num_param)
+void MC::parse_cmc(const char** param, int num_param)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("mc should have 1 parameter.\n");
+  if (num_param != 4) {
+    PRINT_INPUT_ERROR("cmc should have 3 parameter.\n");
   }
 
-  if (strcmp(param[1], "C") == 0 || strcmp(param[1], "c") == 0) {
-    mc_ensemble.reset(new MC_Ensemble_Canonical());
+  if (!is_valid_int(param[1], &num_steps_md)) {
+    PRINT_INPUT_ERROR("number of MD steps for cmc should be an integer.\n");
+  }
+  if (num_steps_md <= 0) {
+    PRINT_INPUT_ERROR("number of MD steps for cmc should be positive.\n");
   }
 
-  printf("Perform MCMD:\n");
-  printf("    Use the Canonical ensemble.\n");
+  if (!is_valid_int(param[2], &num_steps_mc)) {
+    PRINT_INPUT_ERROR("number of MC steps for cmc should be an integer.\n");
+  }
+  if (num_steps_mc <= 0) {
+    PRINT_INPUT_ERROR("number of MC steps for cmc should be positive.\n");
+  }
+
+  if (!is_valid_real(param[3], &temperature)) {
+    PRINT_INPUT_ERROR("temperature for cmc should be a number.\n");
+  }
+  if (temperature <= 0) {
+    PRINT_INPUT_ERROR("temperature for cmc should be positive.\n");
+  }
+
+  printf("Perform canonical MC:\n");
+  printf("    after every %d MD steps, do %d MC trials.\n", num_steps_md, num_steps_mc);
+  printf("    with a temperature of %g K.\n", temperature);
+
+  mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc, temperature));
 
   do_mcmd = true;
 }

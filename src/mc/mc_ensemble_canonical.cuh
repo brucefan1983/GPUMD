@@ -19,8 +19,8 @@
 class MC_Ensemble_Canonical : public MC_Ensemble
 {
 public:
-  MC_Ensemble_Canonical(void);
+  MC_Ensemble_Canonical(int num_steps_mc, double temperature);
   virtual ~MC_Ensemble_Canonical(void);
 
-  virtual void compute(void);
+  virtual void compute(Atom& atom);
 };

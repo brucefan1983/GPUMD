@@ -19,9 +19,10 @@ The canonical ensemble for MCMD.
 
 #include "mc_ensemble_canonical.cuh"
 
-MC_Ensemble_Canonical::MC_Ensemble_Canonical(void)
+MC_Ensemble_Canonical::MC_Ensemble_Canonical(int num_steps_mc_input, double temperature_input)
 {
-  // nothing now
+  num_steps_mc = num_steps_mc_input;
+  temperature = temperature_input;
 }
 
 MC_Ensemble_Canonical::~MC_Ensemble_Canonical(void)
@@ -29,7 +30,9 @@ MC_Ensemble_Canonical::~MC_Ensemble_Canonical(void)
   // nothing now
 }
 
-void MC_Ensemble_Canonical::compute(void)
+void MC_Ensemble_Canonical::compute(Atom& atom)
 {
-  // TODO
+  for (int step = 0; step < num_steps_mc; ++step) {
+    printf("    MC step %d, temperature = %g K.\n", step, temperature);
+  }
 }

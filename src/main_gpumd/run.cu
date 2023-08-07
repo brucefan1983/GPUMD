@@ -215,7 +215,7 @@ void Run::perform_a_run()
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
-    mc.compute();
+    mc.compute(step, atom);
 
     measure.process(
       number_of_steps,
@@ -402,8 +402,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_move(param, num_param, group);
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
-  } else if (strcmp(param[0], "mc") == 0) {
-    mc.parse(param, num_param);
+  } else if (strcmp(param[0], "cmc") == 0) {
+    mc.parse_cmc(param, num_param);
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {

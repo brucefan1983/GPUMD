@@ -30,10 +30,13 @@ public:
 
   void initialize(void);
   void finalize(void);
-  void compute(void);
+  void compute(int step, Atom& atom);
 
-  void parse(const char** param, int num_param);
+  void parse_cmc(const char** param, int num_param);
 
 private:
   bool do_mcmd = false;
+  int num_steps_md = 0;
+  int num_steps_mc = 0;
+  double temperature = 0.0;
 };
