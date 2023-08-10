@@ -211,7 +211,17 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
     }
     printf("total energy before swapping = %g eV.\n", pe_before_total);
     printf("total energy after swapping = %g eV.\n", pe_after_total);
+    float energy_difference = pe_after_total - pe_before_total;
+    std::uniform_real_distribution<float> r2(0, 1);
+    float random_number = r2(rng);
+    printf("random number = %g.\n", random_number);
+    float probability = exp(-energy_difference / (K_B * temperature));
+    printf("probability = %g.\n", probability);
 
-    exit(1);
+    if (random_number < probability) {
+      printf("the MC trail is accepted.\n");
+    } else {
+      printf("the MC trail is rejected.\n");
+    }
   }
 }
