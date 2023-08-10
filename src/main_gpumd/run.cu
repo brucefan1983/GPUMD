@@ -215,7 +215,7 @@ void Run::perform_a_run()
 
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
-    mc.compute(step, atom);
+    mc.compute(step, atom, box);
 
     measure.process(
       number_of_steps,

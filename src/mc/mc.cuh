@@ -30,7 +30,7 @@ public:
 
   void initialize(void);
   void finalize(void);
-  void compute(int step, Atom& atom);
+  void compute(int step, Atom& atom, Box& box);
 
   void parse_cmc(const char** param, int num_param);
 

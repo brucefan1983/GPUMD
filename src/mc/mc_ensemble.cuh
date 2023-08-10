@@ -18,6 +18,7 @@
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <random>
 #include <vector>
 
 class MC_Ensemble
@@ -26,9 +27,25 @@ public:
   MC_Ensemble(void);
   virtual ~MC_Ensemble(void);
 
-  virtual void compute(Atom& atom) = 0;
+  virtual void compute(Atom& atom, Box& box) = 0;
 
 protected:
   int num_steps_mc = 0;
   double temperature = 0.0;
+  std::mt19937 rng;
+
+  GPU_Vector<int> NN_radial;
+  GPU_Vector<int> NN_angular;
+  GPU_Vector<int> NL_radial;
+  GPU_Vector<int> NL_angular;
+  GPU_Vector<int> type_before;
+  GPU_Vector<int> type_after;
+  GPU_Vector<float> x12_radial;
+  GPU_Vector<float> y12_radial;
+  GPU_Vector<float> z12_radial;
+  GPU_Vector<float> x12_angular;
+  GPU_Vector<float> y12_angular;
+  GPU_Vector<float> z12_angular;
+  GPU_Vector<float> pe_before;
+  GPU_Vector<float> pe_after;
 };
