@@ -109,7 +109,7 @@ main_nep/%.obj: main_nep/%.cu $(HEADERS)
 else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
-md/%.o: mc/%.cu $(HEADERS)
+mc/%.o: mc/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 minimize/%.o: minimize/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
