@@ -314,7 +314,7 @@ static __global__ void find_energy_nep(
   const float* __restrict__ g_x12_angular,
   const float* __restrict__ g_y12_angular,
   const float* __restrict__ g_z12_angular,
-  double* g_pe)
+  float* g_pe)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
@@ -407,7 +407,7 @@ static __global__ void find_energy_nep(
   }
 }
 
-static __global__ void find_energy_ZBL(
+static __global__ void find_energy_zbl(
   const int N,
   const NEP_Energy::ZBL zbl,
   const int* g_NN,
@@ -416,7 +416,7 @@ static __global__ void find_energy_ZBL(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
-  double* g_pe)
+  float* g_pe)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N;
   if (n1 < N) {
@@ -459,4 +459,42 @@ static __global__ void find_energy_ZBL(
     }
     g_pe[n1] += s_pe;
   }
+}
+
+void NEP_Energy::find_energy(
+  const int N,
+  const int* g_NN_radial,
+  const int* g_NL_radial,
+  const int* g_NN_angular,
+  const int* g_NL_angular,
+  const int* g_type,
+  const float* g_x12_radial,
+  const float* g_y12_radial,
+  const float* g_z12_radial,
+  const float* g_x12_angular,
+  const float* g_y12_angular,
+  const float* g_z12_angular,
+  float* g_pe)
+{
+  find_energy_nep<<<(N - 1) / 64 + 1, 64>>>(
+    paramb,
+    annmb,
+    N,
+    g_NN_radial,
+    g_NL_radial,
+    g_NN_angular,
+    g_NL_angular,
+    g_type,
+    g_x12_radial,
+    g_y12_radial,
+    g_z12_radial,
+    g_x12_angular,
+    g_y12_angular,
+    g_z12_angular,
+    g_pe);
+  CUDA_CHECK_KERNEL
+
+  find_energy_zbl<<<(N - 1) / 64 + 1, 64>>>(
+    N, zbl, g_NN_angular, g_NL_angular, g_type, g_x12_angular, g_y12_angular, g_z12_angular, g_pe);
+  CUDA_CHECK_KERNEL
 }

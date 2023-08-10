@@ -169,13 +169,48 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
       z12_angular.data());
     CUDA_CHECK_KERNEL
 
-    std::vector<int> NN_radial_cpu(atom.number_of_atoms);
-    std::vector<int> NN_angular_cpu(atom.number_of_atoms);
-    NN_radial.copy_to_host(NN_radial_cpu.data(), atom.number_of_atoms);
-    NN_angular.copy_to_host(NN_angular_cpu.data(), atom.number_of_atoms);
+    nep_energy.find_energy(
+      atom.number_of_atoms,
+      NN_radial.data(),
+      NL_radial.data(),
+      NN_angular.data(),
+      NL_angular.data(),
+      type_before.data(),
+      x12_radial.data(),
+      y12_radial.data(),
+      z12_radial.data(),
+      x12_angular.data(),
+      y12_angular.data(),
+      z12_angular.data(),
+      pe_before.data());
+
+    nep_energy.find_energy(
+      atom.number_of_atoms,
+      NN_radial.data(),
+      NL_radial.data(),
+      NN_angular.data(),
+      NL_angular.data(),
+      type_after.data(),
+      x12_radial.data(),
+      y12_radial.data(),
+      z12_radial.data(),
+      x12_angular.data(),
+      y12_angular.data(),
+      z12_angular.data(),
+      pe_after.data());
+
+    std::vector<float> pe_before_cpu(atom.number_of_atoms);
+    std::vector<float> pe_after_cpu(atom.number_of_atoms);
+    pe_before.copy_to_host(pe_before_cpu.data(), atom.number_of_atoms);
+    pe_after.copy_to_host(pe_after_cpu.data(), atom.number_of_atoms);
+    float pe_before_total = 0.0f;
+    float pe_after_total = 0.0f;
     for (int n = 0; n < atom.number_of_atoms; ++n) {
-      printf("%d %d\n", NN_radial_cpu[n], NN_angular_cpu[n]);
+      pe_before_total += pe_before_cpu[n];
+      pe_after_total += pe_after_cpu[n];
     }
+    printf("total energy before swapping = %g eV.\n", pe_before_total);
+    printf("total energy after swapping = %g eV.\n", pe_after_total);
 
     exit(1);
   }

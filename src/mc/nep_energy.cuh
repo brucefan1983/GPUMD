@@ -72,6 +72,20 @@ public:
   NEP_Energy(void);
   ~NEP_Energy(void);
   void initialize(const char* file_potential);
+  void find_energy(
+    const int N,
+    const int* g_NN_radial,
+    const int* g_NL_radial,
+    const int* g_NN_angular,
+    const int* g_NL_angular,
+    const int* g_type,
+    const float* g_x12_radial,
+    const float* g_y12_radial,
+    const float* g_z12_radial,
+    const float* g_x12_angular,
+    const float* g_y12_angular,
+    const float* g_z12_angular,
+    float* g_pe);
 
 private:
   GPU_Vector<float> nep_parameters; // parameters to be optimized
