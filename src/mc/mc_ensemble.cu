@@ -39,6 +39,9 @@ MC_Ensemble::MC_Ensemble(void)
   pe_before.resize(n_max);
   pe_after.resize(n_max);
 
+  // TODO
+  nep_energy.initialize("../examples/11_NEP_potential_PbTe/nep.txt");
+
 #ifdef DEBUG
   rng = std::mt19937(13579);
 #else

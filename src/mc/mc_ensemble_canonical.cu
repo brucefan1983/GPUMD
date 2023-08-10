@@ -152,8 +152,8 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
     create_inputs_for_energy_calculator<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
       box,
-      64.0f,
-      16.0f,
+      nep_energy.paramb.rc_radial * nep_energy.paramb.rc_radial,
+      nep_energy.paramb.rc_angular * nep_energy.paramb.rc_angular,
       atom.position_per_atom.data(),
       atom.position_per_atom.data() + atom.number_of_atoms,
       atom.position_per_atom.data() + atom.number_of_atoms * 2,
@@ -169,15 +169,14 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
       z12_angular.data());
     CUDA_CHECK_KERNEL
 
-    /*
-        std::vector<int> NN_radial_cpu(atom.number_of_atoms);
-        std::vector<int> NN_angular_cpu(atom.number_of_atoms);
-        NN_radial.copy_to_host(NN_radial_cpu.data(), atom.number_of_atoms);
-        NN_angular.copy_to_host(NN_angular_cpu.data(), atom.number_of_atoms);
-        for (int n = 0; n < atom.number_of_atoms; ++n) {
-          printf("%d %d\n", NN_radial_cpu[n], NN_angular_cpu[n]);
-        }
-    */
+    std::vector<int> NN_radial_cpu(atom.number_of_atoms);
+    std::vector<int> NN_angular_cpu(atom.number_of_atoms);
+    NN_radial.copy_to_host(NN_radial_cpu.data(), atom.number_of_atoms);
+    NN_angular.copy_to_host(NN_angular_cpu.data(), atom.number_of_atoms);
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      printf("%d %d\n", NN_radial_cpu[n], NN_angular_cpu[n]);
+    }
+
     exit(1);
   }
 }

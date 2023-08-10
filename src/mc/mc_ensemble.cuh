@@ -17,6 +17,7 @@
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
+#include "nep_energy.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <random>
 #include <vector>
@@ -48,4 +49,6 @@ protected:
   GPU_Vector<float> z12_angular;
   GPU_Vector<float> pe_before;
   GPU_Vector<float> pe_after;
+
+  NEP_Energy nep_energy;
 };
