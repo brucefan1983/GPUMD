@@ -23,19 +23,20 @@ The abstract base class (ABC) for the MC_Ensemble classes.
 
 MC_Ensemble::MC_Ensemble(void)
 {
-  const int n_max = 1000;
+  const int n_max = 16000;
+  const int m_max = 100;
   NN_radial.resize(n_max);
   NN_angular.resize(n_max);
-  NL_radial.resize(n_max * n_max);
-  NL_angular.resize(n_max * n_max);
+  NL_radial.resize(n_max * m_max);
+  NL_angular.resize(n_max * m_max);
   type_before.resize(n_max);
   type_after.resize(n_max);
-  x12_radial.resize(n_max * n_max);
-  y12_radial.resize(n_max * n_max);
-  z12_radial.resize(n_max * n_max);
-  x12_angular.resize(n_max * n_max);
-  y12_angular.resize(n_max * n_max);
-  z12_angular.resize(n_max * n_max);
+  x12_radial.resize(n_max * m_max);
+  y12_radial.resize(n_max * m_max);
+  z12_radial.resize(n_max * m_max);
+  x12_angular.resize(n_max * m_max);
+  y12_angular.resize(n_max * m_max);
+  z12_angular.resize(n_max * m_max);
   pe_before.resize(n_max);
   pe_after.resize(n_max);
 
