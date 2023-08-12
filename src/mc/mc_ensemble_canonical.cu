@@ -23,11 +23,7 @@ MC_Ensemble_Canonical::MC_Ensemble_Canonical(int num_steps_mc_input, double temp
 {
   num_steps_mc = num_steps_mc_input;
   temperature = temperature_input;
-  NN_i.resize(1);
-  NN_j.resize(1);
   NN_ij.resize(1);
-  NL_i.resize(1000);
-  NL_j.resize(1000);
   NL_ij.resize(1000);
 }
 
@@ -68,10 +64,8 @@ static __global__ void get_neighbors_of_i_and_j(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  int* g_NN_i,
-  int* g_NN_j,
-  int* g_NL_i,
-  int* g_NL_j)
+  int* g_NN_ij,
+  int* g_NL_ij)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -91,10 +85,11 @@ static __global__ void get_neighbors_of_i_and_j(
     float distance_square_j = float(x0j * x0j + y0j * y0j + z0j * z0j);
 
     if (distance_square_i < rc_radial_square) {
-      g_NL_i[atomicAdd(g_NN_i, 1)] = n;
-    }
-    if (distance_square_j < rc_radial_square) {
-      g_NL_j[atomicAdd(g_NN_j, 1)] = n;
+      g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
+    } else {
+      if (distance_square_j < rc_radial_square) {
+        g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
+      }
     }
   }
 }
@@ -208,8 +203,7 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
       j,
       type_j);
 
-    cudaMemset(NN_i.data(), 0, sizeof(int));
-    cudaMemset(NN_j.data(), 0, sizeof(int));
+    cudaMemset(NN_ij.data(), 0, sizeof(int));
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
       box,
@@ -219,60 +213,21 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
       atom.position_per_atom.data(),
       atom.position_per_atom.data() + atom.number_of_atoms,
       atom.position_per_atom.data() + atom.number_of_atoms * 2,
-      NN_i.data(),
-      NN_j.data(),
-      NL_i.data(),
-      NL_j.data());
+      NN_ij.data(),
+      NL_ij.data());
     CUDA_CHECK_KERNEL
 
     // copy to host
-    int NN_i_cpu, NN_j_cpu;
-    int NL_i_cpu[1000], NL_j_cpu[1000];
-    NN_i.copy_to_host(&NN_i_cpu);
-    NN_j.copy_to_host(&NN_j_cpu);
-    NL_i.copy_to_host(NL_i_cpu, NN_i_cpu);
-    NL_j.copy_to_host(NL_j_cpu, NN_j_cpu);
-
-    printf("        atom %d has %d neighbors:\n", i, NN_i_cpu);
-    for (int k = 0; k < NN_i_cpu; ++k) {
-      printf(" %d", NL_i_cpu[k]);
-    }
-    printf("\n");
-    printf("        atom %d has %d neighbors:\n", j, NN_j_cpu);
-    for (int k = 0; k < NN_j_cpu; ++k) {
-      printf(" %d", NL_j_cpu[k]);
-    }
-    printf("\n");
-
-    // check in host
-    int NN_ij_cpu = 0;
+    int NN_ij_cpu;
     int NL_ij_cpu[1000];
-    for (; NN_ij_cpu < NN_i_cpu; ++NN_ij_cpu) {
-      NL_ij_cpu[NN_ij_cpu] = NL_i_cpu[NN_ij_cpu];
-    }
-
-    for (int k = 0; k < NN_j_cpu; ++k) {
-      bool is_repeating = false;
-      for (int m = 0; m < NN_i_cpu; ++m) {
-        if (NL_j_cpu[k] == NL_i_cpu[m]) {
-          is_repeating = true;
-          break;
-        }
-      }
-      if (!is_repeating) {
-        NL_ij_cpu[NN_ij_cpu++] = NL_j_cpu[k];
-      }
-    }
+    NN_ij.copy_to_host(&NN_ij_cpu);
+    NL_ij.copy_to_host(NL_ij_cpu, NN_ij_cpu);
 
     printf("        i and j has %d neighbors in total:\n", NN_ij_cpu);
     for (int k = 0; k < NN_ij_cpu; ++k) {
       printf(" %d", NL_ij_cpu[k]);
     }
     printf("\n");
-
-    // copy to device
-    NN_ij.copy_from_host(&NN_ij_cpu);
-    NL_ij.copy_from_host(NL_ij_cpu, NN_ij_cpu);
 
     get_types<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,

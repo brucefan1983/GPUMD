@@ -25,10 +25,6 @@ public:
   virtual void compute(Atom& atom, Box& box);
 
 private:
-  GPU_Vector<int> NN_i;
-  GPU_Vector<int> NN_j;
   GPU_Vector<int> NN_ij;
-  GPU_Vector<int> NL_i;
-  GPU_Vector<int> NL_j;
   GPU_Vector<int> NL_ij;
 };
