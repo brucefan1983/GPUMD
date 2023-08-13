@@ -660,6 +660,7 @@ static __global__ void gpu_find_force(
       x12 = g_x[n2_ilp] - x1;
       y12 = g_y[n2_ilp] - y1;
       z12 = g_z[n2_ilp] - z1;
+      apply_mic(box, x12, y12, z12);
       vet[cont][0] = x12;
       vet[cont][1] = y12;
       vet[cont][2] = z12;
@@ -837,6 +838,7 @@ static __global__ void gpu_find_force(
         delki[0] = g_x[n2_ilp] - x1;
         delki[1] = g_y[n2_ilp] - y1;
         delki[2] = g_z[n2_ilp] - z1;
+        apply_mic(box, delki[0], delki[1], delki[2]);
         s_sxx += delki[0] * fk[0] * 0.5;
         s_sxy += delki[0] * fk[1] * 0.5;
         s_sxz += delki[0] * fk[2] * 0.5;
