@@ -153,19 +153,21 @@ static __global__ void create_inputs_for_energy_calculator(
       float distance_square = float(x12 * x12 + y12 * y12 + z12 * z12);
       if (distance_square < rc_radial_square) {
         int count_radial = atomicAdd(&g_NN_radial[k], 1);
-        g_t2_radial_before[count_radial * N_local + k] = g_type_before[n2];
-        g_t2_radial_after[count_radial * N_local + k] = g_type_after[n2];
-        g_x12_radial[count_radial * N_local + k] = float(x12);
-        g_y12_radial[count_radial * N_local + k] = float(y12);
-        g_z12_radial[count_radial * N_local + k] = float(z12);
+        int index_radial = count_radial * N_local + k;
+        g_t2_radial_before[index_radial] = g_type_before[n2];
+        g_t2_radial_after[index_radial] = g_type_after[n2];
+        g_x12_radial[index_radial] = float(x12);
+        g_y12_radial[index_radial] = float(y12);
+        g_z12_radial[index_radial] = float(z12);
       }
       if (distance_square < rc_angular_square) {
         int count_angular = atomicAdd(&g_NN_angular[k], 1);
-        g_t2_angular_before[count_angular * N_local + k] = g_type_before[n2];
-        g_t2_angular_after[count_angular * N_local + k] = g_type_after[n2];
-        g_x12_angular[count_angular * N_local + k] = float(x12);
-        g_y12_angular[count_angular * N_local + k] = float(y12);
-        g_z12_angular[count_angular * N_local + k] = float(z12);
+        int index_angular = count_angular * N_local + k;
+        g_t2_angular_before[index_angular] = g_type_before[n2];
+        g_t2_angular_after[index_angular] = g_type_after[n2];
+        g_x12_angular[index_angular] = float(x12);
+        g_y12_angular[index_angular] = float(y12);
+        g_z12_angular[index_angular] = float(z12);
       }
     }
   }
