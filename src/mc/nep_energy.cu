@@ -491,7 +491,17 @@ void NEP_Energy::find_energy(
     g_pe);
   CUDA_CHECK_KERNEL
 
-  find_energy_zbl<<<(N - 1) / 64 + 1, 64>>>(
-    N, zbl, g_NN_angular, g_type, g_t2_angular, g_x12_angular, g_y12_angular, g_z12_angular, g_pe);
-  CUDA_CHECK_KERNEL
+  if (zbl.enabled) {
+    find_energy_zbl<<<(N - 1) / 64 + 1, 64>>>(
+      N,
+      zbl,
+      g_NN_angular,
+      g_type,
+      g_t2_angular,
+      g_x12_angular,
+      g_y12_angular,
+      g_z12_angular,
+      g_pe);
+    CUDA_CHECK_KERNEL
+  }
 }

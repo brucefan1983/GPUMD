@@ -246,10 +246,7 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
 
     // copy to host
     int NN_ij_cpu;
-    int NL_ij_cpu[1000];
     NN_ij.copy_to_host(&NN_ij_cpu);
-    NL_ij.copy_to_host(NL_ij_cpu, NN_ij_cpu);
-
     printf("        i and j has %d neighbors in total.\n", NN_ij_cpu);
 
     get_types<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
