@@ -173,6 +173,38 @@ static __global__ void create_inputs_for_energy_calculator(
   }
 }
 
+// a kernel with a single thread <<<1, 1>>>
+static __global__ void exchange(
+  const int i,
+  const int j,
+  const int type_i,
+  const int type_j,
+  int* g_type,
+  double* g_mass,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz)
+{
+  g_type[i] = type_j;
+  g_type[j] = type_i;
+
+  double mass_i = g_mass[i];
+  g_mass[i] = g_mass[j];
+  g_mass[j] = mass_i;
+
+  double vx_i = g_vx[i];
+  g_vx[i] = g_vx[j];
+  g_vx[j] = vx_i;
+
+  double vy_i = g_vy[i];
+  g_vy[i] = g_vy[j];
+  g_vy[j] = vy_i;
+
+  double vz_i = g_vz[i];
+  g_vz[i] = g_vz[j];
+  g_vz[j] = vz_i;
+}
+
 static int get_type(const int i, const int* g_type)
 {
   int type_i = 0;
@@ -349,9 +381,19 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
     printf("        probability = %g.\n", probability);
 
     if (random_number < probability) {
-      printf("        the MC trail is accepted.\n");
+      printf("        the atom exchange is accepted.\n");
+      exchange<<<1, 1>>>(
+        i,
+        j,
+        type_i,
+        type_j,
+        atom.type.data(),
+        atom.mass.data(),
+        atom.velocity_per_atom.data(),
+        atom.velocity_per_atom.data() + atom.number_of_atoms,
+        atom.velocity_per_atom.data() + atom.number_of_atoms * 2);
     } else {
-      printf("        the MC trail is rejected.\n");
+      printf("        the atom exchange is rejected.\n");
     }
   }
 }
