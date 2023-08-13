@@ -37,10 +37,14 @@ protected:
 
   GPU_Vector<int> NN_radial;
   GPU_Vector<int> NN_angular;
-  GPU_Vector<int> NL_radial;
-  GPU_Vector<int> NL_angular;
   GPU_Vector<int> type_before;
   GPU_Vector<int> type_after;
+  GPU_Vector<int> local_type_before;
+  GPU_Vector<int> local_type_after;
+  GPU_Vector<int> t2_radial_before;
+  GPU_Vector<int> t2_radial_after;
+  GPU_Vector<int> t2_angular_before;
+  GPU_Vector<int> t2_angular_after;
   GPU_Vector<float> x12_radial;
   GPU_Vector<float> y12_radial;
   GPU_Vector<float> z12_radial;

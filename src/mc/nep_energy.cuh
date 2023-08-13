@@ -75,10 +75,10 @@ public:
   void find_energy(
     const int N,
     const int* g_NN_radial,
-    const int* g_NL_radial,
     const int* g_NN_angular,
-    const int* g_NL_angular,
     const int* g_type,
+    const int* g_t2_radial,
+    const int* g_t2_angular,
     const float* g_x12_radial,
     const float* g_y12_radial,
     const float* g_z12_radial,

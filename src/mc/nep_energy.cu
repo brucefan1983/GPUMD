@@ -304,10 +304,10 @@ static __global__ void find_energy_nep(
   NEP_Energy::ANN annmb,
   const int N,
   const int* g_NN_radial,
-  const int* g_NL_radial,
   const int* g_NN_angular,
-  const int* g_NL_angular,
   const int* __restrict__ g_type,
+  const int* __restrict__ g_t2_radial,
+  const int* __restrict__ g_t2_angular,
   const float* __restrict__ g_x12_radial,
   const float* __restrict__ g_y12_radial,
   const float* __restrict__ g_z12_radial,
@@ -324,12 +324,11 @@ static __global__ void find_energy_nep(
     // get radial descriptors
     for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
       int index = i1 * N + n1;
-      int n2 = g_NL_radial[index];
       float r12[3] = {g_x12_radial[index], g_y12_radial[index], g_z12_radial[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      int t2 = g_type[n2];
+      int t2 = g_t2_radial[index];
       float fn12[MAX_NUM_N];
       if (paramb.version == 2) {
         find_fn(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fn12);
@@ -358,12 +357,11 @@ static __global__ void find_energy_nep(
       float s[NUM_OF_ABC] = {0.0f};
       for (int i1 = 0; i1 < g_NN_angular[n1]; ++i1) {
         int index = i1 * N + n1;
-        int n2 = g_NL_angular[index];
         float r12[3] = {g_x12_angular[index], g_y12_angular[index], g_z12_angular[index]};
         float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
         float fc12;
         find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
-        int t2 = g_type[n2];
+        int t2 = g_t2_angular[index];
         if (paramb.version == 2) {
           float fn;
           find_fn(n, paramb.rcinv_angular, d12, fc12, fn);
@@ -411,14 +409,14 @@ static __global__ void find_energy_zbl(
   const int N,
   const NEP_Energy::ZBL zbl,
   const int* g_NN,
-  const int* g_NL,
   const int* __restrict__ g_type,
+  const int* g_t2_angular,
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
   float* g_pe)
 {
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N;
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
     float s_pe = 0.0f;
     int type1 = g_type[n1];
@@ -426,12 +424,11 @@ static __global__ void find_energy_zbl(
     float pow_zi = pow(zi, 0.23f);
     for (int i1 = 0; i1 < g_NN[n1]; ++i1) {
       int index = i1 * N + n1;
-      int n2 = g_NL[index];
       float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float f, fp;
-      int type2 = g_type[n2];
+      int type2 = g_t2_angular[index];
       float zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
@@ -464,10 +461,10 @@ static __global__ void find_energy_zbl(
 void NEP_Energy::find_energy(
   const int N,
   const int* g_NN_radial,
-  const int* g_NL_radial,
   const int* g_NN_angular,
-  const int* g_NL_angular,
   const int* g_type,
+  const int* g_t2_radial,
+  const int* g_t2_angular,
   const float* g_x12_radial,
   const float* g_y12_radial,
   const float* g_z12_radial,
@@ -481,10 +478,10 @@ void NEP_Energy::find_energy(
     annmb,
     N,
     g_NN_radial,
-    g_NL_radial,
     g_NN_angular,
-    g_NL_angular,
     g_type,
+    g_t2_radial,
+    g_t2_angular,
     g_x12_radial,
     g_y12_radial,
     g_z12_radial,
@@ -495,6 +492,6 @@ void NEP_Energy::find_energy(
   CUDA_CHECK_KERNEL
 
   find_energy_zbl<<<(N - 1) / 64 + 1, 64>>>(
-    N, zbl, g_NN_angular, g_NL_angular, g_type, g_x12_angular, g_y12_angular, g_z12_angular, g_pe);
+    N, zbl, g_NN_angular, g_type, g_t2_angular, g_x12_angular, g_y12_angular, g_z12_angular, g_pe);
   CUDA_CHECK_KERNEL
 }
