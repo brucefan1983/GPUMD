@@ -20,6 +20,32 @@ The abstract base class (ABC) for the MC_Ensemble classes.
 #include "mc_ensemble.cuh"
 #include "utilities/common.cuh"
 #include <chrono>
+#include <fstream>
+#include <iostream>
+#include <sstream>
+#include <string>
+
+static std::string get_potential_file_name()
+{
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
+  std::string potential_file_name;
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "potential") {
+        potential_file_name = tokens[1];
+        break;
+      }
+    }
+  }
+
+  input_run.close();
+  return potential_file_name;
+}
 
 MC_Ensemble::MC_Ensemble(void)
 {
@@ -42,8 +68,9 @@ MC_Ensemble::MC_Ensemble(void)
   pe_before.resize(n_max);
   pe_after.resize(n_max);
 
-  // TODO
-  nep_energy.initialize("../examples/11_NEP_potential_PbTe/nep.txt");
+  std::string potential_file_name = get_potential_file_name();
+  printf("potential file name = %s\n", potential_file_name.c_str());
+  nep_energy.initialize(potential_file_name.c_str());
 
 #ifdef DEBUG
   rng = std::mt19937(13579);
