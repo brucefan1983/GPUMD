@@ -205,13 +205,6 @@ static __global__ void exchange(
   g_vz[j] = vz_i;
 }
 
-static int get_type(const int i, const int* g_type)
-{
-  int type_i = 0;
-  CHECK(cudaMemcpy(&type_i, &g_type[i], sizeof(int), cudaMemcpyDeviceToHost));
-  return type_i;
-}
-
 static bool check_if_small_box(const double rc, const Box& box)
 {
   double volume = box.get_volume();
@@ -249,12 +242,12 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
     printf("    MC step %d, temperature = %g K.\n", step, temperature);
 
     int i = r1(rng);
-    int type_i = get_type(i, atom.type.data());
+    int type_i = atom.cpu_type[i];
     printf("        get atom %d with type %d.\n", i, type_i);
     int j = 0, type_j = type_i;
     while (type_i == type_j) {
       j = r1(rng);
-      type_j = get_type(j, atom.type.data());
+      type_j = atom.cpu_type[j];
       printf("        get atom %d with type %d.\n", j, type_j);
     }
     printf(
@@ -332,7 +325,7 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
     CUDA_CHECK_KERNEL
 
     nep_energy.find_energy(
-      NN_ij_cpu, // atom.number_of_atoms,
+      NN_ij_cpu,
       NN_radial.data(),
       NN_angular.data(),
       local_type_before.data(),
@@ -347,7 +340,7 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
       pe_before.data());
 
     nep_energy.find_energy(
-      NN_ij_cpu, // atom.number_of_atoms,
+      NN_ij_cpu,
       NN_radial.data(),
       NN_angular.data(),
       local_type_after.data(),
