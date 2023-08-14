@@ -382,6 +382,13 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
 
     if (random_number < probability) {
       printf("        the atom exchange is accepted.\n");
+      atom.cpu_type[i] = type_j;
+      atom.cpu_type[j] = type_i;
+
+      double mass_i = atom.cpu_mass[i];
+      atom.cpu_mass[i] = atom.cpu_mass[j];
+      atom.cpu_mass[j] = mass_i;
+
       exchange<<<1, 1>>>(
         i,
         j,
