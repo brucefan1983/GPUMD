@@ -47,6 +47,26 @@ static std::string get_potential_file_name()
   return potential_file_name;
 }
 
+static bool is_nep(std::string& potential_file_name)
+{
+  std::ifstream input_potential(potential_file_name);
+  if (!input_potential.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open potential file.");
+  }
+  std::string line;
+  std::getline(input_potential, line);
+  std::vector<std::string> tokens = get_tokens(line);
+  if (tokens[0].substr(0, 3) == "nep") {
+    return true;
+  } else if (tokens[0] == "eam_zhou_2004") {
+    return false;
+  } else {
+    PRINT_INPUT_ERROR("Unsupported potential for MCMD.");
+  }
+
+  input_potential.close();
+}
+
 MC_Ensemble::MC_Ensemble(void)
 {
   const int n_max = 1000;
@@ -70,7 +90,14 @@ MC_Ensemble::MC_Ensemble(void)
 
   std::string potential_file_name = get_potential_file_name();
   printf("potential file name = %s\n", potential_file_name.c_str());
-  nep_energy.initialize(potential_file_name.c_str());
+
+  if (is_nep(potential_file_name)) {
+    printf("potential is NEP.\n");
+    nep_energy.initialize(potential_file_name.c_str());
+  } else {
+    printf("EAM is not ready yet.\n");
+    exit(1);
+  }
 
 #ifdef DEBUG
   rng = std::mt19937(13579);
