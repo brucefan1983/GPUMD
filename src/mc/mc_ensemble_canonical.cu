@@ -381,5 +381,5 @@ void MC_Ensemble_Canonical::compute(int md_step, Atom& atom, Box& box)
   }
 
   num_attempted += num_steps_mc;
-  mc_output << md_step << "  " << num_accepted << "  " << num_attempted << std::endl;
+  mc_output << md_step << "  " << num_attempted << "  " << num_accepted << std::endl;
 }
