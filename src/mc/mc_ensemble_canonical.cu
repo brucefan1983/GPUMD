@@ -27,10 +27,7 @@ MC_Ensemble_Canonical::MC_Ensemble_Canonical(int num_steps_mc_input, double temp
   NL_ij.resize(1000);
 }
 
-MC_Ensemble_Canonical::~MC_Ensemble_Canonical(void)
-{
-  // nothing now
-}
+MC_Ensemble_Canonical::~MC_Ensemble_Canonical(void) { mc_output.close(); }
 
 static __global__ void get_types(
   const int N,
@@ -224,7 +221,7 @@ static bool check_if_small_box(const double rc, const Box& box)
   return is_small_box;
 }
 
-void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
+void MC_Ensemble_Canonical::compute(int md_step, Atom& atom, Box& box)
 {
   if (check_if_small_box(nep_energy.paramb.rc_radial, box)) {
     printf("Cannot use small box for MCMD.\n");
@@ -361,6 +358,8 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
     float probability = exp(-energy_difference / (K_B * temperature));
 
     if (random_number < probability) {
+      ++num_accepted;
+
       atom.cpu_type[i] = type_j;
       atom.cpu_type[j] = type_i;
 
@@ -380,4 +379,7 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
         atom.velocity_per_atom.data() + atom.number_of_atoms * 2);
     }
   }
+
+  num_attempted += num_steps_mc;
+  mc_output << md_step << "  " << num_accepted << "  " << num_attempted << std::endl;
 }

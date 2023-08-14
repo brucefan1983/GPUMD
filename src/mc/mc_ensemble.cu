@@ -65,6 +65,11 @@ static void check_is_nep(std::string& potential_file_name)
 
 MC_Ensemble::MC_Ensemble(void)
 {
+  num_accepted = 0;
+  num_attempted = 0;
+  mc_output.open("mcmd.out", std::ios::app);
+  mc_output << "# num_MD_steps  num_MC_accepted  num_MC_attempted" << std::endl;
+
   const int n_max = 1000;
   const int m_max = 1000;
   NN_radial.resize(n_max);

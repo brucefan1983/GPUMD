@@ -33,8 +33,8 @@ void MC::finalize(void) { do_mcmd = false; }
 void MC::compute(int step, Atom& atom, Box& box)
 {
   if (do_mcmd) {
-    if ((step + 1) % num_steps_md == 0) {
-      mc_ensemble->compute(atom, box);
+    if ((step + 2) % num_steps_md == 0) {
+      mc_ensemble->compute(step + 2, atom, box);
     }
   }
 }

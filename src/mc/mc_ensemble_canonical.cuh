@@ -22,7 +22,7 @@ public:
   MC_Ensemble_Canonical(int num_steps_mc, double temperature);
   virtual ~MC_Ensemble_Canonical(void);
 
-  virtual void compute(Atom& atom, Box& box);
+  virtual void compute(int md_step, Atom& atom, Box& box);
 
 private:
   GPU_Vector<int> NN_ij;

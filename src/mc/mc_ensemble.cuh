@@ -19,6 +19,8 @@
 #include "model/group.cuh"
 #include "nep_energy.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <fstream>
+#include <iostream>
 #include <random>
 #include <vector>
 
@@ -28,12 +30,16 @@ public:
   MC_Ensemble(void);
   virtual ~MC_Ensemble(void);
 
-  virtual void compute(Atom& atom, Box& box) = 0;
+  virtual void compute(int md_step, Atom& atom, Box& box) = 0;
 
 protected:
   int num_steps_mc = 0;
   double temperature = 0.0;
   std::mt19937 rng;
+
+  int num_accepted = 0;
+  int num_attempted = 0;
+  std::ofstream mc_output;
 
   GPU_Vector<int> NN_radial;
   GPU_Vector<int> NN_angular;
