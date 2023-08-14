@@ -47,7 +47,7 @@ static std::string get_potential_file_name()
   return potential_file_name;
 }
 
-static bool is_nep(std::string& potential_file_name)
+static void check_is_nep(std::string& potential_file_name)
 {
   std::ifstream input_potential(potential_file_name);
   if (!input_potential.is_open()) {
@@ -56,12 +56,8 @@ static bool is_nep(std::string& potential_file_name)
   std::string line;
   std::getline(input_potential, line);
   std::vector<std::string> tokens = get_tokens(line);
-  if (tokens[0].substr(0, 3) == "nep") {
-    return true;
-  } else if (tokens[0] == "eam_zhou_2004") {
-    return false;
-  } else {
-    PRINT_INPUT_ERROR("Unsupported potential for MCMD.");
+  if (tokens[0].substr(0, 3) != "nep") {
+    PRINT_INPUT_ERROR("MCMD only supports NEP models.");
   }
 
   input_potential.close();
@@ -89,15 +85,8 @@ MC_Ensemble::MC_Ensemble(void)
   pe_after.resize(n_max);
 
   std::string potential_file_name = get_potential_file_name();
-  printf("potential file name = %s\n", potential_file_name.c_str());
-
-  if (is_nep(potential_file_name)) {
-    printf("potential is NEP.\n");
-    nep_energy.initialize(potential_file_name.c_str());
-  } else {
-    printf("EAM is not ready yet.\n");
-    exit(1);
-  }
+  check_is_nep(potential_file_name);
+  nep_energy.initialize(potential_file_name.c_str());
 
 #ifdef DEBUG
   rng = std::mt19937(13579);
