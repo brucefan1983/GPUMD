@@ -239,23 +239,14 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
   std::uniform_int_distribution<int> r1(0, atom.number_of_atoms - 1);
 
   for (int step = 0; step < num_steps_mc; ++step) {
-    printf("    MC step %d, temperature = %g K.\n", step, temperature);
 
     int i = r1(rng);
     int type_i = atom.cpu_type[i];
-    printf("        get atom %d with type %d.\n", i, type_i);
     int j = 0, type_j = type_i;
     while (type_i == type_j) {
       j = r1(rng);
       type_j = atom.cpu_type[j];
-      printf("        get atom %d with type %d.\n", j, type_j);
     }
-    printf(
-      "        try to exchange atom %d with type %d and atom %d with type %d.\n",
-      i,
-      type_i,
-      j,
-      type_j);
 
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
@@ -271,10 +262,8 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
       NL_ij.data());
     CUDA_CHECK_KERNEL
 
-    // copy to host
     int NN_ij_cpu;
     NN_ij.copy_to_host(&NN_ij_cpu);
-    printf("        i and j has %d neighbors in total.\n", NN_ij_cpu);
 
     get_types<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
@@ -364,17 +353,14 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
       pe_before_total += pe_before_cpu[n];
       pe_after_total += pe_after_cpu[n];
     }
-    printf("        per-atom energy before swapping = %g eV.\n", pe_before_total / NN_ij_cpu);
-    printf("        per-atom energy after swapping = %g eV.\n", pe_after_total / NN_ij_cpu);
+    // printf("        per-atom energy before swapping = %g eV.\n", pe_before_total / NN_ij_cpu);
+    // printf("        per-atom energy after swapping = %g eV.\n", pe_after_total / NN_ij_cpu);
     float energy_difference = pe_after_total - pe_before_total;
     std::uniform_real_distribution<float> r2(0, 1);
     float random_number = r2(rng);
-    printf("        random number = %g.\n", random_number);
     float probability = exp(-energy_difference / (K_B * temperature));
-    printf("        probability = %g.\n", probability);
 
     if (random_number < probability) {
-      printf("        the atom exchange is accepted.\n");
       atom.cpu_type[i] = type_j;
       atom.cpu_type[j] = type_i;
 
@@ -392,8 +378,6 @@ void MC_Ensemble_Canonical::compute(Atom& atom, Box& box)
         atom.velocity_per_atom.data(),
         atom.velocity_per_atom.data() + atom.number_of_atoms,
         atom.velocity_per_atom.data() + atom.number_of_atoms * 2);
-    } else {
-      printf("        the atom exchange is rejected.\n");
     }
   }
 }
