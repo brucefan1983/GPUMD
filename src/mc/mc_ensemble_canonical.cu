@@ -235,6 +235,7 @@ void MC_Ensemble_Canonical::compute(int md_step, Atom& atom, Box& box)
 
   std::uniform_int_distribution<int> r1(0, atom.number_of_atoms - 1);
 
+  int num_accepted = 0;
   for (int step = 0; step < num_steps_mc; ++step) {
 
     int i = r1(rng);
@@ -384,6 +385,5 @@ void MC_Ensemble_Canonical::compute(int md_step, Atom& atom, Box& box)
     }
   }
 
-  num_attempted += num_steps_mc;
-  mc_output << md_step << "  " << num_attempted << "  " << num_accepted << std::endl;
+  mc_output << md_step << "  " << num_accepted / double(num_steps_mc) << std::endl;
 }

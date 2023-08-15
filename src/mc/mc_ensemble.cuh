@@ -37,8 +37,6 @@ protected:
   double temperature = 0.0;
   std::mt19937 rng;
 
-  int num_accepted = 0;
-  int num_attempted = 0;
   std::ofstream mc_output;
 
   GPU_Vector<int> NN_radial;
