@@ -363,6 +363,10 @@ void MC_Ensemble_Canonical::compute(int md_step, Atom& atom, Box& box)
       atom.cpu_type[i] = type_j;
       atom.cpu_type[j] = type_i;
 
+      auto atom_symbol_i = atom.cpu_atom_symbol[i];
+      atom.cpu_atom_symbol[i] = atom.cpu_atom_symbol[j];
+      atom.cpu_atom_symbol[j] = atom_symbol_i;
+
       double mass_i = atom.cpu_mass[i];
       atom.cpu_mass[i] = atom.cpu_mass[j];
       atom.cpu_mass[j] = mass_i;
