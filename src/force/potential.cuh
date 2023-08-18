@@ -24,6 +24,7 @@ public:
   int N1;
   int N2;
   double rc; // maximum cutoff distance
+  int is_temperature_nep = 0;
   Potential(void);
   virtual ~Potential(void);
 
@@ -34,6 +35,15 @@ public:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial) = 0;
+
+  virtual void compute(
+    const float temperature,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial){};
 
 protected:
   void find_properties_many_body(

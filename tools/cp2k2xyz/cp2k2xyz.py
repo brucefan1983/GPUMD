@@ -68,7 +68,7 @@ def CP2K2XYZ(folder, fnames=None, output_file=None):
             frc_info_line = ff.readline()
             pf.readline()  # Skip the corresponding line in the pos_file
 
-            energy = float(frc_info_line.strip().split("E =")[-1]) * 27.211386245988
+            energy = float(frc_info_line.strip().split("E =")[-1]) / 27.211386245988
 
             # Read and process the cell information
             cell_line = cf.readline().strip().split()
@@ -85,9 +85,9 @@ def CP2K2XYZ(folder, fnames=None, output_file=None):
                 if len(pos_line) < 4 or len(frc_line) < 4:
                     break
 
-                force_x = float(frc_line[1]) * 51.42206747632590000
-                force_y = float(frc_line[2]) * 51.42206747632590000
-                force_z = float(frc_line[3]) * 51.42206747632590000
+                force_x = float(frc_line[1]) / 51.42206747632590000
+                force_y = float(frc_line[2]) / 51.42206747632590000
+                force_z = float(frc_line[3]) / 51.42206747632590000
 
                 of.write(f"{pos_line[0]} {pos_line[1]} {pos_line[2]} {pos_line[3]} ")
                 of.write(f"{force_x:.10f} {force_y:.10f} {force_z:.10f}\n")

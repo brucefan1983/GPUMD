@@ -99,6 +99,9 @@ void Force::parse_potential(
 #endif
     if (num_gpus == 1) {
       potential.reset(new NEP3(param[1], number_of_atoms));
+      if (3 == potential->is_temperature_nep){
+        is_temperature_nep = 3;
+      }
     } else {
       int partition_direction = -1;
       if (num_param == 3) {
@@ -720,15 +723,25 @@ void Force::compute(
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // If observing, calculate using main potential only
-    potentials[0]->compute(
-      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    if (3 == is_temperature_nep) {
+      potentials[0]->compute(
+        temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    } else {
+      potentials[0]->compute(
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+    }  
   } else if (multiple_potentials_mode_.compare("average") == 0) {
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // potential->compute automatically adds the properties
-      potentials[i]->compute(
-        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
-    }
+      if (3 == is_temperature_nep) {
+        potentials[i]->compute(
+          temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);       
+      } else {
+        potentials[i]->compute(
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);      
+      }
+}
     // Compute average and copy properties back into original vectors.
     gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
       number_of_atoms,

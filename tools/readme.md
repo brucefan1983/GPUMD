@@ -2,16 +2,14 @@
 
 | folder      | author(s)                 | language | description                                               |
 | ---------   | --------------------------| -------- | --------------------------------------------------------- |
-| mtp2xyz     | Junjie WANG               | Python   | Convert `MTP` training data to (old) `XYZ` format |
+| mtp2xyz     | Junjie WANG               | Python   | Convert `MTP` training data to (old) `NEP` format |
 | vim         | Ke Xu                     | vim      | highlight `GPUMD` related files in `vim`          |
-| deep2xyz    | Ke XU                     | Python   | Convert `DeePMD` training data to (old) `XYZ` format | 
+| deep2xyz    | Ke XU                     | Python   | Convert `DeePMD` training data to (old) `NEP` format | 
 | nep2xyz     | Ke XU                     | Python   | Convert (old) `NEP` training data to extended XYZ file format |
 | get_max_rmse_xyz     | Ke XU            | Python   | Select structures with large training errors. |
 | rdf_adf     | Ke XU                     | Python   | Calculate RDF and ADF usig `OVITO` |
-| runner2xyz  | Ke XU                     | Python   | Convert runner training data to `XYZ` format |
 | xyz2gro     | Nan XU                    | Python   | Convert extended XYZ file to `gro` file |
 | vasp2xyz    | Yanzhou WANG, Yuwen ZHANG | Shell    | Create `NEP` training data from `VASP` output |
-|             | Zezhu Zeng                | Python   | Create `NEP` training data from `vasprun*.xml` output |
 | castep2xyz  | Yanzhou WANG              | Shell    | Create `NEP` training data from `CASTEP` output |
 | for_coding  | Zheyong FAN               | Matlab   | Used for developing `GPUMD` (the users can ignore this) |
 | md_tersoff  | Zheyong FAN               | C++      | a standalone MD code implementing the calculations in Ref. [1] |

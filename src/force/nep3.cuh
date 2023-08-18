@@ -47,6 +47,7 @@ class NEP3 : public Potential
 public:
   struct ParaMB {
     int version = 2;            // NEP version, 2 for NEP2 and 3 for NEP3
+    int model_type = 0;         // 0=potential, 1=dipole, 2=polarizability, 3=temperature-denepndent free energy
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
@@ -104,6 +105,15 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
 
+  virtual void compute(
+    const float temperature,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
 private:
   ParaMB paramb;
   ANN annmb;
@@ -125,6 +135,24 @@ private:
     GPU_Vector<double>& virial);
 
   void compute_large_box(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
+  void compute_small_box(
+    const float temperature,
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
+  void compute_large_box(
+    const float temperature,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

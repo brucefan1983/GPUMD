@@ -18,7 +18,6 @@ Run simulation according to the inputs in the run.in file.
 ------------------------------------------------------------------------------*/
 
 #include "cohesive.cuh"
-#include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/ensemble.cuh"
 #include "integrate/integrate.cuh"
@@ -158,7 +157,7 @@ void Run::execute_run_in()
 void Run::perform_a_run()
 {
   integrate.initialize(N, time_step, group, atom);
-  measure.initialize(number_of_steps, time_step, integrate, group, atom, force);
+  measure.initialize(number_of_steps, time_step, box, group, atom, force);
 
 #ifdef USE_PLUMED
   if (measure.plmd.use_plumed == 1) {
@@ -210,8 +209,6 @@ void Run::perform_a_run()
     }
 #endif
 
-    electron_stop.compute(atom);
-
     integrate.compute2(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     measure.process(
@@ -252,9 +249,8 @@ void Run::perform_a_run()
   printf("Speed of this run = %g atom*step/second.\n", run_speed);
   print_line_2();
 
-  measure.finalize(integrate, number_of_steps, time_step, integrate.temperature2, box.get_volume(),atom.number_of_beads);
+  measure.finalize(number_of_steps, time_step, integrate.temperature2, box.get_volume());
 
-  electron_stop.finalize();
   integrate.finalize();
   velocity.finalize();
   max_distance_per_step = 0.0;
@@ -263,7 +259,7 @@ void Run::perform_a_run()
 void Run::parse_one_keyword(std::vector<std::string>& tokens)
 {
   int num_param = tokens.size();
-  const char* param[22]; // never use more than 19 parameters
+  const char* param[20]; // never use more than 19 parameters
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
@@ -366,8 +362,6 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.sdc.parse(param, num_param, group);
   } else if (strcmp(param[0], "compute_msd") == 0) {
     measure.msd.parse(param, num_param, group);
-  }  else if (strcmp(param[0], "compute_rdf") == 0) {
-    measure.rdf.parse(param, num_param, box, number_of_types, number_of_steps);
   } else if (strcmp(param[0], "compute_hac") == 0) {
     measure.hac.parse(param, num_param);
   } else if (strcmp(param[0], "compute_viscosity") == 0) {
@@ -390,8 +384,6 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     integrate.parse_fix(param, num_param, group);
   } else if (strcmp(param[0], "move") == 0) {
     integrate.parse_move(param, num_param, group);
-  } else if (strcmp(param[0], "electron_stop") == 0) {
-    electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {
@@ -463,6 +455,8 @@ void Run::parse_run(const char** param, int num_param)
     PRINT_INPUT_ERROR("number of steps should be an integer.\n");
   }
   printf("Run %d steps.\n", number_of_steps);
+
+  force.temperature = initial_temperature;
 
   bool compute_hnemd = measure.hnemd.compute || (measure.modal_analysis.compute &&
                                                  measure.modal_analysis.method == HNEMA_METHOD);

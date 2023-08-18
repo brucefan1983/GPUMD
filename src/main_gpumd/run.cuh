@@ -19,7 +19,6 @@ class Force;
 class Integrate;
 class Measure;
 
-#include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
 #include "measure/measure.cuh"
@@ -66,5 +65,4 @@ private:
   Force force;
   Integrate integrate;
   Measure measure;
-  Electron_Stop electron_stop;
 };

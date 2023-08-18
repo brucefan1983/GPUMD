@@ -175,7 +175,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
   if (para.prediction == 0) {
 
-    if (para.train_mode == 0) {
+    if (para.train_mode == 0 || para.train_mode == 3) {
       printf(
         "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
         "Step",
@@ -238,6 +238,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     } else if (tokens[0] == "nep") {
       num_lines_to_be_skipped = 4;
     }
+    num_lines_to_be_skipped += 1;
     for (int n = 0; n < num_lines_to_be_skipped; ++n) {
       tokens = get_tokens(input);
     }

@@ -79,6 +79,7 @@ public:
   struct ParaMB {
     int num_gpus = 1;
     int version = 2;            // NEP version, 2 for NEP2 and 3 for NEP3
+    int model_type = 0;         // 0=potential, 1=dipole, 2=polarizability, 3=temperature-denepndent free energy
     float rc_radial = 0.0f;     // radial cutoff
     float rc_angular = 0.0f;    // angular cutoff
     float rcinv_radial = 0.0f;  // inverse of the radial cutoff
@@ -128,6 +129,15 @@ public:
     const int partition_direction);
   virtual ~NEP3_MULTIGPU(void);
   virtual void compute(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position,
+    GPU_Vector<double>& potential,
+    GPU_Vector<double>& force,
+    GPU_Vector<double>& virial);
+
+  virtual void compute(
+    const float temperature,
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position,

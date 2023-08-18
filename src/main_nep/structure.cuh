@@ -22,11 +22,15 @@ struct Structure {
   int num_cell[3];
   int num_atom;
   int has_virial;
+  int has_temperature;
+  int has_TS;
   float weight;
   float energy;
   float virial[6];
   float box_original[9];
   float box[18];
+  float temperature;
+  float TS;
   std::vector<int> type;
   std::vector<float> x;
   std::vector<float> y;

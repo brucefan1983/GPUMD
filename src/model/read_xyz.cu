@@ -402,7 +402,7 @@ void read_xyz_in_line_3(
       }
     }
     if (!is_allowed_element) {
-      PRINT_INPUT_ERROR("There is atom in model.xyz that is not allowed in the used potential.\n");
+      PRINT_INPUT_ERROR("There is atom in xyz.in that is not allowed in the used potential.\n");
     }
 
     for (int d = 0; d < 3; ++d) {
@@ -541,7 +541,6 @@ void initialize_position(
   atom_symbols = get_atom_symbols(filename_potential);
 
   read_xyz_line_1(input, N);
-  atom.number_of_atoms = N;
   int property_offset[5] = {0, 0, 0, 0, 0}; // species,pos,mass,vel,group
   int num_columns = 0;
   bool has_mass = true;

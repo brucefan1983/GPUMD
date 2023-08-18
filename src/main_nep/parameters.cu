@@ -146,7 +146,7 @@ void Parameters::read_zbl_in()
 void Parameters::calculate_parameters()
 {
 
-  if (train_mode != 0) {
+  if (train_mode != 0 && train_mode != 3) {
     // take virial as dipole or polarizability
     lambda_e = lambda_f = 0.0f;
     enable_zbl = false;
@@ -163,6 +163,9 @@ void Parameters::calculate_parameters()
     dim_angular += n_max_angular + 1;
   }
   dim = dim_radial + dim_angular;
+  if (train_mode == 3) {
+    dim += 1; // concatenate temeprature with descriptors
+  }
   q_scaler_cpu.resize(dim, 1.0e10f);
 
   number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
@@ -180,7 +183,9 @@ void Parameters::calculate_parameters()
   if (train_mode == 2) {
     number_of_variables += number_of_variables_ann;
   }
-
+  //if (train_model == 3) {
+  //  number_of_variables += 2;  // a,b in scaling factor
+  //}
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
@@ -203,6 +208,8 @@ void Parameters::report_inputs()
     train_mode_name = "dipole";
   } else if (train_mode == 2) {
     train_mode_name = "polarizability";
+  } else if (train_mode == 3) {
+    train_mode_name = "temperature-dependent free energy";
   }
   if (is_train_mode_set) {
     printf("    (input)   model_type = %s.\n", train_mode_name.c_str());
@@ -438,8 +445,8 @@ void Parameters::parse_mode(const char** param, int num_param)
   if (!is_valid_int(param[1], &train_mode)) {
     PRINT_INPUT_ERROR("mode should be an integer.\n");
   }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2) {
-    PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2.");
+  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
+    PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }
 
