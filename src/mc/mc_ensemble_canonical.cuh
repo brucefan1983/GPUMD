@@ -19,10 +19,10 @@
 class MC_Ensemble_Canonical : public MC_Ensemble
 {
 public:
-  MC_Ensemble_Canonical(int num_steps_mc, double temperature);
+  MC_Ensemble_Canonical(int num_steps_mc);
   virtual ~MC_Ensemble_Canonical(void);
 
-  virtual void compute(int md_step, Atom& atom, Box& box);
+  virtual void compute(int md_step, double temperature, Atom& atom, Box& box);
 
 private:
   GPU_Vector<int> NN_ij;

@@ -30,7 +30,7 @@ public:
   MC_Ensemble(void);
   virtual ~MC_Ensemble(void);
 
-  virtual void compute(int md_step, Atom& atom, Box& box) = 0;
+  virtual void compute(int md_step, double temperature, Atom& atom, Box& box) = 0;
 
 protected:
   int num_steps_mc = 0;

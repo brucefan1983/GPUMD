@@ -30,47 +30,73 @@ void MC::initialize(void)
 
 void MC::finalize(void) { do_mcmd = false; }
 
-void MC::compute(int step, Atom& atom, Box& box)
+void MC::compute(int step, int num_steps, Atom& atom, Box& box)
 {
   if (do_mcmd) {
     if ((step + 2) % num_steps_md == 0) {
-      mc_ensemble->compute(step + 2, atom, box);
+      double temperature =
+        temperature_initial + step * (temperature_final - temperature_initial) / num_steps;
+      mc_ensemble->compute(step + 2, temperature, atom, box);
     }
   }
 }
 
-void MC::parse_cmc(const char** param, int num_param)
+void MC::parse_mc(const char** param, int num_param)
 {
-  if (num_param != 4) {
-    PRINT_INPUT_ERROR("cmc should have 3 parameter.\n");
+  if (num_param < 6) {
+    PRINT_INPUT_ERROR("mc should have at least 5 parameters.\n");
   }
 
-  if (!is_valid_int(param[1], &num_steps_md)) {
-    PRINT_INPUT_ERROR("number of MD steps for cmc should be an integer.\n");
+  int mc_ensemble_type = 0;
+  if (strcmp(param[1], "canonical") == 0) {
+    mc_ensemble_type = 0;
+  } else if (strcmp(param[1], "sgc") == 0) {
+    PRINT_INPUT_ERROR("semi-grand canonical MCMD has not been implemented yet.\n");
+  } else if (strcmp(param[1], "vcsgc") == 0) {
+    PRINT_INPUT_ERROR(
+      "variance constrained semi-grand canonical MCMD has not been implemented yet.\n");
+  } else {
+    PRINT_INPUT_ERROR("invalid MC ensemble for MCMD.\n");
+  }
+
+  if (!is_valid_int(param[2], &num_steps_md)) {
+    PRINT_INPUT_ERROR("number of MD steps for MCMD should be an integer.\n");
   }
   if (num_steps_md <= 0) {
-    PRINT_INPUT_ERROR("number of MD steps for cmc should be positive.\n");
+    PRINT_INPUT_ERROR("number of MD steps for MCMD should be positive.\n");
   }
 
-  if (!is_valid_int(param[2], &num_steps_mc)) {
-    PRINT_INPUT_ERROR("number of MC steps for cmc should be an integer.\n");
+  if (!is_valid_int(param[3], &num_steps_mc)) {
+    PRINT_INPUT_ERROR("number of MC steps for MCMD should be an integer.\n");
   }
   if (num_steps_mc <= 0) {
-    PRINT_INPUT_ERROR("number of MC steps for cmc should be positive.\n");
+    PRINT_INPUT_ERROR("number of MC steps for MCMD should be positive.\n");
   }
 
-  if (!is_valid_real(param[3], &temperature)) {
-    PRINT_INPUT_ERROR("temperature for cmc should be a number.\n");
+  if (!is_valid_real(param[4], &temperature_initial)) {
+    PRINT_INPUT_ERROR("initial temperature for MCMD should be a number.\n");
   }
-  if (temperature <= 0) {
-    PRINT_INPUT_ERROR("temperature for cmc should be positive.\n");
+  if (temperature_initial <= 0) {
+    PRINT_INPUT_ERROR("initial temperature for MCMD should be positive.\n");
   }
 
-  printf("Perform canonical MC:\n");
+  if (!is_valid_real(param[5], &temperature_final)) {
+    PRINT_INPUT_ERROR("final temperature for MCMD should be a number.\n");
+  }
+  if (temperature_final <= 0) {
+    PRINT_INPUT_ERROR("final temperature for MCMD should be positive.\n");
+  }
+
+  if (mc_ensemble_type == 0) {
+    printf("Perform canonical MCMD:\n");
+  }
   printf("    after every %d MD steps, do %d MC trials.\n", num_steps_md, num_steps_mc);
-  printf("    with a temperature of %g K.\n", temperature);
+  printf(
+    "    with an initial temperature of %g K and a final temperature of %g K.\n",
+    temperature_initial,
+    temperature_final);
 
-  mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc, temperature));
+  mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
 
   do_mcmd = true;
 }

@@ -19,10 +19,9 @@ The canonical ensemble for MCMD.
 
 #include "mc_ensemble_canonical.cuh"
 
-MC_Ensemble_Canonical::MC_Ensemble_Canonical(int num_steps_mc_input, double temperature_input)
+MC_Ensemble_Canonical::MC_Ensemble_Canonical(int num_steps_mc_input)
 {
   num_steps_mc = num_steps_mc_input;
-  temperature = temperature_input;
   NN_ij.resize(1);
   NL_ij.resize(1000);
 }
@@ -221,7 +220,7 @@ static bool check_if_small_box(const double rc, const Box& box)
   return is_small_box;
 }
 
-void MC_Ensemble_Canonical::compute(int md_step, Atom& atom, Box& box)
+void MC_Ensemble_Canonical::compute(int md_step, double temperature, Atom& atom, Box& box)
 {
   if (check_if_small_box(nep_energy.paramb.rc_radial, box)) {
     printf("Cannot use small box for MCMD.\n");

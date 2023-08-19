@@ -80,9 +80,9 @@ void NEP_Energy::initialize(const char* file_potential)
   }
 
   if (paramb.num_types == 1) {
-    printf("Use the NEP%d potential with %d atom type.\n", paramb.version, paramb.num_types);
+    printf("    Use the NEP%d potential with %d atom type.\n", paramb.version, paramb.num_types);
   } else {
-    printf("Use the NEP%d potential with %d atom types.\n", paramb.version, paramb.num_types);
+    printf("    Use the NEP%d potential with %d atom types.\n", paramb.version, paramb.num_types);
   }
 
   for (int n = 0; n < paramb.num_types; ++n) {
@@ -94,7 +94,7 @@ void NEP_Energy::initialize(const char* file_potential)
       }
     }
     zbl.atomic_numbers[n] = atomic_number;
-    printf("    type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
+    printf("        type %d (%s with Z = %g).\n", n, tokens[2 + n].c_str(), zbl.atomic_numbers[n]);
   }
 
   // zbl 0.7 1.4
@@ -108,10 +108,10 @@ void NEP_Energy::initialize(const char* file_potential)
     zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
       zbl.flexibled = true;
-      printf("    has the flexible ZBL potential\n");
+      printf("        has the flexible ZBL potential\n");
     } else {
       printf(
-        "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
+        "        has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
         zbl.rc_inner,
         zbl.rc_outer);
     }
@@ -125,8 +125,8 @@ void NEP_Energy::initialize(const char* file_potential)
   }
   paramb.rc_radial = get_float_from_token(tokens[1], __FILE__, __LINE__);
   paramb.rc_angular = get_float_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    radial cutoff = %g A.\n", paramb.rc_radial);
-  printf("    angular cutoff = %g A.\n", paramb.rc_angular);
+  printf("        radial cutoff = %g A.\n", paramb.rc_radial);
+  printf("        angular cutoff = %g A.\n", paramb.rc_angular);
 
   paramb.MN_radial = 500;
   paramb.MN_angular = 100;
@@ -134,12 +134,12 @@ void NEP_Energy::initialize(const char* file_potential)
   if (tokens.size() == 5) {
     int MN_radial = get_int_from_token(tokens[3], __FILE__, __LINE__);
     int MN_angular = get_int_from_token(tokens[4], __FILE__, __LINE__);
-    printf("    MN_radial = %d.\n", MN_radial);
-    printf("    MN_angular = %d.\n", MN_angular);
+    printf("        MN_radial = %d.\n", MN_radial);
+    printf("        MN_angular = %d.\n", MN_angular);
     paramb.MN_radial = int(ceil(MN_radial * 1.25));
     paramb.MN_angular = int(ceil(MN_angular * 1.25));
-    printf("    enlarged MN_radial = %d.\n", paramb.MN_radial);
-    printf("    enlarged MN_angular = %d.\n", paramb.MN_angular);
+    printf("        enlarged MN_radial = %d.\n", paramb.MN_radial);
+    printf("        enlarged MN_angular = %d.\n", paramb.MN_angular);
   }
 
   // n_max 10 8
@@ -150,8 +150,8 @@ void NEP_Energy::initialize(const char* file_potential)
   }
   paramb.n_max_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
   paramb.n_max_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-  printf("    n_max_radial = %d.\n", paramb.n_max_radial);
-  printf("    n_max_angular = %d.\n", paramb.n_max_angular);
+  printf("        n_max_radial = %d.\n", paramb.n_max_radial);
+  printf("        n_max_angular = %d.\n", paramb.n_max_angular);
 
   // basis_size 10 8
   if (paramb.version >= 3) {
@@ -163,8 +163,8 @@ void NEP_Energy::initialize(const char* file_potential)
     }
     paramb.basis_size_radial = get_int_from_token(tokens[1], __FILE__, __LINE__);
     paramb.basis_size_angular = get_int_from_token(tokens[2], __FILE__, __LINE__);
-    printf("    basis_size_radial = %d.\n", paramb.basis_size_radial);
-    printf("    basis_size_angular = %d.\n", paramb.basis_size_angular);
+    printf("        basis_size_radial = %d.\n", paramb.basis_size_radial);
+    printf("        basis_size_angular = %d.\n", paramb.basis_size_angular);
   }
 
   // l_max
@@ -182,14 +182,14 @@ void NEP_Energy::initialize(const char* file_potential)
   }
 
   paramb.L_max = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  printf("    l_max_3body = %d.\n", paramb.L_max);
+  printf("        l_max_3body = %d.\n", paramb.L_max);
   paramb.num_L = paramb.L_max;
 
   if (paramb.version >= 3) {
     int L_max_4body = get_int_from_token(tokens[2], __FILE__, __LINE__);
     int L_max_5body = get_int_from_token(tokens[3], __FILE__, __LINE__);
-    printf("    l_max_4body = %d.\n", L_max_4body);
-    printf("    l_max_5body = %d.\n", L_max_5body);
+    printf("        l_max_4body = %d.\n", L_max_4body);
+    printf("        l_max_5body = %d.\n", L_max_5body);
     if (L_max_4body == 2) {
       paramb.num_L += 1;
     }
@@ -208,7 +208,7 @@ void NEP_Energy::initialize(const char* file_potential)
   }
   annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
   annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
-  printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
+  printf("        ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
   // calculated parameters:
   paramb.rcinv_radial = 1.0f / paramb.rc_radial;
@@ -217,7 +217,7 @@ void NEP_Energy::initialize(const char* file_potential)
 
   annmb.num_para =
     (annmb.dim + 2) * annmb.num_neurons1 * (paramb.version == 4 ? paramb.num_types : 1) + 1;
-  printf("    number of neural network parameters = %d.\n", annmb.num_para);
+  printf("        number of neural network parameters = %d.\n", annmb.num_para);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
                            (paramb.n_max_angular + 1) * (paramb.basis_size_angular + 1));
@@ -227,9 +227,9 @@ void NEP_Energy::initialize(const char* file_potential)
         ? 0
         : paramb.num_types_sq * (paramb.n_max_radial + paramb.n_max_angular + 2);
   }
-  printf("    number of descriptor parameters = %d.\n", num_para_descriptor);
+  printf("        number of descriptor parameters = %d.\n", num_para_descriptor);
   annmb.num_para += num_para_descriptor;
-  printf("    total number of parameters = %d.\n", annmb.num_para);
+  printf("        total number of parameters = %d.\n", annmb.num_para);
 
   paramb.num_c_radial =
     paramb.num_types_sq * (paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1);
