@@ -38,6 +38,8 @@ private:
   bool do_mcmd = false;
   int num_steps_md = 0;
   int num_steps_mc = 0;
+  int grouping_method = 0;
+  int group_id = 0;
   double temperature_initial = 0.0;
   double temperature_final = 0.0;
 };

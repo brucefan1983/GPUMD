@@ -88,6 +88,31 @@ void MC::parse_mc(const char** param, int num_param)
   }
 
   if (mc_ensemble_type == 0) {
+    if (num_param > 6) {
+      if (num_param != 9) {
+        PRINT_INPUT_ERROR("mc canonical must has 9 paramters when using a grouping method.\n");
+      }
+      if (strcmp(param[6], "group") != 0) {
+        PRINT_INPUT_ERROR("invalid option for mc.\n");
+      }
+      if (!is_valid_int(param[7], &grouping_method)) {
+        PRINT_INPUT_ERROR("grouping method of MCMD should be an integer.\n");
+      }
+      if (grouping_method < 0) {
+        PRINT_INPUT_ERROR("grouping method of MCMD should >= 0.\n");
+      }
+      // TODO check upper bound of grouping method
+      if (!is_valid_int(param[8], &group_id)) {
+        PRINT_INPUT_ERROR("group ID of MCMD should be an integer.\n");
+      }
+      if (grouping_method < 0) {
+        PRINT_INPUT_ERROR("group ID of MCMD should >= 0.\n");
+      }
+      // TODO check upper bound of group id
+    }
+  }
+
+  if (mc_ensemble_type == 0) {
     printf("Perform canonical MCMD:\n");
   }
   printf("    after every %d MD steps, do %d MC trials.\n", num_steps_md, num_steps_mc);
@@ -95,6 +120,14 @@ void MC::parse_mc(const char** param, int num_param)
     "    with an initial temperature of %g K and a final temperature of %g K.\n",
     temperature_initial,
     temperature_final);
+
+  if (mc_ensemble_type == 0) {
+    if (num_param == 6) {
+      printf("    for all the atoms in the system.\n");
+    } else {
+      printf("    only for atoms in group %d of grouping method %d.\n", group_id, grouping_method);
+    }
+  }
 
   mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
 
