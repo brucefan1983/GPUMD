@@ -67,8 +67,8 @@ public:
   bool compute_hnemd_ = false;
   int compute_hnemdec_ = -1;
   double hnemd_fe_[3];
-  double temperature;
-  int is_temperature_nep = 0;  // 3 for temperature-dependent nep
+  double temperature = 0;
+  double delta_T;
   GPU_Vector<double> coefficient;
   std::vector<std::unique_ptr<Potential>> potentials;
 

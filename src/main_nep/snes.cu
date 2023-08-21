@@ -238,7 +238,6 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
     } else if (tokens[0] == "nep") {
       num_lines_to_be_skipped = 4;
     }
-    num_lines_to_be_skipped += 1;
     for (int n = 0; n < num_lines_to_be_skipped; ++n) {
       tokens = get_tokens(input);
     }

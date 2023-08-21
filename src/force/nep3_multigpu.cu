@@ -83,6 +83,27 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   } else if (tokens[0] == "nep4_zbl") {
     paramb.version = 4;
     zbl.enabled = true;
+  } else if (tokens[0] == "nep_temperature") {
+    paramb.version = 2;
+    paramb.model_type = 3;
+  } else if (tokens[0] == "nep_zbl_temperature") {
+    paramb.version = 2;
+    paramb.model_type = 3;
+    zbl.enabled = true;
+  } else if (tokens[0] == "nep3_temperature") {
+    paramb.version = 3;
+    paramb.model_type = 3;
+  } else if (tokens[0] == "nep3_zbl_temperature") {
+    paramb.version = 3;
+    paramb.model_type = 3;
+    zbl.enabled = true;
+  } else if (tokens[0] == "nep4_temperature") {
+    paramb.version = 4;
+    paramb.model_type = 3;
+  } else if (tokens[0] == "nep4_zbl_temperature") {
+    paramb.version = 4;
+    paramb.model_type = 3;
+    zbl.enabled = true;
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   if (tokens.size() != 2 + paramb.num_types) {
@@ -128,16 +149,6 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
         zbl.rc_outer);
     }
   }
-
-  // model_type 3
-  tokens = get_tokens(input);
-  if (tokens.size() != 2) {
-    std::cout << "This line should be model_type.\n";
-    exit(1);
-  }
-  paramb.model_type = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  is_temperature_nep = paramb.model_type;
-  printf("    Use model_type %d.\n", paramb.model_type);
 
   // cutoff 4.2 3.7 80 47
   tokens = get_tokens(input);

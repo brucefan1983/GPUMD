@@ -49,7 +49,7 @@ public:
   GPU_Vector<float> energy_ref_gpu;  // reference energy in GPU
   GPU_Vector<float> virial_ref_gpu;  // reference virial in GPU
   GPU_Vector<float> force_ref_gpu;   // reference force in GPU
-  GPU_Vector<float> temperature_ref_gpu;  // reference temperature in GPU
+  GPU_Vector<float> temperature_ref_gpu; // reference temperature in GPU
   std::vector<float> energy_ref_cpu; // reference energy in CPU
   std::vector<float> virial_ref_cpu; // reference virial in CPU
   std::vector<float> force_ref_cpu;  // reference force in CPU

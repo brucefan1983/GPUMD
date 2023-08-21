@@ -31,9 +31,7 @@ void Dataset::copy_structures(std::vector<Structure>& structures_input, int n1, 
     structures[n].has_virial = structures_input[n_input].has_virial;
     structures[n].energy = structures_input[n_input].energy;
     structures[n].has_temperature = structures_input[n_input].has_temperature;
-    structures[n].has_TS = structures_input[n_input].has_TS;
     structures[n].temperature = structures_input[n_input].temperature;
-    structures[n].TS = structures_input[n_input].TS;
     for (int k = 0; k < 6; ++k) {
       structures[n].virial[k] = structures_input[n_input].virial[k];
     }
@@ -105,7 +103,7 @@ void Dataset::find_Na(Parameters& para)
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  if (para.train_mode == 0 || para.train_mode == 3) {
+  if (para.train_mode == 0) {
     printf("Number of configurations having virial = %d.\n", num_virial_configurations);
   }
 

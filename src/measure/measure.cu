@@ -26,7 +26,7 @@ The driver class dealing with measurement.
 void Measure::initialize(
   const int number_of_steps,
   const double time_step,
-  Box& box,
+  Integrate& integrate,
   std::vector<Group>& group,
   Atom& atom,
   Force& force)
@@ -36,6 +36,7 @@ void Measure::initialize(
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
+  rdf.preprocess(integrate.type >= 31, atom.number_of_beads,number_of_atoms, atom.cpu_type_size);
   hac.preprocess(number_of_steps);
   viscosity.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
@@ -61,7 +62,7 @@ void Measure::initialize(
 }
 
 void Measure::finalize(
-  const int number_of_steps, const double time_step, const double temperature, const double volume)
+  Integrate& integrate, const int number_of_steps, const double time_step, const double temperature, const double volume, const double number_of_beads)
 {
   dump_position.postprocess();
   dump_velocity.postprocess();
@@ -75,6 +76,7 @@ void Measure::finalize(
   dos.postprocess();
   sdc.postprocess();
   msd.postprocess();
+  rdf.postprocess(integrate.type >= 31, number_of_beads);
   hac.postprocess(number_of_steps, temperature, time_step, volume);
   viscosity.postprocess(number_of_steps, temperature, time_step, volume);
   shc.postprocess(time_step);
@@ -170,6 +172,7 @@ void Measure::process(
   dos.process(step, group, atom.velocity_per_atom);
   sdc.process(step, group, atom.velocity_per_atom);
   msd.process(step, group, atom.unwrapped_position);
+  rdf.process(integrate.type >= 31, number_of_steps, step, box, atom);
   hac.process(
     number_of_steps, step, atom.velocity_per_atom, atom.virial_per_atom, atom.heat_per_atom);
   viscosity.process(number_of_steps, step, atom.mass, atom.velocity_per_atom, atom.virial_per_atom);

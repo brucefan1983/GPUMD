@@ -166,23 +166,6 @@ static void read_one_structure(const Parameters& para, std::ifstream& input, Str
     structure.temperature = 0;
   }
 
-  structure.has_TS = false;
-  for (const auto& token : tokens) {
-    const std::string TS_string = "TS=";
-    if (token.substr(0, TS_string.length()) == TS_string) {
-      structure.has_TS = true;
-      structure.TS =
-        get_float_from_token(token.substr(TS_string.length(), token.length()), __FILE__, __LINE__);
-    }
-    structure.TS /= structure.num_atom;
-  }
-  //if (para.train_mode == 3 && has_TS_in_exyz) {
-  //  PRINT_INPUT_ERROR("'TS' is missing in the second line of a frame.");
-  //}
-  if (!structure.has_TS) {
-    structure.TS = 0;
-  }
-
   structure.weight = 1.0f;
   for (const auto& token : tokens) {
     const std::string weight_string = "weight=";
@@ -467,9 +450,7 @@ static void reorder(std::vector<Structure>& structures)
     structures_copy[nc].has_virial = structures[nc].has_virial;
     structures_copy[nc].energy = structures[nc].energy;
     structures_copy[nc].has_temperature = structures[nc].has_temperature;
-    structures_copy[nc].has_TS = structures[nc].has_TS;
     structures_copy[nc].temperature = structures[nc].temperature;
-    structures_copy[nc].TS = structures[nc].TS;
     for (int k = 0; k < 6; ++k) {
       structures_copy[nc].virial[k] = structures[nc].virial[k];
     }
@@ -506,9 +487,7 @@ static void reorder(std::vector<Structure>& structures)
     structures[nc].has_virial = structures_copy[configuration_id[nc]].has_virial;
     structures[nc].energy = structures_copy[configuration_id[nc]].energy;
     structures[nc].has_temperature = structures_copy[configuration_id[nc]].has_temperature;
-    structures[nc].has_TS = structures_copy[configuration_id[nc]].has_TS;
     structures[nc].temperature = structures_copy[configuration_id[nc]].temperature;
-    structures[nc].TS = structures_copy[configuration_id[nc]].TS;
     for (int k = 0; k < 6; ++k) {
       structures[nc].virial[k] = structures_copy[configuration_id[nc]].virial[k];
     }

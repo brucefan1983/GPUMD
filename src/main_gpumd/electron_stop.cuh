@@ -14,28 +14,26 @@
 */
 
 #pragma once
+
+#include "utilities/gpu_vector.cuh"
 #include <vector>
 
-class Parameters;
+class Atom;
 
-struct Structure {
-  int num_cell[3];
-  int num_atom;
-  int has_virial;
-  int has_temperature;
-  float weight;
-  float energy;
-  float virial[6];
-  float box_original[9];
-  float box[18];
-  float temperature;
-  std::vector<int> type;
-  std::vector<float> x;
-  std::vector<float> y;
-  std::vector<float> z;
-  std::vector<float> fx;
-  std::vector<float> fy;
-  std::vector<float> fz;
+class Electron_Stop
+{
+public:
+  bool do_electron_stop = false;
+  void parse(const char** param, int num_param, const int num_atoms, const int num_types);
+  void compute(Atom& atom);
+  void finalize();
+
+private:
+  int num_points = 0;
+  double energy_min;
+  double energy_max;
+  double energy_interval;
+  std::vector<double> stopping_power_cpu;
+  GPU_Vector<double> stopping_power_gpu;
+  GPU_Vector<double> stopping_force;
 };
-
-bool read_structures(bool is_train, Parameters& para, std::vector<Structure>& structures);

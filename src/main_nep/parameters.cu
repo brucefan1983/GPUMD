@@ -183,9 +183,7 @@ void Parameters::calculate_parameters()
   if (train_mode == 2) {
     number_of_variables += number_of_variables_ann;
   }
-  //if (train_model == 3) {
-  //  number_of_variables += 2;  // a,b in scaling factor
-  //}
+
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
@@ -445,7 +443,7 @@ void Parameters::parse_mode(const char** param, int num_param)
   if (!is_valid_int(param[1], &train_mode)) {
     PRINT_INPUT_ERROR("mode should be an integer.\n");
   }
-  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode != 3) {
+  if (train_mode != 0 && train_mode != 1 && train_mode != 2 && train_mode !=3) {
     PRINT_INPUT_ERROR("model_type should = 0 or 1 or 2 or 3.");
   }
 }

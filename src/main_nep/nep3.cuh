@@ -73,8 +73,6 @@ public:
     const float* b1_pol;     // bias for the output layer
     // for elements in descriptor
     const float* c;
-    float a = 0.0;        // a of scaling factor
-    float b = 0.0;        // b of scaling factor
   };
 
   struct ZBL {
