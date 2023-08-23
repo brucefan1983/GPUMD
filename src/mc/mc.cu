@@ -30,13 +30,13 @@ void MC::initialize(void)
 
 void MC::finalize(void) { do_mcmd = false; }
 
-void MC::compute(int step, int num_steps, Atom& atom, Box& box)
+void MC::compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group)
 {
   if (do_mcmd) {
     if ((step + 2) % num_steps_md == 0) {
       double temperature =
         temperature_initial + step * (temperature_final - temperature_initial) / num_steps;
-      mc_ensemble->compute(step + 2, temperature, atom, box);
+      mc_ensemble->compute(step + 2, temperature, atom, box, group[grouping_method], group_id);
     }
   }
 }
