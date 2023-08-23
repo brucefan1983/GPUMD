@@ -403,7 +403,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "electron_stop") == 0) {
     electron_stop.parse(param, num_param, atom.number_of_atoms, number_of_types);
   } else if (strcmp(param[0], "mc") == 0) {
-    mc.parse_mc(param, num_param);
+    mc.parse_mc(param, num_param, group);
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {

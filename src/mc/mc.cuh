@@ -32,7 +32,7 @@ public:
   void finalize(void);
   void compute(int step, int num_steps, Atom& atom, Box& box);
 
-  void parse_mc(const char** param, int num_param);
+  void parse_mc(const char** param, int num_param, std::vector<Group>& group);
 
 private:
   bool do_mcmd = false;

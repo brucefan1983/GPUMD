@@ -41,7 +41,7 @@ void MC::compute(int step, int num_steps, Atom& atom, Box& box)
   }
 }
 
-void MC::parse_mc(const char** param, int num_param)
+void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups)
 {
   if (num_param < 6) {
     PRINT_INPUT_ERROR("mc should have at least 5 parameters.\n");
@@ -101,14 +101,18 @@ void MC::parse_mc(const char** param, int num_param)
       if (grouping_method < 0) {
         PRINT_INPUT_ERROR("grouping method of MCMD should >= 0.\n");
       }
-      // TODO check upper bound of grouping method
+      if (grouping_method >= groups.size()) {
+        PRINT_INPUT_ERROR("Grouping method should < number of grouping methods.");
+      }
       if (!is_valid_int(param[8], &group_id)) {
         PRINT_INPUT_ERROR("group ID of MCMD should be an integer.\n");
       }
-      if (grouping_method < 0) {
+      if (group_id < 0) {
         PRINT_INPUT_ERROR("group ID of MCMD should >= 0.\n");
       }
-      // TODO check upper bound of group id
+      if (group_id >= groups[grouping_method].number) {
+        PRINT_INPUT_ERROR("Group ID should < number of groups.");
+      }
     }
   }
 
