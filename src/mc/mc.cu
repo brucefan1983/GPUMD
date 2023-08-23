@@ -41,7 +41,8 @@ void MC::compute(int step, int num_steps, Atom& atom, Box& box)
   }
 }
 
-void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups)
+void MC::parse_mc(
+  const char** param, int num_param, std::vector<Group>& groups, std::vector<int>& cpu_type)
 {
   if (num_param < 6) {
     PRINT_INPUT_ERROR("mc should have at least 5 parameters.\n");
@@ -112,6 +113,24 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups)
       }
       if (group_id >= groups[grouping_method].number) {
         PRINT_INPUT_ERROR("Group ID should < number of groups.");
+      }
+
+      bool has_multi_types = false;
+      int type0 = 0;
+      for (int k = 0; k < groups[grouping_method].cpu_size[group_id]; ++k) {
+        int n =
+          groups[grouping_method].cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + k];
+        if (k == 0) {
+          type0 = cpu_type[n];
+        } else {
+          if (cpu_type[n] != type0) {
+            has_multi_types = true;
+            break;
+          }
+        }
+      }
+      if (!has_multi_types) {
+        PRINT_INPUT_ERROR("Must have more than one atom type in the specified group.");
       }
     }
   }
