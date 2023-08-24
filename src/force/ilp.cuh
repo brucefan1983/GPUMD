@@ -79,8 +79,6 @@ protected:
   ILP_Data ilp_data;
 
   // TODO
-  int **ILP_firstnegh;
-  int *ILP_numneigh;
   double **normal;
   double ***dnormaldri;
   double ****dnormal;
