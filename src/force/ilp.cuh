@@ -72,7 +72,6 @@ public:
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial,
     std::vector<Group> &group);
-  void initialize_ilp(FILE* fid, int, const std::vector<int>, int);
 
 protected:
   ILP_Para ilp_para;
