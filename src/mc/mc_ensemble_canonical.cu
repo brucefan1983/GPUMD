@@ -221,7 +221,13 @@ static bool check_if_small_box(const double rc, const Box& box)
 }
 
 void MC_Ensemble_Canonical::compute(
-  int md_step, double temperature, Atom& atom, Box& box, Group& group, int group_id)
+  int md_step,
+  double temperature,
+  Atom& atom,
+  Box& box,
+  std::vector<Group>& groups,
+  int grouping_method,
+  int group_id)
 {
   if (check_if_small_box(nep_energy.paramb.rc_radial, box)) {
     printf("Cannot use small box for MCMD.\n");
@@ -233,17 +239,24 @@ void MC_Ensemble_Canonical::compute(
     type_after.resize(atom.number_of_atoms);
   }
 
-  int group_size = group.cpu_size[group_id];
+  int group_size =
+    groups.size() > 0 ? groups[grouping_method].cpu_size[group_id] : atom.number_of_atoms;
   std::uniform_int_distribution<int> r1(0, group_size - 1);
 
   int num_accepted = 0;
   for (int step = 0; step < num_steps_mc; ++step) {
 
-    int i = group.cpu_contents[group.cpu_size_sum[group_id] + r1(rng)];
+    int i = groups.size() > 0
+              ? groups[grouping_method]
+                  .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
+              : r1(rng);
     int type_i = atom.cpu_type[i];
     int j = 0, type_j = type_i;
     while (type_i == type_j) {
-      j = group.cpu_contents[group.cpu_size_sum[group_id] + r1(rng)];
+      j = groups.size() > 0
+            ? groups[grouping_method]
+                .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
+            : r1(rng);
       type_j = atom.cpu_type[j];
     }
 

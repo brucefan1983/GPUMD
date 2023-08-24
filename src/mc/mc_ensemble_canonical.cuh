@@ -22,8 +22,14 @@ public:
   MC_Ensemble_Canonical(int num_steps_mc);
   virtual ~MC_Ensemble_Canonical(void);
 
-  virtual void
-  compute(int md_step, double temperature, Atom& atom, Box& box, Group& group, int group_id);
+  virtual void compute(
+    int md_step,
+    double temperature,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    int grouping_method,
+    int group_id);
 
 private:
   GPU_Vector<int> NN_ij;
