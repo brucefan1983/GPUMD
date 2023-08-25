@@ -225,6 +225,26 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     } else if (para.version == 4) {
       fprintf(fid_nep, "nep4_polarizability %d ", para.num_types);
     }
+  } else if (para.train_mode == 3) { // temperature model
+    if (para.version == 2) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep_zbl_temperature %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep_temperature %d ", para.num_types);     
+      }
+    } else if (para.version == 3) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep3_zbl_temperature %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep3_temperature %d ", para.num_types);      
+      }
+    } else if (para.version == 4) {
+      if (para.enable_zbl) {
+        fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
+      } else {
+        fprintf(fid_nep, "nep4_temperature %d ", para.num_types);
+      }    
+    }
   }
 
   for (int n = 0; n < para.num_types; ++n) {
@@ -291,7 +311,7 @@ void Fitness::report_error(
     float rmse_virial_train = rmse_virial_train_array.back();
 
     // correct the last bias parameter in the NN
-    if (para.train_mode == 0) {
+    if (para.train_mode == 0 || para.train_mode == 3) {
       elite[para.number_of_variables_ann - 1] += energy_shift_per_structure;
     }
 
@@ -327,7 +347,7 @@ void Fitness::report_error(
       fclose(fid_nep);
     }
 
-    if (para.train_mode == 0) {
+    if (para.train_mode == 0 || para.train_mode == 3) {
       printf(
         "%-8d%-11.5f%-11.5f%-11.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f%-13.5f\n",
         generation + 1,
@@ -376,7 +396,7 @@ void Fitness::report_error(
     fflush(fid_loss_out);
 
     if (has_test_set) {
-      if (para.train_mode == 0) {
+      if (para.train_mode == 0 || para.train_mode == 3) {
         FILE* fid_force = my_fopen("force_test.out", "w");
         FILE* fid_energy = my_fopen("energy_test.out", "w");
         FILE* fid_virial = my_fopen("virial_test.out", "w");
@@ -442,7 +462,7 @@ void Fitness::update_polarizability(FILE* fid_polarizability, Dataset& dataset)
 
 void Fitness::predict(Parameters& para, float* elite)
 {
-  if (para.train_mode == 0) {
+  if (para.train_mode == 0 || para.train_mode == 3) {
     FILE* fid_force = my_fopen("force_train.out", "w");
     FILE* fid_energy = my_fopen("energy_train.out", "w");
     FILE* fid_virial = my_fopen("virial_train.out", "w");

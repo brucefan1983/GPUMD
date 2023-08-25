@@ -494,8 +494,12 @@ void Run::parse_run(const char** param, int num_param)
       atom.cpu_mass,
       atom.cpu_type,
       atom.cpu_type_size,
-      integrate.temperature2);
+      integrate.temperature1);
   }
+
+  // set target temperature for temperature-dependent NEP
+  force.temperature = integrate.temperature1;
+  force.delta_T = (integrate.temperature2 - integrate.temperature1) / number_of_steps;
 
   perform_a_run();
 }
