@@ -84,6 +84,7 @@ https://www.freelists.org/list/gpumd
 | [5]                   | HNEMD and related spectral decomposition   |
 | [6]                   | force constant potential (FCP) |
 | [7-9]                 | neuroevolution potential (NEP) |
+| [10]                  | NEP + ZBL |
 
 ## References
 
@@ -107,3 +108,7 @@ Phys. Rev. B **103**, 205421 (2021).
 
 [9] Zheyong Fan, Yanzhou Wang, Penghua Ying, Keke Song, Junjie Wang, Yong Wang, Zezhu Zeng, Ke Xu, Eric Lindgren, J. Magnus Rahm, Alexander J. Gabourie, Jiahui Liu, Haikuan Dong, Jianyang Wu, Yue Chen, Zheng Zhong, Jian Sun, Paul Erhart, Yanjing Su, Tapio Ala-Nissila,
 [GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics **157**, 114801 (2022).
+
+[10] Jiahui Liu, Jesper Byggmästar, Zheyong Fan, Ping Qian, and Yanjing Su,
+[Large-scale machine-learning molecular dynamics simulation of primary radiation damage in tungsten](https://doi.org/10.1103/PhysRevB.108.054312)
+Phys. Rev. B **108**, 054312 (2023).
