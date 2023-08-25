@@ -36,7 +36,7 @@ void Measure::initialize(
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
-  rdf.preprocess(integrate.type >= 31, atom.number_of_beads,number_of_atoms, atom.cpu_type_size);
+  rdf.preprocess(integrate.type >= 31, atom.number_of_beads, number_of_atoms, atom.cpu_type_size);
   hac.preprocess(number_of_steps);
   viscosity.preprocess(number_of_steps);
   shc.preprocess(number_of_atoms, group);
@@ -62,7 +62,12 @@ void Measure::initialize(
 }
 
 void Measure::finalize(
-  Integrate& integrate, const int number_of_steps, const double time_step, const double temperature, const double volume, const double number_of_beads)
+  Integrate& integrate,
+  const int number_of_steps,
+  const double time_step,
+  const double temperature,
+  const double volume,
+  const double number_of_beads)
 {
   dump_position.postprocess();
   dump_velocity.postprocess();
@@ -142,19 +147,7 @@ void Measure::process(
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
-  dump_exyz.process(
-    step,
-    global_time,
-    box,
-    atom.cpu_atom_symbol,
-    atom.cpu_type,
-    atom.position_per_atom,
-    atom.cpu_position_per_atom,
-    atom.velocity_per_atom,
-    atom.cpu_velocity_per_atom,
-    atom.force_per_atom,
-    atom.virial_per_atom,
-    thermo);
+  dump_exyz.process(step, global_time, box, atom, thermo);
   dump_beads.process(step, global_time, box, atom);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
@@ -196,7 +189,7 @@ void Measure::process(
     atom.heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
-    
+
 #ifdef USE_NETCDF
   dump_netcdf.process(
     step,
