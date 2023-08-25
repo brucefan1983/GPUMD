@@ -47,11 +47,11 @@ public:
   float lambda_shear;     // extra weight parameter for shear virial
   float force_delta;      // a parameters used to modify the force loss
   bool enable_zbl;        // true for inlcuding the universal ZBL potential
-  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential 
+  bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential
-  int train_mode;         // 0=potential, 1=dipole, 2=polarizability, 3=temperature-denepndent free energy
-  int prediction;         // 0=no, 1=yes
+  int train_mode; // 0=potential, 1=dipole, 2=polarizability, 3=temperature-dependent free energy
+  int prediction; // 0=no, 1=yes
 
   // check if a parameter has been set:
   bool is_train_mode_set;

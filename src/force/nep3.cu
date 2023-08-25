@@ -1937,9 +1937,21 @@ void NEP3::compute(
 
   if (is_small_box) {
     compute_small_box(
-      temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      temperature,
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom);
   } else {
     compute_large_box(
-      temperature, box,type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      temperature,
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom);
   }
 }
