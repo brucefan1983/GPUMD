@@ -37,6 +37,7 @@ struct LJ_Data {
 class LJ : public Potential
 {
 public:
+  using Potential::compute;
   LJ(FILE*, int, int);
   virtual ~LJ(void);
   virtual void compute(
