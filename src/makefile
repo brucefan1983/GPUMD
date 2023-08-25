@@ -32,8 +32,9 @@ LIBS = -lcublas -lcusolver
 SOURCES_GPUMD =                   \
 	$(wildcard main_gpumd/*.cu)   \
 	$(wildcard minimize/*.cu)     \
-	$(wildcard phonon/*.cu)  \
+	$(wildcard phonon/*.cu)       \
 	$(wildcard integrate/*.cu)    \
+	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
 	$(wildcard measure/*.cu)      \
 	$(wildcard model/*.cu)        \
@@ -62,11 +63,12 @@ HEADERS =                         \
 	$(wildcard utilities/*.cuh)   \
 	$(wildcard main_gpumd/*.cuh)  \
 	$(wildcard integrate/*.cuh)   \
+	$(wildcard mc/*.cuh)          \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
 	$(wildcard measure/*.cuh)     \
 	$(wildcard model/*.cuh)       \
-	$(wildcard phonon/*.cuh) \
+	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)
 
 
@@ -86,6 +88,8 @@ nep: $(OBJ_NEP)
 ifdef OS # for Windows
 integrate/%.obj: integrate/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.obj: mc/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 minimize/%.obj: minimize/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 force/%.obj: force/%.cu $(HEADERS)
@@ -104,6 +108,8 @@ main_nep/%.obj: main_nep/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 else # for Linux
 integrate/%.o: integrate/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+mc/%.o: mc/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 minimize/%.o: minimize/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
