@@ -92,9 +92,12 @@ void Force::parse_potential(
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
     strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
     strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
-    strcmp(potential_name, "nep_temperature") == 0 || strcmp(potential_name, "nep_zbl_temperature") == 0 ||
-    strcmp(potential_name, "nep3_temperature") == 0 || strcmp(potential_name, "nep3_zbl_temperature") == 0 ||
-    strcmp(potential_name, "nep4_temperature") == 0 || strcmp(potential_name, "nep4_zbl_temperature") == 0) {
+    strcmp(potential_name, "nep_temperature") == 0 ||
+    strcmp(potential_name, "nep_zbl_temperature") == 0 ||
+    strcmp(potential_name, "nep3_temperature") == 0 ||
+    strcmp(potential_name, "nep3_zbl_temperature") == 0 ||
+    strcmp(potential_name, "nep4_temperature") == 0 ||
+    strcmp(potential_name, "nep4_zbl_temperature") == 0) {
     int num_gpus;
     CHECK(cudaGetDeviceCount(&num_gpus));
 #ifdef ZHEYONG
@@ -461,10 +464,16 @@ void Force::compute(
     // If observing, calculate using main potential only
     if (3 == potentials[0]->is_temperature_nep) {
       potentials[0]->compute(
-        temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);  
+        temperature,
+        box,
+        type,
+        position_per_atom,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom);
     } else {
       potentials[0]->compute(
-        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);    
+        box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
     }
   } else if (multiple_potentials_mode_.compare("average") == 0) {
     // Calculate average potential, force and virial per atom.
@@ -472,10 +481,16 @@ void Force::compute(
       // potential->compute automatically adds the properties
       if (3 == potentials[i]->is_temperature_nep) {
         potentials[i]->compute(
-          temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+          temperature,
+          box,
+          type,
+          position_per_atom,
+          potential_per_atom,
+          force_per_atom,
+          virial_per_atom);
       } else {
         potentials[i]->compute(
-          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);    
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       }
     }
     // Compute average and copy properties back into original vectors.
@@ -736,7 +751,13 @@ void Force::compute(
     // If observing, calculate using main potential only
     if (3 == potentials[0]->is_temperature_nep) {
       potentials[0]->compute(
-        temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+        temperature,
+        box,
+        type,
+        position_per_atom,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom);
     } else {
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
@@ -747,10 +768,16 @@ void Force::compute(
       // potential->compute automatically adds the properties
       if (3 == potentials[i]->is_temperature_nep) {
         potentials[i]->compute(
-          temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+          temperature,
+          box,
+          type,
+          position_per_atom,
+          potential_per_atom,
+          force_per_atom,
+          virial_per_atom);
       } else {
         potentials[i]->compute(
-          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);    
+          box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
       }
     }
     // Compute average and copy properties back into original vectors.

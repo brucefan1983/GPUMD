@@ -46,14 +46,14 @@ public:
   std::vector<float> virial_cpu; // calculated virial in CPU
   std::vector<float> force_cpu;  // calculated force in CPU
 
-  GPU_Vector<float> energy_ref_gpu;  // reference energy in GPU
-  GPU_Vector<float> virial_ref_gpu;  // reference virial in GPU
-  GPU_Vector<float> force_ref_gpu;   // reference force in GPU
-  GPU_Vector<float> temperature_ref_gpu; // reference temperature in GPU
-  std::vector<float> energy_ref_cpu; // reference energy in CPU
-  std::vector<float> virial_ref_cpu; // reference virial in CPU
-  std::vector<float> force_ref_cpu;  // reference force in CPU
-  std::vector<float> weight_cpu;     // configuration weight in CPU
+  GPU_Vector<float> energy_ref_gpu;       // reference energy in GPU
+  GPU_Vector<float> virial_ref_gpu;       // reference virial in GPU
+  GPU_Vector<float> force_ref_gpu;        // reference force in GPU
+  GPU_Vector<float> temperature_ref_gpu;  // reference temperature in GPU
+  std::vector<float> energy_ref_cpu;      // reference energy in CPU
+  std::vector<float> virial_ref_cpu;      // reference virial in CPU
+  std::vector<float> force_ref_cpu;       // reference force in CPU
+  std::vector<float> weight_cpu;          // configuration weight in CPU
   std::vector<float> temperature_ref_cpu; // reference temeprature in CPU
 
   GPU_Vector<float> type_weight_gpu; // relative force weight for different atom types (GPU)
