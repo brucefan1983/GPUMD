@@ -668,17 +668,6 @@ static __global__ void gpu_find_force(
 
       
       double delxyz[3] = {-x12, -y12, -z12};
-      // calc_rep(
-      //   delxyz,
-      //   r,
-      //   ilp_para->C[type1][type2],
-      //   ilp_para->lambda[type1][type2],
-      //   ilp_para->delta2inv[type1][type2],
-      //   ilp_para->epsilon[type1][type2],
-      //   ilp_para->z0[type1][type2],
-      //   normal,
-      //   dnormdri,
-      //   dnormal);
 
       double C = ilp_para.C[type1][type2];
       double lambda_ = ilp_para.lambda[type1][type2];
@@ -763,10 +752,6 @@ static __global__ void gpu_find_force(
         fk[1] = (-prodnorm1 * dprodnorm1[1] * fpair1) * Tap;
         fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
 
-        // TODO: write data of other atoms, need atomic operation???
-        // g_fx[n2_ilp] += fk[0];
-        // g_fy[n2_ilp] += fk[1];
-        // g_fz[n2_ilp] += fk[2];
         g_f12x_ilp_neigh[index_ilp] += fk[0];
         g_f12y_ilp_neigh[index_ilp] += fk[1];
         g_f12z_ilp_neigh[index_ilp] += fk[2];
@@ -775,6 +760,7 @@ static __global__ void gpu_find_force(
         delki[1] = g_y[n2_ilp] - y1;
         delki[2] = g_z[n2_ilp] - z1;
         apply_mic(box, delki[0], delki[1], delki[2]);
+
         s_sxx += delki[0] * fk[0] * 0.5;
         s_sxy += delki[0] * fk[1] * 0.5;
         s_sxz += delki[0] * fk[2] * 0.5;
@@ -795,11 +781,7 @@ static __global__ void gpu_find_force(
       s_szx += delz * fkcx * 0.5;
       s_szy += delz * fkcy * 0.5;
       s_szz += delz * fkcz * 0.5;
-
-
     }
-
-    // TODO
 
     // save force
     g_fx[n1] += s_fx;
