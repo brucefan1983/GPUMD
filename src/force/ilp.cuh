@@ -20,7 +20,7 @@
 
 // TODO: how to pass arguments?
 #define MAX_TYPE_ILP 3
-#define CUDA_MAX_NL 4096
+#define CUDA_MAX_NL 2048
 #define MAX_ILP_NEIGHBOR 3
 
 struct ILP_Para {
