@@ -511,71 +511,7 @@ static __device__ void calc_vdW(
   
 }
 
-// calculate the repulsive force and energy
-static __device__ void calc_rep(
-  double (&delxyz)[3],
-  double r,
-  double C,
-  double lambda_,
-  double delta2inv,
-  double epsilon,
-  double z0,
-  double (&normal)[3],
-  double (&dnormdri)[3][3],
-  double (&dnormal)[3][3][3])
-{
-  double prodnorm1, rsq, rhosq1, rdsq1, exp0, exp1, frho1, Erep, Vilp;
-  double fpair, fpair1, fsum, delx, dely, delz, fkcx, fkcy, fkcz;
-  double dprodnorm1[3] = {0.0, 0.0, 0.0};
-  double fp1[3] = {0.0, 0.0, 0.0};
-  double fprod1[3] = {0.0, 0.0, 0.0};
-  double delki[3] = {0.0, 0.0, 0.0};
-  double fk[3] = {0.0, 0.0, 0.0};
 
-  delx = delxyz[0];
-  dely = delxyz[1];
-  delz = delxyz[2];
-
-  rsq = r * r;
-  // calculate the transverse distance
-  prodnorm1 = normal[0] * delx + normal[1] * dely + normal[2] * delz;
-  rhosq1 = rsq - prodnorm1 * prodnorm1;
-  rdsq1 = rhosq1 * delta2inv;
-
-  // store exponents
-  exp0 = exp(-lambda_ * (r - z0));
-  exp1 = exp(-rdsq1);
-
-  frho1 = exp1 * C;
-  Erep = 0.5 * epsilon + frho1;
-  Vilp = exp0 * Erep;
-  // TODO
-
-  // derivatives
-  fpair = lambda_ * exp0 / r * Erep;
-  fpair1 = 2.0 * exp0 * frho1 * delta2inv;
-  fsum = fpair + fpair1;
-
-  // derivatives of the product of rij and ni, the resutl is a vector
-  dprodnorm1[0] = 
-    dnormdri[0][0] * delx + dnormdri[1][0] * dely + dnormdri[2][0] * delz;
-  dprodnorm1[1] = 
-    dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
-  dprodnorm1[2] = 
-    dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
-  fp1[0] = prodnorm1 * normal[0] * fpair1;
-  fp1[1] = prodnorm1 * normal[1] * fpair1;
-  fp1[2] = prodnorm1 * normal[2] * fpair1;
-  fprod1[0] = prodnorm1 * dprodnorm1[0] * fpair1;
-  fprod1[1] = prodnorm1 * dprodnorm1[1] * fpair1;
-  fprod1[2] = prodnorm1 * dprodnorm1[2] * fpair1;
-
-  // fkcx = (delx * fsum - fp1[0]) * Tap - Vilp * dTap * delx / r;
-  // fkcy = (dely * fsum - fp1[1]) * Tap - Vilp * dTap * dely / r;
-  // fkcz = (delz * fsum - fp1[2]) * Tap - Vilp * dTap * delz / r;
-  // TODO
-  
-}
 
 // force evaluation kernel
 static __global__ void gpu_find_force(
