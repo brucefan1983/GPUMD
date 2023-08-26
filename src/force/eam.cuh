@@ -62,6 +62,7 @@ struct EAM_Data {
 class EAM : public Potential
 {
 public:
+  using Potential::compute;
   EAM(FILE*, char*, int num_types, const int number_of_atoms);
   virtual ~EAM(void);
   virtual void compute(

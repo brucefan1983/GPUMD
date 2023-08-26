@@ -230,20 +230,20 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep_zbl_temperature %d ", para.num_types);
       } else {
-        fprintf(fid_nep, "nep_temperature %d ", para.num_types);     
+        fprintf(fid_nep, "nep_temperature %d ", para.num_types);
       }
     } else if (para.version == 3) {
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep3_zbl_temperature %d ", para.num_types);
       } else {
-        fprintf(fid_nep, "nep3_temperature %d ", para.num_types);      
+        fprintf(fid_nep, "nep3_temperature %d ", para.num_types);
       }
     } else if (para.version == 4) {
       if (para.enable_zbl) {
         fprintf(fid_nep, "nep4_zbl_temperature %d ", para.num_types);
       } else {
         fprintf(fid_nep, "nep4_temperature %d ", para.num_types);
-      }    
+      }
     }
   }
 

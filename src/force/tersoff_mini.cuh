@@ -47,6 +47,7 @@ struct Tersoff_mini_Para {
 class Tersoff_mini : public Potential
 {
 public:
+  using Potential::compute;
   Tersoff_mini(FILE*, int, const int num_atoms);
   virtual ~Tersoff_mini(void);
   virtual void compute(

@@ -22,6 +22,7 @@ class Measure;
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
+#include "mc/mc.cuh"
 #include "measure/measure.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
@@ -65,6 +66,7 @@ private:
 
   Force force;
   Integrate integrate;
+  MC mc;
   Measure measure;
   Electron_Stop electron_stop;
 };
