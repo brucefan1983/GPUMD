@@ -73,6 +73,8 @@ https://www.freelists.org/list/gpumd
 | Paul Erhart           | https://materialsmodeling.org/ |
 | Nan Xu                | https://github.com/tamaswells | 
 | Shunda Chen           | https://github.com/shdchen |
+| Jiuyang Shi           | https://github.com/XIX-YANG |
+| Nicklas Österbacka    | https://github.com/NicklasOsterbacka |
 
 ## Citations
 
