@@ -947,12 +947,29 @@ __global__ void reduce_force_many_body(
       apply_mic(box, x12, y12, z12);
 
       int offset = 0;
-      for (int k = 0; k < neighor_number_2; ++k) {
-        if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
-          offset = k;
+      // for (int k = 0; k < neighor_number_2; ++k) {
+      //   if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
+      //     offset = k;
+      //     break;
+      //   }
+      // }
+      // TODO: binary search
+      int l = 0;
+      int r = neighor_number_2;
+      int m = 0;
+      int tmp_value = 0;
+      while (l < r) {
+        m = (l + r) >> 1;
+        tmp_value = g_neighbor_list[n2 + number_of_particles * m];
+        if (tmp_value > n1) {
+          r = m - 1;
+        } else if (tmp_value < n1) {
+          l = m + 1;
+        } else {
           break;
         }
       }
+      offset = m;
       index = n2 + number_of_particles * offset;
       double f21x = g_f12x[index];
       double f21y = g_f12y[index];
