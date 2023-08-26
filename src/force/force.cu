@@ -133,10 +133,11 @@ void Force::parse_potential(
   // Move the pointer into the list of potentials
   potentials.push_back(std::move(potential));
   // Check if a non-NEP potential has previously been defined
-  has_non_nep = has_non_nep || !is_nep;
-  if (potentials.size() > 1 && has_non_nep) {
-    PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
-  }
+  // TODO: bhk remove check if there is NEP
+  // has_non_nep = has_non_nep || !is_nep;
+  // if (potentials.size() > 1 && has_non_nep) {
+  //   PRINT_INPUT_ERROR("Multiple potentials may only be used with NEP potentials.\n");
+  // }
 }
 
 int Force::get_number_of_types(FILE* fid_potential)
@@ -735,6 +736,8 @@ void Force::compute(
     virial_per_atom.data());
   CUDA_CHECK_KERNEL
 
+  // TODO bhk: test ILP
+  set_multiple_potentials_mode("average");
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // TODO: bhk add group
     ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
@@ -750,24 +753,28 @@ void Force::compute(
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // TODO: bhk add group
-      ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
+      ILP *ilp_flag = dynamic_cast<ILP*>(potentials[i].get());
       if (ilp_flag) {
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
         // potential->compute automatically adds the properties
+        // TODO bhk: for test ILP + tersoff
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+        // potentials[i]->compute(
+        //   box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       }
     }
     // Compute average and copy properties back into original vectors.
-    gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-      number_of_atoms,
-      potential_per_atom.data(),
-      force_per_atom.data(),
-      virial_per_atom.data(),
-      (double)potentials.size());
-    CUDA_CHECK_KERNEL
+    // TODO: bhk remove average
+    // gpu_average_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    //   number_of_atoms,
+    //   potential_per_atom.data(),
+    //   force_per_atom.data(),
+    //   virial_per_atom.data(),
+    //   (double)potentials.size());
+    // CUDA_CHECK_KERNEL
   } else {
     PRINT_INPUT_ERROR("Invalid mode for multiple potentials.\n");
   }
