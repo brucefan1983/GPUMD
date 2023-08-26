@@ -1093,6 +1093,9 @@ void ILP::compute(
   int *ilp_NL = ilp_data.ilp_NL.data();
   int *ilp_NN = ilp_data.ilp_NN.data();
 
+  ilp_data.ilp_NL.fill(0);
+  ilp_data.ilp_NN.fill(0);
+
   // find ILP neighbor list
   // TODO: __global__ ???
   // TODO: assume the first group column is for ILP
@@ -1102,6 +1105,14 @@ void ILP::compute(
     type.data(), ilp_para, x, y, z, ilp_NN, \
     ilp_NL, group_label);
   CUDA_CHECK_KERNEL
+
+  // initialize force of ilp neighbor temporary vector
+  ilp_data.f12x_ilp_neigh.fill(0);
+  ilp_data.f12y_ilp_neigh.fill(0);
+  ilp_data.f12z_ilp_neigh.fill(0);
+  ilp_data.f12x.fill(0);
+  ilp_data.f12y.fill(0);
+  ilp_data.f12z.fill(0);
 
   double *g_fx = force_per_atom.data();
   double *g_fy = force_per_atom.data() + number_of_atoms;
