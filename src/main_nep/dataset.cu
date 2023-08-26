@@ -103,7 +103,7 @@ void Dataset::find_Na(Parameters& para)
 
   printf("Total number of atoms = %d.\n", N);
   printf("Number of atoms in the largest configuration = %d.\n", max_Na);
-  if (para.train_mode == 0) {
+  if (para.train_mode == 0 || para.train_mode == 3) {
     printf("Number of configurations having virial = %d.\n", num_virial_configurations);
   }
 
