@@ -32,8 +32,7 @@ public:
 
   DFTD3_Para dftd3_para;
 
-  bool enabled;
-  std::string xc_functional;
+  bool enabled = false;
   float rc_radial = 15.0;
   float rc_angular = 10.0;
   GPU_Vector<float> cn;

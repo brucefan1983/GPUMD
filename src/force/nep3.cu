@@ -40,9 +40,39 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
+void NEP3::initialize_dftd3()
+{
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
+
+  has_dftd3 = false;
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "dftd3") {
+        has_dftd3 = true;
+        if (tokens.size() != 4) {
+          std::cout << "dftd3 must have 3 parameters\n";
+          exit(1);
+        }
+        std::string xc_functional = tokens[1];
+        float rc_potential = get_float_from_token(tokens[2], __FILE__, __LINE__);
+        float rc_coordination_number = get_float_from_token(tokens[3], __FILE__, __LINE__);
+        dftd3.initialize(xc_functional, rc_potential, rc_coordination_number);
+        break;
+      }
+    }
+  }
+
+  input_run.close();
+}
+
 NEP3::NEP3(const char* file_potential, const int num_atoms)
 {
-
+  initialize_dftd3();
   std::ifstream input(file_potential);
   if (!input.is_open()) {
     std::cout << "Failed to open " << file_potential << std::endl;
@@ -1438,6 +1468,10 @@ void NEP3::compute(
     compute_large_box(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
+  if (has_dftd3) {
+    dftd3.compute(
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+  }
 }
 
 static __global__ void find_descriptor(
@@ -1953,5 +1987,10 @@ void NEP3::compute(
       potential_per_atom,
       force_per_atom,
       virial_per_atom);
+  }
+
+  if (has_dftd3) {
+    dftd3.compute(
+      box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
   }
 }

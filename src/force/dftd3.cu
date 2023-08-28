@@ -75,6 +75,21 @@ void __global__ find_dftd3_coordination_number_small_box(
   }
 }
 
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+static __device__ __inline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long* address_as_ull = (unsigned long long*)address;
+  unsigned long long old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old =
+      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif
+
 void __global__ add_dftd3_force_small_box(
   DFTD3::DFTD3_Para dftd3_para,
   const int N,
@@ -87,7 +102,9 @@ void __global__ add_dftd3_force_small_box(
   const float* g_y12,
   const float* g_z12,
   double* g_potential,
-  double* g_force,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
   double* g_virial,
   float* g_dc6_sum,
   float* g_dc8_sum)
@@ -97,6 +114,7 @@ void __global__ add_dftd3_force_small_box(
     int num_cn_1 = num_cn[z1];
     float dc6_sum = 0.0f;
     float dc8_sum = 0.0f;
+    float s_potential = 0.0f;
     for (int i1 = 0; i1 < g_NN_radial[n1]; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL_radial[index];
@@ -147,16 +165,16 @@ void __global__ add_dftd3_force_small_box(
       float damp_4 = damp_2 * damp_2;
       float damp_6 = 1.0f / (d12_6 + damp_4 * damp_2);
       float damp_8 = 1.0f / (d12_8 + damp_4 * damp_4);
-      g_potential[n1] -= (dftd3_para.s6 * c6 * damp_6 + dftd3_para.s8 * c8 * damp_8) * 0.5f;
+      s_potential -= (dftd3_para.s6 * c6 * damp_6 + dftd3_para.s8 * c8 * damp_8) * 0.5f;
       float f2 = dftd3_para.s6 * c6 * 3.0f * d12_4 * (damp_6 * damp_6) +
                  dftd3_para.s8 * c8 * 4.0f * d12_6 * (damp_8 * damp_8);
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      atomicAdd(&g_force[n1 + 0 * N], double(f12[0]));
-      atomicAdd(&g_force[n1 + 1 * N], double(f12[1]));
-      atomicAdd(&g_force[n1 + 2 * N], double(f12[2]));
-      atomicAdd(&g_force[n2 + 0 * N], double(-f12[0]));
-      atomicAdd(&g_force[n2 + 1 * N], double(-f12[1]));
-      atomicAdd(&g_force[n2 + 2 * N], double(-f12[2]));
+      atomicAdd(&g_fx[n1], double(f12[0]));
+      atomicAdd(&g_fy[n1], double(f12[1]));
+      atomicAdd(&g_fz[n1], double(f12[2]));
+      atomicAdd(&g_fx[n2], double(-f12[0]));
+      atomicAdd(&g_fy[n2], double(-f12[1]));
+      atomicAdd(&g_fz[n2], double(-f12[2]));
       atomicAdd(&g_virial[n2 + 0 * N], double(-r12[0] * f12[0]));
       atomicAdd(&g_virial[n2 + 1 * N], double(-r12[1] * f12[1]));
       atomicAdd(&g_virial[n2 + 2 * N], double(-r12[2] * f12[2]));
@@ -169,6 +187,7 @@ void __global__ add_dftd3_force_small_box(
       dc6_sum += dc6 * dftd3_para.s6 * damp_6;
       dc8_sum += dc6 * c8_over_c6 * dftd3_para.s8 * damp_8;
     }
+    g_potential[n1] = s_potential;
     g_dc6_sum[n1] = dc6_sum;
     g_dc8_sum[n1] = dc8_sum;
   }
@@ -185,7 +204,9 @@ void __global__ add_dftd3_force_extra_small_box(
   const float* g_x12,
   const float* g_y12,
   const float* g_z12,
-  double* g_force,
+  double* g_fx,
+  double* g_fy,
+  double* g_fz,
   double* g_virial)
 {
   for (int n1 = 0; n1 < N; ++n1) {
@@ -205,12 +226,12 @@ void __global__ add_dftd3_force_extra_small_box(
       float f2 = cn_exp_factor * 16.0f * (R_cov_1 + R_cov_2) * (dc6_sum + dc8_sum); // not 8.0f
       f2 /= (cn_exp_factor + 1.0f) * (cn_exp_factor + 1.0f) * d12 * d12_2;
       float f12[3] = {r12[0] * f2, r12[1] * f2, r12[2] * f2};
-      atomicAdd(&g_force[n1 + 0 * N], double(f12[0]));
-      atomicAdd(&g_force[n1 + 1 * N], double(f12[1]));
-      atomicAdd(&g_force[n1 + 2 * N], double(f12[2]));
-      atomicAdd(&g_force[n2 + 0 * N], double(-f12[0]));
-      atomicAdd(&g_force[n2 + 1 * N], double(-f12[1]));
-      atomicAdd(&g_force[n2 + 2 * N], double(-f12[2]));
+      atomicAdd(&g_fx[n1], double(f12[0]));
+      atomicAdd(&g_fy[n1], double(f12[1]));
+      atomicAdd(&g_fz[n1], double(f12[2]));
+      atomicAdd(&g_fx[n2], double(-f12[0]));
+      atomicAdd(&g_fy[n2], double(-f12[1]));
+      atomicAdd(&g_fz[n2], double(-f12[2]));
       atomicAdd(&g_virial[n2 + 0 * N], double(-r12[0] * f12[0]));
       atomicAdd(&g_virial[n2 + 1 * N], double(-r12[1] * f12[1]));
       atomicAdd(&g_virial[n2 + 2 * N], double(-r12[2] * f12[2]));
@@ -293,21 +314,6 @@ bool get_expanded_box(const double rc, const Box& box, DFTD3::ExpandedBox& ebox)
 
   return is_small_box;
 }
-
-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
-static __device__ __inline__ double atomicAdd(double* address, double val)
-{
-  unsigned long long* address_as_ull = (unsigned long long*)address;
-  unsigned long long old = *address_as_ull, assumed;
-  do {
-    assumed = old;
-    old =
-      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-
-  } while (assumed != old);
-  return __longlong_as_double(old);
-}
-#endif
 
 static __device__ void apply_mic_small_box(
   const Box& box, const DFTD3::ExpandedBox& ebox, double& x12, double& y12, double& z12)
@@ -492,6 +498,10 @@ void DFTD3::compute_small_box(
   const int N = type.size();
   const int size_x12 = N * MN;
   if (NN_radial.size() == 0) {
+    cn.resize(N);
+    dc6_sum.resize(N);
+    dc8_sum.resize(N);
+
     NN_radial.resize(N);
     NL_radial.resize(size_x12);
     NN_angular.resize(N);
@@ -545,6 +555,8 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 2,
     potential_per_atom.data(),
     force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2,
     virial_per_atom.data(),
     dc6_sum.data(),
     dc8_sum.data());
@@ -562,6 +574,8 @@ void DFTD3::compute_small_box(
     r12.data() + size_x12 * 4,
     r12.data() + size_x12 * 5,
     force_per_atom.data(),
+    force_per_atom.data() + N,
+    force_per_atom.data() + N * 2,
     virial_per_atom.data());
   CUDA_CHECK_KERNEL
 }
