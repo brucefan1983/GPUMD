@@ -58,7 +58,8 @@ void __global__ find_dftd3_coordination_number_small_box(
   const float* g_z12,
   float* g_cn)
 {
-  for (int n1 = 0; n1 < N; ++n1) {
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
     int z1 = dftd3_para.atomic_number[g_type[n1]];
     float R_cov_1 = Bohr * covalent_radius[z1];
     float cn_temp = 0.0f;
@@ -109,7 +110,8 @@ void __global__ add_dftd3_force_small_box(
   float* g_dc6_sum,
   float* g_dc8_sum)
 {
-  for (int n1 = 0; n1 < N; ++n1) {
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
     int z1 = dftd3_para.atomic_number[g_type[n1]];
     int num_cn_1 = num_cn[z1];
     float dc6_sum = 0.0f;
@@ -145,6 +147,9 @@ void __global__ add_dftd3_force_small_box(
             float diff_i = g_cn[n1] - cn_ref[z1 * max_cn + i];
             float diff_j = g_cn[n2] - cn_ref[z2 * max_cn + j];
             float L_ij = exp(-4.0f * (diff_i * diff_i + diff_j * diff_j));
+            if (L_ij == 0.0f) {
+              L_ij = 1.0e-37f;
+            }
             W += L_ij;
             dW += L_ij * (-8.0f * diff_i);
             float c6_ref_ij = (z1 < z2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
@@ -153,11 +158,13 @@ void __global__ add_dftd3_force_small_box(
             dZ += c6_ref_ij * L_ij * (-8.0f * diff_i);
           }
         }
-        c6 = Z / W;
-        dc6 = (dZ * W - Z * dW) / (W * W);
+        W = 1.0f / W;
+        c6 = Z * W;
+        dc6 = dZ * W - c6 * dW * W;
       }
       c6 *= HartreeBohr6;
       dc6 *= HartreeBohr6;
+
       float c8_over_c6 = 3.0f * r2r4[z1] * r2r4[z2] * Bohr2;
       float c8 = c6 * c8_over_c6;
       float damp = dftd3_para.a1 * sqrt(c8_over_c6) + dftd3_para.a2;
@@ -187,7 +194,7 @@ void __global__ add_dftd3_force_small_box(
       dc6_sum += dc6 * dftd3_para.s6 * damp_6;
       dc8_sum += dc6 * c8_over_c6 * dftd3_para.s8 * damp_8;
     }
-    g_potential[n1] = s_potential;
+    g_potential[n1] += s_potential;
     g_dc6_sum[n1] = dc6_sum;
     g_dc8_sum[n1] = dc8_sum;
   }
@@ -209,7 +216,8 @@ void __global__ add_dftd3_force_extra_small_box(
   double* g_fz,
   double* g_virial)
 {
-  for (int n1 = 0; n1 < N; ++n1) {
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
     int z1 = dftd3_para.atomic_number[g_type[n1]];
     float R_cov_1 = Bohr * covalent_radius[z1];
     float dc6_sum = g_dc6_sum[n1];
