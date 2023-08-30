@@ -18,6 +18,7 @@ Dump some data to dump.xyz in the extended XYZ format
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_exyz.cuh"
+#include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -52,8 +53,8 @@ void Dump_EXYZ::parse(const char** param, int num_param)
   dump_ = true;
   printf("Dump extended XYZ.\n");
 
-  if (num_param != 4) {
-    PRINT_INPUT_ERROR("dump_exyz should have 3 parameters.\n");
+  if (num_param < 2) {
+    PRINT_INPUT_ERROR("dump_exyz should have at least 1 parameter.\n");
   }
 
   if (!is_valid_int(param[1], &dump_interval_)) {
@@ -65,22 +66,41 @@ void Dump_EXYZ::parse(const char** param, int num_param)
 
   printf("    every %d steps.\n", dump_interval_);
 
-  if (!is_valid_int(param[2], &has_velocity_)) {
-    PRINT_INPUT_ERROR("has_velocity should be an integer.");
-  }
-  if (has_velocity_ == 0) {
-    printf("    without velocity data.\n");
-  } else {
-    printf("    with velocity data.\n");
+  has_velocity_ = 0;
+  has_force_ = 0;
+  has_potential_ = 0;
+
+  if (num_param >= 3) {
+    if (!is_valid_int(param[2], &has_velocity_)) {
+      PRINT_INPUT_ERROR("has_velocity should be an integer.");
+    }
+    if (has_velocity_ == 0) {
+      printf("    without velocity data.\n");
+    } else {
+      printf("    with velocity data.\n");
+    }
   }
 
-  if (!is_valid_int(param[3], &has_force_)) {
-    PRINT_INPUT_ERROR("has_force should be an integer.");
+  if (num_param >= 4) {
+    if (!is_valid_int(param[3], &has_force_)) {
+      PRINT_INPUT_ERROR("has_force should be an integer.");
+    }
+    if (has_force_ == 0) {
+      printf("    without force data.\n");
+    } else {
+      printf("    with force data.\n");
+    }
   }
-  if (has_force_ == 0) {
-    printf("    without force data.\n");
-  } else {
-    printf("    with force data.\n");
+
+  if (num_param >= 5) {
+    if (!is_valid_int(param[4], &has_potential_)) {
+      PRINT_INPUT_ERROR("has_potential should be an integer.");
+    }
+    if (has_potential_ == 0) {
+      printf("    without potential data.\n");
+    } else {
+      printf("    with potential data.\n");
+    }
   }
 }
 
@@ -92,6 +112,9 @@ void Dump_EXYZ::preprocess(const int number_of_atoms)
     cpu_total_virial_.resize(6);
     if (has_force_) {
       cpu_force_per_atom_.resize(number_of_atoms * 3);
+    }
+    if (has_potential_) {
+      cpu_potential_per_atom_.resize(number_of_atoms);
     }
   }
 }
@@ -190,14 +213,7 @@ void Dump_EXYZ::process(
   const int step,
   const double global_time,
   const Box& box,
-  const std::vector<std::string>& cpu_atom_symbol,
-  const std::vector<int>& cpu_type,
-  GPU_Vector<double>& position_per_atom,
-  std::vector<double>& cpu_position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
-  std::vector<double>& cpu_velocity_per_atom,
-  GPU_Vector<double>& force_per_atom,
-  GPU_Vector<double>& virial_per_atom,
+  Atom& atom,
   GPU_Vector<double>& gpu_thermo)
 {
   if (!dump_)
@@ -205,38 +221,44 @@ void Dump_EXYZ::process(
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  const int num_atoms_total = position_per_atom.size() / 3;
-  position_per_atom.copy_to_host(cpu_position_per_atom.data());
+  const int num_atoms_total = atom.position_per_atom.size() / 3;
+  atom.position_per_atom.copy_to_host(atom.cpu_position_per_atom.data());
   if (has_velocity_) {
-    velocity_per_atom.copy_to_host(cpu_velocity_per_atom.data());
+    atom.velocity_per_atom.copy_to_host(atom.cpu_velocity_per_atom.data());
   }
   if (has_force_) {
-    force_per_atom.copy_to_host(cpu_force_per_atom_.data());
+    atom.force_per_atom.copy_to_host(cpu_force_per_atom_.data());
+  }
+  if (has_potential_) {
+    atom.potential_per_atom.copy_to_host(cpu_potential_per_atom_.data());
   }
 
   // line 1
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, cpu_atom_symbol, virial_per_atom, gpu_thermo);
+  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, gpu_thermo);
 
   // other lines
   for (int n = 0; n < num_atoms_total; n++) {
-    fprintf(fid_, "%s", cpu_atom_symbol[n].c_str());
+    fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
     for (int d = 0; d < 3; ++d) {
-      fprintf(fid_, " %.8f", cpu_position_per_atom[n + num_atoms_total * d]);
+      fprintf(fid_, " %.8f", atom.cpu_position_per_atom[n + num_atoms_total * d]);
     }
     if (has_velocity_) {
       const double natural_to_A_per_fs = 1.0 / TIME_UNIT_CONVERSION;
       for (int d = 0; d < 3; ++d) {
         fprintf(
-          fid_, " %.8f", cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
+          fid_, " %.8f", atom.cpu_velocity_per_atom[n + num_atoms_total * d] * natural_to_A_per_fs);
       }
     }
     if (has_force_) {
       for (int d = 0; d < 3; ++d) {
         fprintf(fid_, " %.8f", cpu_force_per_atom_[n + num_atoms_total * d]);
       }
+    }
+    if (has_potential_) {
+      fprintf(fid_, " %.8f", cpu_potential_per_atom_[n]);
     }
     fprintf(fid_, "\n");
   }

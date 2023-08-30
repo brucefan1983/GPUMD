@@ -19,6 +19,7 @@
 #include <string>
 #include <vector>
 class Box;
+class Atom;
 
 class Dump_EXYZ
 {
@@ -29,14 +30,7 @@ public:
     const int step,
     const double global_time,
     const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    const std::vector<int>& cpu_type,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
+    Atom& atom,
     GPU_Vector<double>& gpu_thermo);
   void postprocess();
 
@@ -45,6 +39,7 @@ private:
   int dump_interval_ = 1;
   int has_velocity_ = 0;
   int has_force_ = 0;
+  int has_potential_ = 0;
   FILE* fid_;
   char filename_[200];
   void output_line2(
@@ -54,6 +49,7 @@ private:
     GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& gpu_thermo);
   std::vector<double> cpu_force_per_atom_;
+  std::vector<double> cpu_potential_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
 };
