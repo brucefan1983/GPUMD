@@ -14,6 +14,7 @@
 */
 
 #pragma once
+#include "dftd3.cuh"
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
@@ -121,6 +122,7 @@ private:
   ZBL zbl;
   NEP3_Data nep_data;
   ExpandedBox ebox;
+  DFTD3 dftd3;
 
   void update_potential(float* parameters, ANN& ann);
 #ifdef USE_TABLE
@@ -160,4 +162,7 @@ private:
     GPU_Vector<double>& potential,
     GPU_Vector<double>& force,
     GPU_Vector<double>& virial);
+
+  bool has_dftd3 = false;
+  void initialize_dftd3();
 };
