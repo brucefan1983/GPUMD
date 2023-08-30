@@ -46,6 +46,13 @@ public:
   GPU_Vector<int> NL_angular;
   GPU_Vector<float> r12;
 
+  GPU_Vector<int> cell_count_radial;
+  GPU_Vector<int> cell_count_sum_radial;
+  GPU_Vector<int> cell_contents_radial;
+  GPU_Vector<int> cell_count_angular;
+  GPU_Vector<int> cell_count_sum_angular;
+  GPU_Vector<int> cell_contents_angular;
+
   struct ExpandedBox {
     int num_cells[3];
     float h[18];
@@ -54,6 +61,14 @@ public:
   ExpandedBox ebox;
 
   void compute_small_box(
+    Box& box,
+    const GPU_Vector<int>& type,
+    const GPU_Vector<double>& position_per_atom,
+    GPU_Vector<double>& potential_per_atom,
+    GPU_Vector<double>& force_per_atom,
+    GPU_Vector<double>& virial_per_atom);
+
+  void compute_large_box(
     Box& box,
     const GPU_Vector<int>& type,
     const GPU_Vector<double>& position_per_atom,
