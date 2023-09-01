@@ -889,7 +889,7 @@ bool set_para(
     dftd3_para.s6 = s6;
     dftd3_para.a1 = a1;
     dftd3_para.s8 = s8;
-    dftd3_para.a2 = a2;
+    dftd3_para.a2 = a2 * Bohr;
     return true;
   }
   return false;
