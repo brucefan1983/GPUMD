@@ -31,6 +31,7 @@ J. Comput. Chem., 32, 1456 (2011).
 #include "dftd3para.cuh"
 #include "model/box.cuh"
 #include "neighbor.cuh"
+#include <algorithm>
 #include <iostream>
 #include <string>
 #include <vector>
@@ -875,6 +876,25 @@ __global__ void find_dftd3_force_extra_large_box(
   g_virial[n1 + 8 * N] += s_szy;
 }
 
+bool set_para(
+  const std::string& functional_input,
+  const std::string& functional_library,
+  const float s6,
+  const float a1,
+  const float s8,
+  const float a2,
+  DFTD3::DFTD3_Para& dftd3_para)
+{
+  if (functional_input == functional_library) {
+    dftd3_para.s6 = s6;
+    dftd3_para.a1 = a1;
+    dftd3_para.s8 = s8;
+    dftd3_para.a2 = a2 * Bohr;
+    return true;
+  }
+  return false;
+}
+
 } // namespace
 
 void DFTD3::compute_small_box(
@@ -1101,19 +1121,84 @@ void DFTD3::compute(
 }
 
 void DFTD3::initialize(
-  std::string& xc_functional, const float rc_potential, const float rc_coordination_number)
+  std::string& functional, const float rc_potential, const float rc_coordination_number)
 {
   rc_radial = rc_potential;
   rc_angular = rc_coordination_number;
-  if (xc_functional == "pbe" || xc_functional == "PBE") {
-    dftd3_para.s6 = 1.0f;
-    dftd3_para.s8 = 0.78750f;
-    dftd3_para.a1 = 0.42890f;
-    dftd3_para.a2 = 4.4407f * Bohr;
-  } else {
-    std::cout << "We only support the PBE functional for the time being.\n" << std::endl;
+
+  std::transform(functional.begin(), functional.end(), functional.begin(), [](unsigned char c) {
+    return std::tolower(c);
+  });
+
+  bool valid = false;
+  valid = valid || set_para(functional, "b1b95", 1.000, 0.2092, 1.4507, 5.5545, dftd3_para);
+  valid = valid || set_para(functional, "b2gpplyp", 0.560, 0.0000, 0.2597, 6.3332, dftd3_para);
+  valid = valid || set_para(functional, "b2plyp", 0.640, 0.3065, 0.9147, 5.0570, dftd3_para);
+  valid = valid || set_para(functional, "b3lyp", 1.000, 0.3981, 1.9889, 4.4211, dftd3_para);
+  valid = valid || set_para(functional, "b3pw91", 1.000, 0.4312, 2.8524, 4.4693, dftd3_para);
+  valid = valid || set_para(functional, "b97d", 1.000, 0.5545, 2.2609, 3.2297, dftd3_para);
+  valid = valid || set_para(functional, "bhlyp", 1.000, 0.2793, 1.0354, 4.9615, dftd3_para);
+  valid = valid || set_para(functional, "blyp", 1.000, 0.4298, 2.6996, 4.2359, dftd3_para);
+  valid = valid || set_para(functional, "bmk", 1.000, 0.1940, 2.0860, 5.9197, dftd3_para);
+  valid = valid || set_para(functional, "bop", 1.000, 0.4870, 3.295, 3.5043, dftd3_para);
+  valid = valid || set_para(functional, "bp86", 1.000, 0.3946, 3.2822, 4.8516, dftd3_para);
+  valid = valid || set_para(functional, "bpbe", 1.000, 0.4567, 4.0728, 4.3908, dftd3_para);
+  valid = valid || set_para(functional, "camb3lyp", 1.000, 0.3708, 2.0674, 5.4743, dftd3_para);
+  valid = valid || set_para(functional, "dsdblyp", 0.500, 0.0000, 0.2130, 6.0519, dftd3_para);
+  valid = valid || set_para(functional, "hcth120", 1.000, 0.3563, 1.0821, 4.3359, dftd3_para);
+  valid = valid || set_para(functional, "hf", 1.000, 0.3385, 0.9171, 2.883, dftd3_para);
+  valid = valid || set_para(functional, "hse-hjs", 1.000, 0.3830, 2.3100, 5.685, dftd3_para);
+  valid = valid || set_para(functional, "lc-wpbe08", 1.000, 0.3919, 1.8541, 5.0897, dftd3_para);
+  valid = valid || set_para(functional, "lcwpbe", 1.000, 0.3919, 1.8541, 5.0897, dftd3_para);
+  valid = valid || set_para(functional, "m11", 1.000, 0.0000, 2.8112, 10.1389, dftd3_para);
+  valid = valid || set_para(functional, "mn12l", 1.000, 0.0000, 2.2674, 9.1494, dftd3_para);
+  valid = valid || set_para(functional, "mn12sx", 1.000, 0.0983, 1.1674, 8.0259, dftd3_para);
+  valid = valid || set_para(functional, "mpw1b95", 1.000, 0.1955, 1.0508, 6.4177, dftd3_para);
+  valid = valid || set_para(functional, "mpwb1k", 1.000, 0.1474, 0.9499, 6.6223, dftd3_para);
+  valid = valid || set_para(functional, "mpwlyp", 1.000, 0.4831, 2.0077, 4.5323, dftd3_para);
+  valid = valid || set_para(functional, "n12sx", 1.000, 0.3283, 2.4900, 5.7898, dftd3_para);
+  valid = valid || set_para(functional, "olyp", 1.000, 0.5299, 2.6205, 2.8065, dftd3_para);
+  valid = valid || set_para(functional, "opbe", 1.000, 0.5512, 3.3816, 2.9444, dftd3_para);
+  valid = valid || set_para(functional, "otpss", 1.000, 0.4634, 2.7495, 4.3153, dftd3_para);
+  valid = valid || set_para(functional, "pbe", 1.000, 0.4289, 0.7875, 4.4407, dftd3_para);
+  valid = valid || set_para(functional, "pbe0", 1.000, 0.4145, 1.2177, 4.8593, dftd3_para);
+  valid = valid || set_para(functional, "pbe38", 1.000, 0.3995, 1.4623, 5.1405, dftd3_para);
+  valid = valid || set_para(functional, "pbesol", 1.000, 0.4466, 2.9491, 6.1742, dftd3_para);
+  valid = valid || set_para(functional, "ptpss", 0.750, 0.000, 0.2804, 6.5745, dftd3_para);
+  valid = valid || set_para(functional, "pw6b95", 1.000, 0.2076, 0.7257, 6.375, dftd3_para);
+  valid = valid || set_para(functional, "pwb6k", 1.000, 0.1805, 0.9383, 7.7627, dftd3_para);
+  valid = valid || set_para(functional, "pwpb95", 0.820, 0.0000, 0.2904, 7.3141, dftd3_para);
+  valid = valid || set_para(functional, "revpbe", 1.000, 0.5238, 2.3550, 3.5016, dftd3_para);
+  valid = valid || set_para(functional, "revpbe0", 1.000, 0.4679, 1.7588, 3.7619, dftd3_para);
+  valid = valid || set_para(functional, "revpbe38", 1.000, 0.4309, 1.4760, 3.9446, dftd3_para);
+  valid = valid || set_para(functional, "revssb", 1.000, 0.4720, 0.4389, 4.0986, dftd3_para);
+  valid = valid || set_para(functional, "rpbe", 1.000, 0.1820, 0.8318, 4.0094, dftd3_para);
+  valid = valid || set_para(functional, "rpw86pbe", 1.000, 0.4613, 1.3845, 4.5062, dftd3_para);
+  valid = valid || set_para(functional, "scan", 1.000, 0.5380, 0.0000, 5.42, dftd3_para);
+  valid = valid || set_para(functional, "sogga11x", 1.000, 0.1330, 1.1426, 5.7381, dftd3_para);
+  valid = valid || set_para(functional, "ssb", 1.000, -0.0952, -0.1744, 5.2170, dftd3_para);
+  valid = valid || set_para(functional, "tpss", 1.000, 0.4535, 1.9435, 4.4752, dftd3_para);
+  valid = valid || set_para(functional, "tpss0", 1.000, 0.3768, 1.2576, 4.5865, dftd3_para);
+  valid = valid || set_para(functional, "tpssh", 1.000, 0.4529, 2.2382, 4.6550, dftd3_para);
+  valid = valid || set_para(functional, "b2kplyp", 0.64, 0.0000, 0.1521, 7.1916, dftd3_para);
+  valid = valid || set_para(functional, "dsd-pbep86", 0.418, 0.0000, 0.0000, 5.6500, dftd3_para);
+
+  if (!valid) {
+    std::cout << "The " << functional
+              << " functional is not supported for DFT-D3 with BJ damping.\n"
+              << std::endl;
     exit(1);
   }
+
+  std::cout << "    Add DFT-D3:" << std::endl;
+  std::cout << "        potential cutoff = " << rc_potential << " Angstrom" << std::endl;
+  std::cout << "        coordination number cutoff = " << rc_coordination_number << " Angstrom"
+            << std::endl;
+  std::cout << "        functional = " << functional << std::endl;
+  std::cout << "            s6 = " << dftd3_para.s6 << std::endl;
+  std::cout << "            s8 = " << dftd3_para.s8 << std::endl;
+  std::cout << "            a1 = " << dftd3_para.a1 << std::endl;
+  std::cout << "            a2 = " << dftd3_para.a2 << " Angstrom" << std::endl;
 
   c6_ref.resize(111625);
   c6_ref.copy_from_host(c6_ref_cpu);
