@@ -72,7 +72,6 @@ void NEP3::initialize_dftd3()
 
 NEP3::NEP3(const char* file_potential, const int num_atoms)
 {
-  initialize_dftd3();
   std::ifstream input(file_potential);
   if (!input.is_open()) {
     std::cout << "Failed to open " << file_potential << std::endl;
@@ -347,6 +346,8 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   construct_table(parameters.data());
   printf("    use tabulated radial functions to speed up.\n");
 #endif
+
+  initialize_dftd3();
 }
 
 NEP3::~NEP3(void)
@@ -1972,10 +1973,22 @@ void NEP3::compute(
 
   if (is_small_box) {
     compute_small_box(
-      temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      temperature,
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom);
   } else {
     compute_large_box(
-      temperature, box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
+      temperature,
+      box,
+      type,
+      position_per_atom,
+      potential_per_atom,
+      force_per_atom,
+      virial_per_atom);
   }
 
   if (has_dftd3) {

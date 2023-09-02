@@ -1149,7 +1149,7 @@ void DFTD3::initialize(
   valid = valid || set_para(functional, "hf", 1.000, 0.3385, 0.9171, 2.883, dftd3_para);
   valid = valid || set_para(functional, "hse-hjs", 1.000, 0.3830, 2.3100, 5.685, dftd3_para);
   valid = valid || set_para(functional, "lc-wpbe08", 1.000, 0.3919, 1.8541, 5.0897, dftd3_para);
-  valid = valid || set_para(functional, "lcωpbe", 1.000, 0.3919, 1.8541, 5.0897, dftd3_para);
+  valid = valid || set_para(functional, "lcwpbe", 1.000, 0.3919, 1.8541, 5.0897, dftd3_para);
   valid = valid || set_para(functional, "m11", 1.000, 0.0000, 2.8112, 10.1389, dftd3_para);
   valid = valid || set_para(functional, "mn12l", 1.000, 0.0000, 2.2674, 9.1494, dftd3_para);
   valid = valid || set_para(functional, "mn12sx", 1.000, 0.0983, 1.1674, 8.0259, dftd3_para);
@@ -1189,6 +1189,16 @@ void DFTD3::initialize(
               << std::endl;
     exit(1);
   }
+
+  std::cout << "    Add DFT-D3:" << std::endl;
+  std::cout << "        potential cutoff = " << rc_potential << " Angstrom" << std::endl;
+  std::cout << "        coordination number cutoff = " << rc_coordination_number << " Angstrom"
+            << std::endl;
+  std::cout << "        functional = " << functional << std::endl;
+  std::cout << "            s6 = " << dftd3_para.s6 << std::endl;
+  std::cout << "            s8 = " << dftd3_para.s8 << std::endl;
+  std::cout << "            a1 = " << dftd3_para.a1 << std::endl;
+  std::cout << "            a2 = " << dftd3_para.a2 << " Angstrom" << std::endl;
 
   c6_ref.resize(111625);
   c6_ref.copy_from_host(c6_ref_cpu);
