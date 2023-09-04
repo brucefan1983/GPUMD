@@ -27,6 +27,7 @@ Run simulation according to the inputs in the run.in file.
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "phonon/hessian.cuh"
+#include "replicate.cuh"
 #include "run.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -280,6 +281,9 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
   if (strcmp(param[0], "potential") == 0) {
     force.parse_potential(param, num_param, box, atom.type.size());
+  } else if (strcmp(param[0], "replicate") == 0) {
+    Replicate(param, num_param, N, box, atom, group);
+    allocate_memory_gpu(N, group, atom, thermo);
   } else if (strcmp(param[0], "minimize") == 0) {
     Minimize minimize;
     minimize.parse_minimize(

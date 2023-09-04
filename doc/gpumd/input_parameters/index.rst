@@ -11,6 +11,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    :maxdepth: 1
    :caption: Setup
 
+   replicate
    velocity
    correct_velocity
    potential
