@@ -15,13 +15,7 @@
 
 #include "replicate.cuh"
 
-void Replicate(
-  const char** param,
-  int num_param,
-  int& number_of_atoms,
-  Box& box,
-  Atom& atoms,
-  std::vector<Group>& groups)
+void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups)
 {
   int r[3]; // the number of replicates
   if (num_param != 4) {
@@ -36,7 +30,6 @@ void Replicate(
   Atom new_atoms;
   int n = atoms.number_of_atoms;
   int N = n * r[0] * r[1] * r[2];
-  number_of_atoms = N;
 
   std::vector<Group> new_groups;
   new_groups.resize(groups.size());

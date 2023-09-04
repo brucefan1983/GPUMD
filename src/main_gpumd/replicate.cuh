@@ -24,9 +24,4 @@
 #include <vector>
 
 void Replicate(
-  const char** param,
-  int num_param,
-  int& number_of_atoms,
-  Box& box,
-  Atom& atoms,
-  std::vector<Group>& groups);
+  const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups);

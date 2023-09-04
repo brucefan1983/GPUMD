@@ -50,7 +50,6 @@ private:
   void parse_time_step(const char** param, int num_param);
   void parse_run(const char** param, int num_param);
 
-  int N;               // number of atoms
   int number_of_types; // number of atom types
   int has_velocity_in_xyz = 0;
   int number_of_steps;        // number of steps in a specific run
