@@ -13,8 +13,6 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
-#pragma once
-
 #include "replicate.cuh"
 
 void Replicate(
@@ -28,7 +26,7 @@ void Replicate(
   int r[3]; // the number of replicates
   if (num_param != 4) {
     PRINT_INPUT_ERROR(
-      "replicate should have 3 parameters: number of replications in x, y and z directions.");
+      "Replicate should have 3 parameters: number of replications in a, b and c directions.");
   }
   for (int i = 0; i < 3; i++) {
     if (!is_valid_int(param[i + 1], r + i))
