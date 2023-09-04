@@ -23,12 +23,6 @@ class Atom;
 #include <vector>
 
 void initialize_position(
-  int& N,
-  int& has_velocity_in_xyz,
-  int& number_of_types,
-  Box& box,
-  std::vector<Group>& group,
-  Atom& atom);
+  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
 
-void allocate_memory_gpu(
-  const int N, std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
+void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
