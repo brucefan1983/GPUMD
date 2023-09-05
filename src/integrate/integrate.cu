@@ -30,9 +30,9 @@ The driver class for the various integrators.
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 
-void Integrate::initialize(
-  const int number_of_atoms, const double time_step, const std::vector<Group>& group, Atom& atom)
+void Integrate::initialize(const double time_step, const std::vector<Group>& group, Atom& atom)
 {
+  int number_of_atoms = atom.number_of_atoms;
   if (move_group >= 0) {
     if (fixed_group < 0) {
       PRINT_INPUT_ERROR("It is not allowed to have moving group but no fixed group.");
