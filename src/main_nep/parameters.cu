@@ -135,11 +135,14 @@ void Parameters::read_zbl_in()
     flexible_zbl = false;
   } else {
     flexible_zbl = true;
-    for (int n = 0; n < (num_types * (num_types + 1) / 2) * 8; ++n) {
-      int count = fscanf(fid_zbl, "%f", &zbl_para[n]);
-      PRINT_SCANF_ERROR(count, 1, "Reading error for zbl.in.");
+    int n = 0;
+    while (fscanf(fid_zbl, "%f", &zbl_para[n]) == 1) {
+      ++n;
     }
     fclose(fid_zbl);
+    if (n != num_types * (num_types + 1) / 2 * 8 && n != num_types * (num_types + 1) / 2 * 2) {
+      PRINT_INPUT_ERROR("Reading error for zbl.in.\n");
+    }
   }
 }
 
