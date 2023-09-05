@@ -170,3 +170,9 @@ Bibliography
    | J. F. Ziegler, J. P. Biersack, and U. Littmark
    | In *The Stopping and Range of Ions in Matter*, volume 1
    | New York, 1985. Pergamon. ISBN 0-08-022053-3
+
+.. [Bitzek2006]
+   | Erik Bitzek, Pekka Koskinen, Franz Gahler, Michael Moseler, and Peter Gumbsch
+   | *Structural Relaxation Made Simple*
+   | Phys. Rev. Lett. **97**, 170201 (2006)
+   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevB.69.144113>`_

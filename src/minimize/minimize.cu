@@ -19,6 +19,7 @@ The driver class for minimizers.
 
 #include "force/force.cuh"
 #include "minimize.cuh"
+#include "minimizer_fire.cuh"
 #include "minimizer_sd.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
@@ -60,6 +61,23 @@ void Minimize::parse_minimize(
     if (number_of_steps <= 0) {
       PRINT_INPUT_ERROR("Number of steps should > 0.");
     }
+  } else if (strcmp(param[1], "fire") == 0) {
+    minimizer_type = 1;
+
+    if (num_param != 4) {
+      PRINT_INPUT_ERROR("minimize sd should have 2 parameters.");
+    }
+
+    if (!is_valid_real(param[2], &force_tolerance)) {
+      PRINT_INPUT_ERROR("Force tolerance should be a number.");
+    }
+
+    if (!is_valid_int(param[3], &number_of_steps)) {
+      PRINT_INPUT_ERROR("Number of steps should be an integer.");
+    }
+    if (number_of_steps <= 0) {
+      PRINT_INPUT_ERROR("Number of steps should > 0.");
+    }
   } else {
     PRINT_INPUT_ERROR("Invalid minimizer.");
   }
@@ -73,6 +91,26 @@ void Minimize::parse_minimize(
       printf("    for maximally %d steps.\n", number_of_steps);
 
       minimizer.reset(new Minimizer_SD(number_of_atoms, number_of_steps, force_tolerance));
+
+      minimizer->compute(
+        force,
+        box,
+        position_per_atom,
+        type,
+        group,
+        potential_per_atom,
+        force_per_atom,
+        virial_per_atom);
+
+      break;
+    case 1:
+      printf("\nStart to do an energy minimization.\n");
+      printf("    using the fast inertial relaxation engine (FIRE) method.\n");
+      printf("    with fixed box.\n");
+      printf("    with a force tolerance of %g eV/A.\n", force_tolerance);
+      printf("    for maximally %d steps.\n", number_of_steps);
+
+      minimizer.reset(new Minimizer_FIRE(number_of_atoms, number_of_steps, force_tolerance));
 
       minimizer->compute(
         force,
