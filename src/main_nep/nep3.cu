@@ -264,23 +264,32 @@ NEP3::NEP3(
     paramb.num_types_sq * (para.n_max_radial + 1) * (para.basis_size_radial + 1);
 
   zbl.enabled = para.enable_zbl;
+  zbl.universal = para.universal_zbl;
   zbl.flexibled = para.flexible_zbl;
   zbl.rc_inner = para.zbl_rc_inner;
   zbl.rc_outer = para.zbl_rc_outer;
   for (int n = 0; n < para.atomic_numbers.size(); ++n) {
     zbl.atomic_numbers[n] = para.atomic_numbers[n];
   }
-  if (zbl.flexibled) {
+  if (zbl.universal) {
     zbl.num_types = para.num_types;
     int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
-    for (int n = 0; n < num_type_zbl; ++n) {
-      zbl.rc_flexible_inner[n] = para.zbl_para[n];
-      zbl.rc_flexible_outer[n] = para.zbl_para[n + num_type_zbl];
-    }
-    for (int n = 0; n < num_type_zbl * 6; ++n) {
-      zbl.para[n] = para.zbl_para[n + 2 * num_type_zbl];
+    if (zbl.flexibled) {
+      for (int n = 0; n < num_type_zbl; ++n) {
+        zbl.rc_flexible_inner[n] = para.zbl_para[n * 8];
+        zbl.rc_flexible_outer[n] = para.zbl_para[n * 8 + 1];
+        for (int i = 0 ; i < 6; ++i) {
+          zbl.para[n] = para.zbl_para[n * 8 + i + 2];
+        }
+      }
+    } else {
+      for (int n = 0; n < num_type_zbl; ++n) {
+        zbl.rc_flexible_inner[n] = para.zbl_para[n * 2];
+        zbl.rc_flexible_outer[n] = para.zbl_para[n * 2 + 1];
+      }
     }
   }
+  
 
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     cudaSetDevice(device_id);
