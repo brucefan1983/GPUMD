@@ -279,7 +279,7 @@ NEP3::NEP3(
         zbl.rc_flexible_inner[n] = para.zbl_para[n * 8];
         zbl.rc_flexible_outer[n] = para.zbl_para[n * 8 + 1];
         for (int i = 0 ; i < 6; ++i) {
-          zbl.para[n] = para.zbl_para[n * 8 + i + 2];
+          zbl.para[n] = para.zbl_para[n * 8 + 2 + i];
         }
       }
     } else {
@@ -808,7 +808,7 @@ static __global__ void find_force_ZBL(
         int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
         float rc_inner = zbl.rc_flexible_inner[zbl_index];
         float rc_outer = zbl.rc_flexible_outer[zbl_index];
-        if (zbl.flexible) {
+        if (zbl.flexibled) {
           float ZBL_para[6];
           for (int i = 0; i < 6; ++i) {
             ZBL_para[i] = zbl.para[6 * zbl_index + i];
