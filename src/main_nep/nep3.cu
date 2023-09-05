@@ -274,7 +274,7 @@ NEP3::NEP3(
   if (zbl.universal) {
     zbl.num_types = para.num_types;
     int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
-    if (zbl.flexible){
+    if (zbl.flexibled){
       for (int n = 0; n < 8 * num_type_zbl; ++n) {
         zbl.para[n] = para.zbl_para[n];
       }
