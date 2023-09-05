@@ -252,7 +252,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
   }
   fprintf(fid_nep, "\n");
   if (para.enable_zbl) {
-    if (para.flexible_zbl) {
+    if (para.universal_zbl) {
       fprintf(fid_nep, "zbl 0 0\n");
     } else {
       fprintf(fid_nep, "zbl %g %g\n", para.zbl_rc_inner, para.zbl_rc_outer);
