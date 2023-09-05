@@ -272,8 +272,16 @@ NEP3::NEP3(
     zbl.atomic_numbers[n] = para.atomic_numbers[n];
   }
   if (zbl.universal) {
-    for (int n = 0; n < para.zbl_para.size(); ++n) {
-      zbl.para[n] = para.zbl_para[n];
+    zbl.num_types = para.num_types;
+    int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
+    if (zbl.flexible){
+      for (int n = 0; n < 8 * num_type_zbl; ++n) {
+        zbl.para[n] = para.zbl_para[n];
+      }
+    } else{
+      for (int n = 0; n < 2 * num_type_zbl; ++n) {
+        zbl.para[n] = para.zbl_para[n];
+      }
     }
   }
   
