@@ -38,6 +38,7 @@ struct Tersoff1989_Data {
 class Tersoff1989 : public Potential
 {
 public:
+  using Potential::compute;
   Tersoff1989(FILE*, int sum_of_types, const int num_atoms);
   virtual ~Tersoff1989(void);
   virtual void compute(

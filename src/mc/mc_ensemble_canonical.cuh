@@ -14,15 +14,24 @@
 */
 
 #pragma once
+#include "mc_ensemble.cuh"
 
-class Box;
-class Neighbor;
-class Group;
-class Atom;
-#include "utilities/gpu_vector.cuh"
-#include <vector>
+class MC_Ensemble_Canonical : public MC_Ensemble
+{
+public:
+  MC_Ensemble_Canonical(int num_steps_mc);
+  virtual ~MC_Ensemble_Canonical(void);
 
-void initialize_position(
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
+  virtual void compute(
+    int md_step,
+    double temperature,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    int grouping_method,
+    int group_id);
 
-void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
+private:
+  GPU_Vector<int> NN_ij;
+  GPU_Vector<int> NL_ij;
+};

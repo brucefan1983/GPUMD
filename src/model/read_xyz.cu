@@ -522,12 +522,7 @@ static std::vector<std::string> get_atom_symbols(std::string& filename_potential
 }
 
 void initialize_position(
-  int& N,
-  int& has_velocity_in_xyz,
-  int& number_of_types,
-  Box& box,
-  std::vector<Group>& group,
-  Atom& atom)
+  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom)
 {
   std::string filename("model.xyz");
   std::ifstream input(filename);
@@ -540,8 +535,7 @@ void initialize_position(
   auto filename_potential = get_filename_potential();
   atom_symbols = get_atom_symbols(filename_potential);
 
-  read_xyz_line_1(input, N);
-  atom.number_of_atoms = N;
+  read_xyz_line_1(input, atom.number_of_atoms);
   int property_offset[5] = {0, 0, 0, 0, 0}; // species,pos,mass,vel,group
   int num_columns = 0;
   bool has_mass = true;
@@ -549,7 +543,7 @@ void initialize_position(
 
   read_xyz_in_line_3(
     input,
-    N,
+    atom.number_of_atoms,
     has_velocity_in_xyz,
     has_mass,
     num_columns,
@@ -566,16 +560,16 @@ void initialize_position(
   input.close();
 
   for (int m = 0; m < group.size(); ++m) {
-    group[m].find_size(N, m);
-    group[m].find_contents(N);
+    group[m].find_size(atom.number_of_atoms, m);
+    group[m].find_contents(atom.number_of_atoms);
   }
 
-  find_type_size(N, number_of_types, atom.cpu_type, atom.cpu_type_size);
+  find_type_size(atom.number_of_atoms, number_of_types, atom.cpu_type, atom.cpu_type_size);
 }
 
-void allocate_memory_gpu(
-  const int N, std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
+void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo)
 {
+  const int N = atom.number_of_atoms;
   atom.type.resize(N);
   atom.type.copy_from_host(atom.cpu_type.data());
   for (int m = 0; m < group.size(); ++m) {

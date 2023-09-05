@@ -22,6 +22,7 @@ class Measure;
 #include "electron_stop.cuh"
 #include "force/force.cuh"
 #include "integrate/integrate.cuh"
+#include "mc/mc.cuh"
 #include "measure/measure.cuh"
 #include "model/atom.cuh"
 #include "model/box.cuh"
@@ -49,7 +50,6 @@ private:
   void parse_time_step(const char** param, int num_param);
   void parse_run(const char** param, int num_param);
 
-  int N;               // number of atoms
   int number_of_types; // number of atom types
   int has_velocity_in_xyz = 0;
   int number_of_steps;        // number of steps in a specific run
@@ -65,6 +65,7 @@ private:
 
   Force force;
   Integrate integrate;
+  MC mc;
   Measure measure;
   Electron_Stop electron_stop;
 };

@@ -175,7 +175,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
 
   if (para.prediction == 0) {
 
-    if (para.train_mode == 0) {
+    if (para.train_mode == 0 || para.train_mode == 3) {
       printf(
         "%-8s%-11s%-11s%-11s%-13s%-13s%-13s%-13s%-13s%-13s\n",
         "Step",
@@ -280,7 +280,6 @@ void SNES::regularize(Parameters& para)
         auto_reg = temp;
       }
     }
-    auto_reg *= 0.4f;
     if (para.lambda_1 < 0.0f) {
       lambda_1 = auto_reg;
     }

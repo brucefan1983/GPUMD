@@ -15,14 +15,32 @@
 
 #pragma once
 
-class Box;
-class Neighbor;
-class Group;
-class Atom;
-#include "utilities/gpu_vector.cuh"
+#include "mc_ensemble.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
+#include <memory>
 #include <vector>
 
-void initialize_position(
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
+class Atom;
 
-void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
+class MC
+{
+public:
+  std::unique_ptr<MC_Ensemble> mc_ensemble;
+
+  void initialize(void);
+  void finalize(void);
+  void compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group);
+
+  void parse_mc(
+    const char** param, int num_param, std::vector<Group>& group, std::vector<int>& cpu_type);
+
+private:
+  bool do_mcmd = false;
+  int num_steps_md = 0;
+  int num_steps_mc = 0;
+  int grouping_method = 0;
+  int group_id = 0;
+  double temperature_initial = 0.0;
+  double temperature_final = 0.0;
+};

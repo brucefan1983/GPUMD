@@ -15,14 +15,13 @@
 
 #pragma once
 
-class Box;
-class Neighbor;
-class Group;
-class Atom;
-#include "utilities/gpu_vector.cuh"
+#include "model/atom.cuh"
+#include "model/box.cuh"
+#include "model/group.cuh"
+#include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
+#include <stdio.h>
 #include <vector>
 
-void initialize_position(
-  int& has_velocity_in_xyz, int& number_of_types, Box& box, std::vector<Group>& group, Atom& atom);
-
-void allocate_memory_gpu(std::vector<Group>& group, Atom& atom, GPU_Vector<double>& thermo);
+void Replicate(
+  const char** param, int num_param, Box& box, Atom& atoms, std::vector<Group>& groups);
