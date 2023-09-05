@@ -279,7 +279,7 @@ NEP3::NEP3(
         zbl.rc_flexible_inner[n] = para.zbl_para[n * 8];
         zbl.rc_flexible_outer[n] = para.zbl_para[n * 8 + 1];
         for (int i = 0 ; i < 6; ++i) {
-          zbl.para[n] = para.zbl_para[n * 8 + 2 + i];
+          zbl.para[n + i] = para.zbl_para[n * 8 + 2 + i];
         }
       }
     } else {
