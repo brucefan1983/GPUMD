@@ -161,8 +161,9 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
     if (zbl.rc_inner == 0) {
       if (zbl.rc_outer == 1) {
         zbl.universal = true;
-        printf("    has the universal ZBL with different cutoffs\n");
+        printf("    has the universal ZBL with flexible cutoffs\n");
       } else if (zbl.rc_outer == 0) {
+        zbl.flexibled = true;
         printf("    has the flexible ZBL potential\n");
       }
     } else {
@@ -314,7 +315,7 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   }
 
   // flexible zbl potential parameters
-  if (zbl.flexibled) {
+  if (zbl.universal) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < num_type_zbl; ++d) {
       tokens = get_tokens(input);
@@ -324,13 +325,15 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
       tokens = get_tokens(input);
       zbl.rc_flexible_outer[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
-    for (int d = 0; d < 6 * num_type_zbl; ++d) {
+    if (zbl.flexibled) {
+      for (int d = 0; d < 6 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
       zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
+    }
     zbl.num_types = paramb.num_types;
   }
-
+  
   nep_data.f12x.resize(num_atoms * paramb.MN_angular);
   nep_data.f12y.resize(num_atoms * paramb.MN_angular);
   nep_data.f12z.resize(num_atoms * paramb.MN_angular);
@@ -1015,7 +1018,7 @@ static __global__ void find_force_ZBL(
       float zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
+      if (zbl.universal) {
         int t1, t2;
         if (type1 < type2) {
           t1 = type1;
@@ -1027,11 +1030,15 @@ static __global__ void find_force_ZBL(
         int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
         float rc_inner = zbl.rc_flexible_inner[zbl_index];
         float rc_outer = zbl.rc_flexible_outer[zbl_index];
-        float ZBL_para[6];
-        for (int i = 0; i < 6; ++i) {
-          ZBL_para[i] = zbl.para[6 * zbl_index + i];
+        if (zbl.flexible) {
+          float ZBL_para[6];
+          for (int i = 0; i < 6; ++i) {
+            ZBL_para[i] = zbl.para[6 * zbl_index + i];
+          }
+          find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+        } else {
+          find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
         }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       } else {
         find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
       }
