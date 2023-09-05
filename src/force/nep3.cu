@@ -327,9 +327,9 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
     }
     if (zbl.flexibled) {
       for (int d = 0; d < 6 * num_type_zbl; ++d) {
-      tokens = get_tokens(input);
-      zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
-    }
+        tokens = get_tokens(input);
+        zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+      }
     }
     zbl.num_types = paramb.num_types;
   }
