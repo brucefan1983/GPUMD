@@ -293,7 +293,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   }
 
   // flexible zbl potential parameters
-  if (zbl.flexibled) {
+  if (zbl.universal) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
     for (int d = 0; d < num_type_zbl; ++d) {
       tokens = get_tokens(input);
@@ -303,9 +303,11 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
       tokens = get_tokens(input);
       zbl.rc_flexible_outer[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
-    for (int d = 0; d < 6 * num_type_zbl; ++d) {
+    if (zbl.flexibled) {
+      for (int d = 0; d < 6 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
       zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
+    }
     }
     zbl.num_types = paramb.num_types;
   }
