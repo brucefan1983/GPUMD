@@ -16,6 +16,7 @@
 /*----------------------------------------------------------------------------80
 The FIRE (fast inertial relaxation engine) minimizer
 Reference: PhysRevLett 97, 170201 (2006)
+           Computational Materials Science 175 (2020) 109584
 ------------------------------------------------------------------------------*/
 
 #include "minimizer_fire.cuh"
@@ -30,7 +31,7 @@ void Minimizer_FIRE::compute(
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
 {
-
+  double next_dt;
   const int size = number_of_atoms_ * 3;
   int base = (number_of_steps_ >= 10) ? (number_of_steps_ / 10) : 1;
   // create a velocity vector in GPU
@@ -57,45 +58,48 @@ void Minimizer_FIRE::compute(
         break;
     }
 
-    // step 1
     P = dot(v, force_per_atom);
 
-    // step 2: update v
-    double F_modulus = sqrt(dot(force_per_atom, force_per_atom));
-    double v_modulus = sqrt(dot(v, v));
-    CHECK(cudaDeviceSynchronize());
-    scalar_multiply(1 - alpha, v, temp1);
-    scalar_multiply(alpha * v_modulus / F_modulus, force_per_atom, temp2);
-    CHECK(cudaDeviceSynchronize());
-    vector_sum(temp1, temp2, v);
-    CHECK(cudaDeviceSynchronize());
-
-    // step 3 & 4
     if (P > 0) {
       if (N_neg > N_min) {
-        double next_dt = dt * f_inc;
+        next_dt = dt * f_inc;
         if (next_dt < dt_max)
           dt = next_dt;
         alpha *= f_alpha;
       }
       N_neg++;
     } else {
-      dt *= f_dec;
+      next_dt = dt * f_dec;
+      if (next_dt > dt_min)
+        dt = next_dt;
       alpha = alpha_start;
+      // move position back
+      scalar_multiply(-0.5 * dt, v, temp1);
+      CHECK(cudaDeviceSynchronize());
+      vector_sum(position_per_atom, temp1, position_per_atom);
+      CHECK(cudaDeviceSynchronize());
       v.fill(0);
       N_neg = 0;
     }
 
-    // step 5: md step
-    // This is not real MD, no need to be accurate. So I use a very simple intergraion rule.
-    // dx = v*dt
-    scalar_multiply(dt, v, temp1);
+    // md step
+    // implicit Euler integration
+    double F_modulus = sqrt(dot(force_per_atom, force_per_atom));
+    double v_modulus = sqrt(dot(v, v));
     // dv = F/m*dt
     scalar_multiply(dt / m, force_per_atom, temp2);
     CHECK(cudaDeviceSynchronize());
-    // propagate position and velocity
-    vector_sum(position_per_atom, temp1, position_per_atom);
     vector_sum(v, temp2, v);
+    CHECK(cudaDeviceSynchronize());
+    scalar_multiply(1 - alpha, v, temp1);
+    scalar_multiply(alpha * v_modulus / F_modulus, force_per_atom, temp2);
+    CHECK(cudaDeviceSynchronize());
+    vector_sum(temp1, temp2, v);
+    CHECK(cudaDeviceSynchronize());
+    // dx = v*dt
+    scalar_multiply(dt, v, temp1);
+    CHECK(cudaDeviceSynchronize());
+    vector_sum(position_per_atom, temp1, position_per_atom);
     CHECK(cudaDeviceSynchronize());
   }
 

@@ -6,7 +6,7 @@
 ================
 
 This keyword is used to minimize the energy of the system.
-Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ method and the steepest descent (SD) method has been implemented.
+Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ [Guénolé2020]_ method and the steepest descent (SD) method has been implemented.
 
 
 Syntax

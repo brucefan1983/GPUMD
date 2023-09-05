@@ -26,11 +26,12 @@ class Minimizer_FIRE : public Minimizer
 private:
   const double f_inc = 1.1;
   const double f_dec = 0.5;
-  const double alpha_start = 0.1;
+  const double alpha_start = 0.25;
   const double f_alpha = 0.99;
   const double dt_0 = 1 / TIME_UNIT_CONVERSION; // Time step of 1 fs.
   const double dt_max = 10 * dt_0;
-  const int N_min = 5;
+  const double dt_min = 0.02 * dt_0;
+  const int N_min = 20;
   const double m = 5; // The mass of atoms. Doesn't matter in minimization.
   double dt = dt_0;
   double alpha = alpha_start;
