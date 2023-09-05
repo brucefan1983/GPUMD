@@ -37,7 +37,7 @@ Parameters::Parameters()
 
   set_default_parameters();
   read_nep_in();
-  if (is_zbl_set) {
+  if (universal_zbl) {
     read_zbl_in();
   }
   calculate_parameters();
@@ -133,9 +133,8 @@ void Parameters::read_zbl_in()
 {
   FILE* fid_zbl = fopen("zbl.in", "r");
   if (fid_zbl == NULL) {
-    flexible_zbl = false;
+    PRINT_INPUT_ERROR("Reading error for zbl.in.\n");
   } else {
-    universal_zbl = true;
     int n = 0;
     while (fscanf(fid_zbl, "%f", &zbl_para[n]) == 1) {
       ++n;
@@ -551,17 +550,23 @@ void Parameters::parse_zbl(const char** param, int num_param)
     PRINT_INPUT_ERROR("zbl should have 1 parameter.\n");
   }
 
+  if (strcmp(param[1], "flexible") == 0) {
+    universal_zbl = true;
+    return;
+  }
+
   double zbl_rc_outer_tmp = 0.0;
   if (!is_valid_real(param[1], &zbl_rc_outer_tmp)) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should be a number.\n");
-  }
-  zbl_rc_outer = zbl_rc_outer_tmp;
-  zbl_rc_inner = zbl_rc_outer * 0.5f;
+    PRINT_INPUT_ERROR("outer cutoff for ZBL should be a number or flexible.\n");
+  } else {
+    zbl_rc_outer = zbl_rc_outer_tmp;
+    zbl_rc_inner = zbl_rc_outer * 0.5f;
 
-  if (zbl_rc_outer < 1.0f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
-  } else if (zbl_rc_outer > 2.5f) {
-    PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 2.5 A.");
+    if (zbl_rc_outer < 1.0f) {
+      PRINT_INPUT_ERROR("outer cutoff for ZBL should >= 1.0 A.");
+    } else if (zbl_rc_outer > 2.5f) {
+      PRINT_INPUT_ERROR("outer cutoff for ZBL should <= 2.5 A.");
+    }
   }
 }
 
