@@ -77,6 +77,7 @@ public:
 
   struct ZBL {
     bool enabled = false;
+    bool universal = false;
     bool flexibled = false;
     float rc_inner = 1.0f;
     float rc_outer = 2.0f;
