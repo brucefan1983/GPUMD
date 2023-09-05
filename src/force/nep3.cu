@@ -158,9 +158,13 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
     }
     zbl.rc_inner = get_float_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
-    if (zbl.rc_inner == 0 && zbl.rc_outer == 0) {
-      zbl.flexibled = true;
-      printf("    has the flexible ZBL potential\n");
+    if (zbl.rc_inner == 0) {
+      if (zbl.rc_outer == 1) {
+        zbl.universal = true;
+        printf("    has the universal ZBL with different cutoffs\n");
+      } else if (zbl.rc_outer == 0) {
+        printf("    has the flexible ZBL potential\n");
+      }
     } else {
       printf(
         "    has the universal ZBL with inner cutoff %g A and outer cutoff %g A.\n",
