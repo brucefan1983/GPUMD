@@ -796,7 +796,7 @@ static __global__ void find_force_ZBL(
       float zj = zbl.atomic_numbers[type2];
       float a_inv = (pow_zi + pow(zj, 0.23f)) * 2.134563f;
       float zizj = K_C_SP * zi * zj;
-      if (zbl.flexibled) {
+      if (zbl.universal) {
         int t1, t2;
         if (type1 < type2) {
           t1 = type1;
@@ -808,11 +808,15 @@ static __global__ void find_force_ZBL(
         int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
         float rc_inner = zbl.rc_flexible_inner[zbl_index];
         float rc_outer = zbl.rc_flexible_outer[zbl_index];
-        float ZBL_para[6];
-        for (int i = 0; i < 6; ++i) {
-          ZBL_para[i] = zbl.para[6 * zbl_index + i];
+        if (zbl.flexible) {
+          float ZBL_para[6];
+          for (int i = 0; i < 6; ++i) {
+            ZBL_para[i] = zbl.para[6 * zbl_index + i];
+          }
+          find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+        } else {
+          find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
         }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
       } else {
         find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
       }
