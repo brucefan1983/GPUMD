@@ -272,25 +272,11 @@ NEP3::NEP3(
     zbl.atomic_numbers[n] = para.atomic_numbers[n];
   }
   if (zbl.universal) {
-    zbl.num_types = para.num_types;
-    int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
-    if (zbl.flexibled) {
-      for (int n = 0; n < num_type_zbl; ++n) {
-        zbl.rc_flexible_inner[n] = para.zbl_para[n * 8];
-        zbl.rc_flexible_outer[n] = para.zbl_para[n * 8 + 1];
-        for (int i = 0 ; i < 6; ++i) {
-          zbl.para[n + i] = para.zbl_para[n * 8 + 2 + i];
-        }
-      }
-    } else {
-      for (int n = 0; n < num_type_zbl; ++n) {
-        zbl.rc_flexible_inner[n] = para.zbl_para[n * 2];
-        zbl.rc_flexible_outer[n] = para.zbl_para[n * 2 + 1];
-      }
+    for (int n = 0; n < para.zbl_para.size(); ++n) {
+      zbl.para[n] = para.zbl_para[n];
     }
   }
   
-
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     cudaSetDevice(device_id);
     annmb[device_id].dim = para.dim;
@@ -806,15 +792,17 @@ static __global__ void find_force_ZBL(
           t2 = type1;
         }
         int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-        float rc_inner = zbl.rc_flexible_inner[zbl_index];
-        float rc_outer = zbl.rc_flexible_outer[zbl_index];
         if (zbl.flexibled) {
+          float rc_inner = zbl.para[8 * zbl_index];
+          float rc_outer = zbl.para[8 * zbl_index + 1];
           float ZBL_para[6];
           for (int i = 0; i < 6; ++i) {
-            ZBL_para[i] = zbl.para[6 * zbl_index + i];
+            ZBL_para[i] = zbl.para[8 * zbl_index + 2 + i];
           }
           find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
         } else {
+          float rc_inner = zbl.para[2 * zbl_index];
+          float rc_outer = zbl.para[2 * zbl_index + 1];
           find_f_and_fp_zbl(zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
         }
       } else {
