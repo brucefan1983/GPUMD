@@ -46,7 +46,8 @@ public:
   float lambda_v;         // weight parameter for virial RMSE loss
   float lambda_shear;     // extra weight parameter for shear virial
   float force_delta;      // a parameters used to modify the force loss
-  bool enable_zbl;        // true for inlcuding the universal ZBL potential
+  bool enable_zbl;        // true for inlcuding the universal ZBL potential with same cutoffs
+  bool universal_zbl;     // true for inlcuding the universal ZBL potential with different cutoffs
   bool flexible_zbl;      // true for inlcuding the flexible ZBL potential
   float zbl_rc_inner;     // inner cutoff for the universal ZBL potential
   float zbl_rc_outer;     // outer cutoff for the universal ZBL potential

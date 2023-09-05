@@ -99,6 +99,7 @@ void Parameters::set_default_parameters()
     type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
   enable_zbl = false;   // default is not to include ZBL
+  universal_zbl = false;    // default Universal ZBL with same cutoffs
   flexible_zbl = false; // default Universal ZBL
 }
 
@@ -134,13 +135,15 @@ void Parameters::read_zbl_in()
   if (fid_zbl == NULL) {
     flexible_zbl = false;
   } else {
-    flexible_zbl = true;
+    universal_zbl = true;
     int n = 0;
     while (fscanf(fid_zbl, "%f", &zbl_para[n]) == 1) {
       ++n;
     }
     fclose(fid_zbl);
-    if (n != num_types * (num_types + 1) / 2 * 8 && n != num_types * (num_types + 1) / 2 * 2) {
+    if (n == num_types * (num_types + 1) / 2 * 8){
+      flexible_zbl = true;
+    } else if (n != num_types * (num_types + 1) / 2 * 2){
       PRINT_INPUT_ERROR("Reading error for zbl.in.\n");
     }
   }
@@ -257,6 +260,8 @@ void Parameters::report_inputs()
   if (is_zbl_set) {
     if (flexible_zbl) {
       printf("    (input)   will add the flexible ZBL potential\n");
+    } else if (universal_zbl) {
+      printf("    (input)   will add the universal ZBL potential with flexible cutoffs\n");
     } else {
       printf(
         "    (input)   will add the universal ZBL potential with outer cutoff %g A and inner "
