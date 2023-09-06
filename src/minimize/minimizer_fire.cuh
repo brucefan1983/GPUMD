@@ -17,9 +17,6 @@
 #include "force/force.cuh"
 #include "minimizer.cuh"
 #include "utilities/common.cuh"
-#include "utilities/error.cuh"
-#include "utilities/gpu_vector.cuh"
-#include "utilities/vector_algo.cuh"
 
 class Minimizer_FIRE : public Minimizer
 {

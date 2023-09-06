@@ -21,6 +21,87 @@ Reference: PhysRevLett 97, 170201 (2006)
 
 #include "minimizer_fire.cuh"
 
+namespace
+{
+__global__ void gpu_multiply(const int size, double a, double* b, double* c)
+{
+  int n = blockDim.x * blockIdx.x + threadIdx.x;
+  if (n < size)
+    c[n] = b[n] * a;
+}
+
+__global__ void gpu_vector_sum(const int size, double* a, double* b, double* c)
+{
+  int n = blockDim.x * blockIdx.x + threadIdx.x;
+  if (n < size)
+    c[n] = a[n] + b[n];
+}
+
+__global__ void gpu_pairwise_product(const int size, double* a, double* b, double* c)
+{
+  int n = blockDim.x * blockIdx.x + threadIdx.x;
+  if (n < size)
+    c[n] = a[n] * b[n];
+}
+
+void pairwise_product(GPU_Vector<double>& a, GPU_Vector<double>& b, GPU_Vector<double>& c)
+{
+  int size = a.size();
+  gpu_pairwise_product<<<(size - 1) / 128 + 1, 128>>>(size, a.data(), b.data(), c.data());
+}
+
+__global__ void gpu_sum(const int size, double* a, double* result)
+{
+  int number_of_patches = (size - 1) / 1024 + 1;
+  int tid = threadIdx.x;
+  int n, patch;
+  __shared__ double data[1024];
+  data[tid] = 0.0;
+  for (patch = 0; patch < number_of_patches; ++patch) {
+    n = tid + patch * 1024;
+    if (n < size)
+      data[tid] += a[n];
+  }
+  __syncthreads();
+  for (int offset = blockDim.x >> 1; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      data[tid] += data[tid + offset];
+    }
+    __syncthreads();
+  }
+  if (tid == 0)
+    *result = data[0];
+}
+
+double sum(GPU_Vector<double>& a)
+{
+  double ret;
+  GPU_Vector<double> result(1);
+  gpu_sum<<<1, 1024>>>(a.size(), a.data(), result.data());
+  result.copy_to_host(&ret);
+  return ret;
+}
+
+double dot(GPU_Vector<double>& a, GPU_Vector<double>& b)
+{
+  GPU_Vector<double> temp(a.size());
+  pairwise_product(a, b, temp);
+  return sum(temp);
+}
+
+void scalar_multiply(const double& a, GPU_Vector<double>& b, GPU_Vector<double>& c)
+{
+  int size = b.size();
+  gpu_multiply<<<(size - 1) / 128 + 1, 128>>>(size, a, b.data(), c.data());
+}
+
+void vector_sum(GPU_Vector<double>& a, GPU_Vector<double>& b, GPU_Vector<double>& c)
+{
+  int size = a.size();
+  gpu_vector_sum<<<(size - 1) / 128 + 1, 128>>>(size, a.data(), b.data(), c.data());
+}
+} // namespace
+
 void Minimizer_FIRE::compute(
   Force& force,
   Box& box,
@@ -75,9 +156,7 @@ void Minimizer_FIRE::compute(
       alpha = alpha_start;
       // move position back
       scalar_multiply(-0.5 * dt, v, temp1);
-      CHECK(cudaDeviceSynchronize());
       vector_sum(position_per_atom, temp1, position_per_atom);
-      CHECK(cudaDeviceSynchronize());
       v.fill(0);
       N_neg = 0;
     }
@@ -88,19 +167,13 @@ void Minimizer_FIRE::compute(
     double v_modulus = sqrt(dot(v, v));
     // dv = F/m*dt
     scalar_multiply(dt / m, force_per_atom, temp2);
-    CHECK(cudaDeviceSynchronize());
     vector_sum(v, temp2, v);
-    CHECK(cudaDeviceSynchronize());
     scalar_multiply(1 - alpha, v, temp1);
     scalar_multiply(alpha * v_modulus / F_modulus, force_per_atom, temp2);
-    CHECK(cudaDeviceSynchronize());
     vector_sum(temp1, temp2, v);
-    CHECK(cudaDeviceSynchronize());
     // dx = v*dt
     scalar_multiply(dt, v, temp1);
-    CHECK(cudaDeviceSynchronize());
     vector_sum(position_per_atom, temp1, position_per_atom);
-    CHECK(cudaDeviceSynchronize());
   }
 
   printf("Energy minimization finished.\n");

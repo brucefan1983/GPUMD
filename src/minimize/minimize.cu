@@ -65,7 +65,7 @@ void Minimize::parse_minimize(
     minimizer_type = 1;
 
     if (num_param != 4) {
-      PRINT_INPUT_ERROR("minimize sd should have 2 parameters.");
+      PRINT_INPUT_ERROR("minimize fire should have 2 parameters.");
     }
 
     if (!is_valid_real(param[2], &force_tolerance)) {

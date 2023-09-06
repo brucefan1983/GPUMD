@@ -6,7 +6,7 @@
 ================
 
 This keyword is used to minimize the energy of the system.
-Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ [Guénolé2020]_ method and the steepest descent (SD) method has been implemented.
+Currently, the fast inertial relaxation engine (FIRE) [Bitzek2006]_ [Guénolé2020]_ method and the steepest descent (SD) method have been implemented.
 
 
 Syntax
@@ -47,7 +47,7 @@ The command::
 
   minimize fire 1.0e-5 1000
 
-means that one wants to do an energy minimization using the steepest descent method, with a force tolerance of :math:`10^{-5}` eV/Å for up to 1,000 steps.
+means that one wants to do an energy minimization using the FIRE method, with a force tolerance of :math:`10^{-5}` eV/Å for up to 1,000 steps.
 
 Caveats
 -------

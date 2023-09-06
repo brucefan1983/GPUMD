@@ -16,6 +16,12 @@ Bibliography
    | J. Chem. Phys. **81**, 3684 (1984)
    | DOI: `10.1063/1.448118 <https://doi.org/10.1063/1.448118>`_
 
+.. [Bitzek2006]
+   | Erik Bitzek, Pekka Koskinen, Franz Gähler, Michael Moseler, and Peter Gumbsch
+   | *Structural Relaxation Made Simple*
+   | Phys. Rev. Lett. **97**, 170201 (2006)
+   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevB.69.144113>`_
+
 .. [Brorsson2021]
    | Joakim Brorsson, Arsalan Hashemi, Zheyong Fan, Erik Fransson, Fredrik Eriksson, Tapio Ala-Nissila, Arkady V. Krasheninnikov, Hannu-Pekka Komsa, and Paul Erhart
    | *Efficient calculation of the lattice thermal conductivity by atomistic simulations with ab-initio accuracy*
@@ -112,6 +118,12 @@ Bibliography
    | Phys. Rev. B **103**, 205421 (2021)
    | DOI: `10.1103/PhysRevB.103.205421 <https://doi.org/10.1103/PhysRevB.103.205421>`_
 
+.. [Guénolé2020]
+   | Julien Guénolé, Wolfram G. Nöhring, Aviral Vaid, Frédéric Houllé, Zhuocheng Xie, Aruna Prakash, and Erik Bitzek
+   | *Assessment and optimization of the fast inertial relaxation engine (fire) for energy minimization in atomistic simulations and its implementation in lammps*
+   | Computational Materials Science **175**, 109584 (2020)
+   | DOI: `10.1016/j.commatsci.2020.109584 <https://doi.org/10.1016/j.commatsci.2020.109584>`_
+
 .. [Leimkuhler2013]
    | Benedict Leimkuhler and Charles Matthews
    | *Rational construction of stochastic numerical methods for molecular sampling*
@@ -170,15 +182,3 @@ Bibliography
    | J. F. Ziegler, J. P. Biersack, and U. Littmark
    | In *The Stopping and Range of Ions in Matter*, volume 1
    | New York, 1985. Pergamon. ISBN 0-08-022053-3
-
-.. [Bitzek2006]
-   | Erik Bitzek, Pekka Koskinen, Franz Gähler, Michael Moseler, and Peter Gumbsch
-   | *Structural Relaxation Made Simple*
-   | Phys. Rev. Lett. **97**, 170201 (2006)
-   | DOI: `10.1103/PhysRevLett.97.170201 <https://doi.org/10.1103/PhysRevB.69.144113>`_
-
-.. [Guénolé2020]
-   | Julien Guénolé, Wolfram G. Nöhring, Aviral Vaid, Frédéric Houllé, Zhuocheng Xie, Aruna Prakash, and Erik Bitzek
-   | *Assessment and optimization of the fast inertial relaxation engine (fire) for energy minimization in atomistic simulations and its implementation in lammps*
-   | Computational Materials Science **175**, 109584 (2020)
-   | DOI: `10.1016/j.commatsci.2020.109584 <https://doi.org/10.1016/j.commatsci.2020.109584>`_
