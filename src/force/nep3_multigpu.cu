@@ -140,8 +140,8 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     zbl.rc_inner = get_float_from_token(tokens[1], __FILE__, __LINE__);
     zbl.rc_outer = get_float_from_token(tokens[2], __FILE__, __LINE__);
     if (zbl.rc_inner == 0) {
+      zbl.universal = true;
       if (zbl.rc_outer == 1) {
-        zbl.universal = true;
         printf("    has the universal ZBL with flexible cutoffs\n");
       } else if (zbl.rc_outer == 0) {
         zbl.flexibled = true;
