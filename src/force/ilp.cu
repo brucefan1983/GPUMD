@@ -106,11 +106,11 @@ ILP::~ILP(void)
 
 // TODO: set inline???
 // calculate the long-range cutoff term
-static __device__ double calc_Tap(const double r_ij, const double Rcut)
+inline static __device__ double calc_Tap(const double r_ij, const double Rcutinv)
 {
   double Tap, r;
 
-  r = r_ij / Rcut;
+  r = r_ij * Rcutinv;
   if (r >= 1.0) {
     Tap = 0.0;
   } else {
@@ -125,11 +125,11 @@ static __device__ double calc_Tap(const double r_ij, const double Rcut)
 
 // TODO: set inline???
 // calculate the derivatives of long-range cutoff term
-static __device__ double calc_dTap(const double r_ij, const double Rcut)
+inline static __device__ double calc_dTap(const double r_ij, const double Rcut, const double Rcutinv)
 {
   double dTap, r;
   
-  r = r_ij / Rcut;
+  r = r_ij * Rcutinv;
   if (r >= Rcut) {
     dTap = 0.0;
   } else {
@@ -137,7 +137,7 @@ static __device__ double calc_dTap(const double r_ij, const double Rcut)
     for (int i = 6; i > 0; --i) {
       dTap = dTap * r + i * Tap_coeff[i];
     }
-    dTap /= Rcut;
+    dTap *= Rcutinv;
   }
 
   return dTap;
@@ -648,9 +648,10 @@ static __global__ void gpu_find_force(
       }
 
       double Tap, dTap, rinv;
+      double Rcutinv = 1.0 / Rcut;
       rinv = 1.0 / r;
-      Tap = calc_Tap(r, Rcut);
-      dTap = calc_dTap(r, Rcut);
+      Tap = calc_Tap(r, Rcutinv);
+      dTap = calc_dTap(r, Rcut, Rcutinv);
       // TODO: set tap to 1 to test
       // Tap = 1;
       // dTap = 0;
@@ -703,7 +704,6 @@ static __global__ void gpu_find_force(
       double dprodnorm1[3] = {0.0, 0.0, 0.0};
       double fp1[3] = {0.0, 0.0, 0.0};
       double fprod1[3] = {0.0, 0.0, 0.0};
-      double delki[3] = {0.0, 0.0, 0.0};
       double fk[3] = {0.0, 0.0, 0.0};
 
       delx = -x12;
