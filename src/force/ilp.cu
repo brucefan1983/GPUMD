@@ -571,6 +571,22 @@ static __global__ void gpu_find_force(
     double y1 = g_y[n1];
     double z1 = g_z[n1];
 
+    double delkix_half[3] = {0.0, 0.0, 0.0};
+    double delkiy_half[3] = {0.0, 0.0, 0.0};
+    double delkiz_half[3] = {0.0, 0.0, 0.0};
+    // double delkix, delkiy, delkiz;
+
+    // for (int i1 = 0; i1 < ilp_neighbor_number; ++i1) {
+    //   int n2_ilp = g_ilp_neighbor_list[n1 + number_of_particles * i1];
+    //   delkix = g_x[n2_ilp] - x1;
+    //   delkiy = g_y[n2_ilp] - y1;
+    //   delkiz = g_z[n2_ilp] - z1;
+    //   apply_mic(box, delkix, delkiy, delkiz);
+    //   delkix_half[i1] = delkix * 0.5;
+    //   delkiy_half[i1] = delkiy * 0.5;
+    //   delkiz_half[i1] = delkiz * 0.5;
+    // }
+
     // calculate the normal
     // TODO: loop the ILP_neigh to create the vet and cont
     int cont = 0;
@@ -603,6 +619,10 @@ static __global__ void gpu_find_force(
       vet[cont][1] = y12;
       vet[cont][2] = z12;
       ++cont;
+
+      delkix_half[i1] = x12 * 0.5;
+      delkiy_half[i1] = y12 * 0.5;
+      delkiz_half[i1] = z12 * 0.5;
     }
 
     calc_normal(vet, cont, normal, dnormdri, dnormal);
@@ -672,8 +692,6 @@ static __global__ void gpu_find_force(
       s_szz += z12 * f21z;
 
       
-      double delxyz[3] = {-x12, -y12, -z12};
-
       double C = ilp_para.C[type1][type2];
       double lambda_ = ilp_para.lambda[type1][type2];
       double delta2inv = ilp_para.delta2inv[type1][type2];
@@ -688,9 +706,9 @@ static __global__ void gpu_find_force(
       double delki[3] = {0.0, 0.0, 0.0};
       double fk[3] = {0.0, 0.0, 0.0};
 
-      delx = delxyz[0];
-      dely = delxyz[1];
-      delz = delxyz[2];
+      delx = -x12;
+      dely = -y12;
+      delz = -z12;
 
       // rsq = r * r;
       // calculate the transverse distance
@@ -708,9 +726,12 @@ static __global__ void gpu_find_force(
       // TODO
 
       // derivatives
-      fpair = lambda_ * exp0 / r * Erep;
+      fpair = lambda_ * exp0 * rinv * Erep;
       fpair1 = 2.0 * exp0 * frho1 * delta2inv;
       fsum = fpair + fpair1;
+
+      double prodnorm1_m_fpair1 = prodnorm1 * fpair1;
+      double Vilp_m_dTap_m_rinv = Vilp * dTap * rinv;
 
       // derivatives of the product of rij and ni, the resutl is a vector
       dprodnorm1[0] = 
@@ -719,16 +740,25 @@ static __global__ void gpu_find_force(
         dnormdri[0][1] * delx + dnormdri[1][1] * dely + dnormdri[2][1] * delz;
       dprodnorm1[2] = 
         dnormdri[0][2] * delx + dnormdri[1][2] * dely + dnormdri[2][2] * delz;
-      fp1[0] = prodnorm1 * normal[0] * fpair1;
-      fp1[1] = prodnorm1 * normal[1] * fpair1;
-      fp1[2] = prodnorm1 * normal[2] * fpair1;
-      fprod1[0] = prodnorm1 * dprodnorm1[0] * fpair1;
-      fprod1[1] = prodnorm1 * dprodnorm1[1] * fpair1;
-      fprod1[2] = prodnorm1 * dprodnorm1[2] * fpair1;
+      // fp1[0] = prodnorm1 * normal[0] * fpair1;
+      // fp1[1] = prodnorm1 * normal[1] * fpair1;
+      // fp1[2] = prodnorm1 * normal[2] * fpair1;
+      // fprod1[0] = prodnorm1 * dprodnorm1[0] * fpair1;
+      // fprod1[1] = prodnorm1 * dprodnorm1[1] * fpair1;
+      // fprod1[2] = prodnorm1 * dprodnorm1[2] * fpair1;
+      fp1[0] = prodnorm1_m_fpair1 * normal[0];
+      fp1[1] = prodnorm1_m_fpair1 * normal[1];
+      fp1[2] = prodnorm1_m_fpair1 * normal[2];
+      fprod1[0] = prodnorm1_m_fpair1 * dprodnorm1[0];
+      fprod1[1] = prodnorm1_m_fpair1 * dprodnorm1[1];
+      fprod1[2] = prodnorm1_m_fpair1 * dprodnorm1[2];
 
-      fkcx = (delx * fsum - fp1[0]) * Tap - Vilp * dTap * delx / r;
-      fkcy = (dely * fsum - fp1[1]) * Tap - Vilp * dTap * dely / r;
-      fkcz = (delz * fsum - fp1[2]) * Tap - Vilp * dTap * delz / r;
+      // fkcx = (delx * fsum - fp1[0]) * Tap - Vilp * dTap * delx * rinv;
+      // fkcy = (dely * fsum - fp1[1]) * Tap - Vilp * dTap * dely * rinv;
+      // fkcz = (delz * fsum - fp1[2]) * Tap - Vilp * dTap * delz * rinv;
+      fkcx = (delx * fsum - fp1[0]) * Tap - Vilp_m_dTap_m_rinv * delx;
+      fkcy = (dely * fsum - fp1[1]) * Tap - Vilp_m_dTap_m_rinv * dely;
+      fkcz = (delz * fsum - fp1[2]) * Tap - Vilp_m_dTap_m_rinv * delz;
 
       s_fx += fkcx - fprod1[0] * Tap;
       s_fy += fkcy - fprod1[1] * Tap;
@@ -742,6 +772,7 @@ static __global__ void gpu_find_force(
       g_f12y[index] = fkcy;
       g_f12z[index] = fkcz;
 
+      double minus_prodnorm1_m_fpair1_m_Tap = -prodnorm1 * fpair1 * Tap;
       for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
         int index_ilp = n1 + number_of_particles * kk;
         int n2_ilp = g_ilp_neighbor_list[index_ilp];
@@ -753,28 +784,41 @@ static __global__ void gpu_find_force(
             dnormal[2][1][kk] * delz;
         dprodnorm1[2] = dnormal[0][2][kk] * delx + dnormal[1][2][kk] * dely +
             dnormal[2][2][kk] * delz;
-        fk[0] = (-prodnorm1 * dprodnorm1[0] * fpair1) * Tap;
-        fk[1] = (-prodnorm1 * dprodnorm1[1] * fpair1) * Tap;
-        fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
+        // fk[0] = (-prodnorm1 * dprodnorm1[0] * fpair1) * Tap;
+        // fk[1] = (-prodnorm1 * dprodnorm1[1] * fpair1) * Tap;
+        // fk[2] = (-prodnorm1 * dprodnorm1[2] * fpair1) * Tap;
+        fk[0] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[0];
+        fk[1] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[1];
+        fk[2] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[2];
 
         g_f12x_ilp_neigh[index_ilp] += fk[0];
         g_f12y_ilp_neigh[index_ilp] += fk[1];
         g_f12z_ilp_neigh[index_ilp] += fk[2];
 
-        delki[0] = g_x[n2_ilp] - x1;
-        delki[1] = g_y[n2_ilp] - y1;
-        delki[2] = g_z[n2_ilp] - z1;
-        apply_mic(box, delki[0], delki[1], delki[2]);
+        // delki[0] = g_x[n2_ilp] - x1;
+        // delki[1] = g_y[n2_ilp] - y1;
+        // delki[2] = g_z[n2_ilp] - z1;
+        // apply_mic(box, delki[0], delki[1], delki[2]);
 
-        s_sxx += delki[0] * fk[0] * 0.5;
-        s_sxy += delki[0] * fk[1] * 0.5;
-        s_sxz += delki[0] * fk[2] * 0.5;
-        s_syx += delki[1] * fk[0] * 0.5;
-        s_syy += delki[1] * fk[1] * 0.5;
-        s_syz += delki[1] * fk[2] * 0.5;
-        s_szx += delki[2] * fk[0] * 0.5;
-        s_szy += delki[2] * fk[1] * 0.5;
-        s_szz += delki[2] * fk[2] * 0.5;
+        // s_sxx += delki[0] * fk[0] * 0.5;
+        // s_sxy += delki[0] * fk[1] * 0.5;
+        // s_sxz += delki[0] * fk[2] * 0.5;
+        // s_syx += delki[1] * fk[0] * 0.5;
+        // s_syy += delki[1] * fk[1] * 0.5;
+        // s_syz += delki[1] * fk[2] * 0.5;
+        // s_szx += delki[2] * fk[0] * 0.5;
+        // s_szy += delki[2] * fk[1] * 0.5;
+        // s_szz += delki[2] * fk[2] * 0.5;
+
+        s_sxx += delkix_half[kk] * fk[0];
+        s_sxy += delkix_half[kk] * fk[1];
+        s_sxz += delkix_half[kk] * fk[2];
+        s_syx += delkiy_half[kk] * fk[0];
+        s_syy += delkiy_half[kk] * fk[1];
+        s_syz += delkiy_half[kk] * fk[2];
+        s_szx += delkiz_half[kk] * fk[0];
+        s_szy += delkiz_half[kk] * fk[1];
+        s_szz += delkiz_half[kk] * fk[2];
       }
       s_pe += Tap * Vilp;
       s_sxx += delx * fkcx * 0.5;
