@@ -478,8 +478,10 @@ static __device__ void calc_normal(
 }
 
 // calculate the van der Waals force and energy
-static __device__ void calc_vdW(
+inline static __device__ void calc_vdW(
   double r,
+  double rinv,
+  double rsq,
   double d,
   double d_Seff,
   double C_6,
@@ -488,23 +490,23 @@ static __device__ void calc_vdW(
   double &p2_vdW,
   double &f2_vdW)
 {
-  double rsq, r2inv, r6inv, r8inv;
-  double TSvdw, TSvdw2inv, Vilp;
+  double r2inv, r6inv, r8inv;
+  double TSvdw, TSvdwinv, Vilp;
   double fpair, fsum;
 
-  rsq = r * r;
   r2inv = 1.0 / rsq;
   r6inv = r2inv * r2inv * r2inv;
   r8inv = r2inv * r6inv;
 
   TSvdw = 1.0 + exp(-d_Seff * r + d);
-  TSvdw2inv = pow(TSvdw, -2.0);
-  Vilp = -C_6 * r6inv / TSvdw;
+  TSvdwinv = 1.0 / TSvdw;
+  Vilp = -C_6 * r6inv * TSvdwinv;
 
   // derivatives
-  fpair = -6.0 * C_6 * r8inv / TSvdw + \
-    C_6 * d_Seff * (TSvdw - 1.0) * TSvdw2inv * r8inv * r;
-  fsum = fpair * Tap - Vilp * dTap / r;
+  // fpair = -6.0 * C_6 * r8inv * TSvdwinv + \
+  //   C_6 * d_Seff * (TSvdw - 1.0) * TSvdwinv * TSvdwinv * r8inv * r;
+  fpair = (-6.0 + d_Seff * (TSvdw - 1.0) * TSvdwinv * r ) * C_6 * TSvdwinv * r8inv;
+  fsum = fpair * Tap - Vilp * dTap * rinv;
 
   p2_vdW = Tap * Vilp;
   f2_vdW = fsum;
@@ -625,7 +627,8 @@ static __global__ void gpu_find_force(
         continue;
       }
 
-      double Tap, dTap;
+      double Tap, dTap, rinv;
+      rinv = 1.0 / r;
       Tap = calc_Tap(r, Rcut);
       dTap = calc_dTap(r, Rcut);
       // TODO: set tap to 1 to test
@@ -635,6 +638,8 @@ static __global__ void gpu_find_force(
       double p2_vdW, f2_vdW;
       calc_vdW(
         r,
+        rinv,
+        rsq,
         ilp_para.d[type1][type2],
         ilp_para.d_Seff[type1][type2],
         ilp_para.C_6[type1][type2],
