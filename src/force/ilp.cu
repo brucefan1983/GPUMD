@@ -571,6 +571,12 @@ static __global__ void gpu_find_force(
     double y1 = g_y[n1];
     double z1 = g_z[n1];
 
+    int index_ilp_vec[3] = {n1, n1 + number_of_particles, n1 + (number_of_particles << 1)};
+    int n2_ilp_vec[3];
+    n2_ilp_vec[0] = g_ilp_neighbor_list[index_ilp_vec[0]];
+    n2_ilp_vec[1] = g_ilp_neighbor_list[index_ilp_vec[1]];
+    n2_ilp_vec[2] = g_ilp_neighbor_list[index_ilp_vec[2]];
+
     double delkix_half[3] = {0.0, 0.0, 0.0};
     double delkiy_half[3] = {0.0, 0.0, 0.0};
     double delkiz_half[3] = {0.0, 0.0, 0.0};
@@ -774,9 +780,9 @@ static __global__ void gpu_find_force(
 
       double minus_prodnorm1_m_fpair1_m_Tap = -prodnorm1 * fpair1 * Tap;
       for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
-        int index_ilp = n1 + number_of_particles * kk;
-        int n2_ilp = g_ilp_neighbor_list[index_ilp];
-        if (n2_ilp == n1) continue;
+        // int index_ilp = n1 + number_of_particles * kk;
+        // int n2_ilp = g_ilp_neighbor_list[index_ilp];
+        if (n2_ilp_vec[kk] == n1) continue;
         // derivatives of the product of rij and ni respect to rk, k=0,1,2, where atom k is the neighbors of atom i
         dprodnorm1[0] = dnormal[0][0][kk] * delx + dnormal[1][0][kk] * dely +
             dnormal[2][0][kk] * delz;
@@ -791,9 +797,9 @@ static __global__ void gpu_find_force(
         fk[1] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[1];
         fk[2] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[2];
 
-        g_f12x_ilp_neigh[index_ilp] += fk[0];
-        g_f12y_ilp_neigh[index_ilp] += fk[1];
-        g_f12z_ilp_neigh[index_ilp] += fk[2];
+        g_f12x_ilp_neigh[index_ilp_vec[kk]] += fk[0];
+        g_f12y_ilp_neigh[index_ilp_vec[kk]] += fk[1];
+        g_f12z_ilp_neigh[index_ilp_vec[kk]] += fk[2];
 
         // delki[0] = g_x[n2_ilp] - x1;
         // delki[1] = g_y[n2_ilp] - y1;
