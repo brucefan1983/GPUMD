@@ -716,6 +716,10 @@ static __global__ void gpu_find_force(
       dely = -y12;
       delz = -z12;
 
+      double delx_half = delx * 0.5;
+      double dely_half = dely * 0.5;
+      double delz_half = delz * 0.5;
+
       // rsq = r * r;
       // calculate the transverse distance
       prodnorm1 = normal[0] * delx + normal[1] * dely + normal[2] * delz;
@@ -827,15 +831,15 @@ static __global__ void gpu_find_force(
         s_szz += delkiz_half[kk] * fk[2];
       }
       s_pe += Tap * Vilp;
-      s_sxx += delx * fkcx * 0.5;
-      s_sxy += delx * fkcy * 0.5;
-      s_sxz += delx * fkcz * 0.5;
-      s_syx += dely * fkcx * 0.5;
-      s_syy += dely * fkcy * 0.5;
-      s_syz += dely * fkcz * 0.5;
-      s_szx += delz * fkcx * 0.5;
-      s_szy += delz * fkcy * 0.5;
-      s_szz += delz * fkcz * 0.5;
+      s_sxx += delx_half * fkcx;
+      s_sxy += delx_half * fkcy;
+      s_sxz += delx_half * fkcz;
+      s_syx += dely_half * fkcx;
+      s_syy += dely_half * fkcy;
+      s_syz += dely_half * fkcz;
+      s_szx += delz_half * fkcx;
+      s_szy += delz_half * fkcy;
+      s_szz += delz_half * fkcz;
     }
 
     // save force
