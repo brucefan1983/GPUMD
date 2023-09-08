@@ -218,6 +218,8 @@ static __device__ void calc_normal(
   double dnn[3][3], dpvdri[3][3];
   double dn1[3][3][3], dpv12[3][3][3], dpv23[3][3][3], dpv31[3][3][3];
 
+  double nninv, continv;
+
   // initialize the arrays
   for (id = 0; id < 3; id++) {
     pv12[id] = 0.0;
@@ -299,21 +301,22 @@ static __device__ void calc_normal(
     // the magnitude of the normal vector
     nn2 = n1[0] * n1[0] + n1[1] * n1[1] + n1[2] * n1[2];
     nn = sqrt(nn2);
+    nninv = 1.0 / nn;
     
     // TODO
     // if (nn == 0) error->one(FLERR, "The magnitude of the normal vector is zero");
     // the unit normal vector
-    normal[0] = n1[0] / nn;
-    normal[1] = n1[1] / nn;
-    normal[2] = n1[2] / nn;
+    normal[0] = n1[0] * nninv;
+    normal[1] = n1[1] * nninv;
+    normal[2] = n1[2] * nninv;
     // derivatives of nn, dnn:3x1 vector
-    dni[0] = (n1[0] * dpvdri[0][0] + n1[1] * dpvdri[1][0] + n1[2] * dpvdri[2][0]) / nn;
-    dni[1] = (n1[0] * dpvdri[0][1] + n1[1] * dpvdri[1][1] + n1[2] * dpvdri[2][1]) / nn;
-    dni[2] = (n1[0] * dpvdri[0][2] + n1[1] * dpvdri[1][2] + n1[2] * dpvdri[2][2]) / nn;
+    dni[0] = (n1[0] * dpvdri[0][0] + n1[1] * dpvdri[1][0] + n1[2] * dpvdri[2][0]) * nninv;
+    dni[1] = (n1[0] * dpvdri[0][1] + n1[1] * dpvdri[1][1] + n1[2] * dpvdri[2][1]) * nninv;
+    dni[2] = (n1[0] * dpvdri[0][2] + n1[1] * dpvdri[1][2] + n1[2] * dpvdri[2][2]) * nninv;
     // derivatives of unit vector ni respect to ri, the result is 3x3 matrix
     for (id = 0; id < 3; id++) {
       for (ip = 0; ip < 3; ip++) {
-        dnormdri[id][ip] = dpvdri[id][ip] / nn - n1[id] * dni[ip] / nn2;
+        dnormdri[id][ip] = dpvdri[id][ip] * nninv - n1[id] * dni[ip] * nninv * nninv;
       }
     }
     // derivatives of non-normalized normal vector, dn1:3x3x3 array
@@ -327,7 +330,7 @@ static __device__ void calc_normal(
     // r[id][m]: the id's component of atom m
     for (m = 0; m < 3; m++) {
       for (id = 0; id < 3; id++) {
-        dnn[id][m] = (n1[0] * dn1[0][id][m] + n1[1] * dn1[1][id][m] + n1[2] * dn1[2][id][m]) / nn;
+        dnn[id][m] = (n1[0] * dn1[0][id][m] + n1[1] * dn1[1][id][m] + n1[2] * dn1[2][id][m]) * nninv;
       }
     }
     // dnormal[id][ip][m][i]: the derivative of normal[id] respect to r[ip][m], id,ip=0,1,2
@@ -335,12 +338,14 @@ static __device__ void calc_normal(
     for (m = 0; m < 3; m++) {
       for (id = 0; id < 3; id++) {
         for (ip = 0; ip < 3; ip++) {
-          dnormal[id][ip][m] = dn1[id][ip][m] / nn - n1[id] * dnn[ip][m] / nn2;
+          dnormal[id][ip][m] = dn1[id][ip][m] * nninv - n1[id] * dnn[ip][m] * nninv * nninv;
         }
       }
     }
     // TODO
   } else if (cont == 3) {
+    continv = 1.0 / cont;
+
     pv12[0] = vet[0][1] * vet[1][2] - vet[1][1] * vet[0][2];
     pv12[1] = vet[0][2] * vet[1][0] - vet[1][2] * vet[0][0];
     pv12[2] = vet[0][0] * vet[1][1] - vet[1][0] * vet[0][1];
@@ -428,18 +433,20 @@ static __device__ void calc_normal(
 
     //############################################################################################
     // average the normal vectors by using the 3 neighboring planes
-    n1[0] = (pv12[0] + pv31[0] + pv23[0]) / cont;
-    n1[1] = (pv12[1] + pv31[1] + pv23[1]) / cont;
-    n1[2] = (pv12[2] + pv31[2] + pv23[2]) / cont;
+    n1[0] = (pv12[0] + pv31[0] + pv23[0]) * continv;
+    n1[1] = (pv12[1] + pv31[1] + pv23[1]) * continv;
+    n1[2] = (pv12[2] + pv31[2] + pv23[2]) * continv;
     // the magnitude of the normal vector
     nn2 = n1[0] * n1[0] + n1[1] * n1[1] + n1[2] * n1[2];
     nn = sqrt(nn2);
+
+    nninv = 1.0 / nn;
     // TODO
     // if (nn == 0) error->one(FLERR, "The magnitude of the normal vector is zero");
     // the unit normal vector
-    normal[0] = n1[0] / nn;
-    normal[1] = n1[1] / nn;
-    normal[2] = n1[2] / nn;
+    normal[0] = n1[0] * nninv;
+    normal[1] = n1[1] * nninv;
+    normal[2] = n1[2] * nninv;
 
     // for the central atoms, dnormdri is always zero
     for (id = 0; id < 3; id++) {
@@ -450,7 +457,7 @@ static __device__ void calc_normal(
     for (id = 0; id < 3; id++) {
       for (ip = 0; ip < 3; ip++) {
         for (m = 0; m < 3; m++) {
-          dn1[id][ip][m] = (dpv12[id][ip][m] + dpv23[id][ip][m] + dpv31[id][ip][m]) / cont;
+          dn1[id][ip][m] = (dpv12[id][ip][m] + dpv23[id][ip][m] + dpv31[id][ip][m]) * continv;
         }
       }
     }
@@ -459,7 +466,7 @@ static __device__ void calc_normal(
     // r[id][m]: the id's component of atom m
     for (m = 0; m < 3; m++) {
       for (id = 0; id < 3; id++) {
-        dnn[id][m] = (n1[0] * dn1[0][id][m] + n1[1] * dn1[1][id][m] + n1[2] * dn1[2][id][m]) / nn;
+        dnn[id][m] = (n1[0] * dn1[0][id][m] + n1[1] * dn1[1][id][m] + n1[2] * dn1[2][id][m]) * nninv;
       }
     }
     // dnormal[id][ip][m][i]: the derivative of normal[id] respect to r[ip][m], id,ip=0,1,2
@@ -467,7 +474,7 @@ static __device__ void calc_normal(
     for (m = 0; m < 3; m++) {
       for (id = 0; id < 3; id++) {
         for (ip = 0; ip < 3; ip++) {
-          dnormal[id][ip][m] = dn1[id][ip][m] / nn - n1[id] * dnn[ip][m] / nn2;
+          dnormal[id][ip][m] = dn1[id][ip][m] * nninv - n1[id] * dnn[ip][m] * nninv * nninv;
         }
       }
     }// TODO
