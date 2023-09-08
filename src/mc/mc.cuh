@@ -39,11 +39,19 @@ private:
   bool do_mcmd = false;
   int num_steps_md = 0;
   int num_steps_mc = 0;
+  int num_types_mc = 0;
   int grouping_method = -1;
   int group_id = -1;
   double temperature_initial = 0.0;
   double temperature_final = 0.0;
+  double kappa = 0.0;
+  std::vector<std::string> species;
+  std::vector<double> mu_or_phi;
 
   void parse_group(
-    const char** param, int num_param, std::vector<Group>& groups, std::vector<int>& cpu_type);
+    const char** param,
+    int num_param,
+    std::vector<Group>& groups,
+    std::vector<int>& cpu_type,
+    int num_param_before_group);
 };

@@ -19,7 +19,7 @@
 class MC_Ensemble_SGC : public MC_Ensemble
 {
 public:
-  MC_Ensemble_SGC(int num_steps_mc);
+  MC_Ensemble_SGC(int num_steps_mc, bool is_vcsgc);
   virtual ~MC_Ensemble_SGC(void);
 
   virtual void compute(
@@ -34,4 +34,5 @@ public:
 private:
   GPU_Vector<int> NN_ij;
   GPU_Vector<int> NL_ij;
+  bool is_vcsgc = false;
 };
