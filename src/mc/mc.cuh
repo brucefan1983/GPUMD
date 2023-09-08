@@ -43,4 +43,7 @@ private:
   int group_id = -1;
   double temperature_initial = 0.0;
   double temperature_final = 0.0;
+
+  void parse_group(
+    const char** param, int num_param, std::vector<Group>& groups, std::vector<int>& cpu_type);
 };

@@ -42,6 +42,50 @@ void MC::compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Grou
   }
 }
 
+void MC::parse_group(
+  const char** param, int num_param, std::vector<Group>& groups, std::vector<int>& cpu_type)
+{
+  if (strcmp(param[6], "group") != 0) {
+    PRINT_INPUT_ERROR("invalid option for mc.\n");
+  }
+  if (!is_valid_int(param[7], &grouping_method)) {
+    PRINT_INPUT_ERROR("grouping method of MCMD should be an integer.\n");
+  }
+  if (grouping_method < 0) {
+    PRINT_INPUT_ERROR("grouping method of MCMD should >= 0.\n");
+  }
+  if (grouping_method >= groups.size()) {
+    PRINT_INPUT_ERROR("Grouping method should < number of grouping methods.");
+  }
+  if (!is_valid_int(param[8], &group_id)) {
+    PRINT_INPUT_ERROR("group ID of MCMD should be an integer.\n");
+  }
+  if (group_id < 0) {
+    PRINT_INPUT_ERROR("group ID of MCMD should >= 0.\n");
+  }
+  if (group_id >= groups[grouping_method].number) {
+    PRINT_INPUT_ERROR("Group ID should < number of groups.");
+  }
+
+  bool has_multi_types = false;
+  int type0 = 0;
+  for (int k = 0; k < groups[grouping_method].cpu_size[group_id]; ++k) {
+    int n =
+      groups[grouping_method].cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + k];
+    if (k == 0) {
+      type0 = cpu_type[n];
+    } else {
+      if (cpu_type[n] != type0) {
+        has_multi_types = true;
+        break;
+      }
+    }
+  }
+  if (!has_multi_types) {
+    PRINT_INPUT_ERROR("Must have more than one atom type in the specified group.");
+  }
+}
+
 void MC::parse_mc(
   const char** param, int num_param, std::vector<Group>& groups, std::vector<int>& cpu_type)
 {
@@ -92,47 +136,9 @@ void MC::parse_mc(
   if (mc_ensemble_type == 0) {
     if (num_param > 6) {
       if (num_param != 9) {
-        PRINT_INPUT_ERROR("mc canonical must has 9 paramters when using a grouping method.\n");
+        PRINT_INPUT_ERROR("mc canonical must has 7 paramters when using a grouping method.\n");
       }
-      if (strcmp(param[6], "group") != 0) {
-        PRINT_INPUT_ERROR("invalid option for mc.\n");
-      }
-      if (!is_valid_int(param[7], &grouping_method)) {
-        PRINT_INPUT_ERROR("grouping method of MCMD should be an integer.\n");
-      }
-      if (grouping_method < 0) {
-        PRINT_INPUT_ERROR("grouping method of MCMD should >= 0.\n");
-      }
-      if (grouping_method >= groups.size()) {
-        PRINT_INPUT_ERROR("Grouping method should < number of grouping methods.");
-      }
-      if (!is_valid_int(param[8], &group_id)) {
-        PRINT_INPUT_ERROR("group ID of MCMD should be an integer.\n");
-      }
-      if (group_id < 0) {
-        PRINT_INPUT_ERROR("group ID of MCMD should >= 0.\n");
-      }
-      if (group_id >= groups[grouping_method].number) {
-        PRINT_INPUT_ERROR("Group ID should < number of groups.");
-      }
-
-      bool has_multi_types = false;
-      int type0 = 0;
-      for (int k = 0; k < groups[grouping_method].cpu_size[group_id]; ++k) {
-        int n =
-          groups[grouping_method].cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + k];
-        if (k == 0) {
-          type0 = cpu_type[n];
-        } else {
-          if (cpu_type[n] != type0) {
-            has_multi_types = true;
-            break;
-          }
-        }
-      }
-      if (!has_multi_types) {
-        PRINT_INPUT_ERROR("Must have more than one atom type in the specified group.");
-      }
+      parse_group(param, num_param, groups, cpu_type);
     }
   }
 
