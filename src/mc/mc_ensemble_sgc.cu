@@ -14,19 +14,19 @@
 */
 
 /*----------------------------------------------------------------------------80
-The canonical ensemble for MCMD.
+The semi-grand canonical (SGC) ensemble for MCMD.
 ------------------------------------------------------------------------------*/
 
-#include "mc_ensemble_canonical.cuh"
+#include "mc_ensemble_sgc.cuh"
 
-MC_Ensemble_Canonical::MC_Ensemble_Canonical(int num_steps_mc_input)
+MC_Ensemble_SGC::MC_Ensemble_SGC(int num_steps_mc_input)
 {
   num_steps_mc = num_steps_mc_input;
   NN_ij.resize(1);
   NL_ij.resize(1000);
 }
 
-MC_Ensemble_Canonical::~MC_Ensemble_Canonical(void) { mc_output.close(); }
+MC_Ensemble_SGC::~MC_Ensemble_SGC(void) { mc_output.close(); }
 
 static __global__ void get_types(
   const int N,
@@ -220,7 +220,7 @@ static bool check_if_small_box(const double rc, const Box& box)
   return is_small_box;
 }
 
-void MC_Ensemble_Canonical::compute(
+void MC_Ensemble_SGC::compute(
   int md_step,
   double temperature,
   Atom& atom,

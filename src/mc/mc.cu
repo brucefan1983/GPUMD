@@ -19,6 +19,7 @@ The driver class for the various MC ensembles.
 
 #include "mc.cuh"
 #include "mc_ensemble_canonical.cuh"
+#include "mc_ensemble_sgc.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
@@ -52,7 +53,7 @@ void MC::parse_mc(
   if (strcmp(param[1], "canonical") == 0) {
     mc_ensemble_type = 0;
   } else if (strcmp(param[1], "sgc") == 0) {
-    PRINT_INPUT_ERROR("semi-grand canonical MCMD has not been implemented yet.\n");
+    mc_ensemble_type = 1;
   } else if (strcmp(param[1], "vcsgc") == 0) {
     PRINT_INPUT_ERROR(
       "variance constrained semi-grand canonical MCMD has not been implemented yet.\n");
@@ -137,6 +138,10 @@ void MC::parse_mc(
 
   if (mc_ensemble_type == 0) {
     printf("Perform canonical MCMD:\n");
+    mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
+  } else if (mc_ensemble_type == 1) {
+    printf("Perform SGC MCMD:\n");
+    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc));
   }
   printf("    after every %d MD steps, do %d MC trials.\n", num_steps_md, num_steps_mc);
   printf(
@@ -144,15 +149,11 @@ void MC::parse_mc(
     temperature_initial,
     temperature_final);
 
-  if (mc_ensemble_type == 0) {
-    if (num_param == 6) {
-      printf("    for all the atoms in the system.\n");
-    } else {
-      printf("    only for atoms in group %d of grouping method %d.\n", group_id, grouping_method);
-    }
+  if (grouping_method < 0) {
+    printf("    for all the atoms in the system.\n");
+  } else {
+    printf("    only for atoms in group %d of grouping method %d.\n", group_id, grouping_method);
   }
-
-  mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
 
   do_mcmd = true;
 }

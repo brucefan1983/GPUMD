@@ -14,33 +14,24 @@
 */
 
 #pragma once
-
 #include "mc_ensemble.cuh"
-#include "model/box.cuh"
-#include "model/group.cuh"
-#include <memory>
-#include <vector>
 
-class Atom;
-
-class MC
+class MC_Ensemble_SGC : public MC_Ensemble
 {
 public:
-  std::unique_ptr<MC_Ensemble> mc_ensemble;
+  MC_Ensemble_SGC(int num_steps_mc);
+  virtual ~MC_Ensemble_SGC(void);
 
-  void initialize(void);
-  void finalize(void);
-  void compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group);
-
-  void parse_mc(
-    const char** param, int num_param, std::vector<Group>& group, std::vector<int>& cpu_type);
+  virtual void compute(
+    int md_step,
+    double temperature,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    int grouping_method,
+    int group_id);
 
 private:
-  bool do_mcmd = false;
-  int num_steps_md = 0;
-  int num_steps_mc = 0;
-  int grouping_method = -1;
-  int group_id = -1;
-  double temperature_initial = 0.0;
-  double temperature_final = 0.0;
+  GPU_Vector<int> NN_ij;
+  GPU_Vector<int> NL_ij;
 };
