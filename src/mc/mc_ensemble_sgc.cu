@@ -23,12 +23,14 @@ MC_Ensemble_SGC::MC_Ensemble_SGC(
   int num_steps_mc_input,
   bool is_vcsgc_input,
   std::vector<std::string>& species_input,
+  std::vector<int>& types_input,
   std::vector<double>& mu_or_phi_input,
   double kappa_input)
 {
   num_steps_mc = num_steps_mc_input;
   is_vcsgc = is_vcsgc_input;
   species = species_input;
+  types = types_input;
   mu_or_phi = mu_or_phi_input;
   kappa = kappa_input;
   NN_ij.resize(1);
@@ -279,10 +281,16 @@ void MC_Ensemble_SGC::compute(
       std::cout << "type_i = " << type_i << std::endl;
     }
 
+    int type_j = type_i;
+    std::uniform_int_distribution<int> rand_int2(0, types.size() - 1);
+    while (type_j == type_i) {
+      type_j = types[rand_int2(rng)];
+      std::cout << "type_j = " << type_j << std::endl;
+    }
+
     exit(1);
 
     int j = 0;
-    int type_j = 0;
 
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(

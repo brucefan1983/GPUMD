@@ -157,6 +157,7 @@ void MC::check_species_sgc(std::vector<Group>& groups, Atom& atom)
     for (int n = 0; n < atom_symbols_in_nep.size(); ++n) {
       if (species[s] == atom_symbols_in_nep[n]) {
         allowed_species = true;
+        types[s] = n;
         break;
       }
     }
@@ -275,6 +276,7 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
       PRINT_INPUT_ERROR("not enough (species, mu) or (species, phi) inputs.\n");
     }
     species.resize(num_types_mc);
+    types.resize(num_types_mc);
     mu_or_phi.resize(num_types_mc);
     for (int n = 0; n < num_types_mc; ++n) {
       species[n] = param[7 + n * 2];
@@ -318,10 +320,10 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
     mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
   } else if (mc_ensemble_type == 1) {
     check_species_sgc(groups, atom);
-    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, false, species, mu_or_phi, kappa));
+    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, false, species, types, mu_or_phi, kappa));
   } else if (mc_ensemble_type == 2) {
     check_species_sgc(groups, atom);
-    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, true, species, mu_or_phi, kappa));
+    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, true, species, types, mu_or_phi, kappa));
   }
 
   do_mcmd = true;

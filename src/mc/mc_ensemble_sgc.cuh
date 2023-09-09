@@ -23,6 +23,7 @@ public:
     int num_steps_mc,
     bool is_vcsgc,
     std::vector<std::string>& species,
+    std::vector<int>& types,
     std::vector<double>& mu_or_phi,
     double kappa);
   virtual ~MC_Ensemble_SGC(void);
@@ -41,6 +42,7 @@ private:
   GPU_Vector<int> NL_ij;
   bool is_vcsgc = false;
   std::vector<std::string> species;
+  std::vector<int> types;
   std::vector<double> mu_or_phi;
   double kappa;
 };
