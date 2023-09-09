@@ -19,10 +19,18 @@ The semi-grand canonical (SGC) ensemble for MCMD.
 
 #include "mc_ensemble_sgc.cuh"
 
-MC_Ensemble_SGC::MC_Ensemble_SGC(int num_steps_mc_input, bool is_vcsgc_input)
+MC_Ensemble_SGC::MC_Ensemble_SGC(
+  int num_steps_mc_input,
+  bool is_vcsgc_input,
+  std::vector<std::string>& species_input,
+  std::vector<double>& mu_or_phi_input,
+  double kappa_input)
 {
   num_steps_mc = num_steps_mc_input;
   is_vcsgc = is_vcsgc_input;
+  species = species_input;
+  mu_or_phi = mu_or_phi_input;
+  kappa = kappa_input;
   NN_ij.resize(1);
   NL_ij.resize(1000);
 }

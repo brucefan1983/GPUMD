@@ -203,9 +203,9 @@ void MC::parse_mc(
   if (mc_ensemble_type == 0) {
     mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
   } else if (mc_ensemble_type == 1) {
-    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, false));
+    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, false, species, mu_or_phi, kappa));
   } else if (mc_ensemble_type == 2) {
-    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, true));
+    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, true, species, mu_or_phi, kappa));
   }
 
   do_mcmd = true;
