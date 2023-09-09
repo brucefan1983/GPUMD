@@ -205,7 +205,7 @@ void Dump_EXYZ::output_line2(
     fprintf(fid_, ":forces:R:3");
   }
   if (has_potential_) {
-    fprintf(fid_, ":potential:R:3");
+    fprintf(fid_, ":potential:R:1");
   }
 
   // Over
