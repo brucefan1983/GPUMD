@@ -44,5 +44,9 @@ private:
   std::vector<std::string> species;
   std::vector<int> types;
   std::vector<double> mu_or_phi;
+  double mu_or_phi_old;
+  double mu_or_phi_new;
   double kappa;
+
+  bool allowed_species(std::string& species_found);
 };

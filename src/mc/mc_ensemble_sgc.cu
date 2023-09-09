@@ -309,10 +309,11 @@ static bool check_if_small_box(const double rc, const Box& box)
   return is_small_box;
 }
 
-static bool allowed_species(std::string& species_found, std::vector<std::string>& species)
+bool MC_Ensemble_SGC::allowed_species(std::string& species_found)
 {
-  for (auto s : species) {
-    if (s == species_found) {
+  for (int k = 0; k < species.size(); ++k) {
+    if (species[k] == species_found) {
+      mu_or_phi_old = mu_or_phi[k];
       return true;
     }
   }
@@ -347,7 +348,7 @@ void MC_Ensemble_SGC::compute(
     int i = -1;
     int type_i = -1;
     std::string species_found;
-    while (!allowed_species(species_found, species)) {
+    while (!allowed_species(species_found)) {
       i = grouping_method >= 0
             ? groups[grouping_method]
                 .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
@@ -363,6 +364,7 @@ void MC_Ensemble_SGC::compute(
       int random_index = rand_int2(rng);
       type_j = types[random_index];
       species_new = species[random_index];
+      mu_or_phi_new = mu_or_phi[random_index];
     }
 
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
@@ -465,6 +467,13 @@ void MC_Ensemble_SGC::compute(
     // printf("        per-atom energy before swapping = %g eV.\n", pe_before_total / NN_ij_cpu);
     // printf("        per-atom energy after swapping = %g eV.\n", pe_after_total / NN_ij_cpu);
     float energy_difference = pe_after_total - pe_before_total;
+
+    if (!is_vcsgc) {
+      energy_difference += mu_or_phi_new - mu_or_phi_old;
+    } else {
+      // TODO
+    }
+
     std::uniform_real_distribution<float> r2(0, 1);
     float random_number = r2(rng);
     float probability = exp(-energy_difference / (K_B * temperature));
