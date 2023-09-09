@@ -325,6 +325,4 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
   }
 
   do_mcmd = true;
-
-  exit(1);
 }

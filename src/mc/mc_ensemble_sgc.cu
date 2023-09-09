@@ -229,6 +229,16 @@ static bool check_if_small_box(const double rc, const Box& box)
   return is_small_box;
 }
 
+static bool allowed_species(std::string& species_found, std::vector<std::string>& species)
+{
+  for (auto s : species) {
+    if (s == species_found) {
+      return true;
+    }
+  }
+  return false;
+}
+
 void MC_Ensemble_SGC::compute(
   int md_step,
   double temperature,
@@ -254,20 +264,25 @@ void MC_Ensemble_SGC::compute(
 
   int num_accepted = 0;
   for (int step = 0; step < num_steps_mc; ++step) {
-
-    int i = grouping_method >= 0
-              ? groups[grouping_method]
-                  .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
-              : r1(rng);
-    int type_i = atom.cpu_type[i];
-    int j = 0, type_j = type_i;
-    while (type_i == type_j) {
-      j = grouping_method >= 0
+    int i = -1;
+    int type_i = -1;
+    std::string species_found;
+    while (!allowed_species(species_found, species)) {
+      i = grouping_method >= 0
             ? groups[grouping_method]
                 .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
             : r1(rng);
-      type_j = atom.cpu_type[j];
+      std::cout << "i=" << i << std::endl;
+      species_found = atom.cpu_atom_symbol[i];
+      type_i = atom.cpu_type[i];
+      std::cout << "atom.cpu_atom_symbol[i]=" << atom.cpu_atom_symbol[i] << std::endl;
+      std::cout << "type_i = " << type_i << std::endl;
     }
+
+    exit(1);
+
+    int j = 0;
+    int type_j = 0;
 
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
     get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
