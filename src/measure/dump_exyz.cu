@@ -204,6 +204,9 @@ void Dump_EXYZ::output_line2(
   if (has_force_) {
     fprintf(fid_, ":forces:R:3");
   }
+  if (has_potential_) {
+    fprintf(fid_, ":energy_atom:R:1");
+  }
 
   // Over
   fprintf(fid_, "\n");
