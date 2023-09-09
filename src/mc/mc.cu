@@ -43,11 +43,7 @@ void MC::compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Grou
 }
 
 void MC::parse_group(
-  const char** param,
-  int num_param,
-  std::vector<Group>& groups,
-  std::vector<int>& cpu_type,
-  int num_param_before_group)
+  const char** param, int num_param, std::vector<Group>& groups, int num_param_before_group)
 {
   if (strcmp(param[num_param_before_group], "group") != 0) {
     PRINT_INPUT_ERROR("invalid option for mc.\n");
@@ -70,28 +66,36 @@ void MC::parse_group(
   if (group_id >= groups[grouping_method].number) {
     PRINT_INPUT_ERROR("Group ID should < number of groups.");
   }
+}
 
+void MC::check_species_canonical(std::vector<Group>& groups, Atom& atom)
+{
   bool has_multi_types = false;
   int type0 = 0;
-  for (int k = 0; k < groups[grouping_method].cpu_size[group_id]; ++k) {
-    int n =
-      groups[grouping_method].cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + k];
-    if (k == 0) {
-      type0 = cpu_type[n];
-    } else {
-      if (cpu_type[n] != type0) {
-        has_multi_types = true;
-        break;
+
+  if (grouping_method < 0) {
+    // todo
+  } else {
+    for (int k = 0; k < groups[grouping_method].cpu_size[group_id]; ++k) {
+      int n =
+        groups[grouping_method].cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + k];
+      if (k == 0) {
+        type0 = atom.cpu_type[n];
+      } else {
+        if (atom.cpu_type[n] != type0) {
+          has_multi_types = true;
+          break;
+        }
       }
     }
   }
+
   if (!has_multi_types) {
     PRINT_INPUT_ERROR("Must have more than one atom type in the specified group.");
   }
 }
 
-void MC::parse_mc(
-  const char** param, int num_param, std::vector<Group>& groups, std::vector<int>& cpu_type)
+void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups, Atom& atom)
 {
   if (num_param < 6) {
     PRINT_INPUT_ERROR("mc should have at least 5 parameters.\n");
@@ -196,15 +200,18 @@ void MC::parse_mc(
     if (num_param != num_param_before_group + 3) {
       PRINT_INPUT_ERROR("reading error grouping method.\n");
     }
-    parse_group(param, num_param, groups, cpu_type, num_param_before_group);
+    parse_group(param, num_param, groups, num_param_before_group);
     printf("    only for atoms in group %d of grouping method %d.\n", group_id, grouping_method);
   }
 
   if (mc_ensemble_type == 0) {
+    check_species_canonical(groups, atom);
     mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
   } else if (mc_ensemble_type == 1) {
+    // todo
     mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, false, species, mu_or_phi, kappa));
   } else if (mc_ensemble_type == 2) {
+    // todo
     mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, true, species, mu_or_phi, kappa));
   }
 

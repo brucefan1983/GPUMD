@@ -32,8 +32,7 @@ public:
   void finalize(void);
   void compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group);
 
-  void parse_mc(
-    const char** param, int num_param, std::vector<Group>& group, std::vector<int>& cpu_type);
+  void parse_mc(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
 
 private:
   bool do_mcmd = false;
@@ -49,9 +48,6 @@ private:
   std::vector<double> mu_or_phi;
 
   void parse_group(
-    const char** param,
-    int num_param,
-    std::vector<Group>& groups,
-    std::vector<int>& cpu_type,
-    int num_param_before_group);
+    const char** param, int num_param, std::vector<Group>& groups, int num_param_before_group);
+  void check_species_canonical(std::vector<Group>& groups, Atom& atom);
 };
