@@ -352,11 +352,8 @@ void MC_Ensemble_SGC::compute(
             ? groups[grouping_method]
                 .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
             : r1(rng);
-      std::cout << "i=" << i << std::endl;
       species_found = atom.cpu_atom_symbol[i];
       type_i = atom.cpu_type[i];
-      std::cout << "atom.cpu_atom_symbol[i]=" << atom.cpu_atom_symbol[i] << std::endl;
-      std::cout << "type_i = " << type_i << std::endl;
     }
 
     int type_j = type_i;
@@ -366,11 +363,7 @@ void MC_Ensemble_SGC::compute(
       int random_index = rand_int2(rng);
       type_j = types[random_index];
       species_new = species[random_index];
-      std::cout << "species_new = " << species_new << std::endl;
-      std::cout << "type_j = " << type_j << std::endl;
     }
-
-    exit(1);
 
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
     get_neighbors_of_i<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
