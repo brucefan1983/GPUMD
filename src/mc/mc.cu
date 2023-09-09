@@ -104,9 +104,66 @@ void MC::check_species_canonical(std::vector<Group>& groups, Atom& atom)
   }
 }
 
+static std::string get_potential_file_name()
+{
+  std::ifstream input_run("run.in");
+  if (!input_run.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open run.in.");
+  }
+  std::string potential_file_name;
+  std::string line;
+  while (std::getline(input_run, line)) {
+    std::vector<std::string> tokens = get_tokens(line);
+    if (tokens.size() != 0) {
+      if (tokens[0] == "potential") {
+        potential_file_name = tokens[1];
+        break;
+      }
+    }
+  }
+
+  input_run.close();
+  return potential_file_name;
+}
+
+static std::vector<std::string> get_atom_symbols_in_nep()
+{
+  auto potential_file_name = get_potential_file_name();
+  std::ifstream input_potential(potential_file_name);
+  if (!input_potential.is_open()) {
+    PRINT_INPUT_ERROR("Cannot open potential file.");
+  }
+  std::string line;
+  std::getline(input_potential, line);
+  std::vector<std::string> tokens = get_tokens(line);
+  if (tokens[0].substr(0, 3) != "nep") {
+    PRINT_INPUT_ERROR("MCMD only supports NEP models.");
+  }
+
+  int num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
+  std::vector<std::string> atom_symbols_in_nep(num_types);
+  for (int n = 0; n < num_types; ++n) {
+    atom_symbols_in_nep[n] = tokens[2 + n];
+  }
+  input_potential.close();
+  return atom_symbols_in_nep;
+}
+
 void MC::check_species_sgc(std::vector<Group>& groups, Atom& atom)
 {
-  // TODO: check if all species are in the NEP file
+  auto atom_symbols_in_nep = get_atom_symbols_in_nep();
+  for (int s = 0; s < species.size(); ++s) {
+    bool allowed_species = false;
+    for (int n = 0; n < atom_symbols_in_nep.size(); ++n) {
+      if (species[s] == atom_symbols_in_nep[n]) {
+        allowed_species = true;
+        break;
+      }
+    }
+    if (!allowed_species) {
+      PRINT_INPUT_ERROR("There are listed species not allowed in the NEP model.");
+    }
+  }
 
   std::vector<bool> has_species(species.size(), false);
 
