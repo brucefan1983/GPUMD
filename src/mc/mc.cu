@@ -104,6 +104,49 @@ void MC::check_species_canonical(std::vector<Group>& groups, Atom& atom)
   }
 }
 
+void MC::check_species_sgc(std::vector<Group>& groups, Atom& atom)
+{
+  // TODO: check if all species are in the NEP file
+
+  std::vector<bool> has_species(species.size(), false);
+
+  if (grouping_method < 0) {
+    for (int s = 0; s < species.size(); ++s) {
+      for (int n = 0; n < atom.number_of_atoms; ++n) {
+        if (atom.cpu_atom_symbol[n] == species[s]) {
+          has_species[s] = true;
+          break;
+        }
+      }
+    }
+  } else {
+    for (int s = 0; s < species.size(); ++s) {
+      for (int k = 0; k < groups[grouping_method].cpu_size[group_id]; ++k) {
+        int n =
+          groups[grouping_method].cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + k];
+        if (atom.cpu_atom_symbol[n] == species[s]) {
+          has_species[s] = true;
+          break;
+        }
+      }
+    }
+  }
+
+  printf("    the initial system or specified group has the following species:\n");
+  bool has_at_least_one_species = false;
+  for (int s = 0; s < species.size(); ++s) {
+    if (has_species[s]) {
+      has_at_least_one_species = true;
+      printf("        %s\n", species[s].c_str());
+    }
+  }
+
+  if (!has_at_least_one_species) {
+    PRINT_INPUT_ERROR(
+      "Must have at least one listed species in the initial model system or specified group.");
+  }
+}
+
 void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups, Atom& atom)
 {
   if (num_param < 6) {
@@ -217,10 +260,10 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
     check_species_canonical(groups, atom);
     mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
   } else if (mc_ensemble_type == 1) {
-    // todo
+    check_species_sgc(groups, atom);
     mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, false, species, mu_or_phi, kappa));
   } else if (mc_ensemble_type == 2) {
-    // todo
+    check_species_sgc(groups, atom);
     mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, true, species, mu_or_phi, kappa));
   }
 

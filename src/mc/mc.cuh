@@ -50,4 +50,5 @@ private:
   void parse_group(
     const char** param, int num_param, std::vector<Group>& groups, int num_param_before_group);
   void check_species_canonical(std::vector<Group>& groups, Atom& atom);
+  void check_species_sgc(std::vector<Group>& groups, Atom& atom);
 };
