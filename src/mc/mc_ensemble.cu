@@ -59,12 +59,6 @@ static void check_is_nep(std::string& potential_file_name)
   if (tokens[0].substr(0, 3) != "nep") {
     PRINT_INPUT_ERROR("MCMD only supports NEP models.");
   }
-
-  int num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  if (num_types < 2) {
-    PRINT_INPUT_ERROR("MCMD only supports multi-component models.");
-  }
-
   input_potential.close();
 }
 
