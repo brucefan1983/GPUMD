@@ -74,7 +74,16 @@ void MC::check_species_canonical(std::vector<Group>& groups, Atom& atom)
   int type0 = 0;
 
   if (grouping_method < 0) {
-    // todo
+    for (int n = 0; n < atom.number_of_atoms; ++n) {
+      if (n == 0) {
+        type0 = atom.cpu_type[n];
+      } else {
+        if (atom.cpu_type[n] != type0) {
+          has_multi_types = true;
+          break;
+        }
+      }
+    }
   } else {
     for (int k = 0; k < groups[grouping_method].cpu_size[group_id]; ++k) {
       int n =
@@ -91,7 +100,7 @@ void MC::check_species_canonical(std::vector<Group>& groups, Atom& atom)
   }
 
   if (!has_multi_types) {
-    PRINT_INPUT_ERROR("Must have more than one atom type in the specified group.");
+    PRINT_INPUT_ERROR("Must have more than one atom type for canonical MCMD.");
   }
 }
 
