@@ -42,8 +42,6 @@ MC_Ensemble_SGC::~MC_Ensemble_SGC(void) { mc_output.close(); }
 static __global__ void get_types(
   const int N,
   const int i,
-  const int j,
-  const int type_i,
   const int type_j,
   const int* g_type,
   int* g_type_before,
@@ -55,9 +53,6 @@ static __global__ void get_types(
     g_type_after[n] = g_type[n];
     if (n == i) {
       g_type_after[i] = type_j;
-    }
-    if (n == j) {
-      g_type_after[j] = type_i;
     }
   }
 }
@@ -78,17 +73,16 @@ static __global__ void find_local_types(
   }
 }
 
-static __global__ void get_neighbors_of_i_and_j(
+static __global__ void get_neighbors_of_i(
   const int N,
   const Box box,
   const int i,
-  const int j,
   const float rc_radial_square,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  int* g_NN_ij,
-  int* g_NL_ij)
+  int* g_NN_i,
+  int* g_NL_i)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -98,21 +92,12 @@ static __global__ void get_neighbors_of_i_and_j(
     double x0i = g_x[i] - x0;
     double y0i = g_y[i] - y0;
     double z0i = g_z[i] - z0;
-    double x0j = g_x[j] - x0;
-    double y0j = g_y[j] - y0;
-    double z0j = g_z[j] - z0;
 
     apply_mic(box, x0i, y0i, z0i);
     float distance_square_i = float(x0i * x0i + y0i * y0i + z0i * z0i);
-    apply_mic(box, x0j, y0j, z0j);
-    float distance_square_j = float(x0j * x0j + y0j * y0j + z0j * z0j);
 
     if (distance_square_i < rc_radial_square) {
-      g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
-    } else {
-      if (distance_square_j < rc_radial_square) {
-        g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
-      }
+      g_NL_i[atomicAdd(g_NN_i, 1)] = n;
     }
   }
 }
@@ -181,10 +166,8 @@ static __global__ void create_inputs_for_energy_calculator(
 }
 
 // a kernel with a single thread <<<1, 1>>>
-static __global__ void exchange(
+static __global__ void gpu_flip(
   const int i,
-  const int j,
-  const int type_i,
   const int type_j,
   int* g_type,
   double* g_mass,
@@ -193,23 +176,10 @@ static __global__ void exchange(
   double* g_vz)
 {
   g_type[i] = type_j;
-  g_type[j] = type_i;
-
-  double mass_i = g_mass[i];
-  g_mass[i] = g_mass[j];
-  g_mass[j] = mass_i;
-
-  double vx_i = g_vx[i];
-  g_vx[i] = g_vx[j];
-  g_vx[j] = vx_i;
-
-  double vy_i = g_vy[i];
-  g_vy[i] = g_vy[j];
-  g_vy[j] = vy_i;
-
-  double vz_i = g_vz[i];
-  g_vz[i] = g_vz[j];
-  g_vz[j] = vz_i;
+  g_mass[i] = 0; // TODO
+  g_vx[i] = 0;   // TODO
+  g_vy[i] = 0;   // TODO
+  g_vz[i] = 0;   // TODO
 }
 
 static bool check_if_small_box(const double rc, const Box& box)
@@ -282,22 +252,23 @@ void MC_Ensemble_SGC::compute(
     }
 
     int type_j = type_i;
+    std::string species_new;
     std::uniform_int_distribution<int> rand_int2(0, types.size() - 1);
     while (type_j == type_i) {
-      type_j = types[rand_int2(rng)];
+      int random_index = rand_int2(rng);
+      type_j = types[random_index];
+      species_new = species[random_index];
+      std::cout << "species_new = " << species_new << std::endl;
       std::cout << "type_j = " << type_j << std::endl;
     }
 
     exit(1);
 
-    int j = 0;
-
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
-    get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+    get_neighbors_of_i<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
       box,
       i,
-      j,
       nep_energy.paramb.rc_radial * nep_energy.paramb.rc_radial,
       atom.position_per_atom.data(),
       atom.position_per_atom.data() + atom.number_of_atoms,
@@ -310,14 +281,7 @@ void MC_Ensemble_SGC::compute(
     NN_ij.copy_to_host(&NN_ij_cpu);
 
     get_types<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
-      atom.number_of_atoms,
-      i,
-      j,
-      type_i,
-      type_j,
-      atom.type.data(),
-      type_before.data(),
-      type_after.data());
+      atom.number_of_atoms, i, type_j, atom.type.data(), type_before.data(), type_after.data());
     CUDA_CHECK_KERNEL
 
     find_local_types<<<(NN_ij_cpu - 1) / 64 + 1, 64>>>(
@@ -408,20 +372,11 @@ void MC_Ensemble_SGC::compute(
       ++num_accepted;
 
       atom.cpu_type[i] = type_j;
-      atom.cpu_type[j] = type_i;
+      atom.cpu_atom_symbol[i] = species_new;
+      atom.cpu_mass[i] = 0; // TODO
 
-      auto atom_symbol_i = atom.cpu_atom_symbol[i];
-      atom.cpu_atom_symbol[i] = atom.cpu_atom_symbol[j];
-      atom.cpu_atom_symbol[j] = atom_symbol_i;
-
-      double mass_i = atom.cpu_mass[i];
-      atom.cpu_mass[i] = atom.cpu_mass[j];
-      atom.cpu_mass[j] = mass_i;
-
-      exchange<<<1, 1>>>(
+      gpu_flip<<<1, 1>>>(
         i,
-        j,
-        type_i,
         type_j,
         atom.type.data(),
         atom.mass.data(),
