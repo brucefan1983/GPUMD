@@ -292,25 +292,6 @@ static __global__ void gpu_flip(
   g_vz[i] *= mass_scaler;
 }
 
-static bool check_if_small_box(const double rc, const Box& box)
-{
-  double volume = box.get_volume();
-  double thickness_x = volume / box.get_area(0);
-  double thickness_y = volume / box.get_area(1);
-  double thickness_z = volume / box.get_area(2);
-  bool is_small_box = false;
-  if (box.pbc_x && thickness_x <= 2.0 * rc) {
-    is_small_box = true;
-  }
-  if (box.pbc_y && thickness_y <= 2.0 * rc) {
-    is_small_box = true;
-  }
-  if (box.pbc_z && thickness_z <= 2.0 * rc) {
-    is_small_box = true;
-  }
-  return is_small_box;
-}
-
 bool MC_Ensemble_SGC::allowed_species(std::string& species_found)
 {
   for (int k = 0; k < species.size(); ++k) {

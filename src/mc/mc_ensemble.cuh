@@ -66,4 +66,6 @@ protected:
   GPU_Vector<float> pe_after;
 
   NEP_Energy nep_energy;
+
+  bool check_if_small_box(const double rc, const Box& box);
 };
