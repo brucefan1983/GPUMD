@@ -166,14 +166,11 @@ void MC::check_species_sgc(std::vector<Group>& groups, Atom& atom)
     }
   }
 
-  std::vector<bool> has_species(species.size(), false);
-
   if (grouping_method < 0) {
     for (int s = 0; s < species.size(); ++s) {
       for (int n = 0; n < atom.number_of_atoms; ++n) {
         if (atom.cpu_atom_symbol[n] == species[s]) {
-          has_species[s] = true;
-          break;
+          ++num_atoms_species[s];
         }
       }
     }
@@ -183,19 +180,18 @@ void MC::check_species_sgc(std::vector<Group>& groups, Atom& atom)
         int n =
           groups[grouping_method].cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + k];
         if (atom.cpu_atom_symbol[n] == species[s]) {
-          has_species[s] = true;
-          break;
+          ++num_atoms_species[s];
         }
       }
     }
   }
 
-  printf("    the initial system or specified group has the following species:\n");
+  printf("    the initial system or specified group has:\n");
   bool has_at_least_one_species = false;
   for (int s = 0; s < species.size(); ++s) {
-    if (has_species[s]) {
+    printf("        %d %s atoms.\n", num_atoms_species[s], species[s].c_str());
+    if (num_atoms_species[s] > 0) {
       has_at_least_one_species = true;
-      printf("        %s\n", species[s].c_str());
     }
   }
 
@@ -275,8 +271,8 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
     if (num_param < (7 + num_types_mc * 2)) {
       PRINT_INPUT_ERROR("not enough (species, mu) or (species, phi) inputs.\n");
     }
+
     species.resize(num_types_mc);
-    types.resize(num_types_mc);
     mu_or_phi.resize(num_types_mc);
     for (int n = 0; n < num_types_mc; ++n) {
       species[n] = param[7 + n * 2];
@@ -315,15 +311,19 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
     printf("    only for atoms in group %d of grouping method %d.\n", group_id, grouping_method);
   }
 
+  types.resize(num_types_mc);
+  num_atoms_species.resize(num_types_mc, 0);
   if (mc_ensemble_type == 0) {
     check_species_canonical(groups, atom);
     mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
   } else if (mc_ensemble_type == 1) {
     check_species_sgc(groups, atom);
-    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, false, species, types, mu_or_phi, kappa));
+    mc_ensemble.reset(new MC_Ensemble_SGC(
+      num_steps_mc, false, species, types, num_atoms_species, mu_or_phi, kappa));
   } else if (mc_ensemble_type == 2) {
     check_species_sgc(groups, atom);
-    mc_ensemble.reset(new MC_Ensemble_SGC(num_steps_mc, true, species, types, mu_or_phi, kappa));
+    mc_ensemble.reset(
+      new MC_Ensemble_SGC(num_steps_mc, true, species, types, num_atoms_species, mu_or_phi, kappa));
   }
 
   do_mcmd = true;

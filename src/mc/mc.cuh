@@ -46,6 +46,7 @@ private:
   double kappa = 0.0;
   std::vector<std::string> species;
   std::vector<int> types;
+  std::vector<int> num_atoms_species;
   std::vector<double> mu_or_phi;
 
   void parse_group(

@@ -130,6 +130,7 @@ MC_Ensemble_SGC::MC_Ensemble_SGC(
   bool is_vcsgc_input,
   std::vector<std::string>& species_input,
   std::vector<int>& types_input,
+  std::vector<int>& num_atoms_species_input,
   std::vector<double>& mu_or_phi_input,
   double kappa_input)
 {
@@ -137,6 +138,7 @@ MC_Ensemble_SGC::MC_Ensemble_SGC(
   is_vcsgc = is_vcsgc_input;
   species = species_input;
   types = types_input;
+  num_atoms_species = num_atoms_species_input;
   mu_or_phi = mu_or_phi_input;
   kappa = kappa_input;
   NN_ij.resize(1);
@@ -313,7 +315,7 @@ bool MC_Ensemble_SGC::allowed_species(std::string& species_found)
 {
   for (int k = 0; k < species.size(); ++k) {
     if (species[k] == species_found) {
-      mu_or_phi_old = mu_or_phi[k];
+      index_old_species = k;
       return true;
     }
   }
@@ -358,13 +360,10 @@ void MC_Ensemble_SGC::compute(
     }
 
     int type_j = type_i;
-    std::string species_new;
     std::uniform_int_distribution<int> rand_int2(0, types.size() - 1);
     while (type_j == type_i) {
-      int random_index = rand_int2(rng);
-      type_j = types[random_index];
-      species_new = species[random_index];
-      mu_or_phi_new = mu_or_phi[random_index];
+      index_new_species = rand_int2(rng);
+      type_j = types[index_new_species];
     }
 
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
@@ -469,9 +468,12 @@ void MC_Ensemble_SGC::compute(
     float energy_difference = pe_after_total - pe_before_total;
 
     if (!is_vcsgc) {
-      energy_difference += mu_or_phi_new - mu_or_phi_old;
+      energy_difference += mu_or_phi[index_new_species] - mu_or_phi[index_old_species];
     } else {
-      // TODO
+      energy_difference +=
+        kappa * K_B * temperature / atom.number_of_atoms *
+        (atom.number_of_atoms * (mu_or_phi[index_new_species] - mu_or_phi[index_old_species]) +
+         2 * (num_atoms_species[index_new_species] - num_atoms_species[index_old_species]) + 1.0);
     }
 
     std::uniform_real_distribution<float> r2(0, 1);
@@ -481,10 +483,13 @@ void MC_Ensemble_SGC::compute(
     if (random_number < probability) {
       ++num_accepted;
 
+      ++num_atoms_species[index_new_species];
+      --num_atoms_species[index_old_species];
+
       atom.cpu_type[i] = type_j;
-      atom.cpu_atom_symbol[i] = species_new;
+      atom.cpu_atom_symbol[i] = species[index_new_species];
       double mass_old = atom.cpu_mass[i];
-      double mass_new = MASS_TABLE.at(species_new);
+      double mass_new = MASS_TABLE.at(species[index_new_species]);
       atom.cpu_mass[i] = mass_new;
 
       gpu_flip<<<1, 1>>>(

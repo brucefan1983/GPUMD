@@ -24,6 +24,7 @@ public:
     bool is_vcsgc,
     std::vector<std::string>& species,
     std::vector<int>& types,
+    std::vector<int>& num_atoms_species,
     std::vector<double>& mu_or_phi,
     double kappa);
   virtual ~MC_Ensemble_SGC(void);
@@ -43,9 +44,10 @@ private:
   bool is_vcsgc = false;
   std::vector<std::string> species;
   std::vector<int> types;
+  std::vector<int> num_atoms_species;
   std::vector<double> mu_or_phi;
-  double mu_or_phi_old;
-  double mu_or_phi_new;
+  int index_old_species;
+  int index_new_species;
   double kappa;
 
   bool allowed_species(std::string& species_found);
