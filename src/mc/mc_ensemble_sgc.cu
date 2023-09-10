@@ -14,7 +14,16 @@
 */
 
 /*----------------------------------------------------------------------------80
-The semi-grand canonical (SGC) ensemble for MCMD.
+The semi-grand canonical (SGC) and variance-constrained SGC (VCSGC) ensembles
+for MCMD.
+
+[1] B. Sadigh, P. Erhart, A. Stukowski, A. Caro, E. Martinez, and L. Zepeda-Ruiz
+Scalable parallel Monte Carlo algorithm for atomistic simulations of
+precipitation in alloys, Phys. Rev. B 85, 184203 (2012).
+
+[2] B. Sadigh and P. Erhart
+Calculations of excess free energies of precipitates via direct thermodynamic
+integration across phase boundaries, Phys. Rev. B 86, 134204 (2012).
 ------------------------------------------------------------------------------*/
 
 #include "mc_ensemble_sgc.cuh"
