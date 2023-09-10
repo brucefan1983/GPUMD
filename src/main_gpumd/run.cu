@@ -158,7 +158,7 @@ void Run::execute_run_in()
 
 void Run::perform_a_run()
 {
-  integrate.initialize(time_step, group, atom);
+  integrate.initialize(time_step, atom, box, group, thermo);
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, force);
 
@@ -171,12 +171,14 @@ void Run::perform_a_run()
   clock_t time_begin = clock();
   double initial_time_step = time_step;
 
+  integrate.total_steps = number_of_steps;
   for (int step = 0; step < number_of_steps; ++step) {
 
     calculate_time_step(
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
 
+    integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     if (integrate.type >= 31) { // PIMD
@@ -339,7 +341,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
-    integrate.parse_ensemble(box, param, num_param, group);
+    integrate.parse_ensemble(param, num_param, time_step, atom, box, group, thermo);
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {

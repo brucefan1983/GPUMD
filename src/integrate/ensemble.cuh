@@ -52,6 +52,14 @@ public:
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
 
+  int* current_step;
+  int* total_steps;
+  double time_step;
+  const std::vector<Group>* group;
+  Box* box;
+  Atom* atom;
+  GPU_Vector<double>* thermo;
+
   int type; // ensemble type in a specific run
   int source;
   int sink;

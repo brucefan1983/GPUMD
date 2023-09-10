@@ -21,6 +21,7 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
+#include "ensemble_nh.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
@@ -30,7 +31,8 @@ The driver class for the various integrators.
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 
-void Integrate::initialize(const double time_step, const std::vector<Group>& group, Atom& atom)
+void Integrate::initialize(
+  double time_step, Atom& atom, Box& box, std::vector<Group>& group, GPU_Vector<double>& thermo)
 {
   int number_of_atoms = atom.number_of_atoms;
   if (move_group >= 0) {
@@ -106,6 +108,9 @@ void Integrate::initialize(const double time_step, const std::vector<Group>& gro
         deform_z,
         deform_rate));
       break;
+    case 20: // NPT-NH
+      // I creat the object elsewhere.
+      break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
         type,
@@ -162,6 +167,14 @@ void Integrate::initialize(const double time_step, const std::vector<Group>& gro
       printf("Illegal integrator!\n");
       break;
   }
+
+  ensemble->atom = &atom;
+  ensemble->box = &box;
+  ensemble->group = &group;
+  ensemble->time_step = time_step;
+  ensemble->current_step = &current_step;
+  ensemble->total_steps = &total_steps;
+  ensemble->thermo = &thermo;
 }
 
 void Integrate::finalize()
@@ -277,7 +290,13 @@ void Integrate::compute2(
 // 21-30: heat (NEMD method for heat conductivity)
 // 31-40: PIMD related
 void Integrate::parse_ensemble(
-  Box& box, const char** param, int num_param, std::vector<Group>& group)
+  const char** param,
+  int num_param,
+  double time_step,
+  Atom& atom,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo)
 {
   // 1. Determine the integration method
   if (strcmp(param[1], "nve") == 0) {
@@ -320,6 +339,9 @@ void Integrate::parse_ensemble(
     if (num_param != 18 && num_param != 12 && num_param != 8) {
       PRINT_INPUT_ERROR("ensemble npt_scr should have 6, 10, or 16 parameters.");
     }
+  } else if (strcmp(param[1], "npt_nh") == 0) {
+    type = 20;
+    ensemble.reset(new Ensemble_NH(param, num_param));
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
     if (num_param != 7) {
@@ -355,7 +377,7 @@ void Integrate::parse_ensemble(
   }
 
   // 2. Temperatures and temperature_coupling (NVT and NPT)
-  if (type >= 1 && type <= 20) {
+  if (type >= 1 && type < 20) {
     // initial temperature
     if (!is_valid_real(param[2], &temperature1)) {
       PRINT_INPUT_ERROR("Initial temperature should be a number.");
@@ -391,7 +413,7 @@ void Integrate::parse_ensemble(
   }
 
   // 3. Pressures and pressure_coupling (NPT)
-  if (type >= 11 && type <= 20) {
+  if (type >= 11 && type < 20) {
     // pressures:
     if (num_param == 12) {
       for (int i = 0; i < 3; i++) {
@@ -764,12 +786,13 @@ void Integrate::parse_ensemble(
         printf("    modulus_xy is %g GPa.\n", elastic_modulus[5]);
       }
       printf("    tau_p is %g time_step.\n", tau_p);
-
       // Change the units of pressure form GPa to that used in the code
       for (int i = 0; i < 6; i++) {
         target_pressure[i] /= PRESSURE_UNIT_CONVERSION;
         pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
       }
+      break;
+    case 20:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");
