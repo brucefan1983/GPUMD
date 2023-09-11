@@ -149,9 +149,6 @@ void __global__ add_dftd3_force_small_box(
             float diff_i = g_cn[n1] - cn_ref[z1 * max_cn + i];
             float diff_j = g_cn[n2] - cn_ref[z2 * max_cn + j];
             float L_ij = exp(-4.0f * (diff_i * diff_i + diff_j * diff_j));
-            if (L_ij == 0.0f) {
-              L_ij = 1.0e-37f;
-            }
             W += L_ij;
             dW += L_ij * (-8.0f * diff_i);
             float c6_ref_ij = (z1 < z2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
@@ -160,9 +157,17 @@ void __global__ add_dftd3_force_small_box(
             dZ += c6_ref_ij * L_ij * (-8.0f * diff_i);
           }
         }
-        W = 1.0f / W;
-        c6 = Z * W;
-        dc6 = dZ * W - c6 * dW * W;
+
+        if (W < 1.0e-30f) {
+          int i = num_cn_1 - 1;
+          int j = num_cn_2 - 1;
+          c6 = (z1 < z2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
+                         : g_c6_ref[z12 * max_cn2 + j * max_cn + i];
+        } else {
+          W = 1.0f / W;
+          c6 = Z * W;
+          dc6 = dZ * W - c6 * dW * W;
+        }
       }
       c6 *= HartreeBohr6;
       dc6 *= HartreeBohr6;
@@ -695,9 +700,6 @@ __global__ void find_dftd3_force_large_box(
                   float diff_i = g_cn[n1] - cn_ref[atomic_number_1 * max_cn + i];
                   float diff_j = g_cn[n2] - cn_ref[atomic_number_2 * max_cn + j];
                   float L_ij = exp(-4.0f * (diff_i * diff_i + diff_j * diff_j));
-                  if (L_ij == 0.0f) {
-                    L_ij = 1.0e-37f;
-                  }
                   W += L_ij;
                   dW += L_ij * (-8.0f * diff_i);
                   float c6_ref_ij = (atomic_number_1 < atomic_number_2)
@@ -707,9 +709,16 @@ __global__ void find_dftd3_force_large_box(
                   dZ += c6_ref_ij * L_ij * (-8.0f * diff_i);
                 }
               }
-              W = 1.0f / W;
-              c6 = Z * W;
-              dc6 = dZ * W - c6 * dW * W;
+              if (W < 1.0e-30f) {
+                int i = num_cn_1 - 1;
+                int j = num_cn_2 - 1;
+                c6 = (atomic_number_1 < atomic_number_2) ? g_c6_ref[z12 * max_cn2 + i * max_cn + j]
+                                                         : g_c6_ref[z12 * max_cn2 + j * max_cn + i];
+              } else {
+                W = 1.0f / W;
+                c6 = Z * W;
+                dc6 = dZ * W - c6 * dW * W;
+              }
             }
             c6 *= HartreeBohr6;
             dc6 *= HartreeBohr6;
