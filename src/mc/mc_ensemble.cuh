@@ -27,7 +27,7 @@
 class MC_Ensemble
 {
 public:
-  MC_Ensemble(void);
+  MC_Ensemble(const char** param, int num_param);
   virtual ~MC_Ensemble(void);
 
   virtual void compute(

@@ -62,10 +62,15 @@ static void check_is_nep(std::string& potential_file_name)
   input_potential.close();
 }
 
-MC_Ensemble::MC_Ensemble(void)
+MC_Ensemble::MC_Ensemble(const char** param, int num_param)
 {
   mc_output.open("mcmd.out", std::ios::app);
-  mc_output << "# num_MD_steps  acceptance_ratio" << std::endl;
+  mc_output << "# ";
+  for (int n = 0; n < num_param; ++n) {
+    mc_output << param[n] << " ";
+  }
+  mc_output << "\n";
+  mc_output << "# num_MD_steps  acceptance_ratio [species_concentrations]" << std::endl;
 
   const int n_max = 1000;
   const int m_max = 1000;

@@ -315,15 +315,15 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
   num_atoms_species.resize(num_types_mc, 0);
   if (mc_ensemble_type == 0) {
     check_species_canonical(groups, atom);
-    mc_ensemble.reset(new MC_Ensemble_Canonical(num_steps_mc));
+    mc_ensemble.reset(new MC_Ensemble_Canonical(param, num_param, num_steps_mc));
   } else if (mc_ensemble_type == 1) {
     check_species_sgc(groups, atom);
     mc_ensemble.reset(new MC_Ensemble_SGC(
-      num_steps_mc, false, species, types, num_atoms_species, mu_or_phi, kappa));
+      param, num_param, num_steps_mc, false, species, types, num_atoms_species, mu_or_phi, kappa));
   } else if (mc_ensemble_type == 2) {
     check_species_sgc(groups, atom);
-    mc_ensemble.reset(
-      new MC_Ensemble_SGC(num_steps_mc, true, species, types, num_atoms_species, mu_or_phi, kappa));
+    mc_ensemble.reset(new MC_Ensemble_SGC(
+      param, num_param, num_steps_mc, true, species, types, num_atoms_species, mu_or_phi, kappa));
   }
 
   do_mcmd = true;

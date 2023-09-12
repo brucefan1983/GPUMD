@@ -20,6 +20,8 @@ class MC_Ensemble_SGC : public MC_Ensemble
 {
 public:
   MC_Ensemble_SGC(
+    const char** param,
+    int num_param,
     int num_steps_mc,
     bool is_vcsgc,
     std::vector<std::string>& species,

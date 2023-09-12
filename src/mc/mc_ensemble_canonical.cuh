@@ -19,7 +19,7 @@
 class MC_Ensemble_Canonical : public MC_Ensemble
 {
 public:
-  MC_Ensemble_Canonical(int num_steps_mc);
+  MC_Ensemble_Canonical(const char** param, int num_param, int num_steps_mc);
   virtual ~MC_Ensemble_Canonical(void);
 
   virtual void compute(

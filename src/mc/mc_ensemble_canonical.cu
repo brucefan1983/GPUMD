@@ -19,7 +19,9 @@ The canonical ensemble for MCMD.
 
 #include "mc_ensemble_canonical.cuh"
 
-MC_Ensemble_Canonical::MC_Ensemble_Canonical(int num_steps_mc_input)
+MC_Ensemble_Canonical::MC_Ensemble_Canonical(
+  const char** param, int num_param, int num_steps_mc_input)
+  : MC_Ensemble(param, num_param)
 {
   num_steps_mc = num_steps_mc_input;
   NN_ij.resize(1);

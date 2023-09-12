@@ -135,6 +135,8 @@ const std::map<std::string, double> MASS_TABLE{
   {"Lr", 262}};
 
 MC_Ensemble_SGC::MC_Ensemble_SGC(
+  const char** param,
+  int num_param,
   int num_steps_mc_input,
   bool is_vcsgc_input,
   std::vector<std::string>& species_input,
@@ -142,6 +144,7 @@ MC_Ensemble_SGC::MC_Ensemble_SGC(
   std::vector<int>& num_atoms_species_input,
   std::vector<double>& mu_or_phi_input,
   double kappa_input)
+  : MC_Ensemble(param, num_param)
 {
   num_steps_mc = num_steps_mc_input;
   is_vcsgc = is_vcsgc_input;
@@ -495,5 +498,9 @@ void MC_Ensemble_SGC::compute(
     }
   }
 
-  mc_output << md_step << "  " << num_accepted / double(num_steps_mc) << std::endl;
+  mc_output << md_step << "  " << num_accepted / double(num_steps_mc) << " ";
+  for (int t = 0; t < types.size(); ++t) {
+    mc_output << num_atoms_species[t] / double(atom.number_of_atoms) << " ";
+  }
+  mc_output << std::endl;
 }
