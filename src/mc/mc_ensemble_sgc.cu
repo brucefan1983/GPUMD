@@ -14,27 +14,154 @@
 */
 
 /*----------------------------------------------------------------------------80
-The canonical ensemble for MCMD.
+The semi-grand canonical (SGC) and variance-constrained SGC (VCSGC) ensembles
+for MCMD.
+
+[1] B. Sadigh, P. Erhart, A. Stukowski, A. Caro, E. Martinez, and L. Zepeda-Ruiz
+Scalable parallel Monte Carlo algorithm for atomistic simulations of
+precipitation in alloys, Phys. Rev. B 85, 184203 (2012).
+
+[2] B. Sadigh and P. Erhart
+Calculations of excess free energies of precipitates via direct thermodynamic
+integration across phase boundaries, Phys. Rev. B 86, 134204 (2012).
 ------------------------------------------------------------------------------*/
 
-#include "mc_ensemble_canonical.cuh"
+#include "mc_ensemble_sgc.cuh"
+#include <map>
 
-MC_Ensemble_Canonical::MC_Ensemble_Canonical(
-  const char** param, int num_param, int num_steps_mc_input)
+const std::map<std::string, double> MASS_TABLE{
+  {"H", 1.0080000000},
+  {"He", 4.0026020000},
+  {"Li", 6.9400000000},
+  {"Be", 9.0121831000},
+  {"B", 10.8100000000},
+  {"C", 12.0110000000},
+  {"N", 14.0070000000},
+  {"O", 15.9990000000},
+  {"F", 18.9984031630},
+  {"Ne", 20.1797000000},
+  {"Na", 22.9897692800},
+  {"Mg", 24.3050000000},
+  {"Al", 26.9815385000},
+  {"Si", 28.0850000000},
+  {"P", 30.9737619980},
+  {"S", 32.0600000000},
+  {"Cl", 35.4500000000},
+  {"Ar", 39.9480000000},
+  {"K", 39.0983000000},
+  {"Ca", 40.0780000000},
+  {"Sc", 44.9559080000},
+  {"Ti", 47.8670000000},
+  {"V", 50.9415000000},
+  {"Cr", 51.9961000000},
+  {"Mn", 54.9380440000},
+  {"Fe", 55.8450000000},
+  {"Co", 58.9331940000},
+  {"Ni", 58.6934000000},
+  {"Cu", 63.5460000000},
+  {"Zn", 65.3800000000},
+  {"Ga", 69.7230000000},
+  {"Ge", 72.6300000000},
+  {"As", 74.9215950000},
+  {"Se", 78.9710000000},
+  {"Br", 79.9040000000},
+  {"Kr", 83.7980000000},
+  {"Rb", 85.4678000000},
+  {"Sr", 87.6200000000},
+  {"Y", 88.9058400000},
+  {"Zr", 91.2240000000},
+  {"Nb", 92.9063700000},
+  {"Mo", 95.9500000000},
+  {"Tc", 98},
+  {"Ru", 101.0700000000},
+  {"Rh", 102.9055000000},
+  {"Pd", 106.4200000000},
+  {"Ag", 107.8682000000},
+  {"Cd", 112.4140000000},
+  {"In", 114.8180000000},
+  {"Sn", 118.7100000000},
+  {"Sb", 121.7600000000},
+  {"Te", 127.6000000000},
+  {"I", 126.9044700000},
+  {"Xe", 131.2930000000},
+  {"Cs", 132.9054519600},
+  {"Ba", 137.3270000000},
+  {"La", 138.9054700000},
+  {"Ce", 140.1160000000},
+  {"Pr", 140.9076600000},
+  {"Nd", 144.2420000000},
+  {"Pm", 145},
+  {"Sm", 150.3600000000},
+  {"Eu", 151.9640000000},
+  {"Gd", 157.2500000000},
+  {"Tb", 158.9253500000},
+  {"Dy", 162.5000000000},
+  {"Ho", 164.9303300000},
+  {"Er", 167.2590000000},
+  {"Tm", 168.9342200000},
+  {"Yb", 173.0450000000},
+  {"Lu", 174.9668000000},
+  {"Hf", 178.4900000000},
+  {"Ta", 180.9478800000},
+  {"W", 183.8400000000},
+  {"Re", 186.2070000000},
+  {"Os", 190.2300000000},
+  {"Ir", 192.2170000000},
+  {"Pt", 195.0840000000},
+  {"Au", 196.9665690000},
+  {"Hg", 200.5920000000},
+  {"Tl", 204.3800000000},
+  {"Pb", 207.2000000000},
+  {"Bi", 208.9804000000},
+  {"Po", 210},
+  {"At", 210},
+  {"Rn", 222},
+  {"Fr", 223},
+  {"Ra", 226},
+  {"Ac", 227},
+  {"Th", 232.0377000000},
+  {"Pa", 231.0358800000},
+  {"U", 238.0289100000},
+  {"Np", 237},
+  {"Pu", 244},
+  {"Am", 243},
+  {"Cm", 247},
+  {"Bk", 247},
+  {"Cf", 251},
+  {"Es", 252},
+  {"Fm", 257},
+  {"Md", 258},
+  {"No", 259},
+  {"Lr", 262}};
+
+MC_Ensemble_SGC::MC_Ensemble_SGC(
+  const char** param,
+  int num_param,
+  int num_steps_mc_input,
+  bool is_vcsgc_input,
+  std::vector<std::string>& species_input,
+  std::vector<int>& types_input,
+  std::vector<int>& num_atoms_species_input,
+  std::vector<double>& mu_or_phi_input,
+  double kappa_input)
   : MC_Ensemble(param, num_param)
 {
   num_steps_mc = num_steps_mc_input;
+  is_vcsgc = is_vcsgc_input;
+  species = species_input;
+  types = types_input;
+  num_atoms_species = num_atoms_species_input;
+  mu_or_phi = mu_or_phi_input;
+  kappa = kappa_input;
   NN_ij.resize(1);
   NL_ij.resize(1000);
 }
 
-MC_Ensemble_Canonical::~MC_Ensemble_Canonical(void) { mc_output.close(); }
+MC_Ensemble_SGC::~MC_Ensemble_SGC(void) { mc_output.close(); }
 
 static __global__ void get_types(
   const int N,
   const int i,
-  const int j,
-  const int type_i,
   const int type_j,
   const int* g_type,
   int* g_type_before,
@@ -46,9 +173,6 @@ static __global__ void get_types(
     g_type_after[n] = g_type[n];
     if (n == i) {
       g_type_after[i] = type_j;
-    }
-    if (n == j) {
-      g_type_after[j] = type_i;
     }
   }
 }
@@ -69,17 +193,16 @@ static __global__ void find_local_types(
   }
 }
 
-static __global__ void get_neighbors_of_i_and_j(
+static __global__ void get_neighbors_of_i(
   const int N,
   const Box box,
   const int i,
-  const int j,
   const float rc_radial_square,
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  int* g_NN_ij,
-  int* g_NL_ij)
+  int* g_NN_i,
+  int* g_NL_i)
 {
   int n = blockIdx.x * blockDim.x + threadIdx.x;
   if (n < N) {
@@ -89,21 +212,12 @@ static __global__ void get_neighbors_of_i_and_j(
     double x0i = g_x[i] - x0;
     double y0i = g_y[i] - y0;
     double z0i = g_z[i] - z0;
-    double x0j = g_x[j] - x0;
-    double y0j = g_y[j] - y0;
-    double z0j = g_z[j] - z0;
 
     apply_mic(box, x0i, y0i, z0i);
     float distance_square_i = float(x0i * x0i + y0i * y0i + z0i * z0i);
-    apply_mic(box, x0j, y0j, z0j);
-    float distance_square_j = float(x0j * x0j + y0j * y0j + z0j * z0j);
 
     if (distance_square_i < rc_radial_square) {
-      g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
-    } else {
-      if (distance_square_j < rc_radial_square) {
-        g_NL_ij[atomicAdd(g_NN_ij, 1)] = n;
-      }
+      g_NL_i[atomicAdd(g_NN_i, 1)] = n;
     }
   }
 }
@@ -172,11 +286,11 @@ static __global__ void create_inputs_for_energy_calculator(
 }
 
 // a kernel with a single thread <<<1, 1>>>
-static __global__ void exchange(
+static __global__ void gpu_flip(
   const int i,
-  const int j,
-  const int type_i,
   const int type_j,
+  const double mass_j,
+  const double mass_scaler,
   int* g_type,
   double* g_mass,
   double* g_vx,
@@ -184,26 +298,24 @@ static __global__ void exchange(
   double* g_vz)
 {
   g_type[i] = type_j;
-  g_type[j] = type_i;
-
-  double mass_i = g_mass[i];
-  g_mass[i] = g_mass[j];
-  g_mass[j] = mass_i;
-
-  double vx_i = g_vx[i];
-  g_vx[i] = g_vx[j];
-  g_vx[j] = vx_i;
-
-  double vy_i = g_vy[i];
-  g_vy[i] = g_vy[j];
-  g_vy[j] = vy_i;
-
-  double vz_i = g_vz[i];
-  g_vz[i] = g_vz[j];
-  g_vz[j] = vz_i;
+  g_mass[i] = mass_j;
+  g_vx[i] *= mass_scaler; // momentum conservation
+  g_vy[i] *= mass_scaler;
+  g_vz[i] *= mass_scaler;
 }
 
-void MC_Ensemble_Canonical::compute(
+bool MC_Ensemble_SGC::allowed_species(std::string& species_found)
+{
+  for (int k = 0; k < species.size(); ++k) {
+    if (species[k] == species_found) {
+      index_old_species = k;
+      return true;
+    }
+  }
+  return false;
+}
+
+void MC_Ensemble_SGC::compute(
   int md_step,
   double temperature,
   Atom& atom,
@@ -228,27 +340,30 @@ void MC_Ensemble_Canonical::compute(
 
   int num_accepted = 0;
   for (int step = 0; step < num_steps_mc; ++step) {
-
-    int i = grouping_method >= 0
-              ? groups[grouping_method]
-                  .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
-              : r1(rng);
-    int type_i = atom.cpu_type[i];
-    int j = 0, type_j = type_i;
-    while (type_i == type_j) {
-      j = grouping_method >= 0
+    int i = -1;
+    int type_i = -1;
+    std::string species_found;
+    while (!allowed_species(species_found)) {
+      i = grouping_method >= 0
             ? groups[grouping_method]
                 .cpu_contents[groups[grouping_method].cpu_size_sum[group_id] + r1(rng)]
             : r1(rng);
-      type_j = atom.cpu_type[j];
+      species_found = atom.cpu_atom_symbol[i];
+      type_i = atom.cpu_type[i];
+    }
+
+    int type_j = type_i;
+    std::uniform_int_distribution<int> rand_int2(0, types.size() - 1);
+    while (type_j == type_i) {
+      index_new_species = rand_int2(rng);
+      type_j = types[index_new_species];
     }
 
     CHECK(cudaMemset(NN_ij.data(), 0, sizeof(int)));
-    get_neighbors_of_i_and_j<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
+    get_neighbors_of_i<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
       atom.number_of_atoms,
       box,
       i,
-      j,
       nep_energy.paramb.rc_radial * nep_energy.paramb.rc_radial,
       atom.position_per_atom.data(),
       atom.position_per_atom.data() + atom.number_of_atoms,
@@ -261,14 +376,7 @@ void MC_Ensemble_Canonical::compute(
     NN_ij.copy_to_host(&NN_ij_cpu);
 
     get_types<<<(atom.number_of_atoms - 1) / 64 + 1, 64>>>(
-      atom.number_of_atoms,
-      i,
-      j,
-      type_i,
-      type_j,
-      atom.type.data(),
-      type_before.data(),
-      type_after.data());
+      atom.number_of_atoms, i, type_j, atom.type.data(), type_before.data(), type_after.data());
     CUDA_CHECK_KERNEL
 
     find_local_types<<<(NN_ij_cpu - 1) / 64 + 1, 64>>>(
@@ -351,6 +459,16 @@ void MC_Ensemble_Canonical::compute(
     // printf("        per-atom energy before swapping = %g eV.\n", pe_before_total / NN_ij_cpu);
     // printf("        per-atom energy after swapping = %g eV.\n", pe_after_total / NN_ij_cpu);
     float energy_difference = pe_after_total - pe_before_total;
+
+    if (!is_vcsgc) {
+      energy_difference += mu_or_phi[index_new_species] - mu_or_phi[index_old_species];
+    } else {
+      energy_difference +=
+        kappa * K_B * temperature / atom.number_of_atoms *
+        (atom.number_of_atoms * (mu_or_phi[index_new_species] - mu_or_phi[index_old_species]) +
+         2 * (num_atoms_species[index_new_species] - num_atoms_species[index_old_species]) + 1.0);
+    }
+
     std::uniform_real_distribution<float> r2(0, 1);
     float random_number = r2(rng);
     float probability = exp(-energy_difference / (K_B * temperature));
@@ -358,22 +476,20 @@ void MC_Ensemble_Canonical::compute(
     if (random_number < probability) {
       ++num_accepted;
 
+      ++num_atoms_species[index_new_species];
+      --num_atoms_species[index_old_species];
+
       atom.cpu_type[i] = type_j;
-      atom.cpu_type[j] = type_i;
+      atom.cpu_atom_symbol[i] = species[index_new_species];
+      double mass_old = atom.cpu_mass[i];
+      double mass_new = MASS_TABLE.at(species[index_new_species]);
+      atom.cpu_mass[i] = mass_new;
 
-      auto atom_symbol_i = atom.cpu_atom_symbol[i];
-      atom.cpu_atom_symbol[i] = atom.cpu_atom_symbol[j];
-      atom.cpu_atom_symbol[j] = atom_symbol_i;
-
-      double mass_i = atom.cpu_mass[i];
-      atom.cpu_mass[i] = atom.cpu_mass[j];
-      atom.cpu_mass[j] = mass_i;
-
-      exchange<<<1, 1>>>(
+      gpu_flip<<<1, 1>>>(
         i,
-        j,
-        type_i,
         type_j,
+        mass_new,
+        mass_old / mass_new,
         atom.type.data(),
         atom.mass.data(),
         atom.velocity_per_atom.data(),
@@ -382,5 +498,9 @@ void MC_Ensemble_Canonical::compute(
     }
   }
 
-  mc_output << md_step << "  " << num_accepted / double(num_steps_mc) << std::endl;
+  mc_output << md_step << "  " << num_accepted / double(num_steps_mc) << " ";
+  for (int t = 0; t < types.size(); ++t) {
+    mc_output << num_atoms_species[t] / double(atom.number_of_atoms) << " ";
+  }
+  mc_output << std::endl;
 }

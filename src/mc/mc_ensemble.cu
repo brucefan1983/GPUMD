@@ -59,19 +59,18 @@ static void check_is_nep(std::string& potential_file_name)
   if (tokens[0].substr(0, 3) != "nep") {
     PRINT_INPUT_ERROR("MCMD only supports NEP models.");
   }
-
-  int num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
-  if (num_types < 2) {
-    PRINT_INPUT_ERROR("MCMD only supports multi-component models.");
-  }
-
   input_potential.close();
 }
 
-MC_Ensemble::MC_Ensemble(void)
+MC_Ensemble::MC_Ensemble(const char** param, int num_param)
 {
   mc_output.open("mcmd.out", std::ios::app);
-  mc_output << "# num_MD_steps  acceptance_ratio" << std::endl;
+  mc_output << "# ";
+  for (int n = 0; n < num_param; ++n) {
+    mc_output << param[n] << " ";
+  }
+  mc_output << "\n";
+  mc_output << "# num_MD_steps  acceptance_ratio [species_concentrations]" << std::endl;
 
   const int n_max = 1000;
   const int m_max = 1000;
@@ -106,4 +105,23 @@ MC_Ensemble::MC_Ensemble(void)
 MC_Ensemble::~MC_Ensemble(void)
 {
   // nothing now
+}
+
+bool MC_Ensemble::check_if_small_box(const double rc, const Box& box)
+{
+  double volume = box.get_volume();
+  double thickness_x = volume / box.get_area(0);
+  double thickness_y = volume / box.get_area(1);
+  double thickness_z = volume / box.get_area(2);
+  bool is_small_box = false;
+  if (box.pbc_x && thickness_x <= 2.0 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_y && thickness_y <= 2.0 * rc) {
+    is_small_box = true;
+  }
+  if (box.pbc_z && thickness_z <= 2.0 * rc) {
+    is_small_box = true;
+  }
+  return is_small_box;
 }
