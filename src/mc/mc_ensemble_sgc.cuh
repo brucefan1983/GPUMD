@@ -14,43 +14,43 @@
 */
 
 #pragma once
-
 #include "mc_ensemble.cuh"
-#include "model/box.cuh"
-#include "model/group.cuh"
-#include <memory>
-#include <vector>
 
-class Atom;
-
-class MC
+class MC_Ensemble_SGC : public MC_Ensemble
 {
 public:
-  std::unique_ptr<MC_Ensemble> mc_ensemble;
+  MC_Ensemble_SGC(
+    const char** param,
+    int num_param,
+    int num_steps_mc,
+    bool is_vcsgc,
+    std::vector<std::string>& species,
+    std::vector<int>& types,
+    std::vector<int>& num_atoms_species,
+    std::vector<double>& mu_or_phi,
+    double kappa);
+  virtual ~MC_Ensemble_SGC(void);
 
-  void initialize(void);
-  void finalize(void);
-  void compute(int step, int num_steps, Atom& atom, Box& box, std::vector<Group>& group);
-
-  void parse_mc(const char** param, int num_param, std::vector<Group>& group, Atom& atom);
+  virtual void compute(
+    int md_step,
+    double temperature,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    int grouping_method,
+    int group_id);
 
 private:
-  bool do_mcmd = false;
-  int num_steps_md = 0;
-  int num_steps_mc = 0;
-  int num_types_mc = 0;
-  int grouping_method = -1;
-  int group_id = -1;
-  double temperature_initial = 0.0;
-  double temperature_final = 0.0;
-  double kappa = 0.0;
+  GPU_Vector<int> NN_ij;
+  GPU_Vector<int> NL_ij;
+  bool is_vcsgc = false;
   std::vector<std::string> species;
   std::vector<int> types;
   std::vector<int> num_atoms_species;
   std::vector<double> mu_or_phi;
+  int index_old_species;
+  int index_new_species;
+  double kappa;
 
-  void parse_group(
-    const char** param, int num_param, std::vector<Group>& groups, int num_param_before_group);
-  void check_species_canonical(std::vector<Group>& groups, Atom& atom);
-  void check_species_sgc(std::vector<Group>& groups, Atom& atom);
+  bool allowed_species(std::string& species_found);
 };
