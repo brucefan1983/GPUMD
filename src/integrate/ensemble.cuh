@@ -96,6 +96,9 @@ protected:
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
 
+  void velocity_verlet_v();
+  void velocity_verlet_x();
+
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 
   void find_vc_and_ke(

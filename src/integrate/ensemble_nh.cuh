@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble.cuh"
+#include "npt_utilities.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
@@ -43,26 +44,39 @@ protected:
   void init();
   void nh_temp_integrate();
   void get_target_temp();
+  void get_target_pressure();
   double get_delta();
-  void velocity_verlet_step1();
-  void velocity_verlet_step2();
+  void get_sigma();
   double find_current_temperature();
+  void find_current_pressure();
   void find_thermo();
+  void get_h_matrix_from_box();
+  void copy_h_matrix_to_box();
+  void get_p_hydro();
+  void get_deviatoric();
+  void nh_omega_dot();
+  void propagate_box();
+  void propagate_box_off_diagonal();
+  void propagate_box_diagonal();
+  void scale_positions();
+  void nh_v_press();
 
-  bool tstat_flag, pstat_flag;
-  int p_flag[6]; // 1 if control P on this dim, 0 if not
-  double dt, dthalf, dt4, dt8;
+  int h0_reset_interval = 0;
+  double h[3][3], h_inv[3][3], h_old[3][3], h_old_inv[3][3];
+  double tmp1[3][3], tmp2[3][3];
+  double sigma[3][3], fdev[3][3];
+  double p_start[3][3], p_stop[3][3], p_current[3][3], p_target[3][3], p_hydro[3][3];
+  double p_period[3][3], p_freq[3][3];
+  double omega[3][3], omega_dot[3][3], omega_mass[3][3];
+  bool tstat_flag = false, pstat_flag = false, deviatoric_flag = false;
+  bool p_flag[3][3]; // 1 if control P on this dim, 0 if not
+  double dt, dthalf, dt4, dt8, dt16;
   double v0, t0;
   int tdof;
   double t_current, t_start, t_stop, t_target;
   double t_freq, t_period;
   double *Q, *eta_dot, *eta_dotdot;
-  double p_start[6], p_stop[6], p_target[6];
-  double p_period[6], p_freq[6];
-  double omega[6], omega_dot[6];
-  double omega_mass[6];
   double factor_eta;
-  double p_current[6];
   const double kB = 8.617333262e-5;
   int tchain = 4; // length of Nose-Hoover chain
   int pchain = 4;

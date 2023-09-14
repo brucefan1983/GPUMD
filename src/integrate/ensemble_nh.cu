@@ -21,11 +21,81 @@ P and T are both set -> NPT ensemable
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nh.cuh"
+#include "utilities/common.cuh"
+#include "utilities/error.cuh"
+
+namespace
+{
+void print_matrix(double a[3][3])
+{
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      printf("%f ", a[i][j]);
+    }
+    printf("\n ");
+  }
+  printf("----\n");
+}
+
+void matrix_multiply(double a[3][3], double b[3][3], double c[3][3])
+{
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      c[i][j] = 0;
+      for (int k = 0; k < 3; k++)
+        c[i][j] += a[i][k] * b[k][j];
+    }
+  }
+}
+
+__device__ void matrix_vector_multiply(double a[3][3], double b[3], double c[3])
+{
+  for (int i = 0; i < 3; i++) {
+    c[i] = 0;
+    for (int j = 0; j < 3; j++)
+      c[i] += a[i][j] * b[j];
+  }
+}
+
+void matrix_scale(double a[3][3], double b, double c[3][3])
+{
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      c[i][j] = a[i][j] * b;
+    }
+  }
+}
+
+void matrix_transpose(double a[3][3], double b[3][3])
+{
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      b[i][j] = a[j][i];
+    }
+  }
+}
+
+void matrix_minus(double a[3][3], double b[3][3], double c[3][3])
+{
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      c[i][j] = a[i][j] - b[i][j];
+    }
+  }
+}
+
+} // namespace
 
 Ensemble_NH::Ensemble_NH(const char** params, int num_params)
 {
-  // TODO: read deviatoric stress
-  // TODO: do barostat
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
+        sigma[i][j] = fdev[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] = p_target[i][j] =
+          p_hydro[i][j] = p_period[i][j] = p_freq[i][j] = omega[i][j] = omega_dot[i][j] =
+            omega_mass[i][j] = p_flag[i][j] = 0;
+    }
+  }
   // parse params
   for (int i = 0; i < num_params; i++) {
     printf(params[i]);
@@ -36,7 +106,7 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
   int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "temp") == 0) {
-      tstat_flag = 1;
+      tstat_flag = true;
       if (!is_valid_real(params[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for t_start keyword.");
       if (!is_valid_real(params[i + 2], &t_stop))
@@ -48,23 +118,39 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
     } else if (
       strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
       strcmp(params[i], "tri") == 0) {
-      pstat_flag = 1;
-      if (!is_valid_real(params[i + 1], p_start))
+      pstat_flag = true;
+      if (!is_valid_real(params[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      p_start[1] = p_start[2] = p_start[0];
-      if (!is_valid_real(params[i + 2], p_start))
+      p_start[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0] / PRESSURE_UNIT_CONVERSION;
+      ;
+      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
-      p_stop[1] = p_stop[2] = p_stop[0];
-      if (!(is_valid_real(params[i + 3], p_period)))
+      p_stop[0][0] = p_stop[1][1] = p_stop[2][2] = p_stop[0][0] / PRESSURE_UNIT_CONVERSION;
+      if (!(is_valid_real(params[i + 3], &p_period[0][0])))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
-      p_period[1] = p_period[2] = p_period[0];
-      p_flag[0] = p_flag[1] = p_flag[2] = 1;
+      p_period[1][1] = p_period[2][2] = p_period[0][0];
+
+      p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = 1;
       // when tri, enable pstat on three off-diagonal elements, and set target stress to zero.
       if (strcmp(params[i], "tri") == 0) {
-        p_period[5] = p_period[4] = p_period[3] = p_period[0];
-        p_flag[5] = p_flag[4] = p_flag[3] = 1;
+        for (int i = 0; i < 3; i++) {
+          for (int j = 0; j < 3; j++) {
+            if (i != j) {
+              p_start[i][j] = p_start[i][j] = 0;
+              p_stop[i][j] = p_stop[i][j] = 0;
+              p_period[i][j] = p_period[i][j] = p_period[0][0];
+              p_flag[i][j] = p_flag[i][j] = true;
+            }
+          }
+        }
       }
       i += 4;
+      // ??????
+      deviatoric_flag = 1;
+      // TODO: couple
+      // TODO: read single stress components
+    } else {
+      printf("???");
     }
   }
   // print info summary
@@ -87,18 +173,21 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
   else
     printf("No thermostat is set. Temperature is not controlled.\n");
 
-  const char* stress_components[6] = {"x", "y", "z", "yz", "xz", "xy"};
+  const char* stress_components[3][3] = {
+    {"xx", "xy", "xz"}, {"yx", "yy", "yz"}, {"zx", "zy", "zz"}};
   if (pstat_flag) {
-    for (int i = 0; i < 6; i++) {
-      if (p_flag[i] == 1)
-        printf(
-          "%s : p_start is %f, p_stop is %f, p_period is %f timesteps\n",
-          stress_components[i],
-          p_start[i],
-          p_stop[i],
-          p_period[i]);
-      else
-        printf("%s will not be changed.\n", stress_components[i]);
+    for (int i = 0; i < 3; i++) {
+      for (int j = 0; j < 3; j++) {
+        if (p_flag[i][j] == 1)
+          printf(
+            "%s : p_start is %f, p_stop is %f, p_period is %f timesteps\n",
+            stress_components[i][j],
+            p_start[i][j],
+            p_stop[i][j],
+            p_period[i][j]);
+        else
+          printf("%s will not be changed.\n", stress_components[i][j]);
+      }
     }
   } else
     printf("No barostat is set. Pressure is not controlled.\n");
@@ -106,32 +195,190 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
 
 Ensemble_NH::~Ensemble_NH(void) { delete[] Q, eta_dot, eta_dotdot; }
 
+void Ensemble_NH::init()
+{
+  // set tstat params
+  // Here I negelect center of mass dof.
+  tdof = atom->number_of_atoms * 3;
+  dt = time_step;
+  dthalf = dt / 2;
+  dt4 = dt / 4;
+  dt8 = dt / 8;
+  dt16 = dt / 16;
+  t_freq = 1 / (t_period * dt);
+  Q = new double[tchain];
+  eta_dot = new double[tchain];
+  eta_dotdot = new double[tchain];
+  for (int n = 0; n < tchain; n++)
+    Q[n] = eta_dot[n] = eta_dotdot[n] = 0;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      if (p_flag[i][j]) {
+        p_freq[i][j] = 1 / p_period[i][j];
+        omega_mass[i][j] =
+          (atom->number_of_atoms + 1) * kB * t_target / (p_freq[i][j] * p_freq[i][j]);
+      }
+    }
+  }
+}
+
 double Ensemble_NH::get_delta() { return (double)*current_step / (double)*total_steps; }
 
 void Ensemble_NH::get_target_temp() { t_target = t_start + (t_stop - t_start) * get_delta(); }
 
-void Ensemble_NH::velocity_verlet_step1()
+void Ensemble_NH::get_target_pressure()
 {
-  velocity_verlet(
-    true,
-    time_step,
-    *group,
-    atom->mass,
-    atom->force_per_atom,
-    atom->position_per_atom,
-    atom->velocity_per_atom);
+  double delta = get_delta();
+  for (int x = 0; x < 3; x++) {
+    for (int y = 0; y < 3; y++) {
+      p_target[x][y] = p_start[x][y] + (p_stop[x][y] - p_start[x][y]) * delta;
+    }
+  }
+  get_p_hydro();
 }
 
-void Ensemble_NH::velocity_verlet_step2()
+void Ensemble_NH::get_h_matrix_from_box()
 {
-  velocity_verlet(
-    false,
-    time_step,
-    *group,
-    atom->mass,
-    atom->force_per_atom,
-    atom->position_per_atom,
-    atom->velocity_per_atom);
+  box->get_inverse();
+  if (box->triclinic) {
+    for (int x = 0; x < 3; x++) {
+      for (int y = 0; y < 3; y++) {
+        h[x][y] = box->cpu_h[y + x * 3];
+        h_inv[x][y] = box->cpu_h[9 + y + x * 3];
+      }
+    }
+  } else {
+    for (int i = 0; i < 3; i++) {
+      h[i][i] = box->cpu_h[i];
+      h_inv[i][i] = box->cpu_h[9 + i];
+    }
+  }
+}
+
+void Ensemble_NH::copy_h_matrix_to_box()
+{
+  if (box->triclinic) {
+    for (int x = 0; x < 3; x++) {
+      for (int y = 0; y < 3; y++)
+        box->cpu_h[y + x * 3] = h[x][y];
+    }
+  } else {
+    for (int i = 0; i < 3; i++)
+      box->cpu_h[i] = h[i][i];
+  }
+  box->get_inverse();
+}
+
+void Ensemble_NH::get_p_hydro()
+{
+  double hydro = 0;
+  for (int i = 0; i < 3; i++) {
+    hydro += p_target[i][i];
+    hydro /= 3;
+  }
+  for (int i = 0; i < 3; i++)
+    p_hydro[i][i] = hydro;
+}
+
+void Ensemble_NH::get_sigma()
+{
+  if (h0_reset_interval > 0 && *current_step % h0_reset_interval == 0) {
+    // Eq. (2.24) of Parrinello1981
+    get_h_matrix_from_box();
+    // S-p
+    matrix_minus(p_target, p_hydro, tmp1);
+    // h_inv * (S-p)
+    matrix_multiply(h_inv, tmp1, tmp2);
+    matrix_transpose(h_inv, tmp1);
+    // h_inv * (S-p) *h_inv_T
+    matrix_multiply(tmp2, tmp1, sigma);
+    // h_inv * (S-p) * h_inv_T * vol
+    matrix_scale(sigma, box->get_volume(), sigma);
+  }
+}
+
+void Ensemble_NH::get_deviatoric()
+{
+  get_sigma();
+  // Eq. (1) of Shinoda2004
+  get_h_matrix_from_box();
+  matrix_multiply(h, sigma, tmp1);
+  matrix_transpose(h, tmp2);
+  matrix_multiply(tmp1, tmp2, fdev);
+}
+
+void Ensemble_NH::find_current_pressure()
+{
+  // TODO:couple?
+  find_thermo();
+  double t[8];
+  thermo->copy_to_host(t, 8);
+  p_current[0][0] = t[2];
+  p_current[1][1] = t[3];
+  p_current[2][2] = t[4];
+  p_current[0][1] = p_current[1][0] = t[5];
+  p_current[0][2] = p_current[2][0] = t[6];
+  p_current[1][2] = p_current[2][1] = t[7];
+}
+
+void Ensemble_NH::nh_omega_dot()
+{
+  // Eq. (1) of Shinoda2004
+  find_current_pressure();
+  double f_omega;
+  if (deviatoric_flag)
+    get_deviatoric();
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      if (p_flag[i][j]) {
+        f_omega = box->get_volume() * (p_current[i][j] - p_hydro[i][j]);
+        if (deviatoric_flag)
+          f_omega -= fdev[i][j];
+        f_omega /= omega_mass[i][j];
+        omega_dot[i][j] += f_omega * dthalf;
+      }
+    }
+  }
+}
+
+void Ensemble_NH::propagate_box()
+{
+  // Eq. (1) of Shinoda2004
+  // save old box
+  std::copy(&h[0][0], &h[0][0] + 9, &h_old[0][0]);
+  std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_old_inv[0][0]);
+  // change box, according to h_dot = omega_dot * h
+  propagate_box_off_diagonal();
+  propagate_box_diagonal();
+  propagate_box_off_diagonal();
+  scale_positions();
+  copy_h_matrix_to_box();
+}
+
+void Ensemble_NH::propagate_box_off_diagonal()
+{
+  // compute delta_h
+  matrix_scale(omega_dot, dt4, tmp1);
+  matrix_multiply(tmp1, h, tmp2);
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      if (i != j)
+        h[i][j] += tmp2[i][j];
+    }
+  }
+}
+void Ensemble_NH::propagate_box_diagonal()
+{
+  double expfac;
+  for (int i = 0; i < 3; i++) {
+    expfac = exp(dthalf * omega_dot[i][i]);
+    // TODO: fix point ?
+    for (int j = 0; j < 3; j++) {
+      h[i][j] *= expfac;
+      if (i != j)
+        h[j][i] *= expfac;
+    }
+  }
 }
 
 void Ensemble_NH::find_thermo()
@@ -145,23 +392,6 @@ void Ensemble_NH::find_thermo()
     atom->velocity_per_atom,
     atom->virial_per_atom,
     *thermo);
-}
-
-void Ensemble_NH::init()
-{
-  // set tstat params
-  // Here I negelect center of mass dof.
-  tdof = atom->number_of_atoms * 3;
-  dt = time_step;
-  dthalf = dt / 2;
-  dt4 = dt / 4;
-  dt8 = dt / 8;
-  t_freq = 1 / (t_period * dt);
-  Q = new double[tchain];
-  eta_dot = new double[tchain];
-  eta_dotdot = new double[tchain];
-  for (int n = 0; n < tchain; n++)
-    Q[n] = eta_dot[n] = eta_dotdot[n] = 0;
 }
 
 double Ensemble_NH::find_current_temperature()
@@ -204,6 +434,136 @@ void Ensemble_NH::nh_temp_integrate()
   }
 }
 
+static __global__ void gpu_scale_positions(
+  int number_of_atoms,
+  double hax,
+  double hbx,
+  double hcx,
+  double hay,
+  double hby,
+  double hcy,
+  double haz,
+  double hbz,
+  double hcz,
+  double h_old_inv_ax,
+  double h_old_inv_bx,
+  double h_old_inv_cx,
+  double h_old_inv_ay,
+  double h_old_inv_by,
+  double h_old_inv_cy,
+  double h_old_inv_az,
+  double h_old_inv_bz,
+  double h_old_inv_cz,
+  double* x,
+  double* y,
+  double* z)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_atoms) {
+    double old_pos[3] = {x[i], y[i], z[i]};
+    double frac[3], new_pos[3];
+    double h_old_inv[3][3] = {
+      {h_old_inv_ax, h_old_inv_bx, h_old_inv_cx},
+      {h_old_inv_ay, h_old_inv_by, h_old_inv_cy},
+      {h_old_inv_az, h_old_inv_bz, h_old_inv_cz}};
+    double h_new[3][3] = {{hax, hbx, hcx}, {hay, hby, hcy}, {haz, hbz, hcz}};
+    // fractional position
+    matrix_vector_multiply(h_old_inv, old_pos, frac);
+    // new position
+    matrix_vector_multiply(h_new, frac, new_pos);
+    x[i] = new_pos[0];
+    y[i] = new_pos[1];
+    z[i] = new_pos[2];
+  }
+}
+
+void Ensemble_NH::scale_positions()
+{
+  int n = atom->number_of_atoms;
+  gpu_scale_positions<<<(n - 1) / 128 + 1, 128>>>(
+    atom->number_of_atoms,
+    h[0][0],
+    h[0][1],
+    h[0][2],
+    h[1][0],
+    h[1][1],
+    h[1][2],
+    h[2][0],
+    h[2][1],
+    h[2][2],
+    h_old_inv[0][0],
+    h_old_inv[0][1],
+    h_old_inv[0][2],
+    h_old_inv[1][0],
+    h_old_inv[1][1],
+    h_old_inv[1][2],
+    h_old_inv[2][0],
+    h_old_inv[2][1],
+    h_old_inv[2][2],
+    atom->position_per_atom.data(),
+    atom->position_per_atom.data() + n,
+    atom->position_per_atom.data() + 2 * n);
+}
+
+static __global__ void gpu_nh_v_press(
+  int number_of_particles,
+  double time_step,
+  double* vx,
+  double* vy,
+  double* vz,
+  double omega_dot_xx,
+  double omega_dot_xy,
+  double omega_dot_xz,
+  double omega_dot_yx,
+  double omega_dot_yy,
+  double omega_dot_yz,
+  double omega_dot_zx,
+  double omega_dot_zy,
+  double omega_dot_zz)
+{
+  double dt4 = time_step / 4;
+  double dthalf = time_step / 2;
+  double factor_x = exp(-dt4 * (omega_dot_xx));
+  double factor_y = exp(-dt4 * (omega_dot_yy));
+  double factor_z = exp(-dt4 * (omega_dot_zz));
+
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    vx[i] *= factor_x;
+    vy[i] *= factor_y;
+    vz[i] *= factor_z;
+
+    // TODO: if trilinic...?
+    vx[i] += -dthalf * (vy[i] * omega_dot_yx + vz[i] * omega_dot_zx);
+    vy[i] += -dthalf * (vx[i] * omega_dot_xy + vz[i] * omega_dot_zy);
+    vz[i] += -dthalf * (vx[i] * omega_dot_xz + vy[i] * omega_dot_yz);
+
+    vx[i] *= factor_x;
+    vy[i] *= factor_y;
+    vz[i] *= factor_z;
+  }
+}
+
+void Ensemble_NH::nh_v_press()
+{
+  int n = atom->number_of_atoms;
+  gpu_nh_v_press<<<(n - 1) / 128 + 1, 128>>>(
+    n,
+    time_step,
+    atom->velocity_per_atom.data(),
+    atom->velocity_per_atom.data() + n,
+    atom->velocity_per_atom.data() + 2 * n,
+    omega_dot[0][0],
+    omega_dot[0][1],
+    omega_dot[0][2],
+    omega_dot[1][0],
+    omega_dot[1][1],
+    omega_dot[1][2],
+    omega_dot[2][0],
+    omega_dot[2][1],
+    omega_dot[2][2]);
+}
+
 void Ensemble_NH::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -220,7 +580,21 @@ void Ensemble_NH::compute1(
     nh_temp_integrate();
   }
 
-  velocity_verlet_step1();
+  if (pstat_flag) {
+    get_target_pressure();
+    nh_omega_dot();
+    nh_v_press();
+  }
+
+  velocity_verlet_v();
+
+  if (pstat_flag)
+    propagate_box();
+
+  velocity_verlet_x();
+
+  if (pstat_flag)
+    propagate_box();
 }
 
 void Ensemble_NH::compute2(
@@ -230,10 +604,18 @@ void Ensemble_NH::compute2(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  velocity_verlet_step2();
+  velocity_verlet_v();
+
+  if (pstat_flag)
+    nh_v_press();
+
+  if (pstat_flag)
+    nh_omega_dot();
 
   if (tstat_flag)
     nh_temp_integrate();
+
+  // TODO: pchain
 
   find_thermo();
 }
