@@ -298,12 +298,18 @@ void Ensemble_NH::init()
   eta_dotdot = new double[tchain];
   for (int n = 0; n < tchain; n++)
     Q[n] = eta_dot[n] = eta_dotdot[n] = 0;
+
+  // TODO: when NPH, there is no t_start
+  int t_for_barostat = t_start;
+  if (t_target < 1) {
+    t_for_barostat = find_current_temperature();
+  }
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j]) {
         p_freq[i][j] = 1 / (p_period[i][j] * dt);
         omega_mass[i][j] =
-          (atom->number_of_atoms + 1) * kB * t_target / (p_freq[i][j] * p_freq[i][j]);
+          (atom->number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
       }
     }
   }
@@ -634,7 +640,6 @@ static __global__ void gpu_nh_v_press(
     vy[i] *= factor_y;
     vz[i] *= factor_z;
 
-    // TODO: if trilinic...?
     vx[i] += -dthalf * (vy[i] * omega_dot_yx + vz[i] * omega_dot_zx);
     vy[i] += -dthalf * (vx[i] * omega_dot_xy + vz[i] * omega_dot_zy);
     vz[i] += -dthalf * (vx[i] * omega_dot_xz + vy[i] * omega_dot_yz);
@@ -672,7 +677,6 @@ void Ensemble_NH::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
-  h0_reset_interval = 100;
   if (*current_step == 0) {
     init();
   }

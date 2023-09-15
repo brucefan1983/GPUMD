@@ -15,6 +15,7 @@ Syntax
 The number of optional parameters depends on the first parameter, which can assume any of the following values::
 
     nve
+    nh
     nvt_ber
     nvt_nhc
     nvt_bdp
@@ -35,6 +36,65 @@ If the first parameter is :attr:`nve`, it means that the ensemble for the curren
 There is no need to further specify any other parameters. Therefore, the full command is::
 
     ensemble nve
+
+
+:attr:`nh`
+^^^^^^^^^^^
+The `nh` keyword implements the Nose-Hoover thermostat and Parrinello-Rahman barostat.
+
+Depending on the input parameters, it can perform simulations in different ensembles:
+
+- Canonical Ensemble (NVT)
+- Isothermal-Isobaric Ensemble (NPT)
+- Isoenthalpic Ensemble (NPH)
+
+**Thermostat Parameters**
+
+The thermostat parameters can be specified as follows:
+
+.. code-block:: rst
+
+    ensemble nh temp T_1 T_2 T_coup
+
+- `T_1` and `T_2`: Initial and final temperature.
+- `T_coup`: Determines the period of the thermostat. A typical value is 100.
+
+**Barostat Parameters**
+
+The barostat parameters can be specified as follows:
+
+.. code-block:: rst
+
+    ensemble nh direction p_1 p_2 p_coup
+
+- `direction`: One of the following values: `iso`, `aniso`, `tri`, `x`, `y`, `z`, `xy`, `yz`, `xz`.
+- `iso`, `aniso`, and `tri` use hydrostatic pressure as the target pressure. `iso` change the box isotropicly. `aniso` change the x, y and z length of the box. `tri` change all 6 degrees of freedom of the box.
+- `x`, `y`, `z`, `xy`, `yz`, `xz`: Specify each stress component independently.
+- `p_1` and `p_2`: Initial and final pressure.
+- `P_coup`: Determines the period of the barostat. A typical value is 1000.
+
+**Examples**
+
+Here are some examples of how to use the `nh` keyword for different ensembles:
+
+**NVT Ensemble Example:**
+
+.. code-block:: rst
+
+    ensemble nh temp 300 300 100
+
+**NPT Ensemble Example:**
+
+.. code-block:: rst
+
+    ensemble nh iso 1.0 1.0 1000 temp 300 300 100
+
+**NPH Ensemble Example:**
+
+.. code-block:: rst
+
+    ensemble nh iso 10 10 1000
+
 
 :attr:`nvt_ber`
 ^^^^^^^^^^^^^^^

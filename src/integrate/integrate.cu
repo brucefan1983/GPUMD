@@ -339,7 +339,7 @@ void Integrate::parse_ensemble(
     if (num_param != 18 && num_param != 12 && num_param != 8) {
       PRINT_INPUT_ERROR("ensemble npt_scr should have 6, 10, or 16 parameters.");
     }
-  } else if (strcmp(param[1], "npt_nh") == 0) {
+  } else if (strcmp(param[1], "nh") == 0) {
     type = 20;
     ensemble.reset(new Ensemble_NH(param, num_param));
   } else if (strcmp(param[1], "heat_nhc") == 0) {
