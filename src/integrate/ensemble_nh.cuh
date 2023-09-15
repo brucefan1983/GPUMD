@@ -15,8 +15,7 @@
 
 #pragma once
 #include "ensemble.cuh"
-#include "npt_utilities.cuh"
-#include "utilities/error.cuh"
+#include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
 
@@ -60,9 +59,12 @@ protected:
   void propagate_box_diagonal();
   void scale_positions();
   void nh_v_press();
+  void couple();
 
+  enum { NONE, XYZ, XY, YZ, XZ };
+  int couple_type = NONE;
   int h0_reset_interval = 0;
-  double h[3][3], h_inv[3][3], h_old[3][3], h_old_inv[3][3];
+  double h[3][3], h_inv[3][3], h_old[3][3], h_old_inv[3][3], h_ref_inv[3][3];
   double tmp1[3][3], tmp2[3][3];
   double sigma[3][3], fdev[3][3];
   double p_start[3][3], p_stop[3][3], p_current[3][3], p_target[3][3], p_hydro[3][3];

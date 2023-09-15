@@ -21,8 +21,6 @@ P and T are both set -> NPT ensemable
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_nh.cuh"
-#include "utilities/common.cuh"
-#include "utilities/error.cuh"
 
 namespace
 {
@@ -93,7 +91,7 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
         sigma[i][j] = fdev[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] = p_target[i][j] =
           p_hydro[i][j] = p_period[i][j] = p_freq[i][j] = omega[i][j] = omega_dot[i][j] =
-            omega_mass[i][j] = p_flag[i][j] = 0;
+            omega_mass[i][j] = p_flag[i][j] = h_ref_inv[i][j] = 0;
     }
   }
   // parse params
@@ -121,16 +119,19 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       pstat_flag = true;
       if (!is_valid_real(params[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      p_start[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0] / PRESSURE_UNIT_CONVERSION;
-      ;
+      p_start[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0];
       if (!is_valid_real(params[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
-      p_stop[0][0] = p_stop[1][1] = p_stop[2][2] = p_stop[0][0] / PRESSURE_UNIT_CONVERSION;
+      p_stop[0][0] = p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
       if (!(is_valid_real(params[i + 3], &p_period[0][0])))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       p_period[1][1] = p_period[2][2] = p_period[0][0];
 
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = 1;
+
+      if (strcmp(params[i], "iso") == 0)
+        couple_type = XYZ;
+
       // when tri, enable pstat on three off-diagonal elements, and set target stress to zero.
       if (strcmp(params[i], "tri") == 0) {
         for (int i = 0; i < 3; i++) {
@@ -145,12 +146,95 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
         }
       }
       i += 4;
-      // ??????
+    } else if (strcmp(params[i], "couple") == 0) {
+      if (strcmp(params[i + 1], "xyz"))
+        couple_type = XYZ;
+      else if (strcmp(params[i + 1], "xy"))
+        couple_type = XY;
+      else if (strcmp(params[i + 1], "yz"))
+        couple_type = YZ;
+      else if (strcmp(params[i + 1], "xz"))
+        couple_type = XZ;
+      else
+        PRINT_INPUT_ERROR("Wrong inputs for couple keyword.");
+      i += 2;
+    } else if (strcmp(params[i], "x") == 0) {
+      if (!is_valid_real(params[i + 1], &p_start[0][0]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
+      if (!is_valid_real(params[i + 2], &p_stop[0][0]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
+      if (!(is_valid_real(params[i + 3], &p_period[0][0])))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      p_flag[0][0] = 1;
       deviatoric_flag = 1;
-      // TODO: couple
-      // TODO: read single stress components
+      pstat_flag = true;
+      i += 4;
+    } else if (strcmp(params[i], "y") == 0) {
+      if (!is_valid_real(params[i + 1], &p_start[1][1]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
+      if (!is_valid_real(params[i + 2], &p_stop[1][1]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
+      if (!(is_valid_real(params[i + 3], &p_period[1][1])))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      p_flag[1][1] = 1;
+      deviatoric_flag = 1;
+      pstat_flag = true;
+      i += 4;
+    } else if (strcmp(params[i], "z") == 0) {
+      if (!is_valid_real(params[i + 1], &p_start[2][2]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
+      if (!is_valid_real(params[i + 2], &p_stop[2][2]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
+      if (!(is_valid_real(params[i + 3], &p_period[2][2])))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      p_flag[2][2] = 1;
+      deviatoric_flag = 1;
+      pstat_flag = true;
+      i += 4;
+    } else if (strcmp(params[i], "xy") == 0) {
+      if (!is_valid_real(params[i + 1], &p_start[0][1]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
+      p_start[1][0] = p_start[0][1];
+      if (!is_valid_real(params[i + 2], &p_stop[0][1]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
+      p_stop[1][0] = p_stop[0][1];
+      if (!(is_valid_real(params[i + 3], &p_period[0][1])))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      p_period[1][0] = p_period[0][1];
+      p_flag[1][0] = p_flag[0][1] = 1;
+      deviatoric_flag = 1;
+      pstat_flag = true;
+      i += 4;
+    } else if (strcmp(params[i], "xz") == 0) {
+      if (!is_valid_real(params[i + 1], &p_start[0][2]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
+      p_start[2][0] = p_start[0][2];
+      if (!is_valid_real(params[i + 2], &p_stop[0][2]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
+      p_stop[2][0] = p_stop[0][2];
+      if (!(is_valid_real(params[i + 3], &p_period[0][2])))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      p_period[2][0] = p_period[0][2];
+      p_flag[2][0] = p_flag[0][2] = 1;
+      deviatoric_flag = 1;
+      pstat_flag = true;
+      i += 4;
+    } else if (strcmp(params[i], "yz") == 0) {
+      if (!is_valid_real(params[i + 1], &p_start[1][2]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
+      p_start[2][1] = p_start[1][2];
+      if (!is_valid_real(params[i + 2], &p_stop[1][2]))
+        PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
+      p_stop[2][1] = p_stop[1][2];
+      if (!(is_valid_real(params[i + 3], &p_period[1][2])))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      p_period[2][1] = p_period[1][2];
+      p_flag[2][1] = p_flag[1][2] = 1;
+      deviatoric_flag = 1;
+      pstat_flag = true;
+      i += 4;
     } else {
-      printf("???");
+      PRINT_INPUT_ERROR("Wrong inputs.");
     }
   }
   // print info summary
@@ -197,6 +281,9 @@ Ensemble_NH::~Ensemble_NH(void) { delete[] Q, eta_dot, eta_dotdot; }
 
 void Ensemble_NH::init()
 {
+  // from GPa to eV/A^2
+  matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
+  matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
   // set tstat params
   // Here I negelect center of mass dof.
   tdof = atom->number_of_atoms * 3;
@@ -214,7 +301,7 @@ void Ensemble_NH::init()
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j]) {
-        p_freq[i][j] = 1 / p_period[i][j];
+        p_freq[i][j] = 1 / (p_period[i][j] * dt);
         omega_mass[i][j] =
           (atom->number_of_atoms + 1) * kB * t_target / (p_freq[i][j] * p_freq[i][j]);
       }
@@ -235,6 +322,8 @@ void Ensemble_NH::get_target_pressure()
     }
   }
   get_p_hydro();
+  if (deviatoric_flag)
+    get_sigma();
 }
 
 void Ensemble_NH::get_h_matrix_from_box()
@@ -272,44 +361,56 @@ void Ensemble_NH::copy_h_matrix_to_box()
 void Ensemble_NH::get_p_hydro()
 {
   double hydro = 0;
-  for (int i = 0; i < 3; i++) {
+  for (int i = 0; i < 3; i++)
     hydro += p_target[i][i];
-    hydro /= 3;
-  }
+  hydro /= 3;
   for (int i = 0; i < 3; i++)
     p_hydro[i][i] = hydro;
 }
 
 void Ensemble_NH::get_sigma()
 {
-  if (h0_reset_interval > 0 && *current_step % h0_reset_interval == 0) {
-    // Eq. (2.24) of Parrinello1981
-    get_h_matrix_from_box();
-    // S-p
-    matrix_minus(p_target, p_hydro, tmp1);
-    // h_inv * (S-p)
-    matrix_multiply(h_inv, tmp1, tmp2);
-    matrix_transpose(h_inv, tmp1);
-    // h_inv * (S-p) *h_inv_T
-    matrix_multiply(tmp2, tmp1, sigma);
-    // h_inv * (S-p) * h_inv_T * vol
-    matrix_scale(sigma, box->get_volume(), sigma);
+  if (h0_reset_interval > 0) {
+    if (*current_step % h0_reset_interval == 0) {
+      std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_ref_inv[0][0]);
+    }
   }
+  // Eq. (2.24) of Parrinello1981
+  // S-p
+  matrix_minus(p_target, p_hydro, tmp1);
+  // h_inv * (S-p)
+  matrix_multiply(h_ref_inv, tmp1, tmp2);
+  matrix_transpose(h_ref_inv, tmp1);
+  // h_inv * (S-p) * h_inv_T
+  matrix_multiply(tmp2, tmp1, sigma);
+  // h_inv * (S-p) * h_inv_T * vol
+  matrix_scale(sigma, box->get_volume(), sigma);
 }
 
 void Ensemble_NH::get_deviatoric()
 {
-  get_sigma();
   // Eq. (1) of Shinoda2004
-  get_h_matrix_from_box();
   matrix_multiply(h, sigma, tmp1);
   matrix_transpose(h, tmp2);
   matrix_multiply(tmp1, tmp2, fdev);
 }
 
+void Ensemble_NH::couple()
+{
+  double xx = p_current[0][0], yy = p_current[1][1], zz = p_current[2][2];
+
+  if (couple_type == XYZ)
+    p_current[0][0] = p_current[1][1] = p_current[2][2] = (xx + yy + zz) / 3;
+  else if (couple_type == XY)
+    p_current[0][0] = p_current[1][1] = (xx + yy) / 2;
+  else if (couple_type == YZ)
+    p_current[1][1] = p_current[2][2] = (yy + zz) / 2;
+  else if (couple_type == XZ)
+    p_current[0][0] = p_current[2][2] = (xx + zz) / 2;
+}
+
 void Ensemble_NH::find_current_pressure()
 {
-  // TODO:couple?
   find_thermo();
   double t[8];
   thermo->copy_to_host(t, 8);
@@ -319,6 +420,8 @@ void Ensemble_NH::find_current_pressure()
   p_current[0][1] = p_current[1][0] = t[5];
   p_current[0][2] = p_current[2][0] = t[6];
   p_current[1][2] = p_current[2][1] = t[7];
+  if (couple_type != NONE)
+    couple();
 }
 
 void Ensemble_NH::nh_omega_dot()
@@ -362,7 +465,7 @@ void Ensemble_NH::propagate_box_off_diagonal()
   matrix_multiply(tmp1, h, tmp2);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
-      if (i != j)
+      if (i != j && p_flag[i][j])
         h[i][j] += tmp2[i][j];
     }
   }
@@ -375,8 +478,6 @@ void Ensemble_NH::propagate_box_diagonal()
     // TODO: fix point ?
     for (int j = 0; j < 3; j++) {
       h[i][j] *= expfac;
-      if (i != j)
-        h[j][i] *= expfac;
     }
   }
 }
@@ -571,6 +672,7 @@ void Ensemble_NH::compute1(
   Atom& atom,
   GPU_Vector<double>& thermo)
 {
+  h0_reset_interval = 100;
   if (*current_step == 0) {
     init();
   }
@@ -581,6 +683,7 @@ void Ensemble_NH::compute1(
   }
 
   if (pstat_flag) {
+    get_h_matrix_from_box();
     get_target_pressure();
     nh_omega_dot();
     nh_v_press();
@@ -606,8 +709,10 @@ void Ensemble_NH::compute2(
 {
   velocity_verlet_v();
 
-  if (pstat_flag)
+  if (pstat_flag) {
+    get_h_matrix_from_box();
     nh_v_press();
+  }
 
   if (pstat_flag)
     nh_omega_dot();
