@@ -24,16 +24,6 @@ P and T are both set -> NPT ensemable
 
 namespace
 {
-void print_matrix(double a[3][3])
-{
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      printf("%f ", a[i][j]);
-    }
-    printf("\n ");
-  }
-  printf("----\n");
-}
 
 void matrix_multiply(double a[3][3], double b[3][3], double c[3][3])
 {
@@ -90,23 +80,35 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
     for (int j = 0; j < 3; j++) {
       h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
         sigma[i][j] = fdev[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] = p_target[i][j] =
-          p_hydro[i][j] = p_period[i][j] = p_freq[i][j] = omega[i][j] = omega_dot[i][j] =
-            omega_mass[i][j] = p_flag[i][j] = h_ref_inv[i][j] = 0;
+          p_hydro[i][j] = p_freq[i][j] = omega[i][j] = omega_dot[i][j] = omega_mass[i][j] =
+            p_flag[i][j] = h_ref_inv[i][j] = 0;
+      p_period[i][j] = 1000;
     }
   }
 
   int i = 2;
   while (i < num_params) {
-    if (strcmp(params[i], "temp") == 0) {
+    if (strcmp(params[i], "tperiod") == 0) {
+      if (!is_valid_real(params[i + 1], &t_period))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      i += 2;
+    } else if (strcmp(params[i], "pperiod") == 0) {
+      if (!is_valid_real(params[i + 1], &p_period[0][0]))
+        PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
+      i += 2;
+      for (int i = 0; i < 3; i++) {
+        for (int j = 0; j < 3; j++) {
+          p_period[i][j] = p_period[0][0];
+        }
+      }
+    } else if (strcmp(params[i], "temp") == 0) {
       tstat_flag = true;
       if (!is_valid_real(params[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for t_start keyword.");
       if (!is_valid_real(params[i + 2], &t_stop))
         PRINT_INPUT_ERROR("Wrong inputs for t_stop keyword.");
-      if (!is_valid_real(params[i + 3], &t_period))
-        PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       t_target = t_start;
-      i += 4;
+      i += 3;
     } else if (
       strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
       strcmp(params[i], "tri") == 0) {
@@ -117,9 +119,6 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       if (!is_valid_real(params[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[0][0] = p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
-      if (!(is_valid_real(params[i + 3], &p_period[0][0])))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
-      p_period[1][1] = p_period[2][2] = p_period[0][0];
 
       p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = 1;
 
@@ -133,13 +132,12 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
             if (i != j) {
               p_start[i][j] = p_start[i][j] = 0;
               p_stop[i][j] = p_stop[i][j] = 0;
-              p_period[i][j] = p_period[i][j] = p_period[0][0];
               p_flag[i][j] = p_flag[i][j] = true;
             }
           }
         }
       }
-      i += 4;
+      i += 3;
     } else if (strcmp(params[i], "couple") == 0) {
       if (strcmp(params[i + 1], "xyz"))
         couple_type = XYZ;
@@ -157,34 +155,28 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(params[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
-      if (!(is_valid_real(params[i + 3], &p_period[0][0])))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       p_flag[0][0] = 1;
       deviatoric_flag = 1;
       pstat_flag = true;
-      i += 4;
+      i += 3;
     } else if (strcmp(params[i], "y") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(params[i + 2], &p_stop[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
-      if (!(is_valid_real(params[i + 3], &p_period[1][1])))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       p_flag[1][1] = 1;
       deviatoric_flag = 1;
       pstat_flag = true;
-      i += 4;
+      i += 3;
     } else if (strcmp(params[i], "z") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       if (!is_valid_real(params[i + 2], &p_stop[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
-      if (!(is_valid_real(params[i + 3], &p_period[2][2])))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       p_flag[2][2] = 1;
       deviatoric_flag = 1;
       pstat_flag = true;
-      i += 4;
+      i += 3;
     } else if (strcmp(params[i], "xy") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[0][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
@@ -192,13 +184,10 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       if (!is_valid_real(params[i + 2], &p_stop[0][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[1][0] = p_stop[0][1];
-      if (!(is_valid_real(params[i + 3], &p_period[0][1])))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
-      p_period[1][0] = p_period[0][1];
       p_flag[1][0] = p_flag[0][1] = 1;
       deviatoric_flag = 1;
       pstat_flag = true;
-      i += 4;
+      i += 3;
     } else if (strcmp(params[i], "xz") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[0][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
@@ -206,13 +195,10 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       if (!is_valid_real(params[i + 2], &p_stop[0][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][0] = p_stop[0][2];
-      if (!(is_valid_real(params[i + 3], &p_period[0][2])))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
-      p_period[2][0] = p_period[0][2];
       p_flag[2][0] = p_flag[0][2] = 1;
       deviatoric_flag = 1;
       pstat_flag = true;
-      i += 4;
+      i += 3;
     } else if (strcmp(params[i], "yz") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[1][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
@@ -220,13 +206,10 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       if (!is_valid_real(params[i + 2], &p_stop[1][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][1] = p_stop[1][2];
-      if (!(is_valid_real(params[i + 3], &p_period[1][2])))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
-      p_period[2][1] = p_period[1][2];
       p_flag[2][1] = p_flag[1][2] = 1;
       deviatoric_flag = 1;
       pstat_flag = true;
-      i += 4;
+      i += 3;
     } else {
       PRINT_INPUT_ERROR("Wrong inputs.");
     }

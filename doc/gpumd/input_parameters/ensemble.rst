@@ -54,10 +54,10 @@ The thermostat parameters can be specified as follows:
 
 .. code-block:: rst
 
-    ensemble nh temp T_1 T_2 T_coup
+    ensemble nh temp T_1 T_2 tperiod t
 
 - `T_1` and `T_2`: Initial and final temperature.
-- `T_coup`: Determines the period of the thermostat. A typical value is 100.
+- `t`: Determines the period of the thermostat. A typical value is 100. This keyword can be omitted.
 
 **Barostat Parameters**
 
@@ -65,13 +65,13 @@ The barostat parameters can be specified as follows:
 
 .. code-block:: rst
 
-    ensemble nh direction p_1 p_2 p_coup
+    ensemble nh direction p_1 p_2 pperiod t
 
 - `direction`: One of the following values: `iso`, `aniso`, `tri`, `x`, `y`, `z`, `xy`, `yz`, `xz`.
 - `iso`, `aniso`, and `tri` use hydrostatic pressure as the target pressure. `iso` change the box isotropicly. `aniso` change the x, y and z length of the box. `tri` change all 6 degrees of freedom of the box.
 - `x`, `y`, `z`, `xy`, `yz`, `xz`: Specify each stress component independently.
 - `p_1` and `p_2`: Initial and final pressure.
-- `P_coup`: Determines the period of the barostat. A typical value is 1000.
+- `t`: Determines the period of the barostat. A typical value is 1000. This keyword can be omitted.
 
 **Examples**
 
@@ -81,19 +81,19 @@ Here are some examples of how to use the `nh` keyword for different ensembles:
 
 .. code-block:: rst
 
-    ensemble nh temp 300 300 100
+    ensemble nh temp 300 300
 
 **NPT Ensemble Example:**
 
 .. code-block:: rst
 
-    ensemble nh iso 1.0 1.0 1000 temp 300 300 100
+    ensemble nh iso 1.0 1.0 temp 300 300
 
 **NPH Ensemble Example:**
 
 .. code-block:: rst
 
-    ensemble nh iso 10 10 1000
+    ensemble nh iso 10 10
 
 
 :attr:`nvt_ber`
