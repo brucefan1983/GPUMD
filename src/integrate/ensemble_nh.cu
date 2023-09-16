@@ -94,12 +94,6 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
             omega_mass[i][j] = p_flag[i][j] = h_ref_inv[i][j] = 0;
     }
   }
-  // parse params
-  for (int i = 0; i < num_params; i++) {
-    printf(params[i]);
-    printf(" ");
-  }
-  printf("\n");
 
   int i = 2;
   while (i < num_params) {
@@ -277,7 +271,7 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
     printf("No barostat is set. Pressure is not controlled.\n");
 }
 
-Ensemble_NH::~Ensemble_NH(void) { delete[] Q, eta_dot, eta_dotdot; }
+Ensemble_NH::~Ensemble_NH(void) { delete[] Q, eta_dot, eta_dotdot, Q_p, eta_p_dot, eta_p_dotdot; }
 
 void Ensemble_NH::init()
 {
@@ -294,20 +288,31 @@ void Ensemble_NH::init()
   dt16 = dt / 16;
   t_freq = 1 / (t_period * dt);
   Q = new double[tchain];
-  eta_dot = new double[tchain];
+  eta_dot = new double[tchain + 1];
   eta_dotdot = new double[tchain];
+  Q_p = new double[pchain];
+  eta_p_dot = new double[pchain + 1];
+  eta_p_dotdot = new double[pchain];
+
   for (int n = 0; n < tchain; n++)
     Q[n] = eta_dot[n] = eta_dotdot[n] = 0;
 
-  // TODO: when NPH, there is no t_start
-  int t_for_barostat = t_start;
-  if (t_target < 1) {
-    t_for_barostat = find_current_temperature();
+  for (int n = 0; n < pchain; n++)
+    Q_p[n] = eta_p_dot[n] = eta_p_dotdot[n] = 0;
+
+  eta_dot[tchain] = eta_p_dot[pchain] = 0;
+
+  if (pstat_flag) {
+    t_for_barostat = t_start;
+    if (t_target < 1)
+      t_for_barostat = find_current_temperature();
   }
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j]) {
         p_freq[i][j] = 1 / (p_period[i][j] * dt);
+        if (p_freq_max < p_freq[i][j])
+          p_freq_max = p_freq[i][j];
         omega_mass[i][j] =
           (atom->number_of_atoms + 1) * kB * t_for_barostat / (p_freq[i][j] * p_freq[i][j]);
       }
@@ -510,7 +515,7 @@ double Ensemble_NH::find_current_temperature()
 }
 
 // propagate eta_dot by 1/2 step
-void Ensemble_NH::nh_temp_integrate()
+void Ensemble_NH::nhc_temp_integrate()
 {
   double expfac;
   for (int n = 0; n < tchain; n++)
@@ -538,6 +543,80 @@ void Ensemble_NH::nh_temp_integrate()
     expfac = exp(-dt8 * eta_dot[n + 1]);
     eta_dotdot[n] = (Q[n - 1] * eta_dot[n - 1] * eta_dot[n - 1] - kB * t_target) / Q[n];
     eta_dot[n] = (expfac * eta_dot[n] + eta_dotdot[n] * dt4) * expfac;
+  }
+}
+
+void Ensemble_NH::nhc_press_integrate()
+{
+
+  int cell_dof; // DOF of cell
+  double expfac, factor_eta_p;
+  double kT;
+  double ke_omega_current, ke_omega_target;
+
+  if (t_target < 1)
+    kT = kB * t_for_barostat;
+  else
+    kT = kB * t_target;
+
+  double nkt = (atom->number_of_atoms + 1) * kT;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      if (p_flag[i][j])
+        omega_mass[i][j] = nkt / (p_freq[i][j] * p_freq[i][j]);
+    }
+  }
+
+  Q_p[0] = kT / (p_freq_max * p_freq_max);
+  for (int n = 1; n < pchain; n++)
+    Q_p[n] = kT / (p_freq_max * p_freq_max);
+  for (int n = 1; n < pchain; n++)
+    eta_p_dotdot[n] = (Q_p[n - 1] * eta_p_dot[n - 1] * eta_p_dot[n - 1] - kT) / Q_p[n];
+
+  ke_omega_current = 0.0;
+  cell_dof = 0;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++)
+      if (i <= j && p_flag[i][j]) {
+        ke_omega_current += omega_mass[i][j] * omega_dot[i][j] * omega_dot[i][j];
+        cell_dof++;
+      }
+  }
+
+  if (couple_type == XYZ)
+    cell_dof = 1;
+
+  ke_omega_target = cell_dof * kT;
+  eta_p_dotdot[0] = (ke_omega_current - ke_omega_target) / Q_p[0];
+
+  for (int n = pchain - 1; n >= 0; n--) {
+    expfac = exp(-dt8 * eta_p_dot[n + 1]);
+    eta_p_dot[n] = (eta_p_dot[n] * expfac + eta_p_dotdot[n] * dt4) * expfac;
+  }
+
+  factor_eta_p = exp(-dthalf * eta_p_dot[0]);
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      if (p_flag[i][j])
+        omega_dot[i][j] *= factor_eta_p;
+    }
+  }
+
+  ke_omega_current = 0.0;
+  for (int i = 0; i < 3; i++) {
+    for (int j = 0; j < 3; j++) {
+      if (p_flag[i][j])
+        ke_omega_current += omega_mass[i][j] * omega_dot[i][j] * omega_dot[i][j];
+    }
+  }
+
+  eta_p_dotdot[0] = (ke_omega_current - ke_omega_target) / Q_p[0];
+  eta_p_dot[0] = (eta_p_dot[0] * expfac + eta_p_dotdot[0] * dt4) * expfac;
+
+  for (int n = 1; n < pchain; n++) {
+    expfac = exp(-dt8 * eta_p_dot[n + 1]);
+    eta_p_dotdot[n] = (Q_p[n - 1] * eta_p_dot[n - 1] * eta_p_dot[n - 1] - kT) / Q_p[n];
+    eta_p_dot[n] = (eta_p_dot[n] * expfac + eta_p_dotdot[n] * dt4) * expfac;
   }
 }
 
@@ -681,9 +760,12 @@ void Ensemble_NH::compute1(
     init();
   }
 
+  if (pstat_flag)
+    nhc_press_integrate();
+
   if (tstat_flag) {
     t_target = t_start + (t_stop - t_start) * get_delta();
-    nh_temp_integrate();
+    nhc_temp_integrate();
   }
 
   if (pstat_flag) {
@@ -722,9 +804,10 @@ void Ensemble_NH::compute2(
     nh_omega_dot();
 
   if (tstat_flag)
-    nh_temp_integrate();
+    nhc_temp_integrate();
 
-  // TODO: pchain
+  if (pstat_flag)
+    nhc_press_integrate();
 
   find_thermo();
 }

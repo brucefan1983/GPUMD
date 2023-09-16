@@ -287,7 +287,10 @@ void Run::perform_a_run()
 void Run::parse_one_keyword(std::vector<std::string>& tokens)
 {
   int num_param = tokens.size();
-  const char* param[22]; // never use more than 19 parameters
+  const int max_num_param = 32;
+  if (num_param > max_num_param)
+    PRINT_INPUT_ERROR("The number of parameters should be less than 32.\n");
+  const char* param[max_num_param]; // never use more than 19 parameters
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }

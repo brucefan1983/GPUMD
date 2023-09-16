@@ -41,7 +41,8 @@ public:
 
 protected:
   void init();
-  void nh_temp_integrate();
+  void nhc_temp_integrate();
+  void nhc_press_integrate();
   void get_target_temp();
   void get_target_pressure();
   double get_delta();
@@ -64,21 +65,26 @@ protected:
   enum { NONE, XYZ, XY, YZ, XZ };
   int couple_type = NONE;
   int h0_reset_interval = 1000;
+  // When nph, there is no target temperature. So we use the temperature of kinetic energy.
+  double t_for_barostat = 0;
   double h[3][3], h_inv[3][3], h_old[3][3], h_old_inv[3][3], h_ref_inv[3][3];
   double tmp1[3][3], tmp2[3][3];
   double sigma[3][3], fdev[3][3];
   double p_start[3][3], p_stop[3][3], p_current[3][3], p_target[3][3], p_hydro[3][3];
   double p_period[3][3], p_freq[3][3];
+  double p_freq_max = 0;
   double omega[3][3], omega_dot[3][3], omega_mass[3][3];
+  // when applying hydrostatic pressure (iso, aniso, tri),
+  // we don't need to compute f_dev, since S-p = 0.
   bool tstat_flag = false, pstat_flag = false, deviatoric_flag = false;
   bool p_flag[3][3]; // 1 if control P on this dim, 0 if not
   double dt, dthalf, dt4, dt8, dt16;
-  double v0, t0;
-  int tdof;
-  double t_current, t_start, t_stop, t_target;
-  double t_freq, t_period;
+  int tdof = 0;
+  double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
+  double t_freq = 0, t_period = 0;
   double *Q, *eta_dot, *eta_dotdot;
-  double factor_eta;
+  double *Q_p, *eta_p_dot, *eta_p_dotdot;
+  double factor_eta = 0;
   const double kB = 8.617333262e-5;
   int tchain = 4; // length of Nose-Hoover chain
   int pchain = 4;
