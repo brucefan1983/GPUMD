@@ -505,7 +505,9 @@ inline static __device__ void calc_vdW(
   r6inv = r2inv * r2inv * r2inv;
   r8inv = r2inv * r6inv;
 
-  TSvdw = 1.0 + exp(-d_Seff * r + d);
+  // TODO: use float
+  // TSvdw = 1.0 + exp(-d_Seff * r + d);
+  TSvdw = 1.0 + expf(float(-d_Seff * r + d));
   TSvdwinv = 1.0 / TSvdw;
   Vilp = -C_6 * r6inv * TSvdwinv;
 
@@ -579,10 +581,10 @@ static __global__ void gpu_find_force(
     double z1 = g_z[n1];
 
     int index_ilp_vec[3] = {n1, n1 + number_of_particles, n1 + (number_of_particles << 1)};
-    int n2_ilp_vec[3];
-    n2_ilp_vec[0] = g_ilp_neighbor_list[index_ilp_vec[0]];
-    n2_ilp_vec[1] = g_ilp_neighbor_list[index_ilp_vec[1]];
-    n2_ilp_vec[2] = g_ilp_neighbor_list[index_ilp_vec[2]];
+    // int n2_ilp_vec[3];
+    // n2_ilp_vec[0] = g_ilp_neighbor_list[index_ilp_vec[0]];
+    // n2_ilp_vec[1] = g_ilp_neighbor_list[index_ilp_vec[1]];
+    // n2_ilp_vec[2] = g_ilp_neighbor_list[index_ilp_vec[2]];
 
     double delkix_half[3] = {0.0, 0.0, 0.0};
     double delkiy_half[3] = {0.0, 0.0, 0.0};
@@ -734,8 +736,11 @@ static __global__ void gpu_find_force(
       rdsq1 = rhosq1 * delta2inv;
 
       // store exponents
-      exp0 = exp(-lambda_ * (r - z0));
-      exp1 = exp(-rdsq1);
+      // exp0 = exp(-lambda_ * (r - z0));
+      // exp1 = exp(-rdsq1);
+      // TODO: use float
+      exp0 = expf(float(-lambda_ * (r - z0)));
+      exp1 = expf(float(-rdsq1));
 
       frho1 = exp1 * C;
       Erep = 0.5 * epsilon + frho1;
@@ -793,7 +798,7 @@ static __global__ void gpu_find_force(
       for (int kk = 0; kk < ilp_neighbor_number; ++kk) {
         // int index_ilp = n1 + number_of_particles * kk;
         // int n2_ilp = g_ilp_neighbor_list[index_ilp];
-        if (n2_ilp_vec[kk] == n1) continue;
+        // if (n2_ilp_vec[kk] == n1) continue;
         // derivatives of the product of rij and ni respect to rk, k=0,1,2, where atom k is the neighbors of atom i
         dprodnorm1[0] = dnormal[0][0][kk] * delx + dnormal[1][0][kk] * dely +
             dnormal[2][0][kk] * delz;
