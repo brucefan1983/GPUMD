@@ -20,7 +20,7 @@ only T is set -> NVT ensemable
 P and T are both set -> NPT ensemable
 ------------------------------------------------------------------------------*/
 
-#include "ensemble_nh.cuh"
+#include "Ensemble_MTTK.cuh"
 
 namespace
 {
@@ -74,7 +74,7 @@ void matrix_minus(double a[3][3], double b[3][3], double c[3][3])
 
 } // namespace
 
-Ensemble_NH::Ensemble_NH(const char** params, int num_params)
+Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
 {
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
@@ -280,9 +280,12 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
     printf("No barostat is set. Pressure is not controlled.\n");
 }
 
-Ensemble_NH::~Ensemble_NH(void) { delete[] Q, eta_dot, eta_dotdot, Q_p, eta_p_dot, eta_p_dotdot; }
+Ensemble_MTTK::~Ensemble_MTTK(void)
+{
+  delete[] Q, eta_dot, eta_dotdot, Q_p, eta_p_dot, eta_p_dotdot;
+}
 
-void Ensemble_NH::init()
+void Ensemble_MTTK::init()
 {
   // from GPa to eV/A^2
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
@@ -329,11 +332,11 @@ void Ensemble_NH::init()
   }
 }
 
-double Ensemble_NH::get_delta() { return (double)*current_step / (double)*total_steps; }
+double Ensemble_MTTK::get_delta() { return (double)*current_step / (double)*total_steps; }
 
-void Ensemble_NH::get_target_temp() { t_target = t_start + (t_stop - t_start) * get_delta(); }
+void Ensemble_MTTK::get_target_temp() { t_target = t_start + (t_stop - t_start) * get_delta(); }
 
-void Ensemble_NH::get_target_pressure()
+void Ensemble_MTTK::get_target_pressure()
 {
   double delta = get_delta();
   for (int x = 0; x < 3; x++) {
@@ -346,7 +349,7 @@ void Ensemble_NH::get_target_pressure()
     get_sigma();
 }
 
-void Ensemble_NH::get_h_matrix_from_box()
+void Ensemble_MTTK::get_h_matrix_from_box()
 {
   box->get_inverse();
   if (box->triclinic) {
@@ -364,7 +367,7 @@ void Ensemble_NH::get_h_matrix_from_box()
   }
 }
 
-void Ensemble_NH::copy_h_matrix_to_box()
+void Ensemble_MTTK::copy_h_matrix_to_box()
 {
   if (box->triclinic) {
     for (int x = 0; x < 3; x++) {
@@ -378,7 +381,7 @@ void Ensemble_NH::copy_h_matrix_to_box()
   box->get_inverse();
 }
 
-void Ensemble_NH::get_p_hydro()
+void Ensemble_MTTK::get_p_hydro()
 {
   double hydro = 0;
   for (int i = 0; i < 3; i++)
@@ -388,7 +391,7 @@ void Ensemble_NH::get_p_hydro()
     p_hydro[i][i] = hydro;
 }
 
-void Ensemble_NH::get_sigma()
+void Ensemble_MTTK::get_sigma()
 {
   if (h0_reset_interval > 0) {
     if (*current_step % h0_reset_interval == 0) {
@@ -407,7 +410,7 @@ void Ensemble_NH::get_sigma()
   matrix_scale(sigma, box->get_volume(), sigma);
 }
 
-void Ensemble_NH::get_deviatoric()
+void Ensemble_MTTK::get_deviatoric()
 {
   // Eq. (1) of Shinoda2004
   matrix_multiply(h, sigma, tmp1);
@@ -415,7 +418,7 @@ void Ensemble_NH::get_deviatoric()
   matrix_multiply(tmp1, tmp2, f_deviatoric);
 }
 
-void Ensemble_NH::couple()
+void Ensemble_MTTK::couple()
 {
   double xx = p_current[0][0], yy = p_current[1][1], zz = p_current[2][2];
 
@@ -429,7 +432,7 @@ void Ensemble_NH::couple()
     p_current[0][0] = p_current[2][2] = (xx + zz) / 2;
 }
 
-void Ensemble_NH::find_current_pressure()
+void Ensemble_MTTK::find_current_pressure()
 {
   find_thermo();
   double t[8];
@@ -444,7 +447,7 @@ void Ensemble_NH::find_current_pressure()
     couple();
 }
 
-void Ensemble_NH::nh_omega_dot()
+void Ensemble_MTTK::nh_omega_dot()
 {
   // Eq. (1) of Shinoda2004
   find_current_pressure();
@@ -464,7 +467,7 @@ void Ensemble_NH::nh_omega_dot()
   }
 }
 
-void Ensemble_NH::propagate_box()
+void Ensemble_MTTK::propagate_box()
 {
   // Eq. (1) of Shinoda2004
   // save old box
@@ -478,7 +481,8 @@ void Ensemble_NH::propagate_box()
   copy_h_matrix_to_box();
 }
 
-void Ensemble_NH::propagate_box_off_diagonal()
+// TODO: more accurate integrate
+void Ensemble_MTTK::propagate_box_off_diagonal()
 {
   // compute delta_h
   matrix_scale(omega_dot, dt4, tmp1);
@@ -490,7 +494,7 @@ void Ensemble_NH::propagate_box_off_diagonal()
     }
   }
 }
-void Ensemble_NH::propagate_box_diagonal()
+void Ensemble_MTTK::propagate_box_diagonal()
 {
   double expfac;
   for (int i = 0; i < 3; i++) {
@@ -502,7 +506,7 @@ void Ensemble_NH::propagate_box_diagonal()
   }
 }
 
-void Ensemble_NH::find_thermo()
+void Ensemble_MTTK::find_thermo()
 {
   Ensemble::find_thermo(
     false,
@@ -515,7 +519,7 @@ void Ensemble_NH::find_thermo()
     *thermo);
 }
 
-double Ensemble_NH::find_current_temperature()
+double Ensemble_MTTK::find_current_temperature()
 {
   find_thermo();
   double t = 0;
@@ -524,7 +528,7 @@ double Ensemble_NH::find_current_temperature()
 }
 
 // propagate eta_dot by 1/2 step
-void Ensemble_NH::nhc_temp_integrate()
+void Ensemble_MTTK::nhc_temp_integrate()
 {
   double expfac;
   for (int n = 0; n < tchain; n++)
@@ -555,7 +559,7 @@ void Ensemble_NH::nhc_temp_integrate()
   }
 }
 
-void Ensemble_NH::nhc_press_integrate()
+void Ensemble_MTTK::nhc_press_integrate()
 {
 
   int cell_dof; // DOF of cell
@@ -672,7 +676,7 @@ static __global__ void gpu_scale_positions(
   }
 }
 
-void Ensemble_NH::scale_positions()
+void Ensemble_MTTK::scale_positions()
 {
   int n = atom->number_of_atoms;
   gpu_scale_positions<<<(n - 1) / 128 + 1, 128>>>(
@@ -738,7 +742,7 @@ static __global__ void gpu_nh_v_press(
   }
 }
 
-void Ensemble_NH::nh_v_press()
+void Ensemble_MTTK::nh_v_press()
 {
   int n = atom->number_of_atoms;
   gpu_nh_v_press<<<(n - 1) / 128 + 1, 128>>>(
@@ -758,7 +762,7 @@ void Ensemble_NH::nh_v_press()
     omega_dot[2][2]);
 }
 
-void Ensemble_NH::compute1(
+void Ensemble_MTTK::compute1(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,
@@ -795,7 +799,7 @@ void Ensemble_NH::compute1(
     propagate_box();
 }
 
-void Ensemble_NH::compute2(
+void Ensemble_MTTK::compute2(
   const double time_step,
   const std::vector<Group>& group,
   Box& box,

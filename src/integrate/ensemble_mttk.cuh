@@ -19,11 +19,11 @@
 #include "utilities/read_file.cuh"
 #include <math.h>
 
-class Ensemble_NH : public Ensemble
+class Ensemble_MTTK : public Ensemble
 {
 public:
-  Ensemble_NH(const char** params, int num_params);
-  virtual ~Ensemble_NH(void);
+  Ensemble_MTTK(const char** params, int num_params);
+  virtual ~Ensemble_MTTK(void);
 
   virtual void compute1(
     const double time_step,

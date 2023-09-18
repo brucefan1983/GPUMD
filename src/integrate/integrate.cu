@@ -21,7 +21,7 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
-#include "ensemble_nh.cuh"
+#include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
@@ -343,7 +343,7 @@ void Integrate::parse_ensemble(
     strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
     strcmp(param[1], "nph_mttk") == 0) {
     type = 20;
-    ensemble.reset(new Ensemble_NH(param, num_param));
+    ensemble.reset(new Ensemble_MTTK(param, num_param));
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
     if (num_param != 7) {
