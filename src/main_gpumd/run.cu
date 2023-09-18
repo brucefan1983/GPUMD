@@ -169,15 +169,22 @@ void Run::perform_a_run()
 #endif
 
   clock_t time_begin = clock();
-  double initial_time_step = time_step;
 
-  integrate.total_steps = number_of_steps;
-  for (int step = 0; step < number_of_steps; ++step) {
-
-    calculate_time_step(
-      max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
-    global_time += time_step;
-
+  // compute force for the first integrate step
+  if (integrate.type >= 31) { // PIMD
+    for (int k = 0; k < integrate.number_of_beads; ++k) {
+      force.compute(
+        box,
+        atom.position_beads[k],
+        atom.type,
+        group,
+        atom.potential_beads[k],
+        atom.force_beads[k],
+        atom.virial_beads[k],
+        atom.velocity_beads[k],
+        atom.mass);
+    }
+  } else {
     force.compute(
       box,
       atom.position_per_atom,
@@ -188,6 +195,16 @@ void Run::perform_a_run()
       atom.virial_per_atom,
       atom.velocity_per_atom,
       atom.mass);
+  }
+
+  double initial_time_step = time_step;
+
+  integrate.total_steps = number_of_steps;
+  for (int step = 0; step < number_of_steps; ++step) {
+
+    calculate_time_step(
+      max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
+    global_time += time_step;
 
     integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);

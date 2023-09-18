@@ -79,16 +79,25 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
-        sigma[i][j] = fdev[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] = p_target[i][j] =
-          p_hydro[i][j] = p_freq[i][j] = omega[i][j] = omega_dot[i][j] = omega_mass[i][j] =
+        sigma[i][j] = f_deviatoric[i][j] = p_start[i][j] = p_stop[i][j] = p_current[i][j] =
+          p_target[i][j] = p_hydro[i][j] = p_freq[i][j] = omega_dot[i][j] = omega_mass[i][j] =
             p_flag[i][j] = h_ref_inv[i][j] = 0;
       p_period[i][j] = 1000;
     }
   }
 
-  int i = 2;
+  int i = 1;
   while (i < num_params) {
-    if (strcmp(params[i], "tperiod") == 0) {
+    if (strcmp(params[i], "nvt_mttk") == 0) {
+      ensemble_type = NVT;
+      i += 1;
+    } else if (strcmp(params[i], "npt_mttk") == 0) {
+      ensemble_type = NPT;
+      i += 1;
+    } else if (strcmp(params[i], "nph_mttk") == 0) {
+      ensemble_type = NPH;
+      i += 1;
+    } else if (strcmp(params[i], "tperiod") == 0) {
       if (!is_valid_real(params[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
       i += 2;
@@ -102,7 +111,7 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
         }
       }
     } else if (strcmp(params[i], "temp") == 0) {
-      tstat_flag = true;
+      use_thermostat = true;
       if (!is_valid_real(params[i + 1], &t_start))
         PRINT_INPUT_ERROR("Wrong inputs for t_start keyword.");
       if (!is_valid_real(params[i + 2], &t_stop))
@@ -112,7 +121,7 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
     } else if (
       strcmp(params[i], "iso") == 0 || strcmp(params[i], "aniso") == 0 ||
       strcmp(params[i], "tri") == 0) {
-      pstat_flag = true;
+      use_barostat = true;
       if (!is_valid_real(params[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
       p_start[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0];
@@ -156,8 +165,8 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       if (!is_valid_real(params[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_flag[0][0] = 1;
-      deviatoric_flag = 1;
-      pstat_flag = true;
+      non_hydrostatic = 1;
+      use_barostat = true;
       i += 3;
     } else if (strcmp(params[i], "y") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[1][1]))
@@ -165,8 +174,8 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       if (!is_valid_real(params[i + 2], &p_stop[1][1]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_flag[1][1] = 1;
-      deviatoric_flag = 1;
-      pstat_flag = true;
+      non_hydrostatic = 1;
+      use_barostat = true;
       i += 3;
     } else if (strcmp(params[i], "z") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[2][2]))
@@ -174,8 +183,8 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
       if (!is_valid_real(params[i + 2], &p_stop[2][2]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_flag[2][2] = 1;
-      deviatoric_flag = 1;
-      pstat_flag = true;
+      non_hydrostatic = 1;
+      use_barostat = true;
       i += 3;
     } else if (strcmp(params[i], "xy") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[0][1]))
@@ -185,8 +194,8 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[1][0] = p_stop[0][1];
       p_flag[1][0] = p_flag[0][1] = 1;
-      deviatoric_flag = 1;
-      pstat_flag = true;
+      non_hydrostatic = 1;
+      use_barostat = true;
       i += 3;
     } else if (strcmp(params[i], "xz") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[0][2]))
@@ -196,8 +205,8 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][0] = p_stop[0][2];
       p_flag[2][0] = p_flag[0][2] = 1;
-      deviatoric_flag = 1;
-      pstat_flag = true;
+      non_hydrostatic = 1;
+      use_barostat = true;
       i += 3;
     } else if (strcmp(params[i], "yz") == 0) {
       if (!is_valid_real(params[i + 1], &p_start[1][2]))
@@ -207,25 +216,42 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][1] = p_stop[1][2];
       p_flag[2][1] = p_flag[1][2] = 1;
-      deviatoric_flag = 1;
-      pstat_flag = true;
+      non_hydrostatic = 1;
+      use_barostat = true;
       i += 3;
     } else {
-      PRINT_INPUT_ERROR("Wrong inputs.");
+      PRINT_INPUT_ERROR("Wrong input parameters.");
     }
   }
-  // print info summary
+
+  // check if there are conflicts in parameters
+  if (ensemble_type == NPT) {
+    if (!(use_barostat && use_thermostat))
+      PRINT_INPUT_ERROR("For NPT ensemble, you need to specify thermostat and barostat parameters");
+  } else if (ensemble_type == NVT) {
+    if (!(!use_barostat && use_thermostat))
+      PRINT_INPUT_ERROR(
+        "For NVT ensemble, you need to specify thermostat parameters but no barostat parameter.");
+  } else if (ensemble_type == NPH) {
+    if (!(use_barostat && !use_thermostat))
+      PRINT_INPUT_ERROR(
+        "For NPH ensemble, you need to specify barostat parameters but no thermostat parameter.");
+  } else {
+    PRINT_INPUT_ERROR("Unknown ensemble type.");
+  }
+
+  // print summary
   printf("Use Nose-Hoover thermostat and Parrinello-Rahman barostat.\n");
-  if (tstat_flag && pstat_flag)
+  if (use_thermostat && use_barostat)
     printf("Use NPT ensemble for this run.\n");
-  else if (tstat_flag)
+  else if (use_thermostat)
     printf("Use NVT ensemble for this run.\n");
-  else if (pstat_flag)
+  else if (use_barostat)
     printf("Use NPH ensemble for this run.\n");
   else
     PRINT_INPUT_ERROR("No thermostat and barostat are specified in input file.");
 
-  if (tstat_flag)
+  if (use_thermostat)
     printf(
       "Thermostat: t_start is %f, t_stop is %f, t_period is %f timesteps\n",
       t_start,
@@ -236,7 +262,7 @@ Ensemble_NH::Ensemble_NH(const char** params, int num_params)
 
   const char* stress_components[3][3] = {
     {"xx", "xy", "xz"}, {"yx", "yy", "yz"}, {"zx", "zy", "zz"}};
-  if (pstat_flag) {
+  if (use_barostat) {
     for (int i = 0; i < 3; i++) {
       for (int j = 0; j < 3; j++) {
         if (p_flag[i][j] == 1)
@@ -263,9 +289,9 @@ void Ensemble_NH::init()
   matrix_scale(p_stop, 1 / PRESSURE_UNIT_CONVERSION, p_stop);
   // set tstat params
   // Here I negelect center of mass dof.
-  tdof = atom->number_of_atoms * 3;
+  temperature_dof = atom->number_of_atoms * 3;
   dt = time_step;
-  dthalf = dt / 2;
+  dt2 = dt / 2;
   dt4 = dt / 4;
   dt8 = dt / 8;
   dt16 = dt / 16;
@@ -285,7 +311,7 @@ void Ensemble_NH::init()
 
   eta_dot[tchain] = eta_p_dot[pchain] = 0;
 
-  if (pstat_flag) {
+  if (use_barostat) {
     t_for_barostat = t_start;
     if (t_target < 1)
       t_for_barostat = find_current_temperature();
@@ -316,7 +342,7 @@ void Ensemble_NH::get_target_pressure()
     }
   }
   get_p_hydro();
-  if (deviatoric_flag)
+  if (non_hydrostatic)
     get_sigma();
 }
 
@@ -386,7 +412,7 @@ void Ensemble_NH::get_deviatoric()
   // Eq. (1) of Shinoda2004
   matrix_multiply(h, sigma, tmp1);
   matrix_transpose(h, tmp2);
-  matrix_multiply(tmp1, tmp2, fdev);
+  matrix_multiply(tmp1, tmp2, f_deviatoric);
 }
 
 void Ensemble_NH::couple()
@@ -423,16 +449,16 @@ void Ensemble_NH::nh_omega_dot()
   // Eq. (1) of Shinoda2004
   find_current_pressure();
   double f_omega;
-  if (deviatoric_flag)
+  if (non_hydrostatic)
     get_deviatoric();
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j]) {
         f_omega = box->get_volume() * (p_current[i][j] - p_hydro[i][j]);
-        if (deviatoric_flag)
-          f_omega -= fdev[i][j];
+        if (non_hydrostatic)
+          f_omega -= f_deviatoric[i][j];
         f_omega /= omega_mass[i][j];
-        omega_dot[i][j] += f_omega * dthalf;
+        omega_dot[i][j] += f_omega * dt2;
       }
     }
   }
@@ -468,7 +494,7 @@ void Ensemble_NH::propagate_box_diagonal()
 {
   double expfac;
   for (int i = 0; i < 3; i++) {
-    expfac = exp(dthalf * omega_dot[i][i]);
+    expfac = exp(dt2 * omega_dot[i][i]);
     // TODO: fix point ?
     for (int j = 0; j < 3; j++) {
       h[i][j] *= expfac;
@@ -503,23 +529,23 @@ void Ensemble_NH::nhc_temp_integrate()
   double expfac;
   for (int n = 0; n < tchain; n++)
     Q[n] = kB * t_target / (t_freq * t_freq);
-  Q[0] *= tdof;
+  Q[0] *= temperature_dof;
 
   // propagate eta_dot by 1/4 step
   t_current = find_current_temperature();
-  eta_dotdot[0] = tdof * kB * (t_current - t_target) / Q[0];
+  eta_dotdot[0] = temperature_dof * kB * (t_current - t_target) / Q[0];
   for (int n = tchain - 1; n >= 0; n--) {
     expfac = exp(-dt8 * eta_dot[n + 1]);
     eta_dot[n] = (expfac * eta_dot[n] + eta_dotdot[n] * dt4) * expfac;
   }
 
   // scale velocity
-  factor_eta = exp(-dthalf * eta_dot[0]);
+  factor_eta = exp(-dt2 * eta_dot[0]);
   scale_velocity_global(factor_eta, atom->velocity_per_atom);
 
   // propagate eta_dot by 1/4 step
   t_current *= factor_eta * factor_eta;
-  eta_dotdot[0] = tdof * kB * (t_current - t_target) / Q[0];
+  eta_dotdot[0] = temperature_dof * kB * (t_current - t_target) / Q[0];
   eta_dot[0] = (expfac * eta_dot[0] + eta_dotdot[0] * dt4) * expfac;
 
   for (int n = 1; n < tchain; n++) {
@@ -577,7 +603,7 @@ void Ensemble_NH::nhc_press_integrate()
     eta_p_dot[n] = (eta_p_dot[n] * expfac + eta_p_dotdot[n] * dt4) * expfac;
   }
 
-  factor_eta_p = exp(-dthalf * eta_p_dot[0]);
+  factor_eta_p = exp(-dt2 * eta_p_dot[0]);
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j])
@@ -691,7 +717,7 @@ static __global__ void gpu_nh_v_press(
   double omega_dot_zz)
 {
   double dt4 = time_step / 4;
-  double dthalf = time_step / 2;
+  double dt2 = time_step / 2;
   double factor_x = exp(-dt4 * (omega_dot_xx));
   double factor_y = exp(-dt4 * (omega_dot_yy));
   double factor_z = exp(-dt4 * (omega_dot_zz));
@@ -702,9 +728,9 @@ static __global__ void gpu_nh_v_press(
     vy[i] *= factor_y;
     vz[i] *= factor_z;
 
-    vx[i] += -dthalf * (vy[i] * omega_dot_yx + vz[i] * omega_dot_zx);
-    vy[i] += -dthalf * (vx[i] * omega_dot_xy + vz[i] * omega_dot_zy);
-    vz[i] += -dthalf * (vx[i] * omega_dot_xz + vy[i] * omega_dot_yz);
+    vx[i] += -dt2 * (vy[i] * omega_dot_yx + vz[i] * omega_dot_zx);
+    vy[i] += -dt2 * (vx[i] * omega_dot_xy + vz[i] * omega_dot_zy);
+    vz[i] += -dt2 * (vx[i] * omega_dot_xz + vy[i] * omega_dot_yz);
 
     vx[i] *= factor_x;
     vy[i] *= factor_y;
@@ -743,15 +769,15 @@ void Ensemble_NH::compute1(
     init();
   }
 
-  if (pstat_flag)
+  if (use_barostat)
     nhc_press_integrate();
 
-  if (tstat_flag) {
+  if (use_thermostat) {
     t_target = t_start + (t_stop - t_start) * get_delta();
     nhc_temp_integrate();
   }
 
-  if (pstat_flag) {
+  if (use_barostat) {
     get_h_matrix_from_box();
     get_target_pressure();
     nh_omega_dot();
@@ -760,12 +786,12 @@ void Ensemble_NH::compute1(
 
   velocity_verlet_v();
 
-  if (pstat_flag)
+  if (use_barostat)
     propagate_box();
 
   velocity_verlet_x();
 
-  if (pstat_flag)
+  if (use_barostat)
     propagate_box();
 }
 
@@ -778,18 +804,18 @@ void Ensemble_NH::compute2(
 {
   velocity_verlet_v();
 
-  if (pstat_flag) {
+  if (use_barostat) {
     get_h_matrix_from_box();
     nh_v_press();
   }
 
-  if (pstat_flag)
+  if (use_barostat)
     nh_omega_dot();
 
-  if (tstat_flag)
+  if (use_thermostat)
     nhc_temp_integrate();
 
-  if (pstat_flag)
+  if (use_barostat)
     nhc_press_integrate();
 
   find_thermo();
