@@ -37,7 +37,7 @@ void Integrate::initialize(
   Box& box,
   std::vector<Group>& group,
   GPU_Vector<double>& thermo,
-  int total_steps)
+  int &total_steps)
 {
   this->total_steps = total_steps;
   int number_of_atoms = atom.number_of_atoms;
@@ -178,8 +178,8 @@ void Integrate::initialize(
   ensemble->box = &box;
   ensemble->group = &group;
   ensemble->time_step = time_step;
-  ensemble->current_step = &current_step;
-  ensemble->total_steps = &total_steps;
+  ensemble->current_step = &this->current_step;
+  ensemble->total_steps = &this->total_steps;
   ensemble->thermo = &thermo;
 }
 

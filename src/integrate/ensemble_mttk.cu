@@ -20,7 +20,7 @@ only T is set -> NVT ensemable
 P and T are both set -> NPT ensemable
 ------------------------------------------------------------------------------*/
 
-#include "Ensemble_MTTK.cuh"
+#include "ensemble_mttk.cuh"
 
 namespace
 {
@@ -451,13 +451,14 @@ void Ensemble_MTTK::nh_omega_dot()
 {
   // Eq. (1) of Shinoda2004
   find_current_pressure();
-  double f_omega;
+  double f_omega, V;
+  V = box->get_volume();
   if (non_hydrostatic)
     get_deviatoric();
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       if (p_flag[i][j]) {
-        f_omega = box->get_volume() * (p_current[i][j] - p_hydro[i][j]);
+        f_omega = V * (p_current[i][j] - p_hydro[i][j]);
         if (non_hydrostatic)
           f_omega -= f_deviatoric[i][j];
         f_omega /= omega_mass[i][j];
@@ -471,6 +472,8 @@ void Ensemble_MTTK::propagate_box()
 {
   // Eq. (1) of Shinoda2004
   // save old box
+  box->get_inverse();
+  get_h_matrix_from_box();
   std::copy(&h[0][0], &h[0][0] + 9, &h_old[0][0]);
   std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_old_inv[0][0]);
   // change box, according to h_dot = omega_dot * h

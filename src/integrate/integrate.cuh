@@ -34,7 +34,7 @@ public:
     Box& box,
     std::vector<Group>& group,
     GPU_Vector<double>& thermo,
-    int total_steps);
+    int &total_steps);
 
   void finalize();
 
