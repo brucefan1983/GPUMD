@@ -32,8 +32,14 @@ The driver class for the various integrators.
 #include "utilities/read_file.cuh"
 
 void Integrate::initialize(
-  double time_step, Atom& atom, Box& box, std::vector<Group>& group, GPU_Vector<double>& thermo)
+  double time_step,
+  Atom& atom,
+  Box& box,
+  std::vector<Group>& group,
+  GPU_Vector<double>& thermo,
+  int total_steps)
 {
+  this->total_steps = total_steps;
   int number_of_atoms = atom.number_of_atoms;
   if (move_group >= 0) {
     if (fixed_group < 0) {

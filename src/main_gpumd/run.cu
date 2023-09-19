@@ -158,7 +158,7 @@ void Run::execute_run_in()
 
 void Run::perform_a_run()
 {
-  integrate.initialize(time_step, atom, box, group, thermo);
+  integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, force);
 
@@ -199,7 +199,6 @@ void Run::perform_a_run()
 
   double initial_time_step = time_step;
 
-  integrate.total_steps = number_of_steps;
   for (int step = 0; step < number_of_steps; ++step) {
 
     calculate_time_step(
@@ -307,7 +306,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   const int max_num_param = 32;
   if (num_param > max_num_param)
     PRINT_INPUT_ERROR("The number of parameters should be less than 32.\n");
-  const char* param[max_num_param]; // never use more than 19 parameters
+  const char* param[max_num_param];
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }

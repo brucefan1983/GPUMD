@@ -29,7 +29,12 @@ public:
   std::unique_ptr<Ensemble> ensemble;
 
   void initialize(
-    double time_step, Atom& atom, Box& box, std::vector<Group>& group, GPU_Vector<double>& thermo);
+    double time_step,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    int total_steps);
 
   void finalize();
 
