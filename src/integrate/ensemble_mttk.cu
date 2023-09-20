@@ -83,6 +83,8 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
           p_target[i][j] = p_hydro[i][j] = p_freq[i][j] = omega_dot[i][j] = omega_mass[i][j] =
             p_flag[i][j] = h_ref_inv[i][j] = 0;
       p_period[i][j] = 1000;
+      // TODO: if non-periodic...?
+      need_scale[i][j] = true;
     }
   }
 
@@ -139,9 +141,10 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
         for (int i = 0; i < 3; i++) {
           for (int j = 0; j < 3; j++) {
             if (i != j) {
-              p_start[i][j] = p_start[i][j] = 0;
-              p_stop[i][j] = p_stop[i][j] = 0;
-              p_flag[i][j] = p_flag[i][j] = true;
+              p_start[i][j] = 0;
+              p_stop[i][j] = 0;
+              p_flag[i][j] = true;
+              need_scale[i][j] = false;
             }
           }
         }
@@ -194,6 +197,7 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[1][0] = p_stop[0][1];
       p_flag[1][0] = p_flag[0][1] = 1;
+      need_scale[1][0] = need_scale[0][1] = false;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
@@ -205,6 +209,7 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][0] = p_stop[0][2];
       p_flag[2][0] = p_flag[0][2] = 1;
+      need_scale[2][0] = need_scale[0][2] = false;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
@@ -216,6 +221,7 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
       p_stop[2][1] = p_stop[1][2];
       p_flag[2][1] = p_flag[1][2] = 1;
+      need_scale[2][1] = need_scale[1][2] = false;
       non_hydrostatic = 1;
       use_barostat = true;
       i += 3;
@@ -504,7 +510,9 @@ void Ensemble_MTTK::propagate_box_diagonal()
     expfac = exp(dt2 * omega_dot[i][i]);
     // TODO: fix point ?
     for (int j = 0; j < 3; j++) {
-      h[i][j] *= expfac;
+      // It needs to be [j][i] not [i][j]!
+      if (need_scale[j][i])
+        h[j][i] *= expfac;
     }
   }
 }
@@ -725,9 +733,9 @@ static __global__ void gpu_nh_v_press(
 {
   double dt4 = time_step / 4;
   double dt2 = time_step / 2;
-  double factor_x = exp(-dt4 * (omega_dot_xx));
-  double factor_y = exp(-dt4 * (omega_dot_yy));
-  double factor_z = exp(-dt4 * (omega_dot_zz));
+  double factor_x = exp(-dt4 * omega_dot_xx);
+  double factor_y = exp(-dt4 * omega_dot_yy);
+  double factor_z = exp(-dt4 * omega_dot_zz);
 
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {

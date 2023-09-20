@@ -88,6 +88,7 @@ protected:
   bool non_hydrostatic = false;
 
   bool p_flag[3][3]; // 1 if control P on this dim, 0 if not
+  bool need_scale[3][3];
   double dt, dt2, dt4, dt8, dt16;
 
   // degrees of freedom when computing temperature
