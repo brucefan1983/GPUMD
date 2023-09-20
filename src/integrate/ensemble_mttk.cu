@@ -491,18 +491,74 @@ void Ensemble_MTTK::propagate_box()
 }
 
 // TODO: more accurate integrate
+// void Ensemble_MTTK::propagate_box_off_diagonal()
+//{
+// // compute delta_h
+// matrix_scale(omega_dot, dt4, tmp1);
+// matrix_multiply(tmp1, h, tmp2);
+// for (int i = 0; i < 3; i++) {
+// for (int j = 0; j < 3; j++) {
+// if (i != j && p_flag[i][j])
+// h[i][j] += tmp2[i][j];
+// }
+// }
+//}
+
 void Ensemble_MTTK::propagate_box_off_diagonal()
 {
-  // compute delta_h
-  matrix_scale(omega_dot, dt4, tmp1);
-  matrix_multiply(tmp1, h, tmp2);
-  for (int i = 0; i < 3; i++) {
-    for (int j = 0; j < 3; j++) {
-      if (i != j && p_flag[i][j])
-        h[i][j] += tmp2[i][j];
-    }
+  double expfac;
+  if (p_flag[0][2]) {
+    expfac = exp(dt16 * omega_dot[0][0]);
+    h[0][2] *= expfac;
+    h[0][2] += dt8 * (omega_dot[0][1] * h[1][2] + omega_dot[0][2] * h[2][2]);
+    h[0][2] *= expfac;
+  }
+  if (p_flag[2][0]) {
+    expfac = exp(dt16 * omega_dot[2][2]);
+    h[2][0] *= expfac;
+    h[2][0] += dt8 * (omega_dot[2][0] * h[0][0] + omega_dot[2][1] * h[1][0]);
+    h[2][0] *= expfac;
+  }
+
+  if (p_flag[1][2]) {
+    expfac = exp(dt8 * omega_dot[1][1]);
+    h[1][2] *= expfac;
+    h[1][2] += dt4 * (omega_dot[1][0] * h[0][2] + omega_dot[1][2] * h[2][2]);
+    h[1][2] *= expfac;
+  }
+  if (p_flag[2][1]) {
+    expfac = exp(dt8 * omega_dot[2][2]);
+    h[2][1] *= expfac;
+    h[2][1] += dt4 * (omega_dot[2][0] * h[0][1] + omega_dot[2][1] * h[1][1]);
+    h[2][1] *= expfac;
+  }
+  if (p_flag[0][1]) {
+    expfac = exp(dt8 * omega_dot[0][0]);
+    h[0][1] *= expfac;
+    h[0][1] += dt4 * (omega_dot[0][1] * h[1][1] + omega_dot[0][2] * h[2][1]);
+    h[0][1] *= expfac;
+  }
+  if (p_flag[1][0]) {
+    expfac = exp(dt8 * omega_dot[1][1]);
+    h[1][0] *= expfac;
+    h[1][0] += dt4 * (omega_dot[1][0] * h[0][0] + omega_dot[1][2] * h[2][0]);
+    h[1][0] *= expfac;
+  }
+
+  if (p_flag[0][2]) {
+    expfac = exp(dt16 * omega_dot[0][0]);
+    h[0][2] *= expfac;
+    h[0][2] += dt8 * (omega_dot[0][1] * h[1][2] + omega_dot[0][2] * h[2][2]);
+    h[0][2] *= expfac;
+  }
+  if (p_flag[2][0]) {
+    expfac = exp(dt16 * omega_dot[2][2]);
+    h[2][0] *= expfac;
+    h[2][0] += dt8 * (omega_dot[2][0] * h[0][0] + omega_dot[2][1] * h[1][0]);
+    h[2][0] *= expfac;
   }
 }
+
 void Ensemble_MTTK::propagate_box_diagonal()
 {
   double expfac;
