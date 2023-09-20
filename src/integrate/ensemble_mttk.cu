@@ -126,12 +126,11 @@ Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
       use_barostat = true;
       if (!is_valid_real(params[i + 1], &p_start[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_start keyword.");
-      p_start[0][0] = p_start[1][1] = p_start[2][2] = p_start[0][0];
+      p_start[1][1] = p_start[2][2] = p_start[0][0];
       if (!is_valid_real(params[i + 2], &p_stop[0][0]))
         PRINT_INPUT_ERROR("Wrong inputs for p_stop keyword.");
-      p_stop[0][0] = p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
-
-      p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = 1;
+      p_stop[1][1] = p_stop[2][2] = p_stop[0][0];
+      p_flag[0][0] = p_flag[1][1] = p_flag[2][2] = true;
 
       if (strcmp(params[i], "iso") == 0)
         couple_type = XYZ;
@@ -490,7 +489,6 @@ void Ensemble_MTTK::propagate_box()
   copy_h_matrix_to_box();
 }
 
-// TODO: more accurate integrate
 // void Ensemble_MTTK::propagate_box_off_diagonal()
 //{
 // // compute delta_h
@@ -513,6 +511,31 @@ void Ensemble_MTTK::propagate_box_off_diagonal()
     h[0][2] += dt8 * (omega_dot[0][1] * h[1][2] + omega_dot[0][2] * h[2][2]);
     h[0][2] *= expfac;
   }
+  if (p_flag[1][2]) {
+    expfac = exp(dt8 * omega_dot[1][1]);
+    h[1][2] *= expfac;
+    h[1][2] += dt4 * (omega_dot[1][0] * h[0][2] + omega_dot[1][2] * h[2][2]);
+    h[1][2] *= expfac;
+  }
+  if (p_flag[0][2]) {
+    expfac = exp(dt16 * omega_dot[0][0]);
+    h[0][2] *= expfac;
+    h[0][2] += dt8 * (omega_dot[0][1] * h[1][2] + omega_dot[0][2] * h[2][2]);
+    h[0][2] *= expfac;
+  }
+
+  if (p_flag[2][0]) {
+    expfac = exp(dt16 * omega_dot[2][2]);
+    h[2][0] *= expfac;
+    h[2][0] += dt8 * (omega_dot[2][0] * h[0][0] + omega_dot[2][1] * h[1][0]);
+    h[2][0] *= expfac;
+  }
+  if (p_flag[1][0]) {
+    expfac = exp(dt8 * omega_dot[1][1]);
+    h[1][0] *= expfac;
+    h[1][0] += dt4 * (omega_dot[1][0] * h[0][0] + omega_dot[1][2] * h[2][0]);
+    h[1][0] *= expfac;
+  }
   if (p_flag[2][0]) {
     expfac = exp(dt16 * omega_dot[2][2]);
     h[2][0] *= expfac;
@@ -520,16 +543,10 @@ void Ensemble_MTTK::propagate_box_off_diagonal()
     h[2][0] *= expfac;
   }
 
-  if (p_flag[1][2]) {
-    expfac = exp(dt8 * omega_dot[1][1]);
-    h[1][2] *= expfac;
-    h[1][2] += dt4 * (omega_dot[1][0] * h[0][2] + omega_dot[1][2] * h[2][2]);
-    h[1][2] *= expfac;
-  }
   if (p_flag[2][1]) {
-    expfac = exp(dt8 * omega_dot[2][2]);
+    expfac = exp(dt16 * omega_dot[2][2]);
     h[2][1] *= expfac;
-    h[2][1] += dt4 * (omega_dot[2][0] * h[0][1] + omega_dot[2][1] * h[1][1]);
+    h[2][1] += dt8 * (omega_dot[2][0] * h[0][1] + omega_dot[2][1] * h[1][1]);
     h[2][1] *= expfac;
   }
   if (p_flag[0][1]) {
@@ -538,24 +555,11 @@ void Ensemble_MTTK::propagate_box_off_diagonal()
     h[0][1] += dt4 * (omega_dot[0][1] * h[1][1] + omega_dot[0][2] * h[2][1]);
     h[0][1] *= expfac;
   }
-  if (p_flag[1][0]) {
-    expfac = exp(dt8 * omega_dot[1][1]);
-    h[1][0] *= expfac;
-    h[1][0] += dt4 * (omega_dot[1][0] * h[0][0] + omega_dot[1][2] * h[2][0]);
-    h[1][0] *= expfac;
-  }
-
-  if (p_flag[0][2]) {
-    expfac = exp(dt16 * omega_dot[0][0]);
-    h[0][2] *= expfac;
-    h[0][2] += dt8 * (omega_dot[0][1] * h[1][2] + omega_dot[0][2] * h[2][2]);
-    h[0][2] *= expfac;
-  }
-  if (p_flag[2][0]) {
+  if (p_flag[2][1]) {
     expfac = exp(dt16 * omega_dot[2][2]);
-    h[2][0] *= expfac;
-    h[2][0] += dt8 * (omega_dot[2][0] * h[0][0] + omega_dot[2][1] * h[1][0]);
-    h[2][0] *= expfac;
+    h[2][1] *= expfac;
+    h[2][1] += dt8 * (omega_dot[2][0] * h[0][1] + omega_dot[2][1] * h[1][1]);
+    h[2][1] *= expfac;
   }
 }
 
@@ -777,21 +781,21 @@ static __global__ void gpu_nh_v_press(
   double* vx,
   double* vy,
   double* vz,
-  double omega_dot_xx,
-  double omega_dot_xy,
-  double omega_dot_xz,
-  double omega_dot_yx,
-  double omega_dot_yy,
-  double omega_dot_yz,
-  double omega_dot_zx,
-  double omega_dot_zy,
-  double omega_dot_zz)
+  double omega_dot_ax,
+  double omega_dot_bx,
+  double omega_dot_cx,
+  double omega_dot_ay,
+  double omega_dot_by,
+  double omega_dot_cy,
+  double omega_dot_az,
+  double omega_dot_bz,
+  double omega_dot_cz)
 {
   double dt4 = time_step / 4;
   double dt2 = time_step / 2;
-  double factor_x = exp(-dt4 * omega_dot_xx);
-  double factor_y = exp(-dt4 * omega_dot_yy);
-  double factor_z = exp(-dt4 * omega_dot_zz);
+  double factor_x = exp(-dt4 * omega_dot_ax);
+  double factor_y = exp(-dt4 * omega_dot_by);
+  double factor_z = exp(-dt4 * omega_dot_cz);
 
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < number_of_particles) {
@@ -799,9 +803,9 @@ static __global__ void gpu_nh_v_press(
     vy[i] *= factor_y;
     vz[i] *= factor_z;
 
-    vx[i] += -dt2 * (vy[i] * omega_dot_yx + vz[i] * omega_dot_zx);
-    vy[i] += -dt2 * (vx[i] * omega_dot_xy + vz[i] * omega_dot_zy);
-    vz[i] += -dt2 * (vx[i] * omega_dot_xz + vy[i] * omega_dot_yz);
+    vx[i] += -dt2 * (vy[i] * omega_dot_bx + vz[i] * omega_dot_cx);
+    vy[i] += -dt2 * (vx[i] * omega_dot_ay + vz[i] * omega_dot_cy);
+    vz[i] += -dt2 * (vx[i] * omega_dot_az + vy[i] * omega_dot_bz);
 
     vx[i] *= factor_x;
     vy[i] *= factor_y;
