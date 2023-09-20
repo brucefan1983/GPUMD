@@ -566,12 +566,27 @@ void Ensemble_MTTK::propagate_box_off_diagonal()
 void Ensemble_MTTK::propagate_box_diagonal()
 {
   double expfac;
+  expfac = exp(dt4 * omega_dot[0][0]);
+  h[0][0] *= expfac;
+  h[0][0] += dt2 * (omega_dot[0][1] * h[1][0] + omega_dot[0][2] * h[2][0]);
+  h[0][0] *= expfac;
+
+  expfac = exp(dt4 * omega_dot[1][1]);
+  h[1][1] *= expfac;
+  h[1][1] += dt2 * (omega_dot[1][0] * h[0][1] + omega_dot[1][2] * h[2][1]);
+  h[1][1] *= expfac;
+
+  expfac = exp(dt4 * omega_dot[2][2]);
+  h[2][2] *= expfac;
+  h[2][2] += dt2 * (omega_dot[2][0] * h[0][2] + omega_dot[2][1] * h[1][2]);
+  h[2][2] *= expfac;
+
   for (int i = 0; i < 3; i++) {
     expfac = exp(dt2 * omega_dot[i][i]);
     // TODO: fix point ?
     for (int j = 0; j < 3; j++) {
       // It needs to be [j][i] not [i][j]!
-      if (need_scale[j][i])
+      if (need_scale[j][i] && i != j)
         h[j][i] *= expfac;
     }
   }
