@@ -204,6 +204,35 @@ static __global__ void ILP_neighbor(
   // TODO: check group id before calc potential(calc in defferent layers)
 }
 
+// intialize ilp temp force
+static __global__ void init_ILP_temp_data(
+  const int N1,
+  const int N2,
+  const int number_of_particles,
+  double *g_f12x,
+  double *g_f12y,
+  double *g_f12z,
+  double *g_f12x_ilp_neigh,
+  double *g_f12y_ilp_neigh,
+  double *g_f12z_ilp_neigh)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (n1 < N2) {
+    // g_f12x[n1] = 0.0;
+    // g_f12y[n1] = 0.0;
+    // g_f12z[n1] = 0.0;
+    g_f12x_ilp_neigh[n1] = 0.0;
+    g_f12y_ilp_neigh[n1] = 0.0;
+    g_f12z_ilp_neigh[n1] = 0.0;
+    g_f12x_ilp_neigh[n1 + number_of_particles] = 0.0;
+    g_f12y_ilp_neigh[n1 + number_of_particles] = 0.0;
+    g_f12z_ilp_neigh[n1 + number_of_particles] = 0.0;
+    g_f12x_ilp_neigh[n1 + number_of_particles + number_of_particles] = 0.0;
+    g_f12y_ilp_neigh[n1 + number_of_particles + number_of_particles] = 0.0;
+    g_f12z_ilp_neigh[n1 + number_of_particles + number_of_particles] = 0.0;
+  }
+}
+
 // calculate the normals and its derivatives
 static __device__ void calc_normal(
   double (&vet)[3][3],
@@ -581,6 +610,7 @@ static __global__ void gpu_find_force(
     double z1 = g_z[n1];
 
     int index_ilp_vec[3] = {n1, n1 + number_of_particles, n1 + (number_of_particles << 1)};
+    double fk_temp[9] = {0.0};
     // int n2_ilp_vec[3];
     // n2_ilp_vec[0] = g_ilp_neighbor_list[index_ilp_vec[0]];
     // n2_ilp_vec[1] = g_ilp_neighbor_list[index_ilp_vec[1]];
@@ -813,9 +843,12 @@ static __global__ void gpu_find_force(
         fk[1] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[1];
         fk[2] = minus_prodnorm1_m_fpair1_m_Tap * dprodnorm1[2];
 
-        g_f12x_ilp_neigh[index_ilp_vec[kk]] += fk[0];
-        g_f12y_ilp_neigh[index_ilp_vec[kk]] += fk[1];
-        g_f12z_ilp_neigh[index_ilp_vec[kk]] += fk[2];
+        // g_f12x_ilp_neigh[index_ilp_vec[kk]] += fk[0];
+        // g_f12y_ilp_neigh[index_ilp_vec[kk]] += fk[1];
+        // g_f12z_ilp_neigh[index_ilp_vec[kk]] += fk[2];
+        fk_temp[kk] += fk[0];
+        fk_temp[kk + 3] += fk[1];
+        fk_temp[kk + 6] += fk[2];
 
         // delki[0] = g_x[n2_ilp] - x1;
         // delki[1] = g_y[n2_ilp] - y1;
@@ -858,6 +891,15 @@ static __global__ void gpu_find_force(
     g_fx[n1] += s_fx;
     g_fy[n1] += s_fy;
     g_fz[n1] += s_fz;
+    g_f12x_ilp_neigh[index_ilp_vec[0]] = fk_temp[0];
+    g_f12x_ilp_neigh[index_ilp_vec[1]] = fk_temp[1];
+    g_f12x_ilp_neigh[index_ilp_vec[2]] = fk_temp[2];
+    g_f12y_ilp_neigh[index_ilp_vec[0]] = fk_temp[3];
+    g_f12y_ilp_neigh[index_ilp_vec[1]] = fk_temp[4];
+    g_f12y_ilp_neigh[index_ilp_vec[2]] = fk_temp[5];
+    g_f12z_ilp_neigh[index_ilp_vec[0]] = fk_temp[6];
+    g_f12z_ilp_neigh[index_ilp_vec[1]] = fk_temp[7];
+    g_f12z_ilp_neigh[index_ilp_vec[2]] = fk_temp[8];
 
     // save virial
     // xx xy xz    0 3 4
@@ -1113,12 +1155,12 @@ void ILP::compute(
   CUDA_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
-  ilp_data.f12x_ilp_neigh.fill(0);
-  ilp_data.f12y_ilp_neigh.fill(0);
-  ilp_data.f12z_ilp_neigh.fill(0);
-  ilp_data.f12x.fill(0);
-  ilp_data.f12y.fill(0);
-  ilp_data.f12z.fill(0);
+  // ilp_data.f12x_ilp_neigh.fill(0);
+  // ilp_data.f12y_ilp_neigh.fill(0);
+  // ilp_data.f12z_ilp_neigh.fill(0);
+  // ilp_data.f12x.fill(0);
+  // ilp_data.f12y.fill(0);
+  // ilp_data.f12z.fill(0);
 
   double *g_fx = force_per_atom.data();
   double *g_fy = force_per_atom.data() + number_of_atoms;
@@ -1131,6 +1173,11 @@ void ILP::compute(
   double *g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
   double *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
   double *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
+
+  init_ILP_temp_data<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    N1, N2, number_of_atoms, g_f12x, g_f12y, g_f12z, g_f12x_ilp_neigh, g_f12y_ilp_neigh, g_f12z_ilp_neigh);
+  CUDA_CHECK_KERNEL
+
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     ilp_para,
     number_of_atoms,
