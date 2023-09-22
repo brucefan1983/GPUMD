@@ -22,7 +22,6 @@ The class dealing with the Lennard-Jones (LJ) pairwise potentials.
 #include "neighbor.cuh"
 #include "utilities/error.cuh"
 
-// TODO: best size here: 128
 #define BLOCK_SIZE_FORCE 128
 
 ILP::ILP(FILE* fid, int num_types, int num_atoms)
@@ -61,7 +60,6 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
       ilp_para.S[n][m] = S;
       ilp_para.rcutsq_ilp[n][m] = rcut_ilp * rcut_ilp;
       ilp_para.rcut_global[n][m] = rcut_global;
-      // TODO: meV???
       double meV = 1e-3 * S;
       ilp_para.C[n][m] *= meV;
       ilp_para.C_6[n][m] *= meV;
@@ -104,7 +102,6 @@ ILP::~ILP(void)
   // TODO
 }
 
-// TODO: set inline???
 // calculate the long-range cutoff term
 inline static __device__ double calc_Tap(const double r_ij, const double Rcutinv)
 {
@@ -123,7 +120,6 @@ inline static __device__ double calc_Tap(const double r_ij, const double Rcutinv
   return Tap;
 }
 
-// TODO: set inline???
 // calculate the derivatives of long-range cutoff term
 inline static __device__ double calc_dTap(const double r_ij, const double Rcut, const double Rcutinv)
 {
@@ -179,6 +175,7 @@ static __global__ void ILP_neighbor(
       double z12 = g_z[n2] - z1;
       apply_mic(box, x12, y12, z12);
       double d12sq = x12 * x12 + y12 * y12 + z12 * z12;
+      // TODO: use local memory to save rcutsq to reduce global read
       double rcutsq = ilp_para.rcutsq_ilp[type1][type2];
 
 
@@ -189,7 +186,7 @@ static __global__ void ILP_neighbor(
     ilp_neighbor_number[n1] = count;
 
     if (count > MAX_ILP_NEIGHBOR) {
-      // TODO: error, there are too many neighbors for some atoms, 
+      // error, there are too many neighbors for some atoms, 
       printf("\n===== ILP neighbor number[%d] is greater than 3 =====\n", count);
       
       int nei1 = ilp_neighbor_list[0 * number_of_particles + n1];
@@ -200,36 +197,6 @@ static __global__ void ILP_neighbor(
       return;
       // please check your configuration
     }
-  }
-  // TODO: check group id before calc potential(calc in defferent layers)
-}
-
-// intialize ilp temp force
-static __global__ void init_ILP_temp_data(
-  const int N1,
-  const int N2,
-  const int number_of_particles,
-  double *g_f12x,
-  double *g_f12y,
-  double *g_f12z,
-  double *g_f12x_ilp_neigh,
-  double *g_f12y_ilp_neigh,
-  double *g_f12z_ilp_neigh)
-{
-  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
-  if (n1 < N2) {
-    // g_f12x[n1] = 0.0;
-    // g_f12y[n1] = 0.0;
-    // g_f12z[n1] = 0.0;
-    g_f12x_ilp_neigh[n1] = 0.0;
-    g_f12y_ilp_neigh[n1] = 0.0;
-    g_f12z_ilp_neigh[n1] = 0.0;
-    g_f12x_ilp_neigh[n1 + number_of_particles] = 0.0;
-    g_f12y_ilp_neigh[n1 + number_of_particles] = 0.0;
-    g_f12z_ilp_neigh[n1 + number_of_particles] = 0.0;
-    g_f12x_ilp_neigh[n1 + number_of_particles + number_of_particles] = 0.0;
-    g_f12y_ilp_neigh[n1 + number_of_particles + number_of_particles] = 0.0;
-    g_f12z_ilp_neigh[n1 + number_of_particles + number_of_particles] = 0.0;
   }
 }
 
@@ -371,7 +338,6 @@ static __device__ void calc_normal(
         }
       }
     }
-    // TODO
   } else if (cont == 3) {
     continv = 1.0 / cont;
 
@@ -506,11 +472,10 @@ static __device__ void calc_normal(
           dnormal[id][ip][m] = dn1[id][ip][m] * nninv - n1[id] * dnn[ip][m] * nninv * nninv;
         }
       }
-    }// TODO
+    }
   } else {
-    // TODO: too many neighbors for calculating normals
+    // TODO: error! too many neighbors for calculating normals
   }
-  // TODO
 }
 
 // calculate the van der Waals force and energy
@@ -599,7 +564,6 @@ static __global__ void gpu_find_force(
   double r = 0.0;
   double rsq = 0.0;
   double Rcut = 0.0;
-  // double r2inv, r6inv, r8inv;
 
   if (n1 < N2) {
     double x12, y12, z12;
@@ -611,31 +575,13 @@ static __global__ void gpu_find_force(
 
     int index_ilp_vec[3] = {n1, n1 + number_of_particles, n1 + (number_of_particles << 1)};
     double fk_temp[9] = {0.0};
-    // int n2_ilp_vec[3];
-    // n2_ilp_vec[0] = g_ilp_neighbor_list[index_ilp_vec[0]];
-    // n2_ilp_vec[1] = g_ilp_neighbor_list[index_ilp_vec[1]];
-    // n2_ilp_vec[2] = g_ilp_neighbor_list[index_ilp_vec[2]];
 
     double delkix_half[3] = {0.0, 0.0, 0.0};
     double delkiy_half[3] = {0.0, 0.0, 0.0};
     double delkiz_half[3] = {0.0, 0.0, 0.0};
-    // double delkix, delkiy, delkiz;
-
-    // for (int i1 = 0; i1 < ilp_neighbor_number; ++i1) {
-    //   int n2_ilp = g_ilp_neighbor_list[n1 + number_of_particles * i1];
-    //   delkix = g_x[n2_ilp] - x1;
-    //   delkiy = g_y[n2_ilp] - y1;
-    //   delkiz = g_z[n2_ilp] - z1;
-    //   apply_mic(box, delkix, delkiy, delkiz);
-    //   delkix_half[i1] = delkix * 0.5;
-    //   delkiy_half[i1] = delkiy * 0.5;
-    //   delkiz_half[i1] = delkiz * 0.5;
-    // }
 
     // calculate the normal
-    // TODO: loop the ILP_neigh to create the vet and cont
     int cont = 0;
-    // TODO: how to initialize normals
     double normal[3];
     double dnormdri[3][3];
     double dnormal[3][3][3];
@@ -687,19 +633,17 @@ static __global__ void gpu_find_force(
       rsq = x12 * x12 + y12 * y12 + z12 * z12;
       r = sqrt(rsq);
       Rcut = ilp_para.rcut_global[type1][type2];
-      // TODO: not in the same layer
+      // not in the same layer
       if (r >= Rcut || group_label[n1] == group_label[n2]) {
         continue;
       }
 
+      // calc att
       double Tap, dTap, rinv;
       double Rcutinv = 1.0 / Rcut;
       rinv = 1.0 / r;
       Tap = calc_Tap(r, Rcutinv);
       dTap = calc_dTap(r, Rcut, Rcutinv);
-      // TODO: set tap to 1 to test
-      // Tap = 1;
-      // dTap = 0;
 
       double p2_vdW, f2_vdW;
       calc_vdW(
@@ -714,7 +658,6 @@ static __global__ void gpu_find_force(
         p2_vdW,
         f2_vdW);
       
-      // TODO: in GPUMD: x12=x2-x1, in LAMMPS: delx=x1-x2
       double f12x = -f2_vdW * x12 * 0.5;
       double f12y = -f2_vdW * y12 * 0.5;
       double f12z = -f2_vdW * z12 * 0.5;
@@ -738,6 +681,7 @@ static __global__ void gpu_find_force(
       s_szz += z12 * f21z;
 
       
+      // calc rep
       double C = ilp_para.C[type1][type2];
       double lambda_ = ilp_para.lambda[type1][type2];
       double delta2inv = ilp_para.delta2inv[type1][type2];
@@ -759,7 +703,6 @@ static __global__ void gpu_find_force(
       double dely_half = dely * 0.5;
       double delz_half = delz * 0.5;
 
-      // rsq = r * r;
       // calculate the transverse distance
       prodnorm1 = normal[0] * delx + normal[1] * dely + normal[2] * delz;
       rhosq1 = rsq - prodnorm1 * prodnorm1;
@@ -775,7 +718,6 @@ static __global__ void gpu_find_force(
       frho1 = exp1 * C;
       Erep = 0.5 * epsilon + frho1;
       Vilp = exp0 * Erep;
-      // TODO
 
       // derivatives
       fpair = lambda_ * exp0 * rinv * Erep;
@@ -816,10 +758,6 @@ static __global__ void gpu_find_force(
       s_fy += fkcy - fprod1[1] * Tap;
       s_fz += fkcz - fprod1[2] * Tap;
 
-      // TODO: write data of other atoms, need atomic operation???
-      // g_fx[n2] -= fkcx;
-      // g_fy[n2] -= fkcy;
-      // g_fz[n2] -= fkcz;
       g_f12x[index] = fkcx;
       g_f12y[index] = fkcy;
       g_f12z[index] = fkcz;
@@ -1000,7 +938,7 @@ __global__ void reduce_force_many_body(
           break;
         }
       }
-      offset = m;
+      offset = (l + r) >> 1;
       index = n2 + number_of_particles * offset;
       double f21x = g_f12x[index];
       double f21y = g_f12y[index];
@@ -1145,7 +1083,6 @@ void ILP::compute(
   ilp_data.ilp_NN.fill(0);
 
   // find ILP neighbor list
-  // TODO: __global__ ???
   // TODO: assume the first group column is for ILP
   const int *group_label = group[0].label.data();
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
@@ -1155,12 +1092,12 @@ void ILP::compute(
   CUDA_CHECK_KERNEL
 
   // initialize force of ilp neighbor temporary vector
-  // ilp_data.f12x_ilp_neigh.fill(0);
-  // ilp_data.f12y_ilp_neigh.fill(0);
-  // ilp_data.f12z_ilp_neigh.fill(0);
-  // ilp_data.f12x.fill(0);
-  // ilp_data.f12y.fill(0);
-  // ilp_data.f12z.fill(0);
+  ilp_data.f12x_ilp_neigh.fill(0);
+  ilp_data.f12y_ilp_neigh.fill(0);
+  ilp_data.f12z_ilp_neigh.fill(0);
+  ilp_data.f12x.fill(0);
+  ilp_data.f12y.fill(0);
+  ilp_data.f12z.fill(0);
 
   double *g_fx = force_per_atom.data();
   double *g_fy = force_per_atom.data() + number_of_atoms;
@@ -1173,10 +1110,6 @@ void ILP::compute(
   double *g_f12x_ilp_neigh = ilp_data.f12x_ilp_neigh.data();
   double *g_f12y_ilp_neigh = ilp_data.f12y_ilp_neigh.data();
   double *g_f12z_ilp_neigh = ilp_data.f12z_ilp_neigh.data();
-
-  init_ILP_temp_data<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    N1, N2, number_of_atoms, g_f12x, g_f12y, g_f12z, g_f12x_ilp_neigh, g_f12y_ilp_neigh, g_f12z_ilp_neigh);
-  CUDA_CHECK_KERNEL
 
   gpu_find_force<<<grid_size, BLOCK_SIZE_FORCE>>>(
     ilp_para,
@@ -1204,7 +1137,6 @@ void ILP::compute(
     g_f12x_ilp_neigh,
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
-  // TODO
   CUDA_CHECK_KERNEL
 
   reduce_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
