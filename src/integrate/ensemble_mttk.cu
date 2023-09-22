@@ -567,45 +567,33 @@ void Ensemble_MTTK::propagate_box_off_diagonal()
 void Ensemble_MTTK::propagate_box_diagonal()
 {
   // TODO: fix point ?
-  double expfac, expfac2;
+  double expfac;
   expfac = exp(dt4 * omega_dot[0][0]);
-  expfac2 = exp(dt8 * omega_dot[0][0]);
-  h[0][0] *= expfac2;
-  h[0][0] += dt4 * (omega_dot[0][1] * h[1][0] + omega_dot[0][2] * h[2][0]);
-  h[0][0] *= expfac2;
+  h[0][0] *= expfac;
+  h[0][0] += dt2 * (omega_dot[0][1] * h[1][0] + omega_dot[0][2] * h[2][0]);
+  h[0][0] *= expfac;
   if (need_scale[1][0])
     h[1][0] *= expfac;
   if (need_scale[2][0])
     h[2][0] *= expfac;
-  h[0][0] *= expfac2;
-  h[0][0] += dt4 * (omega_dot[0][1] * h[1][0] + omega_dot[0][2] * h[2][0]);
-  h[0][0] *= expfac2;
 
   expfac = exp(dt4 * omega_dot[1][1]);
-  expfac2 = exp(dt8 * omega_dot[1][1]);
-  h[1][1] *= expfac2;
-  h[1][1] += dt4 * (omega_dot[1][0] * h[0][1] + omega_dot[1][2] * h[2][1]);
-  h[1][1] *= expfac2;
+  h[1][1] *= expfac;
+  h[1][1] += dt2 * (omega_dot[1][0] * h[0][1] + omega_dot[1][2] * h[2][1]);
+  h[1][1] *= expfac;
   if (need_scale[0][1])
     h[0][1] *= expfac;
   if (need_scale[2][1])
     h[2][1] *= expfac;
-  h[1][1] *= expfac2;
-  h[1][1] += dt4 * (omega_dot[1][0] * h[0][1] + omega_dot[1][2] * h[2][1]);
-  h[1][1] *= expfac2;
 
   expfac = exp(dt4 * omega_dot[2][2]);
-  expfac2 = exp(dt8 * omega_dot[2][2]);
-  h[2][2] *= expfac2;
-  h[2][2] += dt4 * (omega_dot[2][0] * h[0][2] + omega_dot[2][1] * h[1][2]);
-  h[2][2] *= expfac2;
+  h[2][2] *= expfac;
+  h[2][2] += dt2 * (omega_dot[2][0] * h[0][2] + omega_dot[2][1] * h[1][2]);
+  h[2][2] *= expfac;
   if (need_scale[0][2])
     h[0][2] *= expfac;
   if (need_scale[1][2])
     h[1][2] *= expfac;
-  h[2][2] *= expfac2;
-  h[2][2] += dt4 * (omega_dot[2][0] * h[0][2] + omega_dot[2][1] * h[1][2]);
-  h[2][2] *= expfac2;
 }
 
 void Ensemble_MTTK::find_thermo()
@@ -682,7 +670,8 @@ void Ensemble_MTTK::nhc_press_integrate()
     }
   }
 
-  for (int n = 0; n < pchain; n++)
+  Q_p[0] = kT / (p_freq_max * p_freq_max);
+  for (int n = 1; n < pchain; n++)
     Q_p[n] = kT / (p_freq_max * p_freq_max);
   for (int n = 1; n < pchain; n++)
     eta_p_dotdot[n] = (Q_p[n - 1] * eta_p_dot[n - 1] * eta_p_dot[n - 1] - kT) / Q_p[n];
