@@ -401,6 +401,7 @@ void Ensemble_MTTK::get_sigma()
   if (h0_reset_interval > 0) {
     if (*current_step % h0_reset_interval == 0) {
       std::copy(&h_inv[0][0], &h_inv[0][0] + 9, &h_ref_inv[0][0]);
+      vol_ref = box->get_volume();
     }
   }
   // Eq. (2.24) of Parrinello1981
@@ -412,7 +413,7 @@ void Ensemble_MTTK::get_sigma()
   // h_inv * (S-p) * h_inv_T
   matrix_multiply(tmp2, tmp1, sigma);
   // h_inv * (S-p) * h_inv_T * vol
-  matrix_scale(sigma, box->get_volume(), sigma);
+  matrix_scale(sigma, vol_ref, sigma);
 }
 
 void Ensemble_MTTK::get_deviatoric()
@@ -565,31 +566,34 @@ void Ensemble_MTTK::propagate_box_off_diagonal()
 
 void Ensemble_MTTK::propagate_box_diagonal()
 {
+  // TODO: fix point ?
   double expfac;
   expfac = exp(dt4 * omega_dot[0][0]);
   h[0][0] *= expfac;
   h[0][0] += dt2 * (omega_dot[0][1] * h[1][0] + omega_dot[0][2] * h[2][0]);
   h[0][0] *= expfac;
+  if (need_scale[1][0])
+    h[1][0] *= expfac;
+  if (need_scale[2][0])
+    h[2][0] *= expfac;
 
   expfac = exp(dt4 * omega_dot[1][1]);
   h[1][1] *= expfac;
   h[1][1] += dt2 * (omega_dot[1][0] * h[0][1] + omega_dot[1][2] * h[2][1]);
   h[1][1] *= expfac;
+  if (need_scale[0][1])
+    h[0][1] *= expfac;
+  if (need_scale[2][1])
+    h[2][1] *= expfac;
 
   expfac = exp(dt4 * omega_dot[2][2]);
   h[2][2] *= expfac;
   h[2][2] += dt2 * (omega_dot[2][0] * h[0][2] + omega_dot[2][1] * h[1][2]);
   h[2][2] *= expfac;
-
-  for (int i = 0; i < 3; i++) {
-    expfac = exp(dt2 * omega_dot[i][i]);
-    // TODO: fix point ?
-    for (int j = 0; j < 3; j++) {
-      // It needs to be [j][i] not [i][j]!
-      if (need_scale[j][i] && i != j)
-        h[j][i] *= expfac;
-    }
-  }
+  if (need_scale[0][2])
+    h[0][2] *= expfac;
+  if (need_scale[1][2])
+    h[1][2] *= expfac;
 }
 
 void Ensemble_MTTK::find_thermo()

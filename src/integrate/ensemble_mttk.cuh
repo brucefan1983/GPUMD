@@ -74,7 +74,11 @@ protected:
   // When nph, there is no target temperature. So we use the temperature of kinetic energy.
   double t_for_barostat = 0;
   // the 3x3 matric of cell parameters
-  double h[3][3], h_inv[3][3], h_old[3][3], h_old_inv[3][3], h_ref_inv[3][3];
+  double h[3][3], h_inv[3][3], h_old[3][3];
+
+  // for computing sigma
+  double h_old_inv[3][3], h_ref_inv[3][3];
+  double vol_ref = 0;
 
   double tmp1[3][3], tmp2[3][3];
   double sigma[3][3], f_deviatoric[3][3];
