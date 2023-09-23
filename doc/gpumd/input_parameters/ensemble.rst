@@ -20,6 +20,8 @@ The number of optional parameters depends on the first parameter, which can assu
     nvt_bdp
     nvt_lan
     nvt_bao
+    nph_mttk
+    npt_mttk
     npt_ber
     npt_scr
     heat_nhc
@@ -35,6 +37,8 @@ If the first parameter is :attr:`nve`, it means that the ensemble for the curren
 There is no need to further specify any other parameters. Therefore, the full command is::
 
     ensemble nve
+
+.. include:: ensemble_mttk.rst
 
 :attr:`nvt_ber`
 ^^^^^^^^^^^^^^^

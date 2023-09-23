@@ -28,7 +28,13 @@ class Integrate
 public:
   std::unique_ptr<Ensemble> ensemble;
 
-  void initialize(const double time_step, const std::vector<Group>& group, Atom& atom);
+  void initialize(
+    double time_step,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo,
+    int &total_steps);
 
   void finalize();
 
@@ -49,7 +55,14 @@ public:
     GPU_Vector<double>& thermo);
 
   // get inputs from run.in
-  void parse_ensemble(Box& box, const char** param, int num_param, std::vector<Group>& group);
+  void parse_ensemble(
+    const char** param,
+    int num_param,
+    double time_step,
+    Atom& atom,
+    Box& box,
+    std::vector<Group>& group,
+    GPU_Vector<double>& thermo);
   void parse_deform(const char**, int);
   void parse_fix(const char**, int, std::vector<Group>& group);
   void parse_move(const char**, int, std::vector<Group>& group);
@@ -79,4 +92,8 @@ public:
 
   // PIMD
   int number_of_beads;
+
+  // save some quantities for ensemble to use.
+  int current_step = 0;
+  int total_steps = 0;
 };

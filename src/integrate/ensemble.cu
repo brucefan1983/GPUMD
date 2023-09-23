@@ -134,6 +134,138 @@ static __global__ void gpu_velocity_verlet(
   }
 }
 
+static __global__ void gpu_velocity_verlet_x(
+  const int number_of_particles,
+  const bool has_group,
+  const int* group_id,
+  const int fixed_group,
+  const int move_group,
+  const double move_velocity_x,
+  const double move_velocity_y,
+  const double move_velocity_z,
+  const double g_time_step,
+  double* g_x,
+  double* g_y,
+  double* g_z,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    const double time_step = g_time_step;
+    double vx = g_vx[i];
+    double vy = g_vy[i];
+    double vz = g_vz[i];
+    if (has_group) {
+      if (group_id[i] == fixed_group) {
+        return;
+      } else if (group_id[i] == move_group) {
+        vx = move_velocity_x;
+        vy = move_velocity_y;
+        vz = move_velocity_z;
+      }
+    }
+    g_x[i] += vx * time_step;
+    g_y[i] += vy * time_step;
+    g_z[i] += vz * time_step;
+  }
+}
+
+static __global__ void gpu_velocity_verlet_v(
+  const int number_of_particles,
+  const bool has_group,
+  const int* group_id,
+  const int fixed_group,
+  const int move_group,
+  const double g_time_step,
+  const double* g_mass,
+  double* g_vx,
+  double* g_vy,
+  double* g_vz,
+  const double* g_fx,
+  const double* g_fy,
+  const double* g_fz)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if (i < number_of_particles) {
+    const double time_step = g_time_step;
+    const double time_step_half = time_step * 0.5;
+    double vx = g_vx[i];
+    double vy = g_vy[i];
+    double vz = g_vz[i];
+    const double mass_inv = 1.0 / g_mass[i];
+    const double ax = g_fx[i] * mass_inv;
+    const double ay = g_fy[i] * mass_inv;
+    const double az = g_fz[i] * mass_inv;
+    if (has_group) {
+      if (group_id[i] == fixed_group || group_id[i] == move_group) {
+        g_vx[i] = 0.0;
+        g_vy[i] = 0.0;
+        g_vz[i] = 0.0;
+        return;
+      }
+    }
+    vx += ax * time_step_half;
+    vy += ay * time_step_half;
+    vz += az * time_step_half;
+    g_vx[i] = vx;
+    g_vy[i] = vy;
+    g_vz[i] = vz;
+  }
+}
+
+void Ensemble::velocity_verlet_v()
+{
+  int n = atom->number_of_atoms;
+  const int* group_pointer;
+  if (group->size())
+    group_pointer = (*group)[0].label.data();
+  else
+    group_pointer = 0;
+
+  gpu_velocity_verlet_v<<<(n - 1) / 128 + 1, 128>>>(
+    n,
+    group->size(),
+    group_pointer,
+    fixed_group,
+    move_group,
+    time_step,
+    atom->mass.data(),
+    atom->velocity_per_atom.data(),
+    atom->velocity_per_atom.data() + n,
+    atom->velocity_per_atom.data() + 2 * n,
+    atom->force_per_atom.data(),
+    atom->force_per_atom.data() + n,
+    atom->force_per_atom.data() + 2 * n);
+}
+
+void Ensemble::velocity_verlet_x()
+{
+  int n = atom->number_of_atoms;
+  const int* group_pointer;
+  if (group->size())
+    group_pointer = (*group)[0].label.data();
+  else
+    group_pointer = 0;
+  gpu_velocity_verlet_x<<<(n - 1) / 128 + 1, 128>>>(
+    n,
+    group->size(),
+    group_pointer,
+    fixed_group,
+    move_group,
+    move_velocity[0],
+    move_velocity[1],
+    move_velocity[2],
+    time_step,
+    atom->position_per_atom.data(),
+    atom->position_per_atom.data() + n,
+    atom->position_per_atom.data() + 2 * n,
+    atom->velocity_per_atom.data(),
+    atom->velocity_per_atom.data() + n,
+    atom->velocity_per_atom.data() + 2 * n);
+}
+
 void Ensemble::velocity_verlet(
   const bool is_step1,
   const double time_step,

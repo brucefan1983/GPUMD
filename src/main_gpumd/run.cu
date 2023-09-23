@@ -158,7 +158,7 @@ void Run::execute_run_in()
 
 void Run::perform_a_run()
 {
-  integrate.initialize(time_step, group, atom);
+  integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
   mc.initialize();
   measure.initialize(number_of_steps, time_step, integrate, group, atom, force);
 
@@ -169,6 +169,34 @@ void Run::perform_a_run()
 #endif
 
   clock_t time_begin = clock();
+
+  // compute force for the first integrate step
+  if (integrate.type >= 31) { // PIMD
+    for (int k = 0; k < integrate.number_of_beads; ++k) {
+      force.compute(
+        box,
+        atom.position_beads[k],
+        atom.type,
+        group,
+        atom.potential_beads[k],
+        atom.force_beads[k],
+        atom.virial_beads[k],
+        atom.velocity_beads[k],
+        atom.mass);
+    }
+  } else {
+    force.compute(
+      box,
+      atom.position_per_atom,
+      atom.type,
+      group,
+      atom.potential_per_atom,
+      atom.force_per_atom,
+      atom.virial_per_atom,
+      atom.velocity_per_atom,
+      atom.mass);
+  }
+
   double initial_time_step = time_step;
 
   for (int step = 0; step < number_of_steps; ++step) {
@@ -177,6 +205,7 @@ void Run::perform_a_run()
       max_distance_per_step, atom.velocity_per_atom, initial_time_step, time_step);
     global_time += time_step;
 
+    integrate.current_step = step;
     integrate.compute1(time_step, double(step) / number_of_steps, group, box, atom, thermo);
 
     if (integrate.type >= 31) { // PIMD
@@ -274,7 +303,10 @@ void Run::perform_a_run()
 void Run::parse_one_keyword(std::vector<std::string>& tokens)
 {
   int num_param = tokens.size();
-  const char* param[22]; // never use more than 19 parameters
+  const int max_num_param = 32;
+  if (num_param > max_num_param)
+    PRINT_INPUT_ERROR("The number of parameters should be less than 32.\n");
+  const char* param[max_num_param];
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
@@ -339,7 +371,7 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
   } else if (strcmp(param[0], "velocity") == 0) {
     parse_velocity(param, num_param);
   } else if (strcmp(param[0], "ensemble") == 0) {
-    integrate.parse_ensemble(box, param, num_param, group);
+    integrate.parse_ensemble(param, num_param, time_step, atom, box, group, thermo);
   } else if (strcmp(param[0], "time_step") == 0) {
     parse_time_step(param, num_param);
   } else if (strcmp(param[0], "correct_velocity") == 0) {

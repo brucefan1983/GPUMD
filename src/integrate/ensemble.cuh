@@ -52,6 +52,14 @@ public:
     const GPU_Vector<double>& virial_per_atom,
     GPU_Vector<double>& thermo);
 
+  int* current_step;
+  int* total_steps;
+  double time_step;
+  const std::vector<Group>* group;
+  Box* box;
+  Atom* atom;
+  GPU_Vector<double>* thermo;
+
   int type; // ensemble type in a specific run
   int source;
   int sink;
@@ -87,6 +95,9 @@ protected:
     const GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& velocity_per_atom);
+
+  void velocity_verlet_v();
+  void velocity_verlet_x();
 
   void scale_velocity_global(const double factor, GPU_Vector<double>& velocity_per_atom);
 

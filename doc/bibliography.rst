@@ -124,6 +124,13 @@ Bibliography
    | Computational Materials Science **175**, 109584 (2020)
    | DOI: `10.1016/j.commatsci.2020.109584 <https://doi.org/10.1016/j.commatsci.2020.109584>`_
 
+.. [Hoover1996]
+   | William G. Hoover and Brad Lee Holian
+   | *Kinetic moments method for the canonical ensemble distribution*
+   | Physics Letters A, **211**(5), 253-257 (1996)
+   | ISSN: 0375-9601
+   | DOI: `10.1016/0375-9601(95)00973-6 <https://doi.org/10.1016/0375-9601(95)00973-6>`
+
 .. [Leimkuhler2013]
    | Benedict Leimkuhler and Charles Matthews
    | *Rational construction of stochastic numerical methods for molecular sampling*
@@ -141,7 +148,19 @@ Bibliography
    | *Direct calculation of modal contributions to thermal conductivity via Green-Kubo modal analysis*
    | New J. Phys. **18**, 013028 (2016)
    | DOI: `10.1088/1367-2630/18/1/013028 <https://doi.org/10.1088/1367-2630/18/1/013028>`_
-   
+
+.. [Martyna1994]
+   | Glenn J. Martyna, Douglas J. Tobias, and Michael L. Klein
+   | *Constant pressure molecular dynamics algorithms*
+   | The Journal of Chemical Physics, **101**(5), 4177-4189 (1994)
+   | DOI: `10.1063/1.467468 <https://doi.org/10.1063/1.467468>`
+
+.. [Parrinello1981]
+   | M. Parrinello and A. Rahman
+   | *Polymorphic transitions in single crystals: A new molecular dynamics method*
+   | Journal of Applied Physics, **52**(12), 7182-7190 (1981)
+   | DOI: `10.1063/1.328693 <https://doi.org/10.1063/1.328693>`
+
 .. [Rossi2014]
    | Mariana Rossi, Michele Ceriotti, and David E. Manolopoulos
    | *How to remove the spurious resonances from ring polymer molecular dynamics*
