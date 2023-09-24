@@ -143,8 +143,6 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
   const float* zbl_para,
   const float zizj,
   const float a_inv,
-  const float rc_inner,
-  const float rc_outer,
   const float d12,
   const float d12inv,
   float& f,
@@ -152,15 +150,16 @@ static __device__ __forceinline__ void find_f_and_fp_zbl(
 {
   const float x = d12 * a_inv;
   f = fp = 0.0f;
-  find_phi_and_phip_zbl(zbl_para[0], zbl_para[1], x, f, fp);
   find_phi_and_phip_zbl(zbl_para[2], zbl_para[3], x, f, fp);
   find_phi_and_phip_zbl(zbl_para[4], zbl_para[5], x, f, fp);
+  find_phi_and_phip_zbl(zbl_para[6], zbl_para[7], x, f, fp);
+  find_phi_and_phip_zbl(zbl_para[8], zbl_para[9], x, f, fp);
   f *= zizj;
   fp *= zizj * a_inv;
   fp = fp * d12inv - f * d12inv * d12inv;
   f *= d12inv;
   float fc, fcp;
-  find_fc_and_fcp_zbl(rc_inner, rc_outer, d12, fc, fcp);
+  find_fc_and_fcp_zbl(zbl_para[0], zbl_para[1], d12, fc, fcp);
   fp = fp * fc + f * fcp;
   f *= fc;
 }

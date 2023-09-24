@@ -94,7 +94,7 @@ void Parameters::set_default_parameters()
   population_size = 50;        // almost optimal
   maximum_generation = 100000; // a good starting point
   type_weight_cpu.resize(NUM_ELEMENTS);
-  zbl_para.resize(440); // Maximum number of zbl parameters
+  zbl_para.resize(550); // Maximum number of zbl parameters
   for (int n = 0; n < NUM_ELEMENTS; ++n) {
     type_weight_cpu[n] = 1.0f; // uniform weight by default
   }
@@ -135,7 +135,7 @@ void Parameters::read_zbl_in()
     flexible_zbl = false;
   } else {
     flexible_zbl = true;
-    for (int n = 0; n < (num_types * (num_types + 1) / 2) * 8; ++n) {
+    for (int n = 0; n < (num_types * (num_types + 1) / 2) * 10; ++n) {
       int count = fscanf(fid_zbl, "%f", &zbl_para[n]);
       PRINT_SCANF_ERROR(count, 1, "Reading error for zbl.in.");
     }

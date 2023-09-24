@@ -312,15 +312,7 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   // flexible zbl potential parameters
   if (zbl.flexibled) {
     int num_type_zbl = (paramb.num_types * (paramb.num_types + 1)) / 2;
-    for (int d = 0; d < num_type_zbl; ++d) {
-      tokens = get_tokens(input);
-      zbl.rc_flexible_inner[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    for (int d = 0; d < num_type_zbl; ++d) {
-      tokens = get_tokens(input);
-      zbl.rc_flexible_outer[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
-    }
-    for (int d = 0; d < 6 * num_type_zbl; ++d) {
+    for (int d = 0; d < 10 * num_type_zbl; ++d) {
       tokens = get_tokens(input);
       zbl.para[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
@@ -1021,13 +1013,11 @@ static __global__ void find_force_ZBL(
           t2 = type1;
         }
         int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-        float rc_inner = zbl.rc_flexible_inner[zbl_index];
-        float rc_outer = zbl.rc_flexible_outer[zbl_index];
-        float ZBL_para[6];
-        for (int i = 0; i < 6; ++i) {
-          ZBL_para[i] = zbl.para[6 * zbl_index + i];
+        float ZBL_para[10];
+        for (int i = 0; i < 10; ++i) {
+          ZBL_para[i] = zbl.para[10 * zbl_index + i];
         }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
       } else {
         find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
       }
