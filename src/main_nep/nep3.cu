@@ -273,12 +273,8 @@ NEP3::NEP3(
   if (zbl.flexibled) {
     zbl.num_types = para.num_types;
     int num_type_zbl = (para.num_types * (para.num_types + 1)) / 2;
-    for (int n = 0; n < num_type_zbl; ++n) {
-      zbl.rc_flexible_inner[n] = para.zbl_para[n];
-      zbl.rc_flexible_outer[n] = para.zbl_para[n + num_type_zbl];
-    }
-    for (int n = 0; n < num_type_zbl * 6; ++n) {
-      zbl.para[n] = para.zbl_para[n + 2 * num_type_zbl];
+    for (int n = 0; n < num_type_zbl * 10; ++n) {
+      zbl.para[n] = para.zbl_para[n];
     }
   }
 
@@ -797,13 +793,11 @@ static __global__ void find_force_ZBL(
           t2 = type1;
         }
         int zbl_index = t1 * zbl.num_types - (t1 * (t1 - 1)) / 2 + (t2 - t1);
-        float rc_inner = zbl.rc_flexible_inner[zbl_index];
-        float rc_outer = zbl.rc_flexible_outer[zbl_index];
-        float ZBL_para[6];
-        for (int i = 0; i < 6; ++i) {
-          ZBL_para[i] = zbl.para[6 * zbl_index + i];
+        float ZBL_para[10];
+        for (int i = 0; i < 10; ++i) {
+          ZBL_para[i] = zbl.para[10 * zbl_index + i];
         }
-        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, rc_inner, rc_outer, d12, d12inv, f, fp);
+        find_f_and_fp_zbl(ZBL_para, zizj, a_inv, d12, d12inv, f, fp);
       } else {
         find_f_and_fp_zbl(zizj, a_inv, zbl.rc_inner, zbl.rc_outer, d12, d12inv, f, fp);
       }

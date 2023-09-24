@@ -283,7 +283,7 @@ void Fitness::write_nep_txt(FILE* fid_nep, Parameters& para, float* elite)
     fprintf(fid_nep, "%15.7e\n", para.q_scaler_cpu[d]);
   }
   if (para.flexible_zbl) {
-    for (int d = 0; d < 8 * (para.num_types * (para.num_types + 1) / 2); ++d) {
+    for (int d = 0; d < 10 * (para.num_types * (para.num_types + 1) / 2); ++d) {
       fprintf(fid_nep, "%15.7e\n", para.zbl_para[d]);
     }
   }
