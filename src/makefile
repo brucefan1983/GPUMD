@@ -37,6 +37,7 @@ SOURCES_GPUMD =                   \
 	$(wildcard mc/*.cu)           \
 	$(wildcard force/*.cu)        \
 	$(wildcard measure/*.cu)      \
+	$(wildcard measure/lsqt/*.cu) \
 	$(wildcard model/*.cu)        \
 	$(wildcard utilities/*.cu)
 SOURCES_NEP =                     \
@@ -67,6 +68,7 @@ HEADERS =                         \
 	$(wildcard minimize/*.cuh)    \
 	$(wildcard force/*.cuh)       \
 	$(wildcard measure/*.cuh)     \
+	$(wildcard measure/lsqt/*.cuh) \
 	$(wildcard model/*.cuh)       \
 	$(wildcard phonon/*.cuh)      \
 	$(wildcard main_nep/*.cuh)
@@ -96,6 +98,8 @@ force/%.obj: force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 measure/%.obj: measure/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.obj: measure/lsqt/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gpumd/%.obj: main_gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 utilities/%.obj: utilities/%.cu $(HEADERS)
@@ -116,6 +120,8 @@ minimize/%.o: minimize/%.cu $(HEADERS)
 force/%.o: force/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 measure/%.o: measure/%.cu $(HEADERS)
+	$(CC) $(CFLAGS) $(INC) -c $< -o $@
+measure/%.o: measure/lsqt/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
 main_gpumd/%.o: main_gpumd/%.cu $(HEADERS)
 	$(CC) $(CFLAGS) $(INC) -c $< -o $@
