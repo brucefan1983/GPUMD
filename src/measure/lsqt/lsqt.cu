@@ -434,7 +434,7 @@ void run_msd(Model& model, Hamiltonian& H, Vector& random_state)
 
 } // namespace
 
-void LSQT::postprocess(std::string& input_directory)
+void LSQT::postprocess()
 {
   model.initialize();
   Hamiltonian H(model);

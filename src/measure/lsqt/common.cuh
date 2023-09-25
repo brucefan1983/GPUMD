@@ -21,7 +21,6 @@ typedef float real; // single precision
 typedef double real; // double precision
 #endif
 
-#ifndef CPU_ONLY
 #include <stdio.h>
 
 #define CHECK(call)                                                                                \
@@ -36,5 +35,3 @@ typedef double real; // double precision
       exit(1);                                                                                     \
     }                                                                                              \
   } while (0)
-
-#endif // #ifndef CPU_ONLY

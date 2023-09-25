@@ -21,6 +21,6 @@
 class LSQT
 {
 public:
-  void postprocess(std::string& input_directory);
+  void postprocess();
   Model model;
 };
