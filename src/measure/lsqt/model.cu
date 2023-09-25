@@ -15,23 +15,14 @@
 
 #include "model.cuh"
 #include "vector.cuh"
-#include <chrono>
 #include <fstream>
 #include <iostream>
-#include <random>
 #include <sstream>
 
 #define PI 3.141592653589793
 
 void Model::initialize()
 {
-#ifdef DEBUG
-  // use the same seed for different runs
-  generator = std::mt19937(12345678);
-#else
-  // use different seeds for different runs
-  generator = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
-#endif
 
   energy.resize(number_of_energy_points); // in units of eV
   double delta_energy = 20.0 / (number_of_energy_points - 1);
@@ -55,23 +46,4 @@ void Model::initialize()
   std::cout << std::endl;
   std::cout << "done================================= " << std::endl;
   exit(1);
-}
-
-// This function is called by the lsqt function in the lsqt.cu file
-// It initializes a random vector
-void Model::initialize_state(Vector& random_state)
-{
-  std::uniform_real_distribution<real> phase(0, 2 * PI);
-  real* random_state_real = new real[number_of_atoms];
-  real* random_state_imag = new real[number_of_atoms];
-
-  for (int n = 0; n < number_of_atoms; ++n) {
-    real random_phase = phase(generator);
-    random_state_real[n] = cos(random_phase);
-    random_state_imag[n] = sin(random_phase);
-  }
-
-  random_state.copy_from_host(random_state_real, random_state_imag);
-  delete[] random_state_real;
-  delete[] random_state_imag;
 }

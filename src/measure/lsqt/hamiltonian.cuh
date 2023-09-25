@@ -35,7 +35,6 @@ public:
 
 private:
   void initialize_gpu(Model&);
-  void initialize_cpu(Model&);
 
   int* neighbor_number;
   int* neighbor_list;

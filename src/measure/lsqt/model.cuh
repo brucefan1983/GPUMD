@@ -15,14 +15,12 @@
 
 #pragma once
 #include "common.cuh"
-#include <random>
-class Vector;
+#include <vector>
 
 class Model
 {
 public:
   void initialize();
-  void initialize_state(Vector& random_state);
 
   int number_of_random_vectors = 1;
   int number_of_atoms = 0;
@@ -35,7 +33,4 @@ public:
   std::vector<real> energy;
   std::vector<real> time_step;
   real volume;
-
-private:
-  std::mt19937 generator;
 };

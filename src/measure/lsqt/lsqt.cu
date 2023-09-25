@@ -21,8 +21,10 @@
 #include "lsqt.cuh"
 #include "model.cuh"
 #include "vector.cuh"
+#include <chrono>
 #include <fstream>
 #include <iostream>
+#include <random>
 
 namespace
 {
@@ -436,16 +438,41 @@ void run_msd(Model& model, Hamiltonian& H, Vector& random_state)
 
 void LSQT::postprocess()
 {
+#ifdef DEBUG
+  // use the same seed for different runs
+  generator = std::mt19937(12345678);
+#else
+  // use different seeds for different runs
+  generator = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+#endif
+
   model.initialize();
   Hamiltonian H(model);
   Vector random_state(model.number_of_atoms);
   for (int i = 0; i < model.number_of_random_vectors; ++i) {
     print_started_random_vector(i);
-    model.initialize_state(random_state);
+    initialize_state(random_state);
     run_dos(model, H, random_state);
     run_vac0(model, H, random_state);
     run_vac(model, H, random_state);
     run_msd(model, H, random_state);
     print_finished_random_vector(i);
   }
+}
+
+void LSQT::initialize_state(Vector& random_state)
+{
+  std::uniform_real_distribution<real> phase(0, 2 * PI);
+  real* random_state_real = new real[model.number_of_atoms];
+  real* random_state_imag = new real[model.number_of_atoms];
+
+  for (int n = 0; n < model.number_of_atoms; ++n) {
+    real random_phase = phase(generator);
+    random_state_real[n] = cos(random_phase);
+    random_state_imag[n] = sin(random_phase);
+  }
+
+  random_state.copy_from_host(random_state_real, random_state_imag);
+  delete[] random_state_real;
+  delete[] random_state_imag;
 }

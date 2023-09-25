@@ -16,6 +16,8 @@
 #pragma once
 #include "common.cuh"
 #include "model.cuh"
+#include "vector.cuh"
+#include <random>
 #include <string>
 
 class LSQT
@@ -23,4 +25,8 @@ class LSQT
 public:
   void postprocess();
   Model model;
+
+private:
+  void initialize_state(Vector& random_state);
+  std::mt19937 generator;
 };
