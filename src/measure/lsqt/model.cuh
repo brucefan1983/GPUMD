@@ -25,7 +25,7 @@ class Model
 public:
   Model(std::string input_dir);
   ~Model();
-  void initialize_state(Vector& random_state, int orbital);
+  void initialize_state(Vector& random_state);
 
   bool calculate_vac0 = false;
   bool calculate_vac = false;
@@ -66,7 +66,6 @@ private:
   void verify_parameters();
   void initialize_energy();
   void initialize_time();
-  void initialize_local_orbitals();
 
   // only for general model
   void initialize_neighbor();

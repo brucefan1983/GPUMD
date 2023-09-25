@@ -21,7 +21,7 @@
 #include <iostream>
 #define BLOCK_SIZE 512 // optimized
 #define PI 3.141592653589793
-//#define LORENTZ // Lorentz damping is not as good as Jackson damping
+// #define LORENTZ // Lorentz damping is not as good as Jackson damping
 
 // Find the Chebyshev moments defined in Eqs. (32-34)
 // in [Comput. Phys. Commun.185, 28 (2014)].
@@ -197,7 +197,7 @@ void evolvex(Model& model, int direction, real time_step_scaled, Hamiltonian& H,
 
 // calculate the DOS as a function of Fermi energy
 // See Algorithm 1 in [Comput. Phys. Commun.185, 28 (2014)].
-void find_dos(Model& model, Hamiltonian& H, Vector& random_state, int flag)
+void find_dos(Model& model, Hamiltonian& H, Vector& random_state)
 {
   Vector inner_product_2(model.number_of_moments);
 
@@ -215,7 +215,7 @@ void find_dos(Model& model, Hamiltonian& H, Vector& random_state, int flag)
   apply_damping(model, inner_product_real, inner_product_imag);
   perform_chebyshev_summation(model, inner_product_real, inner_product_imag, dos);
 
-  std::string filename = (flag == 0) ? "/dos.out" : "/ldos.out";
+  std::string filename = "/dos.out";
   std::ofstream output(model.input_dir + filename, std::ios::app);
 
   if (!output.is_open()) {
@@ -384,55 +384,4 @@ void find_msd(Model& model, Hamiltonian& H, Vector& random_state)
   delete[] inner_product_real;
   delete[] inner_product_imag;
   delete[] msd;
-}
-
-// calculate the spin polarization as a function of correlation time and
-// Fermi energy. See Eq. (6) in [Phys. Rev. B 95, 041401(R) (2017)].
-void find_spin_polarization(Model& model, Hamiltonian& H, Vector& random_state)
-{
-  Vector state(random_state);
-  Vector state_sz(model.number_of_atoms);
-  Vector inner_product_2(model.number_of_moments);
-
-  real* inner_product_real;
-  real* inner_product_imag;
-  real* S;
-
-  S = new real[model.number_of_energy_points];
-  inner_product_real = new real[model.number_of_moments];
-  inner_product_imag = new real[model.number_of_moments];
-
-  std::ofstream output(model.input_dir + "/S.out", std::ios::app);
-  if (!output.is_open()) {
-    std::cout << "Error: cannot open " + model.input_dir + "/S.out" << std::endl;
-    exit(1);
-  }
-
-  for (int m = 0; m < model.number_of_steps_correlation; ++m) {
-    std::cout << "- calculating spin step " << m << std::endl;
-
-    state_sz.apply_sz(state);
-
-    find_moments_chebyshev(model, H, state, state_sz, inner_product_2);
-    inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
-    apply_damping(model, inner_product_real, inner_product_imag);
-    perform_chebyshev_summation(model, inner_product_real, inner_product_imag, S);
-
-    for (int n = 0; n < model.number_of_energy_points; ++n) {
-      output << S[n] << " ";
-    }
-    output << std::endl;
-
-    if (m < model.number_of_steps_correlation - 1) {
-      // update U^m |phi> to U^(m+1) |phi>
-      real time_step_scaled = model.time_step[m] * model.energy_max;
-      evolve(model, 1, time_step_scaled, H, state);
-    }
-  }
-
-  output.close();
-
-  delete[] inner_product_real;
-  delete[] inner_product_imag;
-  delete[] S;
 }

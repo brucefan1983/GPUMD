@@ -47,10 +47,6 @@ Model::Model(std::string input_dir)
   // only read in time steps when needed
   if (requires_time)
     initialize_time();
-
-  // only read in local orbitals when needed
-  if (calculate_ldos)
-    initialize_local_orbitals();
 }
 
 Model::~Model()
@@ -63,35 +59,18 @@ Model::~Model()
 
 // This function is called by the lsqt function in the lsqt.cu file
 // It initializes a random vector
-void Model::initialize_state(Vector& random_state, int orbital)
+void Model::initialize_state(Vector& random_state)
 {
   std::uniform_real_distribution<real> phase(0, 2 * PI);
   real* random_state_real = new real[number_of_atoms];
   real* random_state_imag = new real[number_of_atoms];
 
-  if (orbital >= 0) {
-    for (int n = 0; n < number_of_atoms; ++n) {
-      random_state_real[n] = 0.0;
-      random_state_imag[n] = 0.0;
-    }
-    random_state_real[orbital] = sqrt(1.0 * number_of_atoms);
-  } else if (calculate_spin) // normalize to N/2 to remove spin degeneracy
-  {
-    for (int n = 0; n < number_of_atoms; n += 2) {
-      real random_phase = phase(generator);
-      random_state_real[n] = cos(random_phase);
-      random_state_imag[n] = sin(random_phase);
-      random_state_real[n + 1] = 0.0;
-      random_state_imag[n + 1] = 0.0;
-    }
-  } else // normalize to N to keep spin degeneracy
-  {
-    for (int n = 0; n < number_of_atoms; ++n) {
-      real random_phase = phase(generator);
-      random_state_real[n] = cos(random_phase);
-      random_state_imag[n] = sin(random_phase);
-    }
+  for (int n = 0; n < number_of_atoms; ++n) {
+    real random_phase = phase(generator);
+    random_state_real[n] = cos(random_phase);
+    random_state_imag[n] = sin(random_phase);
   }
+
   random_state.copy_from_host(random_state_real, random_state_imag);
   delete[] random_state_real;
   delete[] random_state_imag;
@@ -281,33 +260,6 @@ void Model::initialize_energy()
 
   input.close();
 
-  print_finished_reading(filename);
-}
-
-void Model::initialize_local_orbitals()
-{
-  std::string filename = input_dir + "/local_orbitals.in";
-  std::ifstream input(filename);
-
-  if (!input.is_open()) {
-    std::cout << "Error: cannot open " + filename << std::endl;
-    exit(1);
-  }
-  print_started_reading(filename);
-
-  input >> number_of_local_orbitals;
-  std::cout << "- number of local orbitals = " << number_of_local_orbitals << std::endl;
-  local_orbitals.resize(number_of_local_orbitals);
-
-  for (int n = 0; n < number_of_local_orbitals; ++n) {
-    input >> local_orbitals[n];
-    if (local_orbitals[n] < 0 || local_orbitals[n] >= number_of_atoms) {
-      std::cout << "Error: wrong local orbital index: " << local_orbitals[n] << std::endl;
-      exit(1);
-    }
-  }
-
-  input.close();
   print_finished_reading(filename);
 }
 
