@@ -19,7 +19,6 @@
 
 #include "hamiltonian.cuh"
 #include "lsqt.cuh"
-#include "model.cuh"
 #include "vector.cuh"
 #include <chrono>
 #include <fstream>
@@ -31,17 +30,35 @@ namespace
 #define BLOCK_SIZE 512 // optimized
 #define PI 3.141592653589793
 
+void print_started_random_vector(int i)
+{
+  std::cout << std::endl;
+  std::cout << "===========================================================";
+  std::cout << std::endl;
+  std::cout << "Started  simulation with random vector number " << i << std::endl;
+  std::cout << std::endl;
+}
+
+void print_finished_random_vector(int i)
+{
+  std::cout << std::endl;
+  std::cout << "Finished simulation with random vector number " << i << std::endl;
+  std::cout << "===========================================================";
+  std::cout << std::endl << std::endl;
+}
+} // namespace
+
 // Find the Chebyshev moments defined in Eqs. (32-34)
 // in [Comput. Phys. Commun.185, 28 (2014)].
 // See Algorithm 5 in [Comput. Phys. Commun.185, 28 (2014)].
-void find_moments_chebyshev(
-  Model& model, Hamiltonian& H, Vector& state_left, Vector& state_right, Vector& output)
+void LSQT::find_moments_chebyshev(
+  Hamiltonian& H, Vector& state_left, Vector& state_right, Vector& output)
 {
-  int n = model.number_of_atoms;
+  int n = number_of_atoms;
   int grid_size = (n - 1) / BLOCK_SIZE + 1;
 
   Vector state_0(state_right), state_1(n), state_2(n);
-  Vector inner_product_1(grid_size * model.number_of_moments);
+  Vector inner_product_1(grid_size * number_of_moments);
 
   // <left|right>
   int offset = 0 * grid_size;
@@ -53,7 +70,7 @@ void find_moments_chebyshev(
   state_1.inner_product_1(n, state_left, inner_product_1, offset);
 
   // <left|T_m(H)|right> (m >= 2)
-  for (int m = 2; m < model.number_of_moments; ++m) {
+  for (int m = 2; m < number_of_moments; ++m) {
     H.kernel_polynomial(state_0, state_1, state_2);
     offset = m * grid_size;
     state_2.inner_product_1(n, state_left, inner_product_1, offset);
@@ -61,14 +78,14 @@ void find_moments_chebyshev(
     state_0.swap(state_1);
     state_1.swap(state_2);
   }
-  inner_product_1.inner_product_2(n, model.number_of_moments, output);
+  inner_product_1.inner_product_2(n, number_of_moments, output);
 }
 
 // Jackson damping in Eq. (35) of [Comput. Phys. Commun.185, 28 (2014)].
-void apply_damping(Model& model, real* inner_product_real, real* inner_product_imag)
+void LSQT::apply_damping(real* inner_product_real, real* inner_product_imag)
 {
-  for (int k = 0; k < model.number_of_moments; ++k) {
-    real factor = 1.0 / (model.number_of_moments + 1);
+  for (int k = 0; k < number_of_moments; ++k) {
+    real factor = 1.0 / (number_of_moments + 1);
     real damping =
       (1 - k * factor) * cos(k * PI * factor) + sin(k * PI * factor) * factor / tan(PI * factor);
     inner_product_real[k] *= damping;
@@ -77,16 +94,16 @@ void apply_damping(Model& model, real* inner_product_real, real* inner_product_i
 }
 
 // Do the summation in Eqs. (29-31) in [Comput. Phys. Commun.185, 28 (2014)]
-void perform_chebyshev_summation(
-  Model& model, real* inner_product_real, real* inner_product_imag, real* correlation_function)
+void LSQT::perform_chebyshev_summation(
+  real* inner_product_real, real* inner_product_imag, real* correlation_function)
 {
-  for (int step1 = 0; step1 < model.number_of_energy_points; ++step1) {
-    real energy_scaled = model.energy[step1] / model.energy_max;
+  for (int step1 = 0; step1 < number_of_energy_points; ++step1) {
+    real energy_scaled = energy[step1] / energy_max;
     real chebyshev_0 = 1.0;
     real chebyshev_1 = energy_scaled;
     real chebyshev_2;
     real temp = inner_product_real[1] * chebyshev_1;
-    for (int step2 = 2; step2 < model.number_of_moments; ++step2) {
+    for (int step2 = 2; step2 < number_of_moments; ++step2) {
       chebyshev_2 = 2.0 * energy_scaled * chebyshev_1 - chebyshev_0;
       chebyshev_0 = chebyshev_1;
       chebyshev_1 = chebyshev_2;
@@ -94,9 +111,9 @@ void perform_chebyshev_summation(
     }
     temp *= 2.0;
     temp += inner_product_real[0];
-    temp *= 2.0 / (PI * model.volume);
+    temp *= 2.0 / (PI * volume);
     temp /= sqrt(1.0 - energy_scaled * energy_scaled);
-    correlation_function[step1] = temp / model.energy_max;
+    correlation_function[step1] = temp / energy_max;
   }
 }
 
@@ -104,9 +121,9 @@ void perform_chebyshev_summation(
 // U(+t) |state> when direction = +1;
 // U(-t) |state> when direction = -1.
 // See Eq. (36) and Algorithm 6 in [Comput. Phys. Commun.185, 28 (2014)].
-void evolve(Model& model, int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in)
+void LSQT::evolve(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in)
 {
-  int n = model.number_of_atoms;
+  int n = number_of_atoms;
   Vector state_0(state_in), state_1(n), state_2(n);
 
   // T_1(H) |psi> = H |psi>
@@ -145,9 +162,9 @@ void evolve(Model& model, int direction, real time_step_scaled, Hamiltonian& H, 
 // [X, U(+t)] |state> when direction = +1;
 // [U(-t), X] |state> when direction = -1.
 // See Eq. (37) and Algorithm 7 in [Comput. Phys. Commun.185, 28 (2014)].
-void evolvex(Model& model, int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in)
+void LSQT::evolvex(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in)
 {
-  int n = model.number_of_atoms;
+  int n = number_of_atoms;
   Vector state_0(state_in), state_0x(n);
   Vector state_1(n), state_1x(n);
   Vector state_2(n), state_2x(n);
@@ -192,23 +209,23 @@ void evolvex(Model& model, int direction, real time_step_scaled, Hamiltonian& H,
 
 // calculate the DOS as a function of Fermi energy
 // See Algorithm 1 in [Comput. Phys. Commun.185, 28 (2014)].
-void find_dos(Model& model, Hamiltonian& H, Vector& random_state)
+void LSQT::find_dos(Hamiltonian& H, Vector& random_state)
 {
-  Vector inner_product_2(model.number_of_moments);
+  Vector inner_product_2(number_of_moments);
 
   real* dos;
   real* inner_product_real;
   real* inner_product_imag;
 
-  dos = new real[model.number_of_energy_points];
-  inner_product_real = new real[model.number_of_moments];
-  inner_product_imag = new real[model.number_of_moments];
+  dos = new real[number_of_energy_points];
+  inner_product_real = new real[number_of_moments];
+  inner_product_imag = new real[number_of_moments];
 
-  find_moments_chebyshev(model, H, random_state, random_state, inner_product_2);
+  find_moments_chebyshev(H, random_state, random_state, inner_product_2);
   inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
 
-  apply_damping(model, inner_product_real, inner_product_imag);
-  perform_chebyshev_summation(model, inner_product_real, inner_product_imag, dos);
+  apply_damping(inner_product_real, inner_product_imag);
+  perform_chebyshev_summation(inner_product_real, inner_product_imag, dos);
 
   std::string filename = "dos.out";
   std::ofstream output(filename, std::ios::app);
@@ -218,7 +235,7 @@ void find_dos(Model& model, Hamiltonian& H, Vector& random_state)
     exit(1);
   }
 
-  for (int n = 0; n < model.number_of_energy_points; ++n) {
+  for (int n = 0; n < number_of_energy_points; ++n) {
     output << dos[n] << " ";
   }
   output << std::endl;
@@ -231,29 +248,29 @@ void find_dos(Model& model, Hamiltonian& H, Vector& random_state)
 
 // calculate the group velocity, which is sqrt{VAC(t=0)}
 // as a function of Fermi energy
-void find_vac0(Model& model, Hamiltonian& H, Vector& random_state)
+void LSQT::find_vac0(Hamiltonian& H, Vector& random_state)
 {
-  Vector inner_product_2(model.number_of_moments);
+  Vector inner_product_2(number_of_moments);
   real* inner_product_real;
   real* inner_product_imag;
   real* vac0;
-  inner_product_real = new real[model.number_of_moments];
-  inner_product_imag = new real[model.number_of_moments];
-  vac0 = new real[model.number_of_energy_points];
+  inner_product_real = new real[number_of_moments];
+  inner_product_imag = new real[number_of_moments];
+  vac0 = new real[number_of_energy_points];
 
-  Vector state(model.number_of_atoms);
+  Vector state(number_of_atoms);
   H.apply_current(random_state, state);
-  find_moments_chebyshev(model, H, state, state, inner_product_2);
+  find_moments_chebyshev(H, state, state, inner_product_2);
   inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
-  apply_damping(model, inner_product_real, inner_product_imag);
-  perform_chebyshev_summation(model, inner_product_real, inner_product_imag, vac0);
+  apply_damping(inner_product_real, inner_product_imag);
+  perform_chebyshev_summation(inner_product_real, inner_product_imag, vac0);
 
   std::ofstream output("vac0.out", std::ios::app);
   if (!output.is_open()) {
     std::cout << "Error: cannot open vac0.out" << std::endl;
     exit(1);
   }
-  for (int n = 0; n < model.number_of_energy_points; ++n) {
+  for (int n = 0; n < number_of_energy_points; ++n) {
     output << vac0[n] << " ";
   }
   output << std::endl;
@@ -266,20 +283,20 @@ void find_vac0(Model& model, Hamiltonian& H, Vector& random_state)
 
 // calculate the VAC as a function of correlation time and Fermi energy
 // See Algorithm 2 in [Comput. Phys. Commun.185, 28 (2014)].
-void find_vac(Model& model, Hamiltonian& H, Vector& random_state)
+void LSQT::find_vac(Hamiltonian& H, Vector& random_state)
 {
   Vector state_left(random_state);
-  Vector state_left_copy(model.number_of_atoms);
+  Vector state_left_copy(number_of_atoms);
   Vector state_right(random_state);
-  Vector inner_product_2(model.number_of_moments);
+  Vector inner_product_2(number_of_moments);
 
   real* inner_product_real;
   real* inner_product_imag;
   real* vac;
 
-  vac = new real[model.number_of_energy_points];
-  inner_product_real = new real[model.number_of_moments];
-  inner_product_imag = new real[model.number_of_moments];
+  vac = new real[number_of_energy_points];
+  inner_product_real = new real[number_of_moments];
+  inner_product_imag = new real[number_of_moments];
 
   H.apply_current(state_left, state_right);
 
@@ -289,24 +306,24 @@ void find_vac(Model& model, Hamiltonian& H, Vector& random_state)
     exit(1);
   }
 
-  for (int m = 0; m < model.number_of_steps_correlation; ++m) {
+  for (int m = 0; m < number_of_steps_correlation; ++m) {
     std::cout << "- calculating VAC step " << m << std::endl;
     H.apply_current(state_left, state_left_copy);
-    find_moments_chebyshev(model, H, state_right, state_left_copy, inner_product_2);
+    find_moments_chebyshev(H, state_right, state_left_copy, inner_product_2);
     inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
 
-    apply_damping(model, inner_product_real, inner_product_imag);
-    perform_chebyshev_summation(model, inner_product_real, inner_product_imag, vac);
+    apply_damping(inner_product_real, inner_product_imag);
+    perform_chebyshev_summation(inner_product_real, inner_product_imag, vac);
 
-    for (int n = 0; n < model.number_of_energy_points; ++n) {
+    for (int n = 0; n < number_of_energy_points; ++n) {
       output << vac[n] << " ";
     }
     output << std::endl;
 
-    if (m < model.number_of_steps_correlation - 1) {
-      real time_step_scaled = model.time_step[m] * model.energy_max;
-      evolve(model, -1, time_step_scaled, H, state_left);
-      evolve(model, -1, time_step_scaled, H, state_right);
+    if (m < number_of_steps_correlation - 1) {
+      real time_step_scaled = time_step[m] * energy_max;
+      evolve(-1, time_step_scaled, H, state_left);
+      evolve(-1, time_step_scaled, H, state_right);
     }
   }
 
@@ -319,24 +336,24 @@ void find_vac(Model& model, Hamiltonian& H, Vector& random_state)
 
 // calculate the MSD as a function of correlation time and Fermi energy
 // See Algorithm 3 in [Comput. Phys. Commun.185, 28 (2014)].
-void find_msd(Model& model, Hamiltonian& H, Vector& random_state)
+void LSQT::find_msd(Hamiltonian& H, Vector& random_state)
 {
   Vector state(random_state);
   Vector state_x(random_state);
-  Vector state_copy(model.number_of_atoms);
-  Vector inner_product_2(model.number_of_moments);
+  Vector state_copy(number_of_atoms);
+  Vector inner_product_2(number_of_moments);
 
   real* inner_product_real;
   real* inner_product_imag;
   real* msd;
 
-  msd = new real[model.number_of_energy_points];
-  inner_product_real = new real[model.number_of_moments];
-  inner_product_imag = new real[model.number_of_moments];
+  msd = new real[number_of_energy_points];
+  inner_product_real = new real[number_of_moments];
+  inner_product_imag = new real[number_of_moments];
 
-  real time_step_scaled = model.time_step[0] * model.energy_max;
-  evolve(model, 1, time_step_scaled, H, state);
-  evolvex(model, 1, time_step_scaled, H, state_x);
+  real time_step_scaled = time_step[0] * energy_max;
+  evolve(1, time_step_scaled, H, state);
+  evolvex(1, time_step_scaled, H, state_x);
 
   std::ofstream output("msd.out", std::ios::app);
   if (!output.is_open()) {
@@ -344,33 +361,33 @@ void find_msd(Model& model, Hamiltonian& H, Vector& random_state)
     exit(1);
   }
 
-  for (int m = 0; m < model.number_of_steps_correlation; ++m) {
+  for (int m = 0; m < number_of_steps_correlation; ++m) {
     std::cout << "- calculating MSD step " << m << std::endl;
 
-    find_moments_chebyshev(model, H, state_x, state_x, inner_product_2);
+    find_moments_chebyshev(H, state_x, state_x, inner_product_2);
     inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
 
-    apply_damping(model, inner_product_real, inner_product_imag);
-    perform_chebyshev_summation(model, inner_product_real, inner_product_imag, msd);
+    apply_damping(inner_product_real, inner_product_imag);
+    perform_chebyshev_summation(inner_product_real, inner_product_imag, msd);
 
-    for (int n = 0; n < model.number_of_energy_points; ++n) {
+    for (int n = 0; n < number_of_energy_points; ++n) {
       output << msd[n] << " ";
     }
     output << std::endl;
 
-    if (m < model.number_of_steps_correlation - 1) {
-      time_step_scaled = model.time_step[m + 1] * model.energy_max;
+    if (m < number_of_steps_correlation - 1) {
+      time_step_scaled = time_step[m + 1] * energy_max;
 
       // update [X, U^m] |phi> to [X, U^(m+1)] |phi>
       state_copy.copy(state);
 
-      evolvex(model, 1, time_step_scaled, H, state_copy);
-      evolve(model, 1, time_step_scaled, H, state_x);
+      evolvex(1, time_step_scaled, H, state_copy);
+      evolve(1, time_step_scaled, H, state_x);
 
       state_x.add(state_copy);
 
       // update U^m |phi> to U^(m+1) |phi>
-      evolve(model, 1, time_step_scaled, H, state);
+      evolve(1, time_step_scaled, H, state);
     }
   }
 
@@ -380,61 +397,6 @@ void find_msd(Model& model, Hamiltonian& H, Vector& random_state)
   delete[] inner_product_imag;
   delete[] msd;
 }
-
-void print_started_random_vector(int i)
-{
-  std::cout << std::endl;
-  std::cout << "===========================================================";
-  std::cout << std::endl;
-  std::cout << "Started  simulation with random vector number " << i << std::endl;
-  std::cout << std::endl;
-}
-
-void print_finished_random_vector(int i)
-{
-  std::cout << std::endl;
-  std::cout << "Finished simulation with random vector number " << i << std::endl;
-  std::cout << "===========================================================";
-  std::cout << std::endl << std::endl;
-}
-
-void run_dos(Model& model, Hamiltonian& H, Vector& random_state)
-{
-  clock_t time_begin = clock();
-  find_dos(model, H, random_state);
-  clock_t time_finish = clock();
-  real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
-  std::cout << "- Time used for finding DOS = " << time_used << " s" << std::endl;
-}
-
-void run_vac0(Model& model, Hamiltonian& H, Vector& random_state)
-{
-  clock_t time_begin = clock();
-  find_vac0(model, H, random_state);
-  clock_t time_finish = clock();
-  real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
-  std::cout << "- Time used for finding VAC0 = " << time_used << " s" << std::endl;
-}
-
-void run_vac(Model& model, Hamiltonian& H, Vector& random_state)
-{
-  clock_t time_begin = clock();
-  find_vac(model, H, random_state);
-  clock_t time_finish = clock();
-  real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
-  std::cout << "- Time used for finding VAC = " << time_used << " s" << std::endl;
-}
-
-void run_msd(Model& model, Hamiltonian& H, Vector& random_state)
-{
-  clock_t time_begin = clock();
-  find_msd(model, H, random_state);
-  clock_t time_finish = clock();
-  real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
-  std::cout << "- Time used for finding MSD = " << time_used << " s" << std::endl;
-}
-
-} // namespace
 
 void LSQT::postprocess()
 {
@@ -446,16 +408,16 @@ void LSQT::postprocess()
   generator = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
 #endif
 
-  model.initialize();
-  Hamiltonian H(model);
-  Vector random_state(model.number_of_atoms);
-  for (int i = 0; i < model.number_of_random_vectors; ++i) {
+  initialize();
+  H.initialize_gpu(number_of_atoms, max_neighbor, number_of_pairs, energy_max);
+  Vector random_state(number_of_atoms);
+  for (int i = 0; i < number_of_random_vectors; ++i) {
     print_started_random_vector(i);
     initialize_state(random_state);
-    run_dos(model, H, random_state);
-    run_vac0(model, H, random_state);
-    run_vac(model, H, random_state);
-    run_msd(model, H, random_state);
+    find_dos(H, random_state);
+    find_vac0(H, random_state);
+    find_vac(H, random_state);
+    find_msd(H, random_state);
     print_finished_random_vector(i);
   }
 }
@@ -463,10 +425,10 @@ void LSQT::postprocess()
 void LSQT::initialize_state(Vector& random_state)
 {
   std::uniform_real_distribution<real> phase(0, 2 * PI);
-  real* random_state_real = new real[model.number_of_atoms];
-  real* random_state_imag = new real[model.number_of_atoms];
+  real* random_state_real = new real[number_of_atoms];
+  real* random_state_imag = new real[number_of_atoms];
 
-  for (int n = 0; n < model.number_of_atoms; ++n) {
+  for (int n = 0; n < number_of_atoms; ++n) {
     real random_phase = phase(generator);
     random_state_real[n] = cos(random_phase);
     random_state_imag[n] = sin(random_phase);
@@ -475,4 +437,31 @@ void LSQT::initialize_state(Vector& random_state)
   random_state.copy_from_host(random_state_real, random_state_imag);
   delete[] random_state_real;
   delete[] random_state_imag;
+}
+
+void LSQT::initialize()
+{
+
+  energy.resize(number_of_energy_points); // in units of eV
+  double delta_energy = 20.0 / (number_of_energy_points - 1);
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    energy[n] = delta_energy * (n - number_of_energy_points / 2);
+  }
+  time_step.resize(number_of_steps_correlation); // in units of hbar/eV
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    time_step[n] = 1.0;
+  }
+
+  std::cout << "energy= " << std::endl;
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    std::cout << energy[n] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "time_step= " << std::endl;
+  for (int n = 0; n < number_of_steps_correlation; ++n) {
+    std::cout << time_step[n] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "done================================= " << std::endl;
+  exit(1);
 }

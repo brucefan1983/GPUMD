@@ -16,14 +16,11 @@
 #pragma once
 #include "common.cuh"
 class Vector;
-class Model;
 
 class Hamiltonian
 {
 public:
-  Hamiltonian(Model&);
-  ~Hamiltonian();
-
+  void initialize_gpu(int number_of_atoms, int mn, int number_of_pairs, real emax);
   void apply(Vector&, Vector&);
   void apply_commutator(Vector&, Vector&);
   void apply_current(Vector&, Vector&);
@@ -34,8 +31,6 @@ public:
   void chebyshev_2x(Vector&, Vector&, Vector&, Vector&, Vector&, Vector&, Vector&, real, int);
 
 private:
-  void initialize_gpu(Model&);
-
   int* neighbor_number;
   int* neighbor_list;
   real* potential;

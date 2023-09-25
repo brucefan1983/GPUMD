@@ -15,18 +15,45 @@
 
 #pragma once
 #include "common.cuh"
-#include "model.cuh"
+#include "hamiltonian.cuh"
 #include "vector.cuh"
 #include <random>
 #include <string>
+#include <vector>
+
+class Vector;
 
 class LSQT
 {
 public:
   void postprocess();
-  Model model;
 
 private:
+  void initialize();
   void initialize_state(Vector& random_state);
+  void
+  find_moments_chebyshev(Hamiltonian& H, Vector& state_left, Vector& state_right, Vector& output);
+  void apply_damping(real* inner_product_real, real* inner_product_imag);
+  void perform_chebyshev_summation(
+    real* inner_product_real, real* inner_product_imag, real* correlation_function);
+  void evolve(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in);
+  void evolvex(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in);
+  void find_dos(Hamiltonian& H, Vector& random_state);
+  void find_vac0(Hamiltonian& H, Vector& random_state);
+  void find_vac(Hamiltonian& H, Vector& random_state);
+  void find_msd(Hamiltonian& H, Vector& random_state);
+
+  Hamiltonian H;
   std::mt19937 generator;
+  int number_of_random_vectors = 1;
+  int number_of_atoms = 0;
+  int max_neighbor = 0;
+  int number_of_pairs = 0;
+  int number_of_energy_points = 201;
+  int number_of_moments = 1000;
+  int number_of_steps_correlation = 10;
+  real energy_max = 10.1;
+  std::vector<real> energy;
+  std::vector<real> time_step;
+  real volume;
 };

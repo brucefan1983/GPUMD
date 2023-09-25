@@ -14,37 +14,24 @@
 */
 
 #include "hamiltonian.cuh"
-#include "model.cuh"
 #include "utilities/error.cuh"
 #include "vector.cuh"
 #include <string.h>    // memcpy
 #define BLOCK_SIZE 512 // optimized
 
-void Hamiltonian::initialize_gpu(Model& model)
+void Hamiltonian::initialize_gpu(int number_of_atoms, int mn, int number_of_pairs, real emax)
 {
-  n = model.number_of_atoms;
-  max_neighbor = model.max_neighbor;
-  energy_max = model.energy_max;
-  grid_size = (model.number_of_atoms - 1) / BLOCK_SIZE + 1;
+  n = number_of_atoms;
+  max_neighbor = mn;
+  energy_max = emax;
+  grid_size = (number_of_atoms - 1) / BLOCK_SIZE + 1;
 
   CHECK(cudaMalloc((void**)&neighbor_number, sizeof(int) * n));
-  CHECK(cudaMalloc((void**)&neighbor_list, sizeof(int) * model.number_of_pairs));
+  CHECK(cudaMalloc((void**)&neighbor_list, sizeof(int) * number_of_pairs));
   CHECK(cudaMalloc((void**)&potential, sizeof(real) * n));
-  CHECK(cudaMalloc((void**)&hopping_real, sizeof(real) * model.number_of_pairs));
-  CHECK(cudaMalloc((void**)&hopping_imag, sizeof(real) * model.number_of_pairs));
-  CHECK(cudaMalloc((void**)&xx, sizeof(real) * model.number_of_pairs));
-}
-
-Hamiltonian::Hamiltonian(Model& model) { initialize_gpu(model); }
-
-Hamiltonian::~Hamiltonian()
-{
-  CHECK(cudaFree(neighbor_number));
-  CHECK(cudaFree(neighbor_list));
-  CHECK(cudaFree(potential));
-  CHECK(cudaFree(hopping_real));
-  CHECK(cudaFree(hopping_imag));
-  CHECK(cudaFree(xx));
+  CHECK(cudaMalloc((void**)&hopping_real, sizeof(real) * number_of_pairs));
+  CHECK(cudaMalloc((void**)&hopping_imag, sizeof(real) * number_of_pairs));
+  CHECK(cudaMalloc((void**)&xx, sizeof(real) * number_of_pairs));
 }
 
 __global__ void gpu_apply_hamiltonian(
