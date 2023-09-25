@@ -100,21 +100,6 @@ void Model::verify_parameters()
     requires_time = true;
 
   std::cout << "- Use general model" << std::endl;
-  if (anderson.has_disorder) {
-    std::cout << "Error: General model does not allowed to add "
-              << "Anderson disorder" << std::endl;
-    exit(1);
-  }
-  if (has_vacancy_disorder) {
-    std::cout << "Error: General model does not allowed to add "
-              << "vacancy disorder" << std::endl;
-    exit(1);
-  }
-  if (charge.has) {
-    std::cout << "Error: General model does not allowed to add "
-              << "charged impurities" << std::endl;
-    exit(1);
-  }
 
   std::cout << "- DOS will be calculated" << std::endl;
 
@@ -189,18 +174,7 @@ void Model::initialize_parameters()
     ss >> token;
     if (token == "")
       continue;
-    if (token == "anderson_disorder") {
-      anderson.has_disorder = true;
-      ss >> anderson.disorder_strength;
-    } else if (token == "charged_impurity") {
-      charge.has = true;
-      ss >> charge.Ni;
-      ss >> charge.W;
-      ss >> charge.xi;
-    } else if (token == "vacancy_disorder") {
-      has_vacancy_disorder = true;
-      ss >> number_of_vacancies;
-    } else if (token == "calculate_vac0") {
+    if (token == "calculate_vac0") {
       calculate_vac0 = true;
     } else if (token == "calculate_vac") {
       calculate_vac = true;

@@ -14,8 +14,6 @@
 */
 
 #pragma once
-#include "anderson.cuh"
-#include "charge.cuh"
 #include "common.cuh"
 #include <random>
 class Vector;
@@ -75,13 +73,6 @@ private:
   void initialize_model_general();
 
   bool requires_time = false;
-
-  // disorder
-  Anderson anderson;
-  Charge charge;
-
-  bool has_vacancy_disorder = false;
-  int number_of_vacancies;
 
   int pbc[3];
   real box_length[3];
