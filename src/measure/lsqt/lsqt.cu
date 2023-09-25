@@ -415,7 +415,7 @@ void LSQT::postprocess(Atom& atom, Box& box)
   std::cout << "done================================= " << std::endl;
   exit(1);
 
-  H.initialize(energy_max, atom);
+  H.initialize(energy_max, atom, box);
   Vector random_state(number_of_atoms);
   for (int i = 0; i < number_of_random_vectors; ++i) {
     print_started_random_vector(i);

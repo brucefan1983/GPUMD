@@ -18,12 +18,13 @@
 #include "utilities/gpu_vector.cuh"
 
 class Atom;
+class Box;
 class Vector;
 
 class Hamiltonian
 {
 public:
-  void initialize(real emax, Atom& atom);
+  void initialize(real emax, Atom& atom, Box& box);
   void apply(Vector&, Vector&);
   void apply_commutator(Vector&, Vector&);
   void apply_current(Vector&, Vector&);
@@ -34,6 +35,9 @@ public:
   void chebyshev_2x(Vector&, Vector&, Vector&, Vector&, Vector&, Vector&, Vector&, real, int);
 
 private:
+  GPU_Vector<int> cell_count;
+  GPU_Vector<int> cell_count_sum;
+  GPU_Vector<int> cell_contents;
   GPU_Vector<int> neighbor_number;
   GPU_Vector<int> neighbor_list;
   GPU_Vector<real> potential;
@@ -42,4 +46,5 @@ private:
   GPU_Vector<real> xx;
   int number_of_atoms;
   real energy_max;
+  real tb_cutoff;
 };

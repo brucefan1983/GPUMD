@@ -13,6 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "force/neighbor.cuh"
 #include "hamiltonian.cuh"
 #include "model/atom.cuh"
 #include "utilities/error.cuh"
@@ -367,19 +368,147 @@ __global__ void gpu_kernel_polynomial(
   }
 }
 
+__device__ int find_neighbor_cell(
+  int cell_id,
+  int cell_id_x,
+  int cell_id_y,
+  int cell_id_z,
+  int nx,
+  int ny,
+  int nz,
+  int xx,
+  int yy,
+  int zz)
+{
+  int neighbor_cell = cell_id + zz * nx * ny + yy * nx + xx;
+  if (cell_id_x + xx < 0)
+    neighbor_cell += nx;
+  if (cell_id_x + xx >= nx)
+    neighbor_cell -= nx;
+  if (cell_id_y + yy < 0)
+    neighbor_cell += ny * nx;
+  if (cell_id_y + yy >= ny)
+    neighbor_cell -= ny * nx;
+  if (cell_id_z + zz < 0)
+    neighbor_cell += nz * ny * nx;
+  if (cell_id_z + zz >= nz)
+    neighbor_cell -= nz * ny * nx;
+
+  return neighbor_cell;
+}
+
+__global__ void construct_hamiltonian(
+  const float rc,
+  const int N,
+  const int nx,
+  const int ny,
+  const int nz,
+  const Box box,
+  const int* g_cell_count,
+  const int* g_cell_count_sum,
+  const int* g_cell_contents,
+  const double* g_x,
+  const double* g_y,
+  const double* g_z,
+  int* g_neighbor_number,
+  int* g_neighbor_list,
+  real* g_potential,
+  real* g_hopping_real,
+  real* g_hopping_imag,
+  real* g_xx)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 >= N) {
+    return;
+  }
+
+  double x1 = g_x[n1];
+  double y1 = g_y[n1];
+  double z1 = g_z[n1];
+  int cell_id;
+  int cell_id_x;
+  int cell_id_y;
+  int cell_id_z;
+  find_cell_id(box, x1, y1, z1, 2.0f / rc, nx, ny, nz, cell_id_x, cell_id_y, cell_id_z, cell_id);
+
+  const int z_lim = box.pbc_z ? 2 : 0;
+  const int y_lim = box.pbc_y ? 2 : 0;
+  const int x_lim = box.pbc_x ? 2 : 0;
+  for (int zz = -z_lim; zz <= z_lim; ++zz) {
+    for (int yy = -y_lim; yy <= y_lim; ++yy) {
+      for (int xx = -x_lim; xx <= x_lim; ++xx) {
+        int neighbor_cell =
+          find_neighbor_cell(cell_id, cell_id_x, cell_id_y, cell_id_z, nx, ny, nz, xx, yy, zz);
+        const int num_atoms_neighbor_cell = g_cell_count[neighbor_cell];
+        const int num_atoms_previous_cells = g_cell_count_sum[neighbor_cell];
+        for (int m = 0; m < num_atoms_neighbor_cell; ++m) {
+          const int n2 = g_cell_contents[num_atoms_previous_cells + m];
+          if (n1 == n2) {
+            continue;
+          }
+          double x12double = g_x[n2] - x1;
+          double y12double = g_y[n2] - y1;
+          double z12double = g_z[n2] - z1;
+          apply_mic(box, x12double, y12double, z12double);
+          float r12[3] = {float(x12double), float(y12double), float(z12double)};
+          float d12_2 = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+          if (d12_2 < rc * rc) {
+            float d12 = sqrt(d12_2);
+          }
+        }
+      }
+    }
+  }
+}
+
 } // namespace
 
-void Hamiltonian::initialize(real emax, Atom& atom)
+void Hamiltonian::initialize(real emax, Atom& atom, Box& box)
 {
   number_of_atoms = atom.number_of_atoms;
   energy_max = emax;
-
+  tb_cutoff = 2.1; // TODO
+  cell_count.resize(number_of_atoms);
+  cell_count_sum.resize(number_of_atoms);
+  cell_contents.resize(number_of_atoms);
   neighbor_number.resize(number_of_atoms);
   neighbor_list.resize(number_of_atoms * max_neighbor);
   potential.resize(number_of_atoms);
   hopping_real.resize(number_of_atoms * max_neighbor);
   hopping_imag.resize(number_of_atoms * max_neighbor);
   xx.resize(number_of_atoms * max_neighbor);
+
+  int num_bins[3];
+  box.get_num_bins(0.5 * tb_cutoff, num_bins);
+
+  find_cell_list(
+    0.5 * tb_cutoff,
+    num_bins,
+    box,
+    atom.position_per_atom,
+    cell_count,
+    cell_count_sum,
+    cell_contents);
+
+  construct_hamiltonian<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    tb_cutoff,
+    number_of_atoms,
+    num_bins[0],
+    num_bins[1],
+    num_bins[2],
+    box,
+    cell_count.data(),
+    cell_count_sum.data(),
+    cell_contents.data(),
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + number_of_atoms,
+    atom.position_per_atom.data() + number_of_atoms * 2,
+    neighbor_number.data(),
+    neighbor_list.data(),
+    potential.data(),
+    hopping_real.data(),
+    hopping_imag.data(),
+    xx.data());
 }
 
 // |output> = H |input>
