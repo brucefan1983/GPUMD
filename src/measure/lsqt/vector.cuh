@@ -37,7 +37,6 @@ public:
 
 private:
   void initialize_gpu(int n);
-  void initialize_cpu(int n);
   int n;
   int array_size;
 };
