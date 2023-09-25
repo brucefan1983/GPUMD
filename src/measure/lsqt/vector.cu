@@ -13,6 +13,7 @@
     along with GPUMD.  If not, see <http://www.gnu.org/licenses/>.
 */
 
+#include "utilities/error.cuh"
 #include "vector.cuh"
 #include <string.h>    // memcpy
 #define BLOCK_SIZE 512 // optimized

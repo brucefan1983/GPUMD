@@ -15,6 +15,7 @@
 
 #include "hamiltonian.cuh"
 #include "model.cuh"
+#include "utilities/error.cuh"
 #include "vector.cuh"
 #include <string.h>    // memcpy
 #define BLOCK_SIZE 512 // optimized
