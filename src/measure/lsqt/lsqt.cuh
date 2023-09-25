@@ -31,17 +31,16 @@ public:
 private:
   void initialize();
   void initialize_state(Vector& random_state);
-  void
-  find_moments_chebyshev(Hamiltonian& H, Vector& state_left, Vector& state_right, Vector& output);
+  void find_moments_chebyshev(Vector& state_left, Vector& state_right, Vector& output);
   void apply_damping(real* inner_product_real, real* inner_product_imag);
   void perform_chebyshev_summation(
     real* inner_product_real, real* inner_product_imag, real* correlation_function);
-  void evolve(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in);
-  void evolvex(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in);
-  void find_dos(Hamiltonian& H, Vector& random_state);
-  void find_vac0(Hamiltonian& H, Vector& random_state);
-  void find_vac(Hamiltonian& H, Vector& random_state);
-  void find_msd(Hamiltonian& H, Vector& random_state);
+  void evolve(int direction, real time_step_scaled, Vector& state_in);
+  void evolvex(int direction, real time_step_scaled, Vector& state_in);
+  void find_dos(Vector& random_state);
+  void find_vac0(Vector& random_state);
+  void find_vac(Vector& random_state);
+  void find_msd(Vector& random_state);
 
   Hamiltonian H;
   std::mt19937 generator;

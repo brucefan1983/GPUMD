@@ -51,8 +51,7 @@ void print_finished_random_vector(int i)
 // Find the Chebyshev moments defined in Eqs. (32-34)
 // in [Comput. Phys. Commun.185, 28 (2014)].
 // See Algorithm 5 in [Comput. Phys. Commun.185, 28 (2014)].
-void LSQT::find_moments_chebyshev(
-  Hamiltonian& H, Vector& state_left, Vector& state_right, Vector& output)
+void LSQT::find_moments_chebyshev(Vector& state_left, Vector& state_right, Vector& output)
 {
   int n = number_of_atoms;
   int grid_size = (n - 1) / BLOCK_SIZE + 1;
@@ -121,7 +120,7 @@ void LSQT::perform_chebyshev_summation(
 // U(+t) |state> when direction = +1;
 // U(-t) |state> when direction = -1.
 // See Eq. (36) and Algorithm 6 in [Comput. Phys. Commun.185, 28 (2014)].
-void LSQT::evolve(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in)
+void LSQT::evolve(int direction, real time_step_scaled, Vector& state_in)
 {
   int n = number_of_atoms;
   Vector state_0(state_in), state_1(n), state_2(n);
@@ -162,7 +161,7 @@ void LSQT::evolve(int direction, real time_step_scaled, Hamiltonian& H, Vector& 
 // [X, U(+t)] |state> when direction = +1;
 // [U(-t), X] |state> when direction = -1.
 // See Eq. (37) and Algorithm 7 in [Comput. Phys. Commun.185, 28 (2014)].
-void LSQT::evolvex(int direction, real time_step_scaled, Hamiltonian& H, Vector& state_in)
+void LSQT::evolvex(int direction, real time_step_scaled, Vector& state_in)
 {
   int n = number_of_atoms;
   Vector state_0(state_in), state_0x(n);
@@ -209,7 +208,7 @@ void LSQT::evolvex(int direction, real time_step_scaled, Hamiltonian& H, Vector&
 
 // calculate the DOS as a function of Fermi energy
 // See Algorithm 1 in [Comput. Phys. Commun.185, 28 (2014)].
-void LSQT::find_dos(Hamiltonian& H, Vector& random_state)
+void LSQT::find_dos(Vector& random_state)
 {
   Vector inner_product_2(number_of_moments);
 
@@ -221,7 +220,7 @@ void LSQT::find_dos(Hamiltonian& H, Vector& random_state)
   inner_product_real = new real[number_of_moments];
   inner_product_imag = new real[number_of_moments];
 
-  find_moments_chebyshev(H, random_state, random_state, inner_product_2);
+  find_moments_chebyshev(random_state, random_state, inner_product_2);
   inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
 
   apply_damping(inner_product_real, inner_product_imag);
@@ -248,7 +247,7 @@ void LSQT::find_dos(Hamiltonian& H, Vector& random_state)
 
 // calculate the group velocity, which is sqrt{VAC(t=0)}
 // as a function of Fermi energy
-void LSQT::find_vac0(Hamiltonian& H, Vector& random_state)
+void LSQT::find_vac0(Vector& random_state)
 {
   Vector inner_product_2(number_of_moments);
   real* inner_product_real;
@@ -260,7 +259,7 @@ void LSQT::find_vac0(Hamiltonian& H, Vector& random_state)
 
   Vector state(number_of_atoms);
   H.apply_current(random_state, state);
-  find_moments_chebyshev(H, state, state, inner_product_2);
+  find_moments_chebyshev(state, state, inner_product_2);
   inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
   apply_damping(inner_product_real, inner_product_imag);
   perform_chebyshev_summation(inner_product_real, inner_product_imag, vac0);
@@ -283,7 +282,7 @@ void LSQT::find_vac0(Hamiltonian& H, Vector& random_state)
 
 // calculate the VAC as a function of correlation time and Fermi energy
 // See Algorithm 2 in [Comput. Phys. Commun.185, 28 (2014)].
-void LSQT::find_vac(Hamiltonian& H, Vector& random_state)
+void LSQT::find_vac(Vector& random_state)
 {
   Vector state_left(random_state);
   Vector state_left_copy(number_of_atoms);
@@ -309,7 +308,7 @@ void LSQT::find_vac(Hamiltonian& H, Vector& random_state)
   for (int m = 0; m < number_of_steps_correlation; ++m) {
     std::cout << "- calculating VAC step " << m << std::endl;
     H.apply_current(state_left, state_left_copy);
-    find_moments_chebyshev(H, state_right, state_left_copy, inner_product_2);
+    find_moments_chebyshev(state_right, state_left_copy, inner_product_2);
     inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
 
     apply_damping(inner_product_real, inner_product_imag);
@@ -322,8 +321,8 @@ void LSQT::find_vac(Hamiltonian& H, Vector& random_state)
 
     if (m < number_of_steps_correlation - 1) {
       real time_step_scaled = time_step[m] * energy_max;
-      evolve(-1, time_step_scaled, H, state_left);
-      evolve(-1, time_step_scaled, H, state_right);
+      evolve(-1, time_step_scaled, state_left);
+      evolve(-1, time_step_scaled, state_right);
     }
   }
 
@@ -336,7 +335,7 @@ void LSQT::find_vac(Hamiltonian& H, Vector& random_state)
 
 // calculate the MSD as a function of correlation time and Fermi energy
 // See Algorithm 3 in [Comput. Phys. Commun.185, 28 (2014)].
-void LSQT::find_msd(Hamiltonian& H, Vector& random_state)
+void LSQT::find_msd(Vector& random_state)
 {
   Vector state(random_state);
   Vector state_x(random_state);
@@ -352,8 +351,8 @@ void LSQT::find_msd(Hamiltonian& H, Vector& random_state)
   inner_product_imag = new real[number_of_moments];
 
   real time_step_scaled = time_step[0] * energy_max;
-  evolve(1, time_step_scaled, H, state);
-  evolvex(1, time_step_scaled, H, state_x);
+  evolve(1, time_step_scaled, state);
+  evolvex(1, time_step_scaled, state_x);
 
   std::ofstream output("msd.out", std::ios::app);
   if (!output.is_open()) {
@@ -364,7 +363,7 @@ void LSQT::find_msd(Hamiltonian& H, Vector& random_state)
   for (int m = 0; m < number_of_steps_correlation; ++m) {
     std::cout << "- calculating MSD step " << m << std::endl;
 
-    find_moments_chebyshev(H, state_x, state_x, inner_product_2);
+    find_moments_chebyshev(state_x, state_x, inner_product_2);
     inner_product_2.copy_to_host(inner_product_real, inner_product_imag);
 
     apply_damping(inner_product_real, inner_product_imag);
@@ -381,13 +380,13 @@ void LSQT::find_msd(Hamiltonian& H, Vector& random_state)
       // update [X, U^m] |phi> to [X, U^(m+1)] |phi>
       state_copy.copy(state);
 
-      evolvex(1, time_step_scaled, H, state_copy);
-      evolve(1, time_step_scaled, H, state_x);
+      evolvex(1, time_step_scaled, state_copy);
+      evolve(1, time_step_scaled, state_x);
 
       state_x.add(state_copy);
 
       // update U^m |phi> to U^(m+1) |phi>
-      evolve(1, time_step_scaled, H, state);
+      evolve(1, time_step_scaled, state);
     }
   }
 
@@ -414,10 +413,10 @@ void LSQT::postprocess()
   for (int i = 0; i < number_of_random_vectors; ++i) {
     print_started_random_vector(i);
     initialize_state(random_state);
-    find_dos(H, random_state);
-    find_vac0(H, random_state);
-    find_vac(H, random_state);
-    find_msd(H, random_state);
+    find_dos(random_state);
+    find_vac0(random_state);
+    find_vac(random_state);
+    find_msd(random_state);
     print_finished_random_vector(i);
   }
 }
