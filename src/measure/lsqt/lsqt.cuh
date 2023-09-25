@@ -15,10 +15,12 @@
 
 #pragma once
 #include "common.cuh"
+#include "model.cuh"
 #include <string>
 
 class LSQT
 {
 public:
   void postprocess(std::string& input_directory);
+  Model model;
 };

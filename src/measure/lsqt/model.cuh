@@ -21,15 +21,10 @@ class Vector;
 class Model
 {
 public:
-  Model(std::string input_dir);
+  Model();
   ~Model();
+  void initialize();
   void initialize_state(Vector& random_state);
-
-  bool calculate_vac0 = false;
-  bool calculate_vac = false;
-  bool calculate_msd = false;
-  bool calculate_spin = false;
-  bool calculate_ldos = false;
 
   int number_of_random_vectors = 1;
   int number_of_atoms = 0;
@@ -38,13 +33,10 @@ public:
   int number_of_energy_points = 0;
   int number_of_moments = 1000;
   int number_of_steps_correlation = 0;
-  int number_of_local_orbitals = 0;
-  std::string input_dir;
   real energy_max = 10;
 
-  real* energy;
-  real* time_step;
-  std::vector<int> local_orbitals;
+  std::vector<real> energy;
+  std::vector<real> time_step;
 
   int* neighbor_number;
   int* neighbor_list;
@@ -56,27 +48,5 @@ public:
   real volume;
 
 private:
-  void print_started_reading(std::string filename);
-  void print_finished_reading(std::string filename);
-
-  // for both lattice and general models
-  void initialize_parameters();
-  void verify_parameters();
-  void initialize_energy();
-  void initialize_time();
-
-  // only for general model
-  void initialize_neighbor();
-  void initialize_positions();
-  void initialize_potential();
-  void initialize_hopping();
-  void initialize_model_general();
-
-  bool requires_time = false;
-
-  int pbc[3];
-  real box_length[3];
-  std::vector<real> x, y, z;
-
   std::mt19937 generator;
 };

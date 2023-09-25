@@ -52,40 +52,34 @@ static void run_dos(Model& model, Hamiltonian& H, Vector& random_state)
 
 static void run_vac0(Model& model, Hamiltonian& H, Vector& random_state)
 {
-  if (model.calculate_vac0 == 1) {
-    clock_t time_begin = clock();
-    find_vac0(model, H, random_state);
-    clock_t time_finish = clock();
-    real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
-    std::cout << "- Time used for finding VAC0 = " << time_used << " s" << std::endl;
-  }
+  clock_t time_begin = clock();
+  find_vac0(model, H, random_state);
+  clock_t time_finish = clock();
+  real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
+  std::cout << "- Time used for finding VAC0 = " << time_used << " s" << std::endl;
 }
 
 static void run_vac(Model& model, Hamiltonian& H, Vector& random_state)
 {
-  if (model.calculate_vac == 1) {
-    clock_t time_begin = clock();
-    find_vac(model, H, random_state);
-    clock_t time_finish = clock();
-    real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
-    std::cout << "- Time used for finding VAC = " << time_used << " s" << std::endl;
-  }
+  clock_t time_begin = clock();
+  find_vac(model, H, random_state);
+  clock_t time_finish = clock();
+  real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
+  std::cout << "- Time used for finding VAC = " << time_used << " s" << std::endl;
 }
 
 static void run_msd(Model& model, Hamiltonian& H, Vector& random_state)
 {
-  if (model.calculate_msd == 1) {
-    clock_t time_begin = clock();
-    find_msd(model, H, random_state);
-    clock_t time_finish = clock();
-    real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
-    std::cout << "- Time used for finding MSD = " << time_used << " s" << std::endl;
-  }
+  clock_t time_begin = clock();
+  find_msd(model, H, random_state);
+  clock_t time_finish = clock();
+  real time_used = real(time_finish - time_begin) / CLOCKS_PER_SEC;
+  std::cout << "- Time used for finding MSD = " << time_used << " s" << std::endl;
 }
 
 void LSQT::postprocess(std::string& input_directory)
 {
-  Model model(input_directory);
+  model.initialize();
   Hamiltonian H(model);
   Vector random_state(model.number_of_atoms);
   for (int i = 0; i < model.number_of_random_vectors; ++i) {

@@ -21,7 +21,6 @@
 #include <iostream>
 #define BLOCK_SIZE 512 // optimized
 #define PI 3.141592653589793
-// #define LORENTZ // Lorentz damping is not as good as Jackson damping
 
 // Find the Chebyshev moments defined in Eqs. (32-34)
 // in [Comput. Phys. Commun.185, 28 (2014)].
@@ -57,18 +56,6 @@ void find_moments_chebyshev(
 }
 
 // Jackson damping in Eq. (35) of [Comput. Phys. Commun.185, 28 (2014)].
-#ifdef LORENTZ
-void apply_damping(Model& model, real* inner_product_real, real* inner_product_imag)
-{
-  real lambda = 4.0;
-  real f1 = sinh(lambda);
-  for (int k = 0; k < model.number_of_moments; ++k) {
-    real f2 = sinh(lambda * (1.0 - k / model.number_of_moments)) / f1;
-    inner_product_real[k] *= f2;
-    inner_product_imag[k] *= f2;
-  }
-}
-#else
 void apply_damping(Model& model, real* inner_product_real, real* inner_product_imag)
 {
   for (int k = 0; k < model.number_of_moments; ++k) {
@@ -79,7 +66,6 @@ void apply_damping(Model& model, real* inner_product_real, real* inner_product_i
     inner_product_imag[k] *= damping;
   }
 }
-#endif
 
 // Do the summation in Eqs. (29-31) in [Comput. Phys. Commun.185, 28 (2014)]
 void perform_chebyshev_summation(
@@ -215,11 +201,11 @@ void find_dos(Model& model, Hamiltonian& H, Vector& random_state)
   apply_damping(model, inner_product_real, inner_product_imag);
   perform_chebyshev_summation(model, inner_product_real, inner_product_imag, dos);
 
-  std::string filename = "/dos.out";
-  std::ofstream output(model.input_dir + filename, std::ios::app);
+  std::string filename = "dos.out";
+  std::ofstream output(filename, std::ios::app);
 
   if (!output.is_open()) {
-    std::cout << "Error: cannot open " + model.input_dir + filename << std::endl;
+    std::cout << "Error: cannot open dos.out" << std::endl;
     exit(1);
   }
 
@@ -253,9 +239,9 @@ void find_vac0(Model& model, Hamiltonian& H, Vector& random_state)
   apply_damping(model, inner_product_real, inner_product_imag);
   perform_chebyshev_summation(model, inner_product_real, inner_product_imag, vac0);
 
-  std::ofstream output(model.input_dir + "/vac0.out", std::ios::app);
+  std::ofstream output("vac0.out", std::ios::app);
   if (!output.is_open()) {
-    std::cout << "Error: cannot open " + model.input_dir + "/vac0.out" << std::endl;
+    std::cout << "Error: cannot open vac0.out" << std::endl;
     exit(1);
   }
   for (int n = 0; n < model.number_of_energy_points; ++n) {
@@ -288,9 +274,9 @@ void find_vac(Model& model, Hamiltonian& H, Vector& random_state)
 
   H.apply_current(state_left, state_right);
 
-  std::ofstream output(model.input_dir + "/vac.out", std::ios::app);
+  std::ofstream output("vac.out", std::ios::app);
   if (!output.is_open()) {
-    std::cout << "Error: cannot open " + model.input_dir + "/vac.out" << std::endl;
+    std::cout << "Error: cannot open vac.out" << std::endl;
     exit(1);
   }
 
@@ -343,9 +329,9 @@ void find_msd(Model& model, Hamiltonian& H, Vector& random_state)
   evolve(model, 1, time_step_scaled, H, state);
   evolvex(model, 1, time_step_scaled, H, state_x);
 
-  std::ofstream output(model.input_dir + "/msd.out", std::ios::app);
+  std::ofstream output("msd.out", std::ios::app);
   if (!output.is_open()) {
-    std::cout << "Error: cannot open " + model.input_dir + "/msd.out" << std::endl;
+    std::cout << "Error: cannot open msd.out" << std::endl;
     exit(1);
   }
 
