@@ -16,8 +16,6 @@
 #pragma once
 #include <stdio.h>
 
-#ifndef CPU_ONLY
-
 #define CHECK(call)                                                                                \
   do {                                                                                             \
     const cudaError_t error_code = call;                                                           \
@@ -30,5 +28,3 @@
       exit(1);                                                                                     \
     }                                                                                              \
   } while (0)
-
-#endif // #ifndef CPU_ONLY
