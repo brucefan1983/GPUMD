@@ -15,6 +15,7 @@
 
 #pragma once
 #include "common.cuh"
+#include "utilities/gpu_vector.cuh"
 class Vector;
 
 class Hamiltonian
@@ -31,12 +32,12 @@ public:
   void chebyshev_2x(Vector&, Vector&, Vector&, Vector&, Vector&, Vector&, Vector&, real, int);
 
 private:
-  int* neighbor_number;
-  int* neighbor_list;
-  real* potential;
-  real* hopping_real;
-  real* hopping_imag;
-  real* xx;
+  GPU_Vector<int> neighbor_number;
+  GPU_Vector<int> neighbor_list;
+  GPU_Vector<real> potential;
+  GPU_Vector<real> hopping_real;
+  GPU_Vector<real> hopping_imag;
+  GPU_Vector<real> xx;
   int grid_size;
   int n;
   int max_neighbor;

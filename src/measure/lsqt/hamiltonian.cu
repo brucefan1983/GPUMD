@@ -16,23 +16,11 @@
 #include "hamiltonian.cuh"
 #include "utilities/error.cuh"
 #include "vector.cuh"
-#include <string.h>    // memcpy
-#define BLOCK_SIZE 512 // optimized
+#include <string.h> // memcpy
 
-void Hamiltonian::initialize_gpu(int number_of_atoms, int mn, int number_of_pairs, real emax)
+namespace
 {
-  n = number_of_atoms;
-  max_neighbor = mn;
-  energy_max = emax;
-  grid_size = (number_of_atoms - 1) / BLOCK_SIZE + 1;
-
-  CHECK(cudaMalloc((void**)&neighbor_number, sizeof(int) * n));
-  CHECK(cudaMalloc((void**)&neighbor_list, sizeof(int) * number_of_pairs));
-  CHECK(cudaMalloc((void**)&potential, sizeof(real) * n));
-  CHECK(cudaMalloc((void**)&hopping_real, sizeof(real) * number_of_pairs));
-  CHECK(cudaMalloc((void**)&hopping_imag, sizeof(real) * number_of_pairs));
-  CHECK(cudaMalloc((void**)&xx, sizeof(real) * number_of_pairs));
-}
+#define BLOCK_SIZE 512 // optimized
 
 __global__ void gpu_apply_hamiltonian(
   int number_of_atoms,
@@ -69,24 +57,6 @@ __global__ void gpu_apply_hamiltonian(
   }
 }
 
-// |output> = H |input>
-void Hamiltonian::apply(Vector& input, Vector& output)
-{
-  gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE>>>(
-    n,
-    energy_max,
-    neighbor_number,
-    neighbor_list,
-    potential,
-    hopping_real,
-    hopping_imag,
-    input.real_part,
-    input.imag_part,
-    output.real_part,
-    output.imag_part);
-  CHECK(cudaGetLastError());
-}
-
 __global__ void gpu_apply_commutator(
   int number_of_atoms,
   real energy_max,
@@ -120,24 +90,6 @@ __global__ void gpu_apply_commutator(
   }
 }
 
-// |output> = [X, H] |input>
-void Hamiltonian::apply_commutator(Vector& input, Vector& output)
-{
-  gpu_apply_commutator<<<grid_size, BLOCK_SIZE>>>(
-    n,
-    energy_max,
-    neighbor_number,
-    neighbor_list,
-    hopping_real,
-    hopping_imag,
-    xx,
-    input.real_part,
-    input.imag_part,
-    output.real_part,
-    output.imag_part);
-  CHECK(cudaGetLastError());
-}
-
 __global__ void gpu_apply_current(
   int number_of_atoms,
   int* g_neighbor_number,
@@ -169,23 +121,6 @@ __global__ void gpu_apply_current(
   }
 }
 
-// |output> = V |input>
-void Hamiltonian::apply_current(Vector& input, Vector& output)
-{
-  gpu_apply_current<<<grid_size, BLOCK_SIZE>>>(
-    n,
-    neighbor_number,
-    neighbor_list,
-    hopping_real,
-    hopping_imag,
-    xx,
-    input.real_part,
-    input.imag_part,
-    output.real_part,
-    output.imag_part);
-  CHECK(cudaGetLastError());
-}
-
 // Kernel which calculates the two first terms of time evolution as described by
 // Eq. (36) in [Comput. Phys. Commun.185, 28 (2014)].
 __global__ void gpu_chebyshev_01(
@@ -207,24 +142,6 @@ __global__ void gpu_chebyshev_01(
     g_state_real[n] = bessel_0 * g_state_0_real[n] + bessel_1 * g_state_1_imag[n];
     g_state_imag[n] = bessel_0 * g_state_0_imag[n] - bessel_1 * g_state_1_real[n];
   }
-}
-
-// Wrapper for the kernel above
-void Hamiltonian::chebyshev_01(
-  Vector& state_0, Vector& state_1, Vector& state, real bessel_0, real bessel_1, int direction)
-{
-  gpu_chebyshev_01<<<grid_size, BLOCK_SIZE>>>(
-    n,
-    state_0.real_part,
-    state_0.imag_part,
-    state_1.real_part,
-    state_1.imag_part,
-    state.real_part,
-    state.imag_part,
-    bessel_0,
-    bessel_1,
-    direction);
-  CHECK(cudaGetLastError());
 }
 
 // Kernel for calculating further terms of Eq. (36)
@@ -295,31 +212,6 @@ __global__ void gpu_chebyshev_2(
   }
 }
 
-// Wrapper for the kernel above
-void Hamiltonian::chebyshev_2(
-  Vector& state_0, Vector& state_1, Vector& state_2, Vector& state, real bessel_m, int label)
-{
-  gpu_chebyshev_2<<<grid_size, BLOCK_SIZE>>>(
-    n,
-    energy_max,
-    neighbor_number,
-    neighbor_list,
-    potential,
-    hopping_real,
-    hopping_imag,
-    state_0.real_part,
-    state_0.imag_part,
-    state_1.real_part,
-    state_1.imag_part,
-    state_2.real_part,
-    state_2.imag_part,
-    state.real_part,
-    state.imag_part,
-    bessel_m,
-    label);
-  CHECK(cudaGetLastError());
-}
-
 // Kernel which calculates the two first terms of commutator [X, U(dt)]
 // Corresponds to Eq. (37) in [Comput. Phys. Commun.185, 28 (2014)].
 __global__ void gpu_chebyshev_1x(
@@ -336,14 +228,6 @@ __global__ void gpu_chebyshev_1x(
     g_state_real[n] = +b1 * g_state_1x_imag[n];
     g_state_imag[n] = -b1 * g_state_1x_real[n];
   }
-}
-
-// Wrapper for kernel above
-void Hamiltonian::chebyshev_1x(Vector& input, Vector& output, real bessel_1)
-{
-  gpu_chebyshev_1x<<<grid_size, BLOCK_SIZE>>>(
-    n, input.real_part, input.imag_part, output.real_part, output.imag_part, bessel_1);
-  CHECK(cudaGetLastError());
 }
 
 // Kernel which calculates the further terms of [X, U(dt)]
@@ -441,46 +325,6 @@ __global__ void gpu_chebyshev_2x(
   }
 }
 
-// Wrapper for the kernel above
-void Hamiltonian::chebyshev_2x(
-  Vector& state_0,
-  Vector& state_0x,
-  Vector& state_1,
-  Vector& state_1x,
-  Vector& state_2,
-  Vector& state_2x,
-  Vector& state,
-  real bessel_m,
-  int label)
-{
-  gpu_chebyshev_2x<<<grid_size, BLOCK_SIZE>>>(
-    n,
-    energy_max,
-    neighbor_number,
-    neighbor_list,
-    potential,
-    hopping_real,
-    hopping_imag,
-    xx,
-    state_0.real_part,
-    state_0.imag_part,
-    state_0x.real_part,
-    state_0x.imag_part,
-    state_1.real_part,
-    state_1.imag_part,
-    state_1x.real_part,
-    state_1x.imag_part,
-    state_2.real_part,
-    state_2.imag_part,
-    state_2x.real_part,
-    state_2x.imag_part,
-    state.real_part,
-    state.imag_part,
-    bessel_m,
-    label);
-  CHECK(cudaGetLastError());
-}
-
 // Kernel for doing the Chebyshev iteration phi_2 = 2 * H * phi_1 - phi_0.
 __global__ void gpu_kernel_polynomial(
   int number_of_atoms,
@@ -523,17 +367,175 @@ __global__ void gpu_kernel_polynomial(
   }
 }
 
-// Wrapper for the Chebyshev iteration
+} // namespace
+
+void Hamiltonian::initialize_gpu(int number_of_atoms, int mn, int number_of_pairs, real emax)
+{
+  n = number_of_atoms;
+  max_neighbor = mn;
+  energy_max = emax;
+  grid_size = (number_of_atoms - 1) / BLOCK_SIZE + 1;
+
+  neighbor_number.resize(n);
+  neighbor_list.resize(number_of_pairs);
+  potential.resize(n);
+  hopping_real.resize(number_of_pairs);
+  hopping_imag.resize(number_of_pairs);
+  xx.resize(number_of_pairs);
+}
+
+// |output> = H |input>
+void Hamiltonian::apply(Vector& input, Vector& output)
+{
+  gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE>>>(
+    n,
+    energy_max,
+    neighbor_number.data(),
+    neighbor_list.data(),
+    potential.data(),
+    hopping_real.data(),
+    hopping_imag.data(),
+    input.real_part,
+    input.imag_part,
+    output.real_part,
+    output.imag_part);
+  CHECK(cudaGetLastError());
+}
+
+// |output> = [X, H] |input>
+void Hamiltonian::apply_commutator(Vector& input, Vector& output)
+{
+  gpu_apply_commutator<<<grid_size, BLOCK_SIZE>>>(
+    n,
+    energy_max,
+    neighbor_number.data(),
+    neighbor_list.data(),
+    hopping_real.data(),
+    hopping_imag.data(),
+    xx.data(),
+    input.real_part,
+    input.imag_part,
+    output.real_part,
+    output.imag_part);
+  CHECK(cudaGetLastError());
+}
+
+// |output> = V |input>
+void Hamiltonian::apply_current(Vector& input, Vector& output)
+{
+  gpu_apply_current<<<grid_size, BLOCK_SIZE>>>(
+    n,
+    neighbor_number.data(),
+    neighbor_list.data(),
+    hopping_real.data(),
+    hopping_imag.data(),
+    xx.data(),
+    input.real_part,
+    input.imag_part,
+    output.real_part,
+    output.imag_part);
+  CHECK(cudaGetLastError());
+}
+
+// Wrapper for the kernel above
+void Hamiltonian::chebyshev_01(
+  Vector& state_0, Vector& state_1, Vector& state, real bessel_0, real bessel_1, int direction)
+{
+  gpu_chebyshev_01<<<grid_size, BLOCK_SIZE>>>(
+    n,
+    state_0.real_part,
+    state_0.imag_part,
+    state_1.real_part,
+    state_1.imag_part,
+    state.real_part,
+    state.imag_part,
+    bessel_0,
+    bessel_1,
+    direction);
+  CHECK(cudaGetLastError());
+}
+
+// Wrapper for the kernel above
+void Hamiltonian::chebyshev_2(
+  Vector& state_0, Vector& state_1, Vector& state_2, Vector& state, real bessel_m, int label)
+{
+  gpu_chebyshev_2<<<grid_size, BLOCK_SIZE>>>(
+    n,
+    energy_max,
+    neighbor_number.data(),
+    neighbor_list.data(),
+    potential.data(),
+    hopping_real.data(),
+    hopping_imag.data(),
+    state_0.real_part,
+    state_0.imag_part,
+    state_1.real_part,
+    state_1.imag_part,
+    state_2.real_part,
+    state_2.imag_part,
+    state.real_part,
+    state.imag_part,
+    bessel_m,
+    label);
+  CHECK(cudaGetLastError());
+}
+
+void Hamiltonian::chebyshev_1x(Vector& input, Vector& output, real bessel_1)
+{
+  gpu_chebyshev_1x<<<grid_size, BLOCK_SIZE>>>(
+    n, input.real_part, input.imag_part, output.real_part, output.imag_part, bessel_1);
+  CHECK(cudaGetLastError());
+}
+
+void Hamiltonian::chebyshev_2x(
+  Vector& state_0,
+  Vector& state_0x,
+  Vector& state_1,
+  Vector& state_1x,
+  Vector& state_2,
+  Vector& state_2x,
+  Vector& state,
+  real bessel_m,
+  int label)
+{
+  gpu_chebyshev_2x<<<grid_size, BLOCK_SIZE>>>(
+    n,
+    energy_max,
+    neighbor_number.data(),
+    neighbor_list.data(),
+    potential.data(),
+    hopping_real.data(),
+    hopping_imag.data(),
+    xx.data(),
+    state_0.real_part,
+    state_0.imag_part,
+    state_0x.real_part,
+    state_0x.imag_part,
+    state_1.real_part,
+    state_1.imag_part,
+    state_1x.real_part,
+    state_1x.imag_part,
+    state_2.real_part,
+    state_2.imag_part,
+    state_2x.real_part,
+    state_2x.imag_part,
+    state.real_part,
+    state.imag_part,
+    bessel_m,
+    label);
+  CHECK(cudaGetLastError());
+}
+
 void Hamiltonian::kernel_polynomial(Vector& state_0, Vector& state_1, Vector& state_2)
 {
   gpu_kernel_polynomial<<<grid_size, BLOCK_SIZE>>>(
     n,
     energy_max,
-    neighbor_number,
-    neighbor_list,
-    potential,
-    hopping_real,
-    hopping_imag,
+    neighbor_number.data(),
+    neighbor_list.data(),
+    potential.data(),
+    hopping_real.data(),
+    hopping_imag.data(),
     state_0.real_part,
     state_0.imag_part,
     state_1.real_part,
