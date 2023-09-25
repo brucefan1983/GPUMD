@@ -44,6 +44,7 @@ build:linux:
     # --------------------------
     # DEVELOPMENT VERSION
     - git checkout master
+    - git pull
     - tag=$(git describe --tags | tail -1)
     - echo "tag= $tag"
     # build user guide
