@@ -33,55 +33,6 @@ void Hamiltonian::initialize_gpu(Model& model)
   CHECK(cudaMalloc((void**)&hopping_real, sizeof(real) * model.number_of_pairs));
   CHECK(cudaMalloc((void**)&hopping_imag, sizeof(real) * model.number_of_pairs));
   CHECK(cudaMalloc((void**)&xx, sizeof(real) * model.number_of_pairs));
-
-  CHECK(
-    cudaMemcpy(neighbor_number, model.neighbor_number, sizeof(int) * n, cudaMemcpyHostToDevice));
-  delete[] model.neighbor_number;
-  CHECK(cudaMemcpy(potential, model.potential, sizeof(real) * n, cudaMemcpyHostToDevice));
-  delete[] model.potential;
-
-  int* neighbor_list_new = new int[model.number_of_pairs];
-  for (int m = 0; m < max_neighbor; ++m) {
-    for (int i = 0; i < n; ++i) {
-      neighbor_list_new[m * n + i] = model.neighbor_list[i * max_neighbor + m];
-    }
-  }
-  delete[] model.neighbor_list;
-  CHECK(cudaMemcpy(
-    neighbor_list, neighbor_list_new, sizeof(int) * model.number_of_pairs, cudaMemcpyHostToDevice));
-  delete[] neighbor_list_new;
-
-  real* hopping_real_new = new real[model.number_of_pairs];
-  for (int m = 0; m < max_neighbor; ++m) {
-    for (int i = 0; i < n; ++i) {
-      hopping_real_new[m * n + i] = model.hopping_real[i * max_neighbor + m];
-    }
-  }
-  delete[] model.hopping_real;
-  CHECK(cudaMemcpy(
-    hopping_real, hopping_real_new, sizeof(real) * model.number_of_pairs, cudaMemcpyHostToDevice));
-  delete[] hopping_real_new;
-
-  real* hopping_imag_new = new real[model.number_of_pairs];
-  for (int m = 0; m < max_neighbor; ++m) {
-    for (int i = 0; i < n; ++i) {
-      hopping_imag_new[m * n + i] = model.hopping_imag[i * max_neighbor + m];
-    }
-  }
-  delete[] model.hopping_imag;
-  CHECK(cudaMemcpy(
-    hopping_imag, hopping_imag_new, sizeof(real) * model.number_of_pairs, cudaMemcpyHostToDevice));
-  delete[] hopping_imag_new;
-
-  real* xx_new = new real[model.number_of_pairs];
-  for (int m = 0; m < max_neighbor; ++m) {
-    for (int i = 0; i < n; ++i) {
-      xx_new[m * n + i] = model.xx[i * max_neighbor + m];
-    }
-  }
-  delete[] model.xx;
-  CHECK(cudaMemcpy(xx, xx_new, sizeof(real) * model.number_of_pairs, cudaMemcpyHostToDevice));
-  delete[] xx_new;
 }
 
 Hamiltonian::Hamiltonian(Model& model) { initialize_gpu(model); }

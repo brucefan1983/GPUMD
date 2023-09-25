@@ -21,8 +21,6 @@ class Vector;
 class Model
 {
 public:
-  // Model();
-  //~Model();
   void initialize();
   void initialize_state(Vector& random_state);
 
@@ -34,17 +32,8 @@ public:
   int number_of_moments = 1000;
   int number_of_steps_correlation = 10;
   real energy_max = 10.1;
-
   std::vector<real> energy;
   std::vector<real> time_step;
-
-  int* neighbor_number;
-  int* neighbor_list;
-  real* xx;
-  real* potential;
-  real* hopping_real;
-  real* hopping_imag;
-
   real volume;
 
 private:
