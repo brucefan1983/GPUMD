@@ -75,15 +75,7 @@ private:
   void initialize_hopping();
   void initialize_model_general();
 
-  // only for lattice model
-  void initialize_lattice_model();
-  void add_vacancies();
-  void create_random_numbers(int, int, int*);
-  void specify_vacancies(int*, int);
-  void find_new_atom_index(int*, int*, int);
-
   bool requires_time = false;
-  bool use_lattice_model = false;
 
   // disorder
   Anderson anderson;

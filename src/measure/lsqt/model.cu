@@ -39,14 +39,7 @@ Model::Model(std::string input_dir)
   // read in para.in
   initialize_parameters();
 
-  // initialize the model
-  if (use_lattice_model) // use a lattice model
-  {
-    initialize_lattice_model();
-  } else // use general inputs to build the model
-  {
-    initialize_model_general();
-  }
+  initialize_model_general();
 
   // always need to read in energies
   initialize_energy();
@@ -127,57 +120,21 @@ void Model::verify_parameters()
   if (calculate_vac || calculate_msd || calculate_spin)
     requires_time = true;
 
-  // Verify the used parameters (make a seperate function later)
-  if (use_lattice_model) {
-    std::cout << "- Use lattice model" << std::endl;
-    if (calculate_spin) {
-      std::cout << "Error: lattice model does not support "
-                << "spin calculations yet" << std::endl;
-      exit(1);
-    }
-
-    if (anderson.has_disorder) {
-      std::cout << "- Add Anderson disorder with strength W = " << anderson.disorder_strength
-                << std::endl;
-    } else {
-      std::cout << "- No Anderson disorder" << std::endl;
-    }
-
-    if (charge.has) {
-      std::cout << "- Add charged impurities with " << std::endl
-                << "  N = " << charge.Ni << std::endl
-                << "  W = " << charge.W << std::endl
-                << "  xi = " << charge.xi << std::endl;
-    } else {
-      std::cout << "- No charged impurity" << std::endl;
-    }
-
-    if (has_vacancy_disorder) {
-      std::cout << "- Add " << number_of_vacancies << " vacancies" << std::endl;
-      if (number_of_vacancies <= 0) {
-        std::cout << "Error: number of vacancies should > 0" << std::endl;
-        exit(1);
-      }
-    } else {
-      std::cout << "- No vacancy disorder" << std::endl;
-    }
-  } else {
-    std::cout << "- Use general model" << std::endl;
-    if (anderson.has_disorder) {
-      std::cout << "Error: General model does not allowed to add "
-                << "Anderson disorder" << std::endl;
-      exit(1);
-    }
-    if (has_vacancy_disorder) {
-      std::cout << "Error: General model does not allowed to add "
-                << "vacancy disorder" << std::endl;
-      exit(1);
-    }
-    if (charge.has) {
-      std::cout << "Error: General model does not allowed to add "
-                << "charged impurities" << std::endl;
-      exit(1);
-    }
+  std::cout << "- Use general model" << std::endl;
+  if (anderson.has_disorder) {
+    std::cout << "Error: General model does not allowed to add "
+              << "Anderson disorder" << std::endl;
+    exit(1);
+  }
+  if (has_vacancy_disorder) {
+    std::cout << "Error: General model does not allowed to add "
+              << "vacancy disorder" << std::endl;
+    exit(1);
+  }
+  if (charge.has) {
+    std::cout << "Error: General model does not allowed to add "
+              << "charged impurities" << std::endl;
+    exit(1);
   }
 
   std::cout << "- DOS will be calculated" << std::endl;
@@ -253,9 +210,7 @@ void Model::initialize_parameters()
     ss >> token;
     if (token == "")
       continue;
-    if (token == "model") {
-      ss >> use_lattice_model;
-    } else if (token == "anderson_disorder") {
+    if (token == "anderson_disorder") {
       anderson.has_disorder = true;
       ss >> anderson.disorder_strength;
     } else if (token == "charged_impurity") {
