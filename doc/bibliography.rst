@@ -127,8 +127,7 @@ Bibliography
 .. [Hoover1996]
    | William G. Hoover and Brad Lee Holian
    | *Kinetic moments method for the canonical ensemble distribution*
-   | Physics Letters A, **211**(5), 253-257 (1996)
-   | ISSN: 0375-9601
+   | Physics Letters A, **211**, 253-257 (1996)
    | DOI: `10.1016/0375-9601(95)00973-6 <https://doi.org/10.1016/0375-9601(95)00973-6>`
 
 .. [Leimkuhler2013]
@@ -152,13 +151,13 @@ Bibliography
 .. [Martyna1994]
    | Glenn J. Martyna, Douglas J. Tobias, and Michael L. Klein
    | *Constant pressure molecular dynamics algorithms*
-   | The Journal of Chemical Physics, **101**(5), 4177-4189 (1994)
+   | The Journal of Chemical Physics, **101**, 4177-4189 (1994)
    | DOI: `10.1063/1.467468 <https://doi.org/10.1063/1.467468>`
 
 .. [Parrinello1981]
    | M. Parrinello and A. Rahman
    | *Polymorphic transitions in single crystals: A new molecular dynamics method*
-   | Journal of Applied Physics, **52**(12), 7182-7190 (1981)
+   | Journal of Applied Physics, **52**, 7182-7190 (1981)
    | DOI: `10.1063/1.328693 <https://doi.org/10.1063/1.328693>`
 
 .. [Rossi2014]
@@ -201,3 +200,4 @@ Bibliography
    | J. F. Ziegler, J. P. Biersack, and U. Littmark
    | In *The Stopping and Range of Ions in Matter*, volume 1
    | New York, 1985. Pergamon. ISBN 0-08-022053-3
+
