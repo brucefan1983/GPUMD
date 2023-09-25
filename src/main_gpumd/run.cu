@@ -286,6 +286,8 @@ void Run::perform_a_run()
   print_line_2();
 
   measure.finalize(
+    atom,
+    box,
     integrate,
     number_of_steps,
     time_step,

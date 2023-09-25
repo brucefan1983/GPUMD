@@ -19,6 +19,8 @@
 
 #include "hamiltonian.cuh"
 #include "lsqt.cuh"
+#include "model/atom.cuh"
+#include "model/box.cuh"
 #include "vector.cuh"
 #include <chrono>
 #include <fstream>
@@ -397,7 +399,7 @@ void LSQT::find_msd(Vector& random_state)
   delete[] msd;
 }
 
-void LSQT::postprocess()
+void LSQT::postprocess(Atom& atom, Box& box)
 {
 #ifdef DEBUG
   // use the same seed for different runs
@@ -407,8 +409,13 @@ void LSQT::postprocess()
   generator = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
 #endif
 
-  initialize();
-  H.initialize_gpu(number_of_atoms, max_neighbor, number_of_pairs, energy_max);
+  initialize(atom, box);
+  std::cout << "number_of_atoms= " << number_of_atoms << std::endl;
+  std::cout << "volume= " << volume << std::endl;
+  std::cout << "done================================= " << std::endl;
+  exit(1);
+
+  H.initialize(energy_max, atom);
   Vector random_state(number_of_atoms);
   for (int i = 0; i < number_of_random_vectors; ++i) {
     print_started_random_vector(i);
@@ -438,9 +445,10 @@ void LSQT::initialize_state(Vector& random_state)
   delete[] random_state_imag;
 }
 
-void LSQT::initialize()
+void LSQT::initialize(Atom& atom, Box& box)
 {
-
+  number_of_atoms = atom.number_of_atoms;
+  volume = box.get_volume();
   energy.resize(number_of_energy_points); // in units of eV
   double delta_energy = 20.0 / (number_of_energy_points - 1);
   for (int n = 0; n < number_of_energy_points; ++n) {
@@ -450,17 +458,4 @@ void LSQT::initialize()
   for (int n = 0; n < number_of_energy_points; ++n) {
     time_step[n] = 1.0;
   }
-
-  std::cout << "energy= " << std::endl;
-  for (int n = 0; n < number_of_energy_points; ++n) {
-    std::cout << energy[n] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "time_step= " << std::endl;
-  for (int n = 0; n < number_of_steps_correlation; ++n) {
-    std::cout << time_step[n] << " ";
-  }
-  std::cout << std::endl;
-  std::cout << "done================================= " << std::endl;
-  exit(1);
 }

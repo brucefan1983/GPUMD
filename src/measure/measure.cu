@@ -62,6 +62,8 @@ void Measure::initialize(
 }
 
 void Measure::finalize(
+  Atom& atom,
+  Box& box,
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
@@ -89,7 +91,7 @@ void Measure::finalize(
   hnemd.postprocess();
   hnemdec.postprocess();
   modal_analysis.postprocess();
-  lsqt.postprocess();
+  lsqt.postprocess(atom, box);
 #ifdef USE_NETCDF
   dump_netcdf.postprocess();
 #endif

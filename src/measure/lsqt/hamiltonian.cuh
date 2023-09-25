@@ -16,12 +16,14 @@
 #pragma once
 #include "common.cuh"
 #include "utilities/gpu_vector.cuh"
+
+class Atom;
 class Vector;
 
 class Hamiltonian
 {
 public:
-  void initialize_gpu(int number_of_atoms, int mn, int number_of_pairs, real emax);
+  void initialize(real emax, Atom& atom);
   void apply(Vector&, Vector&);
   void apply_commutator(Vector&, Vector&);
   void apply_current(Vector&, Vector&);
@@ -38,8 +40,6 @@ private:
   GPU_Vector<real> hopping_real;
   GPU_Vector<real> hopping_imag;
   GPU_Vector<real> xx;
-  int grid_size;
-  int n;
-  int max_neighbor;
+  int number_of_atoms;
   real energy_max;
 };

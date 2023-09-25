@@ -62,6 +62,8 @@ public:
     Force& force);
 
   void finalize(
+    Atom& atom,
+    Box& box,
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,

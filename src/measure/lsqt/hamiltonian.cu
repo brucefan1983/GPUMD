@@ -14,13 +14,13 @@
 */
 
 #include "hamiltonian.cuh"
+#include "model/atom.cuh"
 #include "utilities/error.cuh"
 #include "vector.cuh"
-#include <string.h> // memcpy
 
 namespace
 {
-#define BLOCK_SIZE 512 // optimized
+const int max_neighbor = 50; // do do exceed this
 
 __global__ void gpu_apply_hamiltonian(
   int number_of_atoms,
@@ -369,26 +369,24 @@ __global__ void gpu_kernel_polynomial(
 
 } // namespace
 
-void Hamiltonian::initialize_gpu(int number_of_atoms, int mn, int number_of_pairs, real emax)
+void Hamiltonian::initialize(real emax, Atom& atom)
 {
-  n = number_of_atoms;
-  max_neighbor = mn;
+  number_of_atoms = atom.number_of_atoms;
   energy_max = emax;
-  grid_size = (number_of_atoms - 1) / BLOCK_SIZE + 1;
 
-  neighbor_number.resize(n);
-  neighbor_list.resize(number_of_pairs);
-  potential.resize(n);
-  hopping_real.resize(number_of_pairs);
-  hopping_imag.resize(number_of_pairs);
-  xx.resize(number_of_pairs);
+  neighbor_number.resize(number_of_atoms);
+  neighbor_list.resize(number_of_atoms * max_neighbor);
+  potential.resize(number_of_atoms);
+  hopping_real.resize(number_of_atoms * max_neighbor);
+  hopping_imag.resize(number_of_atoms * max_neighbor);
+  xx.resize(number_of_atoms * max_neighbor);
 }
 
 // |output> = H |input>
 void Hamiltonian::apply(Vector& input, Vector& output)
 {
-  gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE>>>(
-    n,
+  gpu_apply_hamiltonian<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
     energy_max,
     neighbor_number.data(),
     neighbor_list.data(),
@@ -405,8 +403,8 @@ void Hamiltonian::apply(Vector& input, Vector& output)
 // |output> = [X, H] |input>
 void Hamiltonian::apply_commutator(Vector& input, Vector& output)
 {
-  gpu_apply_commutator<<<grid_size, BLOCK_SIZE>>>(
-    n,
+  gpu_apply_commutator<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
     energy_max,
     neighbor_number.data(),
     neighbor_list.data(),
@@ -423,8 +421,8 @@ void Hamiltonian::apply_commutator(Vector& input, Vector& output)
 // |output> = V |input>
 void Hamiltonian::apply_current(Vector& input, Vector& output)
 {
-  gpu_apply_current<<<grid_size, BLOCK_SIZE>>>(
-    n,
+  gpu_apply_current<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
     neighbor_number.data(),
     neighbor_list.data(),
     hopping_real.data(),
@@ -441,8 +439,8 @@ void Hamiltonian::apply_current(Vector& input, Vector& output)
 void Hamiltonian::chebyshev_01(
   Vector& state_0, Vector& state_1, Vector& state, real bessel_0, real bessel_1, int direction)
 {
-  gpu_chebyshev_01<<<grid_size, BLOCK_SIZE>>>(
-    n,
+  gpu_chebyshev_01<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
     state_0.real_part,
     state_0.imag_part,
     state_1.real_part,
@@ -459,8 +457,8 @@ void Hamiltonian::chebyshev_01(
 void Hamiltonian::chebyshev_2(
   Vector& state_0, Vector& state_1, Vector& state_2, Vector& state, real bessel_m, int label)
 {
-  gpu_chebyshev_2<<<grid_size, BLOCK_SIZE>>>(
-    n,
+  gpu_chebyshev_2<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
     energy_max,
     neighbor_number.data(),
     neighbor_list.data(),
@@ -482,8 +480,13 @@ void Hamiltonian::chebyshev_2(
 
 void Hamiltonian::chebyshev_1x(Vector& input, Vector& output, real bessel_1)
 {
-  gpu_chebyshev_1x<<<grid_size, BLOCK_SIZE>>>(
-    n, input.real_part, input.imag_part, output.real_part, output.imag_part, bessel_1);
+  gpu_chebyshev_1x<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
+    input.real_part,
+    input.imag_part,
+    output.real_part,
+    output.imag_part,
+    bessel_1);
   CHECK(cudaGetLastError());
 }
 
@@ -498,8 +501,8 @@ void Hamiltonian::chebyshev_2x(
   real bessel_m,
   int label)
 {
-  gpu_chebyshev_2x<<<grid_size, BLOCK_SIZE>>>(
-    n,
+  gpu_chebyshev_2x<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
     energy_max,
     neighbor_number.data(),
     neighbor_list.data(),
@@ -528,8 +531,8 @@ void Hamiltonian::chebyshev_2x(
 
 void Hamiltonian::kernel_polynomial(Vector& state_0, Vector& state_1, Vector& state_2)
 {
-  gpu_kernel_polynomial<<<grid_size, BLOCK_SIZE>>>(
-    n,
+  gpu_kernel_polynomial<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
+    number_of_atoms,
     energy_max,
     neighbor_number.data(),
     neighbor_list.data(),

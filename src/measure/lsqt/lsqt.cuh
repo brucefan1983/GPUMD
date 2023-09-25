@@ -22,14 +22,16 @@
 #include <vector>
 
 class Vector;
+class Atom;
+class Box;
 
 class LSQT
 {
 public:
-  void postprocess();
+  void postprocess(Atom& atom, Box& box);
 
 private:
-  void initialize();
+  void initialize(Atom& atom, Box& box);
   void initialize_state(Vector& random_state);
   void find_moments_chebyshev(Vector& state_left, Vector& state_right, Vector& output);
   void apply_damping(real* inner_product_real, real* inner_product_imag);
@@ -46,13 +48,11 @@ private:
   std::mt19937 generator;
   int number_of_random_vectors = 1;
   int number_of_atoms = 0;
-  int max_neighbor = 0;
-  int number_of_pairs = 0;
   int number_of_energy_points = 201;
   int number_of_moments = 1000;
   int number_of_steps_correlation = 10;
   real energy_max = 10.1;
+  real volume;
   std::vector<real> energy;
   std::vector<real> time_step;
-  real volume;
 };
