@@ -89,6 +89,7 @@ void Measure::finalize(
   hnemd.postprocess();
   hnemdec.postprocess();
   modal_analysis.postprocess();
+  lsqt.postprocess();
 #ifdef USE_NETCDF
   dump_netcdf.postprocess();
 #endif

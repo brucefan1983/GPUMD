@@ -21,8 +21,8 @@ class Vector;
 class Model
 {
 public:
-  Model();
-  ~Model();
+  // Model();
+  //~Model();
   void initialize();
   void initialize_state(Vector& random_state);
 
@@ -30,10 +30,10 @@ public:
   int number_of_atoms = 0;
   int max_neighbor = 0;
   int number_of_pairs = 0;
-  int number_of_energy_points = 0;
+  int number_of_energy_points = 201;
   int number_of_moments = 1000;
-  int number_of_steps_correlation = 0;
-  real energy_max = 10;
+  int number_of_steps_correlation = 10;
+  real energy_max = 10.1;
 
   std::vector<real> energy;
   std::vector<real> time_step;

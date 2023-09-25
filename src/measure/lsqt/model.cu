@@ -33,8 +33,28 @@ void Model::initialize()
   generator = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
 #endif
 
-  energy.resize(number_of_energy_points);
-  time_step.resize(number_of_steps_correlation);
+  energy.resize(number_of_energy_points); // in units of eV
+  double delta_energy = 20.0 / (number_of_energy_points - 1);
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    energy[n] = delta_energy * (n - number_of_energy_points / 2);
+  }
+  time_step.resize(number_of_steps_correlation); // in units of hbar/eV
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    time_step[n] = 1.0;
+  }
+
+  std::cout << "energy= " << std::endl;
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    std::cout << energy[n] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "time_step= " << std::endl;
+  for (int n = 0; n < number_of_steps_correlation; ++n) {
+    std::cout << time_step[n] << " ";
+  }
+  std::cout << std::endl;
+  std::cout << "done================================= " << std::endl;
+  exit(1);
 }
 
 // This function is called by the lsqt function in the lsqt.cu file

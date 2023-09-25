@@ -30,15 +30,16 @@
 #include "hnemd_kappa.cuh"
 #include "hnemdec_kappa.cuh"
 #include "integrate/integrate.cuh"
+#include "lsqt/lsqt.cuh"
 #include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "msd.cuh"
+#include "rdf.cuh"
 #include "sdc.cuh"
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "viscosity.cuh"
-#include "rdf.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
@@ -102,6 +103,7 @@ public:
   Dump_Beads dump_beads;
   Dump_Observer dump_observer;
   Active active;
+  LSQT lsqt;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;
 #endif
