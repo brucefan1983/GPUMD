@@ -53,6 +53,9 @@ Glossary
    MSD
         mean square displacement
 
+   MTTK
+        :ref:`Martyna-Tuckerman-Tobias-Klein integrator <mttk>` [Martyna1994]_
+
    NEMD
         :ref:`non-equilibrium molecular dynamics <nemd>`
 
