@@ -18,6 +18,10 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    change_box
    deform
    ensemble
+   ensemble_standard
+   ensemble_mttk
+   ensemble_heat
+   ensemble_pimd
    fix
    time_step
    plumed

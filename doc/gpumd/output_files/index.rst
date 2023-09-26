@@ -49,7 +49,7 @@ Output files
      - :ref:`dump_velocity <kw_dump_velocity>`
      - Contains the atomic velocities
      - Append
-   * - :ref:`force.out <force_out>`
+   * - :ref:`force.out <force_out_gpumd>`
      - :ref:`dump_force <kw_dump_force>`
      - Contains the atomic forces
      - Append

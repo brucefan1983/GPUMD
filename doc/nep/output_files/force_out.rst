@@ -1,4 +1,4 @@
-.. _force_out:
+.. _force_out_nep:
 .. index::
    single: force_train.out (output file)
    single: force_test.out (output file)

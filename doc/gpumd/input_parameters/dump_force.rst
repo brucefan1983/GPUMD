@@ -5,7 +5,7 @@
 :attr:`dump_force`
 ==================
 
-Write the atomic forces to :ref:`force.out output file <force_out>`.
+Write the atomic forces to :ref:`force.out output file <force_out_gpumd>`.
 
 Syntax
 ------

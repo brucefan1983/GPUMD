@@ -1,4 +1,4 @@
-.. _force_out:
+.. _force_out_gpumd:
 .. index::
    single: force.out (output file)
 
