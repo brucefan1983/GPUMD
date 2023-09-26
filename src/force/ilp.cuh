@@ -24,17 +24,17 @@
 #define MAX_ILP_NEIGHBOR 3
 
 struct ILP_Para {
-  double rcutsq_ilp[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double d[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double d_Seff[MAX_TYPE_ILP][MAX_TYPE_ILP];      // d / S_R / r_eff
-  double C_6[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double z0[MAX_TYPE_ILP][MAX_TYPE_ILP];          // beta
-  double lambda[MAX_TYPE_ILP][MAX_TYPE_ILP];      // alpha / beta
-  double epsilon[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double C[MAX_TYPE_ILP][MAX_TYPE_ILP];
-  double delta2inv[MAX_TYPE_ILP][MAX_TYPE_ILP];   // 1 / delta ^ 2
-  double S[MAX_TYPE_ILP][MAX_TYPE_ILP];           // scale
-  double rcut_global[MAX_TYPE_ILP][MAX_TYPE_ILP];           // scale
+  float rcutsq_ilp[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  float d[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  float d_Seff[MAX_TYPE_ILP][MAX_TYPE_ILP];      // d / S_R / r_eff
+  float C_6[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  float z0[MAX_TYPE_ILP][MAX_TYPE_ILP];          // beta
+  float lambda[MAX_TYPE_ILP][MAX_TYPE_ILP];      // alpha / beta
+  float epsilon[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  float C[MAX_TYPE_ILP][MAX_TYPE_ILP];
+  float delta2inv[MAX_TYPE_ILP][MAX_TYPE_ILP];   // 1 / delta ^ 2
+  float S[MAX_TYPE_ILP][MAX_TYPE_ILP];           // scale
+  float rcut_global[MAX_TYPE_ILP][MAX_TYPE_ILP];           // scale
 };
 
 struct ILP_Data {
@@ -43,12 +43,12 @@ struct ILP_Data {
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
   GPU_Vector<int> cell_contents;
-  GPU_Vector<double> f12x;
-  GPU_Vector<double> f12y;
-  GPU_Vector<double> f12z;
-  GPU_Vector<double> f12x_ilp_neigh;
-  GPU_Vector<double> f12y_ilp_neigh;
-  GPU_Vector<double> f12z_ilp_neigh;
+  GPU_Vector<float> f12x;
+  GPU_Vector<float> f12y;
+  GPU_Vector<float> f12z;
+  GPU_Vector<float> f12x_ilp_neigh;
+  GPU_Vector<float> f12y_ilp_neigh;
+  GPU_Vector<float> f12z_ilp_neigh;
 };
 
 class ILP : public Potential
@@ -78,4 +78,4 @@ protected:
   ILP_Data ilp_data;
 };
 
-static __constant__ double Tap_coeff[8];
+static __constant__ float Tap_coeff[8];
