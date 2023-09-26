@@ -57,7 +57,7 @@ NPT Ensemble
 
 This command sets the target temperature to 300 K and the target pressure to 10 GPa.
 The cell shape will not change during the simlation but only the volume.
-These conditions are is suitable for simulating liquids.
+These conditions are suitable for simulating liquids.
 If not constrained, the cell shape may undergo extreme changes since liquids have a vanishing shear modulus (in the long-time limit).
 
 .. code-block:: rst
