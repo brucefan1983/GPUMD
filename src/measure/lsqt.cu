@@ -552,7 +552,7 @@ void apply_damping(int Nm, double* moments)
 
 // kernel polynomial summation
 void perform_chebyshev_summation(
-  int Nm, int Ne, double Em, double* E, double V, double* moments, double* correlation)
+  int Nm, int Ne, double Em, double* E, double* moments, double* correlation)
 {
   for (int step1 = 0; step1 < Ne; ++step1) {
     double energy_scaled = E[step1] / Em;
@@ -568,7 +568,7 @@ void perform_chebyshev_summation(
     }
     temp *= 2.0;
     temp += moments[0];
-    temp *= 2.0 / (PI * V * sqrt(1.0 - energy_scaled * energy_scaled));
+    temp *= 2.0 / (PI * sqrt(1.0 - energy_scaled * energy_scaled));
     correlation[step1] = temp / Em;
   }
 }
@@ -834,8 +834,8 @@ __global__ void gpu_initialize_model(
         xx[index] = z12;
       }
       // Hr[index] = -2.5; // test
-      Hr[index] = -2.5 * 1.425 * 1.425 / (d12 * d12); // a CNT model
-      Hi[index] = 0.0;                                // may be used in the future
+      Hr[index] = -2.7 * 1.44 * 1.44 / (d12 * d12); // a CNT model
+      Hi[index] = 0.0;                              // may be used in the future
     }
     U[n1] = 0.0; // may be used in the future
   }
@@ -843,12 +843,13 @@ __global__ void gpu_initialize_model(
 
 // calculate the data and output
 void output_data(
+  std::string& filename,
   int N,
   int Nm,
   int Ne,
   double Em,
   double* E,
-  double V,
+  double scaler,
   int* NN,
   int* NL,
   double* U,
@@ -864,12 +865,12 @@ void output_data(
   find_moments_chebyshev(N, Nm, Em, NN, NL, U, Hr, Hi, sr, si, sr, si, moments_gpu.data());
   moments_gpu.copy_to_host(moments_cpu.data());
   apply_damping(Nm, moments_cpu.data());
-  perform_chebyshev_summation(Nm, Ne, Em, E, V, moments_cpu.data(), data.data());
+  perform_chebyshev_summation(Nm, Ne, Em, E, moments_cpu.data(), data.data());
 
   // output the data
-  FILE* os = my_fopen("lsqt_dos.out", "a");
+  FILE* os = my_fopen(filename.c_str(), "a");
   for (int n = 0; n < Ne; ++n)
-    fprintf(os, "%25.15e", data[n]);
+    fprintf(os, "%25.15e", data[n] * scaler);
   fprintf(os, "\n");
   fclose(os);
 }
@@ -937,13 +938,16 @@ void LSQT::postprocess(Atom& atom, Box& box)
 
   initialize_state(N, sr, si);
 
+  std::string dos_file("lsqt_dos.out");
+
   output_data(
+    dos_file,
     N,
     Nm,
     Ne,
     Em,
     E.data(),
-    V,
+    1.0 / N,
     NN.data(),
     NL.data(),
     U.data(),
