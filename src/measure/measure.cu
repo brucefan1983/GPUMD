@@ -62,6 +62,8 @@ void Measure::initialize(
 }
 
 void Measure::finalize(
+  Atom& atom,
+  Box& box,
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
@@ -69,6 +71,7 @@ void Measure::finalize(
   const double volume,
   const double number_of_beads)
 {
+  lsqt.postprocess(atom, box);
   dump_position.postprocess();
   dump_velocity.postprocess();
   dump_restart.postprocess();
