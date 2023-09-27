@@ -33,9 +33,6 @@
 namespace
 {
 #define BLOCK_SIZE_EC 512 // do not change this
-#define TIGHT_BINDING_MODEL 1
-#define TIME_CONVERSION 15.46692
-#define E_MAX 10.1
 
 // set a state s = 0
 __global__ void gpu_set_zero(int N, double* sr, double* si)
@@ -841,38 +838,27 @@ __global__ void gpu_initialize_model(
   }
 }
 
-// calculate the data and output
-void output_data(
-  std::string& filename,
+void find_dos_or_others(
   int N,
   int Nm,
   int Ne,
   double Em,
   double* E,
-  double scaler,
   int* NN,
   int* NL,
   double* U,
   double* Hr,
   double* Hi,
   double* sr,
-  double* si)
+  double* si,
+  double* dos_or_others)
 {
   std::vector<double> moments_cpu(Nm);
   GPU_Vector<double> moments_gpu(Nm);
-  std::vector<double> data(Ne);
-
   find_moments_chebyshev(N, Nm, Em, NN, NL, U, Hr, Hi, sr, si, sr, si, moments_gpu.data());
   moments_gpu.copy_to_host(moments_cpu.data());
   apply_damping(Nm, moments_cpu.data());
-  perform_chebyshev_summation(Nm, Ne, Em, E, moments_cpu.data(), data.data());
-
-  // output the data
-  FILE* os = my_fopen(filename.c_str(), "a");
-  for (int n = 0; n < Ne; ++n)
-    fprintf(os, "%25.15e", data[n] * scaler);
-  fprintf(os, "\n");
-  fclose(os);
+  perform_chebyshev_summation(Nm, Ne, Em, E, moments_cpu.data(), dos_or_others);
 }
 
 void initialize_state(int N, GPU_Vector<double>& sr, GPU_Vector<double>& si)
@@ -919,6 +905,8 @@ void LSQT::postprocess(Atom& atom, Box& box)
   GPU_Vector<double> U(N);
   GPU_Vector<double> sr(N);
   GPU_Vector<double> si(N);
+  GPU_Vector<double> sxr(N);
+  GPU_Vector<double> sxi(N);
 
   find_neighbor(
     0,
@@ -938,21 +926,60 @@ void LSQT::postprocess(Atom& atom, Box& box)
 
   initialize_state(N, sr, si);
 
-  std::string dos_file("lsqt_dos.out");
+  std::vector<double> dos(Ne);
+  std::vector<double> vel(Ne);
 
-  output_data(
-    dos_file,
+  find_dos_or_others(
     N,
     Nm,
     Ne,
     Em,
     E.data(),
-    1.0 / N,
     NN.data(),
     NL.data(),
     U.data(),
     Hr.data(),
     Hi.data(),
     sr.data(),
-    si.data());
+    si.data(),
+    dos.data());
+
+  gpu_apply_current<<<(N - 1) / 64 + 1, 64>>>(
+    N,
+    NN.data(),
+    NL.data(),
+    Hr.data(),
+    Hi.data(),
+    xx.data(),
+    sr.data(),
+    si.data(),
+    sxr.data(),
+    sxi.data());
+
+  find_dos_or_others(
+    N,
+    Nm,
+    Ne,
+    Em,
+    E.data(),
+    NN.data(),
+    NL.data(),
+    U.data(),
+    Hr.data(),
+    Hi.data(),
+    sxr.data(),
+    sxi.data(),
+    vel.data());
+
+  FILE* os_dos = my_fopen("lsqt_dos.out", "a");
+  for (int n = 0; n < Ne; ++n)
+    fprintf(os_dos, "%25.15e", dos[n] / N);
+  fprintf(os_dos, "\n");
+  fclose(os_dos);
+
+  FILE* os_vel = my_fopen("lsqt_vel.out", "a");
+  for (int n = 0; n < Ne; ++n)
+    fprintf(os_vel, "%25.15e", sqrt(vel[n] / dos[n]));
+  fprintf(os_vel, "\n");
+  fclose(os_vel);
 }
