@@ -884,6 +884,8 @@ void LSQT::postprocess(Atom& atom, Box& box)
   int Nm = 1000;     // number of moments
   int Ne = 1001;     // number of energy points
   double Em = 10.1;  // maximum energy
+  double dt = 1.6;   // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
+  double dt_scaled = dt * Em;
   std::vector<double> E(Ne);
   for (int n = 0; n < Ne; ++n) {
     E[n] = (n - (Ne - 1) / 2) * 0.02;
@@ -907,6 +909,8 @@ void LSQT::postprocess(Atom& atom, Box& box)
   GPU_Vector<double> si(N);
   GPU_Vector<double> sxr(N);
   GPU_Vector<double> sxi(N);
+  GPU_Vector<double> scr(N);
+  GPU_Vector<double> sci(N);
 
   find_neighbor(
     0,
@@ -927,8 +931,11 @@ void LSQT::postprocess(Atom& atom, Box& box)
   initialize_state(N, sr, si);
 
   std::vector<double> dos(Ne);
-  std::vector<double> vel(Ne);
+  std::vector<double> velocity(Ne);
+  std::vector<double> msd(Ne * 1000);
+  std::vector<double> sigma(Ne);
 
+  // dos
   find_dos_or_others(
     N,
     Nm,
@@ -944,6 +951,13 @@ void LSQT::postprocess(Atom& atom, Box& box)
     si.data(),
     dos.data());
 
+  FILE* os_dos = my_fopen("lsqt_dos.out", "a");
+  for (int n = 0; n < Ne; ++n)
+    fprintf(os_dos, "%25.15e", dos[n] / N);
+  fprintf(os_dos, "\n");
+  fclose(os_dos);
+
+  // velocity
   gpu_apply_current<<<(N - 1) / 64 + 1, 64>>>(
     N,
     NN.data(),
@@ -969,17 +983,121 @@ void LSQT::postprocess(Atom& atom, Box& box)
     Hi.data(),
     sxr.data(),
     sxi.data(),
-    vel.data());
+    velocity.data());
 
-  FILE* os_dos = my_fopen("lsqt_dos.out", "a");
+  FILE* os_vel = my_fopen("lsqt_velocity.out", "a");
   for (int n = 0; n < Ne; ++n)
-    fprintf(os_dos, "%25.15e", dos[n] / N);
-  fprintf(os_dos, "\n");
-  fclose(os_dos);
-
-  FILE* os_vel = my_fopen("lsqt_vel.out", "a");
-  for (int n = 0; n < Ne; ++n)
-    fprintf(os_vel, "%25.15e", sqrt(vel[n] / dos[n]));
+    fprintf(os_vel, "%25.15e", sqrt(velocity[n] / dos[n]));
   fprintf(os_vel, "\n");
   fclose(os_vel);
+
+  // MSD
+
+  gpu_copy_state<<<(N - 1) / 64 + 1, 64>>>(N, sr.data(), si.data(), sxr.data(), sxi.data());
+
+  FILE* os_sigma = my_fopen("lsqt_sigma.out", "a");
+  FILE* os_length = my_fopen("lsqt_length.out", "a");
+
+  evolve(
+    N,
+    Em,
+    1,
+    dt_scaled,
+    NN.data(),
+    NL.data(),
+    U.data(),
+    Hr.data(),
+    Hi.data(),
+    sr.data(),
+    si.data());
+  evolvex(
+    N,
+    Em,
+    1,
+    dt_scaled,
+    NN.data(),
+    NL.data(),
+    U.data(),
+    Hr.data(),
+    Hi.data(),
+    xx.data(),
+    sxr.data(),
+    sxi.data());
+
+  for (int m = 0; m < 1000; ++m) {
+    printf("msd step = %d\n", m);
+    find_dos_or_others(
+      N,
+      Nm,
+      Ne,
+      Em,
+      E.data(),
+      NN.data(),
+      NL.data(),
+      U.data(),
+      Hr.data(),
+      Hi.data(),
+      sxr.data(),
+      sxi.data(),
+      msd.data() + Ne * m);
+
+    for (int n = 0; n < Ne; ++n) {
+      if (m == 0) {
+        sigma[n] = 0.5 * (msd[n] - 0) / dt / V;
+      } else {
+        sigma[n] = 0.5 * (msd[n + m * Ne] - msd[n + (m - 1) * Ne]) / dt / V;
+      }
+    }
+
+    for (int n = 0; n < Ne; ++n) {
+      fprintf(os_sigma, "%25.15e", sigma[n]);
+      fprintf(os_length, "%25.15e", 2.0 * sqrt(msd[n + m * Ne] / dos[n]));
+    }
+    fprintf(os_sigma, "\n");
+    fprintf(os_length, "\n");
+
+    // update [X, U^m] |phi> to [X, U^(m+1)] |phi>
+    gpu_copy_state<<<(N - 1) / 64 + 1, 64>>>(N, sr.data(), si.data(), scr.data(), sci.data());
+    evolvex(
+      N,
+      Em,
+      1,
+      dt_scaled,
+      NN.data(),
+      NL.data(),
+      U.data(),
+      Hr.data(),
+      Hi.data(),
+      xx.data(),
+      scr.data(),
+      sci.data());
+    evolve(
+      N,
+      Em,
+      1,
+      dt_scaled,
+      NN.data(),
+      NL.data(),
+      U.data(),
+      Hr.data(),
+      Hi.data(),
+      sxr.data(),
+      sxi.data());
+    gpu_add_state<<<(N - 1) / 64 + 1, 64>>>(N, scr.data(), sci.data(), sxr.data(), sxi.data());
+    // update U^m |phi> to U^(m+1) |phi>
+    evolve(
+      N,
+      Em,
+      1,
+      dt_scaled,
+      NN.data(),
+      NL.data(),
+      U.data(),
+      Hr.data(),
+      Hi.data(),
+      sr.data(),
+      si.data());
+  }
+  fclose(os_sigma);
+  fclose(os_length);
 }
