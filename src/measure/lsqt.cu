@@ -875,42 +875,51 @@ void initialize_state(int N, GPU_Vector<double>& sr, GPU_Vector<double>& si)
 }
 } // namespace
 
-void LSQT::postprocess(Atom& atom, Box& box)
+void LSQT::preprocess(Atom& atom)
 {
-  printf("enter the function\n");
-  int N = atom.number_of_atoms;
-  int M = N * 10;    // number of pairs
-  int direction = 1; // transport direction
-  int Nm = 1000;     // number of moments
-  int Ne = 1001;     // number of energy points
-  double Em = 10.1;  // maximum energy
-  double dt = 1.6;   // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
-  double dt_scaled = dt * Em;
-  std::vector<double> E(Ne);
+  N = atom.number_of_atoms;
+  int M = N * 10; // number of pairs
+  direction = 1;
+  Nm = 1000;
+  Ne = 1001;
+  Em = 10.1;
+  dt = 1.6; // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
+  Nt = 10;
+  E.resize(Ne);
   for (int n = 0; n < Ne; ++n) {
     E[n] = (n - (Ne - 1) / 2) * 0.02;
   }
 
-  GPU_Vector<int> cell_count(N);
-  GPU_Vector<int> cell_count_sum(N);
-  GPU_Vector<int> cell_contents(N);
-  GPU_Vector<int> NN(N);
-  GPU_Vector<int> NL(M);
+  cell_count.resize(N);
+  cell_count_sum.resize(N);
+  cell_contents.resize(N);
+  NN.resize(N);
+  NL.resize(M);
+
+  xx.resize(M);
+  Hr.resize(M);
+  Hi.resize(M);
+  U.resize(N);
+  sr.resize(N);
+  si.resize(N);
+  sxr.resize(N);
+  sxi.resize(N);
+  scr.resize(N);
+  sci.resize(N);
+
+  dos.resize(Ne);
+  velocity.resize(Ne);
+  msd.resize(Ne * Nt);
+  sigma.resize(Ne);
+}
+
+void LSQT::postprocess(Atom& atom, Box& box)
+{
+  double dt_scaled = dt * Em;
   double* x = atom.position_per_atom.data();
   double* y = atom.position_per_atom.data() + N;
   double* z = atom.position_per_atom.data() + N * 2;
   double V = box.get_volume();
-
-  GPU_Vector<double> xx(M);
-  GPU_Vector<double> Hr(M);
-  GPU_Vector<double> Hi(M);
-  GPU_Vector<double> U(N);
-  GPU_Vector<double> sr(N);
-  GPU_Vector<double> si(N);
-  GPU_Vector<double> sxr(N);
-  GPU_Vector<double> sxi(N);
-  GPU_Vector<double> scr(N);
-  GPU_Vector<double> sci(N);
 
   find_neighbor(
     0,
@@ -929,11 +938,6 @@ void LSQT::postprocess(Atom& atom, Box& box)
     box, N, direction, x, y, z, NN.data(), NL.data(), U.data(), Hr.data(), Hi.data(), xx.data());
 
   initialize_state(N, sr, si);
-
-  std::vector<double> dos(Ne);
-  std::vector<double> velocity(Ne);
-  std::vector<double> msd(Ne * 1000);
-  std::vector<double> sigma(Ne);
 
   // dos
   find_dos_or_others(
@@ -1024,7 +1028,7 @@ void LSQT::postprocess(Atom& atom, Box& box)
     sxr.data(),
     sxi.data());
 
-  for (int m = 0; m < 1000; ++m) {
+  for (int m = 0; m < Nt; ++m) {
     printf("msd step = %d\n", m);
     find_dos_or_others(
       N,
