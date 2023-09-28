@@ -6,7 +6,7 @@
 
 ## What is `GPUMD`?
 
-* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. `GPUMD` is a highly efficient general-purpose molecular dynamic (MD) package fully implemented on graphics processing units (GPUs). It enables training and using a class of machine-learned potentials (MLPs) called neuroevolution potentials. See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
+* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. `GPUMD` is a highly efficient general-purpose molecular dynamic (MD) package fully implemented on graphics processing units (GPUs). It enables training and using a class of machine-learned potentials (MLPs) called neuroevolution potentials (NEPs). See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
 
 ## Prerequisites
 
