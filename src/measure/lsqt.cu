@@ -574,54 +574,47 @@ void initialize_state(int N, GPU_Vector<double>& sr, GPU_Vector<double>& si)
 }
 } // namespace
 
-void LSQT::preprocess(Atom& atom)
+void LSQT::preprocess(Atom& atom, int number_of_steps)
 {
-  N = atom.number_of_atoms;
-  int M = N * 10; // number of pairs
-  direction = 1;
-  Nm = 1000;
-  Ne = 1001;
-  Em = 10.1;
+  number_of_atoms = atom.number_of_atoms;
+  this->number_of_steps = number_of_steps;
+  int M = number_of_atoms * 10; // number of pairs
+  transport_direction = 1;
+  number_of_moments = 1000;
+  number_of_energy_points = 1001;
+  maximum_energy = 10.1;
   dt = 1.6; // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
-  Nt = 1000;
-  E.resize(Ne);
-  for (int n = 0; n < Ne; ++n) {
-    E[n] = (n - (Ne - 1) / 2) * 0.02;
+  E.resize(number_of_energy_points);
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    E[n] = (n - (number_of_energy_points - 1) / 2) * 0.02;
   }
 
-  cell_count.resize(N);
-  cell_count_sum.resize(N);
-  cell_contents.resize(N);
-  NN.resize(N);
+  cell_count.resize(number_of_atoms);
+  cell_count_sum.resize(number_of_atoms);
+  cell_contents.resize(number_of_atoms);
+  NN.resize(number_of_atoms);
   NL.resize(M);
 
   xx.resize(M);
   Hr.resize(M);
   Hi.resize(M);
-  U.resize(N);
+  U.resize(number_of_atoms);
 
-  dos.resize(Ne);
-  velocity.resize(Ne);
-  vac.resize(Ne * Nt);
-  sigma.resize(Ne);
+  sigma.resize(number_of_energy_points);
 
-  slr.resize(N);
-  sli.resize(N);
-  srr.resize(N);
-  sri.resize(N);
-  scr.resize(N);
-  sci.resize(N);
+  slr.resize(number_of_atoms);
+  sli.resize(number_of_atoms);
+  srr.resize(number_of_atoms);
+  sri.resize(number_of_atoms);
+  scr.resize(number_of_atoms);
+  sci.resize(number_of_atoms);
 }
 
 void LSQT::process(Atom& atom, Box& box, const int step)
 {
-  double* x = atom.position_per_atom.data();
-  double* y = atom.position_per_atom.data() + N;
-  double* z = atom.position_per_atom.data() + N * 2;
-
   find_neighbor(
     0,
-    N,
+    number_of_atoms,
     2.1,
     box,
     atom.type,
@@ -632,8 +625,19 @@ void LSQT::process(Atom& atom, Box& box, const int step)
     NN,
     NL);
 
-  gpu_initialize_model<<<(N - 1) / 64 + 1, 64>>>(
-    box, N, direction, x, y, z, NN.data(), NL.data(), U.data(), Hr.data(), Hi.data(), xx.data());
+  gpu_initialize_model<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    box,
+    number_of_atoms,
+    transport_direction,
+    atom.position_per_atom.data(),
+    atom.position_per_atom.data() + number_of_atoms,
+    atom.position_per_atom.data() + number_of_atoms * 2,
+    NN.data(),
+    NL.data(),
+    U.data(),
+    Hr.data(),
+    Hi.data(),
+    xx.data());
 
   find_dos_and_velocity(atom, box);
   find_sigma(atom, box, step);
@@ -641,19 +645,22 @@ void LSQT::process(Atom& atom, Box& box, const int step)
 
 void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
 {
-  GPU_Vector<double> sr(N);
-  GPU_Vector<double> si(N);
-  GPU_Vector<double> sxr(N);
-  GPU_Vector<double> sxi(N);
+  std::vector<double> dos(number_of_energy_points);
+  std::vector<double> velocity(number_of_energy_points);
 
-  initialize_state(N, sr, si);
+  GPU_Vector<double> sr(number_of_atoms);
+  GPU_Vector<double> si(number_of_atoms);
+  GPU_Vector<double> sxr(number_of_atoms);
+  GPU_Vector<double> sxi(number_of_atoms);
+
+  initialize_state(number_of_atoms, sr, si);
 
   // dos
   find_dos_or_others(
-    N,
-    Nm,
-    Ne,
-    Em,
+    number_of_atoms,
+    number_of_moments,
+    number_of_energy_points,
+    maximum_energy,
     E.data(),
     NN.data(),
     NL.data(),
@@ -667,14 +674,14 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
     dos.data());
 
   FILE* os_dos = my_fopen("lsqt_dos.out", "a");
-  for (int n = 0; n < Ne; ++n)
-    fprintf(os_dos, "%25.15e", dos[n] / N);
+  for (int n = 0; n < number_of_energy_points; ++n)
+    fprintf(os_dos, "%25.15e", dos[n] / number_of_atoms);
   fprintf(os_dos, "\n");
   fclose(os_dos);
 
   // velocity
-  gpu_apply_current<<<(N - 1) / 64 + 1, 64>>>(
-    N,
+  gpu_apply_current<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    number_of_atoms,
     NN.data(),
     NL.data(),
     Hr.data(),
@@ -686,10 +693,10 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
     sxi.data());
 
   find_dos_or_others(
-    N,
-    Nm,
-    Ne,
-    Em,
+    number_of_atoms,
+    number_of_moments,
+    number_of_energy_points,
+    maximum_energy,
     E.data(),
     NN.data(),
     NL.data(),
@@ -703,7 +710,7 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
     velocity.data());
 
   FILE* os_vel = my_fopen("lsqt_velocity.out", "a");
-  for (int n = 0; n < Ne; ++n)
+  for (int n = 0; n < number_of_energy_points; ++n)
     fprintf(os_vel, "%25.15e", sqrt(velocity[n] / dos[n]));
   fprintf(os_vel, "\n");
   fclose(os_vel);
@@ -711,19 +718,13 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
 
 void LSQT::find_sigma(Atom& atom, Box& box, const int step)
 {
-  double dt_scaled = dt * Em;
-  double* x = atom.position_per_atom.data();
-  double* y = atom.position_per_atom.data() + N;
-  double* z = atom.position_per_atom.data() + N * 2;
+  double dt_scaled = dt * maximum_energy;
   double V = box.get_volume();
 
-  FILE* os_sigma = my_fopen("lsqt_sigma.out", "a");
-
   if (step == 0) {
-
-    initialize_state(N, slr, sli);
-    gpu_apply_current<<<(N - 1) / 64 + 1, 64>>>(
-      N,
+    initialize_state(number_of_atoms, slr, sli);
+    gpu_apply_current<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+      number_of_atoms,
       NN.data(),
       NL.data(),
       Hr.data(),
@@ -735,8 +736,8 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       sri.data());
   } else {
     evolve(
-      N,
-      Em,
+      number_of_atoms,
+      maximum_energy,
       -1,
       dt_scaled,
       NN.data(),
@@ -748,8 +749,8 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       sli.data());
 
     evolve(
-      N,
-      Em,
+      number_of_atoms,
+      maximum_energy,
       -1,
       dt_scaled,
       NN.data(),
@@ -761,8 +762,8 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       sri.data());
   }
 
-  gpu_apply_current<<<(N - 1) / 64 + 1, 64>>>(
-    N,
+  gpu_apply_current<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
+    number_of_atoms,
     NN.data(),
     NL.data(),
     Hr.data(),
@@ -773,11 +774,13 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
     scr.data(),
     sci.data());
 
+  std::vector<double> vac(number_of_energy_points);
+
   find_dos_or_others(
-    N,
-    Nm,
-    Ne,
-    Em,
+    number_of_atoms,
+    number_of_moments,
+    number_of_energy_points,
+    maximum_energy,
     E.data(),
     NN.data(),
     NL.data(),
@@ -788,16 +791,13 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
     sci.data(),
     srr.data(),
     sri.data(),
-    vac.data() + Ne * step);
+    vac.data());
 
-  for (int n = 0; n < Ne; ++n) {
-    sigma[n] += vac[n + step * Ne] * dt / V;
-  }
-
-  for (int n = 0; n < Ne; ++n) {
+  FILE* os_sigma = my_fopen("lsqt_sigma.out", "a");
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    sigma[n] += vac[n] * dt / V;
     fprintf(os_sigma, "%25.15e", sigma[n]);
   }
   fprintf(os_sigma, "\n");
-
   fclose(os_sigma);
 }

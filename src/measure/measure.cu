@@ -33,7 +33,7 @@ void Measure::initialize(
 {
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
-  lsqt.preprocess(atom);
+  lsqt.preprocess(atom, number_of_steps);
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);

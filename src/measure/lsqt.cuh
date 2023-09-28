@@ -20,19 +20,19 @@ class Box;
 class LSQT
 {
 public:
-  void preprocess(Atom& atom);
+  void preprocess(Atom& atom, int number_of_steps);
   void process(Atom& atom, Box& box, const int step);
   void find_dos_and_velocity(Atom& atom, Box& box);
   void find_sigma(Atom& atom, Box& box, const int step);
 
 private:
-  int N;             // number of atoms
-  int direction = 1; // transport direction
-  int Nm = 1000;     // number of moments
-  int Ne = 1001;     // number of energy points
-  int Nt = 10;
-  double Em = 10.1; // maximum energy
-  double dt = 1.6;  // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
+  int number_of_atoms;
+  int transport_direction;
+  int number_of_moments;
+  int number_of_energy_points;
+  int number_of_steps;
+  double maximum_energy = 10.1;
+  double dt = 1.6; // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
 
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
@@ -53,8 +53,5 @@ private:
   GPU_Vector<double> sci;
 
   std::vector<double> E;
-  std::vector<double> dos;
-  std::vector<double> velocity;
-  std::vector<double> vac;
   std::vector<double> sigma;
 };
