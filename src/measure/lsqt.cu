@@ -574,19 +574,19 @@ void initialize_state(int N, GPU_Vector<double>& sr, GPU_Vector<double>& si)
 }
 } // namespace
 
-void LSQT::preprocess(Atom& atom, int number_of_steps)
+void LSQT::preprocess(Atom& atom, int number_of_steps, double time_step)
 {
   number_of_atoms = atom.number_of_atoms;
   this->number_of_steps = number_of_steps;
-  int M = number_of_atoms * 10; // number of pairs
-  transport_direction = 1;
-  number_of_moments = 1000;
-  number_of_energy_points = 1001;
-  maximum_energy = 10.1;
-  dt = 1.6; // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
+  this->time_step = time_step * 15.46692; // from GPUMD unit to hbar/eV
+  int M = number_of_atoms * 10;           // TODO
+  transport_direction = 1;                // TODO
+  number_of_moments = 1000;               // TODO
+  number_of_energy_points = 1001;         // TODO
+  maximum_energy = 10.1;                  // TODO
   E.resize(number_of_energy_points);
   for (int n = 0; n < number_of_energy_points; ++n) {
-    E[n] = (n - (number_of_energy_points - 1) / 2) * 0.02;
+    E[n] = (n - (number_of_energy_points - 1) / 2) * 0.02; // TODO
   }
 
   cell_count.resize(number_of_atoms);
@@ -718,7 +718,7 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
 
 void LSQT::find_sigma(Atom& atom, Box& box, const int step)
 {
-  double dt_scaled = dt * maximum_energy;
+  double time_step_scaled = time_step * maximum_energy;
   double V = box.get_volume();
 
   if (step == 0) {
@@ -739,7 +739,7 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       number_of_atoms,
       maximum_energy,
       -1,
-      dt_scaled,
+      time_step_scaled,
       NN.data(),
       NL.data(),
       U.data(),
@@ -752,7 +752,7 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       number_of_atoms,
       maximum_energy,
       -1,
-      dt_scaled,
+      time_step_scaled,
       NN.data(),
       NL.data(),
       U.data(),
@@ -795,7 +795,7 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
 
   FILE* os_sigma = my_fopen("lsqt_sigma.out", "a");
   for (int n = 0; n < number_of_energy_points; ++n) {
-    sigma[n] += vac[n] * dt / V;
+    sigma[n] += vac[n] * time_step / V;
     fprintf(os_sigma, "%25.15e", sigma[n]);
   }
   fprintf(os_sigma, "\n");
