@@ -30,15 +30,16 @@
 #include "hnemd_kappa.cuh"
 #include "hnemdec_kappa.cuh"
 #include "integrate/integrate.cuh"
+#include "lsqt.cuh"
 #include "modal_analysis.cuh"
 #include "model/box.cuh"
 #include "model/group.cuh"
 #include "msd.cuh"
+#include "rdf.cuh"
 #include "sdc.cuh"
 #include "shc.cuh"
 #include "utilities/gpu_vector.cuh"
 #include "viscosity.cuh"
-#include "rdf.cuh"
 #ifdef USE_NETCDF
 #include "dump_netcdf.cuh"
 #endif
@@ -61,6 +62,8 @@ public:
     Force& force);
 
   void finalize(
+    Atom& atom,
+    Box& box,
     Integrate& integrate,
     const int number_of_steps,
     const double time_step,
@@ -82,6 +85,7 @@ public:
     Atom& atom,
     Force& force);
 
+  LSQT lsqt;
   DOS dos;
   SDC sdc;
   MSD msd;

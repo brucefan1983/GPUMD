@@ -33,6 +33,7 @@ void Measure::initialize(
 {
   const int number_of_atoms = atom.mass.size();
   const int number_of_potentials = force.potentials.size();
+  lsqt.preprocess(atom, number_of_steps, time_step);
   dos.preprocess(time_step, group, atom.mass);
   sdc.preprocess(number_of_atoms, time_step, group);
   msd.preprocess(number_of_atoms, time_step, group);
@@ -62,6 +63,8 @@ void Measure::initialize(
 }
 
 void Measure::finalize(
+  Atom& atom,
+  Box& box,
   Integrate& integrate,
   const int number_of_steps,
   const double time_step,
@@ -189,6 +192,8 @@ void Measure::process(
     atom.heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
+
+  lsqt.process(atom, box, step);
 
 #ifdef USE_NETCDF
   dump_netcdf.process(

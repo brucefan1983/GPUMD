@@ -286,6 +286,8 @@ void Run::perform_a_run()
   print_line_2();
 
   measure.finalize(
+    atom,
+    box,
     integrate,
     number_of_steps,
     time_step,
@@ -442,6 +444,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     mc.parse_mc(param, num_param, group, atom);
   } else if (strcmp(param[0], "dftd3") == 0) {
     // nothing here; will be handled elsewhere
+  } else if (strcmp(param[0], "compute_lsqt") == 0) {
+    measure.lsqt.parse(param, num_param);
   } else if (strcmp(param[0], "run") == 0) {
     parse_run(param, num_param);
   } else {
