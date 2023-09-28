@@ -6,11 +6,7 @@
 
 ## What is `GPUMD`?
 
-* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. It is a general-purpose molecular dynamics (MD) code fully implemented on graphics processing units (GPUs). 
-* Force evaluation for many-body potentials has been significantly accelerated by using GPUs [1], thanks to a set of simple expressions for force, virial stress, and heat current derived in Refs. [2, 3]. 
-* Apart from being highly efficient, another unique feature of GPUMD is that it has useful utilities to study heat transport [2, 3, 4, 5].
-* It can run MD simulations with the machine-learning based force constant potential (FCP) [6].
-* It can train the NEP machine-learning potential [7, 8, 9] and run MD simulations with it. See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
+* `GPUMD` stands for Graphics Processing Units Molecular Dynamics. `GPUMD` is a highly efficient general-purpose molecular dynamic (MD) package fully implemented on graphics processing units (GPUs). It enables training and using a class of machine-learned potentials (MLPs) called neuroevolution potentials. See this [nep-data Gitlab repo](https://gitlab.com/brucefan1983/nep-data) for some of the published NEP potentials and the related training/testing data.
 
 ## Prerequisites
 
@@ -75,6 +71,7 @@ https://www.freelists.org/list/gpumd
 | Shunda Chen           | https://github.com/shdchen |
 | Jiuyang Shi           | https://github.com/XIX-YANG |
 | Nicklas Österbacka    | https://github.com/NicklasOsterbacka |
+| Shuning Pan           | https://github.com/psn417 |
 
 ## Citations
 
