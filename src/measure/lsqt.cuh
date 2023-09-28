@@ -28,7 +28,7 @@ public:
   void find_sigma(Atom& atom, Box& box, const int step);
 
 private:
-  bool compute;
+  bool compute = false;
   int number_of_atoms;
   int transport_direction;
   int number_of_moments;
