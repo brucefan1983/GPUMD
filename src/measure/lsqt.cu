@@ -20,29 +20,19 @@
 #include "utilities/common.cuh"
 
 /*----------------------------------------------------------------------------80
-    This file implements the linear-scaling quantum transport method
+    This file implements the linear-scaling quantum transport (LSQT) method
     similar to our GPUQT code (https://github.com/brucefan1983/gpuqt)
 
     In this file, we use the unit system with
         length:      Angstrom
         charge:      e
         energy:      eV
-        energy*time: hbar
+        time:        hbar/eV
 ------------------------------------------------------------------------------*/
 
 namespace
 {
 #define BLOCK_SIZE_EC 512 // do not change this
-
-// set a state s = 0
-__global__ void gpu_set_zero(int N, double* sr, double* si)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < N) {
-    sr[n] = 0.0;
-    si[n] = 0.0;
-  }
-}
 
 // copy state: so = si
 __global__ void gpu_copy_state(int N, double* sir, double* sii, double* sor, double* soi)
@@ -51,16 +41,6 @@ __global__ void gpu_copy_state(int N, double* sir, double* sii, double* sor, dou
   if (n < N) {
     sor[n] = sir[n];
     soi[n] = sii[n];
-  }
-}
-
-// add state: so = so + si
-__global__ void gpu_add_state(int N, double* sir, double* sii, double* sor, double* soi)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < N) {
-    sor[n] += sir[n];
-    soi[n] += sii[n];
   }
 }
 
@@ -83,18 +63,6 @@ __global__ void gpu_chebyshev_01(
     double bessel_1 = b1 * direction;
     sr[n] = bessel_0 * s0r[n] + bessel_1 * s1i[n];
     si[n] = bessel_0 * s0i[n] - bessel_1 * s1r[n];
-  }
-}
-
-// will be used for [X, U(t)]
-__global__ void
-gpu_chebyshev_1x(int N, double* s1xr, double* s1xi, double* sr, double* si, double g_bessel_1)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < N) {
-    double b1 = g_bessel_1;
-    sr[n] = +b1 * s1xi[n];
-    si[n] = -b1 * s1xr[n];
   }
 }
 
@@ -210,102 +178,6 @@ __global__ void gpu_kernel_polynomial(
   }
 }
 
-// will be used for [X, U(t)]
-__global__ void gpu_chebyshev_2x(
-  int N,
-  double Em_inv,
-  int* NN,
-  int* NL,
-  double* U,
-  double* Hr,
-  double* Hi,
-  double* g_xx,
-  double* s0r,
-  double* s0i,
-  double* s0xr,
-  double* s0xi,
-  double* s1r,
-  double* s1i,
-  double* s1xr,
-  double* s1xi,
-  double* s2r,
-  double* s2i,
-  double* s2xr,
-  double* s2xi,
-  double* sr,
-  double* si,
-  double g_bessel_m,
-  int g_label)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < N) {
-    double temp_real = U[n] * s1r[n];    // on-site
-    double temp_imag = U[n] * s1i[n];    // on-site
-    double temp_x_real = U[n] * s1xr[n]; // on-site
-    double temp_x_imag = U[n] * s1xi[n]; // on-site
-    int neighbor_number = NN[n];
-#pragma unroll
-    for (int m = 0; m < neighbor_number; ++m) {
-      int index_1 = m * N + n;
-      int index_2 = NL[index_1];
-
-      double a = Hr[index_1];
-      double b = Hi[index_1];
-      double c = s1r[index_2];
-      double d = s1i[index_2];
-      temp_real += a * c - b * d; // hopping
-      temp_imag += a * d + b * c; // hopping
-
-      double cx = s1xr[index_2];
-      double dx = s1xi[index_2];
-      temp_x_real += a * cx - b * dx; // hopping
-      temp_x_imag += a * dx + b * cx; // hopping
-
-      double xx = g_xx[index_1];
-      temp_x_real -= (a * c - b * d) * xx; // hopping
-      temp_x_imag -= (a * d + b * c) * xx; // hopping
-    }
-
-    temp_real *= Em_inv; // scale
-    temp_imag *= Em_inv; // scale
-    temp_real = 2.0 * temp_real - s0r[n];
-    temp_imag = 2.0 * temp_imag - s0i[n];
-    s2r[n] = temp_real;
-    s2i[n] = temp_imag;
-
-    temp_x_real *= Em_inv; // scale
-    temp_x_imag *= Em_inv; // scale
-    temp_x_real = 2.0 * temp_x_real - s0xr[n];
-    temp_x_imag = 2.0 * temp_x_imag - s0xi[n];
-    s2xr[n] = temp_x_real;
-    s2xi[n] = temp_x_imag;
-
-    double bessel_m = g_bessel_m;
-    switch (g_label) {
-      case 1: {
-        sr[n] += bessel_m * temp_x_real;
-        si[n] += bessel_m * temp_x_imag;
-        break;
-      }
-      case 2: {
-        sr[n] -= bessel_m * temp_x_real;
-        si[n] -= bessel_m * temp_x_imag;
-        break;
-      }
-      case 3: {
-        sr[n] += bessel_m * temp_x_imag;
-        si[n] -= bessel_m * temp_x_real;
-        break;
-      }
-      case 4: {
-        sr[n] -= bessel_m * temp_x_imag;
-        si[n] += bessel_m * temp_x_real;
-        break;
-      }
-    }
-  }
-}
-
 // apply the Hamiltonian: H * si = so
 __global__ void gpu_apply_hamiltonian(
   int N,
@@ -375,42 +247,6 @@ __global__ void gpu_apply_current(
     }
     sor[n] = +temp_imag;
     soi[n] = -temp_real;
-  }
-}
-
-// so = [X, H] * si
-__global__ void gpu_apply_commutator(
-  int N,
-  double Em_inv,
-  int* NN,
-  int* NL,
-  double* Hr,
-  double* Hi,
-  double* g_xx,
-  double* sir,
-  double* sii,
-  double* sor,
-  double* soi)
-{
-  int n = blockIdx.x * blockDim.x + threadIdx.x;
-  if (n < N) {
-    double temp_real = 0.0;
-    double temp_imag = 0.0;
-    int neighbor_number = NN[n];
-#pragma unroll
-    for (int m = 0; m < neighbor_number; ++m) {
-      int index_1 = m * N + n;
-      int index_2 = NL[index_1];
-      double a = Hr[index_1];
-      double b = Hi[index_1];
-      double c = sir[index_2];
-      double d = sii[index_2];
-      double xx = g_xx[index_1];
-      temp_real -= (a * c - b * d) * xx;
-      temp_imag -= (a * d + b * c) * xx;
-    }
-    sor[n] = temp_real * Em_inv;
-    soi[n] = temp_imag * Em_inv;
   }
 }
 
@@ -652,145 +488,6 @@ void evolve(
   cudaFree(s2i);
 }
 
-// direction = +1: [X, U(+t)] |state>
-// direction = -1: [U(-t), X] |state>
-void evolvex(
-  int N,
-  double Em,
-  int direction,
-  double time_step_scaled,
-  int* NN,
-  int* NL,
-  double* U,
-  double* Hr,
-  double* Hi,
-  double* xx,
-  double* sr,
-  double* si)
-{
-  int grid_size = (N - 1) / BLOCK_SIZE_EC + 1;
-  double Em_inv = 1.0 / Em;
-  double* s0r;
-  double* s1r;
-  double* s2r;
-  double* s0i;
-  double* s1i;
-  double* s2i;
-  double* s0xr;
-  double* s1xr;
-  double* s2xr;
-  double* s0xi;
-  double* s1xi;
-  double* s2xi;
-  cudaMalloc((void**)&s0r, sizeof(double) * N);
-  cudaMalloc((void**)&s0i, sizeof(double) * N);
-  cudaMalloc((void**)&s1r, sizeof(double) * N);
-  cudaMalloc((void**)&s1i, sizeof(double) * N);
-  cudaMalloc((void**)&s2r, sizeof(double) * N);
-  cudaMalloc((void**)&s2i, sizeof(double) * N);
-  cudaMalloc((void**)&s0xr, sizeof(double) * N);
-  cudaMalloc((void**)&s0xi, sizeof(double) * N);
-  cudaMalloc((void**)&s1xr, sizeof(double) * N);
-  cudaMalloc((void**)&s1xi, sizeof(double) * N);
-  cudaMalloc((void**)&s2xr, sizeof(double) * N);
-  cudaMalloc((void**)&s2xi, sizeof(double) * N);
-
-  // T_0(H) |psi> = |psi>
-  gpu_copy_state<<<grid_size, BLOCK_SIZE_EC>>>(N, sr, si, s0r, s0i);
-
-  // [X, T_0(H)] |psi> = 0
-  gpu_set_zero<<<grid_size, BLOCK_SIZE_EC>>>(N, s0xr, s0xi);
-
-  // T_1(H) |psi> = H |psi>
-  gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE_EC>>>(
-    N, Em_inv, NN, NL, U, Hr, Hi, sr, si, s1r, s1i);
-
-  // [X, T_1(H)] |psi> = J |psi>
-  gpu_apply_commutator<<<grid_size, BLOCK_SIZE_EC>>>(
-    N, Em_inv, NN, NL, Hr, Hi, xx, sr, si, s1xr, s1xi);
-
-  // |final_state> = c_1 * [X, T_1(H)] |psi>
-  double bessel_1 = 2.0 * j1(time_step_scaled);
-  gpu_chebyshev_1x<<<grid_size, BLOCK_SIZE_EC>>>(N, s1xr, s1xi, sr, si, bessel_1);
-
-  for (int m = 2; m <= 1000000; ++m) {
-    double bessel_m = jn(m, time_step_scaled);
-    if (bessel_m < 1.0e-15 && bessel_m > -1.0e-15) {
-      break;
-    }
-    bessel_m *= 2.0;
-    int label;
-    int m_mod_4 = m % 4;
-    if (m_mod_4 == 1) {
-      label = 3;
-    } else if (m_mod_4 == 3) {
-      label = 4;
-    } else if ((m_mod_4 == 0 && direction == 1) || (m_mod_4 == 2 && direction == -1)) {
-      label = 1;
-    } else {
-      label = 2;
-    }
-
-    gpu_chebyshev_2x<<<grid_size, BLOCK_SIZE_EC>>>(
-      N,
-      Em_inv,
-      NN,
-      NL,
-      U,
-      Hr,
-      Hi,
-      xx,
-      s0r,
-      s0i,
-      s0xr,
-      s0xi,
-      s1r,
-      s1i,
-      s1xr,
-      s1xi,
-      s2r,
-      s2i,
-      s2xr,
-      s2xi,
-      sr,
-      si,
-      bessel_m,
-      label);
-
-    // Permute the pointers; do not need to copy the data
-    double *temp_real, *temp_imag;
-    temp_real = s0r;
-    temp_imag = s0i;
-    s0r = s1r;
-    s0i = s1i;
-    s1r = s2r;
-    s1i = s2i;
-    s2r = temp_real;
-    s2i = temp_imag;
-
-    temp_real = s0xr;
-    temp_imag = s0xi;
-    s0xr = s1xr;
-    s0xi = s1xi;
-    s1xr = s2xr;
-    s1xi = s2xi;
-    s2xr = temp_real;
-    s2xi = temp_imag;
-  }
-  cudaFree(s0r);
-  cudaFree(s0i);
-  cudaFree(s1r);
-  cudaFree(s1i);
-  cudaFree(s2r);
-  cudaFree(s2i);
-  cudaFree(s0xr);
-  cudaFree(s0xi);
-  cudaFree(s1xr);
-  cudaFree(s1xi);
-  cudaFree(s2xr);
-  cudaFree(s2xi);
-}
-
 // set up Hamiltonian and related quantities
 __global__ void gpu_initialize_model(
   const Box box,
@@ -849,13 +546,15 @@ void find_dos_or_others(
   double* U,
   double* Hr,
   double* Hi,
-  double* sr,
-  double* si,
+  double* slr,
+  double* sli,
+  double* srr,
+  double* sri,
   double* dos_or_others)
 {
   std::vector<double> moments_cpu(Nm);
   GPU_Vector<double> moments_gpu(Nm);
-  find_moments_chebyshev(N, Nm, Em, NN, NL, U, Hr, Hi, sr, si, sr, si, moments_gpu.data());
+  find_moments_chebyshev(N, Nm, Em, NN, NL, U, Hr, Hi, slr, sli, srr, sri, moments_gpu.data());
   moments_gpu.copy_to_host(moments_cpu.data());
   apply_damping(Nm, moments_cpu.data());
   perform_chebyshev_summation(Nm, Ne, Em, E, moments_cpu.data(), dos_or_others);
@@ -884,7 +583,7 @@ void LSQT::preprocess(Atom& atom)
   Ne = 1001;
   Em = 10.1;
   dt = 1.6; // TODO (this is 1.6 * hbar/eV, which is about 1 fs)
-  Nt = 10;
+  Nt = 1000;
   E.resize(Ne);
   for (int n = 0; n < Ne; ++n) {
     E[n] = (n - (Ne - 1) / 2) * 0.02;
@@ -900,26 +599,25 @@ void LSQT::preprocess(Atom& atom)
   Hr.resize(M);
   Hi.resize(M);
   U.resize(N);
-  sr.resize(N);
-  si.resize(N);
-  sxr.resize(N);
-  sxi.resize(N);
-  scr.resize(N);
-  sci.resize(N);
 
   dos.resize(Ne);
   velocity.resize(Ne);
-  msd.resize(Ne * Nt);
+  vac.resize(Ne * Nt);
   sigma.resize(Ne);
+
+  slr.resize(N);
+  sli.resize(N);
+  srr.resize(N);
+  sri.resize(N);
+  scr.resize(N);
+  sci.resize(N);
 }
 
-void LSQT::postprocess(Atom& atom, Box& box)
+void LSQT::process(Atom& atom, Box& box, const int step)
 {
-  double dt_scaled = dt * Em;
   double* x = atom.position_per_atom.data();
   double* y = atom.position_per_atom.data() + N;
   double* z = atom.position_per_atom.data() + N * 2;
-  double V = box.get_volume();
 
   find_neighbor(
     0,
@@ -937,6 +635,17 @@ void LSQT::postprocess(Atom& atom, Box& box)
   gpu_initialize_model<<<(N - 1) / 64 + 1, 64>>>(
     box, N, direction, x, y, z, NN.data(), NL.data(), U.data(), Hr.data(), Hi.data(), xx.data());
 
+  find_dos_and_velocity(atom, box);
+  find_sigma(atom, box, step);
+}
+
+void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
+{
+  GPU_Vector<double> sr(N);
+  GPU_Vector<double> si(N);
+  GPU_Vector<double> sxr(N);
+  GPU_Vector<double> sxi(N);
+
   initialize_state(N, sr, si);
 
   // dos
@@ -951,6 +660,8 @@ void LSQT::postprocess(Atom& atom, Box& box)
     U.data(),
     Hr.data(),
     Hi.data(),
+    sr.data(),
+    si.data(),
     sr.data(),
     si.data(),
     dos.data());
@@ -987,6 +698,8 @@ void LSQT::postprocess(Atom& atom, Box& box)
     Hi.data(),
     sxr.data(),
     sxi.data(),
+    sxr.data(),
+    sxi.data(),
     velocity.data());
 
   FILE* os_vel = my_fopen("lsqt_velocity.out", "a");
@@ -994,114 +707,97 @@ void LSQT::postprocess(Atom& atom, Box& box)
     fprintf(os_vel, "%25.15e", sqrt(velocity[n] / dos[n]));
   fprintf(os_vel, "\n");
   fclose(os_vel);
+}
 
-  // MSD
-
-  gpu_copy_state<<<(N - 1) / 64 + 1, 64>>>(N, sr.data(), si.data(), sxr.data(), sxi.data());
+void LSQT::find_sigma(Atom& atom, Box& box, const int step)
+{
+  double dt_scaled = dt * Em;
+  double* x = atom.position_per_atom.data();
+  double* y = atom.position_per_atom.data() + N;
+  double* z = atom.position_per_atom.data() + N * 2;
+  double V = box.get_volume();
 
   FILE* os_sigma = my_fopen("lsqt_sigma.out", "a");
-  FILE* os_length = my_fopen("lsqt_length.out", "a");
 
-  evolve(
-    N,
-    Em,
-    1,
-    dt_scaled,
-    NN.data(),
-    NL.data(),
-    U.data(),
-    Hr.data(),
-    Hi.data(),
-    sr.data(),
-    si.data());
-  evolvex(
-    N,
-    Em,
-    1,
-    dt_scaled,
-    NN.data(),
-    NL.data(),
-    U.data(),
-    Hr.data(),
-    Hi.data(),
-    xx.data(),
-    sxr.data(),
-    sxi.data());
+  if (step == 0) {
 
-  for (int m = 0; m < Nt; ++m) {
-    printf("msd step = %d\n", m);
-    find_dos_or_others(
+    initialize_state(N, slr, sli);
+    gpu_apply_current<<<(N - 1) / 64 + 1, 64>>>(
       N,
-      Nm,
-      Ne,
-      Em,
-      E.data(),
       NN.data(),
       NL.data(),
-      U.data(),
-      Hr.data(),
-      Hi.data(),
-      sxr.data(),
-      sxi.data(),
-      msd.data() + Ne * m);
-
-    for (int n = 0; n < Ne; ++n) {
-      if (m == 0) {
-        sigma[n] = 0.5 * (msd[n] - 0) / dt / V;
-      } else {
-        sigma[n] = 0.5 * (msd[n + m * Ne] - msd[n + (m - 1) * Ne]) / dt / V;
-      }
-    }
-
-    for (int n = 0; n < Ne; ++n) {
-      fprintf(os_sigma, "%25.15e", sigma[n]);
-      fprintf(os_length, "%25.15e", 2.0 * sqrt(msd[n + m * Ne] / dos[n]));
-    }
-    fprintf(os_sigma, "\n");
-    fprintf(os_length, "\n");
-
-    // update [X, U^m] |phi> to [X, U^(m+1)] |phi>
-    gpu_copy_state<<<(N - 1) / 64 + 1, 64>>>(N, sr.data(), si.data(), scr.data(), sci.data());
-    evolvex(
-      N,
-      Em,
-      1,
-      dt_scaled,
-      NN.data(),
-      NL.data(),
-      U.data(),
       Hr.data(),
       Hi.data(),
       xx.data(),
-      scr.data(),
-      sci.data());
+      slr.data(),
+      sli.data(),
+      srr.data(),
+      sri.data());
+  } else {
     evolve(
       N,
       Em,
-      1,
+      -1,
       dt_scaled,
       NN.data(),
       NL.data(),
       U.data(),
       Hr.data(),
       Hi.data(),
-      sxr.data(),
-      sxi.data());
-    gpu_add_state<<<(N - 1) / 64 + 1, 64>>>(N, scr.data(), sci.data(), sxr.data(), sxi.data());
-    // update U^m |phi> to U^(m+1) |phi>
+      slr.data(),
+      sli.data());
+
     evolve(
       N,
       Em,
-      1,
+      -1,
       dt_scaled,
       NN.data(),
       NL.data(),
       U.data(),
       Hr.data(),
       Hi.data(),
-      sr.data(),
-      si.data());
+      srr.data(),
+      sri.data());
   }
+
+  gpu_apply_current<<<(N - 1) / 64 + 1, 64>>>(
+    N,
+    NN.data(),
+    NL.data(),
+    Hr.data(),
+    Hi.data(),
+    xx.data(),
+    slr.data(),
+    sli.data(),
+    scr.data(),
+    sci.data());
+
+  find_dos_or_others(
+    N,
+    Nm,
+    Ne,
+    Em,
+    E.data(),
+    NN.data(),
+    NL.data(),
+    U.data(),
+    Hr.data(),
+    Hi.data(),
+    scr.data(),
+    sci.data(),
+    srr.data(),
+    sri.data(),
+    vac.data() + Ne * step);
+
+  for (int n = 0; n < Ne; ++n) {
+    sigma[n] += vac[n + step * Ne] * dt / V;
+  }
+
+  for (int n = 0; n < Ne; ++n) {
+    fprintf(os_sigma, "%25.15e", sigma[n]);
+  }
+  fprintf(os_sigma, "\n");
+
   fclose(os_sigma);
-  fclose(os_length);
 }

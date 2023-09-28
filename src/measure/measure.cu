@@ -72,7 +72,6 @@ void Measure::finalize(
   const double volume,
   const double number_of_beads)
 {
-  lsqt.postprocess(atom, box);
   dump_position.postprocess();
   dump_velocity.postprocess();
   dump_restart.postprocess();
@@ -193,6 +192,8 @@ void Measure::process(
     atom.heat_per_atom);
   modal_analysis.process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
+
+  lsqt.process(atom, box, step);
 
 #ifdef USE_NETCDF
   dump_netcdf.process(

@@ -21,7 +21,9 @@ class LSQT
 {
 public:
   void preprocess(Atom& atom);
-  void postprocess(Atom& atom, Box& box);
+  void process(Atom& atom, Box& box, const int step);
+  void find_dos_and_velocity(Atom& atom, Box& box);
+  void find_sigma(Atom& atom, Box& box, const int step);
 
 private:
   int N;             // number of atoms
@@ -42,16 +44,17 @@ private:
   GPU_Vector<double> Hr;
   GPU_Vector<double> Hi;
   GPU_Vector<double> U;
-  GPU_Vector<double> sr;
-  GPU_Vector<double> si;
-  GPU_Vector<double> sxr;
-  GPU_Vector<double> sxi;
+
+  GPU_Vector<double> slr;
+  GPU_Vector<double> sli;
+  GPU_Vector<double> srr;
+  GPU_Vector<double> sri;
   GPU_Vector<double> scr;
   GPU_Vector<double> sci;
 
   std::vector<double> E;
   std::vector<double> dos;
   std::vector<double> velocity;
-  std::vector<double> msd;
+  std::vector<double> vac;
   std::vector<double> sigma;
 };
