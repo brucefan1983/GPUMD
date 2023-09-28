@@ -18,6 +18,9 @@
 #include "model/atom.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/read_file.cuh"
+#include <algorithm>
+#include <cmath>
 
 /*----------------------------------------------------------------------------80
     This file implements the linear-scaling quantum transport (LSQT) method
@@ -91,7 +94,6 @@ __global__ void gpu_chebyshev_2(
     double temp_real = U[n] * s1r[n]; // on-site
     double temp_imag = U[n] * s1i[n]; // on-site
     int neighbor_number = NN[n];
-#pragma unroll
     for (int m = 0; m < neighbor_number; ++m) {
       int index_1 = m * N + n;
       int index_2 = NL[index_1];
@@ -156,7 +158,6 @@ __global__ void gpu_kernel_polynomial(
     double temp_real = U[n] * s1r[n]; // on-site
     double temp_imag = U[n] * s1i[n]; // on-site
     int neighbor_number = NN[n];
-#pragma unroll
     for (int m = 0; m < neighbor_number; ++m) {
       int index_1 = m * N + n;
       int index_2 = NL[index_1];
@@ -197,7 +198,6 @@ __global__ void gpu_apply_hamiltonian(
     double temp_real = U[n] * sir[n]; // on-site
     double temp_imag = U[n] * sii[n]; // on-site
     int neighbor_number = NN[n];
-#pragma unroll
     for (int m = 0; m < neighbor_number; ++m) {
       int index_1 = m * N + n;
       int index_2 = NL[index_1];
@@ -233,7 +233,6 @@ __global__ void gpu_apply_current(
     double temp_real = 0.0;
     double temp_imag = 0.0;
     int neighbor_number = NN[n];
-#pragma unroll
     for (int m = 0; m < neighbor_number; ++m) {
       int index_1 = m * N + n;
       int index_2 = NL[index_1];
@@ -280,7 +279,6 @@ __global__ void gpu_find_inner_product_2(
   int tid = threadIdx.x;
   __shared__ double s_data[BLOCK_SIZE_EC];
   s_data[tid] = 0.0;
-#pragma unroll
   for (int patch = 0; patch < number_of_patches; ++patch) {
     int n = tid + patch * BLOCK_SIZE_EC;
     if (n < number_of_blocks) {
@@ -576,18 +574,14 @@ void initialize_state(int N, GPU_Vector<double>& sr, GPU_Vector<double>& si)
 
 void LSQT::preprocess(Atom& atom, int number_of_steps, double time_step)
 {
+  if (!compute) {
+    return;
+  }
+
   number_of_atoms = atom.number_of_atoms;
   this->number_of_steps = number_of_steps;
   this->time_step = time_step * 15.46692; // from GPUMD unit to hbar/eV
-  int M = number_of_atoms * 10;           // TODO
-  transport_direction = 1;                // TODO
-  number_of_moments = 1000;               // TODO
-  number_of_energy_points = 1001;         // TODO
-  maximum_energy = 10.1;                  // TODO
-  E.resize(number_of_energy_points);
-  for (int n = 0; n < number_of_energy_points; ++n) {
-    E[n] = (n - (number_of_energy_points - 1) / 2) * 0.02; // TODO
-  }
+  int M = number_of_atoms * 50;           // TODO
 
   cell_count.resize(number_of_atoms);
   cell_count_sum.resize(number_of_atoms);
@@ -612,6 +606,10 @@ void LSQT::preprocess(Atom& atom, int number_of_steps, double time_step)
 
 void LSQT::process(Atom& atom, Box& box, const int step)
 {
+  if (!compute) {
+    return;
+  }
+
   find_neighbor(
     0,
     number_of_atoms,
@@ -800,4 +798,81 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
   }
   fprintf(os_sigma, "\n");
   fclose(os_sigma);
+}
+
+void LSQT::postprocess() { compute = false; };
+
+void LSQT::parse(const char** param, const int num_param)
+{
+  printf("Compute LSQT.\n");
+  compute = true;
+
+  if (num_param < 7) {
+    PRINT_INPUT_ERROR("compute_lsqt should have at least 6 parameters.\n");
+  }
+
+  // transport direction
+  if (strcmp(param[1], "x") == 0) {
+    transport_direction = 1;
+    printf("    transport direction is x.\n");
+  } else if (strcmp(param[1], "y") == 0) {
+    transport_direction = 2;
+    printf("    transport direction is y.\n");
+  } else if (strcmp(param[1], "z") == 0) {
+    transport_direction = 3;
+    printf("    transport direction is z.\n");
+  } else {
+    PRINT_INPUT_ERROR("transport direction should be x or y or z.\n");
+  }
+
+  // number of moments
+  if (!is_valid_int(param[2], &number_of_moments)) {
+    PRINT_INPUT_ERROR("number of moments should be an integer.\n");
+  }
+  if (number_of_moments < 100 || number_of_moments > 10000) {
+    PRINT_INPUT_ERROR("number of moments should >= 100 and <= 10000.\n");
+  }
+  printf("    number of moments is %d.\n", number_of_moments);
+
+  // number of energy points
+  if (!is_valid_int(param[3], &number_of_energy_points)) {
+    PRINT_INPUT_ERROR("number of energy points should be an integer.\n");
+  }
+  if (number_of_energy_points < 100 || number_of_energy_points > 10000) {
+    PRINT_INPUT_ERROR("number of energy points should >= 100 and <= 10000.\n");
+  }
+  printf("    number of energy points is %d.\n", number_of_energy_points);
+
+  // starting energy
+  double start_energy;
+  if (!is_valid_real(param[4], &start_energy)) {
+    PRINT_INPUT_ERROR("starting energy should be a number.\n");
+  }
+  printf("    starting energy is %g eV.\n", start_energy);
+
+  // ending energy
+  double end_energy;
+  if (!is_valid_real(param[5], &end_energy)) {
+    PRINT_INPUT_ERROR("ending energy should be a number.\n");
+  }
+  printf("    ending energy is %g eV.\n", end_energy);
+
+  if (start_energy >= end_energy) {
+    PRINT_INPUT_ERROR("starting energy should < ending energy.\n");
+  }
+
+  // maximum energy
+  if (!is_valid_real(param[6], &maximum_energy)) {
+    PRINT_INPUT_ERROR("maximum energy should be a number.\n");
+  }
+  if (maximum_energy <= std::max(std::abs(start_energy), std::abs(end_energy))) {
+    PRINT_INPUT_ERROR("maximum energy should > max(abs(E_start), abs(E_end)).\n");
+  }
+  printf("    maximum energy is %g eV.\n", maximum_energy);
+
+  E.resize(number_of_energy_points);
+  double delta_energy = (end_energy - start_energy) / (number_of_energy_points - 1);
+  for (int n = 0; n < number_of_energy_points; ++n) {
+    E[n] = start_energy + n * delta_energy;
+  }
 }

@@ -20,12 +20,15 @@ class Box;
 class LSQT
 {
 public:
+  void parse(const char** param, const int num_param);
   void preprocess(Atom& atom, int number_of_steps, double time_step);
   void process(Atom& atom, Box& box, const int step);
+  void postprocess();
   void find_dos_and_velocity(Atom& atom, Box& box);
   void find_sigma(Atom& atom, Box& box, const int step);
 
 private:
+  bool compute;
   int number_of_atoms;
   int transport_direction;
   int number_of_moments;
