@@ -331,21 +331,27 @@ void find_moments_chebyshev(
 
   // T_0(H)
   gpu_copy_state<<<grid_size, BLOCK_SIZE_EC>>>(N, srr, sri, s0r, s0i);
+  CUDA_CHECK_KERNEL
   gpu_find_inner_product_1<<<grid_size, BLOCK_SIZE_EC>>>(
     N, s0r, s0i, slr, sli, moments_tmp, 0 * grid_size);
+  CUDA_CHECK_KERNEL
 
   // T_1(H)
   gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE_EC>>>(
     N, Em_inv, NN, NL, U, Hr, Hi, s0r, s0i, s1r, s1i);
+  CUDA_CHECK_KERNEL
   gpu_find_inner_product_1<<<grid_size, BLOCK_SIZE_EC>>>(
     N, s1r, s1i, slr, sli, moments_tmp, 1 * grid_size);
+  CUDA_CHECK_KERNEL
 
   // T_m(H) (m >= 2)
   for (int m = 2; m < Nm; ++m) {
     gpu_kernel_polynomial<<<grid_size, BLOCK_SIZE_EC>>>(
       N, Em_inv, NN, NL, U, Hr, Hi, s0r, s0i, s1r, s1i, s2r, s2i);
+    CUDA_CHECK_KERNEL
     gpu_find_inner_product_1<<<grid_size, BLOCK_SIZE_EC>>>(
       N, s2r, s2i, slr, sli, moments_tmp, m * grid_size);
+    CUDA_CHECK_KERNEL
     // permute the pointers; do not need to copy the data
     double* temp_real;
     double* temp_imag;
@@ -361,6 +367,7 @@ void find_moments_chebyshev(
 
   gpu_find_inner_product_2<<<Nm, BLOCK_SIZE_EC>>>(
     number_of_blocks, number_of_patches, moments_tmp, moments);
+  CUDA_CHECK_KERNEL
 
   cudaFree(s0r);
   cudaFree(s0i);
@@ -436,16 +443,19 @@ void evolve(
 
   // T_0(H) |psi> = |psi>
   gpu_copy_state<<<grid_size, BLOCK_SIZE_EC>>>(N, sr, si, s0r, s0i);
+  CUDA_CHECK_KERNEL
 
   // T_1(H) |psi> = H |psi>
   gpu_apply_hamiltonian<<<grid_size, BLOCK_SIZE_EC>>>(
     N, Em_inv, NN, NL, U, Hr, Hi, sr, si, s1r, s1i);
+  CUDA_CHECK_KERNEL
 
   // |final_state> = c_0 * T_0(H) |psi> + c_1 * T_1(H) |psi>
   double bessel_0 = j0(time_step_scaled);
   double bessel_1 = 2.0 * j1(time_step_scaled);
   gpu_chebyshev_01<<<grid_size, BLOCK_SIZE_EC>>>(
     N, s0r, s0i, s1r, s1i, sr, si, bessel_0, bessel_1, direction);
+  CUDA_CHECK_KERNEL
 
   for (int m = 2; m < 1000000; ++m) {
     double bessel_m = jn(m, time_step_scaled);
@@ -466,6 +476,7 @@ void evolve(
     }
     gpu_chebyshev_2<<<grid_size, BLOCK_SIZE_EC>>>(
       N, Em_inv, NN, NL, U, Hr, Hi, s0r, s0i, s1r, s1i, s2r, s2i, sr, si, bessel_m, label);
+    CUDA_CHECK_KERNEL
 
     // permute the pointers; do not need to copy the data
     double *temp_real, *temp_imag;
@@ -486,7 +497,7 @@ void evolve(
   cudaFree(s2i);
 }
 
-// set up Hamiltonian and related quantities
+#ifdef USE_GRAPHENE_TB
 __global__ void gpu_initialize_model(
   const Box box,
   const int N,
@@ -533,6 +544,100 @@ __global__ void gpu_initialize_model(
   }
 }
 
+#else
+
+__global__ void gpu_initialize_model(
+  const Box box,
+  const LSQT::TB tb,
+  const int N,
+  const int direction,
+  const double* x,
+  const double* y,
+  const double* z,
+  const int* NN_atom,
+  const int* NL_atom,
+  int* NN,
+  int* NL,
+  double* U,
+  double* Hr,
+  double* Hi,
+  double* xx)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n1 < N) {
+    int neighbor_number = NN_atom[n1];
+    for (int k = 0; k < number_of_orbitals_per_atom; ++k) {
+      NN[n1 + k * N] = neighbor_number * number_of_orbitals_per_atom;
+      U[n1 + k * N] = tb.onsite[k];
+    }
+
+    double x1 = x[n1];
+    double y1 = y[n1];
+    double z1 = z[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = n1 + N * i1;
+      int n2 = NL_atom[index];
+      double x12 = x[n2] - x1;
+      double y12 = y[n2] - y1;
+      double z12 = z[n2] - z1;
+      apply_mic(box, x12, y12, z12);
+      double d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      double s12 = (tb.r0 / d12) * (tb.r0 / d12) *
+                   exp(2.0 * (-pow(d12 / tb.rc, tb.nc) + pow(tb.r0 / tb.rc, tb.nc)));
+
+      double cos_x = x12 / d12;
+      double cos_y = y12 / d12;
+      double cos_z = z12 / d12;
+      double cos_xx = cos_x * cos_x;
+      double cos_yy = cos_y * cos_y;
+      double cos_zz = cos_z * cos_z;
+      double sin_xx = 1.0 - cos_xx;
+      double sin_yy = 1.0 - cos_yy;
+      double sin_zz = 1.0 - cos_zz;
+      double cos_xy = cos_x * cos_y;
+      double cos_yz = cos_y * cos_z;
+      double cos_zx = cos_z * cos_x;
+
+      double H12[number_of_orbitals_per_atom][number_of_orbitals_per_atom];
+      H12[0][0] = tb.v_sss;
+      H12[1][1] = tb.v_pps * cos_xx + tb.v_ppp * sin_xx;
+      H12[2][2] = tb.v_pps * cos_yy + tb.v_ppp * sin_yy;
+      H12[3][3] = tb.v_pps * cos_zz + tb.v_ppp * sin_zz;
+      H12[0][1] = tb.v_sps * cos_x;
+      H12[0][2] = tb.v_sps * cos_y;
+      H12[0][3] = tb.v_sps * cos_z;
+      H12[1][2] = (tb.v_pps - tb.v_ppp) * cos_xy;
+      H12[2][3] = (tb.v_pps - tb.v_ppp) * cos_yz;
+      H12[3][1] = (tb.v_pps - tb.v_ppp) * cos_zx;
+      H12[1][0] = -H12[0][1];
+      H12[2][0] = -H12[0][2];
+      H12[3][0] = -H12[0][3];
+      H12[2][1] = H12[1][2];
+      H12[3][2] = H12[2][3];
+      H12[1][3] = H12[3][1];
+
+      for (int k1 = 0; k1 < number_of_orbitals_per_atom; ++k1) {
+        for (int k2 = 0; k2 < number_of_orbitals_per_atom; ++k2) {
+          int index_orbital =
+            (n1 + k1 * N) + (N * number_of_orbitals_per_atom) * (i1 + k2 * neighbor_number);
+          NL[index_orbital] = n2 + k2 * N;
+          if (direction == 1) {
+            xx[index_orbital] = x12;
+          } else if (direction == 2) {
+            xx[index_orbital] = y12;
+          } else {
+            xx[index_orbital] = z12;
+          }
+
+          Hr[index_orbital] = H12[k1][k2] * s12;
+          Hi[index_orbital] = 0.0;
+        }
+      }
+    }
+  }
+}
+#endif
+
 void find_dos_or_others(
   int N,
   int Nm,
@@ -578,30 +683,36 @@ void LSQT::preprocess(Atom& atom, int number_of_steps, double time_step)
     return;
   }
 
+  const int number_of_neighbors_per_atom = 10; // TODO
+  const int number_of_neighbors_per_orbital =
+    number_of_neighbors_per_atom * number_of_orbitals_per_atom;
+
   number_of_atoms = atom.number_of_atoms;
+  number_of_orbitals = number_of_atoms * number_of_orbitals_per_atom;
   this->number_of_steps = number_of_steps;
   this->time_step = time_step * 15.46692; // from GPUMD unit to hbar/eV
-  int M = number_of_atoms * 50;           // TODO
 
   cell_count.resize(number_of_atoms);
   cell_count_sum.resize(number_of_atoms);
   cell_contents.resize(number_of_atoms);
-  NN.resize(number_of_atoms);
-  NL.resize(M);
+  NN_atom.resize(number_of_atoms);
+  NL_atom.resize(number_of_atoms * number_of_neighbors_per_atom);
+  NN.resize(number_of_orbitals);
+  NL.resize(number_of_orbitals * number_of_neighbors_per_orbital);
 
-  xx.resize(M);
-  Hr.resize(M);
-  Hi.resize(M);
-  U.resize(number_of_atoms);
+  xx.resize(number_of_orbitals * number_of_neighbors_per_orbital);
+  Hr.resize(number_of_orbitals * number_of_neighbors_per_orbital);
+  Hi.resize(number_of_orbitals * number_of_neighbors_per_orbital);
+  U.resize(number_of_orbitals);
 
   sigma.resize(number_of_energy_points);
 
-  slr.resize(number_of_atoms);
-  sli.resize(number_of_atoms);
-  srr.resize(number_of_atoms);
-  sri.resize(number_of_atoms);
-  scr.resize(number_of_atoms);
-  sci.resize(number_of_atoms);
+  slr.resize(number_of_orbitals);
+  sli.resize(number_of_orbitals);
+  srr.resize(number_of_orbitals);
+  sri.resize(number_of_orbitals);
+  scr.resize(number_of_orbitals);
+  sci.resize(number_of_orbitals);
 }
 
 void LSQT::process(Atom& atom, Box& box, const int step)
@@ -620,22 +731,53 @@ void LSQT::process(Atom& atom, Box& box, const int step)
     cell_count,
     cell_count_sum,
     cell_contents,
-    NN,
-    NL);
+    NN_atom,
+    NL_atom);
+
+  /*std::vector<int> NN_atom_cpu(number_of_atoms);
+  NN_atom.copy_to_host(NN_atom_cpu.data());
+  std::vector<int> NL_atom_cpu(NL_atom.size());
+  NL_atom.copy_to_host(NL_atom_cpu.data());
+  for (int n = 0; n < number_of_atoms; ++n) {
+    printf("%d ", NN_atom_cpu[n]);
+    for (int k = 0; k < NN_atom_cpu[n]; ++k) {
+      printf("%d ", NL_atom_cpu[n + k * number_of_atoms]);
+    }
+    printf("\n");
+  }*/
 
   gpu_initialize_model<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box,
+    tb,
     number_of_atoms,
     transport_direction,
     atom.position_per_atom.data(),
     atom.position_per_atom.data() + number_of_atoms,
     atom.position_per_atom.data() + number_of_atoms * 2,
+    NN_atom.data(),
+    NL_atom.data(),
     NN.data(),
     NL.data(),
     U.data(),
     Hr.data(),
     Hi.data(),
     xx.data());
+  CUDA_CHECK_KERNEL
+
+  /*printf("=================================================\n");
+  std::vector<int> NN_cpu(NN.size());
+  NN.copy_to_host(NN_cpu.data());
+  std::vector<int> NL_cpu(NL.size());
+  NL.copy_to_host(NL_cpu.data());
+  for (int n = 0; n < number_of_orbitals; ++n) {
+    printf("%d ", NN_cpu[n]);
+    for (int k = 0; k < NN_cpu[n]; ++k) {
+      printf("%d ", NL_cpu[n + k * number_of_orbitals]);
+    }
+    printf("\n");
+  }
+
+  exit(1);*/
 
   find_dos_and_velocity(atom, box);
   find_sigma(atom, box, step);
@@ -646,16 +788,16 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
   std::vector<double> dos(number_of_energy_points);
   std::vector<double> velocity(number_of_energy_points);
 
-  GPU_Vector<double> sr(number_of_atoms);
-  GPU_Vector<double> si(number_of_atoms);
-  GPU_Vector<double> sxr(number_of_atoms);
-  GPU_Vector<double> sxi(number_of_atoms);
+  GPU_Vector<double> sr(number_of_orbitals);
+  GPU_Vector<double> si(number_of_orbitals);
+  GPU_Vector<double> sxr(number_of_orbitals);
+  GPU_Vector<double> sxi(number_of_orbitals);
 
-  initialize_state(number_of_atoms, sr, si);
+  initialize_state(number_of_orbitals, sr, si);
 
   // dos
   find_dos_or_others(
-    number_of_atoms,
+    number_of_orbitals,
     number_of_moments,
     number_of_energy_points,
     maximum_energy,
@@ -678,8 +820,8 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
   fclose(os_dos);
 
   // velocity
-  gpu_apply_current<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms,
+  gpu_apply_current<<<(number_of_orbitals - 1) / 64 + 1, 64>>>(
+    number_of_orbitals,
     NN.data(),
     NL.data(),
     Hr.data(),
@@ -691,7 +833,7 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
     sxi.data());
 
   find_dos_or_others(
-    number_of_atoms,
+    number_of_orbitals,
     number_of_moments,
     number_of_energy_points,
     maximum_energy,
@@ -720,9 +862,9 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
   double V = box.get_volume();
 
   if (step == 0) {
-    initialize_state(number_of_atoms, slr, sli);
-    gpu_apply_current<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-      number_of_atoms,
+    initialize_state(number_of_orbitals, slr, sli);
+    gpu_apply_current<<<(number_of_orbitals - 1) / 64 + 1, 64>>>(
+      number_of_orbitals,
       NN.data(),
       NL.data(),
       Hr.data(),
@@ -732,9 +874,10 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       sli.data(),
       srr.data(),
       sri.data());
+    CUDA_CHECK_KERNEL
   } else {
     evolve(
-      number_of_atoms,
+      number_of_orbitals,
       maximum_energy,
       -1,
       time_step_scaled,
@@ -747,7 +890,7 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       sli.data());
 
     evolve(
-      number_of_atoms,
+      number_of_orbitals,
       maximum_energy,
       -1,
       time_step_scaled,
@@ -760,8 +903,8 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
       sri.data());
   }
 
-  gpu_apply_current<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
-    number_of_atoms,
+  gpu_apply_current<<<(number_of_orbitals - 1) / 64 + 1, 64>>>(
+    number_of_orbitals,
     NN.data(),
     NL.data(),
     Hr.data(),
@@ -771,11 +914,12 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
     sli.data(),
     scr.data(),
     sci.data());
+  CUDA_CHECK_KERNEL
 
   std::vector<double> vac(number_of_energy_points);
 
   find_dos_or_others(
-    number_of_atoms,
+    number_of_orbitals,
     number_of_moments,
     number_of_energy_points,
     maximum_energy,
