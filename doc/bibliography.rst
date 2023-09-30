@@ -118,6 +118,18 @@ Bibliography
    | Phys. Rev. B **103**, 205421 (2021)
    | DOI: `10.1103/PhysRevB.103.205421 <https://doi.org/10.1103/PhysRevB.103.205421>`_
 
+.. [Grimme2010]
+   | Stefan Grimme, Jens Antony, Stephan Ehrlich, and Helge Krieg
+   | *A consistent and accurate ab initio parametrization of density functional dispersion correction (DFT-D) for the 94 elements H-Pu*
+   | J. Chem. Phys. **132**, 154104 (2010)
+   | DOI: `10.1063/1.3382344 <https://doi.org/10.1063/1.3382344>`_
+
+.. [Grimme2011]
+   | Stefan Grimme, Stephan Ehrlich, and Lars Goerigk
+   | *Effect of the damping function in dispersion corrected density functional theory*
+   | Journal of Computational Chemistry **32**, 1456 (2011)
+   | DOI: `10.1002/jcc.21759 <https://doi.org/10.1002/jcc.21759>`_
+
 .. [Guénolé2020]
    | Julien Guénolé, Wolfram G. Nöhring, Aviral Vaid, Frédéric Houllé, Zhuocheng Xie, Aruna Prakash, and Erik Bitzek
    | *Assessment and optimization of the fast inertial relaxation engine (fire) for energy minimization in atomistic simulations and its implementation in lammps*
