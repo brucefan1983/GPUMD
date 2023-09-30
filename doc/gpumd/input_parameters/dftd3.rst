@@ -14,7 +14,7 @@ Syntax
 
   dftd3 <functional> <potential_cutoff> <coordination_number_cutoff>
 
-where :attr:`functional` is the exchange-correlation functional used in generating the reference data for training the NEP model, :attr:`potential_cutoff` is the cutoff radius (in units of Angstrom) for the D3 potential, :attr:`coordination_number_cutoff` is the cutoff radius (in units of Angstrom) for calculating the coordination numbers. 
+where :attr:`functional` is the exchange-correlation functional used in generating the reference data for training the NEP model, :attr:`potential_cutoff` is the cutoff radius (in units of Angstrom) for the D3 potential, and :attr:`coordination_number_cutoff` is the cutoff radius (in units of Angstrom) for calculating the coordination numbers. 
 
 This keyword can be put anywhere in the ``run.in`` input file.
 
@@ -32,6 +32,6 @@ This will add the DFT-D3 dispersion correction to NEP with the PBE functional an
 Tips
 ----
 
-* It usually requires to test the convergence with respect to the cutoff radii.
+* It usually requires to test the convergence with respect to the cutoff radii, and a balance between accuracy and efficiency must be achieved.
 
 * The user is responsible for not double counting the dispersion correction, i.e., it is not a good idea to add the DFT-D3 correction to a NEP model that has been trained against a dataset containing dispersion correction (no matter what flavor it is).
