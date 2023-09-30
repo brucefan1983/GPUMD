@@ -737,18 +737,6 @@ void LSQT::process(Atom& atom, Box& box, const int step)
     NN_atom,
     NL_atom);
 
-  /*std::vector<int> NN_atom_cpu(number_of_atoms);
-  NN_atom.copy_to_host(NN_atom_cpu.data());
-  std::vector<int> NL_atom_cpu(NL_atom.size());
-  NL_atom.copy_to_host(NL_atom_cpu.data());
-  for (int n = 0; n < number_of_atoms; ++n) {
-    printf("%d ", NN_atom_cpu[n]);
-    for (int k = 0; k < NN_atom_cpu[n]; ++k) {
-      printf("%d ", NL_atom_cpu[n + k * number_of_atoms]);
-    }
-    printf("\n");
-  }*/
-
   gpu_initialize_model<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box,
 #ifndef USE_GRAPHENE_TB
@@ -768,21 +756,6 @@ void LSQT::process(Atom& atom, Box& box, const int step)
     Hi.data(),
     xx.data());
   CUDA_CHECK_KERNEL
-
-  /*printf("=================================================\n");
-  std::vector<int> NN_cpu(NN.size());
-  NN.copy_to_host(NN_cpu.data());
-  std::vector<int> NL_cpu(NL.size());
-  NL.copy_to_host(NL_cpu.data());
-  for (int n = 0; n < number_of_orbitals; ++n) {
-    printf("%d ", NN_cpu[n]);
-    for (int k = 0; k < NN_cpu[n]; ++k) {
-      printf("%d ", NL_cpu[n + k * number_of_orbitals]);
-    }
-    printf("\n");
-  }
-
-  exit(1);*/
 
   find_dos_and_velocity(atom, box);
   find_sigma(atom, box, step);
