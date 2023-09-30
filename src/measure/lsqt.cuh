@@ -20,7 +20,7 @@ class Box;
 // choose between the two models
 // #define USE_GRAPHENE_TB
 #ifdef USE_GRAPHENE_TB
-int number_of_orbitals_per_atom = 1;
+#define number_of_orbitals_per_atom 1
 #else
 #define number_of_orbitals_per_atom 4
 #endif
@@ -28,6 +28,7 @@ int number_of_orbitals_per_atom = 1;
 class LSQT
 {
 public:
+#ifndef USE_GRAPHENE_TB
   struct TB {
     double onsite[number_of_orbitals_per_atom] = {-2.99, 3.71, 3.71, 3.71};
     double v_sss = -5.0;
@@ -38,6 +39,7 @@ public:
     double rc = 2.18;
     double r0 = 1.536329;
   };
+#endif
 
   void parse(const char** param, const int num_param);
   void preprocess(Atom& atom, int number_of_steps, double time_step);
@@ -47,7 +49,9 @@ public:
   void find_sigma(Atom& atom, Box& box, const int step);
 
 private:
+#ifndef USE_GRAPHENE_TB
   TB tb;
+#endif
   bool compute = false;
   int number_of_atoms;
   int number_of_orbitals;

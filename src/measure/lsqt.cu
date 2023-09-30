@@ -505,8 +505,10 @@ __global__ void gpu_initialize_model(
   const double* x,
   const double* y,
   const double* z,
-  const int* NN,
-  const int* NL,
+  const int* NN_atom,
+  const int* NL_atom,
+  int* NN,
+  int* NL,
   double* U,
   double* Hr,
   double* Hi,
@@ -514,13 +516,15 @@ __global__ void gpu_initialize_model(
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
-    int neighbor_number = NN[n1];
+    int neighbor_number = NN_atom[n1];
+    NN[n1] = neighbor_number;
     double x1 = x[n1];
     double y1 = y[n1];
     double z1 = z[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + N * i1;
-      int n2 = NL[index];
+      int n2 = NL_atom[index];
+      NL[index] = n2;
       double x12 = x[n2] - x1;
       double y12 = y[n2] - y1;
       double z12 = z[n2] - z1;
@@ -536,11 +540,10 @@ __global__ void gpu_initialize_model(
       if (direction == 3) {
         xx[index] = z12;
       }
-      // Hr[index] = -2.5; // test
-      Hr[index] = -2.7 * 1.44 * 1.44 / (d12 * d12); // a CNT model
-      Hi[index] = 0.0;                              // may be used in the future
+      Hr[index] = -2.7 * 1.44 * 1.44 / (d12 * d12);
+      Hi[index] = 0.0;
     }
-    U[n1] = 0.0; // may be used in the future
+    U[n1] = 0.0;
   }
 }
 
@@ -748,7 +751,9 @@ void LSQT::process(Atom& atom, Box& box, const int step)
 
   gpu_initialize_model<<<(number_of_atoms - 1) / 64 + 1, 64>>>(
     box,
+#ifndef USE_GRAPHENE_TB
     tb,
+#endif
     number_of_atoms,
     transport_direction,
     atom.position_per_atom.data(),
@@ -815,7 +820,7 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
 
   FILE* os_dos = my_fopen("lsqt_dos.out", "a");
   for (int n = 0; n < number_of_energy_points; ++n)
-    fprintf(os_dos, "%25.15e", dos[n] / number_of_atoms);
+    fprintf(os_dos, "%25.15e", dos[n] / number_of_atoms); // state/eV/atom
   fprintf(os_dos, "\n");
   fclose(os_dos);
 
@@ -850,8 +855,9 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
     velocity.data());
 
   FILE* os_vel = my_fopen("lsqt_velocity.out", "a");
+  const double m_per_s_conversion = 1.60217663e6 / 1.054571817;
   for (int n = 0; n < number_of_energy_points; ++n)
-    fprintf(os_vel, "%25.15e", sqrt(velocity[n] / dos[n]));
+    fprintf(os_vel, "%25.15e", sqrt(velocity[n] / dos[n]) * m_per_s_conversion);
   fprintf(os_vel, "\n");
   fclose(os_vel);
 }
@@ -936,9 +942,10 @@ void LSQT::find_sigma(Atom& atom, Box& box, const int step)
     vac.data());
 
   FILE* os_sigma = my_fopen("lsqt_sigma.out", "a");
+  const double S_per_m_conversion = 7.748091729e5 * PI;
   for (int n = 0; n < number_of_energy_points; ++n) {
     sigma[n] += vac[n] * time_step / V;
-    fprintf(os_sigma, "%25.15e", sigma[n]);
+    fprintf(os_sigma, "%25.15e", sigma[n] * S_per_m_conversion);
   }
   fprintf(os_sigma, "\n");
   fclose(os_sigma);
