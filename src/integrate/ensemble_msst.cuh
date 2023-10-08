@@ -56,6 +56,8 @@ public:
   double p0;
   double v0;
   double e0;
+  double p_current;
+  double dhugo, dray;
   double tscale = 0;
   double lagrangian_position = 0;
   double lagrangian_velocity;

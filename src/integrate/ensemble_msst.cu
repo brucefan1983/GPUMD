@@ -159,6 +159,7 @@ void Ensemble_MSST::find_thermo()
   ke = 1.5 * kB * N * thermo_cpu[0];
   etotal = ke + thermo_cpu[1];
   vol = box->get_volume();
+  p_current = thermo_cpu[shock_direction + 2];
 }
 
 void Ensemble_MSST::init()
@@ -170,7 +171,7 @@ void Ensemble_MSST::init()
   find_thermo();
   v0 = vol;
   e0 = etotal;
-  p0 = thermo_cpu[shock_direction + 2];
+  p0 = p_current;
   printf("    MSST V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 
   // compute total mass
@@ -208,18 +209,25 @@ void Ensemble_MSST::get_conserved()
 
   // compute msst energy
   e_msst = 0.5 * qmass * omega * omega / total_mass;
-  e_msst -= 0.5 * omega * vs * vs * (1.0 - vol / v0) * (1.0 - vol / v0);
+  e_msst -= 0.5 * total_mass * vs * vs * (1.0 - vol / v0) * (1.0 - vol / v0);
   e_msst -= p0 * (v0 - vol);
 
   // conserved quantity
   e_conserved = etotal + e_msst;
+
+  dhugo = (0.5 * (p_current + p0) * (v0 - vol)) + e0 - etotal;
+  dray = p_current - p0 - total_mass * vs * vs * (1.0 - vol / v0) / v0;
+
+  e_conserved /= N;
+  dhugo /= 3 * N * kB;
+  dray *= PRESSURE_UNIT_CONVERSION;
 }
 
 void Ensemble_MSST::get_omega()
 {
   // propagate the time derivative of the volume 1/2 step at fixed vol, r, rdot
   double p_msst = vs * vs * total_mass * (v0 - vol) / (v0 * v0);
-  double A = total_mass * (thermo_cpu[shock_direction + 2] - p0 - p_msst) / qmass;
+  double A = total_mass * (p_current - p0 - p_msst) / qmass;
   double B = total_mass * mu / (qmass * vol);
 
   // prevent blow-up of the volume
@@ -288,6 +296,14 @@ void Ensemble_MSST::compute1(
 
   // rescale positions and change box size
   remap(vol2 / vol1);
+
+  if (*current_step == 0 || *current_step % (*total_steps / 10) == 0) {
+    printf(
+      "    MSST conserved energy: %f eV/atom, dHugoniot: %f K, dRayleigh: %f GPa\n",
+      e_conserved,
+      dhugo,
+      dray);
+  }
 }
 
 void Ensemble_MSST::compute2(
