@@ -127,7 +127,6 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
       PRINT_INPUT_ERROR("Invalid tscale value.");
     }
   }
-  // TODO: print summary
   printf(
     "Performing MSST simulation in direction %d with shock velocity = %f, qmass = %f, mu = %f\n",
     shock_direction,
