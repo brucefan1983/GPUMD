@@ -18,12 +18,10 @@ The NVE ensemble integrator.
 ------------------------------------------------------------------------------*/
 
 #include "ensemble_msst.cuh"
-#include "utilities/common.cuh"
-#define DIM 3
 
 namespace
 {
-static __global__ void gpu_v2_sum(const int N, const double* g_vector, double* g_scalar)
+static __global__ void gpu_get_vsum(const int N, const double* g_vector, double* g_scalar)
 {
   //<<<1, 1024>>>
   int tid = threadIdx.x;
@@ -54,29 +52,26 @@ static __global__ void gpu_v2_sum(const int N, const double* g_vector, double* g
   }
 }
 
-static __global__ void gpu_fun_1(
+static __global__ void gpu_msst_v(
   const int N,
-  const double* g_fx,
-  const double* g_fy,
-  const double* g_fz,
+  const double* g_f,
+  double* g_velocity,
   const double* g_mass,
   const double mu,
   const int shock_direction,
-  const double* g_omega,
-  const double* velocity_sum,
+  const double omega,
+  const double vsum,
   const double volume,
-  double* g_velocity,
   double dthalf)
 {
   const int n = threadIdx.x + blockIdx.x * blockDim.x;
   if (n < N) {
     double mass = g_mass[n];
     double mass_inv = 1.0 / mass;
-    double C[3] = {g_fx[n] * mass_inv, g_fy[n] * mass_inv, g_fz[n] * mass_inv};
-    const double tmp =
-      g_omega[shock_direction] * g_omega[shock_direction] * mu / (velocity_sum[0] * mass * volume);
+    double C[3] = {g_f[n] * mass_inv, g_f[n + N] * mass_inv, g_f[n + 2 * N] * mass_inv};
+    const double tmp = omega * omega * mu / (vsum * mass * volume);
     double D[3] = {tmp, tmp, tmp};
-    D[shock_direction] -= 2.0 * g_omega[shock_direction] / volume;
+    D[shock_direction] -= 2.0 * omega / volume;
     for (int i = 0; i < 3; i++) {
       if (fabs(dthalf * D[i]) > 1.0e-06) {
         const double expd = exp(D[i] * dthalf);
@@ -120,8 +115,9 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
   } else {
     PRINT_INPUT_ERROR("Shock direction should be x or y or z.");
   }
-  if (!is_valid_real(params[3], &shockvel))
+  if (!is_valid_real(params[3], &vs))
     PRINT_INPUT_ERROR("Invalid shock velocity value.");
+
   if (!is_valid_real(params[5], &qmass))
     PRINT_INPUT_ERROR("Invalid qmass value.");
   if (!is_valid_real(params[7], &mu))
@@ -132,8 +128,15 @@ Ensemble_MSST::Ensemble_MSST(const char** params, int num_params)
     }
   }
   // TODO: print summary
-
-  dilation = 1.0;
+  printf(
+    "Performing MSST simulation in direction %d with shock velocity = %f, qmass = %f, mu = %f\n",
+    shock_direction,
+    vs,
+    qmass,
+    mu);
+  vs *= 0.01;
+  vs *= TIME_UNIT_CONVERSION;
+  gpu_vsum.resize(1);
 }
 
 Ensemble_MSST::~Ensemble_MSST(void)
@@ -155,6 +158,7 @@ void Ensemble_MSST::find_thermo()
   thermo->copy_to_host(thermo_cpu.data());
   ke = 1.5 * kB * N * thermo_cpu[0];
   etotal = ke + thermo_cpu[1];
+  vol = box->get_volume();
 }
 
 void Ensemble_MSST::init()
@@ -162,74 +166,64 @@ void Ensemble_MSST::init()
   N = atom->number_of_atoms;
   dthalf = time_step / 2;
   thermo_cpu.resize(thermo->size());
+  cpu_old_velocity.resize(atom->velocity_per_atom.size());
   find_thermo();
-  v0 = box->get_volume();
+  v0 = vol;
   e0 = etotal;
-  p0 = thermo_cpu[shock_direction + 4];
+  p0 = thermo_cpu[shock_direction + 2];
   printf("    MSST V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
-
-  lagrangian_position = 0.0;
 
   // compute total mass
   for (int i = 0; i < atom->cpu_mass.size(); i++)
     total_mass += atom->cpu_mass[i];
 
-  double sqrt_initial_temperature_scaling = sqrt(1.0 - tscale);
-  double fac1 = tscale * total_mass / qmass * thermo_cpu[0];
-  omega = -1 * sqrt(fac1);
-  double fac2 = omega / v0;
+  omega = -sqrt(tscale * total_mass / qmass * ke);
 
-  scale_velocity_global(sqrt_initial_temperature_scaling, velocity_per_atom);
-  /*gpu_scale_velocity<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
-    number_of_atoms, fac2, velocity_per_atom.data(), velocity_per_atom.data() + number_of_atoms,
-    velocity_per_atom.data() + 2 * number_of_atoms);
-  CUDA_CHECK_KERNEL*/
+  scale_velocity_global(sqrt(1.0 - tscale), atom->velocity_per_atom);
+
+  printf("    Initial strain rate %f, reduce temperature by %f\n", omega / v0, tscale);
 }
 
 void Ensemble_MSST::get_vsum()
 {
-  GPU_Vector<double> v2sum;
-  v2sum.resize(1);
-  gpu_v2_sum<<<1, 1024>>>(N, atom->velocity_per_atom.data(), ret.data());
-  v2sum.copy_to_host(&vsum);
+  gpu_get_vsum<<<1, 1024>>>(N, atom->velocity_per_atom.data(), gpu_vsum.data());
+  gpu_vsum.copy_to_host(&vsum);
 }
 
-void Ensemble_MSST::remap()
+void Ensemble_MSST::remap(double dilation)
 {
   box->cpu_h[shock_direction] *= dilation;
   box->cpu_h[shock_direction + 3] = 0.5 * box->cpu_h[shock_direction];
   gpu_remap<<<(N - 1) / 128 + 1, 128>>>(
     N,
     dilation,
-    position_per_atom.data() + shock_direction * N,
-    velocity_per_atom.data() + shock_direction * N);
+    atom->position_per_atom.data() + shock_direction * N,
+    atom->velocity_per_atom.data() + shock_direction * N);
   CUDA_CHECK_KERNEL
 }
 
-void Ensemble_MSST::get_e_scale()
+void Ensemble_MSST::get_conserved()
 {
   find_thermo();
-  double volume = box->get_volume();
 
-  // compute scalar
-  double scalar = qmass * omega * omega / (2.0 * total_mass) -
-                  0.5 * omega * shockvel * shockvel * (1.0 - volume / v0) * (1.0 - volume / v0) -
-                  p0 * (v0 - volume);
+  // compute msst energy
+  e_msst = 0.5 * qmass * omega * omega / total_mass;
+  e_msst -= 0.5 * omega * vs * vs * (1.0 - vol / v0) * (1.0 - vol / v0);
+  e_msst -= p0 * (v0 - vol);
 
   // conserved quantity
-  double e_scale = etotal + scalar;
+  e_conserved = etotal + e_msst;
 }
 
 void Ensemble_MSST::get_omega()
 {
-  double volume = box->get_volume();
   // propagate the time derivative of the volume 1/2 step at fixed vol, r, rdot
-  double p_msst = shockvel * shockvel * total_mass * (v0 - volume) / (v0 * v0);
+  double p_msst = vs * vs * total_mass * (v0 - vol) / (v0 * v0);
   double A = total_mass * (thermo_cpu[shock_direction + 2] - p0 - p_msst) / qmass;
-  double B = total_mass * mu / (qmass * volume);
+  double B = total_mass * mu / (qmass * vol);
 
   // prevent blow-up of the volume
-  if (volume > v0 && A > 0.0)
+  if (vol > v0 && A > 0.0)
     A = -A;
 
   // use Taylor expansion to avoid singularity at B = 0
@@ -239,66 +233,53 @@ void Ensemble_MSST::get_omega()
     omega = omega + (A - B * omega) * dthalf + 0.5 * (B * B * omega - A * B) * dthalf * dthalf;
 }
 
+void Ensemble_MSST::msst_v()
+{
+  // propagate particle velocities 1/2 step
+  gpu_msst_v<<<(N - 1) / 128 + 1, 128>>>(
+    N,
+    atom->force_per_atom.data(),
+    atom->velocity_per_atom.data(),
+    atom->mass.data(),
+    mu,
+    shock_direction,
+    omega,
+    vsum,
+    vol,
+    dthalf);
+}
+
 void Ensemble_MSST::compute1(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
+  if (*current_step == 0)
+    init();
 
-  get_e_scale();
+  get_conserved();
   get_omega();
 
-  // propagate velocity sum 1/2 step by temporarily propagating the velocities
   get_vsum();
+  atom.velocity_per_atom.copy_to_host(cpu_old_velocity.data());
 
-  std::vector<double> cpu_old_velocity(velocity_per_atom.size());
-  velocity_per_atom.copy_to_host(cpu_old_velocity.data());
-  gpu_fun_1<<<(N - 1) / 128 + 1, 128>>>(
-    N,
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + 2 * N,
-    mass.data(),
-    mu,
-    shock_direction,
-    omega,
-    velocity_sum,
-    volume,
-    velocity_per_atom.data(),
-    dthalf);
+  // propagate velocity sum 1/2 step by temporarily propagating the velocities
+  msst_v();
   get_vsum();
 
   // reset the velocities
-  velocity_per_atom.copy_from_host(cpu_old_velocity.data());
+  atom.velocity_per_atom.copy_from_host(cpu_old_velocity.data());
 
   // propagate velocities 1/2 step using the new velocity sum
-  gpu_fun_1<<<(N - 1) / 128 + 1, 128>>>(
-    N,
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + 2 * N,
-    mass.data(),
-    mu,
-    shock_direction,
-    omega,
-    velocity_sum,
-    volume,
-    velocity_per_atom.data(),
-    dthalf);
+  msst_v();
 
   // propagate the volume 1/2 step
-  double vol1 = volume + omega * dthalf;
+  double vol1 = vol + omega * dthalf;
 
   // rescale positions and change box size
-  dilation = vol1 / volume;
-  remap(N, box, position_per_atom, velocity_per_atom);
+  remap(vol1 / vol);
 
   velocity_verlet_x();
 
@@ -306,53 +287,22 @@ void Ensemble_MSST::compute1(
   double vol2 = vol1 + omega * dthalf;
 
   // rescale positions and change box size
-  dilation = vol2 / vol1;
-  remap(N, box, position_per_atom, velocity_per_atom);
+  remap(vol2 / vol1);
 }
 
 void Ensemble_MSST::compute2(
   const double time_step,
   const std::vector<Group>& group,
-  const GPU_Vector<double>& mass,
-  const GPU_Vector<double>& potential_per_atom,
-  const GPU_Vector<double>& force_per_atom,
-  const GPU_Vector<double>& virial_per_atom,
   Box& box,
-  GPU_Vector<double>& position_per_atom,
-  GPU_Vector<double>& velocity_per_atom,
+  Atom& atom,
   GPU_Vector<double>& thermo)
 {
-
-  get_e_scale();
-
-  // propagate particle velocities 1/2 step
-  gpu_fun_1<<<(N - 1) / 128 + 1, 128>>>(
-    N,
-    force_per_atom.data(),
-    force_per_atom.data() + N,
-    force_per_atom.data() + 2 * N,
-    mass.data(),
-    mu,
-    shock_direction,
-    omega,
-    velocity_sum,
-    volume,
-    velocity_per_atom.data(),
-    dthalf);
-
-  // compute new pressure and volume
+  get_conserved();
+  msst_v();
   find_thermo();
-  // GPU_Vector<double> velocity_sum;
-  // velocity_sum.resize(1);
-
   get_vsum();
   get_omega();
 
   // calculate Lagrangian position of computational cell
-  lagrangian_position -= shockvel * volume / v0 * time_step;
-
-  // velocity_verlet(
-  //   false, time_step, group, mass, force_per_atom, position_per_atom, velocity_per_atom);
-
-  find_thermo();
+  lagrangian_position -= vs * vol / v0 * time_step;
 }

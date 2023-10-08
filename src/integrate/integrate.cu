@@ -21,6 +21,7 @@ The driver class for the various integrators.
 #include "ensemble_bdp.cuh"
 #include "ensemble_ber.cuh"
 #include "ensemble_lan.cuh"
+#include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
 #include "ensemble_npt_scr.cuh"
@@ -37,7 +38,7 @@ void Integrate::initialize(
   Box& box,
   std::vector<Group>& group,
   GPU_Vector<double>& thermo,
-  int &total_steps)
+  int& total_steps)
 {
   this->total_steps = total_steps;
   int number_of_atoms = atom.number_of_atoms;
@@ -116,6 +117,8 @@ void Integrate::initialize(
       break;
     case 20: // NPT-NH
       // I creat the object elsewhere.
+      break;
+    case -1: // msst
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -380,6 +383,9 @@ void Integrate::parse_ensemble(
     if (num_param != 6 && num_param != 9 && num_param != 13 && num_param != 19) {
       PRINT_INPUT_ERROR("ensemble pimd should have 4 or 7 or 11 or 17 parameters.");
     }
+  } else if (strcmp(param[1], "msst") == 0) {
+    type = -1;
+    ensemble.reset(new Ensemble_MSST(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -801,6 +807,8 @@ void Integrate::parse_ensemble(
       }
       break;
     case 20:
+      break;
+    case -1:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

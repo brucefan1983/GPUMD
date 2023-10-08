@@ -28,52 +28,46 @@ public:
   virtual void compute1(
     const double time_step,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo);
 
   virtual void compute2(
     const double time_step,
     const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    const GPU_Vector<double>& potential_per_atom,
-    const GPU_Vector<double>& force_per_atom,
-    const GPU_Vector<double>& virial_per_atom,
     Box& box,
-    GPU_Vector<double>& position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
+    Atom& atom,
     GPU_Vector<double>& thermo);
 
-  void remap();
+  void remap(double);
   void init();
   void find_thermo();
   void get_omega();
-  void get_e_scale();
+  void get_conserved();
   void get_vsum();
+  void msst_v();
 
   int N;
   int shock_direction;
   double dthalf;
-  double shockvel;
+  double vs;
   double qmass;
   double mu;
   double p0;
   double v0;
   double e0;
   double tscale = 0;
-  double lagrangian_position;
+  double lagrangian_position = 0;
   double lagrangian_velocity;
   double omega;
   double total_mass = 0;
   double etotal;
-  double dilation;
   double vsum;
   double ke, temperature;
+  double e_conserved, e_msst;
+  double vol;
   std::vector<double> thermo_cpu;
   const double kB = 8.617333262e-5;
+  GPU_Vector<double> gpu_vsum;
+  std::vector<double> cpu_old_velocity;
 };
