@@ -166,7 +166,7 @@ void Ensemble_MSST::init()
   N = atom->number_of_atoms;
   dthalf = time_step / 2;
   thermo_cpu.resize(thermo->size());
-  cpu_old_velocity.resize(atom->velocity_per_atom.size());
+  gpu_v_backup.resize(atom->cpu_velocity_per_atom.size());
   find_thermo();
   v0 = vol;
   e0 = etotal;
@@ -270,14 +270,22 @@ void Ensemble_MSST::compute1(
   get_omega();
 
   get_vsum();
-  atom.velocity_per_atom.copy_to_host(cpu_old_velocity.data());
+  CHECK(cudaMemcpy(
+    gpu_v_backup.data(),
+    atom.velocity_per_atom.data(),
+    sizeof(double) * gpu_v_backup.size(),
+    cudaMemcpyDeviceToDevice));
 
   // propagate velocity sum 1/2 step by temporarily propagating the velocities
   msst_v();
   get_vsum();
 
   // reset the velocities
-  atom.velocity_per_atom.copy_from_host(cpu_old_velocity.data());
+  CHECK(cudaMemcpy(
+    atom.velocity_per_atom.data(),
+    gpu_v_backup.data(),
+    sizeof(double) * gpu_v_backup.size(),
+    cudaMemcpyDeviceToDevice));
 
   // propagate velocities 1/2 step using the new velocity sum
   msst_v();

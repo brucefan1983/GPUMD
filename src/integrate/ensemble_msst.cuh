@@ -68,8 +68,8 @@ public:
   double ke, temperature;
   double e_conserved, e_msst;
   double vol;
-  std::vector<double> thermo_cpu;
   const double kB = 8.617333262e-5;
+  std::vector<double> thermo_cpu;
   GPU_Vector<double> gpu_vsum;
-  std::vector<double> cpu_old_velocity;
+  GPU_Vector<double> gpu_v_backup;
 };
