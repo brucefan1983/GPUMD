@@ -14,8 +14,8 @@ The parameters can be specified as follows::
 
 - :attr:`<direction>`: The direction of the shock wave. It can be ``x``, ``y``, or ``z``.
 - :attr:`<shock_velocity>`: The shock velocity of the shock wave in km/s.
-- :attr:`<qmass_value>`: The mass of the simulation cell. It affects the compression speed.
-- :attr:`<mu_value>`: The artificial viscosity. It improves convergence.
+- :attr:`<qmass_value>`: The mass of the simulation cell. It affects the compression speed. Its unit is :math:`\frac{mass^2}{distance^4}`.
+- :attr:`<mu_value>`: The artificial viscosity. It improves convergence. Its unit is :math:`\frac{mass}{length \times time}`.
 - :attr:`<tscale>`: The ratio of kinetic energy that turns into cell kinetic energy. This helps speed up the simulation. This keyword is optional, and the default value is ``0``.
 
 Example
