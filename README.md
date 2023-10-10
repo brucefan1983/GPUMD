@@ -84,6 +84,7 @@ https://www.freelists.org/list/gpumd
 | [6]                   | force constant potential (FCP) |
 | [7-9]                 | neuroevolution potential (NEP) |
 | [10]                  | NEP + ZBL |
+| [11]                  | MSST integrator for shock wave simulation |
 
 ## References
 
@@ -109,5 +110,10 @@ Phys. Rev. B **103**, 205421 (2021).
 [GPUMD: A package for constructing accurate machine-learned potentials and performing highly efficient atomistic simulations](https://doi.org/10.1063/5.0106617), The Journal of Chemical Physics **157**, 114801 (2022).
 
 [10] Jiahui Liu, Jesper Byggmästar, Zheyong Fan, Ping Qian, and Yanjing Su,
-[Large-scale machine-learning molecular dynamics simulation of primary radiation damage in tungsten](https://doi.org/10.1103/PhysRevB.108.054312)
+[Large-scale machine-learning molecular dynamics simulation of primary radiation damage in tungsten](https://doi.org/10.1103/PhysRevB.108.054312),
 Phys. Rev. B **108**, 054312 (2023).
+
+[11] Jiuyang Shi, Zhixing Liang, Junjie Wang, Shuning Pan, Chi Ding, Yong Wang, Hui-Tian Wang, Dingyu Xing, and Jian Sun,
+[Double-Shock Compression Pathways from Diamond to BC8 Carbon](https://doi.org/10.1103/PhysRevLett.131.146101),
+Phys. Rev. Lett. **131**, 146101 (2023).
+
