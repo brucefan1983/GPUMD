@@ -172,6 +172,12 @@ Bibliography
    | Journal of Applied Physics, **52**, 7182-7190 (1981)
    | DOI: `10.1063/1.328693 <https://doi.org/10.1063/1.328693>`
 
+.. [Reed2003]
+   | Evan J. Reed, Laurence E. Fried, and J. D. Joannopoulos
+   | *A Method for Tractable Dynamical Studies of Single and Double Shock Compression*
+   | Phys. Rev. Lett. **90**, 235503 (2003)
+   | DOI: `10.1103/PhysRevLett.90.235503 <https://link.aps.org/doi/10.1103/PhysRevLett.90.235503>`_
+
 .. [Rossi2014]
    | Mariana Rossi, Michele Ceriotti, and David E. Manolopoulos
    | *How to remove the spurious resonances from ring polymer molecular dynamics*
