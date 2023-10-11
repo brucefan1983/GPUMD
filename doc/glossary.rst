@@ -53,6 +53,9 @@ Glossary
    MSD
         mean square displacement
 
+   MSST
+        :ref:`Multi-scale shock technique <msst>` [Reed2003]_
+
    MTTK
         :ref:`Martyna-Tuckerman-Tobias-Klein integrator <mttk>` [Martyna1994]_
 
