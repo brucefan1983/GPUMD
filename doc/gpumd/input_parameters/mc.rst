@@ -5,18 +5,76 @@
 :attr:`mc`
 ==========
 
-This keyword is used to invoke the monte carlo (MC) simulation, usually in combination with the MD simulation. 
-Three MC ensembles are supported, including the canonical, the semi-grand canonical (SGC), and the variance-constrained semi-grand canonical (VCSGC) [CITE] ones. 
+The :attr:`mc` keyword is used to invoke monte carlo (:term:`MC`) simulation, usually in combination with :term:`MD` simulation. 
+Three :term:`MC` ensembles are supported, including the canonical, the semi-grand canonical (:term:`SGC`), and the variance-constrained semi-grand canonical (:term:`VCSGC`) [Sadigh2012a]_ [Sadigh2012b]_ ones. 
+
+This keyword can only be used when the potential is :term:`NEP`.
 
 Syntax
 ------
 
-- SGC ensemble:
+:attr:`canonical`
+^^^^^^^^^^^^^^^^^
+If the first parameter is :attr:`canonical`, it means to use the canonical :term:`MC` ensemble.
 
-  mc sgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {species_0 mu_0 species_1 mu_1 ...} [group <grouping_method>  <group_id>]
+It can be used in the following way::
+
+    mc canonical <md_steps> <mc_trials> <T_i> <T_f> [group <grouping_method> <group_id>]
+
+:attr:`sgc`
+^^^^^^^^^^^
+If the first parameter is :attr:`sgc`, it means to use the :term:`SGC` :term:`MC` ensemble.
+
+It can be used in the following way::
+
+    mc sgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {species_0 mu_0 species_1 mu_1 ...} [group <grouping_method>  <group_id>]
+
+:attr:`vcsgc`
+^^^^^^^^^^^
+If the first parameter is :attr:`vcsgc`, it means to use the :term:`VCSGC` :term:`MC` ensemble.
+
+It can be used in the following way::
+
+    mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {species_0 phi_0 species_1 phi_1 ...} kappa [group <grouping_method>  <group_id>]
+
+* :attr:`mc_trials`: :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps.
+
+* The instant temperature for the :term:`MC` ensemble will linearly change from attr:`T_i` to attr:`T_f`.
+
+* :attr:`num_species` is the number of species to be involved in the :term:`SGC` or :term:`	VCSGC` ensemble. 
+It is required to be no less than 2 and no larger than 4.
+
+* For the :term:`SGC` ensemble, after specifying the number of species to be involved, the chemical symbols and chemical potentials for these species should be listed, in an arbitrary order.
+
+* For the :term:`VCSGC` ensemble, after specifying the number of species to be involved, the chemical symbols and (dimensionless) :math:`\phi` parameters for these species should be listed, in an arbitrary order. 
+One then needs to specify the (dimensionless) :math:`\kappa` parameter.
+The :math:`\phi` and :math:`\kappa` parameters constrain the average and variance of the species concentrations, respectively.
+(Do we need to cite papers for the exact definitions of these parameters?)
+
+* The listed species must be supported by the :term:`NEP` model.
+
+* For all the :term:`MC` ensembles, there is an option to specify the grouping method :atrr:`grouping_method` and the group ID :atrr:`group_id` in the given grouping method, after the parameter :atrr:`group`. See the examples below for concrete illustrations.
+
+* There must have at least one listed species in the initial model system or specified group. 
+For example, if you list Au and Cu for doing :term:`SGC` :term:`MC`, the system/group must have some Au or Cu atoms (or both); otherwise the :term:`MC` trail cannot get started.
+
+Example 1
+---------
+
+An example for using the canonical :term:`MC` ensemble is
   
-- VCSGC ensemble:
+  ensemble nvt_lan 300 300 100
+  # other keywords for the run
+  mc canonical 100 200 500 100 group 1 3
+  run 1000000
 
-  mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {species_0 phi_0 species_1 phi_1 ...} kappa [group <grouping_method>  <group_id>]
-  
+This means that
 
+* Will perform 200 :term:`MC` trials after every 100 :term:`MD` steps.
+* The temperature for the :term:`MC` ensemble will be linearly changed from 500 to 300 K, even though the temperature for the :term:`MD` ensemble is kept to be 300 K.
+* Only the atom in group 3 of grouping method 1 will be involved in the :term:`MC` process. 
+
+Example 2
+---------
+
+TODO

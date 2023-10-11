@@ -47,6 +47,9 @@ Glossary
    LJ
         :ref:`Lennard-Jones <lennard_jones_potential>` potential
 
+   MC
+        Monte Carlo
+
    MD
         molecular dynamics
 
@@ -89,6 +92,9 @@ Glossary
    SDC
         self-diffusion coefficient
 
+   SGC
+        semi-grand canonical
+
    SHC
         spectral heat current
 
@@ -103,6 +109,9 @@ Glossary
 
    VAC
         velocity auto-correlation
+
+   VCSGC
+        variance-constrained semi-grand canonical [Sadigh2012a]_ [Sadigh2012b]_
 
    ZBL
         universal potential by Ziegler, Biersack, and Littmark [Ziegler1985]_

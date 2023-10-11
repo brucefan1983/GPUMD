@@ -177,6 +177,18 @@ Bibliography
    | *How to remove the spurious resonances from ring polymer molecular dynamics*
    | J. Chem. Phys. **140**, 234116 (2014)
    | DOI: `10.1063/1.4883861 <https://doi.org/10.1063/1.4883861>`_
+   
+.. [Sadigh2012a]
+   | Babak Sadigh, Paul Erhart, Alexander Stukowski, Alfredo Caro, Enrique Martinez, and Luis Zepeda-Ruiz
+   | *Scalable parallel Monte Carlo algorithm for atomistic simulations of precipitation in alloys*
+   | Phys. Rev. B **85**, 184203 (2012)
+   | DOI: `10.1103/PhysRevB.85.184203 <https://doi.org/10.1103/PhysRevB.85.184203>`_
+
+.. [Sadigh2012b]
+   | Babak Sadigh and Paul Erhart
+   | *Calculation of excess free energies of precipitates via direct thermodynamic integration across phase boundaries*
+   | Phys. Rev. B **86**, 134204 (2012)
+   | DOI: `10.1103/PhysRevB.86.134204 <https://doi.org/10.1103/PhysRevB.86.134204>`_
 
 .. [Schaul2011]
    | T. Schaul, T. Glasmachers, and J. Schmidhuber
