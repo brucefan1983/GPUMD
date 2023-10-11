@@ -37,26 +37,21 @@ It can be used in the following way::
 
     mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {species_0 phi_0 species_1 phi_1 ...} kappa [group <grouping_method>  <group_id>]
 
-* :attr:`mc_trials`: :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps.
+* :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps.
 
 * The instant temperature for the :term:`MC` ensemble will linearly change from attr:`T_i` to attr:`T_f`.
 
-* :attr:`num_species` is the number of species to be involved in the :term:`SGC` or :term:`	VCSGC` ensemble. 
-It is required to be no less than 2 and no larger than 4.
+* :attr:`num_species` is the number of species to be involved in the :term:`SGC` or :term:`VCSGC` ensemble. It is required to be no less than 2 and no larger than 4.
 
 * For the :term:`SGC` ensemble, after specifying the number of species to be involved, the chemical symbols and chemical potentials for these species should be listed, in an arbitrary order.
 
-* For the :term:`VCSGC` ensemble, after specifying the number of species to be involved, the chemical symbols and (dimensionless) :math:`\phi` parameters for these species should be listed, in an arbitrary order. 
-One then needs to specify the (dimensionless) :math:`\kappa` parameter.
-The :math:`\phi` and :math:`\kappa` parameters constrain the average and variance of the species concentrations, respectively.
-(Do we need to cite papers for the exact definitions of these parameters?)
+* For the :term:`VCSGC` ensemble, after specifying the number of species to be involved, the chemical symbols and (dimensionless) :math:`\phi` parameters for these species should be listed, in an arbitrary order. One then needs to specify the (dimensionless) :math:`\kappa` parameter. The :math:`\phi` and :math:`\kappa` parameters constrain the average and variance of the species concentrations, respectively. (Do we need to cite papers for the exact definitions of these parameters?)
 
 * The listed species must be supported by the :term:`NEP` model.
 
 * For all the :term:`MC` ensembles, there is an option to specify the grouping method :atrr:`grouping_method` and the group ID :atrr:`group_id` in the given grouping method, after the parameter :atrr:`group`. See the examples below for concrete illustrations.
 
-* There must have at least one listed species in the initial model system or specified group. 
-For example, if you list Au and Cu for doing :term:`SGC` :term:`MC`, the system/group must have some Au or Cu atoms (or both); otherwise the :term:`MC` trail cannot get started.
+* There must be at least one listed species in the initial model system or specified group. For example, if you list Au and Cu for doing :term:`SGC` :term:`MC`, the system or the specified group must have some Au or Cu atoms (or both); otherwise the :term:`MC` trial cannot get started.
 
 Example 1
 ---------
@@ -72,7 +67,7 @@ This means that
 
 * Will perform 200 :term:`MC` trials after every 100 :term:`MD` steps.
 * The temperature for the :term:`MC` ensemble will be linearly changed from 500 to 300 K, even though the temperature for the :term:`MD` ensemble is kept to be 300 K.
-* Only the atom in group 3 of grouping method 1 will be involved in the :term:`MC` process. 
+* Only the atoms in group 3 of grouping method 1 will be involved in the :term:`MC` process. 
 
 Example 2
 ---------
