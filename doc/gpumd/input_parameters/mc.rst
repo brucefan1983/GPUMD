@@ -5,7 +5,7 @@
 :attr:`mc`
 ==========
 
-The :attr:`mc` keyword is used to invoke monte carlo (:term:`MC`) simulation, usually in combination with :term:`MD` simulation. 
+The :attr:`mc` keyword is used to invoke Monte Carlo (:term:`MC`) simulation, usually in combination with :term:`MD` simulation. 
 Three :term:`MC` ensembles are supported, including the canonical, the semi-grand canonical (:term:`SGC`), and the variance-constrained semi-grand canonical (:term:`VCSGC`) [Sadigh2012a]_ [Sadigh2012b]_ ones. 
 
 This keyword can only be used when the potential is :term:`NEP`.
