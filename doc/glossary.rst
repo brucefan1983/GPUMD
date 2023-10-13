@@ -77,6 +77,9 @@ Glossary
    PIMD
         path-integral molecular dynamics
 
+   RDF
+        radial distribution function
+
    RMSE
         `root-mean-square error <https://en.wikipedia.org/wiki/Root-mean-square_deviation>`_
 
