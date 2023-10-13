@@ -43,7 +43,7 @@ It can be used in the following way::
 
 * :attr:`num_species` is the number of species to be involved in the :term:`SGC` or :term:`VCSGC` ensemble. It is required to be no less than 2 and no larger than 4.
 
-* For the :term:`SGC` ensemble, after specifying the number of species to be involved, the chemical symbols and chemical potentials for these species should be listed, in an arbitrary order.
+* For the :term:`SGC` ensemble, after specifying the number of species to be involved, the chemical symbols and chemical potentials (in units of eV) for these species should be listed, in an arbitrary order.
 
 * For the :term:`VCSGC` ensemble, after specifying the number of species to be involved, the chemical symbols and (dimensionless) :math:`\phi` parameters for these species should be listed, in an arbitrary order. One then needs to specify the (dimensionless) :math:`\kappa` parameter. The :math:`\phi` and :math:`\kappa` parameters constrain the average and variance of the species concentrations, respectively. (Do we need to cite papers for the exact definitions of these parameters?)
 
@@ -72,4 +72,31 @@ This means that
 Example 2
 ---------
 
-TODO
+Here is an example for using the :term:`SGC` :term:`MC` ensemble:
+  
+  ensemble nvt_lan 300 300 100
+  # other keywords for the run
+  mc sgc 100 1000 300 300 2 Cu 0 Au 0.6
+  run 1000000
+
+This means that
+
+* Will perform 1000 :term:`MC` trials after every 100 :term:`MD` steps.
+* The temperature for the :term:`MC` ensemble will be kept at 300 K.
+* Only the Cu and Au atoms are involved in the :term:`MC` process. The Au atoms have a chemical potential of 0.6 eV relative to the Cu atoms.
+
+Example 3
+---------
+
+Here is an example for using the :term:`VCSGC` :term:`MC` ensemble:
+  
+  ensemble nvt_lan 300 300 100
+  # other keywords for the run
+  mc vcsgc 200 1000 500 500 2 Al -2 Ag 0 10000
+  run 1000000
+
+This means that
+
+* Will perform 1000 :term:`MC` trials after every 200 :term:`MD` steps.
+* The temperature for the :term:`MC` ensemble will be kept at 500 K.
+* Only the Al and Ag atoms are involved in the :term:`MC` process. The dimensionless :math:`\phi` parameters for Al and Ag are -2 and 0, respectively. The dimensionless :math:`\kappa` parameter is 10000.
