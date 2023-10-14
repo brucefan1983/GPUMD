@@ -23,6 +23,7 @@ class Ensemble_MTTK : public Ensemble
 {
 public:
   Ensemble_MTTK(const char** params, int num_params);
+  Ensemble_MTTK(void);
   virtual ~Ensemble_MTTK(void);
 
   virtual void compute1(

@@ -27,6 +27,7 @@ The driver class for the various integrators.
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
+#include "ensemble_ti_spring.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
@@ -119,6 +120,8 @@ void Integrate::initialize(
       // I creat the object elsewhere.
       break;
     case -1: // msst
+      break;
+    case -2: // ti_spring
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -386,6 +389,9 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "msst") == 0) {
     type = -1;
     ensemble.reset(new Ensemble_MSST(param, num_param));
+  } else if (strcmp(param[1], "ti_spring") == 0) {
+    type = -2;
+    ensemble.reset(new Ensemble_TI_Spring(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
