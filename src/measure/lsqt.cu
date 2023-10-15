@@ -828,7 +828,7 @@ void LSQT::find_dos_and_velocity(Atom& atom, Box& box)
     velocity.data());
 
   FILE* os_vel = my_fopen("lsqt_velocity.out", "a");
-  const double m_per_s_conversion = 1.60217663e6 / 1.054571817;
+  const double m_per_s_conversion = 1.60217663e5 / 1.054571817;
   for (int n = 0; n < number_of_energy_points; ++n)
     fprintf(os_vel, "%25.15e", sqrt(velocity[n] / dos[n]) * m_per_s_conversion);
   fprintf(os_vel, "\n");
