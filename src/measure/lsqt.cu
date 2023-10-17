@@ -540,7 +540,7 @@ __global__ void gpu_initialize_model(
       if (direction == 3) {
         xx[index] = z12;
       }
-      Hr[index] = -2.7 * 1.44 * 1.44 / (d12 * d12);
+      Hr[index] = -2.7 * 1.42 * 1.42 / (d12 * d12);
       Hi[index] = 0.0;
     }
     U[n1] = 0.0;
@@ -962,8 +962,8 @@ void LSQT::parse(const char** param, const int num_param)
   if (!is_valid_int(param[3], &number_of_energy_points)) {
     PRINT_INPUT_ERROR("number of energy points should be an integer.\n");
   }
-  if (number_of_energy_points < 100 || number_of_energy_points > 10000) {
-    PRINT_INPUT_ERROR("number of energy points should >= 100 and <= 10000.\n");
+  if (number_of_energy_points < 100 || number_of_energy_points > 10001) {
+    PRINT_INPUT_ERROR("number of energy points should >= 100 and <= 10001.\n");
   }
   printf("    number of energy points is %d.\n", number_of_energy_points);
 
