@@ -1058,6 +1058,8 @@ void ILP::compute(
 }
 
 
+#define USE_FIXED_NEIGHBOR 1
+#define UPDATE_TEMP 10
 // find force and related quantities
 void ILP::compute(
   Box &box,
@@ -1092,6 +1094,7 @@ void ILP::compute(
       ilp_data.NL);
 #ifdef USE_FIXED_NEIGHBOR
   }
+  num_calls %= UPDATE_TEMP;
 #endif
 
   const double* x = position_per_atom.data();
