@@ -38,4 +38,15 @@ public:
     Box& box,
     Atom& atoms,
     GPU_Vector<double>& thermo);
+
+  double get_espring_sum();
+  void add_spring_force();
+  void init();
+
+protected:
+  double lambda;
+  // spring constants
+  GPU_Vector<double> gpu_k;
+  GPU_Vector<double> gpu_espring;
+  GPU_Vector<double> position_0;
 };
