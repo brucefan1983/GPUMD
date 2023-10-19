@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble_mttk.cuh"
+#include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
@@ -42,9 +43,13 @@ public:
   double get_espring_sum();
   void add_spring_force();
   void init();
+  void find_lambda();
+  double switch_func(double t);
+  double dswitch_func(double t);
 
 protected:
-  double lambda;
+  double lambda = 0, dlambda = 0;
+  int t_equil = -1, t_switch = -1;
   // spring constants
   GPU_Vector<double> gpu_k;
   GPU_Vector<double> gpu_espring;

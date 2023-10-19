@@ -19,6 +19,7 @@ namespace
 {
 static __global__ void gpu_add_spring_force(
   int number_of_atoms,
+  Box box,
   double lambda,
   double* espring,
   double* k,
@@ -38,10 +39,11 @@ static __global__ void gpu_add_spring_force(
     dx = x[i] - x0[i];
     dy = y[i] - y0[i];
     dz = z[i] - z0[i];
+    apply_mic(box, dx, dy, dz);
     fx[i] = (1 - lambda) * fx[i] + lambda * (-k[i] * dx);
     fy[i] = (1 - lambda) * fy[i] + lambda * (-k[i] * dy);
     fz[i] = (1 - lambda) * fz[i] + lambda * (-k[i] * dz);
-    espring[i] = k[i] * (dx * dx + dy * dy + dz * dz);
+    espring[i] = 0.5 * k[i] * (dx * dx + dy * dy + dz * dz);
   }
 }
 
@@ -75,10 +77,42 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
 {
   use_barostat = false;
   use_thermostat = true;
+
+  int i = 2;
+  while (i < num_params) {
+    if (strcmp(params[i], "tswitch") == 0) {
+      if (!is_valid_int(params[i + 1], &t_switch))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      i += 2;
+    } else if (strcmp(params[i], "tequil") == 0) {
+      if (!is_valid_int(params[i + 1], &t_equil))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      i += 2;
+    } else if (strcmp(params[i], "temp") == 0) {
+      if (!is_valid_real(params[i + 1], &t_start))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      t_stop = t_start;
+      i += 2;
+    } else if (strcmp(params[i], "tperiod") == 0) {
+      if (!is_valid_real(params[i + 1], &t_period))
+        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+      i += 2;
+    }
+  }
+  printf(
+    "Thermostat: t_start is %f, t_stop is %f, t_period is %f timesteps\n",
+    t_start,
+    t_stop,
+    t_period);
+  printf(
+    "Nonequilibrium thermodynamic integration: t_switch is %d, t_equilibrium is %d timesteps\n",
+    t_switch,
+    t_equil);
 }
 
 void Ensemble_TI_Spring::init()
 {
+  Ensemble_MTTK::init();
   int N = atom->number_of_atoms;
   gpu_k.resize(N);
   gpu_espring.resize(N);
@@ -95,8 +129,9 @@ Ensemble_TI_Spring::~Ensemble_TI_Spring(void) {}
 void Ensemble_TI_Spring::add_spring_force()
 {
   int N = atom->number_of_atoms;
-  gpu_add_spring_force(
+  gpu_add_spring_force<<<(N - 1) / 128 + 1, 128>>>(
     N,
+    *box,
     lambda,
     gpu_espring.data(),
     gpu_k.data(),
@@ -114,7 +149,7 @@ void Ensemble_TI_Spring::add_spring_force()
 double Ensemble_TI_Spring::get_espring_sum()
 {
   double temp;
-  gpu_get_espring_sum(atom->number_of_atoms, gpu_espring.data());
+  gpu_get_espring_sum<<<1, 1024>>>(atom->number_of_atoms, gpu_espring.data());
   gpu_espring.copy_to_host(&temp, sizeof(double));
   return temp;
 }
@@ -130,6 +165,25 @@ void Ensemble_TI_Spring::compute1(
   Ensemble_MTTK::compute1(time_step, group, box, atoms, thermo);
 }
 
+void Ensemble_TI_Spring::find_lambda()
+{
+  if (*current_step < t_equil)
+    return;
+
+  const int t = *current_step - t_equil;
+  const double r_switch = 1.0 / t_switch;
+
+  if ((t >= 0) && (t <= t_switch)) {
+    lambda = switch_func(t * r_switch);
+    dlambda = dswitch_func(t * r_switch);
+  }
+
+  if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
+    lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
+    dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
+  }
+}
+
 void Ensemble_TI_Spring::compute2(
   const double time_step,
   const std::vector<Group>& group,
@@ -137,8 +191,24 @@ void Ensemble_TI_Spring::compute2(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-  // modify force by spring
+
+  find_lambda();
   add_spring_force();
   double espring = get_espring_sum();
+
   Ensemble_MTTK::compute2(time_step, group, box, atoms, thermo);
+}
+
+double Ensemble_TI_Spring::switch_func(double t)
+{
+  double t2 = t * t;
+  double t5 = t2 * t2 * t;
+  return ((70.0 * t2 * t2 - 315.0 * t2 * t + 540.0 * t2 - 420.0 * t + 126.0) * t5);
+}
+
+double Ensemble_TI_Spring::dswitch_func(double t)
+{
+  double t2 = t * t;
+  double t4 = t2 * t2;
+  return ((630 * t2 * t2 - 2520 * t2 * t + 3780 * t2 - 2520 * t + 630) * t4) / t_switch;
 }
