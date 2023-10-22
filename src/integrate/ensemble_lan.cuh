@@ -20,6 +20,7 @@
 class Ensemble_LAN : public Ensemble
 {
 public:
+  Ensemble_LAN();
   Ensemble_LAN(int, int, int, double, double);
   Ensemble_LAN(int, int, int, int, int, int, int, int, double, double, double);
   virtual ~Ensemble_LAN(void);

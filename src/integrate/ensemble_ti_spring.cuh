@@ -14,13 +14,13 @@
 */
 
 #pragma once
-#include "ensemble_mttk.cuh"
+#include "ensemble_lan.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
 
-class Ensemble_TI_Spring : public Ensemble_MTTK
+class Ensemble_TI_Spring : public Ensemble_LAN
 {
 public:
   Ensemble_TI_Spring(const char** params, int num_params);
@@ -50,6 +50,7 @@ public:
 protected:
   double lambda = 0, dlambda = 0;
   int t_equil = -1, t_switch = -1;
+  double t_target, t_period = 1000;
   // spring constants
   GPU_Vector<double> gpu_k;
   GPU_Vector<double> gpu_espring;

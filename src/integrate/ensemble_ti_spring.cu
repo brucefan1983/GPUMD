@@ -75,35 +75,27 @@ static __global__ void gpu_get_espring_sum(const int N, double* espring)
 
 Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
 {
-  use_barostat = false;
-  use_thermostat = true;
-
   int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "tswitch") == 0) {
       if (!is_valid_int(params[i + 1], &t_switch))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+        PRINT_INPUT_ERROR("Wrong inputs for t_switch keyword.");
       i += 2;
     } else if (strcmp(params[i], "tequil") == 0) {
       if (!is_valid_int(params[i + 1], &t_equil))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+        PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
     } else if (strcmp(params[i], "temp") == 0) {
-      if (!is_valid_real(params[i + 1], &t_start))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
-      t_stop = t_start;
+      if (!is_valid_real(params[i + 1], &t_target))
+        PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
     } else if (strcmp(params[i], "tperiod") == 0) {
       if (!is_valid_real(params[i + 1], &t_period))
-        PRINT_INPUT_ERROR("Wrong inputs for p_period keyword.");
+        PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
     }
   }
-  printf(
-    "Thermostat: t_start is %f, t_stop is %f, t_period is %f timesteps\n",
-    t_start,
-    t_stop,
-    t_period);
+  printf("Thermostat: target temperature is %f, t_period is %f timesteps\n", t_target, t_period);
   printf(
     "Nonequilibrium thermodynamic integration: t_switch is %d, t_equilibrium is %d timesteps\n",
     t_switch,
@@ -112,8 +104,8 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
 
 void Ensemble_TI_Spring::init()
 {
-  Ensemble_MTTK::init();
   int N = atom->number_of_atoms;
+  Ensemble_LAN::Ensemble_LAN(3, -1, N, t_target, t_period);
   gpu_k.resize(N);
   gpu_espring.resize(N);
   position_0.resize(3 * N);
@@ -162,7 +154,7 @@ void Ensemble_TI_Spring::compute1(
 {
   if (*current_step == 0)
     init();
-  Ensemble_MTTK::compute1(time_step, group, box, atoms, thermo);
+  Ensemble_LAN::compute1(time_step, group, box, atoms, thermo);
 }
 
 void Ensemble_TI_Spring::find_lambda()
@@ -196,7 +188,7 @@ void Ensemble_TI_Spring::compute2(
   add_spring_force();
   double espring = get_espring_sum();
 
-  Ensemble_MTTK::compute2(time_step, group, box, atoms, thermo);
+  Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
 }
 
 double Ensemble_TI_Spring::switch_func(double t)
