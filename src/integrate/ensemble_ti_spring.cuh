@@ -17,6 +17,7 @@
 #include "ensemble_lan.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
+#include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
 #include <math.h>
 
@@ -40,6 +41,7 @@ public:
     Atom& atoms,
     GPU_Vector<double>& thermo);
 
+  void find_thermo();
   double get_espring_sum();
   void add_spring_force();
   void init();
@@ -48,11 +50,14 @@ public:
   double dswitch_func(double t);
 
 protected:
+  FILE* output_file;
   double lambda = 0, dlambda = 0;
   int t_equil = -1, t_switch = -1;
   double t_target, t_period = 1000;
+  double pe, espring;
   // spring constants
   GPU_Vector<double> gpu_k;
   GPU_Vector<double> gpu_espring;
   GPU_Vector<double> position_0;
+  std::vector<double> thermo_cpu;
 };

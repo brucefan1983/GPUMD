@@ -104,6 +104,8 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
 
 void Ensemble_TI_Spring::init()
 {
+  output_file = my_fopen("ti_spring.csv", "w");
+  fprintf(output_file, "lambda,dlambda,pe,espring\n");
   int N = atom->number_of_atoms;
   Ensemble_LAN::Ensemble_LAN(3, -1, N, t_target, t_period);
   gpu_k.resize(N);
@@ -116,7 +118,27 @@ void Ensemble_TI_Spring::init()
     cudaMemcpyDeviceToDevice));
 }
 
-Ensemble_TI_Spring::~Ensemble_TI_Spring(void) {}
+void Ensemble_TI_Spring::find_thermo()
+{
+  Ensemble::find_thermo(
+    false,
+    box->get_volume(),
+    *group,
+    atom->mass,
+    atom->potential_per_atom,
+    atom->velocity_per_atom,
+    atom->virial_per_atom,
+    *thermo);
+  thermo->copy_to_host(thermo_cpu.data());
+  pe = thermo_cpu[0];
+  espring = get_espring_sum();
+}
+
+Ensemble_TI_Spring::~Ensemble_TI_Spring(void)
+{
+  printf("Closing ti_spring output file...\n");
+  fclose(output_file);
+}
 
 void Ensemble_TI_Spring::add_spring_force()
 {
@@ -174,6 +196,15 @@ void Ensemble_TI_Spring::find_lambda()
     lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
   }
+
+  find_thermo();
+  fprintf(
+    output_file,
+    "%f,%f,%f,%f\n",
+    dlambda,
+    lambda,
+    pe / atom->number_of_atoms,
+    espring / atom->number_of_atoms);
 }
 
 void Ensemble_TI_Spring::compute2(
@@ -183,10 +214,8 @@ void Ensemble_TI_Spring::compute2(
   Atom& atoms,
   GPU_Vector<double>& thermo)
 {
-
   find_lambda();
   add_spring_force();
-  double espring = get_espring_sum();
 
   Ensemble_LAN::compute2(time_step, group, box, atoms, thermo);
 }
