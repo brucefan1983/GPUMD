@@ -109,6 +109,10 @@ Output files
      - :ref:`compute_hnemdec <kw_compute_hnemdec>`
      - onsager coefficients
      - Append
+   * - :ref:`rdf.out <rdf_out>`
+     - :ref:`compute_rdf <kw_compute_rdf>`
+     - Radial distribution function (:term:`RDF`)
+     - Append
 
 .. toctree::
    :maxdepth: 0
@@ -139,3 +143,4 @@ Output files
    velocity_out
    viscosity_out
    onsager_out
+   rdf_out
