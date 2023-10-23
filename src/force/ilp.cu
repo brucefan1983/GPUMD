@@ -209,7 +209,6 @@ static __device__ void calc_normal(
   float (&dnormal)[3][3][3])
 {
   int id, ip, m;
-  float nn2, nn;
   float pv12[3], pv31[3], pv23[3], n1[3], dni[3];
   float dnn[3][3], dpvdri[3][3];
   float dn1[3][3][3], dpv12[3][3][3], dpv23[3][3][3], dpv31[3][3][3];
