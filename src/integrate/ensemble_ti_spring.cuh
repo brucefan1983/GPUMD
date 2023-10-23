@@ -19,6 +19,7 @@
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include "utilities/read_file.cuh"
+#include <map>
 #include <math.h>
 
 class Ensemble_TI_Spring : public Ensemble_LAN
@@ -56,7 +57,9 @@ protected:
   double t_target, t_period = 1000;
   double pe, espring;
   // spring constants
+  std::map<std::string, int> spring_map;
   GPU_Vector<double> gpu_k;
+  std::vector<double> cpu_k;
   GPU_Vector<double> gpu_espring;
   GPU_Vector<double> position_0;
   std::vector<double> thermo_cpu;

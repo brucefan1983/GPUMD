@@ -93,6 +93,16 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
       if (!is_valid_real(params[i + 1], &t_period))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
+    } else if (strcmp(params[i], "k") == 0) {
+      double _k;
+      while (i < num_params) {
+        if (!is_valid_real(params[i + 1], &_k))
+          PRINT_INPUT_ERROR("Wrong inputs for k keyword.");
+        spring_map[params[i]] = _k;
+        i += 2;
+      }
+    } else {
+      PRINT_INPUT_ERROR("Unknown keyword: %s.", params[i]);
     }
   }
   printf("Thermostat: target temperature is %f, t_period is %f timesteps\n", t_target, t_period);
@@ -109,6 +119,12 @@ void Ensemble_TI_Spring::init()
   int N = atom->number_of_atoms;
   Ensemble_LAN::Ensemble_LAN(3, -1, N, t_target, t_period);
   gpu_k.resize(N);
+  cpu_k.resize(N);
+  for (int i = 0; i < N; i++) {
+    std::string ele = atom->cpu_atom_symbol[i];
+    cpu_k[i] = spring_map[ele];
+  }
+  gpu_k.copy_from_host(cpu_k.data());
   gpu_espring.resize(N);
   position_0.resize(3 * N);
   CHECK(cudaMemcpy(
