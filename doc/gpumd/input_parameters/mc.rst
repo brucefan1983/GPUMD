@@ -88,7 +88,7 @@ This means that
 Example 3
 ---------
 
-Here is an example for using the :term:`VCSGC` :term:`MC` ensemble:
+Here is an example for sampling in the :term:`VCSGC` ensemble:
   
   ensemble nvt_lan 300 300 100
   # other keywords for the run
