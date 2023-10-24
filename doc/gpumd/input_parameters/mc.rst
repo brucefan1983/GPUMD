@@ -95,7 +95,7 @@ Here is an example for using the :term:`VCSGC` :term:`MC` ensemble:
   mc vcsgc 200 1000 500 500 2 Al -2 Ag 0 10000
   run 1000000
 
-This means that
+This means
 
 * Will perform 1000 :term:`MC` trials after every 200 :term:`MD` steps.
 * The temperature for the :term:`MC` ensemble will be kept at 500 K.
