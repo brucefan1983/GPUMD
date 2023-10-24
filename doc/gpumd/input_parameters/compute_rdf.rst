@@ -5,7 +5,7 @@
 :attr:`compute_rdf`
 ===================
 
-This keyword is used to compute the radial distribution function (:term:`RDF`) for the whole system or pairs of species. 
+This keyword is used to compute the radial distribution function (:term:`RDF`) for all atoms or pairs of species. 
 It works for both classical :term:`MD` and :term:`PIMD`.
 The results will be written to the :ref:`rdf.out <rdf_out>` file.
 
