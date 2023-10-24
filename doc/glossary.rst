@@ -47,6 +47,12 @@ Glossary
    LJ
         :ref:`Lennard-Jones <lennard_jones_potential>` potential
 
+   LSQT
+        linear-scaling quantum transport
+
+   MC
+        Monte Carlo
+
    MD
         molecular dynamics
 
@@ -77,6 +83,9 @@ Glossary
    PIMD
         path-integral molecular dynamics
 
+   RDF
+        radial distribution function
+
    RMSE
         `root-mean-square error <https://en.wikipedia.org/wiki/Root-mean-square_deviation>`_
 
@@ -92,6 +101,9 @@ Glossary
    SDC
         self-diffusion coefficient
 
+   SGC
+        semi-grand canonical
+
    SHC
         spectral heat current
 
@@ -106,6 +118,9 @@ Glossary
 
    VAC
         velocity auto-correlation
+
+   VCSGC
+        variance-constrained semi-grand canonical [Sadigh2012a]_ [Sadigh2012b]_
 
    ZBL
         universal potential by Ziegler, Biersack, and Littmark [Ziegler1985]_
