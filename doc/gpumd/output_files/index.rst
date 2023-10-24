@@ -123,7 +123,7 @@ Output files
      - Append
    * - :ref:`lsqt_velocity.out <lsqt_velocity_out>`
      - :ref:`compute_lsqt <kw_compute_lsqt>`
-     - Electron group veloicty
+     - Electron group velocity
      - Append
    * - :ref:`lsqt_sigma.out <lsqt_sigma_out>`
      - :ref:`compute_lsqt <kw_compute_lsqt>`

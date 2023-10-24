@@ -5,13 +5,13 @@
 ``lsqt_velocity.out``
 =====================
 
-This file contains the group velocity from linear-scaling quantum transport (:term:`LSQT`) calculations.
+This file contains the electron group velocity from linear-scaling quantum transport (:term:`LSQT`) calculations.
 It is produced when invoking the :ref:`compute_lsqt keyword <kw_compute_lsqt>` in the :ref:`run.in input file <run_in>`.
 
 File format
 -----------
 
-* Each row contains the group velocity values (in units of m/s) for the specified energies.
+* Each row contains the electron group velocity values (in units of m/s) for the specified energies.
 
 * The number of columns equals the number of energy points. 
 
