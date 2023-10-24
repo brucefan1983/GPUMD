@@ -107,7 +107,7 @@ Output files
      - Append
    * - :ref:`onsager.out <onsager_out>`
      - :ref:`compute_hnemdec <kw_compute_hnemdec>`
-     - onsager coefficients
+     - Onsager coefficients
      - Append
    * - :ref:`rdf.out <rdf_out>`
      - :ref:`compute_rdf <kw_compute_rdf>`
