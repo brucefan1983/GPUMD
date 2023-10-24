@@ -113,6 +113,10 @@ Output files
      - :ref:`compute_rdf <kw_compute_rdf>`
      - Radial distribution function (:term:`RDF`)
      - Append
+    * - :ref:`mcmd.out <mcmd_out>`
+     - :ref:`mc <kw_mc>`
+     - Acceptance ratio and species concentrations
+     - Append
 
 .. toctree::
    :maxdepth: 0

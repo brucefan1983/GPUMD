@@ -47,6 +47,9 @@ Glossary
    LJ
         :ref:`Lennard-Jones <lennard_jones_potential>` potential
 
+   LSQT
+        linear-scaling quantum transport
+
    MC
         Monte Carlo
 

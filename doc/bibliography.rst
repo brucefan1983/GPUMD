@@ -100,6 +100,12 @@ Bibliography
    | Phys. Rev. B. **104**, 104309 (2021)
    | DOI: `10.1103/PhysRevB.104.104309 <https://doi.org/10.1103/PhysRevB.104.104309>`_
 
+.. [Fan2021b]
+   | Zheyong Fan, Jose Hugo Garcia, Aron W Cummings, Jose Eduardo Barrios-Vargas, Michel Panhans, Ari Harju, Frank Ortmann, and Stephan Roche
+   | *Linear scaling quantum transport methodologies*
+   | Physics Reports **903**, 1 (2021)
+   | DOI: `10.1016/j.physrep.2020.12.001 <https://doi.org/10.1016/j.physrep.2020.12.001>`_
+
 .. [Fan2022a]
    | Zheyong Fan
    | *Improving the accuracy of the neuroevolution machine learning potentials for multi-component systems*
