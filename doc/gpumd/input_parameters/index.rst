@@ -26,6 +26,8 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    fix
    time_step
    plumed
+   mc
+   electron_stop
 
 .. toctree::
    :maxdepth: 1
@@ -47,6 +49,8 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    compute_msd
    compute_shc
    compute_viscosity
+   compute_lsqt
+   compute_rdf
 
 .. toctree::
    :maxdepth: 1
