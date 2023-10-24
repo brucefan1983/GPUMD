@@ -81,6 +81,7 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   // init ilp neighbor list
   ilp_data.ilp_NN.resize(num_atoms);
   ilp_data.ilp_NL.resize(num_atoms * MAX_ILP_NEIGHBOR);
+  ilp_data.reduce_NL.resize(num_atoms * max_neighbor_number);
 
   ilp_data.f12x.resize(num_atoms * max_neighbor_number);
   ilp_data.f12y.resize(num_atoms * max_neighbor_number);
@@ -874,6 +875,41 @@ static __global__ void gpu_find_force(
   }
 }
 
+__global__ void build_reduce_neighbor_list(
+  const int number_of_particles,
+  const int N1,
+  const int N2,
+  const int *g_neighbor_number,
+  const int *g_neighbor_list,
+  int *g_reduce_neighbor_list)
+{
+  int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
+  if (N1 < N2) {
+    int neighbor_number = g_neighbor_number[n1];
+    int l, r, m, tmp_value;
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = n1 + i1 * number_of_particles;
+      int n2 = g_neighbor_list[index];
+
+      l = 0;
+      r = g_neighbor_number[n2];
+      while (l < r) {
+        m = (l + r) >> 1;
+        tmp_value = g_neighbor_list[n2 + number_of_particles * m];
+        if (tmp_value < n1) {
+          l = m + 1;
+        } else if (tmp_value > n1) {
+          r = m - 1;
+        } else {
+          break;
+        }
+      }
+      g_reduce_neighbor_list[index] = (l + r) >> 1;
+
+    }
+  }
+}
+
 __global__ void reduce_force_many_body(
   const int number_of_particles,
   const int N1,
@@ -881,6 +917,7 @@ __global__ void reduce_force_many_body(
   const Box box,
   const int *g_neighbor_number,
   const int *g_neighbor_list,
+  int *g_reduce_neighbor_list,
   int *g_ilp_neighbor_number,
   int *g_ilp_neighbor_list,
   const double *__restrict__ g_x,
@@ -934,31 +971,32 @@ __global__ void reduce_force_many_body(
       y12f = float(y12d);
       z12f = float(z12d);
 
-      int offset = 0;
-      // for (int k = 0; k < neighor_number_2; ++k) {
-      //   if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
-      //     offset = k;
+      // int offset = 0;
+      // // for (int k = 0; k < neighor_number_2; ++k) {
+      // //   if (n1 == g_neighbor_list[n2 + number_of_particles * k]) {
+      // //     offset = k;
+      // //     break;
+      // //   }
+      // // }
+      // // TODO: binary search
+      // int l = 0;
+      // int r = neighor_number_2;
+      // int m = 0;
+      // int tmp_value = 0;
+      // while (l < r) {
+      //   m = (l + r) >> 1;
+      //   tmp_value = g_neighbor_list[n2 + number_of_particles * m];
+      //   if (tmp_value < n1) {
+      //     l = m + 1;
+      //   } else if (tmp_value > n1) {
+      //     r = m - 1;
+      //   } else {
       //     break;
       //   }
       // }
-      // TODO: binary search
-      int l = 0;
-      int r = neighor_number_2;
-      int m = 0;
-      int tmp_value = 0;
-      while (l < r) {
-        m = (l + r) >> 1;
-        tmp_value = g_neighbor_list[n2 + number_of_particles * m];
-        if (tmp_value < n1) {
-          l = m + 1;
-        } else if (tmp_value > n1) {
-          r = m - 1;
-        } else {
-          break;
-        }
-      }
-      offset = (l + r) >> 1;
-      index = n2 + number_of_particles * offset;
+      // offset = (l + r) >> 1;
+      // index = n2 + number_of_particles * offset;
+      index = n2 + number_of_particles * g_reduce_neighbor_list[index];
       float f21x = g_f12x[index];
       float f21y = g_f12y[index];
       float f21z = g_f12z[index];
@@ -1091,6 +1129,14 @@ void ILP::compute(
       ilp_data.cell_contents,
       ilp_data.NN,
       ilp_data.NL);
+
+    build_reduce_neighbor_list<<<grid_size, BLOCK_SIZE_FORCE>>>(
+      number_of_atoms,
+      N1,
+      N2,
+      ilp_data.NN.data(),
+      ilp_data.NL.data(),
+      ilp_data.reduce_NL.data());
 #ifdef USE_FIXED_NEIGHBOR
   }
   num_calls %= UPDATE_TEMP;
@@ -1101,6 +1147,7 @@ void ILP::compute(
   const double* z = position_per_atom.data() + number_of_atoms * 2;
   const int *NN = ilp_data.NN.data();
   const int *NL = ilp_data.NL.data();
+  int *reduce_NL = ilp_data.reduce_NL.data();
   int *ilp_NL = ilp_data.ilp_NL.data();
   int *ilp_NN = ilp_data.ilp_NN.data();
 
@@ -1171,6 +1218,7 @@ void ILP::compute(
     box,
     NN,
     NL,
+    reduce_NL,
     ilp_NN,
     ilp_NL,
     x,

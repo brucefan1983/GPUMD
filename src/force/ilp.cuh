@@ -39,6 +39,7 @@ struct ILP_Para {
 
 struct ILP_Data {
   GPU_Vector<int> NN, NL;
+  GPU_Vector<int> reduce_NL;
   GPU_Vector<int> ilp_NN, ilp_NL;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
