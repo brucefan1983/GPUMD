@@ -82,6 +82,8 @@ ILP::ILP(FILE* fid, int num_types, int num_atoms)
   ilp_data.ilp_NN.resize(num_atoms);
   ilp_data.ilp_NL.resize(num_atoms * MAX_ILP_NEIGHBOR);
   ilp_data.reduce_NL.resize(num_atoms * max_neighbor_number);
+  ilp_data.big_ilp_NN.resize(num_atoms);
+  ilp_data.big_ilp_NL.resize(num_atoms * MAX_BIG_ILP_NEIGHBOR);
 
   ilp_data.f12x.resize(num_atoms * max_neighbor_number);
   ilp_data.f12y.resize(num_atoms * max_neighbor_number);
@@ -650,7 +652,11 @@ static __global__ void gpu_find_force(
       r = sqrtf(rsq);
       Rcut = ilp_para.rcut_global[type1][type2];
       // not in the same layer
-      if (r >= Rcut || group_label[n1] == group_label[n2]) {
+      // if (r >= Rcut || group_label[n1] == group_label[n2]) {
+      //   continue;
+      // }
+
+      if (r >= Rcut) {
         continue;
       }
 
@@ -1110,6 +1116,9 @@ void ILP::compute(
   const int number_of_atoms = type.size();
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
+  // TODO: assume the first group column is for ILP
+  const int *group_label = group[0].label.data();
+
 // what's this??
 #ifdef USE_FIXED_NEIGHBOR
   static int num_calls = 0;
@@ -1122,13 +1131,16 @@ void ILP::compute(
       N2,
       rc,
       box,
+      group_label,
       type,
       position_per_atom,
       ilp_data.cell_count,
       ilp_data.cell_count_sum,
       ilp_data.cell_contents,
       ilp_data.NN,
-      ilp_data.NL);
+      ilp_data.NL,
+      ilp_data.big_ilp_NN,
+      ilp_data.big_ilp_NL);
 
     build_reduce_neighbor_list<<<grid_size, BLOCK_SIZE_FORCE>>>(
       number_of_atoms,
@@ -1147,6 +1159,8 @@ void ILP::compute(
   const double* z = position_per_atom.data() + number_of_atoms * 2;
   const int *NN = ilp_data.NN.data();
   const int *NL = ilp_data.NL.data();
+  const int* big_ilp_NN = ilp_data.big_ilp_NN.data();
+  const int* big_ilp_NL = ilp_data.big_ilp_NL.data();
   int *reduce_NL = ilp_data.reduce_NL.data();
   int *ilp_NL = ilp_data.ilp_NL.data();
   int *ilp_NN = ilp_data.ilp_NN.data();
@@ -1155,10 +1169,8 @@ void ILP::compute(
   ilp_data.ilp_NN.fill(0);
 
   // find ILP neighbor list
-  // TODO: assume the first group column is for ILP
-  const int *group_label = group[0].label.data();
   ILP_neighbor<<<grid_size, BLOCK_SIZE_FORCE>>>(
-    number_of_atoms, N1, N2, box, NN, NL, \
+    number_of_atoms, N1, N2, box, big_ilp_NN, big_ilp_NL, \
     type.data(), ilp_para, x, y, z, ilp_NN, \
     ilp_NL, group_label);
   CUDA_CHECK_KERNEL

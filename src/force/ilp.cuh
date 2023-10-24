@@ -22,6 +22,7 @@
 #define MAX_TYPE_ILP 3
 #define CUDA_MAX_NL 2048
 #define MAX_ILP_NEIGHBOR 3
+#define MAX_BIG_ILP_NEIGHBOR 64
 
 struct ILP_Para {
   float rcutsq_ilp[MAX_TYPE_ILP][MAX_TYPE_ILP];
@@ -40,6 +41,7 @@ struct ILP_Para {
 struct ILP_Data {
   GPU_Vector<int> NN, NL;
   GPU_Vector<int> reduce_NL;
+  GPU_Vector<int> big_ilp_NN, big_ilp_NL;
   GPU_Vector<int> ilp_NN, ilp_NL;
   GPU_Vector<int> cell_count;
   GPU_Vector<int> cell_count_sum;
