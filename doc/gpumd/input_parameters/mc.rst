@@ -97,7 +97,7 @@ Here is an example for using the :term:`VCSGC` :term:`MC` ensemble:
 
 This means
 
-* Will perform 1000 :term:`MC` trials after every 200 :term:`MD` steps.
+* Perform 1000 :term:`MC` trials after every 200 :term:`MD` steps.
 * The temperature for the :term:`MC` ensemble will be kept at 500 K.
 * Only the Al and Ag atoms are involved in the :term:`MC` process.
   The dimensionless :math:`\phi` parameters for Al and Ag are -2 and 0, respectively.
