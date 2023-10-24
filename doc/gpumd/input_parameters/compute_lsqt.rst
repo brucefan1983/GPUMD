@@ -21,7 +21,7 @@ This keyword is used as follows::
 * :attr:`transport_direction` is the transport direction, which can take values ``x``, ``y``, and ``z``.
 * :attr:`num_moments` is the number of the Chebyshev moments for the energy resolution operator.
 * The :attr:`num_energies` energy points increase linearly from :attr:`E_1` (eV) to :attr:`E_2` (eV).
-* :attr:`E_max` (eV) is an energy value taht should be (slightly) larger than the maximum of the absolute energy of the tight-binding model. This can be determined by trial and error.
+* :attr:`E_max` (eV) is an energy value that should be (slightly) larger than the maximum of the absolute energy of the tight-binding model. This can be determined by trial and error.
 
 Example
 -------
