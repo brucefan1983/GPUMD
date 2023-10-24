@@ -116,8 +116,7 @@ void Integrate::initialize(
         deform_z,
         deform_rate));
       break;
-    case 20: // NPT-NH
-      // I creat the object elsewhere.
+    case -3: // mttk
       break;
     case -1: // msst
       break;
@@ -245,7 +244,7 @@ void Integrate::compute1(
 {
   if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
-  } else if (type <= 20 || type == 33) {
+  } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -287,7 +286,7 @@ void Integrate::compute2(
 {
   if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
-  } else if (type <= 20 || type == 33) {
+  } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -354,7 +353,7 @@ void Integrate::parse_ensemble(
   } else if (
     strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
     strcmp(param[1], "nph_mttk") == 0) {
-    type = 20;
+    type = -3;
     ensemble.reset(new Ensemble_MTTK(param, num_param));
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
@@ -812,9 +811,11 @@ void Integrate::parse_ensemble(
         pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
       }
       break;
-    case 20:
+    case -3:
       break;
     case -1:
+      break;
+    case -2:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

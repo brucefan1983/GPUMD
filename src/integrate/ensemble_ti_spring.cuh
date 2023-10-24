@@ -15,6 +15,7 @@
 
 #pragma once
 #include "ensemble_lan.cuh"
+#include "langevin_utilities.cuh"
 #include "model/box.cuh"
 #include "utilities/common.cuh"
 #include "utilities/error.cuh"
@@ -54,7 +55,6 @@ protected:
   FILE* output_file;
   double lambda = 0, dlambda = 0;
   int t_equil = -1, t_switch = -1;
-  double t_target, t_period = 1000;
   double pe, espring;
   // spring constants
   std::map<std::string, int> spring_map;

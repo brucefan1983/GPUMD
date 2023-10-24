@@ -75,6 +75,7 @@ static __global__ void gpu_get_espring_sum(const int N, double* espring)
 
 Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
 {
+  temperature_coupling = 100;
   int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "tswitch") == 0) {
@@ -86,14 +87,15 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for t_equil keyword.");
       i += 2;
     } else if (strcmp(params[i], "temp") == 0) {
-      if (!is_valid_real(params[i + 1], &t_target))
+      if (!is_valid_real(params[i + 1], &temperature))
         PRINT_INPUT_ERROR("Wrong inputs for temp keyword.");
       i += 2;
     } else if (strcmp(params[i], "tperiod") == 0) {
-      if (!is_valid_real(params[i + 1], &t_period))
+      if (!is_valid_real(params[i + 1], &temperature_coupling))
         PRINT_INPUT_ERROR("Wrong inputs for t_period keyword.");
       i += 2;
-    } else if (strcmp(params[i], "k") == 0) {
+    } else if (strcmp(params[i], "spring") == 0) {
+      i++;
       double _k;
       while (i < num_params) {
         if (!is_valid_real(params[i + 1], &_k))
@@ -102,26 +104,42 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
         i += 2;
       }
     } else {
-      PRINT_INPUT_ERROR("Unknown keyword: %s.", params[i]);
+      PRINT_INPUT_ERROR("Unknown keyword.");
     }
   }
-  printf("Thermostat: target temperature is %f, t_period is %f timesteps\n", t_target, t_period);
   printf(
-    "Nonequilibrium thermodynamic integration: t_switch is %d, t_equilibrium is %d timesteps\n",
+    "Thermostat: target temperature is %f k, t_period is %f timesteps.\n",
+    temperature,
+    temperature_coupling);
+  printf(
+    "Nonequilibrium thermodynamic integration: t_switch is %d timestep, t_equil is %d timesteps.\n",
     t_switch,
     t_equil);
+  type = 3;
+  fixed_group = -1;
+  c1 = exp(-0.5 / temperature_coupling);
+  c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }
 
 void Ensemble_TI_Spring::init()
 {
+  printf("The number of steps should be set to %d!\n", 2 * (t_equil + t_switch));
   output_file = my_fopen("ti_spring.csv", "w");
   fprintf(output_file, "lambda,dlambda,pe,espring\n");
   int N = atom->number_of_atoms;
-  Ensemble_LAN::Ensemble_LAN(3, -1, N, t_target, t_period);
+
+  curand_states.resize(N);
+  int grid_size = (N - 1) / 128 + 1;
+  initialize_curand_states<<<grid_size, 128>>>(curand_states.data(), N, rand());
+  CUDA_CHECK_KERNEL
+
+  thermo_cpu.resize(thermo->size());
   gpu_k.resize(N);
   cpu_k.resize(N);
   for (int i = 0; i < N; i++) {
     std::string ele = atom->cpu_atom_symbol[i];
+    if (spring_map.find(ele) == spring_map.end())
+      PRINT_INPUT_ERROR("You must specify the spring constants for all the elements.");
     cpu_k[i] = spring_map[ele];
   }
   gpu_k.copy_from_host(cpu_k.data());
@@ -146,7 +164,7 @@ void Ensemble_TI_Spring::find_thermo()
     atom->virial_per_atom,
     *thermo);
   thermo->copy_to_host(thermo_cpu.data());
-  pe = thermo_cpu[0];
+  pe = thermo_cpu[1];
   espring = get_espring_sum();
 }
 
@@ -180,9 +198,10 @@ double Ensemble_TI_Spring::get_espring_sum()
 {
   double temp;
   gpu_get_espring_sum<<<1, 1024>>>(atom->number_of_atoms, gpu_espring.data());
-  gpu_espring.copy_to_host(&temp, sizeof(double));
+  gpu_espring.copy_to_host(&temp, 1);
   return temp;
 }
+
 void Ensemble_TI_Spring::compute1(
   const double time_step,
   const std::vector<Group>& group,
@@ -199,7 +218,6 @@ void Ensemble_TI_Spring::find_lambda()
 {
   if (*current_step < t_equil)
     return;
-
   const int t = *current_step - t_equil;
   const double r_switch = 1.0 / t_switch;
 
@@ -212,13 +230,12 @@ void Ensemble_TI_Spring::find_lambda()
     lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
   }
-
   find_thermo();
   fprintf(
     output_file,
     "%f,%f,%f,%f\n",
-    dlambda,
     lambda,
+    dlambda,
     pe / atom->number_of_atoms,
     espring / atom->number_of_atoms);
 }
