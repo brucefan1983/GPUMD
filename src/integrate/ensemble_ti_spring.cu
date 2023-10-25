@@ -216,6 +216,7 @@ void Ensemble_TI_Spring::compute1(
 
 void Ensemble_TI_Spring::find_lambda()
 {
+  bool need_lambda = false;
   if (*current_step < t_equil)
     return;
   const int t = *current_step - t_equil;
@@ -224,20 +225,23 @@ void Ensemble_TI_Spring::find_lambda()
   if ((t >= 0) && (t <= t_switch)) {
     lambda = switch_func(t * r_switch);
     dlambda = dswitch_func(t * r_switch);
-  }
-
-  if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
+    need_lambda = true;
+  } else if ((t >= t_equil + t_switch) && (t <= (t_equil + 2 * t_switch))) {
     lambda = switch_func(1.0 - (t - t_switch - t_equil) * r_switch);
     dlambda = -dswitch_func(1.0 - (t - t_switch - t_equil) * r_switch);
+    need_lambda = true;
   }
-  find_thermo();
-  fprintf(
-    output_file,
-    "%f,%f,%f,%f\n",
-    lambda,
-    dlambda,
-    pe / atom->number_of_atoms,
-    espring / atom->number_of_atoms);
+
+  if (need_lambda) {
+    find_thermo();
+    fprintf(
+      output_file,
+      "%f,%f,%f,%f\n",
+      lambda,
+      dlambda,
+      pe / atom->number_of_atoms,
+      espring / atom->number_of_atoms);
+  }
 }
 
 void Ensemble_TI_Spring::compute2(
