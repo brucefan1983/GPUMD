@@ -20,7 +20,7 @@ Syntax
 
 The parameters for running in the isothermal-isobaric ensemble (NPT) can be specified as follows::
 
-    ensemble npt_mttk temp <T_1> <T_2> <tau_temp> <direction> <p_1> <p_2> <tau_press>
+    ensemble npt_mttk temp <T_1> <T_2> <direction> <p_1> <p_2> tperiod <tau_temp> pperiod <tau_press>
 
 :attr:`<T_1>` and :attr:`<T_2>` specify the initial and final temperature, respectively.
 The temperature will vary linearly from :attr:`<T_1>` to :attr:`<T_2>` during the simulation process.

@@ -27,6 +27,7 @@ The driver class for the various integrators.
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
+#include "ensemble_ti_spring.cuh"
 #include "integrate.cuh"
 #include "model/atom.cuh"
 #include "utilities/common.cuh"
@@ -115,10 +116,11 @@ void Integrate::initialize(
         deform_z,
         deform_rate));
       break;
-    case 20: // NPT-NH
-      // I creat the object elsewhere.
+    case -3: // mttk
       break;
     case -1: // msst
+      break;
+    case -2: // ti_spring
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -242,7 +244,7 @@ void Integrate::compute1(
 {
   if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
-  } else if (type <= 20 || type == 33) {
+  } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -284,7 +286,7 @@ void Integrate::compute2(
 {
   if (type == 0 || type == 31 || type == 32) {
     ensemble->temperature = temperature2;
-  } else if (type <= 20 || type == 33) {
+  } else if (type > 0 && (type <= 20 || type == 33)) {
     ensemble->temperature =
       temperature1 + (temperature2 - temperature1) * step_over_number_of_steps;
   }
@@ -351,8 +353,11 @@ void Integrate::parse_ensemble(
   } else if (
     strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
     strcmp(param[1], "nph_mttk") == 0) {
-    type = 20;
-    ensemble.reset(new Ensemble_MTTK(param, num_param));
+    type = -3;
+    Ensemble_MTTK* ptr_temp = new Ensemble_MTTK(param, num_param);
+    ensemble.reset(ptr_temp);
+    temperature1 = ptr_temp->t_start;
+    temperature2 = ptr_temp->t_stop;
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
     if (num_param != 7) {
@@ -386,6 +391,9 @@ void Integrate::parse_ensemble(
   } else if (strcmp(param[1], "msst") == 0) {
     type = -1;
     ensemble.reset(new Ensemble_MSST(param, num_param));
+  } else if (strcmp(param[1], "ti_spring") == 0) {
+    type = -2;
+    ensemble.reset(new Ensemble_TI_Spring(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -806,9 +814,11 @@ void Integrate::parse_ensemble(
         pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
       }
       break;
-    case 20:
+    case -3:
       break;
     case -1:
+      break;
+    case -2:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

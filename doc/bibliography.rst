@@ -118,6 +118,12 @@ Bibliography
    | Journal of Chemical Physics **157**, 114801 (2022)
    | DOI: `10.1063/5.0106617  <https://doi.org/ 10.1063/5.0106617>`_
 
+.. [Freitas2016]
+   | Rodrigo Freitas, Mark Asta, Maurice de Koning
+   | *Nonequilibrium free-energy calculation of solids using LAMMPS*
+   | Computational Materials Science, **112**, 333 (2016)
+   | DOI: `10.1016/j.commatsci.2015.10.050  <https://doi.org/10.1016/j.commatsci.2015.10.050>`_
+
 .. [Gabourie2021]
    | Alexander J. Gabourie, Zheyong Fan, Tapio Ala-Nissila, and Eric Pop
    | *Spectral Decomposition of Thermal Conductivity: Comparing Velocity Decomposition Methods in Homogeneous Molecular Dynamics Simulations*

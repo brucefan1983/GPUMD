@@ -74,6 +74,8 @@ void matrix_minus(double a[3][3], double b[3][3], double c[3][3])
 
 } // namespace
 
+Ensemble_MTTK::Ensemble_MTTK(void) {}
+
 Ensemble_MTTK::Ensemble_MTTK(const char** params, int num_params)
 {
   for (int i = 0; i < 3; i++) {

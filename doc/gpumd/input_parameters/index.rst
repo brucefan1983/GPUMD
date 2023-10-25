@@ -23,6 +23,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_mttk
    ensemble_heat
    ensemble_pimd
+   ensemble_ti_spring
    ensemble_msst
    fix
    time_step

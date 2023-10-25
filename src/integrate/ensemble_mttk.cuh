@@ -23,6 +23,7 @@ class Ensemble_MTTK : public Ensemble
 {
 public:
   Ensemble_MTTK(const char** params, int num_params);
+  Ensemble_MTTK(void);
   virtual ~Ensemble_MTTK(void);
 
   virtual void compute1(
@@ -38,6 +39,8 @@ public:
     Box& box,
     Atom& atoms,
     GPU_Vector<double>& thermo);
+
+  double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 
 protected:
   void init();
@@ -97,7 +100,6 @@ protected:
 
   // degrees of freedom when computing temperature
   int temperature_dof = 0;
-  double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
   double t_freq = 0, t_period = 100;
   double *Q, *eta_dot, *eta_dotdot;
   double *Q_p, *eta_p_dot, *eta_p_dotdot;

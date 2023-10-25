@@ -14,43 +14,53 @@
 */
 
 #pragma once
-#include "ensemble.cuh"
-#include <curand_kernel.h>
+#include "ensemble_lan.cuh"
+#include "langevin_utilities.cuh"
+#include "model/box.cuh"
+#include "utilities/common.cuh"
+#include "utilities/error.cuh"
+#include "utilities/read_file.cuh"
+#include <map>
+#include <math.h>
 
-class Ensemble_LAN : public Ensemble
+class Ensemble_TI_Spring : public Ensemble_LAN
 {
 public:
-  Ensemble_LAN();
-  Ensemble_LAN(int, int, int, double, double);
-  Ensemble_LAN(int, int, int, int, int, int, int, int, double, double, double);
-  virtual ~Ensemble_LAN(void);
+  Ensemble_TI_Spring(const char** params, int num_params);
+  virtual ~Ensemble_TI_Spring(void);
 
   virtual void compute1(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
-    Atom& atom,
+    Atom& atoms,
     GPU_Vector<double>& thermo);
 
   virtual void compute2(
     const double time_step,
     const std::vector<Group>& group,
     Box& box,
-    Atom& atom,
+    Atom& atoms,
     GPU_Vector<double>& thermo);
 
+  void find_thermo();
+  double get_espring_sum();
+  void add_spring_force();
+  void init();
+  void find_lambda();
+  double switch_func(double t);
+  double dswitch_func(double t);
+
 protected:
-  int N_source, N_sink, offset_source, offset_sink;
-  double c1, c2, c2_source, c2_sink;
-  GPU_Vector<curandState> curand_states;
-  GPU_Vector<curandState> curand_states_source;
-  GPU_Vector<curandState> curand_states_sink;
-
-  void
-  integrate_nvt_lan_half(const GPU_Vector<double>& mass, GPU_Vector<double>& velocity_per_atom);
-
-  void integrate_heat_lan_half(
-    const std::vector<Group>& group,
-    const GPU_Vector<double>& mass,
-    GPU_Vector<double>& velocity_per_atom);
+  FILE* output_file;
+  double lambda = 0, dlambda = 0;
+  int t_equil = -1, t_switch = -1;
+  double pe, espring;
+  // spring constants
+  std::map<std::string, int> spring_map;
+  GPU_Vector<double> gpu_k;
+  std::vector<double> cpu_k;
+  GPU_Vector<double> gpu_espring;
+  GPU_Vector<double> position_0;
+  std::vector<double> thermo_cpu;
 };
