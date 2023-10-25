@@ -86,6 +86,7 @@ https://www.freelists.org/list/gpumd
 | [10]                  | NEP + ZBL |
 | [11]                  | NEP + D3 dispersion correction |
 | [12]                  | MSST integrator for shock wave simulation |
+| [13]                  | linear-scaling quantum transport |
 
 ## References
 
@@ -121,4 +122,8 @@ arXiv:2310.05279 [cond-mat.mtrl-sci].
 [12] Jiuyang Shi, Zhixing Liang, Junjie Wang, Shuning Pan, Chi Ding, Yong Wang, Hui-Tian Wang, Dingyu Xing, and Jian Sun,
 [Double-Shock Compression Pathways from Diamond to BC8 Carbon](https://doi.org/10.1103/PhysRevLett.131.146101),
 Phys. Rev. Lett. **131**, 146101 (2023).
+
+[13] Zheyong Fan, Yang Xiao, Yanzhou Wang, Penghua Ying, Shunda Chen, and Haikuan Dong,
+[Combining linear-scaling quantum transport and machine-learning molecular dynamics to study thermal and electronic transports in complex materials](https://doi.org/10.48550/arXiv.2310.15314),
+arXiv:2310.15314 [cond-mat.mtrl-sci].
 
