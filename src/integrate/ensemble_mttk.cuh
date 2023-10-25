@@ -40,6 +40,8 @@ public:
     Atom& atoms,
     GPU_Vector<double>& thermo);
 
+  double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
+
 protected:
   void init();
   void nhc_temp_integrate();
@@ -98,7 +100,6 @@ protected:
 
   // degrees of freedom when computing temperature
   int temperature_dof = 0;
-  double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
   double t_freq = 0, t_period = 100;
   double *Q, *eta_dot, *eta_dotdot;
   double *Q_p, *eta_p_dot, *eta_p_dotdot;

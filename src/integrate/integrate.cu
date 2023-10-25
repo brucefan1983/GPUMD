@@ -354,7 +354,10 @@ void Integrate::parse_ensemble(
     strcmp(param[1], "nvt_mttk") == 0 || strcmp(param[1], "npt_mttk") == 0 ||
     strcmp(param[1], "nph_mttk") == 0) {
     type = -3;
-    ensemble.reset(new Ensemble_MTTK(param, num_param));
+    Ensemble_MTTK* ptr_temp = new Ensemble_MTTK(param, num_param);
+    ensemble.reset(ptr_temp);
+    temperature1 = ptr_temp->t_start;
+    temperature2 = ptr_temp->t_stop;
   } else if (strcmp(param[1], "heat_nhc") == 0) {
     type = 21;
     if (num_param != 7) {
