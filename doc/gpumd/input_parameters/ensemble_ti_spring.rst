@@ -1,7 +1,7 @@
 .. _kw_ensemble_ti_spring:
 
 :attr:`ensemble` (TI_Spring)
-=======================
+============================
 
 This keyword is used to set up a nonequilibrium thermodynamic integration integrator. Please check [Freitas2016]_ for more details.
 

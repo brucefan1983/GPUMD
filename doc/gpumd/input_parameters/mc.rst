@@ -30,7 +30,7 @@ It can be used in the following way::
     mc sgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {species_0 mu_0 species_1 mu_1 ...} [group <grouping_method>  <group_id>]
 
 :attr:`vcsgc`
-^^^^^^^^^^^
+^^^^^^^^^^^^^
 If the first parameter is :attr:`vcsgc`, it means to use the :term:`VCSGC` :term:`MC` ensemble.
 
 It can be used in the following way::
