@@ -49,7 +49,7 @@ It can be used in the following way::
 
 * The listed species must be supported by the :term:`NEP` model.
 
-* For all the :term:`MC` ensembles, there is an option to specify the grouping method :atrr:`grouping_method` and the group ID :atrr:`group_id` in the given grouping method, after the parameter :atrr:`group`. See the examples below for concrete illustrations.
+* For all the :term:`MC` ensembles, there is an option to specify the grouping method :attr:`grouping_method` and the group ID :attr:`group_id` in the given grouping method, after the parameter :attr:`group`. See the examples below for concrete illustrations.
 
 * There must be at least one listed species in the initial model system or specified group. For example, if you list Au and Cu for doing :term:`SGC` :term:`MC`, the system or the specified group must have some Au or Cu atoms (or both); otherwise the :term:`MC` trial cannot get started.
 
