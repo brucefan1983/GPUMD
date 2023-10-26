@@ -21,7 +21,7 @@ The parameters can be specified as follows::
 Please note that the spring constants should be placed at the end of the command.
 
 Example
---------
+-------
 
 .. code-block:: rst
 
@@ -29,7 +29,7 @@ Example
 
 This command switch lambda for 4000 timesteps, and equilibrate for 1000 timesteps. The spring constant is 6 eV/A^2 for Si and 5 eV/A^2 for O.
 
-Output file 
---------
+Output file
+-----------
 
 This command will produce a csv file. The columns are lambda, dlambda, potential energy and spring energy (eV/atom).
