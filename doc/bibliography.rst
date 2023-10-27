@@ -184,6 +184,12 @@ Bibliography
    | Journal of Applied Physics, **52**, 7182-7190 (1981)
    | DOI: `10.1063/1.328693 <https://doi.org/10.1063/1.328693>`
 
+.. [Rahm2021]
+   | J. Magnus Rahm, Joakim Löfgren, Erik Fransson, and Paul Erhart
+   | *A tale of two phase diagrams: Interplay of ordering and hydrogen uptake in Pd–Au–H*
+   | Acta Materialia, **211**, 116893 (2021)
+   | DOI: `10.1016/j.actamat.2021.116893 <https://doi.org/10.1016/j.actamat.2021.116893>`
+
 .. [Reed2003]
    | Evan J. Reed, Laurence E. Fried, and J. D. Joannopoulos
    | *A Method for Tractable Dynamical Studies of Single and Double Shock Compression*

@@ -16,11 +16,13 @@ This keyword is used as follows::
 
   compute_rdf <cutoff> <num_bins> <interval> [atom <i1> <i2> atom <i3> <i4> ...]
 
-This means that the :term:`RDF` calculations will be performed every :attr:`interval` steps, with :attr:`num_bins`data points evenly distributed from 0 to :attr:`cutoff` (in units of Angstrom) in terms the distance between atom pairs.
+This means that the :term:`RDF` calculations will be performed every :attr:`interval` steps, with :attr:`num_bins` data points evenly distributed from 0 to :attr:`cutoff` (in units of Ångstrom) in terms of the distance between atom pairs.
 
 Without the optional parameters, only the total :term:`RDF` will be calculated.
 
-To additionally calculate the partial :term:`RDF` for a pair of species, one can specify the types of the two species after the word "atom". The types 0, 1, 2, ... correspond to the species in the potential file in order. Currently, one can specify at most 6 pairs. 
+To additionally calculate the partial :term:`RDF` for a pair of species, one can specify the types of the two species after the word "atom". 
+The types 0, 1, 2, ... correspond to the species in the potential file in order. 
+Currently, one can specify at most 6 pairs. 
 
 Example
 -------
