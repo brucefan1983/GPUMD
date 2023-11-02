@@ -186,6 +186,7 @@ void Integrate::initialize(
   ensemble->current_step = &this->current_step;
   ensemble->total_steps = &this->total_steps;
   ensemble->thermo = &thermo;
+  ensemble->fixed_group = fixed_group;
 }
 
 void Integrate::finalize()
