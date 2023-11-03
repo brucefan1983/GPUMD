@@ -61,11 +61,11 @@ static void get_random_velocities_by_seed(const int N, double* vx, double* vy, d
 {
   unsigned int s = (unsigned int)seed;
   for (int n = 0; n < N; ++n) {
-    srand(s * 3);
+    srand(s + n * 3);
     vx[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
-    srand(s * 3 + 1);
+    srand(s + n * 3 + 1);
     vy[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
-    srand(s * 3 + 2);
+    srand(s + n * 3 + 2);
     vz[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
   }
 }
