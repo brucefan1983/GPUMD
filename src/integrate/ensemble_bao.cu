@@ -25,10 +25,9 @@ The Langevin thermostat with the BAOAB splitting:
 #include "utilities/common.cuh"
 #include <cstdlib>
 
-Ensemble_BAO::Ensemble_BAO(int t, int fg, int N, double T, double Tc)
+Ensemble_BAO::Ensemble_BAO(int t, int N, double T, double Tc)
 {
   type = t;
-  fixed_group = fg;
   temperature = T;
   temperature_coupling = Tc;
   c1 = exp(-1.0 / temperature_coupling);
@@ -41,7 +40,6 @@ Ensemble_BAO::Ensemble_BAO(int t, int fg, int N, double T, double Tc)
 
 Ensemble_BAO::Ensemble_BAO(
   int t,
-  int fg,
   int source_input,
   int sink_input,
   int source_size,
@@ -53,7 +51,6 @@ Ensemble_BAO::Ensemble_BAO(
   double dT)
 {
   type = t;
-  fixed_group = fg;
   temperature = T;
   temperature_coupling = Tc;
   delta_temperature = dT;

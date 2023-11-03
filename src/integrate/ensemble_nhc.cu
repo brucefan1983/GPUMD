@@ -23,10 +23,9 @@ Oxford University Press, 2010.
 #include "utilities/common.cuh"
 #define DIM 3
 
-Ensemble_NHC::Ensemble_NHC(int t, int fg, int mg, double* mv, int N, double T, double Tc, double dt)
+Ensemble_NHC::Ensemble_NHC(int t, int mg, double* mv, int N, double T, double Tc, double dt)
 {
   type = t;
-  fixed_group = fg;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -49,7 +48,6 @@ Ensemble_NHC::Ensemble_NHC(int t, int fg, int mg, double* mv, int N, double T, d
 
 Ensemble_NHC::Ensemble_NHC(
   int t,
-  int fg,
   int source_input,
   int sink_input,
   int N1,
@@ -60,7 +58,6 @@ Ensemble_NHC::Ensemble_NHC(
   double time_step)
 {
   type = t;
-  fixed_group = fg;
   temperature = T;
   temperature_coupling = Tc;
   delta_temperature = dT;

@@ -33,10 +33,9 @@ void Ensemble_BDP::initialize_rng()
 #endif
 };
 
-Ensemble_BDP::Ensemble_BDP(int t, int fg, int mg, double* mv, double T, double Tc)
+Ensemble_BDP::Ensemble_BDP(int t, int mg, double* mv, double T, double Tc)
 {
   type = t;
-  fixed_group = fg;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -46,11 +45,9 @@ Ensemble_BDP::Ensemble_BDP(int t, int fg, int mg, double* mv, double T, double T
   initialize_rng();
 }
 
-Ensemble_BDP::Ensemble_BDP(
-  int t, int fg, int source_input, int sink_input, double T, double Tc, double dT)
+Ensemble_BDP::Ensemble_BDP(int t, int source_input, int sink_input, double T, double Tc, double dT)
 {
   type = t;
-  fixed_group = fg;
   temperature = T;
   temperature_coupling = Tc;
   delta_temperature = dT;

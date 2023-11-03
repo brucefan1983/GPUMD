@@ -116,7 +116,6 @@ Ensemble_TI_Spring::Ensemble_TI_Spring(const char** params, int num_params)
     t_switch,
     t_equil);
   type = 3;
-  fixed_group = -1;
   c1 = exp(-0.5 / temperature_coupling);
   c2 = sqrt((1 - c1 * c1) * K_B * temperature);
 }
