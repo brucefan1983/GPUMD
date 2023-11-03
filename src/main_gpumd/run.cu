@@ -455,8 +455,10 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
 
 void Run::parse_velocity(const char** param, int num_param)
 {
-  if (num_param != 2) {
-    PRINT_INPUT_ERROR("velocity should have 1 parameter.\n");
+  int seed;
+  bool use_seed = false;
+  if (!(num_param == 2 || num_param == 4)) {
+    PRINT_INPUT_ERROR("velocity should have 1 or 2 parameters.\n");
   }
   if (!is_valid_real(param[1], &initial_temperature)) {
     PRINT_INPUT_ERROR("initial temperature should be a real number.\n");
@@ -464,13 +466,21 @@ void Run::parse_velocity(const char** param, int num_param)
   if (initial_temperature <= 0.0) {
     PRINT_INPUT_ERROR("initial temperature should be a positive number.\n");
   }
+  if (num_param == 4) {
+    use_seed = true;
+    if (!is_valid_int(param[3], &seed)) {
+      PRINT_INPUT_ERROR("seed should be a positive integer.\n");
+    }
+  }
   velocity.initialize(
     has_velocity_in_xyz,
     initial_temperature,
     atom.cpu_mass,
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom,
-    atom.velocity_per_atom);
+    atom.velocity_per_atom,
+    use_seed,
+    seed);
 }
 
 void Run::parse_correct_velocity(const char** param, int num_param)
