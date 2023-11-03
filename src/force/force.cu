@@ -66,7 +66,7 @@ void Force::parse_potential(
 
   std::unique_ptr<Potential> potential;
   FILE* fid_potential = my_fopen(param[1], "r");
-  char potential_name[20];
+  char potential_name[100];
   int count = fscanf(fid_potential, "%s", potential_name);
   if (count != 1) {
     PRINT_INPUT_ERROR("reading error for potential file.");
