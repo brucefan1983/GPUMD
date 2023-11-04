@@ -54,7 +54,7 @@ void Replicate(const char** param, int num_param, Box& box, Atom& atoms, std::ve
           new_atoms.cpu_mass[cur] = atoms.cpu_mass[nn];
           new_atoms.cpu_atom_symbol[cur] = atoms.cpu_atom_symbol[nn];
           for (int m = 0; m < groups.size(); m++)
-            new_groups[m].cpu_label[cur] = groups[m].cpu_label[cur];
+            new_groups[m].cpu_label[cur] = groups[m].cpu_label[nn];
           for (int d = 0; d < 3; d++) {
             new_atoms.cpu_position_per_atom[cur + d * N] = atoms.cpu_position_per_atom[nn + d * n];
             if (!box.triclinic)
