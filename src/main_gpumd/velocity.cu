@@ -57,6 +57,19 @@ static void get_random_velocities(const int N, double* vx, double* vy, double* v
   }
 }
 
+static void get_random_velocities_by_seed(const int N, double* vx, double* vy, double* vz, int seed)
+{
+  unsigned int s = (unsigned int)seed;
+  for (int n = 0; n < N; ++n) {
+    srand(s + n * 3);
+    vx[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
+    srand(s + n * 3 + 1);
+    vy[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
+    srand(s + n * 3 + 2);
+    vz[n] = -1.0 + (rand() * 2.0) / RAND_MAX;
+  }
+}
+
 static void zero_linear_momentum(const int N, const double* m, double* vx, double* vy, double* vz)
 {
   double center_of_mass_velocity[3] = {0.0, 0.0, 0.0};
@@ -278,16 +291,27 @@ void Velocity::initialize(
   const std::vector<double>& cpu_mass,
   const std::vector<double>& cpu_position_per_atom,
   std::vector<double>& cpu_velocity_per_atom,
-  GPU_Vector<double>& velocity_per_atom)
+  GPU_Vector<double>& velocity_per_atom,
+  bool use_seed,
+  int seed)
 {
   do_velocity_correction = false;
   if (!has_velocity_in_xyz) {
     const int N = cpu_mass.size();
-    get_random_velocities(
-      N,
-      cpu_velocity_per_atom.data(),
-      cpu_velocity_per_atom.data() + N,
-      cpu_velocity_per_atom.data() + N * 2);
+    if (use_seed) {
+      get_random_velocities_by_seed(
+        N,
+        cpu_velocity_per_atom.data(),
+        cpu_velocity_per_atom.data() + N,
+        cpu_velocity_per_atom.data() + N * 2,
+        seed);
+    } else {
+      get_random_velocities(
+        N,
+        cpu_velocity_per_atom.data(),
+        cpu_velocity_per_atom.data() + N,
+        cpu_velocity_per_atom.data() + N * 2);
+    }
     correct_velocity(cpu_mass, cpu_position_per_atom, cpu_velocity_per_atom);
     scale(
       initial_temperature,

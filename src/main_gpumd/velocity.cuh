@@ -30,7 +30,9 @@ public:
     const std::vector<double>& cpu_mass,
     const std::vector<double>& cpu_position_per_atom,
     std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& velocity_per_atom);
+    GPU_Vector<double>& velocity_per_atom,
+    bool use_seed,
+    int seed);
 
   void correct_velocity(
     const int step,

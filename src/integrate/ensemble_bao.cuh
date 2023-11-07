@@ -20,8 +20,8 @@
 class Ensemble_BAO : public Ensemble
 {
 public:
-  Ensemble_BAO(int, int, int, double, double);
-  Ensemble_BAO(int, int, int, int, int, int, int, int, double, double, double);
+  Ensemble_BAO(int, int, double, double);
+  Ensemble_BAO(int, int, int, int, int, int, int, double, double, double);
   virtual ~Ensemble_BAO(void);
 
   virtual void compute1(

@@ -37,7 +37,6 @@ void Ensemble_NPT_SCR::initialize_rng()
 
 Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   int type_input,
-  int fixed_group_input,
   double temperature_input,
   double temperature_coupling_input,
   double target_pressure_input[6],
@@ -49,7 +48,6 @@ Ensemble_NPT_SCR::Ensemble_NPT_SCR(
   double deform_rate_input[3])
 {
   type = type_input;
-  fixed_group = fixed_group_input;
   temperature = temperature_input;
   temperature_coupling = temperature_coupling_input;
   for (int i = 0; i < 6; i++) {

@@ -59,16 +59,15 @@ void Integrate::initialize(
   // determine the integrator
   switch (type) {
     case 0: // NVE
-      ensemble.reset(new Ensemble_NVE(type, fixed_group));
+      ensemble.reset(new Ensemble_NVE(type));
       break;
     case 1: // NVT-Berendsen
-      ensemble.reset(new Ensemble_BER(
-        type, fixed_group, move_group, move_velocity, temperature, temperature_coupling));
+      ensemble.reset(
+        new Ensemble_BER(type, move_group, move_velocity, temperature, temperature_coupling));
       break;
     case 2: // NVT-NHC
       ensemble.reset(new Ensemble_NHC(
         type,
-        fixed_group,
         move_group,
         move_velocity,
         number_of_atoms,
@@ -77,21 +76,18 @@ void Integrate::initialize(
         time_step));
       break;
     case 3: // NVT-Langevin
-      ensemble.reset(
-        new Ensemble_LAN(type, fixed_group, number_of_atoms, temperature, temperature_coupling));
+      ensemble.reset(new Ensemble_LAN(type, number_of_atoms, temperature, temperature_coupling));
       break;
     case 4: // NVT-BDP
-      ensemble.reset(new Ensemble_BDP(
-        type, fixed_group, move_group, move_velocity, temperature, temperature_coupling));
+      ensemble.reset(
+        new Ensemble_BDP(type, move_group, move_velocity, temperature, temperature_coupling));
       break;
     case 5: // NVT-BAOAB_Langevin
-      ensemble.reset(
-        new Ensemble_BAO(type, fixed_group, number_of_atoms, temperature, temperature_coupling));
+      ensemble.reset(new Ensemble_BAO(type, number_of_atoms, temperature, temperature_coupling));
       break;
     case 11: // NPT-Berendsen
       ensemble.reset(new Ensemble_BER(
         type,
-        fixed_group,
         temperature,
         temperature_coupling,
         target_pressure,
@@ -105,7 +101,6 @@ void Integrate::initialize(
     case 12: // NPT-SCR
       ensemble.reset(new Ensemble_NPT_SCR(
         type,
-        fixed_group,
         temperature,
         temperature_coupling,
         target_pressure,
@@ -125,7 +120,6 @@ void Integrate::initialize(
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
         type,
-        fixed_group,
         source,
         sink,
         group[0].cpu_size[source],
@@ -138,7 +132,6 @@ void Integrate::initialize(
     case 22: // heat-Langevin
       ensemble.reset(new Ensemble_LAN(
         type,
-        fixed_group,
         source,
         sink,
         group[0].cpu_size[source],
@@ -150,8 +143,8 @@ void Integrate::initialize(
         delta_temperature));
       break;
     case 23: // heat-BDP
-      ensemble.reset(new Ensemble_BDP(
-        type, fixed_group, source, sink, temperature, temperature_coupling, delta_temperature));
+      ensemble.reset(
+        new Ensemble_BDP(type, source, sink, temperature, temperature_coupling, delta_temperature));
       break;
     case 31: // RPMD
       ensemble.reset(new Ensemble_PIMD(number_of_atoms, number_of_beads, false, atom));
@@ -186,6 +179,7 @@ void Integrate::initialize(
   ensemble->current_step = &this->current_step;
   ensemble->total_steps = &this->total_steps;
   ensemble->thermo = &thermo;
+  ensemble->fixed_group = fixed_group;
 }
 
 void Integrate::finalize()

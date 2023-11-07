@@ -9,11 +9,13 @@ This keyword is used to initialize the velocities of the atoms in the system acc
 
 Syntax
 ------
-* This keyword only has one parameter, which is the initial temperature of the system::
+* This keyword can be used in the following ways::
   
     velocity <initial_temperature>
+    velocity <initial_temperature> seed <seed_number>
 
 * The temperature is in units of kelvin (K).
+* You can specify a seed for the random number generator to generate a fixed temperature distribution, which is optional. If not specified, the velocities are initialized differently each time.
 
 Example
 -------

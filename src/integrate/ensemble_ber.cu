@@ -21,10 +21,9 @@ The Berendsen thermostat and barostat:
 #include "ensemble_ber.cuh"
 #include "npt_utilities.cuh"
 
-Ensemble_BER::Ensemble_BER(int t, int fg, int mg, double* mv, double T, double Tc)
+Ensemble_BER::Ensemble_BER(int t, int mg, double* mv, double T, double Tc)
 {
   type = t;
-  fixed_group = fg;
   move_group = mg;
   move_velocity[0] = mv[0];
   move_velocity[1] = mv[1];
@@ -35,7 +34,6 @@ Ensemble_BER::Ensemble_BER(int t, int fg, int mg, double* mv, double T, double T
 
 Ensemble_BER::Ensemble_BER(
   int t,
-  int fg,
   double T,
   double Tc,
   double target_p[6],
@@ -47,7 +45,6 @@ Ensemble_BER::Ensemble_BER(
   double rate[3])
 {
   type = t;
-  fixed_group = fg;
   temperature = T;
   temperature_coupling = 1.0 / Tc;
   for (int i = 0; i < 6; i++) {

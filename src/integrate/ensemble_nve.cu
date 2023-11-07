@@ -19,11 +19,7 @@ The NVE ensemble integrator.
 
 #include "ensemble_nve.cuh"
 
-Ensemble_NVE::Ensemble_NVE(int t, int fg)
-{
-  type = t;
-  fixed_group = fg;
-}
+Ensemble_NVE::Ensemble_NVE(int t) { type = t; }
 
 Ensemble_NVE::~Ensemble_NVE(void)
 {
