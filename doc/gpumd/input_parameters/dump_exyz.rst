@@ -24,13 +24,14 @@ The atomic positions will always be included in the output.
 
 Examples
 --------
-    # ensemble keyword here
+
+.. code::
+
     dump_exyz 1000        # dump positions every 1000 steps
     dump_exyz 1000 1      # dump positions and velocities
     dump_exyz 1000 1 1    # dump positions, velocities, and forces
     dump_exyz 1000 1 1 1  # dump positions, velocities, forces, and potentials
     dump_exyz 1000 0 1 1  # dump positions, forces and potentials
-    run 1000000
 
 Caveats
 -------

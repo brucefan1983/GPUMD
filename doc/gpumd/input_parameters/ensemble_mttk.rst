@@ -70,7 +70,7 @@ This command ramps the temperature from 300 K to 1000 K, while keeping the press
 
     ensemble npt_mttk temp 300 300 aniso 10 10
 
-This command replaces `iso` with `ansio`.
+This command replaces ``iso`` with ``ansio``.
 The three dimensions of the cell thus change independently, but `xy`, `xz` and `yz` remain unchanged.
 
 .. code-block:: rst
@@ -79,7 +79,7 @@ The three dimensions of the cell thus change independently, but `xy`, `xz` and `
 
 All six degrees of freedom of the simulation cell are allowed to change.
 The simulated system will converge to fully hydrostatic pressure. 
-Note that with `iso` and `aniso`, there is no guarantee that the pressure is hydrostatic, as the system is constrained.
+Note that with ``iso`` and ``aniso``, there is no guarantee that the pressure is hydrostatic, as the system is constrained.
 
 .. code-block:: rst
 
