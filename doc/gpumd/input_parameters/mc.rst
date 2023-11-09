@@ -13,14 +13,14 @@ This keyword can only be used in combination with :term:`NEP` models.
 Syntax
 ------
 
-:`canonical`
-^^^^^^^^^^^^
+:attr:`canonical`
+^^^^^^^^^^^^^^^^^
 If the first parameter is :attr:`canonical`, the system will be sampled in the canonical :term:`MC` ensemble.
 It can be used as follows::
 
     mc canonical <md_steps> <mc_trials> <T_i> <T_f> [group <grouping_method> <group_id>]
 
-This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from attr:`T_i` to attr:`T_f`.
+This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from :attr:`T_i` to :attr:`T_f`.
 
 :attr:`sgc`
 ^^^^^^^^^^^
@@ -29,10 +29,11 @@ It can be used as follows::
 
     mc sgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <mu_0> <species_1> <mu_1> ...} [group <grouping_method>  <group_id>]
 
-This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from attr:`T_i` to attr:`T_f`.
+This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from :attr:`T_i` to :attr:`T_f`.
+
 :attr:`num_species` specifies the number of species that are to be included in the sampling.
 It must be no less than 2 and no larger than 4.
-After specifying the number of species to be involved, the chemical symbols and chemical potentials :math:`\mu_i` (in units of eV) for these species need to be listed.
+After specifying the number of species, one needs to specify their chemical symbols (:attr:`species_i`) and chemical potentials (:attr:`mu_i`) in units of eV.
 The species can be listed in arbitrary order.
 Note that only the differences between the chemical potentials matter.
 
@@ -43,16 +44,16 @@ It can be used in the following way::
 
     mc vcsgc <md_steps> <mc_trials> <T_i> <T_f> <num_species> {<species_0> <phi_0> <species_1> <phi_1> ...} kappa [group <grouping_method>  <group_id>]
 
-This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from attr:`T_i` to attr:`T_f`.
+This means that :attr:`mc_trials` :term:`MC` trials are performed every :attr:`md_steps` :term:`MD` steps, while the instant temperature for the :term:`MC` ensemble changes linearly from :attr:`T_i` to :attr:`T_f`.
+
 :attr:`num_species` specifies the number of species that are to be included in the sampling.
 It must be no less than 2 and no larger than 4.
-After specifying the number of species to be involved, the chemical symbols and the dimensionless :math:`\phi_i` parameters for these species need to be listed.
+After specifying the number of species, one needs to specify their chemical symbols (:attr:`species_i`) and chemical potentials (:attr:`phi_i` = :math:`\phi_i`).
 The species can be listed in arbitrary order.
-Next one needs to specify the (dimensionless) :math:`\kappa` parameter.
+Next one needs to specify the (dimensionless) :attr:`kappa` parameter (:math:`\kappa`).
 
 The :math:`\phi` and :math:`\kappa` parameters constrain the average and variance of the species concentrations, respectively.
-One can usually achieve a sampling of the full composition range by varying :math:`\phi_i` between -1.2 and +1.2, which thus play a role that is equivalent to the :math:`\mu_i` parameters in the :term:`SGC` ensemble.
-
+One can usually achieve a sampling of the full composition range by varying :math:`\phi_i` between −1.2 and +1.2, which thus play a role that is equivalent to the :math:`\mu_i` parameters in the :term:`SGC` ensemble.
 Typically a :math:`\kappa` value of 100 is suitable.
 If the concentration fluctuations are too large (e.g., deep with miscibility gaps) one should increase this value.
 
@@ -72,10 +73,7 @@ Example 1
 
 An example for sampling in the canonical ensemble is::
   
-  ensemble nvt_lan 300 300 100
-  # other keywords for the run
   mc canonical 100 200 500 100 group 1 3
-  run 1000000
 
 This means
 
@@ -88,10 +86,7 @@ Example 2
 
 Here is an example for :term:`MC` sampling the :term:`SGC` ensemble::
   
-  ensemble nvt_lan 300 300 100
-  # other keywords for the run
   mc sgc 100 1000 300 300 2 Cu 0 Au 0.6
-  run 1000000
 
 This means
 
@@ -105,10 +100,7 @@ Example 3
 
 Here is an example for sampling in the :term:`VCSGC` ensemble::
   
-  ensemble nvt_lan 300 300 100
-  # other keywords for the run
   mc vcsgc 200 1000 500 500 2 Al -2 Ag 0 10000
-  run 1000000
 
 This means
 
