@@ -382,7 +382,7 @@ void Parameters::report_inputs()
 void Parameters::parse_one_keyword(std::vector<std::string>& tokens)
 {
   int num_param = tokens.size();
-  const char* param[20]; // never use more than 19 parameters
+  const char* param[105]; // never use more than 104 parameters
   for (int n = 0; n < num_param; ++n) {
     param[n] = tokens[n].c_str();
   }
