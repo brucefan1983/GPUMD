@@ -343,7 +343,6 @@ void find_neighbor(
 }
 
 // For ILP, the neighbor could not contain atoms in the same layer
-#define BIG_ILP_CUTOFF_SQUARE 16.0
 static __global__ void gpu_find_neighbor_ON1(
   const Box box,
   const int N,
@@ -438,6 +437,7 @@ void find_neighbor(
   const int N1,
   const int N2,
   double rc,
+  double big_ilp_cutoff_square,
   Box& box,
   const int* group_label,
   const GPU_Vector<int>& type,
@@ -487,7 +487,7 @@ void find_neighbor(
     num_bins[2],
     rc_inv_cell_list,
     rc * rc,
-    BIG_ILP_CUTOFF_SQUARE);
+    big_ilp_cutoff_square);
   CUDA_CHECK_KERNEL
 
   const int MN = NL.size() / NN.size();

@@ -1103,6 +1103,7 @@ void ILP::compute(
 
 #define USE_FIXED_NEIGHBOR 1
 #define UPDATE_TEMP 10
+#define BIG_ILP_CUTOFF_SQUARE 16.0
 // find force and related quantities
 void ILP::compute(
   Box &box,
@@ -1130,6 +1131,7 @@ void ILP::compute(
       N1,
       N2,
       rc,
+      BIG_ILP_CUTOFF_SQUARE,
       box,
       group_label,
       type,

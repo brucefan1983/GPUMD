@@ -45,6 +45,7 @@ void find_neighbor(
   const int N1,
   const int N2,
   double rc,
+  double big_ilp_cutoff_square,
   Box& box,
   const int* group_label,
   const GPU_Vector<int>& type,
