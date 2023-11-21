@@ -1248,4 +1248,5 @@ void ILP::compute(
     g_f12x_ilp_neigh,
     g_f12y_ilp_neigh,
     g_f12z_ilp_neigh);
+  CUDA_CHECK_KERNEL
 }
