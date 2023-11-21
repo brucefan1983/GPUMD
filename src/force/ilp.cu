@@ -881,7 +881,7 @@ static __global__ void gpu_find_force(
   }
 }
 
-__global__ void build_reduce_neighbor_list(
+static __global__ void build_reduce_neighbor_list(
   const int number_of_particles,
   const int N1,
   const int N2,
@@ -916,7 +916,7 @@ __global__ void build_reduce_neighbor_list(
   }
 }
 
-__global__ void reduce_force_many_body(
+static __global__ void reduce_force_many_body(
   const int number_of_particles,
   const int N1,
   const int N2,
