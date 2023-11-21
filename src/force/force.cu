@@ -21,7 +21,10 @@ The driver class calculating force and related quantities.
 #include "lj.cuh"
 #include "nep3.cuh"
 #include "nep3_multigpu.cuh"
+// TODO: include ilp.cuh
 #include "ilp.cuh"
+#include "ilp_tmd.cuh"
+
 #include "potential.cuh"
 #include "tersoff1988.cuh"
 #include "tersoff1989.cuh"
@@ -122,6 +125,8 @@ void Force::parse_potential(
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp") == 0) {
     potential.reset(new ILP(fid_potential, num_types, number_of_atoms));
+  } else if (strcmp(potential_name, "ilp_tmd") == 0) {
+    potential.reset(new ILP_TMD(fid_potential, num_types, number_of_atoms));
   } else {
     PRINT_INPUT_ERROR("illegal potential model.\n");
   }
@@ -460,7 +465,8 @@ void Force::compute(
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
     ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
-    if (ilp_flag) {
+    ILP_TMD *ilp_tmd_flag = dynamic_cast<ILP_TMD*>(potentials[0].get());
+    if (ilp_flag || ilp_tmd_flag) {
       potentials[0]->compute(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
     } else {
@@ -473,7 +479,8 @@ void Force::compute(
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
-      if (ilp_flag) {
+      ILP_TMD *ilp_tmd_flag = dynamic_cast<ILP_TMD*>(potentials[0].get());
+      if (ilp_flag || ilp_tmd_flag) {
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
@@ -741,7 +748,8 @@ void Force::compute(
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // TODO: bhk add group
     ILP *ilp_flag = dynamic_cast<ILP*>(potentials[0].get());
-    if (ilp_flag) {
+    ILP_TMD *ilp_tmd_flag = dynamic_cast<ILP_TMD*>(potentials[0].get());
+    if (ilp_flag || ilp_tmd_flag) {
       potentials[0]->compute(
         box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
     } else {
@@ -754,11 +762,12 @@ void Force::compute(
     for (int i = 0; i < potentials.size(); i++) {
       // TODO: bhk add group
       ILP *ilp_flag = dynamic_cast<ILP*>(potentials[i].get());
-      if (ilp_flag) {
+      ILP_TMD *ilp_tmd_flag = dynamic_cast<ILP_TMD*>(potentials[i].get());
+      if (ilp_flag || ilp_tmd_flag) {
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom, group);
       } else {
-        // potential->compute automatically adds the properties
+        // potential->compute automaticallynumber_of_atomsadds the properties
         // TODO bhk: for test ILP + tersoff
         potentials[i]->compute(
           box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
