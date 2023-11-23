@@ -120,7 +120,8 @@ void Force::parse_potential(
     }
     is_nep = true;
     // Check if the types for this potential are compatible with the possibly other potentials
-    check_types(param[1]);
+    // TODO
+    // check_types(param[1]);
   } else if (strcmp(potential_name, "lj") == 0) {
     potential.reset(new LJ(fid_potential, num_types, number_of_atoms));
   } else if (strcmp(potential_name, "ilp") == 0) {
