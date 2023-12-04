@@ -408,6 +408,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.dump_observer.parse(param, num_param);
   } else if (strcmp(param[0], "dump_piston") == 0) {
     measure.dump_piston.parse(param, num_param);
+  } else if (strcmp(param[0], "dump_dipole") == 0) {
+    measure.dump_dipole.parse(param, num_param);
   } else if (strcmp(param[0], "active") == 0) {
     measure.active.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
