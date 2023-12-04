@@ -937,6 +937,7 @@ static __global__ void find_force_radial(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
+  const bool is_dipole,
 #ifdef USE_TABLE
   const float* __restrict__ g_gnp_radial,
 #endif
@@ -1044,15 +1045,22 @@ static __global__ void find_force_radial(
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
-      s_sxx += r12[0] * f21[0];
+      if (is_dipole) {
+        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        s_sxx += r12_square * f21[0];
+        s_syy += r12_square * f21[1];
+        s_szz += r12_square * f21[2];
+      } else {
+        s_sxx += r12[0] * f21[0];
+        s_syy += r12[1] * f21[1];
+        s_szz += r12[2] * f21[2];
+      }
       s_sxy += r12[0] * f21[1];
       s_sxz += r12[0] * f21[2];
       s_syx += r12[1] * f21[0];
-      s_syy += r12[1] * f21[1];
       s_syz += r12[1] * f21[2];
       s_szx += r12[2] * f21[0];
       s_szy += r12[2] * f21[1];
-      s_szz += r12[2] * f21[2];
     }
     g_fx[n1] = s_fx;
     g_fy[n1] = s_fy;
@@ -1711,6 +1719,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
+    bool is_dipole = paramb.model_type == 1;
     find_force_radial<<<
       (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1,
       64,
@@ -1729,6 +1738,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].Fp.data(),
+      is_dipole,
 #ifdef USE_TABLE
       nep_data[gpu].gnp_radial.data(),
 #endif
@@ -2262,6 +2272,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
+    bool is_dipole = paramb.model_type == 1;
     find_force_radial<<<
       (nep_data[gpu].N2 - nep_data[gpu].N1 - 1) / 64 + 1,
       64,
@@ -2280,6 +2291,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
       nep_data[gpu].Fp.data(),
+      is_dipole,
 #ifdef USE_TABLE
       nep_data[gpu].gnp_radial.data(),
 #endif

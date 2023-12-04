@@ -464,6 +464,7 @@ static __global__ void find_force_radial_small_box(
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
   const float* __restrict__ g_Fp,
+  const bool is_dipole,
 #ifdef USE_TABLE
   const float* __restrict__ g_gnp_radial,
 #endif
@@ -534,6 +535,31 @@ static __global__ void find_force_radial_small_box(
         }
       }
 #endif
+      double s_sxx = 0.0;
+      double s_sxy = 0.0;
+      double s_sxz = 0.0;
+      double s_syx = 0.0;
+      double s_syy = 0.0;
+      double s_syz = 0.0;
+      double s_szx = 0.0;
+      double s_szy = 0.0;
+      double s_szz = 0.0;
+      if (is_dipole) {
+        double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        s_sxx -= r12_square * f12[0];
+        s_syy -= r12_square * f12[1];
+        s_szz -= r12_square * f12[2];
+      } else {
+        s_sxx -= r12[0] * f12[0];
+        s_syy -= r12[1] * f12[1];
+        s_szz -= r12[2] * f12[2];
+      }
+      s_sxy -= r12[0] * f12[1];
+      s_sxz -= r12[0] * f12[2];
+      s_syz -= r12[1] * f12[2];
+      s_syx -= r12[1] * f12[0];
+      s_szx -= r12[2] * f12[0];
+      s_szy -= r12[2] * f12[1];
 
       atomicAdd(&g_fx[n1], double(f12[0]));
       atomicAdd(&g_fy[n1], double(f12[1]));
@@ -545,15 +571,15 @@ static __global__ void find_force_radial_small_box(
       // xx xy xz    0 3 4
       // yx yy yz    6 1 5
       // zx zy zz    7 8 2
-      atomicAdd(&g_virial[n2 + 0 * N], double(-r12[0] * f12[0]));
-      atomicAdd(&g_virial[n2 + 1 * N], double(-r12[1] * f12[1]));
-      atomicAdd(&g_virial[n2 + 2 * N], double(-r12[2] * f12[2]));
-      atomicAdd(&g_virial[n2 + 3 * N], double(-r12[0] * f12[1]));
-      atomicAdd(&g_virial[n2 + 4 * N], double(-r12[0] * f12[2]));
-      atomicAdd(&g_virial[n2 + 5 * N], double(-r12[1] * f12[2]));
-      atomicAdd(&g_virial[n2 + 6 * N], double(-r12[1] * f12[0]));
-      atomicAdd(&g_virial[n2 + 7 * N], double(-r12[2] * f12[0]));
-      atomicAdd(&g_virial[n2 + 8 * N], double(-r12[2] * f12[1]));
+      atomicAdd(&g_virial[n2 + 0 * N], s_sxx);
+      atomicAdd(&g_virial[n2 + 1 * N], s_syy);
+      atomicAdd(&g_virial[n2 + 2 * N], s_szz);
+      atomicAdd(&g_virial[n2 + 3 * N], s_sxy);
+      atomicAdd(&g_virial[n2 + 4 * N], s_sxz);
+      atomicAdd(&g_virial[n2 + 5 * N], s_syz);
+      atomicAdd(&g_virial[n2 + 6 * N], s_syx);
+      atomicAdd(&g_virial[n2 + 7 * N], s_szx);
+      atomicAdd(&g_virial[n2 + 8 * N], s_szy);
     }
   }
 }

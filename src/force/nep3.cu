@@ -123,6 +123,12 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
     paramb.version = 4;
     paramb.model_type = 3;
     zbl.enabled = true;
+  } else if (tokens[0] == "nep3_dipole") {
+    paramb.version = 3;
+    paramb.model_type = 1;
+  } else if (tokens[0] == "nep4_dipole") {
+    paramb.version = 4;
+    paramb.model_type = 1;
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   if (tokens.size() != 2 + paramb.num_types) {
@@ -687,6 +693,7 @@ static __global__ void find_force_radial(
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
   const float* __restrict__ g_Fp,
+  const bool is_dipole,
 #ifdef USE_TABLE
   const float* __restrict__ g_gnp_radial,
 #endif
@@ -794,15 +801,22 @@ static __global__ void find_force_radial(
       s_fx += f12[0] - f21[0];
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
-      s_sxx += r12[0] * f21[0];
+      if (is_dipole) {
+        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        s_sxx += r12_square * f21[0];
+        s_syy += r12_square * f21[1];
+        s_szz += r12_square * f21[2];
+      } else {
+        s_sxx += r12[0] * f21[0];
+        s_syy += r12[1] * f21[1];
+        s_szz += r12[2] * f21[2];
+      }
       s_sxy += r12[0] * f21[1];
       s_sxz += r12[0] * f21[2];
       s_syx += r12[1] * f21[0];
-      s_syy += r12[1] * f21[1];
       s_syz += r12[1] * f21[2];
       s_szx += r12[2] * f21[0];
       s_szy += r12[2] * f21[1];
-      s_szz += r12[2] * f21[2];
     }
     g_fx[n1] += s_fx;
     g_fy[n1] += s_fy;
@@ -1156,6 +1170,7 @@ void NEP3::compute_large_box(
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
+  bool is_dipole = paramb.model_type == 1;
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1170,6 +1185,7 @@ void NEP3::compute_large_box(
     position_per_atom.data() + N,
     position_per_atom.data() + N * 2,
     nep_data.Fp.data(),
+    is_dipole,
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
@@ -1306,6 +1322,7 @@ void NEP3::compute_small_box(
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
+  bool is_dipole = paramb.model_type == 1;
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1319,6 +1336,7 @@ void NEP3::compute_small_box(
     r12.data() + size_x12,
     r12.data() + size_x12 * 2,
     nep_data.Fp.data(),
+    is_dipole,
 #ifdef USE_TABLE
     nep_data.gnp_radial.data(),
 #endif
