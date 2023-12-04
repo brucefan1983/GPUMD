@@ -18,6 +18,7 @@
 #include "compute.cuh"
 #include "dos.cuh"
 #include "dump_beads.cuh"
+#include "dump_dipole.cuh"
 #include "dump_exyz.cuh"
 #include "dump_force.cuh"
 #include "dump_observer.cuh"
@@ -108,6 +109,7 @@ public:
   Dump_Beads dump_beads;
   Dump_Observer dump_observer;
   Dump_Piston dump_piston;
+  Dump_Dipole dump_dipole;
   Active active;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;

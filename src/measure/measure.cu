@@ -54,6 +54,7 @@ void Measure::initialize(
   dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
+  dump_dipole.preprocess(number_of_atoms, force);
   dump_piston.preprocess(atom, box);
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
@@ -82,7 +83,11 @@ void Measure::finalize(
   dump_exyz.postprocess();
   dump_beads.postprocess();
   dump_observer.postprocess();
+<<<<<<< HEAD
   dump_piston.postprocess();
+=======
+  dump_dipole.postprocess();
+>>>>>>> 36b82b1b (make dump_dipole change compile)
   active.postprocess();
   dos.postprocess();
   sdc.postprocess();
@@ -157,6 +162,7 @@ void Measure::process(
   dump_beads.process(step, global_time, box, atom);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
+  dump_dipole.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
 
   compute.process(

@@ -27,11 +27,11 @@ class Atom;
 class Force;
 class Integrate;
 
-class Dump_Observer
+class Dump_Dipole
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms, const int number_of_files, Force& force);
+  void preprocess(const int number_of_atoms, Force& force);
   void process(
     int step,
     const double global_time,
@@ -39,49 +39,15 @@ public:
     std::vector<Group>& group,
     Box& box,
     Atom& atom,
-    Force& force,
-    Integrate& integrate,
-    GPU_Vector<double>& thermo);
+    Force& force);
   void postprocess();
 
 private:
   bool dump_ = false;
-  int dump_interval_thermo_ = 1;
-  int dump_interval_exyz_ = 1;
-  int has_velocity_ = 0;
-  int has_force_ = 0;
-  std::vector<FILE*> exyz_files_;
-  std::vector<FILE*> thermo_files_;
+  int dump_interval_ = 1;
+  FILE* file_;
   std::vector<double> cpu_force_per_atom_;
   GPU_Vector<double> gpu_total_virial_;
   std::vector<double> cpu_total_virial_;
-  std::string mode_ = "observe"; // observe or average
-  void output_line2(
-    const double time,
-    const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo,
-    FILE* fid_);
-  void write_exyz(
-    const int step,
-    const double global_time,
-    const Box& box,
-    const std::vector<std::string>& cpu_atom_symbol,
-    const std::vector<int>& cpu_type,
-    GPU_Vector<double>& position_per_atom,
-    std::vector<double>& cpu_position_per_atom,
-    GPU_Vector<double>& velocity_per_atom,
-    std::vector<double>& cpu_velocity_per_atom,
-    GPU_Vector<double>& force_per_atom,
-    GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo,
-    const int file_index);
-  void write_thermo(
-    const int step,
-    const int number_of_atoms,
-    const int number_of_atoms_fixed,
-    const Box& box,
-    GPU_Vector<double>& gpu_thermo,
-    const int file_index);
+  void write_dipole(const int step, std::vector<double>& dipole);
 };

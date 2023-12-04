@@ -84,13 +84,16 @@ void Dump_Dipole::parse(const char** param, int num_param)
   printf("   every %d steps.\n", dump_interval_);
 }
 
-void Dump_Dipole::preprocess(
-  const int number_of_atoms, const int number_of_potentials, Force& force)
+void Dump_Dipole::preprocess(const int number_of_atoms, Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
+  force.set_multiple_potentials_mode("observe");
   if (dump_) {
-    std::string filename = "dipole.out";
-    cpu_total_dipole_.resize(3);
+    std::string filename_ = "dipole.out";
+    file_ = my_fopen(filename_.c_str(), "a");
+    gpu_total_virial_.resize(6);
+    cpu_total_virial_.resize(6);
+    cpu_force_per_atom_.resize(number_of_atoms * 3);
   }
 }
 
@@ -101,14 +104,12 @@ void Dump_Dipole::process(
   std::vector<Group>& group,
   Box& box,
   Atom& atom,
-  Force& force,
-  Integrate& integrate,
-  GPU_Vector<double>& thermo)
+  Force& force)
 {
   // Only run if should dump, since forces have to be recomputed with each potential.
   if (!dump_)
     return;
-  if (((step + 1) % dump_interval_thermo_ != 0))
+  if (((step + 1) % dump_interval_ != 0))
     return;
   const int number_of_atoms = atom.type.size();
   initialize_properties<<<(number_of_atoms - 1) / 128 + 1, 128>>>(
@@ -120,7 +121,8 @@ void Dump_Dipole::process(
     atom.virial_per_atom.data());
   CUDA_CHECK_KERNEL
   // Compute new potential properties
-  // the dipoles are stored in the forces
+  // the dipoles are stored in the virials
+  // only the diagonal terms matter
   // TODO make sure that the second potential is actually a dipole model.
   force.potentials[1]->compute(
     box,
@@ -129,43 +131,28 @@ void Dump_Dipole::process(
     atom.potential_per_atom,
     atom.force_per_atom,
     atom.virial_per_atom);
-  integrate.ensemble->find_thermo(
-    false,
-    box.get_volume(),
-    group,
-    atom.mass,
-    atom.potential_per_atom,
-    atom.velocity_per_atom,
-    atom.virial_per_atom,
-    thermo);
 
   // Aggregate force_per_atom into dipole
   // TODO use gpu_sum
-  double dipole[8];
+  std::vector<double> dipole{0.0, 0.0, 0.0};
   // Write properties
-  write_thermo(step, dipole);
+  write_dipole(step, dipole);
 }
 
-void Dump_Dipole::write_thermo(
-  const int step,
-  const int number_of_atoms,
-  const int number_of_atoms_fixed,
-  const Box& box,
-  GPU_Vector<double>& dipole)
+void Dump_Dipole::write_dipole(const int step, std::vector<double>& dipole)
 {
   if (!dump_)
     return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 
-  FILE* fid_ = filaname_;
   // stress components are in Voigt notation: xx, yy, zz, yz, xz, xy
-  fprintf(fid_, "%20.10e%20.10e%20.10e%20.10e%20.10e", step, dipole[0], dipole[1], dipole[2]);
-  fflush(fid_);
+  fprintf(file_, "%d%20.10e%20.10e%20.10e", step, dipole[0], dipole[1], dipole[2]);
+  fflush(file_);
 }
 
 void Dump_Dipole::postprocess()
 {
-  fclose(filaname_);
+  fclose(file_);
   dump_ = false;
 }
