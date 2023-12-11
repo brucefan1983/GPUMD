@@ -46,8 +46,8 @@ private:
   bool dump_ = false;
   int dump_interval_ = 1;
   FILE* file_;
-  std::vector<double> cpu_force_per_atom_;
-  GPU_Vector<double> gpu_total_virial_;
-  std::vector<double> cpu_total_virial_;
-  void write_dipole(const int step, std::vector<double>& dipole);
+  GPU_Vector<double> gpu_dipole_;
+  std::vector<double> cpu_dipole_;
+  void write_dipole(const int step);
+  Atom atom_copy;
 };
