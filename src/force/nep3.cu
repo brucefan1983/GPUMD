@@ -802,7 +802,7 @@ static __global__ void find_force_radial(
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
       if (is_dipole) {
-        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
         s_sxx += r12_square * f21[0];
         s_syy += r12_square * f21[1];
         s_szz += r12_square * f21[2];
@@ -1360,6 +1360,7 @@ void NEP3::compute_small_box(
     r12.data() + size_x12 * 5,
     nep_data.Fp.data(),
     nep_data.sum_fxyz.data(),
+    is_dipole,
 #ifdef USE_TABLE
     nep_data.gn_angular.data(),
     nep_data.gnp_angular.data(),
@@ -1941,6 +1942,7 @@ void NEP3::compute_small_box(
     r12.data() + size_x12 * 5,
     nep_data.Fp.data(),
     nep_data.sum_fxyz.data(),
+    is_dipole,
 #ifdef USE_TABLE
     nep_data.gn_angular.data(),
     nep_data.gnp_angular.data(),
