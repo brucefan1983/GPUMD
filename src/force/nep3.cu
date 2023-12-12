@@ -126,9 +126,15 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   } else if (tokens[0] == "nep3_dipole") {
     paramb.version = 3;
     paramb.model_type = 1;
+  } else if (tokens[0] == "nep3_polarizability") {
+    paramb.version = 3;
+    paramb.model_type = 2;
   } else if (tokens[0] == "nep4_dipole") {
     paramb.version = 4;
     paramb.model_type = 1;
+  } else if (tokens[0] == "nep3_polarizability") {
+    paramb.version = 4;
+    paramb.model_type = 2;
   }
   paramb.num_types = get_int_from_token(tokens[1], __FILE__, __LINE__);
   if (tokens.size() != 2 + paramb.num_types) {

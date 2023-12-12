@@ -55,6 +55,7 @@ void Measure::initialize(
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
   dump_dipole.preprocess(number_of_atoms, force);
+  dump_polarizability.preprocess(number_of_atoms, force);
   dump_piston.preprocess(atom, box);
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
@@ -87,7 +88,11 @@ void Measure::finalize(
   dump_piston.postprocess();
 =======
   dump_dipole.postprocess();
+<<<<<<< HEAD
 >>>>>>> 36b82b1b (make dump_dipole change compile)
+=======
+  dump_polarizability.postprocess();
+>>>>>>> f6fc105a (add dump_polarizability keyword)
   active.postprocess();
   dos.postprocess();
   sdc.postprocess();
@@ -163,6 +168,7 @@ void Measure::process(
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);
   dump_dipole.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
+  dump_polarizability.process(step, global_time, number_of_atoms_fixed, group, box, atom, force);
   active.process(step, global_time, number_of_atoms_fixed, group, box, atom, force, thermo);
 
   compute.process(
