@@ -36,6 +36,7 @@ The angular frequency data will be :attr:`max_omega/num_omega, 2*max_omega/num_o
 
 This meas that :math:`K(t)` will be calculated for atoms in group :attr:`group_id` of grouping method :attr:`grouping_method`.
 Here :attr:`group_id` should be :math:`\geq 0` and smaller than the number of groups in grouping method :attr:`grouping_method`.
+If :attr:`grouping_method` :math:`\eq 0` is 0 and :attr:`group_id` :math:`\eq -1`, it means to calculate the SHC for every group in the grouping_method.
 Also, grouping method :attr:`grouping_method` must be defined in the :ref:`simulation model input file <model_xyz>`.
 If this option is missing, it means computing :math:`K(t)` for the whole system.
 
