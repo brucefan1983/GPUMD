@@ -32,6 +32,8 @@ struct NEP3_Data {
   GPU_Vector<float> y12_angular;
   GPU_Vector<float> z12_angular;
   GPU_Vector<float> descriptors; // descriptors
+  GPU_Vector<float> message1;          // message
+  GPU_Vector<float> message2;          // message after summing over neighbors
   GPU_Vector<float> Fp;          // gradient of descriptors
   GPU_Vector<float> sum_fxyz;
   GPU_Vector<float> parameters; // parameters to be optimized
@@ -73,6 +75,7 @@ public:
     const float* b1_pol;     // bias for the output layer
     // for elements in descriptor
     const float* c;
+    const float* message;
   };
 
   struct ZBL {

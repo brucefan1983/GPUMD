@@ -229,6 +229,77 @@ static __global__ void find_descriptors_angular(
   }
 }
 
+
+static __global__ void find_message2_radial(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP3::ParaMB paramb,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  const float* __restrict__ g_message1,
+  float* g_message2)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1];
+    float message2[MAX_DIM] = {0.0f};
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = n1 + N * i1;
+      int n2 = g_NL[index];
+      float x12 = g_x12[index];
+      float y12 = g_y12[index];
+      float z12 = g_z12[index];
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float fc12;
+      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
+      for (int d = 0; d <= paramb.n_max_radial; ++d) {
+        message2[d] += g_message1[d*N+n2] * fc12;
+      }
+    }
+    for (int d = 0; d <= paramb.n_max_radial; ++d) {
+      g_message2[n1 + d * N] = message2[d];
+    }
+  }
+}
+
+static __global__ void find_message2_angular(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  const float* __restrict__ g_message1,
+  float* g_message2)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1];
+    float message2[MAX_DIM] = {0.0f};
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = n1 + N * i1;
+      int n2 = g_NL[index];
+      float x12 = g_x12[index];
+      float y12 = g_y12[index];
+      float z12 = g_z12[index];
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float fc12;
+      find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+      for (int d = paramb.n_max_radial + 1; d < annmb.dim; ++d) {
+        message2[d] += g_message1[d*N+n2] * fc12;
+      }
+    }
+    for (int d = paramb.n_max_radial + 1; d < annmb.dim; ++d) {
+      g_message2[n1 + d * N] = message2[d];
+    }
+  }
+}
+
+
 NEP3::NEP3(
   Parameters& para,
   int N,
@@ -296,6 +367,8 @@ NEP3::NEP3(
     nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
+    nep_data[device_id].message1.resize(N * annmb[device_id].dim);
+    nep_data[device_id].message2.resize(N * annmb[device_id].dim);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
@@ -304,12 +377,15 @@ NEP3::NEP3(
 void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
+  ann.message = pointer;
+  pointer += ann.num_neurons1 * ann.dim*2 + ann.num_neurons1;
+
   for (int t = 0; t < paramb.num_types; ++t) {
     if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
       pointer -= (ann.dim + 2) * ann.num_neurons1;
     }
     ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim;
+    pointer += ann.num_neurons1 * ann.dim*2;
     ann.b0[t] = pointer;
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
@@ -377,6 +453,102 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
   }
 }
 
+static __device__ void apply_ann_one_layer(
+  const int N_des,
+  const int N_neu,
+  const float* para,
+  float* q,
+  float* message)
+{
+  const float* w0 = para;
+  const float* b0 = para + N_des * N_neu;
+  const float* w1 = b0 + N_neu;
+  for (int n = 0; n < N_neu; ++n) {
+    float w0_times_q = 0.0f;
+    for (int d = 0; d < N_des; ++d) {
+      w0_times_q += w0[n * N_des + d] * q[d];
+    }
+    float x1 = tanh(w0_times_q - b0[n]);
+
+    for (int d = 0; d < N_des; ++d) {
+      message[d] += w1[n * N_des + d] * x1;
+    }
+  }
+}
+
+static __global__ void apply_ann_message(
+  const int N,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const int* __restrict__ g_type,
+  const float* __restrict__ g_descriptors,
+  const float* __restrict__ g_q_scaler,
+  float* g_message)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  //int type = g_type[n1];
+  if (n1 < N) {
+    // get descriptors
+    float q[MAX_DIM] = {0.0f};
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
+    }
+    // get energy and energy gradient
+    float message[MAX_DIM] = {0.0f};
+    apply_ann_one_layer(
+      annmb.dim,
+      annmb.num_neurons1,
+      annmb.message,
+      q,
+      message);
+
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_message[n1 + d * N]  = message[d];
+    }
+  }
+}
+
+static __global__ void apply_ann_potential(
+  const int N,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const int* __restrict__ g_type,
+  const float* __restrict__ g_descriptors,
+  const float* __restrict__ g_q_scaler,
+  const float* __restrict__ g_message,
+  float* g_pe,
+  float* g_Fp)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  int type = g_type[n1];
+  if (n1 < N) {
+    // get descriptors
+    float q[MAX_DIM] = {0.0f};
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
+      q[d+annmb.dim] = g_message[n1 + d * N] ;
+    }
+    // get energy and energy gradient
+    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    apply_ann_one_layer(
+      annmb.dim*2,
+      annmb.num_neurons1,
+      annmb.w0[type],
+      annmb.b0[type],
+      annmb.w1[type],
+      annmb.b1,
+      q,
+      F,
+      Fp);
+    g_pe[n1] = F;
+
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
+    }
+  }
+}
+
+/*
 static __global__ void apply_ann(
   const int N,
   const NEP3::ParaMB paramb,
@@ -414,6 +586,7 @@ static __global__ void apply_ann(
     }
   }
 }
+*/
 
 static __global__ void apply_ann_pol(
   const int N,
@@ -528,6 +701,7 @@ static __global__ void zero_force(
   }
 }
 
+/*
 static __global__ void find_force_radial(
   const bool is_dipole,
   const int N,
@@ -743,6 +917,7 @@ static __global__ void find_force_angular(
     g_virial[n1 + N * 5] += s_virial_zx;
   }
 }
+*/
 
 static __global__ void find_force_ZBL(
   const int N,
@@ -946,18 +1121,56 @@ void NEP3::find_force(
         nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     } else {
-      apply_ann<<<grid_size, block_size>>>(
+      // get message1
+      apply_ann_message<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
+        nep_data[device_id].message1.data());
+      CUDA_CHECK_KERNEL
+
+      // get message2 from message1
+      find_message2_radial<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        nep_data[device_id].NN_radial.data(),
+        nep_data[device_id].NL_radial.data(),
+        paramb,
+        nep_data[device_id].x12_radial.data(),
+        nep_data[device_id].y12_radial.data(),
+        nep_data[device_id].z12_radial.data(),
+        nep_data[device_id].message1.data(),
+        nep_data[device_id].message2.data());
+      CUDA_CHECK_KERNEL
+      find_message2_angular<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        nep_data[device_id].NN_angular.data(),
+        nep_data[device_id].NL_angular.data(),
+        paramb,
+        annmb[device_id],
+        nep_data[device_id].x12_angular.data(),
+        nep_data[device_id].y12_angular.data(),
+        nep_data[device_id].z12_angular.data(),
+        nep_data[device_id].message1.data(),
+        nep_data[device_id].message2.data());
+      CUDA_CHECK_KERNEL
+
+      // get energy from message2
+      apply_ann_potential<<<grid_size, block_size>>>(
+        dataset[device_id].N,
+        paramb,
+        annmb[device_id],
+        dataset[device_id].type.data(),
+        nep_data[device_id].descriptors.data(),
+        para.q_scaler_gpu[device_id].data(),
+        nep_data[device_id].message2.data(),
         dataset[device_id].energy.data(),
         nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     }
-
+/*
     bool is_dipole = para.train_mode == 1;
     find_force_radial<<<grid_size, block_size>>>(
       is_dipole,
@@ -995,7 +1208,7 @@ void NEP3::find_force(
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
     CUDA_CHECK_KERNEL
-
+*/
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
         dataset[device_id].N,
