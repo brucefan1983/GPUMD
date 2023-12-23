@@ -235,7 +235,7 @@ void Ensemble_TI_Spring::find_lambda()
     find_thermo();
     fprintf(
       output_file,
-      "%f,%f,%f,%f\n",
+      "%e,%e,%e,%e\n",
       lambda,
       dlambda,
       pe / atom->number_of_atoms,
