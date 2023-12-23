@@ -47,7 +47,7 @@ for file in `find $read_dire -name "OUTCAR"`;do
 			ener=$(grep "free  energy   TOTEN" temp.file | tail -1 | awk '{printf "%.10f\n", $5 - '$syst_numb_atom' * '$isol_ener'}')
 			if [[ $viri_logi -eq 1 ]]
 			then
-				viri=$(grep -A 20 "FORCE on cell =-STRESS" temp.file | grep "Total" | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
+				viri=$(grep -A 20 "FORCE on cell =-STRESS" temp.file | grep "Total " | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
 				echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" pbc=\"T T T\" Properties=species:S:1:pos:R:3:forces:R:3" >> $writ_dire/$writ_file
 			else
 				echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Properties=species:S:1:pos:R:3:forces:R:3 Energy=$ener pbc=\"T T T\"" >> $writ_dire/$writ_file
