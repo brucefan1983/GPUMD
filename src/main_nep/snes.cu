@@ -45,7 +45,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   utility.resize(population_size);
-  type_of_variable.resize(number_of_variables, para.num_types);
+  type_of_variable.resize(number_of_variables, 0);
   initialize_rng();
   initialize_mu_and_sigma(para);
   calculate_utility();

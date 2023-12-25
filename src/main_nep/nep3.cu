@@ -342,8 +342,6 @@ NEP3::NEP3(
 void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
-  ann.message = pointer;
-  pointer += ann.num_neurons1 * ann.dim*2 + ann.num_neurons1;
 
   for (int t = 0; t < paramb.num_types; ++t) {
     if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
@@ -418,29 +416,6 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
   }
 }
 
-static __device__ void apply_ann_one_layer(
-  const int N_des,
-  const int N_neu,
-  const float* para,
-  float* q,
-  float* message)
-{
-  const float* w0 = para;
-  const float* b0 = para + N_des * N_neu;
-  const float* w1 = b0 + N_neu;
-  for (int n = 0; n < N_neu; ++n) {
-    float w0_times_q = 0.0f;
-    for (int d = 0; d < N_des; ++d) {
-      w0_times_q += w0[n * N_des + d] * q[d];
-    }
-    float x1 = tanh(w0_times_q - b0[n]);
-
-    for (int d = 0; d < N_des; ++d) {
-      message[d] += w1[n * N_des + d] * x1;
-    }
-  }
-}
-
 static __global__ void apply_ann_message(
   const int N,
   const NEP3::ParaMB paramb,
@@ -453,22 +428,8 @@ static __global__ void apply_ann_message(
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   //int type = g_type[n1];
   if (n1 < N) {
-    // get descriptors
-    float q[MAX_DIM] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-    }
-    // get energy and energy gradient
-    float message[MAX_DIM] = {0.0f};
-    apply_ann_one_layer(
-      annmb.dim,
-      annmb.num_neurons1,
-      annmb.message,
-      q,
-      message);
-
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_message[n1 + d * N]  = message[d];
+      g_message[n1 + d * N] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
   }
 }
