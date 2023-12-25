@@ -28,7 +28,7 @@ for file in `find $read_dire -name "OUTCAR"`;do
 		start_lines=(`sed -n  '/aborting loop because EDIFF is reached/=' $file`)
 		end_lines=(`sed -n  '/[^ML] energy  without entropy/=' $file`)
 		ion_numb_arra=($(grep "ions per type"  $file | tail -n 1 | awk -F"=" '{print $2}'))
-		ion_symb_arra=($(grep "POTCAR:" $file  | awk '{print $3}'))
+		ion_symb_arra=($(grep "POTCAR:" $file  | awk '{print $3}' | awk -F"_" '{print $1}' | awk '!seen[$0]++'))
 		syst_numb_atom=$(grep "number of ions" $file |awk '{print $12}')   
 		k=0
 		for ((i=0;i<=((${#start_lines[@]}-1));i=i+1));do
@@ -59,9 +59,12 @@ for file in `find $read_dire -name "OUTCAR"`;do
 			grep -A $(($syst_numb_atom + 1)) "TOTAL-FORCE (eV/Angst)" temp.file | tail -n $syst_numb_atom > $writ_dire/posi_forc.tem
 			paste $writ_dire/symb.tem $writ_dire/posi_forc.tem >> $writ_dire/$writ_file
 			rm -f $writ_dire/*.tem
+			echo -ne "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bSub-progress:$i/$((${#start_lines[@]}-1)) "
 		done
 		rm -f temp.file
-	        echo -n "$N_count/$N_case "
+		echo " "
+	        echo -ne "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bProgress:$N_count/$N_case "
+#		echo -n "$N_count/$N_case "
              	N_count=$((N_count + 1))
 done
 dos2unix $writ_dire/$writ_file
