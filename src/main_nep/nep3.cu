@@ -245,7 +245,7 @@ static __global__ void find_message(
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
     int neighbor_number = g_NN[n1];
-    float message[MAX_DIM] = {0.0f};
+    float message[MAX_DIM*(NEP5_SIZE-1)] = {0.0f};
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + N * i1;
       int n2 = g_NL[index];
@@ -255,12 +255,19 @@ static __global__ void find_message(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      for (int d = 0; d <= annmb.dim; ++d) {
+      for (int d = 0; d < annmb.dim; ++d) {
         message[d] += g_descriptor[d*N+n2] * fc12;
       }
+      if (d12 < paramb.rc_radial * 0.5f){
+        find_fc(paramb.rc_radial*0.5f, paramb.rcinv_radial*2.0f, d12, fc12);
+        for (int d = 0; d < annmb.dim; ++d) {
+          message[d+annmb.dim] += g_descriptor[d*N+n2] * fc12;
+        }
+      }
     }
-    for (int d = 0; d <= annmb.dim; ++d) {
+    for (int d = 0; d < annmb.dim; ++d) {
       g_message[n1 + d * N] = message[d]*0.01f;//TODO: use average number of neighbors
+      g_message[n1 + (d+annmb.dim) * N] = message[d+annmb.dim]*0.1f;//TODO: use average number of neighbors
     }
   }
 }
@@ -332,7 +339,7 @@ NEP3::NEP3(
     nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
-    nep_data[device_id].message.resize(N * annmb[device_id].dim);
+    nep_data[device_id].message.resize(N * annmb[device_id].dim*(NEP5_SIZE-1));
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
@@ -347,7 +354,7 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
       pointer -= (ann.dim + 2) * ann.num_neurons1;
     }
     ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim*2;
+    pointer += ann.num_neurons1 * ann.dim*NEP5_SIZE;
     ann.b0[t] = pointer;
     pointer += ann.num_neurons1;
     ann.w1[t] = pointer;
@@ -430,15 +437,17 @@ static __global__ void apply_ann_potential(
   int type = g_type[n1];
   if (n1 < N) {
     // get descriptors
-    float q[MAX_DIM] = {0.0f};
+    float q[MAX_DIM*NEP5_SIZE] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-      q[d+annmb.dim] = g_message[n1 + d * N] * g_q_scaler[d];
+      for (int k = 1; k <= NEP5_SIZE; ++k) {
+        q[d+annmb.dim*k] = g_message[n1 + (d+annmb.dim*(k-1)) * N] * g_q_scaler[d];
+      }
     }
     // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+    float F = 0.0f, Fp[MAX_DIM*NEP5_SIZE] = {0.0f};
     apply_ann_one_layer(
-      annmb.dim*2,
+      annmb.dim*NEP5_SIZE,
       annmb.num_neurons1,
       annmb.w0[type],
       annmb.b0[type],

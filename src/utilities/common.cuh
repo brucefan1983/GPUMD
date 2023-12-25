@@ -15,6 +15,7 @@
 
 #pragma once
 
+const int NEP5_SIZE = 3;
 const int MAX_NUM_BEADS = 128;
 const int NUM_ELEMENTS = 103;
 #define PI 3.14159265358979

@@ -74,7 +74,6 @@ public:
     const float* b1_pol;     // bias for the output layer
     // for elements in descriptor
     const float* c;
-    const float* message;
   };
 
   struct ZBL {

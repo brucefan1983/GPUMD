@@ -26,6 +26,7 @@ https://doi.org/10.1145/2001576.2001692
 #include "fitness.cuh"
 #include "parameters.cuh"
 #include "snes.cuh"
+#include "utilities/common.cuh"
 #include "utilities/error.cuh"
 #include <chrono>
 #include <cmath>
@@ -101,15 +102,15 @@ void SNES::find_type_of_variable(Parameters& para)
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = 0; n < (para.dim*2 + 2) * para.num_neurons1; ++n) {
+        for (int n = 0; n < (para.dim*NEP5_SIZE + 2) * para.num_neurons1; ++n) {
           type_of_variable[n + offset] = t;
         }
-        offset += (para.dim*2 + 2) * para.num_neurons1;
+        offset += (para.dim*NEP5_SIZE + 2) * para.num_neurons1;
       }
       ++offset; // the bias
     }
   } else {
-    offset += (para.dim*2 + 2) * para.num_neurons1 + 1;
+    offset += (para.dim*NEP5_SIZE + 2) * para.num_neurons1 + 1;
   }
 
   // descriptor part

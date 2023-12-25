@@ -168,7 +168,7 @@ void Parameters::calculate_parameters()
   }
   q_scaler_cpu.resize(dim, 1.0e10f);
 
-  number_of_variables_ann = (dim*2 + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
+  number_of_variables_ann = (dim*NEP5_SIZE + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
 
   if (version == 2) {
     number_of_variables_descriptor =
