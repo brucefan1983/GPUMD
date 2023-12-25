@@ -260,7 +260,7 @@ static __global__ void find_message2(
       }
     }
     for (int d = 0; d <= annmb.dim; ++d) {
-      g_message2[n1 + d * N] = message2[d];
+      g_message2[n1 + d * N] = message2[d]*0.01f;//TODO
     }
   }
 }
@@ -1061,13 +1061,13 @@ void NEP3::find_force(
       // get message2 from message1
       find_message2<<<grid_size, block_size>>>(
         dataset[device_id].N,
-        nep_data[device_id].NN_angular.data(),
-        nep_data[device_id].NL_angular.data(),
+        nep_data[device_id].NN_radial.data(),
+        nep_data[device_id].NL_radial.data(),
         paramb,
         annmb[device_id],
-        nep_data[device_id].x12_angular.data(),
-        nep_data[device_id].y12_angular.data(),
-        nep_data[device_id].z12_angular.data(),
+        nep_data[device_id].x12_radial.data(),
+        nep_data[device_id].y12_radial.data(),
+        nep_data[device_id].z12_radial.data(),
         nep_data[device_id].message1.data(),
         nep_data[device_id].message2.data());
       CUDA_CHECK_KERNEL

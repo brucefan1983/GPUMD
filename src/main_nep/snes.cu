@@ -45,7 +45,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   utility.resize(population_size);
-  type_of_variable.resize(number_of_variables, 0);
+  type_of_variable.resize(number_of_variables, para.num_types);
   initialize_rng();
   initialize_mu_and_sigma(para);
   calculate_utility();
@@ -101,15 +101,15 @@ void SNES::find_type_of_variable(Parameters& para)
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = 0; n < (para.dim + 2) * para.num_neurons1; ++n) {
+        for (int n = 0; n < (para.dim*2 + 2) * para.num_neurons1; ++n) {
           type_of_variable[n + offset] = t;
         }
-        offset += (para.dim + 2) * para.num_neurons1;
+        offset += (para.dim*2 + 2) * para.num_neurons1;
       }
       ++offset; // the bias
     }
   } else {
-    offset += (para.dim + 2) * para.num_neurons1 + 1;
+    offset += (para.dim*2 + 2) * para.num_neurons1 + 1;
   }
 
   // descriptor part
