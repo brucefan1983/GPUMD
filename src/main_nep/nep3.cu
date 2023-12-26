@@ -265,8 +265,8 @@ static __global__ void find_message(
       }
     }
     for (int d = 0; d < annmb.dim; ++d) {
-      g_descriptor[n1 + (d+annmb.dim) * N] = message[d]*0.01f;//TODO: use average number of neighbors
-      g_descriptor[n1 + (d+annmb.dim*2) * N] = message[d+annmb.dim]*0.1f;//TODO: use average number of neighbors
+      g_descriptor[n1 + (d+annmb.dim) * N] = message[d];
+      g_descriptor[n1 + (d+annmb.dim*2) * N] = message[d+annmb.dim];
     }
   }
 }
@@ -435,10 +435,8 @@ static __global__ void apply_ann_potential(
   if (n1 < N) {
     // get descriptors
     float q[MAX_DIM*NEP5_SIZE] = {0.0f};
-    for (int d = 0; d < annmb.dim; ++d) {
-      for (int k = 0; k < NEP5_SIZE; ++k) {
-        q[d+annmb.dim*k] = g_descriptors[n1 + (d+annmb.dim*k) * N] * g_q_scaler[d];
-      }
+    for (int d = 0; d < annmb.dim*NEP5_SIZE; ++d) {
+      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
     }
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM*NEP5_SIZE] = {0.0f};
@@ -991,8 +989,20 @@ void NEP3::find_force(
       nep_data[device_id].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
+    find_message<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].descriptors.data());
+    CUDA_CHECK_KERNEL
+
     if (calculate_q_scaler) {
-      find_max_min<<<annmb[device_id].dim, 1024>>>(
+      find_max_min<<<annmb[device_id].dim*NEP5_SIZE, 1024>>>(
         dataset[device_id].N,
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data());
@@ -1033,20 +1043,6 @@ void NEP3::find_force(
         nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     } else {
-      // get message
-      find_message<<<grid_size, block_size>>>(
-        dataset[device_id].N,
-        nep_data[device_id].NN_radial.data(),
-        nep_data[device_id].NL_radial.data(),
-        paramb,
-        annmb[device_id],
-        nep_data[device_id].x12_radial.data(),
-        nep_data[device_id].y12_radial.data(),
-        nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].descriptors.data());
-      CUDA_CHECK_KERNEL
-
-      // get energy from descriptor and message
       apply_ann_potential<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,

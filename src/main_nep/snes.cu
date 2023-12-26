@@ -246,7 +246,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       tokens = get_tokens(input);
       population[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
-    for (int d = 0; d < para.dim; ++d) {
+    for (int d = 0; d < para.dim*NEP5_SIZE; ++d) {
       tokens = get_tokens(input);
       para.q_scaler_cpu[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
