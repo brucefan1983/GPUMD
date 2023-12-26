@@ -239,8 +239,7 @@ static __global__ void find_message(
   const float* __restrict__ g_x12,
   const float* __restrict__ g_y12,
   const float* __restrict__ g_z12,
-  const float* __restrict__ g_descriptor,
-  float* g_message)
+  float* __restrict__ g_descriptor)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
@@ -266,8 +265,8 @@ static __global__ void find_message(
       }
     }
     for (int d = 0; d < annmb.dim; ++d) {
-      g_message[n1 + d * N] = message[d]*0.01f;//TODO: use average number of neighbors
-      g_message[n1 + (d+annmb.dim) * N] = message[d+annmb.dim]*0.1f;//TODO: use average number of neighbors
+      g_descriptor[n1 + (d+annmb.dim) * N] = message[d]*0.01f;//TODO: use average number of neighbors
+      g_descriptor[n1 + (d+annmb.dim*2) * N] = message[d+annmb.dim]*0.1f;//TODO: use average number of neighbors
     }
   }
 }
@@ -337,9 +336,8 @@ NEP3::NEP3(
     nep_data[device_id].x12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].y12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
-    nep_data[device_id].descriptors.resize(N * annmb[device_id].dim);
+    nep_data[device_id].descriptors.resize(N * annmb[device_id].dim*NEP5_SIZE);
     nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
-    nep_data[device_id].message.resize(N * annmb[device_id].dim*(NEP5_SIZE-1));
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
@@ -429,7 +427,6 @@ static __global__ void apply_ann_potential(
   const int* __restrict__ g_type,
   const float* __restrict__ g_descriptors,
   const float* __restrict__ g_q_scaler,
-  const float* __restrict__ g_message,
   float* g_pe,
   float* g_Fp)
 {
@@ -439,9 +436,8 @@ static __global__ void apply_ann_potential(
     // get descriptors
     float q[MAX_DIM*NEP5_SIZE] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-      for (int k = 1; k < NEP5_SIZE; ++k) {
-        q[d+annmb.dim*k] = g_message[n1 + (d+annmb.dim*(k-1)) * N] * g_q_scaler[d];
+      for (int k = 0; k < NEP5_SIZE; ++k) {
+        q[d+annmb.dim*k] = g_descriptors[n1 + (d+annmb.dim*k) * N] * g_q_scaler[d];
       }
     }
     // get energy and energy gradient
@@ -1047,8 +1043,7 @@ void NEP3::find_force(
         nep_data[device_id].x12_radial.data(),
         nep_data[device_id].y12_radial.data(),
         nep_data[device_id].z12_radial.data(),
-        nep_data[device_id].descriptors.data(),
-        nep_data[device_id].message.data());
+        nep_data[device_id].descriptors.data());
       CUDA_CHECK_KERNEL
 
       // get energy from descriptor and message
@@ -1059,7 +1054,6 @@ void NEP3::find_force(
         dataset[device_id].type.data(),
         nep_data[device_id].descriptors.data(),
         para.q_scaler_gpu[device_id].data(),
-        nep_data[device_id].message.data(),
         dataset[device_id].energy.data(),
         nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
