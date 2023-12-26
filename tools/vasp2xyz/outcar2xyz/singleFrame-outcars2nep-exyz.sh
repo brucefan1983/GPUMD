@@ -28,13 +28,14 @@ do
              ener=$(grep "free  energy   TOTEN" $i | tail -1 | awk '{printf "%.6f\n", $5 - '$syst_numb_atom' * '$isol_ener'}')
              if [[ $viri_logi -eq 1 ]]
              then
-                   viri=$(grep -A 20 "FORCE on cell =-STRESS" $i | grep "Total" | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
+                   viri=$(grep -A 20 "FORCE on cell =-STRESS" $i | grep "Total " | tail -n 1 | awk '{print $2,$5,$7,$5,$3,$6,$7,$6,$4}')
                    echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Virial=\"$viri\" Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
              else
                    echo "Config_type=$configuration Weight=1.0 Lattice=\"$latt\" Energy=$ener Properties=species:S:1:pos:R:3:force:R:3" >> $writ_dire/$writ_file
              fi
              ion_numb_arra=($(grep "ions per type"  $i | tail -n 1 | awk -F"=" '{print $2}'))
-             ion_symb_arra=($(grep "VRHFIN" $i | awk -F"=" '{print $2}' |awk -F":" '{print $1}'))
+             ion_symb_arra=($(grep "POTCAR:" $i  | awk '{print $3}' | awk -F"_" '{print $1}' | awk '!seen[$0]++'))
+             #ion_symb_arra=($(grep "VRHFIN" $i | awk -F"=" '{print $2}' |awk -F":" '{print $1}'))
              for((j=0;j<${#ion_numb_arra[*]};j++))
              do
                      printf ''${ion_symb_arra[j]}'%.0s\n' `seq 1 1 ${ion_numb_arra[j]}` >> $writ_dire/symb.tem
@@ -42,11 +43,9 @@ do
              grep -A $(($syst_numb_atom + 1)) "TOTAL-FORCE (eV/Angst)" $i | tail -n $syst_numb_atom > $writ_dire/posi_forc.tem
              paste $writ_dire/symb.tem $writ_dire/posi_forc.tem >> $writ_dire/$writ_file
              rm -f $writ_dire/*.tem
-	     echo -n -e "\033[0G"
-             echo -n "$N_count/$N_case "
+	     echo -ne "\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\b\bProgress: $N_count/$N_case "
              N_count=$((N_count + 1))
 done
 echo
 dos2unix $writ_dire/$writ_file
-echo "All done, bye."
 
