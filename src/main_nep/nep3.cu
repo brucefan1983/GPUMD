@@ -337,7 +337,7 @@ NEP3::NEP3(
     nep_data[device_id].y12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].descriptors.resize(N * annmb[device_id].dim*NEP5_SIZE);
-    nep_data[device_id].Fp.resize(N * annmb[device_id].dim);
+    nep_data[device_id].Fp.resize(N * annmb[device_id].dim*(NEP5_SIZE+1));
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
@@ -452,7 +452,7 @@ static __global__ void apply_ann_potential(
       Fp);
     g_pe[n1] = F;
 
-    for (int d = 0; d < annmb.dim; ++d) {
+    for (int d = 0; d < annmb.dim*NEP5_SIZE; ++d) {
       g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
     }
   }
@@ -611,7 +611,7 @@ static __global__ void zero_force(
   }
 }
 
-/*
+
 static __global__ void find_force_radial(
   const bool is_dipole,
   const int N,
@@ -655,7 +655,7 @@ static __global__ void find_force_radial(
       if (paramb.version == 2) {
         find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float tmp12 = g_Fp[n1 + n * N] * fnp12[n] * d12inv;
+          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*3) * N]) * fnp12[n] * d12inv;
           tmp12 *= (paramb.num_types == 1)
                      ? 1.0f
                      : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
@@ -673,7 +673,7 @@ static __global__ void find_force_radial(
             c_index += t1 * paramb.num_types + t2;
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
-          float tmp12 = g_Fp[n1 + n * N] * gnp12 * d12inv;
+          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*3) * N]) * gnp12 * d12inv;
           for (int d = 0; d < 3; ++d) {
             f12[d] += tmp12 * r12[d];
           }
@@ -741,7 +741,7 @@ static __global__ void find_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1];
+      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] + g_Fp[(paramb.n_max_radial + 1 + d + annmb.dim*3) * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
@@ -827,7 +827,129 @@ static __global__ void find_force_angular(
     g_virial[n1 + N * 5] += s_virial_zx;
   }
 }
-*/
+
+static __global__ void find_force_message(
+  const bool is_dipole,
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  const float* __restrict__ g_q,
+  const float* __restrict__ g_Fp,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_virial)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1];
+    float s_virial_xx = 0.0f;
+    float s_virial_yy = 0.0f;
+    float s_virial_zz = 0.0f;
+    float s_virial_xy = 0.0f;
+    float s_virial_yz = 0.0f;
+    float s_virial_zx = 0.0f;
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float fc12, fcp12;
+      float f12[3] = {0.0f};
+
+      float factor1=0.0f;
+      float factor2=0.0f;
+      for (int d = 0; d < annmb.dim; ++d) {
+        factor1 += g_Fp[(d+annmb.dim) * N + n1] * g_q[(d+annmb.dim) * N + n2];
+        factor2 += g_Fp[(d+annmb.dim*2) * N + n1] * g_q[(d+annmb.dim*2) * N + n2];
+      }
+      find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
+      for (int d = 0; d < 3; ++d) {
+        f12[d] += factor1 * fcp12 * r12[d] * d12inv;
+      }
+      if (d12 < paramb.rc_radial*0.5f) {
+        find_fc_and_fcp(paramb.rc_radial*0.5f, paramb.rcinv_radial*2.0f, d12, fc12, fcp12);
+        for (int d = 0; d < 3; ++d) {
+          f12[d] += factor2 * fcp12 * r12[d] * d12inv;
+        }
+      }
+
+      atomicAdd(&g_fx[n1], f12[0]);
+      atomicAdd(&g_fy[n1], f12[1]);
+      atomicAdd(&g_fz[n1], f12[2]);
+      atomicAdd(&g_fx[n2], -f12[0]);
+      atomicAdd(&g_fy[n2], -f12[1]);
+      atomicAdd(&g_fz[n2], -f12[2]);
+
+      if (is_dipole) {
+        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        s_virial_xx -= r12_square * f12[0];
+        s_virial_yy -= r12_square * f12[1];
+        s_virial_zz -= r12_square * f12[2];
+      } else {
+        s_virial_xx -= r12[0] * f12[0];
+        s_virial_yy -= r12[1] * f12[1];
+        s_virial_zz -= r12[2] * f12[2];
+      }
+      s_virial_xy -= r12[0] * f12[1];
+      s_virial_yz -= r12[1] * f12[2];
+      s_virial_zx -= r12[2] * f12[0];
+    }
+    g_virial[n1] += s_virial_xx;
+    g_virial[n1 + N] += s_virial_yy;
+    g_virial[n1 + N * 2] += s_virial_zz;
+    g_virial[n1 + N * 3] = s_virial_xy;
+    g_virial[n1 + N * 4] = s_virial_yz;
+    g_virial[n1 + N * 5] = s_virial_zx;
+  }
+}
+
+static __global__ void find_sumk(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  float* __restrict__ g_Fp)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1];
+    float sumk[MAX_DIM] = {0.0f};
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float fc12;
+      find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
+      for (int d = 0; d < annmb.dim; ++d) {
+        sumk[d] += g_Fp[(d+annmb.dim) * N + n2] * fc12;
+      }
+      if (d12 < paramb.rc_radial*0.5f) {
+        find_fc(paramb.rc_radial*0.5f, paramb.rcinv_radial*2.0f, d12, fc12);
+        for (int d = 0; d < annmb.dim; ++d) {
+          sumk[d] += g_Fp[(d+annmb.dim*2) * N + n2] * fc12;
+        }
+      }
+    }
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_Fp[(d+annmb.dim*3) * N + n1] = sumk[d];
+    }
+  }
+}
+
+
 
 static __global__ void find_force_ZBL(
   const int N,
@@ -1054,7 +1176,19 @@ void NEP3::find_force(
         nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     }
-/*
+
+    find_sumk<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].Fp.data());
+    CUDA_CHECK_KERNEL
+
     bool is_dipole = para.train_mode == 1;
     find_force_radial<<<grid_size, block_size>>>(
       is_dipole,
@@ -1092,7 +1226,25 @@ void NEP3::find_force(
       dataset[device_id].force.data() + dataset[device_id].N * 2,
       dataset[device_id].virial.data());
     CUDA_CHECK_KERNEL
-*/
+
+    find_force_message<<<grid_size, block_size>>>(
+      is_dipole,
+      dataset[device_id].N,
+      nep_data[device_id].NN_radial.data(),
+      nep_data[device_id].NL_radial.data(),
+      paramb,
+      annmb[device_id],
+      nep_data[device_id].x12_radial.data(),
+      nep_data[device_id].y12_radial.data(),
+      nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].descriptors.data(),
+      nep_data[device_id].Fp.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data());
+    CUDA_CHECK_KERNEL
+
     if (zbl.enabled) {
       find_force_ZBL<<<grid_size, block_size>>>(
         dataset[device_id].N,
