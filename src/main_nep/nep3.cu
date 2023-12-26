@@ -440,7 +440,7 @@ static __global__ void apply_ann_potential(
     float q[MAX_DIM*NEP5_SIZE] = {0.0f};
     for (int d = 0; d < annmb.dim; ++d) {
       q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-      for (int k = 1; k <= NEP5_SIZE; ++k) {
+      for (int k = 1; k < NEP5_SIZE; ++k) {
         q[d+annmb.dim*k] = g_message[n1 + (d+annmb.dim*(k-1)) * N] * g_q_scaler[d];
       }
     }
