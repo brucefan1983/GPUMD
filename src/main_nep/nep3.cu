@@ -229,7 +229,6 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-
 static __global__ void find_message(
   const int N,
   const int* g_NN,
@@ -243,8 +242,13 @@ static __global__ void find_message(
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
+    for (int n = 0; n < NEP5_SIZE-1; ++n) {
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_descriptor[n1 + (d + annmb.dim * (n + 1)) * N] = 0.0f;
+      }
+    } 
+
     int neighbor_number = g_NN[n1];
-    float message[MAX_DIM*(NEP5_SIZE-1)] = {0.0f};
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = n1 + N * i1;
       int n2 = g_NL[index];
@@ -254,19 +258,13 @@ static __global__ void find_message(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      for (int d = 0; d < annmb.dim; ++d) {
-        message[d] += g_descriptor[d*N+n2] * fc12;
-      }
-      if (d12 < paramb.rc_radial * 0.5f){
-        find_fc(paramb.rc_radial*0.5f, paramb.rcinv_radial*2.0f, d12, fc12);
+      float fn12[NEP5_SIZE-1];
+      find_fn(NEP5_SIZE-2, paramb.rcinv_radial, d12, fc12, fn12);
+      for (int n = 0; n < NEP5_SIZE-1; ++n) {
         for (int d = 0; d < annmb.dim; ++d) {
-          message[d+annmb.dim] += g_descriptor[d*N+n2] * fc12;
+          g_descriptor[n1 + (d + annmb.dim * (n + 1)) * N] += g_descriptor[n2 + d * N] * fn12[n];
         }
-      }
-    }
-    for (int d = 0; d < annmb.dim; ++d) {
-      g_descriptor[n1 + (d+annmb.dim) * N] = message[d];
-      g_descriptor[n1 + (d+annmb.dim*2) * N] = message[d+annmb.dim];
+      } 
     }
   }
 }
@@ -655,7 +653,7 @@ static __global__ void find_force_radial(
       if (paramb.version == 2) {
         find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*3) * N]) * fnp12[n] * d12inv;
+          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*NEP5_SIZE) * N]) * fnp12[n] * d12inv;
           tmp12 *= (paramb.num_types == 1)
                      ? 1.0f
                      : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
@@ -673,7 +671,7 @@ static __global__ void find_force_radial(
             c_index += t1 * paramb.num_types + t2;
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
-          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*3) * N]) * gnp12 * d12inv;
+          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*NEP5_SIZE) * N]) * gnp12 * d12inv;
           for (int d = 0; d < 3; ++d) {
             f12[d] += tmp12 * r12[d];
           }
@@ -741,7 +739,7 @@ static __global__ void find_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] + g_Fp[(paramb.n_max_radial + 1 + d + annmb.dim*3) * N + n1];
+      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] + g_Fp[(paramb.n_max_radial + 1 + d + annmb.dim*NEP5_SIZE) * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
@@ -862,22 +860,19 @@ static __global__ void find_force_message(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
-      float f12[3] = {0.0f};
-
-      float factor1=0.0f;
-      float factor2=0.0f;
-      for (int d = 0; d < annmb.dim; ++d) {
-        factor1 += g_Fp[(d+annmb.dim) * N + n1] * g_q[(d+annmb.dim) * N + n2];
-        factor2 += g_Fp[(d+annmb.dim*2) * N + n1] * g_q[(d+annmb.dim*2) * N + n2];
-      }
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      for (int d = 0; d < 3; ++d) {
-        f12[d] += factor1 * fcp12 * r12[d] * d12inv;
-      }
-      if (d12 < paramb.rc_radial*0.5f) {
-        find_fc_and_fcp(paramb.rc_radial*0.5f, paramb.rcinv_radial*2.0f, d12, fc12, fcp12);
+      float fn12[NEP5_SIZE-1];
+      float fnp12[NEP5_SIZE-1];
+      float f12[3] = {0.0f};
+      find_fn_and_fnp(NEP5_SIZE-2, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+      for (int n = 0; n < NEP5_SIZE-1; ++n) {
+        float factor = 0.0f;
+        for (int d = 0; d < annmb.dim; ++d) {
+          factor += g_Fp[(d+annmb.dim*(n+1)) * N + n1] * g_q[(d+annmb.dim*(n+1)) * N + n2];
+        }
+        factor *= fnp12[n] * d12inv;
         for (int d = 0; d < 3; ++d) {
-          f12[d] += factor2 * fcp12 * r12[d] * d12inv;
+          f12[d] += factor * r12[d];
         }
       }
 
@@ -933,23 +928,19 @@ static __global__ void find_sumk(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      for (int d = 0; d < annmb.dim; ++d) {
-        sumk[d] += g_Fp[(d+annmb.dim) * N + n2] * fc12;
-      }
-      if (d12 < paramb.rc_radial*0.5f) {
-        find_fc(paramb.rc_radial*0.5f, paramb.rcinv_radial*2.0f, d12, fc12);
+      float fn12[NEP5_SIZE-1];
+      find_fn(NEP5_SIZE-2, paramb.rcinv_radial, d12, fc12, fn12);
+      for (int n = 0; n < NEP5_SIZE-1; ++n) {
         for (int d = 0; d < annmb.dim; ++d) {
-          sumk[d] += g_Fp[(d+annmb.dim*2) * N + n2] * fc12;
+          sumk[d] += g_Fp[(d+annmb.dim*(n+1)) * N + n2] * fn12[n];
         }
-      }
+      } 
     }
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[(d+annmb.dim*3) * N + n1] = sumk[d];
+      g_Fp[(d+annmb.dim*NEP5_SIZE) * N + n1] = sumk[d];
     }
   }
 }
-
-
 
 static __global__ void find_force_ZBL(
   const int N,
