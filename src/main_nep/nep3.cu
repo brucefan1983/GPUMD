@@ -347,7 +347,7 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 
   for (int t = 0; t < paramb.num_types; ++t) {
     if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
-      pointer -= (ann.dim + 2) * ann.num_neurons1;
+      pointer -= (ann.dim*NEP5_SIZE + 2) * ann.num_neurons1;
     }
     ann.w0[t] = pointer;
     pointer += ann.num_neurons1 * ann.dim*NEP5_SIZE;
