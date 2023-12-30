@@ -345,16 +345,18 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
 
-  for (int t = 0; t < paramb.num_types; ++t) {
-    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
-      pointer -= (ann.dim*NEP5_SIZE + 2) * ann.num_neurons1;
+  for (int k=0; k < NEP5_SIZE; ++k) {
+    for (int t = 0; t < paramb.num_types; ++t) {
+      if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+        pointer -= (ann.dim + 2) * ann.num_neurons1;
+      }
+      ann.w0[t*NEP5_SIZE+k] = pointer;
+      pointer += ann.num_neurons1 * ann.dim;
+      ann.b0[t*NEP5_SIZE+k] = pointer;
+      pointer += ann.num_neurons1;
+      ann.w1[t*NEP5_SIZE+k] = pointer;
+      pointer += ann.num_neurons1;
     }
-    ann.w0[t] = pointer;
-    pointer += ann.num_neurons1 * ann.dim*NEP5_SIZE;
-    ann.b0[t] = pointer;
-    pointer += ann.num_neurons1;
-    ann.w1[t] = pointer;
-    pointer += ann.num_neurons1;
   }
   ann.b1 = pointer;
   pointer += 1;
@@ -429,30 +431,32 @@ static __global__ void apply_ann_potential(
   float* g_Fp)
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1];
+  int type = g_type[n1]; // to be accumulated
   if (n1 < N) {
-    // get descriptors
-    float q[MAX_DIM*NEP5_SIZE] = {0.0f};
-    for (int d = 0; d < annmb.dim*NEP5_SIZE; ++d) {
-      q[d] = g_descriptors[n1 + d * N] * g_q_scaler[d];
-    }
-    // get energy and energy gradient
-    float F = 0.0f, Fp[MAX_DIM*NEP5_SIZE] = {0.0f};
-    apply_ann_one_layer(
-      annmb.dim*NEP5_SIZE,
-      annmb.num_neurons1,
-      annmb.w0[type],
-      annmb.b0[type],
-      annmb.w1[type],
-      annmb.b1,
-      q,
-      F,
-      Fp);
-    g_pe[n1] = F;
+    g_pe[n1] = 0.0f;
+    for (int k = 0; k < NEP5_SIZE; ++k) {
+      float q[MAX_DIM] = {0.0f};
+      for (int d = 0; d < annmb.dim; ++d) {
+        q[d] = g_descriptors[n1 + (d+annmb.dim*k) * N] * g_q_scaler[(d+annmb.dim*k)];
+      }
+      // get energy and energy gradient
+      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0[type*NEP5_SIZE+k],
+        annmb.b0[type*NEP5_SIZE+k],
+        annmb.w1[type*NEP5_SIZE+k],
+        q,
+        F,
+        Fp);
+      g_pe[n1] += F; // accumulate
 
-    for (int d = 0; d < annmb.dim*NEP5_SIZE; ++d) {
-      g_Fp[n1 + d * N] = Fp[d] * g_q_scaler[d];
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_Fp[n1 + (d+annmb.dim*k) * N] = Fp[d] * g_q_scaler[(d+annmb.dim*k)];
+      }
     }
+    g_pe[n1] -= annmb.b1[0]; // the common bias
   }
 }
 

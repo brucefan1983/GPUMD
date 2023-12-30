@@ -168,8 +168,10 @@ void Parameters::calculate_parameters()
   }
   q_scaler_cpu.resize(dim*NEP5_SIZE, 1.0e10f);
 
-  number_of_variables_ann = (dim*NEP5_SIZE + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
-
+  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1);
+  number_of_variables_ann *= NEP5_SIZE;
+  number_of_variables_ann += 1; // common bias
+  
   if (version == 2) {
     number_of_variables_descriptor =
       (num_types == 1) ? 0 : num_types * num_types * (n_max_radial + n_max_angular + 2);
