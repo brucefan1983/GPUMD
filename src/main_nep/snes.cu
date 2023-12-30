@@ -351,6 +351,7 @@ void SNES::update_mu_and_sigma()
     }
     mu[v] += sigma[v] * gradient_mu;
     sigma[v] *= std::exp(eta_sigma * gradient_sigma);
+    if (sigma[v]>0.1f)sigma[v] = 0.1f;
   }
 }
 
