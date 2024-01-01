@@ -872,7 +872,7 @@ static __global__ void find_force_message(
       for (int n = 0; n < NEP5_SIZE-1; ++n) {
         float factor = 0.0f;
         for (int d = 0; d < annmb.dim; ++d) {
-          factor += g_Fp[(d+annmb.dim*(n+1)) * N + n1] * g_q[(d+annmb.dim*(n+1)) * N + n2];
+          factor += g_Fp[(d+annmb.dim*(n+1)) * N + n1] * g_q[d * N + n2];
         }
         factor *= fnp12[n] * d12inv;
         for (int d = 0; d < 3; ++d) {
