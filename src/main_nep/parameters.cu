@@ -184,6 +184,13 @@ void Parameters::calculate_parameters()
     number_of_variables += number_of_variables_ann;
   }
 
+  if (!is_lambda_1_set) {
+    lambda_1 = sqrt(number_of_variables * 1.0e-6f);
+  }
+  if (!is_lambda_2_set) {
+    lambda_2 = sqrt(number_of_variables * 1.0e-6f);
+  }
+
   int deviceCount;
   CHECK(cudaGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {

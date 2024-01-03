@@ -268,26 +268,6 @@ void SNES::create_population(Parameters& para)
 
 void SNES::regularize(Parameters& para)
 {
-  float lambda_1 = para.lambda_1;
-  float lambda_2 = para.lambda_2;
-  if (para.lambda_1 < 0.0f || para.lambda_2 < 0.0f) {
-    float auto_reg = 1.0e30f;
-    for (int p = 0; p < population_size; ++p) {
-      float temp = fitness[p + (6 * para.num_types + 3) * population_size] +
-                   fitness[p + (6 * para.num_types + 4) * population_size] +
-                   fitness[p + (6 * para.num_types + 5) * population_size];
-      if (auto_reg > temp) {
-        auto_reg = temp;
-      }
-    }
-    if (para.lambda_1 < 0.0f) {
-      lambda_1 = auto_reg;
-    }
-    if (para.lambda_2 < 0.0f) {
-      lambda_2 = auto_reg;
-    }
-  }
-
   for (int p = 0; p < population_size; ++p) {
     float cost_L1 = 0.0f, cost_L2 = 0.0f;
     for (int v = 0; v < number_of_variables; ++v) {
@@ -296,8 +276,8 @@ void SNES::regularize(Parameters& para)
       cost_L2 += population[pv] * population[pv];
     }
 
-    cost_L1 *= lambda_1 / number_of_variables;
-    cost_L2 = lambda_2 * sqrt(cost_L2 / number_of_variables);
+    cost_L1 *= para.lambda_1 / number_of_variables;
+    cost_L2 = para.lambda_2 * sqrt(cost_L2 / number_of_variables);
 
     for (int t = 0; t <= para.num_types; ++t) {
       fitness[p + (6 * t + 0) * population_size] =
