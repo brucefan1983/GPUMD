@@ -37,7 +37,7 @@ def test_dump_dipole_self_consistent(tmp_path):
 
     dipole = np.loadtxt(f'{tmp_path}/dipole.out')
     assert dipole.shape == (10, 4)
-    assert np.allclose(dipole[:,0], np.arange(10))
+    assert np.allclose(dipole[:, 0], np.arange(10))
     print(dipole)
     # Read positions, and predict dipole with dipole model  
     for gpu_dipole, conf in zip(dipole[:, 1:], read(f'{tmp_path}/movie.xyz', ':')):
@@ -45,8 +45,9 @@ def test_dump_dipole_self_consistent(tmp_path):
         cpu_dipole = conf.get_dipole_moment()
         # Note that the GPU dipole is dipole/atom; multiply by n_atoms
         print(cpu_dipole)
-        gpu_dipole *= len(conf)
+        # gpu_dipole *= len(conf)
         print(gpu_dipole)
+        print(cpu_dipole / gpu_dipole)
 
         assert np.allclose(cpu_dipole, gpu_dipole)
 

@@ -1745,6 +1745,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
 
+    bool is_polarizability = paramb.model_type == 2;
     find_descriptor<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
       64,
@@ -1764,6 +1765,7 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
+      is_polarizability,
 #ifdef USE_TABLE
       nep_data[gpu].gn_radial.data(),
       nep_data[gpu].gn_angular.data(),

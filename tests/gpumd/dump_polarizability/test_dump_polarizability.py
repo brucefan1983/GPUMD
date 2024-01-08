@@ -53,7 +53,7 @@ def test_dump_polarizability_self_consistent(tmp_path):
         ])
         print(gpu_pol)
         print(cpu_pol)
-
+        print(gpu_pol / cpu_pol)
 
         assert np.allclose(cpu_pol, gpu_pol)
 
