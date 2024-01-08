@@ -839,7 +839,7 @@ static __global__ void find_force_message(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fnp12[k];
         }
-        factor += g_Fp[d * N + n1] * g_q[d * N + n2];
+        factor += g_Fp[d * N + n1] * g_q[d * N + n2] * W_func;
       }
       factor *= d12inv;
       for (int d = 0; d < 3; ++d) {
