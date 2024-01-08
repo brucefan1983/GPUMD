@@ -102,15 +102,15 @@ void SNES::find_type_of_variable(Parameters& para)
     int num_ann = (para.train_mode == 2) ? 2 : 1;
     for (int ann = 0; ann < num_ann; ++ann) {
       for (int t = 0; t < para.num_types; ++t) {
-        for (int n = 0; n < ((para.dim + 2) * para.num_neurons1)*NEP5_SIZE; ++n) {
+        for (int n = 0; n < ((para.dim + 2) * para.num_neurons1); ++n) {
           type_of_variable[n + offset] = t;
         }
-        offset += ((para.dim + 2) * para.num_neurons1)*NEP5_SIZE;
+        offset += ((para.dim + 2) * para.num_neurons1);
       }
       ++offset; // the bias
     }
   } else {
-    offset += ((para.dim + 2) * para.num_neurons1)*NEP5_SIZE + 1;
+    offset += ((para.dim + 2) * para.num_neurons1) + 1;
   }
 
   // descriptor part
@@ -246,7 +246,7 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
       tokens = get_tokens(input);
       population[n] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }
-    for (int d = 0; d < para.dim*NEP5_SIZE; ++d) {
+    for (int d = 0; d < para.dim; ++d) {
       tokens = get_tokens(input);
       para.q_scaler_cpu[d] = get_float_from_token(tokens[0], __FILE__, __LINE__);
     }

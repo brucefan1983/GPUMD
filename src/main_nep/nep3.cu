@@ -242,11 +242,10 @@ static __global__ void find_message(
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
-    for (int n = 0; n < NEP5_SIZE-1; ++n) {
-      for (int d = 0; d < annmb.dim; ++d) {
-        g_descriptor[n1 + (d + annmb.dim * (n + 1)) * N] = 0.0f;
-      }
-    } 
+    float q[MAX_DIM];
+    for (int d = 0; d < annmb.dim; ++d) {
+      q[d] = g_descriptor[n1 + d * N]; // get q0
+    }
 
     int neighbor_number = g_NN[n1];
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
@@ -258,13 +257,19 @@ static __global__ void find_message(
       float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      float fn12[NEP5_SIZE-1];
-      find_fn(NEP5_SIZE-2, paramb.rcinv_radial, d12, fc12, fn12);
-      for (int n = 0; n < NEP5_SIZE-1; ++n) {
-        for (int d = 0; d < annmb.dim; ++d) {
-          g_descriptor[n1 + (d + annmb.dim * (n + 1)) * N] += g_descriptor[n2 + d * N] * fn12[n];
+      float fn12[MAX_NUM_N];
+      find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
+      for (int d = 0; d < annmb.dim; ++d) {
+        float W_func = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
         }
-      } 
+        q[d] += g_descriptor[n2 + d * N] * W_func;
+      }
+    }
+
+    for (int d = 0; d < annmb.dim; ++d) {
+      g_descriptor[n1 + (d+annmb.dim) * N] = q[d]; // save to q1
     }
   }
 }
@@ -335,7 +340,7 @@ NEP3::NEP3(
     nep_data[device_id].y12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].descriptors.resize(N * annmb[device_id].dim*NEP5_SIZE);
-    nep_data[device_id].Fp.resize(N * annmb[device_id].dim*(NEP5_SIZE+1));
+    nep_data[device_id].Fp.resize(N * annmb[device_id].dim*NEP5_SIZE);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
@@ -345,19 +350,19 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 {
   float* pointer = parameters;
 
-  for (int k=0; k < NEP5_SIZE; ++k) {
-    for (int t = 0; t < paramb.num_types; ++t) {
-      if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
-        pointer -= (ann.dim + 2) * ann.num_neurons1;
-      }
-      ann.w0[t*NEP5_SIZE+k] = pointer;
-      pointer += ann.num_neurons1 * ann.dim;
-      ann.b0[t*NEP5_SIZE+k] = pointer;
-      pointer += ann.num_neurons1;
-      ann.w1[t*NEP5_SIZE+k] = pointer;
-      pointer += ann.num_neurons1;
+
+  for (int t = 0; t < paramb.num_types; ++t) {
+    if (t > 0 && paramb.version != 4) { // Use the same set of NN parameters for NEP2 and NEP3
+      pointer -= (ann.dim + 2) * ann.num_neurons1;
     }
+    ann.w0[t] = pointer;
+    pointer += ann.num_neurons1 * ann.dim;
+    ann.b0[t] = pointer;
+    pointer += ann.num_neurons1;
+    ann.w1[t] = pointer;
+    pointer += ann.num_neurons1;
   }
+
   ann.b1 = pointer;
   pointer += 1;
 
@@ -378,6 +383,8 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
   }
 
   ann.c = pointer;
+  pointer += para.number_of_variables_descriptor;
+  ann.W_para = pointer;
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
@@ -420,47 +427,6 @@ static void __global__ find_max_min(const int N, const float* g_q, float* g_q_sc
   }
 }
 
-static __global__ void apply_ann_potential(
-  const int N,
-  const NEP3::ParaMB paramb,
-  const NEP3::ANN annmb,
-  const int* __restrict__ g_type,
-  const float* __restrict__ g_descriptors,
-  const float* __restrict__ g_q_scaler,
-  float* g_pe,
-  float* g_Fp)
-{
-  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
-  int type = g_type[n1]; // to be accumulated
-  if (n1 < N) {
-    g_pe[n1] = 0.0f;
-    for (int k = 0; k < NEP5_SIZE; ++k) {
-      float q[MAX_DIM] = {0.0f};
-      for (int d = 0; d < annmb.dim; ++d) {
-        q[d] = g_descriptors[n1 + (d+annmb.dim*k) * N] * g_q_scaler[(d+annmb.dim*k)];
-      }
-      // get energy and energy gradient
-      float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0[type*NEP5_SIZE+k],
-        annmb.b0[type*NEP5_SIZE+k],
-        annmb.w1[type*NEP5_SIZE+k],
-        q,
-        F,
-        Fp);
-      g_pe[n1] += F; // accumulate
-
-      for (int d = 0; d < annmb.dim; ++d) {
-        g_Fp[n1 + (d+annmb.dim*k) * N] = Fp[d] * g_q_scaler[(d+annmb.dim*k)];
-      }
-    }
-    g_pe[n1] -= annmb.b1[0]; // the common bias
-  }
-}
-
-/*
 static __global__ void apply_ann(
   const int N,
   const NEP3::ParaMB paramb,
@@ -498,7 +464,6 @@ static __global__ void apply_ann(
     }
   }
 }
-*/
 
 static __global__ void apply_ann_pol(
   const int N,
@@ -613,7 +578,6 @@ static __global__ void zero_force(
   }
 }
 
-
 static __global__ void find_force_radial(
   const bool is_dipole,
   const int N,
@@ -657,7 +621,7 @@ static __global__ void find_force_radial(
       if (paramb.version == 2) {
         find_fn_and_fnp(paramb.n_max_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_radial; ++n) {
-          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*NEP5_SIZE) * N]) * fnp12[n] * d12inv;
+          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim) * N]) * fnp12[n] * d12inv;
           tmp12 *= (paramb.num_types == 1)
                      ? 1.0f
                      : annmb.c[(n * paramb.num_types + t1) * paramb.num_types + t2];
@@ -675,7 +639,7 @@ static __global__ void find_force_radial(
             c_index += t1 * paramb.num_types + t2;
             gnp12 += fnp12[k] * annmb.c[c_index];
           }
-          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim*NEP5_SIZE) * N]) * gnp12 * d12inv;
+          float tmp12 = (g_Fp[n1 + n * N]+g_Fp[n1 + (n+annmb.dim) * N]) * gnp12 * d12inv;
           for (int d = 0; d < 3; ++d) {
             f12[d] += tmp12 * r12[d];
           }
@@ -743,7 +707,7 @@ static __global__ void find_force_angular(
     float Fp[MAX_DIM_ANGULAR] = {0.0f};
     float sum_fxyz[NUM_OF_ABC * MAX_NUM_N];
     for (int d = 0; d < paramb.dim_angular; ++d) {
-      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] + g_Fp[(paramb.n_max_radial + 1 + d + annmb.dim*NEP5_SIZE) * N + n1];
+      Fp[d] = g_Fp[(paramb.n_max_radial + 1 + d) * N + n1] + g_Fp[(paramb.n_max_radial + 1 + d + annmb.dim) * N + n1];
     }
     for (int d = 0; d < (paramb.n_max_angular + 1) * NUM_OF_ABC; ++d) {
       sum_fxyz[d] = g_sum_fxyz[d * N + n1];
@@ -865,19 +829,21 @@ static __global__ void find_force_message(
       float d12inv = 1.0f / d12;
       float fc12, fcp12;
       find_fc_and_fcp(paramb.rc_radial, paramb.rcinv_radial, d12, fc12, fcp12);
-      float fn12[NEP5_SIZE-1];
-      float fnp12[NEP5_SIZE-1];
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
       float f12[3] = {0.0f};
-      find_fn_and_fnp(NEP5_SIZE-2, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
-      for (int n = 0; n < NEP5_SIZE-1; ++n) {
-        float factor = 0.0f;
-        for (int d = 0; d < annmb.dim; ++d) {
-          factor += g_Fp[(d+annmb.dim*(n+1)) * N + n1] * g_q[d * N + n2];
+      find_fn_and_fnp(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
+      float factor = 0.0f;
+      for (int d = 0; d < annmb.dim; ++d) {
+        float W_func = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fnp12[k];
         }
-        factor *= fnp12[n] * d12inv;
-        for (int d = 0; d < 3; ++d) {
-          f12[d] += factor * r12[d];
-        }
+        factor += g_Fp[d * N + n1] * g_q[d * N + n2];
+      }
+      factor *= d12inv;
+      for (int d = 0; d < 3; ++d) {
+        f12[d] += factor * r12[d];
       }
 
       atomicAdd(&g_fx[n1], f12[0]);
@@ -932,16 +898,19 @@ static __global__ void find_sumk(
       float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
       float fc12;
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
-      float fn12[NEP5_SIZE-1];
-      find_fn(NEP5_SIZE-2, paramb.rcinv_radial, d12, fc12, fn12);
-      for (int n = 0; n < NEP5_SIZE-1; ++n) {
-        for (int d = 0; d < annmb.dim; ++d) {
-          sumk[d] += g_Fp[(d+annmb.dim*(n+1)) * N + n2] * fn12[n];
+
+      float fn12[MAX_NUM_N];
+      find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
+      for (int d = 0; d < annmb.dim; ++d) {
+        float W_func = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_radial; ++k) {
+          W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
         }
-      } 
+        sumk[d] += g_Fp[d * N + n2] * W_func;
+      }
     }
     for (int d = 0; d < annmb.dim; ++d) {
-      g_Fp[(d+annmb.dim*NEP5_SIZE) * N + n1] = sumk[d];
+      g_Fp[(d+annmb.dim) * N + n1] = sumk[d];
     }
   }
 }
@@ -1119,9 +1088,9 @@ void NEP3::find_force(
     CUDA_CHECK_KERNEL
 
     if (calculate_q_scaler) {
-      find_max_min<<<annmb[device_id].dim*NEP5_SIZE, 1024>>>(
+      find_max_min<<<annmb[device_id].dim, 1024>>>(
         dataset[device_id].N,
-        nep_data[device_id].descriptors.data(),
+        nep_data[device_id].descriptors.data() + annmb[device_id].dim * dataset[device_id].N,
         para.q_scaler_gpu[device_id].data());
       CUDA_CHECK_KERNEL
     }
@@ -1160,12 +1129,12 @@ void NEP3::find_force(
         nep_data[device_id].Fp.data());
       CUDA_CHECK_KERNEL
     } else {
-      apply_ann_potential<<<grid_size, block_size>>>(
+      apply_ann<<<grid_size, block_size>>>(
         dataset[device_id].N,
         paramb,
         annmb[device_id],
         dataset[device_id].type.data(),
-        nep_data[device_id].descriptors.data(),
+        nep_data[device_id].descriptors.data() + annmb[device_id].dim * dataset[device_id].N,
         para.q_scaler_gpu[device_id].data(),
         dataset[device_id].energy.data(),
         nep_data[device_id].Fp.data());

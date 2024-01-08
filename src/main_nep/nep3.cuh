@@ -73,6 +73,8 @@ public:
     const float* b1_pol;     // bias for the output layer
     // for elements in descriptor
     const float* c;
+    // for the radial functions in message passing
+    const float* W_para;
   };
 
   struct ZBL {

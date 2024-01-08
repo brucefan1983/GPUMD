@@ -166,11 +166,9 @@ void Parameters::calculate_parameters()
   if (train_mode == 3) {
     dim += 1; // concatenate temeprature with descriptors
   }
-  q_scaler_cpu.resize(dim*NEP5_SIZE, 1.0e10f);
+  q_scaler_cpu.resize(dim, 1.0e10f);
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1);
-  number_of_variables_ann *= NEP5_SIZE;
-  number_of_variables_ann += 1; // common bias
+  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
   
   if (version == 2) {
     number_of_variables_descriptor =
@@ -182,6 +180,8 @@ void Parameters::calculate_parameters()
   }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
+  number_of_variables += dim * (basis_size_radial + 1); // for message passing
+
   if (train_mode == 2) {
     number_of_variables += number_of_variables_ann;
   }
@@ -190,7 +190,7 @@ void Parameters::calculate_parameters()
   CHECK(cudaGetDeviceCount(&deviceCount));
   for (int device_id = 0; device_id < deviceCount; device_id++) {
     CHECK(cudaSetDevice(device_id));
-    q_scaler_gpu[device_id].resize(dim*NEP5_SIZE);
+    q_scaler_gpu[device_id].resize(dim);
     q_scaler_gpu[device_id].copy_from_host(q_scaler_cpu.data());
   }
 }
