@@ -78,6 +78,11 @@ public:
     const float* w1[100]; // weight from the hidden layer to the output layer
     const float* b1;      // bias for the output layer
     const float* c;
+    // for the scalar part of polarizability
+    const float* w0_pol[100];
+    const float* b0_pol[100];
+    const float* w1_pol[100];
+    const float* b1_pol;
   };
 
   struct ZBL {

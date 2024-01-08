@@ -64,6 +64,7 @@ protected:
     const float* f12x,
     const float* f12y,
     const float* f12z,
+    const bool is_dipole,
     const GPU_Vector<double>& position_per_atom,
     GPU_Vector<double>& force_per_atom,
     GPU_Vector<double>& virial_per_atom);

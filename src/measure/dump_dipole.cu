@@ -29,11 +29,12 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 
 static __global__ void sum_diagonal(int N, const double* g_virial_per_atom, double* g_virial_sum)
 {
+  // TODO benchmark atomics, consider reductions
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
   if (n1 < N) {
-    g_virial_sum[0] += g_virial_per_atom[n1 + 0 * N];
-    g_virial_sum[1] += g_virial_per_atom[n1 + 1 * N];
-    g_virial_sum[2] += g_virial_per_atom[n1 + 2 * N];
+    atomicAdd(&g_virial_sum[0], g_virial_per_atom[n1 + 0 * N]);
+    atomicAdd(&g_virial_sum[1], g_virial_per_atom[n1 + 1 * N]);
+    atomicAdd(&g_virial_sum[2], g_virial_per_atom[n1 + 2 * N]);
   }
 }
 
@@ -153,8 +154,6 @@ void Dump_Dipole::process(
 
 void Dump_Dipole::write_dipole(const int step)
 {
-  if (!dump_)
-    return;
   if ((step + 1) % dump_interval_ != 0)
     return;
 

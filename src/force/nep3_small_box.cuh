@@ -162,6 +162,7 @@ static __global__ void find_descriptor_small_box(
   const float* __restrict__ g_x12_angular,
   const float* __restrict__ g_y12_angular,
   const float* __restrict__ g_z12_angular,
+  const bool is_polarizability,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_radial,
   const float* __restrict__ g_gn_angular,
@@ -287,6 +288,28 @@ static __global__ void find_descriptor_small_box(
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+
+    if (is_polarizability) {
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0_pol[t1],
+        annmb.b0_pol[t1],
+        annmb.w1_pol[t1],
+        annmb.b1_pol,
+        q,
+        F,
+        Fp);
+      // Add the potential values to the diagonal of the virial
+      // g_virial[n1] = F;
+      // g_virial[n1 + N * 4] = F;
+      // g_virial[n1 + N * 8] = F;
+
+      for (int d = 0; d < annmb.dim; ++d) {
+        Fp[d] = 0.0;
+      }
+    }
+
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] += F;
@@ -315,6 +338,7 @@ static __global__ void find_descriptor_small_box(
   const float* __restrict__ g_x12_angular,
   const float* __restrict__ g_y12_angular,
   const float* __restrict__ g_z12_angular,
+  const bool is_polarizability,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_radial,
   const float* __restrict__ g_gn_angular,
@@ -441,6 +465,28 @@ static __global__ void find_descriptor_small_box(
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
+
+    if (is_polarizability) {
+      apply_ann_one_layer(
+        annmb.dim,
+        annmb.num_neurons1,
+        annmb.w0_pol[t1],
+        annmb.b0_pol[t1],
+        annmb.w1_pol[t1],
+        annmb.b1_pol,
+        q,
+        F,
+        Fp);
+      // Add the potential values to the diagonal of the virial
+      // g_virial[n1] = F;
+      // g_virial[n1 + N * 4] = F;
+      // g_virial[n1 + N * 8] = F;
+
+      for (int d = 0; d < annmb.dim; ++d) {
+        Fp[d] = 0.0;
+      }
+    }
+
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
     g_pe[n1] += F;
