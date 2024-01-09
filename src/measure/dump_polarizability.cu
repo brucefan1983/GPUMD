@@ -41,12 +41,15 @@ static __global__ void sum_polarizability(
   if (n1 < N) {
     // Write the same polarizability values as in the NEP executable and NEP_CPU:
     // xx yy zz xy yz zx
-    atomicAdd(&g_pol[n1 + 0 * N], g_potential_per_atom[x] - g_virial_per_atom[x]); // xx
-    atomicAdd(&g_pol[n1 + 1 * N], g_potential_per_atom[y] - g_virial_per_atom[y]); // yy
-    atomicAdd(&g_pol[n1 + 2 * N], g_potential_per_atom[z] - g_virial_per_atom[z]); // zz
-    atomicAdd(&g_pol[n1 + 3 * N], g_virial_per_atom[xy]);                          // xy
-    atomicAdd(&g_pol[n1 + 4 * N], g_virial_per_atom[yz]);                          // yz
-    atomicAdd(&g_pol[n1 + 5 * N], g_virial_per_atom[zx]);                          // zx
+    // atomicAdd(&g_pol[n1 + 0 * N], g_potential_per_atom[x] - g_virial_per_atom[x]); // xx
+    // atomicAdd(&g_pol[n1 + 1 * N], g_potential_per_atom[y] - g_virial_per_atom[y]); // yy
+    // atomicAdd(&g_pol[n1 + 2 * N], g_potential_per_atom[z] - g_virial_per_atom[z]); // zz
+    atomicAdd(&g_pol[n1 + 0 * N], -g_virial_per_atom[x]);  // xx
+    atomicAdd(&g_pol[n1 + 1 * N], -g_virial_per_atom[y]);  // yy
+    atomicAdd(&g_pol[n1 + 2 * N], -g_virial_per_atom[z]);  // zz
+    atomicAdd(&g_pol[n1 + 3 * N], -g_virial_per_atom[xy]); // xy
+    atomicAdd(&g_pol[n1 + 4 * N], -g_virial_per_atom[yz]); // yz
+    atomicAdd(&g_pol[n1 + 5 * N], -g_virial_per_atom[zx]); // zx
   }
 }
 

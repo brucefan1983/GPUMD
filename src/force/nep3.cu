@@ -566,6 +566,7 @@ static __global__ void find_descriptor(
 #endif
   double* g_pe,
   float* g_Fp,
+  double* g_virial,
   float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -708,9 +709,9 @@ static __global__ void find_descriptor(
         F,
         Fp);
       // Add the potential values to the diagonal of the virial
-      // g_virial[n1] = F;
-      // g_virial[n1 + N * 4] = F;
-      // g_virial[n1 + N * 8] = F;
+      g_virial[n1] = F;
+      g_virial[n1 + N * 1] = F;
+      g_virial[n1 + N * 2] = F;
 
       for (int d = 0; d < annmb.dim; ++d) {
         Fp[d] = 0.0;
@@ -1217,6 +1218,7 @@ void NEP3::compute_large_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
+    virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
@@ -1372,6 +1374,7 @@ void NEP3::compute_small_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
+    virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
@@ -1561,6 +1564,7 @@ static __global__ void find_descriptor(
 #endif
   double* g_pe,
   float* g_Fp,
+  double* g_virial,
   float* g_sum_fxyz)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
@@ -1704,9 +1708,9 @@ static __global__ void find_descriptor(
         F,
         Fp);
       // // Add the potential values to the diagonal of the virial
-      // g_virial[n1] = F;
-      // g_virial[n1 + N * 4] = F;
-      // g_virial[n1 + N * 8] = F;
+      g_virial[n1] = F;
+      g_virial[n1 + N * 1] = F;
+      g_virial[n1 + N * 2] = F;
 
       for (int d = 0; d < annmb.dim; ++d) {
         Fp[d] = 0.0;
@@ -1824,6 +1828,7 @@ void NEP3::compute_large_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
+    virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
@@ -1981,6 +1986,7 @@ void NEP3::compute_small_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
+    virial_per_atom.data(),
     nep_data.sum_fxyz.data());
   CUDA_CHECK_KERNEL
 
