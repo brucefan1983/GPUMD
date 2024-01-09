@@ -264,7 +264,7 @@ static __global__ void find_message(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
         }
-        q[d] += g_descriptor[n2 + d * N] * W_func;
+        q[d] += g_descriptor[n2 + d * N] * W_func*0.01f;
       }
     }
 
@@ -839,7 +839,7 @@ static __global__ void find_force_message(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fnp12[k];
         }
-        factor += g_Fp[d * N + n1] * g_q[d * N + n2] * W_func;
+        factor += g_Fp[d * N + n1] * g_q[d * N + n2] * W_func*0.01f;
       }
       factor *= d12inv;
       for (int d = 0; d < 3; ++d) {
@@ -906,7 +906,7 @@ static __global__ void find_sumk(
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
           W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
         }
-        sumk[d] += g_Fp[d * N + n2] * W_func;
+        sumk[d] += g_Fp[d * N + n2] * W_func*0.01f;
       }
     }
     for (int d = 0; d < annmb.dim; ++d) {
