@@ -46,8 +46,7 @@ private:
   bool dump_ = false;
   int dump_interval_ = 1;
   FILE* file_;
-  GPU_Vector<double> gpu_pol_per_atom_;
-  std::vector<double> cpu_pol_per_atom_;
+  GPU_Vector<double> gpu_pol_;
   std::vector<double> cpu_pol_;
   void write_polarizability(const int step);
   Atom atom_copy;

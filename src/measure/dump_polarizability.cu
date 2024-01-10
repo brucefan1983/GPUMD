@@ -31,25 +31,25 @@ static __global__ void sum_polarizability(
   int N, const double* g_potential_per_atom, const double* g_virial_per_atom, double* g_pol)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x;
-  int x = n1 + 0 * N;
-  int y = n1 + 1 * N;
-  int z = n1 + 2 * N;
-  int xy = n1 + 3 * N;
-  int yz = n1 + 5 * N;
-  int zx = n1 + 7 * N;
 
   if (n1 < N) {
-    // Write the same polarizability values as in the NEP executable and NEP_CPU:
+    int x = n1 + 0 * N;
+    int y = n1 + 1 * N;
+    int z = n1 + 2 * N;
+    int xy = n1 + 3 * N;
+    int yz = n1 + 5 * N;
+    int zx = n1 + 7 * N;
+    // Sum up per atom polarizability
     // xx yy zz xy yz zx
     // atomicAdd(&g_pol[n1 + 0 * N], g_potential_per_atom[x] - g_virial_per_atom[x]); // xx
     // atomicAdd(&g_pol[n1 + 1 * N], g_potential_per_atom[y] - g_virial_per_atom[y]); // yy
     // atomicAdd(&g_pol[n1 + 2 * N], g_potential_per_atom[z] - g_virial_per_atom[z]); // zz
-    atomicAdd(&g_pol[n1 + 0 * N], -g_virial_per_atom[x]);  // xx
-    atomicAdd(&g_pol[n1 + 1 * N], -g_virial_per_atom[y]);  // yy
-    atomicAdd(&g_pol[n1 + 2 * N], -g_virial_per_atom[z]);  // zz
-    atomicAdd(&g_pol[n1 + 3 * N], -g_virial_per_atom[xy]); // xy
-    atomicAdd(&g_pol[n1 + 4 * N], -g_virial_per_atom[yz]); // yz
-    atomicAdd(&g_pol[n1 + 5 * N], -g_virial_per_atom[zx]); // zx
+    atomicAdd(&g_pol[0], g_virial_per_atom[x]);  // xx
+    atomicAdd(&g_pol[1], g_virial_per_atom[y]);  // yy
+    atomicAdd(&g_pol[2], g_virial_per_atom[z]);  // zz
+    atomicAdd(&g_pol[3], g_virial_per_atom[xy]); // xy
+    atomicAdd(&g_pol[4], g_virial_per_atom[yz]); // yz
+    atomicAdd(&g_pol[5], g_virial_per_atom[zx]); // zx
   }
 }
 
@@ -71,12 +71,15 @@ static __global__ void initialize_properties(
     g_virial[n1 + 6 * N] = 0.0;
     g_virial[n1 + 7 * N] = 0.0;
     g_virial[n1 + 8 * N] = 0.0;
-    g_pol[n1 + 0 * N] = 0.0;
-    g_pol[n1 + 1 * N] = 0.0;
-    g_pol[n1 + 2 * N] = 0.0;
-    g_pol[n1 + 3 * N] = 0.0;
-    g_pol[n1 + 4 * N] = 0.0;
-    g_pol[n1 + 5 * N] = 0.0;
+  }
+  if (n1 == 0) {
+    // Only need to set g_pol to zero once
+    g_pol[0] = 0.0;
+    g_pol[1] = 0.0;
+    g_pol[2] = 0.0;
+    g_pol[3] = 0.0;
+    g_pol[4] = 0.0;
+    g_pol[5] = 0.0;
   }
 }
 
@@ -101,8 +104,7 @@ void Dump_Polarizability::preprocess(const int number_of_atoms, Force& force)
   if (dump_) {
     std::string filename_ = "polarizability.out";
     file_ = my_fopen(filename_.c_str(), "a");
-    gpu_pol_per_atom_.resize(number_of_atoms * 6);
-    cpu_pol_per_atom_.resize(number_of_atoms * 6);
+    gpu_pol_.resize(6);
     cpu_pol_.resize(6);
 
     // Set up a local copy of the Atoms, on which to compute the dipole
@@ -139,7 +141,7 @@ void Dump_Polarizability::process(
     atom_copy.force_per_atom.data() + number_of_atoms * 2,
     atom_copy.potential_per_atom.data(),
     atom_copy.virial_per_atom.data(),
-    gpu_pol_per_atom_.data());
+    gpu_pol_.data());
   CUDA_CHECK_KERNEL
 
   // Compute the dipole
@@ -159,18 +161,11 @@ void Dump_Polarizability::process(
     number_of_atoms,
     atom_copy.potential_per_atom.data(),
     atom_copy.virial_per_atom.data(),
-    gpu_pol_per_atom_.data());
+    gpu_pol_.data());
   CUDA_CHECK_KERNEL
 
   // Transfer gpu_sum to the CPU
-  gpu_pol_per_atom_.copy_to_host(cpu_pol_per_atom_.data());
-  // Sum up per atom
-  for (int i = 0; i < 6; i++) {
-    cpu_pol_[i] = 0.0;
-    for (int j = 0; j < number_of_atoms; j++) {
-      cpu_pol_[i] += cpu_pol_per_atom_[j + i * number_of_atoms];
-    }
-  }
+  gpu_pol_.copy_to_host(cpu_pol_.data());
   // Write properties
   write_polarizability(step);
 }

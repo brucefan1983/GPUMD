@@ -708,13 +708,18 @@ static __global__ void find_descriptor(
         q,
         F,
         Fp);
-      // Add the potential values to the diagonal of the virial
+      // Add the potential F for this atom to the diagonal of the virial
       g_virial[n1] = F;
       g_virial[n1 + N * 1] = F;
       g_virial[n1 + N * 2] = F;
 
+      // Reset the potential and forces such that they
+      // are zero for the next call to the model. The next call
+      // is not used in the case of is_pol = True, but it doesn't
+      // hurt to clean up.
+      F = 0.0f;
       for (int d = 0; d < annmb.dim; ++d) {
-        Fp[d] = 0.0;
+        Fp[d] = 0.0f;
       }
     }
 
@@ -1195,7 +1200,7 @@ void NEP3::compute_large_box(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
 
-  const bool is_polarizability = paramb.model_type == 2;
+  bool is_polarizability = paramb.model_type == 2;
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     paramb,
     annmb,
@@ -1527,7 +1532,6 @@ void NEP3::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
-
   if (is_small_box) {
     compute_small_box(
       box, type, position_per_atom, potential_per_atom, force_per_atom, virial_per_atom);
@@ -1707,13 +1711,18 @@ static __global__ void find_descriptor(
         q,
         F,
         Fp);
-      // // Add the potential values to the diagonal of the virial
-      g_virial[n1] = F;
-      g_virial[n1 + N * 1] = F;
-      g_virial[n1 + N * 2] = F;
+      // Add the potential values to the diagonal of the virial
+      g_virial[n1] += F;
+      g_virial[n1 + N * 1] += F;
+      g_virial[n1 + N * 2] += F;
 
+      // Reset the potential and forces such that they
+      // are zero for the next call to the model. The next call
+      // is not used in the case of is_pol = True, but it doesn't
+      // hurt to clean up.
+      F = 0.0f;
       for (int d = 0; d < annmb.dim; ++d) {
-        Fp[d] = 0.0;
+        Fp[d] = 0.0f;
       }
     }
 
@@ -1804,6 +1813,7 @@ void NEP3::compute_large_box(
   gpu_sort_neighbor_list<<<N, paramb.MN_angular, paramb.MN_angular * sizeof(int)>>>(
     N, nep_data.NN_angular.data(), nep_data.NL_angular.data());
   CUDA_CHECK_KERNEL
+
   bool is_polarizability = paramb.model_type == 2;
   find_descriptor<<<grid_size, BLOCK_SIZE>>>(
     temperature,
