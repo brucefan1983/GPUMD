@@ -180,7 +180,7 @@ void Parameters::calculate_parameters()
   }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
-  number_of_variables += dim * (basis_size_radial + 1); // for message passing
+  number_of_variables += dim_radial * (basis_size_radial + 1) + dim_angular * (basis_size_angular + 1); // for message passing
 
   if (train_mode == 2) {
     number_of_variables += number_of_variables_ann;

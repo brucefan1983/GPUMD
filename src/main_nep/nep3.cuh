@@ -74,7 +74,8 @@ public:
     // for elements in descriptor
     const float* c;
     // for the radial functions in message passing
-    const float* W_para;
+    const float* W_para_radial;
+    const float* W_para_angular;
   };
 
   struct ZBL {

@@ -229,7 +229,7 @@ static __global__ void find_descriptors_angular(
   }
 }
 
-static __global__ void find_message(
+static __global__ void find_message_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
@@ -242,8 +242,8 @@ static __global__ void find_message(
 {
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
-    float q[MAX_DIM];
-    for (int d = 0; d < annmb.dim; ++d) {
+    float q[MAX_NUM_N];
+    for (int d = 0; d <= paramb.n_max_radial; ++d) {
       q[d] = g_descriptor[n1 + d * N]; // get q0
     }
 
@@ -259,17 +259,62 @@ static __global__ void find_message(
       find_fc(paramb.rc_radial, paramb.rcinv_radial, d12, fc12);
       float fn12[MAX_NUM_N];
       find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
-      for (int d = 0; d < annmb.dim; ++d) {
+      for (int d = 0; d <= paramb.n_max_radial; ++d) {
         float W_func = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
+          W_func += annmb.W_para_radial[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
         }
         q[d] += g_descriptor[n2 + d * N] * W_func*0.01f;
       }
     }
 
-    for (int d = 0; d < annmb.dim; ++d) {
+    for (int d = 0; d <= paramb.n_max_radial; ++d) {
       g_descriptor[n1 + (d+annmb.dim) * N] = q[d]; // save to q1
+    }
+  }
+}
+
+static __global__ void find_message_angular(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  float* __restrict__ g_descriptor)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    float q[MAX_DIM_ANGULAR];
+    for (int d = 0; d < paramb.dim_angular; ++d) {
+      q[d] = g_descriptor[n1 + (d+paramb.n_max_radial+1) * N]; // get q0
+    }
+
+    int neighbor_number = g_NN[n1];
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = n1 + N * i1;
+      int n2 = g_NL[index];
+      float x12 = g_x12[index];
+      float y12 = g_y12[index];
+      float z12 = g_z12[index];
+      float d12 = sqrt(x12 * x12 + y12 * y12 + z12 * z12);
+      float fc12;
+      find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+      float fn12[MAX_NUM_N];
+      find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
+      for (int d = 0; d < paramb.dim_angular; ++d) {
+        float W_func = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          W_func += annmb.W_para_angular[d * (paramb.basis_size_angular + 1) + k] * fn12[k];
+        }
+        q[d] += g_descriptor[n2 + (d+paramb.n_max_radial+1) * N] * W_func*0.01f;
+      }
+    }
+
+    for (int d = 0; d < paramb.dim_angular; ++d) {
+      g_descriptor[n1 + (d+paramb.n_max_radial+1+annmb.dim) * N] = q[d]; // save to q1
     }
   }
 }
@@ -384,7 +429,9 @@ void NEP3::update_potential(Parameters& para, float* parameters, ANN& ann)
 
   ann.c = pointer;
   pointer += para.number_of_variables_descriptor;
-  ann.W_para = pointer;
+  ann.W_para_radial = pointer;
+  pointer += (para.n_max_radial+1)*(para.basis_size_radial+1);
+  ann.W_para_angular = pointer;
 }
 
 static void __global__ find_max_min(const int N, const float* g_q, float* g_q_scaler)
@@ -794,7 +841,7 @@ static __global__ void find_force_angular(
   }
 }
 
-static __global__ void find_force_message(
+static __global__ void find_force_message_radial(
   const bool is_dipole,
   const int N,
   const int* g_NN,
@@ -834,10 +881,10 @@ static __global__ void find_force_message(
       float f12[3] = {0.0f};
       find_fn_and_fnp(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fcp12, fn12, fnp12);
       float factor = 0.0f;
-      for (int d = 0; d < annmb.dim; ++d) {
+      for (int d = 0; d <= paramb.n_max_radial; ++d) {
         float W_func = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fnp12[k];
+          W_func += annmb.W_para_radial[d * (paramb.basis_size_radial + 1) + k] * fnp12[k];
         }
         factor += g_Fp[d * N + n1] * g_q[d * N + n2] * W_func*0.01f;
       }
@@ -876,7 +923,89 @@ static __global__ void find_force_message(
   }
 }
 
-static __global__ void find_sumk(
+static __global__ void find_force_message_angular(
+  const bool is_dipole,
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  const float* __restrict__ g_q,
+  const float* __restrict__ g_Fp,
+  float* g_fx,
+  float* g_fy,
+  float* g_fz,
+  float* g_virial)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1];
+    float s_virial_xx = 0.0f;
+    float s_virial_yy = 0.0f;
+    float s_virial_zz = 0.0f;
+    float s_virial_xy = 0.0f;
+    float s_virial_yz = 0.0f;
+    float s_virial_zx = 0.0f;
+
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float d12inv = 1.0f / d12;
+      float fc12, fcp12;
+      find_fc_and_fcp(paramb.rc_angular, paramb.rcinv_angular, d12, fc12, fcp12);
+      float fn12[MAX_NUM_N];
+      float fnp12[MAX_NUM_N];
+      float f12[3] = {0.0f};
+      find_fn_and_fnp(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
+      float factor = 0.0f;
+      for (int d = 0; d < paramb.dim_angular; ++d) {
+        float W_func = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          W_func += annmb.W_para_angular[d * (paramb.basis_size_angular + 1) + k] * fnp12[k];
+        }
+        factor += g_Fp[(d+paramb.n_max_radial+1) * N + n1] * g_q[(d+paramb.n_max_radial+1) * N + n2] * W_func*0.01f;
+      }
+      factor *= d12inv;
+      for (int d = 0; d < 3; ++d) {
+        f12[d] += factor * r12[d];
+      }
+
+      atomicAdd(&g_fx[n1], f12[0]);
+      atomicAdd(&g_fy[n1], f12[1]);
+      atomicAdd(&g_fz[n1], f12[2]);
+      atomicAdd(&g_fx[n2], -f12[0]);
+      atomicAdd(&g_fy[n2], -f12[1]);
+      atomicAdd(&g_fz[n2], -f12[2]);
+
+      if (is_dipole) {
+        float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
+        s_virial_xx -= r12_square * f12[0];
+        s_virial_yy -= r12_square * f12[1];
+        s_virial_zz -= r12_square * f12[2];
+      } else {
+        s_virial_xx -= r12[0] * f12[0];
+        s_virial_yy -= r12[1] * f12[1];
+        s_virial_zz -= r12[2] * f12[2];
+      }
+      s_virial_xy -= r12[0] * f12[1];
+      s_virial_yz -= r12[1] * f12[2];
+      s_virial_zx -= r12[2] * f12[0];
+    }
+    g_virial[n1] += s_virial_xx;
+    g_virial[n1 + N] += s_virial_yy;
+    g_virial[n1 + N * 2] += s_virial_zz;
+    g_virial[n1 + N * 3] += s_virial_xy;
+    g_virial[n1 + N * 4] += s_virial_yz;
+    g_virial[n1 + N * 5] += s_virial_zx;
+  }
+}
+
+static __global__ void find_sumk_radial(
   const int N,
   const int* g_NN,
   const int* g_NL,
@@ -890,7 +1019,7 @@ static __global__ void find_sumk(
   int n1 = threadIdx.x + blockIdx.x * blockDim.x;
   if (n1 < N) {
     int neighbor_number = g_NN[n1];
-    float sumk[MAX_DIM] = {0.0f};
+    float sumk[MAX_NUM_N] = {0.0f};
     for (int i1 = 0; i1 < neighbor_number; ++i1) {
       int index = i1 * N + n1;
       int n2 = g_NL[index];
@@ -901,16 +1030,55 @@ static __global__ void find_sumk(
 
       float fn12[MAX_NUM_N];
       find_fn(paramb.basis_size_radial, paramb.rcinv_radial, d12, fc12, fn12);
-      for (int d = 0; d < annmb.dim; ++d) {
+      for (int d = 0; d <= paramb.n_max_radial; ++d) {
         float W_func = 0.0f;
         for (int k = 0; k <= paramb.basis_size_radial; ++k) {
-          W_func += annmb.W_para[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
+          W_func += annmb.W_para_radial[d * (paramb.basis_size_radial + 1) + k] * fn12[k];
         }
         sumk[d] += g_Fp[d * N + n2] * W_func*0.01f;
       }
     }
-    for (int d = 0; d < annmb.dim; ++d) {
+    for (int d = 0; d <= paramb.n_max_radial; ++d) {
       g_Fp[(d+annmb.dim) * N + n1] = sumk[d];
+    }
+  }
+}
+
+static __global__ void find_sumk_angular(
+  const int N,
+  const int* g_NN,
+  const int* g_NL,
+  const NEP3::ParaMB paramb,
+  const NEP3::ANN annmb,
+  const float* __restrict__ g_x12,
+  const float* __restrict__ g_y12,
+  const float* __restrict__ g_z12,
+  float* __restrict__ g_Fp)
+{
+  int n1 = threadIdx.x + blockIdx.x * blockDim.x;
+  if (n1 < N) {
+    int neighbor_number = g_NN[n1];
+    float sumk[MAX_DIM_ANGULAR] = {0.0f};
+    for (int i1 = 0; i1 < neighbor_number; ++i1) {
+      int index = i1 * N + n1;
+      int n2 = g_NL[index];
+      float r12[3] = {g_x12[index], g_y12[index], g_z12[index]};
+      float d12 = sqrt(r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2]);
+      float fc12;
+      find_fc(paramb.rc_angular, paramb.rcinv_angular, d12, fc12);
+
+      float fn12[MAX_NUM_N];
+      find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
+      for (int d = 0; d < paramb.dim_angular; ++d) {
+        float W_func = 0.0f;
+        for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+          W_func += annmb.W_para_angular[d * (paramb.basis_size_angular + 1) + k] * fn12[k];
+        }
+        sumk[d] += g_Fp[(d+paramb.n_max_radial+1) * N + n2] * W_func*0.01f;
+      }
+    }
+    for (int d = 0; d < paramb.dim_angular; ++d) {
+      g_Fp[(d+paramb.n_max_radial+1+annmb.dim) * N + n1] = sumk[d];
     }
   }
 }
@@ -1075,7 +1243,7 @@ void NEP3::find_force(
       nep_data[device_id].sum_fxyz.data());
     CUDA_CHECK_KERNEL
 
-    find_message<<<grid_size, block_size>>>(
+    find_message_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
@@ -1084,6 +1252,18 @@ void NEP3::find_force(
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].descriptors.data());
+    CUDA_CHECK_KERNEL
+
+    find_message_angular<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
+      paramb,
+      annmb[device_id],
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
       nep_data[device_id].descriptors.data());
     CUDA_CHECK_KERNEL
 
@@ -1141,7 +1321,7 @@ void NEP3::find_force(
       CUDA_CHECK_KERNEL
     }
 
-    find_sumk<<<grid_size, block_size>>>(
+    find_sumk_radial<<<grid_size, block_size>>>(
       dataset[device_id].N,
       nep_data[device_id].NN_radial.data(),
       nep_data[device_id].NL_radial.data(),
@@ -1150,6 +1330,18 @@ void NEP3::find_force(
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].Fp.data());
+    CUDA_CHECK_KERNEL
+
+    find_sumk_angular<<<grid_size, block_size>>>(
+      dataset[device_id].N,
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
+      paramb,
+      annmb[device_id],
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
       nep_data[device_id].Fp.data());
     CUDA_CHECK_KERNEL
 
@@ -1191,7 +1383,7 @@ void NEP3::find_force(
       dataset[device_id].virial.data());
     CUDA_CHECK_KERNEL
 
-    find_force_message<<<grid_size, block_size>>>(
+    find_force_message_radial<<<grid_size, block_size>>>(
       is_dipole,
       dataset[device_id].N,
       nep_data[device_id].NN_radial.data(),
@@ -1201,6 +1393,24 @@ void NEP3::find_force(
       nep_data[device_id].x12_radial.data(),
       nep_data[device_id].y12_radial.data(),
       nep_data[device_id].z12_radial.data(),
+      nep_data[device_id].descriptors.data(),
+      nep_data[device_id].Fp.data(),
+      dataset[device_id].force.data(),
+      dataset[device_id].force.data() + dataset[device_id].N,
+      dataset[device_id].force.data() + dataset[device_id].N * 2,
+      dataset[device_id].virial.data());
+    CUDA_CHECK_KERNEL
+
+    find_force_message_angular<<<grid_size, block_size>>>(
+      is_dipole,
+      dataset[device_id].N,
+      nep_data[device_id].NN_angular.data(),
+      nep_data[device_id].NL_angular.data(),
+      paramb,
+      annmb[device_id],
+      nep_data[device_id].x12_angular.data(),
+      nep_data[device_id].y12_angular.data(),
+      nep_data[device_id].z12_angular.data(),
       nep_data[device_id].descriptors.data(),
       nep_data[device_id].Fp.data(),
       dataset[device_id].force.data(),
