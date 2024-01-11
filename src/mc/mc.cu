@@ -313,6 +313,7 @@ void MC::parse_mc(const char** param, int num_param, std::vector<Group>& groups,
 
   types.resize(num_types_mc);
   num_atoms_species.resize(num_types_mc, 0);
+  std::fill(num_atoms_species.begin(), num_atoms_species.end(), 0);
   if (mc_ensemble_type == 0) {
     check_species_canonical(groups, atom);
     mc_ensemble.reset(new MC_Ensemble_Canonical(param, num_param, num_steps_mc));

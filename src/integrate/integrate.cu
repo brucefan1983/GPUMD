@@ -860,7 +860,11 @@ void Integrate::parse_ensemble(
       printf("    number of beads is %d.\n", number_of_beads);
       break;
     case 33:
-      printf("Use NVT-PIMD for this run.\n");
+      if (num_param >= 9) {
+        printf("Use NPT-PIMD for this run.\n");
+      } else {
+        printf("Use NVT-PIMD for this run.\n");
+      }
       printf("    number of beads is %d.\n", number_of_beads);
       printf("    initial temperature is %g K.\n", temperature1);
       printf("    final temperature is %g K.\n", temperature2);
