@@ -168,7 +168,7 @@ void Parameters::calculate_parameters()
   }
   q_scaler_cpu.resize(dim, 1.0e10f);
 
-  number_of_variables_ann = (dim + 2) * num_neurons1 * (version == 4 ? num_types : 1) + 1;
+  number_of_variables_ann = (dim + 2) * num_neurons1 * (version >= 4 ? num_types : 1) + 1;
   
   if (version == 2) {
     number_of_variables_descriptor =
@@ -180,6 +180,8 @@ void Parameters::calculate_parameters()
   }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
+
+  if (version == 5)
   number_of_variables += dim_radial * (basis_size_radial + 1) + dim_angular * (basis_size_angular + 1); // for message passing
 
   if (train_mode == 2) {
@@ -475,8 +477,8 @@ void Parameters::parse_version(const char** param, int num_param)
   if (!is_valid_int(param[1], &version)) {
     PRINT_INPUT_ERROR("version should be an integer.\n");
   }
-  if (version < 2 || version > 4) {
-    PRINT_INPUT_ERROR("version should = 2 or 3 or 4.");
+  if (version < 2 || version > 5) {
+    PRINT_INPUT_ERROR("version should = 2 or 3 or 4 or 5.");
   }
 }
 
