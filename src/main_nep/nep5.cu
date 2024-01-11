@@ -359,8 +359,8 @@ NEP5::NEP5(
     nep_data[device_id].x12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].y12_angular.resize(N_times_max_NN_angular);
     nep_data[device_id].z12_angular.resize(N_times_max_NN_angular);
-    nep_data[device_id].descriptors.resize(N * annmb[device_id].dim*NEP5_SIZE);
-    nep_data[device_id].Fp.resize(N * annmb[device_id].dim*NEP5_SIZE);
+    nep_data[device_id].descriptors.resize(N * annmb[device_id].dim*2);
+    nep_data[device_id].Fp.resize(N * annmb[device_id].dim*2);
     nep_data[device_id].sum_fxyz.resize(N * (paramb.n_max_angular + 1) * NUM_OF_ABC);
     nep_data[device_id].parameters.resize(annmb[device_id].num_para);
   }
