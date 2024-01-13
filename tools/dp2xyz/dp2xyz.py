@@ -67,7 +67,7 @@ def load_set(folder) :
 
 def to_system_data(folder):
     # data is empty
-    data = load_type(folder)
+    data = load_type(folder) # define type_map (ex. ['O', 'H']) if there isnot type_map.raw file.
     data['orig'] = np.zeros([3])
     data['docname'] = folder
     sets = sorted(glob.glob(os.path.join(folder, 'set.*')))
@@ -218,7 +218,7 @@ def dump_nep(folder, data, nep_version=3):
     fout.close()
 
 
-def dump_xyz(folder, data):
+def dump_xyz(folder, data, outxyz="DEEP2XYZ.xyz"):
 
     os.makedirs(folder, exist_ok = True)
     Out_string = ""
@@ -241,7 +241,7 @@ def dump_xyz(folder, data):
             Out_string += " ".join(list(map(str, data['coords'][i][j]))) + " "
             Out_string += " ".join(list(map(str, data['forces'][i][j]))) + "\n"
 
-    fo = open(os.path.join(folder, 'DEEP2XYZ.xyz'), 'w')
+    fo = open(os.path.join(folder, outxyz), 'w')
     fo.write(Out_string)
     fo.close()
 
@@ -249,16 +249,15 @@ def dump_xyz(folder, data):
 def main():
 
     instr = sys.argv[1]
+    data = read_multi_deepmd('./'+instr)
+    dump_xyz('./XYZ', data, outxyz="DEEP2XYZ.xyz")
 
     # Warning: nep_version=1: the 1st column in train.in respresents the number of protons.
     #          nep_version=2: the 1st column in train.in respresents the serial number, starting from 0 to N-1.
     #          nep_version=3: the 1st column in train.in respresents the element.
-    nep_version = 3
-
-    data = read_multi_deepmd('./'+instr)
+    #nep_version = 3
     #check_data(data)
-    dump_nep('./NEP', data, nep_version)
-    #dump_xyz('./XYZ', data)
+    #dump_nep('./NEP', data, nep_version)
 
 if __name__ == "__main__":
     main()
