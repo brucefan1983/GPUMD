@@ -60,6 +60,7 @@ public:
     Integrate& integrate,
     std::vector<Group>& group,
     Atom& atom,
+    Box& box,
     Force& force);
 
   void finalize(

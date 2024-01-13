@@ -157,6 +157,15 @@ void Ensemble_piston::compute1(
 {
   if (*current_step == 0)
     init();
+  find_thermo(
+    false,
+    box.get_volume(),
+    group,
+    atoms.mass,
+    atoms.potential_per_atom,
+    atoms.velocity_per_atom,
+    atoms.virial_per_atom,
+    thermo);
   int n = atoms.number_of_atoms;
   gpu_velocity_verlet<<<(n - 1) / 128 + 1, 128>>>(
     true,

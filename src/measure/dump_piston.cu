@@ -21,6 +21,7 @@ namespace
 static __global__ void gpu_com(
   int N,
   int bins,
+  int avg_window,
   double* g_mass,
   double* g_x,
   double* g_vx,
@@ -34,7 +35,7 @@ static __global__ void gpu_com(
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   double mass, vx, vy, vz;
   if (i < N) {
-    int l = (int)g_x[i];
+    int l = (int)(g_x[i] / avg_window);
     mass = g_mass[i];
     vx = g_vx[i];
     vy = g_vy[i];
@@ -44,8 +45,13 @@ static __global__ void gpu_com(
     atomicAdd(&com_vz_data[l], vz * mass);
     atomicAdd(&density_data[l], mass);
   }
-  __syncthreads();
-  if (i < bins) {
+}
+
+static __global__ void gpu_calc1(
+  int bins, double* com_vx_data, double* com_vy_data, double* com_vz_data, double* density_data)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
+  if ((i < bins) && (density_data[i] > 1e-5)) {
     com_vx_data[i] /= density_data[i];
     com_vy_data[i] /= density_data[i];
     com_vz_data[i] /= density_data[i];
@@ -55,7 +61,7 @@ static __global__ void gpu_com(
 static __global__ void gpu_thermo(
   int N,
   int bins,
-  double slice_volume,
+  double avg_window,
   double* g_x,
   double* g_mass,
   double* g_vx,
@@ -71,13 +77,12 @@ static __global__ void gpu_thermo(
   double* pxx_data,
   double* pyy_data,
   double* pzz_data,
-  double* density_data,
   int* number_data)
 {
   double mass, vx, vy, vz;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < N) {
-    int l = (int)g_x[i];
+    int l = (int)(g_x[i] / avg_window);
     mass = g_mass[i];
     vx = g_vx[i] - com_vx_data[l];
     vy = g_vy[i] - com_vy_data[l];
@@ -88,12 +93,24 @@ static __global__ void gpu_thermo(
     atomicAdd(&pzz_data[l], g_pzz[i] + vz * vz * mass);
     atomicAdd(&number_data[l], 1);
   }
-  __syncthreads();
+}
+
+static __global__ void gpu_calc2(
+  int bins,
+  double slice_volume,
+  double* temp_data,
+  double* pxx_data,
+  double* pyy_data,
+  double* pzz_data,
+  double* density_data,
+  int* number_data)
+{
+  const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < bins) {
     temp_data[i] /= 3 * number_data[i] * K_B;
-    pxx_data[i] /= slice_volume;
-    pyy_data[i] /= slice_volume;
-    pzz_data[i] /= slice_volume;
+    pxx_data[i] = pxx_data[i] / slice_volume * 1.602177e+2;
+    pyy_data[i] = pyy_data[i] / slice_volume * 1.602177e+2;
+    pzz_data[i] = pzz_data[i] / slice_volume * 1.602177e+2;
     density_data[i] /= slice_volume;
   }
 }
@@ -101,7 +118,7 @@ static __global__ void gpu_thermo(
 void write_to_file(FILE* file, double* array, int n)
 {
   for (int i = 0; i < n; i++)
-    fprintf(file, "%f", array[i]);
+    fprintf(file, "%f ", array[i]);
   fprintf(file, "\n");
 }
 
@@ -110,7 +127,7 @@ void write_to_file(FILE* file, double* array, int n)
 void Dump_Piston::parse(const char** param, int num_param)
 {
   dump_ = true;
-  printf("Dump spatial histogram thermo information for piston shock wave simulation.\n");
+  printf("Dump spatial histogram thermo information for piston shock wave simulation, ");
 
   if (!is_valid_int(param[1], &dump_interval_)) {
     PRINT_INPUT_ERROR("dump interval should be an integer.");
@@ -118,7 +135,7 @@ void Dump_Piston::parse(const char** param, int num_param)
   if (dump_interval_ <= 0) {
     PRINT_INPUT_ERROR("dump interval should > 0.");
   }
-  printf("    every %d steps.\n", dump_interval_);
+  printf("every %d steps, ", dump_interval_);
 
   if (strcmp(param[2], "x") == 0) {
     direction = 0;
@@ -128,13 +145,23 @@ void Dump_Piston::parse(const char** param, int num_param)
     direction = 2;
   } else
     PRINT_INPUT_ERROR("Direction should be x or y or z.");
-  printf("    in %s direction.\n", direction);
+  printf("in %d direction.\n", direction);
 }
 
-void Dump_Piston::preprocess()
+void Dump_Piston::preprocess(Atom& atom, Box& box)
 {
   if (!dump_)
     return;
+
+  n = atom.number_of_atoms;
+  bins = (int)box.cpu_h[direction] / avg_window + 1;
+  if (n < bins)
+    PRINT_INPUT_ERROR("Too few atoms!");
+  for (int i = 0; i < 3; i++)
+    if (i != direction)
+      slice_vol *= box.cpu_h[i]; // create vectors to store hist
+  slice_vol *= avg_window;
+
   temp_file = my_fopen("temperature_hist.txt", "w");
   pxx_file = my_fopen("pxx_hist.txt", "w");
   pyy_file = my_fopen("pyy_hist.txt", "w");
@@ -144,15 +171,12 @@ void Dump_Piston::preprocess()
   com_vy_file = my_fopen("com_vy_hist.txt", "w");
   com_vz_file = my_fopen("com_vz_hist.txt", "w");
 }
+
 void Dump_Piston::process(Atom& atom, Box& box, const int step)
 {
-  if (!dump_)
+  if (!dump_ || step % dump_interval_ != 0)
     return;
-  int n = atom.number_of_atoms;
-  bins = (int)box.cpu_h[direction] + 1;
-  if (n < bins)
-    PRINT_INPUT_ERROR("Too few atoms!");
-  // create vectors to store hist
+
   gpu_temp.resize(bins, 0);
   gpu_pxx.resize(bins, 0);
   gpu_pyy.resize(bins, 0);
@@ -167,10 +191,14 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
   cpu_pyy.resize(bins, 0);
   cpu_pzz.resize(bins, 0);
   cpu_density.resize(bins, 0);
+  cpu_com_vx.resize(bins, 0);
+  cpu_com_vy.resize(bins, 0);
+  cpu_com_vz.resize(bins, 0);
   // calculate COM velocity first
   gpu_com<<<(n - 1) / 128 + 1, 128>>>(
     n,
     bins,
+    avg_window,
     atom.mass.data(),
     atom.position_per_atom.data() + direction * n,
     atom.velocity_per_atom.data(),
@@ -180,11 +208,13 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
     gpu_com_vy.data(),
     gpu_com_vz.data(),
     gpu_density.data());
+  gpu_calc1<<<(bins - 1) / 128 + 1, 128>>>(
+    bins, gpu_com_vx.data(), gpu_com_vy.data(), gpu_com_vz.data(), gpu_density.data());
   // get spatial thermo info
   gpu_thermo<<<(n - 1) / 128 + 1, 128>>>(
     n,
     bins,
-    1,
+    avg_window,
     atom.position_per_atom.data() + direction * n,
     atom.mass.data(),
     atom.velocity_per_atom.data(),
@@ -200,6 +230,14 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
     gpu_pxx.data(),
     gpu_pyy.data(),
     gpu_pzz.data(),
+    gpu_number.data());
+  gpu_calc2<<<(bins - 1) / 128 + 1, 128>>>(
+    bins,
+    slice_vol,
+    gpu_temp.data(),
+    gpu_pxx.data(),
+    gpu_pyy.data(),
+    gpu_pzz.data(),
     gpu_density.data(),
     gpu_number.data());
   // copy from gpu to cpu
@@ -208,6 +246,9 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
   gpu_pyy.copy_to_host(cpu_pyy.data());
   gpu_pzz.copy_to_host(cpu_pzz.data());
   gpu_density.copy_to_host(cpu_density.data());
+  gpu_com_vx.copy_to_host(cpu_com_vx.data());
+  gpu_com_vy.copy_to_host(cpu_com_vy.data());
+  gpu_com_vz.copy_to_host(cpu_com_vz.data());
   gpu_com_vx.copy_to_host(cpu_com_vx.data());
   gpu_com_vy.copy_to_host(cpu_com_vy.data());
   gpu_com_vz.copy_to_host(cpu_com_vz.data());

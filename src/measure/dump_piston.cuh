@@ -43,15 +43,18 @@ class Dump_Piston
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess();
+  void preprocess(Atom& atom, Box& box);
   void process(Atom& atom, Box& box, const int step);
   void postprocess();
 
 private:
   bool dump_ = false;
+  int n;
   int dump_interval_ = -1;
   int direction;
   int bins;
+  double slice_vol = 1;
+  double avg_window = 5;
   FILE *temp_file, *pxx_file, *pyy_file, *pzz_file, *density_file, *com_vx_file, *com_vy_file,
     *com_vz_file;
   GPU_Vector<double> gpu_temp, gpu_pxx, gpu_pyy, gpu_pzz, gpu_density, gpu_com_vx, gpu_com_vy,

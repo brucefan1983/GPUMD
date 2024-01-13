@@ -29,6 +29,7 @@ void Measure::initialize(
   Integrate& integrate,
   std::vector<Group>& group,
   Atom& atom,
+  Box& box,
   Force& force)
 {
   const int number_of_atoms = atom.mass.size();
@@ -53,7 +54,7 @@ void Measure::initialize(
   dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
-  dump_piston.preprocess();
+  dump_piston.preprocess(atom, box);
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
