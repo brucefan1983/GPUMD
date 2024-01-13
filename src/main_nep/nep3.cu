@@ -199,11 +199,14 @@ static __global__ void find_descriptors_angular(
         } else {
           float fn12[MAX_NUM_N];
           find_fn(paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fn12);
-          float gn12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-            c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-            gn12 += fn12[k] * annmb.c[c_index];
+          float gn12[4] = {0.0f};
+          for (int l = 0; l < 4; ++l){
+            int ln = l * (paramb.n_max_angular + 1) + n;
+            for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+              int c_index = (ln * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+              c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+              gn12[l] += fn12[k] * annmb.c[c_index];
+            }
           }
           accumulate_s(d12, x12, y12, z12, gn12, s);
         }
@@ -694,13 +697,16 @@ static __global__ void find_force_angular(
         find_fn_and_fnp(
           paramb.basis_size_angular, paramb.rcinv_angular, d12, fc12, fcp12, fn12, fnp12);
         for (int n = 0; n <= paramb.n_max_angular; ++n) {
-          float gn12 = 0.0f;
-          float gnp12 = 0.0f;
-          for (int k = 0; k <= paramb.basis_size_angular; ++k) {
-            int c_index = (n * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
-            c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
-            gn12 += fn12[k] * annmb.c[c_index];
-            gnp12 += fnp12[k] * annmb.c[c_index];
+          float gn12[4] = {0.0f};
+          float gnp12[4] = {0.0f};
+          for (int l = 0; l < 4; ++l){
+            int ln = l * (paramb.n_max_angular + 1) + n;
+            for (int k = 0; k <= paramb.basis_size_angular; ++k) {
+              int c_index = (ln * (paramb.basis_size_angular + 1) + k) * paramb.num_types_sq;
+              c_index += t1 * paramb.num_types + t2 + paramb.num_c_radial;
+              gn12[l] += fn12[k] * annmb.c[c_index];
+              gnp12[l] += fnp12[k] * annmb.c[c_index];
+            }
           }
           if (paramb.num_L == paramb.L_max) {
             accumulate_f12(n, paramb.n_max_angular + 1, d12, r12, gn12, gnp12, Fp, sum_fxyz, f12);

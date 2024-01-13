@@ -176,7 +176,7 @@ void Parameters::calculate_parameters()
   } else {
     number_of_variables_descriptor =
       num_types * num_types *
-      (dim_radial * (basis_size_radial + 1) + (n_max_angular + 1) * (basis_size_angular + 1));
+      (dim_radial * (basis_size_radial + 1) + 4*(n_max_angular + 1) * (basis_size_angular + 1));
   }
 
   number_of_variables = number_of_variables_ann + number_of_variables_descriptor;
