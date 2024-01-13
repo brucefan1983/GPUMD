@@ -53,6 +53,7 @@ void Measure::initialize(
   dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
+  dump_piston.preprocess(number_of_atoms, number_of_potentials, force);
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);
@@ -80,6 +81,7 @@ void Measure::finalize(
   dump_exyz.postprocess();
   dump_beads.postprocess();
   dump_observer.postprocess();
+  dump_piston.postprocess();
   active.postprocess();
   dos.postprocess();
   sdc.postprocess();
@@ -194,6 +196,7 @@ void Measure::process(
     step, temperature, box.get_volume(), hnemd.fe, atom.velocity_per_atom, atom.virial_per_atom);
 
   lsqt.process(atom, box, step);
+  dump_piston.process(atom, box, step);
 
 #ifdef USE_NETCDF
   dump_netcdf.process(

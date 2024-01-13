@@ -21,6 +21,7 @@
 #include "dump_exyz.cuh"
 #include "dump_force.cuh"
 #include "dump_observer.cuh"
+#include "dump_piston.cuh"
 #include "dump_position.cuh"
 #include "dump_restart.cuh"
 #include "dump_thermo.cuh"
@@ -105,6 +106,7 @@ public:
   Dump_EXYZ dump_exyz;
   Dump_Beads dump_beads;
   Dump_Observer dump_observer;
+  Dump_Piston dump_piston;
   Active active;
 #ifdef USE_NETCDF
   DUMP_NETCDF dump_netcdf;

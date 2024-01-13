@@ -89,13 +89,13 @@ Ensemble_piston::Ensemble_piston(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong input for vp.");
       if (strcmp(params[i + 1], "x") == 0) {
         direction = 0;
-        vp_x = vp * TIME_UNIT_CONVERSION;
+        vp_x = vp / 100 * TIME_UNIT_CONVERSION;
       } else if (strcmp(params[i + 1], "y") == 0) {
         direction = 1;
-        vp_y = vp * TIME_UNIT_CONVERSION;
+        vp_y = vp / 100 * TIME_UNIT_CONVERSION;
       } else if (strcmp(params[i + 1], "z") == 0) {
         direction = 2;
-        vp_z = vp * TIME_UNIT_CONVERSION;
+        vp_z = vp / 100 * TIME_UNIT_CONVERSION;
       } else
         PRINT_INPUT_ERROR("Direction should be x or y or z.");
       i += 2;
