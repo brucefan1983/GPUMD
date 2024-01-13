@@ -100,18 +100,13 @@ Ensemble_piston::Ensemble_piston(const char** params, int num_params)
   int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "direction") == 0) {
-      if (!is_valid_real(params[i + 1], &vp))
-        PRINT_INPUT_ERROR("Wrong input for vp.");
-      if (strcmp(params[i + 1], "x") == 0) {
+      if (strcmp(params[i + 1], "x") == 0)
         direction = 0;
-        vp_x = vp / 100 * TIME_UNIT_CONVERSION;
-      } else if (strcmp(params[i + 1], "y") == 0) {
+      else if (strcmp(params[i + 1], "y") == 0)
         direction = 1;
-        vp_y = vp / 100 * TIME_UNIT_CONVERSION;
-      } else if (strcmp(params[i + 1], "z") == 0) {
+      else if (strcmp(params[i + 1], "z") == 0)
         direction = 2;
-        vp_z = vp / 100 * TIME_UNIT_CONVERSION;
-      } else
+      else
         PRINT_INPUT_ERROR("Direction should be x or y or z.");
       i += 2;
     } else if (strcmp(params[i], "thickness") == 0) {
@@ -123,12 +118,18 @@ Ensemble_piston::Ensemble_piston(const char** params, int num_params)
         PRINT_INPUT_ERROR("Wrong inputs for vp keyword.");
       i += 2;
     } else {
-      PRINT_INPUT_ERROR("Unknown keyword: %s.", params[i]);
+      PRINT_INPUT_ERROR("Unknown keyword.");
     }
   }
+  if (direction == 0)
+    vp_x = vp / 100 * TIME_UNIT_CONVERSION;
+  else if (direction == 1)
+    vp_y = vp / 100 * TIME_UNIT_CONVERSION;
+  else if (direction == 2)
+    vp_z = vp / 100 * TIME_UNIT_CONVERSION;
   printf("Shock wave direction: %d.\n", direction);
-  printf("Piston velocity: %f.\n", vp);
-  printf("The thickness of fixed wall : %f.\n", thickness);
+  printf("Piston velocity: %f km/s.\n", vp);
+  printf("The thickness of fixed wall: %f Ang.\n", thickness);
 }
 
 void Ensemble_piston::init()

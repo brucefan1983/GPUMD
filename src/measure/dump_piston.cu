@@ -133,19 +133,21 @@ void Dump_Piston::parse(const char** param, int num_param)
 
 void Dump_Piston::preprocess()
 {
-  if (dump_) {
-    temp_file = my_fopen("temperature_hist.txt", "w");
-    pxx_file = my_fopen("pxx_hist.txt", "w");
-    pyy_file = my_fopen("pyy_hist.txt", "w");
-    pzz_file = my_fopen("pzz_hist.txt", "w");
-    density_file = my_fopen("density_hist.txt", "w");
-    com_vx_file = my_fopen("com_vx_hist.txt", "w");
-    com_vy_file = my_fopen("com_vy_hist.txt", "w");
-    com_vz_file = my_fopen("com_vz_hist.txt", "w");
-  }
+  if (!dump_)
+    return;
+  temp_file = my_fopen("temperature_hist.txt", "w");
+  pxx_file = my_fopen("pxx_hist.txt", "w");
+  pyy_file = my_fopen("pyy_hist.txt", "w");
+  pzz_file = my_fopen("pzz_hist.txt", "w");
+  density_file = my_fopen("density_hist.txt", "w");
+  com_vx_file = my_fopen("com_vx_hist.txt", "w");
+  com_vy_file = my_fopen("com_vy_hist.txt", "w");
+  com_vz_file = my_fopen("com_vz_hist.txt", "w");
 }
 void Dump_Piston::process(Atom& atom, Box& box, const int step)
 {
+  if (!dump_)
+    return;
   int n = atom.number_of_atoms;
   bins = (int)box.cpu_h[direction] + 1;
   if (n < bins)
@@ -222,16 +224,16 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
 
 void Dump_Piston::postprocess()
 {
+  if (!dump_)
+    return;
   printf("Closing files ...\n");
-  if (dump_) {
-    fclose(temp_file);
-    fclose(pxx_file);
-    fclose(pyy_file);
-    fclose(pzz_file);
-    fclose(density_file);
-    fclose(com_vx_file);
-    fclose(com_vy_file);
-    fclose(com_vz_file);
-    dump_ = false;
-  }
+  fclose(temp_file);
+  fclose(pxx_file);
+  fclose(pyy_file);
+  fclose(pzz_file);
+  fclose(density_file);
+  fclose(com_vx_file);
+  fclose(com_vy_file);
+  fclose(com_vz_file);
+  dump_ = false;
 }
