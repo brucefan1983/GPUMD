@@ -47,6 +47,6 @@ protected:
   int direction;
   double thickness = 20;
   double vp, vp_x = 0, vp_y = 0, vp_z = 0;
-  GPU_Vector<bool> gpu_wall_list;
+  GPU_Vector<bool> gpu_left_wall_list, gpu_right_wall_list;
   std::vector<double> thermo_cpu;
 };

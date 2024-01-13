@@ -97,6 +97,14 @@ static __global__ void gpu_thermo(
     density_data[i] /= slice_volume;
   }
 }
+
+void write_to_file(FILE* file, double* array, int n)
+{
+  for (int i = 0; i < n; i++)
+    fprintf(file, "%f", array[i]);
+  fprintf(file, "\n");
+}
+
 } // namespace
 
 void Dump_Piston::parse(const char** param, int num_param)
@@ -131,12 +139,17 @@ void Dump_Piston::preprocess()
     pyy_file = my_fopen("pyy_hist.txt", "w");
     pzz_file = my_fopen("pzz_hist.txt", "w");
     density_file = my_fopen("density_hist.txt", "w");
+    com_vx_file = my_fopen("com_vx_hist.txt", "w");
+    com_vy_file = my_fopen("com_vy_hist.txt", "w");
+    com_vz_file = my_fopen("com_vz_hist.txt", "w");
   }
 }
 void Dump_Piston::process(Atom& atom, Box& box, const int step)
 {
   int n = atom.number_of_atoms;
   bins = (int)box.cpu_h[direction] + 1;
+  if (n < bins)
+    PRINT_INPUT_ERROR("Too few atoms!");
   // create vectors to store hist
   gpu_temp.resize(bins, 0);
   gpu_pxx.resize(bins, 0);
@@ -188,7 +201,23 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
     gpu_density.data(),
     gpu_number.data());
   // copy from gpu to cpu
+  gpu_temp.copy_to_host(cpu_temp.data());
+  gpu_pxx.copy_to_host(cpu_pxx.data());
+  gpu_pyy.copy_to_host(cpu_pyy.data());
+  gpu_pzz.copy_to_host(cpu_pzz.data());
+  gpu_density.copy_to_host(cpu_density.data());
+  gpu_com_vx.copy_to_host(cpu_com_vx.data());
+  gpu_com_vy.copy_to_host(cpu_com_vy.data());
+  gpu_com_vz.copy_to_host(cpu_com_vz.data());
   // write to file
+  write_to_file(temp_file, cpu_temp.data(), bins);
+  write_to_file(pxx_file, cpu_pxx.data(), bins);
+  write_to_file(pyy_file, cpu_pyy.data(), bins);
+  write_to_file(pzz_file, cpu_pzz.data(), bins);
+  write_to_file(density_file, cpu_density.data(), bins);
+  write_to_file(com_vx_file, cpu_com_vx.data(), bins);
+  write_to_file(com_vy_file, cpu_com_vy.data(), bins);
+  write_to_file(com_vz_file, cpu_com_vz.data(), bins);
 }
 
 void Dump_Piston::postprocess()
@@ -200,6 +229,9 @@ void Dump_Piston::postprocess()
     fclose(pyy_file);
     fclose(pzz_file);
     fclose(density_file);
+    fclose(com_vx_file);
+    fclose(com_vy_file);
+    fclose(com_vz_file);
     dump_ = false;
   }
 }

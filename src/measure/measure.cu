@@ -53,7 +53,7 @@ void Measure::initialize(
   dump_exyz.preprocess(number_of_atoms);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
-  dump_piston.preprocess(number_of_atoms, number_of_potentials, force);
+  dump_piston.preprocess();
   active.preprocess(number_of_atoms, number_of_potentials, force);
 #ifdef USE_NETCDF
   dump_netcdf.preprocess(number_of_atoms);

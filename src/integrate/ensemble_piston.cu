@@ -17,12 +17,19 @@
 
 namespace
 {
-static __global__ void
-gpu_find_wall(int number_of_atoms, double thickness, bool* wall_list, double* position)
+static __global__ void gpu_find_wall(
+  int number_of_atoms,
+  double left,
+  double right,
+  bool* left_wall_list,
+  bool* right_wall_list,
+  double* position)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
-  if (i < number_of_atoms)
-    wall_list[i] = (position[i] < thickness);
+  if (i < number_of_atoms) {
+    left_wall_list[i] = (position[i] < left);
+    right_wall_list[i] = (position[i] > right);
+  }
 }
 
 static __global__ void gpu_velocity_verlet(
@@ -32,7 +39,8 @@ static __global__ void gpu_velocity_verlet(
   const double move_velocity_y,
   const double move_velocity_z,
   const double g_time_step,
-  bool* wall_list,
+  bool* left_wall_list,
+  bool* right_wall_list,
   const double* g_mass,
   double* g_x,
   double* g_y,
@@ -55,7 +63,14 @@ static __global__ void gpu_velocity_verlet(
     const double ax = g_fx[i] * mass_inv;
     const double ay = g_fy[i] * mass_inv;
     const double az = g_fz[i] * mass_inv;
-    if (wall_list[i]) {
+    if (right_wall_list[i]) {
+      vx = 0;
+      vy = 0;
+      vz = 0;
+      g_vx[i] = 0.0;
+      g_vy[i] = 0.0;
+      g_vz[i] = 0.0;
+    } else if (left_wall_list[i]) {
       vx = move_velocity_x;
       vy = move_velocity_y;
       vz = move_velocity_z;
@@ -119,9 +134,15 @@ Ensemble_piston::Ensemble_piston(const char** params, int num_params)
 void Ensemble_piston::init()
 {
   int N = atom->number_of_atoms;
-  gpu_wall_list.resize(N, false);
+  gpu_left_wall_list.resize(N, false);
+  gpu_right_wall_list.resize(N, false);
   gpu_find_wall<<<(N - 1) / 128 + 1, 128>>>(
-    N, thickness, gpu_wall_list.data(), atom->position_per_atom.data() + N * direction);
+    N,
+    thickness,
+    box->cpu_h[direction] - thickness,
+    gpu_left_wall_list.data(),
+    gpu_right_wall_list.data(),
+    atom->position_per_atom.data() + N * direction);
 }
 
 Ensemble_piston::~Ensemble_piston(void) {}
@@ -143,7 +164,8 @@ void Ensemble_piston::compute1(
     vp_y,
     vp_z,
     time_step,
-    gpu_wall_list.data(),
+    gpu_left_wall_list.data(),
+    gpu_right_wall_list.data(),
     atoms.mass.data(),
     atoms.position_per_atom.data(),
     atoms.position_per_atom.data() + n,
@@ -171,7 +193,8 @@ void Ensemble_piston::compute2(
     vp_y,
     vp_z,
     time_step,
-    gpu_wall_list.data(),
+    gpu_left_wall_list.data(),
+    gpu_right_wall_list.data(),
     atoms.mass.data(),
     atoms.position_per_atom.data(),
     atoms.position_per_atom.data() + n,
