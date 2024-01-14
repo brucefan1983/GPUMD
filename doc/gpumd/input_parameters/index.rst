@@ -24,6 +24,8 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_heat
    ensemble_pimd
    ensemble_ti_spring
+   ensemble_ti
+   ensemble_piston
    ensemble_msst
    fix
    time_step
@@ -68,3 +70,4 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    dump_restart
    dump_thermo
    dump_velocity
+   dump_piston

@@ -13,6 +13,7 @@ There are different categories of methods accessible via this keyword, which are
 * :ref:`integrators for thermal conductivity simulations <kw_ensemble_heat>`
 * :ref:`integrators for path integral molecular dynamics simulations <kw_ensemble_pimd>`
 * :ref:`MSST integrator for simulating compressive shock wave <kw_ensemble_msst>`
+* :ref:`piston integrator for simulating compressive shock wave <kw_ensemble_piston>`
 
 
 .. _choice_of_parameters:
