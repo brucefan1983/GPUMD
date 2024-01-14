@@ -24,21 +24,6 @@
 #include <string>
 #include <vector>
 
-#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
-static __device__ __inline__ double atomicAdd(double* address, double val)
-{
-  unsigned long long* address_as_ull = (unsigned long long*)address;
-  unsigned long long old = *address_as_ull, assumed;
-  do {
-    assumed = old;
-    old =
-      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
-
-  } while (assumed != old);
-  return __longlong_as_double(old);
-}
-#endif
-
 class Dump_Piston
 {
 public:
@@ -54,12 +39,11 @@ private:
   int direction;
   int bins;
   double slice_vol = 1;
-  double avg_window = 5;
+  double avg_window = 10;
   FILE *temp_file, *pxx_file, *pyy_file, *pzz_file, *density_file, *com_vx_file, *com_vy_file,
     *com_vz_file;
   GPU_Vector<double> gpu_temp, gpu_pxx, gpu_pyy, gpu_pzz, gpu_density, gpu_com_vx, gpu_com_vy,
-    gpu_com_vz;
-  GPU_Vector<int> gpu_number;
+    gpu_com_vz, gpu_number;
   std::vector<double> cpu_temp, cpu_pxx, cpu_pyy, cpu_pzz, cpu_density, cpu_com_vx, cpu_com_vy,
     cpu_com_vz;
 };

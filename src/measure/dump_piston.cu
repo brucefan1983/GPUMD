@@ -17,6 +17,20 @@
 
 namespace
 {
+#if defined(__CUDA_ARCH__) && (__CUDA_ARCH__ < 600)
+static __device__ __inline__ double atomicAdd(double* address, double val)
+{
+  unsigned long long* address_as_ull = (unsigned long long*)address;
+  unsigned long long old = *address_as_ull, assumed;
+  do {
+    assumed = old;
+    old =
+      atomicCAS(address_as_ull, assumed, __double_as_longlong(val + __longlong_as_double(assumed)));
+
+  } while (assumed != old);
+  return __longlong_as_double(old);
+}
+#endif
 
 static __global__ void gpu_com(
   int N,
@@ -77,7 +91,7 @@ static __global__ void gpu_thermo(
   double* pxx_data,
   double* pyy_data,
   double* pzz_data,
-  int* number_data)
+  double* number_data)
 {
   double mass, vx, vy, vz;
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
@@ -103,11 +117,13 @@ static __global__ void gpu_calc2(
   double* pyy_data,
   double* pzz_data,
   double* density_data,
-  int* number_data)
+  double* number_data)
 {
   const int i = blockIdx.x * blockDim.x + threadIdx.x;
   if (i < bins) {
-    temp_data[i] /= 3 * number_data[i] * K_B;
+    // if there are too few atoms, stop calculating temperature
+    if (number_data[i] >= 20)
+      temp_data[i] /= 3 * number_data[i] * K_B;
     pxx_data[i] = pxx_data[i] / slice_volume * 1.602177e+2;
     pyy_data[i] = pyy_data[i] / slice_volume * 1.602177e+2;
     pzz_data[i] = pzz_data[i] / slice_volume * 1.602177e+2;
@@ -127,15 +143,32 @@ void write_to_file(FILE* file, double* array, int n)
 void Dump_Piston::parse(const char** param, int num_param)
 {
   dump_ = true;
-  printf("Dump spatial histogram thermo information for piston shock wave simulation, ");
 
-  if (!is_valid_int(param[1], &dump_interval_)) {
-    PRINT_INPUT_ERROR("dump interval should be an integer.");
+  printf("Dump spatial histogram thermo information for piston shock wave simulation, ");
+  int i = 1;
+  while (i < num_param) {
+    if (strcmp(param[i], "direction") == 0) {
+      if (strcmp(param[i + 1], "x") == 0)
+        direction = 0;
+      else if (strcmp(param[i + 1], "y") == 0)
+        direction = 1;
+      else if (strcmp(param[i + 1], "z") == 0)
+        direction = 2;
+      else
+        PRINT_INPUT_ERROR("Direction should be x or y or z.");
+      i += 2;
+    } else if (strcmp(param[i], "interval") == 0) {
+      if (!is_valid_int(param[i + 1], &dump_interval_))
+        PRINT_INPUT_ERROR("Dump interval should be an integer.");
+      i += 2;
+    } else if (strcmp(param[i], "bin_size") == 0) {
+      if (!is_valid_real(param[i + 1], &avg_window))
+        PRINT_INPUT_ERROR("Wrong inputs for bin_size.");
+      i += 2;
+    } else {
+      PRINT_INPUT_ERROR("Unknown keyword.");
+    }
   }
-  if (dump_interval_ <= 0) {
-    PRINT_INPUT_ERROR("dump interval should > 0.");
-  }
-  printf("every %d steps, ", dump_interval_);
 
   if (strcmp(param[2], "x") == 0) {
     direction = 0;
@@ -253,6 +286,12 @@ void Dump_Piston::process(Atom& atom, Box& box, const int step)
   gpu_com_vy.copy_to_host(cpu_com_vy.data());
   gpu_com_vz.copy_to_host(cpu_com_vz.data());
   // write to file
+  for (int i = 0; i < bins; i++) {
+    cpu_com_vx[i] /= 0.01 * TIME_UNIT_CONVERSION; // to km/s
+    cpu_com_vy[i] /= 0.01 * TIME_UNIT_CONVERSION; // to km/s
+    cpu_com_vz[i] /= 0.01 * TIME_UNIT_CONVERSION; // to km/s
+    cpu_density[i] *= 1.660538921;                // to g/cm3
+  }
   write_to_file(temp_file, cpu_temp.data(), bins);
   write_to_file(pxx_file, cpu_pxx.data(), bins);
   write_to_file(pyy_file, cpu_pyy.data(), bins);
