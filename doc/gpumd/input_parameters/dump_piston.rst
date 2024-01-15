@@ -7,7 +7,7 @@
 
 In shock wave piston simulations, it's often crucial to compute thermo information at different regions, both before and after the shock wave passage.
 
-Piston simulation often involves millions of atoms. If we dump all the virial, velocity of each atom, the output file will become very large, and data process will be cumbersome. This dump can calculate the spatial thermo information during the simulation.Piston simulations commonly involve millions of atoms. Dumping all the virial and velocity data for each atom can lead to excessively large output files, making data processing cumbersome. The `dump_piston` command addresses this by calculating spatial thermo information during the simulation.
+Piston simulations commonly involve millions of atoms. Dumping all the virial and velocity data for each atom can lead to excessively large output files, making data processing cumbersome. The `dump_piston` command addresses this by calculating spatial thermo information during the simulation.
 
 This feature calculates the spatial distribution of partical velocity (km/h), stress (GPa), temperature and density (g/cm3).
 
