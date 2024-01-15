@@ -24,6 +24,7 @@ The driver class for the various integrators.
 #include "ensemble_msst.cuh"
 #include "ensemble_mttk.cuh"
 #include "ensemble_nhc.cuh"
+#include "ensemble_nphug.cuh"
 #include "ensemble_npt_scr.cuh"
 #include "ensemble_nve.cuh"
 #include "ensemble_pimd.cuh"
@@ -113,13 +114,17 @@ void Integrate::initialize(
         deform_z,
         deform_rate));
       break;
-    case -3: // mttk
-      break;
     case -1: // msst
       break;
     case -2: // ti_spring
       break;
+    case -3: // mttk
+      break;
     case -4: // piston
+      break;
+    case -5: // nphug
+      break;
+    case -6: // ti
       break;
     case 21: // heat-NHC
       ensemble.reset(new Ensemble_NHC(
@@ -393,11 +398,14 @@ void Integrate::parse_ensemble(
     type = -2;
     ensemble.reset(new Ensemble_TI_Spring(param, num_param));
   } else if (strcmp(param[1], "ti") == 0) {
-    type = -3;
+    type = -6;
     ensemble.reset(new Ensemble_TI(param, num_param));
   } else if (strcmp(param[1], "piston") == 0) {
     type = -4;
     ensemble.reset(new Ensemble_piston(param, num_param));
+  } else if (strcmp(param[1], "nphug") == 0) {
+    type = -5;
+    ensemble.reset(new Ensemble_NPHug(param, num_param));
   } else {
     PRINT_INPUT_ERROR("Invalid ensemble type.");
   }
@@ -818,13 +826,17 @@ void Integrate::parse_ensemble(
         pressure_coupling[i] *= PRESSURE_UNIT_CONVERSION;
       }
       break;
-    case -3:
-      break;
     case -1:
       break;
     case -2:
       break;
+    case -3:
+      break;
     case -4:
+      break;
+    case -5:
+      break;
+    case -6:
       break;
     case 21:
       printf("Integrate with heating and cooling for this run.\n");

@@ -869,7 +869,7 @@ void Ensemble_MTTK::compute1(
     nhc_press_integrate();
 
   if (use_thermostat) {
-    t_target = t_start + (t_stop - t_start) * get_delta();
+    get_target_temp();
     nhc_temp_integrate();
   }
 

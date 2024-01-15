@@ -16,17 +16,25 @@
 #pragma once
 #include "ensemble_mttk.cuh"
 
-class Ensemble_nphug : public Ensemble_MTTK
+class Ensemble_NPHug : public Ensemble_MTTK
 {
-  Ensemble_nphug(const char** params, int num_params);
-  Ensemble_nphug(void);
-  virtual ~Ensemble_nphug(void);
+public:
+  Ensemble_NPHug(const char** params, int num_params);
+  Ensemble_NPHug(void);
+  virtual ~Ensemble_NPHug(void);
+  void Ensemble_NPHug::compute1(
+    const double time_step,
+    const std::vector<Group>& group,
+    Box& box,
+    Atom& atom,
+    GPU_Vector<double>& thermo);
 
-  double p0, v0, e0;
+  double p0, v0, e0, e_current, v_current, p_nphug_current;
+  double thermo_info[8];
   int uniaxial_compress;
+  double dhugo;
 
   void get_target_temp();
-  double find_current_energy();
-  double compute_hugoniot();
+  double get_thermo();
   void init();
 };

@@ -27,12 +27,13 @@ void matrix_scale(double a[3][3], double b, double c[3][3])
 }
 } // namespace
 
-Ensemble_nphug::~Ensemble_nphug(void) {}
+Ensemble_NPHug::~Ensemble_NPHug(void) {}
 
-Ensemble_nphug::Ensemble_nphug(void) {}
+Ensemble_NPHug::Ensemble_NPHug(void) {}
 
-Ensemble_nphug::Ensemble_nphug(const char** params, int num_params)
+Ensemble_NPHug::Ensemble_NPHug(const char** params, int num_params)
 {
+  use_thermostat = true;
   for (int i = 0; i < 3; i++) {
     for (int j = 0; j < 3; j++) {
       h[i][j] = h_inv[i][j] = h_old[i][j] = h_old_inv[i][j] = tmp1[i][j] = tmp2[i][j] =
@@ -44,7 +45,7 @@ Ensemble_nphug::Ensemble_nphug(const char** params, int num_params)
     }
   }
 
-  int i = 1;
+  int i = 2;
   while (i < num_params) {
     if (strcmp(params[i], "tperiod") == 0) {
       if (!is_valid_real(params[i + 1], &t_period))
@@ -126,12 +127,12 @@ Ensemble_nphug::Ensemble_nphug(const char** params, int num_params)
 
   // check if there are conflicts in parameters
   if (!use_barostat)
-    PRINT_INPUT_ERROR("For nphug ensemble, you must specify barostat parameters");
+    PRINT_INPUT_ERROR("For NPHug ensemble, you must specify barostat parameters");
 
   // print summary
   printf("Use Nose-Hoover thermostat and Parrinello-Rahman barostat.\n");
 
-  printf("Thermostat: temperature will automatic converge to shock Hugonio.\n");
+  printf("Thermostat: temperature will automatic converge to shock Hugoniot.\n");
 
   const char* stress_components[3][3] = {
     {"xx", "xy", "xz"}, {"yx", "yy", "yz"}, {"zx", "zy", "zz"}};
@@ -150,7 +151,7 @@ Ensemble_nphug::Ensemble_nphug(const char** params, int num_params)
   }
 }
 
-void Ensemble_nphug::init()
+void Ensemble_NPHug::init()
 {
   // from GPa to eV/A^2
   matrix_scale(p_start, 1 / PRESSURE_UNIT_CONVERSION, p_start);
@@ -193,36 +194,53 @@ void Ensemble_nphug::init()
     }
   }
 
-  v0 = box->get_volume();
-  find_current_pressure();
-  if (uniaxial_compress >= 0)
-    p0 = p_current[uniaxial_compress][uniaxial_compress];
-  else
-    p0 = (p_current[0][0] + p_current[1][1] + p_current[2][2]) / 3.0;
-  e0 = find_current_energy();
+  // get initial thermo info
+  get_thermo();
+  v0 = v_current;
+  e0 = e_current;
+  p0 = p_nphug_current;
+  printf("    NPHug V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 }
 
-double Ensemble_nphug::find_current_energy()
+double Ensemble_NPHug::get_thermo()
 {
   find_thermo();
-  double t[8];
-  thermo->copy_to_host(t, 8);
-  double e = t[1];
-  return e;
+  thermo->copy_to_host(thermo_info, 8);
+  v_current = box->get_volume();
+  t_current = thermo_info[0];
+  e_current = thermo_info[1];
+  p_current[0][0] = thermo_info[2];
+  p_current[1][1] = thermo_info[3];
+  p_current[2][2] = thermo_info[4];
+  p_current[0][1] = p_current[1][0] = thermo_info[5];
+  p_current[0][2] = p_current[2][0] = thermo_info[6];
+  p_current[1][2] = p_current[2][1] = thermo_info[7];
+  if (couple_type != NONE)
+    couple();
+  if (uniaxial_compress >= 0)
+    p_nphug_current = p_current[uniaxial_compress][uniaxial_compress];
+  else
+    p_nphug_current = (p_current[0][0] + p_current[1][1] + p_current[2][2]) / 3.0;
 }
 
-void Ensemble_nphug::get_target_temp()
+void Ensemble_NPHug::get_target_temp()
 {
+  get_thermo();
   // calculate hugoniot
-  find_current_temperature();
-  t_target = t_current + compute_hugoniot();
+  dhugo = (0.5 * (p_nphug_current + p0) * (v0 - v_current)) + e0 - e_current;
+  dhugo /= 3 * atom->number_of_atoms * kB;
+  if (*current_step == 0 || *current_step % (*total_steps / 10) == 0) {
+    printf("    NPHug info: current T: %f K, dHugoniot: %f K\n", t_current, dhugo);
+  }
+  t_target = t_current + dhugo;
 }
 
-double Ensemble_nphug::compute_hugoniot()
+void Ensemble_NPHug::compute1(
+  const double time_step,
+  const std::vector<Group>& group,
+  Box& box,
+  Atom& atom,
+  GPU_Vector<double>& thermo)
 {
-
-  double dhugo;
-  double v, e, p;
-
-  return dhugo;
-}
+  Ensemble_MTTK::compute1(time_step, group, box, atom, thermo);
+};
