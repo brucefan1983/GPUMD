@@ -22,19 +22,11 @@ class Ensemble_nphug : public Ensemble_MTTK
   Ensemble_nphug(void);
   virtual ~Ensemble_nphug(void);
 
-  virtual void compute1(
-    const double time_step,
-    const std::vector<Group>& group,
-    Box& box,
-    Atom& atoms,
-    GPU_Vector<double>& thermo);
+  double p0, v0, e0;
+  int uniaxial_compress;
 
-  virtual void compute2(
-    const double time_step,
-    const std::vector<Group>& group,
-    Box& box,
-    Atom& atoms,
-    GPU_Vector<double>& thermo);
-
-  double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
-}
+  void get_target_temp();
+  double find_current_energy();
+  double compute_hugoniot();
+  void init();
+};
