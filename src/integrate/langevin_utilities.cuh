@@ -17,6 +17,7 @@
 Some CUDA kernels for Langevin thermostats.
 ------------------------------------------------------------------------------*/
 
+#pragma once
 #define CURAND_NORMAL(a) curand_normal_double(a)
 
 // initialize curand states

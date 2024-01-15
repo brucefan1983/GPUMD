@@ -160,7 +160,7 @@ void Run::perform_a_run()
 {
   integrate.initialize(time_step, atom, box, group, thermo, number_of_steps);
   mc.initialize();
-  measure.initialize(number_of_steps, time_step, integrate, group, atom, force);
+  measure.initialize(number_of_steps, time_step, integrate, group, atom, box, force);
 
 #ifdef USE_PLUMED
   if (measure.plmd.use_plumed == 1) {
@@ -406,6 +406,8 @@ void Run::parse_one_keyword(std::vector<std::string>& tokens)
     measure.dump_beads.parse(param, num_param);
   } else if (strcmp(param[0], "dump_observer") == 0) {
     measure.dump_observer.parse(param, num_param);
+  } else if (strcmp(param[0], "dump_piston") == 0) {
+    measure.dump_piston.parse(param, num_param);
   } else if (strcmp(param[0], "active") == 0) {
     measure.active.parse(param, num_param);
   } else if (strcmp(param[0], "compute_dos") == 0) {
