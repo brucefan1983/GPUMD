@@ -202,7 +202,7 @@ void Ensemble_NPHug::init()
   printf("    NPHug V0: %g A^3, E0: %g eV, P0: %g GPa\n", v0, e0, p0 * PRESSURE_UNIT_CONVERSION);
 }
 
-double Ensemble_NPHug::get_thermo()
+void Ensemble_NPHug::get_thermo()
 {
   find_thermo();
   thermo->copy_to_host(thermo_info, 8);
@@ -234,13 +234,3 @@ void Ensemble_NPHug::get_target_temp()
   }
   t_target = t_current + dhugo;
 }
-
-void Ensemble_NPHug::compute1(
-  const double time_step,
-  const std::vector<Group>& group,
-  Box& box,
-  Atom& atom,
-  GPU_Vector<double>& thermo)
-{
-  Ensemble_MTTK::compute1(time_step, group, box, atom, thermo);
-};

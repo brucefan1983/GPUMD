@@ -22,12 +22,6 @@ public:
   Ensemble_NPHug(const char** params, int num_params);
   Ensemble_NPHug(void);
   virtual ~Ensemble_NPHug(void);
-  void Ensemble_NPHug::compute1(
-    const double time_step,
-    const std::vector<Group>& group,
-    Box& box,
-    Atom& atom,
-    GPU_Vector<double>& thermo);
 
   double p0, v0, e0, e_current, v_current, p_nphug_current;
   double thermo_info[8];
@@ -35,6 +29,6 @@ public:
   double dhugo;
 
   void get_target_temp();
-  double get_thermo();
+  void get_thermo();
   void init();
 };
