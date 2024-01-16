@@ -27,6 +27,7 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    ensemble_ti
    ensemble_piston
    ensemble_msst
+   ensemble_nphug
    fix
    time_step
    plumed

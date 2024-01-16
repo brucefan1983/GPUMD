@@ -208,7 +208,7 @@ double Ensemble_NPHug::get_thermo()
   thermo->copy_to_host(thermo_info, 8);
   v_current = box->get_volume();
   t_current = thermo_info[0];
-  e_current = thermo_info[1];
+  e_current = thermo_info[1] + 1.5 * atom->number_of_atoms * kB * t_current;
   p_current[0][0] = thermo_info[2];
   p_current[1][1] = thermo_info[3];
   p_current[2][2] = thermo_info[4];
