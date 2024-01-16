@@ -286,6 +286,10 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
 
   annmb.num_para =
     (annmb.dim + 2) * annmb.num_neurons1 * (paramb.version == 4 ? paramb.num_types : 1) + 1;
+  if (paramb.model_type == 2) {
+    // Polarizability models have twice as many parameters
+    annmb.num_para *= 2;
+  }
   printf("    number of neural network parameters = %d.\n", annmb.num_para);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +
@@ -856,10 +860,11 @@ static __global__ void find_force_radial(
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
       if (is_dipole) {
+        // The dipole is proportional to minus the sum of the virials times r12
         double r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_sxx += r12_square * f21[0];
-        s_syy += r12_square * f21[1];
-        s_szz += r12_square * f21[2];
+        s_sxx -= r12_square * f21[0];
+        s_syy -= r12_square * f21[1];
+        s_szz -= r12_square * f21[2];
       } else {
         s_sxx += r12[0] * f21[0];
         s_syy += r12[1] * f21[1];

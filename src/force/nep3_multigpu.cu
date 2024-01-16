@@ -963,6 +963,7 @@ static __global__ void find_descriptor(
       g_virial[n1 + N * 1] = F;
       g_virial[n1 + N * 2] = F;
 
+      F = 0.0;
       for (int d = 0; d < annmb.dim; ++d) {
         Fp[d] = 0.0;
       }
@@ -1101,10 +1102,11 @@ static __global__ void find_force_radial(
       s_fy += f12[1] - f21[1];
       s_fz += f12[2] - f21[2];
       if (is_dipole) {
+        // The dipole is proportional to minus the sum of the virials times r12
         float r12_square = r12[0] * r12[0] + r12[1] * r12[1] + r12[2] * r12[2];
-        s_sxx += r12_square * f21[0];
-        s_syy += r12_square * f21[1];
-        s_szz += r12_square * f21[2];
+        s_sxx -= r12_square * f21[0];
+        s_syy -= r12_square * f21[1];
+        s_szz -= r12_square * f21[2];
       } else {
         s_sxx += r12[0] * f21[0];
         s_syy += r12[1] * f21[1];

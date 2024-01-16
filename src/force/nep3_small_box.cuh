@@ -306,6 +306,7 @@ static __global__ void find_descriptor_small_box(
       g_virial[n1 + N * 1] = F;
       g_virial[n1 + N * 2] = F;
 
+      F = 0.0;
       for (int d = 0; d < annmb.dim; ++d) {
         Fp[d] = 0.0;
       }
@@ -484,6 +485,7 @@ static __global__ void find_descriptor_small_box(
       g_virial[n1 + N * 1] = F;
       g_virial[n1 + N * 2] = F;
 
+      F = 0.0;
       for (int d = 0; d < annmb.dim; ++d) {
         Fp[d] = 0.0;
       }

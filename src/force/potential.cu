@@ -246,10 +246,11 @@ static __global__ void gpu_find_force_many_body(
       // per-atom virial
       if (is_dipole) {
         // Float version of the function
+        // The dipole is proportional to minus the sum of the virials times r12
         float r12_square = x12 * x12 + y12 * y12 + z12 * z12;
-        s_sxx += r12_square * f21x;
-        s_syy += r12_square * f21y;
-        s_szz += r12_square * f21z;
+        s_sxx -= r12_square * f21x;
+        s_syy -= r12_square * f21y;
+        s_szz -= r12_square * f21z;
       } else {
         s_sxx += x12 * f21x;
         s_syy += y12 * f21y;
