@@ -255,7 +255,7 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
   annmb[0].dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
   if (paramb.model_type == 3) {
     annmb[0].dim += 1;
-    is_temperature_nep = paramb.model_type;
+    nep_model_type = paramb.model_type;
   }
   printf("    ANN = %d-%d-1.\n", annmb[0].dim, annmb[0].num_neurons1);
 

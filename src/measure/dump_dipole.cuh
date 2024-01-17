@@ -31,7 +31,7 @@ class Dump_Dipole
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms, Force& force);
+  void preprocess(const int number_of_atoms, const int number_of_potentials, Force& force);
   void process(
     int step,
     const double global_time,

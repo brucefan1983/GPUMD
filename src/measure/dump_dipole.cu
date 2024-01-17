@@ -17,6 +17,7 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 --------------------------------------------------------------------------------------------------*/
 
 #include "dump_dipole.cuh"
+#include "force/nep3.cuh"
 #include "model/box.cuh"
 #include "model/read_xyz.cuh"
 #include "parse_utilities.cuh"
@@ -82,7 +83,8 @@ void Dump_Dipole::parse(const char** param, int num_param)
   printf("   every %d steps.\n", dump_interval_);
 }
 
-void Dump_Dipole::preprocess(const int number_of_atoms, Force& force)
+void Dump_Dipole::preprocess(
+  const int number_of_atoms, const int number_of_potentials, Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   force.set_multiple_potentials_mode("observe");
@@ -100,6 +102,16 @@ void Dump_Dipole::preprocess(const int number_of_atoms, Force& force)
     atom_copy.force_per_atom.resize(number_of_atoms * 3);
     atom_copy.virial_per_atom.resize(number_of_atoms * 9);
     atom_copy.potential_per_atom.resize(number_of_atoms);
+
+    // make sure that the second potential is actually a dipole model.
+    if (number_of_potentials != 2) {
+      PRINT_INPUT_ERROR("dump_dipole requires two potentials to be specified.");
+    }
+    // Multiple potentials may only be used with NEPs, so we know that
+    // the second potential must be an NEP
+    if (force.potentials[1]->nep_model_type != 1) {
+      PRINT_INPUT_ERROR("dump_dipole requires the second NEP potential to be a dipole model.");
+    }
   }
 }
 
@@ -132,7 +144,6 @@ void Dump_Dipole::process(
   // Compute the dipole
   // Use the positions and types from the existing atoms object,
   // but store the results in the local copy.
-  // TODO make sure that the second potential is actually a dipole model.
   force.potentials[1]->compute(
     box,
     atom.type,

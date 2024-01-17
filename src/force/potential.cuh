@@ -24,7 +24,8 @@ public:
   int N1;
   int N2;
   double rc; // maximum cutoff distance
-  int is_temperature_nep = 0;
+  int nep_model_type =
+    -1; // -1 for non_nep, 0 for potential, 1 for dipole, 2 for polarizability, 3 for temperature
   Potential(void);
   virtual ~Potential(void);
 

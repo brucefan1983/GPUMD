@@ -41,9 +41,6 @@ static __global__ void sum_polarizability(
     int zx = n1 + 7 * N;
     // Sum up per atom polarizability
     // xx yy zz xy yz zx
-    // atomicAdd(&g_pol[n1 + 0 * N], g_potential_per_atom[x] - g_virial_per_atom[x]); // xx
-    // atomicAdd(&g_pol[n1 + 1 * N], g_potential_per_atom[y] - g_virial_per_atom[y]); // yy
-    // atomicAdd(&g_pol[n1 + 2 * N], g_potential_per_atom[z] - g_virial_per_atom[z]); // zz
     atomicAdd(&g_pol[0], g_virial_per_atom[x]);  // xx
     atomicAdd(&g_pol[1], g_virial_per_atom[y]);  // yy
     atomicAdd(&g_pol[2], g_virial_per_atom[z]);  // zz
@@ -97,7 +94,8 @@ void Dump_Polarizability::parse(const char** param, int num_param)
   printf("   every %d steps.\n", dump_interval_);
 }
 
-void Dump_Polarizability::preprocess(const int number_of_atoms, Force& force)
+void Dump_Polarizability::preprocess(
+  const int number_of_atoms, const int number_of_potentials, Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
   force.set_multiple_potentials_mode("observe");
