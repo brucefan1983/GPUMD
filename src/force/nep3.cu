@@ -272,9 +272,9 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
   }
   annmb.num_neurons1 = get_int_from_token(tokens[1], __FILE__, __LINE__);
   annmb.dim = (paramb.n_max_radial + 1) + paramb.dim_angular;
+  nep_model_type = paramb.model_type;
   if (paramb.model_type == 3) {
     annmb.dim += 1;
-    nep_model_type = paramb.model_type;
   }
   printf("    ANN = %d-%d-1.\n", annmb.dim, annmb.num_neurons1);
 
