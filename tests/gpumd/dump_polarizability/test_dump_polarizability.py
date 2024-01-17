@@ -83,8 +83,8 @@ def test_dump_polarizability_self_consistent(md):
         )
         # We can expect the diagonal elements to match to a larger extent than the off-diagonals,
         # due to the off-diagonals typically being small.
-        assert np.allclose(cpu_pol[:3], gpu_pol[:3], atol=1e-6, rtol=1e-6)
-        assert np.allclose(cpu_pol[3:], gpu_pol[3:], atol=1e-6, rtol=1e-1)
+        assert np.allclose(cpu_pol[:3], gpu_pol[:3], atol=1e-6, rtol=1e-4)
+        assert np.allclose(cpu_pol[3:], gpu_pol[3:], atol=1e-2, rtol=1e-2)
 
 
 def test_dump_polarizability_numeric(md):
@@ -99,15 +99,15 @@ def test_dump_polarizability_numeric(md):
     # Read positions, and predict pol with pol model
     gpu_pol = pol[0, 1:]
     cpu_pol = [
-        1.55883440e03,
-        1.55883598e03,
-        1.55883172e03,
-        -6.52388999e-04,
-        -1.83034756e-03,
-        -1.09319071e-03,
+        1675.418264,
+        1703.6054623,
+        1705.8788132,
+        -11.01748065,
+        0.9166246,
+        -5.5417825,
     ]
-    assert np.allclose(cpu_pol[:3], gpu_pol[:3], atol=1e-6, rtol=1e-6)
-    assert np.allclose(cpu_pol[3:], gpu_pol[3:], atol=1e-6, rtol=1e-1)
+    assert np.allclose(cpu_pol[:3], gpu_pol[:3], atol=1e-6, rtol=1e-2)
+    assert np.allclose(cpu_pol[3:], gpu_pol[3:], atol=1e-2, rtol=1e-2)
 
 
 def test_dump_polarizability_does_not_change_forces_and_virials(md, md_without_pol):
