@@ -113,6 +113,16 @@ void Dump_Polarizability::preprocess(
     atom_copy.force_per_atom.resize(number_of_atoms * 3);
     atom_copy.virial_per_atom.resize(number_of_atoms * 9);
     atom_copy.potential_per_atom.resize(number_of_atoms);
+    // make sure that the second potential is actually a polarizability model.
+    if (number_of_potentials != 2) {
+      PRINT_INPUT_ERROR("dump_polarizability requires two potentials to be specified.");
+    }
+    // Multiple potentials may only be used with NEPs, so we know that
+    // the second potential must be an NEP
+    if (force.potentials[1]->nep_model_type != 2) {
+      PRINT_INPUT_ERROR(
+        "dump_polarizability requires the second NEP potential to be a dipole model.");
+    }
   }
 }
 
