@@ -64,9 +64,12 @@ static __global__ void initialize_properties(
     g_virial[n1 + 7 * N] = 0.0;
     g_virial[n1 + 8 * N] = 0.0;
   }
-  g_virial_sum[0] = 0.0;
-  g_virial_sum[1] = 0.0;
-  g_virial_sum[2] = 0.0;
+  if (n1 == 0) {
+    // Only need to set g_virial_sum to zero once
+    g_virial_sum[0] = 0.0;
+    g_virial_sum[1] = 0.0;
+    g_virial_sum[2] = 0.0;
+  }
 }
 
 void Dump_Dipole::parse(const char** param, int num_param)
