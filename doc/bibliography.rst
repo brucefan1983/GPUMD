@@ -190,6 +190,12 @@ Bibliography
    | Acta Materialia, **211**, 116893 (2021)
    | DOI: `10.1016/j.actamat.2021.116893 <https://doi.org/10.1016/j.actamat.2021.116893>`
 
+.. [Ravelo2004]
+   | Ravelo, R. and Holian, B. L. and Germann, T. C. and Lomdahl, P. S.
+   | *Constant-stress Hugoniostat method for following the dynamical evolution of shocked matter*
+   | Phys. Rev. B. **70**, 014103 (2004)
+   | DOI: `10.1103/PhysRevB.70.014103 <https://link.aps.org/doi/10.1103/PhysRevB.70.014103>`_
+
 .. [Reed2003]
    | Evan J. Reed, Laurence E. Fried, and J. D. Joannopoulos
    | *A Method for Tractable Dynamical Studies of Single and Double Shock Compression*

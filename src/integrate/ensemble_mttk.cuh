@@ -43,10 +43,10 @@ public:
   double t_current = 0, t_start = 0, t_stop = 0, t_target = 0;
 
 protected:
-  void init();
+  virtual void init();
   void nhc_temp_integrate();
   void nhc_press_integrate();
-  void get_target_temp();
+  virtual void get_target_temp();
   void get_target_pressure();
   double get_delta();
   void get_sigma();
