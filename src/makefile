@@ -19,12 +19,11 @@ CC = nvcc
 ifdef OS # For Windows with the cl.exe compiler
 CFLAGS = -O3 -arch=sm_60 -Xcompiler "/wd 4819"
 else # For linux
-CFLAGS = -std=c++14 -O3 -arch=sm_60
+CFLAGS = -std=c++14 -O3 -arch=sm_75 -DUSE_NETCDF
 endif
-INC = -I./
-LDFLAGS = 
-LIBS = -lcublas -lcusolver
-
+INC = -I./ -I${HOME}/repos/netcdf/include
+LDFLAGS = -L${HOME}/repos/netcdf/lib
+LIBS = -lcublas -lcusolver -l:libnetcdf.a
 
 ###########################################################
 # source files

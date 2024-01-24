@@ -5,7 +5,7 @@
    single: NPHug integrator
 
 :attr:`ensemble` (NPHug)
-=======================
+========================
 
 This keyword sets up a Hugoniot Thermostat (:term:`NPHug`) integrator.
 
