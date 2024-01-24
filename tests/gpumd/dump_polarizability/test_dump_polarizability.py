@@ -12,9 +12,10 @@ repo_dir = f'{os.path.expanduser("~")}/repos/GPUMD/'
 test_folder = f'{repo_dir}/tests/gpumd/dump_polarizability/self_consistent/'
 
 
-def run_md(params, path):
+def run_md(params, path, repeat=1):
     gpumd_command = f'{repo_dir}/src/gpumd'
     structure = read(f'{test_folder}/model.xyz')
+    structure = structure.repeat(repeat)
     calc = GPUNEP(f"{test_folder}/nep.txt", command=gpumd_command)
     structure.calc = calc
     calc.set_directory(path)
@@ -24,7 +25,7 @@ def run_md(params, path):
 
 
 @pytest.fixture
-def md_without_pol(tmp_path):
+def md_without_pol(tmp_path, request):
     path = tmp_path / 'without_pol'
     params = [
         ("potential", f"{test_folder}/nep.txt"),
@@ -37,12 +38,12 @@ def md_without_pol(tmp_path):
         ("dump_velocity", 1),
         ("run", 10),
     ]
-    run_md(params, path)
+    run_md(params, path, repeat=request.param)
     return path
 
 
 @pytest.fixture
-def md(tmp_path):
+def md(tmp_path, request):
     path = tmp_path / 'with_pol'
     pol_model = f"{test_folder}/nep_pol.txt"
     params = [
@@ -58,18 +59,25 @@ def md(tmp_path):
         ("dump_velocity", 1),
         ("run", 10),
     ]
-    run_md(params, path)
+    run_md(params, path, repeat=request.param)
     return path, pol_model
 
-
+@pytest.mark.parametrize('md', [1, 2], indirect=True)
 def test_dump_polarizability_self_consistent(md):
-    """Ensure dump_polarizability writes pols that are consistent with the NEP executable"""
+    """
+    Ensure dump_polarizability writes pols that are consistent with the NEP executable
+    Parametrization corresponds to two different system sizes:
+        1: 320 atoms
+        6: 2560 atoms
+    Ensures that the thread reduction for dump_polarizability is working for > 1024 atoms.
+    """
     md_path, pol_model = md
     pol = np.loadtxt(f'{md_path}/polarizability.out')
     assert pol.shape == (10, 7)
     assert np.allclose(pol[:, 0], np.arange(10))
     # Read positions, and predict pol with pol model
     for gpu_pol, conf in zip(pol[:, 1:], read(f'{md_path}/movie.xyz', ':')):
+        print(len(conf))
         cpu_pol_matrix = get_polarizability(conf, pol_model)  # 3x3
         cpu_pol = np.array(
             [
@@ -87,6 +95,7 @@ def test_dump_polarizability_self_consistent(md):
         assert np.allclose(cpu_pol[3:], gpu_pol[3:], atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.parametrize('md', [1], indirect=True)
 def test_dump_polarizability_numeric(md):
     """
     Compare with a hardcoded value from the self consistent case above, in case
@@ -110,6 +119,7 @@ def test_dump_polarizability_numeric(md):
     assert np.allclose(cpu_pol[3:], gpu_pol[3:], atol=1e-2, rtol=1e-2)
 
 
+@pytest.mark.parametrize('md, md_without_pol', [[1, 1]], indirect=True)
 def test_dump_polarizability_does_not_change_forces_and_virials(md, md_without_pol):
     """Ensure that all regular observables are unchanged"""
     md_path, _ = md
