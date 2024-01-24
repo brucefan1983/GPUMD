@@ -37,7 +37,6 @@ extensions = [
     'sphinx.ext.viewcode',
     'sphinx_autodoc_typehints',
     'sphinxcontrib.bibtex',
-    'cloud_sptheme.ext.table_styling',    
     'nbsphinx']
 bibtex_bibfiles = ['publications.bib']
 
