@@ -5,7 +5,7 @@
    single: piston integrator
 
 :attr:`ensemble` (piston)
-=======================
+=========================
 
 This keyword is employed to configure a piston shock wave simulation, where a fixed wall of atoms is displaced at a specified velocity to generate a shock wave.
 
