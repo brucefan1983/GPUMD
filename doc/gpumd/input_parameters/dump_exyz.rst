@@ -15,11 +15,13 @@ Syntax
    dump_exyz <interval> <has_velocity>
    dump_exyz <interval> <has_velocity> <has_force>
    dump_exyz <interval> <has_velocity> <has_force> <has_potential>
+   dump_exyz <interval> <has_velocity> <has_force> <has_potential> <has_descriptor>
 
 Here, the :attr:`interval` parameter is the output interval (number of steps) of the data.
 :attr:`has_velocity` can be 1 or 0, which means the velocities will or will not be included in the output.
 :attr:`has_force` can be 1 or 0, which means the forces will or will not be included in the output.
 :attr:`has_potential` can be 1 or 0, which means the atomic potential energies will or will not be included in the output.
+:attr:`has_descriptor` can be 1 or 0, which means the NEP descriptors will or will not be included in the output (You must be using NEP potential to enable this feature).
 The atomic positions will always be included in the output.
 
 Examples
@@ -32,6 +34,7 @@ Examples
     dump_exyz 1000 1 1    # dump positions, velocities, and forces
     dump_exyz 1000 1 1 1  # dump positions, velocities, forces, and potentials
     dump_exyz 1000 0 1 1  # dump positions, forces and potentials
+    dump_exyz 1000 0 0 0 1 # dump descriptors
 
 Caveats
 -------

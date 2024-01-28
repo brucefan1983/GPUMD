@@ -40,6 +40,15 @@ const std::string ELEMENTS[NUM_ELEMENTS] = {
   "Os", "Ir", "Pt", "Au", "Hg", "Tl", "Pb", "Bi", "Po", "At", "Rn", "Fr", "Ra", "Ac", "Th",
   "Pa", "U",  "Np", "Pu", "Am", "Cm", "Bk", "Cf", "Es", "Fm", "Md", "No", "Lr"};
 
+void NEP3::create_descriptor_vector(int N)
+{
+  descriptor_dim = annmb.dim;
+  cpu_descriptor.resize(annmb.dim * N);
+  gpu_descriptor.resize(annmb.dim * N);
+}
+
+void NEP3::copy_descriptor_vector() { gpu_descriptor.copy_to_host(cpu_descriptor.data()); }
+
 void NEP3::initialize_dftd3()
 {
   std::ifstream input_run("run.in");
@@ -534,7 +543,9 @@ static __global__ void find_descriptor(
 #endif
   double* g_pe,
   float* g_Fp,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  bool need_save_descriptor,
+  float* g_descriptor)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -669,6 +680,11 @@ static __global__ void find_descriptor(
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+    }
+    if (need_save_descriptor) {
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_descriptor[d * N + n1] = q[d];
+      }
     }
   }
 }
@@ -1153,7 +1169,9 @@ void NEP3::compute_large_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_save_descriptor,
+    gpu_descriptor.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -1303,7 +1321,9 @@ void NEP3::compute_small_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_save_descriptor,
+    gpu_descriptor.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1488,7 +1508,9 @@ static __global__ void find_descriptor(
 #endif
   double* g_pe,
   float* g_Fp,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  bool need_save_descriptor,
+  float* g_descriptor)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -1625,6 +1647,12 @@ static __global__ void find_descriptor(
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
     }
+
+    if (need_save_descriptor) {
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_descriptor[d * N + n1] = q[d];
+      }
+    }
   }
 }
 
@@ -1728,7 +1756,9 @@ void NEP3::compute_large_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_save_descriptor,
+    gpu_descriptor.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial<<<grid_size, BLOCK_SIZE>>>(
@@ -1880,7 +1910,9 @@ void NEP3::compute_small_box(
 #endif
     potential_per_atom.data(),
     nep_data.Fp.data(),
-    nep_data.sum_fxyz.data());
+    nep_data.sum_fxyz.data(),
+    need_save_descriptor,
+    gpu_descriptor.data());
   CUDA_CHECK_KERNEL
 
   find_force_radial_small_box<<<grid_size, BLOCK_SIZE>>>(
@@ -1960,7 +1992,7 @@ void NEP3::compute(
   GPU_Vector<double>& virial_per_atom)
 {
   const bool is_small_box = get_expanded_box(paramb.rc_radial, box, ebox);
-
+  printf("%d smallllllllllllllllllll\n", is_small_box);
   if (is_small_box) {
     compute_small_box(
       temperature,

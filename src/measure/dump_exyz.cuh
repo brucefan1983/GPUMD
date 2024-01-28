@@ -15,6 +15,8 @@
 
 #pragma once
 
+#include "force/force.cuh"
+#include "force/nep3.cuh"
 #include "utilities/gpu_vector.cuh"
 #include <string>
 #include <vector>
@@ -25,13 +27,14 @@ class Dump_EXYZ
 {
 public:
   void parse(const char** param, int num_param);
-  void preprocess(const int number_of_atoms);
+  void preprocess(const int number_of_atoms, Force& force);
   void process(
     const int step,
     const double global_time,
     const Box& box,
     Atom& atom,
-    GPU_Vector<double>& gpu_thermo);
+    GPU_Vector<double>& gpu_thermo,
+    Force& force);
   void postprocess();
 
 private:
@@ -40,6 +43,7 @@ private:
   int has_velocity_ = 0;
   int has_force_ = 0;
   int has_potential_ = 0;
+  int write_descriptor = 0;
   FILE* fid_;
   char filename_[200];
   void output_line2(
@@ -47,7 +51,8 @@ private:
     const Box& box,
     const std::vector<std::string>& cpu_atom_symbol,
     GPU_Vector<double>& virial_per_atom,
-    GPU_Vector<double>& gpu_thermo);
+    GPU_Vector<double>& gpu_thermo,
+    Force& force);
   std::vector<double> cpu_force_per_atom_;
   std::vector<double> cpu_potential_per_atom_;
   GPU_Vector<double> gpu_total_virial_;

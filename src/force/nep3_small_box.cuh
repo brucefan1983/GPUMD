@@ -168,7 +168,9 @@ static __global__ void find_descriptor_small_box(
 #endif
   double* g_pe,
   float* g_Fp,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  bool need_save_descriptor,
+  float* g_descriptor)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -294,6 +296,12 @@ static __global__ void find_descriptor_small_box(
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
     }
+
+    if (need_save_descriptor) {
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_descriptor[d * N + n1] = q[d];
+      }
+    }
   }
 }
 
@@ -321,7 +329,9 @@ static __global__ void find_descriptor_small_box(
 #endif
   double* g_pe,
   float* g_Fp,
-  float* g_sum_fxyz)
+  float* g_sum_fxyz,
+  bool need_save_descriptor,
+  float* g_descriptor)
 {
   int n1 = blockIdx.x * blockDim.x + threadIdx.x + N1;
   if (n1 < N2) {
@@ -447,6 +457,12 @@ static __global__ void find_descriptor_small_box(
 
     for (int d = 0; d < annmb.dim; ++d) {
       g_Fp[d * N + n1] = Fp[d] * paramb.q_scaler[d];
+    }
+
+    if (need_save_descriptor) {
+      for (int d = 0; d < annmb.dim; ++d) {
+        g_descriptor[d * N + n1] = q[d];
+      }
     }
   }
 }

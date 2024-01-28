@@ -102,9 +102,20 @@ void Dump_EXYZ::parse(const char** param, int num_param)
       printf("    with potential data.\n");
     }
   }
+
+  if (num_param >= 6) {
+    if (!is_valid_int(param[5], &write_descriptor)) {
+      PRINT_INPUT_ERROR("has_descriptor should be an integer.");
+    }
+    if (write_descriptor == 0) {
+      printf("    without descriptor data.\n");
+    } else {
+      printf("    with descriptor data.\n");
+    }
+  }
 }
 
-void Dump_EXYZ::preprocess(const int number_of_atoms)
+void Dump_EXYZ::preprocess(const int number_of_atoms, Force& force)
 {
   if (dump_) {
     fid_ = my_fopen("dump.xyz", "a");
@@ -117,6 +128,11 @@ void Dump_EXYZ::preprocess(const int number_of_atoms)
       cpu_potential_per_atom_.resize(number_of_atoms);
     }
   }
+
+  if (write_descriptor == 1) {
+    force.potentials[0]->need_save_descriptor = true;
+    force.potentials[0]->create_descriptor_vector(number_of_atoms);
+  }
 }
 
 void Dump_EXYZ::output_line2(
@@ -124,7 +140,8 @@ void Dump_EXYZ::output_line2(
   const Box& box,
   const std::vector<std::string>& cpu_atom_symbol,
   GPU_Vector<double>& virial_per_atom,
-  GPU_Vector<double>& gpu_thermo)
+  GPU_Vector<double>& gpu_thermo,
+  Force& force)
 {
   // time
   fprintf(fid_, "Time=%.8f", time * TIME_UNIT_CONVERSION); // output time is in units of fs
@@ -207,6 +224,9 @@ void Dump_EXYZ::output_line2(
   if (has_potential_) {
     fprintf(fid_, ":energy_atom:R:1");
   }
+  if (write_descriptor) {
+    fprintf(fid_, ":des:R:%d", force.potentials[0]->descriptor_dim);
+  }
 
   // Over
   fprintf(fid_, "\n");
@@ -217,7 +237,8 @@ void Dump_EXYZ::process(
   const double global_time,
   const Box& box,
   Atom& atom,
-  GPU_Vector<double>& gpu_thermo)
+  GPU_Vector<double>& gpu_thermo,
+  Force& force)
 {
   if (!dump_)
     return;
@@ -240,9 +261,12 @@ void Dump_EXYZ::process(
   fprintf(fid_, "%d\n", num_atoms_total);
 
   // line 2
-  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, gpu_thermo);
+  output_line2(global_time, box, atom.cpu_atom_symbol, atom.virial_per_atom, gpu_thermo, force);
 
   // other lines
+  if (write_descriptor == 1) {
+    force.potentials[0]->copy_descriptor_vector();
+  }
   for (int n = 0; n < num_atoms_total; n++) {
     fprintf(fid_, "%s", atom.cpu_atom_symbol[n].c_str());
     for (int d = 0; d < 3; ++d) {
@@ -263,6 +287,12 @@ void Dump_EXYZ::process(
     if (has_potential_) {
       fprintf(fid_, " %.8f", cpu_potential_per_atom_[n]);
     }
+
+    if (write_descriptor == 1) {
+      for (int i = 0; i < force.potentials[0]->descriptor_dim; i++)
+        fprintf(fid_, " %.8f", force.potentials[0]->cpu_descriptor[num_atoms_total * i + n]);
+    }
+
     fprintf(fid_, "\n");
   }
 

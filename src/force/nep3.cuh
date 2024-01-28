@@ -18,6 +18,7 @@
 #include "potential.cuh"
 #include "utilities/common.cuh"
 #include "utilities/gpu_vector.cuh"
+#include <vector>
 
 struct NEP3_Data {
   GPU_Vector<float> f12x; // 3-body or manybody partial forces
@@ -94,6 +95,9 @@ public:
     int num_cells[3];
     float h[18];
   };
+
+  void NEP3::create_descriptor_vector(int N);
+  void NEP3::copy_descriptor_vector();
 
   NEP3(const char* file_potential, const int num_atoms);
   virtual ~NEP3(void);
