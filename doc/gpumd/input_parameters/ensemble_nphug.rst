@@ -5,13 +5,13 @@
    single: NPHug integrator
 
 :attr:`ensemble` (NPHug)
-=======================
+========================
 
-This keyword sets up a Hugoniot Thermostat (:term:`NPHug`) integrator.
+This keyword sets up a Hugoniot thermostat integrator.
 
 This integrator lets you specify a target stress, and adjust temperature to make the system converge to Hugoniot.
 
-In this implementation, we use the barostat and thermostat of MTTK integrator, so it is very similiar to :ref:`mttk ensemble <kw_ensemble_mttk>`.
+In this implementation, we use the barostat and thermostat of :term:`MTTK` integrator, so it is very similiar to :ref:`mttk ensemble <kw_ensemble_mttk>`.
 
 Please check [Ravelo2004]_ for more details.
 
@@ -40,4 +40,4 @@ Example
 
     ensemble nphug x 300 300
 
-This command performs an :term:`NPHug` simulation with a 300 GPa Hugoniot pressure in the x direction.
+This command performs a simulation using a Hugoniot thermostat with a 300 GPa Hugoniot pressure in the :math:`x` direction.
