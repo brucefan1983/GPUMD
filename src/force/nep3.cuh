@@ -96,8 +96,8 @@ public:
     float h[18];
   };
 
-  void NEP3::create_descriptor_vector(int N);
-  void NEP3::copy_descriptor_vector();
+  void create_descriptor_vector(int N);
+  void copy_descriptor_vector();
 
   NEP3(const char* file_potential, const int num_atoms);
   virtual ~NEP3(void);
