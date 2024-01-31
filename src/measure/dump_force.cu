@@ -101,7 +101,7 @@ void Dump_Force::process(
     for (int n = 0; n < number_of_atoms; n++) {
       fprintf(
         fid_,
-        "%g %g %g\n",
+        "%25.15e%25.15e%25.15e\n",
         cpu_force_per_atom[n],
         cpu_force_per_atom[n + number_of_atoms],
         cpu_force_per_atom[n + 2 * number_of_atoms]);
@@ -128,7 +128,7 @@ void Dump_Force::process(
     for (int n = 0; n < group_size; n++) {
       fprintf(
         fid_,
-        "%g %g %g\n",
+        "%25.15e%25.15e%25.15e\n",
         cpu_force_per_atom[n],
         cpu_force_per_atom[n + group_size],
         cpu_force_per_atom[n + 2 * group_size]);
