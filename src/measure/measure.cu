@@ -84,15 +84,9 @@ void Measure::finalize(
   dump_exyz.postprocess();
   dump_beads.postprocess();
   dump_observer.postprocess();
-<<<<<<< HEAD
   dump_piston.postprocess();
-=======
   dump_dipole.postprocess();
-<<<<<<< HEAD
->>>>>>> 36b82b1b (make dump_dipole change compile)
-=======
   dump_polarizability.postprocess();
->>>>>>> f6fc105a (add dump_polarizability keyword)
   active.postprocess();
   dos.postprocess();
   sdc.postprocess();

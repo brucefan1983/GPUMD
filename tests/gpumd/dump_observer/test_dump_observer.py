@@ -149,6 +149,9 @@ def test_average_single_species(tmp_path):
     energy = np.vstack([ref_df['energy_ref0'], ref_df['energy_ref1']]).mean(axis=0)[0]
     forces = np.vstack([ref_df['forces_ref0'], ref_df['forces_ref1']]).mean(axis=0)
     print(energy)
+    print(ref_df['energy_ref0'])
+    print(ref_df['energy_ref1'])
+    print(df['energy0_thermo'])
     print(df['energy0_exyz'][0])
     atol = 1e-4  # should be close to reference
     rtol = 1e-3

@@ -137,7 +137,6 @@ void Dump_Polarizability::preprocess(
   const int number_of_atoms, const int number_of_potentials, Force& force)
 {
   // Setup a dump_exyz with the dump_interval for dump_observer.
-  force.set_multiple_potentials_mode("observe");
   if (dump_) {
     std::string filename_ = "polarizability.out";
     file_ = my_fopen(filename_.c_str(), "a");
