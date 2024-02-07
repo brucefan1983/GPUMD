@@ -45,6 +45,14 @@ Output files
      - :ref:`active <kw_active>`
      - Simulation time and uncertainty during active learning.
      - Append
+   * - :ref:`dipole.out <dipole_out>`
+     - :ref:`dump_dipole <kw_dump_dipole>`
+     - Predicted dipole.
+     - Append
+   * - :ref:`polarizability.out <polarizability_out>`
+     - :ref:`dump_polarizability <kw_dump_polarizability>`
+     - Predicted polarizability.
+     - Append
    * - :ref:`velocity.out <velocity_out>`
      - :ref:`dump_velocity <kw_dump_velocity>`
      - Contains the atomic velocities

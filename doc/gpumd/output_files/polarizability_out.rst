@@ -3,7 +3,7 @@
    single: polarizability.out (output file)
 
 ``polarizability.out``
-================
+======================
 
 This file contains the global thermodynamic quantities sampled at a given frequency, for each of the specified potentials.
 This file is generated when the :ref:`dump_polarizability keyword <kw_dump_polarizability>` is invoked, which also controls the frequency of the output.

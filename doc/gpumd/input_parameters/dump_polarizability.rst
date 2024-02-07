@@ -3,7 +3,7 @@
    single: dump_polarizability (keyword in run.in)
 
 :attr:`dump_polarizability`
-=====================
+===========================
 
 Predicts the polarizability for the current configuration of atoms during MD, using the second supplied NEP.
 The first potential should be a regular NEP potential model and is used to run the MD, whilst the second NEP should be a `nep*_polarizability` model.

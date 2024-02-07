@@ -3,7 +3,7 @@
    single: dump_dipole (keyword in run.in)
 
 :attr:`dump_dipole`
-=====================
+===================
 
 Predicts the dipole for the current configuration of atoms during MD, using the second supplied NEP.
 The first potential should be a regular NEP potential model and is used to run the MD, whilst the second NEP should be a `nep*_dipole` model.

@@ -65,6 +65,8 @@ Below you can find a listing of keywords for the ``run.in`` input file.
    dump_exyz
    dump_beads
    dump_observer
+   dump_dipole
+   dump_polarizability
    dump_force
    dump_netcdf
    dump_position
