@@ -146,13 +146,15 @@ def test_average_single_species(tmp_path):
 
     # Compare to reference
 
-    energy = np.vstack([ref_df['energy_ref0'], ref_df['energy_ref1']]).mean(axis=0)[0]
+    energy = np.vstack([ref_df['energy_ref0'], ref_df['energy_ref1']]).mean(axis=0)
     forces = np.vstack([ref_df['forces_ref0'], ref_df['forces_ref1']]).mean(axis=0)
-    print(energy)
-    print(ref_df['energy_ref0'])
-    print(ref_df['energy_ref1'])
-    print(df['energy0_thermo'])
-    print(df['energy0_exyz'][0])
+    print("Energy")
+    print(energy, ref_df['energy_ref0'][0], ref_df['energy_ref1'][0])
+    print(df['energy0_thermo'][0],df['energy0_exyz'][0])
+    print("Force")
+    print(forces[0][0], ref_df['forces_ref0'][0][0], ref_df['forces_ref1'][0][0])
+    print(df['forces0_exyz'][0][0], df['forces0_exyz'][1][0])
+    energy = energy[0]
     atol = 1e-4  # should be close to reference
     rtol = 1e-3
     assert np.all(np.isclose(
