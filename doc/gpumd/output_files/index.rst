@@ -158,6 +158,8 @@ Output files
    dump_xyz
    observer_xyz
    observer_out
+   dipole_out
+   polarizability_out
    active_xyz
    active_out
    sdc_out
