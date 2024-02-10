@@ -1,4 +1,4 @@
-nep4 6 H C N O S Cl 
+nep4_dipole 6 H C N O S Cl 
 cutoff 6 4 22 22
 n_max 6 6
 basis_size 10 10
