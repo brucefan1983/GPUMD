@@ -51,7 +51,7 @@ void Measure::initialize(
   dump_restart.preprocess();
   dump_thermo.preprocess();
   dump_force.preprocess(number_of_atoms, group);
-  dump_exyz.preprocess(number_of_atoms);
+  dump_exyz.preprocess(number_of_atoms, force);
   dump_beads.preprocess(number_of_atoms, atom.number_of_beads);
   dump_observer.preprocess(number_of_atoms, number_of_potentials, force);
   dump_piston.preprocess(atom, box);
@@ -153,7 +153,7 @@ void Measure::process(
     atom.cpu_position_per_atom,
     atom.cpu_velocity_per_atom);
   dump_force.process(step, group, atom.force_per_atom);
-  dump_exyz.process(step, global_time, box, atom, thermo);
+  dump_exyz.process(step, global_time, box, atom, thermo, force);
   dump_beads.process(step, global_time, box, atom);
   dump_observer.process(
     step, global_time, number_of_atoms_fixed, group, box, atom, force, integrate, thermo);

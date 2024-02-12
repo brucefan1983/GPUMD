@@ -29,6 +29,9 @@ Potential::~Potential(void)
 {
   // nothing
 }
+void Potential::create_descriptor_vector(int N){};
+
+void Potential::copy_descriptor_vector(){};
 
 static __global__ void gpu_find_force_many_body(
   const int number_of_particles,

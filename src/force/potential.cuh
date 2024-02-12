@@ -25,6 +25,17 @@ public:
   int N2;
   double rc; // maximum cutoff distance
   int is_temperature_nep = 0;
+
+  // write descriptor to output file
+  bool need_save_descriptor = false;
+  GPU_Vector<float> gpu_descriptor;
+  std::vector<float> cpu_descriptor;
+  int descriptor_dim = 0;
+
+  virtual void create_descriptor_vector(int N);
+
+  virtual void copy_descriptor_vector();
+
   Potential(void);
   virtual ~Potential(void);
 
