@@ -104,15 +104,21 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
     paramb.version = 4;
     paramb.model_type = 3;
     zbl.enabled = true;
+  } else if (tokens[0] == "nep_dipole") {
+    paramb.version = 2;
+    paramb.model_type = 1;
   } else if (tokens[0] == "nep3_dipole") {
     paramb.version = 3;
     paramb.model_type = 1;
-  } else if (tokens[0] == "nep3_polarizability") {
-    paramb.version = 3;
-    paramb.model_type = 2;
   } else if (tokens[0] == "nep4_dipole") {
     paramb.version = 4;
     paramb.model_type = 1;
+  } else if (tokens[0] == "nep_polarizability") {
+    paramb.version = 2;
+    paramb.model_type = 2;
+  } else if (tokens[0] == "nep3_polarizability") {
+    paramb.version = 3;
+    paramb.model_type = 2;
   } else if (tokens[0] == "nep4_polarizability") {
     paramb.version = 4;
     paramb.model_type = 2;
@@ -267,6 +273,10 @@ NEP3_MULTIGPU::NEP3_MULTIGPU(
 
   annmb[0].num_para =
     (annmb[0].dim + 2) * annmb[0].num_neurons1 * (paramb.version == 4 ? paramb.num_types : 1) + 1;
+  if (paramb.model_type == 2) {
+    // Polarizability models have twice as many parameters
+    annmb[0].num_para *= 2;
+  }
   printf("    number of neural network parameters = %d.\n", annmb[0].num_para);
   int num_para_descriptor =
     paramb.num_types_sq * ((paramb.n_max_radial + 1) * (paramb.basis_size_radial + 1) +

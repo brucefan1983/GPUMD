@@ -123,15 +123,21 @@ NEP3::NEP3(const char* file_potential, const int num_atoms)
     paramb.version = 4;
     paramb.model_type = 3;
     zbl.enabled = true;
+  } else if (tokens[0] == "nep_dipole") {
+    paramb.version = 2;
+    paramb.model_type = 1;
   } else if (tokens[0] == "nep3_dipole") {
     paramb.version = 3;
     paramb.model_type = 1;
-  } else if (tokens[0] == "nep3_polarizability") {
-    paramb.version = 3;
-    paramb.model_type = 2;
   } else if (tokens[0] == "nep4_dipole") {
     paramb.version = 4;
     paramb.model_type = 1;
+  } else if (tokens[0] == "nep_polarizability") {
+    paramb.version = 2;
+    paramb.model_type = 2;
+  } else if (tokens[0] == "nep3_polarizability") {
+    paramb.version = 3;
+    paramb.model_type = 2;
   } else if (tokens[0] == "nep4_polarizability") {
     paramb.version = 4;
     paramb.model_type = 2;
