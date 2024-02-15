@@ -37,56 +37,52 @@ __device__ void warpReducePol(volatile float* sdata, int tid)
   sdata[tid] += sdata[tid + 1];
 }
 
-static __global__ void
-sum_polarizability(const int N, const int NperT, const double* g_virial_per_atom, double* g_pol)
+static __global__ void sum_polarizability(
+  const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_pol)
 {
-  constexpr int threadsPerBlock = 1024;
-  __shared__ float sdata[threadsPerBlock];
+  //<<<6, 1024>>>
+  int tid = threadIdx.x;
+  int bid = blockIdx.x;
+  __shared__ double s_p[1024];
+  double p = 0.0;
 
-  // Each of the 1024 threads adds the data for N_atoms_per_thread (NperT)
-  // Then the sum is reduced over the 1024 threads
-  unsigned int tid = threadIdx.x;
-  sdata[tid] = 0;
   // Data is in the order x1,.... xN, y1,...yN etc.
   // Each block sums each component, block 0 is x etc.
   // need to translate blockIdx to component index
   // in g_virial_per_atom
   const int blockToCompIdx[6] = {0, 1, 2, 3, 5, 7};
   const unsigned int componentIdx = blockToCompIdx[blockIdx.x] * N;
-  for (unsigned int v = 0; v < NperT; v++) {
-    unsigned int atomIdx = blockDim.x * v + tid;
-    if (atomIdx < N) {
-      sdata[tid] += g_virial_per_atom[componentIdx + atomIdx];
-    }
-    // Sync after all 1024 threads have completed this batch of atoms
-    __syncthreads();
+
+  // 1024 threads, each summing a patch of N/1024 atoms
+  for (int patch = 0; patch < number_of_patches; ++patch) {
+    int atomIdx = tid + patch * 1024;
+    if (atomIdx < N)
+      p += g_virial_per_atom[componentIdx + atomIdx];
   }
 
-  /* do reduction in shared mem
-   * Sequential addressing, where each thread adds it's current
-   * value and the one separated blockDim.x / 2
-   * e.g. s = 512 sdata[0] += sdata[512]
-   *      __sync__
-   *      s = 256 sdata[0] += sdata[256]
-   *      __sync__
-   *      etc.
-   * The last 6 threads are unrolled, as the number of idle
-   * threads for those is very large (< 32 / 1024)
-   */
-  for (unsigned int s = blockDim.x / 2; s > 32; s >>= 1) {
-    if (tid < s) {
-      sdata[tid] += sdata[tid + s];
+  // save the sum for this patch
+  s_p[tid] = p;
+  __syncthreads();
+
+  // aggregate the patches in parallel
+#pragma unroll
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_p[tid] += s_p[tid + offset];
     }
     __syncthreads();
   }
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_p[tid] += s_p[tid + offset];
+    }
+    __syncwarp();
+  }
 
-  // Sum the last unrolled 6 iterations
-  if (tid < 32)
-    warpReducePol(sdata, tid);
-
-  // write result for this block to global mem
-  if (tid == 0)
-    g_pol[blockIdx.x] = sdata[0];
+  // save the final value
+  if (tid == 0) {
+    g_pol[bid] = s_p[0];
+  }
 }
 
 static __global__ void initialize_properties(
