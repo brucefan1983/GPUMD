@@ -100,20 +100,14 @@ static __global__ void gpu_find_force_many_body(
 
       // per-atom virial
       s_sxx += x12 * f21x;
+      s_sxy += x12 * f21y;
+      s_sxz += x12 * f21z;
+      s_syx += y12 * f21x;
       s_syy += y12 * f21y;
+      s_syz += y12 * f21z;
+      s_szx += z12 * f21x;
+      s_szy += z12 * f21y;
       s_szz += z12 * f21z;
-      s_sxy += x12 * f21y;
-      s_sxz += x12 * f21z;
-      s_syx += y12 * f21x;
-      s_syz += y12 * f21z;
-      s_szx += z12 * f21x;
-      s_szy += z12 * f21y;
-      s_sxy += x12 * f21y;
-      s_sxz += x12 * f21z;
-      s_syx += y12 * f21x;
-      s_syz += y12 * f21z;
-      s_szx += z12 * f21x;
-      s_szy += z12 * f21y;
     }
 
     // save force
