@@ -166,6 +166,7 @@ void Potential::find_properties_many_body(
 }
 
 static __global__ void gpu_find_force_many_body(
+  const bool is_dipole,
   const int number_of_particles,
   const int N1,
   const int N2,
@@ -237,15 +238,24 @@ static __global__ void gpu_find_force_many_body(
       s_fz += f12z - f21z;
 
       // per-atom virial
-      s_sxx += x12 * f21x;
+      if (is_dipole) {
+        // Float version of the function
+        // The dipole is proportional to minus the sum of the virials times r12
+        float r12_square = x12 * x12 + y12 * y12 + z12 * z12;
+        s_sxx -= r12_square * f21x;
+        s_syy -= r12_square * f21y;
+        s_szz -= r12_square * f21z;
+      } else {
+        s_sxx += x12 * f21x;
+        s_syy += y12 * f21y;
+        s_szz += z12 * f21z;
+      }
       s_sxy += x12 * f21y;
       s_sxz += x12 * f21z;
       s_syx += y12 * f21x;
-      s_syy += y12 * f21y;
       s_syz += y12 * f21z;
       s_szx += z12 * f21x;
       s_szy += z12 * f21y;
-      s_szz += z12 * f21z;
     }
 
     // save force
@@ -276,6 +286,7 @@ void Potential::find_properties_many_body(
   const float* f12x,
   const float* f12y,
   const float* f12z,
+  const bool is_dipole,
   const GPU_Vector<double>& position_per_atom,
   GPU_Vector<double>& force_per_atom,
   GPU_Vector<double>& virial_per_atom)
@@ -284,6 +295,7 @@ void Potential::find_properties_many_body(
   int grid_size = (N2 - N1 - 1) / BLOCK_SIZE_FORCE + 1;
 
   gpu_find_force_many_body<<<grid_size, BLOCK_SIZE_FORCE>>>(
+    is_dipole,
     number_of_atoms,
     N1,
     N2,

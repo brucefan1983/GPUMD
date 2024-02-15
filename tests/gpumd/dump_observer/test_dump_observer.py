@@ -1,9 +1,9 @@
-from typing import List
 from subprocess import run
+from typing import List
+
 import numpy as np
 import pandas as pd
 from ase.io import read
-
 
 
 def _copy_files(files: List[str], test_folder: str, tmp_path: str):
@@ -28,7 +28,6 @@ def _load_observer_files(path: str, mode: str):
             bundles += (read(f'{path}/observer{i}.xyz', ':'), np.loadtxt(f'{path}/observer{i}.out'))
             # bundles += ([1*i,2,3], [1*i,2,3])
     for k, bundle in enumerate(zip(*bundles)):
-        print(bundle)
         data_bundle = {
                 'timestep': k,
         }
@@ -147,8 +146,15 @@ def test_average_single_species(tmp_path):
 
     # Compare to reference
 
-    energy = np.vstack([ref_df['energy_ref0'], ref_df['energy_ref1']]).mean(axis=0)[0]
+    energy = np.vstack([ref_df['energy_ref0'], ref_df['energy_ref1']]).mean(axis=0)
     forces = np.vstack([ref_df['forces_ref0'], ref_df['forces_ref1']]).mean(axis=0)
+    print("Energy")
+    print(energy, ref_df['energy_ref0'][0], ref_df['energy_ref1'][0])
+    print(df['energy0_thermo'][0],df['energy0_exyz'][0])
+    print("Force")
+    print(forces[0][0], ref_df['forces_ref0'][0][0], ref_df['forces_ref1'][0][0])
+    print(df['forces0_exyz'][0][0], df['forces0_exyz'][1][0])
+    energy = energy[0]
     atol = 1e-4  # should be close to reference
     rtol = 1e-3
     assert np.all(np.isclose(
@@ -179,4 +185,3 @@ def test_species_order(tmp_path):
     print(str(out.stderr))
     assert 'The atomic species and/or the order of the species are not consistent between the multiple potential' in str(out.stderr)
     assert out.returncode == 1
-

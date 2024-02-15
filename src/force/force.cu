@@ -90,8 +90,13 @@ void Force::parse_potential(
     is_fcp = true;
   } else if (
     strcmp(potential_name, "nep") == 0 || strcmp(potential_name, "nep_zbl") == 0 ||
-    strcmp(potential_name, "nep3") == 0 || strcmp(potential_name, "nep3_zbl") == 0 ||
-    strcmp(potential_name, "nep4") == 0 || strcmp(potential_name, "nep4_zbl") == 0 ||
+    strcmp(potential_name, "nep_dipole") == 0 ||
+    strcmp(potential_name, "nep_polarizability") == 0 || strcmp(potential_name, "nep3") == 0 ||
+    strcmp(potential_name, "nep3_zbl") == 0 || strcmp(potential_name, "nep4") == 0 ||
+    strcmp(potential_name, "nep4_zbl") == 0 || strcmp(potential_name, "nep3_dipole") == 0 ||
+    strcmp(potential_name, "nep3_polarizability") == 0 ||
+    strcmp(potential_name, "nep4_dipole") == 0 ||
+    strcmp(potential_name, "nep4_polarizability") == 0 ||
     strcmp(potential_name, "nep_temperature") == 0 ||
     strcmp(potential_name, "nep_zbl_temperature") == 0 ||
     strcmp(potential_name, "nep3_temperature") == 0 ||
@@ -462,7 +467,7 @@ void Force::compute(
 
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // If observing, calculate using main potential only
-    if (3 == potentials[0]->is_temperature_nep) {
+    if (3 == potentials[0]->nep_model_type) {
       potentials[0]->compute(
         temperature,
         box,
@@ -479,7 +484,7 @@ void Force::compute(
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // potential->compute automatically adds the properties
-      if (3 == potentials[i]->is_temperature_nep) {
+      if (3 == potentials[i]->nep_model_type) {
         potentials[i]->compute(
           temperature,
           box,
@@ -749,7 +754,7 @@ void Force::compute(
   temperature += delta_T;
   if (multiple_potentials_mode_.compare("observe") == 0) {
     // If observing, calculate using main potential only
-    if (3 == potentials[0]->is_temperature_nep) {
+    if (3 == potentials[0]->nep_model_type) {
       potentials[0]->compute(
         temperature,
         box,
@@ -766,7 +771,7 @@ void Force::compute(
     // Calculate average potential, force and virial per atom.
     for (int i = 0; i < potentials.size(); i++) {
       // potential->compute automatically adds the properties
-      if (3 == potentials[i]->is_temperature_nep) {
+      if (3 == potentials[i]->nep_model_type) {
         potentials[i]->compute(
           temperature,
           box,
