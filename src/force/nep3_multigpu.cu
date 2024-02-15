@@ -963,9 +963,9 @@ static __global__ void find_descriptor(
       g_virial[n1 + N * 1] = F;
       g_virial[n1 + N * 2] = F;
 
-      F = 0.0;
+      F = 0.0f;
       for (int d = 0; d < annmb.dim; ++d) {
-        Fp[d] = 0.0;
+        Fp[d] = 0.0f;
       }
     }
 
@@ -1944,7 +1944,6 @@ static __global__ void find_descriptor(
   const double* __restrict__ g_x,
   const double* __restrict__ g_y,
   const double* __restrict__ g_z,
-  const double is_polarizability,
 #ifdef USE_TABLE
   const float* __restrict__ g_gn_radial,
   const float* __restrict__ g_gn_angular,
@@ -2081,27 +2080,6 @@ static __global__ void find_descriptor(
 
     // get energy and energy gradient
     float F = 0.0f, Fp[MAX_DIM] = {0.0f};
-
-    if (is_polarizability) {
-      apply_ann_one_layer(
-        annmb.dim,
-        annmb.num_neurons1,
-        annmb.w0_pol[t1],
-        annmb.b0_pol[t1],
-        annmb.w1_pol[t1],
-        annmb.b1_pol,
-        q,
-        F,
-        Fp);
-      // Add the potential values to the diagonal of the virial
-      g_virial[n1] = F;
-      g_virial[n1 + N * 1] = F;
-      g_virial[n1 + N * 2] = F;
-
-      for (int d = 0; d < annmb.dim; ++d) {
-        Fp[d] = 0.0;
-      }
-    }
 
     apply_ann_one_layer(
       annmb.dim, annmb.num_neurons1, annmb.w0[t1], annmb.b0[t1], annmb.w1[t1], annmb.b1, q, F, Fp);
@@ -2327,7 +2305,6 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].NL_angular.data());
     CUDA_CHECK_KERNEL
 
-    bool is_polarizability = paramb.model_type == 2;
     find_descriptor<<<
       (nep_data[gpu].N5 - nep_data[gpu].N4 - 1) / 64 + 1,
       64,
@@ -2348,7 +2325,6 @@ void NEP3_MULTIGPU::compute(
       nep_data[gpu].position.data(),
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu,
       nep_data[gpu].position.data() + nep_temp_data.num_atoms_per_gpu * 2,
-      is_polarizability,
 #ifdef USE_TABLE
       nep_data[gpu].gn_radial.data(),
       nep_data[gpu].gn_angular.data(),
