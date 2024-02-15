@@ -27,16 +27,6 @@ Dump energy/force/virial with all loaded potentials at a given interval.
 #include <iostream>
 #include <vector>
 
-__device__ void warpReducePol(volatile float* sdata, int tid)
-{
-  sdata[tid] += sdata[tid + 32];
-  sdata[tid] += sdata[tid + 16];
-  sdata[tid] += sdata[tid + 8];
-  sdata[tid] += sdata[tid + 4];
-  sdata[tid] += sdata[tid + 2];
-  sdata[tid] += sdata[tid + 1];
-}
-
 static __global__ void sum_polarizability(
   const int N, const int number_of_patches, const double* g_virial_per_atom, double* g_pol)
 {

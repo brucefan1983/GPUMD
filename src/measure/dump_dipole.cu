@@ -34,8 +34,8 @@ static __global__ void sum_dipole(
   //<<<3, 1024>>>
   int tid = threadIdx.x;
   int bid = blockIdx.x;
-  __shared__ double s_f[1024];
-  double f = 0.0;
+  __shared__ double s_d[1024];
+  double d = 0.0;
 
   const unsigned int componentIdx = blockIdx.x * N;
 
@@ -43,31 +43,31 @@ static __global__ void sum_dipole(
   for (int patch = 0; patch < number_of_patches; ++patch) {
     int atomIdx = tid + patch * 1024;
     if (atomIdx < N)
-      f += g_virial_per_atom[componentIdx + atomIdx];
+      d += g_virial_per_atom[componentIdx + atomIdx];
   }
 
   // save the sum for this patch
-  s_f[tid] = f;
+  s_d[tid] = d;
   __syncthreads();
 
   // aggregate the patches in parallel
 #pragma unroll
   for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
     if (tid < offset) {
-      s_f[tid] += s_f[tid + offset];
+      s_d[tid] += s_d[tid + offset];
     }
     __syncthreads();
   }
   for (int offset = 32; offset > 0; offset >>= 1) {
     if (tid < offset) {
-      s_f[tid] += s_f[tid + offset];
+      s_d[tid] += s_d[tid + offset];
     }
     __syncwarp();
   }
 
   // save the final value
   if (tid == 0) {
-    g_dipole[bid] = s_f[0];
+    g_dipole[bid] = s_d[0];
   }
 }
 
