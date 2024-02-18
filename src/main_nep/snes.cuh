@@ -14,6 +14,8 @@
 */
 
 #pragma once
+#include "utilities/gpu_vector.cuh"
+#include <curand_kernel.h>
 #include <random>
 #include <vector>
 class Fitness;
@@ -30,6 +32,7 @@ protected:
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
+  GPU_Vector<curandState> curand_states;
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> population;
@@ -38,6 +41,10 @@ protected:
   std::vector<float> utility;
   std::vector<float> s;
   std::vector<int> type_of_variable;
+  GPU_Vector<float> gpu_population;
+  GPU_Vector<float> gpu_s;
+  GPU_Vector<float> gpu_sigma;
+  GPU_Vector<float> gpu_mu;
   void initialize_rng();
   void initialize_mu_and_sigma(Parameters& para);
   void calculate_utility();

@@ -31,22 +31,40 @@ https://doi.org/10.1145/2001576.2001692
 #include <cmath>
 #include <iostream>
 
+static __global__ void initialize_curand_states(curandState* state, int N, int seed)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    curand_init(seed, n, 0, &state[n]);
+  }
+}
+
 SNES::SNES(Parameters& para, Fitness* fitness_function)
 {
   maximum_generation = para.maximum_generation;
   number_of_variables = para.number_of_variables;
   population_size = para.population_size;
+  const int N =  population_size * number_of_variables;
   eta_sigma = (3.0f + std::log(number_of_variables * 1.0f)) /
               (5.0f * sqrt(number_of_variables * 1.0f)) / 2.0f;
   fitness.resize(population_size * 6 * (para.num_types + 1));
   index.resize(population_size * (para.num_types + 1));
-  population.resize(population_size * number_of_variables);
-  s.resize(population_size * number_of_variables);
+  population.resize(N);
+  s.resize(N);
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   utility.resize(population_size);
   type_of_variable.resize(number_of_variables, para.num_types);
   initialize_rng();
+
+  gpu_sigma.resize(number_of_variables);
+  gpu_mu.resize(number_of_variables);
+  gpu_s.resize(N);
+  gpu_population.resize(N);
+  curand_states.resize(N);
+  initialize_curand_states<<<(N - 1) / 128 + 1, 128>>>(curand_states.data(), N, 1234567);
+  CUDA_CHECK_KERNEL
+
   initialize_mu_and_sigma(para);
   calculate_utility();
   find_type_of_variable(para);
@@ -254,16 +272,42 @@ void SNES::compute(Parameters& para, Fitness* fitness_function)
   }
 }
 
+static __global__ void gpu_create_population(
+  const int N,
+  const int number_of_variables,
+  const float* g_mu,
+  const float* g_sigma,
+  curandState* g_state,
+  float* g_s,
+  float* g_population)
+{
+  int n = blockIdx.x * blockDim.x + threadIdx.x;
+  if (n < N) {
+    int v = n % number_of_variables;
+    curandState state = g_state[n];
+    float s = curand_normal(&state);
+    g_s[n] = s;
+    g_population[n] = g_sigma[v] * s + g_mu[v];
+    g_state[n] = state;
+  }
+}
+
 void SNES::create_population(Parameters& para)
 {
-  std::normal_distribution<float> r1(0, 1);
-  for (int p = 0; p < population_size; ++p) {
-    for (int v = 0; v < number_of_variables; ++v) {
-      int pv = p * number_of_variables + v;
-      s[pv] = r1(rng);
-      population[pv] = sigma[v] * s[pv] + mu[v];
-    }
-  }
+  gpu_sigma.copy_from_host(sigma.data());
+  gpu_mu.copy_from_host(mu.data());
+  const int N = population_size * number_of_variables;
+  gpu_create_population<<<(N - 1) / 128 + 1, 128>>>(
+    N, 
+    number_of_variables, 
+    gpu_mu.data(), 
+    gpu_sigma.data(), 
+    curand_states.data(), 
+    gpu_s.data(), 
+    gpu_population.data());
+  CUDA_CHECK_KERNEL
+  gpu_s.copy_to_host(s.data());
+  gpu_population.copy_to_host(population.data());
 }
 
 void SNES::regularize(Parameters& para)
