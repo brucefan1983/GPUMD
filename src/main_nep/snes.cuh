@@ -45,6 +45,9 @@ protected:
   std::vector<int> type_of_variable;
 
   GPU_Vector<curandState> curand_states;
+  GPU_Vector<int> gpu_type_of_variable;
+  GPU_Vector<int> gpu_index;
+  GPU_Vector<float> gpu_utility;
   GPU_Vector<float> gpu_population;
   GPU_Vector<float> gpu_s;
   GPU_Vector<float> gpu_sigma;

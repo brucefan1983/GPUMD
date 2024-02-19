@@ -60,6 +60,9 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   initialize_rng();
 
   cudaSetDevice(0); // normally use GPU-0
+  gpu_type_of_variable.resize(number_of_variables);
+  gpu_index.resize(population_size * (para.num_types + 1));
+  gpu_utility.resize(number_of_variables);
   gpu_sigma.resize(number_of_variables);
   gpu_mu.resize(number_of_variables);
   gpu_cost_L1reg.resize(population_size);
@@ -409,19 +412,52 @@ void SNES::sort_population(Parameters& para)
   }
 }
 
-void SNES::update_mu_and_sigma()
+static __global__ void gpu_update_mu_and_sigma(
+  const int population_size,
+  const int number_of_variables,
+  const float eta_sigma,
+  const int* g_type_of_variable,
+  const int* g_index,
+  const float* g_utility,
+  const float* g_s,
+  float* g_mu,
+  float* g_sigma)
 {
-  for (int v = 0; v < number_of_variables; ++v) {
-    int type = type_of_variable[v];
+  const int v = blockIdx.x * blockDim.x + threadIdx.x;
+  if (v < number_of_variables) {
+    const int type = g_type_of_variable[v];
     float gradient_mu = 0.0f, gradient_sigma = 0.0f;
     for (int p = 0; p < population_size; ++p) {
-      int pv = index[type * population_size + p] * number_of_variables + v;
-      gradient_mu += s[pv] * utility[p];
-      gradient_sigma += (s[pv] * s[pv] - 1.0f) * utility[p];
+      const int pv = g_index[type * population_size + p] * number_of_variables + v;
+      const float utility = g_utility[p];
+      const float s = g_s[pv];
+      gradient_mu += s * utility;
+      gradient_sigma += (s * s - 1.0f) * utility;
     }
-    mu[v] += sigma[v] * gradient_mu;
-    sigma[v] *= std::exp(eta_sigma * gradient_sigma);
+    const float sigma = g_sigma[v];
+    g_mu[v] += sigma * gradient_mu;
+    g_sigma[v] = sigma * exp(eta_sigma * gradient_sigma);
   }
+}
+
+void SNES::update_mu_and_sigma()
+{
+  gpu_type_of_variable.copy_from_host(type_of_variable.data());
+  gpu_index.copy_from_host(index.data());
+  gpu_utility.copy_from_host(utility.data());
+  gpu_update_mu_and_sigma<<<(number_of_variables - 1) / 128 + 1, 128>>>(
+    population_size,
+    number_of_variables,
+    eta_sigma,
+    gpu_type_of_variable.data(),
+    gpu_index.data(),
+    gpu_utility.data(),
+    gpu_s.data(),
+    gpu_mu.data(),
+    gpu_sigma.data());
+  CUDA_CHECK_KERNEL;
+  gpu_mu.copy_to_host(mu.data());
+  gpu_sigma.copy_to_host(sigma.data());
 }
 
 void SNES::output_mu_and_sigma(Parameters& para)
