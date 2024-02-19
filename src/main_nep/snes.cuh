@@ -39,7 +39,6 @@ protected:
   std::vector<float> mu;
   std::vector<float> sigma;
   std::vector<float> utility;
-  std::vector<float> s;
   std::vector<float> cost_L1reg;
   std::vector<float> cost_L2reg;
   std::vector<int> type_of_variable;

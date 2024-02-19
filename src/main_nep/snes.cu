@@ -50,7 +50,6 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   fitness.resize(population_size * 6 * (para.num_types + 1));
   index.resize(population_size * (para.num_types + 1));
   population.resize(N);
-  s.resize(N);
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
   cost_L1reg.resize(population_size);
@@ -315,7 +314,6 @@ void SNES::create_population(Parameters& para)
     gpu_s.data(), 
     gpu_population.data());
   CUDA_CHECK_KERNEL
-  gpu_s.copy_to_host(s.data());
   gpu_population.copy_to_host(population.data());
 }
 
