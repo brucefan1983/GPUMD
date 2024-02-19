@@ -53,12 +53,16 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   s.resize(N);
   mu.resize(number_of_variables);
   sigma.resize(number_of_variables);
+  cost_L1reg.resize(population_size);
+  cost_L2reg.resize(population_size);
   utility.resize(population_size);
   type_of_variable.resize(number_of_variables, para.num_types);
   initialize_rng();
 
   gpu_sigma.resize(number_of_variables);
   gpu_mu.resize(number_of_variables);
+  gpu_cost_L1reg.resize(population_size);
+  gpu_cost_L2reg.resize(population_size);
   gpu_s.resize(N);
   gpu_population.resize(N);
   curand_states.resize(N);
@@ -310,18 +314,58 @@ void SNES::create_population(Parameters& para)
   gpu_population.copy_to_host(population.data());
 }
 
+static __global__ void gpu_find_L1_L2(
+  const int number_of_variables,
+  const float* g_population,
+  float* gpu_cost_L1reg,
+  float* gpu_cost_L2reg)
+{
+  int bid = blockIdx.x;
+  int tid = threadIdx.x;
+  __shared__ float s_cost_L1reg[1024];
+  __shared__ float s_cost_L2reg[1024];
+  s_cost_L1reg[tid] = 0.0f;
+  s_cost_L2reg[tid] = 0.0f;
+  for (int v = tid; v < number_of_variables; v += blockDim.x) {
+    const float para = g_population[bid * number_of_variables + v];
+    s_cost_L1reg[tid] += abs(para);
+    s_cost_L2reg[tid] += para * para;
+  }
+  __syncthreads();
+
+  for (int offset = blockDim.x >> 1; offset > 32; offset >>= 1) {
+    if (tid < offset) {
+      s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
+      s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
+    }
+    __syncthreads();
+  }
+
+  for (int offset = 32; offset > 0; offset >>= 1) {
+    if (tid < offset) {
+      s_cost_L1reg[tid] += s_cost_L1reg[tid + offset];
+      s_cost_L2reg[tid] += s_cost_L2reg[tid + offset];
+    }
+    __syncwarp();
+  }
+
+  if (tid == 0) {
+    gpu_cost_L1reg[bid] = s_cost_L1reg[0];
+    gpu_cost_L2reg[bid] = s_cost_L2reg[0];
+  }
+}
+
 void SNES::regularize(Parameters& para)
 {
-  for (int p = 0; p < population_size; ++p) {
-    float cost_L1 = 0.0f, cost_L2 = 0.0f;
-    for (int v = 0; v < number_of_variables; ++v) {
-      int pv = p * number_of_variables + v;
-      cost_L1 += std::abs(population[pv]);
-      cost_L2 += population[pv] * population[pv];
-    }
+  gpu_find_L1_L2<<<population_size, 1024>>>(
+    number_of_variables, gpu_population.data(), gpu_cost_L1reg.data(), gpu_cost_L2reg.data());
+  CUDA_CHECK_KERNEL
+  gpu_cost_L1reg.copy_to_host(cost_L1reg.data());
+  gpu_cost_L2reg.copy_to_host(cost_L2reg.data());
 
-    cost_L1 *= para.lambda_1 / number_of_variables;
-    cost_L2 = para.lambda_2 * sqrt(cost_L2 / number_of_variables);
+  for (int p = 0; p < population_size; ++p) {
+    float cost_L1 = para.lambda_1 * cost_L1reg[p] / number_of_variables;
+    float cost_L2 = para.lambda_2 * sqrt(cost_L2reg[p] / number_of_variables);
 
     for (int t = 0; t <= para.num_types; ++t) {
       fitness[p + (6 * t + 0) * population_size] =

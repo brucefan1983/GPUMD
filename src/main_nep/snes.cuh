@@ -32,7 +32,7 @@ protected:
   int number_of_variables = 10;
   int population_size = 20;
   float eta_sigma = 0.1f;
-  GPU_Vector<curandState> curand_states;
+  
   std::vector<int> index;
   std::vector<float> fitness;
   std::vector<float> population;
@@ -40,11 +40,18 @@ protected:
   std::vector<float> sigma;
   std::vector<float> utility;
   std::vector<float> s;
+  std::vector<float> cost_L1reg;
+  std::vector<float> cost_L2reg;
   std::vector<int> type_of_variable;
+
+  GPU_Vector<curandState> curand_states;
   GPU_Vector<float> gpu_population;
   GPU_Vector<float> gpu_s;
   GPU_Vector<float> gpu_sigma;
   GPU_Vector<float> gpu_mu;
+  GPU_Vector<float> gpu_cost_L1reg;
+  GPU_Vector<float> gpu_cost_L2reg;
+
   void initialize_rng();
   void initialize_mu_and_sigma(Parameters& para);
   void calculate_utility();
