@@ -103,6 +103,9 @@ void SNES::initialize_mu_and_sigma(Parameters& para)
     }
     fclose(fid_restart);
   }
+  cudaSetDevice(0); // normally use GPU-0
+  gpu_mu.copy_from_host(mu.data());
+  gpu_sigma.copy_from_host(sigma.data());
 }
 
 void SNES::calculate_utility()
@@ -302,8 +305,6 @@ static __global__ void gpu_create_population(
 void SNES::create_population(Parameters& para)
 {
   cudaSetDevice(0); // normally use GPU-0
-  gpu_sigma.copy_from_host(sigma.data());
-  gpu_mu.copy_from_host(mu.data());
   const int N = population_size * number_of_variables;
   gpu_create_population<<<(N - 1) / 128 + 1, 128>>>(
     N, 
@@ -440,6 +441,7 @@ static __global__ void gpu_update_mu_and_sigma(
 
 void SNES::update_mu_and_sigma()
 {
+  cudaSetDevice(0); // normally use GPU-0
   gpu_type_of_variable.copy_from_host(type_of_variable.data());
   gpu_index.copy_from_host(index.data());
   gpu_utility.copy_from_host(utility.data());
@@ -454,12 +456,13 @@ void SNES::update_mu_and_sigma()
     gpu_mu.data(),
     gpu_sigma.data());
   CUDA_CHECK_KERNEL;
-  gpu_mu.copy_to_host(mu.data());
-  gpu_sigma.copy_to_host(sigma.data());
 }
 
 void SNES::output_mu_and_sigma(Parameters& para)
 {
+  cudaSetDevice(0); // normally use GPU-0
+  gpu_mu.copy_to_host(mu.data());
+  gpu_sigma.copy_to_host(sigma.data());
   FILE* fid_restart = my_fopen("nep.restart", "w");
   for (int n = 0; n < number_of_variables; ++n) {
     fprintf(fid_restart, "%15.7e %15.7e\n", mu[n], sigma[n]);
