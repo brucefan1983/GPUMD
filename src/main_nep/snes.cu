@@ -59,6 +59,7 @@ SNES::SNES(Parameters& para, Fitness* fitness_function)
   type_of_variable.resize(number_of_variables, para.num_types);
   initialize_rng();
 
+  cudaSetDevice(0); // normally use GPU-0
   gpu_sigma.resize(number_of_variables);
   gpu_mu.resize(number_of_variables);
   gpu_cost_L1reg.resize(population_size);
@@ -298,6 +299,7 @@ static __global__ void gpu_create_population(
 
 void SNES::create_population(Parameters& para)
 {
+  cudaSetDevice(0); // normally use GPU-0
   gpu_sigma.copy_from_host(sigma.data());
   gpu_mu.copy_from_host(mu.data());
   const int N = population_size * number_of_variables;
@@ -357,6 +359,7 @@ static __global__ void gpu_find_L1_L2(
 
 void SNES::regularize(Parameters& para)
 {
+  cudaSetDevice(0); // normally use GPU-0
   gpu_find_L1_L2<<<population_size, 1024>>>(
     number_of_variables, gpu_population.data(), gpu_cost_L1reg.data(), gpu_cost_L2reg.data());
   CUDA_CHECK_KERNEL
