@@ -80,13 +80,17 @@ https://www.freelists.org/list/gpumd
 | [1]                   | for any work that used `GPUMD`   |
 | [2-3]                 | virial and heat current formulation   |
 | [4]                   | in-out decomposition and related spectral decomposition  |
-| [5]                   | HNEMD and related spectral decomposition   |
+| [5,3]                 | HNEMD and related spectral decomposition   |
 | [6]                   | force constant potential (FCP) |
-| [7-9]                 | neuroevolution potential (NEP) |
+| [7]                   | neuroevolution potential (NEP) and specifically NEP1 |
+| [8]                   | NEP2 |
+| [9]                   | NEP3 |
 | [10]                  | NEP + ZBL |
 | [11]                  | NEP + D3 dispersion correction |
 | [12]                  | MSST integrator for shock wave simulation |
 | [13]                  | linear-scaling quantum transport |
+| [14]                  | NEP4 |
+| [15]                  | TNEP (tensoral NEP models of dipole and polarizability) |
 
 ## References
 
@@ -116,8 +120,8 @@ Phys. Rev. B **103**, 205421 (2021).
 Phys. Rev. B **108**, 054312 (2023).
 
 [11] Penghua Ying and Zheyong Fan,
-[Combining the D3 dispersion correction with the neuroevolution machine-learned potential](https://doi.org/10.48550/arXiv.2310.05279),
-arXiv:2310.05279 [cond-mat.mtrl-sci].
+[Combining the D3 dispersion correction with the neuroevolution machine-learned potential](https://doi.org/10.1088/1361-648X/ad1278),
+J. Phys.: Condens. Matter **36** 125901 (2024).
 
 [12] Jiuyang Shi, Zhixing Liang, Junjie Wang, Shuning Pan, Chi Ding, Yong Wang, Hui-Tian Wang, Dingyu Xing, and Jian Sun,
 [Double-Shock Compression Pathways from Diamond to BC8 Carbon](https://doi.org/10.1103/PhysRevLett.131.146101),
@@ -126,4 +130,12 @@ Phys. Rev. Lett. **131**, 146101 (2023).
 [13] Zheyong Fan, Yang Xiao, Yanzhou Wang, Penghua Ying, Shunda Chen, and Haikuan Dong,
 [Combining linear-scaling quantum transport and machine-learning molecular dynamics to study thermal and electronic transports in complex materials](https://doi.org/10.48550/arXiv.2310.15314),
 arXiv:2310.15314 [cond-mat.mtrl-sci].
+
+[14] Keke Song, Rui Zhao, Jiahui Liu, Yanzhou Wang, Eric Lindgren, Yong Wang, Shunda Chen, Ke Xu, Ting Liang, Penghua Ying, Nan Xu, Zhiqiang Zhao, Jiuyang Shi, Junjie Wang, Shuang Lyu, Zezhu Zeng, Shirong Liang, Haikuan Dong, Ligang Sun, Yue Chen, Zhuhua Zhang, Wanlin Guo, Ping Qian, Jian Sun, Paul Erhart, Tapio Ala-Nissila, Yanjing Su, Zheyong Fan,
+[General-purpose machine-learned potential for 16 elemental metals and their alloys](https://doi.org/10.48550/arXiv.2311.04732)
+arXiv:2311.04732 [cond-mat.mtrl-sci]
+
+[15] Nan Xu, Petter Rosander, Christian Schäfer, Eric Lindgren, Nicklas Österbacka, Mandi Fang, Wei Chen, Yi He, Zheyong Fan, Paul Erhart,
+[Tensorial properties via the neuroevolution potential framework: Fast simulation of infrared and Raman spectra](https://doi.org/10.48550/arXiv.2312.05233)
+arXiv:2312.05233 [cond-mat.mes-hall]
 
